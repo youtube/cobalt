@@ -29,8 +29,8 @@ void GetUserAgentInputMap(
 
 class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
  public:
-  UserAgentPlatformInfo();
-  ~UserAgentPlatformInfo() override{};
+  explicit UserAgentPlatformInfo(bool enable_skia_rasterizer = false);
+  ~UserAgentPlatformInfo() override {};
 
   // From: dom:UserAgentPlatformInfo
   //
@@ -90,6 +90,8 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
     return build_configuration_;
   }
 
+  bool enable_skia_rasterizer() { return enable_skia_rasterizer_; }
+
   // Other: Setters that sanitize the strings where needed.
   //
   void set_starboard_version(const std::string& starboard_version);
@@ -146,6 +148,8 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   std::string cobalt_version_;
   std::string cobalt_build_version_number_;
   std::string build_configuration_;
+
+  bool enable_skia_rasterizer_ = false;
 };
 
 }  // namespace browser

@@ -42,6 +42,8 @@ namespace {
 
 bool s_use_stub_image_decoder = false;
 
+bool enable_skia_rasterizer = false;
+
 void CacheMessage(std::string* result, const std::string& message) {
   DCHECK(result);
 
@@ -388,6 +390,16 @@ bool ImageDecoder::AllowDecodingToMultiPlane() {
   // This also applies to skia based "hardware" rasterizers as the rendering
   // of multi plane images in such cases are not optimized, but this may be
   // improved in future.
+<<<<<<< HEAD
+=======
+  std::string rasterizer_type =
+      configuration::Configuration::GetInstance()->CobaltRasterizerType();
+
+  if (enable_skia_rasterizer) {
+    rasterizer_type = configuration::Configuration::kSkiaRasterizer;
+  }
+
+>>>>>>> 3d783ce0d49 (Enable Skia through persistent setting (#3592))
   bool allow_image_decoding_to_multi_plane =
       std::string(configuration::Configuration::GetInstance()
                       ->CobaltRasterizerType()) == "direct-gles";
@@ -408,6 +420,8 @@ bool ImageDecoder::AllowDecodingToMultiPlane() {
 
   return allow_image_decoding_to_multi_plane;
 }
+// static
+void ImageDecoder::EnableSkiaRasterizer() { enable_skia_rasterizer = true; }
 
 }  // namespace image
 }  // namespace loader

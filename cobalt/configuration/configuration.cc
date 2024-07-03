@@ -25,6 +25,12 @@
 namespace cobalt {
 namespace configuration {
 
+const char Configuration::kSkiaRasterizer[] = "skia";
+const char Configuration::kGlesRasterizer[] = "direct-gles";
+const char Configuration::kEnableSkiaRasterizerPersistentSettingKey[] =
+    "SkiaEnabled";
+const char Configuration::kPersistentSettingsJson[] = "settings.json";
+
 Configuration* Configuration::configuration_ = nullptr;
 
 Configuration* Configuration::GetInstance() {

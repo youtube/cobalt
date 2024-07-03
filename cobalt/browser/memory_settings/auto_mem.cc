@@ -339,7 +339,8 @@ int64_t AutoMem::SumAllMemoryOfType(
 
 void AutoMem::ConstructSettings(const math::Size& ui_resolution,
                                 const AutoMemSettings& command_line_settings,
-                                const AutoMemSettings& config_api_settings) {
+                                const AutoMemSettings& config_api_settings,
+                                bool enable_skia_rasterizer) {
   TRACE_EVENT0("cobalt::browser", "AutoMem::ConstructSettings()");
   max_cpu_bytes_ = CreateCpuSetting(command_line_settings);
   max_gpu_bytes_ = CreateGpuSetting(command_line_settings);
@@ -410,8 +411,18 @@ void AutoMem::ConstructSettings(const math::Size& ui_resolution,
           CalculateOffscreenTargetCacheSizeInBytes(ui_resolution));
   offscreen_target_cache_size_in_bytes_->set_memory_scaling_function(
       MakeLinearMemoryScaler(0.25, 1.0));
+<<<<<<< HEAD
   if (std::string(configuration::Configuration::GetInstance()
                       ->CobaltRasterizerType()) == "direct-gles") {
+=======
+
+  std::string rasterizer_type =
+      configuration::Configuration::GetInstance()->CobaltRasterizerType();
+  if (enable_skia_rasterizer) {
+    rasterizer_type = configuration::Configuration::kSkiaRasterizer;
+  }
+  if (rasterizer_type == configuration::Configuration::kGlesRasterizer) {
+>>>>>>> 3d783ce0d49 (Enable Skia through persistent setting (#3592))
     offscreen_target_cache_size_in_bytes_->set_memory_type(MemorySetting::kGPU);
   } else {
     offscreen_target_cache_size_in_bytes_->set_memory_type(

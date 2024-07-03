@@ -249,8 +249,20 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 
   info.set_javascript_engine_version(
       script::GetJavaScriptEngineNameAndVersion());
+<<<<<<< HEAD
   info.set_rasterizer_type(
       renderer::GetDefaultRasterizerForPlatform().rasterizer_name);
+=======
+
+  std::string rasterizer_type_setting =
+      info.enable_skia_rasterizer()
+          ? configuration::Configuration::kSkiaRasterizer
+          : "";
+  std::string rasterizer_type =
+      renderer::GetDefaultRasterizerForPlatform(rasterizer_type_setting)
+          .rasterizer_name;
+  info.set_rasterizer_type(rasterizer_type);
+>>>>>>> 3d783ce0d49 (Enable Skia through persistent setting (#3592))
 
 // Evergreen info
 #if SB_IS(EVERGREEN)
@@ -444,7 +456,8 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 }
 }  // namespace
 
-UserAgentPlatformInfo::UserAgentPlatformInfo() {
+UserAgentPlatformInfo::UserAgentPlatformInfo(bool enable_skia_rasterizer)
+    : enable_skia_rasterizer_(enable_skia_rasterizer) {
   InitializeUserAgentPlatformInfoFields(*this);
 }
 

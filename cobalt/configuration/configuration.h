@@ -61,6 +61,14 @@ class Configuration {
   const char* CobaltFallbackSplashScreenTopics();
   bool CobaltCanStoreCompiledJavascript();
 
+<<<<<<< HEAD
+=======
+  static const char kSkiaRasterizer[];
+  static const char kGlesRasterizer[];
+  static const char kEnableSkiaRasterizerPersistentSettingKey[];
+  static const char kPersistentSettingsJson[];
+
+>>>>>>> 3d783ce0d49 (Enable Skia through persistent setting (#3592))
  private:
   Configuration();
 
