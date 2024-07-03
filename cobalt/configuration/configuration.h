@@ -63,6 +63,8 @@ class Configuration {
 
   static const char kSkiaRasterizer[];
   static const char kGlesRasterizer[];
+  static const char kEnableSkiaRasterizerPersistentSettingKey[];
+  static const char kPersistentSettingsJson[];
 
  private:
   Configuration();

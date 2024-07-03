@@ -106,6 +106,20 @@ source_set("browser_switches") {
   public_deps = [ "//starboard:starboard_headers_only" ]
 }
 
+source_set("browser_rasterizer_settings") {
+  has_pedantic_warnings = true
+  sources = [
+    "resolve_rasterizer_settings.cc",
+    "resolve_rasterizer_settings.h",
+  ]
+  deps = [
+    ":browser_switches",
+    "//cobalt/base",
+    "//cobalt/configuration",
+    "//cobalt/persistent_storage:persistent_settings",
+  ]
+}
+
 static_library("browser") {
   has_pedantic_warnings = true
 
@@ -152,6 +166,7 @@ static_library("browser") {
 
   deps = [
     ":bindings",
+    ":browser_rasterizer_settings",
     ":browser_switches",
     ":cpu_usage_tracker",
     ":generated_bindings",
@@ -268,6 +283,7 @@ target(gtest_target_type, "browser_test") {
 
   deps = [
     ":browser",
+    ":browser_rasterizer_settings",
     ":browser_switches",
     "//cobalt/base",
     "//cobalt/browser/memory_settings:browser_memory_settings",
