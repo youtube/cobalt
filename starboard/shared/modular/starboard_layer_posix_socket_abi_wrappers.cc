@@ -60,6 +60,7 @@ int PLATFORM_AF_ORDERED[] = {
     AF_INET,
     AF_INET6,
 };
+
 int musl_hints_to_platform_hints(const struct musl_addrinfo* hints,
                                  struct addrinfo* platform_hints) {
   int ai_left = hints->ai_flags;
@@ -70,24 +71,29 @@ int musl_hints_to_platform_hints(const struct musl_addrinfo* hints,
     }
   }
   for (int i = 0; i < sizeof(MUSL_SOCK_ORDERED) / sizeof(int); i++) {
-    if (hints->ai_socktype == MUSL_SOCK_ORDERED[i])
+    if (hints->ai_socktype == MUSL_SOCK_ORDERED[i]) {
       platform_hints->ai_socktype = PLATFORM_SOCK_ORDERED[i];
+    }
   }
   for (int i = 0; i < sizeof(MUSL_IPPROTO_ORDERED) / sizeof(int); i++) {
-    if (hints->ai_protocol == MUSL_IPPROTO_ORDERED[i])
+    if (hints->ai_protocol == MUSL_IPPROTO_ORDERED[i]) {
       platform_hints->ai_protocol = PLATFORM_IPPROTO_ORDERED[i];
+    }
   }
   for (int i = 0; i < sizeof(MUSL_AF_ORDERED) / sizeof(int); i++) {
-    if (hints->ai_family == MUSL_AF_ORDERED[i])
+    if (hints->ai_family == MUSL_AF_ORDERED[i]) {
       platform_hints->ai_family = PLATFORM_AF_ORDERED[i];
+    }
   }
   if (ai_left != 0 ||
       (hints->ai_socktype != 0 && platform_hints->ai_socktype == 0) ||
       (hints->ai_protocol != 0 && platform_hints->ai_protocol == 0) ||
-      (hints->ai_family != 0 && platform_hints->ai_family == 0))
+      (hints->ai_family != 0 && platform_hints->ai_family == 0)) {
     return -1;
+  }
   return 0;
 }
+
 int platform_hints_to_musl_hints(const struct addrinfo* hints,
                                  struct musl_addrinfo* musl_hints) {
   int ai_left = hints->ai_flags;
@@ -98,24 +104,29 @@ int platform_hints_to_musl_hints(const struct addrinfo* hints,
     }
   }
   for (int i = 0; i < sizeof(PLATFORM_SOCK_ORDERED) / sizeof(int); i++) {
-    if (hints->ai_socktype == PLATFORM_SOCK_ORDERED[i])
+    if (hints->ai_socktype == PLATFORM_SOCK_ORDERED[i]) {
       musl_hints->ai_socktype = MUSL_SOCK_ORDERED[i];
+    }
   }
   for (int i = 0; i < sizeof(PLATFORM_IPPROTO_ORDERED) / sizeof(int); i++) {
-    if (hints->ai_protocol == PLATFORM_IPPROTO_ORDERED[i])
+    if (hints->ai_protocol == PLATFORM_IPPROTO_ORDERED[i]) {
       musl_hints->ai_protocol = MUSL_IPPROTO_ORDERED[i];
+    }
   }
   for (int i = 0; i < sizeof(PLATFORM_AF_ORDERED) / sizeof(int); i++) {
-    if (hints->ai_family == PLATFORM_AF_ORDERED[i])
+    if (hints->ai_family == PLATFORM_AF_ORDERED[i]) {
       musl_hints->ai_family = MUSL_AF_ORDERED[i];
+    }
   }
   if (ai_left != 0 ||
       (hints->ai_socktype != 0 && musl_hints->ai_socktype == 0) ||
       (hints->ai_protocol != 0 && musl_hints->ai_protocol == 0) ||
-      (hints->ai_family != 0 && musl_hints->ai_family == 0))
+      (hints->ai_family != 0 && musl_hints->ai_family == 0)) {
     return -1;
+  }
   return 0;
 }
+
 }  // namespace
 
 SB_EXPORT int __abi_wrap_accept(int sockfd,
@@ -178,25 +189,20 @@ SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
                                      const char* service,
                                      const struct musl_addrinfo* hints,
                                      struct musl_addrinfo** res) {
-  if (res == nullptr)
+  if (res == nullptr) {
     return -1;
+  }
+
   // musl addrinfo definition might differ from platform definition.
   // So we need to do a manual conversion to avoid header mismatches.
   struct addrinfo new_hints = {0};
 
   if (hints != nullptr) {
-    SbLogRawFormatF("hints ai_family: %d\n", hints->ai_family);
-    SbLogRawFormatF("hints ai_socktype: %d\n", hints->ai_socktype);
-    SbLogRawFormatF("hints ai_flags: %d\n", hints->ai_flags);
-    SbLogRawFormatF("hints ai_protocol: %d\n", hints->ai_protocol);
     if (musl_hints_to_platform_hints(hints, &new_hints) == -1) {
-      SbLogRawFormatF("musl_hints_to_platform_hints failed");
+      SbLog(kSbLogPriorityWarning,
+            "Unable to convert musl-based addrinfo to platform struct.");
       return -1;
     }
-    SbLogRawFormatF("new_hints ai_family: %d\n", new_hints.ai_family);
-    SbLogRawFormatF("new_hints ai_socktype: %d\n", new_hints.ai_socktype);
-    SbLogRawFormatF("new_hints ai_flags: %d\n", new_hints.ai_flags);
-    SbLogRawFormatF("new_hints ai_protocol: %d\n", new_hints.ai_protocol);
   }
 
   addrinfo* native_res = nullptr;
@@ -214,39 +220,24 @@ SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
       addrinfo ai_copy = *ai;
       struct musl_addrinfo* musl_ai =
           (struct musl_addrinfo*)calloc(1, sizeof(struct musl_addrinfo));
-      SbLogRawFormatF("returned ai_flags: %d\n", ai_copy.ai_flags);
-      SbLogRawFormatF("returned ai_socktype: %d\n", ai_copy.ai_socktype);
-      SbLogRawFormatF("returned ai_protocol: %d\n", ai_copy.ai_protocol);
-      SbLogRawFormatF("returned ai_family: %d\n", ai_copy.ai_family);
       if (platform_hints_to_musl_hints(&ai_copy, musl_ai) == -1) {
-        SbLogRawFormatF("platform_hints_to_musl_hints failed");
+        SbLog(kSbLogPriorityWarning,
+              "Unable to convert platform addrinfo to musl-based struct.");
         free(musl_ai);
         return -1;
       }
-      SbLogRawFormatF("translated ai_flags: %d\n", musl_ai->ai_flags);
-      SbLogRawFormatF("translated ai_socktype: %d\n", musl_ai->ai_socktype);
-      SbLogRawFormatF("translated ai_protocol: %d\n", musl_ai->ai_protocol);
-      SbLogRawFormatF("translated ai_family: %d\n", musl_ai->ai_family);
       musl_ai->ai_addrlen = ai_copy.ai_addrlen;
       musl_ai->ai_addr =
           (struct musl_sockaddr*)calloc(1, sizeof(struct musl_sockaddr));
-      SbLogRawFormatF("ai_addrlen: %d\n", ai_copy.ai_addrlen);
       for (int i = 0; i < sizeof(PLATFORM_AF_ORDERED) / sizeof(int); i++) {
-        if (ai_copy.ai_addr->sa_family == PLATFORM_AF_ORDERED[i])
+        if (ai_copy.ai_addr->sa_family == PLATFORM_AF_ORDERED[i]) {
           musl_ai->ai_addr->sa_family = MUSL_AF_ORDERED[i];
+        }
       }
-      SbLogRawFormatF("ai_copy.ai_addr->sa_family: %d\n",
-                      ai_copy.ai_addr->sa_family);
-      SbLogRawFormatF("musl_ai->ai_addr->sa_family: %d\n",
-                      musl_ai->ai_addr->sa_family);
       if (ai_copy.ai_addr->sa_data != nullptr) {
         memcpy(musl_ai->ai_addr->sa_data, ai_copy.ai_addr->sa_data,
                sizeof(ai_copy.ai_addr->sa_data));
       }
-      SbLogRawFormatF("musl_ai->ai_addr->sa_data: %s\n",
-                      musl_ai->ai_addr->sa_data);
-
-      SbLogRaw(musl_ai->ai_addr->sa_data);
       if (ai_copy.ai_canonname) {
         size_t canonname_len = strlen(ai_copy.ai_canonname);
         musl_ai->ai_canonname =
