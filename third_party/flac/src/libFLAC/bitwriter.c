@@ -198,7 +198,7 @@ void FLAC__bitwriter_clear(FLAC__BitWriter *bw)
 	bw->words = bw->bits = 0;
 }
 
-#ifndef COBALT
+#ifndef STARBOARD
 void FLAC__bitwriter_dump(const FLAC__BitWriter *bw, FILE *out)
 {
 	uint32_t i, j;
@@ -222,7 +222,7 @@ void FLAC__bitwriter_dump(const FLAC__BitWriter *bw, FILE *out)
 		}
 	}
 }
-#endif  // COBALT
+#endif  // STARBOARD
 
 FLAC__bool FLAC__bitwriter_get_write_crc16(FLAC__BitWriter *bw, FLAC__uint16 *crc)
 {
