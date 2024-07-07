@@ -250,7 +250,7 @@ public abstract class CobaltActivity extends GameActivity {
 
   @Override
   protected void onStop() {
-
+    super.onStop();
   }
 
   @Override
