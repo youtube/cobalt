@@ -30,7 +30,7 @@ android {
         minSdk 30
         targetSdk 34
         versionCode 1
-        versionName "1.0"
+        versionName "0.1"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         externalNativeBuild {
@@ -72,6 +72,13 @@ android {
         cmake {
             path file('src/main/cpp/CMakeLists.txt')
             version '3.22.1'
+        }
+    }
+
+    applicationVariants.all { variant ->
+        variant.outputs.all { output ->
+            def newApkName = "chrobalt_${variant.name}-${variant.versionName}.apk"
+            outputFileName = newApkName
         }
     }
 }

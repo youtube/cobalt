@@ -38,7 +38,7 @@ jobs:
           unzip /tmp/gn.zip -d /usr/local/bin
           rm /tmp/gn.zip
       - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
+        uses: actions/checkout@v4
         timeout-minutes: 30
         with:
           fetch-depth: 0
@@ -49,21 +49,7 @@ jobs:
           python-version: '3.8'
       - name: Install Pip Packages
         run: pip install --require-hashes --no-deps -r ${GITHUB_WORKSPACE}/precommit_hooks/requirements.txt
-      - name: Download Resources
-        run: python ${GITHUB_WORKSPACE}/download_resources.py
       - name: Run pre-commit
         uses: ./.github/actions/pre_commit
         with:
           base_ref: ${{ github.event.pull_request.base.sha && github.event.pull_request.base.sha || github.event.before }}
-  check-bug-id:
-    name: Check Bug ID
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check Bug ID Present
-        # v2
-        uses: gsactions/commit-message-checker@16fa2d5de096ae0d35626443bcd24f1e756cafee
-        with:
-          accessToken: ${{ secrets.GITHUB_TOKEN }}
-          pattern: '(b\/\d+|^(Bug|Fixed|Issue): \d+$)'
-          flags: 'gm'
-          error: 'PR title or description should include at least one bug ID.'
