@@ -17,19 +17,24 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.annotation.SuppressLint;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.media.AudioManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.ViewGroup.LayoutParams;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.OnBackPressedDispatcher;
+import androidx.annotation.CallSuper;
 import com.google.androidgamesdk.GameActivity;
-import dev.cobalt.libraries.services.ClientLogInfoModule;
+import dev.cobalt.util.DisplayUtil;
+import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
 import dev.cobalt.libraries.services.FakeSoftMicModule;
 import dev.cobalt.util.Log;
 import java.io.IOException;
@@ -53,18 +58,6 @@ public abstract class CobaltActivity extends GameActivity {
   private long timeInNanoseconds;
 
   private WebView webView;
-
-  protected abstract StarboardBridge createStarboardBridge(String[] args, String startDeepLink);
-
-  protected StarboardBridge getStarboardBridge() {
-    return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
-  }
-
-  protected String[] getArgs() {
-    List<String> args = new ArrayList<>(Arrays.asList(DEBUG_ARGS));
-    return args.toArray(new String[0]);
-  }
-
 
   private String loadJavaScriptFromAsset(String filename) {
     try {
@@ -98,9 +91,12 @@ public abstract class CobaltActivity extends GameActivity {
     // Record the application start timestamp.
     timeInNanoseconds = System.nanoTime();
 
+    // To ensure that volume controls adjust the correct stream, make this call
+    // early in the app's lifecycle. This connects the volume controls to
+    // STREAM_MUSIC whenever the target activity or fragment is visible.
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
-    String startDeepLink = "";
+    String startDeepLink = getIntentUrlAsString(getIntent());
 
     // super.onCreate() will cause an APP_CMD_START in native code,
     // so make sure to initialize any state beforehand that might be touched by
@@ -113,6 +109,7 @@ public abstract class CobaltActivity extends GameActivity {
       ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
+      getStarboardBridge().handleDeepLink(startDeepLink);
       Log.i(TAG, "TODO..");
     }
 
@@ -227,4 +224,73 @@ public abstract class CobaltActivity extends GameActivity {
             | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN);
   }
 
+  protected String[] getArgs() {
+    List<String> args = new ArrayList<>(Arrays.asList(DEBUG_ARGS));
+    return args.toArray(new String[0]);
+  }
+
+  /**
+   * Instantiates the StarboardBridge. Apps not supporting sign-in should inject an instance of
+   * NoopUserAuthorizer. Apps may subclass StarboardBridge if they need to override anything.
+   */
+  protected abstract StarboardBridge createStarboardBridge(String[] args, String startDeepLink);
+
+  protected StarboardBridge getStarboardBridge() {
+    return ((StarboardBridge.HostApplication) getApplication()).getStarboardBridge();
+  }
+
+  @Override
+  protected void onStart() {
+    DisplayUtil.cacheDefaultDisplay(this);
+    DisplayUtil.addDisplayListener(this);
+
+    getStarboardBridge().onActivityStart(this);
+    super.onStart();
+  }
+
+  @Override
+  protected void onStop() {
+
+  }
+
+  @Override
+  protected void onDestroy() {
+    super.onDestroy();
+    getStarboardBridge().onActivityDestroy(this);
+  }
+
+
+  /** Returns true if the argument list contains an arg starting with argName. */
+  private static boolean hasArg(List<String> args, String argName) {
+    for (String arg : args) {
+      if (arg.startsWith(argName)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  @CallSuper
+  @Override
+  protected void onNewIntent(Intent intent) {
+    super.onNewIntent(intent);
+    getStarboardBridge().handleDeepLink(getIntentUrlAsString(intent));
+  }
+
+  /**
+   * Returns the URL from an Intent as a string. This may be overridden for additional processing.
+   */
+  protected String getIntentUrlAsString(Intent intent) {
+    Uri intentUri = intent.getData();
+    return (intentUri == null) ? null : intentUri.toString();
+  }
+
+  @Override
+  public void onLowMemory() {
+    super.onLowMemory();
+  }
+
+  public long getAppStartTimestamp() {
+    return timeInNanoseconds;
+  }
 }

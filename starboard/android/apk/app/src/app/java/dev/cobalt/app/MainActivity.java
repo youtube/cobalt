@@ -15,13 +15,30 @@
 package dev.cobalt.app;
 
 import dev.cobalt.coat.CobaltActivity;
+import dev.cobalt.coat.CobaltService;
 import dev.cobalt.coat.StarboardBridge;
+import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
 
+/**
+ * Main Activity for the "Cobalt on Android TV" app.
+ *
+ * <p>The real work is done in the abstract base class. This class is really just some factory
+ * methods to "inject" things that can be customized.
+ */
 public class MainActivity extends CobaltActivity {
 
   @Override
   protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
-    StarboardBridge bridge = new StarboardBridge(getApplicationContext());
+    StarboardBridge bridge =
+        new StarboardBridge(
+            getApplicationContext(),
+            args,
+            startDeepLink);
+
+    CobaltService.Factory clientLogInfoFactory =
+        new ClientLogInfoModule().provideFactory(getApplicationContext());
+    bridge.registerCobaltService(clientLogInfoFactory);
+
     return bridge;
   }
 }

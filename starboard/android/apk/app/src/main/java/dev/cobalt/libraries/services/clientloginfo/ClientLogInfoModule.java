@@ -1,10 +1,11 @@
-package dev.cobalt.libraries.services;
+package dev.cobalt.libraries.services.clientloginfo;
 
 import android.content.Context;
 import dev.cobalt.coat.CobaltService;
 
-/** Client info module */
+/** Module for the ClientLogInfo */
 public class ClientLogInfoModule {
+
   public CobaltService.Factory provideFactory(final Context context) {
     return new CobaltService.Factory() {
       @Override
@@ -18,5 +19,4 @@ public class ClientLogInfoModule {
       }
     };
   }
-
 }

@@ -16,31 +16,39 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
+import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.os.Build;
+import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.TimeZone;
 
 /**
  * Mock Starboard bridge
  */
 public class StarboardBridge {
+
   private static final String TAG = "CobaltService";
 
-  private final HashMap<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
-  private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
-  /**
-   * Host app interface
-   */
+  /** Interface to be implemented by the Android Application hosting the starboard app. */
   public interface HostApplication {
     void setStarboardBridge(StarboardBridge starboardBridge);
 
     StarboardBridge getStarboardBridge();
   }
 
+  private AdvertisingId advertisingId;
   private final VolumeStateReceiver volumeStateReceiver;
   private final CobaltSystemConfigChangeReceiver sysConfigChangeReceiver;
 
+  private final Context appContext;
+  private final String[] args;
+  private String startDeepLink;
   private final Runnable stopRequester =
       new Runnable() {
         @Override
@@ -49,13 +57,90 @@ public class StarboardBridge {
         }
       };
 
-  public StarboardBridge(Context appContext) {
+  private final HashMap<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
+  private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
+
+  private static final String AMATI_EXPERIENCE_FEATURE =
+      "com.google.android.feature.AMATI_EXPERIENCE";
+  private final boolean isAmatiDevice;
+  private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
+  private final long timeNanosecondsPerMicrosecond = 1000;
+
+  private boolean starboardApplicationReady = true;
+
+  public StarboardBridge(
+      Context appContext,
+      String[] args,
+      String startDeepLink) {
+
+    this.appContext = appContext;
+    this.args = args;
+    this.startDeepLink = startDeepLink;
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
+    this.advertisingId = new AdvertisingId(appContext);
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
+    this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
   }
+
+  protected void onActivityStart(Activity activity) {
+    sysConfigChangeReceiver.setForeground(true);
+  }
+
+  protected void onActivityStop(Activity activity) {
+    sysConfigChangeReceiver.setForeground(false);
+  }
+
+  protected void onActivityDestroy(Activity activity) {
+    Log.i(TAG, "Activity destroyed after shutdown; killing app.");
+    System.exit(0);
+  }
+
 
   public void requestStop(int errorLevel) {
       Log.i(TAG, "Request to stop");
+  }
+
+  /** Sends an event to the web app to navigate to the given URL */
+  public void handleDeepLink(String url) {
+    if (starboardApplicationReady) {
+      //nativeHandleDeepLink(url);
+    } else {
+      // If this deep link event is received before the starboard application
+      // is ready, it replaces the start deep link.
+      startDeepLink = url;
+    }
+  }
+
+  @Nullable
+  private static String getSystemProperty(String name) {
+    try {
+      @SuppressLint("PrivateApi")
+      Class<?> systemProperties = Class.forName("android.os.SystemProperties");
+      Method getMethod = systemProperties.getMethod("get", String.class);
+      return (String) getMethod.invoke(systemProperties, name);
+    } catch (Exception e) {
+      Log.e(TAG, "Failed to read system property " + name, e);
+      return null;
+    }
+  }
+
+  /** Returns string for kSbSystemPropertyUserAgentAuxField */
+  @SuppressWarnings("unused")
+  protected String getUserAgentAuxField() {
+    StringBuilder sb = new StringBuilder();
+
+    String packageName = appContext.getApplicationInfo().packageName;
+    sb.append(packageName);
+    sb.append('/');
+
+    try {
+      sb.append(appContext.getPackageManager().getPackageInfo(packageName, 0).versionName);
+    } catch (PackageManager.NameNotFoundException ex) {
+      // Should never happen
+      Log.e(TAG, "Can't find our own package", ex);
+    }
+
+    return sb.toString();
   }
 
 
@@ -64,12 +149,14 @@ public class StarboardBridge {
     cobaltServiceFactories.put(factory.getServiceName(), factory);
   }
 
+  @SuppressWarnings("unused")
   boolean hasCobaltService(String serviceName) {
     boolean weHaveIt =cobaltServiceFactories.get(serviceName) != null;
     Log.e(TAG, "From bridge, hasCobaltService:" + serviceName + " got? : " + weHaveIt);
     return weHaveIt;
   }
 
+  @SuppressWarnings("unused")
   CobaltService openCobaltService(long nativeService, String serviceName) {
     if (cobaltServices.get(serviceName) != null) {
       // Attempting to re-open an already open service fails.
@@ -89,6 +176,11 @@ public class StarboardBridge {
     return service;
   }
 
+  public CobaltService getOpenedCobaltService(String serviceName) {
+    return cobaltServices.get(serviceName);
+  }
+
+  @SuppressWarnings("unused")
   void closeCobaltService(String serviceName) {
     Log.i(TAG, String.format("Close service: %s", serviceName));
     cobaltServices.remove(serviceName);
@@ -106,5 +198,13 @@ public class StarboardBridge {
     service.receiveFromClient(data);
   }
 
+  @SuppressWarnings("unused")
+  protected boolean getIsAmatiDevice() {
+    return this.isAmatiDevice;
+  }
 
+  @SuppressWarnings("unused")
+  protected String getBuildFingerprint() {
+    return Build.FINGERPRINT;
+  }
 }

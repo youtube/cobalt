@@ -4,7 +4,6 @@
 #include <jni.h>
 
 #include "AndroidOut.h"
-#include "Renderer.h"
 
 #include <game-activity/GameActivity.cpp>     // NOLINT(build/include)
 #include <game-text-input/gametextinput.cpp>  // NOLINT(build/include)
@@ -26,7 +25,7 @@ void handle_cmd(android_app* pApp, int32_t cmd) {
       // all instances of userData if you change the class here as a
       // reinterpret_cast is dangerous this in the android_main function and the
       // APP_CMD_TERM_WINDOW handler case.
-      pApp->userData = new Renderer(pApp);
+      // pApp->userData = new Renderer(pApp);
       break;
     case APP_CMD_TERM_WINDOW:
       // The window is being destroyed. Use this to clean up your userData to
@@ -36,29 +35,14 @@ void handle_cmd(android_app* pApp, int32_t cmd) {
       // really quickly
       if (pApp->userData) {
         //
-        auto* pRenderer = reinterpret_cast<Renderer*>(pApp->userData);
+        // auto* pRenderer = reinterpret_cast<Renderer*>(pApp->userData);
         pApp->userData = nullptr;
-        delete pRenderer;
+        // delete pRenderer;
       }
       break;
     default:
       break;
   }
-}
-
-/*!
- * Enable the motion events you want to handle; not handled events are
- * passed back to OS for further processing. For this example case,
- * only pointer and joystick devices are enabled.
- *
- * @param motionEvent the newly arrived GameActivityMotionEvent.
- * @return true if the event is from a pointer or joystick device,
- *         false for all other input devices.
- */
-bool motion_event_filter_func(const GameActivityMotionEvent* motionEvent) {
-  auto sourceClass = motionEvent->source & AINPUT_SOURCE_CLASS_MASK;
-  return (sourceClass == AINPUT_SOURCE_CLASS_POINTER ||
-          sourceClass == AINPUT_SOURCE_CLASS_JOYSTICK);
 }
 
 /*!
@@ -70,11 +54,6 @@ void android_main(struct android_app* pApp) {
 
   // Register an event handler for Android events
   pApp->onAppCmd = handle_cmd;
-
-  // Set input event filters (set it to NULL if the app wants to process all
-  // inputs). Note that for key inputs, this example uses the default
-  // default_key_filter() implemented in android_native_app_glue.c.
-  android_app_set_motion_event_filter(pApp, motion_event_filter_func);
 
   // This sets up a typical game/event loop. It will run until the app is
   // destroyed.
@@ -94,13 +73,13 @@ void android_main(struct android_app* pApp) {
     if (pApp->userData) {
       // We know that our user data is a Renderer, so reinterpret cast it. If
       // you change your user data remember to change it here
-      auto* pRenderer = reinterpret_cast<Renderer*>(pApp->userData);
+      // auto* pRenderer = reinterpret_cast<Renderer*>(pApp->userData);
 
       // Process game input
-      pRenderer->handleInput();
+      // pRenderer->handleInput();
 
       // Render a frame
-      pRenderer->render();
+      // pRenderer->render();
     }
   } while (!pApp->destroyRequested);
 }

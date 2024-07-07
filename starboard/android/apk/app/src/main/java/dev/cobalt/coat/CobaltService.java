@@ -26,10 +26,10 @@ public abstract class CobaltService {
   /** Interface that returns an object that extends CobaltService. */
   public interface Factory {
     /** Create the service. */
-    CobaltService createCobaltService(long nativeService);
+    public CobaltService createCobaltService(long nativeService);
 
     /** Get the name of the service. */
-    String getServiceName();
+    public String getServiceName();
   }
 
   // Lifecycle
@@ -44,14 +44,19 @@ public abstract class CobaltService {
 
   // Service API
   /** Response to client from calls to receiveFromClient(). */
+  @SuppressWarnings("unused")
   public static class ResponseToClient {
     /** Indicate if the service was unable to receive data because it is in an invalid state. */
+    @SuppressWarnings("unused")
     public boolean invalidState;
 
     /** The synchronous response data from the service. */
+    @SuppressWarnings("unused")
     public byte[] data;
   }
 
+  /** Receive data from client of the service. */
+  @SuppressWarnings("unused")
   public abstract ResponseToClient receiveFromClient(byte[] data);
 
   /**
@@ -68,6 +73,8 @@ public abstract class CobaltService {
     }
   }
 
+  public abstract void close();
+
   /**
    * Send data from the service to the client.
    *
@@ -81,11 +88,10 @@ public abstract class CobaltService {
             TAG,
             "Platform service did not send data to client, because client already closed the"
                 + " platform service.");
+        return;
       }
 
     }
   }
-
-  public abstract void close();
 
 }

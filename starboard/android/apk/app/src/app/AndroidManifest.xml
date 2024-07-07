@@ -28,7 +28,6 @@
 
   <!-- https://iabtechlab.com/OTT-IFA, AdvertisingIdClient.Info.getId() -->
   <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
-
   <application
       android:name="dev.cobalt.app.CobaltApplication"
       android:allowBackup="true"
@@ -41,8 +40,18 @@
       android:theme="@style/Theme.Chrobalt"
       tools:targetApi="31">
     <activity
-        android:name="dev.cobalt.app.MainActivity"
-        android:exported="true">
+      android:name="dev.cobalt.app.MainActivity"
+      android:launchMode="singleTask"
+      android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|uiMode"
+      android:screenOrientation="sensorLandscape"
+      android:exported="true">
+      <meta-data android:name="cobalt.APP_URL" android:value="https://www.youtube.com/tv"/>
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+        <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+      </intent-filter>
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
 
@@ -53,6 +62,7 @@
           android:name="android.app.lib_name"
           android:value="coat" />
     </activity>
+
   </application>
 
 </manifest>
