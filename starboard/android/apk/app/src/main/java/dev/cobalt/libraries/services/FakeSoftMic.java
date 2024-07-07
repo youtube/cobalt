@@ -1,14 +1,14 @@
 package dev.cobalt.libraries.services;
 
+import static dev.cobalt.util.Log.TAG;
+import dev.cobalt.util.Log;
 
 import android.content.Context;
-import android.util.Log;
 import dev.cobalt.coat.CobaltService;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**  Fake SoftMic  */
 public class FakeSoftMic extends CobaltService {
-  public static final String TAG = "ClientLogInfo";
   protected static final String SERVICE_NAME = "com.google.youtube.tv.SoftMic";
 
   public FakeSoftMic(Context appContext, long nativeService) {

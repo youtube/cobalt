@@ -1,46 +1,5 @@
 console.log('dyn_script.js');
 
-function arrayBufferToBase64(buffer) {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-        binary += String.fromCharCode(bytes[i]);
-    }
-    return window.btoa(binary);  // Encode binary string to Base64
-}
-
-var ps = {
-    has: (name) => {
-        console.log('platformService.has(' + name + ')');
-        return Android.has_platform_service(name);
-    },
-    open: (name, callback) => {
-        console.log('platformService.open(' + name + ',' + JSON.stringify(callback) + ')');
-        Android.open_platform_service(name);
-        // this needs to return an object with send
-        return {
-            'name' : name,
-            'send' : function(data) {
-                const decoder = new TextDecoder('utf-8');
-                const text = decoder.decode(data);
-                console.log('1 platformService.send(' + text + ')');
-                var convert_to_b64 = arrayBufferToBase64(data);
-                console.log('sending as b64:'+ convert_to_b64);
-                Android.platform_service_send(name,convert_to_b64);
-            },
-            close: () => {
-                console.log('1 platformService.close()');
-                Android.close_platform_service(name);
-            },
-        }
-    },
-    send: (data) => {
-        console.log('platformService.send(' + JSON.stringify(data) + ')');
-    },
-    close: () => {
-        console.log('platformService.close()');
-    },
-}
 
 function debug_things() {
     console.log("debugging...")
@@ -78,12 +37,10 @@ function debug_things() {
 
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
     console.log('Dynscript Init while page load complete');
-    window.H5vccPlatformService = ps;
     debug_things();
 } else {
     console.log('Dynscript Init while waiting for DOMContentLoaded');
     document.addEventListener('DOMContentLoaded', function() {
-        window.H5vccPlatformService = ps;
         debug_things();
     });
 }

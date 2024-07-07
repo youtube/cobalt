@@ -108,5 +108,5 @@ public class NetworkStatus {
     }
   }
 
-  private native void nativeOnNetworkStatusChange(boolean online);
+  private void nativeOnNetworkStatusChange(boolean online) {};
 }

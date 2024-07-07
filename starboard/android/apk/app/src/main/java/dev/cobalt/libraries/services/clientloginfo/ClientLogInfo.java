@@ -1,5 +1,8 @@
 package dev.cobalt.libraries.services.clientloginfo;
 
+import static dev.cobalt.util.Log.TAG;
+import dev.cobalt.util.Log;
+
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import android.content.Context;
@@ -9,7 +12,6 @@ import dev.cobalt.util.Log;
 
 /** ClientLogInfo to report Android API support on android devices. */
 public class ClientLogInfo extends CobaltService {
-  public static final String TAG = "ClientLogInfo";
 
   // The application uses this identifier to open the service.
   protected static final String SERVICE_NAME = "dev.cobalt.coat.clientloginfo";

@@ -1,27 +1,88 @@
 console.log('static script');
 
-document.addEventListener('keydown', function(event) {
-    console.log('Static Captured at document: Key pressed:', event.key, 'KeyCode:', event.keyCode);
-}, true); // Set to true to listen during the capture phase
+const blackImageDataUrl = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/wcAAgMBAF+jA2MAAAAASUVORK5CYII=";
 
-var handleBackPress = () => {
-    console.log('Back press was called');
-
-    var event = new KeyboardEvent('keydown', {
-        key: 'Escape',
-        code: 'Escape',
-        keyCode: 27, // Note: keyCode is deprecated
-        which: 27, // Note: which is deprecated
-        bubbles: true, // Make the event bubble
-        cancelable: true // Make the event cancelable
-    });
-    document.dispatchEvent(event);
+// Hack to null out 'poster' attribute on all videos to prevent default "play" button from showing
+function set_black_video_poster_image() {
+    var videos = document.getElementsByTagName('video');
+    for (var i = 0; i < videos.length; i++) {
+        if (!videos[i].hasAttribute('poster')) {
+            videos[i].setAttribute('poster', blackImageDataUrl);
+        }
+    }
 }
 
+document.addEventListener('keydown', function (event) {
+    console.log('Static Captured at document: Key pressed:', event.key, 'KeyCode:', event.keyCode);
+    if (event.keyCode == 13) {
+        set_black_video_poster_image();
+    }
+}, true); // Set to true to listen during the capture phase
+
+var injectBackKeyPress = () => {
+    console.log('Back press was called');
+    // Other keycodes: 'Esccape': 27, 'Backspace': 8, Back: 166
+
+    var backEvent = new KeyboardEvent('keydown', {
+        key: 'Back',
+        code: 'Back',
+        keyCode: 166,
+        charCode: 166,
+        which: 166,
+        bubbles: true,
+        cancelable: true
+    });
+    document.dispatchEvent(backEvent);
+
+}
+
+function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary);  // Encode binary string to Base64
+}
+
+var platform_services = {
+    has: (name) => {
+        console.log('platformService.has(' + name + ')');
+        return Android.has_platform_service(name);
+    },
+    open: (name, callback) => {
+        console.log('platformService.open(' + name + ',' + JSON.stringify(callback) + ')');
+        Android.open_platform_service(name);
+        // this needs to return an object with send
+        return {
+            'name': name,
+            'send': function (data) {
+                const decoder = new TextDecoder('utf-8');
+                const text = decoder.decode(data);
+                console.log('1 platformService.send(' + text + ')');
+                var convert_to_b64 = arrayBufferToBase64(data);
+                console.log('sending as b64:' + convert_to_b64);
+                Android.platform_service_send(name, convert_to_b64);
+            },
+            close: () => {
+                console.log('1 platformService.close()');
+                Android.close_platform_service(name);
+            },
+        }
+    },
+    send: (data) => {
+        console.log('platformService.send(' + JSON.stringify(data) + ')');
+    },
+    close: () => {
+        console.log('platformService.close()');
+    },
+}
+
+
 var accountmanager = {
-    getAuthToken: () => {},
-    requestPairing: () => {},
-    requestUnpairing: () => {},
+    getAuthToken: () => { },
+    requestPairing: () => { },
+    requestUnpairing: () => { },
 };
 var h5 = {
     accessibility: {
@@ -36,24 +97,24 @@ var h5 = {
         numberOfChannels: 4,
         samplingFrequency: 100,
     },
-/*
-    crashLog: {
-        setString: (key, value) => {
-            console.log('crashLog.setString(' + key + ',' + value + ')');
+    /*
+        crashLog: {
+            setString: (key, value) => {
+                console.log('crashLog.setString(' + key + ',' + value + ')');
+            },
+            register: (name, description) => {
+                console.log('crashLog.register(' + name + ',' + description + ')');
+            },
+            setPersistentSettingWatchdogEnable: (enable) => {
+                console.log('crashLog.setPersistentSettingWatchdogEnable(' + enable + ')');
+            },
+            setPersistentSettingWatchdogCrash: (trigger) => {
+                console.log('crashLog.setPersistentSettingWatchdogCrash(' + trigger + ')');
+            }
         },
-        register: (name, description) => {
-            console.log('crashLog.register(' + name + ',' + description + ')');
-        },
-        setPersistentSettingWatchdogEnable: (enable) => {
-            console.log('crashLog.setPersistentSettingWatchdogEnable(' + enable + ')');
-        },
-        setPersistentSettingWatchdogCrash: (trigger) => {
-            console.log('crashLog.setPersistentSettingWatchdogCrash(' + trigger + ')');
-        }
-    },
- */
-     cVal: {
-        keys: () => { [ 'uh', 'oh'] },
+     */
+    cVal: {
+        keys: () => { ['uh', 'oh'] },
         getValue: (name) => {
             //console.log('cVal.getValue(' + name + ')');
         },
@@ -67,12 +128,12 @@ var h5 = {
         isEnabled: () => { console.log('metrics.isEnabled()'); return false; }
     },
     runtime: {
-/*
-        initialDeepLink: () => { console.log('runtime.initialDeepLink'); return "";},
-        onDeepLink: () => { console.log('runtime.onDeepLink'); },
-        onPause: () => { console.log('runtime.onPause'); },
-        onResume: () => { console.log('runtime.onResume'); }
-*/
+        /*
+                initialDeepLink: () => { console.log('runtime.initialDeepLink'); return "";},
+                onDeepLink: () => { console.log('runtime.onDeepLink'); },
+                onPause: () => { console.log('runtime.onPause'); },
+                onResume: () => { console.log('runtime.onResume'); }
+        */
     },
     settings: {
         set: (name, value) => {
@@ -82,35 +143,40 @@ var h5 = {
     storage: {
         enableCache: () => { console.log('storage.enableCache()'); },
         disableCache: () => { console.log('storage.disableCache()'); },
-        flush: () => { console.log('storage.flush()');},
+        flush: () => { console.log('storage.flush()'); },
         getCookiesEnabled: () => { console.log('storage.getCookiesEnabled()'); return true; },
-        setCookiesEnabled: (value) => { console.log('storage.setCookiesEnabled(' + value +')');},
+        setCookiesEnabled: (value) => { console.log('storage.setCookiesEnabled(' + value + ')'); },
         getQuota: () => { console.log('storage.getQuota()'); return {} },
-        setQuota: (dict) => { console.log('storage.setQuota(' + JSON.stringify(dict) + ')' ); }
+        setQuota: (dict) => { console.log('storage.setQuota(' + JSON.stringify(dict) + ')'); }
     },
     system: {
         areKeysReversed: true,
-        buildId: 'whee',
-        platform: 'bar',
+        buildId: 'bogus_build_id',
+        platform: 'bogus_platform',
         region: 'us',
-        version: 'yah',
-        advertisingId: 'nope',
-        limitAdTracking: false,
+        version: 'bogys_version',
+        advertisingId: Android.getAdvertisingId(),
+        limitAdTracking: Android.getLimitAdTracking(),
         userOnExitStrategy: 0, //could be 1 or 2
     }
 };
 
+function inject() {
+    window.h5vcc = h5;
+    window.H5vccPlatformService = platform_services;
+}
+
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
     console.log('Init while page load complete');
-    window.h5vcc = h5;
+    inject();
 } else {
     console.log('Init while waiting for DOMContentLoaded');
-    document.addEventListener('DOMContentLoaded', function() {
-       window.h5vcc = h5;
-       console.log('DOMContentLoaded');
-       console.log('Native call:' + Android.getSystemProperty('http.agent', 'defaultUserAgent'));
-       console.log('ro.product.brand:' + Android.getRestrictedSystemProperty('ro.product.brand', 'defaultBrand'));
-       console.log('ro.product.model:' + Android.getRestrictedSystemProperty('ro.product.model', 'defaultModel'));
-       console.log('ro.build.id:' + Android.getRestrictedSystemProperty('ro.build.id', 'defaultBuild'));
+    document.addEventListener('DOMContentLoaded', function () {
+        inject();
+        console.log('DOMContentLoaded');
+        console.log('Native call:' + Android.getSystemProperty('http.agent', 'defaultUserAgent'));
+        console.log('ro.product.brand:' + Android.getRestrictedSystemProperty('ro.product.brand', 'defaultBrand'));
+        console.log('ro.product.model:' + Android.getRestrictedSystemProperty('ro.product.model', 'defaultModel'));
+        console.log('ro.build.id:' + Android.getRestrictedSystemProperty('ro.build.id', 'defaultBuild'));
     });
 }

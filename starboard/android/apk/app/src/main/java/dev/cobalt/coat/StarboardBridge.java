@@ -33,8 +33,6 @@ import java.util.TimeZone;
  */
 public class StarboardBridge {
 
-  private static final String TAG = "CobaltService";
-
   /** Interface to be implemented by the Android Application hosting the starboard app. */
   public interface HostApplication {
     void setStarboardBridge(StarboardBridge starboardBridge);
@@ -42,6 +40,7 @@ public class StarboardBridge {
     StarboardBridge getStarboardBridge();
   }
 
+  private NetworkStatus networkStatus;
   private AdvertisingId advertisingId;
   private final VolumeStateReceiver volumeStateReceiver;
   private final CobaltSystemConfigChangeReceiver sysConfigChangeReceiver;
@@ -77,6 +76,7 @@ public class StarboardBridge {
     this.args = args;
     this.startDeepLink = startDeepLink;
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
+    this.networkStatus = new NetworkStatus(appContext);
     this.advertisingId = new AdvertisingId(appContext);
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
@@ -123,6 +123,22 @@ public class StarboardBridge {
       return null;
     }
   }
+
+  @SuppressWarnings("unused")
+  boolean isNetworkConnected() {
+    return networkStatus.isConnected();
+  }
+
+    /** Returns string for kSbSystemPropertyAdvertisingId */
+    protected String getAdvertisingId() {
+      return this.advertisingId.getId();
+    }
+
+    /** Returns boolean for kSbSystemPropertyLimitAdTracking */
+    protected boolean getLimitAdTracking() {
+      return this.advertisingId.isLimitAdTrackingEnabled();
+    }
+
 
   /** Returns string for kSbSystemPropertyUserAgentAuxField */
   @SuppressWarnings("unused")

@@ -1,12 +1,12 @@
 package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
+import dev.cobalt.util.Log;
 
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.util.Log;
 
 /** VolumeStateReceiver monitors Android media broadcast to capture volume button events. */
 final class VolumeStateReceiver extends BroadcastReceiver {
@@ -41,7 +41,7 @@ final class VolumeStateReceiver extends BroadcastReceiver {
     }
   }
 
-  private native void nativeVolumeChanged(int volumeDelta);
+  private void nativeVolumeChanged(int volumeDelta) {}
 
-  private native void nativeMuteChanged();
+  private void nativeMuteChanged() {}
 }

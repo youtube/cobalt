@@ -77,7 +77,7 @@ public abstract class CobaltActivity extends GameActivity {
   public boolean onKeyDown(int keyCode, KeyEvent event) {
     if (keyCode == KeyEvent.KEYCODE_BACK) {
       Log.d(TAG, "Special key was pressed: " + keyCode);
-      webView.evaluateJavascript("handleBackPress()", null);
+      webView.evaluateJavascript("injectBackKeyPress()", null);
     } else {
       Log.d(TAG, "Key was pressed: " + keyCode);
     }
@@ -157,6 +157,9 @@ public abstract class CobaltActivity extends GameActivity {
 
     // Enable DOM storage
     webSettings.setDomStorageEnabled(true);
+
+    // Disable transition icon
+    webSettings.setMediaPlaybackRequiresUserGesture(false);
 
     webView.addJavascriptInterface(new WebAppInterface(this, getStarboardBridge()), "Android");
 

@@ -1,5 +1,7 @@
 package dev.cobalt.coat;
 
+import static dev.cobalt.util.Log.TAG;
+import dev.cobalt.util.Log;
 
 import java.io.IOException;
 import java.io.BufferedReader;
@@ -57,5 +59,16 @@ public class WebAppInterface {
         } catch (IOException e) {
             return defaultValue;
         }
+    }
+
+    @JavascriptInterface
+    public String getAdvertisingId() {
+        Log.i(TAG, "getAdvertisingId:" + bridge.getAdvertisingId());
+        return bridge.getAdvertisingId();
+    }
+
+    @JavascriptInterface
+    public boolean getLimitAdTracking() {
+        return bridge.getLimitAdTracking();
     }
 }
