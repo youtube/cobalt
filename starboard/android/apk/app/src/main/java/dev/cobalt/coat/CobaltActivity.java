@@ -18,17 +18,13 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
-import android.graphics.Bitmap;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.WindowManager;
-import android.view.ViewGroup.LayoutParams;
-import android.webkit.WebSettings;
 import android.webkit.WebView;
-import android.webkit.WebViewClient;
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.OnBackPressedDispatcher;
 import androidx.annotation.CallSuper;
@@ -37,9 +33,6 @@ import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
 import dev.cobalt.libraries.services.FakeSoftMicModule;
 import dev.cobalt.util.Log;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -58,20 +51,6 @@ public abstract class CobaltActivity extends GameActivity {
   private long timeInNanoseconds;
 
   private WebView webView;
-
-  private String loadJavaScriptFromAsset(String filename) {
-    try {
-      InputStream is = getAssets().open(filename);
-      int size = is.available();
-      byte[] buffer = new byte[size];
-      is.read(buffer);
-      is.close();
-      return new String(buffer, StandardCharsets.UTF_8);
-    } catch (IOException ex) {
-      Log.e(TAG, "asset " + filename + " failed to load");
-      return String.format("console.error('asset %s failed to load');", filename);
-    }
-  }
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
@@ -110,7 +89,6 @@ public abstract class CobaltActivity extends GameActivity {
     } else {
       // Warm start - Pass the deep link to the running Starboard app.
       getStarboardBridge().handleDeepLink(startDeepLink);
-      Log.i(TAG, "TODO..");
     }
 
     CobaltService.Factory clientLogInfoFactory = new ClientLogInfoModule().provideFactory(
@@ -134,75 +112,9 @@ public abstract class CobaltActivity extends GameActivity {
     });
 
     // Allow debugger
-    WebView.setWebContentsDebuggingEnabled(true);
+    ChrobaltWebView.setWebContentsDebuggingEnabled(true);
     // Create a WebView instance
-    webView = new WebView(this);
-
-    // Enable JavaScript (if needed)
-    WebSettings webSettings = webView.getSettings();
-    webSettings.setJavaScriptEnabled(true);
-
-    // Set a custom user-agent
-    String customUserAgent = "Mozilla/5.0 (Linux armeabi-v7a; Android 12) "
-        + "Cobalt/26.lts.99.42-gold (unlike Gecko) v8/8.8.278.8-jit gles "
-        + "Starboard/15, Google_ATV_sabrina_2020/STTE.231215.005 "
-        + "(google, Chromecast) com.google.android.youtube.tv/6.30.300";
-    webSettings.setUserAgentString(customUserAgent);
-
-    // Set mixed content mode to allow all content to be loaded, regardless of the security origin
-    webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-
-    // Set cache mode to allow the WebView to use the default cache behavior
-    webSettings.setCacheMode(WebSettings.LOAD_DEFAULT);
-
-    // Enable DOM storage
-    webSettings.setDomStorageEnabled(true);
-
-    // Disable transition icon
-    webSettings.setMediaPlaybackRequiresUserGesture(false);
-
-    webView.addJavascriptInterface(new WebAppInterface(this, getStarboardBridge()), "Android");
-
-    // Set a WebViewClient to handle page navigation
-    webView.setWebViewClient(new WebViewClient() {
-      @Override
-      public void onPageStarted(WebView view, String url, Bitmap favicon) {
-        Log.i(TAG, "Page started loading: " + url);
-        super.onPageStarted(view, url, favicon);
-
-        String jsCode = loadJavaScriptFromAsset("injected_script.js");
-
-        Helpers.loadJavaScriptFromURL("http://192.168.5.188:8000/dyn_script.js")
-            .thenAccept(jsCode2 -> {
-              runOnUiThread(() -> {
-                // Perform UI operations here
-                Log.i(TAG, "Got JS2, injecting");
-                view.evaluateJavascript(jsCode2, null);
-              });
-            }).exceptionally(e -> {
-              // Handle any exceptions here
-              Log.e(TAG, "Error message: " + e.getMessage(), e);
-              return null;
-            });
-
-        view.evaluateJavascript(jsCode, null);
-        Log.i(TAG, "JavaScript injected");
-      }
-
-      @Override
-      public void onPageFinished(WebView view, String url) {
-        Log.i(TAG, "Page finished loading: " + url);
-        super.onPageFinished(view, url);
-
-        View currentFocus = getCurrentFocus();
-        if (currentFocus != null) {
-          Log.d(TAG, "Current focus: " + currentFocus.getId());
-        } else {
-          Log.d(TAG, "No view currently has focus");
-        }
-      }
-    });
-
+    webView = new ChrobaltWebView(this,getStarboardBridge());
     // Load Kabuki
     webView.loadUrl("https://youtube.com/tv?debugjs=1");
 

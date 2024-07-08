@@ -1,5 +1,9 @@
 package dev.cobalt.coat;
 
+import static dev.cobalt.util.Log.TAG;
+
+
+import android.content.Context;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
@@ -7,10 +11,29 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.concurrent.CompletableFuture;
+import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+import dev.cobalt.util.Log;
+
 
 /** Helper utilities */
 public class Helpers {
 
+    public static String loadJavaScriptFromAsset(Context context, String filename) {
+        try {
+          InputStream is = context.getAssets().open(filename);
+          int size = is.available();
+          byte[] buffer = new byte[size];
+          is.read(buffer);
+          is.close();
+          return new String(buffer, StandardCharsets.UTF_8);
+        } catch (IOException ex) {
+          Log.e(TAG, "asset " + filename + " failed to load");
+          return String.format("console.error('asset %s failed to load');", filename);
+        }
+      }
+
+    // Only for development
     public static CompletableFuture<String> loadJavaScriptFromURL(final String urlString) {
         CompletableFuture<String> future = new CompletableFuture<>();
 
