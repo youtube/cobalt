@@ -3,8 +3,6 @@ console.log('dyn_script.js');
 
 function debug_things() {
     console.log("debugging...")
-    console.log(typeof(MediaSource))
-
     const originalIsTypeSupported = MediaSource.isTypeSupported;
     MediaSource.isTypeSupported = function(type) {
         var result = originalIsTypeSupported.call(this, type);

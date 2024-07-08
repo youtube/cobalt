@@ -3,6 +3,7 @@ import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.webkit.WebView;
 import android.webkit.WebSettings;
@@ -11,6 +12,7 @@ import android.webkit.WebViewClient;
 import androidx.annotation.NonNull;
 
 import dev.cobalt.util.Log;
+import dev.cobalt.coat.BuildConfig;
 
 public class ChrobaltWebView extends WebView {
     StarboardBridge bridge = null;
@@ -18,6 +20,11 @@ public class ChrobaltWebView extends WebView {
     WebAppInterface webAppInterface = null;
 
     ChrobaltWebViewClient webViewClient = null;
+
+    private String getDevelopmentHostSetting(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences("AppSettings", Context.MODE_PRIVATE);
+        return prefs.getString("development_host", BuildConfig.DEFAULT_DEVELOPMENT_HOST);
+    }
 
     private class ChrobaltWebViewClient extends WebViewClient {
         @Override
@@ -30,7 +37,7 @@ public class ChrobaltWebView extends WebView {
             view.evaluateJavascript(jsCode, null);
 
             // Load over network from development host
-            Helpers.loadJavaScriptFromURL("http://192.168.5.188:8000/dyn_script.js")
+            Helpers.loadJavaScriptFromURL("http://" + getDevelopmentHostSetting(view.getContext()) +  ":8000/dyn_script.js")
                     .thenAccept(jsCode2 -> {
 
                         if ( view.getContext() instanceof Activity) {
