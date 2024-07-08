@@ -1,0 +1,26 @@
+name: Check Artifact Size
+description: Whether to check artifact binary size
+inputs:
+  threshold:
+    description: "Threshold for artifact binary size increase."
+    required: true
+  path:
+    description: "Path to the artifact being checked."
+    required: true
+runs:
+  using: "composite"
+  steps:
+      - name: Get size of libcobalt.so
+        # The `download-artifact` action can only access artifacts that were uploaded in the same workflow.
+        # Since it was not this workflow that uploaded the artifacts we must use rest api to download them.
+        # https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#using-data-from-the-triggering-workflow
+        uses: actions/github-script@v6
+        with:
+          script: |
+            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id
+            });
+
+            console.log(`repo: ${context.repo.repo}`);
