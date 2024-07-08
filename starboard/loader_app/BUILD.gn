@@ -74,7 +74,11 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
     install_content = true
     sources = [ "$root_out_dir/native_target/crashpad_handler" ]
     outputs = [ "$root_out_dir/libcrashpad_handler.so" ]
+<<<<<<< HEAD
     deps = [ "//third_party/crashpad/handler:crashpad_handler(//starboard/android/arm/toolchain:native_target)" ]
+=======
+    deps = [ "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)" ]
+>>>>>>> dfd6db9df6c (Use toolchain defined in starboard path (#3763))
   }
 }
 
