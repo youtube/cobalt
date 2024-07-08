@@ -23,9 +23,9 @@ API polyfills are constructed via JavaScript injected into the loaded app window
 
 [x] Make host/development server address configurable
 
-[ ] Get platform service response plumbed though
+[x] Get user-agent fields correctly populated
 
-[ ] Get user-agent fields correctly populated
+[ ] Get platform service response plumbed though
 
 [ ] Startup argument forwarding and parsing via `--esa args`
 
