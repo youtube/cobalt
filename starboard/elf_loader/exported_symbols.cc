@@ -14,6 +14,7 @@
 
 #include "starboard/elf_loader/exported_symbols.h"
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
@@ -25,7 +26,9 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#if SB_API_VERSION < 16
 #include "starboard/accessibility.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/audio_sink.h"
 #if SB_API_VERSION < 16
 #include "starboard/byte_swap.h"
@@ -52,6 +55,7 @@
 #include "starboard/mutex.h"
 #include "starboard/player.h"
 #if SB_API_VERSION >= 16
+#include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.h"
@@ -99,9 +103,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbHasMediaWebmVp9Support);
   REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
   REGISTER_SYMBOL(kSbMallocAlignment);
-#if SB_API_VERSION >= 14
   REGISTER_SYMBOL(kSbMaxSystemPathCacheDirectorySize);
-#endif  // SB_API_VERSION >= 14
   REGISTER_SYMBOL(kSbMaxThreadLocalKeys);
   REGISTER_SYMBOL(kSbMaxThreadNameLength);
   REGISTER_SYMBOL(kSbMaxThreads);
@@ -119,11 +121,14 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION < 16
 #if SB_API_VERSION >= 16
   REGISTER_SYMBOL(kSbCanMapExecutableMemory);
-#endif
+  REGISTER_SYMBOL(kHasPartialAudioFramesSupport);
+#endif  // SB_API_VERSION >= 16
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbAccessibilityGetCaptionSettings);
   REGISTER_SYMBOL(SbAccessibilityGetDisplaySettings);
   REGISTER_SYMBOL(SbAccessibilityGetTextToSpeechSettings);
   REGISTER_SYMBOL(SbAccessibilitySetCaptionsEnabled);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbAudioSinkCreate);
   REGISTER_SYMBOL(SbAudioSinkDestroy);
   REGISTER_SYMBOL(SbAudioSinkGetMaxChannels);
@@ -177,7 +182,9 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileFlush);
   REGISTER_SYMBOL(SbFileGetInfo);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileGetPathInfo);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileModeStringToFlags);
   REGISTER_SYMBOL(SbFileOpen);
   REGISTER_SYMBOL(SbFileRead);
@@ -193,7 +200,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbLog);
   REGISTER_SYMBOL(SbLogFlush);
   REGISTER_SYMBOL(SbLogFormat);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbLogIsTty);
+#endif
   REGISTER_SYMBOL(SbLogRaw);
   REGISTER_SYMBOL(SbLogRawDumpStack);
   REGISTER_SYMBOL(SbLogRawFormat);
@@ -201,9 +210,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetAudioBufferBudget);
   REGISTER_SYMBOL(SbMediaGetAudioConfiguration);
   REGISTER_SYMBOL(SbMediaGetAudioOutputCount);
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMediaGetBufferAlignment);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMediaGetBufferAllocationUnit);
   REGISTER_SYMBOL(SbMediaGetBufferGarbageCollectionDurationThreshold);
   REGISTER_SYMBOL(SbMediaGetBufferPadding);
@@ -328,6 +335,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSocketWaiterWait);
   REGISTER_SYMBOL(SbSocketWaiterWaitTimed);
   REGISTER_SYMBOL(SbSocketWaiterWakeUp);
+#if SB_API_VERSION >= 16
+  REGISTER_SYMBOL(SbPosixSocketWaiterAdd);
+  REGISTER_SYMBOL(SbPosixSocketWaiterRemove);
+#endif  // SB_API_VERSION >= 16
   REGISTER_SYMBOL(SbSpeechSynthesisCancel);
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
   REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
@@ -347,9 +358,6 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
   REGISTER_SYMBOL(SbSystemClearLastError);
-#if SB_API_VERSION < 14
-  REGISTER_SYMBOL(SbSystemGetConnectionType);
-#endif
 #if SB_API_VERSION < 15
   REGISTER_SYMBOL(SbSystemGetDeviceType);
 #endif
@@ -456,11 +464,11 @@ ExportedSymbols::ExportedSymbols() {
 
 #if SB_API_VERSION >= 16
   // POSIX APIs
-  REGISTER_SYMBOL(__errno_location);
   REGISTER_SYMBOL(accept);
   REGISTER_SYMBOL(bind);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
+  REGISTER_SYMBOL(closedir);
   REGISTER_SYMBOL(connect);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
@@ -480,8 +488,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
   REGISTER_SYMBOL(open);
+  REGISTER_SYMBOL(opendir);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(read);
+  REGISTER_SYMBOL(readdir_r);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(send);
@@ -508,6 +518,12 @@ ExportedSymbols::ExportedSymbols() {
   // TODO: b/316603042 - Detect via NPLB and only add the wrapper if needed.
   map_["clock_gettime"] =
       reinterpret_cast<const void*>(&__abi_wrap_clock_gettime);
+  if (errno_translation()) {
+    map_["__errno_location"] =
+        reinterpret_cast<const void*>(__abi_wrap___errno_location);
+  } else {
+    map_["__errno_location"] = reinterpret_cast<const void*>(__errno_location);
+  }
   map_["fstat"] = reinterpret_cast<const void*>(&__abi_wrap_fstat);
   map_["gettimeofday"] =
       reinterpret_cast<const void*>(&__abi_wrap_gettimeofday);
@@ -588,6 +604,8 @@ ExportedSymbols::ExportedSymbols() {
   map_["bind"] = reinterpret_cast<const void*>(&__abi_wrap_bind);
   map_["connect"] = reinterpret_cast<const void*>(&__abi_wrap_connect);
   map_["getaddrinfo"] = reinterpret_cast<const void*>(&__abi_wrap_getaddrinfo);
+  map_["freeaddrinfo"] =
+      reinterpret_cast<const void*>(&__abi_wrap_freeaddrinfo);
   map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
   map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
 

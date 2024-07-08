@@ -86,6 +86,8 @@ void PersistentSettings::Validate() {
     return;
   }
   validated_initial_settings_ = true;
+  // Report a dummy value as "dirty", so that commit actually writes
+  pref_store_->ReportValueChanged("", 0);
   pref_store_->CommitPendingWrite();
 }
 

@@ -52,6 +52,9 @@ if (cobalt_pending_clean_up) {
         "-Wno-unknown-attributes",
         "-Wno-unused-command-line-argument",
         "-Wno-unused-function",
+
+        # musl getaddrinfo implementation null-check static array on Linux
+        "-Wno-tautological-pointer-compare",
       ]
 
       if (!using_old_compiler) {
@@ -290,7 +293,7 @@ config("default_cpp_standard") {
   if (current_toolchain == default_toolchain) {
     if (sb_is_modular || is_android) {
       configs = [ ":modular_cpp17_config" ]
-    } else if (is_host_win) {
+    } else if (host_os == "win") {
       # These flags apply to non-modular windows platforms which includes win32, xb1.
       configs = [ ":win_cpp17_config" ]
     } else if (is_linux) {
@@ -309,7 +312,7 @@ config("cpp20_supported_config") {
   if (current_toolchain == default_toolchain) {
     if (sb_is_modular || is_android) {
       configs = [ ":modular_cpp20_config" ]
-    } else if (is_host_win) {
+    } else if (host_os == "win") {
       # These flags apply to non-modular windows platforms which includes win32, xb1.
       configs = [ ":win_cpp20_config" ]
     } else if (is_linux) {

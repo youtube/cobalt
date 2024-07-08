@@ -14,11 +14,10 @@
 
 #include "absl/base/internal/sysinfo.h"
 
-#include <pthread.h>
-
 #include "absl/base/attributes.h"
 
 #include "starboard/system.h"
+#include "starboard/thread.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -38,7 +37,7 @@ int NumCPUs() {
 
 // Return a per-thread small integer ID from pthread's thread-specific data.
 pid_t GetTID() {
-  return reinterpret_cast<uintptr_t>(reinterpret_cast<void*>(pthread_self()));
+  return SbThreadGetId();
 }
 
 // GetCachedTID() caches the thread ID in thread-local storage (which is a

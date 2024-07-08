@@ -58,11 +58,6 @@ typedef enum SbSystemPathId {
   // Path to a directory where temporary files can be written.
   kSbSystemPathTempDirectory,
 
-#if SB_API_VERSION < 14
-  // Path to a directory where test results can be written.
-  kSbSystemPathTestOutputDirectory,
-#endif  // #if SB_API_VERSION < 14
-
   // Full path to the executable file.
   kSbSystemPathExecutableFile,
 
@@ -121,7 +116,6 @@ typedef enum SbSystemPropertyId {
   // A field that, if available, is appended to the user agent
   kSbSystemPropertyUserAgentAuxField,
 
-#if SB_API_VERSION >= 14
   // Advertising ID or IFA, typically a 128-bit UUID
   // Please see https://iabtechlab.com/OTT-IFA for details.
   // Corresponds to 'ifa' field. Note: `ifa_type` field is not provided.
@@ -130,7 +124,6 @@ typedef enum SbSystemPropertyId {
   // Limit advertising tracking, treated as boolean. Set to nonzero to indicate
   // a true value. Corresponds to 'lmt' field.
   kSbSystemPropertyLimitAdTracking,
-#endif
 
 #if SB_API_VERSION >= 15
   // Type of the device, e.g. such as "TV", "STB", "OTT"
@@ -166,29 +159,13 @@ typedef enum SbSystemDeviceType {
   // An Android TV Device.
   kSbSystemDeviceTypeAndroidTV,
 
-#if SB_API_VERSION >= 14
   // A wall video projector.
   kSbSystemDeviceTypeVideoProjector,
-#endif  // SB_API_VERSION >= 14
 
   // Unknown device.
   kSbSystemDeviceTypeUnknown,
 } SbSystemDeviceType;
 #endif  // SB_API_VERSION < 15
-
-#if SB_API_VERSION < 14
-// Enumeration of network connection types.
-typedef enum SbSystemConnectionType {
-  // The system is on a wired connection.
-  kSbSystemConnectionTypeWired,
-
-  // The system is on a wireless connection.
-  kSbSystemConnectionTypeWireless,
-
-  // The system connection type is unknown.
-  kSbSystemConnectionTypeUnknown,
-} SbSystemConnectionType;
-#endif  // SB_API_VERSION < 14
 
 // Runtime capabilities are boolean properties of a platform that can't be
 // determined at compile-time. They may vary from device to device, but they
@@ -311,11 +288,6 @@ SB_EXPORT int64_t SbSystemGetUsedGPUMemory();
 // Returns the type of the device.
 SB_EXPORT SbSystemDeviceType SbSystemGetDeviceType();
 #endif
-
-#if SB_API_VERSION < 14
-// Returns the device's current network connection type.
-SB_EXPORT SbSystemConnectionType SbSystemGetConnectionType();
-#endif  // SB_API_VERSION < 14
 
 // Returns if the device is disconnected from network. "Disconnected" is chosen
 // over connected because disconnection can be determined with more certainty

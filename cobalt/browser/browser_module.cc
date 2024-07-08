@@ -38,6 +38,7 @@
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/task_runner_util.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/browser/cpu_usage_tracker.h"
 #include "cobalt/browser/on_screen_keyboard_extension_bridge.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/switches.h"
@@ -60,6 +61,7 @@
 #include "cobalt/web/csp_delegate_factory.h"
 #include "cobalt/web/navigator_ua_data.h"
 #include "starboard/atomic.h"
+#include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/system.h"
@@ -69,56 +71,8 @@ using cobalt::cssom::ViewportSize;
 
 namespace cobalt {
 
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-namespace timestamp {
-// This is a temporary workaround.
-extern SbAtomic64 g_last_render_timestamp;
-}  // namespace timestamp
-
-namespace {
-struct NonTrivialGlobalVariables {
-  NonTrivialGlobalVariables();
-
-  SbAtomic64* last_render_timestamp;
-};
-
-NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
-  last_render_timestamp = &cobalt::timestamp::g_last_render_timestamp;
-  SbAtomicNoBarrier_Exchange64(
-      last_render_timestamp,
-      static_cast<SbAtomic64>(
-        base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds();
-}
-
-base::LazyInstance<NonTrivialGlobalVariables>::DestructorAtExit
-    non_trivial_global_variables = LAZY_INSTANCE_INITIALIZER;
-}  // namespace
-#endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
-
 namespace browser {
 namespace {
-
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-// Timeout for last render.
-const int kLastRenderTimeoutSeconds = 15;
-
-// Polling interval for timeout_polling_thread_.
-const int kRenderTimeOutPollingDelaySeconds = 1;
-
-// Minimum number of continuous times the timeout expirations. This is used to
-// prevent unintended behavior in situations such as when returning from
-// suspended state. Note that the timeout response trigger will be delayed
-// after the actual timeout expiration by this value times the polling delay.
-const int kMinimumContinuousRenderTimeoutExpirations = 2;
-
-// Name for timeout_polling_thread_.
-const char* kTimeoutPollingThreadName = "TimeoutPolling";
-
-// This specifies the percentage of calls to OnRenderTimeout() that result in a
-// call to OnError().
-const int kRenderTimeoutErrorPercentage = 99;
-
-#endif
 
 // This constant defines the maximum rate at which the layout engine will
 // refresh over time.  Since there is little benefit in performing a layout
@@ -233,7 +187,8 @@ BrowserModule::BrowserModule(const GURL& url,
 #if SB_IS(EVERGREEN)
                              updater::UpdaterModule* updater_module,
 #endif
-                             const Options& options)
+                             const Options& options,
+                             bool enable_skia_rasterizer)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
@@ -292,17 +247,14 @@ BrowserModule::BrowserModule(const GURL& url,
 #endif  // defined(ENABLE_DEBUGGER)
       has_resumed_(base::WaitableEvent::ResetPolicy::MANUAL,
                    base::WaitableEvent::InitialState::NOT_SIGNALED),
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-      timeout_polling_thread_(kTimeoutPollingThreadName),
-      render_timeout_count_(0),
-#endif
       on_error_retry_count_(0),
       waiting_for_error_retry_(false),
       application_state_(initial_application_state),
       main_web_module_generation_(0),
       next_timeline_id_(1),
       current_splash_screen_timeline_id_(-1),
-      current_main_web_module_timeline_id_(-1) {
+      current_main_web_module_timeline_id_(-1),
+      enable_skia_rasterizer_(enable_skia_rasterizer) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
 
   if (options.enable_on_screen_keyboard) {
@@ -322,18 +274,10 @@ BrowserModule::BrowserModule(const GURL& url,
   // Apply platform memory setting adjustments and defaults.
   ApplyAutoMemSettings();
 
-  platform_info_.reset(new browser::UserAgentPlatformInfo());
+  platform_info_.reset(
+      new browser::UserAgentPlatformInfo(enable_skia_rasterizer_));
   service_worker_registry_.reset(new ServiceWorkerRegistry(
       &web_settings_, network_module, platform_info_.get()));
-
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-  timeout_polling_thread_.Start();
-  timeout_polling_thread_.task_runner()->PostDelayedTask(
-      FROM_HERE,
-      base::Bind(&BrowserModule::OnPollForRenderTimeout, base::Unretained(this),
-                 url),
-      base::TimeDelta::FromSeconds(kRenderTimeOutPollingDelaySeconds));
-#endif
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
 
@@ -372,6 +316,8 @@ BrowserModule::BrowserModule(const GURL& url,
       "h5vcc"));
   options_.web_module_options.injected_global_object_attributes["h5vcc"] =
       base::Bind(&BrowserModule::CreateH5vccCallback, base::Unretained(this));
+
+  CpuUsageTracker::GetInstance()->Initialize(options_.persistent_settings);
 
   if (command_line->HasSwitch(switches::kDisableTimerResolutionLimit)) {
     options_.web_module_options.limit_performance_timer_resolution = false;
@@ -460,15 +406,16 @@ BrowserModule::~BrowserModule() {
 
   // Transition into the suspended state from whichever state we happen to
   // currently be in, to prepare for shutdown.
+  int64_t now = starboard::CurrentMonotonicTime();
   switch (application_state_) {
     case base::kApplicationStateStarted:
-      Blur(0);
+      Blur(now);
       FALLTHROUGH;
     case base::kApplicationStateBlurred:
-      Conceal(0);
+      Conceal(now);
       FALLTHROUGH;
     case base::kApplicationStateConcealed:
-      Freeze(0);
+      Freeze(now);
       break;
     case base::kApplicationStateStopped:
       NOTREACHED() << "BrowserModule does not support the stopped state.";
@@ -1683,47 +1630,6 @@ void BrowserModule::OnWebModuleRendererSubmissionRasterized() {
   }
 }
 
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
-  int64_t last_render_timestamp = static_cast<int64_t>(SbAtomicAcquire_Load64(
-      non_trivial_global_variables.Get().last_render_timestamp));
-  base::Time last_render = base::Time::FromDeltaSinceWindowsEpoch(
-      base::TimeDelta::FromMicroseconds(last_render_timestamp));
-  bool timeout_expiration = base::Time::Now() - base::TimeDelta::FromSeconds(
-                                                    kLastRenderTimeoutSeconds) >
-                            last_render;
-  bool timeout_response_trigger = false;
-  if (timeout_expiration) {
-    // The timeout only triggers if the timeout expiration has been detected
-    // without interruption at least kMinimumContinuousRenderTimeoutExpirations
-    // times.
-    ++render_timeout_count_;
-    timeout_response_trigger =
-        render_timeout_count_ >= kMinimumContinuousRenderTimeoutExpirations;
-  } else {
-    render_timeout_count_ = 0;
-  }
-
-  if (timeout_response_trigger) {
-    SbAtomicNoBarrier_Exchange64(
-        non_trivial_global_variables.Get().last_render_timestamp,
-        static_cast<SbAtomic64>(kSbInt64Max));
-    if (SbSystemGetRandomUInt64() <
-        kRenderTimeoutErrorPercentage * (UINT64_MAX / 100)) {
-      OnError(url, std::string("Rendering Timeout"));
-    } else {
-      DLOG(INFO) << "Received OnRenderTimeout, ignoring by random chance.";
-    }
-  } else {
-    timeout_polling_thread_.task_runner()->PostDelayedTask(
-        FROM_HERE,
-        base::Bind(&BrowserModule::OnPollForRenderTimeout,
-                   base::Unretained(this), url),
-        base::TimeDelta::FromSeconds(kRenderTimeOutPollingDelaySeconds));
-  }
-}
-#endif
-
 render_tree::ResourceProvider* BrowserModule::GetResourceProvider() {
   if (application_state_ == base::kApplicationStateConcealed) {
     DCHECK(resource_provider_stub_);
@@ -1809,7 +1715,10 @@ void BrowserModule::InstantiateRendererModule() {
 void BrowserModule::DestroyRendererModule() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(renderer_module_);
-
+  base::task_runner_util::PostBlockingTask(
+      web_module_->task_runner(), FROM_HERE,
+      base::Bind(&WebModule::WaitForItall,
+                 base::Unretained(web_module_.get())));
   screen_shot_writer_.reset();
   renderer_module_.reset();
 }
@@ -2065,9 +1974,9 @@ ViewportSize BrowserModule::GetViewportSize() {
 
 void BrowserModule::ApplyAutoMemSettings() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::ApplyAutoMemSettings()");
-  auto_mem_.ConstructSettings(GetViewportSize().width_height(),
-                              options_.command_line_auto_mem_settings,
-                              options_.config_api_auto_mem_settings);
+  auto_mem_.ConstructSettings(
+      GetViewportSize().width_height(), options_.command_line_auto_mem_settings,
+      options_.config_api_auto_mem_settings, enable_skia_rasterizer_);
 
   // Web Module options.
   options_.web_module_options.encoded_image_cache_capacity =

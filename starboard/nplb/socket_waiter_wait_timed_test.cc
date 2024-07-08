@@ -121,7 +121,7 @@ TEST_P(PairSbSocketWaiterWaitTimedTest, SunnyDay) {
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
 
-TEST_F(SbSocketWaiterWaitTimedTest, RainyDayInvalidWaiter) {
+TEST(SbSocketWaiterWaitTimedTest, RainyDayInvalidWaiter) {
   TimedWaitShouldNotBlock(kSbSocketWaiterInvalid, kSocketTimeout);
 }
 

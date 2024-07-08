@@ -73,9 +73,9 @@ group("default") {
       deps += [
         # TODO(b/294247612): Remove unnecessary dependencies.
         "//chrome/updater",
-        "//chrome/updater:crash_sandbox",
-        "//chrome/updater:noop_sandbox",
-        "//chrome/updater:one_app_only_sandbox",
+        "//chrome/updater:crash_sandbox_install",
+        "//chrome/updater:noop_sandbox_install",
+        "//chrome/updater:one_app_only_sandbox_install",
         "//components/client_update_protocol",
         "//components/crx_file",
         "//components/prefs",

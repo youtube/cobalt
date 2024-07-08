@@ -605,14 +605,12 @@ const char* GetMediaAudioCodecName(SbMediaAudioCodec codec) {
       return "opus";
     case kSbMediaAudioCodecVorbis:
       return "vorbis";
-#if SB_API_VERSION >= 14
     case kSbMediaAudioCodecMp3:
       return "mp3";
     case kSbMediaAudioCodecFlac:
       return "flac";
     case kSbMediaAudioCodecPcm:
       return "pcm";
-#endif  // SB_API_VERSION >= 14
 #if SB_API_VERSION >= 15
     case kSbMediaAudioCodecIamf:
       return "iamf";
@@ -804,13 +802,8 @@ const char* GetMediaMatrixIdName(SbMediaMatrixId matrix_id) {
       return "Bt2020ConstantLuminance";
     case kSbMediaMatrixIdYDzDx:
       return "YDzDx";
-#if SB_API_VERSION >= 14
     case kSbMediaMatrixIdInvalid:
       return "Invalid";
-#else   // SB_API_VERSION >= 14
-    case kSbMediaMatrixIdUnknown:
-      return "Unknown";
-#endif  // SB_API_VERSION >= 14
   }
   SB_NOTREACHED();
   return "Invalid";

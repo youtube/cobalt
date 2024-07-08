@@ -25,13 +25,13 @@
 
 #include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/shared/win32/decrypting_decoder.h"
+#include "starboard/thread.h"
 
 namespace starboard {
 namespace shared {
@@ -132,7 +132,7 @@ class VideoDecoder
   ComPtr<ID3D11VideoProcessorEnumerator> video_enumerator_;
   ComPtr<ID3D11VideoProcessor> video_processor_;
 
-  scoped_ptr<DecryptingDecoder> decoder_;
+  std::unique_ptr<DecryptingDecoder> decoder_;
   RECT video_area_;
 
   pthread_t decoder_thread_ = 0;

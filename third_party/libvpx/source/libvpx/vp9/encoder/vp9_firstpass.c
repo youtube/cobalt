@@ -435,6 +435,8 @@ static void first_pass_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
   const BLOCK_SIZE bsize = xd->mi[0]->sb_type;
   vp9_variance_fn_ptr_t v_fn_ptr = cpi->fn_ptr[bsize];
   const int new_mv_mode_penalty = NEW_MV_MODE_PENALTY;
+  MV center_mv_full = ref_mv_full;
+  unsigned int start_mv_sad;
 
   int step_param = 3;
   int further_steps = (MAX_MVSEARCH_STEPS - 1) - step_param;
@@ -455,9 +457,15 @@ static void first_pass_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
   }
 #endif  // CONFIG_VP9_HIGHBITDEPTH
 
+  // Calculate SAD of the start mv
+  clamp_mv(&ref_mv_full, x->mv_limits.col_min, x->mv_limits.col_max,
+           x->mv_limits.row_min, x->mv_limits.row_max);
+  start_mv_sad = get_start_mv_sad(x, &ref_mv_full, &center_mv_full,
+                                  cpi->fn_ptr[bsize].sdf, x->sadperbit16);
+
   // Center the initial step/diamond search on best mv.
-  tmp_err = cpi->diamond_search_sad(x, &cpi->ss_cfg, &ref_mv_full, &tmp_mv,
-                                    step_param, x->sadperbit16, &num00,
+  tmp_err = cpi->diamond_search_sad(x, &cpi->ss_cfg, &ref_mv_full, start_mv_sad,
+                                    &tmp_mv, step_param, x->sadperbit16, &num00,
                                     &v_fn_ptr, ref_mv);
   if (tmp_err < INT_MAX)
     tmp_err = vp9_get_mvpred_var(x, &tmp_mv, ref_mv, &v_fn_ptr, 1);
@@ -478,9 +486,9 @@ static void first_pass_motion_search(VP9_COMP *cpi, MACROBLOCK *x,
     if (num00) {
       --num00;
     } else {
-      tmp_err = cpi->diamond_search_sad(x, &cpi->ss_cfg, &ref_mv_full, &tmp_mv,
-                                        step_param + n, x->sadperbit16, &num00,
-                                        &v_fn_ptr, ref_mv);
+      tmp_err = cpi->diamond_search_sad(
+          x, &cpi->ss_cfg, &ref_mv_full, start_mv_sad, &tmp_mv, step_param + n,
+          x->sadperbit16, &num00, &v_fn_ptr, ref_mv);
       if (tmp_err < INT_MAX)
         tmp_err = vp9_get_mvpred_var(x, &tmp_mv, ref_mv, &v_fn_ptr, 1);
       if (tmp_err < INT_MAX - new_mv_mode_penalty)
@@ -2113,11 +2121,10 @@ static int64_t calculate_total_gf_group_bits(VP9_COMP *cpi,
   }
 
   // Clamp odd edge cases.
-  total_group_bits = (total_group_bits < 0)
-                         ? 0
-                         : (total_group_bits > twopass->kf_group_bits)
-                               ? twopass->kf_group_bits
-                               : total_group_bits;
+  total_group_bits = (total_group_bits < 0) ? 0
+                     : (total_group_bits > twopass->kf_group_bits)
+                         ? twopass->kf_group_bits
+                         : total_group_bits;
 
   // Clip based on user supplied data rate variability limit.
   if (total_group_bits > (int64_t)max_bits * gop_frames)
@@ -2714,6 +2721,9 @@ static void define_gf_group(VP9_COMP *cpi, int gf_start_show_idx) {
   // frame in which case it will already have been done.
   if (is_key_frame == 0) {
     vp9_zero(twopass->gf_group);
+    ++rc->gop_global_index;
+  } else {
+    rc->gop_global_index = 0;
   }
 
   vpx_clear_system_state();
@@ -2751,6 +2761,37 @@ static void define_gf_group(VP9_COMP *cpi, int gf_start_show_idx) {
     }
   }
 #endif
+  // If the external rate control model for GOP is used, the gop decisions
+  // are overwritten. Specifically, |gop_coding_frames| and |use_alt_ref|
+  // will be overwritten.
+  if (cpi->ext_ratectrl.ready &&
+      (cpi->ext_ratectrl.funcs.rc_type & VPX_RC_GOP) != 0) {
+    vpx_codec_err_t codec_status;
+    vpx_rc_gop_decision_t gop_decision;
+    vpx_rc_gop_info_t gop_info;
+    gop_info.min_gf_interval = rc->min_gf_interval;
+    gop_info.max_gf_interval = rc->max_gf_interval;
+    gop_info.active_min_gf_interval = active_gf_interval.min;
+    gop_info.active_max_gf_interval = active_gf_interval.max;
+    gop_info.allow_alt_ref = allow_alt_ref;
+    gop_info.is_key_frame = is_key_frame;
+    gop_info.last_gop_use_alt_ref = rc->source_alt_ref_active;
+    gop_info.frames_since_key = rc->frames_since_key;
+    gop_info.frames_to_key = rc->frames_to_key;
+    gop_info.lag_in_frames = cpi->oxcf.lag_in_frames;
+    gop_info.show_index = cm->current_video_frame;
+    gop_info.coding_index = cm->current_frame_coding_index;
+    gop_info.gop_global_index = rc->gop_global_index;
+
+    codec_status = vp9_extrc_get_gop_decision(&cpi->ext_ratectrl, &gop_info,
+                                              &gop_decision);
+    if (codec_status != VPX_CODEC_OK) {
+      vpx_internal_error(&cm->error, codec_status,
+                         "vp9_extrc_get_gop_decision() failed");
+    }
+    gop_coding_frames = gop_decision.gop_coding_frames;
+    use_alt_ref = gop_decision.use_alt_ref;
+  }
 
   // Was the group length constrained by the requirement for a new KF?
   rc->constrained_gf_group = (gop_coding_frames >= rc->frames_to_key) ? 1 : 0;
@@ -3460,6 +3501,15 @@ void vp9_rc_get_second_pass_params(VP9_COMP *cpi) {
   GF_GROUP *const gf_group = &twopass->gf_group;
   FIRSTPASS_STATS this_frame;
   const int show_idx = cm->current_video_frame;
+
+  if (cpi->common.current_frame_coding_index == 0) {
+    const vpx_codec_err_t codec_status = vp9_extrc_send_firstpass_stats(
+        &cpi->ext_ratectrl, &cpi->twopass.first_pass_info);
+    if (codec_status != VPX_CODEC_OK) {
+      vpx_internal_error(&cm->error, codec_status,
+                         "vp9_extrc_send_firstpass_stats() failed");
+    }
+  }
 
   if (!twopass->stats_in) return;
 

@@ -481,7 +481,6 @@ void Window::SetApplicationState(base::ApplicationState state,
                                  int64_t timestamp) {
   html_element_context()->application_lifecycle_state()->SetApplicationState(
       state);
-  if (timestamp == 0) return;
   performance_->SetApplicationState(state, timestamp);
   window_timers_.SetApplicationState(state);
 }

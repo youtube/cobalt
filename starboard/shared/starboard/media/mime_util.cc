@@ -96,7 +96,6 @@ bool IsSupportedAudioCodec(const ParsedMimeInfo& mime_info) {
         return false;
       }
       break;
-#if SB_API_VERSION >= 14
     case kSbMediaAudioCodecMp3:
       if (mime_type.subtype() != "mpeg" && mime_type.subtype() != "mp3") {
         return false;
@@ -112,7 +111,6 @@ bool IsSupportedAudioCodec(const ParsedMimeInfo& mime_info) {
         return false;
       }
       break;
-#endif  // SB_API_VERSION >= 14
 #if SB_API_VERSION >= 15
     case kSbMediaAudioCodecIamf:
       if (mime_type.subtype() != "mp4") {

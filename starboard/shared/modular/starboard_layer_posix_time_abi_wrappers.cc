@@ -14,34 +14,15 @@
 
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 
-#include "starboard/log.h"
-
 int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
                              struct musl_timespec* mts) {
   if (!mts) {
     return -1;
   }
-  clockid_t clock_id;  // The type from platform toolchain.
+
+  // The type from platform toolchain.
   // Map the MUSL clock_id constants to platform constants.
-  switch (musl_clock_id) {
-    case MUSL_CLOCK_REALTIME:
-      clock_id = CLOCK_REALTIME;
-      break;
-    case MUSL_CLOCK_MONOTONIC:
-      clock_id = CLOCK_MONOTONIC;
-      break;
-    case MUSL_CLOCK_PROCESS_CPUTIME_ID:
-      clock_id = CLOCK_PROCESS_CPUTIME_ID;
-      break;
-    case MUSL_CLOCK_THREAD_CPUTIME_ID:
-      clock_id = CLOCK_THREAD_CPUTIME_ID;
-      break;
-    default:
-      clock_id = CLOCK_REALTIME;
-      SbLog(kSbLogPriorityError,
-            "Unsuppored clock_id used in clock_gettime() - defaulting to "
-            "CLOCK_REALTIME.");
-  }
+  clockid_t clock_id = musl_clock_id_to_clock_id(musl_clock_id);
   struct timespec ts;  // The type from platform toolchain.
   int retval = clock_gettime(clock_id, &ts);
   mts->tv_sec = ts.tv_sec;

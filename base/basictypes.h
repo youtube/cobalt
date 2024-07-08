@@ -24,11 +24,6 @@ typedef uint64_t uint64;
 typedef int16_t char16;
 typedef int32_t char32;
 
-#if defined(COBALT_WIN)
-#pragma warning(push)
-#pragma warning(disable : 4310)  // Cast truncates constant value.
-#endif
-
 const uint8 kuint8max = ((uint8)0xFF);
 const uint16 kuint16max = ((uint16)0xFFFF);
 const uint32 kuint32max = ((uint32)0xFFFFFFFF);
@@ -41,10 +36,6 @@ const int32 kint32min = ((int32)0x80000000);
 const int32 kint32max = ((int32)0x7FFFFFFF);
 // const  int64 kint64min  = (( int64) GG_LONGLONG(0x8000000000000000));
 // const  int64 kint64max  = (( int64) GG_LONGLONG(0x7FFFFFFFFFFFFFFF));
-
-#if defined(COBALT_WIN)
-#pragma warning(pop)
-#endif
 
 // The arraysize(arr) macro returns the # of elements in an array arr.
 // The expression is a compile-time constant, and therefore can be

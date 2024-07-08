@@ -100,7 +100,7 @@ static_library("css_parser") {
     "//starboard/common",
   ]
 
-  if (is_clang_16) {
+  if (is_clang) {
     # grammar_impl_generated.h variable 'yynerrs' set but not used
     cflags_cc = [ "-Wno-unused-but-set-variable" ]
   }

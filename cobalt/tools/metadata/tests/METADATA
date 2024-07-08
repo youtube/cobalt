@@ -8,4 +8,9 @@ third_party {
         value: "/base"
         version: "m114.0.0"
     }
+    identifier {
+        type: "Git"
+        version: "Anything"
+        value: "Something"
+    }
 }

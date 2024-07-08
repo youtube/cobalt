@@ -460,3 +460,41 @@ query):
     writes.
 *   **Starboard.StorageWriteRecord.BytesWritten** - Bytes written to storage
     record.
+
+### CPU
+
+#### PublicCVals
+
+*  **CPU.Total.Usage.IntervalSeconds.[INTERVAL_SECONDS]** - CPU usage in
+   seconds during the last time interval of `INTERVAL_SECONDS`.
+*  **CPU.PerThread.Usage.IntervalSeconds.[INTERVAL_SECONDS]** - CPU usage of all
+   running threads. This is expressed as JSON in the following form. `id` is the
+   thread ID. `name` is the thread name (not unique). `stime` is the number of
+   ticks/jiffies spent in kernel mode. `utime` is the number of
+   ticks/jiffies spent in user mode. `usage_seconds` is the sum of `stime` and
+   `utime` converted to seconds. The usage in the last interval of
+   `INTERVAL_SECONDS` can be determined by computing the difference of
+   `usage_seconds` in `current` and `previous`.
+
+```
+{
+  current: [
+    {
+      "id": 123,
+      "name": "Thread Name",
+      "stime": 100,
+      "utime": 200,
+      "usage_seconds": 3.0
+    }
+  ],
+  previous: [
+    {
+      "id": 123,
+      "name": "Thread Name",
+      "stime": 300,
+      "utime": 400,
+      "usage_seconds": 7.0
+    }
+  ]
+}
+```

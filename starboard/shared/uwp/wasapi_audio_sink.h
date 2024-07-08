@@ -20,6 +20,7 @@
 #include <wrl\client.h>
 
 #include <functional>
+#include <memory>
 #include <queue>
 
 #include "starboard/common/atomic.h"
@@ -105,14 +106,14 @@ IMMDeviceEnumerator : public IUnknown {
       _Out_ IMMDevice * *ppDevice) = 0;
 
   virtual /* [helpstring][id] */ HRESULT STDMETHODCALLTYPE
-  RegisterEndpointNotificationCallback(
-      /* [annotation][in] */
-      _In_ IMMNotificationClient * pClient) = 0;
+      RegisterEndpointNotificationCallback(
+          /* [annotation][in] */
+          _In_ IMMNotificationClient * pClient) = 0;
 
   virtual /* [helpstring][id] */ HRESULT STDMETHODCALLTYPE
-  UnregisterEndpointNotificationCallback(
-      /* [annotation][in] */
-      _In_ IMMNotificationClient * pClient) = 0;
+      UnregisterEndpointNotificationCallback(
+          /* [annotation][in] */
+          _In_ IMMNotificationClient * pClient) = 0;
 };
 
 const IID IID_IAudioClock = __uuidof(IAudioClock);
@@ -176,7 +177,7 @@ class WASAPIAudioSink {
   Mutex output_frames_mutex_;
   std::queue<scoped_refptr<DecodedAudio>> pending_decoded_audios_;
 
-  scoped_ptr<JobThread> job_thread_;
+  std::unique_ptr<JobThread> job_thread_;
 
   starboard::ThreadChecker thread_checker_;
 };

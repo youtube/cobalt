@@ -1210,13 +1210,18 @@ HttpStreamFactory::JobController::GetAlternativeServiceInfoInternal(
   if (alternative_service_info_vector.empty() && session_->IsQuicEnabled() &&
       session_->UseQuicForUnknownOrigin()) {
     url::SchemeHostPort origin(original_url);
+// Leave the port restriction only in production builds to simplify testing
+#if defined(COBALT_BUILD_TYPE_GOLD)
     if (origin.port() == kDefaultQUICServerPort) {
+#endif      
       quic::ParsedQuicVersionVector versions = quic::AllSupportedVersions();
       return AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
           AlternativeService(net::kProtoQUIC, origin.host(),
-                             kDefaultQUICServerPort),
+                             origin.port()),
           base::Time::Max(), versions);
+#if defined(COBALT_BUILD_TYPE_GOLD)
     }
+#endif
     return AlternativeServiceInfo();
   }
 #else

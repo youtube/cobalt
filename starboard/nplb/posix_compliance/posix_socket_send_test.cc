@@ -26,14 +26,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-// Thread entry point to continuously write to a socket that is expected to
-// be closed on another thread.
-struct trio_socket_fd {
-  int* listen_socket_fd_ptr;
-  int* client_socket_fd_ptr;
-  int* server_socket_fd_ptr;
-};
-
 void* PosixSocketSendToServerSocketEntryPoint(void* trio_as_void_ptr) {
   // The contents of this buffer are inconsequential.
   struct trio_socket_fd* trio_ptr =
@@ -104,7 +96,7 @@ TEST(PosixSocketSendTest, RainyDaySendToClosedSocket) {
   pthread_create(&send_thread, NULL, PosixSocketSendToServerSocketEntryPoint,
                  static_cast<void*>(&trio_as_void_ptr));
 
-  // Close the client, which should cause writes to the server socket to fail.
+  // Close the client, which should cause writes to the server socket to
   EXPECT_TRUE(close(client_socket_fd) == 0);
 
   // Wait for the thread to exit and check the last socket error.

@@ -17,8 +17,14 @@
 #include <string.h>
 
 #include <memory>
+#include <utility>
 
+#include "base/json/json_reader.h"
+#include "base/values.h"
+#include "cobalt/browser/cpu_usage_tracker.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/network/network_module.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -51,6 +57,8 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   const char kMediaCodecBlockList[] = "MediaCodecBlockList";
   const char kNavigatorUAData[] = "NavigatorUAData";
   const char kQUIC[] = "QUIC";
+  const char kHTTP3[] = "HTTP3";
+  const char kSkiaRasterizer[] = "SkiaRasterizer";
 
 #if SB_IS(EVERGREEN)
   const char kUpdaterMinFreeSpaceBytes[] = "Updater.MinFreeSpaceBytes";
@@ -81,15 +89,44 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   }
 
   if (name.compare(kQUIC) == 0 && value.IsType<int32>()) {
-    if (!persistent_settings_) {
+    if (!persistent_settings_ || !network_module_) {
       return false;
     } else {
       persistent_settings_->Set(network::kQuicEnabledPersistentSettingsKey,
                                 base::Value(value.AsType<int32>() != 0));
       // Tell NetworkModule (if exists) to re-query persistent settings.
-      if (network_module_) {
-        network_module_->SetEnableQuicFromPersistentSettings();
-      }
+      network_module_->SetEnableQuicFromPersistentSettings();
+      return true;
+    }
+  }
+
+  if (name.compare(kHTTP3) == 0 && value.IsType<int32>()) {
+    if (!persistent_settings_ || !network_module_) {
+      return false;
+    } else {
+      persistent_settings_->Set(network::kHttp3EnabledPersistentSettingsKey,
+                                base::Value(value.AsType<int32>() != 0));
+      network_module_->SetEnableHttp3FromPersistentSettings();
+      return true;
+    }
+  }
+
+  if (name.compare("cpu_usage_tracker_intervals") == 0 &&
+      value.IsType<std::string>() && value.AsType<std::string>().size() < 512) {
+    absl::optional<base::Value> config =
+        base::JSONReader::Read(value.AsType<std::string>());
+    browser::CpuUsageTracker::GetInstance()->UpdateConfig(
+        config.has_value() ? std::move(*config) : base::Value());
+    return true;
+  }
+
+  if (name.compare(kSkiaRasterizer) == 0 && value.IsType<int32>()) {
+    if (!persistent_settings_) {
+      return false;
+    } else {
+      persistent_settings_->Set(configuration::Configuration::
+                                    kEnableSkiaRasterizerPersistentSettingKey,
+                                base::Value(value.AsType<int32>() != 0));
       return true;
     }
   }

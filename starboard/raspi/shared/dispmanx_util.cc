@@ -16,7 +16,6 @@
 
 #include <utility>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/memory.h"
 
 namespace starboard {
@@ -93,7 +92,7 @@ void DispmanxYUV420Resource::WriteData(const void* data) {
 }
 
 void DispmanxYUV420Resource::ClearWithBlack() {
-  scoped_array<uint8_t> data(new uint8_t[width() * height() * 3 / 2]);
+  std::unique_ptr<uint8_t[]> data(new uint8_t[width() * height() * 3 / 2]);
   memset(data.get(), 0, width() * height());
   memset(data.get() + width() * height(), 0x80, width() * height() / 2);
   WriteData(data.get());
@@ -110,7 +109,7 @@ void DispmanxRGB565Resource::WriteData(const void* data) {
 }
 
 void DispmanxRGB565Resource::ClearWithBlack() {
-  scoped_array<uint8_t> data(new uint8_t[width() * height() * 2]);
+  std::unique_ptr<uint8_t[]> data(new uint8_t[width() * height() * 2]);
   memset(data.get(), 0, width() * height() * 2);
   WriteData(data.get());
 }

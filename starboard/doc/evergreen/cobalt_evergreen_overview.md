@@ -169,8 +169,8 @@ $ gn gen out/evergreen-arm-softfp_qa --args="target_platform=\"evergreen-arm-sof
 $ ninja -C out/evergreen-arm-softfp_qa cobalt_install
 ```
 
-This produces a `libcobalt.so` shared library targeted for a specific
-architecture, ABI, and Starboard version.
+This produces a `libcobalt.so` shared library, and a compressed `libcobalt.lz4`
+copy, targeted for a specific architecture, ABI, and Starboard version.
 
 Note: `sb_api_version` defaults to the latest supported Starboard version in the
 current branch.
@@ -178,7 +178,7 @@ current branch.
 
 The partner port of Starboard is built with the partner’s "target" toolchain and
 is linked into the `loader_app`, which knows how to dynamically load
-`libcobalt.so`. And the `crashpad_handler` binary is built with the partner's
+`libcobalt.lz4`. And the `crashpad_handler` binary is built with the partner's
 "native_target" toolchain. For example:
 
 ```
@@ -486,11 +486,10 @@ Image required for all slot configurations:
 │       └── cobalt <--(SLOT_0)
 │           ├── content <--(relative path defined in kSystemImageContentPath)
 │           │   ├── fonts <--(`empty` configuration)
-│           │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
 │           │   ├── licenses
 │           │   ├── ssl
 │           ├── lib
-│           │   └── libcobalt.so <--(System image version of libcobalt.so)
+│           │   └── libcobalt.lz4 <--(System image version of Cobalt Core)
 │           └── manifest.json
 └── loader_app <--(Cobalt launcher binary)
 └── crashpad_handler <--(Cobalt crash handler)
@@ -507,15 +506,13 @@ updates in an example 3-slot configuration:
     ├── installation_2 <--(SLOT_2 - contains new Cobalt version)
     │   ├── content
     │   │   ├── fonts <--(`empty` configuration)
-    │   │   ├── (icu) <--(only present when it needs to be updated by Cobalt Update)
     │   │   ├── licenses
     │   │   ├── ssl
     │   ├── lib
-    │   │   └── libcobalt.so <--(SLOT_2 version of libcobalt.so)
+    │   │   └── libcobalt.lz4 <--(SLOT_2 version of Cobalt Core)
     │   ├── manifest.fingerprint
-    │   └── manifest.json <-- (Evergreen version information of libcobalt.so under SLOT_2)
+    │   └── manifest.json <-- (Evergreen version information of Cobalt Core under SLOT_2)
     ├── installation_store_<APP_KEY>.pb
-    └── icu (default location shared by installation slots, to be explained below)
 ```
 Note that after the Cobalt binary is loaded by the loader_app, `kSbSystemPathContentDirectory` points to the
 content directory of the running binary, as stated in Starboard Module Reference of system.h.
@@ -557,24 +554,6 @@ On Raspberry Pi the Cobalt fonts are configured the following way:
 `standard` or `limited` set of fonts under:
 ```
 <kSbSystemPathContentDirectory>/fonts
-```
-
-### ICU Tables
-The ICU table should be deployed under the `kSbSystemPathStorageDirectory`. This
-way all Cobalt Evergreen installations would be able to share the same tables.
-The current storage size for the ICU tables is 7MB.
-
-On Raspberry Pi this is:
-
-```
-/home/pi/.cobalt_storage/icu
-```
-The Cobalt Evergreen package will not carry ICU tables by default but may add
-them in the future if needed. When the package has ICU tables they would be
-stored under the content location for the installation:
-
-```
-<SLOT_#>/content/icu
 ```
 
 ### Handling Pending Updates

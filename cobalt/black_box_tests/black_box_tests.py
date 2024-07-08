@@ -66,12 +66,15 @@ _TESTS_NEEDING_SYSTEM_SIGNAL = [
 _TESTS_NO_SIGNAL = [
     'allow_eval',
     'compression_test',
+    'cpu_usage_tracker_test',
     'default_site_can_load',
     'disable_eval_with_csp',
     'h5vcc_storage_write_verify_test',
-    'h5vcc_watchdog_api_test',
+    # TODO(b/346882263): Disabled, it's suddenly flaky
+    # 'h5vcc_watchdog_api_test',
     'http_cache',
     'javascript_profiler',
+    'performance_resource_timing_test',
     'persistent_cookie',
     'pointer_event_on_fixed_element_test',
     'pointer_event_on_cropped_element_test',

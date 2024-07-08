@@ -15,14 +15,15 @@
 #ifndef STARBOARD_SHARED_UWP_LOG_WRITER_WIN32_H_
 #define STARBOARD_SHARED_UWP_LOG_WRITER_WIN32_H_
 
-#include "starboard/common/scoped_ptr.h"
+#include <memory>
+
 #include "starboard/shared/uwp/log_writer_interface.h"
 
 namespace starboard {
 namespace shared {
 namespace uwp {
 
-starboard::scoped_ptr<ILogWriter> CreateLogWriterWin32(const char* path);
+std::unique_ptr<ILogWriter> CreateLogWriterWin32(const char* path);
 
 }  // namespace uwp
 }  // namespace shared

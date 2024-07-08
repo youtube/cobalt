@@ -21,6 +21,7 @@
 
 #include "starboard/configuration.h"
 #include "starboard/export.h"
+#include "starboard/log.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -68,6 +69,40 @@ struct musl_tm {
 #define MUSL_CLOCK_MONOTONIC 1
 #define MUSL_CLOCK_PROCESS_CPUTIME_ID 2
 #define MUSL_CLOCK_THREAD_CPUTIME_ID 3
+
+inline int clock_id_to_musl_clock_id(int clock_id) {
+  switch (clock_id) {
+    case CLOCK_REALTIME:
+      return MUSL_CLOCK_REALTIME;
+    case CLOCK_MONOTONIC:
+      return MUSL_CLOCK_MONOTONIC;
+    case CLOCK_PROCESS_CPUTIME_ID:
+      return MUSL_CLOCK_PROCESS_CPUTIME_ID;
+    case CLOCK_THREAD_CPUTIME_ID:
+      return MUSL_CLOCK_THREAD_CPUTIME_ID;
+    default:
+      SbLog(kSbLogPriorityError,
+            "Unsuppored clock_id defaulting to CLOCK_REALTIME.");
+      return MUSL_CLOCK_REALTIME;
+  }
+}
+
+inline int musl_clock_id_to_clock_id(int musl_clock_id) {
+  switch (musl_clock_id) {
+    case MUSL_CLOCK_REALTIME:
+      return CLOCK_REALTIME;
+    case MUSL_CLOCK_MONOTONIC:
+      return CLOCK_MONOTONIC;
+    case MUSL_CLOCK_PROCESS_CPUTIME_ID:
+      return CLOCK_PROCESS_CPUTIME_ID;
+    case MUSL_CLOCK_THREAD_CPUTIME_ID:
+      return CLOCK_THREAD_CPUTIME_ID;
+    default:
+      SbLog(kSbLogPriorityError,
+            "Unsuppored clock_id defaulting to CLOCK_REALTIME.");
+      return CLOCK_REALTIME;
+  }
+}
 
 SB_EXPORT int __abi_wrap_clock_gettime(int /* clockid_t */ musl_clock_id,
                                        struct musl_timespec* mts);

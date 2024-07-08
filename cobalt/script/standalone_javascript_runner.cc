@@ -42,7 +42,6 @@ StandaloneJavascriptRunner::StandaloneJavascriptRunner(
 }
 
 bool StandaloneJavascriptRunner::RunInteractive() {
-#if defined(COBALT_LINUX)
   if (!std::cin.eof() && std::cin.good()) {
     // Interactive prompt.
     std::cout << "> ";
@@ -55,9 +54,6 @@ bool StandaloneJavascriptRunner::RunInteractive() {
     }
     return true;
   }
-#else
-  NOTIMPLEMENTED();
-#endif
   return false;
 }
 

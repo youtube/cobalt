@@ -73,7 +73,6 @@
 
 #if defined(STARBOARD)
 
-#define COBALT_USE_PUNCHOUT
 #define COBALT_SKIP_SEEK_REQUEST_NEAR_END
 
 #endif  // defined(STARBOARD)
@@ -111,7 +110,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                      WebMediaPlayerClient* client,
                      WebMediaPlayerDelegate* delegate,
                      bool allow_resume_after_suspend,
-                     bool allow_batched_sample_write,
+                     int max_audio_samples_per_write,
                      bool force_punch_out_by_default,
 #if SB_API_VERSION >= 15
                      base::TimeDelta audio_write_duration_local,
@@ -250,6 +249,10 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // for DCHECKs so methods calls won't execute in the wrong thread.
   base::SequencedTaskRunner* task_runner_;
 
+  // Used to report telementry to UMA. Also used by the pipeline to record
+  // telemetry data.
+  MediaMetricsProvider media_metrics_provider_;
+
   scoped_refptr<Pipeline> pipeline_;
 
   // The currently selected key system. Empty string means that no key system
@@ -300,15 +303,13 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   WebMediaPlayerClient* const client_;
   WebMediaPlayerDelegate* const delegate_;
   const bool allow_resume_after_suspend_;
-  const bool allow_batched_sample_write_;
+  const int max_audio_samples_per_write_;
   const bool force_punch_out_by_default_;
   scoped_refptr<DecodeTargetProvider> decode_target_provider_;
 
   scoped_refptr<WebMediaPlayerProxy> proxy_;
 
   ::media::MediaLog* const media_log_;
-
-  MediaMetricsProvider media_metrics_provider_;
 
   bool is_local_source_;
 

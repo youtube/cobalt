@@ -18,9 +18,9 @@
 #include <bcm_host.h>
 
 #include <functional>
+#include <memory>
 
 #include "starboard/common/log.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
@@ -177,7 +177,7 @@ class DispmanxVideoRenderer {
   void ShowElement();
 
  private:
-  scoped_ptr<DispmanxElement> element_;
+  std::unique_ptr<DispmanxElement> element_;
   scoped_refptr<VideoFrame> frame_;
   // Value of |frame_| when HideElement() gets called.
   scoped_refptr<VideoFrame> hidden_frame_;

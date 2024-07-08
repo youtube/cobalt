@@ -180,7 +180,7 @@ output.
 
     The type of audio connector. Will be the empty `kSbMediaAudioConnectorNone`
     if this device cannot provide this information.
-*   `SbTime latency`
+*   `int64_t latency`
 
     The expected latency of audio over this output, in microseconds, or `0` if
     this device cannot provide this information.
@@ -236,14 +236,13 @@ Audio-specific configuration field. The `WAVEFORMATEX` structure is specified at
     The size, in bytes, of the audio_specific_config.
 *   `const void * audio_specific_config`
 
-    The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1: [http://read.pudn.com/downloads98/doc/comm/401153/14496/ISO_IEC_14496-3%20Part%203%20Audio/C036083E_SUB1.PDF](http://read.pudn.com/downloads98/doc/comm/401153/14496/ISO_IEC_14496-3%20Part%203%20Audio/C036083E_SUB1.PDF)
+    The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1.
 
 ### SbMediaColorMetadata
 
 HDR (High Dynamic Range) Metadata common for HDR10 and WebM/VP9-based HDR
 formats, together with the ColorSpace. HDR reproduces a greater dynamic range of
-luminosity than is possible with standard digital imaging. See the Consumer
-Electronics Association press release: [https://www.cta.tech/News/Press-Releases/2015/August/CEA-Defines-%E2%80%98HDR-Compatible%E2%80%99-Displays.aspx](https://www.cta.tech/News/Press-Releases/2015/August/CEA-Defines-%E2%80%98HDR-Compatible%E2%80%99-Displays.aspx)
+luminosity than is possible with standard digital imaging.
 
 #### Members
 
@@ -433,10 +432,12 @@ Note that neither `mime` nor `key_system` can be NULL. This function returns
 `mime`: The mime information of the media in the form of `video/webm` or
 `video/mp4; codecs="avc1.42001E"`. It may include arbitrary parameters like
 "codecs", "channels", etc. Note that the "codecs" parameter may contain more
-than one codec, delimited by comma. `key_system`: A lowercase value in the form
-of "com.example.somesystem" as suggested by [https://w3c.github.io/encrypted-media/#key-system](https://w3c.github.io/encrypted-media/#key-system)) that can
+than one codec, delimited by comma.
+
+`key_system`: A lowercase value in the form of "com.example.somesystem", and can
 be matched exactly with known DRM key systems of the platform. When `key_system`
 is an empty string, the return value is an indication for non-encrypted media.
+For more detail, refer to [https://w3c.github.io/encrypted-media/#key-system](https://w3c.github.io/encrypted-media/#key-system)
 
 An implementation may choose to support `key_system` with extra attributes,
 separated by ';', like `com.example.somesystem; attribute_name1="value1";
@@ -448,23 +449,21 @@ attributes, it has to support all attributes defined by the Starboard version
 the implementation uses. An implementation should ignore any unknown attributes,
 and make a decision solely based on the key system and the known attributes. For
 example, if an implementation supports "com.widevine.alpha", it should also
-return `kSbMediaSupportTypeProbably` kSbMediaSupportTypeProbably when
-`key_system` is `com.widevine.alpha; invalid_attribute="invalid_value"`.
-Currently the only attribute has to be supported is `encryptionscheme`. It
-reflects the value passed to `encryptionScheme` encryptionScheme of
-MediaKeySystemMediaCapability, as defined in [https://wicg.github.io/encrypted-media-encryption-scheme/,](https://wicg.github.io/encrypted-media-encryption-scheme/,),) which can take value "cenc", "cbcs", or "cbcs-1-9". Empty string is
-not a valid value for `encryptionscheme` and the implementation should return
-`kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported when
+return `kSbMediaSupportTypeProbably` when `key_system` is `com.widevine.alpha;
+invalid_attribute="invalid_value"`. Currently the only attribute has to be
+supported is `encryptionscheme`. It reflects the value passed to
+`encryptionScheme` of MediaKeySystemMediaCapability. It can take value "cenc",
+"cbcs", or "cbcs-1-9". Empty string is not a valid value for `encryptionscheme`
+and the implementation should return `kSbMediaSupportTypeNotSupported` when
 `encryptionscheme` is set to "". The implementation should return
-`kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported for unknown
-values of known attributes. For example, if an implementation supports
-"encryptionscheme" with value "cenc", "cbcs", or "cbcs-1-9", then it should
-return `kSbMediaSupportTypeProbably` kSbMediaSupportTypeProbably when
+`kSbMediaSupportTypeNotSupported` for unknown values of known attributes. For
+example, if an implementation supports "encryptionscheme" with value "cenc",
+"cbcs", or "cbcs-1-9", then it should return `kSbMediaSupportTypeProbably` when
 `key_system` is `com.widevine.alpha; encryptionscheme="cenc"`, and return
-`kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported when
-`key_system` is `com.widevine.alpha; encryptionscheme="invalid"`. If an
-implementation supports key system with attributes on one key system, it has to
-support key system with attributes on all key systems supported.
+`kSbMediaSupportTypeNotSupported` when `key_system` is `com.widevine.alpha;
+encryptionscheme="invalid"`. If an implementation supports key system with
+attributes on one key system, it has to support key system with attributes on
+all key systems supported. For more detail, refer to [https://wicg.github.io/encrypted-media-encryption-scheme](https://wicg.github.io/encrypted-media-encryption-scheme)
 
 #### Declaration
 
@@ -519,8 +518,18 @@ int SbMediaGetAudioOutputCount()
 
 ### SbMediaGetBufferAlignment
 
-The media buffer will be allocated using the returned alignment. Set this to a
-larger value may increase the memory consumption of media buffers.
+DEPRECATED with SB_API_VERSION 16
+
+SbMediaGetBufferAlignment() was deprecated in Starboard 16, its return value is
+no longer used when allocating media buffers. This is verified explicitly in
+nplb tests by ensuring its return value is sizeof(void*).
+
+The app MAY take best effort to allocate media buffers aligned to an optimal
+alignment for the platform, but not guaranteed. An implementation that has
+specific alignment requirement should check the alignment of the incoming
+buffer, and make a copy when necessary. The media buffer will be allocated using
+the returned alignment. Set this to a larger value may increase the memory
+consumption of media buffers.
 
 #### Declaration
 
@@ -534,7 +543,7 @@ When the media stack needs more memory to store media buffers, it will allocate
 extra memory in units returned by SbMediaGetBufferAllocationUnit. This can
 return 0, in which case the media stack will allocate extra memory on demand.
 When SbMediaGetInitialBufferCapacity and this function both return 0, the media
-stack will allocate individual buffers directly using SbMemory functions.
+stack will allocate individual buffers directly using malloc functions.
 
 #### Declaration
 
@@ -544,26 +553,33 @@ int SbMediaGetBufferAllocationUnit()
 
 ### SbMediaGetBufferGarbageCollectionDurationThreshold
 
-Specifies the duration threshold of media source garbage collection. When the
-accumulated duration in a source buffer exceeds this value, the media source
-implementation will try to eject existing buffers from the cache. This is
-usually triggered when the video being played has a simple content and the
-encoded data is small. In such case this can limit how much is allocated for the
-book keeping data of the media buffers and avoid OOM of system heap. This should
-return 170 seconds for most of the platforms. But it can be further reduced on
-systems with extremely low memory.
+Specifies the duration threshold of media source garbage collection in
+microseconds. When the accumulated duration in a source buffer exceeds this
+value, the media source implementation will try to eject existing buffers from
+the cache. This is usually triggered when the video being played has a simple
+content and the encoded data is small. In such case this can limit how much is
+allocated for the book keeping data of the media buffers and avoid OOM of system
+heap. This should return 170 seconds for most of the platforms. But it can be
+further reduced on systems with extremely low memory.
 
 #### Declaration
 
 ```
-SbTime SbMediaGetBufferGarbageCollectionDurationThreshold()
+int64_t SbMediaGetBufferGarbageCollectionDurationThreshold()
 ```
 
 ### SbMediaGetBufferPadding
 
-Extra bytes allocated at the end of a media buffer to ensure that the buffer can
-be use optimally by specific instructions like SIMD. Set to 0 to remove any
-padding.
+DEPRECATED with SB_API_VERSION 16
+
+SbMediaGetBufferPadding() was deprecated in Starboard 16, its return value is no
+longer used when allocating media buffers. This is verified explicitly in nplb
+tests by ensuring its return value is 0.
+
+An implementation that has specific padding requirement should make a copy of
+the incoming buffer when necessary. Extra bytes allocated at the end of a media
+buffer to ensure that the buffer can be use optimally by specific instructions
+like SIMD. Set to 0 to remove any padding.
 
 #### Declaration
 
@@ -575,10 +591,10 @@ int SbMediaGetBufferPadding()
 
 Returns SbMediaBufferStorageType of type `SbMediaStorageTypeMemory` or
 `SbMediaStorageTypeFile`. For memory storage, the media buffers will be stored
-in main memory allocated by SbMemory functions. For file storage, the media
+in main memory allocated by malloc functions. For file storage, the media
 buffers will be stored in a temporary file in the system cache folder acquired
 by calling SbSystemGetPath() with "kSbSystemPathCacheDirectory". Note that when
-its value is "file" the media stack will still allocate memory to cache the the
+its value is "file" the media stack will still allocate memory to cache the
 buffers in use.
 
 #### Declaration
@@ -610,10 +626,14 @@ allocation of media buffers may only fail when there is not enough memory in the
 system to fulfill the request, under which case the app will be terminated as
 under other OOM situations.
 
-`codec`: the video codec associated with the buffer. `resolution_width`: the
-width of the video resolution. `resolution_height`: the height of the video
-resolution. `bits_per_pixel`: the bits per pixel. This value is larger for HDR
-than non- HDR video.
+`codec`: the video codec associated with the buffer.
+
+`resolution_width`: the width of the video resolution.
+
+`resolution_height`: the height of the video resolution.
+
+`bits_per_pixel`: the bits per pixel. This value is larger for HDR than non-HDR
+video.
 
 #### Declaration
 
@@ -628,10 +648,14 @@ resolution of such videos shouldn't go beyond 1080p. Its value should be less
 than the sum of SbMediaGetAudioBufferBudget and
 'SbMediaGetVideoBufferBudget(..., 1920, 1080, ...) but not less than 8 MB.
 
-`codec`: the video codec associated with the buffer. `resolution_width`: the
-width of the video resolution. `resolution_height`: the height of the video
-resolution. `bits_per_pixel`: the bits per pixel. This value is larger for HDR
-than non- HDR video.
+`codec`: the video codec associated with the buffer.
+
+`resolution_width`: the width of the video resolution.
+
+`resolution_height`: the height of the video resolution.
+
+`bits_per_pixel`: the bits per pixel. This value is larger for HDR than non-HDR
+video.
 
 #### Declaration
 
@@ -647,10 +671,14 @@ being used by video buffers but will also make app less likely to re-download
 video data. Note that the app may experience significant difficulty if this
 value is too low.
 
-`codec`: the video codec associated with the buffer. `resolution_width`: the
-width of the video resolution. `resolution_height`: the height of the video
-resolution. `bits_per_pixel`: the bits per pixel. This value is larger for HDR
-than non- HDR video.
+`codec`: the video codec associated with the buffer.
+
+`resolution_width`: the width of the video resolution.
+
+`resolution_height`: the height of the video resolution.
+
+`bits_per_pixel`: the bits per pixel. This value is larger for HDR than non-HDR
+video.
 
 #### Declaration
 
@@ -667,7 +695,8 @@ and return all memory to the system when there is no media buffer allocated.
 Setting the following value to false results in that Cobalt will allocate
 SbMediaGetInitialBufferCapacity bytes for media buffer on startup and will not
 release any media buffer memory back to the system even if there is no media
-buffers allocated.
+buffers allocated. This is demonstrated to significantly reduce long-term memory
+fragmentation.
 
 #### Declaration
 
@@ -677,8 +706,10 @@ bool SbMediaIsBufferPoolAllocateOnDemand()
 
 ### SbMediaIsBufferUsingMemoryPool
 
-If SbMediaGetBufferUsingMemoryPool returns true, it indicates that media buffer
-pools should be allocated on demand, as opposed to using SbMemory* functions.
+DEPRECATED with SB_API_VERSION 16
+
+This function is deprecated in Starboard 16 and no longer used. It's not fully
+removed, only to emit warnings at build and test time.
 
 #### Declaration
 
@@ -691,15 +722,15 @@ bool SbMediaIsBufferUsingMemoryPool()
 Communicate to the platform how far past `current_playback_position` the app
 will write audio samples. The app will write all samples between
 `current_playback_position` and `current_playback_position` + `duration`, as
-soon as they are available. The app may sometimes write more samples than that,
-but the app only guarantees to write `duration` past `current_playback_position`
-in general. The platform is responsible for guaranteeing that when only
-`duration` audio samples are written at a time, no playback issues occur (such
-as transient or indefinite hanging). The platform may assume `duration` >= 0.5
-seconds.
+soon as they are available (during is in microseconds). The app may sometimes
+write more samples than that, but the app only guarantees to write `duration`
+past `current_playback_position` in general. The platform is responsible for
+guaranteeing that when only `duration` audio samples are written at a time, no
+playback issues occur (such as transient or indefinite hanging). The platform
+may assume `duration` >= 0.5 seconds.
 
 #### Declaration
 
 ```
-void SbMediaSetAudioWriteDuration(SbTime duration)
+void SbMediaSetAudioWriteDuration(int64_t duration)
 ```

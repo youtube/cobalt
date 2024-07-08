@@ -354,7 +354,6 @@ template("evergreen_loader") {
   # Add additional evergreen_loader target for every native target.
   original_target_name = invoker.original_target_name
   shared_data_deps = invoker.data_deps
-  shared_data_deps += [ "//third_party/icu:icudata" ]
   shared_data_deps += [
     ":copy_loader_app_lib${original_target_name}",
     "//starboard/loader_app:copy_loader_app_content",
@@ -409,12 +408,21 @@ template("evergreen_loader") {
   }
   copy("copy_loader_app_lib${original_target_name}") {
     install_content = true
-    if (target_cpu == "arm" && arm_float_abi == "softfp") {
-      sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/install/lib/lib${original_target_name}.so" ]
-    } else if (target_cpu == "arm64") {
-      sources = [ "$root_out_dir/../evergreen-$target_cpu_$build_type/install/lib/libcobalt.so" ]
+
+    # TODO(b/348401006): remove this special case when we support compression
+    # for all targets.
+    if (original_target_name == "cobalt") {
+      library_extension = "lz4"
+    } else {
+      library_extension = "so"
     }
-    outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/lib/lib${original_target_name}.so" ]
+
+    abi_suffix = ""
+    if (target_cpu == "arm" && arm_float_abi == "softfp") {
+      abi_suffix = "-${arm_float_abi}"
+    }
+    sources = [ "$root_out_dir/../evergreen-$target_cpu${abi_suffix}_$build_type/install/lib/lib${original_target_name}.${library_extension}" ]
+    outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/lib/lib${original_target_name}.${library_extension}" ]
   }
   install_target(original_target_name + "_evergreen_loader_install") {
     forward_variables_from(invoker, [ "testonly" ])
@@ -532,7 +540,7 @@ template("shared_library") {
         ":${actual_target_name}_loader($starboard_toolchain)",
         ":${actual_target_name}_loader_install($starboard_toolchain)",
       ]
-      if (!is_host_win) {
+      if (host_os != "win") {
         deps += [ ":${actual_target_name}_loader_copy($starboard_toolchain)" ]
       }
     }
@@ -580,7 +588,7 @@ template("shared_library") {
           deps += [ "//starboard:starboard_install($starboard_toolchain)" ]
         }
       }
-      if (!is_host_win) {
+      if (host_os != "win") {
         copy("${actual_target_name}_loader_copy") {
           forward_variables_from(invoker, [ "testonly" ])
           sources = [ "$root_out_dir/${actual_target_name}_loader" ]

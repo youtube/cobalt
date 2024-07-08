@@ -22,3 +22,14 @@ bool SbSocketWaiterAdd(SbSocketWaiter waiter,
                        bool persistent) {
   return false;
 }
+
+#if SB_API_VERSION >= 16
+bool SbPosixSocketWaiterAdd(SbSocketWaiter waiter,
+                            int socket,
+                            void* context,
+                            SbPosixSocketWaiterCallback callback,
+                            int interests,
+                            bool persistent) {
+  return false;
+}
+#endif

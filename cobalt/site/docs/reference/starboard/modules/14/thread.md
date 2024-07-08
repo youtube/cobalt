@@ -519,7 +519,7 @@ or `0`.
 #### Declaration
 
 ```
-void SbThreadSleep(SbTime duration)
+void SbThreadSleep(int64_t duration)
 ```
 
 ### SbThreadYield
