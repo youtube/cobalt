@@ -20,6 +20,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+
 import dev.cobalt.util.Log;
 
 // Helper class to receive and handle broadcast notifications of system locale
@@ -27,6 +28,9 @@ import dev.cobalt.util.Log;
 final class CobaltSystemConfigChangeReceiver extends BroadcastReceiver {
   private boolean isForeground;
   private final Runnable stopRequester;
+
+  private static final String INTENT_SETTINGS_UPDATE =
+  "dev.cobalt.coat.UPDATE_SETTING";
 
   CobaltSystemConfigChangeReceiver(Context appContext, Runnable stopRequester) {
     this.isForeground = true;
@@ -36,12 +40,23 @@ final class CobaltSystemConfigChangeReceiver extends BroadcastReceiver {
     filter.addAction(Intent.ACTION_TIMEZONE_CHANGED);
     filter.addAction(Intent.ACTION_TIME_CHANGED);
     filter.addAction(Intent.ACTION_DATE_CHANGED);
+    filter.addAction(INTENT_SETTINGS_UPDATE);
     appContext.registerReceiver(this, filter);
   }
 
   @Override
   public void onReceive(Context context, Intent intent) {
+    switch (intent.getAction()) {
+      case INTENT_SETTINGS_UPDATE:
+        String key = intent.getStringExtra("key");
+        String value = intent.getStringExtra("value");
+        Log.w(TAG, "Settings update intent: " + key + " = " + value);
+        Helpers.setAppSetting(context,key,value);
+        return;
+    }
+
     if (isForeground) {
+      Log.i(TAG, "Ignoring system config change intent while in foreground.");
       return;
     }
 

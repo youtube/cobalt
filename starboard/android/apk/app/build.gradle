@@ -42,13 +42,14 @@ android {
         // Read properties from local.properties
         Properties properties = new Properties()
         File localPropertiesFile = rootProject.file('local.properties')
+        String developmentHost = 'localhost';
         if (localPropertiesFile.exists()) {
             properties.load(new FileInputStream(localPropertiesFile))
             // Get the development host property, defaulting if not found
-            String developmentHost = properties.getProperty('developmentHost', '')
-            // Add it as a build config field
-            buildConfigField 'String', 'DEFAULT_DEVELOPMENT_HOST', "\"$developmentHost\""
+            developmentHost = properties.getProperty('developmentHost', 'localhost')
         }
+        // Add it as a build config field
+        buildConfigField 'String', 'DEFAULT_DEVELOPMENT_HOST', "\"$developmentHost\""
 
     }
 

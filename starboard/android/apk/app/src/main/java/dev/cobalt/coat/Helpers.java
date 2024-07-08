@@ -15,9 +15,21 @@ import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import dev.cobalt.util.Log;
 
+import android.content.SharedPreferences;
+
 
 /** Helper utilities */
 public class Helpers {
+    private static final String APP_SETTINGS = "AppSettings";
+
+    public static void setAppSetting(Context context, String key, String value) {
+        SharedPreferences prefs = context.getSharedPreferences(APP_SETTINGS, Context.MODE_PRIVATE);
+        prefs.edit().putString(key, value).apply();
+    }
+    public static String getDevelopmentHostSetting(Context context) {
+        SharedPreferences prefs = context.getSharedPreferences(APP_SETTINGS, Context.MODE_PRIVATE);
+        return prefs.getString("development_host", BuildConfig.DEFAULT_DEVELOPMENT_HOST);
+    }
 
     public static String loadJavaScriptFromAsset(Context context, String filename) {
         try {
