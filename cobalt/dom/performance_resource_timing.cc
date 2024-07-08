@@ -14,6 +14,8 @@
 
 #include "cobalt/dom/performance_resource_timing.h"
 
+#include <utility>
+
 #include "cobalt/dom/performance.h"
 
 namespace cobalt {
@@ -135,6 +137,16 @@ DOMHighResTimeStamp PerformanceResourceTiming::worker_start() const {
   }
   return Performance::MonotonicTimeToDOMHighResTimeStamp(
       time_origin_, timing_info_.service_worker_start_time);
+}
+
+std::string PerformanceResourceTiming::next_hop_protocol() const {
+  // Fallback to connection_info when alpn_negotiated_protocol is unknown.
+  std::string returnedProtocol =
+      (timing_info_.alpn_negotiated_protocol == "unknown")
+          ? timing_info_.connection_info_string
+          : timing_info_.alpn_negotiated_protocol;
+  // If connection_info is unknown, return the empty string.
+  return returnedProtocol == "unknown" ? "" : std::move(returnedProtocol);
 }
 
 void PerformanceResourceTiming::SetResourceTimingEntry(
