@@ -41,6 +41,10 @@ TEST_P(SbPlayerGetMediaTimeTest, SunnyDay) {
     return;
   }
 
+  // TODO: we simply set audio write duration to 0.5 second. Ideally, we should
+  // set the audio write duration to 10 seconds if audio connectors are remote.
+  player_fixture.SetAudioWriteDuration(500'000);
+
   int64_t media_time_before_write = player_fixture.GetCurrentMediaTime();
   ASSERT_EQ(media_time_before_write, 0);
 
@@ -60,11 +64,15 @@ TEST_P(SbPlayerGetMediaTimeTest, SunnyDay) {
 
   int64_t start_system_time = CurrentMonotonicTime();
   int64_t start_media_time = player_fixture.GetCurrentMediaTime();
+  SB_DLOG(INFO) << "Start system time at " << start_system_time
+                << " with media time at " << start_media_time << ".";
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 
   int64_t end_system_time = CurrentMonotonicTime();
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
+  SB_DLOG(INFO) << "End system time at " << end_system_time
+                << " with media time at " << end_media_time << ".";
 
   const int64_t kDurationDifferenceAllowance = 500'000;  // 500 ms
   EXPECT_NEAR(end_media_time, kDurationToPlay, kDurationDifferenceAllowance);
@@ -92,6 +100,10 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
   if (HasFatalFailure()) {
     return;
   }
+
+  // TODO: we simply set audio write duration to 0.5 second. Ideally, we should
+  // set the audio write duration to 10 seconds if audio connectors are remote.
+  player_fixture.SetAudioWriteDuration(500'000);
 
   GroupedSamples samples;
   if (player_fixture.HasAudio()) {
@@ -129,11 +141,15 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
 
   int64_t start_system_time = CurrentMonotonicTime();
   int64_t start_media_time = player_fixture.GetCurrentMediaTime();
+  SB_DLOG(INFO) << "Start system time at " << start_system_time
+                << " with media time at " << start_media_time << ".";
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
 
   int64_t end_system_time = CurrentMonotonicTime();
   int64_t end_media_time = player_fixture.GetCurrentMediaTime();
+  SB_DLOG(INFO) << "End system time at " << end_system_time
+                << " with media time at " << end_media_time << ".";
 
   const int64_t kDurationDifferenceAllowance = 500'000;  // 500 ms
   EXPECT_NEAR(end_media_time, kDurationToPlay + seek_to_time,
