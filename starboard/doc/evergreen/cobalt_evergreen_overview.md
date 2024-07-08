@@ -548,7 +548,7 @@ On Raspberry Pi the Cobalt fonts are configured the following way:
 
 `empty` set of fonts under:
 ```
-<kSbSystemPathContentDirectory>/app/cobalt/content/fonts
+<kSbSystemPathContentDirectory>/app/starboard/content/fonts
 ```
 
 `standard` or `limited` set of fonts under:
