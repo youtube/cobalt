@@ -51,12 +51,14 @@ RUN cd /tmp \
       --sdk_root=${ANDROID_SDK_ROOT} \
     "build-tools;30.0.0" \
     "build-tools;31.0.0" \
+    "build-tools;34.0.0" \
     "cmake;3.22.1" \
     "cmdline-tools;1.0" \
     "extras;android;m2repository" \
     "extras;google;m2repository" \
     "ndk;25.2.9519653" \
     "platforms;android-31" \
+    "platforms;android-34" \
     "platform-tools" \
   && echo "Android SDK installed"
 
