@@ -27,7 +27,7 @@ android {
 
     defaultConfig {
         applicationId "dev.cobalt.coat"
-        minSdk 30
+        minSdk 26
         targetSdk 34
         versionCode 1
         versionName "0.1"
@@ -58,8 +58,10 @@ android {
             debuggable true
             jniDebuggable true
             enableUnitTestCoverage true
+            signingConfig signingConfigs.debug
         }
         release {
+            signingConfig signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }

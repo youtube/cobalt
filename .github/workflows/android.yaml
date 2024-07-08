@@ -36,10 +36,8 @@ jobs:
           distribution: 'zulu'
           java-version: 17
           cache: gradle
-      - name: Build with Gradle
-        uses: gradle/gradle-build-action@749f47bda3e44aa060e82d7b3ef7e40d953bd629 #v2.4.2
-        with:
-          build-root-directory: starboard/android/apk
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@dbbdc275be76ac10734476cc723d82dfe7ec6eda #v3.4.2
       - name: Build with Gradle
         run: |
           cd starboard/android/apk
