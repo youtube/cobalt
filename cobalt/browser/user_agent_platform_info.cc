@@ -252,21 +252,10 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   info.set_javascript_engine_version(
       script::GetJavaScriptEngineNameAndVersion());
 
-  std::string rasterizer_type_setting = "";
-  if (base::CommandLine::InitializedForCurrentProcess()) {
-    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-    if (command_line->HasSwitch(browser::switches::kEnableSkiaRasterizer)) {
-      int enable_skia = 0;
-      base::StringToInt(command_line->GetSwitchValueASCII(
-                            browser::switches::kEnableSkiaRasterizer),
-                        &enable_skia);
-      if (enable_skia) {
-        rasterizer_type_setting = configuration::Configuration::kSkiaRasterizer;
-      } else {
-        rasterizer_type_setting = configuration::Configuration::kGlesRasterizer;
-      }
-    }
-  }
+  std::string rasterizer_type_setting =
+      info.enable_skia_rasterizer()
+          ? configuration::Configuration::kSkiaRasterizer
+          : "";
   std::string rasterizer_type =
       renderer::GetDefaultRasterizerForPlatform(rasterizer_type_setting)
           .rasterizer_name;
@@ -464,7 +453,8 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 }
 }  // namespace
 
-UserAgentPlatformInfo::UserAgentPlatformInfo() {
+UserAgentPlatformInfo::UserAgentPlatformInfo(bool enable_skia_rasterizer)
+    : enable_skia_rasterizer_(enable_skia_rasterizer) {
   InitializeUserAgentPlatformInfoFields(*this);
 }
 
