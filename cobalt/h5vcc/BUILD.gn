@@ -106,7 +106,7 @@ static_library("h5vcc") {
       "h5vcc_updater.cc",
       "h5vcc_updater.h",
     ]
-    deps += [ "//cobalt/updater" ]
+    deps += [ "//chrome/updater" ]
   }
 }
 
