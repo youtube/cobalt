@@ -14,6 +14,7 @@
 
 package dev.cobalt.coat;
 
+import static androidx.core.content.ContextCompat.RECEIVER_EXPORTED;
 import static dev.cobalt.util.Log.TAG;
 
 import android.content.BroadcastReceiver;
@@ -41,7 +42,7 @@ final class CobaltSystemConfigChangeReceiver extends BroadcastReceiver {
     filter.addAction(Intent.ACTION_TIME_CHANGED);
     filter.addAction(Intent.ACTION_DATE_CHANGED);
     filter.addAction(INTENT_SETTINGS_UPDATE);
-    appContext.registerReceiver(this, filter);
+    appContext.registerReceiver(this, filter, Context.RECEIVER_EXPORTED);
   }
 
   @Override
