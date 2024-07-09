@@ -110,6 +110,7 @@ static_library("loader") {
     "//cobalt/csp",
     "//cobalt/math",
     "//cobalt/network",
+    "//cobalt/persistent_storage:persistent_settings",
     "//cobalt/render_tree",
     "//cobalt/renderer/test/png_utils",
     "//cobalt/web",
