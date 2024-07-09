@@ -62,12 +62,9 @@ _FILTERED_TESTS = {
 
         # TODO: b/349109647 Disable flaky test.
         'SbPlayerGetMediaTimeTests/*',
-<<<<<<< HEAD
-=======
 
         # PosixDirectory tests are crashing flakily on windows.
         'PosixDirectory*',
->>>>>>> 8c1fce23471 (Filter test known to crash on windows (#3805))
     ],
     'player_filter_tests': [
         # These tests fail on our VMs for win-win32 builds due to missing
