@@ -59,7 +59,9 @@ class IamfAudioDecoder
   void TeardownCodec();
   void DecodePendingBuffers();
   bool DecodeInternal(const scoped_refptr<InputBuffer>& input_buffer);
-  static const int kMaxOpusFramesPerAU = 9600;
+  static const int kMaxOpusFramesPerAU = 960;
+  static const int kOutputSamplesPerSecond = 48000;
+  static const int kOutputBitDepth = 32;
 
   SbMediaAudioSampleType GetSampleType() const;
 

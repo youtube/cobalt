@@ -14,6 +14,8 @@
 
 #include "starboard/shared/libiamf/iamf_config_reader.h"
 
+#include <string>
+
 #include "starboard/common/string.h"
 
 namespace starboard {
@@ -50,11 +52,26 @@ int ReadLeb128Value(const uint8_t* buf, uint32_t* value) {
   }
   return i + 1;
 }
+
+int ReadString(const uint8_t* buf, std::string& value) {
+  SB_DCHECK(buf);
+  value = "";
+  value.reserve(128);
+
+  int bytes_read = 0;
+  while (bytes_read < 128 && buf[bytes_read] != '\0') {
+    value.push_back(static_cast<char>(buf[bytes_read]));
+    bytes_read++;
+  }
+
+  return bytes_read;
+}
 }  // namespace
 
 bool IamfConfigReader::Read(scoped_refptr<InputBuffer> input_buffer) {
   buffer_head_ = 0;
   has_mix_presentation_id_ = false;
+  config_size_ = 0;
   SB_LOG(INFO) << "Input buffer size is " << input_buffer->size();
   const uint8_t* buf = input_buffer->data();
   SB_DCHECK(buf);
@@ -72,10 +89,11 @@ bool IamfConfigReader::Read(scoped_refptr<InputBuffer> input_buffer) {
   SB_LOG(INFO) << "End OBU loop";
 
   data_size_ = input_buffer->size() - config_size_;
+  SB_LOG(INFO) << "Input size: " << input_buffer->size()
+               << ", Data size: " << input_buffer->size() - config_size_
+               << ", config size: " << config_size_;
   config_obus_.assign(buf, buf + config_size_);
   data_.assign(buf + config_size_, buf + input_buffer->size());
-  SB_LOG(INFO) << ::starboard::HexEncode(config_obus_.data(),
-                                         config_obus_.size());
   SB_LOG(INFO) << "Return read";
 
   return true;
@@ -96,6 +114,10 @@ bool IamfConfigReader::ReadOBU(const uint8_t* buf, bool& completed_parsing) {
   int next_obu_pos = buffer_head_ + obu_size;
   int bytes_read = 0;
 
+  uint32_t count_label = 0;
+  std::string str;
+  uint32_t num_sub_mixes = 0;
+
   switch (static_cast<int>(obu_type)) {
     case kObuTypeCodecConfig:
       SB_LOG(INFO) << "Reading codec config OBU";
@@ -106,7 +128,7 @@ bool IamfConfigReader::ReadOBU(const uint8_t* buf, bool& completed_parsing) {
     case kObuTypeSequenceHeader:
       SB_LOG(INFO) << "Reading sequence header OBU";
       break;
-    case kObuTypeMixPresentation:
+    case kObuTypeMixPresentation: {
       SB_LOG(INFO) << "Reading mix presentation OBU";
       has_mix_presentation_id_ = true;
       bytes_read = ReadLeb128Value(&buf[buffer_head_], &mix_presentation_id_);
@@ -114,7 +136,33 @@ bool IamfConfigReader::ReadOBU(const uint8_t* buf, bool& completed_parsing) {
         return false;
       }
       buffer_head_ += bytes_read;
+
+      // count_label
+      bytes_read = ReadLeb128Value(&buf[buffer_head_], &count_label);
+      if (bytes_read < 0) {
+        return false;
+      }
+      buffer_head_ += bytes_read;
+
+      // language_label
+      for (int i = 0; i < count_label; ++i) {
+        buffer_head_ += ReadString(&buf[buffer_head_], str);
+      }
+
+      // MixPresentationAnnotations
+      for (int i = 0; i < count_label; ++i) {
+        buffer_head_ += ReadString(&buf[buffer_head_], str);
+      }
+
+      // num_sub_mixes
+      bytes_read = ReadLeb128Value(&buf[buffer_head_], &num_sub_mixes);
+      if (bytes_read < 0) {
+        return false;
+      }
+      buffer_head_ += bytes_read;
+
       break;
+    }
     default:
       SB_LOG(INFO) << "OBU type " << static_cast<int>(obu_type);
       completed_parsing = true;
