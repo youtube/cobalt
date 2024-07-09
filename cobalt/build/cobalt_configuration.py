@@ -14,12 +14,11 @@
 """Base cobalt configuration for GYP."""
 
 from starboard.build import application_configuration
+from starboard.tools.testing import test_filter
 
 # The canonical Cobalt application name.
 APPLICATION_NAME = 'cobalt'
 
-<<<<<<< HEAD
-=======
 # A map of failing or crashing tests per target
 _FILTERED_TESTS = {
     'base_unittests': [
@@ -44,13 +43,18 @@ _FILTERED_TESTS = {
     ]
 }
 
->>>>>>> b6a2f44efb9 (Filter another flaky test (#3391))
 
 class CobaltConfiguration(application_configuration.ApplicationConfiguration):
   """Base Cobalt configuration class.
 
   Cobalt per-platform configurations, if defined, must subclass from this class.
   """
+
+  def GetTestFilters(self):
+    filters = super().GetTestFilters()
+    for target, tests in _FILTERED_TESTS.items():
+      filters.extend(test_filter.TestFilter(target, test) for test in tests)
+    return filters
 
   def GetWebPlatformTestFilters(self):
     """Gets all tests to be excluded from a black box test run."""
