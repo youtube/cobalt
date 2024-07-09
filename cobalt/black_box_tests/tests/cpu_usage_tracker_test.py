@@ -15,6 +15,7 @@
 
 from cobalt.black_box_tests import black_box_tests
 from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
+import logging
 
 PLATFORMS_SUPPORTED = [
     'linux-x64x11',
@@ -34,6 +35,11 @@ PLATFORMS_SUPPORTED = [
 class CpuUsageTrackerTest(black_box_tests.BlackBoxTestCase):
 
   def test_cpu_usage_tracker(self):
+    if self.launcher_params.platform not in PLATFORMS_SUPPORTED:
+      logging.warning('Blackbox tests disabled for platform:%s',
+                      self.launcher_params.platform)
+      return
+
     with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
       url = server.GetURL(file_name='testdata/cpu_usage_tracker_test.html')
       with self.CreateCobaltRunner(url=url) as runner:

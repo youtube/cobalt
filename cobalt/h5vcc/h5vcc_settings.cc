@@ -22,6 +22,7 @@
 #include "base/json/json_reader.h"
 #include "base/values.h"
 #include "cobalt/browser/cpu_usage_tracker.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/network/network_module.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -57,6 +58,7 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   const char kNavigatorUAData[] = "NavigatorUAData";
   const char kQUIC[] = "QUIC";
   const char kHTTP3[] = "HTTP3";
+  const char kSkiaRasterizer[] = "SkiaRasterizer";
 
 #if SB_IS(EVERGREEN)
   const char kUpdaterMinFreeSpaceBytes[] = "Updater.MinFreeSpaceBytes";
@@ -113,9 +115,30 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
       value.IsType<std::string>() && value.AsType<std::string>().size() < 512) {
     absl::optional<base::Value> config =
         base::JSONReader::Read(value.AsType<std::string>());
-    browser::CpuUsageTracker::GetInstance()->UpdateConfig(
+    browser::CpuUsageTracker::GetInstance()->UpdateIntervalsDefinition(
         config.has_value() ? std::move(*config) : base::Value());
     return true;
+  }
+  if (name.compare("cpu_usage_tracker_one_time_tracking") == 0 &&
+      value.IsType<int32>()) {
+    bool started = value.AsType<int32>() != 0;
+    if (started) {
+      browser::CpuUsageTracker::GetInstance()->StartOneTimeTracking();
+    } else {
+      browser::CpuUsageTracker::GetInstance()->StopAndCaptureOneTimeTracking();
+    }
+    return true;
+  }
+
+  if (name.compare(kSkiaRasterizer) == 0 && value.IsType<int32>()) {
+    if (!persistent_settings_) {
+      return false;
+    } else {
+      persistent_settings_->Set(configuration::Configuration::
+                                    kEnableSkiaRasterizerPersistentSettingKey,
+                                base::Value(value.AsType<int32>() != 0));
+      return true;
+    }
   }
 
 #if SB_IS(EVERGREEN)

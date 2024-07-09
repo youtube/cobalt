@@ -29,12 +29,14 @@ TEST(ClientHintHeadersTest, GetClientHintHeaders) {
   UserAgentPlatformInfo platform_info;
   platform_info.set_android_build_fingerprint("abc/def:123.456/xy-z");
   platform_info.set_android_os_experience("Amati");
+  platform_info.set_android_play_services_version("123");
 
   std::vector<std::string> headers = GetClientHintHeaders(platform_info);
   EXPECT_THAT(headers,
               UnorderedElementsAre(
                   "Sec-CH-UA-Co-Android-Build-Fingerprint:abc/def:123.456/xy-z",
-                  "Sec-CH-UA-Co-Android-OS-Experience:Amati"));
+                  "Sec-CH-UA-Co-Android-OS-Experience:Amati",
+                  "Sec-CH-UA-Co-Android-Play-Services-Version:123"));
 }
 
 }  // namespace

@@ -187,7 +187,8 @@ BrowserModule::BrowserModule(const GURL& url,
 #if SB_IS(EVERGREEN)
                              updater::UpdaterModule* updater_module,
 #endif
-                             const Options& options)
+                             const Options& options,
+                             bool enable_skia_rasterizer)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
@@ -252,7 +253,8 @@ BrowserModule::BrowserModule(const GURL& url,
       main_web_module_generation_(0),
       next_timeline_id_(1),
       current_splash_screen_timeline_id_(-1),
-      current_main_web_module_timeline_id_(-1) {
+      current_main_web_module_timeline_id_(-1),
+      enable_skia_rasterizer_(enable_skia_rasterizer) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
 
   if (options.enable_on_screen_keyboard) {
@@ -272,7 +274,8 @@ BrowserModule::BrowserModule(const GURL& url,
   // Apply platform memory setting adjustments and defaults.
   ApplyAutoMemSettings();
 
-  platform_info_.reset(new browser::UserAgentPlatformInfo());
+  platform_info_.reset(
+      new browser::UserAgentPlatformInfo(enable_skia_rasterizer_));
   service_worker_registry_.reset(new ServiceWorkerRegistry(
       &web_settings_, network_module, platform_info_.get()));
 
@@ -1971,9 +1974,9 @@ ViewportSize BrowserModule::GetViewportSize() {
 
 void BrowserModule::ApplyAutoMemSettings() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::ApplyAutoMemSettings()");
-  auto_mem_.ConstructSettings(GetViewportSize().width_height(),
-                              options_.command_line_auto_mem_settings,
-                              options_.config_api_auto_mem_settings);
+  auto_mem_.ConstructSettings(
+      GetViewportSize().width_height(), options_.command_line_auto_mem_settings,
+      options_.config_api_auto_mem_settings, enable_skia_rasterizer_);
 
   // Web Module options.
   options_.web_module_options.encoded_image_cache_capacity =

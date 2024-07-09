@@ -34,6 +34,7 @@ interface CobaltUADataValuesInterface {
   readonly attribute DOMString evergreenVersion;
   readonly attribute DOMString androidBuildFingerprint;
   readonly attribute DOMString androidOsExperience;
+  readonly attribute DOMString androidPlayServicesVersion;
   readonly attribute DOMString starboardVersion;
   readonly attribute DOMString originalDesignManufacturer;
   readonly attribute DOMString deviceType;

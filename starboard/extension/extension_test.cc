@@ -435,9 +435,10 @@ TEST(ExtensionTest, PlatformInfo) {
   }
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
-  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_EQ(extension_api->version, 2u);
   EXPECT_NE(extension_api->GetFirmwareVersionDetails, nullptr);
   EXPECT_NE(extension_api->GetOsExperience, nullptr);
+  EXPECT_NE(extension_api->GetCoreServicesVersion, nullptr);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
@@ -582,8 +583,15 @@ TEST(ExtensionTest, MediaSettings) {
   }
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
-  EXPECT_EQ(extension_api->version, 1u);
+
+  EXPECT_GE(extension_api->version, 1u);
+  EXPECT_LE(extension_api->version, 2u);
   EXPECT_NE(extension_api->EnableAsyncReleaseMediaCodecBridge, nullptr);
+
+  if (extension_api->version >= 2) {
+    EXPECT_NE(extension_api->SetAsyncReleaseMediaCodecBridgeTimeoutSeconds,
+              nullptr);
+  }
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

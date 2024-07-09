@@ -252,21 +252,10 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   info.set_javascript_engine_version(
       script::GetJavaScriptEngineNameAndVersion());
 
-  std::string rasterizer_type_setting = "";
-  if (base::CommandLine::InitializedForCurrentProcess()) {
-    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-    if (command_line->HasSwitch(browser::switches::kEnableSkiaRasterizer)) {
-      int enable_skia = 0;
-      base::StringToInt(command_line->GetSwitchValueASCII(
-                            browser::switches::kEnableSkiaRasterizer),
-                        &enable_skia);
-      if (enable_skia) {
-        rasterizer_type_setting = configuration::Configuration::kSkiaRasterizer;
-      } else {
-        rasterizer_type_setting = configuration::Configuration::kGlesRasterizer;
-      }
-    }
-  }
+  std::string rasterizer_type_setting =
+      info.enable_skia_rasterizer()
+          ? configuration::Configuration::kSkiaRasterizer
+          : "";
   std::string rasterizer_type =
       renderer::GetDefaultRasterizerForPlatform(rasterizer_type_setting)
           .rasterizer_name;
@@ -291,16 +280,23 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   auto platform_info_extension =
       static_cast<const CobaltExtensionPlatformInfoApi*>(
           SbSystemGetExtension(kCobaltExtensionPlatformInfoName));
-  if (platform_info_extension &&
-      strcmp(platform_info_extension->name, kCobaltExtensionPlatformInfoName) ==
-          0 &&
-      platform_info_extension->version >= 1) {
-    result = platform_info_extension->GetFirmwareVersionDetails(
-        value, kSystemPropertyMaxLength);
-    if (result) {
-      info.set_android_build_fingerprint(value);
+  if (platform_info_extension) {
+    if (platform_info_extension->version >= 1) {
+      result = platform_info_extension->GetFirmwareVersionDetails(
+          value, kSystemPropertyMaxLength);
+      if (result) {
+        info.set_android_build_fingerprint(value);
+      }
+      info.set_android_os_experience(
+          platform_info_extension->GetOsExperience());
     }
-    info.set_android_os_experience(platform_info_extension->GetOsExperience());
+    if (platform_info_extension->version >= 2) {
+      int64_t ver = platform_info_extension->GetCoreServicesVersion();
+      if (ver != 0) {
+        std::string sver = std::to_string(ver);
+        info.set_android_play_services_version(sver);
+      }
+    }
   }
 
   info.set_cobalt_version(COBALT_VERSION);
@@ -444,6 +440,9 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
         } else if (!input.first.compare("android_os_experience")) {
           info.set_android_os_experience(input.second);
           LOG(INFO) << "Set android os experience to " << input.second;
+        } else if (!input.first.compare("android_play_services_version")) {
+          info.set_android_play_services_version(input.second);
+          LOG(INFO) << "Set android play services version to " << input.second;
         } else if (!input.first.compare("cobalt_version")) {
           info.set_cobalt_version(input.second);
           LOG(INFO) << "Set cobalt type to " << input.second;
@@ -464,7 +463,8 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 }
 }  // namespace
 
-UserAgentPlatformInfo::UserAgentPlatformInfo() {
+UserAgentPlatformInfo::UserAgentPlatformInfo(bool enable_skia_rasterizer)
+    : enable_skia_rasterizer_(enable_skia_rasterizer) {
   InitializeUserAgentPlatformInfoFields(*this);
 }
 
@@ -567,6 +567,12 @@ void UserAgentPlatformInfo::set_android_build_fingerprint(
 void UserAgentPlatformInfo::set_android_os_experience(
     const std::string& android_os_experience) {
   android_os_experience_ = Sanitize(android_os_experience, isTCHAR);
+}
+
+void UserAgentPlatformInfo::set_android_play_services_version(
+    const std::string& android_play_services_version) {
+  android_play_services_version_ =
+      Sanitize(android_play_services_version, base::IsAsciiDigit);
 }
 
 void UserAgentPlatformInfo::set_cobalt_version(

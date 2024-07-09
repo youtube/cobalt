@@ -44,6 +44,8 @@ class MediaSettings {
   virtual base::Optional<bool> IsPaintingVideoBackgroundToBlack() const = 0;
   virtual base::Optional<bool>
   IsMediaElementUsingMediaSourceBufferedRangeEnabled() const = 0;
+  virtual base::Optional<bool>
+  IsMediaElementUsingMediaSourceAttachmentMethodsEnabled() const = 0;
 
  protected:
   MediaSettings() = default;
@@ -100,6 +102,11 @@ class MediaSettingsImpl : public MediaSettings {
     base::AutoLock auto_lock(lock_);
     return is_media_element_using_media_source_buffered_range_enabled_;
   }
+  base::Optional<bool> IsMediaElementUsingMediaSourceAttachmentMethodsEnabled()
+      const override {
+    base::AutoLock auto_lock(lock_);
+    return is_media_element_using_media_source_attachment_methods_enabled_;
+  }
 
   // Returns true when the setting associated with `name` is set to `value`.
   // Returns false when `name` is not associated with any settings, or if
@@ -119,6 +126,8 @@ class MediaSettingsImpl : public MediaSettings {
   base::Optional<int> media_element_timeupdate_event_interval_in_milliseconds_;
   base::Optional<bool>
       is_media_element_using_media_source_buffered_range_enabled_;
+  base::Optional<bool>
+      is_media_element_using_media_source_attachment_methods_enabled_;
 
   base::Optional<bool> is_painting_video_background_to_black_;
 };

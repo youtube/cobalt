@@ -205,6 +205,9 @@ class SourceBuffer : public web::EventTarget {
   scoped_refptr<TrackDefaultList> track_defaults_ = new TrackDefaultList(NULL);
   EventQueue* event_queue_;
 
+  // TODO(b/338425449): Remove direct references to MediaSource.
+  const bool is_using_media_source_attachment_methods_;
+
   bool first_initialization_segment_received_ = false;
   scoped_refptr<AudioTrackList> audio_tracks_;
   scoped_refptr<VideoTrackList> video_tracks_;
