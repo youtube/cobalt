@@ -9,7 +9,6 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
-#include "url/scheme_host_port.h"
 #include "url/url_util.h"
 
 namespace {

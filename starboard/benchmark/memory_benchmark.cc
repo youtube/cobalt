@@ -16,7 +16,7 @@
 
 #include "starboard/memory.h"
 
-#include "third_party/google_benchmark/include/benchmark/benchmark.h"
+#include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
 namespace starboard {
 namespace benchmark {

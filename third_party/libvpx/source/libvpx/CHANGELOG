@@ -1,8 +1,104 @@
+2023-01-31 v1.13.0 "Ugly Duckling"
+  This release includes more Neon and AVX2 optimizations, adds a new codec
+  control to set per frame QP, upgrades GoogleTest to v1.12.1, and includes
+  numerous bug fixes.
+
+  - Upgrading:
+    This release is ABI incompatible with the previous release.
+
+    New codec control VP9E_SET_QUANTIZER_ONE_PASS to set per frame QP.
+
+    GoogleTest is upgraded to v1.12.1.
+
+    .clang-format is upgraded to clang-format-11.
+
+    VPX_EXT_RATECTRL_ABI_VERSION was bumped due to incompatible changes to the
+    feature of using external rate control models for vp9.
+
+  - Enhancement:
+    Numerous improvements on Neon optimizations.
+    Numerous improvements on AVX2 optimizations.
+    Additional ARM targets added for Visual Studio.
+
+  - Bug fixes:
+    Fix to calculating internal stats when frame dropped.
+    Fix to segfault for external resize test in vp9.
+    Fix to build system with replacing egrep with grep -E.
+    Fix to a few bugs with external RTC rate control library.
+    Fix to make SVC work with VBR.
+    Fix to key frame setting in VP9 external RC.
+    Fix to -Wimplicit-int (Clang 16).
+    Fix to VP8 external RC for buffer levels.
+    Fix to VP8 external RC for dynamic update of layers.
+    Fix to VP9 auto level.
+    Fix to off-by-one error of max w/h in validate_config.
+    Fix to make SVC work for Profile 1.
+
+2022-06-17 v1.12.0 "Torrent Duck"
+  This release adds optimizations for Loongarch, adds support for vp8 in the
+  real-time rate control library, upgrades GoogleTest to v1.11.0, updates
+  libwebm to libwebm-1.0.0.28-20-g206d268, and includes numerous bug fixes.
+
+  - Upgrading:
+    This release is ABI compatible with the previous release.
+
+    vp8 support in the real-time rate control library.
+    New codec control VP8E_SET_RTC_EXTERNAL_RATECTRL is added.
+
+    Configure support for darwin21 is added.
+
+    GoogleTest is upgraded to v1.11.0.
+
+    libwebm is updated to libwebm-1.0.0.28-20-g206d268.
+
+    Allow SimpleEncode environment to take target level as input to match
+    the level conformance in vp9.
+
+  - Enhancement:
+    Numerous improvements on checking memory allocations.
+    Optimizations for Loongarch.
+    Code clean-up.
+
+  - Bug fixes:
+    Fix to a crash related to {vp8/vp9}_set_roi_map.
+    Fix to compiling failure with -Wformat-nonliteral.
+    Fix to integer overflow with vp9 with high resolution content.
+    Fix to AddNoiseTest failure with ARMv7.
+    Fix to libvpx Null-dereference READ in vp8.
+
+2021-09-27 v1.11.0 "Smew Duck"
+  This maintenance release adds support for VBR mode in VP9 rate control
+  interface, new codec controls to get quantization parameters and loop filter
+  levels, and includes several improvements to NEON and numerous bug fixes.
+
+  - Upgrading:
+    This release is ABI incompatible with the previous release.
+    New codec control is added to get quantization parameters and loop filter
+    levels.
+
+    VBR mode is supported in VP9 rate control library.
+
+  - Enhancement:
+    Numerous improvements for Neon optimizations.
+    Code clean-up and refactoring.
+    Calculation of rd multiplier is changed with BDRATE gains.
+
+  - Bug fixes:
+    Fix to overflow on duration.
+    Fix to several instances of -Wunused-but-set-variable.
+    Fix to avoid chroma resampling for 420mpeg2 input.
+    Fix to overflow in calc_iframe_target_size.
+    Fix to disallow skipping transform and quantization.
+    Fix some -Wsign-compare warnings in simple_encode.
+    Fix input file path in simple_encode_test.
+    Fix valid range for under/over_shoot pct.
+
 2021-03-09 v1.10.0 "Ruddy Duck"
   This maintenance release adds support for darwin20 and new codec controls, as
   well as numerous bug fixes.
 
   - Upgrading:
+    This release is ABI incompatible with the previous release.
     New codec control is added to disable loopfilter for VP9.
 
     New encoder control is added to disable feature to increase Q on overshoot
@@ -33,6 +129,7 @@
   well as incremental improvements.
 
   - Upgrading:
+    This release is ABI compatible with the previous release.
     NV12 support is added to this release.
     A new interface is added for VP9 rate control. The new library libvp9rc.a
     must be linked by applications.
@@ -56,12 +153,14 @@
   This release collects incremental improvements to many aspects of the library.
 
   - Upgrading:
+    This release is ABI compatible with the previous release.
     ARCH_* defines have been removed in favor of VPX_ARCH_*.
 
 2019-07-15 v1.8.1 "Orpington Duck"
   This release collects incremental improvements to many aspects of the library.
 
   - Upgrading:
+    This release is ABI incompatible with the previous release.
     VP8E_SET_CPUUSED now accepts values up to 9 for vp9.
     VPX_CTRL_VP9E_SET_MAX_INTER_BITRATE_PCT had a spelling fix (was VP8E).
     The --sdk-path option has been removed. If you were using it to build for
@@ -80,7 +179,8 @@
   This release focused on encoding performance for realtime and VOD use cases.
 
   - Upgrading:
-    This adds and improves several vp9 controls. Most are related to SVC:
+    This release is ABI incompatible with the previous release. This adds and
+    improves several vp9 controls. Most are related to SVC:
       VP9E_SET_SVC_FRAME_DROP_LAYER:
         - Frame dropping in SVC.
       VP9E_SET_SVC_INTER_LAYER_PRED:

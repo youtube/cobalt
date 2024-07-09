@@ -61,6 +61,7 @@
 #include "cobalt/browser/loader_app_metrics.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager.h"
+#include "cobalt/browser/resolve_rasterizer_settings.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/user_agent_platform_info.h"
 #include "cobalt/browser/user_agent_string.h"
@@ -89,7 +90,7 @@
 #include "url/gurl.h"
 
 #if SB_IS(EVERGREEN)
-#include "cobalt/updater/utils.h"
+#include "chrome/updater/util.h"
 #endif
 
 using cobalt::cssom::ViewportSize;
@@ -105,8 +106,6 @@ const char kDefaultURL[] = "https://www.youtube.com/tv";
 #if defined(ENABLE_ABOUT_SCHEME)
 const char kAboutBlankURL[] = "about:blank";
 #endif  // defined(ENABLE_ABOUT_SCHEME)
-
-const char kPersistentSettingsJson[] = "settings.json";
 
 // The watchdog client name used to represent Stats.
 const char kWatchdogName[] = "stats";
@@ -687,7 +686,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   // Initializes persistent settings.
   persistent_settings_ =
       std::make_unique<persistent_storage::PersistentSettings>(
-          kPersistentSettingsJson);
+          configuration::Configuration::kPersistentSettingsJson);
 
   // Initialize telemetry/metrics.
   InitMetrics();
@@ -730,6 +729,15 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   }
   if (command_line->HasSwitch(browser::switches::kFPSOverlay)) {
     options.renderer_module_options.enable_fps_overlay = true;
+  }
+
+  bool enable_skia_rasterizer = false;
+  options.renderer_module_options.rasterizer_type_setting =
+      browser::GetRasterizerType(persistent_settings_.get());
+  if (options.renderer_module_options.rasterizer_type_setting ==
+      configuration::Configuration::kSkiaRasterizer) {
+    loader::image::ImageDecoder::EnableSkiaRasterizer();
+    enable_skia_rasterizer = true;
   }
 
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
@@ -881,7 +889,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   options.web_module_options.collect_unload_event_time_callback = base::Bind(
       &Application::CollectUnloadEventTimingInfo, base::Unretained(this));
 
-  cobalt::browser::UserAgentPlatformInfo platform_info;
+  cobalt::browser::UserAgentPlatformInfo platform_info(enable_skia_rasterizer);
 
   network_module_.reset(new network::NetworkModule(
       CreateUserAgentString(platform_info), GetClientHintHeaders(platform_info),
@@ -924,7 +932,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
 #if SB_IS(EVERGREEN)
                         updater_module_.get(),
 #endif
-                        options));
+                        options, enable_skia_rasterizer));
 
   UpdateUserAgent();
 

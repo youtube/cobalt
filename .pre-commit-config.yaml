@@ -23,7 +23,6 @@ files: |
 exclude: |
     (?x)^(
         (
-            cobalt/updater|
             internal/kokoro/third-party|
             internal/starboard/shared/glimp/include|
             internal/starboard/shared/playstation/glimp/shaders|
@@ -141,13 +140,13 @@ repos:
                 cobalt/math/|
                 cobalt/media/|
                 cobalt/streams/|
-                cobalt/updater/|
                 cobalt/webdriver/screencast/|
                 cobalt/websocket/|
                 components/crx_file/|
                 content/|
                 internal/starboard/shared/glimp/|
                 nb/|
+                starboard/content/fonts/LICENSES.txt |
                 starboard/android/apk/gradlew|
                 starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java$|
                 starboard/shared/starboard/player/filter/decoded_audio_queue.cc$|

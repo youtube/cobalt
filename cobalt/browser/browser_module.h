@@ -84,7 +84,7 @@
 #endif                                  // ENABLE_DEBUGGER
 
 #if SB_IS(EVERGREEN)
-#include "cobalt/updater/updater_module.h"
+#include "chrome/updater/updater_module.h"
 #endif
 
 namespace cobalt {
@@ -130,7 +130,7 @@ class BrowserModule {
 #if SB_IS(EVERGREEN)
                 updater::UpdaterModule* updater_module,
 #endif
-                const Options& options);
+                const Options& options, bool enable_skia_rasterizer = false);
   ~BrowserModule();
 
   std::string GetUserAgent() { return network_module_->GetUserAgent(); }
@@ -748,6 +748,8 @@ class BrowserModule {
 
   // Manages the Service Workers.
   std::unique_ptr<ServiceWorkerRegistry> service_worker_registry_;
+
+  bool enable_skia_rasterizer_;
 };
 
 }  // namespace browser

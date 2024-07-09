@@ -50,6 +50,8 @@ env:
   SCCACHE_GCS_RW_MODE: READ_WRITE
   SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
   STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
+  # TODO(b/255654807) Workaround for https://github.com/actions/checkout/issues/1590
+  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}

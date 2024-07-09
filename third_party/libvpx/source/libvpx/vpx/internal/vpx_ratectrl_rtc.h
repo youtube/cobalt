@@ -8,12 +8,15 @@
  *  be found in the AUTHORS file in the root of the source tree.
  */
 
-#ifndef VPX_VPX_RATECTRL_RTC_H_
-#define VPX_VPX_RATECTRL_RTC_H_
+#ifndef VPX_VPX_INTERNAL_VPX_RATECTRL_RTC_H_
+#define VPX_VPX_INTERNAL_VPX_RATECTRL_RTC_H_
 
 #include "vpx/vpx_encoder.h"
 
 namespace libvpx {
+
+enum class RcFrameType { kKeyFrame = 0, kInterFrame = 1 };
+
 struct VpxRateControlRtcConfig {
  public:
   VpxRateControlRtcConfig() {
@@ -59,4 +62,4 @@ struct VpxRateControlRtcConfig {
   int aq_mode;
 };
 }  // namespace libvpx
-#endif
+#endif  // VPX_VPX_INTERNAL_VPX_RATECTRL_RTC_H_
