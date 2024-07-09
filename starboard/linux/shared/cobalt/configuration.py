@@ -21,26 +21,8 @@ from starboard.tools.testing import test_filter
 _FILTERED_TESTS = {
     # Tracked by b/185820828.
     'net_unittests': ['SpdyNetworkTransactionTest.SpdyBasicAuth',],
-<<<<<<< HEAD
-    'base_unittests': [
-        # TODO: b/329269559 These have flaky ASAN heap-use-after-free
-        # during metrics collection.
-        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePump',  # pylint: disable=line-too-long
-        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
-        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
-        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePump',  # pylint: disable=line-too-long
-        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
-        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
-        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePump',  # pylint: disable=line-too-long
-        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
-        # TODO: b/329507754 - Flaky after recent rebase.
-        'ScopedBlockingCallIOJankMonitoringTest.MultiThreadedOverlappedWindows',
-        'TaskEnvironmentTest.MultiThreadedMockTimeAndThreadPoolQueuedMode'
-    ],
-=======
     # Tracked by b/344915910.
     'base_unittests': ['FileTest.GetInfoForCreationTime',],
->>>>>>> ed5de7dd15b (Filter flaky test (#3443))
 }
 
 if os.getenv('MODULAR_BUILD', '0') == '1':
