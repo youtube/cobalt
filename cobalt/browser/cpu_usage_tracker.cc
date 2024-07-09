@@ -34,7 +34,8 @@ namespace browser {
 
 namespace {
 
-const char kSettingKey[] = "cpu_usage_tracker_intervals";
+const char kIntervals[] = "cpu_usage_tracker_intervals";
+const char kOneTimeTracking[] = "cpu_usage_tracker_one_time_tracking";
 
 enum IntervalType {
   PER_THREAD,
@@ -55,7 +56,7 @@ struct Config {
   std::vector<Interval> intervals;
 };
 
-base::Value GetDefaultConfigValue() {
+base::Value GetDefaultIntervalsValue() {
   return base::Value(
       base::Value::List()
           .Append(
@@ -66,8 +67,8 @@ base::Value GetDefaultConfigValue() {
           .Append(base::Value::Dict().Set("type", "total").Set("seconds", 30)));
 }
 
-Config GetDefaultConfig() {
-  return Config({
+std::vector<Interval> GetDefaultIntervals() {
+  return std::vector<Interval>({
       Interval(IntervalType::PER_THREAD, /*seconds=*/2),
       Interval(IntervalType::PER_THREAD, /*seconds=*/30),
       Interval(IntervalType::TOTAL, /*seconds=*/2),
@@ -75,10 +76,11 @@ Config GetDefaultConfig() {
   });
 }
 
-absl::optional<Config> ParseConfig(const base::Value& config_value) {
-  const base::Value::List* list = config_value.GetIfList();
+absl::optional<std::vector<Interval>> ParseIntervals(
+    const base::Value& intervals_value) {
+  const base::Value::List* list = intervals_value.GetIfList();
   if (!list) return absl::nullopt;
-  Config config;
+  std::vector<Interval> intervals;
   for (auto& item_value : *list) {
     const base::Value::Dict* item = item_value.GetIfDict();
     if (!item) return absl::nullopt;
@@ -94,9 +96,9 @@ absl::optional<Config> ParseConfig(const base::Value& config_value) {
     }
     int seconds = item->FindInt("seconds").value_or(0);
     if (seconds == 0) return absl::nullopt;
-    config.intervals.emplace_back(type, seconds);
+    intervals.emplace_back(type, seconds);
   }
-  return std::move(config);
+  return std::move(intervals);
 }
 
 }  // namespace
@@ -109,7 +111,16 @@ CpuUsageTracker* CpuUsageTracker::GetInstance() {
 
 CpuUsageTracker::CpuUsageTracker()
     : storage_(nullptr),
-      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
+      one_time_tracking_started_(false),
+      cval_one_time_tracking_per_thread_(
+          std::make_unique<base::CVal<std::string, base::CValPublic>>(
+              "CPU.PerThread.Usage.OneTime",
+              /*initial_value=*/"", /*description=*/"")),
+      cval_one_time_tracking_total_(
+          std::make_unique<base::CVal<double, base::CValPublic>>(
+              "CPU.Total.Usage.OneTime",
+              /*initial_value=*/0.0, /*description=*/"")) {
   base::CurrentThread::Get()->AddDestructionObserver(this);
 }
 
@@ -126,9 +137,14 @@ void CpuUsageTracker::Initialize(
 
 void CpuUsageTracker::InitializeAsync() {
   base::ProcessMetricsHelper::PopulateClockTicksPerS();
-  base::Value config;
-  storage_->Get(kSettingKey, &config);
-  UpdateConfig(config);
+  base::Value intervals;
+  storage_->Get(kIntervals, &intervals);
+  UpdateIntervalsDefinition(intervals);
+  base::Value one_time_tracking;
+  storage_->Get(kOneTimeTracking, &one_time_tracking);
+  if (one_time_tracking.GetIfBool().value_or(false)) {
+    StartOneTimeTracking();
+  }
 }
 
 void CpuUsageTracker::ClearIntervalContexts() {
@@ -162,7 +178,7 @@ void CpuUsageTracker::CreatePerThreadIntervalContext(int interval_seconds) {
       /*initial_value=*/"", /*description=*/"");
   context->timer = std::make_unique<base::RepeatingTimer>(
       FROM_HERE, base::TimeDelta::FromSecondsD(interval_seconds),
-      base::BindRepeating(&CpuUsageTracker::UpdatePerThread,
+      base::BindRepeating(&CpuUsageTracker::PerThreadIntervalTask,
                           base::Unretained(this), uuid));
   context->previous = base::Value::ToUniquePtrValue(
       base::ProcessMetricsHelper::GetCumulativeCPUUsagePerThread());
@@ -182,34 +198,81 @@ void CpuUsageTracker::CreateTotalIntervalContext(int interval_seconds) {
       /*initial_value=*/0.0, /*description=*/"");
   context->timer = std::make_unique<base::RepeatingTimer>(
       FROM_HERE, base::TimeDelta::FromSecondsD(interval_seconds),
-      base::BindRepeating(&CpuUsageTracker::UpdateTotal, base::Unretained(this),
-                          uuid));
+      base::BindRepeating(&CpuUsageTracker::TotalIntervalTask,
+                          base::Unretained(this), uuid));
   context->previous = base::ProcessMetricsHelper::GetCumulativeCPUUsage();
   interval_contexts_.emplace(uuid, std::move(context));
   interval_contexts_[uuid]->timer->Reset();
 }
 
-void CpuUsageTracker::UpdateConfig(const base::Value& config_value) {
+void CpuUsageTracker::StartOneTimeTracking() {
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
-        FROM_HERE,
-        base::BindOnce(&CpuUsageTracker::UpdateConfig, base::Unretained(this),
-                       config_value.Clone()));
+        FROM_HERE, base::BindOnce(&CpuUsageTracker::StartOneTimeTracking,
+                                  base::Unretained(this)));
     return;
   }
   base::AutoLock auto_lock(lock_);
-  absl::optional<Config> config = ParseConfig(config_value);
-  if (!config.has_value()) {
-    base::Value default_config = GetDefaultConfigValue();
-    config = GetDefaultConfig();
-    storage_->Set(kSettingKey, std::move(default_config));
+  one_time_tracking_started_ = true;
+  storage_->Set(kOneTimeTracking, base::Value(true));
+  one_time_tracking_per_thread_at_start_ = base::Value::ToUniquePtrValue(
+      base::ProcessMetricsHelper::GetCumulativeCPUUsagePerThread());
+  one_time_tracking_total_at_start_ =
+      base::ProcessMetricsHelper::GetCumulativeCPUUsage();
+}
+
+void CpuUsageTracker::StopAndCaptureOneTimeTracking() {
+  if (!one_time_tracking_started_) return;
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&CpuUsageTracker::StopAndCaptureOneTimeTracking,
+                       base::Unretained(this)));
+    return;
+  }
+  base::AutoLock auto_lock(lock_);
+  one_time_tracking_started_ = false;
+  storage_->Set(kOneTimeTracking, base::Value(false));
+  {
+    base::Value current =
+        std::move(base::ProcessMetricsHelper::GetCumulativeCPUUsagePerThread());
+    absl::optional<std::string> serialized = base::WriteJson(base::Value(
+        base::Value::Dict()
+            .Set("previous", one_time_tracking_per_thread_at_start_->Clone())
+            .Set("current", current.Clone())));
+    DCHECK(serialized.has_value());
+    *cval_one_time_tracking_per_thread_ = *serialized;
+  }
+  {
+    base::TimeDelta current =
+        base::ProcessMetricsHelper::GetCumulativeCPUUsage();
+    *cval_one_time_tracking_total_ =
+        (current - one_time_tracking_total_at_start_).InSecondsF();
+  }
+}
+
+void CpuUsageTracker::UpdateIntervalsDefinition(
+    const base::Value& intervals_value) {
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&CpuUsageTracker::UpdateIntervalsDefinition,
+                       base::Unretained(this), intervals_value.Clone()));
+    return;
+  }
+  base::AutoLock auto_lock(lock_);
+  absl::optional<std::vector<Interval>> intervals =
+      ParseIntervals(intervals_value);
+  if (!intervals.has_value()) {
+    storage_->Set(kIntervals, GetDefaultIntervalsValue());
+    intervals = GetDefaultIntervals();
   } else {
-    storage_->Set(kSettingKey, config_value.Clone());
+    storage_->Set(kIntervals, intervals_value.Clone());
   }
   ClearIntervalContexts();
   std::set<int> total_intervals_processed;
   std::set<int> per_thread_intervals_processed;
-  for (const Interval& interval : config->intervals) {
+  for (const Interval& interval : *intervals) {
     if (interval.type == IntervalType::PER_THREAD) {
       if (per_thread_intervals_processed.count(interval.seconds) == 1) {
         DLOG(WARNING) << "Duplicate CPU per-thread usage interval "
@@ -231,7 +294,7 @@ void CpuUsageTracker::UpdateConfig(const base::Value& config_value) {
   }
 }
 
-void CpuUsageTracker::UpdatePerThread(const base::Uuid& uuid) {
+void CpuUsageTracker::PerThreadIntervalTask(const base::Uuid& uuid) {
   base::AutoLock auto_lock(lock_);
   if (interval_contexts_.count(uuid) == 0) {
     NOTREACHED();
@@ -250,7 +313,7 @@ void CpuUsageTracker::UpdatePerThread(const base::Uuid& uuid) {
   context->previous = base::Value::ToUniquePtrValue(std::move(current));
 }
 
-void CpuUsageTracker::UpdateTotal(const base::Uuid& uuid) {
+void CpuUsageTracker::TotalIntervalTask(const base::Uuid& uuid) {
   base::AutoLock auto_lock(lock_);
   if (interval_contexts_.count(uuid) == 0) {
     NOTREACHED();
