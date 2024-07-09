@@ -17,7 +17,7 @@
 
 #if defined(STARBOARD)
 
-// Initializes ICU using a standard path based on the Starboard content path.
+// Does minimal initialization of ICU.
 // This function must be threadsafe and idempotent. Applications that wish to
 // initialize ICU differently may define their own IcuInit function rather
 // than using the implementation here.
