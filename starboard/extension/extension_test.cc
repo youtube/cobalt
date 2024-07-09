@@ -32,6 +32,7 @@
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/extension/player_configuration.h"
+#include "starboard/extension/player_perf.h"
 #include "starboard/extension/player_set_max_video_input_size.h"
 #include "starboard/extension/time_zone.h"
 #include "starboard/extension/updater_notification.h"
@@ -598,7 +599,6 @@ TEST(ExtensionTest, MediaSettings) {
   EXPECT_EQ(second_extension_api, extension_api)
       << "Extension struct should be a singleton";
 }
-
 TEST(ExtensionTest, CobaltAccessibilityExtension) {
   typedef StarboardExtensionAccessibilityApi ExtensionApi;
   const char* kExtensionName = kStarboardExtensionAccessibilityName;
@@ -615,6 +615,34 @@ TEST(ExtensionTest, CobaltAccessibilityExtension) {
   EXPECT_NE(extension_api->GetDisplaySettings, nullptr);
   EXPECT_NE(extension_api->GetCaptionSettings, nullptr);
   EXPECT_NE(extension_api->SetCaptionsEnabled, nullptr);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, PlayerPerf) {
+  typedef StarboardExtensionPlayerPerfApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionPlayerPerfName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_NE(extension_api->GetPlatformIndependentCPUUsage, nullptr);
+  EXPECT_NE(extension_api->GetAudioUnderrunCount, nullptr);
+  EXPECT_NE(extension_api->IsSIMDEnabled, nullptr);
+  EXPECT_NE(extension_api->IsForceTunnelMode, nullptr);
+  EXPECT_NE(extension_api->GetCurrentMediaAudioCodecName, nullptr);
+  EXPECT_NE(extension_api->GetCurrentMediaVideoCodecName, nullptr);
+  EXPECT_NE(extension_api->IncreaseCountShouldBePaused, nullptr);
+  EXPECT_NE(extension_api->GetCountShouldBePaused, nullptr);
+  EXPECT_NE(extension_api->AddThreadID, nullptr);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

@@ -1077,8 +1077,10 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     return;
   }
 
+  size_t total_size_in_byte = 0;
   if (type == DemuxerStream::AUDIO) {
     for (const auto& buffer : buffers) {
+      total_size_in_byte += buffer->data_size();
       playback_statistics_.OnAudioAU(buffer);
       if (!buffer->end_of_stream()) {
         last_audio_sample_interval_ =
@@ -1088,6 +1090,7 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     }
   } else {
     for (const auto& buffer : buffers) {
+      total_size_in_byte += buffer->data_size();
       playback_statistics_.OnVideoAU(buffer);
       if (buffer->end_of_stream()) {
         is_video_eos_written_ = true;
@@ -1095,6 +1098,9 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     }
   }
   SetReadInProgress(type, false);
+  LOG(ERROR) << ((type == DemuxerStream::AUDIO) ? "audio:" : "video:")
+             << buffers.size() << ":" << max_number_buffers_to_read << ":"
+             << total_size_in_byte;
 
   player_bridge_->WriteBuffers(type, buffers);
 }

@@ -21,6 +21,7 @@
 #include "starboard/android/shared/media_settings_api.h"
 #include "starboard/android/shared/platform_info.h"
 #include "starboard/android/shared/platform_service.h"
+#include "starboard/android/shared/player_perf.h"
 #include "starboard/android/shared/player_set_max_video_input_size.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -39,6 +40,7 @@
 #include "starboard/extension/media_settings.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
+#include "starboard/extension/player_perf.h"
 #include "starboard/extension/player_set_max_video_input_size.h"
 
 const void* SbSystemGetExtension(const char* name) {
@@ -88,6 +90,9 @@ const void* SbSystemGetExtension(const char* name) {
 #endif
   if (strcmp(name, kStarboardExtensionMediaSettingsName) == 0) {
     return starboard::android::shared::GetMediaSettingsApi();
+  }
+  if (strcmp(name, kStarboardExtensionPlayerPerfName) == 0) {
+    return starboard::android::shared::GetPlayerPerfApi();
   }
   return NULL;
 }

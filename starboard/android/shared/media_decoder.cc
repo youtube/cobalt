@@ -19,6 +19,7 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/player_perf.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -198,6 +199,9 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (decoder_thread_ == 0) {
+    char name[128] = {0};
+    pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
+    AddThreadIDInternal(name, static_cast<int32_t>(SbThreadGetId()));
     pthread_create(&decoder_thread_, nullptr,
                    &MediaDecoder::DecoderThreadEntryPoint, this);
     SB_DCHECK(decoder_thread_ != 0);
@@ -242,6 +246,9 @@ void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
   } else {
     ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
   }
+  char name[128] = {0};
+  pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
+  AddThreadIDInternal(name, static_cast<int32_t>(SbThreadGetId()));
 
   decoder->DecoderThreadFunc();
   return NULL;
