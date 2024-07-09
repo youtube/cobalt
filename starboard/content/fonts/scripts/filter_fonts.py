@@ -38,7 +38,7 @@ def SelectFont(font_node, package_categories):
   Args:
     font_node: The <font> node to evaluate.
     package_categories: Dictionary of package name to category number.
-      The category values are described in cobalt/content/fonts/README.md
+      The category values are described in starboard/content/fonts/README.md
   Returns:
     True to keep this font, False to delete it.
   """

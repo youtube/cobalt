@@ -60,11 +60,11 @@ target(final_executable_type, "cobalt") {
   ]
   data_deps = [ "//cobalt/network:copy_ssl_certificates" ]
   if (cobalt_font_package == "empty") {
-    data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
+    data_deps += [ "//starboard/content/fonts:copy_font_data" ]
   } else {
     data_deps += [
-      "//cobalt/content/fonts:copy_fonts",
-      "//cobalt/content/fonts:fonts_xml",
+      "//starboard/content/fonts:copy_fonts",
+      "//starboard/content/fonts:fonts_xml",
     ]
   }
   if (sb_is_evergreen) {
@@ -104,6 +104,20 @@ source_set("browser_switches") {
     "switches.h",
   ]
   public_deps = [ "//starboard:starboard_headers_only" ]
+}
+
+source_set("browser_rasterizer_settings") {
+  has_pedantic_warnings = true
+  sources = [
+    "resolve_rasterizer_settings.cc",
+    "resolve_rasterizer_settings.h",
+  ]
+  deps = [
+    ":browser_switches",
+    "//cobalt/base",
+    "//cobalt/configuration",
+    "//cobalt/persistent_storage:persistent_settings",
+  ]
 }
 
 static_library("browser") {
@@ -152,6 +166,7 @@ static_library("browser") {
 
   deps = [
     ":bindings",
+    ":browser_rasterizer_settings",
     ":browser_switches",
     ":cpu_usage_tracker",
     ":generated_bindings",
@@ -268,6 +283,7 @@ target(gtest_target_type, "browser_test") {
 
   deps = [
     ":browser",
+    ":browser_rasterizer_settings",
     ":browser_switches",
     "//cobalt/base",
     "//cobalt/browser/memory_settings:browser_memory_settings",

@@ -1,4 +1,4 @@
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,25 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_RENDERER_GET_DEFAULT_RASTERIZER_FOR_PLATFORM_H_
-#define COBALT_RENDERER_GET_DEFAULT_RASTERIZER_FOR_PLATFORM_H_
+#ifndef COBALT_BROWSER_RESOLVE_RASTERIZER_SETTINGS_H_
+#define COBALT_BROWSER_RESOLVE_RASTERIZER_SETTINGS_H_
 
 #include <string>
 
-#include "cobalt/renderer/renderer_module.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
 
 namespace cobalt {
-namespace renderer {
+namespace browser {
 
-struct RasterizerInfo {
-  std::string rasterizer_name;
-  RendererModule::Options::CreateRasterizerCallback create_rasterizer_callback;
-};
+std::string GetRasterizerType(
+    persistent_storage::PersistentSettings* persistent_settings = nullptr);
 
-RasterizerInfo GetDefaultRasterizerForPlatform(
-    std::string rasterizer_type_setting = "");
-
-}  // namespace renderer
+}  // namespace browser
 }  // namespace cobalt
 
-#endif  // COBALT_RENDERER_GET_DEFAULT_RASTERIZER_FOR_PLATFORM_H_
+#endif  // COBALT_BROWSER_RESOLVE_RASTERIZER_SETTINGS_H_

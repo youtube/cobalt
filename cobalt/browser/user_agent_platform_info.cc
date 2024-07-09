@@ -18,9 +18,11 @@
 #include <memory>
 
 #include "base/command_line.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/get_default_rasterizer_for_platform.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/version.h"
@@ -249,8 +251,15 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 
   info.set_javascript_engine_version(
       script::GetJavaScriptEngineNameAndVersion());
-  info.set_rasterizer_type(
-      renderer::GetDefaultRasterizerForPlatform().rasterizer_name);
+
+  std::string rasterizer_type_setting =
+      info.enable_skia_rasterizer()
+          ? configuration::Configuration::kSkiaRasterizer
+          : "";
+  std::string rasterizer_type =
+      renderer::GetDefaultRasterizerForPlatform(rasterizer_type_setting)
+          .rasterizer_name;
+  info.set_rasterizer_type(rasterizer_type);
 
 // Evergreen info
 #if SB_IS(EVERGREEN)
@@ -444,7 +453,8 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
 }
 }  // namespace
 
-UserAgentPlatformInfo::UserAgentPlatformInfo() {
+UserAgentPlatformInfo::UserAgentPlatformInfo(bool enable_skia_rasterizer)
+    : enable_skia_rasterizer_(enable_skia_rasterizer) {
   InitializeUserAgentPlatformInfoFields(*this);
 }
 
