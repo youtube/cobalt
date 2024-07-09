@@ -20,19 +20,20 @@ from starboard.tools.testing import test_filter
 APPLICATION_NAME = 'cobalt'
 
 # A map of failing or crashing tests per target
+# pylint: disable=line-too-long
 _FILTERED_TESTS = {
     'base_unittests': [
         # TODO: b/329269559 These have flaky ASAN heap-use-after-free
         # during metrics collection.
-        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePump',  # pylint: disable=line-too-long
-        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
-        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
-        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePump',  # pylint: disable=line-too-long
-        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
-        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMockTaskRunner',  # pylint: disable=line-too-long
-        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePump',  # pylint: disable=line-too-long
-        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePumpAlignedWakeUps',  # pylint: disable=line-too-long
-        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMockTaskRunner',  # pylint: disable=line-too-long
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePump',
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMessagePumpAlignedWakeUps',
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_DifferentQueue/WithMockTaskRunner',
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePump',
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePumpAlignedWakeUps',
+        'All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMockTaskRunner',
+        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePump',
+        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMessagePumpAlignedWakeUps',
+        'All/SequenceManagerTest.SweepCanceledDelayedTasks_ManyTasks/WithMockTaskRunner',
         # TODO: b/329507754 - Flaky after recent rebase.
         'ScopedBlockingCallIOJankMonitoringTest.MultiThreadedOverlappedWindows',
         'TaskEnvironmentTest.MultiThreadedMockTimeAndThreadPoolQueuedMode'
