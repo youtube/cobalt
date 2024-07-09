@@ -115,8 +115,18 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
       value.IsType<std::string>() && value.AsType<std::string>().size() < 512) {
     absl::optional<base::Value> config =
         base::JSONReader::Read(value.AsType<std::string>());
-    browser::CpuUsageTracker::GetInstance()->UpdateConfig(
+    browser::CpuUsageTracker::GetInstance()->UpdateIntervalsDefinition(
         config.has_value() ? std::move(*config) : base::Value());
+    return true;
+  }
+  if (name.compare("cpu_usage_tracker_one_time_tracking") == 0 &&
+      value.IsType<int32>()) {
+    bool started = value.AsType<int32>() != 0;
+    if (started) {
+      browser::CpuUsageTracker::GetInstance()->StartOneTimeTracking();
+    } else {
+      browser::CpuUsageTracker::GetInstance()->StopAndCaptureOneTimeTracking();
+    }
     return true;
   }
 
