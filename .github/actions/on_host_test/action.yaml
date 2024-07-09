@@ -103,20 +103,26 @@ runs:
         tags="platform:${{ matrix.platform }}"
         tags="${tags},os:${{ inputs.os }}"
         echo $tags > ${TEST_RESULTS_DIR}/${{ matrix.platform }}/TAGS
+    - name: Archive Crash Dumps
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: crash-dumps-${{ matrix.shard }}
+        path: ${{ github.workspace }}/out/**/*.dmp
     - name: Archive unit test results
       uses: actions/upload-artifact@v3
       if: (success() || failure()) && steps.run-tests.outputs.test_type == 'unit_tests'
       with:
         name: unit-test-results
-        path: ${{env.TEST_RESULTS_DIR}}/
+        path: ${{ env.TEST_RESULTS_DIR }}/
     - name: Archive coverage html report
       if: success() && matrix.shard == 'coverage'
       uses: actions/upload-artifact@v3
       with:
         name: coverage-report
-        path: ${{env.COVERAGE_DIR}}/html
+        path: ${{ env.COVERAGE_DIR }}/html
     - name: Upload to Codecov
       if: success() && matrix.shard == 'coverage'
       uses: codecov/codecov-action@v3
       with:
-        files: ${{env.COVERAGE_DIR}}/report.txt
+        files: ${{ env.COVERAGE_DIR }}/report.txt
