@@ -111,6 +111,7 @@ public class StarboardBridge {
   private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
   private final HashMap<String, String> crashContext = new HashMap<>();
 
+  private static final String GOOGLE_PLAY_SERVICES_PACKAGE = "com.google.android.gms";
   private static final String AMATI_EXPERIENCE_FEATURE =
       "com.google.android.feature.AMATI_EXPERIENCE";
   private final boolean isAmatiDevice;
@@ -620,7 +621,15 @@ public class StarboardBridge {
     sb.append('/');
 
     try {
-      sb.append(appContext.getPackageManager().getPackageInfo(packageName, 0).versionName);
+      if (android.os.Build.VERSION.SDK_INT < 33) {
+        sb.append(appContext.getPackageManager().getPackageInfo(packageName, 0).versionName);
+      } else {
+        sb.append(
+            appContext
+                .getPackageManager()
+                .getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+                .versionName);
+      }
     } catch (PackageManager.NameNotFoundException ex) {
       // Should never happen
       Log.e(TAG, "Can't find our own package", ex);
@@ -798,5 +807,31 @@ public class StarboardBridge {
   @UsedByNative
   protected String getBuildFingerprint() {
     return Build.FINGERPRINT;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected long getPlayServicesVersion() {
+    try {
+      if (android.os.Build.VERSION.SDK_INT < 28) {
+        return appContext
+            .getPackageManager()
+            .getPackageInfo(GOOGLE_PLAY_SERVICES_PACKAGE, 0)
+            .versionCode;
+      } else if (android.os.Build.VERSION.SDK_INT < 33) {
+        return appContext
+            .getPackageManager()
+            .getPackageInfo(GOOGLE_PLAY_SERVICES_PACKAGE, 0)
+            .getLongVersionCode();
+      } else {
+        return appContext
+            .getPackageManager()
+            .getPackageInfo(GOOGLE_PLAY_SERVICES_PACKAGE, PackageManager.PackageInfoFlags.of(0))
+            .getLongVersionCode();
+      }
+    } catch (Exception e) {
+      Log.w(TAG, "Unable to query Google Play Services package version", e);
+      return 0;
+    }
   }
 }

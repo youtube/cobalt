@@ -309,6 +309,8 @@ if (!use_cobalt_customizations) {
         sources += crypto_sources_linux_x86_64
       } else if (target_cpu == "arm") {
         sources += crypto_sources_linux_arm
+      } else if (target_cpu == "arm64") {
+        sources += crypto_sources_linux_aarch64
       } else {
         assert(false, "Unsupported Linux or Android arch for native build")
       }

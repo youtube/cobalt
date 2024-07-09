@@ -33,24 +33,12 @@ namespace {
 // Once control for initializing ICU.
 pthread_once_t g_initialization_once = PTHREAD_ONCE_INIT;
 
-// Initializes ICU and TimeZones so the rest of the functions will work. Should
-// only be called once.
+// Should only be called once.
 void Initialize() {
-  // Minimal Initialization of ICU.
-  std::vector<char> base_path(kSbFileMaxPath);
-  bool result = SbSystemGetPath(kSbSystemPathContentDirectory, base_path.data(),
-                                base_path.size());
-  SB_DCHECK(result);
-
-  std::string data_path(base_path.data());
-  data_path += kSbFileSepString;
-  data_path += "icu";
-
-  // set this as the data directory.
-  u_setDataDirectory(data_path.c_str());
-
   UErrorCode err = U_ZERO_ERROR;
-  udata_setFileAccess(UDATA_PACKAGES_FIRST, &err);
+
+  // ICU data is linked into the binary.
+  udata_setFileAccess(UDATA_NO_FILES, &err);
   SB_DCHECK(err <= U_ZERO_ERROR);
 }
 
