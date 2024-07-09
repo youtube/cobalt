@@ -21,6 +21,8 @@ namespace switches {
 
 extern const char kAllowImageDecodingToMultiPlane[];
 
+extern const char kEnableSkiaRasterizer[];
+
 }  // namespace switches
 }  // namespace loader
 }  // namespace cobalt
