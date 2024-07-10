@@ -108,14 +108,10 @@ bool IamfAudioDecoder::DecodeInternal(
   SB_DCHECK(output_cb_);
   SB_DCHECK(!stream_ended_ || !pending_audio_buffers_.empty());
 
-  SB_LOG(INFO) << "Start reading";
   reader_.Read(input_buffer);
-  SB_LOG(INFO) << "Back in iamf decoder";
   if (!decoder_) {
-    bool init = InitializeCodec();
-    SB_LOG(INFO) << init;
-    if (!init) {
-      SB_LOG(INFO) << "Decoder init failure";
+    bool decoder_initialized = InitializeCodec();
+    if (!decoder_initialized) {
       error_cb_(kSbPlayerErrorDecode, "Failed to initialize IAMF decoder");
       return false;
     }
@@ -124,33 +120,36 @@ bool IamfAudioDecoder::DecodeInternal(
   scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
       audio_stream_info_.number_of_channels, GetSampleType(),
       kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
-      audio_stream_info_.number_of_channels * kMaxOpusFramesPerAU *
+      audio_stream_info_.number_of_channels * kMaxIamfFramesPerAU *
           starboard::media::GetBytesPerSample(GetSampleType()));
-  SB_LOG(INFO) << "Start decode with AU size " << reader_.data().size();
-  int ret = IAMF_decoder_decode(decoder_, reader_.data().data(),
-                                reader_.data().size(), nullptr,
-                                reinterpret_cast<void*>(decoded_audio->data()));
-  if (ret < 1) {
-    SB_LOG(INFO) << "IAMF_decoder_decode() error " << std::hex << ret;
-    error_cb_(kSbPlayerErrorDecode, "Failed to decode sample");
+  int samples_decoded = IAMF_decoder_decode(
+      decoder_, reader_.data().data(), reader_.data().size(), nullptr,
+      reinterpret_cast<void*>(decoded_audio->data()));
+  if (samples_decoded < 1) {
+    SB_LOG(INFO) << "IAMF_decoder_decode() error " << std::hex
+                 << samples_decoded;
+    error_cb_(kSbPlayerErrorDecode, "Failed to decode IAMF sample");
     return false;
-  } else {
-    SB_LOG(INFO) << "Decoded " << ret << " samples";
-    SB_DCHECK(ret <= kMaxOpusFramesPerAU);
   }
 
-  frames_per_au_ = ret;
+  SB_DCHECK(samples_decoded <= kMaxIamfFramesPerAU);
+  SB_LOG(INFO) << "Decoded " << samples_decoded << " samples";
+
+  frames_per_au_ = samples_decoded;
   decoded_audio->ShrinkTo(audio_stream_info_.number_of_channels *
                           frames_per_au_ *
                           starboard::media::GetBytesPerSample(GetSampleType()));
+
+  // TODO: Enable once float32 pcm output is fixed.
   // const auto& sample_info = input_buffer->audio_sample_info();
   // decoded_audio->AdjustForDiscardedDurations(
   //     audio_stream_info_.samples_per_second,
   //     sample_info.discarded_duration_from_front,
   //     sample_info.discarded_duration_from_back);
+
   decoded_audios_.push(decoded_audio);
+
   output_cb_();
-  SB_LOG(INFO) << "Returning decoded audio";
 
   return true;
 }
@@ -159,8 +158,6 @@ void IamfAudioDecoder::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
 
-  // Opus has no dependent frames so we needn't flush the decoder.  Set the
-  // flag to ensure that Decode() is not called when the stream is ended.
   stream_ended_ = true;
   if (!pending_audio_buffers_.empty()) {
     return;
@@ -175,23 +172,25 @@ void IamfAudioDecoder::WriteEndOfStream() {
 bool IamfAudioDecoder::InitializeCodec() {
   int channels = audio_stream_info_.number_of_channels;
   if (channels > 8 || channels < 1) {
-    SB_LOG(ERROR) << "Can't create decoder with " << channels << " channels";
+    SB_DLOG(ERROR) << "Can't create decoder with " << channels << " channels";
     return false;
   }
 
   decoder_ = IAMF_decoder_open();
   if (!decoder_) {
-    SB_LOG(ERROR) << "Error creating libiamf decoder";
+    SB_DLOG(ERROR) << "Error creating libiamf decoder";
     return false;
   }
 
-  int error = IAMF_decoder_set_bit_depth(decoder_, kOutputBitDepth);
+  // TODO: libiamf has an issue outputting 32 bit float samples, set to 16 bit
+  // for now.
+  int error = IAMF_decoder_set_bit_depth(decoder_, 16);
   if (error != IAMF_OK) {
-    SB_LOG(ERROR) << "IAMF_decoder_set_bit_depth() fails with error " << error;
+    SB_DLOG(ERROR) << "IAMF_decoder_set_bit_depth() fails with error " << error;
     return false;
   }
 
-  error = IAMF_decoder_set_sampling_rate(decoder_, kOutputSamplesPerSecond);
+  error = IAMF_decoder_set_sampling_rate(decoder_, reader_.sample_rate());
   if (error != IAMF_OK) {
     SB_LOG(ERROR) << "IAMF_decoder_set_sampling_rate() fails with error "
                   << error;
@@ -202,17 +201,19 @@ bool IamfAudioDecoder::InitializeCodec() {
   switch (channels) {
     case 1:
       sound_system = SOUND_SYSTEM_MONO;
-      SB_LOG(INFO) << "Configuring IamfAudioDecoder for mono output";
       break;
     case 2:
+      // Stereo output.
       sound_system = SOUND_SYSTEM_A;
       SB_LOG(INFO) << "Configuring IamfAudioDecoder for stereo output";
       break;
     case 6:
+      // 5.1 output.
       sound_system = SOUND_SYSTEM_B;
       SB_LOG(INFO) << "Configuring IamfAudioDecoder for 5.1 output";
       break;
     case 8:
+      // 7.1 output.
       sound_system = SOUND_SYSTEM_C;
       SB_LOG(INFO) << "Configuring IamfAudioDecoder for 7.1 output";
       break;
@@ -237,15 +238,12 @@ bool IamfAudioDecoder::InitializeCodec() {
     return false;
   }
 
-  if (reader_.has_mix_presentation_id()) {
-    error = IAMF_decoder_set_mix_presentation_id(decoder_,
-                                                 reader_.mix_presentation_id());
-    if (error != IAMF_OK) {
-      SB_LOG(ERROR)
-          << "IAMF_decoder_set_mix_presentation_id() fails with error "
-          << error;
-      return false;
-    }
+  error = IAMF_decoder_set_mix_presentation_id(decoder_,
+                                               reader_.mix_presentation_id());
+  if (error != IAMF_OK) {
+    SB_LOG(ERROR) << "IAMF_decoder_set_mix_presentation_id() fails with error "
+                  << error;
+    return false;
   }
 
   error = IAMF_decoder_peak_limiter_enable(decoder_, 0);
@@ -291,7 +289,7 @@ scoped_refptr<IamfAudioDecoder::DecodedAudio> IamfAudioDecoder::Read(
     result = decoded_audios_.front();
     decoded_audios_.pop();
   }
-  *samples_per_second = kOutputSamplesPerSecond;
+  *samples_per_second = reader_.sample_rate();
   return result;
 }
 
@@ -303,7 +301,7 @@ void IamfAudioDecoder::Reset() {
     InitializeCodec();
   }
 
-  frames_per_au_ = kMaxOpusFramesPerAU;
+  frames_per_au_ = kMaxIamfFramesPerAU;
   stream_ended_ = false;
   while (!decoded_audios_.empty()) {
     decoded_audios_.pop();
@@ -316,7 +314,10 @@ void IamfAudioDecoder::Reset() {
 
 SbMediaAudioSampleType IamfAudioDecoder::GetSampleType() const {
   SB_DCHECK(BelongsToCurrentThread());
-  return kSbMediaAudioSampleTypeFloat32;
+  // if (audio_stream_info_.bits_per_sample == 32) {
+  //   return kSbMediaAudioSampleTypeFloat32;
+  // }
+  return kSbMediaAudioSampleTypeInt16Deprecated;
 }
 
 }  // namespace libiamf

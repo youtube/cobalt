@@ -25,6 +25,7 @@ namespace starboard {
 namespace shared {
 namespace libiamf {
 
+// TODO: Add handling for non-redundant OBUS
 class IamfConfigReader {
  public:
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
@@ -33,13 +34,17 @@ class IamfConfigReader {
 
   bool Read(scoped_refptr<InputBuffer> input_buffer);
 
-  int sample_rate() { return sample_rate_; }
-  bool config_changed() { return false; }
-  uint32_t config_size() {
-    SB_LOG(INFO) << "Config size is " << config_size_;
-    SB_LOG(INFO) << "Buffer size is " << config_obus_.size();
-    return config_size_;
+  void Reset();
+
+  bool is_valid() {
+    return data_size_ > 0 && config_size_ > 0 && has_mix_presentation_id_ &&
+           sample_rate_ > 0;
   }
+  int sample_rate() { return sample_rate_; }
+  uint32_t samples_per_buffer() { return samples_per_buffer_; }
+  bool config_changed() { return false; }
+  uint32_t config_size() { return config_size_; }
+  // TODO: Allow for selection of multiple mix presentation IDs.
   bool has_mix_presentation_id() { return has_mix_presentation_id_; }
   uint32_t mix_presentation_id() { return mix_presentation_id_; }
   uint32_t data_size() { return data_size_; }
@@ -56,7 +61,8 @@ class IamfConfigReader {
 
   int buffer_head_ = 0;
   int sample_rate_ = 0;
-  int samples_per_buffer_ = 0;
+  int sample_size_ = 0;
+  uint32_t samples_per_buffer_ = 0;
   uint32_t config_size_ = 0;
   uint32_t data_size_ = 0;
 
