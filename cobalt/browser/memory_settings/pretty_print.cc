@@ -23,8 +23,6 @@
 #include "base/strings/string_split.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/browser/memory_settings/table_printer.h"
-#include "starboard/common/log.h"
-#include "starboard/common/string.h"
 
 namespace cobalt {
 namespace browser {
@@ -65,11 +63,8 @@ void FillStream(size_t count, const char fill_ch, std::stringstream* ss) {
 }  // namespace
 
 std::string GeneratePrettyPrintTable(
-    bool use_color_ascii, const std::vector<const MemorySetting*>& settings) {
+    const std::vector<const MemorySetting*>& settings) {
   TablePrinter printer;
-  if (use_color_ascii) {
-    printer.set_text_color(TablePrinter::kGreen);
-  }
   std::vector<std::string> header;
   header.push_back("SETTING NAME");
   header.push_back("VALUE");
@@ -98,15 +93,11 @@ std::string GeneratePrettyPrintTable(
   return table_string;
 }
 
-std::string GenerateMemoryTable(bool use_color_ascii,
-                                const IntSetting& total_cpu_memory,
+std::string GenerateMemoryTable(const IntSetting& total_cpu_memory,
                                 const IntSetting& total_gpu_memory,
                                 int64_t settings_cpu_consumption,
                                 int64_t settings_gpu_consumption) {
   TablePrinter printer;
-  if (use_color_ascii) {
-    printer.set_text_color(TablePrinter::kGreen);
-  }
   std::vector<std::string> header;
   header.push_back("MEMORY");
   header.push_back("SOURCE");

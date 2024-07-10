@@ -14,6 +14,7 @@
 
 #include <cmath>
 
+#include "starboard/extension/accessibility.h"
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/extension/cwrappers.h"
@@ -26,6 +27,7 @@
 #include "starboard/extension/javascript_cache.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/extension/media_session.h"
+#include "starboard/extension/media_settings.h"
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
@@ -433,9 +435,10 @@ TEST(ExtensionTest, PlatformInfo) {
   }
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
-  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_EQ(extension_api->version, 2u);
   EXPECT_NE(extension_api->GetFirmwareVersionDetails, nullptr);
   EXPECT_NE(extension_api->GetOsExperience, nullptr);
+  EXPECT_NE(extension_api->GetCoreServicesVersion, nullptr);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
@@ -517,7 +520,7 @@ TEST(ExtensionTest, LoaderAppMetrics) {
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_GE(extension_api->version, 1u);
-  EXPECT_LE(extension_api->version, 2u);
+  EXPECT_LE(extension_api->version, 3u);
   EXPECT_NE(extension_api->SetCrashpadInstallationStatus, nullptr);
   EXPECT_NE(extension_api->GetCrashpadInstallationStatus, nullptr);
 
@@ -533,6 +536,11 @@ TEST(ExtensionTest, LoaderAppMetrics) {
 
     EXPECT_NE(extension_api->RecordUsedCpuBytesDuringElfLoad, nullptr);
     EXPECT_NE(extension_api->GetMaxSampledUsedCpuBytesDuringElfLoad, nullptr);
+  }
+
+  if (extension_api->version >= 3) {
+    EXPECT_NE(extension_api->SetSlotSelectionStatus, nullptr);
+    EXPECT_NE(extension_api->GetSlotSelectionStatus, nullptr);
   }
 
   const ExtensionApi* second_extension_api =
@@ -564,5 +572,54 @@ TEST(ExtensionTest, PlayerConfiguration) {
   }
 }
 
+TEST(ExtensionTest, MediaSettings) {
+  typedef StarboardExtensionMediaSettingsApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionMediaSettingsName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+
+  EXPECT_GE(extension_api->version, 1u);
+  EXPECT_LE(extension_api->version, 2u);
+  EXPECT_NE(extension_api->EnableAsyncReleaseMediaCodecBridge, nullptr);
+
+  if (extension_api->version >= 2) {
+    EXPECT_NE(extension_api->SetAsyncReleaseMediaCodecBridgeTimeoutSeconds,
+              nullptr);
+  }
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, CobaltAccessibilityExtension) {
+  typedef StarboardExtensionAccessibilityApi ExtensionApi;
+  const char* kExtensionName = kStarboardExtensionAccessibilityName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_NE(extension_api->GetTextToSpeechSettings, nullptr);
+  EXPECT_NE(extension_api->GetDisplaySettings, nullptr);
+  EXPECT_NE(extension_api->GetCaptionSettings, nullptr);
+  EXPECT_NE(extension_api->SetCaptionsEnabled, nullptr);
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
 }  // namespace extension
 }  // namespace starboard

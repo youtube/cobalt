@@ -66,6 +66,7 @@ static_library("h5vcc") {
     ":script_callback_wrapper",
     "//cobalt/base",
     "//cobalt/browser:browser_switches",
+    "//cobalt/browser:cpu_usage_tracker",
     "//cobalt/browser/metrics",
     "//cobalt/build:cobalt_build_id",
     "//cobalt/cache",
@@ -105,7 +106,7 @@ static_library("h5vcc") {
       "h5vcc_updater.cc",
       "h5vcc_updater.h",
     ]
-    deps += [ "//cobalt/updater" ]
+    deps += [ "//chrome/updater" ]
   }
 }
 

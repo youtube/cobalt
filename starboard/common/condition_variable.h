@@ -20,13 +20,15 @@
 #ifndef STARBOARD_COMMON_CONDITION_VARIABLE_H_
 #define STARBOARD_COMMON_CONDITION_VARIABLE_H_
 
-#include "starboard/common/mutex.h"
+#include <pthread.h>
 #include "starboard/condition_variable.h"
+
+#include "starboard/common/mutex.h"
 #include "starboard/types.h"
 
 namespace starboard {
 
-// Inline class wrapper for SbConditionVariable.
+// Inline class wrapper for pthread_cond_t.
 class ConditionVariable {
  public:
   explicit ConditionVariable(const Mutex& mutex);
@@ -47,7 +49,11 @@ class ConditionVariable {
 
  private:
   const Mutex* mutex_;
+#if SB_API_VERSION < 16
   mutable SbConditionVariable condition_;
+#else
+  mutable pthread_cond_t condition_;
+#endif  // SB_API_VERSION < 16
 };
 
 }  // namespace starboard

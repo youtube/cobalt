@@ -1,5 +1,19 @@
+// Modifications Copyright 2017 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 /*
- * Copyright (C) 2013 Google Inc. All Rights Reserved.
+ * Copyright (C) 2024 The Cobalt Authors. All Rights Reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -11,7 +25,7 @@
  * copyright notice, this list of conditions and the following disclaimer
  * in the documentation and/or other materials provided with the
  * distribution.
- *     * Neither the name of Google Inc. nor the names of its
+ *     * Neither the name of The Cobalt Authors. nor the names of its
  * contributors may be used to endorse or promote products derived from
  * this software without specific prior written permission.
  *
@@ -27,20 +41,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-// Modifications Copyright 2017 The Cobalt Authors. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
 
 #include "cobalt/dom/source_buffer.h"
 
@@ -129,6 +129,17 @@ bool IsAvoidCopyingArrayBufferEnabled(web::EnvironmentSettings* settings) {
   return media_settings.IsAvoidCopyingArrayBufferEnabled().value_or(false);
 }
 
+// If this function returns true, MediaSource will proxy calls to the
+// attached HTMLMediaElement object through the MediaSourceAttachment interface
+// instead of directly calling against the HTMLMediaElement object.
+// The default value is false.
+bool IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
+    web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings)
+      .IsMediaElementUsingMediaSourceAttachmentMethodsEnabled()
+      .value_or(false);
+}
+
 }  // namespace
 
 SourceBuffer::OnInitSegmentReceivedHelper::OnInitSegmentReceivedHelper(
@@ -169,10 +180,21 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
       media_source_(media_source),
       chunk_demuxer_(chunk_demuxer),
       event_queue_(event_queue),
+      is_using_media_source_attachment_methods_(
+          IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
+              environment_settings())),
       audio_tracks_(
-          new AudioTrackList(settings, media_source->GetMediaElement())),
+          is_using_media_source_attachment_methods_
+              ? media_source->GetMediaSourceAttachment()->CreateAudioTrackList(
+                    settings)
+              : base::MakeRefCounted<AudioTrackList>(
+                    settings, media_source->GetMediaElement())),
       video_tracks_(
-          new VideoTrackList(settings, media_source->GetMediaElement())),
+          is_using_media_source_attachment_methods_
+              ? media_source->GetMediaSourceAttachment()->CreateVideoTrackList(
+                    settings)
+              : base::MakeRefCounted<VideoTrackList>(
+                    settings, media_source->GetMediaElement())),
       metrics_(!media_source_->MediaElementHasMaxVideoCapabilities()) {
   DCHECK(!id_.empty());
   DCHECK(media_source_);
@@ -238,7 +260,7 @@ scoped_refptr<TimeRanges> SourceBuffer::buffered(
 
 double SourceBuffer::timestamp_offset(
     script::ExceptionState* exception_state) const {
-  starboard::ScopedLock scoped_lock(timestamp_offset_mutex_);
+  base::AutoLock scoped_lock(timestamp_offset_mutex_);
   return timestamp_offset_;
 }
 
@@ -585,17 +607,33 @@ bool SourceBuffer::PrepareAppend(size_t new_data_size,
     return false;
   }
 
-  DCHECK(media_source_->GetMediaElement());
-  if (media_source_->GetMediaElement()->error()) {
-    web::DOMException::Raise(web::DOMException::kInvalidStateErr,
-                             exception_state);
-    return false;
+  if (is_using_media_source_attachment_methods_) {
+    DCHECK(media_source_->GetMediaSourceAttachment());
+    if (media_source_->GetMediaSourceAttachment()->GetElementError()) {
+      web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                               exception_state);
+      return false;
+    }
+  } else {
+    DCHECK(media_source_->GetMediaElement());
+    if (media_source_->GetMediaElement()->error()) {
+      web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                               exception_state);
+      return false;
+    }
   }
 
   metrics_.StartTracking(SourceBufferMetricsAction::PREPARE_APPEND);
   media_source_->OpenIfInEndedState();
 
-  double current_time = media_source_->GetMediaElement()->current_time(NULL);
+  double current_time = 0;
+  if (is_using_media_source_attachment_methods_) {
+    current_time =
+        media_source_->GetMediaSourceAttachment()->GetRecentMediaTime();
+  } else {
+    current_time = media_source_->GetMediaElement()->current_time(NULL);
+  }
+
   if (!chunk_demuxer_->EvictCodedFrames(
           id_, base::TimeDelta::FromSecondsD(current_time),
           new_data_size + evict_extra_in_bytes_)) {
@@ -680,7 +718,7 @@ void SourceBuffer::OnAlgorithmFinalized() {
 }
 
 void SourceBuffer::UpdateTimestampOffset(base::TimeDelta timestamp_offset) {
-  starboard::ScopedLock scoped_lock(timestamp_offset_mutex_);
+  base::AutoLock scoped_lock(timestamp_offset_mutex_);
   // The check avoids overwriting |timestamp_offset_| when there is a small
   // difference between its float and its int64_t representation .
   if (DoubleToTimeDelta(timestamp_offset_) != timestamp_offset) {

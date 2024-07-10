@@ -18,12 +18,21 @@ namespace cobalt {
 namespace webdriver {
 namespace protocol {
 
+namespace {
+const char kLogTypeKey[] = "type";
+}
+
+
 base::Optional<LogType> LogType::FromValue(const base::Value* value) {
   const base::Value::Dict* dictionary_value = value->GetIfDict();
   if (!dictionary_value) {
     return absl::nullopt;
   }
-  return base::nullopt;
+  auto type = dictionary_value->FindString(kLogTypeKey);
+  if (!type) {
+    return absl::nullopt;
+  }
+  return LogType(*type);
 }
 
 }  // namespace protocol

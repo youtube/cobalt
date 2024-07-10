@@ -41,7 +41,8 @@ class AutoMem {
 
   void ConstructSettings(const math::Size& ui_resolution,
                          const AutoMemSettings& command_line_settings,
-                         const AutoMemSettings& config_api_settings);
+                         const AutoMemSettings& config_api_settings,
+                         bool enable_skia_rasterizer = false);
 
   const IntSetting* encoded_image_cache_size_in_bytes() const;
   const IntSetting* image_cache_size_in_bytes() const;
@@ -65,8 +66,7 @@ class AutoMem {
  private:
   // Logs a table of the memory settings and available memory for cpu and gpu.
   // This is used during startup to display memory configuration information.
-  void LogToPrettyPrintString(const math::Size& ui_resolution,
-                              bool use_color_ascii);
+  void LogToPrettyPrintString(const math::Size& ui_resolution);
 
   // AllMemorySettings - does not include cpu & gpu max memory.
   std::vector<const MemorySetting*> AllMemorySettings() const;

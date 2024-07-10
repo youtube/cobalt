@@ -92,13 +92,13 @@ std::unique_ptr<base::Value> ToValue(const base::Optional<T>& value) {
 
 // Template specialization for std::string.
 template <>
-std::unique_ptr<base::Value> ToValue(const std::string& value) {
+inline std::unique_ptr<base::Value> ToValue(const std::string& value) {
   return std::unique_ptr<base::Value>(new base::Value(value));
 }
 
 // Template specialization for bool.
 template <>
-std::unique_ptr<base::Value> ToValue(const bool& value) {
+inline std::unique_ptr<base::Value> ToValue(const bool& value) {
   return std::unique_ptr<base::Value>(new base::Value(value));
 }
 
@@ -108,7 +108,7 @@ std::unique_ptr<base::Value> ToValue(const CommandResult<R>& command_result) {
 }
 
 template <>
-std::unique_ptr<base::Value> ToValue(
+inline std::unique_ptr<base::Value> ToValue(
     const CommandResult<void>& command_result) {
   return std::make_unique<base::Value>();
 }
@@ -121,7 +121,7 @@ base::Optional<T> FromValue(const base::Value* value) {
 }
 
 template <>
-base::Optional<GURL> FromValue(const base::Value* value) {
+inline base::Optional<GURL> FromValue(const base::Value* value) {
   const char kUrlKey[] = "url";
 
   const base::Value::Dict* dictionary_value = value->GetIfDict();

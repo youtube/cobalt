@@ -62,7 +62,7 @@ base::Optional<Proxy> Proxy::FromValue(const base::Value* value) {
     }
   } else {
     // Only manual proxy type is supported.
-    DLOG(INFO) << "Unsupported proxy type: " << proxy_type_string;
+    LOG(ERROR) << "Unsupported proxy type: " << proxy_type_string;
   }
   return base::nullopt;
 }

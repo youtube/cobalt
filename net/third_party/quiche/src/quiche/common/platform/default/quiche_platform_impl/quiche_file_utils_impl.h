@@ -17,9 +17,14 @@ std::string JoinPathImpl(absl::string_view a, absl::string_view b);
 
 absl::optional<std::string> ReadFileContentsImpl(absl::string_view file);
 
+#if defined(STARBOARD)
+bool EnumerateDirectoryRecursivelyImpl(absl::string_view path,
+                                       std::vector<std::string>& files);
+#else
 bool EnumerateDirectoryImpl(absl::string_view path,
                             std::vector<std::string>& directories,
                             std::vector<std::string>& files);
+#endif
 
 }  // namespace quiche
 

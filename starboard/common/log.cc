@@ -171,7 +171,7 @@ void LogMessage::Init(const char* file, int line) {
   char name[128] = {0};
   pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
   stream_ << '[';
-  stream_ << name << '/' << pthread_self() << ':';
+  stream_ << name << '/' << SbThreadGetId() << ':';
   struct timeval tv;
   gettimeofday(&tv, NULL);
   struct tm tm_time = {0};

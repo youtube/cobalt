@@ -39,7 +39,10 @@ group("gn_all") {
   }
 
   if (platform_tests_path == "") {
-    deps += [ ":starboard_platform_tests($starboard_toolchain)" ]
+    deps += [
+      ":starboard_platform_tests($starboard_toolchain)",
+      ":starboard_platform_tests_install($starboard_toolchain)",
+    ]
   } else {
     deps += [ platform_tests_path ]
   }
@@ -51,7 +54,7 @@ group("gn_all") {
     ]
 
     # TODO: b/296715826 - Fix build error for windows modular builds.
-    if (!(sb_is_modular && is_host_win)) {
+    if (!(sb_is_modular && host_os == "win")) {
       deps += [ "//starboard/shared/starboard/player/filter/tools:audio_dmp_player($starboard_toolchain)" ]
     }
   }
@@ -138,7 +141,7 @@ group("starboard_group") {
     }
 
     # TODO: b/295702296 Fix libunwind for modular builds.
-    if (sb_is_evergreen || is_host_win) {
+    if (sb_is_evergreen || host_os == "win") {
       public_deps += [ "//third_party/llvm-project/libunwind:unwind" ]
     }
   } else {

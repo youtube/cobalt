@@ -16,7 +16,6 @@
 #include "cobalt/dom/performance_lifecycle_timing.h"
 
 #include "cobalt/dom/performance.h"
-#include "starboard/common/time.h"
 
 namespace cobalt {
 namespace dom {
@@ -45,8 +44,8 @@ DOMHighResTimeStamp ConvertMonotonicTimestampToDOMHiResTimeStamp(
     const DOMHighResTimeStamp time_origin, int64_t monotonic_time) {
   // Current delta from Windows epoch.
   int64_t time_delta =
-      starboard::PosixTimeToWindowsTime(starboard::CurrentPosixTime()) -
-      starboard::CurrentMonotonicTime();
+      base::Time::Now().ToDeltaSinceWindowsEpoch().InMicroseconds() -
+      (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
   base::Time base_time = base::Time::FromDeltaSinceWindowsEpoch(
       base::TimeDelta::FromMicroseconds(time_delta + monotonic_time));
   return ClampTimeStampMinimumResolution(
@@ -105,6 +104,14 @@ std::string PerformanceLifecycleTiming::last_state() const {
   return TranslateApplicationStateToString(lifecycle_timing_info_.last_state);
 }
 
+void PerformanceLifecycleTiming::LogInvalidStateTransition(
+    base::ApplicationState state) {
+  DLOG(INFO) << "Current State: "
+             << TranslateApplicationStateToString(GetCurrentState());
+  DLOG(INFO) << "Next State: " << TranslateApplicationStateToString(state);
+  NOTREACHED() << "Invalid application state transition.";
+}
+
 void PerformanceLifecycleTiming::SetApplicationState(
     base::ApplicationState state, int64_t timestamp) {
   switch (state) {
@@ -117,11 +124,7 @@ void PerformanceLifecycleTiming::SetApplicationState(
       } else if (GetCurrentState() == base::kApplicationStateConcealed) {
         lifecycle_timing_info_.app_reveal = timestamp;
       } else {
-        DLOG(INFO) << "Current State: "
-                   << TranslateApplicationStateToString(GetCurrentState());
-        DLOG(INFO) << "Next State: "
-                   << TranslateApplicationStateToString(state);
-        NOTREACHED() << "Invalid application state transition.";
+        LogInvalidStateTransition(state);
       }
       break;
     case base::kApplicationStateConcealed:
@@ -131,11 +134,7 @@ void PerformanceLifecycleTiming::SetApplicationState(
       } else if (GetCurrentState() == base::kApplicationStateFrozen) {
         lifecycle_timing_info_.app_unfreeze = timestamp;
       } else {
-        DLOG(INFO) << "Current State: "
-                   << TranslateApplicationStateToString(GetCurrentState());
-        DLOG(INFO) << "Next State: "
-                   << TranslateApplicationStateToString(state);
-        NOTREACHED() << "Invalid application state transition.";
+        LogInvalidStateTransition(state);
       }
       break;
     case base::kApplicationStateFrozen:

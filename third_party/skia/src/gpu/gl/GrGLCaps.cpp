@@ -51,7 +51,7 @@ GrGLCaps::GrGLCaps(const GrContextOptions& contextOptions,
     fDoManualMipmapping = false;
     fClearToBoundaryValuesIsBroken = false;
     fClearTextureSupport = false;
-#if defined(COBALT)
+#if defined(STARBOARD)
     // On some GL implementations, this feature might not be implemented.
     // In the interest of greater compatibility, this feature is disabled.
     fDrawArraysBaseVertexIsBroken = true;
@@ -809,8 +809,13 @@ void GrGLCaps::init(const GrContextOptions& contextOptions,
     } else if (GR_IS_GR_WEBGL(standard)) {
         fSamplerObjectSupport = version >= GR_GL_VER(2,0);
     }
+#if defined(STARBOARD)
+    // Cobalt rendering code cannot interop with sampler objects.
+    fUseSamplerObjects = false;
+#else
     // We currently use sampler objects whenever they are available.
     fUseSamplerObjects = fSamplerObjectSupport;
+#endif
 
     if (GR_IS_GR_GL_ES(standard)) {
         fTiledRenderingSupport = ctxInfo.hasExtension("GL_QCOM_tiled_rendering");
@@ -1604,7 +1609,7 @@ void GrGLCaps::initFormatTable(const GrGLContextInfo& ctxInfo, const GrGLInterfa
         }
 // TODO: Disable R8 texture support to force similar rendering paths.
 // R8 support currently breaks text rendering.
-#if defined(COBALT)
+#if defined(STARBOARD)
         r8Support = false;
 #endif
         if (formatWorkarounds.fDisallowR8ForPowerVRSGX54x) {

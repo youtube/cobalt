@@ -67,6 +67,8 @@ static_library("base") {
     "path_provider.h",
     "polymorphic_downcast.h",
     "polymorphic_equatable.h",
+    "process/process_metrics_helper.cc",
+    "process/process_metrics_helper.h",
     "ref_counted_lock.h",
     "source_location.cc",
     "source_location.h",
@@ -117,6 +119,7 @@ target(gtest_target_type, "base_test") {
     "c_val_time_interval_timer_stats_test.cc",
     "circular_buffer_shell_unittest.cc",
     "fixed_size_lru_cache_test.cc",
+    "process/process_metrics_helper_test.cc",
     "statistics_test.cc",
     "token_test.cc",
   ]
@@ -127,8 +130,5 @@ target(gtest_target_type, "base_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-  data_deps = [
-    "//cobalt/network:copy_ssl_certificates",
-    "//third_party/icu:icudata",
-  ]
+  data_deps = [ "//cobalt/network:copy_ssl_certificates" ]
 }

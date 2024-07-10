@@ -251,13 +251,12 @@ if (!use_cobalt_customizations) {
     configs -= [ "//starboard/build/config:size" ]
     configs += [ "//starboard/build/config:speed" ]
 
-    # sources += boringssl_linux_x86_64_files
     if (sb_is_modular) {
       calling_convention = sabi_variables.calling_convention
       if ((calling_convention != "aarch64" && calling_convention != "eabi" &&
            calling_convention != "sysv" && calling_convention != "windows") ||
           (target_cpu != "x86" && target_cpu != "x64" &&
-           target_cpu != "arm" && target_cpu != "arm64") || is_host_win) {  # is_host_win : windows host modular builds need OPENSSL_NO_ASM )
+           target_cpu != "arm" && target_cpu != "arm64") || host_os == "win") {  # host_os == "win" : windows host modular builds need OPENSSL_NO_ASM )
         defines = [ "OPENSSL_NO_ASM" ]
       } else {
         if (calling_convention == "aarch64" || calling_convention == "eabi" ||
@@ -310,6 +309,8 @@ if (!use_cobalt_customizations) {
         sources += crypto_sources_linux_x86_64
       } else if (target_cpu == "arm") {
         sources += crypto_sources_linux_arm
+      } else if (target_cpu == "arm64") {
+        sources += crypto_sources_linux_aarch64
       } else {
         assert(false, "Unsupported Linux or Android arch for native build")
       }
@@ -501,10 +502,3 @@ if (build_with_chromium) {
     seed_corpus = "src/fuzz/server_corpus_no_fuzzer_mode"
   }
 }
-
-# group("boringssl") {
-#   all_dependent_configs = [ ":external_config" ]
-#   public_deps = [
-#   ":crypto"
-#   ]
-# }

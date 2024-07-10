@@ -30,11 +30,8 @@ namespace media {
 
 namespace {
 
-using starboard::ScopedLock;
-
 const bool kEnableAllocationLog = false;
 
-const size_t kAllocationRecordGranularity = 512 * 1024;
 // Used to determine if the memory allocated is large. The underlying logic can
 // be different.
 const size_t kSmallAllocationThreshold = 512;
@@ -42,24 +39,17 @@ const size_t kSmallAllocationThreshold = 512;
 }  // namespace
 
 DecoderBufferAllocator::DecoderBufferAllocator()
-    : using_memory_pool_(SbMediaIsBufferUsingMemoryPool()),
-      is_memory_pool_allocated_on_demand_(
+    : is_memory_pool_allocated_on_demand_(
           SbMediaIsBufferPoolAllocateOnDemand()),
       initial_capacity_(SbMediaGetInitialBufferCapacity()),
       allocation_unit_(SbMediaGetBufferAllocationUnit()) {
-  if (!using_memory_pool_) {
-    DLOG(INFO) << "Allocated media buffer memory using malloc* functions.";
-    Allocator::Set(this);
-    return;
-  }
-
   if (is_memory_pool_allocated_on_demand_) {
     DLOG(INFO) << "Allocated media buffer pool on demand.";
     Allocator::Set(this);
     return;
   }
 
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   EnsureReuseAllocatorIsCreated();
   Allocator::Set(this);
 }
@@ -67,11 +57,7 @@ DecoderBufferAllocator::DecoderBufferAllocator()
 DecoderBufferAllocator::~DecoderBufferAllocator() {
   Allocator::Set(nullptr);
 
-  if (!using_memory_pool_) {
-    return;
-  }
-
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   if (reuse_allocator_) {
     DCHECK_EQ(reuse_allocator_->GetAllocated(), 0);
@@ -80,11 +66,11 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
 }
 
 void DecoderBufferAllocator::Suspend() {
-  if (!using_memory_pool_ || is_memory_pool_allocated_on_demand_) {
+  if (is_memory_pool_allocated_on_demand_) {
     return;
   }
 
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   if (reuse_allocator_ && reuse_allocator_->GetAllocated() == 0) {
     DLOG(INFO) << "Freed " << reuse_allocator_->GetCapacity()
@@ -94,24 +80,16 @@ void DecoderBufferAllocator::Suspend() {
 }
 
 void DecoderBufferAllocator::Resume() {
-  if (!using_memory_pool_ || is_memory_pool_allocated_on_demand_) {
+  if (is_memory_pool_allocated_on_demand_) {
     return;
   }
 
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   EnsureReuseAllocatorIsCreated();
 }
 
 void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
-  if (!using_memory_pool_) {
-    sbmemory_bytes_used_.fetch_add(size);
-    void* p = nullptr;
-    posix_memalign(&p, alignment, size);
-    CHECK(p);
-    return p;
-  }
-
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   EnsureReuseAllocatorIsCreated();
 
@@ -129,13 +107,7 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
     return;
   }
 
-  if (!using_memory_pool_) {
-    sbmemory_bytes_used_.fetch_sub(size);
-    free(p);
-    return;
-  }
-
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   DCHECK(reuse_allocator_);
 
@@ -157,24 +129,14 @@ int DecoderBufferAllocator::GetAudioBufferBudget() const {
 
 int DecoderBufferAllocator::GetBufferAlignment() const {
 #if SB_API_VERSION < 16
-#if SB_API_VERSION >= 14
   return SbMediaGetBufferAlignment();
-#else   // SB_API_VERSION >= 14
-  return std::max(SbMediaGetBufferAlignment(kSbMediaTypeAudio),
-                  SbMediaGetBufferAlignment(kSbMediaTypeVideo));
-#endif  // SB_API_VERSION >= 14
 #else
   return sizeof(void*);
 #endif  // SB_API_VERSION < 16
 }
 
 int DecoderBufferAllocator::GetBufferPadding() const {
-#if SB_API_VERSION >= 14
   return SbMediaGetBufferPadding();
-#else   // SB_API_VERSION >= 14
-  return std::max(SbMediaGetBufferPadding(kSbMediaTypeAudio),
-                  SbMediaGetBufferPadding(kSbMediaTypeVideo));
-#endif  // SB_API_VERSION >= 14
 }
 
 base::TimeDelta
@@ -199,23 +161,17 @@ int DecoderBufferAllocator::GetVideoBufferBudget(SbMediaVideoCodec codec,
 }
 
 size_t DecoderBufferAllocator::GetAllocatedMemory() const {
-  if (!using_memory_pool_) {
-    return sbmemory_bytes_used_.load();
-  }
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   return reuse_allocator_ ? reuse_allocator_->GetAllocated() : 0;
 }
 
 size_t DecoderBufferAllocator::GetCurrentMemoryCapacity() const {
-  if (!using_memory_pool_) {
-    return sbmemory_bytes_used_.load();
-  }
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
   return reuse_allocator_ ? reuse_allocator_->GetCapacity() : 0;
 }
 
 size_t DecoderBufferAllocator::GetMaximumMemoryCapacity() const {
-  ScopedLock scoped_lock(mutex_);
+  base::AutoLock scoped_lock(mutex_);
 
   if (reuse_allocator_) {
     return std::max<size_t>(reuse_allocator_->max_capacity(),
@@ -225,8 +181,6 @@ size_t DecoderBufferAllocator::GetMaximumMemoryCapacity() const {
 }
 
 void DecoderBufferAllocator::EnsureReuseAllocatorIsCreated() {
-  mutex_.DCheckAcquired();
-
   if (reuse_allocator_) {
     return;
   }

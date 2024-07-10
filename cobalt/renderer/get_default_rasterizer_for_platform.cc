@@ -16,6 +16,7 @@
 
 #include <memory>
 
+#include "base/logging.h"
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/backend/graphics_context.h"
 #include "cobalt/renderer/rasterizer/egl/hardware_rasterizer.h"
@@ -74,20 +75,24 @@ std::unique_ptr<rasterizer::Rasterizer> CreateSkiaHardwareRasterizer(
 
 }  // namespace
 
-RasterizerInfo GetDefaultRasterizerForPlatform() {
+RasterizerInfo GetDefaultRasterizerForPlatform(
+    std::string rasterizer_type_setting) {
   std::string rasterizer_type =
       configuration::Configuration::GetInstance()->CobaltRasterizerType();
+  if (rasterizer_type_setting != "") {
+    rasterizer_type = rasterizer_type_setting;
+  }
   if (rasterizer_type == "stub") {
     return {"stub", base::Bind(&CreateStubRasterizer)};
   }
   if (SbGetGlesInterface()) {
-    if (rasterizer_type == "direct-gles") {
+    if (rasterizer_type == configuration::Configuration::kGlesRasterizer) {
       return {"gles", base::Bind(&CreateGLESHardwareRasterizer)};
     } else {
       return {"skia", base::Bind(&CreateSkiaHardwareRasterizer)};
     }
   } else {
-    SB_LOG(ERROR) << "GLES2 must be available.";
+    LOG(ERROR) << "GLES2 must be available.";
     SB_DCHECK(false);
     return {};
   }

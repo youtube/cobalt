@@ -17,8 +17,14 @@
 #include <string.h>
 
 #include <memory>
+#include <utility>
 
+#include "base/json/json_reader.h"
+#include "base/values.h"
+#include "cobalt/browser/cpu_usage_tracker.h"
+#include "cobalt/configuration/configuration.h"
 #include "cobalt/network/network_module.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -51,6 +57,8 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   const char kMediaCodecBlockList[] = "MediaCodecBlockList";
   const char kNavigatorUAData[] = "NavigatorUAData";
   const char kQUIC[] = "QUIC";
+  const char kHTTP3[] = "HTTP3";
+  const char kSkiaRasterizer[] = "SkiaRasterizer";
 
 #if SB_IS(EVERGREEN)
   const char kUpdaterMinFreeSpaceBytes[] = "Updater.MinFreeSpaceBytes";
@@ -81,16 +89,54 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   }
 
   if (name.compare(kQUIC) == 0 && value.IsType<int32>()) {
+    if (!persistent_settings_ || !network_module_) {
+      return false;
+    } else {
+      persistent_settings_->Set(network::kQuicEnabledPersistentSettingsKey,
+                                base::Value(value.AsType<int32>() != 0));
+      // Tell NetworkModule (if exists) to re-query persistent settings.
+      network_module_->SetEnableQuicFromPersistentSettings();
+      return true;
+    }
+  }
+
+  if (name.compare(kHTTP3) == 0 && value.IsType<int32>()) {
+    if (!persistent_settings_ || !network_module_) {
+      return false;
+    } else {
+      persistent_settings_->Set(network::kHttp3EnabledPersistentSettingsKey,
+                                base::Value(value.AsType<int32>() != 0));
+      network_module_->SetEnableHttp3FromPersistentSettings();
+      return true;
+    }
+  }
+
+  if (name.compare("cpu_usage_tracker_intervals") == 0 &&
+      value.IsType<std::string>() && value.AsType<std::string>().size() < 512) {
+    absl::optional<base::Value> config =
+        base::JSONReader::Read(value.AsType<std::string>());
+    browser::CpuUsageTracker::GetInstance()->UpdateIntervalsDefinition(
+        config.has_value() ? std::move(*config) : base::Value());
+    return true;
+  }
+  if (name.compare("cpu_usage_tracker_one_time_tracking") == 0 &&
+      value.IsType<int32>()) {
+    bool started = value.AsType<int32>() != 0;
+    if (started) {
+      browser::CpuUsageTracker::GetInstance()->StartOneTimeTracking();
+    } else {
+      browser::CpuUsageTracker::GetInstance()->StopAndCaptureOneTimeTracking();
+    }
+    return true;
+  }
+
+  if (name.compare(kSkiaRasterizer) == 0 && value.IsType<int32>()) {
     if (!persistent_settings_) {
       return false;
     } else {
-      persistent_settings_->SetPersistentSetting(
-          network::kQuicEnabledPersistentSettingsKey,
-          std::make_unique<base::Value>(value.AsType<int32>() != 0));
-      // Tell NetworkModule (if exists) to re-query persistent settings.
-      if (network_module_) {
-        network_module_->SetEnableQuicFromPersistentSettings();
-      }
+      persistent_settings_->Set(configuration::Configuration::
+                                    kEnableSkiaRasterizerPersistentSettingKey,
+                                base::Value(value.AsType<int32>() != 0));
       return true;
     }
   }
@@ -107,16 +153,16 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
 void H5vccSettings::SetPersistentSettingAsInt(const std::string& key,
                                               int value) const {
   if (persistent_settings_) {
-    persistent_settings_->SetPersistentSetting(
-        key, std::make_unique<base::Value>(value));
+    persistent_settings_->Set(key, base::Value(value));
   }
 }
 
 int H5vccSettings::GetPersistentSettingAsInt(const std::string& key,
                                              int default_setting) const {
   if (persistent_settings_) {
-    return persistent_settings_->GetPersistentSettingAsInt(key,
-                                                           default_setting);
+    base::Value value;
+    persistent_settings_->Get(key, &value);
+    return value.GetIfInt().value_or(default_setting);
   }
   return default_setting;
 }

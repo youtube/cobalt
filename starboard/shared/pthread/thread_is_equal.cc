@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/thread.h"
 
 #include <pthread.h>
@@ -22,3 +24,5 @@ bool SbThreadIsEqual(SbThread thread1, SbThread thread2) {
   return pthread_equal(SB_PTHREAD_INTERNAL_THREAD(thread1),
                        SB_PTHREAD_INTERNAL_THREAD(thread2)) != 0;
 }
+
+#endif  // SB_API_VERSION < 16

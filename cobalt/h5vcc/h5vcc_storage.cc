@@ -271,9 +271,7 @@ H5vccStorageSetQuotaResponse H5vccStorage::SetQuota(
                      quota.cache_api() + quota.service_worker_js();
 
   uint32_t max_quota_size = 24 * 1024 * 1024;
-#if SB_API_VERSION >= 14
   max_quota_size = kSbMaxSystemPathCacheDirectorySize;
-#endif
   // Assume the non-http-cache memory in kSbSystemPathCacheDirectory
   // is less than 1 mb and subtract this from the max_quota_size.
   max_quota_size -= (1 << 20);
@@ -359,9 +357,7 @@ H5vccStorageResourceTypeQuotaBytesDictionary H5vccStorage::GetQuota() {
       network::disk_cache::kServiceWorkerScript));
 
   uint32_t max_quota_size = 24 * 1024 * 1024;
-#if SB_API_VERSION >= 14
   max_quota_size = kSbMaxSystemPathCacheDirectorySize;
-#endif
   // Assume the non-http-cache memory in kSbSystemPathCacheDirectory
   // is less than 1 mb and subtract this from the max_quota_size.
   max_quota_size -= (1 << 20);
@@ -372,9 +368,9 @@ H5vccStorageResourceTypeQuotaBytesDictionary H5vccStorage::GetQuota() {
 }
 
 void H5vccStorage::EnableCache() {
-  persistent_settings_->SetPersistentSetting(
+  persistent_settings_->Set(
       network::disk_cache::kCacheEnabledPersistentSettingsKey,
-      std::make_unique<base::Value>(true));
+      base::Value(true));
 
   network::disk_cache::settings::SetCacheEnabled(true);
 
@@ -384,9 +380,9 @@ void H5vccStorage::EnableCache() {
 }
 
 void H5vccStorage::DisableCache() {
-  persistent_settings_->SetPersistentSetting(
+  persistent_settings_->Set(
       network::disk_cache::kCacheEnabledPersistentSettingsKey,
-      std::make_unique<base::Value>(false));
+      base::Value(false));
 
   network::disk_cache::settings::SetCacheEnabled(false);
 

@@ -3,6 +3,10 @@
 # found in the LICENSE file.
 
 import("//build/config/host_byteorder.gni")
+if (use_cobalt_customizations) {
+  import("//starboard/build/nasm_assemble.gni")
+  import("//starboard/sabi/sabi.gni")
+}
 import("//third_party/icu/config.gni")
 import("//third_party/icu/sources.gni")
 
@@ -93,7 +97,7 @@ config("icu_config") {
     cflags = [ "/wd4805"]
   }
 
-  if (is_clang_16 && use_cobalt_customizations) {
+  if (is_clang && use_cobalt_customizations) {
     cflags = [
       # nfsubs.cpp contains variable pow which is set but not used.
       "-Wno-unused-but-set-variable",
@@ -375,6 +379,9 @@ if (is_android && enable_java_templates) {
   }
 }
 
+if (use_cobalt_customizations) {
+  data_dir = "cobalt"
+} else {
 if (is_android) {
   # Use android_small for now to keep the size till we decide to switch to the new one.
   data_dir = "android_small"
@@ -385,12 +392,21 @@ if (is_android) {
 } else {
   data_dir = "common"
 }
+}
 
+if (use_cobalt_customizations) {
+  if (sabi_variables.endianness == "little") {
+    data_bundle_prefix = "icudt68l"
+  } else {
+    data_bundle_prefix = "icudt68b"
+  }
+} else {
 if (current_cpu == "mips" || current_cpu == "mips64" ||
     host_byteorder == "big") {
   data_bundle_prefix = "icudtb"
 } else {
   data_bundle_prefix = "icudtl"
+}
 }
 data_bundle = "${data_bundle_prefix}.dat"
 
@@ -423,7 +439,12 @@ if (icu_use_data_file) {
     outputs = [ "$root_out_dir/icudtl_extra.dat" ]
   }
 } else {
+  if (use_cobalt_customizations && (is_win || current_os == "playstation")) {
+    # These platforms use NASM for the data assembly and it expects .asm files.
+    data_assembly = "$target_gen_dir/${data_bundle_prefix}_dat.asm"
+  } else {
   data_assembly = "$target_gen_dir/${data_bundle_prefix}_dat.S"
+  }
   inline_data_assembly = "$target_gen_dir/${data_bundle_prefix}_dat.cc"
   action("make_data_assembly") {
     script = "scripts/make_data_assembly.py"
@@ -436,11 +457,18 @@ if (icu_use_data_file) {
     if (is_mac || is_ios) {
       args += [ "--mac" ]
     } else if (is_win) {
+      if (use_cobalt_customizations) {
+        args += [ "--nasm" ]
+      } else {
       args += [ "--win" ]
+      }
+    } else if (use_cobalt_customizations && current_os == "playstation") {
+      args += [ "--nasm" ]
     }
   }
 
-  if (is_win) {
+  # Cobalt uses MSVC, which doesn't support inline assembly for win32.
+  if (!use_cobalt_customizations && is_win) {
     action("make_inline_data_assembly") {
       deps = [ ":make_data_assembly" ]
       script = "scripts/asm_to_inline_asm.py"
@@ -456,6 +484,12 @@ if (icu_use_data_file) {
     not_needed([ "inline_data_assembly" ])
   }
 
+  if (use_cobalt_customizations && (is_win || current_os == "playstation")) {
+    nasm_assemble("icudata") {
+      sources = [ data_assembly ]
+      deps = [ ":make_data_assembly" ]
+    }
+  } else {
   source_set("icudata") {
     defines = [ "U_HIDE_DATA_SYMBOL" ]
     if (is_win) {
@@ -465,5 +499,6 @@ if (icu_use_data_file) {
       sources = [ data_assembly ]
       deps = [ ":make_data_assembly" ]
     }
+  }
   }
 }

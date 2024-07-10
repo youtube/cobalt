@@ -15,6 +15,7 @@
 #ifndef COBALT_XHR_XML_HTTP_REQUEST_H_
 #define COBALT_XHR_XML_HTTP_REQUEST_H_
 
+#include <atomic>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -46,7 +47,6 @@
 #include "net/base/load_timing_info.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
-#include "starboard/common/atomic.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -347,7 +347,7 @@ class XMLHttpRequestImpl : public base::SupportsWeakPtr<XMLHttpRequestImpl>,
   bool upload_listener_;
   bool with_credentials_;
   XMLHttpRequest* xhr_;
-  starboard::atomic_bool will_destroy_current_task_runner_;
+  std::atomic_bool will_destroy_current_task_runner_;
 
   // A corspreflight instance for potentially sending preflight
   // request and performing cors check for all cross origin requests.

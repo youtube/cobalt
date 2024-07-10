@@ -3319,12 +3319,8 @@ static void ColoredPrintf(GTestColor color, const char* fmt, ...) {
     GTEST_OS_WINDOWS_PHONE || GTEST_OS_WINDOWS_RT || defined(ESP_PLATFORM)
   const bool use_color = AlwaysFalse();
 #else
-#if GTEST_OS_STARBOARD
-  static const bool in_color_mode = ShouldUseColor(posix::IsATTY(0) != 0);
-#else
   static const bool in_color_mode =
       ShouldUseColor(posix::IsATTY(posix::FileNo(stdout)) != 0);
-#endif // GTEST_OS_STARBOARD
   const bool use_color = in_color_mode && (color != GTestColor::kDefault);
 #endif  // GTEST_OS_WINDOWS_MOBILE || GTEST_OS_ZOS
 
@@ -4193,11 +4189,8 @@ class XmlUnitTestResultPrinter : public EmptyTestEventListener {
 
 #if GTEST_OS_STARBOARD
 void WriteOuputFile(const std::string &output_file, const std::string &data) {
-  SbFileError err;
-  starboard::ScopedFile cache_file(
-      output_file.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL, &err);
-  // TODO: Change to SB_DCHECK once all platforms are verified
-  if(err != kSbFileOk) {
+  starboard::ScopedFile cache_file(output_file.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
+  if (!cache_file.IsValid()) {
     SB_LOG(ERROR) << "Unable to open file " << output_file << " for XML output";
   }
   cache_file.WriteAll(data.c_str(), static_cast<int>(data.size()));

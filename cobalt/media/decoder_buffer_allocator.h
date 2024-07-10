@@ -15,17 +15,17 @@
 #ifndef COBALT_MEDIA_DECODER_BUFFER_ALLOCATOR_H_
 #define COBALT_MEDIA_DECODER_BUFFER_ALLOCATOR_H_
 
+#include <atomic>
 #include <memory>
 
 #include "base/compiler_specific.h"
+#include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "cobalt/media/bidirectional_fit_reuse_allocator.h"
 #include "cobalt/media/decoder_buffer_memory_info.h"
 #include "cobalt/media/starboard_memory_allocator.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/video_decoder_config.h"
-#include "starboard/common/atomic.h"
-#include "starboard/common/mutex.h"
 #include "starboard/media.h"
 
 namespace cobalt {
@@ -63,19 +63,15 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
  private:
   void EnsureReuseAllocatorIsCreated();
 
-  const bool using_memory_pool_;
   const bool is_memory_pool_allocated_on_demand_;
   const int initial_capacity_;
   const int allocation_unit_;
 
-  starboard::Mutex mutex_;
+  mutable base::Lock mutex_;
   StarboardMemoryAllocator fallback_allocator_;
   std::unique_ptr<BidirectionalFitReuseAllocator> reuse_allocator_;
 
   int max_buffer_capacity_ = 0;
-
-  // Monitor memory allocation and use when |using_memory_pool_| is false
-  starboard::atomic_int32_t sbmemory_bytes_used_;
 };
 
 }  // namespace media

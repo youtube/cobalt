@@ -29,7 +29,6 @@
 #include "cobalt/media/decoder_buffer_allocator.h"
 #include "media/base/media_log.h"
 #include "media/filters/chunk_demuxer.h"
-#include "starboard/common/string.h"
 #include "starboard/event.h"
 
 namespace cobalt {

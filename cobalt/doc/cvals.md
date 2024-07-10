@@ -457,3 +457,66 @@ query):
     writes.
 *   **Starboard.StorageWriteRecord.BytesWritten** - Bytes written to storage
     record.
+
+### CPU
+
+#### PublicCVals
+
+*  **CPU.Total.Usage.IntervalSeconds.[INTERVAL_SECONDS]** - CPU usage in
+   seconds during the last time interval of `INTERVAL_SECONDS`. The intervals
+   are defined and enabled using `h5vcc.settings`.
+```
+windows.h5vcc.settings.set('cpu_usage_tracker_intervals_enabled', 1);
+windows.h5vcc.settings.set('cpu_usage_tracker_intervals', [
+  {type: 'total', seconds: 1},
+  {type: 'total', seconds: 3},
+  {type: 'total', seconds: 4},
+  {type: 'total', seconds: 120},
+  {type: 'per_thread', seconds: 1},
+  {type: 'per_thread', seconds: 3},
+  {type: 'per_thread', seconds: 5},
+  {type: 'per_thread', seconds: 60}
+]);
+```
+*  **CPU.PerThread.Usage.IntervalSeconds.[INTERVAL_SECONDS]** - CPU usage of all
+   running threads. This is expressed as JSON in the following form. `id` is the
+   thread ID. `name` is the thread name (not unique). `stime` is the number of
+   ticks/jiffies spent in kernel mode. `utime` is the number of
+   ticks/jiffies spent in user mode. `usage_seconds` is the sum of `stime` and
+   `utime` converted to seconds. The usage in the last interval of
+   `INTERVAL_SECONDS` can be determined by computing the difference of
+   `usage_seconds` in `current` and `previous`.
+
+```
+{
+  current: [
+    {
+      "id": 123,
+      "name": "Thread Name",
+      "stime": 100,
+      "utime": 200,
+      "usage_seconds": 3.0
+    }
+  ],
+  previous: [
+    {
+      "id": 123,
+      "name": "Thread Name",
+      "stime": 300,
+      "utime": 400,
+      "usage_seconds": 7.0
+    }
+  ]
+}
+```
+*  **CPU.Total.Usage.OneTime** - CPU usage in seconds between setting the
+   one-time tracking on and then off.
+```
+window.h5vcc.settings.set('cpu_usage_tracker_one_time_tracking', 1);
+...
+window.h5vcc.settings.set('cpu_usage_tracker_one_time_tracking', 0);
+```
+*  **CPU.PerThread.Usage.OneTime** - CPU usage of all running threads. Same
+   format as interval-base per-thread CPU usage CVals. The `previous` is
+   captured when one-time tracking is enabled. The CVal is updated with
+   `previous` and `current` when one-time tracking is disabled.

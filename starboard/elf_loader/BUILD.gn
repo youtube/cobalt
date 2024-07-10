@@ -91,15 +91,14 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (current_toolchain == starboard_toolchain && !is_host_win) {
+if (current_toolchain == starboard_toolchain && host_os != "win") {
   target(starboard_level_final_executable_type, "elf_loader_sandbox") {
-    data_deps = [ "//third_party/icu:icudata" ]
     if (cobalt_font_package == "empty") {
-      data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
+      data_deps = [ "//starboard/content/fonts:copy_font_data" ]
     } else {
-      data_deps += [
-        "//cobalt/content/fonts:copy_fonts",
-        "//cobalt/content/fonts:fonts_xml",
+      data_deps = [
+        "//starboard/content/fonts:copy_fonts",
+        "//starboard/content/fonts:fonts_xml",
       ]
     }
 
@@ -111,15 +110,15 @@ if (current_toolchain == starboard_toolchain && !is_host_win) {
       ":elf_loader",
       ":evergreen_info",
       ":sabi_string",
-      "//cobalt/content/fonts:copy_font_data",
       "//starboard:starboard_group",
+      "//starboard/content/fonts:copy_font_data",
     ]
 
     if (!sb_is_evergreen_compatible) {
       deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
     }
     if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
-      # deps += [ "//starboard/loader_app:copy_crashpad_handler_named_as_so" ]
+      deps += [ "//starboard/loader_app:copy_crashpad_handler_named_as_so" ]
     }
   }
 }
@@ -155,7 +154,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (current_toolchain == starboard_toolchain && !is_host_win) {
+if (current_toolchain == starboard_toolchain && host_os != "win") {
   target(starboard_level_gtest_target_type, "elf_loader_test") {
     testonly = true
     build_loader = false

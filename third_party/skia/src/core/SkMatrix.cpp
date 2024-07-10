@@ -21,7 +21,7 @@
 #include <cstddef>
 #include <utility>
 
-#if defined(COBALT)
+#if defined(STARBOARD)
 #include "starboard/common/log.h"
 #endif
 
@@ -1521,7 +1521,7 @@ template <MinMaxOrBoth MIN_MAX_OR_BOTH> bool get_scale_factor(SkMatrix::TypeMask
             results[1] = apluscdiv2 + x;
         }
 
-#if defined(COBALT)
+#if defined(STARBOARD)
         // If |x| and |apluscdiv2| are very large floating point numbers
         // that are close to each other, there might be floating point
         // inaccuracies in calculating the eigenvalues.

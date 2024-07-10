@@ -29,11 +29,6 @@
 extern "C" {
 #endif
 
-// An opaque handle to a thread type.
-typedef void* SbThread;
-
-#define kSbThreadInvalid (SbThread) NULL
-
 // A spectrum of thread priorities. Platforms map them appropriately to their
 // own priority system. Note that scheduling is platform-specific, and what
 // these priorities mean, if they mean anything at all, is also
@@ -84,6 +79,36 @@ typedef enum SbThreadPriority {
 // An ID type that is unique per thread.
 typedef int32_t SbThreadId;
 
+// Well-defined constant value to mean "no thread ID."
+#define kSbThreadInvalidId (SbThreadId)0
+
+// Returns whether the given thread ID is valid.
+static inline bool SbThreadIsValidId(SbThreadId id) {
+  return id != kSbThreadInvalidId;
+}
+
+// Returns whether the given thread priority is valid.
+static inline bool SbThreadIsValidPriority(SbThreadPriority priority) {
+  return priority != kSbThreadNoPriority;
+}
+
+// Returns the Thread ID of the currently executing thread.
+SB_EXPORT SbThreadId SbThreadGetId();
+
+#if SB_API_VERSION >= 16
+// Set the thread priority of the current thread.
+SB_EXPORT bool SbThreadSetPriority(SbThreadPriority priority);
+
+// Get the thread priority of the current thread.
+SB_EXPORT bool SbThreadGetPriority(SbThreadPriority* priority);
+#endif
+
+#if SB_API_VERSION < 16
+// An opaque handle to a thread type.
+typedef void* SbThread;
+
+#define kSbThreadInvalid (SbThread) NULL
+
 // Function pointer type for SbThreadCreate.  |context| is a pointer-sized bit
 // of data passed in from the calling thread.
 typedef void* (*SbThreadEntryPoint)(void* context);
@@ -96,38 +121,21 @@ typedef void (*SbThreadLocalDestructor)(void* value);
 // may have specific rules about how it must be used.
 typedef int32_t SbThreadAffinity;
 
-#if SB_API_VERSION < 16
 // Private structure representing a thread-local key.
 typedef struct SbThreadLocalKeyPrivate SbThreadLocalKeyPrivate;
 
 // A handle to a thread-local key.
 typedef SbThreadLocalKeyPrivate* SbThreadLocalKey;
-#endif
-
-// Well-defined constant value to mean "no thread ID."
-#define kSbThreadInvalidId (SbThreadId)0
 
 // Well-defined constant value to mean "no affinity."
 #define kSbThreadNoAffinity (SbThreadAffinity) kSbInvalidInt
 
-#if SB_API_VERSION < 16
 // Well-defined constant value to mean "no thread local key."
 #define kSbThreadLocalKeyInvalid (SbThreadLocalKey) NULL
-#endif
 
 // Returns whether the given thread handle is valid.
 static inline bool SbThreadIsValid(SbThread thread) {
   return thread != kSbThreadInvalid;
-}
-
-// Returns whether the given thread ID is valid.
-static inline bool SbThreadIsValidId(SbThreadId id) {
-  return id != kSbThreadInvalidId;
-}
-
-// Returns whether the given thread priority is valid.
-static inline bool SbThreadIsValidPriority(SbThreadPriority priority) {
-  return priority != kSbThreadNoPriority;
 }
 
 // Returns whether the given thread affinity is valid.
@@ -135,12 +143,10 @@ static inline bool SbThreadIsValidAffinity(SbThreadAffinity affinity) {
   return affinity != kSbThreadNoAffinity;
 }
 
-#if SB_API_VERSION < 16
 // Returns whether the given thread local variable key is valid.
 static inline bool SbThreadIsValidLocalKey(SbThreadLocalKey key) {
   return key != kSbThreadLocalKeyInvalid;
 }
-#endif
 
 // Creates a new thread, which starts immediately.
 // - If the function succeeds, the return value is a handle to the newly
@@ -198,7 +204,6 @@ SB_EXPORT bool SbThreadJoin(SbThread thread, void** out_return);
 // |thread|: The thread to be detached.
 SB_EXPORT void SbThreadDetach(SbThread thread);
 
-#if SB_API_VERSION < 16
 // Yields the currently executing thread, so another thread has a chance to run.
 SB_EXPORT void SbThreadYield();
 
@@ -208,13 +213,9 @@ SB_EXPORT void SbThreadYield();
 //   executing thread should sleep. The function is a no-op if this value is
 //   negative or |0|.
 SB_EXPORT void SbThreadSleep(int64_t duration);
-#endif
 
 // Returns the handle of the currently executing thread.
 SB_EXPORT SbThread SbThreadGetCurrent();
-
-// Returns the Thread ID of the currently executing thread.
-SB_EXPORT SbThreadId SbThreadGetId();
 
 // Indicates whether |thread1| and |thread2| refer to the same thread.
 //
@@ -222,7 +223,6 @@ SB_EXPORT SbThreadId SbThreadGetId();
 // |thread2|: The second thread to compare.
 SB_EXPORT bool SbThreadIsEqual(SbThread thread1, SbThread thread2);
 
-#if SB_API_VERSION < 16
 // Returns the debug name of the currently executing thread.
 SB_EXPORT void SbThreadGetName(char* buffer, int buffer_size);
 
@@ -266,7 +266,6 @@ SB_EXPORT void* SbThreadGetLocalValue(SbThreadLocalKey key);
 // |key|: The key for which to set the key value.
 // |value|: The new pointer-sized key value.
 SB_EXPORT bool SbThreadSetLocalValue(SbThreadLocalKey key, void* value);
-#endif
 
 // Returns whether |thread| is the current thread.
 //
@@ -274,6 +273,7 @@ SB_EXPORT bool SbThreadSetLocalValue(SbThreadLocalKey key, void* value);
 static inline bool SbThreadIsCurrent(SbThread thread) {
   return SbThreadGetCurrent() == thread;
 }
+#endif
 
 // Private structure representing the context of a frozen thread.
 typedef struct SbThreadContextPrivate SbThreadContextPrivate;

@@ -18,6 +18,11 @@ from starboard.tools.testing import test_filter
 # A map of failing or crashing tests per target.
 # pylint: disable=line-too-long
 _FILTERED_TESTS = {
+    'base_test': [
+        # TODO: b/346868673 This test crashed/failed on ATV on device tests.
+        'ProcessMetricsHelperTest.GetClockTicksPerS',
+        'ProcessMetricsHelperTest.GetCumulativeCPUUsagePerThread',
+    ],
     'player_filter_tests': [
         # Invalid input may lead to unexpected behaviors.
         'AudioDecoderTests/AudioDecoderTest.MultipleInvalidInput/*',
@@ -92,6 +97,10 @@ _FILTERED_TESTS = {
 
         # TODO: b/280432564 Make this test work on lab devices consistently.
         'SbAudioSinkTest.ContinuousAppend',
+
+        # TODO: b/347961880 Disable this test due to fail on e/ac3 audio format.
+        'SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.TimeAfterSeek/*ec3*',
+        'SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.TimeAfterSeek/*ac3*',
     ],
 }
 # pylint: enable=line-too-long

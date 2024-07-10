@@ -15,9 +15,11 @@
 #ifndef STARBOARD_COMMON_LOCKED_PTR_H_
 #define STARBOARD_COMMON_LOCKED_PTR_H_
 
+#include <memory>
+#include <utility>
+
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/common/scoped_ptr.h"
 
 namespace starboard {
 
@@ -63,18 +65,18 @@ class LockedPtr {
     ImplType* ptr_;
   };
 
-  LockedPtr() : ptr_(NULL) {}
-  explicit LockedPtr(scoped_ptr<Type> ptr) : ptr_(ptr) {
+  LockedPtr() : ptr_() {}
+  explicit LockedPtr(std::unique_ptr<Type> ptr) : ptr_(ptr) {
     SB_DCHECK(ptr != NULL);
   }
 
   // This function is solely used to set the pointer to a valid value when it is
   // not convenient to construct the object directly.  So it checks if the
   // existing |ptr_| is NULL.
-  void set(scoped_ptr<Type> ptr) {
+  void set(std::unique_ptr<Type> ptr) {
     starboard::ScopedLock scoped_lock(mutex_);
     SB_DCHECK(ptr_ == NULL);
-    ptr_ = ptr.Pass();
+    ptr_ = std::move(ptr);
   }
 
   void reset() {
@@ -101,7 +103,7 @@ class LockedPtr {
 
  private:
   mutable Mutex mutex_;
-  scoped_ptr<Type> ptr_;
+  std::unique_ptr<Type> ptr_;
 };
 
 }  // namespace starboard

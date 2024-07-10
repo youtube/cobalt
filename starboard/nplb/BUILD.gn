@@ -128,6 +128,7 @@ target(gtest_target_type, "nplb") {
     "player_creation_param_helpers.cc",
     "player_creation_param_helpers.h",
     "player_get_audio_configuration_test.cc",
+    "player_get_media_time_test.cc",
     "player_get_preferred_output_mode_test.cc",
     "player_test_fixture.cc",
     "player_test_fixture.h",
@@ -143,6 +144,8 @@ target(gtest_target_type, "nplb") {
     "posix_compliance/posix_condition_variable_wait_timed_test.cc",
     "posix_compliance/posix_directory_can_open_test.cc",
     "posix_compliance/posix_directory_create_test.cc",
+    "posix_compliance/posix_directory_get_next_test.cc",
+    "posix_compliance/posix_directory_open_test.cc",
     "posix_compliance/posix_file_close_test.cc",
     "posix_compliance/posix_file_delete_test.cc",
     "posix_compliance/posix_file_fsync_test.cc",
@@ -176,6 +179,10 @@ target(gtest_target_type, "nplb") {
     "posix_compliance/posix_socket_send_test.cc",
     "posix_compliance/posix_socket_sendto_test.cc",
     "posix_compliance/posix_socket_set_options_test.cc",
+    "posix_compliance/posix_socket_waiter_add_test.cc",
+    "posix_compliance/posix_socket_waiter_remove_test.cc",
+    "posix_compliance/posix_socket_waiter_wait_test.cc",
+    "posix_compliance/posix_socket_waiter_wait_timed_test.cc",
     "posix_compliance/posix_string_compare_no_case_n_test.cc",
     "posix_compliance/posix_string_compare_no_case_test.cc",
     "posix_compliance/posix_string_format_test.cc",
@@ -224,7 +231,6 @@ target(gtest_target_type, "nplb") {
     "socket_waiter_wake_up_test.cc",
     "socket_wrapper_test.cc",
     "speech_synthesis_basic_test.cc",
-    "state_machine_test.cc",
     "storage_close_record_test.cc",
     "storage_get_record_size_test.cc",
     "storage_read_record_test.cc",
@@ -238,7 +244,6 @@ target(gtest_target_type, "nplb") {
     "string_format_wide_test.cc",
     "string_scan_test.cc",
     "system_clear_last_error_test.cc",
-    "system_get_connection_type_test.cc",
     "system_get_error_string_test.cc",
     "system_get_extension_test.cc",
     "system_get_last_error_test.cc",
@@ -268,6 +273,7 @@ target(gtest_target_type, "nplb") {
     "thread_is_equal_test.cc",
     "thread_join_test.cc",
     "thread_local_value_test.cc",
+    "thread_priority_test.cc",
     "thread_sampler_test.cc",
     "thread_set_name_test.cc",
     "thread_sleep_test.cc",
@@ -319,13 +325,12 @@ target(gtest_target_type, "nplb") {
   }
 
   data_deps = [
-    # "//cobalt/network:copy_ssl_certificates",
+    "//cobalt/network:copy_ssl_certificates",
     "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
     "//starboard/shared/starboard/player:player_download_test_data",
-    "//third_party/icu:icudata",
   ]
 
-  if (is_clang_16) {
+  if (is_clang && !is_android) {
     # signedness_and_size_of_enum_test.cc casts -1 to enum value
     cflags = [ "-Wno-enum-constexpr-conversion" ]
   }
@@ -343,6 +348,7 @@ target(gtest_target_type, "nplb") {
       "player_creation_param_helpers.cc",
       "player_creation_param_helpers.h",
       "player_get_audio_configuration_test.cc",
+      "player_get_media_time_test.cc",
       "player_get_preferred_output_mode_test.cc",
       "player_test_fixture.cc",
       "player_test_fixture.h",

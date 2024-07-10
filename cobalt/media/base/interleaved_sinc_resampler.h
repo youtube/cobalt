@@ -24,7 +24,6 @@
 
 #include "base/memory/aligned_memory.h"
 #include "base/memory/ref_counted.h"
-#include "cobalt/export.h"
 
 namespace cobalt {
 namespace media {
@@ -33,7 +32,7 @@ namespace media {
 // -rate converter operating on samples in float. It uses the same algorithm as
 // SincResampler. Unlike SincResampler, it works in push mode instead of pull
 // mode.
-class COBALT_EXPORT InterleavedSincResampler {
+class InterleavedSincResampler {
  public:
   // |io_sample_rate_ratio| is the ratio of input / output sample rates.
   // |channel_count| is the number of channels in the interleaved audio stream.

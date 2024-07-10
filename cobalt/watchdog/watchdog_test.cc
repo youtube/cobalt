@@ -20,10 +20,10 @@
 #include <utility>
 #include <vector>
 
+#include "base/files/file_util.h"
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/test/task_environment.h"
-#include "starboard/common/file.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -96,7 +96,12 @@ class WatchdogTest : public testing::Test {
     std::string path =
         std::string(storage_dir.data()) + kSbFileSepString + kSettingsFileName;
 
-    starboard::SbFileDeleteRecursive(path.c_str(), true);
+    base::DeletePathRecursively(base::FilePath(path));
+  }
+
+  void Fence(PersistentSettings* persistent_settings,
+             const base::Location& location) {
+    persistent_settings->Fence(location);
   }
 
   const std::string kSettingsFileName = "test-settings.json";
@@ -258,61 +263,61 @@ TEST_F(WatchdogTest, ViolationsJsonShouldPersistAndBeValid) {
   absl::optional<base::Value> violations_map_optional =
       base::JSONReader::Read(json);
   ASSERT_TRUE(violations_map_optional.has_value());
-  std::unique_ptr<base::Value::Dict> violations_map =
-      std::make_unique<base::Value::Dict>(
-          std::move(*violations_map_optional.value().GetIfDict()));
+  const base::Value::Dict* violations_map =
+      violations_map_optional->GetIfDict();
   ASSERT_NE(violations_map, nullptr);
-  base::Value::Dict* violation_dict = violations_map->FindDict("test-name");
+  const base::Value::Dict* violation_dict =
+      violations_map->FindDict("test-name");
   ASSERT_NE(violation_dict, nullptr);
-  std::string* description = violation_dict->FindString("description");
+  const std::string* description = violation_dict->FindString("description");
   ASSERT_NE(description, nullptr);
   ASSERT_EQ(*description, "test-desc");
-  base::Value::List* violations = violation_dict->FindList("violations");
+  const base::Value::List* violations = violation_dict->FindList("violations");
   ASSERT_NE(violations, nullptr);
   ASSERT_EQ(violations->size(), 1);
-  std::string* monitor_state =
+  const std::string* monitor_state =
       (*violations)[0].GetDict().FindString("monitorState");
   ASSERT_NE(monitor_state, nullptr);
   ASSERT_EQ(
       *monitor_state,
       std::string(GetApplicationStateString(base::kApplicationStateStarted)));
-  base::Value::List* ping_infos =
+  const base::Value::List* ping_infos =
       (*violations)[0].GetDict().FindList("pingInfos");
   ASSERT_NE(ping_infos, nullptr);
   ASSERT_EQ(ping_infos->size(), 1);
-  std::string* info = (*ping_infos)[0].GetDict().FindString("info");
+  const std::string* info = (*ping_infos)[0].GetDict().FindString("info");
   ASSERT_NE(info, nullptr);
   ASSERT_EQ(*info, "test-ping");
-  std::string* timestamp_milliseconds =
+  const std::string* timestamp_milliseconds =
       (*ping_infos)[0].GetDict().FindString("timestampMilliseconds");
   ASSERT_NE(timestamp_milliseconds, nullptr);
   std::stoll(*timestamp_milliseconds);
-  base::Value::List* registered_clients =
+  const base::Value::List* registered_clients =
       (*violations)[0].GetDict().FindList("registeredClients");
   ASSERT_NE(registered_clients, nullptr);
   ASSERT_EQ(registered_clients->size(), 1);
   ASSERT_EQ((*registered_clients)[0].GetString(), "test-name");
-  std::string* time_interval_milliseconds =
+  const std::string* time_interval_milliseconds =
       (*violations)[0].GetDict().FindString("timeIntervalMilliseconds");
   ASSERT_NE(time_interval_milliseconds, nullptr);
   std::stoll(*time_interval_milliseconds);
-  std::string* time_wait_milliseconds =
+  const std::string* time_wait_milliseconds =
       (*violations)[0].GetDict().FindString("timeWaitMilliseconds");
   ASSERT_NE(time_wait_milliseconds, nullptr);
   std::stoll(*time_wait_milliseconds);
-  std::string* timestamp_last_pinged_milliseconds =
+  const std::string* timestamp_last_pinged_milliseconds =
       (*violations)[0].GetDict().FindString("timestampLastPingedMilliseconds");
   ASSERT_NE(timestamp_last_pinged_milliseconds, nullptr);
   std::stoll(*timestamp_last_pinged_milliseconds);
-  std::string* timestamp_registered_milliseconds =
+  const std::string* timestamp_registered_milliseconds =
       (*violations)[0].GetDict().FindString("timestampRegisteredMilliseconds");
   ASSERT_NE(timestamp_registered_milliseconds, nullptr);
   std::stoll(*timestamp_registered_milliseconds);
-  std::string* timestamp_violation_milliseconds =
+  const std::string* timestamp_violation_milliseconds =
       (*violations)[0].GetDict().FindString("timestampViolationMilliseconds");
   ASSERT_NE(timestamp_violation_milliseconds, nullptr);
   std::stoll(*timestamp_violation_milliseconds);
-  std::string* violation_duration_milliseconds =
+  const std::string* violation_duration_milliseconds =
       (*violations)[0].GetDict().FindString("violationDurationMilliseconds");
   ASSERT_NE(violation_duration_milliseconds, nullptr);
   std::stoll(*violation_duration_milliseconds);
@@ -413,9 +418,9 @@ TEST_F(WatchdogTest, ViolationsAreEvictedAfterMax) {
                     CreateDummyViolationDict("test-desc-2", 1, 102));
   std::string json;
   base::JSONWriter::Write(*dummy_map, &json);
-  starboard::ScopedFile file(watchdog_->GetWatchdogFilePath().c_str(),
-                             kSbFileCreateAlways | kSbFileWrite);
-  file.WriteAll(json.c_str(), static_cast<int>(json.size()));
+  base::File file(base::FilePath(watchdog_->GetWatchdogFilePath().c_str()),
+                  base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
+  file.WriteAtCurrentPos(json.c_str(), static_cast<int>(json.size()));
   TearDown();
   watchdog_ = new watchdog::Watchdog();
   watchdog_->InitializeCustom(nullptr, std::string(kWatchdogViolationsJson),
@@ -584,12 +589,12 @@ TEST_F(WatchdogTest, FrequentConsecutiveViolationsShouldNotWrite) {
                                   kWatchdogMonitorFrequency));
   usleep(kWatchdogSleepDuration);
   std::string write_json = "";
-  starboard::ScopedFile read_file(watchdog_->GetWatchdogFilePath().c_str(),
-                                  kSbFileOpenOnly | kSbFileRead);
+  base::File read_file(base::FilePath(watchdog_->GetWatchdogFilePath().c_str()),
+                       base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (read_file.IsValid()) {
-    int64_t kFileSize = read_file.GetSize();
+    int64_t kFileSize = read_file.GetLength();
     std::vector<char> buffer(kFileSize + 1, 0);
-    read_file.ReadAll(buffer.data(), kFileSize);
+    read_file.ReadAtCurrentPos(buffer.data(), kFileSize);
     write_json = std::string(buffer.data());
   }
   ASSERT_NE(write_json, "");
@@ -597,12 +602,13 @@ TEST_F(WatchdogTest, FrequentConsecutiveViolationsShouldNotWrite) {
   usleep(kWatchdogSleepDuration);
   ASSERT_TRUE(watchdog_->Unregister("test-name"));
   std::string no_write_json = "";
-  starboard::ScopedFile read_file_again(
-      watchdog_->GetWatchdogFilePath().c_str(), kSbFileOpenOnly | kSbFileRead);
+  base::File read_file_again(
+      base::FilePath(watchdog_->GetWatchdogFilePath().c_str()),
+      base::File::FLAG_OPEN | base::File::FLAG_READ);
   if (read_file_again.IsValid()) {
-    int64_t kFileSize = read_file_again.GetSize();
+    int64_t kFileSize = read_file_again.GetLength();
     std::vector<char> buffer(kFileSize + 1, 0);
-    read_file_again.ReadAll(buffer.data(), kFileSize);
+    read_file_again.ReadAtCurrentPos(buffer.data(), kFileSize);
     no_write_json = std::string(buffer.data());
   }
   ASSERT_NE(no_write_json, "");
@@ -668,10 +674,10 @@ TEST_F(WatchdogTest, EvictOldWatchdogViolations) {
                     CreateDummyViolationDict("test-desc-old", 0, 1));
   std::string json;
   base::JSONWriter::Write(*dummy_map, &json);
-  starboard::ScopedFile file(watchdog_->GetWatchdogFilePath().c_str(),
-                             kSbFileCreateAlways | kSbFileWrite);
+  base::File file(base::FilePath(watchdog_->GetWatchdogFilePath().c_str()),
+                  base::File::FLAG_CREATE_ALWAYS | base::File::FLAG_WRITE);
   TearDown();
-  file.WriteAll(json.c_str(), static_cast<int>(json.size()));
+  file.WriteAtCurrentPos(json.c_str(), static_cast<int>(json.size()));
   watchdog_ = new watchdog::Watchdog();
   watchdog_->InitializeCustom(nullptr, std::string(kWatchdogViolationsJson),
                               kWatchdogMonitorFrequency);
@@ -751,13 +757,15 @@ TEST_F(WatchdogTest, WatchdogMethodsAreNoopWhenWatchdogIsDisabled) {
   // PersistentSettings doesn't have interface so it's not mockable
   auto persistent_settings =
       std::make_unique<PersistentSettings>(kSettingsFileName);
-  persistent_settings->ValidatePersistentSettings();
 
-  persistent_settings->SetPersistentSetting(
-      kPersistentSettingWatchdogEnable, std::make_unique<base::Value>(false),
-      true);
-  ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool(
-      kPersistentSettingWatchdogEnable, true));
+  persistent_settings->Set(kPersistentSettingWatchdogEnable,
+                           base::Value(false));
+  Fence(persistent_settings.get(), FROM_HERE);
+  {
+    base::Value value;
+    persistent_settings->Get(kPersistentSettingWatchdogEnable, &value);
+    ASSERT_FALSE(value.GetIfBool().value_or(true));
+  }
 
   watchdog_ = new watchdog::Watchdog();
   watchdog_->InitializeCustom(persistent_settings.get(),
@@ -786,13 +794,15 @@ TEST_F(WatchdogTest, LogtraceMethodsAreNoopWhenLogtraceIsDisabled) {
   // PersistentSettings doesn't have interface so it's not mockable
   auto persistent_settings =
       std::make_unique<PersistentSettings>(kSettingsFileName);
-  persistent_settings->ValidatePersistentSettings();
 
-  persistent_settings->SetPersistentSetting(
-      kPersistentSettingLogtraceEnable, std::make_unique<base::Value>(false),
-      true);
-  ASSERT_FALSE(persistent_settings->GetPersistentSettingAsBool(
-      kPersistentSettingLogtraceEnable, true));
+  persistent_settings->Set(kPersistentSettingLogtraceEnable,
+                           base::Value(false));
+  Fence(persistent_settings.get(), FROM_HERE);
+  {
+    base::Value value;
+    persistent_settings->Get(kPersistentSettingLogtraceEnable, &value);
+    ASSERT_FALSE(value.GetIfBool().value_or(true));
+  }
 
   watchdog_ = new watchdog::Watchdog();
   watchdog_->InitializeCustom(persistent_settings.get(),

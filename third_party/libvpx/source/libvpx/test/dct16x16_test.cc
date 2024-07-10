@@ -789,12 +789,22 @@ INSTANTIATE_TEST_SUITE_P(
         make_tuple(&vp9_fht16x16_c, &vp9_iht16x16_256_add_c, 3, VPX_BITS_8)));
 #endif  // CONFIG_VP9_HIGHBITDEPTH
 
-#if HAVE_NEON && !CONFIG_EMULATE_HARDWARE
+#if HAVE_NEON && !CONFIG_VP9_HIGHBITDEPTH && !CONFIG_EMULATE_HARDWARE
 INSTANTIATE_TEST_SUITE_P(
     NEON, Trans16x16DCT,
     ::testing::Values(make_tuple(&vpx_fdct16x16_neon,
                                  &vpx_idct16x16_256_add_neon, 0, VPX_BITS_8)));
 #endif  // HAVE_NEON && !CONFIG_EMULATE_HARDWARE
+
+#if HAVE_NEON && CONFIG_VP9_HIGHBITDEPTH && !CONFIG_EMULATE_HARDWARE
+INSTANTIATE_TEST_SUITE_P(
+    NEON, Trans16x16DCT,
+    ::testing::Values(
+        make_tuple(&vpx_highbd_fdct16x16_neon, &idct16x16_10, 0, VPX_BITS_10),
+        make_tuple(&vpx_highbd_fdct16x16_neon, &idct16x16_12, 0, VPX_BITS_12),
+        make_tuple(&vpx_fdct16x16_neon, &vpx_idct16x16_256_add_c, 0,
+                   VPX_BITS_8)));
+#endif  // HAVE_NEON && CONFIG_VP9_HIGHBITDEPTH && !CONFIG_EMULATE_HARDWARE
 
 #if HAVE_SSE2 && !CONFIG_VP9_HIGHBITDEPTH && !CONFIG_EMULATE_HARDWARE
 INSTANTIATE_TEST_SUITE_P(
@@ -868,4 +878,11 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(make_tuple(&vpx_fdct16x16_c, &vpx_idct16x16_256_add_vsx,
                                  0, VPX_BITS_8)));
 #endif  // HAVE_VSX && !CONFIG_VP9_HIGHBITDEPTH && !CONFIG_EMULATE_HARDWARE
+
+#if HAVE_LSX && !CONFIG_VP9_HIGHBITDEPTH && !CONFIG_EMULATE_HARDWARE
+INSTANTIATE_TEST_SUITE_P(LSX, Trans16x16DCT,
+                         ::testing::Values(make_tuple(&vpx_fdct16x16_lsx,
+                                                      &vpx_idct16x16_256_add_c,
+                                                      0, VPX_BITS_8)));
+#endif  // HAVE_LSX && !CONFIG_VP9_HIGHBITDEPTH && !CONFIG_EMULATE_HARDWARE
 }  // namespace

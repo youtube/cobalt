@@ -312,8 +312,8 @@ $(BUILD_PFX)libvpx_g.a: $(LIBVPX_OBJS)
 # To determine SO_VERSION_{MAJOR,MINOR,PATCH}, calculate c,a,r with current
 # SO_VERSION_* then follow the rules in the link to detemine the new version
 # (c1, a1, r1) and set MAJOR to [c1-a1], MINOR to a1 and PATCH to r1
-SO_VERSION_MAJOR := 6
-SO_VERSION_MINOR := 4
+SO_VERSION_MAJOR := 8
+SO_VERSION_MINOR := 0
 SO_VERSION_PATCH := 0
 ifeq ($(filter darwin%,$(TGT_OS)),$(TGT_OS))
 LIBVPX_SO               := libvpx.$(SO_VERSION_MAJOR).dylib
@@ -446,13 +446,13 @@ ifeq ($(VPX_ARCH_X86)$(VPX_ARCH_X86_64),yes)
 # YASM
 $(BUILD_PFX)vpx_config.asm: $(BUILD_PFX)vpx_config.h
 	@echo "    [CREATE] $@"
-	@LC_ALL=C egrep "#define [A-Z0-9_]+ [01]" $< \
+	@LC_ALL=C grep -E "#define [A-Z0-9_]+ [01]" $< \
 	    | awk '{print $$2 " equ " $$3}' > $@
 else
 ADS2GAS=$(if $(filter yes,$(CONFIG_GCC)),| $(ASM_CONVERSION))
 $(BUILD_PFX)vpx_config.asm: $(BUILD_PFX)vpx_config.h
 	@echo "    [CREATE] $@"
-	@LC_ALL=C egrep "#define [A-Z0-9_]+ [01]" $< \
+	@LC_ALL=C grep -E "#define [A-Z0-9_]+ [01]" $< \
 	    | awk '{print $$2 " EQU " $$3}' $(ADS2GAS) > $@
 	@echo "        END" $(ADS2GAS) >> $@
 CLEAN-OBJS += $(BUILD_PFX)vpx_config.asm
@@ -536,7 +536,7 @@ $(LIBVPX_TEST_DATA): $(SRC_PATH_BARE)/test/test-data.sha1
 	  esac \
 	)
 
-testdata:: $(LIBVPX_TEST_DATA)
+testdata: $(LIBVPX_TEST_DATA)
 	$(qexec)[ -x "$$(which sha1sum)" ] && sha1sum=sha1sum;\
           [ -x "$$(which shasum)" ] && sha1sum=shasum;\
           [ -x "$$(which sha1)" ] && sha1sum=sha1;\
@@ -631,8 +631,8 @@ test_rc_interface.$(VCPROJ_SFX): $(RC_INTERFACE_TEST_SRCS) vpx.$(VCPROJ_SFX) \
             -I. -I"$(SRC_PATH_BARE)/third_party/googletest/src/include" \
             -L. -l$(CODEC_LIB) -l$(RC_RTC_LIB) -l$(GTEST_LIB) $^
 endif  # RC_INTERFACE_TEST
-endif  # CONFIG_VP9_ENCODER
-endif
+endif  # CONFIG_ENCODERS
+endif  # CONFIG_MSVS
 else
 
 include $(SRC_PATH_BARE)/third_party/googletest/gtest.mk
@@ -699,7 +699,7 @@ $(eval $(call linkerxx_template,$(SIMPLE_ENCODE_TEST_BIN), \
               -L. -lsimple_encode -lvpx -lgtest $(extralibs) -lm))
 endif  # SIMPLE_ENCODE_TEST
 
-endif  # CONFIG_UNIT_TESTS
+endif  # CONFIG_EXTERNAL_BUILD
 
 # Install test sources only if codec source is included
 INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(patsubst $(SRC_PATH_BARE)/%,%,\
@@ -709,22 +709,22 @@ INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(TEST_INTRA_PRED_SPEED_SRCS)
 INSTALL-SRCS-$(CONFIG_CODEC_SRCS) += $(RC_INTERFACE_TEST_SRCS)
 
 define test_shard_template
-test:: test_shard.$(1)
-test-no-data-check:: test_shard_ndc.$(1)
+test: test_shard.$(1)
+test-no-data-check: test_shard_ndc.$(1)
 test_shard.$(1) test_shard_ndc.$(1): $(LIBVPX_TEST_BIN)
 	@set -e; \
 	 export GTEST_SHARD_INDEX=$(1); \
 	 export GTEST_TOTAL_SHARDS=$(2); \
 	 $(LIBVPX_TEST_BIN)
 test_shard.$(1): testdata
-.PHONY: test_shard.$(1)
+.PHONY: test_shard.$(1) test_shard_ndc.$(1)
 endef
 
 NUM_SHARDS := 10
 SHARDS := 0 1 2 3 4 5 6 7 8 9
 $(foreach s,$(SHARDS),$(eval $(call test_shard_template,$(s),$(NUM_SHARDS))))
 
-endif
+endif  # CONFIG_UNIT_TESTS
 
 ##
 ## documentation directives

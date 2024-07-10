@@ -14,12 +14,6 @@
 
 #include "starboard/media.h"
 
-#if SB_API_VERSION < 16
-#if SB_API_VERSION >= 14
 int SbMediaGetBufferAlignment() {
-#else   // SB_API_VERSION >= 14
-int SbMediaGetBufferAlignment(SbMediaType type) {
-#endif  // SB_API_VERSION >= 14
   return 0;
 }
-#endif  // SB_API_VERSION < 16

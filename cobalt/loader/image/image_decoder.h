@@ -82,6 +82,10 @@ class ImageDecoder : public Decoder {
   // into multi-plane.
   static bool AllowDecodingToMultiPlane();
 
+  // Call this function if we use persistent settings or command line to
+  // switch using Skia as the default rasterizer.
+  static void EnableSkiaRasterizer();
+
  private:
   enum State {
     kWaitingForHeader,

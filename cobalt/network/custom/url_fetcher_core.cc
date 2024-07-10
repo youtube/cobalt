@@ -30,7 +30,6 @@
 #include "net/url_request/url_request_context.h"
 #include "net/url_request/url_request_context_getter.h"
 #include "net/url_request/url_request_throttler_manager.h"
-#include "starboard/common/time.h"
 #include "starboard/types.h"
 #include "url/origin.h"
 
@@ -470,10 +469,8 @@ void URLFetcherCore::OnReceivedRedirect(URLRequest* request,
     stopped_on_redirect_ = true;
     url_ = redirect_info.new_url;
     response_code_ = request_->GetResponseCode();
-#if defined(COBALT)
     // Cobalt needs header information for CORS check between redirects.
     response_headers_ = request_->response_headers();
-#endif
     proxy_server_ = request_->proxy_server();
     was_fetched_via_proxy_ = request_->response_info().was_fetched_via_proxy;
     was_cached_ = request_->was_cached();
@@ -546,13 +543,14 @@ void URLFetcherCore::OnReadCompleted(URLRequest* request, int bytes_read) {
 #if defined(STARBOARD)
   // Prime it to the current time so it is only called after the loop, or every
   // time when the loop takes |kInformDownloadProgressIntervalUsec|.
-  int64_t download_progress_informed_at = starboard::CurrentMonotonicTime();
+  int64_t download_progress_informed_at =
+      (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
   bool did_read_after_inform_download_progress = false;
 
   while (bytes_read > 0) {
     current_response_bytes_ += bytes_read;
     did_read_after_inform_download_progress = true;
-    auto now = starboard::CurrentMonotonicTime();
+    auto now = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
     if (now - download_progress_informed_at >
         kInformDownloadProgressIntervalUsec) {
       InformDelegateDownloadProgress();
@@ -753,12 +751,10 @@ void URLFetcherCore::StartURLRequest() {
       request_->set_method("DELETE");
       break;
 
-#if defined(COBALT)
     // Cobalt needs OPTIONS method to send CORS-Preflight requests.
     case URLFetcher::OPTIONS:
       request_->set_method("OPTIONS");
       break;
-#endif
 
     default:
       NOTREACHED();

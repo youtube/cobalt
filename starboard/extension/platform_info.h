@@ -41,6 +41,10 @@ typedef struct CobaltExtensionPlatformInfoApi {
 
   // Returns the OS experience. (e.g. Amati or Watson on an Android device).
   const char* (*GetOsExperience)();
+
+  // Returns the Core Services version (e.g. the Google Play Services package
+  // version on an Android device).
+  int64_t (*GetCoreServicesVersion)();
 } CobaltExtensionPlatformInfoApi;
 
 #ifdef __cplusplus

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/mutex.h"
 
 #include <windows.h>
@@ -28,3 +30,5 @@ bool SbMutexCreate(SbMutex* mutex) {
   InitializeSRWLock(SB_WIN32_INTERNAL_MUTEX(mutex));
   return true;
 }
+
+#endif  // SB_API_VERSION < 16

@@ -14,6 +14,7 @@
 
 #include "cobalt/web/navigator_ua_data.h"
 
+#include "base/logging.h"
 #include "base/strings/stringprintf.h"
 
 namespace cobalt {
@@ -24,7 +25,7 @@ NavigatorUAData::NavigatorUAData(
     script::ScriptValueFactory* script_value_factory)
     : script_value_factory_(script_value_factory) {
   if (platform_info == nullptr) {
-    SB_DLOG(WARNING)
+    DLOG(WARNING)
         << "No UserAgentPlatformInfo object passed to NavigatorUAData";
     return;
   }
@@ -64,6 +65,8 @@ NavigatorUAData::NavigatorUAData(
       platform_info->android_build_fingerprint());
   all_high_entropy_values_.set_android_os_experience(
       platform_info->android_os_experience());
+  all_high_entropy_values_.set_android_play_services_version(
+      platform_info->android_play_services_version());
   all_high_entropy_values_.set_starboard_version(
       platform_info->starboard_version());
   all_high_entropy_values_.set_original_design_manufacturer(
