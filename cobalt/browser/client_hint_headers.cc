@@ -49,6 +49,9 @@ std::vector<std::string> GetClientHintHeaders(
   AddHeader(headers, "Android-OS-Experience",
             platform_info.android_os_experience());
 
+  AddHeader(headers, "Android-Play-Services-Version",
+            platform_info.android_play_services_version());
+
   return headers;
 }
 
