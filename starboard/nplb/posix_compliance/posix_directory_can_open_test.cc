@@ -25,6 +25,11 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+TEST(PosixDirectoryCanOpenTest, EjectCore) {
+  char* null = NULL;
+  EXPECT_EQ(null[0], NULL);
+}
+
 TEST(PosixDirectoryCanOpenTest, SunnyDay) {
   std::string path = starboard::nplb::GetTempDir();
   struct stat file_info;
