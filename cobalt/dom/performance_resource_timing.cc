@@ -43,7 +43,7 @@ PerformanceResourceTiming::PerformanceResourceTiming(
       cache_mode_(kPerformanceResourceTimingCacheMode),
       timing_info_(timing_info),
       time_origin_(time_origin),
-      timing_info_response_end_(performance->Now()) {}
+      fallback_response_end_(performance->Now()) {}
 
 std::string PerformanceResourceTiming::initiator_type() const {
   return initiator_type_;
@@ -114,7 +114,11 @@ DOMHighResTimeStamp PerformanceResourceTiming::response_start() const {
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::response_end() const {
-  return timing_info_response_end_;
+  if (timing_info_.response_end.is_null()) {
+    return fallback_response_end_;
+  }
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(
+      time_origin_, timing_info_.response_end);
 }
 
 uint64_t PerformanceResourceTiming::transfer_size() const {
