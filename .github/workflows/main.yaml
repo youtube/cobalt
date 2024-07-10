@@ -34,6 +34,16 @@ on:
         required: false
         type: string
         default: ''
+      check_artifact_size:
+        description: 'Whether to check artifact binary size'
+        required: false
+        type: boolean
+        default: false
+      artifact_size_increase_threshold:
+        description: 'Threshold for artifact binary size increase' # define the unit
+        required: false
+        type: number
+        default: 1028
 
 # Global env vars.
 env:
@@ -257,6 +267,12 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
+      - name: 'Check Artifact Size'
+        uses: ./.github/actions/check_artifact_size
+        if: inputs.check_artifact_size
+        with:
+          path: out/${{ matrix.platform }}_${{ matrix.config }}/${{ inputs.keep_artifacts }}
+          threshold: ${{ inputs.artifact_size_increase_threshold }}
       - name: 'Upload Artifact'
         uses: actions/upload-artifact@v4
         if: inputs.keep_artifacts
