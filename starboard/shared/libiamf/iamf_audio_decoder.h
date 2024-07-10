@@ -17,7 +17,6 @@
 
 #include <deque>
 #include <queue>
-#include <vector>
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
@@ -54,14 +53,13 @@ class IamfAudioDecoder
 
  private:
   static constexpr int kMinimumBuffersToDecode = 2;
+  static constexpr int kMaxIamfFramesPerAU = 2048;
+  static constexpr int kMaxOpusFramesPerAU = 960;
 
   bool InitializeCodec();
   void TeardownCodec();
   void DecodePendingBuffers();
   bool DecodeInternal(const scoped_refptr<InputBuffer>& input_buffer);
-  static const int kMaxOpusFramesPerAU = 960;
-  static const int kOutputSamplesPerSecond = 48000;
-  static const int kOutputBitDepth = 32;
 
   SbMediaAudioSampleType GetSampleType() const;
 
@@ -72,7 +70,7 @@ class IamfAudioDecoder
   bool stream_ended_ = false;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
   AudioStreamInfo audio_stream_info_;
-  int frames_per_au_ = kMaxOpusFramesPerAU;
+  int frames_per_au_ = kMaxIamfFramesPerAU;
 
   std::deque<scoped_refptr<InputBuffer>> pending_audio_buffers_;
   ConsumedCB consumed_cb_;

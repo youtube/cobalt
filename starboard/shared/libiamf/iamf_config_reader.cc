@@ -30,6 +30,21 @@ constexpr int kObuTypeAudioElement = 1;
 constexpr int kObuTypeMixPresentation = 2;
 constexpr int kObuTypeSequenceHeader = 31;
 
+// From
+// https://aomediacodec.github.io/iamf/v1.0.0-errata.html#obu-codecconfig.
+constexpr int kFourccOpus = 0x4f707573;
+constexpr int kFourccMp4a = 0x6d703461;
+constexpr int kFourccFlac = 0x664c6143;
+constexpr int kFourccIpcm = 0x6970636d;
+
+inline uint32_t ByteSwap(uint32_t x) {
+#if defined(COMPILER_MSVC)
+  return _byteswap_ulong(x);
+#else
+  return __builtin_bswap32(x);
+#endif
+}
+
 // Decodes an Leb128 value and stores it in |value|. Returns the number of bytes
 // read. Returns -1 on error.
 int ReadLeb128Value(const uint8_t* buf, uint32_t* value) {
@@ -69,10 +84,8 @@ int ReadString(const uint8_t* buf, std::string& value) {
 }  // namespace
 
 bool IamfConfigReader::Read(scoped_refptr<InputBuffer> input_buffer) {
-  buffer_head_ = 0;
-  has_mix_presentation_id_ = false;
-  config_size_ = 0;
-  SB_LOG(INFO) << "Input buffer size is " << input_buffer->size();
+  Reset();
+
   const uint8_t* buf = input_buffer->data();
   SB_DCHECK(buf);
 
@@ -86,17 +99,22 @@ bool IamfConfigReader::Read(scoped_refptr<InputBuffer> input_buffer) {
 
   SB_CHECK(completed_parsing);
 
-  SB_LOG(INFO) << "End OBU loop";
-
   data_size_ = input_buffer->size() - config_size_;
-  SB_LOG(INFO) << "Input size: " << input_buffer->size()
-               << ", Data size: " << input_buffer->size() - config_size_
-               << ", config size: " << config_size_;
   config_obus_.assign(buf, buf + config_size_);
   data_.assign(buf + config_size_, buf + input_buffer->size());
-  SB_LOG(INFO) << "Return read";
 
   return true;
+}
+
+void IamfConfigReader::Reset() {
+  buffer_head_ = 0;
+  has_mix_presentation_id_ = false;
+  mix_presentation_id_ = 0;
+  config_size_ = 0;
+  data_size_ = 0;
+  sample_rate_ = 0;
+  samples_per_buffer_ = 0;
+  sample_size_ = 0;
 }
 
 bool IamfConfigReader::ReadOBU(const uint8_t* buf, bool& completed_parsing) {
@@ -107,10 +125,7 @@ bool IamfConfigReader::ReadOBU(const uint8_t* buf, bool& completed_parsing) {
     SB_LOG(ERROR) << "Error reading OBU header";
     return false;
   }
-  SB_LOG(INFO) << "OBU size is " << obu_size << " with current buffer head "
-               << buffer_head_;
 
-  // const uint8_t* last_byte = buf + buffer_head_ + obu_size;
   int next_obu_pos = buffer_head_ + obu_size;
   int bytes_read = 0;
 
@@ -119,17 +134,73 @@ bool IamfConfigReader::ReadOBU(const uint8_t* buf, bool& completed_parsing) {
   uint32_t num_sub_mixes = 0;
 
   switch (static_cast<int>(obu_type)) {
-    case kObuTypeCodecConfig:
-      SB_LOG(INFO) << "Reading codec config OBU";
+    case kObuTypeCodecConfig: {
+      sample_rate_ = 0;
+      uint32_t codec_config_id;
+      bytes_read = ReadLeb128Value(&buf[buffer_head_], &codec_config_id);
+      if (bytes_read < 0) {
+        return false;
+      }
+      buffer_head_ += bytes_read;
+
+      uint32_t codec_id = 0;
+      std::memcpy(&codec_id, &buf[buffer_head_], sizeof(uint32_t));
+      // Mp4 is in big-endian
+      codec_id = ByteSwap(codec_id);
+      buffer_head_ += 4;
+      SB_LOG(INFO) << std::hex << codec_id;
+
+      bytes_read = ReadLeb128Value(&buf[buffer_head_], &samples_per_buffer_);
+      if (bytes_read < 0) {
+        return false;
+      }
+      buffer_head_ += bytes_read;
+
+      // audio_roll_distance
+      buffer_head_ += 2;
+
+      switch (codec_id) {
+        case kFourccOpus:
+          sample_rate_ = 48000;
+          break;
+        case kFourccMp4a:
+          // TODO: Properly parse for the sample rate. 48000 is the assumed
+          // sample rate.
+          sample_rate_ = 48000;
+          break;
+        case kFourccFlac: {
+          // Skip METADATA_BLOCK_HEADER.
+          buffer_head_ += 4;
+          // Skip first 10 bytes of METADATA_BLOCK_STREAMINFO.
+          buffer_head_ += 10;
+
+          std::memcpy(&sample_rate_, &buf[buffer_head_], sizeof(uint32_t));
+          sample_rate_ = ByteSwap(sample_rate_);
+          sample_rate_ = sample_rate_ >> 12;
+          break;
+        }
+        case kFourccIpcm: {
+          // sample_format_flags
+          buffer_head_++;
+          uint8_t sample_size_byte = buf[buffer_head_];
+          sample_size_ = static_cast<int>(sample_size_byte);
+          buffer_head_++;
+
+          std::memcpy(&sample_rate_, &buf[buffer_head_], sizeof(uint32_t));
+          sample_rate_ = ByteSwap(sample_rate_);
+          break;
+        }
+        default:
+          SB_NOTREACHED();
+      }
+
       break;
+    }
     case kObuTypeAudioElement:
-      SB_LOG(INFO) << "Reading audio element OBU";
-      break;
     case kObuTypeSequenceHeader:
-      SB_LOG(INFO) << "Reading sequence header OBU";
       break;
     case kObuTypeMixPresentation: {
-      SB_LOG(INFO) << "Reading mix presentation OBU";
+      // TODO: Complete Mix Presentation OBU parsing
       has_mix_presentation_id_ = true;
       bytes_read = ReadLeb128Value(&buf[buffer_head_], &mix_presentation_id_);
       if (bytes_read < 0) {
@@ -164,7 +235,8 @@ bool IamfConfigReader::ReadOBU(const uint8_t* buf, bool& completed_parsing) {
       break;
     }
     default:
-      SB_LOG(INFO) << "OBU type " << static_cast<int>(obu_type);
+      // Once an OBU is read that is not a descriptor, descriptor parsing is
+      // assumed to be complete.
       completed_parsing = true;
       break;
   }
@@ -181,7 +253,6 @@ bool IamfConfigReader::ReadOBUHeader(const uint8_t* buf,
                                      uint8_t* obu_type,
                                      uint32_t* obu_size,
                                      uint32_t* header_size) {
-  SB_LOG(INFO) << "buffer head is " << buffer_head_;
   uint8_t header_flags = buf[buffer_head_];
   *obu_type = (header_flags >> 3) & 0x1f;
   buffer_head_++;
@@ -194,12 +265,9 @@ bool IamfConfigReader::ReadOBUHeader(const uint8_t* buf,
 
   *header_size = 1;
 
-  // redundant_copy |= obu_redundant_copy;
-
   *obu_size = 0;
   int bytes_read = ReadLeb128Value(&buf[buffer_head_], obu_size);
   if (bytes_read < 0) {
-    SB_LOG(INFO) << "Error reading OBU size";
     return false;
   }
   buffer_head_ += bytes_read;
