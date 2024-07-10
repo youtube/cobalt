@@ -1132,6 +1132,7 @@ void URLRequest::NotifyRequestCompleted() {
   load_timing_info_.encoded_body_size = static_cast<uint64_t>(GetTotalReceivedBytes());
   load_timing_info_.alpn_negotiated_protocol = response_info_.alpn_negotiated_protocol;
   load_timing_info_.connection_info_string = HttpResponseInfo::ConnectionInfoToString(response_info_.connection_info);
+  load_timing_info_.response_end = base::TimeTicks::Now();
   if (load_timing_info_callback_) {
     load_timing_info_callback_.Run(load_timing_info_);
   }

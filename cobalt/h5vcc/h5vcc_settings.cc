@@ -119,6 +119,12 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
         config.has_value() ? std::move(*config) : base::Value());
     return true;
   }
+  if (name.compare("cpu_usage_tracker_intervals_enabled") == 0 &&
+      value.IsType<int32>()) {
+    browser::CpuUsageTracker::GetInstance()->UpdateIntervalsEnabled(
+        value.AsType<int32>() != 0);
+    return true;
+  }
   if (name.compare("cpu_usage_tracker_one_time_tracking") == 0 &&
       value.IsType<int32>()) {
     bool started = value.AsType<int32>() != 0;

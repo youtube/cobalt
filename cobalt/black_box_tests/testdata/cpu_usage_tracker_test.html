@@ -26,6 +26,7 @@ const delay = durationMs =>
     });
 setupFinished();
 window.h5vcc.settings.set('cpu_usage_tracker_one_time_tracking', 0);
+window.h5vcc.settings.set('cpu_usage_tracker_intervals_enabled', 1);
 
 // Set invalid config.
 window.h5vcc.settings.set('cpu_usage_tracker_intervals', '');
@@ -111,6 +112,7 @@ delay(2500).then(() => {
 
   // Set invalid config to reset to default config.
   window.h5vcc.settings.set('cpu_usage_tracker_intervals', '');
+  window.h5vcc.settings.set('cpu_usage_tracker_intervals_enabled', 0);
 }).then(() => {
   const cvalKeys = window.h5vcc.cVal.keys().filter(k => k.startsWith('CPU.'));
   assertIncludes('CPU.PerThread.Usage.OneTime', cvalKeys);

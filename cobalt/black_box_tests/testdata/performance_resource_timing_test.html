@@ -20,19 +20,19 @@
 </head>
 <body>
   <script>
-const checkNextHopProtocol = expectedValues => {
-  const entries = window.performance.getEntries();
-  assertEqual(expectedValues.length, entries.length);
-  expectedValues.forEach((expectedValue, i) => {
-    assertEqual(expectedValue, entries[i].nextHopProtocol);
-  });
-};
-
 setupFinished();
-checkNextHopProtocol([undefined]);
+const entries = window.performance.getEntries();
+assertEqual(1, entries.length);
+assertEqual(undefined, entries[0].responseEnd);
+assertEqual(undefined, entries[0].nextHopProtocol);
 fetch('performance_resource_timing_test.html')
   .then(() => {
-    checkNextHopProtocol([undefined, 'http/1.0']);
+    const entries = window.performance.getEntries();
+    assertEqual(2, entries.length);
+    assertEqual(undefined, entries[0].responseEnd);
+    assertEqual(undefined, entries[0].nextHopProtocol);
+    assertTrue(entries[1].responseEnd > 0);
+    assertEqual('http/1.0', entries[1].nextHopProtocol);
   }).then(onEndTest).catch(notReached);
   </script>
 </body>
