@@ -447,10 +447,12 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                 std::move(audio_decoder_impl));
           }
         } else if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {
-          scoped_ptr<IamfAudioDecoder> audio_decoder_impl(
+          SB_LOG(INFO) << "Creating IAMF audio decoder";
+          std::unique_ptr<IamfAudioDecoder> audio_decoder_impl(
               new IamfAudioDecoder(audio_stream_info));
           if (audio_decoder_impl->is_valid()) {
-            return audio_decoder_impl.PassAs<AudioDecoderBase>();
+            return std::unique_ptr<AudioDecoderBase>(
+                std::move(audio_decoder_impl));
           }
         } else {
           SB_LOG(ERROR) << "Unsupported audio codec "

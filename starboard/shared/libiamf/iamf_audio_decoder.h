@@ -72,6 +72,8 @@ class IamfAudioDecoder
   AudioStreamInfo audio_stream_info_;
   int frames_per_au_ = kMaxIamfFramesPerAU;
 
+  bool decoder_is_configured_ = false;
+
   std::deque<scoped_refptr<InputBuffer>> pending_audio_buffers_;
   ConsumedCB consumed_cb_;
 
