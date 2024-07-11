@@ -189,10 +189,10 @@ void ResourceCacheBase::SetCapacity(uint32 capacity) {
   ReclaimMemoryAndMaybeProcessPendingCallbacks(cache_capacity_);
 }
 
-void ResourceCacheBase::Purge() {
+void ResourceCacheBase::Purge(bool on_conceal) {
   DCHECK_CALLED_ON_VALID_THREAD(resource_cache_thread_checker_);
   ProcessPendingCallbacks();
-  reclaim_memory_func_.Run(0, true);
+  reclaim_memory_func_.Run(0, true, on_conceal);
 }
 
 void ResourceCacheBase::ProcessPendingCallbacks() {
@@ -289,8 +289,9 @@ void ResourceCacheBase::NotifyResourceLoadingRetryScheduled(
 
 void ResourceCacheBase::ReclaimMemoryAndMaybeProcessPendingCallbacks(
     uint32 bytes_to_reclaim_down_to) {
+  bool on_conceal = false;
   reclaim_memory_func_.Run(bytes_to_reclaim_down_to,
-                           false /*log_warning_if_over*/);
+                           false /*log_warning_if_over*/, on_conceal);
   // If the current size of the cache is still greater than
   // |bytes_to_reclaim_down_to| after reclaiming memory, then process any
   // pending callbacks and try again. References to the cached resources are
@@ -299,7 +300,7 @@ void ResourceCacheBase::ReclaimMemoryAndMaybeProcessPendingCallbacks(
   if (memory_size_in_bytes_ > bytes_to_reclaim_down_to) {
     ProcessPendingCallbacks();
     reclaim_memory_func_.Run(bytes_to_reclaim_down_to,
-                             true /*log_warning_if_over*/);
+                             true /*log_warning_if_over*/, on_conceal);
   }
 }
 

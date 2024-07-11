@@ -29,8 +29,8 @@ void GetUserAgentInputMap(
 
 class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
  public:
-  UserAgentPlatformInfo();
-  ~UserAgentPlatformInfo() override{};
+  explicit UserAgentPlatformInfo(bool enable_skia_rasterizer = false);
+  ~UserAgentPlatformInfo() override {};
 
   // From: dom:UserAgentPlatformInfo
   //
@@ -82,6 +82,9 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   const std::string& android_os_experience() const override {
     return android_os_experience_;
   }
+  const std::string& android_play_services_version() const override {
+    return android_play_services_version_;
+  }
   const std::string& cobalt_version() const override { return cobalt_version_; }
   const std::string& cobalt_build_version_number() const override {
     return cobalt_build_version_number_;
@@ -89,6 +92,8 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   const std::string& build_configuration() const override {
     return build_configuration_;
   }
+
+  bool enable_skia_rasterizer() { return enable_skia_rasterizer_; }
 
   // Other: Setters that sanitize the strings where needed.
   //
@@ -116,6 +121,8 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   void set_android_build_fingerprint(
       const std::string& android_build_fingerprint);
   void set_android_os_experience(const std::string& android_os_experience);
+  void set_android_play_services_version(
+      const std::string& android_play_services_version);
   void set_cobalt_version(const std::string& cobalt_version);
   void set_cobalt_build_version_number(
       const std::string& cobalt_build_version_number);
@@ -140,12 +147,15 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   std::string evergreen_type_;
   std::string evergreen_file_type_;
   std::string evergreen_version_;
-  std::string android_build_fingerprint_;  // Only via Client Hints
-  std::string android_os_experience_;      // Only via Client Hints
+  std::string android_build_fingerprint_;      // Only via Client Hints
+  std::string android_os_experience_;          // Only via Client Hints
+  std::string android_play_services_version_;  // Only via Client Hints
 
   std::string cobalt_version_;
   std::string cobalt_build_version_number_;
   std::string build_configuration_;
+
+  bool enable_skia_rasterizer_ = false;
 };
 
 }  // namespace browser

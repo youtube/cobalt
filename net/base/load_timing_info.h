@@ -201,6 +201,9 @@ struct NET_EXPORT LoadTimingInfo {
 
 #if defined(STARBOARD)
   uint64_t encoded_body_size;
+  std::string alpn_negotiated_protocol;
+  std::string connection_info_string;
+  base::TimeTicks response_end;
 #endif  // defined(STARBOARD)
 };
 

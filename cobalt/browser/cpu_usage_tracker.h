@@ -18,6 +18,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/task/current_thread.h"
 #include "base/timer/timer.h"
@@ -39,7 +40,10 @@ class CpuUsageTracker : base::CurrentThread::DestructionObserver {
   static CpuUsageTracker* GetInstance();
 
   void Initialize(persistent_storage::PersistentSettings*);
-  void UpdateConfig(const base::Value&);
+  void UpdateIntervalsDefinition(const base::Value&);
+  void UpdateIntervalsEnabled(bool);
+  void StartOneTimeTracking();
+  void StopAndCaptureOneTimeTracking();
 
  private:
   friend struct base::DefaultSingletonTraits<CpuUsageTracker>;
@@ -47,8 +51,8 @@ class CpuUsageTracker : base::CurrentThread::DestructionObserver {
   ~CpuUsageTracker();
 
   void InitializeAsync();
-  void UpdateTotal(const base::Uuid&);
-  void UpdatePerThread(const base::Uuid&);
+  void TotalIntervalTask(const base::Uuid&);
+  void PerThreadIntervalTask(const base::Uuid&);
   void ClearIntervalContexts();
   void CreateTotalIntervalContext(int);
   void CreatePerThreadIntervalContext(int);
@@ -66,6 +70,10 @@ class CpuUsageTracker : base::CurrentThread::DestructionObserver {
     std::unique_ptr<base::RepeatingTimer> timer;
   };
 
+  using UuidIntervalContextPair =
+      std::pair<const base::Uuid, std::unique_ptr<IntervalContext>>;
+
+
   struct PerThreadIntervalContext : IntervalContext {
     PerThreadIntervalContext() { type = IntervalContextType::PER_THREAD; }
 
@@ -80,11 +88,21 @@ class CpuUsageTracker : base::CurrentThread::DestructionObserver {
     base::TimeDelta previous;
   };
 
-  std::map<base::Uuid, std::unique_ptr<IntervalContext>> interval_contexts_;
+  bool intervals_enabled_;
+  std::map<base::Uuid, std::unique_ptr<IntervalContext>>
+      uuid_to_interval_context_;
   base::Lock lock_;
 
   persistent_storage::PersistentSettings* storage_;
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
+
+  bool one_time_tracking_started_;
+  std::unique_ptr<base::CVal<double, base::CValPublic>>
+      cval_one_time_tracking_total_;
+  base::TimeDelta one_time_tracking_total_at_start_;
+  std::unique_ptr<base::CVal<std::string, base::CValPublic>>
+      cval_one_time_tracking_per_thread_;
+  std::unique_ptr<base::Value> one_time_tracking_per_thread_at_start_;
 };
 
 }  // namespace browser

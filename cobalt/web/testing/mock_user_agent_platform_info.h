@@ -27,7 +27,7 @@ namespace testing {
 class MockUserAgentPlatformInfo : public web::UserAgentPlatformInfo {
  public:
   MockUserAgentPlatformInfo() {}
-  ~MockUserAgentPlatformInfo() override{};
+  ~MockUserAgentPlatformInfo() override {};
 
   // From: dom:UserAgentPlatformInfo
   //
@@ -79,6 +79,9 @@ class MockUserAgentPlatformInfo : public web::UserAgentPlatformInfo {
     return empty_string_;
   }
   const std::string& android_os_experience() const override {
+    return empty_string_;
+  }
+  const std::string& android_play_services_version() const override {
     return empty_string_;
   }
   const std::string& cobalt_version() const override { return empty_string_; }

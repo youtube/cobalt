@@ -11,7 +11,33 @@ debugging, as these minidumps have the information for the dynamic
 `libcobalt.so` module correctly mapped, which a out-of-the-box dumper could not
 manage.
 
-## Obtaining the Tools to Symbolize Minidumps
+## Symbolizing with the Provided Docker Container (Recommended)
+
+We provide a docker container at `docker/crashpad_symbolize/Dockerfile` with a
+corresponding docker-compose service, `crashpad-symbolize`, with which you can
+symbolize your minidumps.
+
+Build and run the container with:
+
+```
+MINIDUMP_PATH=/path/to/minidump_file.dmp docker-compose up --build crashpad-symbolize
+```
+
+Where `MINIDUMP_PATH` is the path to your minidump file. The service will also
+pick up environment values for `GITHUB_TAG`, `ARCHITECTURE`, `SB_API_VERSION`,
+and `CONFIG`, so ensure these are correct.
+
+* `GITHUB_TAG`: A Cobalt version with an associated release, i.e. 25.lts.10
+* `ARCHITECTURE`: One of `x64`, `x86`, `arm64`, `arm-hardfp`, or `arm-softfp`
+* `SB_API_VERSION`: The Starboard version, i.e. `16`
+* `CONFIG`: One of `release` or `qa`
+
+## Symbolizing Locally
+
+If you wish, you can download all the necessary tools to locally symbolize
+minidumps. This is more work than doing it with the docker container.
+
+### Obtaining the Tools to Symbolize Minidumps
 
 Tools for symbolizing these dumps are available through
 [Breakpad](https://chromium.googlesource.com/breakpad/breakpad/). Breakpad is
@@ -19,8 +45,7 @@ an open source crash reporting library that we use to obtain symbol files
 (`.sym`) from unstripped binaries, and to process the symbol files with the
 minidumps to produce human-readable stacktraces.
 
-
-### Building Breakpad
+#### Building Breakpad
 
 [Breakpad](https://chromium.googlesource.com/breakpad/breakpad/) provides
 instructions for building these tools yourself. The
@@ -54,7 +79,7 @@ building on Linux it will also build the `dump_syms` tool
 depot_tools from your `$PATH` environment variable, as it can conflict with
 Cobalt's depot_tools.
 
-## Symbolizing Minidumps
+### Symbolizing Minidumps
 
 Now that you have all the tools you need, we can symbolize the dumps. To be
 able to symbolize Cobalt using Evergreen, you need to be get the unstripped
@@ -100,7 +125,7 @@ $ /path/to/minidump_stackwalk /path/to/your/minidump.dmp symbols/
 `minidump_stackwalk` produces verbose output on stderr, and the stacktrace on
 stdout, so you may want to redirect stderr.
 
-### Addendum: Adding Other Symbols
+#### Addendum: Adding Other Symbols
 
 We can use the process above to add symbols for any library or executable you
 use, not just `libcobalt.so`. To do this, all you have to do is run the

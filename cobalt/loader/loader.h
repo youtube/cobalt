@@ -62,6 +62,8 @@ class Loader {
   // called.
   void Resume(render_tree::ResourceProvider* resource_provider);
 
+  void Conceal();
+
   bool DidFailFromTransientError() const;
 
   void LoadComplete(const base::Optional<std::string>& status);
