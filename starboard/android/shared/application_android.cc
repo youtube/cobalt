@@ -294,7 +294,8 @@ void ApplicationAndroid::ProcessAndroidCommand() {
         // This is the initial launch, so we have to start Cobalt now that we
         // have a window.
         env->CallStarboardVoidMethodOrAbort("beforeStartOrResume", "()V");
-        DispatchStart(GetAppStartTimestamp());
+        DispatchStart(GetIncorrectAppStartTimestamp());
+        app_start_timestamp_ = GetAppStartTimestamp();
       } else {
         // Now that we got a window back, change the command for the switch
         // below to sync up with the current activity lifecycle.
@@ -600,6 +601,12 @@ void ApplicationAndroid::OsNetworkStatusChange(bool became_online) {
   } else {
     Inject(new Event(kSbEventTypeOsNetworkDisconnected, NULL, NULL));
   }
+}
+int64_t ApplicationAndroid::GetIncorrectAppStartTimestamp() {
+  JniEnvExt* env = JniEnvExt::Get();
+  jlong app_start_timestamp = env->CallStarboardLongMethodOrAbort(
+      "getIncorrectAppStartTimestamp", "()J");
+  return app_start_timestamp;
 }
 
 int64_t ApplicationAndroid::GetAppStartTimestamp() {

@@ -755,6 +755,21 @@ public class StarboardBridge {
     cobaltServices.remove(serviceName);
   }
 
+  /** Deprecated. Returns an incorrect calculation for the appStart for an existing metric. */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected long getIncorrectAppStartTimestamp() {
+    Activity activity = activityHolder.get();
+    if (activity instanceof CobaltActivity) {
+      long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
+      long cppTimestamp = nativeCurrentMonotonicTime();
+      long javaStopTimestamp = System.nanoTime();
+      return cppTimestamp
+          - (javaStartTimestamp - javaStopTimestamp) / timeNanosecondsPerMicrosecond;
+    }
+    return 0;
+  }
+
   /** Returns the application start timestamp. */
   @SuppressWarnings("unused")
   @UsedByNative
@@ -765,7 +780,7 @@ public class StarboardBridge {
       long cppTimestamp = nativeCurrentMonotonicTime();
       long javaStopTimestamp = System.nanoTime();
       return cppTimestamp
-          - (javaStartTimestamp - javaStopTimestamp) / timeNanosecondsPerMicrosecond;
+          - (javaStopTimestamp - javaStartTimestamp) / timeNanosecondsPerMicrosecond;
     }
     return 0;
   }

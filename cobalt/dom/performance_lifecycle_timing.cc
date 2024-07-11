@@ -16,6 +16,7 @@
 #include "cobalt/dom/performance_lifecycle_timing.h"
 
 #include "cobalt/dom/performance.h"
+#include "starboard/extension/system_info.h"
 
 namespace cobalt {
 namespace dom {
@@ -65,6 +66,22 @@ DOMHighResTimeStamp PerformanceLifecycleTiming::app_preload() const {
 
 DOMHighResTimeStamp PerformanceLifecycleTiming::app_start() const {
   return ReportDOMHighResTimeStamp(lifecycle_timing_info_.app_start);
+}
+
+DOMHighResTimeStamp PerformanceLifecycleTiming::app_start_with_android_fix()
+    const {
+  const StarboardExtensionSystemInfoApi* system_info_extension =
+      static_cast<const StarboardExtensionSystemInfoApi*>(
+          SbSystemGetExtension(kStarboardExtensionSystemInfoName));
+  if (system_info_extension &&
+      strcmp(system_info_extension->name, kStarboardExtensionSystemInfoName) ==
+          0 &&
+      system_info_extension->version >= 1) {
+    return ReportDOMHighResTimeStamp(
+        system_info_extension->GetAppStartWithAndroidFix());
+  } else {
+    return ReportDOMHighResTimeStamp(lifecycle_timing_info_.app_start);
+  }
 }
 
 DOMHighResTimeStamp PerformanceLifecycleTiming::app_blur() const {

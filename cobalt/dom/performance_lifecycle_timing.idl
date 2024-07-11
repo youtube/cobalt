@@ -25,4 +25,6 @@ interface PerformanceLifecycleTiming : PerformanceEntry {
   readonly  attribute DOMHighResTimeStamp appDeeplink;
   readonly  attribute DOMString  currentState;
   readonly  attribute DOMString  lastState;
+
+  readonly  attribute DOMHighResTimeStamp appStartWithAndroidFix;
 };
