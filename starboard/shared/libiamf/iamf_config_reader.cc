@@ -148,7 +148,6 @@ bool IamfConfigReader::ReadOBU(const uint8_t* buf, bool& completed_parsing) {
       // Mp4 is in big-endian
       codec_id = ByteSwap(codec_id);
       buffer_head_ += 4;
-      SB_LOG(INFO) << std::hex << codec_id;
 
       bytes_read = ReadLeb128Value(&buf[buffer_head_], &samples_per_buffer_);
       if (bytes_read < 0) {
@@ -260,8 +259,6 @@ bool IamfConfigReader::ReadOBUHeader(const uint8_t* buf,
   const bool obu_redundant_copy = (header_flags >> 2) & 1;
   const bool obu_trimming_status_flag = (header_flags >> 1) & 1;
   const bool obu_extension_flag = header_flags & 1;
-
-  SB_LOG(INFO) << static_cast<int>(*obu_type);
 
   *header_size = 1;
 

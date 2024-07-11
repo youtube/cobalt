@@ -27,7 +27,12 @@ using shared::starboard::player::DecodedAudio;
 }  // namespace
 
 IamfAudioDecoder::IamfAudioDecoder(const AudioStreamInfo& audio_stream_info)
-    : audio_stream_info_(audio_stream_info) {}
+    : audio_stream_info_(audio_stream_info) {
+  decoder_ = IAMF_decoder_open();
+  if (!decoder_) {
+    SB_DLOG(ERROR) << "Error creating libiamf decoder";
+  }
+}
 
 IamfAudioDecoder::~IamfAudioDecoder() {
   TeardownCodec();
@@ -107,11 +112,13 @@ bool IamfAudioDecoder::DecodeInternal(
   SB_DCHECK(input_buffer->size() > 0);
   SB_DCHECK(output_cb_);
   SB_DCHECK(!stream_ended_ || !pending_audio_buffers_.empty());
+  SB_DCHECK(is_valid());
 
   reader_.Read(input_buffer);
-  if (!decoder_) {
+  if (!decoder_is_configured_) {
     bool decoder_initialized = InitializeCodec();
     if (!decoder_initialized) {
+      SB_LOG(INFO) << "Failed to initialize IAMF decoder";
       error_cb_(kSbPlayerErrorDecode, "Failed to initialize IAMF decoder");
       return false;
     }
@@ -170,15 +177,10 @@ void IamfAudioDecoder::WriteEndOfStream() {
 }
 
 bool IamfAudioDecoder::InitializeCodec() {
+  SB_DCHECK(is_valid());
   int channels = audio_stream_info_.number_of_channels;
   if (channels > 8 || channels < 1) {
     SB_DLOG(ERROR) << "Can't create decoder with " << channels << " channels";
-    return false;
-  }
-
-  decoder_ = IAMF_decoder_open();
-  if (!decoder_) {
-    SB_DLOG(ERROR) << "Error creating libiamf decoder";
     return false;
   }
 
@@ -268,6 +270,8 @@ bool IamfAudioDecoder::InitializeCodec() {
     return false;
   }
 
+  decoder_is_configured_ = true;
+
   return true;
 }
 
@@ -298,8 +302,10 @@ void IamfAudioDecoder::Reset() {
 
   if (is_valid()) {
     TeardownCodec();
-    InitializeCodec();
+    decoder_ = IAMF_decoder_open();
   }
+
+  decoder_is_configured_ = false;
 
   frames_per_au_ = kMaxIamfFramesPerAU;
   stream_ended_ = false;
