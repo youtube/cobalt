@@ -66,7 +66,7 @@ void VideoRenderAlgorithm::Render(
     double playback_rate;
     int64_t playback_time = media_time_provider->GetCurrentMediaTime(
         &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
-    if (!is_audio_playing) {
+    if (first_frame_released_ && (!is_audio_playing || playback_rate == 0.0)) {
       break;
     }
     if (playback_rate != playback_rate_) {
@@ -91,8 +91,8 @@ void VideoRenderAlgorithm::Render(
       }
     }
 
-    jlong early_us = (frames->front()->timestamp() - playback_time) /
-                     (playback_rate != 0 ? playback_rate : 1);
+    jlong early_us =
+        (frames->front()->timestamp() - playback_time) / playback_rate;
 
     auto system_time_ns = GetSystemNanoTime();
     auto unadjusted_frame_release_time_ns = system_time_ns + (early_us * 1000);
@@ -101,7 +101,6 @@ void VideoRenderAlgorithm::Render(
         video_frame_release_time_helper_.AdjustReleaseTime(
             frames->front()->timestamp(), unadjusted_frame_release_time_ns,
             playback_rate);
-
     early_us = (adjusted_release_time_ns - system_time_ns) / 1000;
 
     if (early_us < kBufferTooLateThreshold) {
@@ -111,6 +110,7 @@ void VideoRenderAlgorithm::Render(
       auto status = draw_frame_cb(frames->front(), adjusted_release_time_ns);
       SB_DCHECK(status == VideoRendererSink::kReleased);
       frames->pop_front();
+      first_frame_released_ = true;
     } else {
       break;
     }
@@ -121,6 +121,7 @@ void VideoRenderAlgorithm::Seek(int64_t seek_to_time) {
   if (frame_tracker_) {
     frame_tracker_->Seek(seek_to_time);
   }
+  first_frame_released_ = false;
 }
 
 int VideoRenderAlgorithm::GetDroppedFrames() {
