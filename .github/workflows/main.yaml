@@ -259,7 +259,7 @@ jobs:
         uses: ./.github/actions/build
       - name: 'Upload Artifact'
         uses: actions/upload-artifact@v4
-        if: inputs.keep_artifacts
+        if: ${{ inputs.keep_artifacts && matrix.sb_api_version == '' }}
         with:
           name: ${{ matrix.platform }}-${{ matrix.config }}
           path: out/${{ matrix.platform }}_${{ matrix.config }}/${{ inputs.keep_artifacts }}
