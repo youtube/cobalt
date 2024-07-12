@@ -359,11 +359,11 @@ template("evergreen_loader") {
     "//starboard/loader_app:copy_loader_app_content",
   ]
   if (cobalt_font_package == "empty") {
-    shared_data_deps += [ "//cobalt/content/fonts:copy_font_data" ]
+    shared_data_deps += [ "//starboard/content/fonts:copy_font_data" ]
   } else {
     shared_data_deps += [
-      "//cobalt/content/fonts:copy_fonts",
-      "//cobalt/content/fonts:fonts_xml",
+      "//starboard/content/fonts:copy_fonts",
+      "//starboard/content/fonts:fonts_xml",
     ]
   }
   shared_library(target_name) {
@@ -382,8 +382,8 @@ template("evergreen_loader") {
 
     deps = [
       ":copy_loader_app_lib${original_target_name}",
-      "//cobalt/content/fonts:copy_font_data",
       "//starboard:starboard_group",
+      "//starboard/content/fonts:copy_font_data",
       "//starboard/elf_loader:constants",
       "//starboard/elf_loader:elf_loader",
       "//starboard/elf_loader:evergreen_info",

@@ -57,6 +57,7 @@ class PerformanceResourceTiming : public PerformanceEntry {
   uint64_t transfer_size() const;
   uint64_t encoded_body_size() const;
   DOMHighResTimeStamp worker_start() const;
+  std::string next_hop_protocol() const;
 
   std::string entry_type() const override { return "resource"; }
   PerformanceEntryType EntryTypeEnum() const override {
@@ -76,7 +77,7 @@ class PerformanceResourceTiming : public PerformanceEntry {
   std::string requested_url_;
   net::LoadTimingInfo timing_info_;
   base::TimeTicks time_origin_;
-  DOMHighResTimeStamp timing_info_response_end_;
+  DOMHighResTimeStamp fallback_response_end_;
 
   DISALLOW_COPY_AND_ASSIGN(PerformanceResourceTiming);
 };

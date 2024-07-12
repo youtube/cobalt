@@ -14,6 +14,8 @@
 
 #include "cobalt/dom/performance_resource_timing.h"
 
+#include <utility>
+
 #include "cobalt/dom/performance.h"
 
 namespace cobalt {
@@ -41,7 +43,7 @@ PerformanceResourceTiming::PerformanceResourceTiming(
       cache_mode_(kPerformanceResourceTimingCacheMode),
       timing_info_(timing_info),
       time_origin_(time_origin),
-      timing_info_response_end_(performance->Now()) {}
+      fallback_response_end_(performance->Now()) {}
 
 std::string PerformanceResourceTiming::initiator_type() const {
   return initiator_type_;
@@ -112,7 +114,11 @@ DOMHighResTimeStamp PerformanceResourceTiming::response_start() const {
 }
 
 DOMHighResTimeStamp PerformanceResourceTiming::response_end() const {
-  return timing_info_response_end_;
+  if (timing_info_.response_end.is_null()) {
+    return fallback_response_end_;
+  }
+  return Performance::MonotonicTimeToDOMHighResTimeStamp(
+      time_origin_, timing_info_.response_end);
 }
 
 uint64_t PerformanceResourceTiming::transfer_size() const {
@@ -135,6 +141,16 @@ DOMHighResTimeStamp PerformanceResourceTiming::worker_start() const {
   }
   return Performance::MonotonicTimeToDOMHighResTimeStamp(
       time_origin_, timing_info_.service_worker_start_time);
+}
+
+std::string PerformanceResourceTiming::next_hop_protocol() const {
+  // Fallback to connection_info when alpn_negotiated_protocol is unknown.
+  std::string returnedProtocol =
+      (timing_info_.alpn_negotiated_protocol == "unknown")
+          ? timing_info_.connection_info_string
+          : timing_info_.alpn_negotiated_protocol;
+  // If connection_info is unknown, return the empty string.
+  return returnedProtocol == "unknown" ? "" : std::move(returnedProtocol);
 }
 
 void PerformanceResourceTiming::SetResourceTimingEntry(

@@ -50,12 +50,20 @@ const char* GetOsExperience() {
   return "Watson";
 }
 
+int64_t GetCoreServicesVersion() {
+  return JniEnvExt::Get()->CallStarboardLongMethodOrAbort(
+      "getPlayServicesVersion", "()J");
+}
+
+// clang-format off
 const CobaltExtensionPlatformInfoApi kPlatformInfoApi = {
     kCobaltExtensionPlatformInfoName,
-    1,
+    2,
     &GetFirmwareVersionDetails,
     &GetOsExperience,
+    &GetCoreServicesVersion,
 };
+// clang-format on
 
 }  // namespace
 

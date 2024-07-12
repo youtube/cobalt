@@ -65,6 +65,8 @@ NavigatorUAData::NavigatorUAData(
       platform_info->android_build_fingerprint());
   all_high_entropy_values_.set_android_os_experience(
       platform_info->android_os_experience());
+  all_high_entropy_values_.set_android_play_services_version(
+      platform_info->android_play_services_version());
   all_high_entropy_values_.set_starboard_version(
       platform_info->starboard_version());
   all_high_entropy_values_.set_original_design_manufacturer(

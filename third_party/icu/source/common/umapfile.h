@@ -38,12 +38,16 @@ U_CFUNC void  uprv_unmapFile(UDataMemory *pData);
 #define MAP_POSIX       2
 #define MAP_STDIO       3
 #define MAP_390DLL      4
-#define MAP_STARBOARD   5
 
 #if UCONFIG_NO_FILE_IO
 #   define MAP_IMPLEMENTATION MAP_NONE
 #elif (U_PLATFORM == U_STARBOARD)
-#   define MAP_IMPLEMENTATION MAP_STARBOARD
+    /*
+     * Starboard of course can provide file access, and real memory mapping on
+     * some platforms, but it's not needed here since ICU data is linked into
+     * the binary.
+     */
+#   define MAP_IMPLEMENTATION MAP_NONE
 #elif U_PLATFORM_USES_ONLY_WIN32_API
 #   define MAP_IMPLEMENTATION MAP_WIN32
 #elif U_HAVE_MMAP || U_PLATFORM == U_PF_OS390
