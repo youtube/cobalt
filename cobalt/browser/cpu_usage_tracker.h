@@ -18,6 +18,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "base/task/current_thread.h"
 #include "base/timer/timer.h"
@@ -40,6 +41,7 @@ class CpuUsageTracker : base::CurrentThread::DestructionObserver {
 
   void Initialize(persistent_storage::PersistentSettings*);
   void UpdateIntervalsDefinition(const base::Value&);
+  void UpdateIntervalsEnabled(bool);
   void StartOneTimeTracking();
   void StopAndCaptureOneTimeTracking();
 
@@ -68,6 +70,10 @@ class CpuUsageTracker : base::CurrentThread::DestructionObserver {
     std::unique_ptr<base::RepeatingTimer> timer;
   };
 
+  using UuidIntervalContextPair =
+      std::pair<const base::Uuid, std::unique_ptr<IntervalContext>>;
+
+
   struct PerThreadIntervalContext : IntervalContext {
     PerThreadIntervalContext() { type = IntervalContextType::PER_THREAD; }
 
@@ -82,7 +88,9 @@ class CpuUsageTracker : base::CurrentThread::DestructionObserver {
     base::TimeDelta previous;
   };
 
-  std::map<base::Uuid, std::unique_ptr<IntervalContext>> interval_contexts_;
+  bool intervals_enabled_;
+  std::map<base::Uuid, std::unique_ptr<IntervalContext>>
+      uuid_to_interval_context_;
   base::Lock lock_;
 
   persistent_storage::PersistentSettings* storage_;
