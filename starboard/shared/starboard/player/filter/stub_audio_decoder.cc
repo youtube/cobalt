@@ -245,6 +245,12 @@ void StubAudioDecoder::DecodeEndOfStream() {
       } else if (codec_ == kSbMediaAudioCodecAc3 ||
                  codec_ == kSbMediaAudioCodecEac3) {
         frames_per_input_ = 1536;
+#if SB_API_VERSION >= 15
+      } else if (codec_ == kSbMediaAudioCodecIamf) {
+        // The max iamf frames per input varies depending on the stream.
+        // Assume 2048 max.
+        frames_per_input_ = 2048;
+#endif  // SB_API_VERSION >= 15
       } else {
         SB_NOTREACHED() << "Unsupported audio codec " << codec_;
       }

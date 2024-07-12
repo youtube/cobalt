@@ -111,8 +111,10 @@ std::vector<const char*> GetSupportedAudioTestFiles(
                               "beneath_the_canopy_opus_stereo.dmp",
                               "beneath_the_canopy_opus_mono.dmp",
                               "heaac.dmp",
+#if SB_API_VERSION >= 15
                               "iamf_base_profile_stereo_ambisonics.dmp",
-                              "iamf_simple_profile_surround.dmp",
+                              "iamf_simple_profile_5_1.dmp",
+#endif  // SB_API_VERSION >= 15
                               "sintel_329_ec3.dmp",
                               "sintel_381_ac3.dmp"};
 
