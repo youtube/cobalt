@@ -57,3 +57,9 @@ adb shell am broadcast -a dev.cobalt.coat.UPDATE_SETTING --es key "development_h
 
 This dynamically injects a `http://{development_host}:8000/dyn_script.js` into the app context, for
 quick turnaround prototyping. JavaScript code edits only need an app reload.
+
+To tunnel connection back from Android to development host for this port,
+set the "development_host" to "localhost" and create a reverse tunnel using:
+```
+adb reverse tcp:8000 tcp:8000
+```

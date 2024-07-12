@@ -30,7 +30,7 @@ var injectBackKeyPress = () => {
         charCode: 166,
         which: 166,
         bubbles: true,
-        cancelable: true
+        cancelable: false
     });
     document.dispatchEvent(backEvent);
 
@@ -161,9 +161,30 @@ var h5 = {
     }
 };
 
+// Intercept calls to isTypeSupported
+function intercept_is_type_supported() {
+    const originalIsTypeSupported = MediaSource.isTypeSupported;
+    MediaSource.isTypeSupported = function(type) {
+        // Filter out unwanted formats
+        for(const s of ['9999', 'catavision', 'invalidformat', '7680']) {
+            if (type.includes(s)) {
+                console.log('IsTypeSupported: rejecting ' + type + ' <' + s + '>' );
+                return false;
+            }
+        }
+        var result = originalIsTypeSupported.call(this, type);
+        if (!result) {
+            console.log('IsTypeSupported: failed with type:', type, ' result:', result);
+        }
+        return result;
+    };
+}
+
 function inject() {
     window.h5vcc = h5;
     window.H5vccPlatformService = platform_services;
+    intercept_is_type_supported();
+    set_black_video_poster_image();
 }
 
 if (document.readyState === 'complete' || document.readyState === 'interactive') {

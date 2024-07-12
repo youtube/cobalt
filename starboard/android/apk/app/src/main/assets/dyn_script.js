@@ -3,14 +3,6 @@ console.log('dyn_script.js');
 
 function debug_things() {
     console.log("debugging...")
-    const originalIsTypeSupported = MediaSource.isTypeSupported;
-    MediaSource.isTypeSupported = function(type) {
-        var result = originalIsTypeSupported.call(this, type);
-        if(!result) {
-            console.log('isTypeSupported called with type:', type, ' result:', result);
-        }
-        return result;
-    };
 
     var valid_codecs = [
         'video/webm;codecs="vp8"',
