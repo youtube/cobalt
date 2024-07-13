@@ -8,12 +8,8 @@ third_party {
   identifier {
     type: "Git"
     value: "https://chromium.googlesource.com/chromium/src.git"
-<<<<<<< HEAD
     version: "1759c6ae9316996b9f150c0ce9d0ca78a3d15c02"
-=======
-    version: "6a496db5ef7219101beacceca9566367c9cb1a09"
-    closest_version: "1.10.0"
->>>>>>> b3a98570eee (Metadata update and cleanup (#3362))
+    closest_version: "1.13.0"
   }
   identifier {
     type: "UpstreamSubdir"
