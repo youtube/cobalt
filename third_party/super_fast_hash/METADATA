@@ -4,9 +4,10 @@ description:
   "memory tracking."
 
 third_party {
-  url {
-    type: HOMEPAGE
+  identifier {
+    type: "Git"
     value: "http://www.azillionmonkeys.com/qed/hash.html"
+    version: "unknown"
   }
   license_type: NOTICE
 }

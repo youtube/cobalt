@@ -13,6 +13,7 @@ third_party {
     value: "https://chromium.googlesource.com/chromium/deps/libjpeg_turbo.git"
     version: "aa4075f116e4312537d0d3e9dbd5e31096539f94"
     # from https://chromium.googlesource.com/chromium/src/+/114.0.5735.358/DEPS#1514
+    closest_version: "2.1.5.1"
   }
   last_upgrade_date {
     year: 2021
