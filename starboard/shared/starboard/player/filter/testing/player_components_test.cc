@@ -21,7 +21,6 @@
 #include <string>
 #include <vector>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/media.h"
@@ -87,7 +86,7 @@ class PlayerComponentsTest
           video_filename_.c_str(), VideoDmpReader::kEnableReadOnDemand));
     }
 
-    unique_ptr_alias<PlayerComponents::Factory> factory =
+    unique_ptr<PlayerComponents::Factory> factory =
         PlayerComponents::Factory::Create();
     string error_message;
     if (audio_reader_ && video_reader_) {
@@ -486,7 +485,7 @@ class PlayerComponentsTest
   FakeGraphicsContextProvider fake_graphics_context_provider_;
   unique_ptr<VideoDmpReader> audio_reader_;
   unique_ptr<VideoDmpReader> video_reader_;
-  unique_ptr_alias<PlayerComponents> player_components_;
+  unique_ptr<PlayerComponents> player_components_;
   double playback_rate_ = 1.0;
   int audio_index_ = 0;
   int video_index_ = 0;

@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
+#include "starboard/memory.h"
 #include "starboard/shared/starboard/media/video_capabilities.h"
 #include "starboard/shared/uwp/application_uwp.h"
 #include "starboard/shared/uwp/extended_resources_manager.h"

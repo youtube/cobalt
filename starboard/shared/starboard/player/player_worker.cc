@@ -16,6 +16,7 @@
 
 #include <pthread.h>
 
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -68,7 +69,7 @@ struct ThreadParam {
 PlayerWorker* PlayerWorker::CreateInstance(
     SbMediaAudioCodec audio_codec,
     SbMediaVideoCodec video_codec,
-    unique_ptr_alias<Handler> handler,
+    std::unique_ptr<Handler> handler,
     UpdateMediaInfoCB update_media_info_cb,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
@@ -103,7 +104,7 @@ PlayerWorker::~PlayerWorker() {
 
 PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
                            SbMediaVideoCodec video_codec,
-                           unique_ptr_alias<Handler> handler,
+                           std::unique_ptr<Handler> handler,
                            UpdateMediaInfoCB update_media_info_cb,
                            SbPlayerDecoderStatusFunc decoder_status_func,
                            SbPlayerStatusFunc player_status_func,
