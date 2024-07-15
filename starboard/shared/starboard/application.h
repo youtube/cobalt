@@ -27,7 +27,6 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/time.h"
 #include "starboard/event.h"
 #include "starboard/player.h"

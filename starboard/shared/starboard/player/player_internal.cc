@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 
 #include <functional>
+#include <memory>
 #include <utility>
 
 #include "starboard/common/log.h"
@@ -51,7 +52,7 @@ SbPlayerPrivate::SbPlayerPrivate(
     SbPlayerStatusFunc player_status_func,
     SbPlayerErrorFunc player_error_func,
     void* context,
-    starboard::unique_ptr_alias<PlayerWorker::Handler> player_worker_handler)
+    std::unique_ptr<PlayerWorker::Handler> player_worker_handler)
     : sample_deallocate_func_(sample_deallocate_func),
       context_(context),
       media_time_updated_at_(starboard::CurrentMonotonicTime()) {
@@ -75,7 +76,7 @@ SbPlayerPrivate* SbPlayerPrivate::CreateInstance(
     SbPlayerStatusFunc player_status_func,
     SbPlayerErrorFunc player_error_func,
     void* context,
-    starboard::unique_ptr_alias<PlayerWorker::Handler> player_worker_handler) {
+    std::unique_ptr<PlayerWorker::Handler> player_worker_handler) {
   SbPlayerPrivate* ret = new SbPlayerPrivate(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context,

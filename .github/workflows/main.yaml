@@ -35,15 +35,15 @@ on:
         type: string
         default: ''
       check_artifact_size:
-        description: 'Whether to check artifact binary size'
+        description: 'Which workflow to check artifact binary size'
         required: false
-        type: boolean
-        default: false
-      artifact_size_increase_threshold:
-        description: 'Threshold for artifact binary size increase' # define the unit
+        type: string
+        default: ''
+      artifact_size_increase_percentage_threshold:
+        description: 'Threshold for artifact binary size increase percentage'
         required: false
         type: number
-        default: 1028
+        default: 0.02
 
 # Global env vars.
 env:
@@ -269,13 +269,15 @@ jobs:
         uses: ./.github/actions/build
       - name: 'Check Artifact Size'
         uses: ./.github/actions/check_artifact_size
-        if: inputs.check_artifact_size
+        if: ${{ (inputs.check_artifact_size && needs.initialize.outputs.evergreen_loader == 'null') || (inputs.check_artifact_size && needs.initialize.outputs.evergreen_loader != 'null' && matrix.sb_api_version == '') }}
         with:
+          workflow: ${{ inputs.check_artifact_size }}
+          name: ${{ matrix.platform }}-${{ matrix.config }}
           path: out/${{ matrix.platform }}_${{ matrix.config }}/${{ inputs.keep_artifacts }}
-          threshold: ${{ inputs.artifact_size_increase_threshold }}
+          threshold: ${{ inputs.artifact_size_increase_percentage_threshold }}
       - name: 'Upload Artifact'
         uses: actions/upload-artifact@v4
-        if: ${{ inputs.keep_artifacts && matrix.sb_api_version == '' }}
+        if: ${{ (inputs.keep_artifacts && needs.initialize.outputs.evergreen_loader == 'null') || (inputs.keep_artifacts && needs.initialize.outputs.evergreen_loader != 'null' && matrix.sb_api_version == '') }}
         with:
           name: ${{ matrix.platform }}-${{ matrix.config }}
           path: out/${{ matrix.platform }}_${{ matrix.config }}/${{ inputs.keep_artifacts }}

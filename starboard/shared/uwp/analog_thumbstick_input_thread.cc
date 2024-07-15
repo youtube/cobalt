@@ -22,6 +22,7 @@
 #include <map>
 #include <vector>
 
+#include "starboard/common/log.h"
 #include "starboard/common/thread.h"
 #include "starboard/shared/uwp/analog_thumbstick_input.h"
 #include "starboard/thread.h"
