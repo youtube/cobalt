@@ -459,7 +459,7 @@ struct MEDIA_EXPORT AudioSampleEntry : Box {
   EC3SpecificBox eac3;
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
 #if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-  IamfSpecificBox iamf;
+  IamfSpecificBox iacb;
 #endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
 };
 

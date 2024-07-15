@@ -18,7 +18,6 @@
 #include <memory>
 
 #include "starboard/common/mutex.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"

@@ -25,7 +25,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -121,7 +120,7 @@ class PlayerWorker {
   static PlayerWorker* CreateInstance(
       SbMediaAudioCodec audio_codec,
       SbMediaVideoCodec video_codec,
-      unique_ptr_alias<Handler> handler,
+      std::unique_ptr<Handler> handler,
       UpdateMediaInfoCB update_media_info_cb,
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
@@ -182,7 +181,7 @@ class PlayerWorker {
  private:
   PlayerWorker(SbMediaAudioCodec audio_codec,
                SbMediaVideoCodec video_codec,
-               unique_ptr_alias<Handler> handler,
+               std::unique_ptr<Handler> handler,
                UpdateMediaInfoCB update_media_info_cb,
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,
@@ -221,7 +220,7 @@ class PlayerWorker {
 
   SbMediaAudioCodec audio_codec_;
   SbMediaVideoCodec video_codec_;
-  unique_ptr_alias<Handler> handler_;
+  std::unique_ptr<Handler> handler_;
   UpdateMediaInfoCB update_media_info_cb_;
 
   SbPlayerDecoderStatusFunc decoder_status_func_;
