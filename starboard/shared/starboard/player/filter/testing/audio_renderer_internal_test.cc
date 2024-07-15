@@ -15,10 +15,10 @@
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
 
 #include <functional>
+#include <memory>
 #include <set>
 
 #include "starboard/common/log.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
@@ -116,8 +116,8 @@ class AudioRendererTest : public ::testing::Test {
     const int kMaxCachedFrames = 256 * 1024;
     const int kMaxFramesPerAppend = 16384;
     audio_renderer_.reset(new AudioRendererPcm(
-        unique_ptr_alias<AudioDecoder>(audio_decoder_),
-        unique_ptr_alias<AudioRendererSink>(audio_renderer_sink_),
+        std::unique_ptr<AudioDecoder>(audio_decoder_),
+        std::unique_ptr<AudioRendererSink>(audio_renderer_sink_),
         GetDefaultAudioStreamInfo(), kMaxCachedFrames, kMaxFramesPerAppend));
     audio_renderer_->Initialize(
         std::bind(&AudioRendererTest::OnError, this),

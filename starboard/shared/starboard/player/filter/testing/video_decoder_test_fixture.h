@@ -19,11 +19,11 @@
 #include <deque>
 #include <functional>
 #include <map>
+#include <memory>
 #include <set>
 
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/drm.h"
@@ -129,7 +129,7 @@ class VideoDecoderTestFixture {
   void UseInvalidDataForInput(size_t index, uint8_t byte_to_fill) {
     invalid_inputs_[index] = byte_to_fill;
   }
-  const unique_ptr_alias<VideoDecoder>& video_decoder() const {
+  const std::unique_ptr<VideoDecoder>& video_decoder() const {
     return video_decoder_;
   }
   const video_dmp::VideoDmpReader& dmp_reader() const { return dmp_reader_; }
@@ -157,14 +157,14 @@ class VideoDecoderTestFixture {
   ::starboard::testing::FakeGraphicsContextProvider*
       fake_graphics_context_provider_;
   video_dmp::VideoDmpReader dmp_reader_;
-  unique_ptr_alias<VideoDecoder> video_decoder_;
+  std::unique_ptr<VideoDecoder> video_decoder_;
 
   bool need_more_input_ = true;
   std::set<int64_t> outstanding_inputs_;
   std::deque<scoped_refptr<VideoFrame>> decoded_frames_;
 
   SbPlayerPrivate player_;
-  unique_ptr_alias<VideoRenderAlgorithm> video_render_algorithm_;
+  std::unique_ptr<VideoRenderAlgorithm> video_render_algorithm_;
   scoped_refptr<VideoRendererSink> video_renderer_sink_;
 
   bool end_of_stream_written_ = false;

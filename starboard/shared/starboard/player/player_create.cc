@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <memory>
 #include <string>
 #include <utility>
 
@@ -211,7 +212,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   UpdateActiveSessionPlatformPlaybackState(kPlaying);
 
-  starboard::unique_ptr_alias<PlayerWorker::Handler> handler(
+  std::unique_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(creation_param, provider));
 
   SbPlayer player = SbPlayerPrivate::CreateInstance(

@@ -20,6 +20,7 @@
 #include <deque>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -28,7 +29,6 @@
 #include "starboard/common/media.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
@@ -126,8 +126,8 @@ class AudioDecoderTest
 
   void CreateComponents(
       const media::AudioStreamInfo& audio_stream_info,
-      unique_ptr_alias<AudioDecoder>* audio_decoder,
-      unique_ptr_alias<AudioRendererSink>* audio_renderer_sink) {
+      std::unique_ptr<AudioDecoder>* audio_decoder,
+      std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
     if (CreateAudioComponents(using_stub_decoder_, audio_stream_info,
                               audio_decoder, audio_renderer_sink)) {
       SB_CHECK(*audio_decoder);
@@ -485,8 +485,8 @@ class AudioDecoderTest
 
   JobQueue job_queue_;
   VideoDmpReader dmp_reader_;
-  unique_ptr_alias<AudioDecoder> audio_decoder_;
-  unique_ptr_alias<AudioRendererSink> audio_renderer_sink_;
+  std::unique_ptr<AudioDecoder> audio_decoder_;
+  std::unique_ptr<AudioRendererSink> audio_renderer_sink_;
 
   bool can_accept_more_input_ = true;
   scoped_refptr<InputBuffer> last_input_buffer_;
@@ -518,8 +518,8 @@ TEST_P(AudioDecoderTest, MultiDecoders) {
   const int kDecodersToCreate = 100;
   const int kMinimumNumberOfExtraDecodersRequired = 3;
 
-  unique_ptr_alias<AudioDecoder> audio_decoders[kDecodersToCreate];
-  unique_ptr_alias<AudioRendererSink> audio_renderer_sinks[kDecodersToCreate];
+  std::unique_ptr<AudioDecoder> audio_decoders[kDecodersToCreate];
+  std::unique_ptr<AudioRendererSink> audio_renderer_sinks[kDecodersToCreate];
 
   for (int i = 0; i < kDecodersToCreate; ++i) {
     CreateComponents(dmp_reader_.audio_stream_info(), &audio_decoders[i],

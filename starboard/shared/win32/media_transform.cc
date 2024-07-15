@@ -15,7 +15,6 @@
 #include "starboard/shared/win32/media_transform.h"
 
 #include "starboard/common/log.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/win32/audio_transform.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/media_common.h"
