@@ -23,9 +23,9 @@ namespace player {
 namespace filter {
 
 // static
-unique_ptr_alias<PlayerComponents::Factory>
+std::unique_ptr<PlayerComponents::Factory>
 StubPlayerComponentsFactory::Create() {
-  return unique_ptr_alias<PlayerComponents::Factory>(
+  return std::unique_ptr<PlayerComponents::Factory>(
       new StubPlayerComponentsFactory);
 }
 
