@@ -353,12 +353,6 @@ public abstract class CobaltActivity extends GameActivity {
     return (intentUri == null) ? null : intentUri.toString();
   }
 
-  @Override
-  protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-    super.onActivityResult(requestCode, resultCode, data);
-    getStarboardBridge().onActivityResult(requestCode, resultCode, data);
-  }
-
   @SuppressLint("MissingSuperCall")
   @Override
   public void onRequestPermissionsResult(
