@@ -96,10 +96,6 @@ class ApplicationAndroid
   void SendLowMemoryEvent();
   void OsNetworkStatusChange(bool became_online);
 
-  // Returns the appStart time in microseconds. GetIncorrectAppStartTimestamp
-  // exists to report an existing (incorrect) metric.
-  int64_t GetIncorrectAppStartTimestamp();
-  int64_t GetAppStartTimestamp();
   int64_t app_start_with_android_fix() { return app_start_timestamp_; }
 
   void SendDateTimeConfigurationChangedEvent();

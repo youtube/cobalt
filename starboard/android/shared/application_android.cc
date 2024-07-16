@@ -77,6 +77,22 @@ const char* AndroidCommandName(
       return "unknown";
   }
 }
+
+// Returns the appStart time in microseconds. GetIncorrectAppStartTimestamp
+// exists to report an existing (incorrect) metric.
+int64_t GetIncorrectAppStartTimestamp() {
+  JniEnvExt* env = JniEnvExt::Get();
+  jlong app_start_timestamp = env->CallStarboardLongMethodOrAbort(
+      "getIncorrectAppStartTimestamp", "()J");
+  return app_start_timestamp;
+}
+
+int64_t GetAppStartTimestamp() {
+  JniEnvExt* env = JniEnvExt::Get();
+  jlong app_start_timestamp =
+      env->CallStarboardLongMethodOrAbort("getAppStartTimestamp", "()J");
+  return app_start_timestamp;
+}
 }  // namespace
 
 // "using" doesn't work with class members, so make a local convenience type.
@@ -601,19 +617,6 @@ void ApplicationAndroid::OsNetworkStatusChange(bool became_online) {
   } else {
     Inject(new Event(kSbEventTypeOsNetworkDisconnected, NULL, NULL));
   }
-}
-int64_t ApplicationAndroid::GetIncorrectAppStartTimestamp() {
-  JniEnvExt* env = JniEnvExt::Get();
-  jlong app_start_timestamp = env->CallStarboardLongMethodOrAbort(
-      "getIncorrectAppStartTimestamp", "()J");
-  return app_start_timestamp;
-}
-
-int64_t ApplicationAndroid::GetAppStartTimestamp() {
-  JniEnvExt* env = JniEnvExt::Get();
-  jlong app_start_timestamp =
-      env->CallStarboardLongMethodOrAbort("getAppStartTimestamp", "()J");
-  return app_start_timestamp;
 }
 
 extern "C" SB_EXPORT_PLATFORM jlong
