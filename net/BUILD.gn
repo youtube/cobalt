@@ -3310,9 +3310,6 @@ test("net_unittests") {
     sources -= [
       # NetworkInterfaces is stubbed out in Starboard.
       "base/network_interfaces_unittest.cc",
-
-      # TODO: b/327218234 - Reenable unittests with used functionality.
-      "log/file_net_log_observer_unittest.cc"
     ]
     if (enable_reporting) {
       sources -= [
@@ -3332,22 +3329,7 @@ test("net_unittests") {
   }
 
   if (cobalt_pending_clean_up) {
-    # TODO: b/327218234 - Reenable unittests with used functionality.
-    # TODO: b/327008491 - Reenable unittests with unused functionality.
     sources -= [
-      "disk_cache/backend_unittest.cc",
-      "disk_cache/blockfile/block_files_unittest.cc",
-      "disk_cache/blockfile/mapped_file_unittest.cc",
-      "disk_cache/blockfile/storage_block_unittest.cc",
-      "disk_cache/cache_util_unittest.cc",
-      "disk_cache/entry_unittest.cc",
-      "disk_cache/simple/simple_file_tracker_unittest.cc",
-      "disk_cache/simple/simple_index_file_unittest.cc",
-      "disk_cache/simple/simple_version_upgrade_unittest.cc",
-
-      # TODO: b/331469815
-      "socket/tcp_client_socket_unittest.cc",
-
       # Re-enable once we're on c++20
       "base/backoff_entry_serializer_unittest.cc",
     ]

@@ -564,6 +564,7 @@ TEST(GURLTest, Replacements) {
     ApplyReplacementsFunc* apply_replacements;
     const char* expected;
   } replace_cases[] = {
+// TODO: Use upstream code when Cobalt win32 can use designated initializers.
 #if defined(COBALT_PENDING_CLEAN_UP)
       {"http://www.google.com/foo/bar.html?foo#bar",
        

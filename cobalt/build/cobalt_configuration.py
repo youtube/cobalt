@@ -41,6 +41,19 @@ _FILTERED_TESTS = {
     'net_unittests': [
         # TODO: b/329507754 - Flaky after recent rebase.
         'CookieMonsterTest.DeleteExpiredPartitionedCookiesAfterTimeElapsed',
+
+        # TODO: b/331469815 - Hangs in GitHub actions.
+        'TCPClientSocketTest.*',
+
+        # TODO: b/327008491 - Unused functionality but should be enabled.
+        'DiskCacheTest.*',
+        'DiskCacheBackendTest.*',
+        'DiskCacheEntryTest.*',
+        'CacheUtilTest.*',
+        'SimpleFileTrackerTest.*',
+        'SimpleIndexFileTest.*',
+        'SimpleVersionUpgradeTest.*',
+        '*FileNetLogObserver*',
     ]
 }
 
