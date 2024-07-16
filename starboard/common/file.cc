@@ -29,6 +29,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
+#include "starboard/shared/starboard/file_atomic_replace_write_file.h"
 #include "starboard/string.h"
 
 namespace starboard {
@@ -43,6 +44,30 @@ bool DirectoryCloseLogFailure(const char* path, DIR* dir) {
 }
 
 }  // namespace
+
+bool FileCanOpen(const char* path, int flags) {
+  struct stat file_info;
+  if (stat(path, &file_info) != 0) {
+    return false;
+  }
+
+  bool has_read_flag = (flags & O_RDONLY) || (flags & O_RDWR);
+  bool has_write_flag = (flags & O_WRONLY) || (flags & O_RDWR);
+  bool can_read = file_info.st_mode & S_IRUSR;
+  bool can_write = file_info.st_mode & S_IWUSR;
+
+  if (has_read_flag && !can_read) {
+    errno = EACCES;
+    return false;
+  }
+
+  if (has_write_flag && !can_write) {
+    errno = EACCES;
+    return false;
+  }
+
+  return true;
+}
 
 bool IsValid(int file) {
   return file >= 0;

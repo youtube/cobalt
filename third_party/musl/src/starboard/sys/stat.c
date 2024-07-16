@@ -37,11 +37,13 @@ int stat(const char *path, struct stat *file_info)
         return -1;
     }
 
-    file_info -> st_mode = 0;
+    // In SB_API_VERSION < 16, all files are opened with S_IRUSR | S_IWUSR.
+    // See http://shortn/_UxFowRzNXq.
+    file_info->st_mode = S_IRUSR | S_IWUSR;
     if (out_info.is_directory){
-        file_info->st_mode = S_IFDIR;
+        file_info->st_mode |= S_IFDIR;
     } else if (out_info.is_symbolic_link){
-        file_info->st_mode = S_IFLNK;
+        file_info->st_mode |= S_IFLNK;
     }
 
     file_info->st_ctime = WindowsUsecToTimeT(out_info.creation_time);
