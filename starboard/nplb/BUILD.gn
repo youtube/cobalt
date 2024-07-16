@@ -172,6 +172,7 @@ target(gtest_target_type, "nplb") {
     "posix_compliance/posix_socket_create_test.cc",
     "posix_compliance/posix_socket_errno_test.cc",
     "posix_compliance/posix_socket_helpers.cc",
+    "posix_compliance/posix_socket_join_multicast_group_test.cc",
     "posix_compliance/posix_socket_listen_test.cc",
     "posix_compliance/posix_socket_receive_test.cc",
     "posix_compliance/posix_socket_recvfrom_test.cc",

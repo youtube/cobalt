@@ -780,7 +780,7 @@ int setsockopt (int sockfd, int level, int optname, const void* optval,
     return -1;
   }
 
-  if (level == SOL_SOCKET || level == SOL_TCP || level == IPPROTO_TCP) {
+  if (level == SOL_SOCKET || level == SOL_TCP || level == IPPROTO_TCP || level == IPPROTO_UDP) {
 
     int* operation = (int*)optval;
     switch (optname){
