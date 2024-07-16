@@ -19,11 +19,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-inline bool is_little_endian() {
-  int n = 1;
-  return *reinterpret_cast<char*>(&n) == 1;
-}
-
 int CreateMulticastSocket(const struct ip_mreq& address) {
   int socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
   EXPECT_NE(-1, socket_fd);
@@ -38,6 +33,7 @@ int CreateMulticastSocket(const struct ip_mreq& address) {
   bind_address.sin_family = AF_INET;
   bind_address.sin_addr.s_addr = htonl(INADDR_ANY);
   bind_address.sin_port = htons(0);
+
   EXPECT_NE(-1, bind(socket_fd, (struct sockaddr*)&bind_address,
                      sizeof(bind_address)));
 
@@ -61,20 +57,20 @@ TEST(PosixSocketJoinMulticastGroupTest, SunnyDay) {
   // spamming it on the local network.
   // http://www.iana.org/assignments/multicast-addresses/multicast-addresses.xhtml
   struct ip_mreq address;
-  // Same as doing inet_addr("224.0.2.0");, however inet_addr is not supported
-  // yet in Starboard 16.
-  // TODO: we should support inet_addr for better handling endianness across
-  // different systems.
-  if (is_little_endian()) {
-    address.imr_multiaddr.s_addr = (0 << 24) | (2 << 16) | (0 << 8) | 224;
-  } else {
-    address.imr_multiaddr.s_addr = (224 << 24) | (0 << 16) | (2 << 8) | 0;
-  }
+// Same as doing inet_addr("224.0.2.0");, however inet_addr is not supported
+// yet in Starboard 16.
+// TODO: we should support inet_addr for better handling endianness across
+// different systems.
+#if SB_IS_BIG_ENDIAN
+  address.imr_multiaddr.s_addr = (224 << 24) | (0 << 16) | (2 << 8) | 0;
+#else
+  address.imr_multiaddr.s_addr = (0 << 24) | (2 << 16) | (0 << 8) | 224;
+#endif
   address.imr_interface.s_addr =
       htonl(INADDR_ANY);  // Use the default network interface
 
-  int send_socket = CreateSendSocket();
   int receive_socket = CreateMulticastSocket(address);
+  int send_socket = CreateSendSocket();
 
   // Get the bound port.
   struct sockaddr_in local_address;
@@ -86,11 +82,11 @@ TEST(PosixSocketJoinMulticastGroupTest, SunnyDay) {
   memset(&send_address, 0, sizeof(send_address));
   send_address.sin_family = AF_INET;
 
-  if (is_little_endian()) {
-    send_address.sin_addr.s_addr = (0 << 24) | (2 << 16) | (0 << 8) | 224;
-  } else {
-    send_address.sin_addr.s_addr = (224 << 24) | (0 << 16) | (2 << 8) | 0;
-  }
+#if SB_IS_BIG_ENDIAN
+  send_address.sin_addr.s_addr = (224 << 24) | (0 << 16) | (2 << 8) | 0;
+#else
+  send_address.sin_addr.s_addr = (0 << 24) | (2 << 16) | (0 << 8) | 224;
+#endif
   send_address.sin_port = local_address.sin_port;
 
   const char kBuf[] = "01234567890123456789";
@@ -120,7 +116,7 @@ TEST(PosixSocketJoinMulticastGroupTest, SunnyDay) {
 
   while (true) {
     // Breaks the case where the test will hang in a loop when
-    // SbSocketReceiveFrom() always returns kSbSocketPending.
+    // recvfrom always returns pending status.
     ASSERT_LE(CurrentMonotonicTime(), stop_time) << "Multicast timed out.";
     ssize_t received =
         recvfrom(receive_socket, buf, sizeof(buf), 0,
@@ -144,12 +140,11 @@ TEST(PosixSocketJoinMulticastGroupTest, SunnyDay) {
 
 TEST(PosixSocketJoinMulticastGroupTest, RainyDayInvalidSocket) {
   struct ip_mreq mreq;
-  if (is_little_endian()) {
-    mreq.imr_multiaddr.s_addr = (0 << 24) | (2 << 16) | (0 << 8) | 224;
-  } else {
-    mreq.imr_multiaddr.s_addr = (224 << 24) | (0 << 16) | (2 << 8) | 0;
-  }
-
+#if SB_IS_BIG_ENDIAN
+  mreq.imr_multiaddr.s_addr = (224 << 24) | (0 << 16) | (2 << 8) | 0;
+#else
+  mreq.imr_multiaddr.s_addr = (0 << 24) | (2 << 16) | (0 << 8) | 224;
+#endif
   mreq.imr_interface.s_addr =
       htonl(INADDR_ANY);  // Use the default network interface
 
