@@ -153,6 +153,7 @@ source_set("freetype_source") {
   public_configs = [ ":freetype_config" ]
 
   deps = [
+    "//starboard/common:file_wrapper",
     "//third_party/libpng",
     "//third_party/zlib",
   ]

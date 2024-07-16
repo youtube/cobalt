@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <fcntl.h>
+#if SB_API_VERSION < 16
 
 #include <string>
 
@@ -29,26 +29,37 @@ TEST(SbFileModeStringToFlagsTest, Empties) {
 }
 
 TEST(SbFileModeStringToFlagsTest, Arr) {
-  EXPECT_EQ(O_RDONLY, SbFileModeStringToFlags("r"));
-  EXPECT_EQ(O_RDWR, SbFileModeStringToFlags("r+"));
-  EXPECT_EQ(O_RDWR, SbFileModeStringToFlags("r+b"));
-  EXPECT_EQ(O_RDWR, SbFileModeStringToFlags("rb+"));
+  EXPECT_EQ(kSbFileOpenOnly | kSbFileRead, SbFileModeStringToFlags("r"));
+  EXPECT_EQ(kSbFileOpenOnly | kSbFileRead | kSbFileWrite,
+            SbFileModeStringToFlags("r+"));
+  EXPECT_EQ(kSbFileOpenOnly | kSbFileRead | kSbFileWrite,
+            SbFileModeStringToFlags("r+b"));
+  EXPECT_EQ(kSbFileOpenOnly | kSbFileRead | kSbFileWrite,
+            SbFileModeStringToFlags("rb+"));
 }
 
 TEST(SbFileModeStringToFlagsTest, Wuh) {
-  EXPECT_EQ(O_CREAT | O_TRUNC | O_WRONLY, SbFileModeStringToFlags("w"));
-  EXPECT_EQ(O_CREAT | O_TRUNC | O_RDWR, SbFileModeStringToFlags("w+"));
-  EXPECT_EQ(O_CREAT | O_TRUNC | O_RDWR, SbFileModeStringToFlags("w+b"));
-  EXPECT_EQ(O_CREAT | O_TRUNC | O_RDWR, SbFileModeStringToFlags("wb+"));
+  EXPECT_EQ(kSbFileCreateAlways | kSbFileWrite, SbFileModeStringToFlags("w"));
+  EXPECT_EQ(kSbFileCreateAlways | kSbFileWrite | kSbFileRead,
+            SbFileModeStringToFlags("w+"));
+  EXPECT_EQ(kSbFileCreateAlways | kSbFileWrite | kSbFileRead,
+            SbFileModeStringToFlags("w+b"));
+  EXPECT_EQ(kSbFileCreateAlways | kSbFileWrite | kSbFileRead,
+            SbFileModeStringToFlags("wb+"));
 }
 
 TEST(SbFileModeStringToFlagsTest, Aah) {
-  EXPECT_EQ(O_CREAT | O_WRONLY, SbFileModeStringToFlags("a"));
-  EXPECT_EQ(O_CREAT | O_RDWR, SbFileModeStringToFlags("a+"));
-  EXPECT_EQ(O_CREAT | O_RDWR, SbFileModeStringToFlags("a+b"));
-  EXPECT_EQ(O_CREAT | O_RDWR, SbFileModeStringToFlags("ab+"));
+  EXPECT_EQ(kSbFileOpenAlways | kSbFileWrite, SbFileModeStringToFlags("a"));
+  EXPECT_EQ(kSbFileOpenAlways | kSbFileWrite | kSbFileRead,
+            SbFileModeStringToFlags("a+"));
+  EXPECT_EQ(kSbFileOpenAlways | kSbFileWrite | kSbFileRead,
+            SbFileModeStringToFlags("a+b"));
+  EXPECT_EQ(kSbFileOpenAlways | kSbFileWrite | kSbFileRead,
+            SbFileModeStringToFlags("ab+"));
 }
 
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 16

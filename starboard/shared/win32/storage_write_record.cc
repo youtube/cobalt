@@ -52,7 +52,7 @@ bool SbStorageWriteRecord(SbStorageRecord record,
 
   int temp_file = open(temp_file_path.data(), O_CREAT | O_TRUNC | O_RDWR,
                        S_IRUSR | S_IWUSR);
-  if (!starboard::IsValid(file)) {
+  if (!starboard::IsValid(temp_file)) {
     return false;
   }
 

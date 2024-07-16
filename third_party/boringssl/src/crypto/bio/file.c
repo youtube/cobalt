@@ -96,7 +96,7 @@
 #if defined(OPENSSL_SYS_STARBOARD)
 #include <sys/stat.h>
 #include <unistd.h>
-#endif  // !defined(OPENSSL_SYS_STARBOARD)
+#endif  // defined(OPENSSL_SYS_STARBOARD)
 
 #include <openssl/err.h>
 #include <openssl/mem.h>
@@ -192,7 +192,7 @@ BIO *BIO_new_file(const char *filename, const char *mode) {
 #if defined(OPENSSL_SYS_STARBOARD)
   FilePtr sb_file = (FilePtr)malloc(sizeof(struct FileStruct));
   memset(sb_file, 0, sizeof(struct FileStruct));
-  sb_file->fd = open(filename, SbFileModeStringToFlags(mode),
+  sb_file->fd = open(filename, FileModeStringToFlags(mode),
                      S_IRUSR | S_IWUSR);
 
   if (sb_file->fd < 0) {
@@ -286,7 +286,7 @@ static int MS_CALLBACK file_free(BIO *a) {
   if (a->shutdown) {
     if ((a->init) && (a->ptr != NULL)) {
 #if defined(OPENSSL_SYS_STARBOARD)
-      close((FilePtr)a->ptr);
+      close(((FilePtr)a->ptr)->fd);
 #else   // defined(OPENSSL_SYS_STARBOARD)
 // When this file was Starboardized, uplink support was added to the
 // non-Starboard code paths. But at this point it's not clear where to find
@@ -314,7 +314,7 @@ static int MS_CALLBACK file_read(BIO *b, char *out, int outl) {
   int ret = 0;
   if (b->init && (out != NULL)) {
 #if defined(OPENSSL_SYS_STARBOARD)
-    ret = read((FilePtr)b->ptr, out, outl);
+    ret = read(((FilePtr)b->ptr)->fd, out, outl);
     if (ret < 0) {
       OPENSSL_PUT_SYSTEM_ERROR();
       OPENSSL_PUT_ERROR(BIO, ERR_R_SYS_LIB);
@@ -355,7 +355,7 @@ static int MS_CALLBACK file_write(BIO *b, const char *in, int inl) {
 
   if (b->init && (in != NULL)) {
 #if defined(OPENSSL_SYS_STARBOARD)
-    ret = write((FilePtr)b->ptr, in, inl);
+    ret = write(((FilePtr)b->ptr)->fd, in, inl);
 #else   // defined(OPENSSL_SYS_STARBOARD)
 #ifndef NATIVE_TARGET_BUILD
     if (b->flags & BIO_FLAGS_UPLINK)
@@ -392,7 +392,7 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
     case BIO_C_FILE_SEEK:
     case BIO_CTRL_RESET:
 #if defined(OPENSSL_SYS_STARBOARD)
-      ret = (long)lseek((FilePtr)b->ptr, SEEK_SET, num);
+      ret = (long)lseek(((FilePtr)b->ptr)->fd, SEEK_SET, num);
 #else   // defined(OPENSSL_SYS_STARBOARD)
 #ifndef NATIVE_TARGET_BUILD
       if (b->flags & BIO_FLAGS_UPLINK)
@@ -405,8 +405,8 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
       break;
     case BIO_CTRL_EOF:
 #if defined(OPENSSL_SYS_STARBOARD)
-      ret = (lseek((FilePtr)b->ptr, SEEK_CUR, 0) >=
-                    lseek((FilePtr)b->ptr, SEEK_END, 0)
+      ret = (lseek(((FilePtr)b->ptr)->fd, SEEK_CUR, 0) >=
+                    lseek(((FilePtr)b->ptr)->fd, SEEK_END, 0)
                  ? 1
                  : 0);
 #else   // defined(OPENSSL_SYS_STARBOARD)
@@ -422,7 +422,7 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
     case BIO_C_FILE_TELL:
     case BIO_CTRL_INFO:
 #if defined(OPENSSL_SYS_STARBOARD)
-      ret = lseek((FilePtr)b->ptr, SEEK_CUR, 0);
+      ret = lseek(((FilePtr)b->ptr)->fd, SEEK_CUR, 0);
 #else   // defined(OPENSSL_SYS_STARBOARD)
 #ifndef NATIVE_TARGET_BUILD
       if (b->flags & BIO_FLAGS_UPLINK)
@@ -527,7 +527,7 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
 #endif
 #if defined(OPENSSL_SYS_STARBOARD)
       {
-        fp->fd = open((const char *)ptr, SbFileModeStringToFlags(p),
+        fp->fd = open((const char *)ptr, FileModeStringToFlags(p),
                       S_IRUSR | S_IWUSR);
         if (fp->fd < 0) {
           OPENSSL_PUT_SYSTEM_ERROR();
@@ -584,7 +584,7 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
       break;
     case BIO_CTRL_FLUSH:
 #if defined(OPENSSL_SYS_STARBOARD)
-      fsync((FilePtr)b->ptr);
+      fsync(((FilePtr)b->ptr)->fd);
 #else   // defined(OPENSSL_SYS_STARBOARD)
 #ifndef NATIVE_TARGET_BUILD
       if (b->flags & BIO_FLAGS_UPLINK)
@@ -616,15 +616,15 @@ static int MS_CALLBACK file_gets(BIO *bp, char *buf, int size) {
 #if defined(OPENSSL_SYS_STARBOARD)
   ret = -1;
   struct stat info;
-  fstat((FilePtr)bp->ptr, &info);
-  int64_t current = lseek((FilePtr)bp->ptr, SEEK_CUR, 0);
+  fstat(((FilePtr)bp->ptr)->fd, &info);
+  int64_t current = lseek(((FilePtr)bp->ptr)->fd, SEEK_CUR, 0);
   int64_t remaining = info.st_size - current;
   int64_t max = (size > remaining ? remaining : size - 1);
   int index = 0;
   for (; index < max; ++index) {
     int count = 0;
     for (;;) {
-      count = read((FilePtr)bp->ptr, buf + index, 1);
+      count = read(((FilePtr)bp->ptr)->fd, buf + index, 1);
       if (count == 0) {
         continue;
       }

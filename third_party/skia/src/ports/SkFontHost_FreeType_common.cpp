@@ -49,6 +49,9 @@
 #endif
 #endif
 
+// To avoid SkPath->close() being redef to sb_close.
+#undef close
+
 // FT_LOAD_COLOR and the corresponding FT_Pixel_Mode::FT_PIXEL_MODE_BGRA
 // were introduced in FreeType 2.5.0.
 // The following may be removed once FreeType 2.5.0 is required to build.

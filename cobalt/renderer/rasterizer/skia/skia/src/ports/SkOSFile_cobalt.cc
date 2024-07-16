@@ -20,6 +20,7 @@
 #include "base/optional.h"
 #include "base/path_service.h"
 #include "starboard/common/file.h"
+#include "starboard/common/file_wrapper.h"
 
 // Implement functionality declared in SkOSFile.h via primitives provided
 // by Chromium.  In doing this, we need only ensure that support for Chromium
@@ -27,13 +28,13 @@
 
 namespace {
 
-starboard::FilePtr ToFilePtr(FILE* sk_file) {
+FilePtr ToFilePtr(FILE* sk_file) {
   // PlatformFile is a pointer type in Starboard, so we cannot use static_cast
   // from intptr_t.
-  return reinterpret_cast<starboard::FilePtr>(sk_file);
+  return reinterpret_cast<FilePtr>(sk_file);
 }
 
-FILE* ToFILE(starboard::FilePtr starboard_file) {
+FILE* ToFILE(FilePtr starboard_file) {
   return reinterpret_cast<FILE*>(starboard_file);
 }
 
@@ -53,11 +54,8 @@ int ToFileFlags(SkFILE_Flags sk_flags) {
 }  // namespace
 
 FILE* sk_fopen(const char path[], SkFILE_Flags sk_flags) {
-  starboard::FilePtr file;
-  file->fd = open(path, ToFileFlags(sk_flags), S_IRUSR | S_IWUSR);
-  // TODO: temporarily replace with kSbFileInvalid, will be deprecated with
-  // SBFile.
-  if (!file || !starboard::IsValid(file->fd)) {
+  FilePtr file = file_open(path, ToFileFlags(sk_flags));
+  if (!file || file->fd < 0) {
     return nullptr;
   }
 
@@ -66,12 +64,12 @@ FILE* sk_fopen(const char path[], SkFILE_Flags sk_flags) {
 
 void sk_fclose(FILE* sk_file) {
   SkASSERT(sk_file);
-  close(ToFilePtr(sk_file)->fd);
+  int ret = file_close(ToFilePtr(sk_file));
 }
 
 size_t sk_fgetsize(FILE* sk_file) {
   SkASSERT(sk_file);
-  starboard::FilePtr file = ToFilePtr(sk_file);
+  FilePtr file = ToFilePtr(sk_file);
 
   // Save current position so we can restore it.
   int64_t current_position = lseek(file->fd, 0, SEEK_CUR);
@@ -92,7 +90,7 @@ size_t sk_fgetsize(FILE* sk_file) {
 
 size_t sk_fwrite(const void* buffer, size_t byteCount, FILE* sk_file) {
   SkASSERT(sk_file);
-  starboard::FilePtr file = ToFilePtr(sk_file);
+  FilePtr file = ToFilePtr(sk_file);
   int result =
       write(file->fd, reinterpret_cast<const char*>(buffer), byteCount);
   base::RecordFileWriteStat(result);
@@ -101,20 +99,20 @@ size_t sk_fwrite(const void* buffer, size_t byteCount, FILE* sk_file) {
 
 void sk_fflush(FILE* sk_file) {
   SkASSERT(sk_file);
-  starboard::FilePtr file = ToFilePtr(sk_file);
+  FilePtr file = ToFilePtr(sk_file);
   fsync(file->fd);
 }
 
 bool sk_fseek(FILE* sk_file, size_t position) {
   SkASSERT(sk_file);
-  starboard::FilePtr file = ToFilePtr(sk_file);
+  FilePtr file = ToFilePtr(sk_file);
   int64_t new_position = lseek(file->fd, position, SEEK_SET);
   return new_position == position;
 }
 
 size_t sk_ftell(FILE* sk_file) {
   SkASSERT(sk_file);
-  starboard::FilePtr file = ToFilePtr(sk_file);
+  FilePtr file = ToFilePtr(sk_file);
   return lseek(file->fd, 0, SEEK_CUR);
 }
 
@@ -159,7 +157,7 @@ bool sk_mkdir(const char* path) {
 
 void sk_fsync(FILE* f) {
   SkASSERT(f);
-  starboard::FilePtr file = ToFilePtr(f);
+  FilePtr file = ToFilePtr(f);
   // Technically, flush doesn't have to call sync... but this is the best
   // effort we can make.
   fsync(file->fd);
@@ -167,7 +165,7 @@ void sk_fsync(FILE* f) {
 
 size_t sk_qread(FILE* file, void* buffer, size_t count, size_t offset) {
   SkASSERT(file);
-  starboard::FilePtr starboard_file = ToFilePtr(file);
+  FilePtr starboard_file = ToFilePtr(file);
 
   int original_position = lseek(starboard_file->fd, 0, SEEK_CUR);
   if (original_position < 0) {
@@ -191,7 +189,7 @@ size_t sk_qread(FILE* file, void* buffer, size_t count, size_t offset) {
 
 size_t sk_fread(void* buffer, size_t byteCount, FILE* file) {
   SkASSERT(file);
-  starboard::FilePtr starboard_file = ToFilePtr(file);
+  FilePtr starboard_file = ToFilePtr(file);
   return starboard::ReadAll(starboard_file->fd, reinterpret_cast<char*>(buffer),
                             byteCount);
 }

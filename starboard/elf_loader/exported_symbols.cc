@@ -174,23 +174,21 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbEventCancel);
   REGISTER_SYMBOL(SbEventSchedule);
   REGISTER_SYMBOL(SbFileAtomicReplace);
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileCanOpen);
   REGISTER_SYMBOL(SbFileClose);
   REGISTER_SYMBOL(SbFileDelete);
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileExists);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileFlush);
   REGISTER_SYMBOL(SbFileGetInfo);
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileGetPathInfo);
-#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileModeStringToFlags);
   REGISTER_SYMBOL(SbFileOpen);
   REGISTER_SYMBOL(SbFileRead);
   REGISTER_SYMBOL(SbFileSeek);
   REGISTER_SYMBOL(SbFileTruncate);
   REGISTER_SYMBOL(SbFileWrite);
+#endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbGetEglInterface);
   REGISTER_SYMBOL(SbGetGlesInterface);
 #if SB_API_VERSION < 16

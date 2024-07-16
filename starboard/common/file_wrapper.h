@@ -21,4 +21,24 @@ typedef struct FileStruct {
 
 typedef FileStruct* FilePtr;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Converts an ISO |fopen()| mode string into flags that can be equivalently
+// passed into POSIX open().
+//
+// |mode|: The mode string to be converted into flags.
+int FileModeStringToFlags(const char* mode);
+
+// Wrapper for close() that takes in a FilePtr instead of a file descriptor.
+int file_close(FilePtr file);
+
+// Wrapper for open() that returns a FilePtr instead of a file descriptor.
+FilePtr file_open(const char* path, int mode);
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif  // STARBOARD_COMMON_FILE_WRAPPER_H_

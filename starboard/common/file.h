@@ -42,6 +42,8 @@ struct FileStruct {
 
 typedef FileStruct* FilePtr;
 
+bool FileCanOpen(const char* path, int flags);
+
 bool IsValid(int file);
 
 ssize_t ReadAll(int fd, void* data, int size);

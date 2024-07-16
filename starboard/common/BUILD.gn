@@ -96,7 +96,10 @@ static_library("common") {
 
 static_library("file_wrapper") {
   check_includes = false
-  sources = [ "file_wrapper.h" ]
+  sources = [
+    "file_wrapper.cc",
+    "file_wrapper.h",
+  ]
 }
 
 target(gtest_target_type, "common_test") {

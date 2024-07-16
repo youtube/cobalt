@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <string>
 #include <vector>
@@ -81,7 +82,7 @@ TEST_F(StorageTest, VerifyStorageDirectory) {
     ASSERT_EQ('A', buf[i]);
   }
 
-  ASSERT_TRUE(SbFileDelete(file_path.data()));
+  ASSERT_TRUE(!unlink(file_path.data()));
   struct stat info;
   ASSERT_FALSE(stat(file_path.data(), &info) == 0);
 }
