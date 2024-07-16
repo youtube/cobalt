@@ -95,7 +95,8 @@ class ApplicationAndroid
   void SbWindowSendInputEvent(const char* input_text, bool is_composing);
   void SendLowMemoryEvent();
   void OsNetworkStatusChange(bool became_online);
-  int64_t GetAppStartTimestamp();  // microseconds
+
+  int64_t app_start_with_android_fix() { return app_start_timestamp_; }
 
   void SendDateTimeConfigurationChangedEvent();
 
@@ -169,6 +170,8 @@ class ApplicationAndroid
   // Methods to process pipes attached to the Looper.
   void ProcessAndroidCommand();
   void ProcessKeyboardInject();
+
+  int64_t app_start_timestamp_ = 0;
 };
 
 }  // namespace shared
