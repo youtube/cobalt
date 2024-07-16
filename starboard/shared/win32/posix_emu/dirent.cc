@@ -155,9 +155,9 @@ DIR* opendir(const char* path) {
     return NULL;
   }
 
-  SbFileError* out_error;
+  SbFileError out_error;
   HANDLE directory_handle = starboard::shared::win32::OpenFileOrDirectory(
-      path, kSbFileOpenOnly | kSbFileRead, nullptr, out_error);
+      path, kSbFileOpenOnly | kSbFileRead, nullptr, &out_error);
 
   if (!starboard::shared::win32::IsValidHandle(directory_handle)) {
     return NULL;
@@ -190,8 +190,10 @@ int readdir_r(DIR* __restrict dir,
               struct dirent* __restrict dirent_buf,
               struct dirent** __restrict dirent) {
   if (!dir || !dirent_buf || !dirent) {
-    *dirent = NULL;
-    return -1;
+    if (dirent) {
+      *dirent = nullptr;
+    }
+    return EBADF;
   }
 
   auto next_directory_entries = handle_db_get(dir->fd, false);
@@ -200,16 +202,17 @@ int readdir_r(DIR* __restrict dir,
   }
 
   if (next_directory_entries.empty()) {
-    *dirent = NULL;
-    return -1;
+    *dirent = nullptr;
+    return ENOENT;
   }
 
   if (starboard::strlcpy(dirent_buf->d_name,
                          next_directory_entries.rbegin()->c_str(),
                          kSbFileMaxName) >= kSbFileMaxName) {
-    *dirent = NULL;
-    return -1;
+    *dirent = nullptr;
+    return ENOENT;
   }
+
   *dirent = dirent_buf;
   next_directory_entries.pop_back();
   handle_db_replace(dir->fd, next_directory_entries);
