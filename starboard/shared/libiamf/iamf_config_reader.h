@@ -15,8 +15,10 @@
 #ifndef STARBOARD_SHARED_LIBIAMF_IAMF_CONFIG_READER_H_
 #define STARBOARD_SHARED_LIBIAMF_IAMF_CONFIG_READER_H_
 
+#include <optional>
 #include <vector>
 
+#include "starboard/common/log.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -26,33 +28,37 @@ namespace shared {
 namespace libiamf {
 
 // TODO: Add handling for non-redundant OBUS
+// TODO: Implement or depend on a buffer reader to simplify the implementation.
 class IamfConfigReader {
  public:
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
 
   IamfConfigReader() = default;
 
-  bool Read(scoped_refptr<InputBuffer> input_buffer);
+  bool ResetAndRead(scoped_refptr<InputBuffer> input_buffer);
 
   void Reset();
 
   bool is_valid() {
-    return data_size_ > 0 && config_size_ > 0 && has_mix_presentation_id_ &&
-           sample_rate_ > 0;
+    return data_size_ > 0 && config_size_ > 0 && has_mix_presentation_id() &&
+           sample_rate_ > 0 && samples_per_buffer_ > 0;
   }
   int sample_rate() { return sample_rate_; }
   uint32_t samples_per_buffer() { return samples_per_buffer_; }
-  bool config_changed() { return false; }
   uint32_t config_size() { return config_size_; }
-  // TODO: Allow for selection of multiple mix presentation IDs.
-  bool has_mix_presentation_id() { return has_mix_presentation_id_; }
-  uint32_t mix_presentation_id() { return mix_presentation_id_; }
-  uint32_t data_size() { return data_size_; }
+  // TODO: Allow for selection of multiple mix presentation IDs. Currently,
+  // only the first mix presentation parsed is selected.
+  bool has_mix_presentation_id() { return mix_presentation_id_.has_value(); }
+  uint32_t mix_presentation_id() {
+    SB_DCHECK(mix_presentation_id_.has_value());
+    return mix_presentation_id_.value();
+  }
 
   std::vector<uint8_t> config_obus() { return config_obus_; }
   std::vector<uint8_t> data() { return data_; }
 
  private:
+  bool Read(scoped_refptr<InputBuffer> input_buffer);
   bool ReadOBU(const uint8_t* buf, bool& completed_parsing);
   bool ReadOBUHeader(const uint8_t* buf,
                      uint8_t* obu_type,
@@ -66,10 +72,10 @@ class IamfConfigReader {
   uint32_t config_size_ = 0;
   uint32_t data_size_ = 0;
 
-  bool has_mix_presentation_id_ = false;
-  uint32_t mix_presentation_id_ = 0;
+  std::optional<uint32_t> mix_presentation_id_;
 
   bool has_valid_config_ = false;
+  bool binaural_mix_presentation_id_ = -1;
   std::vector<uint8_t> config_obus_;
   std::vector<uint8_t> data_;
 };

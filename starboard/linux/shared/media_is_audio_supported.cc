@@ -32,7 +32,7 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
     return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
   }
 
-#if SB_API_VERSION >= 15
+#if SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
   if (audio_codec == kSbMediaAudioCodecIamf) {
     return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
   }

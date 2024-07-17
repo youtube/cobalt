@@ -34,7 +34,6 @@
 #include "starboard/common/media.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
-#include "starboard/shared/libiamf/iamf_audio_decoder.h"
 #include "starboard/shared/opus/opus_audio_decoder.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/media/mime_type.h"
@@ -48,6 +47,10 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
+
+#if ENABLE_IAMF_DECODE
+#include "starboard/shared/libiamf/iamf_audio_decoder.h"
+#endif  // ENABLE_IAMF_DECODE
 
 namespace starboard {
 namespace android {
@@ -180,7 +183,6 @@ class PlayerComponentsPassthrough
 class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                     filter::PlayerComponents::Factory {
   typedef starboard::shared::starboard::media::MimeType MimeType;
-  typedef starboard::shared::libiamf::IamfAudioDecoder IamfAudioDecoder;
   typedef starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
   typedef starboard::shared::starboard::player::filter::AdaptiveAudioDecoder
       AdaptiveAudioDecoder;
@@ -446,14 +448,18 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
             return std::unique_ptr<AudioDecoderBase>(
                 std::move(audio_decoder_impl));
           }
+#if SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
         } else if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {
           SB_LOG(INFO) << "Creating IAMF audio decoder";
-          std::unique_ptr<IamfAudioDecoder> audio_decoder_impl(
-              new IamfAudioDecoder(audio_stream_info));
+          std::unique_ptr<starboard::shared::libiamf::IamfAudioDecoder>
+              audio_decoder_impl(
+                  new starboard::shared::libiamf::IamfAudioDecoder(
+                      audio_stream_info, /* prefer_binarual_audio */ false));
           if (audio_decoder_impl->is_valid()) {
             return std::unique_ptr<AudioDecoderBase>(
                 std::move(audio_decoder_impl));
           }
+#endif  // SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
         } else {
           SB_LOG(ERROR) << "Unsupported audio codec "
                         << audio_stream_info.codec;

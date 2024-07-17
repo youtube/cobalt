@@ -75,10 +75,6 @@ static_library("starboard_platform") {
     "//starboard/shared/libevent/socket_waiter_wait.cc",
     "//starboard/shared/libevent/socket_waiter_wait_timed.cc",
     "//starboard/shared/libevent/socket_waiter_wake_up.cc",
-    "//starboard/shared/libiamf/iamf_audio_decoder.cc",
-    "//starboard/shared/libiamf/iamf_audio_decoder.h",
-    "//starboard/shared/libiamf/iamf_config_reader.cc",
-    "//starboard/shared/libiamf/iamf_config_reader.h",
     "//starboard/shared/linux/byte_swap.cc",
     "//starboard/shared/linux/cpu_features_get.cc",
     "//starboard/shared/linux/memory_get_stack_bounds.cc",
@@ -490,6 +486,18 @@ static_library("starboard_platform") {
 
   if (sb_evergreen_compatible_use_libunwind) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
+  }
+
+  defines = []
+  if (enable_iamf_decode) {
+    sources += [
+      "//starboard/shared/libiamf/iamf_audio_decoder.cc",
+      "//starboard/shared/libiamf/iamf_audio_decoder.h",
+      "//starboard/shared/libiamf/iamf_config_reader.cc",
+      "//starboard/shared/libiamf/iamf_config_reader.h",
+    ]
+
+    defines += [ "ENABLE_IAMF_DECODE" ]
   }
 }
 
