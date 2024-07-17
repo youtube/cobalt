@@ -22,7 +22,6 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Service;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
@@ -39,7 +38,6 @@ import android.view.InputDevice;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
-import dev.cobalt.account.UserAuthorizer;
 import dev.cobalt.media.ArtworkDownloader;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.CaptionSettings;
@@ -71,7 +69,6 @@ public class StarboardBridge {
 
   private CobaltSystemConfigChangeReceiver sysConfigChangeReceiver;
   private CobaltTextToSpeechHelper ttsHelper;
-  private UserAuthorizer userAuthorizer;
   private AudioOutputManager audioOutputManager;
   private CobaltMediaSession cobaltMediaSession;
   private AudioPermissionRequester audioPermissionRequester;
@@ -122,7 +119,6 @@ public class StarboardBridge {
       Context appContext,
       Holder<Activity> activityHolder,
       Holder<Service> serviceHolder,
-      UserAuthorizer userAuthorizer,
       ArtworkDownloader artworkDownloader,
       String[] args,
       String startDeepLink) {
@@ -138,7 +134,6 @@ public class StarboardBridge {
     this.startDeepLink = startDeepLink;
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
     this.ttsHelper = new CobaltTextToSpeechHelper(appContext);
-    this.userAuthorizer = userAuthorizer;
     this.audioOutputManager = new AudioOutputManager(appContext);
     this.cobaltMediaSession =
         new CobaltMediaSession(appContext, activityHolder, audioOutputManager, artworkDownloader);
@@ -223,7 +218,6 @@ public class StarboardBridge {
   protected void afterStopped() {
     starboardApplicationStopped = true;
     ttsHelper.shutdown();
-    userAuthorizer.shutdown();
     for (CobaltService service : cobaltServices.values()) {
       service.afterStopped();
     }
@@ -581,13 +575,6 @@ public class StarboardBridge {
     }
   }
 
-  /** Returns Java layer implementation for AndroidUserAuthorizer */
-  @SuppressWarnings("unused")
-  @UsedByNative
-  public UserAuthorizer getUserAuthorizer() {
-    return userAuthorizer;
-  }
-
   @SuppressWarnings("unused")
   @UsedByNative
   void updateMediaSession(
@@ -665,12 +652,7 @@ public class StarboardBridge {
     return audioPermissionRequester;
   }
 
-  void onActivityResult(int requestCode, int resultCode, Intent data) {
-    userAuthorizer.onActivityResult(requestCode, resultCode, data);
-  }
-
   void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-    userAuthorizer.onRequestPermissionsResult(requestCode, permissions, grantResults);
     audioPermissionRequester.onRequestPermissionsResult(requestCode, permissions, grantResults);
   }
 
@@ -755,6 +737,21 @@ public class StarboardBridge {
     cobaltServices.remove(serviceName);
   }
 
+  /** Deprecated. Returns an incorrect calculation for the appStart for an existing metric. */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected long getIncorrectAppStartTimestamp() {
+    Activity activity = activityHolder.get();
+    if (activity instanceof CobaltActivity) {
+      long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
+      long cppTimestamp = nativeCurrentMonotonicTime();
+      long javaStopTimestamp = System.nanoTime();
+      return cppTimestamp
+          - (javaStartTimestamp - javaStopTimestamp) / timeNanosecondsPerMicrosecond;
+    }
+    return 0;
+  }
+
   /** Returns the application start timestamp. */
   @SuppressWarnings("unused")
   @UsedByNative
@@ -765,7 +762,7 @@ public class StarboardBridge {
       long cppTimestamp = nativeCurrentMonotonicTime();
       long javaStopTimestamp = System.nanoTime();
       return cppTimestamp
-          - (javaStartTimestamp - javaStopTimestamp) / timeNanosecondsPerMicrosecond;
+          - (javaStopTimestamp - javaStartTimestamp) / timeNanosecondsPerMicrosecond;
     }
     return 0;
   }

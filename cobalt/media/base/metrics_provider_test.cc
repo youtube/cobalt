@@ -70,7 +70,7 @@ TEST_F(MediaMetricsProviderTest, SbPlayerCreate) {
   metrics_.EndTrackingAction(MediaAction::SBPLAYER_CREATE);
 
   histogram_tester_.ExpectUniqueSample(
-      std::string(kUmaPrefix) + "SbPlayer.Create.Timing", 570, 1);
+      std::string(kUmaPrefix) + "SbPlayer.Create.LatencyTiming", 570, 1);
 }
 
 TEST_F(MediaMetricsProviderTest, SbPlayerCreateUrlPlayer) {
@@ -80,17 +80,18 @@ TEST_F(MediaMetricsProviderTest, SbPlayerCreateUrlPlayer) {
   metrics_.EndTrackingAction(MediaAction::SBPLAYER_CREATE_URL_PLAYER);
 
   histogram_tester_.ExpectUniqueSample(
-      std::string(kUmaPrefix) + "SbPlayer.CreateUrlPlayer.Timing", 670, 1);
+      std::string(kUmaPrefix) + "SbPlayer.CreateUrlPlayer.LatencyTiming", 670,
+      1);
 }
 
 TEST_F(MediaMetricsProviderTest, SbPlayerDestroy) {
   metrics_.StartTrackingAction(MediaAction::SBPLAYER_DESTROY);
 
-  clock_.Advance(base::TimeDelta::FromMicroseconds(1570));
+  clock_.Advance(base::TimeDelta::FromMilliseconds(100));
   metrics_.EndTrackingAction(MediaAction::SBPLAYER_DESTROY);
 
   histogram_tester_.ExpectUniqueSample(
-      std::string(kUmaPrefix) + "SbPlayer.Destroy.Timing", 1570, 1);
+      std::string(kUmaPrefix) + "SbPlayer.Destroy.LatencyTiming", 100, 1);
 }
 
 

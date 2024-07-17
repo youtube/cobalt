@@ -18,11 +18,11 @@
 #include <deque>
 #include <functional>
 #include <map>
+#include <memory>
 #include <set>
 
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
@@ -132,7 +132,7 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
   // Create three more decoders for each supported combinations.
   const int kDecodersToCreate = 3;
 
-  unique_ptr_alias<PlayerComponents::Factory> factory =
+  std::unique_ptr<PlayerComponents::Factory> factory =
       PlayerComponents::Factory::Create();
 
   SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
@@ -149,8 +149,8 @@ TEST_P(VideoDecoderTest, ThreeMoreDecoders) {
         if (PlayerComponents::Factory::OutputModeSupported(
                 output_mode, video_codec, kSbDrmSystemInvalid)) {
           SbPlayerPrivate players[kDecodersToCreate];
-          unique_ptr_alias<VideoDecoder> video_decoders[kDecodersToCreate];
-          unique_ptr_alias<VideoRenderAlgorithm>
+          std::unique_ptr<VideoDecoder> video_decoders[kDecodersToCreate];
+          std::unique_ptr<VideoRenderAlgorithm>
               video_render_algorithms[kDecodersToCreate];
           scoped_refptr<VideoRendererSink>
               video_renderer_sinks[kDecodersToCreate];

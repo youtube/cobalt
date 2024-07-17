@@ -16,7 +16,6 @@ package dev.cobalt.app;
 
 import android.app.Activity;
 import android.app.Service;
-import dev.cobalt.account.NoopUserAuthorizer;
 import dev.cobalt.coat.CobaltActivity;
 import dev.cobalt.coat.CobaltService;
 import dev.cobalt.coat.StarboardBridge;
@@ -43,13 +42,11 @@ public class MainActivity extends CobaltActivity {
             getStarboardBridge().requestStop(0);
           }
         };
-    NoopUserAuthorizer userAuthorizer = new NoopUserAuthorizer();
     StarboardBridge bridge =
         new StarboardBridge(
             getApplicationContext(),
             activityHolder,
             serviceHolder,
-            userAuthorizer,
             new ArtworkDownloaderDefault(),
             args,
             startDeepLink);

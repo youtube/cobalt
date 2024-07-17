@@ -21,7 +21,6 @@
 #include <memory>
 #include <string>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/thread.h"
 #include "starboard/types.h"

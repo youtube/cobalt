@@ -24,7 +24,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/starboard/lazy_initialization_internal.h"

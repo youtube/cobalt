@@ -1,4 +1,4 @@
-// Copyright 2019 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,26 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/elf_loader/elf_loader_impl.h"
-
-#include "testing/gtest/include/gtest/gtest.h"
+#ifndef STARBOARD_ANDROID_SHARED_SYSTEM_INFO_API_H_
+#define STARBOARD_ANDROID_SHARED_SYSTEM_INFO_API_H_
 
 namespace starboard {
-namespace elf_loader {
+namespace android {
+namespace shared {
 
-namespace {
+const void* GetSystemInfoApi();
 
-// TODO: implement using real shared library for the file system.
-class ElfLoaderTest : public ::testing::Test {
- protected:
-  ElfLoaderTest() {}
-  ~ElfLoaderTest() {}
-};
-
-TEST_F(ElfLoaderTest, Initialize) {
-  EXPECT_TRUE(true);
-}
-
-}  // namespace
-}  // namespace elf_loader
+}  // namespace shared
+}  // namespace android
 }  // namespace starboard
+
+#endif  // STARBOARD_ANDROID_SHARED_SYSTEM_INFO_API_H_

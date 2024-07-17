@@ -26,10 +26,6 @@
 #include "udatamem.h"
 #include "umapfile.h"
 
-#if MAP_IMPLEMENTATION==MAP_STARBOARD
-#include "starboard/extension/memory_mapped_file.h"
-#endif
-
 /* memory-mapping base definitions ------------------------------------------ */
 
 #if MAP_IMPLEMENTATION==MAP_WIN32
@@ -99,14 +95,6 @@ typedef HANDLE MemoryMap;
     typedef void *MemoryMap;
 
 #   define IS_MAP(map) ((map)!=nullptr)
-#elif MAP_IMPLEMENTATION==MAP_STARBOARD
-#   include "starboard/file.h"
-#   include "cmemory.h"
-#   include <sys/mman.h>
-
-    typedef void *MemoryMap;
-
-#   define IS_MAP(map) ((map)!=NULL)
 #endif
 
 /*----------------------------------------------------------------------------*
@@ -349,93 +337,6 @@ typedef HANDLE MemoryMap;
             pData->map     = nullptr;
             pData->mapAddr = nullptr;
             pData->pHeader = nullptr;
-        }
-    }
-
-#elif MAP_IMPLEMENTATION==MAP_STARBOARD
-    U_CFUNC UBool
-    uprv_mapFile(UDataMemory *pData, const char *path, UErrorCode *status) {
-        if (U_FAILURE(*status)) {
-            return FALSE;
-        }
-
-        UDataMemory_init(pData); /* Clear the output struct.        */
-
-        /* open the input file */
-        SbFile file = SbFileOpen(path, kSbFileOpenOnly | kSbFileRead, NULL, NULL);
-        if (!SbFileIsValid(file)) {
-            return FALSE;
-        }
-
-        /* get the file length */
-        SbFileInfo info;
-        if (!SbFileGetInfo(file, &info)) {
-            SbFileClose(file);
-            return FALSE;
-        }
-
-        int32_t fileLength = info.size;
-        if (fileLength <= 20) {
-            SbFileClose(file);
-            return FALSE;
-        }
-
-        pData->heapAllocated = false;
-
-        const auto* memory_mapped_file_extension =
-            reinterpret_cast<const CobaltExtensionMemoryMappedFileApi*>(
-                SbSystemGetExtension(kCobaltExtensionMemoryMappedFileName));
-
-        if(memory_mapped_file_extension &&
-           strcmp(memory_mapped_file_extension->name,
-                  kCobaltExtensionMemoryMappedFileName) == 0 &&
-           memory_mapped_file_extension->version >= 1) {
-                void *p = memory_mapped_file_extension->MemoryMapFile(
-                        NULL, path, kSbMemoryMapProtectRead, 0,fileLength);
-                if(p) {
-                    pData->map=p;
-                    pData->pHeader=(const DataHeader *)p;
-                    pData->mapAddr=p;
-                    SbFileClose(file);
-                    return TRUE;
-                }
-            // If mmap extension didn't work, fall back to allocating
-        }
-
-        /* allocate the memory to hold the file data */
-        void *p = uprv_malloc(fileLength);
-        if (!p) {
-            SbFileClose(file);
-            return FALSE;
-        }
-
-        /* read the file */
-        if (fileLength != SbFileReadAll(file, static_cast<char *>(p), fileLength)) {
-            uprv_free(p);
-            SbFileClose(file);
-            return FALSE;
-        }
-
-        SbFileClose(file);
-        pData->map=p;
-        pData->pHeader=(const DataHeader *)p;
-        pData->mapAddr=p;
-        pData->heapAllocated = true;
-        return TRUE;
-    }
-
-    U_CFUNC void
-    uprv_unmapFile(UDataMemory *pData) {
-        if(pData!=NULL && pData->map!=NULL) {
-            if(pData->heapAllocated) {
-                uprv_free(pData->map);
-            } else {
-                size_t dataLen = (char *)pData->map - (char *)pData->mapAddr;
-                munmap(pData->mapAddr, dataLen);
-            }
-            pData->map     = NULL;
-            pData->mapAddr = NULL;
-            pData->pHeader = NULL;
         }
     }
 
