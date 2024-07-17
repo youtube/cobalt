@@ -38,7 +38,8 @@ class IamfAudioDecoder
  public:
   typedef starboard::media::AudioStreamInfo AudioStreamInfo;
 
-  explicit IamfAudioDecoder(const AudioStreamInfo& audio_stream_info);
+  explicit IamfAudioDecoder(const AudioStreamInfo& audio_stream_info,
+                            bool prefer_binaural_audio);
   ~IamfAudioDecoder() override;
 
   bool is_valid() const;
@@ -53,8 +54,6 @@ class IamfAudioDecoder
 
  private:
   static constexpr int kMinimumBuffersToDecode = 2;
-  static constexpr int kMaxIamfFramesPerAU = 2048;
-  static constexpr int kMaxOpusFramesPerAU = 960;
 
   bool InitializeCodec();
   void TeardownCodec();
@@ -70,7 +69,6 @@ class IamfAudioDecoder
   bool stream_ended_ = false;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
   AudioStreamInfo audio_stream_info_;
-  int frames_per_au_ = kMaxIamfFramesPerAU;
 
   bool decoder_is_configured_ = false;
 
@@ -78,6 +76,8 @@ class IamfAudioDecoder
   ConsumedCB consumed_cb_;
 
   IamfConfigReader reader_;
+
+  const bool prefer_binarual_audio_;
 };
 
 }  // namespace libiamf

@@ -25,7 +25,6 @@
 #include "starboard/shared/libde265/de265_video_decoder.h"
 #include "starboard/shared/libfdkaac/fdk_aac_audio_decoder.h"
 #include "starboard/shared/libfdkaac/libfdkaac_library_loader.h"
-#include "starboard/shared/libiamf/iamf_audio_decoder.h"
 #include "starboard/shared/libvpx/vpx_video_decoder.h"
 #include "starboard/shared/openh264/openh264_library_loader.h"
 #include "starboard/shared/openh264/openh264_video_decoder.h"
@@ -41,6 +40,10 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
+
+#if ENABLE_IAMF_DECODE
+#include "starboard/shared/libiamf/iamf_audio_decoder.h"
+#endif  // ENABLE_IAMF_DECODE
 
 namespace starboard {
 namespace shared {
@@ -69,7 +72,6 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       SB_DCHECK(audio_renderer_sink);
 
       typedef ::starboard::shared::ffmpeg::AudioDecoder FfmpegAudioDecoder;
-      typedef ::starboard::shared::libiamf::IamfAudioDecoder IamfAudioDecoder;
       typedef ::starboard::shared::opus::OpusAudioDecoder OpusAudioDecoder;
       typedef ::starboard::shared::libfdkaac::FdkAacAudioDecoder
           FdkAacAudioDecoder;
@@ -88,10 +90,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                    libfdkaac::LibfdkaacHandle::GetHandle()->IsLoaded()) {
           SB_LOG(INFO) << "Playing audio using FdkAacAudioDecoder.";
           return std::unique_ptr<AudioDecoder>(new FdkAacAudioDecoder());
+#if SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
         } else if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {
           SB_LOG(INFO) << "Playing audio using IamfAudioDecoder.";
           return std::unique_ptr<AudioDecoder>(
-              new IamfAudioDecoder(audio_stream_info));
+              new ::starboard::shared::libiamf::IamfAudioDecoder(
+                  audio_stream_info, /* prefer_binarual_audio */ false));
+#endif  // SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
         } else {
           std::unique_ptr<FfmpegAudioDecoder> audio_decoder_impl(
               FfmpegAudioDecoder::Create(audio_stream_info));

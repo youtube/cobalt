@@ -37,6 +37,10 @@ constexpr int kFourccMp4a = 0x6d703461;
 constexpr int kFourccFlac = 0x664c6143;
 constexpr int kFourccIpcm = 0x6970636d;
 
+constexpr int kLayoutTypeReserved = 1;
+constexpr int kLayoutTypeSpeaker = 2;
+constexpr int kLayoutTypeBinaural = 3;
+
 inline uint32_t ByteSwap(uint32_t x) {
 #if defined(COMPILER_MSVC)
   return _byteswap_ulong(x);
@@ -74,25 +78,44 @@ int ReadString(const uint8_t* buf, std::string& value) {
   value.reserve(128);
 
   int bytes_read = 0;
+  bool error = true;
   while (bytes_read < 128 && buf[bytes_read] != '\0') {
     value.push_back(static_cast<char>(buf[bytes_read]));
     bytes_read++;
+    error = false;
+  }
+
+  if (error) {
+    return -1;
   }
 
   return bytes_read;
 }
 }  // namespace
 
-bool IamfConfigReader::Read(scoped_refptr<InputBuffer> input_buffer) {
+bool IamfConfigReader::ResetAndRead(scoped_refptr<InputBuffer> input_buffer) {
   Reset();
+  return Read(input_buffer);
+}
 
+void IamfConfigReader::Reset() {
+  buffer_head_ = 0;
+  mix_presentation_id_ = std::optional<uint32_t>();
+  config_size_ = 0;
+  data_size_ = 0;
+  sample_rate_ = 0;
+  samples_per_buffer_ = 0;
+  sample_size_ = 0;
+}
+
+bool IamfConfigReader::Read(scoped_refptr<InputBuffer> input_buffer) {
   const uint8_t* buf = input_buffer->data();
   SB_DCHECK(buf);
 
   bool completed_parsing = false;
   while (!completed_parsing && buffer_head_ < input_buffer->size()) {
     if (!ReadOBU(buf, completed_parsing)) {
-      SB_LOG(INFO) << "Error parsing config OBUs";
+      SB_DLOG(INFO) << "Error parsing config OBUs";
       return false;
     }
   }
@@ -106,23 +129,12 @@ bool IamfConfigReader::Read(scoped_refptr<InputBuffer> input_buffer) {
   return true;
 }
 
-void IamfConfigReader::Reset() {
-  buffer_head_ = 0;
-  has_mix_presentation_id_ = false;
-  mix_presentation_id_ = 0;
-  config_size_ = 0;
-  data_size_ = 0;
-  sample_rate_ = 0;
-  samples_per_buffer_ = 0;
-  sample_size_ = 0;
-}
-
 bool IamfConfigReader::ReadOBU(const uint8_t* buf, bool& completed_parsing) {
   uint8_t obu_type = 0;
   uint32_t obu_size = 0;
   uint32_t header_size = 0;
   if (!ReadOBUHeader(buf, &obu_type, &obu_size, &header_size)) {
-    SB_LOG(ERROR) << "Error reading OBU header";
+    SB_DLOG(ERROR) << "Error reading OBU header";
     return false;
   }
 
@@ -200,36 +212,14 @@ bool IamfConfigReader::ReadOBU(const uint8_t* buf, bool& completed_parsing) {
       break;
     case kObuTypeMixPresentation: {
       // TODO: Complete Mix Presentation OBU parsing
-      has_mix_presentation_id_ = true;
-      bytes_read = ReadLeb128Value(&buf[buffer_head_], &mix_presentation_id_);
+      uint32_t value;
+      bytes_read = ReadLeb128Value(&buf[buffer_head_], &value);
       if (bytes_read < 0) {
         return false;
       }
-      buffer_head_ += bytes_read;
-
-      // count_label
-      bytes_read = ReadLeb128Value(&buf[buffer_head_], &count_label);
-      if (bytes_read < 0) {
-        return false;
+      if (!mix_presentation_id_.has_value()) {
+        mix_presentation_id_ = value;
       }
-      buffer_head_ += bytes_read;
-
-      // language_label
-      for (int i = 0; i < count_label; ++i) {
-        buffer_head_ += ReadString(&buf[buffer_head_], str);
-      }
-
-      // MixPresentationAnnotations
-      for (int i = 0; i < count_label; ++i) {
-        buffer_head_ += ReadString(&buf[buffer_head_], str);
-      }
-
-      // num_sub_mixes
-      bytes_read = ReadLeb128Value(&buf[buffer_head_], &num_sub_mixes);
-      if (bytes_read < 0) {
-        return false;
-      }
-      buffer_head_ += bytes_read;
 
       break;
     }

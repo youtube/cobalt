@@ -175,7 +175,9 @@ config("platform_configuration") {
       "-Wl,--wrap=readdir_r",
     ]
   }
-  configs += [ ":libraries" ]
+  if (enable_iamf_decode) {
+    configs += [ ":libiamf_config" ]
+  }
 }
 
 config("size") {
@@ -219,6 +221,8 @@ config("pedantic_warnings") {
   ]
 }
 
-config("libraries") {
-  libs = [ "//third_party/libiamf/code/android/libiamf.a" ]
+if (enable_iamf_decode) {
+  config("libiamf_config") {
+    libs = [ "//third_party/libiamf/code/android/libiamf.a" ]
+  }
 }
