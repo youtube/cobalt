@@ -21,9 +21,10 @@
 #define STARBOARD_COMMON_CONDITION_VARIABLE_H_
 
 #include <pthread.h>
-#include "starboard/condition_variable.h"
 
 #include "starboard/common/mutex.h"
+#include "starboard/condition_variable.h"
+#include "starboard/configuration.h"
 #include "starboard/types.h"
 
 namespace starboard {

@@ -23,6 +23,7 @@
 #include <string>
 
 #include "starboard/common/log.h"
+#include "starboard/system.h"
 
 namespace starboard {
 namespace android {
