@@ -25,11 +25,13 @@ struct InterfaceBlock;
 struct BlockMemberInfo
 {
     constexpr BlockMemberInfo() = default;
-
+    // This constructor is used by the HLSL backend
     constexpr BlockMemberInfo(int offset, int arrayStride, int matrixStride, bool isRowMajorMatrix)
-        : offset(offset),
+        : type(GL_INVALID_ENUM),
+          offset(offset),
           arrayStride(arrayStride),
           matrixStride(matrixStride),
+          arraySize(-1),
           isRowMajorMatrix(isRowMajorMatrix)
     {}
 
@@ -38,12 +40,46 @@ struct BlockMemberInfo
                               int matrixStride,
                               bool isRowMajorMatrix,
                               int topLevelArrayStride)
-        : offset(offset),
+        : type(GL_INVALID_ENUM),
+          offset(offset),
           arrayStride(arrayStride),
           matrixStride(matrixStride),
+          arraySize(-1),
           isRowMajorMatrix(isRowMajorMatrix),
           topLevelArrayStride(topLevelArrayStride)
     {}
+
+    constexpr BlockMemberInfo(GLenum type,
+                              int offset,
+                              int arrayStride,
+                              int matrixStride,
+                              int arraySize,
+                              bool isRowMajorMatrix)
+        : type(type),
+          offset(offset),
+          arrayStride(arrayStride),
+          matrixStride(matrixStride),
+          arraySize(arraySize),
+          isRowMajorMatrix(isRowMajorMatrix)
+    {}
+
+    constexpr BlockMemberInfo(GLenum type,
+                              int offset,
+                              int arrayStride,
+                              int matrixStride,
+                              int arraySize,
+                              bool isRowMajorMatrix,
+                              int topLevelArrayStride)
+        : type(type),
+          offset(offset),
+          arrayStride(arrayStride),
+          matrixStride(matrixStride),
+          arraySize(arraySize),
+          isRowMajorMatrix(isRowMajorMatrix),
+          topLevelArrayStride(topLevelArrayStride)
+    {}
+
+    GLenum type = GL_INVALID_ENUM;
 
     // A single integer identifying the offset of an active variable.
     int offset = -1;
@@ -55,6 +91,9 @@ struct BlockMemberInfo
     // row-major matrix.
     int matrixStride = -1;
 
+    // A single integer, identifying the length of an array variable.
+    int arraySize = -1;
+
     // A single integer identifying whether an active variable is a row-major matrix.
     bool isRowMajorMatrix = false;
 
@@ -63,12 +102,14 @@ struct BlockMemberInfo
     int topLevelArrayStride = -1;
 };
 
+bool operator==(const BlockMemberInfo &lhs, const BlockMemberInfo &rhs);
+
 constexpr size_t ComponentAlignment(size_t numComponents)
 {
     return (numComponents == 3u ? 4u : numComponents);
 }
 
-constexpr BlockMemberInfo kDefaultBlockMemberInfo = BlockMemberInfo();
+constexpr BlockMemberInfo kDefaultBlockMemberInfo;
 
 class BlockLayoutEncoder
 {
@@ -76,12 +117,18 @@ class BlockLayoutEncoder
     BlockLayoutEncoder();
     virtual ~BlockLayoutEncoder() {}
 
-    BlockMemberInfo encodeType(GLenum type,
-                               const std::vector<unsigned int> &arraySizes,
-                               bool isRowMajorMatrix);
+    virtual BlockMemberInfo encodeType(GLenum type,
+                                       const std::vector<unsigned int> &arraySizes,
+                                       bool isRowMajorMatrix);
+    // Advance the offset based on struct size and array dimensions.  Size can be calculated with
+    // getShaderVariableSize() or equivalent.  |enterAggregateType|/|exitAggregateType| is necessary
+    // around this call.
+    virtual BlockMemberInfo encodeArrayOfPreEncodedStructs(
+        size_t size,
+        const std::vector<unsigned int> &arraySizes);
 
-    size_t getCurrentOffset() const { return mCurrentOffset * kBytesPerComponent; }
-    size_t getShaderVariableSize(const ShaderVariable &structVar, bool isRowMajor);
+    virtual size_t getCurrentOffset() const;
+    virtual size_t getShaderVariableSize(const ShaderVariable &structVar, bool isRowMajor);
 
     // Called when entering/exiting a structure variable.
     virtual void enterAggregateType(const ShaderVariable &structVar) = 0;
@@ -111,10 +158,10 @@ class BlockLayoutEncoder
 };
 
 // Will return default values for everything.
-class DummyBlockEncoder : public BlockLayoutEncoder
+class StubBlockEncoder : public BlockLayoutEncoder
 {
   public:
-    DummyBlockEncoder() = default;
+    StubBlockEncoder() = default;
 
     void enterAggregateType(const ShaderVariable &structVar) override {}
     void exitAggregateType(const ShaderVariable &structVar) override {}
@@ -179,10 +226,10 @@ void GetInterfaceBlockInfo(const std::vector<ShaderVariable> &fields,
                            BlockLayoutMap *blockInfoOut);
 
 // Used for laying out the default uniform block on the Vulkan backend.
-void GetUniformBlockInfo(const std::vector<ShaderVariable> &uniforms,
-                         const std::string &prefix,
-                         BlockLayoutEncoder *encoder,
-                         BlockLayoutMap *blockInfoOut);
+void GetActiveUniformBlockInfo(const std::vector<ShaderVariable> &uniforms,
+                               const std::string &prefix,
+                               BlockLayoutEncoder *encoder,
+                               BlockLayoutMap *blockInfoOut);
 
 class ShaderVariableVisitor
 {
@@ -201,7 +248,7 @@ class ShaderVariableVisitor
     virtual void enterArrayElement(const ShaderVariable &arrayVar, unsigned int arrayElement) {}
     virtual void exitArrayElement(const ShaderVariable &arrayVar, unsigned int arrayElement) {}
 
-    virtual void visitSampler(const sh::ShaderVariable &sampler) {}
+    virtual void visitOpaqueObject(const sh::ShaderVariable &variable) {}
 
     virtual void visitVariable(const ShaderVariable &variable, bool isRowMajor) = 0;
 
@@ -225,10 +272,10 @@ class VariableNameVisitor : public ShaderVariableVisitor
     void exitArrayElement(const ShaderVariable &arrayVar, unsigned int arrayElement) override;
 
   protected:
-    virtual void visitNamedSampler(const sh::ShaderVariable &sampler,
-                                   const std::string &name,
-                                   const std::string &mappedName,
-                                   const std::vector<unsigned int> &arraySizes)
+    virtual void visitNamedOpaqueObject(const sh::ShaderVariable &variable,
+                                        const std::string &name,
+                                        const std::string &mappedName,
+                                        const std::vector<unsigned int> &arraySizes)
     {}
     virtual void visitNamedVariable(const ShaderVariable &variable,
                                     bool isRowMajor,
@@ -240,7 +287,7 @@ class VariableNameVisitor : public ShaderVariableVisitor
     std::string collapseMappedNameStack() const;
 
   private:
-    void visitSampler(const sh::ShaderVariable &sampler) final;
+    void visitOpaqueObject(const sh::ShaderVariable &variable) final;
     void visitVariable(const ShaderVariable &variable, bool isRowMajor) final;
 
     std::vector<std::string> mNameStack;
@@ -296,6 +343,20 @@ void TraverseShaderVariables(const std::vector<T> &vars,
     for (const T &var : vars)
     {
         TraverseShaderVariable(var, isRowMajorLayout, visitor);
+    }
+}
+
+template <typename T>
+void TraverseActiveShaderVariables(const std::vector<T> &vars,
+                                   bool isRowMajorLayout,
+                                   ShaderVariableVisitor *visitor)
+{
+    for (const T &var : vars)
+    {
+        if (var.active)
+        {
+            TraverseShaderVariable(var, isRowMajorLayout, visitor);
+        }
     }
 }
 }  // namespace sh

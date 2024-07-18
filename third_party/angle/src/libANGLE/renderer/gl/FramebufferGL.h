@@ -23,7 +23,7 @@ class StateManagerGL;
 class FramebufferGL : public FramebufferImpl
 {
   public:
-    FramebufferGL(const gl::FramebufferState &data, GLuint id, bool isDefault, bool emulatedAlpha);
+    FramebufferGL(const gl::FramebufferState &data, GLuint id, bool emulatedAlpha);
     ~FramebufferGL() override;
 
     void destroy(const gl::Context *context) override;
@@ -58,13 +58,12 @@ class FramebufferGL : public FramebufferImpl
                                 GLfloat depth,
                                 GLint stencil) override;
 
-    GLenum getImplementationColorReadFormat(const gl::Context *context) const override;
-    GLenum getImplementationColorReadType(const gl::Context *context) const override;
-
     angle::Result readPixels(const gl::Context *context,
                              const gl::Rectangle &area,
                              GLenum format,
                              GLenum type,
+                             const gl::PixelPackState &pack,
+                             gl::Buffer *packBuffer,
                              void *pixels) override;
 
     angle::Result blit(const gl::Context *context,
@@ -80,15 +79,24 @@ class FramebufferGL : public FramebufferImpl
     // The GL back-end requires a full sync state before we call checkStatus.
     bool shouldSyncStateBeforeCheckStatus() const override;
 
-    bool checkStatus(const gl::Context *context) const override;
+    gl::FramebufferStatus checkStatus(const gl::Context *context) const override;
 
     angle::Result syncState(const gl::Context *context,
-                            const gl::Framebuffer::DirtyBits &dirtyBits) override;
+                            GLenum binding,
+                            const gl::Framebuffer::DirtyBits &dirtyBits,
+                            gl::Command command) override;
 
-    GLuint getFramebufferID() const;
-    bool isDefault() const;
+    void updateDefaultFramebufferID(GLuint framebufferID);
+    bool isDefault() const { return mState.isDefault(); }
 
+    void setHasEmulatedAlphaAttachment(bool hasEmulatedAlphaAttachment)
+    {
+        mHasEmulatedAlphaAttachment = hasEmulatedAlphaAttachment;
+    }
     bool hasEmulatedAlphaChannelTextureAttachment() const;
+
+    void setFramebufferID(GLuint id) { mFramebufferID = id; }
+    GLuint getFramebufferID() const { return mFramebufferID; }
 
   private:
     void syncClearState(const gl::Context *context, GLbitfield mask);
@@ -101,6 +109,7 @@ class FramebufferGL : public FramebufferImpl
 
     angle::Result readPixelsRowByRow(const gl::Context *context,
                                      const gl::Rectangle &area,
+                                     GLenum originalReadFormat,
                                      GLenum format,
                                      GLenum type,
                                      const gl::PixelPackState &pack,
@@ -108,6 +117,7 @@ class FramebufferGL : public FramebufferImpl
 
     angle::Result readPixelsAllAtOnce(const gl::Context *context,
                                       const gl::Rectangle &area,
+                                      GLenum originalReadFormat,
                                       GLenum format,
                                       GLenum type,
                                       const gl::PixelPackState &pack,
@@ -130,10 +140,7 @@ class FramebufferGL : public FramebufferImpl
                                 gl::Rectangle *newDestArea);
 
     GLuint mFramebufferID;
-    bool mIsDefault;
-
     bool mHasEmulatedAlphaAttachment;
-
     gl::DrawBufferMask mAppliedEnabledDrawBuffers;
 };
 }  // namespace rx

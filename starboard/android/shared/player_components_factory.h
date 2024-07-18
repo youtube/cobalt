@@ -199,8 +199,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
   const int kAudioSinkFramesAlignment = 256;
   const int kDefaultAudioSinkMinFramesPerAppend = 1024;
-  const int kDefaultAudioSinkMaxCachedFrames =
-      8 * kDefaultAudioSinkMinFramesPerAppend;
 
   static int AlignUp(int value, int alignment) {
     return (value + alignment - 1) / alignment * alignment;

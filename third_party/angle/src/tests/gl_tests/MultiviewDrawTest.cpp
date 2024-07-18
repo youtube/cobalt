@@ -7,7 +7,7 @@
 // Test issuing multiview Draw* commands.
 //
 
-#include "platform/FeaturesD3D.h"
+#include "platform/FeaturesD3D_autogen.h"
 #include "test_utils/MultiviewTest.h"
 #include "test_utils/gl_raii.h"
 
@@ -285,12 +285,6 @@ class MultiviewRenderTest : public MultiviewFramebufferTestBase
   protected:
     MultiviewRenderTest() : MultiviewFramebufferTestBase(GetParam(), GetParam().mSamples) {}
 
-    void overrideWorkaroundsD3D(FeaturesD3D *features) override
-    {
-        features->overrideFeatures({"select_view_in_geometry_shader"},
-                                   GetParam().mForceUseGeometryShaderOnD3D);
-    }
-
     virtual void testSetUp() {}
     virtual void testTearDown() {}
 
@@ -513,7 +507,8 @@ class MultiviewRenderPrimitiveTest : public MultiviewRenderTest
                         static_cast<size_t>(view * mViewWidth * mViewHeight + mViewWidth * h + w);
                     EXPECT_EQ(GLColor(0, expectedGreenChannelData[flatIndex], 0,
                                       expectedGreenChannelData[flatIndex]),
-                              GetViewColor(w, h, view));
+                              GetViewColor(w, h, view))
+                        << "view: " << view << ", w: " << w << ", h: " << h;
                 }
             }
         }
@@ -527,11 +522,6 @@ class MultiviewLayeredRenderTest : public MultiviewFramebufferTestBase
     MultiviewLayeredRenderTest() : MultiviewFramebufferTestBase(GetParam(), 0) {}
     void SetUp() final { MultiviewFramebufferTestBase::FramebufferTestSetUp(); }
     void TearDown() final { MultiviewFramebufferTestBase::FramebufferTestTearDown(); }
-    void overrideWorkaroundsD3D(FeaturesD3D *features) final
-    {
-        features->overrideFeatures({"select_view_in_geometry_shader"},
-                                   GetParam().mForceUseGeometryShaderOnD3D);
-    }
 };
 
 // The test verifies that glDraw*Indirect works for any number of views.
@@ -932,6 +922,7 @@ TEST_P(MultiviewDrawValidationTest, ActiveTimeElapsedQuery)
 TEST_P(MultiviewRenderDualViewTest, DrawArrays)
 {
     ANGLE_SKIP_TEST_IF(!requestMultiviewExtension(isMultisampled()));
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     drawQuad(mProgram, "vPosition", 0.0f, 1.0f, true);
     ASSERT_GL_NO_ERROR();
@@ -943,6 +934,7 @@ TEST_P(MultiviewRenderDualViewTest, DrawArrays)
 TEST_P(MultiviewRenderDualViewTest, DrawElements)
 {
     ANGLE_SKIP_TEST_IF(!requestMultiviewExtension(isMultisampled()));
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     drawIndexedQuad(mProgram, "vPosition", 0.0f, 1.0f, true);
     ASSERT_GL_NO_ERROR();
@@ -954,6 +946,7 @@ TEST_P(MultiviewRenderDualViewTest, DrawElements)
 TEST_P(MultiviewRenderDualViewTest, DrawRangeElements)
 {
     ANGLE_SKIP_TEST_IF(!requestMultiviewExtension(isMultisampled()));
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     drawIndexedQuad(mProgram, "vPosition", 0.0f, 1.0f, true, true);
     ASSERT_GL_NO_ERROR();
@@ -965,6 +958,7 @@ TEST_P(MultiviewRenderDualViewTest, DrawRangeElements)
 TEST_P(MultiviewRenderTest, DrawArraysFourViews)
 {
     ANGLE_SKIP_TEST_IF(!requestMultiviewExtension(isMultisampled()));
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     const std::string VS =
         "#version 300 es\n"
@@ -1027,6 +1021,7 @@ TEST_P(MultiviewRenderTest, DrawArraysFourViews)
 TEST_P(MultiviewRenderTest, DrawArraysInstanced)
 {
     ANGLE_SKIP_TEST_IF(!requestMultiviewExtension(isMultisampled()));
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     const std::string VS =
         "#version 300 es\n"
@@ -1097,6 +1092,7 @@ TEST_P(MultiviewRenderTest, DrawArraysInstanced)
 TEST_P(MultiviewRenderTest, AttribDivisor)
 {
     ANGLE_SKIP_TEST_IF(!requestMultiviewExtension(isMultisampled()));
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     // Looks like an incorrect D3D debug layer message is generated on Windows AMD and NVIDIA.
     // May be specific to Windows 7 / Windows Server 2008. http://anglebug.com/2778
@@ -1185,6 +1181,7 @@ TEST_P(MultiviewRenderTest, AttribDivisor)
 TEST_P(MultiviewRenderTest, DivisorOrderOfOperation)
 {
     ANGLE_SKIP_TEST_IF(!requestMultiviewExtension(isMultisampled()));
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     updateFBOs(1, 1, 2);
 
@@ -1218,7 +1215,7 @@ TEST_P(MultiviewRenderTest, DivisorOrderOfOperation)
 
     ANGLE_GL_PROGRAM(program, VS.c_str(), FS.c_str());
 
-    constexpr char kDummyVS[] =
+    constexpr char kStubVS[] =
         "#version 300 es\n"
         "layout(location = 0) in vec2 vPosition;\n"
         "layout(location = 1) in float offsetX;\n"
@@ -1227,7 +1224,7 @@ TEST_P(MultiviewRenderTest, DivisorOrderOfOperation)
         "       gl_Position = vec4(vPosition, 0.0, 1.0);\n"
         "}\n";
 
-    constexpr char kDummyFS[] =
+    constexpr char kStubFS[] =
         "#version 300 es\n"
         "precision mediump float;\n"
         "out vec4 col;\n"
@@ -1236,7 +1233,7 @@ TEST_P(MultiviewRenderTest, DivisorOrderOfOperation)
         "    col = vec4(0,0,0,1);\n"
         "}\n";
 
-    ANGLE_GL_PROGRAM(dummyProgram, kDummyVS, kDummyFS);
+    ANGLE_GL_PROGRAM(stubProgram, kStubVS, kStubFS);
 
     GLBuffer xOffsetVBO;
     glBindBuffer(GL_ARRAY_BUFFER, xOffsetVBO);
@@ -1273,7 +1270,7 @@ TEST_P(MultiviewRenderTest, DivisorOrderOfOperation)
     // Clear the buffers, propagate divisor to the driver, bind the vao and keep it active.
     // It is necessary to call draw, so that the divisor is propagated and to guarantee that dirty
     // bits are cleared.
-    glUseProgram(dummyProgram);
+    glUseProgram(stubProgram);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glBindVertexArray(vao[0]);
@@ -1296,7 +1293,7 @@ TEST_P(MultiviewRenderTest, DivisorOrderOfOperation)
     // Clear the buffers and propagate divisor to the driver.
     // We keep the vao active and propagate the divisor to guarantee that there are no unresolved
     // dirty bits when useProgram is called.
-    glUseProgram(dummyProgram);
+    glUseProgram(stubProgram);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glVertexAttribDivisor(1, 1);
@@ -1315,7 +1312,7 @@ TEST_P(MultiviewRenderTest, DivisorOrderOfOperation)
     EXPECT_EQ(GLColor::green, GetViewColor(0, 0, 1));
 
     // We go through similar steps as before.
-    glUseProgram(dummyProgram);
+    glUseProgram(stubProgram);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glVertexAttribDivisor(1, 1);
@@ -1352,6 +1349,7 @@ TEST_P(MultiviewOcclusionQueryTest, OcclusionQueryNothingVisible)
 {
     ANGLE_SKIP_TEST_IF(!requestMultiviewExtension());
     ANGLE_SKIP_TEST_IF(!requestOcclusionQueryExtension());
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     const std::string VS =
         "#version 300 es\n"
@@ -1589,6 +1587,7 @@ TEST_P(MultiviewRenderPrimitiveTest, Points)
 
     // Test failing on P400 graphics card (anglebug.com/2228)
     ANGLE_SKIP_TEST_IF(IsWindows() && IsD3D11() && IsNVIDIA());
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     const std::string VS =
         "#version 300 es\n"
@@ -1646,6 +1645,7 @@ TEST_P(MultiviewRenderPrimitiveTest, Lines)
     {
         return;
     }
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     GLuint program = CreateSimplePassthroughProgram(2, GetParam().mMultiviewExtension);
     ASSERT_NE(program, 0u);
@@ -1683,6 +1683,7 @@ TEST_P(MultiviewRenderPrimitiveTest, LineStrip)
     {
         return;
     }
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     GLuint program = CreateSimplePassthroughProgram(2, GetParam().mMultiviewExtension);
     ASSERT_NE(program, 0u);
@@ -1721,8 +1722,9 @@ TEST_P(MultiviewRenderPrimitiveTest, LineLoop)
         return;
     }
     // Only this subtest fails on intel-hd-630-ubuntu-stable. Driver bug?
-    // https://bugs.chromium.org/p/angleproject/issues/detail?id=3472
+    // https://anglebug.com/3472
     ANGLE_SKIP_TEST_IF(IsIntel() && IsLinux() && IsOpenGL());
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     GLuint program = CreateSimplePassthroughProgram(2, GetParam().mMultiviewExtension);
     ASSERT_NE(program, 0u);
@@ -1741,6 +1743,7 @@ TEST_P(MultiviewRenderPrimitiveTest, LineLoop)
     setupGeometry(vertexDataInClipSpace);
 
     glDrawArrays(GL_LINE_LOOP, 0, 4);
+    EXPECT_GL_NO_ERROR();
 
     const GLubyte expectedGreenChannelData[kNumViews][kViewHeight][kViewWidth] = {
         {{255, 255, 255, 255}, {255, 0, 0, 255}, {255, 0, 0, 255}, {255, 255, 255, 255}},
@@ -1757,6 +1760,7 @@ TEST_P(MultiviewRenderPrimitiveTest, TriangleStrip)
     {
         return;
     }
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     GLuint program = CreateSimplePassthroughProgram(2, GetParam().mMultiviewExtension);
     ASSERT_NE(program, 0u);
@@ -1788,6 +1792,7 @@ TEST_P(MultiviewRenderPrimitiveTest, TriangleFan)
     {
         return;
     }
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     GLuint program = CreateSimplePassthroughProgram(2, GetParam().mMultiviewExtension);
     ASSERT_NE(program, 0u);
@@ -1817,6 +1822,7 @@ TEST_P(MultiviewRenderPrimitiveTest, TriangleFan)
 // to each other. The quads' position and color depend on the corresponding attribute divisors.
 TEST_P(MultiviewRenderTest, ProgramRelinkUpdatesAttribDivisor)
 {
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
     if (!requestMultiviewExtension(isMultisampled()))
     {
         return;
@@ -1970,6 +1976,7 @@ TEST_P(MultiviewRenderTest, DivisorUpdatedOnProgramChange)
 
     // Test failing on P400 graphics card (anglebug.com/2228)
     ANGLE_SKIP_TEST_IF(IsWindows() && IsD3D11() && IsNVIDIA());
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
 
     // Looks like an incorrect D3D debug layer message is generated on Windows / AMD.
     // May be specific to Windows 7 / Windows Server 2008. http://anglebug.com/2778
@@ -2080,6 +2087,7 @@ TEST_P(MultiviewRenderTest, SelectColorBasedOnViewIDOVR)
 // multi-view program.
 TEST_P(MultiviewLayeredRenderTest, RenderToSubrangeOfLayers)
 {
+    ANGLE_SKIP_TEST_IF(IsARM64() && IsWindows() && IsD3D());
     if (!requestMultiviewExtension())
     {
         return;
@@ -2231,81 +2239,162 @@ TEST_P(MultiviewRenderTest, FlatInterpolation2)
     EXPECT_EQ(GLColor::green, GetViewColor(0, 0, 1));
 }
 
+// Test that shader caching maintains the num_views value used in GL_OVR_multiview between shader
+// compilations.
+TEST_P(MultiviewRenderTest, ShaderCacheVertexWithOVRMultiview)
+{
+    ANGLE_SKIP_TEST_IF(!IsVulkan());
+    if (!requestMultiviewExtension(true))
+    {
+        return;
+    }
+
+    constexpr char kVS[] = R"(#version 300 es
+#extension GL_OVR_multiview : enable
+
+layout (num_views = 2) in;
+
+precision mediump float;
+
+layout (location = 0) in vec4 a_position;
+
+out float redValue;
+out float greenValue;
+
+void main() {
+    gl_Position = a_position;
+    if (gl_ViewID_OVR == uint(0))
+    {
+        redValue = 1.;
+        greenValue = 0.;
+    }
+    else
+    {
+        redValue = 0.;
+        greenValue = 1.;
+    }
+})";
+
+    constexpr char kFS[] = R"(#version 300 es
+
+precision mediump float;
+
+in float redValue;
+in float greenValue;
+
+out vec4 fragColor;
+
+void main()
+{
+    fragColor = vec4(redValue, greenValue, 0., 1.);
+})";
+
+    // Only use a single 1x1 FBO
+    updateFBOs(1, 1, 2);
+
+    ANGLE_GL_PROGRAM(unusedProgram, kVS, kFS);
+    ASSERT_GL_NO_ERROR();
+    // Delete the shader and recompile to fetch from cache.
+    glDeleteProgram(unusedProgram);
+    ANGLE_GL_PROGRAM(program, kVS, kFS);
+    glUseProgram(program);
+    ASSERT_GL_NO_ERROR();
+
+    drawQuad(program, essl1_shaders::PositionAttrib(), 0.0f, 1.0f, true);
+    ASSERT_GL_NO_ERROR();
+
+    resolveMultisampledFBO();
+    EXPECT_EQ(GLColor::red, GetViewColor(0, 0, 0));
+    EXPECT_EQ(GLColor::green, GetViewColor(0, 0, 1));
+}
+
 MultiviewRenderTestParams VertexShaderOpenGL(ExtensionName multiviewExtension)
 {
-    return MultiviewRenderTestParams(0, VertexShaderOpenGL(3, 0, multiviewExtension));
+    return MultiviewRenderTestParams(
+        0, VertexShaderOpenGL(EGL_OPENGL_ES_API, 3, 0, 0, multiviewExtension));
+}
+
+MultiviewRenderTestParams VertexShaderVulkan(ExtensionName multiviewExtension)
+{
+    return MultiviewRenderTestParams(
+        0, VertexShaderVulkan(EGL_OPENGL_ES_API, 3, 0, 0, multiviewExtension));
 }
 
 MultiviewRenderTestParams GeomShaderD3D11(ExtensionName multiviewExtension)
 {
-    return MultiviewRenderTestParams(0, GeomShaderD3D11(3, 0, multiviewExtension));
+    return MultiviewRenderTestParams(
+        0, GeomShaderD3D11(EGL_OPENGL_ES_API, 3, 0, 0, multiviewExtension));
 }
 
 MultiviewRenderTestParams VertexShaderD3D11(ExtensionName multiviewExtension)
 {
-    return MultiviewRenderTestParams(0, VertexShaderD3D11(3, 0, multiviewExtension));
+    return MultiviewRenderTestParams(
+        0, VertexShaderD3D11(EGL_OPENGL_ES_API, 3, 0, 0, multiviewExtension));
 }
 
 MultiviewRenderTestParams MultisampledVertexShaderOpenGL(ExtensionName multiviewExtension)
 {
-    return MultiviewRenderTestParams(2, VertexShaderOpenGL(3, 1, multiviewExtension));
+    return MultiviewRenderTestParams(
+        2, VertexShaderOpenGL(EGL_OPENGL_ES_API, 3, 1, 0, multiviewExtension));
+}
+
+MultiviewRenderTestParams MultisampledVertexShaderVulkan(ExtensionName multiviewExtension)
+{
+    return MultiviewRenderTestParams(
+        2, VertexShaderVulkan(EGL_OPENGL_ES_API, 3, 1, 0, multiviewExtension));
 }
 
 MultiviewRenderTestParams MultisampledVertexShaderD3D11(ExtensionName multiviewExtension)
 {
-    return MultiviewRenderTestParams(2, VertexShaderD3D11(3, 1, multiviewExtension));
+    return MultiviewRenderTestParams(
+        2, VertexShaderD3D11(EGL_OPENGL_ES_API, 3, 1, 0, multiviewExtension));
 }
 
-ANGLE_INSTANTIATE_TEST(MultiviewDrawValidationTest,
-                       VertexShaderOpenGL(3, 1, ExtensionName::multiview),
-                       VertexShaderD3D11(3, 1, ExtensionName::multiview),
-                       VertexShaderOpenGL(3, 1, ExtensionName::multiview2),
-                       VertexShaderD3D11(3, 1, ExtensionName::multiview2));
+#define ALL_VERTEX_SHADER_CONFIGS(minor)                                               \
+    VertexShaderOpenGL(EGL_OPENGL_ES_API, 3, minor, 0, ExtensionName::multiview),      \
+        VertexShaderVulkan(EGL_OPENGL_ES_API, 3, minor, 0, ExtensionName::multiview),  \
+        VertexShaderD3D11(EGL_OPENGL_ES_API, 3, minor, 0, ExtensionName::multiview),   \
+        VertexShaderOpenGL(EGL_OPENGL_ES_API, 3, minor, 0, ExtensionName::multiview2), \
+        VertexShaderVulkan(EGL_OPENGL_ES_API, 3, minor, 0, ExtensionName::multiview2), \
+        VertexShaderD3D11(EGL_OPENGL_ES_API, 3, minor, 0, ExtensionName::multiview2)
+
+#define ALL_SINGLESAMPLE_CONFIGS()                                                              \
+    VertexShaderOpenGL(ExtensionName::multiview), VertexShaderVulkan(ExtensionName::multiview), \
+        VertexShaderD3D11(ExtensionName::multiview), GeomShaderD3D11(ExtensionName::multiview), \
+        VertexShaderOpenGL(ExtensionName::multiview2),                                          \
+        VertexShaderVulkan(ExtensionName::multiview2),                                          \
+        VertexShaderD3D11(ExtensionName::multiview2), GeomShaderD3D11(ExtensionName::multiview2)
+
+#define ALL_MULTISAMPLE_CONFIGS()                                  \
+    MultisampledVertexShaderOpenGL(ExtensionName::multiview),      \
+        MultisampledVertexShaderVulkan(ExtensionName::multiview),  \
+        MultisampledVertexShaderD3D11(ExtensionName::multiview),   \
+        MultisampledVertexShaderOpenGL(ExtensionName::multiview2), \
+        MultisampledVertexShaderVulkan(ExtensionName::multiview2), \
+        MultisampledVertexShaderD3D11(ExtensionName::multiview2)
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MultiviewDrawValidationTest);
+ANGLE_INSTANTIATE_TEST(MultiviewDrawValidationTest, ALL_VERTEX_SHADER_CONFIGS(1));
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MultiviewRenderDualViewTest);
 ANGLE_INSTANTIATE_TEST(MultiviewRenderDualViewTest,
-                       VertexShaderOpenGL(ExtensionName::multiview),
-                       MultisampledVertexShaderOpenGL(ExtensionName::multiview),
-                       GeomShaderD3D11(ExtensionName::multiview),
-                       VertexShaderD3D11(ExtensionName::multiview),
-                       MultisampledVertexShaderD3D11(ExtensionName::multiview),
-                       VertexShaderOpenGL(ExtensionName::multiview2),
-                       MultisampledVertexShaderOpenGL(ExtensionName::multiview2),
-                       GeomShaderD3D11(ExtensionName::multiview2),
-                       VertexShaderD3D11(ExtensionName::multiview2),
-                       MultisampledVertexShaderD3D11(ExtensionName::multiview2));
-ANGLE_INSTANTIATE_TEST(MultiviewRenderTest,
-                       VertexShaderOpenGL(ExtensionName::multiview),
-                       MultisampledVertexShaderOpenGL(ExtensionName::multiview),
-                       GeomShaderD3D11(ExtensionName::multiview),
-                       VertexShaderD3D11(ExtensionName::multiview),
-                       MultisampledVertexShaderD3D11(ExtensionName::multiview),
-                       VertexShaderOpenGL(ExtensionName::multiview2),
-                       MultisampledVertexShaderOpenGL(ExtensionName::multiview2),
-                       GeomShaderD3D11(ExtensionName::multiview2),
-                       VertexShaderD3D11(ExtensionName::multiview2),
-                       MultisampledVertexShaderD3D11(ExtensionName::multiview2));
-ANGLE_INSTANTIATE_TEST(MultiviewOcclusionQueryTest,
-                       VertexShaderOpenGL(ExtensionName::multiview),
-                       GeomShaderD3D11(ExtensionName::multiview),
-                       VertexShaderD3D11(ExtensionName::multiview),
-                       VertexShaderOpenGL(ExtensionName::multiview2),
-                       GeomShaderD3D11(ExtensionName::multiview2),
-                       VertexShaderD3D11(ExtensionName::multiview2));
+                       ALL_SINGLESAMPLE_CONFIGS(),
+                       ALL_MULTISAMPLE_CONFIGS());
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MultiviewRenderTest);
+ANGLE_INSTANTIATE_TEST(MultiviewRenderTest, ALL_SINGLESAMPLE_CONFIGS(), ALL_MULTISAMPLE_CONFIGS());
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MultiviewOcclusionQueryTest);
+ANGLE_INSTANTIATE_TEST(MultiviewOcclusionQueryTest, ALL_SINGLESAMPLE_CONFIGS());
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MultiviewProgramGenerationTest);
 ANGLE_INSTANTIATE_TEST(MultiviewProgramGenerationTest,
-                       VertexShaderOpenGL(3, 0, ExtensionName::multiview),
-                       GeomShaderD3D11(3, 0, ExtensionName::multiview),
-                       VertexShaderD3D11(3, 0, ExtensionName::multiview),
-                       VertexShaderOpenGL(3, 0, ExtensionName::multiview2),
-                       GeomShaderD3D11(3, 0, ExtensionName::multiview2),
-                       VertexShaderD3D11(3, 0, ExtensionName::multiview2));
-ANGLE_INSTANTIATE_TEST(MultiviewRenderPrimitiveTest,
-                       VertexShaderOpenGL(ExtensionName::multiview),
-                       GeomShaderD3D11(ExtensionName::multiview),
-                       VertexShaderD3D11(ExtensionName::multiview),
-                       VertexShaderOpenGL(ExtensionName::multiview2),
-                       GeomShaderD3D11(ExtensionName::multiview2),
-                       VertexShaderD3D11(ExtensionName::multiview2));
-ANGLE_INSTANTIATE_TEST(MultiviewLayeredRenderTest,
-                       VertexShaderOpenGL(ExtensionName::multiview),
-                       GeomShaderD3D11(ExtensionName::multiview),
-                       VertexShaderOpenGL(ExtensionName::multiview2),
-                       GeomShaderD3D11(ExtensionName::multiview2));
+                       ALL_VERTEX_SHADER_CONFIGS(0),
+                       GeomShaderD3D11(EGL_OPENGL_ES_API, 3, 0, 0, ExtensionName::multiview),
+                       GeomShaderD3D11(EGL_OPENGL_ES_API, 3, 0, 0, ExtensionName::multiview2));
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MultiviewRenderPrimitiveTest);
+ANGLE_INSTANTIATE_TEST(MultiviewRenderPrimitiveTest, ALL_SINGLESAMPLE_CONFIGS());
+
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(MultiviewLayeredRenderTest);
+ANGLE_INSTANTIATE_TEST(MultiviewLayeredRenderTest, ALL_SINGLESAMPLE_CONFIGS());

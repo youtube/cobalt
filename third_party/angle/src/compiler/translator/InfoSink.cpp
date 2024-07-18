@@ -7,6 +7,7 @@
 #include "compiler/translator/InfoSink.h"
 
 #include "compiler/translator/ImmutableString.h"
+#include "compiler/translator/Symbol.h"
 #include "compiler/translator/Types.h"
 
 namespace sh
@@ -48,22 +49,63 @@ TInfoSinkBase &TInfoSinkBase::operator<<(const TType &type)
         sink.append(type.getPrecisionString());
         sink.append(" ");
     }
+
+    const TMemoryQualifier &memoryQualifier = type.getMemoryQualifier();
+    if (memoryQualifier.readonly)
+    {
+        sink.append("readonly ");
+    }
+    if (memoryQualifier.writeonly)
+    {
+        sink.append("writeonly ");
+    }
+    if (memoryQualifier.coherent)
+    {
+        sink.append("coherent ");
+    }
+    if (memoryQualifier.restrictQualifier)
+    {
+        sink.append("restrict ");
+    }
+    if (memoryQualifier.volatileQualifier)
+    {
+        sink.append("volatile ");
+    }
+
     if (type.isArray())
     {
-        for (auto arraySizeIter = type.getArraySizes()->rbegin();
-             arraySizeIter != type.getArraySizes()->rend(); ++arraySizeIter)
+        for (auto arraySizeIter = type.getArraySizes().rbegin();
+             arraySizeIter != type.getArraySizes().rend(); ++arraySizeIter)
         {
             *this << "array[" << (*arraySizeIter) << "] of ";
         }
     }
     if (type.isMatrix())
     {
-        *this << type.getCols() << "X" << type.getRows() << " matrix of ";
+        *this << static_cast<uint32_t>(type.getCols()) << "X"
+              << static_cast<uint32_t>(type.getRows()) << " matrix of ";
     }
     else if (type.isVector())
-        *this << type.getNominalSize() << "-component vector of ";
+        *this << static_cast<uint32_t>(type.getNominalSize()) << "-component vector of ";
 
     sink.append(type.getBasicString());
+
+    if (type.getStruct() != nullptr)
+    {
+        if (type.getStruct()->symbolType() == SymbolType::Empty)
+        {
+            *this << " <anonymous>";
+        }
+        else
+        {
+            *this << " '" << type.getStruct()->name() << "'";
+        }
+        if (type.isStructSpecifier())
+        {
+            *this << " (specifier)";
+        }
+    }
+
     return *this;
 }
 

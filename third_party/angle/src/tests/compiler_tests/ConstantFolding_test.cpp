@@ -13,7 +13,7 @@ using namespace sh;
 
 // Test that zero, true or false are not found in AST when they are not expected. This is to make
 // sure that the subsequent tests run correctly.
-TEST_F(ConstantFoldingExpressionTest, FoldFloatTestSanityCheck)
+TEST_F(ConstantFoldingExpressionTest, FoldFloatTestCheck)
 {
     const std::string &floatString = "1.0";
     evaluateFloat(floatString);
@@ -1593,4 +1593,60 @@ TEST_F(ConstantFoldingExpressionTest, IntegerModulusNegativeDivisor)
     const std::string &intString = "5 % (-3)";
     evaluateInt(intString);
     ASSERT_TRUE(hasWarning());
+}
+
+TEST_F(ConstantFoldingExpressionTest, IsnanDifferentComponents)
+{
+    const std::string &ivec4String =
+        "ivec4(mix(ivec2(2), ivec2(3), isnan(vec2(1.0, 0.0 / 0.0))), 4, 5)";
+    evaluateIvec4(ivec4String);
+    int outputElements[] = {2, 3, 4, 5};
+    std::vector<int> result(outputElements, outputElements + 4);
+    ASSERT_TRUE(constantVectorFoundInAST(result));
+}
+
+TEST_F(ConstantFoldingExpressionTest, IsinfDifferentComponents)
+{
+    const std::string &ivec4String =
+        "ivec4(mix(ivec2(2), ivec2(3), isinf(vec2(0.0, 1.0e2048))), 4, 5)";
+    evaluateIvec4(ivec4String);
+    int outputElements[] = {2, 3, 4, 5};
+    std::vector<int> result(outputElements, outputElements + 4);
+    ASSERT_TRUE(constantVectorFoundInAST(result));
+}
+
+TEST_F(ConstantFoldingExpressionTest, FloatBitsToIntDifferentComponents)
+{
+    const std::string &ivec4String = "ivec4(floatBitsToInt(vec2(0.0, 1.0)), 4, 5)";
+    evaluateIvec4(ivec4String);
+    int outputElements[] = {0, 0x3f800000, 4, 5};
+    std::vector<int> result(outputElements, outputElements + 4);
+    ASSERT_TRUE(constantVectorFoundInAST(result));
+}
+
+TEST_F(ConstantFoldingExpressionTest, FloatBitsToUintDifferentComponents)
+{
+    const std::string &ivec4String = "ivec4(floatBitsToUint(vec2(0.0, 1.0)), 4, 5)";
+    evaluateIvec4(ivec4String);
+    int outputElements[] = {0, 0x3f800000, 4, 5};
+    std::vector<int> result(outputElements, outputElements + 4);
+    ASSERT_TRUE(constantVectorFoundInAST(result));
+}
+
+TEST_F(ConstantFoldingExpressionTest, IntBitsToFloatDifferentComponents)
+{
+    const std::string &vec4String = "vec4(intBitsToFloat(ivec2(0, 0x3f800000)), 0.25, 0.5)";
+    evaluateVec4(vec4String);
+    float outputElements[] = {0.0, 1.0, 0.25, 0.5};
+    std::vector<float> result(outputElements, outputElements + 4);
+    ASSERT_TRUE(constantVectorFoundInAST(result));
+}
+
+TEST_F(ConstantFoldingExpressionTest, UintBitsToFloatDifferentComponents)
+{
+    const std::string &vec4String = "vec4(uintBitsToFloat(uvec2(0U, 0x3f800000U)), 0.25, 0.5)";
+    evaluateVec4(vec4String);
+    float outputElements[] = {0.0, 1.0, 0.25, 0.5};
+    std::vector<float> result(outputElements, outputElements + 4);
+    ASSERT_TRUE(constantVectorFoundInAST(result));
 }

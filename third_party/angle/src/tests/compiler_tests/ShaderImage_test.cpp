@@ -124,7 +124,7 @@ class ShaderImageTest : public ShaderCompileTreeTest
     void SetUp() override
     {
         ShaderCompileTreeTest::SetUp();
-        mExtraCompileOptions |= SH_VARIABLES;
+        mCompileOptions.variables = true;
     }
 
     ::GLenum getShaderType() const override { return GL_COMPUTE_SHADER; }
@@ -190,14 +190,14 @@ TEST_F(ShaderImageTest, ImageLoad)
 
     // imageLoad call with image2D passed
     std::string mangledName2D = "imageLoad(";
-    mangledName2D += StaticType::GetBasic<EbtImage2D>()->getMangledName();
-    mangledName2D += StaticType::GetBasic<EbtInt, 2>()->getMangledName();
+    mangledName2D += StaticType::GetBasic<EbtImage2D, EbpUndefined>()->getMangledName();
+    mangledName2D += StaticType::GetBasic<EbtInt, EbpUndefined, 2>()->getMangledName();
     CheckImageLoadCall(mASTRoot, mangledName2D.c_str(), EbtImage2D, 2);
 
     // imageLoad call with image3D passed
     std::string mangledName3D = "imageLoad(";
-    mangledName3D += StaticType::GetBasic<EbtIImage3D>()->getMangledName();
-    mangledName3D += StaticType::GetBasic<EbtInt, 3>()->getMangledName();
+    mangledName3D += StaticType::GetBasic<EbtIImage3D, EbpUndefined>()->getMangledName();
+    mangledName3D += StaticType::GetBasic<EbtInt, EbpUndefined, 3>()->getMangledName();
     CheckImageLoadCall(mASTRoot, mangledName3D.c_str(), EbtIImage3D, 3);
 }
 
@@ -220,16 +220,16 @@ TEST_F(ShaderImageTest, ImageStore)
 
     // imageStore call with image2D
     std::string mangledName2D = "imageStore(";
-    mangledName2D += StaticType::GetBasic<EbtImage2D>()->getMangledName();
-    mangledName2D += StaticType::GetBasic<EbtInt, 2>()->getMangledName();
-    mangledName2D += StaticType::GetBasic<EbtFloat, 4>()->getMangledName();
+    mangledName2D += StaticType::GetBasic<EbtImage2D, EbpUndefined>()->getMangledName();
+    mangledName2D += StaticType::GetBasic<EbtInt, EbpUndefined, 2>()->getMangledName();
+    mangledName2D += StaticType::GetBasic<EbtFloat, EbpUndefined, 4>()->getMangledName();
     CheckImageStoreCall(mASTRoot, mangledName2D.c_str(), EbtImage2D, 2, EbtFloat, 4);
 
     // imageStore call with image2DArray
     std::string mangledName2DArray = "imageStore(";
-    mangledName2DArray += StaticType::GetBasic<EbtUImage2DArray>()->getMangledName();
-    mangledName2DArray += StaticType::GetBasic<EbtInt, 3>()->getMangledName();
-    mangledName2DArray += StaticType::GetBasic<EbtUInt, 4>()->getMangledName();
+    mangledName2DArray += StaticType::GetBasic<EbtUImage2DArray, EbpUndefined>()->getMangledName();
+    mangledName2DArray += StaticType::GetBasic<EbtInt, EbpUndefined, 3>()->getMangledName();
+    mangledName2DArray += StaticType::GetBasic<EbtUInt, EbpUndefined, 4>()->getMangledName();
     CheckImageStoreCall(mASTRoot, mangledName2DArray.c_str(), EbtUImage2DArray, 3, EbtUInt, 4);
 }
 
@@ -243,6 +243,9 @@ TEST_F(ShaderImageTest, ImageMemoryQualifiers)
         "layout(rgba32f) uniform highp volatile writeonly image2D image2;\n"
         "layout(rgba32f) uniform highp volatile restrict readonly writeonly image2D image3;\n"
         "void main() {\n"
+        "    imageSize(image1);\n"
+        "    imageSize(image2);\n"
+        "    imageSize(image3);\n"
         "}";
     if (!compile(shaderString))
     {
