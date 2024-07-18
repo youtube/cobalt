@@ -43,7 +43,7 @@ namespace shared {
 
 // TODO: Better encapsulation the MediaCodecBridge so the decoders no longer
 //       need to talk directly to the MediaCodecBridge.
-class MediaDecoder
+class MediaDecoder final
     : private MediaCodecBridge::Handler,
       protected ::starboard::shared::starboard::player::JobQueue::JobOwner {
  public:
