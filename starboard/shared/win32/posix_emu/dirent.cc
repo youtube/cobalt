@@ -163,9 +163,9 @@ DIR* opendir(const char* path) {
     return nullptr;
   }
 
-  SbFileError* out_error;
+  SbFileError out_error;
   HANDLE directory_handle = starboard::shared::win32::OpenFileOrDirectory(
-      path, kSbFileOpenOnly | kSbFileRead, nullptr, out_error);
+      path, kSbFileOpenOnly | kSbFileRead, nullptr, &out_error);
 
   if (!starboard::shared::win32::IsValidHandle(directory_handle)) {
     errno = EBADF;
