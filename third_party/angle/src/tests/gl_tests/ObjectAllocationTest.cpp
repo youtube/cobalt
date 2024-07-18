@@ -14,14 +14,17 @@ using namespace angle;
 namespace
 {
 
-class ObjectAllocationTest : public ANGLETest
+class ObjectAllocationTest : public ANGLETest<>
 {
   protected:
     ObjectAllocationTest() {}
 };
 
+class ObjectAllocationTestES3 : public ObjectAllocationTest
+{};
+
 // Test that we don't re-allocate a bound framebuffer ID.
-TEST_P(ObjectAllocationTest, BindFramebufferBeforeGen)
+TEST_P(ObjectAllocationTestES3, BindFramebufferBeforeGen)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 1);
     GLuint fbo = 0;
@@ -32,7 +35,7 @@ TEST_P(ObjectAllocationTest, BindFramebufferBeforeGen)
 }
 
 // Test that we don't re-allocate a bound framebuffer ID, other pattern.
-TEST_P(ObjectAllocationTest, BindFramebufferAfterGen)
+TEST_P(ObjectAllocationTestES3, BindFramebufferAfterGen)
 {
     GLuint firstFBO = 0;
     glGenFramebuffers(1, &firstFBO);
@@ -49,6 +52,67 @@ TEST_P(ObjectAllocationTest, BindFramebufferAfterGen)
     EXPECT_GL_NO_ERROR();
 }
 
+// Test that we don't re-allocate a bound framebuffer ID.
+TEST_P(ObjectAllocationTest, BindRenderbuffer)
+{
+    GLuint rbId;
+    glGenRenderbuffers(1, &rbId);
+    glBindRenderbuffer(GL_RENDERBUFFER, rbId);
+    EXPECT_GL_NO_ERROR();
+
+    // Swap now to trigger the serialization of the renderbuffer that
+    // was initialized with the default values
+    swapBuffers();
+
+    glDeleteRenderbuffers(1, &rbId);
+    EXPECT_GL_NO_ERROR();
+}
+
+// Renderbuffers can be created on the fly by calling glBindRenderbuffer,
+// so// check that the call doesn't fail that the renderbuffer is also deleted
+TEST_P(ObjectAllocationTest, BindRenderbufferBeforeGenAndDelete)
+{
+    GLuint rbId = 1;
+    glBindRenderbuffer(GL_RENDERBUFFER, rbId);
+    EXPECT_GL_NO_ERROR();
+
+    // Swap now to trigger the serialization of the renderbuffer that
+    // was initialized with the default values
+    swapBuffers();
+
+    glDeleteRenderbuffers(1, &rbId);
+    EXPECT_GL_NO_ERROR();
+}
+
+// Buffers can be created on the fly by calling glBindBuffer, so
+// check that the call doesn't fail that the buffer is also deleted
+TEST_P(ObjectAllocationTest, BindBufferBeforeGenAndDelete)
+{
+    GLuint id = 1;
+    glBindBuffer(GL_ARRAY_BUFFER, id);
+    EXPECT_GL_NO_ERROR();
+    // trigger serialization to capture the created buffer ID
+    swapBuffers();
+    glDeleteBuffers(1, &id);
+    EXPECT_GL_NO_ERROR();
+}
+
+// Textures can be created on the fly by calling glBindTexture, so
+// check that the call doesn't fail that the texture is also deleted
+TEST_P(ObjectAllocationTest, BindTextureBeforeGenAndDelete)
+{
+    GLuint id = 1;
+    glBindTexture(GL_TEXTURE_2D, id);
+    EXPECT_GL_NO_ERROR();
+    // trigger serialization to capture the created texture ID
+    swapBuffers();
+    glDeleteTextures(1, &id);
+    EXPECT_GL_NO_ERROR();
+}
+
 }  // anonymous namespace
 
-ANGLE_INSTANTIATE_TEST_ES3(ObjectAllocationTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ObjectAllocationTest);
+ANGLE_INSTANTIATE_TEST_ES2(ObjectAllocationTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(ObjectAllocationTestES3);
+ANGLE_INSTANTIATE_TEST_ES3(ObjectAllocationTestES3);

@@ -89,11 +89,6 @@ std::string UniformsParams::story() const
 
     strstr << RenderTestParams::story();
 
-    if (eglParameters.deviceType == EGL_PLATFORM_ANGLE_DEVICE_TYPE_NULL_ANGLE)
-    {
-        strstr << "_null";
-    }
-
     if (dataType == DataType::VEC4)
     {
         strstr << "_" << (numVertexUniforms + numFragmentUniforms) << "_vec4";
@@ -174,7 +169,16 @@ std::vector<Matrix4> GenMatrixData(size_t count, int parity)
     return data;
 }
 
-UniformsBenchmark::UniformsBenchmark() : ANGLERenderTest("Uniforms", GetParam()), mPrograms({}) {}
+UniformsBenchmark::UniformsBenchmark() : ANGLERenderTest("Uniforms", GetParam()), mPrograms({})
+{
+    if (IsWindows7() && IsNVIDIA() &&
+        GetParam().eglParameters.renderer == EGL_PLATFORM_ANGLE_TYPE_VULKAN_ANGLE)
+    {
+        skipTest(
+            "http://crbug.com/1096510 Fails on Windows7 NVIDIA Vulkan, presumably due to old "
+            "drivers");
+    }
+}
 
 void UniformsBenchmark::initializeBenchmark()
 {
@@ -508,10 +512,13 @@ ANGLE_INSTANTIATE_TEST(
     VectorUniforms(D3D11(), DataMode::REPEAT),
     VectorUniforms(D3D11(), DataMode::UPDATE),
     VectorUniforms(D3D11_NULL(), DataMode::UPDATE),
+    VectorUniforms(METAL(), DataMode::UPDATE),
+    VectorUniforms(METAL(), DataMode::REPEAT),
     VectorUniforms(OPENGL_OR_GLES(), DataMode::UPDATE),
     VectorUniforms(OPENGL_OR_GLES(), DataMode::REPEAT),
     VectorUniforms(OPENGL_OR_GLES_NULL(), DataMode::UPDATE),
     MatrixUniforms(D3D11(), DataMode::UPDATE, DataType::MAT4x4, MatrixLayout::NO_TRANSPOSE),
+    MatrixUniforms(METAL(), DataMode::UPDATE, DataType::MAT4x4, MatrixLayout::NO_TRANSPOSE),
     MatrixUniforms(OPENGL_OR_GLES(),
                    DataMode::UPDATE,
                    DataType::MAT4x4,

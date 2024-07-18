@@ -370,33 +370,6 @@
         "WaitSync"
     ],
 
-    "NV_path_rendering (originally written against 3.2 compatibility profile)":
-    [
-        "MatrixLoadfEXT",
-        "GenPathsNV",
-        "DeletePathsNV",
-        "PathCommandsNV",
-        "IsPathNV",
-        "PathParameterfNV",
-        "PathParameteriNV",
-        "GetPathParameterfvNV",
-        "GetPathParameterivNV",
-        "PathStencilFuncNV",
-        "StencilFillPathNV",
-        "StencilStrokePathNV",
-        "CoverFillPathNV",
-        "CoverStrokePathNV",
-        "StencilThenCoverFillPathNV",
-        "StencilThenCoverStrokePathNV",
-        "CoverFillPathInstancedNV",
-        "CoverStrokePathInstancedNV",
-        "StencilFillPathInstancedNV",
-        "StencilStrokePathInstancedNV",
-        "StencilThenCoverFillPathInstancedNV",
-        "StencilThenCoverStrokePathInstancedNV",
-        "ProgramPathFragmentInputGenNV"
-    ],
-
     "3.3":
     [
         "BindFragDataLocationIndexed",
@@ -859,5 +832,54 @@
     [
         "ImportSemaphoreWin32HandleEXT",
         "ImportSemaphoreWin32NameEXT"
+    ],
+
+    "GL_OES_texture_buffer":
+    [
+        "TexBufferOES",
+        "TexBufferRangeOES"
+    ],
+
+    "GL_EXT_texture_buffer":
+    [
+        "TexBufferEXT",
+        "TexBufferRangeEXT"
+    ],
+
+    "GL_EXT_framebuffer_blit":
+    [
+        "BlitFramebufferEXT"
+    ],
+
+    "GL_NV_framebuffer_blit":
+    [
+        "BlitFramebufferNV"
+    ],
+
+    "GL_IMG_multisampled_render_to_texture":
+    [
+        "RenderbufferStorageMultisampleIMG",
+        "FramebufferTexture2DMultisampleIMG"
+    ],
+
+    "GL_EXT_multisampled_render_to_texture":
+    [
+        "RenderbufferStorageMultisampleEXT",
+        "FramebufferTexture2DMultisampleEXT"
+    ],
+
+    "GL_EXT_polygon_offset_clamp":
+    [
+        "PolygonOffsetClampEXT"
+    ],
+
+    "GL_EXT_shader_framebuffer_fetch_non_coherent":
+    [
+        "FramebufferFetchBarrierEXT"
+    ],
+
+    "GL_MESA_framebuffer_flip_y":
+    [
+        "FramebufferParameteriMESA"
     ]
 }

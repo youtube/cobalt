@@ -10,7 +10,7 @@
 #include "libANGLE/Stream.h"
 
 #include <EGL/eglext.h>
-#include <platform/Platform.h>
+#include <platform/PlatformMethods.h>
 
 #include "common/debug.h"
 #include "common/mathutil.h"
@@ -237,7 +237,7 @@ bool Stream::isConsumerBoundToContext(const gl::Context *context) const
     return (context == mContext);
 }
 
-Error Stream::validateD3D11Texture(void *texture, const AttributeMap &attributes) const
+Error Stream::validateD3D11Texture(const void *texture, const AttributeMap &attributes) const
 {
     ASSERT(mConsumerType == ConsumerType::GLTextureRGB ||
            mConsumerType == ConsumerType::GLTextureYUV);

@@ -39,8 +39,10 @@ enum BufferUsage
     BUFFER_USAGE_PIXEL_UNPACK,
     BUFFER_USAGE_PIXEL_PACK,
     BUFFER_USAGE_UNIFORM,
+    BUFFER_USAGE_STRUCTURED,
     BUFFER_USAGE_EMULATED_INDEXED_VERTEX,
     BUFFER_USAGE_RAW_UAV,
+    BUFFER_USAGE_TYPED_UAV,
 
     BUFFER_USAGE_COUNT,
 };
@@ -67,6 +69,11 @@ class Buffer11 : public BufferD3D
                                          const d3d11::Buffer **bufferOut,
                                          UINT *firstConstantOut,
                                          UINT *numConstantsOut);
+    angle::Result getStructuredBufferRangeSRV(const gl::Context *context,
+                                              unsigned int offset,
+                                              unsigned int size,
+                                              unsigned int structureByteStride,
+                                              const d3d11::ShaderResourceView **srvOut);
     angle::Result getSRV(const gl::Context *context,
                          DXGI_FORMAT srvFormat,
                          const d3d11::ShaderResourceView **srvOut);
@@ -75,7 +82,14 @@ class Buffer11 : public BufferD3D
                                  GLsizeiptr size,
                                  d3d11::UnorderedAccessView **uavOut);
 
+    angle::Result getTypedUAVRange(const gl::Context *context,
+                                   GLintptr offset,
+                                   GLsizeiptr size,
+                                   DXGI_FORMAT format,
+                                   d3d11::UnorderedAccessView **uavOut);
+
     angle::Result markRawBufferUsage(const gl::Context *context);
+    angle::Result markTypedBufferUsage(const gl::Context *context);
     bool isMapped() const { return mMappedStorage != nullptr; }
     angle::Result packPixels(const gl::Context *context,
                              const gl::FramebufferAttachment &readAttachment,
@@ -120,13 +134,28 @@ class Buffer11 : public BufferD3D
     class NativeStorage;
     class PackStorage;
     class SystemMemoryStorage;
+    class StructuredBufferStorage;
 
-    struct ConstantBufferCacheEntry
+    struct BufferCacheEntry
     {
-        ConstantBufferCacheEntry() : storage(nullptr), lruCount(0) {}
+        BufferCacheEntry() : storage(nullptr), lruCount(0) {}
 
         BufferStorage *storage;
         unsigned int lruCount;
+    };
+
+    struct StructuredBufferKey
+    {
+        StructuredBufferKey(unsigned int offsetIn, unsigned int structureByteStrideIn)
+            : offset(offsetIn), structureByteStride(structureByteStrideIn)
+        {}
+        bool operator<(const StructuredBufferKey &rhs) const
+        {
+            return std::tie(offset, structureByteStride) <
+                   std::tie(rhs.offset, rhs.structureByteStride);
+        }
+        unsigned int offset;
+        unsigned int structureByteStride;
     };
 
     void markBufferUsage(BufferUsage usage);
@@ -189,10 +218,15 @@ class Buffer11 : public BufferD3D
     // Cache of D3D11 constant buffer for specific ranges of buffer data.
     // This is used to emulate UBO ranges on 11.0 devices.
     // Constant buffers are indexed by there start offset.
-    typedef std::map<GLintptr /*offset*/, ConstantBufferCacheEntry> ConstantBufferCache;
-    ConstantBufferCache mConstantBufferRangeStoragesCache;
+    typedef std::map<GLintptr /*offset*/, BufferCacheEntry> BufferCache;
+    BufferCache mConstantBufferRangeStoragesCache;
     size_t mConstantBufferStorageAdditionalSize;
     unsigned int mMaxConstantBufferLruCount;
+
+    typedef std::map<StructuredBufferKey, BufferCacheEntry> StructuredBufferCache;
+    StructuredBufferCache mStructuredBufferRangeStoragesCache;
+    size_t mStructuredBufferStorageAdditionalSize;
+    unsigned int mMaxStructuredBufferLruCount;
 };
 
 }  // namespace rx

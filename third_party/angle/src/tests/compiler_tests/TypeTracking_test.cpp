@@ -35,8 +35,11 @@ class TypeTrackingTest : public testing::Test
 
     void compile(const std::string &shaderString)
     {
+        ShCompileOptions compileOptions = {};
+        compileOptions.intermediateTree = true;
+
         const char *shaderStrings[] = {shaderString.c_str()};
-        bool compilationSuccess     = mTranslator->compile(shaderStrings, 1, SH_INTERMEDIATE_TREE);
+        bool compilationSuccess     = mTranslator->compile(shaderStrings, 1, compileOptions);
         TInfoSink &infoSink         = mTranslator->getInfoSink();
         mInfoLog                    = RemoveSymbolIdsFromInfoLog(infoSink.info.c_str());
         if (!compilationSuccess)
@@ -304,7 +307,7 @@ TEST_F(TypeTrackingTest, StructConstructorResultNoPrecision)
         "}\n";
     compile(shaderString);
     ASSERT_FALSE(foundErrorInIntermediateTree());
-    ASSERT_TRUE(foundInIntermediateTree("Construct (structure)"));
+    ASSERT_TRUE(foundInIntermediateTree("Construct (structure 'S')"));
 }
 
 TEST_F(TypeTrackingTest, PackResultTypeAndPrecision)

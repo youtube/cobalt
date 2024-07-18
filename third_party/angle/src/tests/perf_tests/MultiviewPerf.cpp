@@ -12,7 +12,7 @@
 
 #include "ANGLEPerfTest.h"
 #include "common/vector_utils.h"
-#include "platform/FeaturesD3D.h"
+#include "platform/FeaturesD3D_autogen.h"
 #include "test_utils/MultiviewTest.h"
 #include "test_utils/gl_raii.h"
 #include "util/shader_utils.h"
@@ -88,6 +88,11 @@ struct MultiviewPerfParams final : public RenderTestParams
         multiviewOption    = multiviewOptionIn;
         numViews           = 2;
         multiviewExtension = multiviewExtensionIn;
+
+        if (multiviewOption == MultiviewOption::InstancedMultiviewGeometryShader)
+        {
+            eglParameters.enable(Feature::SelectViewInGeometryShader);
+        }
     }
 
     std::string story() const override
@@ -168,13 +173,6 @@ class MultiviewBenchmark : public ANGLERenderTest,
 
     void initializeBenchmark() override;
     void drawBenchmark() final;
-
-    void overrideWorkaroundsD3D(FeaturesD3D *features) override
-    {
-        features->overrideFeatures(
-            {"select_view_in_geometry_shader"},
-            GetParam().multiviewOption == MultiviewOption::InstancedMultiviewGeometryShader);
-    }
 
   protected:
     virtual void renderScene() = 0;
@@ -322,7 +320,7 @@ void MultiviewCPUBoundBenchmark::initializeBenchmark()
                            "{\n"
                            "   vec4 v = vPosition;\n"
                            "   v.xy += uOffset;\n"
-                           "	gl_Position = v;\n"
+                           "    gl_Position = v;\n"
                            "}\n";
 
     const std::string fs =
@@ -421,7 +419,7 @@ void MultiviewGPUBoundBenchmark::initializeBenchmark()
                             "   frag_Col3 = vert_Col3;\n"
                             "   frag_Col4 = vert_Col4;\n"
                             "   frag_Col5 = vert_Col5;\n"
-                            "	gl_Position = vPosition;\n"
+                            "   gl_Position = vPosition;\n"
                             "}\n";
 
     const std::string &fs =
