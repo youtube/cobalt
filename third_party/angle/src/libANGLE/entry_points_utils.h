@@ -13,50 +13,51 @@
 #include "common/Optional.h"
 #include "common/PackedEnums.h"
 #include "common/angleutils.h"
+#include "common/entry_points_enum_autogen.h"
 #include "common/mathutil.h"
+#include "libANGLE/Context.h"
 #include "libANGLE/Display.h"
-#include "libANGLE/entry_points_enum_autogen.h"
 
 namespace gl
 {
 // A template struct for determining the default value to return for each entry point.
-template <EntryPoint EP, typename ReturnType>
+template <angle::EntryPoint EP, typename ReturnType>
 struct DefaultReturnValue;
 
 // Default return values for each basic return type.
-template <EntryPoint EP>
+template <angle::EntryPoint EP>
 struct DefaultReturnValue<EP, GLint>
 {
     static constexpr GLint kValue = -1;
 };
 
 // This doubles as the GLenum return value.
-template <EntryPoint EP>
+template <angle::EntryPoint EP>
 struct DefaultReturnValue<EP, GLuint>
 {
     static constexpr GLuint kValue = 0;
 };
 
-template <EntryPoint EP>
+template <angle::EntryPoint EP>
 struct DefaultReturnValue<EP, GLboolean>
 {
     static constexpr GLboolean kValue = GL_FALSE;
 };
 
-template <EntryPoint EP>
+template <angle::EntryPoint EP>
 struct DefaultReturnValue<EP, ShaderProgramID>
 {
     static constexpr ShaderProgramID kValue = {0};
 };
 
 // Catch-all rules for pointer types.
-template <EntryPoint EP, typename PointerType>
+template <angle::EntryPoint EP, typename PointerType>
 struct DefaultReturnValue<EP, const PointerType *>
 {
     static constexpr const PointerType *kValue = nullptr;
 };
 
-template <EntryPoint EP, typename PointerType>
+template <angle::EntryPoint EP, typename PointerType>
 struct DefaultReturnValue<EP, PointerType *>
 {
     static constexpr PointerType *kValue = nullptr;
@@ -64,42 +65,51 @@ struct DefaultReturnValue<EP, PointerType *>
 
 // Overloaded to return invalid index
 template <>
-struct DefaultReturnValue<EntryPoint::GetUniformBlockIndex, GLuint>
+struct DefaultReturnValue<angle::EntryPoint::GLGetUniformBlockIndex, GLuint>
 {
     static constexpr GLuint kValue = GL_INVALID_INDEX;
 };
 
 // Specialized enum error value.
 template <>
-struct DefaultReturnValue<EntryPoint::ClientWaitSync, GLenum>
+struct DefaultReturnValue<angle::EntryPoint::GLClientWaitSync, GLenum>
 {
     static constexpr GLenum kValue = GL_WAIT_FAILED;
 };
 
 // glTestFenceNV should still return TRUE for an invalid fence.
 template <>
-struct DefaultReturnValue<EntryPoint::TestFenceNV, GLboolean>
+struct DefaultReturnValue<angle::EntryPoint::GLTestFenceNV, GLboolean>
 {
     static constexpr GLboolean kValue = GL_TRUE;
 };
 
-template <EntryPoint EP, typename ReturnType>
+template <angle::EntryPoint EP, typename ReturnType>
 constexpr ANGLE_INLINE ReturnType GetDefaultReturnValue()
 {
     return DefaultReturnValue<EP, ReturnType>::kValue;
 }
 
 #if ANGLE_CAPTURE_ENABLED
-#    define ANGLE_CAPTURE(Func, ...) CaptureCallToFrameCapture(Capture##Func, __VA_ARGS__)
+#    define ANGLE_CAPTURE_GL(Func, ...) CaptureGLCallToFrameCapture(Capture##Func, __VA_ARGS__)
 #else
-#    define ANGLE_CAPTURE(...)
+#    define ANGLE_CAPTURE_GL(...)
 #endif  // ANGLE_CAPTURE_ENABLED
 
-#define FUNC_EVENT(format, ...) EVENT(__FUNCTION__, format, __VA_ARGS__)
+#define EGL_EVENT(EP, FMT, ...) EVENT(nullptr, EGL##EP, FMT, ##__VA_ARGS__)
 
 inline int CID(const Context *context)
 {
-    return context != nullptr ? context->id() : 0;
+    return context == nullptr ? 0 : static_cast<int>(context->id().value);
+}
+
+bool GeneratePixelLocalStorageActiveError(const Context *context, angle::EntryPoint entryPoint);
+
+ANGLE_INLINE bool ValidatePixelLocalStorageInactive(const Context *context,
+                                                    angle::EntryPoint entryPoint)
+{
+    return context->getState().getPixelLocalStorageActivePlanes() == 0 ||
+           GeneratePixelLocalStorageActiveError(context, entryPoint);
 }
 }  // namespace gl
 
@@ -107,18 +117,24 @@ namespace egl
 {
 inline int CID(EGLDisplay display, EGLContext context)
 {
-    auto *displayPtr = reinterpret_cast<const egl::Display *>(display);
+    const egl::Display *displayPtr = reinterpret_cast<const egl::Display *>(display);
     if (!Display::isValidDisplay(displayPtr))
     {
         return -1;
     }
-    auto *contextPtr = reinterpret_cast<const gl::Context *>(context);
-    if (!displayPtr->isValidContext(contextPtr))
+    gl::ContextID contextID = {static_cast<GLuint>(reinterpret_cast<uintptr_t>(context))};
+    if (!displayPtr->isValidContext(contextID))
     {
         return -1;
     }
-    return gl::CID(contextPtr);
+    return contextID.value;
 }
+
+#if ANGLE_CAPTURE_ENABLED
+#    define ANGLE_CAPTURE_EGL(Func, ...) CaptureEGLCallToFrameCapture(Capture##Func, __VA_ARGS__)
+#else
+#    define ANGLE_CAPTURE_EGL(...)
+#endif  // ANGLE_CAPTURE_ENABLED
 }  // namespace egl
 
 #endif  // LIBANGLE_ENTRY_POINT_UTILS_H_

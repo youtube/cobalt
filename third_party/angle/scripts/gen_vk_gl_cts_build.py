@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 #  Copyright 2019 The ANGLE Project Authors. All rights reserved.
 #  Use of this source code is governed by a BSD-style license that can be
 #  found in the LICENSE file.
@@ -19,6 +20,8 @@ def initDataDirectories(dataDirectories):
     dataDirectories.append(os.path.join("data", "gles31"))
     dataDirectories.append(os.path.join("external", "graphicsfuzz", "data", "gles3"))
     dataDirectories.append(os.path.join("external", "openglcts", "data", "gles3"))
+    dataDirectories.append(os.path.join("external", "openglcts", "data", "gles31"))
+    dataDirectories.append(os.path.join("external", "openglcts", "data", "gles32"))
 
 
 def initPathReplacements(pathReplacements):
@@ -150,7 +153,7 @@ def main():
                 dataFiles.append(os.path.join(relativeDirectory, filename))
 
     dataFiles.sort()
-    relativeDirectories.sort()
+    relativeDirectories.sort(key=convertPathToVarName)
 
     #
     # BUILD.gn
@@ -175,13 +178,13 @@ copy("vk_gl_cts_data_{relDir}") {{
         for dataFile in dataFiles:
             path, filename = os.path.split(dataFile)
             if relativeDirectory == path:
-                filesToCopy += templateFilesToCopy.format(dataFile=dataFile)
+                filesToCopy += templateFilesToCopy.format(dataFile=dataFile.replace(os.sep, '/'))
         copyCommand = ""
         destDir = fixDestinationDirectory(pathReplacements, relativeDirectory)
         copyCommand += templateCopyCommand.format(
             relDir=convertPathToVarName(relativeDirectory),
             filesToCopy=filesToCopy,
-            destDir=destDir)
+            destDir=destDir.replace(os.sep, '/'))
         buildGnFile.write(copyCommand)
 
     #
@@ -205,7 +208,8 @@ copy("vk_gl_cts_data_{relDir}") {{
         for dataFile in dataFiles:
             if dataDirectory + os.sep in dataFile:
                 files += templateDataFiles.format(
-                    dataFile=fixDestinationDirectory(pathReplacements, dataFile))
+                    dataFile=fixDestinationDirectory(pathReplacements, dataFile).replace(
+                        os.sep, '/'))
         dataDepName = "angle_deqp_" + convertPathToVarName(dataDirectory)
         fileDeps = templateDataFileDeps.format(dataDepName=dataDepName, files=files)
         gniFile.write(fileDeps)

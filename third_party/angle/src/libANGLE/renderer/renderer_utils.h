@@ -12,10 +12,10 @@
 
 #include <cstdint>
 
-#include <atomic>
 #include <limits>
 #include <map>
 
+#include "GLSLANG/ShaderLang.h"
 #include "common/angleutils.h"
 #include "common/utilities.h"
 #include "libANGLE/angletypes.h"
@@ -24,6 +24,7 @@ namespace angle
 {
 struct FeatureSetBase;
 struct Format;
+struct ImageLoadContext;
 enum class FormatID;
 }  // namespace angle
 
@@ -44,82 +45,33 @@ namespace rx
 {
 class ContextImpl;
 
-class ResourceSerial
+// The possible rotations of the surface/draw framebuffer, particularly for the Vulkan back-end on
+// Android.
+enum class SurfaceRotation
 {
-  public:
-    constexpr ResourceSerial() : mValue(kDirty) {}
-    explicit constexpr ResourceSerial(uintptr_t value) : mValue(value) {}
-    constexpr bool operator==(ResourceSerial other) const { return mValue == other.mValue; }
-    constexpr bool operator!=(ResourceSerial other) const { return mValue != other.mValue; }
+    Identity,
+    Rotated90Degrees,
+    Rotated180Degrees,
+    Rotated270Degrees,
+    FlippedIdentity,
+    FlippedRotated90Degrees,
+    FlippedRotated180Degrees,
+    FlippedRotated270Degrees,
 
-    void dirty() { mValue = kDirty; }
-    void clear() { mValue = kEmpty; }
-
-    constexpr bool valid() const { return mValue != kEmpty && mValue != kDirty; }
-    constexpr bool empty() const { return mValue == kEmpty; }
-
-  private:
-    constexpr static uintptr_t kDirty = std::numeric_limits<uintptr_t>::max();
-    constexpr static uintptr_t kEmpty = 0;
-
-    uintptr_t mValue;
+    InvalidEnum,
+    EnumCount = InvalidEnum,
 };
 
-class Serial final
-{
-  public:
-    constexpr Serial() : mValue(kInvalid) {}
-    constexpr Serial(const Serial &other) = default;
-    Serial &operator=(const Serial &other) = default;
+bool IsRotatedAspectRatio(SurfaceRotation rotation);
 
-    constexpr bool operator==(const Serial &other) const
-    {
-        return mValue != kInvalid && mValue == other.mValue;
-    }
-    constexpr bool operator==(uint32_t value) const
-    {
-        return mValue != kInvalid && mValue == static_cast<uint64_t>(value);
-    }
-    constexpr bool operator!=(const Serial &other) const
-    {
-        return mValue == kInvalid || mValue != other.mValue;
-    }
-    constexpr bool operator>(const Serial &other) const { return mValue > other.mValue; }
-    constexpr bool operator>=(const Serial &other) const { return mValue >= other.mValue; }
-    constexpr bool operator<(const Serial &other) const { return mValue < other.mValue; }
-    constexpr bool operator<=(const Serial &other) const { return mValue <= other.mValue; }
+using SpecConstUsageBits = angle::PackedEnumBitSet<sh::vk::SpecConstUsage, uint32_t>;
 
-    constexpr bool operator<(uint32_t value) const { return mValue < static_cast<uint64_t>(value); }
-
-    // Useful for serialization.
-    constexpr uint64_t getValue() const { return mValue; }
-
-  private:
-    template <typename T>
-    friend class SerialFactoryBase;
-    constexpr explicit Serial(uint64_t value) : mValue(value) {}
-    uint64_t mValue;
-    static constexpr uint64_t kInvalid = 0;
-};
-
-template <typename SerialBaseType>
-class SerialFactoryBase final : angle::NonCopyable
-{
-  public:
-    SerialFactoryBase() : mSerial(1) {}
-
-    Serial generate()
-    {
-        ASSERT(mSerial + 1 > mSerial);
-        return Serial(mSerial++);
-    }
-
-  private:
-    SerialBaseType mSerial;
-};
-
-using SerialFactory       = SerialFactoryBase<uint64_t>;
-using AtomicSerialFactory = SerialFactoryBase<std::atomic<uint64_t>>;
+void RotateRectangle(const SurfaceRotation rotation,
+                     const bool flipY,
+                     const int framebufferWidth,
+                     const int framebufferHeight,
+                     const gl::Rectangle &incoming,
+                     gl::Rectangle *outgoing);
 
 using MipGenerationFunction = void (*)(size_t sourceWidth,
                                        size_t sourceHeight,
@@ -133,7 +85,14 @@ using MipGenerationFunction = void (*)(size_t sourceWidth,
 
 typedef void (*PixelReadFunction)(const uint8_t *source, uint8_t *dest);
 typedef void (*PixelWriteFunction)(const uint8_t *source, uint8_t *dest);
-typedef void (*PixelCopyFunction)(const uint8_t *source, uint8_t *dest);
+typedef void (*FastCopyFunction)(const uint8_t *source,
+                                 int srcXAxisPitch,
+                                 int srcYAxisPitch,
+                                 uint8_t *dest,
+                                 int destXAxisPitch,
+                                 int destYAxisPitch,
+                                 int width,
+                                 int height);
 
 class FastCopyFunctionMap
 {
@@ -141,7 +100,7 @@ class FastCopyFunctionMap
     struct Entry
     {
         angle::FormatID formatID;
-        PixelCopyFunction func;
+        FastCopyFunction func;
     };
 
     constexpr FastCopyFunctionMap() : FastCopyFunctionMap(nullptr, 0) {}
@@ -149,7 +108,7 @@ class FastCopyFunctionMap
     constexpr FastCopyFunctionMap(const Entry *data, size_t size) : mSize(size), mData(data) {}
 
     bool has(angle::FormatID formatID) const;
-    PixelCopyFunction get(angle::FormatID formatID) const;
+    FastCopyFunction get(angle::FormatID formatID) const;
 
   private:
     size_t mSize;
@@ -172,6 +131,7 @@ struct PackPixelsParams
     gl::Buffer *packBuffer;
     bool reverseRowOrder;
     ptrdiff_t offset;
+    SurfaceRotation rotation;
 };
 
 void PackPixels(const PackPixelsParams &params,
@@ -187,7 +147,8 @@ using InitializeTextureDataFunction = void (*)(size_t width,
                                                size_t outputRowPitch,
                                                size_t outputDepthPitch);
 
-using LoadImageFunction = void (*)(size_t width,
+using LoadImageFunction = void (*)(const angle::ImageLoadContext &context,
+                                   size_t width,
                                    size_t height,
                                    size_t depth,
                                    const uint8_t *input,
@@ -211,7 +172,6 @@ struct LoadImageFunctionInfo
 using LoadFunctionMap = LoadImageFunctionInfo (*)(GLenum);
 
 bool ShouldUseDebugLayers(const egl::AttributeMap &attribs);
-bool ShouldUseVirtualizedContexts(const egl::AttributeMap &attribs, bool defaultValue);
 
 void CopyImageCHROMIUM(const uint8_t *sourceData,
                        size_t sourceRowPitch,
@@ -257,11 +217,15 @@ class IncompleteTextureSet final : angle::NonCopyable
 
     angle::Result getIncompleteTexture(const gl::Context *context,
                                        gl::TextureType type,
+                                       gl::SamplerFormat format,
                                        MultisampleTextureInitializer *multisampleInitializer,
                                        gl::Texture **textureOut);
 
   private:
-    gl::TextureMap mIncompleteTextures;
+    using TextureMapWithSamplerFormat = angle::PackedEnumMap<gl::SamplerFormat, gl::TextureMap>;
+
+    TextureMapWithSamplerFormat mIncompleteTextures;
+    gl::Buffer *mIncompleteTextureBufferAttachment;
 };
 
 // Helpers to set a matrix uniform value based on GLSL or HLSL semantics.
@@ -313,8 +277,7 @@ angle::Result GetVertexRangeInfo(const gl::Context *context,
 gl::Rectangle ClipRectToScissor(const gl::State &glState, const gl::Rectangle &rect, bool invertY);
 
 // Helper method to intialize a FeatureSet with overrides from the DisplayState
-void OverrideFeaturesWithDisplayState(angle::FeatureSetBase *features,
-                                      const egl::DisplayState &state);
+void ApplyFeatureOverrides(angle::FeatureSetBase *features, const egl::DisplayState &state);
 
 template <typename In>
 uint32_t LineLoopRestartIndexCountHelper(GLsizei indexCount, const uint8_t *srcPtr)
@@ -403,6 +366,141 @@ void CopyLineLoopIndicesWithRestart(GLsizei indexCount, const uint8_t *srcPtr, u
 }
 
 void GetSamplePosition(GLsizei sampleCount, size_t index, GLfloat *xy);
+
+angle::Result MultiDrawArraysGeneral(ContextImpl *contextImpl,
+                                     const gl::Context *context,
+                                     gl::PrimitiveMode mode,
+                                     const GLint *firsts,
+                                     const GLsizei *counts,
+                                     GLsizei drawcount);
+angle::Result MultiDrawArraysIndirectGeneral(ContextImpl *contextImpl,
+                                             const gl::Context *context,
+                                             gl::PrimitiveMode mode,
+                                             const void *indirect,
+                                             GLsizei drawcount,
+                                             GLsizei stride);
+angle::Result MultiDrawArraysInstancedGeneral(ContextImpl *contextImpl,
+                                              const gl::Context *context,
+                                              gl::PrimitiveMode mode,
+                                              const GLint *firsts,
+                                              const GLsizei *counts,
+                                              const GLsizei *instanceCounts,
+                                              GLsizei drawcount);
+angle::Result MultiDrawElementsGeneral(ContextImpl *contextImpl,
+                                       const gl::Context *context,
+                                       gl::PrimitiveMode mode,
+                                       const GLsizei *counts,
+                                       gl::DrawElementsType type,
+                                       const GLvoid *const *indices,
+                                       GLsizei drawcount);
+angle::Result MultiDrawElementsIndirectGeneral(ContextImpl *contextImpl,
+                                               const gl::Context *context,
+                                               gl::PrimitiveMode mode,
+                                               gl::DrawElementsType type,
+                                               const void *indirect,
+                                               GLsizei drawcount,
+                                               GLsizei stride);
+angle::Result MultiDrawElementsInstancedGeneral(ContextImpl *contextImpl,
+                                                const gl::Context *context,
+                                                gl::PrimitiveMode mode,
+                                                const GLsizei *counts,
+                                                gl::DrawElementsType type,
+                                                const GLvoid *const *indices,
+                                                const GLsizei *instanceCounts,
+                                                GLsizei drawcount);
+angle::Result MultiDrawArraysInstancedBaseInstanceGeneral(ContextImpl *contextImpl,
+                                                          const gl::Context *context,
+                                                          gl::PrimitiveMode mode,
+                                                          const GLint *firsts,
+                                                          const GLsizei *counts,
+                                                          const GLsizei *instanceCounts,
+                                                          const GLuint *baseInstances,
+                                                          GLsizei drawcount);
+angle::Result MultiDrawElementsInstancedBaseVertexBaseInstanceGeneral(ContextImpl *contextImpl,
+                                                                      const gl::Context *context,
+                                                                      gl::PrimitiveMode mode,
+                                                                      const GLsizei *counts,
+                                                                      gl::DrawElementsType type,
+                                                                      const GLvoid *const *indices,
+                                                                      const GLsizei *instanceCounts,
+                                                                      const GLint *baseVertices,
+                                                                      const GLuint *baseInstances,
+                                                                      GLsizei drawcount);
+
+// RAII object making sure reset uniforms is called no matter whether there's an error in draw calls
+class ResetBaseVertexBaseInstance : angle::NonCopyable
+{
+  public:
+    ResetBaseVertexBaseInstance(gl::Program *programObject,
+                                bool resetBaseVertex,
+                                bool resetBaseInstance);
+
+    ~ResetBaseVertexBaseInstance();
+
+  private:
+    gl::Program *mProgramObject;
+    bool mResetBaseVertex;
+    bool mResetBaseInstance;
+};
+
+angle::FormatID ConvertToSRGB(angle::FormatID formatID);
+angle::FormatID ConvertToLinear(angle::FormatID formatID);
+bool IsOverridableLinearFormat(angle::FormatID formatID);
+
+template <bool swizzledLuma = true>
+const gl::ColorGeneric AdjustBorderColor(const angle::ColorGeneric &borderColorGeneric,
+                                         const angle::Format &format,
+                                         bool stencilMode);
+
+enum class PipelineType
+{
+    Graphics = 0,
+    Compute  = 1,
+
+    InvalidEnum = 2,
+    EnumCount   = 2,
+};
 }  // namespace rx
+
+// MultiDraw macro patterns
+// These macros are to avoid too much code duplication as we don't want to have if detect for
+// hasDrawID/BaseVertex/BaseInstance inside for loop in a multiDrawANGLE call Part of these are put
+// in the header as we want to share with specialized context impl on some platforms for multidraw
+#define ANGLE_SET_DRAW_ID_UNIFORM_0(drawID) \
+    {}
+#define ANGLE_SET_DRAW_ID_UNIFORM_1(drawID) programObject->setDrawIDUniform(drawID)
+#define ANGLE_SET_DRAW_ID_UNIFORM(cond) ANGLE_SET_DRAW_ID_UNIFORM_##cond
+
+#define ANGLE_SET_BASE_VERTEX_UNIFORM_0(baseVertex) \
+    {}
+#define ANGLE_SET_BASE_VERTEX_UNIFORM_1(baseVertex) programObject->setBaseVertexUniform(baseVertex);
+#define ANGLE_SET_BASE_VERTEX_UNIFORM(cond) ANGLE_SET_BASE_VERTEX_UNIFORM_##cond
+
+#define ANGLE_SET_BASE_INSTANCE_UNIFORM_0(baseInstance) \
+    {}
+#define ANGLE_SET_BASE_INSTANCE_UNIFORM_1(baseInstance) \
+    programObject->setBaseInstanceUniform(baseInstance)
+#define ANGLE_SET_BASE_INSTANCE_UNIFORM(cond) ANGLE_SET_BASE_INSTANCE_UNIFORM_##cond
+
+#define ANGLE_NOOP_DRAW_ context->noopDraw(mode, counts[drawID])
+#define ANGLE_NOOP_DRAW_INSTANCED \
+    context->noopDrawInstanced(mode, counts[drawID], instanceCounts[drawID])
+#define ANGLE_NOOP_DRAW(_instanced) ANGLE_NOOP_DRAW##_instanced
+
+#define ANGLE_MARK_TRANSFORM_FEEDBACK_USAGE_ \
+    gl::MarkTransformFeedbackBufferUsage(context, counts[drawID], 1)
+#define ANGLE_MARK_TRANSFORM_FEEDBACK_USAGE_INSTANCED \
+    gl::MarkTransformFeedbackBufferUsage(context, counts[drawID], instanceCounts[drawID])
+#define ANGLE_MARK_TRANSFORM_FEEDBACK_USAGE(instanced) \
+    ANGLE_MARK_TRANSFORM_FEEDBACK_USAGE##instanced
+
+// Helper macro that casts to a bitfield type then verifies no bits were dropped.
+#define SetBitField(lhs, rhs)                                                         \
+    do                                                                                \
+    {                                                                                 \
+        auto ANGLE_LOCAL_VAR = rhs;                                                   \
+        lhs = static_cast<typename std::decay<decltype(lhs)>::type>(ANGLE_LOCAL_VAR); \
+        ASSERT(static_cast<decltype(ANGLE_LOCAL_VAR)>(lhs) == ANGLE_LOCAL_VAR);       \
+    } while (0)
 
 #endif  // LIBANGLE_RENDERER_RENDERER_UTILS_H_

@@ -22,8 +22,6 @@ WHICH GENERATES THE GLSL ES preprocessor expression parser.
 // preprocessor.y:
 //   Parser for the OpenGL shading language preprocessor.
 
-// clang-format off
-
 #if defined(__GNUC__)
 // Triggered by the auto-generated pplval variable.
 #if !defined(__clang__) && ((__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 7))
@@ -36,6 +34,7 @@ WHICH GENERATES THE GLSL ES preprocessor expression parser.
 #endif
 #if defined(__clang__)
 #pragma clang diagnostic ignored "-Wunreachable-code"
+#pragma clang diagnostic ignored "-Wunused-but-set-variable"
 #endif
 
 #include "ExpressionParser.h"
@@ -85,8 +84,8 @@ struct Context
 }  // namespace
 %}
 
-%pure-parser
-%name-prefix "pp"
+%define api.pure
+%define api.prefix {pp}
 %parse-param {Context *context}
 %lex-param {Context *context}
 

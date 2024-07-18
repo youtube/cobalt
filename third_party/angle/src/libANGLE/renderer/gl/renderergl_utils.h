@@ -11,6 +11,7 @@
 #define LIBANGLE_RENDERER_GL_RENDERERGLUTILS_H_
 
 #include "common/debug.h"
+#include "libANGLE/Caps.h"
 #include "libANGLE/Error.h"
 #include "libANGLE/Version.h"
 #include "libANGLE/angletypes.h"
@@ -47,7 +48,22 @@ enum class MultiviewImplementationTypeGL
     UNSPECIFIED
 };
 
+// State-tracking data for the swap control to allow DisplayGL to remember per
+// drawable information for swap control.
+struct SwapControlData
+{
+    SwapControlData();
+
+    // Set by the drawable
+    int targetSwapInterval;
+
+    // DisplayGL-side state-tracking
+    int maxSwapInterval;
+    int currentSwapInterval;
+};
+
 VendorID GetVendorID(const FunctionsGL *functions);
+ShShaderOutput GetShaderOutputType(const FunctionsGL *functions);
 
 // Helpers for extracting the GL helper objects out of a context
 const FunctionsGL *GetFunctionsGL(const gl::Context *context);
@@ -87,15 +103,20 @@ void GenerateCaps(const FunctionsGL *functions,
                   gl::Caps *caps,
                   gl::TextureCapsMap *textureCapsMap,
                   gl::Extensions *extensions,
+                  gl::Limitations *limitations,
                   gl::Version *maxSupportedESVersion,
-                  MultiviewImplementationTypeGL *multiviewImplementationType);
+                  MultiviewImplementationTypeGL *multiviewImplementationType,
+                  ShPixelLocalStorageOptions *);
 
 void InitializeFeatures(const FunctionsGL *functions, angle::FeaturesGL *features);
 void InitializeFrontendFeatures(const FunctionsGL *functions, angle::FrontendFeatures *features);
+void ReInitializeFeaturesAtGPUSwitch(const FunctionsGL *functions, angle::FeaturesGL *features);
 }  // namespace nativegl_gl
 
 namespace nativegl
 {
+bool SupportsVertexArrayObjects(const FunctionsGL *functions);
+bool CanUseDefaultVertexArrayObject(const FunctionsGL *functions);
 bool SupportsCompute(const FunctionsGL *functions);
 bool SupportsFenceSync(const FunctionsGL *functions);
 bool SupportsOcclusionQueries(const FunctionsGL *functions);
@@ -106,8 +127,12 @@ bool SupportsTexImage(gl::TextureType type);
 bool UseTexImage2D(gl::TextureType textureType);
 bool UseTexImage3D(gl::TextureType textureType);
 GLenum GetTextureBindingQuery(gl::TextureType textureType);
+GLenum GetTextureBindingTarget(gl::TextureType textureType);
+GLenum GetTextureBindingTarget(gl::TextureTarget textureTarget);
 GLenum GetBufferBindingQuery(gl::BufferBinding bufferBinding);
 std::string GetBufferBindingString(gl::BufferBinding bufferBinding);
+gl::TextureType GetNativeTextureType(gl::TextureType type);
+gl::TextureTarget GetNativeTextureTarget(gl::TextureTarget target);
 }  // namespace nativegl
 
 bool CanMapBufferForRead(const FunctionsGL *functions);
@@ -146,6 +171,11 @@ struct ContextCreationTry
 };
 
 std::vector<ContextCreationTry> GenerateContextCreationToTry(EGLint requestedType, bool isMesaGLX);
+
+std::string GetRendererString(const FunctionsGL *functions);
+std::string GetVendorString(const FunctionsGL *functions);
+std::string GetVersionString(const FunctionsGL *functions);
+
 }  // namespace rx
 
 #endif  // LIBANGLE_RENDERER_GL_RENDERERGLUTILS_H_
