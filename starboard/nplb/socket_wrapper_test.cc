@@ -22,6 +22,8 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+#if SB_API_VERSION <= 15
+
 class PairSbSocketWrapperTest
     : public ::testing::TestWithParam<
           std::pair<SbSocketAddressType, SbSocketAddressType> > {
@@ -98,6 +100,8 @@ INSTANTIATE_TEST_CASE_P(
                                      kSbSocketAddressTypeIpv4)),
     GetSbSocketAddressTypePairName);
 #endif
+
+#endif  // SB_API_VERSION <= 15
 
 }  // namespace
 }  // namespace nplb

@@ -18,6 +18,8 @@
 #include <arpa/inet.h>
 #include <ws2tcpip.h>
 
+typedef int in_addr_t;
+
 #include "starboard/shared/win32/posix_emu/include/remove_problematic_windows_macros.h"
 
 #endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_NETINET_IN_H_

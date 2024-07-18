@@ -479,6 +479,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(ftruncate);
   REGISTER_SYMBOL(getaddrinfo);
   REGISTER_SYMBOL(getifaddrs);
+  REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(lseek);

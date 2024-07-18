@@ -113,6 +113,7 @@ SbSocket CreateServerTcpSocket(SbSocketAddressType address_type) {
   return server_socket;
 }
 
+#if SB_API_VERSION <= 15
 std::unique_ptr<Socket> CreateServerTcpSocketWrapped(
     SbSocketAddressType address_type) {
   std::unique_ptr<Socket> server_socket =
@@ -125,23 +126,6 @@ std::unique_ptr<Socket> CreateServerTcpSocketWrapped(
   if (!server_socket->SetReuseAddress(true)) {
     ADD_FAILURE() << "SbSocketSetReuseAddress failed";
     return std::unique_ptr<Socket>();
-  }
-
-  return server_socket;
-}
-
-SbSocket CreateBoundTcpSocket(SbSocketAddressType address_type, int port) {
-  SbSocket server_socket = CreateServerTcpSocket(address_type);
-  if (!SbSocketIsValid(server_socket)) {
-    return kSbSocketInvalid;
-  }
-
-  SbSocketAddress address = GetUnspecifiedAddress(address_type, port);
-  SbSocketError result = SbSocketBind(server_socket, &address);
-  if (result != kSbSocketOk) {
-    ADD_FAILURE() << "SbSocketBind to " << port << " failed: " << result;
-    SbSocketDestroy(server_socket);
-    return kSbSocketInvalid;
   }
 
   return server_socket;
@@ -166,22 +150,6 @@ std::unique_ptr<Socket> CreateBoundTcpSocketWrapped(
   return server_socket;
 }
 
-SbSocket CreateListeningTcpSocket(SbSocketAddressType address_type, int port) {
-  SbSocket server_socket = CreateBoundTcpSocket(address_type, port);
-  if (!SbSocketIsValid(server_socket)) {
-    return kSbSocketInvalid;
-  }
-
-  SbSocketError result = SbSocketListen(server_socket);
-  if (result != kSbSocketOk) {
-    ADD_FAILURE() << "SbSocketListen failed: " << result;
-    SbSocketDestroy(server_socket);
-    return kSbSocketInvalid;
-  }
-
-  return server_socket;
-}
-
 std::unique_ptr<Socket> CreateListeningTcpSocketWrapped(
     SbSocketAddressType address_type,
     int port) {
@@ -195,6 +163,70 @@ std::unique_ptr<Socket> CreateListeningTcpSocketWrapped(
   if (result != kSbSocketOk) {
     ADD_FAILURE() << "SbSocketListen failed: " << result;
     return std::unique_ptr<Socket>();
+  }
+
+  return server_socket;
+}
+
+std::unique_ptr<Socket> CreateConnectingTcpSocketWrapped(
+    SbSocketAddressType address_type,
+    int port) {
+  std::unique_ptr<Socket> client_socket =
+      std::unique_ptr<Socket>(new Socket(address_type, kSbSocketProtocolTcp));
+  if (!client_socket->IsValid()) {
+    ADD_FAILURE() << "SbSocketCreate failed";
+    return std::unique_ptr<Socket>();
+  }
+
+  // Connect to localhost:<port>.
+  SbSocketAddress address = {};
+  bool success = GetLocalhostAddress(address_type, port, &address);
+  if (!success) {
+    ADD_FAILURE() << "GetLocalhostAddress failed";
+    return std::unique_ptr<Socket>();
+  }
+
+  // This connect will probably return pending, but we'll assume it will connect
+  // eventually.
+  SbSocketError result = client_socket->Connect(&address);
+  if (result != kSbSocketOk && result != kSbSocketPending) {
+    ADD_FAILURE() << "SbSocketConnect failed: " << result;
+    return std::unique_ptr<Socket>();
+  }
+
+  return client_socket;
+}
+
+#endif  // SB_API_VERSION <= 15
+
+SbSocket CreateBoundTcpSocket(SbSocketAddressType address_type, int port) {
+  SbSocket server_socket = CreateServerTcpSocket(address_type);
+  if (!SbSocketIsValid(server_socket)) {
+    return kSbSocketInvalid;
+  }
+
+  SbSocketAddress address = GetUnspecifiedAddress(address_type, port);
+  SbSocketError result = SbSocketBind(server_socket, &address);
+  if (result != kSbSocketOk) {
+    ADD_FAILURE() << "SbSocketBind to " << port << " failed: " << result;
+    SbSocketDestroy(server_socket);
+    return kSbSocketInvalid;
+  }
+
+  return server_socket;
+}
+
+SbSocket CreateListeningTcpSocket(SbSocketAddressType address_type, int port) {
+  SbSocket server_socket = CreateBoundTcpSocket(address_type, port);
+  if (!SbSocketIsValid(server_socket)) {
+    return kSbSocketInvalid;
+  }
+
+  SbSocketError result = SbSocketListen(server_socket);
+  if (result != kSbSocketOk) {
+    ADD_FAILURE() << "SbSocketListen failed: " << result;
+    SbSocketDestroy(server_socket);
+    return kSbSocketInvalid;
   }
 
   return server_socket;
@@ -228,34 +260,6 @@ SbSocket CreateConnectingTcpSocket(SbSocketAddressType address_type, int port) {
   return client_socket;
 }
 
-std::unique_ptr<Socket> CreateConnectingTcpSocketWrapped(
-    SbSocketAddressType address_type,
-    int port) {
-  std::unique_ptr<Socket> client_socket =
-      std::unique_ptr<Socket>(new Socket(address_type, kSbSocketProtocolTcp));
-  if (!client_socket->IsValid()) {
-    ADD_FAILURE() << "SbSocketCreate failed";
-    return std::unique_ptr<Socket>();
-  }
-
-  // Connect to localhost:<port>.
-  SbSocketAddress address = {};
-  bool success = GetLocalhostAddress(address_type, port, &address);
-  if (!success) {
-    ADD_FAILURE() << "GetLocalhostAddress failed";
-    return std::unique_ptr<Socket>();
-  }
-
-  // This connect will probably return pending, but we'll assume it will connect
-  // eventually.
-  SbSocketError result = client_socket->Connect(&address);
-  if (result != kSbSocketOk && result != kSbSocketPending) {
-    ADD_FAILURE() << "SbSocketConnect failed: " << result;
-    return std::unique_ptr<Socket>();
-  }
-
-  return client_socket;
-}
 }  // namespace
 
 SbSocket AcceptBySpinning(SbSocket server_socket, int64_t timeout) {
@@ -281,6 +285,8 @@ SbSocket AcceptBySpinning(SbSocket server_socket, int64_t timeout) {
   return kSbSocketInvalid;
 }
 
+#if SB_API_VERSION <= 15
+
 std::unique_ptr<Socket> AcceptBySpinning(Socket* server_socket,
                                          int64_t timeout) {
   int64_t start = CurrentMonotonicTime();
@@ -303,33 +309,6 @@ std::unique_ptr<Socket> AcceptBySpinning(Socket* server_socket,
   }
 
   return std::unique_ptr<Socket>();
-}
-
-bool WriteBySpinning(SbSocket socket,
-                     const char* data,
-                     int data_size,
-                     int64_t timeout) {
-  int64_t start = CurrentMonotonicTime();
-  int total = 0;
-  while (total < data_size) {
-    int sent = SbSocketSendTo(socket, data + total, data_size - total, NULL);
-    if (sent >= 0) {
-      total += sent;
-      continue;
-    }
-
-    if (SbSocketGetLastError(socket) != kSbSocketPending) {
-      return false;
-    }
-
-    if (CurrentMonotonicTime() - start >= timeout) {
-      return false;
-    }
-
-    sched_yield();
-  }
-
-  return true;
 }
 
 bool WriteBySpinning(Socket* socket,
@@ -359,7 +338,7 @@ bool WriteBySpinning(Socket* socket,
   return true;
 }
 
-bool ReadBySpinning(SbSocket socket,
+bool ReadBySpinning(Socket* socket,
                     char* out_data,
                     int data_size,
                     int64_t timeout) {
@@ -367,9 +346,108 @@ bool ReadBySpinning(SbSocket socket,
   int total = 0;
   while (total < data_size) {
     int received =
-        SbSocketReceiveFrom(socket, out_data + total, data_size - total, NULL);
+        socket->ReceiveFrom(out_data + total, data_size - total, NULL);
     if (received >= 0) {
       total += received;
+      continue;
+    }
+
+    if (!socket->IsPending()) {
+      return false;
+    }
+
+    if (CurrentMonotonicTime() - start >= timeout) {
+      return false;
+    }
+
+    sched_yield();
+  }
+
+  return true;
+}
+
+int Transfer(Socket* receive_socket,
+             char* out_data,
+             Socket* send_socket,
+             const char* send_data,
+             int size) {
+  int send_total = 0;
+  int receive_total = 0;
+  while (receive_total < size) {
+    if (send_total < size) {
+      int bytes_sent =
+          send_socket->SendTo(send_data + send_total, size - send_total, NULL);
+      if (bytes_sent < 0) {
+        if (!send_socket->IsPending()) {
+          return -1;
+        }
+        bytes_sent = 0;
+      }
+
+      send_total += bytes_sent;
+    }
+
+    int bytes_received = receive_socket->ReceiveFrom(
+        out_data + receive_total, size - receive_total, NULL);
+    if (bytes_received < 0) {
+      if (!receive_socket->IsPending()) {
+        return -1;
+      }
+      bytes_received = 0;
+    }
+
+    receive_total += bytes_received;
+  }
+
+  return size;
+}
+
+std::unique_ptr<ConnectedTrioWrapped> CreateAndConnectWrapped(
+    SbSocketAddressType server_address_type,
+    SbSocketAddressType client_address_type,
+    int port,
+    int64_t timeout) {
+  // Verify the listening socket.
+  std::unique_ptr<Socket> listen_socket =
+      CreateListeningTcpSocketWrapped(server_address_type, port);
+  if (!listen_socket || !listen_socket->IsValid()) {
+    ADD_FAILURE() << "Could not create listen socket.";
+    return std::unique_ptr<ConnectedTrioWrapped>();
+  }
+
+  // Verify the socket to connect to the listening socket.
+  std::unique_ptr<Socket> client_socket =
+      CreateConnectingTcpSocketWrapped(client_address_type, port);
+  if (!client_socket || !client_socket->IsValid()) {
+    ADD_FAILURE() << "Could not create client socket.";
+    return std::unique_ptr<ConnectedTrioWrapped>();
+  }
+
+  // Spin until the accept happens (or we get impatient).
+  int64_t start = CurrentMonotonicTime();
+  std::unique_ptr<Socket> server_socket =
+      AcceptBySpinning(listen_socket.get(), timeout);
+  if (!server_socket || !server_socket->IsValid()) {
+    ADD_FAILURE() << "Failed to accept within " << timeout;
+    return std::unique_ptr<ConnectedTrioWrapped>();
+  }
+
+  return std::unique_ptr<ConnectedTrioWrapped>(new ConnectedTrioWrapped(
+      std::move(listen_socket), std::move(client_socket),
+      std::move(server_socket)));
+}
+#endif  // SB_API_VERSION <= 15
+
+bool WriteBySpinning(SbSocket socket,
+                     const char* data,
+                     int data_size,
+                     int64_t timeout) {
+  int64_t start = CurrentMonotonicTime();
+  int total = 0;
+  while (total < data_size) {
+    int sent = SbSocketSendTo(socket, data + total, data_size - total, NULL);
+    if (sent >= 0) {
+      total += sent;
       continue;
     }
 
@@ -387,7 +465,7 @@ bool ReadBySpinning(SbSocket socket,
   return true;
 }
 
-bool ReadBySpinning(Socket* socket,
+bool ReadBySpinning(SbSocket socket,
                     char* out_data,
                     int data_size,
                     int64_t timeout) {
@@ -395,13 +473,13 @@ bool ReadBySpinning(Socket* socket,
   int total = 0;
   while (total < data_size) {
     int received =
-        socket->ReceiveFrom(out_data + total, data_size - total, NULL);
+        SbSocketReceiveFrom(socket, out_data + total, data_size - total, NULL);
     if (received >= 0) {
       total += received;
       continue;
     }
 
-    if (!socket->IsPending()) {
+    if (SbSocketGetLastError(socket) != kSbSocketPending) {
       return false;
     }
 
@@ -451,42 +529,6 @@ int Transfer(SbSocket receive_socket,
   return size;
 }
 
-int Transfer(Socket* receive_socket,
-             char* out_data,
-             Socket* send_socket,
-             const char* send_data,
-             int size) {
-  int send_total = 0;
-  int receive_total = 0;
-  while (receive_total < size) {
-    if (send_total < size) {
-      int bytes_sent =
-          send_socket->SendTo(send_data + send_total, size - send_total, NULL);
-      if (bytes_sent < 0) {
-        if (!send_socket->IsPending()) {
-          return -1;
-        }
-        bytes_sent = 0;
-      }
-
-      send_total += bytes_sent;
-    }
-
-    int bytes_received = receive_socket->ReceiveFrom(
-        out_data + receive_total, size - receive_total, NULL);
-    if (bytes_received < 0) {
-      if (!receive_socket->IsPending()) {
-        return -1;
-      }
-      bytes_received = 0;
-    }
-
-    receive_total += bytes_received;
-  }
-
-  return size;
-}
-
 ConnectedTrio CreateAndConnect(SbSocketAddressType server_address_type,
                                SbSocketAddressType client_address_type,
                                int port,
@@ -517,41 +559,6 @@ ConnectedTrio CreateAndConnect(SbSocketAddressType server_address_type,
   }
 
   return ConnectedTrio(listen_socket, client_socket, server_socket);
-}
-
-std::unique_ptr<ConnectedTrioWrapped> CreateAndConnectWrapped(
-    SbSocketAddressType server_address_type,
-    SbSocketAddressType client_address_type,
-    int port,
-    int64_t timeout) {
-  // Verify the listening socket.
-  std::unique_ptr<Socket> listen_socket =
-      CreateListeningTcpSocketWrapped(server_address_type, port);
-  if (!listen_socket || !listen_socket->IsValid()) {
-    ADD_FAILURE() << "Could not create listen socket.";
-    return std::unique_ptr<ConnectedTrioWrapped>();
-  }
-
-  // Verify the socket to connect to the listening socket.
-  std::unique_ptr<Socket> client_socket =
-      CreateConnectingTcpSocketWrapped(client_address_type, port);
-  if (!client_socket || !client_socket->IsValid()) {
-    ADD_FAILURE() << "Could not create client socket.";
-    return std::unique_ptr<ConnectedTrioWrapped>();
-  }
-
-  // Spin until the accept happens (or we get impatient).
-  int64_t start = CurrentMonotonicTime();
-  std::unique_ptr<Socket> server_socket =
-      AcceptBySpinning(listen_socket.get(), timeout);
-  if (!server_socket || !server_socket->IsValid()) {
-    ADD_FAILURE() << "Failed to accept within " << timeout;
-    return std::unique_ptr<ConnectedTrioWrapped>();
-  }
-
-  return std::unique_ptr<ConnectedTrioWrapped>(new ConnectedTrioWrapped(
-      std::move(listen_socket), std::move(client_socket),
-      std::move(server_socket)));
 }
 
 int64_t TimedWait(SbSocketWaiter waiter) {

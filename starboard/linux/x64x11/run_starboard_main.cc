@@ -22,7 +22,9 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   starboard::shared::x11::ApplicationX11 application(callback);
   int result = 0;
   {
+#if SB_API_VERSION <= 15
     starboard::shared::starboard::LinkReceiver receiver(&application);
+#endif
     result = application.Run(argc, argv);
   }
   return result;
