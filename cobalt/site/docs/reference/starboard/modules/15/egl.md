@@ -10,8 +10,7 @@ platforms.
 This API is designed to abstract the differences between EGL implementations and
 versions on different systems, and to remove the requirement for any other code
 to directly pull in and use these system libraries.
-
-## EGL Version
+EGL Version
 
 This API has the ability to support EGL 1.5, however it is not required to
 support anything beyond EGL 1.4. The user is responsible for ensuring that the

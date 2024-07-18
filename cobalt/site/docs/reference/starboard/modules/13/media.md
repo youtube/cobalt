@@ -449,7 +449,7 @@ return `kSbMediaSupportTypeProbably` kSbMediaSupportTypeProbably when
 `key_system` is `com.widevine.alpha; invalid_attribute="invalid_value"`.
 Currently the only attribute has to be supported is `encryptionscheme`. It
 reflects the value passed to `encryptionScheme` encryptionScheme of
-MediaKeySystemMediaCapability, as defined in [https://wicg.github.io/encrypted-media-encryption-scheme/,](https://wicg.github.io/encrypted-media-encryption-scheme/,),) which can take value "cenc", "cbcs", or "cbcs-1-9". Empty string is
+MediaKeySystemMediaCapability, as defined in [https://wicg.github.io/encrypted-media-encryption-scheme/](https://wicg.github.io/encrypted-media-encryption-scheme/)/) , which can take value "cenc", "cbcs", or "cbcs-1-9". Empty string is
 not a valid value for `encryptionscheme` and the implementation should return
 `kSbMediaSupportTypeNotSupported` kSbMediaSupportTypeNotSupported when
 `encryptionscheme` is set to "". The implementation should return
@@ -517,7 +517,7 @@ int SbMediaGetAudioOutputCount()
 ### SbMediaGetBufferAlignment
 
 The media buffer will be allocated using the returned alignment. Set this to a
-larger value may increase the memory consumption of media buffers.`type`: the
+larger value may increase the memory consumption of media buffers. `type`: the
 media type of the stream (audio or video).
 
 #### Declaration
@@ -561,7 +561,7 @@ SbTime SbMediaGetBufferGarbageCollectionDurationThreshold()
 
 Extra bytes allocated at the end of a media buffer to ensure that the buffer can
 be use optimally by specific instructions like SIMD. Set to 0 to remove any
-padding.`type`: the media type of the stream (audio or video).
+padding. `type`: the media type of the stream (audio or video).
 
 #### Declaration
 
