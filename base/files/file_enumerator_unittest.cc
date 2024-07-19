@@ -419,7 +419,7 @@ TEST(FileEnumerator, InvalidDirectory) {
   FilePath path = enumerator.Next();
   EXPECT_TRUE(path.empty());
 
-  EXPECT_EQ(File::Error::FILE_ERROR_FAILED, enumerator.GetError());
+  EXPECT_EQ(File::Error::FILE_ERROR_NOT_A_DIRECTORY, enumerator.GetError());
 }
 
 #if BUILDFLAG(IS_POSIX) && !defined(STARBOARD)
