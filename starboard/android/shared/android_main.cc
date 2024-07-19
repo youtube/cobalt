@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <dirent.h>
 #include <sys/stat.h>
 
 #include "game-activity/GameActivity.h"
@@ -89,15 +90,33 @@ std::string GetStartDeepLink() {
 #if SB_IS(EVERGREEN_COMPATIBLE)
 bool CopyDirContents(const std::string& src_dir_path,
                      const std::string& dst_dir_path) {
-  SbDirectory src_dir = SbDirectoryOpen(src_dir_path.c_str(), NULL);
-  if (!SbDirectoryIsValid(src_dir)) {
+  DIR* src_dir = opendir(src_dir_path.c_str());
+  if (!src_dir) {
     SB_LOG(WARNING) << "Failed to open dir=" << src_dir_path;
     return false;
   }
 
   std::vector<char> filename_buffer(kSbFileMaxName);
-  while (SbDirectoryGetNext(src_dir, filename_buffer.data(),
-                            filename_buffer.size())) {
+
+  while (true) {
+    if (filename_buffer.size() < kSbFileMaxName) {
+      break;
+    }
+
+    if (!src_dir || !filename_buffer.data()) {
+      break;
+    }
+
+    struct dirent dirent_buffer;
+    struct dirent* dirent;
+    int result = readdir_r(src_dir, &dirent_buffer, &dirent);
+    if (result || !dirent) {
+      break;
+    }
+
+    starboard::strlcpy(filename_buffer.data(), dirent->d_name,
+                       filename_buffer.size());
+
     std::string filename(filename_buffer.begin(), filename_buffer.end());
     std::string path_to_src_file = src_dir_path + kSbFileSepString + filename;
     SbFile src_file =
@@ -148,7 +167,7 @@ bool CopyDirContents(const std::string& src_dir_path,
     SbFileClose(dst_file);
   }
 
-  SbDirectoryClose(src_dir);
+  closedir(src_dir);
   return true;
 }
 
