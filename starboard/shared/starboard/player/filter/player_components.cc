@@ -40,8 +40,6 @@ namespace {
 
 const int kAudioSinkFramesAlignment = 256;
 const int kDefaultAudioSinkMinFramesPerAppend = 1024;
-const int kDefaultAudioSinkMaxCachedFrames =
-    8 * kDefaultAudioSinkMinFramesPerAppend;
 
 typedef MediaTimeProviderImpl::MonotonicSystemTimeProvider
     MonotonicSystemTimeProvider;

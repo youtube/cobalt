@@ -61,9 +61,9 @@ static int handle_db_put(std::deque<std::string> next_directory_entry) {
   return fd;
 }
 
-static std::deque<std::string> handle_db_get(int handle, bool erase) {
+static std::deque<std::string> handle_db_get(int fd, bool erase) {
   std::deque<std::string> empty_deque;
-  if (handle < 0) {
+  if (fd < 0) {
     return empty_deque;
   }
   EnterCriticalSection(&g_critical_section.critical_section_);
@@ -72,7 +72,7 @@ static std::deque<std::string> handle_db_get(int handle, bool erase) {
     return empty_deque;
   }
 
-  auto itr = directory_map->find(handle);
+  auto itr = directory_map->find(fd);
   if (itr == directory_map->end()) {
     LeaveCriticalSection(&g_critical_section.critical_section_);
     return empty_deque;
@@ -92,17 +92,23 @@ static void handle_db_replace(int fd,
   if (directory_map == nullptr) {
     directory_map = new std::map<int, std::deque<std::string>>();
   }
-  directory_map->erase(fd);
-  directory_map->insert({fd, next_directory_entry});
+  auto itr = directory_map->find(fd);
+  if (itr == directory_map->end()) {
+    directory_map->insert({fd, next_directory_entry});
+  } else {
+    directory_map->erase(itr);
+    directory_map->insert({fd, next_directory_entry});
+  }
   LeaveCriticalSection(&g_critical_section.critical_section_);
 }
+
+const std::size_t kDirectoryInfoBufferSize =
+    kSbFileMaxPath + sizeof(FILE_ID_BOTH_DIR_INFO);
 
 std::deque<std::string> GetDirectoryEntries(HANDLE directory_handle) {
   // According to
   // https://msdn.microsoft.com/en-us/library/windows/desktop/aa364226(v=vs.85).aspx,
   // FILE_ID_BOTH_DIR_INFO must be aligned on a DWORDLONG boundary.
-  const std::size_t kDirectoryInfoBufferSize =
-      kSbFileMaxPath + sizeof(FILE_ID_BOTH_DIR_INFO);
   alignas(sizeof(DWORDLONG)) std::vector<char> directory_info_buffer(
       kDirectoryInfoBufferSize);
 
@@ -146,13 +152,15 @@ DIR* opendir(const char* path) {
   using starboard::shared::win32::NormalizeWin32Path;
 
   if ((path == nullptr) || (path[0] == '\0')) {
-    return NULL;
+    errno = ENOENT;
+    return nullptr;
   }
 
   std::wstring path_wstring = NormalizeWin32Path(path);
 
   if (!starboard::shared::win32::IsAbsolutePath(path_wstring)) {
-    return NULL;
+    errno = EBADF;
+    return nullptr;
   }
 
   SbFileError out_error;
@@ -160,7 +168,8 @@ DIR* opendir(const char* path) {
       path, kSbFileOpenOnly | kSbFileRead, nullptr, &out_error);
 
   if (!starboard::shared::win32::IsValidHandle(directory_handle)) {
-    return NULL;
+    errno = EBADF;
+    return nullptr;
   }
 
   FILE_BASIC_INFO basic_info = {0};
@@ -170,20 +179,29 @@ DIR* opendir(const char* path) {
   if (!basic_info_success ||
       !(basic_info.FileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
     CloseHandle(directory_handle);
-    return NULL;
+    errno = ENOTDIR;
+    return nullptr;
   }
 
-  DIR* dir = reinterpret_cast<DIR*>(malloc(sizeof(DIR)));
+  DIR* dir = reinterpret_cast<DIR*>(calloc(1, sizeof(DIR)));
   dir->handle = directory_handle;
   dir->fd = handle_db_put(std::deque<std::string>());
   return dir;
 }
 
 int closedir(DIR* dir) {
+  if (!dir) {
+    errno = EBADF;
+    return -1;
+  }
   bool success = CloseHandle(dir->handle);
   handle_db_get(dir->fd, true);
-  delete dir;
-  return success ? 0 : -1;
+  free(dir);
+  if (!success) {
+    errno = EBADF;
+    return -1;
+  }
+  return 0;
 }
 
 int readdir_r(DIR* __restrict dir,
