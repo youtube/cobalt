@@ -21,14 +21,12 @@
 #include <functional>
 #include <list>
 
-#include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/decode_target_create.h"
 #include "starboard/android/shared/decode_target_internal.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_render_algorithm.h"
-#include "starboard/android/shared/window_internal.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
 #include "starboard/common/string.h"
@@ -365,18 +363,18 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
       max_video_capabilities_(max_video_capabilities),
+      require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
+      force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       max_video_input_size_(max_video_input_size),
+      enable_flush_during_seek_(enable_flush_during_seek),
       force_reset_surface_under_tunnel_mode_(
           force_reset_surface_under_tunnel_mode),
       is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
                                       tunnel_mode_audio_session_id != -1),
       has_new_texture_available_(false),
       surface_condition_variable_(surface_destroy_mutex_),
-      require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
-      force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
-      number_of_preroll_frames_(kInitialPrerollFrameCount),
-      enable_flush_during_seek_(enable_flush_during_seek) {
+      number_of_preroll_frames_(kInitialPrerollFrameCount) {
   SB_DCHECK(error_message);
 
   if (force_secure_pipeline_under_tunnel_mode) {
