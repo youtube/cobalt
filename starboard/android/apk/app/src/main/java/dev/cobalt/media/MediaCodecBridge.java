@@ -984,6 +984,13 @@ class MediaCodecBridge {
       if (e.getErrorCode() == MediaCodec.CryptoException.ERROR_NO_KEY) {
         Log.d(TAG, "Failed to queue secure input buffer: CryptoException.ERROR_NO_KEY");
         return MediaCodecStatus.NO_KEY;
+      } else if (e.getErrorCode()
+          == MediaCodec.CryptoException.ERROR_INSUFFICIENT_OUTPUT_PROTECTION) {
+        Log.d(
+            TAG,
+            "Failed to queue secure input buffer: "
+                + "CryptoException.ERROR_INSUFFICIENT_OUTPUT_PROTECTION");
+        return MediaCodecStatus.INSUFFICIENT_OUTPUT_PROTECTION;
       }
       Log.e(TAG, "Failed to queue secure input buffer. Error code %d", e.getErrorCode(), e);
       return MediaCodecStatus.ERROR;
