@@ -11,10 +11,6 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif
-
 #include <stdlib.h>
 #include "src/dec/alphai_dec.h"
 #include "src/dec/vp8i_dec.h"

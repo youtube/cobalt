@@ -11,9 +11,6 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif
 #include <stdlib.h>
 #include <string.h>  // for memcpy()
 #include "src/webp/decode.h"
@@ -54,9 +51,7 @@
 
 #if defined(PRINT_MEM_INFO)
 
-#if !defined(STARBOARD)
 #include <stdio.h>
-#endif
 
 static int num_malloc_calls = 0;
 static int num_calloc_calls = 0;
