@@ -176,9 +176,6 @@
 /*      **  -- raise to the power                                     */
 /* ------------------------------------------------------------------ */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include <stdlib.h>                /* for malloc, free, etc.  */
 /*  #include <stdio.h>   */        /* for printf [if needed]  */
 #include <string.h>                /* for strcpy  */

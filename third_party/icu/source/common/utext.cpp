@@ -18,10 +18,6 @@
 
 #include <cstddef>
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
-
 #include "unicode/utypes.h"
 #include "unicode/ustring.h"
 #include "unicode/unistr.h"

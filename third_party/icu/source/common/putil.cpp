@@ -39,12 +39,6 @@
 ******************************************************************************
 */
 
-// Starboard poems must be included before uposixdefs.h, or else they cause
-// compiler errors on some platforms.
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
-
 // Defines _XOPEN_SOURCE for access to POSIX functions.
 // Must be before any other #includes.
 #include "uposixdefs.h"
