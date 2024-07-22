@@ -14,11 +14,7 @@
 #endif
 
 #include <float.h>
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#else
 #include <math.h>
-#endif
 
 #include "src/dsp/lossless.h"
 #include "src/dsp/lossless_common.h"
