@@ -32,7 +32,7 @@
 #include "starboard/configuration.h"
 #endif  // defined(STARBOARD)
 #if U_DEBUG
-#include <assert.h>
+#   include <assert.h>
 #   define U_ASSERT(exp) assert(exp)
 #elif U_CPLUSPLUS_VERSION
 #   define U_ASSERT(exp) (void)0
