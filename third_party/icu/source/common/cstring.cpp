@@ -22,13 +22,9 @@
 */
 
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#else
-#include <stdio.h>
-#endif
 
 #include <stdlib.h>
+#include <stdio.h>
 #include "unicode/utypes.h"
 #include "cmemory.h"
 #include "cstring.h"

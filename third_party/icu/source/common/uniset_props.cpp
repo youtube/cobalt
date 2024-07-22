@@ -18,9 +18,6 @@
 *   Character property dependent functions moved here from uniset.cpp
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "unicode/uniset.h"
 #include "unicode/parsepos.h"

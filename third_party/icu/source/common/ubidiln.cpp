@@ -16,9 +16,6 @@
 *   created by: Markus W. Scherer, updated by Matitiahu Allouche
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "cmemory.h"
 #include "unicode/utypes.h"
 #include "unicode/ustring.h"

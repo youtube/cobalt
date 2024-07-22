@@ -352,6 +352,7 @@ typedef HANDLE MemoryMap;
         }
     }
 
+<<<<<<< HEAD
 #elif MAP_IMPLEMENTATION==MAP_STARBOARD
     U_CFUNC UBool
     uprv_mapFile(UDataMemory *pData, const char *path, UErrorCode *status) {
@@ -438,6 +439,8 @@ typedef HANDLE MemoryMap;
             pData->pHeader = NULL;
         }
     }
+=======
+>>>>>>> 75e2941ec3d (Clean up Starboardizations from ICU (#3866))
 
 #elif MAP_IMPLEMENTATION==MAP_390DLL
     /*  390 specific Library Loading.
