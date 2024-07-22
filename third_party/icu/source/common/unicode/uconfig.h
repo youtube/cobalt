@@ -181,8 +181,7 @@
  * 1 if a custom library suffix is set.
  * @internal
  */
-
-#if defined(STARBOARD) || defined(__LB_XB1__) || defined(__LB_PS3__)
+#if defined(STARBOARD)
 #define U_LIB_SUFFIX_C_NAME
 #define U_LIB_SUFFIX_C_NAME_STRING ""
 #define U_HAVE_LIB_SUFFIX 0
