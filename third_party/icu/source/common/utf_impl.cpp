@@ -20,9 +20,6 @@
 */
 
 /* set import/export definitions */
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #ifndef U_UTF8_IMPL
 #   define U_UTF8_IMPL
 #endif

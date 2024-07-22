@@ -46,9 +46,6 @@
 
 #if !UCONFIG_NO_COLLATION
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/coll.h"
 #include "unicode/tblcoll.h"
 #include "collationdata.h"

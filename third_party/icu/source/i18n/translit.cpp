@@ -16,9 +16,6 @@
 
 #if !UCONFIG_NO_TRANSLITERATION
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/putil.h"
 #include "unicode/translit.h"
 #include "unicode/locid.h"

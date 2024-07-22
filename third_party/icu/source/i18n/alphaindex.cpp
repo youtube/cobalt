@@ -11,9 +11,6 @@
 
 #if !UCONFIG_NO_COLLATION
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/alphaindex.h"
 #include "unicode/coll.h"
 #include "unicode/localpointer.h"
