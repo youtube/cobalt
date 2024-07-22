@@ -22,10 +22,10 @@
 #if defined(STARBOARD)
 #include "starboard/common/log.h"
 #include "starboard/memory.h"
-#else
+#endif
+
 #include <assert.h>
 #include <limits.h>
-#endif
 
 #include "src/dsp/dsp.h"
 #include "src/webp/types.h"
@@ -72,10 +72,7 @@ WEBP_EXTERN void WebPSafeFree(void* const ptr);
 #define WEBP_ALIGN(PTR) (((uintptr_t)(PTR) + WEBP_ALIGN_CST) & \
                          ~(uintptr_t)WEBP_ALIGN_CST)
 
-#if !defined(STARBOARD)
 #include <string.h>
-#endif
-
 // memcpy() is the safe way of moving potentially unaligned 32b memory.
 static WEBP_INLINE uint32_t WebPMemToUint32(const uint8_t* const ptr) {
   uint32_t A;

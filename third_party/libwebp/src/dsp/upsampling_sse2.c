@@ -15,11 +15,7 @@
 
 #if defined(WEBP_USE_SSE2)
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#else
 #include <assert.h>
-#endif
 #include <emmintrin.h>
 #include <string.h>
 #include "src/dsp/yuv.h"

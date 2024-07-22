@@ -13,10 +13,6 @@
 
 #if defined(WEBP_USE_NEON)
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif
-
 #include "src/dsp/neon.h"
 #include "src/enc/cost_enc.h"
 

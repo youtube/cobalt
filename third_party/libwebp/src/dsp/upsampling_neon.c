@@ -16,11 +16,7 @@
 
 #if defined(WEBP_USE_NEON)
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#else
 #include <assert.h>
-#endif
 #include <arm_neon.h>
 #include <string.h>
 #include "src/dsp/neon.h"
