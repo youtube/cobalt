@@ -464,7 +464,7 @@ public class MediaDrmBridge {
     mMediaDrm.setPropertyString("privacyMode", "disable");
     mMediaDrm.setPropertyString("sessionSharing", "enable");
     if (keySystem.equals("com.youtube.widevine.l3")
-        && mMediaDrm.getPropertyString("securityLevel") != "L3") {
+        && !mMediaDrm.getPropertyString("securityLevel").equals("L3")) {
       mMediaDrm.setPropertyString("securityLevel", "L3");
     }
   }
