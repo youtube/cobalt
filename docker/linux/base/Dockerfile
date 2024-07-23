@@ -33,4 +33,6 @@ RUN apt update -qqy \
         curl xz-utils \
     && /opt/clean-after-apt.sh
 
+# Bump this number to force rebuild: 1
+
 CMD ["/usr/bin/python3","--version"]
