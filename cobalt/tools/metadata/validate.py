@@ -91,6 +91,11 @@ class MetaData(object):
       self.upstream_subdir = self.upstream_subdir.value
     else:
       self.upstream_subdir = ''
+    self.subpackages = identifier('SubPackages')
+    if self.subpackages:
+      self.omitted_dirs = self.subpackages.value.split(',')
+    else:
+      self.omitted_dirs = ''
     self.is_chromium = self.git_id.value == CHROMIUM_SRC
     self.from_chromium = self.git_id.value.startswith(CHROMIUM_HOST)
     self.file = metadata_file_path
@@ -157,6 +162,8 @@ def runstats(meta):
 
   if split:
     args = ['git', 'diff', split, f'@:{subtree_dir}', ':(exclude)METADATA']
+    for omit_dir in meta.omitted_dirs:
+      args.append(f':(exclude){omit_dir}')
     f = subprocess.run(
         args, capture_output=True, text=True, errors='replace', check=True)
     diff_output = f.stdout.strip()
