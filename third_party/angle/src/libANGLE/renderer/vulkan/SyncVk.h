@@ -12,7 +12,7 @@
 
 #include "libANGLE/renderer/EGLSyncImpl.h"
 #include "libANGLE/renderer/SyncImpl.h"
-#include "libANGLE/renderer/vulkan/CommandGraph.h"
+#include "libANGLE/renderer/vulkan/ResourceVk.h"
 
 namespace egl
 {
@@ -23,37 +23,65 @@ namespace rx
 {
 namespace vk
 {
-// The behaviors of SyncImpl and EGLSyncImpl as fence syncs (only supported type) are currently
+
+// Represents an invalid native fence FD.
+constexpr int kInvalidFenceFd = EGL_NO_NATIVE_FENCE_FD_ANDROID;
+
+// Implementation of fence types - glFenceSync, and EGLSync(EGL_SYNC_FENCE_KHR).
+// The behaviors of SyncVk and EGLFenceSyncVk as fence syncs are currently
 // identical for the Vulkan backend, and this class implements both interfaces.
-class SyncHelper
+class SyncHelper : public vk::Resource
 {
   public:
     SyncHelper();
-    ~SyncHelper();
+    ~SyncHelper() override;
 
-    void releaseToRenderer(RendererVk *renderer);
+    virtual void releaseToRenderer(RendererVk *renderer);
 
-    angle::Result initialize(ContextVk *contextVk);
+    virtual angle::Result initialize(ContextVk *contextVk, bool isEGLSyncObject);
+    virtual angle::Result clientWait(Context *context,
+                                     ContextVk *contextVk,
+                                     bool flushCommands,
+                                     uint64_t timeout,
+                                     VkResult *outResult);
+    virtual angle::Result serverWait(ContextVk *contextVk);
+    virtual angle::Result getStatus(Context *context, ContextVk *contextVk, bool *signaled);
+    virtual angle::Result dupNativeFenceFD(Context *context, int *fdOut) const
+    {
+        return angle::Result::Stop;
+    }
+
+  private:
+    angle::Result submitSyncIfDeferred(ContextVk *contextVk, RenderPassClosureReason reason);
+};
+
+// Implementation of sync types: EGLSync(EGL_SYNC_ANDROID_NATIVE_FENCE_ANDROID).
+class SyncHelperNativeFence : public SyncHelper
+{
+  public:
+    SyncHelperNativeFence();
+    ~SyncHelperNativeFence() override;
+
+    void releaseToRenderer(RendererVk *renderer) override;
+
+    angle::Result initializeWithFd(ContextVk *contextVk, int inFd);
     angle::Result clientWait(Context *context,
                              ContextVk *contextVk,
                              bool flushCommands,
                              uint64_t timeout,
-                             VkResult *outResult);
-    void serverWait(ContextVk *contextVk);
-    angle::Result getStatus(Context *context, bool *signaled);
+                             VkResult *outResult) override;
+    angle::Result serverWait(ContextVk *contextVk) override;
+    angle::Result getStatus(Context *context, ContextVk *contextVk, bool *signaled) override;
+    angle::Result dupNativeFenceFD(Context *context, int *fdOut) const override;
 
   private:
-    // The vkEvent that's signaled on `init` and can be waited on in `serverWait`, or queried with
-    // `getStatus`.
-    Event mEvent;
-    // The fence is signaled once the CB including the `init` signal is executed.
-    // `clientWait` waits on this fence.
-    Shared<Fence> mFence;
-
-    SharedResourceUse mUse;
+    vk::Fence mFenceWithFd;
+    int mNativeFenceFd;
 };
+
 }  // namespace vk
 
+// Implementor for glFenceSync.
 class SyncVk final : public SyncImpl
 {
   public:
@@ -73,9 +101,10 @@ class SyncVk final : public SyncImpl
     angle::Result getStatus(const gl::Context *context, GLint *outResult) override;
 
   private:
-    vk::SyncHelper mFenceSync;
+    vk::SyncHelper mSyncHelper;
 };
 
+// Implementor for EGLSync.
 class EGLSyncVk final : public EGLSyncImpl
 {
   public:
@@ -97,10 +126,12 @@ class EGLSyncVk final : public EGLSyncImpl
                           EGLint flags) override;
     egl::Error getStatus(const egl::Display *display, EGLint *outStatus) override;
 
-    egl::Error dupNativeFenceFD(const egl::Display *display, EGLint *result) const override;
+    egl::Error dupNativeFenceFD(const egl::Display *display, EGLint *fdOut) const override;
 
   private:
-    vk::SyncHelper mFenceSync;
+    EGLenum mType;
+    vk::SyncHelper *mSyncHelper;  // SyncHelper or SyncHelperNativeFence decided at run-time.
+    EGLint mNativeFenceFD;
 };
 }  // namespace rx
 

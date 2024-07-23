@@ -20,9 +20,6 @@
 *   to the Unicode Character Database (uprops.dat).
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "unicode/brkiter.h"
 #include "unicode/casemap.h"

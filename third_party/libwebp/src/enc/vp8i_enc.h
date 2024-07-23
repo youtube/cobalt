@@ -14,9 +14,7 @@
 #ifndef WEBP_ENC_VP8I_ENC_H_
 #define WEBP_ENC_VP8I_ENC_H_
 
-#if !defined(STARBOARD)
 #include <string.h>     // for memcpy()
-#endif
 #include "src/dec/common_dec.h"
 #include "src/dsp/dsp.h"
 #include "src/utils/bit_writer_utils.h"

@@ -40,9 +40,7 @@ class AudioResamplerImpl : public AudioResampler {
                      SbMediaAudioFrameStorageType destination_storage_type,
                      int destination_sample_rate,
                      int channels)
-      : source_sample_type_(source_sample_type),
-        source_storage_type_(source_storage_type),
-        destination_sample_type_(destination_sample_type),
+      : destination_sample_type_(destination_sample_type),
         destination_storage_type_(destination_storage_type),
         interleaved_resampler_(static_cast<double>(source_sample_rate) /
                                    static_cast<double>(destination_sample_rate),
@@ -54,12 +52,10 @@ class AudioResamplerImpl : public AudioResampler {
   scoped_refptr<DecodedAudio> WriteEndOfStream() override;
 
  private:
-  InterleavedSincResampler interleaved_resampler_;
+  const SbMediaAudioSampleType destination_sample_type_;
+  const SbMediaAudioFrameStorageType destination_storage_type_;
 
-  SbMediaAudioSampleType source_sample_type_;
-  SbMediaAudioFrameStorageType source_storage_type_;
-  SbMediaAudioSampleType destination_sample_type_;
-  SbMediaAudioFrameStorageType destination_storage_type_;
+  InterleavedSincResampler interleaved_resampler_;
 
   std::deque<scoped_refptr<DecodedAudio>> audio_inputs_;
 

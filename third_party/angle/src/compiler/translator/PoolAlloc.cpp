@@ -6,35 +6,35 @@
 
 #include "compiler/translator/PoolAlloc.h"
 
-#include <assert.h>
+#include "common/debug.h"
 #include "common/tls.h"
 
-TLSIndex PoolIndex = TLS_INVALID_INDEX;
+angle::TLSIndex PoolIndex = TLS_INVALID_INDEX;
 
 bool InitializePoolIndex()
 {
-    assert(PoolIndex == TLS_INVALID_INDEX);
+    ASSERT(PoolIndex == TLS_INVALID_INDEX);
 
-    PoolIndex = CreateTLSIndex();
+    PoolIndex = angle::CreateTLSIndex(nullptr);
     return PoolIndex != TLS_INVALID_INDEX;
 }
 
 void FreePoolIndex()
 {
-    assert(PoolIndex != TLS_INVALID_INDEX);
+    ASSERT(PoolIndex != TLS_INVALID_INDEX);
 
-    DestroyTLSIndex(PoolIndex);
+    angle::DestroyTLSIndex(PoolIndex);
     PoolIndex = TLS_INVALID_INDEX;
 }
 
 angle::PoolAllocator *GetGlobalPoolAllocator()
 {
-    assert(PoolIndex != TLS_INVALID_INDEX);
-    return static_cast<angle::PoolAllocator *>(GetTLSValue(PoolIndex));
+    ASSERT(PoolIndex != TLS_INVALID_INDEX);
+    return static_cast<angle::PoolAllocator *>(angle::GetTLSValue(PoolIndex));
 }
 
 void SetGlobalPoolAllocator(angle::PoolAllocator *poolAllocator)
 {
-    assert(PoolIndex != TLS_INVALID_INDEX);
-    SetTLSValue(PoolIndex, poolAllocator);
+    ASSERT(PoolIndex != TLS_INVALID_INDEX);
+    angle::SetTLSValue(PoolIndex, poolAllocator);
 }

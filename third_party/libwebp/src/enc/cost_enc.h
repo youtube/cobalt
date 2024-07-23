@@ -16,11 +16,9 @@
 
 #if defined(STARBOARD)
 #include "starboard/common/log.h"
-#else
+#endif
 #include <assert.h>
 #include <stdlib.h>
-#endif
-
 #include "src/enc/vp8i_enc.h"
 
 #ifdef __cplusplus

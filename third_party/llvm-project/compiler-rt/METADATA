@@ -19,4 +19,7 @@ third_party {
     month: 2
     day: 21
   }
+  security {
+    mitigated_security_patch: "CVE-2024-31852"  # not applicable in Cobalt
+  }
 }

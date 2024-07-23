@@ -19,6 +19,8 @@
 #ifndef STARBOARD_CONDITION_VARIABLE_H_
 #define STARBOARD_CONDITION_VARIABLE_H_
 
+#include "starboard/configuration.h"
+
 #if SB_API_VERSION < 16
 
 #include "starboard/export.h"

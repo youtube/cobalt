@@ -17,13 +17,11 @@
 
 #if defined(STARBOARD)
 #include "starboard/common/log.h"
-#else
+#endif
 #include <assert.h>
 #ifdef _MSC_VER
 #include <stdlib.h>  // _byteswap_ulong
 #endif
-#endif
-
 #include "src/dsp/cpu.h"
 #include "src/webp/types.h"
 

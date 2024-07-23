@@ -34,15 +34,15 @@ void OutputIntTexCoordWrap(TInfoSinkBase &out,
         << ") / " << size << ";\n";
     out << "bool " << texCoordOutName << "UseBorderColor = false;\n";
 
-    // CLAMP_TO_EDGE
-    out << "if (" << wrapMode << " == 0)\n";
+    // CLAMP_TO_EDGE / D3D11_TEXTURE_ADDRESS_CLAMP == 3
+    out << "if (" << wrapMode << " == 3)\n";
     out << "{\n";
     out << "    " << texCoordOutName << " = clamp(int(floor(" << size << " * " << texCoordOutName
         << "Offset)), 0, int(" << size << ") - 1);\n";
     out << "}\n";
 
-    // CLAMP_TO_BORDER
-    out << "else if (" << wrapMode << " == 3)\n";
+    // CLAMP_TO_BORDER / D3D11_TEXTURE_ADDRESS_BORDER == 4
+    out << "else if (" << wrapMode << " == 4)\n";
     out << "{\n";
     out << "    int texCoordInt = int(floor(" << size << " * " << texCoordOutName << "Offset));\n";
     out << "    " << texCoordOutName << " = clamp(texCoordInt, 0, int(" << size << ") - 1);\n";
@@ -50,15 +50,23 @@ void OutputIntTexCoordWrap(TInfoSinkBase &out,
         << ");\n";
     out << "}\n";
 
-    // MIRRORED_REPEAT
+    // MIRRORED_REPEAT / D3D11_TEXTURE_ADDRESS_MIRROR == 2
     out << "else if (" << wrapMode << " == 2)\n";
     out << "{\n";
     out << "    float coordWrapped = 1.0 - abs(frac(abs(" << texCoordOutName
         << "Offset) * 0.5) * 2.0 - 1.0);\n";
-    out << "    " << texCoordOutName << " = int(floor(" << size << " * coordWrapped));\n";
+    out << "    " << texCoordOutName << " = min(int(floor(" << size << " * coordWrapped)), int("
+        << size << ") - 1);\n";
     out << "}\n";
 
-    // REPEAT
+    // MIRROR_CLAMP_TO_EDGE_EXT / D3D11_TEXTURE_ADDRESS_MIRROR_ONCE == 5
+    out << "else if (" << wrapMode << " == 5)\n";
+    out << "{\n";
+    out << "    " << texCoordOutName << " = min(int(floor(" << size << " * abs(" << texCoordOutName
+        << "Offset))), int(" << size << ") - 1);\n";
+    out << "}\n";
+
+    // REPEAT / D3D11_TEXTURE_ADDRESS_WRAP == 1
     out << "else\n";
     out << "{\n";
     out << "    " << texCoordOutName << " = int(floor(" << size << " * frac(" << texCoordOutName
@@ -73,7 +81,7 @@ void OutputIntTexCoordWraps(TInfoSinkBase &out,
                             ImmutableString *texCoordZ)
 {
     // Convert from normalized floating-point to integer
-    out << "int wrapS = samplerMetadata[samplerIndex].wrapModes & 0x3;\n";
+    out << "int wrapS = samplerMetadata[samplerIndex].wrapModes & 0x7;\n";
     if (textureFunction.offset)
     {
         OutputIntTexCoordWrap(out, "wrapS", "width", *texCoordX, "offset.x", "tix");
@@ -83,7 +91,7 @@ void OutputIntTexCoordWraps(TInfoSinkBase &out,
         OutputIntTexCoordWrap(out, "wrapS", "width", *texCoordX, "0", "tix");
     }
     *texCoordX = ImmutableString("tix");
-    out << "int wrapT = (samplerMetadata[samplerIndex].wrapModes >> 2) & 0x3;\n";
+    out << "int wrapT = (samplerMetadata[samplerIndex].wrapModes >> 3) & 0x7;\n";
     if (textureFunction.offset)
     {
         OutputIntTexCoordWrap(out, "wrapT", "height", *texCoordY, "offset.y", "tiy");
@@ -102,7 +110,7 @@ void OutputIntTexCoordWraps(TInfoSinkBase &out,
     }
     else if (!IsSamplerCube(textureFunction.sampler) && !IsSampler2D(textureFunction.sampler))
     {
-        out << "int wrapR = (samplerMetadata[samplerIndex].wrapModes >> 4) & 0x3;\n";
+        out << "int wrapR = (samplerMetadata[samplerIndex].wrapModes >> 6) & 0x7;\n";
         if (textureFunction.offset)
         {
             OutputIntTexCoordWrap(out, "wrapR", "depth", *texCoordZ, "offset.z", "tiz");
@@ -188,6 +196,8 @@ const char *GetSamplerCoordinateTypeString(
     {
         switch (hlslCoords)
         {
+            case 1:
+                return "int";
             case 2:
                 if (IsSampler2DMS(textureFunction.sampler))
                 {
@@ -214,6 +224,8 @@ const char *GetSamplerCoordinateTypeString(
     {
         switch (hlslCoords)
         {
+            case 1:
+                return "float";
             case 2:
                 return "float2";
             case 3:
@@ -235,9 +247,13 @@ int GetHLSLCoordCount(const TextureFunctionHLSL::TextureFunction &textureFunctio
         int hlslCoords = 2;
         switch (textureFunction.sampler)
         {
+            case EbtSamplerBuffer:
+                hlslCoords = 1;
+                break;
             case EbtSampler2D:
             case EbtSamplerExternalOES:
             case EbtSampler2DMS:
+            case EbtSamplerVideoWEBGL:
                 hlslCoords = 2;
                 break;
             case EbtSamplerCube:
@@ -263,8 +279,12 @@ int GetHLSLCoordCount(const TextureFunctionHLSL::TextureFunction &textureFunctio
     }
     else
     {
-        if (IsSampler3D(textureFunction.sampler) || IsSamplerArray(textureFunction.sampler) ||
-            IsSamplerCube(textureFunction.sampler))
+        if (IsSamplerBuffer(textureFunction.sampler))
+        {
+            return 1;
+        }
+        else if (IsSampler3D(textureFunction.sampler) || IsSamplerArray(textureFunction.sampler) ||
+                 IsSamplerCube(textureFunction.sampler))
         {
             return 3;
         }
@@ -283,6 +303,7 @@ void OutputTextureFunctionArgumentList(TInfoSinkBase &out,
         switch (textureFunction.sampler)
         {
             case EbtSampler2D:
+            case EbtSamplerVideoWEBGL:
             case EbtSamplerExternalOES:
                 out << "sampler2D s";
                 break;
@@ -315,6 +336,9 @@ void OutputTextureFunctionArgumentList(TInfoSinkBase &out,
     {
         switch (textureFunction.coords)
         {
+            case 1:
+                out << ", int t";
+                break;
             case 2:
                 out << ", int2 t";
                 break;
@@ -361,6 +385,7 @@ void OutputTextureFunctionArgumentList(TInfoSinkBase &out,
             case EbtSampler2DShadow:
             case EbtSampler2DArrayShadow:
             case EbtSamplerExternalOES:
+            case EbtSamplerVideoWEBGL:
                 out << ", float2 ddx, float2 ddy";
                 break;
             case EbtSampler3D:
@@ -396,7 +421,7 @@ void OutputTextureFunctionArgumentList(TInfoSinkBase &out,
             if (IsSampler2DMS(textureFunction.sampler) ||
                 IsSampler2DMSArray(textureFunction.sampler))
                 out << ", int index";
-            else
+            else if (!IsSamplerBuffer(textureFunction.sampler))
                 out << ", int mip";
             break;
         case TextureFunctionHLSL::TextureFunction::GRAD:
@@ -431,6 +456,7 @@ void OutputTextureFunctionArgumentList(TInfoSinkBase &out,
             case EbtSampler2DShadow:
             case EbtSampler2DArrayShadow:
             case EbtSamplerExternalOES:
+            case EbtSamplerVideoWEBGL:
                 out << ", int2 offset";
                 break;
             default:
@@ -516,6 +542,11 @@ void OutputTextureSizeFunctionBody(TInfoSinkBase &out,
         out << "    uint width; uint height; uint depth; uint samples;\n"
             << "    " << textureReference << ".GetDimensions(width, height, depth, samples);\n";
     }
+    else if (IsSamplerBuffer(textureFunction.sampler))
+    {
+        out << "    uint width;\n"
+            << "    " << textureReference << ".GetDimensions(width);\n";
+    }
     else
     {
         if (getDimensionsIgnoresBaseLevel)
@@ -554,13 +585,18 @@ void OutputTextureSizeFunctionBody(TInfoSinkBase &out,
             UNREACHABLE();
     }
 
-    if (strcmp(textureFunction.getReturnType(), "int3") == 0)
+    const char *returnType = textureFunction.getReturnType();
+    if (strcmp(returnType, "int3") == 0)
     {
         out << "    return int3(width, height, depth);\n";
     }
-    else
+    else if (strcmp(returnType, "int2") == 0)
     {
         out << "    return int2(width, height);\n";
+    }
+    else
+    {
+        out << "    return int(width);\n";
     }
 }
 
@@ -1019,6 +1055,7 @@ void OutputTextureSampleFunctionReturnStatement(
         switch (textureFunction.sampler)
         {
             case EbtSampler2D:
+            case EbtSamplerVideoWEBGL:
             case EbtSamplerExternalOES:
                 out << "tex2D";
                 break;
@@ -1061,9 +1098,25 @@ void OutputTextureSampleFunctionReturnStatement(
         UNREACHABLE();
 
     const int hlslCoords = GetHLSLCoordCount(textureFunction, outputType);
+    out << GetSamplerCoordinateTypeString(textureFunction, hlslCoords);
 
-    out << GetSamplerCoordinateTypeString(textureFunction, hlslCoords) << "(" << texCoordX << ", "
-        << texCoordY;
+    if (hlslCoords >= 2)
+    {
+        out << "(" << texCoordX << ", " << texCoordY;
+    }
+    else if (hlslCoords == 1)
+    {
+        std::string varName(texCoordX.data());
+        if (size_t pos = varName.find_last_of('.') != std::string::npos)
+        {
+            varName = varName.substr(0, pos);
+        }
+        out << "(" << varName;
+    }
+    else
+    {
+        out << "(";
+    }
 
     if (outputType == SH_HLSL_3_0_OUTPUT)
     {
@@ -1153,6 +1206,8 @@ void OutputTextureSampleFunctionReturnStatement(
             if (IsSampler2DMS(textureFunction.sampler) ||
                 IsSampler2DMSArray(textureFunction.sampler))
                 out << "), index";
+            else if (IsSamplerBuffer(textureFunction.sampler))
+                out << ")";
             else
                 out << ", mip)";
         }
@@ -1295,6 +1350,7 @@ const char *TextureFunctionHLSL::TextureFunction::getReturnType() const
             case EbtSampler2DMS:
             case EbtISampler2DMS:
             case EbtUSampler2DMS:
+            case EbtSamplerVideoWEBGL:
                 return "int2";
             case EbtSampler3D:
             case EbtISampler3D:
@@ -1307,6 +1363,10 @@ const char *TextureFunctionHLSL::TextureFunction::getReturnType() const
             case EbtUSampler2DMSArray:
             case EbtSampler2DArrayShadow:
                 return "int3";
+            case EbtISamplerBuffer:
+            case EbtUSamplerBuffer:
+            case EbtSamplerBuffer:
+                return "int";
             default:
                 UNREACHABLE();
         }
@@ -1322,6 +1382,8 @@ const char *TextureFunctionHLSL::TextureFunction::getReturnType() const
             case EbtSamplerCube:
             case EbtSampler2DArray:
             case EbtSamplerExternalOES:
+            case EbtSamplerVideoWEBGL:
+            case EbtSamplerBuffer:
                 return "float4";
             case EbtISampler2D:
             case EbtISampler2DMS:
@@ -1329,6 +1391,7 @@ const char *TextureFunctionHLSL::TextureFunction::getReturnType() const
             case EbtISampler3D:
             case EbtISamplerCube:
             case EbtISampler2DArray:
+            case EbtISamplerBuffer:
                 return "int4";
             case EbtUSampler2D:
             case EbtUSampler2DMS:
@@ -1336,6 +1399,7 @@ const char *TextureFunctionHLSL::TextureFunction::getReturnType() const
             case EbtUSampler3D:
             case EbtUSamplerCube:
             case EbtUSampler2DArray:
+            case EbtUSamplerBuffer:
                 return "uint4";
             case EbtSampler2DShadow:
             case EbtSamplerCubeShadow:
@@ -1459,6 +1523,10 @@ ImmutableString TextureFunctionHLSL::useTextureFunction(const ImmutableString &n
     {
         textureFunction.method = TextureFunction::GATHER;
         textureFunction.offset = true;
+    }
+    else if (name == "textureVideoWEBGL")
+    {
+        textureFunction.method = TextureFunction::IMPLICIT;
     }
     else
         UNREACHABLE();

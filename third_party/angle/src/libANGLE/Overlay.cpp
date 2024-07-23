@@ -9,6 +9,7 @@
 
 #include "libANGLE/Overlay.h"
 
+#include "common/string_utils.h"
 #include "common/system_utils.h"
 #include "libANGLE/Context.h"
 #include "libANGLE/Overlay_font_autogen.h"
@@ -21,13 +22,10 @@ namespace gl
 {
 namespace
 {
+#define ANGLE_WIDGET_NAME_PROC(WIDGET_ID) {ANGLE_STRINGIFY(WIDGET_ID), WidgetId::WIDGET_ID},
+
 constexpr std::pair<const char *, WidgetId> kWidgetNames[] = {
-    {"FPS", WidgetId::FPS},
-    {"VulkanLastValidationMessage", WidgetId::VulkanLastValidationMessage},
-    {"VulkanValidationMessageCount", WidgetId::VulkanValidationMessageCount},
-    {"VulkanCommandGraphSize", WidgetId::VulkanCommandGraphSize},
-    {"VulkanSecondaryCommandBufferPoolWaste", WidgetId::VulkanSecondaryCommandBufferPoolWaste},
-};
+    ANGLE_WIDGET_ID_X(ANGLE_WIDGET_NAME_PROC)};
 }  // namespace
 
 OverlayState::OverlayState() : mEnabledWidgetCount(0), mOverlayWidgets{} {}
@@ -38,18 +36,16 @@ Overlay::Overlay(rx::GLImplFactory *factory)
 {}
 Overlay::~Overlay() = default;
 
-angle::Result Overlay::init(const Context *context)
+void Overlay::init()
 {
     initOverlayWidgets();
-    mLastPerSecondUpdate = angle::GetCurrentTime();
+    mLastPerSecondUpdate = angle::GetCurrentSystemTime();
 
     ASSERT(std::all_of(
         mState.mOverlayWidgets.begin(), mState.mOverlayWidgets.end(),
         [](const std::unique_ptr<overlay::Widget> &widget) { return widget.get() != nullptr; }));
 
     enableOverlayWidgetsFromEnvironment();
-
-    return mImplementation->init(context);
 }
 
 void Overlay::destroy(const gl::Context *context)
@@ -60,21 +56,19 @@ void Overlay::destroy(const gl::Context *context)
 
 void Overlay::enableOverlayWidgetsFromEnvironment()
 {
-    std::istringstream angleOverlayWidgets(angle::GetEnvironmentVar("ANGLE_OVERLAY"));
-
-    std::set<std::string> enabledWidgets;
-    std::string widget;
-    while (getline(angleOverlayWidgets, widget, ':'))
-    {
-        enabledWidgets.insert(widget);
-    }
+    std::vector<std::string> enabledWidgets = angle::GetStringsFromEnvironmentVarOrAndroidProperty(
+        "ANGLE_OVERLAY", "debug.angle.overlay", ":");
 
     for (const std::pair<const char *, WidgetId> &widgetName : kWidgetNames)
     {
-        if (enabledWidgets.count(widgetName.first) > 0)
+        for (const std::string &enabledWidget : enabledWidgets)
         {
-            mState.mOverlayWidgets[widgetName.second]->enabled = true;
-            ++mState.mEnabledWidgetCount;
+            if (angle::NamesMatchWithWildcard(enabledWidget.c_str(), widgetName.first))
+            {
+                mState.mOverlayWidgets[widgetName.second]->enabled = true;
+                ++mState.mEnabledWidgetCount;
+                break;
+            }
         }
     }
 }
@@ -85,7 +79,7 @@ void Overlay::onSwap() const
     getPerSecondWidget(WidgetId::FPS)->add(1);
 
     // Update per second values every second.
-    double currentTime = angle::GetCurrentTime();
+    double currentTime = angle::GetCurrentSystemTime();
     double timeDiff    = currentTime - mLastPerSecondUpdate;
     if (timeDiff >= 1.0)
     {
@@ -103,7 +97,7 @@ void Overlay::onSwap() const
     }
 }
 
-DummyOverlay::DummyOverlay(rx::GLImplFactory *implFactory) {}
-DummyOverlay::~DummyOverlay() = default;
+MockOverlay::MockOverlay(rx::GLImplFactory *implFactory) {}
+MockOverlay::~MockOverlay() = default;
 
 }  // namespace gl

@@ -9,6 +9,7 @@
 
 #include "ANGLEPerfTest.h"
 #include "DrawCallPerfParams.h"
+#include "common/PackedEnums.h"
 #include "test_utils/draw_call_perf_utils.h"
 #include "util/shader_utils.h"
 
@@ -21,10 +22,21 @@ enum class StateChange
     VertexBuffer,
     ManyVertexBuffers,
     Texture,
+    Program,
+    VertexBufferCycle,
+    Scissor,
+    ManyTextureDraw,
+    Uniform,
+    InvalidEnum,
+    EnumCount = InvalidEnum,
 };
+
+constexpr size_t kCycleVBOPoolSize  = 200;
+constexpr size_t kManyTexturesCount = 8;
 
 struct DrawArraysPerfParams : public DrawCallPerfParams
 {
+    DrawArraysPerfParams() = default;
     DrawArraysPerfParams(const DrawCallPerfParams &base) : DrawCallPerfParams(base) {}
 
     std::string story() const override;
@@ -51,6 +63,21 @@ std::string DrawArraysPerfParams::story() const
             break;
         case StateChange::Texture:
             strstr << "_tex_change";
+            break;
+        case StateChange::Program:
+            strstr << "_prog_change";
+            break;
+        case StateChange::VertexBufferCycle:
+            strstr << "_vbo_cycle";
+            break;
+        case StateChange::Scissor:
+            strstr << "_scissor_change";
+            break;
+        case StateChange::ManyTextureDraw:
+            strstr << "_many_tex_draw";
+            break;
+        case StateChange::Uniform:
+            strstr << "_uniform";
             break;
         default:
             break;
@@ -80,13 +107,13 @@ GLuint CreateSimpleTexture2D()
     // Load the texture: 2x2 Image, 3 bytes per pixel (R, G, B)
     constexpr size_t width             = 2;
     constexpr size_t height            = 2;
-    GLubyte pixels[width * height * 3] = {
-        255, 0,   0,    // Red
-        0,   255, 0,    // Green
-        0,   0,   255,  // Blue
-        255, 255, 0,    // Yellow
+    GLubyte pixels[width * height * 4] = {
+        255, 0,   0,   0,  // Red
+        0,   255, 0,   0,  // Green
+        0,   0,   255, 0,  // Blue
+        255, 255, 0,   0   // Yellow
     };
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
     // Set the filtering mode
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -106,14 +133,17 @@ class DrawCallPerfBenchmark : public ANGLERenderTest,
     void drawBenchmark() override;
 
   private:
-    GLuint mProgram    = 0;
+    GLuint mProgram1   = 0;
+    GLuint mProgram2   = 0;
+    GLuint mProgram3   = 0;
     GLuint mBuffer1    = 0;
     GLuint mBuffer2    = 0;
     GLuint mFBO        = 0;
     GLuint mFBOTexture = 0;
-    GLuint mTexture1   = 0;
-    GLuint mTexture2   = 0;
-    int mNumTris       = GetParam().numTris;
+    std::vector<GLuint> mTextures;
+    int mNumTris = GetParam().numTris;
+    std::vector<GLuint> mVBOPool;
+    size_t mCurrentVBO = 0;
 };
 
 DrawCallPerfBenchmark::DrawCallPerfBenchmark() : ANGLERenderTest("DrawCallPerf", GetParam()) {}
@@ -124,7 +154,20 @@ void DrawCallPerfBenchmark::initializeBenchmark()
 
     if (params.stateChange == StateChange::Texture)
     {
-        mProgram = SetupSimpleTextureProgram();
+        mProgram1 = SetupSimpleTextureProgram();
+        ASSERT_NE(0u, mProgram1);
+    }
+    else if (params.stateChange == StateChange::ManyTextureDraw)
+    {
+        mProgram3 = SetupEightTextureProgram();
+        ASSERT_NE(0u, mProgram3);
+    }
+    else if (params.stateChange == StateChange::Program)
+    {
+        mProgram1 = SetupSimpleTextureProgram();
+        mProgram2 = SetupDoubleTextureProgram();
+        ASSERT_NE(0u, mProgram1);
+        ASSERT_NE(0u, mProgram2);
     }
     else if (params.stateChange == StateChange::ManyVertexBuffers)
     {
@@ -151,27 +194,71 @@ void main()
     gl_FragColor = vec4(v, 0, 1);
 })";
 
-        mProgram = CompileProgram(kVS, kFS);
-        glBindAttribLocation(mProgram, 1, "v0");
-        glBindAttribLocation(mProgram, 2, "v1");
-        glBindAttribLocation(mProgram, 3, "v2");
-        glBindAttribLocation(mProgram, 4, "v3");
+        mProgram1 = CompileProgram(kVS, kFS);
+        ASSERT_NE(0u, mProgram1);
+        glBindAttribLocation(mProgram1, 1, "v0");
+        glBindAttribLocation(mProgram1, 2, "v1");
+        glBindAttribLocation(mProgram1, 3, "v2");
+        glBindAttribLocation(mProgram1, 4, "v3");
         glEnableVertexAttribArray(1);
         glEnableVertexAttribArray(2);
         glEnableVertexAttribArray(3);
         glEnableVertexAttribArray(4);
     }
+    else if (params.stateChange == StateChange::VertexBufferCycle)
+    {
+        mProgram1 = SetupSimpleDrawProgram();
+        ASSERT_NE(0u, mProgram1);
+
+        for (size_t bufferIndex = 0; bufferIndex < kCycleVBOPoolSize; ++bufferIndex)
+        {
+            GLuint buffer = Create2DTriangleBuffer(mNumTris, GL_STATIC_DRAW);
+            mVBOPool.push_back(buffer);
+        }
+    }
+    else if (params.stateChange == StateChange::Uniform)
+    {
+        constexpr char kVS[] = R"(attribute vec2 vPosition;
+void main()
+{
+    gl_Position = vec4(vPosition, 0, 1);
+})";
+
+        constexpr char kFS[] = R"(precision mediump float;
+uniform vec4 uni;
+void main()
+{
+    gl_FragColor = uni;
+})";
+
+        mProgram1 = CompileProgram(kVS, kFS);
+        ASSERT_NE(0u, mProgram1);
+    }
     else
     {
-        mProgram = SetupSimpleDrawProgram();
+        mProgram1 = SetupSimpleDrawProgram();
+        ASSERT_NE(0u, mProgram1);
     }
 
-    ASSERT_NE(0u, mProgram);
-
     // Re-link program to ensure the attrib bindings are used.
-    glBindAttribLocation(mProgram, 0, "vPosition");
-    glLinkProgram(mProgram);
-    glUseProgram(mProgram);
+    if (mProgram1)
+    {
+        glBindAttribLocation(mProgram1, 0, "vPosition");
+        glLinkProgram(mProgram1);
+        glUseProgram(mProgram1);
+    }
+
+    if (mProgram2)
+    {
+        glBindAttribLocation(mProgram2, 0, "vPosition");
+        glLinkProgram(mProgram2);
+    }
+
+    if (mProgram3)
+    {
+        glBindAttribLocation(mProgram3, 0, "vPosition");
+        glLinkProgram(mProgram3);
+    }
 
     glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 
@@ -184,26 +271,73 @@ void main()
     // Set the viewport
     glViewport(0, 0, getWindow()->getWidth(), getWindow()->getHeight());
 
-    if (params.offscreen)
+    if (params.surfaceType == SurfaceType::Offscreen)
     {
         CreateColorFBO(getWindow()->getWidth(), getWindow()->getHeight(), &mFBOTexture, &mFBO);
     }
 
-    mTexture1 = CreateSimpleTexture2D();
-    mTexture2 = CreateSimpleTexture2D();
+    for (size_t i = 0; i < kManyTexturesCount; ++i)
+    {
+        mTextures.emplace_back(CreateSimpleTexture2D());
+    }
+
+    if (params.stateChange == StateChange::Program)
+    {
+        // Bind the textures as appropriate, they are not modified during the test.
+        GLint program1Tex1Loc = glGetUniformLocation(mProgram1, "tex");
+        GLint program2Tex1Loc = glGetUniformLocation(mProgram2, "tex1");
+        GLint program2Tex2Loc = glGetUniformLocation(mProgram2, "tex2");
+
+        glUseProgram(mProgram1);
+        glUniform1i(program1Tex1Loc, 0);
+
+        glUseProgram(mProgram2);
+        glUniform1i(program2Tex1Loc, 0);
+        glUniform1i(program2Tex2Loc, 1);
+    }
+
+    if (params.stateChange == StateChange::ManyTextureDraw)
+    {
+        GLint program3TexLocs[kManyTexturesCount];
+
+        for (size_t i = 0; i < mTextures.size(); ++i)
+        {
+            char stringBuffer[8];
+            snprintf(stringBuffer, sizeof(stringBuffer), "tex%zu", i);
+            program3TexLocs[i] = glGetUniformLocation(mProgram3, stringBuffer);
+        }
+
+        glUseProgram(mProgram3);
+        for (size_t i = 0; i < mTextures.size(); ++i)
+        {
+            glUniform1i(program3TexLocs[i], i);
+        }
+
+        for (size_t i = 0; i < mTextures.size(); ++i)
+        {
+            glActiveTexture(GL_TEXTURE0 + i);
+            glBindTexture(GL_TEXTURE_2D, mTextures[i]);
+        }
+    }
 
     ASSERT_GL_NO_ERROR();
 }
 
 void DrawCallPerfBenchmark::destroyBenchmark()
 {
-    glDeleteProgram(mProgram);
+    glDeleteProgram(mProgram1);
+    glDeleteProgram(mProgram2);
+    glDeleteProgram(mProgram3);
     glDeleteBuffers(1, &mBuffer1);
     glDeleteBuffers(1, &mBuffer2);
     glDeleteTextures(1, &mFBOTexture);
-    glDeleteTextures(1, &mTexture1);
-    glDeleteTextures(1, &mTexture2);
+    glDeleteTextures(mTextures.size(), mTextures.data());
     glDeleteFramebuffers(1, &mFBO);
+
+    if (!mVBOPool.empty())
+    {
+        glDeleteBuffers(mVBOPool.size(), mVBOPool.data());
+    }
 }
 
 void ClearThenDraw(unsigned int iterations, GLsizei numElements)
@@ -282,6 +416,147 @@ void ChangeTextureThenDraw(unsigned int iterations,
     }
 }
 
+void ChangeProgramThenDraw(unsigned int iterations,
+                           GLsizei numElements,
+                           GLuint program1,
+                           GLuint program2)
+{
+    for (unsigned int it = 0; it < iterations; it++)
+    {
+        glUseProgram(program1);
+        glDrawArrays(GL_TRIANGLES, 0, numElements);
+
+        glUseProgram(program2);
+        glDrawArrays(GL_TRIANGLES, 0, numElements);
+    }
+}
+
+void CycleVertexBufferThenDraw(unsigned int iterations,
+                               GLsizei numElements,
+                               const std::vector<GLuint> &vbos,
+                               size_t *currentVBO)
+{
+    for (unsigned int it = 0; it < iterations; it++)
+    {
+        GLuint vbo = vbos[*currentVBO];
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+        glDrawArrays(GL_TRIANGLES, 0, numElements);
+        *currentVBO = (*currentVBO + 1) % vbos.size();
+    }
+}
+
+void ChangeScissorThenDraw(unsigned int iterations,
+                           GLsizei numElements,
+                           unsigned int windowWidth,
+                           unsigned int windowHeight)
+{
+    // Change scissor as such:
+    //
+    // - Start with a narrow vertical bar:
+    //
+    //           Scissor
+    //              |
+    //              V
+    //       +-----+-+-----+
+    //       |     | |     | <-- Window
+    //       |     | |     |
+    //       |     | |     |
+    //       |     | |     |
+    //       |     | |     |
+    //       |     | |     |
+    //       +-----+-+-----+
+    //
+    // - Gradually reduce height and increase width, to end up with a narrow horizontal bar:
+    //
+    //       +-------------+
+    //       |             |
+    //       |             |
+    //       +-------------+ <-- Scissor
+    //       +-------------+
+    //       |             |
+    //       |             |
+    //       +-------------+
+    //
+    // - If more iterations left, restart, but shift the initial bar left to cover more area:
+    //
+    //       +---+-+-------+          +-------------+
+    //       |   | |       |          |             |
+    //       |   | |       |          +-------------+
+    //       |   | |       |   --->   |             |
+    //       |   | |       |          |             |
+    //       |   | |       |          +-------------+
+    //       |   | |       |          |             |
+    //       +---+-+-------+          +-------------+
+    //
+    //       +-+-+---------+          +-------------+
+    //       | | |         |          +-------------+
+    //       | | |         |          |             |
+    //       | | |         |   --->   |             |
+    //       | | |         |          |             |
+    //       | | |         |          |             |
+    //       | | |         |          +-------------+
+    //       +-+-+---------+          +-------------+
+
+    glEnable(GL_SCISSOR_TEST);
+
+    constexpr unsigned int kScissorStep  = 2;
+    unsigned int scissorX                = windowWidth / 2 - 1;
+    unsigned int scissorY                = 0;
+    unsigned int scissorWidth            = 2;
+    unsigned int scissorHeight           = windowHeight;
+    unsigned int scissorPatternIteration = 0;
+
+    for (unsigned int it = 0; it < iterations; it++)
+    {
+        glScissor(scissorX, scissorY, scissorWidth, scissorHeight);
+        glDrawArrays(GL_TRIANGLES, 0, numElements);
+
+        if (scissorX < kScissorStep || scissorHeight < kScissorStep * 2)
+        {
+            ++scissorPatternIteration;
+            scissorX      = windowWidth / 2 - 1 - scissorPatternIteration * 2;
+            scissorY      = 0;
+            scissorWidth  = 2;
+            scissorHeight = windowHeight;
+        }
+        else
+        {
+            scissorX -= kScissorStep;
+            scissorY += kScissorStep;
+            scissorWidth += kScissorStep * 2;
+            scissorHeight -= kScissorStep * 2;
+        }
+    }
+}
+
+void DrawWithEightTextures(unsigned int iterations,
+                           GLsizei numElements,
+                           std::vector<GLuint> textures)
+{
+    for (unsigned int it = 0; it < iterations; it++)
+    {
+        for (size_t i = 0; i < textures.size(); ++i)
+        {
+            glActiveTexture(GL_TEXTURE0 + i);
+            size_t index = (it + i) % textures.size();
+            glBindTexture(GL_TEXTURE_2D, textures[index]);
+        }
+
+        glDrawArrays(GL_TRIANGLES, 0, numElements);
+    }
+}
+
+void UpdateUniformThenDraw(unsigned int iterations, GLsizei numElements)
+{
+    for (unsigned int it = 0; it < iterations; it++)
+    {
+        float f = static_cast<float>(it) / static_cast<float>(iterations);
+        glUniform4f(0, f, f + 0.1f, f + 0.2f, f + 0.3f);
+        glDrawArrays(GL_TRIANGLES, 0, numElements);
+    }
+}
+
 void DrawCallPerfBenchmark::drawBenchmark()
 {
     // This workaround fixes a huge queue of graphics commands accumulating on the GL
@@ -305,7 +580,11 @@ void DrawCallPerfBenchmark::drawBenchmark()
                                           mBuffer2);
             break;
         case StateChange::Texture:
-            ChangeTextureThenDraw(params.iterationsPerStep, numElements, mTexture1, mTexture2);
+            ChangeTextureThenDraw(params.iterationsPerStep, numElements, mTextures[0],
+                                  mTextures[1]);
+            break;
+        case StateChange::Program:
+            ChangeProgramThenDraw(params.iterationsPerStep, numElements, mProgram1, mProgram2);
             break;
         case StateChange::NoChange:
             if (eglParams.deviceType != EGL_PLATFORM_ANGLE_DEVICE_TYPE_NULL_ANGLE ||
@@ -319,6 +598,24 @@ void DrawCallPerfBenchmark::drawBenchmark()
                 JustDraw(params.iterationsPerStep, numElements);
             }
             break;
+        case StateChange::VertexBufferCycle:
+            CycleVertexBufferThenDraw(params.iterationsPerStep, numElements, mVBOPool,
+                                      &mCurrentVBO);
+            break;
+        case StateChange::Scissor:
+            ChangeScissorThenDraw(params.iterationsPerStep, numElements, getWindow()->getWidth(),
+                                  getWindow()->getHeight());
+            break;
+        case StateChange::ManyTextureDraw:
+            glUseProgram(mProgram3);
+            DrawWithEightTextures(params.iterationsPerStep, numElements, mTextures);
+            break;
+        case StateChange::Uniform:
+            UpdateUniformThenDraw(params.iterationsPerStep, numElements);
+            break;
+        case StateChange::InvalidEnum:
+            ADD_FAILURE() << "Invalid state change.";
+            break;
     }
 
     ASSERT_GL_NO_ERROR();
@@ -329,61 +626,31 @@ TEST_P(DrawCallPerfBenchmark, Run)
     run();
 }
 
-DrawArraysPerfParams DrawArrays(const DrawCallPerfParams &base, StateChange stateChange)
-{
-    DrawArraysPerfParams params(base);
-    params.stateChange = stateChange;
-    return params;
-}
-
 using namespace params;
 
-ANGLE_INSTANTIATE_TEST(DrawCallPerfBenchmark,
-                       DrawArrays(DrawCallD3D9(), StateChange::NoChange),
-                       DrawArrays(NullDevice(DrawCallD3D9()), StateChange::NoChange),
-                       DrawArrays(DrawCallD3D11(), StateChange::NoChange),
-                       DrawArrays(NullDevice(DrawCallD3D11()), StateChange::NoChange),
-                       DrawArrays(NullDevice(Offscreen(DrawCallD3D11())), StateChange::NoChange),
-                       DrawArrays(DrawCallD3D11(), StateChange::VertexAttrib),
-                       DrawArrays(NullDevice(DrawCallD3D11()), StateChange::VertexAttrib),
-                       DrawArrays(DrawCallD3D11(), StateChange::VertexBuffer),
-                       DrawArrays(NullDevice(DrawCallD3D11()), StateChange::VertexBuffer),
-                       DrawArrays(DrawCallD3D11(), StateChange::Texture),
-                       DrawArrays(NullDevice(DrawCallD3D11()), StateChange::Texture),
-                       DrawArrays(DrawCallOpenGL(), StateChange::NoChange),
-                       DrawArrays(NullDevice(DrawCallOpenGL()), StateChange::NoChange),
-                       DrawArrays(NullDevice(Offscreen(DrawCallOpenGL())), StateChange::NoChange),
-                       DrawArrays(DrawCallOpenGL(), StateChange::VertexAttrib),
-                       DrawArrays(NullDevice(DrawCallOpenGL()), StateChange::VertexAttrib),
-                       DrawArrays(DrawCallOpenGL(), StateChange::VertexBuffer),
-                       DrawArrays(NullDevice(DrawCallOpenGL()), StateChange::VertexBuffer),
-                       DrawArrays(DrawCallOpenGL(), StateChange::ManyVertexBuffers),
-                       DrawArrays(NullDevice(DrawCallOpenGL()), StateChange::ManyVertexBuffers),
-                       DrawArrays(DrawCallOpenGL(), StateChange::Texture),
-                       DrawArrays(NullDevice(DrawCallOpenGL()), StateChange::Texture),
-                       DrawArrays(DrawCallValidation(), StateChange::NoChange),
-                       DrawArrays(DrawCallVulkan(), StateChange::NoChange),
-                       DrawArrays(Offscreen(DrawCallVulkan()), StateChange::NoChange),
-                       DrawArrays(NullDevice(DrawCallVulkan()), StateChange::NoChange),
-                       DrawArrays(DrawCallVulkan(), StateChange::VertexAttrib),
-                       DrawArrays(Offscreen(DrawCallVulkan()), StateChange::VertexAttrib),
-                       DrawArrays(NullDevice(DrawCallVulkan()), StateChange::VertexAttrib),
-                       DrawArrays(DrawCallVulkan(), StateChange::VertexBuffer),
-                       DrawArrays(Offscreen(DrawCallVulkan()), StateChange::VertexBuffer),
-                       DrawArrays(NullDevice(DrawCallVulkan()), StateChange::VertexBuffer),
-                       DrawArrays(DrawCallVulkan(), StateChange::ManyVertexBuffers),
-                       DrawArrays(Offscreen(DrawCallVulkan()), StateChange::ManyVertexBuffers),
-                       DrawArrays(NullDevice(DrawCallVulkan()), StateChange::ManyVertexBuffers),
-                       DrawArrays(DrawCallVulkan(), StateChange::Texture),
-                       DrawArrays(Offscreen(DrawCallVulkan()), StateChange::Texture),
-                       DrawArrays(NullDevice(DrawCallVulkan()), StateChange::Texture),
-                       DrawArrays(DrawCallWGL(), StateChange::NoChange),
-                       DrawArrays(Offscreen(DrawCallWGL()), StateChange::NoChange),
-                       DrawArrays(DrawCallWGL(), StateChange::VertexAttrib),
-                       DrawArrays(Offscreen(DrawCallWGL()), StateChange::VertexAttrib),
-                       DrawArrays(DrawCallWGL(), StateChange::VertexBuffer),
-                       DrawArrays(Offscreen(DrawCallWGL()), StateChange::VertexBuffer),
-                       DrawArrays(DrawCallWGL(), StateChange::Texture),
-                       DrawArrays(Offscreen(DrawCallWGL()), StateChange::Texture));
+DrawArraysPerfParams CombineStateChange(const DrawArraysPerfParams &in, StateChange stateChange)
+{
+    DrawArraysPerfParams out = in;
+    out.stateChange          = stateChange;
+
+    // Crank up iteration count to ensure we cycle through all VBs before a swap.
+    if (stateChange == StateChange::VertexBufferCycle)
+    {
+        out.iterationsPerStep = kCycleVBOPoolSize * 2;
+    }
+
+    return out;
+}
+
+using P = DrawArraysPerfParams;
+
+std::vector<P> gTestsWithStateChange =
+    CombineWithValues({P()}, angle::AllEnums<StateChange>(), CombineStateChange);
+std::vector<P> gTestsWithRenderer =
+    CombineWithFuncs(gTestsWithStateChange, {D3D11<P>, GL<P>, Metal<P>, Vulkan<P>, WGL<P>});
+std::vector<P> gTestsWithDevice =
+    CombineWithFuncs(gTestsWithRenderer, {Passthrough<P>, Offscreen<P>, NullDevice<P>});
+
+ANGLE_INSTANTIATE_TEST_ARRAY(DrawCallPerfBenchmark, gTestsWithDevice);
 
 }  // anonymous namespace
