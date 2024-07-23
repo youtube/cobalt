@@ -277,7 +277,6 @@ void* ThreadEntryPoint(void* context) {
   // kill the process.
   JniEnvExt* env = JniEnvExt::Get();
   env->CallStarboardVoidMethodOrAbort("afterStopped", "()V");
-
   return NULL;
 }
 
