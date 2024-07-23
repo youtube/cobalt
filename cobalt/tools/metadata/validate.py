@@ -27,6 +27,7 @@ import argparse
 try:
   from cobalt.tools.metadata.gen import metadata_file_pb2
 except ImportError:
+  metadata_file_pb2 = None
   pass
 
 log = logging.getLogger(__name__)
@@ -44,6 +45,9 @@ class MetaData(object):
   """Validates Metadadata fields"""
 
   def __init__(self, textproto_content, metadata_file_path):
+    if not metadata_file_pb2:
+      raise RuntimeError('Unable to load METADATA schema, please re-generate'
+                         ' by running `validate.py -u`')
     metadata = metadata_file_pb2.Metadata()
     text_format.Parse(textproto_content, metadata)
     if not metadata.name:
