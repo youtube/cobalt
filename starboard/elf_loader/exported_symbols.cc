@@ -159,7 +159,7 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION < 16
 #if SB_API_VERSION < 17
   REGISTER_SYMBOL(SbDirectoryClose);
-#endif  // s SB_API_VERSION < 17
+#endif  // SB_API_VERSION < 17
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryCreate);
 #endif  // SB_API_VERSION < 16
