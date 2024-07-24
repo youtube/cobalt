@@ -157,12 +157,16 @@ ExportedSymbols::ExportedSymbols() {
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryCanOpen);
 #endif  // SB_API_VERSION < 16
+#if SB_API_VERSION < 17
   REGISTER_SYMBOL(SbDirectoryClose);
+#endif  // s SB_API_VERSION < 17
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbDirectoryCreate);
 #endif  // SB_API_VERSION < 16
+#if SB_API_VERSION < 17
   REGISTER_SYMBOL(SbDirectoryGetNext);
   REGISTER_SYMBOL(SbDirectoryOpen);
+#endif  // SB_API_VERSION < 17
   REGISTER_SYMBOL(SbDrmCloseSession);
   REGISTER_SYMBOL(SbDrmCreateSystem);
   REGISTER_SYMBOL(SbDrmDestroySystem);

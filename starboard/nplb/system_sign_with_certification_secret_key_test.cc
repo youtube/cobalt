@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// SbDirectoryClose is well-covered in all the other tests, so just the
-// leftovers are here.
-
 #include <string>
 
 #include "starboard/system.h"
