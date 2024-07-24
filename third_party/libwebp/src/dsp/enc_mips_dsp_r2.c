@@ -16,8 +16,6 @@
 
 #if defined(WEBP_USE_MIPS_DSP_R2)
 
-#include <stdlib.h>
-
 #include "src/dsp/mips_macro.h"
 #include "src/enc/cost_enc.h"
 #include "src/enc/vp8i_enc.h"

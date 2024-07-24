@@ -12,10 +12,6 @@
 // Authors: Vikas Arora (vikaas.arora@gmail.com)
 //          Jyrki Alakuijala (jyrki@google.com)
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif
-
 #include <stdlib.h>
 
 #include "src/dec/alphai_dec.h"
