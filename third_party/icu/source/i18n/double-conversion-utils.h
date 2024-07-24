@@ -39,9 +39,6 @@
 
 #include <cstdlib>
 #include <cstring>
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif
 
 // ICU PATCH: Use U_ASSERT instead of <assert.h>
 #include "uassert.h"

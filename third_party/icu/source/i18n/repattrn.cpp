@@ -13,9 +13,6 @@
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_REGULAR_EXPRESSIONS
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 
 #include "unicode/regex.h"
 #include "unicode/uclean.h"
