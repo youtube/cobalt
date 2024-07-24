@@ -14,6 +14,7 @@
 
 #include "starboard/common/file.h"
 
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -24,6 +25,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/metrics/stats_tracker.h"
+#include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
@@ -32,8 +34,8 @@
 namespace starboard {
 namespace {
 
-bool DirectoryCloseLogFailure(const char* path, SbDirectory dir) {
-  if (!SbDirectoryClose(dir)) {
+bool DirectoryCloseLogFailure(const char* path, DIR* dir) {
+  if (closedir(dir) != 0) {
     SB_LOG(ERROR) << "Failed to close directory: '" << path << "'";
     return false;
   }
@@ -79,13 +81,10 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
     return false;
   }
 
-  SbFileError err = kSbFileOk;
-  SbDirectory dir = kSbDirectoryInvalid;
-
-  dir = SbDirectoryOpen(path, &err);
+  DIR* dir = opendir(path);
 
   // The |path| points to a file. Remove it and return.
-  if (err != kSbFileOk) {
+  if (!dir) {
     return SbFileDelete(path);
   }
 
@@ -93,7 +92,18 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root) {
 
   std::vector<char> entry(kSbFileMaxName);
 
-  while (SbDirectoryGetNext(dir, entry.data(), kSbFileMaxName)) {
+  struct dirent dirent_buffer;
+  struct dirent* dirent;
+  while (true) {
+    if (entry.size() < kSbFileMaxName || !dir || !entry.data()) {
+      break;
+    }
+    int result = readdir_r(dir, &dirent_buffer, &dirent);
+    if (result || !dirent) {
+      break;
+    }
+    starboard::strlcpy(entry.data(), dirent->d_name, kSbFileMaxName);
+
     if (!strcmp(entry.data(), ".") || !strcmp(entry.data(), "..")) {
       continue;
     }
