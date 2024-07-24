@@ -116,11 +116,11 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
 
   DIR* directory = opendir(source.value().c_str());
   if (!(directory)) {
-    #if BUILDFLAG(IS_WIN)
-  EXPECT_EQ(File::Error::FILE_ERROR_FAILED, enumerator.GetError());
+#if BUILDFLAG(IS_WIN)
+    error_ = File::Error::FILE_ERROR_FAILED;
 #else
-  EXPECT_EQ(File::Error::FILE_ERROR_NOT_A_DIRECTORY, enumerator.GetError());
-#endif
+    error_ = File::Error::FILE_ERROR_NOT_A_DIRECTORY;
+#endif // BUILDFLAG(IS_WIN)
     return std::vector<FileEnumerator::FileInfo>();
   }
 
