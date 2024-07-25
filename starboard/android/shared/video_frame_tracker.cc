@@ -95,7 +95,8 @@ void VideoFrameTracker::UpdateDroppedFrames() {
     rendered_frames_on_tracker_thread_.swap(rendered_frames_on_decoder_thread_);
   }
 
-  while (frames_to_be_rendered_.front() < seek_to_time_) {
+  while (!frames_to_be_rendered_.empty() &&
+         frames_to_be_rendered_.front() < seek_to_time_) {
     // It is possible that the initial frame rendered time is before the
     // seek to time, when the platform decides to render a frame earlier
     // than the seek to time during preroll. This shouldn't be an issue
