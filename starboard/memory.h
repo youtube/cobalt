@@ -220,16 +220,6 @@ SB_EXPORT void SbMemoryFlush(void* virtual_address, int64_t size_bytes);
 #endif
 #endif  // SB_API_VERSION < 16
 
-#if SB_API_VERSION < 15
-
-// Gets the stack bounds for the current thread.
-//
-// |out_high|: The highest addressable byte + 1 for the current thread.
-// |out_low|: The lowest addressable byte for the current thread.
-SB_EXPORT void SbMemoryGetStackBounds(void** out_high, void** out_low);
-
-#endif  // SB_API_VERSION < 15
-
 #if SB_API_VERSION < 16
 // A wrapper that implements a drop-in replacement for |calloc|, which is used
 // in some packages.

@@ -220,11 +220,7 @@ TEST(CodecUtilTest, ParsesAacCodecs) {
   EXPECT_EQ(GetAudioCodecFromString("mp4a.40.5", ""), kSbMediaAudioCodecAac);
 }
 
-#if SB_API_VERSION < 15
-const bool kCheckAc3Audio = kSbHasAc3Audio;
-#else
 const bool kCheckAc3Audio = true;
-#endif  // SB_API_VERSION < 15
 
 TEST(CodecUtilTest, ParsesAc3CodecIfEnabled) {
   EXPECT_EQ(GetAudioCodecFromString("ac-3", ""),

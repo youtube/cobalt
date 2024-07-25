@@ -47,14 +47,8 @@ AVCodecID GetFfmpegCodecIdByMediaCodec(
     case kSbMediaAudioCodecAac:
       return AV_CODEC_ID_AAC;
     case kSbMediaAudioCodecAc3:
-#if SB_API_VERSION < 15
-      return kSbHasAc3Audio ? AV_CODEC_ID_AC3 : AV_CODEC_ID_NONE;
-#endif  // SB_API_VERSION < 15
       return AV_CODEC_ID_AC3;
     case kSbMediaAudioCodecEac3:
-#if SB_API_VERSION < 15
-      return kSbHasAc3Audio ? AV_CODEC_ID_EAC3 : AV_CODEC_ID_NONE;
-#endif  // SB_API_VERSION < 15
       return AV_CODEC_ID_EAC3;
     case kSbMediaAudioCodecOpus:
       return AV_CODEC_ID_OPUS;

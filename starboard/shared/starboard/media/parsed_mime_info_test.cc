@@ -23,11 +23,7 @@ namespace starboard {
 namespace media {
 namespace {
 
-#if SB_API_VERSION < 15
-const bool kCheckAc3Audio = kSbHasAc3Audio;
-#else
 const bool kCheckAc3Audio = true;
-#endif  // SB_API_VERSION < 15
 
 TEST(ParsedMimeInfoTest, ParsesAacLowComplexityCodec) {
   ParsedMimeInfo mime_info("audio/mp4; codecs=\"mp4a.40.2\"");
