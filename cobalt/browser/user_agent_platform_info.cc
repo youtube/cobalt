@@ -320,15 +320,10 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
     info.set_aux_field(value);
   }
 
-#if SB_API_VERSION >= 15
   result = SbSystemGetProperty(kSbSystemPropertyDeviceType, value,
                                kSystemPropertyMaxLength);
   SB_DCHECK(result);
   info.set_device_type(value);
-#else
-  // Fill platform info if it is a hardware TV device.
-  info.set_device_type(SbSystemGetDeviceType());
-#endif
 
   // Chipset model number
   result = SbSystemGetProperty(kSbSystemPropertyChipsetModelNumber, value,
