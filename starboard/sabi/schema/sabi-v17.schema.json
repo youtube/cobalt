@@ -6,7 +6,7 @@
     "sb_api_version": {
       "type": "integer",
       "description": "The Starboard API version.",
-      "enum": [16]
+      "enum": [17]
     },
     "target_arch": {
       "type": "string",
