@@ -127,7 +127,6 @@ static_library("starboard_platform") {
     "//starboard/shared/uwp/media_is_video_supported.cc",
     "//starboard/shared/uwp/microphone_impl.cc",
     "//starboard/shared/uwp/player_components_factory.cc",
-    "//starboard/shared/uwp/system_get_device_type.cc",
     "//starboard/shared/uwp/system_get_property.cc",
     "//starboard/shared/uwp/system_get_total_cpu_memory.cc",
     "//starboard/shared/uwp/system_get_used_cpu_memory.cc",

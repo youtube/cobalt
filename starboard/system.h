@@ -125,47 +125,10 @@ typedef enum SbSystemPropertyId {
   // a true value. Corresponds to 'lmt' field.
   kSbSystemPropertyLimitAdTracking,
 
-#if SB_API_VERSION >= 15
   // Type of the device, e.g. such as "TV", "STB", "OTT"
   // Please see Youtube Technical requirements for a full list of allowed values
   kSbSystemPropertyDeviceType,
-#endif
 } SbSystemPropertyId;
-
-#if SB_API_VERSION < 15
-// Enumeration of device types.
-typedef enum SbSystemDeviceType {
-  // Blue-ray Disc Player (BDP).
-  kSbSystemDeviceTypeBlueRayDiskPlayer,
-
-  // A relatively high-powered TV device used primarily for playing games.
-  kSbSystemDeviceTypeGameConsole,
-
-  // Over the top (OTT) devices stream content via the Internet over another
-  // type of network, e.g. cable or satellite.
-  kSbSystemDeviceTypeOverTheTopBox,
-
-  // Set top boxes (STBs) stream content primarily over cable or satellite.
-  // Some STBs can also stream OTT content via the Internet.
-  kSbSystemDeviceTypeSetTopBox,
-
-  // A Smart TV is a TV that can directly run applications that stream OTT
-  // content via the Internet.
-  kSbSystemDeviceTypeTV,
-
-  // Desktop PC.
-  kSbSystemDeviceTypeDesktopPC,
-
-  // An Android TV Device.
-  kSbSystemDeviceTypeAndroidTV,
-
-  // A wall video projector.
-  kSbSystemDeviceTypeVideoProjector,
-
-  // Unknown device.
-  kSbSystemDeviceTypeUnknown,
-} SbSystemDeviceType;
-#endif  // SB_API_VERSION < 15
 
 // Runtime capabilities are boolean properties of a platform that can't be
 // determined at compile-time. They may vary from device to device, but they
@@ -283,11 +246,6 @@ SB_EXPORT int64_t SbSystemGetTotalGPUMemory();
 // value for calls to
 // SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats) is |true|.
 SB_EXPORT int64_t SbSystemGetUsedGPUMemory();
-
-#if SB_API_VERSION < 15
-// Returns the type of the device.
-SB_EXPORT SbSystemDeviceType SbSystemGetDeviceType();
-#endif
 
 // Returns if the device is disconnected from network. "Disconnected" is chosen
 // over connected because disconnection can be determined with more certainty
