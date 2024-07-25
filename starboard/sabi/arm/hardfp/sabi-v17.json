@@ -1,6 +1,6 @@
 {
   "variables": {
-    "sb_api_version": 16,
+    "sb_api_version": 17,
     "target_arch": "arm",
     "target_arch_sub": "v7a",
     "word_size": 32,
