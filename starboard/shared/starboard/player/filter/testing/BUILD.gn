@@ -24,6 +24,7 @@ if (current_toolchain == starboard_toolchain) {
       "adaptive_audio_decoder_test.cc",
       "audio_channel_layout_mixer_test.cc",
       "audio_decoder_test.cc",
+      "audio_discard_duration_tracker_test.cc",
       "audio_frame_discarder_test.cc",
       "audio_renderer_internal_test.cc",
       "audio_resampler_test.cc",
