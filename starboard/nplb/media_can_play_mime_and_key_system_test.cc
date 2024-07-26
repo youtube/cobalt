@@ -793,11 +793,7 @@ TEST(SbMediaCanPlayMimeAndKeySystem, ValidateQueriesUnderPeakCapability) {
 }
 
 TEST(SbMediaCanPlayMimeAndKeySystem, VerifyMaxBitrate) {
-#if SB_API_VERSION >= 15
   constexpr int kAv14kBitrate = 40000000;
-#else
-  constexpr int kAv14kBitrate = 42000000;
-#endif  // SB_API_VERSION >= 15
 
   const std::pair<std::string, int> kCodecSupportQueries[] = {
       {// AV1 1080P SDR

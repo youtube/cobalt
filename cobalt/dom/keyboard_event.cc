@@ -337,10 +337,8 @@ std::string KeyboardEvent::NonPrintableKey(int32_t key_code) const {
       return "MediaStop";
     case keycode::kMediaPlayPause:
       return "MediaPlayPause";
-#if SB_API_VERSION >= 15
     case keycode::kMediaRecord:
       return "MediaRecord";
-#endif
     case keycode::kMediaLaunchMail:
       return "LaunchMail";
     case keycode::kMediaLaunchMediaSelect:

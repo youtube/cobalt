@@ -89,10 +89,8 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
       return kSbMediaAudioCodecFlac;
     case AudioCodec::kPCM:
       return kSbMediaAudioCodecPcm;
-#if SB_API_VERSION >= 15
     case AudioCodec::kIAMF:
      return kSbMediaAudioCodecIamf;
-#endif  // SB_API_VERSION >= 15
     default:
       // Cobalt only supports a subset of audio codecs defined by Chromium.
       DLOG(ERROR) << "Unsupported audio codec " << GetCodecName(codec);
@@ -140,17 +138,10 @@ SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
       MediaAudioCodecToSbMediaAudioCodec(audio_decoder_config.codec());
   audio_stream_info.mime = mime_type;
 
-#if SB_API_VERSION < 15
-  audio_stream_info.format_tag = 0x00ff;
-#endif // SB_API_VERSION < 15
   audio_stream_info.number_of_channels =
       ChannelLayoutToChannelCount(audio_decoder_config.channel_layout());
   audio_stream_info.samples_per_second =
       audio_decoder_config.samples_per_second();
-#if SB_API_VERSION < 15
-  audio_stream_info.average_bytes_per_second = 1;
-  audio_stream_info.block_alignment = 4;
-#endif // SB_API_VERSION < 15
   audio_stream_info.bits_per_sample = audio_decoder_config.bits_per_channel();
 
   const auto& extra_data = audio_stream_info.codec == kSbMediaAudioCodecAac

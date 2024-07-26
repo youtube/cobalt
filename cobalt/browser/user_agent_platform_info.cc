@@ -395,11 +395,7 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
           info.set_original_design_manufacturer(input.second);
           LOG(INFO) << "Set original design manufacturer to " << input.second;
         } else if (!input.first.compare("device_type")) {
-#if SB_API_VERSION < 15
-          info.set_device_type(GetDeviceType(input.second));
-#else
           info.set_device_type(input.second);
-#endif
           LOG(INFO) << "Set device type to " << input.second;
         } else if (!input.first.compare("chipset_model_number")) {
           info.set_chipset_model_number(input.second);

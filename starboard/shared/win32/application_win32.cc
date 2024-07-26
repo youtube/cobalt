@@ -119,15 +119,10 @@ namespace starboard {
 namespace shared {
 namespace win32 {
 
-#if SB_API_VERSION >= 15
 ApplicationWin32::ApplicationWin32(
     SbEventHandleCallback sb_event_handle_callback)
     : localized_strings_(SbSystemGetLocaleId()),
       QueueApplication(sb_event_handle_callback) {}
-#else
-ApplicationWin32::ApplicationWin32()
-    : localized_strings_(SbSystemGetLocaleId()) {}
-#endif  // SB_API_VERSION >= 15
 ApplicationWin32::~ApplicationWin32() {}
 
 SbWindow ApplicationWin32::CreateWindowForWin32(

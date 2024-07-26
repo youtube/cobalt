@@ -37,11 +37,7 @@ namespace win32 {
 
 class ApplicationWin32 : public starboard::QueueApplication {
  public:
-#if SB_API_VERSION >= 15
   explicit ApplicationWin32(SbEventHandleCallback sb_event_handle_callback);
-#else
-  ApplicationWin32();
-#endif  // SB_API_VERSION >= 15
   ~ApplicationWin32() override;
 
   static ApplicationWin32* Get() {

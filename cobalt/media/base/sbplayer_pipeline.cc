@@ -59,7 +59,6 @@ const int kPrerollGuardAudioBuffer = 1;
 
 unsigned int g_pipeline_identifier_counter = 0;
 
-#if SB_API_VERSION >= 15
 bool HasRemoteAudioOutputs(
     const std::vector<SbMediaAudioConfiguration>& configurations) {
   for (auto&& configuration : configurations) {
@@ -88,7 +87,6 @@ bool HasRemoteAudioOutputs(
 
   return false;
 }
-#endif  // SB_API_VERSION >= 15
 
 // The function adjusts audio write duration proportionally to the playback
 // rate, when the playback rate is greater than 1.0.
@@ -136,9 +134,7 @@ SbPlayerPipeline::SbPlayerPipeline(
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, int max_audio_samples_per_write,
     bool force_punch_out_by_default,
-#if SB_API_VERSION >= 15
     TimeDelta audio_write_duration_local, TimeDelta audio_write_duration_remote,
-#endif  // SB_API_VERSION >= 15
     MediaLog* media_log, MediaMetricsProvider* media_metrics_provider,
     DecodeTargetProvider* decode_target_provider)
     : pipeline_identifier_(
@@ -181,10 +177,8 @@ SbPlayerPipeline::SbPlayerPipeline(
                     kSbPlayerStateInitialized,
                     "The underlying SbPlayer state of the media pipeline."),
       decode_target_provider_(decode_target_provider),
-#if SB_API_VERSION >= 15
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-#endif  // SB_API_VERSION >= 15
       media_metrics_provider_(media_metrics_provider),
       last_media_time_(base::StringPrintf("Media.Pipeline.%s.LastMediaTime",
                                           pipeline_identifier_.c_str()),
@@ -591,7 +585,6 @@ void SbPlayerPipeline::GetNaturalVideoSize(gfx::Size* out_size) const {
 }
 
 std::vector<std::string> SbPlayerPipeline::GetAudioConnectors() const {
-#if SB_API_VERSION >= 15
   base::AutoLock auto_lock(lock_);
   if (!player_bridge_) {
     return std::vector<std::string>();
@@ -612,9 +605,6 @@ std::vector<std::string> SbPlayerPipeline::GetAudioConnectors() const {
   }
 
   return connectors;
-#else   // SB_API_VERSION >= 15
-  return std::vector<std::string>();
-#endif  // SB_API_VERSION >= 15
 }
 
 bool SbPlayerPipeline::DidLoadingProgress() const {
@@ -874,7 +864,6 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
         default_output_mode_, decode_target_provider_, max_video_capabilities_,
         max_video_input_size_, pipeline_identifier_));
     if (player_bridge_->IsValid()) {
-#if SB_API_VERSION >= 15
       // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
       // returns no audio configurations, update the write durations again
       // before the SbPlayer reaches `kSbPlayerStatePresenting`.
@@ -884,7 +873,6 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
               : audio_write_duration_local_;
       LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
                 << audio_write_duration_for_preroll_;
-#endif  // SB_API_VERSION >= 15
 
       SetPlaybackRateTask(playback_rate_);
       SetVolumeTask(volume_);
@@ -1318,14 +1306,12 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-#if SB_API_VERSION >= 15
       audio_write_duration_for_preroll_ = audio_write_duration_ =
           HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
               ? audio_write_duration_remote_
               : audio_write_duration_local_;
       LOG(INFO) << "SbPlayerBridge reaches kSbPlayerStatePresenting, with audio"
                 << " write duration at " << audio_write_duration_;
-#endif  // SB_API_VERSION >= 15
       break;
     }
     case kSbPlayerStateEndOfStream:

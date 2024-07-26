@@ -73,21 +73,9 @@ extern "C" int StarboardMain(int argc, char** argv) {
   SB_DCHECK(SUCCEEDED(hr));
 
   WaitForNetLogIfNecessary(CommandLine(argc, argv));
-#if SB_API_VERSION >= 15
   return SbRunStarboardMain(argc, argv, SbEventHandle);
-#else
-  ApplicationWin32 application;
-  // This will run the message loop.
-  const int main_return_value = application.Run(argc, argv);
-  NetLogFlushThenClose();
-
-  MFShutdown();
-  WSACleanup();
-  return main_return_value;
-#endif  // SB_API_VERSION >= 15
 }
 
-#if SB_API_VERSION >= 15
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   ApplicationWin32 application(callback);
   // This will run the message loop.
@@ -98,4 +86,3 @@ int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   WSACleanup();
   return main_return_value;
 }
-#endif  // SB_API_VERSION >= 15
