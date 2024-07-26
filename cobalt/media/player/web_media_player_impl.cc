@@ -104,14 +104,14 @@ typedef base::Callback<void(const std::string&, const std::string&,
                             std::unique_ptr<uint8[]>, int)>
     OnNeedKeyCB;
 
+
 WebMediaPlayerImpl::WebMediaPlayerImpl(
     SbPlayerInterface* interface, PipelineWindow window,
     const Pipeline::GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     WebMediaPlayerClient* client, WebMediaPlayerDelegate* delegate,
     bool allow_resume_after_suspend, int max_audio_samples_per_write,
-    bool force_punch_out_by_default,
-    base::TimeDelta audio_write_duration_local,
+    bool force_punch_out_by_default, base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
     ::media::MediaLog* const media_log)
     : pipeline_thread_("media_pipeline"),
@@ -142,9 +142,9 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       interface, window, pipeline_thread_.task_runner(),
       get_decode_target_graphics_context_provider_func,
       allow_resume_after_suspend_, max_audio_samples_per_write_,
-      force_punch_out_by_default_,
-      audio_write_duration_local, audio_write_duration_remote,
-      media_log_, &media_metrics_provider_, decode_target_provider_.get());
+      force_punch_out_by_default_, audio_write_duration_local,
+      audio_write_duration_remote, media_log_, &media_metrics_provider_,
+      decode_target_provider_.get());
 
   // Also we want to be notified of thread destruction.
   base::CurrentThread::Get()->AddDestructionObserver(this);

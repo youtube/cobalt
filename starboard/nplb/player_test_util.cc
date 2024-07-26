@@ -399,9 +399,9 @@ bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
 bool IsPartialAudioSupported() {
 #if SB_API_VERSION >= 16
   return kHasPartialAudioFramesSupport;
-#else // SB_API_VERSION >= 16
+#else   // SB_API_VERSION >= 16
   return true;
-#endif // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16
 }
 
 bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config) {

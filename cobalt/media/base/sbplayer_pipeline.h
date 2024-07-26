@@ -66,11 +66,11 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
                    int max_audio_samples_per_write,
                    bool force_punch_out_by_default,
                    TimeDelta audio_write_duration_local,
-                   TimeDelta audio_write_duration_remote,
-                   MediaLog* media_log,
+                   TimeDelta audio_write_duration_remote, MediaLog* media_log,
                    MediaMetricsProvider* media_metrics_provider,
                    DecodeTargetProvider* decode_target_provider);
   ~SbPlayerPipeline() override;
+
 
   void Suspend() override;
   // TODO: This is temporary for supporting background media playback.

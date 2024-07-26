@@ -133,9 +133,9 @@ SbPlayerPipeline::SbPlayerPipeline(
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     bool allow_resume_after_suspend, int max_audio_samples_per_write,
-    bool force_punch_out_by_default,
-    TimeDelta audio_write_duration_local, TimeDelta audio_write_duration_remote,
-    MediaLog* media_log, MediaMetricsProvider* media_metrics_provider,
+    bool force_punch_out_by_default, TimeDelta audio_write_duration_local,
+    TimeDelta audio_write_duration_remote, MediaLog* media_log,
+    MediaMetricsProvider* media_metrics_provider,
     DecodeTargetProvider* decode_target_provider)
     : pipeline_identifier_(
           base::StringPrintf("%X", g_pipeline_identifier_counter++)),
@@ -201,6 +201,7 @@ SbPlayerPipeline::SbPlayerPipeline(
 }
 
 SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_bridge_); }
+
 
 void SbPlayerPipeline::Suspend() {
   DCHECK(!task_runner_->RunsTasksInCurrentSequence());

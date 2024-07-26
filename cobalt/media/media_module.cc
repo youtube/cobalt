@@ -216,6 +216,8 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
                 << (value ? "true" : "false");
       return true;
     }
+
+
   } else if (name == "AsyncReleaseMediaCodecBridge") {
     const StarboardExtensionMediaSettingsApi* media_settings_api =
         static_cast<const StarboardExtensionMediaSettingsApi*>(
@@ -263,8 +265,7 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
                  base::Unretained(this)),
       client, this, options_.allow_resume_after_suspend,
       max_audio_samples_per_write_, force_punch_out_by_default_,
-      audio_write_duration_local_, audio_write_duration_remote_,
-      &media_log_));
+      audio_write_duration_local_, audio_write_duration_remote_, &media_log_));
 }
 
 void MediaModule::Suspend() {
