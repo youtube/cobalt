@@ -29,3 +29,19 @@ gcc_toolchain("target") {
     is_clang = true
   }
 }
+
+gcc_toolchain("native_target") {
+  prefix = rebase_path("$android_toolchain_path/bin", root_build_dir)
+  cc = "$prefix/aarch64-linux-android${android_ndk_api_level}-clang"
+  cxx = "$prefix/aarch64-linux-android${android_ndk_api_level}-clang++"
+  ld = cxx
+  readelf = "readelf"
+  ar = "ar"
+  nm = "nm"
+
+  toolchain_args = {
+    is_starboard = false
+    is_native_target_build = true
+    is_clang = true
+  }
+}
