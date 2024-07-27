@@ -20,7 +20,7 @@ AddressFamily GetAddressFamily(const IPAddress& address) {
   }
 }
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 SbSocketAddressType ConvertAddressFamily(AddressFamily address_family) {
   switch (address_family) {
     case ADDRESS_FAMILY_IPV4:
