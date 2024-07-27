@@ -49,8 +49,8 @@ class BASE_EXPORT MessagePumpIOSForIO : public MessagePumpNSRunLoop,
 
     void set_watcher(FdWatcher* watcher) { watcher_ = watcher; }
 
-    void OnFileCanReadWithoutBlocking(int fd, MessagePumpIOSForIO* pump);
-    void OnFileCanWriteWithoutBlocking(int fd, MessagePumpIOSForIO* pump);
+    void OnSocketReadyToRead(int fd, MessagePumpIOSForIO* pump);
+    void OnSocketReadyToWrite(int fd, MessagePumpIOSForIO* pump);
 
     bool is_persistent_ = false;  // false if this event is one-shot.
     base::mac::ScopedCFFileDescriptorRef fdref_;

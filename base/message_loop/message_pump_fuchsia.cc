@@ -133,9 +133,9 @@ void MessagePumpFuchsia::FdWatchController::OnZxHandleSignalled(
   // work that would touch |this|.
   bool* was_stopped = was_stopped_;
   if (filtered_events & FDIO_EVT_WRITABLE)
-    watcher_->OnFileCanWriteWithoutBlocking(fd_);
+    watcher_->OnSocketReadyToWrite(fd_);
   if (!*was_stopped && (filtered_events & FDIO_EVT_READABLE))
-    watcher_->OnFileCanReadWithoutBlocking(fd_);
+    watcher_->OnSocketReadyToRead(fd_);
 
   // Don't add additional work here without checking |*was_stopped_| again.
 }

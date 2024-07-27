@@ -36,7 +36,7 @@ class NotifyWatcherMac {
 
  private:
   // Called by |watcher_| when |notify_fd_| can be read without blocking.
-  void OnFileCanReadWithoutBlocking();
+  void OnSocketReadyToRead();
 
   int notify_fd_;
   int notify_token_;

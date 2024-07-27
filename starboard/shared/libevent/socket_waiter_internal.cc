@@ -206,17 +206,6 @@ bool SbSocketWaiterPrivate::Add(int socket,
   // The policy is not to add a socket to a waiter if it is registered with
   // another waiter.
 
-  // TODO: Since integer based socket fd doesn't have waiter information,
-  //       need to find a way to keep track whether this socket has been
-  //       registered with a waiter already.
-  //       At this moment, at least we can test if this specific socket
-  //       is already registered to this incoming waiter.
-  if (waiter->CheckSocketRegistered(socket)) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket already has this waiter ("
-                   << this << ").";
-    return false;
-  }
-
   Waitee* waitee =
       new Waitee(this, socket, context, callback, interests, persistent);
   AddWaitee(waitee);

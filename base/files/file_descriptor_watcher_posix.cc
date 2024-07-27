@@ -46,8 +46,8 @@ class FileDescriptorWatcher::Controller::Watcher
   friend class FileDescriptorWatcher;
 
   // MessagePumpForIO::FdWatcher:
-  void OnFileCanReadWithoutBlocking(int fd) override;
-  void OnFileCanWriteWithoutBlocking(int fd) override;
+  void OnSocketReadyToRead(int fd) override;
+  void OnSocketReadyToWrite(int fd) override;
 
   // CurrentThread::DestructionObserver:
   void WillDestroyCurrentMessageLoop() override;
@@ -122,7 +122,7 @@ void FileDescriptorWatcher::Controller::Watcher::StartWatching() {
   }
 }
 
-void FileDescriptorWatcher::Controller::Watcher::OnFileCanReadWithoutBlocking(
+void FileDescriptorWatcher::Controller::Watcher::OnSocketReadyToRead(
     int fd) {
   DCHECK_EQ(fd_, fd);
   DCHECK_EQ(MessagePumpForIO::WATCH_READ, mode_);
@@ -133,7 +133,7 @@ void FileDescriptorWatcher::Controller::Watcher::OnFileCanReadWithoutBlocking(
       FROM_HERE, BindOnce(&Controller::RunCallback, controller_));
 }
 
-void FileDescriptorWatcher::Controller::Watcher::OnFileCanWriteWithoutBlocking(
+void FileDescriptorWatcher::Controller::Watcher::OnSocketReadyToWrite(
     int fd) {
   DCHECK_EQ(fd_, fd);
   DCHECK_EQ(MessagePumpForIO::WATCH_WRITE, mode_);

@@ -382,7 +382,7 @@ void AddressTrackerLinux::DumpInitialAddressesAndWatch() {
 
     watcher_ = base::FileDescriptorWatcher::WatchReadable(
         netlink_fd_.get(),
-        base::BindRepeating(&AddressTrackerLinux::OnFileCanReadWithoutBlocking,
+        base::BindRepeating(&AddressTrackerLinux::OnSocketReadyToRead,
                             base::Unretained(this)));
   }
 }
@@ -586,7 +586,7 @@ void AddressTrackerLinux::HandleMessage(const char* buffer,
   }
 }
 
-void AddressTrackerLinux::OnFileCanReadWithoutBlocking() {
+void AddressTrackerLinux::OnSocketReadyToRead() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   bool address_changed;
   bool link_changed;

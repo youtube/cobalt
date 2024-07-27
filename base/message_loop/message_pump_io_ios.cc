@@ -44,18 +44,18 @@ void MessagePumpIOSForIO::FdWatchController::Init(CFFileDescriptorRef fdref,
   fd_source_.reset(fd_source);
 }
 
-void MessagePumpIOSForIO::FdWatchController::OnFileCanReadWithoutBlocking(
+void MessagePumpIOSForIO::FdWatchController::OnSocketReadyToRead(
     int fd,
     MessagePumpIOSForIO* pump) {
   DCHECK(callback_types_ & kCFFileDescriptorReadCallBack);
-  watcher_->OnFileCanReadWithoutBlocking(fd);
+  watcher_->OnSocketReadyToRead(fd);
 }
 
-void MessagePumpIOSForIO::FdWatchController::OnFileCanWriteWithoutBlocking(
+void MessagePumpIOSForIO::FdWatchController::OnSocketReadyToWrite(
     int fd,
     MessagePumpIOSForIO* pump) {
   DCHECK(callback_types_ & kCFFileDescriptorWriteCallBack);
-  watcher_->OnFileCanWriteWithoutBlocking(fd);
+  watcher_->OnSocketReadyToWrite(fd);
 }
 
 MessagePumpIOSForIO::MessagePumpIOSForIO() : weak_factory_(this) {
@@ -161,7 +161,7 @@ void MessagePumpIOSForIO::HandleFdIOEvent(CFFileDescriptorRef fdref,
   MessagePumpIOSForIO* pump = controller->pump().get();
   DCHECK(pump);
   if (callback_types & kCFFileDescriptorWriteCallBack)
-    controller->OnFileCanWriteWithoutBlocking(fd, pump);
+    controller->OnSocketReadyToWrite(fd, pump);
 
   // Perform the read callback only if the file descriptor has not been
   // invalidated in the write callback. As |FdWatchController| invalidates
@@ -170,7 +170,7 @@ void MessagePumpIOSForIO::HandleFdIOEvent(CFFileDescriptorRef fdref,
   if (callback_types & kCFFileDescriptorReadCallBack &&
       CFFileDescriptorIsValid(fdref)) {
     DCHECK_EQ(fdref, controller->fdref_.get());
-    controller->OnFileCanReadWithoutBlocking(fd, pump);
+    controller->OnSocketReadyToRead(fd, pump);
   }
 
   // Re-enable callbacks after the read/write if the file descriptor is still

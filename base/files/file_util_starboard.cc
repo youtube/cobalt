@@ -476,6 +476,17 @@ FilePath MakeAbsoluteFilePath(const FilePath& input) {
   return input;
 }
 
+bool SetNonBlocking(int fd) {
+  const int flags = fcntl(fd, F_GETFL);
+  if (flags == -1)
+    return false;
+  if (flags & O_NONBLOCK)
+    return true;
+  if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+    return false;
+  return true;
+}
+
 namespace internal {
 
 bool MoveUnsafe(const FilePath& from_path, const FilePath& to_path) {

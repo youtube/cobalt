@@ -30,7 +30,7 @@ bool NotifyWatcherMac::Watch(const char* key, const CallbackType& callback) {
   DCHECK_GE(notify_fd_, 0);
   watcher_ = base::FileDescriptorWatcher::WatchReadable(
       notify_fd_,
-      base::BindRepeating(&NotifyWatcherMac::OnFileCanReadWithoutBlocking,
+      base::BindRepeating(&NotifyWatcherMac::OnSocketReadyToRead,
                           base::Unretained(this)));
   callback_ = callback;
   return true;
@@ -45,7 +45,7 @@ void NotifyWatcherMac::Cancel() {
   }
 }
 
-void NotifyWatcherMac::OnFileCanReadWithoutBlocking() {
+void NotifyWatcherMac::OnSocketReadyToRead() {
   int token;
   int status = HANDLE_EINTR(read(notify_fd_, &token, sizeof(token)));
   if (status != sizeof(token)) {
