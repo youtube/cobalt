@@ -62,6 +62,8 @@
 
 namespace net {
 
+#if SB_API_VERSION >= 16
+
 namespace {
 
 // SetTCPKeepAlive sets SO_KEEPALIVE.
@@ -710,5 +712,7 @@ bool TCPSocketPosix::GetEstimatedRoundTripTime(base::TimeDelta* out_rtt) const {
   return false;
 #endif  // defined(TCP_INFO)
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace net

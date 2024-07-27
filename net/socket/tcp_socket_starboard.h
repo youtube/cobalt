@@ -33,6 +33,8 @@
 
 namespace net {
 
+#if SB_API_VERSION <= 15
+
 class NET_EXPORT TCPSocketStarboard : public base::MessagePumpIOStarboard::Watcher {
  public:
   TCPSocketStarboard(
@@ -212,6 +214,8 @@ class NET_EXPORT TCPSocketStarboard : public base::MessagePumpIOStarboard::Watch
 
   // DISALLOW_COPY_AND_ASSIGN(TCPSocketStarboard);
 };
+
+#endif  // SB_API_VERSION <= 15
 
 }  // namespace net
 
