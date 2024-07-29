@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # Copyright 2019 The ANGLE Project Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -33,7 +33,9 @@ def get_exe_name(file_name, windows_extension):
 
 
 def upload_to_google_storage(bucket, files):
-    upload_script = find_file_in_path('upload_to_google_storage.py')
+    file_dir = os.path.dirname(os.path.realpath(__file__))
+    upload_script = os.path.join(file_dir, '..', 'third_party', 'depot_tools',
+                                 'upload_to_google_storage.py')
     upload_args = ['python', upload_script, '-b', bucket] + files
     return subprocess.call(upload_args) == 0
 

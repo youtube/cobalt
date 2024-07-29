@@ -46,6 +46,8 @@ class PerformanceLifecycleTiming : public PerformanceEntry {
   std::string current_state() const;
   std::string last_state() const;
 
+  DOMHighResTimeStamp app_start_with_android_fix() const;
+
   std::string entry_type() const override { return "lifecycle"; }
   PerformanceEntryType EntryTypeEnum() const override {
     return PerformanceEntry::kLifecycle;

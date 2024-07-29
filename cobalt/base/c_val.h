@@ -719,6 +719,8 @@ class CVal<T, CValDebug> : public CValDetail::CValStub<T> {
     CValParent::operator=(rhs);
     return *this;
   }
+
+  void set_value(const T& value) { CValParent::operator=(value); }
 };
 
 // CVals with visibility set to CValPublic are always tracked though the CVal
@@ -739,6 +741,8 @@ class CVal<T, CValPublic> : public CValDetail::CValImpl<T> {
     CValParent::operator=(rhs);
     return *this;
   }
+
+  void set_value(const T& value) { CValParent::operator=(value); }
 };
 
 }  // namespace base

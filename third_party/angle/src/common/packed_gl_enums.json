@@ -22,6 +22,7 @@
         "PixelPack": "GL_PIXEL_PACK_BUFFER",
         "PixelUnpack": "GL_PIXEL_UNPACK_BUFFER",
         "ShaderStorage": "GL_SHADER_STORAGE_BUFFER",
+        "Texture": "GL_TEXTURE_BUFFER",
         "TransformFeedback": "GL_TRANSFORM_FEEDBACK_BUFFER",
         "Uniform": "GL_UNIFORM_BUFFER"
     },
@@ -45,6 +46,16 @@
         "TextureCoord": "GL_TEXTURE_COORD_ARRAY",
         "Vertex": "GL_VERTEX_ARRAY"
     },
+    "ClipOrigin":
+    {
+        "LowerLeft": "GL_LOWER_LEFT_EXT",
+        "UpperLeft": "GL_UPPER_LEFT_EXT"
+    },
+    "ClipDepthMode":
+    {
+        "NegativeOneToOne": "GL_NEGATIVE_ONE_TO_ONE_EXT",
+        "ZeroToOne": "GL_ZERO_TO_ONE_EXT"
+    },
     "CullFaceMode":
     {
         "Back": "GL_BACK",
@@ -62,7 +73,8 @@
         "NoError": "GL_NO_ERROR",
         "GuiltyContextReset": "GL_GUILTY_CONTEXT_RESET",
         "InnocentContextReset": "GL_INNOCENT_CONTEXT_RESET",
-        "UnknownContextReset": "GL_UNKNOWN_CONTEXT_RESET"
+        "UnknownContextReset": "GL_UNKNOWN_CONTEXT_RESET",
+        "PurgedContextResetNV": "GL_PURGED_CONTEXT_RESET_NV"
     },
     "HintSetting":
     {
@@ -108,8 +120,10 @@
     "ShaderType":
     {
         "Vertex": "GL_VERTEX_SHADER",
-        "Fragment": "GL_FRAGMENT_SHADER",
+        "TessControl": "GL_TESS_CONTROL_SHADER_EXT",
+        "TessEvaluation": "GL_TESS_EVALUATION_SHADER_EXT",
         "Geometry": "GL_GEOMETRY_SHADER_EXT",
+        "Fragment": "GL_FRAGMENT_SHADER",
         "Compute": "GL_COMPUTE_SHADER"
     },
     "ShadingModel":
@@ -187,7 +201,10 @@
         "_3D": "GL_TEXTURE_3D",
         "External": "GL_TEXTURE_EXTERNAL_OES",
         "Rectangle": "GL_TEXTURE_RECTANGLE_ANGLE",
-        "CubeMap": "GL_TEXTURE_CUBE_MAP"
+        "CubeMap": "GL_TEXTURE_CUBE_MAP",
+        "CubeMapArray": "GL_TEXTURE_CUBE_MAP_ARRAY",
+        "VideoImage": "GL_TEXTURE_VIDEO_IMAGE_WEBGL",
+        "Buffer": "GL_TEXTURE_BUFFER"
     },
     "TextureTarget":
     {
@@ -203,7 +220,10 @@
         "CubeMapPositiveY": "GL_TEXTURE_CUBE_MAP_POSITIVE_Y",
         "CubeMapNegativeY": "GL_TEXTURE_CUBE_MAP_NEGATIVE_Y",
         "CubeMapPositiveZ": "GL_TEXTURE_CUBE_MAP_POSITIVE_Z",
-        "CubeMapNegativeZ": "GL_TEXTURE_CUBE_MAP_NEGATIVE_Z"
+        "CubeMapNegativeZ": "GL_TEXTURE_CUBE_MAP_NEGATIVE_Z",
+        "CubeMapArray": "GL_TEXTURE_CUBE_MAP_ARRAY",
+        "VideoImage": "GL_TEXTURE_VIDEO_IMAGE_WEBGL",
+        "Buffer": "GL_TEXTURE_BUFFER"
     },
     "VertexArrayType":
     {
@@ -260,12 +280,14 @@
     },
     "ProvokingVertexConvention":
     {
-        "FirstVertexConvention": "GL_FIRST_VERTEX_CONVENTION",
-        "LastVertexConvention": "GL_LAST_VERTEX_CONVENTION"
+        "FirstVertexConvention": "GL_FIRST_VERTEX_CONVENTION_ANGLE",
+        "LastVertexConvention": "GL_LAST_VERTEX_CONVENTION_ANGLE"
     },
     "HandleType":
     {
-        "OpaqueFd": "GL_HANDLE_TYPE_OPAQUE_FD_EXT"
+        "OpaqueFd": "GL_HANDLE_TYPE_OPAQUE_FD_EXT",
+        "ZirconVmo": "GL_HANDLE_TYPE_ZIRCON_VMO_ANGLE",
+        "ZirconEvent": "GL_HANDLE_TYPE_ZIRCON_EVENT_ANGLE"
     },
     "ImageLayout":
     {
@@ -279,5 +301,15 @@
         "TransferDst": "GL_LAYOUT_TRANSFER_DST_EXT",
         "DepthReadOnlyStencilAttachment": "GL_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_EXT",
         "DepthAttachmentStencilReadOnly": "GL_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_EXT"
+    },
+    "ShadingRate":
+    {
+        "Undefined": "GL_NONE",
+        "_1x1": "GL_SHADING_RATE_1X1_PIXELS_QCOM",
+        "_1x2": "GL_SHADING_RATE_1X2_PIXELS_QCOM",
+        "_2x1": "GL_SHADING_RATE_2X1_PIXELS_QCOM",
+        "_2x2": "GL_SHADING_RATE_2X2_PIXELS_QCOM",
+        "_4x2": "GL_SHADING_RATE_4X2_PIXELS_QCOM",
+        "_4x4": "GL_SHADING_RATE_4X4_PIXELS_QCOM"
     }
 }

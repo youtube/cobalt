@@ -68,19 +68,19 @@ SbMediaAudioSampleType GetSinkAudioSampleType(
 }  // namespace
 
 AudioRendererPcm::AudioRendererPcm(
-    unique_ptr_alias<AudioDecoder> decoder,
-    unique_ptr_alias<AudioRendererSink> audio_renderer_sink,
+    std::unique_ptr<AudioDecoder> decoder,
+    std::unique_ptr<AudioRendererSink> audio_renderer_sink,
     const media::AudioStreamInfo& audio_stream_info,
     int max_cached_frames,
     int min_frames_per_append)
     : max_cached_frames_(max_cached_frames),
       min_frames_per_append_(min_frames_per_append),
+      decoder_(std::move(decoder)),
+      frames_consumed_set_at_(CurrentMonotonicTime()),
       channels_(audio_stream_info.number_of_channels),
       sink_sample_type_(GetSinkAudioSampleType(audio_renderer_sink.get())),
       bytes_per_frame_(media::GetBytesPerSample(sink_sample_type_) * channels_),
       frame_buffer_(max_cached_frames_ * bytes_per_frame_),
-      frames_consumed_set_at_(CurrentMonotonicTime()),
-      decoder_(std::move(decoder)),
       process_audio_data_job_(
           std::bind(&AudioRendererPcm::ProcessAudioData, this)),
       audio_renderer_sink_(std::move(audio_renderer_sink)) {

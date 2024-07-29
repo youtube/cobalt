@@ -74,10 +74,10 @@ AudioDecoder::AudioDecoder(const AudioStreamInfo& audio_stream_info,
                            bool enable_flush_during_seek)
     : audio_stream_info_(audio_stream_info),
       sample_type_(GetSupportedSampleType()),
+      enable_flush_during_seek_(enable_flush_during_seek),
       output_sample_rate_(audio_stream_info.samples_per_second),
       output_channel_count_(audio_stream_info.number_of_channels),
-      drm_system_(static_cast<DrmSystem*>(drm_system)),
-      enable_flush_during_seek_(enable_flush_during_seek) {
+      drm_system_(static_cast<DrmSystem*>(drm_system)) {
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize audio decoder.";
   }

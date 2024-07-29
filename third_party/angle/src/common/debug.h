@@ -15,11 +15,19 @@
 
 #include <iomanip>
 #include <ios>
+#include <mutex>
 #include <sstream>
 #include <string>
 
 #include "common/angleutils.h"
+#include "common/entry_points_enum_autogen.h"
 #include "common/platform.h"
+
+#if defined(ANGLE_PLATFORM_WINDOWS)
+#    include <sal.h>
+typedef unsigned long DWORD;
+typedef _Return_type_success_(return >= 0) long HRESULT;
+#endif
 
 #if !defined(TRACE_OUTPUT_FILE)
 #    define TRACE_OUTPUT_FILE "angle_debug.txt"
@@ -27,17 +35,22 @@
 
 namespace gl
 {
+class Context;
 
-// Pairs a D3D begin event with an end event.
-class ScopedPerfEventHelper : angle::NonCopyable
+// Pairs a begin event with an end event.
+class [[nodiscard]] ScopedPerfEventHelper : angle::NonCopyable
 {
   public:
-    ANGLE_FORMAT_PRINTF(2, 3)
-    ScopedPerfEventHelper(const char *format, ...);
+    ScopedPerfEventHelper(Context *context, angle::EntryPoint entryPoint);
     ~ScopedPerfEventHelper();
+    ANGLE_FORMAT_PRINTF(2, 3)
+    void begin(const char *format, ...);
 
   private:
+    gl::Context *mContext;
+    const angle::EntryPoint mEntryPoint;
     const char *mFunctionName;
+    bool mCalledBeginEvent;
 };
 
 using LogSeverity = int;
@@ -63,7 +76,7 @@ class LogMessage : angle::NonCopyable
 {
   public:
     // Used for ANGLE_LOG(severity).
-    LogMessage(const char *function, int line, LogSeverity severity);
+    LogMessage(const char *file, const char *function, int line, LogSeverity severity);
     ~LogMessage();
     std::ostream &stream() { return mStream; }
 
@@ -71,6 +84,7 @@ class LogMessage : angle::NonCopyable
     std::string getMessage() const;
 
   private:
+    const char *mFile;
     const char *mFunction;
     const int mLine;
     const LogSeverity mSeverity;
@@ -85,22 +99,30 @@ class DebugAnnotator : angle::NonCopyable
   public:
     DebugAnnotator() {}
     virtual ~DebugAnnotator() {}
-    virtual void beginEvent(const char *eventName, const char *eventMessage) = 0;
-    virtual void endEvent(const char *eventName)                             = 0;
-    virtual void setMarker(const char *markerName)                           = 0;
-    virtual bool getStatus()                                                 = 0;
+    virtual void beginEvent(gl::Context *context,
+                            angle::EntryPoint entryPoint,
+                            const char *eventName,
+                            const char *eventMessage)                    = 0;
+    virtual void endEvent(gl::Context *context,
+                          const char *eventName,
+                          angle::EntryPoint entryPoint)                  = 0;
+    virtual void setMarker(gl::Context *context, const char *markerName) = 0;
+    virtual bool getStatus(const gl::Context *context)                   = 0;
     // Log Message Handler that gets passed every log message,
     // when debug annotations are initialized,
     // replacing default handling by LogMessage.
     virtual void logMessage(const LogMessage &msg) const = 0;
 };
 
+bool ShouldBeginScopedEvent(const gl::Context *context);
 void InitializeDebugAnnotations(DebugAnnotator *debugAnnotator);
 void UninitializeDebugAnnotations();
-bool DebugAnnotationsActive();
+bool DebugAnnotationsActive(const gl::Context *context);
 bool DebugAnnotationsInitialized();
 
 void InitializeDebugMutexIfNeeded();
+
+std::mutex &GetDebugMutex();
 
 namespace priv
 {
@@ -119,84 +141,95 @@ extern std::ostream *gSwallowStream;
 // Used by ANGLE_LOG_IS_ON to lazy-evaluate stream arguments.
 bool ShouldCreatePlatformLogMessage(LogSeverity severity);
 
-template <int N, typename T>
-std::ostream &FmtHex(std::ostream &os, T value)
+// N is the width of the output to the stream. The output is padded with zeros
+// if value is less than N characters.
+// S is the stream type, either ostream for ANSI or wostream for wide character.
+// T is the type of the value to output to the stream.
+// C is the type of characters - either char for ANSI or wchar_t for wide char.
+template <int N, typename S, typename T, typename C>
+S &FmtHex(S &stream, T value, const C *zeroX, C zero)
 {
-    os << "0x";
+    stream << zeroX;
 
-    std::ios_base::fmtflags oldFlags = os.flags();
-    std::streamsize oldWidth         = os.width();
-    std::ostream::char_type oldFill  = os.fill();
+    std::ios_base::fmtflags oldFlags = stream.flags();
+    std::streamsize oldWidth         = stream.width();
+    typename S::char_type oldFill    = stream.fill();
 
-    os << std::hex << std::uppercase << std::setw(N) << std::setfill('0') << value;
+    stream << std::hex << std::uppercase << std::setw(N) << std::setfill(zero) << value;
 
-    os.flags(oldFlags);
-    os.width(oldWidth);
-    os.fill(oldFill);
+    stream.flags(oldFlags);
+    stream.width(oldWidth);
+    stream.fill(oldFill);
 
-    return os;
+    return stream;
 }
 
-template <typename T>
-std::ostream &FmtHexAutoSized(std::ostream &os, T value)
+template <typename S, typename T, typename C>
+S &FmtHexAutoSized(S &stream, T value, const C *prefix, const C *zeroX, C zero)
 {
+    if (prefix)
+    {
+        stream << prefix;
+    }
+
     constexpr int N = sizeof(T) * 2;
-    return priv::FmtHex<N>(os, value);
+    return priv::FmtHex<N>(stream, value, zeroX, zero);
 }
 
-template <typename T>
+template <typename T, typename C>
 class FmtHexHelper
 {
   public:
-    FmtHexHelper(const char *prefix, T value) : mPrefix(prefix), mValue(value) {}
+    FmtHexHelper(const C *prefix, T value) : mPrefix(prefix), mValue(value) {}
     explicit FmtHexHelper(T value) : mPrefix(nullptr), mValue(value) {}
 
   private:
-    const char *mPrefix;
+    const C *mPrefix;
     T mValue;
 
     friend std::ostream &operator<<(std::ostream &os, const FmtHexHelper &fmt)
     {
-        if (fmt.mPrefix)
-        {
-            os << fmt.mPrefix;
-        }
-        return FmtHexAutoSized(os, fmt.mValue);
+        return FmtHexAutoSized(os, fmt.mValue, fmt.mPrefix, "0x", '0');
+    }
+
+    friend std::wostream &operator<<(std::wostream &wos, const FmtHexHelper &fmt)
+    {
+        return FmtHexAutoSized(wos, fmt.mValue, fmt.mPrefix, L"0x", L'0');
     }
 };
 
 }  // namespace priv
 
-template <typename T>
-priv::FmtHexHelper<T> FmtHex(T value)
+template <typename T, typename C = char>
+priv::FmtHexHelper<T, C> FmtHex(T value)
 {
-    return priv::FmtHexHelper<T>(value);
+    return priv::FmtHexHelper<T, C>(value);
 }
 
 #if defined(ANGLE_PLATFORM_WINDOWS)
-priv::FmtHexHelper<HRESULT> FmtHR(HRESULT value);
-priv::FmtHexHelper<DWORD> FmtErr(DWORD value);
+priv::FmtHexHelper<HRESULT, char> FmtHR(HRESULT value);
+priv::FmtHexHelper<DWORD, char> FmtErr(DWORD value);
 #endif  // defined(ANGLE_PLATFORM_WINDOWS)
 
 template <typename T>
 std::ostream &FmtHex(std::ostream &os, T value)
 {
-    return priv::FmtHexAutoSized(os, value);
+    return priv::FmtHexAutoSized(os, value, "", "0x", '0');
 }
 
 // A few definitions of macros that don't generate much code. These are used
 // by ANGLE_LOG(). Since these are used all over our code, it's
 // better to have compact code for these operations.
 #define COMPACT_ANGLE_LOG_EX_EVENT(ClassName, ...) \
-    ::gl::ClassName(__FUNCTION__, __LINE__, ::gl::LOG_EVENT, ##__VA_ARGS__)
+    ::gl::ClassName(__FILE__, __FUNCTION__, __LINE__, ::gl::LOG_EVENT, ##__VA_ARGS__)
 #define COMPACT_ANGLE_LOG_EX_INFO(ClassName, ...) \
-    ::gl::ClassName(__FUNCTION__, __LINE__, ::gl::LOG_INFO, ##__VA_ARGS__)
+    ::gl::ClassName(__FILE__, __FUNCTION__, __LINE__, ::gl::LOG_INFO, ##__VA_ARGS__)
 #define COMPACT_ANGLE_LOG_EX_WARN(ClassName, ...) \
-    ::gl::ClassName(__FUNCTION__, __LINE__, ::gl::LOG_WARN, ##__VA_ARGS__)
+    ::gl::ClassName(__FILE__, __FUNCTION__, __LINE__, ::gl::LOG_WARN, ##__VA_ARGS__)
 #define COMPACT_ANGLE_LOG_EX_ERR(ClassName, ...) \
-    ::gl::ClassName(__FUNCTION__, __LINE__, ::gl::LOG_ERR, ##__VA_ARGS__)
+    ::gl::ClassName(__FILE__, __FUNCTION__, __LINE__, ::gl::LOG_ERR, ##__VA_ARGS__)
 #define COMPACT_ANGLE_LOG_EX_FATAL(ClassName, ...) \
-    ::gl::ClassName(__FUNCTION__, __LINE__, ::gl::LOG_FATAL, ##__VA_ARGS__)
+    ::gl::ClassName(__FILE__, __FUNCTION__, __LINE__, ::gl::LOG_FATAL, ##__VA_ARGS__)
 
 #define COMPACT_ANGLE_LOG_EVENT COMPACT_ANGLE_LOG_EX_EVENT(LogMessage)
 #define COMPACT_ANGLE_LOG_INFO COMPACT_ANGLE_LOG_EX_INFO(LogMessage)
@@ -229,7 +262,7 @@ std::ostream &FmtHex(std::ostream &os, T value)
 #    define ANGLE_TRACE_ENABLED
 #endif
 
-#if !defined(NDEBUG) || defined(ANGLE_ENABLE_RELEASE_ASSERTS)
+#if !defined(NDEBUG) || defined(ANGLE_ASSERT_ALWAYS_ON)
 #    define ANGLE_ENABLE_ASSERTS
 #endif
 
@@ -241,20 +274,38 @@ std::ostream &FmtHex(std::ostream &os, T value)
 // A macro to log a performance event around a scope.
 #if defined(ANGLE_TRACE_ENABLED)
 #    if defined(_MSC_VER)
-#        define EVENT(function, message, ...)                                                      \
-            gl::ScopedPerfEventHelper scopedPerfEventHelper##__LINE__("%s(" message ")", function, \
-                                                                      __VA_ARGS__)
+#        define EVENT(context, entryPoint, message, ...)                                     \
+            gl::ScopedPerfEventHelper scopedPerfEventHelper##__LINE__(                       \
+                context, angle::EntryPoint::entryPoint);                                     \
+            do                                                                               \
+            {                                                                                \
+                if (gl::ShouldBeginScopedEvent(context))                                     \
+                {                                                                            \
+                    scopedPerfEventHelper##__LINE__.begin(                                   \
+                        "%s(" message ")", GetEntryPointName(angle::EntryPoint::entryPoint), \
+                        __VA_ARGS__);                                                        \
+                }                                                                            \
+            } while (0)
 #    else
-#        define EVENT(function, message, ...)                                            \
-            gl::ScopedPerfEventHelper scopedPerfEventHelper("%s(" message ")", function, \
-                                                            ##__VA_ARGS__)
+#        define EVENT(context, entryPoint, message, ...)                                          \
+            gl::ScopedPerfEventHelper scopedPerfEventHelper(context,                              \
+                                                            angle::EntryPoint::entryPoint);       \
+            do                                                                                    \
+            {                                                                                     \
+                if (gl::ShouldBeginScopedEvent(context))                                          \
+                {                                                                                 \
+                    scopedPerfEventHelper.begin("%s(" message ")",                                \
+                                                GetEntryPointName(angle::EntryPoint::entryPoint), \
+                                                ##__VA_ARGS__);                                   \
+                }                                                                                 \
+            } while (0)
 #    endif  // _MSC_VER
 #else
 #    define EVENT(message, ...) (void(0))
 #endif
 
 // The state tracked by ANGLE will be validated with the driver state before each call
-#if defined(ANGLE_ENABLE_ASSERTS)
+#if defined(ANGLE_ENABLE_DEBUG_TRACE)
 #    define ANGLE_STATE_VALIDATION_ENABLED
 #endif
 
@@ -292,8 +343,6 @@ std::ostream &FmtHex(std::ostream &os, T value)
 #else
 #    define ASSERT(condition) ANGLE_EAT_STREAM_PARAMETERS << !(condition)
 #endif  // defined(ANGLE_ENABLE_ASSERTS)
-
-#define UNREACHABLE_IS_NORETURN 0
 
 #define ANGLE_UNUSED_VARIABLE(variable) (static_cast<void>(variable))
 
@@ -360,12 +409,32 @@ std::ostream &FmtHex(std::ostream &os, T value)
 #endif
 
 #if defined(__clang__)
+#    define ANGLE_DISABLE_SUGGEST_OVERRIDE_WARNINGS                               \
+        _Pragma("clang diagnostic push")                                          \
+            _Pragma("clang diagnostic ignored \"-Wsuggest-destructor-override\"") \
+                _Pragma("clang diagnostic ignored \"-Wsuggest-override\"")
+#    define ANGLE_REENABLE_SUGGEST_OVERRIDE_WARNINGS _Pragma("clang diagnostic pop")
+#else
+#    define ANGLE_DISABLE_SUGGEST_OVERRIDE_WARNINGS
+#    define ANGLE_REENABLE_SUGGEST_OVERRIDE_WARNINGS
+#endif
+
+#if defined(__clang__)
 #    define ANGLE_DISABLE_EXTRA_SEMI_WARNING \
         _Pragma("clang diagnostic push") _Pragma("clang diagnostic ignored \"-Wextra-semi\"")
 #    define ANGLE_REENABLE_EXTRA_SEMI_WARNING _Pragma("clang diagnostic pop")
 #else
 #    define ANGLE_DISABLE_EXTRA_SEMI_WARNING
 #    define ANGLE_REENABLE_EXTRA_SEMI_WARNING
+#endif
+
+#if defined(__clang__)
+#    define ANGLE_DISABLE_EXTRA_SEMI_STMT_WARNING \
+        _Pragma("clang diagnostic push") _Pragma("clang diagnostic ignored \"-Wextra-semi-stmt\"")
+#    define ANGLE_REENABLE_EXTRA_SEMI_STMT_WARNING _Pragma("clang diagnostic pop")
+#else
+#    define ANGLE_DISABLE_EXTRA_SEMI_STMT_WARNING
+#    define ANGLE_REENABLE_EXTRA_SEMI_STMT_WARNING
 #endif
 
 #if defined(__clang__)
@@ -385,6 +454,15 @@ std::ostream &FmtHex(std::ostream &os, T value)
 #else
 #    define ANGLE_DISABLE_DESTRUCTOR_OVERRIDE_WARNING
 #    define ANGLE_REENABLE_DESTRUCTOR_OVERRIDE_WARNING
+#endif
+
+#if defined(__clang__)
+#    define ANGLE_DISABLE_UNUSED_FUNCTION_WARNING \
+        _Pragma("clang diagnostic push") _Pragma("clang diagnostic ignored \"-Wunused-function\"")
+#    define ANGLE_REENABLE_UNUSED_FUNCTION_WARNING _Pragma("clang diagnostic pop")
+#else
+#    define ANGLE_DISABLE_UNUSED_FUNCTION_WARNING
+#    define ANGLE_REENABLE_UNUSED_FUNCTION_WARNING
 #endif
 
 #endif  // COMMON_DEBUG_H_

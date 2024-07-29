@@ -22,7 +22,6 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Service;
 import android.content.Context;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
@@ -39,7 +38,6 @@ import android.view.InputDevice;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
-import dev.cobalt.account.UserAuthorizer;
 import dev.cobalt.media.ArtworkDownloader;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.CaptionSettings;
@@ -71,7 +69,6 @@ public class StarboardBridge {
 
   private CobaltSystemConfigChangeReceiver sysConfigChangeReceiver;
   private CobaltTextToSpeechHelper ttsHelper;
-  private UserAuthorizer userAuthorizer;
   private AudioOutputManager audioOutputManager;
   private CobaltMediaSession cobaltMediaSession;
   private AudioPermissionRequester audioPermissionRequester;
@@ -111,6 +108,7 @@ public class StarboardBridge {
   private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
   private final HashMap<String, String> crashContext = new HashMap<>();
 
+  private static final String GOOGLE_PLAY_SERVICES_PACKAGE = "com.google.android.gms";
   private static final String AMATI_EXPERIENCE_FEATURE =
       "com.google.android.feature.AMATI_EXPERIENCE";
   private final boolean isAmatiDevice;
@@ -121,7 +119,6 @@ public class StarboardBridge {
       Context appContext,
       Holder<Activity> activityHolder,
       Holder<Service> serviceHolder,
-      UserAuthorizer userAuthorizer,
       ArtworkDownloader artworkDownloader,
       String[] args,
       String startDeepLink) {
@@ -137,7 +134,6 @@ public class StarboardBridge {
     this.startDeepLink = startDeepLink;
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
     this.ttsHelper = new CobaltTextToSpeechHelper(appContext);
-    this.userAuthorizer = userAuthorizer;
     this.audioOutputManager = new AudioOutputManager(appContext);
     this.cobaltMediaSession =
         new CobaltMediaSession(appContext, activityHolder, audioOutputManager, artworkDownloader);
@@ -222,7 +218,6 @@ public class StarboardBridge {
   protected void afterStopped() {
     starboardApplicationStopped = true;
     ttsHelper.shutdown();
-    userAuthorizer.shutdown();
     for (CobaltService service : cobaltServices.values()) {
       service.afterStopped();
     }
@@ -580,13 +575,6 @@ public class StarboardBridge {
     }
   }
 
-  /** Returns Java layer implementation for AndroidUserAuthorizer */
-  @SuppressWarnings("unused")
-  @UsedByNative
-  public UserAuthorizer getUserAuthorizer() {
-    return userAuthorizer;
-  }
-
   @SuppressWarnings("unused")
   @UsedByNative
   void updateMediaSession(
@@ -620,7 +608,15 @@ public class StarboardBridge {
     sb.append('/');
 
     try {
-      sb.append(appContext.getPackageManager().getPackageInfo(packageName, 0).versionName);
+      if (android.os.Build.VERSION.SDK_INT < 33) {
+        sb.append(appContext.getPackageManager().getPackageInfo(packageName, 0).versionName);
+      } else {
+        sb.append(
+            appContext
+                .getPackageManager()
+                .getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+                .versionName);
+      }
     } catch (PackageManager.NameNotFoundException ex) {
       // Should never happen
       Log.e(TAG, "Can't find our own package", ex);
@@ -656,12 +652,7 @@ public class StarboardBridge {
     return audioPermissionRequester;
   }
 
-  void onActivityResult(int requestCode, int resultCode, Intent data) {
-    userAuthorizer.onActivityResult(requestCode, resultCode, data);
-  }
-
   void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-    userAuthorizer.onRequestPermissionsResult(requestCode, permissions, grantResults);
     audioPermissionRequester.onRequestPermissionsResult(requestCode, permissions, grantResults);
   }
 
@@ -746,6 +737,21 @@ public class StarboardBridge {
     cobaltServices.remove(serviceName);
   }
 
+  /** Deprecated. Returns an incorrect calculation for the appStart for an existing metric. */
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected long getIncorrectAppStartTimestamp() {
+    Activity activity = activityHolder.get();
+    if (activity instanceof CobaltActivity) {
+      long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
+      long cppTimestamp = nativeCurrentMonotonicTime();
+      long javaStopTimestamp = System.nanoTime();
+      return cppTimestamp
+          - (javaStartTimestamp - javaStopTimestamp) / timeNanosecondsPerMicrosecond;
+    }
+    return 0;
+  }
+
   /** Returns the application start timestamp. */
   @SuppressWarnings("unused")
   @UsedByNative
@@ -756,7 +762,7 @@ public class StarboardBridge {
       long cppTimestamp = nativeCurrentMonotonicTime();
       long javaStopTimestamp = System.nanoTime();
       return cppTimestamp
-          - (javaStartTimestamp - javaStopTimestamp) / timeNanosecondsPerMicrosecond;
+          - (javaStopTimestamp - javaStartTimestamp) / timeNanosecondsPerMicrosecond;
     }
     return 0;
   }
@@ -798,5 +804,31 @@ public class StarboardBridge {
   @UsedByNative
   protected String getBuildFingerprint() {
     return Build.FINGERPRINT;
+  }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected long getPlayServicesVersion() {
+    try {
+      if (android.os.Build.VERSION.SDK_INT < 28) {
+        return appContext
+            .getPackageManager()
+            .getPackageInfo(GOOGLE_PLAY_SERVICES_PACKAGE, 0)
+            .versionCode;
+      } else if (android.os.Build.VERSION.SDK_INT < 33) {
+        return appContext
+            .getPackageManager()
+            .getPackageInfo(GOOGLE_PLAY_SERVICES_PACKAGE, 0)
+            .getLongVersionCode();
+      } else {
+        return appContext
+            .getPackageManager()
+            .getPackageInfo(GOOGLE_PLAY_SERVICES_PACKAGE, PackageManager.PackageInfoFlags.of(0))
+            .getLongVersionCode();
+      }
+    } catch (Exception e) {
+      Log.w(TAG, "Unable to query Google Play Services package version", e);
+      return 0;
+    }
   }
 }

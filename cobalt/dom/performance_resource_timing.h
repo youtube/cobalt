@@ -77,7 +77,7 @@ class PerformanceResourceTiming : public PerformanceEntry {
   std::string requested_url_;
   net::LoadTimingInfo timing_info_;
   base::TimeTicks time_origin_;
-  DOMHighResTimeStamp timing_info_response_end_;
+  DOMHighResTimeStamp fallback_response_end_;
 
   DISALLOW_COPY_AND_ASSIGN(PerformanceResourceTiming);
 };

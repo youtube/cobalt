@@ -4,8 +4,8 @@
 // found in the LICENSE file.
 //
 // TranslatorVulkan:
-//   A GLSL-based translator that outputs shaders that fit GL_KHR_vulkan_glsl.
-//   The shaders are then fed into glslang to spit out SPIR-V (libANGLE-side).
+//   A set of transformations that prepare the AST to be compatible with GL_KHR_vulkan_glsl followed
+//   by a pass that generates SPIR-V.
 //   See: https://www.khronos.org/registry/vulkan/specs/misc/GL_KHR_vulkan_glsl.txt
 //
 
@@ -18,36 +18,25 @@ namespace sh
 {
 
 class TOutputVulkanGLSL;
+class SpecConst;
+class DriverUniform;
 
-class TranslatorVulkan : public TCompiler
+class TranslatorVulkan final : public TCompiler
 {
   public:
     TranslatorVulkan(sh::GLenum type, ShShaderSpec spec);
 
   protected:
-    ANGLE_NO_DISCARD bool translate(TIntermBlock *root,
-                                    ShCompileOptions compileOptions,
-                                    PerformanceDiagnostics *perfDiagnostics) override;
+    [[nodiscard]] bool translate(TIntermBlock *root,
+                                 const ShCompileOptions &compileOptions,
+                                 PerformanceDiagnostics *perfDiagnostics) override;
     bool shouldFlattenPragmaStdglInvariantAll() override;
 
-    TIntermBinary *getDriverUniformNegViewportYScaleRef(const TVariable *driverUniforms) const;
-    TIntermBinary *getDriverUniformDepthRangeReservedFieldRef(
-        const TVariable *driverUniforms) const;
-    // Subclass can call this method to transform the AST before writing the final output.
-    // See TranslatorMetal.cpp.
-    ANGLE_NO_DISCARD bool translateImpl(TIntermBlock *root,
-                                        ShCompileOptions compileOptions,
-                                        PerformanceDiagnostics *perfDiagnostics,
-                                        const TVariable **driverUniformsOut,
-                                        TOutputVulkanGLSL *outputGLSL);
-
-    // Give subclass such as TranslatorMetal a chance to do depth transform before
-    // TranslatorVulkan apply its own transform.
-    ANGLE_NO_DISCARD virtual bool transformDepthBeforeCorrection(TIntermBlock *root,
-                                                                 const TVariable *driverUniforms)
-    {
-        return true;
-    }
+    [[nodiscard]] bool translateImpl(TIntermBlock *root,
+                                     const ShCompileOptions &compileOptions,
+                                     PerformanceDiagnostics *perfDiagnostics,
+                                     SpecConst *specConst,
+                                     DriverUniform *driverUniforms);
 };
 
 }  // namespace sh

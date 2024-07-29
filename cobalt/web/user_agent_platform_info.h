@@ -49,6 +49,7 @@ class UserAgentPlatformInfo {
   virtual const std::string& evergreen_version() const = 0;
   virtual const std::string& android_build_fingerprint() const = 0;
   virtual const std::string& android_os_experience() const = 0;
+  virtual const std::string& android_play_services_version() const = 0;
 
   virtual const std::string& cobalt_version() const = 0;
   virtual const std::string& cobalt_build_version_number() const = 0;

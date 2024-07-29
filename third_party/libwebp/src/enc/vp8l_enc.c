@@ -15,10 +15,6 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif
-
 #include "src/dsp/lossless.h"
 #include "src/dsp/lossless_common.h"
 #include "src/enc/backward_references_enc.h"

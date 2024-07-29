@@ -25,9 +25,11 @@ const delay = durationMs =>
       setTimeout(resolve, durationMs);
     });
 setupFinished();
-const settingsKey = 'cpu_usage_tracker_intervals';
+window.h5vcc.settings.set('cpu_usage_tracker_one_time_tracking', 0);
+window.h5vcc.settings.set('cpu_usage_tracker_intervals_enabled', 1);
+
 // Set invalid config.
-window.h5vcc.settings.set(settingsKey, '');
+window.h5vcc.settings.set('cpu_usage_tracker_intervals', '');
 delay(2500).then(() => {
   const cvalKeys = window.h5vcc.cVal.keys().filter(k => k.startsWith('CPU.'));
   // Check for default CVals.
@@ -69,7 +71,7 @@ delay(2500).then(() => {
     {type: 'per_thread', seconds: 5},
     {type: 'per_thread', seconds: 60},
   ];
-  window.h5vcc.settings.set(settingsKey, JSON.stringify(newConfig));
+  window.h5vcc.settings.set('cpu_usage_tracker_intervals', JSON.stringify(newConfig));
   return delay(1500);
 }).then(() => {
   const cvalKeys = window.h5vcc.cVal.keys().filter(k => k.startsWith('CPU.'));
@@ -109,8 +111,37 @@ delay(2500).then(() => {
   assertIncludes('utime', previousFirstKeys);
 
   // Set invalid config to reset to default config.
-  window.h5vcc.settings.set(settingsKey, '');
-}).then(onEndTest);
+  window.h5vcc.settings.set('cpu_usage_tracker_intervals', '');
+  window.h5vcc.settings.set('cpu_usage_tracker_intervals_enabled', 0);
+}).then(() => {
+  const cvalKeys = window.h5vcc.cVal.keys().filter(k => k.startsWith('CPU.'));
+  assertIncludes('CPU.PerThread.Usage.OneTime', cvalKeys);
+  assertIncludes('CPU.Total.Usage.OneTime', cvalKeys);
+  window.h5vcc.settings.set('cpu_usage_tracker_one_time_tracking', 1);
+  return delay(1000);
+}).then(() => {
+  window.h5vcc.settings.set('cpu_usage_tracker_one_time_tracking', 0);
+  return delay(100);
+}).then(() => {
+  const per_thread_usage = JSON.parse(window.h5vcc.cVal.getValue('CPU.PerThread.Usage.OneTime'));
+  assertIncludes('previous', Object.keys(per_thread_usage));
+  assertIncludes('current', Object.keys(per_thread_usage));
+  assertTrue(per_thread_usage.previous.length > 0);
+  assertTrue(per_thread_usage.current.length > 0);
+  const currentFirstKeys = Object.keys(per_thread_usage.current[0]);
+  assertIncludes('id', currentFirstKeys);
+  assertIncludes('name', currentFirstKeys);
+  assertIncludes('stime', currentFirstKeys);
+  assertIncludes('usage_seconds', currentFirstKeys);
+  assertIncludes('utime', currentFirstKeys);
+  const previousFirstKeys = Object.keys(per_thread_usage.previous[0]);
+  assertIncludes('id', previousFirstKeys);
+  assertIncludes('name', previousFirstKeys);
+  assertIncludes('stime', previousFirstKeys);
+  assertIncludes('usage_seconds', previousFirstKeys);
+  assertIncludes('utime', previousFirstKeys);
+  assertTrue(window.h5vcc.cVal.getValue('CPU.Total.Usage.OneTime') > 0);
+}).then(onEndTest).catch(notReached);
   </script>
 </body>
 </html>

@@ -88,8 +88,6 @@ _FILTERED_TESTS = {
     ],
 }
 
-# pylint: enable=line-too-long
-
 
 def CreateTestFilters():
   return WinWin32TestFilters()

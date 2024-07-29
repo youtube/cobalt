@@ -11,7 +11,7 @@
 
 using namespace angle;
 
-class DXT1CompressedTextureTest : public ANGLETest
+class DXT1CompressedTextureTest : public ANGLETest<>
 {
   protected:
     DXT1CompressedTextureTest()
@@ -110,6 +110,55 @@ TEST_P(DXT1CompressedTextureTest, CompressedTexImage)
     EXPECT_GL_NO_ERROR();
 }
 
+// Verify that DXT1 RGB textures have 1.0 alpha when sampled
+TEST_P(DXT1CompressedTextureTest, DXT1Alpha)
+{
+    auto test = [&](const std::string &extName, GLenum format) {
+        ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled(extName));
+
+        // On platforms without native support for DXT1 RGB or texture swizzling (such as D3D or
+        // some Metal configurations), this test is allowed to succeed with transparent black
+        // instead of opaque black.
+        const bool opaque = !IsD3D() && !(IsMetal() && !IsMetalTextureSwizzleAvailable());
+
+        GLTexture texture;
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+        // Image using pixels with the code for transparent black:
+        //          "BLACK,             if color0 <= color1 and code(x,y) == 3"
+        constexpr uint8_t CompressedImageDXT1[] = {0, 0, 0, 0, 255, 255, 255, 255};
+        glCompressedTexImage2D(GL_TEXTURE_2D, 0, format, 4, 4, 0, sizeof(CompressedImageDXT1),
+                               CompressedImageDXT1);
+
+        EXPECT_GL_NO_ERROR();
+
+        glUseProgram(mTextureProgram);
+        glUniform1i(mTextureUniformLocation, 0);
+
+        constexpr GLint kDrawSize = 4;
+        // The image is one 4x4 block, make the viewport only 4x4.
+        glViewport(0, 0, kDrawSize, kDrawSize);
+
+        drawQuad(mTextureProgram, "position", 0.5f);
+
+        EXPECT_GL_NO_ERROR();
+
+        for (GLint y = 0; y < kDrawSize; y++)
+        {
+            for (GLint x = 0; x < kDrawSize; x++)
+            {
+                EXPECT_PIXEL_EQ(x, y, 0, 0, 0, opaque ? 255 : 0)
+                    << "at (" << x << ", " << y << ") for " << extName;
+            }
+        }
+    };
+
+    test("GL_EXT_texture_compression_dxt1", GL_COMPRESSED_RGB_S3TC_DXT1_EXT);
+    test("GL_EXT_texture_compression_s3tc_srgb", GL_COMPRESSED_SRGB_S3TC_DXT1_EXT);
+}
+
 TEST_P(DXT1CompressedTextureTest, CompressedTexStorage)
 {
     ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_texture_compression_dxt1"));
@@ -171,6 +220,39 @@ TEST_P(DXT1CompressedTextureTest, CompressedTexStorage)
     glDeleteTextures(1, &texture);
 
     EXPECT_GL_NO_ERROR();
+}
+
+// Test validation of non block sizes, width 672 and height 114 and multiple mip levels
+TEST_P(DXT1CompressedTextureTest, NonBlockSizesMipLevels)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_texture_compression_dxt1"));
+
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D, texture.get());
+
+    constexpr GLuint kWidth  = 674;
+    constexpr GLuint kHeight = 114;
+
+    // From EXT_texture_compression_s3tc specifications:
+    // When an S3TC image with a width of <w>, height of <h>, and block size of
+    // <blocksize> (8 or 16 bytes) is decoded, the corresponding image size (in
+    // bytes) is:
+    //     ceil(<w>/4) * ceil(<h>/4) * blocksize.
+    constexpr GLuint kImageSize = ((kWidth + 3) / 4) * ((kHeight + 3) / 4) * 8;
+
+    glCompressedTexImage2D(GL_TEXTURE_2D, 0, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, kWidth, kHeight, 0,
+                           kImageSize, nullptr);
+    ASSERT_GL_NO_ERROR();
+
+    constexpr GLuint kImageSize1 = ((kWidth / 2 + 3) / 4) * ((kHeight / 2 + 3) / 4) * 8;
+    glCompressedTexImage2D(GL_TEXTURE_2D, 1, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, kWidth / 2,
+                           kHeight / 2, 0, kImageSize1, nullptr);
+    ASSERT_GL_NO_ERROR();
+
+    constexpr GLuint kImageSize2 = ((kWidth / 4 + 3) / 4) * ((kHeight / 4 + 3) / 4) * 8;
+    glCompressedTexImage2D(GL_TEXTURE_2D, 1, GL_COMPRESSED_RGBA_S3TC_DXT1_EXT, kWidth / 4,
+                           kHeight / 4, 0, kImageSize2, nullptr);
+    ASSERT_GL_NO_ERROR();
 }
 
 // Test validation of glCompressedTexSubImage2D with DXT formats
@@ -393,6 +475,68 @@ TEST_P(DXT1CompressedTextureTestES3, CompressedTexSubImageValidation)
     ASSERT_GL_ERROR(GL_INVALID_VALUE);
 }
 
+// Test validation of glCompressedTexSubImage3D with per-slice data uploads
+TEST_P(DXT1CompressedTextureTestES3, CompressedTexSubImage3DValidationPerSlice)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_texture_compression_dxt1"));
+
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D_ARRAY, texture.get());
+    const GLenum format = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+
+    // 8x8x2, 4x4x2, 2x2x2, 1x1x2
+    glTexStorage3D(GL_TEXTURE_2D_ARRAY, 4, format, 8, 8, 2);
+    ASSERT_GL_NO_ERROR();
+
+    uint8_t data[32] = {};
+    glCompressedTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, 8, 8, 1, format, 32, data);
+    ASSERT_GL_NO_ERROR();
+    glCompressedTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 1, 8, 8, 1, format, 32, data);
+    ASSERT_GL_NO_ERROR();
+
+    glCompressedTexSubImage3D(GL_TEXTURE_2D_ARRAY, 1, 0, 0, 0, 4, 4, 1, format, 8, data);
+    ASSERT_GL_NO_ERROR();
+    glCompressedTexSubImage3D(GL_TEXTURE_2D_ARRAY, 1, 0, 0, 1, 4, 4, 1, format, 8, data);
+    ASSERT_GL_NO_ERROR();
+
+    glCompressedTexSubImage3D(GL_TEXTURE_2D_ARRAY, 2, 0, 0, 0, 2, 2, 1, format, 8, data);
+    ASSERT_GL_NO_ERROR();
+    glCompressedTexSubImage3D(GL_TEXTURE_2D_ARRAY, 2, 0, 0, 1, 2, 2, 1, format, 8, data);
+    ASSERT_GL_NO_ERROR();
+
+    glCompressedTexSubImage3D(GL_TEXTURE_2D_ARRAY, 3, 0, 0, 0, 1, 1, 1, format, 8, data);
+    ASSERT_GL_NO_ERROR();
+    glCompressedTexSubImage3D(GL_TEXTURE_2D_ARRAY, 3, 0, 0, 1, 1, 1, 1, format, 8, data);
+    ASSERT_GL_NO_ERROR();
+}
+
+// Test validation of glCompressedTexSubImage3D with combined per-level data uploads
+TEST_P(DXT1CompressedTextureTestES3, CompressedTexSubImage3DValidationPerLevel)
+{
+    ANGLE_SKIP_TEST_IF(!IsGLExtensionEnabled("GL_EXT_texture_compression_dxt1"));
+
+    GLTexture texture;
+    glBindTexture(GL_TEXTURE_2D_ARRAY, texture.get());
+    const GLenum format = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+
+    // 8x8x2, 4x4x2, 2x2x2, 1x1x2
+    glTexStorage3D(GL_TEXTURE_2D_ARRAY, 4, format, 8, 8, 2);
+    ASSERT_GL_NO_ERROR();
+
+    uint8_t data[64] = {};
+    glCompressedTexSubImage3D(GL_TEXTURE_2D_ARRAY, 0, 0, 0, 0, 8, 8, 2, format, 64, data);
+    ASSERT_GL_NO_ERROR();
+
+    glCompressedTexSubImage3D(GL_TEXTURE_2D_ARRAY, 1, 0, 0, 0, 4, 4, 2, format, 16, data);
+    ASSERT_GL_NO_ERROR();
+
+    glCompressedTexSubImage3D(GL_TEXTURE_2D_ARRAY, 2, 0, 0, 0, 2, 2, 2, format, 16, data);
+    ASSERT_GL_NO_ERROR();
+
+    glCompressedTexSubImage3D(GL_TEXTURE_2D_ARRAY, 3, 0, 0, 0, 1, 1, 2, format, 16, data);
+    ASSERT_GL_NO_ERROR();
+}
+
 // Test validation of glCompressedTexSubImage3D with DXT formats
 TEST_P(DXT1CompressedTextureTestES3, CopyTexSubImage3DDisallowed)
 {
@@ -410,10 +554,57 @@ TEST_P(DXT1CompressedTextureTestES3, CopyTexSubImage3DDisallowed)
     ASSERT_GL_ERROR(GL_INVALID_OPERATION);
 }
 
-// Use this to select which configurations (e.g. which renderer, which GLES major version) these
-// tests should be run against.
+class DXT1CompressedTextureTestWebGL2 : public DXT1CompressedTextureTest
+{
+  protected:
+    DXT1CompressedTextureTestWebGL2()
+    {
+        setWebGLCompatibilityEnabled(true);
+        setRobustResourceInit(true);
+    }
+};
+
+// Regression test for https://crbug.com/1289428
+TEST_P(DXT1CompressedTextureTestWebGL2, InitializeTextureContents)
+{
+    ANGLE_SKIP_TEST_IF(!EnsureGLExtensionEnabled("GL_EXT_texture_compression_dxt1"));
+
+    glUseProgram(mTextureProgram);
+    glUniform1i(mTextureUniformLocation, 0);
+
+    glClearColor(0, 0, 1, 1);
+
+    const std::array<uint8_t, 8> kGreen = {0xE0, 0x07, 0xE0, 0x07, 0x00, 0x00, 0x00, 0x00};
+
+    GLTexture tex;
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+    glTexStorage2D(GL_TEXTURE_2D, 1, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, 4, 4);
+    EXPECT_GL_NO_ERROR();
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    drawQuad(mTextureProgram, "position", 0.5f, 1.0f, true);
+    EXPECT_GL_NO_ERROR();
+    EXPECT_PIXEL_COLOR_EQ(getWindowWidth() / 2, getWindowHeight() / 2, GLColor::black);
+
+    glCompressedTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 4, 4, GL_COMPRESSED_RGB_S3TC_DXT1_EXT, 8,
+                              kGreen.data());
+    EXPECT_GL_NO_ERROR();
+
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    drawQuad(mTextureProgram, "position", 0.5f, 1.0f, true);
+    EXPECT_GL_NO_ERROR();
+    EXPECT_PIXEL_COLOR_EQ(getWindowWidth() / 2, getWindowHeight() / 2, GLColor::green);
+}
+
 ANGLE_INSTANTIATE_TEST_ES2_AND_ES3(DXT1CompressedTextureTest);
 
-// Use this to select which configurations (e.g. which renderer, which GLES major version) these
-// tests should be run against.
-ANGLE_INSTANTIATE_TEST_ES3(DXT1CompressedTextureTestES3);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(DXT1CompressedTextureTestES3);
+ANGLE_INSTANTIATE_TEST_ES3_AND(DXT1CompressedTextureTestES3,
+                               ES3_VULKAN().enable(angle::Feature::ForceRobustResourceInit));
+
+ANGLE_INSTANTIATE_TEST_ES3(DXT1CompressedTextureTestWebGL2);

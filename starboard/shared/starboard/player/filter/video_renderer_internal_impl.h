@@ -22,7 +22,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/common.h"
@@ -47,9 +46,9 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
  public:
   // All of the functions are called on the PlayerWorker thread unless marked
   // otherwise.
-  VideoRendererImpl(unique_ptr_alias<VideoDecoder> decoder,
+  VideoRendererImpl(std::unique_ptr<VideoDecoder> decoder,
                     MediaTimeProvider* media_time_provider,
-                    unique_ptr_alias<VideoRenderAlgorithm> algorithm,
+                    std::unique_ptr<VideoRenderAlgorithm> algorithm,
                     scoped_refptr<VideoRendererSink> sink);
   ~VideoRendererImpl() override;
 
@@ -85,9 +84,9 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   void OnSeekTimeout();
 
   MediaTimeProvider* const media_time_provider_;
-  unique_ptr_alias<VideoRenderAlgorithm> algorithm_;
+  std::unique_ptr<VideoRenderAlgorithm> algorithm_;
   scoped_refptr<VideoRendererSink> sink_;
-  unique_ptr_alias<VideoDecoder> decoder_;
+  std::unique_ptr<VideoDecoder> decoder_;
 
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;

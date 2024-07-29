@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Note these are all custom APIs not conforming to the web spec.
 [Exposed=Window]
 interface PerformanceLifecycleTiming : PerformanceEntry {
   readonly  attribute DOMHighResTimeStamp appPreload;
@@ -25,4 +26,6 @@ interface PerformanceLifecycleTiming : PerformanceEntry {
   readonly  attribute DOMHighResTimeStamp appDeeplink;
   readonly  attribute DOMString  currentState;
   readonly  attribute DOMString  lastState;
+
+  readonly  attribute DOMHighResTimeStamp appStartWithAndroidFix;
 };

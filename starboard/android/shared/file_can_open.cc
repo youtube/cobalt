@@ -15,6 +15,7 @@
 #include "starboard/file.h"
 
 #include <android/asset_manager.h>
+#include <dirent.h>
 
 #include "starboard/directory.h"
 
@@ -34,9 +35,9 @@ bool SbFileCanOpen(const char* path, int flags) {
   SbFileClose(file);
 
   if (!result) {
-    SbDirectory directory = SbDirectoryOpen(path, NULL);
-    result = SbDirectoryIsValid(directory);
-    SbDirectoryClose(directory);
+    DIR* directory = opendir(path);
+    result = directory != nullptr;
+    closedir(directory);
   }
 
   return result;

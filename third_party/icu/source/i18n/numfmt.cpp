@@ -28,9 +28,6 @@
 
 #if !UCONFIG_NO_FORMATTING
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/numfmt.h"
 #include "unicode/locid.h"
 #include "unicode/dcfmtsym.h"

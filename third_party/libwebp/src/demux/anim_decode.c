@@ -14,11 +14,7 @@
 #include "src/webp/config.h"
 #endif
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#else
 #include <assert.h>
-#endif
 #include <string.h>
 
 #include "src/utils/utils.h"

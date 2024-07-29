@@ -18,9 +18,6 @@
 
 #if !UCONFIG_NO_BREAK_ITERATION
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/unistr.h"
 #include "unicode/uniset.h"
 #include "unicode/uchar.h"

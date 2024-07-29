@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
+#include <memory>
 #include <utility>
 
 #include "starboard/common/time.h"
@@ -39,8 +40,6 @@ namespace {
 
 const int kAudioSinkFramesAlignment = 256;
 const int kDefaultAudioSinkMinFramesPerAppend = 1024;
-const int kDefaultAudioSinkMaxCachedFrames =
-    8 * kDefaultAudioSinkMinFramesPerAppend;
 
 typedef MediaTimeProviderImpl::MonotonicSystemTimeProvider
     MonotonicSystemTimeProvider;
@@ -53,8 +52,8 @@ class PlayerComponentsImpl : public PlayerComponents {
  public:
   PlayerComponentsImpl(
       std::unique_ptr<MediaTimeProviderImpl> media_time_provider,
-      unique_ptr_alias<AudioRendererPcm> audio_renderer,
-      unique_ptr_alias<VideoRendererImpl> video_renderer)
+      std::unique_ptr<AudioRendererPcm> audio_renderer,
+      std::unique_ptr<VideoRendererImpl> video_renderer)
       : media_time_provider_(std::move(media_time_provider)),
         audio_renderer_(std::move(audio_renderer)),
         video_renderer_(std::move(video_renderer)) {
@@ -73,8 +72,8 @@ class PlayerComponentsImpl : public PlayerComponents {
  private:
   // |media_time_provider_| will only be used when |audio_renderer_| is nullptr.
   std::unique_ptr<MediaTimeProviderImpl> media_time_provider_;
-  unique_ptr_alias<AudioRendererPcm> audio_renderer_;
-  unique_ptr_alias<VideoRendererImpl> video_renderer_;
+  std::unique_ptr<AudioRendererPcm> audio_renderer_;
+  std::unique_ptr<VideoRendererImpl> video_renderer_;
 };
 
 int AlignUp(int value, int alignment) {
@@ -143,17 +142,17 @@ PlayerComponents::Factory::CreationParameters::CreationParameters(
   this->drm_system_ = that.drm_system_;
 }
 
-unique_ptr_alias<PlayerComponents> PlayerComponents::Factory::CreateComponents(
+std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
     const CreationParameters& creation_parameters,
     std::string* error_message) {
   SB_DCHECK(creation_parameters.audio_codec() != kSbMediaAudioCodecNone ||
             creation_parameters.video_codec() != kSbMediaVideoCodecNone);
   SB_DCHECK(error_message);
 
-  unique_ptr_alias<AudioDecoder> audio_decoder;
-  unique_ptr_alias<AudioRendererSink> audio_renderer_sink;
-  unique_ptr_alias<VideoDecoder> video_decoder;
-  unique_ptr_alias<VideoRenderAlgorithm> video_render_algorithm;
+  std::unique_ptr<AudioDecoder> audio_decoder;
+  std::unique_ptr<AudioRendererSink> audio_renderer_sink;
+  std::unique_ptr<VideoDecoder> video_decoder;
+  std::unique_ptr<VideoRenderAlgorithm> video_render_algorithm;
   scoped_refptr<VideoRendererSink> video_renderer_sink;
 
   auto command_line = shared::starboard::Application::Get()->GetCommandLine();
@@ -178,7 +177,7 @@ unique_ptr_alias<PlayerComponents> PlayerComponents::Factory::CreateComponents(
                              &audio_renderer_sink, &video_decoder,
                              &video_render_algorithm, &video_renderer_sink,
                              error_message)) {
-      return unique_ptr_alias<PlayerComponents>();
+      return std::unique_ptr<PlayerComponents>();
     }
     if (use_stub_audio_decoder) {
       SB_DCHECK(!audio_decoder);
@@ -195,8 +194,8 @@ unique_ptr_alias<PlayerComponents> PlayerComponents::Factory::CreateComponents(
   }
 
   std::unique_ptr<MediaTimeProviderImpl> media_time_provider_impl;
-  unique_ptr_alias<AudioRendererPcm> audio_renderer;
-  unique_ptr_alias<VideoRendererImpl> video_renderer;
+  std::unique_ptr<AudioRendererPcm> audio_renderer;
+  std::unique_ptr<VideoRendererImpl> video_renderer;
 
   if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
     SB_DCHECK(audio_decoder);
@@ -231,21 +230,21 @@ unique_ptr_alias<PlayerComponents> PlayerComponents::Factory::CreateComponents(
   }
 
   SB_DCHECK(audio_renderer || video_renderer);
-  return unique_ptr_alias<PlayerComponents>(new PlayerComponentsImpl(
+  return std::unique_ptr<PlayerComponents>(new PlayerComponentsImpl(
       std::move(media_time_provider_impl), std::move(audio_renderer),
       std::move(video_renderer)));
 }
 
 void PlayerComponents::Factory::CreateStubAudioComponents(
     const CreationParameters& creation_parameters,
-    unique_ptr_alias<AudioDecoder>* audio_decoder,
-    unique_ptr_alias<AudioRendererSink>* audio_renderer_sink) {
+    std::unique_ptr<AudioDecoder>* audio_decoder,
+    std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
   SB_DCHECK(audio_decoder);
   SB_DCHECK(audio_renderer_sink);
 
   auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
                             SbDrmSystem drm_system) {
-    return unique_ptr_alias<AudioDecoder>(
+    return std::unique_ptr<AudioDecoder>(
         new StubAudioDecoder(audio_stream_info));
   };
   audio_decoder->reset(new AdaptiveAudioDecoder(
@@ -256,8 +255,8 @@ void PlayerComponents::Factory::CreateStubAudioComponents(
 
 void PlayerComponents::Factory::CreateStubVideoComponents(
     const CreationParameters& creation_parameters,
-    unique_ptr_alias<VideoDecoder>* video_decoder,
-    unique_ptr_alias<VideoRenderAlgorithm>* video_render_algorithm,
+    std::unique_ptr<VideoDecoder>* video_decoder,
+    std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
     scoped_refptr<VideoRendererSink>* video_renderer_sink) {
   const int64_t kVideoSinkRenderIntervalUsec = 10'000;  // 10ms
 

@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_TESTING_TEST_UTIL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_TESTING_TEST_UTIL_H_
 
+#include <memory>
 #include <string>
 #include <tuple>
 #include <utility>
@@ -59,8 +60,8 @@ std::vector<VideoTestParam> GetSupportedVideoTests();
 bool CreateAudioComponents(
     bool using_stub_decoder,
     const media::AudioStreamInfo& audio_stream_info,
-    unique_ptr_alias<AudioDecoder>* audio_decoder,
-    unique_ptr_alias<AudioRendererSink>* audio_renderer_sink);
+    std::unique_ptr<AudioDecoder>* audio_decoder,
+    std::unique_ptr<AudioRendererSink>* audio_renderer_sink);
 
 ::testing::AssertionResult AlmostEqualTime(int64_t time1, int64_t time2);
 

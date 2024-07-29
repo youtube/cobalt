@@ -11,8 +11,6 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
-#include <stdlib.h>
-
 #include "src/enc/cost_enc.h"
 
 //------------------------------------------------------------------------------

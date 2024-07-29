@@ -42,6 +42,7 @@ static inline bool SbDirectoryIsValid(SbDirectory directory) {
   return directory != kSbDirectoryInvalid;
 }
 
+#if SB_API_VERSION < 17
 // DEPRECATED with SB_API_VERSION 16
 //
 // Opens the given existing directory for listing. This function returns
@@ -84,6 +85,8 @@ SB_EXPORT bool SbDirectoryClose(SbDirectory directory);
 SB_EXPORT bool SbDirectoryGetNext(SbDirectory directory,
                                   char* out_entry,
                                   size_t out_entry_size);
+
+#endif  // SB_API_VERSION < 17
 
 #if SB_API_VERSION < 16
 // Indicates whether SbDirectoryOpen is allowed for the given |path|.

@@ -50,11 +50,10 @@ class StubAudioSink : public SbAudioSinkPrivate {
   void AudioThreadFunc();
 
   Type* type_;
+  const int sampling_frequency_hz_;
   SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
   ConsumeFramesFunc consume_frames_func_;
   void* context_;
-
-  int sampling_frequency_hz_;
 
   pthread_t audio_out_thread_;
   ::starboard::Mutex mutex_;

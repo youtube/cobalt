@@ -30,9 +30,6 @@
      l = lang, C = ctry, M = charmap, V = variant
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/bytestream.h"
 #include "unicode/errorcode.h"
 #include "unicode/stringpiece.h"

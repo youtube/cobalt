@@ -15,7 +15,6 @@
 
 namespace angle
 {
-struct CompilerWorkaroundsD3D;
 struct FeaturesD3D;
 }  // namespace angle
 
@@ -30,17 +29,35 @@ class DynamicHLSL;
 class RendererD3D;
 struct D3DUniform;
 
+// Workarounds attached to each shader. Do not need to expose information about these workarounds so
+// a simple bool struct suffices.
+struct CompilerWorkaroundsD3D
+{
+    bool skipOptimization = false;
+
+    bool useMaxOptimization = false;
+
+    // IEEE strictness needs to be enabled for NANs to work.
+    bool enableIEEEStrictness = false;
+};
+
+enum class FragDepthUsage
+{
+    Unused,
+    Any,
+    Greater,
+    Less
+};
+
 class ShaderD3D : public ShaderImpl
 {
   public:
-    ShaderD3D(const gl::ShaderState &data,
-              const angle::FeaturesD3D &features,
-              const gl::Extensions &extensions);
+    ShaderD3D(const gl::ShaderState &state, RendererD3D *renderer);
     ~ShaderD3D() override;
 
     std::shared_ptr<WaitableCompileEvent> compile(const gl::Context *context,
                                                   gl::ShCompilerInstance *compilerInstance,
-                                                  ShCompileOptions options) override;
+                                                  ShCompileOptions *options) override;
 
     std::string getDebugInfo() const override;
 
@@ -54,13 +71,15 @@ class ShaderD3D : public ShaderImpl
     unsigned int getUniformRegister(const std::string &uniformName) const;
 
     unsigned int getUniformBlockRegister(const std::string &blockName) const;
+    bool shouldUniformBlockUseStructuredBuffer(const std::string &blockName) const;
     unsigned int getShaderStorageBlockRegister(const std::string &blockName) const;
     unsigned int getReadonlyImage2DRegisterIndex() const { return mReadonlyImage2DRegisterIndex; }
     unsigned int getImage2DRegisterIndex() const { return mImage2DRegisterIndex; }
     bool useImage2DFunction(const std::string &functionName) const;
+    const std::set<std::string> &getSlowCompilingUniformBlockSet() const;
     void appendDebugInfo(const std::string &info) const { mDebugInfo += info; }
 
-    void generateWorkarounds(angle::CompilerWorkaroundsD3D *workarounds) const;
+    void generateWorkarounds(CompilerWorkaroundsD3D *workarounds) const;
 
     bool usesMultipleRenderTargets() const { return mUsesMultipleRenderTargets; }
     bool usesFragColor() const { return mUsesFragColor; }
@@ -72,10 +91,12 @@ class ShaderD3D : public ShaderImpl
     bool usesPointSize() const { return mUsesPointSize; }
     bool usesPointCoord() const { return mUsesPointCoord; }
     bool usesDepthRange() const { return mUsesDepthRange; }
-    bool usesFragDepth() const { return mUsesFragDepth; }
     bool usesVertexID() const { return mUsesVertexID; }
     bool usesViewID() const { return mUsesViewID; }
     bool hasANGLEMultiviewEnabled() const { return mHasANGLEMultiviewEnabled; }
+    FragDepthUsage getFragDepthUsage() const { return mFragDepthUsage; }
+    uint8_t getClipDistanceArraySize() const { return mClipDistanceSize; }
+    uint8_t getCullDistanceArraySize() const { return mCullDistanceSize; }
 
     ShShaderOutput getCompilerOutputType() const;
 
@@ -90,23 +111,27 @@ class ShaderD3D : public ShaderImpl
     bool mUsesPointSize;
     bool mUsesPointCoord;
     bool mUsesDepthRange;
-    bool mUsesFragDepth;
     bool mHasANGLEMultiviewEnabled;
     bool mUsesVertexID;
     bool mUsesViewID;
     bool mUsesDiscardRewriting;
     bool mUsesNestedBreak;
     bool mRequiresIEEEStrictCompiling;
+    FragDepthUsage mFragDepthUsage;
+    uint8_t mClipDistanceSize;
+    uint8_t mCullDistanceSize;
 
+    RendererD3D *mRenderer;
     ShShaderOutput mCompilerOutputType;
     mutable std::string mDebugInfo;
     std::map<std::string, unsigned int> mUniformRegisterMap;
     std::map<std::string, unsigned int> mUniformBlockRegisterMap;
+    std::map<std::string, bool> mUniformBlockUseStructuredBufferMap;
+    std::set<std::string> mSlowCompilingUniformBlockSet;
     std::map<std::string, unsigned int> mShaderStorageBlockRegisterMap;
     unsigned int mReadonlyImage2DRegisterIndex;
     unsigned int mImage2DRegisterIndex;
     std::set<std::string> mUsedImage2DFunctionNames;
-    ShCompileOptions mAdditionalOptions;
 };
 }  // namespace rx
 

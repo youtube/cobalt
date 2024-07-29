@@ -11,6 +11,11 @@
 
 #include "common/debug.h"
 
+namespace gl
+{
+class Context;
+}  // namespace gl
+
 namespace angle
 {
 
@@ -19,10 +24,13 @@ class LoggingAnnotator : public gl::DebugAnnotator
   public:
     LoggingAnnotator() {}
     ~LoggingAnnotator() override {}
-    void beginEvent(const char *eventName, const char *eventMessage) override;
-    void endEvent(const char *eventName) override;
-    void setMarker(const char *markerName) override;
-    bool getStatus() override;
+    void beginEvent(gl::Context *context,
+                    EntryPoint entryPoint,
+                    const char *eventName,
+                    const char *eventMessage) override;
+    void endEvent(gl::Context *context, const char *eventName, EntryPoint entryPoint) override;
+    void setMarker(gl::Context *context, const char *markerName) override;
+    bool getStatus(const gl::Context *context) override;
     void logMessage(const gl::LogMessage &msg) const override;
 };
 

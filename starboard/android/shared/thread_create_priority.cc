@@ -41,6 +41,8 @@ SbThreadPriority NiceToSbPriority(int nice) {
   if (nice == -19) {
     return kSbThreadPriorityRealTime;
   }
+  SB_NOTREACHED();
+  return kSbThreadPriorityNormal;
 }
 
 }  // namespace

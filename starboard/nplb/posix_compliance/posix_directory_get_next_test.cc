@@ -96,7 +96,7 @@ TEST(PosixDirectoryGetNextTest, SunnyDay) {
   EXPECT_TRUE(closedir(directory) == 0);
 }
 
-TEST(PosixDirectoryGetNextTest, FLAKY_SunnyDayStaticContent) {
+TEST(PosixDirectoryGetNextTest, SunnyDayStaticContent) {
   std::string testdata_dir = GetFileTestsDataDir();
   EXPECT_FALSE(testdata_dir.empty());
   EXPECT_TRUE(FileExists(testdata_dir.c_str()))
@@ -186,10 +186,6 @@ TEST(PosixDirectoryGetNextTest, FailureNullEntry) {
   int result = readdir_r(directory, &dirent_buffer, &dirent);
   EXPECT_FALSE(result || !dirent);
   EXPECT_TRUE(closedir(directory) == 0);
-}
-
-TEST(PosixDirectoryGetNextTest, FailureInvalidAndNull) {
-  EXPECT_FALSE(SbDirectoryGetNext(kSbDirectoryInvalid, NULL, kSbFileMaxName));
 }
 
 TEST(PosixDirectoryGetNextTest, FailureOnInsufficientSize) {

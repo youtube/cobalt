@@ -31,13 +31,15 @@ class D3DTextureSurfaceWGL : public SurfaceWGL
                          DisplayWGL *display,
                          HDC deviceContext,
                          ID3D11Device *displayD3D11Device,
+                         ID3D11Device1 *displayD3D11Device1,
                          const FunctionsGL *functionsGL,
                          const FunctionsWGL *functionsWGL);
     ~D3DTextureSurfaceWGL() override;
 
     static egl::Error ValidateD3DTextureClientBuffer(EGLenum buftype,
                                                      EGLClientBuffer clientBuffer,
-                                                     ID3D11Device *d3d11Device);
+                                                     ID3D11Device *d3d11Device,
+                                                     ID3D11Device1 *d3d11Device1);
 
     egl::Error initialize(const egl::Display *display) override;
     egl::Error makeCurrent(const gl::Context *context) override;
@@ -62,18 +64,20 @@ class D3DTextureSurfaceWGL : public SurfaceWGL
     EGLint isPostSubBufferSupported() const override;
     EGLint getSwapBehavior() const override;
 
-    FramebufferImpl *createDefaultFramebuffer(const gl::Context *context,
-                                              const gl::FramebufferState &data) override;
-
     HDC getDC() const override;
-
     const angle::Format *getD3DTextureColorFormat() const override;
+
+    egl::Error attachToFramebuffer(const gl::Context *context,
+                                   gl::Framebuffer *framebuffer) override;
+    egl::Error detachFromFramebuffer(const gl::Context *context,
+                                     gl::Framebuffer *framebuffer) override;
 
   private:
     EGLenum mBuftype;
     EGLClientBuffer mClientBuffer;
 
     ID3D11Device *mDisplayD3D11Device;
+    ID3D11Device1 *mDisplayD3D11Device1;
 
     DisplayWGL *mDisplay;
     StateManagerGL *mStateManager;
@@ -93,6 +97,7 @@ class D3DTextureSurfaceWGL : public SurfaceWGL
     HANDLE mBoundObjectTextureHandle;
     HANDLE mBoundObjectRenderbufferHandle;
 
+    GLuint mFramebufferID;
     GLuint mColorRenderbufferID;
     GLuint mDepthStencilRenderbufferID;
 };

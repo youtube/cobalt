@@ -16,10 +16,6 @@
 *   created by: Markus W. Scherer
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
-
 #include "unicode/utypes.h"  /* U_PLATFORM etc. */
 
 #ifdef __GNUC__
@@ -1367,6 +1363,11 @@ doOpenChoice(const char *path, const char *type, const char *name,
     /* Load from DLL.  If we haven't attempted package load, we also haven't had any chance to
         try a DLL (static or setCommonData/etc)  load.
          If we ever have a "UDATA_ONLY_FILES", add it to the or list here.  */  
+#if defined(STARBOARD)
+    /* To clarify, Cobalt links the common ICU package into the Cobalt binary.
+        So while this code path is followed, the data is not really loaded from
+        a DLL.  */
+#endif  // defined(STARBOARD)
     if(gDataFileAccess==UDATA_NO_FILES) {
 #ifdef UDATA_DEBUG
         fprintf(stderr, "Trying common data (UDATA_NO_FILES)\n");

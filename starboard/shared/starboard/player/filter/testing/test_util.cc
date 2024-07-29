@@ -66,6 +66,11 @@ std::string GetContentTypeFromAudioCodec(SbMediaAudioCodec audio_codec,
     case kSbMediaAudioCodecEac3:
       content_type = "audio/mp4; codecs=\"ec-3\"";
       break;
+#if SB_API_VERSION >= 15
+    case kSbMediaAudioCodecIamf:
+      content_type = "audio/mp4; codecs=\"iamf\"";
+      break;
+#endif  // SB_API_VERSION >= 15
     default:
       SB_NOTREACHED();
   }
@@ -105,9 +110,13 @@ std::vector<const char*> GetSupportedAudioTestFiles(
                               "beneath_the_canopy_opus_5_1.dmp",
                               "beneath_the_canopy_opus_stereo.dmp",
                               "beneath_the_canopy_opus_mono.dmp",
+                              "heaac.dmp",
+#if SB_API_VERSION >= 15
+                              "iamf_base_profile_stereo_ambisonics.dmp",
+                              "iamf_simple_profile_5_1.dmp",
+#endif  // SB_API_VERSION >= 15
                               "sintel_329_ec3.dmp",
-                              "sintel_381_ac3.dmp",
-                              "heaac.dmp"};
+                              "sintel_381_ac3.dmp"};
 
   static std::vector<AudioFileInfo> audio_file_info_cache;
   std::vector<const char*> filenames;
@@ -220,8 +229,8 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
 bool CreateAudioComponents(
     bool using_stub_decoder,
     const media::AudioStreamInfo& audio_stream_info,
-    unique_ptr_alias<AudioDecoder>* audio_decoder,
-    unique_ptr_alias<AudioRendererSink>* audio_renderer_sink) {
+    std::unique_ptr<AudioDecoder>* audio_decoder,
+    std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
   SB_CHECK(audio_decoder);
   SB_CHECK(audio_renderer_sink);
 
@@ -231,7 +240,7 @@ bool CreateAudioComponents(
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info);
 
-  unique_ptr_alias<PlayerComponents::Factory> factory;
+  std::unique_ptr<PlayerComponents::Factory> factory;
   if (using_stub_decoder) {
     factory = StubPlayerComponentsFactory::Create();
   } else {

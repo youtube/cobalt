@@ -518,6 +518,20 @@ int sb_fcntl(int fd, int cmd, ... /*arg*/) {
   return 0;
 }
 
+int sb_getsockname(int sockfd, struct sockaddr* addr, socklen_t* addrlen) {
+  FileOrSocket handle = handle_db_get(sockfd, false);
+
+  if (handle.is_file || handle.socket == INVALID_SOCKET) {
+    return -1;
+  }
+
+  int result = getsockname(handle.socket, addr, addrlen);
+  if (result == SOCKET_ERROR) {
+    set_errno();
+  }
+  return result;
+}
+
 int posix_socket_get_fd_from_handle(SOCKET socket) {
   return handle_db_get_fd(socket);
 }

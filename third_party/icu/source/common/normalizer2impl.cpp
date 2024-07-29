@@ -22,9 +22,6 @@
 
 #if !UCONFIG_NO_NORMALIZATION
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/bytestream.h"
 #include "unicode/edits.h"
 #include "unicode/normalizer2.h"
