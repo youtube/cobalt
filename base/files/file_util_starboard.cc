@@ -213,8 +213,11 @@ bool EvictFileFromSystemCache(const FilePath& file) {
 bool ReplaceFile(const FilePath& from_path,
                  const FilePath& to_path,
                  File::Error* error) {
-  // ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
-  return true;
+  ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
+  if (!CopyFile(from_path, to_path)) {
+    return false;
+  }
+  return DeleteFile(from_path);
 }
 
 // Mac has its own implementation, this is for all other Posix systems.
