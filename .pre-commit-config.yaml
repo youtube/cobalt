@@ -14,8 +14,7 @@ files: |
             internal|
             precommit_hooks|
             starboard|
-            tools/metrics/actions/cobalt|
-            tools/metrics/histograms/metadata/cobalt|
+            tools|
         )/
         | ^[^/]+$  # files in the root
     )
