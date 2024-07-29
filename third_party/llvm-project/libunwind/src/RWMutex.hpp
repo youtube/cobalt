@@ -14,7 +14,7 @@
 #define __RWMUTEX_HPP__
 
 #if defined(_LIBUNWIND_HAS_STARBOARD_THREADS)
-#include "starboard/common/rwlock.h"
+#include <shared_mutex>
 #elif defined(_WIN32)
 #include <windows.h>
 #elif !defined(_LIBUNWIND_HAS_NO_THREADS)
@@ -36,27 +36,27 @@ public:
   ~RWMutex() = default;
 
   bool lock_shared() {
-    _lock.AcquireReadLock();
+    _lock.lock_shared();
     return true;
   }
 
   bool unlock_shared() {
-    _lock.ReleaseReadLock();
+    _lock.unlock_shared();
     return true;
   }
 
   bool lock() {
-    _lock.AcquireWriteLock();
+    _lock.lock();
     return true;
   }
 
   bool unlock() {
-    _lock.ReleaseWriteLock();
+    _lock.unlock();
     return true;
   }
 
 private:
-  starboard::RWLock _lock;
+  std::shared_mutex _lock;
 };
 
 #elif defined(_LIBUNWIND_HAS_NO_THREADS)
