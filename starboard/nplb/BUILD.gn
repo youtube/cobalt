@@ -198,7 +198,6 @@ target(gtest_target_type, "nplb") {
     "posix_compliance/posix_time_test.cc",
     "random_helpers.cc",
     "recursive_mutex_test.cc",
-    "rwlock_test.cc",
     "semaphore_test.cc",
     "socket_accept_test.cc",
     "socket_bind_test.cc",
