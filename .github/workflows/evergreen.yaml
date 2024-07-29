@@ -31,7 +31,10 @@ jobs:
       platform: evergreen-x64
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
-      keep_artifacts: libcobalt.so
+      artifacts_to_upload: |
+        install/lib/libcobalt.so
+        install/lib/libcobalt.lz4
+
   evergreen-arm-hardfp:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -41,7 +44,10 @@ jobs:
       platform: evergreen-arm-hardfp
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
-      keep_artifacts: libcobalt.so
+      artifacts_to_upload: |
+        install/lib/libcobalt.so
+        install/lib/libcobalt.lz4
+
   evergreen-arm-softfp:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -51,7 +57,10 @@ jobs:
       platform: evergreen-arm-softfp
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
-      keep_artifacts: libcobalt.so
+      artifacts_to_upload: |
+        install/lib/libcobalt.so
+        install/lib/libcobalt.lz4
+
   evergreen-arm64:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -61,4 +70,6 @@ jobs:
       platform: evergreen-arm64
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
-      keep_artifacts: libcobalt.so
+      artifacts_to_upload: |
+        install/lib/libcobalt.so
+        install/lib/libcobalt.lz4

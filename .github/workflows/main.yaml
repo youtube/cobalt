@@ -29,8 +29,8 @@ on:
         required: false
         type: boolean
         default: false
-      keep_artifacts:
-        description: 'Which artifacts to keep for releases'
+      artifacts_to_upload:
+        description: 'A list of artifacts to upload delimited by comma.'
         required: false
         type: string
         default: ''
@@ -257,12 +257,24 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
+
+      - name: 'Get Artifact Paths'
+        id: get-artifact-paths
+        if: ${{ inputs.artifacts_to_upload }}
+        run: |
+          artifact_list = ""
+          while IFS= read -r line; do
+            artifact_path="out/${{ matrix.platform }}_${{ matrix.config }}/$line"
+            echo "$artifact_path"
+            artifact_list="$artifact_list$artifact_path\n"
+          done <<< "${{ inputs.artifacts_to_upload }}"
+          echo "artifact_list=artifact_list" >> $GITHUB_ENV
       - name: 'Upload Artifact'
         uses: actions/upload-artifact@v4
-        if: ${{ inputs.keep_artifacts && matrix.sb_api_version == '' }}
+        if: ${{ $artifact_list }}
         with:
           name: ${{ matrix.platform }}-${{ matrix.config }}
-          path: out/${{ matrix.platform }}_${{ matrix.config }}/${{ inputs.keep_artifacts }}
+          path: ${{ $artifact_list }}
           retention-days: 7
           compression-level: 0 # We expect kept artifacts to be already compressed
           if-no-files-found: error
