@@ -316,7 +316,8 @@ class HTMLMediaElement : public HTMLElement,
   // Time has not changed since sending an "ended" event.
   bool sent_end_event_;
 
-  scoped_refptr<MediaError> error_;  // See SetError().
+  // See SetError().
+  scoped_refptr<MediaError> error_;
 
   // Helper object to reduce the image capacity while a video is playing.
   base::Optional<loader::image::ReducedCacheCapacityManager::Request>
