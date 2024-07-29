@@ -236,6 +236,7 @@ bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
 }
 
 FILE* OpenFile(const FilePath& filename, const char* mode) {
+  NOTIMPLEMENTED();
   return nullptr;
 }
 
@@ -294,6 +295,7 @@ FilePath GetHomeDir() {
 
 ScopedFILE CreateAndOpenTemporaryStreamInDir(const FilePath& dir,
                                              FilePath* path) {
+  NOTIMPLEMENTED();
   ScopedFILE stream;
   return stream;
 }
@@ -457,16 +459,12 @@ bool HasFileBeenModifiedSince(const FileEnumerator::FileInfo &file_info,
 }
 
 bool GetCurrentDirectory(FilePath* dir) {
-  // ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
-
   // Not supported on Starboard.
   NOTREACHED();
   return false;
 }
 
 bool SetCurrentDirectory(const FilePath& path) {
-  // ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
-
   // Not supported on Starboard.
   NOTREACHED();
   return false;
