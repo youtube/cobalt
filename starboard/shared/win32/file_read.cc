@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 17
+
 #include "starboard/file.h"
 
 #include <windows.h>
@@ -45,3 +47,5 @@ int SbFileRead(SbFile file, char* data, int size) {
 
   return number_bytes_read;
 }
+
+#endif  // SB_API_VERSION < 17

@@ -93,7 +93,6 @@ int file_close(FilePtr file) {
 FilePtr file_open(const char* path, int mode) {
   FilePtr file = new FileStruct();
   file->fd = open(path, mode, S_IRUSR | S_IWUSR);
-  SB_LOG(INFO) << "yyHERE IN FILE_OPEN, VALUE OF OPEN IS: " << file->fd << "\n";
   return file;
 }
 

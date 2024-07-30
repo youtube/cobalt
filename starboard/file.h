@@ -127,7 +127,7 @@ static inline bool SbFileIsValid(SbFile file) {
   return file != kSbFileInvalid;
 }
 
-#if SB_API_VERSION < 16
+#if SB_API_VERSION < 17
 
 // DEPRECATED with SB_API_VERSION 16
 //
@@ -160,7 +160,7 @@ SB_EXPORT SbFile SbFileOpen(const char* path,
 // |file|: The absolute path of the file to be closed.
 SB_EXPORT bool SbFileClose(SbFile file);
 
-#endif  // SB_API_VERSION < 16
+#endif  // SB_API_VERSION < 17
 
 // Replaces the content of the file at |path| with |data|. Returns whether the
 // contents of the file were replaced. The replacement of the content is an
@@ -173,7 +173,7 @@ SB_EXPORT bool SbFileAtomicReplace(const char* path,
                                    const char* data,
                                    int64_t data_size);
 
-#if SB_API_VERSION < 16
+#if SB_API_VERSION < 17
 
 // DEPRECATED with SB_API_VERSION 16
 //
@@ -270,12 +270,16 @@ SB_EXPORT bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info);
 // |path|: The absolute path of the file, symlink, or directory to be deleted.
 SB_EXPORT bool SbFileDelete(const char* path);
 
+#endif  // SB_API_VERSION < 17
+
+#if SB_API_VERSION < 16
 // Indicates whether a file or directory exists at |path|.
 //
 // |path|: The absolute path of the file or directory being checked.
 SB_EXPORT bool SbFileExists(const char* path);
-
 #endif  // SB_API_VERSION < 16
+
+#if SB_API_VERSION < 17
 
 // DEPRECATED with SB_API_VERSION 16
 //
@@ -284,8 +288,6 @@ SB_EXPORT bool SbFileExists(const char* path);
 // |path|: The absolute path to be checked.
 // |flags|: The flags that are being evaluated for the given |path|.
 SB_EXPORT bool SbFileCanOpen(const char* path, int flags);
-
-#if SB_API_VERSION < 16
 
 // DEPRECATED with SB_API_VERSION 16
 //
@@ -354,7 +356,7 @@ static inline int SbFileWriteAll(SbFile file, const char* data, int size) {
   return bytes_written ? bytes_written : rv;
 }
 
-#endif  // SB_API_VERSION < 16
+#endif  // SB_API_VERSION < 17
 
 #ifdef __cplusplus
 }  // extern "C"

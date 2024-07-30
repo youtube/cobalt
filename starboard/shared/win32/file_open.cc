@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+
 #include "starboard/file.h"
 
 #include "starboard/shared/win32/file_internal.h"
@@ -39,3 +41,5 @@ SbFile SbFileOpen(const char* path,
 
   return new SbFilePrivate(file_handle);
 }
+
+#endif  // SB_API_VERSION < 16

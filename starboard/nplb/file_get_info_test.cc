@@ -14,7 +14,7 @@
 
 // GetInfo is mostly tested in the course of other tests.
 
-#if SB_API_VERSION < 16
+#if SB_API_VERSION < 17
 
 #include <string>
 
@@ -90,4 +90,4 @@ TEST(SbFileGetInfoTest, WorksOnStaticContentFiles) {
 }  // namespace nplb
 }  // namespace starboard
 
-#endif  // SB_API_VERSION < 16
+#endif  // SB_API_VERSION < 17

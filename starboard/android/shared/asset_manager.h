@@ -29,7 +29,7 @@ namespace shared {
 class AssetManager {
  public:
   static AssetManager* GetInstance();
-  int Open(const char* path);
+  int Open(const char* path, int oflag);
   int Close(int fd);
   bool IsAssetFd(int fd) const;
 

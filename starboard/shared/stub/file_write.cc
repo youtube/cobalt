@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 16
+#if SB_API_VERSION < 17
 
 #include "starboard/file.h"
 
@@ -20,4 +20,4 @@ int SbFileWrite(SbFile file, const char* data, int size) {
   return 0;
 }
 
-#endif  // SB_API_VERSION < 16
+#endif  // SB_API_VERSION < 17
