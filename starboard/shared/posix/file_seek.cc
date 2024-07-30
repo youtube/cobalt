@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 16
+#if SB_API_VERSION < 17
 
 #include "starboard/shared/posix/file_internal.h"
 
@@ -22,4 +22,4 @@ int64_t SbFileSeek(SbFile file, SbFileWhence whence, int64_t offset) {
   return ::starboard::shared::posix::impl::FileSeek(file, whence, offset);
 }
 
-#endif  // SB_API_VERSION < 16
+#endif  // SB_API_VERSION < 17

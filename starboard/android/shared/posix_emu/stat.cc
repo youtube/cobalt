@@ -20,6 +20,7 @@
 
 #include "starboard/android/shared/directory_internal.h"
 #include "starboard/android/shared/file_internal.h"
+#include "starboard/common/log.h"
 #include "starboard/directory.h"
 
 using starboard::android::shared::IsAndroidAssetPath;
@@ -51,22 +52,21 @@ int __wrap_stat(const char* path, struct stat* info) {
   }
 
   int file = open(path, O_RDONLY, S_IRUSR | S_IWUSR);
-  struct stat out_info;
-  if (file) {
-    bool result = !fstat(file, &out_info);
+  if (file >= 0) {
+    int result = fstat(file, info);
     close(file);
-    return 0;
+    return result;
   }
 
   // Values from SbFileGetPathInfo
   if (IsAndroidAssetPath(path)) {
     AAssetDir* asset_dir = OpenAndroidAssetDir(path);
     if (asset_dir) {
-      out_info.st_mode = S_IFDIR;
-      out_info.st_ctime = 0;
-      out_info.st_atime = 0;
-      out_info.st_mtime = 0;
-      out_info.st_size = 0;
+      info->st_mode = S_IFDIR;
+      info->st_ctime = 0;
+      info->st_atime = 0;
+      info->st_mtime = 0;
+      info->st_size = 0;
       AAssetDir_close(asset_dir);
       return 0;
     }

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 16
-
 #include <sys/stat.h>
 
 #include <string>
@@ -71,8 +69,7 @@ TEST(SbFileDeleteRecursiveTest, SunnyDayDeleteExistingPath) {
     EXPECT_TRUE(DirectoryExists(path.c_str()));
   }
 
-  SbFileError err = kSbFileOk;
-  SbFile file = kSbFileInvalid;
+  int file = -1;
 
   // Create files in our directory tree.
   for (size_t i = 0; i < kFileCount; ++i) {
@@ -80,11 +77,10 @@ TEST(SbFileDeleteRecursiveTest, SunnyDayDeleteExistingPath) {
 
     EXPECT_FALSE(FileExists(path.c_str()));
 
-    file = SbFileOpen(path.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL,
-                      &err);
+    file = open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
 
-    EXPECT_EQ(kSbFileOk, err);
-    EXPECT_TRUE(SbFileClose(file));
+    EXPECT_TRUE(file >= 0);
+    EXPECT_EQ(close(file), 0);
     EXPECT_TRUE(FileExists(path.c_str()));
   }
 
@@ -112,14 +108,12 @@ TEST(SbFileDeleteRecursiveTest, RainyDayDeleteFileIgnoresPreserveRoot) {
 
   EXPECT_FALSE(FileExists(path.c_str()));
 
-  SbFileError err = kSbFileOk;
-  SbFile file = kSbFileInvalid;
+  int file = -1;
 
-  file =
-      SbFileOpen(path.c_str(), kSbFileCreateAlways | kSbFileWrite, NULL, &err);
+  file = open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY, S_IRUSR | S_IWUSR);
 
-  EXPECT_EQ(kSbFileOk, err);
-  EXPECT_TRUE(SbFileClose(file));
+  EXPECT_TRUE(file >= 0);
+  EXPECT_EQ(close(file), 0);
   EXPECT_TRUE(FileExists(path.c_str()));
   EXPECT_TRUE(SbFileDeleteRecursive(path.c_str(), true));
   EXPECT_FALSE(FileExists(path.c_str()));
@@ -135,5 +129,3 @@ TEST(SbFileDeleteRecursiveTest, RainyDayNonExistentPathErrors) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_API_VERSION < 16
