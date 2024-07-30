@@ -86,8 +86,18 @@ static void _arm_check_features(void)
       SbLogFlush();
     }
 #elif defined(ARMV8_OS_ANDROID) && defined(__aarch64__)
+#if defined(NATIVE_TARGET_BUILD)
+    /*
+     * It can't be assumed that a native target running on Android has access to
+     * the JNI, which android_getCpuFeatures() uses to get the device's CPU
+     * features. It should be ok to do nothing here; upstream only uses the CPU
+     * features to set arm_cpu_enable_pmull for this OS and architecture (see
+     * below), and the value of arm_cpu_enable_pmull is actually unused.
+     */
+#else  // defined(NATIVE_TARGET_BUILD)
     uint64_t features = android_getCpuFeatures();
     arm_cpu_enable_pmull = !!(features & ANDROID_CPU_ARM64_FEATURE_PMULL);
+#endif  // defined(NATIVE_TARGET_BUILD)
 #elif defined(ARMV8_OS_ANDROID) /* aarch32 */
     uint64_t features = android_getCpuFeatures();
     arm_cpu_enable_crc32 = !!(features & ANDROID_CPU_ARM_FEATURE_CRC32);
