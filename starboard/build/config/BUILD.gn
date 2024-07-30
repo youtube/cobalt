@@ -292,7 +292,7 @@ config("default_compiler_flags") {
 config("default_cpp_standard") {
   if (current_toolchain == default_toolchain) {
     if (sb_is_modular || is_android) {
-      configs = [ ":modular_cpp17_config" ]
+      configs = [ ":modular_cpp20_config" ]
     } else if (host_os == "win") {
       # These flags apply to non-modular windows platforms which includes win32, xb1.
       configs = [ ":win_cpp17_config" ]

@@ -22,7 +22,7 @@
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/backend/instruction.h"
 #include "src/compiler/backend/jump-threading.h"
-#include "src/compiler/backend/mid-tier-register-allocator.h"
+// #include "src/compiler/backend/mid-tier-register-allocator.h"
 #include "src/compiler/backend/move-optimizer.h"
 #include "src/compiler/backend/register-allocator-verifier.h"
 #include "src/compiler/backend/register-allocator.h"

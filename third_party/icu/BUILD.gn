@@ -154,6 +154,12 @@ config("icu_code") {
 
       # putil.cpp contains unused variables when building for iOS simulators.
       "-Wno-unused-variable",
+
+      #  ../../third_party/icu/source/i18n/dtitvfmt.cpp:243:62: error: ISO C++20 requires return type of selected 'operator==' function for rewritten '!=' comparison to be 'bool', not 'UBool' (aka 'signed char') [-Werror,-Wrewrite-not-bool]
+      "-Wno-rewrite-not-bool",
+
+      #../../third_party/icu/source/i18n/fmtable.cpp:59:34: error: ISO C++20 considers use of overloaded operator '==' (with operand types 'const Measure' and 'const Measure') to be ambiguous despite there being a unique best viable function [-Werror,-Wambiguous-reversed-operator]
+      "-Wno-ambiguous-reversed-operator"
     ]
   }
   if (is_clang || is_linux || is_chromeos || is_android || icu_is_in_fuchsia) {
