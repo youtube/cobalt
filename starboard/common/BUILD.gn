@@ -89,8 +89,6 @@ static_library("common") {
     "system_property.h",
     "thread.cc",
     "thread.h",
-    "thread_collision_warner.cc",
-    "thread_collision_warner.h",
     "time.cc",
     "time.h",
   ]
