@@ -17,11 +17,11 @@
 #include <wrl.h>
 #include <wrl/client.h>
 
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "starboard/common/log.h"
-#include "starboard/common/optional.h"
 #include "starboard/memory.h"
 #include "starboard/shared/win32/drm_system_playready.h"
 #include "starboard/shared/win32/error_utils.h"
@@ -68,7 +68,7 @@ class PlayreadyLicense : public DrmSystemPlayready::License {
       service_request_;
   std::string license_challenge_;
   bool usable_;
-  optional<bool> hdcp_required_;
+  std::optional<bool> hdcp_required_;
 
   // The following variables are not really instance variables.  They are saved
   // in the class to simplify the passing of data to functions run on newly
@@ -309,7 +309,7 @@ void PlayreadyLicense::UpdateLicenseInternal() {
 }
 
 bool PlayreadyLicense::IsHDCPRequired() {
-  if (hdcp_required_.has_engaged()) {
+  if (hdcp_required_.has_value()) {
     return hdcp_required_.value();
   }
 
