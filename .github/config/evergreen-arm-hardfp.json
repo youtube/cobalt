@@ -14,7 +14,7 @@
   "platforms": [
     "evergreen-arm-hardfp",
     "evergreen-arm-hardfp-sbversion-15",
-    "evergreen-arm-hardfp-sbversion-16"
+    "evergreen-arm-hardfp-sbversion-16",
     "evergreen-arm-hardfp-sbversion-17"
   ],
   "includes": [

@@ -6,7 +6,7 @@
   "platforms": [
     "evergreen-x64",
     "evergreen-x64-sbversion-15",
-    "evergreen-x64-sbversion-16"
+    "evergreen-x64-sbversion-16",
     "evergreen-x64-sbversion-17"
   ],
   "includes": [

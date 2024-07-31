@@ -14,7 +14,7 @@
   "platforms": [
     "evergreen-arm-softfp",
     "evergreen-arm-softfp-sbversion-15",
-    "evergreen-arm-softfp-sbversion-16"
+    "evergreen-arm-softfp-sbversion-16",
     "evergreen-arm-softfp-sbversion-17"
   ],
   "includes": [
