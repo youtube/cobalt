@@ -6,7 +6,8 @@
   "platforms": [
     "evergreen-x64",
     "evergreen-x64-sbversion-15",
-    "evergreen-x64-sbversion-16"
+    "evergreen-x64-sbversion-16",
+    "evergreen-x64-sbversion-17"
   ],
   "includes": [
     {
@@ -31,6 +32,14 @@
       "target_cpu":"target_cpu=\\\"x64\\\"",
       "extra_gn_arguments":"use_asan=false",
       "sb_api_version":"16"
+    },
+    {
+      "name":"sbversion-17",
+      "platform":"evergreen-x64-sbversion-17",
+      "target_platform":"evergreen-x64",
+      "target_cpu":"target_cpu=\\\"x64\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "sb_api_version":"17"
     }
   ]
 }
