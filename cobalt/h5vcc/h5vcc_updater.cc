@@ -91,6 +91,37 @@ void H5vccUpdater::SetUseCompressedUpdates(bool use_compressed_updates) {
   return updater_module_->SetUseCompressedUpdates(use_compressed_updates);
 }
 
+void H5vccUpdater::SetAllowSelfSignedBuilds(bool allow_self_signed_builds) {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  if (updater_module_) {
+    updater_module_->SetAllowSelfSignedBuilds(allow_self_signed_builds);
+  }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+}
+
+bool H5vccUpdater::GetAllowSelfSignedBuilds() {
+  if (updater_module_) {
+    return updater_module_->GetAllowSelfSignedBuilds();
+  }
+
+  return false;
+}
+
+void H5vccUpdater::SetUpdateServerUrl(const std::string& update_server_url) {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  if (updater_module_) {
+    updater_module_->SetCustomUpdateServer(update_server_url);
+  }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+}
+
+std::string H5vccUpdater::GetUpdateServerUrl() const {
+  if (updater_module_) {
+    return updater_module_->GetCustomUpdateServer();
+  }
+
+  return "";
+}
 #endif  // SB_IS(EVERGREEN)
 }  // namespace h5vcc
 }  // namespace cobalt

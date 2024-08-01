@@ -266,10 +266,17 @@ void UpdaterModule::Update() {
     return;
   }
 
+#if defined(COBALT_BUILD_TYPE_GOLD)
+  bool skipVerifyPublicKeyHash = false;
+#else  // defined(COBALT_BUILD_TYPE_GOLD)
+  bool skipVerifyPublicKeyHash = GetAllowSelfSignedBuilds();
+#endif // defined(COBALT_BUILD_TYPE_GOLD)
+
   update_client_->Update(
       app_ids,
       base::BindOnce(
           [](base::Version manifest_version,
+             bool skipVerifyPublicKeyHash,
              const std::vector<std::string>& ids)
               -> std::vector<base::Optional<update_client::CrxComponent>> {
             update_client::CrxComponent component;
@@ -278,11 +285,16 @@ void UpdaterModule::Update() {
             component.version = manifest_version;
             component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
                                      std::end(kCobaltPublicKeyHash));
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+            if (skipVerifyPublicKeyHash) {
+              component.pk_hash.clear();
+            }
+#endif // !defined(COBALT_BUILD_TYPE_GOLD)
             component.requires_network_encryption = true;
             component.crx_format_requirement = crx_file::VerifierFormat::CRX3;
             return {component};
           },
-          manifest_version),
+          manifest_version, skipVerifyPublicKeyHash),
       false,
       base::BindOnce(
           [](base::OnceClosure closure, update_client::Error error) {
@@ -432,6 +444,55 @@ void UpdaterModule::SetUseCompressedUpdates(bool use_compressed_updates) {
   config->SetUseCompressedUpdates(use_compressed_updates);
 }
 
+bool UpdaterModule::GetAllowSelfSignedBuilds() const {
+  LOG(INFO) << "UpdaterModule::GetAllowSelfSignedBuilds";
+  auto config = updater_configurator_;
+  if (!config) {
+    LOG(ERROR) << "UpdaterModule::GetAllowSelfSignedBuilds: missing configurator";
+    return false;
+  }
+
+  bool allow_self_signed_builds = config->GetAllowSelfSignedBuilds();
+  LOG(INFO) << "UpdaterModule::GetAllowSelfSignedBuilds allow_self_signed_builds="
+            << allow_self_signed_builds;
+  return allow_self_signed_builds;
+}
+
+void UpdaterModule::SetAllowSelfSignedBuilds(bool allow_self_signed_builds) {
+  LOG(INFO) << "UpdaterModule::SetAllowSelfSignedBuilds";
+  auto config = updater_configurator_;
+  if (!config) {
+    LOG(ERROR) << "UpdaterModule::SetAllowSelfSignedBuilds: missing configurator";
+    return;
+  }
+
+  config->SetAllowSelfSignedBuilds(allow_self_signed_builds);
+}
+
+std::string UpdaterModule::GetCustomUpdateServer() const {
+  LOG(INFO) << "UpdaterModule::GetCustomUpdateServer";
+  auto config = updater_configurator_;
+  if (!config) {
+    LOG(ERROR) << "UpdaterModule::GetCustomUpdateServer: missing configurator";
+    return "";
+  }
+
+  std::string custom_update_server = config->GetCustomUpdateServer();
+  LOG(INFO) << "UpdaterModule::GetCustomUpdateServer custom_update_server="
+            << custom_update_server;
+  return custom_update_server;
+}
+
+void UpdaterModule::SetCustomUpdateServer(const std::string& custom_update_server) {
+  LOG(INFO) << "UpdaterModule::SetCustomUpdateServer";
+  auto config = updater_configurator_;
+  if(!config) {
+    LOG(ERROR) << "UpdaterModule::SetCustomUpdateServer: missing configurator";
+    return;
+  }
+
+  config->SetCustomUpdateServer(custom_update_server);
+}
 
 }  // namespace updater
 }  // namespace cobalt
