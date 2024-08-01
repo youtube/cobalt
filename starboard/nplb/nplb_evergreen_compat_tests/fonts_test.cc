@@ -24,7 +24,8 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+// These tests are not applicable to AOSP
+#if SB_IS(EVERGREEN_COMPATIBLE) && !defined(ANDROID)
 
 namespace starboard {
 namespace nplb {
@@ -63,4 +64,4 @@ TEST(FontsTest, VerifySystemFontsConfigDirectory) {
 }  // namespace nplb
 }  // namespace starboard
 
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
+#endif  // SB_IS(EVERGREEN_COMPATIBLE) && !defined(ANDROID)
