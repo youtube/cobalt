@@ -109,6 +109,11 @@ int Configurator::UpdateDelay() const {
 }
 
 std::vector<GURL> Configurator::UpdateUrl() const {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  if (allow_self_signed_builds_ && !custom_update_server_.empty()) {
+    return std::vector<GURL>{GURL(custom_update_server_)};
+  }
+#endif // !defined(COBALT_BUILD_TYPE_GOLD)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           browser::switches::kUseQAUpdateServer)) {
     return std::vector<GURL>{GURL(kUpdaterJSONDefaultUrlQA)};
@@ -342,6 +347,25 @@ bool Configurator::GetUseCompressedUpdates() const {
 
 void Configurator::SetUseCompressedUpdates(bool use_compressed_updates) {
   use_compressed_updates_.store(use_compressed_updates);
+}
+
+bool Configurator::GetAllowSelfSignedBuilds() const {
+  return allow_self_signed_builds_.load();
+}
+
+void Configurator::SetAllowSelfSignedBuilds(bool allow_self_signed_builds) {
+  allow_self_signed_builds_.store(allow_self_signed_builds);
+}
+
+std::string Configurator::GetCustomUpdateServer() const {
+  base::AutoLock auto_lock(const_cast<base::Lock&>(custom_update_server_lock_));
+  return custom_update_server_;
+}
+
+void Configurator::SetCustomUpdateServer(const std::string& custom_update_server) {
+  LOG(INFO) << "Configurator::SetCustomUpdateServer custom_update_server=" << custom_update_server;
+  base::AutoLock auto_lock(custom_update_server_lock_);
+  custom_update_server_ = custom_update_server;
 }
 
 }  // namespace updater

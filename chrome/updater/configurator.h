@@ -95,6 +95,12 @@ class Configurator : public update_client::Configurator {
   static std::string GetAppGuidHelper(const std::string& updater_channel,
                                       const std::string& version);
 
+  bool GetAllowSelfSignedBuilds() const override;
+  void SetAllowSelfSignedBuilds(bool allow_self_signed_builds) override;
+
+  std::string GetCustomUpdateServer() const override;
+  void SetCustomUpdateServer(const std::string& custom_update_server) override;
+
  private:
   friend class base::RefCountedThreadSafe<Configurator>;
   ~Configurator() override;
@@ -115,6 +121,9 @@ class Configurator : public update_client::Configurator {
   uint64_t min_free_space_bytes_ = 48 * 1024 * 1024;
   base::Lock min_free_space_bytes_lock_;
   std::atomic_bool use_compressed_updates_;
+  std::atomic_bool allow_self_signed_builds_;
+  std::string custom_update_server_;
+  base::Lock custom_update_server_lock_;
 
   DISALLOW_COPY_AND_ASSIGN(Configurator);
 };
