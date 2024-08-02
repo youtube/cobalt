@@ -187,6 +187,8 @@ AudioCodec MimeUtilToAudioCodec(MimeUtil::Codec codec) {
       return AudioCodec::kOpus;
     case MimeUtil::FLAC:
       return AudioCodec::kFLAC;
+    case MimeUtil::IAMF:
+      return AudioCodec::kIAMF;
     default:
       break;
   }
@@ -344,6 +346,10 @@ void MimeUtil::AddSupportedMediaFormats() {
 #if BUILDFLAG(ENABLE_AV1_DECODER)
   mp4_video_codecs.emplace(AV1);
 #endif
+
+#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+  mp4_audio_codecs.emplace(IAMF);
+#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
 
   CodecSet mp4_codecs(mp4_audio_codecs);
   mp4_codecs.insert(mp4_video_codecs.begin(), mp4_video_codecs.end());
@@ -670,6 +676,8 @@ bool MimeUtil::IsCodecSupportedOnAndroid(
 #else
       return false;
 #endif
+    case IAMF:
+      return false;
   }
 
   return false;
@@ -859,6 +867,13 @@ bool MimeUtil::ParseCodecHelper(const std::string& mime_type_lower_case,
   if (base::StartsWith(codec_id, "mhm1.", base::CompareCase::SENSITIVE) ||
       base::StartsWith(codec_id, "mha1.", base::CompareCase::SENSITIVE)) {
     out_result->codec = MimeUtil::MPEG_H_AUDIO;
+    return true;
+  }
+#endif
+
+#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
+  if (ParseIamfCodecId(codec_id.data(), nullptr, nullptr)) {
+    out_result->codec = MimeUtil::IAMF;
     return true;
   }
 #endif
