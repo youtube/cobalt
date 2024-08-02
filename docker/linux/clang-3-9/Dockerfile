@@ -24,7 +24,7 @@ RUN apt update -qqy \
     && add-apt-repository -y ppa:savoury1/backports \
     && apt update -qqy \
     && apt install -qqy --no-install-recommends git nasm \
-        python3.8 python3.8-dev python3.8-venv \
+        python3.8 python3.8-dev python3.8-venv python3-certifi \
     && /opt/clean-after-apt.sh
 
 # TODO(b/338650174): Upgrade the base linux distro to avoid backporting python

@@ -24,6 +24,7 @@ import stat
 import tempfile
 import time
 import urllib.request
+import certifi
 
 _BASE_GCS_URL = 'https://storage.googleapis.com'
 _BUFFER_SIZE = 2 * 1024 * 1024
@@ -50,7 +51,8 @@ def ExtractSha1(filename):
 
 def _DownloadFromGcsAndCheckSha1(bucket, sha1):
   url = f'{_BASE_GCS_URL}/{bucket}/{sha1}'
-  with urllib.request.urlopen(url, context=ssl.create_default_context()) as res:
+  with urllib.request.urlopen(
+      url, context=ssl.create_default_context(cafile=certifi.where())) as res:
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
       shutil.copyfileobj(res, tmp_file)
 
