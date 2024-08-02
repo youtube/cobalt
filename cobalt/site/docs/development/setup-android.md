@@ -130,14 +130,69 @@ Go ahead and click 'yes' to open the SDK manager to install the following:
     **Note:** If you have trouble building with an error referencing the
     `debug.keystore` you may need to set one up on your system:
 
+<<<<<<< HEAD
     ```
     keytool -genkey -v -keystore ~/.android/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000
+=======
+    - Create the directory with arguments that meet the target device specification
+      - Platform type, ex: arm-hardfp, arm-softfp, arm-64, etc
+      - CPU type, ex: arm
+      - Build type, ex: gold, qa
+      - Starboard API version, ex: 15
+    - An example to create directory for evergreen-arm-softfp with build_type=qa and sb_api_version=15
+      ```sh
+      gn gen out/evergreen-arm-softfp_qa --args="target_platform=\"evergreen-arm-softfp\" use_asan=false target_cpu=\"arm\" build_type=\"qa\" sb_api_version=15"
+      ```
+
+1. Select Google-prebuilt Cobalt binaries from [GitHub](https://github.com/youtube/cobalt/releases)
+
+    - Choose the correct evergreen version based on the target device specification
+
+      Please note that the selected prebuilt binary must meet the settings used to create evergreen directory in previous step.
+      - Cobalt version you checked out, ex: 24.lts.40
+      - Build type, ex: gold, qa
+      - Starboard API version, ex: 15
+    - Here is an example of 24.lts.40 with starboard API version 15
+      - [`24.lts.40 release`](https://github.com/youtube/cobalt/releases/tag/24.lts.40)
+      - `Gold version`: cobalt_evergreen_4.40.2_arm-softfp_sbversion-15_release_20240426165046.crx
+      - `QA version`: cobalt_evergreen_4.40.2_arm-softfp_sbversion-15_qa_20240426165046.crx
+    - For Cobalt 25 with starboard API version 16, you need to use compressed version
+      - [`25.lts.1 release`](https://github.com/youtube/cobalt/releases/tag/25.lts.1)
+      - `Gold version`: cobalt_evergreen_5.1.2_arm-softfp_sbversion-16_release_compressed_20240629001855.crx
+      - `QA version`: cobalt_evergreen_5.1.2_arm-softfp_sbversion-16_qa_compressed_20240629001855.crx
+    - Right click the file and copy file URL
+
+1. Download and unzip the file
+
+    ```sh
+    export LOCAL_CRX_DIR=/tmp/cobalt_dl
+    mkdir -p $LOCAL_CRX_DIR
+
+    # paste prebuilt library URL and Download it to /tmp
+    # Please update URL according to your need
+    COBALT_CRX_URL=https://github.com/youtube/cobalt/releases/download/24.lts.40/cobalt_evergreen_4.40.2_arm-softfp_sbversion-15_qa_20240426165046.crx
+
+    wget $COBALT_CRX_URL -O $LOCAL_CRX_DIR/cobalt_prebuilt.crx
+
+    # Unzip the downloaded CRX file
+    unzip $LOCAL_CRX_DIR/cobalt_prebuilt.crx -d $LOCAL_CRX_DIR/cobalt_prebuilt
+>>>>>>> 98a0b5e715e (Add commands to build Cobalt library locally (#3855))
     ```
 
 1.  Install the resulting APK into your test device with adb:
 
+<<<<<<< HEAD
     ```
     adb install out/android-x86_gold/cobalt.apk
+=======
+    ```sh
+    cd $COBALT_SRC
+    mkdir -p out/evergreen-arm-softfp_qa/install/lib
+    cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/lib/* out/evergreen-arm-softfp_qa/
+    cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/lib/* out/evergreen-arm-softfp_qa/install/lib
+    cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/manifest.json out/evergreen-arm-softfp_qa/
+    cp -rf $LOCAL_CRX_DIR/cobalt_prebuilt/content out/evergreen-arm-softfp_qa/
+>>>>>>> 98a0b5e715e (Add commands to build Cobalt library locally (#3855))
     ```
 
 1.  Start the application with:
@@ -221,13 +276,84 @@ build and run "devel" NPLB on an ARM64 device, from the top-level directory:
 starboard/tools/testing/test_runner.py -p android-arm64 -c devel -b -r -t nplb
 ```
 
+<<<<<<< HEAD
 If you want to debug a test, you can run it from Android Studio. Edit
 `build.gradle` in the 'app' module (not to the one in the top 'apk' module) to
 change `DEFAULT_COBALT_TARGET` to be the name of the test you want to debug
 instead of 'cobalt'. Then you can set breakpoints, etc. in the test the same as
 when debugging Cobalt.
+=======
+Similar to loader_app, create the directory with arguments that meet the target device specification. Here is an example:
+1. Generate evergreen folder
 
-## Debugging (Terminal)
+    ```sh
+    gn gen out/evergreen-arm-softfp_devel --args="target_platform=\"evergreen-arm-softfp\" target_cpu=\"arm\" use_asan=false build_type=\"devel\" sb_api_version=15"
+    ```
+
+1. Build nplb library
+
+    ```sh
+    ninja -C out/evergreen-arm-softfp_devel nplb_install
+    ```
+
+1. Generate apk output folder
+
+    ```sh
+    gn gen out/android-arm_devel --args="target_platform=\"android-arm\" target_cpu=\"arm\" target_os=\"android\" sb_is_evergreen_compatible=true build_type=\"devel\" sb_api_version=15"
+    ```
+
+### Build and run nplb test apk
+
+1. Build nplb apk
+
+    ```sh
+    ninja -C out/android-arm_devel nplb_evergreen_loader_install
+    ```
+
+1. Check the output apk file. The output file is available at
+
+    ```sh
+    out/android-arm_devel/nplb_evergreen_loader.apk
+    ```
+
+1. To run the nplb test, execute following command
+
+    ```sh
+    # install the apk
+    adb install out/android-arm_devel/nplb_evergreen_loader.apk
+
+    # launch the apk
+    adb shell "am start --esa args '--evergreen_library=app/cobalt/lib/libnplb.so,--evergreen_content=app/cobalt/content' dev.cobalt.coat"
+    ```
+
+### Build and run nplb evergreen compat test apk
+
+1. Build nplb_evergreen_compat_tests apk
+
+    **NOTE:** Please finish nplb build in previous step before building nplb compat test
+
+    ```sh
+    ninja -C out/android-arm_devel nplb_evergreen_compat_tests_install
+    ```
+
+1. Check the output apk file. The output file is available at
+
+    ```sh
+    out/android-arm_devel/nplb_evergreen_compat_tests.apk
+    ```
+
+1. To run the nplb compat test, execute following command
+
+    ```sh
+    # install the apk
+    adb install out/android-arm_devel/nplb_evergreen_compat_tests.apk
+
+    # launch the apk
+    adb shell am start dev.cobalt.coat
+    ```
+>>>>>>> 98a0b5e715e (Add commands to build Cobalt library locally (#3855))
+
+## Debugging
 
 Use `adb logcat` while Cobalt is running, or use `adb bugreport` shortly after
 exiting to view Android logs. You will need to filter or search for
@@ -235,6 +361,22 @@ Cobalt-related output.
 
 As with the Linux build, use the `debug`, `devel`, or `qa` configs to trace
 Cobalt's callstacks.
+
+### Build Cobalt library locally
+
+**Partners should always use the [Google prebuilt binaries from GitHub](https://github.com/youtube/cobalt/releases)
+for certification or software release.** However, for testing or debugging,
+they can still build the library locally. Ex:
+
+   ```sh
+   # Create directory for evergreen-arm-softfp with build_type=qa and sb_api_version=15
+   gn gen out/evergreen-arm-softfp_qa --args="target_platform=\"evergreen-arm-softfp\" use_asan=false target_cpu=\"arm\" build_type=\"qa\" sb_api_version=15"
+
+   # Build Cobalt library
+   ninja -C out/evergreen-arm-softfp_qa cobalt_install
+   ```
+
+   Once the Cobalt library is built, go back to [Compile Android APK using Ninja](#compile-android-apk-using-ninja) to build the APK.
 
 ## Removing the Cobalt Android Environment
 
