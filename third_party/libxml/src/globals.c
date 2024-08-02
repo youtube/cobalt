@@ -76,7 +76,7 @@ xmlStrdupFunc xmlMemStrdup = (xmlStrdupFunc) xmlMemoryStrdup;
  *
  * The variable holding the libxml free() implementation
  */
-xmlFreeFunc xmlFree = XML_FREE;
+xmlFreeFunc xmlFree = free;
 /**
  * xmlMalloc:
  * @size:  the size requested in bytes
@@ -85,7 +85,7 @@ xmlFreeFunc xmlFree = XML_FREE;
  *
  * Returns a pointer to the newly allocated block or NULL in case of error
  */
-xmlMallocFunc xmlMalloc = XML_MALLOC;
+xmlMallocFunc xmlMalloc = malloc;
 /**
  * xmlMallocAtomic:
  * @size:  the size requested in bytes
@@ -96,7 +96,7 @@ xmlMallocFunc xmlMalloc = XML_MALLOC;
  *
  * Returns a pointer to the newly allocated block or NULL in case of error
  */
-xmlMallocFunc xmlMallocAtomic = XML_MALLOC;
+xmlMallocFunc xmlMallocAtomic = malloc;
 /**
  * xmlRealloc:
  * @mem: an already allocated block of memory
@@ -106,7 +106,7 @@ xmlMallocFunc xmlMallocAtomic = XML_MALLOC;
  *
  * Returns a pointer to the newly reallocated block or NULL in case of error
  */
-xmlReallocFunc xmlRealloc = XML_REALLOC;
+xmlReallocFunc xmlRealloc = realloc;
 /**
  * xmlPosixStrdup
  * @cur:  the input char *
@@ -528,10 +528,10 @@ xmlInitializeGlobalState(xmlGlobalStatePtr gs)
     gs->xmlRealloc = (xmlReallocFunc) xmlMemRealloc;
     gs->xmlMemStrdup = (xmlStrdupFunc) xmlMemoryStrdup;
 #else
-    gs->xmlFree = (xmlFreeFunc) XML_FREE;
-    gs->xmlMalloc = (xmlMallocFunc) XML_MALLOC;
-    gs->xmlMallocAtomic = (xmlMallocFunc) XML_MALLOC;
-    gs->xmlRealloc = (xmlReallocFunc) XML_REALLOC;
+    gs->xmlFree = (xmlFreeFunc) free;
+    gs->xmlMalloc = (xmlMallocFunc) malloc;
+    gs->xmlMallocAtomic = (xmlMallocFunc) malloc;
+    gs->xmlRealloc = (xmlReallocFunc) realloc;
     gs->xmlMemStrdup = (xmlStrdupFunc) xmlStrdup;
 #endif
     gs->xmlGetWarningsDefaultValue = xmlGetWarningsDefaultValueThrDef;

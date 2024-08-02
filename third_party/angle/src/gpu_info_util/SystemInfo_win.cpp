@@ -8,14 +8,13 @@
 
 #include "gpu_info_util/SystemInfo_internal.h"
 
+#include "common/debug.h"
+#include "common/string_utils.h"
+
 // Windows.h needs to be included first
 #include <windows.h>
 
 #include <dxgi.h>
-
-#include "common/debug.h"
-#include "common/string_utils.h"
-
 
 #include <array>
 #include <sstream>
@@ -72,6 +71,8 @@ bool GetDevicesFromDXGI(std::vector<GPUDeviceInfo> *devices)
         device.vendorId      = desc.VendorId;
         device.deviceId      = desc.DeviceId;
         device.driverVersion = o.str();
+        device.systemDeviceId =
+            GetSystemDeviceIdFromParts(desc.AdapterLuid.HighPart, desc.AdapterLuid.LowPart);
 
         devices->push_back(device);
 

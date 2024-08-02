@@ -13,9 +13,9 @@
   },
   "platforms": [
     "evergreen-arm-softfp",
-    "evergreen-arm-softfp-sbversion-14",
     "evergreen-arm-softfp-sbversion-15",
-    "evergreen-arm-softfp-sbversion-16"
+    "evergreen-arm-softfp-sbversion-16",
+    "evergreen-arm-softfp-sbversion-17"
   ],
   "includes": [
     {
@@ -24,15 +24,6 @@
       "target_platform":"evergreen-arm-softfp",
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
-      "evergreen_loader_extra_gn_arguments": "target_os=\\\"android\\\" sb_is_evergreen_compatible=true"
-    },
-    {
-      "name":"sbversion-14",
-      "platform":"evergreen-arm-softfp-sbversion-14",
-      "target_platform":"evergreen-arm-softfp",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"14",
       "evergreen_loader_extra_gn_arguments": "target_os=\\\"android\\\" sb_is_evergreen_compatible=true"
     },
     {
@@ -51,6 +42,15 @@
       "target_cpu":"target_cpu=\\\"arm\\\"",
       "extra_gn_arguments":"use_asan=false",
       "sb_api_version":"16",
+      "evergreen_loader_extra_gn_arguments": "target_os=\\\"android\\\" sb_is_evergreen_compatible=true"
+    },
+    {
+      "name":"sbversion-17",
+      "platform":"evergreen-arm-softfp-sbversion-17",
+      "target_platform":"evergreen-arm-softfp",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "sb_api_version":"17",
       "evergreen_loader_extra_gn_arguments": "target_os=\\\"android\\\" sb_is_evergreen_compatible=true"
     }
   ]

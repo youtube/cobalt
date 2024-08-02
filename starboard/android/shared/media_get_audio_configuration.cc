@@ -40,13 +40,16 @@ bool SbMediaGetAudioConfiguration(
     return false;
   }
 
-  bool result = MediaCapabilitiesCache::GetInstance()->GetAudioConfiguration(
-      output_index, out_configuration);
+  if (MediaCapabilitiesCache::GetInstance()->GetAudioConfiguration(
+          output_index, out_configuration)) {
+    SB_LOG(INFO) << "Audio connector type for index " << output_index << " is "
+                 << GetMediaAudioConnectorName(out_configuration->connector)
+                 << " and it has " << out_configuration->number_of_channels
+                 << " channels.";
+    return true;
+  }
 
-  SB_LOG(INFO) << "Audio connector type for index " << output_index << " is "
-               << GetMediaAudioConnectorName(out_configuration->connector)
-               << " and it has " << out_configuration->number_of_channels
-               << " channels.";
-
-  return result;
+  SB_LOG(INFO) << "Failed to find audio connector type for index "
+               << output_index;
+  return false;
 }

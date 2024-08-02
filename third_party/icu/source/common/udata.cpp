@@ -16,10 +16,6 @@
 *   created by: Markus W. Scherer
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
-
 #include "unicode/utypes.h"  /* U_PLATFORM etc. */
 
 #ifdef __GNUC__

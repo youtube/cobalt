@@ -24,24 +24,64 @@ class Library;
 class ANGLE_UTIL_EXPORT WGLWindow : public GLWindowBase
 {
   public:
-    static WGLWindow *New(int glesMajorVersion, int glesMinorVersion);
+    static WGLWindow *New(EGLenum clientType, int majorVersion, int minorVersion, int profileMask);
     static void Delete(WGLWindow **window);
 
     // Internally initializes GL resources.
     bool initializeGL(OSWindow *osWindow,
                       angle::Library *glWindowingLibrary,
+                      angle::GLESDriverType driverType,
                       const EGLPlatformParameters &platformParams,
                       const ConfigParameters &configParams) override;
+
+    GLWindowResult initializeGLWithResult(OSWindow *osWindow,
+                                          angle::Library *glWindowingLibrary,
+                                          angle::GLESDriverType driverType,
+                                          const EGLPlatformParameters &platformParams,
+                                          const ConfigParameters &configParams) override;
+
     void destroyGL() override;
     bool isGLInitialized() const override;
-
     bool makeCurrent() override;
     void swap() override;
     bool hasError() const override;
     bool setSwapInterval(EGLint swapInterval) override;
+    angle::GenericProc getProcAddress(const char *name) override;
+    // Initializes WGL resources.
+    GLWindowContext getCurrentContextGeneric() override;
+    GLWindowContext createContextGeneric(GLWindowContext share) override;
+    bool makeCurrentGeneric(GLWindowContext context) override;
+    Image createImage(GLWindowContext context,
+                      Enum target,
+                      ClientBuffer buffer,
+                      const Attrib *attrib_list) override;
+    Image createImageKHR(GLWindowContext context,
+                         Enum target,
+                         ClientBuffer buffer,
+                         const AttribKHR *attrib_list) override;
+    EGLBoolean destroyImage(Image image) override;
+    EGLBoolean destroyImageKHR(Image image) override;
+    Sync createSync(EGLDisplay dpy, EGLenum type, const EGLAttrib *attrib_list) override;
+    Sync createSyncKHR(EGLDisplay dpy, EGLenum type, const EGLint *attrib_list) override;
+    EGLBoolean destroySync(EGLDisplay dpy, Sync sync) override;
+    EGLBoolean destroySyncKHR(EGLDisplay dpy, Sync sync) override;
+    EGLint clientWaitSync(EGLDisplay dpy, Sync sync, EGLint flags, EGLTimeKHR timeout) override;
+    EGLint clientWaitSyncKHR(EGLDisplay dpy, Sync sync, EGLint flags, EGLTimeKHR timeout) override;
+    EGLint getEGLError() override;
+    Surface createPbufferSurface(const EGLint *attrib_list) override;
+    EGLBoolean destroySurface(Surface surface) override;
+
+    EGLBoolean bindTexImage(EGLSurface surface, EGLint buffer) override;
+    EGLBoolean releaseTexImage(EGLSurface surface, EGLint buffer) override;
+    bool makeCurrent(EGLSurface draw, EGLSurface read, EGLContext context) override;
+
+    // Create a WGL context with this window's configuration
+    HGLRC createContext(const ConfigParameters &configParams, HGLRC shareContext);
+    // Make the WGL context current
+    bool makeCurrent(HGLRC context);
 
   private:
-    WGLWindow(int glesMajorVersion, int glesMinorVersion);
+    WGLWindow(EGLenum clientType, int majorVersion, int minorVersion, int profileMask);
     ~WGLWindow() override;
 
     // OS resources.

@@ -25,6 +25,8 @@ sha1_files = [
   "beneath_the_canopy_opus_stereo.dmp.sha1",
   "black_test_avc_1080p_30to60_fps.dmp.sha1",
   "heaac.dmp.sha1",
+  "iamf_base_profile_stereo_ambisonics.dmp.sha1",
+  "iamf_simple_profile_5_1.dmp.sha1",
   "silence_aac_stereo.dmp.sha1",
   "sintel_329_ec3.dmp.sha1",
   "sintel_381_ac3.dmp.sha1",

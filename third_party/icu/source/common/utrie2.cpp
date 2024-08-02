@@ -24,9 +24,6 @@
 *   This file contains only the runtime and enumeration code, for read-only access.
 *   See utrie2_builder.c for the builder code.
 */
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #ifdef UCPTRIE_DEBUG
 #include "unicode/umutablecptrie.h"

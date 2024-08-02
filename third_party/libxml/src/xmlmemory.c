@@ -166,7 +166,7 @@ xmlMallocLoc(size_t size, const char * file, int line)
 	return(NULL);
     }
 
-    p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
+    p = (MEMHDR *) malloc(RESERVE_SIZE+size);
 
     if (!p) {
 	xmlGenericError(xmlGenericErrorContext,
@@ -242,7 +242,7 @@ xmlMallocAtomicLoc(size_t size, const char * file, int line)
 	return(NULL);
     }
 
-    p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
+    p = (MEMHDR *) malloc(RESERVE_SIZE+size);
 
     if (!p) {
 	xmlGenericError(xmlGenericErrorContext,
@@ -353,9 +353,9 @@ xmlReallocLoc(void *ptr,size_t size, const char * file, int line)
 	return(NULL);
     }
 
-    tmp = (MEMHDR *) XML_REALLOC(p,RESERVE_SIZE+size);
+    tmp = (MEMHDR *) realloc(p,RESERVE_SIZE+size);
     if (!tmp) {
-	 XML_FREE(p);
+	 free(p);
 	 goto error;
     }
     p = tmp;
@@ -461,7 +461,7 @@ xmlMemFree(void *ptr)
 #endif
     xmlMutexUnlock(xmlMemMutex);
 
-    XML_FREE(p);
+    free(p);
 
     TEST_POINT
 
@@ -507,7 +507,7 @@ xmlMemStrdupLoc(const char *str, const char *file, int line)
 	return(NULL);
     }
 
-    p = (MEMHDR *) XML_MALLOC(RESERVE_SIZE+size);
+    p = (MEMHDR *) malloc(RESERVE_SIZE+size);
     if (!p) {
       goto error;
     }

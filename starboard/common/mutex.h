@@ -20,6 +20,8 @@
 
 #include <pthread.h>
 
+#include "starboard/configuration.h"
+
 #if SB_API_VERSION < 16
 #include "starboard/mutex.h"
 #endif  // SB_API_VERSION < 16

@@ -8,7 +8,7 @@
 //
 
 #include "test_utils/MultiviewTest.h"
-#include "platform/FeaturesD3D.h"
+#include "platform/FeaturesD3D_autogen.h"
 #include "test_utils/gl_raii.h"
 
 namespace angle
@@ -219,15 +219,7 @@ void AttachMultiviewTextures(GLenum target,
 std::ostream &operator<<(std::ostream &os, const MultiviewImplementationParams &params)
 {
     const PlatformParameters &base = static_cast<const PlatformParameters &>(params);
-    os << base;
-    if (params.mForceUseGeometryShaderOnD3D)
-    {
-        os << "_force_geom_shader";
-    }
-    else
-    {
-        os << "_vertex_shader";
-    }
+    os << base << "_";
     if (params.mMultiviewExtension)
     {
         os << "_multiview";
@@ -239,34 +231,45 @@ std::ostream &operator<<(std::ostream &os, const MultiviewImplementationParams &
     return os;
 }
 
-MultiviewImplementationParams VertexShaderOpenGL(GLint majorVersion,
+MultiviewImplementationParams VertexShaderOpenGL(EGLenum clientType,
+                                                 GLint majorVersion,
                                                  GLint minorVersion,
+                                                 EGLint profileMask,
                                                  ExtensionName multiviewExtension)
 {
-    return MultiviewImplementationParams(majorVersion, minorVersion, false, egl_platform::OPENGL(),
-                                         multiviewExtension);
+    return MultiviewImplementationParams(clientType, majorVersion, minorVersion, profileMask,
+                                         egl_platform::OPENGL(), multiviewExtension);
 }
 
-MultiviewImplementationParams VertexShaderD3D11(GLint majorVersion,
+MultiviewImplementationParams VertexShaderVulkan(EGLenum clientType,
+                                                 GLint majorVersion,
+                                                 GLint minorVersion,
+                                                 EGLint profileMask,
+                                                 ExtensionName multiviewExtension)
+{
+    return MultiviewImplementationParams(clientType, majorVersion, minorVersion, profileMask,
+                                         egl_platform::VULKAN(), multiviewExtension);
+}
+
+MultiviewImplementationParams VertexShaderD3D11(EGLenum clientType,
+                                                GLint majorVersion,
                                                 GLint minorVersion,
+                                                EGLint profileMask,
                                                 ExtensionName multiviewExtension)
 {
-    return MultiviewImplementationParams(majorVersion, minorVersion, false, egl_platform::D3D11(),
-                                         multiviewExtension);
+    return MultiviewImplementationParams(clientType, majorVersion, minorVersion, profileMask,
+                                         egl_platform::D3D11(), multiviewExtension);
 }
 
-MultiviewImplementationParams GeomShaderD3D11(GLint majorVersion,
+MultiviewImplementationParams GeomShaderD3D11(EGLenum clientType,
+                                              GLint majorVersion,
                                               GLint minorVersion,
+                                              EGLint profileMask,
                                               ExtensionName multiviewExtension)
 {
-    return MultiviewImplementationParams(majorVersion, minorVersion, true, egl_platform::D3D11(),
-                                         multiviewExtension);
-}
-
-void MultiviewTest::overrideWorkaroundsD3D(FeaturesD3D *features)
-{
-    features->overrideFeatures({"select_view_in_geometry_shader"},
-                               GetParam().mForceUseGeometryShaderOnD3D);
+    return MultiviewImplementationParams(
+        clientType, majorVersion, minorVersion, profileMask,
+        egl_platform::D3D11().enable(Feature::SelectViewInGeometryShader), multiviewExtension);
 }
 
 }  // namespace angle

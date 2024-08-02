@@ -30,7 +30,7 @@ on:
         type: boolean
         default: false
       artifacts_to_upload:
-        description: 'A list of artifacts to upload delimited by comma.'
+        description: 'A multiline string consists of artifact paths, each on a separate line.'
         required: false
         type: string
         default: ''
@@ -261,20 +261,35 @@ jobs:
       - name: 'Get Artifact Paths'
         id: get-artifact-paths
         if: ${{ inputs.artifacts_to_upload }}
+        shell: bash
         run: |
-          artifact_list = ""
+          #!/bin/bash
+
+          artifact_list=""
           while IFS= read -r line; do
-            artifact_path="out/${{ matrix.platform }}_${{ matrix.config }}/$line"
-            echo "$artifact_path"
-            artifact_list="$artifact_list$artifact_path\n"
-          done <<< "${{ inputs.artifacts_to_upload }}"
-          echo "artifact_list=artifact_list" >> $GITHUB_ENV
+            echo "Processing line: $line"  # Debugging output
+            if [ -n "$line" ]; then # avoid trailing new lines.
+              artifact_list+="out/${{ matrix.platform }}_${{ matrix.config }}/$line\n"
+            fi
+          done <<EOF
+          $(echo "${{ inputs.artifacts_to_upload }}")
+          EOF
+
+          echo "ARTIFACT_LIST_ENV_VAR=$artifact_list" >> $GITHUB_ENV
+
+      - name: 'Print Artifact Paths'
+        run: |
+          echo ${{ env.ARTIFACT_LIST_ENV_VAR }}
+          echo "-------"
+          echo "${{ env.ARTIFACT_LIST_ENV_VAR }}"
+
+
       - name: 'Upload Artifact'
         uses: actions/upload-artifact@v4
-        if: ${{ $artifact_list }}
+        if: ${{ env.ARTIFACT_LIST_ENV_VAR != '' }}
         with:
           name: ${{ matrix.platform }}-${{ matrix.config }}
-          path: ${{ $artifact_list }}
+          path: "${{ env.ARTIFACT_LIST_ENV_VAR }}"
           retention-days: 7
           compression-level: 0 # We expect kept artifacts to be already compressed
           if-no-files-found: error

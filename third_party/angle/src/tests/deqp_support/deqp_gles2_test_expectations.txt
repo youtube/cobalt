@@ -2,39 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file contains a list of defective dEQP conformance tests. The expected
-// format is:
-//  {BUG#} {MODIFIERS} : {TEST_NAME} = {PASS,FAIL,FLAKY,TIMEOUT,SKIP}
-//
-// MODIFIERS can be a combination of the below list, combined with a logical AND:
-//  WIN XP VISTA WIN7 WIN8 WIN10
-//  MAC LEOPARD SNOWLEOPARD LION MOUNTAINLION MAVERICKS YOSEMITE ELCAPITAN SIERRA HIGHSIERRA MOJAVE
-//  LINUX CHROMEOS ANDROID
-//  NVIDIA AMD INTEL
-//  DEBUG RELEASE
-//  D3D9 D3D11 OPENGL GLES VULKAN
-//  NEXUS5X PIXEL2ORXL
-//  QUADROP400
-//
-//
-// TEST_NAME can be a specific test name, or have a '*' in the end, which
-// indicates a prefix matching.
-//
-// Examples:
-// fails on both windows and mac (crash)
-//  91530 WIN : context_lost_restored = SKIP
-//  91530 MAC : context_lost_restored = SKIP
-// fails on windows using NVIDIA GPUs
-//  91533 WIN NVIDIA : gl_min_uniforms = FAIL
-// fails on Nexus5X with GLES backend (hangs)
-//  91531 NEXUS5X GLES : conformance_more_* = SKIP
+// See README.md for format.
 
 // Skip these tests due to timeouts
 1034 : dEQP-GLES2.functional.flush_finish.* = SKIP
 
 // Failures related to not supporting separate depth/stencil masks on D3D11.
 1655 D3D11 : dEQP-GLES2.functional.fragment_ops.depth_stencil.stencil_depth_funcs.stencil_* = FAIL
-1655 D3D11 : dEQP-GLES2.functional.fragment_ops.depth_stencil.stencil_ops.* = FAIL
 1655 D3D11 : dEQP-GLES2.functional.fragment_ops.depth_stencil.write_mask.* = FAIL
 1655 D3D11 : dEQP-GLES2.functional.fragment_ops.blend.equation_src_func_dst_func.add_constant_color_constant_alpha = FAIL
 1655 D3D11 : dEQP-GLES2.functional.fragment_ops.blend.equation_src_func_dst_func.add_constant_color_one_minus_constant_alpha = FAIL
@@ -73,10 +47,6 @@
 3467 D3D9 : dEQP-GLES2.functional.attribute_location.bind_aliasing.cond* = FAIL
 3467 D3D9 : dEQP-GLES2.functional.attribute_location.bind_aliasing.max_cond* = FAIL
 3467 D3D11 : dEQP-GLES2.functional.attribute_location.bind_aliasing.cond* = FAIL
-3467 D3D11 : dEQP-GLES2.functional.attribute_location.bind_aliasing.max_cond* = FAIL
-
-// Shader failures.
-3434 NEXUS5X GLES : dEQP-GLES2.functional.shaders.preprocessor.pragmas.pragma_* = FAIL
 
 // The fragment_ops.depth_stencil.random tests all seem to fail on D3D11.
 3282 D3D11 : dEQP-GLES2.functional.fragment_ops.depth_stencil.random.* = FAIL
@@ -90,10 +60,6 @@
 2426 D3D11 : dEQP-GLES2.functional.depth_range.compare.half_to_zero = FAIL
 2426 D3D11 : dEQP-GLES2.functional.depth_range.compare.one_to_half = FAIL
 2426 D3D11 : dEQP-GLES2.functional.depth_range.compare.0_8_to_third = FAIL
-
-// Windows D3D11 Intel and NVIDIA. Suppressed on all cards for simplicity.
-3292 D3D11 : dEQP-GLES2.functional.polygon_offset.default_render_with_units = FAIL
-3292 D3D11 : dEQP-GLES2.functional.polygon_offset.fixed16_render_with_units = FAIL
 
 // Common subexpression invariance
 3293 D3D11 : dEQP-GLES2.functional.shaders.invariance.highp.common_subexpression_1 = FAIL
@@ -123,11 +89,6 @@
 3299 D3D11 AMD : dEQP-GLES2.functional.texture.vertex.cube.wrap.repeat_clamp = FAIL
 3299 D3D11 AMD : dEQP-GLES2.functional.texture.vertex.cube.wrap.repeat_repeat = FAIL
 3299 D3D11 AMD : dEQP-GLES2.functional.texture.vertex.cube.wrap.repeat_mirror = FAIL
-
-// Quadro P400
-// TODO(jmadill): Narrow to P400 device only: 0x1CB3.
-2222 D3D11 NVIDIA : dEQP-GLES2.functional.shaders.functions.control_flow.return_in_nested_loop_fragment = FAIL
-2222 D3D11 NVIDIA : dEQP-GLES2.functional.shaders.functions.control_flow.return_in_nested_loop_vertex = FAIL
 
 // AMD GPU vertex shader texture sampling is not precise enough when rendering to 32-bit backbuffers
 2337 D3D11 AMD : dEQP-GLES2.functional.texture.vertex.2d.wrap.* = FAIL
@@ -161,12 +122,8 @@
 3302 OPENGL INTEL LINUX : dEQP-GLES2.functional.texture.vertex.cube.filtering.linear_mipmap_linear_nearest_repeat = FAIL
 3302 OPENGL INTEL LINUX : dEQP-GLES2.functional.texture.vertex.cube.wrap.repeat_repeat = FAIL
 
-// Linux OpenGL NVIDIA
-3303 OPENGL NVIDIA LINUX : dEQP-GLES2.functional.texture.mipmap.cube.projected.nearest_linear = FAIL
-
 // Mac OpenGL specific failures
 3466 MAC OPENGL : dEQP-GLES2.functional.attribute_location.bind_aliasing.cond* = SKIP
-3466 MAC OPENGL : dEQP-GLES2.functional.attribute_location.bind_aliasing.max_cond* = SKIP
 3433 MAC OPENGL : dEQP-GLES2.functional.shaders.preprocessor.pragmas.pragma_vertex = FAIL
 1143 MAC OPENGL : dEQP-GLES2.functional.shaders.scoping.valid.local_int_variable_hides_struct_type_* = FAIL
 1143 MAC OPENGL : dEQP-GLES2.functional.shaders.scoping.valid.local_struct_variable_hides_struct_type_* = FAIL
@@ -196,8 +153,6 @@
 2137 MAC OPENGL INTEL : dEQP-GLES2.functional.shaders.discard.function_static_loop_never = SKIP
 2137 MAC OPENGL INTEL : dEQP-GLES2.functional.shaders.discard.static_loop_never = SKIP
 
-3317 MAC OPENGL INTEL : dEQP-GLES2.functional.polygon_offset.default_render_with_units = FAIL
-3317 MAC OPENGL INTEL : dEQP-GLES2.functional.polygon_offset.fixed16_render_with_units = FAIL
 3317 MAC OPENGL INTEL : dEQP-GLES2.functional.shaders.invariance.highp.common_subexpression_1 = FAIL
 3317 MAC OPENGL INTEL : dEQP-GLES2.functional.shaders.invariance.highp.common_subexpression_3 = FAIL
 3317 MAC OPENGL INTEL : dEQP-GLES2.functional.shaders.invariance.mediump.common_subexpression_1 = FAIL
@@ -241,35 +196,12 @@
 3317 MAC OPENGL AMD : dEQP-GLES2.functional.clipping.point.wide_point_clip_viewport_center = FAIL
 3317 MAC OPENGL AMD : dEQP-GLES2.functional.clipping.point.wide_point_clip_viewport_corner = FAIL
 
-// Android GLES backend only failures
-1488 GLES ANDROID : dEQP-GLES2.functional.shaders.return.conditional_return_always_vertex = FAIL
-1488 GLES ANDROID : dEQP-GLES2.functional.shaders.return.conditional_return_always_fragment = FAIL
-1488 GLES ANDROID : dEQP-GLES2.functional.shaders.return.output_write_always_vertex = FAIL
-1488 GLES ANDROID : dEQP-GLES2.functional.shaders.return.output_write_always_fragment = FAIL
-2631 GLES ANDROID : dEQP-GLES2.functional.shaders.operator.sequence.side_effects.affect_* = FAIL
-2630 GLES ANDROID : dEQP-GLES2.functional.shaders.struct.uniform.sampler_in_array_function_arg_* = FAIL
-2630 GLES ANDROID : dEQP-GLES2.functional.shaders.struct.uniform.sampler_in_function_arg_* = FAIL
-
-// Nexus 5x failures
-3309 NEXUS5X GLES : dEQP-GLES2.functional.attribute_location.bind_aliasing.cond* = FAIL
-3309 NEXUS5X GLES : dEQP-GLES2.functional.attribute_location.bind_aliasing.max_cond* = FAIL
-3716 NEXUS5X GLES : dEQP-GLES2.functional.fbo.completeness.renderable.texture.depth.depth_component_unsigned_int = FAIL
-3716 NEXUS5X GLES : dEQP-GLES2.functional.fbo.completeness.renderable.texture.depth.depth_component_unsigned_short = FAIL
-3716 NEXUS5X GLES : dEQP-GLES2.functional.fbo.completeness.renderable.texture.depth.depth_stencil_unsigned_int_24_8 = FAIL
-3716 NEXUS5X GLES : dEQP-GLES2.functional.fbo.completeness.renderable.texture.stencil.depth_stencil_unsigned_int_24_8 = FAIL
-3309 NEXUS5X GLES : dEQP-GLES2.functional.fbo.render.texsubimage.after_render_tex2d_rgb = FAIL
-3309 NEXUS5X GLES : dEQP-GLES2.functional.polygon_offset.default_result_depth_clamp = FAIL
-3715 NEXUS5X GLES : dEQP-GLES2.functional.shaders.builtin_variable.max_draw_buffers_vertex = FAIL
-3715 NEXUS5X GLES : dEQP-GLES2.functional.shaders.builtin_variable.max_draw_buffers_fragment = FAIL
-3309 NEXUS5X GLES : dEQP-GLES2.functional.shaders.return.output_write_in_func_always_vertex = FAIL
-3309 NEXUS5X GLES : dEQP-GLES2.functional.shaders.return.output_write_in_func_always_fragment = FAIL
-3309 NEXUS5X GLES : dEQP-GLES2.functional.shaders.texture_functions.vertex.texturecubelod = FAIL
-3309 NEXUS5X GLES : dEQP-GLES2.functional.texture.mipmap.cube.* = FAIL
-3309 NEXUS5X GLES : dEQP-GLES2.functional.texture.vertex.cube.filtering.linear_mipmap_linear_* = FAIL
-3309 NEXUS5X GLES : dEQP-GLES2.functional.texture.vertex.cube.wrap.clamp_* = FAIL
-3309 NEXUS5X GLES : dEQP-GLES2.functional.texture.vertex.cube.wrap.mirror_* = FAIL
-3309 NEXUS5X GLES : dEQP-GLES2.functional.uniform_api.random.3 = FAIL
-3309 NEXUS5X GLES : dEQP-GLES2.functional.uniform_api.random.54 = FAIL
+5172 MAC OPENGL AMD : dEQP-GLES2.functional.draw.draw_elements.indices.user_ptr.index_byte = FAIL
+5172 MAC OPENGL AMD : dEQP-GLES2.functional.dither.* = FAIL
+5172 MAC OPENGL AMD : dEQP-GLES2.functional.draw.random.* = FAIL
+5172 MAC OPENGL AMD : dEQP-GLES2.functional.fragment_ops.depth_stencil.stencil_depth_funcs.stencil* = FAIL
+5172 MAC OPENGL AMD : dEQP-GLES2.functional.shaders.fragdata.* = FAIL
+5172 MAC OPENGL AMD : dEQP-GLES2.functional.fragment_ops.blend.equation_src_func_dst_func.* = FAIL
 
 // D3D11 AMD already covered by Line 148
 3243 D3D11 INTEL : dEQP-GLES2.functional.texture.mipmap.cube.basic.linear_nearest = FAIL
@@ -297,84 +229,88 @@
 3240 D3D11 : dEQP-GLES2.functional.texture.vertex.cube.wrap.mirror_repeat = FAIL
 3240 D3D11 : dEQP-GLES2.functional.texture.vertex.cube.wrap.mirror_mirror = FAIL
 
-// Android Vulkan backend only failures
-2549 VULKAN ANDROID : dEQP-GLES2.functional.fragment_ops.depth_stencil.stencil* = SKIP
-4109 VULKAN ANDROID : dEQP-GLES2.functional.texture.mipmap.cube.projected.nearest_linear = FAIL
-
-// Adreno line rasterization is not conformant.
-2830 VULKAN ANDROID : dEQP-GLES2.functional.rasterization.primitives.line_loop = FAIL
-2830 VULKAN ANDROID : dEQP-GLES2.functional.rasterization.primitives.line_strip = FAIL
-2830 VULKAN ANDROID : dEQP-GLES2.functional.rasterization.primitives.lines = FAIL
-
-// Failing on the Pixel 2.
-2808 VULKAN ANDROID : dEQP-GLES2.functional.shaders.builtin_variable.fragcoord_w = FAIL
-3306 VULKAN ANDROID : dEQP-GLES2.functional.polygon_offset.default_factor_1_slope = FAIL
-3306 VULKAN ANDROID : dEQP-GLES2.functional.polygon_offset.fixed16_factor_1_slope = FAIL
-
-// These tests also fail on AMD windows driver as it is not allowed to use emulation due to errors.
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.shaders.texture_functions.vertex.texturecubelod = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.mipmap.cube.basic.linear_nearest = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.mipmap.cube.basic.linear_linear = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.mipmap.cube.projected.linear_nearest = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.mipmap.cube.projected.linear_linear = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.mipmap.cube.bias.linear_nearest = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.mipmap.cube.bias.linear_linear = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.vertex.cube.filtering.linear_mipmap_linear_nearest_clamp = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.vertex.cube.filtering.linear_mipmap_linear_nearest_mirror = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.vertex.cube.filtering.linear_mipmap_linear_linear_clamp = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.vertex.cube.filtering.linear_mipmap_linear_linear_mirror = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.vertex.cube.wrap.clamp_clamp = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.vertex.cube.wrap.clamp_repeat = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.vertex.cube.wrap.clamp_mirror = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.vertex.cube.wrap.mirror_clamp = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.vertex.cube.wrap.mirror_repeat = FAIL
-3243 VULKAN WIN AMD : dEQP-GLES2.functional.texture.vertex.cube.wrap.mirror_mirror = FAIL
-
-// Vulkan AMD drivers don't seem to support wide point clipping.
-2463 VULKAN WIN AMD : dEQP-GLES2.functional.clipping.point.wide_point_clip = FAIL
-2463 VULKAN WIN AMD : dEQP-GLES2.functional.clipping.point.wide_point_clip_viewport_center = FAIL
-2463 VULKAN WIN AMD : dEQP-GLES2.functional.clipping.point.wide_point_clip_viewport_corner = FAIL
-
-// These failures are possibly due to an AMD driver bug.
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.draw.random.14 = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.draw.random.30 = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.draw.random.41 = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.first.byte_first* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.first.float_first* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.offset.buffer_1_17_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.offset.buffer_1_2_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.offset.buffer_1_32_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.offset.buffer_17_17_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.offset.buffer_17_2_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.offset.buffer_17_32_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.offset.buffer_32_17_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.offset.buffer_32_32_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.offset.buffer_32_32_float* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.offset.buffer_4_17_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.offset.buffer_4_32_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.offset.buffer_4_32_float* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.strides.buffer_0_17_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.strides.buffer_0_32_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.strides.buffer_0_32_float* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.strides.buffer_0_32_short* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.strides.buffer_0_3_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.strides.buffer_0_6_short* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.usages.buffer_0_0_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.usages.buffer_0_0_short* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.usages.buffer_0_17_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.usages.buffer_0_32_byte* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.usages.buffer_0_32_float* = SKIP
-2847 VULKAN WIN AMD : dEQP-GLES2.functional.vertex_arrays.single_attribute.usages.buffer_0_32_short* = SKIP
-
-// Fails after OpenGL line rasterization rules implementation. Possibly a bug in FragCoord.
-2809 VULKAN WIN AMD : dEQP-GLES2.functional.clipping.line.long_line_clip = FAIL
-
-// Polygon offset failures
-3301 VULKAN WIN AMD : dEQP-GLES2.functional.polygon_offset.default_result_depth_clamp = FAIL
-3301 VULKAN WIN AMD : dEQP-GLES2.functional.polygon_offset.default_factor_1_slope = FAIL
-3301 VULKAN WIN AMD : dEQP-GLES2.functional.polygon_offset.fixed16_render_with_units = FAIL
-
-// Failures on newer NVIDIA drivers (411.95) and passes on older drivers (388.16).
-2976 VULKAN NVIDIA : dEQP-GLES2.functional.shaders.invariance.* = FAIL
+// Failures on some NVIDIA drivers (411.95), passing on older drivers (388.16) and newer ones.
+2976 VULKAN LINUX NVIDIA : dEQP-GLES2.functional.shaders.invariance.*.common_subexpression_0 = FAIL
+2976 VULKAN LINUX NVIDIA : dEQP-GLES2.functional.shaders.invariance.lowp.subexpression_precision_lowp = FAIL
+2976 VULKAN LINUX NVIDIA : dEQP-GLES2.functional.shaders.invariance.lowp.subexpression_precision_mediump = FAIL
+2976 VULKAN LINUX NVIDIA : dEQP-GLES2.functional.shaders.invariance.mediump.subexpression_precision_lowp = FAIL
 // Fails on 431.02 NVIDIA driver
 3748 VULKAN WIN NVIDIA : dEQP-GLES2.functional.fbo.render.repeated_clear.* = FAIL
+
+// Mac / Metal
+
+// Fails on Metal, some of filtering tests fail when MSAA is off and pass when MSAA is on. Some
+// tests are opposite. The filtering tests mostly fail on a few pixels.
+6466 MAC METAL : dEQP-GLES2.functional.shaders.texture_functions.vertex.texturecubelod = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.2d.basic.nearest_linear_clamp = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.2d.basic.nearest_linear_clamp_non_square = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.2d.basic.nearest_linear_repeat = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.2d.basic.nearest_linear_repeat_non_square = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.2d.basic.nearest_linear_mirror = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.2d.basic.nearest_linear_mirror_non_square = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.2d.basic.linear_linear_repeat = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.2d.basic.linear_linear_repeat_non_square = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.2d.projected.nearest_linear_clamp = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.2d.projected.nearest_linear_repeat = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.2d.projected.nearest_linear_mirror = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.2d.projected.linear_linear_repeat = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.cube.basic.linear_nearest = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.cube.basic.linear_linear = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.cube.projected.linear_nearest = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.cube.projected.linear_linear = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.cube.bias.linear_nearest = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.mipmap.cube.bias.linear_linear = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.vertex.2d.filtering.linear_mipmap_linear* = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.vertex.2d.filtering.nearest_mipmap_linear* = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.vertex.2d.wrap.* = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.vertex.cube.filtering.linear_mipmap_linear* = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.vertex.cube.filtering.nearest_mipmap_linear* = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.vertex.cube.filtering.nearest_mipmap_nearest_linear* = FAIL
+6534 MAC METAL AMD : dEQP-GLES2.functional.texture.vertex.cube.wrap.* = FAIL
+6589 MAC METAL AMD : dEQP-GLES2.functional.clipping.point.wide_point_clip = FAIL
+6589 MAC METAL AMD : dEQP-GLES2.functional.clipping.point.wide_point_clip_viewport_center = FAIL
+6589 MAC METAL AMD : dEQP-GLES2.functional.clipping.point.wide_point_clip_viewport_corner = FAIL
+5206 MAC METAL : dEQP-GLES2.functional.fbo.completeness.renderable.texture.color0.rgb_half_float_oes = FAIL
+5206 MAC METAL : dEQP-GLES2.functional.fbo.completeness.renderable.texture.color0.rgba_half_float_oes = FAIL
+
+6466 MAC METAL INTEL : dEQP-GLES2.functional.texture.mipmap.cube.basic.linear_nearest = FAIL
+6466 MAC METAL INTEL : dEQP-GLES2.functional.texture.mipmap.cube.basic.linear_linear = FAIL
+6466 MAC METAL INTEL : dEQP-GLES2.functional.texture.mipmap.cube.projected.linear_nearest = FAIL
+6466 MAC METAL INTEL : dEQP-GLES2.functional.texture.mipmap.cube.projected.linear_linear = FAIL
+6466 MAC METAL INTEL : dEQP-GLES2.functional.texture.mipmap.cube.bias.linear_nearest = FAIL
+6466 MAC METAL INTEL : dEQP-GLES2.functional.texture.mipmap.cube.bias.linear_linear = FAIL
+6466 MAC METAL INTEL : dEQP-GLES2.functional.texture.vertex.cube.filtering.linear_mipmap_linear* = FAIL
+6466 MAC METAL INTEL : dEQP-GLES2.functional.texture.vertex.cube.filtering.nearest_mipmap_linear* = FAIL
+6466 MAC METAL INTEL : dEQP-GLES2.functional.texture.vertex.cube.filtering.nearest_mipmap_nearest_linear* = FAIL
+6466 MAC METAL INTEL : dEQP-GLES2.functional.texture.vertex.cube.wrap.* = FAIL
+7451 MAC METAL INTEL : dEQP-GLES2.functional.shaders.builtin_variable.pointcoord = FAIL
+7838 MAC METAL INTEL : dEQP-GLES2.functional.shaders.function.global_variable_aliasing_* = FAIL
+
+6297 MAC METAL : dEQP-GLES2.functional.attribute_location.bind_aliasing.cond* = FAIL
+
+// New failures on MacBook Pro 2019 macOS 13.2.1
+8091 MAC METAL AMD : dEQP-GLES2.functional.shaders.function.global_variable_aliasing_fragment = FAIL
+8091 MAC METAL AMD : dEQP-GLES2.functional.shaders.function.global_variable_aliasing_vertex = FAIL
+
+// Test bug - fails in ASAN.
+6678 ASAN : dEQP-GLES2.functional.negative_api.texture.compressedtexsubimage2d* = SKIP
+
+// Pixel 4 test expectations.
+5990 PIXEL4ORXL VULKAN : dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.48 = SKIP
+5990 PIXEL4ORXL VULKAN : dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.89 = SKIP
+5990 PIXEL4ORXL VULKAN : dEQP-GLES2.functional.fragment_ops.random.52* = SKIP
+5990 PIXEL4ORXL VULKAN : dEQP-GLES2.functional.fragment_ops.random.77* = SKIP
+5990 PIXEL4ORXL VULKAN : dEQP-GLES2.functional.fragment_ops.random.82* = SKIP
+
+6528 PIXEL4ORXL GLES : dEQP-GLES2.functional.shaders.struct.uniform.sampler_in_array_function_arg_vertex = FAIL
+6528 PIXEL4ORXL GLES : dEQP-GLES2.functional.shaders.struct.uniform.sampler_in_function_arg_vertex = FAIL
+7838 PIXEL4ORXL GLES : dEQP-GLES2.functional.shaders.function.global_variable_aliasing_* = FAIL
+
+6709 LINUX NVIDIA GTX1660 VULKAN : dEQP-GLES2.functional.shaders.random.all_features.fragment.13 = FAIL
+6709 LINUX NVIDIA GTX1660 VULKAN : dEQP-GLES2.functional.shaders.random.all_features.fragment.26 = FAIL
+6709 LINUX NVIDIA GTX1660 VULKAN : dEQP-GLES2.functional.shaders.random.all_features.fragment.31 = FAIL
+6709 LINUX NVIDIA GTX1660 VULKAN : dEQP-GLES2.functional.shaders.random.all_features.fragment.94 = FAIL
+
+6678 UBSAN : dEQP-GLES2.functional.shaders.random.* = SKIP
+6678 UBSAN : dEQP-GLES2.functional.fragment_ops.interaction.basic_shader.* = SKIP
+6678 UBSAN : dEQP-GLES2.functional.shaders.texture_functions.vertex.texture2dprojlod_vec3 = SKIP

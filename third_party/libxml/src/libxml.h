@@ -60,14 +60,10 @@ int vfprintf(FILE *, const char *, va_list);
 #define XML_POP_WARNINGS
 #endif
 
-#if defined(__clang__) && defined(__has_attribute)
-#if __has_attribute(no_sanitize)
+#if defined(__clang__) || \
+    (defined(__GNUC__) && (__GNUC__ >= 8))
 #define ATTRIBUTE_NO_SANITIZE(arg) __attribute__((no_sanitize(arg)))
-#endif
-#elif (defined(__GNUC__) && (__GNUC__ >= 8))
-#define ATTRIBUTE_NO_SANITIZE(arg) __attribute__((no_sanitize(arg)))
-#endif
-#if !defined(ATTRIBUTE_NO_SANITIZE)
+#else
 #define ATTRIBUTE_NO_SANITIZE(arg)
 #endif
 
@@ -99,12 +95,10 @@ void __xmlGlobalInitMutexDestroy(void);
 
 int __xmlInitializeDict(void);
 
-#if defined(HAVE_RAND) && defined(HAVE_SRAND) && defined(HAVE_TIME)
 /*
  * internal thread safe random function
  */
 int __xmlRandom(void);
-#endif
 
 XMLPUBFUN xmlChar * XMLCALL xmlEscapeFormatString(xmlChar **msg);
 int xmlInputReadCallbackNop(void *context, char *buffer, int len);

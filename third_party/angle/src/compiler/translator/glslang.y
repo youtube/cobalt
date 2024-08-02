@@ -24,8 +24,6 @@ WHICH GENERATES THE GLSL ES PARSER (glslang_tab_autogen.cpp AND glslang_tab_auto
 // glslang.y:
 //   Parser for the OpenGL shading language.
 
-// clang-format off
-
 // Ignore errors in auto-generated code.
 #if defined(__GNUC__)
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -41,6 +39,7 @@ WHICH GENERATES THE GLSL ES PARSER (glslang_tab_autogen.cpp AND glslang_tab_auto
 #endif
 #if defined(__clang__)
 #pragma clang diagnostic ignored "-Wunreachable-code"
+#pragma clang diagnostic ignored "-Wunused-but-set-variable"
 #endif
 
 #include "angle_gl.h"
@@ -153,20 +152,20 @@ extern void yyerror(YYLTYPE* yylloc, TParseContext* context, void *scanner, cons
     }  \
 } while (0)
 
-#define ES3_1_ONLY(TOKEN, LINE, REASON) do {  \
-    if (context->getShaderVersion() != 310) {  \
-        context->error(LINE, REASON " supported in GLSL ES 3.10 only", TOKEN);  \
+#define ES3_1_OR_NEWER(TOKEN, LINE, REASON) do {  \
+    if (context->getShaderVersion() < 310) {  \
+        context->error(LINE, REASON " supported in GLSL ES 3.10 and above only", TOKEN);  \
     }  \
 } while (0)
 %}
 
-%token <lex> INVARIANT HIGH_PRECISION MEDIUM_PRECISION LOW_PRECISION PRECISION
+%token <lex> INVARIANT PRECISE HIGH_PRECISION MEDIUM_PRECISION LOW_PRECISION PRECISION
 %token <lex> ATTRIBUTE CONST_QUAL BOOL_TYPE FLOAT_TYPE INT_TYPE UINT_TYPE
 %token <lex> BREAK CONTINUE DO ELSE FOR IF DISCARD RETURN SWITCH CASE DEFAULT
 %token <lex> BVEC2 BVEC3 BVEC4 IVEC2 IVEC3 IVEC4 VEC2 VEC3 VEC4 UVEC2 UVEC3 UVEC4
 %token <lex> MATRIX2 MATRIX3 MATRIX4 IN_QUAL OUT_QUAL INOUT_QUAL UNIFORM BUFFER VARYING
 %token <lex> MATRIX2x3 MATRIX3x2 MATRIX2x4 MATRIX4x2 MATRIX3x4 MATRIX4x3
-%token <lex> CENTROID FLAT SMOOTH
+%token <lex> SAMPLE CENTROID FLAT SMOOTH NOPERSPECTIVE PATCH
 %token <lex> READONLY WRITEONLY COHERENT RESTRICT VOLATILE SHARED
 %token <lex> STRUCT VOID_TYPE WHILE
 %token <lex> SAMPLER2D SAMPLERCUBE SAMPLER_EXTERNAL_OES SAMPLER2DRECT SAMPLER2DARRAY
@@ -174,11 +173,18 @@ extern void yyerror(YYLTYPE* yylloc, TParseContext* context, void *scanner, cons
 %token <lex> USAMPLER2D USAMPLER3D USAMPLERCUBE USAMPLER2DARRAY
 %token <lex> SAMPLER2DMS ISAMPLER2DMS USAMPLER2DMS
 %token <lex> SAMPLER2DMSARRAY ISAMPLER2DMSARRAY USAMPLER2DMSARRAY
-%token <lex> SAMPLER3D SAMPLER3DRECT SAMPLER2DSHADOW SAMPLERCUBESHADOW SAMPLER2DARRAYSHADOW
+%token <lex> SAMPLER3D SAMPLER3DRECT SAMPLER2DSHADOW SAMPLERCUBESHADOW SAMPLER2DARRAYSHADOW SAMPLERVIDEOWEBGL
+%token <lex> SAMPLERCUBEARRAYOES SAMPLERCUBEARRAYSHADOWOES ISAMPLERCUBEARRAYOES USAMPLERCUBEARRAYOES
+%token <lex> SAMPLERCUBEARRAYEXT SAMPLERCUBEARRAYSHADOWEXT ISAMPLERCUBEARRAYEXT USAMPLERCUBEARRAYEXT
+%token <lex> SAMPLERBUFFER ISAMPLERBUFFER USAMPLERBUFFER
 %token <lex> SAMPLEREXTERNAL2DY2YEXT
 %token <lex> IMAGE2D IIMAGE2D UIMAGE2D IMAGE3D IIMAGE3D UIMAGE3D IMAGE2DARRAY IIMAGE2DARRAY UIMAGE2DARRAY
 %token <lex> IMAGECUBE IIMAGECUBE UIMAGECUBE
+%token <lex> IMAGECUBEARRAYOES IIMAGECUBEARRAYOES UIMAGECUBEARRAYOES
+%token <lex> IMAGECUBEARRAYEXT IIMAGECUBEARRAYEXT UIMAGECUBEARRAYEXT
+%token <lex> IMAGEBUFFER IIMAGEBUFFER UIMAGEBUFFER
 %token <lex> ATOMICUINT
+%token <lex> PIXELLOCALANGLE IPIXELLOCALANGLE UPIXELLOCALANGLE
 %token <lex> LAYOUT
 %token <lex> YUVCSCSTANDARDEXT YUVCSCSTANDARDEXTCONSTANT
 
@@ -229,7 +235,7 @@ extern void yyerror(YYLTYPE* yylloc, TParseContext* context, void *scanner, cons
 %type <interm.precision> precision_qualifier
 %type <interm.layoutQualifier> layout_qualifier
 %type <interm.qualifier> interpolation_qualifier
-%type <interm.qualifierWrapper> storage_qualifier single_type_qualifier invariant_qualifier
+%type <interm.qualifierWrapper> storage_qualifier single_type_qualifier invariant_qualifier precise_qualifier
 %type <interm.typeQualifierBuilder> type_qualifier
 
 %type <interm.typeSpecifierNonArray> type_specifier_nonarray struct_specifier
@@ -614,15 +620,15 @@ declaration
         ES3_OR_NEWER(ImmutableString($2.string), @1, "interface blocks");
         $$ = context->addInterfaceBlock(*$1, @2, ImmutableString($2.string), $3, ImmutableString($5.string), @5, NULL, @$);
     }
-    | type_qualifier enter_struct struct_declaration_list RIGHT_BRACE IDENTIFIER LEFT_BRACKET constant_expression RIGHT_BRACKET SEMICOLON {
+    | type_qualifier enter_struct struct_declaration_list RIGHT_BRACE IDENTIFIER array_specifier SEMICOLON {
         ES3_OR_NEWER(ImmutableString($2.string), @1, "interface blocks");
-        $$ = context->addInterfaceBlock(*$1, @2, ImmutableString($2.string), $3, ImmutableString($5.string), @5, $7, @6);
+        $$ = context->addInterfaceBlock(*$1, @2, ImmutableString($2.string), $3, ImmutableString($5.string), @5, $6, @6);
     }
     | type_qualifier SEMICOLON {
         context->parseGlobalLayoutQualifier(*$1);
         $$ = nullptr;
     }
-    | type_qualifier IDENTIFIER SEMICOLON // e.g. to qualify an existing variable as invariant
+    | type_qualifier IDENTIFIER SEMICOLON // e.g. to qualify an existing variable as invariant or precise
     {
         $$ = context->parseGlobalQualifierDeclaration(*$1, @2, ImmutableString($2.string), $2.symbol);
     }
@@ -653,6 +659,11 @@ function_header_with_parameters
         {
             $1->addParameter($2.createVariable(&context->symbolTable));
         }
+        else
+        {
+            // Remember that void was seen, so error can be generated if another parameter is seen.
+            $1->setHasVoidParameter();
+        }
     }
     | function_header_with_parameters COMMA parameter_declaration {
         $$ = $1;
@@ -665,6 +676,12 @@ function_header_with_parameters
         }
         else
         {
+            if ($1->hasVoidParameter())
+            {
+                // Only first parameter of one-parameter functions can be void.  This check prevents
+                // (void, non_void) parameters.
+                context->error(@2, "cannot be a parameter type except for '(void)'", "void");
+            }
             $1->addParameter($3.createVariable(&context->symbolTable));
         }
     }
@@ -696,7 +713,7 @@ parameter_declaration
     }
     | parameter_declarator {
         $$ = $1;
-        $$.type->setQualifier(EvqIn);
+        $$.type->setQualifier(EvqParamIn);
     }
     | type_qualifier parameter_type_specifier {
         $$ = $2;
@@ -704,7 +721,7 @@ parameter_declaration
     }
     | parameter_type_specifier {
         $$ = $1;
-        $$.type->setQualifier(EvqIn);
+        $$.type->setQualifier(EvqParamIn);
     }
     ;
 
@@ -779,6 +796,13 @@ interpolation_qualifier
     | FLAT {
         $$ = EvqFlat;
     }
+    | NOPERSPECTIVE {
+        if (!context->checkCanUseExtension(@1, TExtension::NV_shader_noperspective_interpolation))
+        {
+            context->error(@1, "unsupported interpolation qualifier", "noperspective");
+        }
+        $$ = EvqNoPerspective;
+    }
     ;
 
 type_qualifier
@@ -795,6 +819,12 @@ type_qualifier
 invariant_qualifier
     : INVARIANT {
         // empty
+    }
+    ;
+
+precise_qualifier
+    : PRECISE {
+        context->markShaderHasPrecise();
     }
     ;
 
@@ -816,6 +846,9 @@ single_type_qualifier
     | invariant_qualifier {
         context->checkIsAtGlobalLevel(@1, "invariant");
         $$ = new TInvariantQualifierWrapper(@1);
+    }
+    | precise_qualifier {
+        $$ = new TPreciseQualifierWrapper(@1);
     }
     ;
 
@@ -847,11 +880,19 @@ storage_qualifier
         ES3_OR_NEWER("centroid", @1, "storage qualifier");
         $$ = new TStorageQualifierWrapper(EvqCentroid, @1);
     }
+    | PATCH {
+        if (context->getShaderVersion() < 320 &&
+            !context->checkCanUseExtension(@1, TExtension::EXT_tessellation_shader))
+        {
+            context->error(@1, "unsupported storage qualifier", "patch");
+        }
+        $$ = new TStorageQualifierWrapper(EvqPatch, @1);
+    }
     | UNIFORM {
         $$ = context->parseGlobalStorageQualifier(EvqUniform, @1);
     }
     | BUFFER {
-        ES3_1_ONLY("buffer", @1, "storage qualifier");
+        ES3_1_OR_NEWER("buffer", @1, "storage qualifier");
         $$ = context->parseGlobalStorageQualifier(EvqBuffer, @1);
     }
     | READONLY {
@@ -872,6 +913,10 @@ storage_qualifier
     | SHARED {
         COMPUTE_ONLY("shared", @1);
         $$ = context->parseGlobalStorageQualifier(EvqShared, @1);
+    }
+    | SAMPLE {
+        ES3_OR_NEWER("sample", @1, "storage qualifier");
+        $$ = new TStorageQualifierWrapper(EvqSample, @1);
     }
     ;
 
@@ -896,7 +941,7 @@ precision_qualifier
 
 layout_qualifier
     : LAYOUT LEFT_PAREN layout_qualifier_id_list RIGHT_PAREN {
-        ES3_OR_NEWER("layout", @1, "qualifier");
+        context->checkCanUseLayoutQualifier(@1);
         $$ = $3;
     }
     ;
@@ -949,12 +994,12 @@ array_specifier
         $$->push_back(size);
     }
     | array_specifier LEFT_BRACKET RIGHT_BRACKET {
-        ES3_1_ONLY("[]", @2, "arrays of arrays");
+        ES3_1_OR_NEWER("[]", @2, "arrays of arrays");
         $$ = $1;
         $$->insert($$->begin(), 0u);
     }
     | array_specifier LEFT_BRACKET constant_expression RIGHT_BRACKET {
-        ES3_1_ONLY("[]", @2, "arrays of arrays");
+        ES3_1_OR_NEWER("[]", @2, "arrays of arrays");
         $$ = $1;
         unsigned int size = context->checkIsValidArraySize(@2, $3);
         // Make the type an array even if size check failed.
@@ -1088,6 +1133,32 @@ type_specifier_nonarray
     | SAMPLER2DMSARRAY {
         $$.initialize(EbtSampler2DMSArray, @1);
     }
+    | SAMPLERCUBEARRAYOES {
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseExtension(@1, TExtension::OES_texture_cube_map_array))
+        {
+            context->error(@1, "unsupported type", "__samplerCubeArray");
+        }
+        $$.initialize(EbtSamplerCubeArray, @1);
+    }
+    | SAMPLERCUBEARRAYEXT {
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseExtension(@1, TExtension::EXT_texture_cube_map_array))
+        {
+            context->error(@1, "unsupported type", "__samplerCubeArray");
+        }
+        $$.initialize(EbtSamplerCubeArray, @1);
+    }
+    | SAMPLERBUFFER {
+        constexpr std::array<TExtension, 2u> extensions{ { TExtension::OES_texture_buffer,
+                                                           TExtension::EXT_texture_buffer } };
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseOneOfExtensions(@1, extensions))
+        {
+            context->error(@1, "unsupported type", "__samplerBuffer");
+        }
+        $$.initialize(EbtSamplerBuffer, @1);
+    }
     | ISAMPLER2D {
         $$.initialize(EbtISampler2D, @1);
     }
@@ -1105,6 +1176,32 @@ type_specifier_nonarray
     }
     | ISAMPLER2DMSARRAY {
         $$.initialize(EbtISampler2DMSArray, @1);
+    }
+    | ISAMPLERCUBEARRAYOES {
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseExtension(@1, TExtension::OES_texture_cube_map_array))
+        {
+            context->error(@1, "unsupported type", "__isamplerCubeArray");
+        }
+        $$.initialize(EbtISamplerCubeArray, @1);
+    }
+    | ISAMPLERCUBEARRAYEXT {
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseExtension(@1, TExtension::EXT_texture_cube_map_array))
+        {
+            context->error(@1, "unsupported type", "__isamplerCubeArray");
+        }
+        $$.initialize(EbtISamplerCubeArray, @1);
+    }
+    | ISAMPLERBUFFER {
+        constexpr std::array<TExtension, 2u> extensions{ { TExtension::OES_texture_buffer,
+                                                           TExtension::EXT_texture_buffer } };
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseOneOfExtensions(@1, extensions))
+        {
+            context->error(@1, "unsupported type", "__isamplerBuffer");
+        }
+        $$.initialize(EbtISamplerBuffer, @1);
     }
     | USAMPLER2D {
         $$.initialize(EbtUSampler2D, @1);
@@ -1124,6 +1221,32 @@ type_specifier_nonarray
     | USAMPLER2DMSARRAY {
         $$.initialize(EbtUSampler2DMSArray, @1);
     }
+    | USAMPLERCUBEARRAYOES {
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseExtension(@1, TExtension::OES_texture_cube_map_array))
+        {
+            context->error(@1, "unsupported type", "__usamplerCubeArray");
+        }
+        $$.initialize(EbtUSamplerCubeArray, @1);
+    }
+    | USAMPLERCUBEARRAYEXT {
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseExtension(@1, TExtension::EXT_texture_cube_map_array))
+        {
+            context->error(@1, "unsupported type", "__usamplerCubeArray");
+        }
+        $$.initialize(EbtUSamplerCubeArray, @1);
+    }
+    | USAMPLERBUFFER {
+        constexpr std::array<TExtension, 2u> extensions{ { TExtension::OES_texture_buffer,
+                                                           TExtension::EXT_texture_buffer } };
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseOneOfExtensions(@1, extensions))
+        {
+            context->error(@1, "unsupported type", "__usamplerBuffer");
+        }
+        $$.initialize(EbtUSamplerBuffer, @1);
+    }
     | SAMPLER2DSHADOW {
         $$.initialize(EbtSampler2DShadow, @1);
     }
@@ -1132,6 +1255,29 @@ type_specifier_nonarray
     }
     | SAMPLER2DARRAYSHADOW {
         $$.initialize(EbtSampler2DArrayShadow, @1);
+    }
+    | SAMPLERCUBEARRAYSHADOWOES {
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseExtension(@1, TExtension::OES_texture_cube_map_array))
+        {
+            context->error(@1, "unsupported type", "__samplerCubeArrayShadow");
+        }
+        $$.initialize(EbtSamplerCubeArrayShadow, @1);
+    }
+    | SAMPLERCUBEARRAYSHADOWEXT {
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseExtension(@1, TExtension::EXT_texture_cube_map_array))
+        {
+            context->error(@1, "unsupported type", "__samplerCubeArrayShadow");
+        }
+        $$.initialize(EbtSamplerCubeArrayShadow, @1);
+    }
+    | SAMPLERVIDEOWEBGL {
+        if (!context->checkCanUseExtension(@1, TExtension::WEBGL_video_texture))
+        {
+            context->error(@1, "unsupported type", "samplerVideoWEBGL");
+        }
+        $$.initialize(EbtSamplerVideoWEBGL, @1);
     }
     | SAMPLER_EXTERNAL_OES {
         constexpr std::array<TExtension, 3u> extensions{ { TExtension::NV_EGL_stream_consumer_external,
@@ -1193,8 +1339,107 @@ type_specifier_nonarray
     | UIMAGECUBE {
         $$.initialize(EbtUImageCube, @1);
     }
+    | IMAGECUBEARRAYOES {
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseExtension(@1, TExtension::OES_texture_cube_map_array))
+        {
+            context->error(@1, "unsupported type", "__imageCubeArray");
+        }
+        $$.initialize(EbtImageCubeArray, @1);
+    }
+    | IMAGECUBEARRAYEXT {
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseExtension(@1, TExtension::EXT_texture_cube_map_array))
+        {
+            context->error(@1, "unsupported type", "__imageCubeArray");
+        }
+        $$.initialize(EbtImageCubeArray, @1);
+    }
+    | IIMAGECUBEARRAYOES {
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseExtension(@1, TExtension::OES_texture_cube_map_array))
+        {
+            context->error(@1, "unsupported type", "__iimageCubeArray");
+        }
+        $$.initialize(EbtIImageCubeArray, @1);
+    }
+    | IIMAGECUBEARRAYEXT {
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseExtension(@1, TExtension::EXT_texture_cube_map_array))
+        {
+            context->error(@1, "unsupported type", "__iimageCubeArray");
+        }
+        $$.initialize(EbtIImageCubeArray, @1);
+    }
+    | UIMAGECUBEARRAYOES {
+       if (context->getShaderVersion() < 320
+       && !context->checkCanUseExtension(@1, TExtension::OES_texture_cube_map_array))
+        {
+            context->error(@1, "unsupported type", "__uimageCubeArray");
+        }
+        $$.initialize(EbtUImageCubeArray, @1);
+    }
+    | UIMAGECUBEARRAYEXT {
+       if (context->getShaderVersion() < 320
+       && !context->checkCanUseExtension(@1, TExtension::EXT_texture_cube_map_array))
+        {
+            context->error(@1, "unsupported type", "__uimageCubeArray");
+        }
+        $$.initialize(EbtUImageCubeArray, @1);
+    }
+    | IMAGEBUFFER {
+        constexpr std::array<TExtension, 2u> extensions{ { TExtension::OES_texture_buffer,
+                                                           TExtension::EXT_texture_buffer } };
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseOneOfExtensions(@1, extensions))
+        {
+            context->error(@1, "unsupported type", "__imageBuffer");
+        }
+        $$.initialize(EbtImageBuffer, @1);
+    }
+    | IIMAGEBUFFER {
+        constexpr std::array<TExtension, 2u> extensions{ { TExtension::OES_texture_buffer,
+                                                           TExtension::EXT_texture_buffer } };
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseOneOfExtensions(@1, extensions))
+        {
+            context->error(@1, "unsupported type", "__iimageBuffer");
+        }
+        $$.initialize(EbtIImageBuffer, @1);
+    }
+    | UIMAGEBUFFER {
+        constexpr std::array<TExtension, 2u> extensions{ { TExtension::OES_texture_buffer,
+                                                           TExtension::EXT_texture_buffer } };
+        if (context->getShaderVersion() < 320
+        && !context->checkCanUseOneOfExtensions(@1, extensions))
+        {
+            context->error(@1, "unsupported type", "__uimageBuffer");
+        }
+        $$.initialize(EbtUImageBuffer, @1);
+    }
     | ATOMICUINT {
         $$.initialize(EbtAtomicCounter, @1);
+    }
+    | PIXELLOCALANGLE {
+        if (!context->checkCanUseExtension(@1, TExtension::ANGLE_shader_pixel_local_storage))
+        {
+            context->error(@1, "unsupported type", "__pixelLocalANGLE");
+        }
+        $$.initialize(EbtPixelLocalANGLE, @1);
+    }
+    | IPIXELLOCALANGLE {
+        if (!context->checkCanUseExtension(@1, TExtension::ANGLE_shader_pixel_local_storage))
+        {
+            context->error(@1, "unsupported type", "__ipixelLocalANGLE");
+        }
+        $$.initialize(EbtIPixelLocalANGLE, @1);
+    }
+    | UPIXELLOCALANGLE {
+        if (!context->checkCanUseExtension(@1, TExtension::ANGLE_shader_pixel_local_storage))
+        {
+            context->error(@1, "unsupported type", "__upixelLocalANGLE");
+        }
+        $$.initialize(EbtUPixelLocalANGLE, @1);
     }
     | struct_specifier {
         $$ = $1;

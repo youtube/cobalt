@@ -85,10 +85,10 @@ static void _arm_check_features(void)
                    arm_cpu_enable_neon, arm_cpu_enable_pmull);
       SbLogFlush();
     }
-#elif defined(ARMV8_OS_ANDROID) && defined(__aarch64__)
+#elif defined(ARMV8_OS_ANDROID) && defined(__aarch64__) && !defined(NATIVE_TARGET_BUILD)
     uint64_t features = android_getCpuFeatures();
     arm_cpu_enable_pmull = !!(features & ANDROID_CPU_ARM64_FEATURE_PMULL);
-#elif defined(ARMV8_OS_ANDROID) /* aarch32 */
+#elif defined(ARMV8_OS_ANDROID) && !defined(NATIVE_TARGET_BUILD) /* aarch32 */
     uint64_t features = android_getCpuFeatures();
     arm_cpu_enable_crc32 = !!(features & ANDROID_CPU_ARM_FEATURE_CRC32);
     arm_cpu_enable_pmull = !!(features & ANDROID_CPU_ARM_FEATURE_PMULL);

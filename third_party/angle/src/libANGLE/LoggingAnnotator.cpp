@@ -13,22 +13,25 @@
 namespace angle
 {
 
-bool LoggingAnnotator::getStatus()
+bool LoggingAnnotator::getStatus(const gl::Context *context)
 {
     return false;
 }
 
-void LoggingAnnotator::beginEvent(const char *eventName, const char *eventMessage)
+void LoggingAnnotator::beginEvent(gl::Context *context,
+                                  EntryPoint entryPoint,
+                                  const char *eventName,
+                                  const char *eventMessage)
 {
     ANGLE_TRACE_EVENT_BEGIN0("gpu.angle", eventName);
 }
 
-void LoggingAnnotator::endEvent(const char *eventName)
+void LoggingAnnotator::endEvent(gl::Context *context, const char *eventName, EntryPoint entryPoint)
 {
     ANGLE_TRACE_EVENT_END0("gpu.angle", eventName);
 }
 
-void LoggingAnnotator::setMarker(const char *markerName)
+void LoggingAnnotator::setMarker(gl::Context *context, const char *markerName)
 {
     ANGLE_TRACE_EVENT_INSTANT0("gpu.angle", markerName);
 }
@@ -54,10 +57,7 @@ void LoggingAnnotator::logMessage(const gl::LogMessage &msg) const
                 UNREACHABLE();
         }
     }
-    else
-    {
-        gl::Trace(msg.getSeverity(), msg.getMessage().c_str());
-    }
+    gl::Trace(msg.getSeverity(), msg.getMessage().c_str());
 }
 
 }  // namespace angle

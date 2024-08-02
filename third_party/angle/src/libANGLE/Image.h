@@ -9,6 +9,7 @@
 #ifndef LIBANGLE_IMAGE_H_
 #define LIBANGLE_IMAGE_H_
 
+#include "common/FastVector.h"
 #include "common/angleutils.h"
 #include "libANGLE/AttributeMap.h"
 #include "libANGLE/Debug.h"
@@ -16,8 +17,6 @@
 #include "libANGLE/FramebufferAttachment.h"
 #include "libANGLE/RefCountObject.h"
 #include "libANGLE/formatutils.h"
-
-#include <set>
 
 namespace rx
 {
@@ -38,7 +37,7 @@ class Display;
 // Only currently Renderbuffers and Textures can be bound with images. This makes the relationship
 // explicit, and also ensures that an image sibling can determine if it's been initialized or not,
 // which is important for the robust resource init extension with Textures and EGLImages.
-class ImageSibling : public gl::FramebufferAttachmentObject, public angle::ObserverInterface
+class ImageSibling : public gl::FramebufferAttachmentObject
 {
   public:
     ImageSibling();
@@ -51,19 +50,18 @@ class ImageSibling : public gl::FramebufferAttachmentObject, public angle::Obser
     bool isRenderable(const gl::Context *context,
                       GLenum binding,
                       const gl::ImageIndex &imageIndex) const override;
-
-    // ObserverInterface implementation
-    void onSubjectStateChange(angle::SubjectIndex index, angle::SubjectMessage message) override
-    {
-        // default to no-op.
-    }
+    bool isYUV() const override;
+    bool isExternalImageWithoutIndividualSync() const override;
+    bool hasFrontBufferUsage() const override;
+    bool hasProtectedContent() const override;
 
   protected:
     // Set the image target of this sibling
     void setTargetImage(const gl::Context *context, egl::Image *imageTarget);
 
     // Orphan all EGL image sources and targets
-    angle::Result orphanImages(const gl::Context *context);
+    angle::Result orphanImages(const gl::Context *context,
+                               RefCountObjectReleaser<Image> *outReleaseImage);
 
     void notifySiblings(angle::SubjectMessage message);
 
@@ -76,7 +74,8 @@ class ImageSibling : public gl::FramebufferAttachmentObject, public angle::Obser
     // Called from Image only to remove a source image when the Image is being deleted
     void removeImageSource(egl::Image *imageSource);
 
-    std::set<Image *> mSourcesOf;
+    static constexpr size_t kSourcesOfSetSize = 2;
+    angle::FlatUnorderedSet<Image *, kSourcesOfSetSize> mSourcesOf;
     BindingPointer<Image> mTargetOf;
 };
 
@@ -94,22 +93,29 @@ class ExternalImageSibling : public ImageSibling
 
     void onDestroy(const egl::Display *display);
 
-    Error initialize(const Display *display);
+    Error initialize(const Display *display, const gl::Context *context);
 
     gl::Extents getAttachmentSize(const gl::ImageIndex &imageIndex) const override;
     gl::Format getAttachmentFormat(GLenum binding, const gl::ImageIndex &imageIndex) const override;
     GLsizei getAttachmentSamples(const gl::ImageIndex &imageIndex) const override;
+    GLuint getLevelCount() const;
     bool isRenderable(const gl::Context *context,
                       GLenum binding,
                       const gl::ImageIndex &imageIndex) const override;
     bool isTextureable(const gl::Context *context) const;
+    bool isYUV() const override;
+    bool hasFrontBufferUsage() const override;
+    bool isCubeMap() const;
+    bool hasProtectedContent() const override;
 
-    void onAttach(const gl::Context *context) override;
-    void onDetach(const gl::Context *context) override;
+    void onAttach(const gl::Context *context, rx::UniqueSerial framebufferSerial) override;
+    void onDetach(const gl::Context *context, rx::UniqueSerial framebufferSerial) override;
     GLuint getId() const override;
 
-    gl::InitState initState(const gl::ImageIndex &imageIndex) const override;
-    void setInitState(const gl::ImageIndex &imageIndex, gl::InitState initState) override;
+    gl::InitState initState(GLenum binding, const gl::ImageIndex &imageIndex) const override;
+    void setInitState(GLenum binding,
+                      const gl::ImageIndex &imageIndex,
+                      gl::InitState initState) override;
 
     rx::ExternalImageSiblingImpl *getImplementation() const;
 
@@ -117,30 +123,45 @@ class ExternalImageSibling : public ImageSibling
     rx::FramebufferAttachmentObjectImpl *getAttachmentImpl() const override;
 
   private:
+    // ObserverInterface implementation.
+    void onSubjectStateChange(angle::SubjectIndex index, angle::SubjectMessage message) override;
+
     std::unique_ptr<rx::ExternalImageSiblingImpl> mImplementation;
+    angle::ObserverBinding mImplObserverBinding;
 };
 
 struct ImageState : private angle::NonCopyable
 {
-    ImageState(EGLenum target, ImageSibling *buffer, const AttributeMap &attribs);
+    ImageState(ImageID id, EGLenum target, ImageSibling *buffer, const AttributeMap &attribs);
     ~ImageState();
+
+    ImageID id;
 
     EGLLabelKHR label;
     EGLenum target;
     gl::ImageIndex imageIndex;
     ImageSibling *source;
-    std::set<ImageSibling *> targets;
 
     gl::Format format;
+    bool yuv;
+    bool cubeMap;
     gl::Extents size;
     size_t samples;
-    EGLenum sourceType;
+    GLuint levelCount;
+    EGLenum colorspace;
+    bool hasProtectedContent;
+
+    mutable std::mutex targetsLock;
+
+    static constexpr size_t kTargetsSetSize = 2;
+    angle::FlatUnorderedSet<ImageSibling *, kTargetsSetSize> targets;
 };
 
 class Image final : public RefCountObject, public LabeledObject
 {
   public:
     Image(rx::EGLImplFactory *factory,
+          ImageID id,
           const gl::Context *context,
           EGLenum target,
           ImageSibling *buffer,
@@ -149,23 +170,36 @@ class Image final : public RefCountObject, public LabeledObject
     void onDestroy(const Display *display) override;
     ~Image() override;
 
+    ImageID id() const { return mState.id; }
+
     void setLabel(EGLLabelKHR label) override;
     EGLLabelKHR getLabel() const override;
 
     const gl::Format &getFormat() const;
     bool isRenderable(const gl::Context *context) const;
     bool isTexturable(const gl::Context *context) const;
+    bool isYUV() const;
+    bool isExternalImageWithoutIndividualSync() const;
+    bool hasFrontBufferUsage() const;
+    // Returns true only if the eglImage contains a complete cubemap
+    bool isCubeMap() const;
     size_t getWidth() const;
     size_t getHeight() const;
+    const gl::Extents &getExtents() const;
+    bool isLayered() const;
     size_t getSamples() const;
+    GLuint getLevelCount() const;
+    bool hasProtectedContent() const;
 
-    Error initialize(const Display *display);
+    Error initialize(const Display *display, const gl::Context *context);
 
     rx::ImageImpl *getImplementation() const;
 
     bool orphaned() const;
     gl::InitState sourceInitState() const;
     void setInitState(gl::InitState initState);
+
+    Error exportVkImage(void *vkImage, void *vkImageCreateInfo);
 
   private:
     friend class ImageSibling;
@@ -183,6 +217,8 @@ class Image final : public RefCountObject, public LabeledObject
     ImageState mState;
     rx::ImageImpl *mImplementation;
     bool mOrphanedAndNeedsInit;
+    bool mIsTexturable = false;
+    bool mIsRenderable = false;
 };
 }  // namespace egl
 

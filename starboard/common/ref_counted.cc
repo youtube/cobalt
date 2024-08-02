@@ -54,8 +54,7 @@ bool RefCountedBase::Release() const {
 }
 
 bool RefCountedThreadSafeBase::HasOneRef() const {
-  return (SbAtomicAcquire_Load(
-              &const_cast<RefCountedThreadSafeBase*>(this)->ref_count_) == 1);
+  return ref_count_.load(std::memory_order_acquire) == 1;
 }
 
 RefCountedThreadSafeBase::RefCountedThreadSafeBase() : ref_count_(0) {
@@ -75,15 +74,15 @@ void RefCountedThreadSafeBase::AddRef() const {
 #ifndef NDEBUG
   SB_DCHECK(!in_dtor_);
 #endif
-  SbAtomicNoBarrier_Increment(&ref_count_, 1);
+  ref_count_.fetch_add(1, std::memory_order_relaxed);
 }
 
 bool RefCountedThreadSafeBase::Release() const {
 #ifndef NDEBUG
   SB_DCHECK(!in_dtor_);
-  SB_DCHECK(!(SbAtomicAcquire_Load(&ref_count_) == 0));
+  SB_DCHECK(!(ref_count_.load(std::memory_order_relaxed) == 0));
 #endif
-  if (SbAtomicBarrier_Increment(&ref_count_, -1) == 0) {
+  if (ref_count_.fetch_sub(1, std::memory_order_acq_rel) == 1) {
 #ifndef NDEBUG
     in_dtor_ = true;
 #endif

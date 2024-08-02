@@ -20,6 +20,7 @@ class TransformFeedbackImpl : angle::NonCopyable
   public:
     TransformFeedbackImpl(const gl::TransformFeedbackState &state) : mState(state) {}
     virtual ~TransformFeedbackImpl() {}
+    virtual void onDestroy(const gl::Context *context) {}
 
     virtual angle::Result begin(const gl::Context *context, gl::PrimitiveMode primitiveMode) = 0;
     virtual angle::Result end(const gl::Context *context)                                    = 0;
@@ -30,6 +31,8 @@ class TransformFeedbackImpl : angle::NonCopyable
         const gl::Context *context,
         size_t index,
         const gl::OffsetBindingPointer<gl::Buffer> &binding) = 0;
+
+    virtual angle::Result onLabelUpdate(const gl::Context *context);
 
   protected:
     const gl::TransformFeedbackState &mState;

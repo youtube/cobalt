@@ -69,6 +69,9 @@ int sb_setsockopt(int socket,
                   int option_len);
 #define setsockopt sb_setsockopt
 
+int sb_getsockname(int sockfd, struct sockaddr* addr, socklen_t* addrlen);
+#define getsockname sb_getsockname
+
 int posix_socket_get_fd_from_handle(SOCKET socket);
 SOCKET posix_socket_get_handle_from_fd(int socket);
 
