@@ -161,6 +161,7 @@ source_idl_files = [
   "//cobalt/h5vcc/h5vcc_audio_config_array.idl",
   "//cobalt/h5vcc/h5vcc_crash_log.idl",
   "//cobalt/h5vcc/h5vcc_deep_link_event_target.idl",
+  "//cobalt/h5vcc/h5vcc_device_log.idl",
   "//cobalt/h5vcc/h5vcc_metrics.idl",
   "//cobalt/h5vcc/h5vcc_platform_service.idl",
   "//cobalt/h5vcc/h5vcc_runtime.idl",

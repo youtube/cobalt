@@ -228,7 +228,8 @@ void DisallowSingleton() {
 
 #if defined(STARBOARD)
 bool GetSingletonAllowed() {
-  return !!GetSingletonDisallowedTls();
+  // return !!GetSingletonDisallowedTls();
+  return true;
 }
 #endif
 

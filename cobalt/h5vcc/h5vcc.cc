@@ -25,6 +25,7 @@ H5vcc::H5vcc(const Settings& settings) {
   audio_config_array_ = new H5vccAudioConfigArray();
   c_val_ = new dom::CValView();
   crash_log_ = new H5vccCrashLog();
+  device_log_ = new H5vccDeviceLog();
   metrics_ =
       new H5vccMetrics(settings.persistent_settings, settings.event_dispatcher);
   runtime_ = new H5vccRuntime(settings.event_dispatcher);
