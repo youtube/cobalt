@@ -179,9 +179,11 @@ class BufferedSocketWriter {
     SbSocketWaiterDestroy(waiter);
   }
 
+#if SB_API_VERSION < 16
   bool IsConnectionReset(SbSocketError err) {
     return err == kSbSocketErrorConnectionReset;
   }
+#endif  // SB_API_VERSION < 16
 
   // Will flush data through to the dest_socket. Returns |true| if
   // flushed, else connection was dropped or an error occurred.
@@ -194,6 +196,23 @@ class BufferedSocketWriter {
                                     bytes_to_write, NULL);
 
         if (result < 0) {
+#if SB_API_VERSION >= 16
+          int socket_err = errno;
+          errno = 0;
+          if (socket_err == EINPROGRESS || socket_err == EAGAIN ||
+              socket_err == EWOULDBLOCK) {
+            blocked_counts_.increment();
+            WaitUntilWritableOrConnectionReset(dest_socket);
+            continue;
+          } else if (socket_err == ECONNRESET || socket_err == ENETRESET ||
+                     socket_err == EPIPE) {
+            return false;
+          } else {
+            SB_LOG(ERROR) << "An error happened while writing to socket: "
+                          << strerror(socket_err);
+            return false;
+          }
+#else
           SbSocketError err = SbSocketGetLastError(dest_socket);
           SbSocketClearLastError(dest_socket);
           if (err == kSbSocketPending) {
@@ -207,6 +226,7 @@ class BufferedSocketWriter {
                           << ToString(err);
             return false;
           }
+#endif  // SB_API_VERSION >= 16
           break;
         } else if (result == 0) {
           // Socket has closed.

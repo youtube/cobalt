@@ -99,7 +99,16 @@ int TCPSocketStarboard::Bind(const IPEndPoint& address) {
   SbSocketError error = SbSocketBind(socket_, &storage);
   if (error != kSbSocketOk) {
     DLOG(ERROR) << "SbSocketBind() returned an error";
+    #if SB_API_VERSION >= 16
+    int sb_err = MapLastSocketError(socket_);
+    int posix_err = MapLastPosixSocketError();
+    if(sb_err != posix_err) {
+      DLOG(ERROR) << "errno test failed: " << sb_err << posix_err;
+    }
+    return posix_err;
+    #else
     return MapLastSocketError(socket_);
+    #endif // SB_API_VERSION >= 16
   }
 
   local_address_.reset(new IPEndPoint(address));
@@ -116,9 +125,19 @@ int TCPSocketStarboard::Listen(int backlog) {
   SbSocketError error = SbSocketListen(socket_);
   if (error != kSbSocketOk) {
     DLOG(ERROR) << "SbSocketListen() returned an error";
+    #if SB_API_VERSION >= 16
+    int sb_err = MapLastSocketError(socket_);
+    int posix_err = MapLastPosixSocketError();
+    if(sb_err != posix_err) {
+      DLOG(ERROR) << "errno test failed: " << sb_err << posix_err;
+    }
+    Close();
+    return posix_err;
+    #else
     int rv = MapLastSocketError(socket_);
     Close();
     return rv;
+    #endif // SB_API_VERSION >= 16
   }
 
   listening_ = true;
@@ -143,7 +162,16 @@ int TCPSocketStarboard::Accept(std::unique_ptr<TCPSocketStarboard>* socket,
             socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
             &socket_watcher_, this)) {
       DLOG(ERROR) << "WatchSocket failed on read";
+      #if SB_API_VERSION >= 16
+      int sb_err = MapLastSocketError(socket_);
+      int posix_err = MapLastPosixSocketError();
+      if(sb_err != posix_err) {
+        DLOG(ERROR) << "errno test failed: " << sb_err << posix_err;
+      }
+      return posix_err;
+      #else
       return MapLastSocketError(socket_);
+      #endif // SB_API_VERSION >= 16
     }
 
     accept_socket_ = socket;
@@ -157,7 +185,16 @@ int TCPSocketStarboard::Accept(std::unique_ptr<TCPSocketStarboard>* socket,
 int TCPSocketStarboard::SetDefaultOptionsForServer() {
   DCHECK(SbSocketIsValid(socket_));
   if (!SbSocketSetReuseAddress(socket_, true)) {
+    #if SB_API_VERSION >= 16
+    int sb_err = MapLastSocketError(socket_);
+    int posix_err = MapLastPosixSocketError();
+    if(sb_err != posix_err) {
+      DLOG(ERROR) << "errno test failed: " << sb_err << posix_err;
+    }
+    return posix_err;
+    #else
     return MapLastSocketError(socket_);
+    #endif // SB_API_VERSION >= 16
   }
   return OK;
 }
@@ -180,7 +217,15 @@ int TCPSocketStarboard::AcceptInternal(
     IPEndPoint* address) {
   SbSocket new_socket = SbSocketAccept(socket_);
   if (!SbSocketIsValid(new_socket)) {
+    #if SB_API_VERSION >= 16
+    int net_error_sb = MapLastSocketError(socket_);
+    int net_error = MapLastPosixSocketError();
+    if(net_error_sb != net_error) {
+      DLOG(ERROR) << "errno test failed: " << net_error_sb << ", " << net_error << ", errno is " << errno;
+    }
+    #else
     int net_error = MapLastSocketError(socket_);
+    #endif // SB_API_VERSION >= 16
     if (net_error != ERR_IO_PENDING) {
       net_log_.EndEventWithNetErrorCode(NetLogEventType::TCP_ACCEPT, net_error);
     }
@@ -192,7 +237,15 @@ int TCPSocketStarboard::AcceptInternal(
   // We use ReceiveFrom to get peer address of the newly connected socket.
   int received = SbSocketReceiveFrom(new_socket, &unused_byte, 0, &sb_address);
   if (received != 0) {
+    #if SB_API_VERSION >= 16
+    int net_error_sb = MapLastSocketError(new_socket);
+    int net_error = MapLastPosixSocketError();
+    if(net_error_sb != net_error) {
+      DLOG(ERROR) << "errno test failed: " << net_error_sb << net_error;
+    }
+    #else
     int net_error = MapLastSocketError(new_socket);
+    #endif // SB_API_VERSION >= 16
     if (net_error != OK && net_error != ERR_IO_PENDING) {
       SbSocketDestroy(new_socket);
       net_log_.EndEventWithNetErrorCode(NetLogEventType::TCP_ACCEPT, net_error);
@@ -332,8 +385,16 @@ int TCPSocketStarboard::Connect(const IPEndPoint& address,
   peer_address_.reset(new IPEndPoint(address));
 
   SbSocketError result = SbSocketConnect(socket_, &storage);
-
+  
+  #if SB_API_VERSION >= 16
+  int sb_err = MapLastSocketError(socket_);
+  int rv = MapLastPosixSocketError();
+  if(sb_err != rv) {
+      DLOG(ERROR) << "errno test failed: " << sb_err << ", " << rv;
+  }
+  #else
   int rv = MapLastSocketError(socket_);
+  #endif // SB_API_VERSION >= 16
   if (rv != ERR_IO_PENDING) {
     return HandleConnectCompleted(rv);
   }
@@ -503,8 +564,18 @@ int TCPSocketStarboard::DoRead(IOBuffer* buf, int buf_len) {
     return bytes_read;
   } else {
     // If |bytes_read| < 0, some kind of error occurred.
+    #if SB_API_VERSION >= 16
+    SbSocketError starboard_error = SbSocketGetLastError(socket_);
+    int sb_err = MapSocketError(starboard_error);
+
+    int rv = MapLastPosixSocketError();
+    if(sb_err != rv) {
+      DLOG(ERROR) << "errno test failed: " << sb_err << ", " << rv << ", " << starboard_error << errno;
+    }
+    #else
     SbSocketError starboard_error = SbSocketGetLastError(socket_);
     int rv = MapSocketError(starboard_error);
+    #endif // SB_API_VERSION >= 16
     if (rv != ERR_IO_PENDING) {
       NetLogSocketError(net_log_, NetLogEventType::SOCKET_READ_ERROR, rv,
                         starboard_error);
@@ -559,8 +630,18 @@ int TCPSocketStarboard::DoWrite(IOBuffer* buf, int buf_len) {
 
     return bytes_sent;
   } else {
+    #if SB_API_VERSION >= 16
+    SbSocketError starboard_error = SbSocketGetLastError(socket_);
+    int sb_err = MapSocketError(starboard_error);
+
+    int rv = MapLastPosixSocketError();
+    if(sb_err != rv) {
+      DLOG(ERROR) << "errno test failed: " << sb_err << rv << starboard_error << errno;
+    }
+    #else
     SbSocketError starboard_error = SbSocketGetLastError(socket_);
     int rv = MapSocketError(starboard_error);
+    #endif // SB_API_VERSION >= 16
     NetLogSocketError(net_log_, NetLogEventType::SOCKET_WRITE_ERROR, rv,
                       starboard_error);
     if (rv != ERR_IO_PENDING) {
@@ -623,8 +704,18 @@ int TCPSocketStarboard::GetLocalAddress(IPEndPoint* address) const {
 
   SbSocketAddress sb_address;
   if (!SbSocketGetLocalAddress(socket_, &sb_address)) {
+    #if SB_API_VERSION >= 16
+    SbSocketError starboard_error = SbSocketGetLastError(socket_);
+    int sb_err = MapSocketError(starboard_error);
+    int posix_err = MapLastPosixSocketError();
+    if(sb_err != posix_err) {
+      DLOG(ERROR) << "errno test failed: " << sb_err << posix_err << starboard_error << errno;
+    }
+    return posix_err;
+    #else
     SbSocketError starboard_error = SbSocketGetLastError(socket_);
     return MapSocketError(starboard_error);
+    #endif // SB_API_VERSION >= 16
   }
 
   if (!address->FromSbSocketAddress(&sb_address)) {
