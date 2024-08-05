@@ -145,17 +145,6 @@ bool IsMediaElementUsingMediaSourceBufferedRangeEnabled(
       .value_or(false);
 }
 
-// If this function returns true, MediaSource will proxy calls to the
-// attached HTMLMediaElement object through the MediaSourceAttachment interface
-// instead of directly calling against the HTMLMediaElement object.
-// The default value is false.
-bool IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
-    web::EnvironmentSettings* settings) {
-  return GetMediaSettings(settings)
-      .IsMediaElementUsingMediaSourceAttachmentMethodsEnabled()
-      .value_or(false);
-}
-
 }  // namespace
 
 MediaSource::MediaSource(script::EnvironmentSettings* settings)
@@ -170,9 +159,6 @@ MediaSource::MediaSource(script::EnvironmentSettings* settings)
       chunk_demuxer_(NULL),
       ready_state_(kMediaSourceReadyStateClosed),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
-      is_using_media_source_attachment_methods_(
-          IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
-              environment_settings())),
       source_buffers_(new SourceBufferList(settings, &event_queue_)),
       active_source_buffers_(new SourceBufferList(settings, &event_queue_)),
       live_seekable_range_(new TimeRanges) {
@@ -294,7 +280,8 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
   switch (status) {
     case ChunkDemuxer::kOk:
       source_buffer =
-          new SourceBuffer(settings, guid, this, chunk_demuxer_, &event_queue_);
+          new SourceBuffer(settings, guid, this, chunk_demuxer_, &event_queue_,
+                           is_using_media_source_attachment_methods_);
       break;
     case ChunkDemuxer::kNotSupported:
       web::DOMException::Raise(web::DOMException::kNotSupportedErr,
@@ -439,6 +426,8 @@ bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
 
 bool MediaSource::StartAttachingToMediaElement(
     HTMLMediaElement* media_element) {
+  is_using_media_source_attachment_methods_ = false;
+
   if (attached_element_) {
     return false;
   }
@@ -472,6 +461,8 @@ bool MediaSource::StartAttachingToMediaElement(
 
 bool MediaSource::StartAttachingToMediaElement(
     MediaSourceAttachmentSupplement* media_source_attachment) {
+  is_using_media_source_attachment_methods_ = true;
+
   if (media_source_attachment_) {
     return false;
   }
@@ -685,10 +676,12 @@ void MediaSource::SetSourceBufferActive(SourceBuffer* source_buffer,
 }
 
 HTMLMediaElement* MediaSource::GetMediaElement() const {
+  DCHECK(!is_using_media_source_attachment_methods_);
   return attached_element_;
 }
 
 MediaSourceAttachmentSupplement* MediaSource::GetMediaSourceAttachment() const {
+  DCHECK(is_using_media_source_attachment_methods_);
   return media_source_attachment_;
 }
 

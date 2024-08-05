@@ -229,7 +229,10 @@ class HTMLMediaElement : public HTMLElement,
 
   void ConfigureMediaControls();
 
+  void ReportCurrentTimeToMediaSource();
+
   // Error report
+  void SetError(scoped_refptr<MediaError> error);
   void MediaEngineError(scoped_refptr<MediaError> error);
 
   // WebMediaPlayerClient methods
@@ -313,6 +316,7 @@ class HTMLMediaElement : public HTMLElement,
   // Time has not changed since sending an "ended" event.
   bool sent_end_event_;
 
+  // See SetError().
   scoped_refptr<MediaError> error_;
 
   // Helper object to reduce the image capacity while a video is playing.

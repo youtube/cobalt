@@ -129,17 +129,6 @@ bool IsAvoidCopyingArrayBufferEnabled(web::EnvironmentSettings* settings) {
   return media_settings.IsAvoidCopyingArrayBufferEnabled().value_or(false);
 }
 
-// If this function returns true, MediaSource will proxy calls to the
-// attached HTMLMediaElement object through the MediaSourceAttachment interface
-// instead of directly calling against the HTMLMediaElement object.
-// The default value is false.
-bool IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
-    web::EnvironmentSettings* settings) {
-  return GetMediaSettings(settings)
-      .IsMediaElementUsingMediaSourceAttachmentMethodsEnabled()
-      .value_or(false);
-}
-
 }  // namespace
 
 SourceBuffer::OnInitSegmentReceivedHelper::OnInitSegmentReceivedHelper(
@@ -170,7 +159,8 @@ void SourceBuffer::OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceived(
 
 SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
                            const std::string& id, MediaSource* media_source,
-                           ChunkDemuxer* chunk_demuxer, EventQueue* event_queue)
+                           ChunkDemuxer* chunk_demuxer, EventQueue* event_queue,
+                           const bool is_using_media_source_attachment_methods)
     : web::EventTarget(settings),
       on_init_segment_received_helper_(new OnInitSegmentReceivedHelper(this)),
       id_(id),
@@ -181,8 +171,7 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
       chunk_demuxer_(chunk_demuxer),
       event_queue_(event_queue),
       is_using_media_source_attachment_methods_(
-          IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
-              environment_settings())),
+          is_using_media_source_attachment_methods),
       audio_tracks_(
           is_using_media_source_attachment_methods_
               ? media_source->GetMediaSourceAttachment()->CreateAudioTrackList(

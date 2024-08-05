@@ -51,6 +51,9 @@ class SameThreadMediaSourceAttachment : public MediaSourceAttachmentSupplement {
   scoped_refptr<TimeRanges> GetBufferedRange() const override;
   MediaSourceReadyState GetReadyState() const override;
 
+  void OnElementTimeUpdate(double time) override;
+  void OnElementError() override;
+
   // MediaSourceAttachmentSupplement
   void NotifyDurationChanged(double duration) override;
   bool HasMaxVideoCapabilities() const override;
@@ -83,6 +86,9 @@ class SameThreadMediaSourceAttachment : public MediaSourceAttachmentSupplement {
 
   // Used to ensure all calls are made on the thread that created this object.
   base::SequencedTaskRunner* task_runner_;
+
+  double recent_element_time_;  // See OnElementTimeUpdate().
+  bool element_has_error_;      // See OnElementError().
 
   DISALLOW_COPY_AND_ASSIGN(SameThreadMediaSourceAttachment);
 };
