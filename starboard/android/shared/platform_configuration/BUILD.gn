@@ -223,6 +223,6 @@ config("pedantic_warnings") {
 
 if (enable_iamf_decode) {
   config("libiamf_config") {
-    libs = [ "//third_party/libiamf/code/android/libiamf.a" ]
+    libs = [ "//third_party/libiamf/platforms/android/libiamf.a" ]
   }
 }
