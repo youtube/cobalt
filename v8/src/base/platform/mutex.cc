@@ -342,17 +342,17 @@ SharedMutex::SharedMutex() = default;
 
 SharedMutex::~SharedMutex() = default;
 
-void SharedMutex::LockShared() { native_handle_.AcquireReadLock(); }
+void SharedMutex::LockShared() { native_handle_.lock_shared(); }
 
-void SharedMutex::LockExclusive() { native_handle_.AcquireWriteLock(); }
+void SharedMutex::LockExclusive() { native_handle_.lock(); }
 
-void SharedMutex::UnlockShared() { native_handle_.ReleaseReadLock(); }
+void SharedMutex::UnlockShared() { native_handle_.unlock_shared(); }
 
-void SharedMutex::UnlockExclusive() { native_handle_.ReleaseWriteLock(); }
+void SharedMutex::UnlockExclusive() { native_handle_.unlock(); }
 
-bool SharedMutex::TryLockShared() { return false; }
+bool SharedMutex::TryLockShared() { return native_handle_.try_lock_shared(); }
 
-bool SharedMutex::TryLockExclusive() { return false; }
+bool SharedMutex::TryLockExclusive() { return native_handle_.try_lock(); }
 #endif  // V8_OS_STARBOARD
 
 }  // namespace base

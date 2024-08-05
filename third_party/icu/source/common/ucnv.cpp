@@ -21,9 +21,6 @@
 *   06/20/2000  helena      OS/400 port changes; mostly typecast.
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 
 #if !UCONFIG_NO_CONVERSION

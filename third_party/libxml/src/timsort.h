@@ -360,7 +360,7 @@ typedef struct {
 
 static void TIM_SORT_RESIZE(TEMP_STORAGE_T *store, const size_t new_size) {
   if (store->alloc < new_size) {
-    SORT_TYPE *tempstore = (SORT_TYPE *)XML_REALLOC(store->storage, new_size * sizeof(SORT_TYPE));
+    SORT_TYPE *tempstore = (SORT_TYPE *)realloc(store->storage, new_size * sizeof(SORT_TYPE));
 
     if (tempstore == NULL) {
       fprintf(stderr, "Error allocating temporary storage for tim sort: need %lu bytes",
@@ -523,7 +523,7 @@ static __inline int PUSH_NEXT(SORT_TYPE *dst,
     }
 
     if (store->storage != NULL) {
-      XML_FREE(store->storage);
+      free(store->storage);
       store->storage = NULL;
     }
 

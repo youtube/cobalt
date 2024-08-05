@@ -10,9 +10,6 @@
 * Since: ICU 2.4
 **********************************************************************
 */
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "utypeinfo.h"  // for 'typeid' to work 
 
 #include "unicode/ustring.h"

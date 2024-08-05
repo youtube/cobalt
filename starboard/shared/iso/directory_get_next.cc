@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#if SB_API_VERSION < 17
 #include "starboard/shared/iso/directory_internal.h"
 
 #include "starboard/shared/iso/impl/directory_get_next.h"
@@ -22,3 +22,4 @@ bool SbDirectoryGetNext(SbDirectory directory,
   return ::starboard::shared::iso::impl::SbDirectoryGetNext(
       directory, out_entry, out_entry_size);
 }
+#endif  // SB_API_VERSION < 17

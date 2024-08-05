@@ -21,9 +21,7 @@
 #define __UCLN_IMP_H__
 
 #include "ucln.h"
-#if !defined(STARBOARD)
 #include <stdlib.h>
-#endif
 
 /**
  * Auto cleanup of ICU libraries

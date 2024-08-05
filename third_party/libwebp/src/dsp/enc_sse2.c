@@ -14,13 +14,9 @@
 #include "src/dsp/dsp.h"
 
 #if defined(WEBP_USE_SSE2)
-#include <emmintrin.h>
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#else
 #include <assert.h>
-#endif
 #include <stdlib.h>  // for abs()
+#include <emmintrin.h>
 
 #include "src/dsp/common_sse2.h"
 #include "src/enc/cost_enc.h"

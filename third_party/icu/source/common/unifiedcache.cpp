@@ -15,10 +15,6 @@
 #include <algorithm>      // For std::max()
 #include <mutex>
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
-
 #include "uassert.h"
 #include "uhash.h"
 #include "ucln_cmn.h"

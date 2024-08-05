@@ -12,11 +12,7 @@
 // Author: Skal (pascal.massimino@gmail.com)
 //         Vikas Arora (vikaas.arora@gmail.com)
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#else
 #include <assert.h>
-#endif
 #include <string.h>   // for memcpy()
 #include <stdlib.h>
 
