@@ -89,6 +89,7 @@ class OnDeviceTestsGatewayClient():
             unittest_shard_index=args.unittest_shard_index,
             test_attempts=args.test_attempts,
             retry_level=args.retry_level,
+            test_timeout=args.test_timeout,
         )):
 
       print(response_line.response)
@@ -233,6 +234,11 @@ def main():
       default='1',
       required=False,
       help='The maximum number of times a test could retry.')
+  trigger_parser.add_argument(
+      '--test_timeout',
+      type=str,
+      required=False,
+      help='Default test timeout. Uses Java duration format.')
   trigger_parser.add_argument(
       '--retry_level',
       type=str,
