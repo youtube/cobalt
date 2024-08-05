@@ -64,7 +64,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - id: Checkout
-        uses: kaidokert/checkout@v3.5.999 # Temporary version
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
@@ -137,7 +137,7 @@ jobs:
     timeout-minutes: 120
     steps:
       - name: Checkout files
-        uses: kaidokert/checkout@v3.5.999
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -172,7 +172,7 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
+        uses: actions/checkout@v4
         with:
           # Use fetch depth of 0 to get full history for a valid build id.
           fetch-depth: 0
@@ -210,7 +210,7 @@ jobs:
     timeout-minutes: 90
     steps:
       - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           persist-credentials: false
