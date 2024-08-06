@@ -36,6 +36,9 @@ class CrashpadConfigTest : public ::testing::Test {
   ~CrashpadConfigTest() {}
 };
 
+// These tests are not applicable to AOSP
+#if !defined(ANDROID)
+
 TEST_F(CrashpadConfigTest, VerifyUploadCert) {
   std::vector<char> buffer(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory, buffer.data(),
@@ -49,6 +52,8 @@ TEST_F(CrashpadConfigTest, VerifyUploadCert) {
   struct stat info;
   ASSERT_TRUE(stat(cert_location.c_str(), &info) == 0);
 }
+
+#endif  // !defined(ANDROID)
 
 TEST_F(CrashpadConfigTest, VerifyCrashHandlerExtension) {
   auto crash_handler_extension =
