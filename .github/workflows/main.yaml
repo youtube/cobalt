@@ -29,8 +29,8 @@ on:
         required: false
         type: boolean
         default: false
-      keep_artifacts:
-        description: 'Which artifacts to keep for releases'
+      artifacts_to_upload:
+        description: 'A multiline string consists of artifact paths, each on a separate line.'
         required: false
         type: string
         default: ''
@@ -257,12 +257,39 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
+
+      - name: 'Get Artifact Paths'
+        id: get-artifact-paths
+        if: ${{ inputs.artifacts_to_upload }}
+        shell: bash
+        run: |
+          #!/bin/bash
+
+          artifact_list=""
+          while IFS= read -r line; do
+            echo "Processing line: $line"  # Debugging output
+            if [ -n "$line" ]; then # avoid trailing new lines.
+              artifact_list+="out/${{ matrix.platform }}_${{ matrix.config }}/$line\n"
+            fi
+          done <<EOF
+          $(echo "${{ inputs.artifacts_to_upload }}")
+          EOF
+
+          echo "ARTIFACT_LIST_ENV_VAR=$artifact_list" >> $GITHUB_ENV
+
+      - name: 'Print Artifact Paths'
+        run: |
+          echo ${{ env.ARTIFACT_LIST_ENV_VAR }}
+          echo "-------"
+          echo "${{ env.ARTIFACT_LIST_ENV_VAR }}"
+
+
       - name: 'Upload Artifact'
         uses: actions/upload-artifact@v4
-        if: ${{ inputs.keep_artifacts && matrix.sb_api_version == '' }}
+        if: ${{ env.ARTIFACT_LIST_ENV_VAR != '' }}
         with:
           name: ${{ matrix.platform }}-${{ matrix.config }}
-          path: out/${{ matrix.platform }}_${{ matrix.config }}/${{ inputs.keep_artifacts }}
+          path: "${{ env.ARTIFACT_LIST_ENV_VAR }}"
           retention-days: 7
           compression-level: 0 # We expect kept artifacts to be already compressed
           if-no-files-found: error
