@@ -31,7 +31,7 @@ jobs:
       platform: evergreen-x64
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
-      keep_artifacts: libcobalt.so
+      keep_artifacts: libcobalt.*
   evergreen-arm-hardfp:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -41,7 +41,7 @@ jobs:
       platform: evergreen-arm-hardfp
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
-      keep_artifacts: libcobalt.so
+      keep_artifacts: libcobalt.*
   evergreen-arm-softfp:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -51,7 +51,7 @@ jobs:
       platform: evergreen-arm-softfp
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
-      keep_artifacts: libcobalt.so
+      keep_artifacts: libcobalt.*
   evergreen-arm64:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -61,4 +61,4 @@ jobs:
       platform: evergreen-arm64
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
-      keep_artifacts: libcobalt.so
+      keep_artifacts: libcobalt.*
