@@ -761,6 +761,13 @@ int getsockname(int sockfd, struct sockaddr *restrict addr, socklen_t *restrict 
   }
   SbSocketAddress out_address = {0};
   int result = SbSocketGetLocalAddress(fileOrSock->socket, &out_address)? 0: -1;
+
+  struct sockaddr_in* addr_in = (struct sockaddr_in*)addr;
+  addr_in->sin_family = AF_INET;
+  addr_in->sin_addr.s_addr = out_address.address;
+  addr_in->sin_port = out_address.port;
+  *addrlen = sizeof(struct sockaddr_in);
+
   return result;
 }
 
@@ -780,8 +787,7 @@ int setsockopt (int sockfd, int level, int optname, const void* optval,
     return -1;
   }
 
-  if (level == SOL_SOCKET || level == SOL_TCP || level == IPPROTO_TCP) {
-
+  if (level == SOL_SOCKET || level == SOL_TCP || level == IPPROTO_TCP || level == IPPROTO_IP) {
     int* operation = (int*)optval;
     switch (optname){
       case SO_BROADCAST:{
@@ -823,12 +829,18 @@ int setsockopt (int sockfd, int level, int optname, const void* optval,
         return 0;
       }
       case TCP_NODELAY: {
-        int* operation = (int*)optval;
         bool bool_value = *operation == 1? true:false;
         return SbSocketSetTcpNoDelay(fileOrSock->socket, bool_value) == true? 0:-1;
       }
       case IP_ADD_MEMBERSHIP: {
-        SbSocketAddress* addr = (SbSocketAddress*)optval;
+        if (optval == NULL) {
+          errno = EFAULT;
+          return -1;
+        }
+        const struct ip_mreq* imreq = (const struct ip_mreq*)optval;
+        SbSocketAddress* addr = (SbSocketAddress*)malloc(sizeof(SbSocketAddress));
+        memcpy(addr->address, &(imreq->imr_multiaddr.s_addr), sizeof(imreq->imr_multiaddr.s_addr));
+
         return SbSocketJoinMulticastGroup(fileOrSock->socket, addr) == true? 0:-1;
       }
       default:

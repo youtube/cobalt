@@ -11,6 +11,7 @@
 
 #include <functional>
 
+#include "common/debug.h"
 #include "util/shader_utils.h"
 
 namespace angle
@@ -26,7 +27,13 @@ class GLWrapper : angle::NonCopyable
 {
   public:
     GLWrapper(GLGen *genFunc, GLDelete *deleteFunc) : mGenFunc(genFunc), mDeleteFunc(deleteFunc) {}
-    ~GLWrapper() { (*mDeleteFunc)(1, &mHandle); }
+    ~GLWrapper()
+    {
+        if (mHandle)
+        {
+            (*mDeleteFunc)(1, &mHandle);
+        }
+    }
 
     // The move-constructor and move-assignment operators are necessary so that the data within a
     // GLWrapper object can be relocated.
@@ -63,8 +70,14 @@ class GLWrapper : angle::NonCopyable
         }
         return mHandle;
     }
+    GLuint get() const
+    {
+        ASSERT(mHandle);
+        return mHandle;
+    }
 
     operator GLuint() { return get(); }
+    operator GLuint() const { return get(); }
 
   private:
     GLGen *mGenFunc;
@@ -127,6 +140,7 @@ class GLQueryEXT : public GLWrapper
   public:
     GLQueryEXT() : GLWrapper(&glGenQueriesEXT, &glDeleteQueriesEXT) {}
 };
+using GLQuery = GLQueryEXT;
 
 class GLShader : angle::NonCopyable
 {
@@ -136,21 +150,30 @@ class GLShader : angle::NonCopyable
 
     ~GLShader() { glDeleteShader(mHandle); }
 
-    GLuint get() { return mHandle; }
+    GLuint get() const { return mHandle; }
 
-    operator GLuint() { return get(); }
+    operator GLuint() const { return get(); }
+
+    void reset()
+    {
+        if (mHandle)
+        {
+            glDeleteShader(mHandle);
+            mHandle = 0;
+        }
+    }
 
   private:
     GLuint mHandle;
 };
 
 // Prefer ANGLE_GL_PROGRAM for local variables.
-class GLProgram
+class GLProgram : angle::NonCopyable
 {
   public:
     GLProgram() : mHandle(0) {}
 
-    ~GLProgram() { glDeleteProgram(mHandle); }
+    ~GLProgram() { reset(); }
 
     void makeEmpty() { mHandle = glCreateProgram(); }
 
@@ -166,6 +189,15 @@ class GLProgram
                     const char *fragmentShader)
     {
         mHandle = CompileProgramWithGS(vertexShader, geometryShader, fragmentShader);
+    }
+
+    void makeRaster(const char *vertexShader,
+                    const char *tessControlShader,
+                    const char *tessEvaluateShader,
+                    const char *fragmentShader)
+    {
+        mHandle = CompileProgramWithTESS(vertexShader, tessControlShader, tessEvaluateShader,
+                                         fragmentShader);
     }
 
     void makeRasterWithTransformFeedback(const char *vertexShader,
@@ -189,9 +221,31 @@ class GLProgram
 
     bool valid() const { return mHandle != 0; }
 
-    GLuint get() { return mHandle; }
+    GLuint get()
+    {
+        if (!mHandle)
+        {
+            makeEmpty();
+        }
+        return mHandle;
+    }
+    GLuint get() const
+    {
+        ASSERT(mHandle);
+        return mHandle;
+    }
+
+    void reset()
+    {
+        if (mHandle)
+        {
+            glDeleteProgram(mHandle);
+            mHandle = 0;
+        }
+    }
 
     operator GLuint() { return get(); }
+    operator GLuint() const { return get(); }
 
   private:
     GLuint mHandle;
@@ -210,6 +264,11 @@ class GLProgram
 #define ANGLE_GL_PROGRAM_WITH_GS(name, vertex, geometry, fragment) \
     GLProgram name;                                                \
     name.makeRaster(vertex, geometry, fragment);                   \
+    ASSERT_TRUE(name.valid())
+
+#define ANGLE_GL_PROGRAM_WITH_TESS(name, vertex, tcs, tes, fragment) \
+    GLProgram name;                                                  \
+    name.makeRaster(vertex, tcs, tes, fragment);                     \
     ASSERT_TRUE(name.valid())
 
 #define ANGLE_GL_PROGRAM_TRANSFORM_FEEDBACK(name, vertex, fragment, tfVaryings, bufferMode) \

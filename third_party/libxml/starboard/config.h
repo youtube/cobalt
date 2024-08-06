@@ -234,7 +234,7 @@
 #undef HAVE_TIME_H
 
 /* Define to 1 if you have the <unistd.h> header file. */
-#undef HAVE_UNISTD_H
+#define HAVE_UNISTD_H 1
 
 #undef HAVE_VA_COPY
 

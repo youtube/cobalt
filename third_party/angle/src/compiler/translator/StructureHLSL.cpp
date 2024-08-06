@@ -23,12 +23,13 @@ namespace
 TString Define(const TStructure &structure,
                bool useHLSLRowMajorPacking,
                bool useStd140Packing,
+               bool forcePadding,
                Std140PaddingHelper *padHelper)
 {
-    const TFieldList &fields = structure.fields();
-    const bool isNameless    = (structure.symbolType() == SymbolType::Empty);
-    const TString &structName =
-        QualifiedStructNameString(structure, useHLSLRowMajorPacking, useStd140Packing);
+    const TFieldList &fields    = structure.fields();
+    const bool isNameless       = (structure.symbolType() == SymbolType::Empty);
+    const TString &structName   = QualifiedStructNameString(structure, useHLSLRowMajorPacking,
+                                                          useStd140Packing, forcePadding);
     const TString declareString = (isNameless ? "struct" : "struct " + structName);
 
     TString string;
@@ -36,20 +37,23 @@ TString Define(const TStructure &structure,
               "\n"
               "{\n";
 
+    size_t memberSize = fields.size();
     for (const TField *field : fields)
     {
+        memberSize--;
         const TType &fieldType = *field->type();
         if (!IsSampler(fieldType.getBasicType()))
         {
             const TStructure *fieldStruct = fieldType.getStruct();
             const TString &fieldTypeString =
                 fieldStruct ? QualifiedStructNameString(*fieldStruct, useHLSLRowMajorPacking,
-                                                        useStd140Packing)
+                                                        useStd140Packing, false)
                             : TypeString(fieldType);
 
             if (padHelper)
             {
-                string += padHelper->prePaddingString(fieldType);
+                string += padHelper->prePaddingString(
+                    fieldType, (memberSize != fields.size() - 1) && forcePadding);
             }
 
             string += "    " + fieldTypeString + " " + DecorateField(field->name(), structure) +
@@ -57,7 +61,8 @@ TString Define(const TStructure &structure,
 
             if (padHelper)
             {
-                string += padHelper->postPaddingString(fieldType, useHLSLRowMajorPacking);
+                string += padHelper->postPaddingString(fieldType, useHLSLRowMajorPacking,
+                                                       memberSize == 0, forcePadding);
             }
         }
     }
@@ -87,6 +92,12 @@ TString WriteParameterList(const std::vector<TType> &parameters)
     return parameterList;
 }
 
+int GetElementPadding(int elementIndex, int alignment)
+{
+    const int paddingOffset = elementIndex % alignment;
+    return paddingOffset != 0 ? (alignment - paddingOffset) : 0;
+}
+
 }  // anonymous namespace
 
 Std140PaddingHelper::Std140PaddingHelper(const std::map<TString, int> &structElementIndexes,
@@ -114,13 +125,23 @@ TString Std140PaddingHelper::next()
     return str(value);
 }
 
-int Std140PaddingHelper::prePadding(const TType &type)
+int Std140PaddingHelper::prePadding(const TType &type, bool forcePadding)
 {
     if (type.getBasicType() == EbtStruct || type.isMatrix() || type.isArray())
     {
-        // no padding needed, HLSL will align the field to a new register
-        mElementIndex = 0;
-        return 0;
+        if (forcePadding)
+        {
+            // Add padding between the structure's members to follow the std140 rules manually.
+            const int forcePaddingCount = GetElementPadding(mElementIndex, 4);
+            mElementIndex               = 0;
+            return forcePaddingCount;
+        }
+        else
+        {
+            // no padding needed, HLSL will align the field to a new register
+            mElementIndex = 0;
+            return 0;
+        }
     }
 
     const GLenum glType     = GLVariableType(type);
@@ -128,21 +149,40 @@ int Std140PaddingHelper::prePadding(const TType &type)
 
     if (numComponents >= 4)
     {
-        // no padding needed, HLSL will align the field to a new register
-        mElementIndex = 0;
-        return 0;
+        if (forcePadding)
+        {
+            // Add padding between the structure's members to follow the std140 rules manually.
+            const int forcePaddingCount = GetElementPadding(mElementIndex, 4);
+            mElementIndex               = numComponents % 4;
+            return forcePaddingCount;
+        }
+        else
+        {
+            // no padding needed, HLSL will align the field to a new register
+            mElementIndex = 0;
+            return 0;
+        }
     }
 
     if (mElementIndex + numComponents > 4)
     {
-        // no padding needed, HLSL will align the field to a new register
-        mElementIndex = numComponents;
-        return 0;
+        if (forcePadding)
+        {
+            // Add padding between the structure's members to follow the std140 rules manually.
+            const int forcePaddingCount = GetElementPadding(mElementIndex, 4);
+            mElementIndex               = numComponents;
+            return forcePaddingCount;
+        }
+        else
+        {
+            // no padding needed, HLSL will align the field to a new register
+            mElementIndex = numComponents;
+            return 0;
+        }
     }
 
-    const int alignment     = numComponents == 3 ? 4 : numComponents;
-    const int paddingOffset = (mElementIndex % alignment);
-    const int paddingCount  = (paddingOffset != 0 ? (alignment - paddingOffset) : 0);
+    const int alignment    = numComponents == 3 ? 4 : numComponents;
+    const int paddingCount = GetElementPadding(mElementIndex, alignment);
 
     mElementIndex += paddingCount;
     mElementIndex += numComponents;
@@ -151,9 +191,9 @@ int Std140PaddingHelper::prePadding(const TType &type)
     return paddingCount;
 }
 
-TString Std140PaddingHelper::prePaddingString(const TType &type)
+TString Std140PaddingHelper::prePaddingString(const TType &type, bool forcePadding)
 {
-    int paddingCount = prePadding(type);
+    int paddingCount = prePadding(type, forcePadding);
 
     TString padding;
 
@@ -165,10 +205,35 @@ TString Std140PaddingHelper::prePaddingString(const TType &type)
     return padding;
 }
 
-TString Std140PaddingHelper::postPaddingString(const TType &type, bool useHLSLRowMajorPacking)
+TString Std140PaddingHelper::postPaddingString(const TType &type,
+                                               bool useHLSLRowMajorPacking,
+                                               bool isLastElement,
+                                               bool forcePadding)
 {
     if (!type.isMatrix() && !type.isArray() && type.getBasicType() != EbtStruct)
     {
+        if (forcePadding)
+        {
+            const GLenum glType     = GLVariableType(type);
+            const int numComponents = gl::VariableComponentCount(glType);
+            if (isLastElement || (numComponents >= 4))
+            {
+                // If this structure will be used as HLSL StructuredBuffer member's type, in
+                // order to follow the std140 rules, add padding at the end of the structure
+                // if necessary. Or if the current element straddles a vec4 boundary, add
+                // padding to round up the base offset of the next element to the base
+                // alignment of a vec4.
+                TString forcePaddingStr;
+                const int paddingCount = GetElementPadding(mElementIndex, 4);
+                for (int paddingIndex = 0; paddingIndex < paddingCount; paddingIndex++)
+                {
+                    forcePaddingStr += "    float pad_" + next() + ";\n";
+                }
+                mElementIndex = 0;
+                return forcePaddingStr;
+            }
+        }
+
         return "";
     }
 
@@ -191,7 +256,7 @@ TString Std140PaddingHelper::postPaddingString(const TType &type, bool useHLSLRo
     else if (structure)
     {
         const TString &structName =
-            QualifiedStructNameString(*structure, useHLSLRowMajorPacking, true);
+            QualifiedStructNameString(*structure, useHLSLRowMajorPacking, true, false);
         numComponents = mStructElementIndexes->find(structName)->second;
 
         if (numComponents == 0)
@@ -222,22 +287,24 @@ Std140PaddingHelper StructureHLSL::getPaddingHelper()
 
 TString StructureHLSL::defineQualified(const TStructure &structure,
                                        bool useHLSLRowMajorPacking,
-                                       bool useStd140Packing)
+                                       bool useStd140Packing,
+                                       bool forcePadding)
 {
     if (useStd140Packing)
     {
         Std140PaddingHelper padHelper = getPaddingHelper();
-        return Define(structure, useHLSLRowMajorPacking, useStd140Packing, &padHelper);
+        return Define(structure, useHLSLRowMajorPacking, useStd140Packing, forcePadding,
+                      &padHelper);
     }
     else
     {
-        return Define(structure, useHLSLRowMajorPacking, useStd140Packing, nullptr);
+        return Define(structure, useHLSLRowMajorPacking, useStd140Packing, false, nullptr);
     }
 }
 
 TString StructureHLSL::defineNameless(const TStructure &structure)
 {
-    return Define(structure, false, false, nullptr);
+    return Define(structure, false, false, false, nullptr);
 }
 
 StructureHLSL::DefinedStructs::iterator StructureHLSL::defineVariants(const TStructure &structure,
@@ -260,24 +327,33 @@ StructureHLSL::DefinedStructs::iterator StructureHLSL::defineVariants(const TStr
     storeStd140ElementIndex(structure, false);
     storeStd140ElementIndex(structure, true);
 
-    const TString &structString = defineQualified(structure, false, false);
+    const TString &structString = defineQualified(structure, false, false, false);
 
     ASSERT(std::find(mStructDeclarations.begin(), mStructDeclarations.end(), structString) ==
            mStructDeclarations.end());
     // Add row-major packed struct for interface blocks
     TString rowMajorString = "#pragma pack_matrix(row_major)\n" +
-                             defineQualified(structure, true, false) +
+                             defineQualified(structure, true, false, false) +
                              "#pragma pack_matrix(column_major)\n";
 
-    TString std140String         = defineQualified(structure, false, true);
+    TString std140String         = defineQualified(structure, false, true, false);
     TString std140RowMajorString = "#pragma pack_matrix(row_major)\n" +
-                                   defineQualified(structure, true, true) +
+                                   defineQualified(structure, true, true, false) +
                                    "#pragma pack_matrix(column_major)\n";
+
+    // Must force to pad the structure's elements for StructuredBuffer's element type, if qualifier
+    // of structure is std140.
+    TString std140ForcePaddingString         = defineQualified(structure, false, true, true);
+    TString std140RowMajorForcePaddingString = "#pragma pack_matrix(row_major)\n" +
+                                               defineQualified(structure, true, true, true) +
+                                               "#pragma pack_matrix(column_major)\n";
 
     mStructDeclarations.push_back(structString);
     mStructDeclarations.push_back(rowMajorString);
     mStructDeclarations.push_back(std140String);
     mStructDeclarations.push_back(std140RowMajorString);
+    mStructDeclarations.push_back(std140ForcePaddingString);
+    mStructDeclarations.push_back(std140RowMajorForcePaddingString);
     return addedStruct;
 }
 
@@ -386,15 +462,15 @@ TString StructureHLSL::addBuiltInConstructor(const TType &type, const TIntermSeq
 
     if (ctorType.isMatrix() && ctorParameters.size() == 1)
     {
-        int rows               = ctorType.getRows();
-        int cols               = ctorType.getCols();
+        uint8_t rows           = ctorType.getRows();
+        uint8_t cols           = ctorType.getCols();
         const TType &parameter = ctorParameters[0];
 
         if (parameter.isScalar())
         {
-            for (int col = 0; col < cols; col++)
+            for (uint8_t col = 0; col < cols; col++)
             {
-                for (int row = 0; row < rows; row++)
+                for (uint8_t row = 0; row < rows; row++)
                 {
                     constructor += TString((row == col) ? "x0" : "0.0");
 
@@ -407,9 +483,9 @@ TString StructureHLSL::addBuiltInConstructor(const TType &type, const TIntermSeq
         }
         else if (parameter.isMatrix())
         {
-            for (int col = 0; col < cols; col++)
+            for (uint8_t col = 0; col < cols; col++)
             {
-                for (int row = 0; row < rows; row++)
+                for (uint8_t row = 0; row < rows; row++)
                 {
                     if (row < parameter.getRows() && col < parameter.getCols())
                     {
@@ -486,7 +562,7 @@ TString StructureHLSL::addBuiltInConstructor(const TType &type, const TIntermSeq
             }
             else if (parameter.isMatrix())
             {
-                int column = 0;
+                uint8_t column = 0;
                 while (remainingComponents > 0 && column < parameter.getCols())
                 {
                     constructor += "[" + str(column) + "]";
@@ -579,12 +655,13 @@ void StructureHLSL::storeStd140ElementIndex(const TStructure &structure,
 
     for (const TField *field : fields)
     {
-        padHelper.prePadding(*field->type());
+        padHelper.prePadding(*field->type(), false);
     }
 
     // Add remaining element index to the global map, for use with nested structs in standard
     // layouts
-    const TString &structName = QualifiedStructNameString(structure, useHLSLRowMajorPacking, true);
+    const TString &structName =
+        QualifiedStructNameString(structure, useHLSLRowMajorPacking, true, false);
     mStd140StructElementIndexes[structName] = padHelper.elementIndex();
 }
 

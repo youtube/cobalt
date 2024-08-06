@@ -7,11 +7,15 @@
 // Query.cpp: Implements the gl::Query class
 
 #include "libANGLE/Query.h"
+
+#include "libANGLE/renderer/GLImplFactory.h"
 #include "libANGLE/renderer/QueryImpl.h"
 
 namespace gl
 {
-Query::Query(rx::QueryImpl *impl, QueryID id) : RefCountObject(id), mQuery(impl), mLabel() {}
+Query::Query(rx::GLImplFactory *factory, QueryType type, QueryID id)
+    : RefCountObject(factory->generateSerial(), id), mQuery(factory->createQuery(type)), mLabel()
+{}
 
 Query::~Query()
 {
@@ -24,9 +28,15 @@ void Query::onDestroy(const Context *context)
     mQuery->onDestroy(context);
 }
 
-void Query::setLabel(const Context *context, const std::string &label)
+angle::Result Query::setLabel(const Context *context, const std::string &label)
 {
     mLabel = label;
+
+    if (mQuery)
+    {
+        return mQuery->onLabelUpdate(context);
+    }
+    return angle::Result::Continue;
 }
 
 const std::string &Query::getLabel() const

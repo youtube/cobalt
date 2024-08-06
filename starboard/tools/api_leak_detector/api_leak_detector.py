@@ -62,7 +62,7 @@ _API_LEAK_DETECTOR_TITLE = """    ___    ____  ____   __               __      _
 _DEFAULT_PLATFORM = 'evergreen-x64'
 _DEFAULT_CONFIG = 'gold'
 _DEFAULT_TARGET = 'cobalt'
-_DEFAULT_SB_VERSION = 16
+_DEFAULT_SB_VERSION = 17
 
 _RE_LIB = re.compile(r'lib.*\.a$')
 _RE_FILE = re.compile(r'\/\/.*\.[hcp]+$')
@@ -86,7 +86,7 @@ _UNKNOWN_LIBRARIES = 'unknown_library(ies)'
 _UNKNOWN_SOURCE_FILES = 'unknown_source_file(s)'
 
 # Allowed POSIX symbols in Starboard 16
-_ALLOWED_SB16_POSIX_SYMBOLS = [
+_ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     '__errno_location',
     'accept',
     'bind',
@@ -488,8 +488,8 @@ def main():
     return symbol.startswith('Sb') or symbol.startswith('kSb')
 
   def IsAllowedPosixSymbol(symbol, sb_api_version: int):
-    if sb_api_version == 16:
-      return symbol in _ALLOWED_SB16_POSIX_SYMBOLS
+    if sb_api_version in [16, 17]:
+      return symbol in _ALLOWED_SB_GE_16_POSIX_SYMBOLS
     else:
       return False
 

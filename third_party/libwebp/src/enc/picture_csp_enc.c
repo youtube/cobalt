@@ -13,14 +13,9 @@
 
 #include "starboard/client_porting/cwrappers/pow_wrapper.h"
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#else
 #include <assert.h>
-#include <math.h>
-#endif
-
 #include <stdlib.h>
+#include <math.h>
 
 #include "sharpyuv/sharpyuv.h"
 #include "sharpyuv/sharpyuv_csp.h"

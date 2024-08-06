@@ -53,7 +53,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
                      const void* key,
                      int key_size,
                      const void* session_id,
-                     int session_id_size);
+                     int session_id_size) override;
   void CloseSession(const void* session_id, int session_id_size) override;
   DecryptStatus Decrypt(InputBuffer* buffer) override;
 

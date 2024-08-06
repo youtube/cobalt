@@ -4,7 +4,7 @@
 // found in the LICENSE file.
 //
 // PruneUnusedFunctions_test.cpp:
-//   Test for the pruning of unused function with the SH_PRUNE_UNUSED_FUNCTIONS compile flag
+//   Test for the pruning of unused functions
 //
 
 #include "GLSLANG/ShaderLang.h"
@@ -20,13 +20,15 @@ namespace
 class PruneUnusedFunctionsTest : public MatchOutputCodeTest
 {
   public:
-    PruneUnusedFunctionsTest() : MatchOutputCodeTest(GL_FRAGMENT_SHADER, 0, SH_ESSL_OUTPUT) {}
+    PruneUnusedFunctionsTest() : MatchOutputCodeTest(GL_FRAGMENT_SHADER, SH_ESSL_OUTPUT) {}
 
   protected:
-    void compile(const std::string &shaderString, bool prune)
+    void compile(const std::string &shaderString)
     {
-        int compilationFlags = SH_VARIABLES | (prune ? 0 : SH_DONT_PRUNE_UNUSED_FUNCTIONS);
-        MatchOutputCodeTest::compile(shaderString, compilationFlags);
+        ShCompileOptions compileOptions = {};
+        compileOptions.variables        = true;
+
+        MatchOutputCodeTest::compile(shaderString, compileOptions);
     }
 };
 
@@ -42,12 +44,8 @@ TEST_F(PruneUnusedFunctionsTest, UnusedFunctionAndProto)
         "float unused(float a) {\n"
         "    return a;\n"
         "}\n";
-    compile(shaderString, true);
+    compile(shaderString);
     EXPECT_TRUE(notFoundInCode("unused("));
-    EXPECT_TRUE(foundInCode("main(", 1));
-
-    compile(shaderString, false);
-    EXPECT_TRUE(foundInCode("unused(", 2));
     EXPECT_TRUE(foundInCode("main(", 1));
 }
 
@@ -60,12 +58,8 @@ TEST_F(PruneUnusedFunctionsTest, UnimplementedPrototype)
         "void main() {\n"
         "    gl_FragColor = vec4(1.0);\n"
         "}\n";
-    compile(shaderString, true);
+    compile(shaderString);
     EXPECT_TRUE(notFoundInCode("unused("));
-    EXPECT_TRUE(foundInCode("main(", 1));
-
-    compile(shaderString, false);
-    EXPECT_TRUE(foundInCode("unused(", 1));
     EXPECT_TRUE(foundInCode("main(", 1));
 }
 
@@ -81,11 +75,7 @@ TEST_F(PruneUnusedFunctionsTest, UsedFunction)
         "float used(float a) {\n"
         "    return a;\n"
         "}\n";
-    compile(shaderString, true);
-    EXPECT_TRUE(foundInCode("used(", 3));
-    EXPECT_TRUE(foundInCode("main(", 1));
-
-    compile(shaderString, false);
+    compile(shaderString);
     EXPECT_TRUE(foundInCode("used(", 3));
     EXPECT_TRUE(foundInCode("main(", 1));
 }

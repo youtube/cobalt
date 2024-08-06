@@ -17,9 +17,6 @@
 
 #if !UCONFIG_NO_COLLATION
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/normalizer2.h"
 #include "unicode/parseerr.h"
 #include "unicode/uchar.h"

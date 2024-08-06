@@ -13,7 +13,9 @@
 #include <random>
 #include <sstream>
 
+#include "test_utils/ANGLETest.h"
 #include "test_utils/gl_raii.h"
+#include "util/random_utils.h"
 #include "util/shader_utils.h"
 
 using namespace angle;
@@ -29,14 +31,21 @@ struct ClearParams final : public RenderTestParams
         iterationsPerStep = kIterationsPerStep;
         trackGpuTime      = true;
 
-        fboSize     = 2048;
-        textureSize = 16;
+        fboSize = 2048;
+
+        internalFormat = GL_RGBA8;
+
+        scissoredClear = false;
     }
 
     std::string story() const override;
 
     GLsizei fboSize;
     GLsizei textureSize;
+
+    GLenum internalFormat;
+
+    bool scissoredClear;
 };
 
 std::ostream &operator<<(std::ostream &os, const ClearParams &params)
@@ -50,6 +59,16 @@ std::string ClearParams::story() const
     std::stringstream strstr;
 
     strstr << RenderTestParams::story();
+
+    if (internalFormat == GL_RGB8)
+    {
+        strstr << "_rgb";
+    }
+
+    if (scissoredClear)
+    {
+        strstr << "_scissoredClear";
+    }
 
     return strstr.str();
 }
@@ -69,24 +88,19 @@ class ClearBenchmark : public ANGLERenderTest, public ::testing::WithParamInterf
     std::vector<GLuint> mTextures;
 
     GLuint mProgram;
-    GLuint mPositionLoc;
-    GLuint mSamplerLoc;
 };
 
-ClearBenchmark::ClearBenchmark()
-    : ANGLERenderTest("Clear", GetParam()), mProgram(0u), mPositionLoc(-1), mSamplerLoc(-1)
+ClearBenchmark::ClearBenchmark() : ANGLERenderTest("Clear", GetParam()), mProgram(0u)
 {
-    // Crashes on nvidia+d3d11. http://crbug.com/945415
     if (GetParam().getRenderer() == EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE)
     {
-        mSkipTest = true;
+        skipTest("http://crbug.com/945415 Crashes on nvidia+d3d11");
     }
 }
 
 void ClearBenchmark::initializeBenchmark()
 {
     initShaders();
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
     glViewport(0, 0, getWindow()->getWidth(), getWindow()->getHeight());
 
     ASSERT_GL_NO_ERROR();
@@ -94,24 +108,20 @@ void ClearBenchmark::initializeBenchmark()
 
 void ClearBenchmark::initShaders()
 {
-    constexpr char kVS[] = R"(attribute vec4 a_position;
-void main()
+    constexpr char kVS[] = R"(void main()
 {
-    gl_Position = a_position;
+    gl_Position = vec4(0, 0, 0, 1);
 })";
 
     constexpr char kFS[] = R"(precision mediump float;
-uniform sampler2D s_texture;
 void main()
 {
-    gl_FragColor = texture2D(s_texture, vec2(0, 0));
+    gl_FragColor = vec4(0);
 })";
 
     mProgram = CompileProgram(kVS, kFS);
     ASSERT_NE(0u, mProgram);
 
-    mPositionLoc = glGetAttribLocation(mProgram, "a_position");
-    mSamplerLoc  = glGetUniformLocation(mProgram, "s_texture");
     glUseProgram(mProgram);
 
     glDisable(GL_DEPTH_TEST);
@@ -128,26 +138,9 @@ void ClearBenchmark::drawBenchmark()
 {
     const auto &params = GetParam();
 
-    std::vector<float> textureData(params.textureSize * params.textureSize * 4, 0.5);
-
-    GLTexture tex;
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, tex);
-
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, params.textureSize, params.textureSize, 0, GL_RGBA,
-                 GL_UNSIGNED_BYTE, textureData.data());
-
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    glUniform1i(mSamplerLoc, 0);
-
     GLRenderbuffer colorRbo;
     glBindRenderbuffer(GL_RENDERBUFFER, colorRbo);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, params.fboSize, params.fboSize);
+    glRenderbufferStorage(GL_RENDERBUFFER, params.internalFormat, params.fboSize, params.fboSize);
 
     GLRenderbuffer depthRbo;
     glBindRenderbuffer(GL_RENDERBUFFER, depthRbo);
@@ -158,12 +151,42 @@ void ClearBenchmark::drawBenchmark()
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, colorRbo);
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, depthRbo);
 
+    glViewport(0, 0, params.fboSize, params.fboSize);
+    glDisable(GL_SCISSOR_TEST);
+
     startGpuTimer();
-    for (size_t it = 0; it < params.iterationsPerStep; ++it)
+
+    if (params.scissoredClear)
     {
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        angle::RNG rng;
+        const GLuint width  = params.fboSize;
+        const GLuint height = params.fboSize;
+        for (GLuint index = 0; index < (width - 1) / 2; index++)
+        {
+            // Do the first clear without the scissor.
+            if (index > 0)
+            {
+                glEnable(GL_SCISSOR_TEST);
+                glScissor(index, index, width - (index * 2), height - (index * 2));
+            }
+
+            GLColor color      = RandomColor(&rng);
+            Vector4 floatColor = color.toNormalizedVector();
+            glClearColor(floatColor[0], floatColor[1], floatColor[2], floatColor[3]);
+            glClear(GL_COLOR_BUFFER_BIT);
+        }
     }
+    else
+    {
+        for (size_t it = 0; it < params.iterationsPerStep; ++it)
+        {
+            float clearValue = (it % 2) * 0.5f + 0.2f;
+            glClearColor(clearValue, clearValue, clearValue, clearValue);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            glDrawArrays(GL_TRIANGLES, 0, 3);
+        }
+    }
+
     stopGpuTimer();
 
     ASSERT_GL_NO_ERROR();
@@ -176,6 +199,13 @@ ClearParams D3D11Params()
     return params;
 }
 
+ClearParams MetalParams()
+{
+    ClearParams params;
+    params.eglParameters = egl_platform::METAL();
+    return params;
+}
+
 ClearParams OpenGLOrGLESParams()
 {
     ClearParams params;
@@ -183,10 +213,15 @@ ClearParams OpenGLOrGLESParams()
     return params;
 }
 
-ClearParams VulkanParams()
+ClearParams VulkanParams(bool emulatedFormat, bool scissoredClear)
 {
     ClearParams params;
     params.eglParameters = egl_platform::VULKAN();
+    if (emulatedFormat)
+    {
+        params.internalFormat = GL_RGB8;
+    }
+    params.scissoredClear = scissoredClear;
     return params;
 }
 
@@ -197,4 +232,10 @@ TEST_P(ClearBenchmark, Run)
     run();
 }
 
-ANGLE_INSTANTIATE_TEST(ClearBenchmark, D3D11Params(), OpenGLOrGLESParams(), VulkanParams());
+ANGLE_INSTANTIATE_TEST(ClearBenchmark,
+                       D3D11Params(),
+                       MetalParams(),
+                       OpenGLOrGLESParams(),
+                       VulkanParams(false, false),
+                       VulkanParams(true, false),
+                       VulkanParams(false, true));

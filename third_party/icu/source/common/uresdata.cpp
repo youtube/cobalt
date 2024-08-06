@@ -19,9 +19,6 @@
 *   06/24/02    weiv        Added support for resource sharing
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/utypes.h"
 #include "unicode/udata.h"
 #include "unicode/ustring.h"

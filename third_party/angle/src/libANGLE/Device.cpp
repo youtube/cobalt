@@ -12,7 +12,7 @@
 #include <iterator>
 
 #include <EGL/eglext.h>
-#include <platform/Platform.h>
+#include <platform/PlatformMethods.h>
 
 #include "anglebase/no_destructor.h"
 #include "common/debug.h"
@@ -110,9 +110,9 @@ Error Device::getAttribute(EGLint attribute, EGLAttrib *value)
     return error;
 }
 
-EGLint Device::getType()
+EGLint Device::getType() const
 {
-    return getImplementation()->getType();
+    return mImplementation.get()->getType();
 }
 
 void Device::initDeviceExtensions()
@@ -129,5 +129,15 @@ const DeviceExtensions &Device::getExtensions() const
 const std::string &Device::getExtensionString() const
 {
     return mDeviceExtensionString;
+}
+
+const std::string &Device::getDeviceString(EGLint name)
+{
+    if (mDeviceStrings.find(name) == mDeviceStrings.end())
+    {
+        mDeviceStrings.emplace(name, mImplementation.get()->getDeviceString(name));
+    }
+
+    return mDeviceStrings.find(name)->second;
 }
 }  // namespace egl
