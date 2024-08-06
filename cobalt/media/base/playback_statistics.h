@@ -20,31 +20,74 @@
 #include "base/optional.h"
 #include "base/time/time.h"
 #include "cobalt/base/c_val.h"
-#include "media/base/decoder_buffer.h"
+#include "cobalt/media/base/chrome_media.h"
 #include "media/base/pipeline_status.h"
-#include "media/base/video_decoder_config.h"
+#include "media/base/video_codecs.h"
 
 namespace cobalt {
 namespace media {
 
 class PlaybackStatistics {
  public:
-  typedef ::media::DecoderBuffer DecoderBuffer;
-  typedef ::media::PipelineStatus PipelineStatus;
-  typedef ::media::VideoDecoderConfig VideoDecoderConfig;
-
   explicit PlaybackStatistics(const std::string& pipeline_identifier);
   ~PlaybackStatistics();
 
-  void UpdateVideoConfig(const VideoDecoderConfig& video_config);
-  void OnPresenting(const VideoDecoderConfig& video_config);
-  void OnSeek(const base::TimeDelta& seek_time);
-  void OnAudioAU(const scoped_refptr<DecoderBuffer>& buffer);
-  void OnVideoAU(const scoped_refptr<DecoderBuffer>& buffer);
-  void OnError(PipelineStatus status, const std::string& error_message);
+  // TODO: Move to private
+  void UpdateVideoConfig(::media::VideoCodec video_codec, int video_width,
+                         int video_height, bool is_encrypted);
 
+  template <typename VideoDecoderConfig>
+  void UpdateVideoConfig(const VideoDecoderConfig& video_config) {
+    UpdateVideoConfig(static_cast<::media::VideoCodec>(video_config.codec()),
+                      video_config.natural_size().width(),
+                      video_config.natural_size().height(),
+                      video_config.is_encrypted());
+  }
+
+  // TODO: Move to private
+  void OnPresenting(::media::VideoCodec video_codec);
+
+  template <typename VideoDecoderConfig>
+  void OnPresenting(const VideoDecoderConfig& video_config) {
+    OnPresenting(static_cast<::media::VideoCodec>(video_config.codec()));
+  }
+
+  void OnSeek(const base::TimeDelta& seek_time);
+
+  // TODO: Move to private
+  void OnAudioAU(bool end_of_stream, base::TimeDelta timestamp);
+
+  template <typename DecoderBuffer>
+  void OnAudioAU(const scoped_refptr<DecoderBuffer>& buffer) {
+    bool end_of_stream = buffer->end_of_stream();
+    OnAudioAU(end_of_stream,
+              end_of_stream ? base::TimeDelta() : buffer->timestamp());
+  }
+
+  // TODO: Move to private
+  void OnVideoAU(bool end_of_stream, base::TimeDelta timestamp);
+
+  template <typename DecoderBuffer>
+  void OnVideoAU(const scoped_refptr<DecoderBuffer>& buffer) {
+    bool end_of_stream = buffer->end_of_stream();
+    OnVideoAU(end_of_stream,
+              end_of_stream ? base::TimeDelta() : buffer->timestamp());
+  }
+
+  void OnError(::media_m114::PipelineStatus status,
+               const std::string& error_message);
+
+  // TODO: Move to private
+  std::string GetStatistics(::media::VideoCodec video_codec,
+                            bool is_encrypted) const;
+
+  template <typename VideoDecoderConfig>
   std::string GetStatistics(
-      const VideoDecoderConfig& current_video_config) const;
+      const VideoDecoderConfig& current_video_config) const {
+    return GetStatistics(
+        static_cast<::media::VideoCodec>(current_video_config.codec()),
+        current_video_config.is_encrypted());
+  }
 
  private:
   base::CVal<base::TimeDelta> seek_time_;
@@ -56,7 +99,7 @@ class PlaybackStatistics {
   base::CVal<int> video_height_;
   base::CVal<bool> is_audio_eos_written_;
   base::CVal<bool> is_video_eos_written_;
-  base::CVal<PipelineStatus> pipeline_status_;
+  base::CVal<::media_m114::PipelineStatus> pipeline_status_;
   base::CVal<std::string> error_message_;
   base::CVal<std::string> current_video_codec_;
   bool has_active_instance_ = false;

@@ -23,6 +23,7 @@
 #include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/media_source_ready_state.h"
 #include "cobalt/dom/time_ranges.h"
+#include "cobalt/media/base/chunk_demuxer_holder.h"
 #include "cobalt/script/tracer.h"
 #include "cobalt/web/url_registry.h"
 #include "media/filters/chunk_demuxer.h"
@@ -59,7 +60,7 @@ class MediaSourceAttachment
   virtual bool StartAttachingToMediaElement(
       HTMLMediaElement* media_element) = 0;
   virtual void CompleteAttachingToMediaElement(
-      ::media::ChunkDemuxer* chunk_demuxer) = 0;
+      media::ChunkDemuxerHolder* chunk_demuxer) = 0;
 
   virtual void Close() = 0;
 

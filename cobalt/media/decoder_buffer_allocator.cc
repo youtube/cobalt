@@ -45,17 +45,20 @@ DecoderBufferAllocator::DecoderBufferAllocator()
       allocation_unit_(SbMediaGetBufferAllocationUnit()) {
   if (is_memory_pool_allocated_on_demand_) {
     DLOG(INFO) << "Allocated media buffer pool on demand.";
-    Allocator::Set(this);
+    ::media_m96::DecoderBuffer::Allocator::Set(this);
+    ::media_m114::DecoderBuffer::Allocator::Set(this);
     return;
   }
 
   base::AutoLock scoped_lock(mutex_);
   EnsureReuseAllocatorIsCreated();
-  Allocator::Set(this);
+  ::media_m96::DecoderBuffer::Allocator::Set(this);
+  ::media_m114::DecoderBuffer::Allocator::Set(this);
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
-  Allocator::Set(nullptr);
+  ::media_m96::DecoderBuffer::Allocator::Set(nullptr);
+  ::media_m114::DecoderBuffer::Allocator::Set(nullptr);
 
   base::AutoLock scoped_lock(mutex_);
 

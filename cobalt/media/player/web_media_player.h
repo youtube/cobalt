@@ -19,17 +19,11 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "cobalt/media/base/chunk_demuxer_holder.h"
 #include "cobalt/media/base/data_source.h"
 #include "cobalt/media/base/decode_target_provider.h"
 #include "starboard/window.h"
 #include "url/gurl.h"
-
-namespace media {
-
-class ChunkDemuxer;
-class TimeRanges;
-
-}  // namespace media
 
 namespace cobalt {
 namespace media {
@@ -213,7 +207,7 @@ class WebMediaPlayerClient {
   virtual void ContentSizeChanged() = 0;
   virtual void PlaybackStateChanged() = 0;
   virtual float Volume() const = 0;
-  virtual void SourceOpened(::media::ChunkDemuxer* chunk_demuxer) = 0;
+  virtual void SourceOpened(ChunkDemuxerHolder* chunk_demuxer) = 0;
   virtual std::string SourceURL() const = 0;
   virtual std::string MaxVideoCapabilities() const = 0;
   virtual int MaxVideoInputSize() const = 0;

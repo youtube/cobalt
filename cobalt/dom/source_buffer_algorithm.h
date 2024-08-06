@@ -21,7 +21,7 @@
 #include "base/time/time.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/source_buffer_metrics.h"
-#include "media/filters/chunk_demuxer.h"
+#include "cobalt/media/base/chunk_demuxer_holder.h"
 
 namespace cobalt {
 namespace dom {
@@ -56,7 +56,7 @@ class SourceBufferAlgorithm {
 class SourceBufferAppendAlgorithm : public SourceBufferAlgorithm {
  public:
   SourceBufferAppendAlgorithm(
-      MediaSource* media_source, ::media::ChunkDemuxer* chunk_demuxer,
+      MediaSource* media_source, media::ChunkDemuxerHolder* chunk_demuxer,
       const std::string& id, const uint8_t* buffer, size_t size_in_bytes,
       size_t max_append_size_in_bytes, base::TimeDelta append_window_start,
       base::TimeDelta append_window_end, base::TimeDelta timestamp_offset,
@@ -71,7 +71,7 @@ class SourceBufferAppendAlgorithm : public SourceBufferAlgorithm {
   void Finalize() override;
 
   MediaSource* const media_source_;
-  ::media::ChunkDemuxer* const chunk_demuxer_;
+  media::ChunkDemuxerHolder* const chunk_demuxer_;
   const std::string id_;
   const uint8_t* buffer_;
   const size_t max_append_size_;
@@ -93,7 +93,7 @@ class SourceBufferAppendAlgorithm : public SourceBufferAlgorithm {
 // https://www.w3.org/TR/2016/CR-media-source-20160705/#sourcebuffer-range-removal.
 class SourceBufferRemoveAlgorithm : public SourceBufferAlgorithm {
  public:
-  SourceBufferRemoveAlgorithm(::media::ChunkDemuxer* chunk_demuxer,
+  SourceBufferRemoveAlgorithm(media::ChunkDemuxerHolder* chunk_demuxer,
                               const std::string& id,
                               base::TimeDelta pending_remove_start,
                               base::TimeDelta pending_remove_end,
@@ -106,7 +106,7 @@ class SourceBufferRemoveAlgorithm : public SourceBufferAlgorithm {
   void Abort() override;
   void Finalize() override;
 
-  ::media::ChunkDemuxer* const chunk_demuxer_;
+  media::ChunkDemuxerHolder* const chunk_demuxer_;
   const std::string id_;
   const base::TimeDelta pending_remove_start_;
   const base::TimeDelta pending_remove_end_;

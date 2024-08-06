@@ -60,15 +60,16 @@
 #include "base/threading/thread.h"
 #include "base/time/time.h"
 #include "cobalt/math/size.h"
+#include "cobalt/media/base/chunk_demuxer_holder.h"
 #include "cobalt/media/base/decode_target_provider.h"
+#include "cobalt/media/base/media_log_holder.h"
 #include "cobalt/media/base/metrics_provider.h"
 #include "cobalt/media/base/pipeline.h"
+#include "cobalt/media/base/pipeline_holder.h"
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "cobalt/media/player/web_media_player.h"
 #include "cobalt/media/player/web_media_player_delegate.h"
 #include "media/base/demuxer.h"
-#include "media/base/eme_constants.h"
-#include "media/base/media_log.h"
 #include "url/gurl.h"
 
 #if defined(STARBOARD)
@@ -86,6 +87,11 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                            public base::CurrentThread::DestructionObserver,
                            public base::SupportsWeakPtr<WebMediaPlayerImpl> {
  public:
+  enum class ChromeMediaVersions {
+    M96,
+    M114,
+  };
+
   // Construct a WebMediaPlayerImpl with reference to the client, and media
   // filter collection. By providing the filter collection the implementor can
   // provide more specific media filters that does resource loading and
@@ -104,8 +110,10 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // When calling this, the |audio_source_provider| and
   // |audio_renderer_sink| arguments should be the same object.
 
-  WebMediaPlayerImpl(SbPlayerInterface* interface, PipelineWindow window,
-                     const Pipeline::GetDecodeTargetGraphicsContextProviderFunc&
+  WebMediaPlayerImpl(SbPlayerInterface* interface,
+                     ChromeMediaVersions chrome_media_version,
+                     PipelineWindow window,
+                     const GetDecodeTargetGraphicsContextProviderFunc&
                          get_decode_target_graphics_context_provider_func,
                      WebMediaPlayerClient* client,
                      WebMediaPlayerDelegate* delegate,
@@ -114,7 +122,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                      bool force_punch_out_by_default,
                      base::TimeDelta audio_write_duration_local,
                      base::TimeDelta audio_write_duration_remote,
-                     ::media::MediaLog* const media_log);
+                     MediaLogHolder* const media_log);
   ~WebMediaPlayerImpl() override;
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -193,12 +201,16 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   void SetDrmSystem(const scoped_refptr<media::DrmSystem>& drm_system) override;
   void SetDrmSystemReadyCB(const DrmSystemReadyCB& drm_system_ready_cb);
 
-  void OnPipelineSeek(::media::PipelineStatus status, bool is_initial_preroll,
+  template <typename ChromeMedia>
+  void OnPipelineSeek(typename ChromeMedia::PipelineStatus status,
+                      bool is_initial_preroll,
                       const std::string& error_message);
-  void OnPipelineEnded(::media::PipelineStatus status);
-  void OnPipelineError(::media::PipelineStatus error,
+  template <typename ChromeMedia>
+  void OnPipelineEnded(typename ChromeMedia::PipelineStatus status);
+  template <typename ChromeMedia>
+  void OnPipelineError(typename ChromeMedia::PipelineStatus error,
                        const std::string& message);
-  void OnPipelineBufferingState(Pipeline::BufferingState buffering_state);
+  void OnPipelineBufferingState(BufferingState buffering_state);
   void OnDemuxerOpened();
 
  private:
@@ -209,7 +221,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 #if SB_HAS(PLAYER_WITH_URL)
   void StartPipeline(const GURL& url);
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  void StartPipeline(::media::Demuxer* demuxer);
+  template <typename ChromeMedia>
+  void StartPipeline(typename ChromeMedia::Demuxer* demuxer);
 
   // Helpers that set the network/ready state and notifies the client if
   // they've changed.
@@ -222,9 +235,9 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   void GetMediaTimeAndSeekingState(base::TimeDelta* media_time,
                                    bool* is_seeking) const;
+  template <typename EMEInitDataType>
   void OnEncryptedMediaInitDataEncounteredWrapper(
-      ::media::EmeInitDataType init_data_type,
-      const std::vector<uint8_t>& init_data);
+      EMEInitDataType init_data_type, const std::vector<uint8_t>& init_data);
   void OnEncryptedMediaInitDataEncountered(
       const char* init_data_type, const std::vector<uint8_t>& init_data);
 
@@ -251,7 +264,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // telemetry data.
   MediaMetricsProvider media_metrics_provider_;
 
-  scoped_refptr<Pipeline> pipeline_;
+  PipelineHolder pipeline_;
 
   // The currently selected key system. Empty string means that no key system
   // has been selected.
@@ -307,12 +320,12 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   scoped_refptr<WebMediaPlayerProxy> proxy_;
 
-  ::media::MediaLog* const media_log_;
+  MediaLogHolder* const media_log_;
 
   bool is_local_source_;
 
   std::unique_ptr<::media::Demuxer> progressive_demuxer_;
-  std::unique_ptr<::media::ChunkDemuxer> chunk_demuxer_;
+  ChunkDemuxerHolder chunk_demuxer_;
 
   // Suppresses calls to OnPipelineError() after destruction / shutdown has been
   // started; prevents us from spuriously logging errors that are transient or

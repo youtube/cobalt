@@ -25,15 +25,12 @@
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "cobalt/media/base/chrome_media.h"
 #include "cobalt/media/base/cval_stats.h"
 #include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/base/decoder_buffer_cache.h"
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
-#include "media/base/audio_decoder_config.h"
-#include "media/base/decoder_buffer.h"
-#include "media/base/demuxer_stream.h"
-#include "media/base/video_decoder_config.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "ui/gfx/geometry/rect.h"
@@ -42,16 +39,14 @@ namespace cobalt {
 namespace media {
 
 // TODO: Add switch to disable caching
+template <typename ChromeMedia>
 class SbPlayerBridge {
-  typedef ::media::AudioDecoderConfig AudioDecoderConfig;
-  typedef ::media::DecoderBuffer DecoderBuffer;
-  typedef ::media::DemuxerStream DemuxerStream;
-  typedef ::media::VideoDecoderConfig VideoDecoderConfig;
+  TYPEDEF_CHROME_MEDIA_TYPES(ChromeMedia);
 
  public:
   class Host {
    public:
-    virtual void OnNeedData(DemuxerStream::Type type,
+    virtual void OnNeedData(typename DemuxerStream::Type type,
                             int max_number_of_buffers_to_write) = 0;
     virtual void OnPlayerStatus(SbPlayerState state) = 0;
     virtual void OnPlayerError(SbPlayerError error,
@@ -106,7 +101,7 @@ class SbPlayerBridge {
   void UpdateVideoConfig(const VideoDecoderConfig& video_config,
                          const std::string& mime_type);
 
-  void WriteBuffers(DemuxerStream::Type type,
+  void WriteBuffers(typename DemuxerStream::Type type,
                     const std::vector<scoped_refptr<DecoderBuffer>>& buffers);
 
   void SetBounds(int z_index, const gfx::Rect& rect);
@@ -200,12 +195,12 @@ class SbPlayerBridge {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   void CreatePlayer();
 
-  void WriteNextBuffersFromCache(DemuxerStream::Type type,
+  void WriteNextBuffersFromCache(typename DemuxerStream::Type type,
                                  int max_buffers_per_write);
 
   template <typename PlayerSampleInfo>
   void WriteBuffersInternal(
-      DemuxerStream::Type type,
+      typename DemuxerStream::Type type,
       const std::vector<scoped_refptr<DecoderBuffer>>& buffers,
       const SbMediaAudioStreamInfo* audio_stream_info,
       const SbMediaVideoStreamInfo* video_stream_info);
@@ -274,7 +269,7 @@ class SbPlayerBridge {
   float volume_ = 1.0f;
   double playback_rate_ = 0.0;
   bool seek_pending_ = false;
-  DecoderBufferCache decoder_buffer_cache_;
+  DecoderBufferCache<ChromeMedia> decoder_buffer_cache_;
 
   // The following variables can be accessed from GetInfo(), which can be called
   // from any threads.  So some of their usages have to be guarded by |lock_|.
@@ -331,5 +326,7 @@ class SbPlayerBridge {
 
 }  // namespace media
 }  // namespace cobalt
+
+#include "cobalt/media/base/sbplayer_bridge.cc"
 
 #endif  // COBALT_MEDIA_BASE_SBPLAYER_BRIDGE_H_

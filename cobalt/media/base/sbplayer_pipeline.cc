@@ -25,7 +25,6 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/startup_timer.h"
-#include "media/base/channel_layout.h"
 #include "starboard/common/media.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
@@ -34,15 +33,6 @@ namespace cobalt {
 namespace media {
 namespace {
 
-using ::media::AudioCodec;
-using ::media::AudioDecoderConfig;
-using ::media::DecoderBuffer;
-using ::media::Demuxer;
-using ::media::DemuxerHost;
-using ::media::DemuxerStream;
-using ::media::PipelineStatistics;
-using ::media::PipelineStatusCallback;
-using ::media::VideoDecoderConfig;
 using ::starboard::GetMediaAudioConnectorName;
 
 static const int kRetryDelayAtSuspendInMilliseconds = 100;
@@ -110,14 +100,16 @@ TimeDelta AdjustWriteDurationForPlaybackRate(TimeDelta write_duration,
 //
 // The number of frames is used to estimate the number of samples per write for
 // audio preroll according to |audio_write_duration_|.
-int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
+template <typename ChromeMedia>
+inline int GetDefaultAudioFramesPerBuffer(
+    typename ChromeMedia::AudioCodec codec) {
   switch (codec) {
-    case AudioCodec::kOpus:
+    case ChromeMedia::AudioCodec::kOpus:
       return 960;
-    case AudioCodec::kAAC:
+    case ChromeMedia::AudioCodec::kAAC:
       return 1024;
-    case AudioCodec::kAC3:
-    case AudioCodec::kEAC3:
+    case ChromeMedia::AudioCodec::kAC3:
+    case ChromeMedia::AudioCodec::kEAC3:
       return 1536;
     default:
       NOTREACHED();
@@ -127,7 +119,8 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
 
 }  // namespace
 
-SbPlayerPipeline::SbPlayerPipeline(
+template <typename ChromeMedia>
+SbPlayerPipeline<ChromeMedia>::SbPlayerPipeline(
     SbPlayerInterface* interface, PipelineWindow window,
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
@@ -194,29 +187,33 @@ SbPlayerPipeline::SbPlayerPipeline(
   }
 }
 
-SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_bridge_); }
+template <typename ChromeMedia>
+SbPlayerPipeline<ChromeMedia>::~SbPlayerPipeline() {
+  DCHECK(!player_bridge_);
+}
 
-
-void SbPlayerPipeline::Suspend() {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::Suspend() {
   DCHECK(!task_runner_->RunsTasksInCurrentSequence());
 
   base::WaitableEvent waitable_event(
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED);
   task_runner_->PostTask(FROM_HERE,
-                         base::Bind(&SbPlayerPipeline::SuspendTask,
+                         base::Bind(&SbPlayerPipeline<ChromeMedia>::SuspendTask,
                                     base::Unretained(this), &waitable_event));
   waitable_event.Wait();
 }
 
-void SbPlayerPipeline::Resume(PipelineWindow window) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::Resume(PipelineWindow window) {
   DCHECK(!task_runner_->RunsTasksInCurrentSequence());
 
   base::WaitableEvent waitable_event(
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED);
   task_runner_->PostTask(
-      FROM_HERE, base::Bind(&SbPlayerPipeline::ResumeTask,
+      FROM_HERE, base::Bind(&SbPlayerPipeline<ChromeMedia>::ResumeTask,
                             base::Unretained(this), window, &waitable_event));
   waitable_event.Wait();
 }
@@ -239,17 +236,16 @@ void OnEncryptedMediaInitDataEncountered(
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-void SbPlayerPipeline::Start(Demuxer* demuxer,
-                             const SetDrmSystemReadyCB& set_drm_system_ready_cb,
-                             const PipelineStatusCB& ended_cb,
-                             const ErrorCB& error_cb, const SeekCB& seek_cb,
-                             const BufferingStateCB& buffering_state_cb,
-                             const base::Closure& duration_change_cb,
-                             const base::Closure& output_mode_change_cb,
-                             const base::Closure& content_size_change_cb,
-                             const std::string& max_video_capabilities,
-                             const int max_video_input_size) {
-  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::Start");
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::Start(
+    Demuxer* demuxer, const SetDrmSystemReadyCB& set_drm_system_ready_cb,
+    const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
+    const SeekCB& seek_cb, const BufferingStateCB& buffering_state_cb,
+    const base::Closure& duration_change_cb,
+    const base::Closure& output_mode_change_cb,
+    const base::Closure& content_size_change_cb,
+    const std::string& max_video_capabilities, const int max_video_input_size) {
+  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline<ChromeMedia>::Start");
 
   DCHECK(!ended_cb.is_null());
   DCHECK(!error_cb.is_null());
@@ -276,23 +272,24 @@ void SbPlayerPipeline::Start(Demuxer* demuxer,
   parameters.is_url_based = false;
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-  task_runner_->PostTask(FROM_HERE,
-                         base::Bind(&SbPlayerPipeline::StartTask, this,
-                                    base::Passed(&parameters)));
+  task_runner_->PostTask(
+      FROM_HERE, base::Bind(&SbPlayerPipeline<ChromeMedia>::StartTask, this,
+                            base::Passed(&parameters)));
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
-void SbPlayerPipeline::Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
-                             const OnEncryptedMediaInitDataEncounteredCB&
-                                 on_encrypted_media_init_data_encountered_cb,
-                             const std::string& source_url,
-                             const PipelineStatusCB& ended_cb,
-                             const ErrorCB& error_cb, const SeekCB& seek_cb,
-                             const BufferingStateCB& buffering_state_cb,
-                             const base::Closure& duration_change_cb,
-                             const base::Closure& output_mode_change_cb,
-                             const base::Closure& content_size_change_cb) {
-  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::Start");
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::Start(
+    const SetDrmSystemReadyCB& set_drm_system_ready_cb,
+    const OnEncryptedMediaInitDataEncounteredCB&
+        on_encrypted_media_init_data_encountered_cb,
+    const std::string& source_url, const PipelineStatusCB& ended_cb,
+    const ErrorCB& error_cb, const SeekCB& seek_cb,
+    const BufferingStateCB& buffering_state_cb,
+    const base::Closure& duration_change_cb,
+    const base::Closure& output_mode_change_cb,
+    const base::Closure& content_size_change_cb) {
+  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline<ChromeMedia>::Start");
 
   DCHECK(!ended_cb.is_null());
   DCHECK(!error_cb.is_null());
@@ -320,20 +317,23 @@ void SbPlayerPipeline::Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
                  on_encrypted_media_init_data_encountered_cb);
   set_drm_system_ready_cb_ = parameters.set_drm_system_ready_cb;
   DCHECK(!set_drm_system_ready_cb_.is_null());
-  RunSetDrmSystemReadyCB(base::Bind(&SbPlayerPipeline::SetDrmSystem, this));
+  RunSetDrmSystemReadyCB(
+      base::Bind(&SbPlayerPipeline<ChromeMedia>::SetDrmSystem, this));
 
-  task_runner_->PostTask(FROM_HERE,
-                         base::Bind(&SbPlayerPipeline::StartTask, this,
-                                    base::Passed(&parameters)));
+  task_runner_->PostTask(
+      FROM_HERE, base::Bind(&SbPlayerPipeline<ChromeMedia>::StartTask, this,
+                            base::Passed(&parameters)));
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
-  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::Stop");
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::Stop(const base::Closure& stop_cb) {
+  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline<ChromeMedia>::Stop");
 
   if (!task_runner_->RunsTasksInCurrentSequence()) {
-    task_runner_->PostTask(FROM_HERE,
-                           base::Bind(&SbPlayerPipeline::Stop, this, stop_cb));
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::Bind(&SbPlayerPipeline<ChromeMedia>::Stop, this, stop_cb));
     return;
   }
 
@@ -343,7 +343,7 @@ void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
   stopped_ = true;
 
   if (player_bridge_) {
-    std::unique_ptr<SbPlayerBridge> player_bridge;
+    decltype(player_bridge_) player_bridge;
     {
       base::AutoLock auto_lock(lock_);
       player_bridge = std::move(player_bridge_);
@@ -367,19 +367,25 @@ void SbPlayerPipeline::Stop(const base::Closure& stop_cb) {
   }
 }
 
-void SbPlayerPipeline::Seek(TimeDelta time, const SeekCB& seek_cb) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::Seek(TimeDelta time,
+                                         const SeekCB& seek_cb) {
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
-        FROM_HERE, base::Bind(&SbPlayerPipeline::Seek, this, time, seek_cb));
+        FROM_HERE,
+        base::Bind(&SbPlayerPipeline<ChromeMedia>::Seek, this, time, seek_cb));
     return;
   }
 
   playback_statistics_.OnSeek(time);
 
   if (!player_bridge_) {
-    seek_cb.Run(::media::PIPELINE_ERROR_INVALID_STATE, false,
-                AppendStatisticsString("SbPlayerPipeline::Seek failed: "
-                                       "player_bridge_ is nullptr."));
+    seek_cb.Run(
+        pipeline_status_cast<PipelineStatus>(
+            ::media::PIPELINE_ERROR_INVALID_STATE),
+        false,
+        AppendStatisticsString("SbPlayerPipeline<ChromeMedia>::Seek failed: "
+                               "player_bridge_ is nullptr."));
     return;
   }
 
@@ -392,7 +398,8 @@ void SbPlayerPipeline::Seek(TimeDelta time, const SeekCB& seek_cb) {
   if (audio_read_in_progress_ || video_read_in_progress_) {
     const TimeDelta kDelay = base::Milliseconds(50);
     task_runner_->PostDelayedTask(
-        FROM_HERE, base::Bind(&SbPlayerPipeline::Seek, this, time, seek_cb),
+        FROM_HERE,
+        base::Bind(&SbPlayerPipeline<ChromeMedia>::Seek, this, time, seek_cb),
         kDelay);
     return;
   }
@@ -417,53 +424,63 @@ void SbPlayerPipeline::Seek(TimeDelta time, const SeekCB& seek_cb) {
     return;
   }
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  demuxer_->Seek(time, BindPostTaskToCurrentDefault(base::Bind(
-                           &SbPlayerPipeline::OnDemuxerSeeked, this)));
+  demuxer_->Seek(time,
+                 BindPostTaskToCurrentDefault(base::Bind(
+                     &SbPlayerPipeline<ChromeMedia>::OnDemuxerSeeked, this)));
 }
 
-bool SbPlayerPipeline::HasAudio() const {
+template <typename ChromeMedia>
+bool SbPlayerPipeline<ChromeMedia>::HasAudio() const {
   base::AutoLock auto_lock(lock_);
   return audio_stream_ != NULL;
 }
 
-bool SbPlayerPipeline::HasVideo() const {
+template <typename ChromeMedia>
+bool SbPlayerPipeline<ChromeMedia>::HasVideo() const {
   base::AutoLock auto_lock(lock_);
   return video_stream_ != NULL;
 }
 
-float SbPlayerPipeline::GetPlaybackRate() const {
+template <typename ChromeMedia>
+float SbPlayerPipeline<ChromeMedia>::GetPlaybackRate() const {
   base::AutoLock auto_lock(lock_);
   return playback_rate_;
 }
 
-void SbPlayerPipeline::SetPlaybackRate(float playback_rate) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::SetPlaybackRate(float playback_rate) {
   base::AutoLock auto_lock(lock_);
   playback_rate_ = playback_rate;
   task_runner_->PostTask(
-      FROM_HERE,
-      base::Bind(&SbPlayerPipeline::SetPlaybackRateTask, this, playback_rate));
+      FROM_HERE, base::Bind(&SbPlayerPipeline<ChromeMedia>::SetPlaybackRateTask,
+                            this, playback_rate));
 }
 
-float SbPlayerPipeline::GetVolume() const {
+template <typename ChromeMedia>
+float SbPlayerPipeline<ChromeMedia>::GetVolume() const {
   base::AutoLock auto_lock(lock_);
   return volume_;
 }
 
-void SbPlayerPipeline::SetVolume(float volume) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::SetVolume(float volume) {
   if (volume < 0.0f || volume > 1.0f) return;
 
   base::AutoLock auto_lock(lock_);
   volume_ = volume;
   task_runner_->PostTask(
-      FROM_HERE, base::Bind(&SbPlayerPipeline::SetVolumeTask, this, volume));
+      FROM_HERE,
+      base::Bind(&SbPlayerPipeline<ChromeMedia>::SetVolumeTask, this, volume));
 }
 
-void SbPlayerPipeline::StoreMediaTime(TimeDelta media_time) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::StoreMediaTime(TimeDelta media_time) {
   last_media_time_ = media_time;
   last_time_media_time_retrieved_ = Time::Now();
 }
 
-TimeDelta SbPlayerPipeline::GetMediaTime() {
+template <typename ChromeMedia>
+TimeDelta SbPlayerPipeline<ChromeMedia>::GetMediaTime() {
   base::AutoLock auto_lock(lock_);
 
   if (!seek_cb_.is_null()) {
@@ -491,8 +508,8 @@ TimeDelta SbPlayerPipeline::GetMediaTime() {
     }
   }
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  player_bridge_->GetInfo(&statistics_.video_frames_decoded,
-                          &statistics_.video_frames_dropped, &media_time);
+  player_bridge_->GetInfo(&video_statistics_.video_frames_decoded,
+                          &video_statistics_.video_frames_dropped, &media_time);
 
   // Guarantee that we report monotonically increasing media time
   if (media_time < last_media_time_) {
@@ -512,74 +529,98 @@ TimeDelta SbPlayerPipeline::GetMediaTime() {
   return media_time;
 }
 
-::media::Ranges<TimeDelta> SbPlayerPipeline::GetBufferedTimeRanges() {
-  base::AutoLock auto_lock(lock_);
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::UpdateBufferedTimeRanges(
+    const AddRangeCB& add_range_cb) {
+  DCHECK(add_range_cb);
+
+  // Make a copy under the lock, then process the ranges without the lock.
+  decltype(buffered_time_ranges_) buffered_time_ranges;
+
+  {
+    base::AutoLock auto_lock(lock_);
 
 #if SB_HAS(PLAYER_WITH_URL)
-  ::media::Ranges<TimeDelta> time_ranges;
+    Ranges time_ranges;
 
-  if (!player_bridge_) {
-    return time_ranges;
-  }
-
-  if (is_url_based_) {
-    TimeDelta media_time;
-    TimeDelta buffer_start_time;
-    TimeDelta buffer_length_time;
-    player_bridge_->GetInfo(&statistics_.video_frames_decoded,
-                            &statistics_.video_frames_dropped, &media_time);
-    player_bridge_->GetUrlPlayerBufferedTimeRanges(&buffer_start_time,
-                                                   &buffer_length_time);
-
-    if (buffer_length_time.InSeconds() == 0) {
-      buffered_time_ranges_ = time_ranges;
-      return time_ranges;
+    if (!player_bridge_) {
+      return;
     }
 
-    time_ranges.Add(buffer_start_time, buffer_start_time + buffer_length_time);
+    if (is_url_based_) {
+      TimeDelta media_time;
+      TimeDelta buffer_start_time;
+      TimeDelta buffer_length_time;
+      player_bridge_->GetInfo(&video_statistics_.video_frames_decoded,
+                              &video_statistics_.video_frames_dropped,
+                              &media_time);
+      player_bridge_->GetUrlPlayerBufferedTimeRanges(&buffer_start_time,
+                                                     &buffer_length_time);
 
-    if (buffered_time_ranges_.size() > 0) {
-      TimeDelta old_buffer_start_time = buffered_time_ranges_.start(0);
-      TimeDelta old_buffer_length_time = buffered_time_ranges_.end(0);
-      int64 old_start_seconds = old_buffer_start_time.InSeconds();
-      int64 new_start_seconds = buffer_start_time.InSeconds();
-      int64 old_length_seconds = old_buffer_length_time.InSeconds();
-      int64 new_length_seconds = buffer_length_time.InSeconds();
-      if (old_start_seconds != new_start_seconds ||
-          old_length_seconds != new_length_seconds) {
+      if (buffer_length_time.InSeconds() == 0) {
+        // The range is empty, set |buffered_time_ranges_| to empty range and
+        // return as is.
+        buffered_time_ranges_ = time_ranges;
+        return;
+      }
+
+      time_ranges.Add(buffer_start_time,
+                      buffer_start_time + buffer_length_time);
+
+      if (buffered_time_ranges_.size() > 0) {
+        TimeDelta old_buffer_start_time = buffered_time_ranges_.start(0);
+        TimeDelta old_buffer_length_time = buffered_time_ranges_.end(0);
+        int64 old_start_seconds = old_buffer_start_time.InSeconds();
+        int64 new_start_seconds = buffer_start_time.InSeconds();
+        int64 old_length_seconds = old_buffer_length_time.InSeconds();
+        int64 new_length_seconds = buffer_length_time.InSeconds();
+        if (old_start_seconds != new_start_seconds ||
+            old_length_seconds != new_length_seconds) {
+          did_loading_progress_ = true;
+        }
+      } else {
         did_loading_progress_ = true;
       }
-    } else {
-      did_loading_progress_ = true;
+
+      buffered_time_ranges_ = time_ranges;
+      buffered_time_ranges = buffered_time_ranges_;
     }
-
-    buffered_time_ranges_ = time_ranges;
-    return time_ranges;
-  }
+#else   // SB_HAS(PLAYER_WITH_URL)
+    buffered_time_ranges = buffered_time_ranges_;
 #endif  // SB_HAS(PLAYER_WITH_URL)
+  }
 
-  return buffered_time_ranges_;
+  for (int i = 0; i < static_cast<int>(buffered_time_ranges.size()); ++i) {
+    add_range_cb(buffered_time_ranges.start(i).InSecondsF(),
+                 buffered_time_ranges.end(i).InSecondsF());
+  }
 }
 
-TimeDelta SbPlayerPipeline::GetMediaDuration() const {
+template <typename ChromeMedia>
+TimeDelta SbPlayerPipeline<ChromeMedia>::GetMediaDuration() const {
   base::AutoLock auto_lock(lock_);
   return duration_;
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
-TimeDelta SbPlayerPipeline::GetMediaStartDate() const {
+template <typename ChromeMedia>
+TimeDelta SbPlayerPipeline<ChromeMedia>::GetMediaStartDate() const {
   base::AutoLock auto_lock(lock_);
   return start_date_;
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-void SbPlayerPipeline::GetNaturalVideoSize(gfx::Size* out_size) const {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::GetNaturalVideoSize(
+    gfx::Size* out_size) const {
   CHECK(out_size);
   base::AutoLock auto_lock(lock_);
   *out_size = natural_size_;
 }
 
-std::vector<std::string> SbPlayerPipeline::GetAudioConnectors() const {
+template <typename ChromeMedia>
+std::vector<std::string> SbPlayerPipeline<ChromeMedia>::GetAudioConnectors()
+    const {
   base::AutoLock auto_lock(lock_);
   if (!player_bridge_) {
     return std::vector<std::string>();
@@ -602,30 +643,36 @@ std::vector<std::string> SbPlayerPipeline::GetAudioConnectors() const {
   return connectors;
 }
 
-bool SbPlayerPipeline::DidLoadingProgress() const {
+template <typename ChromeMedia>
+bool SbPlayerPipeline<ChromeMedia>::DidLoadingProgress() const {
   base::AutoLock auto_lock(lock_);
   bool ret = did_loading_progress_;
   did_loading_progress_ = false;
   return ret;
 }
 
-PipelineStatistics SbPlayerPipeline::GetStatistics() const {
+template <typename ChromeMedia>
+VideoStatistics SbPlayerPipeline<ChromeMedia>::GetVideoStatistics() const {
   base::AutoLock auto_lock(lock_);
-  return statistics_;
+  return video_statistics_;
 }
 
-Pipeline::SetBoundsCB SbPlayerPipeline::GetSetBoundsCB() {
+template <typename ChromeMedia>
+SetBoundsCB SbPlayerPipeline<ChromeMedia>::GetSetBoundsCB() {
   return base::Bind(&SbPlayerSetBoundsHelper::SetBounds, set_bounds_helper_);
 }
 
-void SbPlayerPipeline::SetPreferredOutputModeToDecodeToTexture() {
-  TRACE_EVENT0("cobalt::media",
-               "SbPlayerPipeline::SetPreferredOutputModeToDecodeToTexture");
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::SetPreferredOutputModeToDecodeToTexture() {
+  TRACE_EVENT0(
+      "cobalt::media",
+      "SbPlayerPipeline<ChromeMedia>::SetPreferredOutputModeToDecodeToTexture");
 
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE,
-        base::Bind(&SbPlayerPipeline::SetPreferredOutputModeToDecodeToTexture,
+        base::Bind(&SbPlayerPipeline<
+                       ChromeMedia>::SetPreferredOutputModeToDecodeToTexture,
                    this));
     return;
   }
@@ -637,8 +684,9 @@ void SbPlayerPipeline::SetPreferredOutputModeToDecodeToTexture() {
   default_output_mode_ = kSbPlayerOutputModeDecodeToTexture;
 }
 
-void SbPlayerPipeline::StartTask(StartTaskParameters parameters) {
-  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::StartTask");
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::StartTask(StartTaskParameters parameters) {
+  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline<ChromeMedia>::StartTask");
 
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
@@ -666,13 +714,14 @@ void SbPlayerPipeline::StartTask(StartTaskParameters parameters) {
   }
 #endif  // SB_HAS(PLAYER_WITH_URL)
   demuxer_->Initialize(
-      this, BindPostTaskToCurrentDefault(
-                base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this)));
+      this, BindPostTaskToCurrentDefault(base::Bind(
+                &SbPlayerPipeline<ChromeMedia>::OnDemuxerInitialized, this)));
 
   started_ = true;
 }
 
-void SbPlayerPipeline::SetVolumeTask(float volume) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::SetVolumeTask(float volume) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (player_bridge_) {
@@ -680,7 +729,8 @@ void SbPlayerPipeline::SetVolumeTask(float volume) {
   }
 }
 
-void SbPlayerPipeline::SetPlaybackRateTask(float volume) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::SetPlaybackRateTask(float volume) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (player_bridge_) {
@@ -688,45 +738,55 @@ void SbPlayerPipeline::SetPlaybackRateTask(float volume) {
   }
 }
 
-void SbPlayerPipeline::SetDurationTask(TimeDelta duration) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::SetDurationTask(TimeDelta duration) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   if (!duration_change_cb_.is_null()) {
     duration_change_cb_.Run();
   }
 }
 
-void SbPlayerPipeline::OnBufferedTimeRangesChanged(
-    const ::media::Ranges<TimeDelta>& ranges) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::OnBufferedTimeRangesChanged(
+    const Ranges& ranges) {
   base::AutoLock auto_lock(lock_);
   did_loading_progress_ = true;
   buffered_time_ranges_ = ranges;
 }
 
-void SbPlayerPipeline::SetDuration(TimeDelta duration) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::SetDuration(TimeDelta duration) {
   base::AutoLock auto_lock(lock_);
   duration_ = duration;
   task_runner_->PostTask(
-      FROM_HERE,
-      base::Bind(&SbPlayerPipeline::SetDurationTask, this, duration));
+      FROM_HERE, base::Bind(&SbPlayerPipeline<ChromeMedia>::SetDurationTask,
+                            this, duration));
 }
 
-void SbPlayerPipeline::OnDemuxerError(PipelineStatus error) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::OnDemuxerError(PipelineStatus error) {
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
-        FROM_HERE, base::Bind(&SbPlayerPipeline::OnDemuxerError, this, error));
+        FROM_HERE, base::Bind(&SbPlayerPipeline<ChromeMedia>::OnDemuxerError,
+                              this, error));
     return;
   }
 
-  LOG(INFO) << "SbPlayerPipeline::OnDemuxerError() called with error " << error;
+  LOG(INFO)
+      << "SbPlayerPipeline<ChromeMedia>::OnDemuxerError() called with error "
+      << error;
 
-  if (error != ::media::PIPELINE_OK) {
+  if (error != pipeline_status_cast<PipelineStatus>(::media::PIPELINE_OK)) {
     CallErrorCB(error, "Demuxer error.");
   }
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
-void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
-  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::CreateUrlPlayer");
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::CreateUrlPlayer(
+    const std::string& source_url) {
+  TRACE_EVENT0("cobalt::media",
+               "SbPlayerPipeline<ChromeMedia>::CreateUrlPlayer");
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (stopped_) {
@@ -736,7 +796,8 @@ void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
   if (suspended_) {
     task_runner_->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&SbPlayerPipeline::CreateUrlPlayer, this, source_url),
+        base::Bind(&SbPlayerPipeline<ChromeMedia>::CreateUrlPlayer, this,
+                   source_url),
         TimeDelta::FromMilliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
@@ -775,22 +836,27 @@ void SbPlayerPipeline::CreateUrlPlayer(const std::string& source_url) {
   }
 
   std::string time_information = GetTimeInformation();
-  LOG(INFO) << "SbPlayerPipeline::CreateUrlPlayer failed to create a valid "
+  LOG(INFO) << "SbPlayerPipeline<ChromeMedia>::CreateUrlPlayer failed to "
+               "create a valid "
                "SbPlayerBridge - "
             << time_information << " \'" << error_message << "\'";
 
-  CallSeekCB(::media::DECODER_ERROR_NOT_SUPPORTED,
-             "SbPlayerPipeline::CreateUrlPlayer failed to create a valid "
-             "SbPlayerBridge - " +
-                 time_information + " \'" + error_message + "\'");
+  CallSeekCB(
+      pipeline_status_cast<PipelineStatus>(
+          ::media::DECODER_ERROR_NOT_SUPPORTED),
+      "SbPlayerPipeline<ChromeMedia>::CreateUrlPlayer failed to create a valid "
+      "SbPlayerBridge - " +
+          time_information + " \'" + error_message + "\'");
 }
 
-void SbPlayerPipeline::SetDrmSystem(SbDrmSystem drm_system) {
-  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::SetDrmSystem");
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::SetDrmSystem(SbDrmSystem drm_system) {
+  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline<ChromeMedia>::SetDrmSystem");
 
   base::AutoLock auto_lock(lock_);
   if (!player_bridge_) {
-    LOG(INFO) << "Player not set before calling SbPlayerPipeline::SetDrmSystem";
+    LOG(INFO) << "Player not set before calling "
+                 "SbPlayerPipeline<ChromeMedia>::SetDrmSystem";
     return;
   }
 
@@ -801,11 +867,12 @@ void SbPlayerPipeline::SetDrmSystem(SbDrmSystem drm_system) {
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::CreatePlayer(SbDrmSystem drm_system) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL
-  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::CreatePlayer");
+  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline<ChromeMedia>::CreatePlayer");
 
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(audio_stream_ || video_stream_);
@@ -817,7 +884,8 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   if (suspended_) {
     task_runner_->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&SbPlayerPipeline::CreatePlayer, this, drm_system),
+        base::Bind(&SbPlayerPipeline<ChromeMedia>::CreatePlayer, this,
+                   drm_system),
         base::Milliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
@@ -851,7 +919,7 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
     // active players.
     player_bridge_.reset();
     LOG(INFO) << "Creating SbPlayerBridge.";
-    player_bridge_.reset(new SbPlayerBridge(
+    player_bridge_.reset(new SbPlayerBridge<ChromeMedia>(
         sbplayer_interface_, task_runner_,
         get_decode_target_graphics_context_provider_func_, audio_config,
         audio_mime_type, video_config, video_mime_type, window_, drm_system,
@@ -898,21 +966,27 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   }
 
   std::string time_information = GetTimeInformation();
-  LOG(INFO) << "SbPlayerPipeline::CreatePlayer failed to create a valid "
-               "SbPlayerBridge - "
-            << time_information << " \'" << error_message << "\'";
+  LOG(INFO)
+      << "SbPlayerPipeline<ChromeMedia>::CreatePlayer failed to create a valid "
+         "SbPlayerBridge - "
+      << time_information << " \'" << error_message << "\'";
 
-  CallSeekCB(::media::DECODER_ERROR_NOT_SUPPORTED,
-             "SbPlayerPipeline::CreatePlayer failed to create a valid "
-             "SbPlayerBridge - " +
-                 time_information + " \'" + error_message + "\'");
+  CallSeekCB(
+      pipeline_status_cast<PipelineStatus>(
+          ::media::DECODER_ERROR_NOT_SUPPORTED),
+      "SbPlayerPipeline<ChromeMedia>::CreatePlayer failed to create a valid "
+      "SbPlayerBridge - " +
+          time_information + " \'" + error_message + "\'");
 }
 
-void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::OnDemuxerInitialized(
+    PipelineStatus status) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::OnDemuxerInitialized");
+  TRACE_EVENT0("cobalt::media",
+               "SbPlayerPipeline<ChromeMedia>::OnDemuxerInitialized");
 
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
@@ -920,7 +994,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
     return;
   }
 
-  if (status != ::media::PIPELINE_OK) {
+  if (status != pipeline_status_cast<PipelineStatus>(::media::PIPELINE_OK)) {
     CallErrorCB(status, "Demuxer initialization error.");
     return;
   }
@@ -928,7 +1002,8 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   if (suspended_) {
     task_runner_->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this, status),
+        base::Bind(&SbPlayerPipeline<ChromeMedia>::OnDemuxerInitialized, this,
+                   status),
         base::Milliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
@@ -954,7 +1029,8 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
 
   if (audio_stream == NULL && video_stream == NULL) {
     LOG(INFO) << "The video has to contain an audio track or a video track.";
-    CallErrorCB(::media::DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
+    CallErrorCB(pipeline_status_cast<PipelineStatus>(
+                    ::media::DEMUXER_ERROR_NO_SUPPORTED_STREAMS),
                 "The video has to contain an audio track or a video track.");
     return;
   }
@@ -982,7 +1058,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
     }
     if (is_encrypted) {
       RunSetDrmSystemReadyCB(BindPostTaskToCurrentDefault(
-          base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
+          base::Bind(&SbPlayerPipeline<ChromeMedia>::CreatePlayer, this)));
       return;
     }
   }
@@ -990,30 +1066,36 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   CreatePlayer(kSbDrmSystemInvalid);
 }
 
-void SbPlayerPipeline::OnDemuxerSeeked(PipelineStatus status) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::OnDemuxerSeeked(PipelineStatus status) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  if (status == ::media::PIPELINE_OK && player_bridge_) {
+  if (status == pipeline_status_cast<PipelineStatus>(::media::PIPELINE_OK) &&
+      player_bridge_) {
     player_bridge_->Seek(seek_time_);
   }
 }
 
-void SbPlayerPipeline::OnDemuxerStopped() {
-  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::OnDemuxerStopped");
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::OnDemuxerStopped() {
+  TRACE_EVENT0("cobalt::media",
+               "SbPlayerPipeline<ChromeMedia>::OnDemuxerStopped");
 
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
-        FROM_HERE, base::Bind(&SbPlayerPipeline::OnDemuxerStopped, this));
+        FROM_HERE,
+        base::Bind(&SbPlayerPipeline<ChromeMedia>::OnDemuxerStopped, this));
     return;
   }
 
   std::move(stop_cb_).Run();
 }
 
-void SbPlayerPipeline::OnDemuxerStreamRead(
-    DemuxerStream::Type type, int max_number_buffers_to_read,
-    DemuxerStream::Status status,
-    const std::vector<scoped_refptr<DecoderBuffer>> buffers) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::OnDemuxerStreamRead(
+    typename DemuxerStream::Type type, int max_number_buffers_to_read,
+    typename DemuxerStream::Status status,
+    std::vector<scoped_refptr<DecoderBuffer>> buffers) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -1023,8 +1105,9 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE,
-        base::BindOnce(&SbPlayerPipeline::OnDemuxerStreamRead, this, type,
-                       max_number_buffers_to_read, status, buffers));
+        base::BindOnce(&SbPlayerPipeline<ChromeMedia>::OnDemuxerStreamRead,
+                       this, type, max_number_buffers_to_read, status,
+                       std::move(buffers)));
     return;
   }
 
@@ -1047,16 +1130,18 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     SetReadInProgress(type, false);
 
     if (!seek_cb_.is_null()) {
-      CallSeekCB(::media::PIPELINE_OK, "");
+      CallSeekCB(pipeline_status_cast<PipelineStatus>(::media::PIPELINE_OK),
+                 "");
     }
     return;
   }
 
   if (status == DemuxerStream::kConfigChanged) {
     UpdateDecoderConfig(stream);
-    stream->Read(max_number_buffers_to_read,
-                 base::BindOnce(&SbPlayerPipeline::OnDemuxerStreamRead, this,
-                                type, max_number_buffers_to_read));
+    stream->Read(
+        max_number_buffers_to_read,
+        base::BindOnce(&SbPlayerPipeline<ChromeMedia>::OnDemuxerStreamRead,
+                       this, type, max_number_buffers_to_read));
     return;
   }
 
@@ -1082,8 +1167,9 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
   player_bridge_->WriteBuffers(type, buffers);
 }
 
-void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
-                                  int max_number_of_buffers_to_write) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::OnNeedData(
+    typename DemuxerStream::Type type, int max_number_of_buffers_to_write) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -1144,7 +1230,8 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
           (adjusted_write_duration + kMediaTimeCheckInterval)) {
         task_runner_->PostDelayedTask(
             FROM_HERE,
-            base::Bind(&SbPlayerPipeline::DelayedNeedData, this, max_buffers),
+            base::Bind(&SbPlayerPipeline<ChromeMedia>::DelayedNeedData, this,
+                       max_buffers),
             kMediaTimeCheckInterval);
         audio_read_delayed_ = true;
         return;
@@ -1182,14 +1269,15 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
       type == DemuxerStream::AUDIO ? audio_stream_ : video_stream_;
   DCHECK(stream);
 
-  stream->Read(max_buffers,
-               base::BindOnce(&SbPlayerPipeline::OnDemuxerStreamRead, this,
-                              type, max_buffers));
+  stream->Read(
+      max_buffers,
+      base::BindOnce(&SbPlayerPipeline<ChromeMedia>::OnDemuxerStreamRead, this,
+                     type, max_buffers));
 }
 
-int SbPlayerPipeline::GetDefaultMaxBuffers(AudioCodec codec,
-                                           TimeDelta duration_to_write,
-                                           bool is_preroll) {
+template <typename ChromeMedia>
+int SbPlayerPipeline<ChromeMedia>::GetDefaultMaxBuffers(
+    AudioCodec codec, TimeDelta duration_to_write, bool is_preroll) {
   // Return default maximum samples per write to speed up the initial sample
   // write, including guard number of samples per write for audio preroll.
   // The guard number kPrerollGuardAudioBuffer is used to ensure Cobalt
@@ -1197,7 +1285,7 @@ int SbPlayerPipeline::GetDefaultMaxBuffers(AudioCodec codec,
   int default_max_buffers = static_cast<int>(
       std::ceil(duration_to_write.InSecondsF() *
                 audio_stream_->audio_decoder_config().samples_per_second() /
-                GetDefaultAudioFramesPerBuffer(codec)));
+                GetDefaultAudioFramesPerBuffer<ChromeMedia>(codec)));
   if (is_preroll) {
     default_max_buffers += kPrerollGuardAudioBuffer;
   }
@@ -1205,9 +1293,10 @@ int SbPlayerPipeline::GetDefaultMaxBuffers(AudioCodec codec,
   return default_max_buffers;
 }
 
-int SbPlayerPipeline::GetEstimatedMaxBuffers(TimeDelta write_duration,
-                                             TimeDelta time_ahead_of_playback,
-                                             bool is_preroll) {
+template <typename ChromeMedia>
+int SbPlayerPipeline<ChromeMedia>::GetEstimatedMaxBuffers(
+    TimeDelta write_duration, TimeDelta time_ahead_of_playback,
+    bool is_preroll) {
   DCHECK_GE(time_ahead_of_playback.InMicroseconds(), 0);
 
   int estimated_max_buffers = 1;
@@ -1230,7 +1319,7 @@ int SbPlayerPipeline::GetEstimatedMaxBuffers(TimeDelta write_duration,
         break;
       }
     // TODO(b/41486346): Support multiple samples per write on the format IAMF.
-    case AudioCodec::kIAMF:
+    // case AudioCodec::kIAMF:
     default:
       if (!last_audio_sample_interval_.is_zero()) {
         DCHECK_GT(last_audio_sample_interval_.InMicroseconds(), 0);
@@ -1248,7 +1337,8 @@ int SbPlayerPipeline::GetEstimatedMaxBuffers(TimeDelta write_duration,
   return estimated_max_buffers > 0 ? estimated_max_buffers : 1;
 }
 
-void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::OnPlayerStatus(SbPlayerState state) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   // In case if Stop() has been called.
@@ -1266,14 +1356,14 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
         break;
       }
 #endif  // SB_HAS(PLAYER_WITH_URL)
-      buffering_state_cb_.Run(kHaveMetadata);
+      buffering_state_cb_.Run(BufferingState::kHaveMetadata);
       break;
     case kSbPlayerStatePresenting: {
 #if SB_HAS(PLAYER_WITH_URL)
       if (is_url_based_) {
         duration_ = player_bridge_->GetDuration();
         start_date_ = player_bridge_->GetStartDate();
-        buffering_state_cb_.Run(kHaveMetadata);
+        buffering_state_cb_.Run(BufferingState::kHaveMetadata);
         int frame_width;
         int frame_height;
         player_bridge_->GetVideoResolution(&frame_width, &frame_height);
@@ -1285,9 +1375,10 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
         }
       }
 #endif  // SB_HAS(PLAYER_WITH_URL)
-      buffering_state_cb_.Run(kPrerollCompleted);
+      buffering_state_cb_.Run(BufferingState::kPrerollCompleted);
       if (!seek_cb_.is_null()) {
-        CallSeekCB(::media::PIPELINE_OK, "");
+        CallSeekCB(pipeline_status_cast<PipelineStatus>(::media::PIPELINE_OK),
+                   "");
       }
       if (video_stream_) {
         playback_statistics_.OnPresenting(
@@ -1310,7 +1401,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       break;
     }
     case kSbPlayerStateEndOfStream:
-      ended_cb_.Run(::media::PIPELINE_OK);
+      ended_cb_.Run(pipeline_status_cast<PipelineStatus>(::media::PIPELINE_OK));
       ended_ = true;
       break;
     case kSbPlayerStateDestroyed:
@@ -1318,8 +1409,9 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
   }
 }
 
-void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
-                                     const std::string& message) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::OnPlayerError(SbPlayerError error,
+                                                  const std::string& message) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   // In case if Stop() has been called.
@@ -1332,10 +1424,14 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
     DCHECK(is_url_based_);
     switch (static_cast<SbUrlPlayerError>(error)) {
       case kSbUrlPlayerErrorNetwork:
-        CallErrorCB(::media::PIPELINE_ERROR_NETWORK, message);
+        CallErrorCB(pipeline_status_cast<PipelineStatus>(
+                        ::media::PIPELINE_ERROR_NETWORK),
+                    message);
         break;
       case kSbUrlPlayerErrorSrcNotSupported:
-        CallErrorCB(::media::DEMUXER_ERROR_COULD_NOT_OPEN, message);
+        CallErrorCB(pipeline_status_cast<PipelineStatus>(
+                        ::media::DEMUXER_ERROR_COULD_NOT_OPEN),
+                    message);
 
         break;
     }
@@ -1344,15 +1440,18 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
 #endif  // SB_HAS(PLAYER_WITH_URL)
   switch (error) {
     case kSbPlayerErrorDecode:
-      CallErrorCB(::media::PIPELINE_ERROR_DECODE, message);
+      CallErrorCB(
+          pipeline_status_cast<PipelineStatus>(::media::PIPELINE_ERROR_DECODE),
+          message);
       break;
     case kSbPlayerErrorCapabilityChanged:
-      CallErrorCB(::media::PIPELINE_ERROR_DECODE,
-                  message.empty()
-                      ? kSbPlayerCapabilityChangedErrorMessage
-                      : ::starboard::FormatString(
-                            "%s: %s", kSbPlayerCapabilityChangedErrorMessage,
-                            message.c_str()));
+      CallErrorCB(
+          pipeline_status_cast<PipelineStatus>(::media::PIPELINE_ERROR_DECODE),
+          message.empty()
+              ? kSbPlayerCapabilityChangedErrorMessage
+              : ::starboard::FormatString(
+                    "%s: %s", kSbPlayerCapabilityChangedErrorMessage,
+                    message.c_str()));
       break;
     case kSbPlayerErrorMax:
       NOTREACHED();
@@ -1360,14 +1459,17 @@ void SbPlayerPipeline::OnPlayerError(SbPlayerError error,
   }
 }
 
-void SbPlayerPipeline::DelayedNeedData(int max_number_of_buffers_to_write) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::DelayedNeedData(
+    int max_number_of_buffers_to_write) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   if (audio_read_delayed_) {
     OnNeedData(DemuxerStream::AUDIO, max_number_of_buffers_to_write);
   }
 }
 
-void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::UpdateDecoderConfig(DemuxerStream* stream) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (!player_bridge_) {
@@ -1376,12 +1478,14 @@ void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
 
   if (stream->type() == DemuxerStream::AUDIO) {
     const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
-    media_metrics_provider_->SetHasAudio(decoder_config.codec());
+    media_metrics_provider_->SetHasAudio(
+        static_cast<::media_m114::AudioCodec>(decoder_config.codec()));
     player_bridge_->UpdateAudioConfig(decoder_config, stream->mime_type());
   } else {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
-    media_metrics_provider_->SetHasVideo(decoder_config.codec());
+    media_metrics_provider_->SetHasVideo(
+        static_cast<::media_m114::VideoCodec>(decoder_config.codec()));
     base::AutoLock auto_lock(lock_);
     bool natural_size_changed =
         (decoder_config.natural_size().width() != natural_size_.width() ||
@@ -1396,9 +1500,10 @@ void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
   }
 }
 
-void SbPlayerPipeline::CallSeekCB(PipelineStatus status,
-                                  const std::string& error_message) {
-  if (status == ::media::PIPELINE_OK) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::CallSeekCB(
+    PipelineStatus status, const std::string& error_message) {
+  if (status == pipeline_status_cast<PipelineStatus>(::media::PIPELINE_OK)) {
     DCHECK(error_message.empty());
   }
 
@@ -1415,19 +1520,24 @@ void SbPlayerPipeline::CallSeekCB(PipelineStatus status,
               AppendStatisticsString(error_message));
 }
 
-void SbPlayerPipeline::CallErrorCB(PipelineStatus status,
-                                   const std::string& error_message) {
-  DCHECK_NE(status, ::media::PIPELINE_OK);
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::CallErrorCB(
+    PipelineStatus status, const std::string& error_message) {
+  DCHECK_NE(status, pipeline_status_cast<PipelineStatus>(::media::PIPELINE_OK));
   // Only to record the first error.
   if (error_cb_.is_null()) {
     return;
   }
-  playback_statistics_.OnError(status, error_message);
+  playback_statistics_.OnError(
+      pipeline_status_cast<::media_m114::PipelineStatus>(status),
+      error_message);
   ResetAndRunIfNotNull(&error_cb_, status,
                        AppendStatisticsString(error_message));
 }
 
-void SbPlayerPipeline::SuspendTask(base::WaitableEvent* done_event) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::SuspendTask(
+    base::WaitableEvent* done_event) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(done_event);
   DCHECK(!suspended_);
@@ -1449,8 +1559,9 @@ void SbPlayerPipeline::SuspendTask(base::WaitableEvent* done_event) {
   done_event->Signal();
 }
 
-void SbPlayerPipeline::ResumeTask(PipelineWindow window,
-                                  base::WaitableEvent* done_event) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::ResumeTask(
+    PipelineWindow window, base::WaitableEvent* done_event) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(done_event);
   DCHECK(suspended_);
@@ -1483,13 +1594,16 @@ void SbPlayerPipeline::ResumeTask(PipelineWindow window,
         player_bridge_.reset();
       }
       std::string time_information = GetTimeInformation();
-      LOG(INFO) << "SbPlayerPipeline::ResumeTask failed to create a valid "
+      LOG(INFO) << "SbPlayerPipeline<ChromeMedia>::ResumeTask failed to create "
+                   "a valid "
                    "SbPlayerBridge - "
                 << time_information << " \'" << error_message << "\'";
-      CallErrorCB(::media::DECODER_ERROR_NOT_SUPPORTED,
-                  "SbPlayerPipeline::ResumeTask failed to create a valid "
-                  "SbPlayerBridge - " +
-                      time_information + " \'" + error_message + "\'");
+      CallErrorCB(
+          pipeline_status_cast<PipelineStatus>(
+              ::media::DECODER_ERROR_NOT_SUPPORTED),
+          "SbPlayerPipeline<ChromeMedia>::ResumeTask failed to create a valid "
+          "SbPlayerBridge - " +
+              time_information + " \'" + error_message + "\'");
     }
   }
 
@@ -1499,7 +1613,8 @@ void SbPlayerPipeline::ResumeTask(PipelineWindow window,
   done_event->Signal();
 }
 
-std::string SbPlayerPipeline::AppendStatisticsString(
+template <typename ChromeMedia>
+std::string SbPlayerPipeline<ChromeMedia>::AppendStatisticsString(
     const std::string& message) const {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
@@ -1513,7 +1628,8 @@ std::string SbPlayerPipeline::AppendStatisticsString(
   }
 }
 
-std::string SbPlayerPipeline::GetTimeInformation() const {
+template <typename ChromeMedia>
+std::string SbPlayerPipeline<ChromeMedia>::GetTimeInformation() const {
   auto round_time_in_seconds = [](const TimeDelta time) {
     const int64_t seconds = time.InSeconds();
     if (seconds < 15) {
@@ -1539,22 +1655,27 @@ std::string SbPlayerPipeline::GetTimeInformation() const {
          ", time since last resume: " + time_since_resume;
 }
 
-void SbPlayerPipeline::RunSetDrmSystemReadyCB(
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::RunSetDrmSystemReadyCB(
     DrmSystemReadyCB drm_system_ready_cb) {
-  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::RunSetDrmSystemReadyCB");
+  TRACE_EVENT0("cobalt::media",
+               "SbPlayerPipeline<ChromeMedia>::RunSetDrmSystemReadyCB");
   set_drm_system_ready_cb_time_ = Time::Now();
   set_drm_system_ready_cb_.Run(drm_system_ready_cb);
 }
 
-void SbPlayerPipeline::SetReadInProgress(DemuxerStream::Type type,
-                                         bool in_progress) {
+template <typename ChromeMedia>
+void SbPlayerPipeline<ChromeMedia>::SetReadInProgress(
+    typename DemuxerStream::Type type, bool in_progress) {
   if (type == DemuxerStream::AUDIO)
     audio_read_in_progress_ = in_progress;
   else
     video_read_in_progress_ = in_progress;
 }
 
-bool SbPlayerPipeline::GetReadInProgress(DemuxerStream::Type type) const {
+template <typename ChromeMedia>
+bool SbPlayerPipeline<ChromeMedia>::GetReadInProgress(
+    typename DemuxerStream::Type type) const {
   if (type == DemuxerStream::AUDIO) return audio_read_in_progress_;
   return video_read_in_progress_;
 }

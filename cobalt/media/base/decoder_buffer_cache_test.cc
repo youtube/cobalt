@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "base/time/time.h"
+#include "cobalt/media/base/chrome_media.h"
 #include "cobalt/media/decoder_buffer_allocator.h"
 #include "media/base/decoder_buffer.h"
 #include "starboard/media.h"
@@ -76,8 +77,8 @@ SbMediaVideoStreamInfo GetVideoStreamInfo() {
   return stream_info;
 }
 
-DecoderBufferCache::DecoderBuffers GetAudioSourceBuffers() {
-  DecoderBufferCache::DecoderBuffers source_buffers;
+DecoderBufferCache<ChromeMediaM114>::DecoderBuffers GetAudioSourceBuffers() {
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_buffers;
   for (size_t i = 0; i < kBufferArraySize; i++) {
     auto decoder_buffer =
         media::DecoderBuffer::CopyFrom(kBufferDataArray[i], kBufferSize);
@@ -89,8 +90,8 @@ DecoderBufferCache::DecoderBuffers GetAudioSourceBuffers() {
   return source_buffers;
 }
 
-DecoderBufferCache::DecoderBuffers GetVideoSourceBuffers() {
-  DecoderBufferCache::DecoderBuffers source_buffers;
+DecoderBufferCache<ChromeMediaM114>::DecoderBuffers GetVideoSourceBuffers() {
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_buffers;
   for (size_t i = 0; i < kBufferArraySize; i++) {
     auto decoder_buffer =
         media::DecoderBuffer::CopyFrom(kBufferDataArray[i], kBufferSize);
@@ -109,9 +110,10 @@ DecoderBufferCache::DecoderBuffers GetVideoSourceBuffers() {
   return source_buffers;
 }
 
-bool CompareOutputBuffers(const DecoderBufferCache::DecoderBuffers& source,
-                          size_t start_index,
-                          const DecoderBufferCache::DecoderBuffers& output) {
+bool CompareOutputBuffers(
+    const DecoderBufferCache<ChromeMediaM114>::DecoderBuffers& source,
+    size_t start_index,
+    const DecoderBufferCache<ChromeMediaM114>::DecoderBuffers& output) {
   if (start_index + output.size() > source.size()) {
     return false;
   }
@@ -124,12 +126,12 @@ bool CompareOutputBuffers(const DecoderBufferCache::DecoderBuffers& source,
 }
 
 template <typename StreamInfo>
-void ReadAndCompareOutputs(DecoderBufferCache* cache, size_t buffers_to_read,
-                           const DecoderBufferCache::DecoderBuffers& source,
-                           size_t start_index,
-                           const StreamInfo& source_stream_info) {
+void ReadAndCompareOutputs(
+    DecoderBufferCache<ChromeMediaM114>* cache, size_t buffers_to_read,
+    const DecoderBufferCache<ChromeMediaM114>::DecoderBuffers& source,
+    size_t start_index, const StreamInfo& source_stream_info) {
   StreamInfo output_stream_info;
-  DecoderBufferCache::DecoderBuffers output_buffers;
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers output_buffers;
   while (buffers_to_read > 0) {
     output_buffers.clear();
     cache->ReadBuffers(&output_buffers,
@@ -144,7 +146,7 @@ void ReadAndCompareOutputs(DecoderBufferCache* cache, size_t buffers_to_read,
 }
 
 size_t FindKeyFrameIndexBeforeTime(
-    const DecoderBufferCache::DecoderBuffers& source,
+    const DecoderBufferCache<ChromeMediaM114>::DecoderBuffers& source,
     const base::TimeDelta& time) {
   SB_DCHECK(!source.empty());
   SB_DCHECK(source[0]->is_key_frame());
@@ -166,13 +168,13 @@ size_t FindKeyFrameIndexBeforeTime(
 
 TEST(DecoderBufferCacheTest, SunnyDay) {
   DecoderBufferAllocator allocator;
-  DecoderBufferCache cache;
+  DecoderBufferCache<ChromeMediaM114> cache;
 
   SbMediaAudioStreamInfo source_audio_stream_info = GetAudioStreamInfo();
   SbMediaVideoStreamInfo source_video_stream_info = GetVideoStreamInfo();
-  DecoderBufferCache::DecoderBuffers source_audio_buffers =
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_audio_buffers =
       GetAudioSourceBuffers();
-  DecoderBufferCache::DecoderBuffers source_video_buffers =
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_video_buffers =
       GetVideoSourceBuffers();
   cache.AddBuffers(source_audio_buffers, source_audio_stream_info);
   cache.AddBuffers(source_video_buffers, source_video_stream_info);
@@ -193,12 +195,12 @@ TEST(DecoderBufferCacheTest, SunnyDay) {
 }
 
 TEST(DecoderBufferCacheTest, EmptyCache) {
-  DecoderBufferCache cache;
+  DecoderBufferCache<ChromeMediaM114> cache;
 
   ASSERT_FALSE(cache.HasMoreBuffers(DemuxerStream::AUDIO));
   ASSERT_FALSE(cache.HasMoreBuffers(DemuxerStream::VIDEO));
 
-  DecoderBufferCache::DecoderBuffers buffers;
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers buffers;
   SbMediaAudioStreamInfo audio_stream_info;
   SbMediaVideoStreamInfo video_stream_info;
 
@@ -221,13 +223,13 @@ TEST(DecoderBufferCacheTest, EmptyCache) {
 
 TEST(DecoderBufferCacheTest, ClearSegmentsWithZero) {
   DecoderBufferAllocator allocator;
-  DecoderBufferCache cache;
+  DecoderBufferCache<ChromeMediaM114> cache;
 
   SbMediaAudioStreamInfo source_audio_stream_info = GetAudioStreamInfo();
   SbMediaVideoStreamInfo source_video_stream_info = GetVideoStreamInfo();
-  DecoderBufferCache::DecoderBuffers source_audio_buffers =
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_audio_buffers =
       GetAudioSourceBuffers();
-  DecoderBufferCache::DecoderBuffers source_video_buffers =
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_video_buffers =
       GetVideoSourceBuffers();
   cache.AddBuffers(source_audio_buffers, source_audio_stream_info);
   cache.AddBuffers(source_video_buffers, source_video_stream_info);
@@ -248,13 +250,13 @@ TEST(DecoderBufferCacheTest, ClearSegmentsWithZero) {
 
 TEST(DecoderBufferCacheTest, ClearSegmentsAndResume) {
   DecoderBufferAllocator allocator;
-  DecoderBufferCache cache;
+  DecoderBufferCache<ChromeMediaM114> cache;
 
   SbMediaAudioStreamInfo source_audio_stream_info = GetAudioStreamInfo();
   SbMediaVideoStreamInfo source_video_stream_info = GetVideoStreamInfo();
-  DecoderBufferCache::DecoderBuffers source_audio_buffers =
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_audio_buffers =
       GetAudioSourceBuffers();
-  DecoderBufferCache::DecoderBuffers source_video_buffers =
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_video_buffers =
       GetVideoSourceBuffers();
   cache.AddBuffers(source_audio_buffers, source_audio_stream_info);
   cache.AddBuffers(source_video_buffers, source_video_stream_info);
@@ -310,7 +312,7 @@ TEST(DecoderBufferCacheTest, ClearSegmentsAndResume) {
 
 TEST(DecoderBufferCacheTest, MultipleStreamInfos) {
   DecoderBufferAllocator allocator;
-  DecoderBufferCache cache;
+  DecoderBufferCache<ChromeMediaM114> cache;
 
   SbMediaAudioStreamInfo source_audio_stream_info_1 = GetAudioStreamInfo();
   SbMediaVideoStreamInfo source_video_stream_info_1 = GetVideoStreamInfo();
@@ -321,22 +323,22 @@ TEST(DecoderBufferCacheTest, MultipleStreamInfos) {
   source_video_stream_info_2.frame_width *= 2;
   source_video_stream_info_2.frame_height *= 2;
 
-  DecoderBufferCache::DecoderBuffers source_audio_buffers =
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_audio_buffers =
       GetAudioSourceBuffers();
-  DecoderBufferCache::DecoderBuffers source_video_buffers =
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_video_buffers =
       GetVideoSourceBuffers();
 
-  DecoderBufferCache::DecoderBuffers source_audio_buffers_1(
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_audio_buffers_1(
       source_audio_buffers.begin(),
       source_audio_buffers.begin() + kVideoKeyFrameFrequency);
-  DecoderBufferCache::DecoderBuffers source_video_buffers_1(
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_video_buffers_1(
       source_video_buffers.begin(),
       source_video_buffers.begin() + kVideoKeyFrameFrequency);
 
-  DecoderBufferCache::DecoderBuffers source_audio_buffers_2(
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_audio_buffers_2(
       source_audio_buffers.begin() + kVideoKeyFrameFrequency,
       source_audio_buffers.end());
-  DecoderBufferCache::DecoderBuffers source_video_buffers_2(
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_video_buffers_2(
       source_video_buffers.begin() + kVideoKeyFrameFrequency,
       source_video_buffers.end());
 
@@ -345,7 +347,7 @@ TEST(DecoderBufferCacheTest, MultipleStreamInfos) {
   cache.AddBuffers(source_audio_buffers_2, source_audio_stream_info_2);
   cache.AddBuffers(source_video_buffers_2, source_video_stream_info_2);
 
-  DecoderBufferCache::DecoderBuffers output_buffers;
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers output_buffers;
   SbMediaAudioStreamInfo output_audio_stream_info;
   SbMediaVideoStreamInfo output_video_stream_info;
 
@@ -400,10 +402,10 @@ TEST(DecoderBufferCacheTest, MultipleStreamInfos) {
 
 TEST(DecoderBufferCacheTest, AudioOnly) {
   DecoderBufferAllocator allocator;
-  DecoderBufferCache cache;
+  DecoderBufferCache<ChromeMediaM114> cache;
 
   SbMediaAudioStreamInfo source_audio_stream_info = GetAudioStreamInfo();
-  DecoderBufferCache::DecoderBuffers source_audio_buffers =
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_audio_buffers =
       GetAudioSourceBuffers();
   cache.AddBuffers(source_audio_buffers, source_audio_stream_info);
 
@@ -417,10 +419,10 @@ TEST(DecoderBufferCacheTest, AudioOnly) {
 
 TEST(DecoderBufferCacheTest, VideoOnly) {
   DecoderBufferAllocator allocator;
-  DecoderBufferCache cache;
+  DecoderBufferCache<ChromeMediaM114> cache;
 
   SbMediaVideoStreamInfo source_video_stream_info = GetVideoStreamInfo();
-  DecoderBufferCache::DecoderBuffers source_video_buffers =
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_video_buffers =
       GetVideoSourceBuffers();
   cache.AddBuffers(source_video_buffers, source_video_stream_info);
 
@@ -439,7 +441,7 @@ TEST(DecoderBufferCacheTest, StreamInfosDeepCopied) {
   const char* kMaxVideoCapabilities = "width=1920; height=1080; framerate=15";
 
   DecoderBufferAllocator allocator;
-  DecoderBufferCache cache;
+  DecoderBufferCache<ChromeMediaM114> cache;
 
   SbMediaAudioStreamInfo source_audio_stream_info = GetAudioStreamInfo();
   source_audio_stream_info.mime = kAudioMime;
@@ -451,14 +453,14 @@ TEST(DecoderBufferCacheTest, StreamInfosDeepCopied) {
   source_video_stream_info.mime = kVideoMime;
   source_video_stream_info.max_video_capabilities = kMaxVideoCapabilities;
 
-  DecoderBufferCache::DecoderBuffers source_audio_buffers =
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_audio_buffers =
       GetAudioSourceBuffers();
-  DecoderBufferCache::DecoderBuffers source_video_buffers =
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers source_video_buffers =
       GetVideoSourceBuffers();
   cache.AddBuffers(source_audio_buffers, source_audio_stream_info);
   cache.AddBuffers(source_video_buffers, source_video_stream_info);
 
-  DecoderBufferCache::DecoderBuffers output_buffers;
+  DecoderBufferCache<ChromeMediaM114>::DecoderBuffers output_buffers;
   SbMediaAudioStreamInfo output_audio_stream_info;
   SbMediaVideoStreamInfo output_video_stream_info;
 

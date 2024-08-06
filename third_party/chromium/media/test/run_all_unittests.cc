@@ -1,0 +1,78 @@
+// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#if defined(STARBOARD)
+
+#include "starboard/client_porting/wrap_main/wrap_main.h"
+#include "starboard/event.h"
+#include "starboard/system.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+namespace {
+int InitAndRunAllTests(int argc, char** argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+}  // namespace
+
+STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
+
+#else  // defined(STARBOARD)
+
+#include "base/bind.h"
+#include "base/test/launcher/unit_test_launcher.h"
+#include "base/test/test_discardable_memory_allocator.h"
+#include "base/test/test_suite.h"
+#include "build/build_config.h"
+#include "third_party/chromium/media/base/fake_localized_strings.h"
+#include "third_party/chromium/media/base/media.h"
+#include "third_party/chromium/media/base/media_switches.h"
+#include "mojo/core/embedder/embedder.h"
+
+#if defined(OS_ANDROID)
+#include "third_party/chromium/media/base/android/media_codec_bridge_impl.h"
+#include "third_party/chromium/media/base/android/media_codec_util.h"
+#endif
+
+class TestSuiteNoAtExit : public base::TestSuite {
+ public:
+  TestSuiteNoAtExit(int argc, char** argv) : TestSuite(argc, argv) {}
+  ~TestSuiteNoAtExit() override = default;
+
+ protected:
+  void Initialize() override;
+
+ private:
+  base::TestDiscardableMemoryAllocator discardable_memory_allocator_;
+};
+
+void TestSuiteNoAtExit::Initialize() {
+  // Run TestSuite::Initialize first so that logging is initialized.
+  base::TestSuite::Initialize();
+
+#if defined(OS_ANDROID)
+  if (media_m96::MediaCodecUtil::IsMediaCodecAvailable()) {
+    media_m96::EnablePlatformDecoderSupport();
+    media_m96::MediaCodecBridgeImpl::SetupCallbackHandlerForTesting();
+  }
+#endif
+
+  // Run this here instead of main() to ensure an AtExitManager is already
+  // present.
+  media_m96::InitializeMediaLibrary();
+  media_m96::SetUpFakeLocalizedStrings();
+
+  base::DiscardableMemoryAllocator::SetInstance(&discardable_memory_allocator_);
+}
+
+int main(int argc, char** argv) {
+  mojo::core::Init();
+  TestSuiteNoAtExit test_suite(argc, argv);
+
+  return base::LaunchUnitTests(
+      argc, argv,
+      base::BindOnce(&TestSuiteNoAtExit::Run, base::Unretained(&test_suite)));
+}
+
+#endif  // defined(STARBOARD)

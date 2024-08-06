@@ -21,13 +21,10 @@
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/task/sequenced_task_runner.h"
+#include "cobalt/media/base/chrome_media.h"
 #include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/sbplayer_interface.h"
-#include "media/base/demuxer.h"
-#include "media/base/media_log.h"
-#include "media/base/pipeline_status.h"
-#include "media/base/ranges.h"
 #include "starboard/drm.h"
 #include "starboard/window.h"
 #include "ui/gfx/geometry/size.h"
@@ -45,47 +42,54 @@ typedef base::Callback<void(SbDrmSystem)> DrmSystemReadyCB;
 // Callback to set an DrmSystemReadyCB.
 typedef base::Callback<void(const DrmSystemReadyCB&)> SetDrmSystemReadyCB;
 
-typedef base::Callback<void(::media::PipelineStatus, const std::string&)>
-    ErrorCB;
+// Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
+typedef base::Callback<SbDecodeTargetGraphicsContextProvider*()>
+    GetDecodeTargetGraphicsContextProviderFunc;
+
+// Buffering states the pipeline transitions between during playback.
+// kHaveMetadata:
+//   Indicates that the following things are known:
+//   content duration, natural size, start time, and whether the content has
+//   audio and/or video in supported formats.
+// kPrerollCompleted:
+//   All renderers have buffered enough data to satisfy preroll and are ready
+//   to start playback.
+enum class BufferingState {
+  kHaveMetadata,
+  kPrerollCompleted,
+};
+
+typedef base::Callback<void(BufferingState)> BufferingStateCB;
+
+struct VideoStatistics {
+  uint32_t video_frames_decoded = 0u;
+  uint32_t video_frames_dropped = 0u;
+};
+
+// Return true if the punch through box should be rendered.  Return false if
+// no punch through box should be rendered.
+typedef base::Callback<bool(int x, int y, int width, int height)> SetBoundsCB;
+
+typedef std::function<void(double start, double end)> AddRangeCB;
 
 // Pipeline contains the common interface for media pipelines.  It provides
 // functions to perform asynchronous initialization, pausing, seeking and
 // playing.
-class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
+template <typename ChromeMedia>
+class MEDIA_EXPORT Pipeline
+    : public base::RefCountedThreadSafe<Pipeline<ChromeMedia>> {
  public:
-  typedef ::media::Demuxer Demuxer;
-  typedef ::media::MediaLog MediaLog;
-  typedef ::media::PipelineStatistics PipelineStatistics;
-  typedef ::media::PipelineStatus PipelineStatus;
-  typedef ::media::PipelineStatusCallback PipelineStatusCallback;
-  typedef ::media::PipelineStatusCB PipelineStatusCB;
+  TYPEDEF_CHROME_MEDIA_TYPES(ChromeMedia);
 
-  typedef base::Callback<void(PipelineStatus status, bool is_initial_preroll,
+  typedef base::Callback<void(typename ChromeMedia::PipelineStatus status,
+                              bool is_initial_preroll,
                               const std::string& error_message)>
       SeekCB;
 
-  // Return true if the punch through box should be rendered.  Return false if
-  // no punch through box should be rendered.
-  typedef base::Callback<bool(int x, int y, int width, int height)> SetBoundsCB;
+  typedef base::Callback<void(typename ChromeMedia::PipelineStatus,
+                              const std::string&)>
+      ErrorCB;
 
-  // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
-  typedef base::Callback<SbDecodeTargetGraphicsContextProvider*()>
-      GetDecodeTargetGraphicsContextProviderFunc;
-
-  // Buffering states the pipeline transitions between during playback.
-  // kHaveMetadata:
-  //   Indicates that the following things are known:
-  //   content duration, natural size, start time, and whether the content has
-  //   audio and/or video in supported formats.
-  // kPrerollCompleted:
-  //   All renderers have buffered enough data to satisfy preroll and are ready
-  //   to start playback.
-  enum BufferingState {
-    kHaveMetadata,
-    kPrerollCompleted,
-  };
-
-  typedef base::Callback<void(BufferingState)> BufferingStateCB;
 #if SB_HAS(PLAYER_WITH_URL)
   typedef base::Callback<void(const char* init_data_type,
                               const std::vector<uint8_t>&)>
@@ -191,7 +195,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   virtual base::TimeDelta GetMediaTime() = 0;
 
   // Get approximate time ranges of buffered media.
-  virtual ::media::Ranges<base::TimeDelta> GetBufferedTimeRanges() = 0;
+  virtual void UpdateBufferedTimeRanges(const AddRangeCB& add_range_cb) = 0;
 
   // Get the duration of the media in microseconds.  If the duration has not
   // been determined yet, then return 0.
@@ -218,7 +222,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   virtual bool DidLoadingProgress() const = 0;
 
   // Gets the current pipeline statistics.
-  virtual PipelineStatistics GetStatistics() const = 0;
+  virtual VideoStatistics GetVideoStatistics() const = 0;
 
   // Get the SetBoundsCB used to set the bounds of the video frame.
   virtual SetBoundsCB GetSetBoundsCB() = 0;

@@ -23,8 +23,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
-#include "media/base/decoder_buffer.h"
-#include "media/base/demuxer_stream.h"
+#include "cobalt/media/base/chrome_media.h"
 #include "starboard/media.h"
 
 namespace cobalt {
@@ -35,10 +34,10 @@ namespace media {
 // before the media time and clear all buffers before the key frame.  This class
 // can be used to "replay" the video from the current playback position and can
 // be useful to implement suspend/resume.
+template <typename ChromeMedia>
 class DecoderBufferCache {
  public:
-  typedef ::media::DecoderBuffer DecoderBuffer;
-  typedef ::media::DemuxerStream DemuxerStream;
+  TYPEDEF_CHROME_MEDIA_TYPES(ChromeMedia);
   typedef std::vector<scoped_refptr<DecoderBuffer>> DecoderBuffers;
 
   DecoderBufferCache();
@@ -54,7 +53,7 @@ class DecoderBufferCache {
 
   // Start resuming, reset indices to audio/video buffers to the very beginning.
   void StartResuming();
-  bool HasMoreBuffers(DemuxerStream::Type type) const;
+  bool HasMoreBuffers(typename DemuxerStream::Type type) const;
   // |buffers| and |stream_info| cannot be null.
   void ReadBuffers(DecoderBuffers* buffers, size_t max_buffers_per_read,
                    SbMediaAudioStreamInfo* stream_info);
@@ -65,7 +64,7 @@ class DecoderBufferCache {
   // The buffers with same stream info will be stored in same segment.
   class BufferGroup {
    public:
-    explicit BufferGroup(DemuxerStream::Type type);
+    explicit BufferGroup(typename DemuxerStream::Type type);
     void AddBuffers(const DecoderBuffers& buffers,
                     const SbMediaAudioStreamInfo& stream_info);
     void AddBuffers(const DecoderBuffers& buffers,
@@ -105,7 +104,7 @@ class DecoderBufferCache {
     void AdvanceGroupIndexIfNecessary();
     void ReadBuffers(DecoderBuffers* buffers, size_t max_buffers_per_read);
 
-    const DemuxerStream::Type type_;
+    const typename DemuxerStream::Type type_;
     std::deque<Segment> segments_;
     std::deque<base::TimeDelta> key_frame_timestamps_;
     size_t segment_index_ = 0;
@@ -128,5 +127,7 @@ bool operator!=(const SbMediaVideoStreamInfo& left,
 
 }  // namespace media
 }  // namespace cobalt
+
+#include "cobalt/media/base/decoder_buffer_cache.cc"
 
 #endif  // COBALT_MEDIA_BASE_DECODER_BUFFER_CACHE_H_

@@ -27,20 +27,13 @@
 #include "base/time/time.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/math/size.h"
+#include "cobalt/media/base/chrome_media.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/metrics_provider.h"
 #include "cobalt/media/base/pipeline.h"
 #include "cobalt/media/base/playback_statistics.h"
 #include "cobalt/media/base/sbplayer_bridge.h"
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
-#include "media/base/audio_decoder_config.h"
-#include "media/base/decoder_buffer.h"
-#include "media/base/demuxer.h"
-#include "media/base/demuxer_stream.h"
-#include "media/base/media_log.h"
-#include "media/base/pipeline_status.h"
-#include "media/base/ranges.h"
-#include "media/base/video_decoder_config.h"
 #include "starboard/configuration_constants.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
@@ -53,9 +46,15 @@ using base::TimeDelta;
 
 // SbPlayerPipeline is a PipelineBase implementation that uses the SbPlayer
 // interface internally.
-class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
-                                      public ::media::DemuxerHost,
-                                      public SbPlayerBridge::Host {
+template <typename ChromeMedia>
+class MEDIA_EXPORT SbPlayerPipeline : public Pipeline<ChromeMedia>,
+                                      public ChromeMedia::DemuxerHost,
+                                      public SbPlayerBridge<ChromeMedia>::Host {
+ private:
+  TYPEDEF_CHROME_MEDIA_TYPES(ChromeMedia);
+  typedef typename Pipeline<ChromeMedia>::ErrorCB ErrorCB;
+  typedef typename Pipeline<ChromeMedia>::SeekCB SeekCB;
+
  public:
   // Constructs a media pipeline that will execute on |task_runner|.
   SbPlayerPipeline(SbPlayerInterface* interface, PipelineWindow window,
@@ -77,7 +76,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   //       Need to be removed with media refactor.
   void Resume(PipelineWindow window) override;
 
-  void Start(Demuxer* demuxer,
+  void Start(typename ChromeMedia::Demuxer* demuxer,
              const SetDrmSystemReadyCB& set_drm_system_ready_cb,
              const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
              const SeekCB& seek_cb, const BufferingStateCB& buffering_state_cb,
@@ -109,7 +108,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void SetVolume(float volume) override;
 
   TimeDelta GetMediaTime() override;
-  ::media::Ranges<TimeDelta> GetBufferedTimeRanges() override;
+  void UpdateBufferedTimeRanges(const AddRangeCB& add_range_cb) override;
   TimeDelta GetMediaDuration() const override;
 #if SB_HAS(PLAYER_WITH_URL)
   TimeDelta GetMediaStartDate() const override;
@@ -118,7 +117,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   std::vector<std::string> GetAudioConnectors() const override;
 
   bool DidLoadingProgress() const override;
-  PipelineStatistics GetStatistics() const override;
+  VideoStatistics GetVideoStatistics() const override;
   SetBoundsCB GetSetBoundsCB() override;
   void SetPreferredOutputModeToDecodeToTexture() override;
 
@@ -126,12 +125,12 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Used to post parameters to SbPlayerPipeline::StartTask() as the number of
   // parameters exceed what base::Bind() can support.
   struct StartTaskParameters {
-    ::media::Demuxer* demuxer;
+    typename ChromeMedia::Demuxer* demuxer;
     SetDrmSystemReadyCB set_drm_system_ready_cb;
-    ::media::PipelineStatusCB ended_cb;
+    typename ChromeMedia::PipelineStatusCB ended_cb;
     ErrorCB error_cb;
-    Pipeline::SeekCB seek_cb;
-    Pipeline::BufferingStateCB buffering_state_cb;
+    SeekCB seek_cb;
+    BufferingStateCB buffering_state_cb;
     base::Closure duration_change_cb;
     base::Closure output_mode_change_cb;
     base::Closure content_size_change_cb;
@@ -149,8 +148,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void SetDurationTask(TimeDelta duration);
 
   // DemuxerHost implementation.
-  void OnBufferedTimeRangesChanged(
-      const ::media::Ranges<TimeDelta>& ranges) override;
+  void OnBufferedTimeRangesChanged(const Ranges& ranges) override;
   void SetDuration(TimeDelta duration) override;
   void OnDemuxerError(PipelineStatus error) override;
 
@@ -163,12 +161,12 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void OnDemuxerInitialized(PipelineStatus status);
   void OnDemuxerSeeked(PipelineStatus status);
   void OnDemuxerStopped();
-  void OnDemuxerStreamRead(
-      ::media::DemuxerStream::Type type, int max_number_buffers_to_read,
-      ::media::DemuxerStream::Status status,
-      const std::vector<scoped_refptr<::media::DecoderBuffer>> buffers);
+  void OnDemuxerStreamRead(typename DemuxerStream::Type type,
+                           int max_number_buffers_to_read,
+                           typename DemuxerStream::Status status,
+                           std::vector<scoped_refptr<DecoderBuffer>> buffers);
   // SbPlayerBridge::Host implementation.
-  void OnNeedData(::media::DemuxerStream::Type type,
+  void OnNeedData(typename DemuxerStream::Type type,
                   int max_number_of_buffers_to_write) override;
   void OnPlayerStatus(SbPlayerState state) override;
   void OnPlayerError(SbPlayerError error, const std::string& message) override;
@@ -178,7 +176,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // been cancelled due to a seek.
   void DelayedNeedData(int max_number_of_buffers_to_write);
 
-  void UpdateDecoderConfig(::media::DemuxerStream* stream);
+  void UpdateDecoderConfig(DemuxerStream* stream);
   void CallSeekCB(PipelineStatus status, const std::string& error_message);
   void CallErrorCB(PipelineStatus status, const std::string& error_message);
 
@@ -198,8 +196,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   void RunSetDrmSystemReadyCB(DrmSystemReadyCB drm_system_ready_cb);
 
-  void SetReadInProgress(::media::DemuxerStream::Type type, bool in_progress);
-  bool GetReadInProgress(::media::DemuxerStream::Type type) const;
+  void SetReadInProgress(typename DemuxerStream::Type type, bool in_progress);
+  bool GetReadInProgress(typename DemuxerStream::Type type) const;
 
   int GetDefaultMaxBuffers(AudioCodec codec, TimeDelta duration_to_write,
                            bool is_preroll);
@@ -241,7 +239,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   mutable base::Lock lock_;
 
   // Amount of available buffered data.  Set by filters.
-  ::media::Ranges<TimeDelta> buffered_time_ranges_;
+  Ranges buffered_time_ranges_;
 
   // True when AddBufferedByteRange() has been called more recently than
   // DidLoadingProgress().
@@ -263,10 +261,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // The saved audio and video demuxer streams.  Note that it is safe to store
   // raw pointers of the demuxer streams, as the Demuxer guarantees that its
   // |DemuxerStream|s live as long as the Demuxer itself.
-  ::media::DemuxerStream* audio_stream_ = nullptr;
-  ::media::DemuxerStream* video_stream_ = nullptr;
+  DemuxerStream* audio_stream_ = nullptr;
+  DemuxerStream* video_stream_ = nullptr;
 
-  mutable PipelineStatistics statistics_;
+  mutable VideoStatistics video_statistics_;
 
   // The following member variables are only accessed by tasks posted to
   // |task_runner_|.
@@ -311,7 +309,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // Temporary callback used for Start() and Seek().
   SeekCB seek_cb_;
   TimeDelta seek_time_;
-  std::unique_ptr<SbPlayerBridge> player_bridge_;
+  std::unique_ptr<SbPlayerBridge<ChromeMedia>> player_bridge_;
   bool is_initial_preroll_ = true;
   base::CVal<bool> started_;
   base::CVal<bool> suspended_;
@@ -371,5 +369,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
 }  // namespace media
 }  // namespace cobalt
+
+#include "cobalt/media/base/sbplayer_pipeline.cc"
 
 #endif  // COBALT_MEDIA_BASE_SBPLAYER_PIPELINE_H_

@@ -45,7 +45,6 @@ class MediaSourceAttachment;
 class HTMLMediaElement : public HTMLElement,
                          private cobalt::media::WebMediaPlayerClient {
  public:
-  typedef ::media::ChunkDemuxer ChunkDemuxer;
   typedef ::cobalt::media::WebMediaPlayer WebMediaPlayer;
   typedef ::cobalt::media::WebMediaPlayerClient WebMediaPlayerClient;
 
@@ -242,7 +241,7 @@ class HTMLMediaElement : public HTMLElement,
   void ContentSizeChanged() override;
   void PlaybackStateChanged() override;
   float Volume() const override;
-  void SourceOpened(ChunkDemuxer* chunk_demuxer) override;
+  void SourceOpened(media::ChunkDemuxerHolder* chunk_demuxer) override;
   std::string SourceURL() const override;
   std::string MaxVideoCapabilities() const override;
   int MaxVideoInputSize() const override;

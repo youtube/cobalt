@@ -35,6 +35,7 @@
 #include "starboard/configuration.h"
 #include "starboard/extension/player_set_max_video_input_size.h"
 #include "starboard/memory.h"
+#include "third_party/chromium/media/base/starboard_utils.h"
 
 namespace cobalt {
 namespace media {
@@ -118,24 +119,41 @@ void SetDiscardPadding(
       discard_padding.second.InMicroseconds();
 }
 
+template <typename DemuxerStream>
+typename DemuxerStream::Type SbMediaTypeToDemuxerStreamType(SbMediaType type);
+
+template <>
+typename ::media_m96::DemuxerStream::Type
+SbMediaTypeToDemuxerStreamType<::media_m96::DemuxerStream>(SbMediaType type) {
+  return ::media_m96::SbMediaTypeToDemuxerStreamType(type);
+}
+
+template <>
+typename ::media_m114::DemuxerStream::Type
+SbMediaTypeToDemuxerStreamType<::media_m114::DemuxerStream>(SbMediaType type) {
+  return ::media_m114::SbMediaTypeToDemuxerStreamType(type);
+}
+
 }  // namespace
 
 SB_ONCE_INITIALIZE_FUNCTION(StatisticsWrapper, StatisticsWrapper::GetInstance);
 
-SbPlayerBridge::CallbackHelper::CallbackHelper(SbPlayerBridge* player_bridge)
+template <typename ChromeMedia>
+SbPlayerBridge<ChromeMedia>::CallbackHelper::CallbackHelper(
+    SbPlayerBridge* player_bridge)
     : player_bridge_(player_bridge) {}
 
-void SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache() {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::CallbackHelper::ClearDecoderBufferCache() {
   base::AutoLock auto_lock(lock_);
   if (player_bridge_) {
     player_bridge_->ClearDecoderBufferCache();
   }
 }
 
-void SbPlayerBridge::CallbackHelper::OnDecoderStatus(SbPlayer player,
-                                                     SbMediaType type,
-                                                     SbPlayerDecoderState state,
-                                                     int ticket) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::CallbackHelper::OnDecoderStatus(
+    SbPlayer player, SbMediaType type, SbPlayerDecoderState state, int ticket) {
   base::AutoLock auto_lock(lock_);
   if (player_bridge_) {
     player_bridge_->OnDecoderStatus(static_cast<SbPlayer>(player), type, state,
@@ -143,25 +161,26 @@ void SbPlayerBridge::CallbackHelper::OnDecoderStatus(SbPlayer player,
   }
 }
 
-void SbPlayerBridge::CallbackHelper::OnPlayerStatus(SbPlayer player,
-                                                    SbPlayerState state,
-                                                    int ticket) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::CallbackHelper::OnPlayerStatus(
+    SbPlayer player, SbPlayerState state, int ticket) {
   base::AutoLock auto_lock(lock_);
   if (player_bridge_) {
     player_bridge_->OnPlayerStatus(player, state, ticket);
   }
 }
 
-void SbPlayerBridge::CallbackHelper::OnPlayerError(SbPlayer player,
-                                                   SbPlayerError error,
-                                                   const std::string& message) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::CallbackHelper::OnPlayerError(
+    SbPlayer player, SbPlayerError error, const std::string& message) {
   base::AutoLock auto_lock(lock_);
   if (player_bridge_) {
     player_bridge_->OnPlayerError(player, error, message);
   }
 }
 
-void SbPlayerBridge::CallbackHelper::OnDeallocateSample(
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::CallbackHelper::OnDeallocateSample(
     const void* sample_buffer) {
   base::AutoLock auto_lock(lock_);
   if (player_bridge_) {
@@ -169,13 +188,15 @@ void SbPlayerBridge::CallbackHelper::OnDeallocateSample(
   }
 }
 
-void SbPlayerBridge::CallbackHelper::ResetPlayer() {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::CallbackHelper::ResetPlayer() {
   base::AutoLock auto_lock(lock_);
   player_bridge_ = NULL;
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
-SbPlayerBridge::SbPlayerBridge(
+template <typename ChromeMedia>
+SbPlayerBridge<ChromeMedia>::SbPlayerBridge(
     SbPlayerInterface* interface,
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const std::string& url, SbWindow window, Host* host,
@@ -209,12 +230,14 @@ SbPlayerBridge::SbPlayerBridge(
 
   task_runner->PostTask(
       FROM_HERE,
-      base::Bind(&SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache,
-                 callback_helper_));
+      base::Bind(
+          &SbPlayerBridge<ChromeMedia>::CallbackHelper::ClearDecoderBufferCache,
+          callback_helper_));
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-SbPlayerBridge::SbPlayerBridge(
+template <typename ChromeMedia>
+SbPlayerBridge<ChromeMedia>::SbPlayerBridge(
     SbPlayerInterface* interface,
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
@@ -274,16 +297,18 @@ SbPlayerBridge::SbPlayerBridge(
   if (SbPlayerIsValid(player_)) {
     task_runner->PostTask(
         FROM_HERE,
-        base::Bind(&SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache,
+        base::Bind(&SbPlayerBridge<
+                       ChromeMedia>::CallbackHelper::ClearDecoderBufferCache,
                    callback_helper_));
   }
 }
 
-SbPlayerBridge::~SbPlayerBridge() {
+template <typename ChromeMedia>
+SbPlayerBridge<ChromeMedia>::~SbPlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   callback_helper_->ResetPlayer();
-  set_bounds_helper_->SetPlayerBridge(NULL);
+  set_bounds_helper_->ResetCallback();
 
   decode_target_provider_->SetOutputMode(
       DecodeTargetProvider::kOutputModeInvalid);
@@ -296,8 +321,9 @@ SbPlayerBridge::~SbPlayerBridge() {
   }
 }
 
-void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
-                                       const std::string& mime_type) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::UpdateAudioConfig(
+    const AudioDecoderConfig& audio_config, const std::string& mime_type) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(audio_config.IsValidConfig());
 
@@ -311,8 +337,9 @@ void SbPlayerBridge::UpdateAudioConfig(const AudioDecoderConfig& audio_config,
   LOG(INFO) << "Converted to SbMediaAudioStreamInfo -- " << audio_stream_info_;
 }
 
-void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
-                                       const std::string& mime_type) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::UpdateVideoConfig(
+    const VideoDecoderConfig& video_config, const std::string& mime_type) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(video_config.IsValidConfig());
 
@@ -335,8 +362,9 @@ void SbPlayerBridge::UpdateVideoConfig(const VideoDecoderConfig& video_config,
   LOG(INFO) << "Converted to SbMediaVideoStreamInfo -- " << video_stream_info_;
 }
 
-void SbPlayerBridge::WriteBuffers(
-    DemuxerStream::Type type,
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::WriteBuffers(
+    typename DemuxerStream::Type type,
     const std::vector<scoped_refptr<DecoderBuffer>>& buffers) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 #if SB_HAS(PLAYER_WITH_URL)
@@ -365,7 +393,9 @@ void SbPlayerBridge::WriteBuffers(
   }
 }
 
-void SbPlayerBridge::SetBounds(int z_index, const gfx::Rect& rect) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::SetBounds(int z_index,
+                                            const gfx::Rect& rect) {
   base::AutoLock auto_lock(lock_);
 
   set_bounds_z_index_ = z_index;
@@ -378,7 +408,8 @@ void SbPlayerBridge::SetBounds(int z_index, const gfx::Rect& rect) {
   UpdateBounds_Locked();
 }
 
-void SbPlayerBridge::PrepareForSeek() {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::PrepareForSeek() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   seek_pending_ = true;
@@ -391,7 +422,8 @@ void SbPlayerBridge::PrepareForSeek() {
   sbplayer_interface_->SetPlaybackRate(player_, 0.f);
 }
 
-void SbPlayerBridge::Seek(TimeDelta time) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::Seek(TimeDelta time) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   decoder_buffer_cache_.ClearAll();
@@ -419,7 +451,8 @@ void SbPlayerBridge::Seek(TimeDelta time) {
   sbplayer_interface_->SetPlaybackRate(player_, playback_rate_);
 }
 
-void SbPlayerBridge::SetVolume(float volume) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::SetVolume(float volume) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   volume_ = volume;
@@ -432,7 +465,8 @@ void SbPlayerBridge::SetVolume(float volume) {
   sbplayer_interface_->SetVolume(player_, volume);
 }
 
-void SbPlayerBridge::SetPlaybackRate(double playback_rate) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::SetPlaybackRate(double playback_rate) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   playback_rate_ = playback_rate;
@@ -448,17 +482,19 @@ void SbPlayerBridge::SetPlaybackRate(double playback_rate) {
   sbplayer_interface_->SetPlaybackRate(player_, playback_rate);
 }
 
-void SbPlayerBridge::GetInfo(uint32* video_frames_decoded,
-                             uint32* video_frames_dropped,
-                             TimeDelta* media_time) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::GetInfo(uint32* video_frames_decoded,
+                                          uint32* video_frames_dropped,
+                                          TimeDelta* media_time) {
   DCHECK(video_frames_decoded || video_frames_dropped || media_time);
 
   base::AutoLock auto_lock(lock_);
   GetInfo_Locked(video_frames_decoded, video_frames_dropped, media_time);
 }
 
+template <typename ChromeMedia>
 std::vector<SbMediaAudioConfiguration>
-SbPlayerBridge::GetAudioConfigurations() {
+SbPlayerBridge<ChromeMedia>::GetAudioConfigurations() {
   base::AutoLock auto_lock(lock_);
 
   if (!SbPlayerIsValid(player_)) {
@@ -487,7 +523,8 @@ SbPlayerBridge::GetAudioConfigurations() {
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
-void SbPlayerBridge::GetUrlPlayerBufferedTimeRanges(
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::GetUrlPlayerBufferedTimeRanges(
     TimeDelta* buffer_start_time, TimeDelta* buffer_length_time) {
   DCHECK(buffer_start_time || buffer_length_time);
   DCHECK(is_url_based_);
@@ -513,7 +550,9 @@ void SbPlayerBridge::GetUrlPlayerBufferedTimeRanges(
   }
 }
 
-void SbPlayerBridge::GetVideoResolution(int* frame_width, int* frame_height) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::GetVideoResolution(int* frame_width,
+                                                     int* frame_height) {
   DCHECK(frame_width);
   DCHECK(frame_height);
   DCHECK(is_url_based_);
@@ -540,7 +579,8 @@ void SbPlayerBridge::GetVideoResolution(int* frame_width, int* frame_height) {
   *frame_height = video_stream_info_.frame_height;
 }
 
-TimeDelta SbPlayerBridge::GetDuration() {
+template <typename ChromeMedia>
+TimeDelta SbPlayerBridge<ChromeMedia>::GetDuration() {
   DCHECK(is_url_based_);
 
   if (state_ == kSuspended) {
@@ -562,7 +602,8 @@ TimeDelta SbPlayerBridge::GetDuration() {
   return TimeDelta::FromMicroseconds(info.duration);
 }
 
-TimeDelta SbPlayerBridge::GetStartDate() {
+template <typename ChromeMedia>
+TimeDelta SbPlayerBridge<ChromeMedia>::GetStartDate() {
   DCHECK(is_url_based_);
 
   if (state_ == kSuspended) {
@@ -580,7 +621,7 @@ TimeDelta SbPlayerBridge::GetStartDate() {
   return TimeDelta::FromMicroseconds(info.start_date);
 }
 
-void SbPlayerBridge::SetDrmSystem(SbDrmSystem drm_system) {
+void SbPlayerBridge<ChromeMedia>::SetDrmSystem(SbDrmSystem drm_system) {
   DCHECK(is_url_based_);
 
   drm_system_ = drm_system;
@@ -588,7 +629,8 @@ void SbPlayerBridge::SetDrmSystem(SbDrmSystem drm_system) {
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-void SbPlayerBridge::Suspend() {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::Suspend() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   // Check if the player is already suspended.
@@ -600,7 +642,7 @@ void SbPlayerBridge::Suspend() {
 
   sbplayer_interface_->SetPlaybackRate(player_, 0.0);
 
-  set_bounds_helper_->SetPlayerBridge(NULL);
+  set_bounds_helper_->ResetCallback();
 
   base::AutoLock auto_lock(lock_);
   GetInfo_Locked(&cached_video_frames_decoded_, &cached_video_frames_dropped_,
@@ -619,7 +661,8 @@ void SbPlayerBridge::Suspend() {
   player_ = kSbPlayerInvalid;
 }
 
-void SbPlayerBridge::Resume(SbWindow window) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::Resume(SbWindow window) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   window_ = window;
@@ -672,7 +715,8 @@ DecodeTargetProvider::OutputMode ToVideoFrameProviderOutputMode(
 
 #if SB_HAS(PLAYER_WITH_URL)
 // static
-void SbPlayerBridge::EncryptedMediaInitDataEncounteredCB(
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::EncryptedMediaInitDataEncounteredCB(
     SbPlayer player, void* context, const char* init_data_type,
     const unsigned char* init_data, unsigned int init_data_length) {
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
@@ -682,8 +726,9 @@ void SbPlayerBridge::EncryptedMediaInitDataEncounteredCB(
       init_data_type, init_data, init_data_length);
 }
 
-void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
-  TRACE_EVENT0("cobalt::media", "SbPlayerBridge::CreateUrlPlayer");
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::CreateUrlPlayer(const std::string& url) {
+  TRACE_EVENT0("cobalt::media", "SbPlayerBridge<ChromeMedia>::CreateUrlPlayer");
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   DCHECK(!on_encrypted_media_init_data_encountered_cb_.is_null());
@@ -697,17 +742,18 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
 
   cval_stats_->StartTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
   player_ = sbplayer_interface_->CreateUrlPlayer(
-      url.c_str(), window_, &SbPlayerBridge::PlayerStatusCB,
-      &SbPlayerBridge::EncryptedMediaInitDataEncounteredCB,
-      &SbPlayerBridge::PlayerErrorCB, this);
+      url.c_str(), window_, &SbPlayerBridge<ChromeMedia>::PlayerStatusCB,
+      &SbPlayerBridge<ChromeMedia>::EncryptedMediaInitDataEncounteredCB,
+      &SbPlayerBridge<ChromeMedia>::PlayerErrorCB, this);
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
   DCHECK(SbPlayerIsValid(player_));
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     // If the player is setup to decode to texture, then provide Cobalt with
     // a method of querying that texture.
-    decode_target_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
-        &SbPlayerBridge::GetCurrentSbDecodeTarget, base::Unretained(this)));
+    decode_target_provider_->SetGetCurrentSbDecodeTargetFunction(
+        base::Bind(&SbPlayerBridge<ChromeMedia>::GetCurrentSbDecodeTarget,
+                   base::Unretained(this)));
     LOG(INFO) << "Playing in decode-to-texture mode.";
   } else {
     LOG(INFO) << "Playing in punch-out mode.";
@@ -716,25 +762,27 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
   decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
 
-  set_bounds_helper_->SetPlayerBridge(this);
+  set_bounds_helper_->SetCallback(
+      base::BindRepeating(&SbPlayerBridge::SetBounds, base::Unretained(this)));
 
   base::AutoLock auto_lock(lock_);
   UpdateBounds_Locked();
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
-void SbPlayerBridge::CreatePlayer() {
-  TRACE_EVENT0("cobalt::media", "SbPlayerBridge::CreatePlayer");
+
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::CreatePlayer() {
+  TRACE_EVENT0("cobalt::media", "SbPlayerBridge<ChromeMedia>::CreatePlayer");
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   bool is_visible = SbWindowIsValid(window_);
-  bool has_audio = audio_stream_info_.codec != kSbMediaAudioCodecNone;
 
   is_creating_player_ = true;
 
   if (output_mode_ == kSbPlayerOutputModeInvalid) {
     PlayerErrorCB(kSbPlayerInvalid, this, kSbPlayerErrorDecode,
                   "Invalid output mode returned by "
-                  "SbPlayerBridge::ComputeSbPlayerOutputMode()");
+                  "SbPlayerBridge<ChromeMedia>::ComputeSbPlayerOutputMode()");
     is_creating_player_ = false;
     player_ = kSbPlayerInvalid;
     return;
@@ -773,9 +821,11 @@ void SbPlayerBridge::CreatePlayer() {
         ->SetMaxVideoInputSizeForCurrentThread(max_video_input_size_);
   }
   player_ = sbplayer_interface_->Create(
-      window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
-      &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
-      &SbPlayerBridge::PlayerErrorCB, this,
+      window_, &creation_param,
+      &SbPlayerBridge<ChromeMedia>::DeallocateSampleCB,
+      &SbPlayerBridge<ChromeMedia>::DecoderStatusCB,
+      &SbPlayerBridge<ChromeMedia>::PlayerStatusCB,
+      &SbPlayerBridge<ChromeMedia>::PlayerErrorCB, this,
       get_decode_target_graphics_context_provider_func_.Run());
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 
@@ -788,8 +838,9 @@ void SbPlayerBridge::CreatePlayer() {
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     // If the player is setup to decode to texture, then provide Cobalt with
     // a method of querying that texture.
-    decode_target_provider_->SetGetCurrentSbDecodeTargetFunction(base::Bind(
-        &SbPlayerBridge::GetCurrentSbDecodeTarget, base::Unretained(this)));
+    decode_target_provider_->SetGetCurrentSbDecodeTargetFunction(
+        base::Bind(&SbPlayerBridge<ChromeMedia>::GetCurrentSbDecodeTarget,
+                   base::Unretained(this)));
     LOG(INFO) << "Playing in decode-to-texture mode.";
   } else {
     LOG(INFO) << "Playing in punch-out mode.";
@@ -797,14 +848,16 @@ void SbPlayerBridge::CreatePlayer() {
 
   decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
-  set_bounds_helper_->SetPlayerBridge(this);
+  set_bounds_helper_->SetCallback(
+      base::BindRepeating(&SbPlayerBridge::SetBounds, base::Unretained(this)));
 
   base::AutoLock auto_lock(lock_);
   UpdateBounds_Locked();
 }
 
-void SbPlayerBridge::WriteNextBuffersFromCache(DemuxerStream::Type type,
-                                               int max_buffers_per_write) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::WriteNextBuffersFromCache(
+    typename DemuxerStream::Type type, int max_buffers_per_write) {
   DCHECK(state_ != kSuspended);
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
@@ -844,9 +897,10 @@ void SbPlayerBridge::WriteNextBuffersFromCache(DemuxerStream::Type type,
   }
 }
 
+template <typename ChromeMedia>
 template <typename PlayerSampleInfo>
-void SbPlayerBridge::WriteBuffersInternal(
-    DemuxerStream::Type type,
+void SbPlayerBridge<ChromeMedia>::WriteBuffersInternal(
+    typename DemuxerStream::Type type,
     const std::vector<scoped_refptr<DecoderBuffer>>& buffers,
     const SbMediaAudioStreamInfo* audio_stream_info,
     const SbMediaVideoStreamInfo* video_stream_info) {
@@ -884,7 +938,8 @@ void SbPlayerBridge::WriteBuffersInternal(
       break;
     }
 
-    DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->data());
+    typename DecodingBuffers::iterator iter =
+        decoding_buffers_.find(buffer->data());
     if (iter == decoding_buffers_.end()) {
       decoding_buffers_[buffer->data()] = std::make_pair(buffer, 1);
     } else {
@@ -962,17 +1017,20 @@ void SbPlayerBridge::WriteBuffersInternal(
   }
 }
 
-SbDecodeTarget SbPlayerBridge::GetCurrentSbDecodeTarget() {
+template <typename ChromeMedia>
+SbDecodeTarget SbPlayerBridge<ChromeMedia>::GetCurrentSbDecodeTarget() {
   return sbplayer_interface_->GetCurrentFrame(player_);
 }
 
-SbPlayerOutputMode SbPlayerBridge::GetSbPlayerOutputMode() {
+template <typename ChromeMedia>
+SbPlayerOutputMode SbPlayerBridge<ChromeMedia>::GetSbPlayerOutputMode() {
   return output_mode_;
 }
 
-void SbPlayerBridge::GetInfo_Locked(uint32* video_frames_decoded,
-                                    uint32* video_frames_dropped,
-                                    TimeDelta* media_time) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::GetInfo_Locked(uint32* video_frames_decoded,
+                                                 uint32* video_frames_dropped,
+                                                 TimeDelta* media_time) {
   lock_.AssertAcquired();
   if (state_ == kSuspended) {
     if (video_frames_decoded) {
@@ -1007,7 +1065,8 @@ void SbPlayerBridge::GetInfo_Locked(uint32* video_frames_decoded,
   }
 }
 
-void SbPlayerBridge::UpdateBounds_Locked() {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::UpdateBounds_Locked() {
   lock_.AssertAcquired();
   DCHECK(SbPlayerIsValid(player_));
 
@@ -1020,7 +1079,8 @@ void SbPlayerBridge::UpdateBounds_Locked() {
                                  rect.y(), rect.width(), rect.height());
 }
 
-void SbPlayerBridge::ClearDecoderBufferCache() {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::ClearDecoderBufferCache() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (state_ != kResuming) {
@@ -1031,13 +1091,17 @@ void SbPlayerBridge::ClearDecoderBufferCache() {
 
   task_runner_->PostDelayedTask(
       FROM_HERE,
-      base::Bind(&SbPlayerBridge::CallbackHelper::ClearDecoderBufferCache,
-                 callback_helper_),
+      base::Bind(
+          &SbPlayerBridge<ChromeMedia>::CallbackHelper::ClearDecoderBufferCache,
+          callback_helper_),
       TimeDelta::FromMilliseconds(kClearDecoderCacheIntervalInMilliseconds));
 }
 
-void SbPlayerBridge::OnDecoderStatus(SbPlayer player, SbMediaType type,
-                                     SbPlayerDecoderState state, int ticket) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::OnDecoderStatus(SbPlayer player,
+                                                  SbMediaType type,
+                                                  SbPlayerDecoderState state,
+                                                  int ticket) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -1054,8 +1118,8 @@ void SbPlayerBridge::OnDecoderStatus(SbPlayer player, SbMediaType type,
       break;
   }
 
-  DemuxerStream::Type stream_type =
-      ::media::SbMediaTypeToDemuxerStreamType(type);
+  typename DemuxerStream::Type stream_type =
+      SbMediaTypeToDemuxerStreamType<DemuxerStream>(type);
 
   if (stream_type == DemuxerStream::AUDIO && pending_audio_eos_buffer_) {
     SbPlayerWriteEndOfStream(player_, type);
@@ -1082,10 +1146,12 @@ void SbPlayerBridge::OnDecoderStatus(SbPlayer player, SbMediaType type,
   host_->OnNeedData(stream_type, max_number_of_samples_to_write);
 }
 
-void SbPlayerBridge::OnPlayerStatus(SbPlayer player, SbPlayerState state,
-                                    int ticket) {
-  TRACE_EVENT1("cobalt::media", "SbPlayerBridge::OnPlayerStatus", "state",
-               state);
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::OnPlayerStatus(SbPlayer player,
+                                                 SbPlayerState state,
+                                                 int ticket) {
+  TRACE_EVENT1("cobalt::media", "SbPlayerBridge<ChromeMedia>::OnPlayerStatus",
+               "state", state);
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (player_ != player) {
@@ -1123,8 +1189,10 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player, SbPlayerState state,
   host_->OnPlayerStatus(state);
 }
 
-void SbPlayerBridge::OnPlayerError(SbPlayer player, SbPlayerError error,
-                                   const std::string& message) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::OnPlayerError(SbPlayer player,
+                                                SbPlayerError error,
+                                                const std::string& message) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (player_ != player) {
@@ -1133,17 +1201,21 @@ void SbPlayerBridge::OnPlayerError(SbPlayer player, SbPlayerError error,
   host_->OnPlayerError(error, message);
 }
 
-void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::OnDeallocateSample(
+    const void* sample_buffer) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  DecodingBuffers::iterator iter = decoding_buffers_.find(sample_buffer);
+  typename DecodingBuffers::iterator iter =
+      decoding_buffers_.find(sample_buffer);
   DCHECK(iter != decoding_buffers_.end());
   if (iter == decoding_buffers_.end()) {
-    LOG(ERROR) << "SbPlayerBridge::OnDeallocateSample encounters unknown "
-               << "sample_buffer " << sample_buffer;
+    LOG(ERROR)
+        << "SbPlayerBridge<ChromeMedia>::OnDeallocateSample encounters unknown "
+        << "sample_buffer " << sample_buffer;
     return;
   }
   --iter->second.second;
@@ -1152,7 +1224,8 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   }
 }
 
-bool SbPlayerBridge::TryToSetPlayerCreationErrorMessage(
+template <typename ChromeMedia>
+bool SbPlayerBridge<ChromeMedia>::TryToSetPlayerCreationErrorMessage(
     const std::string& message) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   if (is_creating_player_) {
@@ -1166,28 +1239,36 @@ bool SbPlayerBridge::TryToSetPlayerCreationErrorMessage(
 }
 
 // static
-void SbPlayerBridge::DecoderStatusCB(SbPlayer player, void* context,
-                                     SbMediaType type,
-                                     SbPlayerDecoderState state, int ticket) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::DecoderStatusCB(SbPlayer player,
+                                                  void* context,
+                                                  SbMediaType type,
+                                                  SbPlayerDecoderState state,
+                                                  int ticket) {
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   helper->task_runner_->PostTask(
       FROM_HERE,
-      base::Bind(&SbPlayerBridge::CallbackHelper::OnDecoderStatus,
+      base::Bind(&SbPlayerBridge<ChromeMedia>::CallbackHelper::OnDecoderStatus,
                  helper->callback_helper_, player, type, state, ticket));
 }
 
 // static
-void SbPlayerBridge::PlayerStatusCB(SbPlayer player, void* context,
-                                    SbPlayerState state, int ticket) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::PlayerStatusCB(SbPlayer player, void* context,
+                                                 SbPlayerState state,
+                                                 int ticket) {
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   helper->task_runner_->PostTask(
-      FROM_HERE, base::Bind(&SbPlayerBridge::CallbackHelper::OnPlayerStatus,
-                            helper->callback_helper_, player, state, ticket));
+      FROM_HERE,
+      base::Bind(&SbPlayerBridge<ChromeMedia>::CallbackHelper::OnPlayerStatus,
+                 helper->callback_helper_, player, state, ticket));
 }
 
 // static
-void SbPlayerBridge::PlayerErrorCB(SbPlayer player, void* context,
-                                   SbPlayerError error, const char* message) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::PlayerErrorCB(SbPlayer player, void* context,
+                                                SbPlayerError error,
+                                                const char* message) {
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   if (player == kSbPlayerInvalid) {
     // TODO: Simplify by combining the functionality of
@@ -1197,22 +1278,27 @@ void SbPlayerBridge::PlayerErrorCB(SbPlayer player, void* context,
     }
   }
   helper->task_runner_->PostTask(
-      FROM_HERE, base::Bind(&SbPlayerBridge::CallbackHelper::OnPlayerError,
-                            helper->callback_helper_, player, error,
-                            message ? std::string(message) : ""));
+      FROM_HERE,
+      base::Bind(&SbPlayerBridge<ChromeMedia>::CallbackHelper::OnPlayerError,
+                 helper->callback_helper_, player, error,
+                 message ? std::string(message) : ""));
 }
 
 // static
-void SbPlayerBridge::DeallocateSampleCB(SbPlayer player, void* context,
-                                        const void* sample_buffer) {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::DeallocateSampleCB(
+    SbPlayer player, void* context, const void* sample_buffer) {
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   helper->task_runner_->PostTask(
-      FROM_HERE, base::Bind(&SbPlayerBridge::CallbackHelper::OnDeallocateSample,
-                            helper->callback_helper_, sample_buffer));
+      FROM_HERE,
+      base::Bind(
+          &SbPlayerBridge<ChromeMedia>::CallbackHelper::OnDeallocateSample,
+          helper->callback_helper_, sample_buffer));
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
-SbPlayerOutputMode SbPlayerBridge::ComputeSbUrlPlayerOutputMode(
+template <typename ChromeMedia>
+SbPlayerOutputMode SbPlayerBridge<ChromeMedia>::ComputeSbUrlPlayerOutputMode(
     SbPlayerOutputMode default_output_mode) {
   // Try to choose the output mode according to the passed in value of
   // |prefer_decode_to_texture|.  If the preferred output mode is unavailable
@@ -1234,7 +1320,8 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbUrlPlayerOutputMode(
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
+template <typename ChromeMedia>
+SbPlayerOutputMode SbPlayerBridge<ChromeMedia>::ComputeSbPlayerOutputMode(
     SbPlayerOutputMode default_output_mode) const {
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
@@ -1277,7 +1364,8 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
   return output_mode;
 }
 
-void SbPlayerBridge::LogStartupLatency() const {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::LogStartupLatency() const {
   std::string first_events_str;
   if (set_drm_system_ready_cb_time_.is_null()) {
     first_events_str = FormatString("%-40s0 us", "SbPlayerCreate() called");
@@ -1337,7 +1425,8 @@ void SbPlayerBridge::LogStartupLatency() const {
   // clang-format on
 }
 
-void SbPlayerBridge::SendColorSpaceHistogram() const {
+template <typename ChromeMedia>
+void SbPlayerBridge<ChromeMedia>::SendColorSpaceHistogram() const {
   using base::UmaHistogramEnumeration;
 
   const auto& cs_info = video_config_.color_space_info();

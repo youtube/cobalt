@@ -106,14 +106,15 @@ typedef base::Callback<void(const std::string&, const std::string&,
 
 
 WebMediaPlayerImpl::WebMediaPlayerImpl(
-    SbPlayerInterface* interface, PipelineWindow window,
-    const Pipeline::GetDecodeTargetGraphicsContextProviderFunc&
+    SbPlayerInterface* interface, ChromeMediaVersions chrome_media_version,
+    PipelineWindow window,
+    const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
     WebMediaPlayerClient* client, WebMediaPlayerDelegate* delegate,
     bool allow_resume_after_suspend, int max_audio_samples_per_write,
     bool force_punch_out_by_default, base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
-    ::media::MediaLog* const media_log)
+    MediaLogHolder* const media_log)
     : pipeline_thread_("media_pipeline"),
       network_state_(WebMediaPlayer::kNetworkStateEmpty),
       ready_state_(WebMediaPlayer::kReadyStateHaveNothing),
@@ -138,13 +139,27 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   media_log_->AddEvent<::media::MediaLogEvent::kWebMediaPlayerCreated>();
 
   pipeline_thread_.Start();
-  pipeline_ = new SbPlayerPipeline(
-      interface, window, pipeline_thread_.task_runner(),
-      get_decode_target_graphics_context_provider_func,
-      allow_resume_after_suspend_, max_audio_samples_per_write_,
-      force_punch_out_by_default_, audio_write_duration_local,
-      audio_write_duration_remote, media_log_, &media_metrics_provider_,
-      decode_target_provider_.get());
+
+  if (chrome_media_version == ChromeMediaVersions::M96) {
+    pipeline_.set(new SbPlayerPipeline<ChromeMediaM96>(
+        interface, window, pipeline_thread_.task_runner(),
+        get_decode_target_graphics_context_provider_func,
+        allow_resume_after_suspend_, max_audio_samples_per_write_,
+        force_punch_out_by_default_, audio_write_duration_local,
+        audio_write_duration_remote,
+        media_log_->As<typename ChromeMediaM96::MediaLog*>(),
+        &media_metrics_provider_, decode_target_provider_.get()));
+  } else {
+    DCHECK_EQ(chrome_media_version, ChromeMediaVersions::M114);
+    pipeline_.set(new SbPlayerPipeline<ChromeMediaM114>(
+        interface, window, pipeline_thread_.task_runner(),
+        get_decode_target_graphics_context_provider_func,
+        allow_resume_after_suspend_, max_audio_samples_per_write_,
+        force_punch_out_by_default_, audio_write_duration_local,
+        audio_write_duration_remote,
+        media_log_->As<typename ChromeMediaM114::MediaLog*>(),
+        &media_metrics_provider_, decode_target_provider_.get()));
+  }
 
   // Also we want to be notified of thread destruction.
   base::CurrentThread::Get()->AddDestructionObserver(this);
@@ -248,16 +263,40 @@ void WebMediaPlayerImpl::LoadMediaSource() {
   SetReadyState(WebMediaPlayer::kReadyStateHaveNothing);
 
   // Media source pipelines can start immediately.
-  chunk_demuxer_.reset(new ::media::ChunkDemuxer(
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDemuxerOpened),
-      // TODO(b/230878852): Handle progress callback.
-      base::BindRepeating([]() {}),
-      BIND_TO_RENDER_LOOP(
-          &WebMediaPlayerImpl::OnEncryptedMediaInitDataEncounteredWrapper),
-      media_log_));
+  if (pipeline_.is_m114()) {
+    LOG(INFO) << "Loading MediaSource using Chrome Media M114.";
+    DCHECK(pipeline_.As<Pipeline<ChromeMediaM114>*>());
+    chunk_demuxer_.set(new ChromeMediaM114::ChunkDemuxer(
+        BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDemuxerOpened),
+        // TODO(b/230878852): Handle progress callback.
+        base::BindRepeating([]() {}),
+        BIND_TO_RENDER_LOOP(
+            &WebMediaPlayerImpl::OnEncryptedMediaInitDataEncounteredWrapper<
+                ::media_m114::EmeInitDataType>),
+        media_log_->As<typename ChromeMediaM114::MediaLog*>()));
+  } else {
+    LOG(INFO) << "Loading MediaSource using Chrome Media M96.";
+    DCHECK(pipeline_.As<Pipeline<ChromeMediaM96>*>());
+    chunk_demuxer_.set(new ChromeMediaM96::ChunkDemuxer(
+        BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDemuxerOpened),
+        // TODO(b/230878852): Handle progress callback.
+        base::BindRepeating([]() {}),
+        BIND_TO_RENDER_LOOP(
+            &WebMediaPlayerImpl::OnEncryptedMediaInitDataEncounteredWrapper<
+                ::media_m96::EmeInitDataType>),
+        media_log_->As<typename ChromeMediaM96::MediaLog*>()));
+  }
 
   state_.is_media_source = true;
-  StartPipeline(chunk_demuxer_.get());
+  if (pipeline_.is_m114()) {
+    DCHECK(pipeline_.As<Pipeline<ChromeMediaM114>*>());
+    StartPipeline<ChromeMediaM114>(
+        chunk_demuxer_.As<ChromeMediaM114::ChunkDemuxer*>());
+  } else {
+    DCHECK(pipeline_.As<Pipeline<ChromeMediaM96>*>());
+    StartPipeline<ChromeMediaM96>(
+        chunk_demuxer_.As<ChromeMediaM96::ChunkDemuxer*>());
+  }
 }
 
 void WebMediaPlayerImpl::LoadProgressive(
@@ -292,11 +331,12 @@ void WebMediaPlayerImpl::LoadProgressive(
     // create a demuxer; fall back to the ProgressiveDemuxer.
     LOG(INFO) << "Using ProgressiveDemuxer.";
     progressive_demuxer_.reset(new ProgressiveDemuxer(
-        pipeline_thread_.task_runner(), proxy_->data_source(), media_log_));
+        pipeline_thread_.task_runner(), proxy_->data_source(),
+        media_log_->As<::media::MediaLog*>()));
   }
 
   state_.is_progressive = true;
-  StartPipeline(progressive_demuxer_.get());
+  StartPipeline<ChromeMediaM114>(progressive_demuxer_.get());
 }
 
 void WebMediaPlayerImpl::CancelLoad() {
@@ -309,7 +349,7 @@ void WebMediaPlayerImpl::Play() {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
 
   state_.paused = false;
-  pipeline_->SetPlaybackRate(state_.playback_rate);
+  pipeline_.SetPlaybackRate(state_.playback_rate);
 
   media_log_->AddEvent<::media::MediaLogEvent::kPlay>();
   media_metrics_provider_.SetHasPlayed();
@@ -319,8 +359,8 @@ void WebMediaPlayerImpl::Pause() {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
 
   state_.paused = true;
-  pipeline_->SetPlaybackRate(0.0f);
-  state_.paused_time = pipeline_->GetMediaTime();
+  pipeline_.SetPlaybackRate(0.0f);
+  state_.paused_time = pipeline_.GetMediaTime();
 
   media_log_->AddEvent<::media::MediaLogEvent::kPause>();
 }
@@ -342,8 +382,8 @@ void WebMediaPlayerImpl::Seek(double seconds) {
     media_metrics_provider_.Reset();
     state_.pending_seek = true;
     state_.pending_seek_seconds = seconds;
-    if (chunk_demuxer_) {
-      chunk_demuxer_->CancelPendingSeek(ConvertSecondsToTimestamp(seconds));
+    if (chunk_demuxer_.valid()) {
+      chunk_demuxer_.CancelPendingSeek(ConvertSecondsToTimestamp(seconds));
     }
     return;
   }
@@ -358,13 +398,22 @@ void WebMediaPlayerImpl::Seek(double seconds) {
 
   state_.seeking = true;
 
-  if (chunk_demuxer_) {
-    chunk_demuxer_->StartWaitingForSeek(seek_time);
+  if (chunk_demuxer_.valid()) {
+    chunk_demuxer_.StartWaitingForSeek(seek_time);
   }
 
   // Kick off the asynchronous seek!
-  pipeline_->Seek(seek_time,
-                  BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek));
+  if (auto pipeline_m96 = pipeline_.As<Pipeline<ChromeMediaM96>*>()) {
+    pipeline_m96->Seek(
+        seek_time, BIND_TO_RENDER_LOOP(
+                       &WebMediaPlayerImpl::OnPipelineSeek<ChromeMediaM96>));
+  } else {
+    auto pipeline_m114 = pipeline_.As<Pipeline<ChromeMediaM114>*>();
+    DCHECK(pipeline_m114);
+    pipeline_m114->Seek(
+        seek_time, BIND_TO_RENDER_LOOP(
+                       &WebMediaPlayerImpl::OnPipelineSeek<ChromeMediaM114>));
+  }
 }
 
 void WebMediaPlayerImpl::SetRate(float rate) {
@@ -384,14 +433,14 @@ void WebMediaPlayerImpl::SetRate(float rate) {
 
   state_.playback_rate = rate;
   if (!state_.paused) {
-    pipeline_->SetPlaybackRate(rate);
+    pipeline_.SetPlaybackRate(rate);
   }
 }
 
 void WebMediaPlayerImpl::SetVolume(float volume) {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
 
-  pipeline_->SetVolume(volume);
+  pipeline_.SetVolume(volume);
 }
 
 void WebMediaPlayerImpl::SetVisible(bool visible) {
@@ -404,20 +453,20 @@ void WebMediaPlayerImpl::SetVisible(bool visible) {
 bool WebMediaPlayerImpl::HasVideo() const {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
 
-  return pipeline_->HasVideo();
+  return pipeline_.HasVideo();
 }
 
 bool WebMediaPlayerImpl::HasAudio() const {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
 
-  return pipeline_->HasAudio();
+  return pipeline_.HasAudio();
 }
 
 int WebMediaPlayerImpl::GetNaturalWidth() const {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
 
   gfx::Size size;
-  pipeline_->GetNaturalVideoSize(&size);
+  pipeline_.GetNaturalVideoSize(&size);
   return size.width();
 }
 
@@ -425,19 +474,19 @@ int WebMediaPlayerImpl::GetNaturalHeight() const {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
 
   gfx::Size size;
-  pipeline_->GetNaturalVideoSize(&size);
+  pipeline_.GetNaturalVideoSize(&size);
   return size.height();
 }
 
 std::vector<std::string> WebMediaPlayerImpl::GetAudioConnectors() const {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
-  return pipeline_->GetAudioConnectors();
+  return pipeline_.GetAudioConnectors();
 }
 
 bool WebMediaPlayerImpl::IsPaused() const {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
 
-  return pipeline_->GetPlaybackRate() == 0.0f;
+  return pipeline_.GetPlaybackRate() == 0.0f;
 }
 
 bool WebMediaPlayerImpl::IsSeeking() const {
@@ -454,7 +503,7 @@ double WebMediaPlayerImpl::GetDuration() const {
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing)
     return std::numeric_limits<double>::quiet_NaN();
 
-  base::TimeDelta duration = pipeline_->GetMediaDuration();
+  base::TimeDelta duration = pipeline_.GetMediaDuration();
 
   // Return positive infinity if the resource is unbounded.
   // http://www.whatwg.org/specs/web-apps/current-work/multipage/video.html#dom-media-duration
@@ -471,7 +520,7 @@ base::Time WebMediaPlayerImpl::GetStartDate() const {
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing)
     return base::Time();
 
-  base::TimeDelta start_date = pipeline_->GetMediaStartDate();
+  base::TimeDelta start_date = pipeline_.GetMediaStartDate();
 
   return base::Time::FromDeltaSinceWindowsEpoch(
       base::TimeDelta::FromMicroseconds(start_date.InMicroseconds()));
@@ -483,7 +532,7 @@ double WebMediaPlayerImpl::GetCurrentTime() const {
   if (state_.paused) {
     return state_.paused_time.InSecondsF();
   }
-  return pipeline_->GetMediaTime().InSecondsF();
+  return pipeline_.GetMediaTime().InSecondsF();
 }
 
 float WebMediaPlayerImpl::GetPlaybackRate() const {
@@ -516,19 +565,15 @@ void WebMediaPlayerImpl::UpdateBufferedTimeRanges(
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(add_range_cb);
 
-  auto buffered = pipeline_->GetBufferedTimeRanges();
-
-  for (int i = 0; i < static_cast<int>(buffered.size()); ++i) {
-    add_range_cb(buffered.start(i).InSecondsF(), buffered.end(i).InSecondsF());
-  }
+  pipeline_.UpdateBufferedTimeRanges(add_range_cb);
 }
 
 double WebMediaPlayerImpl::GetMaxTimeSeekable() const {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
-  return pipeline_->GetMediaDuration().InSecondsF();
+  return pipeline_.GetMediaDuration().InSecondsF();
 }
 
-void WebMediaPlayerImpl::Suspend() { pipeline_->Suspend(); }
+void WebMediaPlayerImpl::Suspend() { pipeline_.Suspend(); }
 
 void WebMediaPlayerImpl::Resume(PipelineWindow window) {
   media_metrics_provider_.Reset();
@@ -536,12 +581,12 @@ void WebMediaPlayerImpl::Resume(PipelineWindow window) {
     is_resuming_from_background_mode_ = true;
   }
   window_ = window;
-  pipeline_->Resume(window);
+  pipeline_.Resume(window);
 }
 
 bool WebMediaPlayerImpl::DidLoadingProgress() const {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
-  return pipeline_->DidLoadingProgress();
+  return pipeline_.DidLoadingProgress();
 }
 
 double WebMediaPlayerImpl::MediaTimeForTimeValue(double timeValue) const {
@@ -552,11 +597,11 @@ WebMediaPlayer::PlayerStatistics WebMediaPlayerImpl::GetStatistics() const {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
 
   PlayerStatistics statistics;
-  ::media::PipelineStatistics pipeline_stats = pipeline_->GetStatistics();
-  statistics.audio_bytes_decoded = pipeline_stats.audio_bytes_decoded;
-  statistics.video_bytes_decoded = pipeline_stats.video_bytes_decoded;
-  statistics.video_frames_decoded = pipeline_stats.video_frames_decoded;
-  statistics.video_frames_dropped = pipeline_stats.video_frames_dropped;
+  VideoStatistics video_stats = pipeline_.GetVideoStatistics();
+  statistics.audio_bytes_decoded = 0;
+  statistics.video_bytes_decoded = 0;
+  statistics.video_frames_decoded = video_stats.video_frames_decoded;
+  statistics.video_frames_dropped = video_stats.video_frames_dropped;
   return statistics;
 }
 
@@ -568,7 +613,7 @@ WebMediaPlayerImpl::GetDecodeTargetProvider() {
 WebMediaPlayerImpl::SetBoundsCB WebMediaPlayerImpl::GetSetBoundsCB() {
   // |pipeline_| is always valid during WebMediaPlayerImpl's life time.  It is
   // also reference counted so it lives after WebMediaPlayerImpl is destroyed.
-  return pipeline_->GetSetBoundsCB();
+  return pipeline_.GetSetBoundsCB();
 }
 
 void WebMediaPlayerImpl::WillDestroyCurrentMessageLoop() {
@@ -602,9 +647,10 @@ void WebMediaPlayerImpl::SetDrmSystemReadyCB(
   }
 }
 
-void WebMediaPlayerImpl::OnPipelineSeek(::media::PipelineStatus status,
-                                        bool is_initial_preroll,
-                                        const std::string& error_message) {
+template <typename ChromeMedia>
+void WebMediaPlayerImpl::OnPipelineSeek(
+    typename ChromeMedia::PipelineStatus status, bool is_initial_preroll,
+    const std::string& error_message) {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   state_.starting = false;
   state_.seeking = false;
@@ -615,13 +661,13 @@ void WebMediaPlayerImpl::OnPipelineSeek(::media::PipelineStatus status,
   }
 
   if (status != ::media::PIPELINE_OK) {
-    OnPipelineError(status,
-                    "Failed pipeline seek with error: " + error_message + ".");
+    OnPipelineError<ChromeMedia>(
+        status, "Failed pipeline seek with error: " + error_message + ".");
     return;
   }
 
   // Update our paused time.
-  if (state_.paused) state_.paused_time = pipeline_->GetMediaTime();
+  if (state_.paused) state_.paused_time = pipeline_.GetMediaTime();
 
   if (is_initial_preroll) {
     const bool kEosPlayed = false;
@@ -637,10 +683,12 @@ void WebMediaPlayerImpl::OnPipelineSeek(::media::PipelineStatus status,
   }
 }
 
-void WebMediaPlayerImpl::OnPipelineEnded(::media::PipelineStatus status) {
+template <typename ChromeMedia>
+void WebMediaPlayerImpl::OnPipelineEnded(
+    typename ChromeMedia::PipelineStatus status) {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   if (status != ::media::PIPELINE_OK) {
-    OnPipelineError(status, "Failed pipeline end.");
+    OnPipelineError<ChromeMedia>(status, "Failed pipeline end.");
     return;
   }
 
@@ -648,31 +696,35 @@ void WebMediaPlayerImpl::OnPipelineEnded(::media::PipelineStatus status) {
   GetClient()->TimeChanged(kEosPlayed);
 }
 
-void WebMediaPlayerImpl::OnPipelineError(::media::PipelineStatus error,
-                                         const std::string& message) {
+template <typename ChromeMedia>
+void WebMediaPlayerImpl::OnPipelineError(
+    typename ChromeMedia::PipelineStatus error, const std::string& message) {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
 
   if (suppress_destruction_errors_) return;
 
   media_log_->NotifyError(error);
-  media_metrics_provider_.OnError(error);
+  media_metrics_provider_.OnError(
+      pipeline_status_cast<::media_m114::PipelineStatus>(error));
 
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing) {
     // Any error that occurs before reaching ReadyStateHaveMetadata should
     // be considered a format error.
+    auto error_code_m114 =
+        pipeline_status_cast<::media_m114::PipelineStatus>(error).code();
     SetNetworkError(
         WebMediaPlayer::kNetworkStateFormatError,
         message.empty()
             ? base::StringPrintf("Ready state have nothing. Error: (%d)",
-                                 static_cast<int>(error.code()))
+                                 static_cast<int>(error_code_m114))
             : base::StringPrintf(
                   "Ready state have nothing: Error: (%d), Message: %s",
-                  static_cast<int>(error.code()), message.c_str()));
+                  static_cast<int>(error_code_m114), message.c_str()));
     return;
   }
 
   std::string default_message;
-  switch (error.code()) {
+  switch (pipeline_status_cast<::media_m114::PipelineStatusCodes>(error)) {
     case ::media::PIPELINE_OK:
       NOTREACHED() << "PIPELINE_OK isn't an error!";
       break;
@@ -767,21 +819,22 @@ void WebMediaPlayerImpl::OnPipelineError(::media::PipelineStatus error,
 }
 
 void WebMediaPlayerImpl::OnPipelineBufferingState(
-    Pipeline::BufferingState buffering_state) {
-  DVLOG(1) << "OnPipelineBufferingState(" << buffering_state << ")";
+    BufferingState buffering_state) {
+  DVLOG(1) << "OnPipelineBufferingState(" << static_cast<int>(buffering_state)
+           << ")";
 
   // If |is_resuming_from_background_mode_| is true, we are exiting background
   // mode and must seek.
   if (is_resuming_from_background_mode_) {
-    Seek(pipeline_->GetMediaTime().InSecondsF());
+    Seek(pipeline_.GetMediaTime().InSecondsF());
     is_resuming_from_background_mode_ = false;
   }
 
   switch (buffering_state) {
-    case Pipeline::kHaveMetadata:
+    case BufferingState::kHaveMetadata:
       SetReadyState(WebMediaPlayer::kReadyStateHaveMetadata);
       break;
-    case Pipeline::kPrerollCompleted:
+    case BufferingState::kPrerollCompleted:
       SetReadyState(WebMediaPlayer::kReadyStateHaveEnoughData);
       media_metrics_provider_.SetHaveEnough();
       break;
@@ -791,9 +844,9 @@ void WebMediaPlayerImpl::OnPipelineBufferingState(
 void WebMediaPlayerImpl::OnDemuxerOpened() {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::OnDemuxerOpened");
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
-  DCHECK(chunk_demuxer_);
+  DCHECK(chunk_demuxer_.valid());
 
-  GetClient()->SourceOpened(chunk_demuxer_.get());
+  GetClient()->SourceOpened(&chunk_demuxer_);
 }
 
 void WebMediaPlayerImpl::OnDownloadingStatusChanged(bool is_downloading) {
@@ -811,9 +864,9 @@ void WebMediaPlayerImpl::StartPipeline(const GURL& url) {
   state_.starting = true;
 
   if (client_->PreferDecodeToTexture()) {
-    pipeline_->SetPreferredOutputModeToDecodeToTexture();
+    pipeline_.SetPreferredOutputModeToDecodeToTexture();
   }
-  pipeline_->Start(
+  pipeline_.Start(
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetDrmSystemReadyCB),
       BIND_TO_RENDER_LOOP(
           &WebMediaPlayerImpl::OnEncryptedMediaInitDataEncountered),
@@ -827,19 +880,20 @@ void WebMediaPlayerImpl::StartPipeline(const GURL& url) {
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-void WebMediaPlayerImpl::StartPipeline(::media::Demuxer* demuxer) {
+template <typename ChromeMedia>
+void WebMediaPlayerImpl::StartPipeline(typename ChromeMedia::Demuxer* demuxer) {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::StartPipeline");
 
   state_.starting = true;
 
   if (client_->PreferDecodeToTexture()) {
-    pipeline_->SetPreferredOutputModeToDecodeToTexture();
+    pipeline_.SetPreferredOutputModeToDecodeToTexture();
   }
-  pipeline_->Start(
+  pipeline_.Start<ChromeMedia>(
       demuxer, BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetDrmSystemReadyCB),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineError),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded<ChromeMedia>),
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineError<ChromeMedia>),
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek<ChromeMedia>),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineBufferingState),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnOutputModeChanged),
@@ -909,7 +963,7 @@ void WebMediaPlayerImpl::Destroy() {
   base::WaitableEvent waiter(base::WaitableEvent::ResetPolicy::AUTOMATIC,
                              base::WaitableEvent::InitialState::NOT_SIGNALED);
   LOG(INFO) << "Trying to stop media pipeline.";
-  pipeline_->Stop(
+  pipeline_.Stop(
       base::Bind(&base::WaitableEvent::Signal, base::Unretained(&waiter)));
   waiter.Wait();
   LOG(INFO) << "Media pipeline stopped.";
@@ -926,7 +980,7 @@ void WebMediaPlayerImpl::GetMediaTimeAndSeekingState(
     base::TimeDelta* media_time, bool* is_seeking) const {
   DCHECK(media_time);
   DCHECK(is_seeking);
-  *media_time = pipeline_->GetMediaTime();
+  *media_time = pipeline_.GetMediaTime();
   *is_seeking = state_.seeking;
 }
 
@@ -938,25 +992,25 @@ void WebMediaPlayerImpl::OnEncryptedMediaInitDataEncountered(
                                                  init_data.size());
 }
 
+template <typename EMEInitDataType>
 void WebMediaPlayerImpl::OnEncryptedMediaInitDataEncounteredWrapper(
-    ::media::EmeInitDataType init_data_type,
-    const std::vector<uint8_t>& init_data) {
+    EMEInitDataType init_data_type, const std::vector<uint8_t>& init_data) {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
 
   // Initialization data types are defined in
   // https://www.w3.org/TR/eme-initdata-registry/#registry.
-  switch (init_data_type) {
-    case ::media::EmeInitDataType::UNKNOWN:
+  switch (static_cast<int>(init_data_type)) {
+    case static_cast<int>(::media_m114::EmeInitDataType::UNKNOWN):
       LOG(WARNING) << "Unknown EME initialization data type.";
       OnEncryptedMediaInitDataEncountered("", init_data);
       break;
-    case ::media::EmeInitDataType::WEBM:
+    case static_cast<int>(::media_m114::EmeInitDataType::WEBM):
       OnEncryptedMediaInitDataEncountered("webm", init_data);
       break;
-    case ::media::EmeInitDataType::CENC:
+    case static_cast<int>(::media_m114::EmeInitDataType::CENC):
       OnEncryptedMediaInitDataEncountered("cenc", init_data);
       break;
-    case ::media::EmeInitDataType::KEYIDS:
+    case static_cast<int>(::media_m114::EmeInitDataType::KEYIDS):
       OnEncryptedMediaInitDataEncountered("keyids", init_data);
       break;
     default:

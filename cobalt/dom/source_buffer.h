@@ -68,13 +68,14 @@
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/track_default_list.h"
 #include "cobalt/dom/video_track_list.h"
+#include "cobalt/media/base/chunk_demuxer_holder.h"
 #include "cobalt/script/array_buffer.h"
 #include "cobalt/script/array_buffer_view.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/web/event_target.h"
 #include "media/base/media_tracks.h"
-#include "media/filters/chunk_demuxer.h"
+#include "third_party/chromium/media/base/media_tracks.h"
 
 namespace cobalt {
 namespace dom {
@@ -86,12 +87,11 @@ class MediaSource;
 //   https://www.w3.org/TR/2016/CR-media-source-20160705/#sourcebuffer
 class SourceBuffer : public web::EventTarget {
  public:
-  typedef ::media::ChunkDemuxer ChunkDemuxer;
-
   // Custom, not in any spec.
   //
   SourceBuffer(script::EnvironmentSettings* settings, const std::string& id,
-               MediaSource* media_source, ChunkDemuxer* chunk_demuxer,
+               MediaSource* media_source,
+               media::ChunkDemuxerHolder* chunk_demuxer,
                EventQueue* event_queue);
 
   // Web API: SourceBuffer
@@ -148,7 +148,6 @@ class SourceBuffer : public web::EventTarget {
   void set_memory_limit(size_t limit, script::ExceptionState* exception_state);
 
  private:
-  typedef ::media::MediaTracks MediaTracks;
   typedef script::ArrayBuffer ArrayBuffer;
   typedef script::ArrayBufferView ArrayBufferView;
 
@@ -163,7 +162,10 @@ class SourceBuffer : public web::EventTarget {
    public:
     explicit OnInitSegmentReceivedHelper(SourceBuffer* source_buffer);
     void Detach();
-    void TryToRunOnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks);
+    void TryToRunOnInitSegmentReceivedM96(
+        std::unique_ptr<::media_m96::MediaTracks> tracks);
+    void TryToRunOnInitSegmentReceivedM114(
+        std::unique_ptr<::media_m114::MediaTracks> tracks);
 
    private:
     scoped_refptr<base::SequencedTaskRunner> task_runner_ =
@@ -174,7 +176,7 @@ class SourceBuffer : public web::EventTarget {
   };
 
 
-  void OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks);
+  void OnInitSegmentReceived();
   void ScheduleEvent(base_token::Token event_name);
   bool PrepareAppend(size_t new_data_size,
                      script::ExceptionState* exception_state);
@@ -201,7 +203,7 @@ class SourceBuffer : public web::EventTarget {
   const size_t max_append_buffer_size_;
 
   MediaSource* media_source_;
-  ChunkDemuxer* chunk_demuxer_;
+  media::ChunkDemuxerHolder* chunk_demuxer_;
   scoped_refptr<TrackDefaultList> track_defaults_ = new TrackDefaultList(NULL);
   EventQueue* event_queue_;
 
