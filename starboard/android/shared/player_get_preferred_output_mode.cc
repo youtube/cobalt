@@ -30,17 +30,10 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
     return kSbPlayerOutputModeInvalid;
   }
 
-#if SB_API_VERSION >= 15
   const SbMediaAudioStreamInfo& audio_stream_info =
       creation_param->audio_stream_info;
   const SbMediaVideoStreamInfo& video_stream_info =
       creation_param->video_stream_info;
-#else   // SB_API_VERSION >= 15
-  const SbMediaAudioSampleInfo& audio_stream_info =
-      creation_param->audio_sample_info;
-  const SbMediaVideoSampleInfo& video_stream_info =
-      creation_param->video_sample_info;
-#endif  // SB_API_VERSION >= 15
 
   if (audio_stream_info.codec != kSbMediaAudioCodecNone &&
       !audio_stream_info.mime) {

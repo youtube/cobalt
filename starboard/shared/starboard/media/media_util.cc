@@ -169,13 +169,9 @@ bool operator!=(const AudioStreamInfo& left, const AudioStreamInfo& right) {
 
 AudioSampleInfo& AudioSampleInfo::operator=(
     const SbMediaAudioSampleInfo& that) {
-#if SB_API_VERSION >= 15
   stream_info = that.stream_info;
   discarded_duration_from_front = that.discarded_duration_from_front;
   discarded_duration_from_back = that.discarded_duration_from_back;
-#else   // SB_API_VERSION >= 15
-  stream_info = that;
-#endif  // SB_API_VERSION >= 15
 
   return *this;
 }
@@ -193,15 +189,11 @@ void AudioSampleInfo::ConvertTo(
   SB_DCHECK(audio_sample_info);
 
   *audio_sample_info = {};
-#if SB_API_VERSION >= 15
   stream_info.ConvertTo(&audio_sample_info->stream_info);
   audio_sample_info->discarded_duration_from_front =
       discarded_duration_from_front;
   audio_sample_info->discarded_duration_from_back =
       discarded_duration_from_back;
-#else   // SB_API_VERSION >= 15
-  stream_info.ConvertTo(audio_sample_info);
-#endif  // SB_API_VERSION >= 15
 }
 
 void AudioSampleInfo::ConvertTo(
@@ -257,11 +249,7 @@ bool operator!=(const VideoStreamInfo& left, const VideoStreamInfo& right) {
 
 VideoSampleInfo& VideoSampleInfo::operator=(
     const SbMediaVideoSampleInfo& that) {
-#if SB_API_VERSION >= 15
   stream_info = that.stream_info;
-#else   // SB_API_VERSION >= 15
-  stream_info = that;
-#endif  // SB_API_VERSION >= 15
   is_key_frame = that.is_key_frame;
   return *this;
 }
@@ -278,11 +266,7 @@ void VideoSampleInfo::ConvertTo(
   SB_DCHECK(video_sample_info);
 
   *video_sample_info = {};
-#if SB_API_VERSION >= 15
   stream_info.ConvertTo(&video_sample_info->stream_info);
-#else   // SB_API_VERSION >= 15
-  stream_info.ConvertTo(video_sample_info);
-#endif  // SB_API_VERSION >= 15
   video_sample_info->is_key_frame = is_key_frame;
 }
 
@@ -478,13 +462,8 @@ bool operator==(const SbMediaColorMetadata& metadata_1,
 
 bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
                 const SbMediaVideoSampleInfo& sample_info_2) {
-#if SB_API_VERSION >= 15
   const SbMediaVideoStreamInfo& stream_info_1 = sample_info_1.stream_info;
   const SbMediaVideoStreamInfo& stream_info_2 = sample_info_2.stream_info;
-#else   // SB_API_VERSION >= 15
-  const SbMediaVideoStreamInfo& stream_info_1 = sample_info_1;
-  const SbMediaVideoStreamInfo& stream_info_2 = sample_info_2;
-#endif  // SB_API_VERSION >= 15
 
   if (stream_info_1.codec != stream_info_2.codec) {
     return false;
@@ -513,8 +492,6 @@ bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
   return stream_info_1.color_metadata == stream_info_2.color_metadata;
 }
 
-#if SB_API_VERSION >= 15
-
 bool operator==(const SbMediaVideoStreamInfo& stream_info_1,
                 const SbMediaVideoStreamInfo& stream_info_2) {
   if (stream_info_1.codec != stream_info_2.codec) {
@@ -540,8 +517,6 @@ bool operator==(const SbMediaVideoStreamInfo& stream_info_1,
   return stream_info_1.color_metadata == stream_info_2.color_metadata;
 }
 
-#endif  // SB_API_VERSION >= 15
-
 bool operator!=(const SbMediaColorMetadata& metadata_1,
                 const SbMediaColorMetadata& metadata_2) {
   return !(metadata_1 == metadata_2);
@@ -552,9 +527,7 @@ bool operator!=(const SbMediaVideoSampleInfo& sample_info_1,
   return !(sample_info_1 == sample_info_2);
 }
 
-#if SB_API_VERSION >= 15
 bool operator!=(const SbMediaVideoStreamInfo& stream_info_1,
                 const SbMediaVideoStreamInfo& stream_info_2) {
   return !(stream_info_1 == stream_info_2);
 }
-#endif  // SB_API_VERSION >= 15

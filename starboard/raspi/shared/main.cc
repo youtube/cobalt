@@ -53,12 +53,7 @@ int main(int argc, char** argv) {
   third_party::crashpad::wrapper::InstallCrashpadHandler(ca_certificates_path);
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
-#if SB_API_VERSION >= 15
   int result = SbRunStarboardMain(argc, argv, SbEventHandle);
-#else
-  starboard::raspi::shared::ApplicationDispmanx application;
-  int result = application.Run(argc, argv);
-#endif  // SB_API_VERSION >= 15
   starboard::shared::signal::UninstallSuspendSignalHandlers();
   starboard::shared::signal::UninstallDebugSignalHandlers();
   starboard::shared::signal::UninstallCrashSignalHandlers();

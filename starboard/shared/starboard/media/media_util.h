@@ -178,19 +178,15 @@ bool operator==(const SbMediaColorMetadata& metadata_1,
 bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
                 const SbMediaVideoSampleInfo& sample_info_2);
 
-#if SB_API_VERSION >= 15
 bool operator==(const SbMediaVideoStreamInfo& stream_info_1,
                 const SbMediaVideoStreamInfo& stream_info_2);
-#endif  // SB_API_VERSION >= 15
 
 bool operator!=(const SbMediaColorMetadata& metadata_1,
                 const SbMediaColorMetadata& metadata_2);
 bool operator!=(const SbMediaVideoSampleInfo& sample_info_1,
                 const SbMediaVideoSampleInfo& sample_info_2);
 
-#if SB_API_VERSION >= 15
 bool operator!=(const SbMediaVideoStreamInfo& stream_info_1,
                 const SbMediaVideoStreamInfo& stream_info_2);
-#endif  // SB_API_VERSION >= 15
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_UTIL_H_
