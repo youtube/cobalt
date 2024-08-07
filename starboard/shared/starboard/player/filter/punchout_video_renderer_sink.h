@@ -16,8 +16,8 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_PUNCHOUT_VIDEO_RENDERER_SINK_H_
 
 #include <pthread.h>
+#include <atomic>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/mutex.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -50,7 +50,7 @@ class PunchoutVideoRendererSink : public VideoRendererSink {
   int64_t render_interval_;  // microseconds
   RenderCB render_cb_;
   pthread_t thread_;
-  atomic_bool stop_requested_;
+  std::atomic_bool stop_requested_{false};
 
   Mutex mutex_;
   int z_index_;

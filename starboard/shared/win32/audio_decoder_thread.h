@@ -15,10 +15,10 @@
 #ifndef STARBOARD_SHARED_WIN32_AUDIO_DECODER_THREAD_H_
 #define STARBOARD_SHARED_WIN32_AUDIO_DECODER_THREAD_H_
 
+#include <atomic>
 #include <deque>
 #include <queue>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/thread.h"
@@ -60,7 +60,7 @@ class AudioDecoderThread : private Thread {
 
   std::deque<scoped_refptr<InputBuffer> > input_buffer_queue_;
   ::starboard::Mutex input_buffer_queue_mutex_;
-  atomic_int32_t processing_elements_;
+  std::atomic<int32_t> processing_elements_{0};
   Semaphore semaphore_;
 };
 
