@@ -244,6 +244,9 @@ bool CORSPreflight::IsPreflightNeeded() {
   if (force_preflight_) {
     return true;
   }
+  if (cors_policy_ == network::kCORSOptional) {
+    return false;
+  }
   // Preflight is not needed if the request method is CORS-safelisted request
   // method and all headers are CORS-safelisted request-header.
   std::vector<std::string> unsafe_headers;
