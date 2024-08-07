@@ -17,8 +17,8 @@
 
 #include <WS2tcpip.h>
 #include <winsock2.h>
+#include <atomic>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/socket.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/win32/auto_event_handle.h"
@@ -69,7 +69,7 @@ struct SbSocketPrivate {
   // edge-triggered, unlike other events.
   //
   // See MSDN documentation for WSAEventSelect FD_WRITE for more info.
-  starboard::atomic_bool writable;
+  std::atomic_bool writable;
 
   // The last error that occurred on this socket, or kSbSocketOk.
   SbSocketError error;

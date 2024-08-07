@@ -46,6 +46,7 @@ VideoRendererImpl::VideoRendererImpl(
       sink_(sink),
       decoder_(std::move(decoder)),
       end_of_stream_written_(false),
+      end_of_stream_decoded_(false),
       ended_cb_called_(false),
       need_more_input_(true),
       seeking_(false),
@@ -284,7 +285,7 @@ void VideoRendererImpl::OnDecoderStatus(
       if (decoder_frames_.empty() || frame->is_end_of_stream() ||
           frame->timestamp() > decoder_frames_.back()->timestamp()) {
         decoder_frames_.push_back(frame);
-        number_of_frames_.increment();
+        ++number_of_frames_;
       }
     }
 

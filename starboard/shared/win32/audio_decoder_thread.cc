@@ -75,7 +75,7 @@ bool AudioDecoderThread::QueueInput(const scoped_refptr<InputBuffer>& buffer) {
   }
 
   // increment() returns the previous value.
-  size_t element_count = processing_elements_.increment() + 1;
+  size_t element_count = processing_elements_++ + 1;
   semaphore_.Put();
   return element_count < kMaxProcessingElements;
 }

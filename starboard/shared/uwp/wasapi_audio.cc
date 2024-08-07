@@ -15,8 +15,8 @@
 #include "starboard/shared/uwp/wasapi_audio.h"
 
 #include <mfapi.h>
+#include <atomic>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/once.h"
@@ -97,7 +97,7 @@ class DefaultAudioRenderParams {
   }
 
  private:
-  atomic_bool is_dirty_{true};
+  std::atomic_bool is_dirty_{true};
   Mutex mutex_;
   int cached_bitrate_ = 0;
   int cached_channels_ = 0;
