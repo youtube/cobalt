@@ -44,10 +44,6 @@ const char kModelYear[] = "2025";
 const char kModelYear[] = "2024";
 #endif  // SB_API_VERSION == 15
 
-#if SB_API_VERSION == 14
-const char kModelYear[] = "2023";
-#endif  // SB_API_VERSION == 14
-
 }  // namespace
 
 // Omit namespace linux due to symbol name conflict.
