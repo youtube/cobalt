@@ -62,6 +62,25 @@ std::unique_ptr<Socket> CreateListenSocket() {
   return socket;
 }
 
+#if SB_API_VERSION >= 16
+void WaitUntilReadableOrConnectionReset(int sock) {
+  SbSocketWaiter waiter = SbSocketWaiterCreate();
+
+  struct F {
+    static void WakeUp(SbSocketWaiter waiter, int, void*, int) {
+      SbSocketWaiterWakeUp(waiter);
+    }
+  };
+
+  SbPosixSocketWaiterAdd(waiter, sock, NULL, &F::WakeUp,
+                         kSbSocketWaiterInterestRead,
+                         false);  // false means one shot.
+
+  SbSocketWaiterWait(waiter);
+  SbPosixSocketWaiterRemove(waiter, sock);
+  SbSocketWaiterDestroy(waiter);
+}
+#else
 void WaitUntilReadableOrConnectionReset(SbSocket sock) {
   SbSocketWaiter waiter = SbSocketWaiterCreate();
 
@@ -78,6 +97,7 @@ void WaitUntilReadableOrConnectionReset(SbSocket sock) {
   SbSocketWaiterRemove(waiter, sock);
   SbSocketWaiterDestroy(waiter);
 }
+#endif
 
 std::unique_ptr<Socket> WaitForClientConnection(Socket* listen_sock,
                                                 int64_t timeout) {
@@ -135,6 +155,24 @@ std::vector<std::string> NetArgsWaitForPayload(int64_t timeout) {
       // Socket has closed.
       break;
     } else if (result < 0) {  // Handle error condition.
+#if SB_API_VERSION >= 16
+      int err = client_connection->GetLastError();
+      switch (err) {
+        case 0: {
+          SB_NOTREACHED() << "Expected error condition when return val "
+                          << "is < 0.";
+          continue;
+        }
+        case EINPROGRESS: {
+          WaitUntilReadableOrConnectionReset(client_connection->socket());
+          continue;
+        }
+        default: {
+          break;
+        }
+      }
+
+#else
       SbSocketError err = client_connection->GetLastError();
       client_connection->ClearLastError();
 
@@ -152,6 +190,7 @@ std::vector<std::string> NetArgsWaitForPayload(int64_t timeout) {
           break;
         }
       }
+#endif
     }
   }
   return SplitStringByLines(str_buff);

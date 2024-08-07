@@ -11,6 +11,9 @@
 
 #if defined(STARBOARD)
 #include "base/notreached.h"
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
 #elif BUILDFLAG(IS_WIN)
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -24,8 +27,18 @@ namespace net {
 
 int SetTCPNoDelay(SocketDescriptor fd, bool no_delay) {
 #if defined(STARBOARD)
-  return SbSocketSetTcpNoDelay(fd, no_delay) ? OK : ERR_FAILED;
+
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  int on = no_delay ? 1 : 0;
+  int rv = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
+                      reinterpret_cast<const char*>(&on), sizeof(on));
+  return rv == -1 ? MapSystemError(errno) : OK;
 #else
+  return SbSocketSetTcpNoDelay(fd, no_delay) ? OK : ERR_FAILED;
+#endif  // SB_API_VERSION >= 16 || SB_IS(MODULAR)
+
+#else
+
 #if BUILDFLAG(IS_WIN)
   BOOL on = no_delay ? TRUE : FALSE;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
@@ -39,7 +52,17 @@ int SetTCPNoDelay(SocketDescriptor fd, bool no_delay) {
 
 int SetReuseAddr(SocketDescriptor fd, bool reuse) {
 #if defined(STARBOARD)
+
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  int boolean_value = reuse ? 1 : 0;
+  int rv = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
+                      reinterpret_cast<const char*>(&boolean_value),
+                      sizeof(boolean_value));
+  return rv == -1 ? MapSystemError(errno) : OK;
+#else
   return SbSocketSetReuseAddress(fd, reuse) ? OK : ERR_FAILED;
+#endif  // SB_API_VERSION >= 16 || SB_IS(MODULAR)
+
 #else
 // SO_REUSEADDR is useful for server sockets to bind to a recently unbound
 // port. When a socket is closed, the end point changes its state to TIME_WAIT
@@ -68,7 +91,19 @@ int SetReuseAddr(SocketDescriptor fd, bool reuse) {
 
 int SetSocketReceiveBufferSize(SocketDescriptor fd, int32_t size) {
 #if defined(STARBOARD)
+
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  int rv = setsockopt(fd, SOL_SOCKET, SO_RCVBUF,
+                      reinterpret_cast<const char*>(&size), sizeof(size));
+  int net_error = (rv == -1) ? MapSystemError(errno) : OK;
+  if (net_error != OK) {
+    DLOG(ERROR) << "Could not set socket receive buffer size: " << net_error;
+  }
+  return net_error;
+#else
   return SbSocketSetReceiveBufferSize(fd, size) ? OK : ERR_FAILED;
+#endif  // SB_API_VERSION >= 16 || SB_IS(MODULAR)
+
 #else
   int rv = setsockopt(fd, SOL_SOCKET, SO_RCVBUF,
                       reinterpret_cast<const char*>(&size), sizeof(size));
@@ -87,7 +122,19 @@ int SetSocketReceiveBufferSize(SocketDescriptor fd, int32_t size) {
 
 int SetSocketSendBufferSize(SocketDescriptor fd, int32_t size) {
 #if defined(STARBOARD)
+
+#if SB_API_VERSION >= 16 //--|| SB_IS(MODULAR)
+  int rv = setsockopt(fd, SOL_SOCKET, SO_SNDBUF,
+                      reinterpret_cast<const char*>(&size), sizeof(size));
+  int net_error = (rv == -1) ? MapSystemError(errno) : OK;
+  if (net_error != OK) {
+    DLOG(ERROR) << "Could not set socket send buffer size: " << net_error;
+  }
+  return net_error;
+#else
   return SbSocketSetSendBufferSize(fd, size) ? OK : ERR_FAILED;
+#endif  // SB_API_VERSION >= 16 || SB_IS(MODULAR)
+
 #else
   int rv = setsockopt(fd, SOL_SOCKET, SO_SNDBUF,
                       reinterpret_cast<const char*>(&size), sizeof(size));
