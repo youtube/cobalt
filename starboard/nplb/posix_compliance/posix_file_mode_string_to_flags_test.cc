@@ -30,21 +30,21 @@ TEST(PosixFileModeStringToFlagsTest, Empties) {
   EXPECT_EQ(0, FileModeStringToFlags(""));
 }
 
-TEST(PosixFileModeStringToFlagsTest, Arr) {
+TEST(PosixFileModeStringToFlagsTest, ReadMode) {
   EXPECT_EQ(O_RDONLY, FileModeStringToFlags("r"));
   EXPECT_EQ(O_RDWR, FileModeStringToFlags("r+"));
   EXPECT_EQ(O_RDWR, FileModeStringToFlags("r+b"));
   EXPECT_EQ(O_RDWR, FileModeStringToFlags("rb+"));
 }
 
-TEST(PosixFileModeStringToFlagsTest, Wuh) {
+TEST(PosixFileModeStringToFlagsTest, WriteMode) {
   EXPECT_EQ(O_CREAT | O_TRUNC | O_WRONLY, FileModeStringToFlags("w"));
   EXPECT_EQ(O_CREAT | O_TRUNC | O_RDWR, FileModeStringToFlags("w+"));
   EXPECT_EQ(O_CREAT | O_TRUNC | O_RDWR, FileModeStringToFlags("w+b"));
   EXPECT_EQ(O_CREAT | O_TRUNC | O_RDWR, FileModeStringToFlags("wb+"));
 }
 
-TEST(PosixFileModeStringToFlagsTest, Aah) {
+TEST(PosixFileModeStringToFlagsTest, AppendMode) {
   EXPECT_EQ(O_CREAT | O_WRONLY, FileModeStringToFlags("a"));
   EXPECT_EQ(O_CREAT | O_RDWR, FileModeStringToFlags("a+"));
   EXPECT_EQ(O_CREAT | O_RDWR, FileModeStringToFlags("a+b"));

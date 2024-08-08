@@ -36,12 +36,6 @@
 
 namespace starboard {
 
-struct FileStruct {
-  int fd;
-};
-
-typedef FileStruct* FilePtr;
-
 bool FileCanOpen(const char* path, int flags);
 
 bool IsValid(int file);

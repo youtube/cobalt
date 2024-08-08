@@ -247,7 +247,7 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
     path += "libcobalt";
     AddFileExtension(path);
     int sb_file = open(path.c_str(), O_CREAT | O_RDONLY);
-    EXPECT_TRUE(SbFileIsValid(sb_file));
+    EXPECT_TRUE(starboard::IsValid(sb_file));
     close(sb_file);
 
     return !top_created_dir.empty() ? top_created_dir : path;

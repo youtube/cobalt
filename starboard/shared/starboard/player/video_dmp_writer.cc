@@ -77,12 +77,11 @@ SB_ONCE_INITIALIZE_FUNCTION(PlayerToWriterMap, GetOrCreatePlayerToWriterMap);
 VideoDmpWriter::VideoDmpWriter() : file_(-1) {
   int index = 0;
   std::string file_name;
-  while (IsValid(file_)) {
+  while (!IsValid(file_)) {
     std::stringstream ss;
     ss << "video_" << index << ".dmp";
     file_name = ss.str();
 
-    bool created = false;
     file_ =
         open(file_name.c_str(), O_CREAT | O_EXCL | O_WRONLY, S_IRUSR | S_IWUSR);
     ++index;

@@ -617,7 +617,7 @@ static int MS_CALLBACK file_gets(BIO *bp, char *buf, int size) {
   ret = -1;
   struct stat info;
   fstat(((FilePtr)bp->ptr)->fd, &info);
-  int64_t current = lseek(((FilePtr)bp->ptr)->fd, SEEK_CUR, 0);
+  int64_t current = lseek(((FilePtr)bp->ptr)->fd, 0, SEEK_CUR);
   int64_t remaining = info.st_size - current;
   int64_t max = (size > remaining ? remaining : size - 1);
   int index = 0;
