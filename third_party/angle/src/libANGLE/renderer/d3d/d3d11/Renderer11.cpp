@@ -8,6 +8,10 @@
 
 #include "libANGLE/renderer/d3d/d3d11/Renderer11.h"
 
+#if defined(STARBOARD)
+#include <D3D11_4.h>
+#endif
+
 #include <EGL/eglext.h>
 #include <versionhelpers.h>
 #include <sstream>
@@ -963,6 +967,13 @@ egl::Error Renderer11::initializeD3DDevice()
         mDevice->GetImmediateContext(&mDeviceContext);
         mRenderer11DeviceCaps.featureLevel = mDevice->GetFeatureLevel();
     }
+#if defined(STARBOARD)
+    ID3D11Multithread* multithread =
+        d3d11::DynamicCastComObject<ID3D11Multithread>(mDeviceContext.Get());
+    ASSERT(multithread != nullptr);
+    multithread->SetMultithreadProtected(true);
+    SafeRelease(multithread);
+#endif
 
     mResourceManager11.setAllocationsInitialized(mCreateDebugDevice);
 
