@@ -1,107 +1,185 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/url-search-params/1.1.0/url-search-params.js"></script>
-        <style>
-            body {
-                background-color: #fff;
-            }
-            .progress-container {
-                width: 100%;
-                height: 30px;
-                background-color: #ddd;
-                border-radius: 5px;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-            }
-            .progress-bar {
-                height: 100%;
-                background-color: #4CAF50;
-                border-radius: 5px;
-                width: 0%;
-                overflow:hidden;
-                position: relative;
-            }
-            .progress-text {
-                position: absolute;
-                width: 100%;
-                text-align: center;
-                color:white;
-                font-weight: bold;
-            }
-        </style>
-    </head>
-    <body>
-        <div>
-            <div class="progress-container">
-                <div class="progress-bar"><span class="progress-text">number</span></div>
+<head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/url-search-params/1.1.0/url-search-params.js"></script>
+    <style>
+        body {
+            background-color: #fff;
+        }
+        .progress-container {
+            width: 100%;
+            height: 30px;
+            background-color: #ddd;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #4CAF50;
+            border-radius: 5px;
+            width: 0%;
+            overflow:hidden;
+            position: relative;
+        }
+        .progress-bar.error {
+            background-color: #f44336;
+        }
+        .progress-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+        }
+        .speed-text, .avg-speed-text {
+            margin-top: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .table-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .table-row {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 5px;
+        }
+        .table-cell {
+            margin: 0 10px;
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <div>
+        <div class="progress-container">
+            <div class="progress-bar"><span class="progress-text">0%</span></div>
+        </div>
+        <div class="speed-text">Instantaneous Speed: 0 kbps</div>
+        <div class="avg-speed-text">Average Speed: 0 kbps</div>
+        <div class="table-container">
+            <div class="table-row">
+                <div class="table-cell">Chunk Size: <span id="chunkSizeValue"></span></div>
+                <div class="table-cell">Limit Kbps: <span id="limitKbpsValue"></span></div>
+                <div class="table-cell">QUIC: <span id="quicValue"></span></div>
             </div>
         </div>
-        <script>
-            const fileSize = 500 * 1024 * 1024;
-            function updateProgressBar(progress) {
-                const progressBar = document.querySelector('.progress-bar');
-                progressBar.style.width = progress + '%';
-                const text = document.querySelector('.progress-text');
-                text.textContent = parseInt(progress) + '%';
-            }
-            function downloadFileInChunks(url, chunkSize) {
-                let start = 0;
-                let end = chunkSize;
+    </div>
+    <script>
+        const fileSize = 500 * 1024 * 1024;
 
-                const downloadChunk = (start, end) => {
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('GET', url, true);
-                    xhr.responseType = 'blob';
-                    xhr.setRequestHeader('Range', `bytes=${start}-${end}`);
+        function updateProgressBar(progress, isError = false) {
+            const progressBar = document.querySelector('.progress-bar');
+            progressBar.style.width = progress + '%';
+            progressBar.classList.toggle('error', isError);
+            const text = document.querySelector('.progress-text');
+            text.textContent = isError ? `Error: Download speed too slow` : `${parseInt(progress)}%`;
+        }
 
-                    xhr.onload = () => {
-                        if (xhr.status === 206) {
+        function updateSpeedText(speed) {
+            const speedText = document.querySelector('.speed-text');
+            speedText.textContent = `Instantaneous Speed: ${speed.toFixed(2)} kbps`;
+        }
+
+        function updateAvgSpeedText(avgSpeed) {
+            const avgSpeedText = document.querySelector('.avg-speed-text');
+            avgSpeedText.textContent = `Average Speed: ${avgSpeed.toFixed(2)} kbps`;
+        }
+
+        function downloadFileInChunks(url, chunkSize, limitBytesBps) {
+            let start = 0;
+            let end = chunkSize;
+            const startTime = performance.now();
+            let lastUpdateTime = startTime;
+            let totalBytesDownloaded = 0;
+            let bytesDownloadedSinceLastUpdate = 0;
+
+            const downloadChunk = (start, end) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', url, true);
+                xhr.responseType = 'blob';
+                xhr.setRequestHeader('Range', `bytes=${start}-${end}`);
+
+                xhr.onload = () => {
+                    if (xhr.status === 206) {
+                        const currentTime = performance.now();
+                        const elapsedTime = (currentTime - lastUpdateTime) / 1000; // in seconds
+                        const downloadedBytes = end - start + 1;
+                        bytesDownloadedSinceLastUpdate += downloadedBytes;
+                        totalBytesDownloaded += downloadedBytes;
+                        const totalElapsedTime = (currentTime - startTime) / 1000; // in seconds
+                        const avgSpeedKbps = (totalBytesDownloaded * 8) / (totalElapsedTime * 1024); // in kbps
+
+                        if (elapsedTime >= 1) {
+                            const speedKbps = (bytesDownloadedSinceLastUpdate * 8) / (elapsedTime * 1024); // in kbps
+
+                            updateSpeedText(speedKbps);
+                            updateAvgSpeedText(avgSpeedKbps);
+                            updateProgressBar((start / fileSize) * 100, speedKbps * 1.05 < limitBytesBps * 8 / 1024);
+                            lastUpdateTime = currentTime;
+                            bytesDownloadedSinceLastUpdate = 0;
                             console.log(`Downloaded chunk: ${start} to ${end}`);
-
-                            start = end + 1;
-                            end = start + chunkSize;
-                            updateProgressBar( start / fileSize * 100 );
-
-                            if (start < fileSize) {
-                                downloadChunk(start, Math.min(end, fileSize));
-                            } else {
-                                console.log('Download complete');
-                            }
-                        } else {
-                            console.error('Error while downloading chunk:', xhr.statusText);
                         }
-                    };
 
-                    xhr.onerror = (error) => {
-                        console.error('Network error while downloading chunk');
-                        console.log(error);
-                        console.log(error.type);
-                    };
+                        start = end + 1;
+                        end = start + chunkSize;
 
-                    // Send the XHR request
-                    xhr.send();
+                        if (start < fileSize) {
+                            const targetTime = startTime + (totalBytesDownloaded / limitBytesBps) * 1000; // target timestamp in ms
+                            const delay = Math.max(0, targetTime - performance.now() - 2); // Adding a 2ms bias to stay ahead of the target speed
+                            window.setTimeout(() => downloadChunk(start, Math.min(end, fileSize)), delay);
+                        } else {
+                            console.log('Download complete');
+                            updateSpeedText(0); // Reset speed to 0 on completion
+                            updateAvgSpeedText(avgSpeedKbps); // Final average speed
+                            updateProgressBar(100); // Ensure progress bar is 100%
+                        }
+                    } else {
+                        console.error('Error while downloading chunk:', xhr.statusText);
+                    }
                 };
 
-                // Start downloading the first chunk
-                downloadChunk(start, end);
+                xhr.onerror = (error) => {
+                    console.error('Network error while downloading chunk');
+                    console.log(error);
+                    console.log(error.type);
+                };
+
+                // Send the XHR request
+                xhr.send();
+            };
+
+            // Start downloading the first chunk
+            downloadChunk(start, end);
+        }
+
+        function downloadDemo() {
+            const urlSearchParams = new URLSearchParams(window.location.search);
+            const params = Object.fromEntries(urlSearchParams.entries());
+            const chunkSize = (params.chunksize || 1024) * 1024;
+            const limitKbps = params.limitkbps || 50000;
+            const limitBytesBps = (limitKbps * 1024) / 8;
+            const quic = params.quic || 0;
+            if (window.h5vcc && window.h5vcc.settings) {
+                console.log(`setting quic to ${quic}`);
+                h5vcc.settings.set('QUIC', quic);
             }
-            function downloadDemo() {
-                const urlSearchParams = new URLSearchParams(window.location.search);
-                const params = Object.fromEntries(urlSearchParams.entries());
-                const chunkSize = ( params.chunkSize || 1024 ) * 1024;
-                const quic = params.quic || 1;
-                if (window.h5vcc && window.h5vcc.settings) {
-                    console.log(`setting quic to ${quic}`);
-                    h5vcc.settings.set('QUIC', quic);
-                }
-                const url = "https://rr1---sn-n4v7sney.googlevideo.com/videoplayback?expire=1723096630&ei=1gm0ZtTQCeK8sfIP_6iuoQg&ip=2620%3A0%3A1006%3A111%3Abaa5%3A2d9%3Ab926%3A8fda&id=o-AEa2KbLZsJDVAXeIqswiazXBavMYIay1GluIhkVniW8x&itag=701&source=youtube&requiressl=yes&xpc=EgVo2aDSNQ%3D%3D&mh=NH&mm=31%2C29&mn=sn-n4v7sney%2Csn-o097znsl&ms=au%2Crdu&mv=m&mvi=1&pl=48&initcwndbps=1136250&vprv=1&svpuc=1&mime=video%2Fmp4&rqh=1&gir=yes&clen=983516450&dur=313.780&lmt=1711470628780415&mt=1723074540&fvip=3&keepalive=yes&c=IOS&txp=4502434&sparams=expire%2Cei%2Cip%2Cid%2Citag%2Csource%2Crequiressl%2Cxpc%2Cvprv%2Csvpuc%2Cmime%2Crqh%2Cgir%2Cclen%2Cdur%2Clmt&sig=AJfQdSswRQIgAZkJx-8edm8KxBLRNkyXnyXt6nNviAX1gKXMT6rEaDUCIQCg_5LtCWI2oP1OkkIp-bWEEmJhmS3H8E9OksStxy_LUw%3D%3D&lsparams=mh%2Cmm%2Cmn%2Cms%2Cmv%2Cmvi%2Cpl%2Cinitcwndbps&lsig=AGtxev0wRAIgZ98aT_5AkLjL_yyNfeuEtmgK_RQudeOfWVj0Ac0F9iwCIDEq9900jtaOfHiv2Ro5y3TAuQIbRRFPrtu-3L79OhVf";
-                window.setTimeout(() => {
-                    downloadFileInChunks(url, chunkSize);
-                },500);
-            }
+            document.getElementById('chunkSizeValue').textContent = chunkSize / 1024 + ' KB';
+            document.getElementById('limitKbpsValue').textContent = limitKbps + ' kbps';
+            document.getElementById('quicValue').textContent = quic;
+            const url = "https://storage.googleapis.com/kk_testfiles/bbb_sunflower_2160p_60fps_normal.mp4";
             window.setTimeout(() => {
-                downloadDemo()
-            },500);
-        </script>
-    </body>
+                downloadFileInChunks(url, chunkSize, limitBytesBps);
+            }, 500);
+        }
+
+        window.setTimeout(() => {
+            downloadDemo();
+        }, 500);
+    </script>
+</body>
 </html>
