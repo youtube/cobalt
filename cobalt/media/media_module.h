@@ -133,10 +133,12 @@ class MediaModule : public WebMediaPlayerFactory,
   // previous behavior.
   bool force_punch_out_by_default_ = false;
 
+#if SB_API_VERSION >= 15
   base::TimeDelta audio_write_duration_local_ =
       base::TimeDelta::FromMicroseconds(kSbPlayerWriteDurationLocal);
   base::TimeDelta audio_write_duration_remote_ =
       base::TimeDelta::FromMicroseconds(kSbPlayerWriteDurationRemote);
+#endif  // SB_API_VERSION >= 15
 
   DecoderBufferAllocator decoder_buffer_allocator_;
 };

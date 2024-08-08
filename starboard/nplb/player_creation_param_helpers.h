@@ -50,8 +50,13 @@ struct PlayerCreationParam {
 
     creation_param->drm_system = drm_system;
 
+#if SB_API_VERSION >= 15
     audio_stream_info.ConvertTo(&creation_param->audio_stream_info);
     video_stream_info.ConvertTo(&creation_param->video_stream_info);
+#else   // SB_API_VERSION >= 15
+    audio_stream_info.ConvertTo(&creation_param->audio_sample_info);
+    video_stream_info.ConvertTo(&creation_param->video_sample_info);
+#endif  // SB_API_VERSION >= 15
 
     creation_param->output_mode = output_mode;
   }

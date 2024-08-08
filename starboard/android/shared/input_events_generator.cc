@@ -232,8 +232,10 @@ SbKey AInputEventToSbKey(GameActivityKeyEvent* event) {
       return kSbKeyMediaRewind;
     case AKEYCODE_MEDIA_FAST_FORWARD:
       return kSbKeyMediaFastForward;
+#if SB_API_VERSION >= 15
     case AKEYCODE_MEDIA_RECORD:
       return kSbKeyRecord;
+#endif
 
     // TV Remote specific
     case AKEYCODE_CHANNEL_UP:

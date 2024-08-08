@@ -73,7 +73,11 @@ void SetStreamInfo(const SbMediaAudioStreamInfo& stream_info,
                    SbMediaAudioSampleInfo* sample_info) {
   DCHECK(sample_info);
 
+#if SB_API_VERSION >= 15
   sample_info->stream_info = stream_info;
+#else   // SB_API_VERSION >= 15
+  *sample_info = stream_info;
+#endif  // SB_API_VERSION >= 15}
 }
 
 void SetStreamInfo(
@@ -93,7 +97,11 @@ void SetStreamInfo(const SbMediaVideoStreamInfo& stream_info,
                    SbMediaVideoSampleInfo* sample_info) {
   DCHECK(sample_info);
 
+#if SB_API_VERSION >= 15
   sample_info->stream_info = stream_info;
+#else   // SB_API_VERSION >= 15
+  *sample_info = stream_info;
+#endif  // SB_API_VERSION >= 15}
 }
 
 void SetDiscardPadding(
@@ -112,10 +120,12 @@ void SetDiscardPadding(
     SbMediaAudioSampleInfo* sample_info) {
   DCHECK(sample_info);
 
+#if SB_API_VERSION >= 15
   sample_info->discarded_duration_from_front =
       discard_padding.first.InMicroseconds();
   sample_info->discarded_duration_from_back =
       discard_padding.second.InMicroseconds();
+#endif  // SB_API_VERSION >= 15}
 }
 
 }  // namespace
@@ -457,6 +467,7 @@ void SbPlayerBridge::GetInfo(uint32* video_frames_decoded,
   GetInfo_Locked(video_frames_decoded, video_frames_dropped, media_time);
 }
 
+#if SB_API_VERSION >= 15
 std::vector<SbMediaAudioConfiguration>
 SbPlayerBridge::GetAudioConfigurations() {
   base::AutoLock auto_lock(lock_);
@@ -485,6 +496,7 @@ SbPlayerBridge::GetAudioConfigurations() {
 
   return configurations;
 }
+#endif  // SB_API_VERSION >= 15
 
 #if SB_HAS(PLAYER_WITH_URL)
 void SbPlayerBridge::GetUrlPlayerBufferedTimeRanges(
@@ -736,13 +748,22 @@ void SbPlayerBridge::CreatePlayer() {
 
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
+#if SB_API_VERSION >= 15
   creation_param.audio_stream_info = audio_stream_info_;
   creation_param.video_stream_info = video_stream_info_;
+#else   // SB_API_VERSION >= 15
+  creation_param.audio_sample_info = audio_stream_info_;
+  creation_param.video_sample_info = video_stream_info_;
+#endif  // SB_API_VERSION >= 15
 
   // TODO: This is temporary for supporting background media playback.
   //       Need to be removed with media refactor.
   if (!is_visible) {
+#if SB_API_VERSION >= 15
     creation_param.video_stream_info.codec = kSbMediaVideoCodecNone;
+#else   // SB_API_VERSION >= 15
+    creation_param.video_sample_info.codec = kSbMediaVideoCodecNone;
+#endif  // SB_API_VERSION >= 15
   }
   creation_param.output_mode = output_mode_;
   DCHECK_EQ(sbplayer_interface_->GetPreferredOutputMode(&creation_param),
@@ -1223,8 +1244,13 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
 
+#if SB_API_VERSION >= 15
   creation_param.audio_stream_info = audio_stream_info_;
   creation_param.video_stream_info = video_stream_info_;
+#else   // SB_API_VERSION >= 15
+  creation_param.audio_sample_info = audio_stream_info_;
+  creation_param.video_sample_info = video_stream_info_;
+#endif  // SB_API_VERSION >= 15
 
   if (default_output_mode != kSbPlayerOutputModeDecodeToTexture &&
       video_stream_info_.codec != kSbMediaVideoCodecNone) {

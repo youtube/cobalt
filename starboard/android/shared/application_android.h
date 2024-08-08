@@ -61,8 +61,12 @@ class ApplicationAndroid
     void* data = nullptr;
   };
 
+#if SB_API_VERSION >= 15
   ApplicationAndroid(ALooper* looper,
                      SbEventHandleCallback sb_event_handle_callback);
+#else
+  explicit ApplicationAndroid(ALooper* looper);
+#endif  //  SB_API_VERSION >= 15
   ~ApplicationAndroid() override;
 
   static ApplicationAndroid* Get() {

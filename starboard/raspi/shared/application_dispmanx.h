@@ -34,8 +34,12 @@ namespace shared {
 class ApplicationDispmanx
     : public ::starboard::shared::starboard::QueueApplication {
  public:
+#if SB_API_VERSION >= 15
   explicit ApplicationDispmanx(SbEventHandleCallback sb_event_handle_callback)
       : window_(kSbWindowInvalid), QueueApplication(sb_event_handle_callback) {}
+#else
+  ApplicationDispmanx() : window_(kSbWindowInvalid) {}
+#endif  // SB_API_VERSION >= 15
   ~ApplicationDispmanx() override {}
 
   static ApplicationDispmanx* Get() {
