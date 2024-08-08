@@ -261,31 +261,17 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbPlayerCreate);
   REGISTER_SYMBOL(SbPlayerDestroy);
-#if SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerGetAudioConfiguration);
-#endif  // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerGetCurrentFrame);
-#if SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerGetInfo);
-#else   // SB_API_VERSION >= 15
-  REGISTER_SYMBOL(SbPlayerGetInfo2);
-#endif  // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerGetMaximumNumberOfSamplesPerWrite);
   REGISTER_SYMBOL(SbPlayerGetPreferredOutputMode);
-#if SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerSeek);
-#else   // SB_API_VERSION >= 15
-  REGISTER_SYMBOL(SbPlayerSeek2);
-#endif  // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerSetBounds);
   REGISTER_SYMBOL(SbPlayerSetPlaybackRate);
   REGISTER_SYMBOL(SbPlayerSetVolume);
   REGISTER_SYMBOL(SbPlayerWriteEndOfStream);
-#if SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerWriteSamples);
-#else   // SB_API_VERSION >= 15
-  REGISTER_SYMBOL(SbPlayerWriteSample2);
-#endif  // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbSocketAccept);
   REGISTER_SYMBOL(SbSocketBind);
   REGISTER_SYMBOL(SbSocketClearLastError);

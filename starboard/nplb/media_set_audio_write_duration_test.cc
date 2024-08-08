@@ -59,13 +59,8 @@ class SbMediaSetAudioWriteDurationTest
     }
 
     // Check if we're about to input too far beyond the current playback time.
-#if SB_API_VERSION >= 15
     SbPlayerInfo info;
     SbPlayerGetInfo(pending_decoder_status_->player, &info);
-#else   // SB_API_VERSION >= 15
-    SbPlayerInfo2 info;
-    SbPlayerGetInfo2(pending_decoder_status_->player, &info);
-#endif  // SB_API_VERSION >= 15
     if ((last_input_timestamp_ - info.current_media_timestamp) > kDuration) {
       // Postpone writing samples.
       return;
@@ -190,30 +185,18 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteLimitedInput) {
   WaitForPlayerState(kSbPlayerStateInitialized);
 
   // Seek to preroll.
-#if SB_API_VERSION >= 15
   SbPlayerSeek(player, first_input_timestamp_, /* ticket */ 1);
-#else   // SB_API_VERSION >= 15
-  SbPlayerSeek2(player, first_input_timestamp_, /* ticket */ 1);
-#endif  // SB_API_VERSION >= 15
 
   WaitForPlayerState(kSbPlayerStatePresenting);
 
   // Wait until the playback time is > 0.
   const int64_t kMaxWaitTime = 5'000'000;  // 5 seconds
   int64_t start_of_wait = CurrentMonotonicTime();
-#if SB_API_VERSION >= 15
   SbPlayerInfo info = {};
-#else   // SB_API_VERSION >= 15
-  SbPlayerInfo2 info = {};
-#endif  // SB_API_VERSION >= 15
   while (CurrentMonotonicTime() - start_of_wait < kMaxWaitTime &&
          info.current_media_timestamp == 0) {
     usleep(500'000);
-#if SB_API_VERSION >= 15
     SbPlayerGetInfo(player, &info);
-#else   // SB_API_VERSION >= 15
-    SbPlayerGetInfo2(player, &info);
-#endif  // SB_API_VERSION >= 15
   }
 
   EXPECT_GT(info.current_media_timestamp, 0);
@@ -232,11 +215,7 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
   WaitForPlayerState(kSbPlayerStateInitialized);
 
   // Seek to preroll.
-#if SB_API_VERSION >= 15
   SbPlayerSeek(player, first_input_timestamp_, /* ticket */ 1);
-#else   // SB_API_VERSION >= 15
-  SbPlayerSeek2(player, first_input_timestamp_, /* ticket */ 1);
-#endif  // SB_API_VERSION >= 15
   WaitForPlayerState(kSbPlayerStatePresenting);
 
   // Wait for the player to play far enough. It may not play all the way to
@@ -244,20 +223,12 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
   int64_t min_ending_playback_time = total_duration_ - kDuration;
   int64_t start_of_wait = CurrentMonotonicTime();
   const int64_t kMaxWaitTime = total_duration_ + 5'000'000LL;
-#if SB_API_VERSION >= 15
   SbPlayerInfo info;
   SbPlayerGetInfo(player, &info);
-#else   // SB_API_VERSION >= 15
-  SbPlayerInfo2 info;
-  SbPlayerGetInfo2(player, &info);
-#endif  // SB_API_VERSION >= 15
+
   while (info.current_media_timestamp < min_ending_playback_time &&
          (CurrentMonotonicTime() - start_of_wait) < kMaxWaitTime) {
-#if SB_API_VERSION >= 15
     SbPlayerGetInfo(player, &info);
-#else   // SB_API_VERSION >= 15
-    SbPlayerGetInfo2(player, &info);
-#endif  // SB_API_VERSION >= 15
     usleep(kSmallWaitInterval);
     TryToWritePendingSample();
   }

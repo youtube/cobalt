@@ -177,11 +177,7 @@ typedef struct SbPlayerSampleInfo {
 } SbPlayerSampleInfo;
 
 // Information about the current media playback state.
-#if SB_API_VERSION >= 15
 typedef struct SbPlayerInfo {
-#else   // SB_API_VERSION >= 15
-typedef struct SbPlayerInfo2 {
-#endif  // SB_API_VERSION >= 15
   // The position of the playback head, as precisely as possible, in
   // microseconds.
   int64_t current_media_timestamp;
@@ -226,11 +222,7 @@ typedef struct SbPlayerInfo2 {
   // is played in a slower than normal speed. Negative speeds are not
   // supported.
   double playback_rate;
-#if SB_API_VERSION >= 15
 } SbPlayerInfo;
-#else   // SB_API_VERSION >= 15
-} SbPlayerInfo2;
-#endif  // SB_API_VERSION >= 15
 
 // An opaque handle to an implementation-private structure representing a
 // player.
@@ -474,15 +466,9 @@ SB_EXPORT void SbPlayerDestroy(SbPlayer player);
 // when SbPlayerSeek was called. To be very specific, once SbPlayerSeek has
 // been called with ticket X, a client should ignore all
 // |SbPlayerDecoderStatusFunc| calls that do not pass in ticket X.
-#if SB_API_VERSION >= 15
 SB_EXPORT void SbPlayerSeek(SbPlayer player,
                             int64_t seek_to_timestamp,
                             int ticket);
-#else   // SB_API_VERSION >= 15
-SB_EXPORT void SbPlayerSeek2(SbPlayer player,
-                             int64_t seek_to_timestamp,
-                             int ticket);
-#endif  // SB_API_VERSION >= 15
 
 // Writes samples of the given media type to |player|'s input stream. The
 // lifetime of |sample_infos|, and the members of its elements like |buffer|,
@@ -510,11 +496,7 @@ SB_EXPORT void SbPlayerSeek2(SbPlayer player,
 // |number_of_sample_infos|: Specify the number of samples contained inside
 // |sample_infos|. It has to be at least one, and at most the return value
 // of SbPlayerGetMaximumNumberOfSamplesPerWrite().
-#if SB_API_VERSION >= 15
 SB_EXPORT void SbPlayerWriteSamples(SbPlayer player,
-#else   // SB_API_VERSION >= 15
-SB_EXPORT void SbPlayerWriteSample2(SbPlayer player,
-#endif  // SB_API_VERSION >= 15
                                     SbMediaType sample_type,
                                     const SbPlayerSampleInfo* sample_infos,
                                     int number_of_sample_infos);
@@ -610,12 +592,7 @@ SB_EXPORT void SbPlayerSetVolume(SbPlayer player, double volume);
 // |kSbPlayerInvalid|.
 //
 // |out_player_info|: The information retrieved for the player.
-#if SB_API_VERSION >= 15
 SB_EXPORT void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info);
-#else   // SB_API_VERSION >= 15
-SB_EXPORT void SbPlayerGetInfo2(SbPlayer player,
-                                SbPlayerInfo2* out_player_info2);
-#endif  // SB_API_VERSION >= 15
 
 // Given a player created with the kSbPlayerOutputModeDecodeToTexture
 // output mode, it will return a SbDecodeTarget representing the current frame

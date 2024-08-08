@@ -62,11 +62,7 @@ class SbPlayerInterface {
   virtual bool SetPlaybackRate(SbPlayer player, double playback_rate) = 0;
   virtual void SetVolume(SbPlayer player, double volume) = 0;
 
-#if SB_API_VERSION >= 15
   virtual void GetInfo(SbPlayer player, SbPlayerInfo* out_player_info) = 0;
-#else   // SB_API_VERSION >= 15
-  virtual void GetInfo(SbPlayer player, SbPlayerInfo2* out_player_info2) = 0;
-#endif  // SB_API_VERSION >= 15
   virtual SbDecodeTarget GetCurrentFrame(SbPlayer player) = 0;
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -129,11 +125,7 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
                  int height) override;
   bool SetPlaybackRate(SbPlayer player, double playback_rate) override;
   void SetVolume(SbPlayer player, double volume) override;
-#if SB_API_VERSION >= 15
   void GetInfo(SbPlayer player, SbPlayerInfo* out_player_info) override;
-#else   // SB_API_VERSION >= 15
-  void GetInfo(SbPlayer player, SbPlayerInfo2* out_player_info2) override;
-#endif  // SB_API_VERSION >= 15
   SbDecodeTarget GetCurrentFrame(SbPlayer player) override;
 
 #if SB_HAS(PLAYER_WITH_URL)

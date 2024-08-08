@@ -356,13 +356,8 @@ void CallSbPlayerWriteSamples(
           discarded_durations_from_back[i];
     }
   }
-#if SB_API_VERSION >= 15
   SbPlayerWriteSamples(player, sample_type, sample_infos.data(),
                        number_of_samples_to_write);
-#else   // SB_API_VERSION >= 15
-  SbPlayerWriteSample2(player, sample_type, sample_infos.data(),
-                       number_of_samples_to_write);
-#endif  // SB_API_VERSION >= 15
 }
 
 bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
