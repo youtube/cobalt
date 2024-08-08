@@ -25,6 +25,7 @@ extern const char kNetLogCaptureMode[];
 extern const char kUserAgent[];
 extern const char kMaxNetworkDelay[];
 extern const char kMaxNetworkDelayHelp[];
+extern const char kDisableInAppDial[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 extern const char kDisableQuic[];
 
