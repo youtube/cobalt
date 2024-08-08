@@ -62,22 +62,8 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
     case AudioCodec::kAAC:
       return kSbMediaAudioCodecAac;
     case AudioCodec::kAC3:
-#if SB_API_VERSION < 15
-      if (!kSbHasAc3Audio) {
-        DLOG(ERROR) << "Audio codec AC3 not enabled on this platform. To "
-                    << "enable it, set kSbHasAc3Audio to |true|.";
-        return kSbMediaAudioCodecNone;
-      }
-#endif  // SB_API_VERSION < 15
       return kSbMediaAudioCodecAc3;
     case AudioCodec::kEAC3:
-#if SB_API_VERSION < 15
-      if (!kSbHasAc3Audio) {
-        DLOG(ERROR) << "Audio codec AC3 not enabled on this platform. To "
-                    << "enable it, set kSbHasAc3Audio to |true|.";
-        return kSbMediaAudioCodecNone;
-      }
-#endif  // SB_API_VERSION < 15
       return kSbMediaAudioCodecEac3;
     case AudioCodec::kVorbis:
       return kSbMediaAudioCodecVorbis;

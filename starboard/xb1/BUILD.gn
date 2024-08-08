@@ -95,7 +95,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/system_request_reveal.cc",
     "//starboard/shared/starboard/system_request_stop.cc",
     "//starboard/shared/starboard/system_supports_resume.cc",
-    "//starboard/shared/stub/media_set_audio_write_duration.cc",
     "//starboard/shared/stub/system_symbolize.cc",
     "//starboard/shared/uwp/analog_thumbstick_input.cc",
     "//starboard/shared/uwp/analog_thumbstick_input.h",

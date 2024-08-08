@@ -192,12 +192,6 @@ SbPlayerPipeline::SbPlayerPipeline(
   if (force_punch_out_by_default) {
     default_output_mode_ = kSbPlayerOutputModePunchOut;
   }
-#if SB_API_VERSION < 15
-  SbMediaSetAudioWriteDuration(audio_write_duration_.InMicroseconds());
-  LOG(INFO) << "Setting audio write duration to " << audio_write_duration_
-            << ", the duration during preroll is "
-            << audio_write_duration_for_preroll_;
-#endif  // SB_API_VERSION < 15
 }
 
 SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_bridge_); }

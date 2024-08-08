@@ -725,19 +725,6 @@ SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                           int resolution_height,
                                           int bits_per_pixel);
 
-// Communicate to the platform how far past |current_playback_position| the app
-// will write audio samples. The app will write all samples between
-// |current_playback_position| and |current_playback_position| + |duration|, as
-// soon as they are available (during is in microseconds). The app may sometimes
-// write more samples than that, but the app only guarantees to write |duration|
-// past |current_playback_position| in general. The platform is responsible for
-// guaranteeing that when only |duration| audio samples are written at a time,
-// no playback issues occur (such as transient or indefinite hanging). The
-// platform may assume |duration| >= 0.5 seconds.
-#if SB_API_VERSION < 15
-SB_EXPORT void SbMediaSetAudioWriteDuration(int64_t duration);
-#endif  // SB_API_VERSION < 15
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
