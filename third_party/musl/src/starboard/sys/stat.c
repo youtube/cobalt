@@ -38,7 +38,7 @@ int stat(const char *path, struct stat *file_info)
     }
 
     // In SB_API_VERSION < 16, all files are opened with S_IRUSR | S_IWUSR.
-    // See http://shortn/_UxFowRzNXq.
+    // See starboard/shared/posix/impl/file_open.h.
     file_info->st_mode = S_IRUSR | S_IWUSR;
     if (out_info.is_directory){
         file_info->st_mode |= S_IFDIR;
