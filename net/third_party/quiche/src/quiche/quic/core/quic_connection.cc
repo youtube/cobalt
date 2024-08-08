@@ -20,6 +20,8 @@
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
+#include "quiche/common/quiche_text_utils.h"
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
@@ -45,8 +47,11 @@
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
-#include "quiche/common/platform/api/quiche_flag_utils.h"
-#include "quiche/common/quiche_text_utils.h"
+
+#ifdef QUIC_DLOG
+#undef QUIC_DLOG
+#define QUIC_DLOG LOG
+#endif
 
 namespace quic {
 

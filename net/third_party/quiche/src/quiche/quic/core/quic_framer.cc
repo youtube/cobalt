@@ -1729,6 +1729,7 @@ bool QuicFramer::MaybeProcessIetfLength(QuicDataReader* encrypted_reader,
        header->long_packet_type != ZERO_RTT_PROTECTED)) {
     return true;
   }
+
   header->length_length = encrypted_reader->PeekVarInt62Length();
   if (!encrypted_reader->ReadVarInt62(&header->remaining_packet_length)) {
     set_detailed_error("Unable to read long header payload length.");

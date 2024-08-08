@@ -16,6 +16,11 @@
 
 #include "net/socket/udp_socket_starboard.h"
 
+#define USE_SEND_PIPE 1
+
+#include <pthread.h>
+#include <unistd.h>
+
 #include "base/logging.h"
 #include "base/rand_util.h"
 #include "base/task/current_thread.h"
@@ -30,8 +35,18 @@
 #include "net/log/net_log_source.h"
 #include "net/log/net_log_source_type.h"
 #include "net/socket/udp_net_log_parameters.h"
+#include "starboard/common/condition_variable.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/socket.h"
+#define STARBOARD_IMPLEMENTATION
+#include "starboard/shared/posix/set_non_blocking_internal.h"
+#include "starboard/shared/posix/socket_internal.h"
+#undef STARBOARD_IMPLEMENTATION
 #include "starboard/system.h"
+#include "starboard/thread.h"
+
+namespace sbposix = starboard::shared::posix;
 
 namespace net {
 
@@ -48,7 +63,36 @@ UDPSocketStarboard::UDPSocketStarboard(DatagramSocket::BindType bind_type,
       recv_from_address_(NULL),
       write_buf_len_(0),
       net_log_(NetLogWithSource::Make(net_log, NetLogSourceType::UDP_SOCKET)),
-      weak_factory_(this) {
+      weak_factory_(this),
+      condition_(mutex_) {
+  pthread_attr_t attributes;
+  pthread_attr_init(&attributes);
+  // pthread_attr_setstacksize(&attributes, xyzsmall);
+  pthread_create(
+      &thread_, &attributes,
+      [](void* context) -> void* {
+        static_cast<UDPSocketStarboard*>(context)->ThreadEntryPoint();
+        return nullptr;
+      },
+      this);
+  pthread_attr_destroy(&attributes);
+
+  if (thread_ == 0) {
+    SB_DLOG(WARNING) << "Failed to create UDP Socket sender thread.";
+  }
+
+  int fds[2];
+  int result = pipe(fds);
+  SB_DCHECK(result == 0);
+
+  pipe_read_fd_ = fds[0];
+  // result = sbposix::SetNonBlocking(pipe_read_fd_);
+  // SB_DCHECK(result);
+
+  pipe_write_fd_ = fds[1];
+  result = sbposix::SetNonBlocking(pipe_write_fd_);
+  SB_DCHECK(result);
+
   net_log_.BeginEventReferencingSource(NetLogEventType::SOCKET_ALIVE,
                       source);
 }
@@ -57,6 +101,17 @@ UDPSocketStarboard::~UDPSocketStarboard() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   Close();
   net_log_.EndEvent(NetLogEventType::SOCKET_ALIVE);
+
+  pthread_t thread = thread_;
+  {
+    starboard::ScopedLock lock(mutex_);
+    thread_ = 0;
+    condition_.Broadcast();
+  }
+  close(pipe_read_fd_);
+  close(pipe_write_fd_);
+
+  pthread_join(thread, NULL);
 }
 
 int UDPSocketStarboard::Open(AddressFamily address_family) {
@@ -207,8 +262,7 @@ int UDPSocketStarboard::Write(IOBuffer* buf,
                               CompletionOnceCallback callback,
                               const NetworkTrafficAnnotationTag&) {
   DCHECK(remote_address_);
-  return SendToOrWrite(buf, buf_len, remote_address_.get(),
-                       std::move(callback));
+  return SendToOrWrite(buf, buf_len, nullptr, std::move(callback));
 }
 
 int UDPSocketStarboard::SendTo(IOBuffer* buf,
@@ -265,22 +319,42 @@ int UDPSocketStarboard::Connect(const IPEndPoint& address) {
 }
 
 int UDPSocketStarboard::InternalConnect(const IPEndPoint& address) {
+  // LOG(INFO) << __FUNCTION__ << " CONNECT " << address;
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(SbSocketIsValid(socket_));
   DCHECK(!is_connected());
   DCHECK(!remote_address_.get());
 
   int rv = 0;
-  // Cobalt does random bind despite bind_type_ because we do not connect
-  // UDP sockets but Chromium does. And if a socket does recvfrom() without
-  // any sendto() before, it needs to be bound to have a local port.
-  rv = RandomBind(address.GetFamily() == ADDRESS_FAMILY_IPV4 ?
-                      IPAddress::IPv4AllZeros() : IPAddress::IPv6AllZeros());
+  if (bind_type_ == DatagramSocket::RANDOM_BIND) {
+    // Construct IPAddress of appropriate size (IPv4 or IPv6) of 0s,
+    // representing INADDR_ANY or in6addr_any.
+    rv = RandomBind(address.GetFamily() == ADDRESS_FAMILY_IPV4
+                        ? IPAddress::IPv4AllZeros()
+                        : IPAddress::IPv6AllZeros());
+  }
 
-  if (rv != OK)
+  if (rv < 0) {
+    LOG(ERROR) << __FUNCTION__
+               << " UDP CONNECT FAILED ======================== " << address;
     return rv;
+  }
+
+  SbSocketAddress storage;
+  if (!address.ToSbSocketAddress(&storage)) {
+    LOG(ERROR) << __FUNCTION__
+               << " UDP CONNECT FAILED ======================== " << address;
+    return ERR_ADDRESS_INVALID;
+  }
 
   remote_address_.reset(new IPEndPoint(address));
+
+  SbSocketError result = SbSocketConnect(socket_, &storage);
+  if (result != kSbSocketOk) {
+    LOG(ERROR) << __FUNCTION__
+               << " UDP CONNECT FAILED ======================== " << address;
+    return MapLastSocketError(socket_);
+  }
 
   return OK;
 }
@@ -459,8 +533,8 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
                                          int buf_len,
                                          IPEndPoint* address) {
   SbSocketAddress sb_address;
-  int bytes_transferred =
-      SbSocketReceiveFrom(socket_, buf->data(), buf_len, &sb_address);
+  int bytes_transferred = SbSocketReceiveFrom(socket_, buf->data(), buf_len,
+                                              address ? &sb_address : nullptr);
   int result;
   if (bytes_transferred >= 0) {
     result = bytes_transferred;
@@ -477,7 +551,8 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
 
   if (result != ERR_IO_PENDING) {
     IPEndPoint log_address;
-    if (result < 0 || !log_address.FromSbSocketAddress(&sb_address)) {
+    if (result < 0 || !address ||
+        !log_address.FromSbSocketAddress(&sb_address)) {
       LogRead(result, buf->data(), NULL);
     } else {
       LogRead(result, buf->data(), &log_address);
@@ -491,13 +566,51 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
                                        int buf_len,
                                        const IPEndPoint* address) {
   SbSocketAddress sb_address;
-  if (!address || !address->ToSbSocketAddress(&sb_address)) {
+  int result = OK;
+  if (address) {
+    if (address->ToSbSocketAddress(&sb_address)) {
+      result = SbSocketSendTo(socket_, buf->data(), buf_len, &sb_address);
+    }
     int result = ERR_FAILED;
     LogWrite(result, NULL, NULL);
     return result;
+  } else {
+    // Note: This should be in a helper class.
+    bool dispatched = false;
+    if (thread_) {
+#if USE_SEND_PIPE
+      ssize_t bytes_written = write(pipe_write_fd_, &buf_len, sizeof(buf_len));
+      if (bytes_written == sizeof(buf_len)) {
+        bytes_written = write(pipe_write_fd_, buf->data(), buf_len);
+        if (bytes_written == buf_len) {
+          dispatched = true;
+        } else
+          SB_LOG(INFO) << __FUNCTION__ << " bytes_written=" << bytes_written
+                       << " != buf_len=" << buf_len;
+      } else
+        SB_LOG(INFO) << __FUNCTION__ << " bytes_written=" << bytes_written
+                     << " != sizeof(buf_len)=" << sizeof(buf_len);
+#else
+      starboard::ScopedLock lock(mutex_);
+      // Find a free buffer (note this can be made more efficient if needed).
+      int send_buffer_idx = send_buffer_length_[0] == 0   ? 0
+                            : send_buffer_length_[1] == 0 ? 1
+                                                          : -1;
+      if (send_buffer_idx >= 0) {
+        memcpy(send_buffer_[send_buffer_idx], buf->data(), buf_len);
+        send_buffer_length_[send_buffer_idx] = buf_len;
+        condition_.Signal();
+        dispatched = true;
+        // TODO: get 'result' from the thread.
+      }
+#endif
+    }
+    if (!dispatched) {
+      // If the thread can't keep up, we don't have more buffers, so send it
+      // now.
+      result = SbSocketSendTo(socket_, buf->data(), buf_len, nullptr);
+    }
   }
-
-  int result = SbSocketSendTo(socket_, buf->data(), buf_len, &sb_address);
 
   if (result < 0)
     result = MapLastSocketError(socket_);
@@ -506,6 +619,44 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
     LogWrite(result, buf->data(), address);
 
   return result;
+}
+
+void UDPSocketStarboard::ThreadEntryPoint() {
+  pthread_setname_np(pthread_self(), "udp_sender");
+  char buffer[65536];
+#if USE_SEND_PIPE
+  while (thread_) {
+    int buf_len;
+    int bytes_read = read(pipe_read_fd_, &buf_len, sizeof(buf_len));
+    if (bytes_read == sizeof(buf_len)) {
+      int bytes_read = read(pipe_read_fd_, buffer, buf_len);
+      if (bytes_read == buf_len) {
+        SbSocketSendTo(socket_, buffer, buf_len, nullptr);
+      } else if (bytes_read)
+        SB_LOG(INFO) << __FUNCTION__ << " bytes_read=" << bytes_read
+                     << " != buf_len=" << buf_len;
+    } else if (bytes_read)
+      SB_LOG(INFO) << __FUNCTION__ << " bytes_read=" << bytes_read
+                   << " != sizeof(buf_len)=" << sizeof(buf_len);
+  }
+#else
+  starboard::ScopedLock lock(mutex_);
+  while (thread_) {
+    int send_buffer_idx = 0;
+    for (int empty_count = 0; empty_count < (kSendBuffers * 4); ++empty_count) {
+      if (send_buffer_length_[send_buffer_idx]) {
+        mutex_.Release();
+        SbSocketSendTo(socket_, send_buffer_[send_buffer_idx],
+                       send_buffer_length_[send_buffer_idx], nullptr);
+        mutex_.Acquire();
+        send_buffer_length_[send_buffer_idx] = 0;
+        empty_count = -1;
+      }
+      send_buffer_idx = (send_buffer_idx + 1) % kSendBuffers;
+    }
+    condition_.Wait();
+  }
+#endif
 }
 
 int UDPSocketStarboard::DoBind(const IPEndPoint& address) {
