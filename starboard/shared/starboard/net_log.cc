@@ -65,6 +65,8 @@
 namespace starboard {
 namespace shared {
 namespace starboard {
+
+#if SB_API_VERSION <= 15
 namespace {
 
 using RunFunction = std::function<void(Semaphore*)>;
@@ -433,8 +435,6 @@ class ScopeGuard {
 
 }  // namespace.
 
-const char kNetLogCommandSwitchWait[] = "net_log_wait_for_connection";
-
 void NetLogWaitForClientConnected(int64_t timeout) {
 #if !SB_LOGGING_IS_OFFICIAL_BUILD
   ScopeGuard guard;
@@ -483,6 +483,19 @@ void NetLogFlushThenClose() {
   }
 #endif
 }
+
+#else
+
+void NetLogWaitForClientConnected(int64_t timeout) {}
+
+void NetLogWrite(const char* data) {}
+
+void NetLogFlush() {}
+
+void NetLogFlushThenClose() {}
+#endif  // SB_API_VERSION <= 15
+
+const char kNetLogCommandSwitchWait[] = "net_log_wait_for_connection";
 
 }  // namespace starboard
 }  // namespace shared

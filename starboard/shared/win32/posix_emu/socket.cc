@@ -77,16 +77,19 @@ static FileOrSocket handle_db_get(int fd, bool erase) {
     _set_errno(EBADF);
     return invalid_handle;
   }
+
   EnterCriticalSection(&g_critical_section.critical_section_);
   if (g_map_addr == nullptr) {
     g_map_addr = new std::map<int, FileOrSocket>();
     _set_errno(EBADF);
+    LeaveCriticalSection(&g_critical_section.critical_section_);
     return invalid_handle;
   }
 
   auto itr = g_map_addr->find(fd);
   if (itr == g_map_addr->end()) {
     _set_errno(EBADF);
+    LeaveCriticalSection(&g_critical_section.critical_section_);
     return invalid_handle;
   }
 

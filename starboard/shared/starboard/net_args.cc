@@ -38,6 +38,13 @@
 namespace starboard {
 namespace shared {
 namespace starboard {
+
+// Command line switch useful for determining if NetArgsWaitForConnection()
+// should be called.
+const char kNetArgsCommandSwitchWait[] = "net_args_wait_for_connection";
+
+#if SB_API_VERSION <= 15
+
 namespace {
 
 std::unique_ptr<Socket> CreateListenSocket() {
@@ -110,10 +117,6 @@ std::vector<std::string> SplitStringByLines(const std::string& string_buff) {
 
 }  // namespace.
 
-// Command line switch useful for determining if NetArgsWaitForConnection()
-// should be called.
-const char kNetArgsCommandSwitchWait[] = "net_args_wait_for_connection";
-
 std::vector<std::string> NetArgsWaitForPayload(int64_t timeout) {
   std::unique_ptr<Socket> listen = CreateListenSocket();
   std::unique_ptr<Socket> client_connection =
@@ -156,6 +159,15 @@ std::vector<std::string> NetArgsWaitForPayload(int64_t timeout) {
   }
   return SplitStringByLines(str_buff);
 }
+
+#else
+
+std::vector<std::string> NetArgsWaitForPayload(int64_t timeout) {
+  std::vector<std::string> lines;
+  return lines;
+}
+
+#endif  // SB_API_VERSION <= 15
 
 }  // namespace starboard
 }  // namespace shared

@@ -51,6 +51,8 @@ bool GetLocalhostAddress(SbSocketAddressType address_type,
   return true;
 }
 
+#if SB_API_VERSION <= 15
+
 Socket::Socket(SbSocketAddressType address_type, SbSocketProtocol protocol)
     : socket_(SbSocketCreate(address_type, protocol)) {}
 
@@ -166,6 +168,7 @@ SbSocket Socket::socket() {
 
 Socket::Socket(SbSocket socket) : socket_(socket) {}
 
+#endif  // SB_API_VERSION <= 15
 }  // namespace starboard
 
 std::ostream& operator<<(std::ostream& os, const SbSocketAddress& address) {

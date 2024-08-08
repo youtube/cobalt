@@ -34,6 +34,8 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 
+#if SB_API_VERSION <= 15
+
 namespace {
 // Creates a socket that is appropriate for binding and listening, but is not
 // bound and hasn't started listening yet.
@@ -426,6 +428,8 @@ LinkReceiver::LinkReceiver(Application* application, int port)
 LinkReceiver::~LinkReceiver() {
   delete impl_;
 }
+
+#endif  // SB_API_VERSION <= 15
 
 }  // namespace starboard
 }  // namespace shared

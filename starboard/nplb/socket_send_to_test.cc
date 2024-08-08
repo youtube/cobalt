@@ -118,6 +118,8 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToClosedSocket) {
   EXPECT_TRUE(SbSocketDestroy(trio.server_socket));
 }
 
+#if SB_API_VERSION <= 15
+
 // Tests the expectation that writing to a socket that is never drained
 // will result in that socket becoming full and thus will return a
 // kSbSocketPending status, which indicates that it is blocked.
@@ -137,8 +139,7 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketUntilBlocking) {
     int result = trio->client_socket->SendTo(buff, sizeof(buff), NULL);
 
     if (result < 0) {
-      SbSocketError err = SbSocketGetLastError(trio->client_socket->socket());
-      EXPECT_EQ(kSbSocketPending, err);
+      EXPECT_TRUE(trio->client_socket->IsPending() == true);
       return;
     }
 
@@ -190,6 +191,8 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketConnectionReset) {
   ASSERT_TRUE(false) << "Connection was not dropped after " << kNumRetries
                      << " tries.";
 }
+
+#endif  // SB_API_VERSION <= 15
 
 #if SB_HAS(IPV6)
 INSTANTIATE_TEST_CASE_P(
