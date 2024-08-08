@@ -1328,10 +1328,16 @@ int InternalMain() {
 
 #if defined(COBALT_BUILD_TYPE_GOLD)
   // Early exit for gold builds on desktop as a security measure.
+#if SB_API_VERSION < 15
+  if (SbSystemGetDeviceType() == kSbSystemDeviceTypeDesktopPC) {
+    return main_return_value;
+  }
+#else
   if (GetSystemPropertyString(kSbSystemPropertyDeviceType) ==
       kSystemDeviceTypeDesktopPC) {
     return main_return_value;
   }
+#endif
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)
 
   shared::win32::RegisterMainThread();

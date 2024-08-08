@@ -327,6 +327,9 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_API_VERSION < 16
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
   REGISTER_SYMBOL(SbSystemClearLastError);
+#if SB_API_VERSION < 15
+  REGISTER_SYMBOL(SbSystemGetDeviceType);
+#endif
   REGISTER_SYMBOL(SbSystemGetErrorString);
   REGISTER_SYMBOL(SbSystemGetExtension);
   REGISTER_SYMBOL(SbSystemGetLastError);

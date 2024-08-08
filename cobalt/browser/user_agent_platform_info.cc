@@ -110,6 +110,47 @@ void GetUserAgentInputMap(
 
 namespace {
 
+#if SB_API_VERSION < 15
+
+struct DeviceTypeName {
+  SbSystemDeviceType device_type;
+  char device_type_string[10];
+};
+
+const DeviceTypeName kDeviceTypeStrings[] = {
+    {kSbSystemDeviceTypeBlueRayDiskPlayer, "BDP"},
+    {kSbSystemDeviceTypeGameConsole, "GAME"},
+    {kSbSystemDeviceTypeOverTheTopBox, "OTT"},
+    {kSbSystemDeviceTypeSetTopBox, "STB"},
+    {kSbSystemDeviceTypeTV, "TV"},
+    {kSbSystemDeviceTypeAndroidTV, "ATV"},
+    {kSbSystemDeviceTypeDesktopPC, "DESKTOP"},
+    {kSbSystemDeviceTypeVideoProjector, "PROJECTOR"},
+    {kSbSystemDeviceTypeUnknown, "UNKNOWN"}};
+
+std::string CreateDeviceTypeString(SbSystemDeviceType device_type) {
+  for (auto& map : kDeviceTypeStrings) {
+    if (map.device_type == device_type) {
+      return std::string(map.device_type_string);
+    }
+  }
+  NOTREACHED();
+  return "UNKNOWN";
+}
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+SbSystemDeviceType GetDeviceType(std::string device_type_string) {
+  for (auto& map : kDeviceTypeStrings) {
+    if (!SbStringCompareNoCase(map.device_type_string,
+                               device_type_string.c_str())) {
+      return map.device_type;
+    }
+  }
+  return kSbSystemDeviceTypeUnknown;
+}
+#endif
+#endif  // SB_API_VERSION < 15
+
 static bool isAsciiAlphaDigit(int c) {
   return base::IsAsciiAlpha(c) || base::IsAsciiDigit(c);
 }
@@ -279,10 +320,15 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
     info.set_aux_field(value);
   }
 
+#if SB_API_VERSION >= 15
   result = SbSystemGetProperty(kSbSystemPropertyDeviceType, value,
                                kSystemPropertyMaxLength);
   SB_DCHECK(result);
   info.set_device_type(value);
+#else
+  // Fill platform info if it is a hardware TV device.
+  info.set_device_type(SbSystemGetDeviceType());
+#endif
 
   // Chipset model number
   result = SbSystemGetProperty(kSbSystemPropertyChipsetModelNumber, value,
@@ -435,6 +481,12 @@ void UserAgentPlatformInfo::set_original_design_manufacturer(
   }
 }
 
+#if SB_API_VERSION < 15
+void UserAgentPlatformInfo::set_device_type(SbSystemDeviceType device_type) {
+  device_type_ = device_type;
+  device_type_string_ = CreateDeviceTypeString(device_type_);
+}
+#endif
 void UserAgentPlatformInfo::set_device_type(const std::string& device_type) {
   device_type_string_ = device_type;
 }
