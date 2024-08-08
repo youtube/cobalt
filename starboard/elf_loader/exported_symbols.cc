@@ -50,6 +50,7 @@
 #endif  // SB_API_VERSION < 16
 #include "starboard/log.h"
 #include "starboard/memory.h"
+#include "starboard/memory_reporter.h"
 #include "starboard/microphone.h"
 #include "starboard/mutex.h"
 #include "starboard/player.h"
@@ -96,6 +97,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbFileMaxPath);
   REGISTER_SYMBOL(kSbFileSepChar);
   REGISTER_SYMBOL(kSbFileSepString);
+#if SB_API_VERSION < 15
+  REGISTER_SYMBOL(kSbHasAc3Audio);
+#endif  // SB_API_VERSION < 15
   REGISTER_SYMBOL(kSbHasMediaWebmVp9Support);
   REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
   REGISTER_SYMBOL(kSbMallocAlignment);
@@ -223,6 +227,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetVideoBufferBudget);
   REGISTER_SYMBOL(SbMediaIsBufferPoolAllocateOnDemand);
   REGISTER_SYMBOL(SbMediaIsBufferUsingMemoryPool);
+#if SB_API_VERSION < 15
+  REGISTER_SYMBOL(SbMediaSetAudioWriteDuration);
+#endif  // SB_API_VERSION < 15
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMemoryAllocate);
   REGISTER_SYMBOL(SbMemoryAllocateAligned);
@@ -237,10 +244,24 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFree);
   REGISTER_SYMBOL(SbMemoryFreeAligned);
+#endif  // SB_API_VERSION < 16
+
+#if SB_API_VERSION < 15
+  REGISTER_SYMBOL(SbMemoryGetStackBounds);
+#endif
+
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMemoryMap);
   REGISTER_SYMBOL(SbMemoryProtect);
   REGISTER_SYMBOL(SbMemoryReallocate);
   REGISTER_SYMBOL(SbMemoryReallocateUnchecked);
+#endif  // SB_API_VERSION < 16
+
+#if SB_API_VERSION < 15
+  REGISTER_SYMBOL(SbMemorySetReporter);
+#endif
+
+#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMemoryUnmap);
 #endif  // SB_API_VERSION < 16
 

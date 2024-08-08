@@ -57,6 +57,11 @@ SB_EXPORT extern const char kSbFileSepChar;
 // The string form of SB_FILE_SEP_CHAR.
 SB_EXPORT extern const char* kSbFileSepString;
 
+#if SB_API_VERSION < 15
+// Allow ac3 and ec3 support
+SB_EXPORT extern const bool kSbHasAc3Audio;
+#endif
+
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.
 SB_EXPORT extern const bool kSbHasMediaWebmVp9Support;

@@ -705,6 +705,9 @@ TEST_P(AudioDecoderTest, MultipleInputs) {
 
 TEST_P(AudioDecoderTest, LimitedInput) {
   int64_t duration = 500'000;  // 0.5 seconds
+#if SB_API_VERSION < 15
+  SbMediaSetAudioWriteDuration(duration);
+#endif  // SB_API_VERSION < 15
 
   ASSERT_TRUE(decoded_audios_.empty());
   int start_index = 0;
@@ -721,6 +724,9 @@ TEST_P(AudioDecoderTest, LimitedInput) {
 TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
   constexpr int kMaxAccessUnitsToDecode = 256;
   int64_t duration = 500'000;  // 0.5 seconds
+#if SB_API_VERSION < 15
+  SbMediaSetAudioWriteDuration(duration);
+#endif  // SB_API_VERSION < 15
 
   int64_t start = CurrentMonotonicTime();
   int start_index = 0;
