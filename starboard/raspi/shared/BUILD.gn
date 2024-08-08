@@ -65,7 +65,6 @@ static_library("starboard_platform_sources") {
     "//starboard/raspi/shared/open_max/video_decoder.cc",
     "//starboard/raspi/shared/open_max/video_decoder.h",
     "//starboard/raspi/shared/player_components_factory.cc",
-    "//starboard/raspi/shared/system_get_device_type.cc",
     "//starboard/raspi/shared/system_get_property.cc",
     "//starboard/raspi/shared/system_gles2.cc",
     "//starboard/raspi/shared/thread_create_priority.cc",
