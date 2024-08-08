@@ -1,4 +1,4 @@
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/player.h"
+#include "starboard/shared/enhanced_audio/enhanced_audio_player_write_samples.h"
 
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_API_VERSION >= 15
-void SbPlayerWriteSamples(SbPlayer player,
-#else   // SB_API_VERSION >= 15
-void SbPlayerWriteSample2(SbPlayer player,
-#endif  // SB_API_VERSION >= 15
-                          SbMediaType sample_type,
-                          const SbPlayerSampleInfo* sample_infos,
-                          int number_of_sample_infos) {
+#if SB_API_VERSION < 15
+
+namespace starboard {
+namespace shared {
+namespace enhanced_audio {
+
+void EnhancedAudioPlayerWriteSamples(
+    SbPlayer player,
+    SbMediaType sample_type,
+    const CobaltExtensionEnhancedAudioPlayerSampleInfo* sample_infos,
+    int number_of_sample_infos) {
   if (!SbPlayerIsValid(player)) {
     SB_LOG(WARNING) << "player is invalid.";
     return;
@@ -48,3 +51,9 @@ void SbPlayerWriteSample2(SbPlayer player,
 
   player->WriteSamples(sample_infos, number_of_sample_infos);
 }
+
+}  // namespace enhanced_audio
+}  // namespace shared
+}  // namespace starboard
+
+#endif  // SB_API_VERSION < 15

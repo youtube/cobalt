@@ -116,7 +116,11 @@ void SbPlayerPrivate::SetBounds(int z_index,
   // TODO: Wait until a frame is rendered with the updated bounds.
 }
 
+#if SB_API_VERSION >= 15
 void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
+#else   // SB_API_VERSION >= 15
+void SbPlayerPrivate::GetInfo(SbPlayerInfo2* out_player_info) {
+#endif  // SB_API_VERSION >= 15
   SB_DCHECK(out_player_info != NULL);
 
   starboard::ScopedLock lock(mutex_);
