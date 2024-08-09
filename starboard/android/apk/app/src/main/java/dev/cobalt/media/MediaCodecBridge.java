@@ -962,17 +962,11 @@ class MediaCodecBridge {
       long presentationTimeUs) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
-      boolean usesCbcs = cipherMode == MediaCodec.CRYPTO_MODE_AES_CBC;
-      if (usesCbcs && !MediaDrmBridge.isCbcsSchemeSupported()) {
-        Log.e(TAG, "Encryption scheme 'cbcs' not supported on this platform.");
-        return MediaCodecStatus.ERROR;
-      }
       CryptoInfo cryptoInfo = new CryptoInfo();
       cryptoInfo.set(
           numSubSamples, numBytesOfClearData, numBytesOfEncryptedData, keyId, iv, cipherMode);
-      if (patternEncrypt != 0 && patternSkip != 0) {
-        if (usesCbcs) {
-          // Above platform check ensured that setting the pattern is indeed supported.
+      if (patternEncrypt != 0 || patternSkip != 0) {
+        if (cipherMode == MediaCodec.CRYPTO_MODE_AES_CBC) {
           cryptoInfo.setPattern(new Pattern(patternEncrypt, patternSkip));
         } else {
           Log.e(TAG, "Pattern encryption only supported for 'cbcs' scheme (CBC mode).");
@@ -981,18 +975,18 @@ class MediaCodecBridge {
       }
       mMediaCodec.get().queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, 0);
     } catch (MediaCodec.CryptoException e) {
-      if (e.getErrorCode() == MediaCodec.CryptoException.ERROR_NO_KEY) {
+      int errorCode = e.getErrorCode();
+      if (errorCode == MediaCodec.CryptoException.ERROR_NO_KEY) {
         Log.d(TAG, "Failed to queue secure input buffer: CryptoException.ERROR_NO_KEY");
         return MediaCodecStatus.NO_KEY;
-      } else if (e.getErrorCode()
-          == MediaCodec.CryptoException.ERROR_INSUFFICIENT_OUTPUT_PROTECTION) {
+      } else if (errorCode == MediaCodec.CryptoException.ERROR_INSUFFICIENT_OUTPUT_PROTECTION) {
         Log.d(
             TAG,
             "Failed to queue secure input buffer: "
                 + "CryptoException.ERROR_INSUFFICIENT_OUTPUT_PROTECTION");
         return MediaCodecStatus.INSUFFICIENT_OUTPUT_PROTECTION;
       }
-      Log.e(TAG, "Failed to queue secure input buffer. Error code %d", e.getErrorCode(), e);
+      Log.e(TAG, "Failed to queue secure input buffer. Error code %d", errorCode, e);
       return MediaCodecStatus.ERROR;
     } catch (IllegalArgumentException e) {
       // IllegalArgumentException can occur when release() is called on the MediaCrypto
