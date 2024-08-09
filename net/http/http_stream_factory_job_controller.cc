@@ -310,11 +310,16 @@ void HttpStreamFactory::JobController::OnStreamReady(
   }
   std::unique_ptr<HttpStream> stream = job->ReleaseStream();
   DCHECK(stream);
-  if (!job->using_existing_quic_session()) {
+  // if (!job->using_existing_quic_session())
+  {
+    const char* jobtypename[] = {"main", "alternative", "dns_alpn_h3",
+                                 "preconnect", "preconnect_dns_alpn_h3"};
     LOG(INFO) << __FUNCTION__ << " negotiated_protocol = "
               << NextProtoToString(job->negotiated_protocol())
+              << " was_alpn_negotiated=" << job->was_alpn_negotiated()
+              << " using_spdy=" << job->using_spdy()
               << " using_quic=" << job->using_quic()
-              << " job_type=" << (int)job->job_type() << " "
+              << " job_type=\"" << jobtypename[(int)job->job_type()] << "\" "
               << job->origin_url().spec();
   }
   MarkRequestComplete(job);
@@ -1269,8 +1274,7 @@ HttpStreamFactory::JobController::GetAlternativeServiceInfoInternal(
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)
       quic::ParsedQuicVersionVector versions = quic::AllSupportedVersions();
       return AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
-          AlternativeService(net::kProtoQUIC, origin.host(),
-                             origin.port()),
+          AlternativeService(net::kProtoQUIC, origin.host(), origin.port()),
           base::Time::Max(), versions);
 #if defined(COBALT_BUILD_TYPE_GOLD)
     }
