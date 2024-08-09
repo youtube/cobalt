@@ -34,6 +34,7 @@
 #include "starboard/linux/shared/ifa.h"
 #include "starboard/linux/shared/platform_service.h"
 #include "starboard/linux/shared/time_zone.h"
+#include "starboard/shared/enhanced_audio/enhanced_audio.h"
 #include "starboard/shared/ffmpeg/ffmpeg_demuxer.h"
 #include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
@@ -70,6 +71,11 @@ const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionFreeSpaceName) == 0) {
     return starboard::shared::posix::GetFreeSpaceApi();
   }
+#if SB_API_VERSION < 15
+  if (strcmp(name, kCobaltExtensionEnhancedAudioName) == 0) {
+    return starboard::shared::enhanced_audio::GetEnhancedAudioApi();
+  }
+#endif  // SB_API_VERSION < 15
   if (strcmp(name, kCobaltExtensionDemuxerApi) == 0) {
     auto command_line =
         starboard::shared::starboard::Application::Get()->GetCommandLine();

@@ -1,4 +1,4 @@
-// Copyright 2018 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/player.h"
+#ifndef STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_
+#define STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_
 
-#if SB_API_VERSION >= 15
-void SbPlayerSeek(SbPlayer player, int64_t seek_to_timestamp, int ticket) {}
-#else   // SB_API_VERSION >= 15
-void SbPlayerSeek2(SbPlayer player, int64_t seek_to_timestamp, int ticket) {}
-#endif  // SB_API_VERSION >= 15
+namespace starboard {
+namespace shared {
+namespace enhanced_audio {
+
+const void* GetEnhancedAudioApi();
+
+}  // namespace enhanced_audio
+}  // namespace shared
+}  // namespace starboard
+
+#endif  // STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_H_

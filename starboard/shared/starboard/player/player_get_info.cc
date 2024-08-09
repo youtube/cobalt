@@ -17,7 +17,11 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
+#if SB_API_VERSION >= 15
 void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info) {
+#else   // SB_API_VERSION >= 15
+void SbPlayerGetInfo2(SbPlayer player, SbPlayerInfo2* out_player_info) {
+#endif  // SB_API_VERSION >= 15
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
     return;
