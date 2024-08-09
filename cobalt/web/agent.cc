@@ -585,8 +585,9 @@ void Agent::Run(const Options& options, InitializeCallback initialize_callback,
                 DestructionObserver* destruction_observer) {
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
-  if (!thread_.StartWithOptions(base::Thread::Options(options.thread_priority)))
-    return;
+  base::Thread::Options thread_options(options.thread_priority);
+  thread_options.stack_size = options.stack_size;
+  if (!thread_.StartWithOptions(std::move(thread_options))) return;
   DCHECK(task_runner());
 
   // Registers service worker thread as a watchdog client.
