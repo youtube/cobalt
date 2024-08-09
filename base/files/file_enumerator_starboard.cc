@@ -19,6 +19,7 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "base/threading/thread_restrictions.h"
+#include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
@@ -112,10 +113,14 @@ FileEnumerator::~FileEnumerator() = default;
 std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
     const FilePath& source) {
   internal::AssertBlockingAllowed();
-  SbFileError error;
-  SbDirectory dir = SbDirectoryOpen(source.value().c_str(), &error);
-  if (!SbDirectoryIsValid(dir)) {
-    error_ = static_cast<File::Error>(error);
+
+  DIR* directory = opendir(source.value().c_str());
+  if (!(directory)) {
+#if BUILDFLAG(IS_WIN)
+    error_ = File::Error::FILE_ERROR_FAILED;
+#else
+    error_ = File::Error::FILE_ERROR_NOT_A_DIRECTORY;
+#endif // BUILDFLAG(IS_WIN)
     return std::vector<FileEnumerator::FileInfo>();
   }
 
@@ -141,19 +146,31 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
 
   std::vector<char> entry(kSbFileMaxName);
 
-  while (SbDirectoryGetNext(dir, entry.data(), entry.size())) {
+  struct dirent dirent_buffer;
+  struct dirent* dirent;
+  while (true) {
+    if (entry.size() < kSbFileMaxName || !directory || !entry.data()) {
+      break;
+    }
+    int result = readdir_r(directory, &dirent_buffer, &dirent);
+    if (result || !dirent) {
+      break;
+    }
+    starboard::strlcpy(entry.data(), dirent->d_name, entry.size());
+
     const char dot_dot_str[] = "..";
     if (!strncmp(entry.data(), dot_dot_str, sizeof(dot_dot_str))) {
       found_dot_dot = true;
     }
     ret.push_back(GenerateEntry(entry.data()));
+
   }
 
   if ((INCLUDE_DOT_DOT & file_type_) && !found_dot_dot) {
     ret.push_back(GenerateEntry(".."));
   }
 
-  SbDirectoryClose(dir);
+  closedir(directory);
   return ret;
 }
 

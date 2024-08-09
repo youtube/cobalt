@@ -48,7 +48,8 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
     if (target_cpu == "arm" && arm_float_abi == "softfp") {
       sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/content" ]
     } else if (target_cpu == "arm64") {
-      sources = [ "$root_out_dir/../evergreen-$target_cpu_$build_type/content" ]
+      sources =
+          [ "$root_out_dir/../evergreen-${target_cpu}_$build_type/content" ]
     } else {
       sources = []
     }
@@ -59,8 +60,9 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
     if (target_cpu == "arm" && arm_float_abi == "softfp") {
       sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/manifest.json" ]
     } else if (target_cpu == "arm64") {
-      sources =
-          [ "$root_out_dir/../evergreen-$target_cpu_$build_type/manifest.json" ]
+      sources = [
+        "$root_out_dir/../evergreen-${target_cpu}_$build_type/manifest.json",
+      ]
     } else {
       sources = []
     }
@@ -293,6 +295,7 @@ static_library("slot_management") {
     "//starboard/elf_loader",
     "//starboard/elf_loader:constants",
     "//starboard/elf_loader:sabi_string",
+    "//third_party/jsoncpp:jsoncpp",
   ]
 
   if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
@@ -300,6 +303,8 @@ static_library("slot_management") {
   } else {
     deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
   }
+
+  configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
 }
 if (sb_is_evergreen) {
   target(starboard_level_gtest_target_type, "slot_management_test") {
@@ -320,7 +325,9 @@ if (sb_is_evergreen) {
       "//starboard/elf_loader:sabi_string",
       "//testing/gmock",
       "//testing/gtest",
+      "//third_party/jsoncpp:jsoncpp",
     ]
+    configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
   }
 }
 

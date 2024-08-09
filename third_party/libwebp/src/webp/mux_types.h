@@ -17,8 +17,8 @@
 #if defined(STARBOARD)
 #include "starboard/common/log.h"
 #include "starboard/memory.h"
-#include <string.h>  // memset()
 #endif
+#include <string.h>  // memset()
 #include "./types.h"
 
 #ifdef __cplusplus

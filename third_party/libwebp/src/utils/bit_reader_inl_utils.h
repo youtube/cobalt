@@ -20,9 +20,7 @@
 #include "src/webp/config.h"
 #endif
 
-#if !defined(STARBOARD)
 #include <string.h>  // for memcpy
-#endif
 
 #include "src/dsp/dsp.h"
 #include "src/utils/bit_reader_utils.h"

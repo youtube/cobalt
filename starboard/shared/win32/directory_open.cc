@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 17
+
 #include "starboard/directory.h"
 
 #include "starboard/shared/win32/directory_internal.h"
@@ -60,3 +62,4 @@ SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error) {
 
   return new SbDirectoryPrivate(directory_handle);
 }
+#endif  // SB_API_VERSION < 17

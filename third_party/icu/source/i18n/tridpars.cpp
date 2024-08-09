@@ -14,9 +14,6 @@
 
 #if !UCONFIG_NO_TRANSLITERATION
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "tridpars.h"
 #include "hash.h"
 #include "mutex.h"

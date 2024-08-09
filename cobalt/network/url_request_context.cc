@@ -209,8 +209,13 @@ URLRequestContext::URLRequestContext(
       quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::Q046()};
   url_request_context_builder->set_quic_context(std::move(quic_context));
 
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  bool quic_enabled = !command_line->HasSwitch(switches::kDisableQuic);
+  bool quic_enabled =
+      configuration::Configuration::GetInstance()->CobaltEnableQuic();
+  if (quic_enabled) {
+    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+    quic_enabled = !command_line->HasSwitch(switches::kDisableQuic);
+  }
+
   url_request_context_builder->SetSpdyAndQuicEnabled(/*spdy_enabled=*/true,
                                                      quic_enabled);
 

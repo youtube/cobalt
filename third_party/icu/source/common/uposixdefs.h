@@ -20,6 +20,13 @@
 #ifndef __UPOSIXDEFS_H__
 #define __UPOSIXDEFS_H__
 
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#if SB_HAS(SYS_TYPES_H)
+#include <sys/types.h>
+#endif  // SB_HAS(SYS_TYPES_H)
+#endif  // defined(STARBOARD)
+
 /*
  * Define _XOPEN_SOURCE for access to POSIX functions.
  *

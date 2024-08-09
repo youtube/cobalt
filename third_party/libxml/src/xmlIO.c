@@ -743,16 +743,11 @@ xmlInputReadCallbackNop(void *context ATTRIBUTE_UNUSED,
  */
 static int
 xmlFdRead (void * context, char * buffer, int len) {
-#if !defined(STARBOARD)
     int ret;
 
     ret = read((int) (ptrdiff_t) context, &buffer[0], len);
     if (ret < 0) xmlIOErr(0, "read()");
     return(ret);
-#else
-    SB_NOTREACHED();
-    return -1;
-#endif 	// !defined(STARBOARD)
 }
 
 #ifdef LIBXML_OUTPUT_ENABLED
@@ -768,7 +763,6 @@ xmlFdRead (void * context, char * buffer, int len) {
  */
 static int
 xmlFdWrite (void * context, const char * buffer, int len) {
-#if !defined(STARBOARD)
     int ret = 0;
 
     if (len > 0) {
@@ -776,10 +770,6 @@ xmlFdWrite (void * context, const char * buffer, int len) {
 	if (ret < 0) xmlIOErr(0, "write()");
     }
     return(ret);
-#else
-    SB_NOTREACHED();
-    return -1;
-#endif 	// !defined(STARBOARD)
 }
 #endif /* LIBXML_OUTPUT_ENABLED */
 
@@ -793,15 +783,10 @@ xmlFdWrite (void * context, const char * buffer, int len) {
  */
 static int
 xmlFdClose (void * context) {
-#if !defined(STARBOARD)
     int ret;
     ret = close((int) (ptrdiff_t) context);
     if (ret < 0) xmlIOErr(0, "close()");
     return(ret);
-#else
-    SB_NOTREACHED();
-    return -1;
-#endif  // !defined(STARBOARD)
 }
 
 /**
@@ -2089,7 +2074,7 @@ xmlIOHTTPCloseWrite( void * context, const char * http_mthd ) {
 		    fclose( tst_file );
 		}
 
-		XML_FREE( dump_name );
+		free( dump_name );
 	    }
 #endif  /*  DEBUG_HTTP  */
 
