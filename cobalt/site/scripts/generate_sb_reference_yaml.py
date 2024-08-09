@@ -17,12 +17,13 @@
 import os
 import sys
 import pathlib
+import typing
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 _DEVSITE_ROOT = os.path.relpath(os.path.join(_REPO_ROOT, "cobalt", "site"))
 
 
-def get_modules(path: str) -> list[str]:
+def _get_modules(path: str) -> typing.List[str]:
   return sorted([
       os.path.join(path, name)
       for name in os.listdir(path)
@@ -30,7 +31,7 @@ def get_modules(path: str) -> list[str]:
   ])
 
 
-def get_old_sb_versions(path: str) -> list[str]:
+def _get_old_sb_versions(path: str) -> typing.List[str]:
   return sorted([
       os.path.join(path, name)
       for name in os.listdir(path)
@@ -38,34 +39,34 @@ def get_old_sb_versions(path: str) -> list[str]:
   ])[:-1]  # Skip the latest version.
 
 
-def print_header(title: str, indent: int):
+def _print_header(title: str, indent: int):
   print("  " * indent + f"  - title: {title}")
   print("  " * indent + "    section:")
 
 
-def print_modules(modules: list[str], indent: int):
+def _print_modules(modules: typing.List[str], indent: int):
   for module_path in modules:
     rel_path = os.path.relpath(module_path, _DEVSITE_ROOT)
     print("  " * indent + f"    - title: {pathlib.Path(module_path).stem}.h")
     print("  " * indent + f"      path: /youtube/cobalt/{rel_path}")
 
 
-def main() -> None:
+def generate_toc() -> None:
   if len(sys.argv) > 2:
-    print("Usage: generate_sb_reference.py <path>")
+    print(f"Usage: {sys.argv[0]} <path>")
     sys.exit(1)
 
   path = sys.argv[1]
 
-  print_header("Starboard Modules", 0)
+  _print_header("Starboard Modules", 0)
   # Modules in current Starboard version.
-  print_modules(get_modules(path), 0)
+  _print_modules(_get_modules(path), 0)
 
   # Modules in old SB versions. Should be indented one step.
-  for sb_version_path in get_old_sb_versions(path):
-    print_header(f"Starboard {os.path.basename(sb_version_path)}", 1)
-    print_modules(get_modules(sb_version_path), 1)
+  for sb_version_path in _get_old_sb_versions(path):
+    _print_header(f"Starboard {os.path.basename(sb_version_path)}", 1)
+    _print_modules(_get_modules(sb_version_path), 1)
 
 
 if __name__ == "__main__":
-  main()
+  generate_toc()
