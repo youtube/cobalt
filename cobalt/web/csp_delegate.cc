@@ -80,8 +80,10 @@ bool CspDelegateSecure::CanLoad(ResourceType type, const GURL& url,
     if (csp_header_policy_ == csp::kCSPRequired || should_allow) {
       return should_allow;
     } else {
-      LOG(WARNING) << "Page must include Content-Security-Policy header, it "
-                      "will fail to load in production builds of Cobalt!";
+      if (type == kLocation) {
+        LOG(WARNING) << "Page must include Content-Security-Policy header, it "
+                        "will fail to load in production builds of Cobalt!";
+      }
     }
   }
 
