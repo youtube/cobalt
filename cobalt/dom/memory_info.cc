@@ -61,6 +61,20 @@ uint32 MemoryInfo::used_js_heap_size(
           .used_heap_size);
 }
 
+uint32 MemoryInfo::js_heap_size_limit(
+    script::EnvironmentSettings* environment_settings) const {
+  if (!environment_settings) {
+    return 0u;
+  }
+  return static_cast<uint32>(
+      base::polymorphic_downcast<web::EnvironmentSettings*>(
+          environment_settings)
+          ->context()
+          ->javascript_engine()
+          ->GetHeapStatistics()
+          .heap_size_limit);
+}
+
 uint32 MemoryInfo::media_source_size_limit(
     script::EnvironmentSettings* environment_settings) const {
   auto memory_info = GetDecoderBufferMemoryInfo(environment_settings);

@@ -20,6 +20,7 @@
 ] interface MemoryInfo {
   [CallWith=EnvironmentSettings] readonly attribute unsigned long totalJSHeapSize;
   [CallWith=EnvironmentSettings] readonly attribute unsigned long usedJSHeapSize;
+  [CallWith=EnvironmentSettings] readonly attribute unsigned long jsHeapSizeLimit;
 
   [CallWith=EnvironmentSettings] readonly attribute unsigned long mediaSourceSizeLimit;
   [CallWith=EnvironmentSettings] readonly attribute unsigned long totalMediaSourceSize;

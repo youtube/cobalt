@@ -206,7 +206,8 @@ HeapStatistics V8cEngine::GetHeapStatistics() {
   v8::HeapStatistics v8_heap_statistics;
   isolate_->GetHeapStatistics(&v8_heap_statistics);
   return {v8_heap_statistics.total_heap_size(),
-          v8_heap_statistics.used_heap_size()};
+          v8_heap_statistics.used_heap_size(),
+          v8_heap_statistics.heap_size_limit()};
 }
 
 void V8cEngine::UpdateDateTimeConfiguration() {
