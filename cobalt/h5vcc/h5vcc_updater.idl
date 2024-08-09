@@ -35,4 +35,13 @@ interface H5vccUpdater {
   // used for testing.
   void setUseCompressedUpdates(boolean use_compressed_updates);
 
+  // Toggles the ability to load self-signed builds in the updater. This should
+  // only be used for testing and should not be available in production.
+  void setAllowSelfSignedBuilds(boolean allow_self_signed_builds);
+  boolean getAllowSelfSignedBuilds();
+
+  // Sets the URL the updater will use for updates. This should only be used for
+  // testing and should not be available in production.
+  void setUpdateServerUrl(DOMString update_server_url);
+  DOMString getUpdateServerUrl();
 };
