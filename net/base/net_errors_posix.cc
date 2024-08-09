@@ -15,6 +15,8 @@
 
 namespace net {
 
+#if SB_API_VERSION >= 16
+
 Error MapSystemError(logging::SystemErrorCode os_error) {
   if (os_error != 0)
     DVLOG(2) << "Error " << os_error << ": "
@@ -124,10 +126,12 @@ Error MapSystemError(logging::SystemErrorCode os_error) {
     case 0:
       return OK;
     default:
-      LOG(WARNING) << "Unknown error " << base::safe_strerror(os_error) << " ("
+      LOG(WARNING) << "Unknown error " << " ("
                    << os_error << ") mapped to net::ERR_FAILED";
       return ERR_FAILED;
   }
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace net

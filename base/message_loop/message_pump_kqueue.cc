@@ -463,10 +463,10 @@ bool MessagePumpKqueue::ProcessEvents(Delegate* delegate, size_t count) {
       auto scoped_do_work_item = delegate->BeginWorkItem();
       // WatchFileDescriptor() originally upcasts event->ident from an int.
       if (event->filter == EVFILT_READ) {
-        fd_watcher->OnFileCanReadWithoutBlocking(
+        fd_watcher->OnSocketReadyToRead(
             static_cast<int>(event->ident));
       } else if (event->filter == EVFILT_WRITE) {
-        fd_watcher->OnFileCanWriteWithoutBlocking(
+        fd_watcher->OnSocketReadyToWrite(
             static_cast<int>(event->ident));
       }
     } else if (event->filter == EVFILT_MACHPORT) {

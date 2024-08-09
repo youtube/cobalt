@@ -133,8 +133,8 @@ class BASE_EXPORT MessagePumpLibevent : public MessagePump,
     void Init(std::unique_ptr<event> e);
     std::unique_ptr<event> ReleaseEvent();
 
-    void OnFileCanReadWithoutBlocking(int fd, MessagePumpLibevent* pump);
-    void OnFileCanWriteWithoutBlocking(int fd, MessagePumpLibevent* pump);
+    void OnSocketReadyToRead(int fd, MessagePumpLibevent* pump);
+    void OnSocketReadyToWrite(int fd, MessagePumpLibevent* pump);
 
     // Methods called only by MessagePumpEpoll
     void set_epoll_pump(WeakPtr<MessagePumpEpoll> pump) {

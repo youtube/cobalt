@@ -658,8 +658,8 @@ class BaseWatcher : public MessagePumpGlib::FdWatcher {
   ~BaseWatcher() override = default;
 
   // base:MessagePumpGlib::FdWatcher interface
-  void OnFileCanReadWithoutBlocking(int /* fd */) override { NOTREACHED(); }
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override { NOTREACHED(); }
+  void OnSocketReadyToRead(int /* fd */) override { NOTREACHED(); }
+  void OnSocketReadyToWrite(int /* fd */) override { NOTREACHED(); }
 
  protected:
   raw_ptr<MessagePumpGlib::FdWatchController> controller_;
@@ -676,7 +676,7 @@ class DeleteWatcher : public BaseWatcher {
 
   bool HasController() const { return !!controller_; }
 
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override {
+  void OnSocketReadyToWrite(int /* fd */) override {
     ClearController();
   }
 
@@ -698,7 +698,7 @@ class StopWatcher : public BaseWatcher {
 
   ~StopWatcher() override = default;
 
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override {
+  void OnSocketReadyToWrite(int /* fd */) override {
     controller_->StopWatchingFileDescriptor();
   }
 };
@@ -717,14 +717,14 @@ class NestedPumpWatcher : public MessagePumpGlib::FdWatcher {
   NestedPumpWatcher() = default;
   ~NestedPumpWatcher() override = default;
 
-  void OnFileCanReadWithoutBlocking(int /* fd */) override {
+  void OnSocketReadyToRead(int /* fd */) override {
     RunLoop runloop;
     SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, BindOnce(&QuitMessageLoopAndStart, runloop.QuitClosure()));
     runloop.Run();
   }
 
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override {}
+  void OnSocketReadyToWrite(int /* fd */) override {}
 };
 
 class QuitWatcher : public DeleteWatcher {
@@ -734,7 +734,7 @@ class QuitWatcher : public DeleteWatcher {
       : DeleteWatcher(std::move(controller)),
         quit_closure_(std::move(quit_closure)) {}
 
-  void OnFileCanReadWithoutBlocking(int fd) override {
+  void OnSocketReadyToRead(int fd) override {
     ClearController();
     if (quit_closure_)
       std::move(quit_closure_).Run();
@@ -753,9 +753,9 @@ void WriteFDWrapper(const int fd,
 
 }  // namespace
 
-// Tests that MessagePumpGlib::FdWatcher::OnFileCanReadWithoutBlocking is not
+// Tests that MessagePumpGlib::FdWatcher::OnSocketReadyToRead is not
 // called for a READ_WRITE event, and that the controller is destroyed in
-// OnFileCanWriteWithoutBlocking callback.
+// OnSocketReadyToWrite callback.
 TEST_F(MessagePumpGLibFdWatchTest, DeleteWatcher) {
   auto pump = std::make_unique<MessagePumpGlib>();
   auto controller_ptr =
@@ -771,9 +771,9 @@ TEST_F(MessagePumpGLibFdWatchTest, DeleteWatcher) {
   EXPECT_FALSE(watcher.HasController());
 }
 
-// Tests that MessagePumpGlib::FdWatcher::OnFileCanReadWithoutBlocking is not
+// Tests that MessagePumpGlib::FdWatcher::OnSocketReadyToRead is not
 // called for a READ_WRITE event, when the watcher calls
-// StopWatchingFileDescriptor in OnFileCanWriteWithoutBlocking callback.
+// StopWatchingFileDescriptor in OnSocketReadyToWrite callback.
 TEST_F(MessagePumpGLibFdWatchTest, StopWatcher) {
   std::unique_ptr<MessagePumpGlib> pump(new MessagePumpGlib);
   MessagePumpGlib::FdWatchController controller(FROM_HERE);

@@ -57,8 +57,8 @@ class StupidWatcher : public MessagePumpIOSForIO::FdWatcher {
   ~StupidWatcher() override {}
 
   // base:MessagePumpIOSForIO::FdWatcher interface
-  void OnFileCanReadWithoutBlocking(int fd) override {}
-  void OnFileCanWriteWithoutBlocking(int fd) override {}
+  void OnSocketReadyToRead(int fd) override {}
+  void OnSocketReadyToWrite(int fd) override {}
 };
 
 class BaseWatcher : public MessagePumpIOSForIO::FdWatcher {
@@ -70,9 +70,9 @@ class BaseWatcher : public MessagePumpIOSForIO::FdWatcher {
   ~BaseWatcher() override {}
 
   // MessagePumpIOSForIO::FdWatcher interface
-  void OnFileCanReadWithoutBlocking(int /* fd */) override { NOTREACHED(); }
+  void OnSocketReadyToRead(int /* fd */) override { NOTREACHED(); }
 
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override { NOTREACHED(); }
+  void OnSocketReadyToWrite(int /* fd */) override { NOTREACHED(); }
 
  protected:
   MessagePumpIOSForIO::FdWatchController* controller_;
@@ -85,7 +85,7 @@ class DeleteWatcher : public BaseWatcher {
 
   ~DeleteWatcher() override { DCHECK(!controller_); }
 
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override {
+  void OnSocketReadyToWrite(int /* fd */) override {
     DCHECK(controller_);
     delete controller_;
     controller_ = NULL;
@@ -115,7 +115,7 @@ class StopWatcher : public BaseWatcher {
 
   ~StopWatcher() override {}
 
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override {
+  void OnSocketReadyToWrite(int /* fd */) override {
     controller_->StopWatchingFileDescriptor();
     if (fd_to_start_watching_ >= 0) {
       pump_->WatchFileDescriptor(fd_to_start_watching_,

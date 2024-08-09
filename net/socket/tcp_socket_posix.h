@@ -26,6 +26,8 @@ class TimeDelta;
 
 namespace net {
 
+#if SB_API_VERSION >= 16
+
 class AddressList;
 class IOBuffer;
 class IPEndPoint;
@@ -226,6 +228,8 @@ class NET_EXPORT TCPSocketPosix {
   // |socket_| is opened.
   SocketTag tag_;
 };
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace net
 

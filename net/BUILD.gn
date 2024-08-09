@@ -1171,10 +1171,22 @@ component("net") {
   if (is_starboard && is_starboardized_toolchain) {
     sources += [
       "cert/test_root_certs_builtin.cc",
+
+      "base/file_stream_context_posix.cc",
+      "base/sockaddr_util_posix.cc",
+      "base/sockaddr_util_posix.h",
+      "socket/socket_posix.cc",
+      "socket/socket_posix.h",
       "socket/tcp_socket_starboard.cc",
       "socket/tcp_socket_starboard.h",
       "socket/udp_socket_starboard.cc",
       "socket/udp_socket_starboard.h",
+      # Use POSIX socket for SB16
+      "base/net_errors_posix.cc",
+      "socket/tcp_socket_posix.cc",
+      "socket/tcp_socket_posix.h",
+      "socket/udp_socket_posix.cc",
+      "socket/udp_socket_posix.h",
     ]
     deps += [ "//starboard:starboard_group" ]
   }

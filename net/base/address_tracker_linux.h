@@ -207,7 +207,7 @@ class NET_EXPORT_PRIVATE AddressTrackerLinux : public AddressMapOwnerLinux {
   void AbortAndForceOnline();
 
   // Called by |watcher_| when |netlink_fd_| can be read without blocking.
-  void OnFileCanReadWithoutBlocking();
+  void OnSocketReadyToRead();
 
   // Does |interface_index| refer to a tunnel interface?
   bool IsTunnelInterface(int interface_index) const;

@@ -42,7 +42,7 @@ typedef int HostResolverFlags;
 // Returns AddressFamily for |address|.
 NET_EXPORT AddressFamily GetAddressFamily(const IPAddress& address);
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 NET_EXPORT SbSocketAddressType ConvertAddressFamily(
     AddressFamily address_family);
 #else

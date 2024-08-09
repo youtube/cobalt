@@ -972,6 +972,7 @@ component("base") {
       "files/file_path_watcher_stub.cc",
       "files/file_starboard.cc",
       "files/file_util_starboard.cc",
+      # "files/file_util_posix.cc",
       "files/memory_mapped_file_starboard.cc",
       "memory/page_size_starboard.cc",
       "memory/platform_shared_memory_mapper_starboard.cc",
