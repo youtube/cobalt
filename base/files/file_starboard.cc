@@ -479,7 +479,7 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   }
 
   if (flags & FLAG_DELETE_ON_CLOSE) {
-    NOTREACHED() << "Not supported on Starboard platforms right now.";
+    unlink(path.value().c_str());
   }
 
   async_ = ((flags & FLAG_ASYNC) == FLAG_ASYNC);
@@ -499,8 +499,15 @@ void File::SetPlatformFile(PlatformFile file) {
 }
 
 File File::Duplicate() const {
-  NOTREACHED();
-  return File();
+  if (!IsValid())
+    return File();
+  SCOPED_FILE_TRACE("Duplicate");
+  ScopedPlatformFile other_fd(HANDLE_EINTR(dup(GetPlatformFile())));
+
+  if (!other_fd.is_valid())
+    return File(File::GetLastFileError());
+
+  return File(std::move(other_fd), async());
 }
 
 }  // namespace base

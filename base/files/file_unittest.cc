@@ -109,7 +109,6 @@ TEST(FileTest, Create) {
     EXPECT_EQ(base::File::FILE_OK, file.error_details());
   }
 
-#if !defined(STARBOARD)
   {
     // Create a delete-on-close file.
     file_path = temp_dir.GetPath().AppendASCII("create_file_2");
@@ -122,10 +121,8 @@ TEST(FileTest, Create) {
   }
 
   EXPECT_FALSE(base::PathExists(file_path));
-#endif  // !defined(STARBOARD)
 }
 
-#if !defined(STARBOARD)
 TEST(FileTest, SelfSwap) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -135,7 +132,6 @@ TEST(FileTest, SelfSwap) {
   std::swap(file, file);
   EXPECT_TRUE(file.IsValid());
 }
-#endif  // !defined(STARBOARD)
 
 TEST(FileTest, Async) {
   base::ScopedTempDir temp_dir;
@@ -600,7 +596,6 @@ TEST(FileTest, Duplicate) {
 }
 #endif
 
-#if !defined(STARBOARD)
 TEST(FileTest, DuplicateDeleteOnClose) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -616,9 +611,8 @@ TEST(FileTest, DuplicateDeleteOnClose) {
   file2.Close();
   ASSERT_FALSE(base::PathExists(file_path));
 }
-#endif
 
-#if BUILDFLAG(ENABLE_BASE_TRACING) && !defined(STARBOARD)
+#if BUILDFLAG(ENABLE_BASE_TRACING)
 TEST(FileTest, TracedValueSupport) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
@@ -644,14 +638,9 @@ TEST(FileTest, MAYBE_WriteDataToLargeOffset) {
   base::ScopedTempDir temp_dir;
   ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
   FilePath file_path = temp_dir.GetPath().AppendASCII("file");
-#if defined(STARBOARD)
-  File file(file_path, (base::File::FLAG_CREATE | base::File::FLAG_READ |
-                        base::File::FLAG_WRITE));
-#else
   File file(file_path,
             (base::File::FLAG_CREATE | base::File::FLAG_READ |
              base::File::FLAG_WRITE | base::File::FLAG_DELETE_ON_CLOSE));
-#endif
   ASSERT_TRUE(file.IsValid());
 
   const char kData[] = "this file is sparse.";
