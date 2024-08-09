@@ -127,7 +127,11 @@ SbPlayer SbPlayerCreate(SbWindow window,
       audio_codec != kSbMediaAudioCodecAac &&
       audio_codec != kSbMediaAudioCodecAc3 &&
       audio_codec != kSbMediaAudioCodecEac3 &&
-      audio_codec != kSbMediaAudioCodecOpus) {
+      audio_codec != kSbMediaAudioCodecOpus
+#if SB_API_VERSION >= 15
+      && audio_codec != kSbMediaAudioCodecIamf
+#endif  // SB_API_VERSION >= 15
+  ) {
     SB_LOG(ERROR) << "Unsupported audio codec: "
                   << starboard::GetMediaAudioCodecName(audio_codec) << ".";
     player_error_func(
