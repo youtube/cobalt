@@ -15,6 +15,7 @@
 #ifndef COBALT_MEDIA_BASE_SBPLAYER_SET_BOUNDS_HELPER_H_
 #define COBALT_MEDIA_BASE_SBPLAYER_SET_BOUNDS_HELPER_H_
 
+#include "base/functional/callback.h"
 #include "base/macros.h"
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
@@ -24,19 +25,21 @@
 namespace cobalt {
 namespace media {
 
-class SbPlayerBridge;
-
 class SbPlayerSetBoundsHelper
     : public base::RefCountedThreadSafe<SbPlayerSetBoundsHelper> {
  public:
+  typedef base::RepeatingCallback<void(int z_index, const gfx::Rect& rect)>
+      SetBoundsCB;
+
   SbPlayerSetBoundsHelper() {}
 
-  void SetPlayerBridge(SbPlayerBridge* player_bridge);
+  void SetCallback(SetBoundsCB set_bounds_cb);
+  void ResetCallback();
   bool SetBounds(int x, int y, int width, int height);
 
  private:
   base::Lock lock_;
-  SbPlayerBridge* player_bridge_ = nullptr;
+  SetBoundsCB set_bounds_cb_;
   base::Optional<gfx::Rect> rect_;
 
   DISALLOW_COPY_AND_ASSIGN(SbPlayerSetBoundsHelper);

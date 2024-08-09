@@ -1,0 +1,16 @@
+name: "media"
+description:
+  "Subtree at third_party/chromium/media"
+
+third_party {
+  url {
+    type: GIT
+    value: "https://chromium.googlesource.com/chromium/src/media"
+  }
+  version: "4dc2af87b3a5ff1c1489ec642491b59e9872ac8b"
+  last_upgrade_date {
+    year: 2022
+    month: 1
+    day: 11
+  }
+}

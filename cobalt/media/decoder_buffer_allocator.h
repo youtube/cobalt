@@ -21,17 +21,19 @@
 #include "base/compiler_specific.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
+#include "cobalt/media/base/chrome_media.h"
 #include "cobalt/media/bidirectional_fit_reuse_allocator.h"
 #include "cobalt/media/decoder_buffer_memory_info.h"
 #include "cobalt/media/starboard_memory_allocator.h"
 #include "media/base/decoder_buffer.h"
-#include "media/base/video_decoder_config.h"
 #include "starboard/media.h"
+#include "third_party/chromium/media/base/decoder_buffer.h"
 
 namespace cobalt {
 namespace media {
 
-class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
+class DecoderBufferAllocator : public ::media_m96::DecoderBuffer::Allocator,
+                               public ::media_m114::DecoderBuffer::Allocator,
                                public DecoderBufferMemoryInfo {
  public:
   DecoderBufferAllocator();

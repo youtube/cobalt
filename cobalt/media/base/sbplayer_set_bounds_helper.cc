@@ -14,6 +14,8 @@
 
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
 
+#include <utility>
+
 #include "base/atomic_sequence_num.h"
 #include "cobalt/media/base/sbplayer_bridge.h"
 
@@ -28,22 +30,27 @@ namespace {
 base::AtomicSequenceNumber s_z_index;
 }  // namespace
 
-void SbPlayerSetBoundsHelper::SetPlayerBridge(SbPlayerBridge* player_bridge) {
+void SbPlayerSetBoundsHelper::SetCallback(SetBoundsCB set_bounds_cb) {
   base::AutoLock auto_lock(lock_);
-  player_bridge_ = player_bridge;
-  if (player_bridge_ && rect_.has_value()) {
-    player_bridge_->SetBounds(s_z_index.GetNext(), rect_.value());
+  set_bounds_cb_ = std::move(set_bounds_cb);
+  if (!set_bounds_cb_.is_null() && rect_.has_value()) {
+    set_bounds_cb_.Run(s_z_index.GetNext(), rect_.value());
   }
+}
+
+void SbPlayerSetBoundsHelper::ResetCallback() {
+  base::AutoLock auto_lock(lock_);
+  set_bounds_cb_ = SetBoundsCB();
 }
 
 bool SbPlayerSetBoundsHelper::SetBounds(int x, int y, int width, int height) {
   base::AutoLock auto_lock(lock_);
   rect_ = gfx::Rect(x, y, width, height);
-  if (player_bridge_) {
-    player_bridge_->SetBounds(s_z_index.GetNext(), rect_.value());
+  if (!set_bounds_cb_.is_null()) {
+    set_bounds_cb_.Run(s_z_index.GetNext(), rect_.value());
   }
 
-  return player_bridge_ != nullptr;
+  return !set_bounds_cb_.is_null();
 }
 
 }  // namespace media

@@ -216,8 +216,6 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
                 << (value ? "true" : "false");
       return true;
     }
-
-
   } else if (name == "AsyncReleaseMediaCodecBridge") {
     const StarboardExtensionMediaSettingsApi* media_settings_api =
         static_cast<const StarboardExtensionMediaSettingsApi*>(
@@ -247,6 +245,16 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
         return true;
       }
     }
+  } else if (name == "ChromeMediaVersion") {
+    if (value == 96) {
+      chrome_media_version = WebMediaPlayerImpl::ChromeMediaVersions::M96;
+      LOG(INFO) << "Set ChromeMediaVersion to 96.";
+      return true;
+    } else if (value == 114) {
+      chrome_media_version = WebMediaPlayerImpl::ChromeMediaVersions::M114;
+      LOG(INFO) << "Set ChromeMediaVersion to 114.";
+      return true;
+    }
   }
 
   return false;
@@ -260,7 +268,7 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
   }
 
   return std::unique_ptr<WebMediaPlayer>(new media::WebMediaPlayerImpl(
-      sbplayer_interface_.get(), window,
+      sbplayer_interface_.get(), chrome_media_version, window,
       base::Bind(&MediaModule::GetSbDecodeTargetGraphicsContextProvider,
                  base::Unretained(this)),
       client, this, options_.allow_resume_after_suspend,

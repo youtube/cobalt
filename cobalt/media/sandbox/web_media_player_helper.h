@@ -20,6 +20,7 @@
 
 #include "base/callback.h"
 #include "cobalt/loader/fetcher_factory.h"
+#include "cobalt/media/base/chunk_demuxer_holder.h"
 #include "cobalt/media/base/decode_target_provider.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/media/player/web_media_player.h"
@@ -35,7 +36,7 @@ namespace sandbox {
 // simplify the using of WebMediaPlayer.
 class WebMediaPlayerHelper {
  public:
-  typedef base::Callback<void(::media::ChunkDemuxer*)> ChunkDemuxerOpenCB;
+  typedef base::Callback<void(ChunkDemuxerHolder*)> ChunkDemuxerOpenCB;
 
   // Ctor to create an adaptive pipeline.  |open_cb| will be called when the
   // ChunkDemuxer is ready to add source buffers.

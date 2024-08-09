@@ -1,3 +1,17 @@
+// Modifications Copyright 2017 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 /*
  * Copyright (C) 2013 Google Inc. All Rights Reserved.
  *
@@ -28,20 +42,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Modifications Copyright 2017 The Cobalt Authors. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 #include "cobalt/dom/media_source.h"
 
 #include <algorithm>
@@ -71,11 +71,6 @@ namespace cobalt {
 namespace dom {
 
 namespace {
-
-using ::media::CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR;
-using ::media::CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
-using ::media::PIPELINE_OK;
-using ::media::PipelineStatus;
 
 const MediaSettings& GetMediaSettings(web::EnvironmentSettings* settings) {
   DCHECK(settings);
@@ -201,7 +196,7 @@ double MediaSource::duration(script::ExceptionState* exception_state) const {
     return std::numeric_limits<float>::quiet_NaN();
   }
 
-  DCHECK(chunk_demuxer_);
+  DCHECK(chunk_demuxer_->valid());
   return chunk_demuxer_->GetDuration();
 }
 
@@ -290,17 +285,17 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
 
   std::string guid = base::GenerateGUID();
   scoped_refptr<SourceBuffer> source_buffer;
-  ChunkDemuxer::Status status = chunk_demuxer_->AddId(guid, type);
+  media::ChunkDemuxerHolder::Status status = chunk_demuxer_->AddId(guid, type);
   switch (status) {
-    case ChunkDemuxer::kOk:
+    case media::ChunkDemuxerHolder::kOk:
       source_buffer =
           new SourceBuffer(settings, guid, this, chunk_demuxer_, &event_queue_);
       break;
-    case ChunkDemuxer::kNotSupported:
+    case media::ChunkDemuxerHolder::kNotSupported:
       web::DOMException::Raise(web::DOMException::kNotSupportedErr,
                                exception_state);
       return NULL;
-    case ChunkDemuxer::kReachedIdLimit:
+    case media::ChunkDemuxerHolder::kReachedIdLimit:
       web::DOMException::Raise(web::DOMException::kQuotaExceededErr,
                                exception_state);
       return NULL;
@@ -355,12 +350,12 @@ void MediaSource::EndOfStreamAlgorithm(MediaSourceEndOfStreamError error) {
     SetReadyState(kMediaSourceReadyStateEnded);
   }
 
-  PipelineStatus pipeline_status = PIPELINE_OK;
+  ::media::PipelineStatusCodes pipeline_status = ::media::PIPELINE_OK;
 
   if (error == kMediaSourceEndOfStreamErrorNetwork) {
-    pipeline_status = CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
+    pipeline_status = ::media::CHUNK_DEMUXER_ERROR_EOS_STATUS_NETWORK_ERROR;
   } else if (error == kMediaSourceEndOfStreamErrorDecode) {
-    pipeline_status = CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR;
+    pipeline_status = ::media::CHUNK_DEMUXER_ERROR_EOS_STATUS_DECODE_ERROR;
   }
   chunk_demuxer_->MarkEndOfStream(pipeline_status);
 }
@@ -504,7 +499,8 @@ bool MediaSource::StartAttachingToMediaElement(
   return true;
 }
 
-void MediaSource::CompleteAttachingToMediaElement(ChunkDemuxer* chunk_demuxer) {
+void MediaSource::CompleteAttachingToMediaElement(
+    media::ChunkDemuxerHolder* chunk_demuxer) {
   DCHECK(chunk_demuxer);
   DCHECK(!chunk_demuxer_);
   if (is_using_media_source_attachment_methods_) {

@@ -24,7 +24,7 @@ namespace cobalt {
 namespace media {
 namespace {
 
-bool SafeStrEqual(const char* ptr1, const char* ptr2) {
+inline bool SafeStrEqual(const char* ptr1, const char* ptr2) {
   if (!ptr1 || !ptr2) {
     return ptr1 == ptr2;
   }
@@ -33,8 +33,8 @@ bool SafeStrEqual(const char* ptr1, const char* ptr2) {
 
 }  // namespace
 
-bool operator!=(const SbMediaAudioStreamInfo& left,
-                const SbMediaAudioStreamInfo& right) {
+inline bool operator!=(const SbMediaAudioStreamInfo& left,
+                       const SbMediaAudioStreamInfo& right) {
   if (left.codec == kSbMediaAudioCodecNone) {
     return right.codec != kSbMediaAudioCodecNone;
   }
@@ -47,8 +47,8 @@ bool operator!=(const SbMediaAudioStreamInfo& left,
                 left.audio_specific_config_size) != 0;
 }
 
-bool operator!=(const SbMediaVideoStreamInfo& left,
-                const SbMediaVideoStreamInfo& right) {
+inline bool operator!=(const SbMediaVideoStreamInfo& left,
+                       const SbMediaVideoStreamInfo& right) {
   if (left.codec == kSbMediaVideoCodecNone) {
     return right.codec != kSbMediaVideoCodecNone;
   }
@@ -61,7 +61,8 @@ bool operator!=(const SbMediaVideoStreamInfo& left,
                 sizeof(SbMediaColorMetadata)) != 0;
 }
 
-DecoderBufferCache::BufferGroup::Segment::Segment(
+template <typename ChromeMedia>
+DecoderBufferCache<ChromeMedia>::BufferGroup::Segment::Segment(
     const SbMediaAudioStreamInfo& stream_info) {
   DCHECK_NE(stream_info.codec, kSbMediaAudioCodecNone);
 
@@ -80,7 +81,8 @@ DecoderBufferCache::BufferGroup::Segment::Segment(
   }
 }
 
-DecoderBufferCache::BufferGroup::Segment::Segment(
+template <typename ChromeMedia>
+DecoderBufferCache<ChromeMedia>::BufferGroup::Segment::Segment(
     const SbMediaVideoStreamInfo& stream_info) {
   DCHECK_NE(stream_info.codec, kSbMediaVideoCodecNone);
 
@@ -95,10 +97,13 @@ DecoderBufferCache::BufferGroup::Segment::Segment(
   }
 }
 
-DecoderBufferCache::BufferGroup::BufferGroup(DemuxerStream::Type type)
+template <typename ChromeMedia>
+DecoderBufferCache<ChromeMedia>::BufferGroup::BufferGroup(
+    typename DemuxerStream::Type type)
     : type_(type) {}
 
-void DecoderBufferCache::BufferGroup::AddBuffers(
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::BufferGroup::AddBuffers(
     const DecoderBuffers& buffers, const SbMediaAudioStreamInfo& stream_info) {
   DCHECK(type_ == DemuxerStream::Type::AUDIO);
   if (buffers.empty()) {
@@ -110,7 +115,8 @@ void DecoderBufferCache::BufferGroup::AddBuffers(
   AddBuffers(buffers);
 }
 
-void DecoderBufferCache::BufferGroup::AddBuffers(
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::BufferGroup::AddBuffers(
     const DecoderBuffers& buffers, const SbMediaVideoStreamInfo& stream_info) {
   DCHECK(type_ == DemuxerStream::Type::VIDEO);
   if (buffers.empty()) {
@@ -122,7 +128,8 @@ void DecoderBufferCache::BufferGroup::AddBuffers(
   AddBuffers(buffers);
 }
 
-void DecoderBufferCache::BufferGroup::ClearSegmentsBeforeMediaTime(
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::BufferGroup::ClearSegmentsBeforeMediaTime(
     const base::TimeDelta& media_time) {
   // Use K to denote a key frame and N for non-key frame.  If the cache contains
   // K N N N N N N N N K N N N N N N N N K N N N N N N N N
@@ -175,15 +182,16 @@ void DecoderBufferCache::BufferGroup::ClearSegmentsBeforeMediaTime(
   DCHECK(buffer_index_ < segments_[segment_index_].buffers.size());
 }
 
-
-void DecoderBufferCache::BufferGroup::ClearAll() {
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::BufferGroup::ClearAll() {
   segments_.clear();
   key_frame_timestamps_.clear();
   segment_index_ = 0;
   buffer_index_ = 0;
 }
 
-bool DecoderBufferCache::BufferGroup::HasMoreBuffers() const {
+template <typename ChromeMedia>
+bool DecoderBufferCache<ChromeMedia>::BufferGroup::HasMoreBuffers() const {
   if (segments_.size() == 0) {
     return false;
   }
@@ -196,14 +204,16 @@ bool DecoderBufferCache::BufferGroup::HasMoreBuffers() const {
   return true;
 }
 
+template <typename ChromeMedia>
 template <typename StreamInfo>
-void DecoderBufferCache::BufferGroup::AddStreamInfo(
+void DecoderBufferCache<ChromeMedia>::BufferGroup::AddStreamInfo(
     const StreamInfo& stream_info) {
   segments_.emplace_back(stream_info);
   AdvanceGroupIndexIfNecessary();
 }
 
-void DecoderBufferCache::BufferGroup::AddBuffers(
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::BufferGroup::AddBuffers(
     const DecoderBuffers& buffers) {
   DCHECK(!segments_.empty() && segment_index_ < segments_.size());
   DCHECK(!buffers.empty());
@@ -217,7 +227,8 @@ void DecoderBufferCache::BufferGroup::AddBuffers(
                               buffers.end());
 }
 
-void DecoderBufferCache::BufferGroup::ReadBuffers(
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::BufferGroup::ReadBuffers(
     DecoderBuffers* buffers, size_t max_buffers_per_read,
     SbMediaAudioStreamInfo* stream_info) {
   DCHECK_EQ(type_, DemuxerStream::AUDIO);
@@ -228,7 +239,8 @@ void DecoderBufferCache::BufferGroup::ReadBuffers(
   ReadBuffers(buffers, max_buffers_per_read);
 }
 
-void DecoderBufferCache::BufferGroup::ReadBuffers(
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::BufferGroup::ReadBuffers(
     DecoderBuffers* buffers, size_t max_buffers_per_read,
     SbMediaVideoStreamInfo* stream_info) {
   DCHECK_EQ(type_, DemuxerStream::VIDEO);
@@ -239,12 +251,15 @@ void DecoderBufferCache::BufferGroup::ReadBuffers(
   ReadBuffers(buffers, max_buffers_per_read);
 }
 
-void DecoderBufferCache::BufferGroup::ResetIndex() {
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::BufferGroup::ResetIndex() {
   segment_index_ = 0;
   buffer_index_ = 0;
 }
 
-void DecoderBufferCache::BufferGroup::AdvanceGroupIndexIfNecessary() {
+template <typename ChromeMedia>
+void DecoderBufferCache<
+    ChromeMedia>::BufferGroup::AdvanceGroupIndexIfNecessary() {
   DCHECK(segment_index_ < segments_.size());
   DCHECK(buffer_index_ <= segments_[segment_index_].buffers.size());
   if (buffer_index_ == segments_[segment_index_].buffers.size() &&
@@ -254,8 +269,9 @@ void DecoderBufferCache::BufferGroup::AdvanceGroupIndexIfNecessary() {
   }
 }
 
-void DecoderBufferCache::BufferGroup::ReadBuffers(DecoderBuffers* buffers,
-                                                  size_t max_buffers_per_read) {
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::BufferGroup::ReadBuffers(
+    DecoderBuffers* buffers, size_t max_buffers_per_read) {
   DCHECK(segment_index_ < segments_.size());
   DCHECK(buffer_index_ < segments_[segment_index_].buffers.size());
 
@@ -272,42 +288,50 @@ void DecoderBufferCache::BufferGroup::ReadBuffers(DecoderBuffers* buffers,
   AdvanceGroupIndexIfNecessary();
 }
 
-DecoderBufferCache::DecoderBufferCache()
+template <typename ChromeMedia>
+DecoderBufferCache<ChromeMedia>::DecoderBufferCache()
     : audio_buffer_group_(DemuxerStream::Type::AUDIO),
       video_buffer_group_(DemuxerStream::Type::VIDEO) {}
 
-void DecoderBufferCache::AddBuffers(const DecoderBuffers& buffers,
-                                    const SbMediaAudioStreamInfo& stream_info) {
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::AddBuffers(
+    const DecoderBuffers& buffers, const SbMediaAudioStreamInfo& stream_info) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   audio_buffer_group_.AddBuffers(buffers, stream_info);
 }
 
-void DecoderBufferCache::AddBuffers(const DecoderBuffers& buffers,
-                                    const SbMediaVideoStreamInfo& stream_info) {
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::AddBuffers(
+    const DecoderBuffers& buffers, const SbMediaVideoStreamInfo& stream_info) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   video_buffer_group_.AddBuffers(buffers, stream_info);
 }
 
-void DecoderBufferCache::ClearSegmentsBeforeMediaTime(
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::ClearSegmentsBeforeMediaTime(
     const base::TimeDelta& media_time) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   audio_buffer_group_.ClearSegmentsBeforeMediaTime(media_time);
   video_buffer_group_.ClearSegmentsBeforeMediaTime(media_time);
 }
 
-void DecoderBufferCache::ClearAll() {
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::ClearAll() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   audio_buffer_group_.ClearAll();
   video_buffer_group_.ClearAll();
 }
 
-void DecoderBufferCache::StartResuming() {
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::StartResuming() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   audio_buffer_group_.ResetIndex();
   video_buffer_group_.ResetIndex();
 }
 
-bool DecoderBufferCache::HasMoreBuffers(DemuxerStream::Type type) const {
+template <typename ChromeMedia>
+bool DecoderBufferCache<ChromeMedia>::HasMoreBuffers(
+    typename DemuxerStream::Type type) const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   if (type == DemuxerStream::Type::AUDIO) {
     return audio_buffer_group_.HasMoreBuffers();
@@ -316,9 +340,10 @@ bool DecoderBufferCache::HasMoreBuffers(DemuxerStream::Type type) const {
   return video_buffer_group_.HasMoreBuffers();
 }
 
-void DecoderBufferCache::ReadBuffers(DecoderBuffers* buffers,
-                                     size_t max_buffers_per_read,
-                                     SbMediaAudioStreamInfo* stream_info) {
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::ReadBuffers(
+    DecoderBuffers* buffers, size_t max_buffers_per_read,
+    SbMediaAudioStreamInfo* stream_info) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(buffers);
   DCHECK(buffers->empty());
@@ -331,9 +356,10 @@ void DecoderBufferCache::ReadBuffers(DecoderBuffers* buffers,
   DCHECK(!buffers->empty());
 }
 
-void DecoderBufferCache::ReadBuffers(DecoderBuffers* buffers,
-                                     size_t max_buffers_per_read,
-                                     SbMediaVideoStreamInfo* stream_info) {
+template <typename ChromeMedia>
+void DecoderBufferCache<ChromeMedia>::ReadBuffers(
+    DecoderBuffers* buffers, size_t max_buffers_per_read,
+    SbMediaVideoStreamInfo* stream_info) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(buffers);
   DCHECK(buffers->empty());

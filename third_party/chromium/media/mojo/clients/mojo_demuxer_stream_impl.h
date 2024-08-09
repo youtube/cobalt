@@ -1,0 +1,70 @@
+// Copyright 2014 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef THIRD_PARTY_CHROMIUM_MEDIA_MOJO_CLIENTS_MOJO_DEMUXER_STREAM_IMPL_H_
+#define THIRD_PARTY_CHROMIUM_MEDIA_MOJO_CLIENTS_MOJO_DEMUXER_STREAM_IMPL_H_
+
+#include <memory>
+
+#include "base/functional/callback_forward.h"
+#include "base/macros.h"
+#include "base/memory/weak_ptr.h"
+#include "third_party/chromium/media/base/demuxer_stream.h"
+#include "third_party/chromium/media/mojo/mojom/demuxer_stream.mojom.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/receiver.h"
+
+namespace media_m96 {
+
+class DemuxerStream;
+class MojoDecoderBufferWriter;
+
+// This class wraps a media_m96::DemuxerStream and exposes it as a
+// mojom::DemuxerStream for use as a proxy from remote applications.
+class MojoDemuxerStreamImpl : public mojom::DemuxerStream {
+ public:
+  // |stream| is the underlying DemuxerStream we are proxying for.
+  // Note: |this| does not take ownership of |stream|.
+  MojoDemuxerStreamImpl(media_m96::DemuxerStream* stream,
+                        mojo::PendingReceiver<mojom::DemuxerStream> receiver);
+
+  MojoDemuxerStreamImpl(const MojoDemuxerStreamImpl&) = delete;
+  MojoDemuxerStreamImpl& operator=(const MojoDemuxerStreamImpl&) = delete;
+
+  ~MojoDemuxerStreamImpl() override;
+
+  // mojom::DemuxerStream implementation.
+  // InitializeCallback and ReadCallback are defined in
+  // mojom::DemuxerStream.
+  void Initialize(InitializeCallback callback) override;
+  void Read(ReadCallback callback) override;
+  void EnableBitstreamConverter() override;
+
+  // Sets an error handler that will be called if a connection error occurs on
+  // the bound message pipe.
+  void set_disconnect_handler(base::OnceClosure error_handler) {
+    receiver_.set_disconnect_handler(std::move(error_handler));
+  }
+
+ private:
+  using Type = media_m96::DemuxerStream::Type;
+  using Status = media_m96::DemuxerStream::Status;
+
+  void OnBufferReady(ReadCallback callback,
+                     Status status,
+                     scoped_refptr<DecoderBuffer> buffer);
+
+  mojo::Receiver<mojom::DemuxerStream> receiver_;
+
+  // See constructor.  We do not own |stream_|.
+  media_m96::DemuxerStream* stream_;
+
+  std::unique_ptr<MojoDecoderBufferWriter> mojo_decoder_buffer_writer_;
+
+  base::WeakPtrFactory<MojoDemuxerStreamImpl> weak_factory_{this};
+};
+
+}  // namespace media_m96
+
+#endif  // THIRD_PARTY_CHROMIUM_MEDIA_MOJO_CLIENTS_MOJO_DEMUXER_STREAM_IMPL_H_

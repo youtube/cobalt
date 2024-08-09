@@ -27,6 +27,7 @@
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "cobalt/math/size.h"
+#include "cobalt/media/base/media_log_holder.h"
 #include "cobalt/media/base/sbplayer_interface.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/decoder_buffer_allocator.h"
@@ -36,7 +37,6 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/system_window/system_window.h"
-#include "media/base/media_log.h"
 #include "starboard/player.h"
 
 namespace cobalt {
@@ -115,7 +115,9 @@ class MediaModule : public WebMediaPlayerFactory,
   system_window::SystemWindow* system_window_;
   cobalt::render_tree::ResourceProvider* resource_provider_;
 
-  ::media::MediaLog media_log_;
+  MediaLogHolder media_log_;
+  WebMediaPlayerImpl::ChromeMediaVersions chrome_media_version =
+      WebMediaPlayerImpl::ChromeMediaVersions::M114;
 
   // Protect access to the list of players.
   mutable base::Lock players_lock_;

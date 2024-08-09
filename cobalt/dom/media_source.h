@@ -1,3 +1,17 @@
+// Modifications Copyright 2017 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 /*
  * Copyright (C) 2013 Google Inc. All Rights Reserved.
  *
@@ -28,20 +42,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// Modifications Copyright 2017 The Cobalt Authors. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 #ifndef COBALT_DOM_MEDIA_SOURCE_H_
 #define COBALT_DOM_MEDIA_SOURCE_H_
 
@@ -65,10 +65,10 @@
 #include "cobalt/dom/source_buffer_list.h"
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/video_track.h"
+#include "cobalt/media/base/chunk_demuxer_holder.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/web/event_target.h"
-#include "media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace dom {
@@ -78,8 +78,6 @@ namespace dom {
 //   https://www.w3.org/TR/2016/CR-media-source-20160705/#idl-def-MediaSource
 class MediaSource : public web::EventTarget {
  public:
-  typedef ::media::ChunkDemuxer ChunkDemuxer;
-
   // Custom, not in any spec.
   //
   explicit MediaSource(script::EnvironmentSettings* settings);
@@ -116,7 +114,8 @@ class MediaSource : public web::EventTarget {
   bool StartAttachingToMediaElement(HTMLMediaElement* media_element);
   bool StartAttachingToMediaElement(
       MediaSourceAttachmentSupplement* media_source_attachment);
-  void CompleteAttachingToMediaElement(ChunkDemuxer* chunk_demuxer);
+  void CompleteAttachingToMediaElement(
+      media::ChunkDemuxerHolder* chunk_demuxer);
   void Close();
   bool IsClosed() const;
   scoped_refptr<TimeRanges> GetBufferedRange() const;
@@ -166,7 +165,7 @@ class MediaSource : public web::EventTarget {
       offload_algorithm_runner_;
   std::unique_ptr<base::Thread> algorithm_process_thread_;
 
-  ChunkDemuxer* chunk_demuxer_;
+  media::ChunkDemuxerHolder* chunk_demuxer_;
   MediaSourceReadyState ready_state_;
   EventQueue event_queue_;
   // TODO(b/338425449): Remove direct references to HTMLMediaElement.

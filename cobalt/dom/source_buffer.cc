@@ -153,24 +153,44 @@ void SourceBuffer::OnInitSegmentReceivedHelper::Detach() {
   source_buffer_ = nullptr;
 }
 
-void SourceBuffer::OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceived(
-    std::unique_ptr<MediaTracks> tracks) {
+void SourceBuffer::OnInitSegmentReceivedHelper::
+    TryToRunOnInitSegmentReceivedM96(
+        std::unique_ptr<::media_m96::MediaTracks> tracks) {
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
         FROM_HERE,
-        base::Bind(&OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceived,
-                   this, base::Passed(&tracks)));
+        base::Bind(
+            &OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceivedM96,
+            this, base::Passed(&tracks)));
     return;
   }
 
   if (source_buffer_) {
-    source_buffer_->OnInitSegmentReceived(std::move(tracks));
+    source_buffer_->OnInitSegmentReceived();
+  }
+}
+
+void SourceBuffer::OnInitSegmentReceivedHelper::
+    TryToRunOnInitSegmentReceivedM114(
+        std::unique_ptr<::media_m114::MediaTracks> tracks) {
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::Bind(
+            &OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceivedM114,
+            this, base::Passed(&tracks)));
+    return;
+  }
+
+  if (source_buffer_) {
+    source_buffer_->OnInitSegmentReceived();
   }
 }
 
 SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
                            const std::string& id, MediaSource* media_source,
-                           ChunkDemuxer* chunk_demuxer, EventQueue* event_queue)
+                           media::ChunkDemuxerHolder* chunk_demuxer,
+                           EventQueue* event_queue)
     : web::EventTarget(settings),
       on_init_segment_received_helper_(new OnInitSegmentReceivedHelper(this)),
       id_(id),
@@ -204,15 +224,19 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
   LOG(INFO) << "Evict extra in bytes is set to " << evict_extra_in_bytes_;
   LOG(INFO) << "Max append size in bytes is set to " << max_append_buffer_size_;
 
-  chunk_demuxer_->SetTracksWatcher(
-      id_,
-      base::Bind(&OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceived,
+  if (chunk_demuxer_->is_m114()) {
+    chunk_demuxer_->As<::media_m114::ChunkDemuxer*>()->SetTracksWatcher(
+        id_,
+        base::Bind(
+            &OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceivedM114,
+            on_init_segment_received_helper_));
+  } else {
+    chunk_demuxer_->As<::media_m96::ChunkDemuxer*>()->SetTracksWatcher(
+        id_, base::Bind(
+                 &OnInitSegmentReceivedHelper::TryToRunOnInitSegmentReceivedM96,
                  on_init_segment_received_helper_));
-  chunk_demuxer_->SetParseWarningCallback(
-      id, base::BindRepeating([](::media::SourceBufferParseWarning warning) {
-        LOG(WARNING) << "Encountered SourceBufferParseWarning "
-                     << static_cast<int>(warning);
-      }));
+  }
+  chunk_demuxer_->SetParseWarningCallback(id);
 }
 
 void SourceBuffer::set_mode(SourceBufferAppendMode mode,
@@ -249,13 +273,7 @@ scoped_refptr<TimeRanges> SourceBuffer::buffered(
     return NULL;
   }
 
-  scoped_refptr<TimeRanges> time_ranges = new TimeRanges;
-  ::media::Ranges<base::TimeDelta> ranges =
-      chunk_demuxer_->GetBufferedRanges(id_);
-  for (size_t i = 0; i < ranges.size(); i++) {
-    time_ranges->Add(ranges.start(i).InSecondsF(), ranges.end(i).InSecondsF());
-  }
-  return time_ranges;
+  return chunk_demuxer_->GetBufferedRanges<TimeRanges>(id_);
 }
 
 double SourceBuffer::timestamp_offset(
@@ -514,7 +532,7 @@ void SourceBuffer::OnRemovedFromMediaSource() {
   metrics_.PrintCurrentMetricsAndUpdateAccumulatedMetrics();
 
   chunk_demuxer_->RemoveId(id_);
-  if (chunk_demuxer_->GetAllStreams().empty()) {
+  if (chunk_demuxer_->HasAnyStreams()) {
     metrics_.PrintAccumulatedMetrics();
   }
 
@@ -577,7 +595,7 @@ void SourceBuffer::set_memory_limit(size_t memory_limit,
   chunk_demuxer_->SetSourceBufferStreamMemoryLimit(id_, memory_limit);
 }
 
-void SourceBuffer::OnInitSegmentReceived(std::unique_ptr<MediaTracks> tracks) {
+void SourceBuffer::OnInitSegmentReceived() {
   if (!first_initialization_segment_received_) {
     media_source_->SetSourceBufferActive(this, true);
     first_initialization_segment_received_ = true;

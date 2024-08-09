@@ -24,12 +24,9 @@
 
 namespace cobalt {
 namespace dom {
-namespace {
-using ::media::StreamParser;
-}  // namespace
 
 SourceBufferAppendAlgorithm::SourceBufferAppendAlgorithm(
-    MediaSource* media_source, ::media::ChunkDemuxer* chunk_demuxer,
+    MediaSource* media_source, media::ChunkDemuxerHolder* chunk_demuxer,
     const std::string& id, const uint8_t* buffer, size_t size_in_bytes,
     size_t max_append_size_in_bytes, base::TimeDelta append_window_start,
     base::TimeDelta append_window_end, base::TimeDelta timestamp_offset,
@@ -72,15 +69,10 @@ void SourceBufferAppendAlgorithm::Process(bool* finished) {
                "append_size", append_size);
 
   metrics_->StartTracking(SourceBufferMetricsAction::APPEND_BUFFER);
-  succeeded_ = chunk_demuxer_->AppendToParseBuffer(id_, buffer_, append_size);
-  StreamParser::ParseStatus result =
-      StreamParser::ParseStatus::kSuccessHasMoreData;
-  while (succeeded_ &&
-         result == StreamParser::ParseStatus::kSuccessHasMoreData) {
-    result = chunk_demuxer_->RunSegmentParserLoop(
-        id_, append_window_start_, append_window_end_, &timestamp_offset_);
-  }
-  succeeded_ &= result == StreamParser::ParseStatus::kSuccess;
+  succeeded_ = chunk_demuxer_->AppendBuffer(
+      id_, buffer_, append_size, append_window_start_, append_window_end_,
+      &timestamp_offset_);
+
   update_timestamp_offset_cb_.Run(timestamp_offset_);
   metrics_->EndTracking(SourceBufferMetricsAction::APPEND_BUFFER,
                         succeeded_ ? append_size : 0);
@@ -126,7 +118,7 @@ void SourceBufferAppendAlgorithm::Finalize() {
 }
 
 SourceBufferRemoveAlgorithm::SourceBufferRemoveAlgorithm(
-    ::media::ChunkDemuxer* chunk_demuxer, const std::string& id,
+    media::ChunkDemuxerHolder* chunk_demuxer, const std::string& id,
     base::TimeDelta pending_remove_start, base::TimeDelta pending_remove_end,
     ScheduleEventCB&& schedule_event_cb, base::OnceClosure&& finalized_cb)
     : chunk_demuxer_(chunk_demuxer),

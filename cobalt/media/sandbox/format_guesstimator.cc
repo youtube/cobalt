@@ -25,6 +25,7 @@
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
+#include "cobalt/media/base/chunk_demuxer_holder.h"
 #include "cobalt/media/sandbox/web_media_player_helper.h"
 #include "cobalt/render_tree/image.h"
 #include "media/base/audio_codecs.h"
@@ -174,8 +175,8 @@ void FormatGuesstimator::InitializeAsAdaptive(const base::FilePath& path,
 
     ChunkDemuxer* chunk_demuxer = NULL;
     WebMediaPlayerHelper::ChunkDemuxerOpenCB open_cb = base::Bind(
-        [](ChunkDemuxer** handle, ChunkDemuxer* chunk_demuxer) -> void {
-          *handle = chunk_demuxer;
+        [](ChunkDemuxer** handle, ChunkDemuxerHolder* chunk_demuxer) -> void {
+          *handle = chunk_demuxer->As<ChunkDemuxer*>();
         },
         &chunk_demuxer);
     // We create a new |web_media_player_helper| every iteration in order to

@@ -27,10 +27,10 @@
 #include "cobalt/dom/media_source_ready_state.h"
 #include "cobalt/dom/time_ranges.h"
 #include "cobalt/dom/video_track_list.h"
+#include "cobalt/media/base/chunk_demuxer_holder.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/tracer.h"
 #include "cobalt/web/url_registry.h"
-#include "media/filters/chunk_demuxer.h"
 
 namespace cobalt {
 namespace dom {
@@ -46,7 +46,7 @@ class SameThreadMediaSourceAttachment : public MediaSourceAttachmentSupplement {
   // MediaSourceAttachment
   bool StartAttachingToMediaElement(HTMLMediaElement* media_element) override;
   void CompleteAttachingToMediaElement(
-      ::media::ChunkDemuxer* chunk_demuxer) override;
+      media::ChunkDemuxerHolder* chunk_demuxer) override;
   void Close() override;
   scoped_refptr<TimeRanges> GetBufferedRange() const override;
   MediaSourceReadyState GetReadyState() const override;

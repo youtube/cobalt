@@ -64,7 +64,7 @@ bool SameThreadMediaSourceAttachment::StartAttachingToMediaElement(
 }
 
 void SameThreadMediaSourceAttachment::CompleteAttachingToMediaElement(
-    ::media::ChunkDemuxer* chunk_demuxer) {
+    media::ChunkDemuxerHolder* chunk_demuxer) {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
 
   media_source_->CompleteAttachingToMediaElement(chunk_demuxer);

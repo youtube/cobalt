@@ -1741,7 +1741,7 @@ void HTMLMediaElement::PlaybackStateChanged() {
 
 float HTMLMediaElement::Volume() const { return muted_ ? 0 : volume(NULL); }
 
-void HTMLMediaElement::SourceOpened(ChunkDemuxer* chunk_demuxer) {
+void HTMLMediaElement::SourceOpened(media::ChunkDemuxerHolder* chunk_demuxer) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::SourceOpened()");
   DCHECK(chunk_demuxer);
   BeginProcessingMediaPlayerCallback();

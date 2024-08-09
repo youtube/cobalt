@@ -144,8 +144,9 @@ PlaybackStatistics::~PlaybackStatistics() {
   }
 }
 
-void PlaybackStatistics::UpdateVideoConfig(
-    const VideoDecoderConfig& video_config) {
+void PlaybackStatistics::UpdateVideoConfig(::media::VideoCodec video_codec,
+                                           int video_width, int video_height,
+                                           bool is_encrypted) {
   if (!has_active_instance_) {
     has_active_instance_ = true;
 
@@ -153,24 +154,24 @@ void PlaybackStatistics::UpdateVideoConfig(
 
     UpdateMaxValue(s_active_instances, &s_max_active_instances);
 
-    if (video_config.codec() == VideoCodec::kAV1) {
+    if (video_codec == VideoCodec::kAV1) {
       SbAtomicBarrier_Increment(&s_av1_played, 1);
-    } else if (video_config.codec() == VideoCodec::kH264) {
+    } else if (video_codec == VideoCodec::kH264) {
       SbAtomicBarrier_Increment(&s_h264_played, 1);
-    } else if (video_config.codec() == VideoCodec::kHEVC) {
+    } else if (video_codec == VideoCodec::kHEVC) {
       SbAtomicBarrier_Increment(&s_hevc_played, 1);
-    } else if (video_config.codec() == VideoCodec::kVP8) {
+    } else if (video_codec == VideoCodec::kVP8) {
       SbAtomicBarrier_Increment(&s_vp8_played, 1);
-    } else if (video_config.codec() == VideoCodec::kVP9) {
+    } else if (video_codec == VideoCodec::kVP9) {
       SbAtomicBarrier_Increment(&s_vp9_played, 1);
     } else {
       SB_NOTREACHED();
     }
   }
 
-  video_width_ = video_config.natural_size().width();
-  video_height_ = video_config.natural_size().height();
-  current_video_codec_ = GetCodecName(video_config.codec());
+  video_width_ = video_width;
+  video_height_ = video_height;
+  current_video_codec_ = GetCodecName(video_codec);
 
   const auto width = static_cast<SbAtomic32>(video_width_);
   const auto height = static_cast<SbAtomic32>(video_height_);
@@ -181,13 +182,13 @@ void PlaybackStatistics::UpdateVideoConfig(
   UpdateMaxValue(height, &s_max_video_height);
 
   LOG(INFO) << "Playback statistics on config change: "
-            << GetStatistics(video_config);
+            << GetStatistics(video_codec, is_encrypted);
 }
 
 
-void PlaybackStatistics::OnPresenting(const VideoDecoderConfig& video_config) {
+void PlaybackStatistics::OnPresenting(::media::VideoCodec video_codec) {
   SbAtomicNoBarrier_Store(&s_last_working_codec,
-                          static_cast<SbAtomic32>(video_config.codec()));
+                          static_cast<SbAtomic32>(video_codec));
 }
 
 void PlaybackStatistics::OnSeek(const base::TimeDelta& seek_time) {
@@ -196,38 +197,40 @@ void PlaybackStatistics::OnSeek(const base::TimeDelta& seek_time) {
   is_first_video_buffer_written_ = false;
 }
 
-void PlaybackStatistics::OnAudioAU(const scoped_refptr<DecoderBuffer>& buffer) {
-  if (buffer->end_of_stream()) {
+void PlaybackStatistics::OnAudioAU(bool end_of_stream,
+                                   base::TimeDelta timestamp) {
+  if (end_of_stream) {
     is_audio_eos_written_ = true;
     return;
   }
-  last_written_audio_timestamp_ = buffer->timestamp();
+  last_written_audio_timestamp_ = timestamp;
   if (!is_first_audio_buffer_written_) {
     is_first_audio_buffer_written_ = true;
-    first_written_audio_timestamp_ = buffer->timestamp();
+    first_written_audio_timestamp_ = timestamp;
   }
 }
 
-void PlaybackStatistics::OnVideoAU(const scoped_refptr<DecoderBuffer>& buffer) {
-  if (buffer->end_of_stream()) {
+void PlaybackStatistics::OnVideoAU(bool end_of_stream,
+                                   base::TimeDelta timestamp) {
+  if (end_of_stream) {
     is_video_eos_written_ = true;
     return;
   }
-  last_written_video_timestamp_ = buffer->timestamp();
+  last_written_video_timestamp_ = timestamp;
   if (!is_first_video_buffer_written_) {
     is_first_video_buffer_written_ = true;
-    first_written_video_timestamp_ = buffer->timestamp();
+    first_written_video_timestamp_ = timestamp;
   }
 }
 
-void PlaybackStatistics::OnError(PipelineStatus status,
+void PlaybackStatistics::OnError(::media_m114::PipelineStatus status,
                                  const std::string& error_message) {
   pipeline_status_ = status;
   error_message_ = error_message;
 }
 
-std::string PlaybackStatistics::GetStatistics(
-    const VideoDecoderConfig& current_video_config) const {
+std::string PlaybackStatistics::GetStatistics(::media::VideoCodec video_codec,
+                                              bool is_encrypted) const {
   return starboard::FormatString(
       "total_mem %" PRId64 ", used_mem %" PRId64
       ", current_codec %s, drm %s, width %d, height %d"
@@ -238,9 +241,9 @@ std::string PlaybackStatistics::GetStatistics(
       ", first_audio_time ~%" PRId64 ", first_video_time ~%" PRId64
       ", last_audio_time ~%" PRId64 ", last_video_time ~%" PRId64,
       SbSystemGetTotalCPUMemory(), SbSystemGetUsedCPUMemory(),
-      GetCodecName(current_video_config.codec()).c_str(),
-      (current_video_config.is_encrypted() ? "Y" : "N"), video_width_.value(),
-      video_height_.value(), SbAtomicNoBarrier_Load(&s_active_instances),
+      GetCodecName(video_codec).c_str(), (is_encrypted ? "Y" : "N"),
+      video_width_.value(), video_height_.value(),
+      SbAtomicNoBarrier_Load(&s_active_instances),
       SbAtomicNoBarrier_Load(&s_max_active_instances),
       RoundValue(SbAtomicNoBarrier_Load(&s_av1_played)),
       RoundValue(SbAtomicNoBarrier_Load(&s_h264_played)),

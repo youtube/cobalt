@@ -28,6 +28,7 @@
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "cobalt/base/wrap_main.h"
+#include "cobalt/media/base/chunk_demuxer_holder.h"
 #include "cobalt/media/sandbox/format_guesstimator.h"
 #include "cobalt/media/sandbox/media_sandbox.h"
 #include "cobalt/media/sandbox/web_media_player_helper.h"
@@ -322,11 +323,11 @@ class Application {
                                       base::Time::kMicrosecondsPerSecond / 10);
   }
 
-  void OnChunkDemuxerOpened(ChunkDemuxer* chunk_demuxer) {
+  void OnChunkDemuxerOpened(ChunkDemuxerHolder* chunk_demuxer) {
     CHECK(chunk_demuxer);
     CHECK(!chunk_demuxer_);
 
-    chunk_demuxer_ = chunk_demuxer;
+    chunk_demuxer_ = chunk_demuxer->As<ChunkDemuxer*>();
   }
 
   void AppendData(const std::string& id, ScopedFile* file, int64* offset) {

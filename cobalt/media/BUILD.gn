@@ -35,7 +35,8 @@ component("media") {
     "base/data_source.cc",
     "base/data_source.h",
     "base/decode_target_provider.h",
-    "base/decoder_buffer_cache.cc",
+
+    # "base/decoder_buffer_cache.cc",
     "base/decoder_buffer_cache.h",
     "base/drm_system.cc",
     "base/drm_system.h",
@@ -47,11 +48,13 @@ component("media") {
     "base/metrics_provider.h",
     "base/playback_statistics.cc",
     "base/playback_statistics.h",
-    "base/sbplayer_bridge.cc",
+
+    # "base/sbplayer_bridge.cc",
     "base/sbplayer_bridge.h",
     "base/sbplayer_interface.cc",
     "base/sbplayer_interface.h",
-    "base/sbplayer_pipeline.cc",
+
+    # "base/sbplayer_pipeline.cc",
     "base/sbplayer_pipeline.h",
     "base/sbplayer_set_bounds_helper.cc",
     "base/sbplayer_set_bounds_helper.h",
@@ -111,6 +114,7 @@ component("media") {
     "//media",
     "//net",
     "//starboard:starboard_group",
+    "//third_party/chromium/media",
     "//third_party/protobuf:protobuf_lite",
     "//ui/gfx:gfx",
     "//url",
