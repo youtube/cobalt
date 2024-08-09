@@ -123,7 +123,6 @@ target(gtest_target_type, "nplb") {
     "mutex_create_test.cc",
     "mutex_destroy_test.cc",
     "once_test.cc",
-    "optional_test.cc",
     "player_create_test.cc",
     "player_creation_param_helpers.cc",
     "player_creation_param_helpers.h",

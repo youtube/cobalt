@@ -72,7 +72,7 @@ void VideoDecoder::Reset() {
     decoder_thread_.reset();
   }
 
-  video_config_ = nullopt;
+  video_config_ = std::nullopt;
   stream_ended_ = false;
 
   CancelPendingJobs();

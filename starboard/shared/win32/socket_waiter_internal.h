@@ -20,11 +20,11 @@
 
 #include <deque>
 #include <memory>
+#include <optional>
 #include <unordered_map>
 #include <vector>
 
 #include "starboard/common/mutex.h"
-#include "starboard/common/optional.h"
 #include "starboard/common/socket.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/win32/auto_event_handle.h"
@@ -154,7 +154,7 @@ class SbSocketWaiterPrivate {
     Waitee* GetWaitee(int socket);
 
     // Gets the index by socket
-    starboard::optional<int64_t> GetIndex(int socket);
+    std::optional<int64_t> GetIndex(int socket);
 
     // Returns true if socket was found, and removed.
     bool RemoveSocket(int socket);
@@ -163,7 +163,7 @@ class SbSocketWaiterPrivate {
     Waitee* GetWaitee(SbSocket socket);
 
     // Gets the index by socket
-    starboard::optional<int64_t> GetIndex(SbSocket socket);
+    std::optional<int64_t> GetIndex(SbSocket socket);
 
     // Returns true if socket was found, and removed.
     bool RemoveSocket(SbSocket socket);

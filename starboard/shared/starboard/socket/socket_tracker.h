@@ -16,11 +16,11 @@
 #define STARBOARD_SHARED_STARBOARD_SOCKET_SOCKET_TRACKER_H_
 
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "starboard/common/mutex.h"
-#include "starboard/common/optional.h"
 #include "starboard/common/socket.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
@@ -69,7 +69,7 @@ class SocketTracker {
   void OnSendTo(SbSocket socket, const SbSocketAddress* destination);
   void OnResolve(const char* hostname, const SbSocketResolution& resolution);
   bool IsSocketTracked(SbSocket socket);
-  const optional<SbSocketAddress>& GetLocalAddress(SbSocket socket) const;
+  const std::optional<SbSocketAddress>& GetLocalAddress(SbSocket socket) const;
   void OnListen(SbSocket socket);
   void OnAddWaiter(SbSocket socket, SbSocketWaiter waiter);
   void OnRemoveWaiter(SbSocket socket, SbSocketWaiter waiter);
@@ -90,8 +90,8 @@ class SocketTracker {
   struct SocketRecord {
     SbSocketAddressType address_type;
     SbSocketProtocol protocol;
-    optional<SbSocketAddress> local_address;
-    optional<SbSocketAddress> remote_address;
+    std::optional<SbSocketAddress> local_address;
+    std::optional<SbSocketAddress> remote_address;
     int64_t last_activity;
     SbSocketWaiter waiter = kSbSocketWaiterInvalid;
     SbThreadId thread_id;
