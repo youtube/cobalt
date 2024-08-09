@@ -234,7 +234,7 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
   std::unique_ptr<DecryptingDecoder> impl_;
   std::queue<DecodedAudioPtr> output_queue_;
   uint16_t number_of_channels_;
-  atomic_bool heaac_detected_;
+  std::atomic_bool heaac_detected_;
   int samples_per_second_;
   const size_t expected_buffer_size_;
 };

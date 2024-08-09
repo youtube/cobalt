@@ -14,13 +14,13 @@
 
 #include <dirent.h>
 #include <sys/stat.h>
+#include <atomic>
 
 #include "game-activity/GameActivity.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/log_internal.h"
-#include "starboard/common/atomic.h"
 #include "starboard/common/file.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
@@ -40,7 +40,7 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-atomic_bool g_block_swapbuffers;
+std::atomic_bool g_block_swapbuffers;
 
 namespace {
 
@@ -54,7 +54,7 @@ Semaphore* g_app_created_semaphore = nullptr;
 // Safeguard to avoid sending AndroidCommands either when there is no instance
 // of the Starboard application, or after the run loop has exited and the
 // ALooper receiving the commands is no longer being polled.
-atomic_bool g_app_running;
+std::atomic_bool g_app_running;
 
 std::vector<std::string> GetArgs() {
   std::vector<std::string> args;

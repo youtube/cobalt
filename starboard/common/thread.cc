@@ -18,8 +18,8 @@
 
 #include <pthread.h>
 #include <unistd.h>
+#include <atomic>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
@@ -30,14 +30,16 @@ namespace starboard {
 struct Thread::Data {
   std::string name_;
   pthread_t thread_ = 0;
-  atomic_bool started_;
-  atomic_bool join_called_;
+  std::atomic_bool started_;
+  std::atomic_bool join_called_;
   Semaphore join_sema_;
 };
 
 Thread::Thread(const std::string& name) {
   d_.reset(new Thread::Data);
   d_->name_ = name;
+  d_->started_.store(false);
+  d_->join_called_.store(false);
 }
 
 Thread::~Thread() {
@@ -74,7 +76,7 @@ starboard::Semaphore* Thread::join_sema() {
   return &d_->join_sema_;
 }
 
-starboard::atomic_bool* Thread::joined_bool() {
+std::atomic_bool* Thread::joined_bool() {
   return &d_->join_called_;
 }
 

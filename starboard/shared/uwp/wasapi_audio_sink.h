@@ -19,11 +19,11 @@
 #include <mmdeviceapi.h>
 #include <wrl\client.h>
 
+#include <atomic>
 #include <functional>
 #include <memory>
 #include <queue>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
@@ -156,9 +156,9 @@ class WASAPIAudioSink {
   const int kAc3BufferSizeInFrames = 1536;
   const int kEac3BufferSizeInFrames = 6144;
 
-  atomic_bool paused_{false};
-  atomic_double playback_rate_{0.0};
-  atomic_double volume_{0.0};
+  std::atomic_bool paused_{false};
+  std::atomic<double> playback_rate_{0.0};
+  std::atomic<double> volume_{0.0};
   double current_volume_ = 0.0;
   bool was_playing_ = false;
 

@@ -15,14 +15,15 @@
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 
+#include <atomic>
+
 #include "starboard/android/shared/video_window.h"
-#include "starboard/common/atomic.h"
 #include "starboard/shared/gles/gl_call.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
-extern atomic_bool g_block_swapbuffers;
+extern std::atomic_bool g_block_swapbuffers;
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
