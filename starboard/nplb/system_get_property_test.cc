@@ -28,6 +28,22 @@ namespace {
 // Size of appropriate value buffer.
 const size_t kValueSize = 1024;
 
+#if SB_API_VERSION < 15
+bool IsCEDevice(SbSystemDeviceType device_type) {
+  switch (device_type) {
+    case kSbSystemDeviceTypeBlueRayDiskPlayer:
+    case kSbSystemDeviceTypeGameConsole:
+    case kSbSystemDeviceTypeOverTheTopBox:
+    case kSbSystemDeviceTypeSetTopBox:
+    case kSbSystemDeviceTypeTV:
+      return true;
+    case kSbSystemDeviceTypeDesktopPC:
+    case kSbSystemDeviceTypeUnknown:
+    default:
+      return false;
+  }
+}
+#endif
 bool IsCEDevice(std::string device_type) {
   if (device_type == kSystemDeviceTypeBlueRayDiskPlayer ||
       device_type == kSystemDeviceTypeGameConsole ||
@@ -81,6 +97,17 @@ TEST(SbSystemGetPropertyTest, ReturnsRequired) {
   BasicTest(kSbSystemPropertyFirmwareVersion, false, true, __LINE__);
   BasicTest(kSbSystemPropertySystemIntegratorName, false, true, __LINE__);
   BasicTest(kSbSystemPropertySpeechApiKey, false, true, __LINE__);
+#if SB_API_VERSION < 15
+  if (IsCEDevice(SbSystemGetDeviceType())) {
+    BasicTest(kSbSystemPropertyBrandName, true, true, __LINE__);
+    BasicTest(kSbSystemPropertyModelName, true, true, __LINE__);
+    BasicTest(kSbSystemPropertyModelYear, false, true, __LINE__);
+  } else {
+    BasicTest(kSbSystemPropertyBrandName, false, true, __LINE__);
+    BasicTest(kSbSystemPropertyModelName, false, true, __LINE__);
+    BasicTest(kSbSystemPropertyModelYear, false, true, __LINE__);
+  }
+#else
   const size_t kSystemPropertyMaxLength = 1024;
   char value[kSystemPropertyMaxLength];
   bool result;
@@ -95,6 +122,7 @@ TEST(SbSystemGetPropertyTest, ReturnsRequired) {
     BasicTest(kSbSystemPropertyModelName, false, true, __LINE__);
     BasicTest(kSbSystemPropertyModelYear, false, true, __LINE__);
   }
+#endif
 }
 
 TEST(SbSystemGetPropertyTest, FailsGracefullyZeroBufferLength) {
