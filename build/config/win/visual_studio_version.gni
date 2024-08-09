@@ -4,7 +4,7 @@
 
 if (is_starboard) {
   declare_args() {
-    visual_studio_version = "14.34.31933"
+    visual_studio_version = "14.39.33519"
 
     # Full path to the Windows SDK, not including a backslash at the end.
     # This value is the default location, override if you have a different
