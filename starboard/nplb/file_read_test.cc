@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 17
+
 #include <string>
 
 #include "starboard/file.h"
@@ -294,3 +296,5 @@ TYPED_TEST(SbFileReadTest, ReadStaticContent) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 17

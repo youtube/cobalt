@@ -15,6 +15,7 @@
 #include "starboard/file.h"
 
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <cstdio>
 #include <vector>
@@ -48,7 +49,7 @@ bool SbFileAtomicReplace(const char* path,
           temp_path.data(), data, data_size)) {
     return false;
   }
-  if (file_exists && !SbFileDelete(path)) {
+  if (file_exists && unlink(path)) {
     return false;
   }
   if (rename(temp_path.data(), path) != 0) {

@@ -52,7 +52,7 @@ class VideoDmpWriter {
   void DumpAccessUnit(const scoped_refptr<InputBuffer>& input_buffer);
   int WriteToFile(const void* buffer, int size);
 
-  SbFile file_;
+  int file_;
   WriteCB write_cb_;
 };
 

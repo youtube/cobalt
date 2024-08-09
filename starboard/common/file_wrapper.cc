@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 17
+#include "starboard/common/file_wrapper.h"
 
+#include <fcntl.h>
+#include <unistd.h>
+
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/file.h"
 
 namespace {
+
 bool IsUpdate(const char* mode) {
   for (const char* m = mode; *m != '\0'; ++m) {
     if (*m == '+') {
@@ -30,7 +34,9 @@ bool IsUpdate(const char* mode) {
 }
 }  // namespace
 
-int SbFileModeStringToFlags(const char* mode) {
+extern "C" {
+
+int FileModeStringToFlags(const char* mode) {
   if (!mode) {
     return 0;
   }
@@ -44,21 +50,26 @@ int SbFileModeStringToFlags(const char* mode) {
   switch (mode[0]) {
     case 'r':
       if (IsUpdate(mode + 1)) {
-        flags |= kSbFileWrite;
+        flags |= O_RDWR;
+      } else {
+        flags |= O_RDONLY;
       }
-      flags |= kSbFileOpenOnly | kSbFileRead;
       break;
     case 'w':
       if (IsUpdate(mode + 1)) {
-        flags |= kSbFileRead;
+        flags |= O_RDWR;
+      } else {
+        flags |= O_WRONLY;
       }
-      flags |= kSbFileCreateAlways | kSbFileWrite;
+      flags |= O_CREAT | O_TRUNC;
       break;
     case 'a':
       if (IsUpdate(mode + 1)) {
-        flags |= kSbFileRead;
+        flags |= O_RDWR;
+      } else {
+        flags |= O_WRONLY;
       }
-      flags |= kSbFileOpenAlways | kSbFileWrite;
+      flags |= O_CREAT;
       break;
     default:
       SB_NOTREACHED();
@@ -67,4 +78,22 @@ int SbFileModeStringToFlags(const char* mode) {
   return flags;
 }
 
-#endif  // SB_API_VERSION < 17
+int file_close(FilePtr file) {
+  if (!file) {
+    return -1;
+  }
+  int result = -1;
+  if (file->fd >= 0) {
+    result = close(file->fd);
+  }
+  delete file;
+  return result;
+}
+
+FilePtr file_open(const char* path, int mode) {
+  FilePtr file = new FileStruct();
+  file->fd = open(path, mode, S_IRUSR | S_IWUSR);
+  return file;
+}
+
+}  // extern "C"

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 17
+
 #include "starboard/file.h"
 
 #include "starboard/android/shared/file_internal.h"
@@ -20,3 +22,5 @@
 bool SbFileFlush(SbFile file) {
   return ::starboard::shared::posix::impl::FileFlush(file);
 }
+
+#endif  // SB_API_VERSION < 17

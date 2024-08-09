@@ -34,8 +34,8 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/common/file.h"
 #include "starboard/directory.h"
-#include "starboard/file.h"
 #include "base/strings/strcat.h"
 #include "starboard/system.h"
 
@@ -248,12 +248,12 @@ bool PathExists(const FilePath &path) {
 
 bool PathIsReadable(const FilePath &path) {
   internal::AssertBlockingAllowed();
-  return SbFileCanOpen(path.value().c_str(), kSbFileOpenAlways | kSbFileRead);
+  return starboard::FileCanOpen(path.value().c_str(), O_CREAT | O_RDONLY);
 }
 
 bool PathIsWritable(const FilePath &path) {
   internal::AssertBlockingAllowed();
-  return SbFileCanOpen(path.value().c_str(), kSbFileOpenAlways | kSbFileWrite);
+  return starboard::FileCanOpen(path.value().c_str(), O_CREAT | O_WRONLY);
 }
 
 bool DirectoryExists(const FilePath& path) {

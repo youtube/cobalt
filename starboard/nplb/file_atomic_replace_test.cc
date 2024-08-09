@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <fcntl.h>
 #include <sys/stat.h>
 
+#include "starboard/common/file.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -31,17 +33,15 @@ bool CompareFileContentsToString(const char* filename,
                                  int size) {
   char result[kTestContentsLength] = {'\0'};
 
-  SbFileError error;
-  SbFile file =
-      SbFileOpen(filename, kSbFileOpenOnly | kSbFileRead, nullptr, &error);
+  int file = open(filename, O_RDONLY, S_IRUSR | S_IWUSR);
 
-  EXPECT_EQ(kSbFileOk, error);
+  EXPECT_TRUE(starboard::IsValid(file));
 
   // We always try to read kTestContentsLength since the data will at most be
   // this long. There are test cases where the number of bytes read will be
   // less.
-  EXPECT_EQ(size, SbFileReadAll(file, result, kTestContentsLength));
-  EXPECT_TRUE(SbFileClose(file));
+  EXPECT_EQ(size, starboard::ReadAll(file, result, kTestContentsLength));
+  EXPECT_TRUE(!close(file));
 
   return strncmp(str, result, kTestContentsLength) == 0;
 }

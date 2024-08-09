@@ -52,4 +52,5 @@ bool SbFileExists(const char* path) {
 
   return PathEndsWith(path_wstring, find_data.cFileName);
 }
-#endif
+
+#endif  // SB_API_VERSION < 16

@@ -20,8 +20,6 @@
 #ifndef STARBOARD_COMMON_FILE_H_
 #define STARBOARD_COMMON_FILE_H_
 
-#include "starboard/file.h"
-
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -37,6 +35,10 @@
 #endif
 
 namespace starboard {
+
+bool FileCanOpen(const char* path, int flags);
+
+bool IsValid(int file);
 
 ssize_t ReadAll(int fd, void* data, int size);
 
@@ -56,9 +58,9 @@ bool SbFileDeleteRecursive(const char* path, bool preserve_root);
 
 ssize_t WriteAll(int fd, const void* data, int size);
 
-// A class that opens an SbFile in its constructor and closes it in its
+// A class that opens an file descriptor in its constructor and closes it in its
 // destructor, so the file is open for the lifetime of the object. Member
-// functions call the corresponding SbFile function.
+// functions call the corresponding file function.
 class ScopedFile {
  public:
   ScopedFile(const char* path, int flags, int mode) : file_(-1) {
@@ -77,10 +79,10 @@ class ScopedFile {
 
   int file() const { return file_; }
 
-  bool IsValid() const { return file_ >= 0; }
+  bool IsValid() const { return starboard::IsValid(file_); }
 
-  int64_t Seek(SbFileWhence whence, int64_t offset) const {
-    return lseek(file_, static_cast<off_t>(offset), static_cast<int>(whence));
+  int64_t Seek(int64_t offset, int whence) const {
+    return lseek(file_, static_cast<off_t>(offset), whence);
   }
 
   int Read(char* data, int size) const { return read(file_, data, size); }

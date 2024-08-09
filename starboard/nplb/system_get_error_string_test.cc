@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <fcntl.h>
+
 #include "starboard/common/string.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
@@ -25,8 +27,7 @@ namespace {
 TEST(SbSystemGetErrorStringTest, SunnyDay) {
   // Opening a non-existent file should generate an error on all platforms.
   ScopedRandomFile random_file(ScopedRandomFile::kDontCreate);
-  SbFile file = SbFileOpen(random_file.filename().c_str(),
-                           kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+  int file = open(random_file.filename().c_str(), O_RDONLY, S_IRUSR | S_IWUSR);
 
   SbSystemError error = SbSystemGetLastError();
   EXPECT_NE(0, error);

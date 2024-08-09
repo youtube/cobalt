@@ -14,6 +14,7 @@
 
 #include "starboard/shared/uwp/watchdog_log.h"
 
+#include <fcntl.h>
 #include <unistd.h>
 
 #include <memory>
@@ -47,12 +48,9 @@ class WatchDogThread : public Thread {
   void Run() override {
     static const int64_t kSleepTime = 250'000;  // 250ms
     int counter = 0;
-    bool created_ok = false;
-    SbFileError out_error = kSbFileOk;
-    SbFile file_handle =
-        SbFileOpen(file_path_.c_str(), kSbFileCreateAlways | kSbFileWrite,
-                   &created_ok, &out_error);
-    if (!created_ok) {
+    int file_handle = open(file_path_.c_str(), O_CREAT | O_TRUNC | O_WRONLY,
+                           S_IRUSR | S_IWUSR);
+    if (!IsValid(file_handle)) {
       SB_LOG(ERROR) << "Could not create watchdog file " << file_path_;
       return;
     }
@@ -61,17 +59,16 @@ class WatchDogThread : public Thread {
       ss << "alive: " << counter++ << "\n";
       std::string str = ss.str();
       int result =
-          SbFileWrite(file_handle, str.c_str(), static_cast<int>(str.size()));
+          write(file_handle, str.c_str(), static_cast<int>(str.size()));
       RecordFileWriteStat(result);
-      SbFileFlush(file_handle);
+      fsync(file_handle);
     }
     const char kDone[] = "done\n";
-    int result =
-        SbFileWrite(file_handle, kDone, static_cast<int>(strlen(kDone)));
+    int result = write(file_handle, kDone, static_cast<int>(strlen(kDone)));
     RecordFileWriteStat(result);
-    SbFileFlush(file_handle);
+    fsync(file_handle);
     usleep(50'000);
-    bool closed = SbFileClose(file_handle);
+    bool closed = !close(file_handle);
     SB_LOG_IF(ERROR, closed) << "Could not close file " << file_path_;
   }
 

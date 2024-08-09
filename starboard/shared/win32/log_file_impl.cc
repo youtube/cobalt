@@ -14,7 +14,9 @@
 
 #include "starboard/shared/win32/log_file_impl.h"
 
+#include <fcntl.h>
 #include <pthread.h>
+#include <unistd.h>
 
 #include <string>
 #include <vector>
@@ -32,15 +34,15 @@
 namespace {
 
 pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
-SbFile log_file = kSbFileInvalid;
+int log_file = -1;
 
 // SbMutex is not reentrant, so factor out close log file functionality for use
 // by other functions.
 void CloseLogFileWithoutLock() {
-  if (SbFileIsValid(log_file)) {
-    SbFileFlush(log_file);
-    SbFileClose(log_file);
-    log_file = kSbFileInvalid;
+  if (starboard::IsValid(log_file)) {
+    fsync(log_file);
+    close(log_file);
+    log_file = -1;
   }
 }
 
@@ -57,8 +59,8 @@ void CloseLogFile() {
 }
 
 void OpenLogInCacheDirectory(const char* log_file_name, int creation_flags) {
-  SB_DCHECK((creation_flags & kSbFileOpenAlways) ||
-            (creation_flags & kSbFileCreateAlways));
+  SB_DCHECK((creation_flags & O_CREAT) ||
+            ((creation_flags & O_CREAT) && (creation_flags & O_TRUNC)));
   SB_DCHECK(strlen(log_file_name) != 0);
   SB_DCHECK(strchr(log_file_name, kSbFileSepChar) == nullptr);
   std::vector<char> out_path(kSbFileMaxPath + 1);
@@ -92,8 +94,8 @@ void OpenLogFile(const char* path, const int creation_flags) {
   pthread_mutex_lock(&log_mutex);
   CloseLogFileWithoutLock();
   if ((path != nullptr) && (path[0] != '\0')) {
-    log_file = SbFileOpen(path, flags, nullptr, nullptr);
-    SB_DCHECK(SbFileIsValid(log_file));
+    log_file = open(path, flags, S_IRUSR | S_IWUSR);
+    SB_DCHECK(starboard::IsValid(log_file));
   }
 
   pthread_mutex_unlock(&log_mutex);
@@ -104,16 +106,16 @@ void WriteToLogFile(const char* text, const int text_length) {
     return;
   }
   pthread_mutex_lock(&log_mutex);
-  if (!SbFileIsValid(log_file)) {
+  if (!starboard::IsValid(log_file)) {
     pthread_mutex_unlock(&log_mutex);
     return;
   }
 
-  int bytes_written = SbFileWriteAll(log_file, text, text_length);
+  int bytes_written = starboard::WriteAll(log_file, text, text_length);
   RecordFileWriteStat(bytes_written);
   SB_DCHECK(text_length == bytes_written);
 
-  SbFileFlush(log_file);
+  fsync(log_file);
   pthread_mutex_unlock(&log_mutex);
 }
 

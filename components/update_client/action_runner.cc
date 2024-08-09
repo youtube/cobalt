@@ -4,6 +4,8 @@
 
 #include "components/update_client/action_runner.h"
 
+#include <unistd.h>
+
 #include <iterator>
 #include <stack>
 #include <utility>
@@ -42,11 +44,11 @@ void CleanupDirectory(base::FilePath& dir) {
     if (info.IsDirectory()) {
       directories.push(path.value());
     } else {
-      SbFileDelete(path.value().c_str());
+      unlink(path.value().c_str());
     }
   }
   while (!directories.empty()) {
-    SbFileDelete(directories.top().c_str());
+    rmdir(directories.top().c_str());
     directories.pop();
   }
 }

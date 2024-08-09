@@ -14,10 +14,11 @@
 
 #include "starboard/common/storage.h"
 
+#include <unistd.h>
+
 #include <vector>
 
 #include "starboard/configuration_constants.h"
-#include "starboard/file.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 
 #if SB_API_VERSION < 16
@@ -33,5 +34,5 @@ bool SbStorageDeleteRecord(const char* name) {
     return false;
   }
 
-  return SbFileDelete(path.data());
+  return !unlink(path.data());
 }

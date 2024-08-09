@@ -15,6 +15,7 @@
 #include "starboard/android/shared/asset_manager.h"
 
 #include <android/asset_manager.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <ftw.h>
 #include <linux/limits.h>
@@ -32,6 +33,44 @@
 namespace starboard {
 namespace android {
 namespace shared {
+
+namespace {
+
+// Returns the fallback for the given asset path, or an empty string if none.
+// NOTE: While Cobalt now provides a mechanism for loading system fonts through
+//       SbSystemGetPath(), using the fallback logic within SbFileOpen() is
+//       still preferred for Android's fonts. The reason for this is that the
+//       Android OS actually allows fonts to be loaded from two locations: one
+//       that it provides; and one that the devices running its OS, which it
+//       calls vendors, can provide. Rather than including the full Android font
+//       package, vendors have the option of using a smaller Android font
+//       package and supplementing it with their own fonts.
+//
+//       If Android were to use SbSystemGetPath() for its fonts, vendors would
+//       have no way of providing those supplemental fonts to Cobalt, which
+//       could result in a limited selection of fonts being available. By
+//       treating Android's fonts as Cobalt's fonts, Cobalt can still offer a
+//       straightforward mechanism for including vendor fonts via
+//       SbSystemGetPath().
+std::string FallbackPath(const std::string& path) {
+  // We don't package most font files in Cobalt content and fallback to the
+  // system font file of the same name.
+  const std::string fonts_xml("fonts.xml");
+  const std::string system_fonts_dir("/system/fonts/");
+  const std::string cobalt_fonts_dir("/cobalt/assets/fonts/");
+
+  // Fonts fallback to the system fonts.
+  if (path.compare(0, cobalt_fonts_dir.length(), cobalt_fonts_dir) == 0) {
+    std::string file_name = path.substr(cobalt_fonts_dir.length());
+    // fonts.xml doesn't fallback.
+    if (file_name != fonts_xml) {
+      return system_fonts_dir + file_name;
+    }
+  }
+  return std::string();
+}
+
+}  // namespace
 
 // static
 SB_ONCE_INITIALIZE_FUNCTION(AssetManager, AssetManager::GetInstance);
@@ -60,13 +99,17 @@ std::string AssetManager::TempFilepath(uint64_t internal_fd) const {
   return tmp_root_ + "/" + std::to_string(internal_fd);
 }
 
-int AssetManager::Open(const char* path) {
+int AssetManager::Open(const char* path, int oflag) {
   if (!path) {
     return -1;
   }
 
   AAsset* asset = OpenAndroidAsset(path);
   if (!asset) {
+    std::string fallback_path = FallbackPath(path);
+    if (!fallback_path.empty()) {
+      return open(fallback_path.c_str(), oflag);
+    }
     SB_LOG(WARNING) << "Asset path not found within package: " << path;
     return -1;
   }

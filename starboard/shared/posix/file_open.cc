@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 17
+
 #include "starboard/shared/posix/file_internal.h"
 
 #include "starboard/shared/posix/impl/file_open.h"
@@ -23,3 +25,5 @@ SbFile SbFileOpen(const char* path,
   return ::starboard::shared::posix::impl::FileOpen(path, flags, out_created,
                                                     out_error);
 }
+
+#endif  // SB_API_VERSION < 17
