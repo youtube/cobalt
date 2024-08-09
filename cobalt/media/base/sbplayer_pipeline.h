@@ -65,12 +65,14 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
                    bool allow_resume_after_suspend,
                    int max_audio_samples_per_write,
                    bool force_punch_out_by_default,
+#if SB_API_VERSION >= 15
                    TimeDelta audio_write_duration_local,
-                   TimeDelta audio_write_duration_remote, MediaLog* media_log,
+                   TimeDelta audio_write_duration_remote,
+#endif  // SB_API_VERSION >= 15
+                   MediaLog* media_log,
                    MediaMetricsProvider* media_metrics_provider,
                    DecodeTargetProvider* decode_target_provider);
   ~SbPlayerPipeline() override;
-
 
   void Suspend() override;
   // TODO: This is temporary for supporting background media playback.
@@ -323,6 +325,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   DecodeTargetProvider* decode_target_provider_;
 
+#if SB_API_VERSION >= 15
   const TimeDelta audio_write_duration_local_;
   const TimeDelta audio_write_duration_remote_;
 
@@ -331,6 +334,16 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   // is, which simplifies the implementation across multiple Starboard versions.
   TimeDelta audio_write_duration_;
   TimeDelta audio_write_duration_for_preroll_ = audio_write_duration_;
+#else   // SB_API_VERSION >= 15
+  // Read audio from the stream if |timestamp_of_last_written_audio_| is less
+  // than |seek_time_| + |audio_write_duration_for_preroll_|, this effectively
+  // allows 10 seconds of audio to be written to the SbPlayer after playback
+  // startup or seek.
+  TimeDelta audio_write_duration_for_preroll_ = TimeDelta::FromSeconds(10);
+  // Don't read audio from the stream more than |audio_write_duration_| ahead of
+  // the current media time during playing.
+  TimeDelta audio_write_duration_ = TimeDelta::FromSeconds(1);
+#endif  // SB_API_VERSION >= 15
   // Only call GetMediaTime() from OnNeedData if it has been
   // |kMediaTimeCheckInterval| since the last call to GetMediaTime().
   static constexpr TimeDelta kMediaTimeCheckInterval =

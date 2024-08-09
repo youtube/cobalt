@@ -161,9 +161,11 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         limit_ad_tracking_enabled ? "1" : "0");
     }
+#if SB_API_VERSION >= 15
     case kSbSystemPropertyDeviceType:
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         starboard::kSystemDeviceTypeAndroidTV);
+#endif
     default:
       SB_DLOG(WARNING) << __FUNCTION__
                        << ": Unrecognized property: " << property_id;

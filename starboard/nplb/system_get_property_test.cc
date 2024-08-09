@@ -188,6 +188,7 @@ TEST(SbSystemGetPropertyTest, SpeechApiKeyNotLeaked) {
   }
 }
 
+#if SB_API_VERSION >= 15
 TEST(SbSystemGetPropertyTest, DeviceTypeAllowed) {
   std::string device_type =
       GetSystemPropertyString(kSbSystemPropertyDeviceType);
@@ -218,6 +219,7 @@ TEST(SbSystemGetPropertyTest, DeviceTypeAllowed) {
   }
   ASSERT_TRUE(result);
 }
+#endif
 
 }  // namespace
 }  // namespace nplb

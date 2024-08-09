@@ -200,7 +200,9 @@ enum {
   // Not present in Windows virtual key codes, but would be used by the client.
   kMediaRewind = 0xE3,
   kMediaFastForward = 0xE4,
+#if SB_API_VERSION >= 15
   kMediaRecord = 0x1A0,
+#endif
 };
 
 }  // namespace keycode

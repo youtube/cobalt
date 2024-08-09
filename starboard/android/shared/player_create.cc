@@ -53,10 +53,17 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
+#if SB_API_VERSION >= 15
   const SbMediaAudioStreamInfo& audio_stream_info =
       creation_param->audio_stream_info;
   const SbMediaVideoStreamInfo& video_stream_info =
       creation_param->video_stream_info;
+#else   // SB_API_VERSION >= 15
+  const SbMediaAudioSampleInfo& audio_stream_info =
+      creation_param->audio_sample_info;
+  const SbMediaVideoSampleInfo& video_stream_info =
+      creation_param->video_sample_info;
+#endif  // SB_API_VERSION >= 15
 
   bool has_audio = audio_stream_info.codec != kSbMediaAudioCodecNone;
   bool has_video = video_stream_info.codec != kSbMediaVideoCodecNone;

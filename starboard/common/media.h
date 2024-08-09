@@ -65,9 +65,11 @@ std::ostream& operator<<(std::ostream& os,
 std::ostream& operator<<(std::ostream& os,
                          const SbMediaAudioSampleInfo& sample_info);
 
+#if SB_API_VERSION >= 15
 std::ostream& operator<<(std::ostream& os,
                          const SbMediaVideoStreamInfo& stream_info);
 std::ostream& operator<<(std::ostream& os,
                          const SbMediaAudioStreamInfo& stream_info);
+#endif  // SB_API_VERSION >= 15
 
 #endif  // STARBOARD_COMMON_MEDIA_H_

@@ -194,11 +194,15 @@ void DefaultSbPlayerInterface::GetUrlPlayerExtraInfo(
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
+#if SB_API_VERSION >= 15
+
 bool DefaultSbPlayerInterface::GetAudioConfiguration(
     SbPlayer player, int index,
     SbMediaAudioConfiguration* out_audio_configuration) {
   return SbPlayerGetAudioConfiguration(player, index, out_audio_configuration);
 }
+
+#endif  // SB_API_VERSION >= 15
 
 }  // namespace media
 }  // namespace cobalt

@@ -163,9 +163,11 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         "X11; Linux armv7l");
     }
+#if SB_API_VERSION >= 15
     case kSbSystemPropertyDeviceType:
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         starboard::kSystemDeviceTypeUnknown);
+#endif
 
     default:
       SB_DLOG(WARNING) << __FUNCTION__

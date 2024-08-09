@@ -56,7 +56,9 @@ TEST(SbPlayerGetPreferredOutputModeTest, AllCodecs) {
       kSbMediaAudioCodecMp3,
       kSbMediaAudioCodecFlac,
       kSbMediaAudioCodecPcm,
+#if SB_API_VERSION >= 15
       kSbMediaAudioCodecIamf,
+#endif  // SB_API_VERSION >= 15
   };
   const SbMediaVideoCodec kVideoCodecs[] = {
       kSbMediaVideoCodecNone,
