@@ -24,7 +24,6 @@ on:
           - 'evergreen'
           - 'linux'
           - 'raspi'
-          - 'win32'
       nightly:
         description: 'Nightly workflow.'
         required: true

@@ -25,7 +25,6 @@ jobs:
           gh workflow run evergreen_23.lts.1+ --ref 23.lts.1+ -f nightly=true
           gh workflow run linux_23.lts.1+ --ref 23.lts.1+ -f nightly=true
           gh workflow run raspi-2_23.lts.1+ --ref 23.lts.1+ -f nightly=true
-          gh workflow run win32_23.lts.1+ --ref 23.lts.1+ -f nightly=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   trigger_22:
