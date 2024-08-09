@@ -2185,6 +2185,16 @@ static_library("test_support") {
   }
 }
 
+target(final_executable_type, "downloader") {
+    testonly = true
+    sources = [
+      "tools/downloader/downloader.cc"
+    ]
+    deps = [
+      ":net",
+    ]
+  }
+
 if (!is_ios && !is_android && !use_cobalt_customizations) {
   executable("cert_verify_tool") {
     testonly = true
