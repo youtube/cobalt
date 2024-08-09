@@ -407,6 +407,7 @@ class NET_EXPORT HttpNetworkSession {
   void ToggleQuic();
 
   void SetEnableQuic(bool enable_quic);
+  void SetEnableHttp2(bool enable_http2);
 
   // Whether to try QUIC connection for origins without alt-svc on record.
   bool UseQuicForUnknownOrigin() const;
