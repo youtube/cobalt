@@ -1,0 +1,39 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../third_party/typescript/typescript.gni")
+
+node_ts_library("console") {
+  sources = [
+    "alert-toString-exception_test.ts",
+    "command-line-api-getEventListeners_test.ts",
+    "console-accessors_test.ts",
+    "console-autocomplete_test.ts",
+    "console-clear_test.ts",
+    "console-context-menu_test.ts",
+    "console-context-selector_test.ts",
+    "console-errors_test.ts",
+    "console-eval-blocked-by-CSP_test.ts",
+    "console-eval-fake_test.ts",
+    "console-eval-global_test.ts",
+    "console-expand-recursively_test.ts",
+    "console-fetch-logging_test.ts",
+    "console-filter_test.ts",
+    "console-last-result_test.ts",
+    "console-live-expressions_test.ts",
+    "console-log_test.ts",
+    "console-message-format_test.ts",
+    "console-repl-mode_test.ts",
+    "console-stack-trace_test.ts",
+    "console-truncate-long-messages_test.ts",
+    "console-trusted-types_test.ts",
+    "console-uncaught-promise_test.ts",
+    "issues-toolbar_test.ts",
+  ]
+
+  deps = [
+    "../../shared",
+    "../helpers",
+  ]
+}

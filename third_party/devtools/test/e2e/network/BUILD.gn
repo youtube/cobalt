@@ -1,0 +1,23 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../third_party/typescript/typescript.gni")
+
+node_ts_library("network") {
+  sources = [
+    "network-conditions_test.ts",
+    "network-datagrid_test.ts",
+    "network-filter_test.ts",
+    "network-request-blocking-panel_test.ts",
+    "network-request-view_test.ts",
+    "network-throttle-persist_test.ts",
+    "network_test.ts",
+  ]
+
+  deps = [
+    "../../../front_end/generated",
+    "../../shared",
+    "../helpers",
+  ]
+}

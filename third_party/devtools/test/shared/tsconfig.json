@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "baseUrl": ".",
+    "composite": true,
+
+    "checkJs": false,
+    "allowJs": false
+  },
+  "references": [
+    {
+      "path": "../conductor"
+    }
+  ],
+  "extends": "../../config/typescript/tsconfig.base.json"
+}

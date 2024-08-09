@@ -1,0 +1,149 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../scripts/build/ninja/copy.gni")
+import("../scripts/build/ninja/devtools_entrypoint.gni")
+import("../scripts/build/ninja/node.gni")
+import("../scripts/build/ninja/vars.gni")
+import("../third_party/typescript/typescript.gni")
+
+group("front_end") {
+  public_deps = [
+    ":embedder-scripts",
+    ":html_entrypoints",
+    ":integration_test_runner",
+    ":legacy_entrypoints",
+    "Images",
+    "core/i18n/locales",
+    "entrypoints/device_mode_emulation_frame",
+    "entrypoints/devtools_app:entrypoint",
+    "entrypoints/formatter_worker:worker_entrypoint",
+    "entrypoints/heap_snapshot_worker:worker_entrypoint",
+    "entrypoints/inspector:entrypoint",
+    "entrypoints/js_app:entrypoint",
+    "entrypoints/lighthouse_worker:bundle",
+    "entrypoints/ndb_app:entrypoint",
+    "entrypoints/node_app:entrypoint",
+    "entrypoints/shell",
+    "entrypoints/wasmparser_worker:worker_entrypoint",
+    "entrypoints/worker_app:entrypoint",
+    "legacy_test_runner",
+    "third_party/vscode.web-custom-data:web_custom_data",
+  ]
+}
+
+group("legacy_entrypoints") {
+  public_deps = [
+    "core/common:legacy",
+    "core/host:legacy",
+    "core/protocol_client:legacy",
+    "core/root:legacy",
+    "core/sdk:legacy",
+    "entrypoints/heap_snapshot_worker:legacy",
+    "entrypoints/main:legacy",
+    "models/bindings:legacy",
+    "models/extensions:legacy",
+    "models/formatter:legacy",
+    "models/heap_snapshot_model:legacy",
+    "models/persistence:legacy",
+    "models/text_utils:legacy",
+    "models/timeline_model:legacy",
+    "models/workspace:legacy",
+    "models/workspace_diff:legacy",
+    "panels/accessibility:legacy",
+    "panels/animation:legacy",
+    "panels/application:legacy",
+    "panels/browser_debugger:legacy",
+    "panels/changes:legacy",
+    "panels/console:legacy",
+    "panels/coverage:legacy",
+    "panels/elements:legacy",
+    "panels/emulation:legacy",
+    "panels/layer_viewer:legacy",
+    "panels/lighthouse:legacy",
+    "panels/mobile_throttling:legacy",
+    "panels/network:legacy",
+    "panels/profiler:legacy",
+    "panels/search:legacy",
+    "panels/security:legacy",
+    "panels/settings:legacy",
+    "panels/snippets:legacy",
+    "panels/sources:legacy",
+    "panels/timeline:legacy",
+    "panels/web_audio:legacy",
+    "third_party/diff:legacy",
+    "ui/legacy:legacy",
+    "ui/legacy/components/color_picker:legacy",
+    "ui/legacy/components/cookie_table:legacy",
+    "ui/legacy/components/data_grid:legacy",
+    "ui/legacy/components/inline_editor:legacy",
+    "ui/legacy/components/object_ui:legacy",
+    "ui/legacy/components/perf_ui:legacy",
+    "ui/legacy/components/quick_open:legacy",
+    "ui/legacy/components/source_frame:legacy",
+    "ui/legacy/components/utils:legacy",
+  ]
+}
+
+copy_to_gen("integration_test_runner-gen") {
+  sources = [ "integration_test_runner.html" ]
+}
+
+group("integration_test_runner") {
+  public_deps = [ ":integration_test_runner-gen" ]
+  data_deps = public_deps
+  metadata = {
+    grd_files = get_target_outputs(":integration_test_runner-gen")
+  }
+}
+
+node_action("html_entrypoints") {
+  inputs = [ "entrypoint_template.html" ]
+
+  script = "scripts/build/generate_html_entrypoint.js"
+
+  _devtools_templates = [
+    "devtools_app",
+    "inspector",
+    "js_app",
+    "ndb_app",
+    "node_app",
+    "worker_app",
+    "device_mode_emulation_frame",
+  ]
+  args = [
+    "--template",
+    rebase_path("entrypoint_template.html", root_build_dir),
+    "--out-directory",
+    rebase_path(target_gen_dir, root_build_dir),
+  ]
+
+  outputs = []
+  foreach(_devtools_template, _devtools_templates) {
+    outputs += [ "$target_gen_dir/$_devtools_template.html" ]
+    args += [
+      "--entrypoints",
+      _devtools_template,
+    ]
+  }
+
+  metadata = {
+    grd_files = outputs
+  }
+}
+
+copy_to_gen("embedder-scripts-gen") {
+  sources = [
+    "Tests.js",
+    "devtools_compatibility.js",
+  ]
+}
+
+group("embedder-scripts") {
+  public_deps = [ ":embedder-scripts-gen" ]
+  data_deps = public_deps
+  metadata = {
+    grd_files = get_target_outputs(":embedder-scripts-gen")
+  }
+}

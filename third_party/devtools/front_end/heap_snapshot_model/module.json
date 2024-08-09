@@ -1,8 +1,0 @@
-{
-    "dependencies": [],
-    "scripts": [],
-    "modules": [
-        "heap_snapshot_model.js",
-        "HeapSnapshotModel.js"
-    ]
-}

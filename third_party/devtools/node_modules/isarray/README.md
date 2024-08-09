@@ -3,12 +3,6 @@
 
 `Array#isArray` for older browsers.
 
-[![build status](https://secure.travis-ci.org/juliangruber/isarray.svg)](http://travis-ci.org/juliangruber/isarray)
-[![downloads](https://img.shields.io/npm/dm/isarray.svg)](https://www.npmjs.org/package/isarray)
-
-[![browser support](https://ci.testling.com/juliangruber/isarray.png)
-](https://ci.testling.com/juliangruber/isarray)
-
 ## Usage
 
 ```js
@@ -20,14 +14,20 @@ console.log(isArray({})); // => false
 
 ## Installation
 
-With [npm](https://npmjs.org) do
+With [npm](http://npmjs.org) do
 
 ```bash
 $ npm install isarray
 ```
 
 Then bundle for the browser with
-[browserify](https://github.com/substack/node-browserify).
+[browserify](https://github.com/substack/browserify).
+
+With [component](http://component.io) do
+
+```bash
+$ component install juliangruber/isarray
+```
 
 ## License
 

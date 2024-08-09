@@ -1,34 +1,30 @@
 [
     {
         "prefix": "threaded",
+        "platforms": ["Linux", "Mac", "Win"],
         "bases": [
             "http/tests/devtools/tracing"
         ],
         "args": [
             "--enable-threaded-compositing"
-        ]
-    },
-    {
-        "prefix": "sxg-with-network-service",
-        "bases": [
-            "http/tests/devtools/sxg"
         ],
-        "args": [
-            "--enable-features=NetworkService"
-        ]
+        "expires": "Jul 1, 2023"
     },
     {
         "prefix": "site-isolated-code-cache",
+        "platforms": ["Linux", "Mac", "Win"],
         "bases": [
             "http/tests/devtools/isolated-code-cache"
         ],
         "args": [
             "--enable-features=IsolatedCodeCache",
             "--site-per-process"
-        ]
+        ],
+        "expires": "Jul 1, 2023"
     },
     {
         "prefix": "wasm-site-isolated-code-cache",
+        "platforms": ["Linux", "Mac", "Win"],
         "bases": [
             "http/tests/devtools/wasm-isolated-code-cache"
         ],
@@ -36,36 +32,43 @@
             "--enable-features=IsolatedCodeCache,WasmCodeCache",
             "--disable-features=WebAssemblyBaseline",
             "--site-per-process"
-        ]
+        ],
+        "expires": "Jul 1, 2023"
     },
     {
         "prefix": "split-http-cache-not-site-per-process",
+        "platforms": ["Linux", "Mac", "Win"],
         "bases": [
             "http/tests/devtools/isolated-code-cache"
         ],
         "args": [
             "--enable-features=SplitCacheByNetworkIsolationKey",
             "--disable-site-isolation-trials"
-        ]
+        ],
+        "expires": "Jul 1, 2023"
     },
     {
         "prefix": "not-split-http-cache-not-site-per-process",
+        "platforms": ["Linux", "Mac", "Win"],
         "bases": [
             "http/tests/devtools/isolated-code-cache"
         ],
         "args": [
             "--disable-features=SplitCacheByNetworkIsolationKey",
             "--disable-site-isolation-trials"
-        ]
+        ],
+        "expires": "Jul 1, 2023"
     },
     {
         "prefix": "not-site-per-process",
+        "platforms": ["Linux", "Mac", "Win"],
         "bases": [
             "http/tests/devtools/debugger/fetch-breakpoints.js",
             "http/tests/devtools/oopif/oopif-storage.js"
         ],
         "args": [
             "--disable-site-isolation-trials"
-        ]
+        ],
+        "expires": "Jul 1, 2023"
     }
 ]

@@ -1,0 +1,78 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../scripts/build/ninja/devtools_entrypoint.gni")
+import("../../../scripts/build/ninja/devtools_module.gni")
+import("../visibility.gni")
+
+devtools_module("workspace") {
+  sources = [
+    "FileManager.ts",
+    "UISourceCode.ts",
+    "WorkspaceImpl.ts",
+  ]
+
+  deps = [
+    "../../core/common:bundle",
+    "../../core/host:bundle",
+    "../../core/i18n:bundle",
+    "../../core/platform:bundle",
+    "../../models/text_utils:bundle",
+  ]
+}
+
+devtools_entrypoint("bundle") {
+  entrypoint = "workspace.ts"
+
+  deps = [ ":workspace" ]
+
+  visibility = [
+    ":*",
+    "../../../test/unittests/front_end/helpers/*",
+    "../../../test/unittests/front_end/models/bindings/*",
+    "../../../test/unittests/front_end/models/formatter/*",
+    "../../../test/unittests/front_end/models/workspace/*",
+    "../../../test/unittests/front_end/models/workspace_diff/*",
+    "../../entrypoints/main/*",
+    "../../legacy_test_runner/*",
+    "../../panels/application/*",
+    "../../panels/changes/*",
+    "../../panels/coverage/*",
+    "../../panels/emulation/*",
+    "../../panels/lighthouse/*",
+    "../../panels/network/*",
+    "../../panels/profiler/*",
+    "../../panels/search/*",
+    "../../panels/snippets/*",
+    "../../panels/sources/*",
+    "../bindings/*",
+    "../extensions/*",
+    "../persistence/*",
+    "../workspace_diff/*",
+
+    # TODO(crbug.com/1202788): Remove invalid dependents
+    "../../../test/unittests/front_end/ui/legacy/components/utils/*",
+    "../../panels/elements/*",
+    "../../ui/components/docs/performance_panel/*",
+    "../../ui/legacy/components/perf_ui/*",
+    "../../ui/legacy/components/source_frame/*",
+    "../../ui/legacy/components/utils/*",
+    "../formatter/*",
+    "../issues_manager/*",
+    "../source_map_scopes/*",
+  ]
+
+  visibility += devtools_models_visibility
+}
+
+devtools_entrypoint("legacy") {
+  entrypoint = "workspace-legacy.ts"
+
+  deps = [ ":bundle" ]
+
+  visibility = [
+    "../..:legacy_entrypoints",
+    "../../legacy_test_runner/*",
+  ]
+}

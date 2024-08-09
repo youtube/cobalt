@@ -1,0 +1,195 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../scripts/build/ninja/devtools_entrypoint.gni")
+import("../../../scripts/build/ninja/devtools_module.gni")
+import("../../../scripts/build/ninja/devtools_pre_built.gni")
+import("../visibility.gni")
+
+devtools_module("issues_manager") {
+  sources = [
+    "AttributionReportingIssue.ts",
+    "BounceTrackingIssue.ts",
+    "ClientHintIssue.ts",
+    "ContentSecurityPolicyIssue.ts",
+    "ContrastCheckTrigger.ts",
+    "CookieIssue.ts",
+    "CorsIssue.ts",
+    "CrossOriginEmbedderPolicyIssue.ts",
+    "DeprecationIssue.ts",
+    "FederatedAuthRequestIssue.ts",
+    "GenericIssue.ts",
+    "HeavyAdIssue.ts",
+    "Issue.ts",
+    "IssueResolver.ts",
+    "IssuesManager.ts",
+    "IssuesManagerEvents.ts",
+    "LowTextContrastIssue.ts",
+    "MarkdownIssueDescription.ts",
+    "MixedContentIssue.ts",
+    "NavigatorUserAgentIssue.ts",
+    "QuirksModeIssue.ts",
+    "RelatedIssue.ts",
+    "SharedArrayBufferIssue.ts",
+    "SourceFrameIssuesManager.ts",
+    "TrustedWebActivityIssue.ts",
+  ]
+
+  deps = [
+    "../../core/common:bundle",
+    "../../core/host:bundle",
+    "../../core/i18n:bundle",
+    "../../core/protocol_client:bundle",
+    "../../core/root:bundle",
+    "../../core/sdk:bundle",
+    "../../generated:protocol",
+    "../../models/bindings:bundle",
+    "../../models/text_utils:bundle",
+    "../../models/workspace:bundle",
+    "../../third_party/marked:bundle",
+  ]
+
+  public_deps = [ ":descriptions" ]
+}
+
+devtools_issue_description_files = [
+  "arInsecureContext.md",
+  "arInvalidEligibleHeader.md",
+  "arInvalidRegisterOsSourceHeader.md",
+  "arInvalidRegisterOsTriggerHeader.md",
+  "arInvalidRegisterSourceHeader.md",
+  "arInvalidRegisterTriggerHeader.md",
+  "arOsSourceIgnored.md",
+  "arOsTriggerIgnored.md",
+  "arPermissionPolicyDisabled.md",
+  "arSourceAndTriggerHeaders.md",
+  "arSourceIgnored.md",
+  "arTriggerIgnored.md",
+  "arUntrustworthyReportingOrigin.md",
+  "arWebAndOsHeaders.md",
+  "bounceTrackingMitigations.md",
+  "clientHintMetaTagAllowListInvalidOrigin.md",
+  "clientHintMetaTagModifiedHTML.md",
+  "CoepCoopSandboxedIframeCannotNavigateToCoopPage.md",
+  "CoepCorpNotSameOrigin.md",
+  "CoepCorpNotSameOriginAfterDefaultedToSameOriginByCoep.md",
+  "CoepCorpNotSameSite.md",
+  "CoepFrameResourceNeedsCoepHeader.md",
+  "CompatibilityModeQuirks.md",
+  "CookieAttributeValueExceedsMaxSize.md",
+  "cookieExcludeBlockedWithinFirstPartySet.md",
+  "cookieExcludeDomainNonAscii.md",
+  "cookieWarnDomainNonAscii.md",
+  "corsAllowCredentialsRequired.md",
+  "corsDisabledScheme.md",
+  "corsDisallowedByMode.md",
+  "corsHeaderDisallowedByPreflightResponse.md",
+  "corsInsecurePrivateNetwork.md",
+  "corsInvalidHeaderValues.md",
+  "corsMethodDisallowedByPreflightResponse.md",
+  "corsNoCorsRedirectModeNotFollow.md",
+  "corsOriginMismatch.md",
+  "corsPreflightAllowPrivateNetworkError.md",
+  "corsPreflightResponseInvalid.md",
+  "corsRedirectContainsCredentials.md",
+  "corsWildcardOriginNotAllowed.md",
+  "cspEvalViolation.md",
+  "cspInlineViolation.md",
+  "cspTrustedTypesPolicyViolation.md",
+  "cspTrustedTypesSinkViolation.md",
+  "cspURLViolation.md",
+  "deprecation.md",
+  "deprecationNavigatorUserAgent.md",
+  "genericCrossOriginPortalPostMessageError.md",
+  "genericFormLabelForNameError.md",
+  "genericFormDuplicateIdForInputError.md",
+  "genericFormInputHasWrongButWellIntendedAutocompleteValueError.md",
+  "genericFormInputWithNoLabelError.md",
+  "genericFormAutocompleteAttributeEmptyError.md",
+  "genericFormEmptyIdAndNameAttributesForInputError.md",
+  "genericFormAriaLabelledByToNonExistingId.md",
+  "genericFormInputAssignedAutocompleteValueToIdOrNameAttributeError.md",
+  "genericFormLabelHasNeitherForNorNestedInput.md",
+  "genericFormLabelForMatchesNonExistingIdError.md",
+  "federatedAuthRequestApprovalDeclined.md",
+  "federatedAuthRequestTooManyRequests.md",
+  "federatedAuthRequestManifestHttpNotFound.md",
+  "federatedAuthRequestManifestNoResponse.md",
+  "federatedAuthRequestManifestInvalidResponse.md",
+  "federatedAuthRequestClientMetadataHttpNotFound.md",
+  "federatedAuthRequestClientMetadataNoResponse.md",
+  "federatedAuthRequestClientMetadataInvalidResponse.md",
+  "federatedAuthRequestErrorFetchingSignin.md",
+  "federatedAuthRequestInvalidSigninResponse.md",
+  "federatedAuthRequestAccountsHttpNotFound.md",
+  "federatedAuthRequestAccountsNoResponse.md",
+  "federatedAuthRequestAccountsInvalidResponse.md",
+  "federatedAuthRequestIdTokenHttpNotFound.md",
+  "federatedAuthRequestIdTokenNoResponse.md",
+  "federatedAuthRequestIdTokenInvalidResponse.md",
+  "federatedAuthRequestIdTokenInvalidRequest.md",
+  "federatedAuthRequestErrorIdToken.md",
+  "federatedAuthRequestCanceled.md",
+  "heavyAd.md",
+  "LowTextContrast.md",
+  "mixedContent.md",
+  "SameSiteExcludeContextDowngradeRead.md",
+  "SameSiteExcludeContextDowngradeSet.md",
+  "SameSiteExcludeNavigationContextDowngrade.md",
+  "SameSiteInvalidSameParty.md",
+  "SameSiteNoneInsecureErrorRead.md",
+  "SameSiteNoneInsecureErrorSet.md",
+  "SameSiteNoneInsecureWarnRead.md",
+  "SameSiteNoneInsecureWarnSet.md",
+  "SameSiteUnspecifiedLaxAllowUnsafeRead.md",
+  "SameSiteUnspecifiedLaxAllowUnsafeSet.md",
+  "SameSiteUnspecifiedTreatedAsLaxRead.md",
+  "SameSiteUnspecifiedTreatedAsLaxSet.md",
+  "SameSiteWarnCrossDowngradeRead.md",
+  "SameSiteWarnCrossDowngradeSet.md",
+  "SameSiteWarnStrictLaxDowngradeStrict.md",
+  "sharedArrayBuffer.md",
+  "TwaDigitalAssetLinksFailed.md",
+  "TwaHttpError.md",
+  "TwaPageUnavailableOffline.md",
+]
+
+devtools_pre_built("descriptions") {
+  sources = []
+  data = []
+  foreach(file, devtools_issue_description_files) {
+    sources += [ "descriptions/$file" ]
+    data += [ "$target_gen_dir/descriptions/$file" ]
+  }
+}
+
+devtools_entrypoint("bundle") {
+  entrypoint = "issues_manager.ts"
+
+  deps = [ ":issues_manager" ]
+
+  visibility = [
+    ":*",
+    "../../../test/unittests/front_end/models/issues_manager/*",
+    "../../../test/unittests/front_end/panels/console/*",
+    "../../entrypoints/main/*",
+    "../../panels/application/*",
+    "../../panels/console/*",
+    "../../panels/console_counters/*",
+    "../../panels/elements/*",
+    "../../panels/elements/*",
+    "../../panels/issues/*",
+    "../../panels/network/*",
+    "../../panels/sources/*",
+    "../../ui/components/docs/issue_counter/*",
+
+    # TODO(crbug.com/1202788): Remove invalid dependents
+    "../../../test/unittests/front_end/helpers/*",
+    "../../../test/unittests/front_end/ui/components/issue_counter/*",
+    "../../ui/components/issue_counter/*",
+    "../../ui/legacy/components/cookie_table/*",
+  ]
+
+  visibility += devtools_models_visibility
+}
