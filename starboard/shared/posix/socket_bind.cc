@@ -15,6 +15,7 @@
 #include "starboard/common/socket.h"
 
 #include <errno.h>
+#include <string.h>
 #include <sys/socket.h>
 
 #include "starboard/common/log.h"
@@ -63,7 +64,7 @@ SbSocketError SbSocketBind(SbSocket socket,
   int result = HANDLE_EINTR(
       bind(socket->socket_fd, sock_addr.sockaddr(), sock_addr.length));
   if (result != 0) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": Bind failed. errno=" << errno;
+    SB_LOG(ERROR) << __FUNCTION__ << ": Bind failed. errno=" << strerror(errno);
     return (socket->error = sbposix::TranslateSocketErrno(errno));
   }
 
