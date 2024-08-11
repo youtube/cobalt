@@ -33,6 +33,8 @@
 
 namespace net {
 
+#if SB_API_VERSION >= 16
+
 namespace {
 
 int MapAcceptError(int os_error) {
@@ -523,8 +525,19 @@ int SocketPosix::DoWrite(IOBuffer* buf, int buf_len) {
   // socket creation.
   int rv = HANDLE_EINTR(send(socket_fd_, buf->data(), buf_len, MSG_NOSIGNAL));
 #else
+
+#if SB_API_VERSION >= 16
+#if defined(MSG_NOSIGNAL)
+  const int kSendFlags = MSG_NOSIGNAL;
+#else
+  const int kSendFlags = 0;
+#endif  // defined(MSG_NOSIGNAL)
+  int rv = HANDLE_EINTR(send(socket_fd_, buf->data(), buf_len, kSendFlags));
+#else
   int rv = HANDLE_EINTR(write(socket_fd_, buf->data(), buf_len));
-#endif
+#endif  //SB_API_VERSION >= 16
+
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   return rv >= 0 ? rv : MapSystemError(errno);
 }
 
@@ -580,5 +593,7 @@ void SocketPosix::StopWatchingAndCleanUp(bool close_socket) {
   waiting_connect_ = false;
   peer_address_.reset();
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace net

@@ -93,7 +93,7 @@
 #include <jni.h>
 #endif
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 #include <sys/time.h>
 #include <unistd.h>
 #endif
@@ -126,14 +126,13 @@ class PlatformThreadHandle;
 class PA_COMPONENT_EXPORT(PARTITION_ALLOC) TimeDelta {
  public:
   constexpr TimeDelta() = default;
-
 #if BUILDFLAG(IS_WIN)
   static TimeDelta FromQPCValue(LONGLONG qpc_value);
   // TODO(crbug.com/989694): Avoid base::TimeDelta factory functions
   // based on absolute time
   static TimeDelta FromFileTime(FILETIME ft);
   static TimeDelta FromWinrtDateTime(ABI::Windows::Foundation::DateTime dt);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   static TimeDelta FromTimeSpec(const timespec& ts);
 #endif
 #if BUILDFLAG(IS_FUCHSIA)
@@ -198,7 +197,7 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) TimeDelta {
   constexpr bool is_min() const { return *this == Min(); }
   constexpr bool is_inf() const { return is_min() || is_max(); }
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   struct timespec ToTimeSpec() const;
 #endif
 #if BUILDFLAG(IS_FUCHSIA)
@@ -586,7 +585,7 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) Time
   static Time FromDoubleT(double dt);
   double ToDoubleT() const;
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   // Converts the timespec structure to time. MacOS X 10.8.3 (and tentatively,
   // earlier versions) will have the |ts|'s tv_nsec component zeroed out,
   // having a 1 second resolution, which agrees with
@@ -612,7 +611,7 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) Time
   static Time FromJavaTime(int64_t ms_since_epoch);
   int64_t ToJavaTime() const;
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   static Time FromTimeVal(struct timeval t);
   struct timeval ToTimeVal() const;
 #endif

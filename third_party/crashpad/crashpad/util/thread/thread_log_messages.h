@@ -27,7 +27,7 @@ namespace crashpad {
 //!
 //! At most one object of this class type may exist on a single thread at a
 //! time. When using this class, no other part of the program may call
-//! `logging::SetLogMessageHandler()` at any time.
+//! `mini_chromium_base_logging::SetLogMessageHandler()` at any time.
 class ThreadLogMessages {
  public:
   ThreadLogMessages();

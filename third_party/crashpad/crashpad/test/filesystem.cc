@@ -74,7 +74,7 @@ bool SymbolicLinkFlags(DWORD* flags) {
     // Don’t use ErrorMessage() here because the second CreateSymbolicLink() may
     // have scrambled it. Use the saved |error| value instead.
     EXPECT_EQ(error, static_cast<DWORD>(ERROR_PRIVILEGE_NOT_HELD))
-        << "CreateSymbolicLink: " << logging::SystemErrorCodeToString(error);
+        << "CreateSymbolicLink: " << mini_chromium_base_logging::SystemErrorCodeToString(error);
     return -1;
   }();
 

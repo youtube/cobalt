@@ -39,6 +39,8 @@
 
 namespace base {
 
+#if SB_API_VERSION >= 16
+
 namespace {
 
 #if BUILDFLAG(ENABLE_MESSAGE_PUMP_EPOLL)
@@ -484,5 +486,7 @@ MessagePumpLibevent::EpollInterest::EpollInterest(
     : controller_(controller), params_(params) {}
 
 MessagePumpLibevent::EpollInterest::~EpollInterest() = default;
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace base

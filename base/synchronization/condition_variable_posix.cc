@@ -21,6 +21,8 @@
 
 namespace base {
 
+#if SB_API_VERSION >= 16
+
 ConditionVariable::ConditionVariable(Lock* user_lock)
     : user_mutex_(user_lock->lock_.native_handle())
 #if DCHECK_IS_ON()
@@ -150,5 +152,7 @@ void ConditionVariable::Signal() {
   int rv = pthread_cond_signal(&condition_);
   DCHECK_EQ(0, rv);
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace base

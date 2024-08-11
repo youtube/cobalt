@@ -211,12 +211,13 @@ MessagePumpForIO* CurrentIOThread::GetMessagePumpForIO() const {
 
 #if !BUILDFLAG(IS_NACL)
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 bool CurrentIOThread::Watch(SbSocket socket,
                             bool persistent,
                             int mode,
                             SocketWatcher* controller,
                             Watcher* delegate) {
+
   return static_cast<MessagePumpIOStarboard*>(GetMessagePumpForIO())
       ->Watch(socket, persistent, mode, controller, delegate);
 }
@@ -234,7 +235,7 @@ bool CurrentIOThread::RegisterJobObject(HANDLE job,
   return GetMessagePumpForIO()->RegisterJobObject(job, handler);
 }
 
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 bool CurrentIOThread::WatchFileDescriptor(
     int fd,
     bool persistent,

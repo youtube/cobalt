@@ -55,7 +55,7 @@ std::string ErrorMessage(const std::string& base) {
       "%s%s%s",
       base.c_str(),
       base.empty() ? "" : ": ",
-      logging::SystemErrorCodeToString(GetLastError()).c_str());
+      mini_chromium_base_logging::SystemErrorCodeToString(GetLastError()).c_str());
 }
 #endif
 

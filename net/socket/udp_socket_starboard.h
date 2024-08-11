@@ -17,6 +17,8 @@
 #ifndef NET_SOCKET_UDP_SOCKET_STARBOARD_H_
 #define NET_SOCKET_UDP_SOCKET_STARBOARD_H_
 
+#if SB_API_VERSION <= 15
+
 #include "base/memory/ref_counted.h"
 #include "base/message_loop/message_pump_io_starboard.h"
 #include "base/message_loop/message_pump_for_io.h"
@@ -492,5 +494,7 @@ class NET_EXPORT UDPSocketStarboard
 };
 
 }  // namespace net
+
+#endif  // SB_API_VERSION <= 15
 
 #endif  // NET_SOCKET_UDP_SOCKET_STARBOARD_H_

@@ -83,7 +83,7 @@ class DCheckLogMessage : public LogMessage {
   const base::Location location_;
 };
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 class DCheckStarboardErrorLogMessage : public StarboardErrorLogMessage {
  public:
   DCheckStarboardErrorLogMessage(const base::Location& location,
@@ -123,7 +123,7 @@ class DCheckWin32ErrorLogMessage : public Win32ErrorLogMessage {
  private:
   const base::Location location_;
 };
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 class DCheckErrnoLogMessage : public ErrnoLogMessage {
  public:
   DCheckErrnoLogMessage(const base::Location& location,
@@ -166,13 +166,13 @@ CheckError CheckError::PCheck(const char* file,
                               int line,
                               const char* condition) {
   SystemErrorCode err_code = logging::GetLastSystemErrorCode();
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   auto* const log_message =
       new StarboardErrorLogMessage(file, line, LOGGING_FATAL, err_code);
 #elif BUILDFLAG(IS_WIN)
   auto* const log_message =
       new Win32ErrorLogMessage(file, line, LOGGING_FATAL, err_code);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   auto* const log_message =
       new ErrnoLogMessage(file, line, LOGGING_FATAL, err_code);
 #endif
@@ -187,13 +187,13 @@ CheckError CheckError::PCheck(const char* file, int line) {
 CheckError CheckError::DPCheck(const char* condition,
                                const base::Location& location) {
   SystemErrorCode err_code = logging::GetLastSystemErrorCode();
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   auto* const log_message =
       new DCheckStarboardErrorLogMessage(location, LOGGING_DCHECK, err_code);
 #elif BUILDFLAG(IS_WIN)
   auto* const log_message =
       new DCheckWin32ErrorLogMessage(location, LOGGING_DCHECK, err_code);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   auto* const log_message =
       new DCheckErrnoLogMessage(location, LOGGING_DCHECK, err_code);
 #endif

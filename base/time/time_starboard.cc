@@ -19,6 +19,8 @@
 
 namespace base {
 
+#if SB_API_VERSION <= 15
+
 namespace {
 EzTimeZone GetTz(bool is_local) {
   return is_local ? kEzTimeZoneLocal : kEzTimeZoneUTC;
@@ -85,5 +87,7 @@ bool Time::FromExploded(bool is_local, const Exploded& exploded, Time* time) {
 bool TimeTicks::IsHighResolution() {
   return true;
 }
+
+#endif  // SB_API_VERSION <= 15
 
 }  // namespace base

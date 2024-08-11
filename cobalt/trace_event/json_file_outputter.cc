@@ -138,7 +138,9 @@ void JSONFileOutputter::Write(const char* buffer, int length) {
   }
 
   int count = file_.WriteAtCurrentPos(buffer, length);
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   base::RecordFileWriteStat(count);
+#endif
   if (count < 0) {
     Close();
   }

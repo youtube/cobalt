@@ -263,6 +263,8 @@ class BASE_EXPORT MessagePumpLibevent : public MessagePump,
   ThreadChecker watch_file_descriptor_caller_checker_;
 };
 
+using MessagePumpForUI = MessagePumpLibevent;
+
 }  // namespace base
 
 #endif  // BASE_MESSAGE_LOOP_MESSAGE_PUMP_LIBEVENT_H_

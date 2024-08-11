@@ -270,7 +270,7 @@ class BASE_EXPORT CurrentIOThread : public CurrentThread {
 
 #if !BUILDFLAG(IS_NACL)
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   typedef base::MessagePumpIOStarboard::Watcher Watcher;
   typedef base::MessagePumpIOStarboard::SocketWatcher SocketWatcher;
   typedef base::MessagePumpIOStarboard::IOObserver IOObserver;
@@ -284,11 +284,12 @@ class BASE_EXPORT CurrentIOThread : public CurrentThread {
              int mode,
              SocketWatcher* controller,
              Watcher* delegate);
+
 #elif BUILDFLAG(IS_WIN)
   // Please see MessagePumpWin for definitions of these methods.
   HRESULT RegisterIOHandler(HANDLE file, MessagePumpForIO::IOHandler* handler);
   bool RegisterJobObject(HANDLE job, MessagePumpForIO::IOHandler* handler);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   // Please see WatchableIOMessagePumpPosix for definition.
   // Prefer base::FileDescriptorWatcher for non-critical IO.
   bool WatchFileDescriptor(int fd,

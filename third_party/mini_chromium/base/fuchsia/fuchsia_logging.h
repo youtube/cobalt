@@ -14,9 +14,9 @@
 // error. The error value will be decoded so that logged messages explain the
 // error.
 
-namespace logging {
+namespace mini_chromium_base_logging {
 
-class ZxLogMessage : public logging::LogMessage {
+class ZxLogMessage : public mini_chromium_base_logging::LogMessage {
  public:
   ZxLogMessage(const char* function,
                const char* file_path,
@@ -31,7 +31,7 @@ class ZxLogMessage : public logging::LogMessage {
   DISALLOW_COPY_AND_ASSIGN(ZxLogMessage);
 };
 
-}  // namespace logging
+}  // namespace mini_chromium_base_logging
 
 #define ZX_LOG_STREAM(severity, zx_err) \
   COMPACT_GOOGLE_LOG_EX_##severity(ZxLogMessage, zx_err).stream()

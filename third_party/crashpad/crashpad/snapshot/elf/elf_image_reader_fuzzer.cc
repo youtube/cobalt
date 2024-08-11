@@ -45,8 +45,8 @@ class FakeProcessMemory : public ProcessMemory {
 
 extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
   // Swallow all logs to avoid spam.
-  logging::SetLogMessageHandler(
-      [](logging::LogSeverity, const char*, int, size_t, const std::string&) {
+  mini_chromium_base_logging::SetLogMessageHandler(
+      [](mini_chromium_base_logging::LogSeverity, const char*, int, size_t, const std::string&) {
         return true;
       });
   return 0;

@@ -14,6 +14,8 @@
 
 namespace base {
 
+#if SB_API_VERSION >= 16
+
 // static
 TimeDelta TimeDelta::FromTimeSpec(const timespec& ts) {
   return TimeDelta(ts.tv_sec * Time::kMicrosecondsPerSecond +
@@ -63,5 +65,7 @@ struct timeval Time::ToTimeVal() const {
   result.tv_usec = us % Time::kMicrosecondsPerSecond;
   return result;
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace base

@@ -34,7 +34,7 @@ namespace {
 class ThreadLogMessagesMaster {
  public:
   void SetThreadMessageList(std::vector<std::string>* message_list) {
-    DCHECK_EQ(logging::GetLogMessageHandler(), &LogMessageHandler);
+    DCHECK_EQ(mini_chromium_base_logging::GetLogMessageHandler(), &LogMessageHandler);
     DCHECK_NE(tls_.Get() != nullptr, message_list != nullptr);
     tls_.Set(message_list);
   }
@@ -46,13 +46,13 @@ class ThreadLogMessagesMaster {
 
  private:
   ThreadLogMessagesMaster() {
-    DCHECK(!logging::GetLogMessageHandler());
-    logging::SetLogMessageHandler(LogMessageHandler);
+    DCHECK(!mini_chromium_base_logging::GetLogMessageHandler());
+    mini_chromium_base_logging::SetLogMessageHandler(LogMessageHandler);
   }
 
   ~ThreadLogMessagesMaster() = delete;
 
-  static bool LogMessageHandler(logging::LogSeverity severity,
+  static bool LogMessageHandler(mini_chromium_base_logging::LogSeverity severity,
                                 const char* file_path,
                                 int line,
                                 size_t message_start,

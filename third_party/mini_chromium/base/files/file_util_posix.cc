@@ -8,7 +8,7 @@
 
 #include "base/posix/eintr_wrapper.h"
 
-namespace base {
+namespace mini_chromium_base {
 
 bool ReadFromFD(int fd, char* buffer, size_t bytes) {
   size_t total_read = 0;
@@ -23,4 +23,4 @@ bool ReadFromFD(int fd, char* buffer, size_t bytes) {
   return total_read == bytes;
 }
 
-}  // namespace base
+}  // namespace mini_chromium_base

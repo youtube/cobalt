@@ -172,7 +172,7 @@ class BASE_EXPORT SequenceManagerImpl
   void SetAddQueueTimeToTasks(bool enable);
   void SetTaskExecutionAllowed(bool allowed);
   bool IsTaskExecutionAllowed() const;
-#if BUILDFLAG(IS_IOS) || defined(STARBOARD)
+#if BUILDFLAG(IS_IOS) || (defined(STARBOARD) && SB_API_VERSION <= 15)
   void AttachToMessagePump();
 #endif
   bool IsIdleForTesting() override;

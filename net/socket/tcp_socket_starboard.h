@@ -15,6 +15,8 @@
 #ifndef NET_SOCKET_TCP_SOCKET_STARBOARD_H_
 #define NET_SOCKET_TCP_SOCKET_STARBOARD_H_
 
+#if SB_API_VERSION <= 15
+
 #include "base/bind.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/message_loop/message_pump_io_starboard.h"
@@ -214,5 +216,7 @@ class NET_EXPORT TCPSocketStarboard : public base::MessagePumpIOStarboard::Watch
 };
 
 }  // namespace net
+
+#endif  // SB_API_VERSION <= 15
 
 #endif  // NET_SOCKET_TCP_SOCKET_STARBOARD_H_

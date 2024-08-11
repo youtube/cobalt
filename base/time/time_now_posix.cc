@@ -28,6 +28,8 @@
 
 namespace {
 
+#if SB_API_VERSION >= 16
+
 int64_t ConvertTimespecToMicros(const struct timespec& ts) {
   // On 32-bit systems, the calculation cannot overflow int64_t.
   // 2**32 * 1000000 + 2**64 / 1000 < 2**63
@@ -47,9 +49,10 @@ int64_t ConvertTimespecToMicros(const struct timespec& ts) {
 // microsecond timebase. Minimum requirement is MONOTONIC_CLOCK to be supported
 // on the system. FreeBSD 6 has CLOCK_MONOTONIC but defines
 // _POSIX_MONOTONIC_CLOCK to -1.
-#if (BUILDFLAG(IS_POSIX) && defined(_POSIX_MONOTONIC_CLOCK) && \
-     _POSIX_MONOTONIC_CLOCK >= 0) ||                           \
-    BUILDFLAG(IS_BSD) || BUILDFLAG(IS_ANDROID)
+#if ((BUILDFLAG(IS_POSIX) || SB_API_VERSION >= 16) && \
+     defined(_POSIX_MONOTONIC_CLOCK) && \
+     _POSIX_MONOTONIC_CLOCK >= 0) || \
+     BUILDFLAG(IS_BSD) || BUILDFLAG(IS_ANDROID)
 int64_t ClockNow(clockid_t clk_id) {
   struct timespec ts;
   CHECK(clock_gettime(clk_id, &ts) == 0);
@@ -136,5 +139,7 @@ ThreadTicks ThreadTicksNowIgnoringOverride() {
 #endif
 }
 }  // namespace subtle
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace base

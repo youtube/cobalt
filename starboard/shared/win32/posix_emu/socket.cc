@@ -241,7 +241,7 @@ static void set_errno() {
       sockError = NO_DATA;
       break;
     default:
-      SB_DLOG(WARNING) << "Unknown socket error.";
+      SB_DLOG(WARNING) << "Unknown socket error - " << winsockError;
       break;
   }
 

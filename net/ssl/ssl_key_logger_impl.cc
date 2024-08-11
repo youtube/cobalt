@@ -109,7 +109,7 @@ class SSLKeyLoggerImpl::Core
 
     if (file_) {
       
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
       for (const auto& line : buffer) {
         file_->WriteAll(line.c_str(), line.length());
       }

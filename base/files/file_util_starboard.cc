@@ -41,6 +41,8 @@
 
 namespace base {
 
+#if SB_API_VERSION <= 15
+
 namespace {
 
 // The list of portable filename characters as per POSIX. This should be the
@@ -477,6 +479,17 @@ FilePath MakeAbsoluteFilePath(const FilePath& input) {
   return input;
 }
 
+bool SetNonBlocking(int fd) {
+  const int flags = fcntl(fd, F_GETFL);
+  if (flags == -1)
+    return false;
+  if (flags & O_NONBLOCK)
+    return true;
+  if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+    return false;
+  return true;
+}
+
 namespace internal {
 
 bool MoveUnsafe(const FilePath& from_path, const FilePath& to_path) {
@@ -487,5 +500,7 @@ bool MoveUnsafe(const FilePath& from_path, const FilePath& to_path) {
 }
 
 }  // internal
+
+#endif  // SB_API_VERSION <= 15
 
 }  // namespace base

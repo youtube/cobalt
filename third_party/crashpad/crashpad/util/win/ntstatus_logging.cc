@@ -47,7 +47,7 @@ std::string FormatNtstatus(DWORD ntstatus) {
 
 }  // namespace
 
-namespace logging {
+namespace mini_chromium_base_logging {
 
 NtstatusLogMessage::NtstatusLogMessage(
 #if defined(MINI_CHROMIUM_BASE_LOGGING_H_)
@@ -72,4 +72,4 @@ NtstatusLogMessage::~NtstatusLogMessage() {
            << base::StringPrintf(" (0x%08lx)", ntstatus_);
 }
 
-}  // namespace logging
+}  // namespace mini_chromium_base_logging

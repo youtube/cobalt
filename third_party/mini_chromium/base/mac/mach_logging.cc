@@ -27,7 +27,7 @@ std::string FormatMachErrorNumber(mach_error_t mach_err) {
 
 }  // namespace
 
-namespace logging {
+namespace mini_chromium_base_logging {
 
 MachLogMessage::MachLogMessage(const char* function,
                                const char* file_path,
@@ -86,4 +86,4 @@ BootstrapLogMessage::~BootstrapLogMessage() {
 
 #endif  // !OS_IOS
 
-}  // namespace logging
+}  // namespace mini_chromium_base_logging

@@ -38,7 +38,7 @@
 #include "base/debug/leak_annotations.h"
 #endif  // defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 #include <fcntl.h>
 
 #include "base/files/file_starboard.h"
@@ -69,8 +69,8 @@ typedef HANDLE FileHandle;
 #include <mach/mach_time.h>
 #include <os/log.h>
 
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
-#if BUILDFLAG(IS_NACL)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
+#if BUILDFLAG(IS_NACL) || SB_API_VERSION >= 16
 #include <sys/time.h>  // timespec doesn't seem to be in <time.h>
 #endif
 #include <time.h>
@@ -84,7 +84,7 @@ typedef HANDLE FileHandle;
 #include <android/log.h>
 #endif
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 #include <errno.h>
 #include <paths.h>
 #include <stdio.h>
@@ -130,7 +130,7 @@ typedef FILE* FileHandle;
 #include "base/win/win_util.h"
 #endif
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 #include "base/posix/safe_strerror.h"
 #endif
 
@@ -293,7 +293,7 @@ base::stack<LogAssertHandlerFunction>& GetLogAssertHandlerStack() {
 LogMessageHandlerFunction g_log_message_handler = nullptr;
 
 uint64_t TickCount() {
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   return starboard::CurrentMonotonicTime();
 #elif BUILDFLAG(IS_WIN)
   return GetTickCount();
@@ -307,7 +307,7 @@ uint64_t TickCount() {
   // NaCl sadly does not have _POSIX_TIMERS enabled in sys/features.h
   // So we have to use clock() for now.
   return clock();
-#elif BUILDFLAG(IS_POSIX)
+#elif BUILDFLAG(IS_POSIX) || SB_API_VERSION >= 16
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
 
@@ -319,13 +319,13 @@ uint64_t TickCount() {
 }
 
 void DeleteFilePath(const PathString& log_name) {
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   unlink(log_name.c_str());
 #elif BUILDFLAG(IS_WIN)
   DeleteFile(log_name.c_str());
 #elif BUILDFLAG(IS_NACL)
   // Do nothing; unlink() isn't supported on NaCl.
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   unlink(log_name.c_str());
 #else
 #error Unsupported platform
@@ -333,7 +333,7 @@ void DeleteFilePath(const PathString& log_name) {
 }
 
 PathString GetDefaultLogFile() {
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   // On Starboard, we politely ask for the log directory, like a civilized
   // platform.
   std::vector<char> path(kSbFileMaxPath + 1);
@@ -352,7 +352,7 @@ PathString GetDefaultLogFile() {
     log_name.erase(last_backslash + 1);
   log_name += FILE_PATH_LITERAL("debug.log");
   return log_name;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   // On other platforms we just use the current directory.
   return PathString("debug.log");
 #endif
@@ -360,7 +360,7 @@ PathString GetDefaultLogFile() {
 
 // We don't need locks on Windows for atomically appending to files. The OS
 // provides this functionality.
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 
 // Provides a lock to synchronize appending to the log file across
 // threads. This can be required to support NFS file systems even on OSes that
@@ -378,7 +378,7 @@ base::Lock& GetLoggingLock() {
   return *lock;
 }
 
-#endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 
 // Called by logging functions to ensure that |g_log_file| is initialized
 // and can be used for writing. Returns false if the file could not be
@@ -393,7 +393,7 @@ bool InitializeLogFileHandle() {
     g_log_file_name = new PathString(GetDefaultLogFile());
   }
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   // This seems to get called a lot with an empty filename, at least in
   // base_unittests.
   if (g_log_file_name->empty()) {
@@ -404,7 +404,7 @@ bool InitializeLogFileHandle() {
   if ((g_logging_destination & LOG_TO_FILE) == 0)
     return true;
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   int g_log_file_descriptor =
     open(g_log_file_name->c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
   g_log_file = &g_log_file_descriptor;
@@ -447,7 +447,7 @@ bool InitializeLogFileHandle() {
       return false;
     }
   }
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   g_log_file = fopen(g_log_file_name->c_str(), "a");
   if (g_log_file == nullptr)
     return false;
@@ -459,13 +459,13 @@ bool InitializeLogFileHandle() {
 }
 
 void CloseFile(FileHandle log) {
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   if (*log >= 0) {
     close(*log);
   }
 #elif BUILDFLAG(IS_WIN)
   CloseHandle(log);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   fclose(log);
 #else
 #error Unsupported platform
@@ -485,7 +485,7 @@ void CloseLogFileUnlocked() {
     g_logging_destination &= ~LOG_TO_FILE;
 }
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 SbLogPriority LogLevelToStarboardLogPriority(int level) {
   switch (level) {
     case LOG_INFO:
@@ -508,7 +508,7 @@ SbLogPriority LogLevelToStarboardLogPriority(int level) {
       return kSbLogPriorityInfo;
   }
 }
-#endif  // defined(STARBOARD)
+#endif  // defined(STARBOARD) && SB_API_VERSION <= 15
 
 #if BUILDFLAG(IS_FUCHSIA)
 inline FuchsiaLogSeverity LogSeverityToFuchsiaLogSeverity(
@@ -534,7 +534,7 @@ inline FuchsiaLogSeverity LogSeverityToFuchsiaLogSeverity(
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
 void WriteToFd(int fd, const char* data, size_t length) {
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   if (length > 0) {
     SbLogRaw(data);
     if (data[length - 1] != '\n') {
@@ -552,7 +552,7 @@ void WriteToFd(int fd, const char* data, size_t length) {
     }
     bytes_written += static_cast<size_t>(rv);
   }
-#endif  // defined(STARBOARD)
+#endif  // defined(STARBOARD) && SB_API_VERSION <= 15
 }
 
 void SetLogFatalCrashKey(LogMessage* log_message) {
@@ -651,7 +651,7 @@ bool BaseInitLoggingImpl(const LoggingSettings& settings) {
   if ((g_logging_destination & LOG_TO_FILE) == 0)
     return true;
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   base::AutoLock guard(GetLoggingLock());
 #endif
 
@@ -700,7 +700,7 @@ bool ShouldCreateLogMessage(int severity) {
 // set, or only LOG_TO_FILE is set, since that is useful for local development
 // and debugging.
 bool ShouldLogToStderr(int severity) {
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   if ((g_logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) != 0) {
     // Don't SbLog to stderr if already logging to system debug log.
     return false;
@@ -854,7 +854,7 @@ LogMessage::~LogMessage() {
   }
 
   if ((g_logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) != 0) {
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
     SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
 #elif BUILDFLAG(IS_WIN)
     OutputDebugStringA(str_newline.c_str());
@@ -994,7 +994,7 @@ LogMessage::~LogMessage() {
     //   LOG(ERROR) << "Something went wrong";
     //   free_something();
     // }
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
     SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
 #else
     WriteToFd(STDERR_FILENO, str_newline.data(), str_newline.size());
@@ -1002,7 +1002,7 @@ LogMessage::~LogMessage() {
   }
 
   if ((g_logging_destination & LOG_TO_FILE) != 0) {
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
     // If the client app did not call InitLogging() and the lock has not
     // been created it will be done now on calling GetLoggingLock(). We do this
     // on demand, but if two threads try to do this at the same time, there will
@@ -1011,7 +1011,7 @@ LogMessage::~LogMessage() {
     base::AutoLock guard(GetLoggingLock());
 #endif
     if (InitializeLogFileHandle()) {
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
       lseek(*g_log_file, 0, SEEK_END);
       int written = 0;
       while (written < str_newline.length()) {
@@ -1031,7 +1031,7 @@ LogMessage::~LogMessage() {
                 static_cast<DWORD>(str_newline.length()),
                 &num_written,
                 nullptr);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
       std::ignore =
           fwrite(str_newline.data(), str_newline.size(), 1, g_log_file);
       fflush(g_log_file);
@@ -1104,7 +1104,7 @@ void LogMessage::Init(const char* file, int line) {
     if (g_log_process_id)
       stream_ << base::GetUniqueIdForProcess() << ':';
     if (g_log_thread_id)
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
       // Logging the thread name is added for Starboard logs.
       stream_ << base::PlatformThread::GetName() << '/'
               << base::PlatformThread::CurrentId() << ":";
@@ -1112,7 +1112,7 @@ void LogMessage::Init(const char* file, int line) {
       stream_ << base::PlatformThread::CurrentId() << ':';
 #endif
     if (g_log_timestamp) {
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
     EzTimeValue time_value;
     EzTimeValueGetNow(&time_value, NULL);
     struct EzTimeExploded local_time = {0};
@@ -1140,7 +1140,7 @@ void LogMessage::Init(const char* file, int line) {
               << '.'
               << std::setw(3) << local_time.wMilliseconds
               << ':';
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
       timeval tv;
       gettimeofday(&tv, nullptr);
       time_t t = tv.tv_sec;
@@ -1181,17 +1181,17 @@ typedef DWORD SystemErrorCode;
 #endif
 
 SystemErrorCode GetLastSystemErrorCode() {
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   return SbSystemGetLastError();
 #elif BUILDFLAG(IS_WIN)
   return ::GetLastError();
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   return errno;
 #endif
 }
 
 BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   const int kErrorMessageBufferSize = 256;
   char msgbuf[kErrorMessageBufferSize];
 
@@ -1216,13 +1216,13 @@ BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
   }
   return base::StringPrintf("Error (0x%lX) while retrieving error. (0x%lX)",
                             GetLastError(), error_code);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   return base::safe_strerror(error_code) +
          base::StringPrintf(" (%d)", error_code);
 #endif  // BUILDFLAG(IS_WIN)
 }
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 StarboardErrorLogMessage::StarboardErrorLogMessage(const char* file,
                                                    int line,
                                                    LogSeverity severity,
@@ -1250,7 +1250,7 @@ Win32ErrorLogMessage::~Win32ErrorLogMessage() {
   DWORD last_error = err_;
   base::debug::Alias(&last_error);
 }
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 ErrnoLogMessage::ErrnoLogMessage(const char* file,
                                  int line,
                                  LogSeverity severity,
@@ -1267,7 +1267,7 @@ ErrnoLogMessage::~ErrnoLogMessage() {
 #endif  // BUILDFLAG(IS_WIN)
 
 void CloseLogFile() {
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   base::AutoLock guard(GetLoggingLock());
 #endif
   CloseLogFileUnlocked();
@@ -1319,7 +1319,7 @@ ScopedLoggingSettings::ScopedLoggingSettings()
 ScopedLoggingSettings::~ScopedLoggingSettings() {
   // Re-initialize logging via the normal path. This will clean up old file
   // name and handle state, including re-initializing the VLOG internal state.
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   CHECK(InitLogging({
     logging_destination_,
     log_file_name_ ? log_file_name_->data() : nullptr,
@@ -1350,7 +1350,7 @@ void ScopedLoggingSettings::SetLogFormat(LogFormat log_format) const {
 
 void RawLog(int level, const char* message) {
   if (level >= g_min_log_level && message) {
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
     SbLogRaw(message);
     const size_t message_len = strlen(message);
     if (message_len > 0 && message[message_len - 1] != '\n') {

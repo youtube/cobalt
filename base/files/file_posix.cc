@@ -33,6 +33,8 @@ static_assert(sizeof(base::stat_wrapper_t::st_size) >= 8);
 
 namespace base {
 
+#if SB_API_VERSION >= 16
+
 // Make sure our Whence mappings match the system headers.
 static_assert(File::FROM_BEGIN == SEEK_SET && File::FROM_CURRENT == SEEK_CUR &&
                   File::FROM_END == SEEK_END,
@@ -614,5 +616,7 @@ int File::Lstat(const char* path, stat_wrapper_t* sb) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   return lstat(path, sb);
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace base

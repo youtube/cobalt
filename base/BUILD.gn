@@ -103,7 +103,7 @@ if (is_apple) {
 
 # Determines whether libevent should be dep.
 dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
-    && !use_cobalt_customizations
+    && (!use_cobalt_customizations || sb_api_version >= 16)
 
 # Determines whether message_pump_libevent should be used.
 use_libevent = dep_libevent && !is_ios
@@ -980,6 +980,33 @@ component("base") {
       "message_loop/message_pump_io_starboard.h",
       "message_loop/message_pump_ui_starboard.cc",
       "message_loop/message_pump_ui_starboard.h",
+
+      # added for posix - by zhangmax
+      "strings/sys_string_conversions_posix.cc",
+
+      "synchronization/waitable_event_posix.cc",
+      "synchronization/waitable_event_watcher_posix.cc",
+      "synchronization/condition_variable_posix.cc",
+
+      "threading/platform_thread_internal_posix.cc",
+      "threading/platform_thread_internal_posix.h",
+      "time/time_exploded_posix.cc",
+      "time/time_now_posix.cc",
+      "time/time_conversion_posix.cc",
+
+      "files/file_posix.cc",
+      "files/file_util_posix.cc",
+      "files/file_descriptor_watcher_posix.cc",
+      "files/file_descriptor_watcher_posix.h",
+      "files/file_enumerator_posix.cc",
+
+      "memory/page_size_posix.cc",
+
+      "message_loop/watchable_io_message_pump_posix.cc",
+      "message_loop/watchable_io_message_pump_posix.h",
+
+      # end of adding - zhangmax
+
       "process/launch.cc",
       "process/launch.h",
       "process/launch_starboard.cc",

@@ -209,7 +209,7 @@ class ReaderWriterHandler : public MessagePumpForIO::FdWatcher {
   ReaderWriterHandler& operator=(const ReaderWriterHandler&) = delete;
 
   // base::WatchableIOMessagePumpPosix::FdWatcher:
-  void OnFileCanReadWithoutBlocking(int fd) override {
+  void OnSocketReadyToRead(int fd) override {
     if (when_ == kOnReadEvent) {
       DoAction();
     } else {

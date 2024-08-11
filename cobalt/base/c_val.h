@@ -99,6 +99,7 @@ class CValImpl;
 // a CVal of type SizeInBytes, this can be made explicit, and allows the CVal
 // system to use KB/MB suffixes instead of K/M.
 namespace cval {
+
 class SizeInBytes {
  public:
   SizeInBytes(uint64 size_in_bytes)  // NOLINT(runtime/explicit)

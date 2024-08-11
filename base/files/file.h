@@ -22,7 +22,7 @@ struct stat;
 
 namespace base {
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 using stat_wrapper_t = struct ::stat;
 #else
 using stat_wrapper_t = struct stat;
@@ -357,11 +357,11 @@ class BASE_EXPORT File {
   bool DeleteOnClose(bool delete_on_close);
 #endif
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   static Error OSErrorToFileError(SbSystemError sb_system_error);
 #elif BUILDFLAG(IS_WIN)
   static Error OSErrorToFileError(DWORD last_error);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   static Error OSErrorToFileError(int saved_errno);
 #endif
 
@@ -378,7 +378,7 @@ class BASE_EXPORT File {
   // Wrapper for stat() or stat64().
   static int Stat(const char* path, stat_wrapper_t* sb);
   static int Fstat(int fd, stat_wrapper_t* sb);
-# if !defined(STARBOARD)
+# if !defined(STARBOARD) || (defined(STARBOARD) && SB_API_VERSION >= 16)
   // Starboard does not support lstat yet.
   static int Lstat(const char* path, stat_wrapper_t* sb);
 #endif

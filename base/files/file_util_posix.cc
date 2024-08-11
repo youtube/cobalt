@@ -75,6 +75,8 @@ extern "C" char* mkdtemp(char* path);
 
 namespace base {
 
+#if SB_API_VERSION >= 16
+
 namespace {
 
 #if BUILDFLAG(IS_MAC)
@@ -1362,5 +1364,7 @@ BASE_EXPORT bool IsPathExecutable(const FilePath& path) {
   return result;
 }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_AIX)
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace base

@@ -27,6 +27,7 @@
 #include "starboard/system.h"
 
 namespace base {
+
 namespace task_runner_util {
 
 namespace {
@@ -87,4 +88,5 @@ void PostBlockingTask(base::SequencedTaskRunner *task_runner,
 }
 
 }  // namespace task_runner_util
+
 }  // namespace base

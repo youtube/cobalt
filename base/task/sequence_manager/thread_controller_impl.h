@@ -61,7 +61,7 @@ class BASE_EXPORT ThreadControllerImpl : public ThreadController,
   void SetTaskExecutionAllowed(bool allowed) override;
   bool IsTaskExecutionAllowed() const override;
   MessagePump* GetBoundMessagePump() const override;
-#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID) || (defined(STARBOARD) && SB_API_VERSION <= 15)
   void AttachToMessagePump() override;
 #endif
 #if BUILDFLAG(IS_IOS)

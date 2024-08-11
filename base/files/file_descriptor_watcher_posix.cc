@@ -21,6 +21,8 @@
 
 namespace base {
 
+#if SB_API_VERSION >= 16
+
 namespace {
 
 // Per-thread FileDescriptorWatcher registration.
@@ -271,5 +273,7 @@ void FileDescriptorWatcher::AssertAllowed() {
   DCHECK(fd_watcher);
 }
 #endif
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace base

@@ -5,6 +5,9 @@
 #ifndef MINI_CHROMIUM_BASE_LOGGING_H_
 #define MINI_CHROMIUM_BASE_LOGGING_H_
 
+//#ifndef BASE_LOGGING_H_
+//#define BASE_LOGGING_H_
+
 #include <assert.h>
 #include <errno.h>
 
@@ -16,7 +19,7 @@
 #include "base/macros.h"
 #include "build/build_config.h"
 
-namespace logging {
+namespace mini_chromium_base_logging {
 
 typedef int LogSeverity;
 const LogSeverity LOG_VERBOSE = -1;
@@ -162,7 +165,7 @@ class ErrnoLogMessage : public LogMessage {
 };
 #endif
 
-}  // namespace logging
+}  // namespace mini_chromium_base_logging
 
 #if defined(COMPILER_MSVC)
 #define FUNCTION_SIGNATURE __FUNCSIG__
@@ -171,23 +174,23 @@ class ErrnoLogMessage : public LogMessage {
 #endif
 
 #define COMPACT_GOOGLE_LOG_EX_INFO(ClassName, ...) \
-    logging::ClassName(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
-                       logging::LOG_INFO, ## __VA_ARGS__)
+    mini_chromium_base_logging::ClassName(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
+                       mini_chromium_base_logging::LOG_INFO, ## __VA_ARGS__)
 #define COMPACT_GOOGLE_LOG_EX_WARNING(ClassName, ...) \
-    logging::ClassName(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
-                       logging::LOG_WARNING, ## __VA_ARGS__)
+    mini_chromium_base_logging::ClassName(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
+                       mini_chromium_base_logging::LOG_WARNING, ## __VA_ARGS__)
 #define COMPACT_GOOGLE_LOG_EX_ERROR(ClassName, ...) \
-    logging::ClassName(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
-                       logging::LOG_ERROR, ## __VA_ARGS__)
+    mini_chromium_base_logging::ClassName(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
+                       mini_chromium_base_logging::LOG_ERROR, ## __VA_ARGS__)
 #define COMPACT_GOOGLE_LOG_EX_ERROR_REPORT(ClassName, ...) \
-    logging::ClassName(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
-                       logging::LOG_ERROR_REPORT, ## __VA_ARGS__)
+    mini_chromium_base_logging::ClassName(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
+                       mini_chromium_base_logging::LOG_ERROR_REPORT, ## __VA_ARGS__)
 #define COMPACT_GOOGLE_LOG_EX_FATAL(ClassName, ...) \
-    logging::ClassName(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
-                       logging::LOG_FATAL, ## __VA_ARGS__)
+    mini_chromium_base_logging::ClassName(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
+                       mini_chromium_base_logging::LOG_FATAL, ## __VA_ARGS__)
 #define COMPACT_GOOGLE_LOG_EX_DFATAL(ClassName, ...) \
-    logging::ClassName(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
-                       logging::LOG_DFATAL, ## __VA_ARGS__)
+    mini_chromium_base_logging::ClassName(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
+                       mini_chromium_base_logging::LOG_DFATAL, ## __VA_ARGS__)
 
 #define COMPACT_GOOGLE_LOG_INFO \
     COMPACT_GOOGLE_LOG_EX_INFO(LogMessage)
@@ -214,39 +217,39 @@ class ErrnoLogMessage : public LogMessage {
 #define COMPACT_GOOGLE_LOG_EX_0(ClassName, ...) \
   COMPACT_GOOGLE_LOG_EX_ERROR(ClassName , ##__VA_ARGS__)
 #define COMPACT_GOOGLE_LOG_0 COMPACT_GOOGLE_LOG_ERROR
-namespace logging {
+namespace mini_chromium_base_logging {
 const LogSeverity LOG_0 = LOG_ERROR;
-}  // namespace logging
+}  // namespace mini_chromium_base_logging
 
 #endif  // OS_WIN
 
 #define LAZY_STREAM(stream, condition) \
-    !(condition) ? (void) 0 : ::logging::LogMessageVoidify() & (stream)
+    !(condition) ? (void) 0 : ::mini_chromium_base_logging::LogMessageVoidify() & (stream)
 
 #define LOG_IS_ON(severity) \
-    ((::logging::LOG_ ## severity) >= ::logging::GetMinLogLevel())
+    ((::mini_chromium_base_logging::LOG_ ## severity) >= ::mini_chromium_base_logging::GetMinLogLevel())
 #define VLOG_IS_ON(verbose_level) \
-    ((verbose_level) <= ::logging::GetVlogLevel(__FILE__))
+    ((verbose_level) <= ::mini_chromium_base_logging::GetVlogLevel(__FILE__))
 
 #define LOG_STREAM(severity) COMPACT_GOOGLE_LOG_ ## severity.stream()
 #define VLOG_STREAM(verbose_level) \
-    logging::LogMessage(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
+    mini_chromium_base_logging::LogMessage(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
                         -verbose_level).stream()
 
 #if defined(OS_WIN)
 #define PLOG_STREAM(severity) COMPACT_GOOGLE_LOG_EX_ ## severity( \
-    Win32ErrorLogMessage, ::logging::GetLastSystemErrorCode()).stream()
+    Win32ErrorLogMessage, ::mini_chromium_base_logging::GetLastSystemErrorCode()).stream()
 #define VPLOG_STREAM(verbose_level)                                       \
-    logging::Win32ErrorLogMessage(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
+    mini_chromium_base_logging::Win32ErrorLogMessage(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
                                   -verbose_level,                         \
-                                  ::logging::GetLastSystemErrorCode()).stream()
+                                  ::mini_chromium_base_logging::GetLastSystemErrorCode()).stream()
 #elif defined(OS_POSIX)
 #define PLOG_STREAM(severity) COMPACT_GOOGLE_LOG_EX_ ## severity( \
-    ErrnoLogMessage, ::logging::GetLastSystemErrorCode()).stream()
+    ErrnoLogMessage, ::mini_chromium_base_logging::GetLastSystemErrorCode()).stream()
 #define VPLOG_STREAM(verbose_level) \
-    logging::ErrnoLogMessage(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
+    mini_chromium_base_logging::ErrnoLogMessage(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
                              -verbose_level, \
-                             ::logging::GetLastSystemErrorCode()).stream()
+                             ::mini_chromium_base_logging::GetLastSystemErrorCode()).stream()
 #endif
 
 #define LOG(severity) LAZY_STREAM(LOG_STREAM(severity), LOG_IS_ON(severity))
@@ -280,9 +283,9 @@ const LogSeverity LOG_0 = LOG_ERROR;
 
 #define CHECK_OP(name, op, val1, val2) \
     if (std::string* _result = \
-          logging::Check ## name ## Impl((val1), (val2), \
+          mini_chromium_base_logging::Check ## name ## Impl((val1), (val2), \
                                          # val1 " " # op " " # val2)) \
-      logging::LogMessage(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
+      mini_chromium_base_logging::LogMessage(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
                           _result).stream()
 
 #define CHECK_EQ(val1, val2) CHECK_OP(EQ, ==, val1, val2)
@@ -334,9 +337,9 @@ const LogSeverity LOG_0 = LOG_ERROR;
 #define DCHECK_OP(name, op, val1, val2) \
     if (DCHECK_IS_ON()) \
       if (std::string* _result = \
-          logging::Check ## name ## Impl((val1), (val2), \
+          mini_chromium_base_logging::Check ## name ## Impl((val1), (val2), \
                                          # val1 " " # op " " # val2)) \
-        logging::LogMessage(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
+        mini_chromium_base_logging::LogMessage(FUNCTION_SIGNATURE, __FILE__, __LINE__, \
                             _result).stream()
 
 #define DCHECK_EQ(val1, val2) DCHECK_OP(EQ, ==, val1, val2)
@@ -352,3 +355,4 @@ const LogSeverity LOG_0 = LOG_ERROR;
 #define assert(condition) DLOG_ASSERT(condition)
 
 #endif  // MINI_CHROMIUM_BASE_LOGGING_H_
+//#endif  // BASE_LOGGING_H_

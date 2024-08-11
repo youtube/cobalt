@@ -113,7 +113,7 @@ void RandBytes(void* output, size_t output_length) {
   zx_cprng_draw(output, output_length);
 #elif defined(OS_POSIX)
   int fd = GetUrandomFD();
-  bool success = ReadFromFD(fd, static_cast<char*>(output), output_length);
+  bool success = mini_chromium_base::ReadFromFD(fd, static_cast<char*>(output), output_length);
   CHECK(success);
 #elif defined(OS_WIN)
   char* output_ptr = static_cast<char*>(output);

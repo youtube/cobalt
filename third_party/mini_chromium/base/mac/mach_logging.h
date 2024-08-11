@@ -30,9 +30,9 @@
 //   kr = vm_deallocate(task, address, size);
 //   MACH_DCHECK(kr == KERN_SUCCESS, kr) << "vm_deallocate";
 
-namespace logging {
+namespace mini_chromium_base_logging {
 
-class MachLogMessage : public logging::LogMessage {
+class MachLogMessage : public mini_chromium_base_logging::LogMessage {
  public:
   MachLogMessage(const char* function,
                  const char* file_path,
@@ -47,12 +47,12 @@ class MachLogMessage : public logging::LogMessage {
   DISALLOW_COPY_AND_ASSIGN(MachLogMessage);
 };
 
-}  // namespace logging
+}  // namespace mini_chromium_base_logging
 
 #define MACH_LOG_STREAM(severity, mach_err) \
     COMPACT_GOOGLE_LOG_EX_ ## severity(MachLogMessage, mach_err).stream()
 #define MACH_VLOG_STREAM(verbose_level, mach_err) \
-    logging::MachLogMessage(__PRETTY_FUNCTION__, __FILE__, __LINE__, \
+    mini_chromium_base_logging::MachLogMessage(__PRETTY_FUNCTION__, __FILE__, __LINE__, \
                             -verbose_level, mach_err).stream()
 
 #define MACH_LOG(severity, mach_err) \
@@ -92,9 +92,9 @@ class MachLogMessage : public logging::LogMessage {
 
 #if !defined(OS_IOS)
 
-namespace logging {
+namespace mini_chromium_base_logging {
 
-class BootstrapLogMessage : public logging::LogMessage {
+class BootstrapLogMessage : public mini_chromium_base_logging::LogMessage {
  public:
   BootstrapLogMessage(const char* function,
                       const char* file_path,
@@ -109,13 +109,13 @@ class BootstrapLogMessage : public logging::LogMessage {
   DISALLOW_COPY_AND_ASSIGN(BootstrapLogMessage);
 };
 
-}  // namespace logging
+}  // namespace mini_chromium_base_logging
 
 #define BOOTSTRAP_LOG_STREAM(severity, bootstrap_err) \
     COMPACT_GOOGLE_LOG_EX_ ## severity(BootstrapLogMessage, \
                                        bootstrap_err).stream()
 #define BOOTSTRAP_VLOG_STREAM(verbose_level, bootstrap_err) \
-    logging::BootstrapLogMessage(__PRETTY_FUNCTION__, __FILE__, __LINE__, \
+    mini_chromium_base_logging::BootstrapLogMessage(__PRETTY_FUNCTION__, __FILE__, __LINE__, \
                             -verbose_level, bootstrap_err).stream()
 
 #define BOOTSTRAP_LOG(severity, bootstrap_err) \

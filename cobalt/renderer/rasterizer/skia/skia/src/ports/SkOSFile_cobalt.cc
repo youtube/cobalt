@@ -90,7 +90,9 @@ size_t sk_fwrite(const void* buffer, size_t byteCount, FILE* sk_file) {
   SbFile file = ToSbFile(sk_file);
   int result =
       SbFileWrite(file, reinterpret_cast<const char*>(buffer), byteCount);
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   base::RecordFileWriteStat(result);
+#endif
   return result;
 }
 

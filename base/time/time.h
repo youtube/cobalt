@@ -99,7 +99,7 @@
 #include <jni.h>
 #endif
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 #include <unistd.h>
 #include <sys/time.h>
 #endif
@@ -206,6 +206,11 @@ class BASE_EXPORT TimeDelta {
                                             MakeClampedNum(n))
             : TimeDelta::Max();
   }
+
+#if SB_API_VERSION >= 16
+  static TimeDelta FromTimeSpec(const timespec& ts);
+#endif
+
 #elif BUILDFLAG(IS_WIN)
   static TimeDelta FromQPCValue(LONGLONG qpc_value);
   // TODO(crbug.com/989694): Avoid base::TimeDelta factory functions
@@ -278,7 +283,7 @@ class BASE_EXPORT TimeDelta {
   constexpr bool is_min() const { return *this == Min(); }
   constexpr bool is_inf() const { return is_min() || is_max(); }
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   struct timespec ToTimeSpec() const;
 #endif
 #if BUILDFLAG(IS_FUCHSIA)
@@ -740,6 +745,9 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   double ToDoubleT() const;
 
 #if defined(STARBOARD)
+#if SB_API_VERSION >= 16
+  static Time FromTimeSpec(const timespec& ts);
+#endif
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // Converts the timespec structure to time. MacOS X 10.8.3 (and tentatively,
   // earlier versions) will have the |ts|'s tv_nsec component zeroed out,
@@ -766,7 +774,7 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   static Time FromJavaTime(int64_t ms_since_epoch);
   int64_t ToJavaTime() const;
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   static Time FromTimeVal(struct timeval t);
   struct timeval ToTimeVal() const;
 #endif

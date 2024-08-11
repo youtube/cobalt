@@ -24,7 +24,7 @@ namespace base {
 
 namespace internal {
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 struct BASE_EXPORT ScopedFDCloseTraits {
   static int InvalidValue() { return -1; }
   static void Free(int file) { if (file >= 0) {close(file);} }
@@ -37,7 +37,7 @@ struct BASE_EXPORT ScopedFDCloseTraits : public ScopedGenericOwnershipTracking {
   static void Acquire(const ScopedGeneric<int, ScopedFDCloseTraits>&, int);
   static void Release(const ScopedGeneric<int, ScopedFDCloseTraits>&, int);
 };
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 // On ChromeOS and Linux we guard FD lifetime with a global table and hook into
 // libc close() to perform checks.
@@ -56,7 +56,7 @@ struct BASE_EXPORT ScopedFDCloseTraits {
 };
 #endif
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 // Functor for |ScopedFILE| (below).
 struct ScopedFILECloser {
   inline void operator()(int* x) const {
@@ -127,7 +127,7 @@ typedef ScopedGeneric<int, internal::ScopedFDCloseTraits> ScopedFD;
 #endif
 
 // Automatically closes |FILE*|s.
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 typedef std::unique_ptr<starboard::ScopedFile> ScopedFILE;
 #else
 typedef std::unique_ptr<FILE, internal::ScopedFILECloser> ScopedFILE;

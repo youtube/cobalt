@@ -217,11 +217,12 @@ enum : uint32_t {
 // On POSIX platforms, where it may not even be possible to locate the
 // executable on disk, use stderr.
 // On Fuchsia, use the Fuchsia logging service.
-#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_NACL) || defined(STARBOARD)
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_NACL) || \
+    (defined(STARBOARD) && SB_API_VERSION <= 15)
   LOG_DEFAULT = LOG_TO_SYSTEM_DEBUG_LOG,
 #elif BUILDFLAG(IS_WIN)
   LOG_DEFAULT = LOG_TO_FILE,
-#elif BUILDFLAG(IS_POSIX)
+#elif BUILDFLAG(IS_POSIX) || SB_API_VERSION >= 16
   LOG_DEFAULT = LOG_TO_SYSTEM_DEBUG_LOG | LOG_TO_STDERR,
 #endif
 };
@@ -530,7 +531,7 @@ BASE_EXPORT int GetDisableAllVLogLevel();
   LAZY_STREAM(VLOG_STREAM(verbose_level), \
       VLOG_IS_ON(verbose_level) && (condition))
 
-#if defined (STARBOARD)
+#if defined (STARBOARD) && SB_API_VERSION <= 15
 #define VPLOG_STREAM(verbose_level) \
   ::logging::StarboardErrorLogMessage(__FILE__, __LINE__, -verbose_level, \
     ::logging::GetLastSystemErrorCode()).stream()
@@ -538,7 +539,7 @@ BASE_EXPORT int GetDisableAllVLogLevel();
 #define VPLOG_STREAM(verbose_level) \
   ::logging::Win32ErrorLogMessage(__FILE__, __LINE__, -(verbose_level), \
     ::logging::GetLastSystemErrorCode()).stream()
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 #define VPLOG_STREAM(verbose_level) \
   ::logging::ErrnoLogMessage(__FILE__, __LINE__, -(verbose_level), \
     ::logging::GetLastSystemErrorCode()).stream()
@@ -557,7 +558,7 @@ BASE_EXPORT int GetDisableAllVLogLevel();
   LOG_IF(FATAL, !(ANALYZER_ASSUME_TRUE(condition))) \
       << "Assert failed: " #condition ". "
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 #define PLOG_STREAM(severity) \
   COMPACT_GOOGLE_LOG_EX_ ## severity(StarboardErrorLogMessage, \
       ::logging::GetLastSystemErrorCode()).stream()
@@ -565,7 +566,7 @@ BASE_EXPORT int GetDisableAllVLogLevel();
 #define PLOG_STREAM(severity) \
   COMPACT_GOOGLE_LOG_EX_ ## severity(Win32ErrorLogMessage, \
       ::logging::GetLastSystemErrorCode()).stream()
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 #define PLOG_STREAM(severity) \
   COMPACT_GOOGLE_LOG_EX_ ## severity(ErrnoLogMessage, \
       ::logging::GetLastSystemErrorCode()).stream()
@@ -658,6 +659,7 @@ class BASE_EXPORT LogMessage {
 
   // Used for CHECK().  Implied severity = LOGGING_FATAL.
   LogMessage(const char* file, int line, const char* condition);
+
   LogMessage(const LogMessage&) = delete;
   LogMessage& operator=(const LogMessage&) = delete;
   virtual ~LogMessage();
@@ -712,11 +714,11 @@ class LogMessageVoidify {
   void operator&(std::ostream&) { }
 };
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 typedef SbSystemError SystemErrorCode;
 #elif BUILDFLAG(IS_WIN)
 typedef unsigned long SystemErrorCode;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 typedef int SystemErrorCode;
 #endif
 
@@ -725,7 +727,7 @@ typedef int SystemErrorCode;
 BASE_EXPORT SystemErrorCode GetLastSystemErrorCode();
 BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code);
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 // Appends a formatted system message of the GetLastError() type.
 class BASE_EXPORT StarboardErrorLogMessage : public LogMessage {
  public:
@@ -763,7 +765,7 @@ class BASE_EXPORT Win32ErrorLogMessage : public LogMessage {
  private:
   SystemErrorCode err_;
 };
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 // Appends a formatted system message of the errno type
 class BASE_EXPORT ErrnoLogMessage : public LogMessage {
  public:
@@ -771,6 +773,11 @@ class BASE_EXPORT ErrnoLogMessage : public LogMessage {
                   int line,
                   LogSeverity severity,
                   SystemErrorCode err);
+  ErrnoLogMessage(const char* function,
+                  const char* file,
+                  int line,
+                  LogSeverity severity,
+                  int err);
   ErrnoLogMessage(const ErrnoLogMessage&) = delete;
   ErrnoLogMessage& operator=(const ErrnoLogMessage&) = delete;
   // Appends the error message before destructing the encapsulated class.

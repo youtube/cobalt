@@ -10,7 +10,7 @@
 
 #include "build/build_config.h"
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 #include "base/message_loop/message_pump_ui_starboard.h"
 #elif BUILDFLAG(IS_WIN)
 #include "base/message_loop/message_pump_win.h"
@@ -22,7 +22,7 @@
 // No MessagePumpForUI, see below.
 #elif defined(USE_GLIB)
 #include "base/message_loop/message_pump_glib.h"
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_BSD)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_BSD) || SB_API_VERSION >= 16
 #include "base/message_loop/message_pump_libevent.h"
 #elif BUILDFLAG(IS_FUCHSIA)
 #include "base/message_loop/message_pump_fuchsia.h"
@@ -30,7 +30,7 @@
 
 namespace base {
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 using MessagePumpForUI = MessagePumpUIStarboard;
 #elif BUILDFLAG(IS_WIN)
 // Windows defines it as-is.
@@ -48,7 +48,7 @@ using MessagePumpForUI = MessagePump;
 // TODO(abarth): Figure out if we need this.
 #elif defined(USE_GLIB)
 using MessagePumpForUI = MessagePumpGlib;
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_BSD)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_BSD) || SB_API_VERSION >= 16
 using MessagePumpForUI = MessagePumpLibevent;
 #elif BUILDFLAG(IS_FUCHSIA)
 using MessagePumpForUI = MessagePumpFuchsia;

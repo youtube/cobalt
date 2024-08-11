@@ -8,7 +8,7 @@
 
 #include <iomanip>
 
-namespace logging {
+namespace mini_chromium_base_logging {
 
 ZxLogMessage::ZxLogMessage(const char* function,
                            const char* file_path,
@@ -24,4 +24,4 @@ ZxLogMessage::~ZxLogMessage() {
   stream() << ": " << zx_status_get_string(zx_err_) << " (" << zx_err_ << ")";
 }
 
-}  // namespace logging
+}  // namespace mini_chromium_base_logging

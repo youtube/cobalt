@@ -15,6 +15,9 @@
 #include "build/build_config.h"
 
 namespace base {
+
+#if SB_API_VERSION >= 16
+
 namespace {
 
 void GetStat(const FilePath& path, bool show_links, stat_wrapper_t* st) {
@@ -257,5 +260,7 @@ bool FileEnumerator::IsPatternMatched(const FilePath& path) const {
   return pattern_.empty() ||
          !fnmatch(pattern_.c_str(), path.value().c_str(), FNM_NOESCAPE);
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace base

@@ -61,7 +61,9 @@ void EncodeRGBAToPNG(const base::FilePath& png_file_path,
   DCHECK_NE(file.GetPlatformFile(), -1);
   int bytes_written =
       file.WriteAtCurrentPos(reinterpret_cast<char*>(buffer.get()), size);
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   base::RecordFileWriteStat(bytes_written);
+#endif
   DLOG_IF(ERROR, bytes_written != size) << "Error writing PNG to file.";
 }
 

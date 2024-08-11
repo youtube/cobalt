@@ -61,7 +61,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 
-namespace logging {
+namespace mini_chromium_base_logging {
 
 namespace {
 
@@ -490,4 +490,4 @@ ErrnoLogMessage::~ErrnoLogMessage() {
 
 #endif  // OS_POSIX
 
-}  // namespace logging
+}  // namespace mini_chromium_base_logging

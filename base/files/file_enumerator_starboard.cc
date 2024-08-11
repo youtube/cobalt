@@ -28,6 +28,8 @@
 
 namespace base {
 
+#if SB_API_VERSION <= 15
+
 // FileEnumerator::FileInfo ----------------------------------------------------
 
 FileEnumerator::FileInfo::FileInfo() {
@@ -224,5 +226,7 @@ FileEnumerator::FileInfo FileEnumerator::GetInfo() const {
   DCHECK(!(file_type_ & FileType::NAMES_ONLY));
   return directory_entries_[current_directory_entry_];
 }
+
+#endif  // SB_API_VERSION <= 15
 
 }  // namespace base

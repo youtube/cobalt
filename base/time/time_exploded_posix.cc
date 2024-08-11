@@ -120,6 +120,8 @@ void SysTimeToTimeStruct(SysTime t, struct tm* timestruct, bool is_local) {
 
 namespace base {
 
+#if SB_API_VERSION >= 16
+
 void Time::Explode(bool is_local, Exploded* exploded) const {
   const int64_t millis_since_unix_epoch =
       ToRoundedDownMillisecondsSinceUnixEpoch();
@@ -287,5 +289,7 @@ bool Time::FromExploded(bool is_local, const Exploded& exploded, Time* time) {
   *time = Time(0);
   return false;
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace base

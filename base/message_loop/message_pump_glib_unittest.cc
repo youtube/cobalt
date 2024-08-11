@@ -717,14 +717,14 @@ class NestedPumpWatcher : public MessagePumpGlib::FdWatcher {
   NestedPumpWatcher() = default;
   ~NestedPumpWatcher() override = default;
 
-  void OnFileCanReadWithoutBlocking(int /* fd */) override {
+  void OnFileCanWriteWithoutBlocking(int /* fd */) override {
     RunLoop runloop;
     SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, BindOnce(&QuitMessageLoopAndStart, runloop.QuitClosure()));
     runloop.Run();
   }
 
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override {}
+  void OnSocketReadyToWrite(int /* fd */) override {}
 };
 
 class QuitWatcher : public DeleteWatcher {

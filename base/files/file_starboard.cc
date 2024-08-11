@@ -32,6 +32,8 @@
 
 namespace base {
 
+#if SB_API_VERSION <= 15
+
 namespace {
 SbFileError g_sb_file_error = kSbFileOk;
 }  // namespace
@@ -502,5 +504,7 @@ File File::Duplicate() const {
   NOTREACHED();
   return File();
 }
+
+#endif  // SB_API_VERSION <= 15
 
 }  // namespace base

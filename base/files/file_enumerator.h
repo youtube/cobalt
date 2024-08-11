@@ -17,13 +17,13 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 #include <sys/stat.h>
 #include <unistd.h>
 #include "starboard/file.h"
 #elif BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 #include <sys/stat.h>
 #include <unistd.h>
 #include <unordered_set>
@@ -96,8 +96,8 @@ class BASE_EXPORT FileEnumerator {
     // called.
     NAMES_ONLY = 1 << 3,
 
-#if defined(STARBOARD)
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
     SHOW_SYM_LINKS = 1 << 4,
 #endif
   };
@@ -193,7 +193,7 @@ class BASE_EXPORT FileEnumerator {
 
   bool IsPatternMatched(const FilePath& src) const;
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
   std::vector<FileInfo> ReadDirectory(const FilePath& source);
 
   // The files in the current directory
@@ -210,7 +210,7 @@ class BASE_EXPORT FileEnumerator {
   bool has_find_data_ = false;
   CHROME_WIN32_FIND_DATA find_data_;
   HANDLE find_handle_ = INVALID_HANDLE_VALUE;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
   // The files in the current directory
   std::vector<FileInfo> directory_entries_;
 

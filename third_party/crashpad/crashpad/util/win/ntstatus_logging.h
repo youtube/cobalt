@@ -20,9 +20,9 @@
 #include "base/logging.h"
 #include "base/macros.h"
 
-namespace logging {
+namespace mini_chromium_base_logging {
 
-class NtstatusLogMessage : public logging::LogMessage {
+class NtstatusLogMessage : public mini_chromium_base_logging::LogMessage {
  public:
   NtstatusLogMessage(
 #if defined(MINI_CHROMIUM_BASE_LOGGING_H_)
@@ -40,7 +40,7 @@ class NtstatusLogMessage : public logging::LogMessage {
   DISALLOW_COPY_AND_ASSIGN(NtstatusLogMessage);
 };
 
-}  // namespace logging
+}  // namespace mini_chromium_base_logging
 
 #define NTSTATUS_LOG_STREAM(severity, ntstatus) \
   COMPACT_GOOGLE_LOG_EX_##severity(NtstatusLogMessage, ntstatus).stream()
@@ -48,14 +48,14 @@ class NtstatusLogMessage : public logging::LogMessage {
 #if defined(MINI_CHROMIUM_BASE_LOGGING_H_)
 
 #define NTSTATUS_VLOG_STREAM(verbose_level, ntstatus)                    \
-  logging::NtstatusLogMessage(                                           \
+  mini_chromium_base_logging::NtstatusLogMessage(                                           \
       __PRETTY_FUNCTION__, __FILE__, __LINE__, -verbose_level, ntstatus) \
       .stream()
 
 #else
 
 #define NTSTATUS_VLOG_STREAM(verbose_level, ntstatus)                       \
-  logging::NtstatusLogMessage(__FILE__, __LINE__, -verbose_level, ntstatus) \
+  mini_chromium_base_logging::NtstatusLogMessage(__FILE__, __LINE__, -verbose_level, ntstatus) \
       .stream()
 
 #endif  // MINI_CHROMIUM_BASE_LOGGING_H_

@@ -27,7 +27,7 @@
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 #include <sys/stat.h>
 #include <unistd.h>
 #include "base/posix/eintr_wrapper.h"
@@ -50,7 +50,7 @@ class Time;
 // 3) it removes "." and ".." directory components.
 BASE_EXPORT FilePath MakeAbsoluteFilePath(const FilePath& input);
 
-#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX) || SB_API_VERSION >= 16
 // Prepends the current working directory if `input` is not already absolute,
 // and removes "/./" and "/../" This is similar to MakeAbsoluteFilePath(), but
 // MakeAbsoluteFilePath() expands all symlinks in the path and this does not.
@@ -252,7 +252,7 @@ BASE_EXPORT bool ReadFileToStringWithMaxSize(const FilePath& path,
                                              std::string* contents,
                                              size_t max_size);
 
-#if !defined(STARBOARD)
+#if !defined(STARBOARD) || SB_API_VERSION >= 16
 // As ReadFileToString, but reading from an open stream after seeking to its
 // start (if supported by the stream). This can also be used to read the whole
 // file from a file descriptor by converting the file descriptor into a stream
@@ -266,7 +266,7 @@ BASE_EXPORT bool ReadStreamToStringWithMaxSize(FILE* stream,
                                                std::string* contents);
 #endif
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 
 // Read exactly |bytes| bytes from file descriptor |fd|, storing the result
 // in |buffer|. This function is protected against EINTR and partial reads.
@@ -281,9 +281,9 @@ BASE_EXPORT bool ReadFromFD(int fd, char* buffer, size_t bytes);
 BASE_EXPORT ScopedFD CreateAndOpenFdForTemporaryFileInDir(const FilePath& dir,
                                                           FilePath* path);
 
-#endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 
-#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX) || SB_API_VERSION >= 16
 
 // ReadFileToStringNonBlocking is identical to ReadFileToString except it
 // guarantees that it will not block. This guarantee is provided on POSIX by
@@ -354,7 +354,7 @@ BASE_EXPORT bool ExecutableExistsInPath(Environment* env,
 BASE_EXPORT bool IsPathExecutable(const FilePath& path);
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_AIX)
 
-#endif  // BUILDFLAG(IS_POSIX)
+#endif  // BUILDFLAG(IS_POSIX) || SB_API_VERSION >= 16
 
 // Returns true if the given directory is empty
 BASE_EXPORT bool IsDirectoryEmpty(const FilePath& dir_path);
@@ -549,7 +549,7 @@ BASE_EXPORT bool WriteFile(const FilePath& filename, span<const uint8_t> data);
 // do manual conversions from a char span to a uint8_t span.
 BASE_EXPORT bool WriteFile(const FilePath& filename, StringPiece data);
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 // Appends |data| to |fd|. Does not close |fd| when done.  Returns true iff all
 // of |data| were written to |fd|.
 BASE_EXPORT bool WriteFileDescriptor(int fd, span<const uint8_t> data);
@@ -627,7 +627,7 @@ BASE_EXPORT bool PreReadFile(
     bool is_executable,
     int64_t max_bytes = std::numeric_limits<int64_t>::max());
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 
 // Creates a pipe. Returns true on success, otherwise false.
 // On success, |read_fd| will be set to the fd of the read side, and
@@ -648,7 +648,7 @@ BASE_EXPORT bool CreateLocalNonBlockingPipe(int fds[2]);
 // Returns true if it was able to set it in the close-on-exec mode, otherwise
 // false.
 BASE_EXPORT bool SetCloseOnExec(int fd);
-#endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 
 #if BUILDFLAG(IS_MAC)
 // Test that |path| can only be changed by a given user and members of
@@ -681,7 +681,7 @@ BASE_EXPORT bool VerifyPathControlledByAdmin(const base::FilePath& path);
 // the directory |path|, in the number of FilePath::CharType, or -1 on failure.
 BASE_EXPORT int GetMaximumPathComponentLength(const base::FilePath& path);
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 // Get a temporary directory for shared memory files. The directory may depend
 // on whether the destination is intended for executable files, which in turn
 // depends on how /dev/shmem was mounted. As a result, you must supply whether

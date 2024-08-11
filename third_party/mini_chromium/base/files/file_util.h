@@ -11,11 +11,11 @@
 
 #include <sys/types.h>
 
-namespace base {
+namespace mini_chromium_base {
 
 bool ReadFromFD(int fd, char* buffer, size_t bytes);
 
-}  // namespace base
+}  // namespace mini_chromium_base
 
 #endif  // OS_POSIX
 
