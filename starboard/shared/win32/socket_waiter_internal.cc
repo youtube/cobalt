@@ -21,7 +21,6 @@
 #include <utility>
 
 #include "starboard/common/log.h"
-#include "starboard/common/optional.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/socket_internal.h"
@@ -400,7 +399,7 @@ bool SbSocketWaiterPrivate::CheckSocketRegistered(int socket) {
     return false;
   }
 
-  if (waitees_.GetIndex(socket) == starboard::nullopt) {
+  if (waitees_.GetIndex(socket) == std::nullopt) {
     return false;
   }
 
@@ -427,7 +426,7 @@ bool SbSocketWaiterPrivate::CheckSocketRegistered(SbSocket socket) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
     return false;
   }
-  if (waitees_.GetIndex(socket) == starboard::nullopt) {
+  if (waitees_.GetIndex(socket) == std::nullopt) {
     return false;
   }
 
@@ -629,18 +628,18 @@ void SbSocketWaiterPrivate::WakeUp() {
 #if SB_API_VERSION >= 16
 SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::WaiteeRegistry::GetWaitee(
     int socket) {
-  starboard::optional<int64_t> token = GetIndex(socket);
+  std::optional<int64_t> token = GetIndex(socket);
   if (!token) {
     return nullptr;
   }
   return waitees_[token.value()].get();
 }
 
-starboard::optional<int64_t> SbSocketWaiterPrivate::WaiteeRegistry::GetIndex(
+std::optional<int64_t> SbSocketWaiterPrivate::WaiteeRegistry::GetIndex(
     int socket) {
   auto iterator = posix_socket_to_index_map_.find(socket);
   if (iterator == posix_socket_to_index_map_.end()) {
-    return starboard::nullopt;
+    return std::nullopt;
   }
 
   return iterator->second;
@@ -677,18 +676,18 @@ bool SbSocketWaiterPrivate::WaiteeRegistry::RemoveSocket(int socket) {
 
 SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::WaiteeRegistry::GetWaitee(
     SbSocket socket) {
-  starboard::optional<int64_t> token = GetIndex(socket);
+  std::optional<int64_t> token = GetIndex(socket);
   if (!token) {
     return nullptr;
   }
   return waitees_[token.value()].get();
 }
 
-starboard::optional<int64_t> SbSocketWaiterPrivate::WaiteeRegistry::GetIndex(
+std::optional<int64_t> SbSocketWaiterPrivate::WaiteeRegistry::GetIndex(
     SbSocket socket) {
   auto iterator = socket_to_index_map_.find(socket);
   if (iterator == socket_to_index_map_.end()) {
-    return starboard::nullopt;
+    return std::nullopt;
   }
   return iterator->second;
 }

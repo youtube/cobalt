@@ -104,15 +104,15 @@ bool IsSoftwareDecodeRequired(const std::string& max_video_capabilities) {
 void ParseMaxResolution(const std::string& max_video_capabilities,
                         int frame_width,
                         int frame_height,
-                        optional<int>* max_width,
-                        optional<int>* max_height) {
+                        std::optional<int>* max_width,
+                        std::optional<int>* max_height) {
   SB_DCHECK(frame_width > 0);
   SB_DCHECK(frame_height > 0);
   SB_DCHECK(max_width);
   SB_DCHECK(max_height);
 
-  *max_width = nullopt;
-  *max_height = nullopt;
+  *max_width = std::nullopt;
+  *max_height = std::nullopt;
 
   if (max_video_capabilities.empty()) {
     SB_LOG(INFO)
@@ -143,8 +143,8 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
   if (width != -1 && height != -1) {
     *max_width = width;
     *max_height = height;
-    SB_LOG(INFO) << "Parsed max resolutions @ (" << *max_width << ", "
-                 << *max_height << ").";
+    SB_LOG(INFO) << "Parsed max resolutions @ (" << max_width->value() << ", "
+                 << max_height->value() << ").";
     return;
   }
 
@@ -159,8 +159,8 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
   if (width > 0) {
     *max_width = width;
     *max_height = max_width->value() * frame_height / frame_width;
-    SB_LOG(INFO) << "Inferred max height (" << *max_height
-                 << ") from max_width (" << *max_width
+    SB_LOG(INFO) << "Inferred max height (" << max_height
+                 << ") from max_width (" << max_width
                  << ") and frame resolution @ (" << frame_width << ", "
                  << frame_height << ").";
     return;
@@ -169,8 +169,8 @@ void ParseMaxResolution(const std::string& max_video_capabilities,
   if (height > 0) {
     *max_height = height;
     *max_width = max_height->value() * frame_width / frame_height;
-    SB_LOG(INFO) << "Inferred max width (" << *max_width
-                 << ") from max_height (" << *max_height
+    SB_LOG(INFO) << "Inferred max width (" << max_width->value()
+                 << ") from max_height (" << max_height->value()
                  << ") and frame resolution @ (" << frame_width << ", "
                  << frame_height << ").";
   }
@@ -618,7 +618,7 @@ void VideoDecoder::Reset() {
   // may have invalid frames. Reset |output_format_| to null here to skip max
   // output buffers check.
   decoded_output_frames_ = 0;
-  output_format_ = starboard::nullopt;
+  output_format_ = std::nullopt;
 
   tunnel_mode_prerolling_.store(true);
   tunnel_mode_frame_rendered_.store(false);
@@ -718,7 +718,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
     SB_DCHECK(video_fps_ == 0);
   }
 
-  optional<int> max_width, max_height;
+  std::optional<int> max_width, max_height;
   // TODO(b/281431214): Evaluate if we should also parse the fps from
   //                    `max_video_capabilities_` and pass to MediaDecoder ctor.
   ParseMaxResolution(max_video_capabilities_, video_stream_info.frame_width,
@@ -761,7 +761,7 @@ void VideoDecoder::TeardownCodec() {
     owns_video_surface_ = false;
   }
   media_decoder_.reset();
-  color_metadata_ = starboard::nullopt;
+  color_metadata_ = std::nullopt;
 
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
   {
@@ -931,7 +931,7 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
     // resolutions. In that case, it's hard to determine the max supported
     // output buffers. So, we reset |output_format_| to null here to skip max
     // output buffers check.
-    output_format_ = starboard::nullopt;
+    output_format_ = std::nullopt;
     return;
   }
   output_format_ = VideoOutputFormat(

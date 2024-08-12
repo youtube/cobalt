@@ -129,7 +129,7 @@ bool SocketTracker::IsSocketTracked(SbSocket socket) {
   return iter != sockets_.end();
 }
 
-const optional<SbSocketAddress>& SocketTracker::GetLocalAddress(
+const std::optional<SbSocketAddress>& SocketTracker::GetLocalAddress(
     SbSocket socket) const {
   ScopedLock scoped_lock(mutex_);
   auto iter = sockets_.find(socket);

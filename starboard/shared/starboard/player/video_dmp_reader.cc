@@ -240,7 +240,7 @@ const media::AudioSampleInfo& VideoDmpReader::GetAudioSampleInfo(size_t index) {
 
 void VideoDmpReader::ParseHeader(uint32_t* dmp_writer_version) {
   SB_DCHECK(dmp_writer_version);
-  SB_DCHECK(!reverse_byte_order_.has_engaged());
+  SB_DCHECK(!reverse_byte_order_.has_value());
 
   int64_t file_size = file_reader_.GetSize();
   SB_CHECK(file_size >= 0);
@@ -298,7 +298,7 @@ bool VideoDmpReader::ParseOneRecord() {
 }
 
 void VideoDmpReader::Parse() {
-  SB_DCHECK(!reverse_byte_order_.has_engaged());
+  SB_DCHECK(!reverse_byte_order_.has_value());
 
   uint32_t dmp_writer_version = 0;
   ParseHeader(&dmp_writer_version);
@@ -355,7 +355,7 @@ void VideoDmpReader::Parse() {
 }
 
 void VideoDmpReader::EnsureSampleLoaded(SbMediaType type, size_t index) {
-  if (!reverse_byte_order_.has_engaged()) {
+  if (!reverse_byte_order_.has_value()) {
     uint32_t dmp_writer_version = 0;
     ParseHeader(&dmp_writer_version);
     SB_DCHECK(dmp_writer_version == kSupportedWriterVersion);

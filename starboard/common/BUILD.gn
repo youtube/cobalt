@@ -61,8 +61,6 @@ static_library("common") {
     "mutex.cc",
     "mutex.h",
     "new.cc",
-    "optional.cc",
-    "optional.h",
     "paths.cc",
     "paths.h",
     "player.cc",

@@ -17,13 +17,13 @@
 
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/common/optional.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -162,7 +162,7 @@ class AudioRendererPcm : public AudioRenderer,
   const int bytes_per_frame_;
 
   std::unique_ptr<AudioResampler> resampler_;
-  optional<int> decoder_sample_rate_;
+  std::optional<int> decoder_sample_rate_;
   AudioTimeStretcher time_stretcher_;
 
   std::vector<uint8_t> frame_buffer_;

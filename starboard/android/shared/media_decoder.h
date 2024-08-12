@@ -19,6 +19,7 @@
 
 #include <deque>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -27,7 +28,6 @@
 #include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
-#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -88,8 +88,8 @@ class MediaDecoder final
                // resolution of the video.
                int width_hint,
                int height_hint,
-               optional<int> max_width,
-               optional<int> max_height,
+               std::optional<int> max_width,
+               std::optional<int> max_height,
                int fps,
                jobject j_output_surface,
                SbDrmSystem drm_system,
@@ -192,7 +192,7 @@ class MediaDecoder final
 
   atomic_bool destroying_;
 
-  optional<QueueInputBufferTask> pending_queue_input_buffer_task_;
+  std::optional<QueueInputBufferTask> pending_queue_input_buffer_task_;
 
   atomic_int32_t number_of_pending_tasks_;
 
