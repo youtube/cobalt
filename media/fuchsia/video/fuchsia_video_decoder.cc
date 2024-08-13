@@ -4,7 +4,9 @@
 
 #include "media/fuchsia/video/fuchsia_video_decoder.h"
 
+#include <fuchsia/images2/cpp/fidl.h>
 #include <fuchsia/sysmem/cpp/fidl.h>
+#include <fuchsia/sysmem2/cpp/fidl.h>
 #include <lib/zx/eventpair.h>
 #include <vulkan/vulkan.h>
 
@@ -66,17 +68,17 @@ constexpr size_t kNumInputBuffers = 2;
 // codecs, not just H264).
 constexpr size_t kInputBufferSize = 1920 * 1080 * 3 / 2 / 2 + 128 * 1024;
 
-const fuchsia::sysmem::PixelFormatType kSupportedPixelFormats[] = {
-    fuchsia::sysmem::PixelFormatType::NV12,
-    fuchsia::sysmem::PixelFormatType::I420,
-    fuchsia::sysmem::PixelFormatType::YV12,
+const fuchsia::images2::PixelFormat kSupportedPixelFormats[] = {
+    fuchsia::images2::PixelFormat::NV12,
+    fuchsia::images2::PixelFormat::I420,
+    fuchsia::images2::PixelFormat::YV12,
 };
-const fuchsia::sysmem::ColorSpaceType kSupportedColorSpaces[] = {
-    fuchsia::sysmem::ColorSpaceType::REC601_NTSC,
-    fuchsia::sysmem::ColorSpaceType::REC601_NTSC_FULL_RANGE,
-    fuchsia::sysmem::ColorSpaceType::REC601_PAL,
-    fuchsia::sysmem::ColorSpaceType::REC601_PAL_FULL_RANGE,
-    fuchsia::sysmem::ColorSpaceType::REC709,
+const fuchsia::images2::ColorSpace kSupportedColorSpaces[] = {
+    fuchsia::images2::ColorSpace::REC601_NTSC,
+    fuchsia::images2::ColorSpace::REC601_NTSC_FULL_RANGE,
+    fuchsia::images2::ColorSpace::REC601_PAL,
+    fuchsia::images2::ColorSpace::REC601_PAL_FULL_RANGE,
+    fuchsia::images2::ColorSpace::REC709,
 };
 
 absl::optional<gfx::Size> ParseMinBufferSize() {
@@ -438,7 +440,7 @@ DecoderStatus FuchsiaVideoDecoder::InitializeSysmemBufferStream(
 }
 
 void FuchsiaVideoDecoder::OnSysmemBufferStreamBufferCollectionToken(
-    fuchsia::sysmem::BufferCollectionTokenPtr token) {
+    fuchsia::sysmem2::BufferCollectionTokenPtr token) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(decoder_);
   decoder_->SetInputBufferCollectionToken(std::move(token));
@@ -485,29 +487,25 @@ void FuchsiaVideoDecoder::OnStreamProcessorAllocateOutputBuffers(
                      base::Unretained(this)),
       "gpu");
 
-  fuchsia::sysmem::BufferCollectionConstraints buffer_constraints;
-  buffer_constraints.usage.none = fuchsia::sysmem::noneUsage;
-  buffer_constraints.min_buffer_count_for_camping = kOutputBuffersForCamping;
-  buffer_constraints.min_buffer_count_for_shared_slack =
-      kMaxUsedOutputBuffers - kOutputBuffersForCamping;
+  fuchsia::sysmem2::BufferCollectionConstraints buffer_constraints;
+  buffer_constraints.mutable_usage()->set_none(fuchsia::sysmem2::noneUsage);
+  buffer_constraints.set_min_buffer_count_for_camping(kOutputBuffersForCamping);
+  buffer_constraints.set_min_buffer_count_for_shared_slack(
+      kMaxUsedOutputBuffers - kOutputBuffersForCamping);
 
-  buffer_constraints.image_format_constraints_count =
-      std::size(kSupportedPixelFormats);
+  auto& image_format_constraints_vector =
+      buffer_constraints.mutable_image_format_constraints();
   for (size_t pixel_format_index = 0;
        pixel_format_index < std::size(kSupportedPixelFormats);
        ++pixel_format_index) {
     auto& image_format_constraints =
-        buffer_constraints.image_format_constraints[pixel_format_index];
-    image_format_constraints.pixel_format.type =
-        kSupportedPixelFormats[pixel_format_index];
-    image_format_constraints.pixel_format.has_format_modifier = true;
-    image_format_constraints.pixel_format.format_modifier.value =
-        fuchsia::sysmem::FORMAT_MODIFIER_LINEAR;
+        image_format_constraints_vector.emplace_back();
+    image_format_constraints.set_pixel_format(
+        kSupportedPixelFormats[pixel_format_index]);
 
-    image_format_constraints.color_spaces_count =
-        std::size(kSupportedColorSpaces);
+    auto& color_spaces = image_format_constraints.mutable_color_spaces();
     for (size_t i = 0; i < std::size(kSupportedColorSpaces); ++i) {
-      image_format_constraints.color_space[i].type = kSupportedColorSpaces[i];
+      color_spaces.emplace_back(kSupportedColorSpaces[i]);
     }
   }
 
@@ -517,11 +515,10 @@ void FuchsiaVideoDecoder::OnStreamProcessorAllocateOutputBuffers(
          pixel_format_index < std::size(kSupportedPixelFormats);
          ++pixel_format_index) {
       auto& image_format_constraints =
-          buffer_constraints.image_format_constraints[pixel_format_index];
-      image_format_constraints.required_max_coded_width =
-          min_buffer_size->width();
-      image_format_constraints.required_max_coded_height =
-          min_buffer_size->height();
+          buffer_constraints.image_format_constraints()[pixel_format_index];
+      image_format_constraints.set_required_max_size(fuchsia::math::SizeU{
+        .width = min_buffer_size->width(),
+        .height = min_buffer_size->height()});
     }
   }
 
@@ -739,7 +736,7 @@ void FuchsiaVideoDecoder::OnError() {
 }
 
 void FuchsiaVideoDecoder::SetBufferCollectionTokenForGpu(
-    fuchsia::sysmem::BufferCollectionTokenPtr token) {
+    fuchsia::sysmem2::BufferCollectionTokenPtr token) {
   // Register the new collection with the GPU process.
   DCHECK(!output_buffer_collection_handle_);
 

@@ -18,8 +18,8 @@
 namespace media {
 
 SysmemCollectionClient::SysmemCollectionClient(
-    fuchsia::sysmem::Allocator* allocator,
-    fuchsia::sysmem::BufferCollectionTokenPtr collection_token)
+    fuchsia::sysmem2::Allocator* allocator,
+    fuchsia::sysmem2::BufferCollectionTokenPtr collection_token)
     : allocator_(allocator), collection_token_(std::move(collection_token)) {
   DCHECK(allocator_);
   DCHECK(collection_token_);
@@ -32,13 +32,13 @@ SysmemCollectionClient::~SysmemCollectionClient() {
 }
 
 void SysmemCollectionClient::Initialize(
-    fuchsia::sysmem::BufferCollectionConstraints constraints,
+    fuchsia::sysmem2::BufferCollectionConstraints constraints,
     base::StringPiece name,
     uint32_t name_priority) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
-  writable_ = (constraints.usage.cpu & fuchsia::sysmem::cpuUsageWrite) ==
-              fuchsia::sysmem::cpuUsageWrite;
+  writable_ = (constraints.usage.cpu & fuchsia::sysmem2::cpuUsageWrite) ==
+              fuchsia::sysmem2::cpuUsageWrite;
 
   allocator_->BindSharedCollection(std::move(collection_token_),
                                    collection_.NewRequest());
@@ -55,7 +55,7 @@ void SysmemCollectionClient::Initialize(
   }
 
   sync_completion_closures_.push_back(
-      base::BindOnce(&fuchsia::sysmem::BufferCollection::SetConstraints,
+      base::BindOnce(&fuchsia::sysmem2::BufferCollection::SetConstraints,
                      base::Unretained(collection_.get()),
                      /*have_constraints=*/true, std::move(constraints)));
   collection_->Sync(
@@ -69,7 +69,7 @@ void SysmemCollectionClient::CreateSharedToken(
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(collection_token_);
 
-  fuchsia::sysmem::BufferCollectionTokenPtr token;
+  fuchsia::sysmem2::BufferCollectionTokenPtr token;
   collection_token_->Duplicate(ZX_RIGHT_SAME_RIGHTS, token.NewRequest());
 
   if (!debug_client_name.empty()) {
@@ -106,7 +106,7 @@ void SysmemCollectionClient::OnSyncComplete() {
 
 void SysmemCollectionClient::OnBuffersAllocated(
     zx_status_t status,
-    fuchsia::sysmem::BufferCollectionInfo_2 buffer_collection_info) {
+    fuchsia::sysmem2::BufferCollectionInfo_2 buffer_collection_info) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   if (status != ZX_OK) {
@@ -134,7 +134,7 @@ void SysmemCollectionClient::OnError(zx_status_t status) {
 SysmemAllocatorClient::SysmemAllocatorClient(base::StringPiece client_name) {
   allocator_ = base::ComponentContextForProcess()
                    ->svc()
-                   ->Connect<fuchsia::sysmem::Allocator>();
+                   ->Connect<fuchsia::sysmem2::Allocator>();
 
   allocator_->SetDebugClientInfo(std::string(client_name),
                                  base::GetCurrentProcId());
@@ -143,15 +143,15 @@ SysmemAllocatorClient::SysmemAllocatorClient(base::StringPiece client_name) {
     // Just log a warning. We will handle BufferCollection the failure when
     // trying to create a new BufferCollection.
     ZX_DLOG(WARNING, status)
-        << "The fuchsia.sysmem.Allocator channel was disconnected.";
+        << "The fuchsia.sysmem2.Allocator channel was disconnected.";
   });
 }
 
 SysmemAllocatorClient::~SysmemAllocatorClient() = default;
 
-fuchsia::sysmem::BufferCollectionTokenPtr
+fuchsia::sysmem2::BufferCollectionTokenPtr
 SysmemAllocatorClient::CreateNewToken() {
-  fuchsia::sysmem::BufferCollectionTokenPtr collection_token;
+  fuchsia::sysmem2::BufferCollectionTokenPtr collection_token;
   allocator_->AllocateSharedCollection(collection_token.NewRequest());
   return collection_token;
 }
@@ -164,7 +164,7 @@ SysmemAllocatorClient::AllocateNewCollection() {
 
 std::unique_ptr<SysmemCollectionClient>
 SysmemAllocatorClient::BindSharedCollection(
-    fuchsia::sysmem::BufferCollectionTokenPtr token) {
+    fuchsia::sysmem2::BufferCollectionTokenPtr token) {
   return std::make_unique<SysmemCollectionClient>(allocator_.get(),
                                                   std::move(token));
 }
