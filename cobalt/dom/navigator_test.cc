@@ -16,6 +16,7 @@
 #include <string>
 
 #include "base/logging.h"
+#include "base/strings/string_number_conversions.h"
 #include "cobalt/bindings/testing/utils.h"
 #include "cobalt/dom/testing/test_with_javascript.h"
 #include "cobalt/web/testing/gtest_workarounds.h"
@@ -158,6 +159,16 @@ TEST_F(NavigatorTest, NavigatorOnline) {
   EXPECT_EQ("boolean", result);
   EXPECT_TRUE(EvaluateScript("navigator.onLine", &result));
   EXPECT_EQ("true", result);
+}
+
+TEST_F(NavigatorTest, NavigatorConcurrentHardware) {
+  std::string result;
+  EXPECT_TRUE(EvaluateScript("typeof navigator.hardwareConcurrency", &result));
+  EXPECT_EQ("number", result);
+  EXPECT_TRUE(EvaluateScript("navigator.hardwareConcurrency", &result));
+  int count = -1;
+  EXPECT_TRUE(base::StringToInt(result, &count));
+  EXPECT_GE(count, 0);
 }
 
 }  // namespace dom
