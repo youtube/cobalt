@@ -64,27 +64,6 @@ x-shared-unittest-definitions: &shared-unittest-definitions
 
 services:
 #### Tools
-  pre-commit:
-    build:
-      context: ./docker/precommit_hooks
-      dockerfile: Dockerfile
-    image: pre-commit
-    volumes:
-    - ${COBALT_SRC:-.}:/code/
-    environment:
-      FROM_REF: ${FROM_REF:-HEAD^1}
-      TO_REF: ${TO_REF:-HEAD}
-
-  pytest:
-    build:
-      context: ./docker/pytest
-      dockerfile: Dockerfile
-    image: cobalt-build-pytest
-    volumes:
-    - ${COBALT_SRC:-.}:/code/
-    depends_on:
-      - base
-
   crashpad-symbolize:
     build:
       args:
@@ -461,18 +440,3 @@ services:
       context: ./docker/linux/
       dockerfile: xvfb/Dockerfile
     depends_on: [ linux-x64x11-unittest ]
-
-  linux-x64x11-integration-test:
-    <<: *build-common-definitions
-    image: cobalt-integration-test
-    build:
-      context: ./docker/linux/
-      dockerfile: integration_test/Dockerfile
-    depends_on: [ xvfb ]
-    working_dir: /code
-    environment:
-      - DISPLAY=xvfb:99
-      - IPV6_AVAILABLE=0
-      - PYTHONPATH=/code
-      - PLATFORM=${PLATFORM:-linux-x64x11}
-      - CONFIG=${CONFIG:-devel}
