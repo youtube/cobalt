@@ -184,13 +184,13 @@ TEST_F(DrainFileTest, SunnyDayRankCorrectlyRanksFiles) {
   std::vector<char> result(kSbFileMaxName);
 
   EXPECT_TRUE(DrainFileRankAndCheck(GetTempDir(), "a"));
-  EXPECT_TRUE(SbFileDelete(early_and_least.path().c_str()));
+  EXPECT_TRUE(!unlink(early_and_least.path().c_str()));
 
   EXPECT_TRUE(DrainFileRankAndCheck(GetTempDir(), "c"));
-  EXPECT_TRUE(SbFileDelete(later_and_least.path().c_str()));
+  EXPECT_TRUE(!unlink(later_and_least.path().c_str()));
 
   EXPECT_TRUE(DrainFileRankAndCheck(GetTempDir(), "b"));
-  EXPECT_TRUE(SbFileDelete(later_and_greatest.path().c_str()));
+  EXPECT_TRUE(!unlink(later_and_greatest.path().c_str()));
 }
 
 // Ranking drain files should ignore expired files.
@@ -206,14 +206,14 @@ TEST_F(DrainFileTest, SunnyDayRankCorrectlyIgnoresExpired) {
   std::vector<char> result(kSbFileMaxName);
 
   EXPECT_TRUE(DrainFileRankAndCheck(GetTempDir(), "c"));
-  EXPECT_TRUE(SbFileDelete(later_and_least.path().c_str()));
+  EXPECT_TRUE(!unlink(later_and_least.path().c_str()));
 
   EXPECT_TRUE(DrainFileRankAndCheck(GetTempDir(), "b"));
-  EXPECT_TRUE(SbFileDelete(later_and_greatest.path().c_str()));
+  EXPECT_TRUE(!unlink(later_and_greatest.path().c_str()));
 
   // Even though "a" is still there Rank should find nothing since it's expired.
   EXPECT_TRUE(DrainFileRankAndCheck(GetTempDir(), ""));
-  EXPECT_TRUE(SbFileDelete(early_and_expired.path().c_str()));
+  EXPECT_TRUE(!unlink(early_and_expired.path().c_str()));
 }
 
 // Tests the "racing updaters" scenario.

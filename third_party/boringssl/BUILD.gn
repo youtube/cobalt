@@ -247,6 +247,7 @@ if (!use_cobalt_customizations) {
     public -= [ "src/include/openssl/opensslconf.h" ]
     public_deps = [
       "//starboard:starboard_headers_only",
+      "//starboard/common:file_wrapper",
     ]
     configs -= [ "//starboard/build/config:size" ]
     configs += [ "//starboard/build/config:speed" ]

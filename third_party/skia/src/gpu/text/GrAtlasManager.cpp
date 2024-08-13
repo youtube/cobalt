@@ -14,7 +14,7 @@
 #include "src/gpu/text/GrStrikeCache.h"
 
 #if defined(STARBOARD)
-#include "starboard/file.h"
+#include <unistd.h>
 #endif
 
 GrAtlasManager::GrAtlasManager(GrProxyProvider* proxyProvider,
@@ -254,7 +254,7 @@ static bool save_pixels(GrDirectContext* dContext, GrSurfaceProxyView view, GrCo
     // remove any previous version of this file
     remove(filename);
 #else
-    SbFileDelete(filename);
+    unlink(filename);
 #endif
 
     SkFILEWStream file(filename);
@@ -263,7 +263,7 @@ static bool save_pixels(GrDirectContext* dContext, GrSurfaceProxyView view, GrCo
 #if !defined(STARBOARD)
         remove(filename);   // remove any partial file
 #else
-        SbFileDelete(filename);
+        unlink(filename);
 #endif
         return false;
     }
@@ -273,7 +273,7 @@ static bool save_pixels(GrDirectContext* dContext, GrSurfaceProxyView view, GrCo
 #if !defined(STARBOARD)
         remove(filename);   // remove any partial file
 #else
-        SbFileDelete(filename);
+        unlink(filename);
 #endif
         return false;
     }

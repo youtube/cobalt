@@ -37,6 +37,7 @@
 #include "media/filters/chunk_demuxer.h"
 #include "net/base/filename_util.h"
 #include "net/base/url_util.h"
+#include "starboard/common/file.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
 #include "ui/gfx/geometry/size.h"
@@ -81,7 +82,7 @@ base::FilePath ResolvePath(const std::string& path) {
     base::PathService::Get(base::DIR_TEST_DATA, &content_path);
     result = content_path.Append(result);
   }
-  if (SbFileCanOpen(result.value().c_str(), kSbFileOpenOnly | kSbFileRead)) {
+  if (starboard::FileCanOpen(result.value().c_str(), O_RDONLY)) {
     return result;
   }
   LOG(WARNING) << "Failed to resolve path \"" << path << "\" as \""
@@ -141,7 +142,7 @@ FormatGuesstimator::FormatGuesstimator(const std::string& path_or_url,
     return;
   }
   base::FilePath path = ResolvePath(path_or_url);
-  if (path.empty() || !SbFileCanOpen(path.value().c_str(), kSbFileRead)) {
+  if (path.empty() || !starboard::FileCanOpen(path.value().c_str(), O_RDONLY)) {
     return;
   }
   InitializeAsAdaptive(path, media_module);
