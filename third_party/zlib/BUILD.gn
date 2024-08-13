@@ -481,7 +481,7 @@ static_library("minizip") {
       "contrib/minizip/iostarboard.c",
       "contrib/minizip/iostarboard.h",
     ]
-    deps += [ "//starboard:starboard_headers_only" ]
+    deps += [ "//starboard/common:file_wrapper" ]
   } else {
     configs -= [ "//build/config/compiler:chromium_code" ]
   }
