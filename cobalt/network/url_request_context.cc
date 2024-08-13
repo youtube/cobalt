@@ -209,17 +209,17 @@ URLRequestContext::URLRequestContext(
       quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::Q046()};
   url_request_context_builder->set_quic_context(std::move(quic_context));
 
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   bool quic_enabled =
-      configuration::Configuration::GetInstance()->CobaltEnableQuic();
-  if (quic_enabled) {
-    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-    quic_enabled = !command_line->HasSwitch(switches::kDisableQuic);
-  }
+      configuration::Configuration::GetInstance()->CobaltEnableQuic() &&
+      !command_line->HasSwitch(switches::kDisableQuic);
+  bool spdy_enabled = !command_line->HasSwitch(switches::kDisableHttp2);
 
-  url_request_context_builder->SetSpdyAndQuicEnabled(/*spdy_enabled=*/true,
+  url_request_context_builder->SetSpdyAndQuicEnabled(spdy_enabled,
                                                      quic_enabled);
 
   net::HttpNetworkSessionParams params;
+  params.enable_http2 = spdy_enabled;
   params.enable_quic = quic_enabled;
   params.use_quic_for_unknown_origins = quic_enabled;
 
@@ -329,7 +329,20 @@ void URLRequestContext::SetProxy(const std::string& proxy_rules) {
 
 void URLRequestContext::SetEnableQuic(bool enable_quic) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  url_request_context_->http_network_session()->SetEnableQuic(enable_quic);
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  bool quic_commandline_enabled =
+      !command_line->HasSwitch(switches::kDisableQuic);
+  url_request_context_->http_network_session()->SetEnableQuic(
+      enable_quic && quic_commandline_enabled);
+}
+
+void URLRequestContext::SetEnableHttp2(bool enable_http2) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  bool http2_commandline_enabled =
+      !command_line->HasSwitch(switches::kDisableHttp2);
+  url_request_context_->http_network_session()->SetEnableHttp2(
+      enable_http2 && http2_commandline_enabled);
 }
 
 bool URLRequestContext::using_http_cache() { return using_http_cache_; }
