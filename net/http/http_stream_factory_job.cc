@@ -971,6 +971,7 @@ int HttpStreamFactory::Job::DoInitConnectionImpl() {
       // actually need to preconnect any sockets, so we're done.
       if (job_type_ == PRECONNECT)
         return OK;
+      negotiated_protocol_ = kProtoHTTP2;
       using_spdy_ = true;
       next_state_ = STATE_CREATE_STREAM;
       return OK;
