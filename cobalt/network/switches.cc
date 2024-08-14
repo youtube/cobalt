@@ -44,6 +44,8 @@ const char kDisableInAppDial[] = "disable_in_app_dial";
 // Switch to disable use of the Quic network protocol.
 const char kDisableQuic[] = "disable_quic";
 
+// Switch to disable use of the HTTP/2 (SPDY) network protocol.
+const char kDisableHttp2[] = "disable_h2";
 
 }  // namespace switches
 }  // namespace network

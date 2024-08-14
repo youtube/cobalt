@@ -114,6 +114,19 @@ void NetworkModule::SetEnableQuicFromPersistentSettings() {
   }
 }
 
+void NetworkModule::SetEnableHttp2FromPersistentSettings() {
+  // Called on initialization and when the persistent setting is changed.
+  if (options_.persistent_settings != nullptr) {
+    bool enable_http2 =
+        options_.persistent_settings->GetPersistentSettingAsBool(
+            kHttp2EnabledPersistentSettingsKey, false);
+    task_runner()->PostTask(
+        FROM_HERE,
+        base::Bind(&URLRequestContext::SetEnableHttp2,
+                   base::Unretained(url_request_context_.get()), enable_http2));
+  }
+}
+
 void NetworkModule::EnsureStorageManagerStarted() {
   DCHECK(storage_manager_);
   storage_manager_->EnsureStarted();
@@ -200,6 +213,7 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
       url_request_context_.get(), thread_.get());
 
   SetEnableQuicFromPersistentSettings();
+  SetEnableHttp2FromPersistentSettings();
 }
 
 void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
