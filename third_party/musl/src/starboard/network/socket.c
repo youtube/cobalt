@@ -152,6 +152,40 @@ static int get(int key, bool take, FileOrSocket** valuePtr) {
   return status;
 }
 
+/******************************************************
+* This function looks for the sbSocket in the database.
+* Return
+*   -1 - not found
+*   positive value - the file descriptor/key of sbSocket
+******************************************************/
+static int getBySocket(SbSocket sbSocket) {
+  int index = 0;
+  int key = -1;
+  if (map == NULL) {
+    return -1;
+  }
+
+  pthread_mutex_lock(&lock);
+
+  while (index < mapSize){
+    Node* node = map->array[index];
+    if (node != NULL){
+      FileOrSocket* pValue = node->value;
+      if (pValue != NULL) {
+        if ((pValue->is_file == false) && (pValue->socket == sbSocket)){
+          key = node->key;
+          break;
+        }
+      }
+    }
+    index++;
+  }
+
+  pthread_mutex_unlock(&lock);
+
+  return key;
+}
+
 static SB_C_FORCE_INLINE time_t WindowsUsecToTimeT(int64_t time) {
   int64_t posix_time = time - 11644473600000000ULL;
   posix_time = posix_time / 1000000;
@@ -761,13 +795,6 @@ int getsockname(int sockfd, struct sockaddr *restrict addr, socklen_t *restrict 
   }
   SbSocketAddress out_address = {0};
   int result = SbSocketGetLocalAddress(fileOrSock->socket, &out_address)? 0: -1;
-
-  struct sockaddr_in* addr_in = (struct sockaddr_in*)addr;
-  addr_in->sin_family = AF_INET;
-  addr_in->sin_addr.s_addr = out_address.address;
-  addr_in->sin_port = out_address.port;
-  *addrlen = sizeof(struct sockaddr_in);
-
   return result;
 }
 
@@ -787,7 +814,8 @@ int setsockopt (int sockfd, int level, int optname, const void* optval,
     return -1;
   }
 
-  if (level == SOL_SOCKET || level == SOL_TCP || level == IPPROTO_TCP || level == IPPROTO_IP) {
+  if (level == SOL_SOCKET || level == SOL_TCP || level == IPPROTO_TCP) {
+
     int* operation = (int*)optval;
     switch (optname){
       case SO_BROADCAST:{
@@ -829,18 +857,12 @@ int setsockopt (int sockfd, int level, int optname, const void* optval,
         return 0;
       }
       case TCP_NODELAY: {
+        int* operation = (int*)optval;
         bool bool_value = *operation == 1? true:false;
         return SbSocketSetTcpNoDelay(fileOrSock->socket, bool_value) == true? 0:-1;
       }
       case IP_ADD_MEMBERSHIP: {
-        if (optval == NULL) {
-          errno = EFAULT;
-          return -1;
-        }
-        const struct ip_mreq* imreq = (const struct ip_mreq*)optval;
-        SbSocketAddress* addr = (SbSocketAddress*)malloc(sizeof(SbSocketAddress));
-        memcpy(addr->address, &(imreq->imr_multiaddr.s_addr), sizeof(imreq->imr_multiaddr.s_addr));
-
+        SbSocketAddress* addr = (SbSocketAddress*)optval;
         return SbSocketJoinMulticastGroup(fileOrSock->socket, addr) == true? 0:-1;
       }
       default:
@@ -954,6 +976,28 @@ int getifaddrs(struct ifaddrs** ifap) {
   memset(ifa->ifa_addr, 0, sizeof(struct sockaddr));
   ConvertSocketAddressSbToPosix(&sbAddress, ifa->ifa_addr);
   return 0;
+}
+
+
+int posixSocketGetFdFromSb(SbSocket socket){
+  return getBySocket(socket);
+}
+
+SbSocket posixSocketGetSbFromFd(int socket){
+  if (socket <= 0){
+    return NULL;
+  }
+  FileOrSocket *fileOrSock = NULL;
+  if (get(socket, false, &fileOrSock) != 0){
+    errno = EBADF;
+    return NULL;
+  }
+  if (fileOrSock == NULL || fileOrSock->is_file == true) {
+    errno = EBADF;
+    return NULL;
+  }
+
+  return fileOrSock->socket;
 }
 
 #endif  // SB_API_VERSION < 16

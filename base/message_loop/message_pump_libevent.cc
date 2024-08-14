@@ -94,21 +94,21 @@ std::unique_ptr<event> MessagePumpLibevent::FdWatchController::ReleaseEvent() {
   return std::move(event_);
 }
 
-void MessagePumpLibevent::FdWatchController::OnFileCanReadWithoutBlocking(
+void MessagePumpLibevent::FdWatchController::OnSocketReadyToRead(
     int fd,
     MessagePumpLibevent* pump) {
-  // Since OnFileCanWriteWithoutBlocking() gets called first, it can stop
+  // Since OnSocketReadyToWrite() gets called first, it can stop
   // watching the file descriptor.
   if (!watcher_)
     return;
-  watcher_->OnFileCanReadWithoutBlocking(fd);
+  watcher_->OnSocketReadyToRead(fd);
 }
 
-void MessagePumpLibevent::FdWatchController::OnFileCanWriteWithoutBlocking(
+void MessagePumpLibevent::FdWatchController::OnSocketReadyToWrite(
     int fd,
     MessagePumpLibevent* pump) {
   DCHECK(watcher_);
-  watcher_->OnFileCanWriteWithoutBlocking(fd);
+  watcher_->OnSocketReadyToWrite(fd);
 }
 
 const scoped_refptr<MessagePumpLibevent::EpollInterest>&
@@ -128,12 +128,12 @@ void MessagePumpLibevent::FdWatchController::OnFdReadable() {
     // don't actually want to call the client.
     return;
   }
-  watcher_->OnFileCanReadWithoutBlocking(epoll_interest_->params().fd);
+  watcher_->OnSocketReadyToRead(epoll_interest_->params().fd);
 }
 
 void MessagePumpLibevent::FdWatchController::OnFdWritable() {
   DCHECK(watcher_);
-  watcher_->OnFileCanWriteWithoutBlocking(epoll_interest_->params().fd);
+  watcher_->OnSocketReadyToWrite(epoll_interest_->params().fd);
 }
 
 MessagePumpLibevent::MessagePumpLibevent() {
@@ -448,15 +448,15 @@ void MessagePumpLibevent::OnLibeventNotification(int fd,
     // is not destroyed.
     bool controller_was_destroyed = false;
     controller->was_destroyed_ = &controller_was_destroyed;
-    controller->OnFileCanWriteWithoutBlocking(fd, pump);
+    controller->OnSocketReadyToWrite(fd, pump);
     if (!controller_was_destroyed)
-      controller->OnFileCanReadWithoutBlocking(fd, pump);
+      controller->OnSocketReadyToRead(fd, pump);
     if (!controller_was_destroyed)
       controller->was_destroyed_ = nullptr;
   } else if (flags & EV_WRITE) {
-    controller->OnFileCanWriteWithoutBlocking(fd, pump);
+    controller->OnSocketReadyToWrite(fd, pump);
   } else if (flags & EV_READ) {
-    controller->OnFileCanReadWithoutBlocking(fd, pump);
+    controller->OnSocketReadyToRead(fd, pump);
   }
 }
 

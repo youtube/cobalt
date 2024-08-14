@@ -211,11 +211,13 @@ bool SbSocketWaiterPrivate::Add(int socket,
   //       registered with a waiter already.
   //       At this moment, at least we can test if this specific socket
   //       is already registered to this incoming waiter.
-  if (waiter->CheckSocketRegistered(socket)) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket already has this waiter ("
-                   << this << ").";
+  /*SB_DLOG(ERROR) << __FUNCTION__ << ": Socket ( " << socket<< ") add once with this waiter ("
+                   << this << ")." << "interests = " << interests;*/
+  /*if (waiter->CheckSocketRegistered(socket)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket ( " << socket<< ") already has this waiter ("
+                   << this << ")."<< "interests = " << interests;
     return false;
-  }
+  }*/
 
   Waitee* waitee =
       new Waitee(this, socket, context, callback, interests, persistent);
@@ -248,6 +250,9 @@ bool SbSocketWaiterPrivate::Remove(int socket, SbSocketWaiter waiter) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
     return false;
   }
+
+  /*SB_DLOG(ERROR) << __FUNCTION__ << ": Socket ( " << socket<< ") remove with this waiter ("
+                   << this << ").";*/
 
   if (waiter != this) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") "

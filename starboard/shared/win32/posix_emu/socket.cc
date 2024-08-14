@@ -241,7 +241,7 @@ static void set_errno() {
       sockError = NO_DATA;
       break;
     default:
-      SB_DLOG(WARNING) << "Unknown socket error.";
+      SB_DLOG(WARNING) << "Unknown socket error - " << winsockError;
       break;
   }
 
@@ -478,6 +478,25 @@ int sb_recvfrom(int sockfd,
   return result;
 }
 
+int sb_getsockopt(int socket,
+                  int level,
+                  int option_name,
+                  void* option_value,
+                  int* option_len) {
+  FileOrSocket handle = handle_db_get(socket, false);
+
+  if (handle.is_file || handle.socket == INVALID_SOCKET) {
+    return -1;
+  }
+
+  int result = getsockopt(handle.socket, level, option_name,
+                          reinterpret_cast<char*>(option_value), option_len);
+  if (result == SOCKET_ERROR) {
+    set_errno();
+  }
+  return result;
+}
+
 int sb_setsockopt(int socket,
                   int level,
                   int option_name,
@@ -526,6 +545,34 @@ int sb_getsockname(int sockfd, struct sockaddr* addr, socklen_t* addrlen) {
   }
 
   int result = getsockname(handle.socket, addr, addrlen);
+  if (result == SOCKET_ERROR) {
+    set_errno();
+  }
+  return result;
+}
+
+// Redefine msghdr structure here to avoid including socket.h
+struct msghdr {
+  void* msg_name;        /* Optional address */
+  socklen_t msg_namelen; /* Size of address */
+  struct iovec* msg_iov; /* Scatter/gather array */
+  size_t msg_iovlen;     /* # elements in msg_iov */
+  void* msg_control;     /* Ancillary data, see below */
+  size_t msg_controllen; /* Ancillary data buffer len */
+  int msg_flags;         /* Flags (unused) */
+};
+
+int recvmsg(int socket, struct msghdr* message, int flags) {
+  FileOrSocket handle = handle_db_get(socket, false);
+
+  if (handle.is_file || handle.socket == INVALID_SOCKET) {
+    return -1;
+  }
+
+  struct sockaddr address;
+  socklen_t address_len;
+  int result = recvfrom(handle.socket, reinterpret_cast<char*>(message),
+                        sizeof(struct msghdr), flags, &address, &address_len);
   if (result == SOCKET_ERROR) {
     set_errno();
   }

@@ -964,7 +964,7 @@ Cobalt */
     notify_delegate_->OnCheckProxyConfigSettings();
   }
 
-  // Called by OnFileCanReadWithoutBlocking() on the file thread. Reads
+  // Called by OnSocketReadyToRead() on the file thread. Reads
   // from the inotify file descriptor and starts up a debounce timer if
   // an event for kioslaverc is seen.
   void OnChangeNotification() {

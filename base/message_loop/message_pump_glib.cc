@@ -488,14 +488,14 @@ void MessagePumpGlib::FdWatchController::NotifyCanRead() {
   if (!watcher_)
     return;
   DCHECK(poll_fd_);
-  watcher_->OnFileCanReadWithoutBlocking(poll_fd_->fd);
+  watcher_->OnSocketReadyToRead(poll_fd_->fd);
 }
 
 void MessagePumpGlib::FdWatchController::NotifyCanWrite() {
   if (!watcher_)
     return;
   DCHECK(poll_fd_);
-  watcher_->OnFileCanWriteWithoutBlocking(poll_fd_->fd);
+  watcher_->OnSocketReadyToWrite(poll_fd_->fd);
 }
 
 bool MessagePumpGlib::WatchFileDescriptor(int fd,

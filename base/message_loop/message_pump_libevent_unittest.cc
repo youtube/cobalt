@@ -113,8 +113,8 @@ class StupidWatcher : public MessagePumpLibevent::FdWatcher {
   ~StupidWatcher() override = default;
 
   // base:MessagePumpLibevent::FdWatcher interface
-  void OnFileCanReadWithoutBlocking(int fd) override {}
-  void OnFileCanWriteWithoutBlocking(int fd) override {}
+  void OnSocketReadyToRead(int fd) override {}
+  void OnSocketReadyToWrite(int fd) override {}
 };
 
 TEST_P(MessagePumpLibeventTest, QuitOutsideOfRun) {
@@ -128,9 +128,9 @@ class BaseWatcher : public MessagePumpLibevent::FdWatcher {
   ~BaseWatcher() override = default;
 
   // base:MessagePumpLibevent::FdWatcher interface
-  void OnFileCanReadWithoutBlocking(int /* fd */) override { NOTREACHED(); }
+  void OnSocketReadyToRead(int /* fd */) override { NOTREACHED(); }
 
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override { NOTREACHED(); }
+  void OnSocketReadyToWrite(int /* fd */) override { NOTREACHED(); }
 };
 
 class DeleteWatcher : public BaseWatcher {
@@ -145,7 +145,7 @@ class DeleteWatcher : public BaseWatcher {
     return controller_.get();
   }
 
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override {
+  void OnSocketReadyToWrite(int /* fd */) override {
     DCHECK(controller_);
     controller_.reset();
   }
@@ -171,7 +171,7 @@ class StopWatcher : public BaseWatcher {
 
   ~StopWatcher() override = default;
 
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override {
+  void OnSocketReadyToWrite(int /* fd */) override {
     controller_->StopWatchingFileDescriptor();
   }
 
@@ -203,14 +203,14 @@ class NestedPumpWatcher : public MessagePumpLibevent::FdWatcher {
   NestedPumpWatcher() = default;
   ~NestedPumpWatcher() override = default;
 
-  void OnFileCanReadWithoutBlocking(int /* fd */) override {
+  void OnSocketReadyToRead(int /* fd */) override {
     RunLoop runloop;
     SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, BindOnce(&QuitMessageLoopAndStart, runloop.QuitClosure()));
     runloop.Run();
   }
 
-  void OnFileCanWriteWithoutBlocking(int /* fd */) override {}
+  void OnSocketReadyToWrite(int /* fd */) override {}
 };
 
 TEST_P(MessagePumpLibeventTest, NestedPumpWatcher) {
@@ -231,7 +231,7 @@ class QuitWatcher : public BaseWatcher {
   QuitWatcher(base::OnceClosure quit_closure)
       : quit_closure_(std::move(quit_closure)) {}
 
-  void OnFileCanReadWithoutBlocking(int /* fd */) override {
+  void OnSocketReadyToRead(int /* fd */) override {
     // Post a fatal closure to the MessageLoop before we quit it.
     SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, BindOnce(&FatalClosure));

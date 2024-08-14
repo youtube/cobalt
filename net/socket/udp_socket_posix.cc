@@ -14,11 +14,10 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <net/if.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <sys/ioctl.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 
 #include <memory>
 
@@ -65,6 +64,8 @@
 #endif  // BUILDFLAG(IS_MAC)
 
 namespace net {
+
+#if SB_API_VERSION >= 16
 
 namespace {
 
@@ -259,9 +260,9 @@ void UDPSocketPosix::Close() {
   write_callback_.Reset();
   send_to_address_.reset();
 
-  bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
+  bool ok = read_socket_watcher_.StopWatchingSocket();
   DCHECK(ok);
-  ok = write_socket_watcher_.StopWatchingFileDescriptor();
+  ok = write_socket_watcher_.StopWatchingSocket();
   DCHECK(ok);
 
   // Verify that |socket_| hasn't been corrupted. Needed to debug
@@ -368,7 +369,7 @@ int UDPSocketPosix::RecvFrom(IOBuffer* buf,
   if (nread != ERR_IO_PENDING)
     return nread;
 
-  if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
+  if (!base::CurrentIOThread::Get()->Watch(
           socket_, true, base::MessagePumpForIO::WATCH_READ,
           &read_socket_watcher_, &read_watcher_)) {
     PLOG(ERROR) << "WatchFileDescriptor failed on read";
@@ -414,7 +415,7 @@ int UDPSocketPosix::SendToOrWrite(IOBuffer* buf,
     return result;
   }
 
-  if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
+  if (!base::CurrentIOThread::Get()->Watch(
           socket_, true, base::MessagePumpForIO::WATCH_WRITE,
           &write_socket_watcher_, &write_watcher_)) {
     DVPLOG(1) << "WatchFileDescriptor failed on write";
@@ -575,13 +576,13 @@ int UDPSocketPosix::SetDoNotFragment() {
 }
 
 void UDPSocketPosix::SetMsgConfirm(bool confirm) {
-#if !BUILDFLAG(IS_APPLE)
+#if !BUILDFLAG(IS_APPLE) && defined(MSG_CONFIRM)
   if (confirm) {
     sendto_flags_ |= MSG_CONFIRM;
   } else {
     sendto_flags_ &= ~MSG_CONFIRM;
   }
-#endif  // !BUILDFLAG(IS_APPLE)
+#endif  // !BUILDFLAG(IS_APPLE) && defined(MSG_CONFIRM)
 }
 
 int UDPSocketPosix::AllowAddressReuse() {
@@ -636,14 +637,14 @@ int UDPSocketPosix::AllowAddressSharingForMulticast() {
   return OK;
 }
 
-void UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking(int) {
+void UDPSocketPosix::ReadWatcher::OnSocketReadyToRead(int) {
   TRACE_EVENT(NetTracingCategory(),
-              "UDPSocketPosix::ReadWatcher::OnFileCanReadWithoutBlocking");
+              "UDPSocketPosix::ReadWatcher::OnSocketReadyToRead");
   if (!socket_->read_callback_.is_null())
     socket_->DidCompleteRead();
 }
 
-void UDPSocketPosix::WriteWatcher::OnFileCanWriteWithoutBlocking(int) {
+void UDPSocketPosix::WriteWatcher::OnSocketReadyToWrite(int) {
   if (!socket_->write_callback_.is_null())
     socket_->DidCompleteWrite();
 }
@@ -673,7 +674,7 @@ void UDPSocketPosix::DidCompleteRead() {
     read_buf_.reset();
     read_buf_len_ = 0;
     recv_from_address_ = nullptr;
-    bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
+    bool ok = read_socket_watcher_.StopWatchingSocket();
     DCHECK(ok);
     DoReadCallback(result);
   }
@@ -713,7 +714,7 @@ void UDPSocketPosix::DidCompleteWrite() {
     write_buf_.reset();
     write_buf_len_ = 0;
     send_to_address_.reset();
-    write_socket_watcher_.StopWatchingFileDescriptor();
+    write_socket_watcher_.StopWatchingSocket();
     DoWriteCallback(result);
   }
 }
@@ -779,16 +780,14 @@ int UDPSocketPosix::InternalRecvFromNonConnectedSocket(IOBuffer* buf,
                                                        int buf_len,
                                                        IPEndPoint* address) {
   SockaddrStorage storage;
-  struct iovec iov = {
-      .iov_base = buf->data(),
-      .iov_len = static_cast<size_t>(buf_len),
-  };
-  struct msghdr msg = {
-      .msg_name = storage.addr,
-      .msg_namelen = storage.addr_len,
-      .msg_iov = &iov,
-      .msg_iovlen = 1,
-  };
+  struct iovec iov = {0};
+  iov.iov_base = buf->data();
+  iov.iov_len = static_cast<size_t>(buf_len);
+  struct msghdr msg = {0};
+  msg.msg_name = storage.addr;
+  msg.msg_namelen = storage.addr_len;
+  msg.msg_iov = &iov;
+  msg.msg_iovlen = 1;
   int result;
   int bytes_transferred = HANDLE_EINTR(recvmsg(socket_, &msg, 0));
   if (bytes_transferred < 0) {
@@ -854,7 +853,11 @@ int UDPSocketPosix::SetMulticastOptions() {
     if (rv < 0)
       return MapSystemError(errno);
   }
+#if defined(IP_DEFAULT_MULTICAST_TTL)
   if (multicast_time_to_live_ != IP_DEFAULT_MULTICAST_TTL) {
+#elif defined(IP_MULTICAST_TTL)
+  if (multicast_time_to_live_ != IP_MULTICAST_TTL) {
+#endif
     int rv;
     if (addr_family_ == AF_INET) {
       u_char ttl = multicast_time_to_live_;
@@ -1095,5 +1098,7 @@ int UDPSocketPosix::SetIOSNetworkServiceType(int ios_network_service_type) {
 #endif  // BUILDFLAG(IS_IOS)
   return OK;
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace net

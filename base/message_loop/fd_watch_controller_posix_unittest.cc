@@ -59,12 +59,12 @@ class FdWatchControllerPosixTest : public testing::Test {
 
 class TestHandler : public MessagePumpForIO::FdWatcher {
  public:
-  void OnFileCanReadWithoutBlocking(int fd) override {
+  void OnSocketReadyToRead(int fd) override {
     watcher_to_delete_ = nullptr;
     is_readable_ = true;
     RunLoop::QuitCurrentWhenIdleDeprecated();
   }
-  void OnFileCanWriteWithoutBlocking(int fd) override {
+  void OnSocketReadyToWrite(int fd) override {
     watcher_to_delete_ = nullptr;
     is_writable_ = true;
     RunLoop::QuitCurrentWhenIdleDeprecated();
@@ -102,7 +102,7 @@ class CallClosureHandler : public MessagePumpForIO::FdWatcher {
   }
 
   // base::WatchableIOMessagePumpPosix::FdWatcher:
-  void OnFileCanReadWithoutBlocking(int fd) override {
+  void OnSocketReadyToRead(int fd) override {
     // Empty the pipe buffer to reset the event. Otherwise libevent
     // implementation of MessageLoop may call the event handler again even if
     // |read_closure_| below quits the RunLoop.
@@ -118,7 +118,7 @@ class CallClosureHandler : public MessagePumpForIO::FdWatcher {
     std::move(read_closure_).Run();
   }
 
-  void OnFileCanWriteWithoutBlocking(int fd) override {
+  void OnSocketReadyToWrite(int fd) override {
     ASSERT_FALSE(write_closure_.is_null());
     std::move(write_closure_).Run();
   }
@@ -209,7 +209,7 @@ class ReaderWriterHandler : public MessagePumpForIO::FdWatcher {
   ReaderWriterHandler& operator=(const ReaderWriterHandler&) = delete;
 
   // base::WatchableIOMessagePumpPosix::FdWatcher:
-  void OnFileCanReadWithoutBlocking(int fd) override {
+  void OnSocketReadyToRead(int fd) override {
     if (when_ == kOnReadEvent) {
       DoAction();
     } else {
@@ -218,7 +218,7 @@ class ReaderWriterHandler : public MessagePumpForIO::FdWatcher {
     }
   }
 
-  void OnFileCanWriteWithoutBlocking(int fd) override {
+  void OnSocketReadyToWrite(int fd) override {
     if (when_ == kOnWriteEvent) {
       DoAction();
     } else {

@@ -11,10 +11,14 @@
 
 #if BUILDFLAG(IS_WIN) || defined(COMPILER_MSVC)
 /* Structure for scatter/gather I/O.  */
+
+#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_UIO_H_
 struct iovec {
   void* iov_base; /* Pointer to data.  */
   size_t iov_len; /* Length of data.  */
 };
+#endif
+
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(COBALT_PENDING_CLEAN_UP)
 #include <sys/uio.h>
 #endif  // BUILDFLAG(IS_WIN)

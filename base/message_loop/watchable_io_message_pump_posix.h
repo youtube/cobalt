@@ -15,8 +15,8 @@ class WatchableIOMessagePumpPosix {
   // of a file descriptor.
   class FdWatcher {
    public:
-    virtual void OnFileCanReadWithoutBlocking(int fd) = 0;
-    virtual void OnFileCanWriteWithoutBlocking(int fd) = 0;
+    virtual void OnSocketReadyToRead(int fd) = 0;
+    virtual void OnSocketReadyToWrite(int fd) = 0;
 
    protected:
     virtual ~FdWatcher() = default;

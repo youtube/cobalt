@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_SOCKET_H_
 
 #include <sys/types.h>
+#include <sys/uio.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
@@ -24,6 +25,22 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+struct msghdr {
+  void* msg_name;        /* Optional address */
+  socklen_t msg_namelen; /* Size of address */
+  struct iovec* msg_iov; /* Scatter/gather array */
+  size_t msg_iovlen;     /* # elements in msg_iov */
+  void* msg_control;     /* Ancillary data, see below */
+  size_t msg_controllen; /* Ancillary data buffer len */
+  int msg_flags;         /* Flags (unused) */
+};
+
+struct ip_mreqn {
+  struct in_addr imr_multiaddr; /* IP multicast group address */
+  struct in_addr imr_address;   /* IP address of local interface */
+  int imr_ifindex;              /* interface index */
+};
 
 int sb_socket(int domain, int type, int protocol);
 #define socket sb_socket
@@ -62,6 +79,13 @@ int sb_recvfrom(int sockfd,
                 socklen_t* address_len);
 #define recvfrom sb_recvfrom
 
+int sb_getsockopt(int socket,
+                  int level,
+                  int option_name,
+                  void* option_value,
+                  int* option_len);
+#define getsockopt sb_getsockopt
+
 int sb_setsockopt(int socket,
                   int level,
                   int option_name,
@@ -71,6 +95,8 @@ int sb_setsockopt(int socket,
 
 int sb_getsockname(int sockfd, struct sockaddr* addr, socklen_t* addrlen);
 #define getsockname sb_getsockname
+
+int recvmsg(int socket, struct msghdr* message, int flags);
 
 int posix_socket_get_fd_from_handle(SOCKET socket);
 SOCKET posix_socket_get_handle_from_fd(int socket);

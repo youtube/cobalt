@@ -54,6 +54,9 @@ config("platform_configuration") {
 
     # Don't send error reports to MS.
     "/errorReport:none",
+
+    # Load debug symbols.
+    "/DEBUG:FASTLINK",
   ]
 
   cflags = [
