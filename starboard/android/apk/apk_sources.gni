@@ -34,6 +34,8 @@ apk_sources = [
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfo.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfoModule.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/ArtworkDownloader.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/ArtworkDownloaderDefault.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/ArtworkLoader.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
