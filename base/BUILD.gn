@@ -982,16 +982,9 @@ component("base") {
       "message_loop/message_pump_ui_starboard.h",
 
       # added for posix - by zhangmax
-      "strings/sys_string_conversions_posix.cc",
 
-      "synchronization/waitable_event_posix.cc",
-      "synchronization/waitable_event_watcher_posix.cc",
+
       "synchronization/condition_variable_posix.cc",
-
-      "threading/platform_thread_internal_posix.cc",
-      "threading/platform_thread_internal_posix.h",
-      "time/time_exploded_posix.cc",
-      "time/time_now_posix.cc",
       "time/time_conversion_posix.cc",
 
       "files/file_posix.cc",
@@ -2372,7 +2365,7 @@ component("base") {
     ]
   }
 
-  if (!use_cobalt_customizations && is_posix && !is_apple) {
+  if (use_libevent) {
     sources += [
       "strings/sys_string_conversions_posix.cc",
       "synchronization/waitable_event_posix.cc",

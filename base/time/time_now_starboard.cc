@@ -24,6 +24,8 @@
 
 namespace base {
 
+#if SB_API_VERSION <= 15
+
 // Time -----------------------------------------------------------------------
 
 namespace subtle {
@@ -66,5 +68,7 @@ ThreadTicks ThreadTicksNowIgnoringOverride() {
       starboard::CurrentMonotonicThreadTime());
 }
 }  // namespace subtle
+
+#endif  // SB_API_VERSIO <= 15
 
 }  // namespace base

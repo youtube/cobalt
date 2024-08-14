@@ -8,6 +8,8 @@
 
 namespace base {
 
+#if SB_API_VERSION >= 16
+
 size_t GetPageSize() {
   static const size_t pagesize = []() -> size_t {
   // For more information see getpagesize(2). Portable applications should use
@@ -20,5 +22,7 @@ size_t GetPageSize() {
   }();
   return pagesize;
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace base

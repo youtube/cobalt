@@ -14,7 +14,7 @@
 
 #include "starboard/common/storage.h"
 
-#include "starboard/file.h"
+#include "starboard/common/file.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 
 int64_t SbStorageGetRecordSize(SbStorageRecord record) {
@@ -22,15 +22,15 @@ int64_t SbStorageGetRecordSize(SbStorageRecord record) {
     return -1;
   }
 
-  if (!SbFileIsValid(record->file)) {
+  if (!starboard::IsValid(record->file)) {
     return -1;
   }
 
-  SbFileInfo info;
-  bool success = SbFileGetInfo(record->file, &info);
+  struct stat info;
+  bool success = !fstat(record->file, &info);
   if (!success) {
     return -1;
   }
 
-  return info.size;
+  return info.st_size;
 }

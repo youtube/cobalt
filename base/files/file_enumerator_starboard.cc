@@ -133,7 +133,7 @@ std::vector<FileEnumerator::FileInfo> FileEnumerator::ReadDirectory(
     FilePath full_name = source.Append(filename);
     // TODO: Make sure this follows symlinks on relevant platforms.
     if (stat(full_name.value().c_str(), &info.stat_) != 0) {
-      DPLOG(ERROR) << "Couldn't SbFileGetInfo on " << full_name.value();
+      DPLOG(ERROR) << "Couldn't stat on " << full_name.value();
       memset(&info.stat_, 0, sizeof(info.stat_));
     }
     return info;

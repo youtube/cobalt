@@ -18,9 +18,13 @@
 
 namespace base {
 
+#if SB_API_VERSION <= 15
+
 size_t GetPageSize() {
   NOTREACHED();
   return 0;
 }
+
+#endif  // SB_API_VERSIO <= 15
 
 }

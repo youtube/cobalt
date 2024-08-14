@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 17
+
 #include "starboard/file.h"
 
 #include <windows.h>
@@ -37,3 +39,5 @@ bool SbFileDelete(const char* path) {
   return DeleteFileW(path_wstring.c_str()) ||
          RemoveDirectoryW(path_wstring.c_str());
 }
+
+#endif  // SB_API_VERSION < 17

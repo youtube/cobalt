@@ -26,6 +26,9 @@ namespace base {
 using stat_wrapper_t = struct ::stat;
 #else
 using stat_wrapper_t = struct stat;
+#ifndef ftruncate64
+#define ftruncate64 ftruncate
+#endif
 #endif
 
 // Thin wrapper around an OS-level file.

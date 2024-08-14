@@ -13,4 +13,6 @@
 // limitations under the License.
 
 // We use the same code as the POSIX version.
+#if SB_API_VERSION <= 15
 #include "base/synchronization/waitable_event_watcher_posix.cc"
+#endif  // SB_API_VERSIO <= 15

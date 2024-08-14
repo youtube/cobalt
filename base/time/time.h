@@ -77,7 +77,7 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
 #include "starboard/common/time.h"
 #else
 #if BUILDFLAG(IS_APPLE)
@@ -1251,7 +1251,7 @@ class BASE_EXPORT ThreadTicks : public time_internal::TimeBase<ThreadTicks> {
 
   // Returns true if ThreadTicks::Now() is supported on this system.
   [[nodiscard]] static bool IsSupported() {
-#if defined(STARBOARD)
+#if defined(STARBOARD) && SB_API_VERSION <= 15
     return starboard::CurrentMonotonicThreadTime() != 0;
 #elif (defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
     BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_FUCHSIA)
