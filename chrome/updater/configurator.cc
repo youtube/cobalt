@@ -110,8 +110,8 @@ int Configurator::UpdateDelay() const {
 
 std::vector<GURL> Configurator::UpdateUrl() const {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-  if (allow_self_signed_builds_ && !custom_update_server_.empty()) {
-    return std::vector<GURL>{GURL(custom_update_server_)};
+  if (allow_self_signed_packages_ && !update_server_url_.empty()) {
+    return std::vector<GURL>{GURL(update_server_url_)};
   }
 #endif // !defined(COBALT_BUILD_TYPE_GOLD)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
@@ -349,23 +349,23 @@ void Configurator::SetUseCompressedUpdates(bool use_compressed_updates) {
   use_compressed_updates_.store(use_compressed_updates);
 }
 
-bool Configurator::GetAllowSelfSignedBuilds() const {
-  return allow_self_signed_builds_.load();
+bool Configurator::GetAllowSelfSignedPackages() const {
+  return allow_self_signed_packages_.load();
 }
 
-void Configurator::SetAllowSelfSignedBuilds(bool allow_self_signed_builds) {
-  allow_self_signed_builds_.store(allow_self_signed_builds);
+void Configurator::SetAllowSelfSignedPackages(bool allow_self_signed_packages) {
+  allow_self_signed_packages_.store(allow_self_signed_packages);
 }
 
-std::string Configurator::GetCustomUpdateServer() const {
-  base::AutoLock auto_lock(const_cast<base::Lock&>(custom_update_server_lock_));
-  return custom_update_server_;
+std::string Configurator::GetUpdateServerUrl() const {
+  base::AutoLock auto_lock(const_cast<base::Lock&>(update_server_url_lock_));
+  return update_server_url_;
 }
 
-void Configurator::SetCustomUpdateServer(const std::string& custom_update_server) {
-  LOG(INFO) << "Configurator::SetCustomUpdateServer custom_update_server=" << custom_update_server;
-  base::AutoLock auto_lock(custom_update_server_lock_);
-  custom_update_server_ = custom_update_server;
+void Configurator::SetUpdateServerUrl(const std::string& update_server_url) {
+  LOG(INFO) << "Configurator::SetUpdateServerUrl update_server_url=" << update_server_url;
+  base::AutoLock auto_lock(update_server_url_lock_);
+  update_server_url_ = update_server_url;
 }
 
 }  // namespace updater

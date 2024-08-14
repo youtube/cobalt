@@ -156,11 +156,11 @@ class UpdaterModule {
   bool GetUseCompressedUpdates() const;
   void SetUseCompressedUpdates(bool use_compressed_updates);
 
-  bool GetAllowSelfSignedBuilds() const;
-  void SetAllowSelfSignedBuilds(bool allow_self_signed_builds);
+  bool GetAllowSelfSignedPackages() const;
+  void SetAllowSelfSignedPackages(bool allow_self_signed_packages);
 
-  std::string GetCustomUpdateServer() const;
-  void SetCustomUpdateServer(const std::string& custom_update_server);
+  std::string GetUpdateServerUrl() const;
+  void SetUpdateServerUrl(const std::string& update_server_url);
 
   void MarkSuccessful();
 

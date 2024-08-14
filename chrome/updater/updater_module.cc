@@ -267,16 +267,16 @@ void UpdaterModule::Update() {
   }
 
 #if defined(COBALT_BUILD_TYPE_GOLD)
-  bool skipVerifyPublicKeyHash = false;
+  bool skip_verify_public_key_hash = false;
 #else  // defined(COBALT_BUILD_TYPE_GOLD)
-  bool skipVerifyPublicKeyHash = GetAllowSelfSignedBuilds();
+  bool skip_verify_public_key_hash = GetAllowSelfSignedPackages();
 #endif // defined(COBALT_BUILD_TYPE_GOLD)
 
   update_client_->Update(
       app_ids,
       base::BindOnce(
           [](base::Version manifest_version,
-             bool skipVerifyPublicKeyHash,
+             bool skip_verify_public_key_hash,
              const std::vector<std::string>& ids)
               -> std::vector<base::Optional<update_client::CrxComponent>> {
             update_client::CrxComponent component;
@@ -286,7 +286,7 @@ void UpdaterModule::Update() {
             component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
                                      std::end(kCobaltPublicKeyHash));
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-            if (skipVerifyPublicKeyHash) {
+            if (skip_verify_public_key_hash) {
               component.pk_hash.clear();
             }
 #endif // !defined(COBALT_BUILD_TYPE_GOLD)
@@ -294,7 +294,7 @@ void UpdaterModule::Update() {
             component.crx_format_requirement = crx_file::VerifierFormat::CRX3;
             return {component};
           },
-          manifest_version, skipVerifyPublicKeyHash),
+          manifest_version, skip_verify_public_key_hash),
       false,
       base::BindOnce(
           [](base::OnceClosure closure, update_client::Error error) {
@@ -444,54 +444,54 @@ void UpdaterModule::SetUseCompressedUpdates(bool use_compressed_updates) {
   config->SetUseCompressedUpdates(use_compressed_updates);
 }
 
-bool UpdaterModule::GetAllowSelfSignedBuilds() const {
-  LOG(INFO) << "UpdaterModule::GetAllowSelfSignedBuilds";
+bool UpdaterModule::GetAllowSelfSignedPackages() const {
+  LOG(INFO) << "UpdaterModule::GetAllowSelfSignedPackages";
   auto config = updater_configurator_;
   if (!config) {
-    LOG(ERROR) << "UpdaterModule::GetAllowSelfSignedBuilds: missing configurator";
+    LOG(ERROR) << "UpdaterModule::GetAllowSelfSignedPackages: missing configurator";
     return false;
   }
 
-  bool allow_self_signed_builds = config->GetAllowSelfSignedBuilds();
-  LOG(INFO) << "UpdaterModule::GetAllowSelfSignedBuilds allow_self_signed_builds="
+  bool allow_self_signed_builds = config->GetAllowSelfSignedPackages();
+  LOG(INFO) << "UpdaterModule::GetAllowSelfSignedPackages allow_self_signed_builds="
             << allow_self_signed_builds;
   return allow_self_signed_builds;
 }
 
-void UpdaterModule::SetAllowSelfSignedBuilds(bool allow_self_signed_builds) {
-  LOG(INFO) << "UpdaterModule::SetAllowSelfSignedBuilds";
+void UpdaterModule::SetAllowSelfSignedPackages(bool allow_self_signed_builds) {
+  LOG(INFO) << "UpdaterModule::SetAllowSelfSignedPackages";
   auto config = updater_configurator_;
   if (!config) {
-    LOG(ERROR) << "UpdaterModule::SetAllowSelfSignedBuilds: missing configurator";
+    LOG(ERROR) << "UpdaterModule::SetAllowSelfSignedPackages: missing configurator";
     return;
   }
 
-  config->SetAllowSelfSignedBuilds(allow_self_signed_builds);
+  config->SetAllowSelfSignedPackages(allow_self_signed_builds);
 }
 
-std::string UpdaterModule::GetCustomUpdateServer() const {
-  LOG(INFO) << "UpdaterModule::GetCustomUpdateServer";
+std::string UpdaterModule::GetUpdateServerUrl() const {
+  LOG(INFO) << "UpdaterModule::GetUpdateServerUrl";
   auto config = updater_configurator_;
   if (!config) {
-    LOG(ERROR) << "UpdaterModule::GetCustomUpdateServer: missing configurator";
+    LOG(ERROR) << "UpdaterModule::GetUpdateServerUrl: missing configurator";
     return "";
   }
 
-  std::string custom_update_server = config->GetCustomUpdateServer();
-  LOG(INFO) << "UpdaterModule::GetCustomUpdateServer custom_update_server="
-            << custom_update_server;
-  return custom_update_server;
+  std::string update_server_url = config->GetUpdateServerUrl();
+  LOG(INFO) << "UpdaterModule::GetUpdateServerUrl update_server_url="
+            << update_server_url;
+  return update_server_url;
 }
 
-void UpdaterModule::SetCustomUpdateServer(const std::string& custom_update_server) {
-  LOG(INFO) << "UpdaterModule::SetCustomUpdateServer";
+void UpdaterModule::SetUpdateServerUrl(const std::string& update_server_url) {
+  LOG(INFO) << "UpdaterModule::SetUpdateServerUrl";
   auto config = updater_configurator_;
   if(!config) {
-    LOG(ERROR) << "UpdaterModule::SetCustomUpdateServer: missing configurator";
+    LOG(ERROR) << "UpdaterModule::SetUpdateServerUrl: missing configurator";
     return;
   }
 
-  config->SetCustomUpdateServer(custom_update_server);
+  config->SetUpdateServerUrl(update_server_url);
 }
 
 }  // namespace updater

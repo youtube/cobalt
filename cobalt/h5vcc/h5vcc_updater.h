@@ -51,8 +51,8 @@ class H5vccUpdater : public script::Wrappable {
   bool GetUseCompressedUpdates() const;
   void SetUseCompressedUpdates(bool use_compressed_updates);
 
-  void SetAllowSelfSignedBuilds(bool allow_self_signed_builds);
-  bool GetAllowSelfSignedBuilds();
+  void SetAllowSelfSignedPackages(bool allow_self_signed_packages);
+  bool GetAllowSelfSignedPackages();
 
   void SetUpdateServerUrl(const std::string& update_server_url);
   std::string GetUpdateServerUrl() const;

@@ -186,11 +186,11 @@ class Configurator : public base::RefCountedThreadSafe<Configurator> {
   virtual bool GetUseCompressedUpdates() const = 0;
   virtual void SetUseCompressedUpdates(bool use_compressed_updates) = 0;
 
-  virtual bool GetAllowSelfSignedBuilds() const = 0;
-  virtual void SetAllowSelfSignedBuilds(bool allow_self_signed_builds) = 0;
+  virtual bool GetAllowSelfSignedPackages() const = 0;
+  virtual void SetAllowSelfSignedPackages(bool allow_self_signed_packages) = 0;
 
-  virtual std::string GetCustomUpdateServer() const = 0;
-  virtual void SetCustomUpdateServer(const std::string& custom_update_server) = 0;
+  virtual std::string GetUpdateServerUrl() const = 0;
+  virtual void SetUpdateServerUrl(const std::string& update_server_url) = 0;
 #endif
 
  protected:

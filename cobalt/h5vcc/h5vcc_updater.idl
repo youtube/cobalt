@@ -37,8 +37,8 @@ interface H5vccUpdater {
 
   // Toggles the ability to load self-signed builds in the updater. This should
   // only be used for testing and should not be available in production.
-  void setAllowSelfSignedBuilds(boolean allow_self_signed_builds);
-  boolean getAllowSelfSignedBuilds();
+  void setAllowSelfSignedPackages(boolean allow_self_signed_packages);
+  boolean getAllowSelfSignedPackages();
 
   // Sets the URL the updater will use for updates. This should only be used for
   // testing and should not be available in production.
