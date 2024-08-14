@@ -12,11 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-<<<<<<< HEAD
-=======
 #if SB_API_VERSION < 17
 
->>>>>>> d4f1e954b1b (Fix C25 xbox build failure on SbFileOpen. (#3982))
 #include "starboard/file.h"
 
 #include "starboard/shared/win32/file_internal.h"
@@ -44,8 +41,5 @@ SbFile SbFileOpen(const char* path,
 
   return new SbFilePrivate(file_handle);
 }
-<<<<<<< HEAD
-=======
 
 #endif  // SB_API_VERSION < 17
->>>>>>> d4f1e954b1b (Fix C25 xbox build failure on SbFileOpen. (#3982))
