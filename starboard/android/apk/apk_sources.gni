@@ -32,13 +32,10 @@ apk_sources = [
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CrashContextUpdateHandler.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/ErrorDialog.java",
-<<<<<<< HEAD
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/KeyboardEditor.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/KeyboardInputConnection.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/MediaPlaybackService.java",
-=======
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/MediaImage.java",
->>>>>>> 2a9a01cbe29 ([android] Move files in dev/cobalt/media to .../coat (#3988))
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/NetworkStatus.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/NullCobaltFactory.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
@@ -53,11 +50,6 @@ apk_sources = [
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecCapabilitiesLogger.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
-<<<<<<< HEAD
-  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaImage.java",
-=======
-  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaFormatBuilder.java",
->>>>>>> 2a9a01cbe29 ([android] Move files in dev/cobalt/media to .../coat (#3988))
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/VideoFrameReleaseTimeHelper.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/VideoSurfaceTexture.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
