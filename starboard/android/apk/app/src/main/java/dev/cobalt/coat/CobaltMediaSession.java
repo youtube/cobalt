@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.media;
+package dev.cobalt.coat;
 
-import static dev.cobalt.media.Log.TAG;
+import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
 import android.content.Context;
@@ -50,7 +50,7 @@ public class CobaltMediaSession
 
   private AudioFocusRequest audioFocusRequest;
 
-  interface UpdateVolumeListener {
+  public interface UpdateVolumeListener {
     /** Called when there is a change in audio focus. */
     void onUpdateVolume(float gain);
   }

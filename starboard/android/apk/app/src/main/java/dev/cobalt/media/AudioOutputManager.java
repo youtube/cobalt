@@ -25,6 +25,7 @@ import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Build;
 import androidx.annotation.RequiresApi;
+import dev.cobalt.coat.CobaltMediaSession;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
