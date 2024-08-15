@@ -1179,14 +1179,8 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
 #if defined(ENABLE_DEBUGGER)
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
-<<<<<<< HEAD
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
-  if (application_state_ == base::kApplicationStateConcealed) {
-=======
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  if (!debug_console_ ||
-      (application_state_ == base::kApplicationStateConcealed)) {
->>>>>>> a9495fedb6e (Don't start DebugConsole with debug_console=off. (#3989))
+  if (!debug_console_ || (application_state_ == base::kApplicationStateConcealed)) {
     return;
   }
 
