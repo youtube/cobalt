@@ -18,7 +18,13 @@
 namespace net {
 
 #if defined(STARBOARD)
+
+#if SB_API_VERSION >= 16
+typedef int SocketDescriptor;
+#else
 typedef SbSocket SocketDescriptor;
+#endif  // SB_API_VERSION >= 16
+
 #elif BUILDFLAG(IS_WIN)
 typedef UINT_PTR SocketDescriptor;
 const SocketDescriptor kInvalidSocket = (SocketDescriptor)(~0);

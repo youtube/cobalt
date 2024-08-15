@@ -14,6 +14,12 @@
 
 #include "base/message_loop/message_pump_io_starboard.h"
 
+#if SB_API_VERSION >= 16
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <netinet/in.h>
+#endif
+
 #include "base/auto_reset.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
@@ -23,18 +29,28 @@
 #include "starboard/common/socket.h"
 #include "starboard/socket_waiter.h"
 
+
+
 namespace base {
 
 MessagePumpIOStarboard::SocketWatcher::SocketWatcher(const Location& from_here)
     : created_from_location_(from_here),
       interests_(kSbSocketWaiterInterestNone),
+#if SB_API_VERSION >= 16
+      socket_(-1),
+#else
       socket_(kSbSocketInvalid),
+#endif
       pump_(nullptr),
       watcher_(nullptr),
       weak_factory_(this) {}
 
 MessagePumpIOStarboard::SocketWatcher::~SocketWatcher() {
+#if SB_API_VERSION >= 16
+  if (socket_ >= 0) {
+#else
   if (SbSocketIsValid(socket_)) {
+#endif
     StopWatchingSocket();
   }
 }
@@ -42,15 +58,25 @@ MessagePumpIOStarboard::SocketWatcher::~SocketWatcher() {
 bool MessagePumpIOStarboard::SocketWatcher::StopWatchingSocket() {
   watcher_ = nullptr;
   interests_ = kSbSocketWaiterInterestNone;
+#if SB_API_VERSION >= 16
+  if (socket_ < 0) {
+#else
   if (!SbSocketIsValid(socket_)) {
+#endif
     pump_ = nullptr;
     // If this watcher is not watching anything, no-op and return success.
     return true;
   }
 
+#if SB_API_VERSION >= 16
+  int socket = Release();
+  bool result = true;
+  if (socket >= 0) {
+#else
   SbSocket socket = Release();
   bool result = true;
   if (SbSocketIsValid(socket)) {
+#endif
     DCHECK(pump_);
     result = pump_->StopWatching(socket);
   }
@@ -58,22 +84,42 @@ bool MessagePumpIOStarboard::SocketWatcher::StopWatchingSocket() {
   return result;
 }
 
+#if SB_API_VERSION >= 16
+void MessagePumpIOStarboard::SocketWatcher::Init(int socket,
+                                                 bool persistent) {
+  DCHECK(socket >= 0);
+  DCHECK(socket_ < 0);
+#else
 void MessagePumpIOStarboard::SocketWatcher::Init(SbSocket socket,
                                                  bool persistent) {
   DCHECK(socket);
   DCHECK(!socket_);
+#endif
+
   socket_ = socket;
   persistent_ = persistent;
 }
 
+#if SB_API_VERSION >= 16
+int MessagePumpIOStarboard::SocketWatcher::Release() {
+  int socket = socket_;
+  socket_ = -1;
+  return socket;
+}
+#else
 SbSocket MessagePumpIOStarboard::SocketWatcher::Release() {
   SbSocket socket = socket_;
   socket_ = kSbSocketInvalid;
   return socket;
 }
+#endif
 
 void MessagePumpIOStarboard::SocketWatcher::OnSocketReadyToRead(
+#if SB_API_VERSION >= 16
+    int socket,
+#else
     SbSocket socket,
+#endif
     MessagePumpIOStarboard* pump) {
   if (!watcher_)
     return;
@@ -83,7 +129,11 @@ void MessagePumpIOStarboard::SocketWatcher::OnSocketReadyToRead(
 }
 
 void MessagePumpIOStarboard::SocketWatcher::OnSocketReadyToWrite(
+#if SB_API_VERSION >= 16
+    int socket,
+#else
     SbSocket socket,
+#endif
     MessagePumpIOStarboard* pump) {
   if (!watcher_)
     return;
@@ -102,12 +152,21 @@ MessagePumpIOStarboard::~MessagePumpIOStarboard() {
   SbSocketWaiterDestroy(waiter_);
 }
 
+#if SB_API_VERSION >= 16
+bool MessagePumpIOStarboard::Watch(int socket,
+                                   bool persistent,
+                                   int mode,
+                                   SocketWatcher* controller,
+                                   Watcher* delegate) {
+  DCHECK(socket >= 0);
+#else
 bool MessagePumpIOStarboard::Watch(SbSocket socket,
                                    bool persistent,
                                    int mode,
                                    SocketWatcher* controller,
                                    Watcher* delegate) {
   DCHECK(SbSocketIsValid(socket));
+#endif
   DCHECK(controller);
   DCHECK(delegate);
   DCHECK(mode == WATCH_READ || mode == WATCH_WRITE || mode == WATCH_READ_WRITE);
@@ -123,8 +182,14 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
     interests |= kSbSocketWaiterInterestWrite;
   }
 
+#if SB_API_VERSION >= 16
+  int old_socket = controller->Release();
+  if (old_socket >= 0)
+#else
   SbSocket old_socket = controller->Release();
-  if (SbSocketIsValid(old_socket)) {
+  if (SbSocketIsValid(old_socket))
+#endif
+  {
     // It's illegal to use this function to listen on 2 separate fds with the
     // same |controller|.
     if (old_socket != socket) {
@@ -141,14 +206,25 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
     interests |= old_interest_mask;
 
     // Must disarm the event before we can reuse it.
+#if SB_API_VERSION >= 16
+    SbPosixSocketWaiterRemove(waiter_, old_socket);
+#else
     SbSocketWaiterRemove(waiter_, old_socket);
+#endif  // SB_API_VERSION >= 16
   }
 
   // Set current interest mask and waiter for this event.
+#if SB_API_VERSION >= 16
+  if (!SbPosixSocketWaiterAdd(waiter_, socket, controller,
+                             OnPosixSocketWaiterNotification, interests, persistent)){
+    return false;
+  }
+#else
   if (!SbSocketWaiterAdd(waiter_, socket, controller,
                          OnSocketWaiterNotification, interests, persistent)) {
     return false;
   }
+#endif  // SB_API_VERSION >= 16
 
   controller->Init(socket, persistent);
   controller->set_watcher(delegate);
@@ -157,9 +233,15 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
   return true;
 }
 
+#if SB_API_VERSION >= 16
+bool MessagePumpIOStarboard::StopWatching(int socket) {
+    return SbPosixSocketWaiterRemove(waiter_, socket);
+}
+#else
 bool MessagePumpIOStarboard::StopWatching(SbSocket socket) {
   return SbSocketWaiterRemove(waiter_, socket);
 }
+#endif  // SB_API_VERSION >= 16
 
 void MessagePumpIOStarboard::AddIOObserver(IOObserver* obs) {
   io_observers_.AddObserver(obs);
@@ -252,6 +334,36 @@ void MessagePumpIOStarboard::DidProcessIOEvent() {
   }
 }
 
+#if SB_API_VERSION >= 16
+
+// static
+void MessagePumpIOStarboard::OnPosixSocketWaiterNotification(SbSocketWaiter waiter,
+                                                             int socket,
+                                                             void* context,
+                                                             int ready_interests) {
+  base::WeakPtr<SocketWatcher> controller =
+      static_cast<SocketWatcher*>(context)->weak_factory_.GetWeakPtr();
+  DCHECK(controller.get());
+
+  MessagePumpIOStarboard* pump = controller->pump();
+  pump->processed_io_events_ = true;
+
+  // If not persistent, the watch has been released at this point.
+  if (!controller->persistent()) {
+    controller->Release();
+  }
+
+  if (ready_interests & kSbSocketWaiterInterestWrite) {
+    controller->OnSocketReadyToWrite(socket, pump);
+  }
+
+  // Check |controller| in case it's been deleted previously.
+  if (controller.get() && ready_interests & kSbSocketWaiterInterestRead) {
+    controller->OnSocketReadyToRead(socket, pump);
+  }
+}
+
+#else
 // static
 void MessagePumpIOStarboard::OnSocketWaiterNotification(SbSocketWaiter waiter,
                                                         SbSocket socket,
@@ -279,4 +391,5 @@ void MessagePumpIOStarboard::OnSocketWaiterNotification(SbSocketWaiter waiter,
   }
 }
 
+#endif  // SB_API_VERSION >= 16
 }  // namespace base

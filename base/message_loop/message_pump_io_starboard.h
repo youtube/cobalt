@@ -15,6 +15,8 @@
 #ifndef BASE_MESSAGE_PUMP_IO_STARBOARD_H_
 #define BASE_MESSAGE_PUMP_IO_STARBOARD_H_
 
+#include "starboard/configuration.h"
+
 #include "base/compiler_specific.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop/message_pump.h"
@@ -49,8 +51,13 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
    public:
     // These methods are called from MessageLoop::Run when a socket can be
     // interacted with without blocking.
+#if SB_API_VERSION >= 16
+    virtual void OnSocketReadyToRead(int socket) {}
+    virtual void OnSocketReadyToWrite(int socket) {}
+#else
     virtual void OnSocketReadyToRead(SbSocket socket) {}
     virtual void OnSocketReadyToWrite(SbSocket socket) {}
+#endif
 
    protected:
     virtual ~Watcher() {}
@@ -79,8 +86,13 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
     friend class MessagePumpIOStarboardTest;
 
     // Called by MessagePumpIOStarboard.
+#if SB_API_VERSION >= 16
+    void Init(int socket, bool persistent);
+    int Release();
+#else
     void Init(SbSocket socket, bool persistent);
     SbSocket Release();
+#endif
 
     int interests() const { return interests_; }
     void set_interests(int interests) { interests_ = interests; }
@@ -90,12 +102,21 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
 
     void set_watcher(Watcher* watcher) { watcher_ = watcher; }
 
+#if SB_API_VERSION >= 16
+    void OnSocketReadyToRead(int socket, MessagePumpIOStarboard* pump);
+    void OnSocketReadyToWrite(int socket, MessagePumpIOStarboard* pump);
+#else
     void OnSocketReadyToRead(SbSocket socket, MessagePumpIOStarboard* pump);
     void OnSocketReadyToWrite(SbSocket socket, MessagePumpIOStarboard* pump);
+#endif
 
     const Location created_from_location_;
     int interests_;
+#if SB_API_VERSION >= 16
+    int socket_;
+#else
     SbSocket socket_;
+#endif
     bool persistent_;
     MessagePumpIOStarboard* pump_;
     Watcher* watcher_;
@@ -123,6 +144,16 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
   // If an error occurs while calling this method in a cumulative fashion, the
   // event previously attached to |controller| is aborted.  Returns true on
   // success.  Must be called on the same thread the message_pump is running on.
+#if SB_API_VERSION >= 16
+  bool Watch(int socket,
+             bool persistent,
+             int mode,
+             SocketWatcher* controller,
+             Watcher* delegate);
+
+  // Stops watching the socket.
+  bool StopWatching(int socket);
+#else
   bool Watch(SbSocket socket,
              bool persistent,
              int mode,
@@ -131,6 +162,7 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
 
   // Stops watching the socket.
   bool StopWatching(SbSocket socket);
+#endif
 
   void AddIOObserver(IOObserver* obs);
   void RemoveIOObserver(IOObserver* obs);
@@ -149,10 +181,17 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
 
   // Called by SbSocketWaiter to tell us a registered socket can be read and/or
   // written to.
+#if SB_API_VERSION >= 16
+  static void OnPosixSocketWaiterNotification(SbSocketWaiter waiter,
+                                              int socket,
+                                              void* context,
+                                              int ready_interests);
+#else
   static void OnSocketWaiterNotification(SbSocketWaiter waiter,
                                          SbSocket socket,
                                          void* context,
                                          int ready_interests);
+#endif
 
   bool should_quit() const { return !keep_running_; }
 

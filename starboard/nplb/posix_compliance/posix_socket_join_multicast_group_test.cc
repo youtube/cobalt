@@ -36,7 +36,6 @@ int CreateMulticastSocket(const struct ip_mreq& address) {
 
   EXPECT_NE(-1, bind(socket_fd, (struct sockaddr*)&bind_address,
                      sizeof(bind_address)));
-
   EXPECT_NE(-1, setsockopt(socket_fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, &address,
                            sizeof(address)));
   return socket_fd;
@@ -57,10 +56,10 @@ TEST(PosixSocketJoinMulticastGroupTest, SunnyDay) {
   // spamming it on the local network.
   // http://www.iana.org/assignments/multicast-addresses/multicast-addresses.xhtml
   struct ip_mreq address;
-// Same as doing inet_addr("224.0.2.0");, however inet_addr is not supported
-// yet in Starboard 16.
-// TODO: we should support inet_addr for better handling endianness across
-// different systems.
+  // Same as doing inet_addr("224.0.2.0");, however inet_addr is not supported
+  // yet in Starboard 16.
+  // TODO: we should support inet_addr for better handling endianness across
+  // different systems.
 #if SB_IS_BIG_ENDIAN
   address.imr_multiaddr.s_addr = (224 << 24) | (0 << 16) | (2 << 8) | 0;
 #else

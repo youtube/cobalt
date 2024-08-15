@@ -21,6 +21,9 @@
 #include "starboard/shared/posix/handle_eintr.h"
 #include "starboard/shared/posix/socket_internal.h"
 
+#include <stdio.h>
+#include <string.h>
+
 namespace sbposix = starboard::shared::posix;
 
 bool SbSocketGetLocalAddress(SbSocket socket, SbSocketAddress* out_address) {
@@ -33,6 +36,7 @@ bool SbSocketGetLocalAddress(SbSocket socket, SbSocketAddress* out_address) {
   sbposix::SockAddr sock_addr;
   int result =
       getsockname(socket->socket_fd, sock_addr.sockaddr(), &sock_addr.length);
+
   if (result < 0) {
     socket->error = sbposix::TranslateSocketErrno(errno);
     return false;

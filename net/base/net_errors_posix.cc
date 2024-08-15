@@ -15,6 +15,8 @@
 
 namespace net {
 
+#if SB_API_VERSION >= 16
+
 Error MapSystemError(logging::SystemErrorCode os_error) {
   if (os_error != 0)
     DVLOG(2) << "Error " << os_error << ": "
@@ -27,6 +29,7 @@ Error MapSystemError(logging::SystemErrorCode os_error) {
 #if EWOULDBLOCK != EAGAIN
     case EWOULDBLOCK:
 #endif
+    case EINPROGRESS:
       return ERR_IO_PENDING;
     case EACCES:
       return ERR_ACCESS_DENIED;
@@ -43,7 +46,9 @@ Error MapSystemError(logging::SystemErrorCode os_error) {
     case ECONNREFUSED:
       return ERR_CONNECTION_REFUSED;
     case EHOSTUNREACH:
+#if defined(EHOSTDOWN)
     case EHOSTDOWN:
+#endif
     case ENETUNREACH:
     case EAFNOSUPPORT:
       return ERR_ADDRESS_UNREACHABLE;
@@ -69,8 +74,10 @@ Error MapSystemError(logging::SystemErrorCode os_error) {
       return ERR_ABORTED;
     case EDEADLK:  // Resource deadlock avoided.
       return ERR_INSUFFICIENT_RESOURCES;
+#if defined(EDQUOT)
     case EDQUOT:  // Disk quota exceeded.
       return ERR_FILE_NO_SPACE;
+#endif
     case EEXIST:  // File exists.
       return ERR_FILE_EXISTS;
     case EFAULT:  // Bad address.
@@ -107,8 +114,10 @@ Error MapSystemError(logging::SystemErrorCode os_error) {
       return ERR_ACCESS_DENIED;
     case ETXTBSY:  // Text file busy.
       return ERR_ACCESS_DENIED;
+#if defined(EUSERS)
     case EUSERS:  // Too many users.
       return ERR_INSUFFICIENT_RESOURCES;
+#endif
     case EMFILE:  // Too many open files.
       return ERR_INSUFFICIENT_RESOURCES;
     case ENOPROTOOPT:  // Protocol option not supported.
@@ -124,10 +133,12 @@ Error MapSystemError(logging::SystemErrorCode os_error) {
     case 0:
       return OK;
     default:
-      LOG(WARNING) << "Unknown error " << base::safe_strerror(os_error) << " ("
+      LOG(WARNING) << "Unknown error " << " ("
                    << os_error << ") mapped to net::ERR_FAILED";
       return ERR_FAILED;
   }
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace net

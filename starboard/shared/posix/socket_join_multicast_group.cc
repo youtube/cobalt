@@ -19,6 +19,9 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 
+#include <stdio.h>
+#include <string.h>
+
 #include "starboard/common/log.h"
 #include "starboard/shared/posix/socket_internal.h"
 
@@ -39,6 +42,7 @@ bool SbSocketJoinMulticastGroup(SbSocket socket,
   SB_DCHECK(socket->socket_fd >= 0);
   struct ip_mreq imreq = {0};
   in_addr_t in_addr = *reinterpret_cast<const in_addr_t*>(address->address);
+
   imreq.imr_multiaddr.s_addr = in_addr;
   imreq.imr_interface.s_addr = INADDR_ANY;
 

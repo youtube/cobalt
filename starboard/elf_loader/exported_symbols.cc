@@ -468,6 +468,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(ftruncate);
   REGISTER_SYMBOL(getaddrinfo);
   REGISTER_SYMBOL(getifaddrs);
+  REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(lseek);
@@ -479,6 +480,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(open);
   REGISTER_SYMBOL(opendir);
   REGISTER_SYMBOL(posix_memalign);
+  REGISTER_SYMBOL(SbPosixSocketWaiterAdd);
+  REGISTER_SYMBOL(SbPosixSocketWaiterRemove);
   REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(readdir_r);
   REGISTER_SYMBOL(realloc);
