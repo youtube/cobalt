@@ -86,9 +86,22 @@ class DebugConsole : public LifecycleObserver {
   // Returns the currently set debug console visibility mode.
   int GetMode();
 
+<<<<<<< HEAD
   void SetSize(const cssom::ViewportSize& window_dimensions,
                float video_pixel_ratio) {
     web_module_->SetSize(window_dimensions, video_pixel_ratio);
+=======
+  // Returns true if the debug console is enabled.
+  static bool IsEnabled();
+
+  // Returns true iff the console is in a mode that is visible.
+  bool IsVisible() {
+    return (GetMode() != debug::console::kDebugConsoleModeOff);
+  }
+
+  void SetSize(const cssom::ViewportSize& viewport_size) {
+    web_module_->SetSize(viewport_size);
+>>>>>>> a9495fedb6e (Don't start DebugConsole with debug_console=off. (#3989))
   }
 
   // LifecycleObserver implementation.

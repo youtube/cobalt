@@ -144,7 +144,33 @@ DebugConsole::DebugConsole(
 
 DebugConsole::~DebugConsole() {}
 
+<<<<<<< HEAD
 bool DebugConsole::FilterKeyEvent(base::Token type,
+=======
+// static
+bool DebugConsole::IsEnabled() {
+#if defined(ENABLE_DEBUGGER)
+  // The debug console is not enabled when it's turned off from the
+  // command-line.
+  return GetDebugConsoleModeFromCommandLine() !=
+         debug::console::kDebugConsoleModeOff;
+#else
+  return false;
+#endif
+}
+
+bool DebugConsole::ShouldInjectInputEvents() {
+  switch (GetMode()) {
+    case debug::console::kDebugConsoleModeOff:
+    case debug::console::kDebugConsoleModeHud:
+      return false;
+    default:
+      return true;
+  }
+}
+
+bool DebugConsole::FilterKeyEvent(base_token::Token type,
+>>>>>>> a9495fedb6e (Don't start DebugConsole with debug_console=off. (#3989))
                                   const dom::KeyboardEventInit& event) {
   // Assume here the full debug console is visible - pass all events to its
   // web module, and return false to indicate the event has been consumed.

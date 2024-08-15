@@ -341,7 +341,10 @@ BrowserModule::BrowserModule(const GURL& url,
   splash_screen_layer_ = render_tree_combiner_.CreateLayer(kSplashScreenZIndex);
 // Create the debug console layer.
 #if defined(ENABLE_DEBUGGER)
-  debug_console_layer_ = render_tree_combiner_.CreateLayer(kDebugConsoleZIndex);
+  if (DebugConsole::IsEnabled()) {
+    debug_console_layer_ =
+        render_tree_combiner_.CreateLayer(kDebugConsoleZIndex);
+  }
 #endif
   if (command_line->HasSwitch(browser::switches::kQrCodeOverlay)) {
     qr_overlay_info_layer_ =
@@ -411,6 +414,7 @@ BrowserModule::BrowserModule(const GURL& url,
   }
 
 #if defined(ENABLE_DEBUGGER)
+<<<<<<< HEAD
   debug_console_.reset(new DebugConsole(
       application_state_,
       base::Bind(&BrowserModule::QueueOnDebugConsoleRenderTreeProduced,
@@ -419,6 +423,19 @@ BrowserModule::BrowserModule(const GURL& url,
       kLayoutMaxRefreshFrequencyInHz,
       base::Bind(&BrowserModule::CreateDebugClient, base::Unretained(this))));
   lifecycle_observers_.AddObserver(debug_console_.get());
+=======
+  if (debug_console_layer_) {
+    debug_console_.reset(new DebugConsole(
+        platform_info_.get(), application_state_,
+        base::Bind(&BrowserModule::QueueOnDebugConsoleRenderTreeProduced,
+                   base::Unretained(this)),
+        &web_settings_, network_module_, GetViewportSize(),
+        GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz,
+        base::Bind(&BrowserModule::CreateDebugClient, base::Unretained(this)),
+        base::Bind(&BrowserModule::OnMaybeFreeze, base::Unretained(this))));
+    lifecycle_observers_.AddObserver(debug_console_.get());
+  }
+>>>>>>> a9495fedb6e (Don't start DebugConsole with debug_console=off. (#3989))
 #endif  // defined(ENABLE_DEBUGGER)
 
   if (command_line->HasSwitch(switches::kEnableMapToMeshRectanglar)) {
@@ -1031,6 +1048,7 @@ void BrowserModule::OnDisableMediaCodecs(const std::string& codecs) {
 
 void BrowserModule::QueueOnDebugConsoleRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
+#if defined(ENABLE_DEBUGGER)
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::QueueOnDebugConsoleRenderTreeProduced()");
   render_tree_submission_queue_.AddMessage(
@@ -1039,14 +1057,22 @@ void BrowserModule::QueueOnDebugConsoleRenderTreeProduced(
   self_message_loop_->task_runner()->PostTask(
       FROM_HERE,
       base::Bind(&BrowserModule::ProcessRenderTreeSubmissionQueue, weak_this_));
+#endif
 }
 
 void BrowserModule::OnDebugConsoleRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
+#if defined(ENABLE_DEBUGGER)
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
+<<<<<<< HEAD
   DCHECK_EQ(base::MessageLoop::current(), self_message_loop_);
   if (application_state_ == base::kApplicationStatePreloading) {
+=======
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (!debug_console_ ||
+      (application_state_ == base::kApplicationStateConcealed)) {
+>>>>>>> a9495fedb6e (Don't start DebugConsole with debug_console=off. (#3989))
     return;
   }
 
@@ -1063,6 +1089,7 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
   }
 
   SubmitCurrentRenderTreeToRenderer();
+#endif
 }
 
 #endif  // defined(ENABLE_DEBUGGER)
@@ -1081,12 +1108,18 @@ void BrowserModule::OnOnScreenKeyboardInputEventProduced(
   }
 
 #if defined(ENABLE_DEBUGGER)
+<<<<<<< HEAD
   // If the debug console is fully visible, it gets the next chance to handle
   // input events.
   if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
     if (!debug_console_->InjectOnScreenKeyboardInputEvent(type, event)) {
       return;
     }
+=======
+  if (debug_console_ &&
+      !debug_console_->FilterOnScreenKeyboardInputEvent(type, event)) {
+    return;
+>>>>>>> a9495fedb6e (Don't start DebugConsole with debug_console=off. (#3989))
   }
 #endif  // defined(ENABLE_DEBUGGER)
 
@@ -1123,12 +1156,17 @@ void BrowserModule::OnPointerEventProduced(base::Token type,
   }
 
 #if defined(ENABLE_DEBUGGER)
+<<<<<<< HEAD
   // If the debug console is fully visible, it gets the next chance to handle
   // pointer events.
   if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
     if (!debug_console_->FilterPointerEvent(type, event)) {
       return;
     }
+=======
+  if (debug_console_ && !debug_console_->FilterPointerEvent(type, event)) {
+    return;
+>>>>>>> a9495fedb6e (Don't start DebugConsole with debug_console=off. (#3989))
   }
 
 #endif  // defined(ENABLE_DEBUGGER)
@@ -1148,12 +1186,17 @@ void BrowserModule::OnWheelEventProduced(base::Token type,
   }
 
 #if defined(ENABLE_DEBUGGER)
+<<<<<<< HEAD
   // If the debug console is fully visible, it gets the next chance to handle
   // wheel events.
   if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
     if (!debug_console_->FilterWheelEvent(type, event)) {
       return;
     }
+=======
+  if (debug_console_ && !debug_console_->FilterWheelEvent(type, event)) {
+    return;
+>>>>>>> a9495fedb6e (Don't start DebugConsole with debug_console=off. (#3989))
   }
 
 #endif  // defined(ENABLE_DEBUGGER)
@@ -1278,12 +1321,17 @@ bool BrowserModule::FilterKeyEvent(base::Token type,
   }
 
 #if defined(ENABLE_DEBUGGER)
+<<<<<<< HEAD
   // If the debug console is fully visible, it gets the next chance to handle
   // key events.
   if (debug_console_->GetMode() >= debug::console::DebugHub::kDebugConsoleOn) {
     if (!debug_console_->FilterKeyEvent(type, event)) {
       return false;
     }
+=======
+  if (debug_console_ && !debug_console_->FilterKeyEvent(type, event)) {
+    return false;
+>>>>>>> a9495fedb6e (Don't start DebugConsole with debug_console=off. (#3989))
   }
 #endif  // defined(ENABLE_DEBUGGER)
 
@@ -1291,11 +1339,19 @@ bool BrowserModule::FilterKeyEvent(base::Token type,
 }
 
 bool BrowserModule::FilterKeyEventForHotkeys(
+<<<<<<< HEAD
     base::Token type, const dom::KeyboardEventInit& event) {
 #if !defined(ENABLE_DEBUGGER)
 #else
   if (event.key_code() == dom::keycode::kF1 ||
       (event.ctrl_key() && event.key_code() == dom::keycode::kO)) {
+=======
+    base_token::Token type, const dom::KeyboardEventInit& event) {
+#if defined(ENABLE_DEBUGGER)
+  if (debug_console_ &&
+      (event.key_code() == dom::keycode::kF1 ||
+       (event.ctrl_key() && event.key_code() == dom::keycode::kO))) {
+>>>>>>> a9495fedb6e (Don't start DebugConsole with debug_console=off. (#3989))
     if (type == base::Tokens::keydown()) {
       // Ctrl+O toggles the debug console display.
       debug_console_->CycleMode();
@@ -1685,7 +1741,9 @@ void BrowserModule::SuspendInternal(bool is_start) {
   main_web_module_layer_->Reset();
   splash_screen_layer_->Reset();
 #if defined(ENABLE_DEBUGGER)
-  debug_console_layer_->Reset();
+  if (debug_console_layer_) {
+    debug_console_layer_->Reset();
+  }
 #endif  // defined(ENABLE_DEBUGGER)
   if (qr_overlay_info_layer_) {
     qr_overlay_info_layer_->Reset();
