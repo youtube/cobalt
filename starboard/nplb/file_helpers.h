@@ -15,6 +15,8 @@
 #ifndef STARBOARD_NPLB_FILE_HELPERS_H_
 #define STARBOARD_NPLB_FILE_HELPERS_H_
 
+#include <unistd.h>
+
 #include <string>
 #include <vector>
 
@@ -75,7 +77,7 @@ class ScopedRandomFile {
         (create == kCreate ? MakeRandomFile(size_) : MakeRandomFilePath());
   }
 
-  ~ScopedRandomFile() { SbFileDelete(filename_.c_str()); }
+  ~ScopedRandomFile() { unlink(filename_.c_str()); }
 
   // Creates and returns a random filename (no path), but does not create the
   // file.

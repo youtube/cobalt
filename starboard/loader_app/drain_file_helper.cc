@@ -15,6 +15,7 @@
 #include "starboard/loader_app/drain_file_helper.h"
 
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "starboard/common/file.h"
 #include "starboard/loader_app/drain_file.h"
@@ -41,7 +42,7 @@ ScopedDrainFile::ScopedDrainFile(const std::string& dir,
 ScopedDrainFile::~ScopedDrainFile() {
   if (!Exists())
     return;
-  EXPECT_TRUE(SbFileDelete(path_.c_str()));
+  EXPECT_TRUE(!unlink(path_.c_str()));
 }
 
 bool ScopedDrainFile::Exists() const {

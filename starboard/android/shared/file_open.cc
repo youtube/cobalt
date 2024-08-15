@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 17
+
 #include "starboard/file.h"
 
 #include <android/asset_manager.h>
@@ -104,3 +106,5 @@ SbFile SbFileOpen(const char* path,
   }
   return kSbFileInvalid;
 }
+
+#endif  // SB_API_VERSION < 17

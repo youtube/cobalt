@@ -21,4 +21,5 @@
 bool SbFileExists(const char* path) {
   return ::starboard::shared::posix::impl::FileExists(path);
 }
-#endif
+
+#endif  // SB_API_VERSION < 16

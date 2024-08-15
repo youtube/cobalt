@@ -16,11 +16,13 @@
 
 #include "starboard/system.h"
 
+#include <fcntl.h>
 #include <pthread.h>
+#include <unistd.h>
 
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/file.h"
 
 namespace {
 
@@ -29,17 +31,16 @@ namespace {
 class URandomFile {
  public:
   URandomFile() {
-    file_ =
-        SbFileOpen("/dev/urandom", kSbFileOpenOnly | kSbFileRead, NULL, NULL);
-    SB_DCHECK(SbFileIsValid(file_)) << "Cannot open /dev/urandom";
+    file_ = open("/dev/urandom", O_RDONLY, S_IRUSR | S_IWUSR);
+    SB_DCHECK(starboard::IsValid(file_)) << "Cannot open /dev/urandom";
   }
 
-  ~URandomFile() { SbFileClose(file_); }
+  ~URandomFile() { close(file_); }
 
-  SbFile file() const { return file_; }
+  int file() const { return file_; }
 
  private:
-  SbFile file_;
+  int file_;
 };
 
 // A file that will produce any number of very random bytes.
@@ -63,12 +64,12 @@ void SbSystemGetRandomData(void* out_buffer, int buffer_size) {
   int once_result = pthread_once(&g_urandom_file_once, &InitializeRandom);
   SB_DCHECK(once_result == 0);
 
-  SbFile file = g_urandom_file->file();
+  int file = g_urandom_file->file();
   do {
     // This is unsynchronized access to the File that could happen from multiple
     // threads. It doesn't appear that there is any locking in the Chromium
     // POSIX implementation that is very similar.
-    int result = SbFileRead(file, buffer, remaining);
+    int result = read(file, buffer, remaining);
     if (result <= 0)
       break;
 
