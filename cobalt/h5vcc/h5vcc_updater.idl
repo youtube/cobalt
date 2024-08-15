@@ -37,11 +37,16 @@ interface H5vccUpdater {
 
   // Toggles the ability to load self-signed builds in the updater. This should
   // only be used for testing and should not be available in production.
-  void setAllowSelfSignedPackages(boolean allow_self_signed_packages);
   boolean getAllowSelfSignedPackages();
+  void setAllowSelfSignedPackages(boolean allow_self_signed_packages);
 
   // Sets the URL the updater will use for updates. This should only be used for
   // testing and should not be available in production.
-  void setUpdateServerUrl(DOMString update_server_url);
   DOMString getUpdateServerUrl();
+  void setUpdateServerUrl(DOMString update_server_url);
+
+  // Sets if network encryption is required for the update server. This should
+  // only be used for testing and should not be available in production.
+  boolean getRequireNetworkEncryption();
+  void setRequireNetworkEncryption(boolean require_network_encryption);
 };

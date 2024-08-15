@@ -101,6 +101,9 @@ class Configurator : public update_client::Configurator {
   std::string GetUpdateServerUrl() const override;
   void SetUpdateServerUrl(const std::string& update_server_url) override;
 
+  bool GetRequireNetworkEncryption() const override;
+  void SetRequireNetworkEncryption(bool require_network_encryption) override;
+
  private:
   friend class base::RefCountedThreadSafe<Configurator>;
   ~Configurator() override;
@@ -124,6 +127,7 @@ class Configurator : public update_client::Configurator {
   std::atomic_bool allow_self_signed_packages_;
   std::string update_server_url_;
   base::Lock update_server_url_lock_;
+  std::atomic_bool require_network_encryption_;
 
   DISALLOW_COPY_AND_ASSIGN(Configurator);
 };

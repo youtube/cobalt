@@ -62,7 +62,9 @@ Configurator::Configurator(network::NetworkModule* network_module)
       unzip_factory_(base::MakeRefCounted<UnzipperFactory>()),
       network_fetcher_factory_(
           base::MakeRefCounted<NetworkFetcherFactoryCobalt>(network_module)),
-      patch_factory_(base::MakeRefCounted<PatcherFactory>()) {
+      patch_factory_(base::MakeRefCounted<PatcherFactory>()),
+      allow_self_signed_packages_(false),
+      require_network_encryption_(true) {
   LOG(INFO) << "Configurator::Configurator";
   const std::string persisted_channel = persisted_data_->GetLatestChannel();
   if (persisted_channel.empty()) {
@@ -366,6 +368,13 @@ void Configurator::SetUpdateServerUrl(const std::string& update_server_url) {
   LOG(INFO) << "Configurator::SetUpdateServerUrl update_server_url=" << update_server_url;
   base::AutoLock auto_lock(update_server_url_lock_);
   update_server_url_ = update_server_url;
+}
+
+bool Configurator::GetRequireNetworkEncryption() const {
+  return require_network_encryption_.load();
+}
+void Configurator::SetRequireNetworkEncryption(bool require_network_encryption) {
+  require_network_encryption_.store(require_network_encryption);
 }
 
 }  // namespace updater

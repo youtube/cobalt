@@ -191,6 +191,9 @@ class Configurator : public base::RefCountedThreadSafe<Configurator> {
 
   virtual std::string GetUpdateServerUrl() const = 0;
   virtual void SetUpdateServerUrl(const std::string& update_server_url) = 0;
+
+  virtual bool GetRequireNetworkEncryption() const = 0;
+  virtual void SetRequireNetworkEncryption(bool require_network_encryption) = 0;
 #endif
 
  protected:

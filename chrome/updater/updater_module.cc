@@ -268,8 +268,10 @@ void UpdaterModule::Update() {
 
 #if defined(COBALT_BUILD_TYPE_GOLD)
   bool skip_verify_public_key_hash = false;
+  bool require_network_encryption = true;
 #else  // defined(COBALT_BUILD_TYPE_GOLD)
   bool skip_verify_public_key_hash = GetAllowSelfSignedPackages();
+  bool require_network_encryption = GetRequireNetworkEncryption();
 #endif // defined(COBALT_BUILD_TYPE_GOLD)
 
   update_client_->Update(
@@ -277,6 +279,7 @@ void UpdaterModule::Update() {
       base::BindOnce(
           [](base::Version manifest_version,
              bool skip_verify_public_key_hash,
+             bool require_network_encryption,
              const std::vector<std::string>& ids)
               -> std::vector<base::Optional<update_client::CrxComponent>> {
             update_client::CrxComponent component;
@@ -285,16 +288,17 @@ void UpdaterModule::Update() {
             component.version = manifest_version;
             component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
                                      std::end(kCobaltPublicKeyHash));
+            component.requires_network_encryption = true;
 #if !defined(COBALT_BUILD_TYPE_GOLD)
             if (skip_verify_public_key_hash) {
               component.pk_hash.clear();
             }
+            component.requires_network_encryption = require_network_encryption;
 #endif // !defined(COBALT_BUILD_TYPE_GOLD)
-            component.requires_network_encryption = true;
             component.crx_format_requirement = crx_file::VerifierFormat::CRX3;
             return {component};
           },
-          manifest_version, skip_verify_public_key_hash),
+          manifest_version, skip_verify_public_key_hash, require_network_encryption),
       false,
       base::BindOnce(
           [](base::OnceClosure closure, update_client::Error error) {
@@ -492,6 +496,31 @@ void UpdaterModule::SetUpdateServerUrl(const std::string& update_server_url) {
   }
 
   config->SetUpdateServerUrl(update_server_url);
+}
+
+bool UpdaterModule::GetRequireNetworkEncryption() const {
+  LOG(INFO) << "UpdaterModule::GetRequireNetworkEncryption";
+  auto config = updater_configurator_;
+  if (!config) {
+    LOG(ERROR) << "UpdaterModule::GetRequireNetworkEncryption: missing configurator";
+    return true;
+  }
+
+  bool require_network_encryption = config->GetRequireNetworkEncryption();
+  LOG(INFO) << "UpdaterModule::GetRequireNetworkEncryption require_network_encryption="
+            << require_network_encryption;
+  return require_network_encryption;
+}
+
+void UpdaterModule::SetRequireNetworkEncryption(bool require_network_encryption) {
+  LOG(INFO) << "UpdaterModule::SetRequireNetworkEncryption";
+  auto config = updater_configurator_;
+  if (!config) {
+    LOG(ERROR) << "UpdaterModule::SetRequireNetworkEncryption: missing configurator";
+    return;
+  }
+
+  config->SetRequireNetworkEncryption(require_network_encryption);
 }
 
 }  // namespace updater

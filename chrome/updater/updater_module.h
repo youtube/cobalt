@@ -162,6 +162,9 @@ class UpdaterModule {
   std::string GetUpdateServerUrl() const;
   void SetUpdateServerUrl(const std::string& update_server_url);
 
+  bool GetRequireNetworkEncryption() const;
+  void SetRequireNetworkEncryption(bool require_network_encryption);
+
   void MarkSuccessful();
 
  private:
