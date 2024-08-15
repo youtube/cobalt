@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.media;
+package dev.cobalt.coat;
 
 import android.graphics.Bitmap;
 import android.os.Handler;
