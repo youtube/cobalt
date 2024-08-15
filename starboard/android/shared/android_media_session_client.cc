@@ -191,7 +191,7 @@ void OnMediaSessionStateChanged(
     if (artwork_count > 0) {
       CobaltExtensionMediaImage* artwork(media_metadata->artwork);
       ScopedLocalJavaRef<jclass> media_image_class(
-          env->FindClassExtOrAbort("dev/cobalt/media/MediaImage"));
+          env->FindClassExtOrAbort("dev/cobalt/coat/MediaImage"));
       jmethodID media_image_constructor = env->GetMethodID(
           media_image_class.Get(), "<init>",
           "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
@@ -234,7 +234,7 @@ void OnMediaSessionStateChanged(
   env->CallStarboardVoidMethodOrAbort(
       "updateMediaSession",
       "(IJJFLjava/lang/String;Ljava/lang/String;Ljava/lang/String;"
-      "[Ldev/cobalt/media/MediaImage;J)V",
+      "[Ldev/cobalt/coat/MediaImage;J)V",
       playback_state, playback_state_actions,
       session_state.current_playback_position / 1000,
       static_cast<jfloat>(session_state.actual_playback_rate), j_title.Get(),
@@ -290,9 +290,9 @@ const void* GetMediaSessionApi() {
 }  // namespace starboard
 
 extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_media_CobaltMediaSession_nativeInvokeAction(JNIEnv* env,
-                                                            jclass unused_clazz,
-                                                            jlong action,
-                                                            jlong seek_ms) {
+Java_dev_cobalt_coat_CobaltMediaSession_nativeInvokeAction(JNIEnv* env,
+                                                           jclass unused_clazz,
+                                                           jlong action,
+                                                           jlong seek_ms) {
   starboard::android::shared::NativeInvokeAction(action, seek_ms);
 }
