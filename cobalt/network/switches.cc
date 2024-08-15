@@ -37,6 +37,8 @@ const char kMaxNetworkDelayHelp[] =
     "Add an artificial random delay (up to the value specified) before the "
     "start of network requests to simulate low-latency networks.  The value "
     "is specified in microseconds.";
+
+const char kDisableInAppDial[] = "disable_in_app_dial";
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 // Switch to disable use of the Quic network protocol.
