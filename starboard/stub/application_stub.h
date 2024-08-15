@@ -27,7 +27,11 @@ namespace stub {
 // Stub application engine using the generic queue and a stub implementation.
 class ApplicationStub : public shared::starboard::QueueApplication {
  public:
+#if SB_API_VERSION >= 15
   explicit ApplicationStub(SbEventHandleCallback sb_event_handle_callback);
+#else
+  ApplicationStub();
+#endif  // SB_API_VERSION >= 15
 
   ~ApplicationStub() override;
 

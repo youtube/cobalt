@@ -102,7 +102,7 @@ MediaDecoder::MediaDecoder(Host* host,
   if (audio_stream_info.codec != kSbMediaAudioCodecOpus &&
       !audio_stream_info.audio_specific_config.empty()) {
     pending_tasks_.push_back(Event(audio_stream_info.audio_specific_config));
-    number_of_pending_tasks_.increment();
+    ++number_of_pending_tasks_;
   }
 }
 
@@ -207,7 +207,7 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   bool need_signal = pending_tasks_.empty();
   for (const auto& input_buffer : input_buffers) {
     pending_tasks_.push_back(Event(input_buffer));
-    number_of_pending_tasks_.increment();
+    ++number_of_pending_tasks_;
   }
   if (need_signal) {
     condition_variable_.Signal();
@@ -220,7 +220,7 @@ void MediaDecoder::WriteEndOfStream() {
   stream_ended_.store(true);
   ScopedLock scoped_lock(mutex_);
   pending_tasks_.push_back(Event(Event::kWriteEndOfStream));
-  number_of_pending_tasks_.increment();
+  ++number_of_pending_tasks_;
   if (pending_tasks_.size() == 1) {
     condition_variable_.Signal();
   }
@@ -431,7 +431,7 @@ bool MediaDecoder::ProcessOneInputBuffer(
     input_buffer_indices->erase(input_buffer_indices->begin());
     event = pending_tasks->front();
     pending_tasks->pop_front();
-    number_of_pending_tasks_.decrement();
+    --number_of_pending_tasks_;
   }
 
   SB_DCHECK(event.type == Event::kWriteCodecConfig ||

@@ -46,7 +46,7 @@ jobs:
             const botComment = comments.find(comment => {
               return comment.user.type === 'Bot' && comment.body.includes('Build Status')
             })
-            const workflows = ["lint", "android", "evergreen", "linux", "raspi-2", "stub", "win32"]
+            const workflows = ["lint", "android", "evergreen", "linux", "raspi-2", "stub"]
             var commentBody = `
             ## Build Status
             | Workflow  | Status                                                                                                                                                                                                                                               |

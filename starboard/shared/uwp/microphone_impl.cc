@@ -21,13 +21,13 @@
 
 // C++ headers.
 #include <algorithm>
+#include <atomic>
 #include <deque>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/semaphore.h"
@@ -492,7 +492,7 @@ class MicrophoneImpl : public SbMicrophonePrivate {
 // Singleton access is required by the microphone interface as specified by
 // nplb.
 const SbMicrophoneId kSingletonId = reinterpret_cast<SbMicrophoneId>(0x1);
-starboard::atomic_pointer<MicrophoneImpl*> s_singleton_pointer;
+std::atomic<MicrophoneImpl*> s_singleton_pointer{nullptr};
 
 }  // namespace.
 

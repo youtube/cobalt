@@ -18,13 +18,13 @@
 
 #include <pthread.h>
 #include <unistd.h>
+#include <atomic>
 
 #include <algorithm>
 #include <memory>
 #include <vector>
 
 #include "starboard/audio_sink.h"
-#include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
@@ -117,9 +117,9 @@ class PulseAudioSink : public SbAudioSinkPrivate {
   size_t last_request_size_ = 0;
   int64_t total_frames_played_ = 0;
   int64_t total_frames_written_ = 0;
-  atomic_double volume_{1.0};
-  atomic_bool volume_updated_{true};
-  atomic_bool is_paused_{false};
+  std::atomic<double> volume_{1.0};
+  std::atomic_bool volume_updated_{true};
+  std::atomic_bool is_paused_{false};
 };
 
 class PulseAudioSinkType : public SbAudioSinkPrivate::Type {

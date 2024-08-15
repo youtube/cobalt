@@ -15,13 +15,14 @@
 #ifndef STARBOARD_SHARED_WIDEVINE_DRM_SYSTEM_WIDEVINE_H_
 #define STARBOARD_SHARED_WIDEVINE_DRM_SYSTEM_WIDEVINE_H_
 
+#include <atomic>
 #include <limits>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "starboard/common/atomic.h"
+#include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
@@ -199,7 +200,7 @@ class DrmSystemWidevine : public SbDrmSystemPrivate,
   int maximum_number_of_session_updates_ = std::numeric_limits<int>::max();
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
-  atomic_bool first_update_session_received_{false};
+  std::atomic_bool first_update_session_received_{false};
 };
 
 }  // namespace widevine

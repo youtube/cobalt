@@ -13,14 +13,16 @@
 // limitations under the License.
 
 #include <dirent.h>
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <atomic>
 
 #include "game-activity/GameActivity.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/log_internal.h"
-#include "starboard/common/atomic.h"
 #include "starboard/common/file.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
@@ -40,7 +42,7 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-atomic_bool g_block_swapbuffers;
+std::atomic_bool g_block_swapbuffers{false};
 
 namespace {
 
@@ -54,7 +56,7 @@ Semaphore* g_app_created_semaphore = nullptr;
 // Safeguard to avoid sending AndroidCommands either when there is no instance
 // of the Starboard application, or after the run loop has exited and the
 // ALooper receiving the commands is no longer being polled.
-atomic_bool g_app_running;
+std::atomic_bool g_app_running{false};
 
 std::vector<std::string> GetArgs() {
   std::vector<std::string> args;
@@ -122,52 +124,49 @@ bool CopyDirContents(const std::string& src_dir_path,
 
     std::string filename(filename_buffer.begin(), filename_buffer.end());
     std::string path_to_src_file = src_dir_path + kSbFileSepString + filename;
-    SbFile src_file =
-        SbFileOpen(path_to_src_file.c_str(), kSbFileOpenOnly | kSbFileRead,
-                   nullptr, nullptr);
-    if (src_file == kSbFileInvalid) {
+    int src_file = open(path_to_src_file.c_str(), O_RDONLY, S_IRUSR | S_IWUSR);
+    if (!IsValid(src_file)) {
       SB_LOG(WARNING) << "Failed to open file=" << path_to_src_file;
       return false;
     }
 
-    SbFileInfo info;
-    if (!SbFileGetInfo(src_file, &info)) {
+    struct stat info;
+    if (fstat(src_file, &info)) {
       SB_LOG(WARNING) << "Failed to get info for file=" << path_to_src_file;
-      SbFileClose(src_file);
+      close(src_file);
       return false;
     }
 
-    int file_size = static_cast<int>(info.size);
+    int file_size = static_cast<int>(info.st_size);
 
     // Read in bytes from src file
     char file_contents_buffer[file_size];
-    int read = SbFileReadAll(src_file, file_contents_buffer, file_size);
+    int read = ReadAll(src_file, file_contents_buffer, file_size);
     if (read == -1) {
-      SB_LOG(WARNING) << "SbFileReadAll failed for file=" << path_to_src_file;
+      SB_LOG(WARNING) << "ReadAll failed for file=" << path_to_src_file;
       return false;
     }
     const std::string file_contents =
         std::string(file_contents_buffer, file_size);
-    SbFileClose(src_file);
+    close(src_file);
 
     // Write bytes out to dst file
     std::string path_to_dst_file = dst_dir_path;
     path_to_dst_file.append(kSbFileSepString);
     path_to_dst_file.append(filename);
-    SbFile dst_file =
-        SbFileOpen(path_to_dst_file.c_str(), kSbFileCreateAlways | kSbFileWrite,
-                   NULL, NULL);
-    if (dst_file == kSbFileInvalid) {
+    int dst_file = open(path_to_dst_file.c_str(), O_CREAT | O_TRUNC | O_WRONLY,
+                        S_IRUSR | S_IWUSR);
+    if (!IsValid(dst_file)) {
       SB_LOG(WARNING) << "Failed to open file=" << path_to_dst_file;
       return false;
     }
-    int wrote = SbFileWriteAll(dst_file, file_contents.c_str(), file_size);
+    int wrote = WriteAll(dst_file, file_contents.c_str(), file_size);
     RecordFileWriteStat(wrote);
     if (wrote == -1) {
-      SB_LOG(WARNING) << "SbFileWriteAll failed for file=" << path_to_dst_file;
+      SB_LOG(WARNING) << "WriteAll failed for file=" << path_to_dst_file;
       return false;
     }
-    SbFileClose(dst_file);
+    close(dst_file);
   }
 
   closedir(src_dir);
@@ -239,8 +238,36 @@ void* ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "StarboardMain");
   g_app_created_semaphore = static_cast<Semaphore*>(context);
 
+#if SB_API_VERSION >= 15
   int unused_value = -1;
   int error_level = SbRunStarboardMain(unused_value, nullptr, SbEventHandle);
+#else
+  ALooper* looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
+  ApplicationAndroid app(looper);
+
+  CommandLine command_line(GetArgs());
+  LogInit(command_line);
+
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  InstallCrashpadHandler(command_line);
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
+
+  // Mark the app running before signaling app created so there's no race to
+  // allow sending the first AndroidCommand after onCreate() returns.
+  g_app_running.store(true);
+
+  // Signal GameActivity_onCreate() that it may proceed.
+  g_app_created_semaphore->Put();
+
+  // Enter the Starboard run loop until stopped.
+  int error_level =
+      app.Run(std::move(command_line), GetStartDeepLink().c_str());
+
+  // Mark the app not running before informing StarboardBridge that the app is
+  // stopped so that we won't send any more AndroidCommands as a result of
+  // shutting down the Activity.
+  g_app_running.store(false);
+#endif  // SB_API_VERSION >= 15
 
   // Our launcher.py looks for this to know when the app (test) is done.
   SB_LOG(INFO) << "***Application Stopped*** " << error_level;
@@ -388,6 +415,7 @@ Java_dev_cobalt_coat_VolumeStateReceiver_nativeMuteChanged(JNIEnv* env,
 
 }  // namespace
 
+#if SB_API_VERSION >= 15
 extern "C" int SbRunStarboardMain(int argc,
                                   char** argv,
                                   SbEventHandleCallback callback) {
@@ -419,6 +447,8 @@ extern "C" int SbRunStarboardMain(int argc,
 
   return error_level;
 }
+#endif  // SB_API_VERSION >= 15
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard

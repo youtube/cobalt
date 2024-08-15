@@ -35,8 +35,12 @@ namespace starboard {
 // manage event dispatching.
 class QueueApplication : public Application {
  public:
+#if SB_API_VERSION >= 15
   explicit QueueApplication(SbEventHandleCallback sb_event_handle_callback)
       : Application(sb_event_handle_callback) {}
+#else
+  QueueApplication() {}
+#endif  // SB_API_VERSION >= 15
   ~QueueApplication() override {}
 
  protected:

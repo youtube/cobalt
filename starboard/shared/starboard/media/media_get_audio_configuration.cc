@@ -31,7 +31,12 @@ bool SbMediaGetAudioConfiguration(
 
   *out_configuration = {};
 
+#if SB_API_VERSION >= 15
   out_configuration->connector = kSbMediaAudioConnectorUnknown;
+#else   // SB_API_VERSION >= 15
+  out_configuration->index = 0;
+  out_configuration->connector = kSbMediaAudioConnectorNone;
+#endif  // SB_API_VERSION >= 15
   out_configuration->latency = 0;
   out_configuration->coding_type = kSbMediaAudioCodingTypePcm;
   out_configuration->number_of_channels = SbAudioSinkGetMaxChannels();

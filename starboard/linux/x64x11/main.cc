@@ -62,7 +62,16 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   SbLogRawDumpStack(3);
 #endif
 
+#if SB_API_VERSION >= 15
   int result = SbRunStarboardMain(argc, argv, SbEventHandle);
+#else
+  starboard::shared::x11::ApplicationX11 application;
+  int result = 0;
+  {
+    starboard::shared::starboard::LinkReceiver receiver(&application);
+    result = application.Run(argc, argv);
+  }
+#endif  // SB_API_VERSION >= 15
   starboard::shared::signal::UninstallSuspendSignalHandlers();
   starboard::shared::signal::UninstallDebugSignalHandlers();
   starboard::shared::signal::UninstallCrashSignalHandlers();

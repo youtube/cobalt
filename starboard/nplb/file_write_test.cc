@@ -15,6 +15,8 @@
 // Writing is partially tested by some of the file helpers that create files for
 // the tests to operate on.
 
+#if SB_API_VERSION < 17
+
 #include <string>
 
 #include "starboard/file.h"
@@ -167,3 +169,5 @@ TYPED_TEST(SbFileWriteTest, WriteZeroBytes) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 17

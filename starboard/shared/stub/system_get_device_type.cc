@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2016 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.media;
+#include "starboard/system.h"
 
-/**
- * Interface to download artwork (Bitmap) from a URL, intended for use in media session metadata.
- */
-public interface ArtworkDownloader {
-  public void downloadArtwork(String url, ArtworkLoader artworkLoader);
+#if SB_API_VERSION < 15
+
+SbSystemDeviceType SbSystemGetDeviceType() {
+  return kSbSystemDeviceTypeUnknown;
 }
+
+#endif
