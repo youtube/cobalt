@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 17
+
 #include "starboard/file.h"
 
 #include <android/asset_manager.h>
@@ -26,3 +28,5 @@ int64_t SbFileSeek(SbFile file, SbFileWhence whence, int64_t offset) {
     return ::starboard::shared::posix::impl::FileSeek(file, whence, offset);
   }
 }
+
+#endif  // SB_API_VERSION < 17

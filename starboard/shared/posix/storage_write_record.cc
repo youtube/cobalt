@@ -14,13 +14,15 @@
 
 #include "starboard/common/storage.h"
 
+#include <fcntl.h>
+
 #include <algorithm>
 #include <vector>
 
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/file.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 
 const char kTempFileSuffix[] = ".temp";
@@ -44,25 +46,23 @@ bool SbStorageWriteRecord(SbStorageRecord record,
                      kSbFileMaxPath);
   starboard::strlcat(temp_file_path.data(), kTempFileSuffix, kSbFileMaxPath);
 
-  SbFileError error;
-  SbFile temp_file = SbFileOpen(
-      temp_file_path.data(), kSbFileCreateAlways | kSbFileWrite | kSbFileRead,
-      NULL, &error);
-  if (error != kSbFileOk) {
+  int temp_file = open(temp_file_path.data(), O_CREAT | O_TRUNC | O_RDWR,
+                       S_IRUSR | S_IWUSR);
+  if (!starboard::IsValid(temp_file)) {
     return false;
   }
 
-  SbFileTruncate(temp_file, 0);
+  ftruncate(temp_file, 0);
 
   const char* source = data;
   int64_t to_write = data_size;
   while (to_write > 0) {
     int to_write_max =
         static_cast<int>(std::min(to_write, static_cast<int64_t>(kSbInt32Max)));
-    int bytes_written = SbFileWrite(temp_file, source, to_write_max);
+    int bytes_written = write(temp_file, source, to_write_max);
     if (bytes_written < 0) {
-      SbFileClose(temp_file);
-      SbFileDelete(temp_file_path.data());
+      close(temp_file);
+      unlink(temp_file_path.data());
       return false;
     }
 
@@ -70,24 +70,24 @@ bool SbStorageWriteRecord(SbStorageRecord record,
     to_write -= bytes_written;
   }
 
-  SbFileFlush(temp_file);
+  fsync(temp_file);
 
-  if (SbFileIsValid(record->file) && !SbFileClose(record->file)) {
-    SbFileClose(temp_file);
-    SbFileDelete(temp_file_path.data());
+  if (starboard::IsValid(record->file) && (close(record->file) < 0)) {
+    close(temp_file);
+    unlink(temp_file_path.data());
     return false;
   }
 
-  record->file = kSbFileInvalid;
+  record->file = -1;
 
-  if ((!SbFileDelete(original_file_path.data())) ||
+  if (unlink(original_file_path.data()) ||
       (rename(temp_file_path.data(), original_file_path.data()) != 0)) {
-    SbFileClose(temp_file);
-    SbFileDelete(temp_file_path.data());
+    close(temp_file);
+    unlink(temp_file_path.data());
     return false;
   }
 
-  SbFileFlush(temp_file);
+  fsync(temp_file);
 
   record->file = temp_file;
 

@@ -14,9 +14,12 @@
 
 // Starboard IO base function header for compress/uncompress .zip
 
+#include <fcntl.h>
+#include <unistd.h>
+
 #include "zlib.h"
 #include "iostarboard.h"
-#include "starboard/file.h"
+#include "starboard/common/file_wrapper.h"
 
 static voidpf  ZCALLBACK starboard_open_file_func  OF((voidpf opaque, const char* filename, int mode));
 static voidpf  ZCALLBACK starboard_open64_file_func  OF((voidpf opaque, const void* filename, int mode));
@@ -28,47 +31,47 @@ static int     ZCALLBACK starboard_close_file_func OF((voidpf opaque, voidpf str
 static int     ZCALLBACK starboard_error_file_func OF((voidpf opaque, voidpf stream));
 
 static voidpf  ZCALLBACK starboard_open_file_func (voidpf opaque, const char* filename, int mode) {
-    SbFile file = NULL;
     int flags = 0;
     if ((mode & ZLIB_FILEFUNC_MODE_READWRITEFILTER)==ZLIB_FILEFUNC_MODE_READ) {
-      flags = kSbFileRead | kSbFileOpenOnly;
+      flags = O_RDONLY;
     } else if (mode & ZLIB_FILEFUNC_MODE_EXISTING){
-      flags = kSbFileRead | kSbFileWrite | kSbFileOpenOnly;
+      flags = O_RDWR;
     } else if (mode & ZLIB_FILEFUNC_MODE_CREATE) {
-      flags = kSbFileRead | kSbFileWrite | kSbFileCreateAlways;
+      flags = O_RDWR | O_CREAT | O_TRUNC;
     }
 
-    if ((filename!=NULL) && (flags != 0)) {
-      file = SbFileOpen(filename, flags, NULL, NULL);
+    FilePtr file = NULL;
+    if (filename != NULL) {
+      file = file_open((const char*)filename, flags);
     }
     return file;
 }
 
 static voidpf  ZCALLBACK starboard_open64_file_func (voidpf opaque, const void* filename, int mode) {
-    SbFile file = NULL;
     int flags = 0;
     if ((mode & ZLIB_FILEFUNC_MODE_READWRITEFILTER)==ZLIB_FILEFUNC_MODE_READ) {
-      flags = kSbFileRead | kSbFileOpenOnly;
+      flags = O_RDONLY;
     } else if (mode & ZLIB_FILEFUNC_MODE_EXISTING){
-      flags = kSbFileRead | kSbFileWrite | kSbFileOpenOnly;
+      flags = O_RDWR;
     } else if (mode & ZLIB_FILEFUNC_MODE_CREATE) {
-      flags = kSbFileRead | kSbFileWrite | kSbFileCreateAlways;
+      flags = O_RDWR | O_CREAT | O_TRUNC;
     }
 
-    if ((filename!=NULL) && (flags != 0)) {
-      file = SbFileOpen((const char*)filename, flags, NULL, NULL);
+    FilePtr file = NULL;
+    if (filename != NULL) {
+      file = file_open((const char*)filename, flags);
     }
     return file;
 }
 
 static uLong ZCALLBACK starboard_read_file_func (voidpf opaque, voidpf stream, void* buf, uLong size) {
     uLong ret = 0;
-    SbFile file = NULL;
+    FilePtr file = NULL;
     if (stream != NULL) {
-      file = (SbFile)stream;
+      file = (FilePtr)stream;
     }
     if (file != NULL) {
-      int bytes_read = SbFileRead(file, (char*)buf, (int)size);
+      int bytes_read = read(file->fd, (char*)buf, (int)size);
       ret = (uLong)(bytes_read == -1 ? 0 : bytes_read);
     }
     return ret;
@@ -76,12 +79,12 @@ static uLong ZCALLBACK starboard_read_file_func (voidpf opaque, voidpf stream, v
 
 static uLong ZCALLBACK starboard_write_file_func (voidpf opaque, voidpf stream, const void* buf, uLong size) {
     uLong ret = 0;
-    SbFile file = NULL;
+    FilePtr file = NULL;
     if (stream != NULL) {
-      file = (SbFile)stream;
+      file = (FilePtr)stream;
     }
     if (file != NULL) {
-      int bytes_written = SbFileWrite(file, (const char*)buf, (int)size);
+      int bytes_written = write(file->fd, (const char*)buf, (int)size);
       ret = (uLong)(bytes_written == -1 ? 0 : bytes_written);
     }
     return ret;
@@ -89,51 +92,51 @@ static uLong ZCALLBACK starboard_write_file_func (voidpf opaque, voidpf stream, 
 
 static long ZCALLBACK starboard_tell_file_func (voidpf opaque, voidpf stream) {
     long ret = -1;
-    SbFile file = NULL;
+    FilePtr file = NULL;
     if (stream != NULL) {
-      file = (SbFile)stream;
+      file = (FilePtr)stream;
     }
     if (file != NULL) {
-      ret = SbFileSeek(file, kSbFileFromCurrent, 0);
+      ret = lseek(file->fd, 0, SEEK_CUR);
     }
     return ret;
 }
 
 static ZPOS64_T ZCALLBACK starboard_tell64_file_func (voidpf opaque, voidpf stream) {
     ZPOS64_T ret = -1;
-    SbFile file = NULL;
+    FilePtr file = NULL;
     if (stream != NULL) {
-      file = (SbFile)stream;
+      file = (FilePtr)stream;
     }
     if (file != NULL) {
-      ret = (ZPOS64_T)SbFileSeek(file, kSbFileFromCurrent, 0);
+      ret = (ZPOS64_T)lseek(file->fd, 0, SEEK_CUR);
     }
     return ret;
 }
 
 static long ZCALLBACK starboard_seek_file_func (voidpf opaque, voidpf stream, uLong offset, int origin) {
     long ret = -1;
-    SbFile file = NULL;
-    SbFileWhence file_whence = 0;
+    FilePtr file = NULL;
+    int file_whence = 0;
     if (stream != NULL) {
-      file = (SbFile)stream;
+      file = (FilePtr)stream;
     }
     switch (origin) {
       case ZLIB_FILEFUNC_SEEK_CUR :
-          file_whence = kSbFileFromCurrent;
+          file_whence = SEEK_CUR;
           break;
       case ZLIB_FILEFUNC_SEEK_END :
-          file_whence = kSbFileFromEnd;
+          file_whence = SEEK_END;
           break;
       case ZLIB_FILEFUNC_SEEK_SET :
-          file_whence = kSbFileFromBegin;
+          file_whence = SEEK_SET;
           break;
       default:
           return -1;
     }
 
     if (file != NULL) {
-      if (SbFileSeek(file, file_whence, (int64_t)offset) != -1) {
+      if (lseek(file->fd, (int64_t)offset, file_whence) != -1) {
         ret = 0;
       }
     }
@@ -142,27 +145,27 @@ static long ZCALLBACK starboard_seek_file_func (voidpf opaque, voidpf stream, uL
 
 static long ZCALLBACK starboard_seek64_file_func (voidpf opaque, voidpf stream, ZPOS64_T offset, int origin) {
     long ret = -1;
-    SbFile file = NULL;
-    SbFileWhence file_whence = 0;
+    FilePtr file = NULL;
+    int file_whence = 0;
     if (stream != NULL) {
-      file = (SbFile)stream;
+      file = (FilePtr)stream;
     }
     switch (origin) {
       case ZLIB_FILEFUNC_SEEK_CUR :
-          file_whence = kSbFileFromCurrent;
+          file_whence = SEEK_CUR;
           break;
       case ZLIB_FILEFUNC_SEEK_END :
-          file_whence = kSbFileFromEnd;
+          file_whence = SEEK_END;
           break;
       case ZLIB_FILEFUNC_SEEK_SET :
-          file_whence = kSbFileFromBegin;
+          file_whence = SEEK_SET;
           break;
       default:
           return -1;
     }
 
     if (file != NULL) {
-      if (SbFileSeek(file, file_whence, (int64_t)offset) != -1) {
+      if (lseek(file->fd, (int64_t)offset, file_whence) != -1) {
         ret = 0;
       }
     }
@@ -171,11 +174,11 @@ static long ZCALLBACK starboard_seek64_file_func (voidpf opaque, voidpf stream, 
 
 static int ZCALLBACK starboard_close_file_func (voidpf opaque, voidpf stream) {
     int ret = -1;
-    SbFile file = NULL;
+    FilePtr file = NULL;
     if (stream != NULL) {
-      file = (SbFile)stream;
+      file = (FilePtr)stream;
     }
-    if (file != NULL && SbFileClose(file)) {
+    if (file != NULL && !file_close(file)) {
       ret = 0;
     }
     return ret;
@@ -186,9 +189,9 @@ static int ZCALLBACK starboard_error_file_func (voidpf opaque, voidpf stream) {
     // the file error code in SbFileOpen, but zlib uses this function to get the file error code
     // only after reading a file (SbFileRead), which doesn't set the error code anyways.
     int ret = -1;
-    SbFile file = NULL;
+    FilePtr file = NULL;
     if (stream != NULL) {
-      file = (SbFile)stream;
+      file = (FilePtr)stream;
     }
     if (file != NULL) {
       ret = 0;

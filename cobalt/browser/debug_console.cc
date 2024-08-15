@@ -157,6 +157,18 @@ DebugConsole::DebugConsole(
 
 DebugConsole::~DebugConsole() {}
 
+// static
+bool DebugConsole::IsEnabled() {
+#if defined(ENABLE_DEBUGGER)
+  // The debug console is not enabled when it's turned off from the
+  // command-line.
+  return GetDebugConsoleModeFromCommandLine() !=
+         debug::console::kDebugConsoleModeOff;
+#else
+  return false;
+#endif
+}
+
 bool DebugConsole::ShouldInjectInputEvents() {
   switch (GetMode()) {
     case debug::console::kDebugConsoleModeOff:
