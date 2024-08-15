@@ -17,6 +17,7 @@
 
 #include <android/looper.h>
 #include <android/native_window.h>
+#include <atomic>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -26,7 +27,6 @@
 #include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/atomic.h"
-#include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
@@ -133,7 +133,7 @@ class ApplicationAndroid
 
   // In certain situations, the Starboard thread should not try to process new
   // system events (e.g. while one is being processed).
-  atomic_bool handle_system_events_;
+  std::atomic_bool handle_system_events_{false};
 
   // Synchronization for commands that change availability of Android resources
   // such as the input and/or native_window_.
@@ -145,7 +145,7 @@ class ApplicationAndroid
   SbAtomic32 android_stop_count_ = 0;
 
   // Set to true in the destructor to ensure other threads stop waiting.
-  atomic_bool application_destroying_;
+  std::atomic_bool application_destroying_{false};
 
   // The last Activity lifecycle state command received.
   AndroidCommand::CommandType activity_state_;

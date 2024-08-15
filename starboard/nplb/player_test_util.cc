@@ -14,10 +14,10 @@
 
 #include "starboard/nplb/player_test_util.h"
 
+#include <atomic>
 #include <functional>
 
 #include "starboard/audio_sink.h"
-#include "starboard/common/atomic.h"
 #include "starboard/common/string.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/nplb/drm_helpers.h"
@@ -81,7 +81,7 @@ void ErrorFunc(SbPlayer player,
                void* context,
                SbPlayerError error,
                const char* message) {
-  atomic_bool* error_occurred = static_cast<atomic_bool*>(context);
+  std::atomic_bool* error_occurred = static_cast<std::atomic_bool*>(context);
   error_occurred->exchange(true);
 }
 

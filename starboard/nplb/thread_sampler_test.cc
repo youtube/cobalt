@@ -14,8 +14,8 @@
 
 #include <sched.h>
 #include <unistd.h>
+#include <atomic>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 
@@ -41,7 +41,7 @@ class CountingThread : public posix::AbstractTestThread {
 
   void Run() override {
     while (!stop_.load()) {
-      counter_.increment();
+      ++counter_;
       usleep(1000);
     }
   }
@@ -65,8 +65,8 @@ class CountingThread : public posix::AbstractTestThread {
   }
 
  private:
-  atomic_bool stop_;
-  atomic_int32_t counter_;
+  std::atomic_bool stop_{false};
+  std::atomic_int counter_{0};
 };
 
 TEST(ThreadSamplerTest, RainyDayCreateSamplerInvalidThread) {

@@ -17,6 +17,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <windows.h>
+#include <atomic>
 
 #include <algorithm>
 #include <deque>
@@ -26,7 +27,6 @@
 #include <string>
 #include <utility>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/once.h"
@@ -197,7 +197,7 @@ class BufferedSocketWriter {
           SbSocketError err = SbSocketGetLastError(dest_socket);
           SbSocketClearLastError(dest_socket);
           if (err == kSbSocketPending) {
-            blocked_counts_.increment();
+            ++blocked_counts_;
             WaitUntilWritableOrConnectionReset(dest_socket);
             continue;
           } else if (IsConnectionReset(err)) {
@@ -251,7 +251,7 @@ class BufferedSocketWriter {
   int chunk_size_;
   Mutex log_mutex_;
   std::deque<char> log_;
-  atomic_int32_t blocked_counts_;
+  std::atomic<int32_t> blocked_counts_{0};
 };
 
 // This class will listen to the provided socket for a client
@@ -383,7 +383,7 @@ class NetLogServer {
   std::unique_ptr<SocketListener> socket_listener_;
   std::unique_ptr<Thread> writer_thread_;
   Semaphore writer_thread_sema_;
-  atomic_bool is_joined_;
+  std::atomic_bool is_joined_{false};
 
   BufferedSocketWriter buffered_socket_writer_;
 };
