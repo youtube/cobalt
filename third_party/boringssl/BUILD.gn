@@ -1,6 +1,7 @@
 import("//starboard/sabi/sabi.gni")
 import("//third_party/boringssl/buildfiles.gni")
 import("//starboard/build/config/os_definitions.gni")
+import("BUILD.generated.gni")
 
 declare_args() {
   asm_target_arch = target_cpu
@@ -175,5 +176,16 @@ static_library("crypto_full") {
   if (is_starboard) {
     configs -= [ "//starboard/build/config:size" ]
     configs += [ "//starboard/build/config:speed" ]
+  }
+}
+
+if (is_starboard) {
+  target(final_executable_type, "boringssl_tool") {
+    testonly = true
+    sources = tool_sources
+    deps = [
+      ":crypto",
+      "//starboard:starboard_group",
+    ]
   }
 }
