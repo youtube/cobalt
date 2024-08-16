@@ -22,7 +22,7 @@ PLATFORMS_SUPPORTED = [
     'linux-x64x11-egl',
     'linux-x64x11-gcc-6-3',
     'linux-x64x11-skia',
-    'android-arm',
+    # 'android-arm',
     'android-arm64',
     'android-arm64-vulkan',
     'android-x86',
