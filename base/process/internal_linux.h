@@ -8,7 +8,9 @@
 #ifndef BASE_PROCESS_INTERNAL_LINUX_H_
 #define BASE_PROCESS_INTERNAL_LINUX_H_
 
+#if !defined(STARBOARD)
 #include <unistd.h>
+#endif  // !defined(STARBOARD)
 
 #include "base/files/file_path.h"
 #include "starboard/types.h"
@@ -26,6 +28,7 @@ extern const char kProcDir[];
 // "stat"
 extern const char kStatFile[];
 
+#if !defined(STARBOARD)
 // Returns a FilePath to "/proc/pid".
 base::FilePath GetProcPidDir(pid_t pid);
 
@@ -38,6 +41,7 @@ pid_t ProcDirSlotToPid(const char* d_name);
 // Reads /proc/<pid>/stat into |buffer|. Returns true if the file can be read
 // and is non-empty.
 bool ReadProcStats(pid_t pid, std::string* buffer);
+#endif  // !defined(STARBOARD)
 
 // Takes |stats_data| and populates |proc_stats| with the values split by
 // spaces. Taking into account the 2nd field may, in itself, contain spaces.
@@ -77,21 +81,27 @@ size_t GetProcStatsFieldAsSizeT(const std::vector<std::string>& proc_stats,
 // ReadProcStats(). See GetProcStatsFieldAsInt64() for details.
 int64_t ReadStatsFilendGetFieldAsInt64(const FilePath& stat_file,
                                        ProcStatsFields field_num);
+#if !defined(STARBOARD)
 int64_t ReadProcStatsAndGetFieldAsInt64(pid_t pid, ProcStatsFields field_num);
+#endif  // !defined(STARBOARD)
 int64_t ReadProcSelfStatsAndGetFieldAsInt64(ProcStatsFields field_num);
 
+#if !defined(STARBOARD)
 // Same as ReadProcStatsAndGetFieldAsInt64() but for size_t values.
 size_t ReadProcStatsAndGetFieldAsSizeT(pid_t pid,
                                        ProcStatsFields field_num);
+#endif  // !defined(STARBOARD)
 
 // Returns the time that the OS started. Clock ticks are relative to this.
 Time GetBootTime();
 
+#if !defined(STARBOARD)
 // Returns the amount of time spent in user space since boot across all CPUs.
 TimeDelta GetUserCpuTimeSinceBoot();
 
 // Converts Linux clock ticks to a wall time delta.
 TimeDelta ClockTicksToTimeDelta(int clock_ticks);
+#endif  // !defined(STARBOARD)
 
 }  // namespace internal
 }  // namespace base

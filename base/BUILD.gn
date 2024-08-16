@@ -1244,8 +1244,6 @@ component("base") {
       "native_library_win.cc",
       "os_compat_android.cc",
       "os_compat_android.h",
-      "process/internal_linux.cc",
-      "process/internal_linux.h",
       "process/kill.cc",
       "process/kill.h",
       "process/kill_mac.cc",
