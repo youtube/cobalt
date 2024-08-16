@@ -5,6 +5,7 @@
 #include "base/logging.h"
 
 #include <limits.h>
+#include <sys/resource.h>
 
 #include "base/macros.h"
 #include "base/trace_event/trace_event.h"
@@ -124,6 +125,30 @@ typedef pthread_mutex_t* MutexHandle;
 #endif
 
 namespace logging {
+
+namespace {
+std::string print_rusage(int who,
+                         const char* prefix = "",
+                         const char* postfix = "") {
+  struct rusage usage;
+  if (getrusage(who, &usage) != -1) {
+    return starboard::FormatString(
+        "%s(CPU:u%ld.%03ld+s%ld=%ld.%03ld,FLT:%ld+%ld,CTX:%ld+%ld)%s", prefix,
+        usage.ru_utime.tv_sec, usage.ru_utime.tv_usec / 1000,
+        usage.ru_stime.tv_sec, usage.ru_stime.tv_usec / 1000,
+        ((usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) * 1000000 +
+         (usage.ru_utime.tv_usec + usage.ru_stime.tv_usec)) / 1000,
+        usage.ru_minflt, usage.ru_majflt, usage.ru_nvcsw, usage.ru_nivcsw,
+        postfix);
+  }
+  return std::string(strerror(errno));
+}
+
+std::string print_stats() {
+  return print_rusage(RUSAGE_THREAD, "(", "/") +
+         print_rusage(RUSAGE_SELF, "", ")");
+}
+}  // namespace
 
 namespace {
 
@@ -1040,7 +1065,8 @@ void LogMessage::Init(const char* file, int line) {
     stream_ << CurrentProcessId() << ':';
 #endif
   if (g_log_thread_id)
-    stream_ << base::PlatformThread::GetName() << '/' << base::PlatformThread::CurrentId() << ":";
+    stream_ << base::PlatformThread::GetName() << '/'
+            << base::PlatformThread::CurrentId() << "/" << print_stats() << ":";
   if (g_log_timestamp) {
 #if defined(STARBOARD)
     EzTimeValue time_value;
