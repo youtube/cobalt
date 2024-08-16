@@ -49,6 +49,7 @@ config("internal_config") {
     "OPENSSL_SMALL",
   ]
   if (is_starboard) {
+    defines -= [ "OPENSSL_SMALL" ]
     defines += [
       "NO_SYS_PARAM_H",
       "NO_SYS_UN_H",
