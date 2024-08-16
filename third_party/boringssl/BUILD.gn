@@ -321,6 +321,17 @@ if (!use_cobalt_customizations) {
   }
 }
 
+if (is_starboard) {
+  target(final_executable_type, "boringssl_tool") {
+    testonly = true
+    sources = tool_sources
+    deps = [
+      ":boringssl",
+      "//starboard:starboard_group",
+    ]
+  }
+}
+
 if (build_with_chromium) {
   # These targets are named "_tests" rather than "_test" to avoid colliding with
   # a historical "boringssl_ssl_test" target. This works around a bug with the
