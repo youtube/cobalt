@@ -433,9 +433,9 @@ class BASE_EXPORT File {
 #endif
 };
 
-#if defined(STARBOARD)
-void SetLastFileError(File::Error error);
-#endif
+//#if defined(STARBOARD)
+//void SetLastFileError(File::Error error);
+//#endif
 
 }  // namespace base
 

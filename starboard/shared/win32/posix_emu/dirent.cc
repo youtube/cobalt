@@ -14,6 +14,7 @@
 
 #include <dirent.h>
 
+#include <fcntl.h>
 #include <windows.h>
 #include <map>
 
@@ -163,9 +164,8 @@ DIR* opendir(const char* path) {
     return nullptr;
   }
 
-  SbFileError out_error;
-  HANDLE directory_handle = starboard::shared::win32::OpenFileOrDirectory(
-      path, kSbFileOpenOnly | kSbFileRead, nullptr, &out_error);
+  HANDLE directory_handle =
+      starboard::shared::win32::OpenFileOrDir(path, O_RDONLY);
 
   if (!starboard::shared::win32::IsValidHandle(directory_handle)) {
     errno = EBADF;

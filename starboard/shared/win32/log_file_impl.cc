@@ -85,11 +85,11 @@ void OpenLogInCacheDirectory(const char* log_file_name, int creation_flags) {
 }
 
 void OpenLogFile(const char* path, const int creation_flags) {
-  SB_DCHECK((creation_flags & kSbFileOpenAlways) ||
-            (creation_flags & kSbFileCreateAlways));
+  SB_DCHECK((creation_flags & O_CREAT) ||
+            ((creation_flags & O_CREAT) && (creation_flags & O_TRUNC)));
   SB_DLOG(INFO) << "Logging to [" << path << "]";
 
-  int flags = creation_flags | kSbFileWrite;
+  int flags = creation_flags | O_WRONLY;
 
   pthread_mutex_lock(&log_mutex);
   CloseLogFileWithoutLock();
