@@ -28,4 +28,4 @@ no_pedantic_warnings_config_path =
 
 assert(host_os != "win", "Stub build is not (yet) supported on windows host")
 
-v8_enable_webassembly = true
+v8_enable_webassembly = false

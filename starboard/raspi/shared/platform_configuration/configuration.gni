@@ -36,7 +36,7 @@ if (current_toolchain == default_toolchain &&
   speed_config_path = "//starboard/raspi/shared/platform_configuration:speed"
   size_config_path = "//starboard/raspi/shared/platform_configuration:size"
 
-  v8_enable_webassembly = true
+  v8_enable_webassembly = false
 
   is_raspi = true
 }
