@@ -14,9 +14,9 @@
 
 #include <unistd.h>
 
+#include <atomic>
 #include <functional>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -27,14 +27,14 @@ namespace {
 
 class TestRunThread : public Thread {
  public:
-  TestRunThread() : Thread("TestThread"), finished_(false) {}
+  TestRunThread() : Thread("TestThread") {}
 
   void Run() override {
     while (!WaitForJoin(1000)) {
     }
     finished_.store(true);
   }
-  atomic_bool finished_;
+  std::atomic_bool finished_{false};
 };
 
 // Tests the expectation that a thread subclass will have the expected

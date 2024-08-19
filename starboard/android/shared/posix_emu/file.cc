@@ -55,7 +55,7 @@ int __wrap_open(const char* path, int oflag, ...) {
       return __real_open(path, oflag);
     }
   }
-  return AssetManager::GetInstance()->Open(path);
+  return AssetManager::GetInstance()->Open(path, oflag);
 }
 
 }  // extern "C"

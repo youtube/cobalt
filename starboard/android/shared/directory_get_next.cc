@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#if SB_API_VERSION < 17
 #include <string.h>
 
 #include <android/asset_manager.h>
@@ -39,3 +39,4 @@ bool SbDirectoryGetNext(SbDirectory directory,
   return ::starboard::shared::iso::impl::SbDirectoryGetNext(
       directory, out_entry, out_entry_size);
 }
+#endif  // SB_API_VERSION < 17

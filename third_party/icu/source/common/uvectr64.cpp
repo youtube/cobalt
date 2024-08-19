@@ -7,9 +7,6 @@
 ******************************************************************************
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "uvectr64.h"
 #include "cmemory.h"
 #include "putilimp.h"

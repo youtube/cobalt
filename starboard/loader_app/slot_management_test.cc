@@ -14,8 +14,10 @@
 
 #include "starboard/loader_app/slot_management.h"
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <iostream>
 #include <string>
@@ -244,10 +246,9 @@ class SlotManagementTest : public testing::TestWithParam<bool> {
     path += kSbFileSepString;
     path += "libcobalt";
     AddFileExtension(path);
-    SbFile sb_file = SbFileOpen(path.c_str(), kSbFileOpenAlways | kSbFileRead,
-                                nullptr, nullptr);
-    EXPECT_TRUE(SbFileIsValid(sb_file));
-    SbFileClose(sb_file);
+    int sb_file = open(path.c_str(), O_CREAT | O_RDONLY);
+    EXPECT_TRUE(starboard::IsValid(sb_file));
+    close(sb_file);
 
     return !top_created_dir.empty() ? top_created_dir : path;
   }

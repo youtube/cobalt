@@ -17,9 +17,8 @@
 
 #if defined(STARBOARD)
 #include "starboard/common/log.h"
-#else
-#include <assert.h>
 #endif
+#include <assert.h>
 
 #include "src/dsp/dsp.h"
 #include "src/webp/types.h"

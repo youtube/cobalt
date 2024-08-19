@@ -14,7 +14,8 @@
 
 #include "starboard/shared/starboard/queue_application.h"
 
-#include "starboard/common/atomic.h"
+#include <atomic>
+
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
@@ -92,11 +93,11 @@ void QueueApplication::CancelTimedEvent(SbEventId event_id) {
 
 void QueueApplication::InjectAndProcess(SbEventType type,
                                         bool checkSystemEvents) {
-  atomic_bool event_processed;
+  std::atomic_bool event_processed{false};
   Event* flagged_event = new Event(
-      type, const_cast<atomic_bool*>(&event_processed), [](void* flag) {
+      type, const_cast<std::atomic_bool*>(&event_processed), [](void* flag) {
         auto* bool_flag =
-            const_cast<atomic_bool*>(static_cast<atomic_bool*>(flag));
+            const_cast<std::atomic_bool*>(static_cast<std::atomic_bool*>(flag));
         bool_flag->store(true);
       });
   Inject(flagged_event);

@@ -17,6 +17,7 @@
 
 #include <jni.h>
 
+#include <atomic>
 #include <deque>
 #include <memory>
 #include <string>
@@ -24,7 +25,6 @@
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
-#include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
@@ -188,13 +188,13 @@ class MediaDecoder final
   SbPlayerError error_;
   std::string error_message_;
 
-  atomic_bool stream_ended_;
+  std::atomic_bool stream_ended_{false};
 
-  atomic_bool destroying_;
+  std::atomic_bool destroying_{false};
 
   optional<QueueInputBufferTask> pending_queue_input_buffer_task_;
 
-  atomic_int32_t number_of_pending_tasks_;
+  std::atomic<int32_t> number_of_pending_tasks_{0};
 
   Mutex mutex_;
   ConditionVariable condition_variable_;

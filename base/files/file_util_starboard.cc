@@ -34,8 +34,8 @@
 #include "base/threading/thread_restrictions.h"
 #include "base/time/time.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/common/file.h"
 #include "starboard/directory.h"
-#include "starboard/file.h"
 #include "base/strings/strcat.h"
 #include "starboard/system.h"
 
@@ -213,8 +213,11 @@ bool EvictFileFromSystemCache(const FilePath& file) {
 bool ReplaceFile(const FilePath& from_path,
                  const FilePath& to_path,
                  File::Error* error) {
-  // ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
-  return true;
+  ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
+  if (!CopyFile(from_path, to_path)) {
+    return false;
+  }
+  return DeleteFile(from_path);
 }
 
 // Mac has its own implementation, this is for all other Posix systems.
@@ -233,6 +236,7 @@ bool CopyFile(const FilePath& from_path, const FilePath& to_path) {
 }
 
 FILE* OpenFile(const FilePath& filename, const char* mode) {
+  NOTIMPLEMENTED();
   return nullptr;
 }
 
@@ -244,12 +248,12 @@ bool PathExists(const FilePath &path) {
 
 bool PathIsReadable(const FilePath &path) {
   internal::AssertBlockingAllowed();
-  return SbFileCanOpen(path.value().c_str(), kSbFileOpenAlways | kSbFileRead);
+  return starboard::FileCanOpen(path.value().c_str(), O_CREAT | O_RDONLY);
 }
 
 bool PathIsWritable(const FilePath &path) {
   internal::AssertBlockingAllowed();
-  return SbFileCanOpen(path.value().c_str(), kSbFileOpenAlways | kSbFileWrite);
+  return starboard::FileCanOpen(path.value().c_str(), O_CREAT | O_WRONLY);
 }
 
 bool DirectoryExists(const FilePath& path) {
@@ -291,6 +295,7 @@ FilePath GetHomeDir() {
 
 ScopedFILE CreateAndOpenTemporaryStreamInDir(const FilePath& dir,
                                              FilePath* path) {
+  NOTIMPLEMENTED();
   ScopedFILE stream;
   return stream;
 }
@@ -454,16 +459,12 @@ bool HasFileBeenModifiedSince(const FileEnumerator::FileInfo &file_info,
 }
 
 bool GetCurrentDirectory(FilePath* dir) {
-  // ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
-
   // Not supported on Starboard.
   NOTREACHED();
   return false;
 }
 
 bool SetCurrentDirectory(const FilePath& path) {
-  // ScopedBlockingCall scoped_blocking_call(BlockingType::MAY_BLOCK);
-
   // Not supported on Starboard.
   NOTREACHED();
   return false;

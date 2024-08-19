@@ -14,12 +14,12 @@
 
 #include "starboard/shared/starboard/link_receiver.h"
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <utility>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/common/semaphore.h"
@@ -218,7 +218,7 @@ class LinkReceiver::Impl {
   pthread_t thread_;
 
   // An atomic flag that indicates whether to quit to the server thread.
-  atomic_bool quit_;
+  std::atomic_bool quit_{false};
 
   // The waiter to register sockets with and block on.
   SbSocketWaiter waiter_;

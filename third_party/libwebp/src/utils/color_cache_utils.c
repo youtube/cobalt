@@ -11,11 +11,7 @@
 //
 // Author: Jyrki Alakuijala (jyrki@google.com)
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#else
 #include <assert.h>
-#endif
 #include <stdlib.h>
 #include <string.h>
 #include "src/utils/color_cache_utils.h"

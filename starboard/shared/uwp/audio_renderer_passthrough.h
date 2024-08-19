@@ -107,12 +107,12 @@ class AudioRendererPassthrough : public AudioRenderer,
   double playback_rate_ = 1.0;
   int64_t seeking_to_time_ = 0;
 
-  atomic_bool end_of_stream_written_{false};
-  atomic_bool end_of_stream_played_{false};
+  std::atomic_bool end_of_stream_written_{false};
+  std::atomic_bool end_of_stream_played_{false};
   // Use DecodedAudio to store decrypted and formatted encoded audio data.
   std::queue<scoped_refptr<DecodedAudio>> pending_inputs_;
 
-  atomic_bool can_accept_more_data_;
+  std::atomic_bool can_accept_more_data_{false};
 
   JobQueue::JobToken process_audio_buffers_job_token_;
   std::function<void()> process_audio_buffers_job_;

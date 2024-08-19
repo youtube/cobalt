@@ -48,7 +48,8 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
     if (target_cpu == "arm" && arm_float_abi == "softfp") {
       sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/content" ]
     } else if (target_cpu == "arm64") {
-      sources = [ "$root_out_dir/../evergreen-$target_cpu_$build_type/content" ]
+      sources =
+          [ "$root_out_dir/../evergreen-${target_cpu}_$build_type/content" ]
     } else {
       sources = []
     }
@@ -59,8 +60,9 @@ if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
     if (target_cpu == "arm" && arm_float_abi == "softfp") {
       sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/manifest.json" ]
     } else if (target_cpu == "arm64") {
-      sources =
-          [ "$root_out_dir/../evergreen-$target_cpu_$build_type/manifest.json" ]
+      sources = [
+        "$root_out_dir/../evergreen-${target_cpu}_$build_type/manifest.json",
+      ]
     } else {
       sources = []
     }

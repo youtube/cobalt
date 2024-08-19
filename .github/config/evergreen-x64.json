@@ -5,9 +5,9 @@
   "on_host_test_shards": ["0", "1", "2", "3", "blackbox", "wpt", "evergreen"],
   "platforms": [
     "evergreen-x64",
-    "evergreen-x64-sbversion-14",
     "evergreen-x64-sbversion-15",
-    "evergreen-x64-sbversion-16"
+    "evergreen-x64-sbversion-16",
+    "evergreen-x64-sbversion-17"
   ],
   "includes": [
     {
@@ -16,14 +16,6 @@
       "target_platform":"evergreen-x64",
       "target_cpu":"target_cpu=\\\"x64\\\"",
       "extra_gn_arguments":"use_asan=false"
-    },
-    {
-      "name":"sbversion-14",
-      "platform":"evergreen-x64-sbversion-14",
-      "target_platform":"evergreen-x64",
-      "target_cpu":"target_cpu=\\\"x64\\\"",
-      "extra_gn_arguments":"use_asan=false",
-      "sb_api_version":"14"
     },
     {
       "name":"sbversion-15",
@@ -40,6 +32,14 @@
       "target_cpu":"target_cpu=\\\"x64\\\"",
       "extra_gn_arguments":"use_asan=false",
       "sb_api_version":"16"
+    },
+    {
+      "name":"sbversion-17",
+      "platform":"evergreen-x64-sbversion-17",
+      "target_platform":"evergreen-x64",
+      "target_cpu":"target_cpu=\\\"x64\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "sb_api_version":"17"
     }
   ]
 }

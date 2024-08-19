@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
+#if SB_API_VERSION < 17
 #include "starboard/shared/iso/directory_internal.h"
 
 #include "starboard/shared/iso/impl/directory_close.h"
@@ -19,3 +19,4 @@
 bool SbDirectoryClose(SbDirectory directory) {
   return ::starboard::shared::iso::impl::SbDirectoryClose(directory);
 }
+#endif  // SB_API_VERSION < 17

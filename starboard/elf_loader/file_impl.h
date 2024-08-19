@@ -35,7 +35,7 @@ class FileImpl : public File {
   const std::string& GetName() override;
 
  protected:
-  SbFile file_;
+  int file_;
   std::string name_;
 
   FileImpl(const FileImpl&) = delete;

@@ -9,12 +9,6 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif
-
-#include <stdlib.h>
-
 #include "src/dsp/dsp.h"
 #include "src/enc/cost_enc.h"
 

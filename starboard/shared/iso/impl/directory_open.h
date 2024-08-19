@@ -11,9 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 #ifndef STARBOARD_SHARED_ISO_IMPL_DIRECTORY_OPEN_H_
 #define STARBOARD_SHARED_ISO_IMPL_DIRECTORY_OPEN_H_
+#if SB_API_VERSION < 17
 
 #include "starboard/directory.h"
 
@@ -87,5 +87,6 @@ SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error) {
 }  // namespace iso
 }  // namespace shared
 }  // namespace starboard
+#endif  // SB_API_VERSION < 17
 
 #endif  // STARBOARD_SHARED_ISO_IMPL_DIRECTORY_OPEN_H_

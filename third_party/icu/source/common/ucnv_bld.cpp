@@ -25,9 +25,6 @@
 
 #if !UCONFIG_NO_CONVERSION
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/poem/assert_poem.h"
-#endif  // defined(STARBOARD)
 #include "unicode/putil.h"
 #include "unicode/udata.h"
 #include "unicode/ucnv.h"

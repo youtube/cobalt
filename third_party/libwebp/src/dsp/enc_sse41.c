@@ -15,7 +15,6 @@
 
 #if defined(WEBP_USE_SSE41)
 #include <smmintrin.h>
-
 #include <stdlib.h>  // for abs()
 
 #include "src/dsp/common_sse2.h"

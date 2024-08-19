@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 17
+
 #include "starboard/file.h"
 
 #include <android/asset_manager.h>
+#include <dirent.h>
 
 #include "starboard/directory.h"
 
@@ -34,10 +37,12 @@ bool SbFileCanOpen(const char* path, int flags) {
   SbFileClose(file);
 
   if (!result) {
-    SbDirectory directory = SbDirectoryOpen(path, NULL);
-    result = SbDirectoryIsValid(directory);
-    SbDirectoryClose(directory);
+    DIR* directory = opendir(path);
+    result = directory != nullptr;
+    closedir(directory);
   }
 
   return result;
 }
+
+#endif  // SB_API_VERSION < 17
