@@ -41,6 +41,11 @@ TEST(PosixSocketResolveTest, SunnyDay) {
     ++address_count;
     if (ai_addr == nullptr && i->ai_addr != nullptr) {
       ai_addr = reinterpret_cast<sockaddr_in*>(i->ai_addr);
+      if (i->ai_family == AF_INET) {
+        EXPECT_EQ(i->ai_addrlen, sizeof(struct sockaddr_in));
+      } else if (i->ai_family == AF_INET6) {
+        EXPECT_EQ(i->ai_addrlen, sizeof(struct sockaddr_in6));
+      }
       break;
     }
   }
