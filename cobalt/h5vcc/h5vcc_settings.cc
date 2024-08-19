@@ -185,5 +185,16 @@ int H5vccSettings::GetPersistentSettingAsInt(const std::string& key,
   return default_setting;
 }
 
+std::string H5vccSettings::GetPersistentSettingAsString(
+    const std::string& key) const {
+  if (key.compare("cpu_usage_tracker_intervals") == 0) {
+    base::Value value =
+        browser::CpuUsageTracker::GetInstance()->GetIntervalsDefinition();
+    absl::optional<std::string> json = base::WriteJson(value);
+    return json.value_or(std::string());
+  }
+  return std::string();
+}
+
 }  // namespace h5vcc
 }  // namespace cobalt
