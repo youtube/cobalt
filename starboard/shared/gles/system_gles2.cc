@@ -100,16 +100,19 @@ void reportAllocation(Objects type, size_t estimated_allocation) {
   MemObjects& map = tracked_object.objects;
   auto existing = map.find(tracked_object.active);
   SB_CHECK(existing != map.end());
+  auto previous = tracked_object.total_allocation;
   // First subtract the previous allocation
   tracked_object.total_allocation -= existing->second;
   // update and add
   existing->second = estimated_allocation;
   tracked_object.total_allocation += existing->second;
-  SB_LOG(ERROR) << "GLTRACE: Alloc for type:" << type2str(type)
-                << " size: " << estimated_allocation
-                << " total:" << tracked_object.total_allocation
-                << " (MB:" << (tracked_object.total_allocation / (1024 * 1024))
-                << ")";
+  auto mb_alloc = (tracked_object.total_allocation / (1024 * 1024));
+  if (mb_alloc > 0 && previous != tracked_object.total_allocation) {
+    SB_LOG(ERROR) << "GLTRACE: Alloc for type:" << type2str(type)
+                  << " size: " << estimated_allocation
+                  << " total:" << tracked_object.total_allocation << " (MB:"
+                  << (tracked_object.total_allocation / (1024 * 1024)) << ")";
+  }
 }
 
 // Buffers
@@ -210,6 +213,15 @@ void GL_MEM_TRACE(glRenderbufferStorage)(GLenum target,
   reportAllocation(Renderbuffers, width * height * 4);
 }
 
+// Disable all extensions
+const GLubyte* patch_glGetString(GLenum name) {
+  if (name == GL_EXTENSIONS) {
+    static const unsigned char dummy[1] = {'\0'};
+    return dummy;
+  }
+  return glGetString(name);
+}
+
 namespace {
 
 const SbGlesInterface g_sb_gles_interface = {
@@ -284,7 +296,7 @@ const SbGlesInterface g_sb_gles_interface = {
     &glGetShaderInfoLog,
     &glGetShaderPrecisionFormat,
     &glGetShaderSource,
-    &glGetString,
+    &patch_glGetString,
     &glGetTexParameterfv,
     &glGetTexParameteriv,
     &glGetUniformfv,
