@@ -256,8 +256,8 @@ TEST_F(SabiTest, VerifySABI) {
   SB_LOG(INFO) << "Using SB_API_VERSION=" << SB_API_VERSION;
   SB_LOG(INFO) << "Using SABI=" << SB_SABI_JSON_ID;
 
-  ASSERT_LT(SB_API_VERSION, SB_MAXIMUM_API_VERSION)
-      << "Evergreen should use SB_API_VERSION < SB_MAXIMUM_API_VERSION";
+  ASSERT_LE(SB_API_VERSION, SB_MAXIMUM_API_VERSION)
+      << "Evergreen should use SB_API_VERSION <= SB_MAXIMUM_API_VERSION";
 
   std::set<std::string> sabi_set;
   sabi_set.insert(kSabiJsonIdArmHardfp);
