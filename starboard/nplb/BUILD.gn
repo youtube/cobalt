@@ -190,6 +190,7 @@ target(gtest_target_type, "nplb") {
     "posix_compliance/posix_string_compare_no_case_test.cc",
     "posix_compliance/posix_string_format_test.cc",
     "posix_compliance/posix_string_format_wide_test.cc",
+    "posix_compliance/posix_string_scan_test.cc",
     "posix_compliance/posix_thread_attr_test.cc",
     "posix_compliance/posix_thread_create_test.cc",
     "posix_compliance/posix_thread_detach_test.cc",
