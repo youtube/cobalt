@@ -43,7 +43,7 @@ jobs:
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
       keep_artifacts: install/lib/libcobalt.*
-      artifact_size_increase_thresholds: '{"install/lib/libcobalt.so": 0.02, "install/lib/libcobalt.lz4": 0.02}'
+      artifact_size_increase_thresholds: '{"install/lib/libcobalt.so": 0, "install/lib/libcobalt.lz4": 0}'
   evergreen-arm-softfp:
     uses: ./.github/workflows/main.yaml
     permissions:
