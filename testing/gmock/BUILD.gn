@@ -7,7 +7,6 @@
 # into //third_party/googletest.
 
 source_set("gmock") {
-  testonly = true
   sources = [
     "include/gmock/gmock-actions.h",
     "include/gmock/gmock-matchers.h",
@@ -20,6 +19,5 @@ source_set("gmock") {
 # it stabilizes, Chromium code MUST use this target instead of reaching directly
 # into //third_party/googletest.
 source_set("gmock_main") {
-  testonly = true
   deps = [ "//third_party/googletest:gmock_main" ]
 }

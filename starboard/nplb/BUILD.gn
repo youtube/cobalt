@@ -15,8 +15,6 @@
 import("//starboard/build/config/os_definitions.gni")
 
 target(gtest_target_type, "nplb") {
-  testonly = true
-
   sources = [
     "//starboard/common/test_main.cc",
     "//starboard/nplb/sabi/alignment_test.cc",

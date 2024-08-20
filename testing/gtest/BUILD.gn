@@ -18,7 +18,7 @@ config("gtest_direct_config") {
 # it stabilizes, Chromium code MUST use this target instead of reaching directly
 # into //third_party/googletest.
 static_library("gtest") {
-  testonly = true
+
 
   sources = [
     "include/gtest/gtest-death-test.h",
