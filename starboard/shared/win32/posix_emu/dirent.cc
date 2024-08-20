@@ -165,7 +165,7 @@ DIR* opendir(const char* path) {
   }
 
   HANDLE directory_handle =
-      starboard::shared::win32::OpenFileOrDir(path, O_RDONLY);
+      starboard::shared::win32::OpenFileOrDirectory(path, O_RDONLY);
 
   if (!starboard::shared::win32::IsValidHandle(directory_handle)) {
     errno = EBADF;

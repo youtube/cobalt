@@ -32,15 +32,6 @@
 
 namespace base {
 
-//namespace {
-//SbFileError g_sb_file_error = kSbFileOk;
-//}  // namespace
-
-// TODO: remove SbFileError
-//void SetLastFileError(File::Error error) {
-//  g_sb_file_error = static_cast<SbFileError>(error);
-//}
-
 void RecordFileWriteStat(int write_file_result) {
   auto& stats_tracker =
       starboard::StatsTrackerContainer::GetInstance()->stats_tracker();

@@ -75,7 +75,7 @@ class DumpHandler {
     }
 
     HANDLE file_handle =
-        OpenFileOrDir(file_path_.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
+        OpenFileOrDirectory(file_path_.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
 
     const bool file_ok =
         (file_handle != NULL) && (file_handle != INVALID_HANDLE_VALUE);

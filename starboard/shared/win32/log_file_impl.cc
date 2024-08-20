@@ -85,8 +85,7 @@ void OpenLogInCacheDirectory(const char* log_file_name, int creation_flags) {
 }
 
 void OpenLogFile(const char* path, const int creation_flags) {
-  SB_DCHECK((creation_flags & O_CREAT) ||
-            ((creation_flags & O_CREAT) && (creation_flags & O_TRUNC)));
+  SB_DCHECK(creation_flags & O_CREAT);
   SB_DLOG(INFO) << "Logging to [" << path << "]";
 
   int flags = creation_flags | O_WRONLY;
