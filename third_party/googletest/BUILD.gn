@@ -63,7 +63,6 @@ config("gmock_config") {
 # Do NOT depend on this directly. Use //testing/gtest instead.
 # See README.chromium for details.
 source_set("gtest") {
-  testonly = true
   sources = [
     # "custom/gtest/internal/custom/gtest.h",
     # "custom/gtest/internal/custom/stack_trace_getter.cc",
@@ -171,7 +170,6 @@ source_set("gtest_main") {
 # Do NOT depend on this directly. Use //testing/gmock instead.
 # See README.chromium for details.
 source_set("gmock") {
-  testonly = true
   sources = [
     "src/googlemock/include/gmock/gmock-actions.h",
     "src/googlemock/include/gmock/gmock-cardinalities.h",
@@ -205,7 +203,6 @@ source_set("gmock") {
 # Do NOT depend on this directly. Use //testing/gmock:gmock_main instead.
 # See README.chromium for details.
 static_library("gmock_main") {
-  testonly = true
   sources = [ "src/googlemock/src/gmock_main.cc" ]
   deps = [ ":gmock" ]
 }

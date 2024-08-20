@@ -23,10 +23,10 @@ config("cast_codec_tests") {
 }
 
 target(gtest_target_type, "nplb") {
-  testonly = true
-
   sources = [
     "//starboard/common/test_main.cc",
+    "//starboard/common/thread.cc",
+    "//starboard/common/thread.h",
     "//starboard/nplb/sabi/alignment_test.cc",
     "//starboard/nplb/sabi/endianness_test.cc",
     "//starboard/nplb/sabi/signedness_and_size_of_enum_test.cc",

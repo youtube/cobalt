@@ -28,7 +28,6 @@ group("gn_all") {
     "//starboard/examples/hello_world:starboard_hello_world_example",
     "//starboard/examples/window:starboard_window_example",
     "//starboard/extension:extension_test",
-    "//starboard/nplb",
   ]
   if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     deps += [ "//starboard/nplb/nplb_evergreen_compat_tests" ]
@@ -100,6 +99,7 @@ group("gn_all") {
 group("default") {
   deps = [
     ":starboard_group",
+    "//starboard/nplb",
     "//starboard/tools:build_app_launcher_zip",
   ]
 }
