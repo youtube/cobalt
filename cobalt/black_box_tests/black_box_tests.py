@@ -74,6 +74,7 @@ _TESTS_NEEDING_SYSTEM_SIGNAL = [
 _TESTS_NO_SIGNAL = [
     'allow_eval',
     'compression_test',
+    'cpu_usage_tracker_test',
     'default_site_can_load',
     'disable_eval_with_csp',
     'h5vcc_storage_write_verify_test',

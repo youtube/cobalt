@@ -17,7 +17,10 @@
 #include <string.h>
 
 #include <memory>
+#include <utility>
 
+#include "base/json/json_reader.h"
+#include "cobalt/browser/cpu_usage_tracker.h"
 #include "cobalt/network/network_module.h"
 
 namespace cobalt {
@@ -104,6 +107,31 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
       }
       return true;
     }
+  }
+
+  if (name.compare("cpu_usage_tracker_intervals") == 0 &&
+      value.IsType<std::string>() && value.AsType<std::string>().size() < 512) {
+    std::unique_ptr<base::Value> config =
+        base::JSONReader::Read(value.AsType<std::string>());
+    browser::CpuUsageTracker::GetInstance()->UpdateIntervalsDefinition(
+        std::move(config));
+    return true;
+  }
+  if (name.compare("cpu_usage_tracker_intervals_enabled") == 0 &&
+      value.IsType<int32>()) {
+    browser::CpuUsageTracker::GetInstance()->UpdateIntervalsEnabled(
+        value.AsType<int32>() != 0);
+    return true;
+  }
+  if (name.compare("cpu_usage_tracker_one_time_tracking") == 0 &&
+      value.IsType<int32>()) {
+    bool started = value.AsType<int32>() != 0;
+    if (started) {
+      browser::CpuUsageTracker::GetInstance()->StartOneTimeTracking();
+    } else {
+      browser::CpuUsageTracker::GetInstance()->StopAndCaptureOneTimeTracking();
+    }
+    return true;
   }
 
 #if SB_IS(EVERGREEN)
