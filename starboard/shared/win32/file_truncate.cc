@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 17
-
 #include "starboard/file.h"
 
 #include <windows.h>
@@ -102,5 +100,3 @@ bool SbFileTruncate(SbFile file, int64_t length) {
 
   return return_value;
 }
-
-#endif  // SB_API_VERSION < 17

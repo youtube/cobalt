@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 17
-
 #include "starboard/shared/posix/file_internal.h"
 
 #include "starboard/shared/posix/impl/file_write.h"
@@ -21,5 +19,3 @@
 int SbFileWrite(SbFile file, const char* data, int size) {
   return ::starboard::shared::posix::impl::FileWrite(file, data, size);
 }
-
-#endif  // SB_API_VERSION < 17
