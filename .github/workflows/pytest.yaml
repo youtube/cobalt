@@ -34,7 +34,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
       - name: Install Pip Packages
-        run: pip install --require-hashes --no-deps -r ${{ github.workspace }}/docker/pytest/requirements.txt
+        run: pip install --require-hashes --no-deps -r ${{ github.workspace }}/pytest/requirements.txt
       - name: Run Tests
         run: coverage run -m pytest
       - name: Coverage Report
