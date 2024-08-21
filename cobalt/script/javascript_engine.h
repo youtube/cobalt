@@ -31,6 +31,7 @@ class GlobalEnvironment;
 struct HeapStatistics {
   size_t total_heap_size;
   size_t used_heap_size;
+  size_t heap_size_limit;
 };
 
 class JavaScriptEngine {
