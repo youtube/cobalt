@@ -1,7 +1,6 @@
 import("//starboard/sabi/sabi.gni")
 import("//third_party/boringssl/buildfiles.gni")
 import("//starboard/build/config/os_definitions.gni")
-import("BUILD.generated.gni")
 
 declare_args() {
   asm_target_arch = target_cpu
@@ -182,7 +181,23 @@ static_library("crypto_full") {
 if (is_starboard) {
   target(final_executable_type, "boringssl_tool") {
     testonly = true
-    sources = tool_sources
+    sources = [
+      "src/tool/args.cc",
+      "src/tool/ciphers.cc",
+      "src/tool/const.cc",
+      "src/tool/digest.cc",
+      "src/tool/file.cc",
+      "src/tool/generate_ed25519.cc",
+      "src/tool/genrsa.cc",
+      "src/tool/internal.h",
+      "src/tool/pkcs12.cc",
+      "src/tool/rand.cc",
+      "src/tool/sign.cc",
+      "src/tool/speed.cc",
+      "src/tool/tool.cc",
+      "src/tool/transport_common.cc",
+      "src/tool/transport_common.h",
+    ]
     deps = [
       ":crypto",
       "//starboard:starboard_group",
