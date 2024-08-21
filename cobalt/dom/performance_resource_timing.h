@@ -19,7 +19,6 @@
 
 #include "cobalt/dom/performance_entry.h"
 #include "cobalt/dom/performance_high_resolution_time.h"
-
 #include "cobalt/script/wrappable.h"
 #include "net/base/load_timing_info.h"
 
@@ -58,6 +57,7 @@ class PerformanceResourceTiming : public PerformanceEntry {
   uint64_t transfer_size() const;
   uint64_t encoded_body_size() const;
   DOMHighResTimeStamp worker_start() const;
+  std::string next_hop_protocol() const;
 
   std::string entry_type() const override { return "resource"; }
   PerformanceEntryType EntryTypeEnum() const override {

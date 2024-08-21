@@ -81,6 +81,7 @@ _TESTS_NO_SIGNAL = [
     'h5vcc_watchdog_api_test',
     'http_cache',
     'javascript_profiler',
+    'performance_resource_timing_test',
     'persistent_cookie',
     'scroll',
     'service_worker_add_to_cache_test',
