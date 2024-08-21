@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 (async function() {
-  await TestRunner.loadModule('axe_core_test_runner');
+  await TestRunner.loadTestModule('axe_core_test_runner');
 
   TestRunner.addResult('Tests accessibility of AppManifestView on application panel.');
   const manifest = `{
@@ -23,7 +23,7 @@
 
   await TestRunner.showPanel('resources');
   const manifestView = UI.panels.resources.visibleView;
-  await manifestView._renderManifest('test_manifest', manifest, [], []);
+  await manifestView.renderManifest('test_manifest', manifest, [], []);
   await AxeCoreTestRunner.runValidation(manifestView.contentElement);
   TestRunner.completeTest();
 })();

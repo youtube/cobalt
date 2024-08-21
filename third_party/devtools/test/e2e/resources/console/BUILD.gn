@@ -1,0 +1,48 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../../scripts/build/ninja/copy.gni")
+
+copy_to_gen("console") {
+  sources = [
+    "CSP-blocks-eval.html",
+    "alert-toString-exception.html",
+    "big-int.html",
+    "built-ins.html",
+    "command-line-api-getEventListeners.html",
+    "console-fetch-logging.html",
+    "console-filter.html",
+    "console-uncaught-promise.html",
+    "context-selector-inner.html",
+    "context-selector.html",
+    "cors-issue.html",
+    "data-url-exceptions.html",
+    "document-write.html",
+    "dom-interactions.html",
+    "error-with-async-frame.html",
+    "escaping.html",
+    "focus-interaction.html",
+    "ignoreMe.js",
+    "log-source.js",
+    "method-disallowed.rawresponse",
+    "navigation/after-navigation.html",
+    "navigation/after-removal.html",
+    "navigation/write-to-console.html",
+    "navigation/write-to-console2.html",
+    "onunhandledrejection.html",
+    "post-target.rawresponse",
+    "primitives.html",
+    "prototypes.html",
+    "resource-errors-iframe.html",
+    "resource-errors.html",
+    "showMe.js",
+    "source-url-exceptions.html",
+    "stack-overflow.html",
+    "stack-trace.html",
+    "structured-objects.html",
+    "uncaught-promise.html",
+    "worker-pause.js",
+    "xhr-exists.html",
+  ]
+}

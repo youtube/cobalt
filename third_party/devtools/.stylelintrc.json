@@ -1,0 +1,31 @@
+{
+  "extends": "stylelint-config-standard",
+  "plugins": [
+    "./scripts/stylelint_rules/lib/use_theme_colors.js"
+  ],
+  "rules": {
+    "plugin/use_theme_colors": true,
+    "alpha-value-notation": "percentage",
+    "color-function-notation": "modern",
+    "hue-degree-notation": "angle",
+    "comment-empty-line-before": null,
+    "declaration-no-important": true,
+    "color-named": "never",
+    "max-empty-lines": 1,
+    "selector-type-no-unknown": [
+      true,
+      {
+        "ignoreTypes": [
+          "/^devtools-/"
+        ]
+      }
+    ],
+    "max-line-length": null,
+    "selector-class-pattern": null,
+    "keyframes-name-pattern": null,
+    "selector-no-vendor-prefix": null,
+    "property-no-vendor-prefix": null,
+    "value-no-vendor-prefix": null,
+    "media-feature-name-no-vendor-prefix": null
+  }
+}

@@ -1,0 +1,114 @@
+# Copyright 2022 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/devtools.gni")
+
+remote_devtools_locales = [
+  "af",
+  "am",
+  "ar",
+  "as",
+  "az",
+  "be",
+  "bg",
+  "bn",
+  "bs",
+  "ca",
+  "cs",
+  "cy",
+  "da",
+  "de",
+  "el",
+  "en-GB",
+  "es-419",
+  "es",
+  "et",
+  "eu",
+  "fa",
+  "fi",
+  "fil",
+  "fr-CA",
+  "fr",
+  "gl",
+  "gu",
+  "he",
+  "hi",
+  "hr",
+  "hu",
+  "hy",
+  "id",
+  "is",
+  "it",
+  "ja",
+  "ka",
+  "kk",
+  "km",
+  "kn",
+  "ko",
+  "ky",
+  "lo",
+  "lt",
+  "lv",
+  "mk",
+  "ml",
+  "mn",
+  "mr",
+  "ms",
+  "my",
+  "ne",
+  "nl",
+  "no",
+  "or",
+  "pa",
+  "pl",
+  "pt-PT",
+  "pt",
+  "ro",
+  "ru",
+  "si",
+  "sk",
+  "sl",
+  "sq",
+  "sr-Latn",
+  "sr",
+  "sv",
+  "sw",
+  "ta",
+  "te",
+  "th",
+  "tr",
+  "uk",
+  "ur",
+  "uz",
+  "vi",
+  "zh-HK",
+  "zh-TW",
+  "zu",
+]
+
+bundled_devtools_locales = [
+  "en-US",
+  "zh",
+]
+
+include_en_xl = is_debug
+if (include_en_xl) {
+  bundled_devtools_locales += [ "en-XL" ]
+}
+
+devtools_default_locale = "en-US"
+
+remote_fetch_pattern =
+    "@HOST@/remote/serve_file/@VERSION@/core/i18n/locales/@LOCALE@.json"
+
+# Path relative to i18nImpl.ts. This is because we can't make assumptions
+# wether DevTools is in hosted mode (e.g web tests/e2e tests) or non-hosted
+# mode (devtools://devtools/bundled).
+local_fetch_pattern = "./locales/@LOCALE@.json"
+
+# Paths from which to collect UI strings
+devtools_collection_directories = [ "//$devtools_location/front_end" ]
+
+# Paths where to find the translated UI string JSON files.
+devtools_locale_directory = "//$devtools_location/front_end/core/i18n/locales"

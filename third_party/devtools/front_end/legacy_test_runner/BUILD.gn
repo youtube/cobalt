@@ -1,0 +1,72 @@
+# Copyright 2021 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../third_party/typescript/typescript.gni")
+
+group("legacy_test_runner") {
+  public_deps = [
+    ":legacy_test_runner-resources",
+    ":legacy_test_runner-source",
+  ]
+
+  data = [ "$target_gen_dir/legacy_test_runner.js" ]
+
+  metadata = {
+    grd_files = data
+  }
+}
+
+ts_library("legacy_test_runner-source") {
+  sources = [ "legacy_test_runner.ts" ]
+
+  deps = [
+    "../core/common:legacy",
+    "../core/host:legacy",
+    "../core/protocol_client:legacy",
+    "../core/root:legacy",
+    "../core/sdk:legacy",
+    "../entrypoints/devtools_app:entrypoint",
+    "../models/bindings:legacy",
+    "../models/extensions:legacy",
+    "../models/formatter:legacy",
+    "../models/persistence:legacy",
+    "../models/text_utils:legacy",
+    "../models/workspace:legacy",
+    "../panels/accessibility:legacy",
+    "../panels/animation:legacy",
+    "../panels/console_counters:bundle",
+    "../panels/event_listeners:bundle",
+    "../third_party/diff:legacy",
+    "../ui/legacy:legacy",
+    "../ui/legacy/components/color_picker:legacy",
+    "../ui/legacy/components/data_grid:legacy",
+    "../ui/legacy/components/inline_editor:legacy",
+    "../ui/legacy/components/utils:legacy",
+    "test_runner:bundle",
+  ]
+}
+
+group("legacy_test_runner-resources") {
+  public_deps = [
+    "accessibility_test_runner:bundle",
+    "application_test_runner:bundle",
+    "axe_core_test_runner:bundle",
+    "bindings_test_runner:bundle",
+    "console_test_runner:bundle",
+    "coverage_test_runner:bundle",
+    "cpu_profiler_test_runner:bundle",
+    "data_grid_test_runner:bundle",
+    "device_mode_test_runner:bundle",
+    "elements_test_runner:bundle",
+    "extensions_test_runner:bundle",
+    "heap_profiler_test_runner:bundle",
+    "layers_test_runner:bundle",
+    "network_test_runner:bundle",
+    "performance_test_runner:bundle",
+    "sdk_test_runner:bundle",
+    "security_test_runner:bundle",
+    "sources_test_runner:bundle",
+    "test_runner:bundle",
+  ]
+}

@@ -1,0 +1,173 @@
+/*
+ * Copyright 2022 The Chromium Authors. All rights reserved.
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
+devtools-request-headers-category {
+  --override-header-highlight-background-color: #ffff78;
+}
+
+.-theme-with-dark-background devtools-request-headers-category,
+:host-context(.-theme-with-dark-background) devtools-request-headers-category {
+  --override-header-highlight-background-color: #4c4c33;
+}
+
+.header {
+  background-color: var(--color-background-elevation-1);
+  border-bottom: var(--legacy-divider-border);
+  border-top: var(--legacy-divider-border);
+  line-height: 25px;
+  padding: 0 5px;
+}
+
+.header::marker {
+  color: rgb(110 110 110); /* stylelint-disable-line plugin/use_theme_colors */
+  /* See: crbug.com/1152736 for color variable migration. */
+  font-size: 11px;
+  line-height: 1;
+}
+
+.header:focus {
+  background-color: var(--legacy-focus-bg-color);
+}
+
+details[open] .header-count {
+  display: none;
+}
+
+details .hide-when-closed {
+  display: none;
+}
+
+details[open] .hide-when-closed {
+  display: block;
+}
+
+details summary input {
+  vertical-align: middle;
+}
+
+.row {
+  display: flex;
+  line-height: 20px;
+  padding-left: 8px;
+  gap: 12px;
+  user-select: text;
+}
+
+div.raw-headers-row {
+  display: block;
+}
+
+.row:first-of-type {
+  margin-top: 2px;
+}
+
+.row:last-child {
+  margin-bottom: 10px;
+}
+
+.header-name {
+  color: var(--color-text-primary);
+  font-weight: 400;
+  width: 160px;
+  flex-shrink: 0;
+  text-transform: capitalize;
+}
+
+.header-value {
+  word-break: break-all;
+}
+
+.green-circle::before,
+.red-circle::before,
+.yellow-circle::before {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  vertical-align: text-top;
+  margin-right: 2px;
+}
+
+.green-circle::before {
+  background-color: var(--color-accent-green);
+}
+
+.red-circle::before {
+  background-color: var(--color-accent-red);
+}
+
+.yellow-circle::before {
+  background-color: var(--issue-color-yellow);
+}
+
+.status-with-comment {
+  color: var(--color-text-secondary);
+}
+
+.raw-headers {
+  font-family: var(--source-code-font-family);
+  font-size: var(--source-code-font-size);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.link,
+.devtools-link {
+  color: var(--color-link);
+  text-decoration: underline;
+  cursor: pointer;
+  outline-offset: 2px;
+}
+
+.inline-icon {
+  vertical-align: middle;
+}
+
+.header-grid-container {
+  display: inline-grid;
+  grid-template-columns: 156px 50px 1fr;
+  grid-gap: 4px;
+  /* Make this fit into the same line as the summary marker */
+  width: calc(100% - 15px);
+}
+
+.header-grid-container div:last-child {
+  text-align: right;
+}
+
+.header .devtools-link {
+  color: var(--color-text-primary);
+}
+
+x-link { /* stylelint-disable-line selector-type-no-unknown */
+  position: relative;
+}
+
+x-link .inline-icon { /* stylelint-disable-line selector-type-no-unknown */
+  padding-right: 3px;
+}
+
+.purple.dot::before {
+  background-color: var(--color-purple-bright);
+  content: url("Images/empty.svg");
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  outline: 1px solid var(--icon-gap-toolbar);
+  left: 9px;
+  position: absolute;
+  top: 11px;
+  z-index: 1;
+}
+
+summary label {
+  color: var(--color-text-secondary);
+}
+
+summary label:hover {
+  color: var(--color-text-primary);
+}

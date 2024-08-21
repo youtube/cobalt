@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "target": "esnext",
+    "checkJs": true,
+    "allowJs": true,
+
+    "noEmitOnError": true,
+
+    "forceConsistentCasingInFileNames": true,
+
+    "strict": true,
+    "useUnknownInCatchVariables": false,
+    "noUnusedLocals": false,
+    "noImplicitReturns": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "experimentalDecorators": true,
+
+    "composite": true,
+    "declaration": true,
+
+    "sourceMap": true,
+    "inlineSources": true
+  }
+}

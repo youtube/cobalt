@@ -1,0 +1,67 @@
+# Copyright 2020 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../scripts/build/ninja/devtools_entrypoint.gni")
+import("../../../scripts/build/ninja/devtools_module.gni")
+import("../visibility.gni")
+
+devtools_module("text_utils") {
+  sources = [
+    "CodeMirrorUtils.ts",
+    "ContentProvider.ts",
+    "StaticContentProvider.ts",
+    "Text.ts",
+    "TextCursor.ts",
+    "TextRange.ts",
+    "TextUtils.ts",
+  ]
+
+  deps = [
+    "../../core/common:bundle",
+    "../../core/platform:bundle",
+    "../../core/root:bundle",
+    "../../third_party/codemirror",
+  ]
+
+  visibility =
+      [ "../../../test/unittests/front_end/models/text_utils:text_utils" ]
+}
+
+devtools_entrypoint("bundle") {
+  entrypoint = "text_utils.ts"
+
+  deps = [ ":text_utils" ]
+
+  visibility = [
+    ":*",
+    "../*",
+    "../../../test/unittests/front_end/helpers/*",
+    "../../../test/unittests/front_end/helpers/*",
+    "../../../test/unittests/front_end/models/text_utils/*",
+    "../../../test/unittests/front_end/panels/coverage/*",
+    "../../entrypoints/*",
+    "../../legacy_test_runner/test_runner/*",
+    "../../panels/*",
+
+    # TODO(crbug.com/1202788): Remove invalid dependents
+    "../../core/sdk/*",
+    "../../ui/components/data_grid/*",
+    "../../ui/components/docs/data_grid_controller/*",
+    "../../ui/components/markdown_view/*",
+    "../../ui/legacy/*",
+  ]
+
+  visibility += devtools_models_visibility
+}
+
+devtools_entrypoint("legacy") {
+  entrypoint = "text_utils-legacy.ts"
+
+  deps = [ ":bundle" ]
+
+  visibility = [
+    "../..:legacy_entrypoints",
+    "../../legacy_test_runner/*",
+  ]
+}

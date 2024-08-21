@@ -1,0 +1,37 @@
+# Copyright 2023 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../../../scripts/build/ninja/copy.gni")
+import("../../../../../third_party/typescript/typescript.gni")
+
+ts_library("ts") {
+  testonly = true
+  sources = [
+    "basic.ts",
+    "cpuprofile.ts",
+    "track_example.ts",
+  ]
+  deps = [
+    "../../../../../test/unittests/front_end/helpers",
+    "../../../../core/common:bundle",
+    "../../../../core/sdk:bundle",
+    "../../../../models/bindings:bundle",
+    "../../../../models/timeline_model:bundle",
+    "../../../../models/workspace:bundle",
+    "../../../../panels/timeline:bundle",
+    "../../../legacy:bundle",
+    "../../helpers:bundle",
+  ]
+}
+
+copy_to_gen("performance_panel") {
+  testonly = true
+  sources = [
+    "basic.html",
+    "cpuprofile.html",
+    "track_example.html",
+  ]
+
+  deps = [ ":ts" ]
+}

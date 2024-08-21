@@ -1,0 +1,52 @@
+# Copyright 2021 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/timestamp.gni")
+import("./node.gni")
+import("./vars.gni")
+
+template("generate_css") {
+  node_action(target_name) {
+    forward_variables_from(invoker, [ "sources" ])
+
+    script = "scripts/build/generate_css_js_files.js"
+
+    _src = rebase_path(".", root_build_dir)
+    _dest = rebase_path(target_gen_dir, root_build_dir)
+
+    inputs +=
+        [ devtools_location_prepend + "node_modules/cssnano/package.json" ]
+
+    args = [
+      build_timestamp,
+      "$is_debug",
+      "${invoker.legacy}",
+      target_name,
+      _src,
+      _dest,
+      string_join(",", sources),
+    ]
+
+    outputs = []
+    foreach(_input, sources) {
+      _file_name = _input
+      if (invoker.legacy) {
+        _file_name = "$_file_name.legacy"
+      }
+      outputs += [ "$target_gen_dir/$_file_name.js" ]
+    }
+
+    data = outputs
+
+    if (is_debug) {
+      metadata = {
+        grd_files = outputs
+      }
+    }
+  }
+}
+
+set_defaults("generate_css") {
+  legacy = false
+}

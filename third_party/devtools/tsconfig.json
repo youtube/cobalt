@@ -1,6 +1,21 @@
 {
+  "extends": "./config/typescript/tsconfig.base.json",
   "compilerOptions": {
-    "module": "esnext",
-    "target": "esnext",
-  }
+    "lib": [
+      "esnext",
+      "dom",
+      "dom.iterable",
+      "webworker",
+      "webworker.iterable"
+    ],
+    "outDir": "ignored-for-vscode"
+  },
+  "include": [
+    "front_end/",
+    "test/",
+    "inspector_overlay"
+  ],
+  "exclude": [
+    "front_end/**/*-legacy.ts"
+  ]
 }

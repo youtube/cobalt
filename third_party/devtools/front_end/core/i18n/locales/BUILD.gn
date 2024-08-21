@@ -1,0 +1,61 @@
+# Copyright 2022 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("../../../../scripts/build/ninja/minify_json.gni")
+import("../../../../scripts/build/ninja/node.gni")
+
+import("//$devtools_root_location/config/gni/i18n.gni")
+
+node_action("collect_strings") {
+  script = "front_end/core/i18n/collect-ui-strings.js"
+
+  args = [ "--input-directories" ]
+  foreach(dir, devtools_collection_directories) {
+    args += [ rebase_path(dir, root_build_dir) ]
+  }
+  args += [
+    "--output-directory",
+    rebase_path("$target_gen_dir/generated", root_build_dir),
+  ]
+
+  outputs = [ "$target_gen_dir/generated/en-US.json" ]
+  if (include_en_xl) {
+    args += [ "--include-en-xl" ]
+    outputs += [ "$target_gen_dir/generated/en-XL.json" ]
+  }
+
+  depfile = "$target_gen_dir/generated/collected-ui-strings.d"
+}
+
+generated_locales = [ "en-US" ]
+if (include_en_xl) {
+  generated_locales += [ "en-XL" ]
+}
+
+minify_json("i18n_locales") {
+  sources = []
+  foreach(
+      locale,
+      remote_devtools_locales + bundled_devtools_locales - generated_locales) {
+    sources += [ "$devtools_locale_directory/$locale.json" ]
+  }
+
+  sources += get_target_outputs(":collect_strings")
+
+  deps = [ ":collect_strings" ]
+}
+
+group("locales") {
+  public_deps = [ ":i18n_locales" ]
+
+  data = []
+
+  foreach(locale, bundled_devtools_locales) {
+    data += [ "$target_gen_dir/$locale.json" ]
+  }
+
+  metadata = {
+    grd_files = data
+  }
+}
