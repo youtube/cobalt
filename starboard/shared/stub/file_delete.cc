@@ -12,12 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 17
-
 #include "starboard/file.h"
 
 bool SbFileDelete(const char* path) {
   return false;
 }
-
-#endif  // SB_API_VERSION < 17

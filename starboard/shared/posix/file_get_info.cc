@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 17
-
 #include "starboard/shared/posix/file_internal.h"
 
 #include "starboard/shared/posix/impl/file_get_info.h"
@@ -21,5 +19,3 @@
 bool SbFileGetInfo(SbFile file, SbFileInfo* out_info) {
   return ::starboard::shared::posix::impl::FileGetInfo(file, out_info);
 }
-
-#endif  // SB_API_VERSION < 17

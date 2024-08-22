@@ -14,8 +14,6 @@
 
 // SbFileFlush is otherwise tested in SbFileWriteTest.
 
-#if SB_API_VERSION < 17
-
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -32,5 +30,3 @@ TEST(SbFileFlushTest, InvalidFileErrors) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_API_VERSION < 17

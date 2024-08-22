@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 17
-
 #include "starboard/file.h"
 
 #include <android/asset_manager.h>
@@ -34,5 +32,3 @@ bool SbFileGetInfo(SbFile file, SbFileInfo* out_info) {
 
   return ::starboard::shared::posix::impl::FileGetInfo(file, out_info);
 }
-
-#endif  // SB_API_VERSION < 17

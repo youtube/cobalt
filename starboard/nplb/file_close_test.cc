@@ -14,8 +14,6 @@
 
 // SbFileClose is partially tested in file_open_test.cc.
 
-#if SB_API_VERSION < 17
-
 #include "starboard/file.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -31,5 +29,3 @@ TEST(SbFileCloseTest, CloseInvalidFails) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_API_VERSION < 17

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION < 17
-
 #include "starboard/file.h"
 
 #include <windows.h>
@@ -58,5 +56,3 @@ bool SbFileGetInfo(SbFile file, SbFileInfo* out_info) {
 
   return true;
 }
-
-#endif  // SB_API_VERSION < 17
