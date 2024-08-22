@@ -20,7 +20,6 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/common/atomic.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/thread.h"
 

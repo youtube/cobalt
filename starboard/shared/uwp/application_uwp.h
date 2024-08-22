@@ -54,7 +54,11 @@ class ApplicationUwp : public shared::starboard::Application,
  public:
   const float kDefaultScreenRefreshRate = 60.f;
 
+#if SB_API_VERSION >= 15
   explicit ApplicationUwp(SbEventHandleCallback sb_event_handle_callback);
+#else
+  ApplicationUwp();
+#endif
   ~ApplicationUwp() override;
 
   static ApplicationUwp* Get() {

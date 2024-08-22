@@ -42,7 +42,11 @@ void Dispatch(SbEventType type, void* data, SbEventDataDestructor destructor) {
   SbEvent event;
   event.type = type;
   event.data = data;
+#if SB_API_VERSION >= 15
   Application::Get()->sb_event_handle_callback_(&event);
+#else
+  SbEventHandle(&event);
+#endif  // SB_API_VERSION >= 15
   if (destructor) {
     destructor(event.data);
   }
@@ -63,6 +67,7 @@ volatile SbAtomic32 g_next_event_id = 0;
 
 Application* Application::g_instance = NULL;
 
+#if SB_API_VERSION >= 15
 Application::Application(SbEventHandleCallback sb_event_handle_callback)
     : error_level_(0),
       thread_(pthread_self()),
@@ -71,6 +76,13 @@ Application::Application(SbEventHandleCallback sb_event_handle_callback)
       sb_event_handle_callback_(sb_event_handle_callback) {
   SB_CHECK(sb_event_handle_callback_)
       << "sb_event_handle_callback_ has not been set.";
+#else
+Application::Application()
+    : error_level_(0),
+      thread_(pthread_self()),
+      start_link_(NULL),
+      state_(kStateUnstarted) {
+#endif  // SB_API_VERSION >= 15
   Application* old_instance =
       reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
           reinterpret_cast<SbAtomicPtr*>(&g_instance),
@@ -407,7 +419,11 @@ bool Application::HandleEventAndUpdateState(Application::Event* event) {
     OnSuspend();
   }
 
+#if SB_API_VERSION >= 15
   sb_event_handle_callback_(scoped_event->event);
+#else
+  SbEventHandle(scoped_event->event);
+#endif  // SB_API_VERSION >= 15
 
   switch (scoped_event->event->type) {
     case kSbEventTypePreload:

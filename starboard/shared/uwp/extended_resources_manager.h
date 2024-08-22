@@ -20,7 +20,6 @@
 
 #include <atomic>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/queue.h"
 #include "starboard/configuration.h"
@@ -85,7 +84,7 @@ class ExtendedResourcesManager {
 
   shared::starboard::ThreadChecker thread_checker_;
   Mutex mutex_;
-  atomic_bool is_extended_resources_acquired_;
+  std::atomic_bool is_extended_resources_acquired_{false};
 
   std::atomic_bool is_av1_shader_compiled_ = {false};
   std::atomic_bool is_vp9_shader_compiled_ = {false};
@@ -99,7 +98,7 @@ class ExtendedResourcesManager {
 
   // This is set to true when a release of extended resources is requested.
   // Anything delaying the release should be expedited when this is set.
-  atomic_bool pending_extended_resources_release_;
+  std::atomic_bool pending_extended_resources_release_{false};
 
   // This condition variable is used to synchronize changes to
   // is_extended_resources_acquired_.

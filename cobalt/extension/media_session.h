@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.media;
+#ifndef COBALT_EXTENSION_MEDIA_SESSION_H_
+#define COBALT_EXTENSION_MEDIA_SESSION_H_
 
-/**
- * Interface to download artwork (Bitmap) from a URL, intended for use in media session metadata.
- */
-public interface ArtworkDownloader {
-  public void downloadArtwork(String url, ArtworkLoader artworkLoader);
-}
+#if SB_API_VERSION <= 14
+#include "starboard/extension/media_session.h"
+#else
+#error "Extensions have moved, please see Starboard CHANGELOG for details."
+#endif
+
+#endif  // COBALT_EXTENSION_MEDIA_SESSION_H_

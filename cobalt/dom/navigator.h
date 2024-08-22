@@ -47,6 +47,8 @@ class Navigator : public web::NavigatorBase {
   Navigator(const Navigator&) = delete;
   Navigator& operator=(const Navigator&) = delete;
 
+  uint64_t hardware_concurrency() const;
+
   // Web API: NavigatorLicenses
   const std::string licenses() const;
 

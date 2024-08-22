@@ -15,6 +15,7 @@
 #include <dirent.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <algorithm>
 
@@ -132,7 +133,8 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
     std::string sub_path =
         kSbFileSepString + ScopedRandomFile::MakeRandomFilename();
     EXPECT_GT(starboard::strlcat(path.data(), sub_path.c_str(), kPathSize), 0);
-    EXPECT_TRUE(SbFileDelete(path.data()));
+    // rmdir return -1 when directory does not exist.
+    EXPECT_TRUE(rmdir(path.data()) == 0 || !DirectoryExists(path.data()));
     EXPECT_FALSE(FileExists(path.data()));
 
     // Create the directory and confirm it exists and can be opened.
@@ -146,7 +148,7 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
 
     // Lastly, close and delete the directory.
     EXPECT_TRUE(closedir(directory) == 0);
-    EXPECT_TRUE(SbFileDelete(path.data()));
+    EXPECT_TRUE(rmdir(path.data()) == 0);
     EXPECT_FALSE(FileExists(path.data()));
   }
 }
@@ -165,7 +167,8 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
     std::string sub_path =
         kSbFileSepString + ScopedRandomFile::MakeRandomFilename();
     EXPECT_GT(starboard::strlcat(path.data(), sub_path.c_str(), kPathSize), 0);
-    EXPECT_TRUE(SbFileDelete(path.data()));
+    // unlink return -1 when directory does not exist.
+    EXPECT_TRUE(unlink(path.data()) == 0 || !FileExists(path.data()));
     EXPECT_FALSE(FileExists(path.data()));
 
     // Write to the file and check that we can read from it.
@@ -192,7 +195,7 @@ TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
     EXPECT_EQ(content_read, content_to_write);
 
     // Lastly, delete the file.
-    EXPECT_TRUE(SbFileDelete(path.data()));
+    EXPECT_TRUE(unlink(path.data()) == 0);
     EXPECT_FALSE(FileExists(path.data()));
   }
 }

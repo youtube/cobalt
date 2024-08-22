@@ -200,6 +200,7 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     LOG(INFO) << (value ? "Enabling" : "Disabling")
               << " media metrics collection.";
     return true;
+#if SB_API_VERSION >= 15
   } else if (name == "AudioWriteDurationLocal" && value > 0) {
     audio_write_duration_local_ = base::TimeDelta::FromMicroseconds(value);
     LOG(INFO) << "Set AudioWriteDurationLocal to "
@@ -210,6 +211,7 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
     LOG(INFO) << "Set AudioWriteDurationRemote to "
               << audio_write_duration_remote_.InMicroseconds();
     return true;
+#endif  // SB_API_VERSION >= 15
   } else if (name == "PlayerConfiguration.DecodeToTexturePreferred") {
     if (sbplayer_interface_->SetDecodeToTexturePreferred(value)) {
       LOG(INFO) << "Set DecodeToTexturePreferred to "
@@ -273,7 +275,10 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
                  base::Unretained(this)),
       client, this, options_.allow_resume_after_suspend,
       max_audio_samples_per_write_, force_punch_out_by_default_,
-      audio_write_duration_local_, audio_write_duration_remote_, &media_log_));
+#if SB_API_VERSION >= 15
+      audio_write_duration_local_, audio_write_duration_remote_,
+#endif  // SB_API_VERSION >= 15
+      &media_log_));
 }
 
 void MediaModule::Suspend() {

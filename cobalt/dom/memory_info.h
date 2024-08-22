@@ -33,6 +33,8 @@ class MemoryInfo : public script::Wrappable {
       script::EnvironmentSettings* environment_settings) const;
   uint32 used_js_heap_size(
       script::EnvironmentSettings* environment_settings) const;
+  uint32 js_heap_size_limit(
+      script::EnvironmentSettings* environment_settings) const;
   uint32 media_source_size_limit(
       script::EnvironmentSettings* environment_settings) const;
   uint32 total_media_source_size(

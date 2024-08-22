@@ -60,6 +60,7 @@ class URLRequestContext {
   void SetProxy(const std::string& custom_proxy_rules);
 
   void SetEnableQuic(bool enable_quic);
+  void SetEnableHttp2(bool enable_http2);
 
   bool using_http_cache();
 

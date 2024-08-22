@@ -57,6 +57,7 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   const char kMediaCodecBlockList[] = "MediaCodecBlockList";
   const char kNavigatorUAData[] = "NavigatorUAData";
   const char kQUIC[] = "QUIC";
+  const char kHTTP2[] = "HTTP2";
   const char kHTTP3[] = "HTTP3";
   const char kSkiaRasterizer[] = "SkiaRasterizer";
 
@@ -67,11 +68,6 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   if (name == kMediaCodecBlockList && value.IsType<std::string>() &&
       value.AsType<std::string>().size() < 256) {
     can_play_type_handler_->SetDisabledMediaCodecs(value.AsType<std::string>());
-    return true;
-  }
-
-  if (set_web_setting_func_ && value.IsType<int32>() &&
-      set_web_setting_func_.Run(name, value.AsType<int32>())) {
     return true;
   }
 
@@ -96,6 +92,17 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
                                 base::Value(value.AsType<int32>() != 0));
       // Tell NetworkModule (if exists) to re-query persistent settings.
       network_module_->SetEnableQuicFromPersistentSettings();
+      return true;
+    }
+  }
+
+  if (name.compare(kHTTP2) == 0 && value.IsType<int32>()) {
+    if (!persistent_settings_ || !network_module_) {
+      return false;
+    } else {
+      persistent_settings_->Set(network::kHttp2EnabledPersistentSettingsKey,
+                                base::Value(value.AsType<int32>() != 0));
+      network_module_->SetEnableHttp2FromPersistentSettings();
       return true;
     }
   }
@@ -153,6 +160,11 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
     return true;
   }
 #endif
+  if (set_web_setting_func_ && value.IsType<int32>() &&
+      set_web_setting_func_.Run(name, value.AsType<int32>())) {
+    return true;
+  }
+
   return false;
 }
 
@@ -171,6 +183,17 @@ int H5vccSettings::GetPersistentSettingAsInt(const std::string& key,
     return value.GetIfInt().value_or(default_setting);
   }
   return default_setting;
+}
+
+std::string H5vccSettings::GetPersistentSettingAsString(
+    const std::string& key) const {
+  if (key.compare("cpu_usage_tracker_intervals") == 0) {
+    base::Value value =
+        browser::CpuUsageTracker::GetInstance()->GetIntervalsDefinition();
+    absl::optional<std::string> json = base::WriteJson(value);
+    return json.value_or(std::string());
+  }
+  return std::string();
 }
 
 }  // namespace h5vcc

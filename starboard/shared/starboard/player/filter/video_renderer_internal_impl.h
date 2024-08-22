@@ -15,10 +15,10 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_IMPL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_IMPL_H_
 
+#include <atomic>
 #include <list>
 #include <memory>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
@@ -97,16 +97,16 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   // performance by keeping track of whether we already have a fresh decoder,
   // and can thus avoid doing a full reset.
   bool first_input_written_ = false;
-  atomic_bool end_of_stream_written_;
-  atomic_bool end_of_stream_decoded_;
-  atomic_bool ended_cb_called_;
+  std::atomic_bool end_of_stream_written_{false};
+  std::atomic_bool end_of_stream_decoded_{false};
+  std::atomic_bool ended_cb_called_{false};
 
-  atomic_bool need_more_input_;
-  atomic_bool seeking_;
+  std::atomic_bool need_more_input_{true};
+  std::atomic_bool seeking_{false};
   int64_t seeking_to_time_ = 0;  // microseconds
 
   // |number_of_frames_| = decoder_frames_.size() + sink_frames_.size()
-  atomic_int32_t number_of_frames_;
+  std::atomic<int32_t> number_of_frames_{0};
   // |sink_frames_| is locked inside VideoRenderer::Render() when calling
   // algorithm_->Render().  So OnDecoderStatus() won't try to lock and append
   // the decoded frames to |sink_frames_| directly to avoid being blocked.  It

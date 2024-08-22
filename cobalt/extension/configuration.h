@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2023 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.media;
+#ifndef COBALT_EXTENSION_CONFIGURATION_H_
+#define COBALT_EXTENSION_CONFIGURATION_H_
 
-import dev.cobalt.util.UsedByNative;
+#if SB_API_VERSION <= 14
+#include "starboard/extension/configuration.h"
+#else
+#error "Extensions have moved, please see CHANGELOG for details."
+#endif
 
-/** https://wicg.github.io/mediasession/#dictdef-mediaimage */
-public class MediaImage {
-  public final String src;
-  public final String sizes;
-  public final String type;
-
-  @UsedByNative
-  public MediaImage(String src, String sizes, String type) {
-    this.src = src;
-    this.sizes = sizes;
-    this.type = type;
-  }
-}
+#endif  // COBALT_EXTENSION_CONFIGURATION_H_

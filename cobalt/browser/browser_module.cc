@@ -288,7 +288,10 @@ BrowserModule::BrowserModule(const GURL& url,
   splash_screen_layer_ = render_tree_combiner_.CreateLayer(kSplashScreenZIndex);
 // Create the debug console layer.
 #if defined(ENABLE_DEBUGGER)
-  debug_console_layer_ = render_tree_combiner_.CreateLayer(kDebugConsoleZIndex);
+  if (DebugConsole::IsEnabled()) {
+    debug_console_layer_ =
+        render_tree_combiner_.CreateLayer(kDebugConsoleZIndex);
+  }
 #endif
 
   int qr_code_overlay_slots = 4;
@@ -367,15 +370,17 @@ BrowserModule::BrowserModule(const GURL& url,
   resource_provider_stub_.emplace(true /*allocate_image_data*/);
 
 #if defined(ENABLE_DEBUGGER)
-  debug_console_.reset(new DebugConsole(
-      platform_info_.get(), application_state_,
-      base::Bind(&BrowserModule::QueueOnDebugConsoleRenderTreeProduced,
-                 base::Unretained(this)),
-      &web_settings_, network_module_, GetViewportSize(), GetResourceProvider(),
-      kLayoutMaxRefreshFrequencyInHz,
-      base::Bind(&BrowserModule::CreateDebugClient, base::Unretained(this)),
-      base::Bind(&BrowserModule::OnMaybeFreeze, base::Unretained(this))));
-  lifecycle_observers_.AddObserver(debug_console_.get());
+  if (debug_console_layer_) {
+    debug_console_.reset(new DebugConsole(
+        platform_info_.get(), application_state_,
+        base::Bind(&BrowserModule::QueueOnDebugConsoleRenderTreeProduced,
+                   base::Unretained(this)),
+        &web_settings_, network_module_, GetViewportSize(),
+        GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz,
+        base::Bind(&BrowserModule::CreateDebugClient, base::Unretained(this)),
+        base::Bind(&BrowserModule::OnMaybeFreeze, base::Unretained(this))));
+    lifecycle_observers_.AddObserver(debug_console_.get());
+  }
 #endif  // defined(ENABLE_DEBUGGER)
 
   const renderer::Pipeline* pipeline =
@@ -1095,6 +1100,7 @@ void BrowserModule::OnDisableMediaCodecs(const std::string& codecs) {
 
 void BrowserModule::QueueOnDebugConsoleRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
+#if defined(ENABLE_DEBUGGER)
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::QueueOnDebugConsoleRenderTreeProduced()");
   render_tree_submission_queue_.AddMessage(
@@ -1103,14 +1109,17 @@ void BrowserModule::QueueOnDebugConsoleRenderTreeProduced(
   task_runner_->PostTask(
       FROM_HERE,
       base::Bind(&BrowserModule::ProcessRenderTreeSubmissionQueue, weak_this_));
+#endif
 }
 
 void BrowserModule::OnDebugConsoleRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
+#if defined(ENABLE_DEBUGGER)
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  if (application_state_ == base::kApplicationStateConcealed) {
+  if (!debug_console_ ||
+      (application_state_ == base::kApplicationStateConcealed)) {
     return;
   }
 
@@ -1127,6 +1136,7 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
   }
 
   SubmitCurrentRenderTreeToRenderer();
+#endif
 }
 
 void BrowserModule::OnNavigateTimedTrace(const std::string& time) {
@@ -1151,7 +1161,8 @@ void BrowserModule::OnOnScreenKeyboardInputEventProduced(
   }
 
 #if defined(ENABLE_DEBUGGER)
-  if (!debug_console_->FilterOnScreenKeyboardInputEvent(type, event)) {
+  if (debug_console_ &&
+      !debug_console_->FilterOnScreenKeyboardInputEvent(type, event)) {
     return;
   }
 #endif  // defined(ENABLE_DEBUGGER)
@@ -1188,7 +1199,7 @@ void BrowserModule::OnPointerEventProduced(base_token::Token type,
   }
 
 #if defined(ENABLE_DEBUGGER)
-  if (!debug_console_->FilterPointerEvent(type, event)) {
+  if (debug_console_ && !debug_console_->FilterPointerEvent(type, event)) {
     return;
   }
 #endif  // defined(ENABLE_DEBUGGER)
@@ -1214,7 +1225,7 @@ void BrowserModule::OnWheelEventProduced(base_token::Token type,
   }
 
 #if defined(ENABLE_DEBUGGER)
-  if (!debug_console_->FilterWheelEvent(type, event)) {
+  if (debug_console_ && !debug_console_->FilterWheelEvent(type, event)) {
     return;
   }
 #endif  // defined(ENABLE_DEBUGGER)
@@ -1348,7 +1359,7 @@ bool BrowserModule::FilterKeyEvent(base_token::Token type,
   }
 
 #if defined(ENABLE_DEBUGGER)
-  if (!debug_console_->FilterKeyEvent(type, event)) {
+  if (debug_console_ && !debug_console_->FilterKeyEvent(type, event)) {
     return false;
   }
 #endif  // defined(ENABLE_DEBUGGER)
@@ -1359,8 +1370,9 @@ bool BrowserModule::FilterKeyEvent(base_token::Token type,
 bool BrowserModule::FilterKeyEventForHotkeys(
     base_token::Token type, const dom::KeyboardEventInit& event) {
 #if defined(ENABLE_DEBUGGER)
-  if (event.key_code() == dom::keycode::kF1 ||
-      (event.ctrl_key() && event.key_code() == dom::keycode::kO)) {
+  if (debug_console_ &&
+      (event.key_code() == dom::keycode::kF1 ||
+       (event.ctrl_key() && event.key_code() == dom::keycode::kO))) {
     if (type == base::Tokens::keydown()) {
       // F1 or Ctrl+O cycles the debug console display.
       debug_console_->CycleMode();
@@ -1754,7 +1766,9 @@ void BrowserModule::ResetResources() {
   main_web_module_layer_->Reset();
   splash_screen_layer_->Reset();
 #if defined(ENABLE_DEBUGGER)
-  debug_console_layer_->Reset();
+  if (debug_console_layer_) {
+    debug_console_layer_->Reset();
+  }
 #endif  // defined(ENABLE_DEBUGGER)
   if (qr_overlay_info_layer_) {
     qr_overlay_info_layer_->Reset();

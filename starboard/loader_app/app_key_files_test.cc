@@ -15,6 +15,7 @@
 #include "starboard/loader_app/app_key_files.h"
 
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <string>
 #include <vector>
@@ -53,24 +54,24 @@ TEST_F(AppKeyFilesTest, TestGoodKeyFile) {
   std::string file_path = GetGoodAppKeyFilePath(dir_, kTestAppKey);
   ASSERT_FALSE(file_path.empty());
   if (FileExists(file_path.c_str())) {
-    SbFileDelete(file_path.c_str());
+    unlink(file_path.c_str());
   }
   ASSERT_FALSE(FileExists(file_path.c_str()));
   ASSERT_TRUE(CreateAppKeyFile(file_path));
   ASSERT_TRUE(FileExists(file_path.c_str()));
-  SbFileDelete(file_path.c_str());
+  unlink(file_path.c_str());
 }
 
 TEST_F(AppKeyFilesTest, TestBadKeyFile) {
   std::string file_path = GetBadAppKeyFilePath(dir_, kTestAppKey);
   ASSERT_FALSE(file_path.empty());
   if (FileExists(file_path.c_str())) {
-    SbFileDelete(file_path.c_str());
+    unlink(file_path.c_str());
   }
   ASSERT_FALSE(FileExists(file_path.c_str()));
   ASSERT_TRUE(CreateAppKeyFile(file_path));
   ASSERT_TRUE(FileExists(file_path.c_str()));
-  SbFileDelete(file_path.c_str());
+  unlink(file_path.c_str());
 }
 
 TEST_F(AppKeyFilesTest, TestGoodKeyFileInvalidInput) {
@@ -96,7 +97,7 @@ TEST_F(AppKeyFilesTest, TestAnyGoodKeyFile) {
   ASSERT_TRUE(CreateAppKeyFile(file_path));
   ASSERT_TRUE(FileExists(file_path.c_str()));
   ASSERT_TRUE(AnyGoodAppKeyFile(dir_));
-  SbFileDelete(file_path.c_str());
+  unlink(file_path.c_str());
 }
 
 }  // namespace

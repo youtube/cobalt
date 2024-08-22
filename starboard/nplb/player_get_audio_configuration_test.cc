@@ -19,6 +19,8 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if SB_API_VERSION >= 15
+
 bool operator==(const SbMediaAudioConfiguration& left,
                 const SbMediaAudioConfiguration& right) {
   return memcmp(&left, &right, sizeof(SbMediaAudioConfiguration)) == 0;
@@ -273,3 +275,5 @@ INSTANTIATE_TEST_CASE_P(SbPlayerGetAudioConfigurationTests,
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION >= 15

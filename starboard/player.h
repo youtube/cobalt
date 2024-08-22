@@ -105,6 +105,7 @@ typedef struct SbPlayerCreationParam {
   // encrypted portions.
   SbDrmSystem drm_system;
 
+#if SB_API_VERSION >= 15
   // Contains a populated SbMediaAudioStreamInfo if |audio_stream_info.codec|
   // isn't |kSbMediaAudioCodecNone|. When |audio_stream_info.codec| is
   // |kSbMediaAudioCodecNone|, the video doesn't have an audio track.
@@ -113,6 +114,16 @@ typedef struct SbPlayerCreationParam {
   // isn't |kSbMediaVideoCodecNone|. When |video_stream_info.codec| is
   // |kSbMediaVideoCodecNone|, the video is audio only.
   SbMediaVideoStreamInfo video_stream_info;
+#else   // SB_API_VERSION >= 15
+  // Contains a populated SbMediaAudioSampleInfo if |audio_sample_info.codec|
+  // isn't |kSbMediaAudioCodecNone|. When |audio_sample_info.codec| is
+  // |kSbMediaAudioCodecNone|, the video doesn't have an audio track.
+  SbMediaAudioSampleInfo audio_sample_info;
+  // Contains a populated SbMediaVideoSampleInfo if |video_sample_info.codec|
+  // isn't |kSbMediaVideoCodecNone|. When |video_sample_info.codec| is
+  // |kSbMediaVideoCodecNone|, the video is audio only.
+  SbMediaVideoSampleInfo video_sample_info;
+#endif  // SB_API_VERSION >= 15
 
   // Selects how the decoded video frames will be output. For example,
   // |kSbPlayerOutputModePunchOut| indicates that the decoded video frames will
@@ -295,12 +306,16 @@ typedef void (*SbPlayerDeallocateSampleFunc)(SbPlayer player,
 // Well-defined value for an invalid player.
 #define kSbPlayerInvalid ((SbPlayer)NULL)
 
+#if SB_API_VERSION >= 15
+
 // The audio write duration when all the audio connectors are local.
 #define kSbPlayerWriteDurationLocal (1000000 / 2)  // 0.5 seconds
 
 // The audio write duration when at least one of the audio connectors are
 // remote.
 #define kSbPlayerWriteDurationRemote (1000000 * 10)  // 10 seconds
+
+#endif  // SB_API_VERSION >= 15
 
 // Returns whether the given player handle is valid.
 static inline bool SbPlayerIsValid(SbPlayer player) {
@@ -681,10 +696,12 @@ SB_EXPORT SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player);
 //
 // |out_audio_configuration|: The information about the audio output, refer to
 // |SbMediaAudioConfiguration| for more details. Must not be NULL.
+#if SB_API_VERSION >= 15
 SB_EXPORT bool SbPlayerGetAudioConfiguration(
     SbPlayer player,
     int index,
     SbMediaAudioConfiguration* out_audio_configuration);
+#endif  // SB_API_VERSION >= 15
 
 #ifdef __cplusplus
 }  // extern "C"

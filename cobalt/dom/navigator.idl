@@ -16,6 +16,7 @@
 
 interface Navigator {};
 
+Navigator implements NavigatorConcurrentHardware;
 Navigator implements NavigatorID;
 Navigator implements NavigatorLanguage;
 Navigator implements NavigatorPlugins;

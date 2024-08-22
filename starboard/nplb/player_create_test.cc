@@ -334,7 +334,9 @@ TEST_F(SbPlayerTest, MultiPlayer) {
       kSbMediaAudioCodecMp3,
       kSbMediaAudioCodecFlac,
       kSbMediaAudioCodecPcm,
+#if SB_API_VERSION >= 15
       kSbMediaAudioCodecIamf,
+#endif  // SB_API_VERSION >= 15
   };
   // clang-format on
 
@@ -353,7 +355,9 @@ TEST_F(SbPlayerTest, MultiPlayer) {
     case kAudioCodecs[6]:
     case kAudioCodecs[7]:
     case kAudioCodecs[8]:
+#if SB_API_VERSION >= 15
     case kAudioCodecs[9]:
+#endif  // SB_API_VERSION >= 15
       break;
   }
 

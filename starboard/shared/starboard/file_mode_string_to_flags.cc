@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 17
+
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/file.h"
@@ -64,3 +66,5 @@ int SbFileModeStringToFlags(const char* mode) {
   }
   return flags;
 }
+
+#endif  // SB_API_VERSION < 17
