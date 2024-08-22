@@ -296,6 +296,7 @@ TEST_F(TransportClientSocketTest, FullDuplex_ReadFirst) {
   // write callback has executed.  We wait for the read callback to run now to
   // make sure that the socket can handle full duplex communications.
 
+  LOG(INFO)<<"waiting for callback.WaitForResult()";
   rv = callback.WaitForResult();
   EXPECT_GE(rv, 0);
 }
@@ -318,6 +319,7 @@ TEST_F(TransportClientSocketTest, FullDuplex_WriteFirst) {
                      write_callback.callback(), TRAFFIC_ANNOTATION_FOR_TESTS);
     ASSERT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
 
+    LOG(INFO)<<"write rv: "<<rv;
     if (rv == ERR_IO_PENDING)
       break;
     bytes_written += rv;
@@ -331,6 +333,7 @@ TEST_F(TransportClientSocketTest, FullDuplex_WriteFirst) {
   while (true) {
     int rv = sock_->Read(buf.get(), kBufLen, callback.callback());
     ASSERT_TRUE(rv >= 0 || rv == ERR_IO_PENDING);
+    LOG(INFO)<<"read rv: "<<rv;
     if (rv == ERR_IO_PENDING)
       break;
   }
@@ -341,9 +344,11 @@ TEST_F(TransportClientSocketTest, FullDuplex_WriteFirst) {
 
   ReadDataOfExpectedLength(connected_sock_.get(), bytes_written);
   SendServerResponse(connected_sock_.get());
+  LOG(INFO)<<"write_callback.WaitForResult()";
   int rv = write_callback.WaitForResult();
   EXPECT_GE(rv, 0);
 
+  LOG(INFO)<<"callback.WaitForResult()";
   rv = callback.WaitForResult();
   EXPECT_GT(rv, 0);
 }

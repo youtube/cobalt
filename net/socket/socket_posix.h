@@ -126,16 +126,21 @@ class NET_EXPORT_PRIVATE SocketPosix
   int DoWrite(IOBuffer* buf, int buf_len);
   void WriteCompleted();
 
+  bool read_pending() const { return !read_if_ready_callback_.is_null(); }
+  bool write_pending() const {
+    return !write_callback_.is_null() && !waiting_connect_;
+  }
+  bool accept_pending() const { return !accept_callback_.is_null(); }
+
+  bool ClearWatcherIfOperationsNotPending();
+
   // |close_socket| indicates whether the socket should also be closed.
   void StopWatchingAndCleanUp(bool close_socket);
 
   SocketDescriptor socket_fd_;
 
-  base::MessagePumpForIO::SocketWatcher accept_socket_watcher_;
   raw_ptr<std::unique_ptr<SocketPosix>> accept_socket_;
   CompletionOnceCallback accept_callback_;
-
-  base::MessagePumpForIO::SocketWatcher read_socket_watcher_;
 
   // Non-null when a Read() is in progress.
   scoped_refptr<IOBuffer> read_buf_;
@@ -145,7 +150,7 @@ class NET_EXPORT_PRIVATE SocketPosix
   // Non-null when a ReadIfReady() is in progress.
   CompletionOnceCallback read_if_ready_callback_;
 
-  base::MessagePumpForIO::SocketWatcher write_socket_watcher_;
+  base::MessagePumpForIO::SocketWatcher socket_watcher_;
   scoped_refptr<IOBuffer> write_buf_;
   int write_buf_len_ = 0;
   // External callback; called when write or connect is complete.

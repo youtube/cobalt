@@ -72,9 +72,7 @@ int MapConnectError(int os_error) {
 
 SocketPosix::SocketPosix()
     : socket_fd_(kInvalidSocket),
-      accept_socket_watcher_(FROM_HERE),
-      read_socket_watcher_(FROM_HERE),
-      write_socket_watcher_(FROM_HERE) {}
+      socket_watcher_(FROM_HERE) {}
 
 SocketPosix::~SocketPosix() {
   Close();
@@ -181,7 +179,7 @@ int SocketPosix::Accept(std::unique_ptr<SocketPosix>* socket,
 
   if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_READ,
-          &accept_socket_watcher_, this)) {
+          &socket_watcher_, this)) {
     PLOG(ERROR) << "WatchFileDescriptor failed on accept";
     return MapSystemError(errno);
   }
@@ -206,7 +204,7 @@ int SocketPosix::Connect(const SockaddrStorage& address,
 
   if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_WRITE,
-          &write_socket_watcher_, this)) {
+          &socket_watcher_, this)) {
     PLOG(ERROR) << "WatchFileDescriptor failed on connect";
     return MapSystemError(errno);
   }
@@ -226,7 +224,7 @@ int SocketPosix::Connect(const SockaddrStorage& address,
 
   rv = MapConnectError(errno);
   if (rv != OK && rv != ERR_IO_PENDING) {
-    write_socket_watcher_.StopWatchingFileDescriptor();
+    ClearWatcherIfOperationsNotPending();
     return rv;
   }
 
@@ -302,7 +300,7 @@ int SocketPosix::ReadIfReady(IOBuffer* buf,
 
   if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_READ,
-          &read_socket_watcher_, this)) {
+          &socket_watcher_, this)) {
     PLOG(ERROR) << "WatchFileDescriptor failed on read";
     return MapSystemError(errno);
   }
@@ -314,7 +312,7 @@ int SocketPosix::ReadIfReady(IOBuffer* buf,
 int SocketPosix::CancelReadIfReady() {
   DCHECK(read_if_ready_callback_);
 
-  bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
+  bool ok = ClearWatcherIfOperationsNotPending();
   DCHECK(ok);
 
   read_if_ready_callback_.Reset();
@@ -352,7 +350,7 @@ int SocketPosix::WaitForWrite(IOBuffer* buf,
 
   if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_WRITE,
-          &write_socket_watcher_, this)) {
+          &socket_watcher_, this)) {
     PLOG(ERROR) << "WatchFileDescriptor failed on write";
     return MapSystemError(errno);
   }
@@ -454,7 +452,7 @@ void SocketPosix::AcceptCompleted() {
   if (rv == ERR_IO_PENDING)
     return;
 
-  bool ok = accept_socket_watcher_.StopWatchingFileDescriptor();
+  bool ok = ClearWatcherIfOperationsNotPending();
   DCHECK(ok);
   accept_socket_ = nullptr;
   std::move(accept_callback_).Run(rv);
@@ -481,7 +479,7 @@ void SocketPosix::ConnectCompleted() {
   if (rv == ERR_IO_PENDING)
     return;
 
-  bool ok = write_socket_watcher_.StopWatchingFileDescriptor();
+  bool ok = socket_watcher_.StopWatchingFileDescriptor();
   DCHECK(ok);
   waiting_connect_ = false;
   std::move(write_callback_).Run(rv);
@@ -512,7 +510,7 @@ void SocketPosix::RetryRead(int rv) {
 void SocketPosix::ReadCompleted() {
   DCHECK(read_if_ready_callback_);
 
-  bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
+  bool ok = socket_watcher_.StopWatchingFileDescriptor();
   DCHECK(ok);
   std::move(read_if_ready_callback_).Run(OK);
 }
@@ -546,19 +544,24 @@ void SocketPosix::WriteCompleted() {
   if (rv == ERR_IO_PENDING)
     return;
 
-  bool ok = write_socket_watcher_.StopWatchingFileDescriptor();
+  bool ok = ClearWatcherIfOperationsNotPending();
   DCHECK(ok);
   write_buf_.reset();
   write_buf_len_ = 0;
   std::move(write_callback_).Run(rv);
 }
 
+bool SocketPosix::ClearWatcherIfOperationsNotPending() {
+  bool ok = true;
+  if (!read_pending() && !write_pending() && !accept_pending() &&
+      !accept_pending()) {
+    ok = socket_watcher_.StopWatchingFileDescriptor();
+  }
+  return ok;
+}
+
 void SocketPosix::StopWatchingAndCleanUp(bool close_socket) {
-  bool ok = accept_socket_watcher_.StopWatchingFileDescriptor();
-  DCHECK(ok);
-  ok = read_socket_watcher_.StopWatchingFileDescriptor();
-  DCHECK(ok);
-  ok = write_socket_watcher_.StopWatchingFileDescriptor();
+  bool ok = socket_watcher_.StopWatchingFileDescriptor();
   DCHECK(ok);
 
   // These needs to be done after the StopWatchingFileDescriptor() calls, but
