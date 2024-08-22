@@ -48,8 +48,7 @@ typedef union SbOnceControl {
 #define SB_ONCE_INITIALIZER \
   {}
 #else
-#define SB_ONCE_INITIALIZER \
-  { 0 }
+#define SB_ONCE_INITIALIZER {0}
 #endif
 
 // Function pointer type for methods that can be called via the SbOnce() system.

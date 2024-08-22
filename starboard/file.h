@@ -272,13 +272,6 @@ SB_EXPORT bool SbFileDelete(const char* path);
 
 #endif  // SB_API_VERSION < 17
 
-#if SB_API_VERSION < 16
-// Indicates whether a file or directory exists at |path|.
-//
-// |path|: The absolute path of the file or directory being checked.
-SB_EXPORT bool SbFileExists(const char* path);
-#endif  // SB_API_VERSION < 16
-
 #if SB_API_VERSION < 17
 
 // DEPRECATED with SB_API_VERSION 16

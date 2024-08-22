@@ -159,21 +159,13 @@ PlatformThreadId PlatformThread::CurrentId() {
 
 // static
 PlatformThreadRef PlatformThread::CurrentRef() {
-#if SB_API_VERSION < 16
-  return PlatformThreadRef(SbThreadGetCurrent());
-#else
   return PlatformThreadRef(pthread_self());
-#endif  // SB_API_VERSION < 16
 
 }
 
 // static
 PlatformThreadHandle PlatformThread::CurrentHandle() {
-#if SB_API_VERSION < 16
-  return PlatformThreadHandle(SbThreadGetCurrent());
-#else
   return PlatformThreadHandle(pthread_self());
-#endif  // SB_API_VERSION < 16
 }
 
 // static
@@ -225,19 +217,11 @@ void PlatformThread::Join(PlatformThreadHandle thread_handle) {
   // the thread referred to by |thread_handle| may still be running long-lived /
   // blocking tasks.
   internal::AssertBlockingAllowed();
-#if SB_API_VERSION < 16
-  SbThreadJoin(thread_handle.platform_handle(), NULL);
-#else
   pthread_join(thread_handle.platform_handle(), NULL);
-#endif  // SB_API_VERSION < 16
 }
 
 void PlatformThread::Detach(PlatformThreadHandle thread_handle) {
-#if SB_API_VERSION < 16
-  SbThreadDetach(thread_handle.platform_handle());
-#else
   pthread_detach(thread_handle.platform_handle());
-#endif  // SB_API_VERSION < 16
 }
 
 void internal::SetCurrentThreadTypeImpl(ThreadType /* thread_type */, MessagePumpType /*pump_type_hint*/) {

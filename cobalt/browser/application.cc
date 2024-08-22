@@ -127,17 +127,10 @@ std::string GetDevServersListenIp() {
   // Default to INADDR_ANY
   std::string listen_ip(ip_v6 ? "::" : "0.0.0.0");
 
-#if SB_API_VERSION < 15
-  // Desktop PCs default to loopback.
-  if (SbSystemGetDeviceType() == kSbSystemDeviceTypeDesktopPC) {
-    listen_ip = ip_v6 ? "::1" : "127.0.0.1";
-  }
-#else
   if (starboard::GetSystemPropertyString(kSbSystemPropertyDeviceType) ==
       starboard::kSystemDeviceTypeDesktopPC) {
     listen_ip = ip_v6 ? "::1" : "127.0.0.1";
   }
-#endif
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -901,12 +894,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   AddCrashHandlerAnnotations(platform_info);
 
 #if SB_IS(EVERGREEN)
-#if SB_API_VERSION < 16
-  if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName) &&
-      !command_line->HasSwitch(switches::kDisableUpdaterModule)) {
-#else
   if (SbSystemGetExtension(kCobaltExtensionInstallationManagerName)) {
-#endif
     uint64_t update_check_delay_sec =
         cobalt::updater::kDefaultUpdateCheckDelaySeconds;
     if (command_line->HasSwitch(browser::switches::kUpdateCheckDelaySeconds)) {

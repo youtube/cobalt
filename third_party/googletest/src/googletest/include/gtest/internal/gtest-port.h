@@ -2080,11 +2080,6 @@ inline int DoIsATTY(int fd) { return 1; } // only called for stdout
 inline int Stat(const char* path, StatStruct* buf) {
   return stat(path, buf);
 }
-#if SB_API_VERSION < 16
-inline int StrCaseCmp(const char* s1, const char* s2) {
-  return SbStringCompareNoCase(s1, s2);
-}
-#endif //SB_API_VERSION < 16
 inline char* StrDup(const char* src) { return strdup(src); }
 
 inline int RmDir(const char* dir) { return rmdir(dir); }

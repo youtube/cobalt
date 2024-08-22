@@ -133,9 +133,6 @@ typedef enum SbMediaAudioCodingType {
 typedef enum SbMediaAudioSampleType {
   kSbMediaAudioSampleTypeInt16Deprecated,
   kSbMediaAudioSampleTypeFloat32,
-#if SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
-  kSbMediaAudioSampleTypeInt16 = kSbMediaAudioSampleTypeInt16Deprecated,
-#endif  // SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 } SbMediaAudioSampleType;
 
 // Possible audio frame storage types.
@@ -499,11 +496,6 @@ typedef struct SbMediaVideoSampleInfo {
 // A structure describing the audio configuration parameters of a single audio
 // output.
 typedef struct SbMediaAudioConfiguration {
-#if SB_API_VERSION < 15
-  // The platform-defined index of the associated audio output.
-  int index;
-#endif  // SB_API_VERSION < 15
-
 #if SB_API_VERSION >= 15
   // The type of audio connector. Will be |kSbMediaAudioConnectorUnknown| if
   // this device cannot provide this information.
@@ -685,13 +677,6 @@ SB_EXPORT bool SbMediaGetAudioConfiguration(
 // Value used when a video's bits per pixel is not known.
 #define kSbMediaBitsPerPixelInvalid 0
 
-#if SB_API_VERSION < 16
-typedef enum SbMediaBufferStorageType {
-  kSbMediaBufferStorageTypeMemory,
-  kSbMediaBufferStorageTypeFile,
-} SbMediaBufferStorageType;
-#endif  // SB_API_VERSION < 16
-
 // DEPRECATED with SB_API_VERSION 16
 //
 // SbMediaGetBufferAlignment() was deprecated in Starboard 16, its return value
@@ -807,17 +792,6 @@ SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
                                                 int resolution_width,
                                                 int resolution_height,
                                                 int bits_per_pixel);
-
-#if SB_API_VERSION < 16
-// Returns SbMediaBufferStorageType of type |SbMediaStorageTypeMemory| or
-// |SbMediaStorageTypeFile|. For memory storage, the media buffers will be
-// stored in main memory allocated by malloc functions. For file storage, the
-// media buffers will be stored in a temporary file in the system cache folder
-// acquired by calling SbSystemGetPath() with "kSbSystemPathCacheDirectory".
-// Note that when its value is "file" the media stack will still allocate memory
-// to cache the buffers in use.
-SB_EXPORT SbMediaBufferStorageType SbMediaGetBufferStorageType();
-#endif  // SB_API_VERSION < 16
 
 // DEPRECATED with SB_API_VERSION 16
 //

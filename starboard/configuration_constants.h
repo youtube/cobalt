@@ -138,11 +138,6 @@ SB_EXPORT extern const char kSbPathSepChar;
 // The string form of SB_PATH_SEP_CHAR.
 SB_EXPORT extern const char* kSbPathSepString;
 
-#if SB_API_VERSION < 16
-// The maximum number of users that can be signed in at the same time.
-SB_EXPORT extern const uint32_t kSbUserMaxSignedIn;
-#endif  // SB_API_VERSION < 16
-
 // The maximum size the cache directory is allowed to use in bytes.
 SB_EXPORT extern const uint32_t kSbMaxSystemPathCacheDirectorySize;
 

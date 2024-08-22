@@ -34,32 +34,6 @@ void* SbPageMapFile(void* addr,
                     int64_t file_offset,
                     int64_t size);
 
-#if SB_API_VERSION < 16
-// Allocates |size_bytes| worth of physical memory pages and maps them into an
-// available virtual region. On some platforms, |name| appears in the debugger
-// and can be up to 32 bytes. Returns SB_MEMORY_MAP_FAILED on failure, as NULL
-// is a valid return value.
-void* SbPageMap(size_t size_bytes, int flags, const char* name);
-
-// Unmap |size_bytes| of physical pages starting from |virtual_address|,
-// returning true on success. After this, [virtual_address, virtual_address +
-// size_bytes) will not be read/writable. SbUnmap() can unmap multiple
-// contiguous regions that were mapped with separate calls to
-// SbPageMap(). E.g. if one call to SbPageMap(0x1000) returns (void*)0xA000 and
-// another call to SbPageMap(0x1000) returns (void*)0xB000, SbPageUnmap(0xA000,
-// 0x2000) should free both.
-bool SbPageUnmap(void* virtual_address, size_t size_bytes);
-
-// Change the protection of |size_bytes| of physical pages, starting from
-// |virtual_address|, to |flags|, returning |true| on success.
-bool SbPageProtect(void* virtual_address, int64_t size_bytes, int flags);
-
-// Returns the total amount, in bytes, currently allocated via Map().  Should
-// always be a multiple of kSbMemoryPageSize.
-size_t SbPageGetMappedBytes();
-
-#endif  // SB_API_VERSION < 16
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

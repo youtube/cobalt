@@ -15,27 +15,6 @@
 #ifndef STARBOARD_SHARED_NOUSER_USER_INTERNAL_H_
 #define STARBOARD_SHARED_NOUSER_USER_INTERNAL_H_
 
-#if SB_API_VERSION < 16
-
-#include "starboard/shared/internal_only.h"
-#include "starboard/user.h"
-
-struct SbUserPrivate {
-  static const int kMaxUserName = 256;
-
-  const char name[kMaxUserName];
-  const char id[kMaxUserName];
-};
-
-namespace starboard {
-namespace shared {
-namespace nouser {
-// The one instance of the signed-in user.
-extern SbUserPrivate g_user;
-}  // namespace nouser
-}  // namespace shared
-}  // namespace starboard
-
-#endif  // SB_API_VERSION < 16
+#error This file is deprecated with SB_API_VERSION 16.
 
 #endif  // STARBOARD_SHARED_NOUSER_USER_INTERNAL_H_
