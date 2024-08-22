@@ -41,6 +41,7 @@
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
+#include "starboard/memory_reporter.h"
 #include "starboard/microphone.h"
 #include "starboard/mutex.h"
 #include "starboard/player.h"
