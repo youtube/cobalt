@@ -53,7 +53,9 @@ OPENSSL_MSVC_PRAGMA(warning(push, 3))
 #include <ws2tcpip.h>
 OPENSSL_MSVC_PRAGMA(warning(pop))
 
+#ifndef STARBOARD
 typedef int ssize_t;
+#endif
 OPENSSL_MSVC_PRAGMA(comment(lib, "Ws2_32.lib"))
 #endif
 
@@ -214,7 +216,7 @@ bool Listener::Init(const std::string &port) {
   // Windows' IN6ADDR_ANY_INIT does not have enough curly braces for clang-cl
   // (https://crbug.com/772108), while other platforms like NaCl are missing
   // in6addr_any, so use a mix of both.
-#if defined(OPENSSL_WINDOWS)
+#if defined(OPENSSL_WINDOWS) && !defined(STARBOARD)
   addr.sin6_addr = in6addr_any;
 #else
   addr.sin6_addr = IN6ADDR_ANY_INIT;

@@ -21,6 +21,7 @@
 
 #ifdef STARBOARD
 #include <starboard/client_porting/wrap_main/wrap_main.h>
+#define OPENSSL_NO_SOCK // avoid linking errors
 #endif
 
 #if defined(OPENSSL_WINDOWS)
