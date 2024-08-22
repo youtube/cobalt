@@ -8,8 +8,6 @@
 [![evergreen](https://github.com/youtube/cobalt/actions/workflows/evergreen.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/evergreen.yaml?query=event%3Apush+branch%3Amain)
 [![linux](https://github.com/youtube/cobalt/actions/workflows/linux.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/linux.yaml?query=event%3Apush+branch%3Amain)
 [![raspi-2](https://github.com/youtube/cobalt/actions/workflows/raspi-2.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/raspi-2.yaml?query=event%3Apush+branch%3Amain)
-[![win32](https://github.com/youtube/cobalt/actions/workflows/win32.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/win32.yaml?query=event%3Apush+branch%3Amain)
-[![xb1](https://github.com/youtube/cobalt/actions/workflows/xb1.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/xb1.yaml?query=event%3Apush+branch%3Amain)
 
 ## Overview
 
