@@ -118,7 +118,6 @@ std::shared_ptr<const ParsedCertificate> TrustStoreInMemoryStarboard::TryLoadCer
     return nullptr;
   }
 
-  SbFileError out_error;
   char cert_buffer[kCertBufferSize];
   base::FilePath cert_path = GetCertificateDirPath().Append(cert_file_name);
   base::File cert_file(cert_path, base::File::Flags::FLAG_OPEN | base::File::Flags::FLAG_READ);

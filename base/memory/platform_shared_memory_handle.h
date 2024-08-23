@@ -54,7 +54,7 @@ struct BASE_EXPORT ScopedFDPair {
 
 // Platform-specific shared memory type used by the shared memory system.
 #if defined(STARBOARD)
-using PlatformSharedMemoryHandle = SbFile;
+using PlatformSharedMemoryHandle = int;
 using ScopedPlatformSharedMemoryHandle = ScopedFD;
 #elif BUILDFLAG(IS_APPLE)
 using PlatformSharedMemoryHandle = mach_port_t;
