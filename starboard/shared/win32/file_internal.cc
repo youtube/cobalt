@@ -25,7 +25,7 @@
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
-#define O_ACCMODE O_RDWR | O_WRONLY | O_RDONLY
+#define O_ACCMODE (O_RDONLY | O_WRONLY | O_RDWR)
 
 namespace sbwin32 = starboard::shared::win32;
 
@@ -110,6 +110,10 @@ HANDLE OpenFileOrDirectory(const char* path, int flags) {
   }
 
   DWORD creation_disposition = 0;
+  if (!flags) {
+    creation_disposition = OPEN_EXISTING;
+  }
+
   if (flags & O_CREAT && flags & O_EXCL) {
     SB_DCHECK(!creation_disposition);
     creation_disposition = CREATE_NEW;
