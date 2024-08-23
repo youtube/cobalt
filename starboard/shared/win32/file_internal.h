@@ -90,6 +90,11 @@ std::wstring NormalizeWin32Path(std::wstring str);
 
 HANDLE OpenFileOrDirectory(const char* path, int flags);
 
+HANDLE OpenFileOrDirectory(const char* path,
+                           int flags,
+                           bool* out_created,
+                           SbFileError* out_error);
+
 }  // namespace win32
 }  // namespace shared
 }  // namespace starboard
