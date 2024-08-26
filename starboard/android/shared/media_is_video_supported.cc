@@ -14,7 +14,7 @@
 
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
-#include "starboard/android/shared/max_output_buffers_lookup_table.h"
+#include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/configuration.h"
