@@ -81,7 +81,6 @@ static_library("starboard_platform") {
     "//starboard/shared/linux/system_is_debugger_attached.cc",
     "//starboard/shared/linux/system_symbolize.cc",
     "//starboard/shared/linux/thread_get_id.cc",
-    "//starboard/shared/linux/thread_set_name.cc",
     "//starboard/shared/opus/opus_audio_decoder.cc",
     "//starboard/shared/opus/opus_audio_decoder.h",
     "//starboard/shared/posix/directory_create.cc",
