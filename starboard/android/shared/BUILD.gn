@@ -493,6 +493,10 @@ static_library("starboard_platform") {
   if (sb_evergreen_compatible_use_libunwind) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
   }
+
+  snapshotted_media_files = []
+
+  sources -= snapshotted_media_files
 }
 
 static_library("starboard_base_symbolize") {
