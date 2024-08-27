@@ -101,7 +101,9 @@ DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(DrmSystem);
 
   if (is_valid()) {
+    media_metrics_provider_.StartTrackingAction(MediaAction::SBDRM_DESTROY);
     SbDrmDestroySystem(wrapped_drm_system_);
+    media_metrics_provider_.EndTrackingAction(MediaAction::SBDRM_DESTROY);
   } else {
     LOG(WARNING) << "Attempting to close invalid SbDrmSystem";
   }
@@ -210,8 +212,12 @@ void DrmSystem::GenerateSessionUpdateRequest(
             << ", init data size: " << init_data_length
             << ", ticket: " << ticket;
 
+  media_metrics_provider_.StartTrackingAction(
+      MediaAction::SBDRM_GENERATE_SESSION_UPDATE_REQUEST);
   SbDrmGenerateSessionUpdateRequest(wrapped_drm_system_, ticket, type.c_str(),
                                     init_data, init_data_length);
+  media_metrics_provider_.EndTrackingAction(
+      MediaAction::SBDRM_GENERATE_SESSION_UPDATE_REQUEST);
 }
 
 void DrmSystem::UpdateSession(
@@ -238,8 +244,11 @@ void DrmSystem::UpdateSession(
             << "), key length: " << key_length << ", ticket: " << ticket
             << ", session id: " << session_id;
 
+  media_metrics_provider_.StartTrackingAction(
+      MediaAction::SBDRM_UPDATE_SESSION);
   SbDrmUpdateSession(wrapped_drm_system_, ticket, key, key_length,
                      session_id.c_str(), session_id.size());
+  media_metrics_provider_.EndTrackingAction(MediaAction::SBDRM_UPDATE_SESSION);
 }
 
 void DrmSystem::CloseSession(const std::string& session_id) {
@@ -249,7 +258,9 @@ void DrmSystem::CloseSession(const std::string& session_id) {
   LOG(INFO) << "Close session of drm system (" << wrapped_drm_system_
             << "), session id: " << session_id;
 
+  media_metrics_provider_.StartTrackingAction(MediaAction::SBDRM_CLOSE_SESSION);
   SbDrmCloseSession(wrapped_drm_system_, session_id.c_str(), session_id.size());
+  media_metrics_provider_.EndTrackingAction(MediaAction::SBDRM_CLOSE_SESSION);
 }
 
 void DrmSystem::OnSessionUpdateRequestGenerated(

@@ -94,6 +94,50 @@ TEST_F(MediaMetricsProviderTest, SbPlayerDestroy) {
       std::string(kUmaPrefix) + "SbPlayer.Destroy.LatencyTiming", 100, 1);
 }
 
+TEST_F(MediaMetricsProviderTest, SbDrmCloseSession) {
+  metrics_.StartTrackingAction(MediaAction::SBDRM_CLOSE_SESSION);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
+  metrics_.EndTrackingAction(MediaAction::SBDRM_CLOSE_SESSION);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbDrm.CloseSession.LatencyTiming", 570, 1);
+}
+
+TEST_F(MediaMetricsProviderTest, SbDrmDestroy) {
+  metrics_.StartTrackingAction(MediaAction::SBDRM_DESTROY);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
+  metrics_.EndTrackingAction(MediaAction::SBDRM_DESTROY);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbDrm.Destroy.LatencyTiming", 570, 1);
+}
+
+TEST_F(MediaMetricsProviderTest, SbDrmGenerateSessionUpdateRequest) {
+  metrics_.StartTrackingAction(
+      MediaAction::SBDRM_GENERATE_SESSION_UPDATE_REQUEST);
+
+  clock_.Advance(base::TimeDelta::FromMilliseconds(100));
+  metrics_.EndTrackingAction(
+      MediaAction::SBDRM_GENERATE_SESSION_UPDATE_REQUEST);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) +
+          "SbDrm.GenerateSessionUpdateRequest.LatencyTiming",
+      100, 1);
+}
+
+TEST_F(MediaMetricsProviderTest, SbDrmUpdateSession) {
+  metrics_.StartTrackingAction(MediaAction::SBDRM_UPDATE_SESSION);
+
+  clock_.Advance(base::TimeDelta::FromMilliseconds(100));
+  metrics_.EndTrackingAction(MediaAction::SBDRM_UPDATE_SESSION);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbDrm.UpdateSession.LatencyTiming", 100, 1);
+}
+
 
 }  // namespace
 }  // namespace media
