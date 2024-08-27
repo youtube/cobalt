@@ -26,6 +26,7 @@
 #include "base/optional.h"
 #include "base/single_thread_task_runner.h"
 #include "base/task/sequenced_task_runner.h"
+#include "cobalt/media/base/metrics_provider.h"
 #include "starboard/atomic.h"
 #include "starboard/drm.h"
 
@@ -251,6 +252,8 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
 
   // Supports concurrent calls to |Session::Update|.
   TicketToSessionUpdateMap ticket_to_session_update_map_;
+
+  MediaMetricsProvider media_metrics_provider_;
 
   DISALLOW_COPY_AND_ASSIGN(DrmSystem);
 };

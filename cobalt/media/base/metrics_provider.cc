@@ -151,6 +151,27 @@ void MediaMetricsProvider::ReportActionLatencyUMA(
       UMA_HISTOGRAM_TIMES("Cobalt.Media.SbPlayer.Destroy.LatencyTiming",
                           action_duration);
       break;
+    case MediaAction::SBDRM_DESTROY:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbDrm.Destroy.LatencyTiming", action_duration,
+          base::TimeDelta::FromMicroseconds(500),
+          base::TimeDelta::FromMilliseconds(250), 50);
+      break;
+    case MediaAction::SBDRM_GENERATE_SESSION_UPDATE_REQUEST:
+      UMA_HISTOGRAM_TIMES(
+          "Cobalt.Media.SbDrm.GenerateSessionUpdateRequest.LatencyTiming",
+          action_duration);
+      break;
+    case MediaAction::SBDRM_UPDATE_SESSION:
+      UMA_HISTOGRAM_TIMES("Cobalt.Media.SbDrm.UpdateSession.LatencyTiming",
+                          action_duration);
+      break;
+    case MediaAction::SBDRM_CLOSE_SESSION:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbDrm.CloseSession.LatencyTiming", action_duration,
+          base::TimeDelta::FromMicroseconds(500),
+          base::TimeDelta::FromMilliseconds(50), 50);
+      break;
     case MediaAction::UNKNOWN_ACTION:
     default:
       break;
