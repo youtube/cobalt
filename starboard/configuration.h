@@ -327,11 +327,6 @@ struct CompileAssert {};
 #endif
 
 // SB_C_FORCE_INLINE annotation for forcing a C function to be inlined.
-#if SB_API_VERSION < 16
-#if !defined(SB_C_FORCE_INLINE)
-#error "Your platform must define SB_C_FORCE_INLINE."
-#endif
-#else  //  SB_API_VERSION < 16
 #if defined(SB_C_FORCE_INLINE)
 #error "Your platform must not define SB_C_FORCE_INLINE"
 #else  // defined(SB_C_FORCE_INLINE)
@@ -343,18 +338,11 @@ struct CompileAssert {};
 #define SB_C_FORCE_INLINE inline
 #endif
 #endif  // defined(SB_C_FORCE_INLINE)
-#endif  // SB_API_VERSION < 16
 
-#if SB_API_VERSION < 16
-#if !defined(SB_C_INLINE)
-#error "Your platform must define SB_C_INLINE."
-#endif
-#else
 #if defined(SB_C_INLINE)
 #error "Your platform should not define SB_C_INLINE, it is deprecated."
 #else
 #define SB_C_INLINE inline
-#endif
 #endif
 
 #if SB_API_VERSION >= 16
@@ -363,12 +351,8 @@ struct CompileAssert {};
 #endif  // defined(SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES)
 #endif  // SB_API_VERSION >= 16
 
-// SB_EXPORT_PLATFORM annotates symbols as exported from shared libraries.
-#if SB_API_VERSION < 16
-#if !defined(SB_EXPORT_PLATFORM)
-#error "Your platform must define SB_EXPORT_PLATFORM."
-#endif
-#else                             // SB_API_VERSION >= 16
+// SB_EXPORT_PLATFORM annotates symbols as exported from shared libraries. //
+// SB_API_VERSION >= 16
 #if !defined(SB_EXPORT_PLATFORM)  // auto-configure
 #if SB_IS(COMPILER_GCC)
 #define SB_EXPORT_PLATFORM __attribute__((visibility("default")))
@@ -378,14 +362,9 @@ struct CompileAssert {};
 #error "Could not determine compiler, you must define SB_EXPORT_PLATFORM."
 #endif
 #endif  // !defined(SB_EXPORT_PLATFORM)
-#endif  // SB_API_VERSION >= 16
 
-// SB_IMPORT_PLATFORM annotates symbols as imported from shared libraries.
-#if SB_API_VERSION < 16
-#if !defined(SB_IMPORT_PLATFORM)
-#error "Your platform must define SB_IMPORT_PLATFORM."
-#endif
-#else                             // SB_API_VERSION >= 16
+// SB_IMPORT_PLATFORM annotates symbols as imported from shared libraries. //
+// SB_API_VERSION >= 16
 #if !defined(SB_IMPORT_PLATFORM)  // auto-configure
 #if SB_IS(COMPILER_GCC)
 #define SB_IMPORT_PLATFORM
@@ -395,7 +374,6 @@ struct CompileAssert {};
 #error "Could not determine compiler, you must define SB_IMPORT_PLATFORM."
 #endif
 #endif  // !defined(SB_IMPORT_PLATFORM)
-#endif  // SB_API_VERSION >= 16
 
 // --- Derived Configuration -------------------------------------------------
 
