@@ -19,4 +19,31 @@
 #ifndef STARBOARD_DIRECTORY_H_
 #define STARBOARD_DIRECTORY_H_
 
+#include "starboard/configuration.h"
+#include "starboard/export.h"
+#include "starboard/file.h"
+#include "starboard/types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Private structure representing an open directory stream.
+struct SbDirectoryPrivate;
+
+// A handle to an open directory stream.
+typedef struct SbDirectoryPrivate* SbDirectory;
+
+// Well-defined value for an invalid directory stream handle.
+#define kSbDirectoryInvalid ((SbDirectory)NULL)
+
+// Returns whether the given directory stream handle is valid.
+static inline bool SbDirectoryIsValid(SbDirectory directory) {
+  return directory != kSbDirectoryInvalid;
+}
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
 #endif  // STARBOARD_DIRECTORY_H_

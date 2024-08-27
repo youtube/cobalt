@@ -111,11 +111,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbCPUFeaturesGet);
   REGISTER_SYMBOL(SbDecodeTargetGetInfo);
   REGISTER_SYMBOL(SbDecodeTargetRelease);
-#if SB_API_VERSION < 17
-  REGISTER_SYMBOL(SbDirectoryClose);
-  REGISTER_SYMBOL(SbDirectoryGetNext);
-  REGISTER_SYMBOL(SbDirectoryOpen);
-#endif  // SB_API_VERSION < 17
   REGISTER_SYMBOL(SbDrmCloseSession);
   REGISTER_SYMBOL(SbDrmCreateSystem);
   REGISTER_SYMBOL(SbDrmDestroySystem);
@@ -127,19 +122,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbEventCancel);
   REGISTER_SYMBOL(SbEventSchedule);
   REGISTER_SYMBOL(SbFileAtomicReplace);
-#if SB_API_VERSION < 17
-  REGISTER_SYMBOL(SbFileCanOpen);
-  REGISTER_SYMBOL(SbFileClose);
-  REGISTER_SYMBOL(SbFileDelete);
-  REGISTER_SYMBOL(SbFileFlush);
-  REGISTER_SYMBOL(SbFileGetInfo);
-  REGISTER_SYMBOL(SbFileModeStringToFlags);
-  REGISTER_SYMBOL(SbFileOpen);
-  REGISTER_SYMBOL(SbFileRead);
-  REGISTER_SYMBOL(SbFileSeek);
-  REGISTER_SYMBOL(SbFileTruncate);
-  REGISTER_SYMBOL(SbFileWrite);
-#endif  // SB_API_VERSION < 17
   REGISTER_SYMBOL(SbGetEglInterface);
   REGISTER_SYMBOL(SbGetGlesInterface);
   REGISTER_SYMBOL(SbLog);
