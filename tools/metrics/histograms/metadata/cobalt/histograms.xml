@@ -275,6 +275,42 @@ Always run the pretty print utility on this file after editing:
   </summary>
 </histogram>
 
+<histogram name="Cobalt.Media.SbDrm.CloseSession.LatencyTiming"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
+
+  <owner>borongchen@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Timing data for closing session of SbDrm.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SbDrm.Destroy.LatencyTiming" units="microseconds"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
+
+  <owner>borongchen@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Timing data for the destruction of SbDrm.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SbDrm.GenerateSessionUpdateRequest.LatencyTiming"
+    units="ms" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
+
+  <owner>borongchen@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Timing data for generating session update request of SbDrm.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SbDrm.UpdateSession.LatencyTiming" units="ms"
+    expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
+
+  <owner>borongchen@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Timing data for updating session of SbDrm.</summary>
+</histogram>
+
 <histogram name="Cobalt.Media.SbPlayer.Create.LatencyTiming"
     units="microseconds" expires_after="never">
 <!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
