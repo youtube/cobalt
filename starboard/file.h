@@ -26,6 +26,8 @@
 extern "C" {
 #endif
 
+#if SB_API_VERSION < 17
+
 // Private structure representing an open file.
 typedef struct SbFilePrivate SbFilePrivate;
 
@@ -126,8 +128,6 @@ typedef struct SbFileInfo {
 static inline bool SbFileIsValid(SbFile file) {
   return file != kSbFileInvalid;
 }
-
-#if SB_API_VERSION < 17
 
 // DEPRECATED with SB_API_VERSION 16
 //
