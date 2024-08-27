@@ -14,6 +14,8 @@
 
 #include "starboard/shared/win32/file_internal.h"
 
+#include <errno.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 
 #include <windows.h>
@@ -22,6 +24,8 @@
 #include "starboard/memory.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/wchar_utils.h"
+
+#define O_ACCMODE (O_RDONLY | O_WRONLY | O_RDWR)
 
 namespace sbwin32 = starboard::shared::win32;
 
@@ -79,6 +83,108 @@ std::wstring NormalizeWin32Path(std::string str) {
 
 std::wstring NormalizeWin32Path(std::wstring str) {
   return NormalizePathSeparator(str);
+}
+
+HANDLE OpenFileOrDirectory(const char* path, int flags) {
+  // Note that FILE_SHARE_DELETE allows a file to be deleted while there
+  // are other handles open for read/write. This is necessary for the
+  // Async file tests which, due to system timing, will sometimes have
+  // outstanding handles open and fail to delete, failing the test.
+  const DWORD share_mode =
+      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+
+  DWORD desired_access = 0;
+  if ((flags & O_ACCMODE) == O_RDONLY) {
+    desired_access |= GENERIC_READ;
+  } else if ((flags & O_ACCMODE) == O_WRONLY) {
+    desired_access |= GENERIC_WRITE;
+    flags &= ~O_WRONLY;
+  } else if ((flags & O_ACCMODE) == O_RDWR) {
+    desired_access |= GENERIC_READ | GENERIC_WRITE;
+    flags &= ~O_RDWR;
+  } else {
+    // Applications shall specify exactly one of the first three file access
+    // modes.
+    errno = EINVAL;
+    return INVALID_HANDLE_VALUE;
+  }
+
+  DWORD creation_disposition = 0;
+  if (!flags) {
+    creation_disposition = OPEN_EXISTING;
+  }
+
+  if (flags & O_CREAT && flags & O_EXCL) {
+    SB_DCHECK(!creation_disposition);
+    creation_disposition = CREATE_NEW;
+    flags &= ~(O_CREAT | O_EXCL);
+  }
+
+  if (flags & O_CREAT && flags & O_TRUNC) {
+    SB_DCHECK(!creation_disposition);
+    creation_disposition = CREATE_ALWAYS;
+    flags &= ~(O_CREAT | O_TRUNC);
+  }
+
+  if (flags & O_TRUNC) {
+    SB_DCHECK(!creation_disposition);
+    SB_DCHECK((flags & O_WRONLY) || (flags & O_RDWR));
+    creation_disposition = TRUNCATE_EXISTING;
+    flags &= ~O_TRUNC;
+  }
+
+  if (flags & O_CREAT) {
+    SB_DCHECK(!creation_disposition);
+    creation_disposition = OPEN_ALWAYS;
+    flags &= ~O_CREAT;
+  }
+
+  // SbFileOpen does not support any other combination of flags.
+  if (flags || !creation_disposition) {
+    errno = ENOTSUP;
+    return INVALID_HANDLE_VALUE;
+  }
+
+  SB_DCHECK(desired_access != 0) << "Invalid permission flag.";
+
+  std::wstring path_wstring = NormalizeWin32Path(path);
+  CREATEFILE2_EXTENDED_PARAMETERS create_ex_params = {0};
+  // Enabling |FILE_FLAG_BACKUP_SEMANTICS| allows us to figure out if the path
+  // is a directory.
+  create_ex_params.dwFileFlags = FILE_FLAG_BACKUP_SEMANTICS;
+  create_ex_params.dwFileFlags |= FILE_FLAG_POSIX_SEMANTICS;
+  create_ex_params.dwFileAttributes = FILE_ATTRIBUTE_NORMAL;
+  create_ex_params.dwSecurityQosFlags = SECURITY_ANONYMOUS;
+  create_ex_params.dwSize = sizeof(CREATEFILE2_EXTENDED_PARAMETERS);
+
+  HANDLE file_handle =
+      CreateFile2(path_wstring.c_str(), desired_access, share_mode,
+                  creation_disposition, &create_ex_params);
+
+  const DWORD last_error = GetLastError();
+
+  if (!starboard::shared::win32::IsValidHandle(file_handle)) {
+    switch (last_error) {
+      case ERROR_ACCESS_DENIED:
+        errno = EACCES;
+        break;
+      case ERROR_FILE_EXISTS: {
+        if (creation_disposition == CREATE_NEW) {
+          errno = EEXIST;
+        } else {
+          errno = EPERM;
+        }
+        break;
+      }
+      case ERROR_FILE_NOT_FOUND:
+        errno = ENOENT;
+        break;
+      default:
+        errno = EPERM;
+    }
+  }
+
+  return file_handle;
 }
 
 HANDLE OpenFileOrDirectory(const char* path,

@@ -94,7 +94,6 @@ TEST(PosixDirectoryOpenTest, FailsInvalidPath) {
   struct stat info;
   ASSERT_FALSE(stat(path.c_str(), &info) == 0);
 
-  SbFileError error = kSbFileErrorMax;
   DIR* directory = opendir(path.c_str());
   EXPECT_FALSE(directory != NULL);
   if (directory != NULL) {

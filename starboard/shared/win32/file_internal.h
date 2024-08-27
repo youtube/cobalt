@@ -57,6 +57,7 @@ class SbFilePrivate {
   SbFilePrivate(const SbFilePrivate&) = delete;
   SbFilePrivate& operator=(const SbFilePrivate&) = delete;
 };
+
 #pragma warning(pop)
 
 namespace starboard {
@@ -86,6 +87,8 @@ inline bool PathEndsWith(const std::wstring& path, const wchar_t* filename) {
 // replace all of the "/" with "\".
 std::wstring NormalizeWin32Path(std::string str);
 std::wstring NormalizeWin32Path(std::wstring str);
+
+HANDLE OpenFileOrDirectory(const char* path, int flags);
 
 HANDLE OpenFileOrDirectory(const char* path,
                            int flags,
