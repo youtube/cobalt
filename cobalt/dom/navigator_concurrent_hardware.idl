@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.media;
-
-/**
- * Interface to download artwork (Bitmap) from a URL, intended for use in media session metadata.
- */
-public interface ArtworkDownloader {
-  public void downloadArtwork(String url, ArtworkLoader artworkLoader);
-}
+[NoInterfaceObject]
+interface NavigatorConcurrentHardware {
+  readonly attribute unsigned long long hardwareConcurrency;
+};

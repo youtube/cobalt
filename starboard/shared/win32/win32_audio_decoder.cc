@@ -68,7 +68,6 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
         audio_frame_fmt_(audio_frame_fmt),
         sample_type_(sample_type),
         number_of_channels_(audio_stream_info.number_of_channels),
-        heaac_detected_(false),
         expected_buffer_size_(
             GetExpectedBufferSize(codec_,
                                   audio_stream_info.number_of_channels)) {
@@ -234,7 +233,7 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
   std::unique_ptr<DecryptingDecoder> impl_;
   std::queue<DecodedAudioPtr> output_queue_;
   uint16_t number_of_channels_;
-  atomic_bool heaac_detected_;
+  std::atomic_bool heaac_detected_{false};
   int samples_per_second_;
   const size_t expected_buffer_size_;
 };

@@ -28,66 +28,6 @@ namespace nplb_evergreen_compat_tests {
 
 namespace {
 
-#if SB_API_VERSION == 14
-const char* kSabiJsonIdArmHardfp =
-    "{\"alignment_char\":1,\"alignment_double\":8,\"alignment_float\":4,"
-    "\"alignment_int\":4,\"alignment_llong\":8,\"alignment_long\":4,"
-    "\"alignment_pointer\":4,\"alignment_short\":2,\"calling_convention\":"
-    "\"eabi\",\"endianness\":\"little\",\"floating_point_abi\":\"hard\","
-    "\"floating_point_fpu\":\"vfpv3\",\"sb_api_version\":14,\"signedness_of_"
-    "char\":\"signed\",\"signedness_of_enum\":\"signed\",\"size_of_char\":1,"
-    "\"size_of_double\":8,\"size_of_enum\":4,\"size_of_float\":4,\"size_of_"
-    "int\":4,\"size_of_llong\":8,\"size_of_long\":4,\"size_of_pointer\":4,"
-    "\"size_of_short\":2,\"target_arch\":\"arm\",\"target_arch_sub\":\"v7a\","
-    "\"word_size\":32}";
-
-const char* kSabiJsonIdArmSoftfp =
-    "{\"alignment_char\":1,\"alignment_double\":8,\"alignment_float\":4,"
-    "\"alignment_int\":4,\"alignment_llong\":8,\"alignment_long\":4,"
-    "\"alignment_pointer\":4,\"alignment_short\":2,\"calling_convention\":"
-    "\"eabi\",\"endianness\":\"little\",\"floating_point_abi\":\"softfp\","
-    "\"floating_point_fpu\":\"vfpv3\",\"sb_api_version\":14,\"signedness_of_"
-    "char\":\"signed\",\"signedness_of_enum\":\"signed\",\"size_of_char\":1,"
-    "\"size_of_double\":8,\"size_of_enum\":4,\"size_of_float\":4,\"size_of_"
-    "int\":4,\"size_of_llong\":8,\"size_of_long\":4,\"size_of_pointer\":4,"
-    "\"size_of_short\":2,\"target_arch\":\"arm\",\"target_arch_sub\":\"v7a\","
-    "\"word_size\":32}";
-
-const char* kSabiJsonIdArm64 =
-    "{\"alignment_char\":1,\"alignment_double\":8,\"alignment_float\":4,"
-    "\"alignment_int\":4,\"alignment_llong\":8,\"alignment_long\":8,"
-    "\"alignment_pointer\":8,\"alignment_short\":2,\"calling_convention\":"
-    "\"aarch64\",\"endianness\":\"little\",\"floating_point_abi\":\"\","
-    "\"floating_point_fpu\":\"\",\"sb_api_version\":14,\"signedness_of_char\":"
-    "\"signed\",\"signedness_of_enum\":\"signed\",\"size_of_char\":1,\"size_of_"
-    "double\":8,\"size_of_enum\":4,\"size_of_float\":4,\"size_of_int\":4,"
-    "\"size_of_llong\":8,\"size_of_long\":8,\"size_of_pointer\":8,\"size_of_"
-    "short\":2,\"target_arch\":\"arm64\",\"target_arch_sub\":\"v8a\",\"word_"
-    "size\":64}";
-
-const char* kSabiJsonIdX86 =
-    "{\"alignment_char\":1,\"alignment_double\":8,\"alignment_float\":4,"
-    "\"alignment_int\":4,\"alignment_llong\":8,\"alignment_long\":4,"
-    "\"alignment_pointer\":4,\"alignment_short\":2,\"calling_convention\":"
-    "\"sysv\",\"endianness\":\"little\",\"floating_point_abi\":\"\",\"floating_"
-    "point_fpu\":\"\",\"sb_api_version\":14,\"signedness_of_char\":\"signed\","
-    "\"signedness_of_enum\":\"signed\",\"size_of_char\":1,\"size_of_double\":8,"
-    "\"size_of_enum\":4,\"size_of_float\":4,\"size_of_int\":4,\"size_of_"
-    "llong\":8,\"size_of_long\":4,\"size_of_pointer\":4,\"size_of_short\":2,"
-    "\"target_arch\":\"x86\",\"target_arch_sub\":\"\",\"word_size\":32}";
-
-const char* kSabiJsonIdX64Sysv =
-    "{\"alignment_char\":1,\"alignment_double\":8,\"alignment_float\":4,"
-    "\"alignment_int\":4,\"alignment_llong\":8,\"alignment_long\":8,"
-    "\"alignment_pointer\":8,\"alignment_short\":2,\"calling_convention\":"
-    "\"sysv\",\"endianness\":\"little\",\"floating_point_abi\":\"\",\"floating_"
-    "point_fpu\":\"\",\"sb_api_version\":14,\"signedness_of_char\":\"signed\","
-    "\"signedness_of_enum\":\"signed\",\"size_of_char\":1,\"size_of_double\":8,"
-    "\"size_of_enum\":4,\"size_of_float\":4,\"size_of_int\":4,\"size_of_"
-    "llong\":8,\"size_of_long\":8,\"size_of_pointer\":8,\"size_of_short\":2,"
-    "\"target_arch\":\"x64\",\"target_arch_sub\":\"\",\"word_size\":64}";
-#endif  // SB_API_VERSION == 14
-
 #if SB_API_VERSION == 15
 const char* kSabiJsonIdArmHardfp =
     "{\"alignment_char\":1,\"alignment_double\":8,\"alignment_float\":4,"
@@ -256,8 +196,8 @@ TEST_F(SabiTest, VerifySABI) {
   SB_LOG(INFO) << "Using SB_API_VERSION=" << SB_API_VERSION;
   SB_LOG(INFO) << "Using SABI=" << SB_SABI_JSON_ID;
 
-  ASSERT_LT(SB_API_VERSION, SB_MAXIMUM_API_VERSION)
-      << "Evergreen should use SB_API_VERSION < SB_MAXIMUM_API_VERSION";
+  ASSERT_LE(SB_API_VERSION, SB_MAXIMUM_API_VERSION)
+      << "Evergreen should use SB_API_VERSION <= SB_MAXIMUM_API_VERSION";
 
   std::set<std::string> sabi_set;
   sabi_set.insert(kSabiJsonIdArmHardfp);

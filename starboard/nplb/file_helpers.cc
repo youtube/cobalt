@@ -14,16 +14,18 @@
 
 #include "starboard/nplb/file_helpers.h"
 
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <sstream>
 #include <string>
 #include <vector>
 
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
-#include "starboard/file.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -135,10 +137,10 @@ std::string ScopedRandomFile::MakeRandomFile(int length) {
     return filename;
   }
 
-  SbFile file = SbFileOpen(filename.c_str(), kSbFileCreateOnly | kSbFileWrite,
-                           NULL, NULL);
-  EXPECT_TRUE(SbFileIsValid(file));
-  if (!SbFileIsValid(file)) {
+  int file =
+      open(filename.c_str(), O_CREAT | O_EXCL | O_WRONLY, S_IRUSR | S_IWUSR);
+  EXPECT_TRUE(starboard::IsValid(file));
+  if (!starboard::IsValid(file)) {
     return "";
   }
 
@@ -147,11 +149,11 @@ std::string ScopedRandomFile::MakeRandomFile(int length) {
     data[i] = static_cast<char>(i & 0xFF);
   }
 
-  int bytes = SbFileWriteAll(file, data, length);
+  int bytes = starboard::WriteAll(file, data, length);
   EXPECT_EQ(bytes, length) << "Failed to write " << length << " bytes to "
                            << filename;
 
-  bool result = SbFileClose(file);
+  bool result = !close(file);
   EXPECT_TRUE(result) << "Failed to close " << filename;
   delete[] data;
   return filename;

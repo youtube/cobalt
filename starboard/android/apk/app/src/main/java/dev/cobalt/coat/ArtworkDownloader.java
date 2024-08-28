@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.media;
+package dev.cobalt.coat;
 
-import dev.cobalt.util.UsedByNative;
-
-/** https://wicg.github.io/mediasession/#dictdef-mediaimage */
-public class MediaImage {
-  public final String src;
-  public final String sizes;
-  public final String type;
-
-  @UsedByNative
-  public MediaImage(String src, String sizes, String type) {
-    this.src = src;
-    this.sizes = sizes;
-    this.type = type;
-  }
+/**
+ * Interface to download artwork (Bitmap) from a URL, intended for use in media session metadata.
+ */
+public interface ArtworkDownloader {
+  public void downloadArtwork(String url, ArtworkLoader artworkLoader);
 }

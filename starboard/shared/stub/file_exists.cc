@@ -19,4 +19,5 @@
 bool SbFileExists(const char* path) {
   return false;
 }
-#endif
+
+#endif  // SB_API_VERSION < 16

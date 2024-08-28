@@ -66,12 +66,23 @@ bool ConditionVariable::WaitTimed(int64_t duration) const {
   bool was_signaled = SbConditionVariableIsSignaled(
       SbConditionVariableWaitTimed(&condition_, mutex_->mutex(), duration));
 #else
+  if (duration < 0) {
+    duration = 0;
+  }
 #if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
   int64_t timeout_time_usec = starboard::CurrentMonotonicTime();
 #else
   int64_t timeout_time_usec = starboard::CurrentPosixTime();
 #endif  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
   timeout_time_usec += duration;
+
+  // Detect overflow if timeout is near kSbInt64Max. Since timeout can't be
+  // negative at this point, if it goes negative after adding now, we know we've
+  // gone over. Especially posix now, which has a 400 year advantage over
+  // Chromium (Windows) now.
+  if (timeout_time_usec < 0) {
+    timeout_time_usec = kSbInt64Max;
+  }
 
   struct timespec timeout;
   timeout.tv_sec = timeout_time_usec / 1000'000;

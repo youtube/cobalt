@@ -31,7 +31,8 @@ jobs:
       platform: evergreen-x64
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
-      keep_artifacts: libcobalt.*
+      keep_artifacts: install/lib/libcobalt.*
+      artifact_size_increase_thresholds: '{"install/lib/libcobalt.so": 0.02, "install/lib/libcobalt.lz4": 0.02}'
   evergreen-arm-hardfp:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -41,7 +42,8 @@ jobs:
       platform: evergreen-arm-hardfp
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
-      keep_artifacts: libcobalt.*
+      keep_artifacts: install/lib/libcobalt.*
+      artifact_size_increase_thresholds: '{"install/lib/libcobalt.so": 0.02, "install/lib/libcobalt.lz4": 0.02}'
   evergreen-arm-softfp:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -51,7 +53,8 @@ jobs:
       platform: evergreen-arm-softfp
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
-      keep_artifacts: libcobalt.*
+      keep_artifacts: install/lib/libcobalt.*
+      artifact_size_increase_thresholds: '{"install/lib/libcobalt.so": 0.02, "install/lib/libcobalt.lz4": 0.02}'
   evergreen-arm64:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -61,4 +64,5 @@ jobs:
       platform: evergreen-arm64
       nightly: ${{ github.event.inputs.nightly }}
       run_api_leak_detector: true
-      keep_artifacts: libcobalt.*
+      keep_artifacts: install/lib/libcobalt.*
+      artifact_size_increase_thresholds: '{"install/lib/libcobalt.so": 0.02, "install/lib/libcobalt.lz4": 0.02}'

@@ -15,7 +15,9 @@
 #include "starboard/loader_app/installation_manager.h"
 
 #include <dirent.h>
+#include <fcntl.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include <string>
 #include <vector>
@@ -71,18 +73,17 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
   }
 
   void ReadStorageState(cobalt::loader::InstallationStore* installation_store) {
-    SbFile file;
+    int file;
 
-    file = SbFileOpen(installation_store_path_.c_str(),
-                      kSbFileOpenOnly | kSbFileRead, NULL, NULL);
-    ASSERT_TRUE(file);
+    file = open(installation_store_path_.c_str(), O_RDONLY, S_IRUSR | S_IWUSR);
+    ASSERT_TRUE(file >= 0);
 
     char buf[IM_MAX_INSTALLATION_STORE_SIZE];
-    int count = SbFileReadAll(file, buf, IM_MAX_INSTALLATION_STORE_SIZE);
-    SB_DLOG(INFO) << "SbFileReadAll: count=" << count;
+    int count = starboard::ReadAll(file, buf, IM_MAX_INSTALLATION_STORE_SIZE);
+    SB_DLOG(INFO) << "ReadAll: count=" << count;
     ASSERT_NE(-1, count);
     ASSERT_TRUE(installation_store->ParseFromArray(buf, count));
-    SbFileClose(file);
+    close(file);
   }
 
   // Roll forward to |index| installation in a |max_num_installations|
@@ -200,11 +201,11 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
       std::string full_path = storage_path_;
       full_path += kSbFileSepString;
       full_path += dir_entry.data();
-      SbFileDelete(full_path.c_str());
+      unlink(full_path.c_str());
     }
 
     closedir(directory);
-    SbFileDelete(storage_path_.c_str());
+    rmdir(storage_path_.c_str());
   }
 
  protected:
