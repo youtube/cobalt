@@ -166,6 +166,7 @@ repos:
         entry: python ./download_resources.py
         language: python
         stages: [post-checkout]
+        additional_dependencies: [certifi]
         always_run: true
     -   id: test-download-from-gcs-helper
         name: test download from gcs helper
