@@ -1,0 +1,5 @@
+monorail {
+  component: "Enterprise>BrowserSwitcher"
+}
+
+team_email: "chromium-enterprise@chromium.org"

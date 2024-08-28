@@ -1,0 +1,20 @@
+PasswordProtection:
+  caption: Password protection
+  policies:
+  - PasswordProtectionWarningTrigger
+  - PasswordProtectionLoginURLs
+  - PasswordProtectionChangePasswordURL
+SafeBrowsing:
+  caption: Safe Browsing settings
+  policies:
+  - SafeBrowsingEnabled
+  - SafeBrowsingExtendedReportingEnabled
+  - SafeBrowsingProtectionLevel
+  - SafeBrowsingAllowlistDomains
+  - RealTimeDownloadProtectionRequestAllowed
+  - ClientSidePhishingProtectionAllowed
+  - SafeBrowsingExtensionProtectionAllowed
+  - SafeBrowsingProxiedRealTimeChecksAllowed
+  - SafeBrowsingSurveysEnabled
+  - SafeBrowsingDeepScanningEnabled
+  - DisableSafeBrowsingProceedAnyway

@@ -1,0 +1,12 @@
+{
+    "project": "chromium-m120",
+    "project_title": "Chromium M120",
+    "ref": "refs/branch-heads/6099",
+    "chrome_project": "chrome-m120",
+    "is_main": false,
+    "platforms": {
+        "cros-lts": {
+            "description": "CrOS LTS"
+        }
+    }
+}

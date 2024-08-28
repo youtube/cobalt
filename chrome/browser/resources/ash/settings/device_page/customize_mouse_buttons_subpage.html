@@ -1,0 +1,18 @@
+<style include="settings-shared input-device-settings-shared">
+  #mouseSwapToggleButton {
+    border-bottom: var(--cr-separator-line);
+  }
+</style>
+<settings-toggle-button id="mouseSwapToggleButton"
+    aria-describedby="description"
+    label="$i18n{mouseSwapButtonsLabel}"
+    pref="{{primaryRightPref_}}">
+</settings-toggle-button>
+<customize-buttons-subsection
+    button-remapping-list="{{selectedMouse.settings.buttonRemappings}}"
+    action-list$="[[buttonActionList_]]">
+</customize-buttons-subsection>
+<div id="description" class="subpage-description">
+  <iron-icon icon="os-settings:info-outline"></iron-icon>
+  <span>[[getDescription_(selectedMouse.*)]]</span>
+</div>

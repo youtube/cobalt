@@ -1,0 +1,14 @@
+include_rules = [
+  "+components/encrypted_messages",
+  "+components/language/core/browser",
+  "+components/metrics",
+  "+components/network_time",
+  "+components/pref_registry",
+  "+components/sync_preferences",
+  "+components/version_info",
+  "+components/web_resource",
+  "+net",
+  "+services/network/public",
+  "+services/network/test",
+  "+ui/base",
+]

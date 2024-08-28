@@ -1,0 +1,11 @@
+include_rules = [
+  "+components/crash/core/common/crash_key.h",
+  "+components/memory_pressure",
+  "+mojo/public/cpp",
+  "+third_party/harfbuzz-ng/src/src",
+  "+third_party/skia/include/codec",
+  "+third_party/skia/include/core",
+  "+third_party/skia/include/encode",
+  "+third_party/skia/include/private/chromium",
+  "+ui/gfx/geometry",
+]

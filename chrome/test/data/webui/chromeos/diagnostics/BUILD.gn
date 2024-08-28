@@ -1,0 +1,57 @@
+# Copyright 2020 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//ui/webui/resources/tools/generate_grd.gni")
+
+generate_grd("build_grdp") {
+  grd_prefix = "webui_chromeos_diagnostics"
+  out_grd = "$target_gen_dir/resources.grdp"
+
+  input_files = [
+    "battery_status_card_test.js",
+    "cellular_info_test.js",
+    "connectivity_card_test.js",
+    "cpu_card_test.js",
+    "data_point_test.js",
+    "diagnostics_app_input_hiding_test.js",
+    "diagnostics_app_test.js",
+    "diagnostics_network_icon_test.js",
+    "diagnostics_sticky_banner_test.js",
+    "diagnostics_test_utils.js",
+    "diagnostics_utils_test.js",
+    "drawing_provider_test.js",
+    "drawing_provider_utils_test.js",
+    "ethernet_info_test.js",
+    "fake_network_health_provider_test.js",
+    "fake_system_data_provider_test.js",
+    "fake_system_routine_controller_test.js",
+    "frequency_channel_utils_test.js",
+    "input_card_test.js",
+    "input_list_test.js",
+    "ip_config_info_drawer_test.js",
+    "keyboard_tester_test.js",
+    "memory_card_test.js",
+    "mojo_interface_provider_test.js",
+    "network_card_test.js",
+    "network_info_test.js",
+    "network_list_test.js",
+    "network_troubleshooting_test.js",
+    "overview_card_test.js",
+    "percent_bar_chart_test.js",
+    "realtime_cpu_chart_test.js",
+    "routine_group_test.js",
+    "routine_list_executor_test.js",
+    "routine_result_entry_test.js",
+    "routine_result_list_test.js",
+    "routine_section_test.js",
+    "system_page_test.js",
+    "test_diagnostics_browser_proxy.js",
+    "text_badge_test.js",
+    "touchpad_tester_test.js",
+    "touchscreen_tester_test.js",
+    "wifi_info_test.js",
+  ]
+  input_files_base_dir = rebase_path(".", "//")
+  resource_path_prefix = "chromeos/diagnostics"
+}

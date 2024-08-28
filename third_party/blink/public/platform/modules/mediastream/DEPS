@@ -1,0 +1,8 @@
+include_rules = [
+    "+base/memory/singleton.h",
+    "+base/sequence_checker.h",
+    "+base/timer/timer.h",
+    "+media/base",
+    "+media/capture",
+    "+media/webrtc/audio_delay_stats_reporter.h",
+]

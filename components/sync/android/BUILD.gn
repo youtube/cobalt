@@ -1,0 +1,39 @@
+# Copyright 2014 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/android/config.gni")
+import("//build/config/android/rules.gni")
+import("//third_party/jni_zero/jni_zero.gni")
+
+generate_jni("jni_headers") {
+  sources = [ "java/src/org/chromium/components/sync/SyncServiceImpl.java" ]
+}
+
+android_library("sync_java") {
+  deps = [
+    "//base:base_java",
+    "//components/signin/public/android:java",
+    "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/jni_zero:jni_zero_java",
+  ]
+  srcjar_deps = [
+    ":java_enums",
+    ":jni_headers",
+  ]
+  sources = [
+    "java/src/org/chromium/components/sync/Passphrase.java",
+    "java/src/org/chromium/components/sync/SyncService.java",
+    "java/src/org/chromium/components/sync/SyncServiceImpl.java",
+  ]
+}
+
+java_cpp_enum("java_enums") {
+  sources = [
+    "//components/sync/base/model_type.h",
+    "//components/sync/base/passphrase_enums.h",
+    "//components/sync/base/user_selectable_type.h",
+    "//components/sync/service/sync_service_utils.h",
+    "//components/sync/service/sync_user_settings.h",
+  ]
+}

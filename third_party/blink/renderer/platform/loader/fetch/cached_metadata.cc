@@ -1,0 +1,82 @@
+// Copyright 2016 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "third_party/blink/renderer/platform/loader/fetch/cached_metadata.h"
+
+#include "third_party/blink/renderer/platform/loader/fetch/url_loader/cached_metadata_handler.h"
+
+namespace blink {
+
+scoped_refptr<CachedMetadata> CachedMetadata::CreateFromSerializedData(
+    const uint8_t* data,
+    size_t size) {
+  if (size > std::numeric_limits<wtf_size_t>::max())
+    return nullptr;
+  Vector<uint8_t> copied_data;
+  copied_data.Append(data, static_cast<wtf_size_t>(size));
+  return CreateFromSerializedData(std::move(copied_data));
+}
+
+scoped_refptr<CachedMetadata> CachedMetadata::CreateFromSerializedData(
+    Vector<uint8_t> data) {
+  // Ensure the data is big enough, otherwise discard the data.
+  if (data.size() < sizeof(CachedMetadataHeader)) {
+    return nullptr;
+  }
+  // Ensure the marker matches, otherwise discard the data.
+  if (reinterpret_cast<const CachedMetadataHeader*>(data.data())->marker !=
+      CachedMetadataHandler::kSingleEntryWithTag) {
+    return nullptr;
+  }
+  return base::AdoptRef(new CachedMetadata(std::move(data)));
+}
+
+scoped_refptr<CachedMetadata> CachedMetadata::CreateFromSerializedData(
+    mojo_base::BigBuffer data) {
+  // Ensure the data is big enough, otherwise discard the data.
+  if (data.size() < sizeof(CachedMetadataHeader)) {
+    return nullptr;
+  }
+  // Ensure the marker matches, otherwise discard the data.
+  if (reinterpret_cast<const CachedMetadataHeader*>(data.data())->marker !=
+      CachedMetadataHandler::kSingleEntryWithTag) {
+    return nullptr;
+  }
+  return base::AdoptRef(new CachedMetadata(std::move(data)));
+}
+
+CachedMetadata::CachedMetadata(Vector<uint8_t> data) {
+  // Serialized metadata should have non-empty data.
+  DCHECK_GT(data.size(), sizeof(CachedMetadataHeader));
+  DCHECK(!data.empty());
+  // Make sure that the first int in the data is the single entry marker.
+  CHECK_EQ(reinterpret_cast<const CachedMetadataHeader*>(data.data())->marker,
+           CachedMetadataHandler::kSingleEntryWithTag);
+
+  vector_ = std::move(data);
+}
+
+CachedMetadata::CachedMetadata(uint32_t data_type_id,
+                               const uint8_t* data,
+                               wtf_size_t size,
+                               uint64_t tag) {
+  // Don't allow an ID of 0, it is used internally to indicate errors.
+  DCHECK(data_type_id);
+  DCHECK(data);
+
+  vector_ = CachedMetadata::GetSerializedDataHeader(data_type_id, size, tag);
+  vector_.Append(data, size);
+}
+
+CachedMetadata::CachedMetadata(mojo_base::BigBuffer data) {
+  // Serialized metadata should have non-empty data.
+  DCHECK_GT(data.size(), sizeof(CachedMetadataHeader));
+  // Make sure that the first int in the data is the single entry marker.
+  CHECK_EQ(reinterpret_cast<const CachedMetadataHeader*>(data.data())->marker,
+           CachedMetadataHandler::kSingleEntryWithTag);
+
+  buffer_ = std::move(data);
+}
+
+}  // namespace blink

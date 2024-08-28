@@ -1,0 +1,125 @@
+# Copyright 2021 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//build/config/rust.gni")
+import("//build/rust/rust_bindgen.gni")
+import("//build/rust/rust_static_library.gni")
+import("//testing/test.gni")
+
+# Meta target to build everything
+group("rust") {
+  deps = [ ":mojo_rust" ]
+}
+
+# These tests require real mojo and can't be mixed with test-only mojo. Mojo can
+# only be initialized once per process, and can't change modes.
+test("mojo_rust_integration_unittests") {
+  deps = [
+    "//base/test:run_all_unittests",
+    "//mojo/public/rust/tests:mojo_rust_integration_tests",
+    "//mojo/public/rust/tests:mojo_rust_system_tests",
+    "//testing/gtest",
+  ]
+}
+
+# These tests use stubbed out test-only mojo and can't be mixed with real mojo.
+# Mojo can only be initialized once per process, and can't change modes.
+test("mojo_rust_unittests") {
+  deps = [
+    "//base/test:run_all_unittests",
+    "//mojo/public/rust/tests:mojo_rust_encoding_tests",
+    "//testing/gtest",
+  ]
+}
+
+source_set("mojo_c_system_wrapper") {
+  sources = [ "system/wrapper.h" ]
+  deps = [ "//mojo/public/c/system:headers" ]
+  visibility = [ ":*" ]
+}
+
+rust_bindgen("mojo_c_system_binding") {
+  header = "system/wrapper.h"
+  deps = [ ":mojo_c_system_wrapper" ]
+  visibility = [ ":*" ]
+}
+
+rust_static_library("mojo_rust_system") {
+  crate_root = "system/lib.rs"
+  crate_name = "mojo_system"
+  allow_unsafe = true
+
+  sources = [
+    "system/core.rs",
+    "system/data_pipe.rs",
+    "system/ffi.rs",
+    "system/handle.rs",
+    "system/lib.rs",
+    "system/message_pipe.rs",
+    "system/mojo_types.rs",
+    "system/shared_buffer.rs",
+    "system/trap.rs",
+    "system/util/run_loop.rs",
+    "system/wait.rs",
+    "system/wait_set.rs",
+  ]
+
+  deps = [
+    ":mojo_c_system_binding",
+    ":mojo_c_system_wrapper",
+    "//mojo/public/c/system",
+    "//third_party/rust/bitflags/v1:lib",
+  ]
+
+  bindgen_output = get_target_outputs(":mojo_c_system_binding")
+  inputs = bindgen_output
+  rustenv = [ "BINDGEN_RS_FILE=" +
+              rebase_path(bindgen_output[0], get_path_info(crate_root, "dir")) ]
+}
+
+rust_static_library("mojo_rust_system_test_support") {
+  testonly = true
+  crate_root = "system/test_support/lib.rs"
+  crate_name = "mojo_system_test_support"
+
+  # Calls Mojo FFI functions.
+  allow_unsafe = true
+
+  sources = [ "system/test_support/lib.rs" ]
+
+  deps = [
+    ":mojo_rust_system",
+    "//mojo/public/c/system",
+  ]
+}
+
+rust_static_library("mojo_rust_bindings") {
+  crate_root = "bindings/lib.rs"
+  crate_name = "mojo_bindings"
+  allow_unsafe = true
+
+  sources = [
+    "bindings/decoding.rs",
+    "bindings/encoding.rs",
+    "bindings/lib.rs",
+    "bindings/macros.rs",
+    "bindings/message.rs",
+    "bindings/mojom.rs",
+  ]
+
+  deps = [ ":mojo_rust_system" ]
+}
+
+# Convenience target to link both Mojo Rust components and reexport them under a
+# single `mojo` name.
+rust_static_library("mojo_rust") {
+  crate_root = "lib.rs"
+  crate_name = "mojo"
+
+  sources = [ "lib.rs" ]
+  deps = [
+    ":mojo_rust_bindings",
+    ":mojo_rust_system",
+  ]
+}

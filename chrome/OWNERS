@@ -1,0 +1,75 @@
+# This OWNERS list is a last resort. Please prefer to use more specific OWNERS
+# where possible.
+
+set noparent
+
+# Reviewers (in CET):
+alexilin@chromium.org
+blundell@chromium.org
+droger@chromium.org
+treib@chromium.org
+vasilii@chromium.org
+
+# Reviewers (in EST):
+avi@chromium.org
+thakis@chromium.org
+yfriedman@chromium.org
+
+# Reviewers (in PST):
+dtrainor@chromium.org
+nyquist@chromium.org
+sky@chromium.org
+tedchoc@chromium.org
+thestig@chromium.org
+twellington@chromium.org
+
+# per-file rules:
+# These are for the common case of adding or renaming files. If you're doing
+# structural changes, please get a review from a reviewer in this file.
+per-file *.gni=*
+per-file BUILD.gn=file://build/OWNERS
+# For lacros-qa-qualified-tracking-roller related changes:
+per-file LACROS_QA_QUALIFIED_VERSION=lacros-tracking-roller@chops-service-accounts.iam.gserviceaccount.com
+# TODO(https://crbug.com/1292666): remove the following line when
+# lacros-qa-qualified-tracking-roller is stable
+per-file LACROS_QA_QUALIFIED_VERSION=svenzheng@chromium.org
+per-file MAJOR_BRANCH_DATE=chrome-official-brancher@chops-service-accounts.iam.gserviceaccount.com
+per-file VERSION=chrome-official-brancher@chops-service-accounts.iam.gserviceaccount.com
+per-file VERSION=govind@chromium.org
+# For Chrome release DEPS auto rolling
+per-file chrome_branch_deps.json=chrome-official-brancher@chops-service-accounts.iam.gserviceaccount.com
+
+# For Fuchsia-specific changes:
+per-file ...fuchsia*=file://build/fuchsia/OWNERS
+
+# For git submodules - since noparent is set, we can't use root level OWNERS.
+per-file browser/resources/preinstalled_web_apps/internal=*
+per-file installer/mac/third_party/xz/xz=*
+per-file test/data/autofill/captured_sites/artifacts=*
+per-file test/data/password/captured_sites/artifacts=*
+per-file test/data/perf/canvas_bench=*
+per-file test/data/perf/frame_rate/content=*
+per-file test/data/xr/webvr_info=*
+per-file app/theme/default_100_percent/google_chrome=*
+per-file app/theme/default_200_percent/google_chrome=*
+per-file app/theme/google_chrome=*
+per-file browser/enterprise/connectors/internal=*
+per-file browser/google/linkdoctor_internal=*
+per-file browser/internal=*
+per-file browser/media/engagement_internal=*
+per-file browser/nearby_sharing/internal=*
+per-file browser/resources/chromeos/quickoffice=*
+per-file browser/resources/settings_internal=*
+per-file browser/spellchecker/internal=*
+per-file chrome_cleaner/internal=*
+per-file installer/mac/internal=*
+per-file test/data/firefox3_profile/searchplugins=*
+per-file test/data/firefox3_searchplugins=*
+per-file test/data/gpu/vt=*
+per-file test/data/perf/frame_rate/private=*
+per-file test/data/perf/private=*
+per-file test/data/pdf_private=*
+per-file test/media_router/internal=*
+per-file test/python_tests=*
+per-file tools/memory=*
+per-file services/speech/internal=*

@@ -1,0 +1,10 @@
+include_rules = [
+  "+ash/system/diagnostics",
+  "+ash/test",
+
+  # Ash depends on views, so allow code in ui/webui/ash to depend on ui/views.
+  "+chrome/browser/ui/views",
+
+  "+services/device/public/mojom",
+  "+services/network",
+]

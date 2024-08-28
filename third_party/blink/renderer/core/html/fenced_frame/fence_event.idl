@@ -1,0 +1,26 @@
+// Copyright 2022 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+enum FenceReportingDestination {
+  "buyer",
+  "seller",
+  "component-seller",
+  "direct-seller",
+  "shared-storage-select-url"
+};
+
+dictionary FenceEvent {
+  // This dictionary has two mutually exclusive modes:
+
+  // When reporting to a preregistered destination (specified by enum), the
+  // following properties are used:
+  DOMString eventType;
+  DOMString eventData;
+  sequence<FenceReportingDestination> destination;
+  boolean once = false;
+
+  // When reporting to a custom destination URL (with substitution of macros
+  // defined by the buyer), the following property is used:
+  USVString destinationURL;
+};

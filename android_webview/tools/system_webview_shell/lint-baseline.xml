@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.3.0-alpha09" type="baseline" client="" dependencies="true" name="" variant="all" version="8.3.0-alpha09">
+
+    <issue
+        id="MissingClass"
+        message="Class referenced in the manifest, `org.chromium.test.broker.OnDeviceInstrumentationBroker`, was not found in the project or the libraries"
+        errorLine1="    &lt;activity android:name=&quot;org.chromium.test.broker.OnDeviceInstrumentationBroker&quot; android:exported=&quot;true&quot;/>"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="gen/android_webview/tools/system_webview_shell/system_webview_shell_apk__lint/AndroidManifest.xml"
+            line="185"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="RequiresFeature"
+        message="`getInstance` should only be called if the feature `TRACING_CONTROLLER_BASIC_USAGE` is present; to check call `androidx.webkit.WebViewFeature#isFeatureSupported`"
+        errorLine1="            TracingController tracingController = TracingController.getInstance();"
+        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/tools/system_webview_shell/apk/src/org/chromium/webview_shell/WebViewBrowserActivity.java"
+            line="189"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="RequiresFeature"
+        message="`setForceDark` should only be called if the feature `FORCE_DARK` is present; to check call `androidx.webkit.WebViewFeature#isFeatureSupported`"
+        errorLine1="            WebSettingsCompat.setForceDark("
+        errorLine2="            ^">
+        <location
+            file="../../android_webview/tools/system_webview_shell/apk/src/org/chromium/webview_shell/WebViewBrowserActivity.java"
+            line="210"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="RequiresFeature"
+        message="`setForceDark` should only be called if the feature `FORCE_DARK` is present; to check call `androidx.webkit.WebViewFeature#isFeatureSupported`"
+        errorLine1="            WebSettingsCompat.setForceDark("
+        errorLine2="            ^">
+        <location
+            file="../../android_webview/tools/system_webview_shell/apk/src/org/chromium/webview_shell/WebViewBrowserActivity.java"
+            line="215"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="RequiresFeature"
+        message="`setForceDark` should only be called if the feature `FORCE_DARK` is present; to check call `androidx.webkit.WebViewFeature#isFeatureSupported`"
+        errorLine1="            WebSettingsCompat.setForceDark(mWebView.getSettings(), WebSettingsCompat.FORCE_DARK_ON);"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/tools/system_webview_shell/apk/src/org/chromium/webview_shell/WebViewBrowserActivity.java"
+            line="220"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="RequiresFeature"
+        message="`getInstance` should only be called if the feature `TRACING_CONTROLLER_BASIC_USAGE` is present; to check call `androidx.webkit.WebViewFeature#isFeatureSupported`"
+        errorLine1="        final TracingController tracingController = TracingController.getInstance();"
+        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../android_webview/tools/system_webview_shell/apk/src/org/chromium/webview_shell/WebViewTracingActivity.java"
+            line="100"
+            column="53"/>
+    </issue>
+
+    <issue
+        id="AppBundleLocaleChanges"
+        message="Found dynamic locale changes, but did not find corresponding Play Core library calls for downloading languages and splitting by language is not disabled in the `bundle` configuration"
+        errorLine1="            config.setLocale(Locale.forLanguageTag(languageTag));"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/LocaleUtils.java"
+            line="242"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="QueryPermissionsNeeded"
+        message="Consider adding a `&lt;queries>` declaration to your manifest when calling this \&#xA;method; see https://g.co/dev/packagevisibility for details"
+        errorLine1="            return pm.queryIntentActivities(intent, flags);"
+        errorLine2="                      ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/PackageManagerUtils.java"
+            line="63"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="UnspecifiedRegisterReceiverFlag"
+        message="`receiver` \&#xA;is missing `RECEIVER_EXPORTED` or `RECEIVER_NOT_EXPORTED` flag for unprotected \&#xA;broadcasts registered for an IntentFilter that cannot be inspected by lint"
+        errorLine1="            return context.registerReceiver(receiver, filter, permission, scheduler);"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/ContextUtils.java"
+            line="305"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="UseCompatLoadingForDrawables"
+        message="Use `ResourcesCompat.getDrawable()`"
+        errorLine1="                return res.getDrawable(id, null);"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/ApiCompatibilityUtils.java"
+            line="189"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="HardcodedDebugMode"
+        message="Avoid hardcoding the debug mode; leaving it out allows debug and release builds to automatically assign one"
+        errorLine1="  &lt;application android:icon=&quot;@drawable/ic_launcher&quot; android:label=&quot;@string/app_name&quot; android:theme=&quot;@style/ShellTheme&quot; android:enableOnBackInvokedCallback=&quot;true&quot; android:networkSecurityConfig=&quot;@xml/network_security_config&quot; android:debuggable=&quot;true&quot;>"
+        errorLine2="                                                                                                                                                                                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="gen/android_webview/tools/system_webview_shell/system_webview_shell_apk__lint/AndroidManifest.xml"
+            line="67"
+            column="224"/>
+    </issue>
+
+    <issue
+        id="AssertionSideEffect"
+        message="Assertion condition has a side effect: f.setAccessible(true)"
+        errorLine1="                    assert reachesWindowCallback(activity.getWindow().getCallback());"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/ApplicationStatus.java"
+            line="385"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="AssertionSideEffect"
+        message="Assertion condition has a side effect: sHaveAccessNetworkState =&#xA;                    ApiCompatibilityUtils.checkPermission(ContextUtils.getApplicationContext(),&#xA;                            Manifest.permission.ACCESS_NETWORK_STATE, Process.myPid(),&#xA;                            Process.myUid())&#xA;                    == PackageManager.PERMISSION_GRANTED"
+        errorLine1="        assert isSupported();"
+        errorLine2="               ~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/RadioUtils.java"
+            line="81"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="AssertionSideEffect"
+        message="Assertion condition has a side effect: sHaveAccessNetworkState =&#xA;                    ApiCompatibilityUtils.checkPermission(ContextUtils.getApplicationContext(),&#xA;                            Manifest.permission.ACCESS_NETWORK_STATE, Process.myPid(),&#xA;                            Process.myUid())&#xA;                    == PackageManager.PERMISSION_GRANTED"
+        errorLine1="        assert isSupported();"
+        errorLine2="               ~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/RadioUtils.java"
+            line="106"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="AssertionSideEffect"
+        message="Assertion condition has a side effect: sHaveAccessNetworkState =&#xA;                    ApiCompatibilityUtils.checkPermission(ContextUtils.getApplicationContext(),&#xA;                            Manifest.permission.ACCESS_NETWORK_STATE, Process.myPid(),&#xA;                            Process.myUid())&#xA;                    == PackageManager.PERMISSION_GRANTED"
+        errorLine1="        assert isSupported();"
+        errorLine2="               ~~~~~~~~~~~~~">
+        <location
+            file="../../base/android/java/src/org/chromium/base/RadioUtils.java"
+            line="132"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="IconMissingDensityFolder"
+        message="Missing density variation folders in `../../android_webview/tools/system_webview_shell/apk/res`: drawable-hdpi, drawable-xhdpi, drawable-xxhdpi">
+        <location
+            file="../../android_webview/tools/system_webview_shell/apk/res"/>
+    </issue>
+
+    <issue
+        id="ForegroundServiceType"
+        message="To call Service.startForeground(), the <service> element of manifest file must have the foregroundServiceType attribute specified [ForegroundServiceType]&#xA; service.startForeground(id, notification, foregroundServiceType);">
+        <location
+            file="../../android_webview/tools/system_webview_shell/apk/AndroidManifest.xml"
+            line="162"
+            column="9"/>
+    </issue>
+
+</issues>

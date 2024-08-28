@@ -1,0 +1,3 @@
+Document
+++Group LocalizedControlType='footer' LocalizedLandmarkType='content information'
+++++Text Name='Footer element'
