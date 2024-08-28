@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <regex>
 #include <string>
 
 #include "starboard/common/log.h"
@@ -107,11 +108,22 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
     return kSbMediaAudioCodecPcm;
   }
 #if SB_API_VERSION >= 15
-  if (strcmp(codec, "iamf") == 0 || strncmp(codec, "iamf.", 5) == 0) {
+  if (strcmp(codec, "iamf") == 0 || IsIamfMimeType(codec)) {
     return kSbMediaAudioCodecIamf;
   }
 #endif  // SB_API_VERSION >= 15
   return kSbMediaAudioCodecNone;
+}
+
+bool IsIamfMimeType(std::string mime_type) {
+  return std::regex_match(mime_type,
+                          std::regex("iamf\\.\\d{3}\\.\\d{3}\\.Opus")) ||
+         std::regex_match(
+             mime_type, std::regex("iamf\\.\\d{3}\\.\\d{3}\\.mp4a\\.40\\.2")) ||
+         std::regex_match(mime_type,
+                          std::regex("iamf\\.\\d{3}\\.\\d{3}\\.fLaC")) ||
+         std::regex_match(mime_type,
+                          std::regex("iamf\\.\\d{3}\\.\\d{3}\\.ipcm"));
 }
 
 }  // namespace media
