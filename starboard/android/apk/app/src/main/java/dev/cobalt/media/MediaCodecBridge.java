@@ -962,11 +962,12 @@ class MediaCodecBridge {
       long presentationTimeUs) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
+      bool usesCbcs = cipherMode == MediaCodec.CRYPTO_MODE_AES_CBC;
       CryptoInfo cryptoInfo = new CryptoInfo();
       cryptoInfo.set(
           numSubSamples, numBytesOfClearData, numBytesOfEncryptedData, keyId, iv, cipherMode);
       if (patternEncrypt != 0 || patternSkip != 0) {
-        if (cipherMode == MediaCodec.CRYPTO_MODE_AES_CBC) {
+        if (usesCbcs) {
           cryptoInfo.setPattern(new Pattern(patternEncrypt, patternSkip));
         } else {
           Log.e(TAG, "Pattern encryption only supported for 'cbcs' scheme (CBC mode).");
@@ -975,8 +976,7 @@ class MediaCodecBridge {
       }
       mMediaCodec.get().queueSecureInputBuffer(index, offset, cryptoInfo, presentationTimeUs, 0);
     } catch (MediaCodec.CryptoException e) {
-      int errorCode = e.getErrorCode();
-      if (errorCode == MediaCodec.CryptoException.ERROR_NO_KEY) {
+      if (e.getErrorCode() == MediaCodec.CryptoException.ERROR_NO_KEY) {
         Log.d(TAG, "Failed to queue secure input buffer: CryptoException.ERROR_NO_KEY");
         return MediaCodecStatus.NO_KEY;
       } else if (errorCode == MediaCodec.CryptoException.ERROR_INSUFFICIENT_OUTPUT_PROTECTION) {
@@ -986,7 +986,14 @@ class MediaCodecBridge {
                 + "CryptoException.ERROR_INSUFFICIENT_OUTPUT_PROTECTION");
         return MediaCodecStatus.INSUFFICIENT_OUTPUT_PROTECTION;
       }
-      Log.e(TAG, "Failed to queue secure input buffer. Error code %d", errorCode, e);
+      // Anything other than ERROR_NO_KEY is unexpected.
+      Log.e(
+          TAG,
+          "Failed to queue secure input buffer, CryptoException.ErrorCode: " + e.getErrorCode());
+      return MediaCodecStatus.ERROR;
+    } catch (MediaCodec.CodecException e) {
+      Log.e(TAG, "Failed to queue secure input buffer.", e);
+      Log.e(TAG, "Diagnostic: %s", e.getDiagnosticInfo());
       return MediaCodecStatus.ERROR;
     } catch (IllegalArgumentException e) {
       // IllegalArgumentException can occur when release() is called on the MediaCrypto
