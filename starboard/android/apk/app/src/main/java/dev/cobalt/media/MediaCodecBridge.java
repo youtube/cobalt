@@ -962,7 +962,7 @@ class MediaCodecBridge {
       long presentationTimeUs) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
     try {
-      bool usesCbcs = cipherMode == MediaCodec.CRYPTO_MODE_AES_CBC;
+      boolean usesCbcs = cipherMode == MediaCodec.CRYPTO_MODE_AES_CBC;
       CryptoInfo cryptoInfo = new CryptoInfo();
       cryptoInfo.set(
           numSubSamples, numBytesOfClearData, numBytesOfEncryptedData, keyId, iv, cipherMode);
