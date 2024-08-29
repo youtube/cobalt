@@ -232,6 +232,7 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
                                              SbDrmStatus status,
                                              const char* error_message);
 
+  MediaMetricsProvider media_metrics_provider_;
   const SbDrmSystem wrapped_drm_system_;
   scoped_refptr<base::SequencedTaskRunner> const task_runner_;
 
@@ -252,8 +253,6 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
 
   // Supports concurrent calls to |Session::Update|.
   TicketToSessionUpdateMap ticket_to_session_update_map_;
-
-  MediaMetricsProvider media_metrics_provider_;
 
   DISALLOW_COPY_AND_ASSIGN(DrmSystem);
 };

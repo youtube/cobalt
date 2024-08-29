@@ -151,6 +151,12 @@ void MediaMetricsProvider::ReportActionLatencyUMA(
       UMA_HISTOGRAM_TIMES("Cobalt.Media.SbPlayer.Destroy.LatencyTiming",
                           action_duration);
       break;
+    case MediaAction::SBDRM_CREATE:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbDrm.Create.LatencyTiming", action_duration,
+          base::TimeDelta::FromMicroseconds(500),
+          base::TimeDelta::FromMilliseconds(250), 50);
+      break;
     case MediaAction::SBDRM_DESTROY:
       UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
           "Cobalt.Media.SbDrm.Destroy.LatencyTiming", action_duration,
