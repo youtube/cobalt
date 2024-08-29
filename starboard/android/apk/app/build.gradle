@@ -178,6 +178,10 @@ android {
         }
     }
     packagingOptions {
+        doNotStrip "*/arm64-v8a/*.so"
+        doNotStrip "*/armeabi-v7a/*.so"
+        doNotStrip "*/x86/*.so"
+        doNotStrip "*/x86_64/*.so"
         jniLibs {
             // extractNativeLibs, which we set, based on evergreenCompatible, in the manifest file,
             // is deprecated. Gradle asks that useLegacyPackaging be set if extractNativeLibs is
