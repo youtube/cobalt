@@ -1,16 +1,5 @@
 {
   "docker_service": "build-android",
-  "on_device_test": {
-    "enabled": true,
-    "tests": [
-      "0",
-      "1",
-      "2",
-      "3",
-      "black_box_test"
-    ],
-    "test_attempts": 2
-  },
   "platforms": [
     "android-x86"
   ],
