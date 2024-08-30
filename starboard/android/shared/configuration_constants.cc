@@ -123,11 +123,6 @@ const char* kSbPathSepString = ":";
 // generally prefer a byte order of RGBA, regardless of endianness.
 const int kSbPreferredRgbaByteOrder = SB_PREFERRED_RGBA_BYTE_ORDER_RGBA;
 
-#if SB_API_VERSION < 16
-// The maximum number of users that can be signed in at the same time.
-const uint32_t kSbUserMaxSignedIn = 1;
-#endif  // SB_API_VERSION < 16
-
 // The maximum size the cache directory is allowed to use in bytes.
 const uint32_t kSbMaxSystemPathCacheDirectorySize = 24 << 20;  // 24MiB
 
