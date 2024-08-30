@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import("//starboard/build/config/clang.gni")
-import("//starboard/build/config/enable_vr.gni")
 import("//starboard/content/fonts/font_configuration.gni")
 
 # NOTE:

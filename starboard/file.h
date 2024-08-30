@@ -26,6 +26,8 @@
 extern "C" {
 #endif
 
+#if SB_API_VERSION < 17
+
 // Private structure representing an open file.
 typedef struct SbFilePrivate SbFilePrivate;
 
