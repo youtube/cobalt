@@ -41,13 +41,27 @@ runs:
             const latestRun = workflowRuns.data.workflow_runs[0].id;
 
             // Get the artifact uploaded on the latest successful workflow run on the main branch.
-            const allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              run_id: latestRun
-            });
+            let allArtifacts = [];
+            let page = 1;
+            let hasNextPage = true;
+            while (hasNextPage) {
+              const response = await github.rest.actions.listWorkflowRunArtifacts({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: latestRun,
+                page: page
+              });
 
-            const matchArtifacts = allArtifacts.data.artifacts.filter((artifact) => {
+              allArtifacts = allArtifacts.concat(response.data.artifacts);
+
+              if (response.data.artifacts.length === 0) {
+                hasNextPage = false;
+              } else {
+                page++;
+              }
+            }
+
+            const matchArtifacts = allArtifacts.filter((artifact) => {
               return artifact.name == '${{ inputs.name }}';
             });
 
@@ -89,16 +103,15 @@ runs:
             for (let file in fileSizeThresholds) {
               console.log(`Checking file size of ${file}.`);
 
-              const downloadFilePath = path.join('${{ steps.download-artifact.outputs.downloadDir }}', file);
+              const fileName = file.split('/').pop();
+              const downloadFilePath = path.join('${{ steps.download-artifact.outputs.downloadDir }}', fileName);
               if (!fs.existsSync(downloadFilePath)) {
-                console.error(`File ${file} was not uploaded to the main branch.`);
-                continue;
+                core.setFailed(`File ${file} was not uploaded to the main branch.`);
               }
 
               const filePath = path.join(process.env.GITHUB_WORKSPACE, '${{ inputs.path }}', file);
               if (!fs.existsSync(filePath)) {
-                console.error(`File ${filePath} was not created in the current workflow run.`);
-                continue;
+                core.setFailed(`File ${file} was not created in the current workflow run.`);
               }
 
               const oldStats = fs.statSync(downloadFilePath);
@@ -109,14 +122,14 @@ runs:
               console.log(`Latest uploaded artifact size on the main branch is ${oldSize / 1024}kB, new artifact size generated in this PR is ${newSize / 1024}kB.`);
 
               const deltaSize = newSize - oldSize;
-              const deltaThreshold = (Math.abs(deltaSize) / oldSize * 100).toFixed(4);
+              const deltaThreshold = (Math.abs(deltaSize) / oldSize * 100).toFixed(1);
 
               if (deltaSize < 0) {
                 console.log(`Artifact size is decreased by ${Math.abs(deltaSize)} (${deltaThreshold}%).`);
               } else {
                 console.log(`Artifact size is increased by ${deltaSize} (${deltaThreshold}%).`);
-                if (deltaThreshold > fileSizeThresholds[file]) {
-                  const threshold = (fileSizeThresholds[file] * 100).toFixed(4);
+                const threshold = (fileSizeThresholds[file] * 100).toFixed(1);
+                if (deltaThreshold > threshold) {
                   console.error(`Artifact size increase exceeds threshold ${threshold}%.`);
                   core.setOutput("addLabel", true);
                 }

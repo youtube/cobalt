@@ -129,8 +129,6 @@ static inline bool SbFileIsValid(SbFile file) {
   return file != kSbFileInvalid;
 }
 
-#if SB_API_VERSION < 17
-
 // DEPRECATED with SB_API_VERSION 16
 //
 // Opens the file at |path|, which must be absolute, creating it if specified by
