@@ -118,6 +118,32 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
     }
   }
 
+  if (name.compare(network::kProtocolFilterKey) == 0 &&
+      value.IsType<std::string>() &&
+      value.AsType<std::string>().size() < 16384) {
+    std::string raw_json = value.AsType<std::string>();
+    base::Value old_config_json;
+    persistent_settings_->Get(network::kProtocolFilterKey, &old_config_json);
+
+    if (raw_json.empty() && (!old_config_json.is_string() ||
+                             !old_config_json.GetString().empty())) {
+      persistent_settings_->Set(network::kProtocolFilterKey, base::Value());
+      network_module_->SetProtocolFilterUpdatePending();
+      return true;
+    }
+
+    absl::optional<base::Value> old_config =
+        base::JSONReader::Read(old_config_json.GetString());
+    absl::optional<base::Value> new_config = base::JSONReader::Read(raw_json);
+    if (!new_config) return false;
+    if (old_config && *old_config == *new_config) return false;
+
+    persistent_settings_->Set(network::kProtocolFilterKey,
+                              base::Value(raw_json));
+    network_module_->SetProtocolFilterUpdatePending();
+    return true;
+  }
+
   if (name.compare("cpu_usage_tracker_intervals") == 0 &&
       value.IsType<std::string>() && value.AsType<std::string>().size() < 512) {
     absl::optional<base::Value> config =
@@ -192,6 +218,13 @@ std::string H5vccSettings::GetPersistentSettingAsString(
         browser::CpuUsageTracker::GetInstance()->GetIntervalsDefinition();
     absl::optional<std::string> json = base::WriteJson(value);
     return json.value_or(std::string());
+  }
+
+  if (key.compare(network::kProtocolFilterKey) == 0) {
+    base::Value value;
+    persistent_settings_->Get(network::kProtocolFilterKey, &value);
+    if (!value.is_string()) return std::string();
+    return value.GetString();
   }
   return std::string();
 }
