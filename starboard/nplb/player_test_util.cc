@@ -60,18 +60,22 @@ const char* kAudioOnlyTestFiles[] = {
     "iamf_base_profile_stereo_ambisonics.dmp",
     "iamf_simple_profile_5_1.dmp",
 #endif  // SB_API_VERSION >= 15
-    "sintel_5s_flac.dmp",
-    "sintel_5s_mp3.dmp",
     "sintel_5s_pcm_s16le.dmp",
+    "sintel_5s_flac.dmp",
+#if defined(ENABLE_CAST_CODEC_TESTS)
+    "sintel_5s_mp3.dmp",
     "sintel_5s_vorbis.dmp",
+#endif
 };
 
 const char* kVideoTestFiles[] = {
     "beneath_the_canopy_137_avc.dmp",
     "beneath_the_canopy_248_vp9.dmp",
     "sintel_399_av1.dmp",
+#if defined(ENABLE_CAST_CODEC_TESTS)
     "sintel_5s_vp8.dmp",
     "sintel_5s_hevc.dmp",
+#endif
 };
 
 const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
