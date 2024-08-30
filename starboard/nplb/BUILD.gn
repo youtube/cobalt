@@ -14,6 +14,14 @@
 
 import("//starboard/build/config/os_definitions.gni")
 
+declare_args() {
+  sb_enable_cast_codec_tests = false
+}
+
+config("cast_codec_tests") {
+  cflags = [ "ENABLE_CAST_CODEC_TESTS" ]
+}
+
 target(gtest_target_type, "nplb") {
   testonly = true
 
@@ -302,6 +310,9 @@ target(gtest_target_type, "nplb") {
   ]
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
+  if (sb_enable_cast_codec_tests) {
+    configs += [ ":cast_codec_tests" ]
+  }
 
   deps = [
     "//starboard:starboard_group",
