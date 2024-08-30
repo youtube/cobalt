@@ -61,6 +61,7 @@ constexpr int32_t kEnabledClientHintHeaders = (kCallTypeLoader | kCallTypeXHR);
 const char kQuicEnabledPersistentSettingsKey[] = "QUICEnabled";
 const char kHttp2EnabledPersistentSettingsKey[] = "HTTP2Enabled";
 const char kHttp3EnabledPersistentSettingsKey[] = "HTTP3Enabled";
+const char kProtocolFilterKey[] = "protocolfilter";
 
 class NetworkSystem;
 // NetworkModule wraps various networking-related components such as
@@ -133,6 +134,8 @@ class NetworkModule : public base::CurrentThread::DestructionObserver {
   void SetEnableQuicFromPersistentSettings();
   void SetEnableHttp2FromPersistentSettings();
   void SetEnableHttp3FromPersistentSettings();
+  void SetProtocolFilterUpdatePending();
+  void SetProtocolFilterFromPersistentSettings();
 
   // Adds the Client Hint Headers to the provided URLFetcher if enabled.
   void AddClientHintHeaders(net::URLFetcher& url_fetcher,
@@ -176,6 +179,7 @@ class NetworkModule : public base::CurrentThread::DestructionObserver {
   std::unique_ptr<CobaltNetLog> net_log_{nullptr};
 #endif
   Options options_;
+  bool protocol_filter_update_pending_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkModule);
 };

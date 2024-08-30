@@ -448,6 +448,12 @@ BrowserModule::~BrowserModule() {
 }
 
 void BrowserModule::Navigate(const GURL& url_reference) {
+  if (network_module_) {
+    // If protocolfilter setting was updated, the setting does not take effect
+    // until the next page load.
+    network_module_->SetProtocolFilterFromPersistentSettings();
+  }
+
   // The argument is sometimes |pending_navigate_url_|, and Navigate can modify
   // |pending_navigate_url_|, so we want to keep a copy of the argument to
   // preserve its original value.
