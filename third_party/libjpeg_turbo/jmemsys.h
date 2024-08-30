@@ -143,7 +143,7 @@ typedef struct backing_store_struct {
 #else
   /* For a typical implementation with temp files, we need: */
 #if defined(STARBOARD)
-  SbFile *temp_file;              /* stdio reference to temp file */
+  FileStruct *temp_file;              /* stdio reference to temp file */
 #else
   FILE *temp_file;              /* stdio reference to temp file */
 #endif

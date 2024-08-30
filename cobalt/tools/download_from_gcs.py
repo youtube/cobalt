@@ -15,6 +15,7 @@
 """Downloads files from Google Cloud Storage given corresponding sha1s."""
 
 import argparse
+import certifi
 import hashlib
 import logging
 import os
@@ -50,7 +51,8 @@ def ExtractSha1(filename):
 
 def _DownloadFromGcsAndCheckSha1(bucket, sha1):
   url = f'{_BASE_GCS_URL}/{bucket}/{sha1}'
-  with urllib.request.urlopen(url, context=ssl.create_default_context()) as res:
+  ssl_context = ssl.create_default_context(cafile=certifi.where())
+  with urllib.request.urlopen(url, context=ssl_context) as res:
     with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
       shutil.copyfileobj(res, tmp_file)
 

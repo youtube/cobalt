@@ -1,4 +1,4 @@
-// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+// Copyright 2017 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-interface H5vccSettings {
-  boolean set(DOMString name, (long or DOMString) value);
-  void setPersistentSettingAsInt(DOMString name, long value);
-  long getPersistentSettingAsInt(DOMString name, long default_setting);
-  DOMString getPersistentSettingAsString(DOMString name);
-};
+#include "starboard/system.h"
+
+#include <string>
+
+#include "starboard/common/log.h"
+#include "starboard/shared/win32/wchar_utils.h"
+
+#if SB_API_VERSION < 15
+
+SbSystemDeviceType SbSystemGetDeviceType() {
+  return kSbSystemDeviceTypeDesktopPC;
+}
+
+#endif

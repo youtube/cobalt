@@ -433,10 +433,6 @@ class BASE_EXPORT File {
 #endif
 };
 
-#if defined(STARBOARD)
-void SetLastFileError(File::Error error);
-#endif
-
 }  // namespace base
 
 #endif  // BASE_FILES_FILE_H_
