@@ -94,6 +94,112 @@ TEST_F(MediaMetricsProviderTest, SbPlayerDestroy) {
       std::string(kUmaPrefix) + "SbPlayer.Destroy.LatencyTiming", 100, 1);
 }
 
+TEST_F(MediaMetricsProviderTest, SbPlayerGetPreferredOutputMode) {
+  metrics_.StartTrackingAction(MediaAction::SBPLAYER_GET_PREFERRED_OUTPUT_MODE);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
+  metrics_.EndTrackingAction(MediaAction::SBPLAYER_GET_PREFERRED_OUTPUT_MODE);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbPlayer.GetPreferredOutputMode.LatencyTiming",
+      570, 1);
+}
+
+TEST_F(MediaMetricsProviderTest, SbPlayerSeek) {
+  metrics_.StartTrackingAction(MediaAction::SBPLAYER_SEEK);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
+  metrics_.EndTrackingAction(MediaAction::SBPLAYER_SEEK);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbPlayer.Seek.LatencyTiming", 570, 1);
+}
+
+TEST_F(MediaMetricsProviderTest, SbPlayerSetBounds) {
+  metrics_.StartTrackingAction(MediaAction::SBPLAYER_SET_BOUNDS);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
+  metrics_.EndTrackingAction(MediaAction::SBPLAYER_SET_BOUNDS);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbPlayer.SetBounds.LatencyTiming", 570, 1);
+}
+
+TEST_F(MediaMetricsProviderTest, SbPlayerSetPlaybackRate) {
+  metrics_.StartTrackingAction(MediaAction::SBPLAYER_SET_PLAYBACK_RATE);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
+  metrics_.EndTrackingAction(MediaAction::SBPLAYER_SET_PLAYBACK_RATE);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbPlayer.SetPlaybackRate.LatencyTiming", 570,
+      1);
+}
+
+TEST_F(MediaMetricsProviderTest, SbPlayerSetVolume) {
+  metrics_.StartTrackingAction(MediaAction::SBPLAYER_SET_VOLUME);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
+  metrics_.EndTrackingAction(MediaAction::SBPLAYER_SET_VOLUME);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbPlayer.SetVolume.LatencyTiming", 570, 1);
+}
+
+TEST_F(MediaMetricsProviderTest, SbPlayerGetInfo) {
+  metrics_.StartTrackingAction(MediaAction::SBPLAYER_GET_INFO);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
+  metrics_.EndTrackingAction(MediaAction::SBPLAYER_GET_INFO);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbPlayer.GetInfo.LatencyTiming", 570, 1);
+}
+
+TEST_F(MediaMetricsProviderTest, SbPlayerGetCurrentFrame) {
+  metrics_.StartTrackingAction(MediaAction::SBPLAYER_GET_CURRENT_FRAME);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
+  metrics_.EndTrackingAction(MediaAction::SBPLAYER_GET_CURRENT_FRAME);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbPlayer.GetCurrentFrame.LatencyTiming", 570,
+      1);
+}
+
+TEST_F(MediaMetricsProviderTest, SbPlayerGetAudioConfig) {
+  metrics_.StartTrackingAction(MediaAction::SBPLAYER_GET_AUDIO_CONFIG);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
+  metrics_.EndTrackingAction(MediaAction::SBPLAYER_GET_AUDIO_CONFIG);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbPlayer.GetAudioConfig.LatencyTiming", 570,
+      1);
+}
+
+TEST_F(MediaMetricsProviderTest, SbPlayerWriteEndOfStreamAudio) {
+  metrics_.StartTrackingAction(MediaAction::SBPLAYER_WRITE_END_OF_STREAM_AUDIO);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
+  metrics_.EndTrackingAction(MediaAction::SBPLAYER_WRITE_END_OF_STREAM_AUDIO);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbPlayer.WriteEndOfStream.Audio.LatencyTiming",
+      570, 1);
+}
+
+TEST_F(MediaMetricsProviderTest, SbPlayerWriteEndOfStreamVideo) {
+  metrics_.StartTrackingAction(MediaAction::SBPLAYER_WRITE_END_OF_STREAM_VIDEO);
+
+  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
+  metrics_.EndTrackingAction(MediaAction::SBPLAYER_WRITE_END_OF_STREAM_VIDEO);
+
+  histogram_tester_.ExpectUniqueSample(
+      std::string(kUmaPrefix) + "SbPlayer.WriteEndOfStream.Video.LatencyTiming",
+      570, 1);
+}
+
 TEST_F(MediaMetricsProviderTest, SbDrmCloseSession) {
   metrics_.StartTrackingAction(MediaAction::SBDRM_CLOSE_SESSION);
 
