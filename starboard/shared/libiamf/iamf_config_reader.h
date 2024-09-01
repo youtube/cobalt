@@ -16,6 +16,8 @@
 #define STARBOARD_SHARED_LIBIAMF_IAMF_CONFIG_READER_H_
 
 #include <optional>
+#include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "starboard/common/log.h"
@@ -27,45 +29,91 @@ namespace starboard {
 namespace shared {
 namespace libiamf {
 
-// TODO: Add handling for non-redundant OBUS
-// TODO: Implement or depend on a buffer reader to simplify the implementation.
+// TODO: Add handling for non-redundant OBUs
 class IamfConfigReader {
  public:
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
 
-  IamfConfigReader() = default;
+  IamfConfigReader(bool prefer_binaural_audio, bool prefer_surround_audio);
 
   bool ResetAndRead(scoped_refptr<InputBuffer> input_buffer);
 
-  void Reset();
-
-  bool is_valid() {
-    return data_size_ > 0 && config_size_ > 0 && has_mix_presentation_id() &&
-           sample_rate_ > 0 && samples_per_buffer_ > 0;
+  bool is_valid() const {
+    return mix_presentation_id_.has_value() && sample_rate_ > 0 &&
+           samples_per_buffer_ > 0;
   }
-  int sample_rate() { return sample_rate_; }
-  uint32_t samples_per_buffer() { return samples_per_buffer_; }
-  uint32_t config_size() { return config_size_; }
-  // TODO: Allow for selection of multiple mix presentation IDs. Currently,
-  // only the first mix presentation parsed is selected.
-  bool has_mix_presentation_id() { return mix_presentation_id_.has_value(); }
-  uint32_t mix_presentation_id() {
+  int sample_rate() const { return sample_rate_; }
+  uint32_t samples_per_buffer() const { return samples_per_buffer_; }
+  uint32_t config_size() const { return config_size_; }
+  uint32_t mix_presentation_id() const {
     SB_DCHECK(mix_presentation_id_.has_value());
     return mix_presentation_id_.value();
   }
 
-  std::vector<uint8_t> config_obus() { return config_obus_; }
-  std::vector<uint8_t> data() { return data_; }
+  const std::vector<uint8_t>& config_obus() const { return config_obus_; }
+  const std::vector<uint8_t>& data() const { return data_; }
 
  private:
-  bool Read(scoped_refptr<InputBuffer> input_buffer);
-  bool ReadOBU(const uint8_t* buf, bool& completed_parsing);
-  bool ReadOBUHeader(const uint8_t* buf,
-                     uint8_t* obu_type,
-                     uint32_t* obu_size,
-                     uint32_t* header_size);
+  class BufferReader {
+   public:
+    BufferReader(const uint8_t* buf, size_t size);
 
-  int buffer_head_ = 0;
+    bool Read1(uint8_t* ptr);
+    bool Read4(uint32_t* ptr);
+    bool ReadLeb128(uint32_t* ptr);
+    bool ReadString(std::string& str);
+
+    bool SkipBytes(size_t size);
+    bool SkipLeb128();
+    bool SkipString();
+
+    size_t size() const { return size_; }
+    int pos() const { return pos_; }
+    const uint8_t* buf() const { return buf_; }
+    bool error() const { return error_; }
+
+   private:
+    bool HasBytes(size_t size) const { return size + pos_ <= size_; }
+    inline uint32_t ByteSwap(uint32_t x) {
+#if defined(COMPILER_MSVC)
+      return _byteswap_ulong(x);
+#else
+      return __builtin_bswap32(x);
+#endif
+    }
+    // Decodes an Leb128 value and stores it in |value|. Returns the number of
+    // bytes read, capped to sizeof(uint32_t). Returns the number of bytes read,
+    // or -1 on error.
+    int ReadLeb128Internal(const uint8_t* buf, uint32_t* value);
+    // Reads a c-string into |str|. Returns the number of bytes read, or -1 on
+    // error.
+    int ReadStringInternal(const uint8_t* buf, std::string& str);
+
+    int pos_ = 0;
+    const uint8_t* buf_;
+    const size_t size_ = 0;
+    bool error_ = false;
+  };
+
+  // Used in the selection of a binaural mix presentation, using the strategy
+  // defined in
+  // https://aomediacodec.github.io/iamf/#processing-mixpresentation-selection.
+  // The preferred methods of choosing a binaural mix presentation are listed
+  // from high to low.
+  enum BinauralMixSelection {
+    kBinauralMixSelectionLoudspeakerLayout,
+    kBinauralMixSelectionLoudnessLayout,
+    kBinauralMixSelectionNotFound
+  };
+
+  void Reset();
+  bool Read(scoped_refptr<InputBuffer> input_buffer);
+  // Reads a single Descriptor OBU. Returns false on error.
+  bool ReadOBU(BufferReader* reader);
+  bool ReadOBUHeader(BufferReader* reader,
+                     uint8_t* obu_type,
+                     uint32_t* obu_size);
+
   int sample_rate_ = 0;
   int sample_size_ = 0;
   uint32_t samples_per_buffer_ = 0;
@@ -73,9 +121,13 @@ class IamfConfigReader {
   uint32_t data_size_ = 0;
 
   std::optional<uint32_t> mix_presentation_id_;
+  std::unordered_set<uint32_t> binaural_audio_element_ids_;
+  std::unordered_set<uint32_t> surround_audio_element_ids_;
+  const bool prefer_binaural_audio_;
+  const bool prefer_surround_audio_;
 
-  bool has_valid_config_ = false;
-  bool binaural_mix_presentation_id_ = -1;
+  BinauralMixSelection binaural_mix_selection_ = kBinauralMixSelectionNotFound;
+
   std::vector<uint8_t> config_obus_;
   std::vector<uint8_t> data_;
 };

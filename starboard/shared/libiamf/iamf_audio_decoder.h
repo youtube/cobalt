@@ -65,7 +65,7 @@ class IamfAudioDecoder
   OutputCB output_cb_;
   ErrorCB error_cb_;
 
-  IAMF_Decoder* decoder_ = NULL;
+  IAMF_Decoder* decoder_ = nullptr;
   bool stream_ended_ = false;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
   AudioStreamInfo audio_stream_info_;

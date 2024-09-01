@@ -57,7 +57,8 @@ std::string ErrorCodeToString(int code) {
 IamfAudioDecoder::IamfAudioDecoder(const AudioStreamInfo& audio_stream_info,
                                    bool prefer_binaural_audio)
     : audio_stream_info_(audio_stream_info),
-      prefer_binarual_audio_(prefer_binaural_audio) {
+      prefer_binarual_audio_(prefer_binaural_audio),
+      reader_(false, false) {
   decoder_ = IAMF_decoder_open();
   if (!decoder_) {
     SB_DLOG(ERROR) << "Error creating libiamf decoder";
@@ -223,7 +224,7 @@ bool IamfAudioDecoder::InitializeCodec() {
     return false;
   }
 
-  error = IAMF_decoder_set_sampling_rate(decoder_, reader_.sample_rate());
+  error = IAMF_decoder_set_sampling_rate(decoder_, 48000);
   if (error != IAMF_OK) {
     SB_DLOG(ERROR) << "IAMF_decoder_set_sampling_rate() fails with error "
                    << ErrorCodeToString(error);
@@ -348,7 +349,7 @@ scoped_refptr<IamfAudioDecoder::DecodedAudio> IamfAudioDecoder::Read(
     result = decoded_audios_.front();
     decoded_audios_.pop();
   }
-  *samples_per_second = reader_.sample_rate();
+  *samples_per_second = 48000;
   return result;
 }
 
