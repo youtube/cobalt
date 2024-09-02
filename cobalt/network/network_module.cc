@@ -18,6 +18,7 @@
 
 #include "base/bind.h"
 #include "base/command_line.h"
+#include "base/json/json_reader.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
@@ -160,6 +161,74 @@ void NetworkModule::SetEnableHttp3FromPersistentSettings() {
   }
 }
 
+void NetworkModule::SetProtocolFilterUpdatePending() {
+  protocol_filter_update_pending_ = true;
+}
+
+void NetworkModule::SetProtocolFilterFromPersistentSettings() {
+  if (!options_.persistent_settings) return;
+  if (!protocol_filter_update_pending_) return;
+  protocol_filter_update_pending_ = false;
+
+  base::Value value;
+  options_.persistent_settings->Get(kProtocolFilterKey, &value);
+  if (!value.is_string()) return;
+
+  if (value.GetString().empty()) {
+    task_runner()->PostTask(FROM_HERE,
+                            base::Bind(
+                                [](URLRequestContext* url_request_context) {
+                                  url_request_context->url_request_context()
+                                      ->quic_context()
+                                      ->params()
+                                      ->protocol_filter = absl::nullopt;
+                                },
+                                base::Unretained(url_request_context_.get())));
+    return;
+  }
+
+  absl::optional<base::Value> config =
+      base::JSONReader::Read(value.GetString());
+  if (!config.has_value() || !config->is_list()) return;
+
+  net::ProtocolFilter protocol_filter;
+  for (auto& filter_value : config->GetList()) {
+    if (!filter_value.is_dict()) return;
+    const auto& dict = filter_value.GetDict();
+    const base::Value* origin = dict.Find("origin");
+    const base::Value* alt_svc = dict.Find("altSvc");
+    if (!origin || !alt_svc) continue;
+    if (!origin->is_string() || !alt_svc->is_string()) continue;
+    net::ProtocolFilterEntry entry;
+    entry.origin = origin->GetString();
+    if (base::StartsWith(alt_svc->GetString(), "h3")) {
+      entry.alt_svc.protocol = net::kProtoQUIC;
+      if (base::StartsWith(alt_svc->GetString(), "h3-Q046")) {
+        entry.alt_svc.quic_version =
+            net::ProtocolFilterEntry::QuicVersion::Q046;
+      } else {
+        entry.alt_svc.quic_version =
+            net::ProtocolFilterEntry::QuicVersion::RFC_V1;
+      }
+    } else {
+      entry.alt_svc.protocol = net::kProtoUnknown;
+    }
+    protocol_filter.push_back(std::move(entry));
+  }
+
+  task_runner()->PostTask(
+      FROM_HERE, base::Bind(
+                     [](URLRequestContext* url_request_context,
+                        net::ProtocolFilter protocol_filter) {
+                       url_request_context->url_request_context()
+                           ->quic_context()
+                           ->params()
+                           ->protocol_filter = std::move(protocol_filter);
+                     },
+                     base::Unretained(url_request_context_.get()),
+                     std::move(protocol_filter)));
+}
+
 void NetworkModule::EnsureStorageManagerStarted() {
   DCHECK(storage_manager_);
   storage_manager_->EnsureStarted();
@@ -249,6 +318,8 @@ void NetworkModule::Initialize(const std::string& user_agent_string,
   SetEnableQuicFromPersistentSettings();
   SetEnableHttp2FromPersistentSettings();
   SetEnableHttp3FromPersistentSettings();
+  protocol_filter_update_pending_ = true;
+  SetProtocolFilterFromPersistentSettings();
 }
 
 void NetworkModule::OnCreate(
