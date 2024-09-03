@@ -303,6 +303,12 @@ target(gtest_target_type, "nplb") {
     "window_get_size_test.cc",
   ]
 
+  if (!is_android) {
+    # Android has a different clang version than linux.
+    sources +=
+        [ "//starboard/nplb/compiler_compliance/cpp_compiler_version_check.cc" ]
+  }
+
   configs += [ "//starboard/build/config:starboard_implementation" ]
   if (sb_enable_cast_codec_tests) {
     configs += [ ":cast_codec_tests" ]
