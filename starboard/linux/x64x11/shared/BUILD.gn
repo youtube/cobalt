@@ -38,8 +38,6 @@ static_library("starboard_platform_sources") {
   sources = [
     "//starboard/linux/x64x11/system_get_property.cc",
     "//starboard/linux/x64x11/system_get_property_impl.cc",
-    "//starboard/shared/libjpeg/image_decode.cc",
-    "//starboard/shared/libjpeg/image_is_decode_supported.cc",
     "//starboard/shared/libjpeg/jpeg_image_decoder.cc",
     "//starboard/shared/libjpeg/jpeg_image_decoder.h",
     "//starboard/shared/starboard/link_receiver.cc",
