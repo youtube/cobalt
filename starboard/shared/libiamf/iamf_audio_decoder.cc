@@ -221,7 +221,7 @@ bool IamfAudioDecoder::ConfigureDecoder(IamfConfigReader* reader,
     return false;
   }
 
-  error = IAMF_decoder_set_sampling_rate(decoder_, 48000);
+  error = IAMF_decoder_set_sampling_rate(decoder_, kDefaultSampleRate);
   if (error != IAMF_OK) {
     ReportError("IAMF_decoder_set_sampling_rate() fails with error " +
                 ErrorCodeToString(error));
@@ -348,7 +348,7 @@ scoped_refptr<IamfAudioDecoder::DecodedAudio> IamfAudioDecoder::Read(
     result = decoded_audios_.front();
     decoded_audios_.pop();
   }
-  *samples_per_second = 48000;
+  *samples_per_second = kDefaultSampleRate;
   return result;
 }
 

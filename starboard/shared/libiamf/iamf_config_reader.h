@@ -65,14 +65,14 @@ class IamfConfigReader {
     bool Read1(uint8_t* ptr);
     bool Read4(uint32_t* ptr);
     bool ReadLeb128(uint32_t* ptr);
-    bool ReadString(std::string& str);
+    bool ReadString(std::string* str);
 
     bool SkipBytes(size_t size);
     bool SkipLeb128();
     bool SkipString();
 
     size_t size() const { return size_; }
-    int pos() const { return pos_; }
+    size_t pos() const { return pos_; }
     const uint8_t* buf() const { return buf_; }
     bool error() const { return error_; }
 
@@ -91,7 +91,7 @@ class IamfConfigReader {
     int ReadLeb128Internal(const uint8_t* buf, uint32_t* value);
     // Reads a c-string into |str|. Returns the number of bytes read, capped to
     // 128 bytes, or -1 on error.
-    int ReadStringInternal(const uint8_t* buf, std::string& str);
+    int ReadStringInternal(const uint8_t* buf, std::string* str);
 
     int pos_ = 0;
     const uint8_t* buf_;

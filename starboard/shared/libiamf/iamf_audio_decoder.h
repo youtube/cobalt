@@ -54,6 +54,7 @@ class IamfAudioDecoder
 
  private:
   static constexpr int kMinimumBuffersToDecode = 2;
+  static constexpr int kDefaultSampleRate = 48000;
 
   bool ConfigureDecoder(IamfConfigReader* reader, int64_t timestamp);
   void TeardownDecoder();
@@ -66,16 +67,14 @@ class IamfAudioDecoder
 
   OutputCB output_cb_;
   ErrorCB error_cb_;
+  ConsumedCB consumed_cb_;
 
   IAMF_Decoder* decoder_ = nullptr;
   bool stream_ended_ = false;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
   AudioStreamInfo audio_stream_info_;
-
   bool decoder_is_configured_ = false;
-
   std::deque<scoped_refptr<InputBuffer>> pending_audio_buffers_;
-  ConsumedCB consumed_cb_;
 };
 
 }  // namespace libiamf
