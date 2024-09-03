@@ -835,6 +835,8 @@ int HttpStreamFactory::JobController::DoCreateJobs() {
       DCHECK_NE(quic_version, quic::ParsedQuicVersion::Unsupported());
     }
 #else
+    quic_version =
+        SelectQuicVersion(alternative_service_info_.advertised_versions());
     DCHECK_NE(quic_version, quic::ParsedQuicVersion::Unsupported());
 #endif  // defined(STARBOARD)
   }
