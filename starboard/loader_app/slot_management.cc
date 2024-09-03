@@ -256,8 +256,10 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
                              LibraryLoader* library_loader,
                              bool use_memory_mapped_file) {
   // Initialize the Installation Manager.
-  SB_CHECK(ImInitialize(kMaxNumInstallations, app_key.c_str()) == IM_SUCCESS)
-      << "Abort. Failed to initialize Installation Manager";
+  if (ImInitialize(kMaxNumInstallations, app_key.c_str()) != IM_SUCCESS) {
+    SB_LOG(ERROR) << "Abort. Failed to initialize Installation Manager";
+    return NULL;
+  }
 
   // Roll forward if needed.
   if (ImRollForwardIfNeeded() == IM_ERROR) {
