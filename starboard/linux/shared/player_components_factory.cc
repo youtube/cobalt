@@ -95,7 +95,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           SB_LOG(INFO) << "Playing audio using IamfAudioDecoder.";
           return std::unique_ptr<AudioDecoder>(
               new ::starboard::shared::libiamf::IamfAudioDecoder(
-                  audio_stream_info, /* prefer_binarual_audio */ false));
+                  audio_stream_info));
 #endif  // SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
         } else {
           std::unique_ptr<FfmpegAudioDecoder> audio_decoder_impl(
