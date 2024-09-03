@@ -129,6 +129,8 @@ static inline bool SbFileIsValid(SbFile file) {
   return file != kSbFileInvalid;
 }
 
+#endif
+
 // Replaces the content of the file at |path| with |data|. Returns whether the
 // contents of the file were replaced. The replacement of the content is an
 // atomic operation. The file will either have all of the data, or none.
