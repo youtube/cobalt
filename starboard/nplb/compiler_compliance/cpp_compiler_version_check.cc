@@ -15,18 +15,14 @@
 #include <iostream>
 
 #ifdef __clang__
-// Check Clang major version required for building nplb tests.
+// Check Clang major version required for building Nplb tests.
 // Clang major version can be deduced from "clang_revision" in
 // starboard/build/config/clang.gni
 static_assert(
     __clang_major__ >= 17,
-    "We compile above starboard targets like cobalt, nplb with "
-    "clang17 or higher. If you are building non-modularly or with a non-cobalt "
-    "provided toolchain you may run into this issue. There are 2 ways around "
-    "this : "
-    "1) Build libnplb modularly using the evergreen toolchain : "
-    "https://developers.google.com/youtube/cobalt/docs/gen/starboard/doc/"
-    "evergreen/cobalt_evergreen_reference_port_raspi2#build_instructions"
-    "2) Update the toolchain used to build nplb to clang17 or higher "
-    "versions.");
+    "We compile above Starboard targets like Cobalt, Nplb  with "
+    "clang17 or higher. If you are building with a non-Cobalt "
+    "provided toolchain you may run into this error. To fix this error"
+    "build libnplb using the Evergreen toolchain : "
+    "cobalt.dev/development/setup-raspi");
 #endif  // __clang__
