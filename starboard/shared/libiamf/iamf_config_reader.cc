@@ -86,7 +86,7 @@ bool IamfConfigReader::BufferReader::ReadLeb128(uint32_t* ptr) {
   return true;
 }
 
-bool IamfConfigReader::BufferReader::ReadString(std::string& str) {
+bool IamfConfigReader::BufferReader::ReadString(std::string* str) {
   int bytes_read = ReadStringInternal(buf_ + pos_, str);
   if (bytes_read < 0) {
     error_ = true;
@@ -112,7 +112,7 @@ bool IamfConfigReader::BufferReader::SkipLeb128() {
 
 bool IamfConfigReader::BufferReader::SkipString() {
   std::string str;
-  return ReadString(str);
+  return ReadString(&str);
 }
 
 int IamfConfigReader::BufferReader::ReadLeb128Internal(const uint8_t* buf,
@@ -138,7 +138,7 @@ int IamfConfigReader::BufferReader::ReadLeb128Internal(const uint8_t* buf,
 }
 
 int IamfConfigReader::BufferReader::ReadStringInternal(const uint8_t* buf,
-                                                       std::string& str) {
+                                                       std::string* str) {
   SB_DCHECK(buf);
 
   int remaining_size = static_cast<int>(size_) - pos_;
@@ -148,7 +148,7 @@ int IamfConfigReader::BufferReader::ReadStringInternal(const uint8_t* buf,
 
   // The size of the string is capped to 128 bytes.
   int max_str_size = std::min(remaining_size, 128);
-  str.clear();
+  str->clear();
 
   size_t size = 0;
   while (buf[size] != '\0' && size < max_str_size) {
@@ -160,8 +160,8 @@ int IamfConfigReader::BufferReader::ReadStringInternal(const uint8_t* buf,
   }
 
   if (size > 0) {
-    str.resize(size);
-    std::memcpy(str.data(), reinterpret_cast<const char*>(buf), size);
+    str->resize(size);
+    std::memcpy(str->data(), reinterpret_cast<const char*>(buf), size);
   }
 
   // Account for null terminator byte.
