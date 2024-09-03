@@ -19,6 +19,7 @@
 // clang-format on
 #include <crtdbg.h>
 #include <dbghelp.h>
+#include <fcntl.h>
 #include <sstream>
 #include <string>
 
@@ -72,16 +73,12 @@ class DumpHandler {
       SbLogRaw("Could not write minidump because the dump path is missing.");
       return;
     }
-    bool out_created = false;
-    SbFileError out_error = kSbFileOk;
 
-    HANDLE file_handle = OpenFileOrDirectory(file_path_.c_str(),
-                                             kSbFileCreateAlways | kSbFileWrite,
-                                             &out_created, &out_error);
+    HANDLE file_handle =
+        OpenFileOrDirectory(file_path_.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
 
-    const bool file_ok = out_created && (out_error == kSbFileOk) &&
-                         (file_handle != NULL) &&
-                         (file_handle != INVALID_HANDLE_VALUE);
+    const bool file_ok =
+        (file_handle != NULL) && (file_handle != INVALID_HANDLE_VALUE);
 
     if (!file_ok) {
       std::stringstream ss;

@@ -231,7 +231,7 @@ std::vector<std::string> ParseStarboardUri(const std::string& uri) {
 }
 
 void AddArgumentsFromFile(const char* path, std::vector<std::string>* args) {
-  ScopedFile file(path, kSbFileOpenOnly | kSbFileRead);
+  ScopedFile file(path, 0);
   if (!file.IsValid()) {
     SB_LOG(INFO) << path << " is not valid for arguments.";
     return;
@@ -719,8 +719,7 @@ ref class App sealed : public IFrameworkView {
         std::stringstream ss;
         ss << platformStringToString(
             Windows::Storage::ApplicationData::Current->LocalCacheFolder->Path);
-        ss << "\\"
-           << "" << command_line->GetSwitchValue(kLogPathSwitch);
+        ss << "\\" << "" << command_line->GetSwitchValue(kLogPathSwitch);
         std::string full_path_log_file = ss.str();
         shared::uwp::OpenLogFileWin32(full_path_log_file.c_str());
       } else {

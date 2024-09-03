@@ -50,11 +50,11 @@
 #endif  // SB_API_VERSION < 16
 #include "starboard/log.h"
 #include "starboard/memory.h"
-#include "starboard/memory_reporter.h"
 #include "starboard/microphone.h"
 #include "starboard/mutex.h"
 #include "starboard/player.h"
 #if SB_API_VERSION >= 16
+#include "starboard/shared/modular/starboard_layer_posix_directory_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_pthread_abi_wrappers.h"
@@ -97,9 +97,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbFileMaxPath);
   REGISTER_SYMBOL(kSbFileSepChar);
   REGISTER_SYMBOL(kSbFileSepString);
-#if SB_API_VERSION < 15
-  REGISTER_SYMBOL(kSbHasAc3Audio);
-#endif  // SB_API_VERSION < 15
   REGISTER_SYMBOL(kSbHasMediaWebmVp9Support);
   REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
   REGISTER_SYMBOL(kSbMallocAlignment);
@@ -178,23 +175,29 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbEventCancel);
   REGISTER_SYMBOL(SbEventSchedule);
   REGISTER_SYMBOL(SbFileAtomicReplace);
+#if SB_API_VERSION < 17
   REGISTER_SYMBOL(SbFileCanOpen);
   REGISTER_SYMBOL(SbFileClose);
   REGISTER_SYMBOL(SbFileDelete);
+#endif  // SB_API_VERSION < 17
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileExists);
 #endif  // SB_API_VERSION < 16
+#if SB_API_VERSION < 17
   REGISTER_SYMBOL(SbFileFlush);
   REGISTER_SYMBOL(SbFileGetInfo);
+#endif  // SB_API_VERSION < 17
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbFileGetPathInfo);
 #endif  // SB_API_VERSION < 16
+#if SB_API_VERSION < 17
   REGISTER_SYMBOL(SbFileModeStringToFlags);
   REGISTER_SYMBOL(SbFileOpen);
   REGISTER_SYMBOL(SbFileRead);
   REGISTER_SYMBOL(SbFileSeek);
   REGISTER_SYMBOL(SbFileTruncate);
   REGISTER_SYMBOL(SbFileWrite);
+#endif  // SB_API_VERSION < 17
   REGISTER_SYMBOL(SbGetEglInterface);
   REGISTER_SYMBOL(SbGetGlesInterface);
 #if SB_API_VERSION < 16
@@ -227,9 +230,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMediaGetVideoBufferBudget);
   REGISTER_SYMBOL(SbMediaIsBufferPoolAllocateOnDemand);
   REGISTER_SYMBOL(SbMediaIsBufferUsingMemoryPool);
-#if SB_API_VERSION < 15
-  REGISTER_SYMBOL(SbMediaSetAudioWriteDuration);
-#endif  // SB_API_VERSION < 15
 #if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMemoryAllocate);
   REGISTER_SYMBOL(SbMemoryAllocateAligned);
@@ -244,24 +244,10 @@ ExportedSymbols::ExportedSymbols() {
 #endif  // SB_CAN(MAP_EXECUTABLE_MEMORY)
   REGISTER_SYMBOL(SbMemoryFree);
   REGISTER_SYMBOL(SbMemoryFreeAligned);
-#endif  // SB_API_VERSION < 16
-
-#if SB_API_VERSION < 15
-  REGISTER_SYMBOL(SbMemoryGetStackBounds);
-#endif
-
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMemoryMap);
   REGISTER_SYMBOL(SbMemoryProtect);
   REGISTER_SYMBOL(SbMemoryReallocate);
   REGISTER_SYMBOL(SbMemoryReallocateUnchecked);
-#endif  // SB_API_VERSION < 16
-
-#if SB_API_VERSION < 15
-  REGISTER_SYMBOL(SbMemorySetReporter);
-#endif
-
-#if SB_API_VERSION < 16
   REGISTER_SYMBOL(SbMemoryUnmap);
 #endif  // SB_API_VERSION < 16
 
@@ -495,7 +481,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(opendir);
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(read);
-  REGISTER_SYMBOL(readdir_r);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(send);
@@ -602,6 +587,7 @@ ExportedSymbols::ExportedSymbols() {
   map_["pthread_setname_np"] =
       reinterpret_cast<const void*>(&__abi_wrap_pthread_setname_np);
   map_["read"] = reinterpret_cast<const void*>(&__abi_wrap_read);
+  map_["readdir_r"] = reinterpret_cast<const void*>(&__abi_wrap_readdir_r);
   map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
   map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
   map_["accept"] = reinterpret_cast<const void*>(&__abi_wrap_accept);
@@ -632,7 +618,9 @@ const void* ExportedSymbols::Lookup(const char* name) {
   const void* address = map_[name];
   // Any symbol that is not registered as part of the Starboard API in the
   // constructor of this class is a leak, and is an error.
-  SB_CHECK(address) << "Failed to retrieve the address of '" << name << "'.";
+  if (!address) {
+    SB_LOG(ERROR) << "Failed to retrieve the address of '" << name << "'.";
+  }
   return address;
 }
 

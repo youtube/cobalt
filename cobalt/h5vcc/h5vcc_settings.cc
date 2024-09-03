@@ -57,6 +57,7 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   const char kMediaCodecBlockList[] = "MediaCodecBlockList";
   const char kNavigatorUAData[] = "NavigatorUAData";
   const char kQUIC[] = "QUIC";
+  const char kHTTP2[] = "HTTP2";
   const char kHTTP3[] = "HTTP3";
   const char kSkiaRasterizer[] = "SkiaRasterizer";
 
@@ -67,11 +68,6 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   if (name == kMediaCodecBlockList && value.IsType<std::string>() &&
       value.AsType<std::string>().size() < 256) {
     can_play_type_handler_->SetDisabledMediaCodecs(value.AsType<std::string>());
-    return true;
-  }
-
-  if (set_web_setting_func_ && value.IsType<int32>() &&
-      set_web_setting_func_.Run(name, value.AsType<int32>())) {
     return true;
   }
 
@@ -100,6 +96,17 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
     }
   }
 
+  if (name.compare(kHTTP2) == 0 && value.IsType<int32>()) {
+    if (!persistent_settings_ || !network_module_) {
+      return false;
+    } else {
+      persistent_settings_->Set(network::kHttp2EnabledPersistentSettingsKey,
+                                base::Value(value.AsType<int32>() != 0));
+      network_module_->SetEnableHttp2FromPersistentSettings();
+      return true;
+    }
+  }
+
   if (name.compare(kHTTP3) == 0 && value.IsType<int32>()) {
     if (!persistent_settings_ || !network_module_) {
       return false;
@@ -109,6 +116,32 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
       network_module_->SetEnableHttp3FromPersistentSettings();
       return true;
     }
+  }
+
+  if (name.compare(network::kProtocolFilterKey) == 0 &&
+      value.IsType<std::string>() &&
+      value.AsType<std::string>().size() < 16384) {
+    std::string raw_json = value.AsType<std::string>();
+    base::Value old_config_json;
+    persistent_settings_->Get(network::kProtocolFilterKey, &old_config_json);
+
+    if (raw_json.empty() && (!old_config_json.is_string() ||
+                             !old_config_json.GetString().empty())) {
+      persistent_settings_->Set(network::kProtocolFilterKey, base::Value());
+      network_module_->SetProtocolFilterUpdatePending();
+      return true;
+    }
+
+    absl::optional<base::Value> old_config =
+        base::JSONReader::Read(old_config_json.GetString());
+    absl::optional<base::Value> new_config = base::JSONReader::Read(raw_json);
+    if (!new_config) return false;
+    if (old_config && *old_config == *new_config) return false;
+
+    persistent_settings_->Set(network::kProtocolFilterKey,
+                              base::Value(raw_json));
+    network_module_->SetProtocolFilterUpdatePending();
+    return true;
   }
 
   if (name.compare("cpu_usage_tracker_intervals") == 0 &&
@@ -153,6 +186,11 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
     return true;
   }
 #endif
+  if (set_web_setting_func_ && value.IsType<int32>() &&
+      set_web_setting_func_.Run(name, value.AsType<int32>())) {
+    return true;
+  }
+
   return false;
 }
 
@@ -171,6 +209,24 @@ int H5vccSettings::GetPersistentSettingAsInt(const std::string& key,
     return value.GetIfInt().value_or(default_setting);
   }
   return default_setting;
+}
+
+std::string H5vccSettings::GetPersistentSettingAsString(
+    const std::string& key) const {
+  if (key.compare("cpu_usage_tracker_intervals") == 0) {
+    base::Value value =
+        browser::CpuUsageTracker::GetInstance()->GetIntervalsDefinition();
+    absl::optional<std::string> json = base::WriteJson(value);
+    return json.value_or(std::string());
+  }
+
+  if (key.compare(network::kProtocolFilterKey) == 0) {
+    base::Value value;
+    persistent_settings_->Get(network::kProtocolFilterKey, &value);
+    if (!value.is_string()) return std::string();
+    return value.GetString();
+  }
+  return std::string();
 }
 
 }  // namespace h5vcc

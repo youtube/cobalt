@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_MAX_OUTPUT_BUFFERS_LOOKUP_TABLE_H_
-#define STARBOARD_ANDROID_SHARED_MAX_OUTPUT_BUFFERS_LOOKUP_TABLE_H_
+#ifndef STARBOARD_ANDROID_SHARED_MAX_MEDIA_CODEC_OUTPUT_BUFFERS_LOOKUP_TABLE_H_
+#define STARBOARD_ANDROID_SHARED_MAX_MEDIA_CODEC_OUTPUT_BUFFERS_LOOKUP_TABLE_H_
 
 #include <functional>
 #include <map>
@@ -72,4 +72,4 @@ class MaxMediaCodecOutputBuffersLookupTable {
 }  // namespace android
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_MAX_OUTPUT_BUFFERS_LOOKUP_TABLE_H_
+#endif  // STARBOARD_ANDROID_SHARED_MAX_MEDIA_CODEC_OUTPUT_BUFFERS_LOOKUP_TABLE_H_

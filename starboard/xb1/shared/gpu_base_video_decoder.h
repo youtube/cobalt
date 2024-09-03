@@ -25,7 +25,6 @@
 #include <string>
 #include <vector>
 
-#include "starboard/common/atomic.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/shared/starboard/decode_target/decode_target_context_runner.h"
@@ -205,7 +204,7 @@ class GpuVideoDecoderBase
   const bool is_10x3_preferred_;
   int frame_width_;
   int frame_height_;
-  atomic_integral<RetrievingBehavior> decoder_behavior_{kDecodingStopped};
+  std::atomic<RetrievingBehavior> decoder_behavior_{kDecodingStopped};
   std::atomic_bool error_occured_ = {false};
 
   // These are platform-specific objects required to create and use a codec.

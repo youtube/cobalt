@@ -41,3 +41,5 @@ platform_tests_path =
 enable_in_app_dial = true
 
 v8_enable_webassembly = true
+
+sb_enable_cast_codec_tests = true

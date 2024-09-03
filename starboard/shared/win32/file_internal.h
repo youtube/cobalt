@@ -43,33 +43,11 @@ inline bool IsValidHandle(HANDLE handle) {
 // to generate a warning.
 #pragma warning(disable : 4099)
 
-class SbFilePrivate {
- public:
-  explicit SbFilePrivate(HANDLE handle) : file_handle(handle) {}
-
-  bool HasValidHandle() const {
-    return starboard::shared::win32::IsValidHandle(file_handle);
-  }
-
-  HANDLE file_handle;
-
-  // SbFilePrivate is neither copyable nor movable.
-  SbFilePrivate(const SbFilePrivate&) = delete;
-  SbFilePrivate& operator=(const SbFilePrivate&) = delete;
-};
 #pragma warning(pop)
 
 namespace starboard {
 namespace shared {
 namespace win32 {
-
-inline bool HasValidHandle(SbFile file) {
-  if (!SbFileIsValid(file)) {
-    return false;
-  }
-
-  return file->HasValidHandle();
-}
 
 inline bool PathEndsWith(const std::wstring& path, const wchar_t* filename) {
   size_t filename_length = std::wcslen(filename);
@@ -87,10 +65,7 @@ inline bool PathEndsWith(const std::wstring& path, const wchar_t* filename) {
 std::wstring NormalizeWin32Path(std::string str);
 std::wstring NormalizeWin32Path(std::wstring str);
 
-HANDLE OpenFileOrDirectory(const char* path,
-                           int flags,
-                           bool* out_created,
-                           SbFileError* out_error);
+HANDLE OpenFileOrDirectory(const char* path, int flags);
 
 }  // namespace win32
 }  // namespace shared

@@ -33,7 +33,7 @@ struct cjpeg_source_struct {
   void (*finish_input) (j_compress_ptr cinfo, cjpeg_source_ptr sinfo);
 
 #if defined(STARBOARD)
-  SbFile *input_file;
+  FileStruct *input_file;
 #else
   FILE *input_file;
 #endif
@@ -73,7 +73,7 @@ struct djpeg_dest_struct {
 
   /* Target file spec; filled in by djpeg.c after object is created. */
 #if defined(STARBOARD)
-  SbFile *output_file;
+  FileStruct *output_file;
 #else
   FILE *output_file;
 #endif
@@ -135,7 +135,7 @@ EXTERN(boolean) set_sample_factors(j_compress_ptr cinfo, char *arg);
 /* djpeg support routines (in rdcolmap.c) */
 
 #if defined(STARBOARD)
-EXTERN(void) read_color_map(j_decompress_ptr cinfo, SbFile *infile);
+EXTERN(void) read_color_map(j_decompress_ptr cinfo, FileStruct *infile);
 #else
 EXTERN(void) read_color_map(j_decompress_ptr cinfo, FILE *infile);
 #endif
@@ -148,8 +148,8 @@ EXTERN(void) end_progress_monitor(j_common_ptr cinfo);
 EXTERN(boolean) keymatch(char *arg, const char *keyword, int minchars);
 
 #if defined(STARBOARD)
-EXTERN(SbFile *) read_stdin(void);
-EXTERN(SbFile *) write_stdout(void);
+EXTERN(FileStruct *) read_stdin(void);
+EXTERN(FileStruct *) write_stdout(void);
 #else
 EXTERN(FILE *) read_stdin(void);
 EXTERN(FILE *) write_stdout(void);

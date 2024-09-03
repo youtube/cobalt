@@ -14,6 +14,8 @@
 
 #include "starboard/shared/win32/file_internal.h"
 
+#include <errno.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 
 #include <windows.h>
@@ -22,6 +24,8 @@
 #include "starboard/memory.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/wchar_utils.h"
+
+#define O_ACCMODE (O_RDONLY | O_WRONLY | O_RDWR)
 
 namespace sbwin32 = starboard::shared::win32;
 
@@ -81,10 +85,7 @@ std::wstring NormalizeWin32Path(std::wstring str) {
   return NormalizePathSeparator(str);
 }
 
-HANDLE OpenFileOrDirectory(const char* path,
-                           int flags,
-                           bool* out_created,
-                           SbFileError* out_error) {
+HANDLE OpenFileOrDirectory(const char* path, int flags) {
   // Note that FILE_SHARE_DELETE allows a file to be deleted while there
   // are other handles open for read/write. This is necessary for the
   // Async file tests which, due to system timing, will sometimes have
@@ -92,67 +93,61 @@ HANDLE OpenFileOrDirectory(const char* path,
   const DWORD share_mode =
       FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
 
+  DWORD desired_access = 0;
+  if ((flags & O_ACCMODE) == O_RDONLY) {
+    desired_access |= GENERIC_READ;
+  } else if ((flags & O_ACCMODE) == O_WRONLY) {
+    desired_access |= GENERIC_WRITE;
+    flags &= ~O_WRONLY;
+  } else if ((flags & O_ACCMODE) == O_RDWR) {
+    desired_access |= GENERIC_READ | GENERIC_WRITE;
+    flags &= ~O_RDWR;
+  } else {
+    // Applications shall specify exactly one of the first three file access
+    // modes.
+    errno = EINVAL;
+    return INVALID_HANDLE_VALUE;
+  }
+
   DWORD creation_disposition = 0;
-  if (flags & kSbFileCreateOnly) {
-    SB_DCHECK(!creation_disposition);
-    SB_DCHECK(!(flags & kSbFileCreateAlways));
-    creation_disposition = CREATE_NEW;
-  }
-
-  if (out_created) {
-    *out_created = false;
-  }
-
-  if (flags & kSbFileCreateAlways) {
-    SB_DCHECK(!creation_disposition);
-    SB_DCHECK(!(flags & kSbFileCreateOnly));
-    creation_disposition = CREATE_ALWAYS;
-  }
-
-  if (flags & kSbFileOpenTruncated) {
-    SB_DCHECK(!creation_disposition);
-    SB_DCHECK(flags & kSbFileWrite);
-    creation_disposition = TRUNCATE_EXISTING;
-  }
-
-  if (flags & kSbFileOpenOnly) {
-    SB_DCHECK(!(flags & kSbFileOpenAlways));
+  if (!flags) {
     creation_disposition = OPEN_EXISTING;
   }
 
-  if (flags & kSbFileOpenAlways) {
-    SB_DCHECK(!(flags & kSbFileOpenOnly));
+  if (flags & O_CREAT && flags & O_EXCL) {
+    SB_DCHECK(!creation_disposition);
+    creation_disposition = CREATE_NEW;
+    flags &= ~(O_CREAT | O_EXCL);
+  }
+
+  if (flags & O_CREAT && flags & O_TRUNC) {
+    SB_DCHECK(!creation_disposition);
+    creation_disposition = CREATE_ALWAYS;
+    flags &= ~(O_CREAT | O_TRUNC);
+  }
+
+  if (flags & O_TRUNC) {
+    SB_DCHECK(!creation_disposition);
+    SB_DCHECK((flags & O_WRONLY) || (flags & O_RDWR));
+    creation_disposition = TRUNCATE_EXISTING;
+    flags &= ~O_TRUNC;
+  }
+
+  if (flags & O_CREAT) {
+    SB_DCHECK(!creation_disposition);
     creation_disposition = OPEN_ALWAYS;
+    flags &= ~O_CREAT;
   }
 
-  if (!creation_disposition && !(flags & kSbFileOpenOnly) &&
-      !(flags & kSbFileOpenAlways)) {
-    SB_NOTREACHED();
+  // SbFileOpen does not support any other combination of flags.
+  if (flags || !creation_disposition) {
     errno = ENOTSUP;
-    if (out_error) {
-      *out_error = kSbFileErrorFailed;
-    }
-
-    return kSbFileInvalid;
+    return INVALID_HANDLE_VALUE;
   }
-
-  DWORD desired_access = 0;
-  if (flags & kSbFileRead) {
-    desired_access |= GENERIC_READ;
-  }
-
-  const bool open_file_in_write_mode = flags & kSbFileWrite;
-  if (open_file_in_write_mode) {
-    desired_access |= GENERIC_WRITE;
-  }
-
-  // TODO: Support asynchronous IO, if necessary.
-  SB_DCHECK(!(flags & kSbFileAsync));
 
   SB_DCHECK(desired_access != 0) << "Invalid permission flag.";
 
   std::wstring path_wstring = NormalizeWin32Path(path);
-
   CREATEFILE2_EXTENDED_PARAMETERS create_ex_params = {0};
   // Enabling |FILE_FLAG_BACKUP_SEMANTICS| allows us to figure out if the path
   // is a directory.
@@ -162,47 +157,30 @@ HANDLE OpenFileOrDirectory(const char* path,
   create_ex_params.dwSecurityQosFlags = SECURITY_ANONYMOUS;
   create_ex_params.dwSize = sizeof(CREATEFILE2_EXTENDED_PARAMETERS);
 
-  struct stat info;
-  const bool file_exists_prior_to_open = stat(path, &info) == 0;
-
   HANDLE file_handle =
       CreateFile2(path_wstring.c_str(), desired_access, share_mode,
                   creation_disposition, &create_ex_params);
 
-  const bool file_exists_after_open = stat(path, &info) == 0;
-
-  if (out_created && starboard::shared::win32::IsValidHandle(file_handle)) {
-    if (flags & kSbFileCreateAlways) {
-      *out_created = file_exists_after_open;
-    } else {
-      *out_created = (!file_exists_prior_to_open && file_exists_after_open);
-    }
-  }
-
   const DWORD last_error = GetLastError();
 
-  if (out_error) {
-    if (starboard::shared::win32::IsValidHandle(file_handle)) {
-      *out_error = kSbFileOk;
-    } else {
-      switch (last_error) {
-        case ERROR_ACCESS_DENIED:
-          *out_error = kSbFileErrorAccessDenied;
-          break;
-        case ERROR_FILE_EXISTS: {
-          if (flags & kSbFileCreateOnly) {
-            *out_error = kSbFileErrorExists;
-          } else {
-            *out_error = kSbFileErrorAccessDenied;
-          }
-          break;
+  if (!starboard::shared::win32::IsValidHandle(file_handle)) {
+    switch (last_error) {
+      case ERROR_ACCESS_DENIED:
+        errno = EACCES;
+        break;
+      case ERROR_FILE_EXISTS: {
+        if (creation_disposition == CREATE_NEW) {
+          errno = EEXIST;
+        } else {
+          errno = EPERM;
         }
-        case ERROR_FILE_NOT_FOUND:
-          *out_error = kSbFileErrorNotFound;
-          break;
-        default:
-          *out_error = kSbFileErrorFailed;
+        break;
       }
+      case ERROR_FILE_NOT_FOUND:
+        errno = ENOENT;
+        break;
+      default:
+        errno = EPERM;
     }
   }
 

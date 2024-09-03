@@ -16,10 +16,10 @@
 #define STARBOARD_ANDROID_SHARED_MEDIA_CODEC_BRIDGE_ERADICATOR_H_
 
 #include <jni.h>
+#include <atomic>
 #include <set>
 
 #include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 
@@ -52,7 +52,7 @@ class MediaCodecBridgeEradicator {
  private:
   static void* DestroyMediaCodecBridge(void* context);
 
-  atomic_bool is_enabled_{false};
+  std::atomic_bool is_enabled_{false};
   // Maximum wait time when creating a new MediaCodecBridge if the background
   // cleanup thread (MediaCodecBridgeEradicator::DestroyMediaCodecBridge) is
   // unresponsive.
