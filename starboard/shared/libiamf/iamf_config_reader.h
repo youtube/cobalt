@@ -46,7 +46,8 @@ class IamfConfigReader {
   uint32_t samples_per_buffer() const { return samples_per_buffer_; }
   uint32_t config_size() const { return config_size_; }
   uint32_t mix_presentation_id() const {
-    SB_DCHECK(mix_presentation_id_.has_value());
+    SB_DCHECK(is_valid())
+        << "Called mix_presentation_id() on invalid IamfConfigReader.";
     if (prefer_binaural_audio_ &&
         binaural_mix_selection_ == kBinauralMixSelectionNotFound) {
       SB_LOG(INFO) << "Could not find binaural mix presentation.";
