@@ -17,6 +17,7 @@
 
 #include <deque>
 #include <queue>
+#include <string>
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
@@ -38,8 +39,7 @@ class IamfAudioDecoder
  public:
   typedef starboard::media::AudioStreamInfo AudioStreamInfo;
 
-  explicit IamfAudioDecoder(const AudioStreamInfo& audio_stream_info,
-                            bool prefer_binaural_audio);
+  explicit IamfAudioDecoder(const AudioStreamInfo& audio_stream_info);
   ~IamfAudioDecoder() override;
 
   bool is_valid() const;
@@ -55,12 +55,14 @@ class IamfAudioDecoder
  private:
   static constexpr int kMinimumBuffersToDecode = 2;
 
-  bool InitializeCodec();
-  void TeardownCodec();
+  bool ConfigureDecoder(IamfConfigReader* reader, int64_t timestamp);
+  void TeardownDecoder();
   void DecodePendingBuffers();
   bool DecodeInternal(const scoped_refptr<InputBuffer>& input_buffer);
 
   SbMediaAudioSampleType GetSampleType() const;
+
+  void ReportError(const std::string& message) const;
 
   OutputCB output_cb_;
   ErrorCB error_cb_;
@@ -74,10 +76,6 @@ class IamfAudioDecoder
 
   std::deque<scoped_refptr<InputBuffer>> pending_audio_buffers_;
   ConsumedCB consumed_cb_;
-
-  IamfConfigReader reader_;
-
-  const bool prefer_binarual_audio_;
 };
 
 }  // namespace libiamf

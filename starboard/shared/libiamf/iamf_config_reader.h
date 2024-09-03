@@ -34,9 +34,9 @@ class IamfConfigReader {
  public:
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
 
-  IamfConfigReader(bool prefer_binaural_audio, bool prefer_surround_audio);
-
-  bool ResetAndRead(scoped_refptr<InputBuffer> input_buffer);
+  IamfConfigReader(const scoped_refptr<InputBuffer>& input_buffer,
+                   bool prefer_binaural_audio,
+                   bool prefer_surround_audio);
 
   bool is_valid() const {
     return mix_presentation_id_.has_value() && sample_rate_ > 0 &&
@@ -47,6 +47,10 @@ class IamfConfigReader {
   uint32_t config_size() const { return config_size_; }
   uint32_t mix_presentation_id() const {
     SB_DCHECK(mix_presentation_id_.has_value());
+    if (prefer_binaural_audio_ &&
+        binaural_mix_selection_ == kBinauralMixSelectionNotFound) {
+      SB_LOG(INFO) << "Could not find binaural mix presentation.";
+    }
     return mix_presentation_id_.value();
   }
 
@@ -85,8 +89,8 @@ class IamfConfigReader {
     // bytes read, capped to sizeof(uint32_t). Returns the number of bytes read,
     // or -1 on error.
     int ReadLeb128Internal(const uint8_t* buf, uint32_t* value);
-    // Reads a c-string into |str|. Returns the number of bytes read, or -1 on
-    // error.
+    // Reads a c-string into |str|. Returns the number of bytes read, capped to
+    // 128 bytes, or -1 on error.
     int ReadStringInternal(const uint8_t* buf, std::string& str);
 
     int pos_ = 0;
@@ -106,8 +110,7 @@ class IamfConfigReader {
     kBinauralMixSelectionNotFound
   };
 
-  void Reset();
-  bool Read(scoped_refptr<InputBuffer> input_buffer);
+  bool Read(const scoped_refptr<InputBuffer>& input_buffer);
   // Reads a single Descriptor OBU. Returns false on error.
   bool ReadOBU(BufferReader* reader);
   bool ReadOBUHeader(BufferReader* reader,

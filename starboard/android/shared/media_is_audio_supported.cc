@@ -64,7 +64,7 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
   if (audio_codec == kSbMediaAudioCodecIamf) {
     return true;
   }
-#endif  // SB_API_VERSION >= 15
+#endif  // SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
 
   bool media_codec_supported =
       MediaCapabilitiesCache::GetInstance()->HasAudioDecoderFor(mime, bitrate);

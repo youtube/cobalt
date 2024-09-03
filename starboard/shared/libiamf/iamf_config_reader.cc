@@ -168,32 +168,20 @@ int IamfConfigReader::BufferReader::ReadStringInternal(const uint8_t* buf,
   return ++size;
 }
 
-IamfConfigReader::IamfConfigReader(bool prefer_binaural_audio,
-                                   bool prefer_surround_audio)
+IamfConfigReader::IamfConfigReader(
+    const scoped_refptr<InputBuffer>& input_buffer,
+    bool prefer_binaural_audio,
+    bool prefer_surround_audio)
     : prefer_binaural_audio_(prefer_binaural_audio),
       prefer_surround_audio_(prefer_surround_audio) {
 #if SB_IS_BIG_ENDIAN
 #error IamfConfigReader assumes little-endianness.
 #endif  // SB_IS_BIG_ENDIAN
   SB_DCHECK(!(prefer_binaural_audio && prefer_surround_audio));
+  Read(input_buffer);
 }
 
-bool IamfConfigReader::ResetAndRead(scoped_refptr<InputBuffer> input_buffer) {
-  Reset();
-  return Read(input_buffer);
-}
-
-void IamfConfigReader::Reset() {
-  mix_presentation_id_ = std::optional<uint32_t>();
-  binaural_audio_element_ids_ = std::unordered_set<uint32_t>();
-  config_size_ = 0;
-  data_size_ = 0;
-  sample_rate_ = 0;
-  samples_per_buffer_ = 0;
-  sample_size_ = 0;
-}
-
-bool IamfConfigReader::Read(scoped_refptr<InputBuffer> input_buffer) {
+bool IamfConfigReader::Read(const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(input_buffer->data());
   BufferReader reader(input_buffer->data(), input_buffer->size());
 

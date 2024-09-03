@@ -454,7 +454,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           std::unique_ptr<starboard::shared::libiamf::IamfAudioDecoder>
               audio_decoder_impl(
                   new starboard::shared::libiamf::IamfAudioDecoder(
-                      audio_stream_info, /* prefer_binarual_audio */ false));
+                      audio_stream_info));
           if (audio_decoder_impl->is_valid()) {
             return std::unique_ptr<AudioDecoderBase>(
                 std::move(audio_decoder_impl));
