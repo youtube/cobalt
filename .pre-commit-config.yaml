@@ -176,7 +176,7 @@ repos:
         always_run: true
         stages: [push]
         additional_dependencies: [certifi]
-        args: [-m, unittest, cobalt/tools/download_from_gcs_test.py]
+        args: [-m, unittest, starboard/tools/download_from_gcs_test.py]
     -   id: test-python3-compatibility
         name: Test Python 3 Compatibility
         description: Checks that scripts can be run in Python 3
