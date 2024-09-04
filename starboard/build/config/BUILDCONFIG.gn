@@ -580,12 +580,12 @@ template("shared_library") {
           "-Wl,-rpath=\$ORIGIN",
         ]
 
-        deps = [
+        data_deps = [
           ":$original_target_name($cobalt_toolchain)",
           "//starboard($starboard_toolchain)",
         ]
         if (!separate_install_targets_for_bundling) {
-          deps += [ "//starboard:starboard_install($starboard_toolchain)" ]
+          deps = [ "//starboard:starboard_install($starboard_toolchain)" ]
         }
       }
       if (host_os != "win") {
