@@ -99,9 +99,12 @@ group("gn_all") {
 group("default") {
   deps = [
     ":starboard_group",
-    "//starboard/nplb",
     "//starboard/tools:build_app_launcher_zip",
   ]
+  # TODO(b/b/356067446): Fix building nplb for gold builds.
+  if (!is_gold) {
+    deps += [ "//starboard/nplb" ]
+  }
 }
 
 group("starboard_group") {

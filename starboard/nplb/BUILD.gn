@@ -25,8 +25,6 @@ config("cast_codec_tests") {
 target(gtest_target_type, "nplb") {
   sources = [
     "//starboard/common/test_main.cc",
-    "//starboard/common/thread.cc",
-    "//starboard/common/thread.h",
     "//starboard/nplb/sabi/alignment_test.cc",
     "//starboard/nplb/sabi/endianness_test.cc",
     "//starboard/nplb/sabi/signedness_and_size_of_enum_test.cc",
@@ -282,7 +280,6 @@ target(gtest_target_type, "nplb") {
     "thread_sampler_test.cc",
     "thread_set_name_test.cc",
     "thread_sleep_test.cc",
-    "thread_test.cc",
     "thread_yield_test.cc",
     "time_get_monotonic_now_test.cc",
     "time_get_now_test.cc",
@@ -307,6 +304,10 @@ target(gtest_target_type, "nplb") {
     # Android has a different clang version than linux.
     sources +=
         [ "//starboard/nplb/compiler_compliance/cpp_compiler_version_check.cc" ]
+  }
+  if (!is_qa && !is_gold) {
+    # TODO(b/360953120): Requires -fno-rtti to be unset and -frtti to be set to compile.
+    sources += [ "thread_test.cc" ]
   }
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
