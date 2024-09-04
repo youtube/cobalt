@@ -60,12 +60,12 @@ repos:
             (?x)^(
                 (internal/)?starboard/[^/]+/i18n/|
                 cobalt/content/licenses/|
-                cobalt/content/ssl/|
                 cobalt/fetch/embedded_scripts|
                 cobalt/streams/embedded_scripts|
                 cobalt/loader/cors_preflight.cc|
                 internal/cobalt/browser/splash_screen/youtube_splash_screen.html|
                 internal/starboard/shared/playstation/storage_internal.cc|
+                starboard/content/ssl/certs/|
                 starboard/loader_app/app_key_test.cc|
                 starboard/shared/starboard/player/testdata|
                 starboard/shared/win32/media_transform.cc
