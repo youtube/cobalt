@@ -33,6 +33,8 @@
 
 namespace net {
 
+#if SB_API_VERSION >= 16
+
 namespace {
 
 int MapAcceptError(int os_error) {
@@ -70,9 +72,7 @@ int MapConnectError(int os_error) {
 
 SocketPosix::SocketPosix()
     : socket_fd_(kInvalidSocket),
-      accept_socket_watcher_(FROM_HERE),
-      read_socket_watcher_(FROM_HERE),
-      write_socket_watcher_(FROM_HERE) {}
+      socket_watcher_(FROM_HERE) {}
 
 SocketPosix::~SocketPosix() {
   Close();
@@ -144,7 +144,7 @@ int SocketPosix::Bind(const SockaddrStorage& address) {
 
   int rv = bind(socket_fd_, address.addr, address.addr_len);
   if (rv < 0) {
-    PLOG(ERROR) << "bind() failed";
+    PLOG(ERROR) << "bind() failed -errno- :" << errno;
     return MapSystemError(errno);
   }
 
@@ -179,7 +179,7 @@ int SocketPosix::Accept(std::unique_ptr<SocketPosix>* socket,
 
   if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_READ,
-          &accept_socket_watcher_, this)) {
+          &socket_watcher_, this)) {
     PLOG(ERROR) << "WatchFileDescriptor failed on accept";
     return MapSystemError(errno);
   }
@@ -204,7 +204,7 @@ int SocketPosix::Connect(const SockaddrStorage& address,
 
   if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_WRITE,
-          &write_socket_watcher_, this)) {
+          &socket_watcher_, this)) {
     PLOG(ERROR) << "WatchFileDescriptor failed on connect";
     return MapSystemError(errno);
   }
@@ -224,7 +224,7 @@ int SocketPosix::Connect(const SockaddrStorage& address,
 
   rv = MapConnectError(errno);
   if (rv != OK && rv != ERR_IO_PENDING) {
-    write_socket_watcher_.StopWatchingFileDescriptor();
+    ClearWatcherIfOperationsNotPending();
     return rv;
   }
 
@@ -300,7 +300,7 @@ int SocketPosix::ReadIfReady(IOBuffer* buf,
 
   if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_READ,
-          &read_socket_watcher_, this)) {
+          &socket_watcher_, this)) {
     PLOG(ERROR) << "WatchFileDescriptor failed on read";
     return MapSystemError(errno);
   }
@@ -312,7 +312,7 @@ int SocketPosix::ReadIfReady(IOBuffer* buf,
 int SocketPosix::CancelReadIfReady() {
   DCHECK(read_if_ready_callback_);
 
-  bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
+  bool ok = ClearWatcherIfOperationsNotPending();
   DCHECK(ok);
 
   read_if_ready_callback_.Reset();
@@ -350,7 +350,7 @@ int SocketPosix::WaitForWrite(IOBuffer* buf,
 
   if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_WRITE,
-          &write_socket_watcher_, this)) {
+          &socket_watcher_, this)) {
     PLOG(ERROR) << "WatchFileDescriptor failed on write";
     return MapSystemError(errno);
   }
@@ -414,8 +414,7 @@ void SocketPosix::OnFileCanReadWithoutBlocking(int fd) {
                "SocketPosix::OnFileCanReadWithoutBlocking");
   if (!accept_callback_.is_null()) {
     AcceptCompleted();
-  } else {
-    DCHECK(!read_if_ready_callback_.is_null());
+  } else if (!read_if_ready_callback_.is_null()){
     ReadCompleted();
   }
 }
@@ -449,10 +448,10 @@ int SocketPosix::DoAccept(std::unique_ptr<SocketPosix>* socket) {
 void SocketPosix::AcceptCompleted() {
   DCHECK(accept_socket_);
   int rv = DoAccept(accept_socket_);
-  if (rv == ERR_IO_PENDING)
+  if (rv == ERR_IO_PENDING || rv == ERR_ADDRESS_INVALID)
     return;
 
-  bool ok = accept_socket_watcher_.StopWatchingFileDescriptor();
+  bool ok = ClearWatcherIfOperationsNotPending();
   DCHECK(ok);
   accept_socket_ = nullptr;
   std::move(accept_callback_).Run(rv);
@@ -479,14 +478,14 @@ void SocketPosix::ConnectCompleted() {
   if (rv == ERR_IO_PENDING)
     return;
 
-  bool ok = write_socket_watcher_.StopWatchingFileDescriptor();
+  bool ok = socket_watcher_.StopWatchingFileDescriptor();
   DCHECK(ok);
   waiting_connect_ = false;
   std::move(write_callback_).Run(rv);
 }
 
 int SocketPosix::DoRead(IOBuffer* buf, int buf_len) {
-  int rv = HANDLE_EINTR(read(socket_fd_, buf->data(), buf_len));
+  int rv = HANDLE_EINTR(recv(socket_fd_, buf->data(), buf_len, 0));
   return rv >= 0 ? rv : MapSystemError(errno);
 }
 
@@ -510,21 +509,28 @@ void SocketPosix::RetryRead(int rv) {
 void SocketPosix::ReadCompleted() {
   DCHECK(read_if_ready_callback_);
 
-  bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
+  bool ok = socket_watcher_.StopWatchingFileDescriptor();
   DCHECK(ok);
   std::move(read_if_ready_callback_).Run(OK);
 }
 
 int SocketPosix::DoWrite(IOBuffer* buf, int buf_len) {
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) ||\
+    defined(STARBOARD)
   // Disable SIGPIPE for this write. Although Chromium globally disables
   // SIGPIPE, the net stack may be used in other consumers which do not do
   // this. MSG_NOSIGNAL is a Linux-only API. On OS X, this is a setsockopt on
   // socket creation.
-  int rv = HANDLE_EINTR(send(socket_fd_, buf->data(), buf_len, MSG_NOSIGNAL));
+#if defined(MSG_NOSIGNAL)
+  const int kSendFlags = MSG_NOSIGNAL;
+#else
+  const int kSendFlags = 0;
+#endif  // defined(MSG_NOSIGNAL)
+  int rv = HANDLE_EINTR(send(socket_fd_, buf->data(), buf_len, kSendFlags));
 #else
   int rv = HANDLE_EINTR(write(socket_fd_, buf->data(), buf_len));
-#endif
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) ||\
+        // defined(STARBOARD)
   return rv >= 0 ? rv : MapSystemError(errno);
 }
 
@@ -533,19 +539,23 @@ void SocketPosix::WriteCompleted() {
   if (rv == ERR_IO_PENDING)
     return;
 
-  bool ok = write_socket_watcher_.StopWatchingFileDescriptor();
+  bool ok = ClearWatcherIfOperationsNotPending();
   DCHECK(ok);
   write_buf_.reset();
   write_buf_len_ = 0;
   std::move(write_callback_).Run(rv);
 }
 
+bool SocketPosix::ClearWatcherIfOperationsNotPending() {
+  bool ok = true;
+  if (!read_pending() && !write_pending() && !accept_pending()) {
+    ok = socket_watcher_.StopWatchingFileDescriptor();
+  }
+  return ok;
+}
+
 void SocketPosix::StopWatchingAndCleanUp(bool close_socket) {
-  bool ok = accept_socket_watcher_.StopWatchingFileDescriptor();
-  DCHECK(ok);
-  ok = read_socket_watcher_.StopWatchingFileDescriptor();
-  DCHECK(ok);
-  ok = write_socket_watcher_.StopWatchingFileDescriptor();
+  bool ok = socket_watcher_.StopWatchingFileDescriptor();
   DCHECK(ok);
 
   // These needs to be done after the StopWatchingFileDescriptor() calls, but
@@ -580,5 +590,7 @@ void SocketPosix::StopWatchingAndCleanUp(bool close_socket) {
   waiting_connect_ = false;
   peer_address_.reset();
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace net

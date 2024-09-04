@@ -62,6 +62,8 @@
 
 namespace net {
 
+#if SB_API_VERSION >= 16
+
 namespace {
 
 // SetTCPKeepAlive sets SO_KEEPALIVE.
@@ -251,8 +253,11 @@ int TCPSocketPosix::Accept(std::unique_ptr<TCPSocketPosix>* tcp_socket,
                            CompletionOnceCallback callback) {
   DCHECK(tcp_socket);
   DCHECK(!callback.is_null());
-  DCHECK(socket_);
   DCHECK(!accept_socket_);
+
+  if (!socket_) {
+    return ERR_ADDRESS_INVALID;
+  }
 
   net_log_.BeginEvent(NetLogEventType::TCP_ACCEPT);
 
@@ -710,5 +715,7 @@ bool TCPSocketPosix::GetEstimatedRoundTripTime(base::TimeDelta* out_rtt) const {
   return false;
 #endif  // defined(TCP_INFO)
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace net

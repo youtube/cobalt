@@ -14,10 +14,8 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <net/if.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <sys/ioctl.h>
 #include <sys/socket.h>
 
 #include <memory>
@@ -65,6 +63,8 @@
 #endif  // BUILDFLAG(IS_MAC)
 
 namespace net {
+
+#if SB_API_VERSION >= 16
 
 namespace {
 
@@ -575,13 +575,13 @@ int UDPSocketPosix::SetDoNotFragment() {
 }
 
 void UDPSocketPosix::SetMsgConfirm(bool confirm) {
-#if !BUILDFLAG(IS_APPLE)
+#if !BUILDFLAG(IS_APPLE) && defined(MSG_CONFIRM)
   if (confirm) {
     sendto_flags_ |= MSG_CONFIRM;
   } else {
     sendto_flags_ &= ~MSG_CONFIRM;
   }
-#endif  // !BUILDFLAG(IS_APPLE)
+#endif  // !BUILDFLAG(IS_APPLE) && defined(MSG_CONFIRM)
 }
 
 int UDPSocketPosix::AllowAddressReuse() {
@@ -854,7 +854,11 @@ int UDPSocketPosix::SetMulticastOptions() {
     if (rv < 0)
       return MapSystemError(errno);
   }
+#if defined(IP_DEFAULT_MULTICAST_TTL)
   if (multicast_time_to_live_ != IP_DEFAULT_MULTICAST_TTL) {
+#elif defined(IP_MULTICAST_TTL)
+  if (multicast_time_to_live_ != IP_MULTICAST_TTL) {
+#endif
     int rv;
     if (addr_family_ == AF_INET) {
       u_char ttl = multicast_time_to_live_;
@@ -1095,5 +1099,7 @@ int UDPSocketPosix::SetIOSNetworkServiceType(int ios_network_service_type) {
 #endif  // BUILDFLAG(IS_IOS)
   return OK;
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace net
