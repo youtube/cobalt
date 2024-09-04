@@ -66,9 +66,7 @@ static_library("renderer") {
     "//starboard/content/fonts:copy_font_data",
   ]
 
-  if (is_starboard) {
-    deps += [ default_renderer_options_dependency ]
-  }
+  deps += [ "//cobalt/renderer:default_options" ]
 
   if (!is_gold) {
     deps += [ "//cobalt/debug:console_command_manager" ]
