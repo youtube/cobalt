@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//cobalt/network/certs.gni")
-
 # TODO: b/330221826 Change to |public_configs| with matching dependencies.
 config("network_all_dependent_config") {
   # Enable network logging on all but gold builds.
@@ -85,7 +83,6 @@ static_library("network") {
   public_deps = [ "//net" ]
 
   deps = [
-    ":copy_ssl_certificates",
     "//cobalt/base",
     "//cobalt/build:cobalt_build_id",
     "//cobalt/configuration",
@@ -93,6 +90,7 @@ static_library("network") {
     "//cobalt/persistent_storage:persistent_settings",
     "//cobalt/storage",
     "//starboard/common",
+    "//starboard/content/ssl:copy_ssl_certificates",
     "//third_party/protobuf:protobuf_lite",
     "//url",
   ]
@@ -121,13 +119,6 @@ static_library("network") {
 
   # TODO: b/330221826 Change to |public_configs| with matching dependencies.
   all_dependent_configs = [ ":network_all_dependent_config" ]
-}
-
-copy("copy_ssl_certificates") {
-  install_content = true
-  sources = network_certs
-  outputs =
-      [ "$sb_static_contents_output_data_dir/ssl/certs/{{source_file_part}}" ]
 }
 
 target(gtest_target_type, "network_test") {
