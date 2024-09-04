@@ -25,7 +25,6 @@ RUN apt update -qqy \
         nasm \
         ninja-build \
         pkgconf \
-        python3-certifi \
         unzip \
     && /opt/clean-after-apt.sh
 

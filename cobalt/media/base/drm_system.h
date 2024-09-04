@@ -26,7 +26,6 @@
 #include "base/optional.h"
 #include "base/single_thread_task_runner.h"
 #include "base/task/sequenced_task_runner.h"
-#include "cobalt/media/base/metrics_provider.h"
 #include "starboard/atomic.h"
 #include "starboard/drm.h"
 
@@ -232,7 +231,6 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
                                              SbDrmStatus status,
                                              const char* error_message);
 
-  MediaMetricsProvider media_metrics_provider_;
   const SbDrmSystem wrapped_drm_system_;
   scoped_refptr<base::SequencedTaskRunner> const task_runner_;
 

@@ -121,8 +121,6 @@ int main(int argc, char **argv) {
     perror("_setmode(_fileno(stderr), O_BINARY)");
     return 1;
   }
-#elif defined(STARBOARD)
-  // We don't have signal() ..
 #else
   signal(SIGPIPE, SIG_IGN);
 #endif

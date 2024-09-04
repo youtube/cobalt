@@ -16,5 +16,4 @@ interface H5vccSettings {
   boolean set(DOMString name, (long or DOMString) value);
   void setPersistentSettingAsInt(DOMString name, long value);
   long getPersistentSettingAsInt(DOMString name, long default_setting);
-  DOMString getPersistentSettingAsString(DOMString name);
 };

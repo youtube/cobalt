@@ -40,7 +40,6 @@ class CpuUsageTracker : base::CurrentThread::DestructionObserver {
   static CpuUsageTracker* GetInstance();
 
   void Initialize(persistent_storage::PersistentSettings*);
-  base::Value GetIntervalsDefinition();
   void UpdateIntervalsDefinition(const base::Value&);
   void UpdateIntervalsEnabled(bool);
   void StartOneTimeTracking();

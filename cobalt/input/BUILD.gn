@@ -15,8 +15,6 @@
 static_library("input") {
   sources = [
     "camera_3d.h",
-    "camera_3d_input_poller.cc",
-    "camera_3d_input_poller.h",
     "create_default_camera_3d.h",
     "input_device_manager.h",
     "input_device_manager_desktop.cc",
@@ -34,6 +32,18 @@ static_library("input") {
     "keypress_generator_filter.cc",
     "keypress_generator_filter.h",
   ]
+
+  if (enable_vr) {
+    sources += [
+      "//internal/cobalt/input/private/camera_3d_vr.cc",
+      "//internal/cobalt/input/private/camera_3d_vr.h",
+    ]
+  } else {
+    sources += [
+      "camera_3d_input_poller.cc",
+      "camera_3d_input_poller.h",
+    ]
+  }
 
   deps = [
     "//cobalt/base",

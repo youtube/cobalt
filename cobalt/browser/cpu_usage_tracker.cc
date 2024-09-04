@@ -300,12 +300,6 @@ void CpuUsageTracker::UpdateIntervalsEnabled(bool enabled) {
   }
 }
 
-base::Value CpuUsageTracker::GetIntervalsDefinition() {
-  base::Value intervals;
-  storage_->Get(kIntervals, &intervals);
-  return std::move(intervals);
-}
-
 void CpuUsageTracker::UpdateIntervalsDefinition(
     const base::Value& intervals_value) {
   if (!task_runner_->RunsTasksInCurrentSequence()) {

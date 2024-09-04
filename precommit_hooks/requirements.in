@@ -8,4 +8,3 @@ pre-commit<3
 cpplint<2
 yapf<1
 pylint<3
-certifi

@@ -37,10 +37,6 @@
 #include "jmorecfg.h"           /* seldom changed options */
 
 
-#if defined(STARBOARD)
-#include "starboard/common/file_wrapper.h"
-#endif
-
 #ifdef __cplusplus
 #ifndef DONT_USE_EXTERN_C
 extern "C" {
@@ -924,8 +920,8 @@ EXTERN(void) jpeg_destroy_decompress(j_decompress_ptr cinfo);
 /* Standard data source and destination managers: stdio streams. */
 /* Caller is responsible for opening the file before and closing after. */
 #if defined(STARBOARD)
-EXTERN(void) jpeg_stdio_dest(j_compress_ptr cinfo, FileStruct *outfile);
-EXTERN(void) jpeg_stdio_src(j_decompress_ptr cinfo, FileStruct *infile);
+EXTERN(void) jpeg_stdio_dest(j_compress_ptr cinfo, SbFile *outfile);
+EXTERN(void) jpeg_stdio_src(j_decompress_ptr cinfo, SbFile *infile);
 #else
 EXTERN(void) jpeg_stdio_dest(j_compress_ptr cinfo, FILE *outfile);
 EXTERN(void) jpeg_stdio_src(j_decompress_ptr cinfo, FILE *infile);

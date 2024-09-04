@@ -166,7 +166,6 @@ repos:
         entry: python ./download_resources.py
         language: python
         stages: [post-checkout]
-        additional_dependencies: [certifi]
         always_run: true
     -   id: test-download-from-gcs-helper
         name: test download from gcs helper
@@ -175,7 +174,6 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [push]
-        additional_dependencies: [certifi]
         args: [-m, unittest, cobalt/tools/download_from_gcs_test.py]
     -   id: test-python3-compatibility
         name: Test Python 3 Compatibility

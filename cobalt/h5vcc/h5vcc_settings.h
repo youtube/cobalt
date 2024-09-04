@@ -63,8 +63,6 @@ class H5vccSettings : public script::Wrappable {
   int GetPersistentSettingAsInt(const std::string& key,
                                 int default_setting) const;
 
-  std::string GetPersistentSettingAsString(const std::string& key) const;
-
   DEFINE_WRAPPABLE_TYPE(H5vccSettings);
 
  private:

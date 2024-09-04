@@ -399,7 +399,6 @@ dependency_idl_files = [
   "//cobalt/dom/global_event_handlers.idl",
   "//cobalt/dom/html_element_cssom_view.idl",
   "//cobalt/dom/mouse_event_cssom_view.idl",
-  "//cobalt/dom/navigator_concurrent_hardware.idl",
   "//cobalt/dom/navigator_licenses.idl",
   "//cobalt/dom/navigator_plugins.idl",
   "//cobalt/dom/navigator_storage_utils.idl",

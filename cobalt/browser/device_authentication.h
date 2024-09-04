@@ -24,10 +24,7 @@ namespace cobalt {
 namespace browser {
 
 // Returns a base64 encoded SHA256 hash representing the device authentication
-// signature, the device certification scope, and the current time as query
-// parameters in a string. The signature is the result of signing a message,
-// containing the certification scope and the current time, with a secret key
-// provided by the device.
+// signature based on the device certification scope and the current time.
 std::string GetDeviceAuthenticationSignedURLQueryString();
 
 // The following methods are deterministic helper functions used in the

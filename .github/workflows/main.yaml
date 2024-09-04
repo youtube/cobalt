@@ -264,7 +264,8 @@ jobs:
         uses: ./.github/actions/build
       - name: 'Check Artifact Size'
         uses: ./.github/actions/check_artifact_size
-        if: ${{ false }} # ${{ inputs.artifact_size_increase_thresholds }}
+        if: ${{ inputs.artifact_size_increase_thresholds }}
+        continue-on-error: true  # Ignore this step if check artifact size failed.
         with:
           workflow: ${{ github.workflow }}
           name: ${{ matrix.platform }}-${{ matrix.config }}

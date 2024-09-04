@@ -18,7 +18,6 @@
 #include <vector>
 
 #include "base/optional.h"
-#include "base/system/sys_info.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/dom_settings.h"
@@ -154,10 +153,6 @@ Navigator::Navigator(script::EnvironmentSettings* settings,
       media_devices_(
           new media_capture::MediaDevices(settings, script_value_factory())),
       system_caption_settings_(captions) {}
-
-uint64_t Navigator::hardware_concurrency() const {
-  return static_cast<uint64_t>(base::SysInfo::NumberOfProcessors());
-}
 
 const std::string Navigator::licenses() const {
   GeneratedResourceMap resource_map;

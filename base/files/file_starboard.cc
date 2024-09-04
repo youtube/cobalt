@@ -32,6 +32,15 @@
 
 namespace base {
 
+namespace {
+SbFileError g_sb_file_error = kSbFileOk;
+}  // namespace
+
+// TODO: remove SbFileError
+void SetLastFileError(File::Error error) {
+  g_sb_file_error = static_cast<SbFileError>(error);
+}
+
 void RecordFileWriteStat(int write_file_result) {
   auto& stats_tracker =
       starboard::StatsTrackerContainer::GetInstance()->stats_tracker();
@@ -44,9 +53,9 @@ void RecordFileWriteStat(int write_file_result) {
 }
 
 // Make sure our Whence mappings match the system headers.
-static_assert(File::FROM_BEGIN == static_cast<int>(SEEK_SET) &&
-                  File::FROM_CURRENT == static_cast<int>(SEEK_CUR) &&
-                  File::FROM_END == static_cast<int>(SEEK_END),
+static_assert(File::FROM_BEGIN == static_cast<int>(kSbFileFromBegin) &&
+                  File::FROM_CURRENT == static_cast<int>(kSbFileFromCurrent) &&
+                  File::FROM_END == static_cast<int>(kSbFileFromEnd),
               "Whence enums from base must match those of Starboard.");
 
 void File::Info::FromStat(const stat_wrapper_t& stat_info) {

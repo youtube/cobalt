@@ -34,8 +34,5 @@ RUN python3.8 -m venv /python38_env
 ENV VIRTUAL_ENV /python38_env
 ENV PATH /python38_env/bin:$PATH
 
-COPY clang-3-9/requirements.txt /opt/requirements.txt
-RUN python3.8 -m pip install --require-hashes --no-deps -r /opt/requirements.txt
-
 CMD gn gen ${OUTDIR}/${PLATFORM}_${CONFIG} --args="target_platform=\"${PLATFORM}\" build_type=\"${CONFIG}\" using_old_compiler=true build_with_separate_cobalt_toolchain=true" && \
     ninja -v -j ${NINJA_PARALLEL} -C ${OUTDIR}/${PLATFORM}_${CONFIG} ${TARGET:-cobalt_install}

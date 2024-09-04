@@ -74,7 +74,6 @@ _TESTS_NO_SIGNAL = [
     # 'h5vcc_watchdog_api_test',
     'http_cache',
     'javascript_profiler',
-    'navigator_test',
     'performance_resource_timing_test',
     'persistent_cookie',
     'pointer_event_on_fixed_element_test',

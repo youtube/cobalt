@@ -49,7 +49,6 @@ config("internal_config") {
     "OPENSSL_SMALL",
   ]
   if (is_starboard) {
-    defines -= [ "OPENSSL_SMALL" ]
     defines += [
       "NO_SYS_PARAM_H",
       "NO_SYS_UN_H",
@@ -319,17 +318,6 @@ if (!use_cobalt_customizations) {
     } else {
         assert(false, "Unsupported OS for native build")
     }
-  }
-}
-
-if (is_starboard) {
-  target(final_executable_type, "boringssl_tool") {
-    testonly = true
-    sources = tool_sources
-    deps = [
-      ":boringssl",
-      "//starboard:starboard_group",
-    ]
   }
 }
 

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
+#include "starboard/android/shared/max_output_buffers_lookup_table.h"
 
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
