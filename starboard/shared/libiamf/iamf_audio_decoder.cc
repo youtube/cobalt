@@ -93,44 +93,12 @@ void IamfAudioDecoder::Decode(const InputBuffers& input_buffers,
     return;
   }
 
-  if (input_buffers.size() > kMinimumBuffersToDecode) {
-    std::copy(std::begin(input_buffers), std::end(input_buffers),
-              std::back_inserter(pending_audio_buffers_));
-    consumed_cb_ = consumed_cb;
-    DecodePendingBuffers();
-  } else {
-    for (const auto& input_buffer : input_buffers) {
-      if (!DecodeInternal(input_buffer)) {
-        return;
-      }
-    }
-    Schedule(consumed_cb);
-  }
-}
-
-void IamfAudioDecoder::DecodePendingBuffers() {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(!pending_audio_buffers_.empty());
-  SB_DCHECK(consumed_cb_);
-
-  for (int i = 0; i < kMinimumBuffersToDecode; ++i) {
-    if (!DecodeInternal(pending_audio_buffers_.front())) {
-      return;
-    }
-    pending_audio_buffers_.pop_front();
-    if (pending_audio_buffers_.empty()) {
-      Schedule(consumed_cb_);
-      consumed_cb_ = nullptr;
-      if (stream_ended_) {
-        Schedule(std::bind(&IamfAudioDecoder::WriteEndOfStream, this));
-        stream_ended_ = false;
-      }
+  for (const auto& input_buffer : input_buffers) {
+    if (!DecodeInternal(input_buffer)) {
       return;
     }
   }
-
-  SB_DCHECK(!pending_audio_buffers_.empty());
-  Schedule(std::bind(&IamfAudioDecoder::DecodePendingBuffers, this));
+  Schedule(consumed_cb);
 }
 
 bool IamfAudioDecoder::DecodeInternal(
@@ -146,14 +114,15 @@ bool IamfAudioDecoder::DecodeInternal(
     return false;
   }
 
-  IamfConfigReader reader(input_buffer, kForceBinauralAudio,
-                          kForceSurroundAudio);
-  if (!reader.is_valid()) {
+  IamfBufferParser::IamfBufferInfo info;
+  IamfBufferParser().ParseInputBuffer(input_buffer, &info, kForceBinauralAudio,
+                                      kForceSurroundAudio);
+  if (!info.is_valid()) {
     ReportError("Failed to parse IA Descriptors");
     return false;
   }
   if (!decoder_is_configured_) {
-    if (!ConfigureDecoder(&reader, input_buffer->timestamp())) {
+    if (!ConfigureDecoder(&info, input_buffer->timestamp())) {
       return false;
     }
   }
@@ -161,28 +130,30 @@ bool IamfAudioDecoder::DecodeInternal(
   scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
       audio_stream_info_.number_of_channels, GetSampleType(),
       kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
-      audio_stream_info_.number_of_channels * reader.samples_per_buffer() *
+      audio_stream_info_.number_of_channels * info.num_samples *
           starboard::media::GetBytesPerSample(GetSampleType()));
-  int samples_decoded = IAMF_decoder_decode(
-      decoder_, reader.data().data(), reader.data().size(), nullptr,
-      reinterpret_cast<void*>(decoded_audio->data()));
+  int samples_decoded =
+      IAMF_decoder_decode(decoder_, info.data.data(), info.data_size, nullptr,
+                          reinterpret_cast<void*>(decoded_audio->data()));
   if (samples_decoded < 1) {
     ReportError("Failed to decode IAMF sample, error " +
                 ErrorCodeToString(samples_decoded));
     return false;
   }
 
-  SB_DCHECK(samples_decoded <= reader.samples_per_buffer());
+  SB_DCHECK(samples_decoded <= info.num_samples)
+      << "Samples decoded (" << samples_decoded
+      << ") is greater than the number of samples indicated by the stream ("
+      << info.num_samples << ")";
 
-  decoded_audio->ShrinkTo(audio_stream_info_.number_of_channels *
-                          reader.samples_per_buffer() *
-                          starboard::media::GetBytesPerSample(GetSampleType()));
+  if (samples_per_second_ == 0) {
+    samples_per_second_ = info.sample_rate;
+  }
 
   // TODO: Enable partial audio once float32 pcm output is available.
   const auto& sample_info = input_buffer->audio_sample_info();
   decoded_audio->AdjustForDiscardedDurations(
-      audio_stream_info_.samples_per_second,
-      sample_info.discarded_duration_from_front,
+      samples_per_second_, sample_info.discarded_duration_from_front,
       sample_info.discarded_duration_from_back);
 
   decoded_audios_.push(decoded_audio);
@@ -207,7 +178,7 @@ void IamfAudioDecoder::WriteEndOfStream() {
   Schedule(output_cb_);
 }
 
-bool IamfAudioDecoder::ConfigureDecoder(IamfConfigReader* reader,
+bool IamfAudioDecoder::ConfigureDecoder(IamfBufferInfo* info,
                                         int64_t timestamp) {
   SB_DCHECK(is_valid());
   SB_DCHECK(!decoder_is_configured_);
@@ -221,7 +192,7 @@ bool IamfAudioDecoder::ConfigureDecoder(IamfConfigReader* reader,
     return false;
   }
 
-  error = IAMF_decoder_set_sampling_rate(decoder_, kDefaultSampleRate);
+  error = IAMF_decoder_set_sampling_rate(decoder_, info->sample_rate);
   if (error != IAMF_OK) {
     ReportError("IAMF_decoder_set_sampling_rate() fails with error " +
                 ErrorCodeToString(error));
@@ -286,7 +257,7 @@ bool IamfAudioDecoder::ConfigureDecoder(IamfConfigReader* reader,
     }
   }
 
-  // Time base is set to 9000, as it is in the iamfplayer example
+  // Time base is set to 90000, as it is in the iamfplayer example
   // https://github.com/AOMediaCodec/libiamf/blob/v1.0.0-errata/code/test/tools/iamfplayer/player/iamfplayer.c#L450
   error = IAMF_decoder_set_pts(decoder_, timestamp, 90000);
   if (error != IAMF_OK) {
@@ -295,8 +266,8 @@ bool IamfAudioDecoder::ConfigureDecoder(IamfConfigReader* reader,
     return false;
   }
 
-  error = IAMF_decoder_set_mix_presentation_id(decoder_,
-                                               reader->mix_presentation_id());
+  error = IAMF_decoder_set_mix_presentation_id(
+      decoder_, info->mix_presentation_id.value());
   if (error != IAMF_OK) {
     ReportError("IAMF_decoder_set_mix_presentation_id() fails with error " +
                 ErrorCodeToString(error));
@@ -317,8 +288,8 @@ bool IamfAudioDecoder::ConfigureDecoder(IamfConfigReader* reader,
     return false;
   }
 
-  error = IAMF_decoder_configure(decoder_, reader->config_obus().data(),
-                                 reader->config_size(), nullptr);
+  error = IAMF_decoder_configure(decoder_, info->config_obus.data(),
+                                 info->config_obus_size, nullptr);
   if (error != IAMF_OK) {
     ReportError("IAMF_decoder_configure() fails with error " +
                 ErrorCodeToString(error));
@@ -342,13 +313,14 @@ scoped_refptr<IamfAudioDecoder::DecodedAudio> IamfAudioDecoder::Read(
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
+  SB_DCHECK(samples_per_second_ > 0);
 
   scoped_refptr<DecodedAudio> result;
   if (!decoded_audios_.empty()) {
     result = decoded_audios_.front();
     decoded_audios_.pop();
   }
-  *samples_per_second = kDefaultSampleRate;
+  *samples_per_second = samples_per_second_;
   return result;
 }
 

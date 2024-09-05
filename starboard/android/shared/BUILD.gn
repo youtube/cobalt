@@ -491,8 +491,8 @@ static_library("starboard_platform") {
     sources += [
       "//starboard/shared/libiamf/iamf_audio_decoder.cc",
       "//starboard/shared/libiamf/iamf_audio_decoder.h",
-      "//starboard/shared/libiamf/iamf_config_reader.cc",
-      "//starboard/shared/libiamf/iamf_config_reader.h",
+      "//starboard/shared/libiamf/iamf_buffer_parser.cc",
+      "//starboard/shared/libiamf/iamf_buffer_parser.h",
     ]
 
     defines += [ "ENABLE_IAMF_DECODE" ]
