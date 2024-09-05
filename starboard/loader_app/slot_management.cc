@@ -140,7 +140,8 @@ bool ReadEvergreenVersion(std::vector<char>* manifest_file_path,
 
   Json::Reader reader;
   Json::Value obj;
-  if (!reader.parse(std::string(file_data.data()), obj) || !obj[kVersionKey]) {
+  if (!reader.parse(std::string(file_data.data(), file_size), obj) ||
+      !obj[kVersionKey]) {
     SB_LOG(WARNING) << "Failed to parse version from the manifest file at the "
                        "installation path.";
     return false;
