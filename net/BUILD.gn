@@ -1175,6 +1175,7 @@ component("net") {
       "socket/tcp_socket_starboard.h",
       "socket/udp_socket_starboard.cc",
       "socket/udp_socket_starboard.h",
+      # POSIX
     ]
     deps += [ "//starboard:starboard_group" ]
   }
