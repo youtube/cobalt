@@ -22,7 +22,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/libiamf/iamf_config_reader.h"
+#include "starboard/shared/libiamf/iamf_buffer_parser.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
@@ -38,6 +38,7 @@ class IamfAudioDecoder
       private starboard::player::JobQueue::JobOwner {
  public:
   typedef starboard::media::AudioStreamInfo AudioStreamInfo;
+  typedef shared::libiamf::IamfBufferParser::IamfBufferInfo IamfBufferInfo;
 
   explicit IamfAudioDecoder(const AudioStreamInfo& audio_stream_info);
   ~IamfAudioDecoder() override;
@@ -56,9 +57,8 @@ class IamfAudioDecoder
   static constexpr int kMinimumBuffersToDecode = 2;
   static constexpr int kDefaultSampleRate = 48000;
 
-  bool ConfigureDecoder(IamfConfigReader* reader, int64_t timestamp);
+  bool ConfigureDecoder(IamfBufferInfo* info, int64_t timestamp);
   void TeardownDecoder();
-  void DecodePendingBuffers();
   bool DecodeInternal(const scoped_refptr<InputBuffer>& input_buffer);
 
   SbMediaAudioSampleType GetSampleType() const;
@@ -75,6 +75,7 @@ class IamfAudioDecoder
   AudioStreamInfo audio_stream_info_;
   bool decoder_is_configured_ = false;
   std::deque<scoped_refptr<InputBuffer>> pending_audio_buffers_;
+  int samples_per_second_ = 0;
 };
 
 }  // namespace libiamf
