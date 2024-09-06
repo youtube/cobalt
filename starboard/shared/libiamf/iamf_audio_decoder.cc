@@ -27,7 +27,8 @@ namespace {
 using shared::starboard::player::DecodedAudio;
 
 constexpr int kForceBinauralAudio = false;
-constexpr int kForceSurroundAudio = false;
+constexpr int kForce6ChannelAudio = false;
+constexpr int kForce8ChannelAudio = false;
 
 std::string ErrorCodeToString(int code) {
   switch (code) {
@@ -115,8 +116,9 @@ bool IamfAudioDecoder::DecodeInternal(
   }
 
   IamfBufferParser::IamfBufferInfo info;
-  IamfBufferParser().ParseInputBuffer(input_buffer, &info, kForceBinauralAudio,
-                                      kForceSurroundAudio);
+  IamfBufferParser().ParseInputBuffer(
+      input_buffer, &info, kForceBinauralAudio,
+      kForce6ChannelAudio | kForce8ChannelAudio);
   if (!info.is_valid()) {
     ReportError("Failed to parse IA Descriptors");
     return false;
@@ -209,43 +211,15 @@ bool IamfAudioDecoder::ConfigureDecoder(IamfBufferInfo* info,
       return false;
     }
   } else {
-    // Default to stereo output. If kForceSurroundAudio is true, set to a sound
-    // system matching, the platform's audio configuration, if available.
     IAMF_SoundSystem sound_system = SOUND_SYSTEM_A;
-    if (kForceSurroundAudio) {
-      SbMediaAudioConfiguration out_config;
-      SbMediaGetAudioConfiguration(0, &out_config);
-      int channels = std::max(out_config.number_of_channels, 2);
-      if (channels > 8 || channels < 1) {
-        ReportError(::starboard::FormatString(
-            "Can't create decoder with %i channels", channels));
-        return false;
-      }
-      switch (channels) {
-        case 1:
-          sound_system = SOUND_SYSTEM_MONO;
-          break;
-        case 2:
-          // Stereo output.
-          sound_system = SOUND_SYSTEM_A;
-          SB_DLOG(INFO) << "Configuring IamfAudioDecoder for stereo output";
-          break;
-        case 6:
-          // 5.1 output.
-          sound_system = SOUND_SYSTEM_B;
-          SB_DLOG(INFO) << "Configuring IamfAudioDecoder for 5.1 output";
-          break;
-        case 8:
-          // 7.1 output.
-          sound_system = SOUND_SYSTEM_C;
-          SB_DLOG(INFO) << "Configuring IamfAudioDecoder for 7.1 output";
-          break;
-        default:
-          SB_NOTREACHED();
-          return false;
-      }
+    if (kForce6ChannelAudio) {
+      SB_LOG(INFO) << "Configuring IamfAudioDecoder for 5.1 output";
+      sound_system = SOUND_SYSTEM_B;
+    } else if (kForce8ChannelAudio) {
+      SB_LOG(INFO) << "Configuring IamfAudioDecoder for 7.1 output";
+      sound_system = SOUND_SYSTEM_C;
     } else {
-      SB_DLOG(INFO) << "Defaulting to stereo output.";
+      SB_LOG(INFO) << "Configuring IamfAudioDecoder for stereo output";
     }
 
     error = IAMF_decoder_output_layout_set_sound_system(decoder_, sound_system);
