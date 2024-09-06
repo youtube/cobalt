@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:starboard/content/ssl/BUILD.gn
 # Copyright 2024 The Cobalt Authors. All Rights Reserved.
+========
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
+>>>>>>>> origin/feature/sb17:starboard/shared/enhanced_audio/enhanced_audio.gni
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+<<<<<<<< HEAD:starboard/content/ssl/BUILD.gn
 import("//starboard/content/ssl/certs.gni")
 
 copy("copy_ssl_certificates") {
@@ -20,3 +25,12 @@ copy("copy_ssl_certificates") {
   outputs =
       [ "$sb_static_contents_output_data_dir/ssl/certs/{{source_file_part}}" ]
 }
+========
+enhanced_audio_sources = [
+  "//starboard/shared/enhanced_audio/enhanced_audio.cc",
+  "//starboard/shared/enhanced_audio/enhanced_audio.h",
+  "//starboard/shared/enhanced_audio/enhanced_audio_player_write_samples.cc",
+  "//starboard/shared/enhanced_audio/enhanced_audio_player_write_samples.h",
+  "//starboard/shared/enhanced_audio/player_write_samples_checked.cc",
+]
+>>>>>>>> origin/feature/sb17:starboard/shared/enhanced_audio/enhanced_audio.gni

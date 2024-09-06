@@ -64,9 +64,7 @@ class SbPlayerInterface {
 
 #if SB_API_VERSION >= 15
   virtual void GetInfo(SbPlayer player, SbPlayerInfo* out_player_info) = 0;
-#else   // SB_API_VERSION >= 15
-  virtual void GetInfo(SbPlayer player, SbPlayerInfo2* out_player_info2) = 0;
-#endif  // SB_API_VERSION >= 15
+
   virtual SbDecodeTarget GetCurrentFrame(SbPlayer player) = 0;
 
 #if SB_HAS(PLAYER_WITH_URL)

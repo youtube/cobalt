@@ -219,13 +219,6 @@ std::string H5vccSettings::GetPersistentSettingAsString(
     absl::optional<std::string> json = base::WriteJson(value);
     return json.value_or(std::string());
   }
-
-  if (key.compare(network::kProtocolFilterKey) == 0) {
-    base::Value value;
-    persistent_settings_->Get(network::kProtocolFilterKey, &value);
-    if (!value.is_string()) return std::string();
-    return value.GetString();
-  }
   return std::string();
 }
 

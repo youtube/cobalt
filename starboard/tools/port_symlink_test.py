@@ -107,8 +107,7 @@ class PortSymlinkTest(unittest.TestCase):
     # os.path.exists() will return false for broken links (not true for reparse
     # points on Windows) since their target does not exist. Rmtree
     # implementations should still be able to remove the link.
-    if not port_symlink.IsWindows():
-      self.assertFalse(os.path.exists(self.link_dir))
+    self.assertFalse(os.path.exists(self.link_dir))
     self.assertTrue(IsSymLink(self.link_dir))
     Rmtree(self.link_dir)
     self.assertFalse(IsSymLink(self.link_dir))

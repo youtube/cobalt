@@ -96,8 +96,6 @@ void SetStreamInfo(
 void SetStreamInfo(const SbMediaVideoStreamInfo& stream_info,
                    SbMediaVideoSampleInfo* sample_info) {
   DCHECK(sample_info);
-
-#if SB_API_VERSION >= 15
   sample_info->stream_info = stream_info;
 #else   // SB_API_VERSION >= 15
   *sample_info = stream_info;
@@ -1259,8 +1257,6 @@ SbPlayerOutputMode SbPlayerBridge::ComputeSbPlayerOutputMode(
     SbPlayerOutputMode default_output_mode) const {
   SbPlayerCreationParam creation_param = {};
   creation_param.drm_system = drm_system_;
-
-#if SB_API_VERSION >= 15
   creation_param.audio_stream_info = audio_stream_info_;
   creation_param.video_stream_info = video_stream_info_;
 #else   // SB_API_VERSION >= 15

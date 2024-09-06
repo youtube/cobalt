@@ -97,11 +97,7 @@ void DefaultSbPlayerInterface::Seek(SbPlayer player,
                                     base::TimeDelta seek_to_timestamp,
                                     int ticket) {
   media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_SEEK);
-#if SB_API_VERSION >= 15
   SbPlayerSeek(player, seek_to_timestamp.InMicroseconds(), ticket);
-#else   // SB_API_VERSION >= 15
-  SbPlayerSeek2(player, seek_to_timestamp.InMicroseconds(), ticket);
-#endif  // SB_API_VERSION >= 15
   media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_SEEK);
 }
 
@@ -174,11 +170,6 @@ void DefaultSbPlayerInterface::GetInfo(SbPlayer player,
                                        SbPlayerInfo* out_player_info) {
   media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_GET_INFO);
   SbPlayerGetInfo(player, out_player_info);
-#else   // SB_API_VERSION >= 15
-                                       SbPlayerInfo2* out_player_info2) {
-  media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_GET_INFO);
-  SbPlayerGetInfo2(player, out_player_info2);
-#endif  // SB_API_VERSION >= 15
   media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_GET_INFO);
 }
 
@@ -236,8 +227,6 @@ bool DefaultSbPlayerInterface::GetAudioConfiguration(
       MediaAction::SBPLAYER_GET_AUDIO_CONFIG);
   return audio_configuration;
 }
-
-#endif  // SB_API_VERSION >= 15
 
 }  // namespace media
 }  // namespace cobalt
