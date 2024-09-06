@@ -62,7 +62,6 @@ class SbPlayerInterface {
   virtual bool SetPlaybackRate(SbPlayer player, double playback_rate) = 0;
   virtual void SetVolume(SbPlayer player, double volume) = 0;
 
-#if SB_API_VERSION >= 15
   virtual void GetInfo(SbPlayer player, SbPlayerInfo* out_player_info) = 0;
 
   virtual SbDecodeTarget GetCurrentFrame(SbPlayer player) = 0;
@@ -82,11 +81,9 @@ class SbPlayerInterface {
       SbPlayer player, SbUrlPlayerExtraInfo* out_url_player_info) = 0;
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-#if SB_API_VERSION >= 15
   virtual bool GetAudioConfiguration(
       SbPlayer player, int index,
       SbMediaAudioConfiguration* out_audio_configuration) = 0;
-#endif  // SB_API_VERSION >= 15
 
   // disabled by default, but can be enabled via h5vcc setting.
   void EnableCValStats(bool should_enable) {
@@ -129,11 +126,7 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
                  int height) override;
   bool SetPlaybackRate(SbPlayer player, double playback_rate) override;
   void SetVolume(SbPlayer player, double volume) override;
-#if SB_API_VERSION >= 15
   void GetInfo(SbPlayer player, SbPlayerInfo* out_player_info) override;
-#else   // SB_API_VERSION >= 15
-  void GetInfo(SbPlayer player, SbPlayerInfo2* out_player_info2) override;
-#endif  // SB_API_VERSION >= 15
   SbDecodeTarget GetCurrentFrame(SbPlayer player) override;
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -149,11 +142,9 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
       SbPlayer player, SbUrlPlayerExtraInfo* out_url_player_info) override;
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-#if SB_API_VERSION >= 15
   bool GetAudioConfiguration(
       SbPlayer player, int index,
       SbMediaAudioConfiguration* out_audio_configuration) override;
-#endif  // SB_API_VERSION >= 15
 
  private:
   void (*enhanced_audio_player_write_samples_)(

@@ -109,13 +109,8 @@ void DefaultSbPlayerInterface::WriteSamples(
     SbPlayer player, SbMediaType sample_type,
     const SbPlayerSampleInfo* sample_infos, int number_of_sample_infos) {
   DCHECK(!IsEnhancedAudioExtensionEnabled());
-#if SB_API_VERSION >= 15
   SbPlayerWriteSamples(player, sample_type, sample_infos,
                        number_of_sample_infos);
-#else   // SB_API_VERSION >= 15
-  SbPlayerWriteSample2(player, sample_type, sample_infos,
-                       number_of_sample_infos);
-#endif  // SB_API_VERSION >= 15
 }
 
 void DefaultSbPlayerInterface::WriteSamples(
@@ -166,7 +161,6 @@ void DefaultSbPlayerInterface::SetVolume(SbPlayer player, double volume) {
 }
 
 void DefaultSbPlayerInterface::GetInfo(SbPlayer player,
-#if SB_API_VERSION >= 15
                                        SbPlayerInfo* out_player_info) {
   media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_GET_INFO);
   SbPlayerGetInfo(player, out_player_info);
@@ -213,8 +207,6 @@ void DefaultSbPlayerInterface::GetUrlPlayerExtraInfo(
   SbUrlPlayerGetExtraInfo(player, out_url_player_info);
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
-
-#if SB_API_VERSION >= 15
 
 bool DefaultSbPlayerInterface::GetAudioConfiguration(
     SbPlayer player, int index,
