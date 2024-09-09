@@ -3075,7 +3075,7 @@ test("net_unittests") {
     data_deps += [
       ":net_unittest_files",
       ":third_party_unittest_files",
-      "//cobalt/network:copy_ssl_certificates",
+      "//starboard/content/ssl:copy_ssl_certificates",
     ]
   }
 

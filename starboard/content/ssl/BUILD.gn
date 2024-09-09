@@ -1,4 +1,4 @@
-# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+# Copyright 2024 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,15 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-declare_args() {
-  # Whether VR is enabled.
-  enable_vr = getenv("USE_VR")
-}
+import("//starboard/content/ssl/certs.gni")
 
-if (enable_vr == true || enable_vr == "1") {
-  enable_vr = true
-} else if (enable_vr == false || enable_vr == "0" || enable_vr == "") {
-  enable_vr = false
-} else {
-  assert(false, "enable_vr was set to an invalid value.")
+copy("copy_ssl_certificates") {
+  install_content = true
+  sources = network_certs
+  outputs =
+      [ "$sb_static_contents_output_data_dir/ssl/certs/{{source_file_part}}" ]
 }

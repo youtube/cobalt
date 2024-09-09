@@ -53,5 +53,5 @@ target(gtest_target_type, "text_encoding_test") {
     "//testing/gtest",
   ]
 
-  data_deps = [ "//cobalt/network:copy_ssl_certificates" ]
+  data_deps = [ "//starboard/content/ssl:copy_ssl_certificates" ]
 }

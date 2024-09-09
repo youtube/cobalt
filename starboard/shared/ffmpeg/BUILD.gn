@@ -107,11 +107,13 @@ static_library("ffmpeg_dispatch_sources") {
 
 target(gtest_target_type, "ffmpeg_demuxer_test") {
   testonly = true
-  sources = [ "ffmpeg_demuxer_test.cc" ]
+  sources = [
+    "//starboard/common/test_main.cc",
+    "ffmpeg_demuxer_test.cc",
+  ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
   deps = [
     ":ffmpeg_dispatch_sources",
-    "//cobalt/test:run_all_unittests",
     "//starboard:starboard_group",
     "//starboard/common",
     "//testing/gmock",

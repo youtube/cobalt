@@ -79,7 +79,12 @@ SbPlayer DefaultSbPlayerInterface::Create(
 
 SbPlayerOutputMode DefaultSbPlayerInterface::GetPreferredOutputMode(
     const SbPlayerCreationParam* creation_param) {
-  return SbPlayerGetPreferredOutputMode(creation_param);
+  media_metrics_provider_.StartTrackingAction(
+      MediaAction::SBPLAYER_GET_PREFERRED_OUTPUT_MODE);
+  auto output_mode = SbPlayerGetPreferredOutputMode(creation_param);
+  media_metrics_provider_.EndTrackingAction(
+      MediaAction::SBPLAYER_GET_PREFERRED_OUTPUT_MODE);
+  return output_mode;
 }
 
 void DefaultSbPlayerInterface::Destroy(SbPlayer player) {
@@ -91,11 +96,13 @@ void DefaultSbPlayerInterface::Destroy(SbPlayer player) {
 void DefaultSbPlayerInterface::Seek(SbPlayer player,
                                     base::TimeDelta seek_to_timestamp,
                                     int ticket) {
+  media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_SEEK);
 #if SB_API_VERSION >= 15
   SbPlayerSeek(player, seek_to_timestamp.InMicroseconds(), ticket);
 #else   // SB_API_VERSION >= 15
   SbPlayerSeek2(player, seek_to_timestamp.InMicroseconds(), ticket);
 #endif  // SB_API_VERSION >= 15
+  media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_SEEK);
 }
 
 bool DefaultSbPlayerInterface::IsEnhancedAudioExtensionEnabled() const {
@@ -131,35 +138,57 @@ int DefaultSbPlayerInterface::GetMaximumNumberOfSamplesPerWrite(
 
 void DefaultSbPlayerInterface::WriteEndOfStream(SbPlayer player,
                                                 SbMediaType stream_type) {
+  auto media_action = (stream_type == kSbMediaTypeAudio)
+                          ? MediaAction::SBPLAYER_WRITE_END_OF_STREAM_AUDIO
+                          : MediaAction::SBPLAYER_WRITE_END_OF_STREAM_VIDEO;
+  media_metrics_provider_.StartTrackingAction(media_action);
   SbPlayerWriteEndOfStream(player, stream_type);
+  media_metrics_provider_.EndTrackingAction(media_action);
 }
 
 void DefaultSbPlayerInterface::SetBounds(SbPlayer player, int z_index, int x,
                                          int y, int width, int height) {
+  media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_SET_BOUNDS);
   SbPlayerSetBounds(player, z_index, x, y, width, height);
+  media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_SET_BOUNDS);
 }
 
 bool DefaultSbPlayerInterface::SetPlaybackRate(SbPlayer player,
                                                double playback_rate) {
-  return SbPlayerSetPlaybackRate(player, playback_rate);
+  media_metrics_provider_.StartTrackingAction(
+      MediaAction::SBPLAYER_SET_PLAYBACK_RATE);
+  auto set_playback_rate = SbPlayerSetPlaybackRate(player, playback_rate);
+  media_metrics_provider_.EndTrackingAction(
+      MediaAction::SBPLAYER_SET_PLAYBACK_RATE);
+  return set_playback_rate;
 }
 
 void DefaultSbPlayerInterface::SetVolume(SbPlayer player, double volume) {
+  media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_SET_VOLUME);
   SbPlayerSetVolume(player, volume);
+  media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_SET_VOLUME);
 }
 
 void DefaultSbPlayerInterface::GetInfo(SbPlayer player,
 #if SB_API_VERSION >= 15
                                        SbPlayerInfo* out_player_info) {
+  media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_GET_INFO);
   SbPlayerGetInfo(player, out_player_info);
 #else   // SB_API_VERSION >= 15
                                        SbPlayerInfo2* out_player_info2) {
+  media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_GET_INFO);
   SbPlayerGetInfo2(player, out_player_info2);
 #endif  // SB_API_VERSION >= 15
+  media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_GET_INFO);
 }
 
 SbDecodeTarget DefaultSbPlayerInterface::GetCurrentFrame(SbPlayer player) {
-  return SbPlayerGetCurrentFrame(player);
+  media_metrics_provider_.StartTrackingAction(
+      MediaAction::SBPLAYER_GET_CURRENT_FRAME);
+  auto current_frame = SbPlayerGetCurrentFrame(player);
+  media_metrics_provider_.EndTrackingAction(
+      MediaAction::SBPLAYER_GET_CURRENT_FRAME);
+  return current_frame;
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -199,7 +228,13 @@ void DefaultSbPlayerInterface::GetUrlPlayerExtraInfo(
 bool DefaultSbPlayerInterface::GetAudioConfiguration(
     SbPlayer player, int index,
     SbMediaAudioConfiguration* out_audio_configuration) {
-  return SbPlayerGetAudioConfiguration(player, index, out_audio_configuration);
+  media_metrics_provider_.StartTrackingAction(
+      MediaAction::SBPLAYER_GET_AUDIO_CONFIG);
+  auto audio_configuration =
+      SbPlayerGetAudioConfiguration(player, index, out_audio_configuration);
+  media_metrics_provider_.EndTrackingAction(
+      MediaAction::SBPLAYER_GET_AUDIO_CONFIG);
+  return audio_configuration;
 }
 
 #endif  // SB_API_VERSION >= 15
