@@ -299,7 +299,7 @@ TEST(CodecUtilTest, IsIamfMimeType) {
 
   EXPECT_FALSE(IsIamfMimeType("iamf.000.000.fLaC.40.2"));
   EXPECT_FALSE(IsIamfMimeType("iamf.000.000.mp4a.40.30"));
-  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.mp4a.40.20"))
+  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.mp4a.40.20"));
   EXPECT_FALSE(IsIamfMimeType("iamf.000.00.Opus"));
   EXPECT_FALSE(IsIamfMimeType("iamf.999.999.Opus"));
   EXPECT_FALSE(IsIamfMimeType("iamf.256.256.Opus"));

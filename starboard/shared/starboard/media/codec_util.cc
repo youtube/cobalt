@@ -115,12 +115,13 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
   return kSbMediaAudioCodecNone;
 }
 
-bool IsIamfMimeType(std::string& mime_type) {
+#if SB_API_VERSION >= 15
+bool IsIamfMimeType(std::string mime_type) {
   // Reference: Immersive Audio Model and Formats;
   //            v1.0.0
   //            6.3. Codecs Parameter String
   // (https://aomediacodec.github.io/iamf/v1.0.0-errata.html#codecsparameter)
-  if (!(std::string(mime_type).find("iamf") == 0)) {
+  if (mime_type.find("iamf") == std::string::npos) {
     return false;
   }
 
@@ -132,7 +133,7 @@ bool IsIamfMimeType(std::string& mime_type) {
       + 3   // additional_profile as 3 digit string.
       + 1   // delimiting period.
       + 9;  // The remaining string is one of
-            // "opus", "mp4a.40.2", "flac", "ipcm".
+            // "Opus", "mp4a.40.2", "fLaC", or "ipcm".
 
   if (mime_type.size() > kMaxIamfCodecIdLength) {
     return false;
@@ -201,6 +202,7 @@ bool IsIamfMimeType(std::string& mime_type) {
 
   return true;
 }
+#endif  // SB_API_VERSION >= 15
 
 }  // namespace media
 }  // namespace starboard

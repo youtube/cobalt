@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_CODEC_UTIL_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_CODEC_UTIL_H_
 
+#include <string>
 #include <vector>
 
 #include "starboard/common/optional.h"
@@ -73,6 +74,7 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
 #if SB_API_VERSION >= 15
 bool IsIamfMimeType(std::string mime_type);
 #endif  // SB_API_VERSION >= 15
+
 }  // namespace media
 }  // namespace starboard
 }  // namespace shared
