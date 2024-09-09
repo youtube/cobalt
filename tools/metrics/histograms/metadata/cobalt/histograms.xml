@@ -428,6 +428,24 @@ Always run the pretty print utility on this file after editing:
   <summary>Timing data for writing end of video stream.</summary>
 </histogram>
 
+<histogram name="Cobalt.Media.SbPlayer.WriteSamples.Audio.LatencyTiming"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
+
+  <owner>borongchen@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Timing data for writing single audio sample.</summary>
+</histogram>
+
+<histogram name="Cobalt.Media.SbPlayer.WriteSamples.Video.LatencyTiming"
+    units="microseconds" expires_after="never">
+<!-- expires-never: Needed for long-term tracking of SbPlayer latencies. -->
+
+  <owner>borongchen@google.com</owner>
+  <owner>cobalt-team@google.com</owner>
+  <summary>Timing data for writing single video sample.</summary>
+</histogram>
+
 <histogram name="Cobalt.Media.SDR.Matrix" enum="MatrixID" expires_after="never">
 <!-- expires-never: Needed for baseline Media pipeline health metric. -->
 
