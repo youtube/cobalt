@@ -16,7 +16,7 @@
 
 #include <algorithm>
 #include <cctype>
-#include <regex>
+#include <sstream>
 #include <string>
 
 #include "starboard/common/log.h"
@@ -115,15 +115,91 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
   return kSbMediaAudioCodecNone;
 }
 
-bool IsIamfMimeType(std::string mime_type) {
-  return std::regex_match(mime_type,
-                          std::regex("iamf\\.\\d{3}\\.\\d{3}\\.Opus")) ||
-         std::regex_match(
-             mime_type, std::regex("iamf\\.\\d{3}\\.\\d{3}\\.mp4a\\.40\\.2")) ||
-         std::regex_match(mime_type,
-                          std::regex("iamf\\.\\d{3}\\.\\d{3}\\.fLaC")) ||
-         std::regex_match(mime_type,
-                          std::regex("iamf\\.\\d{3}\\.\\d{3}\\.ipcm"));
+bool IsIamfMimeType(std::string& mime_type) {
+  // Reference: Immersive Audio Model and Formats;
+  //            v1.0.0
+  //            6.3. Codecs Parameter String
+  // (https://aomediacodec.github.io/iamf/v1.0.0-errata.html#codecsparameter)
+  if (!(std::string(mime_type).find("iamf") == 0)) {
+    return false;
+  }
+
+  constexpr int kMaxIamfCodecIdLength =
+      4     // FOURCC string "iamf".
+      + 1   // delimiting period.
+      + 3   // primary_profile as 3 digit string.
+      + 1   // delimiting period.
+      + 3   // additional_profile as 3 digit string.
+      + 1   // delimiting period.
+      + 9;  // The remaining string is one of
+            // "opus", "mp4a.40.2", "flac", "ipcm".
+
+  if (mime_type.size() > kMaxIamfCodecIdLength) {
+    return false;
+  }
+
+  std::vector<std::string> vec = SplitString(mime_type, '.');
+  if (vec.size() != 4 && vec.size() != 6) {
+    return false;
+  }
+
+  if (vec[0] != "iamf") {
+    return false;
+  }
+
+  // The primary profile string should be three digits, and should be between 0
+  // and 255 inclusive.
+  int primary_profile;
+  std::stringstream stream(vec[1]);
+  stream >> primary_profile;
+  if (stream.fail() || vec[1].size() != 3 || primary_profile > 255) {
+    return false;
+  }
+
+  // The additional profile string should be three digits, and should be between
+  // 0 and 255 inclusive.
+  stream = std::stringstream(vec[2]);
+  int additional_profile;
+  stream >> additional_profile;
+  if (stream.fail() || vec[2].size() != 3 || additional_profile > 255) {
+    return false;
+  }
+
+  // The codec string should be one of "Opus", "mp4a", "fLaC", or "ipcm".
+  std::string codec = vec[3];
+  if (codec.size() != 4 || ((codec != "Opus") && (codec != "mp4a") &&
+                            (codec != "fLaC") && (codec != "ipcm"))) {
+    return false;
+  }
+
+  // Only IAMF codec parameter strings with "mp4a" should be greater than 4
+  // elements.
+  if (codec == "mp4a") {
+    if (vec.size() != 6) {
+      return false;
+    }
+
+    // The fields following "mp4a" should be "40" and "2" to signal AAC-LC.
+    stream = std::stringstream(vec[4]);
+    int object_type_indication;
+    stream >> object_type_indication;
+    if (stream.fail() || vec[4].size() != 2 || object_type_indication != 40) {
+      return false;
+    }
+
+    stream = std::stringstream(vec[5]);
+    int audio_object_type;
+    stream >> audio_object_type;
+    if (stream.fail() || vec[5].size() != 1 || audio_object_type != 2) {
+      return false;
+    }
+  } else {
+    if (vec.size() > 4) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 }  // namespace media

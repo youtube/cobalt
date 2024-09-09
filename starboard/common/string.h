@@ -24,6 +24,7 @@
 #include <stdio.h>
 #endif
 #include <cstring>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -101,6 +102,23 @@ static SB_C_FORCE_INLINE int strlcat(CHAR* dst, const CHAR* src, int dst_size) {
 
   return strlcpy<CHAR>(dst + dst_length, src, dst_size - dst_length) +
          dst_length;
+}
+
+// Splits a string on a char delimiter. Returns an empty vector if the delimiter
+// is not found
+inline std::vector<std::string> SplitString(std::string& input,
+                                            char delimiter) {
+  std::vector<std::string> output;
+  if (input.find(delimiter) == std::string::npos) {
+    return output;
+  }
+
+  std::stringstream stream(input);
+  std::string token;
+  while (std::getline(stream, token, delimiter)) {
+    output.push_back(token);
+  }
+  return output;
 }
 
 }  // namespace starboard

@@ -278,12 +278,12 @@ TEST(CodecUtilTest, ParsesIamfCodec) {
             kSbMediaAudioCodecIamf);
 }
 
-TEST(CodecUtilTest, IamfRegex) {
+TEST(CodecUtilTest, IsIamfMimeType) {
 #if SB_API_VERSION < 15
   GTEST_SKIP() << "IAMF is unsupported on Starboard " << SB_API_VERSION;
 #endif  // SB_API_VERSION < 15
   EXPECT_TRUE(IsIamfMimeType("iamf.000.000.Opus"));
-  EXPECT_TRUE(IsIamfMimeType("iamf.999.999.Opus"));
+  EXPECT_TRUE(IsIamfMimeType("iamf.255.255.Opus"));
   EXPECT_TRUE(IsIamfMimeType("iamf.000.000.mp4a.40.2"));
   EXPECT_TRUE(IsIamfMimeType("iamf.000.000.fLaC"));
   EXPECT_TRUE(IsIamfMimeType("iamf.000.000.ipcm"));
@@ -296,6 +296,13 @@ TEST(CodecUtilTest, IamfRegex) {
 
   EXPECT_FALSE(IsIamfMimeType("iamf.000.000.mp4a.40.3"));
   EXPECT_FALSE(IsIamfMimeType("iamf.000.000.flac"));
+
+  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.fLaC.40.2"));
+  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.mp4a.40.30"));
+  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.mp4a.40.20"))
+  EXPECT_FALSE(IsIamfMimeType("iamf.000.00.Opus"));
+  EXPECT_FALSE(IsIamfMimeType("iamf.999.999.Opus"));
+  EXPECT_FALSE(IsIamfMimeType("iamf.256.256.Opus"));
 }
 
 }  // namespace
