@@ -229,6 +229,9 @@ class HTMLMediaElement : public HTMLElement,
 
   void ConfigureMediaControls();
 
+  // Pushes the current media time to the attached MediaSourceAttachment to
+  // avoid having to asynchronously pull media time from a cross-thread
+  // MediaSource object.
   void ReportCurrentTimeToMediaSource();
 
   // Error report
