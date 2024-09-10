@@ -180,6 +180,8 @@ void HardwareDecodeTargetPrivate::InitTextureYUV() {
                                       EGL_TEXTURE_2D,
                                       EGL_TEXTURE_FORMAT,
                                       EGL_TEXTURE_RGBA,
+                                      EGL_D3D11_TEXTURE_PLANE_ANGLE,
+                                      0,
                                       EGL_NONE};
 
   EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
@@ -248,6 +250,8 @@ void HardwareDecodeTargetPrivate::InitTextureYUV() {
                                         EGL_TEXTURE_2D,
                                         EGL_TEXTURE_FORMAT,
                                         EGL_TEXTURE_RGBA,
+                                        EGL_D3D11_TEXTURE_PLANE_ANGLE,
+                                        1,
                                         EGL_NONE};
   surface[1] = eglCreatePbufferFromClientBuffer(display, EGL_D3D_TEXTURE_ANGLE,
                                                 d3d_texture.Get(), config,

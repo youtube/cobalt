@@ -2963,6 +2963,9 @@ bool ValidateCreatePbufferFromClientBuffer(const ValidationContext *val,
                 }
                 break;
 
+#if defined(STARBOARD)
+            case EGL_D3D11_TEXTURE_PLANE_ANGLE:
+#endif
             case EGL_MIPMAP_TEXTURE:
                 break;
 
