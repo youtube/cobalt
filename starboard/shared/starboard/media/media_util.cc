@@ -133,16 +133,6 @@ AudioStreamInfo& AudioStreamInfo::operator=(
 void AudioStreamInfo::ConvertTo(
     SbMediaAudioStreamInfo* audio_stream_info) const {
   Assign(*this, audio_stream_info);
-
-#if SB_API_VERSION < 15
-  SB_DCHECK(audio_stream_info);
-  audio_stream_info->format_tag = 0xff;
-  audio_stream_info->block_alignment = 4;
-  audio_stream_info->average_bytes_per_second =
-      audio_stream_info->samples_per_second *
-      audio_stream_info->number_of_channels *
-      audio_stream_info->bits_per_sample / 8;
-#endif  // SB_API_VERSION < 15
 }
 
 void AudioStreamInfo::ConvertTo(

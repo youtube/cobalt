@@ -176,11 +176,7 @@ namespace sampler {
 class Sampler::PlatformData {
  public:
   PlatformData()
-#if SB_API_VERSION < 16
-      : thread_(SbThreadGetCurrent()),
-#else
       : thread_(pthread_self()),
-#endif
         thread_sampler_(kSbThreadSamplerInvalid) {}
   ~PlatformData() { ReleaseThreadSampler(); }
 
@@ -199,11 +195,7 @@ class Sampler::PlatformData {
   }
 
  private:
-#if SB_API_VERSION < 16
-  SbThread thread_;
-#else
   pthread_t thread_;
-#endif
   SbThreadSampler thread_sampler_;
 };
 

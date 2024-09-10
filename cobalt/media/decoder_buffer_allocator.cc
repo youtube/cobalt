@@ -127,13 +127,7 @@ int DecoderBufferAllocator::GetAudioBufferBudget() const {
   return SbMediaGetAudioBufferBudget();
 }
 
-int DecoderBufferAllocator::GetBufferAlignment() const {
-#if SB_API_VERSION < 16
-  return SbMediaGetBufferAlignment();
-#else
-  return sizeof(void*);
-#endif  // SB_API_VERSION < 16
-}
+int DecoderBufferAllocator::GetBufferAlignment() const { return sizeof(void*); }
 
 int DecoderBufferAllocator::GetBufferPadding() const {
   return SbMediaGetBufferPadding();
