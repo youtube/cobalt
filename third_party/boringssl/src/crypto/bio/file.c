@@ -81,11 +81,22 @@
 #define BIO_FLAGS_UPLINK 0
 #endif
 
-#if !defined(OPENSSL_SYS_STARBOARD)
+#if defined(OPENSSL_SYS_STARBOARD)
+#include <fcntl.h>
+#endif  // defined(OPENSSL_SYS_STARBOARD)
+
 #include <errno.h>
+
+#if !defined(OPENSSL_SYS_STARBOARD)
 #include <stdio.h>
 #endif  // !defined(OPENSSL_SYS_STARBOARD)
+
 #include <string.h>
+
+#if defined(OPENSSL_SYS_STARBOARD)
+#include <sys/stat.h>
+#include <unistd.h>
+#endif  // defined(OPENSSL_SYS_STARBOARD)
 
 #include <openssl/err.h>
 #include <openssl/mem.h>
@@ -95,6 +106,10 @@
 #if defined(OPENSSL_SYS_NETWARE) && defined(NETWARE_CLIB)
 #include <nwfileio.h>
 #endif
+
+#if defined(OPENSSL_SYS_STARBOARD)
+#include "starboard/common/file_wrapper.h"
+#endif  // defined(OPENSSL_SYS_STARBOARD)
 
 #define BIO_FP_READ 0x02
 #define BIO_FP_WRITE 0x04
@@ -175,23 +190,27 @@ static FILE *file_fopen(const char *filename, const char *mode) {
 BIO *BIO_new_file(const char *filename, const char *mode) {
   BIO *ret = NULL;
 #if defined(OPENSSL_SYS_STARBOARD)
-  SbFile sb_file = kSbFileInvalid;
-  SbFileError error = kSbFileOk;
-  sb_file = SbFileOpen(filename, SbFileModeStringToFlags(mode), NULL, &error);
-  if (!SbFileIsValid(sb_file)) {
+  FilePtr sb_file = (FilePtr)malloc(sizeof(struct FileStruct));
+  memset(sb_file, 0, sizeof(struct FileStruct));
+  sb_file->fd = open(filename, FileModeStringToFlags(mode),
+                     S_IRUSR | S_IWUSR);
+
+  if (sb_file->fd < 0) {
     OPENSSL_PUT_SYSTEM_ERROR();
-    ERR_add_error_data(5, "SbFileOpen('", filename, "','", mode, "')");
-    if (error == kSbFileErrorNotFound) {
+    ERR_add_error_data(5, "open('", filename, "','", mode, "')");
+    if (errno == ENOENT) {
       OPENSSL_PUT_ERROR(BIO, BIO_R_NO_SUCH_FILE);
     } else {
       OPENSSL_PUT_ERROR(BIO, BIO_R_SYS_LIB);
     }
 
+    free(sb_file);
     return (NULL);
   }
   ret = BIO_new(BIO_s_file());
   if (ret == NULL) {
-    SbFileClose(sb_file);
+    close(sb_file->fd);
+    free(sb_file);
     return (NULL);
   }
 
@@ -267,7 +286,7 @@ static int MS_CALLBACK file_free(BIO *a) {
   if (a->shutdown) {
     if ((a->init) && (a->ptr != NULL)) {
 #if defined(OPENSSL_SYS_STARBOARD)
-      SbFileClose((SbFile)a->ptr);
+      close(((FilePtr)a->ptr)->fd);
 #else   // defined(OPENSSL_SYS_STARBOARD)
 // When this file was Starboardized, uplink support was added to the
 // non-Starboard code paths. But at this point it's not clear where to find
@@ -295,7 +314,7 @@ static int MS_CALLBACK file_read(BIO *b, char *out, int outl) {
   int ret = 0;
   if (b->init && (out != NULL)) {
 #if defined(OPENSSL_SYS_STARBOARD)
-    ret = SbFileRead((SbFile)b->ptr, out, outl);
+    ret = read(((FilePtr)b->ptr)->fd, out, outl);
     if (ret < 0) {
       OPENSSL_PUT_SYSTEM_ERROR();
       OPENSSL_PUT_ERROR(BIO, ERR_R_SYS_LIB);
@@ -336,7 +355,7 @@ static int MS_CALLBACK file_write(BIO *b, const char *in, int inl) {
 
   if (b->init && (in != NULL)) {
 #if defined(OPENSSL_SYS_STARBOARD)
-    ret = SbFileWrite((SbFile)b->ptr, in, inl);
+    ret = write(((FilePtr)b->ptr)->fd, in, inl);
 #else   // defined(OPENSSL_SYS_STARBOARD)
 #ifndef NATIVE_TARGET_BUILD
     if (b->flags & BIO_FLAGS_UPLINK)
@@ -361,8 +380,8 @@ static int MS_CALLBACK file_write(BIO *b, const char *in, int inl) {
 static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
   long ret = 1;
 #if defined(OPENSSL_SYS_STARBOARD)
-  SbFile fp = (SbFile)b->ptr;
-  SbFile *fpp;
+  FilePtr fp = (FilePtr)b->ptr;
+  FilePtr *fpp;
 #else   // defined(OPENSSL_SYS_STARBOARD)
   FILE *fp = (FILE *)b->ptr;
   FILE **fpp;
@@ -373,7 +392,7 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
     case BIO_C_FILE_SEEK:
     case BIO_CTRL_RESET:
 #if defined(OPENSSL_SYS_STARBOARD)
-      ret = (long)SbFileSeek((SbFile)b->ptr, num, kSbFileFromBegin);
+      ret = (long)lseek(((FilePtr)b->ptr)->fd, SEEK_SET, num);
 #else   // defined(OPENSSL_SYS_STARBOARD)
 #ifndef NATIVE_TARGET_BUILD
       if (b->flags & BIO_FLAGS_UPLINK)
@@ -386,8 +405,8 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
       break;
     case BIO_CTRL_EOF:
 #if defined(OPENSSL_SYS_STARBOARD)
-      ret = (SbFileSeek((SbFile)b->ptr, 0, kSbFileFromCurrent) >=
-                     SbFileSeek((SbFile)b->ptr, 0, kSbFileFromEnd)
+      ret = (lseek(((FilePtr)b->ptr)->fd, SEEK_CUR, 0) >=
+                    lseek(((FilePtr)b->ptr)->fd, SEEK_END, 0)
                  ? 1
                  : 0);
 #else   // defined(OPENSSL_SYS_STARBOARD)
@@ -403,7 +422,7 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
     case BIO_C_FILE_TELL:
     case BIO_CTRL_INFO:
 #if defined(OPENSSL_SYS_STARBOARD)
-      ret = SbFileSeek((SbFile)b->ptr, 0, kSbFileFromCurrent);
+      ret = lseek(((FilePtr)b->ptr)->fd, SEEK_CUR, 0);
 #else   // defined(OPENSSL_SYS_STARBOARD)
 #ifndef NATIVE_TARGET_BUILD
       if (b->flags & BIO_FLAGS_UPLINK)
@@ -508,12 +527,11 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
 #endif
 #if defined(OPENSSL_SYS_STARBOARD)
       {
-        SbFileError error = kSbFileOk;
-        fp = SbFileOpen((const char *)ptr, SbFileModeStringToFlags(p), NULL,
-                        &error);
-        if (!SbFileIsValid(fp)) {
+        fp->fd = open((const char *)ptr, FileModeStringToFlags(p),
+                      S_IRUSR | S_IWUSR);
+        if (fp->fd < 0) {
           OPENSSL_PUT_SYSTEM_ERROR();
-          ERR_add_error_data(5, "SbFileOpen('", ptr, "','", p, "')");
+          ERR_add_error_data(5, "open('", ptr, "','", p, "')");
           OPENSSL_PUT_ERROR(BIO, ERR_R_SYS_LIB);
           ret = 0;
           break;
@@ -545,10 +563,10 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
       break;
     case BIO_C_GET_FILE_PTR:
 #if defined(OPENSSL_SYS_STARBOARD)
-      /* the ptr parameter is actually a SbFile * in this case. */
+      /* the ptr parameter is actually a FilePtr * in this case. */
       if (ptr != NULL) {
-        fpp = (SbFile *)ptr;
-        *fpp = (SbFile)b->ptr;
+        fpp = (FilePtr *)ptr;
+        *fpp = (FilePtr)b->ptr;
       }
 #else   // defined(OPENSSL_SYS_STARBOARD)
       // the ptr parameter is actually a FILE ** in this case.
@@ -566,7 +584,7 @@ static long MS_CALLBACK file_ctrl(BIO *b, int cmd, long num, void *ptr) {
       break;
     case BIO_CTRL_FLUSH:
 #if defined(OPENSSL_SYS_STARBOARD)
-      SbFileFlush((SbFile)b->ptr);
+      fsync(((FilePtr)b->ptr)->fd);
 #else   // defined(OPENSSL_SYS_STARBOARD)
 #ifndef NATIVE_TARGET_BUILD
       if (b->flags & BIO_FLAGS_UPLINK)
@@ -597,16 +615,16 @@ static int MS_CALLBACK file_gets(BIO *bp, char *buf, int size) {
   buf[0] = '\0';
 #if defined(OPENSSL_SYS_STARBOARD)
   ret = -1;
-  SbFileInfo info;
-  SbFileGetInfo((SbFile)bp->ptr, &info);
-  int64_t current = SbFileSeek((SbFile)bp->ptr, kSbFileFromCurrent, 0);
-  int64_t remaining = info.size - current;
+  struct stat info;
+  fstat(((FilePtr)bp->ptr)->fd, &info);
+  int64_t current = lseek(((FilePtr)bp->ptr)->fd, 0, SEEK_CUR);
+  int64_t remaining = info.st_size - current;
   int64_t max = (size > remaining ? remaining : size - 1);
   int index = 0;
   for (; index < max; ++index) {
     int count = 0;
     for (;;) {
-      count = SbFileRead((SbFile)bp->ptr, buf + index, 1);
+      count = read(((FilePtr)bp->ptr)->fd, buf + index, 1);
       if (count == 0) {
         continue;
       }

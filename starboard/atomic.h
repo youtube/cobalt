@@ -256,10 +256,4 @@ SbAtomicRelease_LoadPtr(volatile const SbAtomicPtr* ptr) {
 // as inlined. This macro is defined on the command line by GN.
 #include STARBOARD_ATOMIC_INCLUDE
 
-#if SB_API_VERSION < 15 && defined(__cplusplus)
-extern "C++" {
-#include "starboard/common/atomic.h"
-}  // extern "C++"
-#endif  // SB_API_VERSION < 15  && defined(__cplusplus)
-
 #endif  // STARBOARD_ATOMIC_H_

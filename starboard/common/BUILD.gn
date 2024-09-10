@@ -89,10 +89,16 @@ static_library("common") {
     "system_property.h",
     "thread.cc",
     "thread.h",
-    "thread_collision_warner.cc",
-    "thread_collision_warner.h",
     "time.cc",
     "time.h",
+  ]
+}
+
+static_library("file_wrapper") {
+  check_includes = false
+  sources = [
+    "file_wrapper.cc",
+    "file_wrapper.h",
   ]
 }
 

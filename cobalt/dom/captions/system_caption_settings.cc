@@ -27,11 +27,7 @@
 #include "cobalt/dom/captions/caption_opacity_percentage.h"
 #include "cobalt/dom/captions/caption_state.h"
 #include "cobalt/web/event_target.h"
-#if SB_API_VERSION < 16
-#include "starboard/accessibility.h"
-#else  // SB_API_VERSION < 16
 #include "starboard/extension/accessibility.h"
-#endif  // SB_API_VERSION < 16
 #include "starboard/memory.h"
 
 namespace cobalt {

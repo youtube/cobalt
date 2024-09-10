@@ -18,7 +18,6 @@
 
 #include <map>
 
-#include "starboard/android/shared/directory_internal.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"

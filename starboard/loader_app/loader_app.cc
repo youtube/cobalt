@@ -278,7 +278,17 @@ void SbEventHandle(const SbEvent* event) {
           starboard::loader_app::LoadSlotManagedLibrary(
               app_key, alternative_content, &g_cobalt_library_loader,
               use_memory_mapped_file));
+
+      if (g_sb_event_func == NULL) {
+        SB_LOG(ERROR) << "Failed to initialize Installation Manager. Loading "
+                         "system image instead.";
+        starboard::loader_app::RecordSlotSelectionStatus(
+            SlotSelectionStatus::kLoadSysImgFailedToInitInstallationManager);
+        LoadLibraryAndInitialize(alternative_content, use_memory_mapped_file);
+      }
     }
+    // If g_sb_event_func is NULL at this point, the app has no choice but to
+    // crash.
     SB_CHECK(g_sb_event_func);
   }
 

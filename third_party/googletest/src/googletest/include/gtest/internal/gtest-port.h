@@ -286,7 +286,7 @@
 #if defined __APPLE__
 #include <AvailabilityMacros.h>
 #include <TargetConditionals.h>
-#endif
+#endif  // defined __APPLE__
 
 #include <algorithm>  // NOLINT
 #include <iostream>
@@ -303,6 +303,7 @@
 #include <vector>
 
 #include <stdio.h>
+#include <unistd.h>
 
 #include "gtest/internal/custom/gtest-port.h"
 #include "gtest/internal/gtest-port-arch.h"
@@ -2079,14 +2080,9 @@ inline int DoIsATTY(int fd) { return 1; } // only called for stdout
 inline int Stat(const char* path, StatStruct* buf) {
   return stat(path, buf);
 }
-#if SB_API_VERSION < 16
-inline int StrCaseCmp(const char* s1, const char* s2) {
-  return SbStringCompareNoCase(s1, s2);
-}
-#endif //SB_API_VERSION < 16
 inline char* StrDup(const char* src) { return strdup(src); }
 
-inline int RmDir(const char* dir) { return SbFileDelete(dir); }
+inline int RmDir(const char* dir) { return rmdir(dir); }
 inline bool IsDir(const StatStruct& st) { return S_ISDIR(st.st_mode); }
 
 inline const char* StrNCpy(char* dest, const char* src, size_t n) {

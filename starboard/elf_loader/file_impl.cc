@@ -14,6 +14,10 @@
 
 #include "starboard/elf_loader/file_impl.h"
 
+#include <fcntl.h>
+#include <unistd.h>
+
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/log.h"
 
@@ -31,7 +35,7 @@ void LogLastError(const char* msg) {
 namespace starboard {
 namespace elf_loader {
 
-FileImpl::FileImpl() : file_(NULL) {}
+FileImpl::FileImpl() : file_(-1) {}
 
 FileImpl::~FileImpl() {
   Close();
@@ -40,7 +44,7 @@ FileImpl::~FileImpl() {
 bool FileImpl::Open(const char* name) {
   SB_DLOG(INFO) << "Loading: " << name;
   name_ = name;
-  file_ = SbFileOpen(name, kSbFileOpenOnly | kSbFileRead, NULL, NULL);
+  file_ = open(name, O_RDONLY, S_IRUSR | S_IWUSR);
   if (!file_) {
     return false;
   }
@@ -51,17 +55,17 @@ bool FileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
   if (!file_) {
     return false;
   }
-  int64_t ret = SbFileSeek(file_, kSbFileFromBegin, offset);
-  SB_DLOG(INFO) << "SbFileSeek: ret=" << ret;
+  int64_t ret = lseek(file_, offset, SEEK_SET);
+  SB_DLOG(INFO) << "lseek: ret=" << ret;
   if (ret == -1) {
-    LogLastError("SbFileSeek: failed");
+    LogLastError("lseek: failed");
     return false;
   }
 
-  int count = SbFileReadAll(file_, buffer, size);
-  SB_DLOG(INFO) << "SbFileReadAll: count=" << count;
+  int count = starboard::ReadAll(file_, buffer, size);
+  SB_DLOG(INFO) << "ReadAll: count=" << count;
   if (count == -1) {
-    LogLastError("SbFileReadAll failed");
+    LogLastError("ReadAll failed");
     return false;
   }
   return true;
@@ -69,7 +73,7 @@ bool FileImpl::ReadFromOffset(int64_t offset, char* buffer, int size) {
 
 void FileImpl::Close() {
   if (file_) {
-    SbFileClose(file_);
+    close(file_);
   }
 }
 

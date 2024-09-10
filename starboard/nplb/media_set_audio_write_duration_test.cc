@@ -186,10 +186,6 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteLimitedInput) {
   ASSERT_NE(dmp_reader_.audio_codec(), kSbMediaAudioCodecNone);
   ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
 
-#if SB_API_VERSION < 15
-  SbMediaSetAudioWriteDuration(kDuration);
-#endif  // SB_API_VERSION < 15
-
   SbPlayer player = CreatePlayer();
   WaitForPlayerState(kSbPlayerStateInitialized);
 
@@ -228,10 +224,6 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteLimitedInput) {
 TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
   ASSERT_NE(dmp_reader_.audio_codec(), kSbMediaAudioCodecNone);
   ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
-
-#if SB_API_VERSION < 15
-  SbMediaSetAudioWriteDuration(kDuration);
-#endif  // SB_API_VERSION < 15
 
   // This directly impacts the runtime of the test.
   total_duration_ = 15'000'000LL;  // 15 seconds

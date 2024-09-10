@@ -14,19 +14,16 @@
 
 #include "starboard/common/storage.h"
 
+#include <fcntl.h>
+
 #include <vector>
 
+#include "starboard/common/file.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/file.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 
-#if SB_API_VERSION < 16
-#include "starboard/user.h"
-SbStorageRecord SbStorageOpenRecord(SbUser user, const char* name) {
-#else
 SbStorageRecord SbStorageOpenRecord(const char* name) {
-#endif  // SB_API_VERSION < 16
   std::vector<char> path(kSbFileMaxPath);
   bool success = starboard::shared::starboard::GetStorageFilePath(
       name, path.data(), static_cast<int>(path.size()));
@@ -36,9 +33,8 @@ SbStorageRecord SbStorageOpenRecord(const char* name) {
 
   // This will always create the storage file, even if it is just opened and
   // closed without doing any operation.
-  SbFile file = SbFileOpen(
-      path.data(), kSbFileOpenAlways | kSbFileRead | kSbFileWrite, NULL, NULL);
-  if (!SbFileIsValid(file)) {
+  int file = open(path.data(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
+  if (!starboard::IsValid(file)) {
     return kSbStorageInvalidRecord;
   }
 

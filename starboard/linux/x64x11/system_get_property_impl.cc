@@ -32,17 +32,9 @@ const char kModelName[] = "ModelName";
 const char kPlatformName[] = "X11; Linux x86_64";
 const char kSystemIntegratorName[] = "SystemIntegratorName";
 
-#if SB_API_VERSION == 16
-const char kModelYear[] = "2025";
-#endif  // SB_API_VERSION == 16
-
-#if SB_API_VERSION == 15
-const char kModelYear[] = "2024";
-#endif  // SB_API_VERSION == 15
-
-#if SB_API_VERSION == 14
-const char kModelYear[] = "2023";
-#endif  // SB_API_VERSION == 14
+#if SB_API_VERSION == 17
+const char kModelYear[] = "2026";
+#endif  // SB_API_VERSION == 17
 
 }  // namespace
 

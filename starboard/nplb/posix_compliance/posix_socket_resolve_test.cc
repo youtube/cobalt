@@ -41,6 +41,11 @@ TEST(PosixSocketResolveTest, SunnyDay) {
     ++address_count;
     if (ai_addr == nullptr && i->ai_addr != nullptr) {
       ai_addr = reinterpret_cast<sockaddr_in*>(i->ai_addr);
+      if (i->ai_family == AF_INET) {
+        EXPECT_EQ(i->ai_addrlen, sizeof(struct sockaddr_in));
+      } else if (i->ai_family == AF_INET6) {
+        EXPECT_EQ(i->ai_addrlen, sizeof(struct sockaddr_in6));
+      }
       break;
     }
   }
@@ -91,10 +96,16 @@ TEST(PosixSocketResolveTest, SunnyDayFamily) {
 TEST(PosixSocketResolveTest, SunnyDayFlags) {
   struct addrinfo hints = {0};
   int flags_to_test[] = {
-      AI_PASSIVE, AI_ADDRCONFIG, AI_PASSIVE, AI_CANONNAME, AI_V4MAPPED, AI_ALL,
+  // Non-modular builds use native libc getaddrinfo.
+#if defined(SB_MODULAR_BUILD)
+      // And bionic does not support these flags.
+      AI_V4MAPPED, AI_NUMERICHOST, AI_NUMERICSERV,
+#endif
+      AI_PASSIVE,  AI_CANONNAME,   AI_ADDRCONFIG,
   };
   for (auto flag : flags_to_test) {
-    hints.ai_flags |= flag;
+    hints.ai_flags = flag;
+    hints.ai_socktype = SOCK_STREAM;
     struct addrinfo* ai = nullptr;
 
     int result = getaddrinfo(kTestHostName, 0, &hints, &ai);

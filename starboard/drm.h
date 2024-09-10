@@ -225,12 +225,12 @@ typedef void (*SbDrmServerCertificateUpdatedFunc)(SbDrmSystem drm_system,
 // --- Functions -------------------------------------------------------------
 
 // Indicates whether |drm_system| is a valid SbDrmSystem.
-static SB_C_FORCE_INLINE bool SbDrmSystemIsValid(SbDrmSystem drm) {
+SB_C_FORCE_INLINE bool SbDrmSystemIsValid(SbDrmSystem drm) {
   return drm != kSbDrmSystemInvalid;
 }
 
 // Indicates whether |ticket| is a valid ticket.
-static SB_C_FORCE_INLINE bool SbDrmTicketIsValid(int ticket) {
+SB_C_FORCE_INLINE bool SbDrmTicketIsValid(int ticket) {
   return ticket != kSbDrmTicketInvalid;
 }
 

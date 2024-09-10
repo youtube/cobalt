@@ -30,10 +30,15 @@ on:
         type: boolean
         default: false
       keep_artifacts:
-        description: 'Which artifacts to keep for releases'
+        description: 'Which artifacts to keep for releases.'
         required: false
         type: string
         default: ''
+      artifact_size_increase_thresholds:
+        description: 'Threshold for artifact binary size increase.'
+        required: false
+        type: string
+        default: ""
 
 # Global env vars.
 env:
@@ -257,12 +262,21 @@ jobs:
         uses: ./.github/actions/gn
       - name: Build Cobalt
         uses: ./.github/actions/build
+      - name: 'Check Artifact Size'
+        uses: ./.github/actions/check_artifact_size
+        if: ${{ false }} # ${{ inputs.artifact_size_increase_thresholds }}
+        with:
+          workflow: ${{ github.workflow }}
+          name: ${{ matrix.platform }}-${{ matrix.config }}
+          path: out/${{ matrix.target_platform }}_${{ matrix.config }}
+          thresholds: ${{ inputs.artifact_size_increase_thresholds }}
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: 'Upload Artifact'
         uses: actions/upload-artifact@v4
-        if: ${{ inputs.keep_artifacts && matrix.sb_api_version == '' }}
+        if: ${{ inputs.keep_artifacts }}
         with:
           name: ${{ matrix.platform }}-${{ matrix.config }}
-          path: out/${{ matrix.platform }}_${{ matrix.config }}/${{ inputs.keep_artifacts }}
+          path: out/${{ matrix.target_platform }}_${{ matrix.config }}/${{ inputs.keep_artifacts }}
           retention-days: 7
           compression-level: 0 # We expect kept artifacts to be already compressed
           if-no-files-found: error

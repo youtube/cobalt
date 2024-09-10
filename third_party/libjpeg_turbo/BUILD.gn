@@ -24,6 +24,7 @@ source_set("libjpeg_headers") {
     public_deps = [
       "//starboard:starboard_headers_only",
       "//starboard/common",
+      "//starboard/common:file_wrapper",
     ]
   }
 }

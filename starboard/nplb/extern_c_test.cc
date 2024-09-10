@@ -15,14 +15,8 @@
 // Ensure that all starboard headers can be included inside extern "C".
 
 extern "C" {
-#if SB_API_VERSION < 16
-#include "starboard/accessibility.h"
-#endif  // SB_API_VERSION < 16
 #include "starboard/atomic.h"
 #include "starboard/audio_sink.h"
-#if SB_API_VERSION < 16
-#include "starboard/byte_swap.h"
-#endif  // SB_API_VERSION < 16
 #include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/cpu_features.h"
@@ -34,15 +28,11 @@ extern "C" {
 #include "starboard/export.h"
 #include "starboard/file.h"
 #include "starboard/gles.h"
-#if SB_API_VERSION < 16
-#include "starboard/image.h"
-#endif  // SB_API_VERSION < 16
 #include "starboard/input.h"
 #include "starboard/key.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/memory.h"
-#include "starboard/memory_reporter.h"
 #include "starboard/microphone.h"
 #include "starboard/mutex.h"
 #include "starboard/player.h"
@@ -53,14 +43,7 @@ extern "C" {
 #include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
-#if SB_API_VERSION < 16
-#include "starboard/time.h"
-#endif  // SB_API_VERSION < 16
 #include "starboard/time_zone.h"
 #include "starboard/types.h"
-#if SB_API_VERSION < 16
-#include "starboard/ui_navigation.h"
-#include "starboard/user.h"
-#endif  // SB_API_VERSION < 16
 #include "starboard/window.h"
 }

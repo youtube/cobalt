@@ -14,7 +14,9 @@
 
 #include "starboard/common/storage.h"
 
-#include "starboard/file.h"
+#include <unistd.h>
+
+#include "starboard/common/file.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 
 bool SbStorageCloseRecord(SbStorageRecord record) {
@@ -22,8 +24,8 @@ bool SbStorageCloseRecord(SbStorageRecord record) {
     return false;
   }
 
-  if (SbFileIsValid(record->file)) {
-    SbFileClose(record->file);
+  if (starboard::IsValid(record->file)) {
+    close(record->file);
   }
 
   delete record;
