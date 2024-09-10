@@ -1,11 +1,6 @@
 name: raspi-2
 
 on:
-  pull_request:
-    types: [opened, reopened, synchronize, labeled]
-    branches:
-      - main
-      - feature/*
   push:
     branches:
       - main
