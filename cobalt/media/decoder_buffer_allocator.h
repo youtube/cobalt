@@ -21,6 +21,7 @@
 #include "base/compiler_specific.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
+#include "cobalt/media/base/metrics_provider.h"
 #include "cobalt/media/bidirectional_fit_reuse_allocator.h"
 #include "cobalt/media/decoder_buffer_memory_info.h"
 #include "cobalt/media/starboard_memory_allocator.h"
@@ -62,6 +63,8 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
 
  private:
   void EnsureReuseAllocatorIsCreated();
+
+  mutable MediaMetricsProvider media_metrics_provider_;
 
   const bool is_memory_pool_allocated_on_demand_;
   const int initial_capacity_;
