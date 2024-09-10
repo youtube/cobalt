@@ -23,9 +23,12 @@ namespace starboard {
 namespace {
 
 TEST(StringTest, SplitString) {
-  std::string str = "The quick brown fox jumps over the lazy dog";
-
+  std::string str;
   std::vector<std::string> output = SplitString(str, '.');
+  EXPECT_TRUE(output.empty());
+
+  str = "The quick brown fox jumps over the lazy dog";
+  output = SplitString(str, '.');
   EXPECT_TRUE(output.empty());
 
   std::vector<std::string> vec = {"The",  "quick", "brown", "fox", "jumps",
