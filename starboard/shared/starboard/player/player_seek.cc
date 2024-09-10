@@ -17,11 +17,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_API_VERSION >= 15
 void SbPlayerSeek(SbPlayer player, int64_t seek_to_timestamp, int ticket) {
-#else   // SB_API_VERSION >= 15
-void SbPlayerSeek2(SbPlayer player, int64_t seek_to_timestamp, int ticket) {
-#endif  // SB_API_VERSION >= 15
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
     return;

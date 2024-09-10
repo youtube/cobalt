@@ -19,7 +19,6 @@
 // Special implementation of `SbPlayerWriteSample2()` for EnhancedAudio, where
 // all sample writes should use the `PlayerWriteSamples()` function provided by
 // the EnhancedAudio extension.
-#if SB_API_VERSION < 15
 
 void SbPlayerWriteSample2(SbPlayer player,
                           SbMediaType sample_type,
@@ -27,5 +26,3 @@ void SbPlayerWriteSample2(SbPlayer player,
                           int number_of_sample_infos) {
   SB_NOTREACHED();
 }
-
-#endif  // SB_API_VERSION < 15
