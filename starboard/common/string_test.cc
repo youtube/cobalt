@@ -31,9 +31,9 @@ TEST(StringTest, SplitString) {
   std::vector<std::string> vec = {"The",  "quick", "brown", "fox", "jumps",
                                   "over", "the",   "lazy",  "dog"};
   output = SplitString(str, ' ');
-  EXPECT_EQ(output.size(), vec.size());
+  ASSERT_EQ(output.size(), vec.size());
   for (int i = 0; i < vec.size(); ++i) {
-    EXPECT_EQ(output[i], vec[i]);
+    ASSERT_EQ(output[i], vec[i]);
   }
 }
 

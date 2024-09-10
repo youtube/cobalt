@@ -125,15 +125,14 @@ bool IsIamfMimeType(std::string mime_type) {
     return false;
   }
 
-  constexpr int kMaxIamfCodecIdLength =
-      4     // FOURCC string "iamf".
-      + 1   // delimiting period.
-      + 3   // primary_profile as 3 digit string.
-      + 1   // delimiting period.
-      + 3   // additional_profile as 3 digit string.
-      + 1   // delimiting period.
-      + 9;  // The remaining string is one of
-            // "Opus", "mp4a.40.2", "fLaC", or "ipcm".
+  // 4   FOURCC string "iamf".
+  // +1  delimiting period.
+  // +3  primary_profile as 3 digit string.
+  // +1  delimiting period.
+  // +3  additional_profile as 3 digit string.
+  // +1  delimiting period.
+  // +9  The remaining string is one of "Opus", "mp4a.40.2", "fLaC", or "ipcm".
+  constexpr int kMaxIamfCodecIdLength = 22;
 
   if (mime_type.size() > kMaxIamfCodecIdLength) {
     return false;

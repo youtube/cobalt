@@ -24,7 +24,6 @@
 #include <stdio.h>
 #endif
 #include <cstring>
-#include <sstream>
 #include <string>
 #include <vector>
 
@@ -109,15 +108,29 @@ static SB_C_FORCE_INLINE int strlcat(CHAR* dst, const CHAR* src, int dst_size) {
 inline std::vector<std::string> SplitString(std::string& input,
                                             char delimiter) {
   std::vector<std::string> output;
-  if (input.find(delimiter) == std::string::npos) {
+  if (input.empty()) {
     return output;
   }
 
-  std::stringstream stream(input);
-  std::string token;
-  while (std::getline(stream, token, delimiter)) {
-    output.push_back(token);
+  size_t start = 0;
+  while (start != std::string::npos) {
+    size_t end = input.find_first_of(delimiter, start);
+    std::string piece;
+
+    if (end == std::string::npos) {
+      if (output.empty()) {
+        break;
+      }
+      piece = input.substr(start);
+      start = std::string::npos;
+    } else {
+      piece = input.substr(start, end - start);
+      start = end + 1;
+    }
+
+    output.emplace_back(piece);
   }
+
   return output;
 }
 
