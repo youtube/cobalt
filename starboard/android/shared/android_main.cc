@@ -27,7 +27,6 @@
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
-#include "starboard/directory.h"
 #include "starboard/file.h"
 #endif
 #include "starboard/event.h"

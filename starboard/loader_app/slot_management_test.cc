@@ -26,7 +26,6 @@
 #include "gmock/gmock.h"
 #include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/directory.h"
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
 #include "starboard/file.h"

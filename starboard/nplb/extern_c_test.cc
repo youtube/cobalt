@@ -21,7 +21,6 @@ extern "C" {
 #include "starboard/configuration.h"
 #include "starboard/cpu_features.h"
 #include "starboard/decode_target.h"
-#include "starboard/directory.h"
 #include "starboard/drm.h"
 #include "starboard/egl.h"
 #include "starboard/event.h"

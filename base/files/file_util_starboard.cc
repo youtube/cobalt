@@ -35,7 +35,6 @@
 #include "base/time/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/common/file.h"
-#include "starboard/directory.h"
 #include "base/strings/strcat.h"
 #include "starboard/system.h"
 

@@ -38,7 +38,6 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/directory.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
 #include "starboard/memory.h"

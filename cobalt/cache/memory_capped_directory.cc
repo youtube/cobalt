@@ -23,7 +23,6 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/strings/string_number_conversions.h"
-#include "starboard/directory.h"
 
 namespace cobalt {
 namespace cache {
