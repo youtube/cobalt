@@ -25,8 +25,6 @@ extern "C" {
 #define kCobaltExtensionOnScreenKeyboardName \
   "dev.cobalt.extension.OnScreenKeyboard"
 
-#if SB_API_VERSION >= 16
-
 // System-triggered OnScreenKeyboard events have ticket value
 // kSbEventOnScreenKeyboardInvalidTicket.
 #define kSbEventOnScreenKeyboardInvalidTicket (-1)
@@ -39,8 +37,6 @@ typedef struct SbWindowRect {
   float width;
   float height;
 } SbWindowRect;
-
-#endif  // #if SB_API_VERSION >= 16
 
 typedef struct CobaltExtensionOnScreenKeyboardApi {
   // Name should be the string
