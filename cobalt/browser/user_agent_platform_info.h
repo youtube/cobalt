@@ -97,9 +97,6 @@ class UserAgentPlatformInfo : public web::UserAgentPlatformInfo {
   void set_os_name_and_version(const std::string& os_name_and_version);
   void set_original_design_manufacturer(
       base::Optional<std::string> original_design_manufacturer);
-#if SB_API_VERSION < 15
-  void set_device_type(SbSystemDeviceType device_type);
-#endif
   void set_device_type(const std::string& device_type);
   void set_chipset_model_number(
       base::Optional<std::string> chipset_model_number);

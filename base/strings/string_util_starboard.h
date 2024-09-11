@@ -16,9 +16,7 @@
 #define BASE_STRING_UTIL_STARBOARD_H_
 
 #include <stdarg.h>
-#if SB_API_VERSION >= 16
 #include <stdio.h>
-#endif
 
 #include "base/basictypes.h"
 #include "base/logging.h"
