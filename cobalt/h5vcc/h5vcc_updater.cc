@@ -91,6 +91,54 @@ void H5vccUpdater::SetUseCompressedUpdates(bool use_compressed_updates) {
   return updater_module_->SetUseCompressedUpdates(use_compressed_updates);
 }
 
+bool H5vccUpdater::GetAllowSelfSignedPackages() {
+  if (updater_module_) {
+    return updater_module_->GetAllowSelfSignedPackages();
+  }
+
+  return false;
+}
+
+void H5vccUpdater::SetAllowSelfSignedPackages(bool allow_self_signed_packages) {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  if (updater_module_) {
+    updater_module_->SetAllowSelfSignedPackages(allow_self_signed_packages);
+  }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+}
+
+std::string H5vccUpdater::GetUpdateServerUrl() const {
+  if (updater_module_) {
+    return updater_module_->GetUpdateServerUrl();
+  }
+
+  return "";
+}
+
+void H5vccUpdater::SetUpdateServerUrl(const std::string& update_server_url) {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  if (updater_module_) {
+    updater_module_->SetUpdateServerUrl(update_server_url);
+  }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+}
+
+bool H5vccUpdater::GetRequireNetworkEncryption() const {
+  if (updater_module_) {
+    return updater_module_->GetRequireNetworkEncryption();
+  }
+
+  return false;
+}
+
+void H5vccUpdater::SetRequireNetworkEncryption(
+    bool require_network_encryption) {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  if (updater_module_) {
+    updater_module_->SetRequireNetworkEncryption(require_network_encryption);
+  }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+}
 #endif  // SB_IS(EVERGREEN)
 }  // namespace h5vcc
 }  // namespace cobalt

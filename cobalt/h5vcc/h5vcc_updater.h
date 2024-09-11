@@ -51,6 +51,15 @@ class H5vccUpdater : public script::Wrappable {
   bool GetUseCompressedUpdates() const;
   void SetUseCompressedUpdates(bool use_compressed_updates);
 
+  bool GetAllowSelfSignedPackages();
+  void SetAllowSelfSignedPackages(bool allow_self_signed_packages);
+
+  std::string GetUpdateServerUrl() const;
+  void SetUpdateServerUrl(const std::string& update_server_url);
+
+  bool GetRequireNetworkEncryption() const;
+  void SetRequireNetworkEncryption(bool require_network_encryption);
+
 #else
   H5vccUpdater() {}
 #endif
