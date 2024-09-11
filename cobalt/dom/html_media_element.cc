@@ -431,9 +431,11 @@ void HTMLMediaElement::set_current_time(
     LOG(ERROR) << "invalid state error";
     web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                              exception_state);
-    return;
+  } else {
+    Seek(time);
   }
-  Seek(time);
+
+  ReportCurrentTimeToMediaSource();
 }
 
 double HTMLMediaElement::duration() const {
@@ -816,7 +818,7 @@ void HTMLMediaElement::PrepareForLoad() {
   set_playback_rate(default_playback_rate());
 
   // 6 - Set the error attribute to null and the autoplaying flag to true.
-  error_ = NULL;
+  SetError(NULL);
   autoplaying_ = true;
 
   // 7 - Invoke the media element's resource selection algorithm.
@@ -1050,8 +1052,8 @@ void HTMLMediaElement::NoneSupported(const std::string& message) {
 
   // 6.1 - Set the error attribute to a new MediaError object whose code
   // attribute is set to MEDIA_ERR_SRC_NOT_SUPPORTED.
-  error_ = new MediaError(MediaError::kMediaErrSrcNotSupported,
-                          message.empty() ? "Source not supported." : message);
+  SetError(new MediaError(MediaError::kMediaErrSrcNotSupported,
+                          message.empty() ? "Source not supported." : message));
   // 6.2 - Forget the media element's media-resource-specific text tracks.
 
   // 6.3 - Set the element's networkState attribute to the kNetworkNoSource
@@ -1129,6 +1131,10 @@ void HTMLMediaElement::OnPlaybackProgressTimer() {
   }
 
   ScheduleTimeupdateEvent(true);
+
+  // The playback progress timer is used here to provide a steady clock that
+  // allows the attached MediaSource to have access to a recent media time.
+  ReportCurrentTimeToMediaSource();
 }
 
 void HTMLMediaElement::StartPlaybackProgressTimer() {
@@ -1511,6 +1517,8 @@ void HTMLMediaElement::UpdatePlayState() {
       AddPlayedRange(last_seek_time_, time);
     }
   }
+
+  ReportCurrentTimeToMediaSource();
 }
 
 bool HTMLMediaElement::PotentiallyPlaying() const {
@@ -1575,6 +1583,32 @@ void HTMLMediaElement::ConfigureMediaControls() {
   DLOG_IF(WARNING, controls_) << "media control is not supported";
 }
 
+void HTMLMediaElement::ReportCurrentTimeToMediaSource() {
+  if (!is_using_media_source_attachment_methods_) {
+    return;
+  }
+
+  if (!media_source_attachment_) {
+    return;
+  }
+
+  media_source_attachment_->OnElementTimeUpdate(current_time(NULL));
+}
+
+void HTMLMediaElement::SetError(scoped_refptr<MediaError> error) {
+  error_ = error;
+
+  if (!is_using_media_source_attachment_methods_) {
+    return;
+  }
+
+  if (!error || !media_source_attachment_) {
+    return;
+  }
+
+  media_source_attachment_->OnElementError();
+}
+
 void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
   if (error->message().empty()) {
     LOG(WARNING) << "HTMLMediaElement::MediaEngineError " << error->code();
@@ -1589,7 +1623,7 @@ void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
 
   // 2 - Set the error attribute to a new MediaError object whose code attribute
   // is set to MEDIA_ERR_NETWORK/MEDIA_ERR_DECODE.
-  error_ = error;
+  SetError(error);
 
   // 3 - Queue a task to fire a simple event named error at the media element.
   ScheduleOwnEvent(base::Tokens::error());
