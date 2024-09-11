@@ -36,7 +36,7 @@
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/string.h"
+
 #include "starboard/thread.h"
 
 namespace starboard {

@@ -36,7 +36,6 @@
 #endif  // !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/common/once.h"
 #include "starboard/loader_app/record_loader_app_status.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace loader_app {

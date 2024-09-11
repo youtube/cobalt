@@ -28,7 +28,6 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/string.h"
 
 #ifdef __cplusplus
 extern "C" {

@@ -25,7 +25,7 @@
 #include "starboard/elf_loader/lz4_file_impl.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
+
 #include "starboard/system.h"
 
 namespace starboard {

@@ -16,7 +16,6 @@
 
 #include "starboard/atomic.h"
 #include "starboard/audio_sink.h"
-#include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/cpu_features.h"
 #include "starboard/decode_target.h"
@@ -37,7 +36,7 @@
 #include "starboard/socket_waiter.h"
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
-#include "starboard/string.h"
+
 #include "starboard/system.h"
 #include "starboard/thread.h"
 #include "starboard/time_zone.h"

@@ -17,7 +17,6 @@
 #include "cobalt/browser/memory_settings/table_printer.h"
 
 #include "base/logging.h"
-#include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

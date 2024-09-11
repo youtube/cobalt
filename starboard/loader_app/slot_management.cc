@@ -36,7 +36,7 @@
 #include "starboard/loader_app/drain_file.h"
 #include "starboard/loader_app/installation_manager.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
+
 #include "third_party/crashpad/crashpad/wrapper/annotations.h"
 #include "third_party/crashpad/crashpad/wrapper/wrapper.h"
 #include "third_party/jsoncpp/source/include/json/reader.h"

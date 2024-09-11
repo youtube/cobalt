@@ -27,7 +27,6 @@
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
-#include "starboard/string.h"
 
 using starboard::shared::starboard::player::PlayerWorker;
 using starboard::shared::starboard::player::filter::

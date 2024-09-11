@@ -29,7 +29,6 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/shared/starboard/file_atomic_replace_write_file.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace {

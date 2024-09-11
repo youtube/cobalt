@@ -23,7 +23,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace loader_app {

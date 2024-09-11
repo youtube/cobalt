@@ -28,7 +28,7 @@
 #include <vector>
 
 #include "starboard/configuration.h"
-#include "starboard/string.h"
+#include "starboard/types.h"
 
 namespace starboard {
 

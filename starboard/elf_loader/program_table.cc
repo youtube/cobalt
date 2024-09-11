@@ -21,7 +21,6 @@
 #include "starboard/elf_loader/evergreen_info.h"
 #include "starboard/elf_loader/log.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 
 #define MAYBE_MAP_FLAG(x, from, to) (((x) & (from)) ? (to) : 0)
 

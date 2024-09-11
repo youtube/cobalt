@@ -17,7 +17,6 @@
 #include <cstring>
 
 #include "starboard/common/log.h"
-#include "starboard/string.h"
 
 extern "C" {
 

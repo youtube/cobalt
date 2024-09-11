@@ -18,7 +18,7 @@
 
 #include "starboard/elf_loader/elf.h"
 #include "starboard/elf_loader/file_impl.h"
-#include "starboard/string.h"
+
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {

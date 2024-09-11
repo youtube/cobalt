@@ -16,7 +16,6 @@
 
 #include <string>
 
-#include "starboard/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
