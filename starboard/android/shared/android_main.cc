@@ -387,7 +387,6 @@ Java_dev_cobalt_coat_VolumeStateReceiver_nativeMuteChanged(JNIEnv* env,
 
 }  // namespace
 
-#if SB_API_VERSION >= 15
 extern "C" int SbRunStarboardMain(int argc,
                                   char** argv,
                                   SbEventHandleCallback callback) {
@@ -419,7 +418,6 @@ extern "C" int SbRunStarboardMain(int argc,
 
   return error_level;
 }
-#endif  // SB_API_VERSION >= 15
 
 }  // namespace shared
 }  // namespace android
