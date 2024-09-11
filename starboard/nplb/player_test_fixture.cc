@@ -250,11 +250,7 @@ void SbPlayerTestFixture::Seek(const int64_t time) {
   audio_end_of_stream_written_ = false;
   video_end_of_stream_written_ = false;
 
-#if SB_API_VERSION >= 15
   SbPlayerSeek(player_, time, ++ticket_);
-#else   // SB_API_VERSION >= 15
-  SbPlayerSeek2(player_, time, ++ticket_);
-#endif  // SB_API_VERSION >= 15
 }
 
 void SbPlayerTestFixture::Write(const GroupedSamples& grouped_samples) {
@@ -349,13 +345,8 @@ void SbPlayerTestFixture::WaitForPlayerEndOfStream() {
 }
 
 int64_t SbPlayerTestFixture::GetCurrentMediaTime() const {
-#if SB_API_VERSION >= 15
   SbPlayerInfo info = {};
   SbPlayerGetInfo(player_, &info);
-#else   // SB_API_VERSION >= 15
-  SbPlayerInfo2 info = {};
-  SbPlayerGetInfo2(player_, &info);
-#endif  // SB_API_VERSION >= 15
   return info.current_media_timestamp;
 }
 
