@@ -43,7 +43,6 @@
 #include "starboard/microphone.h"
 #include "starboard/mutex.h"
 #include "starboard/player.h"
-#if SB_API_VERSION >= 16
 #include "starboard/shared/modular/starboard_layer_posix_directory_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_mmap_abi_wrappers.h"
@@ -52,7 +51,6 @@
 #include "starboard/shared/modular/starboard_layer_posix_stat_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
-#endif  // SB_API_VERSION >= 16
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/speech_synthesis.h"
@@ -96,10 +94,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(kSbPathSepChar);
   REGISTER_SYMBOL(kSbPathSepString);
   REGISTER_SYMBOL(kSbPreferredRgbaByteOrder);
-#if SB_API_VERSION >= 16
   REGISTER_SYMBOL(kSbCanMapExecutableMemory);
   REGISTER_SYMBOL(kHasPartialAudioFramesSupport);
-#endif  // SB_API_VERSION >= 16
   REGISTER_SYMBOL(SbAudioSinkCreate);
   REGISTER_SYMBOL(SbAudioSinkDestroy);
   REGISTER_SYMBOL(SbAudioSinkGetMaxChannels);
@@ -153,31 +149,17 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbMicrophoneRead);
   REGISTER_SYMBOL(SbPlayerCreate);
   REGISTER_SYMBOL(SbPlayerDestroy);
-#if SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerGetAudioConfiguration);
-#endif  // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerGetCurrentFrame);
-#if SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerGetInfo);
-#else   // SB_API_VERSION >= 15
-  REGISTER_SYMBOL(SbPlayerGetInfo2);
-#endif  // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerGetMaximumNumberOfSamplesPerWrite);
   REGISTER_SYMBOL(SbPlayerGetPreferredOutputMode);
-#if SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerSeek);
-#else   // SB_API_VERSION >= 15
-  REGISTER_SYMBOL(SbPlayerSeek2);
-#endif  // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerSetBounds);
   REGISTER_SYMBOL(SbPlayerSetPlaybackRate);
   REGISTER_SYMBOL(SbPlayerSetVolume);
   REGISTER_SYMBOL(SbPlayerWriteEndOfStream);
-#if SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbPlayerWriteSamples);
-#else   // SB_API_VERSION >= 15
-  REGISTER_SYMBOL(SbPlayerWriteSample2);
-#endif  // SB_API_VERSION >= 15
   REGISTER_SYMBOL(SbSocketAccept);
   REGISTER_SYMBOL(SbSocketBind);
   REGISTER_SYMBOL(SbSocketClearLastError);
@@ -210,10 +192,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSocketWaiterWait);
   REGISTER_SYMBOL(SbSocketWaiterWaitTimed);
   REGISTER_SYMBOL(SbSocketWaiterWakeUp);
-#if SB_API_VERSION >= 16
   REGISTER_SYMBOL(SbPosixSocketWaiterAdd);
   REGISTER_SYMBOL(SbPosixSocketWaiterRemove);
-#endif  // SB_API_VERSION >= 16
   REGISTER_SYMBOL(SbSpeechSynthesisCancel);
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
   REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
@@ -225,9 +205,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbStorageWriteRecord);
   REGISTER_SYMBOL(SbSystemBreakIntoDebugger);
   REGISTER_SYMBOL(SbSystemClearLastError);
-#if SB_API_VERSION < 15
-  REGISTER_SYMBOL(SbSystemGetDeviceType);
-#endif
   REGISTER_SYMBOL(SbSystemGetErrorString);
   REGISTER_SYMBOL(SbSystemGetExtension);
   REGISTER_SYMBOL(SbSystemGetLastError);
@@ -258,18 +235,13 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemSymbolize);
   REGISTER_SYMBOL(SbThreadContextGetPointer);
   REGISTER_SYMBOL(SbThreadGetId);
-#if SB_API_VERSION >= 16
   REGISTER_SYMBOL(SbThreadGetPriority);
-#endif  // SB_API_VERSION >= 16
-
   REGISTER_SYMBOL(SbThreadSamplerCreate);
   REGISTER_SYMBOL(SbThreadSamplerDestroy);
   REGISTER_SYMBOL(SbThreadSamplerFreeze);
   REGISTER_SYMBOL(SbThreadSamplerIsSupported);
   REGISTER_SYMBOL(SbThreadSamplerThaw);
-#if SB_API_VERSION >= 16
   REGISTER_SYMBOL(SbThreadSetPriority);
-#endif  // SB_API_VERSION >= 16
   REGISTER_SYMBOL(SbTimeZoneGetCurrent);
   REGISTER_SYMBOL(SbTimeZoneGetName);
   REGISTER_SYMBOL(SbWindowCreate);
@@ -279,7 +251,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowGetSize);
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
 
-#if SB_API_VERSION >= 16
   // POSIX APIs
   REGISTER_SYMBOL(accept);
   REGISTER_SYMBOL(bind);
@@ -436,8 +407,6 @@ ExportedSymbols::ExportedSymbols() {
 #else
   REGISTER_SYMBOL(vswprintf);
 #endif  // defined(_MSC_VER)
-
-#endif  // SB_API_VERSION >= 16
 
 }  // NOLINT
 
