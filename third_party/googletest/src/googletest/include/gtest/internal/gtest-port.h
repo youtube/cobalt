@@ -276,7 +276,6 @@
 #include "starboard/file.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
-#include "starboard/mutex.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
 #include "starboard/types.h"

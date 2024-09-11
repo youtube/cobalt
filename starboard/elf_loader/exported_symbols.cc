@@ -40,7 +40,6 @@
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/microphone.h"
-#include "starboard/mutex.h"
 #include "starboard/player.h"
 #if SB_API_VERSION >= 16
 #include "starboard/shared/modular/starboard_layer_posix_directory_abi_wrappers.h"

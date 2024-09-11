@@ -33,7 +33,6 @@ extern "C" {
 #include "starboard/media.h"
 #include "starboard/memory.h"
 #include "starboard/microphone.h"
-#include "starboard/mutex.h"
 #include "starboard/player.h"
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
