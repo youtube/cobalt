@@ -31,7 +31,6 @@ TEST(QuicheFileUtilsTest, ReadFileContentsFileNotFound) {
   EXPECT_FALSE(contents.has_value());
 }
 
-#if !defined(STARBOARD)
 TEST(QuicheFileUtilsTest, EnumerateDirectory) {
   std::string path =
       absl::StrCat(QuicheGetCommonSourcePath(), "/platform/api/testdir");
@@ -60,7 +59,6 @@ TEST(QuicheFileUtilsTest, EnumerateDirectoryNotADirectory) {
   bool success = EnumerateDirectory(path, dirs, files);
   EXPECT_FALSE(success);
 }
-#endif  // !defined(STARBOARD)
 
 TEST(QuicheFileUtilsTest, EnumerateDirectoryRecursively) {
   std::vector<std::string> expected_paths = {"a/b/c/d/e", "a/subdir/testfile",
