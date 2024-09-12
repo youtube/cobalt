@@ -20,7 +20,7 @@
 #if defined(STARBOARD)
 #include <sys/stat.h>
 #include <unistd.h>
-#include "starboard/file.h"
+
 #elif BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)

@@ -16,7 +16,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

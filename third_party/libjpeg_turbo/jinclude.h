@@ -34,7 +34,7 @@
  */
 
 #ifdef STARBOARD
-#include "starboard/file.h"
+
 #endif
 #include <stddef.h>
 #include <stdlib.h>

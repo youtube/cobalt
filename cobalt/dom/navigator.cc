@@ -31,7 +31,6 @@
 #include "cobalt/web/navigator_base.h"
 #include "cobalt/worker/service_worker_container.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/file.h"
 #include "starboard/media.h"
 
 namespace cobalt {

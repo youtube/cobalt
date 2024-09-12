@@ -23,7 +23,7 @@
 #include "base/callback.h"
 #include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
-#include "starboard/file.h"
+
 
 // Inhibit C++ name-mangling for libjpeg functions.
 extern "C" {

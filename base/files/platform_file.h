@@ -9,7 +9,7 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
-#include "starboard/file.h"
+
 #endif
 
 #if BUILDFLAG(IS_WIN)

@@ -48,7 +48,7 @@
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/file.h"
+
 #include "starboard/system.h"
 typedef int* FileHandle;
 typedef pthread_mutex_t MutexHandle;
