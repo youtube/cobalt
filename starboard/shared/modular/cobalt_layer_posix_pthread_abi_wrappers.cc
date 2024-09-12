@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION >= 16
-
 #include <pthread.h>
 
 extern "C" {
@@ -238,4 +236,3 @@ int pthread_attr_setdetachstate(pthread_attr_t* attr, int detach_state) {
   return __abi_wrap_pthread_attr_setdetachstate(attr, detach_state);
 }
 }
-#endif  // SB_API_VERSION >= 16

@@ -14,13 +14,9 @@
 
 #include "starboard/player.h"
 
-#if SB_API_VERSION >= 15
-
 bool SbPlayerGetAudioConfiguration(
     SbPlayer player,
     int index,
     SbMediaAudioConfiguration* out_audio_configuration) {
   return false;
 }
-
-#endif  // SB_API_VERSION >= 15

@@ -18,8 +18,6 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_API_VERSION >= 15
-
 bool SbPlayerGetAudioConfiguration(
     SbPlayer player,
     int index,
@@ -30,5 +28,3 @@ bool SbPlayerGetAudioConfiguration(
 
   return player->GetAudioConfiguration(index, out_audio_configuration);
 }
-
-#endif  // SB_API_VERSION >= 15

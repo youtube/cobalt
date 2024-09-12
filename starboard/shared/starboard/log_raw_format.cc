@@ -15,11 +15,7 @@
 #include "starboard/common/log.h"
 
 #include <stdarg.h>
-#if SB_API_VERSION >= 16
 #include <stdio.h>
-#else
-#include "starboard/common/string.h"
-#endif  // SB_API_VERSION >= 16
 
 void SbLogRawFormat(const char* format, va_list arguments) {
   char message[128];
