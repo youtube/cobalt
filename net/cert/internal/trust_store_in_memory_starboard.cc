@@ -27,7 +27,6 @@
 #include "net/cert/x509_util.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
-
 #include "third_party/boringssl/src/include/openssl/digest.h"
 #include "third_party/boringssl/src/include/openssl/sha.h"
 #include "third_party/boringssl/src/include/openssl/x509.h"
