@@ -17,35 +17,35 @@ Required libraries can differ depending on your Linux distribution and version.
 1.  Run the following command to install packages needed to build and run
     Cobalt on Linux:
 
-    ```
-    $ sudo apt update && sudo apt install -qqy --no-install-recommends \
-        bison clang libasound2-dev libgles2-mesa-dev libglib2.0-dev \
-        libxcomposite-dev libxi-dev libxrender-dev nasm ninja-build \
-        python3.8-venv
+    ```sh
+    sudo apt update && sudo apt install -qqy --no-install-recommends \
+      bison clang libasound2-dev libgles2-mesa-dev libglib2.0-dev \
+      libxcomposite-dev libxi-dev libxrender-dev nasm ninja-build \
+      python3-venv
     ```
 
 1.  Install ccache to support build acceleration. Build acceleration is \
     enabled by default and must be disabled if ccache is not installed.
 
-    ```
-    $ sudo apt install -qqy --no-install-recommends ccache
+    ```sh
+    sudo apt install -qqy --no-install-recommends ccache
     ```
 
     We recommend adjusting the cache size as needed to increase cache hits:
 
-    ```
-    $ ccache --max-size=20G
+    ```sh
+    ccache --max-size=20G
     ```
 
 1.  Install Node.js via `nvm`:
 
-    ```
-    $ export NVM_DIR=~/.nvm
-    $ export NODE_VERSION=12.17.0
+    ```sh
+    export NVM_DIR=~/.nvm
+    export NODE_VERSION=12.17.0
 
-    $ curl --silent -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash
+    curl --silent -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.3/install.sh | bash
 
-    $ . $NVM_DIR/nvm.sh \
+    . $NVM_DIR/nvm.sh \
         && nvm install --lts \
         && nvm alias default lts/* \
         && nvm use default
@@ -58,8 +58,8 @@ Required libraries can differ depending on your Linux distribution and version.
 1.  Clone the Cobalt code repository. The following `git` command creates a
     `cobalt` directory that contains the repository:
 
-    ```
-    $ git clone https://github.com/youtube/cobalt.git
+    ```sh
+    git clone https://github.com/youtube/cobalt.git
     ```
 
 1.  Set `PYTHONPATH` environment variable to include the full path to the
@@ -67,7 +67,7 @@ Required libraries can differ depending on your Linux distribution and version.
     the end of your ~/.bash_profile (replacing `fullpathto` with the actual
     path where you cloned the repo):
 
-    ```
+    ```sh
     export PYTHONPATH="/fullpathto/cobalt:${PYTHONPATH}"
     ```
 
@@ -78,8 +78,10 @@ Required libraries can differ depending on your Linux distribution and version.
 
 1.  Enter your new `cobalt` directory:
 
-    ```
-    $ cd cobalt
+    ```sh
+    cd cobalt
+    export COBALT_SRC=${PWD}
+    export PYTHONPATH=${PWD}:${PYTHONPATH}
     ```
 
     <aside class="note">
@@ -90,23 +92,23 @@ Required libraries can differ depending on your Linux distribution and version.
 
 1.  Create a Python 3 virtual environment for working on Cobalt (feel free to use `virtualenvwrapper` instead):
 
-    ```
-    $ python3 -m venv ~/.virtualenvs/cobalt_dev
-    $ source ~/.virtualenvs/cobalt_dev/bin/activate
-    $ pip install -r requirements.txt
+    ```sh
+    python3 -m venv ~/.virtualenvs/cobalt_dev
+    source ~/.virtualenvs/cobalt_dev/bin/activate
+    pip install -r requirements.txt
     ```
 
 1.  Install the pre-commit hooks:
 
-    ```
-    $ pre-commit install -t post-checkout -t pre-commit -t pre-push --allow-missing-config
-    $ git checkout -b <my-branch-name> origin/master
+    ```sh
+    pre-commit install -t post-checkout -t pre-commit -t pre-push --allow-missing-config
+    git checkout -b <my-branch-name> origin/master
     ```
 
 1.  Download clang++:
 
-    ```
-    $ ./starboard/tools/download_clang.sh
+    ```sh
+    ./starboard/tools/download_clang.sh
     ```
 
 ## Build and Run Cobalt
@@ -120,13 +122,13 @@ Required libraries can differ depending on your Linux distribution and version.
     specify a build type, the command finishes sooner. Otherwise, all types
     are built.
 
-    ```
-    $ python cobalt/build/gn.py [-c <build_type>] -p <platform>
+    ```sh
+    python cobalt/build/gn.py [-c <build_type>] -p <platform>
     ```
 
 1.  Compile the code from the `cobalt/` directory:
 
-    ```
+    ```sh
     $ ninja -C out/<platform>_<build_type> <target_name>
     ```
 
@@ -150,7 +152,7 @@ Required libraries can differ depending on your Linux distribution and version.
 
     For example:
 
-    ```
+    ```sh
     ninja -C out/linux-x64x11_debug cobalt
     ```
 
@@ -160,9 +162,9 @@ Required libraries can differ depending on your Linux distribution and version.
 
 1.  Run the compiled code to launch the Cobalt client:
 
-    ```
+    ```sh
     # Note that 'cobalt' was the <target_name> from the previous step.
-    $ out/linux-x64x11_debug/cobalt [--url=<url>]
+    out/linux-x64x11_debug/cobalt [--url=<url>]
     ```
 
     The flags in the following table are frequently used, and the full set
@@ -199,3 +201,249 @@ to debug application performance, but also a great way to debug issues and
 better understand Cobalt's execution flow in general.
 
 Simply build and run one of these configs and observe the terminal output.
+
+# Running Cobalt in evergreen mode
+
+As [Evergreen support](/starboard/doc/evergreen/cobalt_evergreen_overview.md) is
+mandatory since 2024 requirement, Cobalt should be executed in Evergreen mode.
+
+## Download and configure the official Google-built Cobalt binaries from GitHub
+1. Create output directory for evergreen
+
+    - Create the directory with arguments that meet your need
+      - Build type, ex: gold, qa
+      - Starboard API version, ex: 15, 16
+    - An example to create directory with build_type=qa and sb_api_version=16
+
+      ```sh
+      # go to cobalt root folder
+      export COBALT_SRC=${PWD}
+      export PYTHONPATH=${PWD}:${PYTHONPATH}
+
+      # setup evergreen build arguments
+      export EG_PLATFORM=evergreen-x64
+      export EG_BUILD_TYPE=qa
+      export SB_API_VER=16
+      export EVERGREEN_DIR=out/${EG_PLATFORM}_${EG_BUILD_TYPE}
+
+      gn gen $EVERGREEN_DIR --args="target_platform=\"$EG_PLATFORM\" use_asan=false build_type=\"$EG_BUILD_TYPE\" sb_api_version=$SB_API_VER"
+      ```
+
+1. Select Google-prebuilt Cobalt binaries from [GitHub](https://github.com/youtube/cobalt/releases)
+
+    - Choose the correct evergreen version based on the target device specification
+
+      Please note that the selected prebuilt binary must meet the settings used to create evergreen directory in previous step.
+      - Cobalt version you checked out, ex: 25.lts.1
+      - Build type, ex: gold, qa
+      - Starboard API version, ex: 15, 16
+    - Starting from Cobalt 25 with starboard API version 16, you need to use
+      [compressed version](/starboard/doc/evergreen/evergreen_binary_compression.md), ex:
+      - [`25.lts.1 release`](https://github.com/youtube/cobalt/releases/tag/25.lts.1)
+      - `Gold version`: cobalt_evergreen_5.1.2_x64_sbversion-16_release_compressed_20240629001855.crx
+
+      - `QA version`: cobalt_evergreen_5.1.2_x64_sbversion-16_qa_compressed_20240629001855.crx
+    - Right click the file and copy file URL
+
+1. Download and unzip the file
+
+    ```sh
+    export LOCAL_CRX_DIR=/tmp/cobalt_dl
+    rm -rf $LOCAL_CRX_DIR
+    mkdir -p $LOCAL_CRX_DIR
+
+    # paste prebuilt library URL and Download it to /tmp
+    # Please update URL according to your need
+    COBALT_CRX_URL=https://github.com/youtube/cobalt/releases/download/25.lts.1/cobalt_evergreen_5.1.2_x64_sbversion-16_qa_compressed_20240629001855.crx
+
+    wget $COBALT_CRX_URL -O $LOCAL_CRX_DIR/cobalt_prebuilt.crx
+
+    # Unzip the downloaded CRX file
+    unzip $LOCAL_CRX_DIR/cobalt_prebuilt.crx -d $LOCAL_CRX_DIR/cobalt_prebuilt
+    ```
+
+1. Copy the files to the appropriate directories
+
+    ```sh
+    cd $COBALT_SRC
+    mkdir -p $EVERGREEN_DIR/install/lib
+    cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/lib/* $EVERGREEN_DIR/
+    cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/lib/* $EVERGREEN_DIR/install/lib
+    cp -f $LOCAL_CRX_DIR/cobalt_prebuilt/manifest.json $EVERGREEN_DIR/
+    cp -rf $LOCAL_CRX_DIR/cobalt_prebuilt/content $EVERGREEN_DIR/
+    ```
+
+## Build executables running on target platform
+
+The Cobalt library is prepared in above steps. The next step is to build
+the partner-built Loader App and Crashpad Handler executables. Please refer
+[Evergreen build](/starboard/doc/evergreen/cobalt_evergreen_overview.md#build-commands)
+for more information. Here is an example of devel build and Starboard API 16.
+
+1. Generate output folder for x64
+
+    ```sh
+    # The x64 build type can be any other build type from evergreen
+    # The sb_api_version should be the same as evergreen
+    export TARGET_PLATFORM=linux-x64x11
+    export TARGET_BUILD_TYPE=devel
+    export TARGET_DIR=out/${TARGET_PLATFORM}_${TARGET_BUILD_TYPE}
+    gn gen $TARGET_DIR --args="target_platform=\"$TARGET_PLATFORM\" build_type=\"$TARGET_BUILD_TYPE\" sb_api_version=$SB_API_VER"
+    ```
+
+1. Build executables
+
+    ```sh
+    ninja -C $TARGET_DIR loader_app_install
+    ninja -C $TARGET_DIR native_target/crashpad_handler
+    ninja -C $TARGET_DIR elf_loader_sandbox_install
+    ```
+
+1. Copy necessary artifacts from evergreen folder
+
+    ```sh
+    mkdir -p $TARGET_DIR/content/app/cobalt
+    cp -r $EVERGREEN_DIR/install/lib/ $TARGET_DIR/content/app/cobalt
+    cp -r $EVERGREEN_DIR/content/ $TARGET_DIR/content/app/cobalt
+    cp $EVERGREEN_DIR/manifest.json $TARGET_DIR/
+    cp $TARGET_DIR/native_target/crashpad_handler $TARGET_DIR/
+
+    # The three executables: crashpad_handler, loader_app and elf_loader_sandbox are now placed in $TARGET_DIR/
+    ```
+
+## Running Cobalt with loader_app
+To launch cobalt, simplely execute `loader_app` in command line:
+
+```sh
+cd $TARGET_DIR
+./loader_app
+```
+
+The loader_app will find cobalt library from `content/app/cobalt/lib/` and
+content from `content/app/cobalt/content/`. The library in `content/app/cobalt/lib/`
+can be compressed or uncompressed version. For Cobalt 2025 certification,
+compressed version should be used.
+
+# Running Tests
+
+There is no prebuilt NPLB library on github server and the partners can build
+it from the source code.
+However, it is important to note that `the NPLB library should be built using
+Cobalt toolchain instead of partner proprietary toolchain`. It is because
+NPLB verifies the Starboard implementation from Cobalt perspective. Running NPLB
+that is built by Cobalt toolchain accompany with a loader that is built
+using partner proprietary can simulate the real use case and detect potential
+issue due to toolchain compatibility.
+
+This document describes how to build NPLB library by Cobalt toolchain and
+launch NPLB via `elf_loader_sandbox` on x64 platform.
+
+`Note`: Partners should use the Cobalt toolchain to build the NPLB library for
+their specific platform. After building, they should copy the NPLB library and
+associated test materials to their target devices. Finally, they should use
+`elf_loader_sandbox` (built with their own toolchain) to launch the NPLB.
+
+### Build NPLB library using Cobalt toolchain
+
+1. Create output directory for evergreen
+
+    - Create the directory with arguments that meet your need
+      - Build type, ex: devel, debug, qa
+      - Starboard API version, ex: 15, 16
+    - The example here use `devel` build type to get more logs during test
+
+      ```sh
+      # go to cobalt root folder
+      export COBALT_SRC=${PWD}
+      export PYTHONPATH=${PWD}:${PYTHONPATH}
+
+      # setup evergreen build arguments
+      export EG_PLATFORM=evergreen-x64
+      export EG_BUILD_TYPE=devel
+      export SB_API_VER=16
+      export EVERGREEN_DIR=out/${EG_PLATFORM}_${EG_BUILD_TYPE}
+
+      gn gen $EVERGREEN_DIR --args="target_platform=\"$EG_PLATFORM\" use_asan=false build_type=\"$EG_BUILD_TYPE\" sb_api_version=$SB_API_VER"
+      ```
+
+1. Build NPLB library
+
+    ```sh
+    ninja -C $EVERGREEN_DIR nplb_install
+    ```
+
+1. Build elf_loader_sandbox
+
+    Follow the steps at [Build executables running on target platform](#build-executables-running-on-target-platform) to build elf_loader_sandbox.
+
+1. Copy necessary artifacts from evergreen folder
+
+    ```sh
+    mkdir -p $TARGET_DIR/content/app/cobalt
+    cp -rf $EVERGREEN_DIR/install/lib/ $TARGET_DIR/content/app/cobalt
+    cp -rf $EVERGREEN_DIR/content/ $TARGET_DIR/content/app/cobalt
+    ```
+
+### Launch NPLB with elf_loader_sandbox
+
+As mentioned in [Evergreen document](/starboard/doc/evergreen/cobalt_evergreen_overview.md#building-and-running-tests),
+`elf_loader_sandbox` is a lightweight loader than the `loader_app`.
+It can be used to load cobalt, NPLB, or other libraries if the given paths are
+provided with command line switches:
+`--evergreen_library` and `--evergreen_content`.
+These switches are the path to the shared library to be run and the path to that shared
+library's content. Only uncompressed library is supported by `elf_loader_sandbox`.
+
+`Note`: these paths should be relative to `<location_of_elf_loader_sandbox>/content/`.
+
+For example, after previous steps, the folder structure in `$TARGET_DIR` is
+
+```
+...
+loader_app
+elf_loader_sandbox
+content/
+├── app
+│   └── cobalt
+│       ├── content
+│       │   ├── fonts
+│       │   ├── ssl
+│       │   ├── web
+│       │   └── webdriver
+│       └── lib
+│           └── libnplb.so
+└── fonts
+...
+```
+- root content folder is `$TARGET_DIR/content`
+- NPLB library path related to root content folder is `app/cobalt/lib/libnplb.so`
+- NPLB content path related to root content folder is `app/cobalt/content`
+
+The command to launch NPLB via elf_loader_sandbox is
+
+```sh
+cd $TARGET_DIR
+./elf_loader_sandbox \
+--evergreen_library=app/cobalt/lib/libnplb.so \
+--evergreen_content=app/cobalt/content/
+```
+
+### Using gtest argument
+The gtest argument can be passed as usual.
+
+- Output test result as XML file
+
+    ```sh
+    ./elf_loader_sandbox \
+    --evergreen_library=app/cobalt/lib/libnplb.so \
+    --evergreen_content=app/cobalt/content/ \
+    --gtest_output=xml:/data/nplb_testResult.xml
+    ```
+- Run test cases by filter
+
+    ```sh
+    ./elf_loader_sandbox \
+    --evergreen_library=app/cobalt/lib/libnplb.so \
+    --evergreen_content=app/cobalt/content/ --gtest_filter=*Posix* \
+    --gtest_output=xml:/data/nplb_testResult.xml
+    ```

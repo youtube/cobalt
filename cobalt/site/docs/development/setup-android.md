@@ -39,8 +39,6 @@ return and complete the following steps.
     ./starboard/tools/download_clang.sh
     ./starboard/android/shared/download_sdk.sh
     ```
-    If you encountered `Failed to find package patcher;v4` error, please edit starboard/android/shared/download_sdk.sh
-    and remove `"patcher;v4" \ ` near line 53.
 
 1. Install additional Linux packages
 
@@ -274,6 +272,23 @@ Similar to loader_app, create the directory with arguments that meet the target 
 
     # launch the apk
     adb shell "am start --esa args '--evergreen_library=app/cobalt/lib/libnplb.so,--evergreen_content=app/cobalt/content' dev.cobalt.coat"
+    ```
+
+1. Generate test result with XML format
+
+    Due to access permission constrains on AOSP, the xml file should be created
+    by `adb shell` first, before nplb apk writing test result in it.
+
+    ```sh
+    # create a file in a folder with read/write permission
+    adb shell "mkdir -p /data/local/tmp/"
+    adb shell "touch /data/local/tmp/nplb_testResult.xml"
+
+    # Make the file writable
+    adb shell "chmod a+w /data/local/tmp/nplb_testResult.xml"
+
+    # test and output to xml file
+    adb shell "am start --esa args '--evergreen_library=app/cobalt/lib/libnplb.so,--evergreen_content=app/cobalt/content,--gtest_output=xml:/data/local/tmp/nplb_testResult.xml' dev.cobalt.coat"
     ```
 
 ### Build and run nplb evergreen compat test apk
