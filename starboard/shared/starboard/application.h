@@ -46,10 +46,8 @@ class Application {
  public:
   typedef player::filter::VideoFrame VideoFrame;
 
-#if SB_API_VERSION >= 15
   // Executes a SbEventHandle method callback.
   SbEventHandleCallback sb_event_handle_callback_ = NULL;
-#endif  // SB_API_VERSION >= 15
 
   // You can use a void(void *) function to signal that a state-transition event
   // has completed.
@@ -157,11 +155,7 @@ class Application {
     int error_level;
   };
 
-#if SB_API_VERSION >= 15
   explicit Application(SbEventHandleCallback sb_event_handle_callback);
-#else
-  Application();
-#endif  // SB_API_VERSION >= 15
   virtual ~Application();
 
   // Gets the current instance of the Application. DCHECKS if called before the

@@ -110,11 +110,8 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
         get_decode_target_graphics_context_provider_func,
     WebMediaPlayerClient* client, WebMediaPlayerDelegate* delegate,
     bool allow_resume_after_suspend, int max_audio_samples_per_write,
-    bool force_punch_out_by_default,
-#if SB_API_VERSION >= 15
-    base::TimeDelta audio_write_duration_local,
+    bool force_punch_out_by_default, base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
-#endif  // SB_API_VERSION >= 15
     ::media::MediaLog* const media_log)
     : pipeline_thread_("media_pipeline"),
       network_state_(WebMediaPlayer::kNetworkStateEmpty),
@@ -144,11 +141,9 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       interface, window, pipeline_thread_.task_runner(),
       get_decode_target_graphics_context_provider_func,
       allow_resume_after_suspend_, max_audio_samples_per_write_,
-      force_punch_out_by_default_,
-#if SB_API_VERSION >= 15
-      audio_write_duration_local, audio_write_duration_remote,
-#endif  // SB_API_VERSION >= 15
-      media_log_, &media_metrics_provider_, decode_target_provider_.get());
+      force_punch_out_by_default_, audio_write_duration_local,
+      audio_write_duration_remote, media_log_, &media_metrics_provider_,
+      decode_target_provider_.get());
 
   // Also we want to be notified of thread destruction.
   base::CurrentThread::Get()->AddDestructionObserver(this);

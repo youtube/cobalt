@@ -15,10 +15,8 @@
 #include "starboard/event.h"
 #include "starboard/raspi/shared/application_dispmanx.h"
 
-#if SB_API_VERSION >= 15
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
   starboard::raspi::shared::ApplicationDispmanx application(callback);
   int result = application.Run(argc, argv);
   return result;
 }
-#endif  // SB_API_VERSION >= 15
