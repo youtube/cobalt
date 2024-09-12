@@ -16,36 +16,14 @@
 
 namespace starboard {
 
-StorageRecord::StorageRecord()
-    :
-#if SB_API_VERSION < 16
-      user_(SbUserGetCurrent()),
-#endif  // SB_API_VERSION < 16
-      record_(kSbStorageInvalidRecord) {
+StorageRecord::StorageRecord() : record_(kSbStorageInvalidRecord) {
   Initialize();
 }
 
 StorageRecord::StorageRecord(const char* name)
-    :
-#if SB_API_VERSION < 16
-      user_(SbUserGetCurrent()),
-#endif  // SB_API_VERSION < 16
-      name_(name),
-      record_(kSbStorageInvalidRecord) {
+    : name_(name), record_(kSbStorageInvalidRecord) {
   Initialize();
 }
-
-#if SB_API_VERSION < 16
-StorageRecord::StorageRecord(SbUser user)
-    : user_(user), record_(kSbStorageInvalidRecord) {
-  Initialize();
-}
-
-StorageRecord::StorageRecord(SbUser user, const char* name)
-    : user_(user), name_(name), record_(kSbStorageInvalidRecord) {
-  Initialize();
-}
-#endif  // SB_API_VERSION < 16
 
 StorageRecord::~StorageRecord() {
   Close();
@@ -78,21 +56,11 @@ bool StorageRecord::Close() {
 
 bool StorageRecord::Delete() {
   Close();
-#if SB_API_VERSION < 16
-  return SbStorageDeleteRecord(user_, name_.empty() ? NULL : name_.c_str());
-#else
   return SbStorageDeleteRecord(name_.empty() ? NULL : name_.c_str());
-#endif  // SB_API_VERSION < 16
 }
 
 void StorageRecord::Initialize() {
-#if SB_API_VERSION < 16
-  if (SbUserIsValid(user_)) {
-    record_ = SbStorageOpenRecord(user_, name_.empty() ? NULL : name_.c_str());
-  }
-#else
   record_ = SbStorageOpenRecord(name_.empty() ? NULL : name_.c_str());
-#endif  // SB_API_VERSION < 16
 }
 
 }  // namespace starboard

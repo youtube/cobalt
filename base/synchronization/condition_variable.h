@@ -70,11 +70,7 @@
 #include "base/synchronization/lock.h"
 
 #if defined(STARBOARD)
-#if SB_API_VERSION < 16
-#include "starboard/condition_variable.h"
-#else
 #include <pthread.h>
-#endif  // SB_API_VERSION < 16
 #else
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <pthread.h>
@@ -122,13 +118,8 @@ class BASE_EXPORT ConditionVariable {
 
  private:
 #if defined(STARBOARD)
-#if SB_API_VERSION < 16
-  SbConditionVariable condition_;
-  SbMutex* user_mutex_;
-#else
   pthread_cond_t condition_;
   pthread_mutex_t* user_mutex_;
-#endif  // SB_API_VERSION < 16
 #elif BUILDFLAG(IS_WIN)
   CHROME_CONDITION_VARIABLE cv_;
   const raw_ptr<CHROME_SRWLOCK> srwlock_;

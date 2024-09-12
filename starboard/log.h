@@ -105,11 +105,6 @@ static inline void SbLogFormatF(const char* format, ...) {
 // multiple threads.
 SB_EXPORT void SbLogFlush();
 
-#if SB_API_VERSION < 16
-// Indicates whether the log output goes to a TTY or is being redirected.
-SB_EXPORT bool SbLogIsTty();
-#endif
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

@@ -21,30 +21,19 @@ import shutil
 import sys
 
 from starboard.tools import util
-from starboard.tools import win_symlink
 
 # This file is still executed with Python2 in CI.
 # pylint:disable=consider-using-f-string
 
 
-def IsWindows():
-  return sys.platform in ['win32', 'cygwin']
-
-
 def ToLongPath(path):
   """Converts to a path that supports long filenames."""
-  if IsWindows():
-    return win_symlink.ToDevicePath(path)
-  else:
-    return path
+  return path
 
 
 def IsSymLink(path):
   """Platform neutral version os os.path.islink()."""
-  if IsWindows():
-    return win_symlink.IsReparsePoint(path)
-  else:
-    return os.path.islink(path)
+  return os.path.islink(path)
 
 
 def MakeSymLink(target_path, link_path):
@@ -57,37 +46,26 @@ def MakeSymLink(target_path, link_path):
   Returns:
     None
   """
-  if IsWindows():
-    win_symlink.CreateReparsePoint(target_path, link_path)
-  else:
-    util.MakeDirs(os.path.dirname(link_path))
-    os.symlink(target_path, link_path)
+  util.MakeDirs(os.path.dirname(link_path))
+  os.symlink(target_path, link_path)
 
 
 def ReadSymLink(link_path):
   """Returns the path (abs. or rel.) to the folder referred to by link_path."""
-  if IsWindows():
-    path = win_symlink.ReadReparsePoint(link_path)
-  else:
-    try:
-      path = os.readlink(link_path)
-    except OSError:
-      path = None
+  try:
+    path = os.readlink(link_path)
+  except OSError:
+    path = None
   return path
 
 
 def DelSymLink(link_path):
-  if IsWindows():
-    win_symlink.UnlinkReparsePoint(link_path)
-  else:
-    os.unlink(link_path)
+  os.unlink(link_path)
 
 
 def Rmtree(path):
   """See Rmtree() for documentation of this function."""
-  if IsWindows():
-    func = win_symlink.RmtreeShallow
-  elif not os.path.islink(path):
+  if not os.path.islink(path):
     func = shutil.rmtree
   else:
     os.unlink(path)
@@ -97,10 +75,7 @@ def Rmtree(path):
 
 
 def OsWalk(root_dir, topdown=True, onerror=None, followlinks=False):
-  if IsWindows():
-    return win_symlink.OsWalk(root_dir, topdown, onerror, followlinks)
-  else:
-    return os.walk(root_dir, topdown, onerror, followlinks)
+  return os.walk(root_dir, topdown, onerror, followlinks)
 
 
 def _CreateArgumentParser():

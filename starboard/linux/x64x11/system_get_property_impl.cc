@@ -36,14 +36,6 @@ const char kSystemIntegratorName[] = "SystemIntegratorName";
 const char kModelYear[] = "2026";
 #endif  // SB_API_VERSION == 17
 
-#if SB_API_VERSION == 16
-const char kModelYear[] = "2025";
-#endif  // SB_API_VERSION == 16
-
-#if SB_API_VERSION == 15
-const char kModelYear[] = "2024";
-#endif  // SB_API_VERSION == 15
-
 }  // namespace
 
 // Omit namespace linux due to symbol name conflict.

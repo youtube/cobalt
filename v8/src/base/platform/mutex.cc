@@ -297,35 +297,19 @@ bool SharedMutex::TryLockExclusive() {
 #elif V8_OS_STARBOARD
 
 Mutex::Mutex() { 
-#if SB_API_VERSION < 16
-  SbMutexCreate(&native_handle_);
-#else
   pthread_mutex_init(&native_handle_, nullptr);
-#endif
 }
 
 Mutex::~Mutex() {
-#if SB_API_VERSION < 16
-  SbMutexDestroy(&native_handle_);
-#else
   pthread_mutex_destroy(&native_handle_);
-#endif
 }
 
 void Mutex::Lock() {
-#if SB_API_VERSION < 16
-  SbMutexAcquire(&native_handle_);
-#else
   pthread_mutex_lock(&native_handle_);
-#endif
 }
 
 void Mutex::Unlock() {
-#if SB_API_VERSION < 16
-  SbMutexRelease(&native_handle_);
-#else
   pthread_mutex_unlock(&native_handle_);
-#endif
 }
 
 RecursiveMutex::RecursiveMutex() {}

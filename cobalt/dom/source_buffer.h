@@ -90,9 +90,11 @@ class SourceBuffer : public web::EventTarget {
 
   // Custom, not in any spec.
   //
+  // TODO(b/338425449): Remove is_using_media_source_attachment_methods.
   SourceBuffer(script::EnvironmentSettings* settings, const std::string& id,
                MediaSource* media_source, ChunkDemuxer* chunk_demuxer,
-               EventQueue* event_queue);
+               EventQueue* event_queue,
+               const bool is_using_media_source_attachment_methods);
 
   // Web API: SourceBuffer
   //
