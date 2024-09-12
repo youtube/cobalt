@@ -25,7 +25,7 @@
 #include "chrome/updater/util.h"
 #include "components/update_client/utils.h"
 #include "starboard/configuration_constants.h"
-
+#include "starboard/file.h"
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
 

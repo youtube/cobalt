@@ -21,7 +21,6 @@ int ZLIB_INTERNAL arm_cpu_enable_pmull = 0;
 
 #if defined(STARBOARD)
 #include "starboard/log.h"
-
 #include "starboard/cpu_features.h"
 #elif defined(ARMV8_OS_ANDROID)
 #include <cpu-features.h>

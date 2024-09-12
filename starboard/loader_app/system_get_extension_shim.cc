@@ -20,7 +20,6 @@
 #include "starboard/common/log.h"
 #include "starboard/extension/installation_manager.h"
 #include "starboard/loader_app/installation_manager.h"
-
 #include "starboard/system.h"
 
 namespace {

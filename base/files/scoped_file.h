@@ -15,7 +15,6 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
-
 #include "starboard/types.h"
 #include "starboard/common/file.h"
 #endif

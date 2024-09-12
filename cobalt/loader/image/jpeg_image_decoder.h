@@ -24,7 +24,6 @@
 #include "cobalt/loader/image/image.h"
 #include "cobalt/loader/image/image_data_decoder.h"
 
-
 // Inhibit C++ name-mangling for libjpeg functions.
 extern "C" {
 #include "third_party/libjpeg_turbo/jpeglib.h"

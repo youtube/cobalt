@@ -28,7 +28,6 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
-
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
 #include "starboard/loader_app/installation_manager.h"

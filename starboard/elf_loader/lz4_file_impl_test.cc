@@ -17,7 +17,6 @@
 #include "starboard/elf_loader/lz4_file_impl.h"
 
 #include "starboard/configuration_constants.h"
-
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

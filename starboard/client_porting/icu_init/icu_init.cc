@@ -23,7 +23,6 @@
 #include "starboard/common/once.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
-
 #include "starboard/system.h"
 #include "third_party/icu/source/common/unicode/putil.h"
 #include "third_party/icu/source/common/unicode/udata.h"

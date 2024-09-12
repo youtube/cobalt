@@ -58,7 +58,6 @@
 #include "cobalt/web/event.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
 
-
 using cobalt::cssom::ViewportSize;
 using cobalt::media_session::MediaSession;
 

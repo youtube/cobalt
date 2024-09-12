@@ -18,7 +18,6 @@
 
 #include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
-
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"

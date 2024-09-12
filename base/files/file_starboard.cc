@@ -29,7 +29,6 @@
 #include "base/threading/thread_restrictions.h"
 #include "starboard/common/metrics/stats_tracker.h"
 
-
 namespace base {
 
 void RecordFileWriteStat(int write_file_result) {

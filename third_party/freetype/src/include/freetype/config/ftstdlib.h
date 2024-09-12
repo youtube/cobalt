@@ -115,7 +115,6 @@
 
 #include "starboard/common/file_wrapper.h"
 
-
 #define FT_FILE     FileStruct
 #define ft_fclose   file_close
 #define ft_fopen(p, m)  file_open((p), FileModeStringToFlags(m))

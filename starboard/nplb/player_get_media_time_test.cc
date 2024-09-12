@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/nplb/player_test_fixture.h"
-
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

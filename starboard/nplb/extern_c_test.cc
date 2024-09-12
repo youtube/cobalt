@@ -24,7 +24,6 @@ extern "C" {
 #include "starboard/egl.h"
 #include "starboard/event.h"
 #include "starboard/export.h"
-
 #include "starboard/gles.h"
 #include "starboard/input.h"
 #include "starboard/key.h"

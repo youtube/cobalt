@@ -8,7 +8,6 @@
 #include "starboard/common/thread.h"
 #include "starboard/egl.h"
 #include "starboard/event.h"
-
 #include "starboard/gles.h"
 #include "starboard/system.h"
 #include "starboard/window.h"

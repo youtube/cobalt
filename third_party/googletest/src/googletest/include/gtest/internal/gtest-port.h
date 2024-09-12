@@ -273,7 +273,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/spin_lock.h"
 #include "starboard/common/string.h"
-
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/system.h"
