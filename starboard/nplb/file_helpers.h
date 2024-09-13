@@ -20,8 +20,6 @@
 #include <string>
 #include <vector>
 
-#include "starboard/file.h"
-
 namespace starboard {
 namespace nplb {
 

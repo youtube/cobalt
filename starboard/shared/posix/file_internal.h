@@ -17,7 +17,6 @@
 
 #include <errno.h>
 
-#include "starboard/file.h"
 #include "starboard/shared/internal_only.h"
 
 struct SbFilePrivate {

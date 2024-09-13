@@ -8,10 +8,6 @@
 #include "base/files/scoped_file.h"
 #include "build/build_config.h"
 
-#if defined(STARBOARD)
-#include "starboard/file.h"
-#endif
-
 #if BUILDFLAG(IS_WIN)
 #include "base/win/scoped_handle.h"
 #include "base/win/windows_types.h"

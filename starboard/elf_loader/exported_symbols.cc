@@ -28,12 +28,10 @@
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
-#include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/cpu_features.h"
 #include "starboard/decode_target.h"
-#include "starboard/directory.h"
 #include "starboard/egl.h"
 #include "starboard/event.h"
 #include "starboard/file.h"
@@ -41,7 +39,6 @@
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/microphone.h"
-#include "starboard/mutex.h"
 #include "starboard/player.h"
 #if SB_API_VERSION >= 16
 #include "starboard/shared/modular/starboard_layer_posix_directory_abi_wrappers.h"
@@ -57,7 +54,6 @@
 #include "starboard/socket_waiter.h"
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
 #include "starboard/time_zone.h"

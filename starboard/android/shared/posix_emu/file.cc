@@ -20,7 +20,6 @@
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/directory.h"
 #include "starboard/log.h"
 
 using starboard::android::shared::AssetManager;

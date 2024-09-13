@@ -17,8 +17,6 @@
 #ifndef STARBOARD_SHARED_POSIX_IMPL_FILE_GET_INFO_H_
 #define STARBOARD_SHARED_POSIX_IMPL_FILE_GET_INFO_H_
 
-#include "starboard/file.h"
-
 #include <sys/stat.h>
 #include <time.h>
 

@@ -17,8 +17,6 @@
 #ifndef STARBOARD_SHARED_POSIX_IMPL_FILE_TRUNCATE_H_
 #define STARBOARD_SHARED_POSIX_IMPL_FILE_TRUNCATE_H_
 
-#include "starboard/file.h"
-
 #include <unistd.h>
 
 #include "starboard/shared/posix/handle_eintr.h"

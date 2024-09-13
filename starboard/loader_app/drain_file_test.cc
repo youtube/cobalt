@@ -24,7 +24,6 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/directory.h"
 #include "starboard/loader_app/drain_file_helper.h"
 #include "starboard/system.h"
 #include "starboard/types.h"

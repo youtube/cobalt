@@ -12,7 +12,6 @@
 #include <unistd.h>
 
 #include "starboard/configuration_constants.h"
-#include "starboard/directory.h"
 #elif defined(_WIN32)
 #include <windows.h>
 #else

@@ -20,7 +20,6 @@
 #include "base/files/scoped_file.h"
 #elif defined(STARBOARD)
 #include "base/files/scoped_file.h"
-#include "starboard/file.h"
 #endif
 
 namespace base::subtle {

@@ -19,8 +19,6 @@
 
 #include <string>
 
-#include "starboard/file.h"
-
 namespace starboard {
 namespace elf_loader {
 

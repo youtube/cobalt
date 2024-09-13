@@ -17,8 +17,6 @@
 #ifndef STARBOARD_SHARED_POSIX_IMPL_FILE_EXISTS_H_
 #define STARBOARD_SHARED_POSIX_IMPL_FILE_EXISTS_H_
 
-#include "starboard/file.h"
-
 #include <sys/stat.h>
 
 #include "starboard/shared/internal_only.h"

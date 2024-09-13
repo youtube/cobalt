@@ -32,10 +32,6 @@
  * But we must pull it in because of the references to FILE in jpeglib.h.
  * You can remove those references if you want to compile without <stdio.h>.
  */
-
-#ifdef STARBOARD
-#include "starboard/file.h"
-#endif
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>

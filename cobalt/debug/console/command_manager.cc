@@ -17,7 +17,6 @@
 #include <cstring>
 
 #include "base/logging.h"
-#include "starboard/string.h"
 
 namespace cobalt {
 namespace debug {

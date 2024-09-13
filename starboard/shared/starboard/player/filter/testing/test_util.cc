@@ -18,14 +18,12 @@
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
-#include "starboard/directory.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 
 namespace starboard {

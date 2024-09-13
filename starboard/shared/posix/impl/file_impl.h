@@ -19,7 +19,6 @@
 
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
-#include "starboard/file.h"
 
 #include "starboard/shared/internal_only.h"
 

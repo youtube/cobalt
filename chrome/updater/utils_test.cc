@@ -24,7 +24,6 @@
 #include "base/strings/strcat.h"
 #include "base/values.h"
 #include "gmock/gmock.h"
-#include "starboard/directory.h"
 #include "starboard/extension/installation_manager.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

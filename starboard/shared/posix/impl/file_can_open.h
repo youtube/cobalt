@@ -17,8 +17,6 @@
 #ifndef STARBOARD_SHARED_POSIX_IMPL_FILE_CAN_OPEN_H_
 #define STARBOARD_SHARED_POSIX_IMPL_FILE_CAN_OPEN_H_
 
-#include "starboard/file.h"
-
 #include <errno.h>
 #include <sys/stat.h>
 
