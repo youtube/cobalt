@@ -43,9 +43,4 @@
 #define SB_IS_WCHAR_T_UNSIGNED 1
 #endif
 
-// --- Network Configuration -------------------------------------------------
-
-// Specifies whether this platform supports IPV6.
-#define SB_HAS_IPV6 1
-
 #endif  // STARBOARD_RASPI_SHARED_CONFIGURATION_PUBLIC_H_
