@@ -42,15 +42,8 @@ bool EndsWith(const std::string& s, const std::string& suffix) {
 }  // namespace
 
 ElfLoaderImpl::ElfLoaderImpl() {
-#if SB_API_VERSION >= 16
   SB_CHECK(kSbCanMapExecutableMemory)
       << "Elf_loader requires executable memory support!";
-#else
-#if !SB_CAN(MAP_EXECUTABLE_MEMORY)
-  SB_CHECK(false) << "The elf_loader requires "
-                     "executable memory map support!";
-#endif
-#endif
 }
 
 bool ElfLoaderImpl::Load(const char* name,

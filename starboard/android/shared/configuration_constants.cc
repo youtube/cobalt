@@ -126,11 +126,9 @@ const int kSbPreferredRgbaByteOrder = SB_PREFERRED_RGBA_BYTE_ORDER_RGBA;
 // The maximum size the cache directory is allowed to use in bytes.
 const uint32_t kSbMaxSystemPathCacheDirectorySize = 24 << 20;  // 24MiB
 
-#if SB_API_VERSION >= 16
 // Whether this platform can map executable memory. This is required for
 // platforms that want to JIT.
 SB_EXPORT extern const bool kSbCanMapExecutableMemory = true;
 
 // Platform can support partial audio frames
 SB_EXPORT extern const bool kHasPartialAudioFramesSupport = true;
-#endif

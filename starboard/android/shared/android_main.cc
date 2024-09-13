@@ -234,36 +234,8 @@ void* ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "StarboardMain");
   g_app_created_semaphore = static_cast<Semaphore*>(context);
 
-#if SB_API_VERSION >= 15
   int unused_value = -1;
   int error_level = SbRunStarboardMain(unused_value, nullptr, SbEventHandle);
-#else
-  ALooper* looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
-  ApplicationAndroid app(looper);
-
-  CommandLine command_line(GetArgs());
-  LogInit(command_line);
-
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  InstallCrashpadHandler(command_line);
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
-
-  // Mark the app running before signaling app created so there's no race to
-  // allow sending the first AndroidCommand after onCreate() returns.
-  g_app_running.store(true);
-
-  // Signal GameActivity_onCreate() that it may proceed.
-  g_app_created_semaphore->Put();
-
-  // Enter the Starboard run loop until stopped.
-  int error_level =
-      app.Run(std::move(command_line), GetStartDeepLink().c_str());
-
-  // Mark the app not running before informing StarboardBridge that the app is
-  // stopped so that we won't send any more AndroidCommands as a result of
-  // shutting down the Activity.
-  g_app_running.store(false);
-#endif  // SB_API_VERSION >= 15
 
   // Our launcher.py looks for this to know when the app (test) is done.
   SB_LOG(INFO) << "***Application Stopped*** " << error_level;
@@ -411,7 +383,6 @@ Java_dev_cobalt_coat_VolumeStateReceiver_nativeMuteChanged(JNIEnv* env,
 
 }  // namespace
 
-#if SB_API_VERSION >= 15
 extern "C" int SbRunStarboardMain(int argc,
                                   char** argv,
                                   SbEventHandleCallback callback) {
@@ -443,7 +414,6 @@ extern "C" int SbRunStarboardMain(int argc,
 
   return error_level;
 }
-#endif  // SB_API_VERSION >= 15
 
 }  // namespace shared
 }  // namespace android

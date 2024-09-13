@@ -141,13 +141,11 @@ SB_EXPORT extern const char* kSbPathSepString;
 // The maximum size the cache directory is allowed to use in bytes.
 SB_EXPORT extern const uint32_t kSbMaxSystemPathCacheDirectorySize;
 
-#if SB_API_VERSION >= 16
 // Whether this platform can map executable memory. This is required for
 // platforms that want to JIT.
 SB_EXPORT extern const bool kSbCanMapExecutableMemory;
 
 // Platform can support partial audio frames
 SB_EXPORT extern const bool kHasPartialAudioFramesSupport;
-#endif
 
 #endif  // STARBOARD_CONFIGURATION_CONSTANTS_H_

@@ -56,10 +56,8 @@ const char* kAudioOnlyTestFiles[] = {
     "beneath_the_canopy_opus_5_1.dmp",
     "beneath_the_canopy_opus_mono.dmp",
     "heaac.dmp",
-#if SB_API_VERSION >= 15
     "iamf_base_profile_stereo_ambisonics.dmp",
     "iamf_simple_profile_5_1.dmp",
-#endif  // SB_API_VERSION >= 15
     "sintel_5s_pcm_s16le.dmp",
     "sintel_5s_flac.dmp",
 #if defined(ENABLE_CAST_CODEC_TESTS)
@@ -297,9 +295,7 @@ void CallSbPlayerWriteSamples(
   static auto const* enhanced_audio_extension =
       static_cast<const CobaltExtensionEnhancedAudioApi*>(
           SbSystemGetExtension(kCobaltExtensionEnhancedAudioName));
-#if SB_API_VERSION >= 15
   ASSERT_FALSE(enhanced_audio_extension);
-#endif  // SB_API_VERSION >= 15
 
   if (enhanced_audio_extension) {
     ASSERT_STREQ(enhanced_audio_extension->name,
@@ -355,7 +351,6 @@ void CallSbPlayerWriteSamples(
     sample_infos.push_back(
         dmp_reader->GetPlayerSampleInfo(sample_type, start_index++));
     sample_infos.back().timestamp += timestamp_offset;
-#if SB_API_VERSION >= 15
     if (!discarded_durations_from_front.empty()) {
       sample_infos.back().audio_sample_info.discarded_duration_from_front =
           discarded_durations_from_front[i];
@@ -364,15 +359,9 @@ void CallSbPlayerWriteSamples(
       sample_infos.back().audio_sample_info.discarded_duration_from_back =
           discarded_durations_from_back[i];
     }
-#endif  // SB_API_VERSION >= 15
   }
-#if SB_API_VERSION >= 15
   SbPlayerWriteSamples(player, sample_type, sample_infos.data(),
                        number_of_samples_to_write);
-#else   // SB_API_VERSION >= 15
-  SbPlayerWriteSample2(player, sample_type, sample_infos.data(),
-                       number_of_samples_to_write);
-#endif  // SB_API_VERSION >= 15
 }
 
 bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
@@ -407,15 +396,7 @@ bool IsOutputModeSupported(SbPlayerOutputMode output_mode,
 }
 
 bool IsPartialAudioSupported() {
-#if SB_API_VERSION >= 15
-#if SB_API_VERSION >= 16
   return kHasPartialAudioFramesSupport;
-#else
-  return true;
-#endif
-#else   // SB_API_VERSION >= 15
-  return SbSystemGetExtension(kCobaltExtensionEnhancedAudioName) != nullptr;
-#endif  // SB_API_VERSION >= 15
 }
 
 bool IsAudioPassthroughUsed(const SbPlayerTestConfig& config) {

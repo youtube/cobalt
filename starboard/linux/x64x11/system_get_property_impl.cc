@@ -117,11 +117,9 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(
           out_value, value_length,
           GetEnvironment("COBALT_LIMIT_AD_TRACKING").c_str());
-#if SB_API_VERSION >= 15
     case kSbSystemPropertyDeviceType:
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         kSystemDeviceTypeDesktopPC);
-#endif
     default:
       SB_DLOG(WARNING) << __FUNCTION__
                        << ": Unrecognized property: " << property_id;

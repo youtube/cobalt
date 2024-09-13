@@ -103,14 +103,10 @@ TEST(PosixFileOpenTest, OpenAlwaysCreatesNonExistingFile) {
   BasicTest(false, O_CREAT | O_WRONLY, true, __LINE__);
 }
 
-#if SB_API_VERSION >= 16
-
 TEST(PosixFileOpenTest, OpenAlwaysWithLinuxSpecificMode) {
   BasicTest(false, O_CREAT | O_TRUNC | O_WRONLY, true, __LINE__,
             S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 }
-
-#endif  // SB_API_VERSION >= 16
 
 TEST(PosixFileOpenTest, CreateAlwaysTruncatesExistingFile) {
   BasicTest(true, O_CREAT | O_TRUNC | O_WRONLY, true, __LINE__);

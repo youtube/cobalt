@@ -74,7 +74,6 @@ void H5vccAccessibility::set_built_in_screen_reader(bool value) {
 bool H5vccAccessibility::high_contrast_text() const {
   SbAccessibilityDisplaySettings settings;
   memset(&settings, 0, sizeof(settings));
-#if SB_API_VERSION >= 16
   auto accessibility_api =
       static_cast<const StarboardExtensionAccessibilityApi*>(
           SbSystemGetExtension(kStarboardExtensionAccessibilityName));
@@ -88,11 +87,6 @@ bool H5vccAccessibility::high_contrast_text() const {
   } else {
     return false;
   }
-#else   // SB_API_VERSION >= 16
-  if (!SbAccessibilityGetDisplaySettings(&settings)) {
-    return false;
-  }
-#endif  // SB_API_VERSION >= 16
   return settings.is_high_contrast_text_enabled;
 }
 
@@ -103,7 +97,6 @@ bool H5vccAccessibility::text_to_speech() const {
   }
   SbAccessibilityTextToSpeechSettings settings;
   memset(&settings, 0, sizeof(settings));
-#if SB_API_VERSION >= 16
   auto accessibility_api =
       static_cast<const StarboardExtensionAccessibilityApi*>(
           SbSystemGetExtension(kStarboardExtensionAccessibilityName));
@@ -117,11 +110,6 @@ bool H5vccAccessibility::text_to_speech() const {
   } else {
     return false;
   }
-#else   // SB_API_VERSION >= 16
-  if (!SbAccessibilityGetTextToSpeechSettings(&settings)) {
-    return false;
-  }
-#endif  // SB_API_VERSION >= 16
   return settings.has_text_to_speech_setting &&
          settings.is_text_to_speech_enabled;
 }

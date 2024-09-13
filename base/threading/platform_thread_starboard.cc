@@ -39,11 +39,9 @@ void* ThreadFunc(void* params) {
   ThreadParams* thread_params = static_cast<ThreadParams*>(params);
   PlatformThread::Delegate* delegate = thread_params->delegate;
 
-#if SB_API_VERSION >= 16
   if (kSbHasThreadPrioritySupport) {
     SbThreadSetPriority(thread_params->thread_priority);
   }
-#endif  // SB_API_VERSION >= 16
   pthread_setname_np(pthread_self(), thread_params->thread_name.c_str());
 
   absl::optional<ScopedDisallowSingleton> disallow_singleton;
@@ -66,7 +64,6 @@ void* ThreadFunc(void* params) {
   return NULL;
 }
 
-#if SB_API_VERSION >= 16
 bool CreateThread(size_t stack_size,
                   SbThreadPriority priority,
                   bool joinable,
@@ -106,30 +103,7 @@ bool CreateThread(size_t stack_size,
 
   return false;
 }
-#else
-bool CreateThread(size_t stack_size,
-                  SbThreadPriority priority,
-                  bool joinable,
-                  const char* name,
-                  PlatformThread::Delegate* delegate,
-                  PlatformThreadHandle* thread_handle) {
-  ThreadParams* params = new ThreadParams;
-  params->delegate = delegate;
-  params->joinable = joinable;
 
-  SbThread thread = SbThreadCreate(stack_size, priority, kSbThreadNoAffinity, joinable,
-                                   name, ThreadFunc, params);
-  if (SbThreadIsValid(thread)) {
-    if (thread_handle) {
-      *thread_handle = PlatformThreadHandle(thread);
-    }
-
-    return true;
-  }
-
-  return false;
-}
-#endif  // SB_API_VERSION >= 16
 
 inline SbThreadPriority toSbPriority(ThreadType priority) {
   switch (priority) {

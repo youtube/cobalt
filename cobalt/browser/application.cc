@@ -127,17 +127,10 @@ std::string GetDevServersListenIp() {
   // Default to INADDR_ANY
   std::string listen_ip(ip_v6 ? "::" : "0.0.0.0");
 
-#if SB_API_VERSION < 15
-  // Desktop PCs default to loopback.
-  if (SbSystemGetDeviceType() == kSbSystemDeviceTypeDesktopPC) {
-    listen_ip = ip_v6 ? "::1" : "127.0.0.1";
-  }
-#else
   if (starboard::GetSystemPropertyString(kSbSystemPropertyDeviceType) ==
       starboard::kSystemDeviceTypeDesktopPC) {
     listen_ip = ip_v6 ? "::1" : "127.0.0.1";
   }
-#endif
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
@@ -1176,11 +1169,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeStop:
     case kSbEventTypeUser:
     case kSbEventTypeVerticalSync:
-#if SB_API_VERSION >= 16
     case kSbEventTypeReserved1:
-#else
-    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
-#endif  // SB_API_VERSION >= 16
       DLOG(WARNING) << "Unhandled Starboard event of type: "
                     << starboard_event->type;
   }
@@ -1267,11 +1256,7 @@ void Application::OnApplicationEvent(SbEventType event_type,
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
     case kSbEventDateTimeConfigurationChanged:
-#if SB_API_VERSION >= 16
     case kSbEventTypeReserved1:
-#else
-    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
-#endif  // SB_API_VERSION >= 16
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;
   }
