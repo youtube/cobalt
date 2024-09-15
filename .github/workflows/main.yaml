@@ -14,49 +14,6 @@ on:
         required: true
         type: string
         default: 'false'
-      run_api_leak_detector:
-        description: 'Whether to run the api leak detector.'
-        required: false
-        type: boolean
-        default: false
-      leak_manifest_filename:
-        description: 'Path to the leak manifest.'
-        required: false
-        type: string
-        default: ""
-      modular:
-        description: 'Whether this is a modular build.'
-        required: false
-        type: boolean
-        default: false
-      keep_artifacts:
-        description: 'Which artifacts to keep for releases.'
-        required: false
-        type: string
-        default: ''
-      artifact_size_increase_thresholds:
-        description: 'Threshold for artifact binary size increase.'
-        required: false
-        type: string
-        default: ""
-
-# Global env vars.
-env:
-  REGISTRY: ghcr.io
-  IPV6_AVAILABLE: 0
-  LANG: en_US.UTF-8
-  IS_BUILDBOT_DOCKER: 1
-  IS_CI: 1
-  IS_DOCKER: 1
-  NINJA_STATUS: '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
-  SCCACHE: 1
-  SCCACHE_GCS_BUCKET: cobalt-actions-sccache-linux
-  SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
-  SCCACHE_GCS_RW_MODE: READ_WRITE
-  SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
-  STARBOARD_TOOLCHAINS_DIR: /root/starboard-toolchains
-  # TODO(b/255654807) Workaround for https://github.com/actions/checkout/issues/1590
-  ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}
@@ -78,17 +35,14 @@ jobs:
       github.event.pull_request.merged == false &&
       (
         github.event.action == 'labeled' &&
-        github.event.label.name == 'runtest' ||
-        github.event.label.name == 'on_device'
+        github.event.label.name == 'runtest'
       )
     timeout-minutes: 10
     steps:
-      - id: checkout
-        uses: kaidokert/checkout@v3.5.999
-        timeout-minutes: 30
+      - name: Checkout files
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          persist-credentials: false
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
         continue-on-error: true  # Ignore this step if we cannot remove the label.
@@ -105,36 +59,16 @@ jobs:
         run: |
           platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
           echo "platforms=${platforms}" >> $GITHUB_ENV
+      - id: set-targets
+        shell: bash
+        run: |
+          targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.targets  | join(" ")')
+          echo "targets=${targets}" >> $GITHUB_ENV
       - id: set-includes
         shell: bash
         run: |
           includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
           echo "includes=${includes}" >> $GITHUB_ENV
-      - id: set-on-device-test
-        shell: bash
-        run: |
-          on_device_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test')
-          echo "on_device_test=${on_device_test}" >> $GITHUB_ENV
-      - id: set-on-device-test-attempts
-        shell: bash
-        run: |
-          on_device_test_attempts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_device_test.test_attempts // empty')
-          echo "on_device_test_attempts=${on_device_test_attempts}" >> $GITHUB_ENV
-      - id: set-on-host-test
-        shell: bash
-        run: |
-          on_host_test=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.on_host_test')
-          echo "on_host_test=${on_host_test}" >> $GITHUB_ENV
-      - id: set-on-host-test-shards
-        shell: bash
-        run: |
-          on_host_test_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.on_host_test_shards')
-          echo "on_host_test_shards=${on_host_test_shards}" >> $GITHUB_ENV
-      - id: set-on-host-test-evergreen-loader
-        shell: bash
-        run: |
-          evergreen_loader=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.evergreen_loader')
-          echo "evergreen_loader=${evergreen_loader}" >> $GITHUB_ENV
       - id: set-docker-service
         shell: bash
         run: |
@@ -142,93 +76,48 @@ jobs:
           echo "docker_service=${docker_service}" >> $GITHUB_ENV
     outputs:
       platforms: ${{ env.platforms }}
+      targets: ${{ env.targets }}
       includes: ${{ env.includes }}
-      on_device_test: ${{ env.on_device_test }}
-      on_device_test_attempts: ${{ env.on_device_test_attempts }}
-      on_host_test: ${{ env.on_host_test }}
-      on_host_test_shards: ${{ env.on_host_test_shards }}
-      evergreen_loader: ${{ env.evergreen_loader }}
       docker_service: ${{ env.docker_service }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
     needs: [initialize]
-    runs-on: [self-hosted, linux-runner]
-    permissions:
-      packages: write
-    timeout-minutes: 30
+    runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
-      - name: Checkout files
-        uses: kaidokert/checkout@v3.5.999
-        timeout-minutes: 30
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build docker image
-        id: build-docker-image
-        uses: ./.github/actions/docker
-        with:
-          docker_service: ${{ needs.initialize.outputs.docker_service }}
-          docker_image: cobalt-${{ needs.initialize.outputs.docker_service }}
-      - name: Set Docker Tag Output
-        id: set-docker-tag-output
-        shell: bash
-        run: |
-          set -u
-          echo $DOCKER_TAG
-          echo "docker_tag=$DOCKER_TAG" | head -n 1  >> $GITHUB_ENV
+    - name: Checkout files
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+    # Handle GitHub registry used for everything other than pull requests off forked repos.
+    - name: Login to GitHub Docker Registry
+      if: ${{ (github.event_name != 'pull_request') || (github.event.pull_request.head.repo.full_name == github.repository) }}
+      uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    - name: Build docker image
+      id: build-docker-image
+      uses: ./.github/actions/docker
+      with:
+        docker_service: ${{ needs.initialize.outputs.docker_service }}
+    - name: Set Docker Tag Output
+      id: set-docker-tag-output
+      shell: bash
+      run: |
+        set -u
+        echo $DOCKER_TAG
+        echo "docker_tag=$DOCKER_TAG" | head -n 1  >> $GITHUB_ENV
     outputs:
-      docker_tag: ${{env.docker_tag}}
-
-  # Builds, tags, and pushes Cobalt unit test image to ghr.
-  docker-unittest-image:
-    if: needs.initialize.outputs.on_host_test == 'true'
-    needs: [initialize]
-    permissions:
-      packages: write
-    runs-on: [self-hosted, linux-runner]
-    timeout-minutes: 30
-    steps:
-      - name: Checkout files
-        uses: kaidokert/checkout@v3.5.999
-        timeout-minutes: 30
-        with:
-          fetch-depth: 2
-          persist-credentials: false
-      - name: Login to Docker Registry ${{env.REGISTRY}}
-        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build docker image
-        id: build-docker-image
-        uses: ./.github/actions/docker
-        with:
-          docker_service: linux-x64x11-unittest
-          docker_image: cobalt-linux-x64x11-unittest
-      - name: Set Docker Tag Output
-        id: set-docker-unittest-tag-output
-        shell: bash
-        run: |
-          set -u
-          echo $DOCKER_TAG
-          echo "docker_unittest_tag=$DOCKER_TAG" >> $GITHUB_ENV
-    outputs:
-      docker_unittest_tag: ${{env.docker_unittest_tag}}
+      docker_tag: ${{ env.docker_tag }}
 
   # Runs builds.
   build:
     needs: [initialize, docker-build-image]
     permissions: {}
-    runs-on: [self-hosted, linux-runner]
-    name: ${{matrix.name}}_${{matrix.config}}
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    name: ${{ matrix.name }}_${{ matrix.config }}
     strategy:
       fail-fast: false
       matrix:
@@ -237,165 +126,26 @@ jobs:
         config: [devel, debug, qa, gold]
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
+      DEPOT_TOOLS_UPDATE: 0
+      DEPOT_TOOLS_REPORT_BUILD: 0
+      DEPOT_TOOLS_COLLECT_METRICS: 0
+      DEPOT_TOOLS_METRICS: 0
+      SCCACHE: 1
+      SCCACHE_GCS_BUCKET: cobalt-actions-sccache-linux
+      SCCACHE_GCS_SERVICE_ACCOUNT: runner@cobalt-actions-devel.iam.gserviceaccount.com
+      SCCACHE_GCS_RW_MODE: READ_WRITE
+      SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
       # We want temp folder to be on tmpfs which makes workloads faster.
       # However, dind container ends up having / folder mounted on overlay
       # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
       TMPDIR: /__w/_temp
-    timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
-        timeout-minutes: 30
+        uses: actions/checkout@v4
         with:
-          # Use fetch depth of 0 to get full history for a valid build id.
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Cache Gradle
-        uses: actions/cache@v3
-        if: startsWith(matrix.target_platform, 'android') || startsWith(needs.initialize.outputs.evergreen_loader, 'android')
+          path: src
+      - name: Build Chrobalt
+        uses: ./src/.github/actions/build
         with:
-          key: gradle-cache-${{ hashFiles('starboard/android/apk/**/*gradle*') }}
-          path: |
-            /root/.gradle/caches
-            /root/.gradle/wrapper
-      - name: GN
-        uses: ./.github/actions/gn
-      - name: Build Cobalt
-        uses: ./.github/actions/build
-      - name: 'Check Artifact Size'
-        uses: ./.github/actions/check_artifact_size
-        if: ${{ false }} # ${{ inputs.artifact_size_increase_thresholds }}
-        with:
-          workflow: ${{ github.workflow }}
-          name: ${{ matrix.platform }}-${{ matrix.config }}
-          path: out/${{ matrix.target_platform }}_${{ matrix.config }}
-          thresholds: ${{ inputs.artifact_size_increase_thresholds }}
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - name: 'Upload Artifact'
-        uses: actions/upload-artifact@v4
-        if: ${{ inputs.keep_artifacts }}
-        with:
-          name: ${{ matrix.platform }}-${{ matrix.config }}
-          path: out/${{ matrix.target_platform }}_${{ matrix.config }}/${{ inputs.keep_artifacts }}
-          retention-days: 7
-          compression-level: 0 # We expect kept artifacts to be already compressed
-          if-no-files-found: error
-      - name: Run API Leak Detector
-        uses: ./.github/actions/api_leak_detector
-        if: inputs.run_api_leak_detector
-        with:
-          relative_manifest_path: ${{ inputs.leak_manifest_filename }}
-      - name: Upload On Host Test Artifacts
-        if: ${{ matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true' }}
-        uses: ./.github/actions/upload_test_artifacts
-        with:
-          type: onhost
-          os: linux
-      # For some reason passing needs.initialize.outputs.evergreen_loader as parameter to build
-      # action didn't work, so instead we set an env var.
-      - name: Set Evergreen loader config
-        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' }}
-        shell: bash
-        run: |
-           set -u
-           COBALT_EVERGREEN_LOADER="${{needs.initialize.outputs.evergreen_loader}}"
-           echo "COBALT_EVERGREEN_LOADER=${COBALT_EVERGREEN_LOADER}" >> $GITHUB_ENV
-      # Build Evergreen loader for on-host tests if necessary.
-      - name: Evergreen loader GN
-        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
-        uses: ./.github/actions/gn
-      - name: Build Evergreen loader
-        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && ( matrix.config == 'devel' || matrix.config == 'qa' ) }}
-        uses: ./.github/actions/build
-      - name: Upload Nightly Artifacts
-        if: ${{ ( inputs.nightly == 'true' || github.event_name == 'schedule' ) && matrix.config != 'debug' }}
-        uses: ./.github/actions/upload_nightly_artifacts
-      - name: Upload Evergreen loader On Host Test Artifacts
-        if: ${{ needs.initialize.outputs.evergreen_loader != 'null' && matrix.config == 'devel' && needs.initialize.outputs.on_host_test == 'true'}}
-        uses: ./.github/actions/upload_test_artifacts
-        with:
-          type: onhost
-          os: linux
-      - name: Upload On Device Test Artifacts
-        if: |
-          matrix.config == 'devel' &&
-          fromJSON(needs.initialize.outputs.on_device_test).enabled == true &&
-          (
-            github.event_name != 'pull_request' ||
-            contains(github.event.pull_request.labels.*.name, 'on_device')
-          )
-        uses: ./.github/actions/upload_test_artifacts
-        with:
-          type: ondevice
-          os: linux
-
-  # Runs on-device integration and unit tests.
-  on-device-test:
-    needs: [initialize, build]
-    # Run ODT when on_device label is applied on PR.
-    # Also, run ODT on push and schedule if not explicitly disabled via repo vars.
-    if: |
-      fromJSON(needs.initialize.outputs.on_device_test).enabled == true && ((
-        github.event_name == 'pull_request' &&
-        contains(github.event.pull_request.labels.*.name, 'on_device') ) || ((
-            inputs.nightly == 'true' || github.event_name == 'schedule') &&
-            vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          ( github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' ) )
-    runs-on: [self-hosted, odt-runner]
-    name: ${{ matrix.name }}_on_device_${{ matrix.shard }}
-    permissions: {}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
-        config: [devel]
-        shard: ${{ fromJson(needs.initialize.outputs.on_device_test).tests }}
-        include: ${{ fromJson(needs.initialize.outputs.includes) }}
-    env:
-      COBALT_EVERGREEN_LOADER: ${{ needs.initialize.outputs.evergreen_loader }}
-      ON_DEVICE_TEST_ATTEMPTS: ${{ needs.initialize.outputs.on_device_test_attempts }}
-      MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
-    steps:
-      - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
-        timeout-minutes: 30
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-      - name: Run Tests (${{ matrix.shard }})
-        uses: ./.github/actions/on_device_tests
-
-  # Runs on-host integration and unit tests.
-  on-host-test:
-    needs: [initialize, docker-unittest-image, build]
-    permissions: {}
-    if: needs.initialize.outputs.on_host_test == 'true'
-    runs-on: [self-hosted, linux-runner]
-    name: ${{matrix.name}}_${{matrix.shard}}_test
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
-        shard: ${{ fromJson(needs.initialize.outputs.on_host_test_shards) }}
-        config: [devel]
-        include: ${{ fromJson(needs.initialize.outputs.includes) }}
-    container: ${{ needs.docker-unittest-image.outputs.docker_unittest_tag }}
-    env:
-      DISPLAY: :99
-      # For some reason tests complaining about HOME set to /github/home
-      # with permission denied error.
-      HOME: /root
-      COBALT_EVERGREEN_LOADER: ${{needs.initialize.outputs.evergreen_loader}}
-      MODULAR_BUILD: ${{ inputs.modular && 1 || 0 }}
-    timeout-minutes: 90
-    steps:
-      - name: Checkout
-        uses: kaidokert/checkout@v3.5.999
-        timeout-minutes: 30
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-      - name: Run Tests
-        uses: ./.github/actions/on_host_test
-        with:
-          os: linux
+          targets: ${{ needs.initialize.outputs.targets }}
+  

@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  linux:
+    build:
+      context: chrobalt/docker/linux
+      cache_from:
+        - ghcr.io/youtube/cobalt_sandbox/linux:latest
+    image: ghcr.io/youtube/cobalt_sandbox/linux:latest
+    platform: linux/amd64
+    environment:
+      - DEPOT_TOOLS_UPDATE=0

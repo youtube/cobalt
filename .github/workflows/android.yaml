@@ -1,20 +1,15 @@
 name: android
 
 on:
-  release:
-    types: [prereleased, released, published]
   pull_request:
     types: [opened, reopened, synchronize, labeled]
     branches:
       - main
-      - feature/*
+      - experimental/*
   push:
     branches:
       - main
-      - feature/*
-  schedule:
-    # GMT timezone.
-    - cron: '0 9 * * *'
+      - experimental/*
   workflow_dispatch:
     inputs:
       nightly:
@@ -32,16 +27,6 @@ jobs:
     with:
       platform: android-arm64
       nightly: ${{ github.event.inputs.nightly }}
-      keep_artifacts: cobalt.apk
-  android-x86:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: android-x86
-      nightly: ${{ github.event.inputs.nightly }}
-      keep_artifacts: cobalt.apk
   android-arm:
     uses: ./.github/workflows/main.yaml
     permissions:
@@ -50,59 +35,11 @@ jobs:
     with:
       platform: android-arm
       nightly: ${{ github.event.inputs.nightly }}
-      keep_artifacts: cobalt.apk
-
-  upload-release-artifacts:
-    runs-on: ubuntu-latest
-    needs: [ android-arm, android-arm64, android-x86 ]
+  android-x86:
+    uses: ./.github/workflows/main.yaml
     permissions:
-      actions: write
-      contents: write
-    steps:
-      - name: Download arm-gold apk
-        uses: actions/download-artifact@v4
-        with:
-          name: android-arm-gold
-          path: arm-gold
-      - name: Download arm-qa apk
-        uses: actions/download-artifact@v4
-        with:
-          name: android-arm-qa
-          path: arm-qa
-      - name: Download arm64-gold apk
-        uses: actions/download-artifact@v4
-        with:
-          name: android-arm64-gold
-          path: arm64-gold
-      - name: Download arm64-qa apk
-        uses: actions/download-artifact@v4
-        with:
-          name: android-arm64-gold
-          path: arm64-qa
-      - name: Download x86-gold apk
-        uses: actions/download-artifact@v4
-        with:
-          name: android-x86-gold
-          path: x86-gold
-      - name: Download x86-qa apk
-        uses: actions/download-artifact@v4
-        with:
-          name: android-x86-qa
-          path: x86-qa
-      - name: 'Upload Android APKs'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Android APKs
-          path: ./*
-          retention-days: 90
-          compression-level: 0 # We expect kept artifacts to be already compressed
-          if-no-files-found: error
-      - name: Make a release zip
-        run: zip -0 -r "Android APKs.zip" . -i '*.apk'
-      - name: Upload the APKs to a release
-        if: ${{ github.event_name == 'release' }}
-        uses: svenstaro/upload-release-action@04733e069f2d7f7f0b4aebc4fbdbce8613b03ccd # v2.9.0
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: "Android APKs.zip"
-          overwrite: true
+      packages: write
+      pull-requests: write
+    with:
+      platform: android-x86
+      nightly: ${{ github.event.inputs.nightly }}
