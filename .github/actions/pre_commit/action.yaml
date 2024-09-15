@@ -7,11 +7,13 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - run: pre-commit run --show-diff-on-failure --color=always --from-ref ${{ inputs.base_ref }} --to-ref HEAD
+    - run: python -m pip install pre-commit
       shell: bash
-      env:
-        SKIP: 'run-py2-tests'
-    - run: pre-commit run --show-diff-on-failure --color=always --hook-stage push --from-ref ${{ inputs.base_ref }} --to-ref HEAD
+    - run: python -m pip freeze --local
       shell: bash
-      env:
-        SKIP: 'test-download-from-gcs-helper,check-bug-in-commit-message,check-if-starboard-interface-changed'
+    - uses: actions/cache@v3
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-3|${{ env.pythonLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
+    - run: pre-commit run --show-diff-on-failure --color=always --all-files
+      shell: bash

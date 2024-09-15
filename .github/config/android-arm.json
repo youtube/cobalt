@@ -1,25 +1,27 @@
+
 {
-  "docker_service": "build-android",
-  "on_device_test": {
-    "enabled": true,
-    "tests": [
-      "0",
-      "1",
-      "2",
-      "3",
-      "black_box_test"
+    "docker_service": "linux",
+    "platforms": [
+        "android-arm"
+    ],
+    "targets": [
+        "base_unittests",
+        "sql_unittests",
+        "net_unittests",
+        "url_unittests",
+        "ipc_tests",
+        "mojo_unittests",
+        "gpu_unittests",
+        "gin_unittests",
+        "blink_unittests",
+        "content_shell",
+        "system_webview_apk",
+        "system_webview_shell_apk"
+    ],
+    "includes": [
+        {
+        "name":"arm",
+        "platform":"android-arm"
+        }
     ]
-  },
-  "platforms": [
-    "android-arm"
-  ],
-  "includes": [
-    {
-      "name":"arm",
-      "platform":"android-arm",
-      "target_platform":"android-arm",
-      "target_cpu":"target_cpu=\\\"arm\\\"",
-      "target_os":"target_os=\\\"android\\\""
-    }
-  ]
 }

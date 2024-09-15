@@ -1,40 +1,62 @@
 name: Build Cobalt
 description: Builds Cobalt targets
+inputs:
+  targets:
+    description: "List of ninja targets for Chrobalt build."
+    required: true
 runs:
   using: "composite"
   steps:
-    - name: Set up Cloud SDK
-      if: startsWith(${{matrix.target_platform}}, 'android')
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    - name: Set Android env vars
-      if: startsWith(${{matrix.target_platform}}, 'android')
-      run: |
-        echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
-        PROJECT_NAME=$(gcloud config get-value project)
-        echo "GCS_NIGHTLY_PATH=gs://${PROJECT_NAME}-build-artifacts" >> $GITHUB_ENV
-      shell: bash
-    - name: Build
-      run: |
-        set -x
-        env
-        if [ -z ${COBALT_EVERGREEN_LOADER+x} ]; then
-          BUILD_PLATFORM=${{ matrix.target_platform }}
-          BUILD_TARGET=all
-          if [[ "${{matrix.config}}" =~ ^(qa|gold)$ ]]; then
-            BUILD_TARGET=default
-          fi
-        else
-          BUILD_PLATFORM=${COBALT_EVERGREEN_LOADER}
-          BUILD_TARGET='loader_app_install elf_loader_sandbox_install native_target/crashpad_handler'
-        fi
-        # GitHub Runners have home set to /github/home.
-        if [ -d /root/starboard-toolchains ]; then
-          ln -s /root/starboard-toolchains /github/home/starboard-toolchains
-        fi
-        # Set Ninja output format
-        NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] "
-        ninja -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET}
-      shell: bash
-    - name: Show Sccache Stats
-      run: sccache -s
-      shell: bash
+      - name: Get depot tools
+        run: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+        shell: bash
+      - name: Add directory to PATH
+        run: echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
+        shell: bash
+      - name: Generate gclient file
+        run: gclient config --name=src https://github.com/${{ github.repository }}
+        shell: bash
+      - name: Set target OS for Android
+        if: startsWith(${{matrix.platform}}, 'android')
+        run: |
+          echo "target_os=['android']" >> .gclient
+          gclient validate
+        shell: bash
+      - name: Gclient sync
+        run: gclient sync -v --shallow --no-history -r ${{ github.sha }}
+        shell: bash
+      - name: sccache check
+        run: sccache -s
+        shell: bash
+      - name: gn gen
+        run: |
+          cd src
+          chrobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }} --no-check
+        shell: bash
+      - name: gn dump args
+        run: |
+          cd src
+          gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
+        shell: bash
+      - name: ninja build
+        env:
+          TARGETS: ${{ inputs.targets }}
+        run: |
+          set -x
+          cd src
+          ninja -C out/${{ matrix.platform }}_${{ matrix.config }} $(echo "${TARGETS}" | tr -d '"')
+        shell: bash
+      - name: sccache check
+        run: sccache -s
+        shell: bash
+      - name: find apks
+        run: find src/out -name \*.apk -print
+        shell: bash
+      - name: Archive Android APKs
+        if: startsWith(${{matrix.platform}}, 'android')
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }} APKs
+          path: |
+            src/out/${{ matrix.platform }}_qa/apks/*.apk
+            src/out/${{ matrix.platform }}_qa/*_apk/*.apk
