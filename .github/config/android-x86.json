@@ -1,15 +1,26 @@
 {
-  "docker_service": "build-android",
-  "platforms": [
-    "android-x86"
-  ],
-  "includes": [
-    {
-      "name":"x86",
-      "platform":"android-x86",
-      "target_platform":"android-x86",
-      "target_cpu":"target_cpu=\\\"x86\\\"",
-      "target_os": "target_os=\\\"android\\\""
-    }
-  ]
+    "docker_service": "linux",
+    "platforms": [
+        "android-x86"
+    ],
+    "targets": [
+        "base_unittests",
+        "sql_unittests",
+        "net_unittests",
+        "url_unittests",
+        "ipc_tests",
+        "mojo_unittests",
+        "gpu_unittests",
+        "gin_unittests",
+        "blink_unittests",
+        "content_shell",
+        "system_webview_apk",
+        "system_webview_shell_apk"
+    ],
+    "includes": [
+        {
+        "name":"x86",
+        "platform":"android-x86"
+        }
+    ]
 }
