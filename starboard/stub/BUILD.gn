@@ -150,7 +150,6 @@ static_library("stub_sources") {
     "//starboard/shared/stub/system_break_into_debugger.cc",
     "//starboard/shared/stub/system_clear_last_error.cc",
     "//starboard/shared/stub/system_egl.cc",
-    "//starboard/shared/stub/system_get_device_type.cc",
     "//starboard/shared/stub/system_get_error_string.cc",
     "//starboard/shared/stub/system_get_last_error.cc",
     "//starboard/shared/stub/system_get_locale_id.cc",

@@ -26,8 +26,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 16
-
 class SbPosixSocketWaiterAddTest : public ::testing::TestWithParam<int> {
  public:
   int GetAddressType() { return GetParam(); }
@@ -175,7 +173,6 @@ TEST(SbPosixSocketWaiterAddTest, RainyDayNoInterest) {
   EXPECT_TRUE(close(socket) == 0);
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
-#endif  // SB_API_VERSION >= 16
 
 }  // namespace
 }  // namespace nplb

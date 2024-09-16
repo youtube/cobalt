@@ -25,8 +25,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 16
-
 void NoOpSocketWaiterCallback(SbSocketWaiter waiter,
                               int socket,
                               void* context,
@@ -77,8 +75,6 @@ TEST(SbPosixSocketWaiterRemoveTest, RainyDayAlreadyRemoved) {
   EXPECT_TRUE(close(socket) == 0);
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
-
-#endif  // SB_API_VERSION >= 16
 
 }  // namespace
 }  // namespace nplb

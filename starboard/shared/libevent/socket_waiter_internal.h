@@ -33,7 +33,6 @@ struct SbSocketWaiterPrivate {
   // These methods implement the SbSocketWaiter API defined in socket_waiter.h.
 
   // The Add/Remove pair for integer based socket
-#if SB_API_VERSION >= 16
   bool Add(int socket,
            SbSocketWaiter waiter,
            void* context,
@@ -42,7 +41,6 @@ struct SbSocketWaiterPrivate {
            bool persistent);
   bool Remove(int socket, SbSocketWaiter waiter);
   bool CheckSocketRegistered(int socket);
-#endif  // SB_API_VERSION >= 16
 
   // The Add/Remove pair for SbSocket based socket
   bool Add(SbSocket socket,
@@ -62,7 +60,6 @@ struct SbSocketWaiterPrivate {
  private:
   // A registration of a socket with a socket waiter.
   struct Waitee {
-#if SB_API_VERSION >= 16
     Waitee(SbSocketWaiter waiter,
            int socket,
            void* context,
@@ -77,7 +74,6 @@ struct SbSocketWaiterPrivate {
           persistent(persistent) {
       use_int_socket = 1;
     }
-#endif  // SB_API_VERSION >= 16
     Waitee(SbSocketWaiter waiter,
            SbSocket socket,
            void* context,
@@ -99,9 +95,8 @@ struct SbSocketWaiterPrivate {
     int use_int_socket;
 
     // The callback to call when one or more registered interests become ready.
-#if SB_API_VERSION >= 16
     SbPosixSocketWaiterCallback i_callback;
-#endif  // SB_API_VERSION >= 16
+
     SbSocketWaiterCallback sb_callback;
 
     // The waiter this event is registered with.
