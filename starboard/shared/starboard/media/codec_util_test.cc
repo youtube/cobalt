@@ -264,9 +264,6 @@ TEST(CodecUtilTest, DoesNotParse1AsPcmForNonWavSubtypes) {
 }
 
 TEST(CodecUtilTest, ParsesIamfCodec) {
-#if SB_API_VERSION < 15
-  GTEST_SKIP() << "IAMF is unsupported on Starboard " << SB_API_VERSION;
-#endif  // SB_API_VERSION < 15
   EXPECT_EQ(GetAudioCodecFromString("iamf", ""), kSbMediaAudioCodecIamf);
   EXPECT_EQ(GetAudioCodecFromString("iamf.000.000.Opus", ""),
             kSbMediaAudioCodecIamf);
@@ -279,9 +276,6 @@ TEST(CodecUtilTest, ParsesIamfCodec) {
 }
 
 TEST(CodecUtilTest, IsIamfMimeType) {
-#if SB_API_VERSION < 15
-  GTEST_SKIP() << "IAMF is unsupported on Starboard " << SB_API_VERSION;
-#endif  // SB_API_VERSION < 15
   EXPECT_TRUE(IsIamfMimeType("iamf.000.000.Opus"));
   EXPECT_TRUE(IsIamfMimeType("iamf.255.255.Opus"));
   EXPECT_TRUE(IsIamfMimeType("iamf.000.000.mp4a.40.2"));

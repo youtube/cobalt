@@ -107,15 +107,12 @@ SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
   if (is_wav && strcmp(codec, "1") == 0) {
     return kSbMediaAudioCodecPcm;
   }
-#if SB_API_VERSION >= 15
   if (strcmp(codec, "iamf") == 0 || IsIamfMimeType(codec)) {
     return kSbMediaAudioCodecIamf;
   }
-#endif  // SB_API_VERSION >= 15
   return kSbMediaAudioCodecNone;
 }
 
-#if SB_API_VERSION >= 15
 bool IsIamfMimeType(std::string mime_type) {
   // Reference: Immersive Audio Model and Formats;
   //            v1.0.0
@@ -203,7 +200,6 @@ bool IsIamfMimeType(std::string mime_type) {
 
   return true;
 }
-#endif  // SB_API_VERSION >= 15
 
 }  // namespace media
 }  // namespace starboard

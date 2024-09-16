@@ -71,9 +71,7 @@ class VideoConfig {
 SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
                                           const char* subtype);
 
-#if SB_API_VERSION >= 15
 bool IsIamfMimeType(std::string mime_type);
-#endif  // SB_API_VERSION >= 15
 
 }  // namespace media
 }  // namespace starboard
