@@ -95,13 +95,11 @@ static inline bool SbThreadIsValidPriority(SbThreadPriority priority) {
 // Returns the Thread ID of the currently executing thread.
 SB_EXPORT SbThreadId SbThreadGetId();
 
-#if SB_API_VERSION >= 16
 // Set the thread priority of the current thread.
 SB_EXPORT bool SbThreadSetPriority(SbThreadPriority priority);
 
 // Get the thread priority of the current thread.
 SB_EXPORT bool SbThreadGetPriority(SbThreadPriority* priority);
-#endif
 
 // Private structure representing the context of a frozen thread.
 typedef struct SbThreadContextPrivate SbThreadContextPrivate;

@@ -20,8 +20,6 @@
 #include <map>
 #include <string>
 
-#include "starboard/file.h"
-
 namespace starboard {
 namespace shared {
 namespace starboard {

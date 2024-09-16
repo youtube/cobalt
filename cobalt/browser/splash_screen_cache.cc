@@ -30,7 +30,6 @@
 #include "cobalt/base/get_application_key.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/directory.h"
 
 namespace cobalt {
 namespace browser {

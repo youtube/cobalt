@@ -63,8 +63,6 @@
 
 #ifdef STARBOARD
 #include "starboard/atomic.h"
-#include "starboard/condition_variable.h"
-#include "starboard/mutex.h"
 #endif
 
 #if defined(__cplusplus)

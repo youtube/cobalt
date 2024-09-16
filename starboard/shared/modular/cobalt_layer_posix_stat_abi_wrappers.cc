@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION >= 16
-
 #include <sys/stat.h>
 
 extern "C" {
@@ -29,5 +27,3 @@ int stat(const char* path, struct stat* info) {
   return __abi_wrap_stat(path, info);
 }
 }
-
-#endif  // SB_API_VERSION >= 16

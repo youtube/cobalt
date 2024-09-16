@@ -20,8 +20,6 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 
-#if SB_API_VERSION < 15
-
 namespace starboard {
 namespace shared {
 namespace enhanced_audio {
@@ -35,7 +33,5 @@ void EnhancedAudioPlayerWriteSamples(
 }  // namespace enhanced_audio
 }  // namespace shared
 }  // namespace starboard
-
-#endif  // SB_API_VERSION < 15
 
 #endif  // STARBOARD_SHARED_ENHANCED_AUDIO_ENHANCED_AUDIO_PLAYER_WRITE_SAMPLES_H_

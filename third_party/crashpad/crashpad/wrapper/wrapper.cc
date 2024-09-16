@@ -27,9 +27,7 @@
 #include "client/settings.h"
 #include "starboard/common/system_property.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/directory.h"
 #include "starboard/extension/loader_app_metrics.h"
-#include "starboard/file.h"
 #include "starboard/system.h"
 #include "third_party/crashpad/crashpad/snapshot/sanitized/sanitization_information.h"
 

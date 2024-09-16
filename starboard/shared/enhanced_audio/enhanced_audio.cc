@@ -22,8 +22,6 @@ namespace starboard {
 namespace shared {
 namespace enhanced_audio {
 
-#if SB_API_VERSION < 15
-
 namespace {
 
 const CobaltExtensionEnhancedAudioApi kEnhancedAudioApi = {
@@ -38,8 +36,6 @@ const void* GetEnhancedAudioApi() {
   SB_LOG(INFO) << "EnhancedAudio extension enabled.";
   return &kEnhancedAudioApi;
 }
-
-#endif  // SB_API_VERSION < 15
 
 }  // namespace enhanced_audio
 }  // namespace shared

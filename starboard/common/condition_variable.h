@@ -23,7 +23,6 @@
 #include <pthread.h>
 
 #include "starboard/common/mutex.h"
-#include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 

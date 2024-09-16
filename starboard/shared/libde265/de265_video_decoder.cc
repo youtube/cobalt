@@ -17,7 +17,6 @@
 #include "starboard/common/string.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 #include "starboard/shared/libde265/de265_library_loader.h"
-#include "starboard/string.h"
 #include "starboard/thread.h"
 
 namespace starboard {

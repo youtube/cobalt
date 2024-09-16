@@ -17,8 +17,6 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_API_VERSION < 15
-
 namespace starboard {
 namespace shared {
 namespace enhanced_audio {
@@ -55,5 +53,3 @@ void EnhancedAudioPlayerWriteSamples(
 }  // namespace enhanced_audio
 }  // namespace shared
 }  // namespace starboard
-
-#endif  // SB_API_VERSION < 15

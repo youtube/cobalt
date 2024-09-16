@@ -16,8 +16,6 @@
 
 #include <cstring>
 
-#include "starboard/string.h"
-
 namespace starboard {
 namespace elf_loader {
 

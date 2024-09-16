@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION >= 16
-
 #include <sys/time.h>
 #include <time.h>
 
@@ -43,5 +41,3 @@ struct tm* gmtime_r(const time_t* clock, struct tm* result) {
   return __abi_wrap_gmtime_r(clock, result);
 }
 }
-
-#endif  // SB_API_VERSION >= 16

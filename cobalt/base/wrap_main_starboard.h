@@ -130,11 +130,7 @@ void BaseEventHandler(const SbEvent* event) {
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
     case kSbEventDateTimeConfigurationChanged:
-#if SB_API_VERSION >= 16
     case kSbEventTypeReserved1:
-#else
-    case kSbEventTypeOnScreenKeyboardSuggestionsUpdated:
-#endif  // SB_API_VERSION >= 16
       event_function(event);
       break;
   }

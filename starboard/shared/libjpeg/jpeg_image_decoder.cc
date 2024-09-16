@@ -21,7 +21,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/file.h"
 #include "starboard/linux/shared/decode_target_internal.h"
 
 // Inhibit C++ name-mangling for libjpeg functions.

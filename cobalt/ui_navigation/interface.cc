@@ -14,12 +14,10 @@
 
 #include "cobalt/ui_navigation/interface.h"
 
-#include "starboard/common/spin_lock.h"
-#if SB_API_VERSION >= 16
 #include <string.h>
 
+#include "starboard/common/spin_lock.h"
 #include "starboard/system.h"
-#endif  //  SB_API_VERSION
 
 namespace cobalt {
 namespace ui_navigation {

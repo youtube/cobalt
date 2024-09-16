@@ -21,7 +21,6 @@
 #include "starboard/elf_loader/evergreen_info.h"
 #include "starboard/elf_loader/log.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 
 #define MAYBE_MAP_FLAG(x, from, to) (((x) & (from)) ? (to) : 0)
 
@@ -43,15 +42,8 @@ ProgramTable::ProgramTable(
       load_size_(0),
       base_memory_address_(0),
       memory_mapped_file_extension_(memory_mapped_file_extension) {
-#if SB_API_VERSION >= 16
   SB_CHECK(kSbCanMapExecutableMemory)
       << "This module requires executable memory support!";
-#else
-#if !SB_CAN(MAP_EXECUTABLE_MEMORY)
-  SB_CHECK(false) << "This module requires "
-                     "executable memory map support!";
-#endif
-#endif
 }
 
 bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {

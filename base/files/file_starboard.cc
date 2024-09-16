@@ -28,7 +28,6 @@
 #include "base/strings/stringprintf.h"
 #include "base/threading/thread_restrictions.h"
 #include "starboard/common/metrics/stats_tracker.h"
-#include "starboard/file.h"
 
 namespace base {
 

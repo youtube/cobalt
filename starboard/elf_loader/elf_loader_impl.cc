@@ -25,7 +25,6 @@
 #include "starboard/elf_loader/lz4_file_impl.h"
 #include "starboard/extension/loader_app_metrics.h"
 #include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 
 namespace starboard {
@@ -43,15 +42,8 @@ bool EndsWith(const std::string& s, const std::string& suffix) {
 }  // namespace
 
 ElfLoaderImpl::ElfLoaderImpl() {
-#if SB_API_VERSION >= 16
   SB_CHECK(kSbCanMapExecutableMemory)
       << "Elf_loader requires executable memory support!";
-#else
-#if !SB_CAN(MAP_EXECUTABLE_MEMORY)
-  SB_CHECK(false) << "The elf_loader requires "
-                     "executable memory map support!";
-#endif
-#endif
 }
 
 bool ElfLoaderImpl::Load(const char* name,

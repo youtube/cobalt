@@ -25,7 +25,6 @@
 #include "net/base/net_string_util.h"
 
 #if defined(STARBOARD)
-#include "starboard/string.h"
 #include "starboard/types.h"
 #endif
 

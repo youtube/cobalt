@@ -23,8 +23,6 @@
 #ifndef STARBOARD_ANDROID_SHARED_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_ANDROID_SHARED_CONFIGURATION_PUBLIC_H_
 
-#define DEPRECATED_SCOPED_PTR
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be

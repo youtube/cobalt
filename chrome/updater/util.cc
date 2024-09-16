@@ -23,8 +23,6 @@
 #include "crypto/sha2.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/installation_manager.h"
-#include "starboard/file.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 
 #define PRODUCT_FULLNAME_STRING "cobalt_updater"

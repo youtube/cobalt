@@ -57,7 +57,6 @@
 #include "cobalt/web/environment_settings_helper.h"
 #include "cobalt/web/event.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
-#include "starboard/file.h"
 
 using cobalt::cssom::ViewportSize;
 using cobalt::media_session::MediaSession;

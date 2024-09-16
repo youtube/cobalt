@@ -18,7 +18,6 @@
 
 #include "base/logging.h"
 #include "starboard/gles.h"
-#include "starboard/string.h"
 
 namespace cobalt {
 namespace renderer {
