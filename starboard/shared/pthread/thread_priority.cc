@@ -35,6 +35,7 @@ int SbPriorityToNice(SbThreadPriority priority) {
     case kSbThreadPriorityRealTime:
       return -19;
   }
+  return 0;
 }
 
 SbThreadPriority NiceToSbPriority(int nice) {
@@ -56,6 +57,7 @@ SbThreadPriority NiceToSbPriority(int nice) {
   if (nice == -19) {
     return kSbThreadPriorityRealTime;
   }
+  return kSbThreadPriorityNormal;
 }
 
 }  // namespace
