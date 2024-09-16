@@ -23,12 +23,8 @@ namespace starboard {
 namespace {
 
 TEST(StringTest, SplitString) {
-  std::string str;
+  std::string str = "The quick brown fox jumps over the lazy dog";
   std::vector<std::string> output = SplitString(str, '.');
-  EXPECT_TRUE(output.empty());
-
-  str = "The quick brown fox jumps over the lazy dog";
-  output = SplitString(str, '.');
   EXPECT_TRUE(output.empty());
 
   std::vector<std::string> vec = {"The",  "quick", "brown", "fox", "jumps",
@@ -38,6 +34,20 @@ TEST(StringTest, SplitString) {
   for (int i = 0; i < vec.size(); ++i) {
     ASSERT_EQ(output[i], vec[i]);
   }
+
+  str = "iamf.001.001.Opus";
+  output = SplitString(str, '.');
+  vec = {"iamf", "001", "001", "Opus"};
+  ASSERT_EQ(output.size(), vec.size());
+  for (int i = 0; i < vec.size(); ++i) {
+    ASSERT_EQ(output[i], vec[i]);
+  }
+}
+
+TEST(StringTest, SplitStringEmpty) {
+  std::string str;
+  std::vector<std::string> output = SplitString(str, '.');
+  ASSERT_TRUE(output.empty());
 }
 
 }  // namespace

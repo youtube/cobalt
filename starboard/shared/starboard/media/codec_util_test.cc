@@ -303,6 +303,13 @@ TEST(CodecUtilTest, IsIamfMimeType) {
   EXPECT_FALSE(IsIamfMimeType("iamf.000.00.Opus"));
   EXPECT_FALSE(IsIamfMimeType("iamf.999.999.Opus"));
   EXPECT_FALSE(IsIamfMimeType("iamf.256.256.Opus"));
+
+  EXPECT_FALSE(IsIamfMimeType("iamf.000.Opus"));
+  EXPECT_FALSE(IsIamfMimeType("iacb.000.000.Opus"));
+  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.mp4a.40.2.0"));
+  EXPECT_FALSE(IsIamfMimeType("iamf.256.000.Opus"));
+  EXPECT_FALSE(IsIamfMimeType("iamf.000.256.Opus"));
+  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.mp4a.4.2."));
 }
 
 }  // namespace

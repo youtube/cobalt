@@ -139,6 +139,8 @@ bool IsIamfMimeType(std::string mime_type) {
   }
 
   std::vector<std::string> vec = SplitString(mime_type, '.');
+  // The mime type must be in 4 parts for all substreams other than AAC, which
+  // is 6 parts.
   if (vec.size() != 4 && vec.size() != 6) {
     return false;
   }
