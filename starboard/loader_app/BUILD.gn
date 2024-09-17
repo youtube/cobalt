@@ -154,7 +154,10 @@ static_library("app_key_files") {
     "app_key_files.cc",
     "app_key_files.h",
   ]
-  deps = [ "//starboard:starboard_group" ]
+  deps = [
+    "//starboard:starboard_group",
+    "//starboard/common",
+  ]
 }
 
 if (sb_is_evergreen) {
@@ -181,6 +184,7 @@ static_library("app_key") {
   ]
   deps = [
     "//starboard:starboard_group",
+    "//starboard/common",
     "//third_party/modp_b64",
   ]
 }
@@ -231,6 +235,7 @@ if (sb_is_evergreen) {
     deps = [
       ":drain_file",
       ":drain_file_helper",
+      "//starboard/common",
       "//testing/gmock",
       "//testing/gtest",
     ]
@@ -258,6 +263,7 @@ static_library("installation_manager") {
     ":pending_restart",
     ":record_loader_app_status",
     "//starboard:starboard_group",
+    "//starboard/common",
   ]
 }
 
@@ -292,6 +298,7 @@ static_library("slot_management") {
     ":drain_file",
     ":installation_manager",
     "//starboard:starboard_group",
+    "//starboard/common",
     "//starboard/elf_loader",
     "//starboard/elf_loader:constants",
     "//starboard/elf_loader:sabi_string",
@@ -322,6 +329,7 @@ if (sb_is_evergreen) {
       ":installation_store_proto",
       ":slot_management",
       "//starboard:starboard_with_main",
+      "//starboard/common",
       "//starboard/elf_loader:sabi_string",
       "//testing/gmock",
       "//testing/gtest",
