@@ -18,22 +18,6 @@ Platform can support partial audio frames
 Whether this platform can map executable memory. This is required for platforms
 that want to JIT.
 
-### kSbDefaultMmapThreshold
-
-Determines the threshold of allocation size that should be done with mmap (if
-available), rather than allocated within the core heap.
-
-### kSbFileAltSepChar
-
-The current platform's alternate file path component separator character. This
-is like SB_FILE_SEP_CHAR, except if your platform supports an alternate
-character, then you can place that here. For example, on windows machines, the
-primary separator character is probably '\', but the alternate is '/'.
-
-### kSbFileAltSepString
-
-The string form of SB_FILE_ALT_SEP_CHAR.
-
 ### kSbFileMaxName
 
 The current platform's maximum length of the name of a single directory entry,
@@ -59,18 +43,9 @@ component separator character.
 
 The string form of SB_FILE_SEP_CHAR.
 
-### kSbHasMediaWebmVp9Support
-
-Specifies whether this platform has webm/vp9 support. This should be set to non-
-zero on platforms with webm/vp9 support.
-
 ### kSbHasThreadPrioritySupport
 
 Whether the current platform supports thread priorities.
-
-### kSbMallocAlignment
-
-Determines the alignment that allocations should have on this platform.
 
 ### kSbMaxSystemPathCacheDirectorySize
 
@@ -101,14 +76,6 @@ The maximum audio bitrate the platform can decode. The following value equals to
 
 The maximum video bitrate the platform can decode. The following value equals to
 8M bytes per seconds which is more than enough for compressed video.
-
-### kSbMediaVideoFrameAlignment
-
-Specifies how video frame buffers must be aligned on this platform.
-
-### kSbMemoryLogPath
-
-Defines the path where memory debugging logs should be written to.
 
 ### kSbMemoryPageSize
 
@@ -142,9 +109,3 @@ path component separator character.
 ### kSbPathSepString
 
 The string form of SB_PATH_SEP_CHAR.
-
-### kSbPreferredRgbaByteOrder
-
-Specifies the preferred byte order of color channels in a pixel. Refer to
-starboard/configuration.h for the possible values. EGL/GLES platforms should
-generally prefer a byte order of RGBA, regardless of endianness.
