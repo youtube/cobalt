@@ -11,8 +11,6 @@
 //
 // Author: Skal (pascal.massimino@gmail.com)
 
-#include "starboard/client_porting/cwrappers/pow_wrapper.h"
-
 #include <assert.h>
 #include <math.h>
 #include <stdlib.h>  // for abs()

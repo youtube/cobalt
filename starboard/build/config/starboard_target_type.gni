@@ -44,7 +44,6 @@ template("starboard_platform_target") {
       }
     }
     public_deps = [
-      "//starboard/client_porting/cwrappers",
       "//starboard/common",
       "//starboard/egl_and_gles",
     ]

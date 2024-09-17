@@ -197,7 +197,6 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
         'csp_test',
         'cssom_test',
         'css_parser_test',
-        'cwrappers_test',
         'dom_parser_test',
         'dom_test',
         # TODO(b/292127297): This target is not built for all platforms.
