@@ -66,30 +66,22 @@ namespace starboard {
 namespace elf_loader {
 
 ExportedSymbols::ExportedSymbols() {
-  REGISTER_SYMBOL(kSbDefaultMmapThreshold);
-  REGISTER_SYMBOL(kSbFileAltSepChar);
-  REGISTER_SYMBOL(kSbFileAltSepString);
   REGISTER_SYMBOL(kSbFileMaxName);
   REGISTER_SYMBOL(kSbFileMaxOpen);
   REGISTER_SYMBOL(kSbFileMaxPath);
   REGISTER_SYMBOL(kSbFileSepChar);
   REGISTER_SYMBOL(kSbFileSepString);
-  REGISTER_SYMBOL(kSbHasMediaWebmVp9Support);
   REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
-  REGISTER_SYMBOL(kSbMallocAlignment);
   REGISTER_SYMBOL(kSbMaxSystemPathCacheDirectorySize);
   REGISTER_SYMBOL(kSbMaxThreadLocalKeys);
   REGISTER_SYMBOL(kSbMaxThreadNameLength);
   REGISTER_SYMBOL(kSbMaxThreads);
   REGISTER_SYMBOL(kSbMediaMaxAudioBitrateInBitsPerSecond);
   REGISTER_SYMBOL(kSbMediaMaxVideoBitrateInBitsPerSecond);
-  REGISTER_SYMBOL(kSbMediaVideoFrameAlignment);
-  REGISTER_SYMBOL(kSbMemoryLogPath);
   REGISTER_SYMBOL(kSbMemoryPageSize);
   REGISTER_SYMBOL(kSbNetworkReceiveBufferSize);
   REGISTER_SYMBOL(kSbPathSepChar);
   REGISTER_SYMBOL(kSbPathSepString);
-  REGISTER_SYMBOL(kSbPreferredRgbaByteOrder);
   REGISTER_SYMBOL(kSbCanMapExecutableMemory);
   REGISTER_SYMBOL(kHasPartialAudioFramesSupport);
   REGISTER_SYMBOL(SbAudioSinkCreate);
