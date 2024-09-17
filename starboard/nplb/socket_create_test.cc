@@ -36,7 +36,6 @@ class PairSbSocketCreateTest
 
 TEST_P(PairSbSocketCreateTest, Create) {
   SbSocket socket = SbSocketCreate(GetAddressType(), GetProtocol());
-#if !SB_HAS(IPV6)
   // It is allowed for a platform not to support IPv6 sockets, but we use this
   // test to at least exercise the code path.
   if (kSbSocketAddressTypeIpv6 == GetAddressType()) {
@@ -45,7 +44,6 @@ TEST_P(PairSbSocketCreateTest, Create) {
     }
     return;
   }
-#endif
   if (kSbSocketProtocolUdp == GetProtocol()) {
     // It is allowed for a platform not to support UDP sockets, but we use this
     // test to at least exercise the code path.
@@ -80,18 +78,11 @@ TEST_P(SbSocketCreateTest, ManyTcpAtOnce) {
   }
 }
 
-#if SB_HAS(IPV6)
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketCreateTest,
                         ::testing::Values(kSbSocketAddressTypeIpv4,
                                           kSbSocketAddressTypeIpv6),
                         GetSbSocketAddressTypeName);
-#else
-INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
-                        SbSocketCreateTest,
-                        ::testing::Values(kSbSocketAddressTypeIpv4),
-                        GetSbSocketAddressTypeName);
-#endif
 
 INSTANTIATE_TEST_CASE_P(
     SbSocketTypes,

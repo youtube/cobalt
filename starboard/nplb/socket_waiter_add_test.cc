@@ -206,18 +206,11 @@ TEST_P(SbSocketWaiterAddTest, RainyDayNoInterest) {
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
 
-#if SB_HAS(IPV6)
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketWaiterAddTest,
                         ::testing::Values(kSbSocketAddressTypeIpv4,
                                           kSbSocketAddressTypeIpv6),
                         GetSbSocketAddressTypeName);
-#else
-INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
-                        SbSocketWaiterAddTest,
-                        ::testing::Values(kSbSocketAddressTypeIpv4),
-                        GetSbSocketAddressTypeName);
-#endif
 
 }  // namespace
 }  // namespace nplb

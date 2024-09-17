@@ -50,18 +50,11 @@ TEST_P(SbSocketListenTest, SunnyDayUnbound) {
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
 
-#if SB_HAS(IPV6)
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketListenTest,
                         ::testing::Values(kSbSocketAddressTypeIpv4,
                                           kSbSocketAddressTypeIpv6),
                         GetSbSocketAddressTypeName);
-#else
-INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
-                        SbSocketListenTest,
-                        ::testing::Values(kSbSocketAddressTypeIpv4),
-                        GetSbSocketAddressTypeName);
-#endif
 
 }  // namespace
 }  // namespace nplb

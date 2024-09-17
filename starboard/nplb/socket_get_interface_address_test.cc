@@ -173,18 +173,11 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceNotLoopback) {
                       SB_ARRAY_SIZE(source.address)));
 }
 
-#if SB_HAS(IPV6)
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketGetInterfaceAddressTest,
                         ::testing::Values(kSbSocketAddressTypeIpv4,
                                           kSbSocketAddressTypeIpv6),
                         GetSbSocketAddressTypeName);
-#else
-INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
-                        SbSocketGetInterfaceAddressTest,
-                        ::testing::Values(kSbSocketAddressTypeIpv4),
-                        GetSbSocketAddressTypeName);
-#endif  // SB_HAS(IPV6)
 
 }  // namespace
 }  // namespace nplb

@@ -45,18 +45,11 @@ TEST_F(SbSocketConnectTest, RainyDayNullNull) {
   EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketConnect(kSbSocketInvalid, NULL));
 }
 
-#if SB_HAS(IPV6)
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketConnectTest,
                         ::testing::Values(kSbSocketAddressTypeIpv4,
                                           kSbSocketAddressTypeIpv6),
                         GetSbSocketAddressTypeName);
-#else
-INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
-                        SbSocketConnectTest,
-                        ::testing::Values(kSbSocketAddressTypeIpv4),
-                        GetSbSocketAddressTypeName);
-#endif
 
 }  // namespace
 }  // namespace nplb

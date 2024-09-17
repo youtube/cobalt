@@ -47,7 +47,6 @@ SbSocketError SbSocketBind(SbSocket socket,
     return (socket->error = sbposix::TranslateSocketErrno(EAFNOSUPPORT));
   }
 
-#if SB_HAS(IPV6)
   // When binding to the IPV6 any address, ensure that the IPV6_V6ONLY flag is
   // off to allow incoming IPV4 connections on the same socket.
   // See https://www.ietf.org/rfc/rfc3493.txt for details.
@@ -59,7 +58,6 @@ SbSocketError SbSocketBind(SbSocket socket,
       socket->error = kSbSocketOk;
     }
   }
-#endif
 
   int result = HANDLE_EINTR(
       bind(socket->socket_fd, sock_addr.sockaddr(), sock_addr.length));

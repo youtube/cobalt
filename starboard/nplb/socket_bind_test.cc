@@ -33,7 +33,6 @@ class SbSocketBindTest
   SbSocketResolveFilter GetFilterType() { return GetParam().second; }
 };
 
-#if SB_HAS(IPV6)
 class PairSbSocketBindTest
     : public ::testing::TestWithParam<
           std::pair<SbSocketAddressType, SbSocketAddressType> > {
@@ -41,7 +40,6 @@ class PairSbSocketBindTest
   SbSocketAddressType GetServerAddressType() { return GetParam().first; }
   SbSocketAddressType GetClientAddressType() { return GetParam().second; }
 };
-#endif
 
 // This is to use NULL in asserts, which otherwise complain about long
 // vs. pointer type.
@@ -73,7 +71,6 @@ TEST_F(SbSocketBindTest, RainyDayNullNull) {
   EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketBind(kSbSocketInvalid, NULL));
 }
 
-#if SB_HAS(IPV6)
 TEST_P(PairSbSocketBindTest, RainyDayWrongAddressType) {
   SbSocket server_socket = CreateServerTcpSocket(GetServerAddressType());
   ASSERT_TRUE(SbSocketIsValid(server_socket));
@@ -91,7 +88,6 @@ TEST_P(PairSbSocketBindTest, RainyDayWrongAddressType) {
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
-#endif
 
 TEST_P(SbSocketBindTest, RainyDayBadInterface) {
   SbSocket server_socket = CreateServerTcpSocket(GetAddressType());
@@ -123,7 +119,6 @@ TEST_F(SbSocketBindTest, SunnyDayLocalInterface) {
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
 
-#if SB_HAS(IPV6)
 INSTANTIATE_TEST_CASE_P(
     SbSocketAddressTypes,
     SbSocketBindTest,
@@ -138,14 +133,6 @@ INSTANTIATE_TEST_CASE_P(
         std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketAddressTypeIpv6),
         std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)),
     GetSbSocketAddressTypePairName);
-#else
-INSTANTIATE_TEST_CASE_P(
-    SbSocketAddressTypes,
-    SbSocketBindTest,
-    ::testing::Values(std::make_pair(kSbSocketAddressTypeIpv4,
-                                     kSbSocketResolveFilterIpv4)),
-    GetSbSocketAddressTypeFilterPairName);
-#endif
 
 }  // namespace
 }  // namespace nplb

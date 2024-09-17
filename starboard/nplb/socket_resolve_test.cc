@@ -108,7 +108,6 @@ TEST_F(SbSocketResolveTest, RainyDayNullHostname) {
   ASSERT_EQ(kNull, resolution);
 }
 
-#if SB_HAS(IPV6)
 INSTANTIATE_TEST_CASE_P(
     SbSocketAddressTypes,
     SbSocketResolveTest,
@@ -116,14 +115,6 @@ INSTANTIATE_TEST_CASE_P(
         std::make_pair(kSbSocketResolveFilterIpv4, kSbSocketAddressTypeIpv4),
         std::make_pair(kSbSocketResolveFilterIpv6, kSbSocketAddressTypeIpv6)),
     GetSbSocketFilterAddressTypePairName);
-#else
-INSTANTIATE_TEST_CASE_P(
-    SbSocketAddressTypes,
-    SbSocketResolveTest,
-    ::testing::Values(std::make_pair(kSbSocketResolveFilterIpv4,
-                                     kSbSocketAddressTypeIpv4)),
-    GetSbSocketFilterAddressTypePairName);
-#endif
 
 }  // namespace
 }  // namespace nplb
