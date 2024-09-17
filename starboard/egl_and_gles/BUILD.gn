@@ -48,9 +48,6 @@ declare_args() {
 
 config("egl_and_gles_angle_config") {
   include_dirs = [ "//third_party/angle/include" ]
-  if (is_win && enable_d3d11_feature_level_11) {
-    defines = [ "GL_GLEXT_PROTOTYPES" ]
-  }
 }
 
 if (gl_type == "angle") {
