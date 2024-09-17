@@ -27,13 +27,6 @@
 
 #include "starboard/common/log.h"
 
-#ifdef _WIN32
-#undef open
-#undef close
-#define open sb_open
-#define close sb_close
-#endif
-
 namespace starboard {
 
 bool FileCanOpen(const char* path, int flags);

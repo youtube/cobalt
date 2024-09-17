@@ -28,10 +28,7 @@ config("modular") {
     "-isystem" + rebase_path("//third_party/musl/arch/generic", root_build_dir),
   ]
 
-  if (host_os != "win") {
-    # Causes error on windows. clang++: error: unsupported option '-fPIC' for target 'x86_64-pc-windows-msvc'
-    cflags += [ "-fPIC" ]
-  }
+  cflags += [ "-fPIC" ]
 
   cflags_cc = [ "-nostdinc++" ]
 
