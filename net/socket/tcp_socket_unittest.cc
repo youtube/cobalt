@@ -371,7 +371,6 @@ TEST_F(TCPSocketTest, Accept2Connections) {
   EXPECT_EQ(accepted_address2.address(), local_address_.address());
 }
 
-#if !defined(STARBOARD) || SB_HAS(IPV6)
 // Test listening and accepting with a socket bound to an IPv6 address.
 TEST_F(TCPSocketTest, AcceptIPv6) {
   bool initialized = false;
@@ -398,7 +397,6 @@ TEST_F(TCPSocketTest, AcceptIPv6) {
 
   EXPECT_THAT(connect_callback.GetResult(connect_result), IsOk());
 }
-#endif
 
 TEST_F(TCPSocketTest, ReadWrite) {
   ASSERT_NO_FATAL_FAILURE(SetUpListenIPv4());

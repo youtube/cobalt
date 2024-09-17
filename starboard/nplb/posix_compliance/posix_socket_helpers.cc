@@ -45,18 +45,11 @@ int PosixSocketCreateAndConnect(int server_domain,
     return -1;
   }
   // bind socket with local address
-#if SB_HAS(IPV6)
   sockaddr_in6 address = {};
   EXPECT_TRUE(
       PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
       PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
   address.sin6_port = htons(GetPortNumberForTests());
-#else
-  sockaddr address = {0};
-  EXPECT_TRUE(PosixGetLocalAddressIPv4(&address) == 0);
-  sockaddr_in* address_ptr = reinterpret_cast<sockaddr_in*>(&address);
-  address_ptr->sin_port = htons(GetPortNumberForTests());
-#endif
 
   result = bind(*listen_socket_fd, reinterpret_cast<struct sockaddr*>(&address),
                 sizeof(struct sockaddr_in));
@@ -164,7 +157,6 @@ int PosixGetLocalAddressIPv4(sockaddr* address_ptr) {
   return result;
 }
 
-#if SB_HAS(IPV6)
 int PosixGetLocalAddressIPv6(sockaddr* address_ptr) {
   int result = -1;
   struct ifaddrs* ifaddr;
@@ -189,7 +181,6 @@ int PosixGetLocalAddressIPv6(sockaddr* address_ptr) {
   freeifaddrs(ifaddr);
   return result;
 }
-#endif
 
 bool PosixWriteBySpinning(int socket,
                           const char* data,

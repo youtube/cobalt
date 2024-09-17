@@ -108,15 +108,9 @@ TEST_P(PosixSocketSetOptionsTest, RainyDayInvalidSocket) {
       -1);
 }
 
-#if SB_HAS(IPV6)
 INSTANTIATE_TEST_SUITE_P(PosixSocketAddressTypes,
                          PosixSocketSetOptionsTest,
                          ::testing::Values(AF_INET, AF_INET6));
-#else
-INSTANTIATE_TEST_SUITE_P(PosixSocketAddressTypes,
-                         PosixSocketSetOptionsTest,
-                         ::testing::Values(AF_INET));
-#endif
 
 }  // namespace
 }  // namespace nplb
