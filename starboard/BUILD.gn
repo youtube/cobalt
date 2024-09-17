@@ -21,7 +21,6 @@ group("gn_all") {
 
   deps = [
     ":default",
-    "//starboard/client_porting/cwrappers:cwrappers_test",
     "//starboard/client_porting/eztime:eztime_test",
     "//starboard/client_porting/icu_init",
     "//starboard/examples/glclear:starboard_glclear_example",
@@ -104,7 +103,6 @@ group("starboard_group") {
   deps = []
   public_deps = [
     ":starboard_headers_only",
-    "//starboard/client_porting/cwrappers",
     "//starboard/client_porting/eztime",
   ]
 
