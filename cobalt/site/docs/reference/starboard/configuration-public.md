@@ -3,13 +3,6 @@ Book: /youtube/cobalt/_book.yaml
 
 # Starboard Configuration Reference Guide
 
-## Network Configuration
-
-| Properties |
-| :--- |
-| **`SB_HAS_IPV6`**<br><br>Specifies whether this platform supports IPV6.<br><br>The default value in the Stub implementation is `1` |
-
-
 ## System Header Configuration
 
  Any system headers listed here that are not provided by the platform will be emulated in starboard/types.h.
