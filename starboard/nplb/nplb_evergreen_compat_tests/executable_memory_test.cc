@@ -14,6 +14,7 @@
 
 #include <sys/mman.h>
 
+#include "starboard/configuration_constants.h"
 #include "starboard/nplb/nplb_evergreen_compat_tests/checks.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

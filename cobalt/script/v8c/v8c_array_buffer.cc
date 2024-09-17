@@ -17,7 +17,6 @@
 #include <memory>
 
 #include "cobalt/base/polymorphic_downcast.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace script {

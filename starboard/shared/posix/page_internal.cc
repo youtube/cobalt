@@ -26,7 +26,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/memory.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/memory.h"
 
 namespace {
 

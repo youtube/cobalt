@@ -22,7 +22,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/media.h"
-#include "starboard/memory.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
 

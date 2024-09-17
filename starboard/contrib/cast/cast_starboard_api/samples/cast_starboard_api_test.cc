@@ -6,6 +6,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/thread.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/egl.h"
 #include "starboard/event.h"
 #include "starboard/gles.h"

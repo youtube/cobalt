@@ -5,15 +5,12 @@
 #include "cobalt/base/circular_buffer_shell.h"
 
 #include <stdint.h>
+#include <string.h>
 
 #include <algorithm>
 
 #include "base/logging.h"
 #include "build/build_config.h"
-
-#if defined(STARBOARD)
-#include "starboard/memory.h"
-#endif
 
 static inline void* add_to_pointer(void* pointer, size_t amount) {
   return static_cast<uint8_t*>(pointer) + amount;

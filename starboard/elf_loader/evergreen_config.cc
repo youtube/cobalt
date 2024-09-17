@@ -18,7 +18,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/memory.h"
 
 namespace starboard {
 namespace elf_loader {

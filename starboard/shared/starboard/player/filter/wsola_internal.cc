@@ -30,7 +30,6 @@
 #include <memory>
 
 #include "starboard/common/log.h"
-#include "starboard/memory.h"
 
 #if SB_IS(ARCH_X86) || SB_IS(ARCH_X64)
 #define USE_SIMD 1

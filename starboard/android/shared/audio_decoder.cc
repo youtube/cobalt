@@ -19,7 +19,6 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
-#include "starboard/memory.h"
 
 // Can be locally set to |1| for verbose audio decoding.  Verbose audio
 // decoding will log the following transitions that take place for each audio

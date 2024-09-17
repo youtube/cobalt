@@ -23,7 +23,6 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/memory.h"
 #include "starboard/nplb/file_helpers.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"

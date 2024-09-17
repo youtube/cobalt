@@ -28,7 +28,6 @@
 #include "cobalt/render_tree/image_node.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/rect_node.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace loader {

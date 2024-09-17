@@ -18,7 +18,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "starboard/common/string.h"
-#include "starboard/memory.h"
 #include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"

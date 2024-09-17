@@ -16,7 +16,6 @@
 
 #include <cstdlib>
 
-#include "starboard/memory.h"
 
 namespace base {
 

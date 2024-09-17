@@ -24,7 +24,6 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/memory.h"
 
 namespace starboard {
 namespace android {

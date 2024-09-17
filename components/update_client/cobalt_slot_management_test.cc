@@ -22,6 +22,7 @@
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
 #include "starboard/common/file.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/file.h"
 #include "starboard/loader_app/app_key_files.h"

@@ -21,7 +21,6 @@
 #include "cobalt/renderer/egl_and_gles.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace renderer {

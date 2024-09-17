@@ -25,7 +25,6 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
 using starboard::android::shared::JniEnvExt;

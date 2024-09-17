@@ -18,7 +18,6 @@
 #include <unistd.h>
 
 #include "starboard/common/atomic.h"
-#include "starboard/memory.h"
 #include "starboard/thread.h"
 
 #include "testing/gtest/include/gtest/gtest.h"

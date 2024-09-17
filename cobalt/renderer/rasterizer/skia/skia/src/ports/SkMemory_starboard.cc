@@ -15,7 +15,6 @@
 #include <stdlib.h>
 
 #include "SkMalloc.h"
-#include "starboard/memory.h"
 #include "starboard/system.h"
 
 #define SK_DEBUGFAILF(fmt, ...) \

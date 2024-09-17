@@ -53,6 +53,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
+#if defined(STARBOARD)
+#include "starboard/configuration_constants.h"
+#endif
+
 namespace base {
 namespace internal {
 namespace {

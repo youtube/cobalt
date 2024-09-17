@@ -73,7 +73,6 @@
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/elf_loader/evergreen_info.h"
 #endif
-#include "starboard/memory.h"
 #endif
 
 _START_GOOGLE_NAMESPACE_

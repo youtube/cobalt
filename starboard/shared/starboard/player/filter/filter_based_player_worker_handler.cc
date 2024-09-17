@@ -21,7 +21,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
 #include "starboard/common/string.h"
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"

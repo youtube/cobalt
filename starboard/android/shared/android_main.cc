@@ -26,6 +26,7 @@
 #include "starboard/common/file.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/shared/starboard/command_line.h"

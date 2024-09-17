@@ -14,7 +14,8 @@
 
 #include "starboard/microphone.h"
 
-#include "starboard/memory.h"
+#include <string.h>
+
 #include "starboard/shared/starboard/microphone/microphone_internal.h"
 
 int SbMicrophoneGetAvailable(SbMicrophoneInfo* out_info_array,

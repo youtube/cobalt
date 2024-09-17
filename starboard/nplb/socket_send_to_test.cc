@@ -22,7 +22,6 @@
 
 #include "starboard/common/socket.h"
 #include "starboard/common/time.h"
-#include "starboard/memory.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"

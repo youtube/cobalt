@@ -26,7 +26,6 @@
 #endif  // OS_POSIX
 
 #if defined(STARBOARD)
-#include "starboard/memory.h"
 #endif
 
 namespace {

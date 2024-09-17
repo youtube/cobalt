@@ -14,9 +14,11 @@
 
 #include "starboard/elf_loader/elf_loader_impl.h"
 
+#include <cstring>
 #include <string>
 
 #include "starboard/common/log.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/elf.h"
 #include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/elf_loader/file.h"
@@ -24,7 +26,6 @@
 #include "starboard/elf_loader/log.h"
 #include "starboard/elf_loader/lz4_file_impl.h"
 #include "starboard/extension/loader_app_metrics.h"
-#include "starboard/memory.h"
 #include "starboard/system.h"
 
 namespace starboard {

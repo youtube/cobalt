@@ -35,7 +35,6 @@
 #include <sys/types.h>
 
 #include "starboard/common/log.h"
-#include "starboard/memory.h"
 #include "starboard/shared/posix/socket_internal.h"
 
 namespace sbposix = starboard::shared::posix;

@@ -20,7 +20,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/thread.h"
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 #include "starboard/shared/signal/signal_internal.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/system.h"

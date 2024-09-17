@@ -18,7 +18,6 @@
 #include <vector>
 
 #include "starboard/media.h"
-#include "starboard/memory.h"
 #include "starboard/nplb/performance_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

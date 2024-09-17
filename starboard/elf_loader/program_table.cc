@@ -18,9 +18,9 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/elf_loader/evergreen_info.h"
 #include "starboard/elf_loader/log.h"
-#include "starboard/memory.h"
 
 #define MAYBE_MAP_FLAG(x, from, to) (((x) & (from)) ? (to) : 0)
 

@@ -23,7 +23,6 @@
 #include "starboard/common/log.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
-#include "starboard/memory.h"
 #include "starboard/raspi/shared/window_internal.h"
 #include "starboard/shared/linux/dev_input/dev_input.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"

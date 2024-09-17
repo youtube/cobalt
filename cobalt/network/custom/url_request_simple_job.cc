@@ -35,7 +35,6 @@
 #include "net/base/net_errors.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_util.h"
-#include "starboard/memory.h"
 
 namespace net {
 
