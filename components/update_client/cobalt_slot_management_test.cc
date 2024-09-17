@@ -21,9 +21,9 @@
 
 #include "base/strings/string_util.h"
 #include "base/time/time.h"
+#include "base/files/important_file_writer.h"
 #include "starboard/common/file.h"
 #include "starboard/extension/free_space.h"
-#include "starboard/file.h"
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
 #include "starboard/loader_app/drain_file_helper.h"
@@ -85,7 +85,7 @@ class CobaltSlotManagementTest : public testing::Test {
     manifest1_path += kSbFileSepString;
     manifest1_path += "manifest.json";
 
-    ASSERT_TRUE(SbFileAtomicReplace(manifest1_path.c_str(), data, data_length));
+    ASSERT_TRUE(base::ImportantFileWriter::WriteFileAtomically(base::FilePath(manifest1_path), data));
   }
 
   const CobaltExtensionInstallationManagerApi* api_;
