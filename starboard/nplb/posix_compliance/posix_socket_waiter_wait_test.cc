@@ -27,8 +27,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 16
-
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SbPosixSocketWaiterWaitTest);
 
 struct CallbackValues {
@@ -258,8 +256,6 @@ TEST(SbPosixSocketWaiterWaitTest, SunnyDayAlreadyReady) {
 TEST(SbPosixSocketWaiterWaitTest, RainyDayInvalidWaiter) {
   WaitShouldNotBlock(kSbSocketWaiterInvalid);
 }
-
-#endif  // SB_API_VERSION >= 16
 
 }  // namespace
 }  // namespace nplb
