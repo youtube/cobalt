@@ -96,7 +96,7 @@ runs:
           fi
         fi
     - name: Populate TAGS for unit test report
-      if: (success() || failure()) && steps.run-tests.outputs.test_type == 'unit_tests'
+      if: always() && steps.run-tests.outputs.test_type == 'unit_tests'
       shell: bash
       run: |
         # Set tags for test differentiation.
@@ -105,7 +105,7 @@ runs:
         echo $tags > ${TEST_RESULTS_DIR}/${{ matrix.platform }}/TAGS
     - name: Archive unit test results
       uses: actions/upload-artifact@v3
-      if: (success() || failure()) && steps.run-tests.outputs.test_type == 'unit_tests'
+      if: always() && steps.run-tests.outputs.test_type == 'unit_tests'
       with:
         name: unit-test-results
         path: ${{env.TEST_RESULTS_DIR}}/
