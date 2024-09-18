@@ -19,6 +19,7 @@
 #include "base/bind.h"
 #include "base/command_line.h"
 #include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
@@ -161,8 +162,52 @@ void NetworkModule::SetEnableHttp3FromPersistentSettings() {
   }
 }
 
-void NetworkModule::SetProtocolFilterUpdatePending() {
+bool NetworkModule::SetHttpProtocolFilterPersistentSetting(
+    const std::string& raw_json) {
+  base::Value old_config_json;
+  options_.persistent_settings->Get(network::kProtocolFilterKey,
+                                    &old_config_json);
+
+  if (raw_json.empty()) {
+    if (old_config_json.is_none()) {
+      return false;
+    }
+    options_.persistent_settings->Set(network::kProtocolFilterKey,
+                                      base::Value());
+    protocol_filter_update_pending_ = true;
+    return true;
+  }
+
+  absl::optional<base::Value> old_config;
+  if (old_config_json.is_string()) {
+    old_config = base::JSONReader::Read(old_config_json.GetString());
+  }
+  absl::optional<base::Value> raw_config = base::JSONReader::Read(raw_json);
+  if (!raw_config) return false;
+  base::Value::List new_config;
+  if (!raw_config->is_list()) return false;
+  for (auto& filter_value : raw_config->GetList()) {
+    if (!filter_value.is_dict()) continue;
+    const auto& dict = filter_value.GetDict();
+    const base::Value* origin = dict.Find("origin");
+    const base::Value* alt_svc = dict.Find("altSvc");
+    if (!origin || !alt_svc) continue;
+    if (!origin->is_string() || !alt_svc->is_string()) continue;
+    base::Value::Dict dest_dict;
+    dest_dict.Set("origin", origin->GetString());
+    dest_dict.Set("altSvc", alt_svc->GetString());
+    new_config.Append(std::move(dest_dict));
+  }
+  if (new_config.empty()) return false;
+  if (old_config && old_config->is_list() &&
+      old_config->GetList() == new_config)
+    return false;
+  absl::optional<std::string> json = base::WriteJson(new_config);
+  if (!json) return false;
+  options_.persistent_settings->Set(network::kProtocolFilterKey,
+                                    base::Value(*json));
   protocol_filter_update_pending_ = true;
+  return true;
 }
 
 void NetworkModule::SetProtocolFilterFromPersistentSettings() {
