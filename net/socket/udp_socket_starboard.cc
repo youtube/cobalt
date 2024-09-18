@@ -144,7 +144,18 @@ int UDPSocketStarboard::GetLocalAddress(IPEndPoint* address) const {
   if (!local_address_.get()) {
     SbSocketAddress address;
     if (!SbSocketGetLocalAddress(socket_, &address))
+    {
+      #if SB_API_VERSION >= 16
+      int sb_err = MapSocketError(SbSocketGetLastError(socket_));
+      int posix_err = MapLastPosixSocketError();
+      if(sb_err != posix_err){
+        DLOG(ERROR) << "errno test failed udp: " << sb_err << posix_err;
+      }
+      return posix_err;
+      #else
       return MapSocketError(SbSocketGetLastError(socket_));
+      #endif // SB_API_VERSION >= 16
+    }
     std::unique_ptr<IPEndPoint> endpoint(new IPEndPoint());
     if (!endpoint->FromSbSocketAddress(&address))
       return ERR_FAILED;
@@ -184,7 +195,15 @@ int UDPSocketStarboard::RecvFrom(IOBuffer* buf,
           socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
           &socket_watcher_, this)) {
     PLOG(ERROR) << "WatchSocket failed on read";
+    #if SB_API_VERSION >= 16
+    Error result_sb = MapLastSocketError(socket_);
+    int result = MapLastPosixSocketError();
+    if(result_sb != result){
+      DLOG(ERROR) << "errno test failed udp: " << result_sb << result;
+    }
+    #else
     Error result = MapLastSocketError(socket_);
+    #endif // SB_API_VERSION >= 16
     if (result == ERR_IO_PENDING) {
       // Watch(...) might call SbSocketWaiterAdd() which does not guarantee
       // setting system error on failure, but we need to treat this as an
@@ -237,7 +256,15 @@ int UDPSocketStarboard::SendToOrWrite(IOBuffer* buf,
           &socket_watcher_, this)) {
     DVLOG(1) << "Watch failed on write, error "
              << SbSocketGetLastError(socket_);
+    #if SB_API_VERSION >= 16
+    Error result_sb = MapLastSocketError(socket_);
+    int result = MapLastPosixSocketError();
+    if(result_sb != result){
+      DLOG(ERROR) << "errno test failed udp: " << result_sb << result;
+    }
+    #else
     Error result = MapLastSocketError(socket_);
+    #endif // SB_API_VERSION >= 16
     LogWrite(result, NULL, NULL);
     return result;
   }
@@ -309,7 +336,15 @@ int UDPSocketStarboard::SetReceiveBufferSize(int32_t size) {
 
   int result = OK;
   if (!SbSocketSetReceiveBufferSize(socket_, size)) {
+    #if SB_API_VERSION >= 16
+    int result_sb = MapLastSocketError(socket_);
+    result = MapLastPosixSocketError();
+    if(result_sb != result){
+      DLOG(ERROR) << "errno test failed udp: " << result_sb << result;
+    }
+    #else
     result = MapLastSocketError(socket_);
+    #endif // SB_API_VERSION >= 16
   }
   DCHECK_EQ(result, OK) << "Could not " << __FUNCTION__ << ": "
                         << SbSocketGetLastError(socket_);
@@ -322,7 +357,15 @@ int UDPSocketStarboard::SetSendBufferSize(int32_t size) {
 
   int result = OK;
   if (!SbSocketSetSendBufferSize(socket_, size)) {
+    #if SB_API_VERSION >= 16
+    int result_sb = MapLastSocketError(socket_);
+    result = MapLastPosixSocketError();
+    if(result_sb != result){
+      DLOG(ERROR) << "errno test failed udp: " << result_sb << result;
+    }
+    #else
     result = MapLastSocketError(socket_);
+    #endif // SB_API_VERSION >= 16
   }
   DCHECK_EQ(result, OK) << "Could not " << __FUNCTION__ << ": "
                         << SbSocketGetLastError(socket_);
@@ -472,7 +515,15 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
       result = ERR_MSG_TOO_BIG;
     }
   } else {
+    #if SB_API_VERSION >= 16
+    int result_sb = MapLastSocketError(socket_);
+    result = MapLastPosixSocketError();
+    if(result_sb != result){
+      DLOG(ERROR) << "errno test failed udp: " << result_sb << result << ", errno is " << errno;
+    }
+    #else
     result = MapLastSocketError(socket_);
+    #endif // SB_API_VERSION >= 16
   }
 
   if (result != ERR_IO_PENDING) {
@@ -499,8 +550,17 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
 
   int result = SbSocketSendTo(socket_, buf->data(), buf_len, &sb_address);
 
-  if (result < 0)
+  if (result < 0){
+    #if SB_API_VERSION >= 16
+    int result_sb = MapLastSocketError(socket_);
+    result = MapLastPosixSocketError();
+    if(result_sb != result){
+      DLOG(ERROR) << "errno test failed udp: " << result_sb << result;
+    }
+    #else
     result = MapLastSocketError(socket_);
+    #endif // SB_API_VERSION >= 16
+  }
 
   if (result != ERR_IO_PENDING)
     LogWrite(result, buf->data(), address);
@@ -534,7 +594,16 @@ int UDPSocketStarboard::JoinGroup(const IPAddress& group_address) const {
 
   if (!SbSocketJoinMulticastGroup(socket_, &sb_address)) {
     LOG(WARNING) << "SbSocketJoinMulticastGroup failed on UDP socket.";
+    #if SB_API_VERSION >= 16
+    int sb_err = MapLastSocketError(socket_);
+    int posix_err = MapLastPosixSocketError();
+    if(sb_err != posix_err){
+      DLOG(ERROR) << "errno test failed udp: " << sb_err << posix_err;
+    }
+    return posix_err;
+    #else
     return MapLastSocketError(socket_);
+    #endif // SB_API_VERSION >= 16
   }
   return OK;
 }
@@ -608,7 +677,15 @@ SendResult UDPSocketStarboardSender::InternalSendBuffers(
   for (auto& buffer : buffers) {
     int result = Send(socket, buffer->data(), buffer->length(), address);
     if (result < 0) {
+      #if SB_API_VERSION >= 16
+      int rv_sb = MapLastSocketError(socket);
+      rv = MapLastPosixSocketError();
+      if(rv_sb != rv){
+        DLOG(ERROR) << "errno test failed udp: " << rv_sb << rv;
+      }
+      #else
       rv = MapLastSocketError(socket);
+      #endif // SB_API_VERSION >= 16
       break;
     }
     write_count++;
@@ -812,7 +889,15 @@ void UDPSocketStarboard::DidSendBuffers(SendResult send_result) {
   if (last_async_result_ == ERR_IO_PENDING) {
     DVLOG(2) << __func__ << " WatchSocket start";
     if (!WatchSocket()) {
+      #if SB_API_VERSION >= 16
+      int last_async_result_sb = MapLastSocketError(socket_);
+      last_async_result_ = MapLastPosixSocketError();
+      if(last_async_result_sb != last_async_result_){
+        DLOG(ERROR) << "errno test failed udp: " << last_async_result_sb << last_async_result_;
+      }
+      #else
       last_async_result_ = MapLastSocketError(socket_);
+      #endif // SB_API_VERSION >= 16
       DVLOG(1) << "WatchSocket failed on write, error: " << last_async_result_;
       LogWrite(last_async_result_, NULL, NULL);
     } else {

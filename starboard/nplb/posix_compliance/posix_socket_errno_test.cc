@@ -59,6 +59,20 @@ TEST(PosixErrnoTest, ConnectUnavailableAddress) {
 
   close(socket_fd);
 }
+
+TEST(PosixErrnoTest, ClearLastError) {
+  // Set up a socket, but don't Bind or Listen.
+  int invalid_socket_fd = -1;
+  // Accept on the unbound socket should result in an error.
+  EXPECT_FALSE(accept(invalid_socket_fd, NULL, NULL) == 0);
+  EXPECT_TRUE(errno == EBADF);
+
+  // After we clear the error, it should be OK.
+  errno = 0;
+  EXPECT_TRUE(errno == 0);
+
+  close(invalid_socket_fd);
+}
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
