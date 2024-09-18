@@ -32,7 +32,6 @@ PLATFORMS = {
     'linux-x64x11-clang-3-9': 'starboard/linux/x64x11/clang/3.9',
     'android-arm': 'starboard/android/arm',
     'android-arm64': 'starboard/android/arm64',
-    'android-arm64-vulkan': 'starboard/android/arm64/vulkan',
     'android-x86': 'starboard/android/x86',
     'raspi-2': 'starboard/raspi/2',
     'raspi-2-skia': 'starboard/raspi/2/skia',
