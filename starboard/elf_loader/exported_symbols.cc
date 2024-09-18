@@ -387,16 +387,7 @@ ExportedSymbols::ExportedSymbols() {
   map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
   map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
 
-#if defined(_MSC_VER)
-  // MSVC provides a template with the same name.
-  // The cast helps the compiler to pick the correct C function pointer to be
-  // used.
-  REGISTER_SYMBOL(
-      static_cast<int (*)(wchar_t* buffer, size_t count, const wchar_t* format,
-                          va_list argptr)>(vswprintf));
-#else
   REGISTER_SYMBOL(vswprintf);
-#endif  // defined(_MSC_VER)
 
 }  // NOLINT
 
