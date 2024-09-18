@@ -20,7 +20,6 @@
 #include <memory>
 
 #include "starboard/common/pointer_arithmetic.h"
-#include "starboard/memory.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 struct AlignedMemoryDeleter {

@@ -26,7 +26,6 @@
 #include "cobalt/media/sandbox/media_sandbox.h"
 #include "cobalt/media/sandbox/media_source_demuxer.h"
 #include "cobalt/media/sandbox/zzuf_fuzzer.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {

@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -27,7 +28,6 @@
 #include "base/threading/scoped_blocking_call.h"
 #include "build/build_config.h"
 #include "starboard/extension/memory_mapped_file.h"
-#include "starboard/memory.h"
 
 namespace base {
 

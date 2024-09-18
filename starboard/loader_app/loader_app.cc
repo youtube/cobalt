@@ -35,7 +35,6 @@
 #include "starboard/loader_app/reset_evergreen_update.h"
 #include "starboard/loader_app/slot_management.h"
 #include "starboard/loader_app/system_get_extension_shim.h"
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/command_line.h"
 
 #include "third_party/crashpad/crashpad/wrapper/annotations.h"

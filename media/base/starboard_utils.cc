@@ -27,7 +27,6 @@
 #include "media/base/decrypt_config.h"
 #include "starboard/common/media.h"
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 
 using base::Time;
 using base::TimeDelta;

@@ -22,7 +22,6 @@
 #include "cobalt/renderer/rasterizer/common/utils.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace renderer {

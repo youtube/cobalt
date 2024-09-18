@@ -20,7 +20,6 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/loader/image/animated_webp_image.h"
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace loader {

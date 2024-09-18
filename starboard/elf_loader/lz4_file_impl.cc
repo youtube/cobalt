@@ -14,6 +14,7 @@
 
 #include <sys/stat.h>
 
+#include <string.h>
 #include <algorithm>
 #include <vector>
 
@@ -22,7 +23,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/extension/loader_app_metrics.h"
-#include "starboard/memory.h"
 #include "starboard/system.h"
 
 namespace starboard {

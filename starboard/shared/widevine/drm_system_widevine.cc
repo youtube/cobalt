@@ -25,7 +25,6 @@
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/widevine/widevine_storage.h"

@@ -21,7 +21,6 @@
 #include "cobalt/network/local_network.h"
 #include "net/base/url_util.h"
 #include "starboard/common/socket.h"
-#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"

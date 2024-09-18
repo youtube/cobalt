@@ -23,7 +23,6 @@
 #include "starboard/common/optional.h"
 #include "starboard/common/socket.h"
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/thread.h"
 

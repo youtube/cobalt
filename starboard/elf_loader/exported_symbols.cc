@@ -37,7 +37,6 @@
 #include "starboard/file.h"
 #include "starboard/gles.h"
 #include "starboard/log.h"
-#include "starboard/memory.h"
 #include "starboard/microphone.h"
 #include "starboard/player.h"
 #include "starboard/shared/modular/starboard_layer_posix_directory_abi_wrappers.h"

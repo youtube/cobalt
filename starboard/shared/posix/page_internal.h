@@ -15,7 +15,7 @@
 #ifndef STARBOARD_SHARED_POSIX_PAGE_INTERNAL_H_
 #define STARBOARD_SHARED_POSIX_PAGE_INTERNAL_H_
 
-#include "starboard/memory.h"
+#include "starboard/extension/memory_mapped_file.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/types.h"
 

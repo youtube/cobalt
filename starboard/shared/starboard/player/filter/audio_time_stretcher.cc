@@ -24,7 +24,6 @@
 #include <utility>
 
 #include "starboard/common/log.h"
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/wsola_internal.h"
 

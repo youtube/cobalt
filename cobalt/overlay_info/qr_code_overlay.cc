@@ -23,7 +23,6 @@
 #include "base/trace_event/trace_event.h"
 #include "cobalt/overlay_info/overlay_info_registry.h"
 #include "cobalt/render_tree/animations/animate_node.h"
-#include "starboard/memory.h"
 #include "third_party/QR-Code-generator/cpp/QrCode.hpp"
 
 namespace cobalt {

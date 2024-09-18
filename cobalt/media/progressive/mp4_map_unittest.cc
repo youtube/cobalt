@@ -25,7 +25,6 @@
 #include "cobalt/media/base/endian_util.h"
 #include "cobalt/media/progressive/mock_data_source_reader.h"
 #include "cobalt/media/progressive/mp4_parser.h"
-#include "starboard/memory.h"
 #include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"

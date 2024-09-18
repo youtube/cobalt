@@ -29,7 +29,6 @@
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/websocket/web_socket.h"
 #include "net/http/http_util.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace websocket {

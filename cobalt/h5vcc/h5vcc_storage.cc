@@ -32,6 +32,7 @@
 #include "net/http/http_cache.h"
 #include "net/http/http_transaction_factory.h"
 #include "starboard/common/string.h"
+#include "starboard/configuration_constants.h"
 
 namespace cobalt {
 namespace h5vcc {

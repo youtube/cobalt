@@ -18,7 +18,6 @@
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
 
 #include "starboard/log.h"
-#include "starboard/memory.h"
 #include "starboard/player.h"
 #include "starboard/shared/ffmpeg/ffmpeg_dispatch.h"
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder_impl_interface.h"

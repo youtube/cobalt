@@ -17,7 +17,6 @@
 #if SB_IS(EVERGREEN_COMPATIBLE_LIBUNWIND)
 #define UNW_LOCAL_ONLY
 #include "starboard/common/log.h"
-#include "starboard/memory.h"
 #include "third_party/llvm-project/libunwind/include/libunwind.h"
 #else
 #include <execinfo.h>

@@ -16,8 +16,6 @@
 
 #include <utility>
 
-#include "starboard/memory.h"
-
 namespace starboard {
 namespace raspi {
 namespace shared {

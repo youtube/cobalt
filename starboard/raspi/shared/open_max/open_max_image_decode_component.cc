@@ -20,7 +20,6 @@
 
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 #include "starboard/raspi/shared/open_max/decode_target_create.h"
 #include "starboard/raspi/shared/open_max/decode_target_internal.h"
 #include "starboard/thread.h"
