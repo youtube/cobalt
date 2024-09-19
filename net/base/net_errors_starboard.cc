@@ -24,42 +24,6 @@
 
 namespace net {
 
-#if SB_API_VERSION <= 15
-
-Error MapSystemError(logging::SystemErrorCode error) {
-  if (error != 0) {
-    char error_string[256];
-    SbSystemGetErrorString(error, error_string, sizeof(error_string));
-    DVLOG(2) << "Error (" << error << ") " << error_string;
-  }
-
-  // TODO: Define standard Starboard error codes.
-  if (error == 0)
-    return OK;
-
-  return ERR_FAILED;
-}
-
-Error MapSocketError(SbSocketError error) {
-  if (error != kSbSocketOk)
-    DVLOG(2) << "Error " << error;
-
-  // TODO: Define standard Starboard error codes.
-  switch (error) {
-    case kSbSocketOk:
-      return OK;
-    case kSbSocketPending:
-      return ERR_IO_PENDING;
-    case kSbSocketErrorConnectionReset:
-      return ERR_CONNECTION_RESET;
-    case kSbSocketErrorFailed:
-      return ERR_FAILED;
-    default:
-      NOTREACHED() << "Unrecognized error: " << error;
-      return ERR_FAILED;
-  }
-}
-
-#endif  // SB_API_VERSION <= 15
+#error this file is deprecated with starboard 16
 
 }  // namespace net

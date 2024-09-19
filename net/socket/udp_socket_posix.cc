@@ -64,8 +64,6 @@
 
 namespace net {
 
-#if SB_API_VERSION >= 16
-
 namespace {
 
 const int kBindRetries = 10;
@@ -1091,7 +1089,5 @@ int UDPSocketPosix::SetIOSNetworkServiceType(int ios_network_service_type) {
 #endif  // BUILDFLAG(IS_IOS)
   return OK;
 }
-
-#endif  // SB_API_VERSION >= 16
 
 }  // namespace net
