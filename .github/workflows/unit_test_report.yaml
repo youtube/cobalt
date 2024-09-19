@@ -3,9 +3,10 @@ name: Upload Unit Test Results
 on:
   workflow_run:
     workflows:
+      - android
       - evergreen
       - linux
-      - win32
+      - raspi-2
     types:
       - completed
 
