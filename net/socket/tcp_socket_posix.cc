@@ -62,6 +62,8 @@
 
 namespace net {
 
+#if SB_API_VERSION >= 16
+
 namespace {
 
 // SetTCPKeepAlive sets SO_KEEPALIVE.
@@ -237,7 +239,6 @@ int TCPSocketPosix::Bind(const IPEndPoint& address) {
   SockaddrStorage storage;
   if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_ADDRESS_INVALID;
-
   return socket_->Bind(storage);
 }
 
@@ -251,8 +252,11 @@ int TCPSocketPosix::Accept(std::unique_ptr<TCPSocketPosix>* tcp_socket,
                            CompletionOnceCallback callback) {
   DCHECK(tcp_socket);
   DCHECK(!callback.is_null());
-  DCHECK(socket_);
   DCHECK(!accept_socket_);
+
+  if ((!socket_)) {
+    return MapSystemError(errno);
+  }
 
   net_log_.BeginEvent(NetLogEventType::TCP_ACCEPT);
 
@@ -710,5 +714,7 @@ bool TCPSocketPosix::GetEstimatedRoundTripTime(base::TimeDelta* out_rtt) const {
   return false;
 #endif  // defined(TCP_INFO)
 }
+
+#endif  // SB_API_VERSION >= 16
 
 }  // namespace net
