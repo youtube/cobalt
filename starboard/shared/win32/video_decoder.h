@@ -21,6 +21,7 @@
 #include <atomic>
 #include <list>
 #include <memory>
+#include <string>
 
 #include "starboard/common/mutex.h"
 #include "starboard/common/ref_counted.h"
@@ -100,7 +101,7 @@ class VideoDecoder
     return true;
   }
 
-  void InitializeCodec();
+  void InitializeCodec(std::string* error_message);
   void ShutdownCodec();
   static void ReleaseDecodeTargets(void* context);
 
