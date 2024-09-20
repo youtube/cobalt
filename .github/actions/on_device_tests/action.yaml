@@ -102,6 +102,7 @@ runs:
       run: |
         set -uxe
         i=0
+        # Try downloading the results for 6x 10 seconds before giving up.
         while [ $i -lt 6 ]; do
           # The results are uploaded after the test has completed.
           sleep 10
