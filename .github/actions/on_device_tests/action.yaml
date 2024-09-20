@@ -101,6 +101,7 @@ runs:
       run: |
         set -uxe
 
+        mkdir -p "${GITHUB_WORKSPACE}/test_results"
         cd "${GITHUB_WORKSPACE}/test_results"
 
         i=0
