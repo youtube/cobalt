@@ -18,19 +18,11 @@
 #include <utility>
 
 #include "base/debug/leak_annotations.h"
-#if defined(ENABLE_GLIMP_TRACING)
-#include "base/trace_event/trace_event.h"
-#endif
-
 #include "cobalt/configuration/configuration.h"
 #include "cobalt/renderer/backend/egl/display.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
-#if defined(ENABLE_GLIMP_TRACING)
-#include "internal/starboard/shared/glimp/tracing/tracing.h"
-#endif
-
 #include "cobalt/renderer/egl_and_gles.h"
 
 #if defined(GLES3_SUPPORTED)
@@ -44,19 +36,6 @@
 namespace cobalt {
 namespace renderer {
 namespace backend {
-
-#if defined(ENABLE_GLIMP_TRACING)
-// Hookup glimp tracing to Chromium's base trace_event tracing.
-class GlimpToBaseTraceEventBridge : public glimp::TraceEventImpl {
- public:
-  void BeginTrace(const char* name) override {
-    TRACE_EVENT_BEGIN0("glimp", name);
-  }
-  void EndTrace(const char* name) override { TRACE_EVENT_END0("glimp", name); }
-};
-
-GlimpToBaseTraceEventBridge s_glimp_to_base_trace_event_bridge;
-#endif  // #if defined(ENABLE_GLIMP_TRACING)
 
 namespace {
 
@@ -133,12 +112,6 @@ base::Optional<ChooseConfigResult> ChooseConfig(
 
 GraphicsSystemEGL::GraphicsSystemEGL(
     system_window::SystemWindow* system_window) {
-#if defined(ENABLE_GLIMP_TRACING)
-  // If glimp tracing is enabled, hook up glimp trace calls to Chromium's
-  // base trace_event calls.
-  glimp::SetTraceEventImplementation(&s_glimp_to_base_trace_event_bridge);
-#endif  // #if defined(ENABLE_GLIMP_TRACING)
-
   display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
   CHECK_NE(EGL_NO_DISPLAY, display_);
   CHECK_EQ(EGL_SUCCESS, EGL_CALL_SIMPLE(eglGetError()));

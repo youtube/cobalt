@@ -35,13 +35,6 @@ config("egl_and_gles_glimp_public_config") {
   defines = [ "GL_GLEXT_PROTOTYPES" ]
 }
 
-if (gl_type == "glimp") {
-  group("egl_and_gles_glimp") {
-    public_configs = [ ":egl_and_gles_glimp_public_config" ]
-    public_deps = [ "//internal/starboard/shared/glimp" ]
-  }
-}
-
 declare_args() {
   enable_d3d11_feature_level_11 = false
 }
