@@ -100,6 +100,7 @@ scoped_ptr<MediaTransform> CreateVideoTransform(
     const GUID& output_guid,
     const IMFDXGIDeviceManager* device_manager,
     std::string* error_message) {
+  SB_DCHECK(error_message);
   scoped_ptr<MediaTransform> media_transform(new MediaTransform(decoder_guid));
   if (!media_transform->HasValidTransform()) {
     // Decoder Transform setup failed
@@ -431,6 +432,7 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
 }
 
 void VideoDecoder::InitializeCodec(std::string* error_message) {
+  SB_DCHECK(error_message);
   scoped_ptr<MediaTransform> media_transform;
 
   // If this is updated then media_is_video_supported.cc also needs to be
