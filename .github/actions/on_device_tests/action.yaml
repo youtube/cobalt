@@ -96,8 +96,6 @@ runs:
       if: always() && env.TEST_TYPE == 'unit_test'
       env:
         COBALT_XMLS_FILENAME: cobalt_xmls.zip
-        COBALT_ERROR_LOG: webDriverTestLog.ERROR
-        COBALT_INFO_LOG: webDriverTestLog.INFO
         UNIT_TEST_RESULT_PATH: unit-test-results
       run: |
         set -uxe
@@ -107,12 +105,16 @@ runs:
           # The results are uploaded after the test has completed.
           sleep 10
 
+          # The log files are named by the device lab test driver.
+          COBALT_ERROR_LOG="webDriverTestLog.ERROR"
+          COBALT_INFO_LOG="webDriverTestLog.INFO"
+
           # This command will fail until the results have been uploaded.
           gsutil cp "${GCS_RESULTS_PATH}/${COBALT_ERROR_LOG}" . || true
           gsutil cp "${GCS_RESULTS_PATH}/${COBALT_INFO_LOG}" . || true
           gsutil cp "${GCS_RESULTS_PATH}/${COBALT_XMLS_FILENAME}" . || true
 
-          # Break if the files were downloaded.
+          # Break if all files were downloaded.
           if [[ -f "${COBALT_XMLS_FILENAME}" && -f "${COBALT_ERROR_LOG}" && -f "${COBALT_INFO_LOG}" ]]; then
             break
           fi
@@ -120,7 +122,14 @@ runs:
           i=$(( ${i} + 1 ))
         done
 
+        # Print device logs.
         cat ${COBALT_ERROR_LOG}
+
+        # Rename log files for archiving to not expose legacy weirdness.
+        COBALT_LOGS_DIR="cobalt_logs"
+        mkdir -p "${COBALT_LOGS_DIR}/${{ matrix.platform }}/"
+        mv "${COBALT_ERROR_LOG} "${COBALT_LOGS_DIR}/${{ matrix.platform }}/stderr_${{ matrix.shard }}.log"
+        mv "${COBALT_INFO_LOG}" "${COBALT_LOGS_DIR}/${{ matrix.platform }}/stdout_${{ matrix.shard }}.log"
 
         # Prepare unit test results for DataDog upload.
         RESULT_PATH=${UNIT_TEST_RESULT_PATH}/${{ matrix.platform }}/${{ matrix.shard }}/
@@ -134,17 +143,14 @@ runs:
 
         # Forward environment variables for uploading artifacts.
         echo "UNIT_TEST_RESULT_PATH=${UNIT_TEST_RESULT_PATH}" >> $GITHUB_ENV
-        echo "COBALT_ERROR_LOG=${COBALT_ERROR_LOG}" >> $GITHUB_ENV
-        echo "COBALT_INFO_LOG=${COBALT_INFO_LOG}" >> $GITHUB_ENV
+        echo "COBALT_LOGS_DIR=${COBALT_LOGS_DIR}" >> $GITHUB_ENV
       shell: bash
     - name: Archive Unit Test Logs
       uses: actions/upload-artifact@v3
       if: always() && env.TEST_TYPE == 'unit_test'
       with:
-        name: ${{ matrix.platform }}_${{ matrix.shard }} logs
-        path: |
-          ${{ env.COBALT_ERROR_LOG }}
-          ${{ env.COBALT_INFO_LOG }}
+        name: Device logs
+        path: ${{ env.COBALT_LOGS_DIR }}/
     - name: Archive Unit Test Results
       uses: actions/upload-artifact@v3
       if: always() && env.TEST_TYPE == 'unit_test'
