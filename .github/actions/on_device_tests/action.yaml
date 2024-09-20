@@ -96,7 +96,8 @@ runs:
       if: always() && env.TEST_TYPE == 'unit_test'
       env:
         COBALT_XMLS_FILENAME: cobalt_xmls.zip
-        UNIT_TEST_RESULT_PATH: unit-test-results
+        UNIT_TEST_RESULT_PATH: ${{ github.workspace }}/unit-test-results
+        COBALT_LOGS_DIR: ${{ github.workspace }}/cobalt_logs
       run: |
         set -uxe
         i=0
@@ -126,7 +127,6 @@ runs:
         cat ${COBALT_ERROR_LOG}
 
         # Rename log files for archiving to not expose legacy weirdness.
-        COBALT_LOGS_DIR="cobalt_logs"
         mkdir -p "${COBALT_LOGS_DIR}/${{ matrix.platform }}/"
         mv "${COBALT_ERROR_LOG} "${COBALT_LOGS_DIR}/${{ matrix.platform }}/stderr_${{ matrix.shard }}.log"
         mv "${COBALT_INFO_LOG}" "${COBALT_LOGS_DIR}/${{ matrix.platform }}/stdout_${{ matrix.shard }}.log"
