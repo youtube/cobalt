@@ -11,13 +11,8 @@
 
 #ifdef LIBXML_XPATH_ENABLED
 
-#if !defined(_WIN32)
-#include <unistd.h>
-#endif
 #include <string.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 
 #include <libxml/parser.h>
 #include <libxml/parserInternals.h>
@@ -601,7 +596,7 @@ main(int argc ATTRIBUTE_UNUSED, char **argv ATTRIBUTE_UNUSED) {
 #else /* ! LIBXML_XPATH_ENABLED */
 #include <stdio.h>
 int
-main(int argc, char **argv) {
+main(int argc ATTRIBUTE_UNUSED, char **argv) {
     fprintf(stderr, "%s need XPath support\n", argv[0]);
 }
 #endif

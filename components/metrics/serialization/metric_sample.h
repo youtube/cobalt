@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,8 +7,6 @@
 
 #include <memory>
 #include <string>
-
-#include "base/macros.h"
 
 namespace metrics {
 
@@ -25,6 +23,20 @@ class MetricSample {
     SPARSE_HISTOGRAM,
     USER_ACTION
   };
+
+  // Use one of the static methods in this class instead of calling the
+  // constructor directly.
+  //
+  // The constructor is exposed for std::make_unique.
+  MetricSample(SampleType sample_type,
+               const std::string& metric_name,
+               const int sample,
+               const int min,
+               const int max,
+               const int bucket_count);
+
+  MetricSample(const MetricSample&) = delete;
+  MetricSample& operator=(const MetricSample&) = delete;
 
   ~MetricSample();
 
@@ -96,21 +108,12 @@ class MetricSample {
   bool IsEqual(const MetricSample& sample);
 
  private:
-  MetricSample(SampleType sample_type,
-               const std::string& metric_name,
-               const int sample,
-               const int min,
-               const int max,
-               const int bucket_count);
-
   const SampleType type_;
   const std::string name_;
   const int sample_;
   const int min_;
   const int max_;
   const int bucket_count_;
-
-  DISALLOW_COPY_AND_ASSIGN(MetricSample);
 };
 
 }  // namespace metrics

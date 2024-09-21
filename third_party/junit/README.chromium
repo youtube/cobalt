@@ -1,0 +1,16 @@
+Name: JUnit
+URL: http://junit.org
+Version: 4.13.2
+CPEPrefix: cpe:/a:junit:junit4:4.13.2:-
+License: Common Public License 1.0
+License File: NOT_SHIPPED
+Security Critical: no
+License Android Compatible: yes
+Description: JUnit is a java unit testing library.
+Local Modifications:
+ - Removed the classes provided in android.test.base.jar and
+   android.test.runner.jar from the junit build target. To check which classes
+   are removed, run "unzip -l" on the jars (found in the SDK). Alternatively,
+   look at the classes listed on
+   https://developer.android.com/training/testing/set-up-project#junit-based-libs
+

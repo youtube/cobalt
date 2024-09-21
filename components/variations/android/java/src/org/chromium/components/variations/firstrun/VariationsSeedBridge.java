@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -19,7 +19,7 @@ public class VariationsSeedBridge {
     protected static final String VARIATIONS_FIRST_RUN_SEED_BASE64 = "variations_seed_base64";
     protected static final String VARIATIONS_FIRST_RUN_SEED_SIGNATURE = "variations_seed_signature";
     protected static final String VARIATIONS_FIRST_RUN_SEED_COUNTRY = "variations_seed_country";
-    protected static final String VARIATIONS_FIRST_RUN_SEED_DATE = "variations_seed_date";
+    protected static final String VARIATIONS_FIRST_RUN_SEED_DATE = "variations_seed_date_ms";
     protected static final String VARIATIONS_FIRST_RUN_SEED_IS_GZIP_COMPRESSED =
             "variations_seed_is_gzip_compressed";
 
@@ -37,15 +37,15 @@ public class VariationsSeedBridge {
      * CalledByNative attribute is used by unit tests code to set test data.
      */
     @CalledByNative
-    public static void setVariationsFirstRunSeed(byte[] rawSeed, String signature, String country,
-            String date, boolean isGzipCompressed) {
+    public static void setVariationsFirstRunSeed(
+            byte[] rawSeed, String signature, String country, long date, boolean isGzipCompressed) {
         ContextUtils.getAppSharedPreferences()
                 .edit()
                 .putString(VARIATIONS_FIRST_RUN_SEED_BASE64,
                         Base64.encodeToString(rawSeed, Base64.NO_WRAP))
                 .putString(VARIATIONS_FIRST_RUN_SEED_SIGNATURE, signature)
                 .putString(VARIATIONS_FIRST_RUN_SEED_COUNTRY, country)
-                .putString(VARIATIONS_FIRST_RUN_SEED_DATE, date)
+                .putLong(VARIATIONS_FIRST_RUN_SEED_DATE, date)
                 .putBoolean(VARIATIONS_FIRST_RUN_SEED_IS_GZIP_COMPRESSED, isGzipCompressed)
                 .apply();
     }
@@ -74,6 +74,7 @@ public class VariationsSeedBridge {
     /**
      * Returns the status of the variations seed storing on the C++ side: was it successful or not.
      */
+    @CalledByNative
     public static boolean hasNativePref() {
         return ContextUtils.getAppSharedPreferences().getBoolean(
                 VARIATIONS_FIRST_RUN_SEED_NATIVE_STORED, false);
@@ -104,8 +105,8 @@ public class VariationsSeedBridge {
     }
 
     @CalledByNative
-    private static String getVariationsFirstRunSeedDate() {
-        return getVariationsFirstRunSeedPref(VARIATIONS_FIRST_RUN_SEED_DATE);
+    private static long getVariationsFirstRunSeedDate() {
+        return ContextUtils.getAppSharedPreferences().getLong(VARIATIONS_FIRST_RUN_SEED_DATE, 0);
     }
 
     @CalledByNative

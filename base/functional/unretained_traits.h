@@ -32,12 +32,6 @@ struct hb_set_t;
 struct wl_gpu;
 struct wl_shm;
 struct wl_surface;
-#ifdef COBALT_PENDING_CLEAN_UP
-struct SbPlayerPrivate;
-struct SbWindowPrivate;
-struct SbUiNavItemPrivate;
-struct SbDrmSystemPrivate;
-#endif
 
 namespace base::internal {
 
@@ -119,17 +113,6 @@ template <>
 inline constexpr bool IsIncompleteTypeSafeForUnretained<wl_shm> = true;
 template <>
 inline constexpr bool IsIncompleteTypeSafeForUnretained<wl_surface> = true;
-
-#ifdef COBALT_PENDING_CLEAN_UP
-template <>
-inline constexpr bool IsIncompleteTypeSafeForUnretained<SbPlayerPrivate> = true;
-template <>
-inline constexpr bool IsIncompleteTypeSafeForUnretained<SbWindowPrivate> = true;
-template <>
-inline constexpr bool IsIncompleteTypeSafeForUnretained<SbUiNavItemPrivate> = true;
-template <>
-inline constexpr bool IsIncompleteTypeSafeForUnretained<SbDrmSystemPrivate> = true;
-#endif
 
 template <typename T, typename SFINAE = void>
 struct TypeSupportsUnretained {

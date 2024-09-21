@@ -27,9 +27,6 @@
 #include "absl/base/internal/errno_saver.h"
 #include "absl/base/log_severity.h"
 
-#if defined(STARBOARD)
-#include "starboard/log.h"
-#else
 // We know how to perform low-level writes to stderr in POSIX and Windows.  For
 // these platforms, we define the token ABSL_LOW_LEVEL_WRITE_SUPPORTED.
 // Much of raw_logging.cc becomes a no-op when we can't output messages,
@@ -51,13 +48,11 @@
 #else
 #undef ABSL_HAVE_POSIX_WRITE
 #endif
-#endif  // defined(STARBOARD)
 
 // ABSL_HAVE_SYSCALL_WRITE is defined when the platform provides the syscall
 //   syscall(SYS_write, /*int*/ fd, /*char* */ buf, /*size_t*/ len);
 // for low level operations that want to avoid libc.
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)) && \
-    !defined(STARBOARD) && \
     !defined(__ANDROID__)
 #include <sys/syscall.h>
 #define ABSL_HAVE_SYSCALL_WRITE 1
@@ -216,8 +211,6 @@ void AsyncSignalSafeWriteToStderr(const char* s, size_t len) {
   write(STDERR_FILENO, s, len);
 #elif defined(ABSL_HAVE_RAW_IO)
   _write(/* stderr */ 2, s, static_cast<unsigned>(len));
-#elif defined(STARBOARD)
-  SbLog(kSbLogPriorityError, s);
 #else
   // stderr logging unsupported on this platform
   (void) s;

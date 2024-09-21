@@ -1398,21 +1398,12 @@ TEST_P(SingleThreadTaskExecutorTypedTest, IsIdleForTestingNonNestableTask) {
   EXPECT_TRUE(CurrentThread::Get()->IsIdleForTesting());
 }
 
-#if defined(STARBOARD)
-// MessagePumpUIStarboard lives on top of an external message pump
-// and behaves differently than normal message pumps.
-INSTANTIATE_TEST_SUITE_P(All,
-                         SingleThreadTaskExecutorTypedTest,
-                         ::testing::Values(MessagePumpType::DEFAULT),
-                         SingleThreadTaskExecutorTypedTest::ParamInfoToString);
-#else
 INSTANTIATE_TEST_SUITE_P(All,
                          SingleThreadTaskExecutorTypedTest,
                          ::testing::Values(MessagePumpType::DEFAULT,
                                            MessagePumpType::UI,
                                            MessagePumpType::IO),
                          SingleThreadTaskExecutorTypedTest::ParamInfoToString);
-#endif
 
 #if BUILDFLAG(IS_WIN)
 

@@ -1,0 +1,10 @@
+AXWebArea
+++AXComboBox AXHasPopup=1 AXPopupValue='menu'
+++AXComboBox AXHasPopup=1 AXPopupValue='listbox'
+++AXComboBox AXHasPopup=1 AXPopupValue='menu'
+++AXComboBox AXHasPopup=1 AXPopupValue='listbox'
+++AXComboBox AXHasPopup=1 AXPopupValue='grid'
+++AXComboBox AXHasPopup=1 AXPopupValue='dialog'
+++AXComboBox AXHasPopup=1 AXPopupValue='listbox'
+++AXComboBox AXHasPopup=1 AXPopupValue='listbox'
+++AXComboBox AXHasPopup=1 AXPopupValue='listbox'

@@ -1,29 +1,64 @@
-# Copyright 2017 The Chromium Authors. All rights reserved.
+# Copyright 2017 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
 import("//testing/test.gni")
+
+component("ukm_recorder") {
+  output_name = "ukm_recorder"
+
+  defines = [ "IS_UKM_RECORDER_IMPL" ]
+
+  friend = [
+    ":test_support",
+    ":unit_tests",
+  ]
+
+  sources = [
+    "scheme_constants.cc",
+    "scheme_constants.h",
+    "ukm_consent_state.h",
+    "ukm_entry_filter.h",
+    "ukm_recorder_impl.cc",
+    "ukm_recorder_impl.h",
+    "ukm_recorder_observer.cc",
+    "ukm_recorder_observer.h",
+  ]
+
+  deps = [
+    "//base",
+    "//components/variations",
+    "//services/metrics/public/cpp:metrics_cpp",
+    "//services/metrics/public/cpp:ukm_builders",
+    "//services/metrics/public/mojom",
+    "//third_party/metrics_proto",
+    "//url",
+  ]
+}
 
 # The Url-Keyed Metrics (UKM) service is responsible for gathering and
 # uploading reports that contain fine grained performance metrics including
 # URLs for top-level navigations.
 static_library("ukm") {
   sources = [
-    "persisted_logs_metrics_impl.cc",
-    "persisted_logs_metrics_impl.h",
+    "app_source_url_recorder.cc",
+    "app_source_url_recorder.h",
+    "field_trials_provider_helper.cc",
+    "field_trials_provider_helper.h",
     "ukm_pref_names.cc",
     "ukm_pref_names.h",
-    "ukm_recorder_impl.cc",
-    "ukm_recorder_impl.h",
     "ukm_reporting_service.cc",
     "ukm_reporting_service.h",
     "ukm_rotation_scheduler.cc",
     "ukm_rotation_scheduler.h",
     "ukm_service.cc",
     "ukm_service.h",
+    "unsent_log_store_metrics_impl.cc",
+    "unsent_log_store_metrics_impl.h",
   ]
 
   public_deps = [
+    ":ukm_recorder",
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/metrics/public/cpp:ukm_builders",
     "//services/metrics/public/mojom",
@@ -32,19 +67,14 @@ static_library("ukm") {
 
   deps = [
     "//base",
-    "//components/data_use_measurement/core",
+    "//components/crx_file",
     "//components/metrics",
     "//components/prefs",
     "//components/variations",
     "//url",
   ]
-
-  if (use_cobalt_customizations) {
-    public_deps -= [
-      "//services/metrics/public/cpp:metrics_cpp",
-      "//services/metrics/public/cpp:ukm_builders",
-      "//services/metrics/public/mojom",
-    ]
+  if (is_ios) {
+    deps += [ "//components/ukm/ios:ukm_reporting_ios_util" ]
   }
 }
 
@@ -53,19 +83,22 @@ static_library("observers") {
   sources = [
     "observers/history_delete_observer.cc",
     "observers/history_delete_observer.h",
-    "observers/sync_disable_observer.cc",
-    "observers/sync_disable_observer.h",
+    "observers/ukm_consent_state_observer.cc",
+    "observers/ukm_consent_state_observer.h",
+    "ukm_consent_state.h",
   ]
 
   deps = [
     "//base",
     "//components/history/core/browser",
-    "//components/sync",
+    "//components/metrics",
+    "//components/sync/base",
+    "//components/sync/driver",
+    "//google_apis",
+    "//services/metrics/public/cpp:metrics_cpp",
   ]
 
-  public_deps = [
-    "//components/unified_consent",
-  ]
+  public_deps = [ "//components/unified_consent" ]
 }
 
 static_library("test_support") {
@@ -87,12 +120,12 @@ static_library("test_support") {
   ]
 }
 
-# TODO(b/283275474): Re-enable as many tests as possible.
-if (!use_cobalt_customizations) {
 source_set("unit_tests") {
   testonly = true
   sources = [
-    "observers/sync_disable_observer_unittest.cc",
+    "app_source_url_recorder_test.cc",
+    "observers/ukm_consent_state_observer_unittest.cc",
+    "ukm_recorder_impl_unittest.cc",
     "ukm_service_unittest.cc",
   ]
 
@@ -105,12 +138,11 @@ source_set("unit_tests") {
     "//components/metrics",
     "//components/metrics:test_support",
     "//components/prefs:test_support",
-    "//components/sync",
-    "//components/sync:test_support_driver",
+    "//components/sync:test_support",
     "//components/sync_preferences:test_support",
-    "//components/unified_consent:test_support",
     "//components/variations",
     "//net:test_support",
+    "//services/metrics",
     "//services/metrics/public/cpp:ukm_builders",
     "//testing/gtest",
     "//third_party/zlib/google:compression_utils",
@@ -127,4 +159,18 @@ test("ukm_unittests") {
     "//components/test:run_all_unittests",
   ]
 }
+
+static_library("ukm_test_helper") {
+  testonly = true
+  sources = [
+    "ukm_test_helper.cc",
+    "ukm_test_helper.h",
+  ]
+  deps = [
+    ":ukm",
+    "//base",
+    "//components/metrics",
+    "//services/metrics/public/cpp:metrics_cpp",
+    "//third_party/metrics_proto",
+  ]
 }

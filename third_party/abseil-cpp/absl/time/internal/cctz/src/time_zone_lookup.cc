@@ -35,10 +35,6 @@
 #include <zircon/types.h>
 #endif
 
-#if defined(STARBOARD)
-#include "starboard/time_zone.h"
-#endif
-
 #include <cstdlib>
 #include <cstring>
 #include <string>
@@ -131,10 +127,6 @@ time_zone fixed_time_zone(const seconds& offset) {
 }
 
 time_zone local_time_zone() {
-#if defined(STARBOARD)
-  const char* name_c = SbTimeZoneGetName();
-  const std::string name(name_c);
-#else
   const char* zone = ":localtime";
 #if defined(__ANDROID__)
   char sysprop[PROP_VALUE_MAX];
@@ -229,7 +221,6 @@ time_zone local_time_zone() {
 #if defined(_MSC_VER)
   free(localtime_env);
   free(tz_env);
-#endif
 #endif
 
   time_zone tz;

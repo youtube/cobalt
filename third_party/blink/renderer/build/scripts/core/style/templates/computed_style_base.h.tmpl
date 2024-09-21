@@ -1,0 +1,283 @@
+{% from 'templates/macros.tmpl' import license, print_if, source_files_for_generated_file %}
+{% from 'templates/fields/field.tmpl' import encode, getter_expression, setter_expression, declare_storage, fieldwise_compare, fieldwise_copy, fieldwise_diff, fieldwise_pointer_compare_inherited, field_group_access_bit_name %}
+{% from 'templates/fields/group.tmpl' import declare_field_group_class %}
+{{license()}}
+
+{{source_files_for_generated_file(template_file, input_files)}}
+
+#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_COMPUTED_STYLE_BASE_H_
+#define THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_COMPUTED_STYLE_BASE_H_
+
+#include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/style/computed_style_constants.h"
+#include "third_party/blink/renderer/core/style/data_ref.h"
+#include "third_party/blink/renderer/core/style/member_copy.h"
+#include "third_party/blink/renderer/core/style/computed_style_initial_values.h"
+{% for path in include_paths %}
+#include "{{path}}"
+{% endfor %}
+
+{# Each field template has macros that we can call to generate specific
+   aspects of the field (e.g. getters, setters).
+#}
+{% import 'templates/fields/keyword.tmpl' as keyword %}
+{% import 'templates/fields/multi_keyword.tmpl' as multi_keyword %}
+{% import 'templates/fields/bitset_keyword.tmpl' as bitset_keyword %}
+{% import 'templates/fields/primitive.tmpl' as primitive %}
+{% import 'templates/fields/derived_flag.tmpl' as derived_flag %}
+{% import 'templates/fields/monotonic_flag.tmpl' as monotonic_flag %}
+{% import 'templates/fields/external.tmpl' as external %}
+{% import 'templates/fields/pointer.tmpl' as pointer %}
+{% from 'templates/fields/field.tmpl' import encode %}
+{% set field_templates = {
+     'keyword': keyword,
+     'multi_keyword': multi_keyword,
+     'bitset_keyword': bitset_keyword,
+     'primitive': primitive,
+     'derived_flag': derived_flag,
+     'monotonic_flag': monotonic_flag,
+     'external': external,
+     'pointer': pointer
+   } %}
+
+namespace blink {
+
+// Forward declaration for diff functions.
+class ComputedStyle;
+
+// Forward declaration of friends:
+{% for property in longhands %}
+{% if property.computed_style_custom_functions or property.computed_style_protected_functions %}
+namespace {{property.namespace}} { class {{property.classname}}; }
+{% endif %}
+{% endfor %}
+
+// The generated portion of ComputedStyle. For more info, see the header comment
+// in ComputedStyle.h.
+//
+// ComputedStyleBase is a generated class that stores data members or 'fields'
+// used in ComputedStyle. These fields can represent CSS properties or internal
+// style information.
+//
+// STORAGE:
+//
+// Fields are organised in a tree structure, where a node (called a 'group')
+// stores a set of fields and a set of pointers to child nodes (called
+// 'subgroups'). We can visualise the tree structure with ComputedStyleBase as
+// the root node:
+//
+// ComputedStyleBase (fields: display, vertical-align, ...)
+//  |- StyleSurroundData (fields: padding, border, ...)
+//  |- StyleBoxData (fields: width, height, ...)
+//  |- ...
+//  |- StyleRareNonInheritedData (fields: box-shadow, text-overflow, ...)
+//      |- StyleFlexibleBoxData (fields: flex-direction, flex-wrap, ...)
+//      |- ...
+//
+// This design saves memory by allowing multiple ComputedStyleBases to share the
+// same instance of a subgroup. For example, if a page never uses flex box
+// properties, then every ComputedStyleBase can share the same instance of
+// StyleFlexibleBoxData. Without this sharing, we would need to allocate a copy
+// of all the flex box fields for every ComputedStyleBase. Similarly, when an
+// element inherits from its parent, its ComputedStyleBase can simply share all
+// of its subgroups with the parent's.
+//
+// INTERFACE:
+//
+// The functions generated for a field is determined by its 'template'. For
+// example, a field with the 'keyword' template has only one setter, whereas an
+// 'external' field has an extra setter that takes an rvalue reference. A list
+// of the available templates can be found in css_properties.json5.
+class ComputedStyleBase {
+  // Properties with protected accessors must be friends because
+  // Longhand::Apply* functions typically need the "raw" computed value:
+  {% for property in longhands %}
+  {% if property.computed_style_custom_functions or property.computed_style_protected_functions %}
+  friend class {{property.namespace}}::{{property.classname}};
+  {% endif %}
+  {% endfor %}
+
+ public:
+  inline bool IndependentInheritedEqual(const ComputedStyleBase& o) const {
+    return (
+        {{fieldwise_compare(computed_style, computed_style.all_fields
+            |selectattr("is_property")
+            |selectattr("is_inherited")
+            |selectattr("is_independent")
+            |rejectattr("is_semi_independent_variable")
+            |list
+          )|indent(8)}}
+    );
+  }
+
+  inline bool NonIndependentInheritedEqual(const ComputedStyleBase& o) const {
+    return (
+        {{fieldwise_compare(computed_style, computed_style.all_fields
+            |selectattr("is_property")
+            |selectattr("is_inherited")
+            |rejectattr("is_independent")
+            |rejectattr("is_semi_independent_variable")
+            |list
+          )|indent(8)}}
+    );
+  }
+
+  inline bool InheritedVariablesEqual(const ComputedStyleBase& o) const {
+    return (
+        {{fieldwise_compare(computed_style, computed_style.all_fields
+            |selectattr("is_property")
+            |selectattr("is_inherited")
+            |rejectattr("is_independent")
+            |selectattr("is_semi_independent_variable")
+            |list
+          )|indent(8)}}
+    );
+  }
+
+  inline bool InheritedEqual(const ComputedStyleBase& o) const {
+    return IndependentInheritedEqual(o) && NonIndependentInheritedEqual(o);
+  }
+
+  inline bool NonInheritedEqual(const ComputedStyleBase& o) const {
+    return (
+        {{fieldwise_compare(computed_style, computed_style.all_fields
+            |selectattr("is_property")
+            |rejectattr("is_inherited")
+            |list
+          )|indent(8)}}
+    );
+  }
+
+  inline bool InheritedDataShared(const ComputedStyleBase& o) const {
+    return (
+        {{fieldwise_pointer_compare_inherited(computed_style)|indent(8)}}
+    );
+  }
+
+  inline bool IsSurroundDataSharedWith(const ComputedStyleBase& o) const {
+    return surround_data_.Get() == o.surround_data_.Get();
+  }
+
+  {% for name, groups_to_diff in diff_functions_map.items() %}
+  static bool {{name}}(const ComputedStyle& a, const ComputedStyle& b);
+  {% endfor %}
+
+  // Fields.
+  // TODO(sashab): Remove initialFoo() static methods and update callers to
+  // use resetFoo(), which can be more efficient.
+
+  {% for field in computed_style.all_fields|sort(attribute='name') %}
+  // {{field.property_name}}
+  {{field_templates[field.field_template].decl_public_methods(field)|indent(2)}}
+
+  {% endfor %}
+
+#if DCHECK_IS_ON()
+  enum class DebugField {
+    {% for field in computed_style.all_fields|sort(attribute='name') %}
+    {{field.name}},
+    {% endfor %}
+  };
+
+  CORE_EXPORT static String DebugFieldToString(DebugField);
+
+  // Returns a list of all fields that differ between |this| and |o|.
+  CORE_EXPORT Vector<DebugField> DebugDiffFields(const ComputedStyleBase& o) const;
+#endif // DCHECK_IS_ON()
+
+ private:
+  {% for subgroup in computed_style.subgroups %}
+  {{declare_field_group_class(subgroup)|indent(2)}}
+
+  {% endfor %}
+
+ protected:
+  // Constructor and destructor are protected so that only the parent class ComputedStyle
+  // can instantiate this class.
+  ComputedStyleBase();
+
+  {% for field in computed_style.all_fields|sort(attribute='name') %}
+  {% if field.field_template not in ('pointer',) %}
+  // {{field.property_name}}
+  {{field_templates[field.field_template].decl_protected_methods(field)|indent(2)}}
+
+  {% endif %}
+  {% endfor %}
+
+  ~ComputedStyleBase() = default;
+
+ private:
+  friend class ComputedStyleBuilder;
+  friend class ComputedStyleBuilderBase;
+
+  // Storage.
+  {% for subgroup in computed_style.subgroups %}
+  DataRef<{{subgroup.type_name}}> {{subgroup.member_name}};
+  {% endfor %}
+
+  {% for field in computed_style.fields %}
+  {{declare_storage(field)}}
+  {% endfor %}
+};
+
+
+class ComputedStyleBuilderBase {
+  STACK_ALLOCATED();
+ public:
+
+  enum IsAtShadowBoundary {
+    kAtShadowBoundary,
+    kNotAtShadowBoundary,
+  };
+
+  {% for field in computed_style_builder.all_fields|sort(attribute='name') %}
+  // {{field.property_name}}
+  {{field_templates[field.field_template].decl_public_methods(field)|indent(2)}}
+
+  {% endfor %}
+
+ protected:
+  ComputedStyleBuilderBase() = default;
+  explicit ComputedStyleBuilderBase(ComputedStyleBase& style) {
+    SetStyleBase(style);
+  }
+
+  void SetStyleBase(ComputedStyleBase& style) {
+    style_ = &style;
+
+    // Reset derived flags:
+    {% for field in computed_style_builder.all_fields|selectattr('derived_from')|sort(attribute='name') %}
+    {{derived_flag.reset_expression(field)|indent(2)}}
+    {% endfor %}
+  }
+
+  CORE_EXPORT void InheritFrom(const ComputedStyleBase& other, IsAtShadowBoundary isAtShadowBoundary);
+  CORE_EXPORT void CopyNonInheritedFromCached(const ComputedStyleBase& other);
+
+  void PropagateIndependentInheritedProperties(const ComputedStyleBase& parent_style);
+
+  {% for field in computed_style_builder.all_fields|sort(attribute='name') %}
+  // {{field.property_name}}
+  {{field_templates[field.field_template].decl_protected_methods(field)|indent(2)}}
+
+  {% endfor %}
+
+  void ResetAccess() const {
+    memset(&access_, 0, sizeof(access_));
+  }
+
+ private:
+  // Access flags. These are passed to DataRef::Access to ensure that we have
+  // a private copy of the relevant DataRef before mutation.
+  mutable struct {
+  {% for group in computed_style.all_subgroups|sort(attribute='name') %}
+    bool {{group.member_name}} = false;
+  {% endfor %}
+  } access_;
+
+  ComputedStyleBase* style_ = nullptr;
+};
+
+}  // namespace blink
+
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_STYLE_COMPUTED_STYLE_BASE_H_

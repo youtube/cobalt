@@ -1,10 +1,8 @@
-#!/usr/bin/env python
-# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+#!/usr/bin/env python3
+# Copyright 2012 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
-'''IDL Node defines the IDLAttribute and IDLNode objects which are constructed
-by the parser as it processes the various 'productions'.'''
-# pylint: disable=unidiomatic-typecheck
+
 import sys
 
 #
@@ -42,7 +40,6 @@ def CopyToList(item):
 # which will be passed as a child to a standard IDLNode.
 #
 class IDLSearch(object):
-
   def __init__(self):
     self.depth = 0
 
@@ -59,43 +56,39 @@ class IDLSearch(object):
 # which will be passed as a child to a standard IDLNode.
 #
 class IDLAttribute(object):
-  '''A temporary object used by the parsing process to hold an Extended
-  Attribute which will be passed as a child to a standard IDLNode.'''
-
   def __init__(self, name, value):
     self._cls = 'Property'
     self.name = name
     self.value = value
 
   def __str__(self):
-    return f'{self.name}={self.value}'
+    return '%s=%s' % (self.name, self.value)
 
   def GetClass(self):
     return self._cls
-
 
 #
 # IDLNode
 #
 # This class implements the AST tree, providing the associations between
-# parents and children.  It also contains a namespace and propertynode to
+# parents and children.  It also contains a namepsace and propertynode to
 # allow for look-ups.  IDLNode is derived from IDLRelease, so it is
 # version aware.
 #
 class IDLNode(object):
-  '''This class implements the AST tree, providing the associations between
-  parents and children.  It also contains a namespace and propertynode to
-  allow for look-ups.  IDLNode is derived from IDLRelease, so it is
-  version aware.'''
+  VERBOSE_PROPS = [
+      'PROD', 'NAME', 'VALUE', 'TYPE', 'ERRORS', 'WARNINGS', 'FILENAME',
+      'LINENO', 'POSITION'
+  ]
 
   def __init__(self, cls, filename, lineno, pos, children=None):
     self._cls = cls
     self._properties = {
-        'ERRORS': [],
-        'WARNINGS': [],
-        'FILENAME': filename,
-        'LINENO': lineno,
-        'POSSITION': pos,
+      'ERRORS' : [],
+      'WARNINGS': [],
+      'FILENAME': filename,
+      'LINENO' : lineno,
+      'POSITION' : pos,
     }
 
     self._children = []
@@ -108,12 +101,15 @@ class IDLNode(object):
 # Return a string representation of this node
 
   def __str__(self):
-    name = self.GetProperty('NAME', '')
-    return f'{self._cls}({name})'
+    name = self.GetProperty('NAME','')
+    value = self.GetProperty('VALUE')
+    if value or value == '':
+      return '%s(%s) = "%s"' % (self._cls, name, value)
+    return '%s(%s)' % (self._cls, name)
 
   def GetLogLine(self, msg):
     filename, lineno = self.GetFileAndLine()
-    return f'{filename}({lineno}) : {msg}\n'
+    return '%s(%d) : %s\n' % (filename, lineno, msg)
 
   # Log an error for this object
   def Error(self, msg):
@@ -149,32 +145,29 @@ class IDLNode(object):
     search.depth -= 1
     search.Exit(self)
 
-  def Tree(self, filter_nodes=None, accept_props=None):
 
+  def Tree(self, filter_nodes=None, suppress_props=VERBOSE_PROPS):
     class DumpTreeSearch(IDLSearch):
-      '''Class implementing DumpTreeSearch'''
-
       def __init__(self, props):
         IDLSearch.__init__(self)
         self.out = []
-        self.props = props
+        self.props = props or []
 
       def Enter(self, node):
         tab = ''.rjust(self.depth * 2)
         self.out.append(tab + str(node))
-        if self.props:
-          proplist = []
-          for key, value in node.GetProperties().iteritems():
-            if key in self.props:
-              proplist.append(tab + f'    {key}: {str(value)}')
-          if proplist:
-            self.out.append(tab + '  PROPERTIES')
-            self.out.extend(proplist)
 
-    if filter_nodes is None:
-      filter_nodes = ['Comment', 'Copyright']
+        proplist = []
+        for key, value in node.GetProperties().items():
+          if key not in self.props:
+            proplist.append(tab + '  %s: %s' % (key, str(value)))
+        if proplist:
+          self.out.extend(proplist)
 
-    search = DumpTreeSearch(accept_props)
+    if filter_nodes == None:
+      filter_nodes = ['SpecialComment']
+
+    search = DumpTreeSearch(suppress_props)
     self.Traverse(search, filter_nodes)
     return search.out
 
@@ -214,16 +207,15 @@ class IDLNode(object):
         self.SetProperty(child.name, child.value)
         continue
       if type(child) == IDLNode:
-        child._parent = self  # pylint: disable=protected-access
+        child._parent = self
         self._children.append(child)
         continue
-      raise RuntimeError(f'Adding child of type {type(child).__name__}.\n')
+      raise RuntimeError('Adding child of type %s.\n' % type(child).__name__)
 
 
 #
 # Property Functions
 #
-
   def SetProperty(self, name, val):
     self._properties[name] = val
 

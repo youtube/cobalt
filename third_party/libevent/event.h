@@ -159,11 +159,6 @@
 extern "C" {
 #endif
 
-#ifdef STARBOARD
-#include "starboard/types.h"
-#include <stdlib.h>
-#include <string.h>
-#else
 #include "event-config.h"
 #ifdef _EVENT_HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -175,7 +170,6 @@ extern "C" {
 #include <stdint.h>
 #endif
 #include <stdarg.h>
-#endif  // STARBOARD
 
 /* For int types. */
 #include "evutil.h"
@@ -204,20 +198,6 @@ typedef unsigned short u_short;
 #define EV_SIGNAL	0x08
 #define EV_PERSIST	0x10	/* Persistant event */
 
-#ifdef STARBOARD
-struct evtimeval {
-#if SB_IS(64_BIT)
-	int64_t	tv_sec;		/* seconds */
-	int64_t	tv_usec;	/* and microseconds */
-#else
-	int32_t	tv_sec;		/* seconds */
-	int32_t	tv_usec;	/* and microseconds */
-#endif
-};
-#else
-typedef struct timeval evtimeval;
-#endif
-
 /* Fix so that ppl dont have to run with <sys/queue.h> */
 #ifndef TAILQ_ENTRY
 #define _EVENT_DEFINED_TQENTRY
@@ -243,11 +223,7 @@ struct event {
 	short ev_ncalls;
 	short *ev_pncalls;	/* Allows deletes in callback */
 
-#if defined(STARBOARD)
-	struct evtimeval ev_timeout;
-#else
-  struct timeval ev_timeout;
-#endif
+	struct timeval ev_timeout;
 
 	int ev_pri;		/* smaller numbers are higher priority */
 
@@ -748,10 +724,10 @@ int	event_priority_set(struct event *, int);
 /* These functions deal with buffering input and output */
 
 struct evbuffer {
-  uint8_t* buffer;
-  uint8_t* orig_buffer;
+	u_char *buffer;
+	u_char *orig_buffer;
 
-        size_t misalign;
+	size_t misalign;
 	size_t totallen;
 	size_t off;
 
@@ -1167,7 +1143,7 @@ int evbuffer_read(struct evbuffer *, int, int);
   @param len the length of the search string
   @return a pointer to the beginning of the search string, or NULL if the search failed.
  */
-uint8_t* evbuffer_find(struct evbuffer*, const uint8_t*, size_t);
+u_char *evbuffer_find(struct evbuffer *, const u_char *, size_t);
 
 /**
   Set a callback to invoke when the evbuffer is modified.

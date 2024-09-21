@@ -387,16 +387,4 @@ using ReentrantObserverList = ObserverList<ObserverType, check_empty, true>;
 
 }  // namespace base
 
-#if defined(STARBOARD)
-#define FOR_EACH_OBSERVER(ObserverType, observer_list, func)          \
-  do {                                                                \
-    if (!(observer_list).empty()) {                     \
-      for (base::ObserverList<ObserverType>::Iter it(&observer_list); \
-           it != base::ObserverList<ObserverType>::Iter(); it++) {    \
-        it->func;                                                     \
-      }                                                               \
-    }                                                                 \
-  } while (0)
-#endif
-
 #endif  // BASE_OBSERVER_LIST_H_

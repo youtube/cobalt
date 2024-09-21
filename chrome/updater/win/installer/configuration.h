@@ -1,4 +1,4 @@
-// Copyright (c) 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,6 +6,8 @@
 #define CHROME_UPDATER_WIN_INSTALLER_CONFIGURATION_H_
 
 #include <windows.h>
+
+#include "base/win/scoped_localalloc.h"
 
 namespace updater {
 
@@ -20,6 +22,8 @@ class Configuration {
 
   Configuration();
   ~Configuration();
+  Configuration(const Configuration&) = delete;
+  Configuration& operator=(const Configuration&) = delete;
 
   // Initializes this instance on the basis of the process's command line.
   bool Initialize(HMODULE module);
@@ -38,16 +42,12 @@ class Configuration {
   void Clear();
   bool ParseCommandLine(const wchar_t* command_line);
 
-  wchar_t** args_ = nullptr;
+  base::win::ScopedLocalAllocTyped<wchar_t*> args_;
   const wchar_t* command_line_ = nullptr;
   int argument_count_ = 0;
   Operation operation_ = INSTALL_PRODUCT;
   bool is_system_level_ = false;
   bool has_invalid_switch_ = false;
-
- private:
-  Configuration(const Configuration&) = delete;
-  Configuration& operator=(const Configuration&) = delete;
 };
 
 }  // namespace updater

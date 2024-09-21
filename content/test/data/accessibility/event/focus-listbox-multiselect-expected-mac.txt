@@ -1,0 +1,2 @@
+AXFocusedUIElementChanged on AXStaticText AXValue='c selected'
+AXSelectedChildrenChanged on AXList

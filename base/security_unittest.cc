@@ -66,8 +66,7 @@ void OverflowTestsSoftExpectTrue(bool overflow_detected) {
 
 #if BUILDFLAG(IS_APPLE) || defined(ADDRESS_SANITIZER) ||      \
     defined(THREAD_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    BUILDFLAG(IS_HWASAN) || BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) || \
-    SB_IS(EVERGREEN)
+    BUILDFLAG(IS_HWASAN) || BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 #define MAYBE_NewOverflow DISABLED_NewOverflow
 #else
 #define MAYBE_NewOverflow NewOverflow
@@ -98,7 +97,7 @@ TEST(SecurityTest, MAYBE_NewOverflow) {
     char* volatile p = reinterpret_cast<char*>(array_pointer.get());
     OverflowTestsSoftExpectTrue(!p);
   }
-#if BUILDFLAG(IS_WIN) || defined(COMPILER_MSVC) && defined(ARCH_CPU_64_BITS)
+#if BUILDFLAG(IS_WIN) && defined(ARCH_CPU_64_BITS)
   // On Windows, the compiler prevents static array sizes of more than
   // 0x7fffffff (error C2148).
 #else

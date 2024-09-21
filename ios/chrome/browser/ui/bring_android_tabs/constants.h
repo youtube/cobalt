@@ -1,0 +1,40 @@
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef IOS_CHROME_BROWSER_UI_BRING_ANDROID_TABS_CONSTANTS_H_
+#define IOS_CHROME_BROWSER_UI_BRING_ANDROID_TABS_CONSTANTS_H_
+
+#import <Foundation/Foundation.h>
+
+// Accessibility identifier for the "Bring Android Tabs" confirmation alert
+// prompt view controller.
+extern NSString* const kBringAndroidTabsPromptConfirmationAlertAXId;
+
+// Accessibility identifier for the "close" button on the "Bring Android Tabs"
+// bottom message.
+extern NSString* const kBringAndroidTabsPromptBottomMessageCloseButtonAXId;
+
+// Accessibility identifier for the "review" button on the "Bring Android Tabs"
+// bottom message.
+extern NSString* const kBringAndroidTabsPromptBottomMessageReviewButtonAXId;
+
+// Accessibility identifier for the "Bring Android Tabs" tab list
+// view controller.
+extern NSString* const kBringAndroidTabsPromptTabListAXId;
+
+// Accessibility identifier for the "cancel" button of the "Bring Android Tabs"
+// tab list.
+extern NSString* const kBringAndroidTabsPromptTabListCancelButtonAXId;
+
+// Accessibility identifier for the "open" button of the "Bring Android Tabs"
+// tab list.
+extern NSString* const kBringAndroidTabsPromptTabListOpenButtonAXId;
+
+// Size of the favicons in the "Bring Android Tabs" tab list.
+extern CGFloat const kBringAndroidTabsFaviconSize;
+
+// Height of the table rows in the "Bring Android Tabs" tab list.
+extern CGFloat const kTabListFromAndroidCellHeight;
+
+#endif  // IOS_CHROME_BROWSER_UI_BRING_ANDROID_TABS_CONSTANTS_H_

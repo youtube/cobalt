@@ -17,13 +17,11 @@ namespace base::test {
 // static
 base::expected<DanglingPtrInstrumentation, base::StringPiece>
 DanglingPtrInstrumentation::Create() {
-#if BUILDFLAG(USE_PARTITION_ALLOC)
   if (!FeatureList::IsEnabled(features::kPartitionAllocBackupRefPtr)) {
     return base::unexpected(
         "DanglingPtrInstrumentation requires the feature flag "
         "'PartitionAllocBackupRefPtr' to be on.");
   }
-#endif
   // Note: We don't need to enable the `PartitionAllocDanglingPtr` feature,
   // because this does provide an alternative "implementation", by incrementing
   // the two counters.
@@ -68,12 +66,10 @@ DanglingPtrInstrumentation& DanglingPtrInstrumentation::operator=(
 void DanglingPtrInstrumentation::Register() {
   CHECK_EQ(g_observer, nullptr);
   g_observer = this;
-#if BUILDFLAG(USE_PARTITION_ALLOC)
   old_detected_fn_ = partition_alloc::GetDanglingRawPtrDetectedFn();
   old_dereferenced_fn_ = partition_alloc::GetDanglingRawPtrReleasedFn();
   partition_alloc::SetDanglingRawPtrDetectedFn(IncreaseCountDetected);
   partition_alloc::SetDanglingRawPtrReleasedFn(IncreaseCountReleased);
-#endif
 }
 
 void DanglingPtrInstrumentation::Unregister() {
@@ -81,10 +77,8 @@ void DanglingPtrInstrumentation::Unregister() {
     return;
   }
   g_observer = nullptr;
-#if BUILDFLAG(USE_PARTITION_ALLOC)
   partition_alloc::SetDanglingRawPtrDetectedFn(old_detected_fn_);
   partition_alloc::SetDanglingRawPtrReleasedFn(old_dereferenced_fn_);
-#endif
 }
 
 raw_ptr<DanglingPtrInstrumentation> DanglingPtrInstrumentation::g_observer =

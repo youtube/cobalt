@@ -1,0 +1,2 @@
+AXFocusedUIElementChanged on AXStaticText AXValue="Apple"
+AXSelectedChildrenChanged on AXComboBox

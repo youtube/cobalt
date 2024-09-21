@@ -1,4 +1,4 @@
-// Copyright 2014 The Crashpad Authors. All rights reserved.
+// Copyright 2014 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "base/notreached.h"
 #include "base/posix/eintr_wrapper.h"
 #include "base/strings/stringprintf.h"
 #include "build/build_config.h"
@@ -71,7 +72,7 @@ FileHandle OpenFileForOutput(int rdwr_or_wronly,
                              const base::FilePath& path,
                              FileWriteMode mode,
                              FilePermissions permissions) {
-#if defined(OS_FUCHSIA)
+#if BUILDFLAG(IS_FUCHSIA)
   // O_NOCTTY is invalid on Fuchsia, and O_CLOEXEC isn't necessary.
   int flags = 0;
 #else
@@ -119,7 +120,7 @@ FileOperationResult ReadFile(FileHandle file, void* buffer, size_t size) {
 
 FileHandle OpenFileForRead(const base::FilePath& path) {
   int flags = O_RDONLY;
-#if !defined(OS_FUCHSIA)
+#if !BUILDFLAG(IS_FUCHSIA)
   // O_NOCTTY is invalid on Fuchsia, and O_CLOEXEC isn't necessary.
   flags |= O_NOCTTY | O_CLOEXEC;
 #endif
@@ -152,18 +153,15 @@ FileHandle LoggingOpenFileForWrite(const base::FilePath& path,
   return fd;
 }
 
-#if defined(OS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 FileHandle LoggingOpenMemoryFileForReadAndWrite(const base::FilePath& name) {
   DCHECK(name.value().find('/') == std::string::npos);
 
-  int result;
-#if !defined(STARBOARD) && !defined(NATIVE_TARGET_BUILD)
-  result = HANDLE_EINTR(memfd_create(name.value().c_str(), 0));
+  int result = HANDLE_EINTR(memfd_create(name.value().c_str(), 0));
   if (result >= 0 || errno != ENOSYS) {
     PLOG_IF(ERROR, result < 0) << "memfd_create";
     return result;
   }
-#endif
 
   const char* tmp = getenv("TMPDIR");
   tmp = tmp ? tmp : "/tmp";
@@ -210,13 +208,24 @@ FileHandle LoggingOpenFileForReadAndWrite(const base::FilePath& path,
   return fd;
 }
 
-#if !defined(OS_FUCHSIA)
+#if CRASHPAD_FLOCK_ALWAYS_SUPPORTED
 
-bool LoggingLockFile(FileHandle file, FileLocking locking) {
+FileLockingResult LoggingLockFile(FileHandle file,
+                                  FileLocking locking,
+                                  FileLockingBlocking blocking) {
   int operation = (locking == FileLocking::kShared) ? LOCK_SH : LOCK_EX;
+  if (blocking == FileLockingBlocking::kNonBlocking)
+    operation |= LOCK_NB;
+
   int rv = HANDLE_EINTR(flock(file, operation));
-  PLOG_IF(ERROR, rv != 0) << "flock";
-  return rv == 0;
+  if (rv != 0) {
+    if (errno == EWOULDBLOCK) {
+      return FileLockingResult::kWouldBlock;
+    }
+    PLOG(ERROR) << "flock";
+    return FileLockingResult::kFailure;
+  }
+  return FileLockingResult::kSuccess;
 }
 
 bool LoggingUnlockFile(FileHandle file) {
@@ -225,7 +234,7 @@ bool LoggingUnlockFile(FileHandle file) {
   return rv == 0;
 }
 
-#endif  // !OS_FUCHSIA
+#endif  // CRASHPAD_FLOCK_ALWAYS_SUPPORTED
 
 FileOffset LoggingSeekFile(FileHandle file, FileOffset offset, int whence) {
   off_t rv = lseek(file, offset, whence);

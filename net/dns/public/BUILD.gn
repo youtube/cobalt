@@ -50,7 +50,7 @@ source_set("public") {
     ]
   }
 
-  if (is_win && !is_starboard) {
+  if (is_win) {
     sources += [
       "win_dns_system_settings.cc",
       "win_dns_system_settings.h",
@@ -62,7 +62,7 @@ source_set("public") {
   public_deps = [ "//net:net_public_deps" ]
 }
 
-if (is_android && !use_cobalt_customizations) {
+if (is_android) {
   java_cpp_enum("secure_dns_mode_generated_enum") {
     sources = [ "secure_dns_mode.h" ]
   }
@@ -80,7 +80,7 @@ source_set("tests") {
     sources += [ "resolv_reader_unittest.cc" ]
   }
 
-  if (is_win && !is_starboard) {
+  if (is_win) {
     sources += [ "win_dns_system_settings_unittest.cc" ]
   }
 

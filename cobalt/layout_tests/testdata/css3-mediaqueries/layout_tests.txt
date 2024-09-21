@@ -1,3 +1,0 @@
-media_query_rule_precedence_200:200x200
-media_query_rule_precedence_300:300x300
-media_query_rule_precedence_400:400x400

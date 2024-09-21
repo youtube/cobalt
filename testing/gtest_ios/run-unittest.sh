@@ -1,6 +1,6 @@
 #!/bin/bash -p
 
-# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+# Copyright 2012 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -19,7 +19,7 @@ export -n SHELLOPTS
 readonly ScriptDir=$(dirname "$(echo ${0} | sed -e "s,^\([^/]\),$(pwd)/\1,")")
 readonly ScriptName=$(basename "${0}")
 readonly ThisScript="${ScriptDir}/${ScriptName}"
-readonly SimExecutable="${BUILD_DIR}/${CONFIGURATION}/iossim"
+readonly SimExecutable="${BUILD_DIR}/ninja-iossim/${CONFIGURATION}/iossim"
 
 # Helper to print a line formatted for Xcodes build output parser.
 XcodeNote() {
@@ -52,7 +52,7 @@ RunTests() {
   fi
 
   for device in 'iPhone' 'iPad'; do
-    iosVersion="5.1"
+    iosVersion="6.1"
     KillSimulator
     local command=(
       "${SimExecutable}" "-d${device}" "-s${iosVersion}" "${appPath}"

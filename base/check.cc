@@ -83,27 +83,7 @@ class DCheckLogMessage : public LogMessage {
   const base::Location location_;
 };
 
-#if defined(STARBOARD)
-class DCheckStarboardErrorLogMessage : public StarboardErrorLogMessage {
- public:
-  DCheckStarboardErrorLogMessage(const base::Location& location,
-                             LogSeverity severity,
-                             SystemErrorCode err)
-      : StarboardErrorLogMessage(location.file_name(),
-                             location.line_number(),
-                             severity,
-                             err),
-        location_(location) {}
-  ~DCheckStarboardErrorLogMessage() override {
-    if (severity() != logging::LOGGING_FATAL) {
-      DCheckDumpWithoutCrashing(this, location_);
-    }
-  }
-
- private:
-  const base::Location location_;
-};
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 class DCheckWin32ErrorLogMessage : public Win32ErrorLogMessage {
  public:
   DCheckWin32ErrorLogMessage(const base::Location& location,
@@ -166,10 +146,7 @@ CheckError CheckError::PCheck(const char* file,
                               int line,
                               const char* condition) {
   SystemErrorCode err_code = logging::GetLastSystemErrorCode();
-#if defined(STARBOARD)
-  auto* const log_message =
-      new StarboardErrorLogMessage(file, line, LOGGING_FATAL, err_code);
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   auto* const log_message =
       new Win32ErrorLogMessage(file, line, LOGGING_FATAL, err_code);
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
@@ -187,10 +164,7 @@ CheckError CheckError::PCheck(const char* file, int line) {
 CheckError CheckError::DPCheck(const char* condition,
                                const base::Location& location) {
   SystemErrorCode err_code = logging::GetLastSystemErrorCode();
-#if defined(STARBOARD)
-  auto* const log_message =
-      new DCheckStarboardErrorLogMessage(location, LOGGING_DCHECK, err_code);
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   auto* const log_message =
       new DCheckWin32ErrorLogMessage(location, LOGGING_DCHECK, err_code);
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)

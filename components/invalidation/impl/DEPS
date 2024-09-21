@@ -1,0 +1,28 @@
+include_rules = [
+  "+components/invalidation/public",
+
+  "+components/gcm_driver",
+  "+components/keyed_service",
+  "+components/pref_registry",
+  "+components/signin/public",
+  "+components/sync_preferences",
+  # TODO(crbug.com/1029698): Depending on sync is a layering violation,
+  # currently necessary for metrics recording. Eventually the "whitelisted for
+  # metrics" bit should be part of a Topic.
+  "+components/sync/base/model_type.h",
+
+  "+google_apis/gaia",
+  "+google_apis/gcm",
+  "+net/base/backoff_entry.h",
+  "+net/base/ip_endpoint.h",
+  "+net/base/network_change_notifier.h",
+  "+net/http/http_request_headers.h",
+  "+net/http/http_status_code.h",
+  "+net/traffic_annotation",
+  "+net/url_request",
+  "+net/base/load_flags.h",
+
+  "+services/data_decoder/public",
+  "+services/network/public",
+  "+services/network/test",
+]

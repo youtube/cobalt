@@ -11,9 +11,6 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
-#if defined(STARBOARD)
-#include "base/strings/pattern.h"
-#endif  // defined(STARBOARD)
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/task/single_thread_task_runner.h"
@@ -45,10 +42,6 @@
 namespace net {
 
 namespace {
-
-#if defined(STARBOARD)
-const int kDefaultQUICServerPort = 443;
-#endif
 
 // Returns parameters associated with the proxy resolution.
 base::Value::Dict NetLogHttpStreamJobProxyServerResolved(
@@ -820,25 +813,10 @@ int HttpStreamFactory::JobController::DoCreateJobs() {
         GetAlternativeServiceInfoFor(request_info_, delegate_, stream_type_);
   }
   quic::ParsedQuicVersion quic_version = quic::ParsedQuicVersion::Unsupported();
-#if defined(STARBOARD)
-  bool protocol_filter_override = false;
-#endif  // defined(STARBOARD)
   if (alternative_service_info_.protocol() == kProtoQUIC) {
-#if defined(STARBOARD)
-    if (alternative_service_info_.protocol_filter_override() &&
-        alternative_service_info_.advertised_versions().size() == 1) {
-      protocol_filter_override = true;
-      quic_version = alternative_service_info_.advertised_versions()[0];
-    } else {
-      quic_version =
-          SelectQuicVersion(alternative_service_info_.advertised_versions());
-      DCHECK_NE(quic_version, quic::ParsedQuicVersion::Unsupported());
-    }
-#else
     quic_version =
         SelectQuicVersion(alternative_service_info_.advertised_versions());
     DCHECK_NE(quic_version, quic::ParsedQuicVersion::Unsupported());
-#endif  // defined(STARBOARD)
   }
   const bool dns_alpn_h3_job_enabled =
       enable_alternative_services_ &&
@@ -929,12 +907,7 @@ int HttpStreamFactory::JobController::DoCreateJobs() {
         server_ssl_config_, proxy_ssl_config_,
         std::move(alternative_destination), origin_url, is_websocket_,
         enable_ip_based_pooling_, net_log_.net_log(),
-#if defined(STARBOARD)
-        alternative_service_info_.protocol(), quic_version,
-        protocol_filter_override);
-#else
         alternative_service_info_.protocol(), quic_version);
-#endif  // defined(STARBOARD)
   }
 
   if (dns_alpn_h3_job_enabled && !main_job_->using_quic()) {
@@ -1225,56 +1198,8 @@ HttpStreamFactory::JobController::GetAlternativeServiceInfoInternal(
       http_server_properties.GetAlternativeServiceInfos(
           url::SchemeHostPort(original_url),
           request_info.network_anonymization_key);
-#if defined(STARBOARD)
-  if (session_->context().quic_context->params()->protocol_filter.has_value()) {
-    url::SchemeHostPort origin(original_url);
-    const ProtocolFilter& protocol_filter = *(session_->context().quic_context->params()->protocol_filter);
-    for (const ProtocolFilterEntry& entry : protocol_filter) {
-      if (!base::MatchPattern(origin.host(), entry.origin)) continue;
-
-      if (entry.alt_svc.protocol != kProtoQUIC) {
-        return AlternativeServiceInfo();
-      }
-
-      quic::ParsedQuicVersionVector versions;
-      if (entry.alt_svc.quic_version == ProtocolFilterEntry::QuicVersion::Q046) {
-        versions.push_back(quic::ParsedQuicVersion::Q046());
-      } else {
-        versions.push_back(quic::ParsedQuicVersion::RFCv1());
-      }
-
-      return AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
-          AlternativeService(net::kProtoQUIC, origin.host(),
-                             origin.port()),
-          base::Time::Max(), versions, /*protocol_filter_override=*/true);
-    }
-  }
-
-  // This block of code suggests QUIC connection for initial requests to a
-  // new host. This method is proven to provide performance benefit while still
-  // enabling Cobalt network module to fall back on TCP connection when QUIC
-  // fails or is too slow.
-  if (alternative_service_info_vector.empty() && session_->IsQuicEnabled() &&
-      session_->UseQuicForUnknownOrigin()) {
-    url::SchemeHostPort origin(original_url);
-// Leave the port restriction only in production builds to simplify testing
-#if defined(COBALT_BUILD_TYPE_GOLD)
-    if (origin.port() == kDefaultQUICServerPort) {
-#endif  // defined(COBALT_BUILD_TYPE_GOLD)
-      quic::ParsedQuicVersionVector versions = quic::AllSupportedVersions();
-      return AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
-          AlternativeService(net::kProtoQUIC, origin.host(),
-                             origin.port()),
-          base::Time::Max(), versions);
-#if defined(COBALT_BUILD_TYPE_GOLD)
-    }
-#endif  // defined(COBALT_BUILD_TYPE_GOLD)
-    return AlternativeServiceInfo();
-  }
-#else
   if (alternative_service_info_vector.empty())
     return AlternativeServiceInfo();
-#endif  // defined(STARBOARD)
 
   bool quic_advertised = false;
   bool quic_all_broken = true;

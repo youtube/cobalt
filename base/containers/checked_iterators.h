@@ -31,12 +31,7 @@ class CheckedContiguousIterator {
 
   // Required for certain libc++ algorithm optimizations that are not available
   // for NaCl.
-// TODO: b/326979654 -- Remove this when we have -stdlib=libc++ defined in
-// all Cobalt toolchains.
-#if (defined(_LIBCPP_VERSION) && !BUILDFLAG(IS_NACL)) || \
-    defined(COBALT_PENDING_CLEAN_UP)
-  // Required to be able to get to the underlying pointer without triggering
-  // CHECK failures.
+#if defined(_LIBCPP_VERSION) && !BUILDFLAG(IS_NACL)
   template <typename Ptr>
   friend struct std::pointer_traits;
 #endif
@@ -229,7 +224,7 @@ using CheckedContiguousConstIterator = CheckedContiguousIterator<const T>;
 
 }  // namespace base
 
-#if defined(_LIBCPP_VERSION) && !BUILDFLAG(IS_NACL) && !defined(STARBOARD)
+#if defined(_LIBCPP_VERSION) && !BUILDFLAG(IS_NACL)
 // Specialize both std::__is_cpp17_contiguous_iterator and std::pointer_traits
 // for CCI in case we compile with libc++ outside of NaCl. The former is
 // required to enable certain algorithm optimizations (e.g. std::copy can be a
@@ -272,29 +267,6 @@ struct pointer_traits<::base::CheckedContiguousIterator<T>> {
 };
 
 }  // namespace std
-// TODO: b/326979654 -- Remove this when we have -stdlib=libc++ defined in
-// all Cobalt toolchains.
-#elif defined(COBALT_PENDING_CLEAN_UP)
-// Specialize std::pointer_traits so that we can obtain the underlying raw
-// pointer without resulting in CHECK failures. The important bit is the
-// `to_address(pointer)` overload, which is the standard blessed way to
-// customize `std::to_address(pointer)` in C++20 [1].
-//
-// [1] https://wg21.link/pointer.traits.optmem
-template <typename T>
-struct std::pointer_traits<::base::CheckedContiguousIterator<T>> {
-  using pointer = ::base::CheckedContiguousIterator<T>;
-  using element_type = T;
-  using difference_type = ptrdiff_t;
-  template <typename U>
-  using rebind = ::base::CheckedContiguousIterator<U>;
-  static constexpr pointer pointer_to(element_type& r) noexcept {
-    return pointer(&r, &r);
-  }
-  static constexpr element_type* to_address(pointer p) noexcept {
-    return p.current_;
-  }
-};
 #endif
 
 #endif  // BASE_CONTAINERS_CHECKED_ITERATORS_H_

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,68 +6,17 @@
 
 #include <algorithm>
 #include <limits>
-#include <vector>
 
-#include "base/logging.h"
-#include "base/rand_util.h"
+#include "base/check_op.h"
 #include "base/hash/sha1.h"
+#include "base/rand_util.h"
+#include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/sys_byteorder.h"
-#include "components/variations/hashing.h"
+#include "components/variations/variations_murmur_hash.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace variations {
-
-namespace internal {
-
-SeededRandGenerator::SeededRandGenerator(uint32_t seed)
-    : mersenne_twister_(seed) {}
-
-SeededRandGenerator::~SeededRandGenerator() {
-}
-
-uint32_t SeededRandGenerator::operator()(uint32_t range) {
-  // Based on base::RandGenerator().
-  DCHECK_GT(range, 0u);
-
-  // We must discard random results above this number, as they would
-  // make the random generator non-uniform (consider e.g. if
-  // MAX_UINT64 was 7 and |range| was 5, then a result of 1 would be twice
-  // as likely as a result of 3 or 4).
-  uint32_t max_acceptable_value =
-      (std::numeric_limits<uint32_t>::max() / range) * range - 1;
-
-  uint32_t value;
-  do {
-    value = mersenne_twister_();
-  } while (value > max_acceptable_value);
-
-  return value % range;
-}
-
-void PermuteMappingUsingRandomizationSeed(uint32_t randomization_seed,
-                                          std::vector<uint16_t>* mapping) {
-  for (size_t i = 0; i < mapping->size(); ++i)
-    (*mapping)[i] = static_cast<uint16_t>(i);
-
-  SeededRandGenerator generator(randomization_seed);
-
-  // Do a deterministic random shuffle of the mapping using |generator|.
-  //
-  // Note: This logic is identical to the following call with libstdc++ and VS:
-  //
-  //   std::random_shuffle(mapping->begin(), mapping->end(), generator);
-  //
-  // However, this is not guaranteed by the spec and some implementations (e.g.
-  // libc++) use a different algorithm. To ensure results are consistent
-  // regardless of the compiler toolchain used, use our own version.
-  for (size_t i = 1; i < mapping->size(); ++i) {
-    // Pick an element in mapping[:i+1] with which to exchange mapping[i].
-    size_t j = generator(i + 1);
-    std::swap((*mapping)[i], (*mapping)[j]);
-  }
-}
-
-}  // namespace internal
 
 SHA1EntropyProvider::SHA1EntropyProvider(const std::string& entropy_source)
     : entropy_source_(entropy_source) {
@@ -86,10 +35,11 @@ double SHA1EntropyProvider::GetEntropyForTrial(
   // Note: If |entropy_source_| has very low entropy, such as 13 bits or less,
   // it has been observed that this method does not result in a uniform
   // distribution given the same |trial_name|. When using such a low entropy
-  // source, PermutedEntropyProvider should be used instead.
-  std::string input(entropy_source_);
-  input.append(randomization_seed == 0 ? trial_name : std::to_string(
-                                                          randomization_seed));
+  // source, NormalizedMurmurHashEntropyProvider should be used instead.
+  std::string input = base::StrCat(
+      {entropy_source_, randomization_seed == 0
+                            ? trial_name
+                            : base::NumberToString(randomization_seed)});
 
   unsigned char sha1_hash[base::kSHA1Length];
   base::SHA1HashBytes(reinterpret_cast<const unsigned char*>(input.c_str()),
@@ -104,32 +54,73 @@ double SHA1EntropyProvider::GetEntropyForTrial(
   return base::BitsToOpenEndedUnitInterval(bits);
 }
 
-PermutedEntropyProvider::PermutedEntropyProvider(uint16_t low_entropy_source,
-                                                 size_t low_entropy_source_max)
-    : low_entropy_source_(low_entropy_source),
-      low_entropy_source_max_(low_entropy_source_max) {
-  DCHECK_LT(low_entropy_source, low_entropy_source_max);
-  DCHECK_LE(low_entropy_source_max, std::numeric_limits<uint16_t>::max());
+NormalizedMurmurHashEntropyProvider::NormalizedMurmurHashEntropyProvider(
+    ValueInRange entropy_value)
+    : entropy_value_(entropy_value) {
+  DCHECK_LT(entropy_value.value, entropy_value.range);
+  DCHECK_LE(entropy_value.range, std::numeric_limits<uint16_t>::max());
 }
 
-PermutedEntropyProvider::~PermutedEntropyProvider() {
-}
+NormalizedMurmurHashEntropyProvider::~NormalizedMurmurHashEntropyProvider() {}
 
-double PermutedEntropyProvider::GetEntropyForTrial(
+double NormalizedMurmurHashEntropyProvider::GetEntropyForTrial(
     base::StringPiece trial_name,
     uint32_t randomization_seed) const {
-  if (randomization_seed == 0)
-    randomization_seed = HashName(trial_name);
+  if (randomization_seed == 0) {
+    randomization_seed = internal::VariationsMurmurHash::Hash(
+        internal::VariationsMurmurHash::StringToLE32(trial_name),
+        trial_name.length());
+  }
+  uint32_t x = internal::VariationsMurmurHash::Hash16(randomization_seed,
+                                                      entropy_value_.value);
+  int x_ordinal = 0;
+  for (uint32_t i = 0; i < entropy_value_.range; i++) {
+    uint32_t y = internal::VariationsMurmurHash::Hash16(randomization_seed, i);
+    x_ordinal += (y < x);
+  }
 
-  return GetPermutedValue(randomization_seed) /
-         static_cast<double>(low_entropy_source_max_);
+  DCHECK_GE(x_ordinal, 0);
+  // There must have been at least one iteration where |x| == |y|, because
+  // |i| == |entropy_value_|, and |x_ordinal| was not incremented in that
+  // iteration, so |x_ordinal| < |entropy_domain_|.
+  DCHECK_LT(static_cast<uint32_t>(x_ordinal), entropy_value_.range);
+  return static_cast<double>(x_ordinal) / entropy_value_.range;
 }
 
-uint16_t PermutedEntropyProvider::GetPermutedValue(
+SessionEntropyProvider::~SessionEntropyProvider() = default;
+
+double SessionEntropyProvider::GetEntropyForTrial(
+    base::StringPiece trial_name,
     uint32_t randomization_seed) const {
-  std::vector<uint16_t> mapping(low_entropy_source_max_);
-  internal::PermuteMappingUsingRandomizationSeed(randomization_seed, &mapping);
-  return mapping[low_entropy_source_];
+  return base::RandDouble();
+}
+
+EntropyProviders::EntropyProviders(const std::string& high_entropy_value,
+                                   ValueInRange low_entropy_value,
+                                   bool enable_benchmarking)
+    : low_entropy_(low_entropy_value),
+      benchmarking_enabled_(enable_benchmarking) {
+  if (!high_entropy_value.empty()) {
+    high_entropy_.emplace(high_entropy_value);
+  }
+}
+
+EntropyProviders::~EntropyProviders() = default;
+
+const base::FieldTrial::EntropyProvider& EntropyProviders::default_entropy()
+    const {
+  if (high_entropy_.has_value())
+    return high_entropy_.value();
+  return low_entropy_;
+}
+
+const base::FieldTrial::EntropyProvider& EntropyProviders::low_entropy() const {
+  return low_entropy_;
+}
+
+const base::FieldTrial::EntropyProvider& EntropyProviders::session_entropy()
+    const {
+  return session_entropy_;
 }
 
 }  // namespace variations

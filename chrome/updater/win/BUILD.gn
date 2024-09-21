@@ -1,125 +1,153 @@
-# Copyright 2019 The Chromium Authors. All rights reserved.
+# Copyright 2019 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/util/process_version.gni")
 import("//chrome/process_version_rc_template.gni")
+import("//chrome/updater/branding.gni")
+import("//chrome/updater/zip.gni")
+import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
 
 # This target builds the updater executable, its installer, and unittests.
 group("win") {
   deps = [
+    ":signing",
     ":updater",
-    "//chrome/updater/win/installer:installer",
+    ":updater_zip",
+    "//chrome/updater/win/installer",
   ]
 }
 
-executable("updater") {
+config("wrl_strict") {
+  # This definition is used in <wrl/module.h> to specify that only COM
+  # support is provided by WRL, and thus, avoid a dependency on WinRT, which
+  # is not available in Windows 7.
+  defines = [ "__WRL_CLASSIC_COM_STRICT__" ]
+}
+
+source_set("updater_executable") {
   sources = [
     "main.cc",
     "updater.rc",
   ]
 
-  configs += [ "//build/config/win:windowed" ]
-
-  libs = [ "winhttp.lib" ]
   deps = [
-    ":code",
+    "//chrome/updater:base",
+    "//chrome/updater/win/ui/resources",
+  ]
+
+  public_configs = [ "//build/config/win:windowed" ]
+  public_deps = [ "//build/win:default_exe_manifest" ]
+
+  data_deps = [ ":uninstall.cmd" ]
+}
+
+executable("updater") {
+  deps = [
+    ":updater_executable",
     ":version_resources",
-    "//build/win:default_exe_manifest",
-    "//chrome/updater:common",
+    "//chrome/updater:constants_prod",
   ]
 }
 
-copy("uninstall.cmd") {
-  sources = [
-    "setup/uninstall.cmd",
+executable("updater_test") {
+  deps = [
+    ":updater_executable",
+    ":version_resources_test",
+    "//chrome/updater:constants_test",
   ]
-  outputs = [
-    "$target_gen_dir/uninstall.cmd",
+}
+
+copy("signing") {
+  sources = [
+    "$root_out_dir/certificate_tag.exe",
+    "//chrome/tools/build/win/resedit.py",
+    "//third_party/lzma_sdk/bin/win64/7zr.exe",
+    "signing/sign.py",
+  ]
+
+  deps = [ "//chrome/updater/tools:certificate_tag" ]
+
+  outputs = [ "$root_out_dir/UpdaterSigning/{{source_file_part}}" ]
+}
+
+artifact_zip("updater_zip") {
+  output = "$root_build_dir/updater.zip"
+  inputs = [
+             "$root_build_dir/UpdaterSetup.exe",
+             "$root_build_dir/UpdaterSetup_test.exe",
+             "$root_build_dir/qualification_app.exe",
+           ] + get_target_outputs(":signing")
+  deps = [
+    ":signing",
+    "//chrome/updater/test/qualification_app",
+    "//chrome/updater/win/installer",
+    "//chrome/updater/win/installer:installer_test",
+  ]
+}
+
+process_version("uninstall.cmd") {
+  template_file = "setup/uninstall.cmd"
+  output = "$target_gen_dir/uninstall.cmd"
+  process_only = true
+  extra_args = [
+    "-e",
+    "PRODUCT_FULLNAME=\"$updater_product_full_name\"",
+    "-e",
+    "COMPANY_SHORTNAME=\"$updater_company_short_name\"",
   ]
 }
 
 process_version_rc_template("version_resources") {
-  sources = [
-    "updater.ver",
-  ]
+  _product_fullname = "$updater_product_full_name " + "($current_cpu)"
+  if (is_debug) {
+    _product_fullname += " (debug)"
+  }
+  sources = [ "updater.ver" ]
   output = "$target_gen_dir/updater_exe.rc"
-}
-
-source_set("code") {
-  sources = [
-    "net/net_util.cc",
-    "net/net_util.h",
-    "net/network.h",
-    "net/network_fetcher.cc",
-    "net/network_fetcher.h",
-    "net/network_winhttp.cc",
-    "net/network_winhttp.h",
-    "net/scoped_hinternet.h",
-    "setup/setup.cc",
-    "setup/setup.h",
-    "setup/setup_util.cc",
-    "setup/setup_util.h",
-    "setup/uninstall.cc",
-    "setup/uninstall.h",
-    "task_scheduler.cc",
-    "task_scheduler.h",
-    "util.cc",
-    "util.h",
-  ]
-
-  defines = [ "SECURITY_WIN32" ]
-
-  libs = [
-    "secur32.lib",
-    "taskschd.lib",
-  ]
-
-  deps = [
-    "//base",
-    "//chrome/installer/util:with_no_strings",
-    "//chrome/updater:common",
-    "//components/update_client",
+  extra_args = [
+    "-e",
+    "PRODUCT_FULLNAME=\"$_product_fullname\"",
   ]
 }
 
-# Tests built into Chrome's unit_tests.exe.
-source_set("updater_tests") {
-  testonly = true
-
-  sources = [
-    "net/network_unittest.cc",
-    "util_unittest.cc",
-  ]
-
-  deps = [
-    ":code",
-    "//base/test:test_support",
-    "//testing/gtest",
-  ]
-
-  data_deps = [
-    ":updater_unittests",
-    "//chrome/updater/win/installer:installer_unittest",
+process_version_rc_template("version_resources_test") {
+  _product_fullname = "$updater_product_full_name (test) " + "($current_cpu)"
+  if (is_debug) {
+    _product_fullname += " (debug)"
+  }
+  sources = [ "updater_test.ver" ]
+  output = "$target_gen_dir/updater_test_exe.rc"
+  extra_args = [
+    "-e",
+    "PRODUCT_FULLNAME=\"$_product_fullname\"",
   ]
 }
 
-# Specific tests which must run in their own process due to COM, security, or
-# test isolation requirements.
-test("updater_unittests") {
-  testonly = true
+source_set("tag_extractor") {
+  public = [ "tag_extractor.h" ]
 
   sources = [
-    "//chrome/updater/win/test/test_main.cc",
-    "task_scheduler_unittest.cc",
+    "tag_extractor.cc",
+    "tag_extractor_impl.h",
   ]
 
-  deps = [
-    ":code",
-    "//base",
-    "//base/test:test_support",
-    "//chrome/updater/win/test:test_executables",
-    "//chrome/updater/win/test:test_strings",
-    "//testing/gtest",
+  friend = [
+    "//chrome/updater:updater_test_sources",
+    ":updater_fuzzer",
   ]
+
+  # In the future, we want to rely on the base numerics headers and
+  # PeImageReader directly, but right now that isn't possible due to the
+  # visibility of the lib, so we depend on the entire base temporarily.
+  deps = [ "//base" ]
+}
+
+fuzzer_test("updater_fuzzer") {
+  sources = [ "tag_extractor_fuzzer.cc" ]
+
+  deps = [ ":tag_extractor" ]
+
+  seed_corpus = "../test/data/tag_extractor_corpus/"
 }

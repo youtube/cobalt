@@ -1,4 +1,4 @@
-// Copyright 2014 The Crashpad Authors. All rights reserved.
+// Copyright 2014 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,15 +52,8 @@ void HTTPTransport::SetTimeout(double timeout) {
   timeout_ = timeout;
 }
 
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-void HTTPTransport::SetRootCACertificatesDirectoryPath(
-    const std::string& path) {
-  root_ca_certificates_directory_path_ = path;
-}
-#else
 void HTTPTransport::SetRootCACertificatePath(const base::FilePath& cert) {
   root_ca_certificate_path_ = cert;
 }
-#endif  // defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
 
 }  // namespace crashpad

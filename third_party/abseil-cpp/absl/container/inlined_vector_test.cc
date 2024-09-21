@@ -196,16 +196,12 @@ TEST(IntVec, PopBackNoOverflow) {
   EXPECT_EQ(v.size(), 0u);
 }
 
-// TODO(b/320478127): ABSL_BASE_INTERNAL_EXPECT_FAIL doesn't work (yet) for
-// googletest in Cobalt.
-#if !defined(STARBOARD)
 TEST(IntVec, AtThrows) {
   IntVec v = {1, 2, 3};
   EXPECT_EQ(v.at(2), 3);
   ABSL_BASE_INTERNAL_EXPECT_FAIL(v.at(3), std::out_of_range,
                                  "failed bounds check");
 }
-#endif
 
 TEST(IntVec, ReverseIterator) {
   for (size_t len = 0; len < 20; len++) {

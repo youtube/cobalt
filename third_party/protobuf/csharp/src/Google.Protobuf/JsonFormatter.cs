@@ -40,6 +40,7 @@ using System.IO;
 using System.Linq;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Google.Protobuf
 {
@@ -133,7 +134,7 @@ namespace Google.Protobuf
         /// <param name="settings">The settings.</param>
         public JsonFormatter(Settings settings)
         {
-            this.settings = settings;
+            this.settings = ProtoPreconditions.CheckNotNull(settings, nameof(settings));
         }
 
         /// <summary>
@@ -221,25 +222,25 @@ namespace Google.Protobuf
             foreach (var field in fields.InFieldNumberOrder())
             {
                 var accessor = field.Accessor;
-                if (field.ContainingOneof != null && field.ContainingOneof.Accessor.GetCaseFieldDescriptor(message) != field)
-                {
-                    continue;
-                }
-                // Omit default values unless we're asked to format them, or they're oneofs (where the default
-                // value is still formatted regardless, because that's how we preserve the oneof case).
-                object value = accessor.GetValue(message);
-                if (field.ContainingOneof == null && !settings.FormatDefaultValues && IsDefaultValue(accessor, value))
+                var value = accessor.GetValue(message);
+                if (!ShouldFormatFieldValue(message, field, value))
                 {
                     continue;
                 }
 
-                // Okay, all tests complete: let's write the field value...
                 if (!first)
                 {
                     writer.Write(PropertySeparator);
                 }
 
-                WriteString(writer, accessor.Descriptor.JsonName);
+                if (settings.PreserveProtoFieldNames)
+                {
+                    WriteString(writer, accessor.Descriptor.Name);
+                }
+                else
+                {
+                    WriteString(writer, accessor.Descriptor.JsonName);
+                }
                 writer.Write(NameValueSeparator);
                 WriteValue(writer, value);
 
@@ -247,6 +248,18 @@ namespace Google.Protobuf
             }
             return !first;
         }
+
+        /// <summary>
+        /// Determines whether or not a field value should be serialized according to the field,
+        /// its value in the message, and the settings of this formatter.
+        /// </summary>
+        private bool ShouldFormatFieldValue(IMessage message, FieldDescriptor field, object value) =>
+            field.HasPresence
+            // Fields that support presence *just* use that
+            ? field.Accessor.HasValue(message)
+            // Otherwise, format if either we've been asked to format default values, or if it's
+            // not a default value anyway.
+            : settings.FormatDefaultValues || !IsDefaultValue(field, value);
 
         // Converted from java/core/src/main/java/com/google/protobuf/Descriptors.java
         internal static string ToJsonName(string name)
@@ -295,19 +308,19 @@ namespace Google.Protobuf
             writer.Write("null");
         }
 
-        private static bool IsDefaultValue(IFieldAccessor accessor, object value)
+        private static bool IsDefaultValue(FieldDescriptor descriptor, object value)
         {
-            if (accessor.Descriptor.IsMap)
+            if (descriptor.IsMap)
             {
                 IDictionary dictionary = (IDictionary) value;
                 return dictionary.Count == 0;
             }
-            if (accessor.Descriptor.IsRepeated)
+            if (descriptor.IsRepeated)
             {
                 IList list = (IList) value;
                 return list.Count == 0;
             }
-            switch (accessor.Descriptor.FieldType)
+            switch (descriptor.FieldType)
             {
                 case FieldType.Bool:
                     return (bool) value == false;
@@ -352,7 +365,7 @@ namespace Google.Protobuf
         /// <param name="value">The value to write. May be null.</param>
         public void WriteValue(TextWriter writer, object value)
         {
-            if (value == null)
+            if (value == null || value is NullValue)
             {
                 WriteNull(writer);
             }
@@ -793,8 +806,10 @@ namespace Google.Protobuf
             }
 
             /// <summary>
-            /// Whether fields whose values are the default for the field type (e.g. 0 for integers)
-            /// should be formatted (true) or omitted (false).
+            /// Whether fields which would otherwise not be included in the formatted data
+            /// should be formatted even when the value is not present, or has the default value.
+            /// This option only affects fields which don't support "presence" (e.g.
+            /// singular non-optional proto3 primitive fields).
             /// </summary>
             public bool FormatDefaultValues { get; }
 
@@ -807,6 +822,11 @@ namespace Google.Protobuf
             /// Whether to format enums as ints. Defaults to false.
             /// </summary>
             public bool FormatEnumsAsIntegers { get; }
+
+            /// <summary>
+            /// Whether to use the original proto field names as defined in the .proto file. Defaults to false.
+            /// </summary>
+            public bool PreserveProtoFieldNames { get; }
 
 
             /// <summary>
@@ -824,7 +844,7 @@ namespace Google.Protobuf
             /// </summary>
             /// <param name="formatDefaultValues"><c>true</c> if default values (0, empty strings etc) should be formatted; <c>false</c> otherwise.</param>
             /// <param name="typeRegistry">The <see cref="TypeRegistry"/> to use when formatting <see cref="Any"/> messages.</param>
-            public Settings(bool formatDefaultValues, TypeRegistry typeRegistry) : this(formatDefaultValues, typeRegistry, false)
+            public Settings(bool formatDefaultValues, TypeRegistry typeRegistry) : this(formatDefaultValues, typeRegistry, false, false)
             {
             }
 
@@ -834,32 +854,41 @@ namespace Google.Protobuf
             /// <param name="formatDefaultValues"><c>true</c> if default values (0, empty strings etc) should be formatted; <c>false</c> otherwise.</param>
             /// <param name="typeRegistry">The <see cref="TypeRegistry"/> to use when formatting <see cref="Any"/> messages. TypeRegistry.Empty will be used if it is null.</param>
             /// <param name="formatEnumsAsIntegers"><c>true</c> to format the enums as integers; <c>false</c> to format enums as enum names.</param>
+            /// <param name="preserveProtoFieldNames"><c>true</c> to preserve proto field names; <c>false</c> to convert them to lowerCamelCase.</param>
             private Settings(bool formatDefaultValues,
                             TypeRegistry typeRegistry,
-                            bool formatEnumsAsIntegers)
+                            bool formatEnumsAsIntegers,
+                            bool preserveProtoFieldNames)
             {
                 FormatDefaultValues = formatDefaultValues;
                 TypeRegistry = typeRegistry ?? TypeRegistry.Empty;
                 FormatEnumsAsIntegers = formatEnumsAsIntegers;
+                PreserveProtoFieldNames = preserveProtoFieldNames;
             }
 
             /// <summary>
             /// Creates a new <see cref="Settings"/> object with the specified formatting of default values and the current settings.
             /// </summary>
             /// <param name="formatDefaultValues"><c>true</c> if default values (0, empty strings etc) should be formatted; <c>false</c> otherwise.</param>
-            public Settings WithFormatDefaultValues(bool formatDefaultValues) => new Settings(formatDefaultValues, TypeRegistry, FormatEnumsAsIntegers);
+            public Settings WithFormatDefaultValues(bool formatDefaultValues) => new Settings(formatDefaultValues, TypeRegistry, FormatEnumsAsIntegers, PreserveProtoFieldNames);
 
             /// <summary>
             /// Creates a new <see cref="Settings"/> object with the specified type registry and the current settings.
             /// </summary>
             /// <param name="typeRegistry">The <see cref="TypeRegistry"/> to use when formatting <see cref="Any"/> messages.</param>
-            public Settings WithTypeRegistry(TypeRegistry typeRegistry) => new Settings(FormatDefaultValues, typeRegistry, FormatEnumsAsIntegers);
+            public Settings WithTypeRegistry(TypeRegistry typeRegistry) => new Settings(FormatDefaultValues, typeRegistry, FormatEnumsAsIntegers, PreserveProtoFieldNames);
 
             /// <summary>
             /// Creates a new <see cref="Settings"/> object with the specified enums formatting option and the current settings.
             /// </summary>
             /// <param name="formatEnumsAsIntegers"><c>true</c> to format the enums as integers; <c>false</c> to format enums as enum names.</param>
-            public Settings WithFormatEnumsAsIntegers(bool formatEnumsAsIntegers) => new Settings(FormatDefaultValues, TypeRegistry, formatEnumsAsIntegers);
+            public Settings WithFormatEnumsAsIntegers(bool formatEnumsAsIntegers) => new Settings(FormatDefaultValues, TypeRegistry, formatEnumsAsIntegers, PreserveProtoFieldNames);
+
+            /// <summary>
+            /// Creates a new <see cref="Settings"/> object with the specified field name formatting option and the current settings.
+            /// </summary>
+            /// <param name="preserveProtoFieldNames"><c>true</c> to preserve proto field names; <c>false</c> to convert them to lowerCamelCase.</param>
+            public Settings WithPreserveProtoFieldNames(bool preserveProtoFieldNames) => new Settings(FormatDefaultValues, TypeRegistry, FormatEnumsAsIntegers, preserveProtoFieldNames);
         }
 
         // Effectively a cache of mapping from enum values to the original name as specified in the proto file,
@@ -872,6 +901,8 @@ namespace Google.Protobuf
             private static readonly Dictionary<System.Type, Dictionary<object, string>> dictionaries
                 = new Dictionary<System.Type, Dictionary<object, string>>();
 
+            [UnconditionalSuppressMessage("Trimming", "IL2072",
+                Justification = "The field for the value must still be present. It will be returned by reflection, will be in this collection, and its name can be resolved.")]
             internal static string GetOriginalName(object value)
             {
                 var enumType = value.GetType();
@@ -891,21 +922,13 @@ namespace Google.Protobuf
                 return originalName;
             }
 
-#if NET35
-            // TODO: Consider adding functionality to TypeExtensions to avoid this difference.
-            private static Dictionary<object, string> GetNameMapping(System.Type enumType) =>
-                enumType.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Static)
-                    .Where(f => (f.GetCustomAttributes(typeof(OriginalNameAttribute), false)
-                                 .FirstOrDefault() as OriginalNameAttribute)
-                                 ?.PreferredAlias ?? true)
-                    .ToDictionary(f => f.GetValue(null),
-                                  f => (f.GetCustomAttributes(typeof(OriginalNameAttribute), false)
-                                        .FirstOrDefault() as OriginalNameAttribute)
-                                        // If the attribute hasn't been applied, fall back to the name of the field.
-                                        ?.Name ?? f.Name);
-#else
-            private static Dictionary<object, string> GetNameMapping(System.Type enumType) =>
-                enumType.GetTypeInfo().DeclaredFields
+            private static Dictionary<object, string> GetNameMapping(
+                [DynamicallyAccessedMembers(
+                    DynamicallyAccessedMemberTypes.PublicFields |
+                    DynamicallyAccessedMemberTypes.NonPublicFields)]
+                System.Type enumType)
+            {
+                return enumType.GetTypeInfo().DeclaredFields
                     .Where(f => f.IsStatic)
                     .Where(f => f.GetCustomAttributes<OriginalNameAttribute>()
                                  .FirstOrDefault()?.PreferredAlias ?? true)
@@ -914,7 +937,7 @@ namespace Google.Protobuf
                                         .FirstOrDefault()
                                         // If the attribute hasn't been applied, fall back to the name of the field.
                                         ?.Name ?? f.Name);
-#endif
+            }
         }
     }
 }

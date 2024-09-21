@@ -30,8 +30,7 @@ constexpr size_t kAllocSize = 1 << 20;  // 1 MiB
 void* AllocateLocalMemory(size_t size) {
   void* address;
 
-#if defined(COBALT_PENDING_CLEAN_UP)
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   address =
       ::VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
   if (address)

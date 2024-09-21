@@ -7,7 +7,7 @@
 
 #include "build/build_config.h"
 
-#if defined(COMPILER_MSVC) && !defined(__clang__) && !defined(USE_COBALT_CUSTOMIZATIONS)
+#if defined(COMPILER_MSVC) && !defined(__clang__)
 #error "Only clang-cl is supported on Windows, see https://crbug.com/988071"
 #endif
 
@@ -228,34 +228,6 @@
 #define HAS_FEATURE(FEATURE) 0
 #endif
 
-#ifdef COBALT_PENDING_CLEAN_UP
-#if defined(COMPILER_MSVC)
-// MSVC_SUPPRESS_WARNING disables warning |n| for the remainder of the line and
-// for the next line of the source file.
-#define MSVC_SUPPRESS_WARNING(n) __pragma(warning(suppress:n))
-
-// MSVC_PUSH_DISABLE_WARNING pushes |n| onto a stack of warnings to be disabled.
-// The warning remains disabled until popped by MSVC_POP_WARNING.
-#define MSVC_PUSH_DISABLE_WARNING(n) __pragma(warning(push)) \
-                                     __pragma(warning(disable:n))
-
-// Pop effects of innermost MSVC_PUSH_* macro.
-#define MSVC_POP_WARNING() __pragma(warning(pop))
-
-#define ALLOW_THIS_IN_INITIALIZER_LIST(code) \
-  MSVC_PUSH_DISABLE_WARNING(4355)            \
-  code MSVC_POP_WARNING()
-#else
-#define _Printf_format_string_
-#define MSVC_SUPPRESS_WARNING(n)
-#define MSVC_PUSH_DISABLE_WARNING(n)
-#define MSVC_POP_WARNING()
-#define MSVC_DISABLE_OPTIMIZE()
-#define MSVC_ENABLE_OPTIMIZE()
-#define ALLOW_THIS_IN_INITIALIZER_LIST(code) code
-#endif
-#endif
-
 #if defined(COMPILER_GCC)
 #define PRETTY_FUNCTION __PRETTY_FUNCTION__
 #elif defined(COMPILER_MSVC)
@@ -440,18 +412,6 @@ inline constexpr bool AnalyzerAssumeTrue(bool arg) {
 #define LOGICALLY_CONST [[gnu::abi_tag("logically_const")]]
 #else
 #define LOGICALLY_CONST
-#endif
-
-// Macro for telling -Wimplicit-fallthrough that a fallthrough is intentional.
-#if defined(__clang__)
-#define FALLTHROUGH [[clang::fallthrough]]
-#else
-#define FALLTHROUGH
-#endif
-
-#if defined(COBALT_PENDING_CLEAN_UP)
-#define ALLOW_UNUSED_TYPE
-#define WARN_UNUSED_RESULT
 #endif
 
 #endif  // BASE_COMPILER_SPECIFIC_H_

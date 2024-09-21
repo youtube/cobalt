@@ -35,8 +35,6 @@ bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
 bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     const base::FilePath::StringType& ext,
     std::string* result) const {
-  return false;
-/* Cobalt
   base::FilePath dummy_path("foo." + ext);
   std::string out = base::nix::GetFileMimeType(dummy_path);
 
@@ -55,7 +53,6 @@ bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
 
   *result = out;
   return true;
-Cobalt */
 }
 
 #endif  // BUILDFLAG(IS_ANDROID)

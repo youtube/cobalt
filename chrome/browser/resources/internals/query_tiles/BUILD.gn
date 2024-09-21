@@ -1,0 +1,18 @@
+# Copyright 2020 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//tools/typescript/ts_library.gni")
+
+assert(is_android)
+
+ts_library("build_ts") {
+  root_dir = "."
+  out_dir = "$target_gen_dir/tsc"
+  in_files = [
+    "query_tiles_internals.ts",
+    "query_tiles_internals_browser_proxy.ts",
+  ]
+  definitions = [ "//tools/typescript/definitions/chrome_send.d.ts" ]
+  deps = [ "//ui/webui/resources/js:build_ts" ]
+}

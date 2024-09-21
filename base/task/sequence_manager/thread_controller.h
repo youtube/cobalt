@@ -132,7 +132,7 @@ class BASE_EXPORT ThreadController {
   // Returns true if the current run loop should quit when idle.
   virtual bool ShouldQuitRunLoopWhenIdle() = 0;
 
-#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
   // On iOS, the main message loop cannot be Run().  Instead call
   // AttachToMessagePump(), which connects this ThreadController to the
   // UI thread's CFRunLoop and allows PostTask() to work.
@@ -430,13 +430,8 @@ class BASE_EXPORT ThreadController {
     [[maybe_unused]] const raw_ref<const ThreadController> outer_;
 
 #if BUILDFLAG(ENABLE_BASE_TRACING)
-#if defined(STARBOARD)
-    TerminatingFlowLambda terminating_wakeup_lambda_{
-        perfetto::TerminatingFlow::FromPointer(const_cast<RunLevelTracker*>(this))};
-#else
     TerminatingFlowLambda terminating_wakeup_lambda_{
         perfetto::TerminatingFlow::FromPointer(this)};
-#endif
 #endif
 
     std::stack<RunLevel, std::vector<RunLevel>> run_levels_

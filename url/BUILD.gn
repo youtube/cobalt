@@ -101,7 +101,7 @@ component("url") {
   }
 }
 
-if ((is_android || is_robolectric) && !use_cobalt_customizations) {
+if (is_android || is_robolectric) {
   generate_jni("url_jni_headers") {
     sources = [
       "android/java/src/org/chromium/url/IDNStringUtil.java",
@@ -148,14 +148,14 @@ if ((is_android || is_robolectric) && !use_cobalt_customizations) {
   }
 }
 
-if (is_android && !use_cobalt_customizations) {
+if (is_android) {
   android_library("url_java") {
     sources = [ "android/java/src/org/chromium/url/IDNStringUtil.java" ]
     deps = [ "//base:jni_java" ]
   }
 }
 
-if (is_android && !is_cronet_build && !use_cobalt_customizations) {
+if (is_android && !is_cronet_build) {
   android_library("gurl_java") {
     sources = [
       "android/java/src/org/chromium/url/GURL.java",
@@ -229,7 +229,7 @@ test("url_unittests") {
 
   if (use_platform_icu_alternatives) {
     # Unit tests that are not supported by the current ICU alternatives on Android.
-    if (is_android && !use_cobalt_customizations) {
+    if (is_android) {
       sources -= [
         "url_canon_icu_unittest.cc",
         "url_canon_unittest.cc",
@@ -250,7 +250,7 @@ test("url_unittests") {
     deps += [ "//third_party/icu:icuuc" ]
   }
 
-  if (!is_ios && !is_cronet_build && !is_starboard) {
+  if (!is_ios && !is_cronet_build) {
     sources += [
       "mojom/scheme_host_port_mojom_traits_unittest.cc",
       "mojom/url_gurl_mojom_traits_unittest.cc",
@@ -265,7 +265,6 @@ test("url_unittests") {
   }
 }
 
-if (!use_cobalt_customizations) {
 test("url_perftests") {
   sources = [
     "run_all_perftests.cc",
@@ -279,7 +278,6 @@ test("url_perftests") {
     "//testing/gtest",
   ]
 }
-}
 
 fuzzer_test("gurl_fuzzer") {
   sources = [ "gurl_fuzzer.cc" ]
@@ -291,7 +289,7 @@ fuzzer_test("gurl_fuzzer") {
   dict = "gurl_fuzzer.dict"
 }
 
-if (is_android && !is_cronet_build && !use_cobalt_customizations) {
+if (is_android && !is_cronet_build) {
   source_set("android_test_helper") {
     testonly = true
     sources = [

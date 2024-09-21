@@ -1,4 +1,4 @@
-// Copyright 2017 The Crashpad Authors. All rights reserved.
+// Copyright 2017 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@
 #include "util/misc/from_pointer_cast.h"
 #include "util/posix/signals.h"
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 #include <android/api-level.h>
 #endif
 
@@ -46,6 +46,9 @@ class ScopedSigprocmaskRestore {
     DPLOG_IF(ERROR, !mask_is_set_) << "sigprocmask";
   }
 
+  ScopedSigprocmaskRestore(const ScopedSigprocmaskRestore&) = delete;
+  ScopedSigprocmaskRestore& operator=(const ScopedSigprocmaskRestore&) = delete;
+
   ~ScopedSigprocmaskRestore() {
     if (mask_is_set_ &&
         sys_sigprocmask(SIG_SETMASK, &orig_mask_, nullptr) != 0) {
@@ -56,8 +59,6 @@ class ScopedSigprocmaskRestore {
  private:
   kernel_sigset_t orig_mask_;
   bool mask_is_set_;
-
-  DISALLOW_COPY_AND_ASSIGN(ScopedSigprocmaskRestore);
 };
 
 }  // namespace
@@ -83,18 +84,6 @@ bool ExceptionHandlerClient::GetHandlerCredentials(ucred* creds) {
   return UnixCredentialSocket::RecvMsg(
       server_sock_, &response, sizeof(response), creds);
 }
-
-#if defined(STARBOARD) || NATIVE_TARGET_BUILD
-bool ExceptionHandlerClient::SendEvergreenInfo(
-    const ExceptionHandlerProtocol::ClientInformation& info) {
-  return SendEvergreenInfoRequest(info);
-}
-
-bool ExceptionHandlerClient::SendAnnotations(
-    const ExceptionHandlerProtocol::ClientInformation& info) {
-  return SendAddAnnotationsRequest(info);
-}
-#endif
 
 int ExceptionHandlerClient::RequestCrashDump(
     const ExceptionHandlerProtocol::ClientInformation& info) {
@@ -154,30 +143,6 @@ int ExceptionHandlerClient::SignalCrashDump(
 
   return 0;
 }
-
-#if defined(STARBOARD) || NATIVE_TARGET_BUILD
-bool ExceptionHandlerClient::SendEvergreenInfoRequest(
-    const ExceptionHandlerProtocol::ClientInformation& info) {
-  ExceptionHandlerProtocol::ClientToServerMessage message;
-  message.type =
-      ExceptionHandlerProtocol::ClientToServerMessage::kTypeAddEvergreenInfo;
-  message.client_info = info;
-
-  UnixCredentialSocket::SendMsg(server_sock_, &message, sizeof(message));
-  return true;
-}
-
-bool ExceptionHandlerClient::SendAddAnnotationsRequest(
-    const ExceptionHandlerProtocol::ClientInformation& info) {
-  ExceptionHandlerProtocol::ClientToServerMessage message;
-  message.type =
-      ExceptionHandlerProtocol::ClientToServerMessage::kTypeAddAnnotations;
-  message.client_info = info;
-
-  UnixCredentialSocket::SendMsg(server_sock_, &message, sizeof(message));
-  return true;
-}
-#endif
 
 int ExceptionHandlerClient::SendCrashDumpRequest(
     const ExceptionHandlerProtocol::ClientInformation& info,

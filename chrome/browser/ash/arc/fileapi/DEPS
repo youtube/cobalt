@@ -1,0 +1,4 @@
+include_rules = [
+  # For ArcSelectFilesHandler.
+  "+chrome/browser/ui/views/select_file_dialog_extension.h",
+]

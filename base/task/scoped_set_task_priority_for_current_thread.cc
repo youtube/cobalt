@@ -7,104 +7,32 @@
 #include "base/compiler_specific.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
-#include <pthread.h>
-
-#include "base/check_op.h"
-#include "starboard/thread.h"
-#endif
-
 namespace base {
 namespace internal {
 
 namespace {
 
-#if defined(STARBOARD)
-ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
-
-void InitThreadLocalKey() {
-  int res = pthread_key_create(&s_thread_local_key , NULL);
-  DCHECK(res == 0);
-}
-
-void EnsureThreadLocalKeyInited() {
-  pthread_once(&s_once_flag, InitThreadLocalKey);
-}
-
-ABSL_CONST_INIT pthread_once_t s_once_set_flag = PTHREAD_ONCE_INIT;
-ABSL_CONST_INIT pthread_key_t s_thread_local_set_for_thread = 0;
-void InitThreadLocalBoolKey() {
-  int res = pthread_key_create(&s_thread_local_set_for_thread, NULL);
-  DCHECK(res == 0);
-}
-
-void EnsureThreadLocalBoolKeyInited() {
-  pthread_once(&s_once_set_flag, InitThreadLocalBoolKey);
-}
-
-bool IsValueSetForThread() {
-  EnsureThreadLocalBoolKeyInited();
-  void* set_for_thread = pthread_getspecific(s_thread_local_set_for_thread);
-  return !!set_for_thread ? reinterpret_cast<intptr_t>(set_for_thread) != 0
-                          : false;
-}
-#else
 ABSL_CONST_INIT thread_local TaskPriority task_priority_for_current_thread =
     TaskPriority::USER_BLOCKING;
-#endif
 
 }  // namespace
 
 ScopedSetTaskPriorityForCurrentThread::ScopedSetTaskPriorityForCurrentThread(
     TaskPriority priority)
-#if defined(STARBOARD)
-{
-  EnsureThreadLocalKeyInited();
-  scoped_reset_value_ = reinterpret_cast<void*>(static_cast<intptr_t>(
-                            static_cast<uint8_t>(GetTaskPriorityForCurrentThread())));
-
-  pthread_setspecific(s_thread_local_key,
-                        reinterpret_cast<void*>(static_cast<intptr_t>(
-                            static_cast<uint8_t>(priority))));
-  EnsureThreadLocalBoolKeyInited();
-  pthread_setspecific(s_thread_local_set_for_thread,
-                        reinterpret_cast<void*>(static_cast<intptr_t>(true)));
-}
-#else
     : resetter_(&task_priority_for_current_thread,
                 priority,
                 TaskPriority::USER_BLOCKING) {}
-#endif
 
-#if defined(STARBOARD)
-ScopedSetTaskPriorityForCurrentThread::
-    ~ScopedSetTaskPriorityForCurrentThread() {
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, scoped_reset_value_);
-}
-#else
 ScopedSetTaskPriorityForCurrentThread::
     ~ScopedSetTaskPriorityForCurrentThread() = default;
-#endif
 
 TaskPriority GetTaskPriorityForCurrentThread() {
-#if defined(STARBOARD)
-  EnsureThreadLocalKeyInited();
-  void* task_priority_for_current_thread =
-      pthread_getspecific(s_thread_local_key);
-  return IsValueSetForThread() ? static_cast<TaskPriority>(static_cast<uint8_t>(
-                                     reinterpret_cast<intptr_t>(
-                                         task_priority_for_current_thread)))
-                               : TaskPriority::USER_BLOCKING;
-#else
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
   // https://github.com/google/sanitizers/issues/1265
   MSAN_UNPOISON(&task_priority_for_current_thread, sizeof(TaskPriority));
 
   return task_priority_for_current_thread;
-#endif
 }
 
 }  // namespace internal

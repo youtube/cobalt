@@ -1,4 +1,4 @@
-// Copyright 2017 The Crashpad Authors. All rights reserved.
+// Copyright 2017 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@
 #include <memory>
 #include <unordered_map>
 
-#include "base/macros.h"
 #include "util/file/file_io.h"
 #include "util/linux/exception_handler_protocol.h"
 #include "util/misc/address_types.h"
@@ -95,22 +94,6 @@ class ExceptionHandlerServer {
         pid_t* requesting_thread_id = nullptr,
         UUID* local_report_id = nullptr) = 0;
 
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-    //! \brief Called on receipt of a request to add Evergreen mapping info.
-    //!
-    //! \param[in] info Information on the client.
-    //! \return `true` on success. `false` on failure with a message logged.
-    virtual bool AddEvergreenInfo(
-        const ExceptionHandlerProtocol::ClientInformation& info) = 0;
-
-    //! \brief Called on receipt of a request to add Evergreen Annotations.
-    //!
-    //! \param[in] info Information on the client.
-    //! \return `true` on success. `false` on failure with a message logged.
-    virtual bool AddAnnotations(
-        const ExceptionHandlerProtocol::ClientInformation& info) = 0;
-#endif
-
     //! \brief Called on the receipt of a crash dump request from a client for a
     //!     crash that should be mediated by a PtraceBroker.
     //!
@@ -132,6 +115,10 @@ class ExceptionHandlerServer {
   };
 
   ExceptionHandlerServer();
+
+  ExceptionHandlerServer(const ExceptionHandlerServer&) = delete;
+  ExceptionHandlerServer& operator=(const ExceptionHandlerServer&) = delete;
+
   ~ExceptionHandlerServer();
 
   //! \brief Sets the handler's PtraceStrategyDecider.
@@ -196,15 +183,6 @@ class ExceptionHandlerServer {
       int client_sock,
       bool multiple_clients);
 
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-  bool HandleAddEvergreenInfoRequest(
-      const ucred& creds,
-      const ExceptionHandlerProtocol::ClientInformation& client_info);
-  bool HandleAddAnnotationsRequest(
-      const ucred& creds,
-      const ExceptionHandlerProtocol::ClientInformation& client_info);
-#endif
-
   std::unordered_map<int, std::unique_ptr<Event>> clients_;
   std::unique_ptr<Event> shutdown_event_;
   std::unique_ptr<PtraceStrategyDecider> strategy_decider_;
@@ -212,8 +190,6 @@ class ExceptionHandlerServer {
   ScopedFileHandle pollfd_;
   std::atomic<bool> keep_running_;
   InitializationStateDcheck initialized_;
-
-  DISALLOW_COPY_AND_ASSIGN(ExceptionHandlerServer);
 };
 
 }  // namespace crashpad

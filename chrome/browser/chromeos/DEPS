@@ -1,0 +1,7 @@
+include_rules = [
+  # See README.md.
+  "-ash",
+  "-chrome/browser/ash",
+
+  "+ash/constants",
+]

@@ -1,0 +1,119 @@
+# Copyright 2023 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("password_checkup") {
+  configs += [ "//build/config/compiler:enable_arc" ]
+  sources = [
+    "password_checkup_coordinator.h",
+    "password_checkup_coordinator.mm",
+    "password_checkup_mediator+private.h",
+    "password_checkup_mediator.h",
+    "password_checkup_mediator.mm",
+  ]
+  deps = [
+    ":password_checkup_ui",
+    "//base",
+    "//components/password_manager/core/browser",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/browser/main:public",
+    "//ios/chrome/browser/net:crurl",
+    "//ios/chrome/browser/passwords",
+    "//ios/chrome/browser/passwords:password_checkup_utils",
+    "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
+    "//ios/chrome/browser/shared/public/commands",
+    "//ios/chrome/browser/shared/ui/table_view:utils",
+    "//ios/chrome/browser/sync",
+    "//ios/chrome/browser/ui/settings/password/password_issues",
+    "//ios/chrome/common:string_util",
+    "//ui/base",
+  ]
+  public_deps = [ "//components/password_manager/core/browser" ]
+}
+
+source_set("password_checkup_ui") {
+  configs += [ "//build/config/compiler:enable_arc" ]
+  sources = [
+    "password_checkup_commands.h",
+    "password_checkup_consumer.h",
+    "password_checkup_view_controller.h",
+    "password_checkup_view_controller.mm",
+    "password_checkup_view_controller_delegate.h",
+  ]
+  deps = [
+    ":password_checkup_constants",
+    "resources:password_checkup_header_background_color",
+    "resources:password_checkup_header_green",
+    "resources:password_checkup_header_loading",
+    "resources:password_checkup_header_red",
+    "resources:password_checkup_header_yellow",
+    "//base",
+    "//components/google/core/common",
+    "//components/strings",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/browser/application_context",
+    "//ios/chrome/browser/net:crurl",
+    "//ios/chrome/browser/passwords:password_checkup_utils",
+    "//ios/chrome/browser/shared/ui/table_view/cells",
+    "//ios/chrome/browser/shared/ui/util",
+    "//ios/chrome/browser/ui/settings:settings_root",
+    "//ios/chrome/browser/ui/settings/cells",
+    "//ios/chrome/common/ui/colors",
+    "//ui/base",
+  ]
+}
+
+source_set("password_checkup_constants") {
+  configs += [ "//build/config/compiler:enable_arc" ]
+  sources = [
+    "password_checkup_constants.h",
+    "password_checkup_constants.mm",
+  ]
+}
+
+source_set("unit_tests") {
+  configs += [ "//build/config/compiler:enable_arc" ]
+  testonly = true
+  sources = [
+    "password_checkup_mediator_unittest.mm",
+    "password_checkup_view_controller_unittest.mm",
+  ]
+  deps = [
+    ":password_checkup",
+    ":password_checkup_constants",
+    ":password_checkup_ui",
+    "//base",
+    "//base/test:test_support",
+    "//components/keyed_service/core",
+    "//components/password_manager/core/browser:password_form",
+    "//components/password_manager/core/browser:test_support",
+    "//components/password_manager/core/common",
+    "//components/password_manager/core/common:features",
+    "//components/prefs:test_support",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/browser/browser_state:test_support",
+    "//ios/chrome/browser/main:test_support",
+    "//ios/chrome/browser/passwords",
+    "//ios/chrome/browser/passwords:password_checkup_utils",
+    "//ios/chrome/browser/passwords:store_factory",
+    "//ios/chrome/browser/shared/ui/symbols",
+    "//ios/chrome/browser/shared/ui/table_view:test_support",
+    "//ios/chrome/browser/shared/ui/table_view:utils",
+    "//ios/chrome/browser/shared/ui/table_view/cells",
+    "//ios/chrome/browser/ui/settings/cells",
+    "//ios/chrome/common/ui/colors",
+    "//ios/web/public/test",
+    "//testing/gtest",
+    "//third_party/ocmock",
+  ]
+}
+
+source_set("eg2_tests") {
+  configs += [
+    "//build/config/compiler:enable_arc",
+    "//build/config/ios:xctest_config",
+  ]
+  testonly = true
+  sources = [ "password_checkup_egtest.mm" ]
+  deps = [ "//ios/chrome/test/earl_grey:eg_test_support+eg2" ]
+}

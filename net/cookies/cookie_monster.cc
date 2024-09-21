@@ -706,25 +706,14 @@ void CookieMonster::DeleteAllCreatedInTimeRange(const TimeRange& creation_range,
     auto cur_partition_it = partition_it;
     CookieMap::iterator cookie_it = cur_partition_it->second->begin();
     CookieMap::iterator cookie_end = cur_partition_it->second->end();
-#if defined(STARBOARD)
-    auto cookies_size = cur_partition_it->second->size();
-    auto cookies_cur_index = 0;
-#endif
     // InternalDeletePartitionedCookie may delete this cookie partition if it
     // only has one cookie, so we need to increment the iterator beforehand.
     ++partition_it;
 
-#if defined(STARBOARD)
-    while (cookies_cur_index < cookies_size) {
-#else
     while (cookie_it != cookie_end) {
-#endif
       auto cur_cookie_it = cookie_it;
       CanonicalCookie* cc = cur_cookie_it->second.get();
       ++cookie_it;
-#if defined(STARBOARD)
-      ++cookies_cur_index;
-#endif
 
       if (creation_range.Contains(cc->CreationDate())) {
         InternalDeletePartitionedCookie(cur_partition_it, cur_cookie_it,
@@ -824,25 +813,14 @@ void CookieMonster::DeleteMatchingCookies(DeletePredicate predicate,
     // InternalDeletePartitionedCookie may invalidate |partition_it| if that
     // cookie partition only has one cookie.
     auto cur_partition_it = partition_it;
-#if defined(STARBOARD)
-    auto cookies_size = cur_partition_it->second->size();
-    auto cookies_cur_index = 0;
-#endif
     CookieMap::iterator cookie_it = cur_partition_it->second->begin();
     CookieMap::iterator cookie_end = cur_partition_it->second->end();
     ++partition_it;
 
-#if defined(STARBOARD)
-    while (cookies_cur_index < cookies_size) {
-#else
     while (cookie_it != cookie_end) {
-#endif
       auto cur_cookie_it = cookie_it;
       CanonicalCookie* cc = cur_cookie_it->second.get();
       ++cookie_it;
-#if defined(STARBOARD)
-      ++cookies_cur_index;
-#endif
 
       if (predicate.Run(*cc)) {
         InternalDeletePartitionedCookie(cur_partition_it, cur_cookie_it, true,
