@@ -96,10 +96,14 @@ runs:
       if: always() && env.TEST_TYPE == 'unit_test'
       env:
         COBALT_XMLS_FILENAME: cobalt_xmls.zip
-        UNIT_TEST_RESULT_PATH: ${{ github.workspace }}/unit-test-results
-        COBALT_LOGS_DIR: ${{ github.workspace }}/cobalt_logs
+        UNIT_TEST_RESULT_PATH: ${{ env.GITHUB_WORKSPACE }}/unit-test-results
+        COBALT_LOGS_DIR: ${{ env.GITHUB_WORKSPACE }}/cobalt_logs
       run: |
-        set -uxe
+        set -ux
+
+        # Forward environment variables for uploading artifacts in later steps.
+        echo "UNIT_TEST_RESULT_PATH=${UNIT_TEST_RESULT_PATH}" >> $GITHUB_ENV
+        echo "COBALT_LOGS_DIR=${COBALT_LOGS_DIR}" >> $GITHUB_ENV
 
         mkdir -p "${GITHUB_WORKSPACE}/test_results"
         cd "${GITHUB_WORKSPACE}/test_results"
@@ -127,8 +131,8 @@ runs:
           i=$(( ${i} + 1 ))
         done
 
-        # Print device logs.
-        cat ${COBALT_ERROR_LOG}
+        # Print device logs. Continue on error in case the log file didn't download.
+        cat ${COBALT_ERROR_LOG} || true
 
         # Rename log files for archiving to not expose legacy weirdness.
         mkdir -p "${COBALT_LOGS_DIR}/${{ matrix.platform }}/"
@@ -144,10 +148,6 @@ runs:
         echo $tags > ${UNIT_TEST_RESULT_PATH}/${{ matrix.platform }}/TAGS
 
         unzip ${COBALT_XMLS_FILENAME} -d ${RESULT_PATH}
-
-        # Forward environment variables for uploading artifacts.
-        echo "UNIT_TEST_RESULT_PATH=${UNIT_TEST_RESULT_PATH}" >> $GITHUB_ENV
-        echo "COBALT_LOGS_DIR=${COBALT_LOGS_DIR}" >> $GITHUB_ENV
       shell: bash
     - name: Archive Unit Test Logs
       uses: actions/upload-artifact@v3
