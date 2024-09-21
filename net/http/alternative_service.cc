@@ -77,19 +77,10 @@ AlternativeServiceInfo::CreateHttp2AlternativeServiceInfo(
 AlternativeServiceInfo AlternativeServiceInfo::CreateQuicAlternativeServiceInfo(
     const AlternativeService& alternative_service,
     base::Time expiration,
-#if defined(STARBOARD)
-    const quic::ParsedQuicVersionVector& advertised_versions,
-    bool protocol_filter_override) {
-#else
     const quic::ParsedQuicVersionVector& advertised_versions) {
-#endif  // defined(STARBOARD)
   DCHECK_EQ(alternative_service.protocol, kProtoQUIC);
   return AlternativeServiceInfo(alternative_service, expiration,
-#if defined(STARBOARD)
-                                advertised_versions, protocol_filter_override);
-#else
                                 advertised_versions);
-#endif  // defined(STARBOARD)
 }
 
 AlternativeServiceInfo::AlternativeServiceInfo() : alternative_service_() {}
@@ -99,19 +90,11 @@ AlternativeServiceInfo::~AlternativeServiceInfo() = default;
 AlternativeServiceInfo::AlternativeServiceInfo(
     const AlternativeService& alternative_service,
     base::Time expiration,
-#if defined(STARBOARD)
-    const quic::ParsedQuicVersionVector& advertised_versions,
-    bool protocol_filter_override)
-#else
     const quic::ParsedQuicVersionVector& advertised_versions)
-#endif  // defined(STARBOARD)
     : alternative_service_(alternative_service), expiration_(expiration) {
   if (alternative_service_.protocol == kProtoQUIC) {
     advertised_versions_ = advertised_versions;
   }
-#if defined(STARBOARD)
-  protocol_filter_override_ = protocol_filter_override;
-#endif  // defined(STARBOARD)
 }
 
 AlternativeServiceInfo::AlternativeServiceInfo(

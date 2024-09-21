@@ -1,0 +1,5 @@
+rootWebArea
+++genericContainer ignored
+++++genericContainer ignored
+++++++staticText name='aria-role presentation'
+++++++++inlineTextBox name='aria-role presentation'

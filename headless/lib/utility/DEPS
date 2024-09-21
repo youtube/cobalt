@@ -1,0 +1,4 @@
+include_rules = [
+  "+components/services/print_compositor",
+  "+content/public/utility",
+]

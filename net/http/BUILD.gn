@@ -5,7 +5,6 @@
 import("//build/compiled_action.gni")
 import("//net/features.gni")
 
-if (!use_cobalt_customizations) {
 # Generates a header file based on the real preload list.
 compiled_action("generate_transport_security_state") {
   tool = "//net/tools/transport_security_state_generator"
@@ -59,7 +58,6 @@ compiled_action_foreach("transport_security_state_unittest_data") {
       [ rebase_path("{{source_name_part}}.json", root_build_dir) ] +
       [ rebase_path("{{source_name_part}}_pins.json", root_build_dir) ] +
       rebase_path(inputs, root_build_dir) + rebase_path(outputs, root_build_dir)
-}
 }
 
 # This has separated source_set not to let other compiles wait for the

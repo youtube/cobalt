@@ -442,7 +442,7 @@ FilePath FilePath::InsertBeforeExtensionASCII(StringPiece suffix)
   DCHECK(IsStringASCII(suffix));
 #if BUILDFLAG(IS_WIN)
   return InsertBeforeExtension(UTF8ToWide(suffix));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   return InsertBeforeExtension(suffix);
 #endif
 }
@@ -469,7 +469,7 @@ FilePath FilePath::AddExtensionASCII(StringPiece extension) const {
   DCHECK(IsStringASCII(extension));
 #if BUILDFLAG(IS_WIN)
   return AddExtension(UTF8ToWide(extension));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   return AddExtension(extension);
 #endif
 }
@@ -569,7 +569,7 @@ FilePath FilePath::AppendASCII(StringPiece component) const {
   DCHECK(base::IsStringASCII(component));
 #if BUILDFLAG(IS_WIN)
   return Append(UTF8ToWide(component));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   return Append(component);
 #endif
 }
@@ -666,7 +666,7 @@ FilePath FilePath::FromUTF16Unsafe(StringPiece16 utf16) {
   return FilePath(AsWStringPiece(utf16));
 }
 
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
 // See file_path.h for a discussion of the encoding of paths on POSIX
 // platforms.  These encoding conversion functions are not quite correct.
@@ -726,7 +726,7 @@ FilePath FilePath::FromUTF16Unsafe(StringPiece16 utf16) {
 void FilePath::WriteToPickle(Pickle* pickle) const {
 #if BUILDFLAG(IS_WIN)
   pickle->WriteString16(AsStringPiece16(path_));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   pickle->WriteString(path_);
 #else
 #error Unsupported platform
@@ -739,7 +739,7 @@ bool FilePath::ReadFromPickle(PickleIterator* iter) {
   if (!iter->ReadString16(&path))
     return false;
   path_ = UTF16ToWide(path);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   if (!iter->ReadString(&path_))
     return false;
 #else
@@ -1338,7 +1338,7 @@ int FilePath::CompareIgnoreCase(StringPieceType string1,
   return HFSFastUnicodeCompare(hfs1, hfs2);
 }
 
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
 // Generic Posix system comparisons.
 int FilePath::CompareIgnoreCase(StringPieceType string1,

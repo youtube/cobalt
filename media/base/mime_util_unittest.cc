@@ -596,9 +596,6 @@ TEST(IsCodecSupportedOnAndroidTest, EncryptedCodecBehavior) {
           case MimeUtil::DTSE:
             EXPECT_EQ(BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO), result);
             break;
-
-          case MimeUtil::IAMF:
-            EXPECT_EQ(HasIamfSupport(), result);
         }
       });
 }
@@ -666,9 +663,6 @@ TEST(IsCodecSupportedOnAndroidTest, ClearCodecBehavior) {
           case MimeUtil::DTSE:
             EXPECT_EQ(BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO), result);
             break;
-
-          case MimeUtil::IAMF:
-            EXPECT_EQ(HasIamfSupport(), result);
         }
       });
 }

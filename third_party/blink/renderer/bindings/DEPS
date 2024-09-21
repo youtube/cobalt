@@ -1,0 +1,20 @@
+include_rules = [
+    "+base/logging.h",
+    "+base/memory/scoped_refptr.h",
+    "+base/process/process_metrics.h",
+    "+gin/public",
+    "+third_party/blink/renderer/bindings",
+    "+third_party/blink/renderer/core",
+    "+third_party/blink/renderer/modules",
+    "+web/api",
+]
+
+specific_include_rules = {
+    # Additional allowed includes for tests.
+    ".*_test(_.*)?\.(cc|h|mm)" : [
+        # For base::RunLoop()
+        "+base/run_loop.h",
+        # For base::SingleThreadTaskRunner::GetCurrentDefault()
+        "+base/task/single_thread_task_runner.h"
+    ]
+}

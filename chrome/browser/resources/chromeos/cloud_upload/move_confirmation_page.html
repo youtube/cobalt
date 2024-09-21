@@ -1,0 +1,80 @@
+<style>
+  #dialog {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    width: 512px;
+  }
+
+  .body-wrapper {
+    padding: 32px;
+  }
+
+  #dialog:focus-visible {
+    outline: none;
+  }
+
+  #title {
+    color: var(--cros-text-color-primary);
+    font: var(--cros-display-6-font);
+  }
+
+  .normal-text {
+    color: var(--cros-text-color-secondary);
+    font: var(--cros-body-1-font);
+    margin-block-start: 16px;
+  }
+
+  cr-checkbox {
+    --cr-checkbox-label-padding-start: 14px;
+    height: 20px;
+    margin-inline-start: 2px;
+    margin-top: 16px;
+    padding-bottom: 8px;
+    padding-top: 8px;
+  }
+
+  .checkbox-text {
+    color: var(--cros-text-color-secondary);
+    font: var(--cros-body-1-font);
+  }
+
+  #button-container {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 32px;
+  }
+
+  cr-lottie {
+    height: 236px;
+  }
+
+  cr-button {
+    border-radius: 16px;
+  }
+
+  cr-button:focus-visible {
+    /* disable cr-button default keyboard focus style */
+    box-shadow: none;
+    outline: 2px solid var(--cros-focus-ring-color);
+    outline-offset: 2px;
+  }
+</style>
+
+<!-- TODO(b/258071752): Use localized strings -->
+<cr-lottie id="animation" aria-hidden="true" autoplay>
+</cr-lottie>
+<div id="dialog" role="dialog" autofocus tabindex="-1" aria-labelledby="title">
+  <div class="body-wrapper">
+    <div id="title">
+      Move <span id="number-of-files"></span> <span id="files-text"></span> to
+      <span id="provider-name"></span> to open?
+    </div>
+    <div class="normal-text" id="body-text"> </div>
+    <cr-checkbox id="always-move-checkbox"> </cr-checkbox>
+    <div id="button-container">
+      <cr-button class="cancel-button">$i18n{cancel}</cr-button>
+      <cr-button class="action-button">Move and open</cr-button>
+    </div>
+  </div>
+</div>

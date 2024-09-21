@@ -1,4 +1,4 @@
-// Copyright 2017 The Crashpad Authors. All rights reserved.
+// Copyright 2017 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,16 +22,18 @@
 
 #include "base/files/file_path.h"
 #include "base/logging.h"
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
+#include "build/build_config.h"
 #include "snapshot/cpu_context.h"
 #include "snapshot/posix/timezone.h"
 #include "util/file/file_io.h"
 #include "util/numeric/in_range_cast.h"
 #include "util/string/split_string.h"
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 #include <sys/system_properties.h>
 #endif
 
@@ -60,8 +62,8 @@ bool ReadCPUsOnline(uint32_t* first_cpu, uint8_t* cpu_count) {
     std::string left, right;
     if (SplitStringFirst(range, '-', &left, &right)) {
       unsigned int start, end;
-      if (!StringToUint(base::StringPiece(left), &start) ||
-          !StringToUint(base::StringPiece(right), &end) || end <= start) {
+      if (!base::StringToUint(base::StringPiece(left), &start) ||
+          !base::StringToUint(base::StringPiece(right), &end) || end <= start) {
         LOG(ERROR) << "format error: " << range;
         return false;
       }
@@ -76,7 +78,7 @@ bool ReadCPUsOnline(uint32_t* first_cpu, uint8_t* cpu_count) {
       }
     } else {
       unsigned int cpuno;
-      if (!StringToUint(base::StringPiece(range), &cpuno)) {
+      if (!base::StringToUint(base::StringPiece(range), &cpuno)) {
         LOG(ERROR) << "format error";
         return false;
       }
@@ -117,7 +119,7 @@ bool ReadFreqFile(const std::string& filename, uint64_t* hz) {
   return true;
 }
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
 bool ReadProperty(const char* property, std::string* value) {
   char value_buffer[PROP_VALUE_MAX];
   int length = __system_property_get(property, value_buffer);
@@ -128,7 +130,7 @@ bool ReadProperty(const char* property, std::string* value) {
   *value = value_buffer;
   return true;
 }
-#endif  // OS_ANDROID
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 
@@ -157,13 +159,13 @@ void SystemSnapshotLinux::Initialize(ProcessReaderLinux* process_reader,
   process_reader_ = process_reader;
   snapshot_time_ = snapshot_time;
 
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   std::string build_string;
   if (ReadProperty("ro.build.fingerprint", &build_string)) {
     os_version_build_ = build_string;
     os_version_full_ = build_string;
   }
-#endif  // OS_ANDROID
+#endif  // BUILDFLAG(IS_ANDROID)
 
   utsname uts;
   if (uname(&uts) != 0) {
@@ -313,11 +315,11 @@ bool SystemSnapshotLinux::CPUX86SupportsDAZ() const {
 SystemSnapshot::OperatingSystem SystemSnapshotLinux::GetOperatingSystem()
     const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   return kOperatingSystemAndroid;
 #else
   return kOperatingSystemLinux;
-#endif  // OS_ANDROID
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 bool SystemSnapshotLinux::OSServer() const {
@@ -343,7 +345,7 @@ std::string SystemSnapshotLinux::OSVersionFull() const {
 
 std::string SystemSnapshotLinux::MachineDescription() const {
   INITIALIZATION_STATE_DCHECK_VALID(initialized_);
-#if defined(OS_ANDROID)
+#if BUILDFLAG(IS_ANDROID)
   std::string description;
   std::string prop;
   if (ReadProperty("ro.product.model", &prop)) {
@@ -358,7 +360,7 @@ std::string SystemSnapshotLinux::MachineDescription() const {
   return description;
 #else
   return std::string();
-#endif  // OS_ANDROID
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 bool SystemSnapshotLinux::NXEnabled() const {
@@ -397,13 +399,13 @@ void SystemSnapshotLinux::ReadKernelVersion(const std::string& version_string) {
     return;
   }
 
-  if (!StringToInt(base::StringPiece(versions[0]), &os_version_major_)) {
+  if (!base::StringToInt(base::StringPiece(versions[0]), &os_version_major_)) {
     LOG(WARNING) << "no kernel version";
     return;
   }
   DCHECK_GE(os_version_major_, 3);
 
-  if (!StringToInt(base::StringPiece(versions[1]), &os_version_minor_)) {
+  if (!base::StringToInt(base::StringPiece(versions[1]), &os_version_minor_)) {
     LOG(WARNING) << "no major revision";
     return;
   }
@@ -413,8 +415,8 @@ void SystemSnapshotLinux::ReadKernelVersion(const std::string& version_string) {
   if (minor_rev_end == std::string::npos) {
     minor_rev_end = versions[2].size();
   }
-  if (!StringToInt(base::StringPiece(versions[2].c_str(), minor_rev_end),
-                   &os_version_bugfix_)) {
+  if (!base::StringToInt(base::StringPiece(versions[2].c_str(), minor_rev_end),
+                         &os_version_bugfix_)) {
     LOG(WARNING) << "no minor revision";
     return;
   }

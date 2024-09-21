@@ -1,0 +1,85 @@
+# Copyright 2021 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("network") {
+  public = [
+    "key_network_delegate.h",
+    "key_upload_request.h",
+    "mojo_key_network_delegate.h",
+    "util.h",
+  ]
+
+  sources = [
+    "key_upload_request.cc",
+    "mojo_key_network_delegate.cc",
+    "util.cc",
+  ]
+
+  public_deps = [
+    "//third_party/abseil-cpp:absl",
+    "//url",
+  ]
+
+  deps = [
+    "//base",
+    "//chrome/browser/enterprise/connectors/device_trust/common",
+    "//chrome/browser/enterprise/connectors/device_trust/key_management/core",
+    "//components/policy/proto",
+    "//crypto",
+    "//mojo/public/cpp/bindings",
+    "//mojo/public/cpp/platform",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+    "//url",
+  ]
+
+  if (is_win) {
+    public += [ "win_key_network_delegate.h" ]
+
+    sources += [ "win_key_network_delegate.cc" ]
+
+    public_deps += [ "//components/winhttp" ]
+
+    deps += [
+      "//chrome/browser/enterprise/connectors/device_trust/key_management/core/network/fetcher",
+      "//net",
+      "//url",
+    ]
+  }
+}
+
+source_set("test_support") {
+  testonly = true
+  public = [ "mock_key_network_delegate.h" ]
+
+  sources = [ "mock_key_network_delegate.cc" ]
+
+  public_deps = [
+    ":network",
+    "//testing/gmock",
+    "//url",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "mojo_key_network_delegate_unittest.cc" ]
+
+  deps = [
+    ":network",
+    ":test_support",
+    "//base",
+    "//base/test:test_support",
+    "//mojo/public/cpp/bindings",
+    "//net",
+    "//services/network:test_support",
+    "//testing/gtest",
+  ]
+
+  if (is_win) {
+    sources += [ "win_key_network_delegate_unittest.cc" ]
+
+    deps += [ "//chrome/browser/enterprise/connectors/device_trust/key_management/core/network/fetcher:test_support" ]
+  }
+}

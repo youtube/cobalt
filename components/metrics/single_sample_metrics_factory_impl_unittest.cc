@@ -1,16 +1,19 @@
-// Copyright 2017 The Chromium Authors. All rights reserved.
+// Copyright 2017 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/metrics/single_sample_metrics_factory_impl.h"
 
+#include "base/functional/bind.h"
+#include "base/memory/raw_ptr.h"
 #include "base/metrics/dummy_histogram.h"
 #include "base/run_loop.h"
-#include "base/task/sequenced_task_runner.h"
 #include "base/test/gtest_util.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/task_environment.h"
 #include "base/threading/thread.h"
 #include "components/metrics/single_sample_metrics.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace metrics {
@@ -32,8 +35,14 @@ class SingleSampleMetricsFactoryImplTest : public testing::Test {
         base::SingleSampleMetricsFactory::Get());
   }
 
+  SingleSampleMetricsFactoryImplTest(
+      const SingleSampleMetricsFactoryImplTest&) = delete;
+  SingleSampleMetricsFactoryImplTest& operator=(
+      const SingleSampleMetricsFactoryImplTest&) = delete;
+
   ~SingleSampleMetricsFactoryImplTest() override {
     factory_->DestroyProviderForTesting();
+    factory_ = nullptr;
     if (thread_.IsRunning())
       ShutdownThread();
     base::SingleSampleMetricsFactory::DeleteFactoryForTesting();
@@ -51,8 +60,9 @@ class SingleSampleMetricsFactoryImplTest : public testing::Test {
     thread_.Stop();
   }
 
-  void CreateProvider(mojom::SingleSampleMetricsProviderRequest request) {
-    CreateSingleSampleMetricsProvider(std::move(request));
+  void CreateProvider(
+      mojo::PendingReceiver<mojom::SingleSampleMetricsProvider> receiver) {
+    CreateSingleSampleMetricsProvider(std::move(receiver));
     provider_count_++;
   }
 
@@ -74,13 +84,10 @@ class SingleSampleMetricsFactoryImplTest : public testing::Test {
                                                  kBucketCount);
   }
 
-  base::MessageLoop message_looqp_;
-  SingleSampleMetricsFactoryImpl* factory_;
+  base::test::SingleThreadTaskEnvironment task_environment_;
+  raw_ptr<SingleSampleMetricsFactoryImpl> factory_;
   base::Thread thread_;
   size_t provider_count_ = 0;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(SingleSampleMetricsFactoryImplTest);
 };
 
 }  // namespace
@@ -138,6 +145,10 @@ TEST_F(SingleSampleMetricsFactoryImplTest, DefaultSingleSampleMetricWithValue) {
 }
 
 TEST_F(SingleSampleMetricsFactoryImplTest, MultithreadedMetrics) {
+  // Allow EXPECT_DCHECK_DEATH for multiple threads.
+  // https://github.com/google/googletest/blob/main/docs/advanced.md#death-tests-and-threads
+  testing::FLAGS_gtest_death_test_style = "threadsafe";
+
   base::HistogramTester tester;
   std::unique_ptr<base::SingleSampleMetric> metric =
       factory_->CreateCustomCountsMetric(kMetricName, kMin, kMax, kBucketCount);

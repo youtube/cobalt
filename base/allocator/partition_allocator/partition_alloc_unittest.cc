@@ -53,8 +53,7 @@
 #include <arm_acle.h>
 #endif
 
-#if defined(STARBOARD)
-#elif BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX)
 #if BUILDFLAG(IS_LINUX)
 // We need PKEY_DISABLE_WRITE in this file; glibc defines it in sys/mman.h but
 // it's actually Linux-specific and other Linux libcs define it in linux/mman.h.

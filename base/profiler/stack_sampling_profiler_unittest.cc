@@ -189,7 +189,6 @@ void TestProfileBuilder::OnProfileCompleted(TimeDelta profile_duration,
                                    profile_duration, sampling_period});
 }
 
-#if !defined(STARBOARD)
 // Unloads |library| and returns when it has completed unloading. Unloading a
 // library is asynchronous on Windows, so simply calling UnloadNativeLibrary()
 // is insufficient to ensure it's been unloaded.
@@ -214,7 +213,6 @@ void SynchronousUnloadNativeLibrary(NativeLibrary library) {
   NOTIMPLEMENTED();
 #endif
 }
-#endif
 
 void WithTargetThread(ProfileCallback profile_callback) {
   UnwindScenario scenario(BindRepeating(&CallWithPlainFunction));
@@ -289,7 +287,6 @@ TimeDelta AVeryLongTimeDelta() {
   return Days(1);
 }
 
-#if !defined(STARBOARD)
 // Tests the scenario where the library is unloaded after copying the stack, but
 // before walking it. If |wait_until_unloaded| is true, ensures that the
 // asynchronous library loading has completed before walking the stack. If
@@ -419,7 +416,6 @@ void TestLibraryUnload(bool wait_until_unloaded, ModuleCache* module_cache) {
                                  scenario.GetOuterFunctionAddressRange()});
   }
 }
-#endif
 
 // Provide a suitable (and clean) environment for the tests below. All tests
 // must use this class to ensure that proper clean-up is done and thus be
@@ -534,7 +530,6 @@ PROFILER_TEST_F(StackSamplingProfilerTest, MAYBE_Alloca) {
                                scenario.GetOuterFunctionAddressRange()});
 }
 
-#if !defined(STARBOARD)
 // Checks that a stack that runs through another library produces a stack with
 // the expected functions.
 // macOS ASAN is not yet supported - crbug.com/718628.
@@ -606,7 +601,6 @@ PROFILER_TEST_F(StackSamplingProfilerTest, MAYBE_UnloadingLibrary) {
 PROFILER_TEST_F(StackSamplingProfilerTest, MAYBE_UnloadedLibrary) {
   TestLibraryUnload(true, module_cache());
 }
-#endif
 
 // Checks that a profiler can stop/destruct without ever having started.
 PROFILER_TEST_F(StackSamplingProfilerTest, StopWithoutStarting) {

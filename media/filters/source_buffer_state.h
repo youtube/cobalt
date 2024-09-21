@@ -179,11 +179,6 @@ class MEDIA_EXPORT SourceBufferState {
 
   void SetParseWarningCallback(SourceBufferParseWarningCB parse_warning_cb);
 
-#if defined(STARBOARD)
-  void SetSourceBufferStreamMemoryLimit(size_t limit);
-  size_t GetSourceBufferStreamMemoryLimit();
-  size_t stream_memory_limit_override_ = 0;
-#endif // defined(STARBOARD)
  private:
   // State advances through this list to PARSER_INITIALIZED.
   // The intent is to ensure at least one config is received prior to parser

@@ -1,0 +1,122 @@
+// Copyright 2021 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module ash.shortcut_customization.mojom;
+
+import "ash/public/mojom/accelerator_configuration.mojom";
+import "ash/public/mojom/accelerator_info.mojom";
+import "ash/public/mojom/accelerator_keys.mojom";
+import "mojo/public/mojom/base/string16.mojom";
+
+// A struct that is returned from modifying an accelerator. It contains
+// an optional field for the accelerator name if the action has a conflict with
+// an existing accelerator. Otherwise it is left empty.
+struct AcceleratorResultData {
+  // Optional field - the name of the confliction shortcut name.
+  // Used in the frontend to display to users what the conflicting shortcut
+  // name.
+  mojo_base.mojom.String16? shortcut_name;
+
+  // Result of the configuration action.
+  ash.mojom.AcceleratorConfigResult result;
+};
+
+// Represents an accelerator with only the KeyCode and Modifier. This struct
+// should only be used for sending data from the renderer to the browser
+// process.
+struct SimpleAccelerator {
+  ash.mojom.VKey key_code;
+  int32 modifiers;
+};
+
+// Observer interface, to be implemented by the Shortcut Customization SWA to
+// receive updated accelerators.
+interface AcceleratorsUpdatedObserver {
+  // Called whenever there is an observable change with accelerators. This
+  // includes any modifications to accelerators, change of accelerator-related
+  // prefs (i.e. TreatTopRowAsFKey), or keyboard device connected/disconnected.
+  // `config` encapsulates the entire accelerator mapping that has been updated
+  // It is formatted as:
+  // AcceleratorSource -> map<AcceleratorActionId, Array<AcceleratorInfo>>.
+  // Where AcceleratorActionId represents the unique ID of a shortcut.
+  OnAcceleratorsUpdated(
+      map<ash.mojom.AcceleratorSource,
+      map<uint32, array<ash.mojom.AcceleratorInfo>>> config);
+};
+
+// Provides methods to allow the Shortcut Customization SWA to call on the
+// shortcut provider implementor. Interface is implemented by C++ accelerator
+// source configurators, e.g. BrowserAcceleratorConfiguration,
+// AcceleratorController, EventRewriterConfiguration. Remote is to be used by
+// the Shortcut Customization webui app (JS).
+interface AcceleratorConfigurationProvider {
+  // Whether the source is mutable and shortcuts can be changed.
+  IsMutable(ash.mojom.AcceleratorSource source) => (bool is_mutable);
+
+  // True if the keyboard has a launcher button.
+  // False if the keyboard has a search button.
+  HasLauncherButton() => (bool has_launcher_button);
+
+  // Get the accelerator mappings for all sources. This is formatted as
+  // AcceleratorSource -> map<AcceleratorActionId, Array<AcceleratorInfo>>.
+  // Note that an accelerator action can have multiple accelerators associated
+  // with it.
+  GetAccelerators() =>
+      (map<ash.mojom.AcceleratorSource,
+       map<uint32, array<ash.mojom.AcceleratorInfo>>> config);
+
+  // Registers an observer that will be notified whenever there is an update
+  // to either the accelerator mapping or on keyboard device connected event.
+  AddObserver(pending_remote<AcceleratorsUpdatedObserver> observer);
+
+  // Get a list of all shortcuts with their corresponding category,
+  // sub-category, styling, description, source and action. The order of the
+  // layoutInfos are tied to its accelerator order representation in the app.
+  // The app uses this to generate the layout structure.
+  GetAcceleratorLayoutInfos()
+      => (array<ash.mojom.AcceleratorLayoutInfo> layout_infos);
+
+  // If `prevent_processing_accelerators` is true, will prevent the system from
+  // processing Ash Accelerators. If false, will enable processing Ash
+  // accelerators. This returns an empty promise so that clients will be able
+  // to continue processing inputs after accelerators have been
+  // disabled/enabled.
+  // This also serves as the mechanism to inform the service when the user has
+  // started/stopped inputting an accelerator.
+  PreventProcessingAccelerators(bool prevent_processing_accelerators) => ();
+
+  // Adds an accelerator to `action_id`. If there is a conflict when attempting
+  // to add the accelerator, this will return the conflict accelerator's
+  // name. The browser process implementor will handle validation of the
+  // requested accelerator.
+  AddAccelerator(ash.mojom.AcceleratorSource source, uint32 action_id,
+                 SimpleAccelerator accelerator)
+      => (AcceleratorResultData result);
+
+  // Remove an accelerator from `action`. If permitted, this deletes
+  // user-defined accelerators or disables default accelerators.
+  // Removing an accelerator cannot result in a conflict.
+  RemoveAccelerator(ash.mojom.AcceleratorSource source, uint32 action_id,
+                    SimpleAccelerator accelerator)
+        => (AcceleratorResultData result);
+
+  // Atomic version of `RemoveAccelerator(old_accelerator)` then
+  // `AddAccelerator(new_accelerator)`. This follows behaviors detailed by both
+  // respective sub-actions.
+  ReplaceAccelerator(ash.mojom.AcceleratorSource source, uint32 action_id,
+                     SimpleAccelerator old_accelerator,
+                     SimpleAccelerator new_accelerator)
+        => (AcceleratorResultData result);
+
+  // Resets the accelerators of `action_id` to the system defaults. This will
+  // remove any user added accelerators. If a default accelerator is used by
+  // another accelerator, it will be disable for `action_id`.
+  RestoreDefault(ash.mojom.AcceleratorSource source,
+                 uint32 action_id)
+        => (AcceleratorResultData result);
+
+  // Restore all accelerators to their system-provided default state, overriding
+  // user customization.
+  RestoreAllDefaults() => (AcceleratorResultData result);
+};

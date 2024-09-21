@@ -858,13 +858,6 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
 
   base::WeakPtr<URLRequest> GetWeakPtr();
 
-#if defined (STARBOARD)
-  void SetLoadTimingInfoCallback(
-      const base::RepeatingCallback<void(const net::LoadTimingInfo&)>& callback) {
-    load_timing_info_callback_ = callback;
-  }
-#endif  // defined(STARBOARD)
-
  protected:
   // Allow the URLRequestJob class to control the is_pending() flag.
   void set_is_pending(bool value) { is_pending_ = value; }
@@ -1137,10 +1130,6 @@ class NET_EXPORT URLRequest : public base::SupportsUserData {
   THREAD_CHECKER(thread_checker_);
 
   base::WeakPtrFactory<URLRequest> weak_factory_{this};
-
-#if defined (STARBOARD)
-  base::RepeatingCallback<void(const net::LoadTimingInfo&)> load_timing_info_callback_;
-#endif  // defined(STARBOARD)
 };
 
 }  // namespace net

@@ -1,34 +1,28 @@
-// Copyright 2013 The Chromium Authors. All rights reserved.
+// Copyright 2013 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/update_client/crx_downloader.h"
 
-#include <memory>
 #include <utility>
 
-#include "base/bind.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
 #include "base/memory/ref_counted.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
-#include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
 #include "build/build_config.h"
+#include "components/update_client/crx_downloader_factory.h"
 #include "components/update_client/net/network_chromium.h"
 #include "components/update_client/update_client_errors.h"
 #include "components/update_client/utils.h"
 #include "net/base/net_errors.h"
-#if defined(STARBOARD)
-#include "components/update_client/test_configurator.h"
-#include "net/url_request/test_url_request_interceptor.h"
-#include "net/url_request/url_request_test_util.h"
-#else
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
+#include "services/network/public/mojom/url_response_head.mojom.h"
 #include "services/network/test/test_url_loader_factory.h"
-#endif
 #include "testing/gtest/include/gtest/gtest.h"
 
 using base::ContentsEqual;
@@ -36,11 +30,6 @@ using base::ContentsEqual;
 namespace update_client {
 
 namespace {
-
-#if defined(STARBOARD)
-// Intercepts HTTP GET requests sent to "localhost".
-typedef net::LocalHostTestURLRequestInterceptor GetInterceptor;
-#endif
 
 const char kTestFileName[] = "jebgalgnebhfojomionfpkfelancnnkf.crx";
 
@@ -69,114 +58,71 @@ class CrxDownloaderTest : public testing::Test {
   void RunThreads();
   void RunThreadsUntilIdle();
 
-  void DownloadComplete(int crx_context, const CrxDownloader::Result& result);
+  void DownloadComplete(const CrxDownloader::Result& result);
 
-  void DownloadProgress(int crx_context);
+  void DownloadProgress(int64_t downloaded_bytes, int64_t total_bytes);
 
-#if !defined(STARBOARD)
   int GetInterceptorCount() { return interceptor_count_; }
 
   void AddResponse(const GURL& url,
                    const base::FilePath& file_path,
                    int net_error);
-#endif
+
  protected:
-  std::unique_ptr<CrxDownloader> crx_downloader_;
-#if defined(STARBOARD)
-  std::unique_ptr<GetInterceptor> get_interceptor_;
-#else
+  scoped_refptr<CrxDownloader> crx_downloader_;
+
   network::TestURLLoaderFactory test_url_loader_factory_;
-#endif
+
   CrxDownloader::DownloadCallback callback_;
   CrxDownloader::ProgressCallback progress_callback_;
 
-  int crx_context_;
-
-  int num_download_complete_calls_;
-  CrxDownloader::Result download_complete_result_;
+  int num_download_complete_calls_ = 0;
+  CrxDownloader::Result download_complete_result_ = {};
 
   // These members are updated by DownloadProgress.
-  int num_progress_calls_;
+  int num_progress_calls_ = 0;
+  int64_t downloaded_bytes_ = -1;
+  int64_t total_bytes_ = -1;
 
-#if !defined(STARBOARD)
   // Accumulates the number of loads triggered.
   int interceptor_count_ = 0;
-#endif
-
-  // A magic value for the context to be used in the tests.
-  static const int kExpectedContext = 0xaabb;
 
  private:
   base::test::TaskEnvironment task_environment_;
-#if defined(STARBOARD)
-  scoped_refptr<net::TestURLRequestContextGetter> context_;
-#else
   scoped_refptr<network::SharedURLLoaderFactory>
       test_shared_url_loader_factory_;
-#endif
   base::OnceClosure quit_closure_;
 };
 
-const int CrxDownloaderTest::kExpectedContext;
-
 CrxDownloaderTest::CrxDownloaderTest()
     : callback_(base::BindOnce(&CrxDownloaderTest::DownloadComplete,
-                               base::Unretained(this),
-                               kExpectedContext)),
-      progress_callback_(base::Bind(&CrxDownloaderTest::DownloadProgress,
-                                    base::Unretained(this),
-                                    kExpectedContext)),
-      crx_context_(0),
-      num_download_complete_calls_(0),
-      num_progress_calls_(0),
-      task_environment_(
-          base::test::TaskEnvironment::MainThreadType::IO),
-#if defined(STARBOARD)
-      context_(base::MakeRefCounted<net::TestURLRequestContextGetter>(
-          base::SequencedTaskRunner::GetCurrentDefault())) {
-}
-
-CrxDownloaderTest::~CrxDownloaderTest() {
-  context_ = nullptr;
-
-  // The GetInterceptor requires the message loop to run to destruct correctly.
-  get_interceptor_.reset();
-  RunThreadsUntilIdle();
-}
-#else
+                               base::Unretained(this))),
+      progress_callback_(
+          base::BindRepeating(&CrxDownloaderTest::DownloadProgress,
+                              base::Unretained(this))),
+      task_environment_(base::test::TaskEnvironment::MainThreadType::IO),
       test_shared_url_loader_factory_(
           base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
               &test_url_loader_factory_)) {}
 
-CrxDownloaderTest::~CrxDownloaderTest() {}
-#endif
+CrxDownloaderTest::~CrxDownloaderTest() = default;
+
 void CrxDownloaderTest::SetUp() {
-  num_download_complete_calls_ = 0;
-  download_complete_result_ = CrxDownloader::Result();
-  num_progress_calls_ = 0;
-
   // Do not use the background downloader in these tests.
-#if defined(STARBOARD)
-  auto config = base::MakeRefCounted<TestConfigurator>();
-  crx_downloader_ = CrxDownloader::Create(false, config);
-  crx_downloader_->set_progress_callback(progress_callback_);
-
-  get_interceptor_ = std::make_unique<GetInterceptor>(
-      base::SequencedTaskRunner::GetCurrentDefault(),
-      base::SequencedTaskRunner::GetCurrentDefault());
-#else
-  crx_downloader_ = CrxDownloader::Create(
-      false, base::MakeRefCounted<NetworkFetcherChromiumFactory>(
-                 test_shared_url_loader_factory_));
+  crx_downloader_ =
+      MakeCrxDownloaderFactory(
+          base::MakeRefCounted<NetworkFetcherChromiumFactory>(
+              test_shared_url_loader_factory_,
+              base::BindRepeating([](const GURL& url) { return false; })))
+          ->MakeCrxDownloader(false);
   crx_downloader_->set_progress_callback(progress_callback_);
 
   test_url_loader_factory_.SetInterceptor(base::BindLambdaForTesting(
       [&](const network::ResourceRequest& request) { interceptor_count_++; }));
-#endif
 }
 
 void CrxDownloaderTest::TearDown() {
-  crx_downloader_.reset();
+  crx_downloader_ = nullptr;
 }
 
 void CrxDownloaderTest::Quit() {
@@ -184,38 +130,41 @@ void CrxDownloaderTest::Quit() {
     std::move(quit_closure_).Run();
 }
 
-void CrxDownloaderTest::DownloadComplete(int crx_context,
-                                         const CrxDownloader::Result& result) {
+void CrxDownloaderTest::DownloadComplete(const CrxDownloader::Result& result) {
   ++num_download_complete_calls_;
-  crx_context_ = crx_context;
   download_complete_result_ = result;
   Quit();
 }
 
-void CrxDownloaderTest::DownloadProgress(int crx_context) {
+void CrxDownloaderTest::DownloadProgress(int64_t downloaded_bytes,
+                                         int64_t total_bytes) {
+  if (downloaded_bytes != -1 && total_bytes != -1)
+    EXPECT_LE(downloaded_bytes, total_bytes);
+  downloaded_bytes_ = downloaded_bytes;
+  total_bytes_ = total_bytes;
   ++num_progress_calls_;
 }
-#if !defined(STARBOARD)
+
 void CrxDownloaderTest::AddResponse(const GURL& url,
                                     const base::FilePath& file_path,
                                     int net_error) {
   if (net_error == net::OK) {
     std::string data;
     EXPECT_TRUE(base::ReadFileToString(file_path, &data));
-    network::ResourceResponseHead head;
-    head.content_length = data.size();
+    auto head = network::mojom::URLResponseHead::New();
+    head->content_length = data.size();
     network::URLLoaderCompletionStatus status(net_error);
     status.decoded_body_length = data.size();
-    test_url_loader_factory_.AddResponse(url, head, data, status);
+    test_url_loader_factory_.AddResponse(url, std::move(head), data, status);
     return;
   }
 
   EXPECT_NE(net_error, net::OK);
   test_url_loader_factory_.AddResponse(
-      url, network::ResourceResponseHead(), std::string(),
+      url, network::mojom::URLResponseHead::New(), std::string(),
       network::URLLoaderCompletionStatus(net_error));
 }
-#endif
+
 void CrxDownloaderTest::RunThreads() {
   base::RunLoop runloop;
   quit_closure_ = runloop.QuitClosure();
@@ -228,12 +177,12 @@ void CrxDownloaderTest::RunThreads() {
   RunThreadsUntilIdle();
 }
 
+// TODO(crbug.com/1104691): rewrite the tests to not use RunUntilIdle().
 void CrxDownloaderTest::RunThreadsUntilIdle() {
   task_environment_.RunUntilIdle();
   base::RunLoop().RunUntilIdle();
 }
 
-#if !defined(IN_MEMORY_UPDATES)
 // Tests that starting a download without a url results in an error.
 TEST_F(CrxDownloaderTest, NoUrl) {
   std::vector<GURL> urls;
@@ -242,7 +191,6 @@ TEST_F(CrxDownloaderTest, NoUrl) {
   RunThreadsUntilIdle();
 
   EXPECT_EQ(1, num_download_complete_calls_);
-  EXPECT_EQ(kExpectedContext, crx_context_);
   EXPECT_EQ(static_cast<int>(CrxDownloaderError::NO_URL),
             download_complete_result_.error);
   EXPECT_TRUE(download_complete_result_.response.empty());
@@ -257,7 +205,6 @@ TEST_F(CrxDownloaderTest, NoHash) {
   RunThreadsUntilIdle();
 
   EXPECT_EQ(1, num_download_complete_calls_);
-  EXPECT_EQ(kExpectedContext, crx_context_);
   EXPECT_EQ(static_cast<int>(CrxDownloaderError::NO_HASH),
             download_complete_result_.error);
   EXPECT_TRUE(download_complete_result_.response.empty());
@@ -270,21 +217,15 @@ TEST_F(CrxDownloaderTest, OneUrl) {
       GURL("http://localhost/download/jebgalgnebhfojomionfpkfelancnnkf.crx");
 
   const base::FilePath test_file(MakeTestFilePath(kTestFileName));
-#if defined(STARBOARD)
-  get_interceptor_->SetResponse(expected_crx_url, test_file);
-#else
   AddResponse(expected_crx_url, test_file, net::OK);
-#endif
+
   crx_downloader_->StartDownloadFromUrl(
       expected_crx_url, std::string(hash_jebg), std::move(callback_));
   RunThreads();
-#if defined(STARBOARD)
-  EXPECT_EQ(1, get_interceptor_->GetHitCount());
-#else
+
   EXPECT_EQ(1, GetInterceptorCount());
-#endif
+
   EXPECT_EQ(1, num_download_complete_calls_);
-  EXPECT_EQ(kExpectedContext, crx_context_);
   EXPECT_EQ(0, download_complete_result_.error);
   EXPECT_TRUE(ContentsEqual(download_complete_result_.response, test_file));
 
@@ -292,6 +233,7 @@ TEST_F(CrxDownloaderTest, OneUrl) {
       DeleteFileAndEmptyParentDirectory(download_complete_result_.response));
 
   EXPECT_LE(1, num_progress_calls_);
+  EXPECT_EQ(total_bytes_, 1015);
 }
 
 // Tests that downloading from one url fails if the actual hash of the file
@@ -301,24 +243,18 @@ TEST_F(CrxDownloaderTest, OneUrlBadHash) {
       GURL("http://localhost/download/jebgalgnebhfojomionfpkfelancnnkf.crx");
 
   const base::FilePath test_file(MakeTestFilePath(kTestFileName));
-#if defined(STARBOARD)
-  get_interceptor_->SetResponse(expected_crx_url, test_file);
-#else
   AddResponse(expected_crx_url, test_file, net::OK);
-#endif
+
   crx_downloader_->StartDownloadFromUrl(
       expected_crx_url,
       std::string(
           "813c59747e139a608b3b5fc49633affc6db574373f309f156ea6d27229c0b3f9"),
       std::move(callback_));
   RunThreads();
-#if defined(STARBOARD)
-  EXPECT_EQ(1, get_interceptor_->GetHitCount());
-#else
+
   EXPECT_EQ(1, GetInterceptorCount());
-#endif
+
   EXPECT_EQ(1, num_download_complete_calls_);
-  EXPECT_EQ(kExpectedContext, crx_context_);
   EXPECT_EQ(static_cast<int>(CrxDownloaderError::BAD_HASH),
             download_complete_result_.error);
   EXPECT_TRUE(download_complete_result_.response.empty());
@@ -333,11 +269,8 @@ TEST_F(CrxDownloaderTest, TwoUrls) {
       GURL("http://localhost/download/jebgalgnebhfojomionfpkfelancnnkf.crx");
 
   const base::FilePath test_file(MakeTestFilePath(kTestFileName));
-#if defined(STARBOARD)
-  get_interceptor_->SetResponse(expected_crx_url, test_file);
-#else
   AddResponse(expected_crx_url, test_file, net::OK);
-#endif
+
   std::vector<GURL> urls;
   urls.push_back(expected_crx_url);
   urls.push_back(expected_crx_url);
@@ -346,13 +279,9 @@ TEST_F(CrxDownloaderTest, TwoUrls) {
                                  std::move(callback_));
   RunThreads();
 
-#if defined(STARBOARD)
-  EXPECT_EQ(1, get_interceptor_->GetHitCount());
-#else
   EXPECT_EQ(1, GetInterceptorCount());
-#endif
+
   EXPECT_EQ(1, num_download_complete_calls_);
-  EXPECT_EQ(kExpectedContext, crx_context_);
   EXPECT_EQ(0, download_complete_result_.error);
   EXPECT_TRUE(ContentsEqual(download_complete_result_.response, test_file));
 
@@ -370,14 +299,9 @@ TEST_F(CrxDownloaderTest, TwoUrls_FirstInvalid) {
       GURL("http://localhost/download/ihfokbkgjpifnbbojhneepfflplebdkc.crx");
 
   const base::FilePath test_file(MakeTestFilePath(kTestFileName));
-#if defined(STARBOARD)
-  get_interceptor_->SetResponse(expected_crx_url, test_file);
-  get_interceptor_->SetResponse(no_file_url,
-                                base::FilePath(FILE_PATH_LITERAL("no-file")));
-#else
   AddResponse(expected_crx_url, test_file, net::OK);
   AddResponse(no_file_url, base::FilePath(), net::ERR_FILE_NOT_FOUND);
-#endif
+
   std::vector<GURL> urls;
   urls.push_back(no_file_url);
   urls.push_back(expected_crx_url);
@@ -386,13 +310,9 @@ TEST_F(CrxDownloaderTest, TwoUrls_FirstInvalid) {
                                  std::move(callback_));
   RunThreads();
 
-#if defined(STARBOARD)
-  EXPECT_EQ(2, get_interceptor_->GetHitCount());
-#else
   EXPECT_EQ(2, GetInterceptorCount());
-#endif
+
   EXPECT_EQ(1, num_download_complete_calls_);
-  EXPECT_EQ(kExpectedContext, crx_context_);
   EXPECT_EQ(0, download_complete_result_.error);
   EXPECT_TRUE(ContentsEqual(download_complete_result_.response, test_file));
 
@@ -423,14 +343,8 @@ TEST_F(CrxDownloaderTest, TwoUrls_SecondInvalid) {
       GURL("http://localhost/download/ihfokbkgjpifnbbojhneepfflplebdkc.crx");
 
   const base::FilePath test_file(MakeTestFilePath(kTestFileName));
-#if defined(STARBOARD)
-  get_interceptor_->SetResponse(expected_crx_url, test_file);
-  get_interceptor_->SetResponse(no_file_url,
-                                base::FilePath(FILE_PATH_LITERAL("no-file")));
-#else
   AddResponse(expected_crx_url, test_file, net::OK);
   AddResponse(no_file_url, base::FilePath(), net::ERR_FILE_NOT_FOUND);
-#endif
 
   std::vector<GURL> urls;
   urls.push_back(expected_crx_url);
@@ -440,13 +354,9 @@ TEST_F(CrxDownloaderTest, TwoUrls_SecondInvalid) {
                                  std::move(callback_));
   RunThreads();
 
-#if defined(STARBOARD)
-  EXPECT_EQ(1, get_interceptor_->GetHitCount());
-#else
   EXPECT_EQ(1, GetInterceptorCount());
-#endif
+
   EXPECT_EQ(1, num_download_complete_calls_);
-  EXPECT_EQ(kExpectedContext, crx_context_);
   EXPECT_EQ(0, download_complete_result_.error);
   EXPECT_TRUE(ContentsEqual(download_complete_result_.response, test_file));
 
@@ -463,12 +373,7 @@ TEST_F(CrxDownloaderTest, TwoUrls_BothInvalid) {
   const GURL expected_crx_url =
       GURL("http://localhost/download/jebgalgnebhfojomionfpkfelancnnkf.crx");
 
-#if defined(STARBOARD)
-  get_interceptor_->SetResponse(expected_crx_url,
-                                base::FilePath(FILE_PATH_LITERAL("no-file")));
-#else
   AddResponse(expected_crx_url, base::FilePath(), net::ERR_FILE_NOT_FOUND);
-#endif
 
   std::vector<GURL> urls;
   urls.push_back(expected_crx_url);
@@ -478,13 +383,9 @@ TEST_F(CrxDownloaderTest, TwoUrls_BothInvalid) {
                                  std::move(callback_));
   RunThreads();
 
-#if defined(STARBOARD)
-  EXPECT_EQ(2, get_interceptor_->GetHitCount());
-#else
   EXPECT_EQ(2, GetInterceptorCount());
-#endif
+
   EXPECT_EQ(1, num_download_complete_calls_);
-  EXPECT_EQ(kExpectedContext, crx_context_);
   EXPECT_NE(0, download_complete_result_.error);
   EXPECT_TRUE(download_complete_result_.response.empty());
 
@@ -499,8 +400,5 @@ TEST_F(CrxDownloaderTest, TwoUrls_BothInvalid) {
   EXPECT_EQ(-1, download_metrics[1].downloaded_bytes);
   EXPECT_EQ(-1, download_metrics[1].total_bytes);
 }
-// TODO(b/290410288): write tests targeting the overload of StartDownload() that
-// downloads to a string.
-#endif
 
 }  // namespace update_client

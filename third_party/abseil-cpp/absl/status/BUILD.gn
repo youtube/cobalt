@@ -48,7 +48,6 @@ absl_source_set("statusor") {
   ]
 }
 
-if (!use_cobalt_customizations) {
 absl_test("statusor_test") {
   sources = [ "statusor_test.cc" ]
   deps = [
@@ -60,5 +59,4 @@ absl_test("statusor_test") {
     "//third_party/abseil-cpp/absl/types:any",
     "//third_party/abseil-cpp/absl/utility",
   ]
-}
 }

@@ -1,9 +1,0 @@
-# App Engine configuration file
-
-# Comment out this line to deploy to production.
-service: staging
-runtime: python312
-
-handlers:
-- url: /.*
-  script: auto

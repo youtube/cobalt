@@ -604,10 +604,6 @@ void TrialComparisonCertVerifier::RemoveJob(Job* job_ptr) {
 std::tuple<CertVerifyProcFactory::ImplParams, CertVerifyProcFactory::ImplParams>
 TrialComparisonCertVerifier::ProcessImplParams(
     const CertVerifyProcFactory::ImplParams& impl_params) {
-#if defined(STARBOARD)
-  NOTREACHED();
-  return std::tuple<CertVerifyProcFactory::ImplParams, CertVerifyProcFactory::ImplParams>();
-#else
   actual_use_chrome_root_store_ = impl_params.use_chrome_root_store;
 
   CertVerifyProcFactory::ImplParams primary_impl_params(impl_params);
@@ -615,7 +611,6 @@ TrialComparisonCertVerifier::ProcessImplParams(
   CertVerifyProcFactory::ImplParams trial_impl_params(impl_params);
   trial_impl_params.use_chrome_root_store = true;
   return {std::move(primary_impl_params), std::move(trial_impl_params)};
-#endif
 }
 
 void TrialComparisonCertVerifier::NotifyJobsOfConfigChange() {

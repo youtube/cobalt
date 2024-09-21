@@ -239,20 +239,12 @@ class NET_EXPORT URLRequestContext final {
     job_factory_ = job_factory;
   }
 
-#if defined(STARBOARD)
-  HttpNetworkSession* http_network_session() const {
-    return http_network_session_.get();
-  }
-#endif
-
  private:
   friend class URLRequestContextBuilder;
 
-#if !defined(STARBOARD)
   HttpNetworkSession* http_network_session() const {
     return http_network_session_.get();
   }
-#endif
 
   void set_net_log(NetLog* net_log);
   void set_host_resolver(std::unique_ptr<HostResolver> host_resolver);

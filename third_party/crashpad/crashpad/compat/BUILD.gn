@@ -1,4 +1,4 @@
-# Copyright 2015 The Crashpad Authors. All rights reserved.
+# Copyright 2015 The Crashpad Authors
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,8 +19,6 @@ config("compat_config") {
 
   if (crashpad_is_mac || crashpad_is_ios) {
     include_dirs += [ "mac" ]
-  } else {
-    include_dirs += [ "non_mac" ]
   }
 
   if (crashpad_is_ios) {
@@ -40,10 +38,6 @@ config("compat_config") {
   } else {
     include_dirs += [ "non_win" ]
   }
-
-  if (!crashpad_is_linux && !crashpad_is_android && !crashpad_is_fuchsia) {
-    include_dirs += [ "non_elf" ]
-  }
 }
 
 template("compat_target") {
@@ -52,24 +46,28 @@ template("compat_target") {
     # static_library.
     group(target_name) {
       forward_variables_from(invoker, "*")
+      not_needed([ "configs" ])
     }
   } else {
-    static_library(target_name) {
-      forward_variables_from(invoker, "*")
+    crashpad_static_library(target_name) {
+      forward_variables_from(invoker, "*", [ "configs" ])
+      if (!defined(configs)) {
+        configs = []
+      }
+      if (defined(invoker.configs)) {
+        configs += invoker.configs
+      }
     }
   }
 }
 
 compat_target("compat") {
-  if (crashpad_is_in_starboard || crashpad_is_in_native_target_build) {
-    check_includes = false
-  }
-
   sources = []
 
   if (crashpad_is_mac || crashpad_is_ios) {
     sources += [
-      "mac/AvailabilityMacros.h",
+      "mac/Availability.h",
+      "mac/AvailabilityVersions.h",
       "mac/kern/exc_resource.h",
       "mac/mach-o/loader.h",
       "mac/mach/i386/thread_state.h",
@@ -77,12 +75,7 @@ compat_target("compat") {
       "mac/sys/resource.h",
     ]
   } else {
-    sources += [
-      "non_mac/mach-o/loader.h",
-      "non_mac/mach/mach.h",
-      "non_mac/mach/machine.h",
-      "non_mac/mach/vm_prot.h",
-    ]
+    sources += [ "non_mac/mach/mach.h" ]
   }
 
   if (crashpad_is_ios) {
@@ -98,17 +91,15 @@ compat_target("compat") {
   if (crashpad_is_linux || crashpad_is_android) {
     sources += [
       "linux/signal.h",
-      "linux/sys/mman.cc",
       "linux/sys/mman.h",
+      "linux/sys/mman_memfd_create.cc",
       "linux/sys/ptrace.h",
       "linux/sys/user.h",
     ]
   }
 
-  if (!crashpad_is_in_starboard && !crashpad_is_in_native_target_build && crashpad_is_android) {
+  if (crashpad_is_android) {
     sources += [
-      "android/android/api-level.cc",
-      "android/android/api-level.h",
       "android/dlfcn_internal.cc",
       "android/dlfcn_internal.h",
       "android/elf.h",
@@ -118,8 +109,8 @@ compat_target("compat") {
       "android/sched.h",
       "android/sys/epoll.cc",
       "android/sys/epoll.h",
-      "android/sys/mman.cc",
       "android/sys/mman.h",
+      "android/sys/mman_mmap.cc",
       "android/sys/syscall.h",
       "android/sys/user.h",
     ]
@@ -148,26 +139,18 @@ compat_target("compat") {
     ]
   }
 
-  if (!crashpad_is_linux && !crashpad_is_android && !crashpad_is_fuchsia) {
-    sources += [ "non_elf/elf.h" ]
-  }
-
   public_configs = [
     ":compat_config",
     "..:crashpad_config",
   ]
 
-  deps = []
-
-  if (!crashpad_is_mac) {
-    deps += [ "../third_party/xnu" ]
+  if (!crashpad_is_win) {
+    public_deps = [ "$mini_chromium_source_parent:base" ]
   }
+
+  deps = [ "../util:no_cfi_icall" ]
 
   if (crashpad_is_win) {
     deps += [ "../third_party/getopt" ]
-  }
-
-  if (!crashpad_is_linux && !crashpad_is_android && !crashpad_is_fuchsia) {
-    deps += [ "../third_party/glibc" ]
   }
 }

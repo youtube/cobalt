@@ -139,13 +139,11 @@ FunctionAddressRange CallWithPlainFunction(OnceClosure wait_for_sample);
 // frame pointer.
 FunctionAddressRange CallWithAlloca(OnceClosure wait_for_sample);
 
-#if !defined(STARBOARD)
 // Calls into |wait_for_sample| through a function within another library, to
 // test unwinding through multiple modules and scenarios involving unloaded
 // modules.
 FunctionAddressRange CallThroughOtherLibrary(NativeLibrary library,
                                              OnceClosure wait_for_sample);
-#endif
 
 // The callback to perform profiling on the provided thread.
 using ProfileCallback = OnceCallback<void(SamplingProfilerThreadToken)>;
@@ -182,7 +180,6 @@ void ExpectStackDoesNotContain(
     const std::vector<Frame>& stack,
     const std::vector<FunctionAddressRange>& functions);
 
-#if !defined(STARBOARD)
 // Load test library with given name.
 NativeLibrary LoadTestLibrary(StringPiece library_name);
 
@@ -191,7 +188,6 @@ NativeLibrary LoadTestLibrary(StringPiece library_name);
 NativeLibrary LoadOtherLibrary();
 
 uintptr_t GetAddressInOtherLibrary(NativeLibrary library);
-#endif
 
 // Creates a list of core unwinders required for StackSamplingProfilerTest.
 // This is useful notably on Android, which requires ChromeUnwinderAndroid in

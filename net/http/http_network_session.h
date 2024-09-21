@@ -155,12 +155,6 @@ struct NET_EXPORT HttpNetworkSessionParams {
   // If true, HTTPS URLs can be sent to QUIC proxies.
   bool enable_quic_proxies_for_https_urls = false;
 
-#if defined(STARBOARD)
-    // If true, request to an origin without recorded alt-svc info will
-    // try to establish both QUIC and TCP connections and use the faster one.
-  bool use_quic_for_unknown_origins = false;
-#endif
-
   // If non-empty, QUIC will only be spoken to hosts in this list.
   base::flat_set<std::string> quic_host_allowlist;
 
@@ -312,14 +306,6 @@ class NET_EXPORT HttpNetworkSession {
 
   // Disable QUIC for new streams.
   void DisableQuic();
-
-#if defined(STARBOARD)
-  void SetEnableQuic(bool enable_quic);
-  void SetEnableHttp2(bool enable_http2);
-
-  // Whether to try QUIC connection for origins without alt-svc on record.
-  bool UseQuicForUnknownOrigin() const;
-#endif  // defined(STARBOARD)
 
   // Clear the SSL session cache.
   void ClearSSLSessionCache();

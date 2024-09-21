@@ -110,12 +110,7 @@ scoped_refptr<HttpResponseHeaders> RedirectUtil::SynthesizeRedirectHeaders(
       "Location: %s\n"
       "Cross-Origin-Resource-Policy: Cross-Origin\n"
       "Non-Authoritative-Reason: %s",
-#if defined(STARBOARD)
-      static_cast<int>(response_code),
-      redirect_destination.spec().c_str(),
-#else
       response_code, redirect_destination.spec().c_str(),
-#endif
       redirect_reason.c_str());
 
   std::string http_origin;

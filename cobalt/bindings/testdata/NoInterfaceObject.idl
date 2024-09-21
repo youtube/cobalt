@@ -1,4 +1,0 @@
-[NoInterfaceObject]
-interface NoInterfaceObject {
-  long Carrot();
-};

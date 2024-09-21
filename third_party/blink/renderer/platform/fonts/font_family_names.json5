@@ -1,0 +1,35 @@
+{
+  metadata: {
+    namespace: "font_family_names",
+    export: "PLATFORM_EXPORT",
+  },
+
+  data: [
+    "-webkit-standard",
+    "system-ui",
+
+    "Arial",
+    "Calibri",
+    "Courier New",
+    "Courier",
+    "Helvetica",
+    "Lucida Grande",
+    "Microsoft Sans Serif",
+    "MS Sans Serif",
+    "MS Serif",
+    "MS UI Gothic",
+    "Sans",
+    "Segoe UI",
+    "Times New Roman",
+    "Times",
+
+    "cursive",
+    "fantasy",
+    "monospace",
+    "sans-serif",
+    "serif",
+    "math",
+
+    "BlinkMacSystemFont",
+  ],
+}

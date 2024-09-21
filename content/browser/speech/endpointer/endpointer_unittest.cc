@@ -1,24 +1,23 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include <stdint.h>
-#include <memory>
-#include <utility>
 
-#include "content/browser/speech/audio_buffer.h"
+#include "base/memory/raw_ptr.h"
+#include "components/speech/audio_buffer.h"
 #include "content/browser/speech/endpointer/endpointer.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
-const int kFrameRate = 50;     // 20 ms long frames for AMR encoding.
+const int kFrameRate = 50;  // 20 ms long frames for AMR encoding.
 const int kSampleRate = 8000;  // 8 k samples per second for AMR encoding.
 
-// At 8 sample per second a 20 ms frame is 160 samples, which corresponds
+// At 8 sample per second a 20 ms frame is 160 samples, which corrsponds
 // to the AMR codec.
 const int kFrameSize = kSampleRate / kFrameRate;  // 160 samples.
 static_assert(kFrameSize == 160, "invalid frame size");
-}  // namespace
+}
 
 namespace content {
 
@@ -52,7 +51,7 @@ void RunEndpointerEventsTest(FrameProcessor* processor) {
     // Create random samples.
     for (int i = 0; i < kFrameSize; ++i) {
       float randNum = static_cast<float>(rand() - (RAND_MAX / 2)) /
-                      static_cast<float>(RAND_MAX);
+          static_cast<float>(RAND_MAX);
       samples[i] = static_cast<int16_t>(gain * randNum);
     }
 
@@ -88,12 +87,12 @@ class EnergyEndpointerFrameProcessor : public FrameProcessor {
   }
 
  private:
-  EnergyEndpointer* endpointer_;
+  raw_ptr<EnergyEndpointer> endpointer_;
 };
 
 TEST(EndpointerTest, TestEnergyEndpointerEvents) {
   // Initialize endpointer and configure it. We specify the parameters
-  // here for a 20ms window, and a 20ms step size, which corresponds to
+  // here for a 20ms window, and a 20ms step size, which corrsponds to
   // the narrow band AMR codec.
   EnergyEndpointerParams ep_config;
   ep_config.set_frame_period(1.0f / static_cast<float>(kFrameRate));
@@ -121,29 +120,21 @@ TEST(EndpointerTest, TestEnergyEndpointerEvents) {
 // Test endpointer wrapper class.
 class EndpointerFrameProcessor : public FrameProcessor {
  public:
-#if defined(STARBOARD)
-  typedef Endpointer::AudioBus AudioBus;
-#endif
   explicit EndpointerFrameProcessor(Endpointer* endpointer)
       : endpointer_(endpointer) {}
 
   EpStatus ProcessFrame(int64_t time,
                         int16_t* samples,
                         int frame_size) override {
-#if defined(STARBOARD)
-    auto frame = std::make_unique<AudioBus>(1, kFrameSize, samples);
-    endpointer_->ProcessAudio(*frame.get(), NULL);
-#else
     scoped_refptr<AudioChunk> frame(
         new AudioChunk(reinterpret_cast<uint8_t*>(samples), kFrameSize * 2, 2));
     endpointer_->ProcessAudio(*frame.get(), nullptr);
-#endif
     int64_t ep_time;
     return endpointer_->Status(&ep_time);
   }
 
  private:
-  Endpointer* endpointer_;
+  raw_ptr<Endpointer> endpointer_;
 };
 
 TEST(EndpointerTest, TestEmbeddedEndpointerEvents) {

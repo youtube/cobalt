@@ -923,9 +923,6 @@ class FieldTrialListTest : public ::testing::Test {
   test::ScopedFeatureList scoped_feature_list_;
 };
 
-// TODO(b/298237462): Try to enable |FieldTrialList|.
-// TODO(b/316198056): Determine if tests should be enabled.
-#if !defined(COBALT_PENDING_CLEAN_UP)
 #if !BUILDFLAG(IS_IOS)
 // LaunchOptions is not available on iOS.
 TEST_F(FieldTrialListTest, TestCopyFieldTrialStateToFlags) {
@@ -1294,7 +1291,6 @@ TEST_F(FieldTrialListTest, TestGetRandomizedFieldTrialCount) {
 
   // Note: FieldTrialList should delete the objects at shutdown.
 }
-#endif  // !defined(COBALT_PENDING_CLEAN_UP)
 
 TEST_F(FieldTrialTest, TestAllParamsToString) {
   std::string exptected_output = "t1.g1:p1/v1/p2/v2";

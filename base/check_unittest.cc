@@ -81,7 +81,6 @@ TEST(CheckDeathTest, Basics) {
                CHECK_LT(a, b) << "custom message");
 }
 
-#if !defined(STARBOARD)
 TEST(CheckDeathTest, PCheck) {
   const char file[] = "/nonexistentfile123";
   std::ignore = fopen(file, "r");
@@ -112,7 +111,6 @@ TEST(CheckDeathTest, PCheck) {
           err,
       DPCHECK(fopen(file, "r") != nullptr) << "foo");
 }
-#endif
 
 TEST(CheckDeathTest, CheckOp) {
   int a = 1, b = 2;
@@ -186,8 +184,6 @@ class ScopedDcheckSeverity {
   logging::LogSeverity old_severity_;
 };
 #endif  // BUILDFLAG(DCHECK_IS_CONFIGURABLE)
-
-#if !defined(STARBOARD)
 
 // https://crbug.com/709067 tracks test flakiness on iOS.
 #if BUILDFLAG(IS_IOS)
@@ -264,8 +260,6 @@ TEST(CheckDeathTest, MAYBE_Dcheck) {
       "Check failed: mp2 == &MemberFunctions::MemberFunction1 (1 vs. 1)",
       DCHECK_EQ(mp2, &MemberFunctions::MemberFunction1));
 }
-
-#endif
 
 TEST(CheckTest, DcheckReleaseBehavior) {
   int var1 = 1;
@@ -519,21 +513,18 @@ void NiLogOnce() {
   NOTIMPLEMENTED_LOG_ONCE();
 }
 
-#if !defined(STARBOARD) || !defined(COMPILER_MSVC)
 TEST(CheckTest, NotImplementedLogOnce) {
   static const std::string expected_msg =
       "Not implemented reached in void (anonymous namespace)::NiLogOnce()\n";
 
 #if DCHECK_IS_ON()
-  // In Starboard, we account for add lines (macros and comments).
-  EXPECT_LOG_ERROR(__LINE__ - 10, NiLogOnce(), expected_msg);
+  EXPECT_LOG_ERROR(__LINE__ - 8, NiLogOnce(), expected_msg);
   EXPECT_NO_LOG(NiLogOnce());
 #else
   EXPECT_NO_LOG(NiLogOnce());
   EXPECT_NO_LOG(NiLogOnce());
 #endif
 }
-#endif
 
 // Test CHECK_DEREF of `T*`
 TEST(CheckTest, CheckDerefOfPointer) {

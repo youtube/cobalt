@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,15 +6,15 @@
 
 #include <utility>
 
-#include "base/bind.h"
+#include "base/check.h"
+#include "base/check_op.h"
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
 #include "base/location.h"
-#include "base/logging.h"
 #include "base/task/sequenced_task_runner.h"
-#include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
-#if defined(OS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "components/update_client/background_downloader_win.h"
 #endif
 #include "components/update_client/network.h"
@@ -30,48 +30,13 @@ CrxDownloader::DownloadMetrics::DownloadMetrics()
       error(0),
       downloaded_bytes(-1),
       total_bytes(-1),
-      download_time_ms(0) {
-}
+      download_time_ms(0) {}
 
-// On Windows, the first downloader in the chain is a background downloader,
-// which uses the BITS service.
-#if defined(STARBOARD)
-std::unique_ptr<CrxDownloader> CrxDownloader::Create(
-    bool is_background_download,
-    scoped_refptr<Configurator> config) {
-  std::unique_ptr<CrxDownloader> url_fetcher_downloader =
-      std::make_unique<UrlFetcherDownloader>(nullptr, config);
-#else
-std::unique_ptr<CrxDownloader> CrxDownloader::Create(
-    bool is_background_download,
-    scoped_refptr<NetworkFetcherFactory> network_fetcher_factory) {
-  std::unique_ptr<CrxDownloader> url_fetcher_downloader =
-      std::make_unique<UrlFetcherDownloader>(nullptr, network_fetcher_factory);
-#endif
-
-#if defined(OS_WIN)
-  if (is_background_download) {
-    return std::make_unique<BackgroundDownloader>(
-        std::move(url_fetcher_downloader));
-  }
-#endif
-
-  return url_fetcher_downloader;
-}
-
-CrxDownloader::CrxDownloader(std::unique_ptr<CrxDownloader> successor)
+CrxDownloader::CrxDownloader(scoped_refptr<CrxDownloader> successor)
     : main_task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
-      successor_(std::move(successor)) {
-#if defined(STARBOARD)
-  LOG(INFO) << "CrxDownloader::CrxDownloader";
-#endif
-}
+      successor_(std::move(successor)) {}
 
-CrxDownloader::~CrxDownloader() {
-#if defined(STARBOARD)
-  LOG(INFO) << "CrxDownloader::~CrxDownloader";
-#endif
-}
+CrxDownloader::~CrxDownloader() = default;
 
 void CrxDownloader::set_progress_callback(
     const ProgressCallback& progress_callback) {
@@ -95,34 +60,16 @@ CrxDownloader::download_metrics() const {
 
 void CrxDownloader::StartDownloadFromUrl(const GURL& url,
                                          const std::string& expected_hash,
-#if defined(IN_MEMORY_UPDATES)
-                                         std::string* dst,
-#endif
                                          DownloadCallback download_callback) {
-#if defined(STARBOARD)
-  LOG(INFO) << "CrxDownloader::StartDownloadFromUrl: url=" << url;
-#endif
-
   std::vector<GURL> urls;
   urls.push_back(url);
-#if defined(IN_MEMORY_UPDATES)
-  CHECK(dst != nullptr);
-  StartDownload(urls, expected_hash, dst, std::move(download_callback));
-#else
   StartDownload(urls, expected_hash, std::move(download_callback));
-#endif
 }
 
 void CrxDownloader::StartDownload(const std::vector<GURL>& urls,
                                   const std::string& expected_hash,
-#if defined(IN_MEMORY_UPDATES)
-                                  std::string* dst,
-#endif
                                   DownloadCallback download_callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if defined(IN_MEMORY_UPDATES)
-  CHECK(dst != nullptr);
-#endif
 
   auto error = CrxDownloaderError::NONE;
   if (urls.empty()) {
@@ -139,102 +86,75 @@ void CrxDownloader::StartDownload(const std::vector<GURL>& urls,
     return;
   }
 
-#if defined(IN_MEMORY_UPDATES)
-  dst_str_ = dst;
-#endif
-
   urls_ = urls;
   expected_hash_ = expected_hash;
   current_url_ = urls_.begin();
   download_callback_ = std::move(download_callback);
 
-#if defined(IN_MEMORY_UPDATES)
-  DoStartDownload(*current_url_, dst);
-#else
   DoStartDownload(*current_url_);
-#endif
 }
-
-#if defined(STARBOARD)
-void CrxDownloader::CancelDownload() {
-  LOG(INFO) << "CrxDownloader::CancelDownload";
-  DoCancelDownload();
-}
-#endif
 
 void CrxDownloader::OnDownloadComplete(
     bool is_handled,
     const Result& result,
     const DownloadMetrics& download_metrics) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if defined(STARBOARD)
-  LOG(INFO) << "CrxDownloader::OnDownloadComplete";
-#endif
-  if (!result.error)
-    base::ThreadPool::PostTask(
-        FROM_HERE, kTaskTraits,
-        base::BindOnce(&CrxDownloader::VerifyResponse, base::Unretained(this),
-                       is_handled, result, download_metrics));
-  else
+
+  if (result.error) {
     main_task_runner()->PostTask(
-        FROM_HERE, base::BindOnce(&CrxDownloader::HandleDownloadError,
-                                  base::Unretained(this), is_handled, result,
-                                  download_metrics));
+        FROM_HERE, base::BindOnce(&CrxDownloader::HandleDownloadError, this,
+                                  is_handled, result, download_metrics));
+    return;
+  }
+
+  CHECK_EQ(0, download_metrics.error);
+  CHECK(is_handled);
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
+      FROM_HERE, kTaskTraits,
+      base::BindOnce(
+          // Verifies the hash of a CRX file. Returns NONE or BAD_HASH if
+          // the hash of the CRX does not match the |expected_hash|. The input
+          // file is deleted in case of errors.
+          [](const base::FilePath& filepath, const std::string& expected_hash) {
+            if (VerifyFileHash256(filepath, expected_hash))
+              return CrxDownloaderError::NONE;
+            DeleteFileAndEmptyParentDirectory(filepath);
+            return CrxDownloaderError::BAD_HASH;
+          },
+          result.response, expected_hash_),
+      base::BindOnce(
+          // Handles CRX verification result, and retries the download from
+          // a different URL if the verification fails.
+          [](scoped_refptr<CrxDownloader> downloader, Result result,
+             DownloadMetrics download_metrics, CrxDownloaderError error) {
+            if (error == CrxDownloaderError::NONE) {
+              downloader->download_metrics_.push_back(download_metrics);
+              downloader->main_task_runner()->PostTask(
+                  FROM_HERE,
+                  base::BindOnce(std::move(downloader->download_callback_),
+                                 result));
+              return;
+            }
+            result.response.clear();
+            result.error = static_cast<int>(error);
+            download_metrics.error = result.error;
+            downloader->main_task_runner()->PostTask(
+                FROM_HERE,
+                base::BindOnce(&CrxDownloader::HandleDownloadError, downloader,
+                               true, result, download_metrics));
+          },
+          scoped_refptr<CrxDownloader>(this), result, download_metrics));
 }
 
-void CrxDownloader::OnDownloadProgress() {
+void CrxDownloader::OnDownloadProgress(int64_t downloaded_bytes,
+                                       int64_t total_bytes) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   if (progress_callback_.is_null())
     return;
 
-  progress_callback_.Run();
-}
-
-// The function mutates the values of the parameters |result| and
-// |download_metrics|.
-void CrxDownloader::VerifyResponse(bool is_handled,
-                                   Result result,
-                                   DownloadMetrics download_metrics) {
-  DCHECK_EQ(0, result.error);
-  DCHECK_EQ(0, download_metrics.error);
-  DCHECK(is_handled);
-#if defined(STARBOARD)
-  LOG(INFO) << "CrxDownloader::VerifyResponse";
-#endif
-
-#if defined(IN_MEMORY_UPDATES)
-  if (VerifyHash256(dst_str_, expected_hash_)) {
-#else
-  if (VerifyFileHash256(result.response, expected_hash_)) {
-#endif
-    download_metrics_.push_back(download_metrics);
-    main_task_runner()->PostTask(
-        FROM_HERE, base::BindOnce(std::move(download_callback_), result));
-    return;
-  }
-
-  // The download was successful but the response is not trusted. Clean up
-  // the download, mutate the result, and try the remaining fallbacks when
-  // handling the error.
-  result.error = static_cast<int>(CrxDownloaderError::BAD_HASH);
-  download_metrics.error = result.error;
-#if defined(STARBOARD)
-#if !defined(IN_MEMORY_UPDATES)
-  base::DeleteFile(result.response, false);
-#endif  // !defined(IN_MEMORY_UPDATES)
-#else  // defined(STARBOARD)
-  DeleteFileAndEmptyParentDirectory(result.response);
-#endif  // defined(STARBOARD)
-
-#if !defined(IN_MEMORY_UPDATES)
-  result.response.clear();
-#endif
-
-  main_task_runner()->PostTask(
-      FROM_HERE, base::BindOnce(&CrxDownloader::HandleDownloadError,
-                                base::Unretained(this), is_handled, result,
-                                download_metrics));
+  progress_callback_.Run(downloaded_bytes, total_bytes);
 }
 
 void CrxDownloader::HandleDownloadError(
@@ -242,21 +162,11 @@ void CrxDownloader::HandleDownloadError(
     const Result& result,
     const DownloadMetrics& download_metrics) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK_NE(0, result.error);
-#if !defined(IN_MEMORY_UPDATES)
-  DCHECK(result.response.empty());
-#endif
-  DCHECK_NE(0, download_metrics.error);
-
-#if defined(STARBOARD)
-  LOG(INFO) << "CrxDownloader::HandleDownloadError";
-#endif
+  CHECK_NE(0, result.error);
+  CHECK(result.response.empty());
+  CHECK_NE(0, download_metrics.error);
 
   download_metrics_.push_back(download_metrics);
-
-#if defined(STARBOARD)
-  if (result.error != static_cast<int>(CrxDownloaderError::SLOT_UNAVAILABLE)) {
-#endif
 
   // If an error has occured, try the next url if there is any,
   // or try the successor in the chain if there is any successor.
@@ -271,33 +181,16 @@ void CrxDownloader::HandleDownloadError(
 
   // Try downloading from another url from the list.
   if (current_url_ != urls_.end()) {
-#if defined(IN_MEMORY_UPDATES)
-      // TODO(b/158043520): manually test that Cobalt can update using a
-      // successor URL when an error occurs on the first URL, and/or consider
-      // adding an Evergreen end-to-end test case for this behavior. This is
-      // important since the unit tests are currently disabled (b/290410288).
-      DoStartDownload(*current_url_, dst_str_);
-#else
     DoStartDownload(*current_url_);
-#endif
     return;
   }
 
   // Try downloading using the next downloader.
   if (successor_ && !urls_.empty()) {
-#if defined(IN_MEMORY_UPDATES)
-      successor_->StartDownload(urls_, expected_hash_, dst_str_,
-                                std::move(download_callback_));
-#else
     successor_->StartDownload(urls_, expected_hash_,
                               std::move(download_callback_));
-#endif
     return;
   }
-
-#if defined(STARBOARD)
-  }
-#endif
 
   // The download ends here since there is no url nor downloader to handle this
   // download request further.

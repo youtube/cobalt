@@ -367,7 +367,6 @@ TEST_F(TaskEnvironmentTest, MainThreadType) {
   EXPECT_FALSE(CurrentIOThread::IsSet());
 }
 
-#if !defined(STARBOARD)
 #if BUILDFLAG(IS_POSIX)
 TEST_F(TaskEnvironmentTest, SupportsFileDescriptorWatcherOnIOMainThread) {
   TaskEnvironment task_environment(TaskEnvironment::MainThreadType::IO);
@@ -411,7 +410,6 @@ TEST_F(TaskEnvironmentTest,
   run_loop.Run();
 }
 #endif  // BUILDFLAG(IS_POSIX)
-#endif // !defined(STARBOARD)
 
 TEST_F(TaskEnvironmentTest, MockTimeStartsWithWholeMilliseconds) {
   TaskEnvironment task_environment(TaskEnvironment::TimeSource::MOCK_TIME);

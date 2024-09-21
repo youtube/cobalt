@@ -7,9 +7,7 @@
 #include <cmath>
 
 #include "base/strings/stringprintf.h"
-#if !defined(STARBOARD)
 #include "base/trace_event/typed_macros.h"
-#endif  // !defined(STARBOARD)
 #include "build/build_config.h"
 
 namespace gfx {
@@ -18,13 +16,11 @@ std::string Vector2dF::ToString() const {
   return base::StringPrintf("[%g %g]", x_, y_);
 }
 
-#if !defined(STARBOARD)
 void Vector2dF::WriteIntoTrace(perfetto::TracedValue ctx) const {
   perfetto::TracedDictionary dict = std::move(ctx).WriteDictionary();
   dict.Add("x", x_);
   dict.Add("y", y_);
 }
-#endif  // !defined(STARBOARD)
 
 bool Vector2dF::IsZero() const {
   return x_ == 0 && y_ == 0;

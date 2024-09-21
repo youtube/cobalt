@@ -1562,133 +1562,6 @@ bool AC3SpecificBox::Parse(BoxReader* reader) {
 }
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
 
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-enum IamfConfigObuType {
-  // The following enum values are mapped to their respective Config OBU
-  // values in the IAMF specification.
-  // https://aomediacodec.github.io/iamf/v1.0.0.html#obu-header-syntax.
-  kIamfConfigObuTypeCodecConfig = 0,
-  kIamfConfigObuTypeAudioElement = 1,
-  kIamfConfigObuTypeMixPresentation = 2,
-  kIamfConfigObuTypeSequenceHeader = 31,
-};
-
-IamfSpecificBox::IamfSpecificBox() = default;
-
-IamfSpecificBox::IamfSpecificBox(const IamfSpecificBox& other) = default;
-
-IamfSpecificBox::~IamfSpecificBox() = default;
-
-FourCC IamfSpecificBox::BoxType() const {
-  return FOURCC_IACB;
-}
-
-bool IamfSpecificBox::Parse(BoxReader* reader) {
-  uint8_t configuration_version;
-  RCHECK(reader->Read1(&configuration_version));
-  RCHECK(configuration_version == 0x01);
-
-  uint32_t config_obus_size;
-  RCHECK(ReadLeb128Value(reader, &config_obus_size));
-
-#if defined(STARBOARD)
-  const uint8_t* buf = reader->buffer() + reader->pos();
-  ia_descriptors.assign(buf, buf + config_obus_size);
-#else  // defined(STARBOARD)
-  base::span<const uint8_t> buffer =
-      reader->buffer().subspan(reader->pos(), config_obus_size);
-  ia_descriptors.assign(buffer.begin(), buffer.end());
-#endif  // defined(STARBOARD)
-
-  RCHECK(reader->SkipBytes(config_obus_size));
-
-  BufferReader config_reader(ia_descriptors.data(), ia_descriptors.size());
-
-  while (config_reader.pos() < config_reader.buffer_size()) {
-    RCHECK(ReadOBU(&config_reader));
-  }
-
-  return true;
-}
-
-bool IamfSpecificBox::ReadOBU(BufferReader* reader) {
-  uint8_t obu_type;
-  uint32_t obu_size;
-  RCHECK(ReadOBUHeader(reader, &obu_type, &obu_size));
-  const size_t read_stop_pos = reader->pos() + obu_size;
-
-  switch (static_cast<int>(obu_type)) {
-    case kIamfConfigObuTypeCodecConfig:
-    case kIamfConfigObuTypeAudioElement:
-    case kIamfConfigObuTypeMixPresentation:
-      break;
-    case kIamfConfigObuTypeSequenceHeader:
-      uint32_t ia_code;
-      RCHECK(reader->Read4(&ia_code));
-      RCHECK(ia_code == FOURCC_IAMF);
-
-      RCHECK(reader->Read1(&profile));
-      RCHECK(profile <= 1);
-
-      break;
-    default:
-      DVLOG(1) << "Unhandled IAMF OBU type " << static_cast<int>(obu_type);
-      return false;
-  }
-
-  const size_t remaining_size = read_stop_pos - reader->pos();
-  RCHECK(reader->SkipBytes(remaining_size));
-  return true;
-}
-
-bool IamfSpecificBox::ReadOBUHeader(BufferReader* reader,
-                                    uint8_t* obu_type,
-                                    uint32_t* obu_size) {
-  uint8_t header_flags;
-  RCHECK(reader->Read1(&header_flags));
-  *obu_type = (header_flags >> 3) & 0x1f;
-
-  const bool obu_redundant_copy = (header_flags >> 2) & 1;
-  const bool obu_trimming_status_flag = (header_flags >> 1) & 1;
-  const bool obu_extension_flag = header_flags & 1;
-
-  redundant_copy |= obu_redundant_copy;
-
-  RCHECK(ReadLeb128Value(reader, obu_size));
-  RCHECK(reader->HasBytes(*obu_size));
-
-  RCHECK(!obu_trimming_status_flag);
-  if (obu_extension_flag) {
-    uint32_t extension_header_size;
-    const int last_reader_pos = reader->pos();
-    RCHECK(ReadLeb128Value(reader, &extension_header_size));
-    const int num_leb128_bytes_read = reader->pos() - last_reader_pos;
-    RCHECK(reader->SkipBytes(extension_header_size));
-    obu_size -= (num_leb128_bytes_read + extension_header_size);
-  }
-  return true;
-}
-
-bool IamfSpecificBox::ReadLeb128Value(BufferReader* reader,
-                                      uint32_t* value) const {
-  DCHECK(reader);
-  DCHECK(value);
-  *value = 0;
-  bool error = true;
-  for (size_t i = 0; i < sizeof(uint32_t); ++i) {
-    uint8_t byte;
-    RCHECK(reader->Read1(&byte));
-    *value |= ((byte & 0x7f) << (i * 7));
-    if (!(byte & 0x80)) {
-      error = false;
-      break;
-    }
-  }
-
-  return !error;
-}
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-
 AudioSampleEntry::AudioSampleEntry()
     : format(FOURCC_NULL),
       data_reference_index(0),
@@ -1751,25 +1624,15 @@ bool AudioSampleEntry::Parse(BoxReader* reader) {
 #endif  // BUILDFLAG(ENABLE_PLATFORM_DTS_AUDIO)
 
 #if BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
-  if (format == FOURCC_AC3 ||
-      (format == FOURCC_ENCA && sinf.format.format == FOURCC_AC3)) {
+  if (format == FOURCC_AC3) {
     RCHECK_MEDIA_LOGGED(reader->ReadChild(&ac3), reader->media_log(),
                         "Failure parsing AC3SpecificBox (dac3)");
   }
-  if (format == FOURCC_EAC3 ||
-      (format == FOURCC_ENCA && sinf.format.format == FOURCC_EAC3)) {
+  if (format == FOURCC_EAC3) {
     RCHECK_MEDIA_LOGGED(reader->ReadChild(&eac3), reader->media_log(),
                         "Failure parsing EC3SpecificBox (dec3)");
   }
 #endif  // BUILDFLAG(ENABLE_PLATFORM_AC3_EAC3_AUDIO)
-
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-  if (format == FOURCC_IAMF ||
-      (format == FOURCC_ENCA && sinf.format.format == FOURCC_IAMF)) {
-    RCHECK_MEDIA_LOGGED(reader->ReadChild(&iacb), reader->media_log(),
-                        "Failure parsing IamfSpecificBox (iacb)");
-  }
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
 
   // Read the FLACSpecificBox, even if CENC is signalled.
   if (format == FOURCC_FLAC ||

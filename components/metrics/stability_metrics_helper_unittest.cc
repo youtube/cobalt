@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,7 +6,6 @@
 
 #include <memory>
 
-#include "base/macros.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "build/build_config.h"
 #include "components/prefs/pref_service.h"
@@ -30,6 +29,11 @@ enum RendererType {
 };
 
 class StabilityMetricsHelperTest : public testing::Test {
+ public:
+  StabilityMetricsHelperTest(const StabilityMetricsHelperTest&) = delete;
+  StabilityMetricsHelperTest& operator=(const StabilityMetricsHelperTest&) =
+      delete;
+
  protected:
   StabilityMetricsHelperTest() : prefs_(new TestingPrefServiceSimple) {
     StabilityMetricsHelper::RegisterPrefs(prefs()->registry());
@@ -39,67 +43,40 @@ class StabilityMetricsHelperTest : public testing::Test {
 
  private:
   std::unique_ptr<TestingPrefServiceSimple> prefs_;
-
-  DISALLOW_COPY_AND_ASSIGN(StabilityMetricsHelperTest);
 };
 
 }  // namespace
 
-TEST_F(StabilityMetricsHelperTest, BrowserChildProcessCrashed) {
-  StabilityMetricsHelper helper(prefs());
-
-  helper.BrowserChildProcessCrashed();
-  helper.BrowserChildProcessCrashed();
-
-  // Call ProvideStabilityMetrics to check that it will force pending tasks to
-  // be executed immediately.
-  metrics::SystemProfileProto system_profile;
-
-  helper.ProvideStabilityMetrics(&system_profile);
-
-  // Check current number of instances created.
-  const metrics::SystemProfileProto_Stability& stability =
-      system_profile.stability();
-
-  EXPECT_EQ(2, stability.child_process_crash_count());
-}
-
+#if !BUILDFLAG(IS_ANDROID)
 TEST_F(StabilityMetricsHelperTest, LogRendererCrash) {
   StabilityMetricsHelper helper(prefs());
   base::HistogramTester histogram_tester;
-  const base::TimeDelta kUptime = base::TimeDelta::FromSeconds(123);
 
   // Crash and abnormal termination should increment renderer crash count.
-  helper.LogRendererCrash(false, base::TERMINATION_STATUS_PROCESS_CRASHED, 1,
-                          kUptime);
+  helper.LogRendererCrash(false, base::TERMINATION_STATUS_PROCESS_CRASHED, 1);
 
   helper.LogRendererCrash(false, base::TERMINATION_STATUS_ABNORMAL_TERMINATION,
-                          1, kUptime);
+                          1);
 
   // OOM should increment renderer crash count.
-  helper.LogRendererCrash(false, base::TERMINATION_STATUS_OOM, 1, kUptime);
+  helper.LogRendererCrash(false, base::TERMINATION_STATUS_OOM, 1);
 
   // Kill does not increment renderer crash count.
-  helper.LogRendererCrash(false, base::TERMINATION_STATUS_PROCESS_WAS_KILLED, 1,
-                          kUptime);
+  helper.LogRendererCrash(false, base::TERMINATION_STATUS_PROCESS_WAS_KILLED,
+                          1);
 
   // Failed launch increments failed launch count.
-  helper.LogRendererCrash(false, base::TERMINATION_STATUS_LAUNCH_FAILED, 1,
-                          kUptime);
-
-  metrics::SystemProfileProto system_profile;
-
-  // Call ProvideStabilityMetrics to check that it will force pending tasks to
-  // be executed immediately.
-  helper.ProvideStabilityMetrics(&system_profile);
-
-  EXPECT_EQ(3, system_profile.stability().renderer_crash_count());
-  EXPECT_EQ(1, system_profile.stability().renderer_failed_launch_count());
-  EXPECT_EQ(0, system_profile.stability().extension_renderer_crash_count());
+  helper.LogRendererCrash(false, base::TERMINATION_STATUS_LAUNCH_FAILED, 1);
 
   histogram_tester.ExpectUniqueSample("CrashExitCodes.Renderer", 1, 3);
   histogram_tester.ExpectBucketCount("BrowserRenderProcessHost.ChildCrashes",
                                      RENDERER_TYPE_RENDERER, 3);
+  histogram_tester.ExpectBucketCount("Stability.Counts2",
+                                     StabilityEventType::kRendererCrash, 3);
+  histogram_tester.ExpectBucketCount(
+      "Stability.Counts2", StabilityEventType::kRendererFailedLaunch, 1);
+  histogram_tester.ExpectBucketCount("Stability.Counts2",
+                                     StabilityEventType::kExtensionCrash, 0);
 
   // One launch failure each.
   histogram_tester.ExpectBucketCount(
@@ -113,35 +90,31 @@ TEST_F(StabilityMetricsHelperTest, LogRendererCrash) {
                                      RENDERER_TYPE_EXTENSION, 0);
   histogram_tester.ExpectBucketCount(
       "BrowserRenderProcessHost.ChildLaunchFailureCodes", 1, 1);
-  histogram_tester.ExpectUniqueSample("Stability.CrashedProcessAge.Renderer",
-                                      kUptime.InMilliseconds(), 3);
 }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 // Note: ENABLE_EXTENSIONS is set to false in Android
 #if BUILDFLAG(ENABLE_EXTENSIONS)
 TEST_F(StabilityMetricsHelperTest, LogRendererCrashEnableExtensions) {
   StabilityMetricsHelper helper(prefs());
   base::HistogramTester histogram_tester;
-  const base::TimeDelta kUptime = base::TimeDelta::FromSeconds(123);
 
   // Crash and abnormal termination should increment extension crash count.
-  helper.LogRendererCrash(true, base::TERMINATION_STATUS_PROCESS_CRASHED, 1,
-                          kUptime);
+  helper.LogRendererCrash(true, base::TERMINATION_STATUS_PROCESS_CRASHED, 1);
 
   // OOM should increment extension renderer crash count.
-  helper.LogRendererCrash(true, base::TERMINATION_STATUS_OOM, 1, kUptime);
+  helper.LogRendererCrash(true, base::TERMINATION_STATUS_OOM, 1);
 
   // Failed launch increments extension failed launch count.
-  helper.LogRendererCrash(true, base::TERMINATION_STATUS_LAUNCH_FAILED, 1,
-                          kUptime);
+  helper.LogRendererCrash(true, base::TERMINATION_STATUS_LAUNCH_FAILED, 1);
 
-  metrics::SystemProfileProto system_profile;
-  helper.ProvideStabilityMetrics(&system_profile);
-
-  EXPECT_EQ(0, system_profile.stability().renderer_crash_count());
-  EXPECT_EQ(2, system_profile.stability().extension_renderer_crash_count());
-  EXPECT_EQ(
-      1, system_profile.stability().extension_renderer_failed_launch_count());
+  histogram_tester.ExpectBucketCount("Stability.Counts2",
+                                     StabilityEventType::kRendererCrash, 0);
+  histogram_tester.ExpectBucketCount(
+      "Stability.Counts2", StabilityEventType::kExtensionRendererFailedLaunch,
+      1);
+  histogram_tester.ExpectBucketCount("Stability.Counts2",
+                                     StabilityEventType::kExtensionCrash, 2);
 
   histogram_tester.ExpectBucketCount(
       "BrowserRenderProcessHost.ChildLaunchFailureCodes", 1, 1);
@@ -151,8 +124,6 @@ TEST_F(StabilityMetricsHelperTest, LogRendererCrashEnableExtensions) {
   histogram_tester.ExpectBucketCount(
       "BrowserRenderProcessHost.ChildLaunchFailures", RENDERER_TYPE_EXTENSION,
       1);
-  histogram_tester.ExpectUniqueSample("Stability.CrashedProcessAge.Extension",
-                                      kUptime.InMilliseconds(), 2);
 }
 #endif
 

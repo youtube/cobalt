@@ -1,3 +1,0 @@
-...
-.
-This line containst white spaces.

@@ -38,7 +38,6 @@
 #include "base/time/time_override.h"
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
-#include "starboard/configuration_constants.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/scoped_com_initializer.h"
@@ -52,11 +51,7 @@ namespace internal {
 
 namespace {
 
-#ifdef STARBOARD
-const size_t kMaxNumberOfWorkers = kSbMaxThreads;
-#else
 constexpr size_t kMaxNumberOfWorkers = 256;
-#endif
 
 // In a background thread group:
 // - Blocking calls take more time than in a foreground thread group.

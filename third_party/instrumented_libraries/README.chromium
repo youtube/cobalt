@@ -1,0 +1,10 @@
+Name: instrumented_libraries
+URL: n/a
+Version: 0
+Security Critical: no
+License: n/a
+License File: NOT_SHIPPED
+
+Description:
+Scripts which can download and build several third party libraries
+using different instrumentation tools (MemorySanitizer, etc.).

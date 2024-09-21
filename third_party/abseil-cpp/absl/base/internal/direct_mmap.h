@@ -24,7 +24,7 @@
 
 #include <sys/mman.h>
 
-#if defined(__linux__) && !defined(STARBOARD)
+#ifdef __linux__
 
 #include <sys/types.h>
 #ifdef __BIONIC__

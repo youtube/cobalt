@@ -1,1 +1,0 @@
-Cobalt does not cache text/plain files. This is NOT expected to be cached.

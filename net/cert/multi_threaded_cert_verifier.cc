@@ -59,9 +59,6 @@ int GetFlagsForConfig(const CertVerifier::Config& config) {
     flags |= CertVerifyProc::VERIFY_ENABLE_SHA1_LOCAL_ANCHORS;
   if (config.disable_symantec_enforcement)
     flags |= CertVerifyProc::VERIFY_DISABLE_SYMANTEC_ENFORCEMENT;
-#if defined(STARBOARD)
-  flags |= CertVerifyProc::VERIFY_DISABLE_NETWORK_FETCHES;
-#endif
 
   return flags;
 }

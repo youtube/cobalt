@@ -1,4 +1,4 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
+// Copyright 2019 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -43,15 +43,17 @@ namespace cbor {
 // Detecting CBOR content
 // =============================================================================
 
-// The first byte for an envelope, which we use for wrapping dictionaries
-// and arrays; and the byte that indicates a byte string with 32 bit length.
-// These two bytes start an envelope, and thereby also any CBOR message
-// produced or consumed by this protocol. See also |EnvelopeEncoder| below.
-CRDTP_EXPORT uint8_t InitialByteForEnvelope();
-CRDTP_EXPORT uint8_t InitialByteFor32BitLengthByteString();
-
 // Checks whether |msg| is a cbor message.
 CRDTP_EXPORT bool IsCBORMessage(span<uint8_t> msg);
+
+// Performs a leightweight check of |msg|.
+// Disallows:
+// - Empty message
+// - Not starting with the two bytes 0xd8, 0x5a
+// - Empty envelope (all length bytes are 0)
+// - Not starting with a map after the envelope stanza
+// DevTools messages should pass this check.
+CRDTP_EXPORT Status CheckCBORMessage(span<uint8_t> msg);
 
 // =============================================================================
 // Encoding individual CBOR items
@@ -68,41 +70,34 @@ CRDTP_EXPORT uint8_t EncodeStop();
 // Encodes |value| as |UNSIGNED| (major type 0) iff >= 0, or |NEGATIVE|
 // (major type 1) iff < 0.
 CRDTP_EXPORT void EncodeInt32(int32_t value, std::vector<uint8_t>* out);
-CRDTP_EXPORT void EncodeInt32(int32_t value, std::string* out);
 
 // Encodes a UTF16 string as a BYTE_STRING (major type 2). Each utf16
 // character in |in| is emitted with most significant byte first,
 // appending to |out|.
 CRDTP_EXPORT void EncodeString16(span<uint16_t> in, std::vector<uint8_t>* out);
-CRDTP_EXPORT void EncodeString16(span<uint16_t> in, std::string* out);
 
 // Encodes a UTF8 string |in| as STRING (major type 3).
 CRDTP_EXPORT void EncodeString8(span<uint8_t> in, std::vector<uint8_t>* out);
-CRDTP_EXPORT void EncodeString8(span<uint8_t> in, std::string* out);
 
 // Encodes the given |latin1| string as STRING8.
 // If any non-ASCII character is present, it will be represented
 // as a 2 byte UTF8 sequence.
 CRDTP_EXPORT void EncodeFromLatin1(span<uint8_t> latin1,
                                    std::vector<uint8_t>* out);
-CRDTP_EXPORT void EncodeFromLatin1(span<uint8_t> latin1, std::string* out);
 
 // Encodes the given |utf16| string as STRING8 if it's entirely US-ASCII.
 // Otherwise, encodes as STRING16.
 CRDTP_EXPORT void EncodeFromUTF16(span<uint16_t> utf16,
                                   std::vector<uint8_t>* out);
-CRDTP_EXPORT void EncodeFromUTF16(span<uint16_t> utf16, std::string* out);
 
 // Encodes arbitrary binary data in |in| as a BYTE_STRING (major type 2) with
 // definitive length, prefixed with tag 22 indicating expected conversion to
 // base64 (see RFC 7049, Table 3 and Section 2.4.4.2).
 CRDTP_EXPORT void EncodeBinary(span<uint8_t> in, std::vector<uint8_t>* out);
-CRDTP_EXPORT void EncodeBinary(span<uint8_t> in, std::string* out);
 
 // Encodes / decodes a double as Major type 7 (SIMPLE_VALUE),
 // with additional info = 27, followed by 8 bytes in big endian.
 CRDTP_EXPORT void EncodeDouble(double value, std::vector<uint8_t>* out);
-CRDTP_EXPORT void EncodeDouble(double value, std::string* out);
 
 // =============================================================================
 // cbor::EnvelopeEncoder - for wrapping submessages
@@ -121,14 +116,35 @@ class CRDTP_EXPORT EnvelopeEncoder {
   // byte size in |byte_size_pos_|. Also emits empty bytes for the
   // byte sisze so that encoding can continue.
   void EncodeStart(std::vector<uint8_t>* out);
-  void EncodeStart(std::string* out);
   // This records the current size in |out| at position byte_size_pos_.
   // Returns true iff successful.
   bool EncodeStop(std::vector<uint8_t>* out);
-  bool EncodeStop(std::string* out);
 
  private:
   size_t byte_size_pos_ = 0;
+};
+
+class CRDTP_EXPORT EnvelopeHeader {
+ public:
+  EnvelopeHeader() = default;
+  ~EnvelopeHeader() = default;
+
+  // Parse envelope. Implies that `in` accomodates the entire size of envelope.
+  static StatusOr<EnvelopeHeader> Parse(span<uint8_t> in);
+  // Parse envelope, but allow `in` to only include the beginning of the
+  // envelope.
+  static StatusOr<EnvelopeHeader> ParseFromFragment(span<uint8_t> in);
+
+  size_t header_size() const { return header_size_; }
+  size_t content_size() const { return content_size_; }
+  size_t outer_size() const { return header_size_ + content_size_; }
+
+ private:
+  EnvelopeHeader(size_t header_size, size_t content_size)
+      : header_size_(header_size), content_size_(content_size) {}
+
+  size_t header_size_ = 0;
+  size_t content_size_ = 0;
 };
 
 // =============================================================================
@@ -142,8 +158,6 @@ class CRDTP_EXPORT EnvelopeEncoder {
 CRDTP_EXPORT std::unique_ptr<ParserHandler> NewCBOREncoder(
     std::vector<uint8_t>* out,
     Status* status);
-CRDTP_EXPORT std::unique_ptr<ParserHandler> NewCBOREncoder(std::string* out,
-                                                           Status* status);
 
 // =============================================================================
 // cbor::CBORTokenizer - for parsing individual CBOR items
@@ -261,17 +275,22 @@ class CRDTP_EXPORT CBORTokenizer {
   // enclosing envelope (the header, basically).
   span<uint8_t> GetEnvelopeContents() const;
 
+  // To be called only if ::TokenTag() == CBORTokenTag::ENVELOPE.
+  // Returns the envelope header.
+  const EnvelopeHeader& GetEnvelopeHeader() const;
+
  private:
-  void ReadNextToken(bool enter_envelope);
+  void ReadNextToken();
   void SetToken(CBORTokenTag token, size_t token_byte_length);
   void SetError(Error error);
 
-  span<uint8_t> bytes_;
+  const span<uint8_t> bytes_;
   CBORTokenTag token_tag_;
   struct Status status_;
-  size_t token_byte_length_;
+  size_t token_byte_length_ = 0;
   MajorType token_start_type_;
   uint64_t token_start_internal_value_;
+  EnvelopeHeader envelope_header_;
 };
 
 // =============================================================================
@@ -294,9 +313,6 @@ CRDTP_EXPORT void ParseCBOR(span<uint8_t> bytes, ParserHandler* out);
 CRDTP_EXPORT Status AppendString8EntryToCBORMap(span<uint8_t> string8_key,
                                                 span<uint8_t> string8_value,
                                                 std::vector<uint8_t>* cbor);
-CRDTP_EXPORT Status AppendString8EntryToCBORMap(span<uint8_t> string8_key,
-                                                span<uint8_t> string8_value,
-                                                std::string* cbor);
 
 namespace internals {  // Exposed only for writing tests.
 CRDTP_EXPORT size_t ReadTokenStart(span<uint8_t> bytes,
@@ -306,9 +322,6 @@ CRDTP_EXPORT size_t ReadTokenStart(span<uint8_t> bytes,
 CRDTP_EXPORT void WriteTokenStart(cbor::MajorType type,
                                   uint64_t value,
                                   std::vector<uint8_t>* encoded);
-CRDTP_EXPORT void WriteTokenStart(cbor::MajorType type,
-                                  uint64_t value,
-                                  std::string* encoded);
 }  // namespace internals
 }  // namespace cbor
 }  // namespace crdtp

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,8 +10,9 @@
 #include <string>
 
 #include "base/compiler_specific.h"
-#include "base/macros.h"
 #include "base/observer_list.h"
+#include "base/strings/string_piece.h"
+#include "base/values.h"
 #include "components/prefs/persistent_pref_store.h"
 #include "components/prefs/pref_value_map.h"
 
@@ -22,8 +23,11 @@ class TestingPrefStore : public PersistentPrefStore {
  public:
   TestingPrefStore();
 
-  // Overriden from PrefStore.
-  bool GetValue(const std::string& key,
+  TestingPrefStore(const TestingPrefStore&) = delete;
+  TestingPrefStore& operator=(const TestingPrefStore&) = delete;
+
+  // Overridden from PrefStore.
+  bool GetValue(base::StringPiece key,
                 const base::Value** result) const override;
   base::Value::Dict GetValues() const override;
   void AddObserver(PrefStore::Observer* observer) override;
@@ -41,6 +45,7 @@ class TestingPrefStore : public PersistentPrefStore {
                         base::Value value,
                         uint32_t flags) override;
   void RemoveValue(const std::string& key, uint32_t flags) override;
+  void RemoveValuesByPrefixSilently(const std::string& prefix) override;
   bool ReadOnly() const override;
   PrefReadError GetReadError() const override;
   PersistentPrefStore::PrefReadError ReadPrefs() override;
@@ -71,7 +76,6 @@ class TestingPrefStore : public PersistentPrefStore {
   // the call to ReadPrefsAsync.
   void SetBlockAsyncRead(bool block_async_read);
 
-  void ClearMutableValues() override;
   void OnStoreDeletionFromDisk() override;
 
   // Getter and Setter methods for setting and getting the state of the
@@ -115,8 +119,6 @@ class TestingPrefStore : public PersistentPrefStore {
 
   std::unique_ptr<ReadErrorDelegate> error_delegate_;
   base::ObserverList<PrefStore::Observer, true>::Unchecked observers_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestingPrefStore);
 };
 
 #endif  // COMPONENTS_PREFS_TESTING_PREF_STORE_H_

@@ -48,8 +48,7 @@
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(STARBOARD)
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include "base/files/file_descriptor_watcher_posix.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #endif
@@ -495,8 +494,7 @@ void TaskEnvironment::InitializeThreadPool() {
 void TaskEnvironment::CompleteInitialization() {
   DCHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
 
-#if defined(STARBOARD)
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   if (main_thread_type() == MainThreadType::IO) {
     file_descriptor_watcher_ =
         std::make_unique<FileDescriptorWatcher>(GetMainThreadTaskRunner());

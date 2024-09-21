@@ -1,5 +1,5 @@
-#!/usr/bin/env python
-# Copyright 2019 The Chromium Authors. All rights reserved.
+#!/usr/bin/env python3
+# Copyright 2019 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -18,27 +18,48 @@ FILES_TO_SYNC = [
     'code_generator.py',
     'concatenate_protocols.py',
     'convert_protocol_to_json.py',
+    'crdtp/README.md',
     'crdtp/cbor.cc',
     'crdtp/cbor.h',
     'crdtp/cbor_test.cc',
+    'crdtp/dispatch.h',
+    'crdtp/dispatch.cc',
+    'crdtp/dispatch_test.cc',
+    'crdtp/error_support.h',
+    'crdtp/error_support.cc',
+    'crdtp/error_support_test.cc',
     'crdtp/export.h',
-    'crdtp/glue.h',
-    'crdtp/glue_test.cc',
+    'crdtp/find_by_first.h',
+    'crdtp/find_by_first_test.cc',
+    'crdtp/frontend_channel.h',
+    'crdtp/maybe_test.cc',
     'crdtp/json.cc',
     'crdtp/json.h',
     'crdtp/json_platform.h',
     'crdtp/json_test.cc',
+    'crdtp/maybe.h',
     'crdtp/parser_handler.h',
+    'crdtp/protocol_core.cc',
+    'crdtp/protocol_core.h',
+    'crdtp/protocol_core_test.cc',
     'crdtp/serializable.h',
     'crdtp/serializable.cc',
     'crdtp/serializable_test.cc',
+    'crdtp/serializer_traits.h',
+    'crdtp/serializer_traits_test.cc',
     'crdtp/span.h',
+    'crdtp/span.cc',
     'crdtp/span_test.cc',
     'crdtp/status.cc',
     'crdtp/status.h',
+    'crdtp/status_test_support.cc',
+    'crdtp/status_test_support.h',
     'crdtp/status_test.cc',
     'crdtp/test_platform.cc',
     'crdtp/test_platform.h',
+    'crdtp/test_string_traits.cc',
+    'crdtp/test_string_traits.h',
+    'crdtp/transcode.cc',
     'inspector_protocol.gni',
     'inspector_protocol.gypi',
     'lib/*',
@@ -52,7 +73,7 @@ def RunCmd(cmd):
   (stdoutdata, stderrdata) = p.communicate()
   if p.returncode != 0:
     raise Exception('%s: exit status %d', str(cmd), p.returncode)
-  return stdoutdata
+  return stdoutdata.decode('utf-8')
 
 
 def CheckRepoIsClean(path):

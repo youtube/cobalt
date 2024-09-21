@@ -15,9 +15,8 @@
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/base_tracing.h"
 #include "build/build_config.h"
-#if defined(STARBOARD)
-#include "starboard/types.h"
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <errno.h>
 #endif
 
@@ -42,8 +41,7 @@ File::File(PlatformFile platform_file) : File(platform_file, false) {}
 
 File::File(ScopedPlatformFile platform_file, bool async)
     : file_(std::move(platform_file)), error_details_(FILE_OK), async_(async) {
-#if defined(STARBOARD)
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   DCHECK_GE(file_.get(), -1);
 #endif
 }
@@ -52,8 +50,7 @@ File::File(PlatformFile platform_file, bool async)
     : file_(platform_file),
       error_details_(FILE_OK),
       async_(async) {
-#if defined(STARBOARD)
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   DCHECK_GE(platform_file, -1);
 #endif
 }
@@ -62,19 +59,10 @@ File::File(Error error_details) : error_details_(error_details) {}
 
 File::File(File&& other)
     : file_(other.TakePlatformFile()),
-#if defined(STARBOARD)
-      file_name_(other.file_name_),
-#endif
       tracing_path_(other.tracing_path_),
       error_details_(other.error_details()),
       created_(other.created()),
-      async_(other.async_)
-#if defined(STARBOARD)
-      ,
-      append_(other.append_)
-#endif
-{
-}
+      async_(other.async_) {}
 
 File::~File() {
   // Go through the AssertIOAllowed logic.
@@ -88,18 +76,13 @@ File& File::operator=(File&& other) {
   error_details_ = other.error_details();
   created_ = other.created();
   async_ = other.async_;
-#if defined(STARBOARD)
-  file_name_ = other.file_name_;
-  append_ = other.append_;
-#endif
   return *this;
 }
 
 #if !BUILDFLAG(IS_NACL)
 void File::Initialize(const FilePath& path, uint32_t flags) {
   if (path.ReferencesParent()) {
-#if defined(STARBOARD)
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
     ::SetLastError(ERROR_ACCESS_DENIED);
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     errno = EACCES;
@@ -112,9 +95,6 @@ void File::Initialize(const FilePath& path, uint32_t flags) {
   if (FileTracing::IsCategoryEnabled())
     tracing_path_ = path;
   SCOPED_FILE_TRACE("Initialize");
-#if defined(STARBOARD)
-  file_name_= path.AsUTF8Unsafe();
-#endif
   DoInitialize(path, flags);
 }
 #endif

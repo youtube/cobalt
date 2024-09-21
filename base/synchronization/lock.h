@@ -74,9 +74,7 @@ class LOCKABLE BASE_EXPORT Lock {
   // Whether Lock mitigates priority inversion when used from different thread
   // priorities.
   static bool HandlesMultipleThreadPriorities() {
-#if defined(STARBOARD)
-    return false;
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
     // Windows mitigates priority inversion by randomly boosting the priority of
     // ready threads.
     // https://msdn.microsoft.com/library/windows/desktop/ms684831.aspx

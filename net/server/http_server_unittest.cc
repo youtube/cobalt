@@ -203,11 +203,7 @@ class HttpServerTest : public TestWithTaskEnvironment,
 
   void OnHttpRequest(int connection_id,
                      const HttpServerRequestInfo& info) override {
-  #if defined(STARBOARD)
-    received_requests_.AddValue({info, connection_id});
-  #else
     received_requests_.AddValue({.info = info, .connection_id = connection_id});
-  #endif
   }
 
   void OnWebSocketRequest(int connection_id,
@@ -1116,11 +1112,6 @@ class CloseOnConnectHttpServerTest : public HttpServerTest {
   std::vector<int> connection_ids_;
 };
 
-// Starboard platforms cannot distinguish between a connection attempt that
-// failed, and a connection attempt that succeeded but was then immediately
-// closed, because it calls SbSocketIsConnected() to determine if a connection
-// attempt was successful.
-#if !defined(STARBOARD)
 TEST_F(CloseOnConnectHttpServerTest, ServerImmediatelyClosesConnection) {
   TestHttpClient client;
   CreateConnection(&client);
@@ -1137,7 +1128,6 @@ TEST_F(CloseOnConnectHttpServerTest, ServerImmediatelyClosesConnection) {
   // closed without reading from it.
   EXPECT_FALSE(HasRequest());
 }
-#endif  // !defined(STARBOARD)
 
 }  // namespace
 

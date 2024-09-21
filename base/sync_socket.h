@@ -22,8 +22,6 @@
 #endif
 #include <sys/types.h>
 
-#if !defined(STARBOARD)
-
 namespace base {
 
 class BASE_EXPORT SyncSocket {
@@ -139,7 +137,5 @@ class BASE_EXPORT CancelableSyncSocket : public SyncSocket {
 };
 
 }  // namespace base
-
-#endif  // !defined(STARBOARD)
 
 #endif  // BASE_SYNC_SOCKET_H_

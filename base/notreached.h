@@ -51,10 +51,6 @@ namespace logging {
   (true) ? ::logging::NotReachedFailure() : EAT_CHECK_STREAM_PARAMS()
 #endif
 
-#if defined(COMPILER_MSVC) && defined(USE_COBALT_CUSTOMIZATIONS)
-#define __PRETTY_FUNCTION__ __FUNCSIG__
-#endif
-
 // The NOTIMPLEMENTED() macro annotates codepaths which have not been
 // implemented yet. If output spam is a serious concern,
 // NOTIMPLEMENTED_LOG_ONCE can be used.

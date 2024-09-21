@@ -1,0 +1,10 @@
+include_rules = [
+  "+content/public",
+  "+mojo/public",
+  "+net",
+  "+services/service_manager/public/cpp/binder_registry.h",
+  "+ui/base",
+  "+ui/gfx",
+  "+components/content_settings/core",
+  "+components/page_image_service"
+]

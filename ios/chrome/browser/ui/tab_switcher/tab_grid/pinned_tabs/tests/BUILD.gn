@@ -1,0 +1,50 @@
+source_set("eg2_tests") {
+  configs += [
+    "//build/config/compiler:enable_arc",
+    "//build/config/ios:xctest_config",
+  ]
+  testonly = true
+  sources = [
+    "pinned_tabs_context_egtest.mm",
+    "pinned_tabs_drag_drop_egtest.mm",
+    "pinned_tabs_generic_egtest.mm",
+    "pinned_tabs_overflow_egtest.mm",
+  ]
+
+  deps = [
+    "//ios/chrome/app/strings",
+    "//ios/chrome/browser/shared/ui/symbols",
+    "//ios/chrome/browser/tabs:features",
+    "//ios/chrome/browser/ui/popup_menu:constants",
+    "//ios/chrome/browser/ui/tab_switcher/tab_grid:tab_grid_ui_constants",
+    "//ios/chrome/browser/ui/tab_switcher/tab_grid/grid:grid_ui_constants",
+    "//ios/chrome/browser/ui/tab_switcher/tab_grid/pinned_tabs:constants",
+    "//ios/chrome/browser/ui/tab_switcher/test:utils",
+    "//ios/chrome/common/ui/table_view:cells_constants",
+    "//ios/chrome/test/earl_grey:eg_test_support+eg2",
+    "//ios/testing/earl_grey:eg_test_support+eg2",
+    "//net:test_support",
+    "//ui/base",
+  ]
+  frameworks = [ "UIKit.framework" ]
+}
+
+source_set("unit_tests") {
+  configs += [ "//build/config/compiler:enable_arc" ]
+  testonly = true
+  sources = [ "pinned_tabs_mediator_unittest.mm" ]
+  deps = [
+    "//base",
+    "//base/test:test_support",
+    "//ios/chrome/browser/browser_state:test_support",
+    "//ios/chrome/browser/drag_and_drop",
+    "//ios/chrome/browser/main:public",
+    "//ios/chrome/browser/main:test_support",
+    "//ios/chrome/browser/tabs:features",
+    "//ios/chrome/browser/ui/tab_switcher/tab_grid/pinned_tabs",
+    "//ios/chrome/browser/ui/tab_switcher/test:fakes",
+    "//ios/chrome/browser/web_state_list",
+    "//ios/web/public/test/fakes",
+    "//third_party/ocmock",
+  ]
+}

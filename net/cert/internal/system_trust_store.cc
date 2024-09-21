@@ -51,10 +51,6 @@
 #include "net/cert/internal/trust_store_win.h"
 #elif BUILDFLAG(IS_ANDROID)
 #include "net/cert/internal/trust_store_android.h"
-#elif defined(STARBOARD)
-#include "base/lazy_instance.h"
-#include "net/cert/internal/trust_store_in_memory_starboard.h"
-#include "net/cert/test_root_certs.h"
 #endif
 #if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
 #include "net/cert/internal/trust_store_chrome.h"
@@ -399,52 +395,6 @@ void InitializeTrustStoreAndroid() {
 void InitializeTrustStoreAndroid() {}
 
 #endif  // CHROME_ROOT_STORE_SUPPORTED
-
-#elif defined(STARBOARD)
-
-namespace {
-
-class StarboardSystemCerts {
- public:
-  StarboardSystemCerts() {}
-
-  TrustStoreInMemoryStarboard* system_trust_store() {
-    return &system_trust_store_;
-  }
-
- private:
-  TrustStoreInMemoryStarboard system_trust_store_;
-};
-
-base::LazyInstance<StarboardSystemCerts>::Leaky g_root_certs_starboard =
-    LAZY_INSTANCE_INITIALIZER;
-
-}  // namespace
-
-// Starboard does not use OS certificate stores, instead Cobalt ships with a
-// set of trusted CA certificates to be used for validations.
-class SystemTrustStoreStarboard : public SystemTrustStore {
- public:
-  SystemTrustStoreStarboard() = default;
-
-  TrustStore* GetTrustStore() override {
-    if (TestRootCerts::HasInstance()) {
-      return TestRootCerts::GetInstance()->test_trust_store();
-    }
-    return g_root_certs_starboard.Get().system_trust_store();
-  }
-
-  bool UsesSystemTrustStore() const override { return true; }
-
-  bool IsKnownRoot(const ParsedCertificate* trust_anchor) const override {
-    return g_root_certs_starboard.Get().system_trust_store()->Contains(
-        trust_anchor);
-  }
-};
-
-std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStore() {
-  return std::make_unique<SystemTrustStoreStarboard>();
-}
 
 #else
 

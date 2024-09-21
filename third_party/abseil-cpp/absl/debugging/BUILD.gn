@@ -19,9 +19,6 @@ absl_source_set("stacktrace") {
     "internal/stacktrace_x86-inl.inc",
     "stacktrace.cc",
   ]
-  if (is_starboard) {
-    sources += [ "internal/stacktrace_starboard-inl.inc" ]
-  }
   public = [ "stacktrace.h" ]
   deps = [
     ":debugging_internal",

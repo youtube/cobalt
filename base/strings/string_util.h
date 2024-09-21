@@ -182,9 +182,6 @@ BASE_EXPORT constexpr int CompareCaseInsensitiveASCII(StringPiece16 a,
 // To compare all Unicode code points case-insensitively, use
 // base::i18n::ToLower or base::i18n::FoldCase and then compare with either ==
 // or !=.
-#ifdef STARBOARD
-BASE_EXPORT bool EqualsCaseInsensitiveASCII(const char* a_begin, const char* a_end, const char* b);
-#endif
 inline bool EqualsCaseInsensitiveASCII(StringPiece a, StringPiece b) {
   return internal::EqualsCaseInsensitiveASCIIT(a, b);
 }
@@ -574,9 +571,7 @@ BASE_EXPORT std::u16string ReplaceStringPlaceholders(
 
 }  // namespace base
 
-#if defined(STARBOARD)
-#include "base/strings/string_util_starboard.h"
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "base/strings/string_util_win.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include "base/strings/string_util_posix.h"

@@ -14,9 +14,7 @@
 #include <string>
 #include <vector>
 
-#if !defined(STARBOARD)
 #include "base/files/dir_reader_posix.h"
-#endif  // !defined(STARBOARD)
 #include "base/files/file_path.h"
 #include "base/process/process_handle.h"
 #include "base/strings/string_number_conversions.h"
@@ -35,17 +33,14 @@ extern const char kProcDir[];
 // "stat"
 extern const char kStatFile[];
 
-#if !defined(STARBOARD)
 // Returns a FilePath to "/proc/pid".
 base::FilePath GetProcPidDir(pid_t pid);
-#endif  // !defined(STARBOARD)
 
 // Reads a file from /proc into a string. This is allowed on any thread as
 // reading from /proc does not hit the disk. Returns true if the file can be
 // read and is non-empty.
 bool ReadProcFile(const FilePath& file, std::string* buffer);
 
-#if !defined(STARBOARD)
 // Take a /proc directory entry named |d_name|, and if it is the directory for
 // a process, convert it to a pid_t.
 // Returns 0 on failure.
@@ -55,7 +50,6 @@ pid_t ProcDirSlotToPid(const char* d_name);
 // Reads /proc/<pid>/stat into |buffer|. Returns true if the file can be read
 // and is non-empty.
 bool ReadProcStats(pid_t pid, std::string* buffer);
-#endif  // !defined(STARBOARD)
 
 // Takes |stats_data| and populates |proc_stats| with the values split by
 // spaces. Taking into account the 2nd field may, in itself, contain spaces.
@@ -95,21 +89,16 @@ size_t GetProcStatsFieldAsSizeT(const std::vector<std::string>& proc_stats,
 // ReadProcStats(). See GetProcStatsFieldAsInt64() for details.
 int64_t ReadStatsFilendGetFieldAsInt64(const FilePath& stat_file,
                                        ProcStatsFields field_num);
-#if !defined(STARBOARD)
 int64_t ReadProcStatsAndGetFieldAsInt64(pid_t pid, ProcStatsFields field_num);
-#endif  // !defined(STARBOARD)
 int64_t ReadProcSelfStatsAndGetFieldAsInt64(ProcStatsFields field_num);
 
-#if !defined(STARBOARD)
 // Same as ReadProcStatsAndGetFieldAsInt64() but for size_t values.
 size_t ReadProcStatsAndGetFieldAsSizeT(pid_t pid,
                                        ProcStatsFields field_num);
-#endif  // !defined(STARBOARD)
 
 // Returns the time that the OS started. Clock ticks are relative to this.
 Time GetBootTime();
 
-#if !defined(STARBOARD)
 // Returns the amount of time spent in user space since boot across all CPUs.
 TimeDelta GetUserCpuTimeSinceBoot();
 
@@ -141,7 +130,6 @@ void ForEachProcessTask(base::ProcessHandle process, Lambda&& lambda) {
     lambda(tid, task_path);
   }
 }
-#endif  // !defined(STARBOARD)
 
 }  // namespace internal
 }  // namespace base

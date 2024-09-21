@@ -3445,9 +3445,6 @@ TEST_P(HttpStreamFactoryBidirectionalQuicTest, QuicIPPoolingWithDnsAliases) {
   EXPECT_EQ(kProtoQUIC, request6->negotiated_protocol());
 }
 
-// There are heap-use-after-free errors from QuicStreamFactory.
-// TODO: b/327218234 -- Reenable unitttests when QUIC is working.
-#if !defined(STARBOARD)
 class ProcessAlternativeServicesTest : public TestWithTaskEnvironment {
  public:
   ProcessAlternativeServicesTest() {
@@ -3590,7 +3587,6 @@ TEST_F(ProcessAlternativeServicesTest, ProcessAltSvcHttp2) {
             alternatives[0].host_port_pair());
   EXPECT_EQ(0u, alternatives[0].advertised_versions().size());
 }
-#endif
 
 }  // namespace
 

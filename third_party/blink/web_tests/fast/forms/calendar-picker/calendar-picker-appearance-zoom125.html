@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<script src="../../../resources/testdriver.js"></script>
+<script src="../../../resources/testdriver-vendor.js"></script>
+<script src="../resources/picker-common.js"></script>
+
+<body style="zoom: 1.25">
+
+<p>Calendar picker should respect zoom level.</p>
+<input type=date value="2013-01-10">
+
+<script>
+  window.onload = openPickerAppearanceOnly(document.querySelector('input'));
+</script>

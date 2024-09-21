@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,10 +12,10 @@
 #include <memory>
 #include <numeric>
 
-#include "base/guid.h"
-#include "base/macros.h"
 #include "base/rand_util.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/test/scoped_feature_list.h"
+#include "base/uuid.h"
 #include "components/variations/hashing.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -23,9 +23,8 @@ namespace variations {
 
 namespace {
 
-// Size of the low entropy source to use for the permuted entropy provider
-// in tests.
-const size_t kMaxLowEntropySize = 8000;
+// Size of the low entropy source for testing.
+const uint32_t kMaxLowEntropySize = 8000;
 
 // Field trial names used in unit tests.
 const char* const kTestTrialNames[] = { "TestTrial", "AnotherTestTrial",
@@ -54,13 +53,12 @@ double GenerateSHA1Entropy(const std::string& entropy_source,
   return sha1_provider.GetEntropyForTrial(trial_name, 0);
 }
 
-// Generates permutation-based entropy for the given |trial_name| based on
-// |entropy_source| which must be in the range [0, entropy_max).
-double GeneratePermutedEntropy(uint16_t entropy_source,
-                               size_t entropy_max,
-                               const std::string& trial_name) {
-  PermutedEntropyProvider permuted_provider(entropy_source, entropy_max);
-  return permuted_provider.GetEntropyForTrial(trial_name, 0);
+// Generates normalized MurmurHash-based entropy for the given |trial_name|
+// based on |entropy_source| which must be in the range [0, entropy_max).
+double GenerateNormalizedMurmurHashEntropy(ValueInRange entropy_source,
+                                           const std::string& trial_name) {
+  NormalizedMurmurHashEntropyProvider provider(entropy_source);
+  return provider.GetEntropyForTrial(trial_name, 0);
 }
 
 // Helper interface for testing used to generate entropy values for a given
@@ -75,7 +73,7 @@ class TrialEntropyGenerator {
 };
 
 // An TrialEntropyGenerator that uses the SHA1EntropyProvider with the high
-// entropy source (random GUID with 128 bits of entropy + 13 additional bits of
+// entropy source (random UUID with 128 bits of entropy + 13 additional bits of
 // entropy corresponding to a low entropy source).
 class SHA1EntropyGenerator : public TrialEntropyGenerator {
  public:
@@ -83,51 +81,52 @@ class SHA1EntropyGenerator : public TrialEntropyGenerator {
       : trial_name_(trial_name) {
   }
 
+  SHA1EntropyGenerator(const SHA1EntropyGenerator&) = delete;
+  SHA1EntropyGenerator& operator=(const SHA1EntropyGenerator&) = delete;
+
   ~SHA1EntropyGenerator() override {}
 
   double GenerateEntropyValue() const override {
-    // Use a random GUID + 13 additional bits of entropy to match how the
+    // Use a random UUID + 13 additional bits of entropy to match how the
     // SHA1EntropyProvider is used in metrics_service.cc.
     const int low_entropy_source =
         static_cast<uint16_t>(base::RandInt(0, kMaxLowEntropySize - 1));
     const std::string high_entropy_source =
-        base::GenerateGUID() + base::IntToString(low_entropy_source);
+        base::Uuid::GenerateRandomV4().AsLowercaseString() +
+        base::NumberToString(low_entropy_source);
     return GenerateSHA1Entropy(high_entropy_source, trial_name_);
   }
 
  private:
-  std::string trial_name_;
-
-  DISALLOW_COPY_AND_ASSIGN(SHA1EntropyGenerator);
+  const std::string trial_name_;
 };
 
-// An TrialEntropyGenerator that uses the permuted entropy provider algorithm,
-// using 13-bit low entropy source values.
-class PermutedEntropyGenerator : public TrialEntropyGenerator {
+// An TrialEntropyGenerator that uses the normalized MurmurHash entropy provider
+// algorithm, using 13-bit low entropy source values.
+class NormalizedMurmurHashEntropyGenerator : public TrialEntropyGenerator {
  public:
-  explicit PermutedEntropyGenerator(const std::string& trial_name)
-      : mapping_(kMaxLowEntropySize) {
-    // Note: Given a trial name, the computed mapping will be the same.
-    // As a performance optimization, pre-compute the mapping once per trial
-    // name and index into it for each entropy value.
-    const uint32_t randomization_seed = HashName(trial_name);
-    internal::PermuteMappingUsingRandomizationSeed(randomization_seed,
-                                                   &mapping_);
-  }
+  explicit NormalizedMurmurHashEntropyGenerator(const std::string& trial_name)
+      : trial_name_(trial_name) {}
 
-  ~PermutedEntropyGenerator() override {}
+  NormalizedMurmurHashEntropyGenerator(
+      const NormalizedMurmurHashEntropyGenerator&) = delete;
+  NormalizedMurmurHashEntropyGenerator& operator=(
+      const NormalizedMurmurHashEntropyGenerator&) = delete;
+
+  ~NormalizedMurmurHashEntropyGenerator() override {}
 
   double GenerateEntropyValue() const override {
-    const int low_entropy_source =
-        static_cast<uint16_t>(base::RandInt(0, kMaxLowEntropySize - 1));
-    return mapping_[low_entropy_source] /
-           static_cast<double>(kMaxLowEntropySize);
+    return GenerateNormalizedMurmurHashEntropy(
+        {
+            .value =
+                static_cast<uint32_t>(base::RandInt(0, kMaxLowEntropySize - 1)),
+            .range = kMaxLowEntropySize,
+        },
+        trial_name_);
   }
 
  private:
-  std::vector<uint16_t> mapping_;
-
-  DISALLOW_COPY_AND_ASSIGN(PermutedEntropyGenerator);
+  const std::string trial_name_;
 };
 
 // Tests uniformity of a given |entropy_generator| using the Chi-Square Goodness
@@ -188,112 +187,95 @@ TEST(EntropyProviderTest, UseOneTimeRandomizationSHA1) {
   // that have different names, normally generate different results.
   //
   // Note that depending on the one-time random initialization, they
-  // _might_ actually give the same result, but we know that given
-  // the particular client_id we use for unit tests they won't.
-  base::FieldTrialList field_trial_list(
-      std::make_unique<SHA1EntropyProvider>("client_id"));
-  const int kNoExpirationYear = base::FieldTrialList::kNoExpirationYear;
+  // _might_ actually give the same result, but we know that given the
+  // particular client_id we use for unit tests they won't.
+  SHA1EntropyProvider entropy_provider("client_id");
   scoped_refptr<base::FieldTrial> trials[] = {
-      base::FieldTrialList::FactoryGetFieldTrial(
-          "one", 100, "default", kNoExpirationYear, 1, 1,
-          base::FieldTrial::ONE_TIME_RANDOMIZED, nullptr),
-      base::FieldTrialList::FactoryGetFieldTrial(
-          "two", 100, "default", kNoExpirationYear, 1, 1,
-          base::FieldTrial::ONE_TIME_RANDOMIZED, nullptr),
+      base::FieldTrialList::FactoryGetFieldTrial("one", 100, "default",
+                                                 entropy_provider),
+      base::FieldTrialList::FactoryGetFieldTrial("two", 100, "default",
+                                                 entropy_provider),
   };
 
-  for (size_t i = 0; i < arraysize(trials); ++i) {
+  for (size_t i = 0; i < std::size(trials); ++i) {
     for (int j = 0; j < 100; ++j)
       trials[i]->AppendGroup(std::string(), 1);
   }
 
   // The trials are most likely to give different results since they have
   // different names.
-  EXPECT_NE(trials[0]->group(), trials[1]->group());
   EXPECT_NE(trials[0]->group_name(), trials[1]->group_name());
 }
 
-TEST(EntropyProviderTest, UseOneTimeRandomizationPermuted) {
+TEST(EntropyProviderTest, UseOneTimeRandomizationNormalizedMurmurHash) {
   // Simply asserts that two trials using one-time randomization
   // that have different names, normally generate different results.
   //
   // Note that depending on the one-time random initialization, they
   // _might_ actually give the same result, but we know that given
-  // the particular client_id we use for unit tests they won't.
-  base::FieldTrialList field_trial_list(
-      std::make_unique<PermutedEntropyProvider>(1234, kMaxLowEntropySize));
-  const int kNoExpirationYear = base::FieldTrialList::kNoExpirationYear;
+  // the particular low_entropy_source we use for unit tests they won't.
+  NormalizedMurmurHashEntropyProvider entropy_provider(
+      {1234, kMaxLowEntropySize});
   scoped_refptr<base::FieldTrial> trials[] = {
-      base::FieldTrialList::FactoryGetFieldTrial(
-          "one", 100, "default", kNoExpirationYear, 1, 1,
-          base::FieldTrial::ONE_TIME_RANDOMIZED, nullptr),
-      base::FieldTrialList::FactoryGetFieldTrial(
-          "two", 100, "default", kNoExpirationYear, 1, 1,
-          base::FieldTrial::ONE_TIME_RANDOMIZED, nullptr),
+      base::FieldTrialList::FactoryGetFieldTrial("one", 100, "default",
+                                                 entropy_provider),
+      base::FieldTrialList::FactoryGetFieldTrial("two", 100, "default",
+                                                 entropy_provider),
   };
 
-  for (size_t i = 0; i < arraysize(trials); ++i) {
+  for (size_t i = 0; i < std::size(trials); ++i) {
     for (int j = 0; j < 100; ++j)
       trials[i]->AppendGroup(std::string(), 1);
   }
 
   // The trials are most likely to give different results since they have
   // different names.
-  EXPECT_NE(trials[0]->group(), trials[1]->group());
   EXPECT_NE(trials[0]->group_name(), trials[1]->group_name());
-}
-
-TEST(EntropyProviderTest, UseOneTimeRandomizationWithCustomSeedPermuted) {
-  // Ensures that two trials with different names but the same custom seed used
-  // for one time randomization produce the same group assignments.
-  base::FieldTrialList field_trial_list(
-      std::make_unique<PermutedEntropyProvider>(1234, kMaxLowEntropySize));
-  const int kNoExpirationYear = base::FieldTrialList::kNoExpirationYear;
-  const uint32_t kCustomSeed = 9001;
-  scoped_refptr<base::FieldTrial> trials[] = {
-      base::FieldTrialList::FactoryGetFieldTrialWithRandomizationSeed(
-          "one", 100, "default", kNoExpirationYear, 1, 1,
-          base::FieldTrial::ONE_TIME_RANDOMIZED, kCustomSeed, nullptr, nullptr),
-      base::FieldTrialList::FactoryGetFieldTrialWithRandomizationSeed(
-          "two", 100, "default", kNoExpirationYear, 1, 1,
-          base::FieldTrial::ONE_TIME_RANDOMIZED, kCustomSeed, nullptr, nullptr),
-  };
-
-  for (size_t i = 0; i < arraysize(trials); ++i) {
-    for (int j = 0; j < 100; ++j)
-      trials[i]->AppendGroup(std::string(), 1);
-  }
-
-  // Normally, these trials should produce different groups, but if the same
-  // custom seed is used, they should produce the same group assignment.
-  EXPECT_EQ(trials[0]->group(), trials[1]->group());
-  EXPECT_EQ(trials[0]->group_name(), trials[1]->group_name());
 }
 
 TEST(EntropyProviderTest, UseOneTimeRandomizationWithCustomSeedSHA1) {
   // Ensures that two trials with different names but the same custom seed used
   // for one time randomization produce the same group assignments.
-  base::FieldTrialList field_trial_list(
-      std::make_unique<SHA1EntropyProvider>("client_id"));
-  const int kNoExpirationYear = base::FieldTrialList::kNoExpirationYear;
+  SHA1EntropyProvider entropy_provider("client_id");
   const uint32_t kCustomSeed = 9001;
   scoped_refptr<base::FieldTrial> trials[] = {
-      base::FieldTrialList::FactoryGetFieldTrialWithRandomizationSeed(
-          "one", 100, "default", kNoExpirationYear, 1, 1,
-          base::FieldTrial::ONE_TIME_RANDOMIZED, kCustomSeed, nullptr, nullptr),
-      base::FieldTrialList::FactoryGetFieldTrialWithRandomizationSeed(
-          "two", 100, "default", kNoExpirationYear, 1, 1,
-          base::FieldTrial::ONE_TIME_RANDOMIZED, kCustomSeed, nullptr, nullptr),
+      base::FieldTrialList::FactoryGetFieldTrial("one", 100, "default",
+                                                 entropy_provider, kCustomSeed),
+      base::FieldTrialList::FactoryGetFieldTrial("two", 100, "default",
+                                                 entropy_provider, kCustomSeed),
   };
 
-  for (size_t i = 0; i < arraysize(trials); ++i) {
+  for (size_t i = 0; i < std::size(trials); ++i) {
     for (int j = 0; j < 100; ++j)
       trials[i]->AppendGroup(std::string(), 1);
   }
 
   // Normally, these trials should produce different groups, but if the same
   // custom seed is used, they should produce the same group assignment.
-  EXPECT_EQ(trials[0]->group(), trials[1]->group());
+  EXPECT_EQ(trials[0]->group_name(), trials[1]->group_name());
+}
+
+TEST(EntropyProviderTest,
+     UseOneTimeRandomizationWithCustomSeedNormalizedMurmurHash) {
+  // Ensures that two trials with different names but the same custom seed used
+  // for one time randomization produce the same group assignments.
+  NormalizedMurmurHashEntropyProvider entropy_provider(
+      {1234, kMaxLowEntropySize});
+  const uint32_t kCustomSeed = 9001;
+  scoped_refptr<base::FieldTrial> trials[] = {
+      base::FieldTrialList::FactoryGetFieldTrial("one", 100, "default",
+                                                 entropy_provider, kCustomSeed),
+      base::FieldTrialList::FactoryGetFieldTrial("two", 100, "default",
+                                                 entropy_provider, kCustomSeed),
+  };
+
+  for (size_t i = 0; i < std::size(trials); ++i) {
+    for (int j = 0; j < 100; ++j)
+      trials[i]->AppendGroup(std::string(), 1);
+  }
+
+  // Normally, these trials should produce different groups, but if the same
+  // custom seed is used, they should produce the same group assignment.
   EXPECT_EQ(trials[0]->group_name(), trials[1]->group_name());
 }
 
@@ -302,7 +284,7 @@ TEST(EntropyProviderTest, SHA1Entropy) {
                              GenerateSHA1Entropy("there", "1") };
 
   EXPECT_NE(results[0], results[1]);
-  for (size_t i = 0; i < arraysize(results); ++i) {
+  for (size_t i = 0; i < std::size(results); ++i) {
     EXPECT_LE(0.0, results[i]);
     EXPECT_GT(1.0, results[i]);
   }
@@ -313,86 +295,54 @@ TEST(EntropyProviderTest, SHA1Entropy) {
             GenerateSHA1Entropy("yo", "else"));
 }
 
-TEST(EntropyProviderTest, PermutedEntropy) {
+TEST(EntropyProviderTest, NormalizedMurmurHashEntropy) {
   const double results[] = {
-      GeneratePermutedEntropy(1234, kMaxLowEntropySize, "1"),
-      GeneratePermutedEntropy(4321, kMaxLowEntropySize, "1") };
+      GenerateNormalizedMurmurHashEntropy({1234, kMaxLowEntropySize}, "1"),
+      GenerateNormalizedMurmurHashEntropy({4321, kMaxLowEntropySize}, "1")};
 
   EXPECT_NE(results[0], results[1]);
-  for (size_t i = 0; i < arraysize(results); ++i) {
+  for (size_t i = 0; i < std::size(results); ++i) {
     EXPECT_LE(0.0, results[i]);
     EXPECT_GT(1.0, results[i]);
   }
 
-  EXPECT_EQ(GeneratePermutedEntropy(1234, kMaxLowEntropySize, "1"),
-            GeneratePermutedEntropy(1234, kMaxLowEntropySize, "1"));
-  EXPECT_NE(GeneratePermutedEntropy(1234, kMaxLowEntropySize, "something"),
-            GeneratePermutedEntropy(1234, kMaxLowEntropySize, "else"));
+  EXPECT_EQ(
+      GenerateNormalizedMurmurHashEntropy({1234, kMaxLowEntropySize}, "1"),
+      GenerateNormalizedMurmurHashEntropy({1234, kMaxLowEntropySize}, "1"));
+  EXPECT_NE(
+      GenerateNormalizedMurmurHashEntropy({1234, kMaxLowEntropySize},
+                                          "something"),
+      GenerateNormalizedMurmurHashEntropy({1234, kMaxLowEntropySize}, "else"));
 }
 
-TEST(EntropyProviderTest, PermutedEntropyProviderResults) {
-  // Verifies that PermutedEntropyProvider produces expected results. This
-  // ensures that the results are the same between platforms and ensures that
-  // changes to the implementation do not regress this accidentally.
+TEST(EntropyProviderTest, NormalizedMurmurHashEntropyProviderResults) {
+  // Verifies that NormalizedMurmurHashEntropyProvider produces expected
+  // results. This ensures that the results are the same between platforms and
+  // ensures that changes to the implementation do not regress this
+  // accidentally.
 
-  EXPECT_DOUBLE_EQ(2194 / static_cast<double>(kMaxLowEntropySize),
-                   GeneratePermutedEntropy(1234, kMaxLowEntropySize, "XYZ"));
-  EXPECT_DOUBLE_EQ(5676 / static_cast<double>(kMaxLowEntropySize),
-                   GeneratePermutedEntropy(1, kMaxLowEntropySize, "Test"));
-  EXPECT_DOUBLE_EQ(1151 / static_cast<double>(kMaxLowEntropySize),
-                   GeneratePermutedEntropy(5000, kMaxLowEntropySize, "Foo"));
+  EXPECT_DOUBLE_EQ(
+      1612 / static_cast<double>(kMaxLowEntropySize),
+      GenerateNormalizedMurmurHashEntropy({1234, kMaxLowEntropySize}, "XYZ"));
+  EXPECT_DOUBLE_EQ(
+      7066 / static_cast<double>(kMaxLowEntropySize),
+      GenerateNormalizedMurmurHashEntropy({1, kMaxLowEntropySize}, "Test"));
+  EXPECT_DOUBLE_EQ(
+      5668 / static_cast<double>(kMaxLowEntropySize),
+      GenerateNormalizedMurmurHashEntropy({5000, kMaxLowEntropySize}, "Foo"));
 }
 
 TEST(EntropyProviderTest, SHA1EntropyIsUniform) {
-  for (size_t i = 0; i < arraysize(kTestTrialNames); ++i) {
+  for (size_t i = 0; i < std::size(kTestTrialNames); ++i) {
     SHA1EntropyGenerator entropy_generator(kTestTrialNames[i]);
     PerformEntropyUniformityTest(kTestTrialNames[i], entropy_generator);
   }
 }
 
-TEST(EntropyProviderTest, PermutedEntropyIsUniform) {
-  for (size_t i = 0; i < arraysize(kTestTrialNames); ++i) {
-    PermutedEntropyGenerator entropy_generator(kTestTrialNames[i]);
+TEST(EntropyProviderTest, NormalizedMurmurHashEntropyIsUniform) {
+  for (size_t i = 0; i < std::size(kTestTrialNames); ++i) {
+    NormalizedMurmurHashEntropyGenerator entropy_generator(kTestTrialNames[i]);
     PerformEntropyUniformityTest(kTestTrialNames[i], entropy_generator);
-  }
-}
-
-TEST(EntropyProviderTest, SeededRandGeneratorIsUniform) {
-  // Verifies that SeededRandGenerator has a uniform distribution.
-  //
-  // Mirrors RandUtilTest.RandGeneratorIsUniform in base/rand_util_unittest.cc.
-
-  const uint32_t kTopOfRange =
-      (std::numeric_limits<uint32_t>::max() / 4ULL) * 3ULL;
-  const uint32_t kExpectedAverage = kTopOfRange / 2ULL;
-  const uint32_t kAllowedVariance = kExpectedAverage / 50ULL;  // +/- 2%
-  const int kMinAttempts = 1000;
-  const int kMaxAttempts = 1000000;
-
-  for (size_t i = 0; i < arraysize(kTestTrialNames); ++i) {
-    const uint32_t seed = HashName(kTestTrialNames[i]);
-    internal::SeededRandGenerator rand_generator(seed);
-
-    double cumulative_average = 0.0;
-    int count = 0;
-    while (count < kMaxAttempts) {
-      uint32_t value = rand_generator(kTopOfRange);
-      cumulative_average = (count * cumulative_average + value) / (count + 1);
-
-      // Don't quit too quickly for things to start converging, or we may have
-      // a false positive.
-      if (count > kMinAttempts &&
-          kExpectedAverage - kAllowedVariance < cumulative_average &&
-          cumulative_average < kExpectedAverage + kAllowedVariance) {
-        break;
-      }
-
-      ++count;
-    }
-
-    ASSERT_LT(count, kMaxAttempts) << "Expected average was " <<
-        kExpectedAverage << ", average ended at " << cumulative_average <<
-        ", for trial " << kTestTrialNames[i];
   }
 }
 

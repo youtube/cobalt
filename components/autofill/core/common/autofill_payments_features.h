@@ -1,0 +1,63 @@
+// Copyright 2019 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef COMPONENTS_AUTOFILL_CORE_COMMON_AUTOFILL_PAYMENTS_FEATURES_H_
+#define COMPONENTS_AUTOFILL_CORE_COMMON_AUTOFILL_PAYMENTS_FEATURES_H_
+
+#include "base/feature_list.h"
+#include "base/metrics/field_trial_params.h"
+#include "build/build_config.h"
+
+namespace autofill {
+namespace features {
+
+// All features in alphabetical order.
+BASE_DECLARE_FEATURE(kAutofillAlwaysReturnCloudTokenizedCard);
+BASE_DECLARE_FEATURE(kAutofillAutoTriggerManualFallbackForCards);
+BASE_DECLARE_FEATURE(kAutofillEnableCardArtImage);
+BASE_DECLARE_FEATURE(kAutofillEnableCardProductName);
+BASE_DECLARE_FEATURE(kAutofillEnableEmailOtpForVcnYellowPath);
+BASE_DECLARE_FEATURE(kAutofillEnableFIDOProgressDialog);
+BASE_DECLARE_FEATURE(kAutofillEnableIbanClientSideUrlFiltering);
+BASE_DECLARE_FEATURE(kAutofillEnableManualFallbackForVirtualCards);
+BASE_DECLARE_FEATURE(kAutofillEnableMerchantOptOutClientSideUrlFiltering);
+BASE_DECLARE_FEATURE(kAutofillEnableNewCardArtAndNetworkImages);
+BASE_DECLARE_FEATURE(kAutofillEnableNewSaveCardBubbleUi);
+BASE_DECLARE_FEATURE(kAutofillEnableOfferNotificationForPromoCodes);
+BASE_DECLARE_FEATURE(kAutofillEnableOffersInClankKeyboardAccessory);
+BASE_DECLARE_FEATURE(kAutofillEnablePaymentsMandatoryReauth);
+BASE_DECLARE_FEATURE(kAutofillEnableRemadeDownstreamMetrics);
+BASE_DECLARE_FEATURE(kAutofillEnableStickyManualFallbackForCards);
+BASE_DECLARE_FEATURE(kAutofillEnableUpdateVirtualCardEnrollment);
+BASE_DECLARE_FEATURE(kAutofillEnableVirtualCard);
+BASE_DECLARE_FEATURE(kAutofillEnableVirtualCardFidoEnrollment);
+BASE_DECLARE_FEATURE(kAutofillEnableVirtualCardManagementInDesktopSettingsPage);
+BASE_DECLARE_FEATURE(kAutofillEnableVirtualCardMetadata);
+BASE_DECLARE_FEATURE(kAutofillEnforceDelaysInStrikeDatabase);
+BASE_DECLARE_FEATURE(kAutofillFillIbanFields);
+BASE_DECLARE_FEATURE(kAutofillFillMerchantPromoCodeFields);
+BASE_DECLARE_FEATURE(kAutofillOfferToSaveCardWithSameLastFour);
+BASE_DECLARE_FEATURE(kAutofillParseIBANFields);
+BASE_DECLARE_FEATURE(kAutofillParseVcnCardOnFileStandaloneCvcFields);
+BASE_DECLARE_FEATURE(kAutofillRemoveCardExpirationAndTypeTitles);
+BASE_DECLARE_FEATURE(kAutofillSaveCardInfobarEditSupport);
+BASE_DECLARE_FEATURE(kAutofillShowUnmaskedCachedCardInManualFillingView);
+BASE_DECLARE_FEATURE(kAutofillSuggestServerCardInsteadOfLocalCard);
+BASE_DECLARE_FEATURE(kAutofillUpstream);
+BASE_DECLARE_FEATURE(kAutofillUpstreamAllowAdditionalEmailDomains);
+BASE_DECLARE_FEATURE(kAutofillUpstreamAllowAllEmailDomains);
+BASE_DECLARE_FEATURE(kAutofillUpstreamAuthenticatePreflightCall);
+BASE_DECLARE_FEATURE(kAutofillUpstreamUseAlternateSecureDataType);
+BASE_DECLARE_FEATURE(kAutofillUseEloRegexForBinMatching);
+extern const base::FeatureParam<int>
+    kAutofillVirtualCardEnrollDelayInStrikeDatabaseInDays;
+
+// Return whether a [No thanks] button and new messaging is shown in the save
+// card bubbles. This will be called only on desktop platforms.
+bool ShouldShowImprovedUserConsentForCreditCardSave();
+
+}  // namespace features
+}  // namespace autofill
+
+#endif  // COMPONENTS_AUTOFILL_CORE_COMMON_AUTOFILL_PAYMENTS_FEATURES_H_

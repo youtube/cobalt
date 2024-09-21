@@ -1,0 +1,2 @@
+Tests that Page.lifecycleEvent is issued for important events.
+

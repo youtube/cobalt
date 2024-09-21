@@ -90,7 +90,7 @@ cleanup() {
   echo "Cleaning up..."
 
   # Generally don't let things fail, and eat common stdout, but let stderr show
-  # incase something does hiccup.
+  # in case something does hiccup.
   xcodebuild -workspace "${TEST_NAME}.xcworkspace" -scheme "${TEST_NAME}" clean > /dev/null || true
   pod deintegrate > /dev/null || true
   # Flush the cache so nothing is left behind.
@@ -128,7 +128,7 @@ do_test() {
     # errors.
     xcodebuild_args+=(
         -sdk iphonesimulator ONLY_ACTIVE_ARCH=NO
-        -destination "platform=iOS Simulator,name=iPad 2,OS=9.3"
+        -destination "platform=iOS Simulator,name=iPad Air (5th generation),OS=15.4"
     )
   fi
 

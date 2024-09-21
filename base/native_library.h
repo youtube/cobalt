@@ -15,8 +15,6 @@
 #include "base/strings/string_piece.h"
 #include "build/build_config.h"
 
-#if !defined(STARBOARD)
-
 #if BUILDFLAG(IS_WIN)
 #include <windows.h>
 #elif BUILDFLAG(IS_APPLE)
@@ -131,5 +129,4 @@ BASE_EXPORT std::string GetLoadableModuleName(StringPiece name);
 
 }  // namespace base
 
-#endif  // !defined(STARBOARD)
 #endif  // BASE_NATIVE_LIBRARY_H_

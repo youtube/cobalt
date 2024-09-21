@@ -589,11 +589,7 @@ bool DoCanonicalizeIPv6Address(const CHAR* spec,
 void AppendIPv4Address(const unsigned char address[4], CanonOutput* output) {
   for (int i = 0; i < 4; i++) {
     char str[16];
-#if defined(STARBOARD)
-    snprintf(str, 16, "%d", address[i]);
-#else
     _itoa_s(address[i], str, 10);
-#endif
 
     for (int ch = 0; str[ch] != 0; ch++)
       output->push_back(str[ch]);
@@ -628,11 +624,7 @@ void AppendIPv6Address(const unsigned char address[16], CanonOutput* output) {
 
       // Stringify the 16 bit number (at most requires 4 hex digits).
       char str[5];
-#if defined(STARBOARD)
-      snprintf(str, 5, "%x", x);
-#else
       _itoa_s(x, str, 16);
-#endif
       for (int ch = 0; str[ch] != 0; ++ch)
         output->push_back(str[ch]);
 

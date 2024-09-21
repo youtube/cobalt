@@ -1,9 +1,0 @@
-4-red-text-shadow
-4-simple-text-shadow
-4-text-shadow-appears-when-text-color-is-transparent
-4-text-shadow-glow
-4-text-shadow-multiple-layers
-4-text-shadow-multiple-overlapping-blurred-layers
-4-text-shadow-multiple-overlapping-layers
-4-text-shadow-with-blur
-4-text-shadow-with-large-blur

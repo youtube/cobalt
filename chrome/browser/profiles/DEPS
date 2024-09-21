@@ -1,0 +1,13 @@
+include_rules = [
+  "+components/live_caption:constants",
+  "+components/profile_metrics",
+]
+
+specific_include_rules = {
+  "chrome_browser_main_extra_parts_profiles.cc": [
+    # This is required to create the SiteDataCacheFacadeFactory when a profile
+    # is created. This file isn't part of the PerformanceManager public API and
+    # its include should be explicitly allowed.
+    "+chrome/browser/performance_manager/persistence/site_data/site_data_cache_facade_factory.h"
+  ],
+}

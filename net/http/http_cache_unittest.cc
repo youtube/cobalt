@@ -3995,9 +3995,6 @@ TEST_F(HttpCacheTest, SimpleGET_ParallelValidationNoMatch) {
   EXPECT_EQ(5, cache.disk_cache()->create_count());
 }
 
-// The error is coming from disk_cache.
-// TODO: b/327656954 -- Reenable unitttests when disk_cache is working.
-#if !defined(STARBOARD)
 TEST_F(HttpCacheTest, RangeGET_Enormous) {
   // Test for how blockfile's limit on range namespace interacts with
   // HttpCache::Transaction.
@@ -4064,7 +4061,6 @@ TEST_F(HttpCacheTest, RangeGET_Enormous) {
     EXPECT_EQ(3, cache.network_layer()->transaction_count());
   }
 }
-#endif
 
 // Parallel validation results in 200 for 1 transaction and validation matches
 // for subsequent transactions.
@@ -11661,9 +11657,6 @@ TEST_P(HttpCacheTest_SplitCacheFeatureEnabled, SplitCache) {
   EXPECT_FALSE(response.was_cached);
 }
 
-// TODO: b/327008491 - Reenable unittests with unused functionality.
-// Cobalt doesn't use Feature module.
-#if !defined(STARBOARD)
 TEST_F(HttpCacheTest, SplitCacheEnabledByDefault) {
   HttpCache::ClearGlobalsForTesting();
   HttpCache::SplitCacheFeatureEnableByDefault();
@@ -11697,7 +11690,6 @@ TEST_F(HttpCacheTest, SplitCacheEnabledByDefault) {
                                 trans_info, &response);
   EXPECT_FALSE(response.was_cached);
 }
-#endif
 
 TEST_F(HttpCacheTest, SplitCacheEnabledByDefaultButOverridden) {
   HttpCache::ClearGlobalsForTesting();

@@ -49,7 +49,6 @@ enum EmeCodec : uint32_t {
   EME_CODEC_DTS = 1 << 20,
   EME_CODEC_DTSXP2 = 1 << 21,
   EME_CODEC_DTSE = 1 << 22,
-  EME_CODEC_IAMF = 1 << 23,
 };
 
 // *_ALL values should only be used for masking, do not use them to specify
@@ -81,9 +80,6 @@ constexpr SupportedCodecs GetMp4AudioCodecs() {
   codecs |= EME_CODEC_MPEG_H_AUDIO;
 #endif  // BUILDFLAG(ENABLE_PLATFORM_MPEG_H_AUDIO)
 #endif  // BUILDFLAG(USE_PROPRIETARY_CODECS)
-#if BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
-  codecs |= EME_CODEC_IAMF;
-#endif  // BUILDFLAG(ENABLE_PLATFORM_IAMF_AUDIO)
   return codecs;
 }
 

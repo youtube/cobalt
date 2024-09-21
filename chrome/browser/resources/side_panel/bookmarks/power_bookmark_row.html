@@ -1,0 +1,85 @@
+<style include="sp-shared-style">
+  :host([has-checkbox]) cr-url-list-item {
+    pointer-events: none;
+  }
+
+  cr-url-list-item[size=compact] {
+    padding-inline-end: 14px;
+    padding-inline-start: 14px;
+  }
+
+  cr-checkbox {
+    pointer-events: auto;
+  }
+
+  /* Visually hide the label but allow the screen reader to pick it up. */
+  cr-checkbox::part(label-container) {
+    clip: rect(0,0,0,0);
+    display: block;
+    position: fixed;
+  }
+
+  cr-input {
+    --cr-input-background-color: transparent;
+    --cr-input-border-bottom: 1px solid var(--cr-secondary-text-color);
+    --cr-input-border-radius: 0;
+    --cr-input-error-display: none;
+    --cr-input-padding-start: 0;
+    width: 100%;
+  }
+
+  iron-icon {
+    height: 18px;
+    width: 18px;
+  }
+
+  :host-context([chrome-refresh-2023]) .sp-labelless-input:hover {
+    --cr-input-background-color: transparent;
+  }
+</style>
+
+<cr-url-list-item
+    role="listitem"
+    size="[[getItemSize_(compact)]]"
+    url="[[bookmark.url]]"
+    image-urls="[[imageUrls]]"
+    count="[[bookmark.children.length]]"
+    title="[[bookmark.title]]"
+    description="[[description]]"
+    button-aria-label="[[rowAriaLabel]]"
+    button-aria-description="[[rowAriaDescription]]"
+    on-click="onRowClicked_"
+    on-contextmenu="onContextMenu_"
+    force-hover="[[forceHover]]">
+  <template is="dom-if" if="[[hasCheckbox]]" restamp>
+    <cr-checkbox slot="prefix" hidden="[[!hasCheckbox]]"
+        on-change="onCheckboxChange_"
+        disabled="[[checkboxDisabled]]">
+      $i18n{checkboxA11yLabel}
+    </cr-checkbox>
+  </template>
+
+  <template is="dom-if" if="[[hasInput]]" on-dom-change="onInputDisplayChange_"
+      restamp>
+    <cr-input slot="content" id="input" value="[[bookmark.title]]"
+        class="sp-labelless-input"
+        on-change="onInputChange_" on-blur="onInputChange_"
+        on-keypress="onInputKeyPress_"
+        aria-label="[[rowAriaLabel]]"
+        aria-description="[[rowAriaDescription]]">
+    </cr-input>
+  </template>
+
+  <template is="dom-if" if="[[showTrailingIcon_(hasInput, hasCheckbox)]]"
+      on-dom-change="onInputDisplayChange_">
+   <slot slot="badges" id="badges" name="badges"></slot>
+    <cr-icon-button slot="suffix-icon" iron-icon="[[trailingIcon]]"
+        hidden="[[!trailingIcon]]" on-click="onTrailingIconClicked_"
+        title="[[trailingIconTooltip]]"
+        aria-label="[[trailingIconAriaLabel]]">
+  </template>
+
+  <template is="dom-if" if="[[isBookmarksBar_(bookmark)]]" restamp>
+    <iron-icon slot="folder-icon" icon="bookmarks:bookmarks-bar"></iron-icon>
+  </template>
+</cr-url-list-item>

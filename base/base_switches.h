@@ -12,9 +12,6 @@
 
 namespace switches {
 
-#ifdef COBALT_PENDING_CLEAN_UP
-extern const char kFontFormat[];
-#endif
 extern const char kDisableBestEffortTasks[];
 extern const char kDisableBreakpad[];
 extern const char kDisableFeatures[];

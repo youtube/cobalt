@@ -78,9 +78,7 @@ class BASE_EXPORT SingleThreadTaskRunner : public SequencedTaskRunner {
     friend class SingleThreadTaskRunner;
     friend class CurrentHandleOverride;
 
-#if !defined(STARBOARD)
     const AutoReset<CurrentDefaultHandle*> resetter_;
-#endif
 
     scoped_refptr<SingleThreadTaskRunner> task_runner_;
 

@@ -76,12 +76,11 @@
 // example). For scoped enums, this is awkward since it requires casting the
 // enum to an arithmetic type and adding one. Instead, prefer the two argument
 // version of the macro which automatically deduces the boundary from kMaxValue.
-#define CR_EXPAND_ARG(arg) arg
 #define UMA_HISTOGRAM_ENUMERATION(name, ...)                            \
-  CR_EXPAND_ARG(INTERNAL_UMA_HISTOGRAM_ENUMERATION_GET_MACRO(                         \
+  INTERNAL_UMA_HISTOGRAM_ENUMERATION_GET_MACRO(                         \
       __VA_ARGS__, INTERNAL_UMA_HISTOGRAM_ENUMERATION_SPECIFY_BOUNDARY, \
       INTERNAL_UMA_HISTOGRAM_ENUMERATION_DEDUCE_BOUNDARY)               \
-  (name, __VA_ARGS__, base::HistogramBase::kUmaTargetedHistogramFlag))
+  (name, __VA_ARGS__, base::HistogramBase::kUmaTargetedHistogramFlag)
 
 // As above but "scaled" count to avoid overflows caused by increments of
 // large amounts. See UMA_HISTOGRAM_SCALED_EXACT_LINEAR for more information.
@@ -364,12 +363,11 @@ enum class ScopedHistogramTiming {
         name, sample, min, max, bucket_count,                                  \
         base::HistogramBase::kUmaStabilityHistogramFlag)
 
-#define CR_EXPAND_ARG(arg) arg
 #define UMA_STABILITY_HISTOGRAM_ENUMERATION(name, ...)                  \
-  CR_EXPAND_ARG(INTERNAL_UMA_HISTOGRAM_ENUMERATION_GET_MACRO(                         \
+  INTERNAL_UMA_HISTOGRAM_ENUMERATION_GET_MACRO(                         \
       __VA_ARGS__, INTERNAL_UMA_HISTOGRAM_ENUMERATION_SPECIFY_BOUNDARY, \
       INTERNAL_UMA_HISTOGRAM_ENUMERATION_DEDUCE_BOUNDARY)               \
-  (name, __VA_ARGS__, base::HistogramBase::kUmaStabilityHistogramFlag))
+  (name, __VA_ARGS__, base::HistogramBase::kUmaStabilityHistogramFlag)
 
 #define UMA_STABILITY_HISTOGRAM_LONG_TIMES(name, sample)   \
   STATIC_HISTOGRAM_POINTER_BLOCK(                          \

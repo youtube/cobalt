@@ -1,18 +1,20 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 #include "components/prefs/value_map_pref_store.h"
 
 #include <algorithm>
+#include <string>
 #include <utility>
 
-#include "base/stl_util.h"
+#include "base/observer_list.h"
+#include "base/strings/string_piece.h"
 #include "base/values.h"
 
 ValueMapPrefStore::ValueMapPrefStore() {}
 
-bool ValueMapPrefStore::GetValue(const std::string& key,
+bool ValueMapPrefStore::GetValue(base::StringPiece key,
                                  const base::Value** value) const {
   return prefs_.GetValue(key, value);
 }
@@ -71,4 +73,9 @@ ValueMapPrefStore::~ValueMapPrefStore() {}
 void ValueMapPrefStore::NotifyInitializationCompleted() {
   for (Observer& observer : observers_)
     observer.OnInitializationCompleted(true);
+}
+
+void ValueMapPrefStore::RemoveValuesByPrefixSilently(
+    const std::string& prefix) {
+  prefs_.ClearWithPrefix(prefix);
 }

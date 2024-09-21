@@ -24,7 +24,6 @@
 #include "net/socket/tcp_socket.h"
 #include "net/socket/transport_client_socket.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
-#include "net/base/network_handle.h"
 
 // PowerMonitor doesn't get suspend mode signals on Android, so don't use it to
 // watch for suspend events.

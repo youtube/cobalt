@@ -24,10 +24,6 @@
 #include "base/allocator/dispatcher/standard_hooks.h"
 #endif
 
-#if defined(STARBOARD)
-#include "base/notreached.h"
-#endif
-
 namespace base {
 
 namespace {
@@ -95,13 +91,8 @@ ThreadLocalData* GetThreadLocalData() {
   // https://github.com/gcc-mirror/gcc/blob/master/libgcc/emutls.c
   // macOS version is based on _tlv_get_addr from dyld:
   // https://opensource.apple.com/source/dyld/dyld-635.2/src/threadLocalHelpers.s.auto.html
-#if defined(STARBOARD)
-  NOTIMPLEMENTED();
-  return nullptr;
-#else
   thread_local ThreadLocalData thread_local_data;
   return &thread_local_data;
-#endif
 #endif
 }
 

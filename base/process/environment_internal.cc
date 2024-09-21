@@ -4,8 +4,6 @@
 
 #include "base/process/environment_internal.h"
 
-#if !defined(STARBOARD)
-
 #include <stddef.h>
 
 #include "build/build_config.h"
@@ -134,5 +132,3 @@ NativeEnvironmentString AlterEnvironment(const wchar_t* env,
 
 }  // namespace internal
 }  // namespace base
-
-#endif  // !defined(STARBOARD)

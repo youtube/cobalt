@@ -1490,14 +1490,8 @@ TEST_F(MDnsConnectionSendTest, SendQueued) {
 
 TEST(MDnsSocketTest, CreateSocket) {
   // Verifies that socket creation hasn't been broken.
-#if defined(STARBOARD)
-  // Only the default multicast interface is supported on Starboard.
-  auto socket = CreateAndBindMDnsSocket(AddressFamily::ADDRESS_FAMILY_IPV4, 0,
-                                        net::NetLog::Get());
-#else
   auto socket = CreateAndBindMDnsSocket(AddressFamily::ADDRESS_FAMILY_IPV4, 1,
                                         net::NetLog::Get());
-#endif
   EXPECT_TRUE(socket);
   socket->Close();
 }

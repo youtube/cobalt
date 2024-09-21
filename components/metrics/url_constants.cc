@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -15,5 +15,9 @@ const char kNewMetricsServerUrlInsecure[] =
 const char kOldMetricsServerUrl[] = "https://clients4.google.com/uma/v2";
 
 const char kDefaultMetricsMimeType[] = "application/vnd.chrome.uma";
+
+const char kDefaultUkmServerUrl[] = "https://clients4.google.com/ukm";
+
+const char kUkmMimeType[] = "application/vnd.chrome.ukm";
 
 } // namespace metrics
