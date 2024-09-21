@@ -14,15 +14,18 @@
 
 #include <iostream>
 
+#define COBALT_CLANG_ERROR_MSG "We compile above Starboard targets like Cobalt, Nplb with " \
+    "clang17 or higher. If you are building with a non-Cobalt " \
+    "provided toolchain you may run into this error. To fix this error" \
+    "build libnplb using the Evergreen toolchain : " \
+    "cobalt.dev/development/setup-raspi"
+
 #ifdef __clang__
 // Check Clang major version required for building Nplb tests.
 // Clang major version can be deduced from "clang_revision" in
 // starboard/build/config/clang.gni
-static_assert(
-    __clang_major__ >= 17,
-    "We compile above Starboard targets like Cobalt, Nplb  with "
-    "clang17 or higher. If you are building with a non-Cobalt "
-    "provided toolchain you may run into this error. To fix this error"
-    "build libnplb using the Evergreen toolchain : "
-    "cobalt.dev/development/setup-raspi");
+static_assert(__clang_major__ >= 17, COBALT_CLANG_ERROR_MSG);
+#else
+static_assert(false, COBALT_CLANG_ERROR_MSG);
 #endif  // __clang__
+#undef COBALT_CLANG_ERROR_MSG

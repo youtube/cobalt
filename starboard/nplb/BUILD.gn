@@ -303,7 +303,7 @@ target(gtest_target_type, "nplb") {
     "window_get_size_test.cc",
   ]
 
-  if (!is_android) {
+  if (is_linux) {
     # Android has a different clang version than linux.
     sources +=
         [ "//starboard/nplb/compiler_compliance/cpp_compiler_version_check.cc" ]
