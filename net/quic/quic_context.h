@@ -46,7 +46,11 @@ DefaultSupportedQuicVersions() {
   // the ordering received from the server via Alt-Svc. However, cronet offers
   // an addQuicHint() API which uses the first version from this list until
   // it receives Alt-Svc from the server.
+#if 1
   return quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::RFCv1()};
+#else
+  return quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::Q046()};
+#endif
 }
 
 // Obsolete QUIC supported versions are versions that are supported by the

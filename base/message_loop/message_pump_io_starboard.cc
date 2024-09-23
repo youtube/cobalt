@@ -278,11 +278,17 @@ void MessagePumpIOStarboard::RemoveIOObserver(IOObserver* obs) {
 // Reentrant!
 void MessagePumpIOStarboard::Run(Delegate* delegate) {
   AutoReset<bool> auto_reset_keep_running(&keep_running_, true);
-
+  int consequtive_immediate_work_count = 0;
   for (;;) {
     Delegate::NextWorkInfo next_work_info = delegate->DoWork();
     bool immediate_work_available = next_work_info.is_immediate();
-
+#if 1
+    if (immediate_work_available && consequtive_immediate_work_count < 16) {
+      ++consequtive_immediate_work_count;
+      continue;
+    }
+    consequtive_immediate_work_count = 0;
+#endif
     if (should_quit())
       break;
 

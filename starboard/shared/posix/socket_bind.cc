@@ -23,6 +23,14 @@
 #include "starboard/shared/posix/handle_eintr.h"
 #include "starboard/shared/posix/socket_internal.h"
 
+#ifndef UDP_GRO
+#define UDP_GRO 104
+#endif
+
+#ifndef SOL_UDP
+#define SOL_UDP 17
+#endif
+
 namespace sbposix = starboard::shared::posix;
 
 SbSocketError SbSocketBind(SbSocket socket,
@@ -56,6 +64,32 @@ SbSocketError SbSocketBind(SbSocket socket,
                                          "IPV6_V6ONLY", false)) {
       // Silently ignore errors, assume the default behavior is as expected.
       socket->error = kSbSocketOk;
+    }
+  }
+
+  // https://lwn.net/Articles/768995/
+  if (socket->protocol == kSbSocketProtocolUdp) {
+    int udp_gro_value = 0;
+    socklen_t udp_gro_value_len = sizeof(udp_gro_value);
+    if (getsockopt(socket->socket_fd, SOL_UDP, UDP_GRO, &udp_gro_value,
+                   &udp_gro_value_len) == 0) {
+      SB_LOG(INFO) << "getsockopt SOL_UDP, UDP_GRO supported on this device.";
+#if 1
+      if (udp_gro_value == 0) {
+        udp_gro_value = 1;  // Turn it on
+        if (setsockopt(socket->socket_fd, SOL_UDP, UDP_GRO, &udp_gro_value,
+                       sizeof(udp_gro_value))) {
+          SB_LOG(INFO) << "setsockopt SOL_UDP, UDP_GRO failed: "
+                       << strerror(errno);
+        } else {
+          SB_LOG(INFO) << "setsockopt SOL_UDP, UDP_GRO turned on.";
+        }
+      }
+#endif
+    } else {
+      SB_LOG(INFO)
+          << "getsockopt SOL_UDP, UDP_GRO not supported on this device: "
+          << strerror(errno);
     }
   }
 

@@ -975,6 +975,7 @@ void URLFetcherCore::CompleteAddingUploadDataChunk(const std::string& content,
 }
 
 int URLFetcherCore::WriteBuffer(scoped_refptr<DrainableIOBuffer> data) {
+  response_writer_->OnResponseStarted(data->BytesRemaining());
   while (data->BytesRemaining() > 0) {
     const int result = response_writer_->Write(
         data.get(), data->BytesRemaining(),

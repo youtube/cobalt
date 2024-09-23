@@ -20,6 +20,7 @@
 #include "build/build_config.h"
 #include "net/base/ip_address.h"
 #include "net/base/sys_addrinfo.h"
+#include "starboard/system.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 #if BUILDFLAG(IS_WIN)

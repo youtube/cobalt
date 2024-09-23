@@ -164,11 +164,17 @@ void URLFetcherResponseWriter::Buffer::GetAndResetDataAndDownloadProgress(
   }
 
   data_as_string_.swap(*str);
+  if (capacity_known_) {
+    int remaining_capacity = str->capacity() - str->length();
+    if (remaining_capacity > 0) {
+      data_as_string_.reserve(remaining_capacity + 1024);
+    }
+  }
 
-  // It is important to reset the |download_progress_| and return the data in
-  // one function to avoid potential race condition that may prevent the last
-  // bit of data of Fetcher from being downloaded, because the data download is
-  // guarded by HasProgressSinceLastGetAndReset().
+  // It is important to reset the |download_progress_| and return the data
+  // in one function to avoid potential race condition that may prevent the
+  // last bit of data of Fetcher from being downloaded, because the data
+  // download is guarded by HasProgressSinceLastGetAndReset().
   download_progress_ = 0;
 }
 
@@ -239,7 +245,7 @@ void URLFetcherResponseWriter::Buffer::MaybePreallocate(int64_t capacity) {
   switch (type_) {
     case kString:
       DCHECK_EQ(data_as_string_.size(), 0u);
-      data_as_string_.reserve(capacity);
+      data_as_string_.reserve(capacity + 1024);
       return;
     case kArrayBuffer:
       DCHECK_EQ(data_as_array_buffer_size_, 0u);
@@ -366,7 +372,7 @@ void URLFetcherResponseWriter::Buffer::UpdateType_Locked(Type type) {
     return;
   }
 
-  data_as_string_.reserve(data_as_array_buffer_.byte_length());
+  data_as_string_.reserve(data_as_array_buffer_.byte_length() + 1024);
   data_as_string_.append(
       reinterpret_cast<const char*>(data_as_array_buffer_.data()),
       data_as_array_buffer_size_);

@@ -184,6 +184,8 @@ HttpNetworkSession::HttpNetworkSession(const HttpNetworkSessionParams& params,
       http_stream_factory_(std::make_unique<HttpStreamFactory>(this)),
       params_(params),
       context_(context) {
+  LOG(INFO) << __FUNCTION__
+            << "QUIC params_.enable_quic=" << params_.enable_quic;
   DCHECK(proxy_resolution_service_);
   DCHECK(ssl_config_service_);
   CHECK(http_server_properties_);
@@ -367,11 +369,15 @@ bool HttpNetworkSession::IsQuicEnabled() const {
 
 void HttpNetworkSession::DisableQuic() {
   params_.enable_quic = false;
+  LOG(INFO) << __FUNCTION__
+            << "QUIC params_.enable_quic=" << params_.enable_quic;
 }
 
 #if defined(STARBOARD)
 void HttpNetworkSession::SetEnableQuic(bool enable_quic) {
   params_.enable_quic = enable_quic;
+  LOG(INFO) << __FUNCTION__
+            << "QUIC params_.enable_quic=" << params_.enable_quic;
 }
 void HttpNetworkSession::SetEnableHttp2(bool enable_http2) {
   if (params_.enable_http2 == enable_http2) {

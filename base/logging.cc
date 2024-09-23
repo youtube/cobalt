@@ -12,6 +12,7 @@
 
 #include <limits.h>
 #include <stdint.h>
+#include <sys/resource.h>
 
 #include <atomic>
 #include <memory>
@@ -138,6 +139,31 @@ typedef FILE* FileHandle;
 #endif
 
 namespace logging {
+
+namespace {
+std::string print_rusage(int who,
+                         const char* prefix = "",
+                         const char* postfix = "") {
+  struct rusage usage;
+  if (getrusage(who, &usage) != -1) {
+    long total = ((usage.ru_utime.tv_sec + usage.ru_stime.tv_sec) * 1000000 +
+                  (usage.ru_utime.tv_usec + usage.ru_stime.tv_usec));
+    long total_sec = total / 1000000;
+    long total_usec = total % 1000000;
+    return starboard::FormatString(
+        "%s(CPU:u%ld.%03ld+s%ld.%03ld=%ld.%03ld)%s",
+        prefix, usage.ru_utime.tv_sec, usage.ru_utime.tv_usec / 1000,
+        usage.ru_stime.tv_sec, usage.ru_stime.tv_usec / 1000, total_sec,
+        total_usec / 1000, postfix);
+  }
+  return std::string(strerror(errno));
+}
+
+std::string print_stats() {
+  return print_rusage(RUSAGE_THREAD, "(", "/") +
+         print_rusage(RUSAGE_SELF, "", ")");
+}
+}  // namespace
 
 namespace {
 
@@ -1106,7 +1132,8 @@ void LogMessage::Init(const char* file, int line) {
 #if defined(STARBOARD)
       // Logging the thread name is added for Starboard logs.
       stream_ << base::PlatformThread::GetName() << '/'
-              << base::PlatformThread::CurrentId() << ":";
+              << base::PlatformThread::CurrentId() << "/" << print_stats()
+              << ":";
 #else
       stream_ << base::PlatformThread::CurrentId() << ':';
 #endif
