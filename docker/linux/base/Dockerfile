@@ -1,6 +1,6 @@
 ARG BASE_OS
 ARG BASE_OS_TAG
-FROM ${BASE_OS:-gcr.io/cloud-marketplace-containers/google/debian10}:${BASE_OS_TAG:-latest}
+FROM ${BASE_OS:-marketplace.gcr.io/google/debian10}:${BASE_OS_TAG:-latest}
 
 ENV PYTHONUNBUFFERED 1
 
