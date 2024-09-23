@@ -61,7 +61,6 @@ runs:
         echo "DOCKER_TAG=${docker_tag}" >> $GITHUB_ENV
       shell: bash
     - name: Set up Cloud SDK
-      if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.fork) }}
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Configure Docker auth for GCloud
       shell: bash
