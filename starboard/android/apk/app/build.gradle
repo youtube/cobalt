@@ -34,8 +34,6 @@ ext {
             project.hasProperty('cobaltContentDir') ? new File(cobaltContentDir).canonicalPath : ''
     cobaltLibraryDir =
             project.hasProperty('cobaltLibraryDir') ? new File(cobaltLibraryDir).canonicalPath : ''
-    enableVulkan =
-            project.hasProperty('enableVulkan') ? enableVulkan : 0
     evergreenCompatible =
             project.hasProperty('evergreenCompatible') ? evergreenCompatible : "false"
 
@@ -93,7 +91,6 @@ android {
                 arguments "-DCOBALT_CONTENT_DIR=${cobaltContentDir}"
                 arguments "-DCOBALT_LIBRARY_DIR=${cobaltLibraryDir}"
                 arguments "-DCOBALT_PLATFORM_DEPLOY=${project.hasProperty('cobaltDeployApk')}"
-                arguments "-DENABLE_VULKAN=${enableVulkan}"
                 arguments "-DEVERGREEN_COMPATIBLE=${evergreenCompatible}"
             }
         }

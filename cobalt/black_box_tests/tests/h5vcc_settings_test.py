@@ -11,7 +11,17 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Tests h5vcc.settings functionality."""
 
-target_platform = "android-arm64"
-target_os = "android"
-target_cpu = "arm64"
+from cobalt.black_box_tests import black_box_tests
+from cobalt.black_box_tests.threaded_web_server import ThreadedWebServer
+
+
+class H5vccSettingsTest(black_box_tests.BlackBoxTestCase):
+
+  def test_service_worker_fetch(self):
+    with ThreadedWebServer(binding_address=self.GetBindingAddress()) as server:
+      url = server.GetURL(file_name='testdata/h5vcc_settings.html')
+      with self.CreateCobaltRunner(url=url) as runner:
+        runner.WaitForJSTestsSetup()
+        self.assertTrue(runner.JSTestsSucceeded())
