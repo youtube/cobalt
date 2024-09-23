@@ -18,32 +18,32 @@
 
 #if defined(STARBOARD)
 #include <pthread.h>
+#include <stdatomic.h>
 #include <unistd.h>
 
 #include <openssl/mem.h>
 
 #include "starboard/thread.h"
 
-namespace {
 
 // Each enum of thread_local_data_t corresponds to a ThreadLocalEntry.
-struct ThreadLocalEntry {
+typedef struct ThreadLocalEntry {
   thread_local_destructor_t destructor;
   void* value;
-};
+} ThreadLocalEntry;
 
 // One thread local key will point to an array of ThreadLocalEntry.
 static pthread_key_t g_thread_local_key = 0;
 static int g_thread_local_key_created = 0;
 
 // Control the creation of the global thread local key.
-pthread_once_t g_thread_local_once_control = PTHREAD_ONCE_INIT;
+static pthread_once_t g_thread_local_once_control = PTHREAD_ONCE_INIT;
 
-void ThreadLocalDestructor(void* value) {
+static void ThreadLocalDestructor(void* value) {
   if (value) {
-    ThreadLocalEntry* thread_locals = static_cast<ThreadLocalEntry*>(value);
+    ThreadLocalEntry* thread_locals = (ThreadLocalEntry*)(value);
     for (int i = 0; i < NUM_OPENSSL_THREAD_LOCALS; ++i) {
-      if (thread_locals[i].destructor != nullptr) {
+      if (thread_locals[i].destructor != NULL) {
         thread_locals[i].destructor(thread_locals[i].value);
       }
     }
@@ -51,38 +51,39 @@ void ThreadLocalDestructor(void* value) {
   }
 }
 
-void ThreadLocalInit() {
+static void ThreadLocalInit() {
   g_thread_local_key_created = pthread_key_create(&g_thread_local_key, &ThreadLocalDestructor) == 0;
 }
 
-void EnsureInitialized(struct CRYPTO_STATIC_MUTEX* lock) {
+static void EnsureInitialized(struct CRYPTO_STATIC_MUTEX* lock) {
   enum {
     kUninitialized = 0,
     kInitializing,
     kInitialized
   };
 
-  if (SbAtomicNoBarrier_Load(&lock->initialized) == kInitialized) {
+  if (atomic_load((_Atomic uint32_t *)&lock->initialized) == kInitialized) {
     return;
   }
-  if (SbAtomicNoBarrier_CompareAndSwap(&lock->initialized,
-      kUninitialized, kInitializing) == kUninitialized) {
+
+  uint32_t expected = kUninitialized;
+
+  if (atomic_compare_exchange_weak((_Atomic uint32_t *)&lock->initialized,
+                                   &expected, kInitializing)) {
     CRYPTO_MUTEX_init(&lock->mutex);
-    SbAtomicNoBarrier_Store(&lock->initialized, kInitialized);
+    atomic_store((_Atomic uint32_t *)&lock->initialized, kInitialized);
     return;
   }
-  while (SbAtomicNoBarrier_Load(&lock->initialized) != kInitialized) {
+  while (atomic_load((_Atomic uint32_t *)&lock->initialized) != kInitialized) {
     usleep(1000);  // 1ms
   }
 }
 
-}  // namespace
-
 void CRYPTO_MUTEX_init(CRYPTO_MUTEX* lock) {
-  if (pthread_mutex_init(&lock->mutex, nullptr) != 0) {
+  if (pthread_mutex_init(&lock->mutex, NULL) != 0) {
     SbSystemBreakIntoDebugger();
   }
-  if (pthread_cond_init(&lock->condition, nullptr) != 0) {
+  if (pthread_cond_init(&lock->condition, NULL) != 0) {
     SbSystemBreakIntoDebugger();
   }
   lock->readers = 0;
@@ -183,13 +184,13 @@ void CRYPTO_STATIC_MUTEX_unlock_write(struct CRYPTO_STATIC_MUTEX* lock) {
 void* CRYPTO_get_thread_local(thread_local_data_t index) {
   pthread_once(&g_thread_local_once_control, &ThreadLocalInit);
   if (!g_thread_local_key_created) {
-    return nullptr;
+    return NULL;
   }
 
-  ThreadLocalEntry* thread_locals = static_cast<ThreadLocalEntry*>(
+  ThreadLocalEntry* thread_locals = (ThreadLocalEntry*)(
       pthread_getspecific(g_thread_local_key));
-  if (thread_locals == nullptr) {
-    return nullptr;
+  if (thread_locals == NULL) {
+    return NULL;
   }
 
   return thread_locals[index].value;
@@ -203,14 +204,14 @@ int CRYPTO_set_thread_local(thread_local_data_t index, void *value,
     return 0;
   }
 
-  ThreadLocalEntry* thread_locals = static_cast<ThreadLocalEntry*>(
+  ThreadLocalEntry* thread_locals = (ThreadLocalEntry*)(
       pthread_getspecific(g_thread_local_key));
-  if (thread_locals == nullptr) {
+  if (thread_locals == NULL) {
     size_t thread_locals_size =
         sizeof(ThreadLocalEntry) * NUM_OPENSSL_THREAD_LOCALS;
-    thread_locals = static_cast<ThreadLocalEntry*>(
+    thread_locals = (ThreadLocalEntry*)(
         OPENSSL_malloc(thread_locals_size));
-    if (thread_locals == nullptr) {
+    if (thread_locals == NULL) {
       destructor(value);
       return 0;
     }
