@@ -13,7 +13,7 @@
 # limitations under the License.
 
 ARG FROM_IMAGE
-FROM ${FROM_IMAGE:-marketplace.gcr.io/google/debian11:latest}
+FROM ${FROM_IMAGE:-marketplace.gcr.io/google/debian11}
 
 RUN apt update -qqy \
     && apt install -qqy --no-install-recommends \

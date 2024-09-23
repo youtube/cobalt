@@ -51,8 +51,11 @@ runs:
       run: echo "DOCKER_TAG=ghcr.io/${REPO}/${{inputs.docker_image}}:${GITHUB_BASE_REF%.1+}" >> $GITHUB_ENV
       shell: bash
     - name: Set up Cloud SDK
-      if: ${{ (steps.changed-files.outputs.any_changed == 'true') && (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.fork) }}
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+    - name: Configure Docker auth for GCloud
+      shell: bash
+      run: |
+        gcloud auth configure-docker
     - name: Set Docker Tag
       id: set-docker-tag-presubmit-fork
       env:
@@ -66,7 +69,6 @@ runs:
         ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${SVC_ACCT}/token | cut -d'"' -f 4)
         printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://gcr.io
         echo "DOCKER_TAG=gcr.io/${PROJECT_NAME}/${{inputs.docker_image}}:pr-${GITHUB_EVENT_NUMBER}" >> $GITHUB_ENV
-        gcloud auth configure-docker
       shell: bash
     - name: Process Docker metadata
       id: process-docker-metadata
