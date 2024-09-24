@@ -779,23 +779,31 @@ int UDPSocketPosix::InternalRecvFromNonConnectedSocket(IOBuffer* buf,
                                                        int buf_len,
                                                        IPEndPoint* address) {
   SockaddrStorage storage;
-  int result = -1;
-  int bytes_transferred = -1;
-  bytes_transferred = HANDLE_EINTR(recvfrom(socket_, buf->data(), static_cast<size_t>(buf_len),
-                            0, storage.addr, &storage.addr_len));
+  struct iovec iov = {
+      .iov_base = buf->data(),
+      .iov_len = static_cast<size_t>(buf_len),
+  };
+  struct msghdr msg = {
+      .msg_name = storage.addr,
+      .msg_namelen = storage.addr_len,
+      .msg_iov = &iov,
+      .msg_iovlen = 1,
+  };
+  int result;
+  int bytes_transferred = HANDLE_EINTR(recvmsg(socket_, &msg, 0));
   if (bytes_transferred < 0) {
     result = MapSystemError(errno);
     if (result == ERR_IO_PENDING) {
       return result;
     }
   } else {
-    if (bytes_transferred == buf_len) {
+    storage.addr_len = msg.msg_namelen;
+    if (msg.msg_flags & MSG_TRUNC) {
       // NB: recvfrom(..., MSG_TRUNC, ...) would be a simpler way to do this on
       // Linux, but isn't supported by POSIX.
-      // When received data size == buffer size, it means the buffer isn't big enough,
-      // i.e. truncated.
       result = ERR_MSG_TOO_BIG;
-    } else if (address && !address->FromSockAddr(storage.addr, storage.addr_len)) {
+    } else if (address &&
+               !address->FromSockAddr(storage.addr, storage.addr_len)) {
       result = ERR_ADDRESS_INVALID;
     } else {
       result = bytes_transferred;
