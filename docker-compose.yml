@@ -17,8 +17,9 @@ x-build-volumes: &build-volumes
     - ${STARBOARD_TOOLCHAINS_DIR:-container-starboard-toolchains}:/root/starboard-toolchains
 
 x-build-common-definitions: &build-common-definitions
-  <<: *common-definitions
-  <<: *build-volumes
+  <<:
+    - *common-definitions
+    - *build-volumes
   depends_on:
     - build-base
 
@@ -102,8 +103,9 @@ services:
       CONFIG: ${CONFIG:-debug}
 
   linux-x64x11-xenial:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux
       dockerfile: linux-x64x11/Dockerfile
@@ -115,8 +117,9 @@ services:
     scale: 0
 
   linux-x64x11-clang-3-6:
-    <<: *common-definitions
-    <<: *build-volumes
+    <<:
+      - *common-definitions
+      - *build-volumes
     build:
       context: ./docker/linux/
       dockerfile: clang-3-6/Dockerfile
@@ -236,7 +239,7 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: evergreen-arm-softfp-sbversion-12
-  
+
   build-linux-evergreen:
     <<: *build-common-definitions
     build:
@@ -248,7 +251,7 @@ services:
     depends_on: [ build-evergreen ]
     environment:
       <<: *shared-build-env
-  
+
   unittest:
     <<: *common-definitions
     build:

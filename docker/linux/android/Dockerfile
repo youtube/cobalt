@@ -1,7 +1,7 @@
 FROM cobalt-build-base
 
 RUN apt update -qqy \
-    && apt install -qqy --no-install-recommends \
+    && apt install -qqy \
         binutils \
         bison \
         default-jdk \
