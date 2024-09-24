@@ -278,6 +278,19 @@ services:
       CONFIG: ${CONFIG:-debug}
       TARGET_CPU: ${TARGET_CPU:-arm64}
 
+  # Defined common build image for android-evergreen
+  build-android-evergreen:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux
+      dockerfile: android/Dockerfile
+      args:
+        - FROM_IMAGE=cobalt-build-evergreen
+    image: cobalt-build-android-evergreen
+    depends_on: [ build-evergreen ]
+    environment:
+      <<: *shared-build-env
+
   build-raspi:
     <<: *build-common-definitions
     build:
@@ -431,6 +444,21 @@ services:
       PLATFORM: linux-x64x11-sbversion-12
       CONFIG: ${CONFIG:-debug}
       SB_API_VERSION: 12
+
+  linux-x64x11-evergreen:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux
+      dockerfile: linux-x64x11/Dockerfile
+      args:
+        - FROM_IMAGE=cobalt-build-evergreen
+    image: cobalt-build-linux-x64x11-evergreen
+    depends_on: [ build-evergreen ]
+    environment:
+      <<: *shared-build-env
+      PLATFORM: linux-x64x11
+      CONFIG: ${CONFIG:-debug}
+      SB_API_VERSION: ${SB_API_VERSION}
 
   # Example usage of unittest:
   # 1. Build the containers for which you want to unittest
