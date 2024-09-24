@@ -23,21 +23,21 @@
 #ifndef STARBOARD_TYPES_H_
 #define STARBOARD_TYPES_H_
 
+#include "starboard/configuration.h"
+
 // The C library used must provide these headers to be standard conforming.
 
-#include <float.h>
-#include <inttypes.h>
-#include <limits.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#include <float.h>     // NOLINT
+#include <inttypes.h>  // NOLINT
+#include <limits.h>    // NOLINT
+#include <stdarg.h>    // NOLINT
+#include <stdbool.h>   // NOLINT
+#include <stddef.h>    // NOLINT
+#include <stdint.h>    // NOLINT
 
 #if SB_HAS(SYS_TYPES_H)
 #include <sys/types.h>
 #endif  // SB_HAS(SYS_TYPES_H)
-
-#include "starboard/configuration.h"
 
 #ifdef __cplusplus
 extern "C" {
