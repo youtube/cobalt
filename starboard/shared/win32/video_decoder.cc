@@ -416,12 +416,34 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
           video_processor_, video_sample, video_area, is_hdr_supported_);
       auto hardware_decode_target =
           reinterpret_cast<HardwareDecodeTargetPrivate*>(decode_target);
+
       if (!hardware_decode_target->d3d_texture) {
-        error_cb_(kSbPlayerErrorDecode,
-                  "Failed to allocate texture with error code: " +
-                      ::starboard::shared::win32::HResultToString(
-                          hardware_decode_target->create_texture_2d_h_result));
-        decode_target = kSbDecodeTargetInvalid;
+        // The HRESULT 0x887A0005 is DXGI_ERROR_DEVICE_REMOVED
+        // (https://learn.microsoft.com/en-us/windows/win32/direct3ddxgi/dxgi-error).
+        // In this case, the device is in a bad state and needs to be recreated.
+        // Attempt to recreate the d3d_device_ and retry initializing the
+        // decode_target.
+        if (FAILED(hardware_decode_target->create_texture_2d_h_result)) {
+          HardwareDecoderContext hardware_context =
+              GetDirectXForHardwareDecoding();
+          d3d_device_ = hardware_context.dx_device_out;
+
+          decode_target = new HardwareDecodeTargetPrivate(
+              d3d_device_, video_device_, video_context_, video_enumerator_,
+              video_processor_, video_sample, video_area, is_hdr_supported_);
+          hardware_decode_target =
+              reinterpret_cast<HardwareDecodeTargetPrivate*>(decode_target);
+        }
+
+        // If the texture still hasn't initialized, report the error.
+        if (!hardware_decode_target->d3d_texture) {
+          error_cb_(
+              kSbPlayerErrorDecode,
+              "Failed to allocate texture with error code: " +
+                  ::starboard::shared::win32::HResultToString(
+                      hardware_decode_target->create_texture_2d_h_result));
+          decode_target = kSbDecodeTargetInvalid;
+        }
       }
     }
 
