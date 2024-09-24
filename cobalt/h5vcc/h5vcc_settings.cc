@@ -118,30 +118,15 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
     }
   }
 
+  // Disabled due to a bug with previous implementation.
+  if (name.compare("protocolfilter") == 0) {
+    return false;
+  }
   if (name.compare(network::kProtocolFilterKey) == 0 &&
       value.IsType<std::string>() &&
       value.AsType<std::string>().size() < 16384) {
-    std::string raw_json = value.AsType<std::string>();
-    base::Value old_config_json;
-    persistent_settings_->Get(network::kProtocolFilterKey, &old_config_json);
-
-    if (raw_json.empty() && (!old_config_json.is_string() ||
-                             !old_config_json.GetString().empty())) {
-      persistent_settings_->Set(network::kProtocolFilterKey, base::Value());
-      network_module_->SetProtocolFilterUpdatePending();
-      return true;
-    }
-
-    absl::optional<base::Value> old_config =
-        base::JSONReader::Read(old_config_json.GetString());
-    absl::optional<base::Value> new_config = base::JSONReader::Read(raw_json);
-    if (!new_config) return false;
-    if (old_config && *old_config == *new_config) return false;
-
-    persistent_settings_->Set(network::kProtocolFilterKey,
-                              base::Value(raw_json));
-    network_module_->SetProtocolFilterUpdatePending();
-    return true;
+    return network_module_->SetHttpProtocolFilterPersistentSetting(
+        value.AsType<std::string>());
   }
 
   if (name.compare("cpu_usage_tracker_intervals") == 0 &&

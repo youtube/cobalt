@@ -34,7 +34,9 @@ namespace dom {
 SameThreadMediaSourceAttachment::SameThreadMediaSourceAttachment(
     scoped_refptr<MediaSource> media_source)
     : media_source_(media_source),
-      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()) {}
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
+      recent_element_time_(0.0),
+      element_has_error_(false) {}
 
 void SameThreadMediaSourceAttachment::TraceMembers(script::Tracer* tracer) {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
@@ -108,14 +110,23 @@ double SameThreadMediaSourceAttachment::GetRecentMediaTime() {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(attached_element_);
 
-  return attached_element_->current_time(NULL);
+  double result = attached_element_->current_time(NULL);
+
+  DVLOG(2) << __func__ << ": recent time=" << recent_element_time_
+           << ", actual current time=" << result;
+
+  return result;
 }
 
 bool SameThreadMediaSourceAttachment::GetElementError() {
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   DCHECK(attached_element_);
 
-  return static_cast<bool>(attached_element_->error());
+  bool result = static_cast<bool>(attached_element_->error());
+
+  DCHECK_EQ(result, element_has_error_);
+
+  return result;
 }
 
 scoped_refptr<AudioTrackList>
@@ -134,6 +145,17 @@ SameThreadMediaSourceAttachment::CreateVideoTrackList(
   DCHECK(attached_element_);
 
   return base::MakeRefCounted<VideoTrackList>(settings, attached_element_);
+}
+
+void SameThreadMediaSourceAttachment::OnElementTimeUpdate(double time) {
+  recent_element_time_ = time;
+}
+
+void SameThreadMediaSourceAttachment::OnElementError() {
+  DCHECK(!element_has_error_)
+      << "At most one transition to element error per attachment is expected";
+
+  element_has_error_ = true;
 }
 
 }  // namespace dom

@@ -35,9 +35,6 @@
 #include <sys/prctl.h>
 #endif
 #endif
-#if defined(STARBOARD)
-#include "starboard/memory.h"
-#endif
 
 namespace {
 

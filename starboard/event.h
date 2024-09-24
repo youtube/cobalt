@@ -261,20 +261,8 @@ typedef enum SbEventType {
   // kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardBlurred,
 
-#if SB_API_VERSION < 16
-  // The platform has updated the on screen keyboard suggestions. This event is
-  // triggered by the system or by the application's OnScreenKeyboard update
-  // suggestions method. The event has int data representing a ticket. The
-  // ticket is used by the application to mark individual calls to the update
-  // suggestions method as successfully completed. Events triggered by the
-  // application have tickets passed in via
-  // SbWindowUpdateOnScreenKeyboardSuggestions. System-triggered events have
-  // ticket value kSbEventOnScreenKeyboardInvalidTicket.
-  kSbEventTypeOnScreenKeyboardSuggestionsUpdated,
-#else
   // Reserved for deprecated events.
   kSbEventTypeReserved1,
-#endif  // SB_API_VERSION < 16
 
   // One or more of the fields returned by SbAccessibilityGetCaptionSettings
   // has changed.
@@ -345,14 +333,12 @@ static SB_C_FORCE_INLINE bool SbEventIsIdValid(SbEventId handle) {
   return handle != kSbEventIdInvalid;
 }
 
-#if SB_API_VERSION >= 15
 typedef void (*SbEventHandleCallback)(const SbEvent* event);
 // Serves as the entry point in the Starboard library for running the Starboard
 // event loop with the application event handler.
 SB_EXPORT int SbRunStarboardMain(int argc,
                                  char** argv,
                                  SbEventHandleCallback callback);
-#endif  // SB_API_VERSION >= 15
 // The entry point that Starboard applications MUST implement. Any memory
 // pointed at by |event| or the |data| field inside |event| is owned by the
 // system, and that memory is reclaimed after this function returns, so the
@@ -364,11 +350,7 @@ SB_EXPORT int SbRunStarboardMain(int argc,
 // specification about what other work might happen on this thread, so the
 // application should generally do as little work as possible on this thread,
 // and just dispatch it over to another thread.
-#if SB_API_VERSION >= 15
 SB_EXPORT_PLATFORM void SbEventHandle(const SbEvent* event);
-#else
-SB_IMPORT void SbEventHandle(const SbEvent* event);
-#endif  // SB_API_VERSION >= 15
 
 // Schedules an event |callback| into the main Starboard event loop.
 // This function may be called from any thread, but |callback| is always

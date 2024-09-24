@@ -36,14 +36,6 @@ const char kSystemIntegratorName[] = "SystemIntegratorName";
 const char kModelYear[] = "2026";
 #endif  // SB_API_VERSION == 17
 
-#if SB_API_VERSION == 16
-const char kModelYear[] = "2025";
-#endif  // SB_API_VERSION == 16
-
-#if SB_API_VERSION == 15
-const char kModelYear[] = "2024";
-#endif  // SB_API_VERSION == 15
-
 }  // namespace
 
 // Omit namespace linux due to symbol name conflict.
@@ -125,11 +117,9 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(
           out_value, value_length,
           GetEnvironment("COBALT_LIMIT_AD_TRACKING").c_str());
-#if SB_API_VERSION >= 15
     case kSbSystemPropertyDeviceType:
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         kSystemDeviceTypeDesktopPC);
-#endif
     default:
       SB_DLOG(WARNING) << __FUNCTION__
                        << ": Unrecognized property: " << property_id;

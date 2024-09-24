@@ -27,7 +27,6 @@
 #include "cobalt/cssom/media_type_names.h"
 #include "cobalt/cssom/pseudo_class_names.h"
 #include "cobalt/cssom/pseudo_element_names.h"
-#include "starboard/client_porting/cwrappers/pow_wrapper.h"
 #include "third_party/icu/source/common/unicode/unistr.h"
 
 namespace cobalt {

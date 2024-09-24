@@ -170,7 +170,7 @@ class MediaSource : public web::EventTarget {
   MediaSourceReadyState ready_state_;
   EventQueue event_queue_;
   // TODO(b/338425449): Remove direct references to HTMLMediaElement.
-  const bool is_using_media_source_attachment_methods_;
+  bool is_using_media_source_attachment_methods_ = false;
   base::WeakPtr<HTMLMediaElement> attached_element_;
   base::WeakPtr<MediaSourceAttachmentSupplement> media_source_attachment_;
 

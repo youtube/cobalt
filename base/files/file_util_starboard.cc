@@ -35,7 +35,6 @@
 #include "base/time/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/common/file.h"
-#include "starboard/directory.h"
 #include "base/strings/strcat.h"
 #include "starboard/system.h"
 
@@ -475,6 +474,17 @@ FilePath MakeAbsoluteFilePath(const FilePath& input) {
   // Only absolute paths are supported in Starboard.
   DCHECK(input.IsAbsolute());
   return input;
+}
+
+bool SetNonBlocking(int fd) {
+  const int flags = fcntl(fd, F_GETFL);
+  if (flags == -1)
+    return false;
+  if (flags & O_NONBLOCK)
+    return true;
+  if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+    return false;
+  return true;
 }
 
 namespace internal {

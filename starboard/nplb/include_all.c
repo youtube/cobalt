@@ -14,52 +14,30 @@
 
 // Includes all headers in a C context to make sure they compile as C files.
 
-#if SB_API_VERSION < 16
-#include "starboard/accessibility.h"
-#endif  // SB_API_VERSION < 16
 #include "starboard/atomic.h"
 #include "starboard/audio_sink.h"
-#if SB_API_VERSION < 16
-#include "starboard/byte_swap.h"
-#endif  // SB_API_VERSION < 16
-#include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/cpu_features.h"
 #include "starboard/decode_target.h"
-#include "starboard/directory.h"
 #include "starboard/drm.h"
 #include "starboard/egl.h"
 #include "starboard/event.h"
 #include "starboard/export.h"
-#include "starboard/file.h"
 #include "starboard/gles.h"
-#if SB_API_VERSION < 16
-#include "starboard/image.h"
-#endif  // SB_API_VERSION < 16
 #include "starboard/input.h"
 #include "starboard/key.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
-#include "starboard/memory.h"
 #include "starboard/microphone.h"
-#include "starboard/mutex.h"
 #include "starboard/player.h"
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
-#if SB_API_VERSION < 16
-#include "starboard/time.h"
-#endif  // SB_API_VERSION < 16
 #include "starboard/time_zone.h"
 #include "starboard/types.h"
-#if SB_API_VERSION < 16
-#include "starboard/ui_navigation.h"
-#include "starboard/user.h"
-#endif  // SB_API_VERSION < 16
 #include "starboard/window.h"
 
 // This doesn't really belong here, but ensures that SB_COMPILE_ASSERT works in

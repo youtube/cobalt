@@ -19,7 +19,6 @@
 
 #if defined(STARBOARD)
 #include "starboard/common/string.h"
-#include "starboard/memory.h"
 #include "starboard/types.h"
 #endif
 

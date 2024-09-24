@@ -38,7 +38,6 @@
 #include "net/base/filename_util.h"
 #include "net/base/url_util.h"
 #include "starboard/common/file.h"
-#include "starboard/memory.h"
 #include "starboard/types.h"
 #include "ui/gfx/geometry/size.h"
 

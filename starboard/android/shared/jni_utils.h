@@ -20,7 +20,6 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 
 namespace starboard {
 namespace android {

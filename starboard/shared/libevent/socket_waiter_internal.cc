@@ -156,14 +156,12 @@ SbSocketWaiterPrivate::SbSocketWaiterPrivate()
 }
 
 SbSocketWaiterPrivate::~SbSocketWaiterPrivate() {
-#if SB_API_VERSION >= 16
   i_WaiteesMap::iterator it = i_waitees_.begin();
   while (it != i_waitees_.end()) {
     Waitee* waitee = it->second;
     ++it;  // Increment before removal.
     Remove(waitee->i_socket, waitee->waiter);
   }
-#endif  // SB_API_VERSION >= 16
 
   sb_WaiteesMap::iterator it2 = sb_waitees_.begin();
   while (it2 != sb_waitees_.end()) {
@@ -184,7 +182,6 @@ SbSocketWaiterPrivate::~SbSocketWaiterPrivate() {
 #endif
 }
 
-#if SB_API_VERSION >= 16
 bool SbSocketWaiterPrivate::Add(int socket,
                                 SbSocketWaiter waiter,
                                 void* context,
@@ -281,7 +278,6 @@ bool SbSocketWaiterPrivate::CheckSocketRegistered(int socket) {
 
   return true;
 }
-#endif  // SB_API_VERSION >= 16
 
 bool SbSocketWaiterPrivate::Add(SbSocket socket,
                                 void* context,
@@ -472,7 +468,6 @@ void SbSocketWaiterPrivate::HandleSignal(Waitee* waitee,
   // can add another waitee in the callback if we need to. This is also why we
   // copy all the fields we need out of waitee.
   if (waitee->use_int_socket == 1) {
-#if SB_API_VERSION >= 16
     int socket = waitee->i_socket;
     void* context = waitee->context;
     SbPosixSocketWaiterCallback callback = waitee->i_callback;
@@ -480,7 +475,6 @@ void SbSocketWaiterPrivate::HandleSignal(Waitee* waitee,
       Remove(waitee->i_socket, waitee->waiter);
     }
     callback(this, socket, context, interests);
-#endif  // SB_API_VERSION >= 16
   } else {
     SbSocket socket = waitee->sb_socket;
     void* context = waitee->context;

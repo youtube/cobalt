@@ -14,8 +14,6 @@
 
 #include <cstring>
 
-#include "starboard/memory.h"
-
 #include "third_party/google_benchmark/src/include/benchmark/benchmark.h"
 
 namespace starboard {

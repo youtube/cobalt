@@ -32,7 +32,6 @@
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"

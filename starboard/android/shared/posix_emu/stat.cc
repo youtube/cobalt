@@ -18,10 +18,8 @@
 
 #include <android/asset_manager.h>
 
-#include "starboard/android/shared/directory_internal.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/log.h"
-#include "starboard/directory.h"
 
 using starboard::android::shared::IsAndroidAssetPath;
 using starboard::android::shared::OpenAndroidAsset;

@@ -26,7 +26,6 @@
 #include <stdio.h>
 
 #if defined(STARBOARD)
-#  include "starboard/memory.h"
 #  include <string.h>
 #elif defined(STDC) && !defined(Z_SOLO)
 #  if !(defined(_WIN32_WCE) && defined(_MSC_VER))

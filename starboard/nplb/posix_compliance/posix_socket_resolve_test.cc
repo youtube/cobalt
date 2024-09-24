@@ -41,6 +41,11 @@ TEST(PosixSocketResolveTest, SunnyDay) {
     ++address_count;
     if (ai_addr == nullptr && i->ai_addr != nullptr) {
       ai_addr = reinterpret_cast<sockaddr_in*>(i->ai_addr);
+      if (i->ai_family == AF_INET) {
+        EXPECT_EQ(i->ai_addrlen, sizeof(struct sockaddr_in));
+      } else if (i->ai_family == AF_INET6) {
+        EXPECT_EQ(i->ai_addrlen, sizeof(struct sockaddr_in6));
+      }
       break;
     }
   }
@@ -53,7 +58,6 @@ TEST(PosixSocketResolveTest, SunnyDay) {
   freeaddrinfo(ai);
 }
 
-#if SB_API_VERSION >= 16
 TEST(PosixSocketResolveTest, SunnyDaySocketType) {
   struct addrinfo hints = {0};
   hints.ai_socktype = SOCK_DGRAM;
@@ -136,7 +140,6 @@ TEST(PosixSocketResolveTest, SunnyDayProtocol) {
     freeaddrinfo(ai);
   }
 }
-#endif  // SB_API_VERSION >= 16
 
 TEST(PosixSocketResolveTest, Localhost) {
   struct addrinfo hints = {0};

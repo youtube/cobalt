@@ -20,7 +20,7 @@
 #include <vector>
 
 #include "starboard/common/file.h"
-#include "starboard/directory.h"
+#include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if SB_IS(EVERGREEN_COMPATIBLE)

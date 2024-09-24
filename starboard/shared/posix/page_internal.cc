@@ -26,7 +26,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/memory.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/memory.h"
 
 namespace {
 
@@ -54,61 +53,7 @@ int SbMemoryMapFlagsToMmapProtect(int sb_flags) {
   return mmap_protect;
 }
 
-#if SB_API_VERSION < 16
-int32_t s_tracked_page_count = 0;
-
-int32_t GetPageCount(size_t byte_count) {
-  return static_cast<int32_t>(
-      starboard::common::MemoryAlignToPageSize(byte_count) / kSbMemoryPageSize);
-}
-
-void* SbPageMapUntracked(size_t size_bytes,
-                         int flags,
-                         const char* unused_name) {
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
-  if (flags & kSbMemoryMapProtectExec) {
-    // Cobalt does not allow mapping executable memory directly.
-    return SB_MEMORY_MAP_FAILED;
-  }
-#endif
-  int mmap_protect = SbMemoryMapFlagsToMmapProtect(flags);
-  void* mem = mmap(0, size_bytes, mmap_protect, MAP_PRIVATE | MAP_ANON, -1, 0);
-  return mem;
-}
-
-bool SbPageUnmapUntracked(void* ptr, size_t size_bytes) {
-  return munmap(ptr, size_bytes) == 0;
-}
-
-#endif  // SB_API_VERSION < 16
-
 }  // namespace
-
-#if SB_API_VERSION < 16
-void* SbPageMap(size_t size_bytes, int flags, const char* unused_name) {
-  void* ret = SbPageMapUntracked(size_bytes, flags, NULL);
-  if (ret != SB_MEMORY_MAP_FAILED) {
-    SbAtomicNoBarrier_Increment(&s_tracked_page_count,
-                                GetPageCount(size_bytes));
-  }
-  return ret;
-}
-
-bool SbPageUnmap(void* ptr, size_t size_bytes) {
-  SbAtomicNoBarrier_Increment(&s_tracked_page_count, -GetPageCount(size_bytes));
-  return SbPageUnmapUntracked(ptr, size_bytes);
-}
-
-bool SbPageProtect(void* virtual_address, int64_t size_bytes, int flags) {
-  int mmap_protect = SbMemoryMapFlagsToMmapProtect(flags);
-  return mprotect(virtual_address, size_bytes, mmap_protect) == 0;
-}
-
-size_t SbPageGetMappedBytes() {
-  return static_cast<size_t>(SbAtomicNoBarrier_Load(&s_tracked_page_count) *
-                             kSbMemoryPageSize);
-}
-#endif  // SB_API_VERSION < 16
 
 void* SbPageMapFile(void* addr,
                     const char* path,

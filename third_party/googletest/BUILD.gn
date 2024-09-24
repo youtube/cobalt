@@ -125,7 +125,9 @@ source_set("gtest") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
 
   defines = []
-  deps = []
+  deps = [
+    "//starboard/common",
+  ]
   public_deps = []
   if (is_nacl || !build_with_chromium) {
     defines += [ "GTEST_DISABLE_PRINT_STACK_TRACE" ]
@@ -197,7 +199,10 @@ source_set("gmock") {
     "src/googlemock/src/gmock.cc",
   ]
 
-  public_deps = [ ":gtest" ]
+  public_deps = [
+    ":gtest",
+    "//starboard/common",
+  ]
 
   public_configs = [ ":gmock_config" ]
 }

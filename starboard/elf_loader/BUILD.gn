@@ -91,7 +91,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (current_toolchain == starboard_toolchain && host_os != "win") {
+if (current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "elf_loader_sandbox") {
     if (cobalt_font_package == "empty") {
       data_deps = [ "//starboard/content/fonts:copy_font_data" ]
@@ -154,7 +154,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
 }
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-if (current_toolchain == starboard_toolchain && host_os != "win") {
+if (current_toolchain == starboard_toolchain) {
   target(starboard_level_gtest_target_type, "elf_loader_test") {
     testonly = true
     build_loader = false

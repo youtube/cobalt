@@ -27,8 +27,6 @@
 #include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/browser/memory_settings/test_common.h"
 #include "cobalt/browser/switches.h"
-#include "starboard/memory.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

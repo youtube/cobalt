@@ -33,10 +33,8 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
-#include "starboard/string.h"
 #include "starboard/thread.h"
 
 namespace starboard {

@@ -175,11 +175,7 @@ TEST(AudioSampleInfoTest, DefaultCtor) {
 
 TEST(AudioSampleInfoTest, SbMediaAudioSampleInfo) {
   SbMediaAudioSampleInfo original = {};
-#if SB_API_VERSION >= 15
   SbMediaAudioStreamInfo& stream_info = original.stream_info;
-#else   // SB_API_VERSION >= 15
-  SbMediaAudioStreamInfo& stream_info = original;
-#endif  // SB_API_VERSION >= 15
 
   stream_info.codec = kSbMediaAudioCodecOpus;
   stream_info.mime = "audio/webm";
@@ -244,11 +240,7 @@ TEST(VideoSampleInfoTest, DefaultCtor) {
 
 TEST(VideoSampleInfoTest, SbMediaVideoSampleInfo) {
   SbMediaVideoSampleInfo original = {};
-#if SB_API_VERSION >= 15
   SbMediaVideoStreamInfo& stream_info = original.stream_info;
-#else   // SB_API_VERSION >= 15
-  SbMediaVideoStreamInfo& stream_info = original;
-#endif  // SB_API_VERSION >= 15
 
   original.is_key_frame = true;
   stream_info.codec = kSbMediaVideoCodecAv1;

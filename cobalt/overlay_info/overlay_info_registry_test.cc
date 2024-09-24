@@ -21,7 +21,6 @@
 
 #include "base/logging.h"
 #include "base/strings/string_split.h"
-#include "starboard/memory.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

@@ -18,7 +18,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/elf_loader/log.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace elf_loader {

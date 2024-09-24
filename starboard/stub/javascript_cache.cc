@@ -19,7 +19,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/extension/javascript_cache.h"
-#include "starboard/file.h"
 
 namespace starboard {
 namespace stub {

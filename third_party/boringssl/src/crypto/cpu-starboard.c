@@ -16,7 +16,6 @@
 #include <openssl/cpu.h>
 #include "../../crypto/internal.h"
 #include <starboard/cpu_features.h>
-#include <starboard/string.h>
 
 #if defined(STARBOARD)
 

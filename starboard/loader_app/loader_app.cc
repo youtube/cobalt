@@ -28,7 +28,6 @@
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
 #include "starboard/extension/loader_app_metrics.h"
-#include "starboard/file.h"
 #include "starboard/loader_app/app_key.h"
 #include "starboard/loader_app/loader_app_switches.h"
 #include "starboard/loader_app/memory_tracker_thread.h"
@@ -36,9 +35,8 @@
 #include "starboard/loader_app/reset_evergreen_update.h"
 #include "starboard/loader_app/slot_management.h"
 #include "starboard/loader_app/system_get_extension_shim.h"
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/command_line.h"
-#include "starboard/string.h"
+
 #include "third_party/crashpad/crashpad/wrapper/annotations.h"
 #include "third_party/crashpad/crashpad/wrapper/wrapper.h"
 
@@ -278,7 +276,17 @@ void SbEventHandle(const SbEvent* event) {
           starboard::loader_app::LoadSlotManagedLibrary(
               app_key, alternative_content, &g_cobalt_library_loader,
               use_memory_mapped_file));
+
+      if (g_sb_event_func == NULL) {
+        SB_LOG(ERROR) << "Failed to initialize Installation Manager. Loading "
+                         "system image instead.";
+        starboard::loader_app::RecordSlotSelectionStatus(
+            SlotSelectionStatus::kLoadSysImgFailedToInitInstallationManager);
+        LoadLibraryAndInitialize(alternative_content, use_memory_mapped_file);
+      }
     }
+    // If g_sb_event_func is NULL at this point, the app has no choice but to
+    // crash.
     SB_CHECK(g_sb_event_func);
   }
 

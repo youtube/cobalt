@@ -52,7 +52,6 @@
 #include <utility>
 
 #include "base/logging.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {

@@ -21,7 +21,6 @@
 #include "cobalt/network/local_network.h"
 #include "net/base/url_util.h"
 #include "starboard/common/socket.h"
-#include "starboard/memory.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "url/gurl.h"
@@ -224,7 +223,6 @@ TEST_F(SourceListTest, TestInsecureLocalhostDefaultInsecureV4) {
   EXPECT_FALSE(source_list.Matches(GURL("https://example.locaLHost./")));
 }
 
-#if SB_HAS(IPV6)
 TEST_F(SourceListTest, TestInsecureLocalhostDefaultInsecureV6) {
   SourceList source_list(&checker_, csp_.get(), "connect-src");
 
@@ -259,7 +257,6 @@ TEST_F(SourceListTest, TestInsecureLocalhostDefaultInsecureV6) {
   EXPECT_FALSE(source_list.Matches(
       GURL("https://[0000:0000:0000:0000:0000:0000:0000:0001]:80/")));
 }
-#endif
 
 TEST_F(SourceListTest, TestInsecureLocalhostInsecureV4) {
   SourceList source_list(&checker_, csp_.get(), "connect-src");
@@ -279,7 +276,6 @@ TEST_F(SourceListTest, TestInsecureLocalhostInsecureV4) {
   EXPECT_TRUE(source_list.Matches(GURL("http://127.255.0.0/")));
 }
 
-#if SB_HAS(IPV6)
 TEST_F(SourceListTest, TestInsecureLocalhostInsecureV6) {
   SourceList source_list(&checker_, csp_.get(), "connect-src");
   std::string sources = "'cobalt-insecure-localhost'";
@@ -295,7 +291,6 @@ TEST_F(SourceListTest, TestInsecureLocalhostInsecureV6) {
   EXPECT_TRUE(source_list.Matches(
       GURL("http://[0000:0000:0000:0000:0000:0000:0000:0001]:80/")));
 }
-#endif
 
 TEST_F(SourceListTest, TestInsecureLocalhostSecureV4) {
   SourceList source_list(&checker_, csp_.get(), "connect-src");
@@ -327,7 +322,6 @@ TEST_F(SourceListTest, TestInsecureLocalhostSecureV4) {
   EXPECT_FALSE(source_list.Matches(GURL("https://example.locaLHost./")));
 }
 
-#if SB_HAS(IPV6)
 TEST_F(SourceListTest, TestInsecureLocalhostSecureV6) {
   SourceList source_list(&checker_, csp_.get(), "connect-src");
   std::string sources = "'cobalt-insecure-localhost'";
@@ -349,7 +343,6 @@ TEST_F(SourceListTest, TestInsecureLocalhostSecureV6) {
   EXPECT_FALSE(source_list.Matches(
       GURL("https://[0000:0000:0000:0000:0000:0000:0000:0001]:80/")));
 }
-#endif
 
 TEST_F(SourceListTest, TestInsecurePrivateRangeDefaultV4) {
   SourceList source_list(&checker_, csp_.get(), "connect-src");
@@ -367,7 +360,6 @@ TEST_F(SourceListTest, TestInsecurePrivateRangeDefaultV4) {
   EXPECT_FALSE(source_list.Matches(GURL("https://255.255.255.255/")));
 }
 
-#if SB_HAS(IPV6)
 TEST_F(SourceListTest, TestInsecurePrivateRangeDefaultV6) {
   SourceList source_list(&checker_, csp_.get(), "connect-src");
 
@@ -382,7 +374,6 @@ TEST_F(SourceListTest, TestInsecurePrivateRangeDefaultV6) {
   EXPECT_FALSE(source_list.Matches(GURL("http://[FE80::]/")));
   EXPECT_FALSE(source_list.Matches(GURL("https://[FE80::]/")));
 }
-#endif
 
 TEST_F(SourceListTest, TestInsecurePrivateRangeV4Private) {
   std::string sources = "'cobalt-insecure-private-range'";
@@ -416,7 +407,6 @@ TEST_F(SourceListTest, TestInsecurePrivateRangeV4Secure) {
   EXPECT_FALSE(source_list.Matches(GURL("https://0.0.0.0/")));
 }
 
-#if SB_HAS(IPV6)
 TEST_F(SourceListTest, TestInsecurePrivateRangeV6ULA) {
   std::string sources = "'cobalt-insecure-private-range'";
   // These are insecure calls.
@@ -446,7 +436,6 @@ TEST_F(SourceListTest, TestInsecurePrivateRangeV6Secure) {
       GURL("https://[2606:2800:220:1:248:1893:25c8:1946]/")));
   EXPECT_FALSE(source_list.Matches(GURL("https://[FE80::]/")));
 }
-#endif
 
 TEST_F(SourceListTest, TestInsecureLocalNetworkDefaultV4Local) {
   std::string sources = "'cobalt-insecure-local-network'";
@@ -481,7 +470,6 @@ TEST_F(SourceListTest, TestInsecureLocalNetworkDefaultV4Secure) {
   EXPECT_FALSE(source_list.Matches(GURL("https://143.195.170.1/")));
 }
 
-#if SB_HAS(IPV6)
 TEST_F(SourceListTest, TestInsecureLocalNetworkDefaultV6Local) {
   std::string sources = "'cobalt-insecure-local-network'";
   SourceList source_list(&checker_, csp_.get(), "connect-src");
@@ -520,7 +508,6 @@ TEST_F(SourceListTest, TestInsecureLocalNetworkDefaultV6Secure) {
   EXPECT_FALSE(source_list.Matches(
       GURL("https://[2606:2800:220:1:248:1893:25c8:1946]/")));
 }
-#endif
 
 TEST_F(SourceListTest, TestInvalidHash) {
   std::string sources = "'sha256-c3uoUQo23pT8hqB5MoAZnI9LiPUc+lWgGBKHfV07iAM='";

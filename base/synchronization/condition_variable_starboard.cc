@@ -30,10 +30,6 @@ ConditionVariable::ConditionVariable(Lock* user_lock)
       user_lock_(user_lock)
 #endif
 {
-#if SB_API_VERSION < 16
-  bool result = SbConditionVariableCreate(&condition_, user_mutex_);
-  DCHECK(result);
-#else
 #if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
   pthread_condattr_t attribute;
   pthread_condattr_init(&attribute);
@@ -47,17 +43,11 @@ ConditionVariable::ConditionVariable(Lock* user_lock)
   int result = pthread_cond_init(&condition_, nullptr);
   DCHECK(result == 0);
 #endif  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
-#endif  // SB_API_VERSION < 16
 }
 
 ConditionVariable::~ConditionVariable() {
-#if SB_API_VERSION < 16
-  bool result = SbConditionVariableDestroy(&condition_);
-  DCHECK(result);
-#else
   int result = pthread_cond_destroy(&condition_);
   DCHECK(result == 0);
-#endif  // SB_API_VERSION < 16
 }
 
 void ConditionVariable::Wait() {
@@ -69,14 +59,8 @@ void ConditionVariable::Wait() {
 #if DCHECK_IS_ON()
   user_lock_->CheckHeldAndUnmark();
 #endif
-#if SB_API_VERSION < 16
- SbConditionVariableResult result =
-      SbConditionVariableWait(&condition_, user_mutex_);
-  DCHECK(SbConditionVariableIsSignaled(result));
-#else
   int result = pthread_cond_wait(&condition_, user_mutex_);
   DCHECK(result == 0);
-#endif  // SB_API_VERSION < 16
 #if DCHECK_IS_ON()
   user_lock_->CheckUnheldAndMark();
 #endif
@@ -92,11 +76,6 @@ void ConditionVariable::TimedWait(const TimeDelta& max_time) {
 #if DCHECK_IS_ON()
   user_lock_->CheckHeldAndUnmark();
 #endif
-#if SB_API_VERSION < 16
-  SbConditionVariableResult result =
-      SbConditionVariableWaitTimed(&condition_, user_mutex_, duration);
-  DCHECK_NE(kSbConditionVariableFailed, result);
-#else
 #if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
   int64_t timeout_time_usec = starboard::CurrentMonotonicTime();
 #else
@@ -110,30 +89,19 @@ void ConditionVariable::TimedWait(const TimeDelta& max_time) {
 
   int result = pthread_cond_timedwait(&condition_, user_mutex_, &timeout);
   DCHECK(result == 0 || result == ETIMEDOUT);
-#endif
 #if DCHECK_IS_ON()
   user_lock_->CheckUnheldAndMark();
 #endif
 }
 
 void ConditionVariable::Broadcast() {
-#if SB_API_VERSION < 16
-  bool result = SbConditionVariableBroadcast(&condition_);
-  DCHECK(result);
-#else
   int result = pthread_cond_broadcast(&condition_);
   DCHECK(result == 0);
-#endif  // SB_API_VERSION < 16
 }
 
 void ConditionVariable::Signal() {
-#if SB_API_VERSION < 16
-  bool result = SbConditionVariableSignal(&condition_);
-  DCHECK(result);
-#else
   int result = pthread_cond_signal(&condition_);
   DCHECK(result == 0);
-#endif  // SB_API_VERSION < 16
 }
 
 }  // namespace base

@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION >= 16
-
 #include <dirent.h>
 
 extern "C" {
@@ -26,5 +24,3 @@ int readdir_r(DIR* dirp, struct dirent* entry, struct dirent** result) {
   return __abi_wrap_readdir_r(dirp, entry, result);
 }
 }
-
-#endif  // SB_API_VERSION >= 16

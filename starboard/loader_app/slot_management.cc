@@ -31,12 +31,10 @@
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
 #include "starboard/extension/loader_app_metrics.h"
-#include "starboard/file.h"
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
 #include "starboard/loader_app/installation_manager.h"
-#include "starboard/memory.h"
-#include "starboard/string.h"
+
 #include "third_party/crashpad/crashpad/wrapper/annotations.h"
 #include "third_party/crashpad/crashpad/wrapper/wrapper.h"
 #include "third_party/jsoncpp/source/include/json/reader.h"
@@ -140,7 +138,8 @@ bool ReadEvergreenVersion(std::vector<char>* manifest_file_path,
 
   Json::Reader reader;
   Json::Value obj;
-  if (!reader.parse(std::string(file_data.data()), obj) || !obj[kVersionKey]) {
+  if (!reader.parse(std::string(file_data.data(), file_size), obj) ||
+      !obj[kVersionKey]) {
     SB_LOG(WARNING) << "Failed to parse version from the manifest file at the "
                        "installation path.";
     return false;
@@ -256,8 +255,10 @@ void* LoadSlotManagedLibrary(const std::string& app_key,
                              LibraryLoader* library_loader,
                              bool use_memory_mapped_file) {
   // Initialize the Installation Manager.
-  SB_CHECK(ImInitialize(kMaxNumInstallations, app_key.c_str()) == IM_SUCCESS)
-      << "Abort. Failed to initialize Installation Manager";
+  if (ImInitialize(kMaxNumInstallations, app_key.c_str()) != IM_SUCCESS) {
+    SB_LOG(ERROR) << "Abort. Failed to initialize Installation Manager";
+    return NULL;
+  }
 
   // Roll forward if needed.
   if (ImRollForwardIfNeeded() == IM_ERROR) {

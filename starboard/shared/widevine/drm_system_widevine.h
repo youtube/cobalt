@@ -24,7 +24,6 @@
 
 #include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/thread.h"

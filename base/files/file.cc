@@ -15,7 +15,6 @@
 #include "base/timer/elapsed_timer.h"
 #include "base/trace_event/base_tracing.h"
 #include "build/build_config.h"
-
 #if defined(STARBOARD)
 #include "starboard/types.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)

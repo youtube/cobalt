@@ -662,7 +662,7 @@ OperationStatus CrashReportDatabaseGeneric::RemoveOldReports(
       all_reports.end(), completed_reports.begin(), completed_reports.end());
   std::sort(all_reports.begin(), all_reports.end(), WasCreatedSooner);
 
-  while (all_reports.size() > num_reports_to_keep) {
+  while (all_reports.size() > static_cast<unsigned int>(num_reports_to_keep)) {
     OperationStatus os = DeleteReport((*all_reports.begin()).uuid);
     if (os != kNoError) {
       return os;

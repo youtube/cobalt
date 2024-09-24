@@ -14,10 +14,6 @@
 
 import("//starboard/build/config/base_configuration.gni")
 
-declare_args() {
-  enable_vulkan = false
-}
-
 final_executable_type = "shared_library"
 gtest_target_type = "shared_library"
 starboard_level_final_executable_type = "shared_library"

@@ -16,7 +16,6 @@
 
 #if defined(STARBOARD)
 #include "starboard/common/log.h"
-#include "starboard/memory.h"
 #endif
 #include <string.h>  // memset()
 #include "./types.h"

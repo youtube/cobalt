@@ -18,7 +18,6 @@
 
 #include "base/logging.h"
 #include "net/base/net_errors.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace xhr {

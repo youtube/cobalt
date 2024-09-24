@@ -16,7 +16,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -48,20 +47,8 @@ void BasicTest(bool existing,
   }
 
   int fd;
-#ifdef _WIN32
-  // File mode is set along with O_CREAT flag.
-  // Windows only supports 1)_S_IREAD, which is mapped to S_IRUSR, 2) _S_IWRITE,
-  // which is mapped to S_IWUSR, and 3) _S_IREAD | _S_IWRITE.
-  if (open_flags & O_CREAT && (open_flags == S_IRUSR || open_flags == S_IWUSR ||
-                               open_flags == (S_IRUSR | S_IWUSR))) {
-    fd = open(filename.c_str(), open_flags, mode);
-  } else {
-    fd = open(filename.c_str(), open_flags);
-  }
-#else
   fd = (open_flags & O_CREAT) ? open(filename.c_str(), open_flags, mode)
                               : open(filename.c_str(), open_flags);
-#endif
 
   if (!expected_success) {
     EXPECT_FALSE(fd >= 0) << SB_FILE_OPEN_TEST_CONTEXT;
@@ -104,14 +91,10 @@ TEST(PosixFileOpenTest, OpenAlwaysCreatesNonExistingFile) {
   BasicTest(false, O_CREAT | O_WRONLY, true, __LINE__);
 }
 
-#if SB_API_VERSION >= 16
-
 TEST(PosixFileOpenTest, OpenAlwaysWithLinuxSpecificMode) {
   BasicTest(false, O_CREAT | O_TRUNC | O_WRONLY, true, __LINE__,
             S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 }
-
-#endif  // SB_API_VERSION >= 16
 
 TEST(PosixFileOpenTest, CreateAlwaysTruncatesExistingFile) {
   BasicTest(true, O_CREAT | O_TRUNC | O_WRONLY, true, __LINE__);

@@ -16,7 +16,6 @@
 #define COBALT_MEDIA_BASE_ENDIAN_UTIL_H_
 
 #include "base/sys_byteorder.h"
-#include "starboard/memory.h"
 
 // TODO: Consider Starboardize functions in this file.
 

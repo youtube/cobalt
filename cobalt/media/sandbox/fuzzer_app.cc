@@ -19,7 +19,6 @@
 #include "base/files/file_util.h"
 #include "base/logging.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/directory.h"
 
 namespace cobalt {
 namespace media {

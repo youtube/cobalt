@@ -26,6 +26,4 @@ pedantic_warnings_config_path =
 no_pedantic_warnings_config_path =
     "//starboard/stub/platform_configuration:no_pedantic_warnings"
 
-assert(host_os != "win", "Stub build is not (yet) supported on windows host")
-
 v8_enable_webassembly = true

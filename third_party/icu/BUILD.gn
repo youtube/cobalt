@@ -18,10 +18,6 @@ if (is_mac && !icu_is_in_fuchsia) {
   import("//build/config/sanitizers/sanitizers.gni")
 }
 
-if (is_starboard) {
-  import("//cobalt/build/contents_dir.gni")
-}
-
 assert(!icu_disable_thin_archive || !is_component_build,
        "icu_disable_thin_archive only works in static library builds")
 
@@ -344,7 +340,7 @@ template("generate_icuuc") {
     if (is_starboard) {
       public_deps = [
         "//starboard:starboard_headers_only",
-        "//starboard/common:common",
+        "//starboard/common",
       ]
       defines += [
         "U_HAVE_NL_LANGINFO_CODESET=0",

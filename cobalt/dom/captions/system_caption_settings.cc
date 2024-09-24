@@ -27,12 +27,7 @@
 #include "cobalt/dom/captions/caption_opacity_percentage.h"
 #include "cobalt/dom/captions/caption_state.h"
 #include "cobalt/web/event_target.h"
-#if SB_API_VERSION < 16
-#include "starboard/accessibility.h"
-#else  // SB_API_VERSION < 16
 #include "starboard/extension/accessibility.h"
-#endif  // SB_API_VERSION < 16
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace dom {
@@ -477,7 +472,6 @@ bool SystemCaptionSettings::is_enabled() {
 
 void SystemCaptionSettings::set_is_enabled(bool active) {
   DCHECK(supports_set_enabled());
-#if SB_API_VERSION >= 16
   auto accessibility_api =
       static_cast<const StarboardExtensionAccessibilityApi*>(
           SbSystemGetExtension(kStarboardExtensionAccessibilityName));
@@ -487,9 +481,6 @@ void SystemCaptionSettings::set_is_enabled(bool active) {
       accessibility_api->version >= 1) {
     accessibility_api->SetCaptionsEnabled(active);
   }
-#else   // SB_API_VERSION >= 16
-  SbAccessibilitySetCaptionsEnabled(active);
-#endif  // SB_API_VERSION >= 16
 }
 
 bool SystemCaptionSettings::supports_is_enabled() {
@@ -647,7 +638,6 @@ const char* SystemCaptionSettings::CaptionOpacityPercentageToString(
 
 bool SystemCaptionSettings::GetCaptionSettings(
     SbAccessibilityCaptionSettings* caption_settings) {
-#if SB_API_VERSION >= 16
   auto accessibility_api =
       static_cast<const StarboardExtensionAccessibilityApi*>(
           SbSystemGetExtension(kStarboardExtensionAccessibilityName));
@@ -659,9 +649,6 @@ bool SystemCaptionSettings::GetCaptionSettings(
   } else {
     return false;
   }
-#else   // SB_API_VERSION >= 16
-  return SbAccessibilityGetCaptionSettings(caption_settings);
-#endif  // SB_API_VERSION >= 16
 }
 
 }  // namespace captions

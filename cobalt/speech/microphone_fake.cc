@@ -24,7 +24,6 @@
 #include "base/path_service.h"
 #include "base/rand_util.h"
 #include "cobalt/audio/audio_file_reader.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace speech {

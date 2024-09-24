@@ -71,6 +71,22 @@ class MediaSourceAttachment
   // flag MediaElement.EnableUsingMediaSourceAttachmentMethods is disabled.
   virtual scoped_refptr<MediaSource> media_source() const = 0;
 
+  // Provide state updates to the MediaSource that are necessary for its
+  // operation. These are pushed rather than pulled to reduce complexity and
+  // latency, especially when the MediaSource is in a Worker context.
+  // OnElementTimeUpdate() gives the MediaSource a notion of the recent media
+  // element currentTime so that it can more effectively prevent evicting
+  // buffered media near to playback and/or seek target time in its heuristic.
+  // Alternatives such as pumping this via the media pipeline are insufficient,
+  // as the media pipeline may not be aware of overrides to the playback start
+  // position.
+  virtual void OnElementTimeUpdate(double time) = 0;
+
+  // Needed as a precondition in the Prepare Append algorithm, OnElementError()
+  // lets the MediaSource know if the attached media element has transitioned to
+  // having an error.
+  virtual void OnElementError() = 0;
+
  private:
   friend class base::RefCountedThreadSafe<MediaSourceAttachment>;
 

@@ -1175,6 +1175,16 @@ component("net") {
       "socket/tcp_socket_starboard.h",
       "socket/udp_socket_starboard.cc",
       "socket/udp_socket_starboard.h",
+      # Use POSIX socket for SB16
+      "base/net_errors_posix.cc",
+      "base/sockaddr_util_posix.cc",
+      "base/sockaddr_util_posix.h",
+      "socket/tcp_socket_posix.cc",
+      "socket/tcp_socket_posix.h",
+      "socket/udp_socket_posix.cc",
+      "socket/udp_socket_posix.h",
+      "socket/socket_posix.cc",
+      "socket/socket_posix.h",
     ]
     deps += [ "//starboard:starboard_group" ]
   }
@@ -3075,7 +3085,7 @@ test("net_unittests") {
     data_deps += [
       ":net_unittest_files",
       ":third_party_unittest_files",
-      "//cobalt/network:copy_ssl_certificates",
+      "//starboard/content/ssl:copy_ssl_certificates",
     ]
   }
 

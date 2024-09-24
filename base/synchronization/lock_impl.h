@@ -12,11 +12,7 @@
 #include "build/build_config.h"
 
 #if defined(STARBOARD)
-#if SB_API_VERSION < 16
-#include "starboard/common/mutex.h"
-#else
 #include <pthread.h>
-#endif
 #include "base/check_op.h"
 #elif BUILDFLAG(IS_WIN)
 #include "base/win/windows_types.h"
@@ -53,11 +49,7 @@ class BASE_EXPORT LockImpl {
   friend class base::win::internal::ScopedHandleVerifier;
 
 #if defined(STARBOARD)
-#if SB_API_VERSION < 16
-  using NativeHandle = SbMutex;
-#else
   using NativeHandle = pthread_mutex_t;
-#endif  // SB_API_VERSION < 16
 #elif BUILDFLAG(IS_WIN)
   using NativeHandle = CHROME_SRWLOCK;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
@@ -108,24 +100,13 @@ void LockImpl::Lock() {
 
 #if defined(STARBOARD)
 bool LockImpl::Try() {
-#if SB_API_VERSION < 16
-  SbMutexResult result = SbMutexAcquireTry(&native_handle_);
-  DCHECK_NE(kSbMutexDestroyed, result);
-  return SbMutexIsSuccess(result);
-#else
   int result = pthread_mutex_trylock(&native_handle_);
   return result  == 0;
-#endif  // SB_API_VERSION < 16
 }
 
 void LockImpl::Unlock() {
-#if SB_API_VERSION < 16
-  bool result = SbMutexRelease(&native_handle_);
-  DCHECK(result);
-#else
   int result = pthread_mutex_unlock(&native_handle_);
   DCHECK(result == 0);
-#endif  //SB_API_VERSION < 16
 }
 #elif BUILDFLAG(IS_WIN)
 bool LockImpl::Try() {

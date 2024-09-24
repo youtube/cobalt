@@ -20,7 +20,6 @@
 #include <vector>
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/file.h"
 #include "starboard/system.h"
 
 namespace starboard {

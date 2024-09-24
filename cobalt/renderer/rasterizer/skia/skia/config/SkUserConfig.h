@@ -110,41 +110,6 @@
 // would like these formats to match.
 // Always use OpenGL byte-order (RGBA).
 
-#if defined(STARBOARD)
-const uint8_t r32_or_bendian_a32_shift =
-    kSbPreferredRgbaByteOrder == SB_PREFERRED_RGBA_BYTE_ORDER_BGRA ? 16 : 0;
-
-#ifdef SK_CPU_BENDIAN
-#define SK_R32_SHIFT 24
-#define SK_G32_SHIFT (16 - r32_or_bendian_a32_shift)
-#define SK_B32_SHIFT 8
-#define SK_A32_SHIFT r32_or_bendian_a32_shift
-#else
-#define SK_R32_SHIFT r32_or_bendian_a32_shift
-#define SK_G32_SHIFT 8
-#define SK_B32_SHIFT (16 - r32_or_bendian_a32_shift)
-#define SK_A32_SHIFT 24
-#endif
-
-#elif defined(STARBOARD) && \
-    kSbPreferredRgbaByteOrder == SB_PREFERRED_RGBA_BYTE_ORDER_BGRA
-#ifdef SK_CPU_BENDIAN
-#define SK_R32_SHIFT 24
-#define SK_G32_SHIFT 0
-#define SK_B32_SHIFT 8
-#define SK_A32_SHIFT 16
-#else
-#define SK_R32_SHIFT 16
-#define SK_G32_SHIFT 8
-#define SK_B32_SHIFT 0
-#define SK_A32_SHIFT 24
-#endif
-
-#else
-
-// Default to RGBA otherwise.  Skia only supports either BGRA or RGBA, so if
-// kSbPreferredRgbaByteOrder is neither, we default it to RGBA and we will
-// have to do color conversions at runtime.
 #ifdef SK_CPU_BENDIAN
 #define SK_R32_SHIFT 24
 #define SK_G32_SHIFT 16
@@ -155,8 +120,6 @@ const uint8_t r32_or_bendian_a32_shift =
 #define SK_G32_SHIFT 8
 #define SK_B32_SHIFT 16
 #define SK_A32_SHIFT 24
-#endif
-
 #endif
 
 /*  Some compilers don't support long long for 64bit integers. If yours does

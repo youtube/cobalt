@@ -60,12 +60,12 @@ repos:
             (?x)^(
                 (internal/)?starboard/[^/]+/i18n/|
                 cobalt/content/licenses/|
-                cobalt/content/ssl/|
                 cobalt/fetch/embedded_scripts|
                 cobalt/streams/embedded_scripts|
                 cobalt/loader/cors_preflight.cc|
                 internal/cobalt/browser/splash_screen/youtube_splash_screen.html|
                 internal/starboard/shared/playstation/storage_internal.cc|
+                starboard/content/ssl/certs/|
                 starboard/loader_app/app_key_test.cc|
                 starboard/shared/starboard/player/testdata|
                 starboard/shared/win32/media_transform.cc
@@ -176,7 +176,7 @@ repos:
         always_run: true
         stages: [push]
         additional_dependencies: [certifi]
-        args: [-m, unittest, cobalt/tools/download_from_gcs_test.py]
+        args: [-m, unittest, starboard/tools/download_from_gcs_test.py]
     -   id: test-python3-compatibility
         name: Test Python 3 Compatibility
         description: Checks that scripts can be run in Python 3

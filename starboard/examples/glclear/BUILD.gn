@@ -14,5 +14,8 @@
 
 target(final_executable_type, "starboard_glclear_example") {
   sources = [ "main.cc" ]
-  deps = [ "//starboard:starboard_group" ]
+  deps = [
+    "//starboard:starboard_group",
+    "//starboard/common",
+  ]
 }

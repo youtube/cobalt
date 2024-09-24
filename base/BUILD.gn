@@ -1112,7 +1112,10 @@ component("base") {
   }
 
   if (is_starboard && current_toolchain != host_toolchain) {
-    deps += [ "//starboard:starboard_group" ]
+    deps += [
+      "//starboard/common",
+      "//starboard:starboard_group"
+    ]
   }
 
   # `raw_ptr` cannot be made a component due to CRT symbol issues.
@@ -2702,7 +2705,10 @@ static_library("base_static") {
   deps = [ "//build:chromeos_buildflags" ]
 
   if (is_starboard && current_toolchain != host_toolchain) {
-    deps += [ "//starboard:starboard_group" ]
+    deps += [
+      "//starboard/common",
+      "//starboard:starboard_group"
+      ]
   }
 
   if (is_win) {
@@ -3667,7 +3673,7 @@ test("base_unittests") {
   if (is_starboard){
     data_deps += [
       ":base_unittests_bundle_data",
-      "//cobalt/network:copy_ssl_certificates",
+      "//starboard/content/ssl:copy_ssl_certificates",
     ]
   }
 

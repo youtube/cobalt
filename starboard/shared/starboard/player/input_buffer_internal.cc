@@ -22,7 +22,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
-#include "starboard/memory.h"
 
 namespace starboard {
 namespace shared {

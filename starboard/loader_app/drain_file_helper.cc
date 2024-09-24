@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include "starboard/common/file.h"
+#include "starboard/configuration_constants.h"
 #include "starboard/loader_app/drain_file.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

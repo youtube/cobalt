@@ -183,13 +183,6 @@ TEST(PosixMemoryMapTest, CanChangeMemoryProtection) {
         continue;
       }
 
-#if SB_API_VERSION < 16
-#if SB_CAN(MAP_EXECUTABLE_MEMORY)
-      const bool kSbCanMapExecutableMemory = true;
-#else
-      const bool kSbCanMapExecutableMemory = false;
-#endif
-#endif
       SumFunction mapped_function = nullptr;
       SumFunction original_function = nullptr;
       if (kSbCanMapExecutableMemory) {

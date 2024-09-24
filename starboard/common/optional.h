@@ -21,7 +21,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 
 namespace starboard {
 

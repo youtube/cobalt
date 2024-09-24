@@ -21,7 +21,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
 #include "starboard/common/string.h"
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
@@ -77,19 +76,11 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
     SbDecodeTargetGraphicsContextProvider* provider)
     : JobOwner(kDetached),
       drm_system_(creation_param->drm_system),
-#if SB_API_VERSION >= 15
       audio_stream_info_(creation_param->audio_stream_info),
-#else   // SB_API_VERSION >= 15
-      audio_stream_info_(creation_param->audio_sample_info),
-#endif  // SB_API_VERSION >= 15
       output_mode_(creation_param->output_mode),
       max_video_input_size_(0),
       decode_target_graphics_context_provider_(provider),
-#if SB_API_VERSION >= 15
       video_stream_info_(creation_param->video_stream_info) {
-#else   // SB_API_VERSION >= 15
-      video_stream_info_(creation_param->video_sample_info) {
-#endif  // SB_API_VERSION >= 15
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
 }
 

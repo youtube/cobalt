@@ -19,7 +19,6 @@
 #include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "starboard/common/configuration_defaults.h"
-#include "starboard/string.h"
 #include "starboard/system.h"
 
 namespace cobalt {

@@ -9,9 +9,6 @@
 * File plurrule.cpp
 */
 
-#if defined(STARBOARD)
-#include "starboard/client_porting/cwrappers/pow_wrapper.h"
-#endif  // defined(STARBOARD)
 #include <math.h>
 #include <stdio.h>
 

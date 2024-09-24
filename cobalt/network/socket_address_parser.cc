@@ -17,7 +17,6 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "net/base/ip_address.h"
-#include "starboard/memory.h"
 #include "url/third_party/mozilla/url_parse.h"
 #include "url/url_canon.h"
 #include "url/url_canon_ip.h"

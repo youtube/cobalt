@@ -50,9 +50,7 @@ int PosixSocketCreateAndConnect(int server_domain,
                                 int* server_socket_fd,
                                 int* client_socket_fd);
 int PosixGetLocalAddressIPv4(sockaddr* address_ptr);
-#if SB_HAS(IPV6)
 int PosixGetLocalAddressIPv6(sockaddr* address_ptr);
-#endif  // SB_HAS(IPV6)
 
 int PosixSocketSetReceiveBufferSize(int socket_fd, int32_t size);
 int PosixSocketSetSendBufferSize(int socket_fd, int32_t size);

@@ -186,10 +186,6 @@ if (is_qa || is_gold || sb_use_no_rtti) {
   default_compiler_configs += [ "//build/config/compiler:no_rtti" ]
 }
 
-if (is_win) {
-  default_compiler_configs += [ "//build/config/win:lean_and_mean" ]
-}
-
 if (is_native_target_build) {
   default_compiler_configs += [ "//starboard/build/config:native_target" ]
 }
@@ -540,11 +536,9 @@ template("shared_library") {
       forward_variables_from(invoker, [ "testonly" ])
       deps = [
         ":${actual_target_name}_loader($starboard_toolchain)",
+        ":${actual_target_name}_loader_copy($starboard_toolchain)",
         ":${actual_target_name}_loader_install($starboard_toolchain)",
       ]
-      if (host_os != "win") {
-        deps += [ ":${actual_target_name}_loader_copy($starboard_toolchain)" ]
-      }
     }
     if (current_toolchain == starboard_toolchain) {
       executable("${actual_target_name}_loader") {
@@ -590,13 +584,11 @@ template("shared_library") {
           deps += [ "//starboard:starboard_install($starboard_toolchain)" ]
         }
       }
-      if (host_os != "win") {
-        copy("${actual_target_name}_loader_copy") {
-          forward_variables_from(invoker, [ "testonly" ])
-          sources = [ "$root_out_dir/${actual_target_name}_loader" ]
-          outputs = [ "$root_build_dir/${actual_target_name}_loader" ]
-          deps = [ ":${actual_target_name}_loader" ]
-        }
+      copy("${actual_target_name}_loader_copy") {
+        forward_variables_from(invoker, [ "testonly" ])
+        sources = [ "$root_out_dir/${actual_target_name}_loader" ]
+        outputs = [ "$root_build_dir/${actual_target_name}_loader" ]
+        deps = [ ":${actual_target_name}_loader" ]
       }
     }
   }

@@ -38,9 +38,10 @@ target(gtest_target_type, "eztime_test") {
   deps = [
     ":eztime",
     "//starboard:starboard_group",
+    "//starboard/common",
     "//testing/gmock",
     "//testing/gtest",
   ]
 
-  data_deps = [ "//cobalt/network:copy_ssl_certificates" ]
+  data_deps = [ "//starboard/content/ssl:copy_ssl_certificates" ]
 }

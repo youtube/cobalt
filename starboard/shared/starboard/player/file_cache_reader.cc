@@ -20,7 +20,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/directory.h"
 
 namespace starboard {
 namespace shared {

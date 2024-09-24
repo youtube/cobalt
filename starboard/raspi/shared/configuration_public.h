@@ -17,8 +17,6 @@
 #ifndef STARBOARD_RASPI_SHARED_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_RASPI_SHARED_CONFIGURATION_PUBLIC_H_
 
-#define DEPRECATED_SCOPED_PTR
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -44,36 +42,5 @@
 // Chrome has an exclusion for iOS here, we should too when we support iOS.
 #define SB_IS_WCHAR_T_UNSIGNED 1
 #endif
-
-// --- Attribute Configuration -----------------------------------------------
-
-#if SB_API_VERSION < 16
-// The platform's annotation for forcing a C function to be inlined.
-#define SB_C_FORCE_INLINE __inline__ __attribute__((always_inline))
-
-// The platform's annotation for marking a C function as suggested to be
-// inlined.
-#define SB_C_INLINE inline
-
-// The platform's annotation for marking a symbol as exported outside of the
-// current shared library.
-#define SB_EXPORT_PLATFORM __attribute__((visibility("default")))
-
-// The platform's annotation for marking a symbol as imported from outside of
-// the current linking unit.
-#define SB_IMPORT_PLATFORM
-
-// --- Memory Configuration --------------------------------------------------
-
-// Whether this platform can map executable memory. Implies SB_HAS_MMAP. This is
-// required for platforms that want to JIT.
-#define SB_CAN_MAP_EXECUTABLE_MEMORY 1
-
-#endif  // SB_API_VERSION < 16
-
-// --- Network Configuration -------------------------------------------------
-
-// Specifies whether this platform supports IPV6.
-#define SB_HAS_IPV6 1
 
 #endif  // STARBOARD_RASPI_SHARED_CONFIGURATION_PUBLIC_H_

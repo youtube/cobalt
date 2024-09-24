@@ -28,15 +28,14 @@
 #include "starboard/common/mutex.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/directory.h"
 #include "starboard/extension/loader_app_metrics.h"
+#include "starboard/file.h"
 #include "starboard/loader_app/installation_store.pb.h"
 #if !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/loader_app/pending_restart.h"  // nogncheck
 #endif  // !SB_IS(EVERGREEN_COMPATIBLE_LITE)
 #include "starboard/common/once.h"
 #include "starboard/loader_app/record_loader_app_status.h"
-#include "starboard/string.h"
 
 namespace starboard {
 namespace loader_app {

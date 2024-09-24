@@ -10,11 +10,7 @@
 #include "src/base/platform/mutex.h"
 
 #if V8_OS_STARBOARD
-#if SB_API_VERSION < 16
-#include "starboard/condition_variable.h"
-#else
 #include <pthread.h>
-#endif // SB_API_VERSION < 16
 #endif
 
 namespace v8 {
@@ -75,11 +71,7 @@ class V8_BASE_EXPORT ConditionVariable final {
 #elif V8_OS_WIN
   using NativeHandle = CONDITION_VARIABLE;
 #elif V8_OS_STARBOARD
-#if SB_API_VERSION < 16
-  using NativeHandle = SbConditionVariable;
-#else
   using NativeHandle = pthread_cond_t;
-#endif // SB_API_VERSION < 16
 #endif
 
   NativeHandle& native_handle() {

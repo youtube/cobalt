@@ -114,7 +114,6 @@
 #include <unistd.h>
 
 #include "starboard/common/file_wrapper.h"
-#include "starboard/string.h"
 
 #define FT_FILE     FileStruct
 #define ft_fclose   file_close

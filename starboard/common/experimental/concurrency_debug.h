@@ -22,7 +22,6 @@
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/mutex.h"
 #include "starboard/thread.h"
 
 // WARNING: Features inside experimental namespace is strictly experimental and

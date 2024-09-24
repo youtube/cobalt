@@ -37,11 +37,7 @@ namespace base {
 class PlatformThreadRef {
  public:
 #if defined(STARBOARD)
-#if SB_API_VERSION < 16
-  typedef SbThread RefType;
-#else
   using RefType = pthread_t;
-#endif
 #elif BUILDFLAG(IS_WIN)
   using RefType = DWORD;
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)

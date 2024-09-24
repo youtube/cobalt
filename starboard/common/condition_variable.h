@@ -23,7 +23,6 @@
 #include <pthread.h>
 
 #include "starboard/common/mutex.h"
-#include "starboard/condition_variable.h"
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 
@@ -50,11 +49,7 @@ class ConditionVariable {
 
  private:
   const Mutex* mutex_;
-#if SB_API_VERSION < 16
-  mutable SbConditionVariable condition_;
-#else
   mutable pthread_cond_t condition_;
-#endif  // SB_API_VERSION < 16
 };
 
 }  // namespace starboard

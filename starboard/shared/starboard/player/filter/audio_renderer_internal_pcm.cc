@@ -19,7 +19,6 @@
 #include <utility>
 
 #include "starboard/common/time.h"
-#include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {

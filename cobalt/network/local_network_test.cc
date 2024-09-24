@@ -43,8 +43,6 @@ TEST(IsPrivateRange, v4) {
   EXPECT_FALSE(IsIPInPrivateRange(ParseSocketAddress("239.255.255.255")));
 }
 
-#if SB_HAS(IPV6)
-
 TEST(IsPrivateRange, v6) {
   EXPECT_TRUE(IsIPInPrivateRange(ParseSocketAddress("[fd00::]")));
   EXPECT_TRUE(IsIPInPrivateRange(ParseSocketAddress("[fd00:1:2:3:4:5::]")));
@@ -52,8 +50,6 @@ TEST(IsPrivateRange, v6) {
   EXPECT_FALSE(IsIPInPrivateRange(
       ParseSocketAddress("[2606:2800:220:1:248:1893:25c8:1946]")));
 }
-
-#endif  // SB_HAS(IPV6)
 
 }  // namespace network
 }  // namespace cobalt

@@ -80,6 +80,7 @@ static_library("debug") {
     "//net",
     "//net/server:http_server",
     "//starboard:starboard_group",
+    "//starboard/common",
     "//third_party/devtools:devtools_frontend_resources",
   ]
 

@@ -19,7 +19,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #if defined(STARBOARD)
-#include "starboard/memory.h"
 #include "starboard/types.h"
 #endif
 

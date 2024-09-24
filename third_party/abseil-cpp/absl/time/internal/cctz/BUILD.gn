@@ -53,6 +53,9 @@ absl_source_set("time_zone") {
     ]
   }
   if (is_starboard) {
-    deps += [ "//starboard:starboard_group" ]
+    deps += [
+      "//starboard/common",
+      "//starboard:starboard_group"
+    ]
   }
 }

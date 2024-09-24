@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION >= 16
-
 #include <sys/mman.h>
 
 extern "C" {
@@ -29,5 +27,3 @@ void* mmap(void* addr, size_t len, int prot, int flags, int fildes, off_t off) {
   return __abi_wrap_mmap(addr, len, prot, flags, fildes, off);
 }
 }
-
-#endif  // SB_API_VERSION >= 16

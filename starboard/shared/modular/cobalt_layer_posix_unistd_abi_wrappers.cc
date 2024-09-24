@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if SB_API_VERSION >= 16
-
 #include <unistd.h>
 
 extern "C" {
@@ -42,5 +40,3 @@ ssize_t write(int fildes, const void* buf, size_t nbyte) {
   return __abi_wrap_write(fildes, buf, nbyte);
 }
 }
-
-#endif  // SB_API_VERSION >= 16

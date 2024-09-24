@@ -21,7 +21,6 @@
 
 #include "cobalt/audio/audio_helpers.h"
 #include "cobalt/web/dom_exception.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace audio {

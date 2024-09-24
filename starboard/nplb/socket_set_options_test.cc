@@ -64,18 +64,11 @@ TEST_P(SbSocketSetOptionsTest, RainyDayInvalidSocket) {
 
 // TODO: Come up with some way to test the effects of these options.
 
-#if SB_HAS(IPV6)
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketSetOptionsTest,
                         ::testing::Values(kSbSocketAddressTypeIpv4,
                                           kSbSocketAddressTypeIpv6),
                         GetSbSocketAddressTypeName);
-#else
-INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
-                        SbSocketSetOptionsTest,
-                        ::testing::Values(kSbSocketAddressTypeIpv4),
-                        GetSbSocketAddressTypeName);
-#endif
 
 }  // namespace
 }  // namespace nplb
