@@ -94,12 +94,13 @@ runs:
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results
       if: always() && env.TEST_TYPE == 'unit_test'
-      env:
-        COBALT_XMLS_FILENAME: cobalt_xmls.zip
-        UNIT_TEST_RESULT_PATH: ${{ env.GITHUB_WORKSPACE }}/unit-test-results
-        COBALT_LOGS_DIR: ${{ env.GITHUB_WORKSPACE }}/cobalt_logs
       run: |
+        # Don't break on error (-e), some commands are expected to fail.
         set -ux
+
+        COBALT_LOGS_DIR="${GITHUB_WORKSPACE}/cobalt_logs"
+        UNIT_TEST_RESULT_PATH="${GITHUB_WORKSPACE}/unit-test-results"
+        COBALT_XMLS_FILENAME="cobalt_xmls.zip"
 
         # Forward environment variables for uploading artifacts in later steps.
         echo "UNIT_TEST_RESULT_PATH=${UNIT_TEST_RESULT_PATH}" >> $GITHUB_ENV
@@ -119,9 +120,9 @@ runs:
           COBALT_INFO_LOG="webDriverTestLog.INFO"
 
           # This command will fail until the results have been uploaded.
-          gsutil cp "${GCS_RESULTS_PATH}/${COBALT_ERROR_LOG}" . || true
-          gsutil cp "${GCS_RESULTS_PATH}/${COBALT_INFO_LOG}" . || true
-          gsutil cp "${GCS_RESULTS_PATH}/${COBALT_XMLS_FILENAME}" . || true
+          gsutil cp "${GCS_RESULTS_PATH}/${COBALT_ERROR_LOG}" .
+          gsutil cp "${GCS_RESULTS_PATH}/${COBALT_INFO_LOG}" .
+          gsutil cp "${GCS_RESULTS_PATH}/${COBALT_XMLS_FILENAME}" .
 
           # Break if all files were downloaded.
           if [[ -f "${COBALT_XMLS_FILENAME}" && -f "${COBALT_ERROR_LOG}" && -f "${COBALT_INFO_LOG}" ]]; then
@@ -131,8 +132,8 @@ runs:
           i=$(( ${i} + 1 ))
         done
 
-        # Print device logs. Continue on error in case the log file didn't download.
-        cat ${COBALT_ERROR_LOG} || true
+        # Print device logs. Might fail if the log file failed to download.
+        cat ${COBALT_ERROR_LOG}
 
         # Rename log files for archiving to not expose legacy weirdness.
         mkdir -p "${COBALT_LOGS_DIR}/${{ matrix.platform }}/"
