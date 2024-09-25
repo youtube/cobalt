@@ -33,7 +33,6 @@
 
 namespace net {
 
-#if SB_API_VERSION >= 16
 
 namespace {
 
@@ -590,7 +589,5 @@ void SocketPosix::StopWatchingAndCleanUp(bool close_socket) {
   waiting_connect_ = false;
   peer_address_.reset();
 }
-
-#endif  // SB_API_VERSION >= 16
 
 }  // namespace net

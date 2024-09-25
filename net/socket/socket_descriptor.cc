@@ -6,13 +6,10 @@
 
 #include "build/build_config.h"
 
-#if defined(STARBOARD) && SB_API_VERSION <= 15
-#include "starboard/socket.h"
-#include "base/notreached.h"
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include <ws2tcpip.h>
 #include "net/base/winsock_init.h"
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
+#else
 #include <sys/socket.h>
 #include <sys/types.h>
 #endif
@@ -24,10 +21,7 @@
 namespace net {
 
 SocketDescriptor CreatePlatformSocket(int family, int type, int protocol) {
-#if defined(STARBOARD) && SB_API_VERSION <= 15
-  NOTREACHED();
-  return kSbSocketInvalid;
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   EnsureWinsockInit();
   SocketDescriptor result = ::WSASocket(family, type, protocol, nullptr, 0,
                                         WSA_FLAG_OVERLAPPED);
@@ -40,7 +34,7 @@ SocketDescriptor CreatePlatformSocket(int family, int type, int protocol) {
     }
   }
   return result;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
+#else
   SocketDescriptor result = ::socket(family, type, protocol);
 #if BUILDFLAG(IS_APPLE)
   // Disable SIGPIPE on this socket. Although Chromium globally disables

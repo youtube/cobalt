@@ -7,11 +7,9 @@
 
 #include "build/build_config.h"
 
-#if defined(STARBOARD) && SB_API_VERSION <= 15
-#include "net/socket/udp_socket_starboard.h"
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include "net/socket/udp_socket_win.h"
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
+#else
 #include "net/socket/udp_socket_posix.h"
 #endif
 
@@ -37,11 +35,9 @@ namespace net {
 //       RecvFrom/SendTo       // Each read can come from a different client
 //                             // Writes need to be directed to a specific
 //                             // address.
-#if defined(STARBOARD) && SB_API_VERSION <= 15
-typedef UDPSocketStarboard UDPSocket;
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 typedef UDPSocketWin UDPSocket;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
+#else
 typedef UDPSocketPosix UDPSocket;
 #endif
 
