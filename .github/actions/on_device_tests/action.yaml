@@ -167,3 +167,4 @@ runs:
         else
           echo "No device logs found"
         fi
+      shell: bash
