@@ -127,7 +127,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/posix/socket_is_connected.cc",
     "//starboard/shared/posix/socket_is_connected_and_idle.cc",
     "//starboard/shared/posix/socket_is_ipv6_supported.cc",
-    "//starboard/shared/posix/socket_join_multicast_group.cc",
     "//starboard/shared/posix/socket_listen.cc",
     "//starboard/shared/posix/socket_receive_from.cc",
     "//starboard/shared/posix/socket_resolve.cc",

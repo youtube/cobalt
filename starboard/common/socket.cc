@@ -156,10 +156,6 @@ bool Socket::SetTcpWindowScaling(bool value) {
   return SbSocketSetTcpWindowScaling(socket_, value);
 }
 
-bool Socket::JoinMulticastGroup(const SbSocketAddress* address) {
-  return SbSocketJoinMulticastGroup(socket_, address);
-}
-
 SbSocket Socket::socket() {
   return socket_;
 }

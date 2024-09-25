@@ -160,7 +160,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSocketIsConnected);
   REGISTER_SYMBOL(SbSocketIsConnectedAndIdle);
   REGISTER_SYMBOL(SbSocketIsIpv6Supported);
-  REGISTER_SYMBOL(SbSocketJoinMulticastGroup);
   REGISTER_SYMBOL(SbSocketListen);
   REGISTER_SYMBOL(SbSocketReceiveFrom);
   REGISTER_SYMBOL(SbSocketResolve);

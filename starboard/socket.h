@@ -425,39 +425,6 @@ SB_EXPORT bool SbSocketSetTcpNoDelay(SbSocket socket, bool value);
 // |value|: The value for the option.
 SB_EXPORT bool SbSocketSetTcpWindowScaling(SbSocket socket, bool value);
 
-// DEPRECATED with SB_API_VERSION 16
-//
-// Joins |socket| to an IP multicast group identified by |address|. The
-// equivalent of IP_ADD_MEMBERSHIP. The return value indicates whether the
-// socket was joined to the group successfully.
-//
-// |socket|: The SbSocket to be joined to the IP multicast group.
-// |address|: The location of the IP multicast group.
-SB_EXPORT bool SbSocketJoinMulticastGroup(SbSocket socket,
-                                          const SbSocketAddress* address);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Synchronously resolves |hostname| into the returned SbSocketResolution,
-// which must be freed with SbSocketFreeResolution. The function returns
-// |NULL| if it is unable to resolve |hostname|.
-//
-// |hostname|: The hostname to be resolved.
-// |filters|: A mask of SbSocketResolveFilter values used to filter the
-//   resolution. If |filters| does not specify an IP address family filter,
-//   all address families are included. However, if one IP address family filter
-//   is specified, only that address family is included. The function ignores
-//   unrecognized filter bits.
-SB_EXPORT SbSocketResolution* SbSocketResolve(const char* hostname,
-                                              int filters);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Frees a resolution allocated by SbSocketResolve.
-//
-// |resolution|: The resolution to be freed.
-SB_EXPORT void SbSocketFreeResolution(SbSocketResolution* resolution);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
