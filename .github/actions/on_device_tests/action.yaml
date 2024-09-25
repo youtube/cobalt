@@ -142,7 +142,7 @@ runs:
         mkdir -p ${RESULT_PATH}
 
         # Set tags for test differentiation.
-        tags="platform:${{ matrix.platform }}"
+        tags="os.platform:${{ matrix.platform }}"
         echo $tags > ${UNIT_TEST_RESULT_PATH}/${{ matrix.platform }}/TAGS
 
         unzip ${COBALT_XMLS_FILENAME} -d ${RESULT_PATH}
