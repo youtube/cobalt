@@ -95,6 +95,7 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDayDestination) {
   EXPECT_EQ(0, source.port);
 }
 
+#if SB_API_VERSION < 16
 TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceForDestination) {
   const char kTestHostName[] = "www.example.com";
 
@@ -136,6 +137,7 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceForDestination) {
 
   SbSocketFreeResolution(resolution);
 }
+#endif
 
 TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceNotLoopback) {
   SbSocketAddress destination = {0};

@@ -191,7 +191,6 @@ target(gtest_target_type, "nplb") {
     "socket_is_connected_test.cc",
     "socket_listen_test.cc",
     "socket_receive_from_test.cc",
-    "socket_resolve_test.cc",
     "socket_send_to_test.cc",
     "socket_set_options_test.cc",
     "socket_waiter_add_test.cc",
