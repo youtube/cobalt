@@ -96,10 +96,6 @@ bool Socket::IsConnected() {
   return SbSocketIsConnected(socket_);
 }
 
-bool Socket::IsConnectedAndIdle() {
-  return SbSocketIsConnectedAndIdle(socket_);
-}
-
 bool Socket::IsPending() {
   return GetLastError() == kSbSocketPending;
 }
