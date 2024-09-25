@@ -19,15 +19,17 @@
 
 namespace net {
 
-#if SB_API_VERSION >= 16
-
 class IOBuffer;
 struct SockaddrStorage;
 
 // Socket class to provide asynchronous read/write operations on top of the
 // posix socket api. It supports AF_INET, AF_INET6, and AF_UNIX addresses.
 class NET_EXPORT_PRIVATE SocketPosix
+#if defined(STARBOARD)
     : public base::MessagePumpForIO::Watcher {
+#else
+    : public base::MessagePumpForIO::FdWatcher {
+#endif
  public:
   SocketPosix();
 
@@ -109,7 +111,7 @@ class NET_EXPORT_PRIVATE SocketPosix
   SocketDescriptor socket_fd() const { return socket_fd_; }
 
  private:
-  // base::MessagePumpForIO::Watcher methods.
+  // base::MessagePumpForIO::FdWatcher methods.
   void OnFileCanReadWithoutBlocking(int fd) override;
   void OnFileCanWriteWithoutBlocking(int fd) override;
 
@@ -126,6 +128,7 @@ class NET_EXPORT_PRIVATE SocketPosix
   int DoWrite(IOBuffer* buf, int buf_len);
   void WriteCompleted();
 
+#if defined(STARBOARD)
   bool read_pending() const { return !read_if_ready_callback_.is_null(); }
   bool write_pending() const {
     return !write_callback_.is_null() && !waiting_connect_;
@@ -133,14 +136,23 @@ class NET_EXPORT_PRIVATE SocketPosix
   bool accept_pending() const { return !accept_callback_.is_null(); }
 
   bool ClearWatcherIfOperationsNotPending();
+#endif
 
   // |close_socket| indicates whether the socket should also be closed.
   void StopWatchingAndCleanUp(bool close_socket);
 
   SocketDescriptor socket_fd_;
 
+#if !defined(STARBOARD)
+  base::MessagePumpForIO::FdWatchController accept_socket_watcher_;
+#endif
+
   raw_ptr<std::unique_ptr<SocketPosix>> accept_socket_;
   CompletionOnceCallback accept_callback_;
+
+#if !defined(STARBOARD)
+  base::MessagePumpForIO::FdWatchController read_socket_watcher_;
+#endif
 
   // Non-null when a Read() is in progress.
   scoped_refptr<IOBuffer> read_buf_;
@@ -150,7 +162,11 @@ class NET_EXPORT_PRIVATE SocketPosix
   // Non-null when a ReadIfReady() is in progress.
   CompletionOnceCallback read_if_ready_callback_;
 
+#if defined(STARBOARD)
   base::MessagePumpForIO::SocketWatcher socket_watcher_;
+#else
+  base::MessagePumpForIO::FdWatchController write_socket_watcher_;
+#endif
   scoped_refptr<IOBuffer> write_buf_;
   int write_buf_len_ = 0;
   // External callback; called when write or connect is complete.
@@ -164,8 +180,6 @@ class NET_EXPORT_PRIVATE SocketPosix
 
   base::ThreadChecker thread_checker_;
 };
-
-#endif  // SB_API_VERSION >= 16
 
 }  // namespace net
 
