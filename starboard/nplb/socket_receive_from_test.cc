@@ -68,6 +68,7 @@ int Transfer(SbSocket receive_socket,
   return size;
 }
 
+#if SB_API_VERSION < 17
 TEST_P(PairSbSocketReceiveFromTest, SunnyDay) {
   const int kBufSize = 256 * 1024;
   const int kSockBufSize = kBufSize / 8;
@@ -132,6 +133,7 @@ INSTANTIATE_TEST_CASE_P(
         std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv6),
         std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)),
     GetSbSocketAddressTypePairName);
+#endif  // SB_API_VERSION < 17
 
 }  // namespace
 }  // namespace nplb

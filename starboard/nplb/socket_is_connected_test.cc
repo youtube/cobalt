@@ -41,6 +41,7 @@ TEST_F(SbSocketIsConnectedTest, RainyDayInvalidSocket) {
   EXPECT_FALSE(SbSocketIsConnected(kSbSocketInvalid));
 }
 
+#if SB_API_VERSION < 17
 TEST_P(PairSbSocketIsConnectedTest, SunnyDay) {
   ConnectedTrio trio =
       CreateAndConnect(GetServerAddressType(), GetClientAddressType(),
@@ -61,6 +62,7 @@ TEST_P(PairSbSocketIsConnectedTest, SunnyDay) {
   EXPECT_TRUE(SbSocketDestroy(trio.client_socket));
   EXPECT_TRUE(SbSocketDestroy(trio.listen_socket));
 }
+#endif  // SB_API_VERSION < 17
 
 TEST_P(SbSocketIsConnectedTest, SunnyDayNotConnected) {
   SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
@@ -69,6 +71,7 @@ TEST_P(SbSocketIsConnectedTest, SunnyDayNotConnected) {
   EXPECT_TRUE(SbSocketDestroy(socket));
 }
 
+#if SB_API_VERSION < 17
 TEST_P(SbSocketIsConnectedTest, SunnyDayListeningNotConnected) {
   SbSocket server_socket =
       CreateListeningTcpSocket(GetAddressType(), GetPortNumberForTests());
@@ -76,6 +79,7 @@ TEST_P(SbSocketIsConnectedTest, SunnyDayListeningNotConnected) {
   EXPECT_FALSE(SbSocketIsConnected(server_socket));
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
+#endif  // SB_API_VERSION < 17
 
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketIsConnectedTest,
