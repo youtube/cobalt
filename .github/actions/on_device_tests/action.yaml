@@ -162,8 +162,8 @@ runs:
     - name: Print device logs
       if: always()
       run: |
-        if [[ -z "${COBALT_ERROR_LOG}" ]]; then
-          cat "${GITHUB_WORKSPACE}/test_results/${COBALT_ERROR_LOG}"
+        if ls ${COBALT_LOGS_DIR}/**/*.log 1> /dev/null 2>&1; then
+          cat ${COBALT_LOGS_DIR}/**/*.log
         else
           echo "No device logs found"
         fi
