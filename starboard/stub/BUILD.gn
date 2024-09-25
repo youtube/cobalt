@@ -110,7 +110,6 @@ static_library("stub_sources") {
     "//starboard/shared/stub/socket_get_interface_address.cc",
     "//starboard/shared/stub/socket_get_last_error.cc",
     "//starboard/shared/stub/socket_get_local_address.cc",
-    "//starboard/shared/stub/socket_is_connected.cc",
     "//starboard/shared/stub/socket_is_ipv6_supported.cc",
     "//starboard/shared/stub/socket_listen.cc",
     "//starboard/shared/stub/socket_receive_from.cc",

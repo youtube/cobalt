@@ -209,14 +209,6 @@ SB_EXPORT SbSocket SbSocketAccept(SbSocket socket);
 
 // DEPRECATED with SB_API_VERSION 16
 //
-// Indicates whether |socket| is connected to anything. Invalid sockets are not
-// connected.
-//
-// |socket|: The SbSocket to be checked.
-SB_EXPORT bool SbSocketIsConnected(SbSocket socket);
-
-// DEPRECATED with SB_API_VERSION 16
-//
 // Returns the last error set on |socket|. If |socket| is not valid, this
 // function returns |kSbSocketErrorFailed|.
 //

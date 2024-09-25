@@ -92,10 +92,6 @@ Socket* Socket::Accept() {
   return NULL;
 }
 
-bool Socket::IsConnected() {
-  return SbSocketIsConnected(socket_);
-}
-
 bool Socket::IsPending() {
   return GetLastError() == kSbSocketPending;
 }

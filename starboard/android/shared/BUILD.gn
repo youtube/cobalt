@@ -95,7 +95,6 @@ static_library("starboard_platform") {
     "//starboard/shared/posix/socket_get_last_error.cc",
     "//starboard/shared/posix/socket_get_local_address.cc",
     "//starboard/shared/posix/socket_internal.cc",
-    "//starboard/shared/posix/socket_is_connected.cc",
     "//starboard/shared/posix/socket_is_ipv6_supported.cc",
     "//starboard/shared/posix/socket_listen.cc",
     "//starboard/shared/posix/socket_receive_from.cc",
