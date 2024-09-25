@@ -292,6 +292,8 @@ void TCPSocketStarboard::OnSocketReadyToRead(SbSocket socket) {
     }
   } else if (read_pending()) {
     DidCompleteRead();
+  } else {
+    ClearWatcherIfOperationsNotPending();
   }
 }
 
