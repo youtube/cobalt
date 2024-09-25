@@ -24,6 +24,7 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/test/task_environment.h"
+#include "starboard/configuration_constants.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {

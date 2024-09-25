@@ -14,6 +14,7 @@
 
 #include "starboard/elf_loader/elf_loader.h"
 
+#include <string.h>
 #include <vector>
 
 #include "starboard/atomic.h"
@@ -25,6 +26,7 @@
 #include "starboard/elf_loader/evergreen_config.h"
 #include "starboard/elf_loader/file_impl.h"
 #include "starboard/extension/loader_app_metrics.h"
+#include "starboard/extension/memory_mapped_file.h"
 #include "starboard/system.h"
 
 namespace starboard {

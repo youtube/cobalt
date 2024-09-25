@@ -32,7 +32,6 @@
 #endif  // HAS_LEAK_SANITIZER
 
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 
 #define EGL_CALL_PREFIX SbGetEglInterface()->
 

@@ -21,7 +21,6 @@
 
 #if defined(STARBOARD)
 #include "starboard/common/log.h"
-#include "starboard/memory.h"
 #endif
 
 #include <assert.h>

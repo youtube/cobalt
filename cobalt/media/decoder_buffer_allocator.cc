@@ -23,7 +23,6 @@
 #include "starboard/common/allocator.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {

@@ -49,11 +49,6 @@
 #define SB_IS_WCHAR_T_UNSIGNED 1
 #endif
 
-// --- Network Configuration -------------------------------------------------
-
-// Specifies whether this platform supports IPV6.
-#define SB_HAS_IPV6 1
-
 // --- Media Configuration ---------------------------------------------------
 
 // The path of video_dmp_writer.h. Defined here to avoid errors building on

@@ -51,18 +51,11 @@ TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
   }
 
   // bind socket with local address
-#if SB_HAS(IPV6)
   sockaddr_in6 address = {};
   EXPECT_TRUE(
       PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
       PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
   address.sin6_port = htons(GetPortNumberForTests());
-#else
-  sockaddr address = {0};
-  EXPECT_TRUE(PosixGetLocalAddressIPv4(&address) == 0);
-  sockaddr_in* address_ptr = reinterpret_cast<sockaddr_in*>(&address);
-  address_ptr->sin_port = htons(GetPortNumberForTests());
-#endif
 
   result = bind(socket_listen_fd, reinterpret_cast<sockaddr*>(&address),
                 sizeof(sockaddr));
@@ -135,18 +128,11 @@ TEST(PosixSocketAcceptTest, RainyDayNotListening) {
   }
 
   // bind socket with local address
-#if SB_HAS(IPV6)
   sockaddr_in6 address = {};
   EXPECT_TRUE(
       PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
       PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
   address.sin6_port = htons(GetPortNumberForTests());
-#else
-  sockaddr address = {0};
-  EXPECT_TRUE(PosixGetLocalAddressIPv4(&address) == 0);
-  sockaddr_in* address_ptr = reinterpret_cast<sockaddr_in*>(&address);
-  address_ptr->sin_port = htons(GetPortNumberForTests());
-#endif
   EXPECT_TRUE(result == 0);
   if (result != 0) {
     close(socket_fd);

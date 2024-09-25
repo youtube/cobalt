@@ -40,7 +40,6 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
-#include "starboard/memory.h"
 #include "starboard/shared/posix/handle_eintr.h"
 
 namespace starboard {

@@ -24,7 +24,6 @@
 #include "Registers.hpp"
 
 #if defined(STARBOARD_IMPLEMENTATION)
-#include "starboard/memory.h"
 #include "starboard/elf_loader/evergreen_info.h"  // nogncheck
 #endif
 

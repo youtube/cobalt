@@ -35,7 +35,6 @@
 #include <sys/types.h>
 
 #include "starboard/common/log.h"
-#include "starboard/memory.h"
 #include "starboard/shared/posix/socket_internal.h"
 
 namespace sbposix = starboard::shared::posix;
@@ -50,7 +49,6 @@ bool IsAnyAddress(const SbSocketAddress& address) {
     case kSbSocketAddressTypeIpv4:
       return (address.address[0] == 0 && address.address[1] == 0 &&
               address.address[2] == 0 && address.address[3] == 0);
-#if SB_HAS(IPV6)
     case kSbSocketAddressTypeIpv6: {
       bool found_nonzero = false;
       for (std::size_t i = 0; i != kIPv6AddressSize; ++i) {
@@ -58,7 +56,6 @@ bool IsAnyAddress(const SbSocketAddress& address) {
       }
       return !found_nonzero;
     }
-#endif
     default:
       SB_NOTREACHED() << "Invalid address type " << address.type;
       break;
@@ -152,11 +149,9 @@ bool GetNetMaskForInterfaceAddress(const SbSocketAddress& interface_address,
     case kSbSocketAddressTypeIpv4:
       return GetNetmaskForInterfaceAddress<in_addr>(interface_address,
                                                     out_netmask);
-#if SB_HAS(IPV6)
     case kSbSocketAddressTypeIpv6:
       return GetNetmaskForInterfaceAddress<in6_addr>(interface_address,
                                                      out_netmask);
-#endif
     default:
       SB_NOTREACHED() << "Invalid address type " << interface_address.type;
       break;
@@ -214,7 +209,6 @@ bool FindIPv4InterfaceIP(SbSocketAddress* out_interface_ip,
   return success;
 }
 
-#if SB_HAS(IPV6)
 bool IsUniqueLocalAddress(const unsigned char ip[16]) {
   // Unique Local Addresses are in fd08::/8.
   return ip[0] == 0xfd && ip[1] == 0x08;
@@ -310,7 +304,6 @@ bool FindIPv6InterfaceIP(SbSocketAddress* out_interface_ip,
 
   return true;
 }
-#endif
 
 bool FindInterfaceIP(const SbSocketAddressType type,
                      SbSocketAddress* out_interface_ip,
@@ -318,10 +311,8 @@ bool FindInterfaceIP(const SbSocketAddressType type,
   switch (type) {
     case kSbSocketAddressTypeIpv4:
       return FindIPv4InterfaceIP(out_interface_ip, out_netmask);
-#if SB_HAS(IPV6)
     case kSbSocketAddressTypeIpv6:
       return FindIPv6InterfaceIP(out_interface_ip, out_netmask);
-#endif
     default:
       SB_NOTREACHED() << "Invalid socket address type " << type;
   }
@@ -359,13 +350,9 @@ bool SbSocketGetInterfaceAddress(const SbSocketAddress* const destination,
   }
 
   if (destination == NULL) {
-#if SB_HAS(IPV6)
     // Return either a v4 or a v6 address.  Per spec.
     return (FindIPv4InterfaceIP(out_source_address, out_netmask) ||
             FindIPv6InterfaceIP(out_source_address, out_netmask));
-#else
-    return FindIPv4InterfaceIP(out_source_address, out_netmask);
-#endif
 
   } else if (IsAnyAddress(*destination)) {
     return FindInterfaceIP(destination->type, out_source_address, out_netmask);

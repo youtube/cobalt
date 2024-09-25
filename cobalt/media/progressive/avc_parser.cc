@@ -31,7 +31,6 @@
 #include "media/base/video_transformation.h"
 #include "media/base/video_types.h"
 #include "media/formats/mp4/aac.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {

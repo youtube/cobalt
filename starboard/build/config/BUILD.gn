@@ -133,13 +133,6 @@ config("host") {
           ldflags += [ "-m32" ]
         }
       }
-    } else if (is_win) {
-      # A few flags to mute MSVC compiler errors that does not appear on Linux.
-      cflags = [
-        "/wd4267",  # Possible loss of precision from size_t to a smaller type.
-        "/wd4715",  # Not all control paths return value.
-      ]
-      configs = [ ":win_cpp17_config" ]
     } else if (is_apple) {
       configs = [ ":apple_cpp17_config" ]
     }
@@ -269,9 +262,6 @@ config("no_pedantic_warnings") {
 }
 
 config("warnings_as_errors") {
-  if (is_win && treat_warnings_as_errors) {
-    cflags = [ "/WX" ]
-  }
 }
 
 # This config is defined here and added as a default config so that the flags
@@ -293,9 +283,6 @@ config("default_cpp_standard") {
   if (current_toolchain == default_toolchain) {
     if (sb_is_modular || is_android) {
       configs = [ ":modular_cpp17_config" ]
-    } else if (host_os == "win") {
-      # These flags apply to non-modular windows platforms which includes win32, xb1.
-      configs = [ ":win_cpp17_config" ]
     } else if (is_linux) {
       configs = [ ":linux_non_modular_cpp17_config" ]
     } else if (is_apple) {
@@ -312,9 +299,6 @@ config("cpp20_supported_config") {
   if (current_toolchain == default_toolchain) {
     if (sb_is_modular || is_android) {
       configs = [ ":modular_cpp20_config" ]
-    } else if (host_os == "win") {
-      # These flags apply to non-modular windows platforms which includes win32, xb1.
-      configs = [ ":win_cpp20_config" ]
     } else if (is_linux) {
       configs = [ ":linux_non_modular_cpp20_config" ]
     } else if (is_apple) {
@@ -325,14 +309,6 @@ config("cpp20_supported_config") {
           "One of the above compiler c++ standard flags must be applicable while building with default toolchain.")
     }
   }
-}
-
-config("win_cpp17_config") {
-  cflags = [ "/std:c++17" ]
-}
-
-config("win_cpp20_config") {
-  cflags = [ "/std:c++20" ]
 }
 
 config("apple_cpp17_config") {

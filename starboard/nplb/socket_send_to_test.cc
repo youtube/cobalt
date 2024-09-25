@@ -22,7 +22,6 @@
 
 #include "starboard/common/socket.h"
 #include "starboard/common/time.h"
-#include "starboard/memory.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -191,7 +190,6 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToSocketConnectionReset) {
                      << " tries.";
 }
 
-#if SB_HAS(IPV6)
 INSTANTIATE_TEST_CASE_P(
     SbSocketAddressTypes,
     PairSbSocketSendToTest,
@@ -200,14 +198,6 @@ INSTANTIATE_TEST_CASE_P(
         std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv6),
         std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)),
     GetSbSocketAddressTypePairName);
-#else
-INSTANTIATE_TEST_CASE_P(
-    SbSocketAddressTypes,
-    PairSbSocketSendToTest,
-    ::testing::Values(std::make_pair(kSbSocketAddressTypeIpv4,
-                                     kSbSocketAddressTypeIpv4)),
-    GetSbSocketAddressTypePairName);
-#endif
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

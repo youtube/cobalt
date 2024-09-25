@@ -111,6 +111,7 @@ component("media") {
     "//media",
     "//net",
     "//starboard:starboard_group",
+    "//starboard/common",
     "//third_party/protobuf:protobuf_lite",
     "//ui/gfx:gfx",
     "//url",

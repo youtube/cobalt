@@ -3,20 +3,6 @@ Book: /youtube/cobalt/_book.yaml
 
 # Starboard Configuration Reference Guide
 
-## Media Configuration
-
-| Properties |
-| :--- |
-| **`SB_HAS_QUIRK_SUPPORT_INT16_AUDIO_SAMPLES`**<br><br>The implementation is allowed to support kSbMediaAudioSampleTypeInt16 only when this macro is defined.<br><br>By default, this property is undefined. |
-
-
-## Network Configuration
-
-| Properties |
-| :--- |
-| **`SB_HAS_IPV6`**<br><br>Specifies whether this platform supports IPV6.<br><br>The default value in the Stub implementation is `1` |
-
-
 ## System Header Configuration
 
  Any system headers listed here that are not provided by the platform will be emulated in starboard/types.h.

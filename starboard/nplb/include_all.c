@@ -28,7 +28,6 @@
 #include "starboard/key.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
-#include "starboard/memory.h"
 #include "starboard/microphone.h"
 #include "starboard/player.h"
 #include "starboard/socket.h"

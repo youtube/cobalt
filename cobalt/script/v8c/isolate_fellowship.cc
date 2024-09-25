@@ -26,7 +26,6 @@
 #include "cobalt/script/v8c/switches.h"
 #include "cobalt/script/v8c/v8c_tracing_controller.h"
 #include "starboard/configuration_constants.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace script {

@@ -4,7 +4,6 @@
 
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
 

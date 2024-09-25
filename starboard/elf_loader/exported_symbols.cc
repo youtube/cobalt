@@ -37,7 +37,6 @@
 #include "starboard/file.h"
 #include "starboard/gles.h"
 #include "starboard/log.h"
-#include "starboard/memory.h"
 #include "starboard/microphone.h"
 #include "starboard/player.h"
 #include "starboard/shared/modular/starboard_layer_posix_directory_abi_wrappers.h"
@@ -66,30 +65,22 @@ namespace starboard {
 namespace elf_loader {
 
 ExportedSymbols::ExportedSymbols() {
-  REGISTER_SYMBOL(kSbDefaultMmapThreshold);
-  REGISTER_SYMBOL(kSbFileAltSepChar);
-  REGISTER_SYMBOL(kSbFileAltSepString);
   REGISTER_SYMBOL(kSbFileMaxName);
   REGISTER_SYMBOL(kSbFileMaxOpen);
   REGISTER_SYMBOL(kSbFileMaxPath);
   REGISTER_SYMBOL(kSbFileSepChar);
   REGISTER_SYMBOL(kSbFileSepString);
-  REGISTER_SYMBOL(kSbHasMediaWebmVp9Support);
   REGISTER_SYMBOL(kSbHasThreadPrioritySupport);
-  REGISTER_SYMBOL(kSbMallocAlignment);
   REGISTER_SYMBOL(kSbMaxSystemPathCacheDirectorySize);
   REGISTER_SYMBOL(kSbMaxThreadLocalKeys);
   REGISTER_SYMBOL(kSbMaxThreadNameLength);
   REGISTER_SYMBOL(kSbMaxThreads);
   REGISTER_SYMBOL(kSbMediaMaxAudioBitrateInBitsPerSecond);
   REGISTER_SYMBOL(kSbMediaMaxVideoBitrateInBitsPerSecond);
-  REGISTER_SYMBOL(kSbMediaVideoFrameAlignment);
-  REGISTER_SYMBOL(kSbMemoryLogPath);
   REGISTER_SYMBOL(kSbMemoryPageSize);
   REGISTER_SYMBOL(kSbNetworkReceiveBufferSize);
   REGISTER_SYMBOL(kSbPathSepChar);
   REGISTER_SYMBOL(kSbPathSepString);
-  REGISTER_SYMBOL(kSbPreferredRgbaByteOrder);
   REGISTER_SYMBOL(kSbCanMapExecutableMemory);
   REGISTER_SYMBOL(kHasPartialAudioFramesSupport);
   REGISTER_SYMBOL(SbAudioSinkCreate);
@@ -263,7 +254,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(ftruncate);
   REGISTER_SYMBOL(getaddrinfo);
   REGISTER_SYMBOL(getifaddrs);
+  REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
+  REGISTER_SYMBOL(getsockopt);
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(lseek);
   REGISTER_SYMBOL(malloc);
@@ -277,10 +270,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
-  REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(recvfrom);
+  REGISTER_SYMBOL(recvmsg);
   REGISTER_SYMBOL(rmdir);
   REGISTER_SYMBOL(sched_yield);
+  REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(setsockopt);
   REGISTER_SYMBOL(socket);

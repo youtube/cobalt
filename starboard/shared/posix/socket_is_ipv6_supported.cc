@@ -15,5 +15,5 @@
 #include "starboard/socket.h"
 
 bool SbSocketIsIpv6Supported() {
-  return SB_HAS_IPV6;
+  return true;
 }

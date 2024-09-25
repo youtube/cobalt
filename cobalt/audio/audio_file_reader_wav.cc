@@ -21,7 +21,6 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "cobalt/media/base/endian_util.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace audio {

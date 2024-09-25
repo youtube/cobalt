@@ -212,7 +212,7 @@ BASE_FEATURE(kDocumentReporting,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(ENABLE_REPORTING)
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
 BASE_FEATURE(kUdpSocketPosixAlwaysUpdateBytesReceived,
              "UdpSocketPosixAlwaysUpdateBytesReceived",
              base::FEATURE_ENABLED_BY_DEFAULT);

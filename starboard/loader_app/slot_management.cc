@@ -34,7 +34,6 @@
 #include "starboard/loader_app/app_key_files.h"
 #include "starboard/loader_app/drain_file.h"
 #include "starboard/loader_app/installation_manager.h"
-#include "starboard/memory.h"
 
 #include "third_party/crashpad/crashpad/wrapper/annotations.h"
 #include "third_party/crashpad/crashpad/wrapper/wrapper.h"

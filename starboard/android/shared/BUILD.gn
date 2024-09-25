@@ -307,7 +307,6 @@ static_library("starboard_platform") {
     "speech_synthesis_internal.cc",
     "speech_synthesis_is_supported.cc",
     "speech_synthesis_speak.cc",
-    "system_get_device_type.cc",
     "system_get_extensions.cc",
     "system_get_locale_id.cc",
     "system_get_path.cc",

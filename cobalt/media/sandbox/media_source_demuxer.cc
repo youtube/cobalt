@@ -28,7 +28,6 @@
 #include "cobalt/media/base/demuxer.h"
 #include "cobalt/media/base/pipeline_status.h"
 #include "cobalt/media/filters/chunk_demuxer.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {

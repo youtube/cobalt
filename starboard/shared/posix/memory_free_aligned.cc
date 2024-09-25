@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/memory.h"
-
 // Some platforms declare memory functions in stdlib.h instead of malloc.h.
 #include <stdlib.h>
 

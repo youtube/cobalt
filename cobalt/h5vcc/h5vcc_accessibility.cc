@@ -21,7 +21,6 @@
 #include "cobalt/base/accessibility_text_to_speech_settings_changed_event.h"
 #include "cobalt/browser/switches.h"
 #include "starboard/extension/accessibility.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace h5vcc {

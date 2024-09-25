@@ -34,7 +34,6 @@
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/extension/player_set_max_video_input_size.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {

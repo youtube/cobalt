@@ -106,7 +106,6 @@ struct cobalt_yyltype {
 #define YYLTYPE_IS_TRIVIAL 0
 
 #if defined(STARBOARD)
-#include "starboard/memory.h"
 #define YYFREE free
 #define YYMALLOC malloc
 #endif

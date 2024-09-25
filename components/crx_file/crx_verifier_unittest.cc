@@ -11,6 +11,7 @@
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
 #if defined(STARBOARD)
+#include "starboard/configuration_constants.h"
 #include "starboard/system.h"
 #endif
 #include "testing/gtest/include/gtest/gtest.h"

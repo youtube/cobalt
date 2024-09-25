@@ -50,10 +50,7 @@ TEST_P(PosixSocketSetOptionsTest, TryThemAllTCP) {
   EXPECT_EQ(setsockopt(socket_fd, IPPROTO_TCP, TCP_KEEPALIVE, &period_seconds,
                        sizeof(period_seconds)),
             0);
-#elif !defined(_WIN32)
-  // In Windows, the SOL_TCP and TCP_KEEPIDLE options are not available.
-  // For reference:
-  // https://stackoverflow.com/questions/8176821/how-to-set-the-keep-alive-interval-for-winsock
+#else
   EXPECT_EQ(setsockopt(socket_fd, SOL_TCP, TCP_KEEPIDLE, &period_seconds,
                        sizeof(period_seconds)),
             0);
@@ -108,15 +105,9 @@ TEST_P(PosixSocketSetOptionsTest, RainyDayInvalidSocket) {
       -1);
 }
 
-#if SB_HAS(IPV6)
 INSTANTIATE_TEST_SUITE_P(PosixSocketAddressTypes,
                          PosixSocketSetOptionsTest,
                          ::testing::Values(AF_INET, AF_INET6));
-#else
-INSTANTIATE_TEST_SUITE_P(PosixSocketAddressTypes,
-                         PosixSocketSetOptionsTest,
-                         ::testing::Values(AF_INET));
-#endif
 
 }  // namespace
 }  // namespace nplb

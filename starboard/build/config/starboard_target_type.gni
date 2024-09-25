@@ -39,12 +39,9 @@ template("starboard_platform_target") {
     }
     if (target_type == "shared_library") {
       build_loader = false
-      if (host_os != "win") {
-        output_extension = starboard_shared_library_extension
-      }
+      output_extension = starboard_shared_library_extension
     }
     public_deps = [
-      "//starboard/client_porting/cwrappers",
       "//starboard/common",
       "//starboard/egl_and_gles",
     ]

@@ -28,7 +28,6 @@
 #include "starboard/common/mutex.h"
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 #include "starboard/shared/alsa/alsa_util.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 

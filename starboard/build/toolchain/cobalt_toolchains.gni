@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/config/win/visual_studio_version.gni")
 import("//build/toolchain/gcc_toolchain.gni")
 
 template("cobalt_clang_toolchain") {
@@ -28,23 +27,13 @@ template("cobalt_clang_toolchain") {
     }
     assert(defined(native_linker_path),
            "native_linker_path has to be defined by the platform")
-    if (host_os != "win") {
-      prefix = rebase_path("$clang_base_path/bin", root_build_dir)
-      cc = "$prefix/clang"
-      cxx = "$prefix/clang++"
-      ld = native_linker_path
-      readelf = "readelf"
-      ar = "${prefix}/llvm-ar"
-      nm = "nm"
-    } else {
-      prefix = llvm_clang_path
-      cc = "$prefix/clang.exe"
-      cxx = "$prefix/clang++.exe"
-      ld = native_linker_path
-      readelf = "$prefix/llvm-readobj.exe"
-      ar = "${prefix}/llvm-ar.exe"
-      nm = "${prefix}/llvm-nm.exe"
-    }
+    prefix = rebase_path("$clang_base_path/bin", root_build_dir)
+    cc = "$prefix/clang"
+    cxx = "$prefix/clang++"
+    ld = native_linker_path
+    readelf = "readelf"
+    ar = "${prefix}/llvm-ar"
+    nm = "nm"
     toolchain_args = {
       if (defined(invoker.toolchain_args)) {
         forward_variables_from(invoker.toolchain_args, "*")

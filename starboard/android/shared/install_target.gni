@@ -89,8 +89,6 @@ template("install_target") {
       "-P",
       "cobaltTarget=$installable_target_name",
       "-P",
-      "enableVulkan=$enable_vulkan",
-      "-P",
       "evergreenCompatible=$sb_is_evergreen_compatible",
       "assembleCobalt_$gradle_build_type",
       "-Dorg.gradle.workers.max=$num_gradle_workers",

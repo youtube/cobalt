@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <limits>
 
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace media {

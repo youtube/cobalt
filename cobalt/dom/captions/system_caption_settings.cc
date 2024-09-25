@@ -28,7 +28,6 @@
 #include "cobalt/dom/captions/caption_state.h"
 #include "cobalt/web/event_target.h"
 #include "starboard/extension/accessibility.h"
-#include "starboard/memory.h"
 
 namespace cobalt {
 namespace dom {

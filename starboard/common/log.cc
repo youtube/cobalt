@@ -126,12 +126,6 @@ std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
   return out << wstr.c_str();
 }
 
-#if defined(__cplusplus_winrt)
-std::ostream& operator<<(std::ostream& out, ::Platform::String ^ str) {
-  return out << std::wstring(str->Begin(), str->End());
-}
-#endif
-
 LogMessage::LogMessage(const char* file, int line, SbLogPriority priority)
     : priority_(priority), file_(file), line_(line) {
   Init(file, line);

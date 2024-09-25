@@ -17,7 +17,6 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 
-#include "starboard/memory.h"
 #include "starboard/player.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder_impl.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"

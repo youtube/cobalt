@@ -12,10 +12,6 @@
 
 #include "src/base/base-export.h"
 
-#if defined(V8_OS_STARBOARD)
-#include "starboard/memory.h"
-#endif
-
 namespace v8 {
 namespace base {
 
