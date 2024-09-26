@@ -29,14 +29,6 @@ namespace nplb {
 
 const int64_t kSocketTimeout = 200'000;  // 200ms
 
-// Returns true if the given address is the unspecified address (all zeros),
-// supporting both address types.
-bool IsUnspecified(const SbSocketAddress* address);
-
-// Returns true if the given address is the localhost address, supporting both
-// address types.
-bool IsLocalhost(const SbSocketAddress* address);
-
 // Returns a valid port number that can be bound to for use in nplb tests.
 // This will always return the same port number.
 int GetPortNumberForTests();
@@ -49,19 +41,6 @@ SbSocket CreateBoundTcpSocket(SbSocketAddressType address_type, int port);
 
 // Creates a TCP/IP socket listening on all interfaces on the given port.
 SbSocket CreateListeningTcpSocket(SbSocketAddressType address_type, int port);
-
-// Transfers data between the two connected local sockets, spinning until |size|
-// has been transferred, or an error occurs.
-int Transfer(SbSocket receive_socket,
-             char* out_data,
-             SbSocket send_socket,
-             const char* send_data,
-             int size);
-int Transfer(Socket* receive_socket,
-             char* out_data,
-             Socket* send_socket,
-             const char* send_data,
-             int size);
 
 // Waits on the given waiter, and returns the elapsed time in microseconds.
 int64_t TimedWait(SbSocketWaiter waiter);

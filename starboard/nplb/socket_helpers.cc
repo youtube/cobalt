@@ -68,35 +68,6 @@ int GetPortNumberForTests() {
 #endif
 }
 
-bool IsUnspecified(const SbSocketAddress* address) {
-  // Look at each piece of memory and make sure too many of them aren't zero.
-  int components = (address->type == kSbSocketAddressTypeIpv4 ? 4 : 16);
-  int zero_count = 0;
-  for (int i = 0; i < components; ++i) {
-    if (address->address[i] == 0) {
-      ++zero_count;
-    }
-  }
-  return components == zero_count;
-}
-
-bool IsLocalhost(const SbSocketAddress* address) {
-  if (address->type == kSbSocketAddressTypeIpv4) {
-    return address->address[0] == 127;
-  }
-
-  if (address->type == kSbSocketAddressTypeIpv6) {
-    bool may_be_localhost = true;
-    for (int i = 0; i < 15; ++i) {
-      may_be_localhost &= (address->address[i] == 0);
-    }
-
-    return (may_be_localhost && address->address[15] == 1);
-  }
-
-  return false;
-}
-
 SbSocket CreateServerTcpSocket(SbSocketAddressType address_type) {
   SbSocket server_socket = SbSocketCreate(address_type, kSbSocketProtocolTcp);
   if (!SbSocketIsValid(server_socket)) {
@@ -144,78 +115,6 @@ SbSocket CreateListeningTcpSocket(SbSocketAddressType address_type, int port) {
   }
 
   return server_socket;
-}
-
-int Transfer(SbSocket receive_socket,
-             char* out_data,
-             SbSocket send_socket,
-             const char* send_data,
-             int size) {
-  int send_total = 0;
-  int receive_total = 0;
-  while (receive_total < size) {
-    if (send_total < size) {
-      int bytes_sent = SbSocketSendTo(send_socket, send_data + send_total,
-                                      size - send_total, NULL);
-      if (bytes_sent < 0) {
-        if (SbSocketGetLastError(send_socket) != kSbSocketPending) {
-          return -1;
-        }
-        bytes_sent = 0;
-      }
-
-      send_total += bytes_sent;
-    }
-
-    int bytes_received = SbSocketReceiveFrom(
-        receive_socket, out_data + receive_total, size - receive_total, NULL);
-    if (bytes_received < 0) {
-      if (SbSocketGetLastError(receive_socket) != kSbSocketPending) {
-        return -1;
-      }
-      bytes_received = 0;
-    }
-
-    receive_total += bytes_received;
-  }
-
-  return size;
-}
-
-int Transfer(Socket* receive_socket,
-             char* out_data,
-             Socket* send_socket,
-             const char* send_data,
-             int size) {
-  int send_total = 0;
-  int receive_total = 0;
-  while (receive_total < size) {
-    if (send_total < size) {
-      int bytes_sent =
-          send_socket->SendTo(send_data + send_total, size - send_total, NULL);
-      if (bytes_sent < 0) {
-        if (!send_socket->IsPending()) {
-          return -1;
-        }
-        bytes_sent = 0;
-      }
-
-      send_total += bytes_sent;
-    }
-
-    int bytes_received = receive_socket->ReceiveFrom(
-        out_data + receive_total, size - receive_total, NULL);
-    if (bytes_received < 0) {
-      if (!receive_socket->IsPending()) {
-        return -1;
-      }
-      bytes_received = 0;
-    }
-
-    receive_total += bytes_received;
-  }
-
-  return size;
 }
 
 int64_t TimedWait(SbSocketWaiter waiter) {

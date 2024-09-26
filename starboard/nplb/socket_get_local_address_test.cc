@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 17
+
 #include <utility>
 
 #include "starboard/common/socket.h"
@@ -140,3 +142,5 @@ INSTANTIATE_TEST_CASE_P(
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+#endif  // SB_API_VERSION < 17
