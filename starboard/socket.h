@@ -330,18 +330,6 @@ SB_EXPORT int SbSocketSendTo(SbSocket socket,
 
 // DEPRECATED with SB_API_VERSION 16
 //
-// Sets the |SO_BROADCAST|, or equivalent, option to |value| on |socket|. The
-// return value indicates whether the option was actually set.
-//
-// This option is only meaningful for UDP sockets and allows the socket to
-// send to the broadcast address.
-//
-// |socket|: The SbSocket for which the option is set.
-// |value|: The new value for the option.
-SB_EXPORT bool SbSocketSetBroadcast(SbSocket socket, bool value);
-
-// DEPRECATED with SB_API_VERSION 16
-//
 // Sets the |SO_REUSEADDR|, or equivalent, option to |value| on |socket|.
 // The return value indicates whether the option was actually set.
 //
@@ -351,63 +339,6 @@ SB_EXPORT bool SbSocketSetBroadcast(SbSocket socket, bool value);
 // |socket|: The SbSocket for which the option is set.
 // |value|: The new value for the option.
 SB_EXPORT bool SbSocketSetReuseAddress(SbSocket socket, bool value);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Sets the |SO_RCVBUF|, or equivalent, option to |size| on |socket|. The
-// return value indicates whether the option was actually set.
-//
-// |socket|: The SbSocket for which the option is set.
-// |size|: The value for the option.
-SB_EXPORT bool SbSocketSetReceiveBufferSize(SbSocket socket, int32_t size);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Sets the |SO_SNDBUF|, or equivalent, option to |size| on |socket|. The
-// return value indicates whether the option was actually set.
-//
-// |socket|: The SbSocket for which the option is set.
-// |size|: The value for the option.
-SB_EXPORT bool SbSocketSetSendBufferSize(SbSocket socket, int32_t size);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Sets the |SO_KEEPALIVE|, or equivalent, option to |value| on |socket|. The
-// return value indicates whether the option was actually set.
-//
-// |socket|: The SbSocket for which the option is set.
-// |value|: If set to |true|, then |period| specifies the minimum time in
-//   microseconds between keep-alive packets. If set to |false|, |period|
-//   is ignored.
-// |period|: The time in microseconds between keep-alive packets. This value
-//   is only relevant if |value| is |true|.
-SB_EXPORT bool SbSocketSetTcpKeepAlive(SbSocket socket,
-                                       bool value,
-                                       int64_t period);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Sets the |TCP_NODELAY|, or equivalent, option to |value| on |socket|. The
-// return value indicates whether the option was actually set.
-//
-// This function disables the Nagle algorithm for reducing the number of
-// packets sent when converting from a stream to packets. Disabling Nagle
-// generally puts the data for each Send call into its own packet, but does
-// not guarantee that behavior.
-//
-// |socket|: The SbSocket for which the option is set.
-// |value|: Indicates whether the Nagle algorithm should be disabled
-//   (|value|=|true|).
-SB_EXPORT bool SbSocketSetTcpNoDelay(SbSocket socket, bool value);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Sets the |SO_WINSCALE|, or equivalent, option to |value| on |socket|. The
-// return value indicates whether the option was actually set.
-//
-// |socket|: The SbSocket for which the option is set.
-// |value|: The value for the option.
-SB_EXPORT bool SbSocketSetTcpWindowScaling(SbSocket socket, bool value);
 
 #ifdef __cplusplus
 }  // extern "C"

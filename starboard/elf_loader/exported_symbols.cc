@@ -160,13 +160,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSocketListen);
   REGISTER_SYMBOL(SbSocketReceiveFrom);
   REGISTER_SYMBOL(SbSocketSendTo);
-  REGISTER_SYMBOL(SbSocketSetBroadcast);
-  REGISTER_SYMBOL(SbSocketSetReceiveBufferSize);
   REGISTER_SYMBOL(SbSocketSetReuseAddress);
-  REGISTER_SYMBOL(SbSocketSetSendBufferSize);
-  REGISTER_SYMBOL(SbSocketSetTcpKeepAlive);
-  REGISTER_SYMBOL(SbSocketSetTcpNoDelay);
-  REGISTER_SYMBOL(SbSocketSetTcpWindowScaling);
   REGISTER_SYMBOL(SbSocketWaiterAdd);
   REGISTER_SYMBOL(SbSocketWaiterCreate);
   REGISTER_SYMBOL(SbSocketWaiterDestroy);
