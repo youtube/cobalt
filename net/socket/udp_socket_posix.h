@@ -33,8 +33,6 @@
 
 namespace net {
 
-#if SB_API_VERSION >= 16
-
 class IPAddress;
 class NetLog;
 struct NetLogSource;
@@ -466,8 +464,6 @@ class NET_EXPORT UDPSocketPosix {
 
   THREAD_CHECKER(thread_checker_);
 };
-
-#endif  // SB_API_VERSION >= 16
 
 }  // namespace net
 

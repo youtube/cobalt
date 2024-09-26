@@ -1171,11 +1171,6 @@ component("net") {
   if (is_starboard && is_starboardized_toolchain) {
     sources += [
       "cert/test_root_certs_builtin.cc",
-      "socket/tcp_socket_starboard.cc",
-      "socket/tcp_socket_starboard.h",
-      "socket/udp_socket_starboard.cc",
-      "socket/udp_socket_starboard.h",
-      # Use POSIX socket for SB16
       "base/net_errors_posix.cc",
       "base/sockaddr_util_posix.cc",
       "base/sockaddr_util_posix.h",
@@ -1406,7 +1401,6 @@ component("net") {
     }
   } else {
     sources += [
-      "base/net_errors_starboard.cc",
       "base/stub_starboard.cc",
       "disk_cache/blockfile/file_starboard.cc",
     ]

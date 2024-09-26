@@ -9,12 +9,10 @@
 #include "build/build_config.h"
 #include "net/base/net_errors.h"
 
-#if defined(STARBOARD) && SB_API_VERSION <= 15
-#include "base/notreached.h"
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
+#else
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 #include <sys/socket.h>
@@ -23,25 +21,17 @@
 namespace net {
 
 int SetTCPNoDelay(SocketDescriptor fd, bool no_delay) {
-#if defined(STARBOARD) && SB_API_VERSION <= 15
-  return SbSocketSetTcpNoDelay(fd, no_delay) ? OK : ERR_FAILED;
-#else
-
 #if BUILDFLAG(IS_WIN)
   BOOL on = no_delay ? TRUE : FALSE;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
+#else
   int on = no_delay ? 1 : 0;
 #endif
   int rv = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY,
                       reinterpret_cast<const char*>(&on), sizeof(on));
   return rv == -1 ? MapSystemError(errno) : OK;
-#endif
 }
 
 int SetReuseAddr(SocketDescriptor fd, bool reuse) {
-#if defined(STARBOARD) && SB_API_VERSION <= 15
-  return SbSocketSetReuseAddress(fd, reuse) ? OK : ERR_FAILED;
-#else
 // SO_REUSEADDR is useful for server sockets to bind to a recently unbound
 // port. When a socket is closed, the end point changes its state to TIME_WAIT
 // and wait for 2 MSL (maximum segment lifetime) to ensure the remote peer
@@ -57,25 +47,21 @@ int SetReuseAddr(SocketDescriptor fd, bool reuse) {
 // SO_REUSEPORT is provided in MacOS X and iOS.
 #if BUILDFLAG(IS_WIN)
   BOOL boolean_value = reuse ? TRUE : FALSE;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
+#else
   int boolean_value = reuse ? 1 : 0;
 #endif
   int rv = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR,
                       reinterpret_cast<const char*>(&boolean_value),
                       sizeof(boolean_value));
   return rv == -1 ? MapSystemError(errno) : OK;
-#endif
 }
 
 int SetSocketReceiveBufferSize(SocketDescriptor fd, int32_t size) {
-#if defined(STARBOARD) && SB_API_VERSION <= 15
-  return SbSocketSetReceiveBufferSize(fd, size) ? OK : ERR_FAILED;
-#else
   int rv = setsockopt(fd, SOL_SOCKET, SO_RCVBUF,
                       reinterpret_cast<const char*>(&size), sizeof(size));
 #if BUILDFLAG(IS_WIN)
   int os_error = WSAGetLastError();
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
+#else
   int os_error = errno;
 #endif
   int net_error = (rv == -1) ? MapSystemError(os_error) : OK;
@@ -83,18 +69,14 @@ int SetSocketReceiveBufferSize(SocketDescriptor fd, int32_t size) {
     DLOG(ERROR) << "Could not set socket receive buffer size: " << net_error;
   }
   return net_error;
-#endif
 }
 
 int SetSocketSendBufferSize(SocketDescriptor fd, int32_t size) {
-#if defined(STARBOARD) && SB_API_VERSION <= 15
-  return SbSocketSetSendBufferSize(fd, size) ? OK : ERR_FAILED;
-#else
   int rv = setsockopt(fd, SOL_SOCKET, SO_SNDBUF,
                       reinterpret_cast<const char*>(&size), sizeof(size));
 #if BUILDFLAG(IS_WIN)
   int os_error = WSAGetLastError();
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
+#else
   int os_error = errno;
 #endif
   int net_error = (rv == -1) ? MapSystemError(os_error) : OK;
@@ -102,23 +84,17 @@ int SetSocketSendBufferSize(SocketDescriptor fd, int32_t size) {
     DLOG(ERROR) << "Could not set socket send buffer size: " << net_error;
   }
   return net_error;
-#endif
 }
 
 int SetIPv6Only(SocketDescriptor fd, bool ipv6_only) {
-#if defined(STARBOARD) && SB_API_VERSION <= 15
-  NOTREACHED();
-  return -1;
-#else
 #if BUILDFLAG(IS_WIN)
   DWORD on = ipv6_only ? 1 : 0;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
+#else
   int on = ipv6_only ? 1 : 0;
 #endif
   int rv = setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY,
                       reinterpret_cast<const char*>(&on), sizeof(on));
   return rv == -1 ? MapSystemError(errno) : OK;
-#endif
 }
 
 }  // namespace net

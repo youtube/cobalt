@@ -15,8 +15,6 @@
 
 namespace net {
 
-#if SB_API_VERSION >= 16
-
 Error MapSystemError(logging::SystemErrorCode os_error) {
   if (os_error != 0)
     DVLOG(2) << "Error " << os_error << ": "
@@ -137,7 +135,5 @@ Error MapSystemError(logging::SystemErrorCode os_error) {
       return ERR_FAILED;
   }
 }
-
-#endif  // SB_API_VERSION >= 16
 
 }  // namespace net
