@@ -57,6 +57,8 @@ static_library("dom") {
     "character_data.h",
     "comment.cc",
     "comment.h",
+    "cross_thread_media_source_attachment.cc",
+    "cross_thread_media_source_attachment.h",
     "css_animations_adapter.cc",
     "css_animations_adapter.h",
     "css_transitions_adapter.cc",

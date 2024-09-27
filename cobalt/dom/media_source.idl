@@ -18,6 +18,7 @@
 [
   Constructor,
   ConstructorCallWith=EnvironmentSettings,
+  Exposed=(Window,DedicatedWorker),
 ]
 interface MediaSource : EventTarget {
   // All the source buffers created by this object.
@@ -27,6 +28,8 @@ interface MediaSource : EventTarget {
 
   readonly attribute MediaSourceReadyState readyState;
   [RaisesException] attribute unrestricted double duration;
+
+  [CallWith=EnvironmentSettings] static readonly attribute boolean canConstructInDedicatedWorker;
 
   [RaisesException, CallWith=EnvironmentSettings] SourceBuffer addSourceBuffer(DOMString type);
   [RaisesException] void removeSourceBuffer(SourceBuffer sourceBuffer);

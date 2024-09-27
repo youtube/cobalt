@@ -86,7 +86,9 @@ void Worker::Initialize(web::Context* context) {
   //    . For the global object, if is shared is true, create a new
   //      SharedWorkerGlobalScope object. Otherwise, create a new
   //      DedicatedWorkerGlobalScope object.
-  WorkerSettings* worker_settings = new WorkerSettings(options_.outside_port);
+  WorkerSettings* worker_settings =
+      new WorkerSettings(options_.outside_port, options_.media_source_registry,
+                         options_.can_play_type_handler);
   // From algorithm to set up a worker environment settings object
   // Let inherited origin be outside settings's origin.
   // The origin return a unique opaque origin if worker global scope's url's

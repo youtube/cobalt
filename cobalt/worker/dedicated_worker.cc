@@ -18,11 +18,15 @@
 #include <string>
 
 #include "cobalt/browser/stack_size_constants.h"
+#include "cobalt/dom/dom_settings.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/message_port.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
 #include "cobalt/worker/worker.h"
 #include "cobalt/worker/worker_options.h"
+#include "cobalt/worker/worker_settings.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -32,7 +36,7 @@ DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
                                  const std::string& scriptURL,
                                  script::ExceptionState* exception_state)
     : web::EventTarget(settings), script_url_(scriptURL) {
-  Initialize(exception_state);
+  Initialize(settings, exception_state);
 }
 
 DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
@@ -42,10 +46,11 @@ DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
     : web::EventTarget(settings),
       script_url_(scriptURL),
       worker_options_(worker_options) {
-  Initialize(exception_state);
+  Initialize(settings, exception_state);
 }
 
-void DedicatedWorker::Initialize(script::ExceptionState* exception_state) {
+void DedicatedWorker::Initialize(script::EnvironmentSettings* settings,
+                                 script::ExceptionState* exception_state) {
   // Algorithm for the Worker constructor.
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker
 
@@ -108,6 +113,31 @@ void DedicatedWorker::Initialize(script::ExceptionState* exception_state) {
     options.construction_location.file_path =
         environment_settings()->creation_url().spec();
   }
+
+  web::EnvironmentSettings* environment_settings =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings);
+  DCHECK(environment_settings);
+  DCHECK(environment_settings->context());
+  web::WindowOrWorkerGlobalScope* global_scope =
+      environment_settings->context()->GetWindowOrWorkerGlobalScope();
+  if (global_scope->IsWorker()) {
+    WorkerSettings* worker_settings =
+        base::polymorphic_downcast<WorkerSettings*>(settings);
+    DCHECK(worker_settings);
+    DCHECK(worker_settings->can_play_type_handler());
+    DCHECK(worker_settings->media_source_registry());
+    options.can_play_type_handler = worker_settings->can_play_type_handler();
+    options.media_source_registry = worker_settings->media_source_registry();
+  } else {
+    dom::DOMSettings* dom_settings =
+        base::polymorphic_downcast<dom::DOMSettings*>(settings);
+    DCHECK(dom_settings);
+    DCHECK(dom_settings->can_play_type_handler());
+    DCHECK(dom_settings->media_source_registry());
+    options.can_play_type_handler = dom_settings->can_play_type_handler();
+    options.media_source_registry = dom_settings->media_source_registry();
+  }
+
   worker_.reset(new Worker(WorkerConsts::kDedicatedWorkerName, options));
   // 10. Return worker.
 }

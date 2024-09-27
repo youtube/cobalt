@@ -30,8 +30,13 @@ namespace worker {
 
 WorkerSettings::WorkerSettings() : web::EnvironmentSettings() {}
 
-WorkerSettings::WorkerSettings(web::MessagePort* message_port)
-    : web::EnvironmentSettings(), message_port_(message_port) {}
+WorkerSettings::WorkerSettings(web::MessagePort* message_port,
+                               MediaSourceRegistry* media_source_registry,
+                               media::CanPlayTypeHandler* can_play_type_handler)
+    : web::EnvironmentSettings(),
+      message_port_(message_port),
+      media_source_registry_(media_source_registry),
+      can_play_type_handler_(can_play_type_handler) {}
 
 const GURL& WorkerSettings::base_url() const {
   // From algorithm for to setup up a worker environment settings object:
