@@ -26,6 +26,10 @@
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 
+#ifndef __cplusplus
+#error "This header should not be included in C source code"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
