@@ -75,7 +75,13 @@ public abstract class CobaltActivity extends GameActivity {
     // STREAM_MUSIC whenever the target activity or fragment is visible.
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
+    String default_url = "https://youtube.com/tv?debugjs=1";
+
     String startDeepLink = getIntentUrlAsString(getIntent());
+    Log.i(TAG, "Our starting deeplink URL is:" + startDeepLink);
+    if(startDeepLink == null) {
+      startDeepLink = default_url;
+    }
 
     // super.onCreate() will cause an APP_CMD_START in native code,
     // so make sure to initialize any state beforehand that might be touched by
@@ -116,7 +122,7 @@ public abstract class CobaltActivity extends GameActivity {
     // Create a WebView instance
     webView = new ChrobaltWebView(this,getStarboardBridge());
     // Load Kabuki
-    webView.loadUrl("https://youtube.com/tv?debugjs=1");
+    webView.loadUrl(startDeepLink);
 
     // Set the WebView as the main content view of the activity
     setContentView(webView);
