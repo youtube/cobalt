@@ -61,10 +61,6 @@
 
 #include <openssl/base.h>
 
-#ifdef STARBOARD
-#include "starboard/atomic.h"
-#endif
-
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -114,11 +110,7 @@ typedef union crypto_mutex_st {
 // as C code that might not set -std=c11. So, in practice, it's not possible to
 // do that. Instead we statically assert that the size and native alignment of
 // a plain uint32_t and an _Atomic uint32_t are equal in refcount_c11.c.
-#if defined(STARBOARD)
-typedef SbAtomic32 CRYPTO_refcount_t;
-#else
 typedef uint32_t CRYPTO_refcount_t;
-#endif
 
 
 // Deprecated functions.
