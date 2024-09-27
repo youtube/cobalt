@@ -16,14 +16,17 @@
 #include <cstdlib>
 #include <string>
 
+#if SB_API_VERSION < 16
+#include "starboard/accessibility.h"
+#else  // SB_API_VERSION < 16
+#include "starboard/android/shared/accessibility_extension.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
 #include "starboard/common/memory.h"
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/accessibility_internal.h"
-
-#include "starboard/android/shared/accessibility_extension.h"
 
 namespace starboard {
 namespace android {
@@ -168,3 +171,11 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
+
+#if SB_API_VERSION < 16
+bool SbAccessibilityGetCaptionSettings(
+    SbAccessibilityCaptionSettings* caption_settings) {
+  return starboard::android::shared::accessibility::GetCaptionSettings(
+      caption_settings);
+}
+#endif  // SB_API_VERSION < 16

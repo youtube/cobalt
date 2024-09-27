@@ -23,7 +23,11 @@
 #include <string>
 #include <vector>
 
-#include "starboard/extension/accessibility.h"
+#if SB_API_VERSION < 16
+#include "starboard/accessibility.h"
+#else  // SB_API_VERSION < 16
+#include "starboard/android/shared/accessibility_extension.h"
+#endif  // SB_API_VERSION < 16
 
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/input_events_generator.h"
@@ -349,13 +353,20 @@ void ApplicationAndroid::ProcessAndroidCommand() {
       // We assume that it can only change when our focus changes
       // (because the user exits and enters the app) so we check
       // for changes here.
+#if SB_API_VERSION >= 16
       auto accessibility_api =
           static_cast<const StarboardExtensionAccessibilityApi*>(
               SbSystemGetExtension(kStarboardExtensionAccessibilityName));
       SB_CHECK(accessibility_api);  // We expect this to be always present
+
+#endif  // SB_API_VERSION >= 16
       SbAccessibilityDisplaySettings settings;
       memset(&settings, 0, sizeof(settings));
+#if SB_API_VERSION >= 16
       if (!accessibility_api->GetDisplaySettings(&settings)) {
+#else   // SB_API_VERSION >= 16
+      if (!SbAccessibilityGetDisplaySettings(&settings)) {
+#endif  // SB_API_VERSION >= 16
         break;
       }
 

@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 16
+#include "starboard/accessibility.h"
+#else  // SB_API_VERSION < 16
+#include "starboard/android/shared/accessibility_extension.h"
+#endif  // SB_API_VERSION < 16
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/memory.h"
-
-#include "starboard/android/shared/accessibility_extension.h"
 
 namespace starboard {
 namespace android {
@@ -44,3 +47,11 @@ bool GetDisplaySettings(SbAccessibilityDisplaySettings* out_setting) {
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
+
+#if SB_API_VERSION < 16
+bool SbAccessibilityGetDisplaySettings(
+    SbAccessibilityDisplaySettings* out_setting) {
+  return starboard::android::shared::accessibility::GetDisplaySettings(
+      out_setting);
+}
+#endif  // SB_API_VERSION < 16
