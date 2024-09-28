@@ -196,6 +196,10 @@ public abstract class CobaltActivity extends GameActivity {
   protected void onNewIntent(Intent intent) {
     super.onNewIntent(intent);
     getStarboardBridge().handleDeepLink(getIntentUrlAsString(intent));
+    String url = getIntentUrlAsString(intent);
+    if(url != null ) {
+      webView.loadUrl(url);
+    }
   }
 
   /**
