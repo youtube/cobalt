@@ -128,12 +128,16 @@ var h5 = {
         isEnabled: () => { console.log('metrics.isEnabled()'); return false; }
     },
     runtime: {
-        /*
-                initialDeepLink: () => { console.log('runtime.initialDeepLink'); return "";},
-                onDeepLink: () => { console.log('runtime.onDeepLink'); },
-                onPause: () => { console.log('runtime.onPause'); },
-                onResume: () => { console.log('runtime.onResume'); }
-        */
+        initialDeepLink: "https://youtube.com/tv",
+        onDeepLink: {
+            addListener: (callback) => { console.log("Adding deeplink listerner");}
+        },
+        onPause: {
+            addListener: (callback) => { console.log("Adding onPause listerner");}
+        },
+        onResume: {
+            addListener: (callback) => { console.log("Adding onResume listerner");}
+        }
     },
     settings: {
         set: (name, value) => {
