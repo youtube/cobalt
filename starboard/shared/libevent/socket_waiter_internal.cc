@@ -33,16 +33,6 @@
 
 namespace sbposix = starboard::shared::posix;
 
-#if defined(_GNU_SOURCE) || defined(_POSIX_VERSION)
-#if defined(PLAYSTATION_GENERATION) && (PLAYSTATION_GENERATION <= 5)
-#define USE_POSIX_PIPE 0
-#else
-#define USE_POSIX_PIPE 1
-#endif
-#else
-#define USE_POSIX_PIPE 0
-#endif
-
 namespace {
 // We do this because it's our style to use explicitly-sized ints when not just
 // using int, but libevent uses shorts explicitly in its interface.
@@ -57,68 +47,6 @@ SbSocketAddress GetIpv4Localhost() {
   address.address[3] = 1;
   return address;
 }
-
-SbSocket AcceptBySpinning(SbSocket server_socket, int64_t timeout) {
-  int64_t start = starboard::CurrentMonotonicTime();
-  while (true) {
-    SbSocket accepted_socket = SbSocketAccept(server_socket);
-    if (SbSocketIsValid(accepted_socket)) {
-      return accepted_socket;
-    }
-
-    // If we didn't get a socket, it should be pending.
-    SB_DCHECK(SbSocketGetLastError(server_socket) == kSbSocketPending);
-
-    // Check if we have passed our timeout.
-    if (starboard::CurrentMonotonicTime() - start >= timeout) {
-      break;
-    }
-
-    // Just being polite.
-    sched_yield();
-  }
-
-  return kSbSocketInvalid;
-}
-
-#if !USE_POSIX_PIPE
-void GetSocketPipe(SbSocket* client_socket, SbSocket* server_socket) {
-  int result;
-  SbSocketError sb_socket_result;
-  const int64_t kTimeoutUsec = 1'000'000 / 15;
-  SbSocketAddress address = GetIpv4Localhost();
-
-  // Setup a listening socket.
-  SbSocket listen_socket =
-      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
-  SB_DCHECK(SbSocketIsValid(listen_socket));
-  result = SbSocketSetReuseAddress(listen_socket, true);
-  SB_DCHECK(result);
-  sb_socket_result = SbSocketBind(listen_socket, &address);
-  SB_DCHECK(sb_socket_result == kSbSocketOk);
-  sb_socket_result = SbSocketListen(listen_socket);
-  SB_DCHECK(sb_socket_result == kSbSocketOk);
-  // Update the address after a free port has been assigned.
-  SbSocketGetLocalAddress(listen_socket, &address);
-
-  // Create a new socket to connect to the listening socket.
-  *client_socket =
-      SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp);
-  SB_DCHECK(SbSocketIsValid(*client_socket));
-  // This connect will probably return pending, but we'll assume it will connect
-  // eventually.
-  sb_socket_result = SbSocketConnect(*client_socket, &address);
-  SB_DCHECK(sb_socket_result == kSbSocketOk ||
-            sb_socket_result == kSbSocketPending);
-
-  // Spin until the accept happens (or we get impatient).
-  *server_socket = AcceptBySpinning(listen_socket, kTimeoutUsec);
-  SB_DCHECK(SbSocketIsValid(*server_socket));
-
-  result = SbSocketDestroy(listen_socket);
-  SB_DCHECK(result);
-}
-#endif
 }  // namespace
 
 SbSocketWaiterPrivate::SbSocketWaiterPrivate()
@@ -126,7 +54,6 @@ SbSocketWaiterPrivate::SbSocketWaiterPrivate()
       base_(event_base_new()),
       waiting_(false),
       woken_up_(false) {
-#if USE_POSIX_PIPE
   int fds[2];
   int result = pipe(fds);
   SB_DCHECK(result == 0);
@@ -138,16 +65,6 @@ SbSocketWaiterPrivate::SbSocketWaiterPrivate()
   wakeup_write_fd_ = fds[1];
   result = sbposix::SetNonBlocking(wakeup_write_fd_);
   SB_DCHECK(result);
-#else
-  GetSocketPipe(&client_socket_, &server_socket_);
-
-  // Set TCP_NODELAY on the server socket, so it immediately sends its tiny
-  // payload without waiting for more data.
-  SbSocketSetTcpNoDelay(server_socket_, true);
-
-  wakeup_read_fd_ = client_socket_->socket_fd;
-  wakeup_write_fd_ = server_socket_->socket_fd;
-#endif
 
   event_set(&wakeup_event_, wakeup_read_fd_, EV_READ | EV_PERSIST,
             &SbSocketWaiterPrivate::LibeventWakeUpCallback, this);
@@ -173,13 +90,8 @@ SbSocketWaiterPrivate::~SbSocketWaiterPrivate() {
   event_del(&wakeup_event_);
   event_base_free(base_);
 
-#if USE_POSIX_PIPE
   close(wakeup_read_fd_);
   close(wakeup_write_fd_);
-#else
-  SbSocketDestroy(server_socket_);
-  SbSocketDestroy(client_socket_);
-#endif
 }
 
 bool SbSocketWaiterPrivate::Add(int socket,
@@ -547,5 +459,3 @@ SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::RemoveWaitee(
   sb_waitees_.erase(it);
   return result;
 }
-
-#undef USE_POSIX_PIPE

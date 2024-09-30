@@ -209,22 +209,6 @@ SB_EXPORT SbSocket SbSocketAccept(SbSocket socket);
 
 // DEPRECATED with SB_API_VERSION 16
 //
-// Indicates whether |socket| is connected to anything. Invalid sockets are not
-// connected.
-//
-// |socket|: The SbSocket to be checked.
-SB_EXPORT bool SbSocketIsConnected(SbSocket socket);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Returns whether |socket| is connected to anything, and, if so, whether it is
-// receiving any data.
-//
-// |socket|: The SbSocket to be checked.
-SB_EXPORT bool SbSocketIsConnectedAndIdle(SbSocket socket);
-
-// DEPRECATED with SB_API_VERSION 16
-//
 // Returns the last error set on |socket|. If |socket| is not valid, this
 // function returns |kSbSocketErrorFailed|.
 //
@@ -346,18 +330,6 @@ SB_EXPORT int SbSocketSendTo(SbSocket socket,
 
 // DEPRECATED with SB_API_VERSION 16
 //
-// Sets the |SO_BROADCAST|, or equivalent, option to |value| on |socket|. The
-// return value indicates whether the option was actually set.
-//
-// This option is only meaningful for UDP sockets and allows the socket to
-// send to the broadcast address.
-//
-// |socket|: The SbSocket for which the option is set.
-// |value|: The new value for the option.
-SB_EXPORT bool SbSocketSetBroadcast(SbSocket socket, bool value);
-
-// DEPRECATED with SB_API_VERSION 16
-//
 // Sets the |SO_REUSEADDR|, or equivalent, option to |value| on |socket|.
 // The return value indicates whether the option was actually set.
 //
@@ -367,96 +339,6 @@ SB_EXPORT bool SbSocketSetBroadcast(SbSocket socket, bool value);
 // |socket|: The SbSocket for which the option is set.
 // |value|: The new value for the option.
 SB_EXPORT bool SbSocketSetReuseAddress(SbSocket socket, bool value);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Sets the |SO_RCVBUF|, or equivalent, option to |size| on |socket|. The
-// return value indicates whether the option was actually set.
-//
-// |socket|: The SbSocket for which the option is set.
-// |size|: The value for the option.
-SB_EXPORT bool SbSocketSetReceiveBufferSize(SbSocket socket, int32_t size);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Sets the |SO_SNDBUF|, or equivalent, option to |size| on |socket|. The
-// return value indicates whether the option was actually set.
-//
-// |socket|: The SbSocket for which the option is set.
-// |size|: The value for the option.
-SB_EXPORT bool SbSocketSetSendBufferSize(SbSocket socket, int32_t size);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Sets the |SO_KEEPALIVE|, or equivalent, option to |value| on |socket|. The
-// return value indicates whether the option was actually set.
-//
-// |socket|: The SbSocket for which the option is set.
-// |value|: If set to |true|, then |period| specifies the minimum time in
-//   microseconds between keep-alive packets. If set to |false|, |period|
-//   is ignored.
-// |period|: The time in microseconds between keep-alive packets. This value
-//   is only relevant if |value| is |true|.
-SB_EXPORT bool SbSocketSetTcpKeepAlive(SbSocket socket,
-                                       bool value,
-                                       int64_t period);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Sets the |TCP_NODELAY|, or equivalent, option to |value| on |socket|. The
-// return value indicates whether the option was actually set.
-//
-// This function disables the Nagle algorithm for reducing the number of
-// packets sent when converting from a stream to packets. Disabling Nagle
-// generally puts the data for each Send call into its own packet, but does
-// not guarantee that behavior.
-//
-// |socket|: The SbSocket for which the option is set.
-// |value|: Indicates whether the Nagle algorithm should be disabled
-//   (|value|=|true|).
-SB_EXPORT bool SbSocketSetTcpNoDelay(SbSocket socket, bool value);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Sets the |SO_WINSCALE|, or equivalent, option to |value| on |socket|. The
-// return value indicates whether the option was actually set.
-//
-// |socket|: The SbSocket for which the option is set.
-// |value|: The value for the option.
-SB_EXPORT bool SbSocketSetTcpWindowScaling(SbSocket socket, bool value);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Joins |socket| to an IP multicast group identified by |address|. The
-// equivalent of IP_ADD_MEMBERSHIP. The return value indicates whether the
-// socket was joined to the group successfully.
-//
-// |socket|: The SbSocket to be joined to the IP multicast group.
-// |address|: The location of the IP multicast group.
-SB_EXPORT bool SbSocketJoinMulticastGroup(SbSocket socket,
-                                          const SbSocketAddress* address);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Synchronously resolves |hostname| into the returned SbSocketResolution,
-// which must be freed with SbSocketFreeResolution. The function returns
-// |NULL| if it is unable to resolve |hostname|.
-//
-// |hostname|: The hostname to be resolved.
-// |filters|: A mask of SbSocketResolveFilter values used to filter the
-//   resolution. If |filters| does not specify an IP address family filter,
-//   all address families are included. However, if one IP address family filter
-//   is specified, only that address family is included. The function ignores
-//   unrecognized filter bits.
-SB_EXPORT SbSocketResolution* SbSocketResolve(const char* hostname,
-                                              int filters);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Frees a resolution allocated by SbSocketResolve.
-//
-// |resolution|: The resolution to be freed.
-SB_EXPORT void SbSocketFreeResolution(SbSocketResolution* resolution);
 
 #ifdef __cplusplus
 }  // extern "C"

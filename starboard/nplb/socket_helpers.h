@@ -29,116 +29,18 @@ namespace nplb {
 
 const int64_t kSocketTimeout = 200'000;  // 200ms
 
-// Returns true if the given address is the unspecified address (all zeros),
-// supporting both address types.
-bool IsUnspecified(const SbSocketAddress* address);
-
-// Returns true if the given address is the localhost address, supporting both
-// address types.
-bool IsLocalhost(const SbSocketAddress* address);
-
 // Returns a valid port number that can be bound to for use in nplb tests.
 // This will always return the same port number.
 int GetPortNumberForTests();
 
 // Creates a TCP/IP server socket (sets Reuse Address option).
 SbSocket CreateServerTcpSocket(SbSocketAddressType address_type);
-std::unique_ptr<Socket> CreateServerTcpSocketWrapped(
-    SbSocketAddressType address_type);
 
 // Creates a TCP/IP socket bound to all interfaces on the given port.
 SbSocket CreateBoundTcpSocket(SbSocketAddressType address_type, int port);
-std::unique_ptr<Socket> CreateBoundTcpSocketWrapped(
-    SbSocketAddressType address_type,
-    int port);
 
 // Creates a TCP/IP socket listening on all interfaces on the given port.
 SbSocket CreateListeningTcpSocket(SbSocketAddressType address_type, int port);
-std::unique_ptr<Socket> CreateListeningTcpSocketWrapped(
-    SbSocketAddressType address_type,
-    int port);
-
-// Tries to accept a new connection from the given listening socket by checking,
-// yielding, and retrying for up to timeout. Returns kSbSocketInvalid if no
-// socket has been accepted in the given time.
-SbSocket AcceptBySpinning(SbSocket listen_socket, int64_t timeout);
-std::unique_ptr<Socket> AcceptBySpinning(Socket* listen_socket,
-                                         int64_t timeout);
-
-// Writes the given data to socket, spinning until success or error.
-bool WriteBySpinning(SbSocket socket,
-                     const char* data,
-                     int data_size,
-                     int64_t timeout);
-bool WriteBySpinning(Socket* socket,
-                     const char* data,
-                     int data_size,
-                     int64_t timeout);
-
-// Reads the given amount of data from socket, spinning until success or error.
-bool ReadBySpinning(SbSocket socket,
-                    char* out_data,
-                    int data_size,
-                    int64_t timeout);
-bool ReadBySpinning(Socket* socket,
-                    char* out_data,
-                    int data_size,
-                    int64_t timeout);
-
-// Transfers data between the two connected local sockets, spinning until |size|
-// has been transferred, or an error occurs.
-int Transfer(SbSocket receive_socket,
-             char* out_data,
-             SbSocket send_socket,
-             const char* send_data,
-             int size);
-int Transfer(Socket* receive_socket,
-             char* out_data,
-             Socket* send_socket,
-             const char* send_data,
-             int size);
-
-struct ConnectedTrio {
-  ConnectedTrio()
-      : listen_socket(kSbSocketInvalid),
-        client_socket(kSbSocketInvalid),
-        server_socket(kSbSocketInvalid) {}
-  ConnectedTrio(SbSocket listen_socket,
-                SbSocket client_socket,
-                SbSocket server_socket)
-      : listen_socket(listen_socket),
-        client_socket(client_socket),
-        server_socket(server_socket) {}
-  SbSocket listen_socket;
-  SbSocket client_socket;
-  SbSocket server_socket;
-};
-
-struct ConnectedTrioWrapped {
-  ConnectedTrioWrapped() {}
-  ConnectedTrioWrapped(std::unique_ptr<Socket> listen_socket,
-                       std::unique_ptr<Socket> client_socket,
-                       std::unique_ptr<Socket> server_socket)
-      : listen_socket(std::move(listen_socket)),
-        client_socket(std::move(client_socket)),
-        server_socket(std::move(server_socket)) {}
-  std::unique_ptr<Socket> listen_socket;
-  std::unique_ptr<Socket> client_socket;
-  std::unique_ptr<Socket> server_socket;
-};
-
-// Creates and returns 3 TCP/IP sockets, a connected client and server, and a
-// listener on the given port. If anything fails, adds a failure and returns
-// three invalid sockets.
-ConnectedTrio CreateAndConnect(SbSocketAddressType server_address_type,
-                               SbSocketAddressType client_address_type,
-                               int port,
-                               int64_t timeout);
-std::unique_ptr<ConnectedTrioWrapped> CreateAndConnectWrapped(
-    SbSocketAddressType server_address_type,
-    SbSocketAddressType client_address_type,
-    int port,
-    int64_t timeout);
 
 // Waits on the given waiter, and returns the elapsed time in microseconds.
 int64_t TimedWait(SbSocketWaiter waiter);
