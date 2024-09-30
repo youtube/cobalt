@@ -96,10 +96,6 @@ bool Socket::IsPending() {
   return GetLastError() == kSbSocketPending;
 }
 
-SbSocketError Socket::GetLastError() {
-  return SbSocketGetLastError(socket_);
-}
-
 int Socket::ReceiveFrom(char* out_data,
                         int data_size,
                         SbSocketAddress* out_source) {

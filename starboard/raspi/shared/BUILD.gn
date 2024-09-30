@@ -119,7 +119,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/posix/socket_connect.cc",
     "//starboard/shared/posix/socket_create.cc",
     "//starboard/shared/posix/socket_destroy.cc",
-    "//starboard/shared/posix/socket_get_last_error.cc",
     "//starboard/shared/posix/socket_get_local_address.cc",
     "//starboard/shared/posix/socket_internal.cc",
     "//starboard/shared/posix/socket_is_ipv6_supported.cc",

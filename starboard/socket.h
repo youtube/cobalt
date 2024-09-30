@@ -209,14 +209,6 @@ SB_EXPORT SbSocket SbSocketAccept(SbSocket socket);
 
 // DEPRECATED with SB_API_VERSION 16
 //
-// Returns the last error set on |socket|. If |socket| is not valid, this
-// function returns |kSbSocketErrorFailed|.
-//
-// |socket|: The SbSocket that the last error is returned for.
-SB_EXPORT SbSocketError SbSocketGetLastError(SbSocket socket);
-
-// DEPRECATED with SB_API_VERSION 16
-//
 // Gets the address that this socket is bound to locally, if the socket is
 // connected. The return value indicates whether the address was retrieved
 // successfully.

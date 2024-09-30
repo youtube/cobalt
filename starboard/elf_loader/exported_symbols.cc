@@ -153,7 +153,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSocketCreate);
   REGISTER_SYMBOL(SbSocketDestroy);
   REGISTER_SYMBOL(SbSocketGetInterfaceAddress);
-  REGISTER_SYMBOL(SbSocketGetLastError);
   REGISTER_SYMBOL(SbSocketGetLocalAddress);
   REGISTER_SYMBOL(SbSocketIsIpv6Supported);
   REGISTER_SYMBOL(SbSocketListen);
