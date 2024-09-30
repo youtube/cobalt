@@ -92,10 +92,6 @@ Socket* Socket::Accept() {
   return NULL;
 }
 
-bool Socket::IsPending() {
-  return GetLastError() == kSbSocketPending;
-}
-
 int Socket::ReceiveFrom(char* out_data,
                         int data_size,
                         SbSocketAddress* out_source) {
