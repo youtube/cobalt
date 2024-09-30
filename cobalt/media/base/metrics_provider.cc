@@ -122,6 +122,20 @@ void MediaMetricsProvider::EndTrackingAction(MediaAction action) {
   tracked_actions_start_times_.erase(action);
 }
 
+void MediaMetricsProvider::EndTrackingAction(MediaAction action,
+                                             int number_of_samples) {
+  DCHECK(IsActionCurrentlyTracked(action));
+  base::AutoLock scoped_lock(mutex_);
+
+  auto duration = clock_->NowTicks() - tracked_actions_start_times_[action];
+  if (number_of_samples > 0) {
+    // Report latency UMA if it writes non-zero samples.
+    auto duration_per_sample = duration / number_of_samples;
+    ReportActionLatencyUMA(action, duration_per_sample);
+  }
+  tracked_actions_start_times_.erase(action);
+}
+
 bool MediaMetricsProvider::IsActionCurrentlyTracked(MediaAction action) {
   base::AutoLock scoped_lock(mutex_);
   return tracked_actions_start_times_.find(action) !=
@@ -210,6 +224,18 @@ void MediaMetricsProvider::ReportActionLatencyUMA(
           "Cobalt.Media.SbPlayer.GetAudioConfig.LatencyTiming", action_duration,
           base::TimeDelta::FromMicroseconds(1),
           base::TimeDelta::FromMilliseconds(50), 50);
+      break;
+    case MediaAction::SBPLAYER_WRITE_SAMPLES_AUDIO:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbPlayer.WriteSamples.Audio.LatencyTiming",
+          action_duration, base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(100), 50);
+      break;
+    case MediaAction::SBPLAYER_WRITE_SAMPLES_VIDEO:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbPlayer.WriteSamples.Video.LatencyTiming",
+          action_duration, base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(100), 50);
       break;
     case MediaAction::SBDRM_CREATE:
       UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(

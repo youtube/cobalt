@@ -113,6 +113,10 @@ void DefaultSbPlayerInterface::WriteSamples(
     SbPlayer player, SbMediaType sample_type,
     const SbPlayerSampleInfo* sample_infos, int number_of_sample_infos) {
   DCHECK(!IsEnhancedAudioExtensionEnabled());
+  auto media_action = (sample_type == kSbMediaTypeAudio)
+                          ? MediaAction::SBPLAYER_WRITE_SAMPLES_AUDIO
+                          : MediaAction::SBPLAYER_WRITE_SAMPLES_VIDEO;
+  media_metrics_provider_.StartTrackingAction(media_action);
 #if SB_API_VERSION >= 15
   SbPlayerWriteSamples(player, sample_type, sample_infos,
                        number_of_sample_infos);
@@ -120,6 +124,8 @@ void DefaultSbPlayerInterface::WriteSamples(
   SbPlayerWriteSample2(player, sample_type, sample_infos,
                        number_of_sample_infos);
 #endif  // SB_API_VERSION >= 15
+  media_metrics_provider_.EndTrackingAction(media_action,
+                                            number_of_sample_infos);
 }
 
 void DefaultSbPlayerInterface::WriteSamples(
