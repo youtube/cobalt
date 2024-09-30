@@ -238,6 +238,49 @@ void MediaMetricsProvider::ReportActionLatencyUMA(
           base::TimeDelta::FromMicroseconds(500),
           base::TimeDelta::FromMilliseconds(50), 50);
       break;
+    case MediaAction::SBMEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbMedia.BufferPoolAllocateOnDemand.LatencyTiming",
+          action_duration, base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(5), 50);
+      break;
+    case MediaAction::SBMEDIA_GET_INIT_BUFFER_CAPACITY:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbMedia.GetInitBufferCapacity.LatencyTiming",
+          action_duration, base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(5), 50);
+      break;
+    case MediaAction::SBMEDIA_GET_BUFFER_ALLOCATION_UNIT:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbMedia.GetBufferAllocationUnit.LatencyTiming",
+          action_duration, base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(5), 50);
+      break;
+    case MediaAction::SBMEDIA_GET_AUDIO_BUFFER_BUDGET:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbMedia.GetAudioBufferBudget.LatencyTiming",
+          action_duration, base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(20), 50);
+      break;
+    case MediaAction::SBMEDIA_GET_BUFFER_GARBAGE_COLLECTION_DURATION_THRESHOLD:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbMedia.GetBufferGarbageCollectionDurationThreshold."
+          "LatencyTiming",
+          action_duration, base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(20), 50);
+      break;
+    case MediaAction::SBMEDIA_GET_PROGRESSIVE_BUFFER_BUDGET:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbMedia.GetProgressiveBufferBudget.LatencyTiming",
+          action_duration, base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(20), 50);
+      break;
+    case MediaAction::SBMEDIA_GET_VIDEO_BUFFER_BUDGET:
+      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
+          "Cobalt.Media.SbMedia.GetVideoBufferBudget.LatencyTiming",
+          action_duration, base::TimeDelta::FromMicroseconds(1),
+          base::TimeDelta::FromMilliseconds(20), 50);
+      break;
     case MediaAction::UNKNOWN_ACTION:
     default:
       break;
