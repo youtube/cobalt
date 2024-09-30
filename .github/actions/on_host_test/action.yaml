@@ -88,10 +88,11 @@ runs:
       if: always() && steps.run-tests.outputs.test_type == 'unit_tests'
       shell: bash
       run: |
-        set -x
-        echo "Saving unit test report to ${TEST_REPORT_FILE}"
-        python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_report_parser.py ${TEST_RESULTS_DIR} > ${TEST_REPORT_FILE}
-    - name: Upload unit test report
+        # Set tags for test differentiation.
+        tags="os.platform:${{ matrix.platform }}"
+        tags="${tags},os.family:${{ inputs.os }}"
+        echo $tags > ${TEST_RESULTS_DIR}/${{ matrix.platform }}/TAGS
+    - name: Archive unit test results
       uses: actions/upload-artifact@v3
       if: always() && steps.run-tests.outputs.test_type == 'unit_tests'
       with:
