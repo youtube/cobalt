@@ -80,7 +80,6 @@ TEST_P(PairSbSocketIsConnectedAndIdleTest, SunnyDay) {
   EXPECT_TRUE(SbSocketDestroy(trio.client_socket));
   EXPECT_TRUE(SbSocketDestroy(trio.listen_socket));
 }
-#endif  // SB_API_VERSION < 17
 
 TEST_P(SbSocketIsConnectedAndIdleTest, SunnyDayNotConnected) {
   SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
@@ -89,7 +88,6 @@ TEST_P(SbSocketIsConnectedAndIdleTest, SunnyDayNotConnected) {
   EXPECT_TRUE(SbSocketDestroy(socket));
 }
 
-#if SB_API_VERSION < 17
 TEST_P(SbSocketIsConnectedAndIdleTest, SunnyDayListeningNotConnected) {
   SbSocket server_socket =
       CreateListeningTcpSocket(GetAddressType(), GetPortNumberForTests());

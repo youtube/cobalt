@@ -217,12 +217,6 @@ SB_EXPORT SbSocketError SbSocketGetLastError(SbSocket socket);
 
 // DEPRECATED with SB_API_VERSION 16
 //
-// Clears the last error set on |socket|. The return value indicates whether
-// the socket error was cleared.
-SB_EXPORT bool SbSocketClearLastError(SbSocket socket);
-
-// DEPRECATED with SB_API_VERSION 16
-//
 // Gets the address that this socket is bound to locally, if the socket is
 // connected. The return value indicates whether the address was retrieved
 // successfully.
@@ -298,35 +292,6 @@ SB_EXPORT int SbSocketReceiveFrom(SbSocket socket,
                                   char* out_data,
                                   int data_size,
                                   SbSocketAddress* out_source);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Writes up to |data_size| bytes of |data| to |destination| via
-// |socket|. Returns the number of bytes written, or a negative number if
-// there is an error, in which case |SbSocketGetLastError| can provide the
-// precise error encountered.
-//
-// Note that this function is NOT specified to make a best effort to write all
-// data on all platforms, but it MAY still do so. It is specified to write
-// however many bytes are available conveniently. It can be run in a loop
-// until SbSocketGetLastError returns |kSbSocketPending| to make it a
-// best-effort write (but still only up to not blocking, unless you want to
-// spin).
-//
-// |socket|: The SbSocket to use to write data.
-// |data|: The data written to the socket. Must not be NULL.
-// |data_size|: The number of bytes of |data| to write.
-// |destination|: The location to which data is written. This value must be
-//   |NULL| for TCP connections, which can only have a single endpoint.
-//
-//   The primary use of |destination| is to send datagram packets, which can
-//   go out to multiple sources from a single UDP server socket. TCP has two
-//   endpoints connected persistently, so setting |destination| when sending
-//   to a TCP socket will cause an error.
-SB_EXPORT int SbSocketSendTo(SbSocket socket,
-                             const char* data,
-                             int data_size,
-                             const SbSocketAddress* destination);
 
 // DEPRECATED with SB_API_VERSION 16
 //

@@ -100,20 +100,10 @@ SbSocketError Socket::GetLastError() {
   return SbSocketGetLastError(socket_);
 }
 
-void Socket::ClearLastError() {
-  SbSocketClearLastError(socket_);
-}
-
 int Socket::ReceiveFrom(char* out_data,
                         int data_size,
                         SbSocketAddress* out_source) {
   return SbSocketReceiveFrom(socket_, out_data, data_size, out_source);
-}
-
-int Socket::SendTo(const char* data,
-                   int data_size,
-                   const SbSocketAddress* destination) {
-  return SbSocketSendTo(socket_, data, data_size, destination);
 }
 
 bool Socket::GetLocalAddress(SbSocketAddress* out_address) {

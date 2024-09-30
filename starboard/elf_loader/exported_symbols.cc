@@ -149,7 +149,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbPlayerWriteSamples);
   REGISTER_SYMBOL(SbSocketAccept);
   REGISTER_SYMBOL(SbSocketBind);
-  REGISTER_SYMBOL(SbSocketClearLastError);
   REGISTER_SYMBOL(SbSocketConnect);
   REGISTER_SYMBOL(SbSocketCreate);
   REGISTER_SYMBOL(SbSocketDestroy);
@@ -159,7 +158,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSocketIsIpv6Supported);
   REGISTER_SYMBOL(SbSocketListen);
   REGISTER_SYMBOL(SbSocketReceiveFrom);
-  REGISTER_SYMBOL(SbSocketSendTo);
   REGISTER_SYMBOL(SbSocketSetReuseAddress);
   REGISTER_SYMBOL(SbSocketWaiterAdd);
   REGISTER_SYMBOL(SbSocketWaiterCreate);
