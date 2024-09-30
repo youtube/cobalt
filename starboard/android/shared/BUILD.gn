@@ -272,8 +272,6 @@ static_library("starboard_platform") {
     "//starboard/shared/stub/window_set_on_screen_keyboard_keep_focus.cc",
     "//starboard/shared/stub/window_show_on_screen_keyboard.cc",
     "//starboard/shared/stub/window_update_on_screen_keyboard_suggestions.cc",
-    "accessibility_extension.cc",
-    "accessibility_extension.h",
     "accessibility_get_caption_settings.cc",
     "accessibility_get_display_settings.cc",
     "accessibility_get_text_to_speech_settings.cc",
@@ -434,6 +432,13 @@ static_library("starboard_platform") {
     "window_get_size.cc",
     "window_internal.h",
   ]
+
+  if (sb_api_version >= 16) {
+    sources += [
+      "accessibility_extension.cc",
+      "accessibility_extension.h",
+    ]
+  }
 
   sources += game_activity_source_files
   sources += common_player_sources
