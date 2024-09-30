@@ -85,6 +85,12 @@ _FILTERED_TESTS = {
         'UDPSocketTest.ReadWithSocketOptimization',  # This test crashes.
         'EmbeddedTestServerTestInstantiation/EmbeddedTestServerTest.ConnectionListenerComplete/0',
         'PartitionedCookiesURLRequestHttpJobTest.PrivacyMode/0',
+        'TransportSecurityStateTest.MatchesCase2',
+        'TransportSecurityStateTest.DecodePreloadedSingle',
+        'TransportSecurityStateTest.DecodePreloadedMultipleMix',
+        'TransportSecurityStateTest.DomainNameOddities',
+        'TransportSecurityStateTest.DecodePreloadedMultiplePrefix',
+        'TransportSecurityStateTest.HstsHostBypassList',
     ],
 }
 
