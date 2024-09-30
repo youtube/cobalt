@@ -55,7 +55,8 @@ bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
 }  // namespace starboard
 
 #if SB_API_VERSION < 16
-bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
+bool SbAccessibilityGetTextToSpeechSettings(
+    SbAccessibilityTextToSpeechSettings* out_setting) {
   return starboard::android::shared::accessibility::GetTextToSpeechSettings(
       out_setting);
 }
