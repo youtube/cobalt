@@ -73,8 +73,8 @@ IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
 
   // The codec string should be one of "Opus", "mp4a", "fLaC", or "ipcm".
   std::string codec = vec[3];
-  if (((codec != "Opus") && (codec != "mp4a") && (codec != "fLaC") &&
-       (codec != "ipcm"))) {
+  if ((codec != "Opus") && (codec != "mp4a") && (codec != "fLaC") &&
+      (codec != "ipcm")) {
     return;
   }
 
