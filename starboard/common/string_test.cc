@@ -43,11 +43,9 @@ TEST(StringTest, SplitString) {
   for (int i = 0; i < vec.size(); ++i) {
     ASSERT_EQ(output[i], vec[i]);
   }
-}
 
-TEST(StringTest, SplitStringEmpty) {
-  std::string str;
-  std::vector<std::string> output = SplitString(str, '.');
+  str = "";
+  output = SplitString(str, '.');
   EXPECT_TRUE(output.empty());
 }
 
