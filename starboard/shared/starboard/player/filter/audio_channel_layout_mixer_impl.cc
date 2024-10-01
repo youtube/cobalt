@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/player/filter/audio_channel_layout_mixer.h"
 
+#include <limits>
 #include <vector>
 
 #include "starboard/common/log.h"
@@ -213,11 +214,11 @@ float ClipSample<float>(float sample) {
 
 template <>
 int16_t ClipSample<int16_t>(float sample) {
-  if (sample > kSbInt16Max) {
-    return kSbInt16Max;
+  if (sample > std::numeric_limits<int16_t>::max()) {
+    return std::numeric_limits<int16_t>::max();
   }
-  if (sample < kSbInt16Min) {
-    return kSbInt16Min;
+  if (sample < std::numeric_limits<int16_t>::min()) {
+    return std::numeric_limits<int16_t>::min();
   }
   return sample;
 }

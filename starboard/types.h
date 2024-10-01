@@ -66,10 +66,6 @@ static const int8_t kSbInt8Min = ((int8_t)0x80);
 static const int8_t kSbInt8Max = ((int8_t)0x7F);
 static const uint8_t kSbUInt8Max = ((uint8_t)0xFF);
 
-static const int16_t kSbInt16Min = ((int16_t)0x8000);
-static const int16_t kSbInt16Max = ((int16_t)0x7FFF);
-static const uint16_t kSbUInt16Max = ((uint16_t)0xFFFF);
-
 #define kSbInt32Min ((int32_t)0x80000000)
 static const int32_t kSbInt32Max = ((int32_t)0x7FFFFFFF);
 static const uint32_t kSbUInt32Max = ((uint32_t)0xFFFFFFFF);
