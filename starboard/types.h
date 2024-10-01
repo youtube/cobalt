@@ -27,13 +27,13 @@
 
 // The C library used must provide these headers to be standard conforming.
 
-#include <float.h>
-#include <inttypes.h>
-#include <limits.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#include <float.h>     // NOLINT
+#include <inttypes.h>  // NOLINT
+#include <limits.h>    // NOLINT
+#include <stdarg.h>    // NOLINT
+#include <stdbool.h>   // NOLINT
+#include <stddef.h>    // NOLINT
+#include <stdint.h>    // NOLINT
 
 #if SB_HAS(SYS_TYPES_H)
 #include <sys/types.h>
@@ -55,16 +55,7 @@ typedef int64_t ssize_t;
 #endif
 #endif  // !SB_HAS(SSIZE_T)
 
-#if defined(_MSC_VER)
-#pragma warning(push)
-#pragma warning(disable : 4310)  // Cast truncates constant value.
-#endif
-
 // Simulate needed portions of limits.h for platforms that don't provide it.
-
-static const int8_t kSbInt8Min = ((int8_t)0x80);
-static const int8_t kSbInt8Max = ((int8_t)0x7F);
-static const uint8_t kSbUInt8Max = ((uint8_t)0xFF);
 
 #define kSbInt32Min ((int32_t)0x80000000)
 static const int32_t kSbInt32Max = ((int32_t)0x7FFFFFFF);
@@ -73,10 +64,6 @@ static const uint32_t kSbUInt32Max = ((uint32_t)0xFFFFFFFF);
 static const int64_t kSbInt64Min = ((int64_t)SB_INT64_C(0x8000000000000000));
 static const int64_t kSbInt64Max = ((int64_t)SB_INT64_C(0x7FFFFFFFFFFFFFFF));
 static const uint64_t kSbUInt64Max = ((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
-
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
 
 // A value that represents an int that is probably invalid.
 #define kSbInvalidInt kSbInt32Min

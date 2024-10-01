@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 17
+
 #include "starboard/common/socket.h"
 #include "starboard/nplb/socket_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -95,6 +97,7 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDayDestination) {
   EXPECT_EQ(0, source.port);
 }
 
+#if SB_API_VERSION < 16
 TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceForDestination) {
   const char kTestHostName[] = "www.example.com";
 
@@ -136,6 +139,7 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceForDestination) {
 
   SbSocketFreeResolution(resolution);
 }
+#endif
 
 TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceNotLoopback) {
   SbSocketAddress destination = {0};
@@ -182,3 +186,4 @@ INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+#endif  // SB_API_VERSION < 17

@@ -45,8 +45,6 @@
 
 #if defined(__GNUC__)
 #define SB_IS_COMPILER_GCC 1
-#elif defined(_MSC_VER)
-#define SB_IS_COMPILER_MSVC 1
 #endif
 
 // --- Common Helper Macros --------------------------------------------------

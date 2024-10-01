@@ -153,25 +153,14 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSocketConnect);
   REGISTER_SYMBOL(SbSocketCreate);
   REGISTER_SYMBOL(SbSocketDestroy);
-  REGISTER_SYMBOL(SbSocketFreeResolution);
   REGISTER_SYMBOL(SbSocketGetInterfaceAddress);
   REGISTER_SYMBOL(SbSocketGetLastError);
   REGISTER_SYMBOL(SbSocketGetLocalAddress);
-  REGISTER_SYMBOL(SbSocketIsConnected);
-  REGISTER_SYMBOL(SbSocketIsConnectedAndIdle);
   REGISTER_SYMBOL(SbSocketIsIpv6Supported);
-  REGISTER_SYMBOL(SbSocketJoinMulticastGroup);
   REGISTER_SYMBOL(SbSocketListen);
   REGISTER_SYMBOL(SbSocketReceiveFrom);
-  REGISTER_SYMBOL(SbSocketResolve);
   REGISTER_SYMBOL(SbSocketSendTo);
-  REGISTER_SYMBOL(SbSocketSetBroadcast);
-  REGISTER_SYMBOL(SbSocketSetReceiveBufferSize);
   REGISTER_SYMBOL(SbSocketSetReuseAddress);
-  REGISTER_SYMBOL(SbSocketSetSendBufferSize);
-  REGISTER_SYMBOL(SbSocketSetTcpKeepAlive);
-  REGISTER_SYMBOL(SbSocketSetTcpNoDelay);
-  REGISTER_SYMBOL(SbSocketSetTcpWindowScaling);
   REGISTER_SYMBOL(SbSocketWaiterAdd);
   REGISTER_SYMBOL(SbSocketWaiterCreate);
   REGISTER_SYMBOL(SbSocketWaiterDestroy);
@@ -387,16 +376,7 @@ ExportedSymbols::ExportedSymbols() {
   map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
   map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
 
-#if defined(_MSC_VER)
-  // MSVC provides a template with the same name.
-  // The cast helps the compiler to pick the correct C function pointer to be
-  // used.
-  REGISTER_SYMBOL(
-      static_cast<int (*)(wchar_t* buffer, size_t count, const wchar_t* format,
-                          va_list argptr)>(vswprintf));
-#else
   REGISTER_SYMBOL(vswprintf);
-#endif  // defined(_MSC_VER)
 
 }  // NOLINT
 
