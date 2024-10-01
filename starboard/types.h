@@ -57,10 +57,6 @@ typedef int64_t ssize_t;
 
 // Simulate needed portions of limits.h for platforms that don't provide it.
 
-static const int16_t kSbInt16Min = ((int16_t)0x8000);
-static const int16_t kSbInt16Max = ((int16_t)0x7FFF);
-static const uint16_t kSbUInt16Max = ((uint16_t)0xFFFF);
-
 #define kSbInt32Min ((int32_t)0x80000000)
 static const int32_t kSbInt32Max = ((int32_t)0x7FFFFFFF);
 static const uint32_t kSbUInt32Max = ((uint32_t)0xFFFFFFFF);
