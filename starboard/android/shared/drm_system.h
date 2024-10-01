@@ -29,14 +29,14 @@
 #include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
-#include "starboard/common/thread.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 #include "starboard/types.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
 
-class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
+class DrmSystem : public ::SbDrmSystemPrivate {
  public:
   DrmSystem(const char* key_system,
             void* context,
@@ -89,28 +89,17 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   bool IsReady() { return created_media_crypto_session_.load(); }
 
  private:
-  class SessionUpdateRequest {
-   public:
-    SessionUpdateRequest(int ticket,
-                         const char* type,
-                         const void* initialization_data,
-                         int initialization_data_size);
-    ~SessionUpdateRequest();
-
-    void ConvertLocalRefToGlobalRef();
-    void Generate(jobject j_media_drm_bridge) const;
-
-   private:
-    bool references_are_global_ = false;
-    jint j_ticket_;
-    jobject j_init_data_;
-    jobject j_mime_;
-  };
-
   void CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked();
 
-  // From Thread.
-  void Run() override;
+  void InitializeDrmThread();
+  void GenerateSessionUpdateRequestOnDrmThread(
+      int ticket,
+      const std::string& type,
+      const std::vector<uint8_t>& initialization_data);
+  void UpdateSessionOnDrmThread(int ticket,
+                                const std::vector<uint8_t>& key,
+                                const std::vector<uint8_t>& session_id);
+  void CloseSessionOnDrmThread(const std::vector<uint8_t>& session_id);
 
   const std::string key_system_;
   void* context_;
@@ -121,9 +110,8 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
 
   jobject j_media_drm_bridge_;
   jobject j_media_crypto_;
-
-  std::vector<std::unique_ptr<SessionUpdateRequest>>
-      deferred_session_update_requests_;
+  std::unique_ptr<::starboard::shared::starboard::player::JobThread>
+      drm_thread_;
 
   Mutex mutex_;
   std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;

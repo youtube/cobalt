@@ -169,9 +169,9 @@ namespace shared {
 
 namespace {
 
-jbyteArray ByteArrayFromRaw(const void* data, int size) {
-  return JniEnvExt::Get()->NewByteArrayFromRaw(static_cast<const jbyte*>(data),
-                                               size);
+jbyteArray ByteArrayFromRaw(const std::vector<uint8_t>& data) {
+  return JniEnvExt::Get()->NewByteArrayFromRaw(
+      reinterpret_cast<const jbyte*>(data.data()), data.size());
 }
 
 }  // namespace
@@ -182,8 +182,7 @@ DrmSystem::DrmSystem(
     SbDrmSessionUpdateRequestFunc update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback)
-    : Thread("DrmSystemThread"),
-      key_system_(key_system),
+    : key_system_(key_system),
       context_(context),
       update_request_callback_(update_request_callback),
       session_updated_callback_(session_updated_callback),
@@ -213,34 +212,15 @@ DrmSystem::DrmSystem(
   }
   j_media_crypto_ = env->ConvertLocalRefToGlobalRef(j_media_crypto_);
 
-  Start();
-}
-
-void DrmSystem::Run() {
-  JniEnvExt* env = JniEnvExt::Get();
-  bool result = env->CallBooleanMethodOrAbort(
-      j_media_drm_bridge_, "createMediaCryptoSession", "()Z");
-  if (result) {
-    created_media_crypto_session_.store(true);
-  }
-  if (!result && j_media_crypto_) {
-    env->DeleteGlobalRef(j_media_crypto_);
-    j_media_crypto_ = NULL;
-    return;
-  }
-
-  ScopedLock scoped_lock(mutex_);
-  if (!deferred_session_update_requests_.empty()) {
-    for (const auto& update_request : deferred_session_update_requests_) {
-      update_request->Generate(j_media_drm_bridge_);
-    }
-    deferred_session_update_requests_.clear();
-  }
+  drm_thread_.reset(new ::starboard::shared::starboard::player::JobThread(
+      "DrmSystemThread", 0, kSbThreadPriorityNormal));
+  drm_thread_->Schedule(std::bind(&DrmSystem::InitializeDrmThread, this));
 }
 
 DrmSystem::~DrmSystem() {
   ON_INSTANCE_RELEASED(AndroidDrmSystem);
-  Join();
+
+  drm_thread_.reset();
 
   JniEnvExt* env = JniEnvExt::Get();
   if (j_media_crypto_) {
@@ -254,66 +234,18 @@ DrmSystem::~DrmSystem() {
   }
 }
 
-DrmSystem::SessionUpdateRequest::SessionUpdateRequest(
-    int ticket,
-    const char* type,
-    const void* initialization_data,
-    int initialization_data_size) {
-  JniEnvExt* env = JniEnvExt::Get();
-  j_ticket_ = static_cast<jint>(ticket);
-  j_init_data_ =
-      ByteArrayFromRaw(initialization_data, initialization_data_size);
-  j_mime_ = env->NewStringStandardUTFOrAbort(type);
-}
-
-void DrmSystem::SessionUpdateRequest::ConvertLocalRefToGlobalRef() {
-  if (!references_are_global_) {
-    JniEnvExt* env = JniEnvExt::Get();
-    j_init_data_ = env->ConvertLocalRefToGlobalRef(j_init_data_);
-    j_mime_ = env->ConvertLocalRefToGlobalRef(j_mime_);
-    references_are_global_ = true;
-  }
-}
-
-DrmSystem::SessionUpdateRequest::~SessionUpdateRequest() {
-  JniEnvExt* env = JniEnvExt::Get();
-  if (references_are_global_) {
-    env->DeleteGlobalRef(j_init_data_);
-    env->DeleteGlobalRef(j_mime_);
-  } else {
-    env->DeleteLocalRef(j_init_data_);
-    env->DeleteLocalRef(j_mime_);
-  }
-  j_init_data_ = nullptr;
-  j_mime_ = nullptr;
-}
-
-void DrmSystem::SessionUpdateRequest::Generate(
-    jobject j_media_drm_bridge) const {
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(j_media_drm_bridge, "createSession",
-                             "(I[BLjava/lang/String;)V", j_ticket_,
-                             j_init_data_, j_mime_);
-}
-
 void DrmSystem::GenerateSessionUpdateRequest(int ticket,
                                              const char* type,
                                              const void* initialization_data,
                                              int initialization_data_size) {
-  std::unique_ptr<SessionUpdateRequest> session_update_request(
-      new SessionUpdateRequest(ticket, type, initialization_data,
-                               initialization_data_size));
-  if (created_media_crypto_session_.load()) {
-    session_update_request->Generate(j_media_drm_bridge_);
-  } else {
-    // Defer generating the update request.
-    session_update_request->ConvertLocalRefToGlobalRef();
-    ScopedLock scoped_lock(mutex_);
-    deferred_session_update_requests_.push_back(
-        std::move(session_update_request));
-  }
-  // |update_request_callback_| will be called by Java calling into
-  // |onSessionMessage|.
+  const uint8_t* initialization_data_ptr =
+      static_cast<const uint8_t*>(initialization_data);
+  drm_thread_->Schedule(
+      std::bind(&DrmSystem::GenerateSessionUpdateRequestOnDrmThread, this,
+                ticket, std::string(type),
+                std::vector<uint8_t>(
+                    initialization_data_ptr,
+                    initialization_data_ptr + initialization_data_size)));
 }
 
 void DrmSystem::UpdateSession(int ticket,
@@ -321,45 +253,19 @@ void DrmSystem::UpdateSession(int ticket,
                               int key_size,
                               const void* session_id,
                               int session_id_size) {
-  ScopedLocalJavaRef<jbyteArray> j_session_id(
-      ByteArrayFromRaw(session_id, session_id_size));
-  ScopedLocalJavaRef<jbyteArray> j_response(ByteArrayFromRaw(key, key_size));
-
-  auto env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jobject> update_result(env->CallObjectMethodOrAbort(
-      j_media_drm_bridge_, "updateSession",
-      "(I[B[B)Ldev/cobalt/media/MediaDrmBridge$UpdateSessionResult;",
-      static_cast<jint>(ticket), j_session_id.Get(), j_response.Get()));
-  jboolean update_success =
-      env->CallBooleanMethodOrAbort(update_result.Get(), "isSuccess", "()Z");
-  ScopedLocalJavaRef<jstring> error_msg_java(env->CallObjectMethodOrAbort(
-      update_result.Get(), "getErrorMessage", "()Ljava/lang/String;"));
-  std::string error_msg =
-      env->GetStringStandardUTFOrAbort(error_msg_java.Get());
-  session_updated_callback_(this, context_, ticket,
-                            update_success == JNI_TRUE
-                                ? kSbDrmStatusSuccess
-                                : kSbDrmStatusUnknownError,
-                            error_msg.c_str(), session_id, session_id_size);
+  const uint8_t* key_ptr = static_cast<const uint8_t*>(key);
+  const uint8_t* session_id_ptr = static_cast<const uint8_t*>(session_id);
+  drm_thread_->Schedule(std::bind(
+      &DrmSystem::UpdateSessionOnDrmThread, this, ticket,
+      std::vector<uint8_t>(key_ptr, key_ptr + key_size),
+      std::vector<uint8_t>(session_id_ptr, session_id_ptr + session_id_size)));
 }
 
 void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
-  JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jbyteArray> j_session_id(
-      ByteArrayFromRaw(session_id, session_id_size));
-  std::string session_id_as_string(
-      static_cast<const char*>(session_id),
-      static_cast<const char*>(session_id) + session_id_size);
-
-  {
-    ScopedLock scoped_lock(mutex_);
-    auto iter = cached_drm_key_ids_.find(session_id_as_string);
-    if (iter != cached_drm_key_ids_.end()) {
-      cached_drm_key_ids_.erase(iter);
-    }
-  }
-  env->CallVoidMethodOrAbort(j_media_drm_bridge_, "closeSession", "([B)V",
-                             j_session_id.Get());
+  const uint8_t* session_id_ptr = static_cast<const uint8_t*>(session_id);
+  drm_thread_->Schedule(std::bind(
+      &DrmSystem::CloseSessionOnDrmThread, this,
+      std::vector<uint8_t>(session_id_ptr, session_id_ptr + session_id_size)));
 }
 
 DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
@@ -459,6 +365,86 @@ void DrmSystem::CallKeyStatusesChangedCallbackWithKeyStatusRestricted_Locked() {
                                    static_cast<int>(drm_key_ids.size()),
                                    drm_key_ids.data(), drm_key_statuses.data());
   }
+}
+
+void DrmSystem::InitializeDrmThread() {
+  SB_DCHECK(drm_thread_->BelongsToCurrentThread());
+
+  JniEnvExt* env = JniEnvExt::Get();
+  bool result = env->CallBooleanMethodOrAbort(
+      j_media_drm_bridge_, "createMediaCryptoSession", "()Z");
+  if (result) {
+    created_media_crypto_session_.store(true);
+  }
+  if (!result && j_media_crypto_) {
+    env->DeleteGlobalRef(j_media_crypto_);
+    j_media_crypto_ = NULL;
+    return;
+  }
+}
+
+void DrmSystem::GenerateSessionUpdateRequestOnDrmThread(
+    int ticket,
+    const std::string& type,
+    const std::vector<uint8_t>& initialization_data) {
+  SB_DCHECK(drm_thread_->BelongsToCurrentThread());
+
+  ScopedLocalJavaRef<jbyteArray> j_init_data(
+      ByteArrayFromRaw(initialization_data));
+  JniEnvExt* env = JniEnvExt::Get();
+  ScopedLocalJavaRef<jstring> j_mime(
+      env->NewStringStandardUTFOrAbort(type.c_str()));
+  env->CallVoidMethodOrAbort(
+      j_media_drm_bridge_, "createSession", "(I[BLjava/lang/String;)V",
+      static_cast<jint>(ticket), j_init_data.Get(), j_mime.Get());
+  // |update_request_callback_| will be called by Java calling into
+  // |onSessionMessage|.
+}
+
+void DrmSystem::UpdateSessionOnDrmThread(
+    int ticket,
+    const std::vector<uint8_t>& key,
+    const std::vector<uint8_t>& session_id) {
+  SB_DCHECK(drm_thread_->BelongsToCurrentThread());
+
+  ScopedLocalJavaRef<jbyteArray> j_session_id(ByteArrayFromRaw(session_id));
+  ScopedLocalJavaRef<jbyteArray> j_response(ByteArrayFromRaw(key));
+
+  auto env = JniEnvExt::Get();
+  ScopedLocalJavaRef<jobject> update_result(env->CallObjectMethodOrAbort(
+      j_media_drm_bridge_, "updateSession",
+      "(I[B[B)Ldev/cobalt/media/MediaDrmBridge$UpdateSessionResult;",
+      static_cast<jint>(ticket), j_session_id.Get(), j_response.Get()));
+  jboolean update_success =
+      env->CallBooleanMethodOrAbort(update_result.Get(), "isSuccess", "()Z");
+  ScopedLocalJavaRef<jstring> error_msg_java(env->CallObjectMethodOrAbort(
+      update_result.Get(), "getErrorMessage", "()Ljava/lang/String;"));
+  std::string error_msg =
+      env->GetStringStandardUTFOrAbort(error_msg_java.Get());
+  session_updated_callback_(
+      this, context_, ticket,
+      update_success == JNI_TRUE ? kSbDrmStatusSuccess
+                                 : kSbDrmStatusUnknownError,
+      error_msg.c_str(), static_cast<const void*>(session_id.data()),
+      session_id.size());
+}
+
+void DrmSystem::CloseSessionOnDrmThread(
+    const std::vector<uint8_t>& session_id) {
+  SB_DCHECK(drm_thread_->BelongsToCurrentThread());
+
+  JniEnvExt* env = JniEnvExt::Get();
+  ScopedLocalJavaRef<jbyteArray> j_session_id(ByteArrayFromRaw(session_id));
+  std::string session_id_as_string(session_id.begin(), session_id.end());
+  {
+    ScopedLock scoped_lock(mutex_);
+    auto iter = cached_drm_key_ids_.find(session_id_as_string);
+    if (iter != cached_drm_key_ids_.end()) {
+      cached_drm_key_ids_.erase(iter);
+    }
+  }
+  env->CallVoidMethodOrAbort(j_media_drm_bridge_, "closeSession", "([B)V",
+                             j_session_id.Get());
 }
 
 }  // namespace shared
