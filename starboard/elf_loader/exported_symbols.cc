@@ -469,12 +469,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(freeifaddrs);
   REGISTER_SYMBOL(fsync);
   REGISTER_SYMBOL(ftruncate);
-<<<<<<< HEAD
-  REGISTER_SYMBOL(getaddrinfo);
-  REGISTER_SYMBOL(getifaddrs);
-=======
-  REGISTER_SYMBOL(getpeername);
->>>>>>> 4ce5a3d379b (Remove duplicates from the exported symbols. (#4175))
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(malloc);
