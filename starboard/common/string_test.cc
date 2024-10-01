@@ -25,7 +25,8 @@ namespace {
 TEST(StringTest, SplitString) {
   std::string str = "The quick brown fox jumps over the lazy dog";
   std::vector<std::string> output = SplitString(str, '.');
-  EXPECT_TRUE(output.empty());
+  ASSERT_EQ(output.size(), 1);
+  ASSERT_EQ(output[0], "The quick brown fox jumps over the lazy dog");
 
   std::vector<std::string> vec = {"The",  "quick", "brown", "fox", "jumps",
                                   "over", "the",   "lazy",  "dog"};

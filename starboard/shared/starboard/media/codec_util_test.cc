@@ -275,37 +275,6 @@ TEST(CodecUtilTest, ParsesIamfCodec) {
             kSbMediaAudioCodecIamf);
 }
 
-TEST(CodecUtilTest, IsIamfMimeType) {
-  EXPECT_TRUE(IsIamfMimeType("iamf.000.000.Opus"));
-  EXPECT_TRUE(IsIamfMimeType("iamf.255.255.Opus"));
-  EXPECT_TRUE(IsIamfMimeType("iamf.000.000.mp4a.40.2"));
-  EXPECT_TRUE(IsIamfMimeType("iamf.000.000.fLaC"));
-  EXPECT_TRUE(IsIamfMimeType("iamf.000.000.ipcm"));
-
-  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.Opu"));
-  EXPECT_FALSE(IsIamfMimeType("iamf,000.000.Opus"));
-  EXPECT_FALSE(IsIamfMimeType("Iamf.000.000.Opus"));
-  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.0pus"));
-  EXPECT_FALSE(IsIamfMimeType("iamf.xxx.yyy.Opus"));
-
-  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.mp4a.40.3"));
-  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.flac"));
-
-  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.fLaC.40.2"));
-  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.mp4a.40.30"));
-  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.mp4a.40.20"));
-  EXPECT_FALSE(IsIamfMimeType("iamf.000.00.Opus"));
-  EXPECT_FALSE(IsIamfMimeType("iamf.999.999.Opus"));
-  EXPECT_FALSE(IsIamfMimeType("iamf.256.256.Opus"));
-
-  EXPECT_FALSE(IsIamfMimeType("iamf.000.Opus"));
-  EXPECT_FALSE(IsIamfMimeType("iacb.000.000.Opus"));
-  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.mp4a.40.2.0"));
-  EXPECT_FALSE(IsIamfMimeType("iamf.256.000.Opus"));
-  EXPECT_FALSE(IsIamfMimeType("iamf.000.256.Opus"));
-  EXPECT_FALSE(IsIamfMimeType("iamf.000.000.mp4a.4.2."));
-}
-
 }  // namespace
 }  // namespace media
 }  // namespace starboard

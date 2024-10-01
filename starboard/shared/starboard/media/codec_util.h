@@ -71,8 +71,6 @@ class VideoConfig {
 SbMediaAudioCodec GetAudioCodecFromString(const char* codec,
                                           const char* subtype);
 
-bool IsIamfMimeType(std::string mime_type);
-
 }  // namespace media
 }  // namespace starboard
 }  // namespace shared

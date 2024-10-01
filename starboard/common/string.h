@@ -101,9 +101,8 @@ static SB_C_FORCE_INLINE int strlcat(CHAR* dst, const CHAR* src, int dst_size) {
          dst_length;
 }
 
-// Splits a string on a char delimiter. Returns an empty vector if the delimiter
-// is not found
-inline std::vector<std::string> SplitString(std::string& input,
+// Splits a string on a char delimiter.
+inline std::vector<std::string> SplitString(const std::string& input,
                                             char delimiter) {
   std::vector<std::string> output;
   if (input.empty()) {
@@ -116,9 +115,6 @@ inline std::vector<std::string> SplitString(std::string& input,
     std::string piece;
 
     if (end == std::string::npos) {
-      if (output.empty()) {
-        break;
-      }
       piece = input.substr(start);
       start = std::string::npos;
     } else {
