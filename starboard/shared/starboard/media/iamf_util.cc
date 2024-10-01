@@ -30,7 +30,7 @@ IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
   //            v1.0.0
   //            6.3. Codecs Parameter String
   // (https://aomediacodec.github.io/iamf/v1.0.0-errata.html#codecsparameter)
-  if (mime_type.find("iamf") == std::string::npos) {
+  if (mime_type.find("iamf") != 0) {
     return;
   }
 
@@ -42,7 +42,6 @@ IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
   // +1  delimiting period.
   // +9  The remaining string is one of "Opus", "mp4a.40.2", "fLaC", or "ipcm".
   constexpr int kMaxIamfCodecIdLength = 22;
-
   if (mime_type.size() > kMaxIamfCodecIdLength) {
     return;
   }
@@ -51,10 +50,6 @@ IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
   // The mime type must be in 4 parts for all substreams other than AAC, which
   // is 6 parts.
   if (vec.size() != 4 && vec.size() != 6) {
-    return;
-  }
-
-  if (vec[0] != "iamf") {
     return;
   }
 
@@ -78,8 +73,8 @@ IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
 
   // The codec string should be one of "Opus", "mp4a", "fLaC", or "ipcm".
   std::string codec = vec[3];
-  if (codec.size() != 4 || ((codec != "Opus") && (codec != "mp4a") &&
-                            (codec != "fLaC") && (codec != "ipcm"))) {
+  if (((codec != "Opus") && (codec != "mp4a") && (codec != "fLaC") &&
+       (codec != "ipcm"))) {
     return;
   }
 
@@ -91,17 +86,7 @@ IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
     }
 
     // The fields following "mp4a" should be "40" and "2" to signal AAC-LC.
-    stream = std::stringstream(vec[4]);
-    int object_type_indication;
-    stream >> object_type_indication;
-    if (stream.fail() || vec[4].size() != 2 || object_type_indication != 40) {
-      return;
-    }
-
-    stream = std::stringstream(vec[5]);
-    int audio_object_type;
-    stream >> audio_object_type;
-    if (stream.fail() || vec[5].size() != 1 || audio_object_type != 2) {
+    if (vec[4] != "40" || vec[5] != "2") {
       return;
     }
     substream_codec_ = kIamfSubstreamCodecMp4a;

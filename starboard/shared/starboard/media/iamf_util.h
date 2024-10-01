@@ -18,17 +18,19 @@
 #include <limits>
 #include <string>
 
+#include "starboard/common/log.h"
+
 namespace starboard {
 namespace shared {
 namespace starboard {
 namespace media {
 
 enum IamfSubstreamCodec {
+  kIamfSubstreamCodecUnknown,
   kIamfSubstreamCodecOpus,
   kIamfSubstreamCodecMp4a,
   kIamfSubstreamCodecFlac,
-  kIamfSubstreamCodecIpcm,
-  kIamfSubstreamCodecUnknown
+  kIamfSubstreamCodecIpcm
 };
 
 // These values must match the profile values defined in
@@ -48,8 +50,14 @@ class IamfMimeUtil {
     return profile_ <= kIamfProfileMax &&
            substream_codec_ != kIamfSubstreamCodecUnknown;
   }
-  int profile() const { return profile_; }
-  IamfSubstreamCodec substream_codec() const { return substream_codec_; }
+  int profile() const {
+    SB_DCHECK(is_valid());
+    return profile_;
+  }
+  IamfSubstreamCodec substream_codec() const {
+    SB_DCHECK(is_valid());
+    return substream_codec_;
+  }
 
  private:
   int profile_ = std::numeric_limits<int>::max();

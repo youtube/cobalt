@@ -103,28 +103,8 @@ TEST(IamfUtilTest, IsValid) {
 }
 
 TEST(IamfUtilTest, SubstreamCodec) {
-  std::string codec_param = "iamf.000.000.vorbis";
+  std::string codec_param = "iamf.000.000.Opus";
   IamfMimeUtil util(codec_param);
-  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecUnknown);
-
-  codec_param = "iamf.000.000";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecUnknown);
-
-  codec_param = "iamf.000.000.opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecUnknown);
-
-  codec_param = "iamf.000.000.flac";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecUnknown);
-
-  codec_param = "iamf.000.000.mp4a.40.3";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecUnknown);
-
-  codec_param = "iamf.000.000.Opus";
-  util = IamfMimeUtil(codec_param);
   EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecOpus);
 
   codec_param = "iamf.000.000.fLaC";
