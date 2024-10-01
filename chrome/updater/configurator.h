@@ -20,6 +20,10 @@
 #include "components/update_client/configurator.h"
 #include "components/update_client/persisted_data.h"
 
+#if defined(STARBOARD)
+#include "starboard/atomic.h"
+#endif
+
 class GURL;
 class PrefService;
 

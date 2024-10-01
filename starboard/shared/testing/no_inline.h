@@ -16,8 +16,6 @@
 #define STARBOARD_SHARED_TESTING_NO_INLINE_H_
 #if defined(__GNUC__)
 #define SB_TEST_FORCE_NO_INLINE __attribute__((noinline))
-#elif defined(_MSC_VER)
-#define SB_TEST_FORCE_NO_INLINE __declspec(noinline)
 #else
 #error "Your compiler is not supported"
 #endif

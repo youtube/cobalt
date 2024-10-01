@@ -16,6 +16,7 @@
 
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <numeric>
 #include <string>
 
@@ -104,7 +105,8 @@ class AudioChannelLayoutMixerTest
         if (storage_type_ == kSbMediaAudioFrameStorageTypePlanar) {
           src_index = i % kInputFrames * num_of_channels + i / kInputFrames;
         }
-        dest_buffer[i] = data_buffer[src_index] * kSbInt16Max;
+        dest_buffer[i] =
+            data_buffer[src_index] * std::numeric_limits<int16_t>::max();
       }
     }
     return decoded_audio;
@@ -146,10 +148,11 @@ class AudioChannelLayoutMixerTest
           src_index = i % output->frames() * output_num_of_channels +
                       i / output->frames();
         }
-        ASSERT_LE(fabs(expected_output[src_index] -
-                       static_cast<float>(output_buffer[i]) /
-                           static_cast<float>(kSbInt16Max)),
-                  0.001f);
+        ASSERT_LE(
+            fabs(expected_output[src_index] -
+                 static_cast<float>(output_buffer[i]) /
+                     static_cast<float>(std::numeric_limits<int16_t>::max())),
+            0.001f);
       }
     }
   }

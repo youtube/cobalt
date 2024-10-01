@@ -32,7 +32,6 @@
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
 namespace net {
-
 namespace {
 
 int MapAcceptError(int os_error) {

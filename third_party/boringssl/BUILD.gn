@@ -242,8 +242,7 @@ if (!use_cobalt_customizations) {
     sources += [
       "src/crypto/cpu-starboard.c",
       "src/crypto/rand_extra/starboard.c",
-      "src/crypto/refcount_starboard.c",
-      "src/crypto/thread_starboard.cc",
+      "src/crypto/thread_starboard.c",
     ]
     public -= [ "src/include/openssl/opensslconf.h" ]
     public_deps = [

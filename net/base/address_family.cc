@@ -20,21 +20,6 @@ AddressFamily GetAddressFamily(const IPAddress& address) {
   }
 }
 
-#if defined(STARBOARD) && SB_API_VERSION <= 15
-SbSocketAddressType ConvertAddressFamily(AddressFamily address_family) {
-  switch (address_family) {
-    case ADDRESS_FAMILY_IPV4:
-      return kSbSocketAddressTypeIpv4;
-      break;
-    case ADDRESS_FAMILY_IPV6:
-      return kSbSocketAddressTypeIpv6;
-      break;
-    default:
-      NOTREACHED();
-      return kSbSocketAddressTypeIpv4;
-  }
-}
-#else
 int ConvertAddressFamily(AddressFamily address_family) {
   switch (address_family) {
     case ADDRESS_FAMILY_UNSPECIFIED:
@@ -47,7 +32,6 @@ int ConvertAddressFamily(AddressFamily address_family) {
   NOTREACHED();
   return AF_UNSPEC;
 }
-#endif
 
 AddressFamily ToAddressFamily(int family) {
   switch (family) {

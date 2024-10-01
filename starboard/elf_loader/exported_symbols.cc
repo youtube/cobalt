@@ -149,29 +149,15 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbPlayerWriteSamples);
   REGISTER_SYMBOL(SbSocketAccept);
   REGISTER_SYMBOL(SbSocketBind);
-  REGISTER_SYMBOL(SbSocketClearLastError);
   REGISTER_SYMBOL(SbSocketConnect);
   REGISTER_SYMBOL(SbSocketCreate);
   REGISTER_SYMBOL(SbSocketDestroy);
-  REGISTER_SYMBOL(SbSocketFreeResolution);
   REGISTER_SYMBOL(SbSocketGetInterfaceAddress);
-  REGISTER_SYMBOL(SbSocketGetLastError);
   REGISTER_SYMBOL(SbSocketGetLocalAddress);
-  REGISTER_SYMBOL(SbSocketIsConnected);
-  REGISTER_SYMBOL(SbSocketIsConnectedAndIdle);
   REGISTER_SYMBOL(SbSocketIsIpv6Supported);
-  REGISTER_SYMBOL(SbSocketJoinMulticastGroup);
   REGISTER_SYMBOL(SbSocketListen);
   REGISTER_SYMBOL(SbSocketReceiveFrom);
-  REGISTER_SYMBOL(SbSocketResolve);
-  REGISTER_SYMBOL(SbSocketSendTo);
-  REGISTER_SYMBOL(SbSocketSetBroadcast);
-  REGISTER_SYMBOL(SbSocketSetReceiveBufferSize);
   REGISTER_SYMBOL(SbSocketSetReuseAddress);
-  REGISTER_SYMBOL(SbSocketSetSendBufferSize);
-  REGISTER_SYMBOL(SbSocketSetTcpKeepAlive);
-  REGISTER_SYMBOL(SbSocketSetTcpNoDelay);
-  REGISTER_SYMBOL(SbSocketSetTcpWindowScaling);
   REGISTER_SYMBOL(SbSocketWaiterAdd);
   REGISTER_SYMBOL(SbSocketWaiterCreate);
   REGISTER_SYMBOL(SbSocketWaiterDestroy);
@@ -239,26 +225,18 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbWindowSetDefaultOptions);
 
   // POSIX APIs
-  REGISTER_SYMBOL(accept);
-  REGISTER_SYMBOL(bind);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
   REGISTER_SYMBOL(closedir);
-  REGISTER_SYMBOL(connect);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
-  REGISTER_SYMBOL(freeaddrinfo);
   REGISTER_SYMBOL(freeifaddrs);
-  REGISTER_SYMBOL(fstat);
   REGISTER_SYMBOL(fsync);
   REGISTER_SYMBOL(ftruncate);
-  REGISTER_SYMBOL(getaddrinfo);
-  REGISTER_SYMBOL(getifaddrs);
   REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(getsockopt);
   REGISTER_SYMBOL(listen);
-  REGISTER_SYMBOL(lseek);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(mkdir);
   REGISTER_SYMBOL(mprotect);
@@ -267,7 +245,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(open);
   REGISTER_SYMBOL(opendir);
   REGISTER_SYMBOL(posix_memalign);
-  REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(recvfrom);
@@ -276,11 +253,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(sched_yield);
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(sendto);
-  REGISTER_SYMBOL(setsockopt);
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
-  REGISTER_SYMBOL(stat);
   REGISTER_SYMBOL(unlink);
   REGISTER_SYMBOL(usleep);
   REGISTER_SYMBOL(vfwprintf);
@@ -387,16 +362,7 @@ ExportedSymbols::ExportedSymbols() {
   map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
   map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
 
-#if defined(_MSC_VER)
-  // MSVC provides a template with the same name.
-  // The cast helps the compiler to pick the correct C function pointer to be
-  // used.
-  REGISTER_SYMBOL(
-      static_cast<int (*)(wchar_t* buffer, size_t count, const wchar_t* format,
-                          va_list argptr)>(vswprintf));
-#else
   REGISTER_SYMBOL(vswprintf);
-#endif  // defined(_MSC_VER)
 
 }  // NOLINT
 
