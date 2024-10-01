@@ -16,7 +16,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <sstream>
 #include <string>
 
 #include "starboard/common/log.h"

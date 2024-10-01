@@ -15,7 +15,6 @@
 #ifndef STARBOARD_SHARED_STARBOARD_MEDIA_CODEC_UTIL_H_
 #define STARBOARD_SHARED_STARBOARD_MEDIA_CODEC_UTIL_H_
 
-#include <string>
 #include <vector>
 
 #include "starboard/common/optional.h"
