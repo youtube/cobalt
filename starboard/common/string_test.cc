@@ -26,7 +26,7 @@ TEST(StringTest, SplitString) {
   std::string str = "The quick brown fox jumps over the lazy dog";
   std::vector<std::string> output = SplitString(str, '.');
   ASSERT_EQ(output.size(), 1);
-  ASSERT_EQ(output[0], "The quick brown fox jumps over the lazy dog");
+  ASSERT_EQ(output[0], str);
 
   std::vector<std::string> vec = {"The",  "quick", "brown", "fox", "jumps",
                                   "over", "the",   "lazy",  "dog"};
@@ -43,10 +43,19 @@ TEST(StringTest, SplitString) {
   for (int i = 0; i < vec.size(); ++i) {
     ASSERT_EQ(output[i], vec[i]);
   }
+}
 
-  str = "";
-  output = SplitString(str, '.');
-  EXPECT_TRUE(output.empty());
+TEST(StringTest, SplitStringEmptyInput) {
+  std::string str;
+  std::vector<std::string> output = SplitString(str, '.');
+  ASSERT_TRUE(output.empty());
+}
+
+TEST(StringTest, SplitStringNullDelimiter) {
+  std::string str = "The quick brown fox jumps over the lazy dog";
+  std::vector<std::string> output = SplitString(str, '\0');
+  ASSERT_EQ(output.size(), 1);
+  ASSERT_EQ(output[0], str);
 }
 
 }  // namespace
