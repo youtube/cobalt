@@ -48,7 +48,7 @@ TEST(StringTest, SplitString) {
 TEST(StringTest, SplitStringEmpty) {
   std::string str;
   std::vector<std::string> output = SplitString(str, '.');
-  ASSERT_TRUE(output.empty());
+  EXPECT_TRUE(output.empty());
 }
 
 }  // namespace

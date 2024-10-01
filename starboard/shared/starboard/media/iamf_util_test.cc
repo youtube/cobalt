@@ -25,130 +25,135 @@ namespace media {
 namespace {
 
 TEST(IamfUtilTest, IsValid) {
-  std::string mime_type = "iamf.000.000.Opus";
-  IamfMimeUtil util(mime_type);
-  ASSERT_TRUE(util.is_valid());
+  std::string codec_param = "iamf.000.000.Opus";
+  IamfMimeUtil util(codec_param);
+  EXPECT_TRUE(util.is_valid());
 
-  mime_type = "iamf.000.000.fLaC";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_TRUE(util.is_valid());
+  codec_param = "iamf.000.000.fLaC";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_TRUE(util.is_valid());
 
-  mime_type = "iamf.000.000.ipcm";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_TRUE(util.is_valid());
+  codec_param = "iamf.000.000.ipcm";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_TRUE(util.is_valid());
 
-  mime_type = "iamf.000.000.mp4a.40.2";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_TRUE(util.is_valid());
+  codec_param = "iamf.000.000.mp4a.40.2";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_TRUE(util.is_valid());
 
-  mime_type = "iamf.000.000.vorbis";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_FALSE(util.is_valid());
+  codec_param = "iamf.000.000.vorbis";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
-  mime_type = "iamf.000.00.Opus";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_FALSE(util.is_valid());
+  codec_param = "iamf.000.00.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
-  mime_type = "iamf.000.999.Opus";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_FALSE(util.is_valid());
+  codec_param = "iamf.000.999.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
-  mime_type = "iamf.999.000.Opus";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_FALSE(util.is_valid());
+  codec_param = "iamf.999.000.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
-  mime_type = "iacb.000.000.Opus";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_FALSE(util.is_valid());
+  codec_param = "iacb.000.000.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
-  mime_type = "iamf.000.000.Opus.40.2";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_FALSE(util.is_valid());
+  codec_param = "iamf.000.000.Opus.40.2";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
-  mime_type = "iamf.000.000.mp4a.40.3";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_FALSE(util.is_valid());
+  codec_param = "iamf.000.000.mp4a.40.3";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
-  mime_type = "iamf.000.000.mp4a.40.20";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_FALSE(util.is_valid());
+  codec_param = "iamf.000.000.mp4a.40.20";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
-  mime_type = "iamf.000.000..Opus";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_FALSE(util.is_valid());
+  codec_param = "iamf.000.000..Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
-  mime_type = "iamf000.000.Opus";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_FALSE(util.is_valid());
+  codec_param = "iamf000.000.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
-  mime_type = "iamf.00.000.Opus";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_FALSE(util.is_valid());
+  codec_param = "iamf.00.000.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
-  mime_type = "iamf.000.00.Opus";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_FALSE(util.is_valid());
+  codec_param = "iamf.000.00.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
-  mime_type = "iamf.000.00.mp4a.40.20";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_FALSE(util.is_valid());
+  codec_param = "iamf.000.00.mp4a.40.20";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
-  mime_type = "iamf.000.000.mp4a.402.";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_FALSE(util.is_valid());
+  codec_param = "iamf.000.000.mp4a.402.";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
-  mime_type = "ec-3";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_FALSE(util.is_valid());
+  codec_param = "ec-3";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 }
 
 TEST(IamfUtilTest, SubstreamCodec) {
-  std::string mime_type = "iamf.000.000.vorbis";
-  IamfMimeUtil util(mime_type);
-  ASSERT_EQ(util.substream_codec(), kIamfSubstreamCodecUnknown);
+  std::string codec_param = "iamf.000.000.vorbis";
+  IamfMimeUtil util(codec_param);
+  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecUnknown);
 
-  mime_type = "iamf.000.000";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_EQ(util.substream_codec(), kIamfSubstreamCodecUnknown);
+  codec_param = "iamf.000.000";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecUnknown);
 
-  mime_type = "iamf.000.000.opus";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_EQ(util.substream_codec(), kIamfSubstreamCodecUnknown);
+  codec_param = "iamf.000.000.opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecUnknown);
 
-  mime_type = "iamf.000.000.flac";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_EQ(util.substream_codec(), kIamfSubstreamCodecUnknown);
+  codec_param = "iamf.000.000.flac";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecUnknown);
 
-  mime_type = "iamf.000.000.Opus";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_EQ(util.substream_codec(), kIamfSubstreamCodecOpus);
+  codec_param = "iamf.000.000.mp4a.40.3";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecUnknown);
 
-  mime_type = "iamf.000.000.fLaC";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_EQ(util.substream_codec(), kIamfSubstreamCodecFlac);
+  codec_param = "iamf.000.000.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecOpus);
 
-  mime_type = "iamf.000.000.ipcm";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_EQ(util.substream_codec(), kIamfSubstreamCodecIpcm);
+  codec_param = "iamf.000.000.fLaC";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecFlac);
 
-  mime_type = "iamf.000.000.mp4a.40.2";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_EQ(util.substream_codec(), kIamfSubstreamCodecMp4a);
+  codec_param = "iamf.000.000.ipcm";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecIpcm);
+
+  codec_param = "iamf.000.000.mp4a.40.2";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecMp4a);
 }
 
 TEST(IamfUtilTest, Profile) {
-  std::string mime_type = "iamf.000.000.Opus";
-  IamfMimeUtil util(mime_type);
-  ASSERT_EQ(util.profile(), kIamfProfileSimple);
+  std::string codec_param = "iamf.000.000.Opus";
+  IamfMimeUtil util(codec_param);
+  EXPECT_EQ(util.profile(), kIamfProfileSimple);
 
-  mime_type = "iamf.001.000.Opus";
-  util = IamfMimeUtil(mime_type);
-  ASSERT_EQ(util.profile(), kIamfProfileBase);
+  codec_param = "iamf.001.000.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_EQ(util.profile(), kIamfProfileBase);
 
-  mime_type = "iamf.002.000.Opus";
-  util = IamfMimeUtil(mime_type);
+  codec_param = "iamf.002.000.Opus";
+  util = IamfMimeUtil(codec_param);
   ASSERT_NE(util.profile(), kIamfProfileSimple);
   ASSERT_NE(util.profile(), kIamfProfileBase);
+  ASSERT_EQ(util.profile(), 2);
 }
 
 }  // namespace
