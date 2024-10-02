@@ -614,6 +614,9 @@ template("shared_library") {
       }
     }
 
+    # TODO(todo): Targets that have an evergreen loader don't support the
+    # regular install target. This should be controlled in some manner
+    # other than target name.
     if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
         target_name != "loader_app") {
       evergreen_loader(original_target_name + "_evergreen_loader") {
