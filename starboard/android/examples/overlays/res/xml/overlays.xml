@@ -33,5 +33,5 @@
     SbMediaGetBufferGarbageCollectionDurationThreshold() will be set to this
     value. Set to 0 to use the default value.
   -->
-  <item target="long/garbage_collection_duration_threshold" value="0" />
+  <item target="long/buffer_garbage_collection_duration_threshold" value="0" />
 </overlay>

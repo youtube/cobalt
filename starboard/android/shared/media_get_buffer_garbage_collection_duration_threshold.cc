@@ -19,7 +19,8 @@
 int64_t SbMediaGetBufferGarbageCollectionDurationThreshold() {
   const int64_t overlayed_threshold =
       starboard::android::shared::ApplicationAndroid::Get()
-          ->GetOverlayedIntValue("garbage_collection_duration_threshold");
+          ->GetOverlayedIntValue(
+              "buffer_garbage_collection_duration_threshold");
   if (overlayed_threshold != 0) {
     return overlayed_threshold;
   }

@@ -35,7 +35,7 @@
      SbMediaGetBufferGarbageCollectionDurationThreshold() will be set to this
      value. Set to 0 to use the default value.
   -->
-  <integer name="garbage_collection_duration_threshold"
+  <integer name="buffer_garbage_collection_duration_threshold"
         tools:ignore="DuplicateDefinition">0</integer>
 
 </resources>

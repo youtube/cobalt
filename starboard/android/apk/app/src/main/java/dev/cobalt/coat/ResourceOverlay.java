@@ -38,7 +38,7 @@ public class ResourceOverlay {
 
   @SuppressWarnings("MemberName")
   @UsedByNative
-  public final int garbage_collection_duration_threshold;
+  public final int buffer_garbage_collection_duration_threshold;
 
   public ResourceOverlay(Context context) {
     // Load the values for all Overlay variables.
@@ -48,7 +48,7 @@ public class ResourceOverlay {
         context.getResources().getInteger(R.integer.max_video_buffer_budget);
     this.min_audio_sink_buffer_size_in_frames =
         context.getResources().getInteger(R.integer.min_audio_sink_buffer_size_in_frames);
-    this.garbage_collection_duration_threshold =
-        context.getResources().getInteger(R.integer.garbage_collection_duration_threshold);
+    this.buffer_garbage_collection_duration_threshold =
+        context.getResources().getInteger(R.integer.buffer_garbage_collection_duration_threshold);
   }
 }
