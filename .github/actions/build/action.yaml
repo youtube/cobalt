@@ -18,22 +18,44 @@ runs:
         set -x
         env
         if [ -z ${COBALT_EVERGREEN_LOADER+x} ]; then
-          BUILD_PLATFORM=${{ matrix.target_platform }}
-          BUILD_TARGET=all
-          if [[ "${{matrix.config}}" =~ ^(qa|gold)$ ]]; then
-            BUILD_TARGET=default
+          BUILD_PLATFORM="${{ matrix.target_platform }}"
+          BUILD_TARGET="default"
+          if [[ "${{ matrix.config }}" =~ ^(debug|devel)$ ]]; then
+            BUILD_TARGET="all"
           fi
         else
-          BUILD_PLATFORM=${COBALT_EVERGREEN_LOADER}
-          BUILD_TARGET='loader_app_install elf_loader_sandbox_install native_target/crashpad_handler'
+          # TODO: We should build evergreen compat targets here too.
+          # nplb_evergreen_loader_install
+          # nplb_evergreen_compat_tests_evergreen_loader_install
+
+          BUILD_PLATFORM="${COBALT_EVERGREEN_LOADER}"
+          BUILD_TARGET="loader_app_install elf_loader_sandbox_install native_target/crashpad_handler"
+
+          # TODO(todo): Use gn to query for targets.
+          # Specify build targets for EG AOSP loader build. We have to list all
+          # targets here since the `all` target is not support on EG platform builds.
+          if [[ "${BUILD_PLATFORM}" == "android-arm" && "${{ matrix.config }}" =~ ^(debug|devel)$ ]]; then
+            BUILD_TARGET="${BUILD_TARGET} nplb_evergreen_loader_install"
+          fi
         fi
+
+        # TODO(todo): Adapt image to GitHub and remove this.
         # GitHub Runners have home set to /github/home.
         if [ -d /root/starboard-toolchains ]; then
           ln -s /root/starboard-toolchains /github/home/starboard-toolchains
         fi
-        # Set Ninja output format
+
+        # Set Ninja output format.
         NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] "
-        ninja -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET}
+
+        # TODO(todo): Half workers for EG AOSP build as it runs out of memory while building.
+        if [[ -n ${COBALT_EVERGREEN_LOADER} && "${BUILD_PLATFORM}" == "android-arm" ]]; then
+          ninja -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET}
+          ninja -j 1 -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET_INSTALL}
+        else
+          ninja -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET}
+        fi
+
       shell: bash
     - name: Show Sccache Stats
       run: sccache -s
