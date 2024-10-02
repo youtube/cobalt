@@ -327,8 +327,11 @@ is_posix = !is_win && !is_fuchsia
 # requirement and just need to add a config everywhere, reference it as a
 # sub-config of an existing one, most commonly the main "compiler" one.
 
+import("//starboard/build/config/variables.gni")
+
 # Holds all configs used for running the compiler.
 default_compiler_configs = [
+  "//starboard/build/config:starboard",
   "//build/config:feature_flags",
   "//build/config/compiler:afdo",
   "//build/config/compiler:afdo_optimize_size",
@@ -353,6 +356,7 @@ default_compiler_configs = [
   "//build/config/coverage:default_coverage",
   "//build/config/sanitizers:default_sanitizer_flags",
 ]
+default_compiler_configs += [ "//starboard/linux/x64x11/platform_configuration", "//starboard/linux/shared/platform_configuration:no_pedantic_warnings" ]
 
 if (is_win) {
   default_compiler_configs += [
