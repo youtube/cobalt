@@ -461,24 +461,16 @@ ExportedSymbols::ExportedSymbols() {
 
 #if SB_API_VERSION >= 16
   // POSIX APIs
-  REGISTER_SYMBOL(accept);
-  REGISTER_SYMBOL(bind);
   REGISTER_SYMBOL(calloc);
   REGISTER_SYMBOL(close);
   REGISTER_SYMBOL(closedir);
-  REGISTER_SYMBOL(connect);
   REGISTER_SYMBOL(fcntl);
   REGISTER_SYMBOL(free);
-  REGISTER_SYMBOL(freeaddrinfo);
   REGISTER_SYMBOL(freeifaddrs);
-  REGISTER_SYMBOL(fstat);
   REGISTER_SYMBOL(fsync);
   REGISTER_SYMBOL(ftruncate);
-  REGISTER_SYMBOL(getaddrinfo);
-  REGISTER_SYMBOL(getifaddrs);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(listen);
-  REGISTER_SYMBOL(lseek);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(mkdir);
   REGISTER_SYMBOL(mprotect);
@@ -487,7 +479,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(open);
   REGISTER_SYMBOL(opendir);
   REGISTER_SYMBOL(posix_memalign);
-  REGISTER_SYMBOL(read);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(send);
@@ -495,11 +486,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(rmdir);
   REGISTER_SYMBOL(sched_yield);
   REGISTER_SYMBOL(sendto);
-  REGISTER_SYMBOL(setsockopt);
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(snprintf);
   REGISTER_SYMBOL(sprintf);
-  REGISTER_SYMBOL(stat);
   REGISTER_SYMBOL(unlink);
   REGISTER_SYMBOL(usleep);
   REGISTER_SYMBOL(vfwprintf);
