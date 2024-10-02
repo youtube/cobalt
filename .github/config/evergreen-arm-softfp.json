@@ -2,7 +2,7 @@
   "docker_service": "build-android-evergreen",
   "evergreen_loader": "android-arm",
   "on_device_test": {
-    "enabled": false,
+    "enabled": true,
     "tests": [
       "evergreen_test",
       "0",
