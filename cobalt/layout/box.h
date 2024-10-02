@@ -116,7 +116,9 @@ inline std::ostream& operator<<(std::ostream& stream,
   stream << "{shrink_to_fit_width_forced=" << params.shrink_to_fit_width_forced
          << " freeze_width=" << params.freeze_width
          << " freeze_height=" << params.freeze_height
-         << " containing_block_size=" << params.containing_block_size << "}";
+         << " containing_block_size=" << params.containing_block_size
+         << " containing_block_direction=" << params.containing_block_direction
+         << "}";
   return stream;
 }
 
