@@ -25,6 +25,23 @@
 namespace cobalt {
 namespace media {
 
+SbDrmSystem CreateSbDrmSystemWithHistogram(
+    const char* key_system, void* context,
+    SbDrmSessionUpdateRequestFunc update_request_callback,
+    SbDrmSessionUpdatedFunc session_updated_callback,
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
+    SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
+    SbDrmSessionClosedFunc session_closed_callback,
+    MediaMetricsProvider& media_metrics_provider) {
+  media_metrics_provider.StartTrackingAction(MediaAction::SBDRM_CREATE);
+  auto drm_system = SbDrmCreateSystem(
+      key_system, context, update_request_callback, session_updated_callback,
+      key_statuses_changed_callback, server_certificate_updated_callback,
+      session_closed_callback);
+  media_metrics_provider.EndTrackingAction(MediaAction::SBDRM_CREATE);
+  return drm_system;
+}
+
 DECLARE_INSTANCE_COUNTER(DrmSystem);
 
 DrmSystem::Session::Session(
@@ -80,10 +97,11 @@ void DrmSystem::Session::Close() {
 }
 
 DrmSystem::DrmSystem(const char* key_system)
-    : wrapped_drm_system_(SbDrmCreateSystem(
+    : wrapped_drm_system_(CreateSbDrmSystemWithHistogram(
           key_system, this, OnSessionUpdateRequestGeneratedFunc,
           OnSessionUpdatedFunc, OnSessionKeyStatusesChangedFunc,
-          OnServerCertificateUpdatedFunc, OnSessionClosedFunc)),
+          OnServerCertificateUpdatedFunc, OnSessionClosedFunc,
+          media_metrics_provider_)),
       task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()) {
