@@ -34,21 +34,6 @@ constexpr bool IsPowerOfTwo(T value) {
   return value > 0 && (value & (value - 1)) == 0;
 }
 
-#ifdef COBALT_PENDING_CLEAN_UP
-// Round up |size| to a multiple of alignment, which must be a power of two.
-inline size_t Align(size_t size, size_t alignment) {
-  DCHECK(IsPowerOfTwo(alignment));
-  return (size + alignment - 1) & ~(alignment - 1);
-}
-
-// Round up |size| to a multiple of alignment, which must be a power of two.
-inline constexpr size_t AlignUp(size_t size, size_t alignment) {
-  DCHECK(IsPowerOfTwo(alignment));
-  return (size + alignment - 1) & ~(alignment - 1);
-}
-#endif
-
-
 // Round down |size| to a multiple of alignment, which must be a power of two.
 template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
 constexpr T AlignDown(T size, T alignment) {
@@ -95,56 +80,6 @@ inline T* AlignUp(T* ptr, uintptr_t alignment) {
 // TODO(pkasting): When C++20 is available, replace with std::countl_zero() and
 // similar.
 
-#if defined(COMPILER_MSVC)
-
-template <typename T, unsigned bits = sizeof(T) * 8>
-ALWAYS_INLINE
-    typename std::enable_if<std::is_unsigned<T>::value && sizeof(T) <= 4,
-                            unsigned>::type
-    CountLeadingZeroBits(T x) {
-  static_assert(bits > 0, "invalid instantiation");
-  unsigned long index;
-  return LIKELY(_BitScanReverse(&index, static_cast<uint32_t>(x)))
-             ? (31 - index - (32 - bits))
-             : bits;
-}
-
-template <typename T, unsigned bits = sizeof(T) * 8>
-ALWAYS_INLINE
-    typename std::enable_if<std::is_unsigned<T>::value && sizeof(T) == 8,
-                            unsigned>::type
-    CountLeadingZeroBits(T x) {
-  static_assert(bits > 0, "invalid instantiation");
-  unsigned long index;
-  return LIKELY(_BitScanReverse64(&index, static_cast<uint64_t>(x)))
-             ? (63 - index)
-             : 64;
-}
-
-template <typename T, unsigned bits = sizeof(T) * 8>
-ALWAYS_INLINE
-    typename std::enable_if<std::is_unsigned<T>::value && sizeof(T) <= 4,
-                            unsigned>::type
-    CountTrailingZeroBits(T x) {
-  static_assert(bits > 0, "invalid instantiation");
-  unsigned long index;
-  return LIKELY(_BitScanForward(&index, static_cast<uint32_t>(x))) ? index
-                                                                   : bits;
-}
-
-template <typename T, unsigned bits = sizeof(T) * 8>
-ALWAYS_INLINE
-    typename std::enable_if<std::is_unsigned<T>::value && sizeof(T) == 8,
-                            unsigned>::type
-    CountTrailingZeroBits(T x) {
-  static_assert(bits > 0, "invalid instantiation");
-  unsigned long index;
-  return LIKELY(_BitScanForward64(&index, static_cast<uint64_t>(x))) ? index
-                                                                     : 64;
-}
-
-#elif defined(COMPILER_GCC)
-
 // __builtin_clz has undefined behaviour for an input of 0, even though there's
 // clearly a return value that makes sense, and even though some processor clz
 // instructions have defined behaviour for 0. We could drop to raw __asm__ to
@@ -173,8 +108,6 @@ ALWAYS_INLINE constexpr
                        : bits;
 }
 
-#endif
-
 // Returns the integer i such as 2^i <= n < 2^(i+1).
 //
 // There is a common `BitLength` function, which returns the number of bits
@@ -182,12 +115,12 @@ ALWAYS_INLINE constexpr
 // use `Log2Floor` and add 1 to the result.
 //
 // TODO(pkasting): When C++20 is available, replace with std::bit_xxx().
-ALWAYS_INLINE int Log2Floor(uint32_t n) {
+constexpr int Log2Floor(uint32_t n) {
   return 31 - CountLeadingZeroBits(n);
 }
 
 // Returns the integer i such as 2^(i-1) < n <= 2^i.
-ALWAYS_INLINE int Log2Ceiling(uint32_t n) {
+constexpr int Log2Ceiling(uint32_t n) {
   // When n == 0, we want the function to return -1.
   // When n == 0, (n - 1) will underflow to 0xFFFFFFFF, which is
   // why the statement below starts with (n ? 32 : -1).

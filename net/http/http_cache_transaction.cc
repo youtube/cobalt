@@ -72,16 +72,6 @@ using CacheEntryStatus = HttpResponseInfo::CacheEntryStatus;
 
 namespace {
 
-#if defined(STARBOARD)
-// Default allowlist based off MIME types associated with top
-// resource types defined in resource_type.h.
-static const char* const kMimeTypesCacheAllowlist[] = {
-    "text/html", "text/css",      "image/gif",  "image/jpeg",
-    "image/png", "image/svg+xml", "image/webp", "font/otf",
-    "font/ttf",  "font/woff",     "font/woff2", "text/javascript",
-    "example/unit_test", "application/javascript"};
-#endif
-
 constexpr base::TimeDelta kStaleRevalidateTimeout = base::Seconds(60);
 
 uint64_t GetNextTraceId(HttpCache* cache) {
@@ -4080,25 +4070,6 @@ bool HttpCache::Transaction::ShouldDisableCaching(
   if (headers.HasHeaderValue("cache-control", "no-store")) {
     return true;
   }
-
-#if defined(STARBOARD)
-  if (cache_.get() && cache_->can_disable_by_mime_type()) {
-    // Only allow caching for specific mime types.
-    std::string mime_type;
-    response_.headers->GetMimeType(&mime_type);
-    bool is_allowed_mime_type = false;
-    for (auto allowed_type : kMimeTypesCacheAllowlist) {
-      if (mime_type.compare(allowed_type) == 0) {
-        is_allowed_mime_type = true;
-        break;
-      }
-    }
-
-    if (!is_allowed_mime_type) {
-      return true;
-    }
-  }
-#endif
 
   bool disable_caching = false;
   if (base::FeatureList::IsEnabled(

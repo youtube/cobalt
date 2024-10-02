@@ -7,7 +7,6 @@
 
 #include <stddef.h>
 
-#include <limits>
 #include <utility>
 
 #include "base/atomic_ref_count.h"

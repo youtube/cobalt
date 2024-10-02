@@ -1432,9 +1432,7 @@ bool QuicChromiumClientSession::GetSSLInfo(SSLInfo* ssl_info) const {
   ssl_info->signed_certificate_timestamps = cert_verify_result_->scts;
   ssl_info->ct_policy_compliance = cert_verify_result_->policy_compliance;
 
-#if !defined(STARBOARD)
   DCHECK(connection()->version().UsesTls());
-#endif
   const auto& crypto_params = crypto_stream_->crypto_negotiated_params();
   uint16_t cipher_suite = crypto_params.cipher_suite;
   int ssl_connection_status = 0;
@@ -2038,10 +2036,8 @@ void QuicChromiumClientSession::OnConnectionClosed(
         tick_clock_->NowTicks() - connect_timing_.connect_end);
     UMA_HISTOGRAM_COUNTS_100("Net.QuicSession.NumMigrations", num_migrations_);
 
-#if !defined(STARBOARD)
     // KeyUpdates are used in TLS, but we no longer support pre-TLS QUIC.
     DCHECK(connection()->version().UsesTls());
-#endif
     base::UmaHistogramCounts100("Net.QuicSession.KeyUpdate.PerConnection2",
                                 connection()->GetStats().key_update_count);
     base::UmaHistogramCounts100(
@@ -3121,10 +3117,7 @@ QuicChromiumClientSession::CreateContextForMultiPortPath() {
 
 void QuicChromiumClientSession::MigrateToMultiPortPath(
     std::unique_ptr<quic::QuicPathValidationContext> context) {
-/* Cobalt
   DCHECK_NE(nullptr, context);
-Cobalt */
-  DCHECK_NE(nullptr, context.get());
   auto* chrome_context =
       static_cast<QuicChromiumPathValidationContext*>(context.get());
   std::unique_ptr<QuicChromiumPacketWriter> owned_writer =

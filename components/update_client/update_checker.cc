@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -6,26 +6,26 @@
 
 #include <stddef.h>
 
-#include <algorithm>
 #include <functional>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "base/bind.h"
+#include "base/check.h"
+#include "base/check_op.h"
+#include "base/containers/flat_map.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/location.h"
 #include "base/logging.h"
-#include "base/macros.h"
+#include "base/memory/raw_ptr.h"
+#include "base/ranges/algorithm.h"
 #include "base/sequence_checker.h"
-#include "base/strings/stringprintf.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
-#if defined(STARBOARD)
-#include "chrome/updater/util.h"
-#include "components/update_client/cobalt_slot_management.h"
-#endif
+#include "components/update_client/activity_data_service.h"
 #include "components/update_client/component.h"
 #include "components/update_client/configurator.h"
 #include "components/update_client/persisted_data.h"
@@ -35,79 +35,46 @@
 #include "components/update_client/request_sender.h"
 #include "components/update_client/task_traits.h"
 #include "components/update_client/update_client.h"
-#include "components/update_client/updater_state.h"
+#include "components/update_client/update_engine.h"
 #include "components/update_client/utils.h"
-#if defined(STARBOARD)
-#include "starboard/extension/free_space.h"
-#endif
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "url/gurl.h"
 
 namespace update_client {
 
 namespace {
 
-// Returns a sanitized version of the brand or an empty string otherwise.
-std::string SanitizeBrand(const std::string& brand) {
-  return IsValidBrand(brand) ? brand : std::string("");
-}
-
-// Returns true if at least one item requires network encryption.
-bool IsEncryptionRequired(const IdToComponentPtrMap& components) {
-  for (const auto& item : components) {
-    const auto& component = item.second;
-    if (component->crx_component() &&
-        component->crx_component()->requires_network_encryption)
-      return true;
-  }
-  return false;
-}
-
-// Filters invalid attributes from |installer_attributes|.
-using InstallerAttributesFlatMap = base::flat_map<std::string, std::string>;
-InstallerAttributesFlatMap SanitizeInstallerAttributes(
-    const InstallerAttributes& installer_attributes) {
-  InstallerAttributesFlatMap sanitized_attrs;
-  for (const auto& attr : installer_attributes) {
-    if (IsValidInstallerAttribute(attr))
-      sanitized_attrs.insert(attr);
-  }
-  return sanitized_attrs;
-}
-
 class UpdateCheckerImpl : public UpdateChecker {
  public:
   UpdateCheckerImpl(scoped_refptr<Configurator> config,
                     PersistedData* metadata);
+
+  UpdateCheckerImpl(const UpdateCheckerImpl&) = delete;
+  UpdateCheckerImpl& operator=(const UpdateCheckerImpl&) = delete;
+
   ~UpdateCheckerImpl() override;
 
   // Overrides for UpdateChecker.
   void CheckForUpdates(
-      const std::string& session_id,
-      const std::vector<std::string>& ids_checked,
-      const IdToComponentPtrMap& components,
+      scoped_refptr<UpdateContext> context,
       const base::flat_map<std::string, std::string>& additional_attributes,
-      bool enabled_component_updates,
       UpdateCheckCallback update_check_callback) override;
 
-#if defined(STARBOARD)
-  PersistedData* GetPersistedData() override { return metadata_; }
-#endif
-
  private:
-  void ReadUpdaterStateAttributes();
+  UpdaterStateAttributes ReadUpdaterStateAttributes() const;
   void CheckForUpdatesHelper(
-      const std::string& session_id,
-      const IdToComponentPtrMap& components,
+      scoped_refptr<UpdateContext> context,
+      const std::vector<GURL>& urls,
       const base::flat_map<std::string, std::string>& additional_attributes,
-      bool enabled_component_updates);
-#if defined(STARBOARD)
-  void Cancel() ;
-  virtual bool SkipUpdate(const CobaltExtensionInstallationManagerApi* installation_api);
-#endif
-  void OnRequestSenderComplete(int error,
+      const UpdaterStateAttributes& updater_state_attributes,
+      const std::set<std::string>& active_ids);
+  void OnRequestSenderComplete(scoped_refptr<UpdateContext> context,
+                               absl::optional<base::OnceClosure> fallback,
+                               int error,
                                const std::string& response,
                                int retry_after_sec);
-  void UpdateCheckSucceeded(const ProtocolParser::Results& results,
+  void UpdateCheckSucceeded(scoped_refptr<UpdateContext> context,
+                            const ProtocolParser::Results& results,
                             int retry_after_sec);
   void UpdateCheckFailed(ErrorCategory error_category,
                          int error,
@@ -116,104 +83,104 @@ class UpdateCheckerImpl : public UpdateChecker {
   SEQUENCE_CHECKER(sequence_checker_);
 
   const scoped_refptr<Configurator> config_;
-  PersistedData* metadata_ = nullptr;
-  std::vector<std::string> ids_checked_;
+  raw_ptr<PersistedData> metadata_ = nullptr;
   UpdateCheckCallback update_check_callback_;
-  std::unique_ptr<UpdaterState::Attributes> updater_state_attributes_;
   std::unique_ptr<RequestSender> request_sender_;
-
-  DISALLOW_COPY_AND_ASSIGN(UpdateCheckerImpl);
 };
 
 UpdateCheckerImpl::UpdateCheckerImpl(scoped_refptr<Configurator> config,
                                      PersistedData* metadata)
-    : config_(config), metadata_(metadata) {
-#if defined(STARBOARD)
-  LOG(INFO) << "UpdateCheckerImpl::UpdateCheckerImpl";
-#endif
-}
+    : config_(config), metadata_(metadata) {}
 
 UpdateCheckerImpl::~UpdateCheckerImpl() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if defined(STARBOARD)
-  LOG(INFO) << "UpdateCheckerImpl::~UpdateCheckerImpl";
-#endif
 }
 
 void UpdateCheckerImpl::CheckForUpdates(
-    const std::string& session_id,
-    const std::vector<std::string>& ids_checked,
-    const IdToComponentPtrMap& components,
+    scoped_refptr<UpdateContext> context,
     const base::flat_map<std::string, std::string>& additional_attributes,
-    bool enabled_component_updates,
     UpdateCheckCallback update_check_callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if defined(STARBOARD)
-  LOG(INFO) << "UpdateCheckerImpl::CheckForUpdates";
-#endif
 
-  ids_checked_ = ids_checked;
   update_check_callback_ = std::move(update_check_callback);
 
-  base::ThreadPool::PostTaskAndReply(
+  auto check_for_updates_invoker = base::BindOnce(
+      &UpdateCheckerImpl::CheckForUpdatesHelper, base::Unretained(this),
+      context, config_->UpdateUrl(), additional_attributes);
+
+  base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, kTaskTraits,
       base::BindOnce(&UpdateCheckerImpl::ReadUpdaterStateAttributes,
                      base::Unretained(this)),
-      base::BindOnce(&UpdateCheckerImpl::CheckForUpdatesHelper,
-                     base::Unretained(this), session_id, std::cref(components),
-                     additional_attributes, enabled_component_updates));
+      base::BindOnce(
+          [](base::OnceCallback<void(const UpdaterStateAttributes&,
+                                     const std::set<std::string>&)>
+                 check_for_updates_invoker,
+             PersistedData* metadata, std::vector<std::string> ids,
+             const UpdaterStateAttributes& updater_state_attributes) {
+            metadata->GetActiveBits(
+                ids, base::BindOnce(std::move(check_for_updates_invoker),
+                                    updater_state_attributes));
+          },
+          std::move(check_for_updates_invoker), base::Unretained(metadata_),
+          context->components_to_check_for_updates));
 }
 
 // This function runs on the blocking pool task runner.
-void UpdateCheckerImpl::ReadUpdaterStateAttributes() {
-#if defined(STARBOARD)
-  LOG(INFO) << "UpdateCheckerImpl::ReadUpdaterStateAttributes";
-#endif
-
-#if defined(OS_WIN)
+UpdaterStateAttributes UpdateCheckerImpl::ReadUpdaterStateAttributes() const {
+#if BUILDFLAG(IS_WIN)
   // On Windows, the Chrome and the updater install modes are matched by design.
-  updater_state_attributes_ =
-      UpdaterState::GetState(!config_->IsPerUserInstall());
-#elif defined(OS_MACOSX) && !defined(OS_IOS)
-  // MacOS ignores this value in the current implementation but this may change.
-  updater_state_attributes_ = UpdaterState::GetState(false);
+  return config_->GetUpdaterStateProvider().Run(!config_->IsPerUserInstall());
+#elif BUILDFLAG(IS_MAC)
+  return config_->GetUpdaterStateProvider().Run(false);
 #else
-// Other platforms don't have updaters.
-#endif  // OS_WIN
+  return {};
+#endif  // BUILDFLAG(IS_WIN)
 }
 
 void UpdateCheckerImpl::CheckForUpdatesHelper(
-    const std::string& session_id,
-    const IdToComponentPtrMap& components,
+    scoped_refptr<UpdateContext> context,
+    const std::vector<GURL>& urls,
     const base::flat_map<std::string, std::string>& additional_attributes,
-    bool enabled_component_updates) {
+    const UpdaterStateAttributes& updater_state_attributes,
+    const std::set<std::string>& active_ids) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-#if defined(STARBOARD)
-  LOG(INFO) << "UpdateCheckerImpl::CheckForUpdatesHelper";
-#endif
 
-  auto urls(config_->UpdateUrl());
-  if (IsEncryptionRequired(components))
-    RemoveUnsecureUrls(&urls);
+  if (urls.empty()) {
+    UpdateCheckFailed(ErrorCategory::kUpdateCheck,
+                      static_cast<int>(ProtocolError::MISSING_URLS), 0);
+    return;
+  }
+  GURL url = urls.front();
 
   // Components in this update check are either all foreground, or all
   // background since this member is inherited from the component's update
   // context. Pick the state of the first component to use in the update check.
-  DCHECK(!components.empty());
-  const bool is_foreground = components.at(ids_checked_[0])->is_foreground();
-  DCHECK(
-      std::all_of(components.cbegin(), components.cend(),
-                  [is_foreground](IdToComponentPtrMap::const_reference& elem) {
-                    return is_foreground == elem.second->is_foreground();
-                  }));
+  CHECK(!context->components.empty());
+  const bool is_foreground =
+      context->components.cbegin()->second->is_foreground();
+  CHECK(base::ranges::all_of(
+      context->components,
+      [is_foreground](IdToComponentPtrMap::const_reference& elem) {
+        return is_foreground == elem.second->is_foreground();
+      }));
+
+  std::vector<std::string> sent_ids;
 
   std::vector<protocol_request::App> apps;
-  for (const auto& app_id : ids_checked_) {
-    DCHECK_EQ(1u, components.count(app_id));
-    const auto& component = components.at(app_id);
-    DCHECK_EQ(component->id(), app_id);
+  for (const auto& app_id : context->components_to_check_for_updates) {
+    CHECK_EQ(1u, context->components.count(app_id));
+    const auto& component = context->components.at(app_id);
+    CHECK_EQ(component->id(), app_id);
     const auto& crx_component = component->crx_component();
-    DCHECK(crx_component);
+    CHECK(crx_component);
+
+    if (crx_component->requires_network_encryption &&
+        !url.SchemeIsCryptographic()) {
+      continue;
+    }
+
+    sent_ids.push_back(app_id);
 
     std::string install_source;
     if (!crx_component->install_source.empty())
@@ -221,116 +188,67 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
     else if (component->is_foreground())
       install_source = "ondemand";
 
-    const bool is_update_disabled =
-        crx_component->supports_group_policy_enable_component_updates &&
-        !enabled_component_updates;
-
-    base::Version current_version = crx_component->version;
-#if defined(STARBOARD)
-    // Check if there is an available update already for quick roll-forward
-    auto installation_api =
-        static_cast<const CobaltExtensionInstallationManagerApi*>(
-            SbSystemGetExtension(kCobaltExtensionInstallationManagerName));
-    if (!installation_api) {
-      LOG(ERROR) << "UpdaterChecker: "
-                 << "Failed to get installation manager extension.";
-      return;
-    }
-
-    if (SkipUpdate(installation_api)) {
-      LOG(WARNING) << "UpdaterChecker is skipping";
-      UpdateCheckFailed(ErrorCategory::kUpdateCheck,
-        static_cast<int>(UpdateCheckError::OUT_OF_SPACE), -1);
-      return;
-    }
-
-    if (CobaltQuickUpdate(installation_api, current_version)) {
-      // The last parameter in UpdateCheckFailed below, which is to be passed to
-      // update_check_callback_, indicates a throttling by the update server.
-      // Only non-negative values are valid. Negative values are not trusted
-      // and are ignored.
-      UpdateCheckFailed(ErrorCategory::kUpdateCheck,
-                        static_cast<int>(UpdateCheckError::QUICK_ROLL_FORWARD),
-                        -1);
-
-      return;
-    }
-
-    std::string last_installed_version =
-        GetPersistedData()->GetLastInstalledVersion(app_id);
-    // If the version of the last installed update package is higher than the
-    // version of the running binary, use the former to indicate the current
-    // update version in the update check request.
-    if (!last_installed_version.empty() &&
-        base::Version(last_installed_version).CompareTo(current_version) > 0) {
-      current_version = base::Version(last_installed_version);
-    }
-// If the quick roll forward update slot candidate doesn't exist, continue
-// with update check.
-#endif
     apps.push_back(MakeProtocolApp(
-        app_id, current_version, SanitizeBrand(config_->GetBrand()),
-        install_source, crx_component->install_location,
-        crx_component->fingerprint,
-        SanitizeInstallerAttributes(crx_component->installer_attributes),
-        metadata_->GetCohort(app_id), metadata_->GetCohortName(app_id),
-        metadata_->GetCohortHint(app_id), crx_component->disabled_reasons,
-        MakeProtocolUpdateCheck(is_update_disabled),
-        MakeProtocolPing(app_id, metadata_)));
+        app_id, crx_component->version, crx_component->ap, crx_component->brand,
+        config_->GetLang(), metadata_->GetInstallDate(app_id), install_source,
+        crx_component->install_location, crx_component->fingerprint,
+        crx_component->installer_attributes, metadata_->GetCohort(app_id),
+        metadata_->GetCohortHint(app_id), metadata_->GetCohortName(app_id),
+        crx_component->channel, crx_component->disabled_reasons,
+        MakeProtocolUpdateCheck(!crx_component->updates_enabled,
+                                crx_component->target_version_prefix,
+                                crx_component->rollback_allowed,
+                                crx_component->same_version_update_allowed),
+        [](const std::string& install_data_index)
+            -> std::vector<protocol_request::Data> {
+          if (install_data_index.empty())
+            return {};
+          else
+            return {{"install", install_data_index, ""}};
+        }(crx_component->install_data_index),
+        MakeProtocolPing(app_id, metadata_,
+                         active_ids.find(app_id) != active_ids.end()),
+        absl::nullopt));
+  }
+
+  if (sent_ids.empty()) {
+    // No apps could be checked over this URL.
+    UpdateCheckFailed(ErrorCategory::kUpdateCheck,
+                      static_cast<int>(ProtocolError::MISSING_URLS), 0);
+    return;
   }
 
   const auto request = MakeProtocolRequest(
-      session_id, config_->GetProdId(),
-      config_->GetBrowserVersion().GetString(), config_->GetLang(),
-      config_->GetChannel(), config_->GetOSLongName(),
-      config_->GetDownloadPreference(), additional_attributes,
-      updater_state_attributes_.get(), std::move(apps));
+      !config_->IsPerUserInstall(), context->session_id, config_->GetProdId(),
+      config_->GetBrowserVersion().GetString(), config_->GetChannel(),
+      config_->GetOSLongName(), config_->GetDownloadPreference(),
+      config_->IsMachineExternallyManaged(), additional_attributes,
+      updater_state_attributes, std::move(apps));
 
   request_sender_ = std::make_unique<RequestSender>(config_);
   request_sender_->Send(
-      urls,
+      {url},
       BuildUpdateCheckExtraRequestHeaders(config_->GetProdId(),
                                           config_->GetBrowserVersion(),
-                                          ids_checked_, is_foreground),
+                                          sent_ids, is_foreground),
       config_->GetProtocolHandlerFactory()->CreateSerializer()->Serialize(
           request),
       config_->EnabledCupSigning(),
       base::BindOnce(&UpdateCheckerImpl::OnRequestSenderComplete,
-                     base::Unretained(this)));
-#if defined(STARBOARD)
-  // Reset is_channel_changed flag to false if it is true
-  config_->CompareAndSwapChannelChanged(1, 0);
-#endif
+                     base::Unretained(this), context,
+                     urls.size() > 1
+                         ? absl::optional<base::OnceClosure>(base::BindOnce(
+                               &UpdateCheckerImpl::CheckForUpdatesHelper,
+                               base::Unretained(this), context,
+                               std::vector<GURL>(urls.begin() + 1, urls.end()),
+                               additional_attributes, updater_state_attributes,
+                               active_ids))
+                         : absl::nullopt));
 }
-
-#if defined(STARBOARD)
-void UpdateCheckerImpl::Cancel() {
-  LOG(INFO) << "UpdateCheckerImpl::Cancel";
-  if (request_sender_.get()) {
-    request_sender_->Cancel();
-  }
-}
-
-bool UpdateCheckerImpl::SkipUpdate(
-  const CobaltExtensionInstallationManagerApi* installation_api) {
-  auto free_space_ext = static_cast<const CobaltExtensionFreeSpaceApi*>(
-      SbSystemGetExtension(kCobaltExtensionFreeSpaceName));
-  if (!installation_api) {
-    LOG(WARNING) << "UpdaterChecker::SkipUpdate: missing installation api";
-     return false;
-  }
-  if (!free_space_ext) {
-    LOG(WARNING) << "UpdaterChecker::SkipUpdate: No FreeSpace Cobalt extension";
-    return false;
-  }
-
-  return CobaltSkipUpdate(installation_api, config_->GetMinFreeSpaceBytes(),
-     free_space_ext->MeasureFreeSpace(kSbSystemPathStorageDirectory),
-     CobaltInstallationCleanupSize(installation_api)) ;
-}
-#endif
 
 void UpdateCheckerImpl::OnRequestSenderComplete(
+    scoped_refptr<UpdateContext> context,
+    absl::optional<base::OnceClosure> fallback,
     int error,
     const std::string& response,
     int retry_after_sec) {
@@ -338,7 +256,11 @@ void UpdateCheckerImpl::OnRequestSenderComplete(
 
   if (error) {
     VLOG(1) << "RequestSender failed " << error;
-    UpdateCheckFailed(ErrorCategory::kUpdateCheck, error, retry_after_sec);
+    if (fallback && retry_after_sec <= 0) {
+      std::move(*fallback).Run();
+    } else {
+      UpdateCheckFailed(ErrorCategory::kUpdateCheck, error, retry_after_sec);
+    }
     return;
   }
 
@@ -351,20 +273,17 @@ void UpdateCheckerImpl::OnRequestSenderComplete(
     return;
   }
 
-  DCHECK_EQ(0, error);
-  UpdateCheckSucceeded(parser->results(), retry_after_sec);
+  CHECK_EQ(0, error);
+  UpdateCheckSucceeded(context, parser->results(), retry_after_sec);
 }
 
 void UpdateCheckerImpl::UpdateCheckSucceeded(
+    scoped_refptr<UpdateContext> context,
     const ProtocolParser::Results& results,
     int retry_after_sec) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
   const int daynum = results.daystart_elapsed_days;
-  if (daynum != ProtocolParser::kNoDaystart) {
-    metadata_->SetDateLastActive(ids_checked_, daynum);
-    metadata_->SetDateLastRollCall(ids_checked_, daynum);
-  }
   for (const auto& result : results.list) {
     auto entry = result.cohort_attrs.find(ProtocolParser::Result::kCohort);
     if (entry != result.cohort_attrs.end())
@@ -377,22 +296,30 @@ void UpdateCheckerImpl::UpdateCheckSucceeded(
       metadata_->SetCohortHint(result.extension_id, entry->second);
   }
 
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
+  base::OnceClosure reply =
       base::BindOnce(std::move(update_check_callback_),
                      absl::make_optional<ProtocolParser::Results>(results),
-                     ErrorCategory::kNone, 0, retry_after_sec));
+                     ErrorCategory::kNone, 0, retry_after_sec);
+
+  if (daynum != ProtocolParser::kNoDaystart) {
+    metadata_->SetDateLastData(context->components_to_check_for_updates, daynum,
+                               std::move(reply));
+    return;
+  }
+
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(FROM_HERE,
+                                                           std::move(reply));
 }
 
 void UpdateCheckerImpl::UpdateCheckFailed(ErrorCategory error_category,
                                           int error,
                                           int retry_after_sec) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  DCHECK_NE(0, error);
+  CHECK_NE(0, error);
 
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
-      base::BindOnce(std::move(update_check_callback_), base::nullopt,
+      base::BindOnce(std::move(update_check_callback_), absl::nullopt,
                      error_category, error, retry_after_sec));
 }
 

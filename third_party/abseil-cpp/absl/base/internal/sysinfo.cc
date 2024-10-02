@@ -418,17 +418,7 @@ pid_t GetTID() {
 
 // Fallback implementation of GetTID using pthread_getspecific.
 ABSL_CONST_INIT static once_flag tid_once;
-
-// ABSL tries to enforce a constant initializer for
-// this variable. However for Starboard we have a more complex
-// type definition of pthread_key_t for portability reasons and
-// it doesn't have a constant initializer.
-#if defined(STARBOARD)
-static pthread_key_t tid_key;
-#else
 ABSL_CONST_INIT static pthread_key_t tid_key;
-#endif
-
 ABSL_CONST_INIT static absl::base_internal::SpinLock tid_lock(
     absl::kConstInit, base_internal::SCHEDULE_KERNEL_ONLY);
 

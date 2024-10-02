@@ -44,7 +44,7 @@ class BASE_EXPORT ScopedClearLastError : public ScopedClearLastErrorBase {
   const unsigned long last_system_error_;
 };
 
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 
 using ScopedClearLastError = ScopedClearLastErrorBase;
 

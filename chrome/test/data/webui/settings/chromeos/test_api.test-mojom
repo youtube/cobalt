@@ -1,0 +1,178 @@
+// Copyright 2022 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module ash.settings.mojom;
+
+// This file contains the definition of the mojo service that can be used in
+// C++ browser tests to manipulate the settings UI. Browser tests that want to
+// use this test api should instantiate OSSettingsBrowserTestMixin.
+
+// The interface to control the lock screen page.
+interface LockScreenSettings {
+
+  enum RecoveryDialogAction {
+    CancelDialog = 0,
+    ConfirmDisabling,
+  };
+
+  // Checks whether the lock screen is unlocked or not.
+  AssertAuthenticated(bool is_authenticated) => ();
+
+  // Unlocks the lock screen page. The page should be locked before calling
+  // this. Crashes if authentication fails.
+  Authenticate(string password) => ();
+
+  // Tries to unlock the lock screen page, but expects authentication to fail.
+  // Crashes if authentication succeeds.
+  AuthenticateIncorrectly(string password) => ();
+
+  // Checks whether a control for recovery is available or not.
+  AssertRecoveryControlAvailability(bool is_available) => ();
+
+  // Checks whether a control for recovery is visible or not.
+  AssertRecoveryControlVisibility(bool is_visible) => ();
+
+  // Checks whether recovery is configured or not according to the recovery
+  // control.
+  AssertRecoveryConfigured(bool is_configured) => ();
+
+  // Enables the cryptohome recovery configuration.
+  // Crashes if it is already on or after a click on the recovery toggle
+  // the recovery is still disabled.
+  EnableRecoveryConfiguration() => ();
+
+  // Try to enable data recovery. Data recovery must not be configured before
+  // calling this. Does not assume that the action is successful.
+  TryEnableRecoveryConfiguration() => ();
+
+  // Try to enable data recovery. Data recovery must be configured before
+  // calling this. Does not assume that the action is successful.
+  TryDisableRecoveryConfiguration() => ();
+
+  // The following function expects the cryptohome recovery toggle is on.
+  // Clicks on the recovery toggle, expecting the recovery dialog to show up.
+  // if the param is CancelDialog:
+  // - expects the recovery toggle still enabled state
+  // if the param is ConfirmDisabling:
+  // - expects the recovery toggle changed to disable state
+  // In both cases the function expects the recovery dialog to disappear.
+  // If any of the expectations fail the function crashes.
+  DisableRecoveryConfiguration(RecoveryDialogAction dialogAction) => ();
+
+  // Removes the PIN if there is a PIN.
+  RemovePin() => ();
+
+  // Sets the pin to a given value.
+  SetPin(string pin) => ();
+
+  // Checks whether the user wants to use pin for login and unlock or not. This
+  // can be true even though there is no pin if the user has not set up a pin
+  // yet.
+  AssertIsUsingPin(bool is_using) => ();
+
+  // Selects the "PIN and password" method for authentication, but no more. This doesn't actually
+  // set a PIN.
+  SelectPinAndPassword() => ();
+
+  // Selects the "PIN and password" method for authentication and enters a new value for the PIN
+  // but cancels the setup when the dialog asks to enter the PIN again.
+  SetPinButCancelConfirmation(string pin) => ();
+
+  // Selects the "PIN and password" method for authentication, enters a new value for the PIN
+  // but cancels the setup when the dialog asks to enter the PIN again.
+  SetPinButFailConfirmation(string first_pin, string second_pin) => ();
+
+  // Tries to set the PIN to |short_pin|, but expects that the PIN cannot be submitted. Then enters
+  // |ok_pin| before entering |short_pin| again to check that an error message is displayed.
+  SetPinButTooShort(string short_pin, string ok_pin) => ();
+
+  // Verifies that |ok_pin| can be submitted as PIN, but that |long_pin| is rejected with an error message.
+  SetPinButTooLong(string long_pin, string ok_pin) => ();
+
+  // Verifies that PIN setup works with |weak_pin| but with a warning.
+  SetPinWithWarning(string weak) => ();
+
+  // Opens the PIN setup dialog and checks that the dialog handles key events appropriately.
+  CheckPinSetupDialogKeyInput() => ();
+
+  // Checks that pin autosubmit is enabled or disabled.
+  AssertPinAutosubmitEnabled(bool is_enabled) => ();
+
+  // Enable pin autosubmit. Can only be called if pin autosubmit is currently
+  // disabled. The parameter is used to confirm the pin and must be correct.
+  EnablePinAutosubmit(string pin) => ();
+
+  // Disable pin autosubmit. Can only be called if pin autosubmit is currently
+  // disabled.
+  DisablePinAutosubmit() => ();
+
+  // Try to enable pin autosubmit, but fail due to a wrong pin.
+  EnablePinAutosubmitIncorrectly(string incorrect_pin) => ();
+
+  // Try to enable PIN autosubmit, but expect to fail due to the PIN being
+  // locked out. The locked-out PIN should make the user reauthenticate, so the
+  // function needs to know the user's password.
+  TryEnablePinAutosubmitWithLockedPin(string pin, string password) => ();
+
+  // Try to enable pin autosubmit, but fail because the provided PIN is too long.
+  EnablePinAutosubmitTooLong(string long_pin) => ();
+
+  // Asserts that automatic screen lock is enabled or disabled.
+  AssertAutoLockScreenEnabled(bool is_enabled) => ();
+
+  // Enables automatic screen lock. Assumes that it is currently disabled.
+  EnableAutoLockScreen() => ();
+
+  // Disables automatic screen lock. Assumes that it is currently enabled.
+  DisableAutoLockScreen() => ();
+
+  // Asserts that the auto screen lock control is currently focused.
+  AssertAutoLockScreenFocused() => ();
+};
+
+// The interface used to control Google drive settings.
+interface GoogleDriveSettings {
+  // Asserts that the values returned from the Google drive PageHandler match
+  // the supplied values.
+  AssertBulkPinningSpace(string required_space,
+      string remaining_space) => ();
+
+  // Asserts the values returned from the Google drive PageHandler match the
+  // values returned on the JS element.
+  AssertBulkPinningPinnedSize(string pinned_size) => ();
+
+  // Click the clear offline files button and then wait until the new size has
+  // updated correctly.
+  ClickClearOfflineFilesAndAssertNewSize(string new_size) => ();
+};
+
+// An interface that allows clients to manipulate the os settings ui. Served by
+// Javascript injected into the os settings page. Consumed by C++ running in
+// the browser process during tests.
+interface OSSettingsDriver {
+  // Asserts that the lock screen settings page is open. On success, returns a
+  // remote that can be used to operate the lock screen settings page.
+  AssertOnLockScreenSettings() =>
+      (pending_remote<LockScreenSettings> lock_screen_settings);
+
+  // Navigate to lock screen settings. The settings page must be in its initial
+  // state before calling this. The return value can be used to manipulate lock
+  // screen settings.
+  GoToLockScreenSettings() =>
+      (pending_remote<LockScreenSettings> lock_screen_settings);
+
+  // Navigate to Google drive settings subpage. The settings page must be in its
+  // initial state before calling this. The return value can be used to
+  // manipulate Google drive settings.
+  AssertOnGoogleDriveSettings() =>
+      (pending_remote<GoogleDriveSettings> google_drive_settings);
+};
+
+// The interface served from within the browser process in tests. Consumed by
+// the os settings webui.
+interface OSSettingsBrowserProcess {
+  // The Javascript code injected into the os-settings page calls this to pass
+  // a driver remote to the browser process. Can only be called once.
+  RegisterOSSettingsDriver(pending_remote<OSSettingsDriver> driver) => ();
+};

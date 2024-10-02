@@ -192,7 +192,7 @@ std::unique_ptr<addrinfo, FreeAddrInfoFunc> AddrInfoGetter::getaddrinfo(
 #if BUILDFLAG(IS_ANDROID)
     *out_os_error = android::GetAddrInfoForNetwork(network, host.c_str(),
                                                    nullptr, hints, &ai);
-#elif BUILDFLAG(IS_WIN) || defined(COMPILER_MSVC)
+#elif BUILDFLAG(IS_WIN)
     *out_os_error = WSAEOPNOTSUPP;
     return rv;
 #else

@@ -249,8 +249,6 @@ TEST_F(MultiThreadedCertVerifierTest, CancelRequestThenQuit) {
   // Destroy |verifier_| by going out of scope.
 }
 
-// Starboard disables cert_net_fetcher which results in different error cause.
-#if !defined(STARBOARD)
 // Tests propagation of configuration options into CertVerifyProc flags
 TEST_F(MultiThreadedCertVerifierTest, ConvertsConfigToFlags) {
   base::FilePath certs_dir = GetTestCertsDirectory();
@@ -299,7 +297,6 @@ TEST_F(MultiThreadedCertVerifierTest, ConvertsConfigToFlags) {
     testing::Mock::VerifyAndClearExpectations(mock_verify_proc_.get());
   }
 }
-#endif
 
 // Tests propagation of CertVerifier flags into CertVerifyProc flags
 TEST_F(MultiThreadedCertVerifierTest, ConvertsFlagsToFlags) {

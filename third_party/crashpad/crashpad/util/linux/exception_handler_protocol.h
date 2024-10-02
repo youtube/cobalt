@@ -1,4 +1,4 @@
-// Copyright 2017 The Crashpad Authors. All rights reserved.
+// Copyright 2017 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@
 #include <stdint.h>
 #include <sys/types.h>
 
-#include "base/macros.h"
 #include "build/build_config.h"
 #include "util/file/file_io.h"
 #include "util/misc/address_types.h"
@@ -38,12 +37,6 @@ class ExceptionHandlerProtocol {
   //! \brief A boolean status suitable for communication between processes.
   enum Bool : char { kBoolFalse, kBoolTrue };
 
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-  //! \brief Describes when, in the client process lifecycle, the Crashpad
-  //!     handler was or will be started.
-  enum HandlerStartType : char { kStartAtCrash, kStartAtLaunch };
-#endif
-
   //! \brief Information about a client registered with an
   //!     ExceptionHandlerServer.
   struct ClientInformation {
@@ -58,23 +51,7 @@ class ExceptionHandlerProtocol {
     //!     SanitizationInformation struct, or 0 if there is no such struct.
     VMAddress sanitization_information_address;
 
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-    //! \brief The address in the client's address space of an EvergreenInfo
-    //!     struct, or 0 if there is no such struct.
-    VMAddress evergreen_information_address;
-
-    //! \brief The address in the client's address space of a character array
-    //!     containing a serialized CrashpadAnnotations proto, or 0 if there is
-    //!     no such address.
-    VMAddress serialized_annotations_address;
-
-    //! \brief The byte size of the serialized annotations.
-    int serialized_annotations_size;
-
-    HandlerStartType handler_start_type;
-#endif
-
-#if defined(OS_LINUX)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
     //! \brief Indicates that the client is likely in a crash loop if a crash
     //!     occurs before this timestamp. This value is only used by ChromeOS's
     //!     `/sbin/crash_reporter`.
@@ -104,14 +81,7 @@ class ExceptionHandlerProtocol {
       kTypeCheckCredentials,
 
       //! \brief Used to request a crash dump for the sending client.
-      kTypeCrashDumpRequest,
-
-#if defined(STARBOARD) || defined(NATIVE_TARGET_BUILD)
-      //! \brief Used to store Evergreen mapping info in the handler for use at
-      //!     time of crash.
-      kTypeAddEvergreenInfo,
-      kTypeAddAnnotations,
-#endif
+      kTypeCrashDumpRequest
     };
 
     Type type;
@@ -153,9 +123,11 @@ class ExceptionHandlerProtocol {
     pid_t pid;
   };
 
-#pragma pack(pop)
+  ExceptionHandlerProtocol() = delete;
+  ExceptionHandlerProtocol(const ExceptionHandlerProtocol&) = delete;
+  ExceptionHandlerProtocol& operator=(const ExceptionHandlerProtocol&) = delete;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ExceptionHandlerProtocol);
+#pragma pack(pop)
 };
 
 }  // namespace crashpad

@@ -1,0 +1,4 @@
+include_rules = [
+  "+components/performance_manager",
+  "+chromeos/ash/components/memory"
+]

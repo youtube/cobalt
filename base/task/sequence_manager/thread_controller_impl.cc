@@ -363,7 +363,7 @@ MessagePump* ThreadControllerImpl::GetBoundMessagePump() const {
   return nullptr;
 }
 
-#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
 void ThreadControllerImpl::AttachToMessagePump() {
   NOTREACHED();
 }

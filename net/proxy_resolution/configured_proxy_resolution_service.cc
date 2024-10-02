@@ -791,25 +791,6 @@ ConfiguredProxyResolutionService::ConfiguredProxyResolutionService(
   config_service_->AddObserver(this);
 }
 
-#if defined(STARBOARD)
-void ConfiguredProxyResolutionService::ResetConfigService(
-    std::unique_ptr<ProxyConfigService> new_proxy_config_service) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  State previous_state = ResetProxyConfig(true);
-
-  // Release the old configuration service.
-  if (config_service_.get())
-    config_service_->RemoveObserver(this);
-
-  // Set the new configuration service.
-  config_service_.reset(new_proxy_config_service.release());
-  config_service_->AddObserver(this);
-
-  if (previous_state != STATE_NONE)
-    ApplyProxyConfigIfAvailable();
-}
-#endif
-
 // static
 std::unique_ptr<ConfiguredProxyResolutionService>
 ConfiguredProxyResolutionService::CreateUsingSystemProxyResolver(

@@ -1,0 +1,6 @@
+eirage@chromium.org
+kgrosu@google.com
+mvanouwerkerk@chromium.org
+peconn@chromium.org
+
+per-file *TabInteractionRecorder*=file://chrome/android/java/src/org/chromium/chrome/browser/customtabs/features/sessionrestore/OWNERS

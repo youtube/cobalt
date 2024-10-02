@@ -1,0 +1,108 @@
+<style>
+  :host {
+    --key-modifier-selected-bg-color: var(--cros-highlight-color);
+    --key-modifier-selected-shadow-color: var(--cros-highlight-color);
+    --key-not-selected-border-color: var(--google-grey-200);
+    --key-not-selected-shadow-color: var(--google-grey-200);
+  }
+
+  :host-context(body.jelly-enabled) {
+    --key-modifier-selected-bg-color: var(--cros-sys-highlight_shape);
+    --key-modifier-selected-shadow-color: var(--cros-sys-highlight_shape);
+    --key-not-selected-border-color: var(--cros-sys-on_surface);
+    --key-not-selected-shadow-color: var(--cros-sys-on_surface);
+  }
+
+  .key-container {
+    align-items: center;
+    border-radius: 12px;
+    box-sizing: border-box;
+    display: inline-flex;
+    font-weight: 500;
+    height: 32px;
+    justify-content: center;
+    margin-inline-end: 8px;
+    min-width: 32px;
+    padding-bottom: 6px;
+    padding-top: 6px;
+  }
+
+  :host([narrow]) .key-container {
+    margin-inline-end: 4px;
+    padding-inline: 4px;
+  }
+
+  #key-text {
+    color: var(--cros-text-color-secondary);
+    font: var(--cros-button-2-font);
+  }
+
+  :host([key-state='not-selected']) .key-container {
+    border-color: var(--key-not-selected-border-color);
+    border-style: solid;
+    border-width: thin;
+    box-shadow: 0 1px 1px var(--key-not-selected-shadow-color);
+  }
+
+  :host([key-state='modifier-selected']) .key-container {
+    background-color: var(--key-modifier-selected-bg-color);
+    border: none;
+    box-shadow: 0 1px 1px var(--key-modifier-selected-shadow-color);
+  }
+
+  :host([key-state='modifier-selected']:not([key='meta'])) .key-container {
+    min-width: 44px;
+    padding-inline: 12px;
+  }
+
+  :host([key-state='modifier-selected'][key='meta']) .key-container {
+    padding-inline: 6px;
+  }
+
+  :host([key-state='alpha-numeric-selected']) .key-container {
+    background-color: var(--cros-bg-color-dropped-elevation-1);
+    border: none;
+    box-shadow: 0 1px 1px var(--cros-bg-color-dropped-elevation-1);
+  }
+
+  :host([key-state='alpha-numeric-selected'][has-icon]) .key-container {
+    padding-inline: 6px;
+  }
+
+  :host([key-state='alpha-numeric-selected']:not([has-icon])) .key-container {
+    padding-inline: 11px;
+  }
+
+  :host([highlighted][key-state='modifier-selected']) div.key-container {
+    background-color: var(--cros-color-prominent);
+  }
+
+  :host([highlighted][key-state='modifier-selected']) #key-text {
+    color: var(--cros-button-label-color-primary);
+  }
+
+  :host([highlighted][key-state='alpha-numeric-selected']) div.key-container {
+    background-color: var(--cros-bg-color);
+  }
+
+  :host([highlighted][key-state='modifier-selected']) #key-icon {
+    --iron-icon-fill-color: var(--cros-button-label-color-primary);
+  }
+
+  #key-icon {
+    --iron-icon-height: 16px;
+    --iron-icon-width: 16px;
+    --iron-icon-fill-color: var(--cros-text-color-secondary);
+  }
+</style>
+
+<div id="key" class="key-container">
+  <template is="dom-if" if="[[getIconIdForKey(key)]]">
+    <div aria-label$="[[getAriaLabelForIcon(key)]]" role="img">
+      <iron-icon icon="[[getIconIdForKey(key)]]" id="key-icon"></iron-icon>
+    </div>
+  </template>
+  <template is="dom-if" if="[[!getIconIdForKey(key)]]">
+    <span id="key-text">[[key]]</span>
+  </template>
+</div>

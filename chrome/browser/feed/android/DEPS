@@ -1,0 +1,12 @@
+include_rules = [
+  "+components/browser_ui/share/android"
+]
+
+specific_include_rules = {
+  ".*_[a-z]*test\.cc": [
+    "+mojo/core/embedder",
+  ],
+  ".*FeedProcessScopeDependencyProvider\.java": [
+     "+chrome/android/java/src/org/chromium/chrome/browser/base",
+  ]
+}

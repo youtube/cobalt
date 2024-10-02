@@ -152,10 +152,6 @@ absl_source_set("log_sink_set") {
   if (is_android) {
     libs = [ "log" ]
   }
-
-  if (is_starboard) {
-    deps += [ "//starboard/common:common_headers_only" ]
-  }
 }
 
 absl_source_set("nullguard") {

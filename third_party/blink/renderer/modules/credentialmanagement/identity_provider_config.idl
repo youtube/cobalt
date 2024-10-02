@@ -1,0 +1,48 @@
+// Copyright 2021 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+// https://fedidcg.github.io/FedCM/#dictdef-identityproviderconfig
+
+dictionary IdentityProviderConfig {
+  // URL for the Identity Provider Configuration.
+  required USVString configURL;
+  required USVString clientId;
+  USVString nonce;
+  [RuntimeEnabled=FedCmAuthz] sequence<USVString> scope;
+  [RuntimeEnabled=FedCmAuthz] sequence<USVString> responseType;
+  [RuntimeEnabled=FedCmAuthz] record<USVString, USVString> params;
+  [RuntimeEnabled=FedCmLoginHint] DOMString loginHint;
+};
+
+// extends the IdentityProviderConfig with mDoc-specific attributes
+partial dictionary IdentityProviderConfig  {
+  [RuntimeEnabled=WebIdentityMDocs] MDocProvider mdoc;
+};
+
+dictionary MDocProvider  {
+  // base64-encoded reader HPKE public key.
+  required DOMString readerPublicKey;
+
+  // base64-encoded reader certification chain, if the platform requires it.
+  sequence<DOMString> certificates;
+
+  // Omitting `retention` implies that the identity information will not be stored.
+  MDocStorageDuration retention;
+
+  required DOMString documentType;
+  required sequence<MDocElement> requestedElements;
+};
+
+dictionary MDocElement {
+  // As defined in ISO 18013-5 clause 8.
+  [ImplementedAs=elementNamespace]
+  required DOMString _namespace;
+  required DOMString name;
+};
+
+dictionary MDocStorageDuration {
+  // Exactly one of the following must be provided.
+  boolean forever;
+  long days;
+};

@@ -1,4 +1,4 @@
-// Copyright (c) 2006-2008 The Chromium Authors. All rights reserved.
+// Copyright 2006-2008 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,29 +8,25 @@
 #include <gtest/gtest.h>
 
 #if defined(GTEST_OS_MAC)
-#ifdef __OBJC__
-@class NSAutoreleasePool;
-#else
-class NSAutoreleasePool;
-#endif
-
 // The purpose of this class us to provide a hook for platform-specific
 // operations across unit tests.  For example, on the Mac, it creates and
-// releases an outer NSAutoreleasePool for each test case.  For now, it's only
+// releases an autorelease pool for each test case.  For now, it's only
 // implemented on the Mac.  To enable this for another platform, just adjust
 // the #ifdefs and add a platform_test_<platform>.cc implementation file.
 class PlatformTest : public testing::Test {
  public:
-  virtual ~PlatformTest();
+  ~PlatformTest() override;
 
  protected:
   PlatformTest();
 
  private:
-  NSAutoreleasePool* pool_;
+  void* autorelease_pool_;
 };
 #else
-typedef testing::Test PlatformTest;
+
+using PlatformTest = testing::Test;
+
 #endif // GTEST_OS_MAC
 
 #endif // TESTING_PLATFORM_TEST_H_

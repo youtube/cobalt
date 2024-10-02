@@ -1,24 +1,23 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 syntax = "proto2";
 
 option optimize_for = LITE_RUNTIME;
-
-option java_outer_classname = "CastLogsProtos";
 option java_package = "org.chromium.components.metrics";
 
-package metrics;  // Cast-enabled device specific log data included in
-                  // ChromeUserMetricsExtension.
+option java_outer_classname = "CastLogsProtos";
 
-// Next tag: 7
+package metrics;  // Cast-enabled device specific log data included in ChromeUserMetricsExtension.
+
+// Next tag: 9
 message CastLogsProto {
   // Cast specific device information.
   // Next tag: 7
   message CastDeviceInfo {
     // The product type of Cast device sent from Cast-enabled devices.
-    // Next tag: 8
+    // Next tag: 13
     enum CastProductType {
       CAST_PRODUCT_TYPE_UNKNOWN = 0;
       CAST_PRODUCT_TYPE_CHROMECAST = 1;
@@ -28,6 +27,11 @@ message CastLogsProto {
       CAST_PRODUCT_TYPE_ASSISTANT = 5;
       CAST_PRODUCT_TYPE_ANDROID_THINGS = 6;
       CAST_PRODUCT_TYPE_CHROME_OS = 7;
+      CAST_PRODUCT_TYPE_FUCHSIA_OS = 8;
+      CAST_PRODUCT_TYPE_LITE = 9;
+      CAST_PRODUCT_TYPE_CORE = 10;
+      CAST_PRODUCT_TYPE_11 = 11;
+      CAST_PRODUCT_TYPE_ANDROID_AUTOMOTIVE = 12;
     }
     optional CastProductType type = 1;
 
@@ -45,6 +49,7 @@ message CastLogsProto {
     optional string serial_number = 5;
 
     // Hardware information stored in factory partition.
+    // Next Tag: 12
     message HardwareInfo {
       optional string color = 1;
 
@@ -65,6 +70,8 @@ message CastLogsProto {
       optional string display = 9;
 
       optional string amp = 10;
+
+      optional string board_name = 11;
     }
     optional HardwareInfo hardware_info = 6;
   }
@@ -160,7 +167,7 @@ message CastLogsProto {
   repeated CastConnectionInfo cast_connection_info = 2;
 
   // Stores Cast-enabled device specific events with a various context data.
-  // Next tag: 19
+  // Next tag: 29
   message CastEventProto {
     // The name of the action, hashed by same logic used to hash user action
     // event and histogram.
@@ -171,6 +178,9 @@ message CastLogsProto {
 
     // The Cast receiver app ID related with this event.
     optional fixed32 app_id = 3;
+
+    // The app ID of a remote Cast receiver associated with this event.
+    optional fixed32 remote_app_id = 19;
 
     // The identifier for receiver application session.
     optional fixed64 application_session_id = 4;
@@ -203,7 +213,11 @@ message CastLogsProto {
 
     optional string aogh_request_id = 16;
 
-    optional int64 aogh_local_agent_id = 18;
+    optional int64 aogh_local_device_id = 18;
+
+    optional string aogh_agent_id = 21;
+
+    optional string aogh_standard_agent_id = 28;
 
     // Optional value associated with the event. For example, may be used for
     // error codes.
@@ -218,28 +232,90 @@ message CastLogsProto {
 
     // Optional value associated with timezone update event.
     optional string timezone_id = 17;
+
+    // Optional value to log ui version.
+    optional string ui_version = 20;
+
+    // Optional field to log SELINUX audit detail.
+    optional string selinux_audit_detail = 22;
+
+    // List of event ids belonging to a particular interaction. One interaction
+    // could receive multiple assistant outputs, hence multiple event ids.
+    repeated string event_id_list = 23;
+
+    // Duo core version.
+    optional fixed64 duo_core_version = 24;
+
+    // Model version of hotword detector.
+    optional string hotword_model_id = 25;
+
+    enum LaunchFrom {
+      FROM_UNKNOWN = 0;
+      // Launched by itself, or by the user interacting directly with the
+      // receiver device (e.g. use a TV remote to launch an app on Android TV).
+      FROM_LOCAL = 1;
+      // Launched by a Cast V1 sender using DIAL.
+      FROM_DIAL = 2;
+      // Launched by a Cast V2 sender device.
+      FROM_CAST_V2 = 3;
+      // Launched from the cloud.
+      FROM_CCS = 4;
+    }
+    optional LaunchFrom launch_from = 26;
+
+    enum RuntimeType {
+      RUNTIME_TYPE_UNKNOWN = 0;
+      RUNTIME_TYPE_CAST_WEB = 1;
+      RUNTIME_TYPE_CAST_LITE = 2;
+      RUNTIME_TYPE_NATIVE = 3;
+    }
+    // The Cast Core runtime type associated with this event.
+    optional RuntimeType runtime_type = 27;
   }
   repeated CastEventProto cast_event = 3;
 
-  // Virtual release track for releases sent to partners, trusted beta testers,
-  // developers, etc.
+  // Virtual release track for releases sent to partners, trusted beta
+  // testers, developers, etc.
   optional fixed32 virtual_release_track = 4;
 
   // Cast specific device information which is expected to change over time.
-  // Next tag: 8
+  // Next tag: 13
   message CastDeviceMutableInfo {
     // This is the last type of reboot the device encountered
-    // Next tag: 9
+    // Next tag: 22
     enum RebootType {
-      REBOOT_TYPE_UNKNOWN = 0;
-      REBOOT_TYPE_FORCED = 1;  // Power removed from device
-      REBOOT_TYPE_API = 2;     // Requested from reboot setup api
+      REBOOT_TYPE_UNKNOWN = 0;  // Fail to get reboot type from system property
+      REBOOT_TYPE_FORCED = 1;   // Power removed from device
+      REBOOT_TYPE_API = 2;      // Requested from reboot setup api
       REBOOT_TYPE_NIGHTLY = 3;
       REBOOT_TYPE_OTA = 4;
-      REBOOT_TYPE_WATCHDOG = 5;
+      REBOOT_TYPE_WATCHDOG = 5;  // Reboot caused by a watchdog process.
       REBOOT_TYPE_PROCESS_MANAGER = 6;
       REBOOT_TYPE_CRASH_UPLOADER = 7;
       REBOOT_TYPE_FDR = 8;
+      REBOOT_TYPE_HW_WATCHDOG = 9;
+      REBOOT_TYPE_SW_OTHER = 10;
+      REBOOT_TYPE_OVERHEAT = 11;
+      // The device got into a state such that it needs to regenerate the cloud
+      // device id.
+      REBOOT_TYPE_REGENERATE_CLOUD_ID = 12;
+      // Reboot triggered due to successive OOM events.
+      REBOOT_TYPE_REPEATED_OOM = 13;
+      // Reboot triggered when the utility process is found to be in
+      // crash loop.
+      REBOOT_TYPE_UTILITY_PROCESS_CRASH = 14;
+      // design doc go/fuchsia-session-restart-metrics
+      // Restart triggered due to graceful component teardown by the Fuchsia
+      // platform. Device has not rebooted.
+      REBOOT_TYPE_GRACEFUL_RESTART = 15;
+      // Restart triggered due to ungraceful component teardown by the Fuchsia
+      // platform. Device has not rebooted.
+      REBOOT_TYPE_UNGRACEFUL_RESTART = 16;
+      MULTI_SERVICE_BUG = 17;
+      POWER_MANAGER = 18;
+      EXPERIMENT_CHANGE = 19;
+      ANOMALY_DETECTION = 20;
+      KERNEL_PANIC = 21;
     }
     optional RebootType last_reboot_type = 1;
 
@@ -269,9 +345,29 @@ message CastLogsProto {
 
     // Current timezone which the device is using.
     optional string timezone_id = 7;
+    // Optional value to log latest ui version.
+    optional string latest_ui_version = 8;
+
+    // Station ID of the device if connected to Google WiFi network
+    optional string google_wifi_station_shmac = 9;
+
+    // Optional field to log installed manifest platform version.
+    optional string installed_manifest_platform_version = 10;
+
+    // Optional field to log installed manifest version.
+    optional uint32 installed_manifest_version = 11;
+
+    // Optional field to log the system bundle version.
+    optional string system_bundle_version = 12;
   }
   // The device sends this information at least once per day.
   optional CastDeviceMutableInfo cast_device_mutable_info = 5;
 
   optional fixed64 receiver_metrics_id = 6;
+
+  // This ID is only ever recorded for Google-internal users (dogfooders). It
+  // is never recorded for external users."
+  optional uint64 ephemeral_id = 7;
+
+  optional fixed32 source_virtual_release_track = 8;
 }

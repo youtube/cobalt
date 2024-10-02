@@ -28,9 +28,7 @@
 #define ABSL_INTERNAL_HAVE_SYMBOLIZE_WASM
 #endif
 
-#if defined(STARBOARD)
-#include "absl/debugging/symbolize_unimplemented.inc"
-#elif defined(ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE)
+#if defined(ABSL_INTERNAL_HAVE_ELF_SYMBOLIZE)
 #include "absl/debugging/symbolize_elf.inc"
 #elif defined(ABSL_INTERNAL_HAVE_SYMBOLIZE_WIN32)
 // The Windows Symbolizer only works if PDB files containing the debug info

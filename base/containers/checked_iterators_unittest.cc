@@ -89,9 +89,7 @@ TEST(CheckedContiguousIterator, ConvertingComparisonOperators) {
 // lags a bit behind.
 // TODO(crbug.com/1166360): Enable this test on ChromeOS once the shared libc++
 // is sufficiently modern.
-// Starboard(Cobalt) has platforms such as ATV that do not support std::copy
-// optimization.
-#if defined(_LIBCPP_VERSION) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_CHROMEOS) && !defined(STARBOARD)
+#if defined(_LIBCPP_VERSION) && !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_CHROMEOS)
 namespace {
 
 // Helper template that wraps an iterator and disables its dereference and

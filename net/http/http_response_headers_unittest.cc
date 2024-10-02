@@ -22,7 +22,7 @@
 #include "net/log/net_log_capture_mode.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if !BUILDFLAG(CRONET_BUILD) && !defined(STARBOARD)
+#if !BUILDFLAG(CRONET_BUILD)
 #include "third_party/perfetto/include/perfetto/test/traced_value_test_support.h"
 #endif
 
@@ -1828,8 +1828,7 @@ TEST(HttpResponseHeadersTest, SetHeader) {
       ToSimpleString(headers));
 }
 
-// TODO: b/327008491 - Reenable unittests with unused functionality.
-#if !BUILDFLAG(CRONET_BUILD) && !defined(STARBOARD)
+#if !BUILDFLAG(CRONET_BUILD)
 // Cronet disables tracing so this test would fail.
 TEST(HttpResponseHeadersTest, TracingSupport) {
   scoped_refptr<HttpResponseHeaders> headers = HttpResponseHeaders::TryToCreate(

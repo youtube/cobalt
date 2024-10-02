@@ -1,0 +1,371 @@
+# Copyright 2021 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+#~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+# BEFORE ADDING A TEST HERE: If this is a consistent failure in Chrome on
+# ChromeOS CI builders, you should try to find and revert CLs causing new
+# regressions. Do not simply disable newly failing tests in tast_control.gni
+# as the Chrome uprev will still fail.
+#
+# Chromimum sheriffs should not disable NEW regressions here. Changes to
+# this file require the current CrOS gardener's approval. See go/chrome-sheriff-tast.
+#~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+# WARNING: if you wish to disable a tast test that runs in a ChromeOS SDK
+# build, this is the wrong file to edit. You need to mark those tests as
+# "informational" in their source .go files.
+
+# To disable a specific test in chrome_all_tast_tests, add it the following
+# list and cite a bug.
+tast_disabled_tests_from_chrome_all = [
+  # crbug.com/1364499
+  "documentscanapi.Scan",
+
+  # b/251833060
+  "graphics.KmsvncConnect",
+  "graphics.Smoke.chrome",
+
+  # https://crbug.com/1400636
+  "graphics.ScreenshotCLI",
+
+  # https://crbug.com/1430723
+  "graphics.FPS.lacros",
+
+  # b/251833060
+  "peripherals.LaunchAppFromGuestSession.diagnostics",
+
+  # https://crbug.com/1252352
+  "quicksettings.SignInScreen.battery",
+  "quicksettings.SignInScreen.noaudio_nobattery",
+  "quicksettings.SignInScreen.audio",
+
+  # crbug.com/1263234
+  "quicksettings.ManagedDeviceInfo",
+
+  # b/251833060
+  "ui.GuestModeExtension",
+
+  # crbug.com/1259127
+  "ui.TabletOperations",
+
+  # crbug.com/1263233
+  "security.SharedFilesystemState",
+
+  # https://crbug.com/1269880: Flaky.
+  "ui.ChromeCrashReporterMetrics.success_crashpad",
+
+  # https://crbug.com/1276549: Flaky.
+  "ui.ChromeCrashLoop.breakpad",
+  "ui.ChromeCrashLoop.breakpad_mock_consent",
+  "ui.ChromeCrashReporterMetrics.success_breakpad",
+  "ui.ChromeCrashReporterMetrics.miss_breakpad",
+
+  # https://crbug.com/1279285: Flaky.
+  "policy.AllowWakeLocks",
+
+  # https://crbug.com/1311242
+  "policy.ImagesForURLCheck.allowlist",
+
+  # https://crbug.com/1282372
+  "security.SELinuxFilesARC",
+  "security.NetworkListenersARC",
+  "security.SELinuxProcessesARC",
+
+  # https://crbug.com/1430753
+  "mlservice.WebHandwritingRecognitionNotSupported",
+  "security.ChromeSandboxed",
+  "security.GPUSandboxed",
+
+  # https://crbug.com/1282481
+  "quicksettings.OpenSettings",
+
+  # http://b/212644512
+  "security.SELinuxFilesDataDir",
+
+  # https://crbug.com/1260046
+  "wmp.WindowCycle",
+
+  # b/217362120
+  "security.SELinuxFilesARC.vm",
+
+  # crbug.com/1364513
+  "policy.ArcEnabled.vm",
+
+  # https://crbug.com/1297581
+  "policy.ImagesForURLCheck.blocklist",
+  "policy.ImagesForURLCheck.default",
+  "policy.Disable3DAPIs",
+  "policy.JavaScriptAllowedForUrls",
+  "policy.JavaScriptBlockedForUrls",
+  "policy.ImagesForURLCheck.default",
+
+  # https://crbug.com/1300941
+  "ui.WebUIJSErrors",
+
+  # https://crbug.com/1351654
+  "ui.ForceRegion",
+  "ui.ForceRegion.lacros",
+
+  # https://crbug.com/1306441
+  "policy.UserAvatarImage",
+
+  # https://crbug.com/1308288
+  "policy.BasicAuthOverHTTPEnabled",
+
+  # https://crbug.com/1307671
+  "policy.SafeBrowsingProtectionLevel",
+
+  # https://crbug.com/1309331
+  "policy.CookiesAllowedForUrls",
+
+  # https://crbug.com/1307940
+  "policy.URLCheck.blocklist",
+
+  # https://crbug.com/1309288
+  "policy.AudioCaptureAllowed",
+  "policy.AlternateErrorPagesEnabled",
+
+  # https://crbug.com/1309289
+  "policy.AllowDeletingBrowserHistory",
+
+  # https://crbug.com/1309052
+  "policy.ShowHomeButton",
+  "policy.ShowLogoutButtonInTray",
+
+  # https://crbug.com/1309075
+  "policy.AccessibilityPolicies.virtual_keyboard",
+  "policy.AccessibilityPolicies.spoken_feedback",
+
+  # https://crbug.com/1309466
+  "arc.StartStop.vm",
+
+  # https://crbug.com/1309492
+  "arc.DragDrop.chrome_to_android",
+
+  # https://crbug.com/1364035
+  "arc.Optin",
+  "arc.Optin.vm",
+  "arc.OptinNetworkError",
+  "arc.OptinNetworkError.vm",
+
+  # https://crbug.com/1312121
+  "policy.DefaultJavaScriptSetting",
+  "policy.CookiesBlockedForUrls",
+
+  # https://crbug.com/1312908
+  "policy.DefaultNotificationsSetting",
+
+  # https://crbug.com/1401568
+  "assistant.Hotkey.search_plus_a",
+
+  # https://crbug.com/1326279
+  "policy.AccessibilityPolicies.focus_highlight",
+
+  # https://crbug.com/1326331
+  "policy.AccessibilityPolicies.high_contrast",
+
+  # https://crbug.com/1326403
+  "policy.AccessibilityPolicies.large_cursor",
+
+  # https://crbug.com/1327361
+  "policy.FullscreenAllowed",
+
+  # https://crbug.com/1329761
+  "policy.DefaultSerialGuardSetting",
+
+  # http://b/229032436
+  "health.DiagnosticsRun.captive_portal",
+  "health.DiagnosticsRun.cpu_cache",
+  "health.DiagnosticsRun.cpu_stress",
+  "health.DiagnosticsRun.dns_latency",
+  "health.DiagnosticsRun.dns_resolution",
+  "health.DiagnosticsRun.dns_resolver_present",
+
+  # b/235279574
+  "wmp.DragAndDropWindow",
+
+  # http://crbug.com/1335213
+  "arc.WindowState.clamshell",
+
+  # http://crbug.com/1309278
+  "policy.ChromeOsLockOnIdleSuspend",
+
+  # http://crbug.com/1363667
+  "apps.CalculatorSmoke",
+
+  # https://crbug.com/1340557
+  "apps.LaunchSystemWebAppsFromURL",
+
+  # https://crbug.com/1341074
+  "launcher.BubbleLaunchApp.enable_launcher_app_sort",
+
+  # https://crbug.com/1341076
+  "launcher.BubbleLaunchApp.disable_launcher_app_sort",
+
+  # https://crbug.com/1346149
+  "apps.Sharesheet",
+
+  # b/241122961
+  "policy.BlockThirdPartyCookies",
+
+  # https://crbug.com/1350180
+  # also see http://crbug.com/1350191
+  "printer.Print",
+
+  # https://crbug.com/1350191
+  "arc.Print",
+
+  # https://crbug.com/1350880
+  "arc.PIPRoundedCornersUnderlay",
+
+  # https://crbug.com/1352525
+  "apps.ContentPreview",
+
+  # https://crbug.com/1362182
+  "feedback.AttachFile",
+
+  # https://crbug.com/1360968
+  "launcher.BubbleSmoke",
+
+  # https://crbug.com/1360969
+  "launcher.SearchBuiltInApps.productivity_launcher_tablet_mode",
+
+  # https://crbug.com/1361078
+  "shelf.HotseatSmoke",
+
+  # https://crbug.com/1365284
+  "crostini.RestartApp.clamshell_stable",
+
+  # https://crbug.com/1366112
+  "crostini.ResizeInstallation.stable",
+
+  # b/271636906
+  "crostini.SecureCopyPaste.copy_wayland_bullseye_stable",
+  "crostini.SecureCopyPaste.copy_x11_bullseye_stable",
+  "crostini.SecureCopyPaste.paste_wayland_bullseye_stable",
+  "crostini.RestartIcon.buster_stable",
+  "crostini.RestartIcon.bullseye_stable",
+
+  # https://crbug.com/1368586
+  "u2fd.WebauthnUsingPassword.tpm1",
+  "u2fd.WebauthnUsingPassword.tpm1_lacros",
+  "u2fd.WebauthnUsingPassword.gsc",
+  "u2fd.WebauthnUsingPassword.gsc_lacros",
+
+  # https://crbug.com/1368859
+  "a11y.Smoke",
+  "apps.SystemWebAppsInstallGuest",
+  "arc.Drivefs",
+  "arc.Drivefs.vm",
+  "camera.CCAUILauncher",
+  "example.ChromeExtension",
+  "hwsec.Login",
+  "hwsec.LoginGuest",
+  "lockscreen.KeyboardShortcut",
+  "security.UserFilesGuest",
+  "session.LogoutCleanup",
+  "session.OwnershipTaken",
+  "shelf.AutoHideSmoke.clamshell_mode_rtl",
+  "peripherals.LaunchAppFromSettings.diagnostics",
+  "peripherals.LaunchAppFromSettings.print_management",
+
+  # b/249879125
+  "launcher.SearchBuiltInApps.tablet_mode",
+
+  # https://crbug.com/1373329
+  "peripherals.LaunchAppFromSettings.scan",
+  "policy.AllowedLanguages",
+
+  # https://crbug.com/1374943
+  "hwsec.CrossVersionLogin",
+
+  # https://crbug.com/1375191
+  "login.ChangePassword.auth_factor_experiment_on",
+  "login.ChangePassword.auth_factor_experiment_off",
+
+  # https://crbug.com/1361163
+  "lacros.AudioPinnedStream.play",
+
+  # https://crbug.com/1392911
+  "login.RestrictSignin",
+
+  # http://b/261363192
+  "crostini.*@kevin",
+
+  # https://crbug.com/1401605
+  "hwsec.CrossVersionLogin.small",
+  "hwsec.CrossVersionLogin.tpm_dynamic_small",
+
+  # https://crbug.com/1402224
+  "audio.PlaybackAudioControls",
+
+  # https://crbug.com/1236234
+  "lacros.AudioPlay",
+
+  # https://crbug.com/1415861
+  "crostini.ResizeRestart.bullseye_stable",
+  "crostini.ResizeRestart.buster_stable",
+
+  # https://b/272357159
+  "crostini.AppAudacity.bullseye_clamshell_stable",
+  "crostini.AppAudacity.buster_clamshell_stable",
+  "crostini.AppEmacs.bullseye_clamshell_stable",
+  "crostini.AppEmacs.clamshell_stable",
+  "crostini.AppGedit.bullseye_clamshell_stable",
+  "crostini.AppGedit.clamshell_stable",
+  "crostini.AppGeditUnshareFolder.bullseye_clamshell_stable",
+  "crostini.AppGeditUnshareFolder.clamshell_stable",
+  "crostini.AppVscode.bullseye_clamshell_stable",
+  "crostini.AppVscode.clamshell_stable",
+
+  # https://crbug.com/1427905
+  "inputs.VirtualKeyboardHandwriting.floating",
+  "inputs.VirtualKeyboardTypingUserMode.incognito",
+
+  # b/279351324: Until crrev.com/c/4475024 upreved.
+  "a11y.LiveCaption.lacros",
+
+  # READ COMMENT AT TOP BEFORE ADDING NEW TESTS HERE.
+]
+
+if (!is_official_build) {
+  # b/274341001: By design, ui.ChromeCrashEarly.strict fails on non-official
+  # builds.
+  tast_disabled_tests_from_chrome_all += [ "ui.ChromeCrashEarly.strict" ]
+}
+
+# To create filters to be used on specific builders add them like this:
+# tast_disabled_tests_from_lacros_example = [ "lacros.Basic" ]
+# and add the name (i.e. 'tast_disabled_tests_from_lacros_example') to the
+# test config as 'tast_expr_key'
+# To disable a specific test in lacros_all_tast_tests, add it the following
+# list and cite a bug.
+# The test disabled here will not impact it running in chrome on chromeOS
+# pipeline.
+tast_disabled_tests_from_lacros_all = [
+  # https://crbug.com/1329764
+  "policy.HistoryClustersVisible",
+
+  # https://crbug.com/1361163
+  "lacros.AudioPinnedStream.play",
+  "lacros.AudioPinnedStream.record",
+
+  # https://crbug.com/1236234
+  "lacros.AudioPlay",
+
+  # https://crbug.com/1376638
+  "lacros.AudioRecord",
+
+  # https://crbug.com/1422603
+  "tast.inputs.PhysicalKeyboardAutocorrect.*@jacuzzi",
+  "tast.inputs.PhysicalKeyboardShapeBasedChineseTyping.*@jacuzzi",
+  "tast.inputs.VirtualKeyboardTypingOmnibox.*@jacuzzi",
+  "tast.inputs.PhysicalKeyboardZhuyinTyping.*@jacuzzi",
+  "tast.inputs.VirtualKeyboardDeadKeys.*@jacuzzi",
+  "tast.inputs.PhysicalKeyboardShapeBasedChineseTyping.array_lacros",
+  "tast.inputs.VirtualKeyboardSpeech.lacros",
+
+  # https://crbug.com/1431937
+  "tast.lacros.ShelfLaunch.primary",
+]

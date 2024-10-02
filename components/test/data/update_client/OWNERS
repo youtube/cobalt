@@ -1,7 +1,1 @@
-cpu@chromium.org
-laforge@chromium.org
-mal@chromium.org
-sorin@chromium.org
-waffles@chromium.org
-
-# COMPONENT: Internals>Installer>Components
+file://components/update_client/OWNERS

@@ -55,54 +55,7 @@ constexpr base::TimeDelta kMaxRevocationIntermediateUpdateAge = base::Days(366);
 // Callers should not rely on the default-initialized value, but should fully
 // specify all the parameters. The default values specify a strict revocation
 // checking mode, in case users fail to fully set the parameters.
-#if defined(STARBOARD)
 struct NET_EXPORT_PRIVATE RevocationPolicy {
-  // If |check_revocation| is true, then revocation checking is mandatory. This
-  // means that every certificate in the chain (excluding trust anchors) must
-  // have valid (unexpired) revocation information proving it to be unrevoked.
-  //
-  // The mechanisms used for checking revocation may include stapled OCSP,
-  // cached OCSP, online OCSP, cached CRL, online CRL.
-  //
-  // The other properties of RevocationPolicy place further constraints on how
-  // revocation checking may proceed.
-  bool check_revocation : 1;
-
-  // If |networking_allowed| is true then revocation checking is allowed to
-  // issue network requests in order to fetch fresh OCSP/CRL. Otherwise
-  // networking is not permitted in the course of revocation checking.
-  bool networking_allowed : 1;
-
-  // If |crl_allowed| is true then CRLs will be checked as a fallback when an
-  // OCSP URL is not present or OCSP results are indeterminate.
-  bool crl_allowed : 1;
-
-  // If set to true, considers certificates lacking URLs for OCSP/CRL to be
-  // unrevoked. Otherwise will fail for certificates lacking revocation
-  // mechanisms.
-  bool allow_missing_info : 1;
-
-  // If set to true, other failure to perform revocation checks (e.g. due to a
-  // network level failure, OCSP response error status, failure parsing or
-  // evaluating the OCSP/CRL response, etc) is considered equivalent to a
-  // successful revocation check.
-  bool allow_unable_to_check : 1;
-
-  // If set to true, enforce requirements specified in the Baseline
-  // Requirements such as maximum age of revocation responses.
-  bool enforce_baseline_requirements : 1;
-};
-#else
-struct NET_EXPORT_PRIVATE RevocationPolicy {
-  RevocationPolicy() {
-    check_revocation = true;
-    networking_allowed = false;
-    crl_allowed = true;
-    allow_missing_info = false;
-    allow_unable_to_check = false;
-    enforce_baseline_requirements = true;
-  }
-
   // If |check_revocation| is true, then revocation checking is mandatory. This
   // means that every certificate in the chain (excluding trust anchors) must
   // have valid (unexpired) revocation information proving it to be unrevoked.
@@ -138,7 +91,6 @@ struct NET_EXPORT_PRIVATE RevocationPolicy {
   // Requirements such as maximum age of revocation responses.
   bool enforce_baseline_requirements : 1 = true;
 };
-#endif
 
 // Checks the revocation status of |certs| according to |policy|, and adds
 // any failures to |errors|. On failure errors are added to |errors|. On success

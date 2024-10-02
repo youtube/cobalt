@@ -1,4 +1,4 @@
-// Copyright 2014 The Crashpad Authors. All rights reserved.
+// Copyright 2014 The Crashpad Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -172,10 +172,10 @@ void MinidumpMemoryListWriter::AddNonOwnedMemory(
 }
 
 void MinidumpMemoryListWriter::CoalesceOwnedMemory() {
+  DropRangesThatOverlapNonOwned();
+
   if (children_.empty())
     return;
-
-  DropRangesThatOverlapNonOwned();
 
   std::sort(children_.begin(),
             children_.end(),
@@ -191,12 +191,11 @@ void MinidumpMemoryListWriter::CoalesceOwnedMemory() {
 
   // Remove any empty ranges.
   children_.erase(
-      std::remove_if(
-          children_.begin(),
-          children_.end(),
-          [](const std::unique_ptr<SnapshotMinidumpMemoryWriter>& snapshot) {
-            return snapshot->UnderlyingSnapshot()->Size() == 0;
-          }),
+      std::remove_if(children_.begin(),
+                     children_.end(),
+                     [](const auto& snapshot) {
+                       return snapshot->UnderlyingSnapshot()->Size() == 0;
+                     }),
       children_.end());
 
   std::vector<std::unique_ptr<SnapshotMinidumpMemoryWriter>> all_merged;

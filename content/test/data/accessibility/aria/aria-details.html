@@ -1,0 +1,18 @@
+<!--
+@BLINK-ALLOW:details*
+@WIN-ALLOW:n_relations*
+@MAC-ALLOW:AXDetailsElements
+-->
+<!DOCTYPE html>
+<html>
+  <body>
+    <div>
+      <input aria-details="details">
+    </div>
+    <p id="details">Details</p>
+
+    <p>This <span aria-details="details2 details3">text</span> has details</p>
+    <div role="group" id="details2">Text details</div>
+    <img id="details3" alt="Image details">
+  </body>
+</html>

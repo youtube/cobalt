@@ -35,7 +35,6 @@
 #ifndef _SYS_TIME_H_
 #define _SYS_TIME_H_
 
-#ifndef STARBOARD
 #include <sys/types.h>
 
 /*
@@ -54,7 +53,6 @@ struct timespec {
 	time_t	tv_sec;		/* seconds */
 	long	tv_nsec;	/* and nanoseconds */
 };
-#endif
 
 #define	TIMEVAL_TO_TIMESPEC(tv, ts) {					\
 	(ts)->tv_sec = (tv)->tv_sec;					\

@@ -27,9 +27,8 @@
 import("//build/config/chromeos/ui_mode.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/protobuf/proto_library.gni")
-import("//testing/test.gni")
 
-build_epoll_based_tools = false #is_linux || is_chromeos
+build_epoll_based_tools = is_linux || is_chromeos
 
 config("quiche_internal_config") {
   cflags = []
@@ -53,7 +52,6 @@ config("quiche_config") {
 }
 
 component("quiche") {
-  check_includes = false
   sources = [
     "overrides/quiche_platform_impl/quiche_bug_tracker_impl.h",
     "overrides/quiche_platform_impl/quiche_client_stats_impl.h",
@@ -775,7 +773,6 @@ proto_library("net_quic_test_tools_proto") {
 
 if (build_epoll_based_tools) {
   static_library("epoll_tool_support") {
-    check_includes = false
     testonly = true
     sources = [
       "overrides/quiche_platform_impl/epoll_bug_impl.h",
@@ -849,7 +846,6 @@ if (build_epoll_based_tools) {
   }
 
   executable("epoll_quic_client") {
-    check_includes = false
     testonly = true
     sources = [
       "src/quiche/quic/tools/quic_client_bin.cc",
@@ -871,7 +867,6 @@ if (build_epoll_based_tools) {
   }
 
   executable("epoll_quic_server") {
-    check_includes = false
     testonly = true
     sources = [
       "src/quiche/quic/tools/quic_server_bin.cc",
@@ -893,7 +888,6 @@ if (build_epoll_based_tools) {
   }
 
   executable("quic_client_interop_test") {
-    check_includes = false
     testonly = true
     sources = [ "src/quiche/quic/tools/quic_client_interop_test_bin.cc" ]
 
@@ -974,7 +968,6 @@ if (build_epoll_based_tools) {
 }
 
 static_library("quiche_test_support") {
-  check_includes = false
   testonly = true
   sources = [
     "overrides/quiche_platform_impl/quiche_expect_bug_impl.h",
@@ -1195,22 +1188,9 @@ static_library("quiche_test_support") {
     "//third_party/protobuf:protobuf_lite",
     "//third_party/quic_trace:quic_trace_proto",
   ]
-
-  if (cobalt_pending_clean_up) {
-    sources -= [
-      "src/quiche/quic/core/quic_trace_visitor.cc",
-      "src/quiche/quic/core/quic_trace_visitor.h",
-      "src/quiche/quic/test_tools/simulator/quic_endpoint.cc",
-      "src/quiche/quic/test_tools/simulator/quic_endpoint.h",
-      "src/quiche/quic/test_tools/simulator/quic_endpoint_base.cc",
-      "src/quiche/quic/test_tools/simulator/quic_endpoint_base.h",
-    ]
-    deps -= [ "//third_party/quic_trace:quic_trace_proto" ]
-  }
 }
 
 static_library("quiche_tool_support") {
-  check_includes = false
   sources = [
     "overrides/quiche_platform_impl/quiche_command_line_flags_impl.cc",
     "overrides/quiche_platform_impl/quiche_command_line_flags_impl.h",
@@ -1285,13 +1265,12 @@ static_library("quiche_tool_support") {
 }
 
 # QUICHE-provided CLI tools that don't use epoll.
-if (!is_ios && false) {
+if (!is_ios) {
   # The two libraries below, quic_client_core and quic_server_core, define
   # mutually exclusive command-line flags, and thus any target depending
   # directly on both will fail to build.  Only executable targets should depend
   # on those.
   source_set("quic_client_core") {
-    check_includes = false
     testonly = true
     sources = [
       "src/quiche/quic/tools/quic_toy_client.cc",
@@ -1308,7 +1287,6 @@ if (!is_ios && false) {
     ]
   }
   source_set("quic_server_core") {
-    check_includes = false
     sources = [
       "src/quiche/common/masque/connect_udp_datagram_payload.cc",
       "src/quiche/common/masque/connect_udp_datagram_payload.h",
@@ -1334,7 +1312,6 @@ if (!is_ios && false) {
   }
 
   executable("quic_packet_printer") {
-    check_includes = false
     sources = [ "src/quiche/quic/tools/quic_packet_printer_bin.cc" ]
 
     configs += [ ":quiche_internal_config" ]
@@ -1367,7 +1344,6 @@ if (!is_ios && false) {
   }
 
   executable("quic_reject_reason_decoder") {
-    check_includes = false
     sources = [ "src/quiche/quic/tools/quic_reject_reason_decoder_bin.cc" ]
 
     configs += [ ":quiche_internal_config" ]
@@ -1400,23 +1376,6 @@ if (!is_ios && false) {
   }
 }
 
-if (cobalt_pending_clean_up) {
-  copy("test_data") {
-    if (is_starboard) {
-      install_content = true
-    }
-    visibility = [ ":quiche_tests" ]
-    testonly = true
-    sources = [
-      "src/quiche/common/platform/api/testdir/README.md",
-      "src/quiche/common/platform/api/testdir/a/b/c/d/e",
-      "src/quiche/common/platform/api/testdir/a/subdir/testfile",
-      "src/quiche/common/platform/api/testdir/a/z",
-      "src/quiche/common/platform/api/testdir/testfile",
-    ]
-    outputs = [ "$sb_static_contents_output_data_dir/test/{{source_root_relative_dir}}/{{source_file_part}}" ]
-  }
-} else {
 bundle_data("test_data") {
   visibility = [ ":quiche_tests" ]
   testonly = true
@@ -1430,10 +1389,8 @@ bundle_data("test_data") {
   outputs = [ "{{bundle_resources_dir}}/" +
               "{{source_root_relative_dir}}/{{source_file_part}}" ]
 }
-}
 
 source_set("quiche_tests") {
-  check_includes = false
   testonly = true
   sources = [
     "src/quiche/binary_http/binary_http_message_test.cc",
@@ -1686,7 +1643,6 @@ source_set("quiche_tests") {
   public_configs = [ ":quiche_config" ]
 
   deps = [
-    ":test_data",
     "//net",
     "//net:quic_test_tools",
     "//net:simple_quic_tools",
@@ -1716,28 +1672,6 @@ source_set("quiche_tests") {
     public_deps += [
       ":epoll_test_support",
       ":epoll_tool_support",
-    ]
-  }
-
-  if (cobalt_pending_clean_up) {
-    sources -= [
-      # TODO: b/327008491 - Reenable these once we have quic_trace.
-      "src/quiche/quic/core/congestion_control/bbr2_simulator_test.cc",
-      "src/quiche/quic/core/congestion_control/bbr_sender_test.cc",
-      "src/quiche/quic/core/congestion_control/send_algorithm_test.cc",
-      "src/quiche/quic/core/crypto/quic_client_session_cache_test.cc",
-      "src/quiche/quic/core/quic_trace_visitor_test.cc",
-      "src/quiche/quic/test_tools/simulator/quic_endpoint_test.cc",
-
-      # symbolize_unimplemented.inc is reached for Starboard.
-      "src/quiche/common/platform/api/quiche_stack_trace_test.cc",
-
-      # Re-enable once we use c++20.
-      "src/quiche/common/capsule_test.cc",
-      "src/quiche/http2/adapter/oghttp2_adapter_test.cc",
-      "src/quiche/http2/adapter/oghttp2_session_test.cc",
-      "src/quiche/quic/core/quic_connection_test.cc",
-      "src/quiche/spdy/core/spdy_framer_test.cc",
     ]
   }
 }

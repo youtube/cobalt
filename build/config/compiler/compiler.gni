@@ -37,14 +37,10 @@ declare_args() {
   # The default linker everywhere else.
   use_lld = is_clang && current_os != "zos"
 
-  if (use_cobalt_customizations && is_apple) {
-    use_lld = false
-  }
-
   # If true, optimize for size.
   # Default to favoring speed over size for platforms not listed below.
   optimize_for_size =
-      !(is_high_end_android || is_starboard) && (is_android || is_ios || is_castos)
+      !is_high_end_android && (is_android || is_ios || is_castos)
 }
 
 declare_args() {
@@ -142,7 +138,7 @@ declare_args() {
   # Set to true to enable using the ML inliner in LLVM. This currently only
   # enables the ML inliner when targeting Android.
   # Currently the ML inliner is only supported on linux hosts
-  use_ml_inliner = host_os == "linux" && is_android && !use_cobalt_customizations
+  use_ml_inliner = host_os == "linux" && is_android
 
   # Set to true to use the android unwinder V2 implementation.
   use_android_unwinder_v2 = true

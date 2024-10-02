@@ -40,7 +40,7 @@ GURL FilePathToFileURL(const base::FilePath& path) {
 
   for (auto c : utf8_path) {
     if (c == '%' || c == ';' || c == '#' || c == '?' ||
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
         c == '\\' ||
 #endif
         c <= ' ') {
@@ -189,7 +189,7 @@ bool IsReservedNameOnWindows(const base::FilePath::StringType& filename) {
       "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9", "clock$"};
 #if BUILDFLAG(IS_WIN)
   std::string filename_lower = base::ToLowerASCII(base::WideToUTF8(filename));
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   std::string filename_lower = base::ToLowerASCII(filename);
 #endif
 

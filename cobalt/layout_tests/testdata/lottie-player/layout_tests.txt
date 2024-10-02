@@ -1,3 +1,0 @@
-lottie-background-attribute
-lottie-data-urls
-lottie-playback-events

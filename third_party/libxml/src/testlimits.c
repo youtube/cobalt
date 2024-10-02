@@ -13,13 +13,8 @@
 #include "libxml.h"
 #include <stdio.h>
 
-#if !defined(_WIN32)
-#include <unistd.h>
-#endif
 #include <string.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
 #include <time.h>
 
 #include <libxml/parser.h>
@@ -402,7 +397,7 @@ testExternalEntityLoader(const char *URL, const char *ID,
 static char testErrors[32769];
 static int testErrorsSize = 0;
 
-static void XMLCDECL
+static void
 channel(void *ctx  ATTRIBUTE_UNUSED, const char *msg, ...) {
     va_list args;
     int res;
@@ -1117,7 +1112,7 @@ commentCallback(void *ctx ATTRIBUTE_UNUSED,
  * Display and format a warning messages, gives file, line, position and
  * extra parameters.
  */
-static void XMLCDECL
+static void
 warningCallback(void *ctx ATTRIBUTE_UNUSED,
                 const char *msg ATTRIBUTE_UNUSED, ...)
 {
@@ -1134,7 +1129,7 @@ warningCallback(void *ctx ATTRIBUTE_UNUSED,
  * Display and format a error messages, gives file, line, position and
  * extra parameters.
  */
-static void XMLCDECL
+static void
 errorCallback(void *ctx ATTRIBUTE_UNUSED, const char *msg ATTRIBUTE_UNUSED,
               ...)
 {
@@ -1151,7 +1146,7 @@ errorCallback(void *ctx ATTRIBUTE_UNUSED, const char *msg ATTRIBUTE_UNUSED,
  * Display and format a fatalError messages, gives file, line, position and
  * extra parameters.
  */
-static void XMLCDECL
+static void
 fatalErrorCallback(void *ctx ATTRIBUTE_UNUSED,
                    const char *msg ATTRIBUTE_UNUSED, ...)
 {
@@ -1261,19 +1256,15 @@ saxTest(const char *filename, size_t limit, int options, int fail) {
     int res = 0;
     xmlParserCtxtPtr ctxt;
     xmlDocPtr doc;
-    xmlSAXHandlerPtr old_sax;
 
     nb_tests++;
 
     maxlen = limit;
-    ctxt = xmlNewParserCtxt();
+    ctxt = xmlNewSAXParserCtxt(callbackSAX2Handler, NULL);
     if (ctxt == NULL) {
         fprintf(stderr, "Failed to create parser context\n");
 	return(1);
     }
-    old_sax = ctxt->sax;
-    ctxt->sax = callbackSAX2Handler;
-    ctxt->userData = NULL;
     doc = xmlCtxtReadFile(ctxt, filename, NULL, options);
 
     if (doc != NULL) {
@@ -1296,7 +1287,6 @@ saxTest(const char *filename, size_t limit, int options, int fail) {
         } else
             res = 0;
     }
-    ctxt->sax = old_sax;
     xmlFreeParserCtxt(ctxt);
 
     return(res);

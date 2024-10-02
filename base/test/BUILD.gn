@@ -170,40 +170,9 @@ static_library("test_support") {
     "//third_party/libxml:xml_reader",
   ]
 
-  if (is_starboard) {
-    sources -= [
-      "launcher/unit_test_launcher.h",
-      "test_shared_memory_util.cc",
-      "test_shared_memory_util.h",
-    ]
-
-    sources += [
-      "time_helpers.cc",
-      "time_helpers.h",
-    ]
-    sources -= [
-      "metrics/histogram_enum_reader.cc",
-      "metrics/histogram_enum_reader.h",
-    ]
-
-    # These rely on FILE/fopen/fclose.
-    sources -= [
-      "gtest_links.cc",
-      "gtest_links.h",
-      "gtest_tags.cc",
-      "gtest_tags.h",
-      "gtest_xml_unittest_result_printer.cc",
-      "gtest_xml_unittest_result_printer.h",
-      "gtest_xml_util.cc",
-      "gtest_xml_util.h",
-      "perf_log.cc",
-      "perf_log.h",
-    ]
-  }
-
   if (enable_base_tracing) {
     public_deps += [ "//third_party/perfetto:perfetto_test_support" ]
-    if (!is_chromeos && !is_starboard) {
+    if (!is_chromeos) {
       # TODO(rasikan): Add to ios and chromeos when unblocked by the chromiumos
       # change to add the shared lib to the chrome-binary-tests directory.
       public_deps += [ ":test_trace_processor" ]
@@ -216,7 +185,7 @@ static_library("test_support") {
     }
   }
 
-  if (is_win && !is_starboard) {
+  if (is_win) {
     sources += [
       "async_results_test_values_win.h",
       "fake_iasync_operation_win.h",
@@ -239,12 +208,12 @@ static_library("test_support") {
     ]
   }
 
-  if (!use_cobalt_customizations && (is_linux || is_chromeos)) {
+  if (is_linux || is_chromeos) {
     sources += [ "test_file_util_linux.cc" ]
     public_deps += [ "//third_party/test_fonts/fontconfig:test_support" ]
   }
 
-  if (is_mac && !is_starboard) {
+  if (is_mac) {
     frameworks = [ "AppKit.framework" ]
     sources += [
       "mock_chrome_application_mac.h",
@@ -253,7 +222,7 @@ static_library("test_support") {
     ]
   }
 
-  if (is_android && !use_cobalt_customizations) {
+  if (is_android) {
     sources += [
       "android/java_handler_thread_helpers.cc",
       "android/java_handler_thread_helpers.h",
@@ -295,7 +264,7 @@ static_library("test_support") {
     }
   }
 
-  if (!is_starboard && (is_posix || is_fuchsia)) {
+  if (is_posix || is_fuchsia) {
     sources += [
       "scoped_locale.cc",
       "scoped_locale.h",
@@ -367,9 +336,7 @@ source_set("test_support_perf") {
   public_configs = [ ":perf_test_config" ]
 }
 
-# TODO: b/315170518 - Revert to static library after fixing
-# symbol visibility issues for windows based modular platform builds.
-source_set("run_all_unittests") {
+static_library("run_all_unittests") {
   testonly = true
   sources = [ "run_all_unittests.cc" ]
   deps = [ ":test_support" ]
@@ -385,7 +352,6 @@ source_set("native_library_test_utils") {
   ]
 }
 
-if (!use_cobalt_customizations) {
 # This shared library is dynamically loaded by ImmediateCrash unittests.
 shared_library("immediate_crash_test_helper") {
   sources = [ "immediate_crash_test_helper.cc" ]
@@ -408,9 +374,7 @@ shared_library("immediate_crash_test_helper") {
     configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   }
 }
-}
 
-if (!use_cobalt_customizations) {
 # This shared library is dynamically loaded by NativeLibrary unittests.
 shared_library("test_shared_library") {
   testonly = true
@@ -418,9 +382,7 @@ shared_library("test_shared_library") {
 
   deps = [ ":native_library_test_utils" ]
 }
-}
 
-if (!use_cobalt_customizations) {
 if (is_fuchsia || is_linux || is_chromeos) {
   shared_library("malloc_wrapper") {
     testonly = true
@@ -428,9 +390,8 @@ if (is_fuchsia || is_linux || is_chromeos) {
     deps = [ "//base" ]
   }
 }
-}
 
-if (is_android && !use_cobalt_customizations) {
+if (is_android) {
   generate_jni("base_unittests_jni_headers") {
     testonly = true
     sources = [
@@ -515,14 +476,12 @@ if (is_ios) {
 
 # Trivial executable which outputs space-delimited argv to stdout,
 # used for testing.
-if (!use_cobalt_customizations) {
 executable("test_child_process") {
   testonly = true
   sources = [ "test_child_process.cc" ]
 }
-}
 
-if (enable_base_tracing && !use_cobalt_customizations) {
+if (enable_base_tracing) {
   # We encapsulate the trace processor in a separate shared library to prevent
   # any duplicate symbol issues. Perfetto symbols are exported by chromium’s
   # base via a public_dep on libperfetto; libtrace_processor also depends on

@@ -1,4 +1,4 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
+// Copyright 2012 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,15 +7,13 @@
 
 #include <stdint.h>
 
-#include "cobalt/media/base/audio_bus.h"
 #include "content/browser/speech/endpointer/energy_endpointer.h"
 #include "content/common/content_export.h"
 
 class EpStatus;
+class AudioChunk;
 
 namespace content {
-
-class AudioChunk;
 
 // A simple interface to the underlying energy-endpointer implementation, this
 // class lets callers provide audio as being recorded and let them poll to find
@@ -47,8 +45,6 @@ class AudioChunk;
 // long_speech_input_complete_silence_length.
 class CONTENT_EXPORT Endpointer {
  public:
-  typedef cobalt::media::AudioBus AudioBus;
-
   explicit Endpointer(int sample_rate);
 
   // Start the endpointer. This should be called at the beginning of a session.
@@ -67,18 +63,16 @@ class CONTENT_EXPORT Endpointer {
 
   // Process a segment of audio, which may be more than one frame.
   // The status of the last frame will be returned.
-#if defined(STARBOARD)
-  EpStatus ProcessAudio(const AudioBus& audio_bus, float* rms_out);
-#else
   EpStatus ProcessAudio(const AudioChunk& raw_audio, float* rms_out);
-#endif
 
   // Get the status of the endpointer.
   EpStatus Status(int64_t* time_us);
 
   // Returns true if the endpointer detected reasonable audio levels above
   // background noise which could be user speech, false if not.
-  bool DidStartReceivingSpeech() const { return speech_previously_detected_; }
+  bool DidStartReceivingSpeech() const {
+    return speech_previously_detected_;
+  }
 
   bool IsEstimatingEnvironment() const {
     return energy_endpointer_.estimating_environment();
@@ -100,11 +94,9 @@ class CONTENT_EXPORT Endpointer {
     long_speech_length_us_ = time_us;
   }
 
-  bool speech_input_complete() const { return speech_input_complete_; }
-
-#if defined(STARBOARD)
-  int sample_rate() const { return sample_rate_; }
-#endif
+  bool speech_input_complete() const {
+    return speech_input_complete_;
+  }
 
   // RMS background noise level in dB.
   float NoiseLevelDb() const { return energy_endpointer_.GetNoiseLevelDb(); }
@@ -119,7 +111,7 @@ class CONTENT_EXPORT Endpointer {
 
   // The speechInputPossiblyComplete event signals that silence/noise has been
   // detected for a *short* amount of time after some speech has been detected.
-  // This property specifies the time period.
+  // This proporty specifies the time period.
   int64_t speech_input_possibly_complete_silence_length_us_;
 
   // The speechInputComplete event signals that silence/noise has been

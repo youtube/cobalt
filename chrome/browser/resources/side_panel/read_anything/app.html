@@ -1,0 +1,41 @@
+<style include="cr-hidden-style">
+  #container {
+    color: var(--foreground-color);
+    font-family: var(--font-family);
+    font-size: var(--font-size);
+    letter-spacing: var(--letter-spacing);
+    line-height: var(--line-height);
+    padding: 20px;
+  }
+  a:link {
+    color: var(--link-color);
+  }
+  a:visited {
+    color: var(--visited-link-color);
+  }
+  #empty-state-container {
+    padding: 20px;
+  }
+  sp-empty-state {
+    display: flex;
+    margin: 0 auto 16px auto;
+    width: fit-content;
+  }
+  ::selection {
+    background: var(--selection-color);
+  }
+  @media (prefers-color-scheme: dark) {
+    ::selection {
+      color: var(--google-grey-900);
+    }
+  }
+</style>
+<div id="container" hidden="[[!hasContent_]]"></div>
+<div id="empty-state-container" hidden="[[hasContent_]]">
+  <sp-empty-state
+      image-path="[[emptyStateImagePath_]]"
+      dark-image-path="[[emptyStateDarkImagePath_]]"
+      heading="[[emptyStateHeading_]]"
+      body="[[emptyStateSubheading_]]">
+  </sp-empty-state>
+</div>

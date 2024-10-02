@@ -223,12 +223,8 @@ class CookieStoreTest : public testing::Test {
       absl::optional<CookiePartitionKey> cookie_partition_key = absl::nullopt) {
     // Ensure a different Creation date to guarantee sort order for testing
     static base::Time last = base::Time::Min();
-#if defined(STARBOARD)
-    last = std::max(base::Time::Now(), last + base::Microseconds(1));
-#else
     last = base::Time::Now() == last ? last + base::Microseconds(1)
                                      : base::Time::Now();
-#endif
 
     auto cookie =
         CanonicalCookie::Create(url, cookie_line, system_time.value_or(last),

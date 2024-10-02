@@ -162,12 +162,7 @@ class HttpStreamFactory::Job
       quic::ParsedQuicVersion quic_version,
       bool is_websocket,
       bool enable_ip_based_pooling,
-#if defined(STARBOARD)
-      NetLog* net_log,
-      bool protocol_filter_override);
-#else
       NetLog* net_log);
-#endif  // defined(STARBOARD)
 
   Job(const Job&) = delete;
   Job& operator=(const Job&) = delete;
@@ -419,11 +414,6 @@ class HttpStreamFactory::Job
   // proxy. This differs from `using_ssl_`, which only describes the origin.
   const bool using_quic_;
 
-#if defined(STARBOARD)
-  // True if |using_quic_| can be true when QUIC is not enabled by the session.
-  const bool protocol_filter_override_;
-#endif  //defined(STARBOARD)
-
   // quic::ParsedQuicVersion that should be used to connect to the QUIC
   // server if Job uses QUIC.
   quic::ParsedQuicVersion quic_version_;
@@ -525,14 +515,8 @@ class HttpStreamFactory::JobFactory {
       bool enable_ip_based_pooling,
       NetLog* net_log,
       NextProto alternative_protocol = kProtoUnknown,
-#if defined(STARBOARD)
-      quic::ParsedQuicVersion quic_version =
-          quic::ParsedQuicVersion::Unsupported(),
-      bool protocol_filter_override = false);
-#else
       quic::ParsedQuicVersion quic_version =
           quic::ParsedQuicVersion::Unsupported());
-#endif  // defined(STARBOARD)
 };
 
 }  // namespace net

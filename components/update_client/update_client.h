@@ -1,4 +1,4 @@
-// Copyright 2015 The Chromium Authors. All rights reserved.
+// Copyright 2015 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -8,14 +8,16 @@
 #include <stdint.h>
 
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "base/functional/callback_forward.h"
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/version.h"
+#include "components/crx_file/crx_verifier.h"
 #include "components/update_client/update_client_errors.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 // The UpdateClient class is a facade with a simple interface. The interface
 // exposes a few APIs to install a CRX or update a group of CRXs.
@@ -41,15 +43,14 @@
 // The UpdateClient class features a subject-observer interface to observe
 // the CRX state changes during an update.
 //
-// The threading model for this code assumes that most of the code in the
-// public interface runs on a SingleThreadTaskRunner.
-// This task runner corresponds to the browser UI thread in many cases. There
-// are parts of the installer interface that run on blocking task runners, which
-// are usually threads in a thread pool.
+// Most of the code in the public interface runs on a SequencedTaskRunner. This
+// task runner corresponds to the browser UI thread but it can be any other
+// sequenced task runner. There are parts of the installer interface that run
+// on blocking task runners, which are usually sequences managed by the thread
+// pool.
 //
-// Using the UpdateClient is relatively easy. This assumes that the client
-// of this code has already implemented the observer interface as needed, and
-// can provide an installer, as described below.
+// Using the UpdateClient requires creating an instance, adding observers, and
+// providing an installer instance, as shown below:
 //
 //    std::unique_ptr<UpdateClient> update_client(UpdateClientFactory(...));
 //    update_client->AddObserver(&observer);
@@ -159,6 +160,7 @@ enum class ComponentState {
   kUpToDate,
   kUpdateError,
   kUninstalled,
+  kRegistration,
   kRun,
   kLastStatus
 };
@@ -168,29 +170,58 @@ class CrxInstaller : public base::RefCountedThreadSafe<CrxInstaller> {
  public:
   // Contains the result of the Install operation.
   struct Result {
+    Result() = default;
     explicit Result(int error, int extended_error = 0)
         : error(error), extended_error(extended_error) {}
     explicit Result(InstallError error, int extended_error = 0)
         : error(static_cast<int>(error)), extended_error(extended_error) {}
+
     int error = 0;  // 0 indicates that install has been successful.
     int extended_error = 0;
+
+    // Localized text displayed to the user, if applicable.
+    std::string installer_text;
+
+    // Shell command run at the end of the install, if applicable. This string
+    // must be escaped to be a command line.
+    std::string installer_cmd_line;
   };
 
+  struct InstallParams {
+    InstallParams(const std::string& run,
+                  const std::string& arguments,
+                  const std::string& server_install_data);
+    std::string run;
+    std::string arguments;
+    std::string server_install_data;
+  };
+
+  using ProgressCallback = base::RepeatingCallback<void(int progress)>;
   using Callback = base::OnceCallback<void(const Result& result)>;
 
-  // Called on the main thread when there was a problem unpacking or
+  // Called on the main sequence when there was a problem unpacking or
   // verifying the CRX. |error| is a non-zero value which is only meaningful
   // to the caller.
   virtual void OnUpdateError(int error) = 0;
 
   // Called by the update service when a CRX has been unpacked
-  // and it is ready to be installed. |unpack_path| contains the
-  // temporary directory with all the unpacked CRX files. |pubkey| contains the
-  // public key of the CRX in the PEM format, without the header and the footer.
-  // The caller must invoke the |callback| when the install flow has completed.
-  // This method may be called from a thread other than the main thread.
+  // and it is ready to be installed. This method may be called from a
+  // sequence other than the main sequence.
+  // |unpack_path| contains the temporary directory with all the unpacked CRX
+  // files.
+  // |pubkey| contains the public key of the CRX in the PEM format, without the
+  // header and the footer.
+  // |install_params| is an optional parameter which provides the name and the
+  // arguments for a binary program which is invoked as part of the install or
+  // update flows.
+  // |progress_callback| reports installer progress. This callback must be run
+  // directly instead of posting it.
+  // |callback| must be the last callback invoked and it indicates that the
+  // install flow has completed.
   virtual void Install(const base::FilePath& unpack_path,
                        const std::string& public_key,
+                       std::unique_ptr<InstallParams> install_params,
+                       ProgressCallback progress_callback,
                        Callback callback) = 0;
 
   // Sets |installed_file| to the full path to the installed |file|. |file| is
@@ -208,7 +239,26 @@ class CrxInstaller : public base::RefCountedThreadSafe<CrxInstaller> {
  protected:
   friend class base::RefCountedThreadSafe<CrxInstaller>;
 
-  virtual ~CrxInstaller() {}
+  virtual ~CrxInstaller() = default;
+};
+
+// Defines an interface to handle |action| elements in the update response.
+// The current implementation only handles run actions bound to a CRX, meaning
+// that such CRX is unpacked and an executable file, contained inside the CRX,
+// is run, then the results of the invocation are collected by the callback.
+class ActionHandler : public base::RefCountedThreadSafe<ActionHandler> {
+ public:
+  using Callback =
+      base::OnceCallback<void(bool succeeded, int error_code, int extra_code1)>;
+
+  virtual void Handle(const base::FilePath& action,
+                      const std::string& session_id,
+                      Callback callback) = 0;
+
+ protected:
+  friend class base::RefCountedThreadSafe<ActionHandler>;
+
+  virtual ~ActionHandler() = default;
 };
 
 // A dictionary of installer-specific, arbitrary name-value pairs, which
@@ -218,45 +268,65 @@ using InstallerAttributes = std::map<std::string, std::string>;
 struct CrxComponent {
   CrxComponent();
   CrxComponent(const CrxComponent& other);
+  CrxComponent& operator=(const CrxComponent& other);
   ~CrxComponent();
 
-  // SHA256 hash of the CRX's public key.
+  // Optional SHA256 hash of the CRX's public key. If not supplied, the
+  // unpacker can accept any CRX for this app, provided that the CRX meets the
+  // VerifierFormat requirements specified by the service's configurator.
+  // Callers that know or need a specific developer signature on acceptable CRX
+  // files must provide this.
   std::vector<uint8_t> pk_hash;
+
   scoped_refptr<CrxInstaller> installer;
+  scoped_refptr<ActionHandler> action_handler;
+
   std::string app_id;
 
   // The current version if the CRX is updated. Otherwise, "0" or "0.0" if
   // the CRX is installed.
   base::Version version;
 
+  // Optional. This additional parameter ("ap") is sent to the server, which
+  // often uses it to distinguish between variants of the software that were
+  // chosen at install time.
+  std::string ap;
+
+  // If nonempty, the brand is an uppercase 4-letter string that describes the
+  // flavor, branding, or provenance of the software.
+  std::string brand;
+
+  // If populated, the `install_data_index` is sent to the update server as part
+  // of the `data` element. The server will provide corresponding installer data
+  // in the update response. This data is then provided to the installer when
+  // running it.
+  std::string install_data_index;
+
   std::string fingerprint;  // Optional.
   std::string name;         // Optional.
-  std::vector<std::string> handled_mime_types;
 
   // Optional.
   // Valid values for the name part of an attribute match
   // ^[-_a-zA-Z0-9]{1,256}$ and valid values the value part of an attribute
-  // match ^[-.,;+_=a-zA-Z0-9]{0,256}$ .
+  // match ^[-.,;+_=$a-zA-Z0-9]{0,256}$ .
   InstallerAttributes installer_attributes;
 
   // Specifies that the CRX can be background-downloaded in some cases.
   // The default for this value is |true|.
-  bool allows_background_download;
+  bool allows_background_download = true;
 
   // Specifies that the update checks and pings associated with this component
   // require confidentiality. The default for this value is |true|. As a side
   // note, the confidentiality of the downloads is enforced by the server,
   // which only returns secure download URLs in this case.
-  bool requires_network_encryption;
+  bool requires_network_encryption = true;
 
   // Specifies the strength of package validation required for the item.
-  crx_file::VerifierFormat crx_format_requirement;
+  crx_file::VerifierFormat crx_format_requirement =
+      crx_file::VerifierFormat::CRX3_WITH_PUBLISHER_PROOF;
 
-  // True if the component allows enabling or disabling updates by group policy.
-  // This member should be set to |false| for data, non-binary components, such
-  // as CRLSet, Supervised User Whitelists, STH Set, Origin Trials, and File
-  // Type Policies.
-  bool supports_group_policy_enable_component_updates;
+  // True if and only if this item may be updated.
+  bool updates_enabled = true;
 
   // Reasons why this component/extension is disabled.
   std::vector<int> disabled_reasons;
@@ -270,6 +340,24 @@ struct CrxComponent {
   // For extensions, this information is inferred from the extension
   // registry.
   std::string install_location;
+
+  // Information about the channel to send to the update server when updating
+  // the component. This optional field is typically populated by policy and is
+  // only populated on managed devices.
+  std::string channel;
+
+  // A version prefix sent to the server in the case of version pinning. The
+  // server should not respond with an update to a version that does not match
+  // this prefix. If no prefix is specified, the client will accept any version.
+  std::string target_version_prefix;
+
+  // An indicator sent to the server to advise whether it may perform a version
+  // downgrade of this item.
+  bool rollback_allowed = false;
+
+  // An indicator sent to the server to advise whether it may perform an
+  // over-install on this item.
+  bool same_version_update_allowed = false;
 };
 
 // Called when a non-blocking call of UpdateClient completes.
@@ -279,11 +367,21 @@ using Callback = base::OnceCallback<void(Error error)>;
 // instance of this class is created, the reference to it must be released
 // only after the thread pools of the browser process have been destroyed and
 // the browser process has gone single-threaded.
-class UpdateClient : public base::RefCounted<UpdateClient> {
+class UpdateClient : public base::RefCountedThreadSafe<UpdateClient> {
  public:
+  // Returns `CrxComponent` instances corresponding to the component ids
+  // passed as an argument to the callback. The order of components in the input
+  // and output vectors must match. If the instance of the `CrxComponent` is not
+  // available for some reason, implementors of the callback must not skip
+  // skip the component, and instead, they must insert a `nullopt` value in
+  // the output vector.
   using CrxDataCallback =
-      base::OnceCallback<std::vector<base::Optional<CrxComponent>>(
+      base::OnceCallback<std::vector<absl::optional<CrxComponent>>(
           const std::vector<std::string>& ids)>;
+
+  // Called when state changes occur during an Install or Update call.
+  using CrxStateChangeCallback =
+      base::RepeatingCallback<void(CrxUpdateItem item)>;
 
   // Defines an interface to observe the UpdateClient. It provides
   // notifications when state changes occur for the service itself or for the
@@ -294,9 +392,9 @@ class UpdateClient : public base::RefCounted<UpdateClient> {
       // Sent before the update client does an update check.
       COMPONENT_CHECKING_FOR_UPDATES = 1,
 
-      // Sent when there is a new version of a registered CRX. After
-      // the notification is sent the CRX will be downloaded unless the
-      // update client inserts a
+      // Sent when there is a new version of a registered CRX. The CRX will be
+      // downloaded after the notification unless the update client inserts
+      // a wait because of a throttling policy.
       COMPONENT_UPDATE_FOUND,
 
       // Sent when a CRX is in the update queue but it can't be acted on
@@ -313,7 +411,7 @@ class UpdateClient : public base::RefCounted<UpdateClient> {
 
       // Sent when a CRX has not been updated because there was no update
       // available for this component.
-      COMPONENT_NOT_UPDATED,
+      COMPONENT_ALREADY_UP_TO_DATE,
 
       // Sent when an error ocurred during an update for any reason, including
       // the update check itself failed, or the download of the update payload
@@ -322,9 +420,12 @@ class UpdateClient : public base::RefCounted<UpdateClient> {
 
       // Sent when CRX bytes are being downloaded.
       COMPONENT_UPDATE_DOWNLOADING,
+
+      // Sent when install progress is received from the CRX installer.
+      COMPONENT_UPDATE_UPDATING,
     };
 
-    virtual ~Observer() {}
+    virtual ~Observer() = default;
 
     // Called by the update client when a state change happens.
     // If an |id| is specified, then the event is fired on behalf of the
@@ -342,39 +443,54 @@ class UpdateClient : public base::RefCounted<UpdateClient> {
   virtual void RemoveObserver(Observer* observer) = 0;
 
   // Installs the specified CRX. Calls back on |callback| after the
-  // update has been handled. The |error| parameter of the |callback|
-  // contains an error code in the case of a run-time error, or 0 if the
-  // install has been handled successfully. Overlapping calls of this function
-  // are executed concurrently, as long as the id parameter is different,
-  // meaning that installs of different components are parallelized.
+  // update has been handled. Provides state change notifications through
+  // invocations of the optional |crx_state_change_callback| callback.
+  // The |error| parameter of the |callback| contains an error code in the case
+  // of a run-time error, or 0 if the install has been handled successfully.
+  // Overlapping calls of this function are executed concurrently, as long as
+  // the id parameter is different, meaning that installs of different
+  // components are parallelized.
   // The |Install| function is intended to be used for foreground installs of
   // one CRX. These cases are usually associated with on-demand install
   // scenarios, which are triggered by user actions. Installs are never
   // queued up.
-  virtual void Install(const std::string& id,
-                       CrxDataCallback crx_data_callback,
-                       Callback callback) = 0;
+  // Returns a closure that can be called to cancel the installation.
+  virtual base::RepeatingClosure Install(
+      const std::string& id,
+      CrxDataCallback crx_data_callback,
+      CrxStateChangeCallback crx_state_change_callback,
+      Callback callback) = 0;
+
+  // Does an update check with the server, gets an update response, but it does
+  // not continue further with downloading, nor installing the payload.
+  virtual void CheckForUpdate(const std::string& id,
+                              CrxDataCallback crx_data_callback,
+                              CrxStateChangeCallback crx_state_change_callback,
+                              bool is_foreground,
+                              Callback callback) = 0;
 
   // Updates the specified CRXs. Calls back on |crx_data_callback| before the
   // update is attempted to give the caller the opportunity to provide the
-  // instances of CrxComponent to be used for this update. The |Update| function
-  // is intended to be used for background updates of several CRXs. Overlapping
-  // calls to this function result in a queuing behavior, and the execution
-  // of each call is serialized. In addition, updates are always queued up when
-  // installs are running. The |is_foreground| parameter must be set to true if
-  // the invocation of this function is a result of a user initiated update.
+  // instances of CrxComponent to be used for this update. Provides state change
+  // notifications through invocations of the optional
+  // |crx_state_change_callback| callback.
+  // The |Update| function is intended to be used for background updates of
+  // several CRXs. Overlapping calls to this function result in a queuing
+  // behavior, and the execution of each call is serialized. In addition,
+  // updates are always queued up when installs are running. The |is_foreground|
+  // parameter must be set to true if the invocation of this function is a
+  // result of a user initiated update.
   virtual void Update(const std::vector<std::string>& ids,
                       CrxDataCallback crx_data_callback,
+                      CrxStateChangeCallback crx_state_change_callback,
                       bool is_foreground,
                       Callback callback) = 0;
 
-  // Sends an uninstall ping for the CRX identified by |id| and |version|. The
-  // |reason| parameter is defined by the caller. The current implementation of
-  // this function only sends a best-effort, fire-and-forget ping. It has no
-  // other side effects regarding installs or updates done through an instance
-  // of this class.
-  virtual void SendUninstallPing(const std::string& id,
-                                 const base::Version& version,
+  // Sends an uninstall ping for `crx_component`. `reason` is sent to the server
+  // to indicate the cause of the uninstallation. The current implementation of
+  // this function only sends a best-effort ping. It has no other side effects
+  // regarding installs or updates done through an instance of this class.
+  virtual void SendUninstallPing(const CrxComponent& crx_component,
                                  int reason,
                                  Callback callback) = 0;
 
@@ -394,9 +510,9 @@ class UpdateClient : public base::RefCounted<UpdateClient> {
   virtual void Stop() = 0;
 
  protected:
-  friend class base::RefCounted<UpdateClient>;
+  friend class base::RefCountedThreadSafe<UpdateClient>;
 
-  virtual ~UpdateClient() {}
+  virtual ~UpdateClient() = default;
 };
 
 // Creates an instance of the update client.

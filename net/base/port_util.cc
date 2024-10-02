@@ -116,9 +116,7 @@ base::LazyInstance<std::multiset<int>>::Leaky g_explicitly_allowed_ports =
 // should only remain in this list for about a year to give time for users to
 // migrate off while stopping them from becoming permanent parts of the web
 // platform.
-#if !defined(COMPILER_MSVC)
 constexpr int kAllowablePorts[] = {};
-#endif
 
 int g_scoped_allowable_port = 0;
 
@@ -175,14 +173,11 @@ ScopedPortException::~ScopedPortException() {
 }
 
 NET_EXPORT bool IsAllowablePort(int port) {
-#if !defined(COMPILER_MSVC)
   for (auto allowable_port : kAllowablePorts) {
     if (port == allowable_port) {
       return true;
     }
   }
-#endif
-
 
   if (port == g_scoped_allowable_port)
     return true;

@@ -79,11 +79,6 @@ BASE_EXPORT bool StringToUint(StringPiece16 input, unsigned* output);
 BASE_EXPORT bool StringToInt64(StringPiece input, int64_t* output);
 BASE_EXPORT bool StringToInt64(StringPiece16 input, int64_t* output);
 
-#if defined(STARBOARD)
-BASE_EXPORT bool StringToInt32(StringPiece input, int32_t* output);
-BASE_EXPORT bool StringToUint32(StringPiece input, uint32_t* output);
-#endif
-
 BASE_EXPORT bool StringToUint64(StringPiece input, uint64_t* output);
 BASE_EXPORT bool StringToUint64(StringPiece16 input, uint64_t* output);
 

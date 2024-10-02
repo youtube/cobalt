@@ -1,0 +1,44 @@
+<style>
+  #title {
+    font-family: 'Roboto Medium';
+    font-size: 14px;
+    padding-bottom: 16px;
+  }
+  
+  #body {
+    font-family: 'Roboto';
+    font-weight: 300;
+  }
+
+  #button-container {
+    display: flex;
+    padding-top: 32px;
+  }
+
+  #content {
+    padding-bottom: 20px;
+    padding-inline-end: 24px;
+    padding-inline-start: 24px;
+    padding-top: 24px;
+  }
+</style>
+
+<div id="content">
+  <div id="title">
+  </div>
+  <div id="body">
+    <div id="reason-message" style="margin-bottom: 13px;"></div>
+    <div id="instructions-message"></div>
+  </div>
+  <div id="button-container">
+    <cr-button id="quick-office-button" custom-tab-index="-1">
+      $i18n{officeFallbackOpenWithOfflineEditor}
+    </cr-button>
+    <cr-button id="cancel-button" class="cancel-button" style="margin-left: auto;">
+      $i18n{officeFallbackCancel}
+    </cr-button>
+    <cr-button id="try-again-button" class="action-button">
+      $i18n{officeFallbackTryAgain}
+    </cr-button>
+  </div>
+</div>

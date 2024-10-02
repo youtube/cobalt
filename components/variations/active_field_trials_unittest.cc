@@ -1,4 +1,4 @@
-// Copyright 2014 The Chromium Authors. All rights reserved.
+// Copyright 2014 The Chromium Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -44,8 +44,7 @@ TEST(ActiveFieldTrialsTest, GetFieldTrialActiveGroups) {
                                            &active_group_ids);
   EXPECT_EQ(2U, active_group_ids.size());
   for (size_t i = 0; i < active_group_ids.size(); ++i) {
-    ActiveGroupIdSet::iterator expected_group =
-        expected_groups.find(active_group_ids[i]);
+    auto expected_group = expected_groups.find(active_group_ids[i]);
     EXPECT_FALSE(expected_group == expected_groups.end());
     expected_groups.erase(expected_group);
   }

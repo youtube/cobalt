@@ -289,9 +289,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_HAVE_THREAD_LOCAL 1
 #endif
 #else  // !defined(__APPLE__)
-#if !defined(STARBOARD)
 #define ABSL_HAVE_THREAD_LOCAL 1
-#endif
 #endif
 
 // There are platforms for which TLS should not be used even though the compiler

@@ -527,11 +527,6 @@ int SimpleSynchronousEntry::DoomInternal(
     SimpleFileTracker::EntryFileKey orig_key = entry_file_key_;
     file_tracker_->Doom(this, &entry_file_key_);
 
-#if defined(STARBOARD)
-    SIMPLE_CACHE_UMA(TIMES, "DiskDoomLatency", cache_type_,
-                 base::TimeTicks::Now() - start);
-    return net::ERR_FAILED;
-#else
     for (int i = 0; i < kSimpleEntryNormalFileCount; ++i) {
       if (!empty_file_omitted_[i]) {
         base::File::Error out_error;
@@ -556,7 +551,6 @@ int SimpleSynchronousEntry::DoomInternal(
                      base::TimeTicks::Now() - start);
 
     return ok ? net::OK : net::ERR_FAILED;
-#endif  // defined(STARBOARD)
   } else {
     // No one has ever called Create or Open on us, so we don't have to worry
     // about being accessible to other ops after doom.

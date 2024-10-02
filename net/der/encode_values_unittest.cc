@@ -45,29 +45,9 @@ TEST(EncodeValuesTest, EncodeTimeAsGeneralizedTime) {
 // on platforms where it returns true. As of this writing, it will return false
 // on Windows.
 TEST(EncodeValuesTest, EncodeTimeFromBeforeWindowsEpoch) {
-  // Starboard generates base::Time::UnixEpoch() - base::Seconds(12622780800)
-  // a slightly different time, maybe due to rounding errors.
-  // The dependency on base::Time for this test is going away in newer upstream
-  // code version anyway.
-#if defined(STARBOARD)
-  base::Time::Exploded exploded;
-  exploded.year = 1570;
-  exploded.month = 1;
-  exploded.day_of_week = 5;
-  exploded.day_of_month = 1;
-  exploded.hour = 0;
-  exploded.minute = 0;
-  exploded.second = 0;
-  exploded.millisecond = 0;
-
-  base::Time kStartOfYear1570;
-  if (!base::Time::FromUTCExploded(exploded, &kStartOfYear1570))
-    return;
-#else
   // Thu, 01 Jan 1570 00:00:00 GMT
   constexpr base::Time kStartOfYear1570 =
       base::Time::UnixEpoch() - base::Seconds(12622780800);
-#endif
   GeneralizedTime generalized_time;
   if (!EncodeTimeAsGeneralizedTime(kStartOfYear1570, &generalized_time))
     return;

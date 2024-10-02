@@ -1,5 +1,5 @@
-#!/usr/bin/python
-# Copyright 2014 The Chromium Authors. All rights reserved.
+#!/usr/bin/env python
+# Copyright 2014 The Chromium Authors
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -15,11 +15,11 @@ SCRIPT_NAME = "generate_ui_string_overrider.py"
 
 
 # Regular expression for parsing the #define macro format. Matches both the
-# version of the macro with whitelist support and the one without. For example,
-# Without generate whitelist flag:
+# version of the macro with allowlist support and the one without. For example,
+# Without generate allowlist flag:
 #   #define IDS_FOO_MESSAGE 1234
-# With generate whitelist flag:
-#   #define IDS_FOO_MESSAGE (::ui::WhitelistedResource<1234>(), 1234)
+# With generate allowlist flag:
+#   #define IDS_FOO_MESSAGE (::ui::AllowlistedResource<1234>(), 1234)
 RESOURCE_EXTRACT_REGEX = re.compile('^#define (\S*).* (\d+)\)?$', re.MULTILINE)
 
 class Error(Exception):
@@ -33,7 +33,7 @@ class HashCollisionError(Error):
 Resource = collections.namedtuple("Resource", ['hash', 'name', 'index'])
 
 
-def _HashName(name):
+def HashName(name):
   """Returns the hash id for a name.
 
   Args:
@@ -43,7 +43,7 @@ def _HashName(name):
     An int that is at most 32 bits.
   """
   md5hash = hashlib.md5()
-  md5hash.update(name)
+  md5hash.update(name.encode('utf-8'))
   return int(md5hash.hexdigest()[:8], 16)
 
 
@@ -76,7 +76,7 @@ def _GetResourceListFromString(resources_content):
   Returns:
     A sorted list of |Resource| objects.
   """
-  resources = [Resource(_HashName(name), name, index) for name, index in
+  resources = [Resource(HashName(name), name, index) for name, index in
                _GetNameIndexPairsIter(resources_content)]
 
   # Deduplicate resources. Some name-index pairs appear in both chromium_ and
@@ -101,7 +101,7 @@ def _CheckForHashCollisions(sorted_resource_list):
     A set of all |Resource| objects with collisions.
   """
   collisions = set()
-  for i in xrange(len(sorted_resource_list) - 1):
+  for i in range(len(sorted_resource_list) - 1):
     resource = sorted_resource_list[i]
     next_resource = sorted_resource_list[i+1]
     if resource.hash == next_resource.hash:
@@ -174,8 +174,10 @@ def _GenerateSourceFileContent(resources_content, namespace, header_filename):
   if collisions:
     error_message = "\n".join(
         ["hash: %i, name: %s" % (i.hash, i.name) for i in sorted(collisions)])
-    error_message = ("\nThe following names had hash collisions "
-                     "(sorted by the hash value):\n%s\n" %(error_message))
+    error_message = ("\nThe following names, sorted by hash value, "
+                     "had hash collisions (One possible cause: strings "
+                     "appear in different orders for Chrome and Chromium):"
+                     "\n%s\n" % (error_message))
     raise HashCollisionError(error_message)
 
   hashes_array = _GenDataArray(

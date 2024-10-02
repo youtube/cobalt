@@ -28,15 +28,6 @@
 #include "config.h"
 #endif
 
-#ifdef STARBOARD
-#if defined LIBEVENT_PLATFORM_HEADER
-#include LIBEVENT_PLATFORM_HEADER
-#else  //  defined LIBEVENT_PLATFORM_HEADER
-#include "libevent-starboard.h"
-#endif  //  defined LIBEVENT_PLATFORM_HEADER
-
-#include "compat/sys/queue.h"
-#else  // STARBOARD
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -49,16 +40,13 @@
 #include <sys/_libevent_time.h>
 #endif
 #include <sys/queue.h>
-#endif  // STARBOARD
 #include <stdio.h>
 #include <stdlib.h>
 #ifndef WIN32
 #include <unistd.h>
 #endif
 #include <errno.h>
-#ifndef STARBOARD
 #include <signal.h>
-#endif
 #include <string.h>
 #include <assert.h>
 #include <time.h>
@@ -118,9 +106,7 @@ static const struct eventop *eventops[] = {
 
 /* Global state */
 struct event_base *current_base = NULL;
-#ifndef STARBOARD
 extern struct event_base *evsignal_base;
-#endif
 static int use_monotonic = 1;
 
 /* Prototypes */
@@ -134,16 +120,6 @@ static int	timeout_next(struct event_base *, struct timeval **);
 static void	timeout_process(struct event_base *);
 static void	timeout_correct(struct event_base *, struct timeval *);
 
-static void
-detect_monotonic(void)
-{
-#if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
-	struct timespec	ts;
-	if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0)
-		use_monotonic = 1;
-#endif
-}
-
 static int
 gettime(struct event_base *base, struct timeval *tp)
 {
@@ -153,14 +129,12 @@ gettime(struct event_base *base, struct timeval *tp)
 	}
 
 #if defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_MONOTONIC)
-	if (use_monotonic) {
-		struct timespec ts;
-		if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1)
-			return (-1);
+	struct timespec	ts;
 
+	if (use_monotonic &&
+	    clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
 		tp->tv_sec = ts.tv_sec;
 		tp->tv_usec = ts.tv_nsec / 1000;
-
 		return (0);
 	}
 #endif
@@ -190,15 +164,13 @@ event_base_new(void)
 	if ((base = calloc(1, sizeof(struct event_base))) == NULL)
 		event_err(1, "%s: calloc", __func__);
 
-	detect_monotonic();
 	gettime(base, &base->event_tv);
 	
 	min_heap_ctor(&base->timeheap);
 	TAILQ_INIT(&base->eventqueue);
-#ifndef STARBOARD
 	base->sig.ev_signal_pair[0] = -1;
 	base->sig.ev_signal_pair[1] = -1;
-#endif
+	
 	base->evbase = NULL;
 	for (i = 0; eventops[i] && !base->evbase; i++) {
 		base->evsel = eventops[i];
@@ -297,7 +269,6 @@ event_reinit(struct event_base *base)
 		return (0);
 #endif
 
-#ifndef STARBOARD
 	/* prevent internal delete */
 	if (base->sig.ev_signal_added) {
 		/* we cannot call event_del here because the base has
@@ -309,7 +280,7 @@ event_reinit(struct event_base *base)
 			    EVLIST_ACTIVE);
 		base->sig.ev_signal_added = 0;
 	}
-#endif
+
 	if (base->evsel->dealloc != NULL)
 		base->evsel->dealloc(base, base->evbase);
 	evbase = base->evbase = evsel->init(base);
@@ -498,10 +469,8 @@ event_base_loop(struct event_base *base, int flags)
 	/* clear time cache */
 	base->tv_cache.tv_sec = 0;
 
-#ifndef STARBOARD
 	if (base->sig.ev_signal_added)
 		evsignal_base = base;
-#endif
 	done = 0;
 	while (!done) {
 		/* Terminate the loop if we have been asked to */
@@ -600,11 +569,9 @@ event_base_once(struct event_base *base, int fd, short events,
 	struct timeval etv;
 	int res;
 
-#ifndef STARBOARD
 	/* We cannot support signals that just fire once */
 	if (events & EV_SIGNAL)
 		return (-1);
-#endif
 
 	if ((eonce = calloc(1, sizeof(struct event_once))) == NULL)
 		return (-1);
@@ -918,7 +885,7 @@ timeout_correct(struct event_base *base, struct timeval *tv)
 	pev = base->timeheap.p;
 	size = base->timeheap.n;
 	for (; size-- > 0; ++pev) {
-		struct evtimeval *ev_tv = &(**pev).ev_timeout;
+		struct timeval *ev_tv = &(**pev).ev_timeout;
 		evutil_timersub(ev_tv, &off, ev_tv);
 	}
 	/* Now remember what the new time turned out to be. */

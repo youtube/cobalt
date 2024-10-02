@@ -72,8 +72,6 @@ class EnvironmentImpl : public Environment {
     if (result)
       *result = env_value;
     return true;
-#else
-    return false;
 #endif
   }
 
@@ -85,8 +83,6 @@ class EnvironmentImpl : public Environment {
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     // On success, zero is returned.
     return !setenv(variable_name.data(), new_value.c_str(), 1);
-#else
-    return false;
 #endif
   }
 
@@ -97,8 +93,6 @@ class EnvironmentImpl : public Environment {
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
     // On success, zero is returned.
     return !unsetenv(variable_name.data());
-#else
-    return false;
 #endif
   }
 };

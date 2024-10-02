@@ -31,7 +31,7 @@
 #include "base/profiler/native_unwinder_android.h"
 #endif
 
-#if BUILDFLAG(IS_WIN) || defined(COMPILER_MSVC)
+#if BUILDFLAG(IS_WIN)
 // Windows doesn't provide an alloca function like Linux does.
 // Fortunately, it provides _alloca, which functions identically.
 #include <malloc.h>
@@ -276,7 +276,6 @@ NOINLINE FunctionAddressRange CallWithAlloca(OnceClosure wait_for_sample) {
   return {start_program_counter, end_program_counter};
 }
 
-#if !defined(STARBOARD)
 // Disable inlining for this function so that it gets its own stack frame.
 NOINLINE FunctionAddressRange
 CallThroughOtherLibrary(NativeLibrary library, OnceClosure wait_for_sample) {
@@ -296,7 +295,6 @@ CallThroughOtherLibrary(NativeLibrary library, OnceClosure wait_for_sample) {
   const void* volatile end_program_counter = GetProgramCounter();
   return {start_program_counter, end_program_counter};
 }
-#endif
 
 void WithTargetThread(UnwindScenario* scenario,
                       ProfileCallback profile_callback) {
@@ -426,7 +424,6 @@ void ExpectStackDoesNotContain(
   }
 }
 
-#if !defined(STARBOARD)
 NativeLibrary LoadTestLibrary(StringPiece library_name) {
   // The lambda gymnastics works around the fact that we can't use ASSERT_*
   // macros in a function returning non-null.
@@ -463,7 +460,6 @@ uintptr_t GetAddressInOtherLibrary(NativeLibrary library) {
   EXPECT_NE(address, 0u);
   return address;
 }
-#endif
 
 StackSamplingProfiler::UnwindersFactory CreateCoreUnwindersFactoryForTesting(
     ModuleCache* module_cache) {

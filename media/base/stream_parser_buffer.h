@@ -145,13 +145,11 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
                                                     bool is_key_frame,
                                                     Type type,
                                                     TrackId track_id);
-#if !defined(STARBOARD)
   static scoped_refptr<StreamParserBuffer> FromExternalMemory(
       std::unique_ptr<ExternalMemory> external_memory,
       bool is_key_frame,
       Type type,
       TrackId track_id);
-#endif  // !defined(STARBOARD)
 
   StreamParserBuffer(const StreamParserBuffer&) = delete;
   StreamParserBuffer& operator=(const StreamParserBuffer&) = delete;
@@ -196,12 +194,10 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
   }
 
  private:
-#if !defined(STARBOARD)
   StreamParserBuffer(std::unique_ptr<ExternalMemory> external_memory,
                      bool is_key_frame,
                      Type type,
                      TrackId track_id);
-#endif  // !defined(STARBOARD)
   StreamParserBuffer(const uint8_t* data,
                      int data_size,
                      const uint8_t* side_data,

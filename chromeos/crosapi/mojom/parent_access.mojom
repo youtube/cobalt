@@ -1,0 +1,90 @@
+// Copyright 2022 The Chromium Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module crosapi.mojom;
+
+import "mojo/public/mojom/base/string16.mojom";
+import "mojo/public/mojom/base/time.mojom";
+import "ui/gfx/image/mojom/image.mojom";
+import "url/mojom/url.mojom";
+
+
+// Struct that indicates that the parent approved the request.
+[Stable]
+struct ParentAccessApprovedResult {
+  // The parent access token. 
+  string parent_access_token@0;
+
+  // The parent access token expiration timestamp, after which the token
+  // is not considered valid. 
+  mojo_base.mojom.Time parent_access_token_expire_timestamp@1;
+};
+
+// Struct that indicates that an unexpected error occurred during the
+// request.
+[Stable]
+struct ParentAccessErrorResult {
+  // The type of error that occurred
+  // kNone:  no error, the default value.
+  // kUnknown: an unknown error occurred.
+  // kNotAChildUser: the user requesting permission
+  //                 is not a child.
+  // kAlreadyVisible: the dialog is already visible and
+  //                  handling another permission request.
+  [Stable, Extensible]
+  enum Type {
+    [Default] kNone = 0,
+    kUnknown = 1,
+    kNotAChildUser = 2,
+    kAlreadyVisible = 3,
+  };
+
+  // The type of error which occurred.  Only set if status is kError.
+  Type type@0;
+};
+
+// Struct used to indicate that the parent canceled the request.
+[Stable, RenamedFrom="crosapi.mojom.ParentAccessCancelledResult"]
+struct ParentAccessCanceledResult {};
+
+// Struct used to indicate that the parent declined the request.
+[Stable]
+struct ParentAccessDeclinedResult {};
+
+
+[Stable]
+union ParentAccessResult {
+  // If present, the parent approved the request
+  ParentAccessApprovedResult approved;
+  // If present, an unexpected error occurred during the request.
+  ParentAccessErrorResult error;
+  // If present, the parent canceled the request
+  ParentAccessCanceledResult canceled;
+  // If present, the parent declined the request
+  ParentAccessDeclinedResult declined;
+};
+
+// Interface that provides access to the Parent Access Widget.
+// New use cases that integrate with the Parent Access Widget should add
+// a new interface method below, with a different MinVersion, and then
+// increment the interface's MinVersion.
+//
+// The caller side of this interface must check the MinVersion of the Lacros
+// API using LacrosService::GetInterfaceVersion() to determine whether it
+// supports the functionality it requires.  It should never send an IPC over
+// the interface to an incompatible version.
+[Stable, Uuid="9be7bba2-a67d-4f8a-bf18-e37338dc7c8e"]
+interface ParentAccess {
+  // Request parental approval for website access.
+  // url:  The url being requested
+  // display_name: The child's display name
+  // favicon:  The favicon for the website requested (can be empty if
+  //           it couldn't be retrieved).
+  [MinVersion=0]
+  GetWebsiteParentApproval@0(
+      url.mojom.Url url,
+      mojo_base.mojom.String16 child_display_name,
+      gfx.mojom.ImageSkia favicon) => (ParentAccessResult result);
+};
+

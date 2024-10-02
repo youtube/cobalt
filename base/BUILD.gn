@@ -90,7 +90,7 @@ assert(!is_nacl || is_nacl_saigo,
 
 # This is here instead of in //build because //build is DEPS'd in by a few
 # subprojects that still support MSVC.
-assert(!is_win || is_clang || use_cobalt_customizations,
+assert(!is_win || is_clang,
        "only clang-cl is supported on Windows, see https://crbug.com/988071")
 
 if (is_apple) {
@@ -103,7 +103,6 @@ if (is_apple) {
 
 # Determines whether libevent should be dep.
 dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
-    && !use_cobalt_customizations
 
 # Determines whether message_pump_libevent should be used.
 use_libevent = dep_libevent && !is_ios
@@ -192,22 +191,13 @@ if (enable_pkeys && is_debug) {
   }
 }
 
-if (is_starboard) {
-  config("starboard_config") {
-    if (!is_gold) {
-      defines = [ "ENABLE_TEST_DATA" ]
-    }
-  }
-}
-
 buildflag_header("ios_cronet_buildflags") {
   header = "ios_cronet_buildflags.h"
   header_dir = "base/message_loop"
   flags = [ "CRONET_BUILD=$is_cronet_build" ]
 }
 
-enable_message_pump_epoll =
-    !use_cobalt_customizations && (is_linux || is_chromeos || is_android)
+enable_message_pump_epoll = is_linux || is_chromeos || is_android
 buildflag_header("message_pump_buildflags") {
   header = "message_pump_buildflags.h"
   header_dir = "base/message_loop"
@@ -962,48 +952,6 @@ component("base") {
     "vlog.h",
   ]
 
-  if (use_cobalt_customizations && current_toolchain == default_toolchain) {
-    sources += [
-      "base_paths_starboard.cc",
-      "base_paths_starboard.h",
-      "debug/debugger_starboard.cc",
-      "debug/stack_trace_starboard.cc",
-      "files/file_enumerator_starboard.cc",
-      "files/file_path_watcher_stub.cc",
-      "files/file_starboard.cc",
-      "files/file_util_starboard.cc",
-      "files/memory_mapped_file_starboard.cc",
-      "memory/page_size_starboard.cc",
-      "memory/platform_shared_memory_mapper_starboard.cc",
-      "memory/platform_shared_memory_region_starboard.cc",
-      "message_loop/message_pump_io_starboard.cc",
-      "message_loop/message_pump_io_starboard.h",
-      "message_loop/message_pump_ui_starboard.cc",
-      "message_loop/message_pump_ui_starboard.h",
-      "process/launch.cc",
-      "process/launch.h",
-      "process/launch_starboard.cc",
-      "process/memory_starboard.cc",
-      "process/process_starboard.cc",
-      "profiler/module_cache_starboard.cc",
-      "profiler/stack_sampler_starboard.cc",
-      "rand_util_starboard.cc",
-      "strings/string_util_starboard.cc",
-      "strings/string_util_starboard.h",
-      "strings/sys_string_conversions_starboard.cc",
-      "synchronization/condition_variable_starboard.cc",
-      "synchronization/lock_impl_starboard.cc",
-      "synchronization/waitable_event_starboard.cc",
-      "synchronization/waitable_event_watcher_starboard.cc",
-      "sys_info_starboard.cc",
-      "threading/platform_thread_starboard.cc",
-      "threading/thread_local_storage_starboard.cc",
-      "threading/thread_task_runner_handle.cc",
-      "time/time_now_starboard.cc",
-      "time/time_starboard.cc",
-    ]
-  }
-
   # Various files that are unused in the Chromium build, but presumably here to
   # make downstream's life easier. They are not included in the main sources
   # list to avoid breaking GN formatting's auto-sorting.
@@ -1018,7 +966,7 @@ component("base") {
     #"system/sys_info_openbsd.cc",
   ]
 
-  if (!use_cobalt_customizations && is_posix) {
+  if (is_posix) {
     sources += [
       "debug/debugger_posix.cc",
       "file_descriptor_posix.cc",
@@ -1046,7 +994,7 @@ component("base") {
     ]
   }
 
-  if (!use_cobalt_customizations && (is_linux || is_chromeos)) {
+  if (is_linux || is_chromeos) {
     sources += [
       "debug/proc_maps_linux.cc",
       "debug/proc_maps_linux.h",
@@ -1065,14 +1013,7 @@ component("base") {
     ]
   }
 
-  if (use_cobalt_customizations) {
-    sources += [
-      "process/internal_linux.cc",
-      "process/internal_linux.h",
-    ]
-  }
-
-  if (!use_cobalt_customizations && (is_linux || is_chromeos || is_android)) {
+  if (is_linux || is_chromeos || is_android) {
     sources += [
       "files/file_path_watcher_inotify.cc",
       "files/file_path_watcher_inotify.h",
@@ -1104,19 +1045,6 @@ component("base") {
     "//build/config/compiler:compiler_buildflags",
     "//third_party/modp_b64",
   ]
-
-  if (is_starboard) {
-    deps -= [ "//base/allocator/partition_allocator:raw_ptr" ]
-    # TODO: b/330221826 Change to |public_configs| with matching dependencies.
-    all_dependent_configs += [ ":starboard_config" ]
-  }
-
-  if (is_starboard && current_toolchain != host_toolchain) {
-    deps += [
-      "//starboard/common",
-      "//starboard:starboard_group"
-    ]
-  }
 
   # `raw_ptr` cannot be made a component due to CRT symbol issues.
   # Its gateway to being a component is through `//base`, so we have
@@ -1159,10 +1087,6 @@ component("base") {
     "//third_party/abseil-cpp:absl",
   ]
 
-  if (is_starboard) {
-    public_deps -= [ "//base/allocator/partition_allocator:buildflags" ]
-  }
-
   if (build_rust_base_conversions) {
     # Base provides conversions between CXX types and base types (e.g.
     # StringPiece).
@@ -1177,7 +1101,7 @@ component("base") {
   # building inside the cros_sdk environment - use host_toolchain as a
   # more robust check for this.
   if (!use_sysroot && (is_android || is_chromeos || (is_linux && !is_castos)) &&
-      host_toolchain != "//build/toolchain/cros:host" && !sb_is_modular) {
+      host_toolchain != "//build/toolchain/cros:host") {
     libs += [ "atomic" ]
   }
 
@@ -1254,7 +1178,7 @@ component("base") {
   }
 
   # Android.
-  if (is_android && !use_cobalt_customizations) {
+  if (is_android) {
     sources += [
       "android/android_hardware_buffer_compat.cc",
       "android/android_hardware_buffer_compat.h",
@@ -1417,7 +1341,7 @@ component("base") {
     # Make jni.h available.
     configs += [ "//third_party/jdk" ]
   }
-  if ((is_android || is_robolectric) && !use_cobalt_customizations) {
+  if (is_android || is_robolectric) {
     sources += [
       "android/base_jni_onload.cc",
       "android/base_jni_onload.h",
@@ -1671,6 +1595,8 @@ component("base") {
       "native_library.h",
       "path_service.cc",
       "path_service.h",
+      "process/process_metrics.cc",
+      "process/process_metrics.h",
       "scoped_native_library.cc",
       "scoped_native_library.h",
       "system/sys_info.cc",
@@ -1680,38 +1606,28 @@ component("base") {
       "task/thread_pool/initialization_util.h",
     ]
 
-    if (is_starboard) {
-      sources -= [
-        # Not used by cobalt.
-        "native_library.cc",
-        "native_library.h",
-        "scoped_native_library.cc",
-        "scoped_native_library.h",
-      ]
-    }
-
-    if (is_win && !is_starboard) {
+    if (is_win) {
       sources += [
         "base_paths_win.cc",
         "base_paths_win.h",
       ]
     }
 
-    if (is_mac && !is_starboard) {
+    if (is_mac) {
       sources += [
         "base_paths_mac.h",
         "base_paths_mac.mm",
       ]
     }
 
-    if (is_android && !is_starboard) {
+    if (is_android) {
       sources += [
         "base_paths_android.cc",
         "base_paths_android.h",
       ]
     }
 
-    if (!use_cobalt_customizations && is_posix) {
+    if (is_posix) {
       sources += [
         "base_paths_posix.h",
         "memory/madv_free_discardable_memory_allocator_posix.cc",
@@ -1725,7 +1641,7 @@ component("base") {
       ]
     }
 
-    if (!use_cobalt_customizations && (is_posix || is_fuchsia)) {
+    if (is_posix || is_fuchsia) {
       sources += [
         "files/file_descriptor_watcher_posix.cc",
         "files/file_descriptor_watcher_posix.h",
@@ -1735,14 +1651,14 @@ component("base") {
       ]
     }
 
-    if ((!use_cobalt_customizations && is_posix && !is_ios) || is_fuchsia) {
+    if ((is_posix && !is_ios) || is_fuchsia) {
       sources += [
         "process/process_metrics_posix.cc",
         "sync_socket_posix.cc",
       ]
     }
 
-    if (!use_cobalt_customizations && is_posix && !is_apple) {
+    if (is_posix && !is_apple) {
       sources += [
         "native_library_posix.cc",
         "posix/can_lower_nice_to.cc",
@@ -1758,11 +1674,11 @@ component("base") {
       ]
     }
 
-    if (!use_cobalt_customizations && is_posix && !is_android) {
+    if (is_posix && !is_android) {
       sources += [ "debug/stack_trace_posix.cc" ]
     }
 
-    if (!use_cobalt_customizations && is_posix && !is_ios) {
+    if (is_posix && !is_ios) {
       sources += [
         "process/kill_posix.cc",
         "process/process_posix.cc",
@@ -1781,12 +1697,10 @@ component("base") {
         "process/memory.h",
         "process/process_iterator.cc",
         "process/process_iterator.h",
-        "process/process_metrics.cc",
-        "process/process_metrics.h",
       ]
     }
 
-    if ((is_linux || is_chromeos) && !is_starboard) {
+    if (is_linux || is_chromeos) {
       sources += [
         "base_paths_posix.cc",
         "debug/elf_reader.cc",
@@ -1817,7 +1731,7 @@ component("base") {
   }
 
   # Windows.
-  if (is_win && !is_starboard) {
+  if (is_win) {
     sources += [
       "debug/debugger_win.cc",
       "debug/gdi_debug_util_win.cc",
@@ -2046,7 +1960,7 @@ component("base") {
   }
 
   # Desktop Mac.
-  if (is_mac && !is_starboard) {
+  if (is_mac) {
     sources += [
       "allocator/partition_allocator/shim/allocator_interception_mac.h",
       "allocator/partition_allocator/shim/allocator_interception_mac.mm",
@@ -2132,7 +2046,7 @@ component("base") {
   }
 
   # Mac or iOS.
-  if (is_apple && !is_starboard) {
+  if (is_apple) {
     sources += [
       "file_version_info_mac.h",
       "file_version_info_mac.mm",
@@ -2178,7 +2092,7 @@ component("base") {
   }
 
   # Linux.
-  if (!use_cobalt_customizations && (is_linux || is_chromeos)) {
+  if (is_linux || is_chromeos) {
     # TODO(brettw) this will need to be parameterized at some point.
     linux_configs = []
     if (use_glib) {
@@ -2205,7 +2119,7 @@ component("base") {
       ]
     }
   } else {
-    if (!is_android || is_starboard) {
+    if (!is_android) {
       sources -= [
         "linux_util.cc",
         "linux_util.h",
@@ -2214,7 +2128,7 @@ component("base") {
   }
 
   # iOS
-  if (is_ios && !is_starboard) {
+  if (is_ios) {
     sources += [
       "base_paths_mac.h",
       "base_paths_mac.mm",
@@ -2312,7 +2226,7 @@ component("base") {
     frameworks += [ "UIKit.framework" ]
   }
 
-  if (use_blink || true) {
+  if (use_blink) {
     sources += [
       "files/file_path_watcher.cc",
       "files/file_path_watcher.h",
@@ -2341,14 +2255,14 @@ component("base") {
 
   # Android and MacOS have their own custom shared memory handle
   # implementations. e.g. due to supporting both POSIX and native handles.
-  if (!use_cobalt_customizations && is_posix && !is_android && !is_apple) {
+  if (is_posix && !is_android && !is_apple) {
     sources += [
       "memory/platform_shared_memory_mapper_posix.cc",
       "memory/platform_shared_memory_region_posix.cc",
     ]
   }
 
-  if (!use_cobalt_customizations && is_posix && !is_apple) {
+  if (is_posix && !is_apple) {
     sources += [
       "strings/sys_string_conversions_posix.cc",
       "synchronization/waitable_event_posix.cc",
@@ -2377,19 +2291,17 @@ component("base") {
     }
   }
 
-  if (!is_starboard) {
   if ((is_posix && !is_apple && !is_android) || is_fuchsia) {
     sources += [ "profiler/stack_sampler_posix.cc" ]
   }
-  }
 
-  if ((is_posix && !is_apple && !is_android && !is_chromeos) || is_fuchsia || is_starboard) {
+  if ((is_posix && !is_apple && !is_android && !is_chromeos) || is_fuchsia) {
     sources += [ "power_monitor/power_monitor_device_source_stub.cc" ]
   }
 
   # On ARC++-enabled ChromeOS system, we need TimeTicks::FromUptimeMillis to
   # interpret time values sent from Android container.
-  if ((is_android || is_chromeos_ash) && !is_starboard) {
+  if (is_android || is_chromeos_ash) {
     sources += [ "time/time_android.cc" ]
   }
 
@@ -2471,9 +2383,6 @@ component("base") {
       "tracing/tracing_tls.cc",
       "tracing/tracing_tls.h",
     ]
-    if (use_cobalt_customizations && use_xcode_clang) {
-      defines = [ "USES_XCODE_CLANG" ]
-    }
 
     public_deps += [
       "//base/tracing/protos:chrome_track_event_zero",
@@ -2490,7 +2399,7 @@ component("base") {
       "//third_party/perfetto/gn:public_config",
     ]
 
-    if (is_win && !is_starboard) {
+    if (is_win) {
       sources += [
         "trace_event/trace_event_etw_export_win.cc",
         "trace_event/trace_event_etw_export_win.h",
@@ -2499,7 +2408,7 @@ component("base") {
       ]
     }
 
-    if (is_android && !is_starboard) {
+    if (is_android) {
       sources += [
         "trace_event/application_state_proto_android.cc",
         "trace_event/application_state_proto_android.h",
@@ -2704,13 +2613,6 @@ static_library("base_static") {
 
   deps = [ "//build:chromeos_buildflags" ]
 
-  if (is_starboard && current_toolchain != host_toolchain) {
-    deps += [
-      "//starboard/common",
-      "//starboard:starboard_group"
-      ]
-  }
-
   if (is_win) {
     sources += [
       "win/static_constants.cc",
@@ -2777,6 +2679,8 @@ component("i18n") {
     "i18n/streaming_utf8_validator.h",
     "i18n/string_compare.cc",
     "i18n/string_compare.h",
+    "i18n/string_search.cc",
+    "i18n/string_search.h",
     "i18n/time_formatting.cc",
     "i18n/time_formatting.h",
     "i18n/timezone.cc",
@@ -2796,21 +2700,11 @@ component("i18n") {
     "//base/third_party/dynamic_annotations",
     "//build:chromecast_buildflags",
     "//build:chromeos_buildflags",
-    "//starboard/client_porting/icu_init",
   ]
 
-  if (is_starboard) {
-    public_deps -= [ "//third_party/ced" ]
-  }
-
   if (!is_debug) {
-    if (is_starboard) {
-      configs -= [ "//starboard/build/config:size" ]
-      configs += [ "//starboard/build/config:speed" ]
-    } else {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
-    }
   }
 
   if (is_chromeos_lacros) {
@@ -2820,12 +2714,11 @@ component("i18n") {
     ]
   }
 
-  if (is_mac && !is_starboard) {
+  if (is_mac) {
     frameworks = [ "CoreFoundation.framework" ]
   }
 }
 
-if (!is_starboard) {
 test("base_perftests") {
   sources = [
     "hash/hash_perftest.cc",
@@ -2900,9 +2793,8 @@ test("base_i18n_perftests") {
     "//testing/gtest",
   ]
 }
-}
 
-if (!is_ios && !use_cobalt_customizations) {
+if (!is_ios) {
   executable("build_utf8_validator_tables") {
     sources = [ "i18n/build_utf8_validator_tables.cc" ]
     deps = [
@@ -2926,7 +2818,7 @@ if (!is_ios && !use_cobalt_customizations) {
   }
 }
 
-if (is_win && !is_starboard) {
+if (is_win) {
   # Target to manually rebuild pe_image_test.dll which is checked into
   # base/test/data/pe_image.
   shared_library("pe_image_test") {
@@ -2951,8 +2843,7 @@ if (is_win && !is_starboard) {
   }
 }
 
-if ((is_win && (current_cpu == "x64" || current_cpu == "arm64") && !is_starboard) ||
-    (is_mac && !is_starboard) ||
+if ((is_win && (current_cpu == "x64" || current_cpu == "arm64")) || is_mac ||
     (is_android && (current_cpu == "arm" || current_cpu == "arm64")) ||
     (is_chromeos && current_cpu == "x64")) {
   # Must be a loadable module so that it can be loaded/unloaded at runtime
@@ -2963,7 +2854,7 @@ if ((is_win && (current_cpu == "x64" || current_cpu == "arm64") && !is_starboard
   }
 }
 
-if (is_android && (current_cpu == "arm" || current_cpu == "arm64") && !use_cobalt_customizations) {
+if (is_android && (current_cpu == "arm" || current_cpu == "arm64")) {
   # Use separate library for
   # |LibunwindstackUnwinderAndroidTest.ReparsesMapsOnNewDynamicLibraryLoad|
   # testcase. We can't use the existing `base_profiler_test_support_library`
@@ -2977,7 +2868,7 @@ if (is_android && (current_cpu == "arm" || current_cpu == "arm64") && !use_cobal
   }
 }
 
-if (is_android && !use_cobalt_customizations) {
+if (is_android) {
   source_set("native_unwinder_android") {
     # This target is intended to be used only within the stack_unwinder dynamic
     # feature module, to avoid binary size increase in Chrome due to the
@@ -3012,7 +2903,7 @@ source_set("base_stack_sampling_profiler_test_util") {
     "//base/test:test_support",
     "//testing/gtest",
   ]
-  if (is_android && !use_cobalt_customizations) {
+  if (is_android) {
     sources += [
       "profiler/stack_sampling_profiler_java_test_util.cc",
       "profiler/stack_sampling_profiler_java_test_util.h",
@@ -3024,11 +2915,9 @@ source_set("base_stack_sampling_profiler_test_util") {
   }
 }
 
-copy("base_unittests_bundle_data") {
+if (is_apple) {
+  bundle_data("base_unittests_bundle_data") {
     testonly = true
-  if (is_starboard) {
-    install_content = true
-  }
     sources = [
       "//tools/metrics/histograms/enums.xml",
       "test/data/file_util/binary_file.bin",
@@ -3054,15 +2943,12 @@ copy("base_unittests_bundle_data") {
       "test/data/serializer_test.json",
       "test/data/serializer_test_nowhitespace.json",
     ]
-  if (is_starboard) {
-    outputs = [ "$sb_static_contents_output_data_dir/test/base/{{source_target_relative}}" ]
-  } else {
     outputs = [ "{{bundle_resources_dir}}/" +
                 "{{source_root_relative_dir}}/{{source_file_part}}" ]
   }
 }
 
-if (is_apple && !is_starboard) {
+if (is_apple) {
   source_set("base_unittests_arc") {
     testonly = true
     sources = [
@@ -3080,7 +2966,7 @@ if (is_apple && !is_starboard) {
   }
 }
 
-if (!is_nacl && (is_linux || is_chromeos) && !use_cobalt_customizations) {
+if (!is_nacl && (is_linux || is_chromeos)) {
   # This test must compile with -fstack-protector-all
   source_set("stack_canary_linux_unittests") {
     testonly = true
@@ -3531,87 +3417,6 @@ test("base_unittests") {
     "vlog_unittest.cc",
   ]
 
-  if (use_cobalt_customizations) {
-    sources -= [
-      # Cobalt builds don't include build timestamps.
-      "build_time_unittest.cc",
-
-      # Since Starboard lacks abstractions for multi-processing, and shared
-      # memory is solely used for inter-process communication, we disable
-      # shared memory and process code in Cobalt.
-      "memory/discardable_memory_backing_field_trial_unittest.cc",
-      "memory/discardable_shared_memory_unittest.cc",
-      "memory/memory_pressure_listener_unittest.cc",
-      "memory/platform_shared_memory_region_unittest.cc",
-      "memory/shared_memory_hooks_unittest.cc",
-      "memory/shared_memory_mapping_unittest.cc",
-      "memory/shared_memory_region_unittest.cc",
-      "memory/unsafe_shared_memory_pool_unittest.cc",
-
-      # MessagePumpUIStarboard lives on top of an external message pump
-      # and behaves differently than normal message pumps.
-      "message_loop/message_pump_unittest.cc",
-      "process/process_metrics_unittest.cc",
-      "process/process_unittest.cc",
-      "process/process_util_unittest.cc",
-
-      # moduleCache is not implemented in Starboard.
-      "profiler/module_cache_unittest.cc",
-
-      # TODO: b/327008491 - Not used by Cobalt, but should be tested to get
-      # closer to Chrome.
-      "feature_list_unittest.cc",
-      "immediate_crash_unittest.cc",
-      "metrics/field_trial_params_unittest.cc",
-      "native_library_unittest.cc",
-      "test/launcher/test_launcher_unittest.cc",
-      "test/launcher/test_results_tracker_unittest.cc",
-      "test/metrics/histogram_enum_reader_unittest.cc",
-      "test/scoped_feature_list_unittest.cc",
-      "threading/hang_watcher_unittest.cc",
-      "test/gtest_links_unittest.cc",
-      "test/gtest_tags_unittest.cc",
-      "test/gtest_xml_unittest_result_printer_unittest.cc",
-
-      # SyncSocket is not implemented in Starboard.
-      "sync_socket_unittest.cc",
-
-      # WaitableEventWatcher is not implemented by Starboard.
-      "synchronization/waitable_event_watcher_unittest.cc",
-
-      # Depends on USE_PARTITION_ALLOC.
-      "allocator/partition_allocator/pointers/raw_ptr_test_support.h",
-      "allocator/partition_allocator/pointers/raw_ptr_unittest.cc",
-      "allocator/partition_allocator/pointers/raw_ref_unittest.cc",
-
-      # Previously disabled tests.
-      "environment_unittest.cc",
-      "files/memory_mapped_file_unittest.cc",
-    ]
-
-    if (is_win && cobalt_pending_clean_up) {
-      sources -= [
-        "power_monitor/battery_state_sampler_unittest.cc",
-        "profiler/stack_sampling_profiler_unittest.cc",
-        "ranges/algorithm_unittest.cc",
-        "safe_numerics_unittest.cc",
-        "strings/string_util_unittest.cc",
-        "task/sequence_manager/atomic_flag_set_unittest.cc",
-        "test/test_future_unittest.cc",
-        "tools_sanity_unittest.cc",
-        "types/expected_unittest.cc",
-
-        # NiceMock needs to be fixed
-        "threading/scoped_blocking_call_unittest.cc",
-      ]
-      cflags = [ "/wd4172" ]
-    }
-
-    if (is_clang) {
-      cflags_cc = [ "-Wno-trigraphs" ]
-    }
-  }
-
   if (!is_cronet_build) {
     # location_unittest.cc fails gn check for tracing-shimmed Cronet builds.
     # Cronet buildbot do not run base_unittests, so exclusing this test
@@ -3654,6 +3459,10 @@ test("base_unittests") {
   ]
 
   data_deps = [
+    "//base/test:immediate_crash_test_helper",
+    "//base/test:test_child_process",
+    "//base/test:test_shared_library",
+    "//testing/buildbot/filters:base_unittests_filters",
   ]
 
   if (is_android && enable_chrome_android_internal) {
@@ -3664,20 +3473,13 @@ test("base_unittests") {
     deps += [ "//build/rust:cxx_cppdeps" ]
   }
 
-  if (is_apple && !is_starboard) {
+  if (is_apple) {
     public_deps = [ ":base_unittests_bundle_data" ]
 
     deps += [ ":base_unittests_arc" ]
   }
 
-  if (is_starboard){
-    data_deps += [
-      ":base_unittests_bundle_data",
-      "//starboard/content/ssl:copy_ssl_certificates",
-    ]
-  }
-
-  if (!is_ios && !is_starboard) {
+  if (!is_ios) {
     sources += [ "allocator/partition_allocator/tagging_unittest.cc" ]
   }
 
@@ -3686,7 +3488,7 @@ test("base_unittests") {
     "//tools/metrics/histograms/enums.xml",
   ]
 
-  if (is_win && !is_starboard) {
+  if (is_win) {
     deps += [ "//base/win:base_win_buildflags" ]
 
     sources += [
@@ -3757,18 +3559,18 @@ test("base_unittests") {
     ]
   }
 
-  if (!use_cobalt_customizations && (is_linux || is_chromeos)) {
+  if (is_linux || is_chromeos) {
     sources += [
       "debug/proc_maps_linux_unittest.cc",
       "files/scoped_file_linux_unittest.cc",
     ]
 
-    if (!!use_cobalt_customizations && !is_nacl) {
+    if (!is_nacl) {
       deps += [ ":stack_canary_linux_unittests" ]
     }
   }
 
-  if (is_mac && !is_starboard) {
+  if (is_mac) {
     sources += [
       "allocator/partition_allocator/shim/allocator_interception_mac_unittest.mm",
       "allocator/partition_allocator/shim/malloc_zone_functions_mac_unittest.cc",
@@ -3792,11 +3594,11 @@ test("base_unittests") {
     ]
   }
 
-  if (is_apple && enable_mach_absolute_time_ticks && !is_starboard) {
+  if (is_apple && enable_mach_absolute_time_ticks) {
     sources += [ "time/time_mac_unittest.mm" ]
   }
 
-  if (!use_cobalt_customizations && is_posix) {
+  if (is_posix) {
     sources += [
       "files/dir_reader_posix_unittest.cc",
       "files/file_descriptor_watcher_posix_unittest.cc",
@@ -3821,7 +3623,7 @@ test("base_unittests") {
     defines += [ "SYSTEM_NATIVE_UTF8" ]
   }
 
-  if (is_android && !use_cobalt_customizations) {
+  if (is_android) {
     # Add unwind tables in base_unittests_apk test apk. The unwind tables are
     # generated from debug info in the binary. Removing "default_symbols" and
     # adding symbols config removes the "strip_debug" config that strips the
@@ -3905,11 +3707,7 @@ test("base_unittests") {
     sources += [ "debug/allocation_trace_unittest.cc" ]
   }
 
-  if (is_starboard) {
-    sources += [ "message_loop/message_pump_io_starboard_unittest.cc" ]
-  }
-
-  if (is_ios && !is_starboard) {
+  if (is_ios) {
     sources += [
       "ios/device_util_unittest.mm",
       "ios/scoped_critical_action_unittest.mm",
@@ -4033,7 +3831,7 @@ test("base_unittests") {
     deps += [ ":partition_alloc_test_support" ]
   }
 
-  if (is_mac && !is_starboard) {
+  if (is_mac) {
     sources += [ "message_loop/message_pump_kqueue_unittest.cc" ]
     frameworks = [
       "CoreFoundation.framework",
@@ -4045,7 +3843,7 @@ test("base_unittests") {
     }
   }
 
-  if (!use_cobalt_customizations && (is_fuchsia || is_linux || is_chromeos)) {
+  if (is_fuchsia || is_linux || is_chromeos) {
     sources += [
       "debug/elf_reader_unittest.cc",
       "debug/test_elf_image_builder.cc",
@@ -4068,7 +3866,7 @@ test("base_unittests") {
     sources += [ "i18n/icu_mergeable_data_file_unittest.cc" ]
   }
 
-  if (!use_cobalt_customizations && (is_linux || is_chromeos_lacros)) {
+  if (is_linux || is_chromeos_lacros) {
     sources += [
       "linux_util_unittest.cc",
       "nix/xdg_util_unittest.cc",
@@ -4135,15 +3933,11 @@ test("base_unittests") {
         [ "//build/config/fuchsia/test/logger.shard.test-cml" ]
   }
 
-  if (!use_cobalt_customizations && !is_fuchsia && !is_ios) {
+  if (!is_fuchsia && !is_ios) {
     sources += [ "files/file_locking_unittest.cc" ]
   }
 
-  if (use_cobalt_customizations) {
-    sources -= [ "files/file_path_watcher_unittest.cc" ]
-  }
-
-  if (is_android && !use_cobalt_customizations) {
+  if (is_android) {
     deps += [ "//testing/android/native_test:native_test_native_code" ]
     sources += [
       "debug/elf_reader_unittest.cc",
@@ -4153,7 +3947,7 @@ test("base_unittests") {
     ]
   }
 
-  if (is_win && !is_starboard) {
+  if (is_win) {
     deps += [ "//base:scoped_handle_test_dll" ]
     if (current_cpu == "x64" || current_cpu == "arm64") {
       sources += [ "profiler/win32_stack_frame_unwinder_unittest.cc" ]
@@ -4165,7 +3959,7 @@ test("base_unittests") {
       deps += [ ":rust_cfg_win_test" ]
     }
   }
-  if (is_apple && !is_starboard) {
+  if (is_apple) {
     sources += [ "profiler/frame_pointer_unwinder_unittest.cc" ]
   }
   if (is_chromeos && current_cpu == "x64") {
@@ -4211,15 +4005,7 @@ test("base_unittests") {
       "tracing/perfetto_task_runner_unittest.cc",
     ]
 
-    if (cobalt_pending_clean_up) {
-      sources -= [
-        "trace_event/memory_allocator_dump_unittest.cc",
-        "trace_event/process_memory_dump_unittest.cc",
-        "trace_event/typed_macros_unittest.cc",
-      ]
-    }
-
-    if (is_android && !is_starboard) {
+    if (is_android) {
       sources += [
         "trace_event/cpufreq_monitor_android_unittest.cc",
         "trace_event/java_heap_dump_provider_android_unittest.cc",
@@ -4305,7 +4091,7 @@ if (enable_nocompile_tests) {
   }
 }
 
-if ((is_android || is_robolectric) && !use_cobalt_customizations) {
+if (is_android || is_robolectric) {
   generate_jni("base_jni_headers") {
     sources = [
       "android/java/src/org/chromium/base/ApkAssets.java",
@@ -4367,7 +4153,7 @@ if ((is_android || is_robolectric) && !use_cobalt_customizations) {
   }
 }  # is_android || is_robolectric
 
-if (is_android && !use_cobalt_customizations) {
+if (is_android) {
   java_library("jni_java") {
     supports_android = true
     sources = [
@@ -4990,7 +4776,7 @@ fuzzer_test("base_json_string_escape_fuzzer") {
   deps = [ "//base" ]
 }
 
-if (is_mac && !is_starboard) {
+if (is_mac) {
   protoc_convert("base_mach_port_rendezvous_convert_corpus") {
     sources = [
       "test/data/mach_port_rendezvous_fuzz/dead_name.textproto",
@@ -5140,9 +4926,5 @@ source_set("partition_alloc_test_support") {
   if (!is_debug) {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_speed" ]
-  }
-
-  if (is_starboard) {
-    sources = []
   }
 }

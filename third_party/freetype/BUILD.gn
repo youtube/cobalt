@@ -11,15 +11,17 @@ assert(!use_system_freetype, "Not used when using system freetype.")
 config("freetype_component_config") {
   include_dirs = [
     "include",
-    "src/builds/starboard/include",
+    "include/freetype-custom",
     "src/include",
   ]
 
   defines = [
-    "FT_CONFIG_OPTION_SYSTEM_ZLIB",
-    "FT_CONFIG_CONFIG_H=\"freetype/config/ftconfig.h\"",
-    "FT_CONFIG_MODULES_H=<config/ftmodule.h>",
-    "FT_CONFIG_OPTIONS_H=<config/ftoption.h>",
+    # Long directory name to avoid accidentally using wrong headers.
+    # GN currently does not escape '<' and '>' when generating xml based Visual
+    # Studio project files. As a result, use quotes instead of pointy brackets
+    # in these defines.
+    "FT_CONFIG_MODULES_H=\"freetype-custom/freetype/config/ftmodule.h\"",
+    "FT_CONFIG_OPTIONS_H=\"freetype-custom/freetype/config/ftoption.h\"",
   ]
 
   if (!is_android) {
@@ -66,12 +68,16 @@ source_set("freetype_source") {
   visibility = [ "//third_party:freetype_harfbuzz" ]
 
   defines = []
+  include_dirs = []
 
   # FreeType only exposes ft2build.h, all other FreeType headers are accessed by macro names.
   # gn check does not expand macros, so list only this header.
   public = [ "src/include/ft2build.h" ]
 
   sources = [
+    "include/freetype-custom/freetype/config/ftmodule.h",
+    "include/freetype-custom/freetype/config/ftoption.h",
+    "include/freetype-custom/freetype/config/public-macros.h",
     "src/src/autofit/autofit.c",
     "src/src/base/ftbase.c",
     "src/src/base/ftbbox.c",
@@ -95,13 +101,11 @@ source_set("freetype_source") {
     "src/src/truetype/truetype.c",
   ]
 
-  include_dirs = [ "//third_party/brotli/include" ]
-
   # ftsystem.c provides implementations of FT_Memory and FT_Stream_Open.
   # While Chromium itself avoids using this code, any build of Chromium which
   # depends on //third_party/fontconfig:fontconfig with use_bundled_fontconfig
   # will make heavy use of these implementations, so use the best available.
-  if (is_fuchsia) {
+  if (is_posix || is_fuchsia) {
     sources += [ "src/builds/unix/ftsystem.c" ]
 
     # builds/unix/ftsystem.c directly includes <ftconfig.h> instead of using
@@ -153,7 +157,6 @@ source_set("freetype_source") {
   public_configs = [ ":freetype_config" ]
 
   deps = [
-    "//starboard/common:file_wrapper",
     "//third_party/libpng",
     "//third_party/zlib",
   ]
