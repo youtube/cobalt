@@ -27,6 +27,7 @@
 
 #if defined(STARBOARD)
 #  include <string.h>
+#  include <stdint.h>
 #elif defined(STDC) && !defined(Z_SOLO)
 #  if !(defined(_WIN32_WCE) && defined(_MSC_VER))
 #    include <stddef.h>
@@ -250,7 +251,7 @@ extern z_const char * const z_errmsg[10]; /* indexed by 2-zlib_error */
 #    define zmemzero(dest, len) _fmemset(dest, 0, len)
 #  elif defined(STARBOARD)
 #    define zmemcpy memcpy
-#    define zmemcmp(a, b) memcmp((a), (b), kSbInt32Max)
+#    define zmemcmp(a, b) memcmp((a), (b), INT32_MAX)
 #    define zmemzero(dest, len) memset(dest, 0, len)
 #  else
 #    define zmemcpy memcpy
