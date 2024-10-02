@@ -179,7 +179,6 @@ target(gtest_target_type, "nplb") {
     "semaphore_test.cc",
     "socket_accept_test.cc",
     "socket_bind_test.cc",
-    "socket_clear_last_error_test.cc",
     "socket_connect_test.cc",
     "socket_create_test.cc",
     "socket_destroy_test.cc",
