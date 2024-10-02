@@ -161,24 +161,12 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/posix/socket_connect.cc",
     "//starboard/shared/posix/socket_create.cc",
     "//starboard/shared/posix/socket_destroy.cc",
-    "//starboard/shared/posix/socket_get_last_error.cc",
     "//starboard/shared/posix/socket_get_local_address.cc",
     "//starboard/shared/posix/socket_internal.cc",
-    "//starboard/shared/posix/socket_is_connected.cc",
-    "//starboard/shared/posix/socket_is_connected_and_idle.cc",
     "//starboard/shared/posix/socket_is_ipv6_supported.cc",
-    "//starboard/shared/posix/socket_join_multicast_group.cc",
     "//starboard/shared/posix/socket_listen.cc",
     "//starboard/shared/posix/socket_receive_from.cc",
-    "//starboard/shared/posix/socket_resolve.cc",
-    "//starboard/shared/posix/socket_send_to.cc",
-    "//starboard/shared/posix/socket_set_broadcast.cc",
-    "//starboard/shared/posix/socket_set_receive_buffer_size.cc",
     "//starboard/shared/posix/socket_set_reuse_address.cc",
-    "//starboard/shared/posix/socket_set_send_buffer_size.cc",
-    "//starboard/shared/posix/socket_set_tcp_keep_alive.cc",
-    "//starboard/shared/posix/socket_set_tcp_no_delay.cc",
-    "//starboard/shared/posix/socket_set_tcp_window_scaling.cc",
     "//starboard/shared/posix/storage_write_record.cc",
     "//starboard/shared/posix/system_break_into_debugger.cc",
     "//starboard/shared/posix/system_clear_last_error.cc",
@@ -298,7 +286,7 @@ static_library("starboard_platform_sources") {
   configs += [
     "//starboard/build/config:starboard_implementation",
     "//third_party/dav1d:public_dav1d_config",
-    # "//third_party/de265_includes",
+    "//third_party/de265_includes",
     # "//third_party/pulseaudio_includes",
   ]
 
@@ -357,6 +345,7 @@ static_library("starboard_platform_sources") {
 
 if (current_toolchain == starboard_toolchain) {
   target(starboard_level_gtest_target_type, "starboard_platform_tests") {
+    # build_loader = false
     testonly = true
 
     sources = media_tests_sources + player_tests_sources + [
