@@ -37,6 +37,8 @@ static_library("h5vcc") {
     "h5vcc_crash_log.h",
     "h5vcc_deep_link_event_target.cc",
     "h5vcc_deep_link_event_target.h",
+    "h5vcc_device_log.cc",
+    "h5vcc_device_log.h",
     "h5vcc_event_listener_container.h",
     "h5vcc_metrics.cc",
     "h5vcc_metrics.h",
