@@ -69,3 +69,5 @@ runs:
         docker push ${DOCKER_TAG}
         docker push ${DOCKER_FLOATING_TAG}
       shell: bash
+
+
