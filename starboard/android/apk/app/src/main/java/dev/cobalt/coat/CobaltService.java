@@ -89,9 +89,10 @@ public abstract class CobaltService {
             "Platform service did not send data to client, because client already closed the"
                 + " platform service.");
         return;
+      } else {
+        Log.w(TAG, "Hey i got the service " + nativeService);
+        Log.w(TAG, "But i didn't bother to send it yet");
       }
-
     }
   }
-
 }

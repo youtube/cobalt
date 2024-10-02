@@ -27,6 +27,9 @@ import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.TimeZone;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Mock Starboard bridge
@@ -67,10 +70,9 @@ public class StarboardBridge {
 
   private boolean starboardApplicationReady = true;
 
-  public StarboardBridge(
-      Context appContext,
-      String[] args,
-      String startDeepLink) {
+  private ExecutorService executor;
+
+  public StarboardBridge(Context appContext, String[] args, String startDeepLink) {
 
     this.appContext = appContext;
     this.args = args;
@@ -80,6 +82,12 @@ public class StarboardBridge {
     this.advertisingId = new AdvertisingId(appContext);
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
+
+    this.executor = Executors.newFixedThreadPool(2);
+  }
+
+  public Executor getExecutor() {
+    return this.executor;
   }
 
   protected void onActivityStart(Activity activity) {

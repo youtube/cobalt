@@ -103,6 +103,10 @@ public abstract class CobaltActivity extends GameActivity {
     CobaltService.Factory fakeSoftMicFactory = new FakeSoftMicModule().provideFactory(
         getApplicationContext());
     getStarboardBridge().registerCobaltService(fakeSoftMicFactory);
+    CobaltService.Factory accountManagerFactory =
+        new AccountManagerModule()
+            .provideFactory(getApplicationContext(), this.getStarboardBridge().getExecutor());
+    getStarboardBridge().registerCobaltService(accountManagerFactory);
 
     // Make the activity full-screen
     getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
