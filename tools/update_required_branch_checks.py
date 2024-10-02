@@ -55,6 +55,9 @@ EXCLUDED_CHECK_PATTERNS = [
     'upload-release-artifacts',
 ]
 
+# Jobs with this sbversion will not be required on the main branch (only).
+DEPRECATED_SBVERSION = 'sbversion-14'
+
 # Exclude rc_11 and COBALT_9 releases.
 MINIMUM_LTS_RELEASE_NUMBER = 19
 LATEST_LTS_RELEASE_NUMBER = 25
@@ -91,16 +94,20 @@ def get_checks_for_branch(repo, branch: str) -> None:
   return checks
 
 
-def should_include_run(check_run) -> bool:
+def should_include_run(check_run, branch) -> bool:
   for pattern in EXCLUDED_CHECK_PATTERNS:
     if pattern in check_run.name:
       return False
+  if branch == 'main' and DEPRECATED_SBVERSION in check_run.name:
+    return False
   return True
 
 
 def get_required_checks_for_branch(repo, branch: str) -> List[str]:
   checks = get_checks_for_branch(repo, branch)
-  filtered_check_runs = [run for run in checks if should_include_run(run)]
+  filtered_check_runs = [
+      run for run in checks if should_include_run(run, branch)
+  ]
   check_names = set(run.name for run in filtered_check_runs)
   return list(check_names)
 
