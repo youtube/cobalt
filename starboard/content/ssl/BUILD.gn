@@ -15,7 +15,6 @@
 import("//starboard/content/ssl/certs.gni")
 
 copy("copy_ssl_certificates") {
-  install_content = true
   sources = network_certs
   outputs =
       [ "$sb_static_contents_output_data_dir/ssl/certs/{{source_file_part}}" ]

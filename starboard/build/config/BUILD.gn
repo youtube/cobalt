@@ -79,38 +79,38 @@ config("base") {
     ]
   }
 
-  if (is_devel) {
-    defines += [
-      "STARBOARD_BUILD_TYPE_DEVEL",
-      "COBALT_BUILD_TYPE_DEVEL",
-      "_DEBUG",
-      "COBALT_LOGGING_ENABLED",
-    ]
-  }
+  # if (is_devel) {
+  #   defines += [
+  #     "STARBOARD_BUILD_TYPE_DEVEL",
+  #     "COBALT_BUILD_TYPE_DEVEL",
+  #     "_DEBUG",
+  #     "COBALT_LOGGING_ENABLED",
+  #   ]
+  # }
 
-  if (is_qa) {
-    defines += [
-      "STARBOARD_BUILD_TYPE_QA",
-      "COBALT_BUILD_TYPE_QA",
-      "NDEBUG",
-    ]
-  }
+  # if (is_qa) {
+  #   defines += [
+  #     "STARBOARD_BUILD_TYPE_QA",
+  #     "COBALT_BUILD_TYPE_QA",
+  #     "NDEBUG",
+  #   ]
+  # }
 
-  if (is_gold) {
-    defines += [
-      "STARBOARD_BUILD_TYPE_GOLD",
-      "COBALT_BUILD_TYPE_GOLD",
-      "NDEBUG",
-      "OFFICIAL_BUILD",
-      "TRACING_DISABLED",
-      "COBALT_FORCE_CSP",
-      "COBALT_FORCE_CORS",
-    ]
-  }
+  # if (is_gold) {
+  #   defines += [
+  #     "STARBOARD_BUILD_TYPE_GOLD",
+  #     "COBALT_BUILD_TYPE_GOLD",
+  #     "NDEBUG",
+  #     "OFFICIAL_BUILD",
+  #     "TRACING_DISABLED",
+  #     "COBALT_FORCE_CSP",
+  #     "COBALT_FORCE_CORS",
+  #   ]
+  # }
 
-  if (enable_in_app_dial) {
-    defines += [ "DIAL_SERVER" ]
-  }
+  # if (enable_in_app_dial) {
+  #   defines += [ "DIAL_SERVER" ]
+  # }
 }
 
 config("host") {
@@ -159,7 +159,7 @@ config("target") {
       }
     }
 
-    if (is_starboard) {
+    if (current_toolchain == starboard_toolchain) {
       configs = [ ":starboard" ]
     } else if (is_native_target_build) {
       configs = [ ":native_target_build" ]
@@ -176,14 +176,14 @@ config("starboard") {
       "COBALT",  # TODO: See if this can be replaced by STARBOARD macro.
     ]
 
-    if (!is_gold) {
-      defines += [
-        "ENABLE_DEBUGGER",
-        "ENABLE_DEBUG_COMMAND_LINE_SWITCHES",
-        "ENABLE_TEST_RUNNER",
-        "ENABLE_IGNORE_CERTIFICATE_ERRORS",
-      ]
-    }
+    # if (!is_gold) {
+    #   defines += [
+    #     "ENABLE_DEBUGGER",
+    #     "ENABLE_DEBUG_COMMAND_LINE_SWITCHES",
+    #     "ENABLE_TEST_RUNNER",
+    #     "ENABLE_IGNORE_CERTIFICATE_ERRORS",
+    #   ]
+    # }
 
     if (is_internal_build) {
       defines += [ "INTERNAL_BUILD" ]

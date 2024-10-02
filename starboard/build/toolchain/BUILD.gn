@@ -1,0 +1,23 @@
+import("//build/toolchain/gcc_toolchain.gni")
+
+_home_dir = getenv("HOME")
+_starboard_toolchains_path = "${_home_dir}/starboard-toolchains"
+_clang_revision = "17-init-8029-g27f27d15-3"
+_sb_clang_base_path = "${_starboard_toolchains_path}/x86_64-linux-gnu-clang-chromium-${_clang_revision}"
+_prefix = rebase_path("${_sb_clang_base_path}/bin", root_build_dir)
+
+gcc_toolchain("starboard") {
+  cc = "${_prefix}/clang"
+  cxx = "${_prefix}/clang++"
+  readelf = "readelf"
+  ld = "${_prefix}/clang++"
+  nm = "nm"
+  ar = "${_prefix}/llvm-ar"
+
+  toolchain_args = {
+    current_cpu = "x64"
+    current_os = "linux"
+    is_clang = true
+    is_starboard = true
+  }
+}

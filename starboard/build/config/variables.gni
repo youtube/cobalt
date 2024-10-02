@@ -1,0 +1,41 @@
+sb_api_version = 17
+sb_is_evergreen = false
+sb_is_evergreen_compatible = true
+has_platform_targets = false
+sb_filter_based_player = false
+sb_enable_benchmark = false
+starboard_toolchain = "//starboard/build/toolchain:starboard"
+cobalt_toolchain = default_toolchain
+is_internal_build = false
+starboard_path = "starboard/linux/x64x11"
+
+final_executable_type = "executable"
+gtest_target_type = "shared_library"
+starboard_level_gtest_target_type = "shared_library"
+cobalt_platform_dependencies = []
+
+build_with_separate_cobalt_toolchain = true
+sb_is_modular = true
+cobalt_pending_clean_up = true
+using_old_compiler = false
+sb_static_contents_output_data_dir = "$root_out_dir/content"
+sb_enable_lib = false
+sb_evergreen_compatible_use_libunwind = false
+
+gl_type = "system_gles2"
+sb_enable_cpp17_audit = true
+sb_enable_cpp20_audit = true
+sb_has_unused_symbol_issue = false
+enable_in_app_dial = true
+is_starboardized_toolchain = current_toolchain == default_toolchain || current_toolchain == starboard_toolchain
+target_platform = "linux-x64x11"
+
+platform_tests_path =
+    "//starboard/linux/shared:starboard_platform_tests($starboard_toolchain)"
+
+cobalt_fastbuild = false
+use_asan = false
+use_tsan = false
+is_starboard = true
+
+path_to_nasm = "nasm"

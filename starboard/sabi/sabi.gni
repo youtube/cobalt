@@ -15,5 +15,8 @@
 # Read the ABI configuration from the SABI json file and make it available
 # through a global variable.
 
+import("//starboard/build/config/variables.gni")
+
+sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 sabi_json = read_file(sabi_path, "json")
 sabi_variables = sabi_json.variables

@@ -12,8 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/variables.gni")
+
 config("platform_configuration") {
-  if (current_toolchain == default_toolchain && sb_is_modular &&
+  if (current_toolchain != starboard_toolchain && sb_is_modular &&
       !sb_is_evergreen) {
     configs = [ "//starboard/build/config/modular/x64" ]
     ldflags = [ "-Wl,--gc-sections" ]
@@ -21,11 +23,13 @@ config("platform_configuration") {
     configs = [
       ":libraries",
       "//starboard/linux/shared/platform_configuration",
+      ":hack",
       "//starboard/linux/shared/platform_configuration:compiler_flags",
       "//starboard/linux/shared/platform_configuration:no_pedantic_warnings",
       ":linker_flags",
     ]
   }
+
 }
 
 config("libraries") {
@@ -39,4 +43,14 @@ config("linker_flags") {
     # Cleanup unused sections
     "-Wl,-gc-sections",
   ]
+}
+
+config("hack") {
+  # ./../starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.cc:237:28: error: comparison of array 'ai_copy.ai_addr->sa_data' not equal to a null pointer is always true [-Werror,-Wtautological-pointer-compare]
+  #     if (ai_copy.ai_addr->sa_data != nullptr) {
+  cflags = [
+    "-Wno-tautological-pointer-compare",
+
+  ]
+
 }
