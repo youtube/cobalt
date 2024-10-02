@@ -61,6 +61,8 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   size_t GetCurrentMemoryCapacity() const override;
   size_t GetMaximumMemoryCapacity() const override;
 
+  void SetVideoBufferBudget(int video_buffer_budget);
+
  private:
   void EnsureReuseAllocatorIsCreated();
 
@@ -75,6 +77,7 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   std::unique_ptr<BidirectionalFitReuseAllocator> reuse_allocator_;
 
   int max_buffer_capacity_ = 0;
+  int video_buffer_budget_ = 0;
 };
 
 }  // namespace media
