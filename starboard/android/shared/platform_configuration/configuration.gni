@@ -19,7 +19,7 @@ gtest_target_type = "shared_library"
 starboard_level_final_executable_type = "shared_library"
 starboard_level_gtest_target_type = "shared_library"
 
-sb_enable_benchmark = true
+sb_enable_benchmark = !sb_is_evergreen_compatible
 
 size_config_path = "//starboard/android/shared/platform_configuration:size"
 speed_config_path = "//starboard/android/shared/platform_configuration:speed"
