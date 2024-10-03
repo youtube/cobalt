@@ -6,6 +6,7 @@
 [![raspi-2_25.lts.1+](https://github.com/youtube/cobalt/actions/workflows/raspi-2_25.lts.1+.yaml/badge.svg?branch=25.lts.1%2B&event=push)](https://github.com/youtube/cobalt/actions/workflows/raspi-2_25.lts.1+.yaml?query=event%3Apush+branch%3A25.lts.1%2B)
 [![stub_25.lts.1+](https://github.com/youtube/cobalt/actions/workflows/stub_25.lts.1+.yaml/badge.svg?branch=25.lts.1%2B&event=push)](https://github.com/youtube/cobalt/actions/workflows/stub_25.lts.1+.yaml?query=event%3Apush+branch%3A25.lts.1%2B)
 [![win32_25.lts.1+](https://github.com/youtube/cobalt/actions/workflows/win32_25.lts.1+.yaml/badge.svg?branch=25.lts.1%2B&event=push)](https://github.com/youtube/cobalt/actions/workflows/win32_25.lts.1+.yaml?query=event%3Apush+branch%3A25.lts.1%2B)
+[![xb1_25.lts.1+](https://github.com/youtube/cobalt/actions/workflows/xb1_25.lts.1+.yaml/badge.svg?branch=25.lts.1%2B&event=push)](https://github.com/youtube/cobalt/actions/workflows/xb1_25.lts.1+.yaml?query=event%3Apush+branch%3A25.lts.1%2B)
 
 ## Overview
 
