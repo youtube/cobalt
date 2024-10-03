@@ -48,3 +48,14 @@ path_to_nasm = "nasm"
 # Whether to generate the whole package containing both Loader app and Cobalt
 # core on the Evergreen compatible platform.
 sb_evergreen_compatible_package = false
+
+
+# TODO: add to a new .gni file.
+declare_args() {
+  build_type = "devel"
+}
+is_debug = build_type == "debug"
+is_devel = build_type == "devel"
+is_qa = build_type == "qa"
+is_gold = build_type == "gold"
+assert(is_debug || is_devel || is_qa || is_gold)
