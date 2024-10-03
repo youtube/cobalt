@@ -15,13 +15,13 @@
 import("//starboard/build/config/os_definitions.gni")
 import("//third_party/protobuf/proto_library.gni")
 
-# _common_loader_app_sources = [
-#   "loader_app.cc",
-#   "loader_app_switches.cc",
-#   "loader_app_switches.h",
-#   "system_get_extension_shim.cc",
-#   "system_get_extension_shim.h",
-# ]
+_common_loader_app_sources = [
+  "loader_app.cc",
+  "loader_app_switches.cc",
+  "loader_app_switches.h",
+  "system_get_extension_shim.cc",
+  "system_get_extension_shim.h",
+]
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   group("common_loader_app_dependencies") {
@@ -41,44 +41,44 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   }
 }
 
-# if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
-#     current_toolchain == starboard_toolchain) {
-#   copy("copy_loader_app_content") {
-#     install_content = true
-#     if (target_cpu == "arm" && arm_float_abi == "softfp") {
-#       sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/content" ]
-#     } else if (target_cpu == "arm64") {
-#       sources =
-#           [ "$root_out_dir/../evergreen-${target_cpu}_$build_type/content" ]
-#     } else {
-#       sources = []
-#     }
-#     outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/content" ]
-#   }
-#   copy("copy_loader_app_manifest") {
-#     install_content = true
-#     if (target_cpu == "arm" && arm_float_abi == "softfp") {
-#       sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/manifest.json" ]
-#     } else if (target_cpu == "arm64") {
-#       sources = [
-#         "$root_out_dir/../evergreen-${target_cpu}_$build_type/manifest.json",
-#       ]
-#     } else {
-#       sources = []
-#     }
-#     outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/manifest.json" ]
-#   }
+if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
+    current_toolchain == starboard_toolchain) {
+  copy("copy_loader_app_content") {
+    install_content = true
+    if (target_cpu == "arm" && arm_float_abi == "softfp") {
+      sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/content" ]
+    } else if (target_cpu == "arm64") {
+      sources =
+          [ "$root_out_dir/../evergreen-${target_cpu}_$build_type/content" ]
+    } else {
+      sources = []
+    }
+    outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/content" ]
+  }
+  copy("copy_loader_app_manifest") {
+    install_content = true
+    if (target_cpu == "arm" && arm_float_abi == "softfp") {
+      sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/manifest.json" ]
+    } else if (target_cpu == "arm64") {
+      sources = [
+        "$root_out_dir/../evergreen-${target_cpu}_$build_type/manifest.json",
+      ]
+    } else {
+      sources = []
+    }
+    outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/manifest.json" ]
+  }
 
-#   # This trick to name the Crashpad handler executable as a shared library, so
-#   # that the Package Manager extracts it to the file system on install, is
-#   # borrowed from Chrome on Android.
-#   copy("copy_crashpad_handler_named_as_so") {
-#     install_content = true
-#     sources = [ "$root_out_dir/native_target/crashpad_handler" ]
-#     outputs = [ "$root_out_dir/libcrashpad_handler.so" ]
-#     deps = [ "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)" ]
-#   }
-# }
+  # This trick to name the Crashpad handler executable as a shared library, so
+  # that the Package Manager extracts it to the file system on install, is
+  # borrowed from Chrome on Android.
+  copy("copy_crashpad_handler_named_as_so") {
+    install_content = true
+    sources = [ "$root_out_dir/native_target/crashpad_handler" ]
+    outputs = [ "$root_out_dir/libcrashpad_handler.so" ]
+    deps = [ "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)" ]
+  }
+}
 
 static_library("record_loader_app_status") {
   sources = [
@@ -88,66 +88,66 @@ static_library("record_loader_app_status") {
   deps = [ "//starboard:starboard_group" ]
 }
 
-# if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-#   target(starboard_level_final_executable_type, "loader_app") {
-#     build_loader = false
-#     if (target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") {
-#       if (cobalt_font_package == "empty") {
-#         data_deps = [ "//starboard/content/fonts:copy_font_data" ]
-#       } else {
-#         data_deps = [
-#           "//starboard/content/fonts:copy_fonts",
-#           "//starboard/content/fonts:fonts_xml",
-#         ]
-#       }
-#       sources = _common_loader_app_sources
-#       deps = [
-#         ":common_loader_app_dependencies",
-#         "//starboard:starboard_with_main",
-#         "//starboard/content/fonts:copy_font_data",
-#         "//starboard/elf_loader",
-#       ]
-#       if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
-#         data_deps += [
-#           ":copy_crashpad_handler_named_as_so",
-#           ":copy_loader_app_content",
-#           ":copy_loader_app_manifest",
-#           "//cobalt/browser:copy_loader_app_libcobalt",
-#         ]
-#         deps += [
-#           ":copy_crashpad_handler_named_as_so",
-#           ":copy_loader_app_content",
-#           ":copy_loader_app_manifest",
-#           "//cobalt/browser:copy_loader_app_libcobalt",
-#         ]
-#       }
-#     }
-#   }
-# } else {
-#   not_needed([ "_common_loader_app_sources" ])
-# }
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  target(starboard_level_final_executable_type, "loader_app") {
+    # build_loader = false
+    if (target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") {
+      if (cobalt_font_package == "empty") {
+        data_deps = [ "//starboard/content/fonts:copy_font_data" ]
+      } else {
+        data_deps = [
+          "//starboard/content/fonts:copy_fonts",
+          "//starboard/content/fonts:fonts_xml",
+        ]
+      }
+      sources = _common_loader_app_sources
+      deps = [
+        ":common_loader_app_dependencies",
+        "//starboard:starboard_with_main",
+        "//starboard/content/fonts:copy_font_data",
+        "//starboard/elf_loader",
+      ]
+      if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
+        data_deps += [
+          ":copy_crashpad_handler_named_as_so",
+          ":copy_loader_app_content",
+          ":copy_loader_app_manifest",
+          "//cobalt/browser:copy_loader_app_libcobalt",
+        ]
+        deps += [
+          ":copy_crashpad_handler_named_as_so",
+          ":copy_loader_app_content",
+          ":copy_loader_app_manifest",
+          "//cobalt/browser:copy_loader_app_libcobalt",
+        ]
+      }
+    }
+  }
+} else {
+  not_needed([ "_common_loader_app_sources" ])
+}
 
-# if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-#   # TODO: b/261635039 enable this target on Android
-#   target(starboard_level_final_executable_type, "loader_app_sys") {
-#     if ((target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") &&
-#         target_os != "android") {
-#       sources = _common_loader_app_sources
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  # TODO: b/261635039 enable this target on Android
+  target(starboard_level_final_executable_type, "loader_app_sys") {
+    if ((target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") &&
+        target_os != "android") {
+      sources = _common_loader_app_sources
 
-#       starboard_syms_path =
-#           rebase_path("//starboard/starboard.syms", root_build_dir)
-#       ldflags = [
-#         "-Wl,--dynamic-list=$starboard_syms_path",
-#         "-ldl",
-#       ]
-#       deps = [
-#         ":common_loader_app_dependencies",
-#         "//starboard/content/fonts:copy_font_data",
-#         "//starboard/elf_loader:elf_loader_sys",
-#       ]
-#     }
-#   }
-# }
+      starboard_syms_path =
+          rebase_path("//starboard/starboard.syms", root_build_dir)
+      ldflags = [
+        "-Wl,--dynamic-list=$starboard_syms_path",
+        "-ldl",
+      ]
+      deps = [
+        ":common_loader_app_dependencies",
+        "//starboard/content/fonts:copy_font_data",
+        "//starboard/elf_loader:elf_loader_sys",
+      ]
+    }
+  }
+}
 
 static_library("app_key_files") {
   sources = [
@@ -189,20 +189,20 @@ static_library("app_key") {
   ]
 }
 
-# if (sb_is_evergreen) {
-#   target(gtest_target_type, "app_key_test") {
-#     testonly = true
-#     sources = [
-#       "//starboard/common/test_main.cc",
-#       "app_key_test.cc",
-#     ]
-#     deps = [
-#       ":app_key",
-#       "//testing/gmock",
-#       "//testing/gtest",
-#     ]
-#   }
-# }
+if (sb_is_evergreen) {
+  target(gtest_target_type, "app_key_test") {
+    testonly = true
+    sources = [
+      "//starboard/common/test_main.cc",
+      "app_key_test.cc",
+    ]
+    deps = [
+      ":app_key",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+}
 
 static_library("drain_file") {
   sources = [

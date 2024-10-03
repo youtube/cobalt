@@ -1,3 +1,6 @@
+
+import("//starboard/content/fonts/font_configuration.gni")
+# Most of this file is base_configuration.gni
 sb_api_version = 17
 sb_is_evergreen = false
 sb_is_evergreen_compatible = true
@@ -12,6 +15,7 @@ starboard_path = "starboard/linux/x64x11"
 final_executable_type = "executable"
 gtest_target_type = "shared_library"
 starboard_level_gtest_target_type = "shared_library"
+starboard_level_final_executable_type = "executable"
 cobalt_platform_dependencies = []
 
 build_with_separate_cobalt_toolchain = true
@@ -39,3 +43,8 @@ use_tsan = false
 is_starboard = true
 
 path_to_nasm = "nasm"
+
+
+# Whether to generate the whole package containing both Loader app and Cobalt
+# core on the Evergreen compatible platform.
+sb_evergreen_compatible_package = false

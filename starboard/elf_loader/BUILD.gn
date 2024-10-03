@@ -66,62 +66,62 @@ static_library("elf_loader") {
   }
 }
 
-# if (false) {
-#   static_library("elf_loader_sys") {
-#     # System loader based on dlopen/dlsym.
-#     # Should be used only for debugging/troubleshooting.
-#     sources = _elf_loader_sources + [
-#                 "elf_loader_impl.h",
-#                 "elf_loader_sys_impl.cc",
-#                 "elf_loader_sys_impl.h",
-#               ]
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  static_library("elf_loader_sys") {
+    # System loader based on dlopen/dlsym.
+    # Should be used only for debugging/troubleshooting.
+    sources = _elf_loader_sources + [
+                "elf_loader_impl.h",
+                "elf_loader_sys_impl.cc",
+                "elf_loader_sys_impl.h",
+              ]
 
-#     configs += [ ":elf_loader_config" ]
+    configs += [ ":elf_loader_config" ]
 
-#     deps = [
-#       ":constants",
-#       ":evergreen_config",
-#       ":evergreen_info",
-#       "//starboard:starboard_group",
-#       "//starboard/common",
-#       "//starboard/shared/modular:starboard_layer_posix_abi_wrappers",
-#       "//third_party/crashpad/crashpad/wrapper",
-#     ]
-#   }
-# }
+    deps = [
+      ":constants",
+      ":evergreen_config",
+      ":evergreen_info",
+      "//starboard:starboard_group",
+      "//starboard/common",
+      "//starboard/shared/modular:starboard_layer_posix_abi_wrappers",
+      "//third_party/crashpad/crashpad/wrapper",
+    ]
+  }
+}
 
-# # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-# if (current_toolchain == starboard_toolchain) {
-#   target(starboard_level_final_executable_type, "elf_loader_sandbox") {
-#     if (cobalt_font_package == "empty") {
-#       data_deps = [ "//starboard/content/fonts:copy_font_data" ]
-#     } else {
-#       data_deps = [
-#         "//starboard/content/fonts:copy_fonts",
-#         "//starboard/content/fonts:fonts_xml",
-#       ]
-#     }
+# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
+if (current_toolchain == starboard_toolchain) {
+  target(starboard_level_final_executable_type, "elf_loader_sandbox") {
+    if (cobalt_font_package == "empty") {
+      data_deps = [ "//starboard/content/fonts:copy_font_data" ]
+    } else {
+      data_deps = [
+        "//starboard/content/fonts:copy_fonts",
+        "//starboard/content/fonts:fonts_xml",
+      ]
+    }
 
-#     sources = [ "elf_loader_sandbox.cc" ]
-#     configs += [ ":elf_loader_config" ]
+    sources = [ "elf_loader_sandbox.cc" ]
+    configs += [ ":elf_loader_config" ]
 
-#     deps = [
-#       ":constants",
-#       ":elf_loader",
-#       ":evergreen_info",
-#       ":sabi_string",
-#       "//starboard:starboard_group",
-#       "//starboard/content/fonts:copy_font_data",
-#     ]
+    deps = [
+      ":constants",
+      ":elf_loader",
+      ":evergreen_info",
+      ":sabi_string",
+      "//starboard:starboard_group",
+      "//starboard/content/fonts:copy_font_data",
+    ]
 
-#     if (!sb_is_evergreen_compatible) {
-#       deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
-#     }
-#     if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
-#       deps += [ "//starboard/loader_app:copy_crashpad_handler_named_as_so" ]
-#     }
-#   }
-# }
+    if (!sb_is_evergreen_compatible) {
+      deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
+    }
+    if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
+      deps += [ "//starboard/loader_app:copy_crashpad_handler_named_as_so" ]
+    }
+  }
+}
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   target(final_executable_type, "elf_loader_sys_sandbox") {
@@ -153,49 +153,49 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   }
 }
 
-# # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
-# if (current_toolchain == starboard_toolchain) {
-#   target(starboard_level_gtest_target_type, "elf_loader_test") {
-#     testonly = true
-#     build_loader = false
+# TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
+if (current_toolchain == starboard_toolchain) {
+  target(starboard_level_gtest_target_type, "elf_loader_test") {
+    testonly = true
+    # build_loader = false
 
-#     sources = [ "//starboard/common/test_main.cc" ]
-#     deps = [
-#       "//starboard:starboard_with_main",
-#       "//testing/gmock",
-#       "//testing/gtest",
-#     ]
+    sources = [ "//starboard/common/test_main.cc" ]
+    deps = [
+      "//starboard:starboard_with_main",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
 
-#     if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
-#         target_cpu == "arm64") {
-#       sources += [
-#         "dynamic_section_test.cc",
-#         "elf_header_test.cc",
-#         "elf_loader_test.cc",
-#         "lz4_file_impl_test.cc",
-#         "program_table_test.cc",
-#         "relocations_test.cc",
-#       ]
-#       deps += [
-#         ":copy_elf_loader_testdata",
-#         ":elf_loader",
-#       ]
+    if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
+        target_cpu == "arm64") {
+      sources += [
+        "dynamic_section_test.cc",
+        "elf_header_test.cc",
+        "elf_loader_test.cc",
+        "lz4_file_impl_test.cc",
+        "program_table_test.cc",
+        "relocations_test.cc",
+      ]
+      deps += [
+        ":copy_elf_loader_testdata",
+        ":elf_loader",
+      ]
 
-#       data_deps = [ ":copy_elf_loader_testdata" ]
-#     }
-#   }
-# }
+      data_deps = [ ":copy_elf_loader_testdata" ]
+    }
+  }
+}
 
-# copy("copy_elf_loader_testdata") {
-#   install_content = true
-#   sources = [
-#     "testdata/compressed.lz4",
-#     "testdata/compressed_no_content_size.lz4",
-#     "testdata/uncompressed",
-#   ]
-#   subdir = "starboard/elf_loader"
-#   outputs = [ "$sb_static_contents_output_data_dir/test/$subdir/{{source_target_relative}}" ]
-# }
+copy("copy_elf_loader_testdata") {
+  # install_content = true
+  sources = [
+    "testdata/compressed.lz4",
+    "testdata/compressed_no_content_size.lz4",
+    "testdata/uncompressed",
+  ]
+  subdir = "starboard/elf_loader"
+  outputs = [ "$sb_static_contents_output_data_dir/test/$subdir/{{source_target_relative}}" ]
+}
 
 static_library("constants") {
   sources = [
