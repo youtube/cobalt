@@ -17,6 +17,7 @@
 #include <fcntl.h>
 
 #include <algorithm>
+#include <limits>
 #include <vector>
 
 #include "starboard/common/file.h"
@@ -57,8 +58,8 @@ bool SbStorageWriteRecord(SbStorageRecord record,
   const char* source = data;
   int64_t to_write = data_size;
   while (to_write > 0) {
-    int to_write_max =
-        static_cast<int>(std::min(to_write, static_cast<int64_t>(kSbInt32Max)));
+    int to_write_max = static_cast<int>(std::min(
+        to_write, static_cast<int64_t>(std::numeric_limits<int32_t>::max())));
     int bytes_written = write(temp_file, source, to_write_max);
     if (bytes_written < 0) {
       close(temp_file);
