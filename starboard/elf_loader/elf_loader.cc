@@ -17,7 +17,6 @@
 #include <string.h>
 #include <vector>
 
-#include "starboard/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/paths.h"
 #include "starboard/common/time.h"
@@ -32,32 +31,26 @@
 namespace starboard {
 namespace elf_loader {
 
-ElfLoader* ElfLoader::g_instance = NULL;
+std::atomic<ElfLoader*> ElfLoader::g_instance{NULL};
 
 ElfLoader::ElfLoader() {
-  ElfLoader* old_instance =
-      reinterpret_cast<ElfLoader*>(SbAtomicAcquire_CompareAndSwapPtr(
-          reinterpret_cast<SbAtomicPtr*>(&g_instance),
-          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL)),
-          reinterpret_cast<SbAtomicPtr>(this)));
+  ElfLoader* old_instance{NULL};
+  g_instance.compare_exchange_weak(old_instance, this, std::memory_order_acquire);
   SB_DCHECK(!old_instance);
 
   impl_.reset(new ElfLoaderImpl());
 }
 
 ElfLoader::~ElfLoader() {
-  ElfLoader* old_instance =
-      reinterpret_cast<ElfLoader*>(SbAtomicAcquire_CompareAndSwapPtr(
-          reinterpret_cast<SbAtomicPtr*>(&g_instance),
-          reinterpret_cast<SbAtomicPtr>(this),
-          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL))));
+  ElfLoader* old_instance{this};
+  g_instance.compare_exchange_weak(old_instance, NULL, std::memory_order_acquire);
+  SB_DCHECK(!old_instance);
   SB_DCHECK(old_instance);
   SB_DCHECK(old_instance == this);
 }
 
 ElfLoader* ElfLoader::Get() {
-  ElfLoader* elf_loader = reinterpret_cast<ElfLoader*>(
-      SbAtomicAcquire_LoadPtr(reinterpret_cast<SbAtomicPtr*>(&g_instance)));
+  ElfLoader* elf_loader = g_instance.load(std::memory_order_acquire);
   SB_DCHECK(elf_loader);
   return elf_loader;
 }

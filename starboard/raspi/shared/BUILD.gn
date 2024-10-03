@@ -25,7 +25,6 @@ static_library("starboard_platform_sources") {
   has_pedantic_warnings = true
 
   sources = [
-    "//starboard/linux/shared/atomic_public.h",
     "//starboard/linux/shared/configuration_constants.cc",
     "//starboard/linux/shared/configuration_public.h",
     "//starboard/linux/shared/netlink.cc",
