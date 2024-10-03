@@ -267,7 +267,6 @@ TEST(CodecUtilTest, DoesNotParse1AsPcmForNonWavSubtypes) {
   EXPECT_EQ(GetAudioCodecFromString("1", "webm"), kSbMediaAudioCodecNone);
 }
 
-#if SB_API_VERSION >= 15
 TEST(CodecUtilTest, ParsesIamfCodec) {
   EXPECT_EQ(GetAudioCodecFromString("iamf", ""), kSbMediaAudioCodecIamf);
   EXPECT_EQ(GetAudioCodecFromString("iamf.000.000.Opus", ""),
@@ -279,7 +278,6 @@ TEST(CodecUtilTest, ParsesIamfCodec) {
   EXPECT_EQ(GetAudioCodecFromString("iamf.000.000.ipcm", ""),
             kSbMediaAudioCodecIamf);
 }
-#endif  // SB_API_VERSION >= 15
 
 }  // namespace
 }  // namespace media
