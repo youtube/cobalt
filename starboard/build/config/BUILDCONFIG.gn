@@ -425,9 +425,6 @@ template("evergreen_loader") {
     installable_target_name = original_target_name + "_evergreen_loader"
     type = "shared_library"
     deps = []
-    if (defined(invoker.deps)) {
-      deps += invoker.deps
-    }
     foreach(dep, shared_data_deps) {
       deps += [ "${dep}_install_content" ]
     }
