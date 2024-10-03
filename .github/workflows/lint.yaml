@@ -9,7 +9,7 @@ on:
       - synchronize
   push:
     branches:
-      - main
+      - pre-chrobalt
       - feature/*
 
 concurrency:

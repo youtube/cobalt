@@ -6,11 +6,11 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, labeled]
     branches:
-      - main
+      - pre-chrobalt
       - feature/*
   push:
     branches:
-      - main
+      - pre-chrobalt
       - feature/*
   schedule:
     # GMT timezone.
