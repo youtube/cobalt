@@ -80,7 +80,6 @@ TEST_P(SbSocketGetLocalAddressTest, SunnyDayBoundUnspecified) {
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
 
-#if SB_API_VERSION < 17
 TEST_F(SbSocketGetLocalAddressTest, SunnyDayBoundSpecified) {
   SbSocketAddress interface_address = {0};
   EXPECT_TRUE(SbSocketGetInterfaceAddress(NULL, &interface_address, NULL));
@@ -99,7 +98,7 @@ TEST_F(SbSocketGetLocalAddressTest, SunnyDayBoundSpecified) {
 }
 
 TEST_P(PairSbSocketGetLocalAddressTest, SunnyDayConnected) {
-  const int kPort = GetPortNumberForTests();
+  const int kPort = PosixGetPortNumberForTests();
   ConnectedTrio trio = CreateAndConnect(
       GetServerAddressType(), GetClientAddressType(), kPort, kSocketTimeout);
   ASSERT_TRUE(SbSocketIsValid(trio.server_socket));
@@ -123,7 +122,6 @@ TEST_P(PairSbSocketGetLocalAddressTest, SunnyDayConnected) {
   EXPECT_TRUE(SbSocketDestroy(trio.client_socket));
   EXPECT_TRUE(SbSocketDestroy(trio.listen_socket));
 }
-#endif  // SB_API_VERSION < 17
 
 INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketGetLocalAddressTest,

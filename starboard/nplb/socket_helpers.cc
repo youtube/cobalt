@@ -48,6 +48,7 @@ void InitializePortNumberForTests() {
   bool result = SbSocketGetLocalAddress(socket, &socket_address);
   SB_DCHECK(result);
   port_number_for_tests = socket_address.port;
+  SB_DLOG(INFO) << "Socket fn port : " << socket_address.port;
 
   // Clean up the socket.
   result = SbSocketDestroy(socket);
@@ -56,16 +57,8 @@ void InitializePortNumberForTests() {
 }  // namespace
 
 int GetPortNumberForTests() {
-#if defined(SB_SOCKET_OVERRIDE_PORT_FOR_TESTS)
-  static int incremental = 0;
-  if (incremental + SB_SOCKET_OVERRIDE_PORT_FOR_TESTS == 65535) {
-    incremental = 0;
-  }
-  return SB_SOCKET_OVERRIDE_PORT_FOR_TESTS + ++incremental;
-#else
   pthread_once(&valid_port_once_control, &InitializePortNumberForTests);
   return port_number_for_tests;
-#endif
 }
 
 SbSocket CreateServerTcpSocket(SbSocketAddressType address_type) {
@@ -92,6 +85,7 @@ SbSocket CreateBoundTcpSocket(SbSocketAddressType address_type, int port) {
 
   SbSocketAddress address = GetUnspecifiedAddress(address_type, port);
   SbSocketError result = SbSocketBind(server_socket, &address);
+  SB_DLOG(INFO) << "CreateBoundTCPSocket Port: " << port;
   if (result != kSbSocketOk) {
     ADD_FAILURE() << "SbSocketBind to " << port << " failed: " << result;
     SbSocketDestroy(server_socket);
@@ -102,6 +96,7 @@ SbSocket CreateBoundTcpSocket(SbSocketAddressType address_type, int port) {
 }
 
 SbSocket CreateListeningTcpSocket(SbSocketAddressType address_type, int port) {
+  SB_DLOG(INFO) << "CreateListeningTcpSocket Port: " << port;
   SbSocket server_socket = CreateBoundTcpSocket(address_type, port);
   if (!SbSocketIsValid(server_socket)) {
     return kSbSocketInvalid;
