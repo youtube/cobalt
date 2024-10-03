@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <limits>
 
 #include "starboard/common/file.h"
 #include "starboard/common/log.h"
@@ -42,8 +43,8 @@ bool SbFileAtomicReplaceWriteFile(const char* path,
   int64_t to_write = data_size;
 
   while (to_write > 0) {
-    const int to_write_max =
-        static_cast<int>(std::min(to_write, static_cast<int64_t>(kSbInt32Max)));
+    const int to_write_max = static_cast<int>(std::min(
+        to_write, static_cast<int64_t>(std::numeric_limits<int32_t>::max())));
     const int bytes_written = write(temp_file, source, to_write_max);
     RecordFileWriteStat(bytes_written);
 
