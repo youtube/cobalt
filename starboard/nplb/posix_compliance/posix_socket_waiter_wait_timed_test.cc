@@ -25,7 +25,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(SbPosixSocketWaiterWaitTimedTest);
 
@@ -121,7 +121,7 @@ TEST(SbSocketWaiterWaitTimedTest, RainyDayInvalidWaiter) {
   TimedWaitShouldNotBlock(kSbSocketWaiterInvalid, kSocketTimeout);
 }
 
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
 }  // namespace
 }  // namespace nplb

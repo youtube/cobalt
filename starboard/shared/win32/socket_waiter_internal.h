@@ -48,7 +48,7 @@ class SbSocketWaiterPrivate {
   ~SbSocketWaiterPrivate();
 
   // These methods implement the SbSocketWaiter API defined in socket_waiter.h.
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   bool Add(int socket,
            SbSocketWaiter waiter,
            void* context,
@@ -57,14 +57,13 @@ class SbSocketWaiterPrivate {
            bool persistent);
   bool Remove(int socket, SbSocketWaiter waiter);
   bool CheckSocketRegistered(int socket);
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16 && !defined(_MSC_VER)
   bool Add(SbSocket socket,
            void* context,
            SbSocketWaiterCallback callback,
            int interests,
            bool persistent);
   bool Remove(SbSocket socket);
-
   void Wait();
   SbSocketWaiterResult WaitTimed(int64_t duration_usec);
   void WakeUp();
@@ -74,7 +73,7 @@ class SbSocketWaiterPrivate {
  private:
   // A registration of a socket with a socket waiter.
   struct Waitee {
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
     Waitee(SbSocketWaiter waiter,
            int socket,
            sbwin32::AutoEventHandle* socket_event_ptr,
@@ -99,7 +98,7 @@ class SbSocketWaiterPrivate {
 
     // The event related to the socket_handle.  Used for SbSocketWaiter.
     sbwin32::AutoEventHandle* socket_event_ptr;
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16 && !defined(_MSC_VER)
     Waitee(SbSocketWaiter waiter,
            SbSocket socket,
            void* context,
@@ -142,7 +141,7 @@ class SbSocketWaiterPrivate {
     typedef std::deque<std::unique_ptr<Waitee>> Waitees;
 #if SB_API_VERSION >= 16
     typedef std::unordered_map<int, std::size_t> posix_SocketToIndex;
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16 && !defined(_MSC_VER)
     typedef std::unordered_map<SbSocket, std::size_t> SocketToIndex;
 
     WSAEVENT* GetHandleArray() { return socket_events_.data(); }
@@ -158,7 +157,7 @@ class SbSocketWaiterPrivate {
 
     // Returns true if socket was found, and removed.
     bool RemoveSocket(int socket);
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16 && !defined(_MSC_VER)
     // Gets the Waitee associated with the given socket, or nullptr.
     Waitee* GetWaitee(SbSocket socket);
 
@@ -176,7 +175,7 @@ class SbSocketWaiterPrivate {
                                         std::unique_ptr<Waitee> waitee);
 
    private:
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
     posix_SocketToIndex posix_socket_to_index_map_;
 #endif  // SB_API_VERSION >= 16
     SocketToIndex socket_to_index_map_;
@@ -188,7 +187,7 @@ class SbSocketWaiterPrivate {
   void SignalWakeupEvent();
   void ResetWakeupEvent();
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   bool CheckSocketWaiterIsThis(int socket, SbSocketWaiter waiter);
 #endif  // SB_API_VERSION >= 16
   bool CheckSocketWaiterIsThis(SbSocket socket);

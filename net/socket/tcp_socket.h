@@ -9,11 +9,12 @@
 #include "net/base/net_export.h"
 #include "net/socket/socket_descriptor.h"
 
-#if defined(STARBOARD) && SB_API_VERSION <= 15
+#if defined(STARBOARD) && (SB_API_VERSION <= 15 || defined(_MSC_VER))
 #include "net/socket/tcp_socket_starboard.h"
 #elif BUILDFLAG(IS_WIN)
 #include "net/socket/tcp_socket_win.h"
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || \
+      (SB_API_VERSION >= 16 && !defined(_MSC_VER))
 #include "net/socket/tcp_socket_posix.h"
 #endif
 
@@ -25,11 +26,12 @@ namespace net {
 // class, unless a clear separation of client and server socket functionality is
 // not suitable for your use case (e.g., a socket needs to be created and bound
 // before you know whether it is a client or server socket).
-#if defined(STARBOARD) && SB_API_VERSION <= 15
+#if defined(STARBOARD) && (SB_API_VERSION <= 15 || defined(_MSC_VER))
 typedef TCPSocketStarboard TCPSocket;
 #elif BUILDFLAG(IS_WIN)
 typedef TCPSocketWin TCPSocket;
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || \
+      (SB_API_VERSION >= 16 && !defined(_MSC_VER))
 typedef TCPSocketPosix TCPSocket;
 #endif
 

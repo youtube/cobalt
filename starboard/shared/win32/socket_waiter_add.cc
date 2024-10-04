@@ -17,7 +17,7 @@
 #include "starboard/common/log.h"
 #include "starboard/shared/win32/socket_waiter_internal.h"
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 bool SbPosixSocketWaiterAdd(SbSocketWaiter waiter,
                             int socket,
                             void* context,
@@ -46,7 +46,7 @@ bool SbPosixSocketWaiterAdd(SbSocketWaiter waiter,
 
   return waiter->Add(socket, waiter, context, callback, interests, persistent);
 }
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
 bool SbSocketWaiterAdd(SbSocketWaiter waiter,
                        SbSocket socket,

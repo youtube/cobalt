@@ -33,7 +33,7 @@
 
 namespace net {
 
-#if SB_API_VERSION <= 15
+#if SB_API_VERSION <= 15 || defined(COMPILER_MSVC)
 
 class NET_EXPORT TCPSocketStarboard : public base::MessagePumpIOStarboard::Watcher {
  public:
@@ -215,7 +215,7 @@ class NET_EXPORT TCPSocketStarboard : public base::MessagePumpIOStarboard::Watch
   // DISALLOW_COPY_AND_ASSIGN(TCPSocketStarboard);
 };
 
-#endif  // SB_API_VERSION <= 15
+#endif  // SB_API_VERSION <= 15  || defined(WIN32)
 
 }  // namespace net
 

@@ -208,7 +208,6 @@ void HttpServer::DoAcceptLoop() {
     rv = server_socket_->Accept(&accepted_socket_,
                                 base::BindOnce(&HttpServer::OnAcceptCompleted,
                                                weak_ptr_factory_.GetWeakPtr()));
-    DLOG(ERROR) << "HttpServer::DoAcceptLoop, rv = " << rv;
     if (rv == ERR_IO_PENDING)
       return;
     rv = HandleAcceptResult(rv);
