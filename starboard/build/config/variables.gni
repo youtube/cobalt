@@ -17,14 +17,10 @@
 import("//starboard/build/platform_path.gni")
 
 import("//starboard/content/fonts/font_configuration.gni")
+
 starboard_toolchain = "//starboard/build/toolchain:starboard"
 is_starboardized_toolchain = current_toolchain == default_toolchain ||
                              current_toolchain == starboard_toolchain
-sb_api_version = 17
-sb_is_evergreen = false
-cobalt_fastbuild = false
-use_asan = false
-use_tsan = false
 
 if (current_toolchain == starboard_toolchain) {
   sb_is_evergreen_compatible = true
@@ -84,11 +80,3 @@ if (current_toolchain == starboard_toolchain) {
   }
 }
 
-declare_args() {
-  build_type = "devel"
-}
-
-# TODO(b/371589344): Investigate if we need another variable which doesn't clash with chromium's is_debug
-is_devel = build_type == "devel"
-is_qa = build_type == "qa"
-is_gold = build_type == "gold"
