@@ -30,6 +30,7 @@ template("install_target") {
   not_needed(invoker, [ "type" ])
 
   installable_target_name = invoker.installable_target_name
+  gradle_files_dir = "$root_out_dir/gradle/$installable_target_name"
 
   action("build_${target_name}_apk") {
     forward_variables_from(invoker, [ "testonly" ])
@@ -39,7 +40,6 @@ template("install_target") {
 
     target_output = "$root_out_dir/lib${installable_target_name}.so"
     gradle_content_dir = "$sb_install_output_dir/$installable_target_name/$sb_install_content_subdir"
-    gradle_files_dir = "$root_out_dir/gradle/$installable_target_name"
     if (is_gold) {
       gradle_build_type = "release"
     } else {
@@ -62,8 +62,7 @@ template("install_target") {
     cobalt_gradle_dir = rebase_path(gradle_files_dir)
     cobalt_product_dir = rebase_path(root_out_dir)
     cobalt_library_dir = rebase_path(root_out_dir)
-    project_cache_dir =
-        rebase_path("$root_build_dir/gradle/$installable_target_name/cache")
+    project_cache_dir = rebase_path("$gradle_files_dir/cache")
     use_parallel_build = num_gradle_workers != "1"
 
     script = "//starboard/build/run_bash.py"
@@ -92,8 +91,26 @@ template("install_target") {
       "evergreenCompatible=$sb_is_evergreen_compatible",
       "assembleCobalt_$gradle_build_type",
       "-Dorg.gradle.workers.max=$num_gradle_workers",
-      "-Dorg.gradle.workers.parallel=$use_parallel_build",
-      "-Dorg.gradle.workers.daemon=$use_parallel_build",
+      "-Dorg.gradle.parallel=$use_parallel_build",
+      "-Dorg.gradle.daemon=$use_parallel_build",
+    ]
+  }
+
+  action("clean_${target_name}_gradle_files") {
+    forward_variables_from(invoker, [ "testonly" ])
+
+    deps = [ ":build_${invoker.target_name}_apk" ]
+
+    # Fake output.
+    # TODO: This file is not created.
+    outputs =
+        [ "${target_out_dir}/${target_name}-${invoker.target_name}.stamp" ]
+
+    script = "//starboard/build/run_bash.py"
+    args = [
+      "rm",
+      "-rf",
+      rebase_path(gradle_files_dir),
     ]
   }
 
@@ -102,6 +119,7 @@ template("install_target") {
     deps = [
       ":$installable_target_name",
       ":build_${target_name}_apk",
+      ":clean_${target_name}_gradle_files",
     ]
   }
 }
