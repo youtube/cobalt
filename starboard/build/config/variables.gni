@@ -81,7 +81,7 @@ declare_args() {
 declare_args() {
   build_type = "devel"
 }
-is_debug = build_type == "debug"
+
 is_devel = build_type == "devel"
 is_qa = build_type == "qa"
 is_gold = build_type == "gold"
