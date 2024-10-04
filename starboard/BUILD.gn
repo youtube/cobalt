@@ -14,6 +14,7 @@
 
 import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/config/starboard_target_type.gni")
+import("//starboard/contrib/cast/cast.gni")
 
 group("gn_all") {
   testonly = true
@@ -21,9 +22,20 @@ group("gn_all") {
   deps = [
     ":default",
     "//starboard/client_porting/icu_init",
-    "//starboard/examples/hello_world:starboard_hello_world_example",
   ]
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  if (enable_test_targets) {
+    if (sb_is_evergreen_compatible &&
+        current_toolchain == starboard_toolchain) {
+      deps += [ "//starboard/nplb/nplb_evergreen_compat_tests" ]
+    }
+    deps += [
+      "//starboard/client_porting/eztime:eztime_test",
+      "//starboard/examples/glclear:starboard_glclear_example",
+      "//starboard/examples/hello_world:starboard_hello_world_example",
+      "//starboard/examples/window:starboard_window_example",
+      "//starboard/extension:extension_test",
+      "//starboard/nplb",
+    ]
   }
 
   if (has_platform_targets) {
@@ -51,12 +63,38 @@ group("gn_all") {
     deps += [ "//starboard/benchmark" ]
   }
 
+  if (build_with_separate_cobalt_toolchain && use_contrib_cast) {
+    deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast" ]
+  }
+  if (enable_evergreen_code) {
+    if (!sb_is_evergreen) {
+      if (sb_is_evergreen_compatible) {
+        deps += [
+          "//starboard/elf_loader:elf_loader_test_install($starboard_toolchain)",
+          "//starboard/loader_app:installation_manager_test_install($starboard_toolchain)",
+          "//starboard/loader_app:reset_evergreen_update_test_install($starboard_toolchain)",
+        ]
 
-  if (!sb_is_evergreen) {
-    if (sb_is_evergreen_compatible) {
-
+        if (current_toolchain == starboard_toolchain) {
+          deps += [
+            "//third_party/crashpad/crashpad/client",
+            "//third_party/lz4_lib:lz4",
+          ]
+          data_deps = [
+            "//starboard/loader_app($starboard_toolchain)",
+            "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
+            "//third_party/crashpad/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)",
+          ]
+        }
+      }
+    } else {  # !sb_is_evergreen
+      deps += [
+        "//starboard/loader_app:app_key_files_test",
+        "//starboard/loader_app:app_key_test",
+        "//starboard/loader_app:drain_file_test",
+        "//starboard/loader_app:slot_management_test",
+      ]
     }
-  } else {  # !sb_is_evergreen
   }
 }
 
@@ -97,27 +135,31 @@ group("starboard_group") {
     }
 
     if (sb_is_evergreen) {
+      public_deps += [ "//starboard/elf_loader:sabi_string" ]
     } else {
       data_deps = [ ":starboard($starboard_toolchain)" ]
     }
 
     # TODO: b/295702296 Fix libunwind for modular builds.
     if (sb_is_evergreen) {
+      public_deps += [ "//third_party/llvm-project/libunwind:unwind" ]
     }
   } else {
     public_deps += [
       ":starboard_static($starboard_toolchain)",
       "//starboard/common",
     ]
-
-    # if (!sb_is_modular || sb_is_evergreen) {
-    #   if (sb_is_evergreen_compatible &&
-    #       current_toolchain == starboard_toolchain) {
-    #   } else {
-    #     public_deps +=
-    #         [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
-    #   }
-    # }
+    if (enable_evergreen_code) {
+      if (!sb_is_modular || sb_is_evergreen) {
+        if (sb_is_evergreen_compatible &&
+            current_toolchain == starboard_toolchain) {
+          public_deps += [ "//third_party/crashpad/crashpad/wrapper" ]
+        } else {
+          public_deps +=
+              [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
+        }
+      }
+    }
 
     if (final_executable_type == "shared_library" &&
         current_toolchain != default_toolchain) {

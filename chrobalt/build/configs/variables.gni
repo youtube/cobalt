@@ -37,3 +37,6 @@ is_gold = build_type == "gold"
 
 # TODO(b/371263047): Resolve issues and build evergreen.
 enable_evergreen_code = false
+
+# TODO(b/371606611): Resolve issues and build evergreen.
+enable_test_targets = false
