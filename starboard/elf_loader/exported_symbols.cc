@@ -473,7 +473,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(freeifaddrs);
   REGISTER_SYMBOL(fsync);
   REGISTER_SYMBOL(ftruncate);
+  REGISTER_SYMBOL(getaddrinfo);
+  REGISTER_SYMBOL(getifaddrs);
+  REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
+  REGISTER_SYMBOL(getsockopt);
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(mkdir);
@@ -485,10 +489,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(posix_memalign);
   REGISTER_SYMBOL(realloc);
   REGISTER_SYMBOL(recv);
-  REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(recvfrom);
+  REGISTER_SYMBOL(recvmsg);
   REGISTER_SYMBOL(rmdir);
   REGISTER_SYMBOL(sched_yield);
+  REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(socket);
   REGISTER_SYMBOL(snprintf);

@@ -212,6 +212,16 @@ MessagePumpForIO* CurrentIOThread::GetMessagePumpForIO() const {
 #if !BUILDFLAG(IS_NACL)
 
 #if defined(STARBOARD)
+#if SB_API_VERSION >= 16
+bool CurrentIOThread::WatchFileDescriptor(int socket,
+                            bool persistent,
+                            int mode,
+                            SocketWatcher* controller,
+                            Watcher* delegate) {
+  return static_cast<MessagePumpIOStarboard*>(GetMessagePumpForIO())
+      ->WatchFileDescriptor(socket, persistent, mode, controller, delegate);
+}
+#else
 bool CurrentIOThread::Watch(SbSocket socket,
                             bool persistent,
                             int mode,
@@ -220,6 +230,9 @@ bool CurrentIOThread::Watch(SbSocket socket,
   return static_cast<MessagePumpIOStarboard*>(GetMessagePumpForIO())
       ->Watch(socket, persistent, mode, controller, delegate);
 }
+#endif
+
+
 #elif BUILDFLAG(IS_WIN)
 HRESULT CurrentIOThread::RegisterIOHandler(
     HANDLE file,
