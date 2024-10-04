@@ -12,14 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/socket_waiter.h"
-
 #include "starboard/shared/libevent/socket_waiter_internal.h"
+#include "starboard/socket.h"
+#include "starboard/socket_waiter.h"
 
 bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket) {
   if (!SbSocketWaiterIsValid(waiter)) {
     return false;
   }
-
-  return waiter->Remove(socket);
+  return waiter->Remove(socket, waiter);
 }
+
+#if SB_API_VERSION >= 16
+
+bool SbPosixSocketWaiterRemove(SbSocketWaiter waiter, int socket) {
+  if (!SbSocketWaiterIsValid(waiter)) {
+    return false;
+  }
+
+  return waiter->Remove(socket, waiter);
+}
+
+#endif  // SB_API_VERSION >= 16
