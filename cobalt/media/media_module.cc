@@ -247,7 +247,7 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
         return true;
       }
     }
-  } else if (name == "VideoBufferBudget") {
+  } else if (name == "VideoBufferBudget" && value >= 0) {
     decoder_buffer_allocator_.SetVideoBufferBudget(value);
     if (value != 0) {
       LOG(INFO) << "Set VideoBufferBudget to " << value << ".";
