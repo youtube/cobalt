@@ -356,7 +356,7 @@ default_compiler_configs = [
   "//build/config/sanitizers:default_sanitizer_flags",
 ]
 
-default_compiler_configs += [ "//starboard/linux/x64x11/platform_configuration", ]
+default_compiler_configs += [ "//chrobalt/build/configs:chrobalt_config", ]
 
 
 if (is_win) {

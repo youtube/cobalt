@@ -170,4 +170,5 @@ exec_script_whitelist =
 exec_script_whitelist += [
   "//starboard/tools/BUILD.gn",
   "//starboard/build/config/sabi/BUILD.gn",
+  "//starboard/build/platform_path.gni"
 ]
