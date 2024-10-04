@@ -200,6 +200,30 @@ if (is_android) {
       "java/src/org/chromium/media/MediaServerCrashListener.java",
       "java/src/org/chromium/media/ScreenResolutionUtil.java",
       "java/src/org/chromium/media/VideoAcceleratorUtil.java",
+
+      # Java files for Starboard on Android TV
+      "java/src/dev/cobalt/coat/CobaltHttpHelper.java",
+      "java/src/dev/cobalt/coat/StarboardBridge.java",
+
+      "java/src/dev/cobalt/media/AudioOutputManager.java",
+      "java/src/dev/cobalt/media/AudioTrackBridge.java",
+      "java/src/dev/cobalt/media/Log.java",
+      "java/src/dev/cobalt/media/MediaCodecBridge.java",
+      "java/src/dev/cobalt/media/MediaCodecBridgeBuilder.java",
+      "java/src/dev/cobalt/media/MediaCodecStatus.java",
+      "java/src/dev/cobalt/media/MediaCodecUtil.java",
+      "java/src/dev/cobalt/media/MediaDrmBridge.java",
+      "java/src/dev/cobalt/media/MediaFormatBuilder.java",
+      "java/src/dev/cobalt/media/VideoDecoderCache.java",
+      "java/src/dev/cobalt/media/VideoFrameReleaseTimeHelper.java",
+      "java/src/dev/cobalt/media/VideoSurfaceView.java",
+
+      "java/src/dev/cobalt/util/DisplayUtil.java",
+      "java/src/dev/cobalt/util/IsEmulator.java",
+      "java/src/dev/cobalt/util/Log.java",
+      "java/src/dev/cobalt/util/SynchronizedHolder.java",
+      "java/src/dev/cobalt/util/SystemPropertiesHelper.java",
+      "java/src/dev/cobalt/util/UsedByNative.java",
     ]
   }
 

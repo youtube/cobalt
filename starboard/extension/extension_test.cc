@@ -17,6 +17,7 @@
 #include "starboard/extension/accessibility.h"
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
+#include "starboard/extension/cwrappers.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/extension/font.h"
 #include "starboard/extension/free_space.h"
@@ -241,6 +242,26 @@ TEST(ExtensionTest, CrashHandler) {
   if (extension_api->version >= 2) {
     EXPECT_NE(extension_api->SetString, nullptr);
   }
+
+  const ExtensionApi* second_extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  EXPECT_EQ(second_extension_api, extension_api)
+      << "Extension struct should be a singleton";
+}
+
+TEST(ExtensionTest, CWrappers) {
+  typedef CobaltExtensionCWrappersApi ExtensionApi;
+  const char* kExtensionName = kCobaltExtensionCWrappersName;
+
+  const ExtensionApi* extension_api =
+      static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));
+  if (!extension_api) {
+    return;
+  }
+
+  EXPECT_STREQ(extension_api->name, kExtensionName);
+  EXPECT_EQ(extension_api->version, 1u);
+  EXPECT_NE(extension_api->PowWrapper, nullptr);
 
   const ExtensionApi* second_extension_api =
       static_cast<const ExtensionApi*>(SbSystemGetExtension(kExtensionName));

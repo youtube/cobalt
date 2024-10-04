@@ -18,6 +18,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/extension/media_session.h"
+#include "starboard/string.h"
 #include "starboard/system.h"
 
 namespace starboard {

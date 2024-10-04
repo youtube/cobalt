@@ -17,7 +17,6 @@
 #ifndef STARBOARD_COMMON_THREAD_H_
 #define STARBOARD_COMMON_THREAD_H_
 
-#include <atomic>
 #include <functional>
 #include <memory>
 #include <string>
@@ -29,6 +28,7 @@
 namespace starboard {
 
 class Semaphore;
+class atomic_bool;
 
 class Thread {
  public:
@@ -64,7 +64,7 @@ class Thread {
   // Join() was called then return |true|, else |false|.
   bool WaitForJoin(int64_t timeout);
   Semaphore* join_sema();
-  std::atomic_bool* joined_bool();
+  atomic_bool* joined_bool();
 
   struct Data;
   std::unique_ptr<Data> d_;

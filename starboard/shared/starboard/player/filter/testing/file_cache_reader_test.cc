@@ -20,6 +20,7 @@
 
 #include "starboard/common/file.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/memory.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

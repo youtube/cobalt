@@ -50,20 +50,22 @@ if (current_toolchain == starboard_toolchain) {
         [ "//starboard/shared/starboard/player:player_download_test_data" ]
   }
 
-  target(final_executable_type, "player_filter_benchmarks") {
-    testonly = true
+  if (host_os != "win") {
+    target(final_executable_type, "player_filter_benchmarks") {
+      testonly = true
 
-    sources = [
-      "//starboard/common/benchmark_main.cc",
-      "audio_decoder_benchmark.cc",
-    ]
+      sources = [
+        "//starboard/common/benchmark_main.cc",
+        "audio_decoder_benchmark.cc",
+      ]
 
-    public_deps = [
-      ":test_util",
-      "//third_party/google_benchmark",
-    ]
+      public_deps = [
+        ":test_util",
+        "//third_party/google_benchmark",
+      ]
 
-    deps = cobalt_platform_dependencies
+      deps = cobalt_platform_dependencies
+    }
   }
 
   static_library("test_util") {

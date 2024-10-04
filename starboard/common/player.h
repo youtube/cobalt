@@ -15,11 +15,12 @@
 #ifndef STARBOARD_COMMON_PLAYER_H_
 #define STARBOARD_COMMON_PLAYER_H_
 
+#include "starboard/configuration.h"
 #include "starboard/player.h"
 
 namespace starboard {
 
-const char* GetPlayerOutputModeName(SbPlayerOutputMode output_mode);
+const char* SB_EXPORT GetPlayerOutputModeName(SbPlayerOutputMode output_mode);
 
 }  // namespace starboard
 

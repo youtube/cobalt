@@ -18,22 +18,38 @@
 namespace starboard {
 
 Mutex::Mutex() : mutex_() {
+#if SB_API_VERSION < 16
+  SbMutexCreate(&mutex_);
+#else
   pthread_mutex_init(&mutex_, nullptr);
+#endif  // SB_API_VERSION < 16
   debugInit();
 }
 
 Mutex::~Mutex() {
+#if SB_API_VERSION < 16
+  SbMutexDestroy(&mutex_);
+#else
   pthread_mutex_destroy(&mutex_);
+#endif  // SB_API_VERSION < 16
 }
 
 void Mutex::Acquire() const {
   debugPreAcquire();
+#if SB_API_VERSION < 16
+  SbMutexAcquire(&mutex_);
+#else
   pthread_mutex_lock(&mutex_);
+#endif  // SB_API_VERSION < 16
   debugSetAcquired();
 }
 
 bool Mutex::AcquireTry() const {
+#if SB_API_VERSION < 16
+  bool ok = SbMutexAcquireTry(&mutex_) == kSbMutexAcquired;
+#else
   bool ok = pthread_mutex_trylock(&mutex_) == 0;
+#endif  // SB_API_VERSION < 16
   if (ok) {
     debugSetAcquired();
   }
@@ -42,7 +58,11 @@ bool Mutex::AcquireTry() const {
 
 void Mutex::Release() const {
   debugSetReleased();
+#if SB_API_VERSION < 16
+  SbMutexRelease(&mutex_);
+#else
   pthread_mutex_unlock(&mutex_);
+#endif  // SB_API_VERSION < 16
 }
 
 void Mutex::DCheckAcquired() const {
@@ -77,7 +97,11 @@ void Mutex::debugPreAcquire() const {}
 void Mutex::debugSetAcquired() const {}
 #endif
 
+#if SB_API_VERSION < 16
+SbMutex* Mutex::mutex() const {
+#else
 pthread_mutex_t* Mutex::mutex() const {
+#endif
   return &mutex_;
 }
 

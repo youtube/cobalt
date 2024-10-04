@@ -20,13 +20,13 @@
 #include <jni.h>
 #include <memory>
 
-#include <atomic>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/thread.h"
@@ -128,7 +128,7 @@ class DrmSystem : public ::SbDrmSystemPrivate, private Thread {
   Mutex mutex_;
   std::unordered_map<std::string, std::vector<SbDrmKeyId>> cached_drm_key_ids_;
   bool hdcp_lost_;
-  std::atomic_bool created_media_crypto_session_{false};
+  atomic_bool created_media_crypto_session_;
 
   std::vector<uint8_t> metrics_;
 };

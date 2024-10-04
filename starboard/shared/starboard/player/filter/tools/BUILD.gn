@@ -24,7 +24,7 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/shared/starboard/player:video_dmp",
     ]
     data_deps = [
-      "//starboard/content/ssl:copy_ssl_certificates",
+      "//cobalt/network:copy_ssl_certificates",
       "//starboard/shared/starboard/player:player_download_test_data",
     ]
   }

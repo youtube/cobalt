@@ -19,6 +19,7 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
+#include "starboard/string.h"
 
 SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
     const SbPlayerCreationParam* creation_param) {
@@ -29,10 +30,17 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
     return kSbPlayerOutputModeInvalid;
   }
 
+#if SB_API_VERSION >= 15
   const SbMediaAudioStreamInfo& audio_stream_info =
       creation_param->audio_stream_info;
   const SbMediaVideoStreamInfo& video_stream_info =
       creation_param->video_stream_info;
+#else   // SB_API_VERSION >= 15
+  const SbMediaAudioSampleInfo& audio_stream_info =
+      creation_param->audio_sample_info;
+  const SbMediaVideoSampleInfo& video_stream_info =
+      creation_param->video_sample_info;
+#endif  // SB_API_VERSION >= 15
 
   if (audio_stream_info.codec != kSbMediaAudioCodecNone &&
       !audio_stream_info.mime) {

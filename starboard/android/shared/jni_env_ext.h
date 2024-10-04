@@ -40,7 +40,7 @@ namespace shared {
 // There are convenience methods to lookup and call Java methods on object
 // instances in a single step, with even simpler methods to call Java methods on
 // the StarboardBridge.
-struct JniEnvExt : public JNIEnv {
+struct SB_EXPORT JniEnvExt : public JNIEnv {
   // Warning: use __android_log_write for logging in this file to avoid infinite
   // recursion.
 

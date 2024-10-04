@@ -14,9 +14,6 @@
 
 #include "starboard/shared/starboard/player/video_dmp_writer.h"
 
-#include <fcntl.h>
-#include <unistd.h>
-
 #include <map>
 #include <sstream>
 #include <string>
@@ -74,16 +71,17 @@ SB_ONCE_INITIALIZE_FUNCTION(PlayerToWriterMap, GetOrCreatePlayerToWriterMap);
 
 }  // namespace
 
-VideoDmpWriter::VideoDmpWriter() : file_(-1) {
+VideoDmpWriter::VideoDmpWriter() : file_(kSbFileInvalid) {
   int index = 0;
   std::string file_name;
-  while (!IsValid(file_)) {
+  while (!SbFileIsValid(file_)) {
     std::stringstream ss;
     ss << "video_" << index << ".dmp";
     file_name = ss.str();
 
-    file_ =
-        open(file_name.c_str(), O_CREAT | O_EXCL | O_WRONLY, S_IRUSR | S_IWUSR);
+    bool created = false;
+    file_ = SbFileOpen(file_name.c_str(), kSbFileCreateOnly | kSbFileWrite,
+                       &created, NULL);
     ++index;
   }
   SB_LOG(INFO) << "Dump video content to " << file_name;
@@ -95,7 +93,7 @@ VideoDmpWriter::VideoDmpWriter() : file_(-1) {
 }
 
 VideoDmpWriter::~VideoDmpWriter() {
-  close(file_);
+  SbFileClose(file_);
 }
 
 // static
@@ -190,7 +188,7 @@ void VideoDmpWriter::DumpAccessUnit(
 }
 
 int VideoDmpWriter::WriteToFile(const void* buffer, int size) {
-  int result = write(file_, static_cast<const char*>(buffer), size);
+  int result = SbFileWrite(file_, static_cast<const char*>(buffer), size);
   RecordFileWriteStat(result);
   return result;
 }

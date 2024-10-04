@@ -92,18 +92,72 @@ Socket* Socket::Accept() {
   return NULL;
 }
 
+bool Socket::IsConnected() {
+  return SbSocketIsConnected(socket_);
+}
+
+bool Socket::IsConnectedAndIdle() {
+  return SbSocketIsConnectedAndIdle(socket_);
+}
+
+bool Socket::IsPending() {
+  return GetLastError() == kSbSocketPending;
+}
+
+SbSocketError Socket::GetLastError() {
+  return SbSocketGetLastError(socket_);
+}
+
+void Socket::ClearLastError() {
+  SbSocketClearLastError(socket_);
+}
+
 int Socket::ReceiveFrom(char* out_data,
                         int data_size,
                         SbSocketAddress* out_source) {
   return SbSocketReceiveFrom(socket_, out_data, data_size, out_source);
 }
 
+int Socket::SendTo(const char* data,
+                   int data_size,
+                   const SbSocketAddress* destination) {
+  return SbSocketSendTo(socket_, data, data_size, destination);
+}
+
 bool Socket::GetLocalAddress(SbSocketAddress* out_address) {
   return SbSocketGetLocalAddress(socket_, out_address);
 }
 
+bool Socket::SetBroadcast(bool value) {
+  return SbSocketSetBroadcast(socket_, value);
+}
+
 bool Socket::SetReuseAddress(bool value) {
   return SbSocketSetReuseAddress(socket_, value);
+}
+
+bool Socket::SetReceiveBufferSize(int32_t size) {
+  return SbSocketSetReceiveBufferSize(socket_, size);
+}
+
+bool Socket::SetSendBufferSize(int32_t size) {
+  return SbSocketSetSendBufferSize(socket_, size);
+}
+
+bool Socket::SetTcpKeepAlive(bool value, int64_t period) {
+  return SbSocketSetTcpKeepAlive(socket_, value, period);
+}
+
+bool Socket::SetTcpNoDelay(bool value) {
+  return SbSocketSetTcpNoDelay(socket_, value);
+}
+
+bool Socket::SetTcpWindowScaling(bool value) {
+  return SbSocketSetTcpWindowScaling(socket_, value);
+}
+
+bool Socket::JoinMulticastGroup(const SbSocketAddress* address) {
+  return SbSocketJoinMulticastGroup(socket_, address);
 }
 
 SbSocket Socket::socket() {

@@ -20,6 +20,7 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
+#include "starboard/string.h"
 
 bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                         SbMediaAudioCodec audio_codec,

@@ -18,6 +18,7 @@
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
+#include "starboard/common/reset_and_return.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 
@@ -27,12 +28,7 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-template <typename T>
-T ResetAndReturn(T* t) {
-  T result(std::move(*t));
-  *t = T();
-  return result;
-}
+using common::ResetAndReturn;
 
 AdaptiveAudioDecoder::AdaptiveAudioDecoder(
     const media::AudioStreamInfo& audio_stream_info,

@@ -126,6 +126,12 @@ std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
   return out << wstr.c_str();
 }
 
+#if defined(__cplusplus_winrt)
+std::ostream& operator<<(std::ostream& out, ::Platform::String ^ str) {
+  return out << std::wstring(str->Begin(), str->End());
+}
+#endif
+
 LogMessage::LogMessage(const char* file, int line, SbLogPriority priority)
     : priority_(priority), file_(file), line_(line) {
   Init(file, line);
@@ -162,8 +168,9 @@ void LogMessage::Init(const char* file, int line) {
   if (last_slash_pos != std::string::npos) {
     filename.erase(0, last_slash_pos + 1);
   }
-  char name[128] = {0};
-  pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
+  // char name[128] = {0};
+  // pthread_getname_np(pthread_self(), name, SB_ARRAY_SIZE_INT(name));
+  char name[128] = "<thread_name>";
   stream_ << '[';
   stream_ << name << '/' << SbThreadGetId() << ':';
   struct timeval tv;

@@ -15,7 +15,6 @@
 #ifndef STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
 #define STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
 
-#include <atomic>
 #include <memory>
 #include <string>
 #include <utility>
@@ -151,7 +150,7 @@ class AudioRendererSinkCallbackStub
     error_occurred_.store(true);
   }
 
-  std::atomic_bool error_occurred_{false};
+  atomic_bool error_occurred_;
 };
 
 class PlayerComponentsPassthrough

@@ -129,6 +129,7 @@ component("media") {
     "//cc/paint",
     "//gpu/command_buffer/client:gles2_interface",
     "//gpu/command_buffer/common",
+    "//starboard",
     "//third_party/libyuv",
     "//ui/events:events_base",
     "//ui/gfx",

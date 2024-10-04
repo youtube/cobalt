@@ -25,7 +25,9 @@
 #include "starboard/common/mutex.h"
 #include "starboard/common/once.h"
 #include "starboard/configuration.h"
+#if defined(COBALT_PLAIN_VANILLA)
 #include "starboard/shared/gles/gl_call.h"
+#endif  // defined(COBALT_PLAIN_VANILLA)
 
 namespace starboard {
 namespace android {
@@ -46,6 +48,7 @@ VideoSurfaceHolder* g_video_surface_holder = NULL;
 bool g_reset_surface_on_clear_window = false;
 
 void ClearNativeWindow(ANativeWindow* native_window) {
+#if defined(COBALT_PLAIN_VANILLA)
   EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
   eglInitialize(display, NULL, NULL);
   if (display == EGL_NO_DISPLAY) {
@@ -126,6 +129,7 @@ void ClearNativeWindow(ANativeWindow* native_window) {
   EGL_CALL(eglDestroyContext(display, context));
   EGL_CALL(eglDestroySurface(display, surface));
   EGL_CALL(eglTerminate(display));
+#endif  // defined(COBALT_PLAIN_VANILLA)
 }
 
 }  // namespace

@@ -65,7 +65,9 @@ typedef enum SbMediaAudioCodec {
   kSbMediaAudioCodecMp3,
   kSbMediaAudioCodecFlac,
   kSbMediaAudioCodecPcm,
+#if SB_API_VERSION >= 15
   kSbMediaAudioCodecIamf,
+#endif  // SB_API_VERSION >= 15
 } SbMediaAudioCodec;
 
 // Indicates how confident the device is that it can play media resources of the
@@ -85,17 +87,28 @@ typedef enum SbMediaSupportType {
 
 // Possible audio connector types.
 typedef enum SbMediaAudioConnector {
+#if SB_API_VERSION >= 15
   kSbMediaAudioConnectorUnknown,
+#else   // SB_API_VERSION >= 15
+  kSbMediaAudioConnectorNone,
+#endif  // SB_API_VERSION >= 15
+
   kSbMediaAudioConnectorAnalog,
   kSbMediaAudioConnectorBluetooth,
+#if SB_API_VERSION >= 15
   kSbMediaAudioConnectorBuiltIn,
+#endif  // SB_API_VERSION >= 15
   kSbMediaAudioConnectorHdmi,
+#if SB_API_VERSION >= 15
   // A wired remote audio output, like a remote speaker via Ethernet.
   kSbMediaAudioConnectorRemoteWired,
   // A wireless remote audio output, like a remote speaker via Wi-Fi.
   kSbMediaAudioConnectorRemoteWireless,
   // A remote audio output cannot be classified into other existing types.
   kSbMediaAudioConnectorRemoteOther,
+#else   // SB_API_VERSION >= 15
+  kSbMediaAudioConnectorNetwork,
+#endif  // SB_API_VERSION >= 15
   kSbMediaAudioConnectorSpdif,
   kSbMediaAudioConnectorUsb,
 } SbMediaAudioConnector;
@@ -120,6 +133,9 @@ typedef enum SbMediaAudioCodingType {
 typedef enum SbMediaAudioSampleType {
   kSbMediaAudioSampleTypeInt16Deprecated,
   kSbMediaAudioSampleTypeFloat32,
+#if SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
+  kSbMediaAudioSampleTypeInt16 = kSbMediaAudioSampleTypeInt16Deprecated,
+#endif  // SB_API_VERSION <= 15 && SB_HAS_QUIRK(SUPPORT_INT16_AUDIO_SAMPLES)
 } SbMediaAudioSampleType;
 
 // Possible audio frame storage types.
@@ -371,6 +387,8 @@ typedef struct SbMediaColorMetadata {
   float custom_primary_matrix[12];
 } SbMediaColorMetadata;
 
+#if SB_API_VERSION >= 15
+
 // The set of information required by the decoder or player for each video
 // stream.
 typedef struct SbMediaVideoStreamInfo {
@@ -426,11 +444,73 @@ typedef struct SbMediaVideoSampleInfo {
   bool is_key_frame;
 } SbMediaVideoSampleInfo;
 
+#else  // SB_API_VERSION >= 15
+
+// The set of information required by the decoder or player for each video
+// sample.
+typedef struct SbMediaVideoSampleInfo {
+  // The video codec of this sample.
+  SbMediaVideoCodec codec;
+
+  // The mime of the video stream when |codec| isn't kSbMediaVideoCodecNone. It
+  // may point to an empty string if the mime is not available, and it can only
+  // be set to NULL when |codec| is kSbMediaVideoCodecNone.
+  const char* mime;
+
+  // Indicates the max video capabilities required. The web app will not provide
+  // a video stream exceeding the maximums described by this parameter. Allows
+  // the platform to optimize playback pipeline for low quality video streams if
+  // it knows that it will never adapt to higher quality streams. The string
+  // uses the same format as the string passed in to
+  // SbMediaCanPlayMimeAndKeySystem(), for example, when it is set to
+  // "width=1920; height=1080; framerate=15;", the video will never adapt to
+  // resolution higher than 1920x1080 or frame per second higher than 15 fps.
+  // When the maximums are unknown, this will be set to an empty string. It can
+  // only be set to NULL when |codec| is kSbMediaVideoCodecNone.
+  const char* max_video_capabilities;
+
+  // Indicates whether the associated sample is a key frame (I-frame). Video key
+  // frames must always start with SPS and PPS NAL units.
+  bool is_key_frame;
+
+  // The frame width of this sample, in pixels. Also could be parsed from the
+  // Sequence Parameter Set (SPS) NAL Unit. Frame dimensions must only change on
+  // key frames, but may change on any key frame.
+  int frame_width;
+
+  // The frame height of this sample, in pixels. Also could be parsed from the
+  // Sequence Parameter Set (SPS) NAL Unit. Frame dimensions must only change on
+  // key frames, but may change on any key frame.
+  int frame_height;
+
+  // HDR metadata common for HDR10 and WebM/VP9-based HDR formats as
+  // well as the Color Space, and Color elements: MatrixCoefficients,
+  // BitsPerChannel, ChromaSubsamplingHorz, ChromaSubsamplingVert,
+  // CbSubsamplingHorz, CbSubsamplingVert, ChromaSitingHorz,
+  // ChromaSitingVert, Range, TransferCharacteristics, and Primaries
+  // described here: https://matroska.org/technical/specs/index.html .
+  // This will only be specified on frames where the HDR metadata and
+  // color / color space might have changed (e.g. keyframes).
+  SbMediaColorMetadata color_metadata;
+} SbMediaVideoSampleInfo, SbMediaVideoStreamInfo;
+
+#endif  // SB_API_VERSION >= 15
+
 // A structure describing the audio configuration parameters of a single audio
 // output.
 typedef struct SbMediaAudioConfiguration {
+#if SB_API_VERSION < 15
+  // The platform-defined index of the associated audio output.
+  int index;
+#endif  // SB_API_VERSION < 15
+
+#if SB_API_VERSION >= 15
   // The type of audio connector. Will be |kSbMediaAudioConnectorUnknown| if
   // this device cannot provide this information.
+#else   // SB_API_VERSION >= 15
+  // The type of audio connector. Will be the empty |kSbMediaAudioConnectorNone|
+  // if this device cannot provide this information.
+#endif  // SB_API_VERSION >= 15
   SbMediaAudioConnector connector;
 
   // The expected latency of audio over this output, in microseconds, or |0| if
@@ -445,6 +525,8 @@ typedef struct SbMediaAudioConfiguration {
   // caller can probably assume stereo output.
   int number_of_channels;
 } SbMediaAudioConfiguration;
+
+#if SB_API_VERSION >= 15
 
 // The set of information required by the decoder or player for each audio
 // stream.
@@ -481,6 +563,51 @@ typedef struct SbMediaAudioSampleInfo {
   int64_t discarded_duration_from_front;  // in microseconds.
   int64_t discarded_duration_from_back;   // in microseconds.
 } SbMediaAudioSampleInfo;
+
+#else  // SB_API_VERSION >= 15
+
+// An audio sample info, which is a description of a given audio sample. This
+// acts as a set of instructions to the audio decoder.
+//
+// The audio sample info consists of information found in the |WAVEFORMATEX|
+// structure, as well as other information for the audio decoder, including the
+// Audio-specific configuration field. The |WAVEFORMATEX| structure is
+// specified at http://msdn.microsoft.com/en-us/library/dd390970(v=vs.85).aspx .
+typedef struct SbMediaAudioSampleInfo {
+  // The audio codec of this sample.
+  SbMediaAudioCodec codec;
+
+  // The mime of the audio stream when |codec| isn't kSbMediaAudioCodecNone. It
+  // may point to an empty string if the mime is not available, and it can only
+  // be set to NULL when |codec| is kSbMediaAudioCodecNone.
+  const char* mime;
+
+  // The waveform-audio format type code.
+  uint16_t format_tag;
+
+  // The number of audio channels in this format. |1| for mono, |2| for stereo.
+  uint16_t number_of_channels;
+
+  // The sampling rate.
+  uint32_t samples_per_second;
+
+  // The number of bytes per second expected with this format.
+  uint32_t average_bytes_per_second;
+
+  // Byte block alignment, e.g., 4.
+  uint16_t block_alignment;
+
+  // The bit depth for the stream this represents, e.g. |8| or |16|.
+  uint16_t bits_per_sample;
+
+  // The size, in bytes, of the audio_specific_config.
+  uint16_t audio_specific_config_size;
+
+  // The AudioSpecificConfig, as specified in ISO/IEC-14496-3, section 1.6.2.1.
+  const void* audio_specific_config;
+} SbMediaAudioSampleInfo, SbMediaAudioStreamInfo;
+
+#endif  // SB_API_VERSION >= 15
 
 // --- Functions -------------------------------------------------------------
 
@@ -557,6 +684,13 @@ SB_EXPORT bool SbMediaGetAudioConfiguration(
 #define kSbMediaVideoResolutionDimensionInvalid 0
 // Value used when a video's bits per pixel is not known.
 #define kSbMediaBitsPerPixelInvalid 0
+
+#if SB_API_VERSION < 16
+typedef enum SbMediaBufferStorageType {
+  kSbMediaBufferStorageTypeMemory,
+  kSbMediaBufferStorageTypeFile,
+} SbMediaBufferStorageType;
+#endif  // SB_API_VERSION < 16
 
 // DEPRECATED with SB_API_VERSION 16
 //
@@ -674,6 +808,17 @@ SB_EXPORT int SbMediaGetProgressiveBufferBudget(SbMediaVideoCodec codec,
                                                 int resolution_height,
                                                 int bits_per_pixel);
 
+#if SB_API_VERSION < 16
+// Returns SbMediaBufferStorageType of type |SbMediaStorageTypeMemory| or
+// |SbMediaStorageTypeFile|. For memory storage, the media buffers will be
+// stored in main memory allocated by malloc functions. For file storage, the
+// media buffers will be stored in a temporary file in the system cache folder
+// acquired by calling SbSystemGetPath() with "kSbSystemPathCacheDirectory".
+// Note that when its value is "file" the media stack will still allocate memory
+// to cache the buffers in use.
+SB_EXPORT SbMediaBufferStorageType SbMediaGetBufferStorageType();
+#endif  // SB_API_VERSION < 16
+
 // DEPRECATED with SB_API_VERSION 16
 //
 // This function is deprecated in Starboard 16 and no longer used. It's not
@@ -698,6 +843,19 @@ SB_EXPORT int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                           int resolution_width,
                                           int resolution_height,
                                           int bits_per_pixel);
+
+// Communicate to the platform how far past |current_playback_position| the app
+// will write audio samples. The app will write all samples between
+// |current_playback_position| and |current_playback_position| + |duration|, as
+// soon as they are available (during is in microseconds). The app may sometimes
+// write more samples than that, but the app only guarantees to write |duration|
+// past |current_playback_position| in general. The platform is responsible for
+// guaranteeing that when only |duration| audio samples are written at a time,
+// no playback issues occur (such as transient or indefinite hanging). The
+// platform may assume |duration| >= 0.5 seconds.
+#if SB_API_VERSION < 15
+SB_EXPORT void SbMediaSetAudioWriteDuration(int64_t duration);
+#endif  // SB_API_VERSION < 15
 
 #ifdef __cplusplus
 }  // extern "C"

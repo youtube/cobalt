@@ -71,6 +71,7 @@ class Socket {
   bool SetTcpKeepAlive(bool value, int64_t period);  // period in microseconds.
   bool SetTcpNoDelay(bool value);
   bool SetTcpWindowScaling(bool value);
+  bool JoinMulticastGroup(const SbSocketAddress* address);
 
   SbSocket socket();
 

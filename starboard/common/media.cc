@@ -20,6 +20,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
+#include "starboard/memory.h"
 
 namespace starboard {
 
@@ -583,8 +584,22 @@ const char* GetMediaAudioCodecName(SbMediaAudioCodec codec) {
     case kSbMediaAudioCodecAac:
       return "aac";
     case kSbMediaAudioCodecAc3:
+#if SB_API_VERSION < 15
+      if (!kSbHasAc3Audio) {
+        SB_NOTREACHED() << "AC3 audio is not enabled on this platform. To "
+                        << "enable it, set kSbHasAc3Audio to |true|.";
+        return "invalid";
+      }
+#endif  // SB_API_VERSION < 15
       return "ac3";
     case kSbMediaAudioCodecEac3:
+#if SB_API_VERSION < 15
+      if (!kSbHasAc3Audio) {
+        SB_NOTREACHED() << "AC3 audio is not enabled on this platform. To "
+                        << "enable it, set kSbHasAc3Audio to |true|.";
+        return "invalid";
+      }
+#endif  // SB_API_VERSION < 15
       return "ec3";
     case kSbMediaAudioCodecOpus:
       return "opus";
@@ -596,8 +611,10 @@ const char* GetMediaAudioCodecName(SbMediaAudioCodec codec) {
       return "flac";
     case kSbMediaAudioCodecPcm:
       return "pcm";
+#if SB_API_VERSION >= 15
     case kSbMediaAudioCodecIamf:
       return "iamf";
+#endif  // SB_API_VERSION >= 15
   }
   SB_NOTREACHED();
   return "invalid";
@@ -630,22 +647,34 @@ const char* GetMediaVideoCodecName(SbMediaVideoCodec codec) {
 
 const char* GetMediaAudioConnectorName(SbMediaAudioConnector connector) {
   switch (connector) {
+#if SB_API_VERSION >= 15
     case kSbMediaAudioConnectorUnknown:
       return "unknown";
+#else   // SB_API_VERSION >= 15
+    case kSbMediaAudioConnectorNone:
+      return "none";
+#endif  // SB_API_VERSION >= 15
     case kSbMediaAudioConnectorAnalog:
       return "analog";
     case kSbMediaAudioConnectorBluetooth:
       return "bluetooth";
+#if SB_API_VERSION >= 15
     case kSbMediaAudioConnectorBuiltIn:
       return "builtin";
+#endif  // SB_API_VERSION >= 15
     case kSbMediaAudioConnectorHdmi:
       return "hdmi";
+#if SB_API_VERSION >= 15
     case kSbMediaAudioConnectorRemoteWired:
       return "remote-wired";
     case kSbMediaAudioConnectorRemoteWireless:
       return "remote-wireless";
     case kSbMediaAudioConnectorRemoteOther:
       return "remote-other";
+#else   // SB_API_VERSION >= 15
+    case kSbMediaAudioConnectorNetwork:
+      return "network";
+#endif  // SB_API_VERSION >= 15
     case kSbMediaAudioConnectorSpdif:
       return "spdif";
     case kSbMediaAudioConnectorUsb:
@@ -920,7 +949,11 @@ std::ostream& operator<<(std::ostream& os,
                          const SbMediaVideoSampleInfo& sample_info) {
   using starboard::GetMediaVideoCodecName;
 
+#if SB_API_VERSION >= 15
   const SbMediaVideoStreamInfo& stream_info = sample_info.stream_info;
+#else   // SB_API_VERSION >= 15
+  const SbMediaVideoSampleInfo& stream_info = sample_info;
+#endif  // SB_API_VERSION >= 15
 
   if (stream_info.codec == kSbMediaVideoCodecNone) {
     return os;
@@ -948,7 +981,11 @@ std::ostream& operator<<(std::ostream& os,
   using starboard::GetMediaAudioCodecName;
   using starboard::HexEncode;
 
+#if SB_API_VERSION >= 15
   const SbMediaAudioStreamInfo& stream_info = sample_info.stream_info;
+#else   // SB_API_VERSION >= 15
+  const SbMediaAudioSampleInfo& stream_info = sample_info;
+#endif  // SB_API_VERSION >= 15
 
   if (stream_info.codec == kSbMediaAudioCodecNone) {
     return os;
@@ -970,6 +1007,7 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+#if SB_API_VERSION >= 15
 std::ostream& operator<<(std::ostream& os,
                          const SbMediaVideoStreamInfo& stream_info) {
   using starboard::GetMediaVideoCodecName;
@@ -1015,3 +1053,5 @@ std::ostream& operator<<(std::ostream& os,
 
   return os;
 }
+
+#endif  // SB_API_VERSION >= 15

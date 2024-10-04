@@ -17,6 +17,8 @@
 #include <string.h>
 #include <type_traits>
 
+#include "starboard/memory.h"
+
 namespace starboard {
 namespace shared {
 namespace starboard {

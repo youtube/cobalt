@@ -27,6 +27,12 @@
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
+#include "starboard/string.h"
+
+#if !defined(COBALT_PLAIN_VANILLA)
+#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
+#endif  // !defined(COBALT_PLAIN_VANILLA)
 
 using starboard::shared::starboard::player::PlayerWorker;
 using starboard::shared::starboard::player::filter::
@@ -40,6 +46,16 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerErrorFunc player_error_func,
                         void* context,
                         SbDecodeTargetGraphicsContextProvider* provider) {
+#if !defined(COBALT_PLAIN_VANILLA)
+  SB_LOG(INFO) << "COBALT: Getting JNI Env";
+  auto env = starboard::android::shared::JniEnvExt::Get();
+  SB_DCHECK(env);
+  SB_LOG(INFO) << "COBALT: Got JNI Env";
+
+  env->CallStaticVoidMethodOrAbort(
+      "dev/cobalt/media/VideoSurfaceView", "TryCreateVideoSurfaceView", "()V");
+#endif  // !defined(COBALT_PLAIN_VANILLA)
+
   if (!player_error_func) {
     SB_LOG(ERROR) << "|player_error_func| cannot be null.";
     return kSbPlayerInvalid;
@@ -52,10 +68,17 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
+#if SB_API_VERSION >= 15
   const SbMediaAudioStreamInfo& audio_stream_info =
       creation_param->audio_stream_info;
   const SbMediaVideoStreamInfo& video_stream_info =
       creation_param->video_stream_info;
+#else   // SB_API_VERSION >= 15
+  const SbMediaAudioSampleInfo& audio_stream_info =
+      creation_param->audio_sample_info;
+  const SbMediaVideoSampleInfo& video_stream_info =
+      creation_param->video_sample_info;
+#endif  // SB_API_VERSION >= 15
 
   bool has_audio = audio_stream_info.codec != kSbMediaAudioCodecNone;
   bool has_video = video_stream_info.codec != kSbMediaVideoCodecNone;

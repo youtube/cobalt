@@ -15,12 +15,12 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_PCM_H_
 
-#include <atomic>
 #include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "starboard/common/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/common/optional.h"
@@ -206,7 +206,7 @@ class AudioRendererPcm : public AudioRenderer,
   static const int64_t kCheckAudioSinkStatusInterval = 1'000'000;  // 1 second
   void CheckAudioSinkStatus();
 
-  std::atomic<int32_t> sink_callbacks_since_last_check_{0};
+  atomic_int32_t sink_callbacks_since_last_check_;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 };
 

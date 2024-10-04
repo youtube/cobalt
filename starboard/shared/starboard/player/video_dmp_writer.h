@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DMP_WRITER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_DMP_WRITER_H_
 
+#include "starboard/file.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
@@ -51,7 +52,7 @@ class VideoDmpWriter {
   void DumpAccessUnit(const scoped_refptr<InputBuffer>& input_buffer);
   int WriteToFile(const void* buffer, int size);
 
-  int file_;
+  SbFile file_;
   WriteCB write_cb_;
 };
 

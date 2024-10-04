@@ -19,6 +19,7 @@
 using starboard::android::shared::JniEnvExt;
 
 SbDecodeTargetPrivate::Data::~Data() {
+#if defined(COBALT_PLAIN_VANILLA)
   ANativeWindow_release(native_window);
 
   JniEnvExt* env = JniEnvExt::Get();
@@ -27,4 +28,5 @@ SbDecodeTargetPrivate::Data::~Data() {
 
   glDeleteTextures(1, &info.planes[0].texture);
   SB_DCHECK(glGetError() == GL_NO_ERROR);
+#endif  // defined(COBALT_PLAIN_VANILLA)
 }

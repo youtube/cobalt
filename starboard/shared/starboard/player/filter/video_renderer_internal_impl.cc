@@ -44,7 +44,12 @@ VideoRendererImpl::VideoRendererImpl(
     : media_time_provider_(media_time_provider),
       algorithm_(std::move(algorithm)),
       sink_(sink),
-      decoder_(std::move(decoder)) {
+      decoder_(std::move(decoder)),
+      end_of_stream_written_(false),
+      ended_cb_called_(false),
+      need_more_input_(true),
+      seeking_(false),
+      number_of_frames_(0) {
   SB_DCHECK(decoder_ != NULL);
   SB_DCHECK(algorithm_ != NULL);
   SB_DCHECK(decoder_->GetMaxNumberOfCachedFrames() > 1);
@@ -279,7 +284,7 @@ void VideoRendererImpl::OnDecoderStatus(
       if (decoder_frames_.empty() || frame->is_end_of_stream() ||
           frame->timestamp() > decoder_frames_.back()->timestamp()) {
         decoder_frames_.push_back(frame);
-        ++number_of_frames_;
+        number_of_frames_.increment();
       }
     }
 

@@ -24,6 +24,10 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
+// Determines the threshold of allocation size that should be done with mmap
+// (if available), rather than allocated within the core heap.
+SB_EXPORT extern const size_t kSbDefaultMmapThreshold;
+
 // The current platform's maximum length of the name of a single directory
 // entry, not including the absolute path.
 SB_EXPORT extern const int32_t kSbFileMaxName;
@@ -31,6 +35,15 @@ SB_EXPORT extern const int32_t kSbFileMaxName;
 // The current platform's maximum number of files that can be opened at the
 // same time by one process.
 SB_EXPORT extern const uint32_t kSbFileMaxOpen;
+
+// The current platform's alternate file path component separator character.
+// This is like SB_FILE_SEP_CHAR, except if your platform supports an alternate
+// character, then you can place that here. For example, on windows machines,
+// the primary separator character is probably '\', but the alternate is '/'.
+SB_EXPORT extern const char kSbFileAltSepChar;
+
+// The string form of SB_FILE_ALT_SEP_CHAR.
+SB_EXPORT extern const char* kSbFileAltSepString;
 
 // The current platform's maximum length of an absolute path.
 SB_EXPORT extern const uint32_t kSbFileMaxPath;
@@ -44,8 +57,20 @@ SB_EXPORT extern const char kSbFileSepChar;
 // The string form of SB_FILE_SEP_CHAR.
 SB_EXPORT extern const char* kSbFileSepString;
 
+#if SB_API_VERSION < 15
+// Allow ac3 and ec3 support
+SB_EXPORT extern const bool kSbHasAc3Audio;
+#endif
+
+// Specifies whether this platform has webm/vp9 support.  This should be set to
+// non-zero on platforms with webm/vp9 support.
+SB_EXPORT extern const bool kSbHasMediaWebmVp9Support;
+
 // Whether the current platform supports thread priorities.
 SB_EXPORT extern const bool kSbHasThreadPrioritySupport;
+
+// Determines the alignment that allocations should have on this platform.
+SB_EXPORT extern const size_t kSbMallocAlignment;
 
 // The maximum number of thread local storage keys supported by this platform.
 // This comes from _POSIX_THREAD_KEYS_MAX. The value of PTHREAD_KEYS_MAX is
@@ -56,6 +81,9 @@ SB_EXPORT extern const uint32_t kSbMaxThreadLocalKeys;
 // The maximum length of the name for a thread, including the NULL-terminator.
 SB_EXPORT extern const int32_t kSbMaxThreadNameLength;
 
+// Defines the path where memory debugging logs should be written to.
+SB_EXPORT extern const char* kSbMemoryLogPath;
+
 // The maximum audio bitrate the platform can decode.  The following value
 // equals to 5M bytes per seconds which is more than enough for compressed
 // audio.
@@ -65,6 +93,9 @@ SB_EXPORT extern const uint32_t kSbMediaMaxAudioBitrateInBitsPerSecond;
 // equals to 8M bytes per seconds which is more than enough for compressed
 // video.
 SB_EXPORT extern const uint32_t kSbMediaMaxVideoBitrateInBitsPerSecond;
+
+// Specifies how video frame buffers must be aligned on this platform.
+SB_EXPORT extern const uint32_t kSbMediaVideoFrameAlignment;
 
 // The memory page size, which controls the size of chunks on memory that
 // allocators deal with, and the alignment of those chunks. This doesn't have to
@@ -91,6 +122,11 @@ SB_EXPORT extern const uint32_t kSbNetworkReceiveBufferSize;
 // like mutexes, so we want to keep this manageable.
 SB_EXPORT extern const uint32_t kSbMaxThreads;
 
+// Specifies the preferred byte order of color channels in a pixel. Refer to
+// starboard/configuration.h for the possible values. EGL/GLES platforms should
+// generally prefer a byte order of RGBA, regardless of endianness.
+SB_EXPORT extern const int kSbPreferredRgbaByteOrder;
+
 // The current platform's search path component separator character. When
 // specifying an ordered list of absolute paths of directories to search for a
 // given reason, this is the character that appears between entries. For
@@ -107,14 +143,21 @@ SB_EXPORT extern const char kSbPathSepChar;
 // The string form of SB_PATH_SEP_CHAR.
 SB_EXPORT extern const char* kSbPathSepString;
 
+#if SB_API_VERSION < 16
+// The maximum number of users that can be signed in at the same time.
+SB_EXPORT extern const uint32_t kSbUserMaxSignedIn;
+#endif  // SB_API_VERSION < 16
+
 // The maximum size the cache directory is allowed to use in bytes.
 SB_EXPORT extern const uint32_t kSbMaxSystemPathCacheDirectorySize;
 
+#if SB_API_VERSION >= 16
 // Whether this platform can map executable memory. This is required for
 // platforms that want to JIT.
 SB_EXPORT extern const bool kSbCanMapExecutableMemory;
 
 // Platform can support partial audio frames
 SB_EXPORT extern const bool kHasPartialAudioFramesSupport;
+#endif
 
 #endif  // STARBOARD_CONFIGURATION_CONSTANTS_H_

@@ -41,6 +41,17 @@ namespace starboard {
 namespace android {
 namespace shared {
 
+#if !defined(COBALT_PLAIN_VANILLA)
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_StarboardBridge_nativeInitialize(
+    JniEnvExt* env,
+    jobject starboard_bridge) {
+  JniEnvExt::Initialize(env, starboard_bridge);
+}
+
+#endif  // !defined(COBALT_PLAIN_VANILLA)
+
 // Warning: use __android_log_write for logging in this file.
 
 // static
@@ -76,8 +87,9 @@ JniEnvExt* JniEnvExt::Get() {
   JNIEnv* env = nullptr;
   if (JNI_OK != g_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6)) {
     // Tell the JVM our thread name so it doesn't change it.
-    char thread_name[16];
-    pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
+    // char thread_name[16];
+    // pthread_getname_np(pthread_self(), thread_name, sizeof(thread_name));
+    char thread_name[16] = "<thread_name>";
     JavaVMAttachArgs args{JNI_VERSION_1_6, thread_name, NULL};
     g_vm->AttachCurrentThread(&env, &args);
     // We don't use the value, but any non-NULL means we have to detach.

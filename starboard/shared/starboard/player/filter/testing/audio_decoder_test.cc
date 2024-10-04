@@ -32,6 +32,7 @@
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
+#include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
@@ -704,6 +705,9 @@ TEST_P(AudioDecoderTest, MultipleInputs) {
 
 TEST_P(AudioDecoderTest, LimitedInput) {
   int64_t duration = 500'000;  // 0.5 seconds
+#if SB_API_VERSION < 15
+  SbMediaSetAudioWriteDuration(duration);
+#endif  // SB_API_VERSION < 15
 
   ASSERT_TRUE(decoded_audios_.empty());
   int start_index = 0;
@@ -720,6 +724,9 @@ TEST_P(AudioDecoderTest, LimitedInput) {
 TEST_P(AudioDecoderTest, ContinuedLimitedInput) {
   constexpr int kMaxAccessUnitsToDecode = 256;
   int64_t duration = 500'000;  // 0.5 seconds
+#if SB_API_VERSION < 15
+  SbMediaSetAudioWriteDuration(duration);
+#endif  // SB_API_VERSION < 15
 
   int64_t start = CurrentMonotonicTime();
   int start_index = 0;

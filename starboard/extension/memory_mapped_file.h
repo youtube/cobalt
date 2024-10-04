@@ -17,23 +17,14 @@
 
 #include <stdint.h>
 
+#include "starboard/memory.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define kCobaltExtensionMemoryMappedFileName \
   "dev.cobalt.extension.MemoryMappedFile"
-
-typedef enum SbMemoryMapFlags {
-  // No flags set: Reserves virtual address space. SbMemoryProtect() can later
-  // make it accessible.
-  kSbMemoryMapProtectReserved = 0,
-  kSbMemoryMapProtectRead = 1 << 0,   // Mapped memory can be read.
-  kSbMemoryMapProtectWrite = 1 << 1,  // Mapped memory can be written to.
-  kSbMemoryMapProtectExec = 1 << 2,   // Mapped memory can be executed.
-  kSbMemoryMapProtectReadWrite =
-      kSbMemoryMapProtectRead | kSbMemoryMapProtectWrite,
-} SbMemoryMapFlags;
 
 typedef struct CobaltExtensionMemoryMappedFileApi {
   // Name should be the string |kCobaltExtensionMemoryMappedFileName|.

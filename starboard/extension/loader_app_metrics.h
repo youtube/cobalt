@@ -52,8 +52,7 @@ typedef enum class SlotSelectionStatus {
   kRollBackFailedToCheckSabi = 9,
   kRollBackFailedToLookUpSymbols = 10,
   kEGLite = 11,
-  kLoadSysImgFailedToInitInstallationManager = 12,
-  kMaxValue = kLoadSysImgFailedToInitInstallationManager,
+  kMaxValue = kEGLite,
 } SlotSelectionStatus;
 
 typedef struct StarboardExtensionLoaderAppMetricsApi {

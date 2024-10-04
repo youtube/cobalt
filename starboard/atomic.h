@@ -26,10 +26,6 @@
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 
-#ifndef __cplusplus
-#error "This header should not be included in C source code"
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -258,6 +254,12 @@ SbAtomicRelease_LoadPtr(volatile const SbAtomicPtr* ptr) {
 
 // Include the platform definitions of these functions, which should be defined
 // as inlined. This macro is defined on the command line by GN.
-#include STARBOARD_ATOMIC_INCLUDE
+#include "starboard/shared/gcc/atomic_gcc_public.h"
+
+#if SB_API_VERSION < 15 && defined(__cplusplus)
+extern "C++" {
+#include "starboard/common/atomic.h"
+}  // extern "C++"
+#endif  // SB_API_VERSION < 15  && defined(__cplusplus)
 
 #endif  // STARBOARD_ATOMIC_H_

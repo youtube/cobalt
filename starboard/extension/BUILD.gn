@@ -16,11 +16,11 @@ target(gtest_target_type, "extension_test") {
   testonly = true
   has_pedantic_warnings = true
   sources = [
-    "//starboard/common/test_main.cc",
     "enhanced_audio_test.cc",
     "extension_test.cc",
   ]
   deps = [
+    "//cobalt/test:run_all_unittests",
     "//starboard:starboard_group",
     "//testing/gmock",
     "//testing/gtest",

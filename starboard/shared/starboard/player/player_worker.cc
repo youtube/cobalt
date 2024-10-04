@@ -23,6 +23,8 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/reset_and_return.h"
+#include "starboard/memory.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard {

@@ -6,10 +6,11 @@
 #define STARBOARD_COMMON_REF_COUNTED_H_
 
 #include <algorithm>
-#include <atomic>
 #include <utility>
 
+#include "starboard/atomic.h"
 #include "starboard/common/log.h"
+#include "starboard/common/thread_collision_warner.h"
 
 namespace starboard {
 namespace subtle {
@@ -32,6 +33,8 @@ class RefCountedBase {
 #ifndef NDEBUG
   mutable bool in_dtor_;
 #endif
+
+  DFAKE_MUTEX(add_release_);
 };
 
 class RefCountedThreadSafeBase {
@@ -48,7 +51,7 @@ class RefCountedThreadSafeBase {
   bool Release() const;
 
  private:
-  mutable std::atomic<int32_t> ref_count_;
+  mutable SbAtomic32 ref_count_;
 #ifndef NDEBUG
   mutable bool in_dtor_;
 #endif

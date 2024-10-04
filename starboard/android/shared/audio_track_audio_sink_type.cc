@@ -74,6 +74,7 @@ int GetMaxFramesPerRequestForTunnelMode(int sampling_frequency_hz) {
 }
 
 bool HasRemoteAudioOutput() {
+#if SB_API_VERSION >= 15
   // SbPlayerBridge::GetAudioConfigurations() reads up to 32 configurations. The
   // limit here is to avoid infinite loop and also match
   // SbPlayerBridge::GetAudioConfigurations().
@@ -99,6 +100,8 @@ bool HasRemoteAudioOutput() {
     }
     index++;
   }
+  return false;
+#endif  // SB_API_VERSION >= 15
   return false;
 }
 
@@ -430,6 +433,10 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFrames(
     int channels,
     SbMediaAudioSampleType sample_type,
     int sampling_frequency_hz) {
+  // TODO: Remove workaround
+  if (!audio_track_audio_sink_type_) {
+    SbAudioSinkPrivate::PlatformInitialize();
+  }
   SB_DCHECK(audio_track_audio_sink_type_);
 
   return std::max(

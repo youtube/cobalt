@@ -24,7 +24,9 @@
 #include "starboard/android/shared/decode_target_internal.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/decode_target.h"
+#if defined(COBALT_PLAIN_VANILLA)
 #include "starboard/shared/gles/gl_call.h"
+#endif  // defined(COBALT_PLAIN_VANILLA)
 
 using starboard::android::shared::JniEnvExt;
 
@@ -66,6 +68,7 @@ struct CreateParams {
 };
 
 void CreateWithContextRunner(void* context) {
+#if defined(COBALT_PLAIN_VANILLA)
   CreateParams* params = static_cast<CreateParams*>(context);
 
   // Setup the GL texture that Android's MediaCodec library will target with
@@ -118,6 +121,7 @@ void CreateWithContextRunner(void* context) {
   GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0));
 
   params->decode_target_out = decode_target;
+#endif  // defined(COBALT_PLAIN_VANILLA)
 }
 
 }  // namespace

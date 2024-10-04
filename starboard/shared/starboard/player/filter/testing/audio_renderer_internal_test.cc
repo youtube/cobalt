@@ -21,6 +21,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/media.h"
+#include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"

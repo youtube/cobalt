@@ -21,43 +21,10 @@
 
 #include "starboard/configuration.h"
 
-// COMPONENT_BUILD is defined when generating shared libraries for each project,
-// rather than static libraries. This means we need to be careful about
-// EXPORT/IMPORT.
-
-// SB_IS_MODULAR is defined when the binaries generated will be composed
-// entirely of the Starboard implementation and will provide the Starboard API,
-// with all client applications being built separately.
-
-#if defined(COMPONENT_BUILD) || SB_IS(MODULAR)
-
-// STARBOARD_IMPLEMENTATION is defined when building the Starboard library
-// sources, and shouldn't be defined when building sources that are clients of
-// Starboard.
-
-#if defined(STARBOARD_IMPLEMENTATION)
-
-// Specification for a symbol that should be exported when building the DLL and
-// imported when building code that uses the DLL.
-#define SB_EXPORT SB_EXPORT_PLATFORM
-
-// Specification for a symbol that should be exported or imported for testing
-// purposes only.
-#define SB_EXPORT_PRIVATE SB_EXPORT_PLATFORM
-
-// Specification for a symbol that is expected to be defined externally to this
-// module.
-#define SB_IMPORT SB_IMPORT_PLATFORM
-
-#else  // defined(STARBOARD_IMPLEMENTATION)
-#define SB_EXPORT SB_IMPORT_PLATFORM
-#define SB_EXPORT_PRIVATE SB_IMPORT_PLATFORM
-#define SB_IMPORT SB_EXPORT_PLATFORM
-#endif
-#else  // defined(COMPONENT_BUILD) || SB_IS(MODULAR)
-#define SB_EXPORT
-#define SB_EXPORT_PRIVATE
+#define SB_EXPORT __attribute__((visibility("default")))
+#define SB_EXPORT_PRIVATE __attribute__((visibility("default")))
 #define SB_IMPORT
-#endif  // defined(COMPONENT_BUILD)
+
+#define SB_EXPORT_PLATFORM __attribute__((visibility("default")))
 
 #endif  // STARBOARD_EXPORT_H_

@@ -18,7 +18,9 @@
 
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
+#if defined(COBALT_PLAIN_VANILLA)
 #include "starboard/shared/starboard/application.h"
+#endif  // defined(COBALT_PLAIN_VANILLA)
 
 namespace starboard {
 namespace shared {
@@ -31,7 +33,10 @@ using std::placeholders::_2;
 
 PunchoutVideoRendererSink::PunchoutVideoRendererSink(SbPlayer player,
                                                      int64_t render_interval)
-    : player_(player),
+    :
+#if defined(COBALT_PLAIN_VANILLA)
+      player_(player),
+#endif // defined(COBALT_PLAIN_VANILLA)
       render_interval_(render_interval),
       thread_(0),
       z_index_(0),
@@ -78,9 +83,11 @@ void PunchoutVideoRendererSink::RunLoop() {
     render_cb_(std::bind(&PunchoutVideoRendererSink::DrawFrame, this, _1, _2));
     usleep(render_interval_);
   }
+#if defined(COBALT_PLAIN_VANILLA)
   ScopedLock lock(mutex_);
   shared::starboard::Application::Get()->HandleFrame(
       player_, VideoFrame::CreateEOSFrame(), 0, 0, 0, 0, 0);
+#endif  // defined(COBALT_PLAIN_VANILLA)
 }
 
 PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
@@ -88,9 +95,11 @@ PunchoutVideoRendererSink::DrawFrameStatus PunchoutVideoRendererSink::DrawFrame(
     int64_t release_time_in_nanoseconds) {
   SB_DCHECK(release_time_in_nanoseconds == 0);
 
+#if defined(COBALT_PLAIN_VANILLA)
   ScopedLock lock(mutex_);
   shared::starboard::Application::Get()->HandleFrame(player_, frame, z_index_,
                                                      x_, y_, width_, height_);
+#endif  // defined(COBALT_PLAIN_VANILLA)
   return kNotReleased;
 }
 

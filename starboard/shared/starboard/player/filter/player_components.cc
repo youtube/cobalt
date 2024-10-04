@@ -18,7 +18,9 @@
 #include <utility>
 
 #include "starboard/common/time.h"
+#if defined(COBALT_PLAIN_VANILLA)
 #include "starboard/shared/starboard/application.h"
+#endif // defined(COBALT_PLAIN_VANILLA)
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
@@ -40,6 +42,8 @@ namespace {
 
 const int kAudioSinkFramesAlignment = 256;
 const int kDefaultAudioSinkMinFramesPerAppend = 1024;
+const int kDefaultAudioSinkMaxCachedFrames =
+    8 * kDefaultAudioSinkMinFramesPerAppend;
 
 typedef MediaTimeProviderImpl::MonotonicSystemTimeProvider
     MonotonicSystemTimeProvider;
@@ -155,11 +159,16 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
   std::unique_ptr<VideoRenderAlgorithm> video_render_algorithm;
   scoped_refptr<VideoRendererSink> video_renderer_sink;
 
+#if defined(COBALT_PLAIN_VANILLA)
   auto command_line = shared::starboard::Application::Get()->GetCommandLine();
   bool use_stub_audio_decoder =
       command_line->HasSwitch("use_stub_audio_decoder");
   bool use_stub_video_decoder =
       command_line->HasSwitch("use_stub_video_decoder");
+#else // defined(COBALT_PLAIN_VANILLA)
+  bool use_stub_audio_decoder = false;
+  bool use_stub_video_decoder = false;
+#endif  // defined(COBALT_PLAIN_VANILLA)
 
   if (use_stub_audio_decoder && use_stub_video_decoder) {
     CreateStubAudioComponents(creation_parameters, &audio_decoder,

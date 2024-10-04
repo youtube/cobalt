@@ -17,20 +17,21 @@
 
 #include <ostream>
 
+#include "starboard/configuration.h"
 #include "starboard/media.h"
 
 namespace starboard {
 
-const char* GetMediaAudioCodecName(SbMediaAudioCodec codec);
-const char* GetMediaVideoCodecName(SbMediaVideoCodec codec);
-const char* GetMediaAudioConnectorName(SbMediaAudioConnector connector);
-const char* GetMediaPrimaryIdName(SbMediaPrimaryId primary_id);
-const char* GetMediaTransferIdName(SbMediaTransferId transfer_id);
-const char* GetMediaMatrixIdName(SbMediaMatrixId matrix_id);
-const char* GetMediaRangeIdName(SbMediaRangeId range_id);
+const char* SB_EXPORT GetMediaAudioCodecName(SbMediaAudioCodec codec);
+const char* SB_EXPORT GetMediaVideoCodecName(SbMediaVideoCodec codec);
+const char* SB_EXPORT GetMediaAudioConnectorName(SbMediaAudioConnector connector);
+const char* SB_EXPORT GetMediaPrimaryIdName(SbMediaPrimaryId primary_id);
+const char* SB_EXPORT GetMediaTransferIdName(SbMediaTransferId transfer_id);
+const char* SB_EXPORT GetMediaMatrixIdName(SbMediaMatrixId matrix_id);
+const char* SB_EXPORT GetMediaRangeIdName(SbMediaRangeId range_id);
 
-const char* GetMediaAudioSampleTypeName(SbMediaAudioSampleType sample_type);
-const char* GetMediaAudioStorageTypeName(
+const char* SB_EXPORT GetMediaAudioSampleTypeName(SbMediaAudioSampleType sample_type);
+const char* SB_EXPORT GetMediaAudioStorageTypeName(
     SbMediaAudioFrameStorageType storage_type);
 
 // This function parses the video codec string and returns a codec.  All fields
@@ -44,7 +45,7 @@ const char* GetMediaAudioStorageTypeName(
 //          matrix_id: kSbMediaMatrixIdUnspecified
 // It returns true when |codec| contains a well-formed codec string, otherwise
 // it returns false.
-bool ParseVideoCodec(const char* codec_string,
+bool SB_EXPORT ParseVideoCodec(const char* codec_string,
                      SbMediaVideoCodec* codec,
                      int* profile,
                      int* level,
@@ -56,17 +57,20 @@ bool ParseVideoCodec(const char* codec_string,
 }  // namespace starboard
 
 // For logging use only.
-std::ostream& operator<<(std::ostream& os,
-                         const SbMediaMasteringMetadata& metadata);
-std::ostream& operator<<(std::ostream& os,
-                         const SbMediaColorMetadata& metadata);
-std::ostream& operator<<(std::ostream& os,
-                         const SbMediaVideoSampleInfo& sample_info);
-std::ostream& operator<<(std::ostream& os,
-                         const SbMediaAudioSampleInfo& sample_info);
-std::ostream& operator<<(std::ostream& os,
-                         const SbMediaVideoStreamInfo& stream_info);
-std::ostream& operator<<(std::ostream& os,
-                         const SbMediaAudioStreamInfo& stream_info);
+std::ostream& SB_EXPORT operator<<(std::ostream& os,
+                                   const SbMediaMasteringMetadata& metadata);
+std::ostream& SB_EXPORT operator<<(std::ostream& os,
+                                   const SbMediaColorMetadata& metadata);
+std::ostream& SB_EXPORT operator<<(std::ostream& os,
+                                   const SbMediaVideoSampleInfo& sample_info);
+std::ostream& SB_EXPORT operator<<(std::ostream& os,
+                                   const SbMediaAudioSampleInfo& sample_info);
+
+#if SB_API_VERSION >= 15
+std::ostream& SB_EXPORT operator<<(std::ostream& os,
+                                   const SbMediaVideoStreamInfo& stream_info);
+std::ostream& SB_EXPORT operator<<(std::ostream& os,
+                                   const SbMediaAudioStreamInfo& stream_info);
+#endif  // SB_API_VERSION >= 15
 
 #endif  // STARBOARD_COMMON_MEDIA_H_

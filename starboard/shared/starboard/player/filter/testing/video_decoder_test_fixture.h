@@ -28,6 +28,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
+#include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"

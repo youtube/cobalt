@@ -19,6 +19,7 @@
 #include <utility>
 
 #include "starboard/common/time.h"
+#include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
@@ -369,7 +370,7 @@ void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,
                                        bool* is_playing,
                                        bool* is_eos_reached) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-  ++sink_callbacks_since_last_check_;
+  sink_callbacks_since_last_check_.increment();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
   {
@@ -424,7 +425,7 @@ void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,
 void AudioRendererPcm::ConsumeFrames(int frames_consumed,
                                      int64_t frames_consumed_at) {
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
-  ++sink_callbacks_since_last_check_;
+  sink_callbacks_since_last_check_.increment();
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
 
   // Note that occasionally thread context switch may cause that the time

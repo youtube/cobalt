@@ -116,9 +116,9 @@ class AudioRendererPassthrough
   EndedCB ended_cb_;
 
   int frames_per_input_buffer_ = 0;  // Set once before all uses.
-  std::atomic_bool can_accept_more_data_{true};
-  std::atomic_bool prerolled_{false};
-  std::atomic_bool end_of_stream_played_{false};
+  atomic_bool can_accept_more_data_{true};
+  atomic_bool prerolled_;
+  atomic_bool end_of_stream_played_;
 
   bool end_of_stream_written_ = false;  // Only accessed on PlayerWorker thread.
 

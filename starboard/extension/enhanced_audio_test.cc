@@ -24,6 +24,8 @@
 namespace starboard {
 namespace extension {
 
+#if SB_API_VERSION >= 15
+
 TEST(EnhancedAudioTest, VerifyBinaryLayouts) {
   // Sanity check that the layouts of the extension specific types are the same
   // as corresponding SbMedia and SbPlayer types.
@@ -107,6 +109,8 @@ TEST(EnhancedAudioTest, VerifyBinaryLayouts) {
   EXPECT_EQ(offsetof(CobaltExtensionEnhancedAudioPlayerSampleInfo, drm_info),
             offsetof(SbPlayerSampleInfo, drm_info));
 }
+
+#endif  // SB_API_VERSION >= 15
 
 }  // namespace extension
 }  // namespace starboard
