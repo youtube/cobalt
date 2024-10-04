@@ -57,9 +57,7 @@ typedef int64_t ssize_t;
 
 // Simulate needed portions of limits.h for platforms that don't provide it.
 
-static const int64_t kSbInt64Min = ((int64_t)SB_INT64_C(0x8000000000000000));
 static const int64_t kSbInt64Max = ((int64_t)SB_INT64_C(0x7FFFFFFFFFFFFFFF));
-static const uint64_t kSbUInt64Max = ((uint64_t)SB_INT64_C(0xFFFFFFFFFFFFFFFF));
 
 // A value that represents an int that is probably invalid.
 #define kSbInvalidInt INT32_MIN
