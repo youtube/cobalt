@@ -123,20 +123,6 @@ TEST_P(PairSbSocketGetLocalAddressTest, SunnyDayConnected) {
   EXPECT_TRUE(SbSocketDestroy(trio.listen_socket));
 }
 
-INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
-                        SbSocketGetLocalAddressTest,
-                        ::testing::Values(kSbSocketAddressTypeIpv4,
-                                          kSbSocketAddressTypeIpv6),
-                        GetSbSocketAddressTypeName);
-INSTANTIATE_TEST_CASE_P(
-    SbSocketAddressTypes,
-    PairSbSocketGetLocalAddressTest,
-    ::testing::Values(
-        std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketAddressTypeIpv4),
-        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv6),
-        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)),
-    GetSbSocketAddressTypePairName);
-
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

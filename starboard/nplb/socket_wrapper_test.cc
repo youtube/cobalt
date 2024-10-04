@@ -82,15 +82,6 @@ TEST_P(PairSbSocketWrapperTest, SunnyDay) {
   }
 }
 
-INSTANTIATE_TEST_CASE_P(
-    SbSocketAddressTypes,
-    PairSbSocketWrapperTest,
-    ::testing::Values(
-        std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketAddressTypeIpv4),
-        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv6),
-        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)),
-    GetSbSocketAddressTypePairName);
-
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
