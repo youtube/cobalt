@@ -15,12 +15,9 @@
 import("//starboard/build/config/variables.gni")
 
 config("platform_configuration") {
-  if (current_toolchain != starboard_toolchain && sb_is_modular &&
-      !sb_is_evergreen) {
-    configs = [ "//starboard/build/config/modular/x64" ]
-    ldflags = [ "-Wl,--gc-sections" ]
-  } else {
+  if (current_toolchain == starboard_toolchain) {
     configs = [
+      "//starboard/build/config:starboard",
       ":libraries",
       "//starboard/linux/shared/platform_configuration",
       ":hack",
@@ -29,7 +26,6 @@ config("platform_configuration") {
       ":linker_flags",
     ]
   }
-
 }
 
 config("libraries") {
@@ -51,6 +47,7 @@ config("hack") {
   cflags = [
     "-Wno-tautological-pointer-compare",
 
+    #../../starboard/shared/ffmpeg/ffmpeg_video_decoder_impl.cc:512:3: error: ignoring return value of function declared with 'warn_unused_result' attribute [-Werror,-Wunused-result]
+    "-Wno-unused-result",
   ]
-
 }

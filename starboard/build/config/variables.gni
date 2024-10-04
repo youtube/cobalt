@@ -1,13 +1,22 @@
 
 import("//starboard/content/fonts/font_configuration.gni")
-# Most of this file is base_configuration.gni
+
+starboard_toolchain = "//starboard/build/toolchain:starboard"
+is_starboardized_toolchain = current_toolchain == default_toolchain || current_toolchain == starboard_toolchain
 sb_api_version = 17
 sb_is_evergreen = false
+cobalt_fastbuild = false
+use_asan = false
+use_tsan = false
+
+if(current_toolchain == starboard_toolchain) {
+    # Most of this file is base_configuration.gni
+
+
 sb_is_evergreen_compatible = true
 has_platform_targets = false
 sb_filter_based_player = false
 sb_enable_benchmark = false
-starboard_toolchain = "//starboard/build/toolchain:starboard"
 cobalt_toolchain = default_toolchain
 is_internal_build = false
 starboard_path = "starboard/linux/x64x11"
@@ -31,23 +40,41 @@ sb_enable_cpp17_audit = true
 sb_enable_cpp20_audit = true
 sb_has_unused_symbol_issue = false
 enable_in_app_dial = true
-is_starboardized_toolchain = current_toolchain == default_toolchain || current_toolchain == starboard_toolchain
+
 target_platform = "linux-x64x11"
 
 platform_tests_path =
     "//starboard/linux/shared:starboard_platform_tests($starboard_toolchain)"
 
-cobalt_fastbuild = false
-use_asan = false
-use_tsan = false
-is_starboard = true
 
-path_to_nasm = "nasm"
+
 
 
 # Whether to generate the whole package containing both Loader app and Cobalt
 # core on the Evergreen compatible platform.
 sb_evergreen_compatible_package = false
+
+path_to_nasm = "nasm"
+
+declare_args() {
+  # Temporary gn arg for work on base/net update.
+  cobalt_pending_clean_up = true
+
+  is_starboard = true
+
+  # Used to guard any customizations to Chromium or third-party code for builds
+  # where the Starboard porting layer is not used.
+  is_native_target_build = false
+
+  is_docker_build = false
+
+  using_old_compiler = false
+
+  use_xcode_clang = false
+}
+
+}
+
 
 
 # TODO: add to a new .gni file.
