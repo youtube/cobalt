@@ -33,3 +33,7 @@ declare_args() {
 is_devel = build_type == "devel"
 is_qa = build_type == "qa"
 is_gold = build_type == "gold"
+
+
+# TODO(b/371263047): Resolve issues and build evergreen.
+enable_evergreen_code = false

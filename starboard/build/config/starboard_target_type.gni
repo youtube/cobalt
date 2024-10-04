@@ -44,16 +44,18 @@ template("starboard_platform_target") {
       }
     }
     public_deps = [
-      # "//starboard/client_porting/cwrappers",
       "//starboard/common",
       "//starboard/egl_and_gles",
     ]
-    # if (sb_is_evergreen_compatible &&
-    #     current_toolchain == starboard_toolchain) {
-    #   public_deps += [ "//third_party/crashpad/crashpad/wrapper" ]
-    # } else {
-    #   public_deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
-    # }
+    if (enable_evergreen_code) {
+      if (sb_is_evergreen_compatible &&
+          current_toolchain == starboard_toolchain) {
+        public_deps += [ "//third_party/crashpad/crashpad/wrapper" ]
+      } else {
+        public_deps +=
+            [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
+      }
+    }
     if (!sb_is_evergreen) {
       public_deps += [ "//$starboard_path:starboard_platform" ]
     }
