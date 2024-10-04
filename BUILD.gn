@@ -838,7 +838,9 @@ group("gn_all") {
       deps += [ "//components/cronet:cronet_tests" ]
     }
   }
-  deps += ["//starboard:starboard_group($starboard_toolchain)"]
+  if (!is_android) {
+    deps += [ "//starboard:starboard_group($starboard_toolchain)" ]
+  }
 }
 
 # All Rust targets. This is provided for convenience while developing Rust to
