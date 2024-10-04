@@ -1,5 +1,6 @@
 target_os = "linux"
 target_cpu = "x64"
+target_platform = "linux-x64x11"
 
 enable_nacl=false
 use_dawn=false
@@ -91,3 +92,4 @@ chrome_pgo_phase = 0
 enable_check_raw_ptr_fields=false
 # ../../starboard/linux/shared/decode_target_internal.h:22:1: error: [chromium-style] Complex class/struct needs an explicit out-of-line destructor.
 clang_use_chrome_plugins=false
+
