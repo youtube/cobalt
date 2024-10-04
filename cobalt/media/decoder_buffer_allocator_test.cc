@@ -54,33 +54,33 @@ class DecoderBufferAllocatorTest : public testing::Test {
 
 TEST_F(DecoderBufferAllocatorTest, SetVideoBufferBudget) {
   int buffer_budget = 123'456'789;  // ~123 MB
-  EXPECT_TRUE(SetVideoBufferBudget(buffer_budget));
+  ASSERT_TRUE(SetVideoBufferBudget(buffer_budget));
   EXPECT_EQ(GetCurrentVideoBufferBudget(), buffer_budget);
 
   buffer_budget = 1'234'567;  // ~1 MB
-  EXPECT_TRUE(SetVideoBufferBudget(buffer_budget));
+  ASSERT_TRUE(SetVideoBufferBudget(buffer_budget));
   EXPECT_EQ(GetCurrentVideoBufferBudget(), buffer_budget);
 }
 
 TEST_F(DecoderBufferAllocatorTest, SetAndResetVideoBufferBudget) {
   int buffer_budget = 123'456'789;  // ~123 MB
-  EXPECT_TRUE(SetVideoBufferBudget(buffer_budget));
+  ASSERT_TRUE(SetVideoBufferBudget(buffer_budget));
   EXPECT_EQ(GetCurrentVideoBufferBudget(), buffer_budget);
 
   buffer_budget = 0;
-  EXPECT_TRUE(SetVideoBufferBudget(buffer_budget));
+  ASSERT_TRUE(SetVideoBufferBudget(buffer_budget));
   EXPECT_EQ(GetCurrentVideoBufferBudget(), GetInitialVideoBufferBudget());
 }
 
 TEST_F(DecoderBufferAllocatorTest, SetVideoBufferBudgetInvalid) {
   int buffer_budget = -123'456'789;
-  EXPECT_FALSE(SetVideoBufferBudget(buffer_budget));
+  ASSERT_FALSE(SetVideoBufferBudget(buffer_budget));
   EXPECT_NE(GetCurrentVideoBufferBudget(), buffer_budget);
   EXPECT_EQ(GetCurrentVideoBufferBudget(), GetInitialVideoBufferBudget());
 
   // Test setting to invalid budget after setting to valid budget.
   buffer_budget = 1'234'567;  // ~1 MB
-  EXPECT_TRUE(SetVideoBufferBudget(buffer_budget));
+  ASSERT_TRUE(SetVideoBufferBudget(buffer_budget));
   EXPECT_EQ(GetCurrentVideoBufferBudget(), buffer_budget);
 
   int current_buffer_budget = GetCurrentVideoBufferBudget();
