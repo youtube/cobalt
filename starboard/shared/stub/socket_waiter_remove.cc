@@ -18,7 +18,7 @@ bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket) {
   return false;
 }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 bool SbPosixSocketWaiterRemove(SbSocketWaiter waiter, int socket) {
   return false;
 }

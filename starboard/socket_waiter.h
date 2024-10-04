@@ -149,7 +149,7 @@ SB_EXPORT bool SbSocketWaiterAdd(SbSocketWaiter waiter,
                                  int interests,
                                  bool persistent);
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 SB_EXPORT bool SbPosixSocketWaiterAdd(SbSocketWaiter waiter,
                                       int socket,
                                       void* context,
@@ -171,7 +171,7 @@ SB_EXPORT bool SbPosixSocketWaiterAdd(SbSocketWaiter waiter,
 // |socket|: The socket to remove from the waiter.
 SB_EXPORT bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket);
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 SB_EXPORT bool SbPosixSocketWaiterRemove(SbSocketWaiter waiter, int socket);
 #endif
 

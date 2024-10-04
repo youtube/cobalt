@@ -51,7 +51,7 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
    public:
     // These methods are called from MessageLoop::Run when a socket can be
     // interacted with without blocking.
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
     virtual void OnFileCanReadWithoutBlocking(int socket) {}
     virtual void OnFileCanWriteWithoutBlocking(int socket) {}
 #else
@@ -77,7 +77,7 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
 
     // Stops watching the socket, always safe to call.  No-op if there's nothing
     // to do.
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
     bool StopWatchingFileDescriptor();
 #else
     bool StopWatchingSocket();
@@ -90,7 +90,7 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
     friend class MessagePumpIOStarboardTest;
 
     // Called by MessagePumpIOStarboard.
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
     void Init(int socket, bool persistent);
     int Release();
 #else
@@ -106,7 +106,7 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
 
     void set_watcher(Watcher* watcher) { watcher_ = watcher; }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
     void OnFileCanReadWithoutBlocking(int socket, MessagePumpIOStarboard* pump);
     void OnFileCanWriteWithoutBlocking(int socket, MessagePumpIOStarboard* pump);
 #else
@@ -116,7 +116,7 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
 
     const Location created_from_location_;
     int interests_;
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
     int socket_;
 #else
     SbSocket socket_;
@@ -148,7 +148,7 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
   // If an error occurs while calling this method in a cumulative fashion, the
   // event previously attached to |controller| is aborted.  Returns true on
   // success.  Must be called on the same thread the message_pump is running on.
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   bool WatchFileDescriptor(int socket,
                            bool persistent,
                            int mode,
@@ -185,7 +185,7 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
 
   // Called by SbSocketWaiter to tell us a registered socket can be read and/or
   // written to.
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   static void OnPosixSocketWaiterNotification(SbSocketWaiter waiter,
                                               int socket,
                                               void* context,

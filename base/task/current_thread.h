@@ -279,7 +279,7 @@ class BASE_EXPORT CurrentIOThread : public CurrentThread {
             WATCH_WRITE = base::MessagePumpIOStarboard::WATCH_WRITE,
             WATCH_READ_WRITE = base::MessagePumpIOStarboard::WATCH_READ_WRITE};
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   bool WatchFileDescriptor(int socket,
                            bool persistent,
                            int mode,

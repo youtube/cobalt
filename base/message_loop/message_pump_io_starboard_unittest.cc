@@ -18,7 +18,7 @@
 
 #include <memory>
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
@@ -48,7 +48,7 @@ class MessagePumpIOStarboardTest : public testing::Test {
   void SetUp() override {
     Thread::Options options(MessagePumpType::IO, 0);
     ASSERT_TRUE(io_thread_.StartWithOptions(std::move(options)));
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
     socket_ = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 #else
     socket_ = SbSocketCreate(SbSocketAddressType::kSbSocketAddressTypeIpv4, SbSocketProtocol::kSbSocketProtocolTcp);
@@ -62,7 +62,7 @@ class MessagePumpIOStarboardTest : public testing::Test {
     // pipe.
     io_thread_.Stop();
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
     close(socket_);
 #else
     SbSocketDestroy(socket_);
@@ -73,7 +73,7 @@ class MessagePumpIOStarboardTest : public testing::Test {
     return std::make_unique<MessagePumpIOStarboard>();
   }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   int socket() {
     return socket_;
   }
@@ -88,7 +88,7 @@ class MessagePumpIOStarboardTest : public testing::Test {
   }
 
   void SimulateIOEvent(MessagePumpIOStarboard::SocketWatcher* controller) {
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
     MessagePumpIOStarboard::OnPosixSocketWaiterNotification(nullptr,
                                                             -1,
                                                             controller,
@@ -107,7 +107,7 @@ class MessagePumpIOStarboardTest : public testing::Test {
 
  private:
   Thread io_thread_;
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   int socket_;
 #else
   SbSocket socket_;
@@ -123,7 +123,7 @@ class StupidWatcher : public MessagePumpIOStarboard::Watcher {
   ~StupidWatcher() override = default;
 
   // MessagePumpIOStarboard::Watcher interface
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   void OnFileCanReadWithoutBlocking(int socket) override {}
   void OnFileCanWriteWithoutBlocking(int socket) override {}
 #else
@@ -144,7 +144,7 @@ class BaseWatcher : public MessagePumpIOStarboard::Watcher {
   ~BaseWatcher() override = default;
 
   // MessagePumpIOStarboard::Watcher interface
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   void OnFileCanReadWithoutBlocking(int socket) override { NOTREACHED(); }
   void OnFileCanWriteWithoutBlocking(int socket) override { NOTREACHED(); }
 #else
@@ -165,7 +165,7 @@ class DeleteWatcher : public BaseWatcher {
     return controller_.get();
   }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   void OnFileCanWriteWithoutBlocking(int socket) override {
 #else
   void OnSocketReadyToWrite(SbSocket socket) override {
@@ -183,7 +183,7 @@ TEST_F(MessagePumpIOStarboardTest, DISABLED_DeleteWatcher) {
   DeleteWatcher delegate(
       std::make_unique<MessagePumpIOStarboard::SocketWatcher>(FROM_HERE));
   std::unique_ptr<MessagePumpIOStarboard> pump = CreateMessagePump();
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   pump->WatchFileDescriptor(socket(),
 #else
   pump->Watch(socket(),
@@ -202,7 +202,7 @@ class StopWatcher : public BaseWatcher {
 
   ~StopWatcher() override = default;
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   void OnFileCanWriteWithoutBlocking(int socket) override {
     controller_->StopWatchingFileDescriptor();
   }
@@ -222,7 +222,7 @@ TEST_F(MessagePumpIOStarboardTest, DISABLED_StopWatcher) {
   std::unique_ptr<MessagePumpIOStarboard> pump = CreateMessagePump();
   MessagePumpIOStarboard::SocketWatcher controller(FROM_HERE);
   StopWatcher delegate(&controller);
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   pump->WatchFileDescriptor(socket(),
 #else
   pump->Watch(socket(),
@@ -248,7 +248,7 @@ class NestedPumpWatcher : public MessagePumpIOStarboard::Watcher {
   NestedPumpWatcher() = default;
   ~NestedPumpWatcher() override = default;
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   void OnFileCanReadWithoutBlocking(int socket) override {
 #else
   void OnSocketReadyToRead(SbSocket socket) override {
@@ -259,7 +259,7 @@ class NestedPumpWatcher : public MessagePumpIOStarboard::Watcher {
     runloop.Run();
   }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   void OnFileCanWriteWithoutBlocking(int socket) override {}
 };
 #else
@@ -272,7 +272,7 @@ TEST_F(MessagePumpIOStarboardTest, DISABLED_NestedPumpWatcher) {
   NestedPumpWatcher delegate;
   std::unique_ptr<MessagePumpIOStarboard> pump = CreateMessagePump();
   MessagePumpIOStarboard::SocketWatcher controller(FROM_HERE);
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   pump->WatchFileDescriptor(socket(),
 #else
   pump->Watch(socket(),
@@ -293,7 +293,7 @@ class QuitWatcher : public BaseWatcher {
   QuitWatcher(base::OnceClosure quit_closure)
       : quit_closure_(std::move(quit_closure)) {}
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   void OnFileCanReadWithoutBlocking(int socket) override {
 #else
   void OnSocketReadyToRead(SbSocket socket) override {
@@ -331,7 +331,7 @@ TEST_F(MessagePumpIOStarboardTest, DISABLED_QuitWatcher) {
   std::unique_ptr<WaitableEventWatcher> watcher(new WaitableEventWatcher);
 
   // Tell the pump to watch the pipe.
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   pump->WatchFileDescriptor(socket(),
 #else
   pump->Watch(socket(),

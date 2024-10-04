@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
 void NoOpSocketWaiterCallback(SbSocketWaiter waiter,
                               int socket,
@@ -78,7 +78,7 @@ TEST(SbPosixSocketWaiterRemoveTest, RainyDayAlreadyRemoved) {
   EXPECT_TRUE(SbSocketWaiterDestroy(waiter));
 }
 
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
 }  // namespace
 }  // namespace nplb

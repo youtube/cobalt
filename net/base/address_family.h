@@ -42,13 +42,14 @@ typedef int HostResolverFlags;
 // Returns AddressFamily for |address|.
 NET_EXPORT AddressFamily GetAddressFamily(const IPAddress& address);
 
-#if defined(STARBOARD) && SB_API_VERSION <= 15
+#if defined(STARBOARD) && (SB_API_VERSION <= 15 || defined(_MSC_VER))
 NET_EXPORT SbSocketAddressType ConvertAddressFamily(
     AddressFamily address_family);
 #else
 // Maps the given AddressFamily to either AF_INET, AF_INET6 or AF_UNSPEC.
 NET_EXPORT int ConvertAddressFamily(AddressFamily address_family);
 #endif
+
 
 // Maps AF_INET, AF_INET6 or AF_UNSPEC to an AddressFamily.
 NET_EXPORT AddressFamily ToAddressFamily(int family);

@@ -212,7 +212,7 @@ MessagePumpForIO* CurrentIOThread::GetMessagePumpForIO() const {
 #if !BUILDFLAG(IS_NACL)
 
 #if defined(STARBOARD)
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 bool CurrentIOThread::WatchFileDescriptor(int socket,
                             bool persistent,
                             int mode,

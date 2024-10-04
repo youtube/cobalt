@@ -33,7 +33,7 @@
 
 namespace net {
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
 namespace {
 
@@ -144,7 +144,7 @@ int SocketPosix::Bind(const SockaddrStorage& address) {
 
   int rv = bind(socket_fd_, address.addr, address.addr_len);
   if (rv < 0) {
-    PLOG(ERROR) << "bind() failed -errno- :" << errno;
+    PLOG(ERROR) << "bind() failed";
     return MapSystemError(errno);
   }
 
@@ -591,6 +591,6 @@ void SocketPosix::StopWatchingAndCleanUp(bool close_socket) {
   peer_address_.reset();
 }
 
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16  && !defined(WIN32)
 
 }  // namespace net

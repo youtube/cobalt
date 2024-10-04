@@ -35,7 +35,7 @@
 
 namespace net {
 
-#if SB_API_VERSION <= 15
+#if SB_API_VERSION <= 15 || defined(COMPILER_MSVC)
 
 UDPSocketStarboard::UDPSocketStarboard(DatagramSocket::BindType bind_type,
                                        net::NetLog* net_log,
@@ -902,6 +902,6 @@ int UDPSocketStarboard::ResetWrittenBytes() {
   return bytes;
 }
 
-#endif  // SB_API_VERSION <= 15
+#endif  // SB_API_VERSION <= 15  || defined(WIN32)
 
 }  // namespace net

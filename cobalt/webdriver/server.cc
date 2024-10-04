@@ -204,12 +204,7 @@ WebDriverServer::WebDriverServer(int port, const std::string& listen_ip,
   // Create http server
   std::unique_ptr<net::ServerSocket> server_socket =
       std::make_unique<net::TCPServerSocket>(nullptr, net::NetLogSource());
-  int rv =
-      server_socket->ListenWithAddressAndPort(listen_ip, port, 1 /*backlog*/);
-  if (rv != 0) {
-    LOG(ERROR) << "Listen WebDriver failed " << rv << " errno " << errno;
-    return;
-  }
+  server_socket->ListenWithAddressAndPort(listen_ip, port, 1 /*backlog*/);
   server_ = std::make_unique<net::HttpServer>(std::move(server_socket), this);
   net::IPEndPoint ip_addr;
   int result = server_->GetLocalInterfaceAddress(&ip_addr);

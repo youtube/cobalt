@@ -145,7 +145,7 @@ SbSocketWaiterPrivate::~SbSocketWaiterPrivate() {
   for (auto& it : waitees_.GetWaitees()) {
     if (it) {
       if (it->use_posix_socket == 1) {
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
         SB_DCHECK(CheckSocketWaiterIsThis(it->posix_socket, it->waiter));
 #endif
       } else {
@@ -155,7 +155,7 @@ SbSocketWaiterPrivate::~SbSocketWaiterPrivate() {
   }
 }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 bool SbSocketWaiterPrivate::Add(int socket,
                                 SbSocketWaiter waiter,
                                 void* context,
@@ -261,7 +261,7 @@ bool SbSocketWaiterPrivate::Remove(int socket, SbSocketWaiter waiter) {
   return waitees_.RemoveSocket(socket);
 }
 
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
 bool SbSocketWaiterPrivate::Add(SbSocket socket,
                                 void* context,
@@ -379,7 +379,7 @@ void SbSocketWaiterPrivate::ResetWakeupEvent() {
   WSAResetEvent(wakeup_event_.GetEvent());
 }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 bool SbSocketWaiterPrivate::CheckSocketWaiterIsThis(int socket,
                                                     SbSocketWaiter waiter) {
   if (socket < 0) {
@@ -407,7 +407,7 @@ bool SbSocketWaiterPrivate::CheckSocketRegistered(int socket) {
   return true;
 }
 
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
 bool SbSocketWaiterPrivate::CheckSocketWaiterIsThis(SbSocket socket) {
   if (!SbSocketIsValid(socket)) {
@@ -469,7 +469,7 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
     // Check existing waitees to find out which type of socket is used
     // This check applies to SB16 and above only because of the POSIX APIs.
     int use_posix_socket = 0;
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
     for (auto& it : waitees_.GetWaitees()) {
       if (!it) {
         continue;
@@ -479,16 +479,18 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
         break;
       }
     }
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
     // There should always be a wakeup event.
     SB_DCHECK(number_events > 0);
-    bool has_writable;
+    bool has_writable = 0;
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
     int posix_maybe_writable_socket = -1;
+#endif
     SbSocket maybe_writable_socket = kSbSocketInvalid;
 
     if (use_posix_socket == 1) {
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
       has_writable = (posix_maybe_writable_socket != -1);
 #endif
     } else {
@@ -514,10 +516,12 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
 
     if (has_writable || ((return_value >= WSA_WAIT_EVENT_0) &&
                          (return_value < (WSA_WAIT_EVENT_0 + number_events)))) {
-      int64_t socket_index;
+      int64_t socket_index = 0;
       if (has_writable) {
         if (use_posix_socket == 1) {
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
           socket_index = waitees_.GetIndex(posix_maybe_writable_socket).value();
+#endif
         } else {
           socket_index = waitees_.GetIndex(maybe_writable_socket).value();
         }
@@ -550,7 +554,7 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
         // that we can add another waitee in the callback if we need to. This
         // is also why we copy all the fields we need out of waitee.
         if (use_posix_socket == 1) {
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
           const int posix_socket = waitee->posix_socket;
           const SbPosixSocketWaiterCallback posix_callback =
               waitee->posix_callback;
@@ -626,7 +630,7 @@ void SbSocketWaiterPrivate::WakeUp() {
   SignalWakeupEvent();
 }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::WaiteeRegistry::GetWaitee(
     int socket) {
   starboard::optional<int64_t> token = GetIndex(socket);
@@ -673,7 +677,7 @@ bool SbSocketWaiterPrivate::WaiteeRegistry::RemoveSocket(int socket) {
   return true;
 }
 
-#endif  //  SB_API_VERSION >= 16
+#endif //  SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
 SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::WaiteeRegistry::GetWaitee(
     SbSocket socket) {
@@ -701,13 +705,13 @@ SbSocketWaiterPrivate::WaiteeRegistry::AddSocketEventAndWaitee(
   SB_DCHECK(socket_events_.size() == waitees_.size());
 
   if (!waitee) {
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
     posix_socket_to_index_map_.emplace(-1, socket_events_.size());
 #endif
     socket_to_index_map_.emplace(kSbSocketInvalid, socket_events_.size());
   } else {
     if (waitee->use_posix_socket == 1) {
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
       posix_socket_to_index_map_.emplace(waitee->posix_socket,
                                          socket_events_.size());
 #endif
@@ -733,10 +737,10 @@ bool SbSocketWaiterPrivate::WaiteeRegistry::RemoveSocket(SbSocket socket) {
 
   const std::size_t socket_index = iterator->second;
   SbSocket socket_to_swap = waitees_[current_size - 1]->socket;
+
   // Since |EraseIndexFromVector| will swap the last socket and the socket
   // at current index, |socket_to_index_| will need to be updated.
   socket_to_index_map_[socket_to_swap] = socket_index;
-
   // Note that |EraseIndexFromVector| only touches the last element and the
   // element to remove.
   EraseIndexFromVector(&socket_events_, socket_index);

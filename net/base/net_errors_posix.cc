@@ -15,7 +15,7 @@
 
 namespace net {
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
 Error MapSystemError(logging::SystemErrorCode os_error) {
   if (os_error != 0)
@@ -138,6 +138,5 @@ Error MapSystemError(logging::SystemErrorCode os_error) {
   }
 }
 
-#endif  // SB_API_VERSION >= 16
-
+#endif  // SB_API_VERSION >= 16  && !defined(WIN32)
 }  // namespace net

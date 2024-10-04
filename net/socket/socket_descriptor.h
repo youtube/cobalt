@@ -17,12 +17,13 @@
 
 namespace net {
 
-#if defined(STARBOARD) && SB_API_VERSION <= 15
+#if defined(STARBOARD) && (SB_API_VERSION <= 15 || defined(_MSC_VER))
 typedef SbSocket SocketDescriptor;
 #elif BUILDFLAG(IS_WIN)
 typedef UINT_PTR SocketDescriptor;
 const SocketDescriptor kInvalidSocket = (SocketDescriptor)(~0);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || SB_API_VERSION >= 16
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || \
+      (SB_API_VERSION >= 16 && !defined(_MSC_VER))
 typedef int SocketDescriptor;
 const SocketDescriptor kInvalidSocket = -1;
 #endif

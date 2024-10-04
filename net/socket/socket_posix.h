@@ -19,7 +19,7 @@
 
 namespace net {
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
 class IOBuffer;
 struct SockaddrStorage;
@@ -165,7 +165,7 @@ class NET_EXPORT_PRIVATE SocketPosix
   base::ThreadChecker thread_checker_;
 };
 
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16  && !defined(WIN32)
 
 }  // namespace net
 

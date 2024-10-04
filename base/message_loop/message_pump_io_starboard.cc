@@ -14,7 +14,7 @@
 
 #include "base/message_loop/message_pump_io_starboard.h"
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
@@ -34,7 +34,7 @@ namespace base {
 MessagePumpIOStarboard::SocketWatcher::SocketWatcher(const Location& from_here)
     : created_from_location_(from_here),
       interests_(kSbSocketWaiterInterestNone),
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
       socket_(-1),
 #else
       socket_(kSbSocketInvalid),
@@ -44,7 +44,7 @@ MessagePumpIOStarboard::SocketWatcher::SocketWatcher(const Location& from_here)
       weak_factory_(this) {}
 
 MessagePumpIOStarboard::SocketWatcher::~SocketWatcher() {
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   if (socket_ >= 0) {
     StopWatchingFileDescriptor();
   }
@@ -55,7 +55,7 @@ MessagePumpIOStarboard::SocketWatcher::~SocketWatcher() {
 #endif
 }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 bool MessagePumpIOStarboard::SocketWatcher::StopWatchingFileDescriptor() {
   watcher_ = nullptr;
   interests_ = kSbSocketWaiterInterestNone;
@@ -94,7 +94,7 @@ bool MessagePumpIOStarboard::SocketWatcher::StopWatchingSocket() {
 }
 #endif
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 void MessagePumpIOStarboard::SocketWatcher::Init(int socket,
                                                  bool persistent) {
   DCHECK(socket >= 0);
@@ -109,7 +109,7 @@ void MessagePumpIOStarboard::SocketWatcher::Init(SbSocket socket,
   persistent_ = persistent;
 }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 int MessagePumpIOStarboard::SocketWatcher::Release() {
   int socket = socket_;
   socket_ = -1;
@@ -123,7 +123,7 @@ SbSocket MessagePumpIOStarboard::SocketWatcher::Release() {
 }
 #endif
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 void MessagePumpIOStarboard::SocketWatcher::OnFileCanReadWithoutBlocking(
     int socket,
     MessagePumpIOStarboard* pump) {
@@ -176,7 +176,7 @@ MessagePumpIOStarboard::~MessagePumpIOStarboard() {
   SbSocketWaiterDestroy(waiter_);
 }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 bool MessagePumpIOStarboard::WatchFileDescriptor(int socket,
                                    bool persistent,
                                    int mode,
@@ -206,7 +206,7 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
     interests |= kSbSocketWaiterInterestWrite;
   }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   int old_socket = controller->Release();
   if (old_socket >= 0) {
 #else
@@ -229,23 +229,23 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
     interests |= old_interest_mask;
 
     // Must disarm the event before we can reuse it.
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
     SbPosixSocketWaiterRemove(waiter_, old_socket);
 #else
     SbSocketWaiterRemove(waiter_, old_socket);
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16 && !defined(_MSC_VER)
   }
 
   // Set current interest mask and waiter for this event.
   bool result = false;
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
   result = SbPosixSocketWaiterAdd(waiter_, socket, controller,
                              OnPosixSocketWaiterNotification, interests, persistent);
 
 #else
   result = SbSocketWaiterAdd(waiter_, socket, controller,
                          OnSocketWaiterNotification, interests, persistent);
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16 && !defined(_MSC_VER)
   if (result == false) {
     return false;
   }
@@ -257,7 +257,7 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
   return true;
 }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 bool MessagePumpIOStarboard::StopWatchingFileDescriptor(int socket) {
     return SbPosixSocketWaiterRemove(waiter_, socket);
 }
@@ -265,7 +265,7 @@ bool MessagePumpIOStarboard::StopWatchingFileDescriptor(int socket) {
 bool MessagePumpIOStarboard::StopWatching(SbSocket socket) {
   return SbSocketWaiterRemove(waiter_, socket);
 }
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
 void MessagePumpIOStarboard::AddIOObserver(IOObserver* obs) {
   io_observers_.AddObserver(obs);
@@ -358,7 +358,7 @@ void MessagePumpIOStarboard::DidProcessIOEvent() {
   }
 }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
 // static
 void MessagePumpIOStarboard::OnPosixSocketWaiterNotification(SbSocketWaiter waiter,
@@ -415,5 +415,5 @@ void MessagePumpIOStarboard::OnSocketWaiterNotification(SbSocketWaiter waiter,
   }
 }
 
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16 && !defined(_MSC_VER)
 }  // namespace base

@@ -23,7 +23,7 @@ bool SbSocketWaiterAdd(SbSocketWaiter waiter,
   return false;
 }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 bool SbPosixSocketWaiterAdd(SbSocketWaiter waiter,
                             int socket,
                             void* context,

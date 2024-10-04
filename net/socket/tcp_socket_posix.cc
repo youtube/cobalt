@@ -62,7 +62,7 @@
 
 namespace net {
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
 namespace {
 
@@ -239,6 +239,7 @@ int TCPSocketPosix::Bind(const IPEndPoint& address) {
   SockaddrStorage storage;
   if (!address.ToSockAddr(storage.addr, &storage.addr_len))
     return ERR_ADDRESS_INVALID;
+
   return socket_->Bind(storage);
 }
 
@@ -715,6 +716,6 @@ bool TCPSocketPosix::GetEstimatedRoundTripTime(base::TimeDelta* out_rtt) const {
 #endif  // defined(TCP_INFO)
 }
 
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16  && !defined(WIN32)
 
 }  // namespace net

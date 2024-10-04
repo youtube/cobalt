@@ -42,7 +42,7 @@
 
 namespace net {
 
-#if SB_API_VERSION <= 15
+#if SB_API_VERSION <= 15 || defined(COMPILER_MSVC)
 
 // Sendresult is inspired by sendmmsg, but unlike sendmmsg it is not
 // convenient to require that a positive |write_count| and a negative
@@ -493,7 +493,7 @@ class NET_EXPORT UDPSocketStarboard
   // DISALLOW_COPY_AND_ASSIGN(UDPSocketStarboard);
 };
 
-#endif  // SB_API_VERSION <= 15
+#endif  // SB_API_VERSION <= 15  || defined(WIN32)
 
 }  // namespace net
 

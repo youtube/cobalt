@@ -47,7 +47,7 @@ bool SbSocketWaiterAdd(SbSocketWaiter waiter,
   return waiter->Add(socket, context, callback, interests, persistent);
 }
 
-#if SB_API_VERSION >= 16
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
 
 bool SbPosixSocketWaiterAdd(SbSocketWaiter waiter,
                             int socket,
@@ -77,4 +77,4 @@ bool SbPosixSocketWaiterAdd(SbSocketWaiter waiter,
 
   return waiter->Add(socket, waiter, context, callback, interests, persistent);
 }
-#endif  // SB_API_VERSION >= 16
+#endif  // SB_API_VERSION >= 16 && !defined(_MSC_VER)

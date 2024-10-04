@@ -24,7 +24,7 @@
 
 namespace net {
 
-#if SB_API_VERSION <= 15
+#if SB_API_VERSION <= 15  || defined(_MSC_VER)
 
 Error MapSystemError(logging::SystemErrorCode error) {
   if (error != 0) {
@@ -60,6 +60,6 @@ Error MapSocketError(SbSocketError error) {
   }
 }
 
-#endif  // SB_API_VERSION <= 15
+#endif  // SB_API_VERSION <= 15  || defined(_MSC_VER)
 
 }  // namespace net
