@@ -359,7 +359,6 @@ default_compiler_configs = [
 
 default_compiler_configs += [ "//chrobalt/build/configs:chrobalt_config", ]
 
-
 if (is_win) {
   default_compiler_configs += [
     "//build/config/win:default_cfg_compiler",
