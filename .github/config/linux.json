@@ -14,7 +14,7 @@
         "gin_unittests",
         "blink_unittests",
         "content_shell",
-        "starboard/libstarboard_static.so.17"
+        "starboard/libstarboard.so.17"
     ],
     "includes": [
       {

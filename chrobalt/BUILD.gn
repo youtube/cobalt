@@ -19,6 +19,6 @@ group("all_chrobalt") {
 group("all_starboard_targets") {
   # TODO(b/218889313): Fix starboard not building for android.
   if (!is_android) {
-    deps = [ "//starboard:starboard_group($starboard_toolchain)" ]
+    deps = [ "//starboard($starboard_toolchain)" ]
   }
 }

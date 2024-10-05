@@ -22,7 +22,7 @@ if (starboard_target_type == "") {
   if (sb_is_modular && !sb_is_evergreen) {
     starboard_target_type = "shared_library"
   } else {
-    starboard_target_type = "shared_library"
+    starboard_target_type = "group"
   }
 }
 
@@ -38,10 +38,7 @@ template("starboard_platform_target") {
       configs += extra_configs
     }
     if (target_type == "shared_library") {
-      # build_loader = false
-      if (host_os != "win") {
-        output_extension = starboard_shared_library_extension
-      }
+      output_extension = starboard_shared_library_extension
     }
     public_deps = [
       "//starboard/common",
