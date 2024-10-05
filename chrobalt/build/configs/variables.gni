@@ -15,30 +15,32 @@
 # Get the path to the starboard implementation and include its GN
 # configuration.
 
-import("//starboard/build/config/variables.gni")
 
-sb_api_version = 17
-sb_is_evergreen = false
-cobalt_fastbuild = false
+import("//$starboard_path/platform_configuration/configuration.gni")
 
-# TODO(b/218889313): Revisit asan, set it to true
-use_asan = false
-use_tsan = false
+sb_is_modular = sb_is_evergreen || build_with_separate_cobalt_toolchain
 
 declare_args() {
-  build_type = "devel"
+  use_tsan = getenv("USE_TSAN") == 1
 }
 
-# TODO(b/371589344): Investigate if we need another variable which doesn't clash with chromium's is_debug
-is_devel = build_type == "devel"
-is_qa = build_type == "qa"
-is_gold = build_type == "gold"
+_use_asan_default =
+    (is_debug || is_devel) && (is_linux || is_mac) && is_clang &&
+    (!sb_is_evergreen || build_with_separate_cobalt_toolchain) &&
+    !using_old_compiler
 
+declare_args() {
+  # TODO(b/371589344) : Enable ASAN
+  use_asan = false && (_use_asan_default || getenv("USE_ASAN") == 1) && !use_tsan
+}
+
+# TODO(b/371589344) : Resolve ASAN issues
+# assert(!(use_tsan && use_asan), "ASAN and TSAN are mutually exclusive.")
 
 # TODO(b/371263047): Resolve issues and build evergreen.
 enable_evergreen_code = false
 
-# TODO(b/371606611): Resolve issues and build evergreen.
+# TODO(b/371606611): Build test targets with cobalt toolchain
 enable_test_targets = false
 
 # TODO(b/371642925): Fix install targets for chrobalt

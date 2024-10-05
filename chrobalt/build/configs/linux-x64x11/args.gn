@@ -95,3 +95,7 @@ enable_check_raw_ptr_fields = false
 
 # ../../starboard/linux/shared/decode_target_internal.h:22:1: error: [chromium-style] Complex class/struct needs an explicit out-of-line destructor.
 clang_use_chrome_plugins = false
+
+#v8 override
+# # Enable WASM and install WebAssembly global.
+v8_enable_webassembly = true
