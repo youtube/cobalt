@@ -40,3 +40,6 @@ enable_evergreen_code = false
 
 # TODO(b/371606611): Resolve issues and build evergreen.
 enable_test_targets = false
+
+# TODO(b/371642925): Fix install targets for chrobalt
+enable_install_targets = false
