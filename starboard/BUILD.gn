@@ -149,6 +149,7 @@ group("starboard_group") {
       ":starboard_static($starboard_toolchain)",
       "//starboard/common",
     ]
+
     if (!sb_is_modular || sb_is_evergreen) {
       if (sb_is_evergreen_compatible &&
           current_toolchain == starboard_toolchain) {
