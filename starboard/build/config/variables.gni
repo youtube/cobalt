@@ -22,12 +22,15 @@ starboard_toolchain = "//starboard/build/toolchain:starboard"
 is_starboardized_toolchain = current_toolchain == default_toolchain ||
                              current_toolchain == starboard_toolchain
 
+sb_is_modular = true                           
+cobalt_toolchain = default_toolchain
+
 if (current_toolchain == starboard_toolchain) {
   sb_is_evergreen_compatible = true
   has_platform_targets = false
   sb_filter_based_player = false
   sb_enable_benchmark = false
-  cobalt_toolchain = default_toolchain
+  
   is_internal_build = false
   starboard_path = "starboard/linux/x64x11"
 
@@ -38,7 +41,7 @@ if (current_toolchain == starboard_toolchain) {
   cobalt_platform_dependencies = []
 
   build_with_separate_cobalt_toolchain = true
-  sb_is_modular = true
+  
   cobalt_pending_clean_up = true
   using_old_compiler = false
   sb_static_contents_output_data_dir = "$root_out_dir/content"

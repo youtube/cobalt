@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/config/variables.gni")
+
 config("compiler_flags") {
   cflags = []
   cflags_c = []
@@ -76,17 +78,17 @@ config("compiler_flags") {
       "-fno-delete-null-pointer-checks",
     ]
 
-    # if (!is_debug) {
-    #   cflags += [
-    #     # Don't generate an eh_frame and eh_frame_hdr section.
-    #     "-fno-asynchronous-unwind-tables",
-    #   ]
-    # }
+    if (is_gold) {
+      cflags += [
+        # Don't generate an eh_frame and eh_frame_hdr section.
+        "-fno-asynchronous-unwind-tables",
+      ]
+    }
   }
 
-  # if (!cobalt_fastbuild && (is_debug || is_devel)) {
-  #   cflags += [ "-g" ]
-  # }
+  if (!cobalt_fastbuild && (is_debug || is_devel)) {
+    cflags += [ "-g" ]
+  }
 
   defines += [
     # By default, <EGL/eglplatform.h> pulls in some X11 headers that have some
@@ -95,29 +97,29 @@ config("compiler_flags") {
   ]
   cflags_c += [ "-std=c11" ]
 
-  # if (use_asan) {
-  #   cflags += [
-  #     "-fsanitize=address",
-  #     "-fno-omit-frame-pointer",
-  #   ]
-  #   ldflags += [
-  #     "-fsanitize=address",
+  if (use_asan) {
+    cflags += [
+      "-fsanitize=address",
+      "-fno-omit-frame-pointer",
+    ]
+    ldflags += [
+      "-fsanitize=address",
 
-  #     # Force linking of the helpers in sanitizer_options.cc
-  #     "-Wl,-u_sanitizer_options_link_helper",
-  #   ]
-  #   defines += [ "ADDRESS_SANITIZER" ]
-  #   if (asan_symbolizer_path != "") {
-  #     defines += [ "ASAN_SYMBOLIZER_PATH=\"${asan_symbolizer_path}\"" ]
-  #   }
-  # } else if (use_tsan) {
-  #   cflags += [
-  #     "-fsanitize=thread",
-  #     "-fno-omit-frame-pointer",
-  #   ]
-  #   ldflags += [ "-fsanitize=thread" ]
-  #   defines += [ "THREAD_SANITIZER" ]
-  # }
+      # Force linking of the helpers in sanitizer_options.cc
+      "-Wl,-u_sanitizer_options_link_helper",
+    ]
+    defines += [ "ADDRESS_SANITIZER" ]
+    if (asan_symbolizer_path != "") {
+      defines += [ "ASAN_SYMBOLIZER_PATH=\"${asan_symbolizer_path}\"" ]
+    }
+  } else if (use_tsan) {
+    cflags += [
+      "-fsanitize=thread",
+      "-fno-omit-frame-pointer",
+    ]
+    ldflags += [ "-fsanitize=thread" ]
+    defines += [ "THREAD_SANITIZER" ]
+  }
 }
 
 config("platform_configuration") {
@@ -130,9 +132,14 @@ config("platform_configuration") {
     "rt",
   ]
 
-  # if (!sb_is_modular || current_toolchain != cobalt_toolchain) {
-  #   ldflags += [ "-static-libstdc++" ]
-  # }
+  if (!sb_is_modular || current_toolchain != cobalt_toolchain) {
+    ldflags += [
+      "-static-libstdc++",
+      # See error https://paste.googleplex.com/6744918493233152
+      # Revisit if static-libstdc++ is needed.
+      "-Wno-unused-command-line-argument",
+    ]
+  }
 
   defines += [
     # Defined to get format macro constants from <inttypes.h>.
@@ -169,24 +176,24 @@ config("libraries") {
 config("speed") {
   cflags = [ "-O2" ]
 
-  # if (is_qa || is_gold) {
-  #   cflags += [
-  #     # Compile symbols in separate sections
-  #     "-ffunction-sections",
-  #     "-fdata-sections",
-  #   ]
-  # }
+  if (is_qa || is_gold) {
+    cflags += [
+      # Compile symbols in separate sections
+      "-ffunction-sections",
+      "-fdata-sections",
+    ]
+  }
 }
 
 config("size") {
   cflags = [ "-Os" ]
-  # if (is_qa || is_gold) {
-  #   cflags += [
-  #     # Compile symbols in separate sections
-  #     "-ffunction-sections",
-  #     "-fdata-sections",
-  #   ]
-  # }
+  if (is_qa || is_gold) {
+    cflags += [
+      # Compile symbols in separate sections
+      "-ffunction-sections",
+      "-fdata-sections",
+    ]
+  }
 }
 
 config("pedantic_warnings") {
@@ -229,6 +236,7 @@ config("no_pedantic_warnings") {
     "-Wno-return-type",
   ]
 
+  # Error you get if you remove this block: https://paste.googleplex.com/4688363463639040
   defines = [
     # Only built for Linux and ChromeOS so no special export magic needed.
     "GLOG_EXPORT=",
