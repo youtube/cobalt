@@ -327,8 +327,12 @@ is_posix = !is_win && !is_fuchsia
 # requirement and just need to add a config everywhere, reference it as a
 # sub-config of an existing one, most commonly the main "compiler" one.
 
-import("//chrobalt/build/configs/initialize_variables.gni")
-import("//chrobalt/build/configs/variables.gni")
+# TODO(b/371589344): Fix android build configs.
+if (target_os != "android") {
+  print("nonononon")
+  import("//chrobalt/build/configs/initialize_variables.gni")
+  import("//chrobalt/build/configs/variables.gni")
+}
 
 # Holds all configs used for running the compiler.
 default_compiler_configs = [
@@ -357,7 +361,7 @@ default_compiler_configs = [
   "//build/config/sanitizers:default_sanitizer_flags",
 ]
 
-default_compiler_configs += [ "//chrobalt/build/configs:chrobalt_config", ]
+default_compiler_configs += [ "//chrobalt/build/configs:chrobalt_config" ]
 
 if (is_win) {
   default_compiler_configs += [

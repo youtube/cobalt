@@ -13,8 +13,8 @@
 # limitations under the License.
 
 config("chrobalt_config") {
-  # TODO(b/218889313): Resolve android build issues.
-  if (!is_android) {
+  # TODO(b/371589344): Fix android build configs.
+  if (target_os != "android") {
     configs = [ "//${starboard_path}/platform_configuration" ]
   }
 }
