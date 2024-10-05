@@ -18,16 +18,11 @@
 #include <stdint.h>
 
 #include "starboard/configuration.h"
-// #include "third_party/crashpad/crashpad/wrapper/annotations.h"
+#include "third_party/crashpad/crashpad/wrapper/annotations.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-// Stub out struct CrashpadAnnotations
-typedef struct CrashpadAnnotations {
-  int foo;
-} CrashpadAnnotations;
 
 #define kCobaltExtensionCrashHandlerName "dev.cobalt.extension.CrashHandler"
 

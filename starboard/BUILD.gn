@@ -149,15 +149,13 @@ group("starboard_group") {
       ":starboard_static($starboard_toolchain)",
       "//starboard/common",
     ]
-    if (enable_evergreen_code) {
-      if (!sb_is_modular || sb_is_evergreen) {
-        if (sb_is_evergreen_compatible &&
-            current_toolchain == starboard_toolchain) {
-          public_deps += [ "//third_party/crashpad/crashpad/wrapper" ]
-        } else {
-          public_deps +=
-              [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
-        }
+    if (!sb_is_modular || sb_is_evergreen) {
+      if (sb_is_evergreen_compatible &&
+          current_toolchain == starboard_toolchain) {
+        public_deps += [ "//third_party/crashpad/crashpad/wrapper" ]
+      } else {
+        public_deps +=
+            [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
       }
     }
 
