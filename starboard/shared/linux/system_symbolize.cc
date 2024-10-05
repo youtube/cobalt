@@ -17,14 +17,12 @@
 
 #include "starboard/system.h"
 
-// #include "third_party/symbolize/symbolize.h"
+#include "third_party/symbolize/symbolize.h"
 
 bool SbSystemSymbolize(const void* address, char* out_buffer, int buffer_size) {
   if (address == nullptr || *reinterpret_cast<const uintptr_t*>(address) == 0)
     return false;
   // I believe this casting-away const in the implementation is better than the
   // alternative of removing const-ness from the address parameter.
-
-  //Stubbed out, probably needs "third_party/symbolize
-  // return google::Symbolize(const_cast<void*>(address), out_buffer, buffer_size);
+  return google::Symbolize(const_cast<void*>(address), out_buffer, buffer_size);
 }
