@@ -15,6 +15,5 @@
 # Read the ABI configuration from the SABI json file and make it available
 # through a global variable.
 
-sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 sabi_json = read_file(sabi_path, "json")
 sabi_variables = sabi_json.variables
