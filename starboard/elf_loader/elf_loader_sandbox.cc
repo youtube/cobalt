@@ -24,8 +24,8 @@
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
 #include "starboard/shared/starboard/command_line.h"
-#include "third_party/crashpad/crashpad/wrapper/annotations.h"
-#include "third_party/crashpad/crashpad/wrapper/wrapper.h"
+#include "starboard/crashpad_wrapper/annotations.h"
+#include "starboard/crashpad_wrapper/wrapper.h"
 
 starboard::elf_loader::ElfLoader g_elf_loader;
 
