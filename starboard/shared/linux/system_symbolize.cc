@@ -17,7 +17,7 @@
 
 #include "starboard/system.h"
 
-#include "third_party/symbolize/symbolize.h"
+#include "base/third_party/symbolize/symbolize.h"
 
 bool SbSystemSymbolize(const void* address, char* out_buffer, int buffer_size) {
   if (address == nullptr || *reinterpret_cast<const uintptr_t*>(address) == 0)
