@@ -47,8 +47,8 @@ group("starboard_platform") {
 
 static_library("starboard_base_symbolize") {
   sources = [
-    "//third_party/symbolize/demangle.cc",
-    "//third_party/symbolize/symbolize.cc",
+    "//base/third_party/symbolize/demangle.cc",
+    "//base/third_party/symbolize/symbolize.cc",
   ]
   deps = [
     "//starboard:starboard_headers_only",
