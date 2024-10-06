@@ -36,7 +36,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       "//starboard/elf_loader:constants",
       "//starboard/elf_loader:evergreen_info",
       "//starboard/elf_loader:sabi_string",
-      "//third_party/crashpad/crashpad/wrapper",
+      "//starboard/crashpad_wrapper",
     ]
   }
 }
@@ -306,9 +306,9 @@ static_library("slot_management") {
   ]
 
   if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-    deps += [ "//third_party/crashpad/crashpad/wrapper" ]
+    deps += [ "//starboard/crashpad_wrapper" ]
   } else {
-    deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
+    deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
   }
 
   configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
