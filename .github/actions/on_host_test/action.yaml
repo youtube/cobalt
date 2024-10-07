@@ -84,16 +84,17 @@ runs:
             xvfb-run -a --server-args="-screen 0 1920x1080x24i +render +extension GLX -noreset" python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_runner.py --platform ${{matrix.target_platform}} --config ${{matrix.config}} -s ${{matrix.shard}} -r ${loader_args} --xml_output_dir=${TEST_RESULTS_DIR}
           fi
         fi
-    - name: Process unit test results
-      if: failure()
+    - name: Populate TAGS for unit test report
+      if: always() && steps.run-tests.outputs.test_type == 'unit_tests'
       shell: bash
       run: |
-        set -x
-        echo "Saving unit test report to ${TEST_REPORT_FILE}"
-        python3 ${GITHUB_WORKSPACE}/starboard/tools/testing/test_report_parser.py ${TEST_RESULTS_DIR} > ${TEST_REPORT_FILE}
-    - name: Upload unit test report
+        # Set tags for test differentiation.
+        tags="os.platform:${{ matrix.platform }}"
+        tags="${tags},os.family:${{ inputs.os }}"
+        echo $tags > ${TEST_RESULTS_DIR}/${{ matrix.platform }}/TAGS
+    - name: Archive unit test results
       uses: actions/upload-artifact@v3
-      if: failure()
+      if: always() && steps.run-tests.outputs.test_type == 'unit_tests'
       with:
         name: unit-test-reports
         path: ${{env.TEST_REPORT_FILE}}
