@@ -13,6 +13,7 @@
 #include "components/viz/service/display/display_compositor_memory_and_task_controller.h"
 #include "components/viz/service/display/overlay_processor_on_gpu.h"
 #include "components/viz/service/display/overlay_strategy_underlay.h"
+#include "components/viz/service/display/overlay_strategy_underlay_starboard.h"
 #include "components/viz/service/display/skia_output_surface.h"
 #include "gpu/command_buffer/service/scheduler_sequence.h"
 #include "ui/gfx/geometry/rect_conversions.h"
@@ -55,8 +56,8 @@ OverlayProcessorAndroid::OverlayProcessorAndroid(
   // the underlying overlay is opaque anyway; the candidate is referring to
   // a dummy resource that has no relation to what the overlay contains.
   // https://crbug.com/842931 .
-  strategies_.push_back(std::make_unique<OverlayStrategyUnderlay>(
-      this, OverlayStrategyUnderlay::OpaqueMode::AllowTransparentCandidates));
+  strategies_.push_back(std::make_unique<OverlayStrategyUnderlayStarboard>(
+      this, OverlayStrategyUnderlayStarboard::OpaqueMode::AllowTransparentCandidates));
 
   overlay_candidates_.clear();
 }

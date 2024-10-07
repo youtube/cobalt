@@ -338,6 +338,8 @@ viz_component("service") {
       "display/overlay_strategy_single_on_top.h",
       "display/overlay_strategy_underlay.cc",
       "display/overlay_strategy_underlay.h",
+      "display/overlay_strategy_underlay_starboard.cc",
+      "display/overlay_strategy_underlay_starboard.h",
     ]
   }
 
