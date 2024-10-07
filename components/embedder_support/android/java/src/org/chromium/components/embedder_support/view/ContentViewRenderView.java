@@ -95,6 +95,9 @@ public class ContentViewRenderView extends FrameLayout {
                 getSurfaceView().setVisibility(getSurfaceView().getVisibility());
 
                 onReadyToRender();
+
+                // Chrobalt: enable overlay video mode.
+                setOverlayVideoMode(true);
             }
 
             @Override
