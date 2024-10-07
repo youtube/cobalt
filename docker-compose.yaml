@@ -5,6 +5,8 @@ services:
       context: chrobalt/docker/linux
       cache_from:
         - ghcr.io/youtube/cobalt/linux:latest
+      args:
+        - CLANG_VER=${CLANG_VER:-365097-f7e52fbd-8}
     image: ghcr.io/youtube/cobalt/linux:latest
     platform: linux/amd64
     environment:
