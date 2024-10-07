@@ -2799,7 +2799,8 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
 
   // Always true
   if (media_task_runner_) {
-    return std::make_unique<media::StarboardRenderer>(media_task_runner_);
+    return std::make_unique<media::StarboardRenderer>(media_task_runner_,
+        compositor_.get());
   }
 
   if (renderer_type) {

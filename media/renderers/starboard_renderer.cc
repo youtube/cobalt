@@ -3,6 +3,8 @@
 #include "media/renderers/starboard_renderer.h"
 
 #include "base/logging.h"
+#include "media/base/video_renderer_sink.h"
+#include "media/renderers/video_overlay_factory.h"
 #include "starboard/common/media.h"
 
 namespace media {
@@ -41,9 +43,13 @@ bool HasRemoteAudioOutputs(
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
-    const scoped_refptr<base::SequencedTaskRunner>& task_runner)
-    : task_runner_(task_runner), weak_this_(weak_factory_.GetWeakPtr()) {
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+    VideoRendererSink* video_renderer_sink)
+    : task_runner_(task_runner),
+      video_renderer_sink_(video_renderer_sink),
+      weak_this_(weak_factory_.GetWeakPtr()) {
   LOG(INFO) << "StarboardRenderer constructed.";
+  video_overlay_factory_ = std::make_unique<VideoOverlayFactory>();
 }
 
 StarboardRenderer::~StarboardRenderer() {
@@ -304,6 +310,13 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
 
+    if (video_overlay_factory_) {
+      LOG(ERROR) << "Cobalt: " << __func__ << ": paint a video hole frame.";
+      video_renderer_sink_->PaintSingleFrame(
+          video_overlay_factory_->CreateFrame(
+            stream->video_decoder_config().visible_rect().size()));
+    }
+
     /*base::AutoLock auto_lock(lock_);
 
     bool natural_size_changed =
@@ -366,6 +379,12 @@ void StarboardRenderer::OnDemuxerStreamRead(
     } else {
       DCHECK_EQ(stream, video_stream_);
       client_->OnVideoConfigChange(stream->video_decoder_config());
+      if (video_overlay_factory_) {
+        LOG(ERROR) << "Cobalt: " << __func__ << ": paint a video hole frame.";
+        video_renderer_sink_->PaintSingleFrame(
+            video_overlay_factory_->CreateFrame(
+              stream->video_decoder_config().visible_rect().size()));
+      }
       client_->OnVideoNaturalSizeChange(
           stream->video_decoder_config().visible_rect().size());
     }

@@ -23,11 +23,15 @@
 
 namespace media {
 
+class VideoOverlayFactory;
+class VideoRendererSink;
+
 class MEDIA_EXPORT StarboardRenderer final : public Renderer,
                                              private SbPlayerBridge::Host {
  public:
   explicit StarboardRenderer(
-      const scoped_refptr<base::SequencedTaskRunner>& task_runner);
+      const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+      VideoRendererSink* video_renderer_sink);
 
   ~StarboardRenderer() final;
 
@@ -80,10 +84,18 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
 
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
+  // Video frame overlays are rendered onto this sink.
+  // Rendering of a new overlay is only needed when video natural size changes.
+  raw_ptr<VideoRendererSink> video_renderer_sink_ = nullptr;
+
   raw_ptr<MediaResource> media_resource_ = nullptr;
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
   raw_ptr<RendererClient> client_ = nullptr;
+
+  // Overlay factory used to create overlays for video frames rendered
+  // by the remote renderer.
+  std::unique_ptr<VideoOverlayFactory> video_overlay_factory_;
 
   DefaultSbPlayerInterface sbplayer_interface_;
   const base::TimeDelta audio_write_duration_local_ = base::Milliseconds(500);
