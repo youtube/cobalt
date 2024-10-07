@@ -769,6 +769,12 @@ class MediaCodecBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
+  private boolean restart() {
+    // Restart MediaCodec after flush().
+    return start(null);
+  }
+
+  @SuppressWarnings("unused")
   public boolean start(CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     try {
       mMediaCodec.get().start();
