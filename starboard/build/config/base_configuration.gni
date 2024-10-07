@@ -122,7 +122,7 @@ declare_args() {
   enable_in_app_dial = false
 
   # A symbolizer path for ASAN can be added to allow translation of callstacks.
-  asan_symbolizer_path = "$clang_base_path/bin/llvm-symbolizer"
+  asan_symbolizer_path = "$clang_starboard_base_path/bin/llvm-symbolizer"
 
   # Sub-directory to copy license file to.
   cobalt_licenses_platform = "default"
@@ -150,8 +150,6 @@ declare_args() {
   # Enables an NPLB audit of C++20 support.
   sb_enable_cpp20_audit = true
 
-  # Enable WASM and install WebAssembly global.
-  v8_enable_webassembly = false
 
   # Set this to true if the modular toolchain linker doesn't strip
   # all unused symbols and nplb fails to link.
@@ -159,23 +157,3 @@ declare_args() {
   sb_has_unused_symbol_issue = false
 }
 
-if (current_toolchain == starboard_toolchain &&
-    build_with_separate_cobalt_toolchain) {
-  declare_args() {
-    # Target-specific configurations for executable targets.
-    executable_configs =
-        [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
-
-    # Target-specific configurations for shared_library targets.
-    shared_library_configs =
-        [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
-  }
-} else {
-  declare_args() {
-    # Target-specific configurations for executable targets.
-    executable_configs = []
-
-    # Target-specific configurations for shared_library targets.
-    shared_library_configs = []
-  }
-}

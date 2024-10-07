@@ -13,12 +13,9 @@
 # limitations under the License.
 
 config("platform_configuration") {
-  if (current_toolchain == default_toolchain && sb_is_modular &&
-      !sb_is_evergreen) {
-    configs = [ "//starboard/build/config/modular/x64" ]
-    ldflags = [ "-Wl,--gc-sections" ]
-  } else {
+  if (current_toolchain == starboard_toolchain) {
     configs = [
+      "//starboard/build/config:starboard",
       ":libraries",
       "//starboard/linux/shared/platform_configuration",
       "//starboard/linux/shared/platform_configuration:compiler_flags",
@@ -40,3 +37,5 @@ config("linker_flags") {
     "-Wl,-gc-sections",
   ]
 }
+
+

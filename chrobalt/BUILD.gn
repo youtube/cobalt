@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/content/ssl/certs.gni")
+group("all_chrobalt") {
+  deps = [ ":all_starboard_targets" ]
+}
 
-copy("copy_ssl_certificates") {
-  if (enable_install_targets) {
-    install_content = true
+group("all_starboard_targets") {
+  # TODO(b/371589344): Fix android build configs.
+  if (target_os != "android") {
+    deps = [ "//starboard($starboard_toolchain)" ]
   }
-  sources = network_certs
-  outputs =
-      [ "$sb_static_contents_output_data_dir/ssl/certs/{{source_file_part}}" ]
 }
