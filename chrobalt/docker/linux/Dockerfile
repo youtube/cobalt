@@ -29,6 +29,21 @@ RUN apt-get update && apt-get install -y \
 
 ADD files/sccache /usr/local/bin
 
+# === Install pinned host Clang toolchain for all Linux-hosted builds
+ARG CLANG_VER
+
+ARG TC_ROOT=${HOME}/starboard-toolchains/
+ARG TC_HOME=${TC_ROOT}/x86_64-linux-gnu-clang-chromium-${CLANG_VER}
+ARG BASE_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
+
+RUN cd /tmp \
+    && mkdir -p ${TC_HOME} \
+    && curl --silent -O -J \
+        ${BASE_URL}/Linux_x64/clang-${CLANG_VER}.tgz \
+    && tar xf clang-${CLANG_VER}.tgz -C ${TC_HOME} \
+    && echo ${CLANG_VER} >> ${TC_HOME}/cr_build_revision \
+    && rm clang-${CLANG_VER}.tgz
+
 ENV SCCACHE_GCS_BUCKET=githubactions-chrome-sccache
 ENV SCCACHE_GCS_RW_MODE=READ_WRITE
 ENV SCCACHE_GCS_KEY_PATH=/root/key.json
