@@ -22,7 +22,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/libiamf/iamf_buffer_parser.h"
+#include "starboard/shared/libiamf/iamf_decoder_utils.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
@@ -38,7 +38,8 @@ class IamfAudioDecoder
       private starboard::player::JobQueue::JobOwner {
  public:
   typedef starboard::media::AudioStreamInfo AudioStreamInfo;
-  typedef shared::libiamf::IamfBufferParser::IamfBufferInfo IamfBufferInfo;
+  // typedef shared::libiamf::IamfBufferInfo IamfBufferInfo;
+  // using shared::libiamf::IamfBufferInfo;
 
   explicit IamfAudioDecoder(const AudioStreamInfo& audio_stream_info);
   ~IamfAudioDecoder() override;
@@ -76,6 +77,7 @@ class IamfAudioDecoder
   bool decoder_is_configured_ = false;
   std::deque<scoped_refptr<InputBuffer>> pending_audio_buffers_;
   int samples_per_second_ = 0;
+  const int channels_;
 };
 
 }  // namespace libiamf

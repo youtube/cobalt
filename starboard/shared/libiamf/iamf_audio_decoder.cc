@@ -27,8 +27,6 @@ namespace {
 using shared::starboard::player::DecodedAudio;
 
 constexpr int kForceBinauralAudio = false;
-constexpr int kForce6ChannelAudio = false;
-constexpr int kForce8ChannelAudio = false;
 
 std::string ErrorCodeToString(int code) {
   switch (code) {
@@ -55,7 +53,8 @@ std::string ErrorCodeToString(int code) {
 }  // namespace
 
 IamfAudioDecoder::IamfAudioDecoder(const AudioStreamInfo& audio_stream_info)
-    : audio_stream_info_(audio_stream_info) {
+    : audio_stream_info_(audio_stream_info),
+      channels_(audio_stream_info.number_of_channels) {
   decoder_ = IAMF_decoder_open();
   if (!decoder_) {
     SB_LOG(ERROR) << "Error creating libiamf decoder";
@@ -110,16 +109,17 @@ bool IamfAudioDecoder::DecodeInternal(
   SB_DCHECK(!stream_ended_ || !pending_audio_buffers_.empty());
   SB_DCHECK(is_valid());
 
+  SB_LOG(INFO) << "Sample type is: "
+               << input_buffer->audio_sample_info().stream_info.bits_per_sample;
   if (input_buffer->size() == 0) {
     SB_LOG(ERROR) << "Empty input buffer written to IamfAudioDecoder";
+    ReportError("Empty input buffer written to IamfAudioDecoder");
     return false;
   }
 
-  IamfBufferParser::IamfBufferInfo info;
-  IamfBufferParser().ParseInputBuffer(
-      input_buffer, &info, kForceBinauralAudio,
-      kForce6ChannelAudio | kForce8ChannelAudio);
-  if (!info.is_valid()) {
+  IamfBufferInfo info;
+  if (!ParseInputBuffer(input_buffer, &info, kForceBinauralAudio,
+                        channels_ > 2)) {
     ReportError("Failed to parse IA Descriptors");
     return false;
   }
@@ -130,9 +130,9 @@ bool IamfAudioDecoder::DecodeInternal(
   }
 
   scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-      audio_stream_info_.number_of_channels, GetSampleType(),
-      kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
-      audio_stream_info_.number_of_channels * info.num_samples *
+      channels_, GetSampleType(), kSbMediaAudioFrameStorageTypeInterleaved,
+      input_buffer->timestamp(),
+      channels_ * info.num_samples *
           starboard::media::GetBytesPerSample(GetSampleType()));
   int samples_decoded =
       IAMF_decoder_decode(decoder_, info.data.data(), info.data_size, nullptr,
@@ -212,12 +212,12 @@ bool IamfAudioDecoder::ConfigureDecoder(IamfBufferInfo* info,
     }
   } else {
     IAMF_SoundSystem sound_system = SOUND_SYSTEM_A;
-    if (kForce6ChannelAudio) {
+    if (channels_ == 6) {
       SB_LOG(INFO) << "Configuring IamfAudioDecoder for 5.1 output";
       sound_system = SOUND_SYSTEM_B;
-    } else if (kForce8ChannelAudio) {
+    } else if (channels_ == 8) {
       SB_LOG(INFO) << "Configuring IamfAudioDecoder for 7.1 output";
-      sound_system = SOUND_SYSTEM_C;
+      sound_system = SOUND_SYSTEM_I;
     } else {
       SB_LOG(INFO) << "Configuring IamfAudioDecoder for stereo output";
     }

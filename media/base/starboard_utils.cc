@@ -29,6 +29,8 @@
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 
+#include "starboard/common/log.h"
+
 using base::Time;
 using base::TimeDelta;
 
@@ -53,6 +55,18 @@ int GetBitsPerPixel(const std::string& mime_type) {
 
   // Assume SDR when there isn't enough information to determine the bit depth.
   return 8;
+}
+
+int GetMaxChannelCount() {
+  int channels = 2;
+          int index = 0;
+          SbMediaAudioConfiguration configuration;
+          while (SbMediaGetAudioConfiguration(index++, &configuration)) {
+            SB_LOG(INFO) << "Channels for index " << index-1 << " = " << configuration.number_of_channels;
+            if (configuration.number_of_channels > channels)
+              channels = configuration.number_of_channels;
+          }
+  return channels;
 }
 
 }  // namespace
@@ -143,8 +157,14 @@ SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
 #if SB_API_VERSION < 15
   audio_stream_info.format_tag = 0x00ff;
 #endif // SB_API_VERSION < 15
-  audio_stream_info.number_of_channels =
-      ChannelLayoutToChannelCount(audio_decoder_config.channel_layout());
+  if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {
+    // IAMF mixes audio signals to the highest available speaker layout.
+    audio_stream_info.number_of_channels = GetMaxChannelCount();
+  } else {
+    audio_stream_info.number_of_channels =
+        ChannelLayoutToChannelCount(audio_decoder_config.channel_layout());
+  }
+
   audio_stream_info.samples_per_second =
       audio_decoder_config.samples_per_second();
 #if SB_API_VERSION < 15
