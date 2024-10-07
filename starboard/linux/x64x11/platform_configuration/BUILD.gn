@@ -19,7 +19,7 @@ config("platform_configuration") {
   ]
 
   # TODO(b/371589344): Fix errors while building with Angle.
-    libs = [
+  libs = [
     "EGL",
     "GLESv2",
   ]

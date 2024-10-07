@@ -84,8 +84,8 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":evergreen_info",
       "//starboard:starboard_group",
       "//starboard/common",
-      "//starboard/shared/modular:starboard_layer_posix_abi_wrappers",
       "//starboard/crashpad_wrapper",
+      "//starboard/shared/modular:starboard_layer_posix_abi_wrappers",
     ]
   }
 }

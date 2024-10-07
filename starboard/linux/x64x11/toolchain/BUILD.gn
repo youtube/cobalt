@@ -26,7 +26,7 @@ overridable_clang_toolchain("starboard") {
 
 cobalt_clang_toolchain("cobalt") {
   native_linker_path = "$clang_starboard_base_path/bin/clang++"
-    toolchain_args = {
+  toolchain_args = {
     current_cpu = "x64"
     current_os = "linux"
     is_clang = true

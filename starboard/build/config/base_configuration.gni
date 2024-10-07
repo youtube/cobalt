@@ -150,10 +150,8 @@ declare_args() {
   # Enables an NPLB audit of C++20 support.
   sb_enable_cpp20_audit = true
 
-
   # Set this to true if the modular toolchain linker doesn't strip
   # all unused symbols and nplb fails to link.
   # TODO: b/297808555 Remove this flag after nplb is fixed
   sb_has_unused_symbol_issue = false
 }
-
