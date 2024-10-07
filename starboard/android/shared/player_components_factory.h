@@ -48,10 +48,6 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_internal_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
-#if ENABLE_IAMF_DECODE
-#include "starboard/shared/libiamf/iamf_audio_decoder.h"
-#endif  // ENABLE_IAMF_DECODE
-
 namespace starboard {
 namespace android {
 namespace shared {
@@ -118,7 +114,7 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
  private:
   bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const override {
-    if (tunnel_mode_audio_session_id_ != -1) {
+    if (tunnel_mode_audio_session_id_ != -1 || true) {
       // Currently the implementation only supports tunnel mode with int16 audio
       // samples.
       return audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated;
@@ -448,18 +444,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
             return std::unique_ptr<AudioDecoderBase>(
                 std::move(audio_decoder_impl));
           }
-#if SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
-        } else if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {
-          SB_LOG(INFO) << "Creating IAMF audio decoder";
-          std::unique_ptr<starboard::shared::libiamf::IamfAudioDecoder>
-              audio_decoder_impl(
-                  new starboard::shared::libiamf::IamfAudioDecoder(
-                      audio_stream_info));
-          if (audio_decoder_impl->is_valid()) {
-            return std::unique_ptr<AudioDecoderBase>(
-                std::move(audio_decoder_impl));
-          }
-#endif  // SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
         } else {
           SB_LOG(ERROR) << "Unsupported audio codec "
                         << audio_stream_info.codec;

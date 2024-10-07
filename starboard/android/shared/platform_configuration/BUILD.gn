@@ -175,9 +175,6 @@ config("platform_configuration") {
       "-Wl,--wrap=readdir_r",
     ]
   }
-  if (enable_iamf_decode) {
-    configs += [ ":libiamf_config" ]
-  }
 }
 
 config("size") {
@@ -219,10 +216,4 @@ config("pedantic_warnings") {
     # has no effect if specified before Wall.
     "-Wno-unused-parameter",
   ]
-}
-
-if (enable_iamf_decode) {
-  config("libiamf_config") {
-    libs = [ "//third_party/libiamf/platforms/android/libiamf.a" ]
-  }
 }
