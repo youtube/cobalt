@@ -329,7 +329,6 @@ is_posix = !is_win && !is_fuchsia
 
 # TODO(b/371589344): Fix android build configs.
 if (target_os != "android") {
-  print("nonononon")
   import("//chrobalt/build/configs/initialize_variables.gni")
   import("//chrobalt/build/configs/variables.gni")
 }
