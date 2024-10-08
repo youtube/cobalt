@@ -5,7 +5,9 @@
 // This file is Chromium-specific, and brings in the appropriate
 // event-config.h depending on your platform.
 
-#if defined(__APPLE__)
+#if defined(STARBOARD)
+#include "third_party/libevent/starboard/event-config.h"
+#elif defined(__APPLE__)
 #include "third_party/libevent/mac/event-config.h"
 #elif defined(ANDROID)
 #include "third_party/libevent/android/event-config.h"
