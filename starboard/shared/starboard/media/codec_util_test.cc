@@ -258,6 +258,18 @@ TEST(CodecUtilTest, DoesNotParse1AsPcmForNonWavSubtypes) {
   EXPECT_EQ(GetAudioCodecFromString("1", "webm"), kSbMediaAudioCodecNone);
 }
 
+TEST(CodecUtilTest, ParsesIamfCodec) {
+  EXPECT_EQ(GetAudioCodecFromString("iamf", ""), kSbMediaAudioCodecIamf);
+  EXPECT_EQ(GetAudioCodecFromString("iamf.000.000.Opus", ""),
+            kSbMediaAudioCodecIamf);
+  EXPECT_EQ(GetAudioCodecFromString("iamf.000.000.mp4a.40.2", ""),
+            kSbMediaAudioCodecIamf);
+  EXPECT_EQ(GetAudioCodecFromString("iamf.000.000.fLaC", ""),
+            kSbMediaAudioCodecIamf);
+  EXPECT_EQ(GetAudioCodecFromString("iamf.000.000.ipcm", ""),
+            kSbMediaAudioCodecIamf);
+}
+
 }  // namespace
 
 }  // namespace starboard
