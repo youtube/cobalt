@@ -58,7 +58,10 @@ use_cobalt_customizations = true
 is_devel = build_type == "devel"
 is_qa = build_type == "qa"
 is_gold = build_type == "gold"
-assert(is_debug || is_devel || is_qa || is_gold)
+
+# TODO(b/372141961): Investigate setting chromium flag
+# is_debug = true for debug builds
+# assert(is_debug || is_devel || is_qa || is_gold)
 
 if (is_mac) {
   declare_args() {
