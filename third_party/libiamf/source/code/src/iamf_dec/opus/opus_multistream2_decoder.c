@@ -26,7 +26,11 @@
 #include "IAMF_debug.h"
 #include "IAMF_defines.h"
 #include "IAMF_types.h"
+#if defined(STARBOARD)
+#include "opus.h"
+#else
 #include "opus/opus.h"
+#endif  // defined(STARBOARD)
 
 #ifdef IA_TAG
 #undef IA_TAG
