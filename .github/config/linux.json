@@ -1,5 +1,6 @@
 {
     "docker_service": "linux",
+    "test_on_host": true,
     "platforms": [
       "linux-x64x11"
     ],

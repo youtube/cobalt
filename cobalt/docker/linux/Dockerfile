@@ -26,6 +26,8 @@ RUN apt-get update && apt-get install -y \
     gcc-multilib \
     bzip2 \
     python3-certifi \
+    xauth \
+    xvfb \
     && rm -rf /var/lib/apt/lists/*
 
 ADD files/sccache /usr/local/bin
