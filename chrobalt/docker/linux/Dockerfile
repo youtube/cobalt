@@ -34,6 +34,7 @@ ADD files/sccache /usr/local/bin
 # === Install Clang toolchain for all Linux-hosted builds
 ARG COBALT_CLANG_VER
 
+ARG TC_ROOT=${HOME}/starboard-toolchains/
 ARG COBALT_CLANG_TC_HOME=${TC_ROOT}/x86_64-linux-gnu-clang-chromium-${COBALT_CLANG_VER}
 ARG COBALT_CLANG_BASE_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
 
