@@ -43,6 +43,11 @@ runs:
           TARGETS: ${{ inputs.targets }}
         run: |
           set -x
+          env
+          # GitHub Runners have home set to /github/home.
+          if [ -d /root/starboard-toolchains ]; then
+            ln -s /root/starboard-toolchains /github/home/starboard-toolchains
+          fi
           cd src
           ninja -C out/${{ matrix.platform }}_${{ matrix.config }} $(echo "${TARGETS}" | tr -d '"')
         shell: bash
