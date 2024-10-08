@@ -29,8 +29,6 @@
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
 
-#include "starboard/common/log.h"
-
 using base::Time;
 using base::TimeDelta;
 

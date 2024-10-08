@@ -14,8 +14,6 @@
 
 #include "starboard/shared/libiamf/iamf_audio_decoder.h"
 
-#include <algorithm>
-
 #include "starboard/common/string.h"
 #include "third_party/libiamf/source/code/include/IAMF_defines.h"
 
@@ -58,6 +56,7 @@ IamfAudioDecoder::IamfAudioDecoder(const AudioStreamInfo& audio_stream_info)
   decoder_ = IAMF_decoder_open();
   if (!decoder_) {
     SB_LOG(ERROR) << "Error creating libiamf decoder";
+    ReportError("Error creating libiamf decoder");
   }
 }
 

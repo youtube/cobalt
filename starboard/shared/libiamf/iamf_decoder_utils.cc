@@ -19,6 +19,7 @@
 #include <string>
 #include <unordered_set>
 
+#include "starboard/common/log.h"
 #include "third_party/libiamf/source/code/include/IAMF_defines.h"
 
 namespace starboard {
@@ -54,9 +55,9 @@ constexpr int kFourccIpcm = 0x6970636d;
 // The preferred methods of choosing a binaural mix presentation are listed
 // from high to low.
 enum BinauralMixSelection {
+  kBinauralMixSelectionNotFound,
   kBinauralMixSelectionLoudspeakerLayout,
-  kBinauralMixSelectionLoudnessLayout,
-  kBinauralMixSelectionNotFound
+  kBinauralMixSelectionLoudnessLayout
 };
 
 class BufferReader {
@@ -435,7 +436,7 @@ bool ParseMixPresentationOBU(
       // binaural loudspeaker layout.
       if (!info->mix_presentation_id.has_value() ||
           (prefer_binaural_audio &&
-           binaural_mix_selection > kBinauralMixSelectionLoudspeakerLayout)) {
+           binaural_mix_selection != kBinauralMixSelectionLoudspeakerLayout)) {
         if (prefer_binaural_audio &&
             binaural_audio_element_ids->find(audio_element_id) !=
                 binaural_audio_element_ids->end()) {
@@ -487,7 +488,7 @@ bool ParseMixPresentationOBU(
       if (static_cast<uint32_t>(layout_type) == IAMF_LAYOUT_TYPE_BINAURAL &&
           prefer_binaural_audio &&
           (!info->mix_presentation_id.has_value() ||
-           binaural_mix_selection > kBinauralMixSelectionLoudnessLayout)) {
+           binaural_mix_selection == kBinauralMixSelectionNotFound)) {
         info->mix_presentation_id = mix_presentation_id;
         binaural_mix_selection = kBinauralMixSelectionLoudnessLayout;
       }
@@ -537,7 +538,7 @@ bool ParseDescriptorOBU(BufferReader* reader,
   uint8_t obu_type = 0;
   uint32_t obu_size = 0;
   if (!ParseOBUHeader(reader, &obu_type, &obu_size)) {
-    SB_DLOG(ERROR) << "Error parsing OBU header";
+    SB_LOG(ERROR) << "Error parsing OBU header";
     return false;
   }
 

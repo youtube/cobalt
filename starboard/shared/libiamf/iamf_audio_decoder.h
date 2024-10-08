@@ -20,7 +20,6 @@
 #include <string>
 
 #include "starboard/common/ref_counted.h"
-#include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/libiamf/iamf_decoder_utils.h"
 #include "starboard/shared/starboard/media/media_util.h"
