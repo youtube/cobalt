@@ -365,7 +365,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
 
     // Remember the Android activity state to sync to when we have a window.
     case AndroidCommand::kStop:
-      SbAtomicBarrier_Increment(&android_stop_count_, -1);
+      android_stop_count_.fetch_sub(1, std::memory_order_seq_cst);
     // Intentional fall-through.
     case AndroidCommand::kStart:
     case AndroidCommand::kResume:
@@ -393,7 +393,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
 
   // If there's an outstanding "stop" command, then don't update the app state
   // since it'll be overridden by the upcoming "stop" state.
-  if (SbAtomicAcquire_Load(&android_stop_count_) > 0) {
+  if (android_stop_count_.load(std::memory_order_acquire) > 0) {
     return;
   }
 
@@ -436,7 +436,7 @@ void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
       }
       break;
     case AndroidCommand::kStop:
-      SbAtomicBarrier_Increment(&android_stop_count_, 1);
+      android_stop_count_.fetch_add(1, std::memory_order_seq_cst);
       break;
     default:
       break;

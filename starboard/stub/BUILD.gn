@@ -16,7 +16,6 @@ static_library("starboard_platform") {
   sources = [
     "application_stub.cc",
     "application_stub.h",
-    "atomic_public.h",
     "configuration.cc",
     "configuration.h",
     "configuration_constants.cc",
@@ -39,7 +38,6 @@ static_library("stub_sources") {
     "//starboard/shared/starboard/event_cancel.cc",
     "//starboard/shared/starboard/event_schedule.cc",
     "//starboard/shared/starboard/queue_application.cc",
-    "//starboard/shared/stub/atomic_public.h",
     "//starboard/shared/stub/audio_sink_create.cc",
     "//starboard/shared/stub/audio_sink_destroy.cc",
     "//starboard/shared/stub/audio_sink_get_max_channels.cc",

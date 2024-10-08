@@ -14,6 +14,7 @@
 
 #include "starboard/media.h"
 
+#include <atomic>
 #include <unistd.h>
 
 #include "starboard/common/optional.h"
@@ -151,8 +152,9 @@ class SbMediaSetAudioWriteDurationTest
   int index_ = 0;
   int64_t total_duration_ = kDuration;
   // Guard access to |pending_decoder_status_|.
-  mutable SbAtomic32 pending_decoder_status_lock_ =
-      starboard::kSpinLockStateReleased;
+  mutable std::atomic_int pending_decoder_status_lock_ {
+      starboard::kSpinLockStateReleased
+    };
   optional<PendingDecoderStatus> pending_decoder_status_;
 
  private:
