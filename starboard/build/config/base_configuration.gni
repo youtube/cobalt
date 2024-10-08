@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/clang.gni")
+import("//build/config/clang/clang.gni")
 import("//starboard/content/fonts/font_configuration.gni")
 
 # NOTE:
@@ -122,7 +122,7 @@ declare_args() {
   enable_in_app_dial = false
 
   # A symbolizer path for ASAN can be added to allow translation of callstacks.
-  asan_symbolizer_path = "$clang_starboard_base_path/bin/llvm-symbolizer"
+  asan_symbolizer_path = "$clang_base_path/bin/llvm-symbolizer"
 
   # Sub-directory to copy license file to.
   cobalt_licenses_platform = "default"
