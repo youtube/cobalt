@@ -38,8 +38,6 @@ class IamfAudioDecoder
       private starboard::player::JobQueue::JobOwner {
  public:
   typedef starboard::media::AudioStreamInfo AudioStreamInfo;
-  // typedef shared::libiamf::IamfBufferInfo IamfBufferInfo;
-  // using shared::libiamf::IamfBufferInfo;
 
   explicit IamfAudioDecoder(const AudioStreamInfo& audio_stream_info);
   ~IamfAudioDecoder() override;
@@ -55,10 +53,9 @@ class IamfAudioDecoder
   void Reset() override;
 
  private:
-  static constexpr int kMinimumBuffersToDecode = 2;
-  static constexpr int kDefaultSampleRate = 48000;
-
-  bool ConfigureDecoder(IamfBufferInfo* info, int64_t timestamp);
+  bool ConfigureDecoder(IamfBufferInfo* info,
+                        int64_t timestamp,
+                        std::string* error_message);
   void TeardownDecoder();
   bool DecodeInternal(const scoped_refptr<InputBuffer>& input_buffer);
 

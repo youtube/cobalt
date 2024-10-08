@@ -114,7 +114,7 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
  private:
   bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const override {
-    if (tunnel_mode_audio_session_id_ != -1 || true) {
+    if (tunnel_mode_audio_session_id_ != -1) {
       // Currently the implementation only supports tunnel mode with int16 audio
       // samples.
       return audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated;

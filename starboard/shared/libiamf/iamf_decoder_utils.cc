@@ -564,8 +564,8 @@ bool ParseDescriptorOBU(BufferReader* reader,
                                      prefer_surround_audio));
       break;
     default:
-      // Once an OBU is read that is not a descriptor, descriptor parsing is
-      // assumed to be complete.
+      // This executes if a non descriptor OBU is read. The buffer info must be
+      // valid by this point.
       SB_DCHECK(BufferInfoIsValid(info));
       return true;
   }
