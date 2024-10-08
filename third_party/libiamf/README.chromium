@@ -15,3 +15,5 @@ Removed the following directories:
 source/tests
 source/code/dep_codecs
 source/code/dep_external
+
+Changed an include directive in source/code/src/iamf_dec/opus/opus_multistream2_decoder.c

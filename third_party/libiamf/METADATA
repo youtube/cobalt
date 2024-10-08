@@ -1,8 +1,8 @@
 name: "libiamf"
 description:
-    "This is a reference implementation and conformance test for the AOM Immersive
-    Audio Model and Formats (IAMF) specification, approved as a final deliverable
-    by AOM on April 3, 2024"
+    "This is a reference implementation and conformance test for the AOM Immersive"
+    "Audio Model and Formats (IAMF) specification, approved as a final deliverable"
+    "by AOM on April 3, 2024"
 
 third_party {
   url {
