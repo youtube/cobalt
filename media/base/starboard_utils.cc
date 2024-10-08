@@ -154,17 +154,14 @@ SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
 #if SB_API_VERSION < 15
   audio_stream_info.format_tag = 0x00ff;
 #endif  // SB_API_VERSION < 15
-
 audio_stream_info.number_of_channels =
       ChannelLayoutToChannelCount(audio_decoder_config.channel_layout());
-
 #if SB_API_VERSION >= 15
   if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {
     // IAMF mixes audio signals to the highest available speaker layout.
     audio_stream_info.number_of_channels = GetMaxChannelCount();
   }
 #endif  // SB_API_VERSION >= 15
-
   audio_stream_info.samples_per_second =
       audio_decoder_config.samples_per_second();
 #if SB_API_VERSION < 15
