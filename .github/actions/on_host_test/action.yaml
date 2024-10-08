@@ -100,8 +100,8 @@ runs:
       shell: bash
       run: |
         # Set tags for test differentiation.
-        tags="platform:${{ matrix.platform }}"
-        tags="${tags},os:${{ inputs.os }}"
+        tags="os.platform:${{ matrix.platform }}"
+        tags="${tags},os.family:${{ inputs.os }}"
         echo $tags > ${TEST_RESULTS_DIR}/${{ matrix.platform }}/TAGS
     - name: Archive unit test results
       uses: actions/upload-artifact@v3
