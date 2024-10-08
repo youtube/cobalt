@@ -1,0 +1,40 @@
+// Copyright (c) 2023, Alliance for Open Media. All rights reserved
+//
+// This source code is subject to the terms of the BSD 3-Clause Clear License
+// and the Alliance for Open Media Patent License 1.0. If the BSD 3-Clause Clear
+// License was not distributed with this source code in the LICENSE file, you
+// can obtain it at www.aomedia.org/license/software-license/bsd-3-c-c. If the
+// Alliance for Open Media Patent License 1.0 was not distributed with this
+// source code in the PATENTS file, you can obtain it at
+// www.aomedia.org/license/patent.
+
+syntax = "proto2";
+
+package libiamf_proto;
+
+import "arbitrary_obu.proto";
+import "audio_element.proto";
+import "audio_frame.proto";
+import "codec_config.proto";
+import "ia_sequence_header.proto";
+import "mix_presentation.proto";
+import "parameter_block.proto";
+import "temporal_delimiter.proto";
+import "test_vector_metadata.proto";
+
+message UserMetadata {
+  reserved 1;
+  repeated IASequenceHeaderObuMetadata ia_sequence_header_metadata = 10;
+  repeated CodecConfigObuMetadata codec_config_metadata = 2;
+  repeated AudioElementObuMetadata audio_element_metadata = 3;
+  repeated MixPresentationObuMetadata mix_presentation_metadata = 4;
+  reserved 5;
+  repeated AudioFrameObuMetadata audio_frame_metadata = 6;
+  repeated ParameterBlockObuMetadata parameter_block_metadata = 7;
+  optional TemporalDelimiterObuMetadata temporal_delimiter_metadata = 8;
+  optional TestVectorMetadata test_vector_metadata = 9;
+
+  // A list of arbitrary OBUs to insert blindly into the stream. There is no
+  // attempt to validate or process any side effects of adding the OBUs.
+  repeated ArbitraryObuMetadata arbitrary_obu_metadata = 11;
+}

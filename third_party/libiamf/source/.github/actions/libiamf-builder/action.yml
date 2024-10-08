@@ -1,0 +1,19 @@
+name: libiamf-builder
+
+description: Build libiamf.
+
+inputs:
+  build-options:
+    description: Build command options.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        cd code
+        cmake ${{ inputs.build-options }} .
+        make
+
