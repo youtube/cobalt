@@ -19,12 +19,15 @@
 
 #if SB_API_VERSION >= 15
 void SbPlayerWriteSamples(SbPlayer player,
-#else   // SB_API_VERSION >= 15
-void SbPlayerWriteSample2(SbPlayer player,
-#endif  // SB_API_VERSION >= 15
                           SbMediaType sample_type,
                           const SbPlayerSampleInfo* sample_infos,
                           int number_of_sample_infos) {
+#else   // SB_API_VERSION >= 15
+void SbPlayerWriteSample2(SbPlayer player,
+                          SbMediaType sample_type,
+                          const SbPlayerSampleInfo* sample_infos,
+                          int number_of_sample_infos) {
+#endif  // SB_API_VERSION >= 15
   if (!SbPlayerIsValid(player)) {
     SB_LOG(WARNING) << "player is invalid.";
     return;
