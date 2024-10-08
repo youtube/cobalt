@@ -7,7 +7,7 @@ services:
         - ghcr.io/youtube/cobalt/linux:latest
       args:
         # Should match version pinned by Starboard
-        - COBALT_CLANG_VER=${COBALT_CLANG_VER:-17-init-8029-g27f27d15-3}
+        - STARBOARD_CLANG_VER=${STARBOARD_CLANG_VER:-17-init-8029-g27f27d15-3}
     image: ghcr.io/youtube/cobalt/linux:latest
     platform: linux/amd64
     environment:

@@ -32,19 +32,19 @@ RUN apt-get update && apt-get install -y \
 ADD files/sccache /usr/local/bin
 
 # === Install Clang toolchain for all Linux-hosted builds
-ARG COBALT_CLANG_VER
+ARG STARBOARD_CLANG_VER
 
 ARG TC_ROOT=${HOME}/starboard-toolchains/
-ARG COBALT_CLANG_TC_HOME=${TC_ROOT}/x86_64-linux-gnu-clang-chromium-${COBALT_CLANG_VER}
-ARG COBALT_CLANG_BASE_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
+ARG STARBOARD_CLANG_TC_HOME=${TC_ROOT}/x86_64-linux-gnu-clang-chromium-${STARBOARD_CLANG_VER}
+ARG STARBOARD_CLANG_BASE_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
 
 RUN cd /tmp \
-    && mkdir -p ${COBALT_CLANG_TC_HOME} \
+    && mkdir -p ${STARBOARD_CLANG_TC_HOME} \
     && curl --silent -O -J \
-        ${COBALT_CLANG_BASE_URL}/Linux_x64/clang-llvmorg-${COBALT_CLANG_VER}.tgz \
-    && tar xf clang-llvmorg-${COBALT_CLANG_VER}.tgz -C ${COBALT_CLANG_TC_HOME} \
-    && echo ${COBALT_CLANG_VER} >> ${COBALT_CLANG_TC_HOME}/cr_build_revision \
-    && rm clang-llvmorg-${COBALT_CLANG_VER}.tgz
+        ${STARBOARD_CLANG_BASE_URL}/Linux_x64/clang-llvmorg-${STARBOARD_CLANG_VER}.tgz \
+    && tar xf clang-llvmorg-${STARBOARD_CLANG_VER}.tgz -C ${STARBOARD_CLANG_TC_HOME} \
+    && echo ${STARBOARD_CLANG_VER} >> ${STARBOARD_CLANG_TC_HOME}/cr_build_revision \
+    && rm clang-llvmorg-${STARBOARD_CLANG_VER}.tgz
 
 ENV SCCACHE_GCS_BUCKET=githubactions-chrome-sccache
 ENV SCCACHE_GCS_RW_MODE=READ_WRITE
