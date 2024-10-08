@@ -1,6 +1,8 @@
 # Use the official Ubuntu image as the base
 FROM debian:12
 
+ARG HOME=/root
+
 # Install any necessary dependencies
 # NOTE: From libxcomposite down, these are minimal requirements to run a
 # V8 snapshot binary, on X11/GTK builds
