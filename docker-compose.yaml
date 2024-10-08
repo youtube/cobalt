@@ -6,7 +6,8 @@ services:
       cache_from:
         - ghcr.io/youtube/cobalt/linux:latest
       args:
-        - CLANG_VER=${CLANG_VER:-365097-f7e52fbd-8}
+        # Should match version pinned by Starboard
+        - COBALT_CLANG_VER=${COBALT_CLANG_VER:-17-init-8029-g27f27d15-3}
     image: ghcr.io/youtube/cobalt/linux:latest
     platform: linux/amd64
     environment:

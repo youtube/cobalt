@@ -31,20 +31,19 @@ RUN apt-get update && apt-get install -y \
 
 ADD files/sccache /usr/local/bin
 
-# === Install pinned host Clang toolchain for all Linux-hosted builds
-ARG CLANG_VER
+# === Install Clang toolchain for all Linux-hosted builds
+ARG COBALT_CLANG_VER
 
-ARG TC_ROOT=${HOME}/starboard-toolchains/
-ARG TC_HOME=${TC_ROOT}/x86_64-linux-gnu-clang-chromium-${CLANG_VER}
-ARG BASE_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
+ARG COBALT_CLANG_TC_HOME=${TC_ROOT}/x86_64-linux-gnu-clang-chromium-${COBALT_CLANG_VER}
+ARG COBALT_CLANG_BASE_URL=https://commondatastorage.googleapis.com/chromium-browser-clang
 
 RUN cd /tmp \
-    && mkdir -p ${TC_HOME} \
+    && mkdir -p ${COBALT_CLANG_TC_HOME} \
     && curl --silent -O -J \
-        ${BASE_URL}/Linux_x64/clang-${CLANG_VER}.tgz \
-    && tar xf clang-${CLANG_VER}.tgz -C ${TC_HOME} \
-    && echo ${CLANG_VER} >> ${TC_HOME}/cr_build_revision \
-    && rm clang-${CLANG_VER}.tgz
+        ${COBALT_CLANG_BASE_URL}/Linux_x64/clang-llvmorg-${COBALT_CLANG_VER}.tgz \
+    && tar xf clang-llvmorg-${COBALT_CLANG_VER}.tgz -C ${COBALT_CLANG_TC_HOME} \
+    && echo ${COBALT_CLANG_VER} >> ${COBALT_CLANG_TC_HOME}/cr_build_revision \
+    && rm clang-llvmorg-${COBALT_CLANG_VER}.tgz
 
 ENV SCCACHE_GCS_BUCKET=githubactions-chrome-sccache
 ENV SCCACHE_GCS_RW_MODE=READ_WRITE
