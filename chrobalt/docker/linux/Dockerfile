@@ -25,6 +25,8 @@ RUN apt-get update && apt-get install -y \
     libpango-1.0-0 \
     gcc-multilib \
     bzip2 \
+    xauth \
+    xvfb \
     && rm -rf /var/lib/apt/lists/*
 
 ADD files/sccache /usr/local/bin
