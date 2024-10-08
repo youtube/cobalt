@@ -66,9 +66,10 @@ group("gn_all") {
   if (build_with_separate_cobalt_toolchain && use_contrib_cast) {
     deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast" ]
   }
-  if (enable_evergreen_code) {
-    if (!sb_is_evergreen) {
-      if (sb_is_evergreen_compatible) {
+
+  if (!sb_is_evergreen) {
+    if (sb_is_evergreen_compatible) {
+      if (enable_evergreen_code) {
         deps += [
           "//starboard/elf_loader:elf_loader_test_install($starboard_toolchain)",
           "//starboard/loader_app:installation_manager_test_install($starboard_toolchain)",

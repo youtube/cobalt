@@ -18,7 +18,7 @@ clang_use_chrome_plugins = false
 v8_enable_webassembly = true
 
 # TODO(b/218889313): All flags below this line need to be revisited
-# carefully and elminated if unnecessary.
+# carefully and eliminated if unnecessary.
 
 enable_nacl=false
 use_dawn=false

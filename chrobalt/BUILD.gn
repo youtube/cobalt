@@ -12,11 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-group("all_chrobalt") {
-  deps = [ ":all_starboard_targets" ]
-}
-
-group("all_starboard_targets") {
+group("gn_all") {
   # TODO(b/371589344): Fix android build configs.
   if (target_os != "android") {
     deps = [ "//starboard($starboard_toolchain)" ]

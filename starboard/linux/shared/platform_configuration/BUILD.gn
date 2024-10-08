@@ -134,8 +134,7 @@ config("platform_configuration") {
     ldflags += [
       "-static-libstdc++",
 
-      # See error https://paste.googleplex.com/6744918493233152
-      # Revisit if static-libstdc++ is needed.
+      # TODO(b/371589344#comment2) Revisit if static-libstdc++ is needed.
       "-Wno-unused-command-line-argument",
     ]
   }
@@ -244,11 +243,5 @@ config("no_pedantic_warnings") {
     # ignoring return value of function declared with
     # 'warn_unused_result' attribute [-Werror,-Wunused-result]
     "-Wno-unused-result",
-  ]
-
-  defines = [
-    # Only built for Linux and ChromeOS so no special export magic needed.
-    # Needed by base/third_party/symbolize/symbolize.cc
-    "GLOG_EXPORT=",
   ]
 }

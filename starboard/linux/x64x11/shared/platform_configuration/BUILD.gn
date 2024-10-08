@@ -20,6 +20,7 @@ config("platform_configuration") {
       "//starboard/linux/shared/platform_configuration",
       "//starboard/linux/shared/platform_configuration:compiler_flags",
       "//starboard/linux/shared/platform_configuration:no_pedantic_warnings",
+      "//base/third_party/symbolize:symbolize_config",
       ":linker_flags",
     ]
   }
