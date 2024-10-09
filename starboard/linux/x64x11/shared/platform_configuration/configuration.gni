@@ -21,8 +21,7 @@ if (current_toolchain == default_toolchain &&
 } else {
   import("//starboard/linux/shared/platform_configuration/configuration.gni")
 
-  # TODO(b/218889313): Enable libunwind on evergreen
-  sb_evergreen_compatible_use_libunwind = false
+  sb_evergreen_compatible_use_libunwind = true
 
   sabi_path = "//starboard/sabi/x64/sysv/sabi-v$sb_api_version.json"
 }
