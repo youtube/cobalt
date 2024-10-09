@@ -17,10 +17,4 @@ config("platform_configuration") {
     "//starboard/build/config/sabi",
     "//starboard/linux/x64x11/shared/platform_configuration",
   ]
-
-  # TODO(b/371589344): Fix errors while building with Angle.
-  libs = [
-    "EGL",
-    "GLESv2",
-  ]
 }

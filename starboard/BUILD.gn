@@ -21,21 +21,16 @@ group("gn_all") {
 
   deps = [
     ":default",
+    "//starboard/client_porting/eztime:eztime_test",
     "//starboard/client_porting/icu_init",
+    "//starboard/examples/glclear:starboard_glclear_example",
+    "//starboard/examples/hello_world:starboard_hello_world_example",
+    "//starboard/examples/window:starboard_window_example",
+    "//starboard/extension:extension_test",
+    "//starboard/nplb",
   ]
-  if (enable_test_targets) {
-    if (sb_is_evergreen_compatible &&
-        current_toolchain == starboard_toolchain) {
-      deps += [ "//starboard/nplb/nplb_evergreen_compat_tests" ]
-    }
-    deps += [
-      "//starboard/client_porting/eztime:eztime_test",
-      "//starboard/examples/glclear:starboard_glclear_example",
-      "//starboard/examples/hello_world:starboard_hello_world_example",
-      "//starboard/examples/window:starboard_window_example",
-      "//starboard/extension:extension_test",
-      "//starboard/nplb",
-    ]
+  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+    deps += [ "//starboard/nplb/nplb_evergreen_compat_tests" ]
   }
 
   if (has_platform_targets) {
@@ -68,16 +63,18 @@ group("gn_all") {
   }
 
   if (!sb_is_evergreen) {
-    if (sb_is_evergreen_compatible && enable_evergreen_code) {
+    if (sb_is_evergreen_compatible) {
       deps += [
         "//starboard/elf_loader:elf_loader_test_install($starboard_toolchain)",
         "//starboard/loader_app:installation_manager_test_install($starboard_toolchain)",
         "//starboard/loader_app:reset_evergreen_update_test_install($starboard_toolchain)",
       ]
-      if (current_toolchain == starboard_toolchain) {
-        deps += [ "//third_party/lz4_lib:lz4" ]
-        deps += [ "//third_party/crashpad/crashpad/client" ]
 
+      if (current_toolchain == starboard_toolchain) {
+        deps += [
+          "//third_party/crashpad/crashpad/client",
+          "//third_party/lz4_lib:lz4",
+        ]
         data_deps = [
           "//starboard/loader_app($starboard_toolchain)",
           "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
@@ -147,14 +144,13 @@ group("starboard_group") {
       "//starboard/common",
     ]
 
-    if (enable_evergreen_code) {
-      if (!sb_is_modular || sb_is_evergreen) {
-        if (sb_is_evergreen_compatible &&
-            current_toolchain == starboard_toolchain) {
-          public_deps += [ "//starboard/crashpad_wrapper" ]
-        } else {
-          public_deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
-        }
+    if (!sb_is_modular || sb_is_evergreen) {
+      if (sb_is_evergreen_compatible &&
+          current_toolchain == starboard_toolchain) {
+        public_deps += [ "//starboard/crashpad_wrapper" ]
+      } else {
+        public_deps +=
+            [ "//starboard/crashpad_wrapper:wrapper_stub" ]
       }
     }
 

@@ -1,24 +1,5 @@
 target_os = "linux"
 target_cpu = "x64"
-target_platform = "linux-x64x11"
-
-# Chromium flag overrides needed for building libstarboard
-
-# ../../starboard/shared/starboard/player/job_queue.h:156:15:
-# error: [chromium-rawptr] Use raw_ptr<T> instead of a raw pointer.
-# JobOwner* owner;
-enable_check_raw_ptr_fields = false
-
-# ../../starboard/linux/shared/decode_target_internal.h:22:1:
-# error: [chromium-style] Complex class/struct needs an explicit out-of-line destructor.
-clang_use_chrome_plugins = false
-
-# V8 override
-# # Enable WASM and install WebAssembly global.
-v8_enable_webassembly = true
-
-# TODO(b/218889313): All flags below this line need to be revisited
-# carefully and eliminated if unnecessary.
 
 enable_nacl=false
 use_dawn=false

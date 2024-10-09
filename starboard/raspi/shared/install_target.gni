@@ -41,7 +41,7 @@ template("install_target") {
   output = "$sb_install_output_dir/$install_subdir/$source_name"
   input = "$root_out_dir/$source_name"
 
-  if (is_gold) {
+  if (is_gold || cobalt_fastbuild) {
     action(target_name) {
       forward_variables_from(invoker, [ "testonly" ])
 

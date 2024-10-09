@@ -1,4 +1,4 @@
-# Copyright 2024 The Cobalt Authors. All Rights Reserved.
+# Copyright 2023 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,9 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-group("gn_all") {
-  # TODO(b/371589344): Fix android build configs.
-  if (target_os != "android") {
-    deps = [ "//starboard($starboard_toolchain)" ]
-  }
+import("//starboard/build/toolchain/starboard_toolchains.gni")
+
+declare_args() {
+  clang_revision = "17-init-8029-g27f27d15-3"
+}
+
+default_clang_base_path = "$starboard_toolchains_path/x86_64-linux-gnu-clang-chromium-${clang_revision}"
+
+declare_args() {
+  clang_base_path = default_clang_base_path
 }
