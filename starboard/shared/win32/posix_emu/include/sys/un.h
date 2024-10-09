@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/socket_waiter.h"
+#ifndef STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_UN_H_
+#define STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_UN_H_
 
-#include "starboard/shared/win32/socket_waiter_internal.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket) {
-  if (!SbSocketWaiterIsValid(waiter)) {
-    return false;
-  }
+typedef unsigned int sa_family_t;
 
-  return waiter->Remove(socket);
-}
+struct sockaddr_un {
+  sa_family_t sun_family; /* AF_UNIX */
+  char sun_path[108];     /* Pathname */
+};
 
-#if SB_API_VERSION >= 16
-bool SbPosixSocketWaiterRemove(SbSocketWaiter waiter, int socket) {
-  if (!SbSocketWaiterIsValid(waiter)) {
-    return false;
-  }
-
-  return waiter->Remove(socket, waiter);
+#ifdef __cplusplus
 }
 #endif
+
+#endif  // STARBOARD_SHARED_WIN32_POSIX_EMU_INCLUDE_SYS_UN_H_

@@ -28,6 +28,8 @@
 
 namespace net {
 
+#if SB_API_VERSION <= 15
+
 TCPSocketStarboard::TCPSocketStarboard(
     std::unique_ptr<SocketPerformanceWatcher> socket_performance_watcher,
     NetLog* net_log,
@@ -684,5 +686,7 @@ int TCPSocketStarboard::SetIPv6Only(bool ipv6_only) {
     NOTIMPLEMENTED();
     return 0;
 }
+
+#endif  // SB_API_VERSION <= 15
 
 }  // namespace net
