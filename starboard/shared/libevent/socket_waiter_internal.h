@@ -32,19 +32,52 @@ struct SbSocketWaiterPrivate {
 
   // These methods implement the SbSocketWaiter API defined in socket_waiter.h.
 
+  // The Add/Remove pair for integer based socket
+#if SB_API_VERSION >= 16
+  bool Add(int socket,
+           SbSocketWaiter waiter,
+           void* context,
+           SbPosixSocketWaiterCallback callback,
+           int interests,
+           bool persistent);
+  bool Remove(int socket, SbSocketWaiter waiter);
+  bool CheckSocketRegistered(int socket);
+#endif  // SB_API_VERSION >= 16
+
+  // The Add/Remove pair for SbSocket based socket
   bool Add(SbSocket socket,
            void* context,
            SbSocketWaiterCallback callback,
            int interests,
            bool persistent);
-  bool Remove(SbSocket socket);
+  bool Remove(SbSocket socket, SbSocketWaiter waiter);
+  bool CheckSocketRegistered(SbSocket socket);
+
   void Wait();
   SbSocketWaiterResult WaitTimed(int64_t duration_usec);
   void WakeUp(bool timeout);
 
+  int use_int_socket;
+
  private:
   // A registration of a socket with a socket waiter.
   struct Waitee {
+#if SB_API_VERSION >= 16
+    Waitee(SbSocketWaiter waiter,
+           int socket,
+           void* context,
+           SbPosixSocketWaiterCallback callback,
+           int interests,
+           bool persistent)
+        : waiter(waiter),
+          i_socket(socket),
+          context(context),
+          i_callback(callback),
+          interests(interests),
+          persistent(persistent) {
+      use_int_socket = 1;
+    }
+#endif  // SB_API_VERSION >= 16
     Waitee(SbSocketWaiter waiter,
            SbSocket socket,
            void* context,
@@ -52,23 +85,30 @@ struct SbSocketWaiterPrivate {
            int interests,
            bool persistent)
         : waiter(waiter),
-          socket(socket),
+          sb_socket(socket),
           context(context),
-          callback(callback),
+          sb_callback(callback),
           interests(interests),
-          persistent(persistent) {}
+          persistent(persistent) {
+      use_int_socket = 0;
+    }
+
+    // The socket registered with the waiter.
+    int i_socket;
+    SbSocket sb_socket;
+    int use_int_socket;
+
+    // The callback to call when one or more registered interests become ready.
+#if SB_API_VERSION >= 16
+    SbPosixSocketWaiterCallback i_callback;
+#endif  // SB_API_VERSION >= 16
+    SbSocketWaiterCallback sb_callback;
 
     // The waiter this event is registered with.
     SbSocketWaiter waiter;
 
-    // The socket registered with the waiter.
-    SbSocket socket;
-
     // A context value that will be passed to the callback.
     void* context;
-
-    // The callback to call when one or more registered interests become ready.
-    SbSocketWaiterCallback callback;
 
     // The set of interests registered with the waiter.
     int interests;
@@ -84,7 +124,8 @@ struct SbSocketWaiterPrivate {
   //
   // NOTE: This is a (tree) map because we don't have base::hash_map here. We
   // should keep an eye out for whether this is a performance issue.
-  typedef std::map<SbSocket, Waitee*> WaiteesMap;
+  typedef std::map<int, Waitee*> i_WaiteesMap;
+  typedef std::map<SbSocket, Waitee*> sb_WaiteesMap;
 
   // The libevent callback function, which in turn calls the registered callback
   // function for the Waitee.
@@ -106,6 +147,13 @@ struct SbSocketWaiterPrivate {
 
   // Adds |waitee| to the waitee registry.
   void AddWaitee(Waitee* waitee);
+
+  // Gets the Waitee associated with the given socket, or NULL.
+  Waitee* GetWaitee(int socket);
+
+  // Gets the Waitee associated with the given socket, removing it from the
+  // registry, or NULL.
+  Waitee* RemoveWaitee(int socket) SB_WARN_UNUSED_RESULT;
 
   // Gets the Waitee associated with the given socket, or NULL.
   Waitee* GetWaitee(SbSocket socket);
@@ -134,7 +182,8 @@ struct SbSocketWaiterPrivate {
   struct event wakeup_event_;
 
   // The registry of currently registered Waitees.
-  WaiteesMap waitees_;
+  i_WaiteesMap i_waitees_;
+  sb_WaiteesMap sb_waitees_;
 
   // Whether or not the waiter is actually waiting.
   bool waiting_;

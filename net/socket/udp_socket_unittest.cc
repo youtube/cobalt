@@ -592,7 +592,8 @@ TEST_F(UDPSocketTest, ClientGetLocalPeerAddresses) {
     UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr,
                            NetLogSource());
     int rv = client.Connect(remote_address);
-    if (test.may_fail && rv == ERR_ADDRESS_UNREACHABLE) {
+    if (test.may_fail &&
+        (rv == ERR_ADDRESS_UNREACHABLE || rv == ERR_ADDRESS_INVALID)) {
       // Connect() may return ERR_ADDRESS_UNREACHABLE for IPv6
       // addresses if IPv6 is not configured.
       continue;
