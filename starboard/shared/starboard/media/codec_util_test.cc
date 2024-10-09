@@ -278,6 +278,21 @@ TEST(CodecUtilTest, ParsesIamfCodec) {
             kSbMediaAudioCodecIamf);
   EXPECT_EQ(GetAudioCodecFromString("iamf.000.000.ipcm", ""),
             kSbMediaAudioCodecIamf);
+  EXPECT_EQ(GetAudioCodecFromString("iamf.001.000.ipcm", ""),
+            kSbMediaAudioCodecIamf);
+  EXPECT_EQ(GetAudioCodecFromString("iamf.255.255.ipcm", ""),
+            kSbMediaAudioCodecIamf);
+
+  EXPECT_NE(GetAudioCodecFromString("iamf.000.256.Opus", ""),
+            kSbMediaAudioCodecIamf);
+  EXPECT_NE(GetAudioCodecFromString("iamf.000.000.invalid", ""),
+            kSbMediaAudioCodecIamf);
+  EXPECT_NE(GetAudioCodecFromString("Iamf.000.000.fLaC", ""),
+            kSbMediaAudioCodecIamf);
+  EXPECT_NE(GetAudioCodecFromString("iamf.000.000.mp4a.40.3", ""),
+            kSbMediaAudioCodecIamf);
+  EXPECT_NE(GetAudioCodecFromString("iamf.000.0000.Opus", ""),
+            kSbMediaAudioCodecIamf);
 }
 #endif  // SB_API_VERSION >= 15
 
