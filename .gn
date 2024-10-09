@@ -167,8 +167,11 @@ exec_script_whitelist =
       "//tools/gritsettings/BUILD.gn",
     ]
 
-exec_script_whitelist += [
-  "//starboard/tools/BUILD.gn",
-  "//starboard/build/config/sabi/BUILD.gn",
-  "//starboard/build/platform_path.gni"
-]
+import("//chrobalt/build/configs/chrobalt.gni")
+if (chrobalt) {
+  exec_script_whitelist += [
+    "//starboard/tools/BUILD.gn",
+    "//starboard/build/config/sabi/BUILD.gn",
+    "//starboard/build/platform_path.gni",
+  ]
+}

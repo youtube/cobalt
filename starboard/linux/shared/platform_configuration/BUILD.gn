@@ -84,7 +84,7 @@ config("compiler_flags") {
     }
   }
 
-  if (!cobalt_fastbuild && (is_debug || is_devel)) {
+  if (is_debug || is_devel) {
     cflags += [ "-g" ]
   }
 

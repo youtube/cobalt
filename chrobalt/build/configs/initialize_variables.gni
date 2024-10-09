@@ -27,15 +27,12 @@ declare_args() {
   # where the Starboard porting layer is not used.
   is_native_target_build = false
 
-  # TODO(b/372338329): Investigate removing cobalt_fastbuild
-  cobalt_fastbuild = getenv("IS_CI") == "1"
   is_internal_build = getenv("COBALT_USE_INTERNAL_BUILD") == "1"
 
   using_old_compiler = false
 
   build_with_separate_cobalt_toolchain = true
 
-  use_xcode_clang = false
 }
 
 assert(!(is_starboard && is_native_target_build),

@@ -838,7 +838,9 @@ group("gn_all") {
       deps += [ "//components/cronet:cronet_tests" ]
     }
   }
-  deps += [ "//chrobalt:gn_all" ]
+  if (chrobalt) {
+    deps += [ "//chrobalt:gn_all" ]
+  }
 }
 
 # All Rust targets. This is provided for convenience while developing Rust to
