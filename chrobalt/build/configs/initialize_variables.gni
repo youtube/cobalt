@@ -27,11 +27,9 @@ declare_args() {
   # where the Starboard porting layer is not used.
   is_native_target_build = false
 
+  # TODO(b/372338329): Investigate removing cobalt_fastbuild
   cobalt_fastbuild = getenv("IS_CI") == "1"
-
   is_internal_build = getenv("COBALT_USE_INTERNAL_BUILD") == "1"
-
-  is_docker_build = getenv("IS_DOCKER") == "1"
 
   using_old_compiler = false
 
@@ -72,7 +70,6 @@ if (is_mac) {
 # Get the path to the starboard implementation and include its GN
 # configuration.
 import("//starboard/build/platform_path.gni")
-
 if (build_with_separate_cobalt_toolchain) {
   cobalt_toolchain = "//$starboard_path/toolchain:cobalt"
   starboard_toolchain = "//$starboard_path/toolchain:starboard"
