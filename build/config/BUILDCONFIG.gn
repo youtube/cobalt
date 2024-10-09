@@ -275,10 +275,14 @@ if (target_os == "android") {
 # If a custom toolchain has been set in the args, set it as default. Otherwise,
 # set the default toolchain for the platform (if any).
 if (custom_toolchain != "") {
-  set_default_toolchain(custom_toolchain)
+  cobalt_toolchain = custom_toolchain
 } else if (_default_toolchain != "") {
-  set_default_toolchain(_default_toolchain)
+  cobalt_toolchain = _default_toolchain
 }
+import("//starboard/build/platform_path.gni")
+starboard_toolchain = "//build/toolchain/android:android_clang_arm2"
+
+set_default_toolchain(cobalt_toolchain)
 
 # =============================================================================
 # OS DEFINITIONS
@@ -329,7 +333,7 @@ is_posix = !is_win && !is_fuchsia
 
 import("//chrobalt/build/configs/chrobalt.gni")
 # TODO(b/371589344): Fix android build configs.
-if (chrobalt && target_os != "android") {
+if (chrobalt) {
   import("//chrobalt/build/configs/initialize_variables.gni")
   import("//chrobalt/build/configs/variables.gni")
 }

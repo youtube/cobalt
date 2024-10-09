@@ -28,6 +28,7 @@ shared_library("libcontent_shell_content_view") {
     "//content/shell:pak",
     "//media",
     "//skia",
+    "//starboard:starboard_static($starboard_toolchain)",
   ]
 
   # Explicit dependency required for JNI registration to be able to
@@ -41,6 +42,12 @@ shared_library("libcontent_shell_content_view") {
   sources = [ "shell_library_loader.cc" ]
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   configs += [ "//build/config/android:hide_all_but_jni" ]
+
+  defines = [
+    "STARBOARD",
+    "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"",
+  ]
+  configs += ["//starboard/build/config/sabi"]
 }
 
 shared_library("libcontent_native_test") {

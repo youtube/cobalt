@@ -14,7 +14,7 @@
 
 config("chrobalt_config") {
   # TODO(b/371589344): Fix android build configs.
-  if (target_os != "android") {
+  if (current_toolchain == starboard_toolchain) {
     configs = [ "//${starboard_path}/platform_configuration" ]
   }
 }
