@@ -32,9 +32,7 @@ static_library("video_dmp") {
 }
 
 action("player_download_test_data") {
-  if (enable_install_targets) {
-    install_content = true
-  }
+  install_content = true
 
   script = "//starboard/tools/download_from_gcs.py"
 

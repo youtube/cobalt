@@ -24,12 +24,8 @@ overridable_clang_toolchain("starboard") {
   }
 }
 
-overridable_clang_toolchain("cobalt") {
-  clang_base_path = clang_base_path
-  toolchain_args = {
-    current_os = "linux"
-    current_cpu = "x64"
-  }
+cobalt_clang_toolchain("cobalt") {
+  native_linker_path = "$clang_base_path/bin/clang++"
 }
 
 overridable_clang_toolchain("target") {

@@ -51,7 +51,7 @@ config("platform_configuration") {
     "mediandk",
   ]
 
-  if (is_debug || is_devel) {
+  if (!cobalt_fastbuild && (is_debug || is_devel)) {
     cflags += [ "-g" ]
   }
 
