@@ -123,17 +123,24 @@ TEST(IamfUtilTest, SubstreamCodec) {
 TEST(IamfUtilTest, Profile) {
   std::string codec_param = "iamf.000.000.Opus";
   IamfMimeUtil util(codec_param);
-  EXPECT_EQ(util.profile(), kIamfProfileSimple);
+  EXPECT_EQ(util.primary_profile(), kIamfProfileSimple);
+  EXPECT_EQ(util.additional_profile(), kIamfProfileSimple);
 
   codec_param = "iamf.001.000.Opus";
   util = IamfMimeUtil(codec_param);
-  EXPECT_EQ(util.profile(), kIamfProfileBase);
+  EXPECT_EQ(util.primary_profile(), kIamfProfileBase);
+  EXPECT_EQ(util.additional_profile(), kIamfProfileSimple);
+
+  codec_param = "iamf.000.001.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_EQ(util.primary_profile(), kIamfProfileSimple);
+  EXPECT_EQ(util.additional_profile(), kIamfProfileBase);
 
   codec_param = "iamf.002.000.Opus";
   util = IamfMimeUtil(codec_param);
-  ASSERT_NE(util.profile(), kIamfProfileSimple);
-  ASSERT_NE(util.profile(), kIamfProfileBase);
-  ASSERT_EQ(util.profile(), 2);
+  ASSERT_NE(util.primary_profile(), kIamfProfileSimple);
+  ASSERT_NE(util.primary_profile(), kIamfProfileBase);
+  ASSERT_EQ(util.primary_profile(), 2);
 }
 
 }  // namespace

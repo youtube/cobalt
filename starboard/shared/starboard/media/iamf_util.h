@@ -47,12 +47,17 @@ class IamfMimeUtil {
   explicit IamfMimeUtil(const std::string& mime_type);
 
   bool is_valid() const {
-    return profile_ <= kIamfProfileMax &&
+    return primary_profile_ <= kIamfProfileMax &&
+           additional_profile_ <= kIamfProfileMax &&
            substream_codec_ != kIamfSubstreamCodecUnknown;
   }
-  int profile() const {
+  int primary_profile() const {
     SB_DCHECK(is_valid());
-    return profile_;
+    return primary_profile_;
+  }
+  int additional_profile() const {
+    SB_DCHECK(is_valid());
+    return additional_profile_;
   }
   IamfSubstreamCodec substream_codec() const {
     SB_DCHECK(is_valid());
@@ -60,7 +65,8 @@ class IamfMimeUtil {
   }
 
  private:
-  int profile_ = std::numeric_limits<int>::max();
+  int primary_profile_ = std::numeric_limits<int>::max();
+  int additional_profile_ = std::numeric_limits<int>::max();
   IamfSubstreamCodec substream_codec_ = kIamfSubstreamCodecUnknown;
 };
 

@@ -103,7 +103,8 @@ IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
     }
   }
 
-  profile_ = primary_profile;
+  primary_profile_ = primary_profile;
+  additional_profile_ = additional_profile;
 }
 
 }  // namespace media
