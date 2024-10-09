@@ -77,6 +77,10 @@ std::string PersistedData::GetPingFreshness(const std::string& id) const {
 }
 
 #if defined(STARBOARD)
+std::string PersistedData::GetLastInstalledSbVersion(const std::string& id) const {
+  return GetString(id, "sbversion");
+}
+
 std::string PersistedData::GetLastInstalledVersion(const std::string& id) const {
   return GetString(id, "version");
 }
@@ -149,9 +153,11 @@ void PersistedData::SetString(const std::string& id,
 }
 
 #if defined(STARBOARD)
-void PersistedData::SetLastInstalledVersion(const std::string& id,
-                                           const std::string& version) {
-  SetString(id, "version", version);
+void PersistedData::SetLastInstalledEgAndSbVersion(const std::string& id,
+                                                   const std::string& eg_version,
+                                                   const std::string& sb_version) {
+  SetString(id, "version", eg_version);
+  SetString(id, "sbversion", sb_version);
 }
 void PersistedData::SetUpdaterChannel(const std::string& id,
                                       const std::string& channel) {

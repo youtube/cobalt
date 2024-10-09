@@ -276,6 +276,7 @@ void UpdaterModule::Update() {
             component.name = "cobalt";
             component.app_id = ids[0];
             component.version = manifest_version;
+            component.sb_version = std::to_string(SB_API_VERSION);
             component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
                                      std::end(kCobaltPublicKeyHash));
             component.requires_network_encryption = true;

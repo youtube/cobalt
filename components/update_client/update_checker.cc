@@ -258,10 +258,15 @@ void UpdateCheckerImpl::CheckForUpdatesHelper(
 
     std::string last_installed_version =
         GetPersistedData()->GetLastInstalledVersion(app_id);
+    std::string last_installed_starboard =
+        GetPersistedData()->GetLastInstalledSbVersion(app_id);
     // If the version of the last installed update package is higher than the
-    // version of the running binary, use the former to indicate the current
-    // update version in the update check request.
+    // version of the running binary and the starboard version of the last
+    // installed update matched the binary currently running, use the last
+    // installed version to indicate the current update version in the update
+    // check request.
     if (!last_installed_version.empty() &&
+        last_installed_starboard == std::to_string(SB_API_VERSION) &&
         base::Version(last_installed_version).CompareTo(current_version) > 0) {
       current_version = base::Version(last_installed_version);
     }
