@@ -134,10 +134,12 @@ config("compiler_flags") {
     ]
   }
 
-  if (is_debug || is_devel) {
-    cflags += [ "-g" ]
-  } else {
-    cflags += [ "-gline-tables-only" ]
+  if (!cobalt_fastbuild) {
+    if (is_debug || is_devel) {
+      cflags += [ "-g" ]
+    } else {
+      cflags += [ "-gline-tables-only" ]
+    }
   }
 
   if (use_asan) {
