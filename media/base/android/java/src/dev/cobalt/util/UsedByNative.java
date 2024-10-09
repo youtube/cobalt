@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2017 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Module Overview: Starboard Export module
-//
-// Provides macros for properly exporting or importing symbols from shared
-// libraries.
-#ifndef STARBOARD_EXPORT_H_
-#define STARBOARD_EXPORT_H_
+package dev.cobalt.util;
 
-#include "starboard/configuration.h"
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Target;
 
-#define SB_EXPORT __attribute__((visibility("default")))
-#define SB_EXPORT_PRIVATE __attribute__((visibility("default")))
-#define SB_IMPORT
-
-#define SB_EXPORT_PLATFORM __attribute__((visibility("default")))
-
-#endif  // STARBOARD_EXPORT_H_
+/**
+ * Annotation used for marking methods and fields that are called from native code. Useful for
+ * keeping components that would otherwise be removed by Proguard.
+ */
+@Target({ElementType.METHOD, ElementType.FIELD, ElementType.TYPE, ElementType.CONSTRUCTOR})
+public @interface UsedByNative {}

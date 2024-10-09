@@ -12,23 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//build/config/clang/clang.gni")
-import("//starboard/build/config/starboard_toolchains.gni")
+_home_dir = getenv("HOME")
+_starboard_toolchains_default_path = "$_home_dir/starboard-toolchains"
 
 declare_args() {
-  android_sdk_path = getenv("ANDROID_HOME")
-  android_ndk_path = ""
-  sb_android_ndk_version = "25.2.9519653"
-  android_ndk_api_level = 24
+  starboard_toolchains_path = getenv("_STARBOARD_TOOLCHAINS_DIR_KEY")
 }
 
-if (android_sdk_path == "") {
-  android_sdk_path = "$starboard_toolchains_path/AndroidSdk"
+if (starboard_toolchains_path == "") {
+  starboard_toolchains_path = _starboard_toolchains_default_path
 }
-
-if (android_ndk_path == "") {
-  android_ndk_path = "$android_sdk_path/ndk/$sb_android_ndk_version"
-}
-
-android_toolchain_path =
-    "$android_ndk_path/toolchains/llvm/prebuilt/linux-x86_64"

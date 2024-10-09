@@ -5,7 +5,7 @@
 // You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
-//
+//GameActivity.hgame-activity
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,7 +17,6 @@
 
 #include <android/looper.h>
 #include <android/native_window.h>
-#include <atomic>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -27,6 +26,7 @@
 #include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/atomic.h"
+#include "starboard/common/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/mutex.h"
 #include "starboard/configuration.h"
@@ -61,8 +61,12 @@ class ApplicationAndroid
     void* data = nullptr;
   };
 
+#if SB_API_VERSION >= 15
   ApplicationAndroid(ALooper* looper,
                      SbEventHandleCallback sb_event_handle_callback);
+#else
+  explicit ApplicationAndroid(ALooper* looper);
+#endif  //  SB_API_VERSION >= 15
   ~ApplicationAndroid() override;
 
   static ApplicationAndroid* Get() {
@@ -129,7 +133,7 @@ class ApplicationAndroid
 
   // In certain situations, the Starboard thread should not try to process new
   // system events (e.g. while one is being processed).
-  std::atomic_bool handle_system_events_{false};
+  atomic_bool handle_system_events_;
 
   // Synchronization for commands that change availability of Android resources
   // such as the input and/or native_window_.
@@ -141,7 +145,7 @@ class ApplicationAndroid
   SbAtomic32 android_stop_count_ = 0;
 
   // Set to true in the destructor to ensure other threads stop waiting.
-  std::atomic_bool application_destroying_{false};
+  atomic_bool application_destroying_;
 
   // The last Activity lifecycle state command received.
   AndroidCommand::CommandType activity_state_;

@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2017 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Module Overview: Starboard Export module
-//
-// Provides macros for properly exporting or importing symbols from shared
-// libraries.
-#ifndef STARBOARD_EXPORT_H_
-#define STARBOARD_EXPORT_H_
+package dev.cobalt.media;
 
-#include "starboard/configuration.h"
+/** Common definitions for logging in the media package. */
+public class Log {
+  public static final String TAG = "starboard_media";
 
-#define SB_EXPORT __attribute__((visibility("default")))
-#define SB_EXPORT_PRIVATE __attribute__((visibility("default")))
-#define SB_IMPORT
-
-#define SB_EXPORT_PLATFORM __attribute__((visibility("default")))
-
-#endif  // STARBOARD_EXPORT_H_
+  private Log() {}
+}

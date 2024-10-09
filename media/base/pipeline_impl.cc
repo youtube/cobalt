@@ -35,6 +35,12 @@
 #include "media/base/timestamp_constants.h"
 #include "media/base/video_decoder_config.h"
 
+// Includes for running Starboard on Android TV
+#include "starboard/media.h"
+#include "starboard/player.h"
+#include "base/android/jni_android.h"
+#include "starboard/android/shared/jni_env_ext.h"
+
 #if BUILDFLAG(IS_WIN)
 #include "media/base/win/mf_feature_checks.h"
 #endif  // BUILDFLAG(IS_WIN)
@@ -1238,6 +1244,27 @@ bool PipelineImpl::RendererWrapper::HasEncryptedStream() {
   return false;
 }
 
+// Stub callbacks
+void PlayerDeallocateSampleFunc(SbPlayer player,
+                                 void* context,
+                                 const void* sample_buffer) {}
+
+void PlayerDecoderStatusFunc(SbPlayer player,
+                                          void* context,
+                                          SbMediaType type,
+                                          SbPlayerDecoderState state,
+                                          int ticket) {}
+
+void PlayerStatusFunc(SbPlayer player,
+                                   void* context,
+                                   SbPlayerState state,
+                                   int ticket) {}
+
+void PlayerErrorFunc(SbPlayer player,
+                                  void* context,
+                                  SbPlayerError error,
+                                  const char* message) {}
+
 PipelineImpl::PipelineImpl(
     scoped_refptr<base::SequencedTaskRunner> media_task_runner,
     scoped_refptr<base::SingleThreadTaskRunner> main_task_runner,
@@ -1252,6 +1279,53 @@ PipelineImpl::PipelineImpl(
       is_suspended_(false) {
   DVLOG(2) << __func__;
   DCHECK(create_renderer_cb_);
+
+  // Workaround to initialize Starboard and create an SbPlayer.
+  static bool is_starboard_initialized = false;
+  if (!is_starboard_initialized) {
+    using starboard::android::shared::JniEnvExt;
+    JNIEnv* env = base::android::AttachCurrentThread();
+
+    auto bridge_class = base::android::GetClass(env, "dev.cobalt.coat.StarboardBridge");
+    DCHECK(bridge_class);
+
+    jmethodID ctor = env->GetMethodID(bridge_class.obj(), "<init>", "()V");
+    DCHECK(ctor);
+
+    env->NewObject(bridge_class.obj(), ctor);
+    is_starboard_initialized = true;
+    LOG(INFO) << "COBALT: Starboard initialized";
+  } else {
+    LOG(INFO) << "COBALT: Starboard already initialized";
+  }
+
+  SbPlayerCreationParam creation_param = {};
+
+  creation_param.drm_system = kSbDrmSystemInvalid;
+
+  creation_param.audio_stream_info.codec = kSbMediaAudioCodecOpus;
+  creation_param.audio_stream_info.mime = "";
+  creation_param.audio_stream_info.number_of_channels = 2;
+  creation_param.audio_stream_info.samples_per_second = 48000;
+  creation_param.audio_stream_info.bits_per_sample = 16;
+  creation_param.audio_stream_info.audio_specific_config_size = 0;
+  creation_param.audio_stream_info.audio_specific_config = "";
+
+  creation_param.video_stream_info.codec = kSbMediaVideoCodecVp9;
+  creation_param.video_stream_info.mime = "";
+  creation_param.video_stream_info.max_video_capabilities = "";
+  creation_param.video_stream_info.frame_width = 1920;
+  creation_param.video_stream_info.frame_height = 1080;
+  creation_param.output_mode = kSbPlayerOutputModePunchOut;
+
+  void* context = nullptr;
+  SbDecodeTargetGraphicsContextProvider* provider = nullptr;
+  SbPlayer player = SbPlayerCreate(kSbWindowInvalid, &creation_param, PlayerDeallocateSampleFunc, PlayerDecoderStatusFunc,
+     PlayerStatusFunc, PlayerErrorFunc, context, provider);
+  DCHECK(player);
+  SbPlayerDestroy(player);
+  SbDrmSystemIsValid(nullptr);
+  SbDrmTicketIsValid(0);
 
   renderer_wrapper_ = std::make_unique<RendererWrapper>(
       media_task_runner_, std::move(main_task_runner), media_log_);

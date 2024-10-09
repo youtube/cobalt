@@ -21,7 +21,9 @@
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
 #include "starboard/common/string.h"
+#if defined(COBALT_PLAIN_VANILLA)
 #include "starboard/shared/starboard/application.h"
+#endif  // defined(COBALT_PLAIN_VANILLA)
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
@@ -51,6 +53,7 @@ void DumpInputHash(const InputBuffer* input_buffer) {}
 #else  // defined(COBALT_BUILD_TYPE_GOLD)
 
 void DumpInputHash(const InputBuffer* input_buffer) {
+#if defined(COBALT_PLAIN_VANILLA)
   static const bool s_dump_input_hash =
       Application::Get()->GetCommandLine()->HasSwitch("dump_video_input_hash");
 
@@ -65,6 +68,7 @@ void DumpInputHash(const InputBuffer* input_buffer) {
                 << input_buffer->timestamp() << ": "
                 << MurmurHash2_32(input_buffer->data(), input_buffer->size(),
                                   0);
+#endif  // defined(COBALT_PLAIN_VANILLA)
 }
 
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)
@@ -76,11 +80,19 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
     SbDecodeTargetGraphicsContextProvider* provider)
     : JobOwner(kDetached),
       drm_system_(creation_param->drm_system),
+#if SB_API_VERSION >= 15
       audio_stream_info_(creation_param->audio_stream_info),
+#else   // SB_API_VERSION >= 15
+      audio_stream_info_(creation_param->audio_sample_info),
+#endif  // SB_API_VERSION >= 15
       output_mode_(creation_param->output_mode),
       max_video_input_size_(0),
       decode_target_graphics_context_provider_(provider),
+#if SB_API_VERSION >= 15
       video_stream_info_(creation_param->video_stream_info) {
+#else   // SB_API_VERSION >= 15
+      video_stream_info_(creation_param->video_sample_info) {
+#endif  // SB_API_VERSION >= 15
   update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
 }
 

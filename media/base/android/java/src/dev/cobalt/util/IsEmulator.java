@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2017 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Module Overview: Starboard Export module
-//
-// Provides macros for properly exporting or importing symbols from shared
-// libraries.
-#ifndef STARBOARD_EXPORT_H_
-#define STARBOARD_EXPORT_H_
+package dev.cobalt.util;
 
-#include "starboard/configuration.h"
+import android.os.Build;
 
-#define SB_EXPORT __attribute__((visibility("default")))
-#define SB_EXPORT_PRIVATE __attribute__((visibility("default")))
-#define SB_IMPORT
+/** A simple utility class to detect whether we're running in an emulator or not. */
+public class IsEmulator {
+  private IsEmulator() {}
 
-#define SB_EXPORT_PLATFORM __attribute__((visibility("default")))
-
-#endif  // STARBOARD_EXPORT_H_
+  public static boolean isEmulator() {
+    String qemu = System.getProperty("ro.kernel.qemu", "?");
+    return qemu.equals("1")
+        || Build.HARDWARE.contains("goldfish")
+        || Build.HARDWARE.contains("ranchu");
+  }
+}

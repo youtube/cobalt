@@ -14,36 +14,8 @@
 
 #include "starboard/audio_sink.h"
 
-#include "starboard/android/shared/application_android.h"
-#include "starboard/android/shared/audio_track_audio_sink_type.h"
-#include "starboard/common/log.h"
-
 int SbAudioSinkGetMinBufferSizeInFrames(int channels,
                                         SbMediaAudioSampleType sample_type,
                                         int sampling_frequency_hz) {
-  if (channels <= 0 || channels > SbAudioSinkGetMaxChannels()) {
-    SB_LOG(ERROR) << "Not support channels count " << channels;
-    return -1;
-  }
-  if (sample_type != kSbMediaAudioSampleTypeInt16Deprecated &&
-      sample_type != kSbMediaAudioSampleTypeFloat32) {
-    SB_LOG(ERROR) << "Not support sample type " << sample_type;
-    return -1;
-  }
-  if (sampling_frequency_hz <= 0 || sampling_frequency_hz >= 50000) {
-    SB_LOG(ERROR) << "Not support sample frequency " << sampling_frequency_hz;
-    return -1;
-  }
-
-  int min_buffer_size = starboard::android::shared::AudioTrackAudioSinkType::
-      GetMinBufferSizeInFrames(channels, sample_type, sampling_frequency_hz);
-
-  int overlayed_min_buffer_size =
-      starboard::android::shared::ApplicationAndroid::Get()
-          ->GetOverlayedIntValue("min_audio_sink_buffer_size_in_frames");
-  if (overlayed_min_buffer_size != 0 &&
-      overlayed_min_buffer_size > min_buffer_size) {
-    min_buffer_size = overlayed_min_buffer_size;
-  }
-  return min_buffer_size;
+  return 5 * 1024;
 }
