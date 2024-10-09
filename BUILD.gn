@@ -879,6 +879,10 @@ group("gn_all") {
   if (checkout_src_internal) {
     deps += [ "//internal:all" ]
   }
+
+  if (chrobalt) {
+    deps += [ "//chrobalt:gn_all" ]
+  }
 }
 
 # All Rust targets. This is provided for convenience while developing Rust to

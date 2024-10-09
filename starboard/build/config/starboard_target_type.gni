@@ -38,7 +38,6 @@ template("starboard_platform_target") {
       configs += extra_configs
     }
     if (target_type == "shared_library") {
-      build_loader = false
       output_extension = starboard_shared_library_extension
     }
     public_deps = [
@@ -46,7 +45,7 @@ template("starboard_platform_target") {
       "//starboard/egl_and_gles",
     ]
     if (sb_is_evergreen_compatible &&
-        current_toolchain == starboard_toolchain) {
+        current_toolchain == starboard_toolchain && enable_evergreen_code) {
       public_deps += [ "//starboard/crashpad_wrapper" ]
     } else {
       public_deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
