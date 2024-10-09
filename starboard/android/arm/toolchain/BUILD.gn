@@ -25,6 +25,23 @@ gcc_toolchain("target") {
   nm = "nm"
 
   toolchain_args = {
+    current_cpu = "arm"
+    current_os = "android"
+    is_clang = true
+  }
+}
+
+gcc_toolchain("starboard") {
+  prefix = rebase_path("$android_toolchain_path/bin", root_build_dir)
+  cc = "$prefix/armv7a-linux-androideabi${android_ndk_api_level}-clang"
+  cxx = "$prefix/armv7a-linux-androideabi${android_ndk_api_level}-clang++"
+  ld = cxx
+  ar = "ar"
+  nm = "nm"
+
+  toolchain_args = {
+    current_cpu = "arm"
+    current_os = "android"
     is_clang = true
   }
 }
@@ -38,6 +55,8 @@ gcc_toolchain("native_target") {
   nm = "nm"
 
   toolchain_args = {
+    current_cpu = "arm"
+    current_os = "android"
     is_starboard = false
     is_native_target_build = true
     is_clang = true

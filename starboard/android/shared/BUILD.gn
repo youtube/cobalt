@@ -226,7 +226,7 @@ static_library("starboard_platform") {
     "drm_create_system.cc",
     "drm_system.cc",
     "drm_system.h",
-    "egl_swap_buffers.cc",
+    # "egl_swap_buffers.cc",
     "file_internal.cc",
     "file_internal.h",
     "get_home_directory.cc",
@@ -281,11 +281,11 @@ static_library("starboard_platform") {
     "player_set_max_video_input_size.cc",
     "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
-    "posix_emu/dirent.cc",
+    # "posix_emu/dirent.cc",
     "posix_emu/errno.cc",
-    "posix_emu/file.cc",
+    # "posix_emu/file.cc",
     "posix_emu/pthread.cc",
-    "posix_emu/stat.cc",
+    # "posix_emu/stat.cc",
     "sanitizer_options.cc",
     "socket_get_interface_address.cc",
     "speech_synthesis_cancel.cc",
@@ -378,6 +378,11 @@ static_library("starboard_platform") {
   if (sb_evergreen_compatible_use_libunwind) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
   }
+
+  cflags = [
+    "-include",
+    "atomic",
+  ]
 }
 
 static_library("starboard_base_symbolize") {
