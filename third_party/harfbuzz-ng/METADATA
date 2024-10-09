@@ -15,4 +15,8 @@ third_party {
     type: "UpstreamSubdir"
     value: "third_party/harfbuzz-ng"
   }
+  identifier {
+    type: "SubPackages"
+    value: "src"
+  }
 }

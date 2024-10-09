@@ -12,4 +12,8 @@ third_party {
     type: "UpstreamSubdir"
     value: "third_party/google_benchmark"
   }
+  identifier {
+    type: "SubPackages"
+    value: "src"
+  }
 }
