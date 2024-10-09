@@ -32,7 +32,6 @@ declare_args() {
   using_old_compiler = false
 
   build_with_separate_cobalt_toolchain = true
-
 }
 
 assert(!(is_starboard && is_native_target_build),
@@ -74,5 +73,3 @@ if (build_with_separate_cobalt_toolchain) {
   cobalt_toolchain = default_toolchain
   starboard_toolchain = cobalt_toolchain
 }
-
-set_default_toolchain(cobalt_toolchain)
