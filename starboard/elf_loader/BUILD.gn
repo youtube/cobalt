@@ -84,8 +84,8 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":evergreen_info",
       "//starboard:starboard_group",
       "//starboard/common",
-      "//starboard/crashpad_wrapper",
       "//starboard/shared/modular:starboard_layer_posix_abi_wrappers",
+      "//starboard/crashpad_wrapper",
     ]
   }
 }
@@ -157,6 +157,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
 if (current_toolchain == starboard_toolchain) {
   target(starboard_level_gtest_target_type, "elf_loader_test") {
     testonly = true
+    build_loader = false
 
     sources = [ "//starboard/common/test_main.cc" ]
     deps = [
@@ -186,9 +187,7 @@ if (current_toolchain == starboard_toolchain) {
 }
 
 copy("copy_elf_loader_testdata") {
-  if (enable_install_targets) {
-    install_content = true
-  }
+  install_content = true
   sources = [
     "testdata/compressed.lz4",
     "testdata/compressed_no_content_size.lz4",
