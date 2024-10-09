@@ -46,6 +46,7 @@ class MediaSettings {
   IsMediaElementUsingMediaSourceBufferedRangeEnabled() const = 0;
   virtual base::Optional<bool>
   IsMediaElementUsingMediaSourceAttachmentMethodsEnabled() const = 0;
+  virtual base::Optional<bool> IsMseInWorkersEnabled() const = 0;
 
  protected:
   MediaSettings() = default;
@@ -107,6 +108,10 @@ class MediaSettingsImpl : public MediaSettings {
     base::AutoLock auto_lock(lock_);
     return is_media_element_using_media_source_attachment_methods_enabled_;
   }
+  base::Optional<bool> IsMseInWorkersEnabled() const override {
+    base::AutoLock auto_lock(lock_);
+    return is_mse_in_workers_enabled_;
+  }
 
   // Returns true when the setting associated with `name` is set to `value`.
   // Returns false when `name` is not associated with any settings, or if
@@ -128,6 +133,7 @@ class MediaSettingsImpl : public MediaSettings {
       is_media_element_using_media_source_buffered_range_enabled_;
   base::Optional<bool>
       is_media_element_using_media_source_attachment_methods_enabled_;
+  base::Optional<bool> is_mse_in_workers_enabled_;
 
   base::Optional<bool> is_painting_video_background_to_black_;
 };

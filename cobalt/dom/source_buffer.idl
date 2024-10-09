@@ -15,6 +15,9 @@
 // https://www.w3.org/TR/media-source/#idl-def-SourceBuffer
 // https://www.w3.org/TR/2016/CR-media-source-20160705/#sourcebuffer
 
+[
+  Exposed=(Window,DedicatedWorker),
+]
 interface SourceBuffer : EventTarget {
   // MSE 2016 Interface
   [RaisesException] attribute SourceBufferAppendMode mode;
