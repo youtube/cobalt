@@ -84,7 +84,7 @@ config("compiler_flags") {
     }
   }
 
-  if (is_debug || is_devel) {
+  if (!cobalt_fastbuild && (is_debug || is_devel)) {
     cflags += [ "-g" ]
   }
 
@@ -131,12 +131,7 @@ config("platform_configuration") {
   ]
 
   if (!sb_is_modular || current_toolchain != cobalt_toolchain) {
-    ldflags += [
-      "-static-libstdc++",
-
-      # TODO(b/371589344#comment2) Revisit if static-libstdc++ is needed.
-      "-Wno-unused-command-line-argument",
-    ]
+    ldflags += [ "-static-libstdc++" ]
   }
 
   defines += [
@@ -220,28 +215,5 @@ config("no_pedantic_warnings") {
     # Width of bit-field exceeds width of its type- value will be truncated
     "-Wno-bitfield-width",
     "-Wno-undefined-var-template",
-
-    "-Wno-unused-private-field",
-    "-Wno-implicit-fallthrough",
-    "-Wno-c++98-compat-extra-semi",
-    "-Wno-unused-variable",
-    "-Wno-reorder-ctor",
-    "-Wno-sign-compare",
-    "-Wno-unused-but-set-variable",
-    "-Wno-unreachable-code-return",
-    "-Wno-unused-function",
-    "-Wno-missing-braces",
-    "-Wno-mismatched-tags",
-    "-Wno-return-type",
-
-    # ./../starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.cc:237:28:
-    # error: comparison of array 'ai_copy.ai_addr->sa_data' not equal
-    # to a null pointer is always true [-Werror,-Wtautological-pointer-compare]
-    "-Wno-tautological-pointer-compare",
-
-    #../../starboard/shared/ffmpeg/ffmpeg_video_decoder_impl.cc:512:3: error:
-    # ignoring return value of function declared with
-    # 'warn_unused_result' attribute [-Werror,-Wunused-result]
-    "-Wno-unused-result",
   ]
 }

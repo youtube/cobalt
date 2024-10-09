@@ -33,10 +33,10 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":reset_evergreen_update",
       ":slot_management",
       "//starboard:starboard_group",
-      "//starboard/crashpad_wrapper",
       "//starboard/elf_loader:constants",
       "//starboard/elf_loader:evergreen_info",
       "//starboard/elf_loader:sabi_string",
+      "//starboard/crashpad_wrapper",
     ]
   }
 }
@@ -90,6 +90,7 @@ static_library("record_loader_app_status") {
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
   target(starboard_level_final_executable_type, "loader_app") {
+    build_loader = false
     if (target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") {
       if (cobalt_font_package == "empty") {
         data_deps = [ "//starboard/content/fonts:copy_font_data" ]
