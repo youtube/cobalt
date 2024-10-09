@@ -127,7 +127,7 @@ config("compiler_flags") {
     "-I$raspi_home/busterroot/usr/include/arm-linux-gnueabihf",
   ]
 
-  if (!cobalt_fastbuild && (is_debug || is_devel)) {
+  if (is_debug || is_devel) {
     cflags += [ "-g" ]
   }
 

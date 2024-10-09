@@ -14,6 +14,7 @@
 
 import("//build/config/compiler/compiler.gni")
 import("//starboard/build/config/os_definitions.gni")
+import("//starboard/build/config/toolchain_variables.gni")
 
 # TODO: b/319085130 - This macro is only used temporarily to enable compilation
 #                     of upstream libraries being updated in Cobalt. Use it as

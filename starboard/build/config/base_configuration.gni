@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/config/clang.gni")
+import("//build/config/clang/clang.gni")
 import("//starboard/content/fonts/font_configuration.gni")
 
 # NOTE:
@@ -150,32 +150,8 @@ declare_args() {
   # Enables an NPLB audit of C++20 support.
   sb_enable_cpp20_audit = true
 
-  # Enable WASM and install WebAssembly global.
-  v8_enable_webassembly = false
-
   # Set this to true if the modular toolchain linker doesn't strip
   # all unused symbols and nplb fails to link.
   # TODO: b/297808555 Remove this flag after nplb is fixed
   sb_has_unused_symbol_issue = false
-}
-
-if (current_toolchain == starboard_toolchain &&
-    build_with_separate_cobalt_toolchain) {
-  declare_args() {
-    # Target-specific configurations for executable targets.
-    executable_configs =
-        [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
-
-    # Target-specific configurations for shared_library targets.
-    shared_library_configs =
-        [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
-  }
-} else {
-  declare_args() {
-    # Target-specific configurations for executable targets.
-    executable_configs = []
-
-    # Target-specific configurations for shared_library targets.
-    shared_library_configs = []
-  }
 }
