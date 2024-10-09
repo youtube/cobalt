@@ -55,6 +55,17 @@ int GetBitsPerPixel(const std::string& mime_type) {
   return 8;
 }
 
+int GetMaxChannelCount() {
+  int channels = 2;
+  int index = 0;
+  SbMediaAudioConfiguration configuration;
+  while (SbMediaGetAudioConfiguration(index++, &configuration)) {
+    if (configuration.number_of_channels > channels)
+      channels = configuration.number_of_channels;
+  }
+  return channels;
+}
+
 }  // namespace
 
 SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
@@ -91,7 +102,7 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
       return kSbMediaAudioCodecPcm;
 #if SB_API_VERSION >= 15
     case AudioCodec::kIAMF:
-     return kSbMediaAudioCodecIamf;
+      return kSbMediaAudioCodecIamf;
 #endif  // SB_API_VERSION >= 15
     default:
       // Cobalt only supports a subset of audio codecs defined by Chromium.
@@ -142,15 +153,21 @@ SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
 
 #if SB_API_VERSION < 15
   audio_stream_info.format_tag = 0x00ff;
-#endif // SB_API_VERSION < 15
-  audio_stream_info.number_of_channels =
+#endif  // SB_API_VERSION < 15
+audio_stream_info.number_of_channels =
       ChannelLayoutToChannelCount(audio_decoder_config.channel_layout());
+#if SB_API_VERSION >= 15
+  if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {
+    // IAMF mixes audio signals to the highest available speaker layout.
+    audio_stream_info.number_of_channels = GetMaxChannelCount();
+  }
+#endif  // SB_API_VERSION >= 15
   audio_stream_info.samples_per_second =
       audio_decoder_config.samples_per_second();
 #if SB_API_VERSION < 15
   audio_stream_info.average_bytes_per_second = 1;
   audio_stream_info.block_alignment = 4;
-#endif // SB_API_VERSION < 15
+#endif  // SB_API_VERSION < 15
   audio_stream_info.bits_per_sample = audio_decoder_config.bits_per_channel();
 
   const auto& extra_data = audio_stream_info.codec == kSbMediaAudioCodecAac
