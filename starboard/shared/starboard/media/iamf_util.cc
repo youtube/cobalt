@@ -29,7 +29,7 @@ namespace {
 // Helper function to convert an input string to a uint32_t. On success, it
 // returns true and sets |*output| to the converted number. It returns false if
 // the input contains non-digit characters, if the converted number is too
-// large to fit in uinit32_t, or if the input is empty.
+// large to fit in uint32_t, or if the input is empty.
 bool StringToUInt(const std::string& input, uint32_t* output) {
   SB_DCHECK(output);
   if (input.empty()) {
