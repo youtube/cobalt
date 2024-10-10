@@ -229,7 +229,11 @@ void PosixInitializePortNumberForTests() {
   int local_add_result =
       getsockname(socket_fd, reinterpret_cast<sockaddr*>(&addr_in), &socklen);
 
-  SB_DCHECK(local_add_result >= 0);
+  if (local_add_result < 0) {
+    ADD_FAILURE() << "Socket get local address failed: " << local_add_result;
+    HANDLE_EINTR(close(socket_fd));
+    return errno;
+  }
   port_number_for_tests = addr_in.sin_port;
 
   // Clean up the socket.
