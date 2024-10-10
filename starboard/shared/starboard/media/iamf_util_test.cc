@@ -88,6 +88,16 @@ TEST(IamfUtilTest, Invalid) {
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
+  // Leading delimiting period
+  codec_param = ".iamf.000.000.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+
+  // Trailing delimiting period
+  codec_param = "iamf.000.000.Opus.";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+
   // No delimiting period between codec param string and primary profile
   codec_param = "iamf000.000.Opus";
   util = IamfMimeUtil(codec_param);
@@ -103,17 +113,18 @@ TEST(IamfUtilTest, Invalid) {
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
-  // Invalid primary profile value
+  // Letters in primary profile value
   codec_param = "iamf.0aa.000.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
-  // Invalid additional profile value
+  // Letters in additional profile value
   codec_param = "iamf.000.0aa.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
-  // Invalid primary profile value (uppercase "O" instead of the digit 0)
+  // Letter in primary profile value (uppercase letter "O" instead of the digit
+  // 0)
   codec_param = "iamf.0O0.000.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
