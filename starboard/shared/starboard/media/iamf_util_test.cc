@@ -48,6 +48,23 @@ TEST(IamfUtilTest, Invalid) {
   IamfMimeUtil util(codec_param);
   EXPECT_FALSE(util.is_valid());
 
+  // Invalid codec capitalization
+  codec_param = "iamf.000.000.opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+  codec_param = "iamf.000.000.flac";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+  codec_param = "iamf.000.000.FlAc";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+  codec_param = "iamf.000.000.MP4a.40.2";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+  codec_param = "IAMF.000.000.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+
   // Invalid additional profile value
   codec_param = "iamf.000.999.Opus";
   util = IamfMimeUtil(codec_param);
@@ -107,9 +124,15 @@ TEST(IamfUtilTest, Invalid) {
   codec_param = "iamf.00.000.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
+  codec_param = "iamf.0000.000.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
   // Invalid additional profile length
   codec_param = "iamf.000.00.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+  codec_param = "iamf.000.0000.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
@@ -117,9 +140,15 @@ TEST(IamfUtilTest, Invalid) {
   codec_param = "iamf.0aa.000.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
+  codec_param = "iamf.xxx.000.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
 
   // Letters in additional profile value
   codec_param = "iamf.000.0aa.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+  codec_param = "iamf.000.xxx.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
@@ -139,6 +168,11 @@ TEST(IamfUtilTest, Invalid) {
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
+  // HE-AAC substream param
+  codec_param = "iamf.000.000.mp4a.40.5";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+
   // Non IAMF codec param
   codec_param = "ec-3";
   util = IamfMimeUtil(codec_param);
@@ -148,39 +182,47 @@ TEST(IamfUtilTest, Invalid) {
 TEST(IamfUtilTest, SubstreamCodec) {
   std::string codec_param = "iamf.000.000.Opus";
   IamfMimeUtil util(codec_param);
+  EXPECT_TRUE(util.is_valid());
   EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecOpus);
 
   codec_param = "iamf.000.000.fLaC";
   util = IamfMimeUtil(codec_param);
+  EXPECT_TRUE(util.is_valid());
   EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecFlac);
 
   codec_param = "iamf.000.000.ipcm";
   util = IamfMimeUtil(codec_param);
+  EXPECT_TRUE(util.is_valid());
   EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecIpcm);
 
   codec_param = "iamf.000.000.mp4a.40.2";
   util = IamfMimeUtil(codec_param);
+  EXPECT_TRUE(util.is_valid());
   EXPECT_EQ(util.substream_codec(), kIamfSubstreamCodecMp4a);
 }
 
 TEST(IamfUtilTest, Profile) {
   std::string codec_param = "iamf.000.000.Opus";
   IamfMimeUtil util(codec_param);
+  EXPECT_TRUE(util.is_valid());
   EXPECT_EQ(util.primary_profile(), kIamfProfileSimple);
   EXPECT_EQ(util.additional_profile(), kIamfProfileSimple);
 
   codec_param = "iamf.001.000.Opus";
   util = IamfMimeUtil(codec_param);
+  EXPECT_TRUE(util.is_valid());
   EXPECT_EQ(util.primary_profile(), kIamfProfileBase);
   EXPECT_EQ(util.additional_profile(), kIamfProfileSimple);
 
   codec_param = "iamf.000.001.Opus";
   util = IamfMimeUtil(codec_param);
+  EXPECT_TRUE(util.is_valid());
   EXPECT_EQ(util.primary_profile(), kIamfProfileSimple);
   EXPECT_EQ(util.additional_profile(), kIamfProfileBase);
 
   codec_param = "iamf.002.000.Opus";
   util = IamfMimeUtil(codec_param);
+  EXPECT_TRUE(util.is_valid());
   ASSERT_NE(util.primary_profile(), kIamfProfileSimple);
   ASSERT_NE(util.primary_profile(), kIamfProfileBase);
   ASSERT_EQ(util.primary_profile(), 2);

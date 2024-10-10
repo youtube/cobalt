@@ -14,7 +14,8 @@
 
 #include "starboard/shared/starboard/media/iamf_util.h"
 
-#include <sstream>
+#include <cmath>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -24,6 +25,34 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 namespace media {
+namespace {
+// Helper function to convert an input string to a uint32_t. On success, it
+// returns true and sets |*output| to the converted number. It returns false if
+// the input contains non-digit characters, if the converted number is too
+// large to fit in uinit32_t, or if the input is empty.
+bool StringToUInt(const std::string& input, uint32_t* output) {
+  SB_DCHECK(output);
+  if (input.empty()) {
+    return false;
+  }
+  uint64_t output_l = 0;
+  std::string reversed_input = std::string(input.rbegin(), input.rend());
+  for (int i = 0; i < reversed_input.size(); ++i) {
+    uint32_t digit = reversed_input[i] - '0';
+    if (digit > 9) {
+      // The read character is not a digit.
+      return false;
+    }
+    output_l += (digit * std::pow(10, i));
+    if (output_l > std::numeric_limits<uint32_t>::max()) {
+      // Number is too large to fit in uint32_t.
+      return false;
+    }
+  }
+  *output = static_cast<uint32_t>(output_l);
+  return true;
+}
+}  // namespace
 
 IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
   // Reference: Immersive Audio Model and Formats;
@@ -53,24 +82,22 @@ IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
     return;
   }
 
-  // The primary profile string should be three digits, and should be between 0
-  // and 255 inclusive.
-  int primary_profile;
-  std::stringstream stream(vec[1]);
-  char c;
-  stream >> primary_profile;
-  if (stream.fail() || stream.get(c) || vec[1].size() != 3 ||
-      primary_profile > 255) {
+  // The length of the primary and additional profile strings must be 3.
+  if (vec[1].size() != 3 || vec[2].size() != 3) {
     return;
   }
 
-  // The additional profile string should be three digits, and should be between
-  // 0 and 255 inclusive.
-  stream = std::stringstream(vec[2]);
-  int additional_profile;
-  stream >> additional_profile;
-  if (stream.fail() || stream.get(c) || vec[2].size() != 3 ||
-      additional_profile > 255) {
+  // The primary profile must be between 0 and 255 inclusive.
+  uint32_t primary_profile = 0;
+  if (!StringToUInt(vec[1], &primary_profile) ||
+      primary_profile > kIamfProfileMax) {
+    return;
+  }
+
+  // The additional profile must be between 0 and 255 inclusive.
+  uint32_t additional_profile = 0;
+  if (!StringToUInt(vec[2], &additional_profile) ||
+      additional_profile > kIamfProfileMax) {
     return;
   }
 

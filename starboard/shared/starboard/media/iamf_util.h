@@ -35,9 +35,9 @@ enum IamfSubstreamCodec {
 
 // These values must match the profile values defined in
 // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#profiles
-constexpr int kIamfProfileSimple = 0;
-constexpr int kIamfProfileBase = 1;
-constexpr int kIamfProfileMax = 255;
+constexpr uint32_t kIamfProfileSimple = 0;
+constexpr uint32_t kIamfProfileBase = 1;
+constexpr uint32_t kIamfProfileMax = 255;
 
 // Parses an IAMF codecs parameter string following the convention defined in
 // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#codecsparameter.
@@ -65,8 +65,8 @@ class IamfMimeUtil {
   }
 
  private:
-  int primary_profile_ = std::numeric_limits<int>::max();
-  int additional_profile_ = std::numeric_limits<int>::max();
+  int primary_profile_ = std::numeric_limits<uint32_t>::max();
+  int additional_profile_ = std::numeric_limits<uint32_t>::max();
   IamfSubstreamCodec substream_codec_ = kIamfSubstreamCodecUnknown;
 };
 
