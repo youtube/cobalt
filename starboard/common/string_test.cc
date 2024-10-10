@@ -43,6 +43,30 @@ TEST(StringTest, SplitString) {
   for (int i = 0; i < vec.size(); ++i) {
     ASSERT_EQ(output[i], vec[i]);
   }
+
+  str = ".string.starts.with.delimiter";
+  output = SplitString(str, '.');
+  vec = {"", "string", "starts", "with", "delimiter"};
+  ASSERT_EQ(output.size(), vec.size());
+  for (int i = 0; i < vec.size(); ++i) {
+    ASSERT_EQ(output[i], vec[i]);
+  }
+
+  str = "string.ends.with.delimiter.";
+  output = SplitString(str, '.');
+  vec = {"string", "ends", "with", "delimiter", ""};
+  ASSERT_EQ(output.size(), vec.size());
+  for (int i = 0; i < vec.size(); ++i) {
+    ASSERT_EQ(output[i], vec[i]);
+  }
+
+  str = "....";
+  output = SplitString(str, '.');
+  vec = {"", "", "", "", ""};
+  ASSERT_EQ(output.size(), vec.size());
+  for (int i = 0; i < vec.size(); ++i) {
+    ASSERT_EQ(output[i], vec[i]);
+  }
 }
 
 TEST(StringTest, SplitStringEmptyInput) {

@@ -16,7 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_MEDIA_IAMF_UTIL_H_
 
 #include <limits>
-#include <string>
+#include <string_view>
 
 #include "starboard/common/log.h"
 
@@ -44,7 +44,7 @@ constexpr int kIamfProfileMax = 255;
 // Always check is_valid() before calling the getter functions.
 class IamfMimeUtil {
  public:
-  explicit IamfMimeUtil(const std::string& mime_type);
+  explicit IamfMimeUtil(std::string_view mime_type);
 
   bool is_valid() const {
     return primary_profile_ <= kIamfProfileMax &&

@@ -41,6 +41,7 @@ TEST(IamfUtilTest, IsValid) {
   util = IamfMimeUtil(codec_param);
   EXPECT_TRUE(util.is_valid());
 
+  // Invalid params
   codec_param = "iamf.000.000.vorbis";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
@@ -86,6 +87,18 @@ TEST(IamfUtilTest, IsValid) {
   EXPECT_FALSE(util.is_valid());
 
   codec_param = "iamf.000.00.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+
+  codec_param = "iamf.0aa.000.Opus.";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+
+  codec_param = "iamf.000.0aa.Opus.";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+
+  codec_param = "iamf.0O0.000.Opus.";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 

@@ -25,6 +25,7 @@
 #endif
 #include <cstring>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "starboard/configuration.h"
@@ -104,7 +105,7 @@ static SB_C_FORCE_INLINE int strlcat(CHAR* dst, const CHAR* src, int dst_size) {
 }
 
 // Splits a string on a char delimiter.
-inline std::vector<std::string> SplitString(const std::string& input,
+inline std::vector<std::string> SplitString(std::string_view input,
                                             char delimiter) {
   std::vector<std::string> output;
   if (input.empty()) {
