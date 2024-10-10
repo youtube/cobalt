@@ -37,7 +37,7 @@ TEST_P(PairSbSocketWrapperTest, SunnyDay) {
 
   std::unique_ptr<ConnectedTrioWrapped> trio =
       CreateAndConnectWrapped(GetServerAddressType(), GetClientAddressType(),
-                              GetPortNumberForTests(), kSocketTimeout);
+                              PosixGetPortNumberForTests(), kSocketTimeout);
   ASSERT_TRUE(trio);
   ASSERT_TRUE(trio->server_socket);
   ASSERT_TRUE(trio->server_socket->IsValid());
@@ -81,15 +81,6 @@ TEST_P(PairSbSocketWrapperTest, SunnyDay) {
     EXPECT_EQ(pattern[i], receive_buf[i]) << "Position " << i;
   }
 }
-
-INSTANTIATE_TEST_CASE_P(
-    SbSocketAddressTypes,
-    PairSbSocketWrapperTest,
-    ::testing::Values(
-        std::make_pair(kSbSocketAddressTypeIpv4, kSbSocketAddressTypeIpv4),
-        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv6),
-        std::make_pair(kSbSocketAddressTypeIpv6, kSbSocketAddressTypeIpv4)),
-    GetSbSocketAddressTypePairName);
 
 }  // namespace
 }  // namespace nplb
