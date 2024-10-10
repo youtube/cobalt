@@ -24,7 +24,7 @@ namespace starboard {
 namespace media {
 namespace {
 
-TEST(IamfUtilTest, IsValid) {
+TEST(IamfUtilTest, Valid) {
   std::string codec_param = "iamf.000.000.Opus";
   IamfMimeUtil util(codec_param);
   EXPECT_TRUE(util.is_valid());
@@ -40,76 +40,95 @@ TEST(IamfUtilTest, IsValid) {
   codec_param = "iamf.000.000.mp4a.40.2";
   util = IamfMimeUtil(codec_param);
   EXPECT_TRUE(util.is_valid());
+}
 
-  // Invalid params
-  codec_param = "iamf.000.000.vorbis";
-  util = IamfMimeUtil(codec_param);
+TEST(IamfUtilTest, Invalid) {
+  // Invalid substream codec
+  std::string codec_param = "iamf.000.000.vorbis";
+  IamfMimeUtil util(codec_param);
   EXPECT_FALSE(util.is_valid());
 
-  codec_param = "iamf.000.00.Opus";
-  util = IamfMimeUtil(codec_param);
-  EXPECT_FALSE(util.is_valid());
-
+  // Invalid additional profile value
   codec_param = "iamf.000.999.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
+  // Invalid primary profile value
   codec_param = "iamf.999.000.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
+  // Invalid leading codec param
   codec_param = "iacb.000.000.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
+  // Invalid length for Opus substream
   codec_param = "iamf.000.000.Opus.40.2";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
+  // Invalid length for AAC-LC substream
+  codec_param = "iamf.000.000.mp4a";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+
+  // Invalid param for AAC-LC substream
   codec_param = "iamf.000.000.mp4a.40.3";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
+  // Invalid param for AAC-LC substream
   codec_param = "iamf.000.000.mp4a.40.20";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
+  // Too many delimiting periods
   codec_param = "iamf.000.000..Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
+  // No delimiting period between codec param string and primary profile
   codec_param = "iamf000.000.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
+  // Invalid primary profile length
   codec_param = "iamf.00.000.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
+  // Invalid additional profile length
   codec_param = "iamf.000.00.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
-  codec_param = "iamf.0aa.000.Opus.";
+  // Invalid primary profile value
+  codec_param = "iamf.0aa.000.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
-  codec_param = "iamf.000.0aa.Opus.";
+  // Invalid additional profile value
+  codec_param = "iamf.000.0aa.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
-  codec_param = "iamf.0O0.000.Opus.";
+  // Invalid primary profile value (uppercase "O" instead of the digit 0)
+  codec_param = "iamf.0O0.000.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
-  codec_param = "iamf.000.00.mp4a.40.20";
+  // Invalid additional profile with AAC-LC substream
+  codec_param = "iamf.000.00.mp4a.40.2";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
+  // Misplaced delimiting period for AAC-LC substream
   codec_param = "iamf.000.000.mp4a.402.";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
+  // Non IAMF codec param
   codec_param = "ec-3";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());

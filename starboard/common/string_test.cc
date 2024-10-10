@@ -43,30 +43,6 @@ TEST(StringTest, SplitString) {
   for (int i = 0; i < vec.size(); ++i) {
     ASSERT_EQ(output[i], vec[i]);
   }
-
-  str = ".string.starts.with.delimiter";
-  output = SplitString(str, '.');
-  vec = {"", "string", "starts", "with", "delimiter"};
-  ASSERT_EQ(output.size(), vec.size());
-  for (int i = 0; i < vec.size(); ++i) {
-    ASSERT_EQ(output[i], vec[i]);
-  }
-
-  str = "string.ends.with.delimiter.";
-  output = SplitString(str, '.');
-  vec = {"string", "ends", "with", "delimiter", ""};
-  ASSERT_EQ(output.size(), vec.size());
-  for (int i = 0; i < vec.size(); ++i) {
-    ASSERT_EQ(output[i], vec[i]);
-  }
-
-  str = "....";
-  output = SplitString(str, '.');
-  vec = {"", "", "", "", ""};
-  ASSERT_EQ(output.size(), vec.size());
-  for (int i = 0; i < vec.size(); ++i) {
-    ASSERT_EQ(output[i], vec[i]);
-  }
 }
 
 TEST(StringTest, SplitStringEmptyInput) {
@@ -80,6 +56,42 @@ TEST(StringTest, SplitStringNullDelimiter) {
   std::vector<std::string> output = SplitString(str, '\0');
   ASSERT_EQ(output.size(), 1);
   ASSERT_EQ(output[0], str);
+}
+
+TEST(StringTest, SplitStringIrregularDelimiterPositions) {
+  std::string str = ".string.starts.with.delimiter";
+  std::vector<std::string> output = SplitString(str, '.');
+  std::vector<std::string> vec = {"", "string", "starts", "with", "delimiter"};
+  ASSERT_EQ(output.size(), vec.size());
+  for (int i = 0; i < vec.size(); ++i) {
+    ASSERT_EQ(output[i], vec[i]);
+  }
+
+  str = "string.ends.with.delimiter.";
+  output = SplitString(str, '.');
+  vec = {"string", "ends", "with", "delimiter", ""};
+  ASSERT_EQ(output.size(), vec.size());
+  for (int i = 0; i < vec.size(); ++i) {
+    ASSERT_EQ(output[i], vec[i]);
+  }
+
+  str = ".delimiters.on.both.sides.";
+  output = SplitString(str, '.');
+  vec = {"", "delimiters", "on", "both", "sides", ""};
+  ASSERT_EQ(output.size(), vec.size());
+  for (int i = 0; i < vec.size(); ++i) {
+    ASSERT_EQ(output[i], vec[i]);
+  }
+}
+
+TEST(StringTest, SplitStringOnlyDelimiters) {
+  std::string str = "....";
+  std::vector<std::string> output = SplitString(str, '.');
+  std::vector<std::string> vec = {"", "", "", "", ""};
+  ASSERT_EQ(output.size(), vec.size());
+  for (int i = 0; i < vec.size(); ++i) {
+    ASSERT_EQ(output[i], vec[i]);
+  }
 }
 
 }  // namespace

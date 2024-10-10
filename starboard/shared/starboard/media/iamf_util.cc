@@ -57,8 +57,10 @@ IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
   // and 255 inclusive.
   int primary_profile;
   std::stringstream stream(vec[1]);
+  char c;
   stream >> primary_profile;
-  if (stream.fail() || vec[1].size() != 3 || primary_profile > 255) {
+  if (stream.fail() || stream.get(c) || vec[1].size() != 3 ||
+      primary_profile > 255) {
     return;
   }
 
@@ -67,7 +69,8 @@ IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
   stream = std::stringstream(vec[2]);
   int additional_profile;
   stream >> additional_profile;
-  if (stream.fail() || vec[2].size() != 3 || additional_profile > 255) {
+  if (stream.fail() || stream.get(c) || vec[2].size() != 3 ||
+      additional_profile > 255) {
     return;
   }
 
