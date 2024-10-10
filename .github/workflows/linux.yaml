@@ -21,7 +21,17 @@ on:
         default: false
 
 jobs:
+  # This is default Chromium build config
   linux-x64:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: linux
+      nightly: ${{ github.event.inputs.nightly }}
+  # This is default Chrobalt build config
+  linux-chrobalt:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
