@@ -25,7 +25,7 @@ namespace shared {
 namespace starboard {
 namespace media {
 
-IamfMimeUtil::IamfMimeUtil(std::string_view mime_type) {
+IamfMimeUtil::IamfMimeUtil(const std::string& mime_type) {
   // Reference: Immersive Audio Model and Formats;
   //            v1.0.0
   //            6.3. Codecs Parameter String
