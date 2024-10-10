@@ -45,27 +45,28 @@ jobs:
     with:
       platform: android-x86
       nightly: ${{ github.event.inputs.nightly }}
-  chrobalt-android-arm64:
+  # Chrobalt specific build configs
+  android-chrobalt-arm64:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: android-arm64
+      platform: android-chrobalt-arm64
       nightly: ${{ github.event.inputs.nightly }}
-  chrobalt-android-arm:
+  android-chrobalt-arm:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: android-arm
+      platform: android-chrobalt-arm
       nightly: ${{ github.event.inputs.nightly }}
-  chrobalt-android-x86:
+  android-chrobalt-x86:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: android-x86
+      platform: android-chrobalt-x86
       nightly: ${{ github.event.inputs.nightly }}
