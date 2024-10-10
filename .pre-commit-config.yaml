@@ -1,0 +1,101 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+default_stages: [pre-commit]
+
+default_language_version:
+    python: python3
+
+files: |
+    (?x)^(
+        .github/|
+        chrobalt/|
+        internal/|
+        starboard/|
+        docker-compose.yaml
+    )
+
+repos:
+-   repo: https://cobalt.googlesource.com/pre-commit-hooks
+    rev: e1668fe86af3810fbca72b8653fe478e66a0afdc  # v3.2.0
+    hooks:
+    -   id: check-case-conflict
+    -   id: check-xml
+    -   id: check-yaml
+    -   id: end-of-file-fixer
+    -   id: mixed-line-ending
+    -   id: trailing-whitespace
+
+-   repo: https://cobalt.googlesource.com/codespell
+    rev: 67c489d36dd4c52cbb9e4755d90c35c6231842ef  # v2.0.0
+    hooks:
+    -   id: codespell
+        name: Spell Check
+        args: [-x, chrobalt/precommit/.codespellignorelines,
+               # The --ignore-words-list argument has a bug where it needs to
+               # be lowercase, see
+               # https://github.com/codespell-project/codespell/issues/1390
+               --ignore-words-list, "atleast,varius",
+               ]
+        exclude: |
+            (?x)^(
+                starboard/content/ssl/certs/|
+                starboard/loader_app/app_key_test.cc|
+                starboard/shared/starboard/player/testdata
+            )
+
+-   repo: local
+    hooks:
+    -   id: clang-format
+        name: clang-format
+        entry: clang-format
+        language: system
+        types: [c++]
+        args: [-i, -style=file]
+    -   id: cpplint
+        name: cpplint
+        entry: cpplint
+        language: system
+        types: [c++]
+        args: [--verbose=4, --quiet]
+    -   id: yapf
+        name: yapf
+        entry: yapf
+        language: system
+        types: [python]
+        args: [-i, -vv]
+    -   id: pylint
+        name: pylint
+        entry: pylint
+        language: system
+        types: [python]
+        args: [-d W0201]
+    -   id: python3-compatibility-check
+        name: Python 3 Compatibility Check
+        entry: python3 ./chrobalt/precommit/python3_check.py
+        language: python
+        types: [python]
+        verbose: true
+    -   id: google-java-format
+        name: google-java-format
+        entry: python3 ./chrobalt/precommit/google_java_format_wrapper.py
+        language: python
+        types: [java]
+        args: [-i]
+    -   id: gcheckstyle
+        name: gcheckstyle
+        entry: python3 ./chrobalt/precommit/gcheckstyle_wrapper.py
+        language: python
+        types: [java]
+        verbose: true
+    -   id: gn-format
+        name: gn-format
+        entry: gn format
+        language: system
+        files: '.*\.gni?$'
+    -   id: bug-in-commit-message-check
+        name: Bug In Commit Message Check
+        entry: python3 ./chrobalt/precommit/bug_in_description_check.py
+        language: python
+        stages: [pre-push]
+        always_run: true
+        pass_filenames: false
