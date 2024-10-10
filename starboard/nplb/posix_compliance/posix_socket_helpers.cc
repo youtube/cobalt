@@ -37,6 +37,7 @@ int PosixSocketCreateAndConnect(int server_domain,
   if (*listen_socket_fd < 0) {
     return -1;
   }
+  SB_DLOG(INFO) << "Socket was created";
   // set socket reuseable
   const int on = 1;
   result =
@@ -46,12 +47,15 @@ int PosixSocketCreateAndConnect(int server_domain,
     close(*listen_socket_fd);
     return -1;
   }
+  SB_DLOG(INFO) << "Socket option reuse address set";
+
   // bind socket with local address
   sockaddr_in6 address = {};
   EXPECT_TRUE(
       PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
       PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
   address.sin6_port = htons(PosixGetPortNumberForTests());
+  SB_DLOG(INFO) << "About to bind";
 
   result = bind(*listen_socket_fd, reinterpret_cast<struct sockaddr*>(&address),
                 sizeof(struct sockaddr_in));
@@ -59,12 +63,14 @@ int PosixSocketCreateAndConnect(int server_domain,
     close(*listen_socket_fd);
     return -1;
   }
+  SB_DLOG(INFO) << "Socket was bound";
 
   result = listen(*listen_socket_fd, kMaxConn);
   if (result != 0) {
     close(*listen_socket_fd);
     return -1;
   }
+  SB_DLOG(INFO) << "Socket is listening";
 
   // create client socket and connect to localhost:<port>
   *client_socket_fd = socket(client_domain, SOCK_STREAM, IPPROTO_TCP);
@@ -72,6 +78,7 @@ int PosixSocketCreateAndConnect(int server_domain,
     close(*listen_socket_fd);
     return -1;
   }
+  SB_DLOG(INFO) << "Socket was created pt 2";
 
   result =
       setsockopt(*client_socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
@@ -80,11 +87,13 @@ int PosixSocketCreateAndConnect(int server_domain,
     close(*client_socket_fd);
     return -1;
   }
+  SB_DLOG(INFO) << "Client Socket was set reuse address";
 
   result =
       connect(*client_socket_fd, reinterpret_cast<struct sockaddr*>(&address),
               sizeof(struct sockaddr));
   if (result != 0) {
+    SB_DLOG(INFO) << "result of connection is not 0";
     close(*listen_socket_fd);
     close(*client_socket_fd);
     return -1;
