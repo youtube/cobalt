@@ -68,7 +68,7 @@ SbDrmSessionRequestType SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(
 
 // This has to be defined outside the above anonymous namespace to be picked up
 // by the comparison of std::vector<SbDrmKeyId>.
-bool operator==(const SbDrmKeyId& left, const SbDrmKeyId& right) {
+inline bool operator==(const SbDrmKeyId& left, const SbDrmKeyId& right) {
   if (left.identifier_size != right.identifier_size) {
     return false;
   }
