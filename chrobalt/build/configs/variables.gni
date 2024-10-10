@@ -12,13 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/content/ssl/certs.gni")
+# Get the path to the starboard implementation and include its GN
+# configuration.
 
-copy("copy_ssl_certificates") {
-  if (enable_install_targets) {
-    install_content = true
-  }
-  sources = network_certs
-  outputs =
-      [ "$sb_static_contents_output_data_dir/ssl/certs/{{source_file_part}}" ]
+
+import("//$starboard_path/platform_configuration/configuration.gni")
+
+sb_is_modular = sb_is_evergreen || build_with_separate_cobalt_toolchain
+
+declare_args() {
+  use_tsan = false
 }
+declare_args() {
+  # TODO(b/371589344) : Enable ASAN
+  use_asan = false
+}
+
+# TODO(b/371263047): Resolve issues and build evergreen.
+enable_evergreen_code = false
+
+# TODO(b/371606611): Build test targets with cobalt toolchain
+enable_test_targets = false
+
+# TODO(b/371642925): Fix install targets for chrobalt
+enable_install_targets = false
