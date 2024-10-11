@@ -1,5 +1,5 @@
-name: Build Cobalt
-description: Builds Cobalt targets
+name: Build Chrobalt
+description: Builds Chrobalt targets
 inputs:
   targets:
     description: "List of ninja targets for Chrobalt build."

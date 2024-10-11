@@ -1,4 +1,4 @@
-# Reusable Cobalt CI workflow.
+# Reusable Chrobalt CI workflow.
 
 name: main
 
@@ -6,7 +6,7 @@ on:
   workflow_call:
     inputs:
       platform:
-        description: 'Cobalt platform.'
+        description: 'Chrobalt platform.'
         required: true
         type: string
       nightly:
@@ -137,7 +137,7 @@ jobs:
       SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
       # We want temp folder to be on tmpfs which makes workloads faster.
       # However, dind container ends up having / folder mounted on overlay
-      # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
+      # filesystem, whereas /__w which contains Chrobalt source code is on tmpfs.
       TMPDIR: /__w/_temp
     steps:
       - name: Checkout
