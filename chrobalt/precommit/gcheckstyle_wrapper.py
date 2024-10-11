@@ -13,30 +13,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""See if internal tool gcheckstyle is available."""
+"""Wrapper to run internal gcheckstyle tool."""
 
-import os
 import subprocess
 import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), '../../'))
-
-try:
-    from internal.precommit.internal_tools_path import GCHECKSTYLE_PATH
-except ImportError:
-    GCHECKSTYLE_PATH = None
 
 if __name__ == '__main__':
     gcheckstyle_args = sys.argv[1:]
 
-    if not GCHECKSTYLE_PATH:
-        print('Checkstyle not available, skipping.')
-        sys.exit(0)
-
     try:
-        sys.exit(subprocess.call([GCHECKSTYLE_PATH] + gcheckstyle_args))
+        sys.exit(
+            subprocess.call([
+                '/home/build/nonconf/google3/tools/java/checkstyle/gcheckstyle.sh'
+            ] + gcheckstyle_args))
     except FileNotFoundError:
-        print('Checkstyle not found, skipping.')
+        print('gcheckstyle not found, skipping.')
         sys.exit(0)
     except OSError as e:
         print('You may need to run gcert.')

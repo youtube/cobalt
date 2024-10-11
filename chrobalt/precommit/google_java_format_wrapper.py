@@ -13,7 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Wrapper to check for google-java-format tool."""
+"""Wrapper to run google-java-format tool."""
 
 import platform
 import subprocess

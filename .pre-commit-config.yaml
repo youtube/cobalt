@@ -9,8 +9,8 @@ files: |
     (?x)^(
         .github/|
         chrobalt/|
-        internal/|
         starboard/|
+        .pre-commit-config.yaml|
         docker-compose.yaml
     )
 
@@ -48,33 +48,36 @@ repos:
     -   id: clang-format
         name: clang-format
         entry: clang-format
-        language: system
+        language: python
         types: [c++]
         args: [-i, -style=file]
+        additional_dependencies: ['clang-format']
     -   id: cpplint
         name: cpplint
         entry: cpplint
-        language: system
+        language: python
         types: [c++]
         args: [--verbose=4, --quiet]
+        additional_dependencies: ['cpplint']
     -   id: yapf
         name: yapf
         entry: yapf
-        language: system
+        language: python
         types: [python]
         args: [-i, -vv]
+        additional_dependencies: ['yapf']
     -   id: pylint
         name: pylint
         entry: pylint
-        language: system
+        language: python
         types: [python]
         args: [-d W0201]
+        additional_dependencies: ['pylint']
     -   id: python3-compatibility-check
         name: Python 3 Compatibility Check
         entry: python3 ./chrobalt/precommit/python3_check.py
         language: python
         types: [python]
-        verbose: true
     -   id: google-java-format
         name: google-java-format
         entry: python3 ./chrobalt/precommit/google_java_format_wrapper.py
@@ -86,16 +89,8 @@ repos:
         entry: python3 ./chrobalt/precommit/gcheckstyle_wrapper.py
         language: python
         types: [java]
-        verbose: true
     -   id: gn-format
         name: gn-format
         entry: gn format
         language: system
         files: '.*\.gni?$'
-    -   id: bug-in-commit-message-check
-        name: Bug In Commit Message Check
-        entry: python3 ./chrobalt/precommit/bug_in_description_check.py
-        language: python
-        stages: [pre-push]
-        always_run: true
-        pass_filenames: false
