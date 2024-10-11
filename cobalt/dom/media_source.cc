@@ -161,6 +161,9 @@ bool IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
 // If this function returns true, experimental support for creating MediaSource
 // objects in Dedicated Workers will be enabled. This also allows MSE handles
 // to be transferred from Dedicated Workers back to the main thread.
+// Requires MediaElement.EnableUsingMediaSourceBufferedRange and
+// MediaElement.EnableUsingMediaSourceAttachmentMethods as prerequisites for
+// this feature.
 // The default value is false.
 bool IsMseInWorkersEnabled(web::EnvironmentSettings* settings) {
   return GetMediaSettings(settings).IsMseInWorkersEnabled().value_or(false);
@@ -428,25 +431,40 @@ bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
   TRACE_EVENT1("cobalt::dom", "MediaSource::IsTypeSupported()", "type", type);
   DCHECK(settings);
 
+  SbMediaSupportType support_type;
   web::EnvironmentSettings* web_settings =
       base::polymorphic_downcast<web::EnvironmentSettings*>(settings);
   DCHECK(web_settings);
-  DCHECK(web_settings->context());
-  web::WindowOrWorkerGlobalScope* global_scope =
-      web_settings->context()->GetWindowOrWorkerGlobalScope();
+  if (IsMseInWorkersEnabled(web_settings) &&
+      IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(web_settings) &&
+      IsMediaElementUsingMediaSourceBufferedRangeEnabled(web_settings)) {
+    DCHECK(web_settings->context());
+    web::WindowOrWorkerGlobalScope* global_scope =
+        web_settings->context()->GetWindowOrWorkerGlobalScope();
 
-  SbMediaSupportType support_type;
-  if (global_scope->IsWorker()) {
-    worker::WorkerSettings* worker_settings =
-        base::polymorphic_downcast<worker::WorkerSettings*>(settings);
-    DCHECK(worker_settings);
-    DCHECK(worker_settings->can_play_type_handler());
-    support_type = worker_settings->can_play_type_handler()->CanPlayAdaptive(
-        type.c_str(), "");
+    if (global_scope->IsDedicatedWorker()) {
+      worker::WorkerSettings* worker_settings =
+          base::polymorphic_downcast<worker::WorkerSettings*>(settings);
+      DCHECK(worker_settings);
+      DCHECK(worker_settings->can_play_type_handler());
+      support_type = worker_settings->can_play_type_handler()->CanPlayAdaptive(
+          type.c_str(), "");
+    } else if (global_scope->IsWindow()) {
+      dom::DOMSettings* dom_settings =
+          base::polymorphic_downcast<dom::DOMSettings*>(settings);
+      DCHECK(dom_settings);
+      DCHECK(dom_settings->can_play_type_handler());
+      support_type = dom_settings->can_play_type_handler()->CanPlayAdaptive(
+          type.c_str(), "");
+    } else {
+      CHECK(false)
+          << "MediaSource.IsTypeSupported() is only supported from Dedicated "
+             "Workers and the main Window";
+      return false;
+    }
   } else {
-    dom::DOMSettings* dom_settings =
-        base::polymorphic_downcast<dom::DOMSettings*>(settings);
-    DCHECK(dom_settings);
+    DOMSettings* dom_settings =
+        base::polymorphic_downcast<DOMSettings*>(settings);
     DCHECK(dom_settings->can_play_type_handler());
     support_type = dom_settings->can_play_type_handler()->CanPlayAdaptive(
         type.c_str(), "");

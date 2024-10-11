@@ -48,46 +48,54 @@ void CrossThreadMediaSourceAttachment::TraceMembers(script::Tracer* tracer) {
 bool CrossThreadMediaSourceAttachment::StartAttachingToMediaElement(
     HTMLMediaElement* media_element) {
   DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
-
+  NOTIMPLEMENTED();
   return false;
 }
 
 void CrossThreadMediaSourceAttachment::CompleteAttachingToMediaElement(
     ::media::ChunkDemuxer* chunk_demuxer) {
   DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
 }
 
 void CrossThreadMediaSourceAttachment::Close() {
   DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
 }
 
 scoped_refptr<TimeRanges> CrossThreadMediaSourceAttachment::GetBufferedRange()
     const {
   DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
   return nullptr;
 }
 
 MediaSourceReadyState CrossThreadMediaSourceAttachment::GetReadyState() const {
   DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
   return kMediaSourceReadyStateClosed;
 }
 
 void CrossThreadMediaSourceAttachment::NotifyDurationChanged(double duration) {
   DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
 }
 
 bool CrossThreadMediaSourceAttachment::HasMaxVideoCapabilities() const {
   DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
   return false;
 }
 
 double CrossThreadMediaSourceAttachment::GetRecentMediaTime() {
   DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
   return 0;
 }
 
 bool CrossThreadMediaSourceAttachment::GetElementError() {
   DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
   return false;
 }
 
@@ -95,6 +103,7 @@ scoped_refptr<AudioTrackList>
 CrossThreadMediaSourceAttachment::CreateAudioTrackList(
     script::EnvironmentSettings* settings) {
   DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
   return nullptr;
 }
 
@@ -102,17 +111,19 @@ scoped_refptr<VideoTrackList>
 CrossThreadMediaSourceAttachment::CreateVideoTrackList(
     script::EnvironmentSettings* settings) {
   DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
   return nullptr;
 }
 
 void CrossThreadMediaSourceAttachment::OnElementTimeUpdate(double time) {
+  NOTIMPLEMENTED();
   recent_element_time_ = time;
 }
 
 void CrossThreadMediaSourceAttachment::OnElementError() {
   DCHECK(!element_has_error_)
       << "At most one transition to element error per attachment is expected";
-
+  NOTIMPLEMENTED();
   element_has_error_ = true;
 }
 

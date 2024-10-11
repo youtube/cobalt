@@ -65,6 +65,9 @@ bool IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
 // If this function returns true, experimental support for creating MediaSource
 // objects in Dedicated Workers will be enabled. This also allows MSE handles
 // to be transferred from Dedicated Workers back to the main thread.
+// Requires MediaElement.EnableUsingMediaSourceBufferedRange and
+// MediaElement.EnableUsingMediaSourceAttachmentMethods as prerequisites for
+// this feature.
 // The default value is false.
 bool IsMseInWorkersEnabled(web::EnvironmentSettings* settings) {
   return GetMediaSettings(settings).IsMseInWorkersEnabled().value_or(false);
@@ -117,12 +120,14 @@ std::string URL::CreateObjectURL(
   DCHECK(web_settings->context());
   web::WindowOrWorkerGlobalScope* global_scope =
       web_settings->context()->GetWindowOrWorkerGlobalScope();
-  if (global_scope->IsWorker() &&
-      !(IsMseInWorkersEnabled(web_settings) &&
-        IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(web_settings) &&
-        IsMediaElementUsingMediaSourceBufferedRangeEnabled(web_settings))) {
-    // Prevent usage of MSE-in-Workers if pre-requisites are not satisfied.
-    return "";
+  if (global_scope->IsWorker()) {
+    if (!IsMseInWorkersEnabled(web_settings) ||
+        !IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(web_settings) ||
+        !IsMediaElementUsingMediaSourceBufferedRangeEnabled(web_settings)) {
+      // Prevent usage of MSE-in-Workers if any of the pre-requisites are not
+      // satisfied.
+      return "";
+    }
   }
 
   std::string blob_url = kBlobUrlProtocol;
