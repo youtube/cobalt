@@ -537,7 +537,7 @@ SB_EXPORT void SbPlayerWriteEndOfStream(SbPlayer player,
 // This function is called on every graphics frame that changes the video
 // bounds. For example, if the video bounds are being animated, then this will
 // be called at up to 60 Hz. Since the function could be called up to once per
-// frame, implementors should take care to avoid related performance concerns
+// frame, implementers should take care to avoid related performance concerns
 // with such frequent calls.
 //
 // |player|: The player that is being resized. Must not be |kSbPlayerInvalid|.

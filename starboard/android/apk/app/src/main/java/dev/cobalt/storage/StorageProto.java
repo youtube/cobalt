@@ -1889,7 +1889,7 @@ public final class StorageProto {
 
     /**
      * <pre>
-     * A serialzied origin as defined in:
+     * A serialized origin as defined in:
      * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
      * For example: "https://www.youtube.com"
      * </pre>
@@ -1899,7 +1899,7 @@ public final class StorageProto {
     java.lang.String getSerializedOrigin();
     /**
      * <pre>
-     * A serialzied origin as defined in:
+     * A serialized origin as defined in:
      * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
      * For example: "https://www.youtube.com"
      * </pre>
@@ -1956,7 +1956,7 @@ public final class StorageProto {
     private java.lang.String serializedOrigin_;
     /**
      * <pre>
-     * A serialzied origin as defined in:
+     * A serialized origin as defined in:
      * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
      * For example: "https://www.youtube.com"
      * </pre>
@@ -1968,7 +1968,7 @@ public final class StorageProto {
     }
     /**
      * <pre>
-     * A serialzied origin as defined in:
+     * A serialized origin as defined in:
      * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
      * For example: "https://www.youtube.com"
      * </pre>
@@ -1981,7 +1981,7 @@ public final class StorageProto {
     }
     /**
      * <pre>
-     * A serialzied origin as defined in:
+     * A serialized origin as defined in:
      * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
      * For example: "https://www.youtube.com"
      * </pre>
@@ -1998,7 +1998,7 @@ public final class StorageProto {
     }
     /**
      * <pre>
-     * A serialzied origin as defined in:
+     * A serialized origin as defined in:
      * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
      * For example: "https://www.youtube.com"
      * </pre>
@@ -2011,7 +2011,7 @@ public final class StorageProto {
     }
     /**
      * <pre>
-     * A serialzied origin as defined in:
+     * A serialized origin as defined in:
      * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
      * For example: "https://www.youtube.com"
      * </pre>
@@ -2319,7 +2319,7 @@ public final class StorageProto {
 
       /**
        * <pre>
-       * A serialzied origin as defined in:
+       * A serialized origin as defined in:
        * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
        * For example: "https://www.youtube.com"
        * </pre>
@@ -2331,7 +2331,7 @@ public final class StorageProto {
       }
       /**
        * <pre>
-       * A serialzied origin as defined in:
+       * A serialized origin as defined in:
        * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
        * For example: "https://www.youtube.com"
        * </pre>
@@ -2344,7 +2344,7 @@ public final class StorageProto {
       }
       /**
        * <pre>
-       * A serialzied origin as defined in:
+       * A serialized origin as defined in:
        * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
        * For example: "https://www.youtube.com"
        * </pre>
@@ -2359,7 +2359,7 @@ public final class StorageProto {
       }
       /**
        * <pre>
-       * A serialzied origin as defined in:
+       * A serialized origin as defined in:
        * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
        * For example: "https://www.youtube.com"
        * </pre>
@@ -2373,7 +2373,7 @@ public final class StorageProto {
       }
       /**
        * <pre>
-       * A serialzied origin as defined in:
+       * A serialized origin as defined in:
        * https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin.
        * For example: "https://www.youtube.com"
        * </pre>

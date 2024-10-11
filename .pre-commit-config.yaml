@@ -35,10 +35,11 @@ repos:
                # The --ignore-words-list argument has a bug where it needs to
                # be lowercase, see
                # https://github.com/codespell-project/codespell/issues/1390
-               --ignore-words-list, "atleast,varius",
+               --ignore-words-list, "atleast,varius,assertIn,requestor",
                ]
         exclude: |
             (?x)^(
+                starboard/android/apk/app/src/app/assets/web/link_android_splash_screen.html|
                 starboard/content/ssl/certs/|
                 starboard/loader_app/app_key_test.cc|
                 starboard/shared/starboard/player/testdata

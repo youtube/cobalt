@@ -433,7 +433,7 @@ bool SbCPUFeaturesGet_ARM(SbCPUFeatures* features) {
 
   ProcCpuInfo cpu_info;
 
-  // Extract CPU implementor, variant, revision and part information, which
+  // Extract CPU implementer, variant, revision and part information, which
   // are all integers.
   features->arm.implementer = cpu_info.ExtractIntegerFeature("CPU implementer");
   features->arm.variant = cpu_info.ExtractIntegerFeature("CPU variant");

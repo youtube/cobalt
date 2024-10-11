@@ -70,7 +70,7 @@ public class CobaltMediaSession
   private final ArtworkLoader artworkLoader;
   private MediaSessionCompat mediaSession;
 
-  // We re-use the builder to hold onto the most recent playback state.
+  // We reuse the builder to hold onto the most recent playback state.
   private PlaybackStateCompat.Builder playbackStateBuilder = new PlaybackStateCompat.Builder();
 
   // Duplicated in starboard/android/shared/android_media_session_client.h
