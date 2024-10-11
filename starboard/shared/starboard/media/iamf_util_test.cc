@@ -152,9 +152,8 @@ TEST(IamfUtilTest, Invalid) {
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
-  // Letter in primary profile value (uppercase letter "O" instead of the digit
-  // 0)
-  codec_param = "iamf.0O0.000.Opus";
+  // Letter in primary profile value
+  codec_param = "iamf.0a0.000.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
@@ -165,6 +164,31 @@ TEST(IamfUtilTest, Invalid) {
 
   // Misplaced delimiting period for AAC-LC substream
   codec_param = "iamf.000.000.mp4a.402.";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+
+  // Negative primary profile value
+  codec_param = "iamf.-12.000.Opus.";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+
+  // Empty param
+  codec_param = "";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+
+  // Leading whitespace
+  codec_param = " iamf.000.000.Opus";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+
+  // Trailing whitespace
+  codec_param = "iamf.000.000.Opus ";
+  util = IamfMimeUtil(codec_param);
+  EXPECT_FALSE(util.is_valid());
+
+  // Whitespace in the middle
+  codec_param = "iamf.00 0.000.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
