@@ -16,7 +16,7 @@ files: |
 
 repos:
 -   repo: https://cobalt.googlesource.com/pre-commit-hooks
-    rev: e1668fe86af3810fbca72b8653fe478e66a0afdc  # v3.2.0
+    rev: v5.0.0
     hooks:
     -   id: check-case-conflict
     -   id: check-xml
@@ -26,7 +26,7 @@ repos:
     -   id: trailing-whitespace
 
 -   repo: https://cobalt.googlesource.com/codespell
-    rev: 67c489d36dd4c52cbb9e4755d90c35c6231842ef  # v2.0.0
+    rev: v2.3.0
     hooks:
     -   id: codespell
         name: Spell Check
