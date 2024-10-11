@@ -1,11 +1,14 @@
-# Use sccache
-cc_wrapper = "sccache"
+target_os = "linux"
+target_cpu = "x64"
+
+is_chrobalt=true
 
 enable_nacl=false
 use_dawn=false
 skia_use_dawn=false
 # enable_vulkan=false
 
+use_ozone=true
 
 # Enterprise stuff
 enable_print_content_analysis=false
@@ -83,3 +86,4 @@ enable_vr=false
 use_kerberos=false
 
 toolkit_views = true
+chrome_pgo_phase = 0
