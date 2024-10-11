@@ -168,7 +168,7 @@ TEST(IamfUtilTest, Invalid) {
   EXPECT_FALSE(util.is_valid());
 
   // Negative primary profile value
-  codec_param = "iamf.-12.000.Opus.";
+  codec_param = "iamf.-12.000.Opus";
   util = IamfMimeUtil(codec_param);
   EXPECT_FALSE(util.is_valid());
 
