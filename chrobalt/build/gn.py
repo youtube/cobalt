@@ -136,10 +136,15 @@ if __name__ == '__main__':
         '-p',
         '--platform',
         default='linux',
-        choices=['linux-x64x11',
-                 'android-arm', 
+        choices=[
+                'linux-x64x11',
+                'linux-chrobalt-x64x11',
+                 'android-arm',
                  'android-arm64',
-                 'android-x86', 
+                 'android-x86',
+                 'android-chrobalt-arm',
+                 'android-chrobalt-arm64',
+                 'android-chrobalt-x86',
                  'linux'],
         help='The platform to build.')
     parser.add_argument('-c',
