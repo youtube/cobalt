@@ -1,0 +1,96 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+default_stages: [pre-commit]
+
+default_language_version:
+    python: python3
+
+files: |
+    (?x)^(
+        .github/|
+        chrobalt/|
+        starboard/|
+        .pre-commit-config.yaml|
+        docker-compose.yaml
+    )
+
+repos:
+-   repo: https://cobalt.googlesource.com/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+    -   id: check-case-conflict
+    -   id: check-xml
+    -   id: check-yaml
+    -   id: end-of-file-fixer
+    -   id: mixed-line-ending
+    -   id: trailing-whitespace
+
+-   repo: https://cobalt.googlesource.com/codespell
+    rev: v2.3.0
+    hooks:
+    -   id: codespell
+        name: Spell Check
+        args: [-x, chrobalt/precommit/.codespellignorelines,
+               # The --ignore-words-list argument has a bug where it needs to
+               # be lowercase, see
+               # https://github.com/codespell-project/codespell/issues/1390
+               --ignore-words-list, "atleast,varius",
+               ]
+        exclude: |
+            (?x)^(
+                starboard/content/ssl/certs/|
+                starboard/loader_app/app_key_test.cc|
+                starboard/shared/starboard/player/testdata
+            )
+
+-   repo: local
+    hooks:
+    -   id: clang-format
+        name: clang-format
+        entry: clang-format
+        language: python
+        types: [c++]
+        args: [-i, -style=file]
+        additional_dependencies: ['clang-format']
+    -   id: cpplint
+        name: cpplint
+        entry: cpplint
+        language: python
+        types: [c++]
+        args: [--verbose=4, --quiet]
+        additional_dependencies: ['cpplint']
+    -   id: yapf
+        name: yapf
+        entry: yapf
+        language: python
+        types: [python]
+        args: [-i, -vv]
+        additional_dependencies: ['yapf']
+    -   id: pylint
+        name: pylint
+        entry: pylint
+        language: python
+        types: [python]
+        args: [-d W0201]
+        additional_dependencies: ['pylint']
+    -   id: python3-compatibility-check
+        name: Python 3 Compatibility Check
+        entry: python3 ./chrobalt/precommit/python3_check.py
+        language: python
+        types: [python]
+    -   id: google-java-format
+        name: google-java-format
+        entry: python3 ./chrobalt/precommit/google_java_format_wrapper.py
+        language: python
+        types: [java]
+        args: [-i]
+    -   id: gcheckstyle
+        name: gcheckstyle
+        entry: python3 ./chrobalt/precommit/gcheckstyle_wrapper.py
+        language: python
+        types: [java]
+    -   id: gn-format
+        name: gn-format
+        entry: gn format
+        language: system
+        files: '.*\.gni?$'
