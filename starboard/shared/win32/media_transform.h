@@ -20,6 +20,7 @@
 #include <mfidl.h>
 #include <wrl\client.h>
 
+#include <string>
 #include <vector>
 
 #include "starboard/media.h"
@@ -84,6 +85,8 @@ class MediaTransform {
 
   HRESULT SendMessage(MFT_MESSAGE_TYPE msg, ULONG_PTR data = 0);
 
+  std::string GetTransformCreateError() const;
+
   // Reset the media transform to its original state.
   void Reset();
 
@@ -106,6 +109,7 @@ class MediaTransform {
   bool stream_begun_;
   bool discontinuity_;
   bool throttle_inputs_;
+  std::string transform_create_error_message_;
 };
 
 }  // namespace win32
