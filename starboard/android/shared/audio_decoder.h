@@ -91,7 +91,7 @@ class AudioDecoder
   ConsumedCB consumed_cb_;
 
   starboard::Mutex decoded_audios_mutex_;
-  std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
+  std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
 
   AudioFrameDiscarder audio_frame_discarder_;
   std::unique_ptr<MediaDecoder> media_decoder_;

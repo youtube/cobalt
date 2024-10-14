@@ -42,10 +42,11 @@ class ThreadChecker {
   enum Type { kSetThreadIdOnCreation, kSetThreadIdOnFirstCheck };
 
   explicit ThreadChecker(Type type = kSetThreadIdOnCreation) {
-    if (type == kSetThreadIdOnCreation)
+    if (type == kSetThreadIdOnCreation) {
       thread_id_ = SbThreadGetId();
-    else
+    } else {
       thread_id_ = kSbThreadInvalidId;
+    }
   }
 
   // Detached the thread checker from its current thread.  The thread checker

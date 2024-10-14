@@ -99,8 +99,9 @@ void SetRoundRobinScheduler(int priority) {
 }
 
 void ThreadSetPriority(SbThreadPriority priority) {
-  if (!kSbHasThreadPrioritySupport)
+  if (!kSbHasThreadPrioritySupport) {
     return;
+  }
 
   // Use different schedulers according to priority. This is preferred over
   // using SCHED_RR for all threads because the scheduler time slice is too

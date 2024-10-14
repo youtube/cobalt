@@ -35,7 +35,7 @@ int PosixSocketCreateAndConnect(int server_domain,
   if (*listen_socket_fd < 0) {
     return -1;
   }
-  // set socket reuseable
+  // set socket reusable
   const int on = 1;
   result =
       setsockopt(*listen_socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));

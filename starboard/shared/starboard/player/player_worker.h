@@ -156,7 +156,7 @@ class PlayerWorker {
   void SetPlaybackRate(double playback_rate) {
     // Arbitrary values to give the playback rate a valid range.  A particular
     // implementation may have stricter or looser requirement, or even only
-    // support several discreet values.
+    // support several discrete values.
     // Ideally the range of the playback rate should be determined by the audio
     // graph but that will break the thread invariant of the handler.
     const double kMinimumNonZeroPlaybackRate = 0.1;

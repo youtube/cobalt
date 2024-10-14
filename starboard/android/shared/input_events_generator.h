@@ -32,7 +32,7 @@ namespace shared {
 class InputEventsGenerator {
  public:
   typedef ::starboard::shared::starboard::Application::Event Event;
-  typedef std::vector<std::unique_ptr<Event> > Events;
+  typedef std::vector<std::unique_ptr<Event>> Events;
 
   explicit InputEventsGenerator(SbWindow window);
   virtual ~InputEventsGenerator();
@@ -82,7 +82,7 @@ class InputEventsGenerator {
 
   // Map the device id with joystick flat position.
   // Cache the flat area of joystick to avoid calling jni functions frequently.
-  std::map<int32_t, std::vector<float> > device_flat_;
+  std::map<int32_t, std::vector<float>> device_flat_;
 
   // The current X/Y analog values of the "hat" (dpad on the game controller).
   float hat_value_[2];

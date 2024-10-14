@@ -102,7 +102,7 @@ properly implement decode-to-texture support without dealing with the
 `SbPlayerCreate()`).  The `SbDecodeTargetGraphicsContextProvider` reference
 gives platforms references to the graphics objects that will later be used to
 render the decoded frames.  For example, on Blitter API platforms, a reference
-to the `SbBlitterDevice` object will be a mamber of
+to the `SbBlitterDevice` object will be a member of
 `SbDecodeTargetGraphicsContextProvider`.  For EGL platforms, a `EGLDisplay` and
 `EGLContext` will be available, but additionally a
 `SbDecodeTargetGlesContextRunner` function pointer will be provided that will

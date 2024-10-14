@@ -89,8 +89,9 @@ TEST_F(DrainFileTest, SunnyDayIgnoreExpired) {
 
 // Previously created drain file should be reused if it has not expired.
 TEST_F(DrainFileTest, SunnyDayTryDrainReusePreviousDrainFile) {
-  for (int i = 0; i < 2; ++i)
+  for (int i = 0; i < 2; ++i) {
     EXPECT_TRUE(DrainFileTryDrain(GetTempDir(), kAppKeyOne));
+  }
 }
 
 // Draining status should return whether or not the file exists and has not yet

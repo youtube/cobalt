@@ -18,9 +18,9 @@ namespace third_party {
 namespace crashpad {
 namespace wrapper {
 
-const char kCrashpadVersionKey[]  = "";
-const char kCrashpadProductKey[]  = "";
-const char kCrashpadUserAgentStringKey[]  = "";
+const char kCrashpadVersionKey[] = "";
+const char kCrashpadProductKey[] = "";
+const char kCrashpadUserAgentStringKey[] = "";
 const char kCrashpadCertScopeKey[] = "";
 
 void InstallCrashpadHandler(const std::string& ca_certificates_path) {}

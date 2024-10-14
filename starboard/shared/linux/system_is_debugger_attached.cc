@@ -35,8 +35,9 @@ bool SbSystemIsDebuggerAttached() {
   // dumping signal handler). NO malloc or stdio is allowed here.
 
   int status_fd = open("/proc/self/status", O_RDONLY);
-  if (status_fd == -1)
+  if (status_fd == -1) {
     return false;
+  }
 
   // We assume our line will be in the first 1024 characters and that we can
   // read this much all at once.  In practice this will generally be true.
@@ -45,17 +46,20 @@ bool SbSystemIsDebuggerAttached() {
 
   ssize_t num_read = HANDLE_EINTR(read(status_fd, buf, sizeof(buf) - 1));
   SB_DCHECK(num_read < sizeof(buf));
-  if (HANDLE_EINTR(close(status_fd)) < 0)
+  if (HANDLE_EINTR(close(status_fd)) < 0) {
     return false;
+  }
 
-  if (num_read <= 0)
+  if (num_read <= 0) {
     return false;
+  }
 
   buf[num_read] = '\0';
   const char tracer[] = "TracerPid:\t";
   char* pid_index = strstr(buf, tracer);
-  if (pid_index == NULL)
+  if (pid_index == NULL) {
     return false;
+  }
 
   // Our pid is 0 without a debugger, assume this for any pid starting with 0.
   pid_index += strlen(tracer);

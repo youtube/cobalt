@@ -49,8 +49,9 @@ class CountingThread : public posix::AbstractTestThread {
     int32_t end_count = GetCount() + 2;
     int64_t end_time = CurrentPosixTime() + timeout;
     while (CurrentPosixTime() < end_time) {
-      if (GetCount() >= end_count)
+      if (GetCount() >= end_count) {
         return true;
+      }
       sched_yield();
     }
     return false;

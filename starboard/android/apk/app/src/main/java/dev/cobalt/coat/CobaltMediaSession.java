@@ -50,8 +50,8 @@ public class CobaltMediaSession
 
   private AudioFocusRequest audioFocusRequest;
 
+  /** Called when there is a change in audio focus. */
   public interface UpdateVolumeListener {
-    /** Called when there is a change in audio focus. */
     void onUpdateVolume(float gain);
   }
 
@@ -70,7 +70,7 @@ public class CobaltMediaSession
   private final ArtworkLoader artworkLoader;
   private MediaSessionCompat mediaSession;
 
-  // We re-use the builder to hold onto the most recent playback state.
+  // We reuse the builder to hold onto the most recent playback state.
   private PlaybackStateCompat.Builder playbackStateBuilder = new PlaybackStateCompat.Builder();
 
   // Duplicated in starboard/android/shared/android_media_session_client.h
@@ -106,7 +106,7 @@ public class CobaltMediaSession
     public Bitmap artwork = null;
     public long duration = (long) 0.0;
 
-    public void SetMetadata(
+    public void setMetadata(
         String title, String artist, String album, Bitmap artwork, long duration) {
       this.title = title;
       this.artist = artist;
@@ -522,7 +522,7 @@ public class CobaltMediaSession
     }
 
     // Let metadata hold onto the most recent metadata and add artwork later.
-    metadata.SetMetadata(title, artist, album, artworkLoader.getOrLoadArtwork(artwork), duration);
+    metadata.setMetadata(title, artist, album, artworkLoader.getOrLoadArtwork(artwork), duration);
 
     // Update the metadata as soon as we can - even before artwork is loaded.
     updateMetadata(false);

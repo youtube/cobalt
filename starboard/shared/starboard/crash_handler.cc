@@ -15,8 +15,8 @@
 #include "starboard/shared/starboard/crash_handler.h"
 
 #include "starboard/common/log.h"
-#include "starboard/extension/crash_handler.h"
 #include "starboard/crashpad_wrapper/wrapper.h"
+#include "starboard/extension/crash_handler.h"
 
 namespace starboard {
 namespace common {

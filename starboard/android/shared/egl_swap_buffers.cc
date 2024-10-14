@@ -34,8 +34,9 @@ EGLBoolean __real_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface);
 // This needs to be exported to ensure shared_library targets include it.
 SB_EXPORT_PLATFORM EGLBoolean __wrap_eglSwapBuffers(EGLDisplay dpy,
                                                     EGLSurface surface) {
-  if (starboard::android::shared::g_block_swapbuffers.load())
+  if (starboard::android::shared::g_block_swapbuffers.load()) {
     return;
+  }
   // Kick off the GPU while waiting for new player bounds to take effect.
   GL_CALL(glFlush());
 

@@ -129,10 +129,11 @@ void* Send(PlatformServiceImpl* service,
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
     auto mic_gesture = "null";
-    if (mic_gesture_hold)
+    if (mic_gesture_hold) {
       mic_gesture = "\"HOLD\"";
-    else if (mic_gesture_tap)
+    } else if (mic_gesture_tap) {
       mic_gesture = "\"TAP\"";
+    }
 
     auto response = FormatString(
         "{\"hasHardMicSupport\": %s, \"hasSoftMicSupport\": %s, "

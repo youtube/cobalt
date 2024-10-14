@@ -37,9 +37,9 @@ namespace third_party {
 namespace crashpad {
 namespace wrapper {
 
-const char kCrashpadVersionKey[]  = "ver";
-const char kCrashpadProductKey[]  = "prod";
-const char kCrashpadUserAgentStringKey[]  = "user_agent_string";
+const char kCrashpadVersionKey[] = "ver";
+const char kCrashpadProductKey[] = "prod";
+const char kCrashpadUserAgentStringKey[] = "user_agent_string";
 const char kCrashpadCertScopeKey[] = "cert_scope";
 
 namespace {
@@ -58,8 +58,8 @@ const std::string kUploadUrl("https://clients2.google.com/cr/staging_report");
 
 base::FilePath GetPathToCrashpadHandlerBinary() {
   std::vector<char> exe_path(kSbFileMaxPath);
-  if (!SbSystemGetPath(
-          kSbSystemPathExecutableFile, exe_path.data(), kSbFileMaxPath)) {
+  if (!SbSystemGetPath(kSbSystemPathExecutableFile, exe_path.data(),
+                       kSbFileMaxPath)) {
     LOG(ERROR) << "Couldn't retrieve path to crashpad_handler binary.";
     return base::FilePath("");
   }
@@ -77,8 +77,7 @@ base::FilePath GetPathToCrashpadHandlerBinary() {
 
 base::FilePath GetDatabasePath() {
   std::vector<char> cache_directory_path(kSbFileMaxPath);
-  if (!SbSystemGetPath(kSbSystemPathCacheDirectory,
-                       cache_directory_path.data(),
+  if (!SbSystemGetPath(kSbSystemPathCacheDirectory, cache_directory_path.data(),
                        kSbFileMaxPath)) {
     LOG(ERROR) << "Couldn't retrieve path to database directory";
     return base::FilePath("");
@@ -127,8 +126,7 @@ std::map<std::string, std::string> GetPlatformInfo() {
   std::vector<char> value(kSystemPropertyMaxLength);
   bool result;
   result = SbSystemGetProperty(kSbSystemPropertySystemIntegratorName,
-                               value.data(),
-                               kSystemPropertyMaxLength);
+                               value.data(), kSystemPropertyMaxLength);
   if (result) {
     platform_info.insert({"system_integrator_name", value.data()});
   }
@@ -143,47 +141,44 @@ std::map<std::string, std::string> GetPlatformInfo() {
   platform_info.insert({"build_configuration", "gold"});
 #endif
 
-  result = SbSystemGetProperty(kSbSystemPropertyUserAgentAuxField,
-                               value.data(),
+  result = SbSystemGetProperty(kSbSystemPropertyUserAgentAuxField, value.data(),
                                kSystemPropertyMaxLength);
   if (result) {
     platform_info.insert({"aux_field", value.data()});
   }
 
   result = SbSystemGetProperty(kSbSystemPropertyChipsetModelNumber,
-                               value.data(),
-                               kSystemPropertyMaxLength);
+                               value.data(), kSystemPropertyMaxLength);
   if (result) {
     platform_info.insert({"chipset_model_number", value.data()});
   }
 
-  result = SbSystemGetProperty(
-      kSbSystemPropertyModelYear, value.data(), kSystemPropertyMaxLength);
+  result = SbSystemGetProperty(kSbSystemPropertyModelYear, value.data(),
+                               kSystemPropertyMaxLength);
   if (result) {
     platform_info.insert({"model_year", value.data()});
   }
 
-  result = SbSystemGetProperty(
-      kSbSystemPropertyFirmwareVersion, value.data(), kSystemPropertyMaxLength);
+  result = SbSystemGetProperty(kSbSystemPropertyFirmwareVersion, value.data(),
+                               kSystemPropertyMaxLength);
   if (result) {
     platform_info.insert({"firmware_version", value.data()});
   }
 
-  result = SbSystemGetProperty(
-      kSbSystemPropertyBrandName, value.data(), kSystemPropertyMaxLength);
+  result = SbSystemGetProperty(kSbSystemPropertyBrandName, value.data(),
+                               kSystemPropertyMaxLength);
   if (result) {
     platform_info.insert({"brand", value.data()});
   }
 
-  result = SbSystemGetProperty(
-      kSbSystemPropertyModelName, value.data(), kSystemPropertyMaxLength);
+  result = SbSystemGetProperty(kSbSystemPropertyModelName, value.data(),
+                               kSystemPropertyMaxLength);
   if (result) {
     platform_info.insert({"model", value.data()});
   }
 
   result = SbSystemGetProperty(kSbSystemPropertyCertificationScope,
-                               value.data(),
-                               kSystemPropertyMaxLength);
+                               value.data(), kSystemPropertyMaxLength);
   if (result) {
     platform_info.insert({kCrashpadCertScopeKey, value.data()});
   }
@@ -223,8 +218,7 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
   const std::string product_name = GetProductName();
   std::map<std::string, std::string> default_annotations = {
       {kCrashpadVersionKey, kCrashpadVersion},
-      {kCrashpadProductKey, product_name}
-  };
+      {kCrashpadProductKey, product_name}};
   const std::vector<std::string> default_arguments = {};
 
   const std::map<std::string, std::string> platform_info = GetPlatformInfo();
@@ -245,12 +239,9 @@ void InstallCrashpadHandler(const std::string& ca_certificates_path) {
 
   client->SetUnhandledSignals({});
 
-  if (!client->StartHandlerAtCrash(handler_path,
-                                   database_directory_path,
-                                   default_metrics_dir,
-                                   kUploadUrl,
-                                   ca_certificates_path,
-                                   default_annotations,
+  if (!client->StartHandlerAtCrash(handler_path, database_directory_path,
+                                   default_metrics_dir, kUploadUrl,
+                                   ca_certificates_path, default_annotations,
                                    default_arguments)) {
     LOG(ERROR) << "Failed to install the signal handler";
     RecordStatus(

@@ -34,7 +34,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
 
 static_library("wrapper_stub") {
   sources = [
-    "wrapper_stub.cc",
     "wrapper.h",
+    "wrapper_stub.cc",
   ]
 }

@@ -35,8 +35,9 @@ bool GetFirmwareVersionDetails(char* out_value, int value_length) {
   ScopedLocalJavaRef<jstring> id_string(env->CallStarboardObjectMethodOrAbort(
       "getBuildFingerprint", "()Ljava/lang/String;"));
   std::string utf_str = env->GetStringStandardUTFOrAbort(id_string.Get());
-  if (strlen(utf_str.c_str()) + 1 > value_length)
+  if (strlen(utf_str.c_str()) + 1 > value_length) {
     return false;
+  }
   starboard::strlcpy(out_value, utf_str.c_str(), value_length);
   return true;
 }

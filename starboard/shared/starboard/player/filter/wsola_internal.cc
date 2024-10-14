@@ -105,8 +105,9 @@ void MultiChannelDotProduct(const scoped_refptr<DecodedAudio>& a,
 #elif SB_IS(ARCH_ARM) || SB_IS(ARCH_ARM64)
     // First sum all components.
     float32x4_t m_sum = vmovq_n_f32(0);
-    for (int s = 0; s < last_index; s += 4)
+    for (int s = 0; s < last_index; s += 4) {
       m_sum = vmlaq_f32(m_sum, vld1q_f32(a_src + s), vld1q_f32(b_src + s));
+    }
 
     // Reduce to a single float for this channel.
     float32x2_t m_half = vadd_f32(vget_high_f32(m_sum), vget_low_f32(m_sum));
@@ -345,8 +346,9 @@ int OptimalIndex(const scoped_refptr<DecodedAudio>& search_block,
 
 void GetSymmetricHanningWindow(int window_length, float* window) {
   const float scale = static_cast<float>(2.0 * M_PI) / window_length;
-  for (int n = 0; n < window_length; ++n)
+  for (int n = 0; n < window_length; ++n) {
     window[n] = 0.5f * (1.0f - cosf(n * scale));
+  }
 }
 
 }  // namespace internal

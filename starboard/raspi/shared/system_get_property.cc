@@ -116,8 +116,9 @@ std::string GetModelName() {
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
                                 const char* from_value) {
-  if (strlen(from_value) + 1 > value_length)
+  if (strlen(from_value) + 1 > value_length) {
     return false;
+  }
   starboard::strlcpy(out_value, from_value, value_length);
   return true;
 }

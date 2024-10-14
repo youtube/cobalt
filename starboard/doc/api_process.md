@@ -2,10 +2,10 @@
 
 ## Why do we need a process?
 The Starboard API is the contract between Starboard applications and
-implementors of the Starboard API. Changing existing APIs and adding new
-required APIs breaks that contract and increases the cost of implementors
+implementers of the Starboard API. Changing existing APIs and adding new
+required APIs breaks that contract and increases the cost of implementers
 keeping their Starboard port up-to-date. Pushing a release to the Open Source
-repository signals to Starboard implementors that any non-experimental APIs in
+repository signals to Starboard implementers that any non-experimental APIs in
 that version will not change for as long as that version of Starboard is
 supported by the Starboard applications. We cannot change those newly frozen
 APIs without causing a potentially significant disruption to any partners who
@@ -19,7 +19,7 @@ consistency with existing APIs design principles. Unnecessary churn on the
 Starboard API creates more work for Starboard application developers and may
 discourage porters from keeping Starboard applications up-to-date on their
 platforms. This process is intended to save time and effort for both Starboard
-application developers and Starboard implementors in the long run, and
+application developers and Starboard implementers in the long run, and
 illustrates the complexity of dealing with a wide variety of platforms
 simultaneously.
 
