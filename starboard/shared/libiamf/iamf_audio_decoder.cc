@@ -84,7 +84,6 @@ void IamfAudioDecoder::Decode(const InputBuffers& input_buffers,
                               const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
-  SB_DCHECK(pending_audio_buffers_.empty());
   SB_DCHECK(output_cb_);
 
   if (stream_ended_) {
@@ -105,7 +104,7 @@ bool IamfAudioDecoder::DecodeInternal(
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
   SB_DCHECK(output_cb_);
-  SB_DCHECK(!stream_ended_ || !pending_audio_buffers_.empty());
+  SB_DCHECK(!stream_ended_);
   SB_DCHECK(is_valid());
 
   if (input_buffer->size() == 0) {
@@ -173,9 +172,6 @@ void IamfAudioDecoder::WriteEndOfStream() {
   SB_DCHECK(output_cb_);
 
   stream_ended_ = true;
-  if (!pending_audio_buffers_.empty()) {
-    return;
-  }
 
   // Put EOS into the queue.
   decoded_audios_.push(new DecodedAudio);
@@ -306,19 +302,16 @@ scoped_refptr<IamfAudioDecoder::DecodedAudio> IamfAudioDecoder::Read(
 
 void IamfAudioDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK(is_valid());
 
-  if (is_valid()) {
-    TeardownDecoder();
-    decoder_ = IAMF_decoder_open();
-  }
-
+  TeardownDecoder();
+  decoder_ = IAMF_decoder_open();
   decoder_is_configured_ = false;
 
   stream_ended_ = false;
   while (!decoded_audios_.empty()) {
     decoded_audios_.pop();
   }
-  pending_audio_buffers_.clear();
   consumed_cb_ = nullptr;
 
   CancelPendingJobs();

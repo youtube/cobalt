@@ -71,7 +71,6 @@ class IamfAudioDecoder
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
   AudioStreamInfo audio_stream_info_;
   bool decoder_is_configured_ = false;
-  std::deque<scoped_refptr<InputBuffer>> pending_audio_buffers_;
   int samples_per_second_ = 0;
   const int channels_;
 };
