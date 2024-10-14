@@ -23,6 +23,7 @@ import androidx.annotation.IntDef;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
+/** MediaCodecStatus. */
 @IntDef({
   MediaCodecStatus.OK,
   MediaCodecStatus.DEQUEUE_INPUT_AGAIN_LATER,

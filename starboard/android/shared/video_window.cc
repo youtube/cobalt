@@ -89,8 +89,9 @@ void ClearNativeWindow(ANativeWindow* native_window) {
   for (int config_number = 0; config_number < num_configs; ++config_number) {
     config = configs[config_number];
     surface = eglCreateWindowSurface(display, config, egl_native_window, NULL);
-    if (eglGetError() == EGL_SUCCESS)
+    if (eglGetError() == EGL_SUCCESS) {
       break;
+    }
   }
   if (surface == EGL_NO_SURFACE) {
     SB_DLOG(ERROR) << "Found no EGL surface in ClearVideoWindow";
