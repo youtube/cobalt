@@ -53,13 +53,15 @@ void GnuHashTable::Init(uintptr_t dt_gnu_hash) {
 
   SB_DLOG(INFO) << "GnuHashTable::Init num_buckets_=" << num_buckets_
                 << " sym_offset_" << sym_offset_;
-  if (!num_buckets_)
+  if (!num_buckets_) {
     return;
+  }
 
   const uint32_t bloom_size = data[2];
   SB_DLOG(INFO) << "GnuHashTable::Init bloom_size=" << bloom_size;
-  if ((bloom_size & (bloom_size - 1U)) != 0)  // must be a power of 2
+  if ((bloom_size & (bloom_size - 1U)) != 0) {  // must be a power of 2
     return;
+  }
 
   bloom_word_mask_ = bloom_size - 1U;
   bloom_shift_ = data[3];
@@ -80,14 +82,16 @@ void GnuHashTable::Init(uintptr_t dt_gnu_hash) {
     uint32_t max_index = buckets_[0];
     for (size_t n = 1; n < num_buckets_; ++n) {
       uint32_t sym_index = buckets_[n];
-      if (sym_index > max_index)
+      if (sym_index > max_index) {
         max_index = sym_index;
+      }
     }
     // Now start to look at the chain_ table from (max_index - sym_offset_)
     // until there is a value with LSB set to 1, indicating the end of the
     // last chain.
-    while ((chain_[max_index - sym_offset_] & 1) == 0)
+    while ((chain_[max_index - sym_offset_] & 1) == 0) {
       max_index++;
+    }
 
     sym_count_ = (max_index - sym_offset_) + 1;
   }
@@ -114,12 +118,14 @@ const Sym* GnuHashTable::LookupByName(const char* symbol_name,
               (Addr(1) << ((hash >> bloom_shift_) % ELF_BITS));
 
   SB_DLOG(INFO) << "GnuHashTable::LookupByName: mask=" << mask;
-  if ((word & mask) != mask)
+  if ((word & mask) != mask) {
     return NULL;
+  }
 
   uint32_t sym_index = buckets_[hash % num_buckets_];
-  if (sym_index < sym_offset_)
+  if (sym_index < sym_offset_) {
     return NULL;
+  }
 
   // TODO: add validations of the syn_index
   while (true) {
@@ -131,8 +137,9 @@ const Sym* GnuHashTable::LookupByName(const char* symbol_name,
       return sym;
     }
 
-    if (sym_hash & 1)
+    if (sym_hash & 1) {
       break;
+    }
 
     sym_index++;
   }

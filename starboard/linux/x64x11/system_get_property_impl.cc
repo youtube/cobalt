@@ -45,8 +45,9 @@ namespace x64x11 {
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
                                 const char* from_value) {
-  if (strlen(from_value) + 1 > value_length)
+  if (strlen(from_value) + 1 > value_length) {
     return false;
+  }
   starboard::strlcpy(out_value, from_value, value_length);
   return true;
 }
@@ -66,8 +67,9 @@ bool GetSystemProperty(SbSystemPropertyId property_id,
           out_value, value_length,
           env_value.empty() ? kBrandName : env_value.c_str());
     case kSbSystemPropertyCertificationScope:
-      if (kCertificationScope[0] == '\0')
+      if (kCertificationScope[0] == '\0') {
         return false;
+      }
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         kCertificationScope);
     case kSbSystemPropertyChipsetModelNumber:
