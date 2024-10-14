@@ -208,8 +208,14 @@ int DecoderBufferAllocator::GetVideoBufferBudget(SbMediaVideoCodec codec,
                                                  int bits_per_pixel) const {
   media_metrics_provider_.StartTrackingAction(
       MediaAction::SBMEDIA_GET_VIDEO_BUFFER_BUDGET);
-  int video_buffer_budget = SbMediaGetVideoBufferBudget(
-      codec, resolution_width, resolution_height, bits_per_pixel);
+  int video_buffer_budget;
+  if (h5vcc_video_buffer_budget_ != 0) {
+    DCHECK(h5vcc_video_buffer_budget_ > 0);
+    video_buffer_budget = h5vcc_video_buffer_budget_;
+  } else {
+    video_buffer_budget = SbMediaGetVideoBufferBudget(
+        codec, resolution_width, resolution_height, bits_per_pixel);
+  }
   media_metrics_provider_.EndTrackingAction(
       MediaAction::SBMEDIA_GET_VIDEO_BUFFER_BUDGET);
   return video_buffer_budget;
@@ -233,6 +239,15 @@ size_t DecoderBufferAllocator::GetMaximumMemoryCapacity() const {
                             max_buffer_capacity_);
   }
   return max_buffer_capacity_;
+}
+
+bool DecoderBufferAllocator::SetVideoBufferBudget(
+    const int video_buffer_budget) {
+  if (video_buffer_budget < 0) {
+    return false;
+  }
+  h5vcc_video_buffer_budget_ = video_buffer_budget;
+  return true;
 }
 
 void DecoderBufferAllocator::EnsureReuseAllocatorIsCreated() {

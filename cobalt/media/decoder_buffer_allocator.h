@@ -61,6 +61,10 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   size_t GetCurrentMemoryCapacity() const override;
   size_t GetMaximumMemoryCapacity() const override;
 
+  // Sets |h5vcc_video_buffer_budget_|. Returns false if |video_buffer_budget|
+  // is negative.
+  bool SetVideoBufferBudget(const int video_buffer_budget);
+
  private:
   void EnsureReuseAllocatorIsCreated();
 
@@ -75,6 +79,9 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   std::unique_ptr<BidirectionalFitReuseAllocator> reuse_allocator_;
 
   int max_buffer_capacity_ = 0;
+  // The buffer budget set via h5vcc. When nonzero, GetVideoBufferBudget()
+  // returns this value. When set to zero, it is ignored.
+  int h5vcc_video_buffer_budget_ = 0;
 };
 
 }  // namespace media
