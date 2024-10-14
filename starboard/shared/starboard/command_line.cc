@@ -31,8 +31,9 @@ const CommandLine::CharType* const kSwitchPrefixes[] = {"--", "-"};
 size_t GetSwitchPrefixLength(const CommandLine::StringType& string) {
   for (size_t i = 0; i < SB_ARRAY_SIZE_INT(kSwitchPrefixes); ++i) {
     CommandLine::StringType prefix(kSwitchPrefixes[i]);
-    if (string.compare(0, prefix.length(), prefix) == 0)
+    if (string.compare(0, prefix.length(), prefix) == 0) {
       return prefix.length();
+    }
   }
   return 0;
 }
@@ -45,13 +46,15 @@ bool IsSwitch(const CommandLine::StringType& string,
   switch_string->clear();
   switch_value->clear();
   size_t prefix_length = GetSwitchPrefixLength(string);
-  if (prefix_length == 0 || prefix_length == string.length())
+  if (prefix_length == 0 || prefix_length == string.length()) {
     return false;
+  }
 
   const size_t equals_position = string.find(kSwitchValueSeparator);
   *switch_string = string.substr(0, equals_position);
-  if (equals_position != CommandLine::StringType::npos)
+  if (equals_position != CommandLine::StringType::npos) {
     *switch_value = string.substr(equals_position + 1);
+  }
   return true;
 }
 
@@ -109,8 +112,9 @@ CommandLine::~CommandLine() {}
 void CommandLine::InitFromArgv(int argc,
                                const CommandLine::CharType* const* argv) {
   StringVector new_argv;
-  for (int i = 0; i < argc; ++i)
+  for (int i = 0; i < argc; ++i) {
     new_argv.push_back(argv[i]);
+  }
   InitFromArgv(new_argv);
 }
 
@@ -141,10 +145,12 @@ void CommandLine::AppendSwitch(const std::string& switch_string,
   size_t prefix_length = GetSwitchPrefixLength(combined_switch_string);
   switches_[switch_key.substr(prefix_length)] = value;
   // Preserve existing switch prefixes in |argv_|; only append one if necessary.
-  if (prefix_length == 0)
+  if (prefix_length == 0) {
     combined_switch_string = kSwitchPrefixes[0] + combined_switch_string;
-  if (!value.empty())
+  }
+  if (!value.empty()) {
     combined_switch_string += kSwitchValueSeparator + value;
+  }
   // Append the switch and update the switches/arguments divider |begin_args_|.
   argv_.insert(argv_.begin() + begin_args_++, combined_switch_string);
 }
@@ -155,8 +161,9 @@ CommandLine::StringVector CommandLine::GetArgs() const {
   // Erase only the first kSwitchTerminator (maybe "--" is a legitimate page?)
   StringVector::iterator switch_terminator =
       std::find(args.begin(), args.end(), kSwitchTerminator);
-  if (switch_terminator != args.end())
+  if (switch_terminator != args.end()) {
     args.erase(switch_terminator);
+  }
   return args;
 }
 

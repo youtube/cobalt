@@ -61,9 +61,13 @@ public final class Log {
   }
 
   private static Throwable getThrowableToLog(Object[] args) {
-    if (args == null || args.length == 0) return null;
+    if (args == null || args.length == 0) {
+      return null;
+    }
     Object lastArg = args[args.length - 1];
-    if (!(lastArg instanceof Throwable)) return null;
+    if (!(lastArg instanceof Throwable)) {
+      return null;
+    }
     return (Throwable) lastArg;
   }
 

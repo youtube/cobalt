@@ -385,7 +385,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
     }
 
     // Sample rate is not provided when the function is called, assume it is 48000.
-    final int DEFAULT_SURROUND_SAMPLE_RATE = 48000;
+    final int defaultSurroundSampleRate = 48000;
 
     if (hasPassthroughSupportForV23(deviceInfos, encoding)) {
       Log.i(
@@ -403,7 +403,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
             Build.VERSION.SDK_INT);
         return false;
       }
-      if (hasDirectSurroundPlaybackSupportForV29(encoding, DEFAULT_SURROUND_SAMPLE_RATE)) {
+      if (hasDirectSurroundPlaybackSupportForV29(encoding, defaultSurroundSampleRate)) {
         Log.i(
             TAG,
             "Passthrough on encoding %d is supported, as"
@@ -425,7 +425,7 @@ public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListen
       AudioTrack audioTrack =
           new AudioTrack(
               getDefaultAudioAttributes(),
-              getPassthroughAudioFormatFor(encoding, DEFAULT_SURROUND_SAMPLE_RATE),
+              getPassthroughAudioFormatFor(encoding, defaultSurroundSampleRate),
               AudioTrack.getMinBufferSize(48000, AudioFormat.CHANNEL_OUT_5POINT1, encoding),
               AudioTrack.MODE_STREAM,
               AudioManager.AUDIO_SESSION_ID_GENERATE);
