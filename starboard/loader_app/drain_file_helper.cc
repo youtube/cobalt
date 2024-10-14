@@ -41,8 +41,9 @@ ScopedDrainFile::ScopedDrainFile(const std::string& dir,
 }
 
 ScopedDrainFile::~ScopedDrainFile() {
-  if (!Exists())
+  if (!Exists()) {
     return;
+  }
   EXPECT_TRUE(!unlink(path_.c_str()));
 }
 

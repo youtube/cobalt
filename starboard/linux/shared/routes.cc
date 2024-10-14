@@ -89,8 +89,9 @@ bool Routes::Open() {
 
 // Request a dump of the routing tables from the netlink socket.
 bool Routes::RequestDump() {
-  if (!IsOpened())
+  if (!IsOpened()) {
     Open();
+  }
   struct rtmsg header;
   memset(&header, 0, sizeof(header));
   // header.rtm_family=AF_INET6;

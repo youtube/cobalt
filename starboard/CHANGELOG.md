@@ -1049,7 +1049,7 @@ Added two new functions `SbPlayerGetMaximumNumberOfSamplesPerWrite()` and
 maximum numbers of samples that can be written using the latter at once.
 As it takes multiple thread context switches to call `SbPlayerWriteSample2()`
 once, it can optimize performance on low end platforms by reducing the
-frequence of calling `SbPlayerWriteSample2()`.
+frequency of calling `SbPlayerWriteSample2()`.
 
 ### Add support for player error messages
 
