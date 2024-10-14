@@ -40,7 +40,7 @@ TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
   // set socket non-blocking
   fcntl(socket_listen_fd, F_SETFL, O_NONBLOCK);
 
-  // set socket reuseable
+  // set socket reusable
   const int on = 1;
   result =
       setsockopt(socket_listen_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
@@ -118,7 +118,7 @@ TEST(PosixSocketAcceptTest, RainyDayNotListening) {
   int result = -1;
   ASSERT_TRUE(socket_fd >= 0);
 
-  // set socket reuseable
+  // set socket reusable
   const int on = 1;
   result = setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
   EXPECT_TRUE(result == 0);

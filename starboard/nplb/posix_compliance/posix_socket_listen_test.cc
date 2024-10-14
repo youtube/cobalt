@@ -32,7 +32,7 @@ TEST(PosixSocketListenTest, SunnyDayUnbound) {
   int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   ASSERT_TRUE(socket_fd >= 0);
 
-  // set socket reuseable
+  // set socket reusable
   const int on = 1;
   result = setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
   EXPECT_TRUE(result == 0);

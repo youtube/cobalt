@@ -17,8 +17,10 @@ package dev.cobalt.media;
 import android.graphics.SurfaceTexture;
 import dev.cobalt.util.UsedByNative;
 
-// A wrapper of SurfaceTexture class.
-// VideoSurfaceTexture allows native code to receive OnFrameAvailable event.
+/**
+ *  A wrapper of SurfaceTexture class.
+ * VideoSurfaceTexture allows native code to receive OnFrameAvailable event.
+ */
 @UsedByNative
 public class VideoSurfaceTexture extends SurfaceTexture {
   @UsedByNative
