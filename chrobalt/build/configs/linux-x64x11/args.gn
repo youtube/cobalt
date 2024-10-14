@@ -1,5 +1,15 @@
 target_os = "linux"
 target_cpu = "x64"
+target_platform = "linux-x64x11"
+
+# Chromium flag overrides needed for building libstarboard
+
+# V8 override
+# # Enable WASM and install WebAssembly global.
+v8_enable_webassembly = true
+
+# TODO(b/218889313): All flags below this line need to be revisited
+# carefully and eliminated if unnecessary.
 
 enable_nacl=false
 use_dawn=false
