@@ -138,4 +138,3 @@ jobs:
           gh workflow run raspi-2_COBALT_9 --ref COBALT_9 -f nightly=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-

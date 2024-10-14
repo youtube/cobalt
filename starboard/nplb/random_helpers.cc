@@ -34,8 +34,9 @@ void TestProducesBothValuesOfAllBits(RandomFunction get_random) {
     found_ones |= value;
     found_zeros &= value;
 
-    if (found_zeros == kAllZeros && found_ones == kAllOnes)
+    if (found_zeros == kAllZeros && found_ones == kAllOnes) {
       return;
+    }
   }
 
   ADD_FAILURE() << "Didn't achieve all bit values in maximum number of tries.";

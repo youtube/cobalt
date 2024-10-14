@@ -33,7 +33,9 @@ class MediaFormatBuilder {
     // csd-1, and so on. See:
     // http://developer.android.com/reference/android/media/MediaCodec.html for details.
     for (int i = 0; i < csds.length; ++i) {
-      if (csds[i].length == 0) continue;
+      if (csds[i].length == 0) {
+        continue;
+      }
       String name = "csd-" + i;
       format.setByteBuffer(name, ByteBuffer.wrap(csds[i]));
     }
@@ -51,13 +53,13 @@ class MediaFormatBuilder {
 
   public static byte[][] starboardParseOpusConfigurationData(
       int sampleRate, @Nullable byte[] configurationData) {
-    final int MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE = 19;
-    final long NANOSECONDS_IN_ONE_SECOND = 1000000000L;
+    final int minOpusInitializationDataBufferSize = 19;
+    final long nanosecondsInOneSecond = 1000000000L;
     // 3840 is the default seek pre-roll samples used by ExoPlayer:
     // https://github.com/google/ExoPlayer/blob/0ba317b1337eaa789f05dd6c5241246478a3d1e5/library/common/src/main/java/com/google/android/exoplayer2/audio/OpusUtil.java#L30.
-    final int DEFAULT_SEEK_PRE_ROLL_SAMPLES = 3840;
+    final int defaultSeekPreRollSamples = 3840;
     if (configurationData == null
-        || configurationData.length < MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE) {
+        || configurationData.length < minOpusInitializationDataBufferSize) {
       Log.e(
           TAG,
           "Failed to configure Opus audio codec. "
@@ -67,7 +69,7 @@ class MediaFormatBuilder {
                       Locale.US,
                       "Configuration data size (%d) is less than the required size (%d).",
                       configurationData.length,
-                      MIN_OPUS_INITIALIZATION_DATA_BUFFER_SIZE)));
+                      minOpusInitializationDataBufferSize)));
       return null;
     }
     // Both the number of samples to skip from the beginning of the stream and the amount of time
@@ -75,9 +77,9 @@ class MediaFormatBuilder {
     // from ExoPlayer:
     // https://github.com/google/ExoPlayer/blob/0ba317b1337eaa789f05dd6c5241246478a3d1e5/library/common/src/main/java/com/google/android/exoplayer2/audio/OpusUtil.java#L52.
     int preSkipSamples = ((configurationData[11] & 0xFF) << 8) | (configurationData[10] & 0xFF);
-    long preSkipNanos = (preSkipSamples * NANOSECONDS_IN_ONE_SECOND) / sampleRate;
+    long preSkipNanos = (preSkipSamples * nanosecondsInOneSecond) / sampleRate;
     long seekPreRollNanos =
-        (DEFAULT_SEEK_PRE_ROLL_SAMPLES * NANOSECONDS_IN_ONE_SECOND) / sampleRate;
+        (defaultSeekPreRollSamples * nanosecondsInOneSecond) / sampleRate;
     return new byte[][] {
       configurationData,
       ByteBuffer.allocate(8).order(ByteOrder.nativeOrder()).putLong(preSkipNanos).array(),

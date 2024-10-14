@@ -19,16 +19,16 @@ import subprocess
 import sys
 
 if __name__ == '__main__':
-    gcheckstyle_args = sys.argv[1:]
+  gcheckstyle_args = sys.argv[1:]
 
-    try:
-        sys.exit(
-            subprocess.call([
-                '/home/build/nonconf/google3/tools/java/checkstyle/gcheckstyle.sh'
-            ] + gcheckstyle_args))
-    except FileNotFoundError:
-        print('gcheckstyle not found, skipping.')
-        sys.exit(0)
-    except OSError as e:
-        print('You may need to run gcert.')
-        raise e
+  try:
+    sys.exit(
+        subprocess.call([
+            '/home/build/nonconf/google3/tools/java/checkstyle/gcheckstyle.sh'
+        ] + gcheckstyle_args))
+  except FileNotFoundError:
+    print('gcheckstyle not found, skipping.')
+    sys.exit(0)
+  except OSError as e:
+    print('You may need to run gcert.')
+    raise e

@@ -152,4 +152,3 @@ jobs:
         if: ${{ ! (startsWith(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           targets: ${{ needs.initialize.outputs.targets }}
-  

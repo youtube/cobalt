@@ -90,8 +90,9 @@ bool NetLink::Request(uint16_t type,
                       uint16_t message_flags,
                       void* payload,
                       int payload_length) {
-  if (!IsOpened())
+  if (!IsOpened()) {
     return false;
+  }
   std::vector<char> netlink_buffer(NLMSG_LENGTH(payload_length));
   auto header = reinterpret_cast<struct nlmsghdr*>(netlink_buffer.data());
   memcpy(NLMSG_DATA(header), payload, payload_length);
@@ -126,12 +127,14 @@ struct nlmsghdr* NetLink::GetNextMessage() {
     }
   }
 
-  if (header_)
+  if (header_) {
     return header_;
+  }
 
   // Receive the next message with netlink headers.
-  if (!request_sent_)
+  if (!request_sent_) {
     return nullptr;
+  }
   if (message_buffer_.size() == 0) {
     message_buffer_.resize(kNetlinkMessageBufferSize);
   }
