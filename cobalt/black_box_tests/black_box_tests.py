@@ -188,10 +188,8 @@ def LoadTests(launcher_params, test_set):
     if launcher.SupportsSuspendResume():
       test_targets += _TESTS_NEEDING_SYSTEM_SIGNAL
 
-    # disabled due to deep linking break after posixification of sockets
-    # and we don't support deep links
-    # if launcher.SupportsDeepLink():
-    #   test_targets += _TESTS_NEEDING_DEEP_LINK
+    if launcher.SupportsDeepLink():
+      test_targets += _TESTS_NEEDING_DEEP_LINK
 
   if test_set in ['all', 'wpt']:
     test_targets += _WPT_TESTS

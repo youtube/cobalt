@@ -60,7 +60,7 @@ int CreateServerSocket(SbSocketAddressType address_type) {
   }
   if (socket_fd < 0) {
     SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "Socket create failed";
+                  << "Socket create failed, errno: " << errno;
     return -1;
   }
 
@@ -70,7 +70,7 @@ int CreateServerSocket(SbSocketAddressType address_type) {
                   << "SbSocketSetReuseAddress failed";
     return -1;
   }
-
+  SB_DLOG(INFO) << "Successfully created server socket with fd : " << socket_fd;
   return socket_fd;
 }
 
@@ -81,8 +81,8 @@ int CreateLocallyBoundSocket(SbSocketAddressType address_type, int port) {
     return -1;
   }
 
-  socklen_t socklen;
   struct sockaddr_in addr_in = {0};
+  socklen_t socklen = static_cast<socklen_t>(sizeof(addr_in));
   int local_add_result =
       getsockname(socket, reinterpret_cast<sockaddr*>(&addr_in), &socklen);
 
