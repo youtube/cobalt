@@ -872,6 +872,7 @@ group("gn_all") {
   }
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 
   if (is_chrome_for_testing) {
     deps += [ "//chrome/browser/chrome_for_testing:chrome_for_testing" ]
@@ -886,6 +887,11 @@ group("gn_all") {
   }
 =======
 >>>>>>> d45fd1a3537 (Revert "Build starboard shared library for linux-x64x11 (#4215)" (#4245))
+=======
+  if (chrobalt) {
+    deps += [ "//chrobalt:gn_all" ]
+  }
+>>>>>>> 9049b1718b7 (Revert "Revert "Build starboard shared library for linux-x64x11 (#4215)"" (#4247))
 }
 
 # All Rust targets. This is provided for convenience while developing Rust to
