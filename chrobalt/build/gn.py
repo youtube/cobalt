@@ -24,7 +24,7 @@ from typing import List
 
 # Parsing code Lifted from tools/code_coverage/coverage.py
 def get_build_args(build_args_path):
-  """Parses args.gn file and returns results as original contents, and dictionary."""
+  """Parses args.gn file and returns contents and dictionary."""
   assert os.path.exists(build_args_path), (
       f'{build_args_path} is not a build directory, '
       'missing args.gn file.')
@@ -70,7 +70,7 @@ _BUILD_TYPES = {
     }
 }
 
-CC_WRAPPER = "sccache"
+CC_WRAPPER = 'sccache'
 CONTROLLED_ARGS = [
     'cc_wrapper',  # See build/toolschain/cc_wrapper.gni
     'is_debug',  # See build/config/BUILDCONFIG.GN
@@ -93,7 +93,7 @@ def write_build_args(build_args_path, original_lines, dict_settings,
         f'The following args cannot be set in configs: {controlled_args}')
   gen_comment = '# Set by gn.py'
   with open(build_args_path, 'w', encoding='utf-8') as f:
-    if os.getenv("USE_RBE", default="0") == "0":
+    if os.getenv('USE_RBE', default='0') == '0':
       f.write(f'cc_wrapper = "{CC_WRAPPER}" {gen_comment}\n')
     else:
       f.write(f'use_remoteexec = true {gen_comment}\n')
