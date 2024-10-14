@@ -97,7 +97,7 @@ config("compiler_flags") {
     cflags += [ "-O2" ]
   }
 
-  if (!cobalt_fastbuild && (is_debug || is_devel)) {
+  if (is_debug || is_devel) {
     cflags += [ "-g" ]
   }
 }

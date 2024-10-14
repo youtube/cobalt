@@ -18,7 +18,7 @@ declare_args() {
 
 if (starboard_path == "") {
   declare_args() {
-    target_platform = "stub"
+    target_platform = "linux-x64x11"
   }
 
   starboard_path = exec_script("//starboard/build/platforms.py",
