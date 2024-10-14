@@ -252,6 +252,9 @@ void PosixInitializePortNumberForTests() {
 
 int PosixGetPortNumberForTests() {
   pthread_once(&valid_port_once_control, &PosixInitializePortNumberForTests);
+  SB_DLOG(INFO) << "PosixGetPortNumberForTests port_number_for_tests : "
+                << port_number_for_tests;
+  assert(port_number_for_tests != 0);
   return port_number_for_tests;
 }
 
