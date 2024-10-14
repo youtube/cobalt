@@ -17,7 +17,7 @@
 
 #include <string>
 
-#include "starboard/elf_loader/evergreen_info.h" // nogncheck
+#include "starboard/elf_loader/evergreen_info.h"  // nogncheck
 
 namespace third_party {
 namespace crashpad {

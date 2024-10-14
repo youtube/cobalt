@@ -191,14 +191,16 @@ TYPED_TEST(PosixFileReadTest, ReadFromMiddle) {
 
   for (int i = 0; i < kBufferOffset; ++i) {
     EXPECT_EQ('\xCD', real_buffer[i]);
-    if ('\xCD' != real_buffer[i])
+    if ('\xCD' != real_buffer[i]) {
       break;
+    }
   }
 
   for (int i = kBufferOffset + bytes_read; i < kRealBufferLength; ++i) {
     EXPECT_EQ('\xCD', real_buffer[i]);
-    if ('\xCD' != real_buffer[i])
+    if ('\xCD' != real_buffer[i]) {
       break;
+    }
   }
 
   int result = close(file);
