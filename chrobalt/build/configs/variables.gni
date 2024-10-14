@@ -15,7 +15,6 @@
 # Get the path to the starboard implementation and include its GN
 # configuration.
 
-
 import("//$starboard_path/platform_configuration/configuration.gni")
 
 sb_is_modular = sb_is_evergreen || build_with_separate_cobalt_toolchain

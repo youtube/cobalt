@@ -93,8 +93,9 @@ int DecodedAudioQueue::InternalRead(int frames,
   while (taken < frames) {
     // |current_buffer| is valid since the first time this buffer is appended
     // with data. Make sure there is data to be processed.
-    if (current_buffer == buffers_.end())
+    if (current_buffer == buffers_.end()) {
       break;
+    }
 
     scoped_refptr<DecodedAudio> buffer = *current_buffer;
 
@@ -144,8 +145,9 @@ int DecodedAudioQueue::InternalRead(int frames,
     if (current_buffer_offset == buffer->frames()) {
       // If we are at the last buffer, no more data to be copied, so stop.
       BufferQueue::iterator next = current_buffer + 1;
-      if (next == buffers_.end())
+      if (next == buffers_.end()) {
         break;
+      }
 
       // Advances the iterator.
       current_buffer = next;

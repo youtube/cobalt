@@ -125,8 +125,9 @@ static bool ElfClassBuildIDNoteIdentifier(const void* section,
   const void* section_end = reinterpret_cast<const char*>(section) + length;
   const Nhdr* note_header = reinterpret_cast<const Nhdr*>(section);
   while (reinterpret_cast<const void*>(note_header) < section_end) {
-    if (note_header->n_type == NT_GNU_BUILD_ID)
+    if (note_header->n_type == NT_GNU_BUILD_ID) {
       break;
+    }
     note_header = reinterpret_cast<const Nhdr*>(
         reinterpret_cast<const char*>(note_header) + sizeof(Nhdr) +
         NOTE_PADDING(note_header->n_namesz) +
@@ -337,8 +338,9 @@ int ProgramTable::AdjustMemoryProtectionOfReadOnlySegments(
   const Phdr* phdr_limit = phdr + phdr_num_;
 
   for (; phdr < phdr_limit; phdr++) {
-    if (phdr->p_type != PT_LOAD || (phdr->p_flags & PF_W) != 0)
+    if (phdr->p_type != PT_LOAD || (phdr->p_flags & PF_W) != 0) {
       continue;
+    }
 
     Addr seg_page_start = PAGE_START(phdr->p_vaddr) + base_memory_address_;
     Addr seg_page_end =

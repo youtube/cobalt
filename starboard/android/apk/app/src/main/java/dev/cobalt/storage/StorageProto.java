@@ -192,7 +192,7 @@ public final class StorageProto {
       if (value == null) {
     throw new NullPointerException();
   }
-  
+
       name_ = value;
     }
     /**
@@ -203,7 +203,7 @@ public final class StorageProto {
      * <code>optional string name = 1;</code>
      */
     private void clearName() {
-      
+
       name_ = getDefaultInstance().getName();
     }
     /**
@@ -219,7 +219,7 @@ public final class StorageProto {
     throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
-      
+
       name_ = value.toStringUtf8();
     }
 
@@ -258,7 +258,7 @@ public final class StorageProto {
       if (value == null) {
     throw new NullPointerException();
   }
-  
+
       value_ = value;
     }
     /**
@@ -269,7 +269,7 @@ public final class StorageProto {
      * <code>optional string value = 2;</code>
      */
     private void clearValue() {
-      
+
       value_ = getDefaultInstance().getValue();
     }
     /**
@@ -285,7 +285,7 @@ public final class StorageProto {
     throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
-      
+
       value_ = value.toStringUtf8();
     }
 
@@ -324,7 +324,7 @@ public final class StorageProto {
       if (value == null) {
     throw new NullPointerException();
   }
-  
+
       domain_ = value;
     }
     /**
@@ -335,7 +335,7 @@ public final class StorageProto {
      * <code>optional string domain = 3;</code>
      */
     private void clearDomain() {
-      
+
       domain_ = getDefaultInstance().getDomain();
     }
     /**
@@ -351,7 +351,7 @@ public final class StorageProto {
     throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
-      
+
       domain_ = value.toStringUtf8();
     }
 
@@ -390,7 +390,7 @@ public final class StorageProto {
       if (value == null) {
     throw new NullPointerException();
   }
-  
+
       path_ = value;
     }
     /**
@@ -401,7 +401,7 @@ public final class StorageProto {
      * <code>optional string path = 4;</code>
      */
     private void clearPath() {
-      
+
       path_ = getDefaultInstance().getPath();
     }
     /**
@@ -417,7 +417,7 @@ public final class StorageProto {
     throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
-      
+
       path_ = value.toStringUtf8();
     }
 
@@ -443,7 +443,7 @@ public final class StorageProto {
      * <code>optional int64 creation_time_us = 5;</code>
      */
     private void setCreationTimeUs(long value) {
-      
+
       creationTimeUs_ = value;
     }
     /**
@@ -455,7 +455,7 @@ public final class StorageProto {
      * <code>optional int64 creation_time_us = 5;</code>
      */
     private void clearCreationTimeUs() {
-      
+
       creationTimeUs_ = 0L;
     }
 
@@ -481,7 +481,7 @@ public final class StorageProto {
      * <code>optional int64 expiration_time_us = 6;</code>
      */
     private void setExpirationTimeUs(long value) {
-      
+
       expirationTimeUs_ = value;
     }
     /**
@@ -493,7 +493,7 @@ public final class StorageProto {
      * <code>optional int64 expiration_time_us = 6;</code>
      */
     private void clearExpirationTimeUs() {
-      
+
       expirationTimeUs_ = 0L;
     }
 
@@ -519,7 +519,7 @@ public final class StorageProto {
      * <code>optional int64 last_access_time_us = 7;</code>
      */
     private void setLastAccessTimeUs(long value) {
-      
+
       lastAccessTimeUs_ = value;
     }
     /**
@@ -531,7 +531,7 @@ public final class StorageProto {
      * <code>optional int64 last_access_time_us = 7;</code>
      */
     private void clearLastAccessTimeUs() {
-      
+
       lastAccessTimeUs_ = 0L;
     }
 
@@ -557,7 +557,7 @@ public final class StorageProto {
      * <code>optional bool secure = 8;</code>
      */
     private void setSecure(boolean value) {
-      
+
       secure_ = value;
     }
     /**
@@ -569,7 +569,7 @@ public final class StorageProto {
      * <code>optional bool secure = 8;</code>
      */
     private void clearSecure() {
-      
+
       secure_ = false;
     }
 
@@ -593,7 +593,7 @@ public final class StorageProto {
      * <code>optional bool http_only = 9;</code>
      */
     private void setHttpOnly(boolean value) {
-      
+
       httpOnly_ = value;
     }
     /**
@@ -604,7 +604,7 @@ public final class StorageProto {
      * <code>optional bool http_only = 9;</code>
      */
     private void clearHttpOnly() {
-      
+
       httpOnly_ = false;
     }
 
@@ -1446,7 +1446,7 @@ public final class StorageProto {
       if (value == null) {
     throw new NullPointerException();
   }
-  
+
       key_ = value;
     }
     /**
@@ -1457,7 +1457,7 @@ public final class StorageProto {
      * <code>optional string key = 1;</code>
      */
     private void clearKey() {
-      
+
       key_ = getDefaultInstance().getKey();
     }
     /**
@@ -1473,7 +1473,7 @@ public final class StorageProto {
     throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
-      
+
       key_ = value.toStringUtf8();
     }
 
@@ -1512,7 +1512,7 @@ public final class StorageProto {
       if (value == null) {
     throw new NullPointerException();
   }
-  
+
       value_ = value;
     }
     /**
@@ -1523,7 +1523,7 @@ public final class StorageProto {
      * <code>optional string value = 2;</code>
      */
     private void clearValue() {
-      
+
       value_ = getDefaultInstance().getValue();
     }
     /**
@@ -1539,7 +1539,7 @@ public final class StorageProto {
     throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
-      
+
       value_ = value.toStringUtf8();
     }
 
@@ -1916,7 +1916,7 @@ public final class StorageProto {
      *
      * <code>repeated .cobalt.storage.LocalStorageEntry local_storage_entries = 2;</code>
      */
-    java.util.List<dev.cobalt.storage.StorageProto.LocalStorageEntry> 
+    java.util.List<dev.cobalt.storage.StorageProto.LocalStorageEntry>
         getLocalStorageEntriesList();
     /**
      * <pre>
@@ -1993,7 +1993,7 @@ public final class StorageProto {
       if (value == null) {
     throw new NullPointerException();
   }
-  
+
       serializedOrigin_ = value;
     }
     /**
@@ -2006,7 +2006,7 @@ public final class StorageProto {
      * <code>optional string serialized_origin = 1;</code>
      */
     private void clearSerializedOrigin() {
-      
+
       serializedOrigin_ = getDefaultInstance().getSerializedOrigin();
     }
     /**
@@ -2024,7 +2024,7 @@ public final class StorageProto {
     throw new NullPointerException();
   }
   checkByteStringIsUtf8(value);
-      
+
       serializedOrigin_ = value.toStringUtf8();
     }
 
@@ -2047,7 +2047,7 @@ public final class StorageProto {
      *
      * <code>repeated .cobalt.storage.LocalStorageEntry local_storage_entries = 2;</code>
      */
-    public java.util.List<? extends dev.cobalt.storage.StorageProto.LocalStorageEntryOrBuilder> 
+    public java.util.List<? extends dev.cobalt.storage.StorageProto.LocalStorageEntryOrBuilder>
         getLocalStorageEntriesOrBuilderList() {
       return localStorageEntries_;
     }
@@ -2654,7 +2654,7 @@ public final class StorageProto {
      *
      * <code>repeated .cobalt.storage.Cookie cookies = 1;</code>
      */
-    java.util.List<dev.cobalt.storage.StorageProto.Cookie> 
+    java.util.List<dev.cobalt.storage.StorageProto.Cookie>
         getCookiesList();
     /**
      * <pre>
@@ -2680,7 +2680,7 @@ public final class StorageProto {
      *
      * <code>repeated .cobalt.storage.LocalStorage local_storages = 2;</code>
      */
-    java.util.List<dev.cobalt.storage.StorageProto.LocalStorage> 
+    java.util.List<dev.cobalt.storage.StorageProto.LocalStorage>
         getLocalStoragesList();
     /**
      * <pre>
@@ -2734,7 +2734,7 @@ public final class StorageProto {
      *
      * <code>repeated .cobalt.storage.Cookie cookies = 1;</code>
      */
-    public java.util.List<? extends dev.cobalt.storage.StorageProto.CookieOrBuilder> 
+    public java.util.List<? extends dev.cobalt.storage.StorageProto.CookieOrBuilder>
         getCookiesOrBuilderList() {
       return cookies_;
     }
@@ -2910,7 +2910,7 @@ public final class StorageProto {
      *
      * <code>repeated .cobalt.storage.LocalStorage local_storages = 2;</code>
      */
-    public java.util.List<? extends dev.cobalt.storage.StorageProto.LocalStorageOrBuilder> 
+    public java.util.List<? extends dev.cobalt.storage.StorageProto.LocalStorageOrBuilder>
         getLocalStoragesOrBuilderList() {
       return localStorages_;
     }

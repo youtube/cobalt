@@ -390,8 +390,9 @@ void DrmSystemWidevine::UpdateServerCertificate(int ticket,
 }
 
 void IncrementIv(uint8_t* iv, size_t block_count) {
-  if (0 == block_count)
+  if (0 == block_count) {
     return;
+  }
   uint8_t carry = 0;
   uint8_t n = static_cast<uint8_t>(kInitializationVectorSize - 1);
 

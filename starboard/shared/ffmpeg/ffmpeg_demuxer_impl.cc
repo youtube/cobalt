@@ -571,8 +571,9 @@ CobaltExtensionDemuxerStatus FFmpegDemuxerImpl<FFMPEG>::Initialize() {
       }
       audio_stream_ = stream;
     } else if (codec_type == AVMEDIA_TYPE_VIDEO) {
-      if (video_stream_)
+      if (video_stream_) {
         continue;
+      }
       video_stream_ = stream;
     }
   }
