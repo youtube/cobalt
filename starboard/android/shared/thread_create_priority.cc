@@ -58,8 +58,9 @@ void SetNiceValue(int nice) {
 }
 
 void ThreadSetPriority(SbThreadPriority priority) {
-  if (!kSbHasThreadPrioritySupport)
+  if (!kSbHasThreadPrioritySupport) {
     return;
+  }
 
   // Nice value settings are selected from looking at:
   //   https://android.googlesource.com/platform/frameworks/native/+/jb-dev/include/utils/ThreadDefs.h#35

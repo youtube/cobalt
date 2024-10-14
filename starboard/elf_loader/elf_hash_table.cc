@@ -60,8 +60,9 @@ const Sym* ElfHashTable::LookupByName(const char* symbol_name,
        n = hash_chain_[n]) {
     const Sym* symbol = &symbol_table[n];
     // Check that the symbol has the appropriate name.
-    if (!strcmp(string_table + symbol->st_name, symbol_name))
+    if (!strcmp(string_table + symbol->st_name, symbol_name)) {
       return symbol;
+    }
   }
   return NULL;
 }

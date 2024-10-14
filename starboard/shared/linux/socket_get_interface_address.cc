@@ -121,8 +121,9 @@ bool GetNetmaskForInterfaceAddress(const SbSocketAddress& interface_address,
     }
 
     const in_addr_type* potential_match;
-    if (!GetPotentialMatch(interface->ifa_addr, &potential_match))
+    if (!GetPotentialMatch(interface->ifa_addr, &potential_match)) {
       continue;
+    }
 
     if (memcmp(&to_match, potential_match, sizeof(in_addr_type)) != 0) {
       continue;
@@ -248,8 +249,9 @@ bool FindIPv6InterfaceIP(SbSocketAddress* out_interface_ip,
     }
 
     const in6_addr* potential_match;
-    if (!GetPotentialMatch(interface->ifa_addr, &potential_match))
+    if (!GetPotentialMatch(interface->ifa_addr, &potential_match)) {
       continue;
+    }
 
     // Check the IP for loopback again, just in case flags were incorrect.
     if (IN6_IS_ADDR_LOOPBACK(potential_match) ||
