@@ -63,23 +63,21 @@ config("modular") {
       "-O0",
       "-frtti",
     ]
-    if (!cobalt_fastbuild) {
-      cflags += [
-        # This flag causes an increase in binary size on certain platforms. Refer b/297357707
-        "-g",
-      ]
-    }
+
+    cflags += [
+      # This flag causes an increase in binary size on certain platforms. Refer b/297357707
+      "-g",
+    ]
   } else if (is_devel) {
     cflags += [
       "-O2",
       "-frtti",
     ]
-    if (!cobalt_fastbuild) {
-      cflags += [
-        # Use -gline-tables-only to ease the impact of increased size. Refer b/307760111
-        "-gline-tables-only",
-      ]
-    }
+
+    cflags += [
+      # Use -gline-tables-only to ease the impact of increased size. Refer b/307760111
+      "-gline-tables-only",
+    ]
   } else {
     cflags += [
       "-fno-rtti",
