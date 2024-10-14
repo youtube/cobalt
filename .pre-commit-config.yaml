@@ -11,6 +11,7 @@ files: |
         chrobalt/|
         starboard/|
         .pre-commit-config.yaml|
+        .pylintrc|
         docker-compose.yaml
     )
 
@@ -34,13 +35,13 @@ repos:
                # The --ignore-words-list argument has a bug where it needs to
                # be lowercase, see
                # https://github.com/codespell-project/codespell/issues/1390
-               --ignore-words-list, "atleast,varius",
+               --ignore-words-list, "atleast,varius,assertIn,requestor",
                ]
         exclude: |
             (?x)^(
                 starboard/content/ssl/certs/|
-                starboard/loader_app/app_key_test.cc|
-                starboard/shared/starboard/player/testdata
+                starboard/shared/starboard/player/testdata/|
+                starboard/android/apk/app/src/app/assets/web/link_android_splash_screen.html
             )
 
 -   repo: local
@@ -52,13 +53,6 @@ repos:
         types: [c++]
         args: [-i, -style=file]
         additional_dependencies: ['clang-format']
-    -   id: cpplint
-        name: cpplint
-        entry: cpplint
-        language: python
-        types: [c++]
-        args: [--verbose=4, --quiet]
-        additional_dependencies: ['cpplint']
     -   id: yapf
         name: yapf
         entry: yapf
@@ -88,6 +82,10 @@ repos:
         name: gcheckstyle
         entry: python3 ./chrobalt/precommit/gcheckstyle_wrapper.py
         language: python
+        exclude: |
+            (?x)^(
+                starboard/android/apk/app/src/main/java/dev/cobalt/storage/StorageProto.java
+            )
         types: [java]
     -   id: gn-format
         name: gn-format

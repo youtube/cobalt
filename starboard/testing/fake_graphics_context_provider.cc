@@ -213,8 +213,9 @@ void FakeGraphicsContextProvider::InitializeEGL() {
     config = configs[config_number];
     surface_ = EGL_CALL_SIMPLE(
         eglCreateWindowSurface(display_, config, native_window, NULL));
-    if (EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()))
+    if (EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError())) {
       break;
+    }
   }
   SB_DCHECK(surface_ != EGL_NO_SURFACE);
 

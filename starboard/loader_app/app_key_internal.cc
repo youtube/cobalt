@@ -37,24 +37,28 @@ namespace {
 //
 //  ... ://<USERNAME>:<PASSWORD>@ ...
 void StripUserInfo(std::string* url) {
-  if (!url)
+  if (!url) {
     return;
+  }
 
   const size_t colon_slash_slash = url->find("://");
 
   // The user information is preceded by "://".
-  if (colon_slash_slash == std::string::npos)
+  if (colon_slash_slash == std::string::npos) {
     return;
+  }
 
   const size_t at = url->find_first_of('@');
 
   // The user information is followed by "@".
-  if (at == std::string::npos)
+  if (at == std::string::npos) {
     return;
+  }
 
   // The URL is malformed.
-  if (colon_slash_slash >= at)
+  if (colon_slash_slash >= at) {
     return;
+  }
 
   url->erase(colon_slash_slash + 3, at - (colon_slash_slash + 2));
 }
@@ -67,8 +71,9 @@ void StripQuery(std::string* url) {
   const size_t question_mark = url->find_first_of('?');
 
   // The query is preceded by "?".
-  if (question_mark == std::string::npos)
+  if (question_mark == std::string::npos) {
     return;
+  }
 
   url->erase(question_mark, url->size() - question_mark);
 }
@@ -81,8 +86,9 @@ void StripFragment(std::string* url) {
   const size_t pound = url->find_first_of('#');
 
   // The fragment is preceded by "#".
-  if (pound == std::string::npos)
+  if (pound == std::string::npos) {
     return;
+  }
 
   url->erase(pound, url->size() - pound);
 }
@@ -90,8 +96,9 @@ void StripFragment(std::string* url) {
 }  // namespace
 
 std::string ExtractAppKey(const std::string& url) {
-  if (url.empty())
+  if (url.empty()) {
     return "";
+  }
 
   std::string output = url;
 

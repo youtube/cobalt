@@ -23,30 +23,30 @@ from typing import List
 
 
 def _check_file_for_python3_compatibility(filename: str) -> bool:
-    if not os.path.exists(filename):
-        print(f'{filename} is not a valid path, skipping.')
-        return False
+  if not os.path.exists(filename):
+    print(f'{filename} is not a valid path, skipping.')
+    return False
 
-    temp_directory = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
-    temp_file = os.path.join(temp_directory.name, 'cfile')
-    had_errors = False
+  temp_directory = tempfile.TemporaryDirectory()  # pylint: disable=consider-using-with
+  temp_file = os.path.join(temp_directory.name, 'cfile')
+  had_errors = False
 
-    try:
-        py_compile.compile(filename, cfile=temp_file, doraise=True)
-    except py_compile.PyCompileError as e:
-        print(e)
-        print(f'{filename} is not valid in Python 3, consider updating it.')
-        had_errors = True
+  try:
+    py_compile.compile(filename, cfile=temp_file, doraise=True)
+  except py_compile.PyCompileError as e:
+    print(e)
+    print(f'{filename} is not valid in Python 3, consider updating it.')
+    had_errors = True
 
-    temp_directory.cleanup()
-    return had_errors
+  temp_directory.cleanup()
+  return had_errors
 
 
 def check_files_for_python3_compatibility(files: List[str]) -> bool:
-    """Checks files for Python 3 compatibility."""
-    rets = [_check_file_for_python3_compatibility(file) for file in files]
-    return any(rets)
+  """Checks files for Python 3 compatibility."""
+  rets = [_check_file_for_python3_compatibility(file) for file in files]
+  return any(rets)
 
 
 if __name__ == '__main__':
-    sys.exit(check_files_for_python3_compatibility(sys.argv[1:]))
+  sys.exit(check_files_for_python3_compatibility(sys.argv[1:]))

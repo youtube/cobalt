@@ -36,4 +36,3 @@ message CrashpadAnnotations {
   // Annotations with keys that are unknown at compile time.
   map<string, string> runtime_annotations = 4;
 }
-

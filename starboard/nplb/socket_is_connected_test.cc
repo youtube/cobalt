@@ -33,7 +33,7 @@ class SbSocketIsConnectedTest
 
 class PairSbSocketIsConnectedTest
     : public ::testing::TestWithParam<
-          std::pair<SbSocketAddressType, SbSocketAddressType> > {
+          std::pair<SbSocketAddressType, SbSocketAddressType>> {
  public:
   SbSocketAddressType GetServerAddressType() { return GetParam().first; }
   SbSocketAddressType GetClientAddressType() { return GetParam().second; }

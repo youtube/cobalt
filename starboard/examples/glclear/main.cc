@@ -135,8 +135,9 @@ Application::Application() {
     config = configs[config_number];
     surface_ = EGL_CALL_SIMPLE(
         eglCreateWindowSurface(display_, config, native_window, NULL));
-    if (SB_EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()))
+    if (SB_EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError())) {
       break;
+    }
   }
   SB_DCHECK(surface_ != SB_EGL_NO_SURFACE);
 

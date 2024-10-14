@@ -41,12 +41,13 @@ using ::testing::StrictMock;
   const int64_t kEpsilon = 1000;  // 1ms
   int64_t diff = left > right ? left - right : right - left;
 
-  if (diff <= kEpsilon)
+  if (diff <= kEpsilon) {
     return ::testing::AssertionSuccess();
-  else
+  } else {
     return ::testing::AssertionFailure()
            << left << " is not almost equal to " << right
            << " with a difference of " << diff;
+  }
 }
 
 class MockMonotonicSystemTimeProvider : public MonotonicSystemTimeProvider {

@@ -70,8 +70,9 @@ void SbSystemGetRandomData(void* out_buffer, int buffer_size) {
     // threads. It doesn't appear that there is any locking in the Chromium
     // POSIX implementation that is very similar.
     int result = read(file, buffer, remaining);
-    if (result <= 0)
+    if (result <= 0) {
       break;
+    }
 
     remaining -= result;
     buffer += result;

@@ -386,6 +386,7 @@ import androidx.annotation.IntDef;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
+/** ${CLASS_NAME}. */
 @IntDef({
 ${INT_DEF}
 })

@@ -79,7 +79,7 @@ typedef ::testing::Types<atomic_int32_t,
                          atomic_float,
                          atomic_double,
                          atomic_bool,
-                         atomic_pointer<int*> >
+                         atomic_pointer<int*>>
     AllAtomicTypes;
 
 // Defines a typelist for just atomic number types.

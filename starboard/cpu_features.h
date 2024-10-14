@@ -60,7 +60,7 @@ typedef struct SbCPUFeaturesARM {
   //     if available.
   // -------------------------------------------------------------------
 
-  // Processor implementer/implementor code. ARM is 0x41, NVIDIA is 0x4e, etc.
+  // Processor implementer code. ARM is 0x41, NVIDIA is 0x4e, etc.
   int16_t implementer;
   // Processor variant number, indicating the major revision number.
   int16_t variant;
