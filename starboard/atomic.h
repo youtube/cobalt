@@ -256,8 +256,4 @@ SbAtomicRelease_LoadPtr(volatile const SbAtomicPtr* ptr) {
 }  // extern "C"
 #endif
 
-// Include the platform definitions of these functions, which should be defined
-// as inlined. This macro is defined on the command line by GN.
-#include STARBOARD_ATOMIC_INCLUDE
-
 #endif  // STARBOARD_ATOMIC_H_
