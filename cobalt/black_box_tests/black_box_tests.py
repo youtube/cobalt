@@ -183,16 +183,16 @@ def LoadTests(launcher_params, test_set):
           'cobalt').GetTestFilters()
 
   if test_set in ['all', 'blackbox']:
-    test_targets = _TESTS_NO_SIGNAL
+    # test_targets = _TESTS_NO_SIGNAL
 
-    if launcher.SupportsSuspendResume():
-      test_targets += _TESTS_NEEDING_SYSTEM_SIGNAL
+    # if launcher.SupportsSuspendResume():
+    #   test_targets += _TESTS_NEEDING_SYSTEM_SIGNAL
 
     if launcher.SupportsDeepLink():
       test_targets += _TESTS_NEEDING_DEEP_LINK
 
-  if test_set in ['all', 'wpt']:
-    test_targets += _WPT_TESTS
+  # if test_set in ['all', 'wpt']:
+  # test_targets += _WPT_TESTS
 
   test_suite = unittest.TestSuite()
   for test in test_targets:

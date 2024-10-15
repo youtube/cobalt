@@ -67,7 +67,7 @@ int CreateServerSocket(SbSocketAddressType address_type) {
   int on = 1;
   if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) != 0) {
     SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "SbSocketSetReuseAddress failed";
+                  << "Socket set reuse address failed, errno : " << errno;
     return -1;
   }
   SB_DLOG(INFO) << "Successfully created server socket with fd : " << socket_fd;
@@ -87,7 +87,7 @@ int CreateLocallyBoundSocket(SbSocketAddressType address_type, int port) {
       getsockname(socket, reinterpret_cast<sockaddr*>(&addr_in), &socklen);
 
   if (local_add_result < 0) {
-    SB_LOG(ERROR) << "GetLocalhostAddress failed";
+    SB_LOG(ERROR) << "Get local address failed, errno : " << errno;
     return -1;
   }
 
@@ -96,7 +96,7 @@ int CreateLocallyBoundSocket(SbSocketAddressType address_type, int port) {
 
   if (bind_result != 0) {
     SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "SbSocketBind to " << port << " failed: " << bind_result;
+                  << "Socket bind to " << port << " failed, errno : " << errno;
     return -1;
   }
 
@@ -114,7 +114,7 @@ int CreateListeningSocket(SbSocketAddressType address_type, int port) {
   int listen_result = listen(socket, kMaxConn);
   if (listen_result != 0) {
     SB_LOG(ERROR) << __FUNCTION__ << ": "
-                  << "SbSocketListen failed: " << listen_result;
+                  << "Socket listen failed, errno : " << errno;
     return -1;
   }
 
