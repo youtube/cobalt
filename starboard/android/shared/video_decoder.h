@@ -26,7 +26,6 @@
 #include "starboard/android/shared/media_decoder.h"
 #include "starboard/android/shared/video_frame_tracker.h"
 #include "starboard/android/shared/video_window.h"
-#include "starboard/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"

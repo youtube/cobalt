@@ -21,15 +21,15 @@
 #ifndef STARBOARD_COMMON_SPIN_LOCK_H_
 #define STARBOARD_COMMON_SPIN_LOCK_H_
 
-#include "starboard/atomic.h"
+#include <atomic>
 
 namespace starboard {
 
-const SbAtomic32 kSpinLockStateReleased = 0;
-const SbAtomic32 kSpinLockStateAcquired = 1;
+constexpr int32_t kSpinLockStateReleased{0};
+constexpr int32_t kSpinLockStateAcquired{1};
 
-void SpinLockAcquire(SbAtomic32* atomic);
-void SpinLockRelease(SbAtomic32* atomic);
+void SpinLockAcquire(std::atomic<int32_t>* atomic);
+void SpinLockRelease(std::atomic<int32_t>* atomic);
 
 class SpinLock {
  public:
@@ -39,18 +39,18 @@ class SpinLock {
   void Release();
 
  private:
-  SbAtomic32 atomic_;
+  std::atomic<int32_t> atomic_;
   friend class ScopedSpinLock;
 };
 
 class ScopedSpinLock {
  public:
-  explicit ScopedSpinLock(SbAtomic32* atomic);
+  explicit ScopedSpinLock(std::atomic<int32_t>* atomic);
   explicit ScopedSpinLock(SpinLock& spin_lock);
   ~ScopedSpinLock();
 
  private:
-  SbAtomic32* atomic_;
+  std::atomic<int32_t>* atomic_;
 };
 
 }  // namespace starboard

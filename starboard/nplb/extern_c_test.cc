@@ -15,7 +15,6 @@
 // Ensure that all starboard headers can be included inside extern "C".
 
 extern "C" {
-#include "starboard/atomic.h"
 #include "starboard/audio_sink.h"
 #include "starboard/configuration.h"
 #include "starboard/cpu_features.h"
