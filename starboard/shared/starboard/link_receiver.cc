@@ -47,6 +47,7 @@ const int kMaxConn = 128;
 // Creates a socket that is appropriate for binding and listening, but is not
 // bound and hasn't started listening yet.
 int CreateServerSocket(SbSocketAddressType address_type) {
+  SB_DLOG(INFO) << "Entering CreateServerSocket";
   int socket_fd = -1;
   switch (address_type) {
     case kSbSocketAddressTypeIpv4:
@@ -63,6 +64,7 @@ int CreateServerSocket(SbSocketAddressType address_type) {
                   << "Socket create failed, errno: " << errno;
     return -1;
   }
+  SB_DLOG(INFO) << "Socket successfully created";
 
   int on = 1;
   if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) != 0) {
@@ -70,12 +72,13 @@ int CreateServerSocket(SbSocketAddressType address_type) {
                   << "Socket set reuse address failed, errno : " << errno;
     return -1;
   }
-  SB_DLOG(INFO) << "Successfully created server socket with fd : " << socket_fd;
+  SB_DLOG(INFO) << "Socket created with set reuse address true : " << socket_fd;
   return socket_fd;
 }
 
 // Creates a server socket that is bound to the loopback interface.
 int CreateLocallyBoundSocket(SbSocketAddressType address_type, int port) {
+  SB_DLOG(INFO) << "Entering CreateLocallyBoundSocket";
   int socket = CreateServerSocket(address_type);
   if (socket < 0) {
     return -1;
@@ -90,6 +93,7 @@ int CreateLocallyBoundSocket(SbSocketAddressType address_type, int port) {
     SB_LOG(ERROR) << "Get local address failed, errno : " << errno;
     return -1;
   }
+  SB_DLOG(INFO) << "Successfully got local address";
 
   int bind_result =
       bind(socket, reinterpret_cast<sockaddr*>(&addr_in), sizeof(sockaddr));
@@ -99,6 +103,7 @@ int CreateLocallyBoundSocket(SbSocketAddressType address_type, int port) {
                   << "Socket bind to " << port << " failed, errno : " << errno;
     return -1;
   }
+  SB_DLOG(INFO) << "Successfully bound socket";
 
   return socket;
 }
@@ -106,6 +111,7 @@ int CreateLocallyBoundSocket(SbSocketAddressType address_type, int port) {
 // Creates a server socket that is bound and listening to the loopback interface
 // on the given port.
 int CreateListeningSocket(SbSocketAddressType address_type, int port) {
+  SB_DLOG(INFO) << "Entering CreateListeningSocket";
   int socket = CreateLocallyBoundSocket(address_type, port);
   if (socket < 0) {
     return -1;
@@ -117,6 +123,7 @@ int CreateListeningSocket(SbSocketAddressType address_type, int port) {
                   << "Socket listen failed, errno : " << errno;
     return -1;
   }
+  SB_DLOG(INFO) << "Successfully listening";
 
   return socket;
 }
@@ -126,8 +133,8 @@ bool GetBoundPort(int socket, int* out_port) {
   SB_DCHECK(out_port);
   SB_DCHECK(socket >= 0);
 
-  socklen_t socklen;
   struct sockaddr_in socket_address = {0};
+  socklen_t socklen = static_cast<socklen_t>(sizeof(socket_address));
   int local_address = getsockname(
       socket, reinterpret_cast<sockaddr*>(&socket_address), &socklen);
 
