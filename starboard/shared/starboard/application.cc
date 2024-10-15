@@ -14,9 +14,9 @@
 
 #include "starboard/shared/starboard/application.h"
 
+#include <atomic>
 #include <string>
 
-#include "starboard/atomic.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -59,9 +59,9 @@ void DeleteStartData(void* data) {
 }  // namespace
 
 // The next event ID to use for Schedule().
-volatile SbAtomic32 g_next_event_id = 0;
+volatile std::atomic<int32_t>g_next_event_id{0};
 
-Application* Application::g_instance = NULL;
+std::atomic<Application*> Application::g_instance{NULL};
 
 Application::Application(SbEventHandleCallback sb_event_handle_callback)
     : error_level_(0),
@@ -71,20 +71,14 @@ Application::Application(SbEventHandleCallback sb_event_handle_callback)
       sb_event_handle_callback_(sb_event_handle_callback) {
   SB_CHECK(sb_event_handle_callback_)
       << "sb_event_handle_callback_ has not been set.";
-  Application* old_instance =
-      reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
-          reinterpret_cast<SbAtomicPtr*>(&g_instance),
-          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL)),
-          reinterpret_cast<SbAtomicPtr>(this)));
+  Application* old_instance = NULL;
+  g_instance.compare_exchange_weak(old_instance, this, std::memory_order_acquire);
   SB_DCHECK(!old_instance);
 }
 
 Application::~Application() {
-  Application* old_instance =
-      reinterpret_cast<Application*>(SbAtomicAcquire_CompareAndSwapPtr(
-          reinterpret_cast<SbAtomicPtr*>(&g_instance),
-          reinterpret_cast<SbAtomicPtr>(this),
-          reinterpret_cast<SbAtomicPtr>(reinterpret_cast<void*>(NULL))));
+  Application* old_instance = this;
+  g_instance.compare_exchange_weak(old_instance, NULL, std::memory_order_acquire);
   SB_DCHECK(old_instance);
   SB_DCHECK(old_instance == this);
   free(start_link_);
@@ -184,7 +178,7 @@ void Application::WindowSizeChanged(void* context,
 SbEventId Application::Schedule(SbEventCallback callback,
                                 void* context,
                                 int64_t delay) {
-  SbEventId id = SbAtomicNoBarrier_Increment(&g_next_event_id, 1);
+  SbEventId id = ++g_next_event_id;
   InjectTimedEvent(new TimedEvent(id, callback, context, delay));
   return id;
 }
