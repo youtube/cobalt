@@ -122,10 +122,7 @@ void GetSocketPipe(SbSocket* client_socket, SbSocket* server_socket) {
 }  // namespace
 
 SbSocketWaiterPrivate::SbSocketWaiterPrivate()
-    : thread_(pthread_self()),
-      base_(event_base_new()),
-      waiting_(false),
-      woken_up_(false) {
+    : thread_(pthread_self()), base_(event_base_new()), woken_up_(false) {
 #if USE_POSIX_PIPE
   int fds[2];
   int result = pipe(fds);
@@ -287,9 +284,7 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
     timeout_add(&event, &tv);
   }
 
-  waiting_ = true;
   event_base_loop(base_, 0);
-  waiting_ = false;
 
   SbSocketWaiterResult result =
       woken_up_ ? kSbSocketWaiterResultWokenUp : kSbSocketWaiterResultTimedOut;
@@ -362,7 +357,6 @@ void SbSocketWaiterPrivate::HandleSignal(Waitee* waitee,
 }
 
 void SbSocketWaiterPrivate::HandleWakeUpRead() {
-  SB_DCHECK(waiting_);
   // Remove and discard the wakeup byte.
   char buf;
   int bytes_read = HANDLE_EINTR(read(wakeup_read_fd_, &buf, 1));
