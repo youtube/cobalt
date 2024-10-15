@@ -15,9 +15,11 @@
 import("//starboard/build/config/os_definitions.gni")
 declare_args() {
   starboard_target_type = ""
-  starboard_shared_library_extension = "so"
-
-  # starboard_shared_library_extension = "so.${sb_api_version}"
+  if (is_android) {
+    starboard_shared_library_extension = "so"
+  } else {
+    starboard_shared_library_extension = "so.${sb_api_version}"
+  }
 }
 
 if (starboard_target_type == "") {

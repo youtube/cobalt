@@ -280,15 +280,7 @@ if (custom_toolchain != "") {
   cobalt_toolchain = _default_toolchain
 }
 
-declare_args() {
-  use_upstream_toolchain = true
-}
-if (use_upstream_toolchain) {
-  starboard_toolchain = "//build/toolchain/android:starboard"
-} else {
-  starboard_toolchain = "//starboard/android/arm/toolchain:starboard"
-}
-
+starboard_toolchain = "//build/toolchain/android:starboard"
 set_default_toolchain(cobalt_toolchain)
 
 # =============================================================================
