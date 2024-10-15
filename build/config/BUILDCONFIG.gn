@@ -280,7 +280,14 @@ if (custom_toolchain != "") {
   cobalt_toolchain = _default_toolchain
 }
 import("//starboard/build/platform_path.gni")
-starboard_toolchain = "//build/toolchain/android:starboard"
+declare_args() {
+  use_upstream_toolchain = true
+}
+if (use_upstream_toolchain) {
+  starboard_toolchain = "//build/toolchain/android:starboard"
+} else {
+  starboard_toolchain = "//starboard/android/arm/toolchain:starboard"
+}
 
 set_default_toolchain(cobalt_toolchain)
 

@@ -274,6 +274,9 @@ vars = {
   'checkout_siso': False,
   # siso CIPD package version.
   'siso_version': 'latest',
+  
+  # Download Cobalt-specific resources
+  'is_chrobalt': True,
 
   'android_git': 'https://android.googlesource.com',
   'aomedia_git': 'https://aomedia.googlesource.com',
@@ -5160,6 +5163,13 @@ hooks = [
                '--rbe_instance',
                Var('rbe_instance'),
                ],
+  },
+  # Download Cobalt Android toolchain
+  {
+    'name': 'download_cobalt_android_toolchain',
+    'pattern': '.',
+    'condition': 'is_chrobalt and checkout_android and host_os == "linux"',
+    'action': ['python3', 'src/starboard/android/shared/download_toolchain.py']
   },
 ]
 

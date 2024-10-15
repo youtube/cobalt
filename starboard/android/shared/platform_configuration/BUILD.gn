@@ -155,6 +155,7 @@ config("platform_configuration") {
     # 'warn_unused_result' attribute [-Werror,-Wunused-result]
     "-Wno-unused-result",
     "-Wno-shadow",
+    "-Wno-unknown-warning-option",
   ]
   defines += [
     # Enable compile-time decisions based on the ABI

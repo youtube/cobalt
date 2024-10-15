@@ -32,7 +32,7 @@ gcc_toolchain("target") {
 }
 
 gcc_toolchain("starboard") {
-  prefix = rebase_path("$android_toolchain_path/bin", root_build_dir)
+  prefix = rebase_path("//starboard/android/shared/android_toolchain/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/bin", root_build_dir)
   cc = "$prefix/armv7a-linux-androideabi${android_ndk_api_level}-clang"
   cxx = "$prefix/armv7a-linux-androideabi${android_ndk_api_level}-clang++"
   ld = cxx
@@ -43,6 +43,7 @@ gcc_toolchain("starboard") {
     current_cpu = "arm"
     current_os = "android"
     is_clang = true
+    use_custom_libcxx = false
   }
 }
 
