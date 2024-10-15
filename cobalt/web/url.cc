@@ -121,6 +121,12 @@ std::string URL::CreateObjectURL(
   web::WindowOrWorkerGlobalScope* global_scope =
       web_settings->context()->GetWindowOrWorkerGlobalScope();
   if (global_scope->IsWorker()) {
+    if (!global_scope->IsDedicatedWorker()) {
+      // MSE-in-Workers is only available from DedicatedWorkers, but the URL
+      // API is exposed to multiple types of Workers. This branch is used to
+      // handle Workers that don't support MSE.
+      return "";
+    }
     if (!IsMseInWorkersEnabled(web_settings) ||
         !IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(web_settings) ||
         !IsMediaElementUsingMediaSourceBufferedRangeEnabled(web_settings)) {
