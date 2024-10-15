@@ -136,9 +136,6 @@ struct SbSocketWaiterPrivate {
   // The registry of currently registered Waitees.
   WaiteesMap waitees_;
 
-  // Whether or not the waiter is actually waiting.
-  bool waiting_;
-
   // Whether or not the waiter was woken up.
   bool woken_up_;
 
