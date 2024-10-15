@@ -23,11 +23,7 @@ declare_args() {
 }
 
 if (starboard_target_type == "") {
-  if (sb_is_modular && !sb_is_evergreen) {
-    starboard_target_type = "shared_library"
-  } else {
-    starboard_target_type = "group"
-  }
+  starboard_target_type = "shared_library"
 }
 
 template("starboard_platform_target") {
@@ -41,7 +37,7 @@ template("starboard_platform_target") {
     if (defined(invoker.extra_configs)) {
       configs += extra_configs
     }
-    if (defined(configs)) {
+    if (defined(configs) && is_android) {
       configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
     }
     all_dependent_configs = [
@@ -70,7 +66,7 @@ template("starboard_platform_target") {
       public_deps +=
           [ "//starboard/shared/modular:starboard_layer_posix_abi_wrappers" ]
     }
-    if (target_type == "shared_library") {
+    if (target_type == "shared_library" && is_android) {
       ldflags = [
         "-Wl,--wrap=close",
         "-Wl,--wrap=open",

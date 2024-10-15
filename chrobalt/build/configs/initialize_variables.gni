@@ -31,7 +31,7 @@ declare_args() {
 
   using_old_compiler = false
 
-  build_with_separate_cobalt_toolchain = true
+  build_with_separate_cobalt_toolchain = target_os == "linux"
 }
 
 assert(!(is_starboard && is_native_target_build),
@@ -66,3 +66,8 @@ if (is_mac) {
 # Get the path to the starboard implementation and include its GN
 # configuration.
 import("//starboard/build/platform_path.gni")
+if (build_with_separate_cobalt_toolchain) {
+  starboard_toolchain = "//$starboard_path/toolchain:starboard"
+} else {
+  starboard_toolchain = cobalt_toolchain
+}

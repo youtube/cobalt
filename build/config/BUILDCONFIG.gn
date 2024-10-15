@@ -280,7 +280,6 @@ if (custom_toolchain != "") {
   cobalt_toolchain = _default_toolchain
 }
 
-starboard_toolchain = cobalt_toolchain
 set_default_toolchain(cobalt_toolchain)
 
 # =============================================================================
