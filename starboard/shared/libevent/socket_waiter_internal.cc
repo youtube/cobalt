@@ -271,18 +271,28 @@ void SbSocketWaiterPrivate::Wait() {
 SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
   SB_DCHECK(pthread_equal(pthread_self(), thread_));
 
+  if ((duration_usec == 0) || (duration_usec == kSbInt64Max)) {
+    // There is no need for a timeout event in these cases.
+    event_base_loop(base_,
+                    (duration_usec == 0) ? EVLOOP_ONCE | EVLOOP_NONBLOCK : 0);
+
+    SbSocketWaiterResult result = woken_up_ ? kSbSocketWaiterResultWokenUp
+                                            : kSbSocketWaiterResultTimedOut;
+    woken_up_ = false;
+
+    return result;
+  }
+
   // The way to do this is apparently to create a timeout event, call WakeUp
   // inside that callback, and then just do a normal wait.
   struct event event;
   timeout_set(&event, &SbSocketWaiterPrivate::LibeventTimeoutCallback, this);
   event_base_set(base_, &event);
 
-  if (duration_usec < kSbInt64Max) {
-    struct timeval tv;
-    tv.tv_sec = duration_usec / 1'000'000;
-    tv.tv_usec = duration_usec % 1'000'000;
-    timeout_add(&event, &tv);
-  }
+  struct timeval tv;
+  tv.tv_sec = duration_usec / 1'000'000;
+  tv.tv_usec = duration_usec % 1'000'000;
+  timeout_add(&event, &tv);
 
   event_base_loop(base_, 0);
 
@@ -290,12 +300,9 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
       woken_up_ ? kSbSocketWaiterResultWokenUp : kSbSocketWaiterResultTimedOut;
   woken_up_ = false;
 
-  if (duration_usec < kSbInt64Max) {
-    // We clean this up, in case we were awakened early, to prevent a spurious
-    // wake-up later.
-    timeout_del(&event);
-  }
-
+  // We clean this up, in case we were awakened early, to prevent a spurious
+  // wake-up later.
+  timeout_del(&event);
   return result;
 }
 
