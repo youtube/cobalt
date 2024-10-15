@@ -52,15 +52,17 @@ class IamfAudioDecoder
   void Reset() override;
 
  private:
-  bool ConfigureDecoder(IamfBufferInfo* info,
+  bool ConfigureDecoder(const IamfBufferInfo* info,
                         int64_t timestamp,
-                        std::string* error_message);
+                        std::string* error_message) const;
   void TeardownDecoder();
   bool DecodeInternal(const scoped_refptr<InputBuffer>& input_buffer);
 
   SbMediaAudioSampleType GetSampleType() const;
 
   void ReportError(const std::string& message) const;
+
+  const AudioStreamInfo audio_stream_info_;
 
   OutputCB output_cb_;
   ErrorCB error_cb_;
@@ -69,10 +71,8 @@ class IamfAudioDecoder
   IAMF_Decoder* decoder_ = nullptr;
   bool stream_ended_ = false;
   std::queue<scoped_refptr<DecodedAudio>> decoded_audios_;
-  AudioStreamInfo audio_stream_info_;
   bool decoder_is_configured_ = false;
   int samples_per_second_ = 0;
-  const int channels_;
 };
 
 }  // namespace libiamf

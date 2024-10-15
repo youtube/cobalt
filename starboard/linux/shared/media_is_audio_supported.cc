@@ -43,22 +43,24 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
       return false;
     }
     const std::vector<std::string>& codecs = mime_type->GetCodecs();
-    if (codecs.size() != 1) {
-      return false;
+    bool stream_is_supported = false;
+    for (auto& codec : codecs) {
+      IamfMimeUtil mime_util(codec);
+      if (!mime_util.is_valid()) {
+        continue;
+      }
+      uint32_t profile = mime_util.primary_profile();
+      // Support only IAMF streams with a base or simple profile and an Opus
+      // substream.
+      if (mime_util.substream_codec() != kIamfSubstreamCodecOpus ||
+          (profile != kIamfProfileSimple && profile != kIamfProfileBase)) {
+        continue;
+      }
+      stream_is_supported = true;
+      break;
     }
-
-    IamfMimeUtil mime_util(codecs[0]);
-    if (!mime_util.is_valid()) {
-      return false;
-    }
-    uint32_t profile = mime_util.primary_profile();
-    // Support only IAMF streams with a base or simple profile and an Opus
-    // substream.
-    if (mime_util.substream_codec() != kIamfSubstreamCodecOpus ||
-        (profile != kIamfProfileSimple && profile != kIamfProfileBase)) {
-      return false;
-    }
-    return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
+    return stream_is_supported &&
+           bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
   }
 #endif  // SB_API_VERSION >= 15
 

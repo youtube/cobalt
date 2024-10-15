@@ -60,8 +60,7 @@ int GetMaxChannelCount() {
   int index = 0;
   SbMediaAudioConfiguration configuration;
   while (SbMediaGetAudioConfiguration(index++, &configuration)) {
-    if (configuration.number_of_channels > channels)
-      channels = configuration.number_of_channels;
+    channels = std::max(configuration.number_of_channels, channels);
   }
   return channels;
 }
@@ -154,7 +153,7 @@ SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
 #if SB_API_VERSION < 15
   audio_stream_info.format_tag = 0x00ff;
 #endif  // SB_API_VERSION < 15
-audio_stream_info.number_of_channels =
+  audio_stream_info.number_of_channels =
       ChannelLayoutToChannelCount(audio_decoder_config.channel_layout());
 #if SB_API_VERSION >= 15
   if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {

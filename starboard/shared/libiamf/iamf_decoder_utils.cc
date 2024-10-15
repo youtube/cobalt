@@ -20,6 +20,7 @@
 #include <unordered_set>
 
 #include "starboard/common/log.h"
+#include "starboard/common/string.h"
 #include "third_party/libiamf/source/code/include/IAMF_defines.h"
 
 namespace starboard {
@@ -62,8 +63,7 @@ enum BinauralMixSelection {
 
 class BufferReader {
  public:
-  BufferReader(const uint8_t* buf, size_t size)
-      : buf_(buf), pos_(0), size_(size) {
+  BufferReader(const uint8_t* buf, size_t size) : buf_(buf), size_(size) {
 #if SB_IS_BIG_ENDIAN
 #error BufferReader assumes little-endianness.
 #endif  // SB_IS_BIG_ENDIAN
@@ -88,10 +88,12 @@ class BufferReader {
   }
 
   bool ReadLeb128(uint32_t* ptr) {
-    if (!HasBytes(sizeof(uint32_t)) || !ptr) {
+    if (RemainingSize() < 1 || !ptr) {
       return false;
     }
-    int bytes_read = ReadLeb128Internal(buf_ + pos_, ptr);
+    int bytes_read = ReadLeb128Internal(
+        buf_ + pos_, ptr,
+        std::min(static_cast<uint64_t>(RemainingSize()), sizeof(uint32_t)));
     if (bytes_read < 0) {
       return false;
     }
@@ -100,6 +102,9 @@ class BufferReader {
   }
 
   bool ReadString(std::string* str) {
+    if (RemainingSize() < 1 || !str) {
+      return false;
+    }
     int bytes_read = ReadStringInternal(buf_ + pos_, str);
     if (bytes_read < 0) {
       return false;
@@ -132,6 +137,7 @@ class BufferReader {
 
  private:
   bool HasBytes(size_t size) const { return size + pos_ <= size_; }
+  int RemainingSize() const { return size_ - pos_; }
   inline uint32_t ByteSwap(uint32_t x) {
 #if defined(COMPILER_MSVC)
     return _byteswap_ulong(x);
@@ -141,15 +147,18 @@ class BufferReader {
   }
 
   // Decodes an Leb128 value and stores it in |value|. Returns the number of
-  // bytes read, capped to sizeof(uint32_t). Returns the number of bytes read,
-  // or -1 on error.
-  int ReadLeb128Internal(const uint8_t* buf, uint32_t* value) {
+  // bytes read, capped to |max_bytes_to_read|. Returns the number of bytes
+  // read, or -1 on error.
+  int ReadLeb128Internal(const uint8_t* buf,
+                         uint32_t* value,
+                         const int max_bytes_to_read) {
     SB_DCHECK(buf);
     SB_DCHECK(value);
+
     *value = 0;
     bool error = true;
     size_t i = 0;
-    for (; i < sizeof(uint32_t); ++i) {
+    for (; i < max_bytes_to_read; ++i) {
       uint8_t byte = buf[i];
       *value |= ((byte & 0x7f) << (i * 7));
       if (!(byte & 0x80)) {
@@ -168,36 +177,24 @@ class BufferReader {
   // 128 bytes, or -1 on error.
   int ReadStringInternal(const uint8_t* buf, std::string* str) {
     SB_DCHECK(buf);
-
-    int remaining_size = static_cast<int>(size_) - pos_;
-    if (remaining_size <= 0) {
-      return -1;
-    }
+    SB_DCHECK(str);
 
     // The size of the string is capped to 128 bytes.
-    const int kMaxStringSize = 128;
-    int str_size = std::min(remaining_size, kMaxStringSize);
+    // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#convention-data-types
+    const int kMaxIamfStringSize = 128;
+    int max_bytes_to_read = std::min(RemainingSize(), kMaxIamfStringSize);
     str->clear();
+    str->resize(max_bytes_to_read);
 
-    size_t bytes_read = 0;
-    while (bytes_read < str_size && buf[bytes_read] != '\0') {
-      bytes_read++;
-    }
-
-    if (bytes_read == str_size) {
-      if (buf[bytes_read - 1] != '\0') {
-        return -1;
-      }
-    } else {
+    int bytes_read = ::starboard::strlcpy(
+        str->data(), reinterpret_cast<const char*>(buf), max_bytes_to_read);
+    if (bytes_read == kMaxIamfStringSize) {
+      // Ensure that the read string is null terminated.
       if (buf[bytes_read] != '\0') {
-        return -1;
+        return false;
       }
     }
-
-    if (bytes_read > 0) {
-      str->resize(bytes_read);
-      std::memcpy(str->data(), reinterpret_cast<const char*>(buf), bytes_read);
-    }
+    str->resize(bytes_read);
 
     // Account for null terminator byte.
     return ++bytes_read;
@@ -205,7 +202,7 @@ class BufferReader {
 
   int pos_ = 0;
   const uint8_t* buf_;
-  const size_t size_ = 0;
+  const size_t size_;
 };
 
 // Helper function to skip parsing ParamDefinitions found in the config OBUs
@@ -235,12 +232,8 @@ bool SkipParamDefinition(BufferReader* reader) {
   return true;
 }
 
-// Helper function to check if |info| contains valid information.
-bool BufferInfoIsValid(IamfBufferInfo* info) {
-  return info->mix_presentation_id.has_value() && info->sample_rate > 0 &&
-         info->num_samples > 0;
-}
-
+// Parses an IAMF OBU header.
+// https://aomediacodec.github.io/iamf/v1.0.0-errata.html#obu-header-syntax
 bool ParseOBUHeader(BufferReader* reader,
                     uint8_t* obu_type,
                     uint32_t* obu_size) {
@@ -248,7 +241,6 @@ bool ParseOBUHeader(BufferReader* reader,
   RCHECK(reader->Read1(&header_flags));
   *obu_type = (header_flags >> 3) & 0x1f;
 
-  const bool obu_redundant_copy = (header_flags >> 2) & 1;
   const bool obu_trimming_status_flag = (header_flags >> 1) & 1;
   const bool obu_extension_flag = header_flags & 1;
 
@@ -278,6 +270,9 @@ bool ParseOBUHeader(BufferReader* reader,
   return true;
 }
 
+// Parses an IAMF Config OBU for the substream sample rate. This only handles
+// Opus and ipcm substreams, FLAC and AAC substreams are unsupported.
+// https://aomediacodec.github.io/iamf/v1.0.0-errata.html#obu-codecconfig
 bool ParseCodecConfigOBU(BufferReader* reader, IamfBufferInfo* info) {
   RCHECK(reader->SkipLeb128());
 
@@ -289,10 +284,11 @@ bool ParseCodecConfigOBU(BufferReader* reader, IamfBufferInfo* info) {
   // audio_roll_distance
   RCHECK(reader->SkipBytes(2));
 
-  const int kOpusSampleRate = 48000;
   switch (codec_id) {
     case kFourccOpus:
-      info->sample_rate = kOpusSampleRate;
+      // The Opus sample rate is always 48kHz.
+      // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#opus-specific
+      info->sample_rate = 48000;
       break;
     case kFourccIpcm: {
       // sample_format_flags
@@ -314,13 +310,17 @@ bool ParseCodecConfigOBU(BufferReader* reader, IamfBufferInfo* info) {
   return true;
 }
 
-bool ParseAudioElementOBU(
-    BufferReader* reader,
-    IamfBufferInfo* info,
-    std::unordered_set<uint32_t>* binaural_audio_element_ids,
-    std::unordered_set<uint32_t>* surround_audio_element_ids,
-    const bool prefer_binaural_audio,
-    const bool prefer_surround_audio) {
+// Parses an IAMF Audio Element OBU for audio element ids. When
+// |prefer_binaural_audio| is true, |binaural_audio_element_id| the first audio
+// element id containing a binaural loudspeaker layout. The same is done for
+// |surround_audio_element_id| when |prefer_surround_audio| is true.
+// https://aomediacodec.github.io/iamf/v1.0.0-errata.html#obu-audioelement
+bool ParseAudioElementOBU(BufferReader* reader,
+                          IamfBufferInfo* info,
+                          std::optional<uint32_t>* binaural_audio_element_id,
+                          std::optional<uint32_t>* surround_audio_element_id,
+                          const bool prefer_binaural_audio,
+                          const bool prefer_surround_audio) {
   uint32_t audio_element_id;
   RCHECK(reader->ReadLeb128(&audio_element_id));
 
@@ -347,12 +347,12 @@ bool ParseAudioElementOBU(
     RCHECK(reader->ReadLeb128(&param_definition_type));
 
     if (param_definition_type == IAMF_PARAMETER_TYPE_DEMIXING) {
-      SkipParamDefinition(reader);
+      RCHECK(SkipParamDefinition(reader));
       // DemixingParamDefintion
       RCHECK(reader->SkipBytes(1));
     } else if (param_definition_type == IAMF_PARAMETER_TYPE_RECON_GAIN) {
-      SkipParamDefinition(reader);
-    } else if (param_definition_type > 2) {
+      RCHECK(SkipParamDefinition(reader));
+    } else if (param_definition_type > IAMF_PARAMETER_TYPE_RECON_GAIN) {
       uint32_t param_definition_size;
       RCHECK(reader->ReadLeb128(&param_definition_size));
       RCHECK(reader->SkipBytes(param_definition_size));
@@ -374,11 +374,13 @@ bool ParseAudioElementOBU(
       RCHECK(reader->Read1(&loudspeaker_layout));
       output_gain_is_present_flag = (loudspeaker_layout >> 3) & 0x01;
       loudspeaker_layout = loudspeaker_layout >> 4;
-      if (loudspeaker_layout == IA_CHANNEL_LAYOUT_BINAURAL) {
-        binaural_audio_element_ids->insert(audio_element_id);
+      if (loudspeaker_layout == IA_CHANNEL_LAYOUT_BINAURAL &&
+          !binaural_audio_element_id->has_value()) {
+        *binaural_audio_element_id = audio_element_id;
       } else if (loudspeaker_layout > IA_CHANNEL_LAYOUT_STEREO &&
-                 loudspeaker_layout < IA_CHANNEL_LAYOUT_COUNT) {
-        surround_audio_element_ids->insert(audio_element_id);
+                 loudspeaker_layout < IA_CHANNEL_LAYOUT_COUNT &&
+                 !surround_audio_element_id->has_value()) {
+        *surround_audio_element_id = audio_element_id;
       }
 
       // substream_count and coupled_substream_count
@@ -398,11 +400,22 @@ bool ParseAudioElementOBU(
   return true;
 }
 
+// Parses a Mix Presentation OBU for a mix presentation to be used when
+// configuring the IAMF decoder.
+// When |prefer_surround_audio| is true, |info->mix_presentation_id| is
+// set to |surround_audio_element_id|, if it has a value.
+// When |prefer_binaural_audio| is true, |info->mix_presentation_id| is
+// set to |binaural_audio_element_id|, if it has a value. If
+// |binaural_audio_element_id| is unset, |info->mix_presentation_id| will be set
+// to a mix presentation containing a loudness layout.
+// |info->mix_presentation_id| is set to the first read mix presentation by
+// default.
+// https://aomediacodec.github.io/iamf/v1.0.0-errata.html#obu-mixpresentation
 bool ParseMixPresentationOBU(
     BufferReader* reader,
     IamfBufferInfo* info,
-    std::unordered_set<uint32_t>* binaural_audio_element_ids,
-    std::unordered_set<uint32_t>* surround_audio_element_ids,
+    const std::optional<uint32_t>* binaural_audio_element_id,
+    const std::optional<uint32_t>* surround_audio_element_id,
     const bool prefer_binaural_audio,
     const bool prefer_surround_audio) {
   uint32_t mix_presentation_id;
@@ -431,20 +444,20 @@ bool ParseMixPresentationOBU(
       RCHECK(reader->ReadLeb128(&audio_element_id));
 
       // Set a mix presentation for binaural or surround streams. The mix
-      // presentation is chosen if there exists an audio element that has
+      // presentation is chosen if an audio element exists that has
       // the qualities it requires - such as an audio element with a
       // binaural loudspeaker layout.
       if (!info->mix_presentation_id.has_value() ||
           (prefer_binaural_audio &&
            binaural_mix_selection != kBinauralMixSelectionLoudspeakerLayout)) {
         if (prefer_binaural_audio &&
-            binaural_audio_element_ids->find(audio_element_id) !=
-                binaural_audio_element_ids->end()) {
+            (binaural_audio_element_id->has_value() &&
+             binaural_audio_element_id->value() == audio_element_id)) {
           info->mix_presentation_id = mix_presentation_id;
           binaural_mix_selection = kBinauralMixSelectionLoudspeakerLayout;
         } else if (prefer_surround_audio &&
-                   surround_audio_element_ids->find(audio_element_id) !=
-                       surround_audio_element_ids->end()) {
+                   (surround_audio_element_id->has_value() &&
+                    surround_audio_element_id->value() == audio_element_id)) {
           info->mix_presentation_id = mix_presentation_id;
         }
       }
@@ -463,13 +476,13 @@ bool ParseMixPresentationOBU(
       RCHECK(reader->SkipBytes(rendering_config_extension_size));
 
       // The following fields are for the ElementMixConfig
-      SkipParamDefinition(reader);
+      RCHECK(SkipParamDefinition(reader));
       // default_mix_gain
       RCHECK(reader->SkipBytes(2));
     }
 
     // The following fields are for the OutputMixConfig
-    SkipParamDefinition(reader);
+    RCHECK(SkipParamDefinition(reader));
     // default_mix_gain
     RCHECK(reader->SkipBytes(2));
 
@@ -544,31 +557,29 @@ bool ParseDescriptorOBU(BufferReader* reader,
 
   int next_obu_pos = reader->pos() + obu_size;
 
-  std::unordered_set<uint32_t> binaural_audio_element_ids;
-  std::unordered_set<uint32_t> surround_audio_element_ids;
+  std::optional<uint32_t> binaural_audio_element_id;
+  std::optional<uint32_t> surround_audio_element_id;
   switch (static_cast<int>(obu_type)) {
     case kObuTypeCodecConfig:
       RCHECK(ParseCodecConfigOBU(reader, info));
       break;
     case kObuTypeAudioElement:
-      RCHECK(ParseAudioElementOBU(reader, info, &binaural_audio_element_ids,
-                                  &surround_audio_element_ids,
-                                  prefer_binaural_audio,
-                                  prefer_surround_audio));
+      RCHECK(ParseAudioElementOBU(
+          reader, info, &binaural_audio_element_id, &surround_audio_element_id,
+          prefer_binaural_audio, prefer_surround_audio));
       break;
     case kObuTypeSequenceHeader:
       break;
     case kObuTypeMixPresentation:
-      RCHECK(ParseMixPresentationOBU(reader, info, &binaural_audio_element_ids,
-                                     &surround_audio_element_ids,
-                                     prefer_binaural_audio,
-                                     prefer_surround_audio));
+      RCHECK(ParseMixPresentationOBU(
+          reader, info, &binaural_audio_element_id, &surround_audio_element_id,
+          prefer_binaural_audio, prefer_surround_audio));
       break;
     default:
       // This executes if a non descriptor OBU is read. The buffer info must be
       // valid by this point.
-      SB_DCHECK(BufferInfoIsValid(info));
-      return true;
+      SB_DCHECK(info->is_valid());
+      return info->is_valid();
   }
 
   // Skip to the next OBU.
@@ -580,6 +591,10 @@ bool ParseDescriptorOBU(BufferReader* reader,
 
 }  // namespace
 
+bool IamfBufferInfo::is_valid() const {
+  return mix_presentation_id.has_value() && sample_rate > 0 && num_samples > 0;
+}
+
 bool ParseInputBuffer(const scoped_refptr<InputBuffer>& input_buffer,
                       IamfBufferInfo* info,
                       const bool prefer_binaural_audio,
@@ -590,13 +605,12 @@ bool ParseInputBuffer(const scoped_refptr<InputBuffer>& input_buffer,
 
   BufferReader reader(input_buffer->data(), input_buffer->size());
 
-  while (!BufferInfoIsValid(info) && reader.pos() < reader.size()) {
+  while (!info->is_valid() && reader.pos() < reader.size()) {
     RCHECK(ParseDescriptorOBU(&reader, info, prefer_binaural_audio,
                               prefer_surround_audio));
   }
-  RCHECK(BufferInfoIsValid(info));
+  RCHECK(info->is_valid());
 
-  info->data_size = reader.size() - info->config_obus_size;
   info->config_obus.assign(reader.buf(), reader.buf() + info->config_obus_size);
   info->data.assign(reader.buf() + info->config_obus_size,
                     reader.buf() + reader.size());

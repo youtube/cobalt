@@ -35,8 +35,9 @@ struct IamfBufferInfo {
   std::vector<uint8_t> config_obus;
   size_t config_obus_size;
   std::vector<uint8_t> data;
-  size_t data_size;
   const scoped_refptr<InputBuffer> input_buffer;
+
+  bool is_valid() const;
 };
 
 bool ParseInputBuffer(const scoped_refptr<InputBuffer>& input_buffer,
