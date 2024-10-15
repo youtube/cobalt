@@ -38,45 +38,11 @@ const size_t kSmallAllocationThreshold = 512;
 
 }  // namespace
 
-bool CreateSbMediaIsBufferPoolAllocateOnDemandWithHistogram(
-    MediaMetricsProvider& media_metrics_provider) {
-  media_metrics_provider.StartTrackingAction(
-      MediaAction::SBMEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND);
-  auto is_memory_pool_allocated_on_demand =
-      SbMediaIsBufferPoolAllocateOnDemand();
-  media_metrics_provider.EndTrackingAction(
-      MediaAction::SBMEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND);
-  return is_memory_pool_allocated_on_demand;
-}
-
-int CreateSbMediaGetInitialBufferCapacityWithHistogram(
-    MediaMetricsProvider& media_metrics_provider) {
-  media_metrics_provider.StartTrackingAction(
-      MediaAction::SBMEDIA_GET_INIT_BUFFER_CAPACITY);
-  auto initial_capacity = SbMediaGetInitialBufferCapacity();
-  media_metrics_provider.EndTrackingAction(
-      MediaAction::SBMEDIA_GET_INIT_BUFFER_CAPACITY);
-  return initial_capacity;
-}
-
-bool CreateSbMediaGetBufferAllocationUnitWithHistogram(
-    MediaMetricsProvider& media_metrics_provider) {
-  media_metrics_provider.StartTrackingAction(
-      MediaAction::SBMEDIA_GET_BUFFER_ALLOCATION_UNIT);
-  auto allocation_unit = SbMediaGetBufferAllocationUnit();
-  media_metrics_provider.EndTrackingAction(
-      MediaAction::SBMEDIA_GET_BUFFER_ALLOCATION_UNIT);
-  return allocation_unit;
-}
-
 DecoderBufferAllocator::DecoderBufferAllocator()
     : is_memory_pool_allocated_on_demand_(
-          CreateSbMediaIsBufferPoolAllocateOnDemandWithHistogram(
-              media_metrics_provider_)),
-      initial_capacity_(CreateSbMediaGetInitialBufferCapacityWithHistogram(
-          media_metrics_provider_)),
-      allocation_unit_(CreateSbMediaGetBufferAllocationUnitWithHistogram(
-          media_metrics_provider_)) {
+          SbMediaIsBufferPoolAllocateOnDemand()),
+      initial_capacity_(SbMediaGetInitialBufferCapacity()),
+      allocation_unit_(SbMediaGetBufferAllocationUnit()) {
   if (is_memory_pool_allocated_on_demand_) {
     DLOG(INFO) << "Allocated media buffer pool on demand.";
     Allocator::Set(this);
@@ -158,12 +124,7 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
 }
 
 int DecoderBufferAllocator::GetAudioBufferBudget() const {
-  media_metrics_provider_.StartTrackingAction(
-      MediaAction::SBMEDIA_GET_AUDIO_BUFFER_BUDGET);
-  int audio_buffer_budget = SbMediaGetAudioBufferBudget();
-  media_metrics_provider_.EndTrackingAction(
-      MediaAction::SBMEDIA_GET_AUDIO_BUFFER_BUDGET);
-  return audio_buffer_budget;
+  return SbMediaGetAudioBufferBudget();
 }
 
 int DecoderBufferAllocator::GetBufferAlignment() const {
@@ -180,39 +141,23 @@ int DecoderBufferAllocator::GetBufferPadding() const {
 
 base::TimeDelta
 DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold() const {
-  media_metrics_provider_.StartTrackingAction(
-      MediaAction::SBMEDIA_GET_BUFFER_GARBAGE_COLLECTION_DURATION_THRESHOLD);
-  int64_t buffer_garbage_collection_duration_threshold =
-      SbMediaGetBufferGarbageCollectionDurationThreshold();
-  media_metrics_provider_.EndTrackingAction(
-      MediaAction::SBMEDIA_GET_BUFFER_GARBAGE_COLLECTION_DURATION_THRESHOLD);
   return base::TimeDelta::FromMicroseconds(
-      buffer_garbage_collection_duration_threshold);
+      SbMediaGetBufferGarbageCollectionDurationThreshold());
 }
 
 int DecoderBufferAllocator::GetProgressiveBufferBudget(
     SbMediaVideoCodec codec, int resolution_width, int resolution_height,
     int bits_per_pixel) const {
-  media_metrics_provider_.StartTrackingAction(
-      MediaAction::SBMEDIA_GET_PROGRESSIVE_BUFFER_BUDGET);
-  int progressive_buffer_budget = SbMediaGetProgressiveBufferBudget(
-      codec, resolution_width, resolution_height, bits_per_pixel);
-  media_metrics_provider_.EndTrackingAction(
-      MediaAction::SBMEDIA_GET_PROGRESSIVE_BUFFER_BUDGET);
-  return progressive_buffer_budget;
+  return SbMediaGetProgressiveBufferBudget(codec, resolution_width,
+                                           resolution_height, bits_per_pixel);
 }
 
 int DecoderBufferAllocator::GetVideoBufferBudget(SbMediaVideoCodec codec,
                                                  int resolution_width,
                                                  int resolution_height,
                                                  int bits_per_pixel) const {
-  media_metrics_provider_.StartTrackingAction(
-      MediaAction::SBMEDIA_GET_VIDEO_BUFFER_BUDGET);
-  int video_buffer_budget = SbMediaGetVideoBufferBudget(
-      codec, resolution_width, resolution_height, bits_per_pixel);
-  media_metrics_provider_.EndTrackingAction(
-      MediaAction::SBMEDIA_GET_VIDEO_BUFFER_BUDGET);
-  return video_buffer_budget;
+  return SbMediaGetVideoBufferBudget(codec, resolution_width, resolution_height,
+                                     bits_per_pixel);
 }
 
 size_t DecoderBufferAllocator::GetAllocatedMemory() const {
