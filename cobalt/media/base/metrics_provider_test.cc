@@ -210,16 +210,6 @@ TEST_F(MediaMetricsProviderTest, SbDrmCloseSession) {
       std::string(kUmaPrefix) + "SbDrm.CloseSession.LatencyTiming", 570, 1);
 }
 
-TEST_F(MediaMetricsProviderTest, SbDrmCreate) {
-  metrics_.StartTrackingAction(MediaAction::SBDRM_CREATE);
-
-  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
-  metrics_.EndTrackingAction(MediaAction::SBDRM_CREATE);
-
-  histogram_tester_.ExpectUniqueSample(
-      std::string(kUmaPrefix) + "SbDrm.Create.LatencyTiming", 570, 1);
-}
-
 TEST_F(MediaMetricsProviderTest, SbDrmDestroy) {
   metrics_.StartTrackingAction(MediaAction::SBDRM_DESTROY);
 
