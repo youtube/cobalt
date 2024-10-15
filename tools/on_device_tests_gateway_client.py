@@ -77,6 +77,7 @@ class OnDeviceTestsGatewayClient():
             config=args.config,
             tag=args.tag,
             labels=args.label,
+            gcs_result_path=args.gcs_result_path,
             builder_name=args.builder_name,
             builder_url=args.builder_url,
             change_id=args.change_id,
@@ -192,6 +193,10 @@ def main():
       'if any. Saved with performance test results')
   trigger_parser.add_argument(
       '--builder_url', type=str, help='Url to the run, if any.')
+  trigger_parser.add_argument(
+    '--gcs_result_path',
+    type=str,
+    help='GCS url where test result files should be uploaded.')
   trigger_parser.add_argument(
       '-n',
       '--build_number',

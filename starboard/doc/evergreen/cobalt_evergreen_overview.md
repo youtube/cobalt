@@ -10,14 +10,15 @@ updates without the need for supplemental Cobalt integration work on device
 platforms.
 
 There are two configurations available:
-*   Evergreen-Lite
-    *   Please read this document for general Evergreen details then see
-        Evergreen-Lite specific configuration details in
-        [cobalt_evergreen_lite.md](cobalt_evergreen_lite.md)
-*   Evergreen Full
-    *   Please continue reading below documentation for configuration details
 
-![Cobalt Evergreen Configurations](resources/cobalt_evergreen_configurations.png)
+*   Evergreen Full
+*   Evergreen Lite
+
+Please read this document for general Evergreen details first. Then read
+[Evergreen-Lite](cobalt_evergreen_lite.md) for its specific configuration.
+
+![Cobalt Evergreen
+Configurations](resources/cobalt_evergreen_configurations.png)
 
 For a bit of background context, as the number of Cobalt devices in the field
 increases there is a growing proliferation of version fragmentation. Many of
@@ -33,10 +34,10 @@ a Cobalt implementation into the following discrete components:
 **Google-built** (on Google toolchain)
 
 *   Cobalt Core
-    *   Pre-built shared library available for all supported architectures
+    *   Prebuilt shared library available for all supported architectures
 *   Cobalt Updater
     *   Part of Cobalt Core and used to query servers to check for and download
-        updated Cobalt Core
+    updated Cobalt Core
 
 **Partner-built** (on Partner toolchain)
 
@@ -46,7 +47,7 @@ a Cobalt implementation into the following discrete components:
 *   Cobalt Loader (Loader App)
     *   Selects the appropriate Cobalt core for usage
     *   An ELF loader is used to load the Cobalt core and resolves symbols with
-        Starboard APIs when Cobalt starts up in Evergreen mode
+    Starboard APIs when Cobalt starts up in Evergreen mode
 
 With this new Cobalt platform architecture, less engineering effort is necessary
 for a full Cobalt integration/deployment. The idea here is you should only need
@@ -73,7 +74,7 @@ Starboard changes may be necessary.
 *   New `loader_app` and `crashpad_handler` components required to be built on
     platform toolchains
 *   Additional testing/verification required to ensure new Cobalt releases work
-    properly
+  properly
 
 ## How is Evergreen different from porting Cobalt previously?
 
@@ -116,7 +117,7 @@ that it sets `is_starboard = false` and `is_native_target_build = true`.
 
 For example:
 
-```
+```none
 gcc_toolchain("target") {
   ...
 }
@@ -140,8 +141,8 @@ Evergreen:
 *   `kSbSystemPathStorageDirectory`
     *   Dedicated location for storing Cobalt Evergreen-related binaries
     *   This path must be writable and have at least 64MB of reserved space for
-        Evergreen updates. Please see the “Platforms Requirements” section below
-        for more details.
+    Evergreen updates. Please see the "Platforms Requirements" section below for
+        more details.
 *   `kSbMemoryMapProtectExec`
     *   Ensures mapped memory can be executed
 *   Set `kSbCanMapExecutableMemory` to `true`
@@ -164,9 +165,9 @@ out to us for guidance.
 As mentioned, the Google-maintained Evergreen toolchain is used to build Cobalt
 core (`libcobalt.so`). For example:
 
-```
-$ gn gen out/evergreen-arm-softfp_qa --args="target_platform=\"evergreen-arm-softfp\" build_type=\"qa\" target_cpu=\"arm\" target_os=\"linux\" sb_api_version=15"
-$ ninja -C out/evergreen-arm-softfp_qa cobalt_install
+```sh
+gn gen out/evergreen-arm-softfp_qa --args="target_platform=\"evergreen-arm-softfp\" build_type=\"qa\" target_cpu=\"arm\" target_os=\"linux\" sb_api_version=15"
+ninja -C out/evergreen-arm-softfp_qa cobalt_install
 ```
 
 This produces a `libcobalt.so` shared library, and a compressed `libcobalt.lz4`
@@ -175,16 +176,15 @@ copy, targeted for a specific architecture, ABI, and Starboard version.
 Note: `sb_api_version` defaults to the latest supported Starboard version in the
 current branch.
 
-
-The partner port of Starboard is built with the partner’s "target" toolchain and
+The partner port of Starboard is built with the partner's "target" toolchain and
 is linked into the `loader_app`, which knows how to dynamically load
 `libcobalt.lz4`. And the `crashpad_handler` binary is built with the partner's
 "native_target" toolchain. For example:
 
-```
-$ gn gen out/<partner_port_name>_qa --args='target_platform="<partner_port_name>" build_type="qa" sb_api_version=15'
-$ ninja -C out/<partner_port_name>_qa loader_app
-$ ninja -C out/<partner_port_name>_qa native_target/crashpad_handler
+```sh
+gn gen out/<partner_port_name>_qa --args='target_platform="<partner_port_name>" build_type="qa" sb_api_version=15'
+ninja -C out/<partner_port_name>_qa loader_app
+ninja -C out/<partner_port_name>_qa native_target/crashpad_handler
 ```
 
 Note that when building `crashpad_handler`, a special prefix is used to have
@@ -197,17 +197,17 @@ of the CSS which can cause layout behavior to cause components to overlap and
 give users a poor user experience. A fix for this is identified and pushed to
 Cobalt open source ready for integration and deployment on devices.
 
-#### Without Cobalt Evergreen:
+#### Without Cobalt Evergreen
 
 Though a fix for this was made available in the latest Cobalt open source,
 affected devices in the field are not getting updated (e.g. due to engineering
 resources, timing, device end-of-life), users continue to have a poor experience
 and have negative sentiment against a device. In parallel, the web app team
 determines a workaround for this particular situation, but the workaround is
-obtuse and causes app bloat and technical debt from on-going maintenance of
+obtuse and causes app bloat and technical debt from ongoing maintenance of
 workarounds for various Cobalt versions.
 
-#### With Cobalt Evergreen:
+#### With Cobalt Evergreen
 
 The Cobalt team can work with you to guide validation and deployment of a shared
 Cobalt library to all affected devices much more quickly without all the
@@ -264,7 +264,7 @@ These paths should be *relative to the content of the elf_loader_sandbox*.
 For example, if we wanted to run the NPLB set of tests and had the following
 directory tree,
 
-```
+```none
 .../elf_loader_sandbox
 .../content/app/nplb/lib/libnplb.so
 .../content/app/nplb/content
@@ -272,7 +272,7 @@ directory tree,
 
 we would use the following command to run NPLB:
 
-```
+```sh
 .../elf_loader_sandbox --evergreen_library=app/nplb/lib/libnplb.so
                        --evergreen_content=app/nplb/content
 ```
@@ -301,41 +301,51 @@ instructions available [here](cobalt_evergreen_reference_port_raspi2.md).
 
 ### Verifying Crashpad Uploads
 
-1. Build the `crashpad_database_util` target and deploy it onto the device.
-```
-$ gn gen out/<partner_port_name>_qa --args='target_platform="<partner_port_name>" build_type="qa"'
-$ ninja -C out/<partner_port_name>_qa native_target/crashpad_database_util
-```
-2. Remove the existing state for crashpad as it throttles uploads to 1 per hour:
-```
-$ rm -rf <kSbSystemPathCacheDirectory>/crashpad_database/
+1.  Build the `crashpad_database_util` target and deploy it onto the device.
 
-```
-3. Launch Cobalt.
-4. Trigger crash by sending `abort` signal to the `loader_app` process:
-```
-$ kill -6 <pid>
-```
-5. Verify the crash was uploaded through running `crashpad_database_util` on the device
-pointing it to the cache directory, where the crash data is stored.
+    ```sh
+    gn gen out/<partner_port_name>_qa --args='target_platform="<partner_port_name>" build_type="qa"'
+    ninja -C out/<partner_port_name>_qa native_target/crashpad_database_util
+    ```
 
-```
-$ crashpad_database_util -d <kSbSystemPathCacheDirectory>/crashpad_database/ --show-completed-reports --show-all-report-info
-```
+2.  Remove the existing state for crashpad as it throttles uploads to 1 per
+    hour:
 
-```
-8c3af145-30a0-43c7-a3a5-0952dea230e4:
-  Path: cobalt/cache/crashpad_database/completed/8c3af145-30a0-43c7-a3a5-0952dea230e4.dmp
-  Remote ID: c9b14b489a895093
-  Creation time: 2021-06-01 17:01:19 HDT
-  Uploaded: true
-  Last upload attempt time: 2021-06-01 17:01:19 HDT
-  Upload attempts: 1
-```
+    ```sh
+    rm -rf <kSbSystemPathCacheDirectory>/crashpad_database/
+    ```
 
-In this example the minidump was successfully uploaded because we see `Uploaded: true`.
+3.  Launch Cobalt.
 
-Reference for [crashpad_database_util](https://chromium.googlesource.com/crashpad/crashpad/+/refs/heads/main/tools/crashpad_database_util.md)
+4.  Trigger crash by sending `abort` signal to the `loader_app` process:
+
+    ```sh
+    kill -6 <pid>
+    ```
+
+5.  Verify the crash was uploaded through running `crashpad_database_util` on
+    the device pointing it to the cache directory, where the crash data is
+    stored.
+
+    ```sh
+    crashpad_database_util -d <kSbSystemPathCacheDirectory>/crashpad_database/ --show-completed-reports --show-all-report-info
+    ```
+
+    ```none
+    8c3af145-30a0-43c7-a3a5-0952dea230e4:
+    Path: cobalt/cache/crashpad_database/completed/8c3af145-30a0-43c7-a3a5-0952dea230e4.dmp
+    Remote ID: c9b14b489a895093
+    Creation time: 2021-06-01 17:01:19 HDT
+    Uploaded: true
+    Last upload attempt time: 2021-06-01 17:01:19 HDT
+    Upload attempts: 1
+    ```
+
+In this example the minidump was successfully uploaded because we see `Uploaded:
+true`.
+
+Reference for
+[crashpad_database_util](https://chromium.googlesource.com/crashpad/crashpad/+/refs/heads/main/tools/crashpad_database_util.md)
 
 ## System Design
 
@@ -345,11 +355,11 @@ Components](resources/cobalt_evergreen_overview_components.png)
 The above diagram is a high-level overview of the components in the Cobalt
 Evergreen architecture.
 
-* **Partner-built** represents components the Partner is responsible for
-  implementing and building.
+*   **Partner-built** represents components the Partner is responsible for
+    implementing and building.
 
-* **Cobalt-built** represents components the Cobalt team is responsible for
-  implementing and building.
+*   **Cobalt-built** represents components the Cobalt team is responsible for
+    implementing and building.
 
 ### Cobalt Evergreen Components
 
@@ -430,14 +440,16 @@ slots(i.e. known locations on disk), and are used to significantly improve the
 resilience and reliability of Cobalt updates.
 
 All slot configurations assume the following:
-* 1 System Image Installation Slot (read-only)
-* 2+ Additional Installation Slot(s) (writable)
+
+*   1 System Image Installation Slot (read-only)
+*   2+ Additional Installation Slot(s) (writable)
 
 The number of installation slots available will be determined by the platform
 owner. **3 slots is the default configuration for Evergreen**. There can be `N`
 installation slots configured with the only limitation being available storage.
 
 #### Slot Configuration
+
 NOTE: 3-slots is the DEFAULT configuration.
 
 The number of installation slots is directly controlled using
@@ -458,7 +470,7 @@ For example, on the Raspberry Pi the `kSbSystemPathStorageDirectory` directory
 is `/home/pi/.cobalt_storage`, and the paths to all existing installation slots
 will be as follows:
 
-```
+```none
 /home/pi/<kSbSystemPathContentDirectory>/app/cobalt (system image installation SLOT_0) (read-only)
 /home/pi/.cobalt_storage/installation_1 (SLOT_1)
 /home/pi/.cobalt_storage/installation_2 (SLOT_2)
@@ -470,6 +482,7 @@ Where the most recent update is stored will alternate between the available
 writable slots. In the above example, this would be `SLOT_1`...`SLOT_N`.
 
 #### Understanding Slot Structure
+
 Slots are used to manage Cobalt Evergreen binaries with associated app metadata
 to select the appropriate Cobalt Evergreen binaries.
 
@@ -478,7 +491,7 @@ See the below structures for an example 3-slot configuration.
 Structure for `kSbSystemPathContentDirectory` used for the read-only System
 Image required for all slot configurations:
 
-```
+```none
 .
 ├── content <--(kSbSystemPathContentDirectory)
 │   └── fonts <--(kSbSystemPathFontDirectory, `standard` or `limit` configuration, to be explained below)
@@ -498,7 +511,7 @@ Image required for all slot configurations:
 Structure for `kSbSystemPathStorageDirectory` used for future Cobalt Evergreen
 updates in an example 3-slot configuration:
 
-```
+```none
 ├── .cobalt_storage <--(kSbSystemPathStorageDirectory)
     ├── cobalt_updater
     │   └── prefs_<APP_KEY>.json
@@ -514,16 +527,19 @@ updates in an example 3-slot configuration:
     │   └── manifest.json <-- (Evergreen version information of Cobalt Core under SLOT_2)
     ├── installation_store_<APP_KEY>.pb
 ```
-Note that after the Cobalt binary is loaded by the loader_app, `kSbSystemPathContentDirectory` points to the
-content directory of the running binary, as stated in Starboard Module Reference of system.h.
+
+Note that after the Cobalt binary is loaded by the loader_app,
+`kSbSystemPathContentDirectory` points to the content directory of the running
+binary, as stated in Starboard Module Reference of system.h.
 
 #### App metadata
+
 Each Cobalt Evergreen application has a set of unique metadata to track slot
 selection. The following set of files are unique per application via a
-differentiating <APP_KEY> identifier, which is a Base64 hash appended to the
+differentiating `<APP_KEY>` identifier, which is a Base64 hash appended to the
 filename.
 
-```
+```none
 <SLOT_#>/installation_store_<APP_KEY>.pb
 <SLOT_#>/cobalt_updater/prefs_<APP_KEY>.json
 ```
@@ -531,8 +547,8 @@ filename.
 You should NOT change any of these files and they are highlighted here just for
 reference.
 
-
 ### Fonts
+
 The system font directory `kSbSystemPathFontDirectory` should be configured to
 point to either the system fonts on the device or the Cobalt `standard` (23MB)
 or the Cobalt `limited` (3.1MB) font packages. An easy way to use the Cobalt
@@ -540,71 +556,78 @@ fonts is to set `kSbSystemPathFontDirectory` to point to
 `kSbSystemPathContentDirectory/fonts` and configure `cobalt_font_package` to
 `standard` or `limited` in your port.
 
-Cobalt Evergreen (built by Google), will by default use the `empty` font
-package to minimize storage requirements. A separate
-`cobalt_font_package` variable is set to `empty` in the Evergreen platform.
+Cobalt Evergreen (built by Google), will by default use the `empty` font package
+to minimize storage requirements. A separate `cobalt_font_package` variable is
+set to `empty` in the Evergreen platform.
 
 On Raspberry Pi the Cobalt fonts are configured the following way:
 
 `empty` set of fonts under:
-```
+
+```none
 <kSbSystemPathContentDirectory>/app/starboard/content/fonts
 ```
 
 `standard` or `limited` set of fonts under:
-```
+
+```none
 <kSbSystemPathContentDirectory>/fonts
 ```
 
 ### Handling Pending Updates
+
 Pending updates will be picked up on the next application start, which means
 that on platforms that support suspending the platform should check
 `loader_app::IsPendingRestart` and call `SbSystemRequestStop` instead of
- suspending if there is a pending restart.
+suspending if there is a pending restart.
 
-Please see
-[`suspend_signals.cc`](../../shared/signal/suspend_signals.cc)
-for an example.
+Please see [`suspend_signals.cc`](../../shared/signal/suspend_signals.cc) for an
+example.
 
 ### Cleaning up after uninstall
-When the application is uninstalled the updates should be cleanup by calling the
-application with the `--reset_evergreen_update` flag. This would remove all files
-under `kSbSystemPathStorageDirectory` and exit the app.
 
-```
+When the application is uninstalled the updates should be cleanup by calling the
+application with the `--reset_evergreen_update` flag. This would remove all
+files under `kSbSystemPathStorageDirectory` and exit the app.
+
+```sh
   loader_app --reset_evergreen_update
 ```
 
 ### Multi-App Support
+
 Evergreen can support multiple apps that share a Cobalt binary. This is a very
 common way to save space and keep all your Cobalt apps using the latest version
 of Cobalt. We understand that there are situations where updates are only needed
 for certain apps, so we have provided a way where Cobalt Updater and loader_app
-behavior can be easily configured on a per-app basis with simple command-line flags.
+behavior can be easily configured on a per-app basis with simple command-line
+flags.
 
 The configurable options for Cobalt Updater configuration are:
-* `--evergreen_lite` *Use the System Image version of Cobalt under Slot_0 and turn
-  off the updater for the specified application.*
 
-Each app’s Cobalt Updater will perform an independent, regular check for new
+*   `--evergreen_lite` *Use the System Image version of Cobalt under Slot_0 and
+    turn off the updater for the specified application.*
+
+Each app's Cobalt Updater will perform an independent, regular check for new
 Cobalt Evergreen updates. Note that all apps will share the same set of slots,
-but each app will maintain metadata about which slots are “good” (working) or
-“bad” (error detected) and use the appropriate slot. Sharing slots allows
+but each app will maintain metadata about which slots are "good" (working) or
+"bad" (error detected) and use the appropriate slot. Sharing slots allows
 Evergreen to download Cobalt updates a single time and be able to use it across
 all Evergreen-enabled apps.
 
 To illustrate, a simple example:
 
-* Cobalt v5 - latest Cobalt Evergreen version
+*   Cobalt v5 - latest Cobalt Evergreen version
 
 #### BEFORE COBALT UPDATE
-```
+
+```none
 [APP_1] (currently using SLOT_1, using Cobalt v4)
 [APP_2] (currently using SLOT_0, using Cobalt v3)
 [APP_3] (currently using SLOT_0, using Cobalt v3)
 ```
 
-Now remember, apps could share the same Cobalt binary. Let’s say `APP_1` has
+Now remember, apps could share the same Cobalt binary. Let's say `APP_1` has
 detected an update available and downloads the latest update (Cobalt v5) into
 SLOT_2. The next time `APP_2` runs, it may detect Cobalt v5 as well. It would
 then simply do a `request_roll_forward` operation to switch to SLOT_2 and does
@@ -613,10 +636,11 @@ existing slot. In this case, `APP_1` and `APP_2` are now using the same Cobalt
 binaries in SLOT_2.
 
 If `APP_3` has not been launched, not run through a regular Cobalt Updater
-check, or launched with the `--evergreen_lite` flag,
-it stays with its current configuration.
+check, or launched with the `--evergreen_lite` flag, it stays with its current
+configuration.
 
 #### AFTER COBALT UPDATE
+
 ```
 [APP_1] (currently using SLOT_2, using Cobalt v5)
 [APP_2] (currently using SLOT_2, using Cobalt v5)
@@ -626,10 +650,9 @@ it stays with its current configuration.
 Now that we have gone through an example scenario, we can cover some examples of
 how to configure Cobalt Updater behavior and `loader_app` configuration.
 
-
 Some example configurations include:
-```
 
+```none
 # All Cobalt-based apps get Evergreen Updates
 [APP_1] (Cobalt Updater ENABLED)
 [APP_2] (Cobalt Updater ENABLED)
@@ -638,7 +661,6 @@ Some example configurations include:
 loader_app --url="<YOUR_APP_1_URL>"
 loader_app --url="<YOUR_APP_2_URL>"
 loader_app --url="<YOUR_APP_3_URL>"
-
 
 # APP_1 gets Evergreen Updates, APP_2 uses an alternate splash screen, APP_3 uses
 # the system image and disables the updater
@@ -649,7 +671,6 @@ loader_app --url="<YOUR_APP_3_URL>"
 loader_app --url="<YOUR_APP_1_URL>"
 loader_app --url="<YOUR_APP_2_URL>" --fallback_splash_screen_url="/<PATH_TO_APP_2>/app_2_splash_screen.html"
 loader_app --url="<YOUR_APP_3_URL>" --evergreen_lite
-
 
 # APP_3 is a local app, wants Cobalt Updater disabled and stays on the system image, and uses an alternate content
 # directory (This configuration is common for System UI apps. APP_3 in this example.)
@@ -662,12 +683,12 @@ loader_app --url="<YOUR_APP_2_URL>"
 loader_app --csp_mode=disable --allow_http --url="file:///<PATH_TO_APP_3>/index.html" --content="/<PATH_TO_APP_3>/content" --evergreen_lite
 ```
 
-Please see
-[`loader_app_switches.cc`](../../loader_app/loader_app.cc)
-for full list of available command-line flags.
+Please see [`loader_app_switches.cc`](../../loader_app/loader_app.cc) for full
+list of available command-line flags.
 
 ### Platform Security
 
+{# disableFinding(LINK_DOCS) #}LintDevSiteLinter_md
 As Cobalt binary packages ([CRX
 format](https://docs.google.com/document/d/1pAVB4y5EBhqufLshWMcvbQ5velk0yMGl5ynqiorTCG4/edit#heading=h.ke61kmpkapku))
 are downloaded from the Google Downloads server, the verification of the Cobalt
@@ -739,5 +760,5 @@ platform-specific behavior.
 
 Much of the optimization work remains in the Starboard layer and configuration
 so you should still expect good performance using Cobalt Evergreen. That being
-said, the Cobalt Evergreen configuration allows you to customize Cobalt features
-and settings as before.
+said, the Cobalt Evergreen configuration lets you customize Cobalt features and
+settings as before.
