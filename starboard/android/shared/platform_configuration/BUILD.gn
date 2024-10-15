@@ -17,8 +17,10 @@ import("//starboard/android/shared/toolchain/toolchain.gni")
 config("platform_configuration") {
   configs = [ "//starboard/build/config/sabi" ]
   if (current_toolchain == starboard_toolchain) {
-    configs += ["//starboard/build/config:starboard",
-    "//base/third_party/symbolize:symbolize_config"]
+    configs += [
+      "//starboard/build/config:starboard",
+      "//base/third_party/symbolize:symbolize_config",
+    ]
   }
   cflags = []
 
@@ -98,7 +100,7 @@ config("platform_configuration") {
     "-fno-delete-null-pointer-checks",  # see b/288107039
 
     # Default visibility is hidden to enable dead stripping.
-    "-fvisibility=default",
+    "-fvisibility=hidden",
 
     # Any warning will stop the build.
     "-Werror",
@@ -181,6 +183,7 @@ config("platform_configuration") {
   ldflags += [
     # Use the static LLVM libc++.
     "-static-libstdc++",
+
     # TODO(b/371589344#comment2) Revisit if static-libstdc++ is needed.
     "-Wno-unused-command-line-argument",
 
@@ -190,11 +193,12 @@ config("platform_configuration") {
     "-Wl,--build-id=sha1",
     "-Wl,--warn-shared-textrel",
     "-Wl,--fatal-warnings",
-    # "-Wl,--gc-sections",
+
+    "-Wl,--gc-sections",
     "-Wl,-z,nocopyreloc",
 
     # Wrapper synchronizes punch-out video bounds with the UI frame.
-    # "-Wl,--wrap=eglSwapBuffers",
+    "-Wl,--wrap=eglSwapBuffers",
   ]
   if (!is_native_target_build && false) {
     ldflags += [

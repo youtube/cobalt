@@ -279,7 +279,7 @@ if (custom_toolchain != "") {
 } else if (_default_toolchain != "") {
   cobalt_toolchain = _default_toolchain
 }
-import("//starboard/build/platform_path.gni")
+
 declare_args() {
   use_upstream_toolchain = true
 }

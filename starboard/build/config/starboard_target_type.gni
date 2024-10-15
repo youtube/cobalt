@@ -16,6 +16,7 @@ import("//starboard/build/config/os_definitions.gni")
 declare_args() {
   starboard_target_type = ""
   starboard_shared_library_extension = "so"
+
   # starboard_shared_library_extension = "so.${sb_api_version}"
 }
 
@@ -38,6 +39,13 @@ template("starboard_platform_target") {
     if (defined(invoker.extra_configs)) {
       configs += extra_configs
     }
+    if (defined(configs)) {
+      configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
+    }
+    all_dependent_configs = [
+      "//starboard/build/config/sabi",
+      "//starboard/build/config:starboard",
+    ]
     if (target_type == "shared_library") {
       output_extension = starboard_shared_library_extension
     }
