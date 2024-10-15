@@ -14,21 +14,21 @@
 
 #include "starboard/loader_app/pending_restart.h"
 
-#include "starboard/atomic.h"
+#include <atomic>
 
 namespace starboard {
 namespace loader_app {
 
 namespace {
-SbAtomic32 g_pending_restart = 0;
+std::atomic<int32_t> g_pending_restart{0};
 }  // namespace
 
 bool IsPendingRestart() {
-  return SbAtomicNoBarrier_Load(&g_pending_restart) == 1;
+  return g_pending_restart.load(std::memory_order_relaxed) == 1;
 }
 
 void SetPendingRestart(bool value) {
-  SbAtomicNoBarrier_Store(&g_pending_restart, value ? 1 : 0);
+  g_pending_restart.store(value ? 1 : 0, std::memory_order_relaxed);
 }
 
 }  // namespace loader_app
