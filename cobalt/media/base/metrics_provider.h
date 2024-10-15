@@ -54,8 +54,6 @@ enum class MediaAction : uint8_t {
   SBPLAYER_GET_INFO,
   SBPLAYER_GET_CURRENT_FRAME,
   SBPLAYER_GET_AUDIO_CONFIG,
-  SBPLAYER_WRITE_SAMPLES_AUDIO,
-  SBPLAYER_WRITE_SAMPLES_VIDEO,
   SBDRM_CREATE,
   SBDRM_DESTROY,
   SBDRM_GENERATE_SESSION_UPDATE_REQUEST,
@@ -107,7 +105,6 @@ class MediaMetricsProvider {
   // Used to record the latency of an action in the WebMediaPlayer.
   void StartTrackingAction(MediaAction action);
   void EndTrackingAction(MediaAction action);
-  void EndTrackingAction(MediaAction action, int number_of_samples);
   bool IsActionCurrentlyTracked(MediaAction action);
 
   void Reset();

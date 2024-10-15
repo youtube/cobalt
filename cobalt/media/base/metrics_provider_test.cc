@@ -200,28 +200,6 @@ TEST_F(MediaMetricsProviderTest, SbPlayerWriteEndOfStreamVideo) {
       570, 1);
 }
 
-TEST_F(MediaMetricsProviderTest, SbPlayerWriteSamplesAudio) {
-  metrics_.StartTrackingAction(MediaAction::SBPLAYER_WRITE_SAMPLES_AUDIO);
-
-  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
-  metrics_.EndTrackingAction(MediaAction::SBPLAYER_WRITE_SAMPLES_AUDIO);
-
-  histogram_tester_.ExpectUniqueSample(
-      std::string(kUmaPrefix) + "SbPlayer.WriteSamples.Audio.LatencyTiming",
-      570, 1);
-}
-
-TEST_F(MediaMetricsProviderTest, SbPlayerWriteSamplesVideoAudio) {
-  metrics_.StartTrackingAction(MediaAction::SBPLAYER_WRITE_SAMPLES_VIDEO);
-
-  clock_.Advance(base::TimeDelta::FromMicroseconds(570));
-  metrics_.EndTrackingAction(MediaAction::SBPLAYER_WRITE_SAMPLES_VIDEO);
-
-  histogram_tester_.ExpectUniqueSample(
-      std::string(kUmaPrefix) + "SbPlayer.WriteSamples.Video.LatencyTiming",
-      570, 1);
-}
-
 TEST_F(MediaMetricsProviderTest, SbDrmCloseSession) {
   metrics_.StartTrackingAction(MediaAction::SBDRM_CLOSE_SESSION);
 
