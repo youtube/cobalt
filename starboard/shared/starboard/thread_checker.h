@@ -15,7 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 #define STARBOARD_SHARED_STARBOARD_THREAD_CHECKER_H_
 
-#include "starboard/atomic.h"
+#include <atomic>
+
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -61,14 +62,15 @@ class ThreadChecker {
 
   bool CalledOnValidThread() const {
     SbThreadId current_thread_id = SbThreadGetId();
-    SbThreadId stored_thread_id = SbAtomicNoBarrier_CompareAndSwap(
-        &thread_id_, kSbThreadInvalidId, current_thread_id);
+    SbThreadId stored_thread_id = kSbThreadInvalidId;
+    thread_id_.compare_exchange_weak(stored_thread_id, current_thread_id,
+        std::memory_order_relaxed, std::memory_order_relaxed);
     return stored_thread_id == kSbThreadInvalidId ||
            stored_thread_id == current_thread_id;
   }
 
  private:
-  mutable SbThreadId thread_id_;
+  mutable std::atomic<SbThreadId> thread_id_;
 };
 
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)

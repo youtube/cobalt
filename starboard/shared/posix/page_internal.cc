@@ -22,7 +22,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include "starboard/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/memory.h"
 #include "starboard/configuration_constants.h"

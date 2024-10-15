@@ -15,7 +15,8 @@
 #ifndef STARBOARD_COMMON_INSTANCE_COUNTER_H_
 #define STARBOARD_COMMON_INSTANCE_COUNTER_H_
 
-#include "starboard/atomic.h"
+#include <atomic>
+
 #include "starboard/common/log.h"
 
 #if defined(COBALT_BUILD_TYPE_GOLD)
@@ -28,23 +29,23 @@
 
 #define DECLARE_INSTANCE_COUNTER(class_name)      \
   namespace {                                     \
-  SbAtomic32 s_##class_name##_instance_count = 0; \
+  std::atomic<int32_t> s_##class_name##_instance_count = 0; \
   }
 
-#define ON_INSTANCE_CREATED(class_name)                       \
-  {                                                           \
-    SB_LOG(INFO) << "New instance of " << #class_name         \
-                 << " is created. We have "                   \
-                 << (SbAtomicNoBarrier_Increment(             \
-                        &s_##class_name##_instance_count, 1)) \
-                 << " instances in total.";                   \
+#define ON_INSTANCE_CREATED(class_name)                         \
+  {                                                             \
+    SB_LOG(INFO) << "New instance of " << #class_name           \
+                 << " is created. We have "                     \
+                 << s_##class_name##_instance_count.            \
+                        fetch_add(1, std::memory_order_relaxed) \
+                 << " instances in total.";                     \
   }
 
 #define ON_INSTANCE_RELEASED(class_name)                                      \
   {                                                                           \
     SB_LOG(INFO) << "Instance of " << #class_name << " is released. We have " \
-                 << (SbAtomicNoBarrier_Increment(                             \
-                        &s_##class_name##_instance_count, -1))                \
+                 << s_##class_name##_instance_count.                          \
+                        fetch_sub(1, std::memory_order_relaxed)               \
                  << " instances in total.";                                   \
   }
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)

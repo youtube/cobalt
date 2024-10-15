@@ -195,7 +195,6 @@ static_library("starboard_platform") {
     "application_android.h",
     "asset_manager.cc",
     "asset_manager.h",
-    "atomic_public.h",
     "audio_decoder.cc",
     "audio_decoder.h",
     "audio_decoder_passthrough.h",
