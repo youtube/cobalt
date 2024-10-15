@@ -137,17 +137,6 @@ const MediaSettings& GetMediaSettings(
   return web_settings->media_settings();
 }
 
-// If this function returns true, HTMLMediaElement::buffered() will attempt to
-// call MediaSource::GetBufferedRange() if available, and fallback to
-// WebMediaPlayer::UpdateBufferedTimeRanges().
-// The default value is false.
-bool IsMediaElementUsingMediaSourceBufferedRangeEnabled(
-    const web::EnvironmentSettings* settings) {
-  return GetMediaSettings(settings)
-      .IsMediaElementUsingMediaSourceBufferedRangeEnabled()
-      .value_or(false);
-}
-
 // If this function returns true, HTMLMediaElement will proxy calls to the
 // attached MediaSource object through the MediaSourceAttachment interface
 // instead of directly calling against the MediaSource object.
@@ -257,24 +246,17 @@ uint16_t HTMLMediaElement::network_state() const {
 }
 
 scoped_refptr<TimeRanges> HTMLMediaElement::buffered() const {
-  scoped_refptr<TimeRanges> buffered = new TimeRanges;
-
-  DCHECK(node_document());
-  DCHECK(node_document()->html_element_context());
-  DCHECK(node_document()->html_element_context()->environment_settings());
-  const auto* settings =
-      node_document()->html_element_context()->environment_settings();
-  if (IsMediaElementUsingMediaSourceBufferedRangeEnabled(settings)) {
-    if (is_using_media_source_attachment_methods_) {
-      if (media_source_attachment_) {
-        return media_source_attachment_->GetBufferedRange();
-      }
-    } else {
-      if (media_source_) {
-        return media_source_->GetBufferedRange();
-      }
+  if (is_using_media_source_attachment_methods_) {
+    if (media_source_attachment_) {
+      return media_source_attachment_->GetBufferedRange();
+    }
+  } else {
+    if (media_source_) {
+      return media_source_->GetBufferedRange();
     }
   }
+
+  scoped_refptr<TimeRanges> buffered = new TimeRanges;
 
   if (!player_) {
     LOG(INFO) << "(empty)";
