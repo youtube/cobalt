@@ -30,7 +30,6 @@
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_decoder.h"
-#include "starboard/atomic.h"
 #include "starboard/common/log.h"
 #include "starboard/common/media.h"
 #include "starboard/common/ref_counted.h"
