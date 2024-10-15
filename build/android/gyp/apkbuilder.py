@@ -234,8 +234,8 @@ def _AddFiles(apk, details):
     try:
       apk.getinfo(apk_path)
       # Should never happen since write_build_config.py handles merging.
-      # raise Exception(
-      #     'Multiple targets specified the asset path: %s' % apk_path)
+      raise Exception(
+          'Multiple targets specified the asset path: %s' % apk_path)
     except KeyError:
       zip_helpers.add_to_zip_hermetic(apk,
                                       apk_path,

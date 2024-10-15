@@ -94,12 +94,6 @@ android_clang_toolchain("android_clang_x86") {
   }
 }
 
-android_clang_toolchain("starboard") {
-  toolchain_args = {
-    current_cpu = "arm"
-  }
-}
-
 android_clang_toolchain("android_clang_arm") {
   toolchain_args = {
     current_cpu = "arm"
