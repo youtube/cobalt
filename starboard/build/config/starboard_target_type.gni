@@ -70,5 +70,16 @@ template("starboard_platform_target") {
       public_deps +=
           [ "//starboard/shared/modular:starboard_layer_posix_abi_wrappers" ]
     }
+    if (target_type == "shared_library") {
+      ldflags = [
+        "-Wl,--wrap=close",
+        "-Wl,--wrap=open",
+        "-Wl,--wrap=stat",
+        "-Wl,--wrap=opendir",
+        "-Wl,--wrap=closedir",
+        "-Wl,--wrap=readdir_r",
+        "-Wl,--wrap=eglSwapBuffers",
+      ]
+    }
   }
 }

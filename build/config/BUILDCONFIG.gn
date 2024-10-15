@@ -280,7 +280,7 @@ if (custom_toolchain != "") {
   cobalt_toolchain = _default_toolchain
 }
 
-starboard_toolchain = "//build/toolchain/android:starboard"
+starboard_toolchain = cobalt_toolchain
 set_default_toolchain(cobalt_toolchain)
 
 # =============================================================================
@@ -339,6 +339,7 @@ if (chrobalt) {
 
 # Holds all configs used for running the compiler.
 default_compiler_configs = [
+  "//starboard/build/config/includes:default_includes",
   "//build/config:feature_flags",
   "//build/config/compiler:afdo",
   "//build/config/compiler:afdo_optimize_size",

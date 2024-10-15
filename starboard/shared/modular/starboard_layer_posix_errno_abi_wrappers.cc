@@ -16,6 +16,7 @@
 
 #include <pthread.h>
 #include <stdlib.h>
+#include <errno.h>
 
 static pthread_key_t g_errno_key = 0;
 static pthread_once_t g_errno_once = PTHREAD_ONCE_INIT;
