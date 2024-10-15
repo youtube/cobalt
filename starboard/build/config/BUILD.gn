@@ -211,7 +211,6 @@ config("starboard") {
     }
 
     defines += [
-      "STARBOARD_ATOMIC_INCLUDE=\"$starboard_path/atomic_public.h\"",
       "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"",
     ]
   }
