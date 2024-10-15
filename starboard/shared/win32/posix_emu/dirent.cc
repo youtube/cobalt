@@ -208,9 +208,7 @@ int readdir_r(DIR* __restrict dir,
               struct dirent* __restrict dirent_buf,
               struct dirent** __restrict dirent) {
   if (!dir || !dirent_buf || !dirent) {
-    if (dirent) {
-      *dirent = nullptr;
-    }
+    *dirent = NULL;
     return EBADF;
   }
 
@@ -220,17 +218,16 @@ int readdir_r(DIR* __restrict dir,
   }
 
   if (next_directory_entries.empty()) {
-    *dirent = nullptr;
+    *dirent = NULL;
     return ENOENT;
   }
 
   if (starboard::strlcpy(dirent_buf->d_name,
                          next_directory_entries.rbegin()->c_str(),
                          kSbFileMaxName) >= kSbFileMaxName) {
-    *dirent = nullptr;
+    *dirent = NULL;
     return ENOENT;
   }
-
   *dirent = dirent_buf;
   next_directory_entries.pop_back();
   handle_db_replace(dir->fd, next_directory_entries);
