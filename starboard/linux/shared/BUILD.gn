@@ -62,7 +62,6 @@ static_library("starboard_base_symbolize") {
 static_library("starboard_platform_sources") {
   check_includes = false
   sources = [
-    "//starboard/linux/shared/atomic_public.h",
     "//starboard/linux/shared/audio_sink_type_dispatcher.cc",
     "//starboard/linux/shared/configuration.cc",
     "//starboard/linux/shared/configuration.h",
