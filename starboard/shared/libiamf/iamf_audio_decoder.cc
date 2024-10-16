@@ -312,9 +312,7 @@ void IamfAudioDecoder::Reset() {
   decoder_is_configured_ = false;
 
   stream_ended_ = false;
-  while (!decoded_audios_.empty()) {
-    decoded_audios_.pop();
-  }
+  decoded_audios_ = std::queue<scoped_refptr<DecodedAudio>>();  // clear
 
   CancelPendingJobs();
 }

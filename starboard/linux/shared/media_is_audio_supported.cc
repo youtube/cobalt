@@ -49,13 +49,15 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
       if (!mime_util.is_valid()) {
         continue;
       }
+      // Support only IAMF streams with an Opus substream.
+      if (mime_util.substream_codec() != kIamfSubstreamCodecOpus) {
+        continue;
+      }
+      // At least one of the profiles must be Base or Simple.
       uint32_t primary_profile = mime_util.primary_profile();
       uint32_t additional_profile = mime_util.additional_profile();
-      // Support only IAMF streams with a base or simple profile and an Opus
-      // substream.
-      if (mime_util.substream_codec() != kIamfSubstreamCodecOpus ||
-          (primary_profile != kIamfProfileSimple &&
-           primary_profile != kIamfProfileBase) ||
+      if ((primary_profile != kIamfProfileSimple &&
+           primary_profile != kIamfProfileBase) &&
           (additional_profile != kIamfProfileSimple &&
            additional_profile != kIamfProfileBase)) {
         continue;

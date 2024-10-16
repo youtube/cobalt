@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <cstring>
 #include <string>
-#include <unordered_set>
 
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
@@ -88,7 +87,7 @@ class BufferReader {
   }
 
   bool ReadLeb128(uint32_t* ptr) {
-    if (RemainingSize() < 1 || !ptr) {
+    if (!HasBytes(1) || !ptr) {
       return false;
     }
     int bytes_read = ReadLeb128Internal(
@@ -102,7 +101,7 @@ class BufferReader {
   }
 
   bool ReadString(std::string* str) {
-    if (RemainingSize() < 1 || !str) {
+    if (!HasBytes(1) || !str) {
       return false;
     }
     int bytes_read = ReadStringInternal(buf_ + pos_, str);
@@ -138,7 +137,7 @@ class BufferReader {
  private:
   bool HasBytes(size_t size) const { return size + pos_ <= size_; }
   int RemainingSize() const { return size_ - pos_; }
-  inline uint32_t ByteSwap(uint32_t x) {
+  inline uint32_t ByteSwap(uint32_t x) const {
 #if defined(COMPILER_MSVC)
     return _byteswap_ulong(x);
 #else
@@ -188,7 +187,7 @@ class BufferReader {
 
     int bytes_read = ::starboard::strlcpy(
         str->data(), reinterpret_cast<const char*>(buf), max_bytes_to_read);
-    if (bytes_read == kMaxIamfStringSize) {
+    if (bytes_read == max_bytes_to_read) {
       // Ensure that the read string is null terminated.
       if (buf[bytes_read] != '\0') {
         return false;
@@ -311,12 +310,12 @@ bool ParseCodecConfigOBU(BufferReader* reader, IamfBufferInfo* info) {
 }
 
 // Parses an IAMF Audio Element OBU for audio element ids. When
-// |prefer_binaural_audio| is true, |binaural_audio_element_id| the first audio
-// element id containing a binaural loudspeaker layout. The same is done for
-// |surround_audio_element_id| when |prefer_surround_audio| is true.
+// |prefer_binaural_audio| is true, |binaural_audio_element_id| is set to
+// the first audioelement id containing a binaural loudspeaker layout.
+// The same is done for |surround_audio_element_id| when
+// |prefer_surround_audio| is true.
 // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#obu-audioelement
 bool ParseAudioElementOBU(BufferReader* reader,
-                          IamfBufferInfo* info,
                           std::optional<uint32_t>* binaural_audio_element_id,
                           std::optional<uint32_t>* surround_audio_element_id,
                           const bool prefer_binaural_audio,
@@ -407,9 +406,10 @@ bool ParseAudioElementOBU(BufferReader* reader,
 // When |prefer_binaural_audio| is true, |info->mix_presentation_id| is
 // set to |binaural_audio_element_id|, if it has a value. If
 // |binaural_audio_element_id| is unset, |info->mix_presentation_id| will be set
-// to a mix presentation containing a loudness layout.
-// |info->mix_presentation_id| is set to the first read mix presentation by
-// default.
+// to a mix presentation containing a binaural loudness layout.
+// If a matching audio element wasn't found, or if a stereo layout is requested,
+// |info->mix_presentation_id| is set to the first read mix presentation
+// by default.
 // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#obu-mixpresentation
 bool ParseMixPresentationOBU(
     BufferReader* reader,
@@ -565,7 +565,7 @@ bool ParseDescriptorOBU(BufferReader* reader,
       break;
     case kObuTypeAudioElement:
       RCHECK(ParseAudioElementOBU(
-          reader, info, &binaural_audio_element_id, &surround_audio_element_id,
+          reader, &binaural_audio_element_id, &surround_audio_element_id,
           prefer_binaural_audio, prefer_surround_audio));
       break;
     case kObuTypeSequenceHeader:
