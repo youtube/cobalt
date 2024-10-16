@@ -26,6 +26,11 @@ using ::starboard::shared::starboard::media::kIamfProfileSimple;
 using ::starboard::shared::starboard::media::kIamfSubstreamCodecOpus;
 using ::starboard::shared::starboard::media::MimeType;
 
+bool HasSupportedIamfProfile(const IamfMimeUtil* mime_util) {
+  return mime_util->primary_profile() == kIamfProfileSimple ||
+         mime_util->additional_profile() == kIamfProfileBase;
+}
+
 bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
                              const MimeType* mime_type,
                              int64_t bitrate) {
@@ -43,30 +48,17 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
       return false;
     }
     const std::vector<std::string>& codecs = mime_type->GetCodecs();
-    bool stream_is_supported = false;
     for (auto& codec : codecs) {
       IamfMimeUtil mime_util(codec);
-      if (!mime_util.is_valid()) {
-        continue;
+      // We support only IAMF Base or Simple profile streams with an Opus
+      // substream.
+      if (mime_util.is_valid() &&
+          mime_util.substream_codec() == kIamfSubstreamCodecOpus &&
+          HasSupportedIamfProfile(&mime_util)) {
+        return bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
       }
-      // Support only IAMF streams with an Opus substream.
-      if (mime_util.substream_codec() != kIamfSubstreamCodecOpus) {
-        continue;
-      }
-      // At least one of the profiles must be Base or Simple.
-      uint32_t primary_profile = mime_util.primary_profile();
-      uint32_t additional_profile = mime_util.additional_profile();
-      if (primary_profile != kIamfProfileSimple &&
-          primary_profile != kIamfProfileBase &&
-          additional_profile != kIamfProfileSimple &&
-          additional_profile != kIamfProfileBase) {
-        continue;
-      }
-      stream_is_supported = true;
-      break;
     }
-    return stream_is_supported &&
-           bitrate <= kSbMediaMaxAudioBitrateInBitsPerSecond;
+    return false;
   }
 #endif  // SB_API_VERSION >= 15
 

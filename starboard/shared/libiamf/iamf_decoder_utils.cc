@@ -104,7 +104,12 @@ class BufferReader {
     if (!HasBytes(1) || !str) {
       return false;
     }
-    int bytes_read = ReadStringInternal(buf_ + pos_, str);
+
+    // The size of the string is capped to 128 bytes.
+    // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#convention-data-types
+    const int kMaxIamfStringSize = 128;
+    int bytes_read = ReadStringInternal(
+        buf_ + pos_, str, std::min(RemainingSize(), kMaxIamfStringSize));
     if (bytes_read < 0) {
       return false;
     }
@@ -148,9 +153,9 @@ class BufferReader {
   // Decodes an Leb128 value and stores it in |value|. Returns the number of
   // bytes read, capped to |max_bytes_to_read|. Returns the number of bytes
   // read, or -1 on error.
-  int ReadLeb128Internal(const uint8_t* buf,
-                         uint32_t* value,
-                         const int max_bytes_to_read) const {
+  static int ReadLeb128Internal(const uint8_t* buf,
+                                uint32_t* value,
+                                const int max_bytes_to_read) {
     SB_DCHECK(buf);
     SB_DCHECK(value);
 
@@ -174,14 +179,12 @@ class BufferReader {
 
   // Reads a c-string into |str|. Returns the number of bytes read, capped to
   // 128 bytes, or -1 on error.
-  int ReadStringInternal(const uint8_t* buf, std::string* str) const {
+  static int ReadStringInternal(const uint8_t* buf,
+                                std::string* str,
+                                int max_bytes_to_read) {
     SB_DCHECK(buf);
     SB_DCHECK(str);
 
-    // The size of the string is capped to 128 bytes.
-    // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#convention-data-types
-    const int kMaxIamfStringSize = 128;
-    int max_bytes_to_read = std::min(RemainingSize(), kMaxIamfStringSize);
     str->clear();
     str->resize(max_bytes_to_read);
 

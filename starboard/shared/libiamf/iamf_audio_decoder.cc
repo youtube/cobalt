@@ -135,9 +135,11 @@ bool IamfAudioDecoder::DecodeInternal(
       kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
       audio_stream_info_.number_of_channels * info.num_samples *
           starboard::media::GetBytesPerSample(GetSampleType()));
-  int samples_decoded = IAMF_decoder_decode(
-      decoder_, const_cast<const uint8_t*>(info.data.data()), info.data.size(),
-      nullptr, reinterpret_cast<void*>(decoded_audio->data()));
+
+  int samples_decoded =
+      IAMF_decoder_decode(decoder_, info.data.data(), info.data.size(), nullptr,
+                          const_cast<uint8_t*>(decoded_audio->data()));
+
   if (samples_decoded < 1) {
     ReportError("Failed to decode IAMF sample, error " +
                 ErrorCodeToString(samples_decoded));
