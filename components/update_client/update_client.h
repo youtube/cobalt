@@ -225,6 +225,9 @@ struct CrxComponent {
   scoped_refptr<CrxInstaller> installer;
   std::string app_id;
 
+  // The current starboard version of the Cobalt app.
+  std::string sb_version;
+
   // The current version if the CRX is updated. Otherwise, "0" or "0.0" if
   // the CRX is installed.
   base::Version version;

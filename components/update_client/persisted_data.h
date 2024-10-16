@@ -51,6 +51,11 @@ class PersistedData {
   int GetDateLastActive(const std::string& id) const;
 
 #if defined(STARBOARD)
+  // Returns the starboard version of the last successfully installed update
+  // for the specified |id|. "" indicates that there is no recorded version value
+  // for the |id|.
+  std::string GetLastInstalledSbVersion(const std::string& id) const;
+
   // Returns the version of the update that was last successfully installed for
   // the specified |id|. "" indicates that there is no recorded version value
   // for the |id|.
@@ -85,10 +90,11 @@ class PersistedData {
   void SetDateLastActive(const std::vector<std::string>& ids, int datenum);
 
 #if defined(STARBOARD)
-  // Records the version of the update that is successfully installed for
-  // the specified |id|.
-  void SetLastInstalledVersion(const std::string& id,
-                              const std::string& version);
+  // Records the Evergreen version and the starboard version of the update that
+  // is successfully installed for the specified |id|.
+  void SetLastInstalledEgAndSbVersion(const std::string& id,
+                                      const std::string& eg_version,
+                                      const std::string& sb_version);
 
   // Records the updater channel that is set for the specified |id|.
   void SetUpdaterChannel(const std::string& id, const std::string& channel);
