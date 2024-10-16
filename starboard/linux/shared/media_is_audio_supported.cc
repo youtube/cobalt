@@ -56,10 +56,10 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
       // At least one of the profiles must be Base or Simple.
       uint32_t primary_profile = mime_util.primary_profile();
       uint32_t additional_profile = mime_util.additional_profile();
-      if ((primary_profile != kIamfProfileSimple &&
-           primary_profile != kIamfProfileBase) &&
-          (additional_profile != kIamfProfileSimple &&
-           additional_profile != kIamfProfileBase)) {
+      if (primary_profile != kIamfProfileSimple &&
+          primary_profile != kIamfProfileBase &&
+          additional_profile != kIamfProfileSimple &&
+          additional_profile != kIamfProfileBase) {
         continue;
       }
       stream_is_supported = true;

@@ -188,14 +188,14 @@ class BufferReader {
     int bytes_read = ::starboard::strlcpy(
         str->data(), reinterpret_cast<const char*>(buf), max_bytes_to_read);
     if (bytes_read == max_bytes_to_read) {
-      // Ensure that the read string is null terminated.
+      // Ensure that the string is null terminated.
       if (buf[bytes_read] != '\0') {
         return false;
       }
     }
     str->resize(bytes_read);
 
-    // Account for null terminator byte.
+    // Account for null terminator.
     return ++bytes_read;
   }
 
@@ -296,9 +296,7 @@ bool ParseCodecConfigOBU(BufferReader* reader, IamfBufferInfo* info) {
       // sample_size
       RCHECK(reader->SkipBytes(1));
 
-      uint32_t sample_rate_unsigned;
-      RCHECK(reader->Read4(&sample_rate_unsigned));
-      info->sample_rate = static_cast<int>(sample_rate_unsigned);
+      RCHECK(reader->Read4(reinterpret_cast<uint32_t*>(&info->sample_rate)));
       break;
     }
     default:
@@ -306,6 +304,53 @@ bool ParseCodecConfigOBU(BufferReader* reader, IamfBufferInfo* info) {
       return false;
   }
 
+  return true;
+}
+
+// Checks if the Audio Element indicated by |audio_element_id| contains layouts
+// for binaural and surround configurations, and sets
+// |binaural_audio_element_id| and |surround_audio_element_id| if so.
+bool CheckForAdvancedAudioElements(
+    BufferReader* reader,
+    uint32_t audio_element_id,
+    std::optional<uint32_t>* binaural_audio_element_id,
+    std::optional<uint32_t>* surround_audio_element_id) {
+  // Parse ScalableChannelLayoutConfig for binaural and surround
+  // loudspeaker layouts
+  uint8_t num_layers;
+  RCHECK(reader->Read1(&num_layers));
+  num_layers = num_layers >> 5;
+  // Read ChannelAudioLayerConfigs
+  uint8_t max_loudspeaker_layout = 0;
+  for (int i = 0; i < static_cast<int>(num_layers); ++i) {
+    uint8_t loudspeaker_layout;
+    bool output_gain_is_present_flag;
+    RCHECK(reader->Read1(&loudspeaker_layout));
+    output_gain_is_present_flag = (loudspeaker_layout >> 3) & 0x01;
+    loudspeaker_layout = loudspeaker_layout >> 4;
+    if (loudspeaker_layout == IA_CHANNEL_LAYOUT_BINAURAL &&
+        !binaural_audio_element_id->has_value()) {
+      *binaural_audio_element_id = audio_element_id;
+    } else if (loudspeaker_layout > IA_CHANNEL_LAYOUT_STEREO &&
+               loudspeaker_layout < IA_CHANNEL_LAYOUT_COUNT &&
+               loudspeaker_layout > max_loudspeaker_layout) {
+      *surround_audio_element_id = audio_element_id;
+      max_loudspeaker_layout = loudspeaker_layout;
+    }
+
+    // substream_count and coupled_substream_count
+    RCHECK(reader->SkipBytes(2));
+
+    if (output_gain_is_present_flag) {
+      // output_gain_flags and output_gain
+      RCHECK(reader->SkipBytes(3));
+    }
+
+    if (i == 1 && loudspeaker_layout == static_cast<uint8_t>(15)) {
+      // expanded_loudspeaker_layout
+      RCHECK(reader->SkipBytes(1));
+    }
+  }
   return true;
 }
 
@@ -361,40 +406,9 @@ bool ParseAudioElementOBU(BufferReader* reader,
   if (static_cast<uint32_t>(audio_element_type) ==
           AUDIO_ELEMENT_CHANNEL_BASED &&
       (prefer_binaural_audio || prefer_surround_audio)) {
-    // Parse ScalableChannelLayoutConfig for binaural and surround
-    // loudspeaker layouts
-    uint8_t num_layers;
-    RCHECK(reader->Read1(&num_layers));
-    num_layers = num_layers >> 5;
-    // Read ChannelAudioLayerConfigs
-    for (int i = 0; i < static_cast<int>(num_layers); ++i) {
-      uint8_t loudspeaker_layout;
-      bool output_gain_is_present_flag;
-      RCHECK(reader->Read1(&loudspeaker_layout));
-      output_gain_is_present_flag = (loudspeaker_layout >> 3) & 0x01;
-      loudspeaker_layout = loudspeaker_layout >> 4;
-      if (loudspeaker_layout == IA_CHANNEL_LAYOUT_BINAURAL &&
-          !binaural_audio_element_id->has_value()) {
-        *binaural_audio_element_id = audio_element_id;
-      } else if (loudspeaker_layout > IA_CHANNEL_LAYOUT_STEREO &&
-                 loudspeaker_layout < IA_CHANNEL_LAYOUT_COUNT &&
-                 !surround_audio_element_id->has_value()) {
-        *surround_audio_element_id = audio_element_id;
-      }
-
-      // substream_count and coupled_substream_count
-      RCHECK(reader->SkipBytes(2));
-
-      if (output_gain_is_present_flag) {
-        // output_gain_flags and output_gain
-        RCHECK(reader->SkipBytes(3));
-      }
-
-      if (i == 1 && loudspeaker_layout == static_cast<uint8_t>(15)) {
-        // expanded_loudspeaker_layout
-        RCHECK(reader->SkipBytes(1));
-      }
-    }
+    RCHECK(CheckForAdvancedAudioElements(reader, audio_element_id,
+                                         binaural_audio_element_id,
+                                         surround_audio_element_id));
   }
   return true;
 }
@@ -492,12 +506,10 @@ bool ParseMixPresentationOBU(
       uint8_t layout_type;
       RCHECK(reader->Read1(&layout_type));
       layout_type = layout_type >> 6;
-      // If a binaural mix presentation is preferred and the mix
-      // presentation id has not yet been set, set the mix presentation id
-      // if the current mix presentation has a binaural loudness layout. The
-      // mix presentation id will change if a different mix presentation is
-      // found that uses an audio element with a binaural loudspeaker
-      // layout, as that is higher priority.
+      // Set the mix presentation ID for a binaural loudness layout. This mix
+      // presentation ID will be overridden if a different mix presentation has
+      // a binarual loudspeaker layout, as that is prioritized.
+      // https://aomediacodec.github.io/iamf/v1.0.0-errata.html#processing-mixpresentation-selection
       if (static_cast<uint32_t>(layout_type) == IAMF_LAYOUT_TYPE_BINAURAL &&
           prefer_binaural_audio &&
           (!info->mix_presentation_id.has_value() ||
