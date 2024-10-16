@@ -137,8 +137,9 @@ bool GetBoundPort(int socket, int* out_port) {
   socklen_t socklen = static_cast<socklen_t>(sizeof(socket_address));
   int local_address = getsockname(
       socket, reinterpret_cast<sockaddr*>(&socket_address), &socklen);
-
+  SB_DLOG(INFO) << "Got bound port";
   if (local_address != 0) {
+    SB_DLOG(INFO) << "Bound port failed errno: " << errno;
     return false;
   }
 
