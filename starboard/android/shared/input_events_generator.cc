@@ -829,10 +829,6 @@ bool InputEventsGenerator::CreateInputEventsFromGameActivityEvent(
     ProcessJoyStickEvent(kLeftY, AMOTION_EVENT_AXIS_Y, android_event, events);
     ProcessJoyStickEvent(kRightX, AMOTION_EVENT_AXIS_Z, android_event, events);
     ProcessJoyStickEvent(kRightY, AMOTION_EVENT_AXIS_RZ, android_event, events);
-
-    // Remember the "hat" input values (dpad on the game controller) to help
-    // differentiate hat vs. stick fallback events.
-    UpdateHatValuesAndPossiblySynthesizeKeyEvents(android_event, events);
   }
 
   // Lie to Android and tell it that we did not process the motion event,
@@ -888,25 +884,6 @@ void InputEventsGenerator::ProcessFallbackDPadEvent(
   } else {
     SB_NOTREACHED();
   }
-}
-
-// Update |InputEventsGenerator::hat_value_| according to the incoming motion
-// event's data.  Possibly generate DPad events based on any changes in value
-// here.
-void InputEventsGenerator::UpdateHatValuesAndPossiblySynthesizeKeyEvents(
-    GameActivityMotionEvent* android_motion_event,
-    Events* events) {
-  float new_hat_x = GameActivityPointerAxes_getAxisValue(
-      &android_motion_event->pointers[0], AMOTION_EVENT_AXIS_HAT_X);
-  PossiblySynthesizeHatKeyEvents(kHatX, hat_value_[kHatX], new_hat_x, window_,
-                                 android_motion_event, events);
-  hat_value_[kHatX] = new_hat_x;
-
-  float new_hat_y = GameActivityPointerAxes_getAxisValue(
-      &android_motion_event->pointers[0], AMOTION_EVENT_AXIS_HAT_Y);
-  PossiblySynthesizeHatKeyEvents(kHatY, hat_value_[kHatY], new_hat_y, window_,
-                                 android_motion_event, events);
-  hat_value_[kHatY] = new_hat_y;
 }
 
 void InputEventsGenerator::UpdateDeviceFlatMapIfNecessary(
