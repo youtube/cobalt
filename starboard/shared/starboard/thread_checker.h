@@ -64,7 +64,8 @@ class ThreadChecker {
     SbThreadId current_thread_id = SbThreadGetId();
     SbThreadId stored_thread_id = kSbThreadInvalidId;
     thread_id_.compare_exchange_weak(stored_thread_id, current_thread_id,
-        std::memory_order_relaxed, std::memory_order_relaxed);
+                                     std::memory_order_relaxed,
+                                     std::memory_order_relaxed);
     return stored_thread_id == kSbThreadInvalidId ||
            stored_thread_id == current_thread_id;
   }
