@@ -23,3 +23,13 @@ bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket) {
 
   return waiter->Remove(socket);
 }
+
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
+bool SbPosixSocketWaiterRemove(SbSocketWaiter waiter, int socket) {
+  if (!SbSocketWaiterIsValid(waiter)) {
+    return false;
+  }
+
+  return waiter->Remove(socket, waiter);
+}
+#endif
