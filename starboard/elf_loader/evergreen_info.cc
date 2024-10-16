@@ -14,8 +14,8 @@
 
 #include "starboard/elf_loader/evergreen_info.h"
 
-#include <atomic>
 #include <string.h>
+#include <atomic>
 
 static EvergreenInfo g_evergreen_info;
 static bool g_valid_info = false;
@@ -26,7 +26,8 @@ bool SetEvergreenInfo(const EvergreenInfo* evergreen_info) {
   int32_t busy_state_flag = 1;
   int32_t ready_state_flag = 0;
   if (g_busy.compare_exchange_weak(ready_state_flag, busy_state_flag,
-      std::memory_order_release, std::memory_order_relaxed)) {
+                                   std::memory_order_release,
+                                   std::memory_order_relaxed)) {
     // Bailing out is OK as the process crashed
     // before we launched the application and in that
     // case the evergreen information is not needed.
@@ -44,7 +45,8 @@ bool SetEvergreenInfo(const EvergreenInfo* evergreen_info) {
 
   // Clear the busy flag.
   g_busy.compare_exchange_weak(busy_state_flag, ready_state_flag,
-      std::memory_order_release, std::memory_order_relaxed);
+                               std::memory_order_release,
+                               std::memory_order_relaxed);
 
   return true;
 }
@@ -59,7 +61,8 @@ bool GetEvergreenInfo(EvergreenInfo* evergreen_info) {
 
   // Set the busy flag or bail.
   if (g_busy.compare_exchange_weak(ready_state_flag, busy_state_flag,
-      std::memory_order_release, std::memory_order_relaxed)) {
+                                   std::memory_order_release,
+                                   std::memory_order_relaxed)) {
     return false;
   }
 
@@ -73,6 +76,7 @@ bool GetEvergreenInfo(EvergreenInfo* evergreen_info) {
 
   // Clear the busy flag.
   g_busy.compare_exchange_weak(busy_state_flag, ready_state_flag,
-    std::memory_order_release, std::memory_order_relaxed);
+                               std::memory_order_release,
+                               std::memory_order_relaxed);
   return true;
 }
