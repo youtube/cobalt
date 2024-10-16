@@ -378,6 +378,18 @@ static_library("starboard_platform") {
   if (sb_evergreen_compatible_use_libunwind) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
   }
+
+  defines = []
+  if (enable_iamf_decode) {
+    sources += [
+      "//starboard/shared/libiamf/iamf_audio_decoder.cc",
+      "//starboard/shared/libiamf/iamf_audio_decoder.h",
+      "//starboard/shared/libiamf/iamf_buffer_parser.cc",
+      "//starboard/shared/libiamf/iamf_buffer_parser.h",
+    ]
+
+    defines += [ "ENABLE_IAMF_DECODE" ]
+  }
 }
 
 static_library("starboard_base_symbolize") {

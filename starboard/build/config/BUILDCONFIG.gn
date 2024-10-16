@@ -40,6 +40,8 @@ declare_args() {
   build_with_separate_cobalt_toolchain = false
 
   use_xcode_clang = false
+
+  enable_iamf_decode = false
 }
 
 _is_on_pythonpath = exec_script("//starboard/build/is_on_path.py", [], "json")
