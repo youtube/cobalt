@@ -35,7 +35,8 @@ std::atomic<ElfLoader*> ElfLoader::g_instance{NULL};
 
 ElfLoader::ElfLoader() {
   ElfLoader* old_instance{NULL};
-  g_instance.compare_exchange_weak(old_instance, this, std::memory_order_acquire);
+  g_instance.compare_exchange_weak(old_instance, this,
+                                   std::memory_order_acquire);
   SB_DCHECK(!old_instance);
 
   impl_.reset(new ElfLoaderImpl());
@@ -43,7 +44,8 @@ ElfLoader::ElfLoader() {
 
 ElfLoader::~ElfLoader() {
   ElfLoader* old_instance{this};
-  g_instance.compare_exchange_weak(old_instance, NULL, std::memory_order_acquire);
+  g_instance.compare_exchange_weak(old_instance, NULL,
+                                   std::memory_order_acquire);
   SB_DCHECK(!old_instance);
   SB_DCHECK(old_instance);
   SB_DCHECK(old_instance == this);

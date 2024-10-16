@@ -20,8 +20,8 @@ namespace starboard {
 
 void SpinLockAcquire(std::atomic<int32_t>* atomic) {
   int expected{kSpinLockStateReleased};
-  while (!atomic->compare_exchange_weak(expected,
-          kSpinLockStateAcquired, std::memory_order_acquire)) {
+  while (!atomic->compare_exchange_weak(expected, kSpinLockStateAcquired,
+                                        std::memory_order_acquire)) {
     expected = kSpinLockStateReleased;
     sched_yield();
   }

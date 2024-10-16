@@ -59,7 +59,7 @@ void DeleteStartData(void* data) {
 }  // namespace
 
 // The next event ID to use for Schedule().
-volatile std::atomic<int32_t>g_next_event_id{0};
+volatile std::atomic<int32_t> g_next_event_id{0};
 
 std::atomic<Application*> Application::g_instance{NULL};
 
@@ -72,13 +72,15 @@ Application::Application(SbEventHandleCallback sb_event_handle_callback)
   SB_CHECK(sb_event_handle_callback_)
       << "sb_event_handle_callback_ has not been set.";
   Application* old_instance = NULL;
-  g_instance.compare_exchange_weak(old_instance, this, std::memory_order_acquire);
+  g_instance.compare_exchange_weak(old_instance, this,
+                                   std::memory_order_acquire);
   SB_DCHECK(!old_instance);
 }
 
 Application::~Application() {
   Application* old_instance = this;
-  g_instance.compare_exchange_weak(old_instance, NULL, std::memory_order_acquire);
+  g_instance.compare_exchange_weak(old_instance, NULL,
+                                   std::memory_order_acquire);
   SB_DCHECK(old_instance);
   SB_DCHECK(old_instance == this);
   free(start_link_);

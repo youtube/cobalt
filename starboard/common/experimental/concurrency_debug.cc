@@ -57,8 +57,9 @@ ScopedMutexWaitTracker::~ScopedMutexWaitTracker() {
   if (kMinimumWaitToLog == 0 || acquired_) {
     return;
   }
-  if ((s_mutex_acquire_contention_counter.fetch_add(1, std::memory_order_relaxed) + 1) <
-      kNumberOfInitialContentionsToIgnore) {
+  if ((s_mutex_acquire_contention_counter.fetch_add(1,
+                                                    std::memory_order_relaxed) +
+       1) < kNumberOfInitialContentionsToIgnore) {
     return;
   }
 
@@ -69,32 +70,33 @@ ScopedMutexWaitTracker::~ScopedMutexWaitTracker() {
     if (elapsed <= old_value) {
       break;
     }
-    if (s_mutex_max_contention_time.compare_exchange_weak(old_value, elapsed,
-        std::memory_order_release, std::memory_order_relaxed)) {                                  old_value, elapsed) == old_value) {
-      break;
+    if (s_mutex_max_contention_time.compare_exchange_weak(
+            old_value, elapsed, std::memory_order_release,
+            std::memory_order_relaxed)) {                                  old_value, elapsed) == old_value) {
+        break;
+      }
     }
-  }
 
-  if (elapsed < kMinimumWaitToLog) {
-    return;
-  }
+    if (elapsed < kMinimumWaitToLog) {
+      return;
+    }
 
-  SB_LOG(INFO) << "SbMutexAcquire() takes " << elapsed;
+    SB_LOG(INFO) << "SbMutexAcquire() takes " << elapsed;
 
-  if (kStackTraceDepth > 0) {
-    void* stack[kStackTraceDepth];
-    int num_stack = SbSystemGetStack(stack, kStackTraceDepth);
+    if (kStackTraceDepth > 0) {
+      void* stack[kStackTraceDepth];
+      int num_stack = SbSystemGetStack(stack, kStackTraceDepth);
 
-    for (int i = 2; i < std::min(num_stack, 5); ++i) {
-      char name[kMaxSymbolNameLength + 1];
-      if (SbSystemSymbolize(stack[i], name, kMaxSymbolNameLength)) {
-        SB_LOG(INFO) << "  - " << name;
-      } else {
-        SB_LOG(INFO) << "  - 0x" << stack[i];
+      for (int i = 2; i < std::min(num_stack, 5); ++i) {
+        char name[kMaxSymbolNameLength + 1];
+        if (SbSystemSymbolize(stack[i], name, kMaxSymbolNameLength)) {
+          SB_LOG(INFO) << "  - " << name;
+        } else {
+          SB_LOG(INFO) << "  - 0x" << stack[i];
+        }
       }
     }
   }
-}
 
 }  // namespace experimental
 }  // namespace starboard
