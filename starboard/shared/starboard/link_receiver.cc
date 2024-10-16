@@ -190,7 +190,7 @@ class LinkReceiver::Impl {
  private:
   // Encapsulates connection state.
   struct Connection {
-    explicit Connection(int socket_fd) {}
+    explicit Connection(int socket) { socket_fd = socket; }
     ~Connection() {}
     void FlushLink(Application* application) {
       if (!data.empty()) {
@@ -213,7 +213,7 @@ class LinkReceiver::Impl {
 
   // Adds the |connection| to the SbSocketWaiter to wait until ready to read
   // more data.
-  bool AddForRead(Connection* socket);
+  bool AddForRead(Connection* connection);
 
   // Called when the listening socket has a connection available to accept.
   void OnAcceptReady();
