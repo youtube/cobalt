@@ -27,25 +27,25 @@
 
 #else  // defined(COBALT_BUILD_TYPE_GOLD)
 
-#define DECLARE_INSTANCE_COUNTER(class_name)      \
-  namespace {                                     \
+#define DECLARE_INSTANCE_COUNTER(class_name)                \
+  namespace {                                               \
   std::atomic<int32_t> s_##class_name##_instance_count = 0; \
   }
 
-#define ON_INSTANCE_CREATED(class_name)                         \
-  {                                                             \
-    SB_LOG(INFO) << "New instance of " << #class_name           \
-                 << " is created. We have "                     \
-                 << s_##class_name##_instance_count.            \
-                        fetch_add(1, std::memory_order_relaxed) \
-                 << " instances in total.";                     \
+#define ON_INSTANCE_CREATED(class_name)                        \
+  {                                                            \
+    SB_LOG(INFO) << "New instance of " << #class_name          \
+                 << " is created. We have "                    \
+                 << s_##class_name##_instance_count.fetch_add( \
+                        1, std::memory_order_relaxed)          \
+                 << " instances in total.";                    \
   }
 
 #define ON_INSTANCE_RELEASED(class_name)                                      \
   {                                                                           \
     SB_LOG(INFO) << "Instance of " << #class_name << " is released. We have " \
-                 << s_##class_name##_instance_count.                          \
-                        fetch_sub(1, std::memory_order_relaxed)               \
+                 << s_##class_name##_instance_count.fetch_sub(                \
+                        1, std::memory_order_relaxed)                         \
                  << " instances in total.";                                   \
   }
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)
