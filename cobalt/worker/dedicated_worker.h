@@ -80,7 +80,8 @@ class DedicatedWorker : public AbstractWorker, public web::EventTarget {
 
  private:
   ~DedicatedWorker() override;
-  void Initialize(script::ExceptionState* exception_state);
+  void Initialize(script::EnvironmentSettings* settings,
+                  script::ExceptionState* exception_state);
 
   const std::string script_url_;
   const WorkerOptions worker_options_;

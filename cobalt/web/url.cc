@@ -17,10 +17,12 @@
 #include "base/guid.h"
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/media_settings.h"
 #include "cobalt/script/exception_message.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -28,6 +30,48 @@ namespace web {
 
 namespace {
 const char kBlobUrlProtocol[] = "blob";
+
+const dom::MediaSettings& GetMediaSettings(web::EnvironmentSettings* settings) {
+  DCHECK(settings);
+  DCHECK(settings->context());
+  DCHECK(settings->context()->web_settings());
+
+  const auto& web_settings = settings->context()->web_settings();
+  return web_settings->media_settings();
+}
+
+// If this function returns true, MediaSource::GetSeekable() will short-circuit
+// getting the buffered range from HTMLMediaElement by directly calling to
+// MediaSource::GetBufferedRange(). This reduces potential cross-object,
+// cross-thread calls between MediaSource and HTMLMediaElement.
+// The default value is false.
+bool IsMediaElementUsingMediaSourceBufferedRangeEnabled(
+    web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings)
+      .IsMediaElementUsingMediaSourceBufferedRangeEnabled()
+      .value_or(false);
+}
+
+// If this function returns true, communication between HTMLMediaElement and
+// MediaSource objects will be fully proxied between MediaSourceAttachment.
+// The default value is false.
+bool IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
+    web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings)
+      .IsMediaElementUsingMediaSourceAttachmentMethodsEnabled()
+      .value_or(false);
+}
+
+// If this function returns true, experimental support for creating MediaSource
+// objects in Dedicated Workers will be enabled. This also allows MSE handles
+// to be transferred from Dedicated Workers back to the main thread.
+// Requires MediaElement.EnableUsingMediaSourceBufferedRange and
+// MediaElement.EnableUsingMediaSourceAttachmentMethods as prerequisites for
+// this feature.
+// The default value is false.
+bool IsMseInWorkersEnabled(web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings).IsMseInWorkersEnabled().value_or(false);
+}
 }  // namespace
 
 URL::URL(const std::string& url, const std::string& base,
@@ -67,6 +111,29 @@ std::string URL::CreateObjectURL(
     const scoped_refptr<dom::MediaSource>& media_source) {
   if (!media_source) {
     return "";
+  }
+
+  web::EnvironmentSettings* web_settings =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(
+          environment_settings);
+  DCHECK(web_settings);
+  DCHECK(web_settings->context());
+  web::WindowOrWorkerGlobalScope* global_scope =
+      web_settings->context()->GetWindowOrWorkerGlobalScope();
+  if (global_scope->IsWorker()) {
+    if (!global_scope->IsDedicatedWorker()) {
+      // MSE-in-Workers is only available from DedicatedWorkers, but the URL
+      // API is exposed to multiple types of Workers. This branch is used to
+      // handle Workers that don't support MSE.
+      return "";
+    }
+    if (!IsMseInWorkersEnabled(web_settings) ||
+        !IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(web_settings) ||
+        !IsMediaElementUsingMediaSourceBufferedRangeEnabled(web_settings)) {
+      // Prevent usage of MSE-in-Workers if any of the pre-requisites are not
+      // satisfied.
+      return "";
+    }
   }
 
   std::string blob_url = kBlobUrlProtocol;

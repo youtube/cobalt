@@ -20,6 +20,7 @@
 
 #include "base/containers/hash_tables.h"
 #include "base/memory/ref_counted.h"
+#include "base/synchronization/lock.h"
 #include "cobalt/script/tracer.h"
 
 namespace cobalt {
@@ -43,17 +44,21 @@ class UrlRegistry : public script::Traceable {
   bool Unregister(const std::string& blob_url);
 
   void TraceMembers(script::Tracer* tracer) override {
+    base::AutoLock auto_lock(lock_);
     tracer->TraceValues(object_registry_);
   }
 
  private:
   typedef base::hash_map<std::string, scoped_refptr<ObjectType> > UrlMap;
-  UrlMap object_registry_;
+  UrlMap object_registry_ GUARDED_BY(lock_);
+
+  base::Lock lock_;
 };
 
 template <typename ObjectType>
 void UrlRegistry<ObjectType>::Register(
     const std::string& blob_url, const scoped_refptr<ObjectType>& object) {
+  base::AutoLock auto_lock(lock_);
   DCHECK(object);
   DCHECK(object_registry_.find(blob_url) == object_registry_.end());
   object_registry_.insert(std::make_pair(blob_url, object));
@@ -62,6 +67,7 @@ void UrlRegistry<ObjectType>::Register(
 template <typename ObjectType>
 scoped_refptr<ObjectType> UrlRegistry<ObjectType>::Retrieve(
     const std::string& blob_url) {
+  base::AutoLock auto_lock(lock_);
   typename UrlMap::iterator iter = object_registry_.find(blob_url);
   if (iter == object_registry_.end()) {
     DLOG(WARNING) << "Cannot find object for blob url " << blob_url;
@@ -73,6 +79,7 @@ scoped_refptr<ObjectType> UrlRegistry<ObjectType>::Retrieve(
 
 template <typename ObjectType>
 bool UrlRegistry<ObjectType>::Unregister(const std::string& blob_url) {
+  base::AutoLock auto_lock(lock_);
   typename UrlMap::iterator iter = object_registry_.find(blob_url);
   if (iter == object_registry_.end()) {
     return false;

@@ -96,6 +96,12 @@ bool MediaSettingsImpl::Set(const std::string& name, int value) {
       LOG(INFO) << name << ": set to " << value;
       return true;
     }
+  } else if (name == "MediaSource.EnableInWorkers") {
+    if (value == 0 || value == 1) {
+      is_mse_in_workers_enabled_ = value != 0;
+      LOG(INFO) << name << ": set to " << value;
+      return true;
+    }
   } else {
     LOG(WARNING) << "Ignore unknown setting with name \"" << name << "\"";
     return false;
