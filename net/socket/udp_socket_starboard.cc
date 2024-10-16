@@ -162,7 +162,7 @@ int UDPSocketStarboard::GetLocalAddress(IPEndPoint* address) const {
 int UDPSocketStarboard::Read(IOBuffer* buf,
                              int buf_len,
                              CompletionOnceCallback callback) {
-  return RecvFrom(buf, buf_len, NULL, std::move(callback));
+  return RecvFrom(buf, buf_len, nullptr, std::move(callback));
 }
 
 int UDPSocketStarboard::RecvFrom(IOBuffer* buf,
@@ -206,9 +206,7 @@ int UDPSocketStarboard::Write(IOBuffer* buf,
                               int buf_len,
                               CompletionOnceCallback callback,
                               const NetworkTrafficAnnotationTag&) {
-  DCHECK(remote_address_);
-  return SendToOrWrite(buf, buf_len, remote_address_.get(),
-                       std::move(callback));
+  return SendToOrWrite(buf, buf_len, nullptr, std::move(callback));
 }
 
 int UDPSocketStarboard::SendTo(IOBuffer* buf,
@@ -271,16 +269,28 @@ int UDPSocketStarboard::InternalConnect(const IPEndPoint& address) {
   DCHECK(!remote_address_.get());
 
   int rv = 0;
-  // Cobalt does random bind despite bind_type_ because we do not connect
-  // UDP sockets but Chromium does. And if a socket does recvfrom() without
-  // any sendto() before, it needs to be bound to have a local port.
-  rv = RandomBind(address.GetFamily() == ADDRESS_FAMILY_IPV4 ?
-                      IPAddress::IPv4AllZeros() : IPAddress::IPv6AllZeros());
+  if (bind_type_ == DatagramSocket::RANDOM_BIND) {
+    // Construct IPAddress of appropriate size (IPv4 or IPv6) of 0s,
+    // representing INADDR_ANY or in6addr_any.
+    rv = RandomBind(address.GetFamily() == ADDRESS_FAMILY_IPV4
+                        ? IPAddress::IPv4AllZeros()
+                        : IPAddress::IPv6AllZeros());
+  }
 
   if (rv != OK)
     return rv;
 
+  SbSocketAddress storage;
+  if (!address.ToSbSocketAddress(&storage)) {
+    return ERR_ADDRESS_INVALID;
+  }
+
   remote_address_.reset(new IPEndPoint(address));
+
+  SbSocketError result = SbSocketConnect(socket_, &storage);
+  if (result != kSbSocketOk) {
+    return MapLastSocketError(socket_);
+  }
 
   return OK;
 }
@@ -459,8 +469,8 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
                                          int buf_len,
                                          IPEndPoint* address) {
   SbSocketAddress sb_address;
-  int bytes_transferred =
-      SbSocketReceiveFrom(socket_, buf->data(), buf_len, &sb_address);
+  int bytes_transferred = SbSocketReceiveFrom(socket_, buf->data(), buf_len,
+                                              address ? &sb_address : nullptr);
   int result;
   if (bytes_transferred >= 0) {
     result = bytes_transferred;
@@ -468,7 +478,7 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
     // platform's implementation.
     if (address && !address->FromSbSocketAddress(&sb_address)) {
       result = ERR_ADDRESS_INVALID;
-    } else if (bytes_transferred == buf_len) {
+    } else if (bytes_transferred >= buf_len) {
       result = ERR_MSG_TOO_BIG;
     }
   } else {
@@ -477,8 +487,9 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
 
   if (result != ERR_IO_PENDING) {
     IPEndPoint log_address;
-    if (result < 0 || !log_address.FromSbSocketAddress(&sb_address)) {
-      LogRead(result, buf->data(), NULL);
+    if (result < 0 || !address ||
+        !log_address.FromSbSocketAddress(&sb_address)) {
+      LogRead(result, buf->data(), nullptr);
     } else {
       LogRead(result, buf->data(), &log_address);
     }
@@ -491,19 +502,25 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
                                        int buf_len,
                                        const IPEndPoint* address) {
   SbSocketAddress sb_address;
-  if (!address || !address->ToSbSocketAddress(&sb_address)) {
+  if (address && !address->ToSbSocketAddress(&sb_address)) {
     int result = ERR_FAILED;
     LogWrite(result, NULL, NULL);
     return result;
   }
 
-  int result = SbSocketSendTo(socket_, buf->data(), buf_len, &sb_address);
+  int result = SbSocketSendTo(socket_, buf->data(), buf_len,
+                              address ? &sb_address : nullptr);
 
   if (result < 0)
     result = MapLastSocketError(socket_);
 
-  if (result != ERR_IO_PENDING)
-    LogWrite(result, buf->data(), address);
+  if (result != ERR_IO_PENDING) {
+    if (!address) {
+      LogWrite(result, buf->data(), nullptr);
+    } else {
+      LogWrite(result, buf->data(), address);
+    }
+  }
 
   return result;
 }
