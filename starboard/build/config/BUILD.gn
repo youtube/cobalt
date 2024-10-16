@@ -210,9 +210,7 @@ config("starboard") {
       defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LIBUNWIND=1" ]
     }
 
-    defines += [
-      "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"",
-    ]
+    defines += [ "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"" ]
   }
 }
 

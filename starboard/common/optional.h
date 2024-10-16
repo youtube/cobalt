@@ -198,7 +198,7 @@ class optional {
   // == and != are already overloaded for optional, this leaves null tests,
   // which we use for boolean testing.
   class PrivateSafeBoolIdiomFakeMemberType;
-  typedef PrivateSafeBoolIdiomFakeMemberType optional::*SafeBoolIdiomType;
+  typedef PrivateSafeBoolIdiomFakeMemberType optional::* SafeBoolIdiomType;
 
  public:
   operator const SafeBoolIdiomType() const {

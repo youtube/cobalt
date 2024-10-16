@@ -42,7 +42,8 @@ static inline bool EnsureInitialized(InitializedState* state) {
   // simultaneously mark us as initializing and return to the caller.
   int original{INITIALIZED_STATE_UNINITIALIZED};
   state->compare_exchange_weak(original, INITIALIZED_STATE_INITIALIZING,
-    std::memory_order_release, std::memory_order_relaxed);
+                               std::memory_order_release,
+                               std::memory_order_relaxed);
   if (original == INITIALIZED_STATE_UNINITIALIZED) {
     // If we were uninitialized, we are now marked as initializing and so
     // we relay this information to the caller, so that they may initialize.
@@ -52,7 +53,8 @@ static inline bool EnsureInitialized(InitializedState* state) {
     // initialization is complete, then return.
     do {
       sched_yield();
-    } while (state->load(std::memory_order_acquire) != INITIALIZED_STATE_INITIALIZED);
+    } while (state->load(std::memory_order_acquire) !=
+             INITIALIZED_STATE_INITIALIZED);
   } else {
     SB_DCHECK(original == INITIALIZED_STATE_INITIALIZED)
         << "Unexpected original=" << original;
