@@ -13,12 +13,5 @@
 # limitations under the License.
 
 config("platform_configuration") {
-  libs = [
-    "EGL",
-    "GLESv2",
-    "OpenSLES",
-    "android",
-    "log",
-    "mediandk",
-  ]
+  configs = [ "//starboard/android/shared/platform_configuration" ]
 }
