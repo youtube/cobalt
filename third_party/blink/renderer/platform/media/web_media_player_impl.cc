@@ -60,6 +60,7 @@
 #include "media/learning/common/media_learning_tasks.h"
 #include "media/learning/mojo/public/cpp/mojo_learning_task_controller.h"
 #include "media/media_buildflags.h"
+#include "media/renderers/starboard_renderer.h"
 #include "media/remoting/remoting_constants.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -2795,6 +2796,11 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
       base::BindPostTaskToCurrentDefault(base::BindRepeating(
           &WebMediaPlayerImpl::OnOverlayInfoRequested, weak_this_));
 #endif
+
+  // Always true
+  if (media_task_runner_) {
+    return std::make_unique<media::StarboardRenderer>(media_task_runner_);
+  }
 
   if (renderer_type) {
     DVLOG(1) << __func__
