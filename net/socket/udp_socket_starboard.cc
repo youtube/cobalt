@@ -206,9 +206,7 @@ int UDPSocketStarboard::Write(IOBuffer* buf,
                               int buf_len,
                               CompletionOnceCallback callback,
                               const NetworkTrafficAnnotationTag&) {
-  DCHECK(remote_address_);
-  return SendToOrWrite(buf, buf_len, remote_address_.get(),
-                       std::move(callback));
+  return SendToOrWrite(buf, buf_len, nullptr, std::move(callback));
 }
 
 int UDPSocketStarboard::SendTo(IOBuffer* buf,
@@ -491,7 +489,7 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
     IPEndPoint log_address;
     if (result < 0 || !address ||
         !log_address.FromSbSocketAddress(&sb_address)) {
-      LogRead(result, buf->data(), NULL);
+      LogRead(result, buf->data(), nullptr);
     } else {
       LogRead(result, buf->data(), &log_address);
     }
@@ -504,19 +502,25 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
                                        int buf_len,
                                        const IPEndPoint* address) {
   SbSocketAddress sb_address;
-  if (!address || !address->ToSbSocketAddress(&sb_address)) {
+  if (address && !address->ToSbSocketAddress(&sb_address)) {
     int result = ERR_FAILED;
     LogWrite(result, NULL, NULL);
     return result;
   }
 
-  int result = SbSocketSendTo(socket_, buf->data(), buf_len, &sb_address);
+  int result = SbSocketSendTo(socket_, buf->data(), buf_len,
+                              address ? &sb_address : nullptr);
 
   if (result < 0)
     result = MapLastSocketError(socket_);
 
-  if (result != ERR_IO_PENDING)
-    LogWrite(result, buf->data(), address);
+  if (result != ERR_IO_PENDING) {
+    if (!address) {
+      LogWrite(result, buf->data(), nullptr);
+    } else {
+      LogWrite(result, buf->data(), address);
+    }
+  }
 
   return result;
 }
