@@ -150,7 +150,7 @@ class BufferReader {
   // read, or -1 on error.
   int ReadLeb128Internal(const uint8_t* buf,
                          uint32_t* value,
-                         const int max_bytes_to_read) {
+                         const int max_bytes_to_read) const {
     SB_DCHECK(buf);
     SB_DCHECK(value);
 
@@ -174,7 +174,7 @@ class BufferReader {
 
   // Reads a c-string into |str|. Returns the number of bytes read, capped to
   // 128 bytes, or -1 on error.
-  int ReadStringInternal(const uint8_t* buf, std::string* str) {
+  int ReadStringInternal(const uint8_t* buf, std::string* str) const {
     SB_DCHECK(buf);
     SB_DCHECK(str);
 
