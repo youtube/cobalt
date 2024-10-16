@@ -28,7 +28,7 @@ jobs:
           sudo apt update
           sudo apt install python3 gn pipx
           pipx install pre-commit
-      - name: Checkout files
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
