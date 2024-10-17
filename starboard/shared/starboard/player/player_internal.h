@@ -34,8 +34,42 @@
 
 struct SbPlayerPrivate {
  public:
-  typedef starboard::shared::starboard::media::AudioSampleInfo AudioSampleInfo;
-  typedef starboard::shared::starboard::player::PlayerWorker PlayerWorker;
+  virtual ~SbPlayerPrivate() {}
+
+  virtual void Seek(int64_t seek_to_time, int ticket) = 0;
+  virtual void WriteSamples(const SbPlayerSampleInfo* sample_infos,
+                            int number_of_sample_infos) = 0;
+  virtual void WriteSamples(
+      const CobaltExtensionEnhancedAudioPlayerSampleInfo* sample_infos,
+      int number_of_sample_infos) = 0;
+
+  virtual void WriteEndOfStream(SbMediaType stream_type) = 0;
+  virtual void SetBounds(int z_index, int x, int y, int width, int height) = 0;
+
+#if SB_API_VERSION >= 15
+  virtual void GetInfo(SbPlayerInfo* out_player_info) = 0;
+#else   // SB_API_VERSION >= 15
+  virtual void GetInfo(SbPlayerInfo2* out_player_info) = 0;
+#endif  // SB_API_VERSION >= 15
+  virtual void SetPause(bool pause) = 0;
+  virtual void SetPlaybackRate(double playback_rate) = 0;
+  virtual void SetVolume(double volume) = 0;
+
+  virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
+  virtual bool GetAudioConfiguration(
+      int index,
+      SbMediaAudioConfiguration* out_audio_configuration) = 0;
+};
+
+namespace starboard {
+namespace shared {
+namespace starboard {
+namespace player {
+
+class SbPlayerPrivateImpl : public SbPlayerPrivate {
+ public:
+  typedef ::starboard::shared::starboard::media::AudioSampleInfo
+      AudioSampleInfo;
 
   static SbPlayerPrivate* CreateInstance(
       SbMediaAudioCodec audio_codec,
@@ -47,45 +81,56 @@ struct SbPlayerPrivate {
       void* context,
       std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
 
-  void Seek(int64_t seek_to_time, int ticket);
-  template <typename PlayerSampleInfo>
-  void WriteSamples(const PlayerSampleInfo* sample_infos,
-                    int number_of_sample_infos);
-  void WriteEndOfStream(SbMediaType stream_type);
-  void SetBounds(int z_index, int x, int y, int width, int height);
+  void Seek(int64_t seek_to_time, int ticket) override;
+  void WriteSamples(
+      const CobaltExtensionEnhancedAudioPlayerSampleInfo* sample_infos,
+      int number_of_sample_infos) override {
+    return WriteSamplesInternal(sample_infos, number_of_sample_infos);
+  }
+  void WriteSamples(const SbPlayerSampleInfo* sample_infos,
+                    int number_of_sample_infos) override {
+    return WriteSamplesInternal(sample_infos, number_of_sample_infos);
+  }
+  void WriteEndOfStream(SbMediaType stream_type) override;
+  void SetBounds(int z_index, int x, int y, int width, int height) override;
 
 #if SB_API_VERSION >= 15
-  void GetInfo(SbPlayerInfo* out_player_info);
+  void GetInfo(SbPlayerInfo* out_player_info) override;
 #else   // SB_API_VERSION >= 15
-  void GetInfo(SbPlayerInfo2* out_player_info);
+  void GetInfo(SbPlayerInfo2* out_player_info) override;
 #endif  // SB_API_VERSION >= 15
-  void SetPause(bool pause);
-  void SetPlaybackRate(double playback_rate);
-  void SetVolume(double volume);
+  void SetPause(bool pause) override;
+  void SetPlaybackRate(double playback_rate) override;
+  void SetVolume(double volume) override;
 
-  SbDecodeTarget GetCurrentDecodeTarget();
+  SbDecodeTarget GetCurrentDecodeTarget() override;
   bool GetAudioConfiguration(
       int index,
-      SbMediaAudioConfiguration* out_audio_configuration);
+      SbMediaAudioConfiguration* out_audio_configuration) override;
 
-  ~SbPlayerPrivate() {
+  ~SbPlayerPrivateImpl() override {
     --number_of_players_;
     SB_DLOG(INFO) << "Destroying SbPlayerPrivate. There are "
                   << number_of_players_ << " players.";
   }
 
  private:
-  SbPlayerPrivate(SbMediaAudioCodec audio_codec,
-                  SbMediaVideoCodec video_codec,
-                  SbPlayerDeallocateSampleFunc sample_deallocate_func,
-                  SbPlayerDecoderStatusFunc decoder_status_func,
-                  SbPlayerStatusFunc player_status_func,
-                  SbPlayerErrorFunc player_error_func,
-                  void* context,
-                  std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
+  SbPlayerPrivateImpl(
+      SbMediaAudioCodec audio_codec,
+      SbMediaVideoCodec video_codec,
+      SbPlayerDeallocateSampleFunc sample_deallocate_func,
+      SbPlayerDecoderStatusFunc decoder_status_func,
+      SbPlayerStatusFunc player_status_func,
+      SbPlayerErrorFunc player_error_func,
+      void* context,
+      std::unique_ptr<PlayerWorker::Handler> player_worker_handler);
 
-  SbPlayerPrivate(const SbPlayerPrivate&) = delete;
-  SbPlayerPrivate& operator=(const SbPlayerPrivate&) = delete;
+  SbPlayerPrivateImpl(const SbPlayerPrivateImpl&) = delete;
+  SbPlayerPrivateImpl& operator=(const SbPlayerPrivateImpl&) = delete;
+
+  template <typename PlayerSampleInfo>
+  void WriteSamplesInternal(const PlayerSampleInfo* sample_infos,
+                            int number_of_sample_infos);
 
   void UpdateMediaInfo(int64_t media_time,
                        int dropped_video_frames,
@@ -95,7 +140,7 @@ struct SbPlayerPrivate {
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
 
-  starboard::Mutex mutex_;
+  Mutex mutex_;
   int ticket_ = SB_PLAYER_INITIAL_TICKET;
   int64_t media_time_ = 0;         // microseconds
   int64_t media_time_updated_at_;  // microseconds
@@ -112,18 +157,15 @@ struct SbPlayerPrivate {
 
   std::unique_ptr<PlayerWorker> worker_;
 
-  starboard::Mutex audio_configurations_mutex_;
+  Mutex audio_configurations_mutex_;
   std::vector<SbMediaAudioConfiguration> audio_configurations_;
 
   static int number_of_players_;
 };
 
 template <typename SampleInfo>
-void SbPlayerPrivate::WriteSamples(const SampleInfo* sample_infos,
-                                   int number_of_sample_infos) {
-  using starboard::shared::starboard::player::InputBuffer;
-  using starboard::shared::starboard::player::InputBuffers;
-
+void SbPlayerPrivateImpl::WriteSamplesInternal(const SampleInfo* sample_infos,
+                                               int number_of_sample_infos) {
   SB_DCHECK(sample_infos);
   SB_DCHECK(number_of_sample_infos > 0);
 
@@ -133,7 +175,7 @@ void SbPlayerPrivate::WriteSamples(const SampleInfo* sample_infos,
     input_buffers.push_back(new InputBuffer(sample_deallocate_func_, this,
                                             context_, sample_infos[i]));
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
-    using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
+    using video_dmp::VideoDmpWriter;
     VideoDmpWriter::OnPlayerWriteSample(this, input_buffers.back());
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
   }
@@ -147,5 +189,10 @@ void SbPlayerPrivate::WriteSamples(const SampleInfo* sample_infos,
 
   worker_->WriteSamples(std::move(input_buffers));
 }
+
+}  // namespace player
+}  // namespace starboard
+}  // namespace shared
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_INTERNAL_H_
