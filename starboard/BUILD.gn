@@ -144,7 +144,7 @@ if (!is_android) {
       }
     } else {
       public_deps += [
-        ":starboard_static($starboard_toolchain)",
+        ":starboard($starboard_toolchain)",
         "//starboard/common",
       ]
 
@@ -284,10 +284,6 @@ config("hacky_wnos") {
 if (current_toolchain == starboard_toolchain) {
   # This is the default 'starboard_platform_target'; use default properties
   starboard_platform_target("starboard") {
-  }
-
-  starboard_platform_target("starboard_static") {
-    target_type = "group"
   }
 
   if (platform_tests_path == "") {
