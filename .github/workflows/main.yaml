@@ -39,10 +39,8 @@ jobs:
       )
     timeout-minutes: 10
     steps:
-      - name: Checkout files
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
         continue-on-error: true  # Ignore this step if we cannot remove the label.
@@ -85,10 +83,8 @@ jobs:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
-    - name: Checkout files
+    - name: Checkout
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 1
     # Handle GitHub registry used for everything other than pull requests off forked repos.
     - name: Login to GitHub Docker Registry
       if: ${{ (github.event_name != 'pull_request') || (github.event.pull_request.head.repo.full_name == github.repository) }}
