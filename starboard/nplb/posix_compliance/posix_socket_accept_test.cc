@@ -55,7 +55,7 @@ TEST(PosixSocketAcceptTest, RainyDayNoConnection) {
   EXPECT_TRUE(
       PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
       PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
-  address.sin6_port = htons(GetPortNumberForTests());
+  address.sin6_port = htons(PosixGetPortNumberForTests());
 
   result = bind(socket_listen_fd, reinterpret_cast<sockaddr*>(&address),
                 sizeof(sockaddr));
@@ -132,7 +132,7 @@ TEST(PosixSocketAcceptTest, RainyDayNotListening) {
   EXPECT_TRUE(
       PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
       PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
-  address.sin6_port = htons(GetPortNumberForTests());
+  address.sin6_port = htons(PosixGetPortNumberForTests());
   EXPECT_TRUE(result == 0);
   if (result != 0) {
     close(socket_fd);

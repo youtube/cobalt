@@ -66,7 +66,7 @@ TEST(PosixSocketReceiveTest, SunnyDay) {
   const int kSockBufSize = kBufSize / 8;
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
   int result = PosixSocketCreateAndConnect(
-      AF_INET, AF_INET, htons(GetPortNumberForTests()), kSocketTimeout,
+      AF_INET, AF_INET, htons(PosixGetPortNumberForTests()), kSocketTimeout,
       &listen_socket_fd, &client_socket_fd, &server_socket_fd);
   ASSERT_TRUE(result == 0);
 

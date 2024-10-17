@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include <sched.h>
-
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 
+#include <sched.h>
+#include <sys/socket.h>
+
+#include "starboard/shared/posix/handle_eintr.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -44,12 +46,13 @@ int PosixSocketCreateAndConnect(int server_domain,
     close(*listen_socket_fd);
     return -1;
   }
+
   // bind socket with local address
   sockaddr_in6 address = {};
   EXPECT_TRUE(
       PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
       PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
-  address.sin6_port = htons(GetPortNumberForTests());
+  address.sin6_port = htons(PosixGetPortNumberForTests());
 
   result = bind(*listen_socket_fd, reinterpret_cast<struct sockaddr*>(&address),
                 sizeof(struct sockaddr_in));
@@ -180,6 +183,71 @@ int PosixGetLocalAddressIPv6(sockaddr* address_ptr) {
 
   freeifaddrs(ifaddr);
   return result;
+}
+
+int port_number_for_tests = 0;
+pthread_once_t valid_port_once_control = PTHREAD_ONCE_INIT;
+
+void PosixInitializePortNumberForTests() {
+  // Create a listening socket. Let the system choose a port for us.
+  int socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  if (socket_fd < 0) {
+    ADD_FAILURE() << "Socket create failed errno: " << errno;
+    return;
+  }
+
+  int on = 1;
+  if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) != 0) {
+    ADD_FAILURE() << "Socket Set Reuse Address failed, errno: " << errno;
+    HANDLE_EINTR(close(socket_fd));
+    return;
+  }
+
+  // bind socket with local address
+  struct sockaddr_in address = {};
+  address.sin_port = 0;
+  address.sin_family = AF_INET;
+
+  int bind_result =
+      bind(socket_fd, reinterpret_cast<sockaddr*>(&address), sizeof(sockaddr));
+
+  if (bind_result != 0) {
+    ADD_FAILURE() << "Socket Bind to 0 failed, errno: " << errno;
+    HANDLE_EINTR(close(socket_fd));
+    return;
+  }
+
+  int listen_result = listen(socket_fd, kMaxConn);
+  if (listen_result != 0) {
+    ADD_FAILURE() << "Socket Listen failed, errno: " << errno;
+    HANDLE_EINTR(close(socket_fd));
+    return;
+  }
+
+  // Query which port this socket was bound to and save it to valid_port_number.
+  struct sockaddr_in addr_in = {0};
+  socklen_t socklen = static_cast<socklen_t>(sizeof(addr_in));
+  int local_add_result =
+      getsockname(socket_fd, reinterpret_cast<sockaddr*>(&addr_in), &socklen);
+
+  if (local_add_result < 0) {
+    ADD_FAILURE() << "Socket get local address failed: " << local_add_result
+                  << " Errno: " << errno;
+    HANDLE_EINTR(close(socket_fd));
+    return;
+  }
+  port_number_for_tests = addr_in.sin_port;
+
+  // Clean up the socket.
+  bool result = HANDLE_EINTR(close(socket_fd)) >= 0;
+  SB_DCHECK(result);
+}
+
+int PosixGetPortNumberForTests() {
+  pthread_once(&valid_port_once_control, &PosixInitializePortNumberForTests);
+  SB_DLOG(INFO) << "PosixGetPortNumberForTests port_number_for_tests : "
+                << port_number_for_tests;
+  return port_number_for_tests;
 }
 
 bool PosixWriteBySpinning(int socket,
