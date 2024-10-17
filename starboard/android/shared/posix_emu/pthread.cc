@@ -32,5 +32,7 @@ int pthread_getname_np(pthread_t thread, char* name, size_t len) {
   }
   return -1;
 }
-}
+
 #endif  // __ANDROID_API__ < 26
+
+}

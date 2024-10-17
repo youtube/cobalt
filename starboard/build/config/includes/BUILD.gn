@@ -11,8 +11,11 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-group("gn_all") {
-  # TODO(b/371589344): Fix android build configs.
-  deps = [ "//starboard($starboard_toolchain)" ]
+config("default_includes") {
+  if (is_android) {
+    include_dirs = [
+      # POSIX emulation headers - these need to come *before* system include_dirs.
+      "//starboard/android/shared/posix_emu/include",
+    ]
+  }
 }
