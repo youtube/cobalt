@@ -133,7 +133,7 @@ jobs:
         config: [devel, debug, qa, gold]
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
-      TEST_ARTIFACTS_KEY: ${{ matrix.name }}_test_artifacts
+      TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
       DEPOT_TOOLS_UPDATE: 0
       DEPOT_TOOLS_REPORT_BUILD: 0
       DEPOT_TOOLS_COLLECT_METRICS: 0
@@ -177,7 +177,7 @@ jobs:
     env:
       TMPDIR: /__w/_temp
       TEST_RESULTS_DIR: ${{ matrix.name }}_test_results
-      TEST_ARTIFACTS_KEY: ${{ matrix.name }}_test_artifacts
+      TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
       IS_POSTSUBMIT: ${{ github.event_name == 'schedule' || github.event_name == 'push' }}
       TESTING_ENABLED: ${{ needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.test_on_device == 'true' }}
     steps:
