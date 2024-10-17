@@ -203,4 +203,3 @@ jobs:
         with:
           results_dir: ${{ env.TEST_RESULTS_DIR }}
           datadog_api_key: ${{ secrets.DD_API_KEY }}
-
