@@ -1,8 +1,8 @@
-name: Build Chrobalt
-description: Builds Chrobalt targets
+name: Build Cobalt
+description: Builds Cobalt targets
 inputs:
   targets:
-    description: "List of ninja targets for Chrobalt build."
+    description: "List of ninja targets for Cobalt build."
     required: true
 runs:
   using: "composite"
@@ -31,7 +31,7 @@ runs:
       - name: gn gen
         run: |
           cd src
-          chrobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }} --no-check
+          cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }} --no-check
         shell: bash
       - name: gn dump args
         run: |
