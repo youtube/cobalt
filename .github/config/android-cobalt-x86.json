@@ -1,7 +1,7 @@
 {
     "docker_service": "linux",
     "platforms": [
-        "android-chrobalt-x86"
+        "android-cobalt-x86"
     ],
     "targets": [
         "base_unittests",
@@ -20,7 +20,7 @@
     "includes": [
         {
         "name":"x86",
-        "platform":"android-chrobalt-x86"
+        "platform":"android-cobalt-x86"
         }
     ]
 }

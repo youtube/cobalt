@@ -1,7 +1,7 @@
 {
     "docker_service": "linux",
     "platforms": [
-        "android-chrobalt-arm"
+        "android-cobalt-arm64"
     ],
     "targets": [
         "base_unittests",
@@ -19,8 +19,8 @@
     ],
     "includes": [
         {
-        "name":"arm",
-        "platform":"android-chrobalt-arm"
+        "name":"arm64",
+        "platform":"android-cobalt-arm64"
         }
     ]
 }

@@ -30,12 +30,12 @@ jobs:
     with:
       platform: linux
       nightly: ${{ github.event.inputs.nightly }}
-  # This is default Chrobalt build config
-  linux-chrobalt:
+  # This is default Cobalt build config
+  linux-cobalt:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
-      platform: linux-chrobalt
+      platform: linux-cobalt
       nightly: ${{ github.event.inputs.nightly }}
