@@ -16,6 +16,7 @@ import("//starboard/build/config/os_definitions.gni")
 declare_args() {
   starboard_target_type = ""
   if (is_android) {
+    # The apk packaging can't deal with any shlib extension other than .so.
     starboard_shared_library_extension = "so"
   } else {
     starboard_shared_library_extension = "so.${sb_api_version}"

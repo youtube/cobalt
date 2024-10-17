@@ -91,7 +91,7 @@ static_library("common") {
     "time.cc",
     "time.h",
   ]
-  if (!is_android) {
+  if (sb_is_modular) {
     # Conflicts with base's partition allocator.
     sources += [ "new.cc" ]
   }
