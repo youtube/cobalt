@@ -162,6 +162,9 @@ bool WASAPIAudioSink::WriteBuffer(scoped_refptr<DecodedAudio> decoded_audio) {
 void WASAPIAudioSink::Reset() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
+  if (job_thread_) {
+    job_thread_->JoinThread();
+  }
   job_thread_.reset();
   was_playing_ = false;
   ScopedLock decoded_audios_lock(output_frames_mutex_);

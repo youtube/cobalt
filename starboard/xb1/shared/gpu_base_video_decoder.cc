@@ -468,8 +468,9 @@ void GpuVideoDecoderBase::Reset() {
   if (decoder_thread_) {
     // Release stored frames to free frame buffers.
     decoder_status_cb_(kReleaseAllFrames, nullptr);
-    decoder_thread_->job_queue()->ScheduleAndWait(
+    decoder_thread_->job_queue()->Schedule(
         std::bind(&GpuVideoDecoderBase::DrainDecoder, this));
+    decoder_thread_->JoinThread();
     decoder_thread_.reset();
   }
   pending_inputs_.clear();

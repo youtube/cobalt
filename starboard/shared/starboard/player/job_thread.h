@@ -50,6 +50,8 @@ class JobThread {
     return job_queue_->BelongsToCurrentThread();
   }
 
+  void JoinThread();
+
   JobQueue::JobToken Schedule(const JobQueue::Job& job,
                               int64_t delay_usec = 0) {
     SB_DCHECK(job_queue_);
