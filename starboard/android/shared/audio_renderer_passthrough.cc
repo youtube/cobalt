@@ -265,6 +265,7 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
     // update the flag so we needn't set it again below.
     seek_to_time_set = true;
     // Destroy the audio track thread, it will be re-created during preroll.
+    audio_track_thread_->JoinThread();
     audio_track_thread_.reset();
   }
 

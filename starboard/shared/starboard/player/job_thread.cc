@@ -67,6 +67,12 @@ JobThread::JobThread(const char* thread_name,
 }
 
 JobThread::~JobThread() {
+  if (thread_) {
+    JoinThread();
+  }
+}
+
+void JobThread::JoinThread() {
   // TODO: There is a potential race condition here since job_queue_ can get
   // reset if it's is stopped while this dtor is running. Thus, avoid stopping
   // job_queue_ before JobThread is destructed.
@@ -74,6 +80,7 @@ JobThread::~JobThread() {
     job_queue_->Schedule(std::bind(&JobQueue::StopSoon, job_queue_.get()));
   }
   pthread_join(thread_, nullptr);
+  thread_ = 0;
 }
 
 // static
