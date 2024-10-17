@@ -67,7 +67,7 @@ TEST(SbPosixSocketWaiterWaitTest, SunnyDay) {
 
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
   int result = PosixSocketCreateAndConnect(
-      AF_INET, AF_INET, htons(GetPortNumberForTests()), kSocketTimeout,
+      AF_INET, AF_INET, htons(PosixGetPortNumberForTests()), kSocketTimeout,
       &listen_socket_fd, &client_socket_fd, &server_socket_fd);
   ASSERT_TRUE(result == 0);
   ASSERT_TRUE(server_socket_fd >= 0);
@@ -103,7 +103,7 @@ TEST(SbPosixSocketWaiterWaitTest, SunnyDay) {
   EXPECT_TRUE(close(*trio.client_socket_fd_ptr) == 0);
   EXPECT_TRUE(close(*trio.listen_socket_fd_ptr) == 0);
   result = PosixSocketCreateAndConnect(
-      AF_INET, AF_INET, htons(GetPortNumberForTests()), kSocketTimeout,
+      AF_INET, AF_INET, htons(PosixGetPortNumberForTests()), kSocketTimeout,
       &listen_socket_fd, &client_socket_fd, &server_socket_fd);
   ASSERT_TRUE(result == 0);
   ASSERT_TRUE(server_socket_fd >= 0);
@@ -227,7 +227,7 @@ TEST(SbPosixSocketWaiterWaitTest, SunnyDayAlreadyReady) {
 
   int listen_socket_fd = -1, client_socket_fd = -1, server_socket_fd = -1;
   int result = PosixSocketCreateAndConnect(
-      AF_INET, AF_INET, htons(GetPortNumberForTests()), kSocketTimeout,
+      AF_INET, AF_INET, htons(PosixGetPortNumberForTests()), kSocketTimeout,
       &listen_socket_fd, &client_socket_fd, &server_socket_fd);
   ASSERT_TRUE(result == 0);
   ASSERT_TRUE(server_socket_fd >= 0);
