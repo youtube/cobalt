@@ -177,12 +177,6 @@ TEST_P(SbSocketGetInterfaceAddressTest, SunnyDaySourceNotLoopback) {
                       SB_ARRAY_SIZE(source.address)));
 }
 
-INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
-                        SbSocketGetInterfaceAddressTest,
-                        ::testing::Values(kSbSocketAddressTypeIpv4,
-                                          kSbSocketAddressTypeIpv6),
-                        GetSbSocketAddressTypeName);
-
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard

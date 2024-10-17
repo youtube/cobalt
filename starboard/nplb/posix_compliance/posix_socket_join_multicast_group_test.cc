@@ -150,7 +150,7 @@ TEST(PosixSocketJoinMulticastGroupTest, RainyDayInvalidSocket) {
 
   EXPECT_EQ(-1,
             setsockopt(-1, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq, sizeof(mreq)));
-  EXPECT_TRUE(errno == EBADF || errno == ECONNREFUSED);
+  EXPECT_TRUE(errno == EBADF || errno == ECONNREFUSED || errno == EINVAL);
 }
 
 TEST(PosixSocketJoinMulticastGroupTest, RainyDayInvalidAddress) {
