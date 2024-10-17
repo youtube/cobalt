@@ -22,7 +22,7 @@ namespace nplb {
 namespace {
 
 TEST(PosixSocketBindTest, RainyDayNullSocket) {
-  int port = htons(GetPortNumberForTests());
+  int port = htons(PosixGetPortNumberForTests());
   sockaddr_in address = {};
   address.sin_family = AF_INET;
   int invalid_socket_fd = -1;
@@ -51,7 +51,7 @@ TEST(PosixSocketBindTest, RainyDayWrongAddressType) {
   // Binding with the wrong address type should fail.
   sockaddr_in client_address = {};
   client_address.sin_family = AF_INET6;
-  client_address.sin_port = htons(GetPortNumberForTests());
+  client_address.sin_port = htons(PosixGetPortNumberForTests());
   EXPECT_FALSE(bind(socket_fd, reinterpret_cast<sockaddr*>(&client_address),
                     sizeof(sockaddr_in)) == 0);
 
@@ -59,7 +59,7 @@ TEST(PosixSocketBindTest, RainyDayWrongAddressType) {
   // address type should work.
   sockaddr_in server_address = {};
   server_address.sin_family = AF_INET;
-  server_address.sin_port = htons(GetPortNumberForTests());
+  server_address.sin_port = htons(PosixGetPortNumberForTests());
   EXPECT_TRUE(bind(socket_fd, reinterpret_cast<sockaddr*>(&server_address),
                    sizeof(sockaddr_in)) == 0);
   EXPECT_TRUE(close(socket_fd) == 0);
@@ -84,7 +84,7 @@ TEST(PosixSocketBindTest, SunnyDayLocalInterface) {
   EXPECT_TRUE(
       PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
       PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
-  address.sin6_port = htons(GetPortNumberForTests());
+  address.sin6_port = htons(PosixGetPortNumberForTests());
 
   int socket_domain = AF_INET;
   int socket_type = SOCK_STREAM;
@@ -103,7 +103,7 @@ TEST(PosixSocketBindTest, SunnyDayAnyAddr) {
   // should work.
   sockaddr_in address = {};
   address.sin_family = AF_INET;
-  address.sin_port = htons(GetPortNumberForTests());
+  address.sin_port = htons(PosixGetPortNumberForTests());
   address.sin_addr.s_addr = INADDR_ANY;
 
   int socket_domain = AF_INET;
@@ -139,7 +139,7 @@ class PosixSocketBindPairCSTest
 TEST_P(PosixSocketBindPairFilterTest, RainyDayNullSocketPair) {
   sockaddr_in address = {};
   address.sin_family = GetAddressType();
-  address.sin_port = htons(GetPortNumberForTests());
+  address.sin_port = htons(PosixGetPortNumberForTests());
 
   int invalid_socket_fd = -1;
 
@@ -159,7 +159,7 @@ TEST_P(PosixSocketBindPairFilterTest, RainyDayNullAddressPair) {
   // should work.
   sockaddr_in address = {};
   address.sin_family = GetAddressType();
-  address.sin_port = htons(GetPortNumberForTests());
+  address.sin_port = htons(PosixGetPortNumberForTests());
 
   EXPECT_TRUE(bind(socket_fd, reinterpret_cast<sockaddr*>(&address),
                    sizeof(sockaddr_in)) == 0);
@@ -222,7 +222,7 @@ TEST_P(PosixSocketBindPairCSTest, RainyDayWrongAddressTypePair) {
   // Binding with the wrong address type should fail.
   sockaddr_in client_address = {};
   client_address.sin_family = GetClientAddressType();
-  client_address.sin_port = htons(GetPortNumberForTests());
+  client_address.sin_port = htons(PosixGetPortNumberForTests());
   EXPECT_FALSE(bind(socket_fd, reinterpret_cast<sockaddr*>(&client_address),
                     sizeof(sockaddr_in)) == 0);
 
@@ -230,7 +230,7 @@ TEST_P(PosixSocketBindPairCSTest, RainyDayWrongAddressTypePair) {
   // address type should work.
   sockaddr_in server_address = {};
   server_address.sin_family = GetServerAddressType();
-  server_address.sin_port = htons(GetPortNumberForTests());
+  server_address.sin_port = htons(PosixGetPortNumberForTests());
   EXPECT_TRUE(bind(socket_fd, reinterpret_cast<sockaddr*>(&server_address),
                    sizeof(sockaddr_in)) == 0);
   EXPECT_TRUE(close(socket_fd) == 0);
