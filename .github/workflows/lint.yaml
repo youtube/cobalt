@@ -1,0 +1,50 @@
+name: lint
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    branches:
+      - main
+      - feature/*
+  push:
+    branches:
+      - main
+      - feature/*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  lint:
+    name: Pre-Commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Install pre-commit
+        run: |
+          sudo apt update
+          sudo apt install python3 gn pipx
+          pipx install pre-commit
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run pre-commit
+        run: |
+          pre-commit install --hook-type pre-commit --hook-type pre-push
+          pre-commit run --show-diff-on-failure --color=always --from-ref ${{ github.event.pull_request.base.sha && github.event.pull_request.base.sha || github.event.before }} --to-ref HEAD
+  check-bug-id:
+    name: Bug ID Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Bug ID Check
+        # v2
+        uses: gsactions/commit-message-checker@16fa2d5de096ae0d35626443bcd24f1e756cafee
+        with:
+          accessToken: ${{ secrets.GITHUB_TOKEN }}
+          pattern: '(b\/\d+|^(Bug|Fixed|Issue): \d+$|(partnerissuetracker\.corp|issuetracker)\.google\.com\/u\/\d+\/issues\/\d+$)'
+          flags: 'gm'
+          error: 'PR title or description should include at least one bug ID.'
