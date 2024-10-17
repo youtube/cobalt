@@ -36,6 +36,6 @@ runs:
         cd ${GITHUB_WORKSPACE}/unit_test
         for test_binary in $(ls -d out/**/*tests); do
           # TODO(b/372303096): Need dedicated xvfb runner.
-          /usr/bin/xvfb-run -a --server-args=${XVFB_SERVER_ARGS} ./$test_binary --gtest_output="xml:${RESULTS_DIR}/${test_binary}_testoutput.xml"
+          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary --gtest_output="xml:${RESULTS_DIR}/${test_binary}_testoutput.xml"
         done
         echo "Ran tests..."
