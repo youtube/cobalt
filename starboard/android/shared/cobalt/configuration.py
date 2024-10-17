@@ -63,6 +63,7 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
           'FileTest.Length',
           'TimeTest.FromExploded_MinMax',
           'LapTimer.ThreadTicksUsageExample',
+          'PlatformThreadTest.SetCurrentThreadTypeTest',
       ],
       'layout_tests': [
           # Android relies of system fonts and some older Android builds do not
