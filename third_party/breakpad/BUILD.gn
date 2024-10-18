@@ -9,6 +9,10 @@ import("//build/toolchain/toolchain.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
 
+# TODO(cobalt, b/368687596): workaround to build Starboard on Android
+default_system_allocator_toolchain =
+    "${default_toolchain}_with_system_allocator"
+
 if (is_win) {
   import("//build/config/win/visual_studio_version.gni")
 }
