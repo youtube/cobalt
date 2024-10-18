@@ -342,6 +342,10 @@ media_subcomponent_deps = [
   "//media/formats",
   "//media/muxers",
   "//media/renderers",
+  # TODO: Replace the following with a proper guard
+  #if defined(STARBOARD)
+  "//media/starboard",
+  #endif  // defined(STARBOARD)
   "//media/video",
 ]
 

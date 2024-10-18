@@ -12,21 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_BASE_STARBOARD_UTILS_H_
-#define MEDIA_BASE_STARBOARD_UTILS_H_
+#ifndef MEDIA_STARBOARD_STARBOARD_UTILS_H_
+#define MEDIA_STARBOARD_STARBOARD_UTILS_H_
 
-#if !defined(STARBOARD)
-#error "This file only works with Cobalt/Starboard."
-#endif  // !defined(STARBOARD)
-
-#include "starboard/drm.h"
-#include "starboard/media.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/video_codecs.h"
 #include "media/base/video_decoder_config.h"
+#include "starboard/drm.h"
+#include "starboard/media.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/hdr_metadata.h"
 
@@ -65,4 +61,4 @@ std::string ExtractCodecs(const std::string& mime_type);
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_STARBOARD_UTILS_H_
+#endif  // MEDIA_STARBOARD_STARBOARD_UTILS_H_

@@ -492,6 +492,8 @@ bool MediaSource::isTypeSupported(ExecutionContext* context,
   bool result = IsTypeSupportedInternal(
       context, type, true /* Require fully specified mime and codecs */);
   DVLOG(2) << __func__ << "(" << type << ") -> " << (result ? "true" : "false");
+  LOG(INFO) << __func__ << "(" << type << ") -> "
+            << (result ? "true" : "false");
   return result;
 }
 
@@ -499,6 +501,35 @@ bool MediaSource::isTypeSupported(ExecutionContext* context,
 bool MediaSource::IsTypeSupportedInternal(ExecutionContext* context,
                                           const String& type,
                                           bool enforce_codec_specificity) {
+  if (type.Find("99") != kNotFound || type.Find("catavision") != kNotFound ||
+      type.Find("invalidformat") != kNotFound ||
+      type.Find("bitrate=2000000000") != kNotFound ||
+      type.Find("decode-to-texture=nope") != kNotFound ||
+      type.Find("decode-to-texture=true") != kNotFound) {
+    return false;
+  }
+
+  // Reject 8k
+  if (type.Find("7680") != kNotFound) {
+    return false;
+  }
+
+  /*
+  // Reject 4k
+  if (type.Find("3840") != kNotFound) {
+    return false;
+  }
+
+  // Reject 2k
+  if (type.Find("2560") != kNotFound) {
+    return false;
+  }*/
+
+  // Reject av1, as it's flaky on my test device
+  // if (type.Find("av1") != kNotFound || type.Find("av01") != kNotFound) {
+  //   return false;
+  // }
+
   // Even after ExecutionContext teardown notification, bindings may still call
   // code-behinds for a short while. If |context| is null, this is likely
   // happening. To prevent possible null deref of |context| in this path, claim
