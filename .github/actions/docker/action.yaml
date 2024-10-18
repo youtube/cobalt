@@ -1,5 +1,5 @@
 name: Docker Image Build
-description: Builds Chrobalt build docker images.
+description: Builds Cobalt build docker images.
 inputs:
   docker_service:
     description: "Docker compose service."

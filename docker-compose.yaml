@@ -2,7 +2,7 @@ version: '3.8'
 services:
   linux:
     build:
-      context: chrobalt/docker/linux
+      context: cobalt/docker/linux
       cache_from:
         - ghcr.io/youtube/cobalt/linux:latest
     image: ghcr.io/youtube/cobalt/linux:latest

@@ -880,8 +880,8 @@ group("gn_all") {
     deps += [ "//internal:all" ]
   }
 
-  if (chrobalt) {
-    deps += [ "//chrobalt:gn_all" ]
+  if (is_cobalt) {
+    deps += [ "//cobalt:gn_all" ]
   }
 }
 
