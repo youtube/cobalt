@@ -15,33 +15,6 @@
 import("//starboard/android/shared/toolchain/toolchain.gni")
 
 config("platform_configuration") {
-  configs = [ "//starboard/build/config/sabi" ]
-  cflags = []
-
-  defines = []
-
-  include_dirs = [
-    # POSIX emulation headers - these need to come *before* system include_dirs.
-    "//starboard/android/shared/posix_emu/include",
-  ]
-
-  ldflags = [
-    # The NDK default "ld" is actually the gold linker for all architectures
-    # except arm64 (aarch64) where it"s the bfd linker. Don"t use either of
-    # those, rather use lld everywhere. See release notes for NDK 19:
-    # https://developer.android.com/ndk/downloads/revision_history
-    "-fuse-ld=lld",
-  ]
-  if (is_debug) {
-    cflags += [ "-O0" ]
-    configs += [ "//build/config/compiler:rtti" ]
-  } else if (is_devel) {
-    cflags += [ "-O2" ]
-    configs += [ "//build/config/compiler:rtti" ]
-  } else {
-    cflags += [ "-gline-tables-only" ]
-  }
-
   libs = [
     "EGL",
     "GLESv2",
@@ -50,131 +23,6 @@ config("platform_configuration") {
     "log",
     "mediandk",
   ]
-
-  if (is_debug || is_devel) {
-    cflags += [ "-g" ]
-  }
-
-  if (use_asan) {
-    cflags += [
-      "-fsanitize=address",
-      "-fno-omit-frame-pointer",
-    ]
-    ldflags += [
-      "-fsanitize=address",
-
-      # Force linking of the helpers in sanitizer_options.cc
-      "-Wl,-u_sanitizer_options_link_helper",
-    ]
-    defines += [ "ADDRESS_SANITIZER" ]
-  } else if (use_tsan) {
-    cflags += [
-      "-fsanitize=thread",
-      "-fno-omit-frame-pointer",
-    ]
-    ldflags += [ "-fsanitize=thread" ]
-    defines += [ "THREAD_SANITIZER" ]
-  }
-
-  cflags += [
-    # libwebp uses the cpufeatures library to detect ARM NEON support
-    "-I${android_ndk_path}/sources/android/cpufeatures",
-
-    # Mimic build/cmake/android.toolchain.cmake in the Android NDK.
-    "-ffunction-sections",
-    "-funwind-tables",
-    "-fstack-protector-strong",
-    "-no-canonical-prefixes",
-
-    # Other flags
-    "-fsigned-char",
-    "-fno-limit-debug-info",
-    "-fcolor-diagnostics",
-    "-fno-strict-aliasing",  # See http://crbug.com/32204
-    "-fno-delete-null-pointer-checks",  # see b/288107039
-
-    # Default visibility is hidden to enable dead stripping.
-    "-fvisibility=hidden",
-
-    # Any warning will stop the build.
-    "-Werror",
-
-    # Disable errors for the warning till the Android NDK r19 is fixed.
-    # The warning is trigger when compiling .c files and complains for
-    # "-stdlib=libc++" which is added by the NDK.
-    "-Wno-error=unused-command-line-argument",
-
-    # Don"t warn about register variables (in base and net)
-    "-Wno-deprecated-register",
-
-    # Don"t warn about deprecated ICU methods (in googleurl and net)
-    "-Wno-deprecated-declarations",
-
-    # Skia doesn"t use overrides.
-    "-Wno-inconsistent-missing-override",
-
-    # shifting a negative signed value is undefined
-    "-Wno-shift-negative-value",
-
-    # Don"t warn for implicit sign conversions. (in v8 and protobuf)
-    "-Wno-sign-conversion",
-
-    # TODO: b/287129945 - Fix compiler warnings
-    "-Wno-implicit-const-int-float-conversion",
-
-    # TODO: b/287320271 - Fix compiler warnings
-    "-Wno-deprecated-copy",
-
-    # TODO: b/287324882 - Fix compiler warnings
-    "-Wno-unused-but-set-variable",
-  ]
-  defines += [
-    # Enable compile-time decisions based on the ABI
-    "ANDROID_ABI=$android_abi",
-
-    # -DANDROID is an argument to some ifdefs in the NDK"s eglplatform.h
-    "ANDROID",
-
-    # So that we get the PRI* macros from inttypes.h
-    "__STDC_FORMAT_MACROS",
-
-    # Enable GNU extensions to get prototypes like ffsl.
-    "_GNU_SOURCE=1",
-
-    # Undefining __linux__ causes the system headers to make wrong
-    # assumptions about which C-library is used on the platform.
-    "__BIONIC__",
-
-    # Undefining __linux__ leaves libc++ without a threads implementation.
-    # TODO: See if there"s a way to make libcpp threading use Starboard.
-    "_LIBCPP_HAS_THREAD_API_PTHREAD",
-  ]
-  ldflags += [
-    # Use the static LLVM libc++.
-    "-static-libstdc++",
-
-    # Mimic build/cmake/android.toolchain.cmake in the Android NDK, but
-    # force build-id to sha1, so that older lldb versions can still find
-    # debugsymbols, see https://github.com/android-ndk/ndk/issues/885
-    "-Wl,--build-id=sha1",
-    "-Wl,--warn-shared-textrel",
-    "-Wl,--fatal-warnings",
-    "-Wl,--gc-sections",
-    "-Wl,-z,nocopyreloc",
-
-    # Wrapper synchronizes punch-out video bounds with the UI frame.
-    "-Wl,--wrap=eglSwapBuffers",
-  ]
-  if (!is_native_target_build) {
-    ldflags += [
-      "-Wl,--wrap=close",
-      "-Wl,--wrap=open",
-      "-Wl,--wrap=stat",
-      "-Wl,--wrap=opendir",
-      "-Wl,--wrap=closedir",
-      "-Wl,--wrap=readdir_r",
-    ]
-  }
 }
 
 config("size") {
@@ -183,19 +31,6 @@ config("size") {
 
 config("speed") {
   cflags = [ "-O2" ]
-}
-
-config("executable_config") {
-  if (is_starboardized_toolchain) {
-    cflags = [ "-fPIE" ]
-    ldflags = [ "-pie" ]
-  }
-}
-
-config("library_config") {
-  if (is_starboardized_toolchain) {
-    cflags = [ "-fPIC" ]
-  }
 }
 
 config("pedantic_warnings") {

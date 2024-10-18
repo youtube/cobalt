@@ -14,9 +14,4 @@
 
 config("platform_configuration") {
   configs = [ "//starboard/android/shared/platform_configuration" ]
-  cflags = [ "-march=armv7-a" ]
-  ldflags = [
-    # Mimic build/cmake/android.toolchain.cmake in the Android NDK.
-    "-Wl,--exclude-libs,libunwind.a",
-  ]
 }

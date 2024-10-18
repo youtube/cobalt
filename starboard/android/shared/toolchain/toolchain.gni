@@ -21,8 +21,10 @@ declare_args() {
   android_ndk_api_level = 24
 }
 
+_home = getenv("HOME")
+
 if (android_sdk_path == "") {
-  android_sdk_path = "$starboard_toolchains_path/AndroidSdk"
+  android_sdk_path = "${_home}/starboard_toolchains/AndroidSdk"
 }
 
 if (android_ndk_path == "") {
