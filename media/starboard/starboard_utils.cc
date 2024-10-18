@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if !defined(STARBOARD)
-#error "This file only works with Cobalt/Starboard."
-#endif  // !defined(STARBOARD)
-
-#include "media/base/starboard_utils.h"
+#include "media/starboard/starboard_utils.h"
 
 #include <algorithm>
 
@@ -61,8 +57,22 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
     case AudioCodec::kAAC:
       return kSbMediaAudioCodecAac;
     case AudioCodec::kAC3:
+#if SB_API_VERSION < 15
+      if (!kSbHasAc3Audio) {
+        DLOG(ERROR) << "Audio codec AC3 not enabled on this platform. To "
+                    << "enable it, set kSbHasAc3Audio to |true|.";
+        return kSbMediaAudioCodecNone;
+      }
+#endif  // SB_API_VERSION < 15
       return kSbMediaAudioCodecAc3;
     case AudioCodec::kEAC3:
+#if SB_API_VERSION < 15
+      if (!kSbHasAc3Audio) {
+        DLOG(ERROR) << "Audio codec AC3 not enabled on this platform. To "
+                    << "enable it, set kSbHasAc3Audio to |true|.";
+        return kSbMediaAudioCodecNone;
+      }
+#endif  // SB_API_VERSION < 15
       return kSbMediaAudioCodecEac3;
     case AudioCodec::kVorbis:
       return kSbMediaAudioCodecVorbis;
@@ -74,15 +84,11 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
       return kSbMediaAudioCodecFlac;
     case AudioCodec::kPCM:
       return kSbMediaAudioCodecPcm;
-    case AudioCodec::kIAMF:
-     return kSbMediaAudioCodecIamf;
     default:
       // Cobalt only supports a subset of audio codecs defined by Chromium.
-      DLOG(ERROR) << "Unsupported audio codec " << GetCodecName(codec);
+      LOG(ERROR) << "Unsupported audio codec " << GetCodecName(codec);
       return kSbMediaAudioCodecNone;
   }
-  NOTREACHED();
-  return kSbMediaAudioCodecNone;
 }
 
 SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
@@ -105,11 +111,9 @@ SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
       return kSbMediaVideoCodecAv1;
     default:
       // Cobalt only supports a subset of video codecs defined by Chromium.
-      DLOG(ERROR) << "Unsupported video codec " << GetCodecName(codec);
+      LOG(ERROR) << "Unsupported video codec " << GetCodecName(codec);
       return kSbMediaVideoCodecNone;
   }
-  NOTREACHED();
-  return kSbMediaVideoCodecNone;
 }
 
 SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
@@ -122,11 +126,20 @@ SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
   audio_stream_info.codec =
       MediaAudioCodecToSbMediaAudioCodec(audio_decoder_config.codec());
   audio_stream_info.mime = mime_type;
+
+#if SB_API_VERSION < 15
+  audio_stream_info.format_tag = 0x00ff;
+#endif  // SB_API_VERSION < 15
   audio_stream_info.number_of_channels =
       ChannelLayoutToChannelCount(audio_decoder_config.channel_layout());
   audio_stream_info.samples_per_second =
       audio_decoder_config.samples_per_second();
-  audio_stream_info.bits_per_sample = audio_decoder_config.bits_per_channel();
+#if SB_API_VERSION < 15
+  audio_stream_info.average_bytes_per_second = 1;
+  audio_stream_info.block_alignment = 4;
+#endif  // SB_API_VERSION < 15
+  audio_stream_info.bits_per_sample =
+      audio_decoder_config.bytes_per_channel() * 8;
 
   const auto& extra_data = audio_stream_info.codec == kSbMediaAudioCodecAac
                                ? audio_decoder_config.aac_extra_data()
@@ -201,8 +214,8 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
   drm_info->subsample_count = config->subsamples().size();
 
   if (drm_info->subsample_count > 0) {
-    COMPILE_ASSERT(sizeof(SbDrmSubSampleMapping) == sizeof(SubsampleEntry),
-                   SubSampleEntrySizesMatch);
+    static_assert(sizeof(SbDrmSubSampleMapping) == sizeof(SubsampleEntry),
+                  "SubSampleEntrySizesMatch");
     drm_info->subsample_mapping =
         reinterpret_cast<const SbDrmSubSampleMapping*>(
             &config->subsamples()[0]);
@@ -224,7 +237,7 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
 // Ensure that the enums in starboard/media.h match enums in
 // VideoColorSpace and gfx::ColorSpace.
 #define ENUM_EQ(a, b) \
-  COMPILE_ASSERT(static_cast<int>(a) == static_cast<int>(b), mismatching_enums)
+  static_assert(static_cast<int>(a) == static_cast<int>(b), "mismatching_enums")
 
 // Ensure PrimaryId enums convert correctly.
 ENUM_EQ(kSbMediaPrimaryIdReserved0, VideoColorSpace::PrimaryID::INVALID);
@@ -366,17 +379,8 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
 }
 int GetSbMediaVideoBufferBudget(const VideoDecoderConfig* video_config,
                                 const std::string& mime_type) {
-  if (!video_config) {
-    return DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(
-        kSbMediaVideoCodecH264, 1920, 1080, 8);
-  }
-
-  auto width = video_config->visible_rect().size().width();
-  auto height = video_config->visible_rect().size().height();
-  auto bits_per_pixel = GetBitsPerPixel(mime_type);
-  auto codec = MediaVideoCodecToSbMediaVideoCodec(video_config->codec());
-  return DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(
-      codec, width, height, bits_per_pixel);
+  // TODO: Refine
+  return 100 * 1024 * 1024;
 }
 
 std::string ExtractCodecs(const std::string& mime_type) {

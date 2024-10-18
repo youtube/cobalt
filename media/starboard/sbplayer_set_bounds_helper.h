@@ -12,16 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_BASE_SBPLAYER_SET_BOUNDS_HELPER_H_
-#define COBALT_MEDIA_BASE_SBPLAYER_SET_BOUNDS_HELPER_H_
+#ifndef MEDIA_STARBOARD_SBPLAYER_SET_BOUNDS_HELPER_H_
+#define MEDIA_STARBOARD_SBPLAYER_SET_BOUNDS_HELPER_H_
 
-#include "base/macros.h"
+// TODO: Move to //media/base or a Starboard specific folder.
+
+#include <utility>
+
 #include "base/memory/ref_counted.h"
-#include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "ui/gfx/geometry/rect.h"
 
-namespace cobalt {
 namespace media {
 
 class SbPlayerBridge;
@@ -37,12 +38,12 @@ class SbPlayerSetBoundsHelper
  private:
   base::Lock lock_;
   SbPlayerBridge* player_bridge_ = nullptr;
-  base::Optional<gfx::Rect> rect_;
+  std::optional<gfx::Rect> rect_;
 
-  DISALLOW_COPY_AND_ASSIGN(SbPlayerSetBoundsHelper);
+  SbPlayerSetBoundsHelper(const SbPlayerSetBoundsHelper&) = delete;
+  void operator=(const SbPlayerSetBoundsHelper&) = delete;
 };
 
 }  // namespace media
-}  // namespace cobalt
 
-#endif  // COBALT_MEDIA_BASE_SBPLAYER_SET_BOUNDS_HELPER_H_
+#endif  // MEDIA_STARBOARD_SBPLAYER_SET_BOUNDS_HELPER_H_

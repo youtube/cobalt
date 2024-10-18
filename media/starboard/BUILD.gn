@@ -1,0 +1,85 @@
+# Copyright 2024 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+source_set("starboard") {
+  visibility = [ "//media" ]
+
+  defines = [
+    "STARBOARD",
+  ]
+
+  sources = [
+    "sbplayer_bridge.cc",
+    "sbplayer_bridge.h",
+    "sbplayer_interface.cc",
+    "sbplayer_interface.h",
+    "sbplayer_set_bounds_helper.cc",
+    "sbplayer_set_bounds_helper.h",
+    "starboard_renderer.cc",
+    "starboard_renderer.h",
+    "starboard_utils.cc",
+    "starboard_utils.h",
+  ]
+
+  deps = [
+    "//base",
+    # "//cc/base",  # For MathUtil.
+    # "//cc/paint",
+    # "//components/viz/client",
+    # "//components/viz/common",
+    # "//gpu/command_buffer/client:gles2_interface",
+    # "//gpu/command_buffer/client:raster_interface",
+    # "//gpu/command_buffer/common",
+    "//media:media_buildflags",
+    # "//media/audio",
+    "//media/base",
+    # "//media/filters",
+    # "//media/video",
+    "//starboard:",
+    "//starboard:common",
+    # "//third_party/libyuv",
+    # "//ui/gfx:memory_buffer",
+    # "//ui/gfx/geometry",
+    # "//ui/gfx/geometry:geometry_skia",
+    # "//ui/gl",
+  ]
+
+  configs += [ "//media:subcomponent_config" ]
+  configs += [ "//starboard/build/config:size" ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [
+    "starboard_utils_test.cc",
+  ]
+  configs += [ "//media:media_config" ]
+  deps = [
+    "//base",
+    "//base/test:test_support",
+    "//cc/paint",
+    "//components/viz/client",
+    "//components/viz/test:test_support",
+    "//gpu:test_support",
+    "//gpu/command_buffer/client:gles2_interface",
+    "//gpu/command_buffer/common",
+    "//media:test_support",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//third_party/libyuv",
+    "//ui/gfx",
+    "//ui/gl",
+    "//ui/gl:test_support",
+  ]
+}
