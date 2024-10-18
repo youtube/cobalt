@@ -72,9 +72,12 @@ if (is_android) {
     # The default to use for android:minSdkVersion for targets that do
     # not explicitly set it.
     default_min_sdk_version = 26
+<<<<<<< HEAD
     if (is_asan) {
       default_min_sdk_version = 27
     }
+=======
+>>>>>>> 6287f24a72b (Add starboard build to android (#4259))
 
     # Static analysis can be either "on" or "off" or "build_server". This
     # controls how android lint, error-prone, bytecode checks are run. This
@@ -126,8 +129,14 @@ if (is_android) {
   }
 
   if (!defined(default_android_ndk_root)) {
+<<<<<<< HEAD
     default_android_ndk_root = "//third_party/android_toolchain/ndk"
     default_android_ndk_version = "r27"
+=======
+    default_android_ndk_root = "//third_party/android_ndk"
+    default_android_ndk_version = "r26"
+    default_android_ndk_major_version = 26
+>>>>>>> 6287f24a72b (Add starboard build to android (#4259))
   } else {
     assert(defined(default_android_ndk_version))
   }
