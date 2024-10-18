@@ -13,6 +13,8 @@ import org.json.JSONObject;
 public class AccountManager extends CobaltService {
   // The application uses this identifier to open the service.
   protected static final String SERVICE_NAME = "com.google.youtube.tv.accountmanager";
+  protected static final String SEQ_ID = "seqId";
+  protected static final String ACTION = "action";
 
   private final Executor backgroundExecutor;
   private long nativeService = 0;
@@ -60,7 +62,16 @@ public class AccountManager extends CobaltService {
 
   public ActionResponse handleAction(String request) {
     ActionResponse actionResponse = new ActionResponse();
-    actionResponse.message += "false";
+    try {
+      JSONObject json = new JSONObject(request);
+      actionResponse.seqId = json.getString(SEQ_ID);
+      actionResponse.action = json.getString(ACTION);
+    } catch (JSONException e) {
+      actionResponse.error = "Failed to retrieve field value from request:" + e.getMessage();
+      Log.w(TAG, actionResponse.error);
+      return actionResponse;
+    }
+    actionResponse.message = "false";
     return actionResponse;
   }
 

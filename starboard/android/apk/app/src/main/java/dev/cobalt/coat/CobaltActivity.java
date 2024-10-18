@@ -29,6 +29,7 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.activity.OnBackPressedDispatcher;
 import androidx.annotation.CallSuper;
 import com.google.androidgamesdk.GameActivity;
+import dev.cobalt.libraries.services.accountmanager.AccountManagerModule;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.libraries.services.clientloginfo.ClientLogInfoModule;
 import dev.cobalt.libraries.services.FakeSoftMicModule;
@@ -50,7 +51,7 @@ public abstract class CobaltActivity extends GameActivity {
 
   private long timeInNanoseconds;
 
-  private WebView webView;
+  private ChrobaltWebView webView;
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
@@ -127,6 +128,7 @@ public abstract class CobaltActivity extends GameActivity {
     webView = new ChrobaltWebView(this,getStarboardBridge());
     // Load Kabuki
     webView.loadUrl(startDeepLink);
+    getStarboardBridge().setJavaScriptCallback(javascript -> webView.evalJavaScript(javascript));
 
     // Set the WebView as the main content view of the activity
     setContentView(webView);

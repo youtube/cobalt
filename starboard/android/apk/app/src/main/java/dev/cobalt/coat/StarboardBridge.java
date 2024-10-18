@@ -21,6 +21,8 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
 import java.lang.reflect.Method;
@@ -41,6 +43,10 @@ public class StarboardBridge {
     void setStarboardBridge(StarboardBridge starboardBridge);
 
     StarboardBridge getStarboardBridge();
+  }
+
+  interface JavaScriptCallback {
+    void onStringResult(String result);
   }
 
   private NetworkStatus networkStatus;
@@ -71,6 +77,9 @@ public class StarboardBridge {
   private boolean starboardApplicationReady = true;
 
   private ExecutorService executor;
+
+  private JavaScriptCallback evalJavaScriptCallback;
+  private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
   public StarboardBridge(Context appContext, String[] args, String startDeepLink) {
 
@@ -180,6 +189,18 @@ public class StarboardBridge {
     return weHaveIt;
   }
 
+  public void setJavaScriptCallback(JavaScriptCallback callback) {
+    this.evalJavaScriptCallback = callback;
+  }
+
+  public void callbackFromService(long name, String foo) {
+    mainHandler.post(
+        () -> {
+          this.evalJavaScriptCallback.onStringResult(
+              "window.H5vccPlatformService.callback_from_android(" + name + ",'" + foo + "');");
+        });
+  }
+
   @SuppressWarnings("unused")
   CobaltService openCobaltService(long nativeService, String serviceName) {
     if (cobaltServices.get(serviceName) != null) {
@@ -194,7 +215,7 @@ public class StarboardBridge {
     }
     CobaltService service = factory.createCobaltService(nativeService);
     if (service != null) {
-      //service.receiveStarboardBridge(this);
+      service.setCallback(this::callbackFromService);
       cobaltServices.put(serviceName, service);
     }
     return service;
