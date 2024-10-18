@@ -1,0 +1,64 @@
+# Copyright 2024 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/config/chromecast_build.gni")
+import("//build/config/chromeos/ui_mode.gni")
+import("//build/config/features.gni")
+import("//build/config/ozone.gni")
+import("//build/config/sanitizers/sanitizers.gni")
+import("//build/config/ui.gni")
+import("//build/config/win/console_app.gni")
+import("//build/config/win/manifest.gni")
+import("//gpu/vulkan/features.gni")
+import("//media/media_options.gni")
+import("//mojo/public/tools/bindings/mojom.gni")
+import("//ppapi/buildflags/buildflags.gni")
+import("//tools/grit/grit_rule.gni")
+import("//tools/grit/repack.gni")
+import("//tools/v8_context_snapshot/v8_context_snapshot.gni")
+if (is_android) {
+  import("//build/config/android/config.gni")
+}
+
+if (is_android) {
+  group("cobalt") {
+    testonly = true
+    deps = [ "//content/shell/android:content_shell_apk" ]
+  }
+} else {
+  executable("cobalt") {
+    testonly = true
+
+    sources = [ "cobalt.cc" ]
+
+    defines = []
+
+    deps = [
+      "//content/shell:content_shell_app",
+      "//content/shell:content_shell_lib",
+      "//content/shell:pak",
+      "//content/public/app",
+      "//sandbox",
+    ]
+
+    data_deps = [
+      "//content/shell:pak",
+      "//tools/v8_context_snapshot:v8_context_snapshot",
+    ]
+
+    data_deps += [ "//components/crash/core/app:chrome_crashpad_handler" ]
+
+    configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+  }
+}
