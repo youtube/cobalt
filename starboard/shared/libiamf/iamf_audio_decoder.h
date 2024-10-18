@@ -43,7 +43,7 @@ class IamfAudioDecoder
 
   bool is_valid() const;
 
-  // AudioDecoder functions
+  // AudioDecoder functions.
   void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
   void Decode(const InputBuffers& input_buffers,
               const ConsumedCB& consumed_cb) override;

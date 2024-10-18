@@ -319,11 +319,11 @@ bool CheckForAdvancedAudioElements(
     std::optional<uint32_t>* binaural_audio_element_id,
     std::optional<uint32_t>* surround_audio_element_id) {
   // Parse ScalableChannelLayoutConfig for binaural and surround
-  // loudspeaker layouts
+  // loudspeaker layouts.
   uint8_t num_layers;
   RCHECK(reader->Read1(&num_layers));
   num_layers = num_layers >> 5;
-  // Read ChannelAudioLayerConfigs
+  // Read ChannelAudioLayerConfigs.
   uint8_t max_loudspeaker_layout = 0;
   for (int i = 0; i < static_cast<int>(num_layers); ++i) {
     uint8_t loudspeaker_layout;
@@ -341,16 +341,16 @@ bool CheckForAdvancedAudioElements(
       max_loudspeaker_layout = loudspeaker_layout;
     }
 
-    // substream_count and coupled_substream_count
+    // substream_count and coupled_substream_count.
     RCHECK(reader->SkipBytes(2));
 
     if (output_gain_is_present_flag) {
-      // output_gain_flags and output_gain
+      // output_gain_flags and output_gain.
       RCHECK(reader->SkipBytes(3));
     }
 
     if (i == 1 && loudspeaker_layout == static_cast<uint8_t>(15)) {
-      // expanded_loudspeaker_layout
+      // expanded_loudspeaker_layout.
       RCHECK(reader->SkipBytes(1));
     }
   }
@@ -375,14 +375,14 @@ bool ParseAudioElementOBU(BufferReader* reader,
   RCHECK(reader->Read1(&audio_element_type));
   audio_element_type = audio_element_type >> 5;
 
-  // codec_config_id
+  // codec_config_id.
   RCHECK(reader->SkipLeb128());
 
   uint32_t num_substreams;
   RCHECK(reader->ReadLeb128(&num_substreams));
 
   for (int i = 0; i < num_substreams; ++i) {
-    // audio_substream_id
+    // audio_substream_id.
     RCHECK(reader->SkipLeb128());
   }
 
@@ -395,7 +395,7 @@ bool ParseAudioElementOBU(BufferReader* reader,
 
     if (param_definition_type == IAMF_PARAMETER_TYPE_DEMIXING) {
       RCHECK(SkipParamDefinition(reader));
-      // DemixingParamDefintion
+      // DemixingParamDefintion.
       RCHECK(reader->SkipBytes(1));
     } else if (param_definition_type == IAMF_PARAMETER_TYPE_RECON_GAIN) {
       RCHECK(SkipParamDefinition(reader));
@@ -441,12 +441,12 @@ bool ParseMixPresentationOBU(
   uint32_t count_label;
   RCHECK(reader->ReadLeb128(&count_label));
   for (int i = 0; i < count_label; ++i) {
-    // language_label;
+    // language_label.
     RCHECK(reader->SkipString());
   }
 
   for (int i = 0; i < count_label; ++i) {
-    // MixPresentationAnnotations;
+    // MixPresentationAnnotations.
     RCHECK(reader->SkipString());
   }
 
@@ -480,27 +480,27 @@ bool ParseMixPresentationOBU(
       }
 
       for (int k = 0; k < count_label; ++k) {
-        // MixPresentationElementAnnotatoions
+        // MixPresentationElementAnnotatoions.
         RCHECK(reader->SkipString());
       }
 
       // The following fields are for the RenderingConfig
-      // headphones_rendering_mode
+      // headphones_rendering_mode.
       RCHECK(reader->SkipBytes(1));
       uint32_t rendering_config_extension_size;
       RCHECK(reader->ReadLeb128(&rendering_config_extension_size));
-      // rendering_config_extension_bytes
+      // rendering_config_extension_bytes.
       RCHECK(reader->SkipBytes(rendering_config_extension_size));
 
-      // The following fields are for the ElementMixConfig
+      // The following fields are for the ElementMixConfig.
       RCHECK(SkipParamDefinition(reader));
-      // default_mix_gain
+      // default_mix_gain.
       RCHECK(reader->SkipBytes(2));
     }
 
-    // The following fields are for the OutputMixConfig
+    // The following fields are for the OutputMixConfig.
     RCHECK(SkipParamDefinition(reader));
-    // default_mix_gain
+    // default_mix_gain.
     RCHECK(reader->SkipBytes(2));
 
     uint32_t num_layouts;
@@ -521,27 +521,27 @@ bool ParseMixPresentationOBU(
         binaural_mix_selection = kBinauralMixSelectionLoudnessLayout;
       }
 
-      // The following fields are for the LoudnessInfo
+      // The following fields are for the LoudnessInfo.
       uint8_t info_type;
       RCHECK(reader->Read1(&info_type));
-      // integrated_loudness and digital_loudness
+      // integrated_loudness and digital_loudness.
       RCHECK(reader->SkipBytes(4));
       if (info_type & 1) {
-        // true_peak
+        // true_peak.
         RCHECK(reader->SkipBytes(2));
       }
       if (info_type & 2) {
         uint8_t num_anchored_loudness;
         RCHECK(reader->Read1(&num_anchored_loudness));
         for (uint8_t k = 0; k < num_anchored_loudness; ++k) {
-          // anchor_element and anchored_loudness
+          // anchor_element and anchored_loudness.
           RCHECK(reader->SkipBytes(3));
         }
       }
       if ((info_type & 0b11111100) > 0) {
         uint32_t info_type_size;
         RCHECK(reader->ReadLeb128(&info_type_size));
-        // info_type_bytes
+        // info_type_bytes.
         RCHECK(reader->SkipBytes(info_type_size));
       }
     }
@@ -610,8 +610,6 @@ bool IamfBufferInfo::is_valid() const {
   return mix_presentation_id.has_value() && sample_rate > 0 && num_samples > 0;
 }
 
-// TODO: Implement a way to skip parsing the Config OBUs entirely once the
-// decoder is configured.
 bool ParseInputBuffer(const scoped_refptr<InputBuffer>& input_buffer,
                       IamfBufferInfo* info,
                       const bool prefer_binaural_audio,

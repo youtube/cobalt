@@ -41,9 +41,9 @@
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
-#if ENABLE_IAMF_DECODE
+#if SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
 #include "starboard/shared/libiamf/iamf_audio_decoder.h"
-#endif  // ENABLE_IAMF_DECODE
+#endif  // SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
 
 namespace starboard {
 namespace shared {

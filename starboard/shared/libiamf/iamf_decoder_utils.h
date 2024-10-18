@@ -40,6 +40,8 @@ struct IamfBufferInfo {
   bool is_valid() const;
 };
 
+// TODO: Implement a way to skip parsing the Config OBUs once the IAMF
+// decoder is configured.
 bool ParseInputBuffer(const scoped_refptr<InputBuffer>& input_buffer,
                       IamfBufferInfo* info,
                       const bool prefer_binaural_audio,

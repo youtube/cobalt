@@ -235,7 +235,7 @@ bool IamfAudioDecoder::ConfigureDecoder(const IamfBufferInfo* info,
     }
   }
 
-  // Time base is set to 90000, as it is in the iamfplayer example
+  // Time base is set to 90000, as it is in the iamfplayer example.
   // https://github.com/AOMediaCodec/libiamf/blob/v1.0.0-errata/code/test/tools/iamfplayer/player/iamfplayer.c#L450
   error = IAMF_decoder_set_pts(decoder_, timestamp, 90000);
   if (error != IAMF_OK) {
