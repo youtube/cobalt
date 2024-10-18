@@ -46,14 +46,41 @@ function arrayBufferToBase64(buffer) {
 }
 
 var platform_services = {
+    callbacks: {
+    },
+    callback_from_android: (serviceID, dataFromJava) => {
+        console.log("Wrapper callback received:", name, dataFromJava);
+        const binaryString = window.atob(dataFromJava);
+        console.log("message:" + binaryString);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        const arrayBuffer = bytes.buffer;
+        window.H5vccPlatformService.callbacks[serviceID].callback(arrayBuffer);
+    },
     has: (name) => {
         console.log('platformService.has(' + name + ')');
         return Android.has_platform_service(name);
     },
-    open: (name, callback) => {
-        console.log('platformService.open(' + name + ',' + JSON.stringify(callback) + ')');
-        Android.open_platform_service(name);
-        // this needs to return an object with send
+    open: function(name, callback) {
+        console.log('platformService.open(' + name + ',' +
+                            JSON.stringify(callback) + ')');
+        if (typeof callback !== 'function') {
+            console.log("THROWING Missing or invalid callback function.")
+            throw new Error("Missing or invalid callback function.");
+        } else {
+          console.log("callback was function!!!");
+        }
+
+        const serviceId = Object.keys(this.callbacks).length + 1;
+        // Store the callback with the service ID, name, and callback
+        window.H5vccPlatformService.callbacks[serviceId] = {
+            name: name,
+            callback: callback
+        };
+        Android.open_platform_service(serviceId, name);
         return {
             'name': name,
             'send': function (data) {

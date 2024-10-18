@@ -21,12 +21,17 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.TimeZone;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * Mock Starboard bridge
@@ -38,6 +43,10 @@ public class StarboardBridge {
     void setStarboardBridge(StarboardBridge starboardBridge);
 
     StarboardBridge getStarboardBridge();
+  }
+
+  interface JavaScriptCallback {
+    void onStringResult(String result);
   }
 
   private NetworkStatus networkStatus;
@@ -67,10 +76,12 @@ public class StarboardBridge {
 
   private boolean starboardApplicationReady = true;
 
-  public StarboardBridge(
-      Context appContext,
-      String[] args,
-      String startDeepLink) {
+  private ExecutorService executor;
+
+  private JavaScriptCallback evalJavaScriptCallback;
+  private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+  public StarboardBridge(Context appContext, String[] args, String startDeepLink) {
 
     this.appContext = appContext;
     this.args = args;
@@ -80,6 +91,12 @@ public class StarboardBridge {
     this.advertisingId = new AdvertisingId(appContext);
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
+
+    this.executor = Executors.newFixedThreadPool(2);
+  }
+
+  public Executor getExecutor() {
+    return this.executor;
   }
 
   protected void onActivityStart(Activity activity) {
@@ -172,6 +189,18 @@ public class StarboardBridge {
     return weHaveIt;
   }
 
+  public void setJavaScriptCallback(JavaScriptCallback callback) {
+    this.evalJavaScriptCallback = callback;
+  }
+
+  public void callbackFromService(long name, String foo) {
+    mainHandler.post(
+        () -> {
+          this.evalJavaScriptCallback.onStringResult(
+              "window.H5vccPlatformService.callback_from_android(" + name + ",'" + foo + "');");
+        });
+  }
+
   @SuppressWarnings("unused")
   CobaltService openCobaltService(long nativeService, String serviceName) {
     if (cobaltServices.get(serviceName) != null) {
@@ -186,7 +215,7 @@ public class StarboardBridge {
     }
     CobaltService service = factory.createCobaltService(nativeService);
     if (service != null) {
-      //service.receiveStarboardBridge(this);
+      service.setCallback(this::callbackFromService);
       cobaltServices.put(serviceName, service);
     }
     return service;

@@ -14,13 +14,15 @@ import dev.cobalt.util.Log;
 import dev.cobalt.coat.BuildConfig;
 
 public class ChrobaltWebView extends WebView {
+  public void evalJavaScript(String javascript) { // Make sure it's public
+    this.evaluateJavascript(javascript, null);
+  }
 
     StarboardBridge bridge = null;
 
     WebAppInterface webAppInterface = null;
 
     ChrobaltWebViewClient webViewClient = null;
-
 
     private class ChrobaltWebViewClient extends WebViewClient {
         @Override

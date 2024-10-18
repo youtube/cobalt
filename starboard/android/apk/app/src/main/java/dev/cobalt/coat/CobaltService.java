@@ -16,12 +16,19 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
+import android.util.Base64;
 import dev.cobalt.util.Log;
 
 /** Abstract class that provides an interface for Cobalt to interact with a platform service. */
 public abstract class CobaltService {
+
+  interface StringCallback {
+    void onStringResult(long name, String result);
+  }
+
   // Indicate is the service opened, and be able to send data to client
   protected boolean opened = true;
+  private StringCallback jsCallback;
 
   /** Interface that returns an object that extends CobaltService. */
   public interface Factory {
@@ -53,6 +60,10 @@ public abstract class CobaltService {
     /** The synchronous response data from the service. */
     @SuppressWarnings("unused")
     public byte[] data;
+  }
+
+  void setCallback(StringCallback jsCallback) {
+    this.jsCallback = jsCallback;
   }
 
   /** Receive data from client of the service. */
@@ -89,9 +100,15 @@ public abstract class CobaltService {
             "Platform service did not send data to client, because client already closed the"
                 + " platform service.");
         return;
+      } else {
+        if (this.jsCallback != null) {
+          String base64Data = Base64.encodeToString(data, Base64.NO_WRAP);
+          Log.w(TAG, "Sending : `" + base64Data + "`");
+          this.jsCallback.onStringResult(nativeService, base64Data);
+        } else {
+          Log.w(TAG, "Callback was null");
+        }
       }
-
     }
   }
-
 }
