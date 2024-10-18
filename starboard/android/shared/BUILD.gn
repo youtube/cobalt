@@ -378,6 +378,12 @@ static_library("starboard_platform") {
   if (sb_evergreen_compatible_use_libunwind) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
   }
+
+  # Force-include atomic stl for game activity library.
+  cflags = [
+    "-include",
+    "atomic",
+  ]
 }
 
 static_library("starboard_base_symbolize") {

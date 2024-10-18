@@ -14,6 +14,8 @@
 # every other file in the build. So variables declared here (that don't start
 # with an underscore) will be implicitly global.
 
+import("//chrobalt/build/configs/chrobalt.gni")
+
 # =============================================================================
 # PLATFORM SELECTION
 # =============================================================================
@@ -280,6 +282,14 @@ if (custom_toolchain != "") {
   set_default_toolchain(_default_toolchain)
 }
 
+if (chrobalt) {
+  if (custom_toolchain != "") {
+    cobalt_toolchain = custom_toolchain
+  } else if (_default_toolchain != "") {
+    cobalt_toolchain = _default_toolchain
+  }
+}
+
 # =============================================================================
 # OS DEFINITIONS
 # =============================================================================
@@ -327,9 +337,8 @@ is_posix = !is_win && !is_fuchsia
 # requirement and just need to add a config everywhere, reference it as a
 # sub-config of an existing one, most commonly the main "compiler" one.
 
-import("//chrobalt/build/configs/chrobalt.gni")
-# TODO(b/371589344): Fix android build configs.
-if (chrobalt && target_os != "android") {
+# TODO: b/374301613 - Consolidate these imports and remove variables where possible.
+if (chrobalt) {
   import("//chrobalt/build/configs/initialize_variables.gni")
   import("//chrobalt/build/configs/variables.gni")
 }
