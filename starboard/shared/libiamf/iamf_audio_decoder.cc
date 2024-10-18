@@ -87,6 +87,7 @@ void IamfAudioDecoder::Decode(const InputBuffers& input_buffers,
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   SB_DCHECK(output_cb_);
+  SB_DCHECK(consumed_cb);
 
   if (stream_ended_) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
@@ -121,6 +122,7 @@ bool IamfAudioDecoder::DecodeInternal(
     return false;
   }
   SB_DCHECK(info.is_valid());
+
   if (!decoder_is_configured_) {
     std::string error_message;
     if (!ConfigureDecoder(&info, input_buffer->timestamp(), &error_message)) {
@@ -159,11 +161,6 @@ bool IamfAudioDecoder::DecodeInternal(
   }
 
   // TODO: Enable partial audio once float32 pcm output is available.
-  const auto& sample_info = input_buffer->audio_sample_info();
-  decoded_audio->AdjustForDiscardedDurations(
-      samples_per_second_, sample_info.discarded_duration_from_front,
-      sample_info.discarded_duration_from_back);
-
   decoded_audios_.push(decoded_audio);
 
   Schedule(output_cb_);
@@ -315,8 +312,6 @@ void IamfAudioDecoder::Reset() {
 
   stream_ended_ = false;
   decoded_audios_ = std::queue<scoped_refptr<DecodedAudio>>();  // clear
-
-  CancelPendingJobs();
 }
 
 SbMediaAudioSampleType IamfAudioDecoder::GetSampleType() const {

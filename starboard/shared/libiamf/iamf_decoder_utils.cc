@@ -193,7 +193,7 @@ class BufferReader {
     if (bytes_read == max_bytes_to_read) {
       // Ensure that the string is null terminated.
       if (buf[bytes_read] != '\0') {
-        return false;
+        return -1;
       }
     }
     str->resize(bytes_read);
@@ -202,9 +202,9 @@ class BufferReader {
     return ++bytes_read;
   }
 
-  int pos_ = 0;
   const uint8_t* buf_;
   const size_t size_;
+  int pos_ = 0;
 };
 
 // Helper function to skip parsing ParamDefinitions found in the config OBUs
@@ -610,6 +610,8 @@ bool IamfBufferInfo::is_valid() const {
   return mix_presentation_id.has_value() && sample_rate > 0 && num_samples > 0;
 }
 
+// TODO: Implement a way to skip parsing the Config OBUs entirely once the
+// decoder is configured.
 bool ParseInputBuffer(const scoped_refptr<InputBuffer>& input_buffer,
                       IamfBufferInfo* info,
                       const bool prefer_binaural_audio,

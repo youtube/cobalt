@@ -28,6 +28,8 @@ using ::starboard::shared::starboard::media::MimeType;
 
 bool HasSupportedIamfProfile(const IamfMimeUtil* mime_util) {
   return mime_util->primary_profile() == kIamfProfileSimple ||
+         mime_util->primary_profile() == kIamfProfileBase ||
+         mime_util->additional_profile() == kIamfProfileSimple ||
          mime_util->additional_profile() == kIamfProfileBase;
 }
 

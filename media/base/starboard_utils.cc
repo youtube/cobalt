@@ -25,6 +25,7 @@
 #include "base/strings/string_util.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/decrypt_config.h"
+#include "starboard/audio_sink.h"
 #include "starboard/common/media.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
@@ -62,7 +63,7 @@ int GetMaxChannelCount() {
   while (SbMediaGetAudioConfiguration(index++, &configuration)) {
     channels = std::max(configuration.number_of_channels, channels);
   }
-  return channels;
+  return std::min(channels, SbAudioSinkGetMaxChannels());
 }
 
 }  // namespace
@@ -158,6 +159,7 @@ SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
 #if SB_API_VERSION >= 15
   if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {
     // IAMF mixes audio signals to the highest available speaker layout.
+    // TODO: Handle this logic below Starboard.
     audio_stream_info.number_of_channels = GetMaxChannelCount();
   }
 #endif  // SB_API_VERSION >= 15

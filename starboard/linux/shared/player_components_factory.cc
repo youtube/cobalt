@@ -92,10 +92,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           return std::unique_ptr<AudioDecoder>(new FdkAacAudioDecoder());
 #if SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
         } else if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {
-          SB_LOG(INFO) << "Playing audio using IamfAudioDecoder.";
-          return std::unique_ptr<AudioDecoder>(
-              new ::starboard::shared::libiamf::IamfAudioDecoder(
-                  audio_stream_info));
+          using ::starboard::shared::libiamf::IamfAudioDecoder;
+          std::unique_ptr<IamfAudioDecoder> audio_decoder_impl(
+              new IamfAudioDecoder(audio_stream_info));
+          if (audio_decoder_impl->is_valid()) {
+            SB_LOG(INFO) << "Playing audio using IamfAudioDecoder.";
+            return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
+          }
 #endif  // SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
         } else {
           std::unique_ptr<FfmpegAudioDecoder> audio_decoder_impl(
