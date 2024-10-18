@@ -48,6 +48,7 @@ template("starboard_platform_target") {
       "//starboard/build/config:starboard",
     ]
     if (is_android) {
+      # TODO: b/374300500 - Find a way to avoid wrapping these.
       ldflags = [
         "-Wl,--wrap=close",
         "-Wl,--wrap=open",

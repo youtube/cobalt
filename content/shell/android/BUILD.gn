@@ -28,7 +28,6 @@ shared_library("libcontent_shell_content_view") {
     "//content/shell:pak",
     "//media",
     "//skia",
-    "//starboard($starboard_toolchain)",
   ]
 
   # Explicit dependency required for JNI registration to be able to

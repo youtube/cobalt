@@ -14,6 +14,8 @@
 # every other file in the build. So variables declared here (that don't start
 # with an underscore) will be implicitly global.
 
+import("//chrobalt/build/configs/chrobalt.gni")
+
 # =============================================================================
 # PLATFORM SELECTION
 # =============================================================================
@@ -275,12 +277,18 @@ if (target_os == "android") {
 # If a custom toolchain has been set in the args, set it as default. Otherwise,
 # set the default toolchain for the platform (if any).
 if (custom_toolchain != "") {
-  cobalt_toolchain = custom_toolchain
+  set_default_toolchain(custom_toolchain)
 } else if (_default_toolchain != "") {
-  cobalt_toolchain = _default_toolchain
+  set_default_toolchain(_default_toolchain)
 }
 
-set_default_toolchain(cobalt_toolchain)
+if (chrobalt) {
+  if (custom_toolchain != "") {
+    cobalt_toolchain = custom_toolchain
+  } else if (_default_toolchain != "") {
+    cobalt_toolchain = _default_toolchain
+  }
+}
 
 # =============================================================================
 # OS DEFINITIONS
@@ -329,8 +337,7 @@ is_posix = !is_win && !is_fuchsia
 # requirement and just need to add a config everywhere, reference it as a
 # sub-config of an existing one, most commonly the main "compiler" one.
 
-import("//chrobalt/build/configs/chrobalt.gni")
-# TODO(b/371589344): Fix android build configs.
+# TODO: b/374301613 - Consolidate these imports and remove variables where possible.
 if (chrobalt) {
   import("//chrobalt/build/configs/initialize_variables.gni")
   import("//chrobalt/build/configs/variables.gni")
@@ -338,7 +345,6 @@ if (chrobalt) {
 
 # Holds all configs used for running the compiler.
 default_compiler_configs = [
-  "//starboard/build/config/includes:default_includes",
   "//build/config:feature_flags",
   "//build/config/compiler:afdo",
   "//build/config/compiler:afdo_optimize_size",

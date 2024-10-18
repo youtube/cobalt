@@ -222,6 +222,7 @@ source_set("starboard_headers_only") {
   ]
 }
 
+# TODO: b/374302273 - Fix starboard implementation to not emit these compiler warnings.
 config("hacky_wnos") {
   cflags = [
     # Disable errors for the warning till the Android NDK r19 is fixed.
