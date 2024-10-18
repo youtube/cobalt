@@ -18,8 +18,10 @@
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/extension/media_session.h"
+#include "starboard/extension/time_zone.h"
 #include "starboard/shared/uwp/xb1_media_session_client.h"
 #include "starboard/shared/win32/graphics.h"
+#include "starboard/shared/win32/time_zone.h"
 #include "starboard/xb1/shared/configuration.h"
 
 const void* SbSystemGetExtension(const char* name) {
@@ -31,6 +33,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionMediaSessionName) == 0) {
     return starboard::shared::uwp::GetMediaSessionApi();
+  }
+  if (strcmp(name, kStarboardExtensionTimeZoneName) == 0) {
+    return starboard::shared::win32::GetTimeZoneApi();
   }
   return NULL;
 }

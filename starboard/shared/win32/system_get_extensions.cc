@@ -17,8 +17,10 @@
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/graphics.h"
+#include "starboard/extension/time_zone.h"
 #include "starboard/shared/win32/configuration.h"
 #include "starboard/shared/win32/graphics.h"
+#include "starboard/shared/win32/time_zone.h"
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
@@ -26,6 +28,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionConfigurationName) == 0) {
     return starboard::shared::win32::GetConfigurationApi();
+  }
+  if (strcmp(name, kStarboardExtensionTimeZoneName) == 0) {
+    return starboard::shared::win32::GetTimeZoneApi();
   }
   return NULL;
 }
