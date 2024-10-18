@@ -13,8 +13,17 @@
 # limitations under the License.
 
 config("chrobalt_config") {
-  # TODO(b/371589344): Fix android build configs.
-  if (target_os != "android") {
-    configs = [ "//${starboard_path}/platform_configuration" ]
+  configs = [ ":default_includes" ]
+  if (current_toolchain == starboard_toolchain) {
+    configs += [ "//${starboard_path}/platform_configuration" ]
+  }
+}
+
+config("default_includes") {
+  if (is_android) {
+    include_dirs = [
+      # POSIX emulation headers - these need to come *before* system include_dirs.
+      "//starboard/android/shared/posix_emu/include",
+    ]
   }
 }
