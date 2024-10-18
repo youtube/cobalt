@@ -32,6 +32,12 @@
         values.
       -->
       <item type="integer" name="min_audio_sink_buffer_size_in_frames" />
+      <!--
+        When set, the return value of
+        SbMediaGetBufferGarbageCollectionDurationThreshold() will be set to this
+        value. Set to 0 to use the default value.
+      -->
+      <item type="integer" name="buffer_garbage_collection_duration_threshold" />
     </policy>
   </overlayable>
 </resources>

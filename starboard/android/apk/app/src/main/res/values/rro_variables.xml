@@ -30,5 +30,12 @@
   -->
   <integer name="min_audio_sink_buffer_size_in_frames"
            tools:ignore="DuplicateDefinition">0</integer>
+  <!--
+     When set, the return value of
+     SbMediaGetBufferGarbageCollectionDurationThreshold() will be set to this
+     value. Set to 0 to use the default value.
+  -->
+  <integer name="buffer_garbage_collection_duration_threshold"
+        tools:ignore="DuplicateDefinition">0</integer>
 
 </resources>

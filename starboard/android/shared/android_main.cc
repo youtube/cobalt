@@ -41,6 +41,9 @@
 namespace starboard {
 namespace android {
 namespace shared {
+
+atomic_bool g_block_swapbuffers;
+
 namespace {
 
 using ::starboard::shared::starboard::CommandLine;
@@ -325,6 +328,7 @@ void OnWindowFocusChanged(GameActivity* activity, bool focused) {
 }
 
 void OnNativeWindowCreated(GameActivity* activity, ANativeWindow* window) {
+  g_block_swapbuffers.store(false);
   if (g_app_running.load()) {
     ApplicationAndroid::Get()->SendAndroidCommand(
         AndroidCommand::kNativeWindowCreated, window);
@@ -332,6 +336,7 @@ void OnNativeWindowCreated(GameActivity* activity, ANativeWindow* window) {
 }
 
 void OnNativeWindowDestroyed(GameActivity* activity, ANativeWindow* window) {
+  g_block_swapbuffers.store(true);
   if (g_app_running.load()) {
     ApplicationAndroid::Get()->SendAndroidCommand(
         AndroidCommand::kNativeWindowDestroyed);

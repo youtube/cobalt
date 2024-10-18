@@ -1257,7 +1257,7 @@ TEST_P(SingleThreadTaskExecutorTypedTest, RunLoopQuitOrderAfter) {
 // On Linux, the pipe buffer size is 64KiB by default. The bug caused one byte
 // accumulated in the pipe per two posts, so we should repeat 128K times to
 // reproduce the bug.
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS) || defined(STARBOARD)
 // TODO(crbug.com/1188497): This test is unreasonably slow on CrOS and flakily
 // times out (100x slower than other platforms which take < 1s to complete
 // it).

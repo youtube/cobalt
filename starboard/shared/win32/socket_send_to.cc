@@ -70,12 +70,6 @@ int SbSocketSendTo(SbSocket socket,
     socket->error = sbwin32::TranslateSocketErrorStatus(last_error);
     return -1;
   } else if (socket->protocol == kSbSocketProtocolUdp) {
-    if (!destination) {
-      SB_DLOG(FATAL) << "No destination passed to UDP send.";
-      socket->error = kSbSocketErrorFailed;
-      return -1;
-    }
-
     sbwin32::SockAddr sock_addr;
     const sockaddr* sockaddr = nullptr;
     socklen_t sockaddr_length = 0;

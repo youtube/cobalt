@@ -185,9 +185,6 @@ struct SbSocketWaiterPrivate {
   i_WaiteesMap i_waitees_;
   sb_WaiteesMap sb_waitees_;
 
-  // Whether or not the waiter is actually waiting.
-  bool waiting_;
-
   // Whether or not the waiter was woken up.
   bool woken_up_;
 

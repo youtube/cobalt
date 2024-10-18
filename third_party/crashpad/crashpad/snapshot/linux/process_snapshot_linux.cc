@@ -393,7 +393,7 @@ void ProcessSnapshotLinux::InitializeModules(
   }
 
   std::vector<uint8_t> build_id(evergreen_info.build_id_length);
-  for (int i = 0; i < build_id.size(); i++) {
+  for (unsigned int i = 0; i < build_id.size(); i++) {
     build_id[i] = reinterpret_cast<uint8_t*>(evergreen_info.build_id)[i];
   }
 

@@ -63,7 +63,10 @@
 #include "cobalt/dom/same_thread_media_source_attachment.h"
 #include "cobalt/web/context.h"
 #include "cobalt/web/dom_exception.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/web/event.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
+#include "cobalt/worker/worker_settings.h"
 #include "media/base/pipeline_status.h"
 #include "starboard/media.h"
 
@@ -143,6 +146,27 @@ bool IsMediaElementUsingMediaSourceBufferedRangeEnabled(
   return GetMediaSettings(settings)
       .IsMediaElementUsingMediaSourceBufferedRangeEnabled()
       .value_or(false);
+}
+
+// If this function returns true, communication between HTMLMediaElement and
+// MediaSource objects will be fully proxied between MediaSourceAttachment.
+// The default value is false.
+bool IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
+    web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings)
+      .IsMediaElementUsingMediaSourceAttachmentMethodsEnabled()
+      .value_or(false);
+}
+
+// If this function returns true, experimental support for creating MediaSource
+// objects in Dedicated Workers will be enabled. This also allows MSE handles
+// to be transferred from Dedicated Workers back to the main thread.
+// Requires MediaElement.EnableUsingMediaSourceBufferedRange and
+// MediaElement.EnableUsingMediaSourceAttachmentMethods as prerequisites for
+// this feature.
+// The default value is false.
+bool IsMseInWorkersEnabled(web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings).IsMseInWorkersEnabled().value_or(false);
 }
 
 }  // namespace
@@ -406,11 +430,46 @@ bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
                                   const std::string& type) {
   TRACE_EVENT1("cobalt::dom", "MediaSource::IsTypeSupported()", "type", type);
   DCHECK(settings);
-  DOMSettings* dom_settings =
-      base::polymorphic_downcast<DOMSettings*>(settings);
-  DCHECK(dom_settings->can_play_type_handler());
-  SbMediaSupportType support_type =
-      dom_settings->can_play_type_handler()->CanPlayAdaptive(type.c_str(), "");
+
+  SbMediaSupportType support_type;
+  web::EnvironmentSettings* web_settings =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings);
+  DCHECK(web_settings);
+  if (IsMseInWorkersEnabled(web_settings) &&
+      IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(web_settings) &&
+      IsMediaElementUsingMediaSourceBufferedRangeEnabled(web_settings)) {
+    DCHECK(web_settings->context());
+    web::WindowOrWorkerGlobalScope* global_scope =
+        web_settings->context()->GetWindowOrWorkerGlobalScope();
+
+    if (global_scope->IsDedicatedWorker()) {
+      worker::WorkerSettings* worker_settings =
+          base::polymorphic_downcast<worker::WorkerSettings*>(settings);
+      DCHECK(worker_settings);
+      DCHECK(worker_settings->can_play_type_handler());
+      support_type = worker_settings->can_play_type_handler()->CanPlayAdaptive(
+          type.c_str(), "");
+    } else if (global_scope->IsWindow()) {
+      dom::DOMSettings* dom_settings =
+          base::polymorphic_downcast<dom::DOMSettings*>(settings);
+      DCHECK(dom_settings);
+      DCHECK(dom_settings->can_play_type_handler());
+      support_type = dom_settings->can_play_type_handler()->CanPlayAdaptive(
+          type.c_str(), "");
+    } else {
+      CHECK(false)
+          << "MediaSource.IsTypeSupported() is only supported from Dedicated "
+             "Workers and the main Window";
+      return false;
+    }
+  } else {
+    DOMSettings* dom_settings =
+        base::polymorphic_downcast<DOMSettings*>(settings);
+    DCHECK(dom_settings->can_play_type_handler());
+    support_type = dom_settings->can_play_type_handler()->CanPlayAdaptive(
+        type.c_str(), "");
+  }
+
   switch (support_type) {
     case kSbMediaSupportTypeNotSupported:
       return false;
@@ -422,6 +481,16 @@ bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
       NOTREACHED();
       return false;
   }
+}
+
+// static
+bool MediaSource::can_construct_in_dedicated_worker(
+    script::EnvironmentSettings* settings) {
+  web::EnvironmentSettings* web_settings =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings);
+  return IsMseInWorkersEnabled(web_settings) &&
+         IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(web_settings) &&
+         IsMediaElementUsingMediaSourceBufferedRangeEnabled(web_settings);
 }
 
 bool MediaSource::StartAttachingToMediaElement(

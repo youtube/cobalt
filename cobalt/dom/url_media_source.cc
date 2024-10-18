@@ -15,6 +15,7 @@
 #include "base/guid.h"
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/cross_thread_media_source_attachment.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/media_source_attachment.h"
@@ -22,6 +23,8 @@
 #include "cobalt/web/context.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/url.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
+#include "cobalt/worker/worker_settings.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -32,25 +35,63 @@ void RegisterMediaSourceObjectURL(
     script::EnvironmentSettings* environment_settings,
     const std::string& blob_url,
     const scoped_refptr<dom::MediaSource>& media_source) {
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(environment_settings);
-  DCHECK(dom_settings);
-  DCHECK(dom_settings->media_source_registry());
+  web::EnvironmentSettings* web_settings =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(
+          environment_settings);
+  DCHECK(web_settings);
+  DCHECK(web_settings->context());
+  web::WindowOrWorkerGlobalScope* global_scope =
+      web_settings->context()->GetWindowOrWorkerGlobalScope();
 
-  scoped_refptr<MediaSourceAttachment> attachment =
-      base::MakeRefCounted<SameThreadMediaSourceAttachment>(media_source);
+  if (global_scope->IsWorker()) {
+    worker::WorkerSettings* worker_settings =
+        base::polymorphic_downcast<worker::WorkerSettings*>(
+            environment_settings);
+    DCHECK(worker_settings);
+    DCHECK(worker_settings->media_source_registry());
 
-  dom_settings->media_source_registry()->Register(blob_url, attachment);
+    scoped_refptr<MediaSourceAttachment> attachment =
+        base::MakeRefCounted<CrossThreadMediaSourceAttachment>(media_source);
+
+    worker_settings->media_source_registry()->Register(blob_url, attachment);
+  } else {
+    dom::DOMSettings* dom_settings =
+        base::polymorphic_downcast<dom::DOMSettings*>(environment_settings);
+    DCHECK(dom_settings);
+    DCHECK(dom_settings->media_source_registry());
+
+    scoped_refptr<MediaSourceAttachment> attachment =
+        base::MakeRefCounted<SameThreadMediaSourceAttachment>(media_source);
+
+    dom_settings->media_source_registry()->Register(blob_url, attachment);
+  }
 }
 
 // extern
 bool UnregisterMediaSourceObjectURL(
     script::EnvironmentSettings* environment_settings, const std::string& url) {
-  dom::DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(environment_settings);
-  DCHECK(dom_settings);
-  DCHECK(dom_settings->media_source_registry());
-  return dom_settings->media_source_registry()->Unregister(url);
+  web::EnvironmentSettings* web_environment_settings =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(
+          environment_settings);
+  DCHECK(web_environment_settings);
+  DCHECK(web_environment_settings->context());
+  web::WindowOrWorkerGlobalScope* global_scope =
+      web_environment_settings->context()->GetWindowOrWorkerGlobalScope();
+
+  if (global_scope->IsWorker()) {
+    worker::WorkerSettings* worker_settings =
+        base::polymorphic_downcast<worker::WorkerSettings*>(
+            environment_settings);
+    DCHECK(worker_settings);
+    DCHECK(worker_settings->media_source_registry());
+    return worker_settings->media_source_registry()->Unregister(url);
+  } else {
+    dom::DOMSettings* dom_settings =
+        base::polymorphic_downcast<dom::DOMSettings*>(environment_settings);
+    DCHECK(dom_settings);
+    DCHECK(dom_settings->media_source_registry());
+    return dom_settings->media_source_registry()->Unregister(url);
+  }
 }
 
 }  // namespace dom
