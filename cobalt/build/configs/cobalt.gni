@@ -15,4 +15,4 @@
 # Get the path to the starboard implementation and include its GN
 # configuration.
 
-chrobalt = true
+is_cobalt = true

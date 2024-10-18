@@ -33,5 +33,5 @@ enable_evergreen_code = false
 # TODO(b/371606611): Build test targets with cobalt toolchain
 enable_test_targets = false
 
-# TODO(b/371642925): Fix install targets for chrobalt
+# TODO(b/371642925): Fix install targets for cobalt
 enable_install_targets = false

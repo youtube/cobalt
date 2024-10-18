@@ -8,7 +8,7 @@ default_language_version:
 files: |
     (?x)^(
         .github/|
-        chrobalt/|
+        cobalt/|
         starboard/|
         .pre-commit-config.yaml|
         .pylintrc|
@@ -31,7 +31,7 @@ repos:
     hooks:
     -   id: codespell
         name: Spell Check
-        args: [-x, chrobalt/precommit/.codespellignorelines,
+        args: [-x, cobalt/precommit/.codespellignorelines,
                # The --ignore-words-list argument has a bug where it needs to
                # be lowercase, see
                # https://github.com/codespell-project/codespell/issues/1390
@@ -69,18 +69,18 @@ repos:
         additional_dependencies: ['pylint']
     -   id: python3-compatibility-check
         name: Python 3 Compatibility Check
-        entry: python3 ./chrobalt/precommit/python3_check.py
+        entry: python3 ./cobalt/precommit/python3_check.py
         language: python
         types: [python]
     -   id: google-java-format
         name: google-java-format
-        entry: python3 ./chrobalt/precommit/google_java_format_wrapper.py
+        entry: python3 ./cobalt/precommit/google_java_format_wrapper.py
         language: python
         types: [java]
         args: [-i]
     -   id: gcheckstyle
         name: gcheckstyle
-        entry: python3 ./chrobalt/precommit/gcheckstyle_wrapper.py
+        entry: python3 ./cobalt/precommit/gcheckstyle_wrapper.py
         language: python
         exclude: |
             (?x)^(

@@ -836,8 +836,8 @@ group("gn_all") {
     deps += [ "//chrome/browser/chrome_for_testing:chrome_for_testing" ]
   }
 
-  if (chrobalt) {
-    deps += [ "//chrobalt:gn_all" ]
+  if (is_cobalt) {
+    deps += [ "//cobalt:gn_all" ]
   }
 }
 

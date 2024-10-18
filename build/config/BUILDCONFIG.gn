@@ -14,7 +14,7 @@
 # every other file in the build. So variables declared here (that don't start
 # with an underscore) will be implicitly global.
 
-import("//chrobalt/build/configs/chrobalt.gni")
+import("//cobalt/build/configs/cobalt.gni")
 
 # =============================================================================
 # PLATFORM SELECTION
@@ -282,7 +282,7 @@ if (custom_toolchain != "") {
   set_default_toolchain(_default_toolchain)
 }
 
-if (chrobalt) {
+if (is_cobalt) {
   if (custom_toolchain != "") {
     cobalt_toolchain = custom_toolchain
   } else if (_default_toolchain != "") {
@@ -338,9 +338,9 @@ is_posix = !is_win && !is_fuchsia
 # sub-config of an existing one, most commonly the main "compiler" one.
 
 # TODO: b/374301613 - Consolidate these imports and remove variables where possible.
-if (chrobalt) {
-  import("//chrobalt/build/configs/initialize_variables.gni")
-  import("//chrobalt/build/configs/variables.gni")
+if (is_cobalt) {
+  import("//cobalt/build/configs/initialize_variables.gni")
+  import("//cobalt/build/configs/variables.gni")
 }
 
 # Holds all configs used for running the compiler.
@@ -370,8 +370,8 @@ default_compiler_configs = [
   "//build/config/sanitizers:default_sanitizer_flags",
 ]
 
-if (chrobalt) {
-  default_compiler_configs += [ "//chrobalt/build/configs:chrobalt_config" ]
+if (is_cobalt) {
+  default_compiler_configs += [ "//cobalt/build/configs:cobalt_config" ]
 }
 
 if (is_win) {
