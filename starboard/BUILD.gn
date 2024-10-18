@@ -16,154 +16,160 @@ import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/config/starboard_target_type.gni")
 import("//starboard/contrib/cast/cast.gni")
 
-group("gn_all") {
-  testonly = true
+if (sb_is_modular) {
+  group("gn_all") {
+    testonly = true
 
-  deps = [
-    ":default",
-    "//starboard/client_porting/icu_init",
-  ]
-  if (enable_test_targets) {
-    if (sb_is_evergreen_compatible &&
-        current_toolchain == starboard_toolchain) {
-      deps += [ "//starboard/nplb/nplb_evergreen_compat_tests" ]
-    }
-    deps += [
-      "//starboard/client_porting/eztime:eztime_test",
-      "//starboard/examples/glclear:starboard_glclear_example",
-      "//starboard/examples/hello_world:starboard_hello_world_example",
-      "//starboard/examples/window:starboard_window_example",
-      "//starboard/extension:extension_test",
-      "//starboard/nplb",
+    deps = [
+      ":default",
+      "//starboard/client_porting/icu_init",
     ]
-  }
-
-  if (has_platform_targets) {
-    deps += [ "//$starboard_path/platform_targets" ]
-  }
-
-  if (platform_tests_path == "") {
-    deps += [
-      ":starboard_platform_tests($starboard_toolchain)",
-      ":starboard_platform_tests_install($starboard_toolchain)",
-    ]
-  } else {
-    deps += [ platform_tests_path ]
-  }
-
-  if (sb_filter_based_player) {
-    deps += [
-      "//starboard/shared/starboard/player/filter/testing:player_filter_tests($starboard_toolchain)",
-      "//starboard/shared/starboard/player/filter/testing:player_filter_tests_install($starboard_toolchain)",
-      "//starboard/shared/starboard/player/filter/tools:audio_dmp_player($starboard_toolchain)",
-    ]
-  }
-
-  if (sb_enable_benchmark) {
-    deps += [ "//starboard/benchmark" ]
-  }
-
-  if (build_with_separate_cobalt_toolchain && use_contrib_cast) {
-    deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast" ]
-  }
-
-  if (!sb_is_evergreen) {
-    if (sb_is_evergreen_compatible && enable_evergreen_code) {
-      deps += [
-        "//starboard/elf_loader:elf_loader_test_install($starboard_toolchain)",
-        "//starboard/loader_app:installation_manager_test_install($starboard_toolchain)",
-        "//starboard/loader_app:reset_evergreen_update_test_install($starboard_toolchain)",
-      ]
-      if (current_toolchain == starboard_toolchain) {
-        deps += [ "//third_party/lz4_lib:lz4" ]
-        deps += [ "//third_party/crashpad/crashpad/client" ]
-
-        data_deps = [
-          "//starboard/loader_app($starboard_toolchain)",
-          "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
-          "//third_party/crashpad/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)",
-        ]
+    if (enable_test_targets) {
+      if (sb_is_evergreen_compatible &&
+          current_toolchain == starboard_toolchain) {
+        deps += [ "//starboard/nplb/nplb_evergreen_compat_tests" ]
       }
+      deps += [
+        "//starboard/client_porting/eztime:eztime_test",
+        "//starboard/examples/glclear:starboard_glclear_example",
+        "//starboard/examples/hello_world:starboard_hello_world_example",
+        "//starboard/examples/window:starboard_window_example",
+        "//starboard/extension:extension_test",
+        "//starboard/nplb",
+      ]
     }
-  } else {  # !sb_is_evergreen
-    deps += [
-      "//starboard/loader_app:app_key_files_test",
-      "//starboard/loader_app:app_key_test",
-      "//starboard/loader_app:drain_file_test",
-      "//starboard/loader_app:slot_management_test",
-    ]
-  }
-}
 
-group("default") {
-  deps = [
-    ":starboard_group",
-    "//starboard/tools:build_app_launcher_zip",
-  ]
-}
+    if (has_platform_targets) {
+      deps += [ "//$starboard_path/platform_targets" ]
+    }
 
-group("starboard_group") {
-  deps = []
-  public_deps = [
-    ":starboard_headers_only",
-    "//starboard/client_porting/eztime",
-  ]
+    if (platform_tests_path == "") {
+      deps += [
+        ":starboard_platform_tests($starboard_toolchain)",
+        ":starboard_platform_tests_install($starboard_toolchain)",
+      ]
+    } else {
+      deps += [ platform_tests_path ]
+    }
 
-  if (sb_is_modular && current_toolchain == cobalt_toolchain) {
-    public_deps += [
-      "//third_party/llvm-project/compiler-rt:compiler_rt",
-      "//third_party/llvm-project/libcxx:cxx",
-      "//third_party/llvm-project/libcxxabi:cxxabi",
-      "//third_party/musl:c",
-    ]
+    if (sb_filter_based_player) {
+      deps += [
+        "//starboard/shared/starboard/player/filter/testing:player_filter_tests($starboard_toolchain)",
+        "//starboard/shared/starboard/player/filter/testing:player_filter_tests_install($starboard_toolchain)",
+        "//starboard/shared/starboard/player/filter/tools:audio_dmp_player($starboard_toolchain)",
+      ]
+    }
+
+    if (sb_enable_benchmark) {
+      deps += [ "//starboard/benchmark" ]
+    }
+
+    if (build_with_separate_cobalt_toolchain && use_contrib_cast) {
+      deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast" ]
+    }
 
     if (!sb_is_evergreen) {
-      # For modular builds, we need to wrap any POSIX APIs that may not be ABI
-      # equivalent across the Cobalt toolchain and the platform toolchain. For
-      # non-Evergreen builds, this is done via the below wrapper implementations
-      # of the API functions, which will simply call a renamed version of the
-      # function that will be implemented in the Starboard shared library. The
-      # same behavior is achieved in Evergreen via exported_symbols.cc remapping
-      # the functions to the same renamed version. In both cases, implementation
-      # of these renamed functions will handle translating data types across the
-      # ABI boundary and be compiled into the Starboard shared library in
-      # //starboard/build/config/starboard_target_type.gni.
-      deps += [ "//starboard/shared/modular:cobalt_layer_posix_abi_wrappers" ]
-    }
+      if (sb_is_evergreen_compatible && enable_evergreen_code) {
+        deps += [
+          "//starboard/elf_loader:elf_loader_test_install($starboard_toolchain)",
+          "//starboard/loader_app:installation_manager_test_install($starboard_toolchain)",
+          "//starboard/loader_app:reset_evergreen_update_test_install($starboard_toolchain)",
+        ]
+        if (current_toolchain == starboard_toolchain) {
+          deps += [ "//third_party/lz4_lib:lz4" ]
+          deps += [ "//third_party/crashpad/crashpad/client" ]
 
-    if (sb_is_evergreen) {
-      public_deps += [ "//starboard/elf_loader:sabi_string" ]
-    } else {
-      data_deps = [ ":starboard($starboard_toolchain)" ]
+          data_deps = [
+            "//starboard/loader_app($starboard_toolchain)",
+            "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
+            "//third_party/crashpad/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)",
+          ]
+        }
+      }
+    } else {  # !sb_is_evergreen
+      deps += [
+        "//starboard/loader_app:app_key_files_test",
+        "//starboard/loader_app:app_key_test",
+        "//starboard/loader_app:drain_file_test",
+        "//starboard/loader_app:slot_management_test",
+      ]
     }
+  }
 
-    # TODO: b/295702296 Fix libunwind for modular builds.
-    if (sb_is_evergreen) {
-      public_deps += [ "//third_party/llvm-project/libunwind:unwind" ]
-    }
-  } else {
-    public_deps += [
-      ":starboard_static($starboard_toolchain)",
-      "//starboard/common",
+  group("default") {
+    deps = [
+      ":starboard_group",
+      "//starboard/tools:build_app_launcher_zip",
+    ]
+  }
+
+  group("starboard_group") {
+    deps = []
+    public_deps = [
+      ":starboard_headers_only",
+      "//starboard/client_porting/eztime",
     ]
 
-    if (enable_evergreen_code) {
-      if (!sb_is_modular || sb_is_evergreen) {
-        if (sb_is_evergreen_compatible &&
-            current_toolchain == starboard_toolchain) {
-          public_deps += [ "//starboard/crashpad_wrapper" ]
-        } else {
-          public_deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
+    if (sb_is_modular && current_toolchain == cobalt_toolchain) {
+      public_deps += [
+        "//third_party/llvm-project/compiler-rt:compiler_rt",
+        "//third_party/llvm-project/libcxx:cxx",
+        "//third_party/llvm-project/libcxxabi:cxxabi",
+        "//third_party/musl:c",
+      ]
+
+      if (!sb_is_evergreen) {
+        # For modular builds, we need to wrap any POSIX APIs that may not be ABI
+        # equivalent across the Cobalt toolchain and the platform toolchain. For
+        # non-Evergreen builds, this is done via the below wrapper implementations
+        # of the API functions, which will simply call a renamed version of the
+        # function that will be implemented in the Starboard shared library. The
+        # same behavior is achieved in Evergreen via exported_symbols.cc remapping
+        # the functions to the same renamed version. In both cases, implementation
+        # of these renamed functions will handle translating data types across the
+        # ABI boundary and be compiled into the Starboard shared library in
+        # //starboard/build/config/starboard_target_type.gni.
+        deps += [ "//starboard/shared/modular:cobalt_layer_posix_abi_wrappers" ]
+      }
+
+      if (sb_is_evergreen) {
+        public_deps += [ "//starboard/elf_loader:sabi_string" ]
+      } else {
+        data_deps = [ ":starboard($starboard_toolchain)" ]
+      }
+
+      # TODO: b/295702296 Fix libunwind for modular builds.
+      if (sb_is_evergreen) {
+        public_deps += [ "//third_party/llvm-project/libunwind:unwind" ]
+      }
+    } else {
+      public_deps += [
+        ":starboard($starboard_toolchain)",
+        "//starboard/common",
+      ]
+
+      if (enable_evergreen_code) {
+        if (!sb_is_modular || sb_is_evergreen) {
+          if (sb_is_evergreen_compatible &&
+              current_toolchain == starboard_toolchain) {
+            public_deps += [ "//starboard/crashpad_wrapper" ]
+          } else {
+            public_deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
+          }
+        }
+      }
+
+      if (final_executable_type == "shared_library" &&
+          current_toolchain != default_toolchain) {
+        set_defaults("executable") {
+          sources = [ "//starboard/shared/starboard/shared_main_adapter.cc" ]
         }
       }
     }
-
-    if (final_executable_type == "shared_library" &&
-        current_toolchain != default_toolchain) {
-      set_defaults("executable") {
-        sources = [ "//starboard/shared/starboard/shared_main_adapter.cc" ]
-      }
-    }
+  }
+} else {
+  group("starboard_group") {
+    deps = [ "//starboard($starboard_toolchain)" ]
   }
 }
 
@@ -207,15 +213,78 @@ source_set("starboard_headers_only") {
   if (is_internal_build) {
     public_deps = [ "//internal/starboard/private:private_starboard_headers" ]
   }
+
+  all_dependent_configs = [
+    "//starboard/build/config:starboard",
+    "//starboard/build/config/sabi",
+    ":hacky_wnos",
+    "//base/third_party/symbolize:symbolize_config",
+  ]
+}
+
+# TODO: b/374302273 - Fix starboard implementation to not emit these compiler warnings.
+config("hacky_wnos") {
+  cflags = [
+    # Disable errors for the warning till the Android NDK r19 is fixed.
+    # The warning is trigger when compiling .c files and complains for
+    # "-stdlib=libc++" which is added by the NDK.
+    "-Wno-error=unused-command-line-argument",
+
+    # Don"t warn about register variables (in base and net)
+    "-Wno-deprecated-register",
+
+    # Don"t warn about deprecated ICU methods (in googleurl and net)
+    "-Wno-deprecated-declarations",
+
+    # Skia doesn"t use overrides.
+    "-Wno-inconsistent-missing-override",
+
+    # shifting a negative signed value is undefined
+    "-Wno-shift-negative-value",
+
+    # Don"t warn for implicit sign conversions. (in v8 and protobuf)
+    "-Wno-sign-conversion",
+
+    # TODO: b/287129945 - Fix compiler warnings
+    "-Wno-implicit-const-int-float-conversion",
+
+    # TODO: b/287320271 - Fix compiler warnings
+    "-Wno-deprecated-copy",
+
+    # TODO: b/287324882 - Fix compiler warnings
+    "-Wno-unused-but-set-variable",
+
+    "-Wno-unused-private-field",
+    "-Wno-implicit-fallthrough",
+    "-Wno-c++98-compat-extra-semi",
+    "-Wno-unused-variable",
+    "-Wno-reorder-ctor",
+    "-Wno-sign-compare",
+    "-Wno-unused-but-set-variable",
+    "-Wno-unreachable-code-return",
+    "-Wno-unused-function",
+    "-Wno-missing-braces",
+    "-Wno-mismatched-tags",
+    "-Wno-return-type",
+
+    # ./../starboard/shared/modular/starboard_layer_posix_socket_abi_wrappers.cc:237:28:
+    # error: comparison of array 'ai_copy.ai_addr->sa_data' not equal
+    # to a null pointer is always true [-Werror,-Wtautological-pointer-compare]
+    "-Wno-tautological-pointer-compare",
+
+    #../../starboard/shared/ffmpeg/ffmpeg_video_decoder_impl.cc:512:3: error:
+    # ignoring return value of function declared with
+    # 'warn_unused_result' attribute [-Werror,-Wunused-result]
+    "-Wno-unused-result",
+    "-Wno-shadow",
+    "-Wno-unknown-warning-option",
+    "-Wno-user-defined-warnings",
+  ]
 }
 
 if (current_toolchain == starboard_toolchain) {
   # This is the default 'starboard_platform_target'; use default properties
   starboard_platform_target("starboard") {
-  }
-
-  starboard_platform_target("starboard_static") {
-    target_type = "group"
   }
 
   if (platform_tests_path == "") {

@@ -236,7 +236,7 @@ void* ThreadEntryPoint(void* context) {
   g_app_created_semaphore = static_cast<Semaphore*>(context);
 
   int unused_value = -1;
-  int error_level = SbRunStarboardMain(unused_value, nullptr, SbEventHandle);
+  int error_level = SbRunStarboardMain(unused_value, nullptr, nullptr);
 
   // Our launcher.py looks for this to know when the app (test) is done.
   SB_LOG(INFO) << "***Application Stopped*** " << error_level;

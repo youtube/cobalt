@@ -75,4 +75,5 @@ static_library("filter_based_player_sources") {
     "//starboard/shared/starboard/player/filter/wsola_internal.h",
   ]
   configs += [ "//starboard/build/config:starboard_implementation" ]
+  deps = [ "//starboard:starboard_headers_only" ]
 }

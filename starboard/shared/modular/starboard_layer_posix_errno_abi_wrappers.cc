@@ -14,6 +14,7 @@
 
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 
+#include <errno.h>
 #include <pthread.h>
 #include <stdlib.h>
 
