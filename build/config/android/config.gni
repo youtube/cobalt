@@ -127,7 +127,8 @@ if (is_android) {
 
   if (!defined(default_android_ndk_root)) {
     default_android_ndk_root = "//third_party/android_toolchain/ndk"
-    default_android_ndk_version = "r27"
+    default_android_ndk_version = "r26b"
+    default_android_ndk_major_version = 26
   } else {
     assert(defined(default_android_ndk_version))
   }
