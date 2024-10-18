@@ -1,7 +1,7 @@
 {
     "docker_service": "linux",
     "platforms": [
-        "android-chrobalt-arm64"
+      "linux-cobalt-x64x11"
     ],
     "targets": [
         "base_unittests",
@@ -13,14 +13,12 @@
         "gpu_unittests",
         "gin_unittests",
         "blink_unittests",
-        "content_shell",
-        "system_webview_apk",
-        "system_webview_shell_apk"
+        "content_shell"
     ],
     "includes": [
-        {
-        "name":"arm64",
-        "platform":"android-chrobalt-arm64"
-        }
+      {
+        "name":"x64",
+        "platform":"linux-cobalt-x64x11"
+      }
     ]
-}
+  }
