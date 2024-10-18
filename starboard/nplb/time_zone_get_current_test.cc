@@ -13,13 +13,57 @@
 // limitations under the License.
 
 #include "starboard/extension/time_zone.h"
+#include "starboard/nplb/time_constants.h"
 #include "starboard/system.h"
 #include "starboard/time_zone.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#include <array>
+#include <gmock/gmock.h>
+
 namespace starboard {
 namespace nplb {
 namespace {
+
+struct TimeZoneWithExpectValue {
+  TimeZoneWithExpectValue(std::string timeZoneName_,
+                          SbTimeZone expectedStandardValue_,
+                          SbTimeZone expectedDaylightValue_)
+      : timeZoneName{timeZoneName_},
+        expectedStandardValue{expectedStandardValue_},
+        expectedDaylightValue{expectedDaylightValue_} {}
+
+  std::string timeZoneName;
+
+  SbTimeZone expectedStandardValue;
+  SbTimeZone expectedDaylightValue;
+};
+
+class SbTimeZoneGetCurrentSetTimeZoneTest
+    : public testing::Test,
+      public testing::WithParamInterface<TimeZoneWithExpectValue> {
+ protected:
+  void SetUp() override {
+    time_zone_extension = static_cast<const StarboardExtensionTimeZoneApi*>(
+        SbSystemGetExtension(kStarboardExtensionTimeZoneName));
+    if (!time_zone_extension) {
+      GTEST_SKIP()
+          << "Skipping test for platform with missing Time Zone Extension.";
+    }
+    ASSERT_STREQ(time_zone_extension->name, kStarboardExtensionTimeZoneName);
+    ASSERT_EQ(time_zone_extension->version, 1u);
+    savedTimeZone = SbTimeZoneGetName();
+  }
+
+  void TearDown() override {
+    if (time_zone_extension) {
+      time_zone_extension->SetTimeZone(savedTimeZone.c_str());
+    }
+  }
+
+  std::string savedTimeZone;
+  const StarboardExtensionTimeZoneApi* time_zone_extension;
+};
 
 TEST(SbTimeZoneGetCurrentTest, IsKindOfSane) {
   SbTimeZone zone = SbTimeZoneGetCurrent();
@@ -34,67 +78,51 @@ TEST(SbTimeZoneGetCurrentTest, IsKindOfSane) {
 
   // ... and +24 hours from the Prime Meridian, inclusive
   EXPECT_LE(zone, 24 * 60);
-
-  static auto const* time_zone_extension =
-      static_cast<const StarboardExtensionTimeZoneApi*>(
-          SbSystemGetExtension(kStarboardExtensionTimeZoneName));
-  if (time_zone_extension) {
-    ASSERT_STREQ(time_zone_extension->name, kStarboardExtensionTimeZoneName);
-    ASSERT_EQ(time_zone_extension->version, 1u);
-    time_zone_extension->SetTimeZone("UTC");
-    zone = SbTimeZoneGetCurrent();
-    EXPECT_EQ(zone, 0);
-
-    // Atlantic time zone, UTC−04:00
-    time_zone_extension->SetTimeZone("America/Puerto_Rico");
-    zone = SbTimeZoneGetCurrent();
-    EXPECT_EQ(zone, 240);
-
-    // Eastern time zone, UTC−05:00
-    time_zone_extension->SetTimeZone("America/New_York");
-    zone = SbTimeZoneGetCurrent();
-    EXPECT_EQ(zone, 300);
-
-    time_zone_extension->SetTimeZone("US/Eastern");
-    zone = SbTimeZoneGetCurrent();
-    EXPECT_EQ(zone, 300);
-
-    // Central time zone, UTC−06:00
-    time_zone_extension->SetTimeZone("America/Chicago");
-    zone = SbTimeZoneGetCurrent();
-    EXPECT_EQ(zone, 360);
-
-    // Mountain time zone, UTC−07:00
-    time_zone_extension->SetTimeZone("US/Mountain");
-    zone = SbTimeZoneGetCurrent();
-    EXPECT_EQ(zone, 420);
-
-    // Pacific time zone, UTC-08:00
-    time_zone_extension->SetTimeZone("US/Pacific");
-    zone = SbTimeZoneGetCurrent();
-    EXPECT_EQ(zone, 480);
-
-    // Alaska time zone, UTC-09:00
-    time_zone_extension->SetTimeZone("US/Alaska");
-    zone = SbTimeZoneGetCurrent();
-    EXPECT_EQ(zone, 540);
-
-    // Hawaii-Aleutian time zone, UTC-10:00
-    time_zone_extension->SetTimeZone("Pacific/Honolulu");
-    zone = SbTimeZoneGetCurrent();
-    EXPECT_EQ(zone, 600);
-
-    // American Samoa time zone, UTC-11:00
-    time_zone_extension->SetTimeZone("US/Samoa");
-    zone = SbTimeZoneGetCurrent();
-    EXPECT_EQ(zone, 660);
-
-    // American Samoa time zone, UTC+10:00
-    time_zone_extension->SetTimeZone("Pacific/Guam");
-    zone = SbTimeZoneGetCurrent();
-    EXPECT_EQ(zone, -600);
-  }
 }
+
+#if defined(_WIN32)
+
+std::array<TimeZoneWithExpectValue, 12> timeZonesWithExpectedTimeValues{
+    TimeZoneWithExpectValue("UTC", 0, 0),
+    TimeZoneWithExpectValue("Atlantic Standard Time", 240, 180),
+    TimeZoneWithExpectValue("Eastern Standard Time", 300, 240),
+    TimeZoneWithExpectValue("Central Standard Time", 360, 300),
+    TimeZoneWithExpectValue("Mountain Standard Time", 420, 360),
+    TimeZoneWithExpectValue("Pacific Standard Time", 480, 420),
+    TimeZoneWithExpectValue("Yukon Standard Time", 420, 420),
+    TimeZoneWithExpectValue("Samoa Standard Time", -780, -780),
+    TimeZoneWithExpectValue("China Standard Time", -480, -480),
+    TimeZoneWithExpectValue("Central European Standard Time", -60, -120),
+    TimeZoneWithExpectValue("Omsk Standard Time", -360, -360),
+    TimeZoneWithExpectValue("Cen. Australia Standard Time", -570, -630)};
+
+#else
+
+std::array<TimeZoneWithExpectValue, 11> timeZonesWithExpectedTimeValues{
+    TimeZoneWithExpectValue("UTC", 0, 0),
+    TimeZoneWithExpectValue("America/Puerto_Rico", 240, 240),
+    TimeZoneWithExpectValue("America/New_York", 300, 300),
+    TimeZoneWithExpectValue("US/Eastern", 300, 300),
+    TimeZoneWithExpectValue("America/Chicago", 360, 360),
+    TimeZoneWithExpectValue("US/Mountain", 420, 420),
+    TimeZoneWithExpectValue("US/Pacific", 480, 480),
+    TimeZoneWithExpectValue("US/Alaska", 540, 540),
+    TimeZoneWithExpectValue("Pacific/Honolulu", 600, 600),
+    TimeZoneWithExpectValue("US/Samoa", 660, 660),
+    TimeZoneWithExpectValue("Pacific/Guam", -600, -600)};
+
+#endif
+
+TEST_P(SbTimeZoneGetCurrentSetTimeZoneTest, IsKindOfSane) {
+  EXPECT_TRUE(time_zone_extension->SetTimeZone(GetParam().timeZoneName.c_str()));
+  auto zone = SbTimeZoneGetCurrent();
+  EXPECT_THAT(zone, ::testing::AnyOf(GetParam().expectedStandardValue,
+                                     GetParam().expectedDaylightValue));
+}
+
+INSTANTIATE_TEST_SUITE_P(SbTimeZoneGetCurrentSetTimeZoneTest,
+                         SbTimeZoneGetCurrentSetTimeZoneTest,
+                         ::testing::ValuesIn(timeZonesWithExpectedTimeValues));
 
 }  // namespace
 }  // namespace nplb
