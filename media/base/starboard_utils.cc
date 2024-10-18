@@ -159,7 +159,7 @@ SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
 #if SB_API_VERSION >= 15
   if (audio_stream_info.codec == kSbMediaAudioCodecIamf) {
     // IAMF mixes audio signals to the highest available speaker layout.
-    // TODO: Handle this logic below Starboard.
+    // TODO: Set the number of channels below Starboard.
     audio_stream_info.number_of_channels = GetMaxChannelCount();
   }
 #endif  // SB_API_VERSION >= 15
