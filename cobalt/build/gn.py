@@ -106,7 +106,7 @@ def write_build_args(build_args_path, original_lines, dict_settings,
 
 def main(out_directory: str, platform: str, build_type: str,
          overwrite_args: bool, gn_gen_args: List[str]):
-  platform_path = f'chrobalt/build/configs/{platform}'
+  platform_path = f'cobalt/build/configs/{platform}'
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
   src_args_gn_file = os.path.join(platform_path, 'args.gn')
   Path(out_directory).mkdir(parents=True, exist_ok=True)
@@ -137,9 +137,9 @@ if __name__ == '__main__':
       '--platform',
       default='linux',
       choices=[
-          'linux-x64x11', 'linux-chrobalt-x64x11', 'android-arm',
-          'android-arm64', 'android-x86', 'android-chrobalt-arm',
-          'android-chrobalt-arm64', 'android-chrobalt-x86', 'linux'
+          'linux-x64x11', 'linux-cobalt-x64x11', 'android-arm', 'android-arm64',
+          'android-x86', 'android-cobalt-arm', 'android-cobalt-arm64',
+          'android-cobalt-x86', 'linux'
       ],
       help='The platform to build.')
   parser.add_argument(

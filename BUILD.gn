@@ -838,8 +838,8 @@ group("gn_all") {
       deps += [ "//components/cronet:cronet_tests" ]
     }
   }
-  if (chrobalt) {
-    deps += [ "//chrobalt:gn_all" ]
+  if (is_cobalt) {
+    deps += [ "//cobalt:gn_all" ]
   }
 }
 

@@ -167,8 +167,8 @@ exec_script_whitelist =
       "//tools/gritsettings/BUILD.gn",
     ]
 
-import("//chrobalt/build/configs/chrobalt.gni")
-if (chrobalt) {
+import("//cobalt/build/configs/cobalt.gni")
+if (is_cobalt) {
   exec_script_whitelist += [
     "//starboard/tools/BUILD.gn",
     "//starboard/build/config/sabi/BUILD.gn",
