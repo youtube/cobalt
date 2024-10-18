@@ -9,6 +9,8 @@ files: |
     (?x)^(
         .github/|
         cobalt/|
+        chrobalt/|
+        media/starboard/|
         starboard/|
         .pre-commit-config.yaml|
         .pylintrc|
