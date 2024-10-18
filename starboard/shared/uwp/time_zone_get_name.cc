@@ -24,16 +24,17 @@ namespace {
 class TimeZoneString {
  public:
   static TimeZoneString* Get();
-  const char* value() const { return value_.c_str(); }
+  const char* value() {
+    Platform::String ^ time_zone = calendar->GetTimeZone();
+    auto value_ = starboard::shared::win32::platformStringToString(time_zone);
+    return value_.c_str();
+  }
 
  private:
   TimeZoneString() {
-    Windows::Globalization::Calendar ^ calendar =
-        ref new Windows::Globalization::Calendar();
-    Platform::String ^ time_zone = calendar->GetTimeZone();
-    value_ = starboard::shared::win32::platformStringToString(time_zone);
+    calendar = ref new Windows::Globalization::Calendar();
   }
-  std::string value_;
+  Windows::Globalization::Calendar ^ calendar;
 };
 
 SB_ONCE_INITIALIZE_FUNCTION(TimeZoneString, TimeZoneString::Get);

@@ -179,7 +179,7 @@ static_library("starboard_platform") {
 
     # TODO (b/304335954): Use uwp implementation for correct IANA name once
     # daylight savings offset is fixed.
-    "//starboard/shared/win32/time_zone_get_name.cc",
+    "//starboard/shared/uwp/time_zone_get_name.cc",
     "//starboard/shared/win32/video_decoder.cc",
     "//starboard/shared/win32/video_decoder.h",
     "//starboard/shared/win32/win32_audio_decoder.cc",
@@ -190,6 +190,7 @@ static_library("starboard_platform") {
     "//starboard/xb1/shared/gpu_base_video_decoder.h",
     "//starboard/xb1/shared/internal_shims.h",
     "//starboard/xb1/shared/playready_license.cc",
+    "//starboard/xb1/shared/time_zone.cc",
     "//starboard/xb1/shared/video_decoder_uwp.cc",
     "//starboard/xb1/shared/video_decoder_uwp.h",
     "//starboard/xb1/shared/video_frame_impl.h",
