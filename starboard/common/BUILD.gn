@@ -60,7 +60,6 @@ static_library("common") {
     "murmurhash2.h",
     "mutex.cc",
     "mutex.h",
-    "new.cc",
     "optional.cc",
     "optional.h",
     "paths.cc",
@@ -92,6 +91,10 @@ static_library("common") {
     "time.cc",
     "time.h",
   ]
+  if (sb_is_modular) {
+    # Conflicts with base's partition allocator.
+    sources += [ "new.cc" ]
+  }
 }
 
 static_library("file_wrapper") {

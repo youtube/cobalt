@@ -128,6 +128,7 @@ if (is_android || is_chromeos) {
       default_android_ndk_root = "//third_party/android_toolchain_canary/ndk"
     }
     default_android_ndk_version = "r26b"
+    default_android_ndk_major_version = 26
   } else {
     assert(defined(default_android_ndk_version))
   }
