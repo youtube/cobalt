@@ -15,31 +15,51 @@
 import("//starboard/build/config/os_definitions.gni")
 declare_args() {
   starboard_target_type = ""
-  starboard_shared_library_extension = "so.${sb_api_version}"
+  if (is_android) {
+    # The apk packaging can't deal with any shlib extension other than .so.
+    starboard_shared_library_extension = "so"
+  } else {
+    starboard_shared_library_extension = "so.${sb_api_version}"
+  }
 }
 
 if (starboard_target_type == "") {
   if (sb_is_modular && !sb_is_evergreen) {
     starboard_target_type = "shared_library"
   } else {
-    starboard_target_type = "group"
+    starboard_target_type = "component"
   }
 }
 
 template("starboard_platform_target") {
-  target_type = starboard_target_type
-  if (defined(invoker.target_type)) {
-    target_type = invoker.target_type
-  }
-  target(target_type, target_name) {
+  target(starboard_target_type, target_name) {
     forward_variables_from(invoker, [ "extra_configs" ])
+
+    if (starboard_target_type == "shared_library") {
+      output_extension = starboard_shared_library_extension
+    }
 
     if (defined(invoker.extra_configs)) {
       configs += extra_configs
     }
-    if (target_type == "shared_library") {
-      output_extension = starboard_shared_library_extension
+
+    all_dependent_configs = [
+      "//starboard/build/config/sabi",
+      "//starboard/build/config:starboard",
+    ]
+    if (is_android) {
+      # TODO: b/374300500 - Find a way to avoid wrapping these.
+      ldflags = [
+        "-Wl,--wrap=close",
+        "-Wl,--wrap=open",
+        "-Wl,--wrap=stat",
+        "-Wl,--wrap=opendir",
+        "-Wl,--wrap=closedir",
+        "-Wl,--wrap=readdir_r",
+        "-Wl,--wrap=eglSwapBuffers",
+      ]
     }
+
     public_deps = [
       "//starboard/common",
       "//starboard/egl_and_gles",
