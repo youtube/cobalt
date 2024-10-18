@@ -287,7 +287,11 @@ class NET_EXPORT UDPSocketPosix {
     SOCKET_OPTION_MULTICAST_LOOP = 1 << 0
   };
 
+#if defined(STARBOARD)
   class ReadWatcher : public base::MessagePumpForIO::Watcher {
+#else
+  class ReadWatcher : public base::MessagePumpForIO::FdWatcher {
+#endif
    public:
     explicit ReadWatcher(UDPSocketPosix* socket) : socket_(socket) {}
 
@@ -304,7 +308,11 @@ class NET_EXPORT UDPSocketPosix {
     const raw_ptr<UDPSocketPosix> socket_;
   };
 
+#if defined(STARBOARD)
   class WriteWatcher : public base::MessagePumpForIO::Watcher {
+#else
+  class WriteWatcher : public base::MessagePumpForIO::FdWatcher {
+#endif
    public:
     explicit WriteWatcher(UDPSocketPosix* socket) : socket_(socket) {}
 
@@ -412,8 +420,13 @@ class NET_EXPORT UDPSocketPosix {
   mutable std::unique_ptr<IPEndPoint> remote_address_;
 
   // The socket's posix wrappers
+#if defined(STARBOARD)
   base::MessagePumpForIO::SocketWatcher read_socket_watcher_;
   base::MessagePumpForIO::SocketWatcher write_socket_watcher_;
+#else
+  base::MessagePumpForIO::FdWatchController read_socket_watcher_;
+  base::MessagePumpForIO::FdWatchController write_socket_watcher_;
+#endif
 
   // The corresponding watchers for reads and writes.
   ReadWatcher read_watcher_;

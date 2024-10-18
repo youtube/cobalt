@@ -50,7 +50,6 @@ NET_EXPORT SbSocketAddressType ConvertAddressFamily(
 NET_EXPORT int ConvertAddressFamily(AddressFamily address_family);
 #endif
 
-
 // Maps AF_INET, AF_INET6 or AF_UNSPEC to an AddressFamily.
 NET_EXPORT AddressFamily ToAddressFamily(int family);
 

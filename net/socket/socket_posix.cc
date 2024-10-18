@@ -34,7 +34,6 @@
 namespace net {
 
 #if SB_API_VERSION >= 16 && !defined(_MSC_VER)
-
 namespace {
 
 int MapAcceptError(int os_error) {
@@ -72,7 +71,13 @@ int MapConnectError(int os_error) {
 
 SocketPosix::SocketPosix()
     : socket_fd_(kInvalidSocket),
+#if defined(STARBOARD)
       socket_watcher_(FROM_HERE) {}
+#else
+      accept_socket_watcher_(FROM_HERE),
+      read_socket_watcher_(FROM_HERE),
+      write_socket_watcher_(FROM_HERE) {}
+#endif
 
 SocketPosix::~SocketPosix() {
   Close();
@@ -179,7 +184,11 @@ int SocketPosix::Accept(std::unique_ptr<SocketPosix>* socket,
 
   if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_READ,
+#if defined(STARBOARD)
           &socket_watcher_, this)) {
+#else
+          &accept_socket_watcher_, this)) {
+#endif
     PLOG(ERROR) << "WatchFileDescriptor failed on accept";
     return MapSystemError(errno);
   }
@@ -204,7 +213,11 @@ int SocketPosix::Connect(const SockaddrStorage& address,
 
   if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_WRITE,
+#if defined(STARBOARD)
           &socket_watcher_, this)) {
+#else
+          &write_socket_watcher_, this)) {
+#endif
     PLOG(ERROR) << "WatchFileDescriptor failed on connect";
     return MapSystemError(errno);
   }
@@ -224,7 +237,11 @@ int SocketPosix::Connect(const SockaddrStorage& address,
 
   rv = MapConnectError(errno);
   if (rv != OK && rv != ERR_IO_PENDING) {
+#if defined(STARBOARD)
     ClearWatcherIfOperationsNotPending();
+#else
+    write_socket_watcher_.StopWatchingFileDescriptor();
+#endif
     return rv;
   }
 
@@ -300,7 +317,11 @@ int SocketPosix::ReadIfReady(IOBuffer* buf,
 
   if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_READ,
+#if defined(STARBOARD)
           &socket_watcher_, this)) {
+#else
+          &read_socket_watcher_, this)) {
+#endif
     PLOG(ERROR) << "WatchFileDescriptor failed on read";
     return MapSystemError(errno);
   }
@@ -312,7 +333,11 @@ int SocketPosix::ReadIfReady(IOBuffer* buf,
 int SocketPosix::CancelReadIfReady() {
   DCHECK(read_if_ready_callback_);
 
+#if defined(STARBOARD)
   bool ok = ClearWatcherIfOperationsNotPending();
+#else
+  bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
+#endif
   DCHECK(ok);
 
   read_if_ready_callback_.Reset();
@@ -350,7 +375,11 @@ int SocketPosix::WaitForWrite(IOBuffer* buf,
 
   if (!base::CurrentIOThread::Get()->WatchFileDescriptor(
           socket_fd_, true, base::MessagePumpForIO::WATCH_WRITE,
+#if defined(STARBOARD)
           &socket_watcher_, this)) {
+#else
+          &write_socket_watcher_, this)) {
+#endif
     PLOG(ERROR) << "WatchFileDescriptor failed on write";
     return MapSystemError(errno);
   }
@@ -414,7 +443,12 @@ void SocketPosix::OnFileCanReadWithoutBlocking(int fd) {
                "SocketPosix::OnFileCanReadWithoutBlocking");
   if (!accept_callback_.is_null()) {
     AcceptCompleted();
-  } else if (!read_if_ready_callback_.is_null()){
+#if defined(STARBOARD)
+  } else if (!read_if_ready_callback_.is_null()) {
+#else
+  } else {
+    DCHECK(!read_if_ready_callback_.is_null());
+#endif
     ReadCompleted();
   }
 }
@@ -451,7 +485,11 @@ void SocketPosix::AcceptCompleted() {
   if (rv == ERR_IO_PENDING)
     return;
 
+#if defined(STARBOARD)
   bool ok = ClearWatcherIfOperationsNotPending();
+#else
+  bool ok = accept_socket_watcher_.StopWatchingFileDescriptor();
+#endif
   DCHECK(ok);
   accept_socket_ = nullptr;
   std::move(accept_callback_).Run(rv);
@@ -478,14 +516,22 @@ void SocketPosix::ConnectCompleted() {
   if (rv == ERR_IO_PENDING)
     return;
 
+#if defined(STARBOARD)
   bool ok = socket_watcher_.StopWatchingFileDescriptor();
+#else
+  bool ok = write_socket_watcher_.StopWatchingFileDescriptor();
+#endif
   DCHECK(ok);
   waiting_connect_ = false;
   std::move(write_callback_).Run(rv);
 }
 
 int SocketPosix::DoRead(IOBuffer* buf, int buf_len) {
+#if defined(STARBOARD)
   int rv = HANDLE_EINTR(recv(socket_fd_, buf->data(), buf_len, 0));
+#else
+  int rv = HANDLE_EINTR(read(socket_fd_, buf->data(), buf_len, 0));
+#endif
   return rv >= 0 ? rv : MapSystemError(errno);
 }
 
@@ -509,7 +555,11 @@ void SocketPosix::RetryRead(int rv) {
 void SocketPosix::ReadCompleted() {
   DCHECK(read_if_ready_callback_);
 
+#if defined(STARBOARD)
   bool ok = socket_watcher_.StopWatchingFileDescriptor();
+#else
+  bool ok = read_socket_watcher_.StopWatchingFileDescriptor();
+#endif
   DCHECK(ok);
   std::move(read_if_ready_callback_).Run(OK);
 }
@@ -529,8 +579,7 @@ int SocketPosix::DoWrite(IOBuffer* buf, int buf_len) {
   int rv = HANDLE_EINTR(send(socket_fd_, buf->data(), buf_len, kSendFlags));
 #else
   int rv = HANDLE_EINTR(write(socket_fd_, buf->data(), buf_len));
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) ||\
-        // defined(STARBOARD)
+#endif
   return rv >= 0 ? rv : MapSystemError(errno);
 }
 
@@ -539,13 +588,18 @@ void SocketPosix::WriteCompleted() {
   if (rv == ERR_IO_PENDING)
     return;
 
+#if defined(STARBOARD)
   bool ok = ClearWatcherIfOperationsNotPending();
+#else
+  bool ok = write_socket_watcher_.StopWatchingFileDescriptor();
+#endif
   DCHECK(ok);
   write_buf_.reset();
   write_buf_len_ = 0;
   std::move(write_callback_).Run(rv);
 }
 
+#if defined(STARBOARD)
 bool SocketPosix::ClearWatcherIfOperationsNotPending() {
   bool ok = true;
   if (!read_pending() && !write_pending() && !accept_pending()) {
@@ -553,10 +607,20 @@ bool SocketPosix::ClearWatcherIfOperationsNotPending() {
   }
   return ok;
 }
+#endif
 
 void SocketPosix::StopWatchingAndCleanUp(bool close_socket) {
+#if defined(STARBOARD)
   bool ok = socket_watcher_.StopWatchingFileDescriptor();
   DCHECK(ok);
+#else
+  bool ok = accept_socket_watcher_.StopWatchingFileDescriptor();
+  DCHECK(ok);
+  ok = read_socket_watcher_.StopWatchingFileDescriptor();
+  DCHECK(ok);
+  ok = write_socket_watcher_.StopWatchingFileDescriptor();
+  DCHECK(ok);
+#endif
 
   // These needs to be done after the StopWatchingFileDescriptor() calls, but
   // before deleting the write buffer.
