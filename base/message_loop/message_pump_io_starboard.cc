@@ -87,7 +87,14 @@ bool MessagePumpIOStarboard::SocketWatcher::StopWatchingSocket() {
   bool result = true;
   if (SbSocketIsValid(socket)) {
     DCHECK(pump_);
+#if defined(STARBOARD)
+    // This may get called multiple times from TCPSocketStarboard.
+    if (pump_) {
+      result = pump_->StopWatching(socket);
+    }
+#else
     result = pump_->StopWatching(socket);
+#endif
   }
   pump_ = nullptr;
   return result;

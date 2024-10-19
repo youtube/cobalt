@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/media-source/#idl-def-SourceBuffer
-// https://www.w3.org/TR/2016/CR-media-source-20160705/#sourcebufferlist
+#include "starboard/media.h"
 
-[
-  Exposed=(Window,DedicatedWorker),
-]
-interface SourceBufferList : EventTarget {
-  readonly attribute unsigned long length;
-  getter SourceBuffer? item(unsigned long index);
-};
+#include "starboard/android/shared/application_android.h"
+
+int64_t SbMediaGetBufferGarbageCollectionDurationThreshold() {
+  const int64_t overlayed_threshold =
+      starboard::android::shared::ApplicationAndroid::Get()
+          ->GetOverlayedIntValue(
+              "buffer_garbage_collection_duration_threshold");
+  if (overlayed_threshold != 0) {
+    return overlayed_threshold;
+  }
+  return 170'000'000;  // 170 seconds
+}

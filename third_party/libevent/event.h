@@ -204,20 +204,6 @@ typedef unsigned short u_short;
 #define EV_SIGNAL	0x08
 #define EV_PERSIST	0x10	/* Persistant event */
 
-#ifdef STARBOARD
-struct evtimeval {
-#if SB_IS(64_BIT)
-	int64_t	tv_sec;		/* seconds */
-	int64_t	tv_usec;	/* and microseconds */
-#else
-	int32_t	tv_sec;		/* seconds */
-	int32_t	tv_usec;	/* and microseconds */
-#endif
-};
-#else
-typedef struct timeval evtimeval;
-#endif
-
 /* Fix so that ppl dont have to run with <sys/queue.h> */
 #ifndef TAILQ_ENTRY
 #define _EVENT_DEFINED_TQENTRY
@@ -243,11 +229,7 @@ struct event {
 	short ev_ncalls;
 	short *ev_pncalls;	/* Allows deletes in callback */
 
-#if defined(STARBOARD)
-	struct evtimeval ev_timeout;
-#else
   struct timeval ev_timeout;
-#endif
 
 	int ev_pri;		/* smaller numbers are higher priority */
 

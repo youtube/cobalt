@@ -18,21 +18,68 @@
 #include <string>
 
 #include "cobalt/browser/stack_size_constants.h"
+#include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/media_settings.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/web/environment_settings.h"
 #include "cobalt/web/event_target.h"
 #include "cobalt/web/message_port.h"
+#include "cobalt/web/window_or_worker_global_scope.h"
 #include "cobalt/worker/worker.h"
 #include "cobalt/worker/worker_options.h"
+#include "cobalt/worker/worker_settings.h"
 #include "url/gurl.h"
 
 namespace cobalt {
 namespace worker {
 
+namespace {
+const dom::MediaSettings& GetMediaSettings(web::EnvironmentSettings* settings) {
+  DCHECK(settings);
+  DCHECK(settings->context());
+  DCHECK(settings->context()->web_settings());
+  const auto& web_settings = settings->context()->web_settings();
+  return web_settings->media_settings();
+}
+// If this function returns true, MediaSource::GetSeekable() will short-circuit
+// getting the buffered range from HTMLMediaElement by directly calling to
+// MediaSource::GetBufferedRange(). This reduces potential cross-object,
+// cross-thread calls between MediaSource and HTMLMediaElement.
+// The default value is false.
+bool IsMediaElementUsingMediaSourceBufferedRangeEnabled(
+    web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings)
+      .IsMediaElementUsingMediaSourceBufferedRangeEnabled()
+      .value_or(false);
+}
+
+// If this function returns true, communication between HTMLMediaElement and
+// MediaSource objects will be fully proxied between MediaSourceAttachment.
+// The default value is false.
+bool IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(
+    web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings)
+      .IsMediaElementUsingMediaSourceAttachmentMethodsEnabled()
+      .value_or(false);
+}
+
+// If this function returns true, experimental support for creating MediaSource
+// objects in Dedicated Workers will be enabled. This also allows MSE handles
+// to be transferred from Dedicated Workers back to the main thread.
+// Requires MediaElement.EnableUsingMediaSourceBufferedRange and
+// MediaElement.EnableUsingMediaSourceAttachmentMethods as prerequisites for
+// this feature.
+// The default value is false.
+bool IsMseInWorkersEnabled(web::EnvironmentSettings* settings) {
+  return GetMediaSettings(settings).IsMseInWorkersEnabled().value_or(false);
+}
+}  // namespace
+
 DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
                                  const std::string& scriptURL,
                                  script::ExceptionState* exception_state)
     : web::EventTarget(settings), script_url_(scriptURL) {
-  Initialize(exception_state);
+  Initialize(settings, exception_state);
 }
 
 DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
@@ -42,10 +89,11 @@ DedicatedWorker::DedicatedWorker(script::EnvironmentSettings* settings,
     : web::EventTarget(settings),
       script_url_(scriptURL),
       worker_options_(worker_options) {
-  Initialize(exception_state);
+  Initialize(settings, exception_state);
 }
 
-void DedicatedWorker::Initialize(script::ExceptionState* exception_state) {
+void DedicatedWorker::Initialize(script::EnvironmentSettings* settings,
+                                 script::ExceptionState* exception_state) {
   // Algorithm for the Worker constructor.
   //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker
 
@@ -108,6 +156,23 @@ void DedicatedWorker::Initialize(script::ExceptionState* exception_state) {
     options.construction_location.file_path =
         environment_settings()->creation_url().spec();
   }
+
+  web::EnvironmentSettings* web_settings =
+      base::polymorphic_downcast<web::EnvironmentSettings*>(settings);
+  DCHECK(web_settings);
+  if (IsMseInWorkersEnabled(web_settings) &&
+      IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(web_settings) &&
+      IsMediaElementUsingMediaSourceBufferedRangeEnabled(web_settings)) {
+    // DedicatedWorker constructor is only callable from the main Window.
+    dom::DOMSettings* dom_settings =
+        base::polymorphic_downcast<dom::DOMSettings*>(settings);
+    DCHECK(dom_settings);
+    DCHECK(dom_settings->can_play_type_handler());
+    DCHECK(dom_settings->media_source_registry());
+    options.can_play_type_handler = dom_settings->can_play_type_handler();
+    options.media_source_registry = dom_settings->media_source_registry();
+  }
+
   worker_.reset(new Worker(WorkerConsts::kDedicatedWorkerName, options));
   // 10. Return worker.
 }

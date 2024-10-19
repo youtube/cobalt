@@ -122,20 +122,6 @@ void MediaMetricsProvider::EndTrackingAction(MediaAction action) {
   tracked_actions_start_times_.erase(action);
 }
 
-void MediaMetricsProvider::EndTrackingAction(MediaAction action,
-                                             int number_of_samples) {
-  DCHECK(IsActionCurrentlyTracked(action));
-  base::AutoLock scoped_lock(mutex_);
-
-  auto duration = clock_->NowTicks() - tracked_actions_start_times_[action];
-  if (number_of_samples > 0) {
-    // Report latency UMA if it writes non-zero samples.
-    auto duration_per_sample = duration / number_of_samples;
-    ReportActionLatencyUMA(action, duration_per_sample);
-  }
-  tracked_actions_start_times_.erase(action);
-}
-
 bool MediaMetricsProvider::IsActionCurrentlyTracked(MediaAction action) {
   base::AutoLock scoped_lock(mutex_);
   return tracked_actions_start_times_.find(action) !=
@@ -165,84 +151,6 @@ void MediaMetricsProvider::ReportActionLatencyUMA(
       UMA_HISTOGRAM_TIMES("Cobalt.Media.SbPlayer.Destroy.LatencyTiming",
                           action_duration);
       break;
-    case MediaAction::SBPLAYER_GET_PREFERRED_OUTPUT_MODE:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbPlayer.GetPreferredOutputMode.LatencyTiming",
-          action_duration, base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(5), 50);
-      break;
-    case MediaAction::SBPLAYER_SEEK:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbPlayer.Seek.LatencyTiming", action_duration,
-          base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(5), 50);
-      break;
-    case MediaAction::SBPLAYER_WRITE_END_OF_STREAM_AUDIO:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbPlayer.WriteEndOfStream.Audio.LatencyTiming",
-          action_duration, base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(25), 50);
-      break;
-    case MediaAction::SBPLAYER_WRITE_END_OF_STREAM_VIDEO:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbPlayer.WriteEndOfStream.Video.LatencyTiming",
-          action_duration, base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(25), 50);
-      break;
-    case MediaAction::SBPLAYER_SET_BOUNDS:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbPlayer.SetBounds.LatencyTiming", action_duration,
-          base::TimeDelta::FromMicroseconds(50),
-          base::TimeDelta::FromMilliseconds(60), 50);
-      break;
-    case MediaAction::SBPLAYER_SET_PLAYBACK_RATE:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbPlayer.SetPlaybackRate.LatencyTiming",
-          action_duration, base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(50), 50);
-      break;
-    case MediaAction::SBPLAYER_SET_VOLUME:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbPlayer.SetVolume.LatencyTiming", action_duration,
-          base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(50), 50);
-      break;
-    case MediaAction::SBPLAYER_GET_INFO:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbPlayer.GetInfo.LatencyTiming", action_duration,
-          base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(20), 50);
-      break;
-    case MediaAction::SBPLAYER_GET_CURRENT_FRAME:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbPlayer.GetCurrentFrame.LatencyTiming",
-          action_duration, base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(250), 50);
-      break;
-    case MediaAction::SBPLAYER_GET_AUDIO_CONFIG:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbPlayer.GetAudioConfig.LatencyTiming", action_duration,
-          base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(50), 50);
-      break;
-    case MediaAction::SBPLAYER_WRITE_SAMPLES_AUDIO:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbPlayer.WriteSamples.Audio.LatencyTiming",
-          action_duration, base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(100), 50);
-      break;
-    case MediaAction::SBPLAYER_WRITE_SAMPLES_VIDEO:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbPlayer.WriteSamples.Video.LatencyTiming",
-          action_duration, base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(100), 50);
-      break;
-    case MediaAction::SBDRM_CREATE:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbDrm.Create.LatencyTiming", action_duration,
-          base::TimeDelta::FromMicroseconds(500),
-          base::TimeDelta::FromMilliseconds(250), 50);
-      break;
     case MediaAction::SBDRM_DESTROY:
       UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
           "Cobalt.Media.SbDrm.Destroy.LatencyTiming", action_duration,
@@ -263,49 +171,6 @@ void MediaMetricsProvider::ReportActionLatencyUMA(
           "Cobalt.Media.SbDrm.CloseSession.LatencyTiming", action_duration,
           base::TimeDelta::FromMicroseconds(500),
           base::TimeDelta::FromMilliseconds(50), 50);
-      break;
-    case MediaAction::SBMEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbMedia.BufferPoolAllocateOnDemand.LatencyTiming",
-          action_duration, base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(5), 50);
-      break;
-    case MediaAction::SBMEDIA_GET_INIT_BUFFER_CAPACITY:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbMedia.GetInitBufferCapacity.LatencyTiming",
-          action_duration, base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(5), 50);
-      break;
-    case MediaAction::SBMEDIA_GET_BUFFER_ALLOCATION_UNIT:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbMedia.GetBufferAllocationUnit.LatencyTiming",
-          action_duration, base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(5), 50);
-      break;
-    case MediaAction::SBMEDIA_GET_AUDIO_BUFFER_BUDGET:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbMedia.GetAudioBufferBudget.LatencyTiming",
-          action_duration, base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(20), 50);
-      break;
-    case MediaAction::SBMEDIA_GET_BUFFER_GARBAGE_COLLECTION_DURATION_THRESHOLD:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbMedia.GetBufferGarbageCollectionDurationThreshold."
-          "LatencyTiming",
-          action_duration, base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(20), 50);
-      break;
-    case MediaAction::SBMEDIA_GET_PROGRESSIVE_BUFFER_BUDGET:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbMedia.GetProgressiveBufferBudget.LatencyTiming",
-          action_duration, base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(20), 50);
-      break;
-    case MediaAction::SBMEDIA_GET_VIDEO_BUFFER_BUDGET:
-      UMA_HISTOGRAM_CUSTOM_MICROSECONDS_TIMES(
-          "Cobalt.Media.SbMedia.GetVideoBufferBudget.LatencyTiming",
-          action_duration, base::TimeDelta::FromMicroseconds(1),
-          base::TimeDelta::FromMilliseconds(20), 50);
       break;
     case MediaAction::UNKNOWN_ACTION:
     default:
