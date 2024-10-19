@@ -64,11 +64,14 @@ DefaultSbPlayerInterface::DefaultSbPlayerInterface() {
 }
 
 SbPlayer DefaultSbPlayerInterface::Create(
-    SbWindow window, const SbPlayerCreationParam* creation_param,
+    SbWindow window,
+    const SbPlayerCreationParam* creation_param,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
-    SbPlayerStatusFunc player_status_func, SbPlayerErrorFunc player_error_func,
-    void* context, SbDecodeTargetGraphicsContextProvider* context_provider) {
+    SbPlayerStatusFunc player_status_func,
+    SbPlayerErrorFunc player_error_func,
+    void* context,
+    SbDecodeTargetGraphicsContextProvider* context_provider) {
   media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_CREATE);
   auto player = SbPlayerCreate(window, creation_param, sample_deallocate_func,
                                decoder_status_func, player_status_func,
@@ -106,15 +109,18 @@ bool DefaultSbPlayerInterface::IsEnhancedAudioExtensionEnabled() const {
 }
 
 void DefaultSbPlayerInterface::WriteSamples(
-    SbPlayer player, SbMediaType sample_type,
-    const SbPlayerSampleInfo* sample_infos, int number_of_sample_infos) {
+    SbPlayer player,
+    SbMediaType sample_type,
+    const SbPlayerSampleInfo* sample_infos,
+    int number_of_sample_infos) {
   DCHECK(!IsEnhancedAudioExtensionEnabled());
   SbPlayerWriteSamples(player, sample_type, sample_infos,
                        number_of_sample_infos);
 }
 
 void DefaultSbPlayerInterface::WriteSamples(
-    SbPlayer player, SbMediaType sample_type,
+    SbPlayer player,
+    SbMediaType sample_type,
     const CobaltExtensionEnhancedAudioPlayerSampleInfo* sample_infos,
     int number_of_sample_infos) {
   DCHECK(IsEnhancedAudioExtensionEnabled());
@@ -123,7 +129,8 @@ void DefaultSbPlayerInterface::WriteSamples(
 }
 
 int DefaultSbPlayerInterface::GetMaximumNumberOfSamplesPerWrite(
-    SbPlayer player, SbMediaType sample_type) {
+    SbPlayer player,
+    SbMediaType sample_type) {
   return SbPlayerGetMaximumNumberOfSamplesPerWrite(player, sample_type);
 }
 
@@ -137,8 +144,12 @@ void DefaultSbPlayerInterface::WriteEndOfStream(SbPlayer player,
   media_metrics_provider_.EndTrackingAction(media_action);
 }
 
-void DefaultSbPlayerInterface::SetBounds(SbPlayer player, int z_index, int x,
-                                         int y, int width, int height) {
+void DefaultSbPlayerInterface::SetBounds(SbPlayer player,
+                                         int z_index,
+                                         int x,
+                                         int y,
+                                         int width,
+                                         int height) {
   media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_SET_BOUNDS);
   SbPlayerSetBounds(player, z_index, x, y, width, height);
   media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_SET_BOUNDS);
@@ -178,10 +189,13 @@ SbDecodeTarget DefaultSbPlayerInterface::GetCurrentFrame(SbPlayer player) {
 
 #if SB_HAS(PLAYER_WITH_URL)
 SbPlayer DefaultSbPlayerInterface::CreateUrlPlayer(
-    const char* url, SbWindow window, SbPlayerStatusFunc player_status_func,
+    const char* url,
+    SbWindow window,
+    SbPlayerStatusFunc player_status_func,
     SbPlayerEncryptedMediaInitDataEncounteredCB
         encrypted_media_init_data_encountered_cb,
-    SbPlayerErrorFunc player_error_func, void* context) {
+    SbPlayerErrorFunc player_error_func,
+    void* context) {
   media_metrics_provider_.StartTrackingAction(
       MediaAction::SBPLAYER_CREATE_URL_PLAYER);
   auto player = SbUrlPlayerCreate(url, window, player_status_func,
@@ -203,13 +217,15 @@ bool DefaultSbPlayerInterface::GetUrlPlayerOutputModeSupported(
 }
 
 void DefaultSbPlayerInterface::GetUrlPlayerExtraInfo(
-    SbPlayer player, SbUrlPlayerExtraInfo* out_url_player_info) {
+    SbPlayer player,
+    SbUrlPlayerExtraInfo* out_url_player_info) {
   SbUrlPlayerGetExtraInfo(player, out_url_player_info);
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
 bool DefaultSbPlayerInterface::GetAudioConfiguration(
-    SbPlayer player, int index,
+    SbPlayer player,
+    int index,
     SbMediaAudioConfiguration* out_audio_configuration) {
   media_metrics_provider_.StartTrackingAction(
       MediaAction::SBPLAYER_GET_AUDIO_CONFIG);
