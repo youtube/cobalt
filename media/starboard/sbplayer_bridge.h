@@ -71,7 +71,9 @@ class SbPlayerBridge {
   // Create an SbPlayerBridge with url-based player.
   SbPlayerBridge(SbPlayerInterface* interface,
                  const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-                 const std::string& url, SbWindow window, Host* host,
+                 const std::string& url,
+                 SbWindow window,
+                 Host* host,
                  SbPlayerSetBoundsHelper* set_bounds_helper,
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
@@ -88,14 +90,17 @@ class SbPlayerBridge {
                  const AudioDecoderConfig& audio_config,
                  const std::string& audio_mime_type,
                  const VideoDecoderConfig& video_config,
-                 const std::string& video_mime_type, SbWindow window,
-                 SbDrmSystem drm_system, Host* host,
+                 const std::string& video_mime_type,
+                 SbWindow window,
+                 SbDrmSystem drm_system,
+                 Host* host,
                  SbPlayerSetBoundsHelper* set_bounds_helper,
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
                  DecodeTargetProvider* const decode_target_provider,
                  const std::string& max_video_capabilities,
-                 int max_video_input_size, std::string pipeline_identifier);
+                 int max_video_input_size,
+                 std::string pipeline_identifier);
 
   ~SbPlayerBridge();
 
@@ -116,7 +121,8 @@ class SbPlayerBridge {
 
   void SetVolume(float volume);
   void SetPlaybackRate(double playback_rate);
-  void GetInfo(uint32* video_frames_decoded, uint32* video_frames_dropped,
+  void GetInfo(uint32* video_frames_decoded,
+               uint32* video_frames_dropped,
                base::TimeDelta* media_time);
   std::vector<SbMediaAudioConfiguration> GetAudioConfigurations();
 
@@ -165,10 +171,13 @@ class SbPlayerBridge {
 
     void ClearDecoderBufferCache();
 
-    void OnDecoderStatus(SbPlayer player, SbMediaType type,
-                         SbPlayerDecoderState state, int ticket);
+    void OnDecoderStatus(SbPlayer player,
+                         SbMediaType type,
+                         SbPlayerDecoderState state,
+                         int ticket);
     void OnPlayerStatus(SbPlayer player, SbPlayerState state, int ticket);
-    void OnPlayerError(SbPlayer player, SbPlayerError error,
+    void OnPlayerError(SbPlayer player,
+                       SbPlayerError error,
                        const std::string& message);
     void OnDeallocateSample(const void* sample_buffer);
 
@@ -193,8 +202,11 @@ class SbPlayerBridge {
       on_encrypted_media_init_data_encountered_cb_;
 
   static void EncryptedMediaInitDataEncounteredCB(
-      SbPlayer player, void* context, const char* init_data_type,
-      const unsigned char* init_data, unsigned int init_data_length);
+      SbPlayer player,
+      void* context,
+      const char* init_data_type,
+      const unsigned char* init_data,
+      unsigned int init_data_length);
 
   void CreateUrlPlayer(const std::string& url);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -217,20 +229,31 @@ class SbPlayerBridge {
 
   void ClearDecoderBufferCache();
 
-  void OnDecoderStatus(SbPlayer player, SbMediaType type,
-                       SbPlayerDecoderState state, int ticket);
+  void OnDecoderStatus(SbPlayer player,
+                       SbMediaType type,
+                       SbPlayerDecoderState state,
+                       int ticket);
   void OnPlayerStatus(SbPlayer player, SbPlayerState state, int ticket);
-  void OnPlayerError(SbPlayer player, SbPlayerError error,
+  void OnPlayerError(SbPlayer player,
+                     SbPlayerError error,
                      const std::string& message);
   void OnDeallocateSample(const void* sample_buffer);
 
-  static void DecoderStatusCB(SbPlayer player, void* context, SbMediaType type,
-                              SbPlayerDecoderState state, int ticket);
-  static void PlayerStatusCB(SbPlayer player, void* context,
-                             SbPlayerState state, int ticket);
-  static void PlayerErrorCB(SbPlayer player, void* context, SbPlayerError error,
+  static void DecoderStatusCB(SbPlayer player,
+                              void* context,
+                              SbMediaType type,
+                              SbPlayerDecoderState state,
+                              int ticket);
+  static void PlayerStatusCB(SbPlayer player,
+                             void* context,
+                             SbPlayerState state,
+                             int ticket);
+  static void PlayerErrorCB(SbPlayer player,
+                            void* context,
+                            SbPlayerError error,
                             const char* message);
-  static void DeallocateSampleCB(SbPlayer player, void* context,
+  static void DeallocateSampleCB(SbPlayer player,
+                                 void* context,
                                  const void* sample_buffer);
 
 #if SB_HAS(PLAYER_WITH_URL)

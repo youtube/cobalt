@@ -19,14 +19,14 @@
 #error "This file only works with Cobalt/Starboard."
 #endif  // !defined(STARBOARD)
 
-#include "starboard/drm.h"
-#include "starboard/media.h"
 #include "media/base/audio_codecs.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/video_codecs.h"
 #include "media/base/video_decoder_config.h"
+#include "starboard/drm.h"
+#include "starboard/media.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 #include "ui/gfx/hdr_metadata.h"
 

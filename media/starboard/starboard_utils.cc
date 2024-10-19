@@ -75,7 +75,7 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
     case AudioCodec::kPCM:
       return kSbMediaAudioCodecPcm;
     case AudioCodec::kIAMF:
-     return kSbMediaAudioCodecIamf;
+      return kSbMediaAudioCodecIamf;
     default:
       // Cobalt only supports a subset of audio codecs defined by Chromium.
       DLOG(ERROR) << "Unsupported audio codec " << GetCodecName(codec);
