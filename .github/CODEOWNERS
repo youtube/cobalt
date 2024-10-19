@@ -1,4 +1,5 @@
 * @youtube/cobalt-3p-repository-owners
 /.github/  # no owners
 /cobalt/  # no owners
+/media/starboard/  # no owners
 /starboard/  # no owners

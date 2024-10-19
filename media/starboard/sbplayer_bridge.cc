@@ -176,8 +176,11 @@ void SbPlayerBridge::CallbackHelper::ResetPlayer() {
 SbPlayerBridge::SbPlayerBridge(
     SbPlayerInterface* interface,
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-    const std::string& url, SbWindow window, Host* host,
-    SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
+    const std::string& url,
+    SbWindow window,
+    Host* host,
+    SbPlayerSetBoundsHelper* set_bounds_helper,
+    bool allow_resume_after_suspend,
     SbPlayerOutputMode default_output_mode,
     const OnEncryptedMediaInitDataEncounteredCB&
         on_encrypted_media_init_data_encountered_cb,
@@ -217,13 +220,19 @@ SbPlayerBridge::SbPlayerBridge(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
-    const AudioDecoderConfig& audio_config, const std::string& audio_mime_type,
-    const VideoDecoderConfig& video_config, const std::string& video_mime_type,
-    SbWindow window, SbDrmSystem drm_system, Host* host,
-    SbPlayerSetBoundsHelper* set_bounds_helper, bool allow_resume_after_suspend,
+    const AudioDecoderConfig& audio_config,
+    const std::string& audio_mime_type,
+    const VideoDecoderConfig& video_config,
+    const std::string& video_mime_type,
+    SbWindow window,
+    SbDrmSystem drm_system,
+    Host* host,
+    SbPlayerSetBoundsHelper* set_bounds_helper,
+    bool allow_resume_after_suspend,
     SbPlayerOutputMode default_output_mode,
     DecodeTargetProvider* const decode_target_provider,
-    const std::string& max_video_capabilities, int max_video_input_size,
+    const std::string& max_video_capabilities,
+    int max_video_input_size,
     std::string pipeline_identifier)
     : sbplayer_interface_(interface),
       task_runner_(task_runner),
@@ -486,7 +495,8 @@ SbPlayerBridge::GetAudioConfigurations() {
 
 #if SB_HAS(PLAYER_WITH_URL)
 void SbPlayerBridge::GetUrlPlayerBufferedTimeRanges(
-    TimeDelta* buffer_start_time, TimeDelta* buffer_length_time) {
+    TimeDelta* buffer_start_time,
+    TimeDelta* buffer_length_time) {
   DCHECK(buffer_start_time || buffer_length_time);
   DCHECK(is_url_based_);
 
@@ -659,8 +669,11 @@ DecodeTargetProvider::OutputMode ToVideoFrameProviderOutputMode(
 #if SB_HAS(PLAYER_WITH_URL)
 // static
 void SbPlayerBridge::EncryptedMediaInitDataEncounteredCB(
-    SbPlayer player, void* context, const char* init_data_type,
-    const unsigned char* init_data, unsigned int init_data_length) {
+    SbPlayer player,
+    void* context,
+    const char* init_data_type,
+    const unsigned char* init_data,
+    unsigned int init_data_length) {
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   DCHECK(!helper->on_encrypted_media_init_data_encountered_cb_.is_null());
   // TODO: Use callback_helper here.
@@ -1018,8 +1031,10 @@ void SbPlayerBridge::ClearDecoderBufferCache() {
       TimeDelta::FromMilliseconds(kClearDecoderCacheIntervalInMilliseconds));
 }
 
-void SbPlayerBridge::OnDecoderStatus(SbPlayer player, SbMediaType type,
-                                     SbPlayerDecoderState state, int ticket) {
+void SbPlayerBridge::OnDecoderStatus(SbPlayer player,
+                                     SbMediaType type,
+                                     SbPlayerDecoderState state,
+                                     int ticket) {
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!is_url_based_);
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -1064,7 +1079,8 @@ void SbPlayerBridge::OnDecoderStatus(SbPlayer player, SbMediaType type,
   host_->OnNeedData(stream_type, max_number_of_samples_to_write);
 }
 
-void SbPlayerBridge::OnPlayerStatus(SbPlayer player, SbPlayerState state,
+void SbPlayerBridge::OnPlayerStatus(SbPlayer player,
+                                    SbPlayerState state,
                                     int ticket) {
   TRACE_EVENT1("cobalt::media", "SbPlayerBridge::OnPlayerStatus", "state",
                state);
@@ -1105,7 +1121,8 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player, SbPlayerState state,
   host_->OnPlayerStatus(state);
 }
 
-void SbPlayerBridge::OnPlayerError(SbPlayer player, SbPlayerError error,
+void SbPlayerBridge::OnPlayerError(SbPlayer player,
+                                   SbPlayerError error,
                                    const std::string& message) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
@@ -1148,9 +1165,11 @@ bool SbPlayerBridge::TryToSetPlayerCreationErrorMessage(
 }
 
 // static
-void SbPlayerBridge::DecoderStatusCB(SbPlayer player, void* context,
+void SbPlayerBridge::DecoderStatusCB(SbPlayer player,
+                                     void* context,
                                      SbMediaType type,
-                                     SbPlayerDecoderState state, int ticket) {
+                                     SbPlayerDecoderState state,
+                                     int ticket) {
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   helper->task_runner_->PostTask(
       FROM_HERE,
@@ -1159,8 +1178,10 @@ void SbPlayerBridge::DecoderStatusCB(SbPlayer player, void* context,
 }
 
 // static
-void SbPlayerBridge::PlayerStatusCB(SbPlayer player, void* context,
-                                    SbPlayerState state, int ticket) {
+void SbPlayerBridge::PlayerStatusCB(SbPlayer player,
+                                    void* context,
+                                    SbPlayerState state,
+                                    int ticket) {
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   helper->task_runner_->PostTask(
       FROM_HERE, base::Bind(&SbPlayerBridge::CallbackHelper::OnPlayerStatus,
@@ -1168,8 +1189,10 @@ void SbPlayerBridge::PlayerStatusCB(SbPlayer player, void* context,
 }
 
 // static
-void SbPlayerBridge::PlayerErrorCB(SbPlayer player, void* context,
-                                   SbPlayerError error, const char* message) {
+void SbPlayerBridge::PlayerErrorCB(SbPlayer player,
+                                   void* context,
+                                   SbPlayerError error,
+                                   const char* message) {
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   if (player == kSbPlayerInvalid) {
     // TODO: Simplify by combining the functionality of
@@ -1185,7 +1208,8 @@ void SbPlayerBridge::PlayerErrorCB(SbPlayer player, void* context,
 }
 
 // static
-void SbPlayerBridge::DeallocateSampleCB(SbPlayer player, void* context,
+void SbPlayerBridge::DeallocateSampleCB(SbPlayer player,
+                                        void* context,
                                         const void* sample_buffer) {
   SbPlayerBridge* helper = static_cast<SbPlayerBridge*>(context);
   helper->task_runner_->PostTask(
