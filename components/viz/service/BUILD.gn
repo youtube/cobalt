@@ -255,6 +255,7 @@ viz_component("service") {
     "//services/viz/privileged/mojom",
     "//skia",
     "//skia:skcms",
+    "//starboard/build:starboard_buildflags",
     "//third_party/libyuv",
     "//ui/display/types",
     "//ui/gfx/animation/keyframe",
@@ -338,6 +339,13 @@ viz_component("service") {
       "display/overlay_strategy_single_on_top.h",
       "display/overlay_strategy_underlay.cc",
       "display/overlay_strategy_underlay.h",
+    ]
+  }
+
+  if (is_cobalt) {
+    sources += [
+      "display/starboard/overlay_strategy_underlay_starboard.cc",
+      "display/starboard/overlay_strategy_underlay_starboard.h",
     ]
   }
 
