@@ -104,6 +104,9 @@ component("media") {
       "//media/remoting:remoting_constants",
       "//third_party/blink/public/strings:strings_grit",
     ]
+    if (is_cobalt) {
+      deps += [ "//starboard/build:starboard_buildflags" ]
+    }
   }
 
   if (enable_hls_demuxer) {
