@@ -30,6 +30,8 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer.h"
 #include "media/base/renderer_client.h"
+#include "media/base/video_renderer_sink.h"
+#include "media/renderers/video_overlay_factory.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
@@ -40,8 +42,8 @@ namespace media {
 class MEDIA_EXPORT StarboardRenderer final : public Renderer,
                                              private SbPlayerBridge::Host {
  public:
-  explicit StarboardRenderer(
-      const scoped_refptr<base::SequencedTaskRunner>& task_runner);
+  StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+                    VideoRendererSink* video_renderer_sink);
 
   ~StarboardRenderer() final;
 
@@ -103,6 +105,8 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
 
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
 
+  const raw_ptr<VideoRendererSink> video_renderer_sink_;
+
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
   // TODO(b/375273774): Consider calling `void OnWaiting(WaitingReason reason)`
@@ -111,6 +115,10 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   //                    `void OnVideoFrameRateChange(absl::optional<int> fps)`
   //                    on `client_`?
   raw_ptr<RendererClient> client_ = nullptr;
+
+  // Overlay factory used to create overlays for video frames rendered
+  // by the remote renderer.
+  std::unique_ptr<VideoOverlayFactory> video_overlay_factory_;
 
   DefaultSbPlayerInterface sbplayer_interface_;
   // TODO(b/326652276): Support audio write duration.
