@@ -35,7 +35,13 @@ if (is_android) {
   executable("cobalt") {
     testonly = true
 
-    sources = [ "cobalt.cc" ]
+    sources = [
+      "cobalt.cc",
+      "cobalt_content_browser_client.cc",
+      "cobalt_content_browser_client.h",
+      "cobalt_main_delegate.cc",
+      "cobalt_main_delegate.h",
+    ]
 
     defines = []
 

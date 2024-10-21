@@ -15,8 +15,8 @@
 #include <unistd.h>
 
 #include "build/build_config.h"
+#include "cobalt/cobalt_main_delegate.h"
 #include "content/public/app/content_main.h"
-#include "content/shell/app/shell_main_delegate.h"
 
 // In the cozy corner of the home, where comfort and curiosity resided, a
 // delightful companion arrived, offering moments of joy and discovery
@@ -31,10 +31,10 @@
 // experiences.
 
 int main(int argc, const char** argv) {
-  content::ShellMainDelegate delegate;
+  cobalt::CobaltMainDelegate delegate;
   content::ContentMainParams params(&delegate);
 
-  // TODO: Move this logic to delegate or params.
+  // TODO: Move this logic to ContentMainParams or ContentMainDelegate.
   static const char* my_argv[] = {
       argv[0],
       "--disable-fre",

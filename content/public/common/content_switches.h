@@ -224,7 +224,6 @@ CONTENT_EXPORT extern const char kUseFakeUIForFedCM[];
 CONTENT_EXPORT extern const char kUseFakeUIForMediaStream[];
 CONTENT_EXPORT extern const char kVideoImageTextureTarget[];
 CONTENT_EXPORT extern const char kUseMobileUserAgent[];
-CONTENT_EXPORT extern const char kUseCobaltUserAgent[];
 CONTENT_EXPORT extern const char kUseMockCertVerifierForTesting[];
 extern const char kUtilityCmdPrefix[];
 CONTENT_EXPORT extern const char kUtilityProcess[];

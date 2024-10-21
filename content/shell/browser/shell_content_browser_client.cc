@@ -625,14 +625,6 @@ base::FilePath ShellContentBrowserClient::GetFirstPartySetsDirectory() {
 }
 
 std::string ShellContentBrowserClient::GetUserAgent() {
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kUseCobaltUserAgent)) {
-    return std::string(
-        "Mozilla/5.0 (X11; Linux x86_64) Cobalt/26.lts.0-qa (unlike Gecko) "
-        "v8/unknown gles Starboard/17, "
-        "SystemIntegratorName_DESKTOP_ChipsetModelNumber_2025/FirmwareVersion "
-        "(BrandName, ModelName)");
-  }
   return GetShellUserAgent();
 }
 
