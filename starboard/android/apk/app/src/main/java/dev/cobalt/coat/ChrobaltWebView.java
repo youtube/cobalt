@@ -10,8 +10,9 @@ import android.webkit.WebViewClient;
 
 import androidx.annotation.NonNull;
 
+import dev.cobalt.coat.android_webview.H5vccPlatformService;
 import dev.cobalt.util.Log;
-import dev.cobalt.coat.BuildConfig;
+import dev.cobalt.util.UserAgent;
 
 public class ChrobaltWebView extends WebView {
   public void evalJavaScript(String javascript) { // Make sure it's public
@@ -63,32 +64,6 @@ public class ChrobaltWebView extends WebView {
 
     }
 
-    private String createUserAgentString() {
-        // TODO: sanitize inputs
-        String brand = this.webAppInterface.getRestrictedSystemProperty("ro.product.brand","defaultBrand");
-        String model = this.webAppInterface.getRestrictedSystemProperty("ro.product.model","defaultModel");
-        String firmware = this.webAppInterface.getRestrictedSystemProperty("ro.build.id","defaultFirmware");
-        String chipset = this.webAppInterface.getRestrictedSystemProperty("ro.board.platform","defaultChipset");
-        String oemKey = this.webAppInterface.getRestrictedSystemProperty("ro.oem.key1","defaultModelYear");
-        String integrator = this.webAppInterface.getRestrictedSystemProperty("ro.product.manufacturer","defaultIntegrator");
-        String androidVersion = this.webAppInterface.getRestrictedSystemProperty("ro.build.version.release","defaultAndroidVersion");
-        String abi = this.webAppInterface.getRestrictedSystemProperty("ro.product.cpu.abi", "defaultABI");
-        String aux = this.bridge.getUserAgentAuxField();
-        String modelYear = "20" + oemKey.substring(9, 11);
-
-        // TODO: Resolve missing and hardcoded fields
-        String customUserAgent = String.format("Mozilla/5.0 (Linux %s; Android %s) %s (unlike Gecko)" +
-            " v8/8.8.278.8-jit gles Starboard/%s, %s_ATV_%s_%s/%s" +
-            " (%s, %s) %s",
-            abi, androidVersion,
-            "Cobalt/26.lts.99.42-gold","17",
-            integrator, chipset, modelYear, firmware,
-            brand, model, aux
-            );
-        Log.e(TAG, "Custom User-Agent: " + customUserAgent);
-        return customUserAgent;
-    }
-
     public ChrobaltWebView(@NonNull Context context, @NonNull StarboardBridge bridge) {
         super(context);
 
@@ -101,7 +76,7 @@ public class ChrobaltWebView extends WebView {
         // Enable JavaScript
         webSettings.setJavaScriptEnabled(true);
 
-        webSettings.setUserAgentString(createUserAgentString());
+        webSettings.setUserAgentString(new UserAgent(context).createUserAgentString());
 
         // Set mixed content mode to allow all content to be loaded, regardless of the security origin
         webSettings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
@@ -114,6 +89,10 @@ public class ChrobaltWebView extends WebView {
 
         // Disable transition icon
         webSettings.setMediaPlaybackRequiresUserGesture(false);
+
+        // Add all implementations of dev.cobalt.coat.android_webview.WebAppInterface
+        H5vccPlatformService h5vccPlatformService = new H5vccPlatformService(bridge);
+        addJavascriptInterface(h5vccPlatformService, h5vccPlatformService.getJavaScriptInterfaceName());
 
         addJavascriptInterface(this.webAppInterface, "Android");
 

@@ -62,7 +62,7 @@ var platform_services = {
     },
     has: (name) => {
         console.log('platformService.has(' + name + ')');
-        return Android.has_platform_service(name);
+        return Android_H5vccPlatformService.has_platform_service(name);
     },
     open: function(name, callback) {
         console.log('platformService.open(' + name + ',' +
@@ -80,7 +80,7 @@ var platform_services = {
             name: name,
             callback: callback
         };
-        Android.open_platform_service(serviceId, name);
+        Android_H5vccPlatformService.open_platform_service(serviceId, name);
         return {
             'name': name,
             'send': function (data) {
@@ -89,11 +89,11 @@ var platform_services = {
                 console.log('1 platformService.send(' + text + ')');
                 var convert_to_b64 = arrayBufferToBase64(data);
                 console.log('sending as b64:' + convert_to_b64);
-                Android.platform_service_send(name, convert_to_b64);
+                Android_H5vccPlatformService.platform_service_send(name, convert_to_b64);
             },
             close: () => {
                 console.log('1 platformService.close()');
-                Android.close_platform_service(name);
+                Android_H5vccPlatformService.close_platform_service(name);
             },
         }
     },
