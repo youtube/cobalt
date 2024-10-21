@@ -183,7 +183,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  boolean hasCobaltService(String serviceName) {
+  public boolean hasCobaltService(String serviceName) {
     boolean weHaveIt =cobaltServiceFactories.get(serviceName) != null;
     Log.e(TAG, "From bridge, hasCobaltService:" + serviceName + " got? : " + weHaveIt);
     return weHaveIt;
@@ -202,7 +202,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  CobaltService openCobaltService(long nativeService, String serviceName) {
+  public CobaltService openCobaltService(long nativeService, String serviceName) {
     if (cobaltServices.get(serviceName) != null) {
       // Attempting to re-open an already open service fails.
       Log.e(TAG, String.format("Cannot open already open service %s", serviceName));
@@ -226,13 +226,13 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  void closeCobaltService(String serviceName) {
+  public void closeCobaltService(String serviceName) {
     Log.i(TAG, String.format("Close service: %s", serviceName));
     cobaltServices.remove(serviceName);
   }
 
   // Differing impl
-  void sendToCobaltService(String serviceName, byte [] data) {
+  public void sendToCobaltService(String serviceName, byte [] data) {
     Log.i(TAG, String.format("Send to : %s data: %s", serviceName, Arrays.toString(data)));
     CobaltService service = cobaltServices.get(serviceName);
     if (service == null) {
