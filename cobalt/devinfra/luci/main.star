@@ -1,6 +1,6 @@
 #!/usr/bin/env lucicfg
 
-lucicfg.check_version("v1.43.14", "Please update depot_tools")
+lucicfg.check_version("1.43.14", "Please update depot_tools")
 
 lucicfg.config(
     config_dir = "generated",
