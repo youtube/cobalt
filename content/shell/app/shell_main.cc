@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "build/build_config.h"
+#include "base/logging.h"
 #include "content/public/app/content_main.h"
 #include "content/shell/app/shell_main_delegate.h"
 
@@ -19,6 +20,8 @@
 #include "content/public/common/content_switches.h"       // nogncheck
 #include "content/shell/app/ios/shell_application_ios.h"
 #endif
+
+#include <unistd.h>
 
 #if BUILDFLAG(IS_WIN)
 
@@ -72,6 +75,14 @@ int main(int argc, const char** argv) {
 #else
 
 int main(int argc, const char** argv) {
+  //fprintf(stderr, "main\n");
+  pid_t pid = getpid();
+  LOG(INFO) << "main pid=" << pid;
+  for (int i = 0; i < argc; i++) {
+    LOG(INFO) << "" << pid <<  " argv=" << argv[i];
+    //fprintf(stderr, "argv = %s\n", argv[i]);
+  }
+//  LOG(INFO) << "main";
   content::ShellMainDelegate delegate;
   content::ContentMainParams params(&delegate);
   params.argc = argc;

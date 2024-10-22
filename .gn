@@ -165,6 +165,7 @@ exec_script_whitelist =
 
       "//tools/grit/grit_rule.gni",
       "//tools/gritsettings/BUILD.gn",
+      "//chromecast/starboard/third_party/starboard/sabi/BUILD.gn",
     ]
 
 import("//cobalt/build/configs/cobalt.gni")

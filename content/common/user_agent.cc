@@ -34,7 +34,8 @@ namespace content {
 namespace {
 
 const char kFrozenUserAgentTemplate[] =
-    "Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s.0.0.0 "
+    //"Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s.0.0.0 "
+    "Mozilla/5.0 (%s) Cobalt/24.lts.1.234567-gold (unlike Gecko) v8/8.8.278.8-jit gles Starboard/16, %s"
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
     "%s"
 #endif

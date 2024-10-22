@@ -32,13 +32,17 @@ InProcessGpuThread::InProcessGpuThread(
     : base::Thread("Chrome_InProcGpuThread"),
       params_(params),
       gpu_process_(nullptr),
-      gpu_preferences_(gpu_preferences) {}
+      gpu_preferences_(gpu_preferences) {
+  LOG(INFO) << "Chrome_InProcGpuThread";
+}
+
 
 InProcessGpuThread::~InProcessGpuThread() {
   Stop();
 }
 
 void InProcessGpuThread::Init() {
+  LOG(INFO) << "InProcessGpuThread::Init";
   base::ThreadType io_thread_type = base::ThreadType::kDefault;
 
   // In single-process mode, we never enter the sandbox, so run the post-sandbox

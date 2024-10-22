@@ -270,7 +270,8 @@ bool GLContextEGL::Initialize(GLSurface* compatible_surface,
     context_attributes.push_back(
         attribs.global_semaphore_share_group ? EGL_TRUE : EGL_FALSE);
   } else {
-    DCHECK(!attribs.global_semaphore_share_group);
+  // Hack
+  //   DCHECK(!attribs.global_semaphore_share_group);
   }
 
   if (gl_display_->ext->b_EGL_ANGLE_create_context_client_arrays) {

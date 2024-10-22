@@ -481,6 +481,7 @@ void MainThreadEventQueue::PossiblyScheduleMainFrame() {
 }
 
 void MainThreadEventQueue::DispatchEvents() {
+  LOG(INFO) << "MainThreadEventQueue::DispatchEvents";
   size_t events_to_process;
   size_t queue_size;
 

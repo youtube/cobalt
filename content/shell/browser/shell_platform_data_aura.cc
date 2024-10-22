@@ -87,6 +87,7 @@ ShellPlatformDataAura::ShellPlatformDataAura(const gfx::Size& initial_size) {
   ui::PlatformWindowInitProperties properties;
   properties.bounds = gfx::Rect(initial_size);
 
+  LOG(INFO) << "aura::WindowTreeHost::Create";
   host_ = aura::WindowTreeHost::Create(std::move(properties));
   host_->InitHost();
   host_->window()->Show();

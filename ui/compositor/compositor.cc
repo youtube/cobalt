@@ -598,6 +598,7 @@ void Compositor::SetMaxVrrInterval(
 }
 
 void Compositor::SetAcceleratedWidget(gfx::AcceleratedWidget widget) {
+  LOG(INFO) << "Compositor::SetAcceleratedWidget";
   // This function should only get called once.
   DCHECK(!widget_valid_);
   widget_ = widget;
