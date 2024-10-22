@@ -204,6 +204,7 @@ void LoadMetalShaderCacheIfNecessary() {
 // Main function for starting the Gpu process.
 int GpuMain(MainFunctionParams parameters) {
   TRACE_EVENT0("gpu", "GpuMain");
+  LOG(INFO) << "GpuMain";
   base::CurrentProcess::GetInstance().SetProcessType(
       base::CurrentProcessType::PROCESS_GPU);
   base::trace_event::TraceLog::GetInstance()->SetProcessSortIndex(

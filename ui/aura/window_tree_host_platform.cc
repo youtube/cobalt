@@ -233,6 +233,7 @@ void WindowTreeHostPlatform::OnDamageRect(const gfx::Rect& damage_rect) {
 
 void WindowTreeHostPlatform::DispatchEvent(ui::Event* event) {
   TRACE_EVENT0("input", "WindowTreeHostPlatform::DispatchEvent");
+  LOG(INFO) << "WindowTreeHostPlatform::DispatchEven event=" << event->ToString();
   ui::EventDispatchDetails details = SendEventToSink(event);
   if (details.dispatcher_destroyed)
     event->SetHandled();

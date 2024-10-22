@@ -253,6 +253,7 @@ component("ozone") {
   public_deps = [
     ":buildflags",
     ":platform",
+    "//starboard($starboard_toolchain)"
   ]
 }
 
