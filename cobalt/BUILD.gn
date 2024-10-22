@@ -13,6 +13,8 @@
 # limitations under the License.
 
 group("gn_all") {
-  # TODO(b/371589344): Fix android build configs.
-  deps = [ "//starboard($starboard_toolchain)" ]
+  if (is_cobalt) {
+    # TODO(b/371589344): Fix android build configs.
+    deps = [ "//starboard($starboard_toolchain)" ]
+  }
 }

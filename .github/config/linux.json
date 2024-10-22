@@ -14,7 +14,7 @@
         "gin_unittests",
         "blink_unittests",
         "content_shell",
-        "starboard/libstarboard.so.17"
+        "cobalt:gn_all"
     ],
     "includes": [
       {
