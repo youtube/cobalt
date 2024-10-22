@@ -18,6 +18,7 @@ import("//cobalt/build/configs/variables.gni")
 
 declare_args() {
   use_starboard = target_os != "android"
+  use_starboard_media = is_cobalt
   use_evergreen = false
 }
 
@@ -30,6 +31,7 @@ buildflag_header("starboard_buildflags") {
 
   flags = [
     "USE_STARBOARD=$use_starboard",
+    "USE_STARBOARD_MEDIA=$use_starboard_media",
     "USE_EVERGREEN=$use_evergreen",
     "IS_COBALT=$is_cobalt",
     "IS_MODULAR_BUILD=$sb_is_modular",
