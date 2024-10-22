@@ -41,7 +41,7 @@ namespace starboard {
 
 // A small application framework for managing the application life-cycle, and
 // dispatching events to the Starboard event handler, SbEventHandle.
-class Application {
+class __attribute__((visibility("default"))) Application {
  public:
   typedef player::filter::VideoFrame VideoFrame;
 

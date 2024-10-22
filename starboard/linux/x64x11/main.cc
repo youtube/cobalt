@@ -20,11 +20,6 @@
 #include "starboard/shared/signal/crash_signals.h"
 #include "starboard/shared/signal/debug_signals.h"
 #include "starboard/shared/signal/suspend_signals.h"
-#if SB_IS(EVERGREEN_COMPATIBLE)
-#include "starboard/common/paths.h"
-#include "starboard/elf_loader/elf_loader_constants.h"
-#include "starboard/shared/starboard/command_line.h"
-#endif
 #include "starboard/shared/starboard/link_receiver.h"
 #include "starboard/shared/x11/application_x11.h"
 
@@ -35,26 +30,6 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   mallopt(M_ARENA_MAX, 2);
 
   tzset();
-  starboard::shared::signal::InstallCrashSignalHandlers();
-  starboard::shared::signal::InstallDebugSignalHandlers();
-  starboard::shared::signal::InstallSuspendSignalHandlers();
-
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  auto command_line = starboard::shared::starboard::CommandLine(argc, argv);
-  auto evergreen_content_path =
-      command_line.GetSwitchValue(starboard::elf_loader::kEvergreenContent);
-  std::string ca_certificates_path =
-      evergreen_content_path.empty()
-          ? starboard::common::GetCACertificatesPath()
-          : starboard::common::GetCACertificatesPath(evergreen_content_path);
-  if (ca_certificates_path.empty()) {
-    SB_LOG(ERROR) << "Failed to get CA certificates path";
-  }
-
-#if !SB_IS(MODULAR)
-  third_party::crashpad::wrapper::InstallCrashpadHandler(ca_certificates_path);
-#endif  // !SB_IS(MODULAR)
-#endif
 
 #if SB_HAS_QUIRK(BACKTRACE_DLOPEN_BUG)
   // Call backtrace() once to work around potential
@@ -64,8 +39,5 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
 
   int result = SbRunStarboardMain(argc, argv, SbEventHandle);
 
-  starboard::shared::signal::UninstallSuspendSignalHandlers();
-  starboard::shared::signal::UninstallDebugSignalHandlers();
-  starboard::shared::signal::UninstallCrashSignalHandlers();
   return result;
 }

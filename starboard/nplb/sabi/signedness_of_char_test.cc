@@ -18,9 +18,9 @@ namespace starboard {
 namespace sabi {
 namespace {
 
-SB_COMPILE_ASSERT((static_cast<char>(-1) < 0) ==
-                      SB_HAS_SIGNED_CHAR,  // NOLINT(readability/casting)
-                  SB_HAS_SIGNED_CHAR_is_inconsistent_with_sign_of_char);
+static_assert((static_cast<char>(-1) < 0) ==
+                  SB_HAS_SIGNED_CHAR,  // NOLINT(readability/casting)
+              "SB_HAS_SIGNED_CHAR_is_inconsistent_with_sign_of_char");
 
 }  // namespace
 }  // namespace sabi
