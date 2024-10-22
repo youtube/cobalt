@@ -1,5 +1,6 @@
 target_os = "linux"
 target_cpu = "x64"
+is_cobalt = false
 
 enable_nacl = false
 use_dawn = false
