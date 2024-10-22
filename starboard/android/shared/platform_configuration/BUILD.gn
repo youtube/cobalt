@@ -23,6 +23,7 @@ config("platform_configuration") {
     "log",
     "mediandk",
   ]
+  cflags = [ "-fsigned-char" ]
 }
 
 config("size") {

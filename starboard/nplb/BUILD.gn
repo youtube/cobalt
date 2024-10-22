@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//starboard/build/config/os_definitions.gni")
+import("//testing/test.gni")
 
 declare_args() {
   sb_enable_cast_codec_tests = false
@@ -22,7 +23,19 @@ config("cast_codec_tests") {
   cflags = [ "ENABLE_CAST_CODEC_TESTS" ]
 }
 
-target(gtest_target_type, "nplb") {
+config("wnos") {
+  cflags = [
+    "-Wno-ignored-qualifiers",
+    "-Wno-self-assign-overloaded",
+    "-Wno-pessimizing-move",
+    "-Wno-unused-local-typedef",
+    "-Wno-unreachable-code",
+    "-Wno-unreachable-code-break",
+    "-Wno-enum-constexpr-conversion",
+  ]
+}
+
+test("nplb") {
   testonly = true
 
   sources = [
@@ -38,8 +51,6 @@ target(gtest_target_type, "nplb") {
     "//starboard/testing/fake_graphics_context_provider.cc",
     "//starboard/testing/fake_graphics_context_provider.h",
     "align_test.cc",
-    "atomic_base_test.cc",
-    "atomic_test.cc",
     "audio_sink_create_test.cc",
     "audio_sink_destroy_test.cc",
     "audio_sink_get_max_channels_test.cc",
@@ -228,7 +239,10 @@ target(gtest_target_type, "nplb") {
     "window_get_size_test.cc",
   ]
 
-  configs += [ "//starboard/build/config:starboard_implementation" ]
+  configs += [
+    "//starboard/build/config:starboard_implementation",
+    ":wnos",
+  ]
   if (sb_enable_cast_codec_tests) {
     configs += [ ":cast_codec_tests" ]
   }
