@@ -269,7 +269,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/stub/thread_create_priority.cc",
     "//starboard/shared/stub/window_get_diagonal_size_in_inches.cc",
   ]
-  if (enable_evergreen_code) {
+  if (enable_evergreen_code || true) {
     sources += [ "//starboard/shared/starboard/log_raw_dump_stack.cc" ]
   }
 

@@ -73,7 +73,7 @@ SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
 //        it indicates that the fps shouldn't be considered.
 // |decode_to_texture_required|: Whether or not the resulting video frames can
 //                               be decoded and used as textures by the GPU.
-bool SbMediaIsVideoSupported(
+SB_EXPORT bool SbMediaIsVideoSupported(
     SbMediaVideoCodec video_codec,
     const starboard::shared::starboard::media::MimeType* mime_type,
     int profile,
@@ -96,7 +96,7 @@ bool SbMediaIsVideoSupported(
 // |mime_type|: The parsed mime type passed to the corresponding interface.
 //              Note that |mime_type| can be NULL.
 // |bitrate|: The media's bitrate.
-bool SbMediaIsAudioSupported(
+SB_EXPORT bool SbMediaIsAudioSupported(
     SbMediaAudioCodec audio_codec,
     const starboard::shared::starboard::media::MimeType* mime_type,
     int64_t bitrate);

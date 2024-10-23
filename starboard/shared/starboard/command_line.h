@@ -24,7 +24,7 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 
-class CommandLine {
+class __attribute__((visibility("default"))) CommandLine {
  public:
   typedef std::string StringType;
 
