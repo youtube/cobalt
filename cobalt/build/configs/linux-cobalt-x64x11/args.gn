@@ -7,6 +7,10 @@ enable_nacl = false
 use_dawn = false
 skia_use_dawn = false
 
+# Disable v8 snapshot tool
+# See b/375241133 for error generated.
+use_v8_context_snapshot = false
+
 # enable_vulkan=false
 
 use_ozone = true

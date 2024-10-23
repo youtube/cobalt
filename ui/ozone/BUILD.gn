@@ -255,7 +255,7 @@ component("ozone") {
     ":platform",
   ]
 
-  ldflags = [ "libstarboard.so.16"]
+  deps = ["//starboard($starboard_toolchain)"]
 }
 
 source_set("test_support_internal") {

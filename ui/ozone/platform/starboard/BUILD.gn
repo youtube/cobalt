@@ -48,7 +48,6 @@ source_set("starboard") {
     "//build/starboard_sdk/include",
   ]
 
-  ldflags = [ "libstarboard.so.16"]
 
   deps = [
     "//base",
@@ -63,6 +62,7 @@ source_set("starboard") {
     "//ui/ozone/common",
     "//ui/platform_window",
     "//ui/platform_window/stub",
+    "//starboard($starboard_toolchain)",    
   ]
 }
 
