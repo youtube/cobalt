@@ -139,6 +139,7 @@ KeyboardEvent::KeyboardEvent(const WebKeyboardEvent& key,
   if (key.native_key_code == 0xE5)  // VKEY_PROCESSKEY
     key_code_ = 0xE5;
 #endif
+  LOG(INFO) << "KeyboardEvent::KeyboardEvent key_code_=" << key_code_;
 }
 
 KeyboardEvent::KeyboardEvent(const AtomicString& event_type,

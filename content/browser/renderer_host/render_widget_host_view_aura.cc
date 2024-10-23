@@ -171,6 +171,7 @@ class RenderWidgetHostViewAura::EventObserverForPopupExit
 
   // ui::EventObserver:
   void OnEvent(const ui::Event& event) override {
+    LOG(INFO) << "RenderWidgetHostViewAura::OnEvent";
     rwhva_->ApplyEventObserverForPopupExit(*event.AsLocatedEvent());
   }
 

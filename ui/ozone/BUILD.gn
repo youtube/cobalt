@@ -254,6 +254,8 @@ component("ozone") {
     ":buildflags",
     ":platform",
   ]
+
+  ldflags = [ "libstarboard.so.16"]
 }
 
 source_set("test_support_internal") {

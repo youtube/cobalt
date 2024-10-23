@@ -8,6 +8,7 @@
 #include <ostream>
 
 #include "base/observer_list.h"
+#include "base/logging.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 #include "ui/events/platform/platform_event_dispatcher.h"
 #include "ui/events/platform/platform_event_observer.h"
@@ -29,13 +30,16 @@ bool PlatformEventSource::ignore_native_platform_events_ = false;
 PlatformEventSource::PlatformEventSource()
     : resetter_(&event_source, this, nullptr),
       overridden_dispatcher_(nullptr),
-      overridden_dispatcher_restored_(false) {}
+      overridden_dispatcher_restored_(false) {
+  LOG(INFO) << "PlatformEventSource::PlatformEventSource event_source="  << event_source;
+}
 
 PlatformEventSource::~PlatformEventSource() {
   CHECK_EQ(this, event_source);
 }
 
 PlatformEventSource* PlatformEventSource::GetInstance() {
+  LOG(INFO) << "PlatformEventSource::GetInstance event_source=" << event_source;
   return event_source;
 }
 
