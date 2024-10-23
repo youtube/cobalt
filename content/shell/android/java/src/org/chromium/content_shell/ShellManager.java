@@ -16,6 +16,7 @@ import org.chromium.base.annotations.NativeMethods;
 import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
+import android.util.Log;
 
 /**
  * Container and generator of ShellViews.
@@ -118,6 +119,8 @@ public class ShellManager extends FrameLayout {
             mContentViewRenderView.setCurrentWebContents(webContents);
             webContents.onShow();
         }
+
+        Log.i("Colin", "ShellManager.showShell, webContents is nul?" + (webContents == null));
     }
 
     @CalledByNative

@@ -21,8 +21,13 @@ import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_shell.Shell;
 import org.chromium.content_shell.ShellManager;
+import org.chromium.content_shell_apk.chrobalt.ChrobaltJavaScriptAndroidObject;
+import org.chromium.content_shell_apk.chrobalt.ChrobaltJavaScriptInterface;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
+
+import org.chromium.content_public.browser.JavascriptInjector; 
+
 
 /**
  * Activity for managing the Content Shell.
@@ -42,6 +47,8 @@ public class ContentShellActivity extends Activity {
     private Intent mLastSentIntent;
     private String mStartupUrl;
     private IntentRequestTracker mIntentRequestTracker;
+
+    private ChrobaltJavaScriptAndroidObject chrobaltJavaScriptAndroidObject = new ChrobaltJavaScriptAndroidObject();
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -143,6 +150,26 @@ public class ContentShellActivity extends Activity {
             }
         }
 
+        Log.w("Colin", "OnKeyUp: keyCode:" + keyCode);
+        try {
+            WebContents mWebContents = getActiveWebContents();
+            if (mWebContents != null) {
+                JavascriptInjector javascriptInjector = JavascriptInjector.fromWebContents(mWebContents, true);
+                if (javascriptInjector != null) {
+                    javascriptInjector.addPossiblyUnsafeInterface(new ChrobaltJavaScriptAndroidObject(), "ChrobaltAndroid", ChrobaltJavaScriptInterface.class);
+                    Log.w("Colin", "ContentShellActivity injected Javascript object ChrobaltAndroid");
+
+                    mWebContents.evaluateJavaScript("console.log('Colin test evaluateJavaScript');", null);
+                    mWebContents.evaluateJavaScript("console.log('Native call:' + ChrobaltAndroid.testJavaScriptMethod());", null);
+                    Log.w("Colin", "evaluateJavaScript done");
+                } else {
+                    Log.w("Colin", "failed to get javascriptInjector");
+                }
+            }
+        } catch (Exception e) {
+            Log.w("Colin", "error:", e);
+        }
+
         return super.onKeyUp(keyCode, event);
     }
 
@@ -166,6 +193,9 @@ public class ContentShellActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
+
+        Log.w("Colin", "ContentShellActivity on start");
+        
 
         WebContents webContents = getActiveWebContents();
         if (webContents != null) webContents.onShow();
