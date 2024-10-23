@@ -25,14 +25,13 @@ namespace cobalt {
 #define COBALT_VERSION "26.lts.0-qa"
 
 std::string GetCobaltUserAgent() {
+  // TODO: (cobalt b/375243230) Implement platform property fetching and
+  // sanitization.
   return std::string(
       "Mozilla/5.0 (X11; Linux x86_64) Cobalt/26.lts.0-qa (unlike Gecko) "
       "v8/unknown gles Starboard/17, "
       "SystemIntegratorName_DESKTOP_ChipsetModelNumber_2025/FirmwareVersion "
       "(BrandName, ModelName)");
-
-  // std::string product = COBALT_BRAND_NAME "/" COBALT_VERSION;
-  // return BuildUserAgentFromProduct(product);
 }
 
 blink::UserAgentMetadata GetCobaltUserAgentMetadata() {

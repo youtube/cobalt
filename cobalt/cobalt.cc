@@ -34,21 +34,24 @@ int main(int argc, const char** argv) {
   cobalt::CobaltMainDelegate delegate;
   content::ContentMainParams params(&delegate);
 
-  // TODO: Move this logic to ContentMainParams or ContentMainDelegate.
+  // TODO: (cobalt b/375241103) Reimplement this in a clean way.
+  // This defines a list of command-line overrides. When adding or removing
+  // parameters, also update the my_argc below.
   static const char* my_argv[] = {
-      argv[0],
-      "--disable-fre",
-      "--no-first-run",
-      "--kiosk",
+      argv[0], "--disable-fre", "--no-first-run", "--kiosk",
       "--force-video-overlays",
+      // Enable remote devtools access.
       "--remote-debugging-port=9222",
       "--remote-allow-origins=http://localhost:9222",
-      "--use-cobalt-user-agent",
-      "https://www.youtube.com/tv",
-      nullptr,
-      nullptr};
+      // This flag is added specifically for m114 and should be removed after
+      // rebasing to m120+
+      "--user-level-memory-pressure-signal-params",
+      "https://www.youtube.com/tv", nullptr, nullptr};
   int my_argc = 9;
 
+  // TODO: (cobalt b/375241103) Reimplement this in a clean way.
+  // This expression exists to ensure that we apply the argument overrides
+  // only on the main process, not on spawned processes such as the zygote.
   if ((!strcmp(argv[0], "/proc/self/exe")) ||
       ((argc >= 2) && !strcmp(argv[1], "--type=zygote"))) {
     params.argc = argc;

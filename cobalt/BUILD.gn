@@ -16,22 +16,13 @@ group("gn_all") {
   testonly = true
 
   # TODO(b/371589344): Fix android build configs.
-  deps = [
-    ":cobalt",
-    "//starboard($starboard_toolchain)",
-  ]
-}
-
-if (is_android) {
-  import("//build/config/android/config.gni")
-}
-
-if (is_android) {
-  group("cobalt") {
-    testonly = true
-    deps = [ "//content/shell/android:content_shell_apk" ]
+  deps = [ "//starboard($starboard_toolchain)" ]
+  if (!is_android) {
+    deps += [ ":cobalt" ]
   }
-} else {
+}
+
+if (!is_android) {
   executable("cobalt") {
     testonly = true
 
