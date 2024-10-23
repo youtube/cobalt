@@ -22,6 +22,7 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
+import android.util.Log;
 
 import org.chromium.base.Callback;
 import org.chromium.base.annotations.CalledByNative;
@@ -30,6 +31,7 @@ import org.chromium.base.annotations.NativeMethods;
 import org.chromium.components.embedder_support.view.ContentView;
 import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.ActionModeCallbackHelper;
+import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.content_public.browser.NavigationController;
 import org.chromium.content_public.browser.SelectionPopupController;
@@ -205,6 +207,8 @@ public class Shell extends LinearLayout {
     public void loadUrl(String url) {
         if (url == null) return;
 
+        Log.i("Colin", "Shell loadUrl:" + url);
+
         if (TextUtils.equals(url, mWebContents.getLastCommittedUrl().getSpec())) {
             mNavigationController.reload(true);
         } else {
@@ -214,6 +218,8 @@ public class Shell extends LinearLayout {
         // TODO(aurimas): Remove this when crbug.com/174541 is fixed.
         getContentView().clearFocus();
         getContentView().requestFocus();
+
+        Log.i("Colin", "After loadUrl mWebContents is null?" + (mWebContents == null));
     }
 
     /**
@@ -401,6 +407,7 @@ public class Shell extends LinearLayout {
      * @return The {@link WebContents} currently managing the content shown by this Shell.
      */
     public WebContents getWebContents() {
+        Log.i("Colin", "Shell.getWebContents is null?" + (mWebContents == null));
         return mWebContents;
     }
 

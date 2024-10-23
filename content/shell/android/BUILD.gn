@@ -155,6 +155,8 @@ android_library("content_shell_apk_java") {
     "shell_apk/src/org/chromium/content_shell_apk/ChildProcessLauncherTestUtils.java",
     "shell_apk/src/org/chromium/content_shell_apk/ContentShellActivity.java",
     "shell_apk/src/org/chromium/content_shell_apk/ContentShellApplication.java",
+    "shell_apk/src/org/chromium/content_shell_apk/chrobalt/ChrobaltJavaScriptInterface.java",
+    "shell_apk/src/org/chromium/content_shell_apk/chrobalt/ChrobaltJavaScriptAndroidObject.java",
     "shell_apk/src/org/chromium/content_shell_apk/TestChildProcessService.java",
     "shell_apk/src/org/chromium/content_shell_apk/TestChildProcessService0.java",
     "shell_apk/src/org/chromium/content_shell_apk/TestChildProcessService1.java",
