@@ -71,6 +71,7 @@ if (is_android) {
 
     # The default to use for android:minSdkVersion for targets that do
     # not explicitly set it.
+<<<<<<< HEAD
     default_min_sdk_version = 26
 <<<<<<< HEAD
     if (is_asan) {
@@ -78,6 +79,13 @@ if (is_android) {
     }
 =======
 >>>>>>> 6287f24a72b (Add starboard build to android (#4259))
+=======
+    if (is_cobalt) {
+      default_min_sdk_version = 26
+    } else {
+      default_min_sdk_version = 24
+    }
+>>>>>>> e64c268670b (Fix chromium android builds (#4303))
 
     # Static analysis can be either "on" or "off" or "build_server". This
     # controls how android lint, error-prone, bytecode checks are run. This
@@ -134,9 +142,19 @@ if (is_android) {
     default_android_ndk_version = "r27"
 =======
     default_android_ndk_root = "//third_party/android_ndk"
+<<<<<<< HEAD
     default_android_ndk_version = "r26"
     default_android_ndk_major_version = 26
 >>>>>>> 6287f24a72b (Add starboard build to android (#4259))
+=======
+    if (is_cobalt) {
+      default_android_ndk_version = "r26"
+      default_android_ndk_major_version = 26
+    } else {
+      default_android_ndk_version = "r23"
+      default_android_ndk_major_version = 23
+    }
+>>>>>>> e64c268670b (Fix chromium android builds (#4303))
   } else {
     assert(defined(default_android_ndk_version))
   }
