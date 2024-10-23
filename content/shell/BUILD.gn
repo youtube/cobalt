@@ -627,6 +627,7 @@ if (is_android) {
     defines = []
 
     deps = [
+      "//starboard($starboard_toolchain)",
       ":content_shell_app",
       ":pak",
       "//build/win:default_exe_manifest",

@@ -5,6 +5,7 @@
 #include "build/build_config.h"
 #include "content/public/app/content_main.h"
 #include "content/shell/app/shell_main_delegate.h"
+#include "starboard/system.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/dark_mode_support.h"
@@ -72,6 +73,7 @@ int main(int argc, const char** argv) {
 #else
 
 int main(int argc, const char** argv) {
+  SbSystemGetTotalGPUMemory();
   content::ShellMainDelegate delegate;
   content::ContentMainParams params(&delegate);
   params.argc = argc;
