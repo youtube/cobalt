@@ -93,7 +93,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   bool stream_ended_ = false;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  std::unique_ptr<starboard::player::JobThread> decoder_thread_;
+  starboard::player::ScopedJobThreadPtr decoder_thread_;
 
   // Decode-to-texture related state.
   const SbPlayerOutputMode output_mode_;
