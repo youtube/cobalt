@@ -13,8 +13,7 @@
         "gpu_unittests",
         "gin_unittests",
         "blink_unittests",
-        "content_shell",
-        "starboard/libstarboard.so.17"
+        "content_shell"
     ],
     "includes": [
       {
