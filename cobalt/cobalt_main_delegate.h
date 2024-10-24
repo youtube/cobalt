@@ -28,6 +28,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   CobaltMainDelegate& operator=(const CobaltMainDelegate&) = delete;
 
   // ContentMainDelegate implementation:
+  absl::optional<int> BasicStartupComplete() override;
   content::ContentBrowserClient* CreateContentBrowserClient() override;
 
   ~CobaltMainDelegate() override;
