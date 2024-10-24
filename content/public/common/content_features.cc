@@ -661,11 +661,11 @@ BASE_FEATURE(kLegacyWindowsDWriteFontFallback,
 
 BASE_FEATURE(kLogJsConsoleMessages,
              "LogJsConsoleMessages",
-#if BUILDFLAG(IS_ANDROID)
-             base::FEATURE_DISABLED_BY_DEFAULT
-#else
+// #if BUILDFLAG(IS_ANDROID)
+//              base::FEATURE_DISABLED_BY_DEFAULT
+// #else
              base::FEATURE_ENABLED_BY_DEFAULT
-#endif
+// #endif
 );
 
 // Configures whether we set a lower limit for renderers that do not have a main

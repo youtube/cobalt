@@ -21,8 +21,13 @@ import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_shell.Shell;
 import org.chromium.content_shell.ShellManager;
+import org.chromium.content_shell_apk.chrobalt.ChrobaltJavaScriptAndroidObject;
+import org.chromium.content_shell_apk.chrobalt.ChrobaltJavaScriptInterface;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
+
+import org.chromium.content_public.browser.JavascriptInjector; 
+
 
 /**
  * Activity for managing the Content Shell.
@@ -143,6 +148,19 @@ public class ContentShellActivity extends Activity {
             }
         }
 
+        Log.w("Colin", "OnKeyUp: keyCode:" + keyCode);
+        try {
+            WebContents mWebContents = getActiveWebContents();
+            if (mWebContents != null) {
+                mWebContents.evaluateJavaScript("document.body.innerHTML = 'hello world'", null);
+                mWebContents.evaluateJavaScript("console.log('Colin test console.log method');')", null);
+                mWebContents.evaluateJavaScript("ChrobaltAndroid.testJavaScriptMethod();", null);
+                Log.w("Colin", "evaluateJavaScript done");
+            }
+        } catch (Exception e) {
+            Log.w("Colin", "error:", e);
+        }
+
         return super.onKeyUp(keyCode, event);
     }
 
@@ -166,6 +184,8 @@ public class ContentShellActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
+
+        Log.w("Colin", "ContentShellActivity on start");
 
         WebContents webContents = getActiveWebContents();
         if (webContents != null) webContents.onShow();

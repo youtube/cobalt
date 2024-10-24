@@ -2625,6 +2625,8 @@ void RenderFrameHostImpl::ExecuteJavaScript(const std::u16string& javascript,
   CHECK(CanExecuteJavaScript());
   AssertNonSpeculativeFrame();
 
+  LOG(INFO) << "Colin: RenderFrameHostImpl::ExecuteJavaScript";
+
   const bool wants_result = !callback.is_null();
   GetAssociatedLocalFrame()->JavaScriptExecuteRequest(javascript, wants_result,
                                                       std::move(callback));
@@ -10852,16 +10854,17 @@ void RenderFrameHostImpl::WillCreateURLLoaderFactory(
 }
 
 bool RenderFrameHostImpl::CanExecuteJavaScript() {
-  if (g_allow_injecting_javascript)
-    return true;
+  return true;
+  // if (g_allow_injecting_javascript)
+  //   return true;
 
-  return !GetLastCommittedURL().is_valid() ||
-         GetLastCommittedURL().SchemeIs(kChromeDevToolsScheme) ||
-         ChildProcessSecurityPolicyImpl::GetInstance()->HasWebUIBindings(
-             GetProcess()->GetID()) ||
-         // It's possible to load about:blank in a Web UI renderer.
-         // See http://crbug.com/42547
-         (GetLastCommittedURL().spec() == url::kAboutBlankURL);
+  // return !GetLastCommittedURL().is_valid() ||
+  //        GetLastCommittedURL().SchemeIs(kChromeDevToolsScheme) ||
+  //        ChildProcessSecurityPolicyImpl::GetInstance()->HasWebUIBindings(
+  //            GetProcess()->GetID()) ||
+  //        // It's possible to load about:blank in a Web UI renderer.
+  //        // See http://crbug.com/42547
+  //        (GetLastCommittedURL().spec() == url::kAboutBlankURL);
 }
 
 // static
