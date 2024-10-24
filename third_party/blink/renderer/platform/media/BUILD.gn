@@ -3,6 +3,9 @@
 # found in the LICENSE file.
 
 import("//media/media_options.gni")
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
 
 # TODO(https://crbug.com/1198341): use blink_platform_sources once the code is
 # ported to Blink code conventions.
@@ -104,15 +107,19 @@ component("media") {
       "//media/remoting:remoting_constants",
       "//third_party/blink/public/strings:strings_grit",
     ]
-    if (is_cobalt) {
-      deps += [ "//starboard/build:starboard_buildflags" ]
-    }
   }
 
   if (enable_hls_demuxer) {
     sources += [
       "hls_data_source_provider_impl.cc",
       "hls_data_source_provider_impl.h",
+    ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    deps += [
+      "//starboard($starboard_toolchain)",
+      "//starboard/build:starboard_buildflags",
     ]
   }
 }

@@ -18,6 +18,12 @@
 #include "third_party/blink/renderer/platform/wtf/assertions.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "starboard/build/starboard_buildflags.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace blink {
 
 namespace {
@@ -133,7 +139,13 @@ bool MIMETypeRegistry::IsSupportedMediaMIMEType(const String& mime_type,
 MIMETypeRegistry::SupportsType MIMETypeRegistry::SupportsMediaMIMEType(
     const String& mime_type,
     const String& codecs) {
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  const std::string ascii_mime_type = mime_type.Ascii();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else   // BUILDFLAG(IS_COBALT)
   const std::string ascii_mime_type = ToLowerASCIIOrEmpty(mime_type);
+#endif  // BUILDFLAG(IS_COBALT)
   std::vector<std::string> codec_vector;
   media::SplitCodecs(ToASCIIOrEmpty(codecs), &codec_vector);
   return static_cast<SupportsType>(
