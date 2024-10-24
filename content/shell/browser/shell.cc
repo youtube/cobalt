@@ -56,8 +56,9 @@ base::OnceClosure& GetMainMessageLoopQuitClosure() {
   return *closure;
 }
 
-constexpr int kDefaultTestWindowWidthDip = 800;
-constexpr int kDefaultTestWindowHeightDip = 600;
+//hack
+constexpr int kDefaultTestWindowWidthDip = 1280;
+constexpr int kDefaultTestWindowHeightDip = 720;
 
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
 // static constructor/destructor.
@@ -106,6 +107,7 @@ Shell::~Shell() {
 Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
                           const gfx::Size& initial_size,
                           bool should_set_delegate) {
+  LOG(INFO) << "Shell::CreateShell initial_size=" << initial_size.ToString();
   WebContents* raw_web_contents = web_contents.get();
   Shell* shell = new Shell(std::move(web_contents), should_set_delegate);
   g_platform->CreatePlatformWindow(shell, initial_size);
