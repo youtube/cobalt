@@ -254,6 +254,8 @@ component("ozone") {
     ":buildflags",
     ":platform",
   ]
+
+  deps = ["//starboard($starboard_toolchain)"]
 }
 
 source_set("test_support_internal") {
