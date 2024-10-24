@@ -39,6 +39,10 @@ source_set("starboard") {
   deps = [
     "//base",
     "//starboard($starboard_toolchain)",
+  ]
+
+  deps = [
+    "//base",
     "//ui/base/cursor",
     "//ui/base/ime",
     "//ui/events/ozone",
