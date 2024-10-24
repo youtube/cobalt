@@ -10,6 +10,8 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.KeyEvent;
+import android.view.View;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 
 import org.chromium.base.CommandLine;
@@ -110,7 +112,15 @@ public class ContentShellActivity extends Activity {
                 && savedInstanceState.containsKey(ACTIVE_SHELL_URL_KEY)) {
             shellUrl = savedInstanceState.getString(ACTIVE_SHELL_URL_KEY);
         }
+        // TODO(borongchen): move to cobalt_shell_apk
+        // Cobalt: Set to overlay video mode
+        mShellManager.getContentViewRenderView().setOverlayVideoMode(true);
         mShellManager.launchShell(shellUrl);
+
+        // TODO(borongchen): move to cobalt_shell_apk
+        // Cobalt: Set toolBar to GONE
+        LinearLayout toolBarLayout = (LinearLayout) findViewById(R.id.toolbar);
+        toolBarLayout.setVisibility(View.GONE);
     }
 
     private void initializationFailed() {
