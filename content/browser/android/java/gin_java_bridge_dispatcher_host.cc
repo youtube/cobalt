@@ -224,12 +224,15 @@ void GinJavaBridgeDispatcherHost::AddNamedObject(
     const std::string& name,
     const base::android::JavaRef<jobject>& object,
     const base::android::JavaRef<jclass>& safe_annotation_clazz) {
+  LOG(INFO) << "Colin: " << "GinJavaBridgeDispatcherHost::AddNamedObject start";
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   GinJavaBoundObject::ObjectID object_id;
   NamedObjectMap::iterator iter = named_objects_.find(name);
+  LOG(INFO) << "Colin: " << "GinJavaBridgeDispatcherHost::AddNamedObject 1";
   bool existing_object = FindObjectId(object, &object_id);
   if (existing_object && iter != named_objects_.end() &&
       iter->second == object_id) {
+    LOG(INFO) << "Colin: " << "GinJavaBridgeDispatcherHost::AddNamedObject 2";
     // Nothing to do.
     return;
   }
@@ -244,10 +247,12 @@ void GinJavaBridgeDispatcherHost::AddNamedObject(
   }
   named_objects_[name] = object_id;
 
+  LOG(INFO) << "Colin: " << "GinJavaBridgeDispatcherHost::AddNamedObject 3";
   // As GinJavaBridgeDispatcherHost can be created later than WebContents has
   // notified the observers about new RenderFrame, it is necessary to ensure
   // here that all render frame IDs are registered with the filter.
   InstallFilterAndRegisterAllRoutingIds();
+  LOG(INFO) << "Colin: " << "GinJavaBridgeDispatcherHost::AddNamedObject 4";
   // We should include pending RenderFrameHosts, otherwise they will miss the
   // chance when calling add or remove methods when they are created but not
   // committed. See: http://crbug.com/1087806
@@ -258,6 +263,7 @@ void GinJavaBridgeDispatcherHost::AddNamedObject(
             render_frame_host->Send(new GinJavaBridgeMsg_AddNamedObject(
                 render_frame_host->GetRoutingID(), name, object_id));
           });
+  LOG(INFO) << "Colin: " << "GinJavaBridgeDispatcherHost::AddNamedObject 5";
 }
 
 void GinJavaBridgeDispatcherHost::RemoveNamedObject(
