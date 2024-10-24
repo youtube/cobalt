@@ -83,6 +83,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           if (iamf_audio_decoder->is_valid()) {
             SB_LOG(INFO) << "Playing audio using IamfAudioDecoder.";
             return iamf_audio_decoder;
+          }
 #endif  // ENABLE_IAMF_DECODE
         } else {
           std::unique_ptr<FfmpegAudioDecoder> ffmpeg_audio_decoder(

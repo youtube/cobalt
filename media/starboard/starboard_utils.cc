@@ -62,7 +62,6 @@ int GetMaxChannelCount() {
   return std::min(channels, SbAudioSinkGetMaxChannels());
 }
 #endif  // ENABLE_IAMF_DECODE
-
 }  // namespace
 
 SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
