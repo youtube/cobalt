@@ -83,6 +83,7 @@ RootCompositorFrameSinkImpl::Create(
     bool run_all_compositor_stages_before_draw,
     const DebugRendererSettings* debug_settings,
     HintSessionFactory* hint_session_factory) {
+  LOG(INFO) << "RootCompositorFrameSinkImpl::Create";
   // First create an output surface.
   mojo::Remote<mojom::DisplayClient> display_client(
       std::move(params->display_client));

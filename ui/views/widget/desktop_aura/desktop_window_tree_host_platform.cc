@@ -255,6 +255,7 @@ aura::Window* DesktopWindowTreeHostPlatform::GetContentWindow() {
 }
 
 void DesktopWindowTreeHostPlatform::Init(const Widget::InitParams& params) {
+  LOG(INFO) << "DesktopWindowTreeHostPlatform::Init params.bounds=" << params.bounds.ToString();
   if (params.type == Widget::InitParams::TYPE_WINDOW)
     GetContentWindow()->SetProperty(aura::client::kAnimationsDisabledKey, true);
 
