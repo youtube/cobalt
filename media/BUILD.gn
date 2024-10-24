@@ -202,6 +202,10 @@ test("media_unittests") {
     "//media/webrtc:unit_tests",
   ]
 
+  if (is_cobalt) {
+    deps += ["//media/starboard:unit_tests"]
+  }
+
   data = [
     "test/data/",
     "formats/mp4/h264_annex_b_fuzz_corpus/",
