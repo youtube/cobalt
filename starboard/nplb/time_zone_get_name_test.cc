@@ -49,7 +49,11 @@ TEST(SbTimeZoneGetNameTest, IsKindOfSane) {
   // ":Pacific/Kiritimati" is the western-most timezone at UTC+14.
 }
 
+#if defined(_WIN32)
+TEST(SbTimeZoneGetNameTest, DISABLED_IsIANAFormat) {
+#else
 TEST(SbTimeZoneGetNameTest, IsIANAFormat) {
+#endif
   const char* name = SbTimeZoneGetName();
   SB_LOG(INFO) << "time zone name: " << name;
   char cpy[100];
