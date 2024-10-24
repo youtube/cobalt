@@ -13,6 +13,44 @@
 # limitations under the License.
 
 group("gn_all") {
+  testonly = true
+
   # TODO(b/371589344): Fix android build configs.
   deps = [ "//starboard($starboard_toolchain)" ]
+  if (!is_android) {
+    deps += [ ":cobalt" ]
+  }
+}
+
+if (!is_android) {
+  executable("cobalt") {
+    testonly = true
+
+    sources = [
+      "cobalt.cc",
+      "cobalt_content_browser_client.cc",
+      "cobalt_content_browser_client.h",
+      "cobalt_main_delegate.cc",
+      "cobalt_main_delegate.h",
+    ]
+
+    defines = []
+
+    deps = [
+      "//content/public/app",
+      "//content/shell:content_shell_app",
+      "//content/shell:content_shell_lib",
+      "//content/shell:pak",
+      "//sandbox",
+    ]
+
+    data_deps = [
+      "//content/shell:pak",
+      "//tools/v8_context_snapshot:v8_context_snapshot",
+    ]
+
+    data_deps += [ "//components/crash/core/app:chrome_crashpad_handler" ]
+
+    configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+  }
 }
