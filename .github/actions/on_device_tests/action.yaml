@@ -1,0 +1,9 @@
+name: On Host Tests
+description: Runs on-host tests.
+runs:
+  using: "composite"
+  steps:
+    - name: Run On-Device Tests
+      shell: bash
+      run: |
+        echo "Nothing yet"
