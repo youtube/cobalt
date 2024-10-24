@@ -336,6 +336,10 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSocketWaiterWait);
   REGISTER_SYMBOL(SbSocketWaiterWaitTimed);
   REGISTER_SYMBOL(SbSocketWaiterWakeUp);
+#if SB_API_VERSION >= 16
+  REGISTER_SYMBOL(SbPosixSocketWaiterAdd);
+  REGISTER_SYMBOL(SbPosixSocketWaiterRemove);
+#endif  // SB_API_VERSION >= 16
   REGISTER_SYMBOL(SbSpeechSynthesisCancel);
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
   REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
@@ -469,7 +473,11 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(freeifaddrs);
   REGISTER_SYMBOL(fsync);
   REGISTER_SYMBOL(ftruncate);
+  REGISTER_SYMBOL(getaddrinfo);
+  REGISTER_SYMBOL(getifaddrs);
+  REGISTER_SYMBOL(getpeername);
   REGISTER_SYMBOL(getsockname);
+  REGISTER_SYMBOL(getsockopt);
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(mkdir);
@@ -483,6 +491,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(recv);
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(recvfrom);
+  REGISTER_SYMBOL(recvmsg);
   REGISTER_SYMBOL(rmdir);
   REGISTER_SYMBOL(sched_yield);
   REGISTER_SYMBOL(sendto);

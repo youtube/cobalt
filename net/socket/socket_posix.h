@@ -19,13 +19,19 @@
 
 namespace net {
 
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
+
 class IOBuffer;
 struct SockaddrStorage;
 
 // Socket class to provide asynchronous read/write operations on top of the
 // posix socket api. It supports AF_INET, AF_INET6, and AF_UNIX addresses.
 class NET_EXPORT_PRIVATE SocketPosix
+#if defined(STARBOARD)
+    : public base::MessagePumpForIO::Watcher {
+#else
     : public base::MessagePumpForIO::FdWatcher {
+#endif
  public:
   SocketPosix();
 
@@ -124,16 +130,31 @@ class NET_EXPORT_PRIVATE SocketPosix
   int DoWrite(IOBuffer* buf, int buf_len);
   void WriteCompleted();
 
+#if defined(STARBOARD)
+  bool read_pending() const { return !read_if_ready_callback_.is_null(); }
+  bool write_pending() const {
+    return !write_callback_.is_null() && !waiting_connect_;
+  }
+  bool accept_pending() const { return !accept_callback_.is_null(); }
+
+  bool ClearWatcherIfOperationsNotPending();
+#endif
+
   // |close_socket| indicates whether the socket should also be closed.
   void StopWatchingAndCleanUp(bool close_socket);
 
   SocketDescriptor socket_fd_;
 
+#if !defined(STARBOARD)
   base::MessagePumpForIO::FdWatchController accept_socket_watcher_;
+#endif
+
   raw_ptr<std::unique_ptr<SocketPosix>> accept_socket_;
   CompletionOnceCallback accept_callback_;
 
+#if !defined(STARBOARD)
   base::MessagePumpForIO::FdWatchController read_socket_watcher_;
+#endif
 
   // Non-null when a Read() is in progress.
   scoped_refptr<IOBuffer> read_buf_;
@@ -143,7 +164,11 @@ class NET_EXPORT_PRIVATE SocketPosix
   // Non-null when a ReadIfReady() is in progress.
   CompletionOnceCallback read_if_ready_callback_;
 
+#if defined(STARBOARD)
+  base::MessagePumpForIO::SocketWatcher socket_watcher_;
+#else
   base::MessagePumpForIO::FdWatchController write_socket_watcher_;
+#endif
   scoped_refptr<IOBuffer> write_buf_;
   int write_buf_len_ = 0;
   // External callback; called when write or connect is complete.
@@ -157,6 +182,8 @@ class NET_EXPORT_PRIVATE SocketPosix
 
   base::ThreadChecker thread_checker_;
 };
+
+#endif  // SB_API_VERSION >= 16  && !defined(WIN32)
 
 }  // namespace net
 

@@ -16,6 +16,8 @@
 
 namespace net {
 
+#if SB_API_VERSION >= 16 && !defined(_MSC_VER)
+
 bool FillUnixAddress(const std::string& socket_path,
                      bool use_abstract_namespace,
                      SockaddrStorage* address) {
@@ -53,5 +55,7 @@ bool FillUnixAddress(const std::string& socket_path,
   return false;
 #endif
 }
+
+#endif  // SB_API_VERSION >= 16  && !defined(WIN32)
 
 }  // namespace net
