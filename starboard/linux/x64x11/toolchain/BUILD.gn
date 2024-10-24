@@ -24,6 +24,7 @@ overridable_clang_toolchain("starboard") {
     clang_use_chrome_plugins = false
     enable_check_raw_ptr_fields = false
   }
+  propagates_configs = true
 }
 
 overridable_clang_toolchain("cobalt") {
