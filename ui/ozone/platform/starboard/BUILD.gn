@@ -34,21 +34,12 @@ source_set("starboard") {
 
   defines = [ 
     "OZONE_IMPLEMENTATION",
-    "STARBOARD",
-    "STARBOARD_CONFIGURATION_INCLUDE=\"../platform_config/linux-x64x11/configuration_public.h\"",
-    "SB_API_VERSION=16",
-    "SB_IS_ARCH_X64=1",
-    "SB_IS_64_BIT=1",
-    "SB_IS_LITTLE_ENDIAN=1",
-    "SB_SIZE_OF_LONG=8",
-    "SB_SIZE_OF_POINTER=8",
   ]
 
-  include_dirs = [
-    "//build/starboard_sdk/include",
+  deps = [
+    "//base",
+    "//starboard($starboard_toolchain)",
   ]
-
-  ldflags = [ "libstarboard.so.16"]
 
   deps = [
     "//base",

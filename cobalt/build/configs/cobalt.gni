@@ -15,4 +15,6 @@
 # Get the path to the starboard implementation and include its GN
 # configuration.
 
-is_cobalt = true
+declare_args() {
+  is_cobalt = true
+}

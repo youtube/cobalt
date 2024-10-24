@@ -75,14 +75,11 @@ int main(int argc, const char** argv) {
 #else
 
 int main(int argc, const char** argv) {
-  //fprintf(stderr, "main\n");
   pid_t pid = getpid();
   LOG(INFO) << "main pid=" << pid;
   for (int i = 0; i < argc; i++) {
     LOG(INFO) << "" << pid <<  " argv=" << argv[i];
-    //fprintf(stderr, "argv = %s\n", argv[i]);
   }
-//  LOG(INFO) << "main";
   content::ShellMainDelegate delegate;
   content::ContentMainParams params(&delegate);
   params.argc = argc;
