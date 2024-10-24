@@ -19,6 +19,8 @@ group("gn_all") {
   deps = [ "//starboard($starboard_toolchain)" ]
   if (!is_android) {
     deps += [ ":cobalt" ]
+  } else {
+    deps += [ "android:cobalt_shell_apk" ]
   }
 }
 

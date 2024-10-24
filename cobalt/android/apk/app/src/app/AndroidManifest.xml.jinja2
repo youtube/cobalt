@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright 2016 The Cobalt Authors. All Rights Reserved.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="{{ manifest_package }}">
+
+    <uses-feature android:name="android.hardware.microphone" android:required="false"/>
+    <uses-feature android:name="android.software.leanback" android:required="false"/>
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false"/>
+    <uses-feature android:glEsVersion="0x00020000" android:required="true"/>
+
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.GET_ACCOUNTS"/>
+    <!-- This is needed when targeting API 28+ to use foreground services -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <!-- https://iabtechlab.com/OTT-IFA, AdvertisingIdClient.Info.getId() -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
+
+    {% block extra_uses_permissions %}
+    {% endblock %}
+
+    <application android:name="dev.cobalt.app.CobaltApplication"
+            android:icon="@mipmap/app_icon"
+            android:zygotePreloadName="org.chromium.content_public.app.ZygotePreload"
+            android:label="{% block application_label %}Cobalt Shell{% endblock %}">
+        <activity android:name="dev.cobalt.app.MainActivity"
+                  android:launchMode="singleTask"
+                  android:theme="@android:style/Theme.Holo.Light.NoActionBar"
+                  android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenSize|uiMode"
+                  android:windowSoftInputMode="adjustResize"
+                  android:hardwareAccelerated="true"
+                  android:exported="true">
+            <meta-data android:name="cobalt.APP_URL" android:value="https://www.youtube.com/tv"/>
+            <meta-data android:name="cobalt.EVERGREEN_LITE" android:value="false"/>
+            <meta-data android:name="android.app.lib_name" android:value="cobalt"/>
+            <intent-filter>
+              <action android:name="android.intent.action.MAIN"/>
+              <category android:name="android.intent.category.LAUNCHER"/>
+              <category android:name="android.intent.category.LEANBACK_LAUNCHER"/>
+              <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
+            <intent-filter>
+              <action android:name="android.intent.action.VIEW"/>
+              <action android:name="android.media.action.MEDIA_PLAY_FROM_SEARCH"/>
+              <category android:name="android.intent.category.DEFAULT"/>
+              <category android:name="android.intent.category.BROWSABLE"/>
+              <data android:scheme="http"/>
+              <data android:scheme="https"/>
+              <data android:host="youtube.com"/>
+              <data android:host="www.youtube.com"/>
+              <data android:host="m.youtube.com"/>
+              <data android:host="youtu.be"/>
+              <data android:pathPattern=".*"/>
+            </intent-filter>
+        </activity>
+        <!-- The following service entries exist in order to allow us to
+             start more than one sandboxed process. -->
+
+        <!-- NOTE: If you change the values of "android:process" for any of the below services,
+             you also need to update kHelperProcessExecutableName in chrome_constants.cc. -->
+        {% set num_sandboxed_services = 40 %}
+        <meta-data android:name="org.chromium.content.browser.NUM_SANDBOXED_SERVICES"
+                   android:value="{{ num_sandboxed_services }}"/>
+        {% for i in range(num_sandboxed_services) %}
+        <service android:name="org.chromium.content.app.SandboxedProcessService{{ i }}"
+                 android:process=":sandboxed_process{{ i }}"
+                 {% if (i == 0) %}
+                 android:useAppZygote="true"
+                 {% endif %}
+                 android:isolatedProcess="true"
+                 android:exported="false" />
+        {% endfor %}
+
+        {% set num_privileged_services = 5 %}
+        <meta-data android:name="org.chromium.content.browser.NUM_PRIVILEGED_SERVICES"
+                   android:value="{{ num_privileged_services }}"/>
+        {% for i in range(num_privileged_services) %}
+        <service android:name="org.chromium.content.app.PrivilegedProcessService{{ i }}"
+                 android:process=":privileged_process{{ i }}"
+                 android:isolatedProcess="false"
+                 android:exported="false" />
+        {% endfor %}
+        <meta-data android:name="org.chromium.content.browser.SMART_CLIP_PROVIDER"
+                   android:value="org.chromium.content.browser.SmartClipProvider" />
+
+        <service android:name="org.chromium.content_shell_apk.ChildProcessLauncherTestHelperService"
+            android:process=":ChildProcessLauncherHelper" />
+
+        <!-- The following entries are for ChildProcessLauncherTest. They should eventually be moved
+             to base. -->
+        {% set num_test_services = 2 %}
+        <meta-data android:name="org.chromium.content.browser.NUM_TEST_SERVICES"
+                   android:value="{{ num_test_services }}"/>
+        {% for i in range(num_test_services) %}
+        <service android:name="org.chromium.content_shell_apk.TestChildProcessService{{ i }}"
+                 android:process=":test_child_service_process{{ i }}"
+                 android:isolatedProcess="true"
+                 android:exported="false" />
+        {% endfor %}
+        {% block extra_application_definitions_for_test %}
+        {% endblock %}
+
+    </application>
+    {% block extra_root_definitions %}
+    {% endblock %}
+</manifest>

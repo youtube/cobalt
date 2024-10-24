@@ -300,13 +300,15 @@ std::unique_ptr<PrefService> CreateLocalState() {
 }  // namespace
 
 std::string GetShellUserAgent() {
-  if (base::FeatureList::IsEnabled(blink::features::kFullUserAgent))
-    return GetShellFullUserAgent();
+  // TODO(b/375243230): we need a Cobalt UA to load Kabuki. Revert the change here when we figure out the proper UA format and injection method.
+  return "Mozilla/5.0 (LINUX) Cobalt/26.lts.10.0000001-gold (unlike Gecko) v8/8.8.278.8-jit gles Evergreen/4.10.2 Evergreen-Full Evergreen-Uncompressed Starboard/15, odm_TV_chipset_2024/fw-01-23.45 (brand, model)";
+  // if (base::FeatureList::IsEnabled(blink::features::kFullUserAgent))
+  //   return GetShellFullUserAgent();
 
-  if (base::FeatureList::IsEnabled(blink::features::kReduceUserAgent))
-    return GetShellReducedUserAgent();
+  // if (base::FeatureList::IsEnabled(blink::features::kReduceUserAgent))
+  //   return GetShellReducedUserAgent();
 
-  return GetShellFullUserAgent();
+  // return GetShellFullUserAgent();
 }
 
 std::string GetShellLanguage() {

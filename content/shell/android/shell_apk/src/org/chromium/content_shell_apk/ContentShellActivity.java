@@ -73,7 +73,9 @@ public class ContentShellActivity extends Activity {
         mWindowAndroid.setAnimationPlaceholderView(
                 mShellManager.getContentViewRenderView().getSurfaceView());
 
-        mStartupUrl = getUrlFromIntent(getIntent());
+        if (mStartupUrl.isEmpty()) {
+            mStartupUrl = getUrlFromIntent(getIntent());
+        }
         if (!TextUtils.isEmpty(mStartupUrl)) {
             mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
         }
@@ -161,6 +163,10 @@ public class ContentShellActivity extends Activity {
                 activeView.loadUrl(url);
             }
         }
+    }
+
+    protected void setStartupUrl(String url) {
+        mStartupUrl = url;
     }
 
     @Override

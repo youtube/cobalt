@@ -1,0 +1,157 @@
+import("//build/config/android/config.gni")
+import("//build/config/android/rules.gni")
+import("//third_party/icu/config.gni")
+
+cobalt_shell_manifest =
+    "$target_gen_dir/cobalt_shell_test_manifest/AndroidManifest.xml"
+
+android_resources("cobalt_shell_java_resources") {
+  testonly = true
+  sources = [
+    "apk/app/src/app/res/drawable-xhdpi/app_banner.png",
+    "apk/app/src/app/res/mipmap-hdpi/ic_app.png",
+    "apk/app/src/app/res/mipmap-mdpi/ic_app.png",
+    "apk/app/src/app/res/mipmap-xhdpi/ic_app.png",
+    "apk/app/src/app/res/mipmap-xxhdpi/ic_app.png",
+    "apk/app/src/app/res/values/strings.xml",
+    "apk/app/src/main/res/layout/coat_error_dialog.xml",
+    "apk/app/src/main/res/values/colors.xml",
+    "apk/app/src/main/res/values/ids.xml",
+    "apk/app/src/main/res/values/overlayable.xml",
+    "apk/app/src/main/res/values/rro_variables.xml",
+    "apk/app/src/main/res/values/strings.xml",
+    "apk/app/src/main/res/values/styles.xml",
+  ]
+
+  #TODO(b/375037287): use Widget.Leanback.ErrorMessageStyle
+  #deps = [
+  #  "//third_party/androidx:androidx_leanback_leanback_java",
+  #]
+}
+
+jinja_template("cobalt_shell_manifest") {
+  testonly = true
+  input = "apk/app/src/app/AndroidManifest.xml.jinja2"
+  output = cobalt_shell_manifest
+  variables = [ "manifest_package=dev.cobalt.coat" ]
+}
+
+android_library("cobalt_shell_apk_java") {
+  testonly = true
+  resources_package = "dev.cobalt.coat"
+  deps = [
+    ":cobalt_shell_java_resources",
+    "//base:base_java",
+    "//content/shell/android:content_shell_apk_java",
+    "//third_party/androidx:androidx_annotation_annotation_java",
+    "//ui/android:ui_no_recycler_view_java",
+  ]
+  sources = [
+    "apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
+    "apk/app/src/app/java/dev/cobalt/app/MainActivity.java",
+    "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloader.java",
+    "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloaderDefault.java",
+    "apk/app/src/main/java/dev/cobalt/coat/ArtworkLoader.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltHttpHelper.java",
+
+    # "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CrashContextUpdateHandler.java",
+    "apk/app/src/main/java/dev/cobalt/coat/ErrorDialog.java",
+    "apk/app/src/main/java/dev/cobalt/coat/MediaImage.java",
+    "apk/app/src/main/java/dev/cobalt/coat/NetworkStatus.java",
+    "apk/app/src/main/java/dev/cobalt/coat/NullCobaltFactory.java",
+    "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
+    "apk/app/src/main/java/dev/cobalt/coat/ResourceOverlay.java",
+
+    # "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
+    "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
+    "apk/app/src/main/java/dev/cobalt/coat/VolumeStateReceiver.java",
+    "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfo.java",
+    "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfoModule.java",
+
+    # "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
+    "apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/Log.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridgeBuilder.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaCodecCapabilitiesLogger.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaCodecStatus.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaFormatBuilder.java",
+    "apk/app/src/main/java/dev/cobalt/media/VideoDecoderCache.java",
+    "apk/app/src/main/java/dev/cobalt/media/VideoFrameReleaseTimeHelper.java",
+    "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceTexture.java",
+    "apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
+
+    # "apk/app/src/main/java/dev/cobalt/storage/CobaltStorageLoader.java",
+    # "apk/app/src/main/java/dev/cobalt/storage/StorageProto.java",
+    "apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
+    "apk/app/src/main/java/dev/cobalt/util/Holder.java",
+    "apk/app/src/main/java/dev/cobalt/util/IsEmulator.java",
+    "apk/app/src/main/java/dev/cobalt/util/Log.java",
+    "apk/app/src/main/java/dev/cobalt/util/SynchronizedHolder.java",
+    "apk/app/src/main/java/dev/cobalt/util/SystemPropertiesHelper.java",
+    "apk/app/src/main/java/dev/cobalt/util/UsedByNative.java",
+  ]
+}
+
+android_assets("cobalt_shell_assets") {
+  testonly = true
+  sources = [
+    "apk/app/src/app/assets/not_empty.txt",
+    "apk/app/src/app/assets/test/not_empty.txt",
+    "apk/app/src/app/assets/web/cobalt_blue_splash_screen.css",
+    "apk/app/src/app/assets/web/cobalt_blue_splash_screen.html",
+    "apk/app/src/app/assets/web/cobalt_logo_1024.png",
+    "apk/app/src/app/assets/web/link_android_splash_screen.html",
+  ]
+  disable_compression = true
+}
+
+template("content_shell_apk_tmpl") {
+  _target_type = invoker.target_type
+  target(_target_type, target_name) {
+    forward_variables_from(invoker, "*")
+    testonly = true
+    if (!defined(deps)) {
+      deps = []
+    }
+    deps += [
+      "//base:base_java_test_support",
+      "//components/crash/android:java",
+      "//components/crash/core/app:chrome_crashpad_handler_named_as_so",
+      "//components/metrics:metrics_java",
+      "//content/public/android:content_java",
+      "//content/public/test/android:android_test_message_pump_support_java",
+      "//content/shell/android:content_shell_apk_java",
+      "//content/shell/android:content_shell_assets",
+      "//content/shell/android:content_shell_java",
+      "//media/capture/video/android:capture_java",
+      "//net/android:net_java",
+      "//services/shape_detection:shape_detection_java",
+      "//third_party/mesa_headers",
+      "//ui/android:ui_java",
+    ]
+    loadable_modules = [ "$root_out_dir/libchrome_crashpad_handler.so" ]
+  }
+}
+
+content_shell_apk_tmpl("cobalt_shell_apk") {
+  target_type = "android_apk"
+  apk_name = "CobaltShell"
+  android_manifest = cobalt_shell_manifest
+  android_manifest_dep = ":cobalt_shell_manifest"
+  deps = [
+    ":cobalt_shell_apk_java",
+    ":cobalt_shell_assets",
+    ":cobalt_shell_java_resources",
+  ]
+  shared_libraries = [ "//content/shell/android:libcontent_shell_content_view" ]
+  command_line_flags_file = "content-shell-command-line"
+}
