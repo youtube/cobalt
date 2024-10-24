@@ -1,4 +1,4 @@
-# ![Logo](chrome/app/theme/chromium/product_logo_64.png) Chromium [![Build Matrix](https://img.shields.io/badge/-Build%20Matrix-blueviolet)](https://github.com/youtube/cobalt/blob/main/chrobalt/BUILD_STATUS.md)
+# ![Logo](chrome/app/theme/chromium/product_logo_64.png) Chromium [![Build Matrix](https://img.shields.io/badge/-Build%20Matrix-blueviolet)](https://github.com/youtube/cobalt/blob/main/cobalt/BUILD_STATUS.md)
 
 [![codecov](https://codecov.io/github/youtube/cobalt/branch/main/graph/badge.svg?token=RR6MKKNYNV)](https://codecov.io/github/youtube/cobalt)
 [![android](https://github.com/youtube/cobalt/actions/workflows/android.yaml/badge.svg?branch=main&event=push)](https://github.com/youtube/cobalt/actions/workflows/android.yaml?query=event%3Apush+branch%3Amain)
