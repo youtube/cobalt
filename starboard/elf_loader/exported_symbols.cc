@@ -277,6 +277,7 @@ ExportedSymbols::ExportedSymbols() {
     map_["__errno_location"] = reinterpret_cast<const void*>(__errno_location);
   }
   map_["fstat"] = reinterpret_cast<const void*>(&__abi_wrap_fstat);
+  map_["ftruncate"] = reinterpret_cast<const void*>(&__abi_wrap_ftruncate);
   map_["gettimeofday"] =
       reinterpret_cast<const void*>(&__abi_wrap_gettimeofday);
   map_["gmtime_r"] = reinterpret_cast<const void*>(&__abi_wrap_gmtime_r);
@@ -361,6 +362,7 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_freeaddrinfo);
   map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
   map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
+  map_["write"] = reinterpret_cast<const void*>(&__abi_wrap_write);
 
   REGISTER_SYMBOL(vswprintf);
 
