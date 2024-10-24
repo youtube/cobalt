@@ -475,9 +475,15 @@ void HostGpuMemoryBufferManager::OnGpuMemoryBufferAllocated(
 bool HostGpuMemoryBufferManager::CreateBufferUsesGpuService(
     gfx::BufferFormat format,
     gfx::BufferUsage usage) {
-  return gpu_memory_buffer_support_->GetNativeGpuMemoryBufferType() !=
+// hack for gpu memory allocation
+  return false;
+#if 0
+  bool res = gpu_memory_buffer_support_->GetNativeGpuMemoryBufferType() !=
              gfx::EMPTY_BUFFER &&
          IsNativeGpuMemoryBufferConfiguration(format, usage);
+
+  return res;
+#endif
 }
 
 }  // namespace viz

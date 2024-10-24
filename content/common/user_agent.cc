@@ -34,7 +34,8 @@ namespace content {
 namespace {
 
 const char kFrozenUserAgentTemplate[] =
-    "Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s.0.0.0 "
+    //"Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s.0.0.0 "
+    "Mozilla/5.0 (%s) Cobalt/26.lts.1.234567-qa (unlike Gecko) v8/8.8.278.8-jit gles Starboard/17, %s"
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
     "%s"
 #endif
@@ -406,8 +407,9 @@ std::string BuildUserAgentFromOSAndProduct(const std::string& os_info,
   // compatible with Safari, we hope!!
   std::string user_agent;
   base::StringAppendF(&user_agent,
-                      "Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) "
-                      "%s Safari/537.36",
+                      //"Mozilla/5.0 (%s) AppleWebKit/537.36 (KHTML, like Gecko) "
+                      //"%s Safari/537.36",
+    "Mozilla/5.0 (%s) Cobalt/26.lts.1.234567-qa (unlike Gecko) v8/8.8.278.8-jit gles Starboard/17, %s",
                       os_info.c_str(), product.c_str());
   return user_agent;
 }

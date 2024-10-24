@@ -56,8 +56,9 @@ base::OnceClosure& GetMainMessageLoopQuitClosure() {
   return *closure;
 }
 
-constexpr int kDefaultTestWindowWidthDip = 800;
-constexpr int kDefaultTestWindowHeightDip = 600;
+//hack
+constexpr int kDefaultTestWindowWidthDip = 1280;
+constexpr int kDefaultTestWindowHeightDip = 720;
 
 // Owning pointer. We can not use unique_ptr as a global. That introduces a
 // static constructor/destructor.

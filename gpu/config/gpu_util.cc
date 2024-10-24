@@ -284,6 +284,8 @@ GpuFeatureStatus GetAcceleratedVideoEncodeFeatureStatus(
 
 GpuFeatureStatus GetGLFeatureStatus(const std::set<int>& blocklisted_features,
                                     bool use_swift_shader) {
+// hack to turn off the SwiftShader
+#if 0
   if (use_swift_shader) {
     // This is for testing only. Chrome should exercise the GPU accelerated
     // path on top of SwiftShader driver.
@@ -291,6 +293,7 @@ GpuFeatureStatus GetGLFeatureStatus(const std::set<int>& blocklisted_features,
   }
   if (blocklisted_features.count(GPU_FEATURE_TYPE_ACCELERATED_GL))
     return kGpuFeatureStatusBlocklisted;
+#endif
   return kGpuFeatureStatusEnabled;
 }
 

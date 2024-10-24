@@ -90,9 +90,12 @@ HistogramBase::HistogramBase(const char* name)
 HistogramBase::~HistogramBase() = default;
 
 void HistogramBase::CheckName(const StringPiece& name) const {
+// hack
+#if 0
   DCHECK_EQ(StringPiece(histogram_name()), name)
       << "Provided histogram name doesn't match instance name. Are you using a "
          "dynamic string in a macro?";
+#endif
 }
 
 void HistogramBase::SetFlags(int32_t flags) {

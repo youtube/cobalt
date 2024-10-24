@@ -555,6 +555,10 @@ void GpuDataManagerImplPrivate::InitializeGpuModes() {
 #endif  // BUILDFLAG(IS_FUCHSIA)
   }
 
+// hack
+  fallback_modes_.clear();
+  fallback_modes_.push_back(gpu::GpuMode::HARDWARE_GL);
+
   FallBackToNextGpuMode();
 }
 

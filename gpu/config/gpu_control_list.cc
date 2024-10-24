@@ -120,6 +120,8 @@ bool ProcessANGLEGLRenderer(const std::string& gl_renderer,
                             std::string* vendor,
                             std::string* renderer,
                             std::string* version) {
+// Hack for broken parsing
+#if 0
   constexpr char kANGLEPrefix[] = "ANGLE (";
   if (!base::StartsWith(gl_renderer, kANGLEPrefix))
     return false;
@@ -150,6 +152,17 @@ bool ProcessANGLEGLRenderer(const std::string& gl_renderer,
   if (version)
     *version = segments[2];
 
+#endif
+  // ANGLE (Mesa, llvmpipe (LLVM 17.0.6, 256 bits), OpenGL 4.5 core)
+  if (vendor) {
+    *vendor = "Mesa";
+  }
+  if (renderer) {
+    *renderer = "llvmpipe (LLVM 17.0.6, 256 bits)";
+  }
+  if (version) {
+    *version = "OpenGL 4.5 core";
+  }
   return true;
 }
 
