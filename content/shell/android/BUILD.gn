@@ -96,6 +96,8 @@ android_library("content_shell_java") {
     "//url:gurl_java",
   ]
   sources = [
+    "shell_apk/src/org/chromium/content_shell_apk/chrobalt/ChrobaltJavaScriptInterface.java",
+    "shell_apk/src/org/chromium/content_shell_apk/chrobalt/ChrobaltJavaScriptAndroidObject.java",
     "java/src/org/chromium/content_shell/Shell.java",
     "java/src/org/chromium/content_shell/ShellManager.java",
     "java/src/org/chromium/content_shell/ShellViewAndroidDelegate.java",

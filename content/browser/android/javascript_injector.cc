@@ -49,7 +49,9 @@ void JavascriptInjector::AddInterface(
     const JavaParamRef<jobject>& object,
     const JavaParamRef<jstring>& name,
     const JavaParamRef<jclass>& safe_annotation_clazz) {
+  LOG(INFO) << "Colin:" << "JavascriptInjector::AddInterface()";
   DCHECK(java_bridge_dispatcher_host_);
+  LOG(INFO) << "Colin:" << "java_bridge_dispatcher_host_->AddNamedObject()";
   java_bridge_dispatcher_host_->AddNamedObject(
       ConvertJavaStringToUTF8(env, name), object, safe_annotation_clazz);
 }

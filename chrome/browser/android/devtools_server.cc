@@ -140,6 +140,8 @@ DevToolsServer::~DevToolsServer() {
 }
 
 void DevToolsServer::Start(bool allow_debug_permission) {
+  LOG(INFO) << "Colin: DevToolsServer::Start";
+
   if (is_started_)
     return;
 

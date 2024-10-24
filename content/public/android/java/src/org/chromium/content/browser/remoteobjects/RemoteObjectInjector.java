@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import android.util.Log;
+
 /**
  * Owned and constructed by JavascriptInjectorImpl.
  * Could possibly be flattened into JavascriptInjectorImpl eventually, but may be nice to keep
@@ -83,13 +85,23 @@ public final class RemoteObjectInjector extends WebContentsObserver {
 
     public void addInterface(
             Object object, String name, Class<? extends Annotation> requiredAnnotation) {
+        Log.w("Colin", "RemoteObjectInjector.addInterface, name:" + name + ", requiredAnnotation=" + requiredAnnotation.getName());
+
         WebContentsImpl webContents = (WebContentsImpl) mWebContents.get();
-        if (webContents == null) return;
+        if (webContents == null) {
+            Log.w("Colin", "RemoteObjectInjector.webContents is null");
+            return;
+        }
+            
 
         Pair<Object, Class<? extends Annotation>> value = mInjectedObjects.get(name);
 
         // Nothing to do if the named object already exists.
-        if (value != null && value.first == object) return;
+        if (value != null && value.first == object) {
+            Log.w("Colin", "RemoteObjectInjector the name is already exists");
+            return;
+        }
+            
 
         if (value != null) {
             // Remove existing name for replacement.
@@ -97,6 +109,7 @@ public final class RemoteObjectInjector extends WebContentsObserver {
         }
 
         mInjectedObjects.put(name, new Pair<>(object, requiredAnnotation));
+        Log.w("Colin", "object is put into mInjectedObjects");
 
         List<RenderFrameHost> frames = webContents.getAllRenderFrameHosts();
         for (RenderFrameHost frame : frames) {
@@ -104,6 +117,7 @@ public final class RemoteObjectInjector extends WebContentsObserver {
             // it is created.
             if (frame.isRenderFrameLive()) {
                 addInterfaceForFrame(frame, name, object, requiredAnnotation);
+                Log.w("Colin", "inter face added to frame");
             }
         }
     }
