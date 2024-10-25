@@ -39,7 +39,7 @@ int main(int argc, const char** argv) {
   // parameters, also update the my_argc below.
   static const char* my_argv[] = {
       argv[0], "--disable-fre", "--no-first-run", "--kiosk",
-      "--force-video-overlays",
+      "--force-video-overlays", "--single-process",
       // Enable remote devtools access.
       "--remote-debugging-port=9222",
       "--remote-allow-origins=http://localhost:9222",
@@ -47,7 +47,7 @@ int main(int argc, const char** argv) {
       // rebasing to m120+
       "--user-level-memory-pressure-signal-params",
       "https://www.youtube.com/tv", nullptr, nullptr};
-  int my_argc = 9;
+  int my_argc = 10;
 
   // TODO: (cobalt b/375241103) Reimplement this in a clean way.
   // This expression exists to ensure that we apply the argument overrides
