@@ -136,7 +136,6 @@ int CreateLocallyBoundSocket(SbSocketAddressType address_type, int port) {
     SB_LOG(ERROR) << __FUNCTION__ << ": Bind failed. errno=" << errno;
     return -1;
   }
-
   return socket_fd;
 }
 
@@ -160,7 +159,7 @@ int CreateListeningSocket(SbSocketAddressType address_type, int port) {
     return -1;
   }
 
-  return -1;
+  return socket_fd;
 }
 
 // Gets the port socket is bound to.
@@ -335,14 +334,15 @@ void LinkReceiver::Impl::Run() {
     waiter_initialized_.Put();
     return;
   }
+  listen_socket_ = -1;
 
   listen_socket_ =
       CreateListeningSocket(kSbSocketAddressTypeIpv4, specified_port_);
-  if (!listen_socket_ || listen_socket_ < 0) {
+  if (listen_socket_ < 0) {
     listen_socket_ =
         CreateListeningSocket(kSbSocketAddressTypeIpv6, specified_port_);
   }
-  if (!listen_socket_ || listen_socket_ < 0) {
+  if (listen_socket_ < 0) {
     SB_LOG(WARNING) << "Unable to start LinkReceiver on port "
                     << specified_port_ << ".";
     SbSocketWaiterDestroy(waiter_);
