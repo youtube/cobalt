@@ -2477,7 +2477,7 @@ buildflag_header("debugging_buildflags") {
 
   # TODO(crbug.com/1420774): Try and enable these checks on Android too.
   enable_commandline_sequence_checks =
-      (is_debug || dcheck_always_on) && !is_android
+      (is_debug || dcheck_always_on) && !is_android && !is_cobalt
 
   flags = [
     "DCHECK_IS_CONFIGURABLE=$dcheck_is_configurable",
