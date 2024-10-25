@@ -20,8 +20,9 @@
 #include "media/base/supported_types.h"
 #include "media/base/video_decoder_config.h"
 #include "media/media_buildflags.h"
-// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#if defined(IS_COBALT)
 #include "starboard/build/starboard_buildflags.h"
+#endif
 #include "third_party/blink/public/common/privacy_budget/identifiability_metric_builder.h"
 #include "third_party/blink/public/common/privacy_budget/identifiability_study_settings.h"
 #include "third_party/blink/public/common/privacy_budget/identifiable_surface.h"
@@ -494,10 +495,12 @@ bool MediaSource::isTypeSupported(ExecutionContext* context,
   bool result = IsTypeSupportedInternal(
       context, type, true /* Require fully specified mime and codecs */);
   DVLOG(2) << __func__ << "(" << type << ") -> " << (result ? "true" : "false");
+#if defined(IS_COBALT) 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << __func__ << "(" << type << ") -> "
             << (result ? "true" : "false");
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // && BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // defined(IS_COBALT) 
   return result;
 }
 
@@ -505,6 +508,7 @@ bool MediaSource::isTypeSupported(ExecutionContext* context,
 bool MediaSource::IsTypeSupportedInternal(ExecutionContext* context,
                                           const String& type,
                                           bool enforce_codec_specificity) {
+#if defined(IS_COBALT) 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // TODO(b/322021829): This is a workaround to claim 4K playback support.  It
   // should be replaced by a proper implementation of
@@ -533,7 +537,7 @@ bool MediaSource::IsTypeSupportedInternal(ExecutionContext* context,
     return false;
   }*/
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
+#endif // defined(IS_COBALT) 
   // Even after ExecutionContext teardown notification, bindings may still call
   // code-behinds for a short while. If |context| is null, this is likely
   // happening. To prevent possible null deref of |context| in this path, claim

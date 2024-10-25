@@ -65,8 +65,9 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "net/base/data_url.h"
 #include "services/device/public/mojom/battery_monitor.mojom-blink.h"
-// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#if defined(IS_COBALT)
 #include "starboard/build/starboard_buildflags.h"
+#endif
 #include "third_party/blink/public/common/media/display_type.h"
 #include "third_party/blink/public/common/media/watch_time_reporter.h"
 #include "third_party/blink/public/common/thread_safe_browser_interface_broker_proxy.h"
@@ -100,9 +101,11 @@
 #include "third_party/blink/renderer/platform/media/web_media_source_impl.h"
 #include "ui/gfx/geometry/size.h"
 
+#if defined(IS_COBALT) 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/starboard/starboard_renderer.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // defined(IS_COBALT) && BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // defined(IS_COBALT) 
 
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
 #include "third_party/blink/renderer/platform/media/hls_data_source_provider_impl.h"
@@ -2802,6 +2805,7 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
           &WebMediaPlayerImpl::OnOverlayInfoRequested, weak_this_));
 #endif
 
+#if defined(IS_COBALT) 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // TODO(b/375278384): Select the StarboardRenderer properly instead of
   //                    hard coding.
@@ -2812,6 +2816,7 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
     return std::make_unique<media::StarboardRenderer>(media_task_runner_);
   }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // defined(IS_COBALT) 
 
   if (renderer_type) {
     DVLOG(1) << __func__
