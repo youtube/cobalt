@@ -19,7 +19,9 @@
 #ifndef COBALT_DOM_MEDIA_SOURCE_ATTACHMENT_SUPPLEMENT_H_
 #define COBALT_DOM_MEDIA_SOURCE_ATTACHMENT_SUPPLEMENT_H_
 
+#include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
+#include "base/types/pass_key.h"
 #include "cobalt/dom/audio_track_list.h"
 #include "cobalt/dom/media_source_attachment.h"
 #include "cobalt/dom/video_track_list.h"
@@ -35,8 +37,7 @@ class MediaSourceAttachmentSupplement
     : public MediaSourceAttachment,
       public base::SupportsWeakPtr<MediaSourceAttachmentSupplement> {
  public:
-  MediaSourceAttachmentSupplement() = default;
-  ~MediaSourceAttachmentSupplement() = default;
+  using RunExclusivelyCB = base::OnceCallback<void()>;
 
   // Communicates a change in the media resource duration to the attached media
   // element. In a same-thread attachment, communicates this information
@@ -71,12 +72,26 @@ class MediaSourceAttachmentSupplement
   virtual scoped_refptr<VideoTrackList> CreateVideoTrackList(
       script::EnvironmentSettings* settings) = 0;
 
+  virtual bool RunExclusively(bool abort_if_not_fully_attached,
+                              RunExclusivelyCB cb);
+
+  // Default implementation is a no-op. CrossThreadMediaSourceAttachment
+  // overrides this. Used by MediaSource and SourceBuffer for verifying
+  // that the correct mutex locks are held when doing cross-thread work.
+  virtual void AssertCrossThreadMutexIsAcquiredForDebugging() {}
+
+  // Should only be called from SourceBuffer::RemovedFromMediaSource().
+  virtual bool FullyAttachedOrSameThread() const { return true; }
+
   // TODO(b/338425449): Remove media_element method after rollout.
   // References to underlying objects are exposed for when the H5VCC
   // flag MediaElement.EnableUsingMediaSourceAttachmentMethods is disabled.
   virtual base::WeakPtr<HTMLMediaElement> media_element() const = 0;
 
- private:
+ protected:
+  MediaSourceAttachmentSupplement() = default;
+  ~MediaSourceAttachmentSupplement() = default;
+
   DISALLOW_COPY_AND_ASSIGN(MediaSourceAttachmentSupplement);
 };
 

@@ -39,7 +39,7 @@ SameThreadMediaSourceAttachment::SameThreadMediaSourceAttachment(
       element_has_error_(false) {}
 
 void SameThreadMediaSourceAttachment::TraceMembers(script::Tracer* tracer) {
-  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   tracer->Trace(attached_element_);
   tracer->Trace(media_source_);
@@ -47,7 +47,7 @@ void SameThreadMediaSourceAttachment::TraceMembers(script::Tracer* tracer) {
 
 bool SameThreadMediaSourceAttachment::StartAttachingToMediaElement(
     HTMLMediaElement* media_element) {
-  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (attached_element_) {
     return false;
@@ -67,32 +67,32 @@ bool SameThreadMediaSourceAttachment::StartAttachingToMediaElement(
 
 void SameThreadMediaSourceAttachment::CompleteAttachingToMediaElement(
     ::media::ChunkDemuxer* chunk_demuxer) {
-  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   media_source_->CompleteAttachingToMediaElement(chunk_demuxer);
 }
 
 void SameThreadMediaSourceAttachment::Close() {
-  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   media_source_->Close();
 }
 
 scoped_refptr<TimeRanges> SameThreadMediaSourceAttachment::GetBufferedRange()
     const {
-  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   return media_source_->GetBufferedRange();
 }
 
 MediaSourceReadyState SameThreadMediaSourceAttachment::GetReadyState() const {
-  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   return media_source_->ready_state();
 }
 
 void SameThreadMediaSourceAttachment::NotifyDurationChanged(double duration) {
-  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(attached_element_);
 
   bool request_seek = attached_element_->current_time(NULL) > duration;
@@ -100,14 +100,14 @@ void SameThreadMediaSourceAttachment::NotifyDurationChanged(double duration) {
 }
 
 bool SameThreadMediaSourceAttachment::HasMaxVideoCapabilities() const {
-  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(attached_element_);
 
   return attached_element_->HasMaxVideoCapabilities();
 }
 
 double SameThreadMediaSourceAttachment::GetRecentMediaTime() {
-  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(attached_element_);
 
   double result = attached_element_->current_time(NULL);
@@ -119,7 +119,7 @@ double SameThreadMediaSourceAttachment::GetRecentMediaTime() {
 }
 
 bool SameThreadMediaSourceAttachment::GetElementError() {
-  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(attached_element_);
 
   bool result = static_cast<bool>(attached_element_->error());
@@ -132,7 +132,7 @@ bool SameThreadMediaSourceAttachment::GetElementError() {
 scoped_refptr<AudioTrackList>
 SameThreadMediaSourceAttachment::CreateAudioTrackList(
     script::EnvironmentSettings* settings) {
-  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(attached_element_);
 
   return base::MakeRefCounted<AudioTrackList>(settings, attached_element_);
@@ -141,7 +141,7 @@ SameThreadMediaSourceAttachment::CreateAudioTrackList(
 scoped_refptr<VideoTrackList>
 SameThreadMediaSourceAttachment::CreateVideoTrackList(
     script::EnvironmentSettings* settings) {
-  DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(attached_element_);
 
   return base::MakeRefCounted<VideoTrackList>(settings, attached_element_);

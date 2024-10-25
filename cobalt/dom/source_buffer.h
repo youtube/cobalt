@@ -149,6 +149,12 @@ class SourceBuffer : public web::EventTarget {
   size_t memory_limit(script::ExceptionState* exception_state) const;
   void set_memory_limit(size_t limit, script::ExceptionState* exception_state);
 
+  // "_Locked" methods requires these to be called while in the scope of
+  // a MediaSourceAttachmentSupplement::RunExclusively bound function.
+  void SetMode_Locked(SourceBufferAppendMode mode,
+                      script::ExceptionState* exception_state);
+  void GetBuffered_Locked(scoped_refptr<TimeRanges> out) const;
+
  private:
   typedef ::media::MediaTracks MediaTracks;
   typedef script::ArrayBuffer ArrayBuffer;
@@ -194,6 +200,18 @@ class SourceBuffer : public web::EventTarget {
   std::string DefaultTrackLanguage(
       const std::string& track_type,
       const std::string& byte_stream_track_id) const;
+
+  // "_Locked" methods requires these to be called while in the scope of
+  // a MediaSourceAttachmentSupplement::RunExclusively bound function.
+  void SetTimestampOffset_Locked(double offset,
+                                 script::ExceptionState* exception_state);
+  void SetAppendWindowStart_Locked(double start);
+  void SetAppendWindowEnd_Locked(double end);
+  void Abort_Locked(script::ExceptionState* exception_state);
+  void Remove_Locked(double start, double end,
+                     script::ExceptionState* exception_state);
+  void AppendBufferInternal_Locked(const unsigned char* data, size_t size,
+                                   script::ExceptionState* exception_state);
 
   static const size_t kDefaultMaxAppendBufferSize = 128 * 1024;
 
