@@ -282,7 +282,7 @@ config("hacky_wnos") {
   ]
 }
 
-if (current_toolchain == starboard_toolchain) {
+if (current_toolchain == starboard_toolchain || android) {
   # This is the default 'starboard_platform_target'; use default properties
   starboard_platform_target("starboard") {
   }
