@@ -78,8 +78,10 @@ source_set("starboard") {
     "//base",
     "//media:media_buildflags",
     "//media/base",
-    "//starboard($starboard_toolchain)",
   ]
+  if (current_toolchain == cobalt_toolchain) {
+    deps += [ "//starboard" ]
+  }
 
   configs += [ "//media:subcomponent_config" ]
 }
@@ -92,8 +94,10 @@ source_set("unit_tests") {
     "//base",
     "//base/test:test_support",
     "//media:test_support",
-    "//starboard($starboard_toolchain)",
     "//testing/gmock",
     "//testing/gtest",
   ]
+  if (current_toolchain == cobalt_toolchain) {
+    deps += [ "//starboard" ]
+  }
 }
