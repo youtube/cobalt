@@ -66,7 +66,10 @@ template("android_clang_toolchain") {
     # work. This flag does not otherwise affect our build, but if applied to
     # non-android toolchains, it causes unwanted configs from perfetto to
     # propagate from host_toolchain deps.
-    propagates_configs = true
+    forward_variables_from(invoker,
+                           [
+                             "propagates_configs",
+                           ])
   }
 }
 
@@ -98,6 +101,8 @@ android_clang_toolchain("android_clang_arm") {
   toolchain_args = {
     current_cpu = "arm"
   }
+    propagates_configs = true
+
 }
 
 android_clang_toolchain("android_clang_mipsel") {
@@ -134,6 +139,7 @@ android_clang_toolchain("android_clang_arm64") {
   toolchain_args = {
     current_cpu = "arm64"
   }
+  propagates_configs = true
 }
 
 android_clang_toolchain("android_clang_arm64_hwasan") {
