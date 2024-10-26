@@ -231,7 +231,7 @@ if (host_toolchain == "") {
     assert(false, "Unsupported host_os: $host_os")
   }
 }
-
+# print(host_toolchain, "host_toolchain")
 _default_toolchain = ""
 
 if (target_os == "android") {
@@ -289,7 +289,8 @@ if (is_cobalt) {
     cobalt_toolchain = _default_toolchain
   }
 }
-
+# print(_default_toolchain, "default_toolchain")
+# print(custom_toolchain, "custom_toolchain")
 # =============================================================================
 # OS DEFINITIONS
 # =============================================================================

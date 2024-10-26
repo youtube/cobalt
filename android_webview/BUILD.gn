@@ -44,10 +44,13 @@ template("standalone_system_webview_apk_tmpl") {
     deps = upstream_only_webview_deps
   }
 }
-
+# print(target_cpu)
+# print(current_cpu)
+# print(current_toolchain)
 # Standalone WebView APK.
 if (android_64bit_target_cpu && skip_secondary_abi_for_cq) {
   group("system_webview_apk") {
+    # print(current_toolchain, "currenttc for android webview is")
     deps = [ ":system_webview_64_apk" ]
   }
 } else {
