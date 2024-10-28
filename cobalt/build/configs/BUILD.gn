@@ -17,6 +17,11 @@ config("cobalt_config") {
   if (current_toolchain == starboard_toolchain) {
     configs += [ "//${starboard_path}/platform_configuration" ]
   }
+
+  defines = [
+    "IS_COBALT",
+    "USE_STARBOARD",
+  ]
 }
 
 config("default_includes") {
