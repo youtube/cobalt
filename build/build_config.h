@@ -254,6 +254,18 @@
 #define BUILDFLAG_INTERNAL_IS_OZONE() (0)
 #endif
 
+#if defined(IS_COBALT)
+#define BUILDFLAG_INTERNAL_IS_COBALT() (1)
+#else
+#define BUILDFLAG_INTERNAL_IS_COBALT() (0)
+#endif
+
+#if defined(USE_STARBOARD)
+#define BUILDFLAG_INTERNAL_USE_STARBOARD() (1)
+#else
+#define BUILDFLAG_INTERNAL_USE_STARBOARD() (0)
+#endif
+
 // Compiler detection. Note: clang masquerades as GCC on POSIX and as MSVC on
 // Windows.
 #if defined(__GNUC__)
