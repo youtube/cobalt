@@ -13,27 +13,31 @@
 # limitations under the License.
 
 import("//build/buildflag_header.gni")
-import("//cobalt/build/configs/cobalt.gni")
 import("//cobalt/build/configs/variables.gni")
-
-declare_args() {
-  use_starboard = target_os != "android"
-  use_starboard_media = is_cobalt
-  use_evergreen = false
-}
+import("//starboard/build/buildflags.gni")
 
 # To use these build flags from i.e. "foo.cc", add a dependency from the target
-# containing "foo.cc" on this target, then have "foo.cc" include
+# containing "foo.cc" on this target, then have "foo.cc" conditionally include
 # "starboard/build/starboard_buildflags.h". After that you can use i.e.
-# BUILDFLAG(USE_STARBOARD) in your code.
+# BUILDFLAG(USE_STARBOARD_MEDIA) in your code.
+#
+# Example:
+#
+# #include "build/build_config.h"
+# #if BUILDFLAG(IS_COBALT)
+# #include "starboard/build/starboard_buildflags.h"
+# #endif
+#
+# #if BUILDFLAG(USE_STARBOARD_MEDIA)
+# // Do something
+# #endif
+#
 buildflag_header("starboard_buildflags") {
   header = "starboard_buildflags.h"
 
   flags = [
-    "USE_STARBOARD=$use_starboard",
     "USE_STARBOARD_MEDIA=$use_starboard_media",
     "USE_EVERGREEN=$use_evergreen",
-    "IS_COBALT=$is_cobalt",
     "IS_MODULAR_BUILD=$sb_is_modular",
   ]
 }
