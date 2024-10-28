@@ -450,6 +450,7 @@ void VizProcessTransportFactory::OnEstablishedGpuChannel(
   GetHostFrameSinkManager()->CreateRootCompositorFrameSink(
       std::move(root_params), !using_direct_composition);
 #else
+  LOG(INFO) << "VizProcessTransportFactory::OnEstablishedGpuChannel";
   GetHostFrameSinkManager()->CreateRootCompositorFrameSink(
       std::move(root_params));
 #endif  // BUILDFLAG(IS_WIN)
