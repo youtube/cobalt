@@ -174,41 +174,6 @@ SB_EXPORT SbSocketError SbSocketConnect(SbSocket socket,
 
 // DEPRECATED with SB_API_VERSION 16
 //
-// Binds |socket| to a specific local interface and port specified by
-// |local_address|. This function sets and returns the socket error if it
-// is unable to bind to |local_address|.
-//
-// |socket|: The SbSocket to be bound to the local interface.
-// |local_address|: The local address to which the socket is to be bound.
-//   This value must not be |NULL|.
-// - Setting the local address to port |0| (or not specifying a port) indicates
-//   that the function should choose a port for you.
-// - Setting the IP address to |0.0.0.0| means that the socket should be bound
-//   to all interfaces.
-SB_EXPORT SbSocketError SbSocketBind(SbSocket socket,
-                                     const SbSocketAddress* local_address);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Causes |socket| to listen on the local address that |socket| was previously
-// bound to by SbSocketBind. This function sets and returns the socket error if
-// it is unable to listen for some reason. (It returns |kSbSocketOk| if it
-// creates the connection successfully.)
-//
-// |socket|: The SbSocket on which the function operates.
-SB_EXPORT SbSocketError SbSocketListen(SbSocket socket);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Accepts a pending connection on |socket| and returns a new SbSocket
-// representing that connection. This function sets the error on |socket|
-// and returns |kSbSocketInvalid| if it is unable to accept a new connection.
-//
-// |socket|: The SbSocket that is accepting a pending connection.
-SB_EXPORT SbSocket SbSocketAccept(SbSocket socket);
-
-// DEPRECATED with SB_API_VERSION 16
-//
 // Gets the address that this socket is bound to locally, if the socket is
 // connected. The return value indicates whether the address was retrieved
 // successfully.
@@ -257,45 +222,6 @@ SB_EXPORT bool SbSocketGetInterfaceAddress(
     const SbSocketAddress* const destination,
     SbSocketAddress* out_source_address,
     SbSocketAddress* out_netmask);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Reads up to |data_size| bytes from |socket| into |out_data| and places the
-// source address of the packet in |out_source| if out_source is not NULL.
-// Returns the number of bytes read, or a negative number if there is an error,
-// in which case SbSocketGetLastError can provide the precise error encountered.
-//
-// Note that this function is NOT specified to make a best effort to read all
-// data on all platforms, but it MAY still do so. It is specified to read
-// however many bytes are available conveniently, meaning that it should avoid
-// blocking until there is data. It can be run in a loop until
-// SbSocketGetLastError returns |kSbSocketPending| to make it a best-effort
-// read (but still only up to not blocking, unless you want to spin).
-//
-// The primary use of |out_source| is to receive datagram packets from
-// multiple sources on a UDP server socket. TCP has two endpoints connected
-// persistently, so the address is unnecessary, but allowed.
-//
-// |socket|: The SbSocket from which data is read.
-// |out_data|: The data read from the socket. Must not be NULL.
-// |data_size|: The number of bytes to read.
-// |out_source|: The source address of the packet.
-SB_EXPORT int SbSocketReceiveFrom(SbSocket socket,
-                                  char* out_data,
-                                  int data_size,
-                                  SbSocketAddress* out_source);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Sets the |SO_REUSEADDR|, or equivalent, option to |value| on |socket|.
-// The return value indicates whether the option was actually set.
-//
-// This option allows a bound address to be reused if a socket isn't actively
-// bound to it.
-//
-// |socket|: The SbSocket for which the option is set.
-// |value|: The new value for the option.
-SB_EXPORT bool SbSocketSetReuseAddress(SbSocket socket, bool value);
 
 #ifdef __cplusplus
 }  // extern "C"
