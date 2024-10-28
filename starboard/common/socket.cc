@@ -75,35 +75,8 @@ SbSocketError Socket::Connect(const SbSocketAddress* address) {
   return SbSocketConnect(socket_, address);
 }
 
-SbSocketError Socket::Bind(const SbSocketAddress* local_address) {
-  return SbSocketBind(socket_, local_address);
-}
-
-SbSocketError Socket::Listen() {
-  return SbSocketListen(socket_);
-}
-
-Socket* Socket::Accept() {
-  SbSocket accepted_socket = SbSocketAccept(socket_);
-  if (SbSocketIsValid(accepted_socket)) {
-    return new Socket(accepted_socket);
-  }
-
-  return NULL;
-}
-
-int Socket::ReceiveFrom(char* out_data,
-                        int data_size,
-                        SbSocketAddress* out_source) {
-  return SbSocketReceiveFrom(socket_, out_data, data_size, out_source);
-}
-
 bool Socket::GetLocalAddress(SbSocketAddress* out_address) {
   return SbSocketGetLocalAddress(socket_, out_address);
-}
-
-bool Socket::SetReuseAddress(bool value) {
-  return SbSocketSetReuseAddress(socket_, value);
 }
 
 SbSocket Socket::socket() {
