@@ -255,9 +255,9 @@
 #endif
 
 #if defined(IS_COBALT)
-#define BUILDFLAG_INTERNAL_IS_STARBOARD() (1)
+#define BUILDFLAG_INTERNAL_IS_COBALT() (1)
 #else
-#define BUILDFLAG_INTERNAL_IS_STARBOARD() (0)
+#define BUILDFLAG_INTERNAL_IS_COBALT() (0)
 #endif
 
 #if defined(USE_STARBOARD)
