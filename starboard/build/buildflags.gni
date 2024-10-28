@@ -1,0 +1,7 @@
+import("//cobalt/build/configs/cobalt.gni")
+
+declare_args() {
+  use_starboard = target_os != "android"
+  use_starboard_media = is_cobalt
+  use_evergreen = false
+}
