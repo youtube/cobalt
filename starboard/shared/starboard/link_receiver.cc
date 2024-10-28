@@ -122,7 +122,7 @@ int CreateLocallyBoundSocket(SbSocketAddressType address_type, int port) {
   // See https://www.ietf.org/rfc/rfc3493.txt for details.
   if (local_address && (local_address->type == kSbSocketAddressTypeIpv6) &&
       common::MemoryIsZero(local_address->address, 16)) {
-    int on = 1;
+    int on = 0;
     if (setsockopt(socket_fd, IPPROTO_IPV6, IPV6_V6ONLY, &on, sizeof(on)) !=
         0) {
       // Silently ignore errors, assume the default behavior is as expected.
