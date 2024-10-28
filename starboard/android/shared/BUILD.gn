@@ -130,6 +130,7 @@ static_library("starboard_platform") {
     "//starboard/shared/posix/socket_join_multicast_group.cc",
     "//starboard/shared/posix/socket_listen.cc",
     "//starboard/shared/posix/socket_receive_from.cc",
+    "//starboard/shared/posix/socket_receive_multi_msg.cc",
     "//starboard/shared/posix/socket_resolve.cc",
     "//starboard/shared/posix/socket_send_to.cc",
     "//starboard/shared/posix/socket_set_broadcast.cc",

@@ -18,8 +18,8 @@
 #define NET_SOCKET_UDP_SOCKET_STARBOARD_H_
 
 #include "base/memory/ref_counted.h"
-#include "base/message_loop/message_pump_io_starboard.h"
 #include "base/message_loop/message_pump_for_io.h"
+#include "base/message_loop/message_pump_io_starboard.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/timer/timer.h"
 #include "net/base/completion_once_callback.h"
@@ -34,6 +34,7 @@
 #include "net/log/net_log_with_source.h"
 #include "net/socket/datagram_socket.h"
 #include "net/socket/diff_serv_code_point.h"
+#include "net/socket/socket.h"
 #include "net/socket/socket_descriptor.h"
 #include "net/socket/socket_tag.h"
 #include "net/socket/udp_socket_global_limits.h"
@@ -140,6 +141,11 @@ class NET_EXPORT UDPSocketStarboard
   // (similar to getsockname)
   int GetLocalAddress(IPEndPoint* address) const;
 
+  // Register the current socket to be watched for reading. When data becomes
+  // available for reading, OnSocketReadyToRead will be called.
+  // Returns OK when registration succeeded.
+  int StartWatchingSocketForReading();
+
   // IO:
   // Multiple outstanding read requests are not supported.
   // Full duplex mode (reading and writing at the same time) is supported
@@ -148,6 +154,13 @@ class NET_EXPORT UDPSocketStarboard
   // Only usable from the client-side of a UDP socket, after the socket
   // has been connected.
   int Read(IOBuffer* buf, int buf_len, CompletionOnceCallback callback);
+
+  // Reads multiple packets from the socket.
+  // Only usable from the client-side of a UDP socket, after the socket
+  // has been connected.
+  int ReadMultiplePackets(Socket::ReadPacketResults* results,
+                          int read_buffer_size,
+                          CompletionOnceCallback callback);
 
   // Writes to the socket.
   // Only usable from the client-side of a UDP socket, after the socket
@@ -382,7 +395,9 @@ class NET_EXPORT UDPSocketStarboard
 
   void DoReadCallback(int rv);
   void DoWriteCallback(int rv);
+
   void DidCompleteRead();
+  void DidCompleteMultiplePacketRead();
   void DidCompleteWrite();
 
   // Handles stats and logging. |result| is the number of bytes transferred, on
@@ -404,6 +419,7 @@ class NET_EXPORT UDPSocketStarboard
   // Reads data from a UDP socket, if address is not nullptr, the sender's
   // address will be copied to |*address|.
   int InternalRecvFrom(IOBuffer* buf, int buf_len, IPEndPoint* address);
+  int InternalReadMultiplePackets(Socket::ReadPacketResults* results);
   int InternalSendTo(IOBuffer* buf, int buf_len, const IPEndPoint* address);
 
   // Applies |socket_options_| to |socket_|. Should be called before
@@ -464,6 +480,9 @@ class NET_EXPORT UDPSocketStarboard
   IOBuffer* write_buf_;
   int write_buf_len_;
   std::unique_ptr<IPEndPoint> send_to_address_;
+
+  // The buffer used by ReadMultiplePackets() to retry Read requests
+  Socket::ReadPacketResults* results_ = nullptr;
 
   // External callback; called when read is complete.
   CompletionOnceCallback read_callback_;

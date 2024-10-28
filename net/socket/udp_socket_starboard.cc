@@ -35,6 +35,12 @@
 
 namespace net {
 
+namespace {
+// Read in larger batches to minimize recvmmsg overhead.
+inline constexpr int kNumPacketsPerReadMmsgCall = 64;
+inline constexpr size_t kDefaultUdpPacketControlBufferSize = 512;
+}  // namespace
+
 UDPSocketStarboard::UDPSocketStarboard(DatagramSocket::BindType bind_type,
                                        net::NetLog* net_log,
                                        const net::NetLogSource& source)
@@ -44,8 +50,9 @@ UDPSocketStarboard::UDPSocketStarboard(DatagramSocket::BindType bind_type,
       socket_options_(0),
       bind_type_(bind_type),
       socket_watcher_(FROM_HERE),
+      read_buf_(nullptr),
       read_buf_len_(0),
-      recv_from_address_(NULL),
+      recv_from_address_(nullptr),
       write_buf_len_(0),
       net_log_(NetLogWithSource::Make(net_log, NetLogSourceType::UDP_SOCKET)),
       weak_factory_(this) {
@@ -159,6 +166,77 @@ int UDPSocketStarboard::GetLocalAddress(IPEndPoint* address) const {
   return OK;
 }
 
+int UDPSocketStarboard::StartWatchingSocketForReading() {
+  if (!base::CurrentIOThread::Get()->Watch(
+          socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
+          &socket_watcher_, this)) {
+    PLOG(ERROR) << "WatchSocket failed on read";
+    Error result = MapLastSocketError(socket_);
+    if (result == ERR_IO_PENDING) {
+      // Watch(...) might call SbSocketWaiterAdd() which does not guarantee
+      // setting system error on failure, but we need to treat this as an
+      // error since watching the socket failed.
+      result = ERR_FAILED;
+    }
+    LogRead(result, NULL, NULL);
+    return result < 0 ? result : ERR_FAILED;
+  }
+  return OK;
+}
+
+int UDPSocketStarboard::ReadMultiplePackets(Socket::ReadPacketResults* results,
+                                            int packet_buffer_size,
+                                            CompletionOnceCallback callback) {
+  if (!results || packet_buffer_size <= 0) {
+    return ERR_INVALID_ARGUMENT;
+  }
+
+  if (!is_connected_) {
+    // This is only implemented correctly for connected sockets.
+    return ERR_SOCKET_NOT_CONNECTED;
+  }
+
+  if ((!results->buffer || results->buffer->size() == 0) ||
+      results->packet_buffer_size != packet_buffer_size ||
+      results->packets == nullptr) {
+    // Request how much memory to allocate for the needed buffers and data
+    // structures from the platform.
+    int buffer_size = SbSocketReceiveMultiMsgBufferSize(
+        kNumPacketsPerReadMmsgCall, packet_buffer_size,
+        kDefaultUdpPacketControlBufferSize);
+    // Calculate the space for our ReadPacketResult array.
+    int out_packets_size =
+        kNumPacketsPerReadMmsgCall * sizeof(Socket::ReadPacketResult);
+
+    // Allocate all the space we will need in one buffer.
+    results->buffer =
+        base::MakeRefCounted<IOBufferWithSize>(buffer_size + out_packets_size);
+
+    results->packet_buffer_size = packet_buffer_size;
+    // Our packets array is at the end of the buffer.
+    results->packets = reinterpret_cast<Socket::ReadPacketResult*>(
+        results->buffer->data() + buffer_size);
+    SbSocketReceiveMultiMsgBufferInitialize(
+        kNumPacketsPerReadMmsgCall, packet_buffer_size,
+        kDefaultUdpPacketControlBufferSize, results->buffer->data());
+  }
+
+  int nread = InternalReadMultiplePackets(results);
+  if (callback.is_null() || nread != ERR_IO_PENDING) {
+    return nread;
+  }
+
+  int rv = StartWatchingSocketForReading();
+  if (rv < 0) {
+    return rv;
+  }
+
+  results_ = results;
+  read_buf_len_ = packet_buffer_size;
+  read_callback_ = std::move(callback);
+  return ERR_IO_PENDING;
+}
+
 int UDPSocketStarboard::Read(IOBuffer* buf,
                              int buf_len,
                              CompletionOnceCallback callback) {
@@ -180,20 +258,9 @@ int UDPSocketStarboard::RecvFrom(IOBuffer* buf,
   if (nread != ERR_IO_PENDING)
     return nread;
 
-  if (!base::CurrentIOThread::Get()->Watch(
-          socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
-          &socket_watcher_, this)) {
-    PLOG(ERROR) << "WatchSocket failed on read";
-    Error result = MapLastSocketError(socket_);
-    if (result == ERR_IO_PENDING) {
-      // Watch(...) might call SbSocketWaiterAdd() which does not guarantee
-      // setting system error on failure, but we need to treat this as an
-      // error since watching the socket failed.
-      result = ERR_FAILED;
-    }
-    LogRead(result, NULL, NULL);
-    return result;
-  }
+  int rv = StartWatchingSocketForReading();
+  if (rv < 0)
+    return rv;
 
   read_buf_ = buf;
   read_buf_len_ = buf_len;
@@ -368,8 +435,13 @@ int UDPSocketStarboard::AllowAddressSharingForMulticast() {
 }
 
 void UDPSocketStarboard::OnSocketReadyToRead(SbSocket /*socket*/) {
-  if (!read_callback_.is_null())
-    DidCompleteRead();
+  if (!read_callback_.is_null()) {
+    if (results_) {
+      DidCompleteMultiplePacketRead();
+    } else {
+      DidCompleteRead();
+    }
+  }
 }
 
 void UDPSocketStarboard::OnSocketReadyToWrite(SbSocket socket) {
@@ -414,6 +486,15 @@ void UDPSocketStarboard::DidCompleteRead() {
     read_buf_ = NULL;
     read_buf_len_ = 0;
     recv_from_address_ = NULL;
+    InternalStopWatchingSocket();
+    DoReadCallback(result);
+  }
+}
+
+void UDPSocketStarboard::DidCompleteMultiplePacketRead() {
+  int result = InternalReadMultiplePackets(results_);
+  if (result != ERR_IO_PENDING) {
+    results_ = nullptr;
     InternalStopWatchingSocket();
     DoReadCallback(result);
   }
@@ -496,6 +577,29 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
   }
 
   return result;
+}
+
+int UDPSocketStarboard::InternalReadMultiplePackets(
+    Socket::ReadPacketResults* results) {
+  SbSocketReceiveMultiMsgResult* msgresult =
+      SbSocketReceiveMultiMsg(socket_, results->buffer->data());
+  CHECK(msgresult);
+  results->result = msgresult ? msgresult->result : -1;
+  if (results->result < 0) {
+    results->result = MapLastSocketError(socket_);
+    if (results->result == ERR_IO_PENDING) {
+      return results->result;
+    }
+  }
+  SbSocketReceiveMultiMsgPacket* packet = msgresult->packets;
+  Socket::ReadPacketResult* out_packet = results->packets;
+  CHECK(packet);
+  CHECK(out_packet);
+  for (int i = 0; i < results->result; ++i, ++packet, ++out_packet) {
+    out_packet->buffer = packet->buffer;
+    out_packet->result = packet->result;
+  }
+  return results->result;
 }
 
 int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
