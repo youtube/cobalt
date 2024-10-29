@@ -31,14 +31,15 @@ runs:
         set -x
         echo "Running env..."
         env
+        pwd
+        ls
+        ls ${GITHUB_WORKSPACE}
         echo "Attempting to run tests..."
 
         cd ${GITHUB_WORKSPACE}/unit_test
         for test_binary in $(ls -d out/**/*tests); do
           # TODO(b/372303096): Need dedicated xvfb runner.
           echo "Running tests for suite: ${test_binary}"
-
-
-          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary --gtest_filter=`tr '\n' ':' < ${GITHUB_WORKSPACE}/cobalt/testing/failing_tests.filter` --gtest_output="xml:${RESULTS_DIR}/${test_binary}_testoutput.xml"
+          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary --gtest_filter=`tr '\n' ':' < ${GITHUB_WORKSPACE}/src/cobalt/testing/failing_tests.filter` --gtest_output="xml:${RESULTS_DIR}/${test_binary}_testoutput.xml"
         done
         echo "Ran tests..."
