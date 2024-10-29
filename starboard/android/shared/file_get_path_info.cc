@@ -30,7 +30,7 @@ bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info) {
     return ::starboard::shared::posix::impl::FileGetPathInfo(path, out_info);
   }
 
-  SbFile file = SbFileOpen(path, kSbFileRead, NULL, NULL);
+  SbFile file = SbFileOpen(path, kSbFileRead | kSbFileOpenOnly, NULL, NULL);
   if (file) {
     bool result = SbFileGetInfo(file, out_info);
     SbFileClose(file);
