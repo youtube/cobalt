@@ -18,41 +18,10 @@ import("//starboard/shared/starboard/player/buildfiles.gni")
 import("//starboard/shared/starboard/player/player_tests.gni")
 
 ##########################################################
-# Configuration to extract GameActivity native files.
-##########################################################
-
-game_activity_aar_file = "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/game_activity/games-activity-2.0.2.aar"
-
-game_activity_source_files = [
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivity.cpp",
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivity.h",
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityEvents.cpp",
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityEvents.h",
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityLog.h",
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gamecommon.h",
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gametextinput.cpp",
-  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gametextinput.h",
-]
-
-game_activity_include_dirs =
-    [ "$target_gen_dir/game_activity/prefab/modules/game-activity/include" ]
-
-action("game_activity_sources") {
-  script = "//starboard/tools/unzip_file.py"
-  sources = [ game_activity_aar_file ]
-  outputs = game_activity_source_files
-  args = [
-    "--zip_file",
-    rebase_path(game_activity_aar_file, root_build_dir),
-    "--output_dir",
-    rebase_path(target_gen_dir, root_build_dir) + "/game_activity",
-  ]
-}
-
-##########################################################
 # Configuration for overall Android Starboard Platform.
 ##########################################################
 
+# TODO(cobalt, b/375669373): re-enable API without ApplicationAndroid
 static_library("starboard_platform") {
   sources = [
     "//starboard/shared/egl/system_egl.cc",
@@ -232,8 +201,9 @@ static_library("starboard_platform") {
     "get_home_directory.cc",
     "graphics.cc",
     "graphics.h",
-    "input_events_generator.cc",
-    "input_events_generator.h",
+
+    #"input_events_generator.cc",
+    #"input_events_generator.h",
     "jni_env_ext.cc",
     "jni_env_ext.h",
     "jni_utils.h",
@@ -288,10 +258,11 @@ static_library("starboard_platform") {
     "posix_emu/stat.cc",
     "sanitizer_options.cc",
     "socket_get_interface_address.cc",
-    "speech_synthesis_cancel.cc",
-    "speech_synthesis_internal.cc",
-    "speech_synthesis_is_supported.cc",
-    "speech_synthesis_speak.cc",
+
+    #"speech_synthesis_cancel.cc",
+    #"speech_synthesis_internal.cc",
+    #"speech_synthesis_is_supported.cc",
+    #"speech_synthesis_speak.cc",
     "system_get_extensions.cc",
     "system_get_locale_id.cc",
     "system_get_path.cc",
@@ -318,15 +289,15 @@ static_library("starboard_platform") {
     "video_render_algorithm.h",
     "video_window.cc",
     "video_window.h",
-    "window_create.cc",
-    "window_destroy.cc",
-    "window_get_diagonal_size_in_inches.cc",
-    "window_get_platform_handle.cc",
-    "window_get_size.cc",
-    "window_internal.h",
+
+    #"window_create.cc",
+    #"window_destroy.cc",
+    #"window_get_diagonal_size_in_inches.cc",
+    #"window_get_platform_handle.cc",
+    #"window_get_size.cc",
+    #"window_internal.h",
   ]
 
-  sources += game_activity_source_files
   sources += common_player_sources
 
   sources -= [
@@ -338,12 +309,9 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/player/player_set_playback_rate.cc",
   ]
 
-  include_dirs = game_activity_include_dirs
-
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   public_deps = [
-    ":game_activity_sources",
     ":starboard_base_symbolize",
     "//starboard/common",
     "//starboard/shared/starboard/media:media_util",
@@ -378,12 +346,6 @@ static_library("starboard_platform") {
   if (sb_evergreen_compatible_use_libunwind) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
   }
-
-  # Force-include atomic stl for game activity library.
-  cflags = [
-    "-include",
-    "atomic",
-  ]
 }
 
 static_library("starboard_base_symbolize") {

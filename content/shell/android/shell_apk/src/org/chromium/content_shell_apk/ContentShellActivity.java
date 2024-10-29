@@ -73,7 +73,10 @@ public class ContentShellActivity extends Activity {
         mWindowAndroid.setAnimationPlaceholderView(
                 mShellManager.getContentViewRenderView().getSurfaceView());
 
-        mStartupUrl = getUrlFromIntent(getIntent());
+        // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
+        if (mStartupUrl.isEmpty()) {
+            mStartupUrl = getUrlFromIntent(getIntent());
+        }
         if (!TextUtils.isEmpty(mStartupUrl)) {
             mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
         }
@@ -161,6 +164,11 @@ public class ContentShellActivity extends Activity {
                 activeView.loadUrl(url);
             }
         }
+    }
+
+    // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
+    protected void setStartupUrl(String url) {
+        mStartupUrl = url;
     }
 
     @Override
