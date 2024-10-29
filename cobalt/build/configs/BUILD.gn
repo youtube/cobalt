@@ -19,8 +19,8 @@ config("cobalt_config") {
   }
 
   defines = [
-    "IS_COBALT",
-    "USE_STARBOARD",
+    "ENABLE_BUILDFLAG_IS_COBALT",
+    "OS_STARBOARD",
   ]
 }
 
