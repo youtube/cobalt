@@ -18,7 +18,7 @@
 #include <unistd.h>
 #include <atomic>
 
-#include "game-activity/GameActivity.h"
+// #include "game-activity/GameActivity.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
@@ -247,104 +247,6 @@ void* ThreadEntryPoint(void* context) {
   env->CallStarboardVoidMethodOrAbort("afterStopped", "()V");
 
   return NULL;
-}
-
-void OnStart(GameActivity* activity) {
-  if (g_app_running.load()) {
-    ApplicationAndroid::Get()->SendAndroidCommand(AndroidCommand::kStart);
-  }
-}
-
-void OnResume(GameActivity* activity) {
-  if (g_app_running.load()) {
-    ApplicationAndroid::Get()->SendAndroidCommand(AndroidCommand::kResume);
-  }
-}
-
-void OnPause(GameActivity* activity) {
-  if (g_app_running.load()) {
-    ApplicationAndroid::Get()->SendAndroidCommand(AndroidCommand::kPause);
-  }
-}
-
-void OnStop(GameActivity* activity) {
-  if (g_app_running.load()) {
-    ApplicationAndroid::Get()->SendAndroidCommand(AndroidCommand::kStop);
-  }
-}
-
-bool OnTouchEvent(GameActivity* activity,
-                  const GameActivityMotionEvent* event) {
-  if (g_app_running.load()) {
-    return ApplicationAndroid::Get()->SendAndroidMotionEvent(event);
-  }
-  return false;
-}
-
-bool OnKey(GameActivity* activity, const GameActivityKeyEvent* event) {
-  if (g_app_running.load()) {
-    return ApplicationAndroid::Get()->SendAndroidKeyEvent(event);
-  }
-  return false;
-}
-
-void OnWindowFocusChanged(GameActivity* activity, bool focused) {
-  if (g_app_running.load()) {
-    ApplicationAndroid::Get()->SendAndroidCommand(
-        focused ? AndroidCommand::kWindowFocusGained
-                : AndroidCommand::kWindowFocusLost);
-  }
-}
-
-void OnNativeWindowCreated(GameActivity* activity, ANativeWindow* window) {
-  g_block_swapbuffers.store(false);
-  if (g_app_running.load()) {
-    ApplicationAndroid::Get()->SendAndroidCommand(
-        AndroidCommand::kNativeWindowCreated, window);
-  }
-}
-
-void OnNativeWindowDestroyed(GameActivity* activity, ANativeWindow* window) {
-  g_block_swapbuffers.store(true);
-  if (g_app_running.load()) {
-    ApplicationAndroid::Get()->SendAndroidCommand(
-        AndroidCommand::kNativeWindowDestroyed);
-  }
-}
-
-extern "C" SB_EXPORT_PLATFORM void GameActivity_onCreate(
-    GameActivity* activity,
-    void* savedState,
-    size_t savedStateSize) {
-  // Start the Starboard thread the first time an Activity is created.
-  if (g_starboard_thread == 0) {
-    Semaphore semaphore;
-
-    pthread_attr_t attributes;
-    pthread_attr_init(&attributes);
-    pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
-
-    pthread_create(&g_starboard_thread, &attributes, &ThreadEntryPoint,
-                   &semaphore);
-
-    pthread_attr_destroy(&attributes);
-
-    // Wait for the ApplicationAndroid to be created.
-    semaphore.Take();
-  }
-
-  activity->callbacks->onStart = OnStart;
-  activity->callbacks->onResume = OnResume;
-  activity->callbacks->onPause = OnPause;
-  activity->callbacks->onStop = OnStop;
-  activity->callbacks->onTouchEvent = OnTouchEvent;
-  activity->callbacks->onKeyDown = OnKey;
-  activity->callbacks->onKeyUp = OnKey;
-  activity->callbacks->onWindowFocusChanged = OnWindowFocusChanged;
-  activity->callbacks->onNativeWindowCreated = OnNativeWindowCreated;
-  activity->callbacks->onNativeWindowDestroyed = OnNativeWindowDestroyed;
-
-  activity->instance = ApplicationAndroid::Get();
 }
 
 extern "C" SB_EXPORT_PLATFORM jboolean
