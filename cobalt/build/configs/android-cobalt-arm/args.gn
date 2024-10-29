@@ -1,2 +1,3 @@
 target_os = "android"
 target_cpu = "arm"
+treat_warnings_as_errors = false
