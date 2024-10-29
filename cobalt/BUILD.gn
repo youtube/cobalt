@@ -19,6 +19,9 @@ group("gn_all") {
   deps = [ "//starboard($starboard_toolchain)" ]
   if (!is_android) {
     deps += [ ":cobalt" ]
+  } else {
+    # TODO(cobalt): reuse build rules below to define Android target.
+    deps += [ "android:cobalt_apk" ]
   }
 }
 
