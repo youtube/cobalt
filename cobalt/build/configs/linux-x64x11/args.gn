@@ -1,10 +1,6 @@
 target_os = "linux"
 target_cpu = "x64"
-target_platform = "linux-x64x11"
 is_cobalt = false
 
-# Chromium flag overrides needed for building libstarboard
-
-# V8 override
-# # Enable WASM and install WebAssembly global.
-v8_enable_webassembly = true
+# TODO(b/376141256): Decide if this flag is needed here or in .gclient file
+chrome_pgo_phase = 0
