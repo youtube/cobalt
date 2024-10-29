@@ -706,10 +706,14 @@ ShellContentBrowserClient::GetLocalTracesDirectory() {
 }
 
 std::string ShellContentBrowserClient::GetUserAgent() {
+#if defined(IS_COBALT)
+  return "Mozilla/5.0 (LINUX) Cobalt/26.lts.10.0000001-gold (unlike Gecko) v8/8.8.278.8-jit gles Evergreen/4.10.2 Evergreen-Full Evergreen-Uncompressed Starboard/15, odm_TV_chipset_2024/fw-01-23.45 (brand, model)";
+#else
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   return content::GetReducedUserAgent(
       command_line->HasSwitch(switches::kUseMobileUserAgent),
       CONTENT_SHELL_MAJOR_VERSION);
+#endif
 }
 
 blink::UserAgentMetadata ShellContentBrowserClient::GetUserAgentMetadata() {
