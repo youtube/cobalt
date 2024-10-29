@@ -675,6 +675,8 @@ int NO_STACK_PROTECTOR RunZygote(ContentMainDelegate* delegate) {
       return kMainFunctions[i].function(std::move(main_params));
   }
 
+  content::RenderFrameHost::AllowInjectingJavaScript();
+
   auto exit_code = delegate->RunProcess(process_type, std::move(main_params));
   DCHECK(absl::holds_alternative<int>(exit_code));
   DCHECK_GE(absl::get<int>(exit_code), 0);

@@ -1,0 +1,1 @@
+AndroidExample.testJavaScriptMethod();
