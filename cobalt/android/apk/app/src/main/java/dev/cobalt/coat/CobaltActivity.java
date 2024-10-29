@@ -23,13 +23,19 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Pair;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
+import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
+import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObjectExample;
+import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
+import dev.cobalt.util.AssetLoader;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
@@ -38,7 +44,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
+import org.chromium.content_public.browser.JavascriptInjector;
+import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_shell_apk.ContentShellActivity;
+
 // import dev.cobalt.media.AudioOutputManager;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
@@ -65,6 +74,11 @@ public abstract class CobaltActivity extends ContentShellActivity {
   private static final java.lang.String META_DATA_EVERGREEN_LITE = "cobalt.EVERGREEN_LITE";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
+
+  public static final int JAVA_BRIDGE_INITIALIZATION_DELAY_MILLI_SECONDS = 100;
+  // Maintain the list of JavaScript-exposed objects as a member variable
+  // to prevent them from being garbage collected prematurely.
+  private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
 
   private VideoSurfaceView videoSurfaceView;
 
@@ -105,6 +119,54 @@ public abstract class CobaltActivity extends ContentShellActivity {
     videoSurfaceView = new VideoSurfaceView(this);
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+
+    initializeJavaBridge();
+  }
+
+  /**
+   * Initializes the Java Bridge to allow communication between Java and JavaScript.
+   * This method injects Java objects into the WebView and loads corresponding JavaScript code.
+   */
+  private void initializeJavaBridge() {
+
+    WebContents webContents = getActiveWebContents();
+    if (webContents == null) {
+        // WebContents not initialized yet, post a delayed runnable to check again
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                initializeJavaBridge(); // Recursive call to check again
+            }
+        }, JAVA_BRIDGE_INITIALIZATION_DELAY_MILLI_SECONDS);
+        return;
+    }
+
+    // --- Initialize the Java Bridge ---
+
+    // 1. Gather all Java objects that need to be exposed to JavaScript.
+    javaScriptAndroidObjectList.add(new CobaltJavaScriptAndroidObjectExample());
+
+    // 2. Use JavascriptInjector to inject Java objects into the WebView.
+    //    This makes the annotated methods in these objects accessible from JavaScript.
+    JavascriptInjector javascriptInjector = JavascriptInjector.fromWebContents(webContents, false);
+    if (javascriptInjector == null) {
+      Log.w(TAG, "javascriptInjector is null, failed to init Java Bridge.");
+      return;
+    }
+
+    javascriptInjector.setAllowInspection(true);
+    for (CobaltJavaScriptAndroidObject javascriptAndroidObject : javaScriptAndroidObjectList) {
+      javascriptInjector.addPossiblyUnsafeInterface(javascriptAndroidObject, javascriptAndroidObject.getJavaScriptInterfaceName(), CobaltJavaScriptInterface.class);
+    }
+
+    // 3. Load and evaluate JavaScript code that interacts with the injected Java objects.
+    for (CobaltJavaScriptAndroidObject javaScriptAndroidObject : javaScriptAndroidObjectList) {
+      String jsFileName = javaScriptAndroidObject.getJavaScriptAssetName();
+      if (jsFileName != null) {
+        String jsCode = AssetLoader.loadJavaScriptFromAssets(this, jsFileName);
+        webContents.evaluateJavaScript(jsCode, null);
+      }
+    }
   }
 
   /**
