@@ -51,32 +51,8 @@ bool GetLocalhostAddress(SbSocketAddressType address_type,
   return true;
 }
 
-Socket::Socket(SbSocketAddressType address_type, SbSocketProtocol protocol)
-    : socket_(SbSocketCreate(address_type, protocol)) {}
-
-Socket::Socket(SbSocketAddressType address_type)
-    : socket_(SbSocketCreate(address_type, kSbSocketProtocolTcp)) {}
-
-Socket::Socket(SbSocketProtocol protocol)
-    : socket_(SbSocketCreate(kSbSocketAddressTypeIpv4, protocol)) {}
-
-Socket::Socket()
-    : socket_(SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp)) {}
-
-Socket::~Socket() {
-  SbSocketDestroy(socket_);
-}
-
 bool Socket::IsValid() {
   return SbSocketIsValid(socket_);
-}
-
-SbSocketError Socket::Connect(const SbSocketAddress* address) {
-  return SbSocketConnect(socket_, address);
-}
-
-bool Socket::GetLocalAddress(SbSocketAddress* out_address) {
-  return SbSocketGetLocalAddress(socket_, out_address);
 }
 
 SbSocket Socket::socket() {

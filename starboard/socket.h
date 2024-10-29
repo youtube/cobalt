@@ -86,18 +86,6 @@ typedef enum SbSocketAddressType {
   kSbSocketAddressTypeIpv6,
 } SbSocketAddressType;
 
-// Bits that can be set when calling SbSocketResolve to filter the results.
-typedef enum SbSocketResolveFilter {
-  // No filters, include everything.
-  kSbSocketResolveFilterNone = 0,
-
-  // Include Ipv4 addresses.
-  kSbSocketResolveFilterIpv4 = 1 << 0,
-
-  // Include Ipv6 addresses.
-  kSbSocketResolveFilterIpv6 = 1 << 1,
-} SbSocketResolveFilter;
-
 // A representation of any possible supported address type.
 typedef struct SbSocketAddress {
   // The storage for the address. For IPv4, only the first 4 bytes make up the
@@ -129,99 +117,6 @@ typedef struct SbSocketResolution {
 static inline bool SbSocketIsValid(SbSocket socket) {
   return socket != kSbSocketInvalid;
 }
-
-// Returns whether IPV6 is supported on the current platform.
-SB_EXPORT bool SbSocketIsIpv6Supported();
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Creates a new non-blocking socket for protocol |protocol| using address
-// family |address_type|.
-//
-// - If successful, this function returns the newly created handle.
-// - If unsuccessful, this function returns |kSbSocketInvalid| and also sets
-//   the last system error appropriately.
-//
-// |address_type|: The type of IP address to use for the socket.
-// |protocol|: The protocol to use for the socket.
-SB_EXPORT SbSocket SbSocketCreate(SbSocketAddressType address_type,
-                                  SbSocketProtocol protocol);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Destroys the |socket| by flushing it, closing any connection that may be
-// active on it, and reclaiming any resources associated with it, including
-// any registration with an |SbSocketWaiter|.
-//
-// The return value indicates whether the destruction was successful. However,
-// even if this function returns |false|, you should not be able to use the
-// socket any more.
-//
-// |socket|: The SbSocket to be destroyed.
-SB_EXPORT bool SbSocketDestroy(SbSocket socket);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Opens a connection of |socket|'s type to the host and port specified by
-// |address|. This function sets and returns the socket error if it is unable
-// to connect to |address|. (It returns |kSbSocketOk| if it creates the
-// connection successfully.)
-//
-// |socket|: The type of connection that should be opened.
-// |address|: The host and port to which the socket should connect.
-SB_EXPORT SbSocketError SbSocketConnect(SbSocket socket,
-                                        const SbSocketAddress* address);
-
-// DEPRECATED with SB_API_VERSION 16
-//
-// Gets the address that this socket is bound to locally, if the socket is
-// connected. The return value indicates whether the address was retrieved
-// successfully.
-//
-// |socket|: The SbSocket for which the local address is retrieved.
-// |out_address|: The SbSocket's local address.
-SB_EXPORT bool SbSocketGetLocalAddress(SbSocket socket,
-                                       SbSocketAddress* out_address);
-// DEPRECATED with SB_API_VERSION 16
-//
-// Gets the source address and the netmask that would be used to connect to the
-// destination.  The netmask parameter is optional, and only populated if a
-// non-NULL parameter is passed in.  To determine which source IP will be used,
-// the kernel takes into account the protocol, routes, destination
-// ip, etc.  The subnet mask, aka netmask, is used to find the routing prefix.
-// In IPv6, this should be derived from the prefix value.
-//
-// Returns whether it was possible to determine the source address and the
-// netmask (if non-NULL value is passed) to be used to connect to the
-// destination.  This function could fail if the destination is not reachable,
-// if it an invalid address, etc.
-//
-// |destination|: The destination IP to be connected to.  If IP addresses is not
-// 0.0.0.0 or ::, then temporary addresses may be returned.
-//
-// If the destination address is 0.0.0.0, and its |type| is
-// |kSbSocketAddressTypeIpv4|, then any IPv4 local interface that is up and not
-// a loopback interface is a valid return value.
-//
-// If the destination address is ::, and its |type| is
-// |kSbSocketAddressTypeIpv6| then any IPv6 local interface that is up and not
-// loopback or a link-local IP is a valid return value.  However, in the case of
-// IPv6, the address with the biggest scope must be returned.  E.g., a globally
-// scoped and routable IP is preferred over a unique local address (ULA).  Also,
-// the IP address that is returned must be permanent.
-//
-// If destination address is NULL, then any IP address that is valid for
-// |destination| set to 0.0.0.0 (IPv4) or :: (IPv6) can be returned.
-//
-// |out_source_address|: This function places the address of the local interface
-// in this output variable.
-// |out_netmask|: This parameter is optional.  If a non-NULL value is passed in,
-// this function places the netmask associated with the source address in this
-// output variable.
-SB_EXPORT bool SbSocketGetInterfaceAddress(
-    const SbSocketAddress* const destination,
-    SbSocketAddress* out_source_address,
-    SbSocketAddress* out_netmask);
 
 #ifdef __cplusplus
 }  // extern "C"

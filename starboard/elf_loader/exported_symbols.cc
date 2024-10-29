@@ -147,12 +147,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbPlayerSetVolume);
   REGISTER_SYMBOL(SbPlayerWriteEndOfStream);
   REGISTER_SYMBOL(SbPlayerWriteSamples);
-  REGISTER_SYMBOL(SbSocketConnect);
-  REGISTER_SYMBOL(SbSocketCreate);
-  REGISTER_SYMBOL(SbSocketDestroy);
-  REGISTER_SYMBOL(SbSocketGetInterfaceAddress);
-  REGISTER_SYMBOL(SbSocketGetLocalAddress);
-  REGISTER_SYMBOL(SbSocketIsIpv6Supported);
   REGISTER_SYMBOL(SbSocketWaiterAdd);
   REGISTER_SYMBOL(SbSocketWaiterCreate);
   REGISTER_SYMBOL(SbSocketWaiterDestroy);
