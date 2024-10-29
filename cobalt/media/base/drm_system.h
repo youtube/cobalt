@@ -254,7 +254,7 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
   TicketToSessionUpdateMap ticket_to_session_update_map_;
 
   MediaMetricsProvider media_metrics_provider_;
-  
+
   DISALLOW_COPY_AND_ASSIGN(DrmSystem);
 };
 
