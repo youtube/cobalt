@@ -128,9 +128,6 @@ ApplicationAndroid::ApplicationAndroid(
       AMOTION_EVENT_AXIS_HSCROLL, AMOTION_EVENT_AXIS_VSCROLL,
       AMOTION_EVENT_AXIS_WHEEL,
   };
-  for (auto axis : required_axes) {
-    GameActivityPointerAxes_enableAxis(axis);
-  }
 
   int pipefd[2];
   int err;
@@ -201,7 +198,8 @@ SbWindow ApplicationAndroid::CreateWindow(const SbWindowOptions* options) {
   ScopedLock lock(input_mutex_);
   window_ = new SbWindowPrivate;
   window_->native_window = native_window_;
-  input_events_generator_.reset(new InputEventsGenerator(window_));
+  // TODO(cobalt): determine if we still need InputEventsGenerator.
+  // input_events_generator_.reset(new InputEventsGenerator(window_));
   return window_;
 }
 
@@ -211,7 +209,7 @@ bool ApplicationAndroid::DestroyWindow(SbWindow window) {
   }
 
   ScopedLock lock(input_mutex_);
-  input_events_generator_.reset();
+  // input_events_generator_.reset();
 
   SB_DCHECK(window == window_);
   delete window_;
@@ -443,72 +441,73 @@ void ApplicationAndroid::SendAndroidCommand(AndroidCommand::CommandType type,
   }
 }
 
-bool ApplicationAndroid::SendAndroidMotionEvent(
-    const GameActivityMotionEvent* event) {
-  SB_LOG(INFO) << "Received Motion Event from Android OS."
-               << " source:" << event->source;
+// TODO(cobalt): determine if we still need to handle input events.
+// bool ApplicationAndroid::SendAndroidMotionEvent(
+//     const GameActivityMotionEvent* event) {
+//   SB_LOG(INFO) << "Received Motion Event from Android OS."
+//                << " source:" << event->source;
 
-  bool result = false;
+//   bool result = false;
 
-  ScopedLock lock(input_mutex_);
-  if (!input_events_generator_) {
-    return false;
-  }
+//   ScopedLock lock(input_mutex_);
+//   if (!input_events_generator_) {
+//     return false;
+//   }
 
-  // add motion event into the queue.
-  InputEventsGenerator::Events app_events;
-  result = input_events_generator_->CreateInputEventsFromGameActivityEvent(
-      const_cast<GameActivityMotionEvent*>(event), &app_events);
+//   // add motion event into the queue.
+//   InputEventsGenerator::Events app_events;
+//   result = input_events_generator_->CreateInputEventsFromGameActivityEvent(
+//       const_cast<GameActivityMotionEvent*>(event), &app_events);
 
-  for (int i = 0; i < app_events.size(); ++i) {
-    Inject(app_events[i].release());
-  }
+//   for (int i = 0; i < app_events.size(); ++i) {
+//     Inject(app_events[i].release());
+//   }
 
-  return result;
-}
+//   return result;
+// }
 
-bool ApplicationAndroid::SendAndroidKeyEvent(
-    const GameActivityKeyEvent* event) {
-  // Find the value reference on
-  // https://developer.android.com/reference/android/view/KeyEvent
-  SB_LOG(INFO) << "Received Key Event from Android OS. "
-               << "keyCode:" << event->keyCode
-               << ", modifiers:" << event->modifiers
-               << ", source:" << event->source;
+// bool ApplicationAndroid::SendAndroidKeyEvent(
+//     const GameActivityKeyEvent* event) {
+//   // Find the value reference on
+//   // https://developer.android.com/reference/android/view/KeyEvent
+//   SB_LOG(INFO) << "Received Key Event from Android OS. "
+//                << "keyCode:" << event->keyCode
+//                << ", modifiers:" << event->modifiers
+//                << ", source:" << event->source;
 
-  bool result = false;
+//   bool result = false;
 
-  ScopedLock lock(input_mutex_);
-  if (!input_events_generator_) {
-    return false;
-  }
+//   ScopedLock lock(input_mutex_);
+//   if (!input_events_generator_) {
+//     return false;
+//   }
 
-  // Add key event to the application queue.
-  InputEventsGenerator::Events app_events;
-  result = input_events_generator_->CreateInputEventsFromGameActivityEvent(
-      const_cast<GameActivityKeyEvent*>(event), &app_events);
-  for (int i = 0; i < app_events.size(); i++) {
-    Inject(app_events[i].release());
-  }
+//   // Add key event to the application queue.
+//   InputEventsGenerator::Events app_events;
+//   result = input_events_generator_->CreateInputEventsFromGameActivityEvent(
+//       const_cast<GameActivityKeyEvent*>(event), &app_events);
+//   for (int i = 0; i < app_events.size(); i++) {
+//     Inject(app_events[i].release());
+//   }
 
-  return result;
-}
+//   return result;
+// }
 
 void ApplicationAndroid::ProcessKeyboardInject() {
-  SbKey key;
-  int err = read(keyboard_inject_readfd_, &key, sizeof(key));
-  SB_DCHECK(err >= 0) << "Keyboard inject read failed: errno=" << errno;
-  SB_LOG(INFO) << "Keyboard inject: " << key;
-  ScopedLock lock(input_mutex_);
-  if (!input_events_generator_) {
-    SB_DLOG(WARNING) << "Injected input event ignored without an SbWindow.";
-    return;
-  }
-  InputEventsGenerator::Events app_events;
-  input_events_generator_->CreateInputEventsFromSbKey(key, &app_events);
-  for (int i = 0; i < app_events.size(); ++i) {
-    Inject(app_events[i].release());
-  }
+  // SbKey key;
+  // int err = read(keyboard_inject_readfd_, &key, sizeof(key));
+  // SB_DCHECK(err >= 0) << "Keyboard inject read failed: errno=" << errno;
+  // SB_LOG(INFO) << "Keyboard inject: " << key;
+  // ScopedLock lock(input_mutex_);
+  // if (!input_events_generator_) {
+  //   SB_DLOG(WARNING) << "Injected input event ignored without an SbWindow.";
+  //   return;
+  // }
+  // InputEventsGenerator::Events app_events;
+  // input_events_generator_->CreateInputEventsFromSbKey(key, &app_events);
+  // for (int i = 0; i < app_events.size(); ++i) {
+  //   Inject(app_events[i].release());
+  // }
 }
 
 void ApplicationAndroid::SendKeyboardInject(SbKey key) {

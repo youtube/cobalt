@@ -23,7 +23,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "game-activity/GameActivity.h"
+// #include "game-activity/GameActivity.h"
 #include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/condition_variable.h"
@@ -82,8 +82,8 @@ class ApplicationAndroid
   void SendAndroidCommand(AndroidCommand::CommandType type) {
     SendAndroidCommand(type, NULL);
   }
-  bool SendAndroidMotionEvent(const GameActivityMotionEvent* event);
-  bool SendAndroidKeyEvent(const GameActivityKeyEvent* event);
+  // bool SendAndroidMotionEvent(const GameActivityMotionEvent* event);
+  // bool SendAndroidKeyEvent(const GameActivityKeyEvent* event);
 
   void SendKeyboardInject(SbKey key);
 
