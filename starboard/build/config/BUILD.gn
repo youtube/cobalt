@@ -212,6 +212,10 @@ config("starboard") {
 
     defines += [ "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"" ]
   }
+
+  sb_out_dir =
+      get_label_info("//starboard($starboard_toolchain)", "root_out_dir")
+  ldflags = [ "-Wl,-rpath=" + rebase_path("$sb_out_dir") ]
 }
 
 config("native_target_build") {
