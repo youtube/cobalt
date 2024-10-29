@@ -77,7 +77,17 @@ public class ContentShellActivity extends Activity {
         mWindowAndroid.setAnimationPlaceholderView(
                 mShellManager.getContentViewRenderView().getSurfaceView());
 
+<<<<<<< HEAD
         mStartupUrl = getUrlFromIntent(getIntent());
+=======
+        // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
+        if (mStartupUrl.isEmpty()) {
+            mStartupUrl = getUrlFromIntent(getIntent());
+        }
+        if (!TextUtils.isEmpty(mStartupUrl)) {
+            mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
+        }
+>>>>>>> f28ac7d8996 (`cobalt_apk` to build dev.cobalt.coat (#4304))
 
         if (CommandLine.getInstance().hasSwitch(RUN_WEB_TESTS_SWITCH)) {
             BrowserStartupController.getInstance()
@@ -166,6 +176,11 @@ public class ContentShellActivity extends Activity {
                 activeView.loadUrl(url);
             }
         }
+    }
+
+    // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
+    protected void setStartupUrl(String url) {
+        mStartupUrl = url;
     }
 
     @Override

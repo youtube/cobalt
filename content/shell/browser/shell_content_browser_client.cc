@@ -325,8 +325,26 @@ std::unique_ptr<PrefService> CreateLocalState() {
   return pref_service_factory.Create(pref_registry);
 }
 
+<<<<<<< HEAD
 bool AreIsolatedWebAppsEnabled() {
   return base::FeatureList::IsEnabled(features::kIsolatedWebApps);
+=======
+}  // namespace
+
+std::string GetShellUserAgent() {
+  // TODO(cobalt b/376147838): Revert the changes here and instead rely on coablt_content_browser_client.cc for UA.
+#if defined(IS_COBALT)
+  return "Mozilla/5.0 (LINUX) Cobalt/26.lts.10.0000001-gold (unlike Gecko) v8/8.8.278.8-jit gles Evergreen/4.10.2 Evergreen-Full Evergreen-Uncompressed Starboard/15, odm_TV_chipset_2024/fw-01-23.45 (brand, model)";
+#else
+  if (base::FeatureList::IsEnabled(blink::features::kFullUserAgent))
+    return GetShellFullUserAgent();
+
+  if (base::FeatureList::IsEnabled(blink::features::kReduceUserAgent))
+    return GetShellReducedUserAgent();
+
+  return GetShellFullUserAgent();
+#endif
+>>>>>>> f28ac7d8996 (`cobalt_apk` to build dev.cobalt.coat (#4304))
 }
 
 }  // namespace
