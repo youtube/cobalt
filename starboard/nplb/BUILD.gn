@@ -31,7 +31,6 @@ config("wnos") {
     "-Wno-unused-local-typedef",
     "-Wno-unreachable-code",
     "-Wno-unreachable-code-break",
-    "-Wno-enum-constexpr-conversion",
   ]
 }
 
