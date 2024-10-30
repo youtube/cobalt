@@ -54,6 +54,9 @@ _FILTERED_TESTS = {
         'SimpleIndexFileTest.*',
         'SimpleVersionUpgradeTest.*',
         '*FileNetLogObserver*',
+
+        # TODO: b/376351154 - Fix the tests for optimized QUIC / UDP read
+        'JobControllerLimitMultipleH2Requests.QuicJobNotThrottled',
     ]
 }
 
