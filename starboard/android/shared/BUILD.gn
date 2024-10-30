@@ -213,7 +213,6 @@ static_library("starboard_platform") {
     "log_internal.cc",
     "log_internal.h",
     "log_raw.cc",
-    "main.cc",
     "max_media_codec_output_buffers_lookup_table.cc",
     "max_media_codec_output_buffers_lookup_table.h",
     "media_capabilities_cache.cc",

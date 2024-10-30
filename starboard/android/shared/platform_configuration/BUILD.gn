@@ -23,6 +23,13 @@ config("platform_configuration") {
     "log",
     "mediandk",
   ]
+  cflags = [
+    "-fsigned-char",
+
+    # Ignore warnings in Chromium code related to forcing signed char.
+    "-Wno-sign-compare",
+    "-Wno-c++11-narrowing",
+  ]
 }
 
 config("size") {
