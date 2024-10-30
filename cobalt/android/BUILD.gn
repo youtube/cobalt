@@ -43,9 +43,22 @@ android_library("cobalt_apk_java") {
   deps = [
     ":cobalt_java_resources",
     "//base:base_java",
+    "//base:base_java",
+    "//base:process_launcher_java",
+    "//build/android:build_java",
+    "//components/embedder_support/android:view_java",
+    "//content/public/android:content_java",
     "//content/shell/android:content_shell_apk_java",
+    "//content/shell/android:content_shell_apk_resources",
+    "//content/shell/android:content_shell_java",
+    "//content/shell/android:content_shell_manifest",
+    "//media/capture/video/android:capture_java",
+    "//net/android:net_java",
+    "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
+    "//ui/android:ui_java",
     "//ui/android:ui_no_recycler_view_java",
+    "//url:gurl_java",
   ]
   sources = [
     "apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
