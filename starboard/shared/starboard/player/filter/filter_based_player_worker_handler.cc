@@ -393,7 +393,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::SetBounds(const Bounds& bounds) {
     bounds_.z_index = bounds.z_index;
     bool bounds_changed = memcmp(&bounds_, &bounds, sizeof(bounds_)) != 0;
     SB_LOG_IF(INFO, bounds_changed)
-        << "Set bounds to " << "x: " << bounds.x << ", y: " << bounds.y
+        << "Set bounds to "
+        << "x: " << bounds.x << ", y: " << bounds.y
         << ", width: " << bounds.width << ", height: " << bounds.height
         << ", z_index: " << bounds.z_index;
 
