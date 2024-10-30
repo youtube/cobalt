@@ -5,8 +5,6 @@
 #ifndef CONTENT_SHELL_BROWSER_SHELL_PATHS_H_
 #define CONTENT_SHELL_BROWSER_SHELL_PATHS_H_
 
-#include "build/build_config.h"
-
 namespace cobalt {
 
 enum {
