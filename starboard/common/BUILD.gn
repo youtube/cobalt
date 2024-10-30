@@ -103,6 +103,7 @@ static_library("file_wrapper") {
     "file_wrapper.cc",
     "file_wrapper.h",
   ]
+  deps = [ "//starboard:starboard_headers_only" ]
 }
 
 target(gtest_target_type, "common_test") {
