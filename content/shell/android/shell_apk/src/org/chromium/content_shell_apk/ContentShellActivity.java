@@ -78,12 +78,16 @@ public class ContentShellActivity extends Activity {
                 mShellManager.getContentViewRenderView().getSurfaceView());
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         mStartupUrl = getUrlFromIntent(getIntent());
 =======
         // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
         if (mStartupUrl.isEmpty()) {
             mStartupUrl = getUrlFromIntent(getIntent());
         }
+=======
+        mStartupUrl = getUrlFromIntent(getIntent());
+>>>>>>> bf19c1b5744 (Copy ContentShellActivity instead of inheriting (#4336))
         if (!TextUtils.isEmpty(mStartupUrl)) {
             mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
         }
@@ -176,11 +180,6 @@ public class ContentShellActivity extends Activity {
                 activeView.loadUrl(url);
             }
         }
-    }
-
-    // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
-    protected void setStartupUrl(String url) {
-        mStartupUrl = url;
     }
 
     @Override
