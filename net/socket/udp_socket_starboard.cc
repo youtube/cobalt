@@ -624,6 +624,15 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
                                        int buf_len,
                                        const IPEndPoint* address) {
   SbSocketAddress sb_address;
+  if (!address && !g_socket_extension) {
+    // Platforms without the socket extension require a destination address.
+    address = remote_address_.get();
+    if (!address) {
+      int result = ERR_FAILED;
+      LogWrite(result, NULL, NULL);
+      return result;
+    }
+  }
   if (address && !address->ToSbSocketAddress(&sb_address)) {
     int result = ERR_FAILED;
     LogWrite(result, NULL, NULL);
