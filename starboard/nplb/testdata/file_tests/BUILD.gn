@@ -13,8 +13,6 @@
 # limitations under the License.
 
 copy("nplb_file_tests_data") {
-  install_content = true
-
   sources = [
     "dir_with_files/file11",
     "dir_with_files/file12",

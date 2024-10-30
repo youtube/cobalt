@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/configuration.h"
+#include "testing/gtest/include/gtest/gtest.h"
+
+#if SB_IS(EVERGREEN)
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
-#include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
 int InitAndRunAllTests(int argc, char** argv) {
@@ -26,7 +29,10 @@ int InitAndRunAllTests(int argc, char** argv) {
 
 // When we are building Evergreen we need to export SbEventHandle so that the
 // ELF loader can find and invoke it.
-#if SB_IS(MODULAR)
-SB_EXPORT
-#endif  // SB_IS(MODULAR)
-STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
+SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
+#else
+int main(int argc, char** argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
+}
+#endif

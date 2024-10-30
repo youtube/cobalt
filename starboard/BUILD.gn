@@ -16,7 +16,7 @@ import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/config/starboard_target_type.gni")
 import("//starboard/contrib/cast/cast.gni")
 
-if (sb_is_modular) {
+if (!is_cobalt) {
   group("gn_all") {
     testonly = true
 
@@ -225,6 +225,8 @@ source_set("starboard_headers_only") {
 # TODO: b/374302273 - Fix starboard implementation to not emit these compiler warnings.
 config("hacky_wnos") {
   cflags = [
+    "-Wno-undefined-internal",
+
     # Disable errors for the warning till the Android NDK r19 is fixed.
     # The warning is trigger when compiling .c files and complains for
     # "-stdlib=libc++" which is added by the NDK.

@@ -19,6 +19,7 @@
 #include <pthread.h>
 #include <string.h>
 #include <unistd.h>
+#include "starboard/common/log.h"
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
 #include "starboard/thread.h"
 

@@ -228,6 +228,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/file_storage/storage_read_record.cc",
     "//starboard/shared/starboard/log_mutex.cc",
     "//starboard/shared/starboard/log_mutex.h",
+    "//starboard/shared/starboard/log_raw_dump_stack.cc",
     "//starboard/shared/starboard/log_raw_format.cc",
     "//starboard/shared/starboard/media/media_can_play_mime_and_key_system.cc",
     "//starboard/shared/starboard/media/media_get_audio_buffer_budget.cc",
@@ -269,9 +270,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/stub/thread_create_priority.cc",
     "//starboard/shared/stub/window_get_diagonal_size_in_inches.cc",
   ]
-  if (enable_evergreen_code) {
-    sources += [ "//starboard/shared/starboard/log_raw_dump_stack.cc" ]
-  }
 
   sources += common_player_sources
 
