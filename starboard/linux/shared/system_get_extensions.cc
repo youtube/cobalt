@@ -29,6 +29,7 @@
 #endif
 #include "starboard/extension/memory_mapped_file.h"
 #include "starboard/extension/platform_service.h"
+#include "starboard/extension/socket_receive_multi_msg.h"
 #include "starboard/extension/time_zone.h"
 #include "starboard/linux/shared/configuration.h"
 #include "starboard/linux/shared/ifa.h"
@@ -38,6 +39,7 @@
 #include "starboard/shared/ffmpeg/ffmpeg_demuxer.h"
 #include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
+#include "starboard/shared/posix/socket_receive_multi_msg.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/crash_handler.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -70,6 +72,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionFreeSpaceName) == 0) {
     return starboard::shared::posix::GetFreeSpaceApi();
+  }
+  if (strcmp(name, kCobaltExtensionSocketReceiveMultiMsgName) == 0) {
+    return starboard::shared::posix::GetSocketReceiveMultiMsgApi();
   }
 #if SB_API_VERSION < 15
   if (strcmp(name, kCobaltExtensionEnhancedAudioName) == 0) {

@@ -315,28 +315,6 @@ SB_EXPORT int SbSocketReceiveFrom(SbSocket socket,
                                   int data_size,
                                   SbSocketAddress* out_source);
 
-unsigned int SbSocketReceiveMultiMsgBufferSize(unsigned int num_messages,
-                                               unsigned int message_size,
-                                               unsigned int control_size);
-
-void SbSocketReceiveMultiMsgBufferInitialize(unsigned int num_messages,
-                                             unsigned int message_size,
-                                             unsigned int control_size,
-                                             char* data);
-
-struct SbSocketReceiveMultiMsgPacket {
-  char* buffer = nullptr;
-  int result = 0;
-};
-
-struct SbSocketReceiveMultiMsgResult {
-  int result = 0;
-  SbSocketReceiveMultiMsgPacket* packets = nullptr;
-};
-
-SbSocketReceiveMultiMsgResult* SbSocketReceiveMultiMsg(SbSocket socket,
-                                                       char* buffer);
-
 // DEPRECATED with SB_API_VERSION 16
 //
 // Writes up to |data_size| bytes of |data| to |destination| via

@@ -12,31 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/posix/socket_receive_multi_msg.h"
-#include "starboard/shared/posix/socket_receive_multi_msg_internal.h"
-
-#include "starboard/extension/socket_receive_multi_msg.h"
+#ifndef STARBOARD_SHARED_POSIX_SOCKET_RECEIVE_MULTI_MSG_H_
+#define STARBOARD_SHARED_POSIX_SOCKET_RECEIVE_MULTI_MSG_H_
 
 namespace starboard {
 namespace shared {
 namespace posix {
 
-namespace {
-
-const CobaltExtensionSocketReceiveMultiMsgApi kSocketReceiveMultiMsgApi = {
-    kCobaltExtensionSocketReceiveMultiMsgName,
-    1,
-    &SbSocketReceiveMultiMsgBufferSize,
-    &SbSocketReceiveMultiMsgBufferInitialize,
-    &SbSocketReceiveMultiMsg,
-};
-
-}  // namespace
-
-const void* GetSocketReceiveMultiMsgApi() {
-  return &kSocketReceiveMultiMsgApi;
-}
+const void* GetSocketReceiveMultiMsgApi();
 
 }  // namespace posix
 }  // namespace shared
 }  // namespace starboard
+
+#endif  // STARBOARD_SHARED_POSIX_SOCKET_RECEIVE_MULTI_MSG_H_

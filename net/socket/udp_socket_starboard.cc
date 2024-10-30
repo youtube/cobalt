@@ -31,6 +31,7 @@
 #include "net/log/net_log_source_type.h"
 #include "net/socket/udp_net_log_parameters.h"
 #include "starboard/common/socket.h"
+#include "starboard/extension/socket_receive_multi_msg.h"
 #include "starboard/system.h"
 
 namespace net {
@@ -39,6 +40,8 @@ namespace {
 // Read in larger batches to minimize recvmmsg overhead.
 inline constexpr int kNumPacketsPerReadMmsgCall = 64;
 inline constexpr size_t kDefaultUdpPacketControlBufferSize = 512;
+
+const CobaltExtensionSocketReceiveMultiMsgApi* g_socket_extension = nullptr;
 }  // namespace
 
 UDPSocketStarboard::UDPSocketStarboard(DatagramSocket::BindType bind_type,
@@ -56,6 +59,15 @@ UDPSocketStarboard::UDPSocketStarboard(DatagramSocket::BindType bind_type,
       write_buf_len_(0),
       net_log_(NetLogWithSource::Make(net_log, NetLogSourceType::UDP_SOCKET)),
       weak_factory_(this) {
+  if (g_socket_extension == nullptr) {
+    // Note that this initializes a constant pointer, so even if two threads run
+    // this in parallel, they will only do redundant work without overwriting
+    // previous work. Therefore, there is no need for atomics, locks or memory
+    // barriers here.
+    g_socket_extension =
+        static_cast<const CobaltExtensionSocketReceiveMultiMsgApi*>(
+            SbSystemGetExtension(kCobaltExtensionSocketReceiveMultiMsgName));
+  }
   net_log_.BeginEventReferencingSource(NetLogEventType::SOCKET_ALIVE,
                       source);
 }
@@ -187,6 +199,9 @@ int UDPSocketStarboard::StartWatchingSocketForReading() {
 int UDPSocketStarboard::ReadMultiplePackets(Socket::ReadPacketResults* results,
                                             int packet_buffer_size,
                                             CompletionOnceCallback callback) {
+  if (!g_socket_extension) {
+    return ERR_NOT_IMPLEMENTED;
+  }
   if (!results || packet_buffer_size <= 0) {
     return ERR_INVALID_ARGUMENT;
   }
@@ -201,7 +216,7 @@ int UDPSocketStarboard::ReadMultiplePackets(Socket::ReadPacketResults* results,
       results->packets == nullptr) {
     // Request how much memory to allocate for the needed buffers and data
     // structures from the platform.
-    int buffer_size = SbSocketReceiveMultiMsgBufferSize(
+    int buffer_size = g_socket_extension->ReceiveMultiMsgBufferSize(
         kNumPacketsPerReadMmsgCall, packet_buffer_size,
         kDefaultUdpPacketControlBufferSize);
     // Calculate the space for our ReadPacketResult array.
@@ -216,7 +231,7 @@ int UDPSocketStarboard::ReadMultiplePackets(Socket::ReadPacketResults* results,
     // Our packets array is at the end of the buffer.
     results->packets = reinterpret_cast<Socket::ReadPacketResult*>(
         results->buffer->data() + buffer_size);
-    SbSocketReceiveMultiMsgBufferInitialize(
+    g_socket_extension->ReceiveMultiMsgBufferInitialize(
         kNumPacketsPerReadMmsgCall, packet_buffer_size,
         kDefaultUdpPacketControlBufferSize, results->buffer->data());
   }
@@ -582,7 +597,7 @@ int UDPSocketStarboard::InternalRecvFrom(IOBuffer* buf,
 int UDPSocketStarboard::InternalReadMultiplePackets(
     Socket::ReadPacketResults* results) {
   SbSocketReceiveMultiMsgResult* msgresult =
-      SbSocketReceiveMultiMsg(socket_, results->buffer->data());
+      g_socket_extension->ReceiveMultiMsg(socket_, results->buffer->data());
   CHECK(msgresult);
   results->result = msgresult ? msgresult->result : -1;
   if (results->result < 0) {
