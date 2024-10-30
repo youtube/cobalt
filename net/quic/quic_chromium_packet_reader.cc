@@ -58,9 +58,11 @@ int QuicChromiumPacketReader::StartReadingMultiplePackets() {
         &read_results_, kReadBufferSize,
         base::BindOnce(&QuicChromiumPacketReader::OnReadMultiplePacketComplete,
                        weak_factory_.GetWeakPtr()));
-    if (rv == ERR_NOT_IMPLEMENTED)
+    if (rv == ERR_NOT_IMPLEMENTED) {
       // The platform reports that ReadMultiplePackets is not implemented.
+      read_pending_ = false;
       return rv;
+    }
 
     UMA_HISTOGRAM_BOOLEAN("Net.QuicSession.AsyncRead", rv == ERR_IO_PENDING);
     if (rv == ERR_IO_PENDING) {
