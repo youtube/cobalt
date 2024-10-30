@@ -178,24 +178,6 @@ int UDPSocketStarboard::GetLocalAddress(IPEndPoint* address) const {
   return OK;
 }
 
-int UDPSocketStarboard::StartWatchingSocketForReading() {
-  if (!base::CurrentIOThread::Get()->Watch(
-          socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
-          &socket_watcher_, this)) {
-    PLOG(ERROR) << "WatchSocket failed on read";
-    Error result = MapLastSocketError(socket_);
-    if (result == ERR_IO_PENDING) {
-      // Watch(...) might call SbSocketWaiterAdd() which does not guarantee
-      // setting system error on failure, but we need to treat this as an
-      // error since watching the socket failed.
-      result = ERR_FAILED;
-    }
-    LogRead(result, NULL, NULL);
-    return result < 0 ? result : ERR_FAILED;
-  }
-  return OK;
-}
-
 int UDPSocketStarboard::ReadMultiplePackets(Socket::ReadPacketResults* results,
                                             int packet_buffer_size,
                                             CompletionOnceCallback callback) {
@@ -241,9 +223,19 @@ int UDPSocketStarboard::ReadMultiplePackets(Socket::ReadPacketResults* results,
     return nread;
   }
 
-  int rv = StartWatchingSocketForReading();
-  if (rv < 0) {
-    return rv;
+  if (!base::CurrentIOThread::Get()->Watch(
+          socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
+          &socket_watcher_, this)) {
+    PLOG(ERROR) << "WatchSocket failed on read";
+    Error result = MapLastSocketError(socket_);
+    if (result == ERR_IO_PENDING) {
+      // Watch(...) might call SbSocketWaiterAdd() which does not guarantee
+      // setting system error on failure, but we need to treat this as an
+      // error since watching the socket failed.
+      result = ERR_FAILED;
+    }
+    LogRead(result, NULL, NULL);
+    return result;
   }
 
   results_ = results;
@@ -273,9 +265,20 @@ int UDPSocketStarboard::RecvFrom(IOBuffer* buf,
   if (nread != ERR_IO_PENDING)
     return nread;
 
-  int rv = StartWatchingSocketForReading();
-  if (rv < 0)
-    return rv;
+  if (!base::CurrentIOThread::Get()->Watch(
+          socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
+          &socket_watcher_, this)) {
+    PLOG(ERROR) << "WatchSocket failed on read";
+    Error result = MapLastSocketError(socket_);
+    if (result == ERR_IO_PENDING) {
+      // Watch(...) might call SbSocketWaiterAdd() which does not guarantee
+      // setting system error on failure, but we need to treat this as an
+      // error since watching the socket failed.
+      result = ERR_FAILED;
+    }
+    LogRead(result, NULL, NULL);
+    return result;
+  }
 
   read_buf_ = buf;
   read_buf_len_ = buf_len;

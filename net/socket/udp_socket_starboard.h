@@ -141,11 +141,6 @@ class NET_EXPORT UDPSocketStarboard
   // (similar to getsockname)
   int GetLocalAddress(IPEndPoint* address) const;
 
-  // Register the current socket to be watched for reading. When data becomes
-  // available for reading, OnSocketReadyToRead will be called.
-  // Returns OK when registration succeeded.
-  int StartWatchingSocketForReading();
-
   // IO:
   // Multiple outstanding read requests are not supported.
   // Full duplex mode (reading and writing at the same time) is supported
