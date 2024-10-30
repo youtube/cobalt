@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("//starboard/build/config/os_definitions.gni")
+import("//testing/test.gni")
 
 declare_args() {
   sb_enable_cast_codec_tests = false
@@ -22,7 +23,18 @@ config("cast_codec_tests") {
   cflags = [ "ENABLE_CAST_CODEC_TESTS" ]
 }
 
-target(gtest_target_type, "nplb") {
+config("wnos") {
+  cflags = [
+    "-Wno-ignored-qualifiers",
+    "-Wno-self-assign-overloaded",
+    "-Wno-pessimizing-move",
+    "-Wno-unused-local-typedef",
+    "-Wno-unreachable-code",
+    "-Wno-unreachable-code-break",
+  ]
+}
+
+test("nplb") {
   testonly = true
 
   sources = [
@@ -35,11 +47,7 @@ target(gtest_target_type, "nplb") {
     "//starboard/nplb/sabi/struct_alignment_test.cc",
     "//starboard/shared/starboard/drm/drm_test_helpers.cc",
     "//starboard/shared/starboard/drm/drm_test_helpers.h",
-    "//starboard/testing/fake_graphics_context_provider.cc",
-    "//starboard/testing/fake_graphics_context_provider.h",
     "align_test.cc",
-    "atomic_base_test.cc",
-    "atomic_test.cc",
     "audio_sink_create_test.cc",
     "audio_sink_destroy_test.cc",
     "audio_sink_get_max_channels_test.cc",
@@ -79,11 +87,9 @@ target(gtest_target_type, "nplb") {
     "drm_create_system_test.cc",
     "maximum_player_configuration_explorer.cc",
     "maximum_player_configuration_explorer.h",
-    "maximum_player_configuration_explorer_test.cc",
     "media_buffer_test.cc",
     "media_can_play_mime_and_key_system_test.cc",
     "media_configuration_test.cc",
-    "media_set_audio_write_duration_test.cc",
     "microphone_close_test.cc",
     "microphone_create_test.cc",
     "microphone_destroy_test.cc",
@@ -91,20 +97,13 @@ target(gtest_target_type, "nplb") {
     "microphone_is_sample_rate_supported_test.cc",
     "microphone_open_test.cc",
     "microphone_read_test.cc",
-    "multiple_player_test.cc",
     "murmurhash2_test.cc",
     "optional_test.cc",
-    "player_create_test.cc",
     "player_creation_param_helpers.cc",
     "player_creation_param_helpers.h",
-    "player_get_audio_configuration_test.cc",
-    "player_get_media_time_test.cc",
     "player_get_preferred_output_mode_test.cc",
-    "player_test_fixture.cc",
-    "player_test_fixture.h",
     "player_test_util.cc",
     "player_test_util.h",
-    "player_write_sample_test.cc",
     "posix_compliance/posix_arpa_inet_test.cc",
     "posix_compliance/posix_condition_variable_broadcast_test.cc",
     "posix_compliance/posix_condition_variable_create_test.cc",
@@ -185,7 +184,6 @@ target(gtest_target_type, "nplb") {
     "socket_waiter_destroy_test.cc",
     "socket_waiter_wake_up_test.cc",
     "socket_wrapper_test.cc",
-    "speech_synthesis_basic_test.cc",
     "storage_close_record_test.cc",
     "storage_get_record_size_test.cc",
     "storage_read_record_test.cc",
@@ -220,15 +218,35 @@ target(gtest_target_type, "nplb") {
     "ui_navigation_test.cc",
     "undefined_behavior_test.cc",
     "url_player_create_test.cc",
-    "vertical_video_test.cc",
-    "window_create_test.cc",
-    "window_destroy_test.cc",
-    "window_get_diagonal_size_in_inches_test.cc",
-    "window_get_platform_handle_test.cc",
-    "window_get_size_test.cc",
   ]
 
-  configs += [ "//starboard/build/config:starboard_implementation" ]
+  if (!is_android) {
+    sources += [
+      "//starboard/testing/fake_graphics_context_provider.cc",
+      "//starboard/testing/fake_graphics_context_provider.h",
+      "maximum_player_configuration_explorer_test.cc",
+      "media_set_audio_write_duration_test.cc",
+      "multiple_player_test.cc",
+      "player_create_test.cc",
+      "player_get_audio_configuration_test.cc",
+      "player_get_media_time_test.cc",
+      "player_test_fixture.cc",
+      "player_test_fixture.h",
+      "player_write_sample_test.cc",
+      "speech_synthesis_basic_test.cc",
+      "vertical_video_test.cc",
+      "window_create_test.cc",
+      "window_destroy_test.cc",
+      "window_get_diagonal_size_in_inches_test.cc",
+      "window_get_platform_handle_test.cc",
+      "window_get_size_test.cc",
+    ]
+  }
+
+  configs += [
+    "//starboard/build/config:starboard_implementation",
+    ":wnos",
+  ]
   if (sb_enable_cast_codec_tests) {
     configs += [ ":cast_codec_tests" ]
   }
@@ -264,7 +282,7 @@ target(gtest_target_type, "nplb") {
     "//starboard/shared/starboard/player:player_download_test_data",
   ]
 
-  if (is_clang && !is_android) {
+  if (is_clang) {
     # signedness_and_size_of_enum_test.cc casts -1 to enum value
     cflags = [ "-Wno-enum-constexpr-conversion" ]
   }
