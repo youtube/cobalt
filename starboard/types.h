@@ -55,7 +55,6 @@ typedef int64_t ssize_t;
 #endif
 #endif  // !SB_HAS(SSIZE_T)
 
-
 // A value that represents an int that is probably invalid.
 #define kSbInvalidInt INT32_MIN
 
