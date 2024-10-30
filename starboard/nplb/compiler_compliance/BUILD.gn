@@ -12,10 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+config("no_unused") {
+  cflags = [
+    "-Wno-unused-variable",
+    "-Wno-unused-function",
+    "-Wno-unused-const-variable",
+    "-Wno-unreachable-code-break",
+  ]
+}
+
 static_library("cpp14_supported") {
   sources = [
     "cpp14_constexpr.cc",
     "cpp14_initialization.cc",
+  ]
+  configs += [
+    ":no_unused",
+    "//starboard/build/config:starboard",
+    "//starboard/build/config/sabi",
   ]
   cflags_cc = [ "-std=c++14" ]
   deps = [ "//starboard:starboard_group" ]
@@ -24,6 +38,11 @@ static_library("cpp14_supported") {
 if (sb_enable_cpp17_audit) {
   static_library("cpp17_supported") {
     sources = [ "cpp17_support.cc" ]
+    configs += [
+      "//starboard/build/config:starboard",
+      "//starboard/build/config/sabi",
+      ":no_unused",
+    ]
     deps = [
       ":cpp17_supported_config_shim",
       "//starboard:starboard_group",
@@ -44,11 +63,11 @@ if (sb_enable_cpp17_audit) {
 if (sb_enable_cpp20_audit) {
   static_library("cpp20_supported") {
     sources = [ "cpp20_support.cc" ]
+    configs += [ ":no_unused" ]
     deps = [
       ":cpp20_supported_config_shim",
       "//starboard:starboard_group",
     ]
-    configs -= [ "//starboard/build/config:default_cpp_standard" ]
   }
 
   # We do this to ensure the -std=c++20 flag is added after any other -std flag

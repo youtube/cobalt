@@ -16,7 +16,10 @@ group("gn_all") {
   testonly = true
 
   # TODO(b/371589344): Fix android build configs.
-  deps = [ "//starboard($starboard_toolchain)" ]
+  deps = [
+    "//starboard($starboard_toolchain)",
+    "//starboard/nplb",
+  ]
   if (!is_android) {
     deps += [ ":cobalt" ]
   } else {
