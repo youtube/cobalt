@@ -16,7 +16,11 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
+import android.app.Activity;
 import android.content.Intent;
+import android.text.TextUtils;
+import android.view.KeyEvent;
+import android.widget.Toast;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
@@ -33,16 +37,27 @@ import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
+import dev.cobalt.app.CobaltApplication;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
-import org.chromium.content_shell_apk.ContentShellActivity;
 // import dev.cobalt.media.AudioOutputManager;
+import org.chromium.base.CommandLine;
+import org.chromium.base.MemoryPressureListener;
+import org.chromium.base.library_loader.LibraryLoader;
+import org.chromium.base.library_loader.LibraryProcessType;
+import org.chromium.content_public.browser.BrowserStartupController;
+import org.chromium.content_public.browser.DeviceUtils;
+import org.chromium.content_public.browser.WebContents;
+import org.chromium.content_shell.Shell;
+import org.chromium.content_shell.ShellManager;
+import org.chromium.ui.base.ActivityWindowAndroid;
+import org.chromium.ui.base.IntentRequestTracker;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
-public abstract class CobaltActivity extends ContentShellActivity {
+public abstract class CobaltActivity extends Activity {
 
   // A place to put args while debugging so they're used even when starting from the launcher.
   // This should always be empty in submitted code.
@@ -64,6 +79,12 @@ public abstract class CobaltActivity extends ContentShellActivity {
   private static final String EVERGREEN_LITE = "--evergreen_lite";
   private static final java.lang.String META_DATA_EVERGREEN_LITE = "cobalt.EVERGREEN_LITE";
 
+  private static final String ACTIVE_SHELL_URL_KEY = "activeUrl";
+  public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
+
+  // Native switch - shell_switches::kRunWebTests
+  private static final String RUN_WEB_TESTS_SWITCH = "run-web-tests";
+
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
   private VideoSurfaceView videoSurfaceView;
@@ -71,6 +92,192 @@ public abstract class CobaltActivity extends ContentShellActivity {
   private boolean forceCreateNewVideoSurfaceView = false;
 
   private long timeInNanoseconds;
+
+  private ShellManager mShellManager;
+  private ActivityWindowAndroid mWindowAndroid;
+  private Intent mLastSentIntent;
+  private String mStartupUrl;
+  private IntentRequestTracker mIntentRequestTracker;
+
+  // Initially copied from ContentShellActiviy.java
+  protected void createContent(final Bundle savedInstanceState) {
+      // Initializing the command line must occur before loading the library.
+      if (!CommandLine.isInitialized()) {
+          ((CobaltApplication) getApplication()).initCommandLine();
+          String[] commandLineParams = getCommandLineParamsFromIntent(getIntent());
+          if (commandLineParams != null) {
+              CommandLine.getInstance().appendSwitchesAndArguments(commandLineParams);
+          }
+      }
+
+      DeviceUtils.addDeviceSpecificUserAgentSwitch();
+
+      LibraryLoader.getInstance().ensureInitialized();
+
+      setContentView(R.layout.content_shell_activity);
+      mShellManager = findViewById(R.id.shell_container);
+      final boolean listenToActivityState = true;
+      mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
+      mWindowAndroid =
+              new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
+      mIntentRequestTracker.restoreInstanceState(savedInstanceState);
+      mShellManager.setWindow(mWindowAndroid);
+      // Set up the animation placeholder to be the SurfaceView. This disables the
+      // SurfaceView's 'hole' clipping during animations that are notified to the window.
+      mWindowAndroid.setAnimationPlaceholderView(
+              mShellManager.getContentViewRenderView().getSurfaceView());
+
+      // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
+      if (mStartupUrl.isEmpty()) {
+          mStartupUrl = getUrlFromIntent(getIntent());
+      }
+      if (!TextUtils.isEmpty(mStartupUrl)) {
+          mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
+      }
+
+      if (CommandLine.getInstance().hasSwitch(RUN_WEB_TESTS_SWITCH)) {
+          BrowserStartupController.getInstance().startBrowserProcessesSync(
+                  LibraryProcessType.PROCESS_BROWSER, false, false);
+      } else {
+          BrowserStartupController.getInstance().startBrowserProcessesAsync(
+                  LibraryProcessType.PROCESS_BROWSER, true, false,
+                  new BrowserStartupController.StartupCallback() {
+                      @Override
+                      public void onSuccess() {
+                          finishInitialization(savedInstanceState);
+                      }
+
+                      @Override
+                      public void onFailure() {
+                          initializationFailed();
+                      }
+                  });
+      }
+  }
+
+  // Initially copied from ContentShellActiviy.java
+  private void finishInitialization(Bundle savedInstanceState) {
+      String shellUrl;
+      if (!TextUtils.isEmpty(mStartupUrl)) {
+          shellUrl = mStartupUrl;
+      } else {
+          shellUrl = ShellManager.DEFAULT_SHELL_URL;
+      }
+
+      if (savedInstanceState != null
+              && savedInstanceState.containsKey(ACTIVE_SHELL_URL_KEY)) {
+          shellUrl = savedInstanceState.getString(ACTIVE_SHELL_URL_KEY);
+      }
+      mShellManager.launchShell(shellUrl);
+  }
+
+  // Initially copied from ContentShellActiviy.java
+  private void initializationFailed() {
+      Log.e(TAG, "ContentView initialization failed.");
+      Toast.makeText(CobaltActivity.this,
+              R.string.browser_process_initialization_failed,
+              Toast.LENGTH_SHORT).show();
+      finish();
+  }
+
+  // Initially copied from ContentShellActiviy.java
+  @Override
+  protected void onSaveInstanceState(Bundle outState) {
+      super.onSaveInstanceState(outState);
+      WebContents webContents = getActiveWebContents();
+      if (webContents != null) {
+          // TODO(yfriedman): crbug/783819 - This should use GURL serialize/deserialize.
+          outState.putString(ACTIVE_SHELL_URL_KEY, webContents.getLastCommittedUrl().getSpec());
+      }
+
+      mIntentRequestTracker.saveInstanceState(outState);
+  }
+
+  // Initially copied from ContentShellActiviy.java
+  @Override
+  public boolean onKeyUp(int keyCode, KeyEvent event) {
+      if (keyCode == KeyEvent.KEYCODE_BACK) {
+          WebContents webContents = getActiveWebContents();
+          if (webContents != null && webContents.getNavigationController().canGoBack()) {
+              webContents.getNavigationController().goBack();
+              return true;
+          }
+      }
+
+      return super.onKeyUp(keyCode, event);
+  }
+
+  // Initially copied from ContentShellActiviy.java
+  protected void shellHandleIntent(Intent intent) {
+      if (getCommandLineParamsFromIntent(intent) != null) {
+          Log.i(TAG, "Ignoring command line params: can only be set when creating the activity.");
+      }
+
+      if (MemoryPressureListener.handleDebugIntent(this, intent.getAction())) return;
+
+      String url = getUrlFromIntent(intent);
+      if (!TextUtils.isEmpty(url)) {
+          Shell activeView = getActiveShell();
+          if (activeView != null) {
+              activeView.loadUrl(url);
+          }
+      }
+  }
+
+  // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
+  protected void setStartupUrl(String url) {
+      mStartupUrl = url;
+  }
+
+  // Initially copied from ContentShellActiviy.java
+  @Override
+  public void onActivityResult(int requestCode, int resultCode, Intent data) {
+      super.onActivityResult(requestCode, resultCode, data);
+      mIntentRequestTracker.onActivityResult(requestCode, resultCode, data);
+  }
+
+  // Initially copied from ContentShellActiviy.java
+  @Override
+  public void startActivity(Intent i) {
+      mLastSentIntent = i;
+      super.startActivity(i);
+  }
+
+  public Intent getLastSentIntent() {
+      return mLastSentIntent;
+  }
+
+  private static String getUrlFromIntent(Intent intent) {
+      return intent != null ? intent.getDataString() : null;
+  }
+
+  private static String[] getCommandLineParamsFromIntent(Intent intent) {
+      return intent != null ? intent.getStringArrayExtra(COMMAND_LINE_ARGS_KEY) : null;
+  }
+
+  /**
+   * @return The {@link ShellManager} configured for the activity or null if it has not been
+   *         created yet.
+   */
+  public ShellManager getShellManager() {
+      return mShellManager;
+  }
+
+  /**
+   * @return The currently visible {@link Shell} or null if one is not showing.
+   */
+  public Shell getActiveShell() {
+      return mShellManager != null ? mShellManager.getActiveShell() : null;
+  }
+
+  /**
+   * @return The {@link WebContents} owned by the currently visible {@link Shell} or null if
+   *         one is not showing.
+   */
+  public WebContents getActiveWebContents() {
+      Shell shell = getActiveShell();
+      return shell != null ? shell.getWebContents() : null;
+  }
 
   //TODO(b/375442742): re-enable native code.
   // private static native void nativeLowMemoryEvent();
@@ -99,8 +306,9 @@ public abstract class CobaltActivity extends ContentShellActivity {
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
 
-    super.setStartupUrl("https://www.youtube.com/tv");
+    setStartupUrl("https://www.youtube.com/tv");
     super.onCreate(savedInstanceState);
+    createContent(savedInstanceState);
 
     videoSurfaceView = new VideoSurfaceView(this);
     addContentView(
@@ -135,6 +343,9 @@ public abstract class CobaltActivity extends ContentShellActivity {
     // AudioOutputManager.addAudioDeviceListener(this);
 
     getStarboardBridge().onActivityStart(this);
+
+    WebContents webContents = getActiveWebContents();
+    if (webContents != null) webContents.onShow();
     super.onStart();
   }
 
@@ -154,6 +365,8 @@ public abstract class CobaltActivity extends ContentShellActivity {
 
   @Override
   protected void onDestroy() {
+    if (mShellManager != null) mShellManager.destroy();
+    mWindowAndroid.destroy();
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
   }
@@ -314,7 +527,7 @@ public abstract class CobaltActivity extends ContentShellActivity {
 
   @Override
   protected void onNewIntent(Intent intent) {
-    super.onNewIntent(intent);
+    shellHandleIntent(intent);
     getStarboardBridge().handleDeepLink(getIntentUrlAsString(intent));
   }
 
