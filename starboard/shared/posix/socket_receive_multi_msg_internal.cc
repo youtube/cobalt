@@ -51,10 +51,10 @@ namespace {
 
 struct SbSocketReceiveMultiMsgDataHeader {
   struct SbSocketReceiveMultiMsgResult result;
-  unsigned int num_messages;
-  unsigned int message_size;
-  unsigned int control_size;
-  unsigned int size;
+  unsigned int num_messages = 0;
+  unsigned int message_size = 0;
+  unsigned int control_size = 0;
+  unsigned int size = 0;
 };
 
 struct SbSocketReceiveMultiMsgDataReference {
@@ -73,12 +73,12 @@ struct SbSocketReceiveMultiMsgDataReference {
     return message_control + message * header->control_size;
   }
 
-  SbSocketReceiveMultiMsgDataHeader* header;
-  struct iovec* iovecs;
-  struct mmsghdr* msgs;
-  struct SbSocketReceiveMultiMsgPacket* packets;
-  char* message_data;
-  char* message_control;
+  SbSocketReceiveMultiMsgDataHeader* header = nullptr;
+  struct iovec* iovecs = nullptr;
+  struct mmsghdr* msgs = nullptr;
+  struct SbSocketReceiveMultiMsgPacket* packets = nullptr;
+  char* message_data = nullptr;
+  char* message_control = nullptr;
 };
 
 SbSocketReceiveMultiMsgResult* GetSbSocketReceiveMultiMsgResult(char* data) {
