@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_DECODER_INTERNAL_H_
 
 #include <functional>
+#include <limits>
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/configuration.h"
@@ -73,7 +74,8 @@ class VideoDecoder {
   // finished.  Once the first frame is decoded and the timeout has passed, the
   // preroll will be considered as finished even if there isn't enough frames
   // decoded as suggested by GetPrerollFrameCount().
-  // On most platforms this can be simply set to |kSbInt64Max|.
+  // On most platforms this can be simply set to
+  // |std::numeric_limits<int64_t>::max()|.
   virtual int64_t GetPrerollTimeout() const = 0;
 
   // Returns a soft limit of the maximum number of frames the user of this class

@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <utility>
 
@@ -169,7 +170,7 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   CancelPendingJobs();
 
   auto preroll_timeout = decoder_->GetPrerollTimeout();
-  if (preroll_timeout != kSbInt64Max) {
+  if (preroll_timeout != std::numeric_limits<int64_t>::max()) {
     Schedule(std::bind(&VideoRendererImpl::OnSeekTimeout, this),
              preroll_timeout);
   }

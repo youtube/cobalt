@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/player/filter/stub_video_decoder.h"
 
+#include <limits>
 #include <string>
 
 #include "starboard/common/media.h"
@@ -38,7 +39,7 @@ size_t StubVideoDecoder::GetPrerollFrameCount() const {
 }
 
 int64_t StubVideoDecoder::GetPrerollTimeout() const {
-  return kSbInt64Max;
+  return std::numeric_limits<int64_t>::max();
 }
 
 size_t StubVideoDecoder::GetMaxNumberOfCachedFrames() const {

@@ -17,6 +17,8 @@
 #include <signal.h>
 #include <sys/socket.h>
 
+#include <limits>
+
 #include "starboard/common/log.h"
 #include "starboard/common/thread.h"
 #include "starboard/configuration.h"
@@ -116,7 +118,7 @@ class SignalHandlerThread : public ::starboard::Thread {
 
   void Run() override {
     SignalMask(kAllSignals, SIG_UNBLOCK);
-    while (!WaitForJoin(kSbInt64Max)) {
+    while (!WaitForJoin(std::numeric_limits<int64_t>::max())) {
     }
   }
 };
