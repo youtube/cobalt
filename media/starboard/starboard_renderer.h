@@ -58,7 +58,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
                                       public SbPlayerBridge::Host {
  public:
   // Constructs a media pipeline that will execute on |task_runner|.
-  SbPlayerPipeline(SbPlayerInterface* interface, PipelineWindow window,
+  SbPlayerPipeline(SbPlayerInterface* interface,
+                   PipelineWindow window,
                    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
                    const GetDecodeTargetGraphicsContextProviderFunc&
                        get_decode_target_graphics_context_provider_func,
@@ -66,7 +67,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
                    int max_audio_samples_per_write,
                    bool force_punch_out_by_default,
                    TimeDelta audio_write_duration_local,
-                   TimeDelta audio_write_duration_remote, MediaLog* media_log,
+                   TimeDelta audio_write_duration_remote,
+                   MediaLog* media_log,
                    MediaMetricsProvider* media_metrics_provider,
                    DecodeTargetProvider* decode_target_provider);
   ~SbPlayerPipeline() override;
@@ -78,8 +80,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   void Start(Demuxer* demuxer,
              const SetDrmSystemReadyCB& set_drm_system_ready_cb,
-             const PipelineStatusCB& ended_cb, const ErrorCB& error_cb,
-             const SeekCB& seek_cb, const BufferingStateCB& buffering_state_cb,
+             const PipelineStatusCB& ended_cb,
+             const ErrorCB& error_cb,
+             const SeekCB& seek_cb,
+             const BufferingStateCB& buffering_state_cb,
              const base::Closure& duration_change_cb,
              const base::Closure& output_mode_change_cb,
              const base::Closure& content_size_change_cb,
@@ -89,8 +93,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
              const OnEncryptedMediaInitDataEncounteredCB&
                  encrypted_media_init_data_encountered_cb,
-             const std::string& source_url, const PipelineStatusCB& ended_cb,
-             const ErrorCB& error_cb, const SeekCB& seek_cb,
+             const std::string& source_url,
+             const PipelineStatusCB& ended_cb,
+             const ErrorCB& error_cb,
+             const SeekCB& seek_cb,
              const BufferingStateCB& buffering_state_cb,
              const base::Closure& duration_change_cb,
              const base::Closure& output_mode_change_cb,
@@ -163,7 +169,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void OnDemuxerSeeked(PipelineStatus status);
   void OnDemuxerStopped();
   void OnDemuxerStreamRead(
-      ::media::DemuxerStream::Type type, int max_number_buffers_to_read,
+      ::media::DemuxerStream::Type type,
+      int max_number_buffers_to_read,
       ::media::DemuxerStream::Status status,
       const std::vector<scoped_refptr<::media::DecoderBuffer>> buffers);
   // SbPlayerBridge::Host implementation.
@@ -200,10 +207,12 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void SetReadInProgress(::media::DemuxerStream::Type type, bool in_progress);
   bool GetReadInProgress(::media::DemuxerStream::Type type) const;
 
-  int GetDefaultMaxBuffers(AudioCodec codec, TimeDelta duration_to_write,
+  int GetDefaultMaxBuffers(AudioCodec codec,
+                           TimeDelta duration_to_write,
                            bool is_preroll);
   int GetEstimatedMaxBuffers(TimeDelta write_duration,
-                             TimeDelta time_ahead_of_playback, bool is_preroll);
+                             TimeDelta time_ahead_of_playback,
+                             bool is_preroll);
 
   // An identifier string for the pipeline, used in CVal to identify multiple
   // pipelines.
