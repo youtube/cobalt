@@ -12,12 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/base/sbplayer_set_bounds_helper.h"
+#include "media/starboard/sbplayer_set_bounds_helper.h"
 
 #include "base/atomic_sequence_num.h"
-#include "cobalt/media/base/sbplayer_bridge.h"
+#include "media/starboard/sbplayer_bridge.h"
 
-namespace cobalt {
 namespace media {
 
 namespace {
@@ -47,4 +46,3 @@ bool SbPlayerSetBoundsHelper::SetBounds(int x, int y, int width, int height) {
 }
 
 }  // namespace media
-}  // namespace cobalt
