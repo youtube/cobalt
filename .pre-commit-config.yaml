@@ -53,21 +53,21 @@ repos:
         language: python
         types: [c++]
         args: [-i, -style=file]
-        additional_dependencies: ['clang-format']
+        additional_dependencies: ['clang-format==17.0.1']
     -   id: yapf
         name: yapf
         entry: yapf
         language: python
         types: [python]
         args: [-i, -vv]
-        additional_dependencies: ['yapf']
+        additional_dependencies: ['yapf==0.40.2']
     -   id: pylint
         name: pylint
         entry: pylint
         language: python
         types: [python]
         args: [-d W0201]
-        additional_dependencies: ['pylint']
+        additional_dependencies: ['pylint==3.3.1']
     -   id: python3-compatibility-check
         name: Python 3 Compatibility Check
         entry: python3 ./cobalt/precommit/python3_check.py
