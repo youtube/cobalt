@@ -16,7 +16,7 @@
 #error "This file only works with Cobalt/Starboard."
 #endif  // !defined(STARBOARD)
 
-#include "media/base/starboard_utils.h"
+#include "media/starboard/starboard_utils.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 

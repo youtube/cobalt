@@ -12,12 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_BASE_STARBOARD_UTILS_H_
-#define MEDIA_BASE_STARBOARD_UTILS_H_
-
-#if !defined(STARBOARD)
-#error "This file only works with Cobalt/Starboard."
-#endif  // !defined(STARBOARD)
+#ifndef MEDIA_STARBOARD_STARBOARD_UTILS_H_
+#define MEDIA_STARBOARD_STARBOARD_UTILS_H_
 
 #include "media/base/audio_codecs.h"
 #include "media/base/audio_decoder_config.h"
@@ -65,4 +61,4 @@ std::string ExtractCodecs(const std::string& mime_type);
 
 }  // namespace media
 
-#endif  // MEDIA_BASE_STARBOARD_UTILS_H_
+#endif  // MEDIA_STARBOARD_STARBOARD_UTILS_H_
