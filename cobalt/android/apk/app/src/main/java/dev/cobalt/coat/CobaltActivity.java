@@ -32,6 +32,7 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
@@ -185,6 +186,8 @@ public abstract class CobaltActivity extends Activity {
           shellUrl = savedInstanceState.getString(ACTIVE_SHELL_URL_KEY);
       }
       mShellManager.launchShell(shellUrl);
+
+      toggleFullscreenMode(true);
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -243,6 +246,11 @@ public abstract class CobaltActivity extends Activity {
   // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
   protected void setStartupUrl(String url) {
       mStartupUrl = url;
+  }
+
+  protected void toggleFullscreenMode(boolean enterFullscreen) {
+    LinearLayout toolBar = (LinearLayout) findViewById(R.id.toolbar);
+    toolBar.setVisibility(enterFullscreen ? View.GONE : View.VISIBLE);
   }
 
   // Initially copied from ContentShellActiviy.java
