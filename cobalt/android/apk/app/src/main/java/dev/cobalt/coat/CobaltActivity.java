@@ -104,6 +104,22 @@ public abstract class CobaltActivity extends Activity {
       // Initializing the command line must occur before loading the library.
       if (!CommandLine.isInitialized()) {
           ((CobaltApplication) getApplication()).initCommandLine();
+
+          // Note that appendSwitchesAndArguments excludes cobaltCommandLineParams[0]
+          // as the program name, and all other arguments SHOULD start with '--'.
+          String[] cobaltCommandLineParams = new String[]{"",
+          // disable first run experience
+          "--disable-fre",
+          // disable user prompts in the first run
+          "--no-first-run",
+          // run Cobalt as a single process
+          "--single-process",
+          // enable Blink to work in overlay video mode
+          "--force-video-overlays",
+          // remove below if Cobalt rebase to m120+
+          "--user-level-memory-pressure-signal-params"};
+          CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
+
           String[] commandLineParams = getCommandLineParamsFromIntent(getIntent());
           if (commandLineParams != null) {
               CommandLine.getInstance().appendSwitchesAndArguments(commandLineParams);
