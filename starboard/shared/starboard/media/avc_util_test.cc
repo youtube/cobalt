@@ -391,9 +391,7 @@ TEST(AvcParameterSetsTest, NaluHeaderWithoutType) {
 }
 
 TEST(AvcParameterSetsTest, InvalidNaluHeader) {
-  {
-    VerifyAllEmpty(kNaluHeaderOnlyInAnnexB);
-  }
+  { VerifyAllEmpty(kNaluHeaderOnlyInAnnexB); }
   {
     auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
     auto nalus_in_annex_b = parameter_sets_in_annex_b + kNaluHeaderOnlyInAnnexB;

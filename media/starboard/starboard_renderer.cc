@@ -128,13 +128,17 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
 }  // namespace
 
 SbPlayerPipeline::SbPlayerPipeline(
-    SbPlayerInterface* interface, PipelineWindow window,
+    SbPlayerInterface* interface,
+    PipelineWindow window,
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     const GetDecodeTargetGraphicsContextProviderFunc&
         get_decode_target_graphics_context_provider_func,
-    bool allow_resume_after_suspend, int max_audio_samples_per_write,
-    bool force_punch_out_by_default, TimeDelta audio_write_duration_local,
-    TimeDelta audio_write_duration_remote, MediaLog* media_log,
+    bool allow_resume_after_suspend,
+    int max_audio_samples_per_write,
+    bool force_punch_out_by_default,
+    TimeDelta audio_write_duration_local,
+    TimeDelta audio_write_duration_remote,
+    MediaLog* media_log,
     MediaMetricsProvider* media_metrics_provider,
     DecodeTargetProvider* decode_target_provider)
     : pipeline_identifier_(
@@ -149,17 +153,21 @@ SbPlayerPipeline::SbPlayerPipeline(
       natural_size_(0, 0),
       volume_(base::StringPrintf("Media.Pipeline.%s.Volume",
                                  pipeline_identifier_.c_str()),
-              1.0f, "Volume of the media pipeline."),
+              1.0f,
+              "Volume of the media pipeline."),
       playback_rate_(base::StringPrintf("Media.Pipeline.%s.PlaybackRate",
                                         pipeline_identifier_.c_str()),
-                     0.0f, "Playback rate of the media pipeline."),
+                     0.0f,
+                     "Playback rate of the media pipeline."),
       duration_(base::StringPrintf("Media.Pipeline.%s.Duration",
                                    pipeline_identifier_.c_str()),
-                TimeDelta(), "Playback duration of the media pipeline."),
+                TimeDelta(),
+                "Playback duration of the media pipeline."),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       started_(base::StringPrintf("Media.Pipeline.%s.Started",
                                   pipeline_identifier_.c_str()),
-               false, "Whether the media pipeline has started."),
+               false,
+               "Whether the media pipeline has started."),
       suspended_(base::StringPrintf("Media.Pipeline.%s.Suspended",
                                     pipeline_identifier_.c_str()),
                  false,
@@ -168,10 +176,12 @@ SbPlayerPipeline::SbPlayerPipeline(
                  "background mode."),
       stopped_(base::StringPrintf("Media.Pipeline.%s.Stopped",
                                   pipeline_identifier_.c_str()),
-               false, "Whether the media pipeline has stopped."),
+               false,
+               "Whether the media pipeline has stopped."),
       ended_(base::StringPrintf("Media.Pipeline.%s.Ended",
                                 pipeline_identifier_.c_str()),
-             false, "Whether the media pipeline has ended."),
+             false,
+             "Whether the media pipeline has ended."),
       player_state_(base::StringPrintf("Media.Pipeline.%s.PlayerState",
                                        pipeline_identifier_.c_str()),
                     kSbPlayerStateInitialized,
@@ -187,14 +197,17 @@ SbPlayerPipeline::SbPlayerPipeline(
       max_video_capabilities_(
           base::StringPrintf("Media.Pipeline.%s.MaxVideoCapabilities",
                              pipeline_identifier_.c_str()),
-          "", "The max video capabilities required for the media pipeline."),
+          "",
+          "The max video capabilities required for the media pipeline."),
       playback_statistics_(pipeline_identifier_) {
   if (force_punch_out_by_default) {
     default_output_mode_ = kSbPlayerOutputModePunchOut;
   }
 }
 
-SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_bridge_); }
+SbPlayerPipeline::~SbPlayerPipeline() {
+  DCHECK(!player_bridge_);
+}
 
 void SbPlayerPipeline::Suspend() {
   DCHECK(!task_runner_->RunsTasksInCurrentSequence());
@@ -224,7 +237,8 @@ void SbPlayerPipeline::Resume(PipelineWindow window) {
 void OnEncryptedMediaInitDataEncountered(
     const Pipeline::OnEncryptedMediaInitDataEncounteredCB&
         on_encrypted_media_init_data_encountered,
-    const char* init_data_type, const unsigned char* init_data,
+    const char* init_data_type,
+    const unsigned char* init_data,
     unsigned int init_data_length) {
   LOG_IF(WARNING, strcmp(init_data_type, "cenc") != 0 &&
                       strcmp(init_data_type, "fairplay") != 0 &&
@@ -241,7 +255,8 @@ void OnEncryptedMediaInitDataEncountered(
 void SbPlayerPipeline::Start(Demuxer* demuxer,
                              const SetDrmSystemReadyCB& set_drm_system_ready_cb,
                              const PipelineStatusCB& ended_cb,
-                             const ErrorCB& error_cb, const SeekCB& seek_cb,
+                             const ErrorCB& error_cb,
+                             const SeekCB& seek_cb,
                              const BufferingStateCB& buffering_state_cb,
                              const base::Closure& duration_change_cb,
                              const base::Closure& output_mode_change_cb,
@@ -286,7 +301,8 @@ void SbPlayerPipeline::Start(const SetDrmSystemReadyCB& set_drm_system_ready_cb,
                                  on_encrypted_media_init_data_encountered_cb,
                              const std::string& source_url,
                              const PipelineStatusCB& ended_cb,
-                             const ErrorCB& error_cb, const SeekCB& seek_cb,
+                             const ErrorCB& error_cb,
+                             const SeekCB& seek_cb,
                              const BufferingStateCB& buffering_state_cb,
                              const base::Closure& duration_change_cb,
                              const base::Closure& output_mode_change_cb,
@@ -449,7 +465,9 @@ float SbPlayerPipeline::GetVolume() const {
 }
 
 void SbPlayerPipeline::SetVolume(float volume) {
-  if (volume < 0.0f || volume > 1.0f) return;
+  if (volume < 0.0f || volume > 1.0f) {
+    return;
+  }
 
   base::AutoLock auto_lock(lock_);
   volume_ = volume;
@@ -1010,7 +1028,8 @@ void SbPlayerPipeline::OnDemuxerStopped() {
 }
 
 void SbPlayerPipeline::OnDemuxerStreamRead(
-    DemuxerStream::Type type, int max_number_buffers_to_read,
+    DemuxerStream::Type type,
+    int max_number_buffers_to_read,
     DemuxerStream::Status status,
     const std::vector<scoped_refptr<DecoderBuffer>> buffers) {
 #if SB_HAS(PLAYER_WITH_URL)
@@ -1098,7 +1117,9 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type,
                                    max_audio_samples_per_write_)
                         : 1;
 
-  if (GetReadInProgress(type)) return;
+  if (GetReadInProgress(type)) {
+    return;
+  }
 
   if (type == DemuxerStream::AUDIO) {
     if (!audio_stream_) {
@@ -1547,14 +1568,17 @@ void SbPlayerPipeline::RunSetDrmSystemReadyCB(
 
 void SbPlayerPipeline::SetReadInProgress(DemuxerStream::Type type,
                                          bool in_progress) {
-  if (type == DemuxerStream::AUDIO)
+  if (type == DemuxerStream::AUDIO) {
     audio_read_in_progress_ = in_progress;
-  else
+  } else {
     video_read_in_progress_ = in_progress;
+  }
 }
 
 bool SbPlayerPipeline::GetReadInProgress(DemuxerStream::Type type) const {
-  if (type == DemuxerStream::AUDIO) return audio_read_in_progress_;
+  if (type == DemuxerStream::AUDIO) {
+    return audio_read_in_progress_;
+  }
   return video_read_in_progress_;
 }
 
