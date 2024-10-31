@@ -12,20 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_BASE_SBPLAYER_INTERFACE_H_
-#define COBALT_MEDIA_BASE_SBPLAYER_INTERFACE_H_
+#ifndef MEDIA_STARBOARD_SBPLAYER_INTERFACE_H_
+#define MEDIA_STARBOARD_SBPLAYER_INTERFACE_H_
 
 #include "base/time/time.h"
+#if COBALT_MEDIA_ENABLE_CVAL
 #include "cobalt/media/base/cval_stats.h"
+#endif  // COBALT_MEDIA_ENABLE_CVAL
+#if COBALT_MEDIA_ENABLE_UMA_METRICS
 #include "cobalt/media/base/metrics_provider.h"
-#include "starboard/extension/enhanced_audio.h"
+#endif  // COBALT_MEDIA_ENABLE_UMA_METRICS
 #include "starboard/player.h"
 
 #if SB_HAS(PLAYER_WITH_URL)
 #include SB_URL_PLAYER_INCLUDE_PATH
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
-namespace cobalt {
 namespace media {
 
 class SbPlayerInterface {
@@ -48,16 +50,10 @@ class SbPlayerInterface {
                     base::TimeDelta seek_to_timestamp,
                     int ticket) = 0;
 
-  virtual bool IsEnhancedAudioExtensionEnabled() const = 0;
   virtual void WriteSamples(SbPlayer player,
                             SbMediaType sample_type,
                             const SbPlayerSampleInfo* sample_infos,
                             int number_of_sample_infos) = 0;
-  virtual void WriteSamples(
-      SbPlayer player,
-      SbMediaType sample_type,
-      const CobaltExtensionEnhancedAudioPlayerSampleInfo* sample_infos,
-      int number_of_sample_infos) = 0;
 
   virtual int GetMaximumNumberOfSamplesPerWrite(SbPlayer player,
                                                 SbMediaType sample_type) = 0;
@@ -97,11 +93,42 @@ class SbPlayerInterface {
       int index,
       SbMediaAudioConfiguration* out_audio_configuration) = 0;
 
+#if COBALT_MEDIA_ENABLE_CVAL
   // disabled by default, but can be enabled via h5vcc setting.
   void EnableCValStats(bool should_enable) {
     cval_stats_.Enable(should_enable);
   }
   CValStats cval_stats_;
+#endif  // COBALT_MEDIA_ENABLE_CVAL
+
+#if !COBALT_MEDIA_ENABLE_UMA_METRICS
+  enum class MediaAction {
+    UNKNOWN_ACTION,
+    WEBMEDIAPLAYER_SEEK,
+    SBPLAYER_CREATE,
+    SBPLAYER_CREATE_URL_PLAYER,
+    SBPLAYER_DESTROY,
+    SBPLAYER_GET_PREFERRED_OUTPUT_MODE,
+    SBPLAYER_SEEK,
+    SBPLAYER_WRITE_END_OF_STREAM_AUDIO,
+    SBPLAYER_WRITE_END_OF_STREAM_VIDEO,
+    SBPLAYER_SET_BOUNDS,
+    SBPLAYER_SET_PLAYBACK_RATE,
+    SBPLAYER_SET_VOLUME,
+    SBPLAYER_GET_INFO,
+    SBPLAYER_GET_CURRENT_FRAME,
+    SBPLAYER_GET_AUDIO_CONFIG,
+    SBDRM_CREATE,
+    SBDRM_DESTROY,
+    SBDRM_GENERATE_SESSION_UPDATE_REQUEST,
+    SBDRM_UPDATE_SESSION,
+    SBDRM_CLOSE_SESSION,
+  };
+  struct MediaMetricsProvider {
+    void StartTrackingAction(...) {}
+    void EndTrackingAction(...) {}
+  };
+#endif  // !COBALT_MEDIA_ENABLE_UMA_METRICS
   MediaMetricsProvider media_metrics_provider_;
 
   bool SetDecodeToTexturePreferred(bool preferred);
@@ -109,8 +136,6 @@ class SbPlayerInterface {
 
 class DefaultSbPlayerInterface final : public SbPlayerInterface {
  public:
-  DefaultSbPlayerInterface();
-
   SbPlayer Create(
       SbWindow window,
       const SbPlayerCreationParam* creation_param,
@@ -126,16 +151,10 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
   void Seek(SbPlayer player,
             base::TimeDelta seek_to_timestamp,
             int ticket) override;
-  bool IsEnhancedAudioExtensionEnabled() const override;
   void WriteSamples(SbPlayer player,
                     SbMediaType sample_type,
                     const SbPlayerSampleInfo* sample_infos,
                     int number_of_sample_infos) override;
-  void WriteSamples(
-      SbPlayer player,
-      SbMediaType sample_type,
-      const CobaltExtensionEnhancedAudioPlayerSampleInfo* sample_infos,
-      int number_of_sample_infos) override;
   int GetMaximumNumberOfSamplesPerWrite(SbPlayer player,
                                         SbMediaType sample_type) override;
   void WriteEndOfStream(SbPlayer player, SbMediaType stream_type) override;
@@ -169,16 +188,8 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
       SbPlayer player,
       int index,
       SbMediaAudioConfiguration* out_audio_configuration) override;
-
- private:
-  void (*enhanced_audio_player_write_samples_)(
-      SbPlayer player,
-      SbMediaType sample_type,
-      const CobaltExtensionEnhancedAudioPlayerSampleInfo* sample_infos,
-      int number_of_sample_infos) = nullptr;
 };
 
 }  // namespace media
-}  // namespace cobalt
 
-#endif  // COBALT_MEDIA_BASE_SBPLAYER_INTERFACE_H_
+#endif  // MEDIA_STARBOARD_SBPLAYER_INTERFACE_H_
