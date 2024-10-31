@@ -15,9 +15,12 @@
 #include "starboard/common/log.h"
 #include "starboard/export.h"
 
+// TODO(b/375459298); Investigate whether we should enable main() on Android TV
+#if 0
 extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   // main() is never called on Android. However, the cobalt_bin
   // target requires it to be there.
   SB_NOTREACHED();
   return 0;
 }
+#endif  // 0
