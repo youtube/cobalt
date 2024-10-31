@@ -13,7 +13,11 @@
 // limitations under the License.
 
 #include "cobalt/cobalt_main_delegate.h"
+#include "base/android/jni_android.h"
 #include "cobalt/cobalt_content_browser_client.h"
+#include "content/public/app/content_jni_onload.h"
+#include "content/public/app/content_main.h"
+#include "content/shell/app/shell_main_delegate.h"
 
 namespace cobalt {
 
@@ -26,6 +30,18 @@ content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
   browser_client_ = std::make_unique<CobaltContentBrowserClient>();
   return browser_client_.get();
+}
+
+absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
+    InvokedIn invoked_in) {
+  absl::optional<int> return_value_parent =
+      ShellMainDelegate::PostEarlyInitialization(invoked_in);
+  JavaVM* vm = nullptr;
+  base::android::InitVM(vm);
+  if (!content::android::OnJNIOnLoadInit()) {
+    return -1;
+  }
+  content::SetContentMainDelegate(new content::ShellMainDelegate());
 }
 
 }  // namespace cobalt
