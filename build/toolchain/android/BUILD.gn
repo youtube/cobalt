@@ -95,8 +95,16 @@ android_clang_toolchain("android_clang_x86") {
 }
 
 android_clang_toolchain("android_clang_arm") {
+  if (is_cobalt) {
+    toolchain_args = {
+      current_cpu = "arm"
+      starboard_toolchain = "//build/toolchain/android:android_clang_arm"
+      target_platform = "android-arm"
+    }
+  } else {
   toolchain_args = {
     current_cpu = "arm"
+  }
   }
 }
 
@@ -131,8 +139,16 @@ android_clang_toolchain("android_clang_x64") {
 }
 
 android_clang_toolchain("android_clang_arm64") {
+  if (is_cobalt) {
+    toolchain_args = {
+      current_cpu = "arm64"
+      starboard_toolchain = "//build/toolchain/android:android_clang_arm64"
+      target_platform = "android-arm64"
+    }
+  } else {
   toolchain_args = {
     current_cpu = "arm64"
+  }
   }
 }
 
