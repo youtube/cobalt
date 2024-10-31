@@ -12,11 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#if !defined(STARBOARD)
-#error "This file only works with Cobalt/Starboard."
-#endif  // !defined(STARBOARD)
-
-#include "media/base/starboard_utils.h"
+#include "media/starboard/starboard_utils.h"
 
 #include <algorithm>
 
@@ -74,15 +70,15 @@ SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec) {
       return kSbMediaAudioCodecFlac;
     case AudioCodec::kPCM:
       return kSbMediaAudioCodecPcm;
+#if COBALT_MEDIA_ENABLE_IAMF_SUPPORT
     case AudioCodec::kIAMF:
       return kSbMediaAudioCodecIamf;
+#endif  // COBALT_MEDIA_ENABLE_IAMF_SUPPORT
     default:
       // Cobalt only supports a subset of audio codecs defined by Chromium.
-      DLOG(ERROR) << "Unsupported audio codec " << GetCodecName(codec);
+      LOG(ERROR) << "Unsupported audio codec " << GetCodecName(codec);
       return kSbMediaAudioCodecNone;
   }
-  NOTREACHED();
-  return kSbMediaAudioCodecNone;
 }
 
 SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
@@ -105,11 +101,9 @@ SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
       return kSbMediaVideoCodecAv1;
     default:
       // Cobalt only supports a subset of video codecs defined by Chromium.
-      DLOG(ERROR) << "Unsupported video codec " << GetCodecName(codec);
+      LOG(ERROR) << "Unsupported video codec " << GetCodecName(codec);
       return kSbMediaVideoCodecNone;
   }
-  NOTREACHED();
-  return kSbMediaVideoCodecNone;
 }
 
 SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
@@ -126,7 +120,8 @@ SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
       ChannelLayoutToChannelCount(audio_decoder_config.channel_layout());
   audio_stream_info.samples_per_second =
       audio_decoder_config.samples_per_second();
-  audio_stream_info.bits_per_sample = audio_decoder_config.bits_per_channel();
+  audio_stream_info.bits_per_sample =
+      audio_decoder_config.bytes_per_channel() * 8;
 
   const auto& extra_data = audio_stream_info.codec == kSbMediaAudioCodecAac
                                ? audio_decoder_config.aac_extra_data()
@@ -201,8 +196,8 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
   drm_info->subsample_count = config->subsamples().size();
 
   if (drm_info->subsample_count > 0) {
-    COMPILE_ASSERT(sizeof(SbDrmSubSampleMapping) == sizeof(SubsampleEntry),
-                   SubSampleEntrySizesMatch);
+    static_assert(sizeof(SbDrmSubSampleMapping) == sizeof(SubsampleEntry),
+                  "SubSampleEntrySizesMatch");
     drm_info->subsample_mapping =
         reinterpret_cast<const SbDrmSubSampleMapping*>(
             &config->subsamples()[0]);
@@ -210,7 +205,7 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
     drm_info->subsample_count = 1;
     drm_info->subsample_mapping = subsample_mapping;
     subsample_mapping->clear_byte_count = 0;
-    subsample_mapping->encrypted_byte_count = buffer->data_size();
+    subsample_mapping->encrypted_byte_count = buffer->size();
   }
 
   if (buffer->decrypt_config()->HasPattern()) {
@@ -223,8 +218,10 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
 
 // Ensure that the enums in starboard/media.h match enums in
 // VideoColorSpace and gfx::ColorSpace.
-#define ENUM_EQ(a, b) \
-  COMPILE_ASSERT(static_cast<int>(a) == static_cast<int>(b), mismatching_enums)
+#define ENUM_EQ(a, b)                                       \
+  static_assert(static_cast<int>(a) == static_cast<int>(b), \
+                "mismatching_"                              \
+                "enums")
 
 // Ensure PrimaryId enums convert correctly.
 ENUM_EQ(kSbMediaPrimaryIdReserved0, VideoColorSpace::PrimaryID::INVALID);
@@ -311,37 +308,37 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
   SbMediaMasteringMetadata sb_media_mastering_metadata = {};
 
   if (hdr_metadata) {
-    const auto& color_volume_metadata = hdr_metadata->color_volume_metadata;
+    const auto& color_volume_metadata = hdr_metadata->smpte_st_2086;
 
     sb_media_mastering_metadata.primary_r_chromaticity_x =
-        color_volume_metadata.primaries.fRX;
+        color_volume_metadata->primaries.fRX;
     sb_media_mastering_metadata.primary_r_chromaticity_y =
-        color_volume_metadata.primaries.fRY;
+        color_volume_metadata->primaries.fRY;
 
     sb_media_mastering_metadata.primary_g_chromaticity_x =
-        color_volume_metadata.primaries.fGX;
+        color_volume_metadata->primaries.fGX;
     sb_media_mastering_metadata.primary_g_chromaticity_y =
-        color_volume_metadata.primaries.fGY;
+        color_volume_metadata->primaries.fGY;
 
     sb_media_mastering_metadata.primary_b_chromaticity_x =
-        color_volume_metadata.primaries.fBX;
+        color_volume_metadata->primaries.fBX;
     sb_media_mastering_metadata.primary_b_chromaticity_y =
-        color_volume_metadata.primaries.fBY;
+        color_volume_metadata->primaries.fBY;
 
     sb_media_mastering_metadata.white_point_chromaticity_x =
-        color_volume_metadata.primaries.fWX;
+        color_volume_metadata->primaries.fWX;
     sb_media_mastering_metadata.white_point_chromaticity_y =
-        color_volume_metadata.primaries.fWX;
+        color_volume_metadata->primaries.fWX;
 
     sb_media_mastering_metadata.luminance_max =
-        color_volume_metadata.luminance_max;
+        color_volume_metadata->luminance_max;
     sb_media_mastering_metadata.luminance_min =
-        color_volume_metadata.luminance_min;
+        color_volume_metadata->luminance_min;
 
     sb_media_color_metadata.mastering_metadata = sb_media_mastering_metadata;
-    sb_media_color_metadata.max_cll = hdr_metadata->max_content_light_level;
+    sb_media_color_metadata.max_cll = hdr_metadata->cta_861_3->max_content_light_level;
     sb_media_color_metadata.max_fall =
-        hdr_metadata->max_frame_average_light_level;
+        hdr_metadata->cta_861_3->max_frame_average_light_level;
   }
 
   // Copy the color space below.
@@ -366,6 +363,7 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
 }
 int GetSbMediaVideoBufferBudget(const VideoDecoderConfig* video_config,
                                 const std::string& mime_type) {
+#if COBALT_MEDIA_ENABLE_DECODE_BUFFER_BUDGET
   if (!video_config) {
     return DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(
         kSbMediaVideoCodecH264, 1920, 1080, 8);
@@ -377,6 +375,9 @@ int GetSbMediaVideoBufferBudget(const VideoDecoderConfig* video_config,
   auto codec = MediaVideoCodecToSbMediaVideoCodec(video_config->codec());
   return DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(
       codec, width, height, bits_per_pixel);
+#else   // COBALT_MEDIA_ENABLE_DECODE_BUFFER_BUDGET
+  return 100 * 1024 * 1024;
+#endif  // COBALT_MEDIA_ENABLE_DECODE_BUFFER_BUDGET
 }
 
 std::string ExtractCodecs(const std::string& mime_type) {
