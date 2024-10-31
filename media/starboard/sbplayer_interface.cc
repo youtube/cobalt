@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/base/sbplayer_interface.h"
+#include "media/starboard/sbplayer_interface.h"
 
 #include <string>
 
@@ -20,7 +20,6 @@
 #include "starboard/extension/player_configuration.h"
 #include "starboard/system.h"
 
-namespace cobalt {
 namespace media {
 
 bool SbPlayerInterface::SetDecodeToTexturePreferred(bool preferred) {
@@ -44,23 +43,6 @@ bool SbPlayerInterface::SetDecodeToTexturePreferred(bool preferred) {
     LOG(INFO) << "DecodeToTextureModePreferred is not supported.";
     return false;
   }
-}
-
-DefaultSbPlayerInterface::DefaultSbPlayerInterface() {
-  const CobaltExtensionEnhancedAudioApi* extension_api =
-      static_cast<const CobaltExtensionEnhancedAudioApi*>(
-          SbSystemGetExtension(kCobaltExtensionEnhancedAudioName));
-  if (!extension_api) {
-    return;
-  }
-
-  DCHECK_EQ(extension_api->name,
-            // Avoid comparing raw string pointers for equal.
-            std::string(kCobaltExtensionEnhancedAudioName));
-  DCHECK_EQ(extension_api->version, 1u);
-  DCHECK_NE(extension_api->PlayerWriteSamples, nullptr);
-
-  enhanced_audio_player_write_samples_ = extension_api->PlayerWriteSamples;
 }
 
 SbPlayer DefaultSbPlayerInterface::Create(
@@ -104,28 +86,13 @@ void DefaultSbPlayerInterface::Seek(SbPlayer player,
   media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_SEEK);
 }
 
-bool DefaultSbPlayerInterface::IsEnhancedAudioExtensionEnabled() const {
-  return enhanced_audio_player_write_samples_ != nullptr;
-}
-
 void DefaultSbPlayerInterface::WriteSamples(
     SbPlayer player,
     SbMediaType sample_type,
     const SbPlayerSampleInfo* sample_infos,
     int number_of_sample_infos) {
-  DCHECK(!IsEnhancedAudioExtensionEnabled());
   SbPlayerWriteSamples(player, sample_type, sample_infos,
                        number_of_sample_infos);
-}
-
-void DefaultSbPlayerInterface::WriteSamples(
-    SbPlayer player,
-    SbMediaType sample_type,
-    const CobaltExtensionEnhancedAudioPlayerSampleInfo* sample_infos,
-    int number_of_sample_infos) {
-  DCHECK(IsEnhancedAudioExtensionEnabled());
-  enhanced_audio_player_write_samples_(player, sample_type, sample_infos,
-                                       number_of_sample_infos);
 }
 
 int DefaultSbPlayerInterface::GetMaximumNumberOfSamplesPerWrite(
@@ -237,4 +204,3 @@ bool DefaultSbPlayerInterface::GetAudioConfiguration(
 }
 
 }  // namespace media
-}  // namespace cobalt

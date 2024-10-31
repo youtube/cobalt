@@ -12,42 +12,46 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_BASE_SBPLAYER_BRIDGE_H_
-#define COBALT_MEDIA_BASE_SBPLAYER_BRIDGE_H_
+#ifndef MEDIA_STARBOARD_SBPLAYER_BRIDGE_H_
+#define MEDIA_STARBOARD_SBPLAYER_BRIDGE_H_
 
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
-#include "base/single_thread_task_runner.h"
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+
+#if COBALT_MEDIA_ENABLE_CVAL
 #include "cobalt/media/base/cval_stats.h"
+#endif  // COBALT_MEDIA_ENABLE_CVAL
+
+#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
 #include "cobalt/media/base/decode_target_provider.h"
+#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
+
+#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 #include "cobalt/media/base/decoder_buffer_cache.h"
-#include "cobalt/media/base/sbplayer_interface.h"
-#include "cobalt/media/base/sbplayer_set_bounds_helper.h"
+#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
+
 #include "media/base/audio_decoder_config.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/video_decoder_config.h"
+#include "media/starboard/sbplayer_interface.h"
+#include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "ui/gfx/geometry/rect.h"
 
-namespace cobalt {
 namespace media {
 
-// TODO: Add switch to disable caching
 class SbPlayerBridge {
-  typedef ::media::AudioDecoderConfig AudioDecoderConfig;
-  typedef ::media::DecoderBuffer DecoderBuffer;
-  typedef ::media::DemuxerStream DemuxerStream;
-  typedef ::media::VideoDecoderConfig VideoDecoderConfig;
-
  public:
   class Host {
    public:
@@ -62,7 +66,7 @@ class SbPlayerBridge {
   };
 
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
-  typedef base::Callback<SbDecodeTargetGraphicsContextProvider*()>
+  typedef base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>
       GetDecodeTargetGraphicsContextProviderFunc;
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -97,10 +101,16 @@ class SbPlayerBridge {
                  SbPlayerSetBoundsHelper* set_bounds_helper,
                  bool allow_resume_after_suspend,
                  SbPlayerOutputMode default_output_mode,
+#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  DecodeTargetProvider* const decode_target_provider,
+#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
                  const std::string& max_video_capabilities,
-                 int max_video_input_size,
-                 std::string pipeline_identifier);
+                 int max_video_input_size
+#if COBALT_MEDIA_ENABLE_CVAL
+                 ,
+                 std::string pipeline_identifier
+#endif  // COBALT_MEDIA_ENABLE_CVAL
+  );
 
   ~SbPlayerBridge();
 
@@ -121,8 +131,8 @@ class SbPlayerBridge {
 
   void SetVolume(float volume);
   void SetPlaybackRate(double playback_rate);
-  void GetInfo(uint32* video_frames_decoded,
-               uint32* video_frames_dropped,
+  void GetInfo(uint32_t* video_frames_decoded,
+               uint32_t* video_frames_dropped,
                base::TimeDelta* media_time);
   std::vector<SbMediaAudioConfiguration> GetAudioConfigurations();
 
@@ -171,12 +181,14 @@ class SbPlayerBridge {
 
     void ClearDecoderBufferCache();
 
-    void OnDecoderStatus(SbPlayer player,
+    // The following functions accept SbPlayer as void* to work around the
+    // requirements that types binding to Callbacks have to be complete.
+    void OnDecoderStatus(void* player,
                          SbMediaType type,
                          SbPlayerDecoderState state,
                          int ticket);
-    void OnPlayerStatus(SbPlayer player, SbPlayerState state, int ticket);
-    void OnPlayerError(SbPlayer player,
+    void OnPlayerStatus(void* player, SbPlayerState state, int ticket);
+    void OnPlayerError(void* player,
                        SbPlayerError error,
                        const std::string& message);
     void OnDeallocateSample(const void* sample_buffer);
@@ -188,7 +200,7 @@ class SbPlayerBridge {
     SbPlayerBridge* player_bridge_;
   };
 
-  static const int64 kClearDecoderCacheIntervalInMilliseconds = 1000;
+  static const int64_t kClearDecoderCacheIntervalInMilliseconds = 1000;
 
   // A map from raw data pointer returned by DecoderBuffer::GetData() to the
   // DecoderBuffer and a reference count.  The reference count indicates how
@@ -212,8 +224,10 @@ class SbPlayerBridge {
 #endif  // SB_HAS(PLAYER_WITH_URL)
   void CreatePlayer();
 
+#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   void WriteNextBuffersFromCache(DemuxerStream::Type type,
                                  int max_buffers_per_write);
+#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
   template <typename PlayerSampleInfo>
   void WriteBuffersInternal(
@@ -222,8 +236,8 @@ class SbPlayerBridge {
       const SbMediaAudioStreamInfo* audio_stream_info,
       const SbMediaVideoStreamInfo* video_stream_info);
 
-  void GetInfo_Locked(uint32* video_frames_decoded,
-                      uint32* video_frames_dropped,
+  void GetInfo_Locked(uint32_t* video_frames_decoded,
+                      uint32_t* video_frames_dropped,
                       base::TimeDelta* media_time);
   void UpdateBounds_Locked();
 
@@ -280,6 +294,7 @@ class SbPlayerBridge {
   SbWindow window_;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
   Host* const host_;
+  // TODO(b/376320224): Ensure that set bounds works
   // Consider merge |SbPlayerSetBoundsHelper| into CallbackHelper.
   SbPlayerSetBoundsHelper* const set_bounds_helper_;
   const bool allow_resume_after_suspend_;
@@ -297,25 +312,29 @@ class SbPlayerBridge {
   float volume_ = 1.0f;
   double playback_rate_ = 0.0;
   bool seek_pending_ = false;
+#if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   DecoderBufferCache decoder_buffer_cache_;
+#endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
   // The following variables can be accessed from GetInfo(), which can be called
   // from any threads.  So some of their usages have to be guarded by |lock_|.
   base::Lock lock_;
 
   // Stores the |z_index| and |rect| parameters of the latest SetBounds() call.
-  base::Optional<int> set_bounds_z_index_;
-  base::Optional<gfx::Rect> set_bounds_rect_;
+  std::optional<int> set_bounds_z_index_;
+  std::optional<gfx::Rect> set_bounds_rect_;
   State state_ = kPlaying;
   SbPlayer player_;
-  uint32 cached_video_frames_decoded_;
-  uint32 cached_video_frames_dropped_;
+  uint32_t cached_video_frames_decoded_;
+  uint32_t cached_video_frames_dropped_;
   base::TimeDelta preroll_timestamp_;
 
   // Keep track of the output mode we are supposed to output to.
   SbPlayerOutputMode output_mode_;
 
+#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DecodeTargetProvider* const decode_target_provider_;
+#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
 
   // Keep copies of the mime type strings instead of using the ones in the
   // DemuxerStreams to ensure that the strings are always valid.
@@ -348,11 +367,12 @@ class SbPlayerBridge {
   bool pending_audio_eos_buffer_ = false;
   bool pending_video_eos_buffer_ = false;
 
+#if COBALT_MEDIA_ENABLE_CVAL
   CValStats* cval_stats_;
   std::string pipeline_identifier_;
+#endif  // COBALT_MEDIA_ENABLE_CVAL
 };
 
 }  // namespace media
-}  // namespace cobalt
 
-#endif  // COBALT_MEDIA_BASE_SBPLAYER_BRIDGE_H_
+#endif  // MEDIA_STARBOARD_SBPLAYER_BRIDGE_H_
