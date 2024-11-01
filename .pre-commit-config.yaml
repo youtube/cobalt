@@ -11,6 +11,7 @@ files: |
         cobalt/|
         media/starboard/|
         starboard/|
+        components/viz/service/display/starboard/|
         .pre-commit-config.yaml|
         .pylintrc|
         docker-compose.yaml
