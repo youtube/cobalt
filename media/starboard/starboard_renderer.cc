@@ -54,9 +54,14 @@ bool HasRemoteAudioOutputs(
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
-    const scoped_refptr<base::SequencedTaskRunner>& task_runner)
-    : task_runner_(task_runner) {
+    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+    VideoRendererSink* video_renderer_sink)
+    : task_runner_(task_runner),
+      video_renderer_sink_(video_renderer_sink),
+      video_overlay_factory_(std::make_unique<VideoOverlayFactory>()) {
   DCHECK(task_runner_);
+  DCHECK(video_renderer_sink_);
+  DCHECK(video_overlay_factory_);
   LOG(INFO) << "StarboardRenderer constructed.";
 }
 
@@ -420,6 +425,8 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
       content_size_change_cb_.Run();
     }
 #endif  // 0
+    video_renderer_sink_->PaintSingleFrame(video_overlay_factory_->CreateFrame(
+        stream->video_decoder_config().visible_rect().size()));
   }
 }
 
@@ -472,6 +479,9 @@ void StarboardRenderer::OnDemuxerStreamRead(
       // TODO(b/375275033): Refine calling to OnVideoNaturalSizeChange().
       client_->OnVideoNaturalSizeChange(
           stream->video_decoder_config().visible_rect().size());
+      video_renderer_sink_->PaintSingleFrame(
+          video_overlay_factory_->CreateFrame(
+              stream->video_decoder_config().visible_rect().size()));
     }
     UpdateDecoderConfig(stream);
     stream->Read(1, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
