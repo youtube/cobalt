@@ -51,6 +51,7 @@ SB_EXPORT_PLATFORM EGLBoolean __wrap_eglSwapBuffers(EGLDisplay dpy,
   // not work properly without calling SurfaceHolder setFixedSize.
   // starboard::android::shared::WaitForVideoBoundsUpdate();
 
-  return __real_eglSwapBuffers(dpy, surface);
+  // return __real_eglSwapBuffers(dpy, surface);
+  return;
 }
 }

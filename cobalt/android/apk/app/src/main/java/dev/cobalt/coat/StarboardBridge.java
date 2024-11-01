@@ -114,7 +114,7 @@ public class StarboardBridge {
     // TODO(cobalt): re-enable native initialization steps or remove.
     // Make sure the JNI stack is properly initialized first as there is
     // race condition as soon as any of the following objects creates a new thread.
-    // nativeInitialize();
+    nativeInitialize();
 
     this.appContext = appContext;
     this.activityHolder = activityHolder;
@@ -134,7 +134,7 @@ public class StarboardBridge {
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
   }
 
-  // private boolean nativeInitialize();
+  private native boolean nativeInitialize();
 
   private long nativeCurrentMonotonicTime() {
     // TODO(b/375058047): re-enable monotonic time from native side.

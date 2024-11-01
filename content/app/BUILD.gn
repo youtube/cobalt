@@ -16,6 +16,8 @@ extra_configs = [
 
 content_app_deps = [
   "//base",
+  "//starboard",
+  "//starboard/android/shared:starboard_platform",
   "//base:i18n",
   "//content:export",
   "//content:sandbox_helper_win",
