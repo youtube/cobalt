@@ -17,6 +17,8 @@
 
 #if defined(STARBOARD)
 
+#include <limits>
+
 #include "starboard/common/log.h"
 #include "starboard/types.h"
 
@@ -101,7 +103,7 @@ typedef enum EzTimeZone {
 #define kEzTimeTDay (kEzTimeTHour * 24)
 
 // The maximum value of an EzTimeT.
-#define kEzTimeTMax (kSbInt64Max)
+#define kEzTimeTMax (std::numeric_limits<int64_t>::max())
 
 // A term that can be added to an EzTimeT to convert it into the number of
 // microseconds since the Windows epoch.
