@@ -16,6 +16,8 @@
 
 #include <sys/time.h>
 
+#include <limits>
+
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 
@@ -60,12 +62,12 @@ bool ConditionVariable::WaitTimed(int64_t duration) const {
 #endif  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
   timeout_time_usec += duration;
 
-  // Detect overflow if timeout is near kSbInt64Max. Since timeout can't be
-  // negative at this point, if it goes negative after adding now, we know we've
-  // gone over. Especially posix now, which has a 400 year advantage over
-  // Chromium (Windows) now.
+  // Detect overflow if timeout is near std::numeric_limits<int64_t>::max().
+  // Since timeout can't be negative at this point, if it goes negative after
+  // adding now, we know we've gone over. Especially posix now, which has a 400
+  // year advantage over Chromium (Windows) now.
   if (timeout_time_usec < 0) {
-    timeout_time_usec = kSbInt64Max;
+    timeout_time_usec = std::numeric_limits<int64_t>::max();
   }
 
   struct timespec timeout;

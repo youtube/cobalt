@@ -353,7 +353,7 @@ class Application {
 
   // Gets the next time in microseconds that a TimedEvent is due. Returns
   // CurrentMonotonicTime() if the next TimedEvent is past due. Returns
-  // kSbInt64Max if there are no queued TimedEvents.
+  // std::numeric_limits<int64_t>::max() if there are no queued TimedEvents.
   virtual int64_t GetNextTimedEventTargetTime() = 0;
 
   // Sets the command-line parameters for the application. Used to support
