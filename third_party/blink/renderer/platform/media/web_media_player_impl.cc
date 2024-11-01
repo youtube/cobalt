@@ -2812,7 +2812,8 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
   // `media_task_runner_` is always true, use an if statement to avoid
   // potential build warning on unreachable code.
   if (media_task_runner_) {
-    return std::make_unique<media::StarboardRenderer>(media_task_runner_);
+    return std::make_unique<media::StarboardRenderer>(media_task_runner_,
+        compositor_.get());
   }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 #endif // BUILDFLAG(IS_COBALT)
