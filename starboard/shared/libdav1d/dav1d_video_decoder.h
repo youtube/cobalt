@@ -17,6 +17,7 @@
 
 #include "third_party/dav1d/libdav1d/include/dav1d/dav1d.h"
 
+#include <limits>
 #include <memory>
 #include <queue>
 #include <string>
@@ -47,7 +48,9 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
 
   // TODO: Verify if these values are correct.
   size_t GetPrerollFrameCount() const override { return 8; }
-  int64_t GetPrerollTimeout() const override { return kSbInt64Max; }
+  int64_t GetPrerollTimeout() const override {
+    return std::numeric_limits<int64_t>::max();
+  }
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
 
   void WriteInputBuffers(const InputBuffers& input_buffers) override;
