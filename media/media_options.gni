@@ -345,6 +345,10 @@ media_subcomponent_deps = [
   "//media/video",
 ]
 
+if (is_cobalt) {
+  media_subcomponent_deps += [ "//media/starboard" ]
+}
+
 if (is_fuchsia) {
   media_subcomponent_deps += [ "//media/fuchsia/common" ]
 }
