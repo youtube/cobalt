@@ -17,6 +17,7 @@
 
 #include <pthread.h>
 
+#include <limits>
 #include <queue>
 
 #include "starboard/common/log.h"
@@ -61,7 +62,9 @@ class VideoDecoderImpl<FFMPEG> : public VideoDecoder {
   void Initialize(const DecoderStatusCB& decoder_status_cb,
                   const ErrorCB& error_cb) override;
   size_t GetPrerollFrameCount() const override { return 8; }
-  int64_t GetPrerollTimeout() const override { return kSbInt64Max; }
+  int64_t GetPrerollTimeout() const override {
+    return std::numeric_limits<int64_t>::max();
+  }
   size_t GetMaxNumberOfCachedFrames() const override { return 12; }
 
   void WriteInputBuffers(const InputBuffers& input_buffers) override;

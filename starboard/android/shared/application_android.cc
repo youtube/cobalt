@@ -20,6 +20,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -225,8 +226,8 @@ Event* ApplicationAndroid::WaitForSystemEventWithTimeout(int64_t time) {
   // If we take the floor, or round, then we end up busy looping every time
   // the next event time is less than one millisecond.
   int timeout_millis =
-      (time <
-       std::min(kSbInt64Max - 1000, 1000 * static_cast<int64_t>(INT_MAX - 1)))
+      (time < std::min(std::numeric_limits<int64_t>::max() - 1000,
+                       1000 * static_cast<int64_t>(INT_MAX - 1)))
           ? (time + 1000 - 1) / 1000
           : INT_MAX;
   int looper_events;
