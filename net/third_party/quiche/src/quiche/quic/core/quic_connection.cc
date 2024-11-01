@@ -3304,7 +3304,14 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
     return false;
   }
 
+#if defined(STARBOARD)
+  // Not reading the precise clock is a significant CPU usage reduction.
+  // Either this clock is accurate enough, or we are already throttling by more
+  // than the difference due to the reading task taking a long time.
+  QuicTime now = clock_->ApproximateNow();
+#else
   QuicTime now = clock_->Now();
+#endif
   QuicTime::Delta delay = sent_packet_manager_.TimeUntilSend(now);
   if (delay.IsInfinite()) {
     send_alarm_->Cancel();
@@ -3327,7 +3334,14 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
 }
 
 QuicTime QuicConnection::CalculatePacketSentTime() {
+#if defined(STARBOARD)
+  // Not reading the precise clock is a significant CPU usage reduction.
+  // Either this clock is accurate enough, or we are already throttling by more
+  // than the difference due to the reading task taking a long time.
+  const QuicTime now = clock_->ApproximateNow();
+#else
   const QuicTime now = clock_->Now();
+#endif
   if (!supports_release_time_ || per_packet_options_ == nullptr) {
     // Don't change the release delay.
     return now;

@@ -12,6 +12,10 @@
 #include "net/quic/address_utils.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_clock.h"
 
+#if defined(STARBOARD)
+#include "net/quic/platform/impl/quic_chromium_clock.h"
+#endif
+
 namespace net {
 
 namespace {
@@ -92,6 +96,7 @@ int QuicChromiumPacketReader::StartReadingMultiplePackets() {
 }
 
 bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
+  quic::QuicChromiumClock::GetInstance()->ZeroApproximateNow();
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
     net_log_.AddEventWithIntParams(NetLogEventType::QUIC_READ_ERROR,
@@ -129,7 +134,7 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
       continue;
     }
     quic::QuicReceivedPacket packet(read_packet->buffer, read_packet->result,
-                                    clock_->Now());
+                                    clock_->ApproximateNow());
     if (!(visitor_->OnPacket(packet, quick_local_address, quick_peer_address) &&
           self)) {
       return false;
@@ -202,6 +207,9 @@ void QuicChromiumPacketReader::StartReading() {
 }
 
 bool QuicChromiumPacketReader::ProcessReadResult(int result) {
+#if defined(STARBOARD)
+  quic::QuicChromiumClock::GetInstance()->ZeroApproximateNow();
+#endif
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
     net_log_.AddEventWithIntParams(NetLogEventType::QUIC_READ_ERROR,
@@ -221,7 +229,12 @@ bool QuicChromiumPacketReader::ProcessReadResult(int result) {
     return visitor_->OnReadError(result, socket_);
   }
 
+#if defined(STARBOARD)
+  quic::QuicReceivedPacket packet(read_buffer_->data(), result,
+                                  clock_->ApproximateNow());
+#else
   quic::QuicReceivedPacket packet(read_buffer_->data(), result, clock_->Now());
+#endif
   IPEndPoint local_address;
   IPEndPoint peer_address;
   socket_->GetLocalAddress(&local_address);
