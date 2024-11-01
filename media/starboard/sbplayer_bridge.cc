@@ -173,7 +173,8 @@ SbPlayerBridge::SbPlayerBridge(
       pipeline_identifier_(pipeline_identifier),
       is_url_based_(true) {
   DCHECK(host_);
-  DCHECK(set_bounds_helper_);
+  // TODO(b/352389546): set bounds via video_painter.cc
+  // DCHECK(set_bounds_helper_);
 
   output_mode_ = ComputeSbUrlPlayerOutputMode(default_output_mode);
 
@@ -243,7 +244,8 @@ SbPlayerBridge::SbPlayerBridge(
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(audio_config.IsValidConfig() || video_config.IsValidConfig());
   DCHECK(host_);
-  DCHECK(set_bounds_helper_);
+  // TODO(b/352389546): set bounds via video_painter.cc
+  // DCHECK(set_bounds_helper_);
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(decode_target_provider_);
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -277,7 +279,8 @@ SbPlayerBridge::~SbPlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   callback_helper_->ResetPlayer();
-  set_bounds_helper_->SetPlayerBridge(NULL);
+  // TODO(b/352389546): set bounds via video_painter.cc
+  // set_bounds_helper_->SetPlayerBridge(NULL);
 
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   decode_target_provider_->SetOutputMode(
@@ -588,7 +591,8 @@ void SbPlayerBridge::Suspend() {
 
   sbplayer_interface_->SetPlaybackRate(player_, 0.0);
 
-  set_bounds_helper_->SetPlayerBridge(NULL);
+  // TODO(b/352389546): set bounds via video_painter.cc
+  // set_bounds_helper_->SetPlayerBridge(NULL);
 
   base::AutoLock auto_lock(lock_);
   GetInfo_Locked(&cached_video_frames_decoded_, &cached_video_frames_dropped_,
@@ -720,7 +724,8 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
   decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
 
-  set_bounds_helper_->SetPlayerBridge(this);
+  // TODO(b/352389546): set bounds via video_painter.cc
+  // set_bounds_helper_->SetPlayerBridge(this);
 
   base::AutoLock auto_lock(lock_);
   UpdateBounds_Locked();
@@ -821,7 +826,8 @@ void SbPlayerBridge::CreatePlayer() {
   decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-  set_bounds_helper_->SetPlayerBridge(this);
+  // TODO(b/352389546): set bounds via video_painter.cc
+  // set_bounds_helper_->SetPlayerBridge(this);
 
   base::AutoLock auto_lock(lock_);
   UpdateBounds_Locked();

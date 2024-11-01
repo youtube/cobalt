@@ -21,11 +21,10 @@
 #include "components/viz/service/display/overlay_strategy_underlay.h"
 #include "components/viz/service/viz_service_export.h"
 
-#include "chromecast/media/service/mojom/video_geometry_setter.mojom.h"
-#include "mojo/public/cpp/bindings/pending_remote.h"
-
 namespace viz {
-// Similar to underlay strategy plus Cast-specific handling of content bounds.
+// The underlay strategy looks for a video hole quad, where the underlay
+// video can be displayed directly. This is similar to the underlay
+// strategy for Cast.
 class VIZ_SERVICE_EXPORT OverlayStrategyUnderlayStarboard
     : public OverlayStrategyUnderlay {
  public:
@@ -67,16 +66,9 @@ class VIZ_SERVICE_EXPORT OverlayStrategyUnderlayStarboard
   void CommitCandidate(const OverlayProposedCandidate& proposed_candidate,
                        AggregatedRenderPass* render_pass) override;
 
-  // In Chromecast build, OverlayStrategyUnderlayStarboard needs a valid mojo
-  // interface to VideoGeometrySetter Service (shared by all instances of
-  // OverlayStrategyUnderlayStarboard). This must be called before compositor
-  // starts. Ideally, it can be called after compositor thread is created. Must
-  // be called on compositor thread.
-  static void ConnectVideoGeometrySetter(
-      mojo::PendingRemote<chromecast::media::mojom::VideoGeometrySetter>
-          video_geometry_setter);
-
-  OverlayStrategy GetUMAEnum() const override;
+  void AdjustOutputSurfaceOverlay(
+      OverlayProcessorInterface::OutputSurfaceOverlayPlane*
+          output_surface_plane) override;
 
  private:
   // Keep track if an overlay is being used on the previous frame.
