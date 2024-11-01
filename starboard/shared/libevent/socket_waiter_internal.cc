@@ -20,6 +20,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include <limits>
 #include <map>
 #include <utility>
 
@@ -296,7 +297,7 @@ void SbSocketWaiterPrivate::Wait() {
 
   // We basically wait for the largest amount of time to achieve an indefinite
   // block.
-  WaitTimed(kSbInt64Max);
+  WaitTimed(std::numeric_limits<int64_t>::max());
 }
 
 SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
@@ -308,7 +309,7 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
   timeout_set(&event, &SbSocketWaiterPrivate::LibeventTimeoutCallback, this);
   event_base_set(base_, &event);
 
-  if (duration_usec < kSbInt64Max) {
+  if (duration_usec < std::numeric_limits<int64_t>::max()) {
     struct timeval tv;
     tv.tv_sec = duration_usec / 1'000'000;
     tv.tv_usec = duration_usec % 1'000'000;
@@ -323,7 +324,7 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(int64_t duration_usec) {
       woken_up_ ? kSbSocketWaiterResultWokenUp : kSbSocketWaiterResultTimedOut;
   woken_up_ = false;
 
-  if (duration_usec < kSbInt64Max) {
+  if (duration_usec < std::numeric_limits<int64_t>::max()) {
     // We clean this up, in case we were awakened early, to prevent a spurious
     // wake-up later.
     timeout_del(&event);

@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <list>
 
 #include "starboard/android/shared/decode_target_create.h"
@@ -471,7 +472,7 @@ size_t VideoDecoder::GetPrerollFrameCount() const {
 
 int64_t VideoDecoder::GetPrerollTimeout() const {
   if (input_buffer_written_ > 0 && first_buffer_timestamp_ != 0) {
-    return kSbInt64Max;
+    return std::numeric_limits<int64_t>::max();
   }
   return kInitialPrerollTimeout;
 }

@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <functional>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -191,9 +192,9 @@ class AudioRendererPcm : public AudioRenderer,
   int64_t silence_frames_written_after_eos_on_sink_thread_ = 0;
 
 #if SB_LOG_MEDIA_TIME_STATS
-  int64_t system_and_media_time_offset_ = -1;  // microseconds
-  int64_t min_drift_ = kSbInt64Max;            // microseconds
-  int64_t max_drift_ = 0;                      // microseconds
+  int64_t system_and_media_time_offset_ = -1;                // microseconds
+  int64_t min_drift_ = std::numeric_limits<int64_t>::max();  // microseconds
+  int64_t max_drift_ = 0;                                    // microseconds
   int64_t total_frames_consumed_ = 0;
 #endif  // SB_LOG_MEDIA_TIME_STATS
 
