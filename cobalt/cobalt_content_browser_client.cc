@@ -59,14 +59,6 @@ std::string CobaltContentBrowserClient::GetUserAgent() {
   return GetCobaltUserAgent();
 }
 
-std::string CobaltContentBrowserClient::GetFullUserAgent() {
-  return GetCobaltUserAgent();
-}
-
-std::string CobaltContentBrowserClient::GetReducedUserAgent() {
-  return GetCobaltUserAgent();
-}
-
 blink::UserAgentMetadata CobaltContentBrowserClient::GetUserAgentMetadata() {
   return GetCobaltUserAgentMetadata();
 }

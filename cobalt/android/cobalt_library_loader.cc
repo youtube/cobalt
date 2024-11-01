@@ -12,23 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_COBALT_CONTENT_BROWSER_CLIENT_H_
-#define COBALT_COBALT_CONTENT_BROWSER_CLIENT_H_
+#include "base/android/jni_android.h"
+#include "cobalt/cobalt_main_delegate.h"
+#include "content/public/app/content_jni_onload.h"
+#include "content/public/app/content_main.h"
 
-#include "content/shell/browser/shell_content_browser_client.h"
-
-namespace cobalt {
-
-class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
- public:
-  CobaltContentBrowserClient();
-  ~CobaltContentBrowserClient() override;
-
-  // ContentBrowserClient overrides.
-  std::string GetUserAgent() override;
-  blink::UserAgentMetadata GetUserAgentMetadata() override;
-};
-
-}  // namespace cobalt
-
-#endif  // COBALT_COBALT_CONTENT_BROWSER_CLIENT_H_
+// This is called by the VM when the shared library is first loaded.
+JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
+  base::android::InitVM(vm);
+  if (!content::android::OnJNIOnLoadInit()) {
+    return -1;
+  }
+  content::SetContentMainDelegate(new cobalt::CobaltMainDelegate());
+  return JNI_VERSION_1_4;
+}
