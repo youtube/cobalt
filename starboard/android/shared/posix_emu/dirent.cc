@@ -103,7 +103,8 @@ constexpr int64_t kMagicNum = -1;
 
 DIR* __wrap_opendir(const char* path) {
   if (!IsAndroidAssetPath(path)) {
-    return __real_opendir(path);
+    // return __real_opendir(path);
+    return nullptr;
   }
 
   AAssetDir* asset_dir = OpenAndroidAssetDir(path);
@@ -133,7 +134,8 @@ int __wrap_closedir(DIR* dir) {
     free(adir);
     return 0;
   }
-  return __real_closedir(dir);
+  // return __real_closedir(dir);
+  return 0;
 }
 
 int __wrap_readdir_r(DIR* __restrict dir,
@@ -156,7 +158,8 @@ int __wrap_readdir_r(DIR* __restrict dir,
     return 0;
   }
 
-  return __real_readdir_r(dir, dirent_buf, dirent);
+  // return __real_readdir_r(dir, dirent_buf, dirent);
+  return 0;
 }
 
 }  // extern "C"

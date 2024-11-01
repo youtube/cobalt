@@ -1,4 +1,4 @@
 target_os = "android"
 target_cpu = "x86"
-is_cobalt = false
+is_cobalt = true
 treat_warnings_as_errors = false

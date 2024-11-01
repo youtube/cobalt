@@ -45,9 +45,9 @@ static SB_C_FORCE_INLINE time_t WindowsUsecToTimeTAndroid(int64_t time) {
 // This needs to be exported to ensure shared_library targets include it.
 int __wrap_stat(const char* path, struct stat* info) {
   // SbFileExists(path) implementation for Android
-  if (!IsAndroidAssetPath(path)) {
-    return __real_stat(path, info);  // Using system level stat call
-  }
+  // if (!IsAndroidAssetPath(path)) {
+  //   return __real_stat(path, info);  // Using system level stat call
+  // }
 
   int file = open(path, O_RDONLY, S_IRUSR | S_IWUSR);
   if (file >= 0) {
