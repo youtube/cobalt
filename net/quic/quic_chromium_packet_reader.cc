@@ -10,6 +10,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "net/base/net_errors.h"
 #include "net/quic/address_utils.h"
+#include "net/quic/platform/impl/quic_chromium_clock.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_clock.h"
 
 namespace net {
@@ -92,6 +93,7 @@ int QuicChromiumPacketReader::StartReadingMultiplePackets() {
 }
 
 bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
+  quic::QuicChromiumClock::GetInstance()->ZeroApproximateNow();
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
     net_log_.AddEventWithIntParams(NetLogEventType::QUIC_READ_ERROR,
@@ -129,7 +131,7 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
       continue;
     }
     quic::QuicReceivedPacket packet(read_packet->buffer, read_packet->result,
-                                    clock_->Now());
+                                    clock_->ApproximateNow());
     if (!(visitor_->OnPacket(packet, quick_local_address, quick_peer_address) &&
           self)) {
       return false;
@@ -202,6 +204,7 @@ void QuicChromiumPacketReader::StartReading() {
 }
 
 bool QuicChromiumPacketReader::ProcessReadResult(int result) {
+  quic::QuicChromiumClock::GetInstance()->ZeroApproximateNow();
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
     net_log_.AddEventWithIntParams(NetLogEventType::QUIC_READ_ERROR,
@@ -221,7 +224,8 @@ bool QuicChromiumPacketReader::ProcessReadResult(int result) {
     return visitor_->OnReadError(result, socket_);
   }
 
-  quic::QuicReceivedPacket packet(read_buffer_->data(), result, clock_->Now());
+  quic::QuicReceivedPacket packet(read_buffer_->data(), result,
+                                  clock_->ApproximateNow());
   IPEndPoint local_address;
   IPEndPoint peer_address;
   socket_->GetLocalAddress(&local_address);

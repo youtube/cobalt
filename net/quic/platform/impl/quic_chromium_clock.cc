@@ -10,6 +10,11 @@
 
 namespace quic {
 
+namespace {
+QuicTime approximate_now_{QuicTime::Zero()};
+int approximate_now_usage_counter_{0};
+}  // namespace
+
 QuicChromiumClock* QuicChromiumClock::GetInstance() {
   static base::NoDestructor<QuicChromiumClock> instance;
   return instance.get();
@@ -19,16 +24,27 @@ QuicChromiumClock::QuicChromiumClock() = default;
 
 QuicChromiumClock::~QuicChromiumClock() = default;
 
+void QuicChromiumClock::ZeroApproximateNow() {
+  approximate_now_ = QuicTime::Zero();
+  approximate_now_usage_counter_ = 0;
+};
+
 QuicTime QuicChromiumClock::ApproximateNow() const {
   // At the moment, Chrome does not have a distinct notion of ApproximateNow().
   // We should consider implementing this using MessageLoop::recent_time_.
+  if (approximate_now_.IsInitialized() &&
+      ++approximate_now_usage_counter_ < 16) {
+    return approximate_now_;
+  }
   return Now();
 }
 
 QuicTime QuicChromiumClock::Now() const {
   int64_t ticks = (base::TimeTicks::Now() - base::TimeTicks()).InMicroseconds();
   DCHECK_GE(ticks, 0);
-  return CreateTimeFromMicroseconds(ticks);
+  approximate_now_ = CreateTimeFromMicroseconds(ticks);
+  approximate_now_usage_counter_ = 0;
+  return approximate_now_;
 }
 
 QuicWallTime QuicChromiumClock::WallNow() const {

@@ -24,6 +24,8 @@ class NET_EXPORT_PRIVATE QuicChromiumClock : public QuicClock {
 
   ~QuicChromiumClock() override;
 
+  void ZeroApproximateNow();
+
   // QuicClock implementation:
   QuicTime ApproximateNow() const override;
   QuicTime Now() const override;
