@@ -199,7 +199,7 @@ jobs:
           results_dir: ${{ env.TEST_RESULTS_DIR }}
       - name: Upload test results
         if: needs.build.result =='success' && env.IS_POSTSUBMIT && env.TESTING_ENABLED
-        uses: ./.github/actions/upload_results
+        uses: ./src/.github/actions/upload_results
         with:
           results_dir: ${{ env.TEST_RESULTS_DIR }}
           datadog_api_key: ${{ secrets.DD_API_KEY }}
