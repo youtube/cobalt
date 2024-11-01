@@ -1,4 +1,3 @@
-
 // Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,31 +19,13 @@
 
 #include "base/containers/adapters.h"
 #include "base/logging.h"
-#include "base/no_destructor.h"
-#include "base/unguessable_token.h"
-#include "build/chromecast_buildflags.h"
 #include "components/viz/common/quads/draw_quad.h"
 #include "components/viz/common/quads/solid_color_draw_quad.h"
 #include "components/viz/common/quads/video_hole_draw_quad.h"
 #include "components/viz/service/display/overlay_candidate_factory.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
 namespace viz {
-
-namespace {
-
-// This persistent mojo::Remote is bound then used by all the instances
-// of OverlayStrategyUnderlayCast.
-mojo::Remote<chromecast::media::mojom::VideoGeometrySetter>&
-GetVideoGeometrySetter() {
-  static base::NoDestructor<
-      mojo::Remote<chromecast::media::mojom::VideoGeometrySetter>>
-      g_video_geometry_setter;
-  return *g_video_geometry_setter;
-}
-
-}  // namespace
 
 OverlayStrategyUnderlayStarboard::OverlayStrategyUnderlayStarboard(
     OverlayProcessorUsingStrategy* capability_checker)
@@ -73,7 +54,7 @@ void OverlayStrategyUnderlayStarboard::Propose(
       &render_pass_filters);
 
   // Original code did reverse iteration.
-  // Here we do forward but find the last one. which should be the same thing.
+  // Here we do forward but find the last one, which should be the same thing.
   for (auto it = quad_list.begin(); it != quad_list.end(); ++it) {
     if (OverlayCandidate::IsInvisibleQuad(*it)) {
       continue;
@@ -95,7 +76,7 @@ void OverlayStrategyUnderlayStarboard::Propose(
   }
 
   if (overlay_iter != quad_list.end()) {
-    candidates->push_back({overlay_iter, candidate, this});
+    candidates->emplace_back(overlay_iter, candidate, this);
   }
 }
 
@@ -192,13 +173,6 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
 void OverlayStrategyUnderlayStarboard::CommitCandidate(
     const OverlayProposedCandidate& proposed_candidate,
     AggregatedRenderPass* render_pass) {
-  DCHECK(GetVideoGeometrySetter());
-  GetVideoGeometrySetter()->SetVideoGeometry(
-      proposed_candidate.candidate.display_rect,
-      absl::get<gfx::OverlayTransform>(proposed_candidate.candidate.transform),
-      VideoHoleDrawQuad::MaterialCast(*proposed_candidate.quad_iter)
-          ->overlay_plane_id);
-
   if (proposed_candidate.candidate.has_mask_filter) {
     render_pass->ReplaceExistingQuadWithSolidColor(
         proposed_candidate.quad_iter, SkColors::kBlack, SkBlendMode::kDstOut);
@@ -209,15 +183,14 @@ void OverlayStrategyUnderlayStarboard::CommitCandidate(
   }
 }
 
-OverlayStrategy OverlayStrategyUnderlayStarboard::GetUMAEnum() const {
-  return OverlayStrategy::kUnderlayCast;
-}
-
-// static
-void OverlayStrategyUnderlayStarboard::ConnectVideoGeometrySetter(
-    mojo::PendingRemote<chromecast::media::mojom::VideoGeometrySetter>
-        video_geometry_setter) {
-  GetVideoGeometrySetter().Bind(std::move(video_geometry_setter));
+// Turn on blending for the output surface plane so the underlay could show
+// through.
+void OverlayStrategyUnderlayStarboard::AdjustOutputSurfaceOverlay(
+    OverlayProcessorInterface::OutputSurfaceOverlayPlane*
+        output_surface_plane) {
+  if (output_surface_plane) {
+    output_surface_plane->enable_blending = true;
+  }
 }
 
 }  // namespace viz
