@@ -55,10 +55,6 @@ typedef int64_t ssize_t;
 #endif
 #endif  // !SB_HAS(SSIZE_T)
 
-// Simulate needed portions of limits.h for platforms that don't provide it.
-
-static const int64_t kSbInt64Max = ((int64_t)SB_INT64_C(0x7FFFFFFFFFFFFFFF));
-
 // A value that represents an int that is probably invalid.
 #define kSbInvalidInt INT32_MIN
 
