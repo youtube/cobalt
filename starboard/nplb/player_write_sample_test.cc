@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <limits>
+
 #include "starboard/common/time.h"
 #include "starboard/nplb/drm_helpers.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
@@ -287,7 +289,7 @@ TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
   int count = 0;
   while (current_time_offset < kDurationToPlay) {
     const int64_t kDurationToDiscard =
-        count % 2 == 0 ? 1'000'000LL : kSbInt64Max;
+        count % 2 == 0 ? 1'000'000LL : std::numeric_limits<int64_t>::max();
     count++;
     // Discard from front.
     for (int i = 0; i < kNumberOfBuffersToDiscard; i++) {

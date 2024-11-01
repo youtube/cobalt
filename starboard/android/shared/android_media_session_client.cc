@@ -16,6 +16,8 @@
 
 #include <pthread.h>
 
+#include <limits>
+
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/common/log.h"
@@ -220,7 +222,7 @@ void OnMediaSessionStateChanged(
   }
 
   jlong durationInMilliseconds;
-  if (session_state.duration == kSbInt64Max) {
+  if (session_state.duration == std::numeric_limits<int64_t>::max()) {
     // Set duration to negative if duration is unknown or infinite, as with live
     // playback.
     // https://developer.android.com/reference/android/support/v4/media/MediaMetadataCompat#METADATA_KEY_DURATION
