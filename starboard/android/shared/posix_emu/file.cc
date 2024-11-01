@@ -39,20 +39,21 @@ int __wrap_close(int fildes) {
   if (asset_manager->IsAssetFd(fildes)) {
     return asset_manager->Close(fildes);
   }
-  return __real_close(fildes);
+  // return __real_close(fildes);
+  return 0;
 }
 
 int __wrap_open(const char* path, int oflag, ...) {
   if (!IsAndroidAssetPath(path)) {
     va_list args;
     va_start(args, oflag);
-    int fd;
-    if (oflag & O_CREAT) {
-      mode_t mode = va_arg(args, int);
-      return __real_open(path, oflag, mode);
-    } else {
-      return __real_open(path, oflag);
-    }
+    // int fd;
+    // if (oflag & O_CREAT) {
+    //   mode_t mode = va_arg(args, int);
+    //   return __real_open(path, oflag, mode);
+    // } else {
+    //   return __real_open(path, oflag);
+    // }
   }
   return AssetManager::GetInstance()->Open(path, oflag);
 }

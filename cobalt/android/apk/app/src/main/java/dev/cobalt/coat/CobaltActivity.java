@@ -316,6 +316,10 @@ public abstract class CobaltActivity extends Activity {
     // Record the application start timestamp.
     timeInNanoseconds = System.nanoTime();
 
+    setStartupUrl("https://www.youtube.com/tv");
+    super.onCreate(savedInstanceState);
+    createContent(savedInstanceState);
+
     // To ensure that volume controls adjust the correct stream, make this call
     // early in the app's lifecycle. This connects the volume controls to
     // STREAM_MUSIC whenever the target activity or fragment is visible.
@@ -331,10 +335,6 @@ public abstract class CobaltActivity extends Activity {
       // Warm start - Pass the deep link to the running Starboard app.
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
-
-    setStartupUrl("https://www.youtube.com/tv");
-    super.onCreate(savedInstanceState);
-    createContent(savedInstanceState);
 
     videoSurfaceView = new VideoSurfaceView(this);
     addContentView(

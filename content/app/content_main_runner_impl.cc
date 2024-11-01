@@ -209,6 +209,12 @@
 #if defined(ADDRESS_SANITIZER)
 #include "base/debug/asan_service.h"
 #endif
+#include "starboard/media.h"
+#include "starboard/player.h"
+#include "base/android/jni_android.h"
+#include "starboard/android/shared/jni_env_ext.h"
+
+using starboard::android::shared::JniEnvExt;
 
 namespace content {
 extern int GpuMain(MainFunctionParams);
@@ -798,11 +804,31 @@ ContentMainRunnerImpl::~ContentMainRunnerImpl() {
 int ContentMainRunnerImpl::TerminateForFatalInitializationError() {
   return delegate_->TerminateForFatalInitializationError();
 }
+void PlayerDeallocateSampleFunc(SbPlayer player,
+                                 void* context,
+                                 const void* sample_buffer) {}
+
+void PlayerDecoderStatusFunc(SbPlayer player,
+                                          void* context,
+                                          SbMediaType type,
+                                          SbPlayerDecoderState state,
+                                          int ticket) {}
+
+void PlayerStatusFunc(SbPlayer player,
+                                   void* context,
+                                   SbPlayerState state,
+                                   int ticket) {}
+
+void PlayerErrorFunc(SbPlayer player,
+                                  void* context,
+                                  SbPlayerError error,
+                                  const char* message) {}
 
 int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
   // ContentMainDelegate is used by this class, not forwarded to embedders.
   delegate_ = std::exchange(params.delegate, nullptr);
   content_main_params_.emplace(std::move(params));
+  JniEnvExt* env = JniEnvExt::Get();
 
 #if BUILDFLAG(IS_ANDROID)
   // Now that mojo's core is initialized we can enable tracing. Note that only
@@ -997,6 +1023,35 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
 #endif  // !defined(OFFICIAL_BUILD)
 
   delegate_->PreSandboxStartup();
+
+// Debug code just to attempt SbPlayerCreation on Startup
+  SbPlayerCreationParam creation_param = {};
+  
+  creation_param.drm_system = kSbDrmSystemInvalid;
+
+  creation_param.audio_stream_info.codec = kSbMediaAudioCodecOpus;
+  creation_param.audio_stream_info.mime = "";
+  creation_param.audio_stream_info.number_of_channels = 2;
+  creation_param.audio_stream_info.samples_per_second = 48000;
+  creation_param.audio_stream_info.bits_per_sample = 16;
+  creation_param.audio_stream_info.audio_specific_config_size = 0;
+  creation_param.audio_stream_info.audio_specific_config = "";
+
+  creation_param.video_stream_info.codec = kSbMediaVideoCodecVp9;
+  creation_param.video_stream_info.mime = "";
+  creation_param.video_stream_info.max_video_capabilities = "";
+  creation_param.video_stream_info.frame_width = 1920;
+  creation_param.video_stream_info.frame_height = 1080;
+  creation_param.output_mode = kSbPlayerOutputModePunchOut;
+
+  void* context = nullptr;
+  SbDecodeTargetGraphicsContextProvider* provider = nullptr;
+  SbPlayer player = SbPlayerCreate(kSbWindowInvalid, &creation_param, PlayerDeallocateSampleFunc, PlayerDecoderStatusFunc,
+     PlayerStatusFunc, PlayerErrorFunc, context, provider);
+  DCHECK(player);
+  SbPlayerDestroy(player);
+  SbDrmSystemIsValid(nullptr);
+  SbDrmTicketIsValid(0);
 
 #if BUILDFLAG(IS_WIN)
   if (!sandbox::policy::Sandbox::Initialize(
