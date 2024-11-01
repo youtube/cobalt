@@ -187,6 +187,8 @@ public abstract class CobaltActivity extends Activity {
       if (savedInstanceState != null && savedInstanceState.containsKey(ACTIVE_SHELL_URL_KEY)) {
           shellUrl = savedInstanceState.getString(ACTIVE_SHELL_URL_KEY);
       }
+      // Set to overlay video mode.
+      mShellManager.getContentViewRenderView().setOverlayVideoMode(true);
       mShellManager.launchShell(shellUrl);
 
       toggleFullscreenMode(true);
