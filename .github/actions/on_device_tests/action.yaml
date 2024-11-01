@@ -34,7 +34,7 @@ runs:
         fi
 
         # Shard env
-        if [[ "${{matrix.shard}}" == 'black_box_test' || "${{matrix.shard}}" == 'evergreen_test' || "${{matrix.shard}}" == 'unit_test' ]]; then
+        if [[ "${{matrix.shard}}" == 'black_box_test' || "${{matrix.shard}}" == 'unit_test' ]]; then
           echo "SHARD_NAME=${{ matrix.shard }}" >> $GITHUB_ENV
           echo "TEST_TYPE=${{ matrix.shard }}" >> $GITHUB_ENV
         else
