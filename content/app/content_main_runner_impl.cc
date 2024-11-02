@@ -825,23 +825,34 @@ void PlayerErrorFunc(SbPlayer player,
                                   const char* message) {}
 
 int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
+
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 0");
+
   // ContentMainDelegate is used by this class, not forwarded to embedders.
   delegate_ = std::exchange(params.delegate, nullptr);
   content_main_params_.emplace(std::move(params));
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 1");
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize ooh");
+    auto f = &JniEnvExt::Get;
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s  %p=", "In ContentMainRunnerImpl::Initialize bah", f);
   JniEnvExt* env = JniEnvExt::Get();
 
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 2");
 #if BUILDFLAG(IS_ANDROID)
   // Now that mojo's core is initialized we can enable tracing. Note that only
   // Android builds have the ctor/dtor handlers set up to use trace events at
   // this point (because AtExitManager is already set up when the library is
   // loaded). Other platforms enable tracing below, after the initialization of
   // AtExitManager.
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 3");
   tracing::EnableStartupTracingIfNeeded();
 
   TRACE_EVENT0("startup,benchmark,rail", "ContentMainRunnerImpl::Initialize");
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_WIN)
+
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 4");
 
   [[maybe_unused]] base::GlobalDescriptors* g_fds =
       base::GlobalDescriptors::GetInstance();
@@ -863,6 +874,8 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
 
 #endif  // !BUILDFLAG(IS_WIN)
 
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 5");
+
   is_initialized_ = true;
 
 // The exit manager is in charge of calling the dtors of singleton objects.
@@ -878,6 +891,8 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 6");
+
 #if BUILDFLAG(IS_FUCHSIA)
   // Cache the system info for this process.
   // This avoids requiring that all callers of certain base:: functions first
@@ -889,18 +904,24 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
   }
 #endif
 
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 7");
+
   if (!GetContentClient())
     ContentClientCreator::Create(delegate_);
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 8");
   absl::optional<int> basic_startup_exit_code =
       delegate_->BasicStartupComplete();
   if (basic_startup_exit_code.has_value())
     return basic_startup_exit_code.value();
 
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 9");
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 10");
   std::string process_type =
       command_line.GetSwitchValueASCII(switches::kProcessType);
 
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 11");
   base::allocator::PartitionAllocSupport::Get()->ReconfigureEarlyish(
       process_type);
 
@@ -919,7 +940,9 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
     base::win::AllowDarkModeForApp(true);
 #endif
 
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 12");
   RegisterContentSchemes(delegate_->ShouldLockSchemeRegistry());
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 13");
   ContentClientInitializer::Set(process_type, delegate_);
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -960,14 +983,19 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
   TRACE_EVENT0("startup,benchmark,rail", "ContentMainRunnerImpl::Initialize");
 #endif  // !BUILDFLAG(IS_ANDROID)
 
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 14");
+
   // If we are on a platform where the default allocator is overridden (e.g.
   // with PartitionAlloc on most platforms) smoke-tests that the overriding
   // logic is working correctly. If not causes a hard crash, as its unexpected
   // absence has security implications.
   CHECK(base::allocator::IsAllocatorInitialized());
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 15");
 
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   if (!process_type.empty()) {
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 16");
+
     // When you hit Ctrl-C in a terminal running the browser
     // process, a SIGINT is delivered to the entire process group.
     // When debugging the browser process via gdb, gdb catches the
@@ -983,8 +1011,11 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
       signal(SIGINT, SIG_IGN);
   }
 #endif
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 17");
 
   RegisterPathProvider();
+
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 18");
 
 // On Android, InitializeICU() is called from content_jni_onload.cc
 // so that it is available before Content::main() is called.
@@ -994,8 +1025,10 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
     return TerminateForFatalInitializationError();
 #endif  // BUILDFLAG(IS_ANDROID) && (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
 
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 19");
   LoadV8SnapshotIfNeeded(command_line, process_type);
 
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 20");
   blink::TrialTokenValidator::SetOriginTrialPolicyGetter(
       base::BindRepeating([]() -> blink::OriginTrialPolicy* {
         if (auto* client = GetContentClient())
@@ -1009,6 +1042,8 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
 #else
   bool should_enable_stack_dump = true;
 #endif
+
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 21");
   // Print stack traces to stderr when crashes occur. This opens up security
   // holes so it should never be enabled for official builds. This needs to
   // happen before crash reporting is initialized (which for chrome happens in
@@ -1019,10 +1054,14 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
     base::debug::EnableInProcessStackDumping();
   }
 
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 22");
   base::debug::VerifyDebugger();
 #endif  // !defined(OFFICIAL_BUILD)
 
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 23");
   delegate_->PreSandboxStartup();
+
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 24");
 
 // Debug code just to attempt SbPlayerCreation on Startup
   SbPlayerCreationParam creation_param = {};
@@ -1044,14 +1083,20 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
   creation_param.video_stream_info.frame_height = 1080;
   creation_param.output_mode = kSbPlayerOutputModePunchOut;
 
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 25");
+
   void* context = nullptr;
   SbDecodeTargetGraphicsContextProvider* provider = nullptr;
   SbPlayer player = SbPlayerCreate(kSbWindowInvalid, &creation_param, PlayerDeallocateSampleFunc, PlayerDecoderStatusFunc,
      PlayerStatusFunc, PlayerErrorFunc, context, provider);
-  DCHECK(player);
-  SbPlayerDestroy(player);
-  SbDrmSystemIsValid(nullptr);
-  SbDrmTicketIsValid(0);
+  //DCHECK(player);
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 26");
+  if (player) {
+    SbPlayerDestroy(player);
+    SbDrmSystemIsValid(nullptr);
+    SbDrmTicketIsValid(0);
+  }
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In ContentMainRunnerImpl::Initialize 27");
 
 #if BUILDFLAG(IS_WIN)
   if (!sandbox::policy::Sandbox::Initialize(

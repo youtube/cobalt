@@ -15,16 +15,24 @@
 #include "cobalt/cobalt_main_delegate.h"
 #include "cobalt/cobalt_content_browser_client.h"
 
+#include <android/log.h>
+
 namespace cobalt {
 
 CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
-    : content::ShellMainDelegate(is_content_browsertests) {}
+    : content::ShellMainDelegate(is_content_browsertests) {
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s",
+                      "CobaltMainDelegate::CobaltMainDelegate");
+}
 
 CobaltMainDelegate::~CobaltMainDelegate() {}
 
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s",
+                      "CobaltMainDelegate::CreateContentBrowserClient");
   browser_client_ = std::make_unique<CobaltContentBrowserClient>();
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "Returning the client");
   return browser_client_.get();
 }
 

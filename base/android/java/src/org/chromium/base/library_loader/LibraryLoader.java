@@ -518,6 +518,7 @@ public class LibraryLoader {
      *  (w.r.t. how it shares RELRO and reports metrics) unless it was initialized before.
      */
     public void ensureInitialized() {
+        Log.e(TAG, "YOLO: ensureInitialized!!");
         if (isInitialized()) return;
         ensureMainDexInitialized();
         loadNonMainDex();
@@ -534,6 +535,7 @@ public class LibraryLoader {
      * may significantly increase the time to first draw.
      */
     public void ensureMainDexInitialized() {
+        Log.e(TAG, "YOLO: ensureMainDexInitialized!!");
         synchronized (mLock) {
             if (DEBUG) logLinkerUsed();
             loadMainDexAlreadyLocked(
@@ -630,6 +632,7 @@ public class LibraryLoader {
      * @param appContext The overriding app context to be used to load libraries.
      */
     public void loadNowOverrideApplicationContext(Context appContext) {
+        Log.e(TAG, "YOLO: loadNowOverrideApplicationContext!!");
         synchronized (mLock) {
             if (mLoadState != LoadState.NOT_LOADED
                     && appContext != ContextUtils.getApplicationContext()) {
@@ -641,6 +644,7 @@ public class LibraryLoader {
     }
 
     public void loadNowInZygote(ApplicationInfo appInfo) {
+        Log.e(TAG, "YOLO: loadNowInZygote!!");
         synchronized (mLock) {
             assert mLoadState == LoadState.NOT_LOADED;
             loadMainDexAlreadyLocked(appInfo, /* inZygote= */ true);
@@ -738,9 +742,12 @@ public class LibraryLoader {
     @GuardedBy("mLock")
     @SuppressLint({"UnsafeDynamicallyLoadedCode"})
     private void loadWithSystemLinkerAlreadyLocked(ApplicationInfo appInfo, boolean inZygote) {
+        Log.e(TAG, "YOLO: loadWithSystemLinkerAlreadyLocked!!");
+
         setEnvForNative();
         preloadAlreadyLocked(appInfo.packageName, inZygote);
         for (String library : NativeLibraries.LIBRARIES) {
+            Log.e(TAG, "YOLO: loadWithSystemLinkerAlreadyLocked: %s", library);
             System.loadLibrary(library);
         }
     }
@@ -750,6 +757,7 @@ public class LibraryLoader {
     @GuardedBy("mLock")
     @VisibleForTesting
     protected void loadMainDexAlreadyLocked(ApplicationInfo appInfo, boolean inZygote) {
+        Log.e(TAG, "YOLO: loadMainDexAlreadyLocked!!");
         if (mLoadState >= LoadState.MAIN_DEX_LOADED) {
             if (sEnableStateForTesting && mLoadStateForTesting == LoadState.NOT_LOADED) {
                 mLoadStateForTesting = LoadState.MAIN_DEX_LOADED;

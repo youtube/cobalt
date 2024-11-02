@@ -178,6 +178,7 @@ ContentMainParams& ContentMainParams::operator=(ContentMainParams&&) = default;
 int NO_STACK_PROTECTOR
 RunContentProcess(ContentMainParams params,
                   ContentMainRunner* content_main_runner) {
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In RunContentProcess");
   base::FeatureList::FailOnFeatureAccessWithoutFeatureList();
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
   // Lacros is launched with inherited priority. Revert to normal priority
@@ -192,17 +193,21 @@ RunContentProcess(ContentMainParams params,
   // A flag to indicate whether Main() has been called before. On Android, we
   // may re-run Main() without restarting the browser process. This flag
   // prevents initializing things more than once.
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "Checking is_initialized..");
   static bool is_initialized = false;
 #if !BUILDFLAG(IS_ANDROID)
   DCHECK(!is_initialized);
 #endif
   if (is_initialized) {
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "I was initialized ??!!!");
     content_main_runner->ReInitializeParams(std::move(params));
   } else {
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "I was not initialized !");
     is_initialized = true;
 #if BUILDFLAG(IS_APPLE) && BUILDFLAG(USE_ALLOCATOR_SHIM)
     allocator_shim::InitializeAllocatorShim();
 #endif
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In RunContentProcess 1");
     base::EnableTerminationOnOutOfMemory();
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -235,17 +240,22 @@ RunContentProcess(ContentMainParams params,
     argv = params.argv;
 #endif
 
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In RunContentProcess 2");
     base::CommandLine::Init(argc, argv);
 
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In RunContentProcess 3");
 #if BUILDFLAG(IS_POSIX)
     PopulateFileDescriptorStoreFromFdTable();
 #endif
 
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In RunContentProcess 4");
     base::EnableTerminationOnHeapCorruption();
 
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In RunContentProcess 5");
     SetProcessTitleFromCommandLine(argv);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In RunContentProcess 6");
     InitTimeTicksAtUnixEpoch();
 
 // On Android setlocale() is not supported, and we don't override the signal
@@ -297,9 +307,12 @@ RunContentProcess(ContentMainParams params,
     base::subtle::EnableFDOwnershipEnforcement(true);
 #endif
 
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In RunContentProcess 7");
     ui::RegisterPathProvider();
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In RunContentProcess 8 content_main_runner, %p",content_main_runner);
     exit_code = content_main_runner->Initialize(std::move(params));
 
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In RunContentProcess 9");
     if (exit_code >= 0) {
       return exit_code;
     }
@@ -320,10 +333,13 @@ RunContentProcess(ContentMainParams params,
           trace_config, base::trace_event::TraceLog::RECORDING_MODE);
     }
   }
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In RunContentProcess 10");
 
   if (IsSubprocess())
     CommonSubprocessInit();
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In RunContentProcess 11");
   exit_code = content_main_runner->Run();
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In RunContentProcess 12");
 
 #if BUILDFLAG(IS_MAC)
   autorelease_pool.reset();
@@ -332,6 +348,7 @@ RunContentProcess(ContentMainParams params,
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
   content_main_runner->Shutdown();
 #endif
+    __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "In RunContentProcess 13");
 
   return exit_code;
 }

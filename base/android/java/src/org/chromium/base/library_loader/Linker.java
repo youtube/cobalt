@@ -567,6 +567,8 @@ class Linker {
      */
     @GuardedBy("mLock")
     private void loadLibraryImplLocked(String library, @RelroSharingMode int relroMode) {
+         Log.e(TAG, "YOLO: System.loadLibrary loadLibraryImplLocked: %s, relroMode=%d", library, relroMode);
+
         // Only loading monochrome is supported.
         if (!"monochrome".equals(library) || DEBUG) {
             Log.i(TAG, "loadLibraryImplLocked: %s, relroMode=%d", library, relroMode);
@@ -671,6 +673,7 @@ class Linker {
     @GuardedBy("mLock")
     @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
     void loadLinkerJniLibraryLocked() {
+        Log.e(TAG, "YOLO: Loading lib%s.so", LINKER_JNI_LIBRARY);
         assert mState == State.UNINITIALIZED;
 
         LibraryLoader.setEnvForNative();

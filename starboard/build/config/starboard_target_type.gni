@@ -58,6 +58,7 @@ template("starboard_platform_target") {
         "-Wl,--wrap=readdir_r",
         "-Wl,--wrap=eglSwapBuffers",
       ]
+      deps = [ "//starboard/android/shared:starboard_jnienv" ]
     }
 
     public_deps = [
@@ -71,7 +72,10 @@ template("starboard_platform_target") {
       public_deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
     }
     if (!sb_is_evergreen) {
-      public_deps += [ "//$starboard_path:starboard_platform" ]
+      public_deps += [
+        "//$starboard_path:starboard_platform",
+        "//starboard/android/shared:starboard_jnienv",
+      ]
     }
     if (sb_is_modular) {
       # For modular builds (including Evergreen), include POSIX ABI wrappers that

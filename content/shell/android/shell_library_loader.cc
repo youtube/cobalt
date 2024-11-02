@@ -7,8 +7,11 @@
 #include "content/public/app/content_main.h"
 #include "content/shell/app/shell_main_delegate.h"
 
+#include <android/log.h>
+
 // This is called by the VM when the shared library is first loaded.
 JNI_EXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved) {
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s", "JNI_OnLoad from shell_lib_loaded!!");
   base::android::InitVM(vm);
   if (!content::android::OnJNIOnLoadInit())
     return -1;

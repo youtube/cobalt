@@ -107,6 +107,7 @@ if (!is_cobalt) {
     deps = []
     public_deps = [
       ":starboard_headers_only",
+      "//starboard/android/shared/starboard_jnienv",
       "//starboard/client_porting/eztime",
     ]
 

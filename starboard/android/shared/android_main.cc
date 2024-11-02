@@ -35,6 +35,8 @@
 #include "starboard/crashpad_wrapper/wrapper.h"  // nogncheck
 #endif
 
+#include <android/log.h>
+
 namespace starboard {
 namespace android {
 namespace shared {
@@ -262,6 +264,10 @@ extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_StarboardBridge_nativeInitialize(
     JniEnvExt* env,
     jobject starboard_bridge) {
+  __android_log_print(
+      ANDROID_LOG_ERROR, "yolo", "%s env %p bridge: %p",
+      "---Java_dev_cobalt_coat_StarboardBridge_nativeInitialize!!!!---", env,
+      starboard_bridge);
   JniEnvExt::Initialize(env, starboard_bridge);
 }
 

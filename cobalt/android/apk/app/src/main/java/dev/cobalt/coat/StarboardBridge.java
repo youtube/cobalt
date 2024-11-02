@@ -51,6 +51,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.TimeZone;
+
 // import dev.cobalt.media.AudioOutputManager;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
@@ -111,6 +112,7 @@ public class StarboardBridge {
       String[] args,
       String startDeepLink) {
 
+    Log.e(TAG, "Starboardbridge is getting made !!!");
     // TODO(cobalt): re-enable native initialization steps or remove.
     // Make sure the JNI stack is properly initialized first as there is
     // race condition as soon as any of the following objects creates a new thread.

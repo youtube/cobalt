@@ -15,6 +15,8 @@
 #include <string>
 #include <utility>
 
+#include <android/log.h>
+
 #include "starboard/player.h"
 
 #include "starboard/android/shared/video_max_video_input_size.h"
@@ -40,6 +42,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerErrorFunc player_error_func,
                         void* context,
                         SbDecodeTargetGraphicsContextProvider* provider) {
+  __android_log_print(ANDROID_LOG_ERROR, "yolo", "%s",
+                      "In SbPlayer SbPlayerCreate ");
+
   if (!player_error_func) {
     SB_LOG(ERROR) << "|player_error_func| cannot be null.";
     return kSbPlayerInvalid;

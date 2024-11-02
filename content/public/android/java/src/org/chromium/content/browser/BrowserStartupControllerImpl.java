@@ -436,6 +436,7 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
         Log.d(TAG, "Initializing chromium process, singleProcess=%b", singleProcess);
         mPrepareToStartCompleted = true;
         try (ScopedSysTraceEvent e = ScopedSysTraceEvent.scoped("prepareToStartBrowserProcess")) {
+            Log.e(TAG, "YOLO: scoped in prepareToStartBrowserProcess");
             // This strictmode exception is to cover the case where the browser process is being
             // started asynchronously but not in the main browser flow.  The main browser flow
             // will trigger library loading earlier and this will be a no-op, but in the other
@@ -446,13 +447,16 @@ public class BrowserStartupControllerImpl implements BrowserStartupController {
                 // Normally Main.java will have already loaded the library asynchronously, we
                 // only need to load it here if we arrived via another flow, e.g. bookmark
                 // access & sync setup.
+                Log.e(TAG, "YOLO: calling LibraryLoader.getInstance().ensureInitialized()");
                 LibraryLoader.getInstance().ensureInitialized();
             } finally {
                 StrictMode.setThreadPolicy(oldPolicy);
             }
 
+            Log.e(TAG, "YOLO: calling addDeviceSpecificUserAgentSwitch");
             // TODO(yfriedman): Remove dependency on a command line flag for this.
             DeviceUtilsImpl.addDeviceSpecificUserAgentSwitch();
+            Log.e(TAG, "YOLO: Hey we are gonna JNI here through BrowserStartupControllerImplJni");
             BrowserStartupControllerImplJni.get().setCommandLineFlags(singleProcess);
         }
 
