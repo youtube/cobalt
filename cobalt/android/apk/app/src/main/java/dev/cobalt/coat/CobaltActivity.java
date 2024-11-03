@@ -129,7 +129,23 @@ public abstract class CobaltActivity extends Activity {
 
       DeviceUtils.addDeviceSpecificUserAgentSwitch();
 
+    // This initializes JNI and ends up calling JNI_OnLoad in native code
       LibraryLoader.getInstance().ensureInitialized();
+
+    // StarboardBridge initialization must happen right after library loading,
+    // before Browser/Content module is started. It currently tracks its own JNI state
+    // variables, and needs to set up an early copy.
+
+    // TODO(b/374147993): how to handle deeplink in Chrobalt?
+    String startDeepLink = getIntentUrlAsString(getIntent());
+    if (getStarboardBridge() == null) {
+      // Cold start - Instantiate the singleton StarboardBridge.
+      StarboardBridge starboardBridge = createStarboardBridge(getArgs(), startDeepLink);
+      ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
+    } else {
+      // Warm start - Pass the deep link to the running Starboard app.
+      getStarboardBridge().handleDeepLink(startDeepLink);
+    }
 
       setContentView(R.layout.content_shell_activity);
       mShellManager = findViewById(R.id.shell_container);
@@ -320,17 +336,6 @@ public abstract class CobaltActivity extends Activity {
     // early in the app's lifecycle. This connects the volume controls to
     // STREAM_MUSIC whenever the target activity or fragment is visible.
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
-
-    // TODO(b/374147993): how to handle deeplink in Chrobalt?
-    String startDeepLink = getIntentUrlAsString(getIntent());
-    if (getStarboardBridge() == null) {
-      // Cold start - Instantiate the singleton StarboardBridge.
-      StarboardBridge starboardBridge = createStarboardBridge(getArgs(), startDeepLink);
-      ((StarboardBridge.HostApplication) getApplication()).setStarboardBridge(starboardBridge);
-    } else {
-      // Warm start - Pass the deep link to the running Starboard app.
-      getStarboardBridge().handleDeepLink(startDeepLink);
-    }
 
     setStartupUrl("https://www.youtube.com/tv");
     super.onCreate(savedInstanceState);
