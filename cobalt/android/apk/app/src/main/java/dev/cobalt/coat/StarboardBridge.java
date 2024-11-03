@@ -38,6 +38,7 @@ import android.view.InputDevice;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
+import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -51,7 +52,6 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.TimeZone;
-// import dev.cobalt.media.AudioOutputManager;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
 public class StarboardBridge {
@@ -66,7 +66,7 @@ public class StarboardBridge {
   private CobaltSystemConfigChangeReceiver sysConfigChangeReceiver;
   private CobaltTextToSpeechHelper ttsHelper;
   // TODO(cobalt): Re-enable these classes or remove if unnecessary.
-  // private AudioOutputManager audioOutputManager;
+  private AudioOutputManager audioOutputManager;
   // private CobaltMediaSession cobaltMediaSession;
   // private AudioPermissionRequester audioPermissionRequester;
   private NetworkStatus networkStatus;
@@ -123,7 +123,7 @@ public class StarboardBridge {
     this.startDeepLink = startDeepLink;
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
     this.ttsHelper = new CobaltTextToSpeechHelper(appContext);
-    // this.audioOutputManager = new AudioOutputManager(appContext);
+    this.audioOutputManager = new AudioOutputManager(appContext);
     // this.cobaltMediaSession =
     //   new CobaltMediaSession(appContext, activityHolder, audioOutputManager, artworkDownloader);
     // this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
@@ -639,11 +639,14 @@ public class StarboardBridge {
     return false;
   }
 
-  // @SuppressWarnings("unused")
-  // @UsedByNative
-  // AudioOutputManager getAudioOutputManager() {
-  //   return audioOutputManager;
-  // }
+  @SuppressWarnings("unused")
+  @UsedByNative
+  AudioOutputManager getAudioOutputManager() {
+    if (audioOutputManager == null) {
+      throw new IllegalArgumentException("audioOutputManager cannot be null for native code");
+    }
+    return audioOutputManager;
+  }
 
   /** Returns Java layer implementation for AudioPermissionRequester */
   // @SuppressWarnings("unused")

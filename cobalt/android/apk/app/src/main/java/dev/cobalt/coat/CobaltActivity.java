@@ -33,6 +33,7 @@ import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
 import dev.cobalt.util.DisplayUtil;
@@ -44,7 +45,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
-// import dev.cobalt.media.AudioOutputManager;
 import org.chromium.base.CommandLine;
 import org.chromium.base.MemoryPressureListener;
 import org.chromium.base.library_loader.LibraryLoader;
@@ -355,8 +355,7 @@ public abstract class CobaltActivity extends Activity {
   @Override
   protected void onStart() {
     if (!isReleaseBuild()) {
-      // TODO(cobalt): re-enable Cobalt AudioOutputManager.
-      // getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
+      getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
     }
     if (forceCreateNewVideoSurfaceView) {
@@ -366,7 +365,7 @@ public abstract class CobaltActivity extends Activity {
 
     DisplayUtil.cacheDefaultDisplay(this);
     DisplayUtil.addDisplayListener(this);
-    // AudioOutputManager.addAudioDeviceListener(this);
+    AudioOutputManager.addAudioDeviceListener(this);
 
     getStarboardBridge().onActivityStart(this);
 
