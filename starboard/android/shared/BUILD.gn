@@ -174,8 +174,10 @@ static_library("starboard_platform") {
     "android_media_session_client.cc",
     "application_android.cc",
     "application_android.h",
-    "asset_manager.cc",
-    "asset_manager.h",
+
+    # TODO: b/374300500 - posix_emu things should not be used on Android anymore
+    # "asset_manager.cc",
+    # "asset_manager.h",
     "audio_decoder.cc",
     "audio_decoder.h",
     "audio_decoder_passthrough.h",
@@ -262,11 +264,13 @@ static_library("starboard_platform") {
     "player_set_max_video_input_size.cc",
     "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
-    "posix_emu/dirent.cc",
-    "posix_emu/errno.cc",
-    "posix_emu/file.cc",
-    "posix_emu/pthread.cc",
-    "posix_emu/stat.cc",
+
+    # TODO: b/374300500 - posix_emu things should not be used on Android anymore
+    # "posix_emu/dirent.cc",
+    # "posix_emu/errno.cc",
+    # "posix_emu/file.cc",
+    # "posix_emu/pthread.cc",
+    # "posix_emu/stat.cc",
     "sanitizer_options.cc",
     "socket_get_interface_address.cc",
 
