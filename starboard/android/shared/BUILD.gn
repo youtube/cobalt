@@ -21,6 +21,18 @@ import("//starboard/shared/starboard/player/player_tests.gni")
 # Configuration for overall Android Starboard Platform.
 ##########################################################
 
+# This shared library contains only shared state variables needed
+# for shared JNI to work across library boundaries.
+shared_library("starboard_jni_state") {
+  sources = [
+    "jni_state.cc",
+    "jni_state.h",
+  ]
+
+  # Do not just hide symbols from us
+  configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
+}
+
 # TODO(cobalt, b/375669373): re-enable API without ApplicationAndroid
 static_library("starboard_platform") {
   sources = [
@@ -312,6 +324,7 @@ static_library("starboard_platform") {
 
   public_deps = [
     ":starboard_base_symbolize",
+    ":starboard_jni_state",
     "//starboard/common",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
