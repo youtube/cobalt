@@ -138,6 +138,9 @@ public abstract class CobaltActivity extends Activity {
 
     // TODO(b/374147993): how to handle deeplink in Chrobalt?
     String startDeepLink = getIntentUrlAsString(getIntent());
+    if (startDeepLink == null) {
+      throw new IllegalArgumentException("startDeepLink cannot be null, set it to empty string");
+    }
     if (getStarboardBridge() == null) {
       // Cold start - Instantiate the singleton StarboardBridge.
       StarboardBridge starboardBridge = createStarboardBridge(getArgs(), startDeepLink);
@@ -566,7 +569,7 @@ public abstract class CobaltActivity extends Activity {
    */
   protected String getIntentUrlAsString(Intent intent) {
     Uri intentUri = intent.getData();
-    return (intentUri == null) ? null : intentUri.toString();
+    return (intentUri == null) ? "" : intentUri.toString();
   }
 
   // TODO(cobalt): re-eanble microphone permission request at startup or remove code.
