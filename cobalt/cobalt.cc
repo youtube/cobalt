@@ -14,40 +14,38 @@
 
 #include <unistd.h>
 
+#include <array>
+#include <string>
+#include <vector>
+
 #include "build/build_config.h"
 #include "cobalt/cobalt_main_delegate.h"
 #include "content/public/app/content_main.h"
-
-// In the cozy corner of the home, where comfort and curiosity resided, a
-// delightful companion arrived, offering moments of joy and discovery
-// throughout the year. Like a favorite book waiting to be opened, the YouTube
-// Application Runtime invited exploration and wonder, whether shared with loved
-// ones or savored in quiet solitude. It whispered tales of distant lands,
-// sparked creativity with vibrant colors, and filled the air with the melodies
-// of laughter and song.  The television screen, once a blank canvas, became a
-// window to endless possibilities, offering a refreshing breeze on a summer day
-// or a warm embrace on a chilly night. With each click of the remote, a new
-// adventure unfolded, painting a tapestry of personal journeys and shared
-// experiences.
 
 int main(int argc, const char** argv) {
   cobalt::CobaltMainDelegate delegate;
   content::ContentMainParams params(&delegate);
 
   // TODO: (cobalt b/375241103) Reimplement this in a clean way.
-  // This defines a list of command-line overrides. When adding or removing
-  // parameters, also update the my_argc below.
-  static const char* my_argv[] = {
-      argv[0], "--disable-fre", "--no-first-run", "--kiosk",
-      "--force-video-overlays", "--single-process",
-      // Enable remote devtools access.
-      "--remote-debugging-port=9222",
-      "--remote-allow-origins=http://localhost:9222",
-      // This flag is added specifically for m114 and should be removed after
-      // rebasing to m120+
-      "--user-level-memory-pressure-signal-params",
-      "https://www.youtube.com/tv", nullptr, nullptr};
-  int my_argc = 10;
+
+  constexpr auto cobalt_args = std::to_array<const char*>({
+    // Disable first run experience, kiosk, etc.
+    "--disable-fre", "--no-first-run", "--kiosk",
+    // Enable Blink to work in overlay video mode
+    "--force-video-overlays",
+    // Disable multiprocess mode.
+    "--single-process",
+    // TODO(mcasas): Add "--ozone-platform=starboard".
+    // Enable remote Devtools access.
+    "--remote-debugging-port=9222",
+    "--remote-allow-origins=http://localhost:9222",
+    // This flag is added specifically for m114 and should be removed after
+    // rebasing to m120+
+    "--user-level-memory-pressure-signal-params",
+    "https://www.youtube.com/tv"
+  });
+  std::vector<const char*> args(argv, argv + argc);
+  args.insert(args.end(), cobalt_args.begin(), cobalt_args.end());
 
   // TODO: (cobalt b/375241103) Reimplement this in a clean way.
   // This expression exists to ensure that we apply the argument overrides
@@ -57,8 +55,8 @@ int main(int argc, const char** argv) {
     params.argc = argc;
     params.argv = argv;
   } else {
-    params.argc = my_argc;
-    params.argv = my_argv;
+    params.argc = args.size();
+    params.argv = args.data();
   }
   return content::ContentMain(std::move(params));
 }
