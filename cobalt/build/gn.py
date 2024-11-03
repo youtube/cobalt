@@ -48,7 +48,7 @@ def get_build_args(build_args_path):
 _BUILD_TYPES = {
     'debug': {
         'symbol_level': 2,
-        'is_debug': 'false',
+        'is_debug': 'true',
         'is_asan': 'false',
         'is_lsan': 'false',
         'is_msan': 'false',
