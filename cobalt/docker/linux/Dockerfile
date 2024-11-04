@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y \
     python3-certifi \
     xauth \
     xvfb \
+    jq \
     && rm -rf /var/lib/apt/lists/*
 
 ADD files/sccache /usr/local/bin
