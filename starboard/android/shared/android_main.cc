@@ -234,7 +234,7 @@ void InstallCrashpadHandler(const CommandLine& command_line) {
 }
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
-// TODO(b/377042903): Work out of this event handle is needed.
+// TODO(b/377042903): Work out if this event handle is needed.
 void SbEventHandle(const SbEvent* event) {
   SB_LOG(ERROR) << "Starboard event DISCARDED:" << event->type;
 }
