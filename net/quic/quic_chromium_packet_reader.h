@@ -62,6 +62,15 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
   // Return true if reading should continue.
   bool ProcessReadResult(int result);
 
+#if defined(STARBOARD)
+  // Version of StartReading that reads multiple packets per read call.
+  int StartReadingMultiplePackets();
+  // A completion callback invoked when a multiple packet read completes.
+  void OnReadMultiplePacketComplete(int result);
+  // Return true if reading should continue.
+  bool ProcessMultiplePacketReadResult(int result);
+#endif
+
   raw_ptr<DatagramClientSocket, DanglingUntriaged> socket_;
 
   raw_ptr<Visitor> visitor_;
@@ -75,6 +84,15 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
   NetLogWithSource net_log_;
 
   base::WeakPtrFactory<QuicChromiumPacketReader> weak_factory_{this};
+
+#if defined(STARBOARD)
+  // Static flag to remember when ReadMultiplePackets has ever returned
+  // ERR_NOT_IMPLEMENTED
+  static bool try_reading_multiple_packets_;
+
+  // Results from ReadMultiplePackets.
+  Socket::ReadPacketResults read_results_;
+#endif
 };
 
 }  // namespace net

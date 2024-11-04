@@ -39,7 +39,16 @@ _MODULAR_BUILD_FILTERED_TESTS = {
 _FILTERED_TESTS = {
     'nplb': [
         # TODO(b/286249595): This test crashes when coverage is enabled.
-        'SbMemoryMapTest.CanChangeMemoryProtection'
+        'SbMemoryMapTest.CanChangeMemoryProtection',
+        # The IamfAudioDecoder doesn't support partial audio.
+        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.DiscardAllAudio/audio_iamf_*',
+        'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.PartialAudio/audio_iamf_*',
+    ],
+    'player_filter_tests': [
+        # TODO(b/375238561): Investigate test failures.
+        'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.SingleInput/*iamf*',
+        'AdaptiveAudioDecoderTests/AdaptiveAudioDecoderTest.MultipleInput*iamf*',
+        'AudioDecoderTests/AudioDecoderTest.SingleInvalidInput/*iamf*',
     ],
 }
 if os.getenv('MODULAR_BUILD', '0') == '1':

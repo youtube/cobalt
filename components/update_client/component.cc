@@ -173,8 +173,10 @@ void InstallOnBlockingTaskRunner(
         // Write the version of the unpacked update package to the persisted data.
         if (metadata != nullptr) {
           main_task_runner->PostTask(
-              FROM_HERE, base::BindOnce(&PersistedData::SetLastInstalledVersion,
-                                        base::Unretained(metadata), id, version));
+              FROM_HERE, base::BindOnce(
+                &PersistedData::SetLastInstalledEgAndSbVersion,
+                base::Unretained(metadata), id, version,
+                std::to_string(SB_API_VERSION)));
         }
       } else {
 

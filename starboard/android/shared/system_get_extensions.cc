@@ -43,7 +43,9 @@
 #include "starboard/extension/platform_info.h"
 #include "starboard/extension/platform_service.h"
 #include "starboard/extension/player_set_max_video_input_size.h"
+#include "starboard/extension/socket_receive_multi_msg.h"
 #include "starboard/extension/system_info.h"
+#include "starboard/shared/posix/socket_receive_multi_msg.h"
 
 const void* SbSystemGetExtension(const char* name) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -97,6 +99,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kStarboardExtensionSystemInfoName) == 0) {
     return starboard::android::shared::GetSystemInfoApi();
+  }
+  if (strcmp(name, kCobaltExtensionSocketReceiveMultiMsgName) == 0) {
+    return starboard::shared::posix::GetSocketReceiveMultiMsgApi();
   }
   return NULL;
 }

@@ -268,8 +268,7 @@ void DebugWebServer::OnDebugClientEvent(const std::string& method,
 
   // Debugger events occur on the thread of the web module the debugger is
   // attached to, so we must post to the server thread here.
-  if (base::SequencedTaskRunner::GetCurrentDefault() !=
-      http_server_thread_.task_runner()) {
+  if (!http_server_thread_.task_runner()->RunsTasksInCurrentSequence()) {
     http_server_thread_.task_runner()->PostTask(
         FROM_HERE, base::Bind(&DebugWebServer::OnDebugClientEvent,
                               base::Unretained(this), method, json_params));
@@ -286,8 +285,7 @@ void DebugWebServer::OnDebugClientEvent(const std::string& method,
 void DebugWebServer::OnDebugClientDetach(const std::string& reason) {
   // Debugger events occur on the thread of the web module the debugger is
   // attached to, so we must post to the server thread here.
-  if (base::SequencedTaskRunner::GetCurrentDefault() !=
-      http_server_thread_.task_runner()) {
+  if (!http_server_thread_.task_runner()->RunsTasksInCurrentSequence()) {
     http_server_thread_.task_runner()->PostTask(
         FROM_HERE, base::Bind(&DebugWebServer::OnDebugClientDetach,
                               base::Unretained(this), reason));
