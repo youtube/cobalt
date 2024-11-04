@@ -21,6 +21,18 @@ import("//starboard/shared/starboard/player/player_tests.gni")
 # Configuration for overall Android Starboard Platform.
 ##########################################################
 
+# This shared library contains only shared state variables needed
+# for shared JNI to work across library boundaries.
+shared_library("starboard_jni_state") {
+  sources = [
+    "jni_state.cc",
+    "jni_state.h",
+  ]
+
+  # Do not just hide symbols from us
+  configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
+}
+
 # TODO(cobalt, b/375669373): re-enable API without ApplicationAndroid
 static_library("starboard_platform") {
   sources = [
@@ -162,8 +174,10 @@ static_library("starboard_platform") {
     "android_media_session_client.cc",
     "application_android.cc",
     "application_android.h",
-    "asset_manager.cc",
-    "asset_manager.h",
+
+    # TODO: b/374300500 - posix_emu things should not be used on Android anymore
+    # "asset_manager.cc",
+    # "asset_manager.h",
     "audio_decoder.cc",
     "audio_decoder.h",
     "audio_decoder_passthrough.h",
@@ -250,11 +264,13 @@ static_library("starboard_platform") {
     "player_set_max_video_input_size.cc",
     "player_set_max_video_input_size.h",
     "player_set_playback_rate.cc",
-    "posix_emu/dirent.cc",
-    "posix_emu/errno.cc",
-    "posix_emu/file.cc",
-    "posix_emu/pthread.cc",
-    "posix_emu/stat.cc",
+
+    # TODO: b/374300500 - posix_emu things should not be used on Android anymore
+    # "posix_emu/dirent.cc",
+    # "posix_emu/errno.cc",
+    # "posix_emu/file.cc",
+    # "posix_emu/pthread.cc",
+    # "posix_emu/stat.cc",
     "sanitizer_options.cc",
     "socket_get_interface_address.cc",
 
@@ -312,6 +328,7 @@ static_library("starboard_platform") {
 
   public_deps = [
     ":starboard_base_symbolize",
+    ":starboard_jni_state",
     "//starboard/common",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",

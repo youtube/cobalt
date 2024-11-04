@@ -38,6 +38,7 @@ import android.view.InputDevice;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
+import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -51,7 +52,6 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.TimeZone;
-// import dev.cobalt.media.AudioOutputManager;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
 public class StarboardBridge {
@@ -66,7 +66,7 @@ public class StarboardBridge {
   private CobaltSystemConfigChangeReceiver sysConfigChangeReceiver;
   private CobaltTextToSpeechHelper ttsHelper;
   // TODO(cobalt): Re-enable these classes or remove if unnecessary.
-  // private AudioOutputManager audioOutputManager;
+  private AudioOutputManager audioOutputManager;
   // private CobaltMediaSession cobaltMediaSession;
   // private AudioPermissionRequester audioPermissionRequester;
   private NetworkStatus networkStatus;
@@ -111,10 +111,11 @@ public class StarboardBridge {
       String[] args,
       String startDeepLink) {
 
-    // TODO(cobalt): re-enable native initialization steps or remove.
+    Log.i(TAG, "StarboardBridge init.");
+
     // Make sure the JNI stack is properly initialized first as there is
     // race condition as soon as any of the following objects creates a new thread.
-    // nativeInitialize();
+    nativeInitialize();
 
     this.appContext = appContext;
     this.activityHolder = activityHolder;
@@ -123,7 +124,7 @@ public class StarboardBridge {
     this.startDeepLink = startDeepLink;
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
     this.ttsHelper = new CobaltTextToSpeechHelper(appContext);
-    // this.audioOutputManager = new AudioOutputManager(appContext);
+    this.audioOutputManager = new AudioOutputManager(appContext);
     // this.cobaltMediaSession =
     //   new CobaltMediaSession(appContext, activityHolder, audioOutputManager, artworkDownloader);
     // this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
@@ -132,9 +133,17 @@ public class StarboardBridge {
     // this.advertisingId = new AdvertisingId(appContext);
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
+
+    // Run native starboard thread, after all the objects it may access
+    // are set up.
+    // TODO(b/377042903): This may not be the correct for this - it should possible be
+    // started/stopped together with the activity.
+    startNativeStarboard();
   }
 
-  // private boolean nativeInitialize();
+  private native boolean nativeInitialize();
+
+  private native boolean startNativeStarboard();
 
   private long nativeCurrentMonotonicTime() {
     // TODO(b/375058047): re-enable monotonic time from native side.
@@ -142,11 +151,13 @@ public class StarboardBridge {
   }
 
   protected void onActivityStart(Activity activity) {
+    Log.e(TAG, "onActivityStart ran");
     activityHolder.set(activity);
     sysConfigChangeReceiver.setForeground(true);
   }
 
   protected void onActivityStop(Activity activity) {
+    Log.e(TAG, "onActivityStop ran");
     if (activityHolder.get() == activity) {
       activityHolder.set(null);
     }
@@ -273,6 +284,9 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   public Context getApplicationContext() {
+    if (appContext == null) {
+      throw new IllegalArgumentException("appContext cannot be null");
+    }
     return appContext;
   }
 
@@ -299,6 +313,9 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   protected String[] getArgs() {
+    if (args == null) {
+      throw new IllegalArgumentException("args cannot be null");
+    }
     return args;
   }
 
@@ -306,6 +323,9 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   protected String getStartDeepLink() {
+    if (startDeepLink == null) {
+      throw new IllegalArgumentException("startDeepLink cannot be null");
+    }
     return startDeepLink;
   }
 
@@ -400,6 +420,9 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   CobaltTextToSpeechHelper getTextToSpeechHelper() {
+    if (ttsHelper == null) {
+      throw new IllegalArgumentException("ttsHelper cannot be null for native code");
+    }
     return ttsHelper;
   }
 
@@ -448,6 +471,9 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   public ResourceOverlay getResourceOverlay() {
+    if (resourceOverlay == null) {
+      throw new IllegalArgumentException("resourceOverlay cannot be null for native code");
+    }
     return resourceOverlay;
   }
 
@@ -491,6 +517,9 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   boolean isNetworkConnected() {
+    if (networkStatus == null) {
+      throw new IllegalArgumentException("networkStatus cannot be null for native code");
+    }
     return networkStatus.isConnected();
   }
 
@@ -585,6 +614,9 @@ public class StarboardBridge {
       String album,
       MediaImage[] artwork,
       long duration) {
+
+    // TODO(b/377019873): re-enable
+    Log.e(TAG, "MediaSession is disabled");
     // cobaltMediaSession.updateMediaSession(
     //     playbackState, actions, positionMs, speed, title, artist, album, artwork, duration);
   }
@@ -592,6 +624,8 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   public void deactivateMediaSession() {
+    // TODO(b/377019873): re-enable
+    Log.e(TAG, "MediaSession is disabled");
     // cobaltMediaSession.deactivateMediaSession();
   }
 
@@ -627,6 +661,8 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   protected String getAdvertisingId() {
+    // TODO(b/377049113): re-enable
+    Log.e(TAG, "IFA is disabled");
     // return this.advertisingId.getId();
     return "";
   }
@@ -635,15 +671,20 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   protected boolean getLimitAdTracking() {
+    // TODO(b/377049113): re-enable
+    Log.e(TAG, "IFA is disabled");
     // return this.advertisingId.isLimitAdTrackingEnabled();
     return false;
   }
 
-  // @SuppressWarnings("unused")
-  // @UsedByNative
-  // AudioOutputManager getAudioOutputManager() {
-  //   return audioOutputManager;
-  // }
+  @SuppressWarnings("unused")
+  @UsedByNative
+  AudioOutputManager getAudioOutputManager() {
+    if (audioOutputManager == null) {
+      throw new IllegalArgumentException("audioOutputManager cannot be null for native code");
+    }
+    return audioOutputManager;
+  }
 
   /** Returns Java layer implementation for AudioPermissionRequester */
   // @SuppressWarnings("unused")
@@ -691,6 +732,7 @@ public class StarboardBridge {
     return hdrCapabilities.getSupportedHdrTypes();
   }
 
+  // TODO(b/377019873): Re-enable MediaSession
   /** Return the CobaltMediaSession. */
   // public CobaltMediaSession cobaltMediaSession() {
   //   return cobaltMediaSession;
