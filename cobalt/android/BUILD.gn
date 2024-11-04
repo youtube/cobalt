@@ -87,8 +87,7 @@ android_library("cobalt_apk_java") {
     "apk/app/src/main/java/dev/cobalt/coat/VolumeStateReceiver.java",
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfo.java",
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfoModule.java",
-
-    # "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
+    "apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
     "apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/Log.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
@@ -169,6 +168,7 @@ shared_library("libcobalt_content_shell_content_view") {
     "//content/shell/android:content_shell_jni_headers",
     "//media",
     "//skia",
+    "//starboard/android/shared:starboard_jni_state",
   ]
 
   # Explicit dependency required for JNI registration to be able to
