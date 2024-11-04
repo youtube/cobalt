@@ -68,8 +68,7 @@ bool CrossThreadMediaSourceAttachment::StartAttachingToMediaElement(
   DCHECK(!attached_element_);
 
   // Attach on the main thread.
-  bool success = media_source_->StartAttachingToMediaElement(this);
-  if (!success) {
+  if (!media_source_->StartAttachingToMediaElement(this)) {
     return false;
   }
 
