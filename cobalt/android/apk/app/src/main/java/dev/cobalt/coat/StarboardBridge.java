@@ -67,7 +67,7 @@ public class StarboardBridge {
   private CobaltTextToSpeechHelper ttsHelper;
   // TODO(cobalt): Re-enable these classes or remove if unnecessary.
   private AudioOutputManager audioOutputManager;
-  // private CobaltMediaSession cobaltMediaSession;
+  private CobaltMediaSession cobaltMediaSession;
   // private AudioPermissionRequester audioPermissionRequester;
   private NetworkStatus networkStatus;
   private ResourceOverlay resourceOverlay;
@@ -125,8 +125,8 @@ public class StarboardBridge {
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
     this.ttsHelper = new CobaltTextToSpeechHelper(appContext);
     this.audioOutputManager = new AudioOutputManager(appContext);
-    // this.cobaltMediaSession =
-    //   new CobaltMediaSession(appContext, activityHolder, audioOutputManager, artworkDownloader);
+    this.cobaltMediaSession =
+      new CobaltMediaSession(appContext, activityHolder, audioOutputManager, artworkDownloader);
     // this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     this.networkStatus = new NetworkStatus(appContext);
     this.resourceOverlay = new ResourceOverlay(appContext);
@@ -190,7 +190,7 @@ public class StarboardBridge {
     Log.i(TAG, "Prepare to resume");
     // Bring our platform services to life before resuming so that they're ready to deal with
     // whatever the web app wants to do with them as part of its start/resume logic.
-    // cobaltMediaSession.resume();
+    cobaltMediaSession.resume();
     networkStatus.beforeStartOrResume();
     for (CobaltService service : cobaltServices.values()) {
       service.beforeStartOrResume();
@@ -206,7 +206,7 @@ public class StarboardBridge {
       // We want the MediaSession to be deactivated immediately before suspending so that by the
       // time, the launcher is visible our "Now Playing" card is already gone. Then Cobalt and
       // the web app can take their time suspending after that.
-      // cobaltMediaSession.suspend();
+      cobaltMediaSession.suspend();
       networkStatus.beforeSuspend();
       for (CobaltService service : cobaltServices.values()) {
         service.beforeSuspend();
@@ -615,18 +615,14 @@ public class StarboardBridge {
       MediaImage[] artwork,
       long duration) {
 
-    // TODO(b/377019873): re-enable
-    Log.e(TAG, "MediaSession is disabled");
-    // cobaltMediaSession.updateMediaSession(
-    //     playbackState, actions, positionMs, speed, title, artist, album, artwork, duration);
+    cobaltMediaSession.updateMediaSession(
+        playbackState, actions, positionMs, speed, title, artist, album, artwork, duration);
   }
 
   @SuppressWarnings("unused")
   @UsedByNative
   public void deactivateMediaSession() {
-    // TODO(b/377019873): re-enable
-    Log.e(TAG, "MediaSession is disabled");
-    // cobaltMediaSession.deactivateMediaSession();
+    cobaltMediaSession.deactivateMediaSession();
   }
 
   /** Returns string for kSbSystemPropertyUserAgentAuxField */
@@ -732,11 +728,9 @@ public class StarboardBridge {
     return hdrCapabilities.getSupportedHdrTypes();
   }
 
-  // TODO(b/377019873): Re-enable MediaSession
-  /** Return the CobaltMediaSession. */
-  // public CobaltMediaSession cobaltMediaSession() {
-  //   return cobaltMediaSession;
-  // }
+  public CobaltMediaSession cobaltMediaSession() {
+    return cobaltMediaSession;
+  }
 
   public void registerCobaltService(CobaltService.Factory factory) {
     cobaltServiceFactories.put(factory.getServiceName(), factory);
