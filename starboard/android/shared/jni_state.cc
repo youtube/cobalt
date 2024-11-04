@@ -37,28 +37,26 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-STARBOARD_JNI_STATE_EXPORT
 void JNIState::SetVM(JavaVM* vm) {
   g_vm = vm;
 }
 
-STARBOARD_JNI_STATE_EXPORT
 JavaVM*& JNIState::GetVM() {
   return g_vm;
 }
-STARBOARD_JNI_STATE_EXPORT
+
 void JNIState::SetStarboardBridge(jobject value) {
   g_starboard_bridge = value;
 }
-STARBOARD_JNI_STATE_EXPORT
+
 jobject& JNIState::GetStarboardBridge() {
   return g_starboard_bridge;
 }
-STARBOARD_JNI_STATE_EXPORT
+
 void JNIState::SetApplicationClassLoader(jobject value) {
   g_application_class_loader = value;
 }
-STARBOARD_JNI_STATE_EXPORT
+
 jobject& JNIState::GetApplicationClassLoader() {
   return g_application_class_loader;
 }
