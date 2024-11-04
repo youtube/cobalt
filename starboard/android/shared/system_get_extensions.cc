@@ -62,10 +62,15 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::android::shared::GetConfigurationApi();
   }
   if (strcmp(name, kCobaltExtensionMediaSessionName) == 0) {
-    return starboard::android::shared::GetMediaSessionApi();
+    // TODO(b/377019873): Re-enable
+    // return starboard::android::shared::GetMediaSessionApi();
+    return NULL;
   }
   if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
-    return starboard::android::shared::GetGraphicsApi();
+    // TODO(b/377052944): Check if this is needed, likely can be
+    // deleted.
+    // return starboard::android::shared::GetGraphicsApi();
+    return NULL;
   }
   if (strcmp(name, kCobaltExtensionCrashHandlerName) == 0) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -81,11 +86,15 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::android::shared::GetPlayerSetMaxVideoInputSizeApi();
   }
   if (strcmp(name, kStarboardExtensionAccessibilityName) == 0) {
-    return starboard::android::shared::GetAccessibilityApi();
+    // TODO(b/377052218): Re-enable
+    // return starboard::android::shared::GetAccessibilityApi();
+    return NULL;
   }
 #if SB_IS(EVERGREEN_COMPATIBLE)
   if (strcmp(name, kStarboardExtensionLoaderAppMetricsName) == 0) {
-    return starboard::shared::starboard::GetLoaderAppMetricsApi();
+    // TODO(b/377052944): Possibly re-enable
+    // return starboard::shared::starboard::GetLoaderAppMetricsApi();
+    return NULL;
   }
 #endif
   if (strcmp(name, kStarboardExtensionMediaSettingsName) == 0) {

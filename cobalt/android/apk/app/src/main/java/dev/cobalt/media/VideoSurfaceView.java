@@ -75,7 +75,7 @@ public class VideoSurfaceView extends SurfaceView {
     // punch-out video when the position / size is animated.
   }
 
-  // private static native void nativeOnVideoSurfaceChanged(Surface surface);
+  private static native void nativeOnVideoSurfaceChanged(Surface surface);
 
   // private static native void nativeSetNeedResetSurface();
 
@@ -86,7 +86,7 @@ public class VideoSurfaceView extends SurfaceView {
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
       currentSurface = holder.getSurface();
-      // nativeOnVideoSurfaceChanged(currentSurface);
+      nativeOnVideoSurfaceChanged(currentSurface);
     }
 
     @Override
@@ -101,7 +101,7 @@ public class VideoSurfaceView extends SurfaceView {
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
       currentSurface = null;
-      // nativeOnVideoSurfaceChanged(currentSurface);
+      nativeOnVideoSurfaceChanged(currentSurface);
     }
   }
 
