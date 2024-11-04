@@ -83,7 +83,10 @@ std::string GetStartDeepLink() {
   ScopedLocalJavaRef<jstring> j_url(env->CallStarboardObjectMethodOrAbort(
       "getStartDeepLink", "()Ljava/lang/String;"));
   if (j_url) {
-    start_url = env->GetStringStandardUTFOrAbort(j_url.Get());
+    auto j_url_str = j_url.Get();
+    if (env->GetStringLength(j_url_str) != 0) {
+      start_url = env->GetStringStandardUTFOrAbort(j_url_str);
+    }
   }
   SB_LOG(INFO) << "GetStartDeepLink: " << start_url;
   return start_url;
@@ -231,12 +234,17 @@ void InstallCrashpadHandler(const CommandLine& command_line) {
 }
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
+// TODO(b/377042903): Work out of this event handle is needed.
+void SbEventHandle(const SbEvent* event) {
+  SB_LOG(ERROR) << "Starboard event DISCARDED:" << event->type;
+}
+
 void* ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "StarboardMain");
   g_app_created_semaphore = static_cast<Semaphore*>(context);
 
   int unused_value = -1;
-  int error_level = SbRunStarboardMain(unused_value, nullptr, nullptr);
+  int error_level = SbRunStarboardMain(unused_value, nullptr, SbEventHandle);
 
   // Our launcher.py looks for this to know when the app (test) is done.
   SB_LOG(INFO) << "***Application Stopped*** " << error_level;
@@ -258,11 +266,46 @@ Java_dev_cobalt_coat_StarboardBridge_nativeIsReleaseBuild() {
 #endif
 }
 
+// Copied from GameActivity_onCreate
+// TODO(b/377042903): Does the thread need to exist ?
+void StarboardThreadLaunch() {
+  // Start the Starboard thread the first time an Activity is created.
+  if (g_starboard_thread == 0) {
+    Semaphore semaphore;
+
+    pthread_attr_t attributes;
+    pthread_attr_init(&attributes);
+    pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
+
+    pthread_create(&g_starboard_thread, &attributes, &ThreadEntryPoint,
+                   &semaphore);
+
+    pthread_attr_destroy(&attributes);
+
+    // Wait for the ApplicationAndroid to be created.
+    semaphore.Take();
+  }
+
+  // Ensure application init happens here
+  ApplicationAndroid::Get();
+}
+
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_StarboardBridge_nativeInitialize(
     JniEnvExt* env,
     jobject starboard_bridge) {
   JniEnvExt::Initialize(env, starboard_bridge);
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_StarboardBridge_startNativeStarboard(
+    JniEnvExt* env,
+    jobject starboard_bridge) {
+  // TODO(b/377042903): Figure out what's the right init / boot place
+  // for StarboardMain, and do we actually still need one.
+  // For now there's a lot of global state that is maintained and owned
+  // by it.
+  StarboardThreadLaunch();
 }
 
 extern "C" SB_EXPORT_PLATFORM void
