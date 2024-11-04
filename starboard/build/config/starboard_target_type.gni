@@ -48,14 +48,14 @@ template("starboard_platform_target") {
       "//starboard/build/config:starboard",
     ]
     if (is_android) {
-      # TODO: b/374300500 - Find a way to avoid wrapping these.
+      # TODO(b/374300500): - Find a way to avoid wrapping these.
       ldflags = [
-        "-Wl,--wrap=close",
-        "-Wl,--wrap=open",
-        "-Wl,--wrap=stat",
-        "-Wl,--wrap=opendir",
-        "-Wl,--wrap=closedir",
-        "-Wl,--wrap=readdir_r",
+        # "-Wl,--wrap=close",
+        # "-Wl,--wrap=open",
+        # "-Wl,--wrap=stat",
+        # "-Wl,--wrap=opendir",
+        # "-Wl,--wrap=closedir",
+        # "-Wl,--wrap=readdir_r",
         "-Wl,--wrap=eglSwapBuffers",
       ]
     }
