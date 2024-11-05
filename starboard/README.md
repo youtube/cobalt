@@ -90,7 +90,7 @@ With subdirectories:
   * `shared/` - For code shared between architectures within a product family.
   * `<binary-variant>/` - For any code that is specific to a specific binary
     variant. Each one of these must at least have `BUILD.gn`,
-    `configuration_public.h`, `atomic_public.h`,
+    `configuration_public.h`,
     `platform_configuration/BUILD.gn`,
     `platform_configuration/configuration.gni`, and `toolchain/BUILD.gn` files.
 
@@ -104,7 +104,6 @@ In the BobCo's BobBox example, we would see something like:
             * `configuration.gni`
           * `toolchain/`
             * `BUILD.gn`
-          * `atomic_public.h`
           * `BUILD.gn`
           * `configuration_public.h`
       * `armel/`
@@ -113,7 +112,6 @@ In the BobCo's BobBox example, we would see something like:
             * `configuration.gni`
           * `toolchain/`
             * `BUILD.gn`
-          * `atomic_public.h`
           * `BUILD.gn`
           * `configuration_public.h`
 
@@ -162,7 +160,7 @@ In order to use a new platform configuration in a build, you need to ensure that
 you have a `BUILD.gn`, `toolchain/BUILD.gn`,
 `platform_configuration/configuration.gni`, and
 `platform_configuration/BUILD.gn` in their own directory for each binary
-variant, plus the header files `configuration_public.h` and `atomic_public.h`.
+variant, plus the header files `configuration_public.h`.
 You must add your platform name to `starboard/build/platforms.py` along with
 the path to the port to be able to build it.
 
@@ -196,8 +194,6 @@ the path to the port to be able to build it.
      as appropriate for your platform.
   1. Update `BUILD.gn` to point at all the source files you want to build as
      part of your new Starboard implementation (as mentioned above).
-  1. Update `atomic_public.h` as necessary to point
-     at the appropriate shared or custom implementations.
 
 If you want to use `cobalt/build/gn.py`, you'll also need a
 `third_party/starboard/<family-name>/<binary-variant>/args.gn` file. This
