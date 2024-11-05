@@ -336,6 +336,10 @@ class BASE_EXPORT SequencedTaskRunner : public TaskRunner {
   virtual bool DeleteOrReleaseSoonInternal(const Location& from_here,
                                            void (*deleter)(const void*),
                                            const void* object);
+
+#if defined(STARBOARD)
+  static scoped_refptr<SequencedTaskRunner>* null_sequenced_task_runner_;
+#endif
 };
 
 // Sample usage with std::unique_ptr :
