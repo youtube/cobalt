@@ -197,9 +197,3 @@ jobs:
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           results_dir: ${{ env.TEST_RESULTS_DIR }}
-      - name: Upload test results
-        if: needs.build.result =='success' && env.IS_POSTSUBMIT && env.TESTING_ENABLED
-        uses: ./src/.github/actions/upload_results
-        with:
-          results_dir: ${{ env.TEST_RESULTS_DIR }}
-          datadog_api_key: ${{ secrets.DD_API_KEY }}
