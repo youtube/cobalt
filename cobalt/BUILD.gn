@@ -38,6 +38,8 @@ if (!is_android) {
       "cobalt_content_browser_client.h",
       "cobalt_main_delegate.cc",
       "cobalt_main_delegate.h",
+      "cobalt_paths.cc",
+      "cobalt_paths.h",
     ]
 
     defines = []
