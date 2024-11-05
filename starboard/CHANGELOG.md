@@ -13,6 +13,7 @@ Starboard 17 fully switches to POSIX APIs.
 ### Removed `starboard/accessibility.h`
 The functionality is migrated to a starboard extension.
 
+### Removed `starboard/atomic.h`
 ### Removed `starboard/byte_swap.h`
 ### Removed `starboard/condition_variable.h`
 ### Removed `starboard/directory.h`
