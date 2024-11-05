@@ -35,6 +35,12 @@
 #include "third_party/blink/public/platform/web_time_range.h"
 #include "third_party/blink/public/platform/web_url.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "starboard/build/starboard_buildflags.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace media {
 class AudioDecoderConfig;
 class VideoDecoderConfig;
@@ -94,6 +100,12 @@ class WebMediaSource {
   virtual std::unique_ptr<WebSourceBuffer> AddSourceBuffer(
       std::unique_ptr<media::VideoDecoderConfig> video_config,
       AddStatus& out_status /* out */) = 0;
+#if BUILDFLAG(IS_COBALT)
+  // Special version of AddSourceBuffer() that retains the full |mime_type| passed to MediaSource.AddSourceBuffer().
+  virtual std::unique_ptr<WebSourceBuffer> AddSourceBuffer(
+      const WebString& mime_type,
+      AddStatus& out_status /* out */) = 0;
+#endif  // BUILDFLAG(IS_COBALT)
 
   virtual double Duration() = 0;
   virtual void SetDuration(double) = 0;

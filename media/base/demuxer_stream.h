@@ -12,6 +12,12 @@
 #include "media/base/media_export.h"
 #include "media/base/video_transformation.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "starboard/build/starboard_buildflags.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace media {
 
 class AudioDecoderConfig;
@@ -70,6 +76,11 @@ class MEDIA_EXPORT DemuxerStream {
 
   using DecoderBufferVector = std::vector<scoped_refptr<DecoderBuffer>>;
   using ReadCB = base::OnceCallback<void(Status, DecoderBufferVector)>;
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual std::string mime_type() const { return ""; }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Request buffers to be returned via the provided callback.
   // The first parameter indicates the status of the read request.

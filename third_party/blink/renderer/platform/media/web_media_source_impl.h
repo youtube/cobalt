@@ -10,6 +10,12 @@
 #include "third_party/blink/public/platform/web_media_source.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "starboard/build/starboard_buildflags.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace media {
 class AudioDecoderConfig;
 class ChunkDemuxer;
@@ -36,6 +42,11 @@ class PLATFORM_EXPORT WebMediaSourceImpl : public WebMediaSource {
   std::unique_ptr<WebSourceBuffer> AddSourceBuffer(
       std::unique_ptr<media::VideoDecoderConfig> video_config,
       AddStatus& out_status /* out */) override;
+#if BUILDFLAG(IS_COBALT)
+  std::unique_ptr<WebSourceBuffer> AddSourceBuffer(
+      const WebString& mime_type,
+      AddStatus& out_status /* out */) override;
+#endif  // BUILDFLAG(IS_COBALT)
   double Duration() override;
   void SetDuration(double duration) override;
   void MarkEndOfStream(EndOfStreamStatus status) override;

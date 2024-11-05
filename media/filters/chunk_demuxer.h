@@ -28,6 +28,12 @@
 #include "media/filters/source_buffer_state.h"
 #include "media/filters/source_buffer_stream.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "starboard/build/starboard_buildflags.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 class MEDIA_EXPORT SourceBufferStream;
 
 namespace media {
@@ -39,12 +45,18 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
  public:
   using BufferQueue = base::circular_deque<scoped_refptr<StreamParserBuffer>>;
 
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  ChunkDemuxerStream(const std::string& mime_type, Type type, MediaTrack::Id media_track_id);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else  // BUILDFLAG(IS_COBALT)
   ChunkDemuxerStream() = delete;
 
   ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id);
 
   ChunkDemuxerStream(const ChunkDemuxerStream&) = delete;
   ChunkDemuxerStream& operator=(const ChunkDemuxerStream&) = delete;
+#endif  // BUILDFLAG(IS_COBALT)
 
   ~ChunkDemuxerStream() override;
 
@@ -130,6 +142,11 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   void UnmarkEndOfStream();
 
   // DemuxerStream methods.
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::string mime_type() const override { return mime_type_; }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_COBALT)
   void Read(uint32_t count, ReadCB read_cb) override;
   Type type() const override;
   StreamLiveness liveness() const override;
@@ -180,6 +197,12 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
   std::pair<SourceBufferStreamStatus, DemuxerStream::DecoderBufferVector>
   GetPendingBuffers_Locked() EXCLUSIVE_LOCKS_REQUIRED(lock_);
+
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  const std::string mime_type_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Specifies the type of the stream.
   const Type type_;
@@ -274,6 +297,13 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
                              std::unique_ptr<AudioDecoderConfig> audio_config);
   [[nodiscard]] Status AddId(const std::string& id,
                              std::unique_ptr<VideoDecoderConfig> video_config);
+
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Special version of AddId() that retains the |mime_type| from the web app.
+  Status AddId(const std::string& id, const std::string& mime_type);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Notifies a caller via `tracks_updated_cb` that the set of media tracks
   // for a given `id` has changed. This callback must be set before any calls to
@@ -597,6 +627,10 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   std::vector<std::unique_ptr<ChunkDemuxerStream>> removed_streams_;
 
   std::map<MediaTrack::Id, ChunkDemuxerStream*> track_id_to_demux_stream_map_;
+
+#if BUILDFLAG(IS_COBALT)
+  std::map<std::string, std::string> id_to_mime_map_;
+#endif  // BUILDFLAG(IS_COBALT)
 };
 
 }  // namespace media

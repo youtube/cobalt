@@ -350,11 +350,18 @@ void MediaSource::AddSourceBuffer_Locked(
   // WebSourceBuffer and SourceBufferState such that configs and encoded chunks
   // can be buffered, with appropriate invocations of the
   // InitializationSegmentReceived and AppendError methods.
+  std::unique_ptr<WebSourceBuffer> web_source_buffer =
+#if BUILDFLAG(IS_COBALT)
+      CreateWebSourceBuffer(
+        type, "", std::move(audio_config),
+        std::move(video_config), *exception_state);
+#else  // BUILDFLAG(IS_COBALT)
   ContentType content_type(type);
   String codecs = content_type.Parameter("codecs");
-  std::unique_ptr<WebSourceBuffer> web_source_buffer = CreateWebSourceBuffer(
-      content_type.GetType(), codecs, std::move(audio_config),
-      std::move(video_config), *exception_state);
+      CreateWebSourceBuffer(
+        content_type.GetType(), codecs, std::move(audio_config),
+        std::move(video_config), *exception_state);
+#endif // BUILDFLAG(IS_COBALT)
 
   if (!web_source_buffer) {
     DCHECK(exception_state->CodeAs<DOMExceptionCode>() ==
@@ -1638,7 +1645,11 @@ std::unique_ptr<WebSourceBuffer> MediaSource::CreateWebSourceBuffer(
   } else {
     DCHECK(!type.IsNull());
     web_source_buffer =
+#if BUILDFLAG(IS_COBALT)
+        web_media_source_->AddSourceBuffer(type, add_status /* out */);
+#else // BUILDFLAG(IS_COBALT)
         web_media_source_->AddSourceBuffer(type, codecs, add_status /* out */);
+#endif  // BUILDFLAG(IS_COBALT)
   }
 
   switch (add_status) {

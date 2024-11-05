@@ -27,6 +27,13 @@
 #include "media/filters/source_buffer_stream.h"
 #include "media/filters/stream_parser_factory.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/strings/string_split.h"
+#include "starboard/build/starboard_buildflags.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace {
 
 // Helper to attempt construction of a StreamParser specific to |content_type|
@@ -56,12 +63,57 @@ std::string ExpectedCodecs(const std::string& content_type,
   return codecs;
 }
 
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Parse type and codecs from mime type. It will return "video/mp4" and
+// "avc1.42E01E, mp4a.40.2" for "video/mp4; codecs="avc1.42E01E, mp4a.40.2".
+// Note that this function does minimum validation as the media stack will check
+// the type and codecs strictly.
+bool ParseMimeType(const std::string& mime_type, std::string* type,
+                   std::string* codecs) {
+  DCHECK(type);
+  DCHECK(codecs);
+  static const char kCodecs[] = "codecs=";
+
+  // SplitString will also trim the results.
+  std::vector<std::string> tokens = ::base::SplitString(
+      mime_type, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  // The first one has to be mime type with delimiter '/' like 'video/mp4'.
+  if (tokens.empty() || tokens[0].find('/') == tokens[0].npos) {
+    return false;
+  }
+  *type = tokens[0];
+  codecs->clear();
+  for (size_t i = 1; i < tokens.size(); ++i) {
+    if (strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
+      continue;
+    }
+    *codecs = tokens[i].substr(strlen(kCodecs));
+    base::TrimString(*codecs, " \"", codecs);
+    break;
+  }
+  // It is possible to not having any codecs, and will leave the validation to
+  // underlying parsers.
+  return true;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_COBALT)
+
 }  // namespace
 
 namespace media {
 
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+ChunkDemuxerStream::ChunkDemuxerStream(const std::string& mime_type, Type type,
+                                       MediaTrack::Id media_track_id)
+    : mime_type_(mime_type),
+      type_(type),
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else  // BUILDFLAG(IS_COBALT)
 ChunkDemuxerStream::ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id)
     : type_(type),
+#endif  // BUILDFLAG(IS_COBALT)
       liveness_(StreamLiveness::kUnknown),
       media_track_id_(media_track_id),
       state_(UNINITIALIZED),
@@ -766,6 +818,22 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
   return AddIdInternal(id, std::move(stream_parser),
                        ExpectedCodecs(content_type, codecs));
 }
+
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
+                                         const std::string& mime_type) {
+  std::string type, codecs;
+  if (!ParseMimeType(mime_type, &type, &codecs)) {
+    return kNotSupported;
+  }
+
+  DCHECK(id_to_mime_map_.find(id) == id_to_mime_map_.end());
+  id_to_mime_map_[id] = mime_type;
+  return AddId(id, type, codecs);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_COBALT)
 
 ChunkDemuxer::Status ChunkDemuxer::AddIdInternal(
     const std::string& id,
@@ -1577,8 +1645,17 @@ ChunkDemuxerStream* ChunkDemuxer::CreateDemuxerStream(
       return nullptr;
   }
 
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  auto iter = id_to_mime_map_.find(source_id);
+  DCHECK(iter != id_to_mime_map_.end());
+  std::unique_ptr<ChunkDemuxerStream> stream =
+      std::make_unique<ChunkDemuxerStream>(iter->second, type, media_track_id);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else  // BUILDFLAG(IS_COBALT)
   std::unique_ptr<ChunkDemuxerStream> stream =
       std::make_unique<ChunkDemuxerStream>(type, media_track_id);
+#endif  // BUILDFLAG(IS_COBALT)
   DCHECK(track_id_to_demux_stream_map_.find(media_track_id) ==
          track_id_to_demux_stream_map_.end());
   track_id_to_demux_stream_map_[media_track_id] = stream.get();
