@@ -899,6 +899,10 @@ public class StarboardBridge {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
       WebContents webContents = ((CobaltActivity) activity).getActiveWebContents();
+      if (webContents == null) {
+        Log.e(TAG, "webContents is null");
+        return;
+      }
 
       // 1. Gather all Java objects that need to be exposed to JavaScript.
       javaScriptAndroidObjectList.add(new AmatiDeviceInspector(activity));
