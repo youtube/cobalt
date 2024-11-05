@@ -179,7 +179,6 @@ source_set("starboard_headers_only") {
   check_includes = false
 
   sources = [
-    "atomic.h",
     "audio_sink.h",
     "configuration.h",
     "configuration_constants.h",
