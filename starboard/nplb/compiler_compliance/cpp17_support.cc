@@ -14,9 +14,6 @@
 
 #include <utility>
 
-#include "starboard/configuration.h"
-#include "starboard/types.h"
-
 namespace starboard::foo::bar::baz {
 
 constexpr int life() {
