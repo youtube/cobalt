@@ -54,6 +54,12 @@ config("find_bad_constructs") {
         "-plugin-arg-find-bad-constructs",
         "-Xclang",
         "raw-ptr-exclude-path=base/containers/span.h",
+
+        # TODO(b/377531948): Replace usage of raw pointers and remove this.
+        "-Xclang",
+        "-plugin-arg-find-bad-constructs",
+        "-Xclang",
+        "raw-ptr-exclude-path=ui/ozone/platform/starboard",
       ]
     }
   }

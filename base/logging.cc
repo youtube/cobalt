@@ -995,6 +995,8 @@ void LogMessage::Init(const char* file, int line) {
       stream_ << base::GetUniqueIdForProcess() << ':';
     if (g_log_thread_id)
       stream_ << base::PlatformThread::CurrentId() << ':';
+    // Add thread name to logs.
+    stream_ << base::PlatformThread::GetName() << ':';
     if (g_log_timestamp) {
 #if BUILDFLAG(IS_WIN)
       SYSTEMTIME local_time;
