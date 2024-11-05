@@ -37,7 +37,6 @@ shared_library("starboard_jni_state") {
 static_library("starboard_platform") {
   sources = [
     "//starboard/shared/egl/system_egl.cc",
-    "//starboard/shared/gcc/atomic_gcc_public.h",
     "//starboard/shared/gles/gl_call.h",
     "//starboard/shared/gles/system_gles2.cc",
     "//starboard/shared/internal_only.h",
