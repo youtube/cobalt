@@ -17,6 +17,7 @@
 #include <string>
 
 #include "content/public/common/user_agent.h"
+#include "starboard/android/shared/jni_env_ext.h"
 
 namespace cobalt {
 
@@ -69,6 +70,16 @@ std::string CobaltContentBrowserClient::GetReducedUserAgent() {
 
 blink::UserAgentMetadata CobaltContentBrowserClient::GetUserAgentMetadata() {
   return GetCobaltUserAgentMetadata();
+}
+
+void CobaltContentBrowserClient::OnWebContentsCreated(
+    content::WebContents* web_contents) {
+#if BUILDFLAG(IS_ANDROID)
+  starboard::android::shared::JniEnvExt::Get()->CallStarboardVoidMethodOrAbort(
+      "initializeJavaBridge", "()V");
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  return ShellContentBrowserClient::OnWebContentsCreated(web_contents);
 }
 
 }  // namespace cobalt

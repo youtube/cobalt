@@ -38,7 +38,11 @@ import android.view.InputDevice;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
+import dev.cobalt.coat.javabridge.AmatiDeviceInspector;
+import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
+import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.media.AudioOutputManager;
+import dev.cobalt.util.AssetLoader;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -47,11 +51,15 @@ import java.lang.reflect.Method;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
+import org.chromium.content_public.browser.JavascriptInjector;
+import org.chromium.content_public.browser.WebContents;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
 public class StarboardBridge {
@@ -102,6 +110,10 @@ public class StarboardBridge {
   private final boolean isAmatiDevice;
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long timeNanosecondsPerMicrosecond = 1000;
+
+  // Maintain the list of JavaScript-exposed objects as a member variable
+  // to prevent them from being garbage collected prematurely.
+  private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
 
   public StarboardBridge(
       Context appContext,
@@ -873,6 +885,43 @@ public class StarboardBridge {
     } catch (Exception e) {
       Log.w(TAG, "Unable to query Google Play Services package version", e);
       return 0;
+    }
+  }
+
+  /**
+   * Initializes the Java Bridge to allow communication between Java and JavaScript.
+   * This method injects Java objects into the WebView and loads corresponding JavaScript code.
+   */
+  @UsedByNative
+  protected void initializeJavaBridge() {
+    Log.i(TAG, "initializeJavaBridge");
+
+    Activity activity = activityHolder.get();
+    if (activity instanceof CobaltActivity) {
+      WebContents webContents = ((CobaltActivity) activity).getActiveWebContents();
+
+      // 1. Gather all Java objects that need to be exposed to JavaScript.
+      javaScriptAndroidObjectList.add(new AmatiDeviceInspector(activity));
+
+      // 2. Use JavascriptInjector to inject Java objects into the WebContents.
+      //    This makes the annotated methods in these objects accessible from JavaScript.
+      JavascriptInjector javascriptInjector = JavascriptInjector.fromWebContents(webContents, false);
+
+      javascriptInjector.setAllowInspection(true);
+      for (CobaltJavaScriptAndroidObject javascriptAndroidObject : javaScriptAndroidObjectList) {
+        Log.d(TAG, "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
+        javascriptInjector.addPossiblyUnsafeInterface(javascriptAndroidObject, javascriptAndroidObject.getJavaScriptInterfaceName(), CobaltJavaScriptInterface.class);
+      }
+
+      // 3. Load and evaluate JavaScript code that interacts with the injected Java objects.
+      for (CobaltJavaScriptAndroidObject javaScriptAndroidObject : javaScriptAndroidObjectList) {
+        String jsFileName = javaScriptAndroidObject.getJavaScriptAssetName();
+        if (jsFileName != null) {
+          Log.d(TAG, "Evaluate JavaScript from Asset:" + jsFileName);
+          String jsCode = AssetLoader.loadJavaScriptFromAssets(activity, jsFileName);
+          webContents.evaluateJavaScript(jsCode, null);
+        }
+      }
     }
   }
 }
