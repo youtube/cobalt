@@ -16,6 +16,8 @@
 
 #include "net/socket/udp_socket_starboard.h"
 
+#include <string.h>
+
 #include "base/logging.h"
 #include "base/rand_util.h"
 #include "base/task/current_thread.h"
@@ -639,6 +641,21 @@ int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
     return result;
   }
 
+  if (!address) {
+    // Post a task to the threadpool to write the packet.
+    int result = OK;
+    scoped_refptr<IOBufferWithSize> packet =
+        base::MakeRefCounted<IOBufferWithSize>(buf_len);
+    memcpy(packet->data(), buf->data(), buf_len);
+    base::ThreadPool::PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            [](SbSocket socket, scoped_refptr<IOBufferWithSize> packet) {
+              SbSocketSendTo(socket, packet->data(), packet->size(), nullptr);
+            },
+            socket_, packet));
+    return OK;
+  }
   int result = SbSocketSendTo(socket_, buf->data(), buf_len,
                               address ? &sb_address : nullptr);
 
