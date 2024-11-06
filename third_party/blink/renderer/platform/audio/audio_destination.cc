@@ -49,6 +49,12 @@
 #include "third_party/blink/renderer/platform/wtf/cross_thread_copier_base.h"
 #include "third_party/blink/renderer/platform/wtf/cross_thread_functional.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "starboard/build/starboard_buildflags.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace blink {
 
 namespace {
@@ -59,7 +65,13 @@ namespace {
 // that we would ever need. The current UMA stats indicates that this is, in
 // fact, probably too small. There are Android devices out there with a size of
 // 8000 or so.  We might need to make this larger. See: crbug.com/670747
+#if BUILDFLAG(IS_COBALT)
+// TODO(b/376903291): The change will not be needed after we rebase to m126 or
+// later version.
+constexpr uint32_t kFIFOSize = 128 * 128;
+#else   // BUILDFLAG(IS_COBALT)
 constexpr uint32_t kFIFOSize = 96 * 128;
+#endif  // BUILDFLAG(IS_COBALT)
 
 const char* DeviceStateToString(AudioDestination::DeviceState state) {
   switch (state) {
