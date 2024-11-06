@@ -34,13 +34,13 @@ std::string GetCobaltUserAgent() {
       "Hisense_ATV_m7322_2021/PTMR.190127.037 (Toshiba, HiSmartTV A4, "
       "Wireless) "
       "com.google.android.youtube.tv/6.99.000,gzip(gfe)");
-#endif  // BUILDFLAG(IS_ANDROID)
-
+#else
   return std::string(
       "Mozilla/5.0 (X11; Linux x86_64) Cobalt/26.lts.0-qa (unlike Gecko) "
       "v8/unknown gles Starboard/17, "
       "SystemIntegratorName_DESKTOP_ChipsetModelNumber_2025/FirmwareVersion "
       "(BrandName, ModelName)");
+#endif
 }
 
 blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
