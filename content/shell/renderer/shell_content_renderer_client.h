@@ -13,6 +13,12 @@
 #include "content/public/renderer/content_renderer_client.h"
 #include "media/mojo/buildflags.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "starboard/build/starboard_buildflags.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace blink {
 class URLLoaderThrottleProvider;
 enum class URLLoaderThrottleProviderType;
@@ -61,6 +67,13 @@ class ShellContentRendererClient : public ContentRendererClient {
       content::RenderFrame* render_frame,
       media::GetSupportedKeySystemsCB cb) override;
 #endif
+
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  bool IsSupportedAudioType(const media::AudioType& type) override;
+  bool IsSupportedVideoType(const media::VideoType& type) override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_COBALT)
 
   std::unique_ptr<blink::WebPrescientNetworking> CreatePrescientNetworking(
       RenderFrame* render_frame) override;
