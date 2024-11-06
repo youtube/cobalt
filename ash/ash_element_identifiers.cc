@@ -1,0 +1,84 @@
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "ash/ash_element_identifiers.h"
+
+#include "ui/base/interaction/element_identifier.h"
+
+namespace ash {
+
+// Please keep this list alphabetized.
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kAppListBubbleViewElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kAssistantDialogPlateElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kBluetoothDetailedViewPairNewDeviceElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kBluetoothDetailedViewToggleElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kBluetoothFeatureTileToggleElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kBluetoothFeatureTileDrillInArrowElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kCalendarViewElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kCellularManagedSimLockNotificationElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kCellularHotspotAutoDisableNotificationElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kCellularHotspotInternalErrorNotificationElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kCellularHotspotWifiEnabledNotificationElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kCellularHotspotProhibitedByPolicyNotificationElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kEmojiPickerElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kEnterpriseManagedView);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kExploreAppElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kFaceGazeBubbleElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kFilesAppElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kHoldingSpaceTrayElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kHomeButtonElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kHotspotDetailedViewToggleElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kHotspotFeatureTileDrillInArrowElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kLoginUserViewElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kNetworkAddEsimElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kNetworkDetailedViewConfigureNetworkButtonElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kNetworkDetailedViewMobileDataToggleElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kNetworkDetailedViewWifiNetworkListElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kNetworkDetailedViewWifiToggleElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kNetworkFeatureTileDrillInArrowElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kOverviewDeskBarElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kOverviewDeskBarNewDeskButtonElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kPickerElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kPickerEmojiBarElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kPickerEmojiItemElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kPickerGifElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kPickerMoreEmojisElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kPickerPreviewBubbleElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kPickerSearchFieldTextfieldElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kPickerSearchResultsPageElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kPickerSearchResultsListItemElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kPickerSearchResultsImageItemElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kPickerSearchResultsImageRowElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kQuickSettingsAudioDetailedViewAudioSettingsButtonElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kQuickSettingsAudioDetailedViewButtonElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kQuickSettingsSettingsButtonElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kQuickSettingsViewElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kSearchBoxViewElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kSettingsAppElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kShelfViewElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kTrayDetailedViewProgressBarElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kUnifiedSystemTrayElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(
+    kWarnBeforeDisconnectingBluetoothDialogElementId);
+DEFINE_EXPORTED_ELEMENT_IDENTIFIER_VALUE(kWelcomeTourDialogElementId);
+// Please keep this list alphabetized.
+
+}  // namespace ash

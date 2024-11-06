@@ -1,0 +1,12 @@
+sinansahin@google.com
+skym@chromium.org
+tedchoc@chromium.org
+twellington@chromium.org
+
+# for UI resources
+dtrainor@chromium.org
+per-file BUILD.gn=file://ui/android/java/res/LAYOUT_OWNERS
+
+# for display/window/view_android
+boliu@chromium.org
+jinsukkim@chromium.org

@@ -1,0 +1,9 @@
+{
+  "gn_args": {
+    "is_official_build": true,
+    "target_cpu": "x86",
+    "target_os": "win",
+    "use_remoteexec": true,
+    "use_siso": true
+  }
+}
