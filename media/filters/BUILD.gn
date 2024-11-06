@@ -98,13 +98,6 @@ source_set("filters") {
     "//ui/gfx/geometry:geometry",
   ]
 
-  if (is_cobalt && use_starboard_media) {
-    deps += [
-      "//starboard($starboard_toolchain)",
-      "//starboard/build:starboard_buildflags",
-    ]
-  }
-
   libs = []
 
   if (proprietary_codecs) {
@@ -262,6 +255,13 @@ source_set("filters") {
       "hls_manifest_demuxer_engine.h",
       "manifest_demuxer.cc",
       "manifest_demuxer.h",
+    ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    deps += [
+      "//starboard($starboard_toolchain)",
+      "//starboard/build:starboard_buildflags",
     ]
   }
 }
