@@ -5,6 +5,8 @@ inputs:
     description: "Docker compose service."
     required: true
 
+secrets: inherit
+
 runs:
   using: "composite"
   steps:
