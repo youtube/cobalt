@@ -371,6 +371,7 @@ public abstract class CobaltActivity extends Activity {
    * This method injects Java objects into the WebView and loads corresponding JavaScript code.
    */
   private void initializeJavaBridge() {
+    Log.i(TAG, "initializeJavaBridge");
 
     WebContents webContents = getActiveWebContents();
     if (webContents == null) {
@@ -392,13 +393,10 @@ public abstract class CobaltActivity extends Activity {
     // 2. Use JavascriptInjector to inject Java objects into the WebContents.
     //    This makes the annotated methods in these objects accessible from JavaScript.
     JavascriptInjector javascriptInjector = JavascriptInjector.fromWebContents(webContents, false);
-    if (javascriptInjector == null) {
-      Log.w(TAG, "javascriptInjector is null, failed to init Java Bridge.");
-      return;
-    }
 
     javascriptInjector.setAllowInspection(true);
     for (CobaltJavaScriptAndroidObject javascriptAndroidObject : javaScriptAndroidObjectList) {
+      Log.d(TAG, "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
       javascriptInjector.addPossiblyUnsafeInterface(javascriptAndroidObject, javascriptAndroidObject.getJavaScriptInterfaceName(), CobaltJavaScriptInterface.class);
     }
 
@@ -406,6 +404,7 @@ public abstract class CobaltActivity extends Activity {
     for (CobaltJavaScriptAndroidObject javaScriptAndroidObject : javaScriptAndroidObjectList) {
       String jsFileName = javaScriptAndroidObject.getJavaScriptAssetName();
       if (jsFileName != null) {
+        Log.d(TAG, "Evaluate JavaScript from Asset:" + jsFileName);
         String jsCode = AssetLoader.loadJavaScriptFromAssets(this, jsFileName);
         webContents.evaluateJavaScript(jsCode, null);
       }
