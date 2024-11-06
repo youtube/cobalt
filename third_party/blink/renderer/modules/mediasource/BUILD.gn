@@ -4,6 +4,9 @@
 
 import("//media/media_options.gni")
 import("//third_party/blink/renderer/modules/modules.gni")
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
 
 blink_modules_sources("mediasource") {
   sources = [
@@ -52,7 +55,10 @@ blink_modules_sources("mediasource") {
     # Ensure the generated webcodecs v8 config and chunk bindings are available.
     "//third_party/blink/renderer/modules/webcodecs:webcodecs",
   ]
-  if (is_cobalt) {
-    deps += [ "//starboard/build:starboard_buildflags" ]
+  if (is_cobalt && use_starboard_media) {
+    deps += [
+      "//starboard($starboard_toolchain)",
+      "//starboard/build:starboard_buildflags",
+    ]
   }
 }
