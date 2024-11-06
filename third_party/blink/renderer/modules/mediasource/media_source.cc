@@ -352,9 +352,11 @@ void MediaSource::AddSourceBuffer_Locked(
   // InitializationSegmentReceived and AppendError methods.
   std::unique_ptr<WebSourceBuffer> web_source_buffer =
 #if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
       CreateWebSourceBuffer(
         type, "", std::move(audio_config),
         std::move(video_config), *exception_state);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 #else  // BUILDFLAG(IS_COBALT)
   ContentType content_type(type);
   String codecs = content_type.Parameter("codecs");
@@ -1646,7 +1648,9 @@ std::unique_ptr<WebSourceBuffer> MediaSource::CreateWebSourceBuffer(
     DCHECK(!type.IsNull());
     web_source_buffer =
 #if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
         web_media_source_->AddSourceBuffer(type, add_status /* out */);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 #else // BUILDFLAG(IS_COBALT)
         web_media_source_->AddSourceBuffer(type, codecs, add_status /* out */);
 #endif  // BUILDFLAG(IS_COBALT)
