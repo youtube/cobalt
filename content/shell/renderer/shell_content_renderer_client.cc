@@ -55,12 +55,20 @@
 #include "media/base/media_switches.h"
 #endif
 
+<<<<<<< HEAD
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && \
     (defined(ARCH_CPU_X86_64) || defined(ARCH_CPU_ARM64))
 #define ENABLE_WEB_ASSEMBLY_TRAP_HANDLER_LINUX
 #include "base/debug/stack_trace.h"
 #include "v8/include/v8-wasm-trap-handler-posix.h"
 #endif
+=======
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/media.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_COBALT)
+>>>>>>> fee33909c55 ([media] Integrate SbMediaCanPlayMimeAndKeySystem() (#4340))
 
 namespace content {
 
@@ -374,6 +382,74 @@ ShellContentRendererClient::GetSupportedKeySystems(
   return nullptr;
 }
 #endif
+
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
+// support to query codec capabilities with configs.
+std::string GetMimeFromAudioType(const media::AudioType& type) {
+  // The MIME string is for very basic audio codec supportability check.
+  switch (type.codec) {
+    case media::AudioCodec::kAAC:
+      return "audio/mp4; codecs=\"mp4a.40.2\"";
+    case media::AudioCodec::kAC3:
+      return "audio/mp4; codecs=\"ac-3\"";
+    case media::AudioCodec::kEAC3:
+      return "audio/mp4; codecs=\"ec-3\"";
+    case media::AudioCodec::kOpus:
+      return "audio/webm; codecs=\"opus\"";
+    // TODO(b/375232937): Support IAMF
+    default:
+      return "";
+  }
+}
+
+// TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
+// support to query codec capabilities with configs. The profile information
+// gets lost with hardcoded MIME string. This can sometimes cause issues. For
+// example, vp9 profile 2 indicates hdr support, so an implementation accepts
+// "codecs=vp9" may reject "codecs=vp9.2".
+std::string GetMimeFromVideoType(const media::VideoType& type) {
+  // The MIME string is for very basic video codec supportability check.
+  switch (type.codec) {
+    case media::VideoCodec::kH264:
+      return "video/mp4; codecs=\"avc1.4d4015\"";
+    case media::VideoCodec::kVP9:
+      return "video/webm; codecs=\"vp9\"";
+    case media::VideoCodec::kAV1:
+      return "video/mp4; codecs=\"av01.0.08M.08\"";
+    default:
+      return "";
+  }
+}
+
+bool ShellContentRendererClient::IsSupportedAudioType(
+    const media::AudioType& type) {
+  std::string mime = GetMimeFromAudioType(type);
+  SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
+  if (!mime.empty()) {
+    support_type = SbMediaCanPlayMimeAndKeySystem(mime.c_str(), "");
+  }
+  bool result = support_type != kSbMediaSupportTypeNotSupported;
+  LOG(INFO) << __func__ << "(" << type.codec << ") -> "
+            << (result ? "true" : "false");
+  return result;
+}
+
+bool ShellContentRendererClient::IsSupportedVideoType(
+    const media::VideoType& type) {
+  std::string mime = GetMimeFromVideoType(type);
+  SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
+  if (!mime.empty()) {
+    support_type = SbMediaCanPlayMimeAndKeySystem(mime.c_str(), "");
+  }
+  bool result = support_type != kSbMediaSupportTypeNotSupported;
+  LOG(INFO) << __func__ << "(" << type.codec << ") -> "
+            << (result ? "true" : "false");
+  return result;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_COBALT)
 
 std::unique_ptr<blink::WebPrescientNetworking>
 ShellContentRendererClient::CreatePrescientNetworking(
