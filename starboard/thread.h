@@ -21,6 +21,9 @@
 
 #include <pthread.h>
 
+#include <limits>
+#include <utility>
+
 #include "starboard/configuration.h"
 #include "starboard/export.h"
 #include "starboard/types.h"
@@ -29,6 +32,7 @@
 extern "C" {
 #endif
 
+using kEnumType = int;
 // A spectrum of thread priorities. Platforms map them appropriately to their
 // own priority system. Note that scheduling is platform-specific, and what
 // these priorities mean, if they mean anything at all, is also
@@ -73,8 +77,12 @@ typedef enum SbThreadPriority {
   // default priority assignment method of that platform. This may mean to
   // inherit the priority of the spawning thread, or it may mean a specific
   // default priority, or it may mean something else, depending on the platform.
-  kSbThreadNoPriority = kSbInvalidInt,
+  kSbThreadNoPriority = std::numeric_limits<kEnumType>::min(),
 } SbThreadPriority;
+
+static_assert(
+    std::is_same<std::underlying_type_t<SbThreadPriority>, kEnumType>::value ==
+    true);
 
 // An ID type that is unique per thread.
 typedef int32_t SbThreadId;
