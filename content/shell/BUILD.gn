@@ -33,6 +33,9 @@ if (is_android) {
 } else if (is_ios) {
   import("//build/config/ios/config.gni")
 }
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
 
 # TODO(crbug.com/1336055, spang): Investigate using shell_views with cast builds as
 # true.
@@ -438,6 +441,13 @@ static_library("content_shell_lib") {
 
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    deps += [
+      "//starboard($starboard_toolchain)",
+      "//starboard/build:starboard_buildflags",
+    ]
   }
 }
 
