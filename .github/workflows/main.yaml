@@ -82,6 +82,8 @@ jobs:
   docker-build-image:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
+    secrets:
+      github_token: ${{ secrets.GITHUB_TOKEN }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4
@@ -98,8 +100,6 @@ jobs:
       uses: ./.github/actions/docker
       with:
         docker_service: ${{ needs.initialize.outputs.docker_service }}
-      secrets:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
     - name: Set Docker Tag Output
       id: set-docker-tag-output
       shell: bash
