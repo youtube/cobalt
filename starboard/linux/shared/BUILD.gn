@@ -96,7 +96,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/alsa/alsa_util.cc",
     "//starboard/shared/alsa/alsa_util.h",
     "//starboard/shared/egl/system_egl.cc",
-    "//starboard/shared/gcc/atomic_gcc_public.h",
     "//starboard/shared/gles/system_gles2.cc",
     "//starboard/shared/iso/memory_allocate_unchecked.cc",
     "//starboard/shared/iso/memory_free.cc",
