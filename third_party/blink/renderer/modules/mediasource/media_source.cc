@@ -61,6 +61,7 @@
 #include "build/build_config.h"
 #if BUILDFLAG(IS_COBALT)
 #include "starboard/build/starboard_buildflags.h"
+#include "starboard/media.h"
 #endif  // BUILDFLAG(IS_COBALT)
 
 using blink::WebMediaSource;
@@ -162,6 +163,11 @@ void MediaSource::LogAndThrowTypeError(ExceptionState& exception_state,
 SourceBuffer* MediaSource::addSourceBuffer(const String& type,
                                            ExceptionState& exception_state) {
   DVLOG(2) << __func__ << " this=" << this << " type=" << type;
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << __func__ << "(" << type << ").";
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_COBALT)
 
   // 2.2
   // https://www.w3.org/TR/media-source/#dom-mediasource-addsourcebuffer
@@ -178,6 +184,11 @@ SourceBuffer* MediaSource::addSourceBuffer(const String& type,
   if (!IsTypeSupportedInternal(
           GetExecutionContext(), type,
           false /* Allow underspecified codecs in |type| */)) {
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    LOG(INFO) << __func__ << "(" << type << ") is unsupported.";
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_COBALT)
     LogAndThrowDOMException(
         exception_state, DOMExceptionCode::kNotSupportedError,
         "The type provided ('" + type + "') is unsupported.");
@@ -511,38 +522,6 @@ bool MediaSource::isTypeSupported(ExecutionContext* context,
 bool MediaSource::IsTypeSupportedInternal(ExecutionContext* context,
                                           const String& type,
                                           bool enforce_codec_specificity) {
-
-#if BUILDFLAG(IS_COBALT)
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // TODO(b/322021829): This is a workaround to claim 4K playback support.  It
-  // should be replaced by a proper implementation of
-  // MediaSource.isTypeSupported().
-  if (type.Find("99") != kNotFound || type.Find("catavision") != kNotFound ||
-      type.Find("invalidformat") != kNotFound ||
-      type.Find("bitrate=2000000000") != kNotFound ||
-      type.Find("decode-to-texture=nope") != kNotFound ||
-      type.Find("decode-to-texture=true") != kNotFound) {
-    return false;
-  }
-
-  // Reject 8k
-  if (type.Find("7680") != kNotFound) {
-    return false;
-  }
-
-  /*
-  // Reject 4k
-  if (type.Find("3840") != kNotFound) {
-    return false;
-  }
-
-  // Reject 2k
-  if (type.Find("2560") != kNotFound) {
-    return false;
-  }*/
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif // BUILDFLAG(IS_COBALT)
-
   // Even after ExecutionContext teardown notification, bindings may still call
   // code-behinds for a short while. If |context| is null, this is likely
   // happening. To prevent possible null deref of |context| in this path, claim
@@ -564,6 +543,14 @@ bool MediaSource::IsTypeSupportedInternal(ExecutionContext* context,
     return false;
   }
 
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Interupt Chromium's IsTypeSupported() from here for better performance.
+  SbMediaSupportType support_type =
+      SbMediaCanPlayMimeAndKeySystem(type.Ascii().c_str(), "");
+  return support_type != kSbMediaSupportTypeNotSupported;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else   // BUILDFLAG(IS_COBALT)
   // 2. If type does not contain a valid MIME type string, then return false.
   ContentType content_type(type);
   String mime_type = content_type.GetType();
@@ -668,6 +655,7 @@ bool MediaSource::IsTypeSupportedInternal(ExecutionContext* context,
            << (result ? "true" : "false");
   RecordIdentifiabilityMetric(context, type, result);
   return result;
+#endif  // BUILDFLAG(IS_COBALT)
 }
 
 // static
