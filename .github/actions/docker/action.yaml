@@ -5,8 +5,6 @@ inputs:
     description: "Docker compose service."
     required: true
 
-secrets: inherit
-
 runs:
   using: "composite"
   steps:
@@ -19,7 +17,7 @@ runs:
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        password: ${{ secrets.github_token }}
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@988b5a0280414f521da01fcc63a27aeeb4b104db # v3.6.1
       with:

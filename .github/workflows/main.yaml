@@ -98,6 +98,8 @@ jobs:
       uses: ./.github/actions/docker
       with:
         docker_service: ${{ needs.initialize.outputs.docker_service }}
+      secrets:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
     - name: Set Docker Tag Output
       id: set-docker-tag-output
       shell: bash
