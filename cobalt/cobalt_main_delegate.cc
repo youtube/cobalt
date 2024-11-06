@@ -14,6 +14,7 @@
 
 #include "cobalt/cobalt_main_delegate.h"
 #include "cobalt/cobalt_content_browser_client.h"
+#include "content/public/browser/render_frame_host.h"
 
 namespace cobalt {
 
@@ -26,6 +27,13 @@ content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
   browser_client_ = std::make_unique<CobaltContentBrowserClient>();
   return browser_client_.get();
+}
+
+absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
+    InvokedIn invoked_in) {
+  content::RenderFrameHost::AllowInjectingJavaScript();
+
+  return ShellMainDelegate::PostEarlyInitialization(invoked_in);
 }
 
 }  // namespace cobalt
