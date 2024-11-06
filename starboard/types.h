@@ -47,13 +47,8 @@ extern "C" {
 
 #if !SB_HAS(SSIZE_T)
 
-#error Temporary error to catch whether any bot does not define SSIZE_T
+#error Starboard platforms must define SSIZE_T (size_t).
 
-#if SB_IS(32_BIT)
-typedef int32_t ssize_t;
-#elif SB_IS(64_BIT)
-typedef int64_t ssize_t;
-#endif
 #endif  // !SB_HAS(SSIZE_T)
 
 // A value that represents an int that is probably invalid.
