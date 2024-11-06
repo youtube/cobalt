@@ -27,6 +27,15 @@ namespace cobalt {
 std::string GetCobaltUserAgent() {
   // TODO: (cobalt b/375243230) Implement platform property fetching and
   // sanitization.
+#if BUILDFLAG(IS_ANDROID)
+  return std::string(
+      "Mozilla/5.0 (Linux armeabi-v7a; Android 12) "
+      "Cobalt/26.lts.0-qa (unlike Gecko) v8/8.8.278.8-jit gles Starboard/17, "
+      "Hisense_ATV_m7322_2021/PTMR.190127.037 (Toshiba, HiSmartTV A4, "
+      "Wireless) "
+      "com.google.android.youtube.tv/6.99.000,gzip(gfe)");
+#endif  // BUILDFLAG(IS_ANDROID)
+
   return std::string(
       "Mozilla/5.0 (X11; Linux x86_64) Cobalt/26.lts.0-qa (unlike Gecko) "
       "v8/unknown gles Starboard/17, "
