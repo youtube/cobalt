@@ -47,9 +47,11 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
 #if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  ChunkDemuxerStream(const std::string& mime_type, Type type, MediaTrack::Id media_track_id);
+  ChunkDemuxerStream(const std::string& mime_type,
+                     Type type,
+                     MediaTrack::Id media_track_id);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#else  // BUILDFLAG(IS_COBALT)
+#else   // BUILDFLAG(IS_COBALT)
   ChunkDemuxerStream() = delete;
 
   ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id);
@@ -301,7 +303,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 #if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Special version of AddId() that retains the |mime_type| from the web app.
-  Status AddId(const std::string& id, const std::string& mime_type);
+  [[nodiscard]] Status AddId(const std::string& id,
+                             const std::string& mime_type);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #endif  // BUILDFLAG(IS_COBALT)
 

@@ -43,9 +43,11 @@ class PLATFORM_EXPORT WebMediaSourceImpl : public WebMediaSource {
       std::unique_ptr<media::VideoDecoderConfig> video_config,
       AddStatus& out_status /* out */) override;
 #if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<WebSourceBuffer> AddSourceBuffer(
       const WebString& mime_type,
       AddStatus& out_status /* out */) override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #endif  // BUILDFLAG(IS_COBALT)
   double Duration() override;
   void SetDuration(double duration) override;

@@ -12,6 +12,12 @@
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/renderer/platform/media/web_source_buffer_impl.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+#if BUILDFLAG(IS_COBALT)
+#include "starboard/build/starboard_buildflags.h"
+#endif  // BUILDFLAG(IS_COBALT)
+
 namespace blink {
 
 #define STATIC_ASSERT_MATCHING_STATUS_ENUM(webkit_name, chromium_name)    \
@@ -74,19 +80,22 @@ std::unique_ptr<WebSourceBuffer> WebMediaSourceImpl::AddSourceBuffer(
 }
 
 #if BUILDFLAG(IS_COBALT)
-  std::unique_ptr<WebSourceBuffer> WebMediaSourceImpl::AddSourceBuffer(
-      const WebString& mime_type,
-      AddStatus& out_status /* out */)  {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+std::unique_ptr<WebSourceBuffer> WebMediaSourceImpl::AddSourceBuffer(
+    const WebString& mime_type,
+    AddStatus& out_status /* out */) {
   std::string id = base::GenerateGUID();
 
   out_status = static_cast<WebMediaSource::AddStatus>(
       demuxer_->AddId(id, mime_type.Utf8()));
 
-  if (out_status == WebMediaSource::kAddStatusOk)
+  if (out_status == WebMediaSource::kAddStatusOk) {
     return std::make_unique<WebSourceBufferImpl>(id, demuxer_);
+  }
 
   return nullptr;
 }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #endif  // BUILDFLAG(IS_COBALT)
 
 double WebMediaSourceImpl::Duration() {

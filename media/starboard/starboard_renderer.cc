@@ -305,10 +305,7 @@ void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
                     : invalid_video_config;
 
   std::string audio_mime_type = audio_stream_ ? audio_stream_->mime_type() : "";
-  std::string video_mime_type;
-  if (video_stream_) {
-    video_mime_type = video_stream_->mime_type();
-  }
+  std::string video_mime_type = video_stream_ ? video_stream_->mime_type() : "";
 
   std::string error_message;
 

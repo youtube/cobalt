@@ -69,7 +69,8 @@ std::string ExpectedCodecs(const std::string& content_type,
 // "avc1.42E01E, mp4a.40.2" for "video/mp4; codecs="avc1.42E01E, mp4a.40.2".
 // Note that this function does minimum validation as the media stack will check
 // the type and codecs strictly.
-bool ParseMimeType(const std::string& mime_type, std::string* type,
+bool ParseMimeType(const std::string& mime_type,
+                   std::string* type,
                    std::string* codecs) {
   DCHECK(type);
   DCHECK(codecs);
@@ -105,19 +106,21 @@ namespace media {
 
 #if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-ChunkDemuxerStream::ChunkDemuxerStream(const std::string& mime_type, Type type,
+ChunkDemuxerStream::ChunkDemuxerStream(const std::string& mime_type,
+                                       Type type,
                                        MediaTrack::Id media_track_id)
     : mime_type_(mime_type),
       type_(type),
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#else  // BUILDFLAG(IS_COBALT)
+#else   // BUILDFLAG(IS_COBALT)
 ChunkDemuxerStream::ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id)
     : type_(type),
 #endif  // BUILDFLAG(IS_COBALT)
       liveness_(StreamLiveness::kUnknown),
       media_track_id_(media_track_id),
       state_(UNINITIALIZED),
-      is_enabled_(true) {}
+      is_enabled_(true) {
+}
 
 void ChunkDemuxerStream::StartReturningData() {
   DVLOG(1) << "ChunkDemuxerStream::StartReturningData()";
@@ -1652,7 +1655,7 @@ ChunkDemuxerStream* ChunkDemuxer::CreateDemuxerStream(
   std::unique_ptr<ChunkDemuxerStream> stream =
       std::make_unique<ChunkDemuxerStream>(iter->second, type, media_track_id);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#else  // BUILDFLAG(IS_COBALT)
+#else   // BUILDFLAG(IS_COBALT)
   std::unique_ptr<ChunkDemuxerStream> stream =
       std::make_unique<ChunkDemuxerStream>(type, media_track_id);
 #endif  // BUILDFLAG(IS_COBALT)
