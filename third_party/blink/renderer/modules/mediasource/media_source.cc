@@ -59,10 +59,9 @@
 
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
-#if BUILDFLAG(IS_COBALT)
-#include "starboard/build/starboard_buildflags.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "starboard/media.h"
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 using blink::WebMediaSource;
 using blink::WebSourceBuffer;
