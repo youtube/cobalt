@@ -632,7 +632,9 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   std::map<MediaTrack::Id, ChunkDemuxerStream*> track_id_to_demux_stream_map_;
 
 #if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::map<std::string, std::string> id_to_mime_map_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #endif  // BUILDFLAG(IS_COBALT)
 };
 

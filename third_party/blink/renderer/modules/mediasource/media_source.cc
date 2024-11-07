@@ -352,7 +352,8 @@ void MediaSource::AddSourceBuffer_Locked(
   // InitializationSegmentReceived and AppendError methods.
 #if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  DCHECK(!type.empty()) << "Cannot add SourceBuffer with null MIME type.";
+  DCHECK(!type.empty())
+      << __func__ << " cannot be called with a null MIME type in Chrobalt.";
   std::unique_ptr<WebSourceBuffer> web_source_buffer =
       CreateWebSourceBuffer(type, "" /* codecs */, std::move(audio_config),
                             std::move(video_config), *exception_state);
