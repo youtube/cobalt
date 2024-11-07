@@ -180,7 +180,7 @@ if (is_starboard) {
   default_compiler_configs += [ "//starboard/build/config:starboard" ]
 }
 
-if (is_qa || is_gold || sb_use_no_rtti) {
+if (is_qa || is_gold) {
   default_compiler_configs += [ "//build/config/compiler:no_rtti" ]
 }
 
@@ -193,11 +193,11 @@ set_defaults("static_library") {
   has_pedantic_warnings = false
 }
 set_defaults("source_set") {
-  configs = default_compiler_configs + source_set_configs
+  configs = default_compiler_configs
   has_pedantic_warnings = false
 }
 set_defaults("loadable_module") {
-  configs = default_compiler_configs + loadable_module_configs
+  configs = default_compiler_configs
   has_pedantic_warnings = false
 }
 set_defaults("executable") {

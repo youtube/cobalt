@@ -44,8 +44,6 @@ if (current_toolchain == starboard_toolchain) {
       "//testing/gmock",
     ]
 
-    deps = cobalt_platform_dependencies
-
     data_deps =
         [ "//starboard/shared/starboard/player:player_download_test_data" ]
   }
@@ -62,8 +60,6 @@ if (current_toolchain == starboard_toolchain) {
       ":test_util",
       "//third_party/google_benchmark",
     ]
-
-    deps = cobalt_platform_dependencies
   }
 
   static_library("test_util") {
