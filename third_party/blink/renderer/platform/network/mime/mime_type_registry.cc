@@ -20,9 +20,6 @@
 
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
-#if BUILDFLAG(IS_COBALT)
-#include "starboard/build/starboard_buildflags.h"
-#endif  // BUILDFLAG(IS_COBALT)
 
 namespace blink {
 
