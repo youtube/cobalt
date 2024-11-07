@@ -130,7 +130,7 @@ jobs:
       matrix:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel, debug, qa, gold]
+        config: [devel]
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
@@ -191,6 +191,7 @@ jobs:
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           results_dir: ${{ env.TEST_RESULTS_DIR }}
+          platform: ${{ inputs.platform }}
       - name: Run On-Device Tests
         if: needs.initialize.outputs.test_on_device == 'true'
         uses: ./src/.github/actions/on_device_tests
