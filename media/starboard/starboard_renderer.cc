@@ -470,6 +470,18 @@ void StarboardRenderer::OnDemuxerStreamRead(
       player_bridge_->WriteBuffers(DemuxerStream::VIDEO, buffers);
     }
   } else if (status == DemuxerStream::kAborted) {
+    if (stream == audio_stream_) {
+      DCHECK(audio_read_in_progress_);
+      audio_read_in_progress_ = false;
+    }
+    if (stream == video_stream_) {
+      DCHECK(video_read_in_progress_);
+      video_read_in_progress_ = false;
+    }
+    if (pending_flush_cb_ && !audio_read_in_progress_ &&
+        !video_read_in_progress_) {
+      std::move(pending_flush_cb_).Run();
+    }
   } else if (status == DemuxerStream::kConfigChanged) {
     if (stream == audio_stream_) {
       client_->OnAudioConfigChange(stream->audio_decoder_config());
