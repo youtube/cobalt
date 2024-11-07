@@ -107,13 +107,9 @@
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "ui/gfx/geometry/size.h"
 
-// For BUILDFLAG(USE_STARBOARD_MEDIA)
-#if BUILDFLAG(IS_COBALT)
-#include "starboard/build/starboard_buildflags.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/starboard/starboard_renderer.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif  // BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
 #include "media/filters/hls_data_source_provider_impl.h"
