@@ -1,0 +1,9 @@
+{
+  "failing_tests": [
+	"ArgumentsTest.TestArgumentsHolderCreationContext",
+	"DataObjectBuilderTest.CreatesDataProperties",
+	"PerContextDataTest.LookupAndDestruction",
+	"V8MemoryDumpProviderTest.Deterministic",
+	"WrappableTest.LazyPropertyGetterIsCalledOnce"
+  ]
+}
