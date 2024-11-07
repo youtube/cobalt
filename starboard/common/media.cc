@@ -165,8 +165,8 @@ bool ParseAv1Info(std::string codec,
   // "0.110.01.01.01.0".
   // All fields are fixed size and leading zero cannot be omitted, so the
   // expected sizes are known.
-  const char kShortFormReference[] = "av01.0.05M.08";
-  const char kLongFormReference[] = "av01.0.04M.10.0.110.09.16.09.0";
+  const char kShortFormReference[] = "av01.0.05?.08";
+  const char kLongFormReference[] = "av01.0.04?.10.0.110.09.16.09.0";
   const size_t kShortFormSize = strlen(kShortFormReference);
   const size_t kLongFormSize = strlen(kLongFormReference);
 
