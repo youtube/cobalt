@@ -352,9 +352,6 @@ viz_component("service") {
         "display/starboard/overlay_strategy_underlay_starboard.h",
       ]
     }
-    deps += [
-      "//starboard/build:starboard_buildflags",
-    ]
   }
 
   if (enable_cast_overlay_strategy) {
