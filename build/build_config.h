@@ -266,6 +266,24 @@
 #define BUILDFLAG_INTERNAL_USE_STARBOARD() (0)
 #endif
 
+#if defined(ENABLE_BUILDFLAG_USE_STARBOARD_MEDIA)
+#define BUILDFLAG_INTERNAL_USE_STARBOARD_MEDIA() (1)
+#else
+#define BUILDFLAG_INTERNAL_USE_STARBOARD_MEDIA() (0)
+#endif
+
+#if defined(ENABLE_BUILFLAG_USE_EVERGREEN)
+#define BUILDFLAG_INTERNAL_USE_EVERGREEN() (1)
+#else
+#define BUILDFLAG_INTERNAL_USE_EVERGREEN() (0)
+#endif
+
+#if defined(ENABLE_BUILDFLAG_IS_MODULAR_BUILD)
+#define BUILDFLAG_INTERNAL_MODULAR_BUILD() (1)
+#else
+#define BUILDFLAG_INTERNAL_MODULAR_BUILD() (0)
+#endif
+
 // Compiler detection. Note: clang masquerades as GCC on POSIX and as MSVC on
 // Windows.
 #if defined(__GNUC__)
