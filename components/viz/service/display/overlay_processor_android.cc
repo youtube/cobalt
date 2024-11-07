@@ -17,13 +17,9 @@
 #include "gpu/command_buffer/service/scheduler_sequence.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
-// For BUILDFLAG(USE_STARBOARD_MEDIA)
-#if BUILDFLAG(IS_COBALT)
-#include "starboard/build/starboard_buildflags.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "components/viz/service/display/starboard/overlay_strategy_underlay_starboard.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif // BUILDFLAG(IS_COBALT)
 
 namespace viz {
 OverlayProcessorAndroid::OverlayProcessorAndroid(
