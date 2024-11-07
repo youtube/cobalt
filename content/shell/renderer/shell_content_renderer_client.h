@@ -65,12 +65,10 @@ class ShellContentRendererClient : public ContentRendererClient {
       media::GetSupportedKeySystemsCB cb) override;
 #endif
 
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   bool IsSupportedAudioType(const media::AudioType& type) override;
   bool IsSupportedVideoType(const media::VideoType& type) override;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif  // BUILDFLAG(IS_COBALT)
 
   std::unique_ptr<blink::WebPrescientNetworking> CreatePrescientNetworking(
       RenderFrame* render_frame) override;

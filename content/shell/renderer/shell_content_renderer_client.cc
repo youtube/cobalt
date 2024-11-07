@@ -56,6 +56,7 @@
 #endif
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && \
     (defined(ARCH_CPU_X86_64) || defined(ARCH_CPU_ARM64))
 #define ENABLE_WEB_ASSEMBLY_TRAP_HANDLER_LINUX
@@ -69,6 +70,11 @@
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #endif  // BUILDFLAG(IS_COBALT)
 >>>>>>> fee33909c55 ([media] Integrate SbMediaCanPlayMimeAndKeySystem() (#4340))
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/media.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> fadd93d2326 (Clean up existing media buildflags (#4393))
 
 namespace content {
 
@@ -383,7 +389,6 @@ ShellContentRendererClient::GetSupportedKeySystems(
 }
 #endif
 
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
 // support to query codec capabilities with configs.
@@ -449,7 +454,6 @@ bool ShellContentRendererClient::IsSupportedVideoType(
   return result;
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif  // BUILDFLAG(IS_COBALT)
 
 std::unique_ptr<blink::WebPrescientNetworking>
 ShellContentRendererClient::CreatePrescientNetworking(

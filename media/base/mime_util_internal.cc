@@ -452,7 +452,6 @@ void MimeUtil::AddContainerWithCodecs(std::string mime_type, CodecSet codecs) {
 bool MimeUtil::IsSupportedMediaMimeType(std::string_view mime_type) const {
 =======
 bool MimeUtil::IsSupportedMediaMimeType(base::StringPiece mime_type) const {
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   SbMediaSupportType support_type =
       SbMediaCanPlayMimeAndKeySystem(mime_type.data(), "");
@@ -460,11 +459,15 @@ bool MimeUtil::IsSupportedMediaMimeType(base::StringPiece mime_type) const {
   LOG(INFO) << __func__ << "(" << mime_type << ") -> "
             << (result ? "true" : "false");
   return result;
+<<<<<<< HEAD
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #else   // BUILDFLAG(IS_COBALT)
 >>>>>>> fee33909c55 ([media] Integrate SbMediaCanPlayMimeAndKeySystem() (#4340))
+=======
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> fadd93d2326 (Clean up existing media buildflags (#4393))
   return media_format_map_.contains(base::ToLowerASCII(mime_type));
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void MimeUtil::SplitCodecs(std::string_view codecs,
@@ -559,7 +562,6 @@ SupportsType MimeUtil::IsSupportedMediaFormat(
     std::string_view mime_type,
     const std::vector<std::string>& codecs,
     bool is_encrypted) const {
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // MimeUtil::IsSupportedMediaFormat() might be used in MIMETypeRegistry for
   // clear content.
@@ -577,8 +579,7 @@ SupportsType MimeUtil::IsSupportedMediaFormat(
     case kSbMediaSupportTypeProbably:
       return SupportsType::kSupported;
   }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#else   // BUILDFLAG(IS_COBALT)
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   const std::string mime_type_lower_case = base::ToLowerASCII(mime_type);
   std::vector<ParsedCodecResult> parsed_results;
   if (!ParseCodecStrings(mime_type_lower_case, codecs, &parsed_results)) {
@@ -602,7 +603,7 @@ SupportsType MimeUtil::IsSupportedMediaFormat(
   }
 
   return AreSupportedCodecs(parsed_results, mime_type_lower_case, is_encrypted);
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 // static
