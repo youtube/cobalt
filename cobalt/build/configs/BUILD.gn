@@ -12,8 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/buildflags.gni")
+
 config("cobalt_config") {
-  configs = [ ":default_includes" ]
+  configs = [
+    ":default_includes",
+    ":buildflag_defines",
+  ]
   if (current_toolchain == starboard_toolchain) {
     configs += [ "//${starboard_path}/platform_configuration" ]
   }
@@ -30,5 +35,24 @@ config("default_includes") {
       # POSIX emulation headers - these need to come *before* system include_dirs.
       "//starboard/android/shared/posix_emu/include",
     ]
+  }
+}
+
+config("buildflag_defines") {
+  defines = []
+  if (is_cobalt) {
+    defines += [ "ENABLE_BUILDFLAG_IS_COBALT" ]
+  }
+  if (is_starboard) {
+    defines += [ "OS_STARBOARD" ]
+  }
+  if (use_starboard_media) {
+    defines += [ "ENABLE_BUILDFLAG_USE_STARBOARD_MEDIA" ]
+  }
+  if (use_evergreen) {
+    defines += [ "ENABLE_BUILFLAG_USE_EVERGREEN" ]
+  }
+  if (sb_is_modular) {
+    defines += [ "ENABLE_BUILDFLAG_MODULAR_BUILD" ]
   }
 }
