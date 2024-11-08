@@ -68,24 +68,8 @@ public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final java.lang.String META_DATA_APP_URL = "cobalt.APP_URL";
 
-  private static final String SPLASH_URL_ARG = "--fallback_splash_screen_url=";
-  private static final String SPLASH_TOPICS_ARG = "--fallback_splash_screen_topics=";
-  private static final java.lang.String META_DATA_SPLASH_URL = "cobalt.SPLASH_URL";
-  private static final java.lang.String META_DATA_SPLASH_TOPICS = "cobalt.SPLASH_TOPIC";
-
-  private static final String FORCE_MIGRATION_FOR_STORAGE_PARTITIONING =
-      "--force_migration_for_storage_partitioning";
-  private static final String META_FORCE_MIGRATION_FOR_STORAGE_PARTITIONING =
-      "cobalt.force_migration_for_storage_partitioning";
-
-  private static final String EVERGREEN_LITE = "--evergreen_lite";
-  private static final java.lang.String META_DATA_EVERGREEN_LITE = "cobalt.EVERGREEN_LITE";
-
   private static final String ACTIVE_SHELL_URL_KEY = "activeUrl";
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
-
-  // Native switch - shell_switches::kRunWebTests
-  private static final String RUN_WEB_TESTS_SWITCH = "run-web-tests";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
@@ -107,18 +91,21 @@ public abstract class CobaltActivity extends Activity {
     if (!CommandLine.isInitialized()) {
       ((CobaltApplication) getApplication()).initCommandLine();
 
-          // Note that appendSwitchesAndArguments excludes cobaltCommandLineParams[0]
-          // as the program name, and all other arguments SHOULD start with '--'.
-          String[] cobaltCommandLineParams = new String[]{"",
-          // disable first run experience
-          "--disable-fre",
-          // disable user prompts in the first run
-          "--no-first-run",
-          // run Cobalt as a single process
-          "--single-process",
-          // enable Blink to work in overlay video mode
-          "--force-video-overlays"};
-          CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
+      // Note that appendSwitchesAndArguments excludes cobaltCommandLineParams[0]
+      // as the program name, and all other arguments SHOULD start with '--'.
+      String[] cobaltCommandLineParams =
+          new String[] {
+            "",
+            // disable first run experience
+            "--disable-fre",
+            // disable user prompts in the first run
+            "--no-first-run",
+            // run Cobalt as a single process
+            "--single-process",
+            // enable Blink to work in overlay video mode
+            "--force-video-overlays"
+          };
+      CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
 
       String[] commandLineParams = getCommandLineParamsFromIntent(getIntent());
       if (commandLineParams != null) {
@@ -154,11 +141,8 @@ public abstract class CobaltActivity extends Activity {
     final boolean listenToActivityState = true;
     mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
     mWindowAndroid =
-            new ActivityWindowAndroid(
-                  this,
-                    listenToActivityState,
-                    mIntentRequestTracker,
-                    /* insetObserver= */ null);
+        new ActivityWindowAndroid(
+            this, listenToActivityState, mIntentRequestTracker, /* insetObserver= */ null);
     mIntentRequestTracker.restoreInstanceState(savedInstanceState);
     mShellManager.setWindow(mWindowAndroid);
     // Set up the animation placeholder to be the SurfaceView. This disables the
@@ -166,9 +150,17 @@ public abstract class CobaltActivity extends Activity {
     mWindowAndroid.setAnimationPlaceholderView(
         mShellManager.getContentViewRenderView().getSurfaceView());
 
-    // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       mStartupUrl = getUrlFromIntent(getIntent());
+    }
+    if (mStartupUrl == null || mStartupUrl.isEmpty()) {
+      String[] args = getStarboardBridge().getArgs();
+      mStartupUrl =
+          Arrays.stream(args)
+              .filter(line -> line.contains(URL_ARG))
+              .findAny()
+              .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
+              .orElse(null);
     }
 
     // TODO(b/377025559): Bring back WebTests launch capability
@@ -203,7 +195,7 @@ public abstract class CobaltActivity extends Activity {
     }
 
     if (savedInstanceState != null && savedInstanceState.containsKey(ACTIVE_SHELL_URL_KEY)) {
-        shellUrl = savedInstanceState.getString(ACTIVE_SHELL_URL_KEY);
+      shellUrl = savedInstanceState.getString(ACTIVE_SHELL_URL_KEY);
     }
     // Set to overlay video mode.
     mShellManager.getContentViewRenderView().setOverlayVideoMode(true);
@@ -263,11 +255,6 @@ public abstract class CobaltActivity extends Activity {
         activeView.loadUrl(url);
       }
     }
-  }
-
-  // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
-  protected void setStartupUrl(String url) {
-    mStartupUrl = url;
   }
 
   protected void toggleFullscreenMode(boolean enterFullscreen) {
@@ -341,7 +328,6 @@ public abstract class CobaltActivity extends Activity {
     // STREAM_MUSIC whenever the target activity or fragment is visible.
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
-    setStartupUrl("https://www.youtube.com/tv");
     super.onCreate(savedInstanceState);
     createContent(savedInstanceState);
 
@@ -443,13 +429,7 @@ public abstract class CobaltActivity extends Activity {
 
     // If the URL arg isn't specified, get it from AndroidManifest.xml.
     boolean hasUrlArg = hasArg(args, URL_ARG);
-    // If the splash screen url arg isn't specified, get it from AndroidManifest.xml.
-    boolean hasSplashUrlArg = hasArg(args, SPLASH_URL_ARG);
-    // If the splash screen topics arg isn't specified, get it from AndroidManifest.xml.
-    boolean hasSplashTopicsArg = hasArg(args, SPLASH_TOPICS_ARG);
-    // If the Evergreen-Lite arg isn't specified, get it from AndroidManifest.xml.
-    boolean hasEvergreenLiteArg = hasArg(args, EVERGREEN_LITE);
-    if (!hasUrlArg || !hasSplashUrlArg || !hasSplashTopicsArg || !hasEvergreenLiteArg) {
+    if (!hasUrlArg) {
       try {
         ActivityInfo ai =
             getPackageManager()
@@ -460,24 +440,6 @@ public abstract class CobaltActivity extends Activity {
             if (url != null) {
               args.add(URL_ARG + url);
             }
-          }
-          if (!hasSplashUrlArg) {
-            String splashUrl = ai.metaData.getString(META_DATA_SPLASH_URL);
-            if (splashUrl != null) {
-              args.add(SPLASH_URL_ARG + splashUrl);
-            }
-          }
-          if (!hasSplashTopicsArg) {
-            String splashTopics = ai.metaData.getString(META_DATA_SPLASH_TOPICS);
-            if (splashTopics != null) {
-              args.add(SPLASH_TOPICS_ARG + splashTopics);
-            }
-          }
-          if (!hasEvergreenLiteArg && ai.metaData.getBoolean(META_DATA_EVERGREEN_LITE)) {
-            args.add(EVERGREEN_LITE);
-          }
-          if (ai.metaData.getBoolean(META_FORCE_MIGRATION_FOR_STORAGE_PARTITIONING)) {
-            args.add(FORCE_MIGRATION_FOR_STORAGE_PARTITIONING);
           }
         }
       } catch (NameNotFoundException e) {
