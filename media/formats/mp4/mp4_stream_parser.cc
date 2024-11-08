@@ -1134,6 +1134,11 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   const auto buffer_type = audio ? DemuxerStream::AUDIO : DemuxerStream::VIDEO;
   scoped_refptr<StreamParserBuffer> stream_buf;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  stream_buf =
+      StreamParserBuffer::CopyFrom(&frame_buf[0], frame_buf.size(), is_keyframe,
+                                   buffer_type, runs_->track_id());
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (auto* media_client = GetMediaClient()) {
     if (auto* alloc = media_client->GetMediaAllocator()) {
       stream_buf = StreamParserBuffer::FromExternalMemory(
@@ -1163,6 +1168,7 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
           is_keyframe, buffer_type, runs_->track_id());
     }
   }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (decrypt_config)
     stream_buf->set_decrypt_config(std::move(decrypt_config));

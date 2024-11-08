@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_DECODER_BUFFER_ALLOCATOR_H_
-#define COBALT_MEDIA_DECODER_BUFFER_ALLOCATOR_H_
+#ifndef MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
+#define MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
 
 #include <atomic>
 #include <memory>
@@ -21,17 +21,16 @@
 #include "base/compiler_specific.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
-#include "cobalt/media/bidirectional_fit_reuse_allocator.h"
-#include "cobalt/media/decoder_buffer_memory_info.h"
-#include "cobalt/media/starboard_memory_allocator.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/video_decoder_config.h"
+#include "media/starboard/bidirectional_fit_reuse_allocator.h"
+#include "media/starboard/decoder_buffer_memory_info.h"
+#include "media/starboard/starboard_memory_allocator.h"
 #include "starboard/media.h"
 
-namespace cobalt {
 namespace media {
 
-class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
+class DecoderBufferAllocator : public DecoderBuffer::Allocator,
                                public DecoderBufferMemoryInfo {
  public:
   DecoderBufferAllocator();
@@ -48,10 +47,12 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   int GetBufferAlignment() const override;
   int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
-  int GetProgressiveBufferBudget(SbMediaVideoCodec codec, int resolution_width,
+  int GetProgressiveBufferBudget(SbMediaVideoCodec codec,
+                                 int resolution_width,
                                  int resolution_height,
                                  int bits_per_pixel) const override;
-  int GetVideoBufferBudget(SbMediaVideoCodec codec, int resolution_width,
+  int GetVideoBufferBudget(SbMediaVideoCodec codec,
+                           int resolution_width,
                            int resolution_height,
                            int bits_per_pixel) const override;
 
@@ -75,6 +76,5 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
 };
 
 }  // namespace media
-}  // namespace cobalt
 
-#endif  // COBALT_MEDIA_DECODER_BUFFER_ALLOCATOR_H_
+#endif  // MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
