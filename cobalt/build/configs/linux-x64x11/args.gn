@@ -1,6 +1,7 @@
 target_os = "linux"
 target_cpu = "x64"
-is_cobalt = false
+
+use_ozone = true
 
 # TODO(b/376141256): Decide if this flag is needed here or in .gclient file
 chrome_pgo_phase = 0
