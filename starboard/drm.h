@@ -20,8 +20,6 @@
 #ifndef STARBOARD_DRM_H_
 #define STARBOARD_DRM_H_
 
-#include <limits>
-
 #include "starboard/export.h"
 #include "starboard/types.h"
 
@@ -222,7 +220,7 @@ typedef void (*SbDrmServerCertificateUpdatedFunc)(SbDrmSystem drm_system,
 #define kSbDrmSystemInvalid ((SbDrmSystem)NULL)
 
 // A ticket for callback invocations initiated by the DRM system.
-#define kSbDrmTicketInvalid std::numeric_limits<int>::min()
+#define kSbDrmTicketInvalid INT_MIN
 
 // --- Functions -------------------------------------------------------------
 
