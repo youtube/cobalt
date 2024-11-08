@@ -25,9 +25,6 @@ source_set("starboard") {
     # TODO(b/375069564): Revisit CValStats
     "COBALT_MEDIA_ENABLE_CVAL=0",
 
-    # TODO(b/374822966): Revisit DecoderBuffer budget
-    "COBALT_MEDIA_ENABLE_DECODE_BUFFER_BUDGET=0",
-
     # TODO(b/375070492): Revisit decode-to-texture
     "COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER=0",
 
@@ -57,12 +54,18 @@ source_set("starboard") {
   ]
 
   sources = [
+    "bidirectional_fit_reuse_allocator.cc",
+    "bidirectional_fit_reuse_allocator.h",
+    "decoder_buffer_allocator.cc",
+    "decoder_buffer_allocator.h",
+    "decoder_buffer_memory_info.h",
     "sbplayer_bridge.cc",
     "sbplayer_bridge.h",
     "sbplayer_interface.cc",
     "sbplayer_interface.h",
     "sbplayer_set_bounds_helper.cc",
     "sbplayer_set_bounds_helper.h",
+    "starboard_memory_allocator.h",
     "starboard_renderer.cc",
     "starboard_renderer.h",
     "starboard_utils.cc",
@@ -82,7 +85,10 @@ source_set("starboard") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "starboard_utils_test.cc" ]
+  sources = [
+    "bidirectional_fit_reuse_allocator_test.cc",
+    "starboard_utils_test.cc",
+  ]
   configs += [ "//media:media_config" ]
   deps = [
     "//base",
