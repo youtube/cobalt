@@ -417,7 +417,6 @@ bool KeySystemConfigSelector::IsSupportedContentType(
   // is done primarily to validate extended codecs, but it also ensures that the
   // CDM cannot support codecs that Chrome does not (which could complicate the
   // robustness algorithm).
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (SbMediaCanPlayMimeAndKeySystem(container_mime_type.c_str(),
                                      key_system.c_str()) ==
@@ -429,15 +428,14 @@ bool KeySystemConfigSelector::IsSupportedContentType(
     LOG(INFO) << __func__ << "(" << container_lower << " and " << key_system
               << ") are supported.";
   }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#else   // BUILDFLAG(IS_COBALT)
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!is_supported_media_type_cb_.Run(
           container_lower, codecs,
           key_systems_->CanUseAesDecryptor(key_system))) {
     DVLOG(3) << "Container mime type and codecs are not supported";
     return false;
   }
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Before checking CDM support, split |codecs| into a vector of codecs.
   std::vector<std::string> codec_vector;
