@@ -43,6 +43,11 @@ runs:
         for test_binary in $(ls -d out/**/*tests); do
           # TODO(b/372303096): Need dedicated xvfb runner.
           echo "Running tests for suite: ${test_binary}"
-          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary --gtest_filter="`jq -r '"-" + (.failing_tests | join(":"))' ${GITHUB_WORKSPACE}/src/cobalt/testing/${{ inputs.platform }}/${test_binary##*/}_filter.json`" --gtest_output="xml:${RESULTS_DIR}/${test_binary}_testoutput.xml" || true
+
+          test_filter =`jq -r '"-" + (.failing_tests | join(":"))' ${GITHUB_WORKSPACE}/src/cobalt/testing/${{ inputs.platform }}/${test_binary##*/}_filter.json`
+          if [ -z "$test_filter"]; then
+            test_filter = *
+
+          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary --gtest_filter="$test_filter" --gtest_output="xml:${RESULTS_DIR}/${test_binary}_testoutput.xml" || true
         done
         echo "Ran tests..."
