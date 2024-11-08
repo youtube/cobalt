@@ -363,7 +363,6 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
 }
 int GetSbMediaVideoBufferBudget(const VideoDecoderConfig* video_config,
                                 const std::string& mime_type) {
-#if COBALT_MEDIA_ENABLE_DECODE_BUFFER_BUDGET
   if (!video_config) {
     return DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(
         kSbMediaVideoCodecH264, 1920, 1080, 8);
@@ -375,9 +374,6 @@ int GetSbMediaVideoBufferBudget(const VideoDecoderConfig* video_config,
   auto codec = MediaVideoCodecToSbMediaVideoCodec(video_config->codec());
   return DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(
       codec, width, height, bits_per_pixel);
-#else   // COBALT_MEDIA_ENABLE_DECODE_BUFFER_BUDGET
-  return 100 * 1024 * 1024;
-#endif  // COBALT_MEDIA_ENABLE_DECODE_BUFFER_BUDGET
 }
 
 std::string ExtractCodecs(const std::string& mime_type) {

@@ -18,6 +18,23 @@ namespace media {
 
 namespace {
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace {
+DecoderBuffer::Allocator* s_allocator = nullptr;
+}  // namespace
+
+// static
+DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
+  DCHECK(s_allocator);
+  return s_allocator;
+}
+
+// static
+void DecoderBuffer::Allocator::Set(Allocator* allocator) {
+  s_allocator = allocator;
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 template <class T>
 class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
  public:
@@ -74,7 +91,14 @@ DecoderBuffer::DecoderBuffer(base::PassKey<DecoderBuffer>,
                              std::optional<ConfigVariant> next_config)
     : DecoderBuffer(decoder_buffer_type, std::move(next_config)) {}
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+DecoderBuffer::~DecoderBuffer() {
+  DCHECK(s_allocator);
+  s_allocator->Free(data_, allocated_size_);
+}
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::~DecoderBuffer() = default;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(
