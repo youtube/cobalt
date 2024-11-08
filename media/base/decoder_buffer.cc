@@ -12,6 +12,23 @@
 
 namespace media {
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace {
+DecoderBuffer::Allocator* s_allocator = nullptr;
+}  // namespace
+
+// static
+DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
+  DCHECK(s_allocator);
+  return s_allocator;
+}
+
+// static
+void DecoderBuffer::Allocator::Set(Allocator* allocator) {
+  s_allocator = allocator;
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 DecoderBuffer::TimeInfo::TimeInfo() = default;
 DecoderBuffer::TimeInfo::~TimeInfo() = default;
 DecoderBuffer::TimeInfo::TimeInfo(const TimeInfo&) = default;
@@ -25,11 +42,21 @@ DecoderBuffer::DecoderBuffer(size_t size) : size_(size) {
 DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
     : size_(data.size()) {
   Initialize();
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  memcpy(data_, data.data(), size_);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.copy_from(data);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data, size_t size)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    : size_(size) {
+      // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
+    }
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     : data_(std::move(data)), size_(size) {}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::DecoderBuffer(base::ReadOnlySharedMemoryMapping mapping,
                              size_t size)
@@ -47,10 +74,29 @@ DecoderBuffer::DecoderBuffer(DecoderBufferType decoder_buffer_type)
     : is_end_of_stream_(decoder_buffer_type ==
                         DecoderBufferType::kEndOfStream) {}
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+DecoderBuffer::~DecoderBuffer() {
+  DCHECK(s_allocator);
+  s_allocator->Free(data_, allocated_size_);
+}
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
 DecoderBuffer::~DecoderBuffer() = default;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void DecoderBuffer::Initialize() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  DCHECK(s_allocator);
+  DCHECK(!data_);
+
+  int alignment = s_allocator->GetBufferAlignment();
+  int padding = s_allocator->GetBufferPadding();
+  allocated_size_ = size_ + padding;
+  data_ = static_cast<uint8_t*>(s_allocator->Allocate(allocated_size_,
+                                                      alignment));
+  memset(data_ + size_, 0, padding);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_ = base::HeapArray<uint8_t>::Uninit(size_);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 // static

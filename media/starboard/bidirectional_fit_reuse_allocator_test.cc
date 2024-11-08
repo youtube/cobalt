@@ -14,13 +14,14 @@
  * limitations under the License.
  */
 
-#include "cobalt/media/bidirectional_fit_reuse_allocator.h"
+#include "media/starboard/bidirectional_fit_reuse_allocator.h"
 
 #include <memory>
 
 #include "starboard/common/fixed_no_free_allocator.h"
 #include "starboard/common/pointer_arithmetic.h"
 #include "starboard/configuration.h"
+#include "starboard/memory.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
