@@ -25,6 +25,10 @@
 #include "media/base/media_export.h"
 #include "media/base/timestamp_constants.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/media.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 // A specialized buffer for interfacing with audio / video decoders.
@@ -72,6 +76,36 @@ class MEDIA_EXPORT DecoderBuffer
     // second value must be base::TimeDelta() in this case.
     DiscardPadding discard_padding;
   };
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  class Allocator {
+   public:
+    static Allocator* GetInstance();
+
+    // The function should never return nullptr.  It may terminate the app on
+    // allocation failure.
+    virtual void* Allocate(size_t size, size_t alignment) = 0;
+    virtual void Free(void* p, size_t size) = 0;
+
+    virtual int GetAudioBufferBudget() const = 0;
+    virtual int GetBufferAlignment() const = 0;
+    virtual int GetBufferPadding() const = 0;
+    virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const = 0;
+    virtual int GetProgressiveBufferBudget(SbMediaVideoCodec codec,
+                                           int resolution_width,
+                                           int resolution_height,
+                                           int bits_per_pixel) const = 0;
+    virtual int GetVideoBufferBudget(SbMediaVideoCodec codec,
+                                     int resolution_width,
+                                     int resolution_height,
+                                     int bits_per_pixel) const = 0;
+
+   protected:
+    ~Allocator() {}
+
+    static void Set(Allocator* allocator);
+  };
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Allocates buffer with |size| >= 0. |is_key_frame_| will default to false.
   explicit DecoderBuffer(size_t size);
@@ -166,6 +200,9 @@ class MEDIA_EXPORT DecoderBuffer
 
   const uint8_t* data() const {
     DCHECK(!end_of_stream());
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    return data_;
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     if (read_only_mapping_.IsValid())
       return read_only_mapping_.GetMemoryAs<const uint8_t>();
     if (writable_mapping_.IsValid())
@@ -173,15 +210,20 @@ class MEDIA_EXPORT DecoderBuffer
     if (external_memory_)
       return external_memory_->span().data();
     return data_.get();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   // TODO(sandersd): Remove writable_data(). https://crbug.com/834088
   uint8_t* writable_data() const {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    return data_;
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     DCHECK(!end_of_stream());
     DCHECK(!read_only_mapping_.IsValid());
     DCHECK(!writable_mapping_.IsValid());
     DCHECK(!external_memory_);
     return data_.get();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   size_t data_size() const {
@@ -222,10 +264,14 @@ class MEDIA_EXPORT DecoderBuffer
   }
 
   // If there's no data in this buffer, it represents end of stream.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  bool end_of_stream() const { return !data_; }
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   bool end_of_stream() const {
     return !read_only_mapping_.IsValid() && !writable_mapping_.IsValid() &&
            !external_memory_ && !data_;
   }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   bool is_key_frame() const {
     DCHECK(!end_of_stream());
@@ -271,8 +317,14 @@ class MEDIA_EXPORT DecoderBuffer
 
   virtual ~DecoderBuffer();
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Encoded data, allocated from DecoderBuffer::Allocator.
+  uint8_t* data_ = nullptr;
+  size_t allocated_size_ = 0;
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Encoded data, if it is stored on the heap.
   std::unique_ptr<uint8_t[]> data_;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
   TimeInfo time_info_;
