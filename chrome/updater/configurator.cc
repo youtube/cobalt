@@ -4,6 +4,7 @@
 
 #include "chrome/updater/configurator.h"
 
+#include <regex>
 #include <set>
 #include <utility>
 #include "base/command_line.h"
@@ -33,10 +34,53 @@ namespace {
 const int kDelayOneMinute = 60;
 const int kDelayOneHour = kDelayOneMinute * 60;
 const char kDefaultUpdaterChannel[] = "prod";
+const char kOmahaCobaltAppID[] = "{6D4E53F3-CC64-4CB8-B6BD-AB0B8F300E1C}";
+const char kOmahaCobaltControlSb14AppID[] = "{5F96FC23-F232-40B6-B283-FAD8DB21E1A7}";
+const char kOmahaCobaltControlSb15AppID[] = "{409F15C9-4E10-4224-9DD1-BEE7E5A2A55B}";
+const char kOmahaCobaltControlSb16AppID[] = "{30061C09-D926-4B82-8D42-600C06B6134C}";
+const char kOmahaCobaltExperimentSb14AppID[] = "{9BCC272B-3F78-43FD-9B34-A3810AE1B85D}";
+const char kOmahaCobaltExperimentSb15AppID[] = "{C412A665-9BAD-4981-93C0-264233720222}";
+const char kOmahaCobaltExperimentSb16AppID[] = "{32B5CF5A-96A4-4F64-AD0E-7C62705222FF}";
 const char kOmahaCobaltLTSNightlyAppID[] =
     "{26CD2F67-091F-4680-A9A9-2229635B65A5}";
+const char kOmahaCobaltProdSb14AppID[] = "{B3F9BCA2-8AD1-448F-9829-BB9F432815DE}";
+const char kOmahaCobaltProdSb15AppID[] = "{14ED1D09-DAD2-4FB2-A89B-3ADC82137BCD}";
+const char kOmahaCobaltProdSb16AppID[] = "{10F11416-0D9C-4CB1-A82A-0168594E8256}";
+const char kOmahaCobaltQaSb14AppID[] = "{94C5D27F-5981-46E8-BD4F-4645DBB5AFD3}";
+const char kOmahaCobaltQaSb15AppID[] = "{67CED33D-57F8-4883-964A-6CF2CCA2A412}";
+const char kOmahaCobaltQaSb16AppID[] = "{B725A22D-553A-49DC-BD61-F042B07C6B22}";
+const char kOmahaCobaltRollbackSb14AppID[] = "{A83768A9-9556-48C2-8D5E-D7C845C16C19}";
+const char kOmahaCobaltRollbackSb15AppID[] = "{1526831E-B130-43C1-B31A-AEE6E90063ED}";
+const char kOmahaCobaltRollbackSb16AppID[] = "{2A1FCBE4-E4F9-4DC3-9E1A-700FBC1D551B}";
+const char kOmahaCobaltStaticSb14AppID[] = "{8001FE2C-F523-4AEC-A753-887B5CC35EBB}";
+const char kOmahaCobaltStaticSb15AppID[] = "{F58B7C5F-8DC5-4E32-8CF1-455F1302D609}";
+const char kOmahaCobaltStaticSb16AppID[] = "{A68BE0E4-7EE3-451A-9395-A789518FF7C5}";
+const char kOmahaCobaltT1appSb14AppID[] = "{7C8BCB72-705D-41A6-8189-D8312E795302}";
+const char kOmahaCobaltT1appSb15AppID[] = "{12A94004-F661-42A7-9DFC-325A4DA72D29}";
+const char kOmahaCobaltT1appSb16AppID[] = "{B677F645-A8DB-4014-BD95-C6C06715C7CE}";
+const char kOmahaCobaltTcrashSb14AppID[] = "{328C380E-75B4-4D7A-BF98-9B443ABA8FFF}";
+const char kOmahaCobaltTcrashSb15AppID[] = "{1A924F1C-A46D-4104-8CCE-E8DB3C6E0ED1}";
+const char kOmahaCobaltTcrashSb16AppID[] = "{0F876BD6-7C15-4B09-8C95-9FBBA2F93E94}";
+const char kOmahaCobaltTestSb14AppID[] = "{DB2CC00C-4FA9-4DB8-A947-647CEDAEBF29}";
+const char kOmahaCobaltTestSb15AppID[] = "{24A8A3BF-5944-4D5C-A5C4-BE00DF0FB9E1}";
+const char kOmahaCobaltTestSb16AppID[] = "{5EADD81E-A98E-4F8B-BFAA-875509A51991}";
+const char kOmahaCobaltTfailvSb14AppID[] = "{F06C3516-8706-4579-9493-881F84606E98}";
+const char kOmahaCobaltTfailvSb15AppID[] = "{36CFD9A7-1A73-4E8A-AC05-E3013CC4F75C}";
+const char kOmahaCobaltTfailvSb16AppID[] = "{8F9EC6E9-B89D-4C75-9E7E-A5B9B0254844}";
+const char kOmahaCobaltTmsabiSb14AppID[] = "{87EDA0A7-ED13-4A72-9CD9-EBD4BED081AB}";
+const char kOmahaCobaltTmsabiSb15AppID[] = "{60296D57-2572-4B16-89EC-C9DA5A558E8A}";
+const char kOmahaCobaltTmsabiSb16AppID[] = "{1B915523-8ADD-4C66-9E8F-D73FB48A4296}";
+const char kOmahaCobaltTnoopSb14AppID[] = "{C407CF3F-21A4-47AA-9667-63E7EEA750CB}";
+const char kOmahaCobaltTnoopSb15AppID[] = "{FC568D82-E608-4F15-95F0-A539AB3F6E9D}";
+const char kOmahaCobaltTnoopSb16AppID[] = "{5F4E8AD9-067B-443A-8B63-A7CC4C95B264}";
 const char kOmahaCobaltTrunkAppID[] = "{A9557415-DDCD-4948-8113-C643EFCF710C}";
-const char kOmahaCobaltAppID[] = "{6D4E53F3-CC64-4CB8-B6BD-AB0B8F300E1C}";
+const char kOmahaCobaltTseries1Sb14AppID[] = "{0A8A3F51-3FAB-4427-848E-28590DB75AA1}";
+const char kOmahaCobaltTseries1Sb15AppID[] = "{92B7AC78-1B3B-4CE6-BA39-E1F50C4F5F72}";
+const char kOmahaCobaltTseries1Sb16AppID[] = "{6E7C6582-3DC4-4B48-97F2-FA43614B2B4D}";
+const char kOmahaCobaltTseries2Sb14AppID[] = "{7CB65840-5FA4-4706-BC9E-86A89A56B4E0}";
+const char kOmahaCobaltTseries2Sb15AppID[] = "{7CCA7DB3-C27D-4CEB-B6A5-50A4D6DE40DA}";
+const char kOmahaCobaltTseries2Sb16AppID[] = "{012BF4F5-8463-490F-B6C8-E9B64D972152}";
+
 
 std::string GetDeviceProperty(SbSystemPropertyId id) {
   char value[kSystemPropertyMaxLength];
@@ -260,14 +304,147 @@ std::vector<uint8_t> Configurator::GetRunActionKeyHash() const {
 
 std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
                                            const std::string& version) {
+  if (version.find(".lts.") == std::string::npos &&
+      version.find(".master.") != std::string::npos) {
+    return kOmahaCobaltTrunkAppID;
+  }
+  if (updater_channel == "control" && SB_API_VERSION == 14) {
+    return kOmahaCobaltControlSb14AppID;
+  }
+  if (updater_channel == "control" && SB_API_VERSION == 15) {
+    return kOmahaCobaltControlSb15AppID;
+  }
+  if (updater_channel == "control" && SB_API_VERSION == 16) {
+    return kOmahaCobaltControlSb16AppID;
+  }
+    if (updater_channel == "experiement" && SB_API_VERSION == 14) {
+    return kOmahaCobaltExperimentSb14AppID;
+  }
+  if (updater_channel == "experiement" && SB_API_VERSION == 15) {
+    return kOmahaCobaltExperimentSb15AppID;
+  }
+  if (updater_channel == "experiement" && SB_API_VERSION == 16) {
+    return kOmahaCobaltExperimentSb16AppID;
+  }
+  if (updater_channel == "qa" && SB_API_VERSION == 14) {
+    return kOmahaCobaltQaSb14AppID;
+  }
+  if (updater_channel == "qa" && SB_API_VERSION == 15) {
+    return kOmahaCobaltQaSb15AppID;
+  }
+  if (updater_channel == "qa" && SB_API_VERSION == 16) {
+    return kOmahaCobaltQaSb16AppID;
+  }
+  if (updater_channel == "rollback" && SB_API_VERSION == 14) {
+    return kOmahaCobaltRollbackSb14AppID;
+  }
+  if (updater_channel == "rollback" && SB_API_VERSION == 15) {
+    return kOmahaCobaltRollbackSb15AppID;
+  }
+  if (updater_channel == "rollback" && SB_API_VERSION == 16) {
+    return kOmahaCobaltRollbackSb16AppID;
+  }
+  if (std::regex_match(updater_channel, std::regex("2[5-9]lts\\d+")) &&
+      SB_API_VERSION == 14) {
+    return kOmahaCobaltStaticSb14AppID;
+  }
+  if (std::regex_match(updater_channel, std::regex("2[5-9]lts\\d+")) &&
+      SB_API_VERSION == 15) {
+    return kOmahaCobaltStaticSb15AppID;
+  }
+  if (std::regex_match(updater_channel, std::regex("2[5-9]lts\\d+")) &&
+      SB_API_VERSION == 16) {
+    return kOmahaCobaltStaticSb16AppID;
+  }
+  if (updater_channel == "t1app" && SB_API_VERSION == 14) {
+    return kOmahaCobaltT1appSb14AppID;
+  }
+  if (updater_channel == "t1app" && SB_API_VERSION == 15) {
+    return kOmahaCobaltT1appSb15AppID;
+  }
+  if (updater_channel == "t1app" && SB_API_VERSION == 16) {
+    return kOmahaCobaltT1appSb16AppID;
+  }
+  if (updater_channel == "tcrash" && SB_API_VERSION == 14) {
+    return kOmahaCobaltTcrashSb14AppID;
+  }
+  if (updater_channel == "tcrash" && SB_API_VERSION == 15) {
+    return kOmahaCobaltTcrashSb15AppID;
+  }
+  if (updater_channel == "tcrash" && SB_API_VERSION == 16) {
+    return kOmahaCobaltTcrashSb16AppID;
+  }
+  if (updater_channel == "test" && SB_API_VERSION == 14) {
+    return kOmahaCobaltTestSb14AppID;
+  }
+  if (updater_channel == "test" && SB_API_VERSION == 15) {
+    return kOmahaCobaltTestSb15AppID;
+  }
+  if (updater_channel == "test" && SB_API_VERSION == 16) {
+    return kOmahaCobaltTestSb16AppID;
+  }
+  if (updater_channel == "tfailv" && SB_API_VERSION == 14) {
+    return kOmahaCobaltTfailvSb14AppID;
+  }
+  if (updater_channel == "tfailv" && SB_API_VERSION == 15) {
+    return kOmahaCobaltTfailvSb15AppID;
+  }
+  if (updater_channel == "tfailv" && SB_API_VERSION == 16) {
+    return kOmahaCobaltTfailvSb16AppID;
+  }
+  if (updater_channel == "tmsabi" && SB_API_VERSION == 14) {
+    return kOmahaCobaltTmsabiSb14AppID;
+  }
+  if (updater_channel == "tmsabi" && SB_API_VERSION == 15) {
+    return kOmahaCobaltTmsabiSb15AppID;
+  }
+  if (updater_channel == "tmsabi" && SB_API_VERSION == 16) {
+    return kOmahaCobaltTmsabiSb16AppID;
+  }
+  if (updater_channel == "tnoop" && SB_API_VERSION == 14) {
+    return kOmahaCobaltTnoopSb14AppID;
+  }
+  if (updater_channel == "tnoop" && SB_API_VERSION == 15) {
+    return kOmahaCobaltTnoopSb15AppID;
+  }
+  if (updater_channel == "tnoop" && SB_API_VERSION == 16) {
+    return kOmahaCobaltTnoopSb16AppID;
+  }
+  if (updater_channel == "tseries1" && SB_API_VERSION == 14) {
+    return kOmahaCobaltTseries1Sb14AppID;
+  }
+  if (updater_channel == "tseries1" && SB_API_VERSION == 15) {
+    return kOmahaCobaltTseries1Sb15AppID;
+  }
+  if (updater_channel == "tseries1" && SB_API_VERSION == 16) {
+    return kOmahaCobaltTseries1Sb16AppID;
+  }
+    if (updater_channel == "tseries2" && SB_API_VERSION == 14) {
+    return kOmahaCobaltTseries2Sb14AppID;
+  }
+  if (updater_channel == "tseries2" && SB_API_VERSION == 15) {
+    return kOmahaCobaltTseries2Sb15AppID;
+  }
+  if (updater_channel == "tseries2" && SB_API_VERSION == 16) {
+    return kOmahaCobaltTseries2Sb16AppID;
+  }
   if (updater_channel == "ltsnightly" || updater_channel == "ltsnightlyqa") {
     return kOmahaCobaltLTSNightlyAppID;
   }
-  if (version.find(".lts.") != std::string::npos &&
-      version.find(".master.") == std::string::npos) {
-    return kOmahaCobaltAppID;
+  if (updater_channel != "prod") {
+    LOG(INFO) << "Configurator::GetAppGuidHelper Channel is invalid.";
   }
-  return kOmahaCobaltTrunkAppID;
+  if (SB_API_VERSION == 14) {
+    return kOmahaCobaltProdSb14AppID;
+  }
+  if (SB_API_VERSION == 15) {
+    return kOmahaCobaltProdSb15AppID;
+  }
+  if (SB_API_VERSION == 16) {
+    return kOmahaCobaltProdSb16AppID;
+  }
+  LOG(INFO) << "Configurator::GetAppGuidHelper Channel is invalid.";
+  return kOmahaCobaltAppID;
 }
 
 std::string Configurator::GetAppGuid() const {
