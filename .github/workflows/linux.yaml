@@ -28,7 +28,7 @@ jobs:
       packages: write
       pull-requests: write
     with:
-      platform: chromium_linux-x64x11
+      platform: chromium_linux
       nightly: ${{ github.event.inputs.nightly }}
   # This is default Cobalt build config
   linux:
@@ -37,5 +37,5 @@ jobs:
       packages: write
       pull-requests: write
     with:
-      platform: linux-x64x11
+      platform: linux
       nightly: ${{ github.event.inputs.nightly }}

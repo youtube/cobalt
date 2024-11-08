@@ -137,9 +137,16 @@ if __name__ == '__main__':
       '--platform',
       default='linux',
       choices=[
-          'chromium_linux-x64x11', 'chromium_android-arm',
-          'chromium_android-arm64', 'chromium_android-x86', 'linux-x64x11',
-          'android-arm', 'android-arm64', 'android-x86', 'linux'
+          'chromium_linux-x64x11',
+          'chromium_android-arm',
+          'chromium_android-arm64',
+          'chromium_android-x86',
+          'linux-x64x11',
+          'android-arm',
+          'android-arm64',
+          'android-x86',
+          'linux',
+          'chromium_linux',
       ],
       help='The platform to build.')
   parser.add_argument(
