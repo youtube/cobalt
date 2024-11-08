@@ -338,7 +338,6 @@ bool CanLoadURL(const KURL& url, const String& content_type_str) {
   // knows it cannot render.
   if (content_mime_type != "application/octet-stream" ||
       content_type_codecs.empty()) {
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     SbMediaSupportType support_type =
         SbMediaCanPlayMimeAndKeySystem(content_type_str.Ascii().c_str(), "");
@@ -357,12 +356,11 @@ bool CanLoadURL(const KURL& url, const String& content_type_str) {
     LOG(INFO) << __func__ << "(" << content_type_str.Ascii() << ") -> "
               << result;
     return result;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#else   // BUILDFLAG(IS_COBALT)
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     return MIMETypeRegistry::SupportsMediaMIMEType(content_mime_type,
                                                    content_type_codecs) !=
            MIMETypeRegistry::kNotSupported;
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
   return false;
 }
@@ -405,7 +403,6 @@ std::ostream& operator<<(std::ostream& stream,
 // static
 MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
     const ContentType& content_type) {
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Interupt Chromium's IsTypeSupported() from here for better performance.
   SbMediaSupportType support_type =
@@ -424,8 +421,7 @@ MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
   }
   LOG(INFO) << __func__ << "(" << content_type.Raw() << ") -> " << result;
   return result;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#else   // BUILDFLAG(IS_COBALT)
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   // TODO(https://crbug.com/809912): Finding source of mime parsing crash.
   static base::debug::CrashKeyString* content_type_crash_key =
       base::debug::AllocateCrashKeyString("media_content_type",
@@ -453,7 +449,7 @@ MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
   MIMETypeRegistry::SupportsType result =
       MIMETypeRegistry::SupportsMediaMIMEType(type, type_codecs);
   return result;
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 bool HTMLMediaElement::IsHLSURL(const KURL& url) {
