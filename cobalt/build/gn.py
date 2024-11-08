@@ -135,7 +135,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '-p',
       '--platform',
-      default='linux',
+      default='linux-x64x11',
       choices=[
           'chromium_linux-x64x11',
           'chromium_android-arm',
@@ -145,8 +145,6 @@ if __name__ == '__main__':
           'android-arm',
           'android-arm64',
           'android-x86',
-          'linux',
-          'chromium_linux',
       ],
       help='The platform to build.')
   parser.add_argument(
