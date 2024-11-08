@@ -12,19 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/decoder_buffer_allocator.h"
+#include "media/starboard/decoder_buffer_allocator.h"
 
 #include <algorithm>
 #include <vector>
 
 #include "base/logging.h"
-#include "cobalt/math/size.h"
-#include "media/base/starboard_utils.h"
+#include "media/starboard/starboard_utils.h"
 #include "starboard/common/allocator.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 
-namespace cobalt {
 namespace media {
 
 namespace {
@@ -126,7 +124,9 @@ int DecoderBufferAllocator::GetAudioBufferBudget() const {
   return SbMediaGetAudioBufferBudget();
 }
 
-int DecoderBufferAllocator::GetBufferAlignment() const { return sizeof(void*); }
+int DecoderBufferAllocator::GetBufferAlignment() const {
+  return sizeof(void*);
+}
 
 int DecoderBufferAllocator::GetBufferPadding() const {
   return SbMediaGetBufferPadding();
@@ -134,12 +134,14 @@ int DecoderBufferAllocator::GetBufferPadding() const {
 
 base::TimeDelta
 DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold() const {
-  return base::TimeDelta::FromMicroseconds(
+  return base::Microseconds(
       SbMediaGetBufferGarbageCollectionDurationThreshold());
 }
 
 int DecoderBufferAllocator::GetProgressiveBufferBudget(
-    SbMediaVideoCodec codec, int resolution_width, int resolution_height,
+    SbMediaVideoCodec codec,
+    int resolution_width,
+    int resolution_height,
     int bits_per_pixel) const {
   return SbMediaGetProgressiveBufferBudget(codec, resolution_width,
                                            resolution_height, bits_per_pixel);
@@ -186,4 +188,3 @@ void DecoderBufferAllocator::EnsureReuseAllocatorIsCreated() {
 }
 
 }  // namespace media
-}  // namespace cobalt

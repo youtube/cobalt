@@ -11,6 +11,23 @@
 
 namespace media {
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace {
+DecoderBuffer::Allocator* s_allocator = nullptr;
+}  // namespace
+
+// static
+DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
+  DCHECK(s_allocator);
+  return s_allocator;
+}
+
+// static
+void DecoderBuffer::Allocator::Set(Allocator* allocator) {
+  s_allocator = allocator;
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 DecoderBuffer::TimeInfo::TimeInfo() = default;
 DecoderBuffer::TimeInfo::~TimeInfo() = default;
 DecoderBuffer::TimeInfo::TimeInfo(const TimeInfo&) = default;
@@ -30,11 +47,21 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data, size_t size)
 
   Initialize();
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  memcpy(data_, data, size_);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   memcpy(data_.get(), data, size_);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    : size_(size) {
+      // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
+    }
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     : data_(std::move(data)), size_(size) {}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 DecoderBuffer::DecoderBuffer(base::ReadOnlySharedMemoryMapping mapping,
                              size_t size)
@@ -49,11 +76,28 @@ DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
       external_memory_(std::move(external_memory)) {}
 
 DecoderBuffer::~DecoderBuffer() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  DCHECK(s_allocator);
+  s_allocator->Free(data_, allocated_size_);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void DecoderBuffer::Initialize() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  DCHECK(s_allocator);
+  DCHECK(!data_);
+
+  int alignment = s_allocator->GetBufferAlignment();
+  int padding = s_allocator->GetBufferPadding();
+  allocated_size_ = size_ + padding;
+  data_ = static_cast<uint8_t*>(s_allocator->Allocate(allocated_size_,
+                                                      alignment));
+  memset(data_ + size_, 0, padding);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset(new uint8_t[size_]);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 // static
