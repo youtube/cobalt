@@ -2804,6 +2804,9 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
   // TODO(b/375278384): Select the StarboardRenderer properly instead of
   //                    hard coding.
 
+  // StarboardRenderer always uses full screen with overlay video mode.
+  overlay_info_.is_fullscreen = true;
+
   // `media_task_runner_` is always true, use an if statement to avoid
   // potential build warning on unreachable code.
   if (media_task_runner_) {
