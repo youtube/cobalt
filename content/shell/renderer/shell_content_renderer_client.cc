@@ -49,11 +49,9 @@
 #include "media/base/media_switches.h"
 #endif
 
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "starboard/media.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif  // BUILDFLAG(IS_COBALT)
 
 namespace content {
 
@@ -283,7 +281,6 @@ void ShellContentRendererClient::GetSupportedKeySystems(
 }
 #endif
 
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
 // support to query codec capabilities with configs.
@@ -349,7 +346,6 @@ bool ShellContentRendererClient::IsSupportedVideoType(
   return result;
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif  // BUILDFLAG(IS_COBALT)
 
 std::unique_ptr<blink::WebPrescientNetworking>
 ShellContentRendererClient::CreatePrescientNetworking(

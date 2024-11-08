@@ -136,13 +136,11 @@ bool MIMETypeRegistry::IsSupportedMediaMIMEType(const String& mime_type,
 MIMETypeRegistry::SupportsType MIMETypeRegistry::SupportsMediaMIMEType(
     const String& mime_type,
     const String& codecs) {
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   const std::string ascii_mime_type = mime_type.Ascii();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#else   // BUILDFLAG(IS_COBALT)
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   const std::string ascii_mime_type = ToLowerASCIIOrEmpty(mime_type);
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::vector<std::string> codec_vector;
   media::SplitCodecs(ToASCIIOrEmpty(codecs), &codec_vector);
   return static_cast<SupportsType>(
