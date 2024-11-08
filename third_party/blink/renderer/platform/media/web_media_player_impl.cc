@@ -2800,7 +2800,6 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
           &WebMediaPlayerImpl::OnOverlayInfoRequested, weak_this_));
 #endif
 
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // TODO(b/375278384): Select the StarboardRenderer properly instead of
   //                    hard coding.
@@ -2811,8 +2810,7 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
     return std::make_unique<media::StarboardRenderer>(media_task_runner_,
         compositor_.get());
   }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (renderer_type) {
     DVLOG(1) << __func__

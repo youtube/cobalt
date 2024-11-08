@@ -162,11 +162,9 @@ void MediaSource::LogAndThrowTypeError(ExceptionState& exception_state,
 SourceBuffer* MediaSource::addSourceBuffer(const String& type,
                                            ExceptionState& exception_state) {
   DVLOG(2) << __func__ << " this=" << this << " type=" << type;
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << __func__ << "(" << type << ").";
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif  // BUILDFLAG(IS_COBALT)
 
   // 2.2
   // https://www.w3.org/TR/media-source/#dom-mediasource-addsourcebuffer
@@ -183,11 +181,9 @@ SourceBuffer* MediaSource::addSourceBuffer(const String& type,
   if (!IsTypeSupportedInternal(
           GetExecutionContext(), type,
           false /* Allow underspecified codecs in |type| */)) {
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     LOG(INFO) << __func__ << "(" << type << ") is unsupported.";
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif  // BUILDFLAG(IS_COBALT)
     LogAndThrowDOMException(
         exception_state, DOMExceptionCode::kNotSupportedError,
         "The type provided ('" + type + "') is unsupported.");
@@ -508,12 +504,10 @@ bool MediaSource::isTypeSupported(ExecutionContext* context,
   bool result = IsTypeSupportedInternal(
       context, type, true /* Require fully specified mime and codecs */);
   DVLOG(2) << __func__ << "(" << type << ") -> " << (result ? "true" : "false");
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   LOG(INFO) << __func__ << "(" << type << ") -> "
             << (result ? "true" : "false");
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   return result;
 }
 
@@ -542,14 +536,12 @@ bool MediaSource::IsTypeSupportedInternal(ExecutionContext* context,
     return false;
   }
 
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Interupt Chromium's IsTypeSupported() from here for better performance.
   SbMediaSupportType support_type =
       SbMediaCanPlayMimeAndKeySystem(type.Ascii().c_str(), "");
   return support_type != kSbMediaSupportTypeNotSupported;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#else   // BUILDFLAG(IS_COBALT)
+#else
   // 2. If type does not contain a valid MIME type string, then return false.
   ContentType content_type(type);
   String mime_type = content_type.GetType();
@@ -654,7 +646,7 @@ bool MediaSource::IsTypeSupportedInternal(ExecutionContext* context,
            << (result ? "true" : "false");
   RecordIdentifiabilityMetric(context, type, result);
   return result;
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 // static
