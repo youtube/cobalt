@@ -420,14 +420,14 @@ bool KeySystemConfigSelector::IsSupportedContentType(
   // robustness algorithm).
 #if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (SbMediaCanPlayMimeAndKeySystem(container_mime_type.c_str(),
-                                     key_system.c_str()) ==
+  const std::string full_mime = container_lower + "; codecs=\"" + codecs + "\"";
+  if (SbMediaCanPlayMimeAndKeySystem(full_mime.c_str(), key_system.c_str()) ==
       kSbMediaSupportTypeNotSupported) {
-    LOG(INFO) << __func__ << "(" << container_lower << " and " << key_system
+    LOG(INFO) << __func__ << "(" << full_mime << " and " << key_system
               << ") are unsupported.";
     return false;
   } else {
-    LOG(INFO) << __func__ << "(" << container_lower << " and " << key_system
+    LOG(INFO) << __func__ << "(" << full_mime << " and " << key_system
               << ") are supported.";
   }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
