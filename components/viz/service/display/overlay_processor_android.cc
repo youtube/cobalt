@@ -59,14 +59,12 @@ OverlayProcessorAndroid::OverlayProcessorAndroid(
   // the underlying overlay is opaque anyway; the candidate is referring to
   // a dummy resource that has no relation to what the overlay contains.
   // https://crbug.com/842931 .
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  strategies_.push_back(std::make_unique<OverlayStrategyUnderlayStarboard>(this)); 
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-#else // BUILDFLAG(IS_COBALT)
+  strategies_.push_back(std::make_unique<OverlayStrategyUnderlayStarboard>(this));
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   strategies_.push_back(std::make_unique<OverlayStrategyUnderlay>(
       this, OverlayStrategyUnderlay::OpaqueMode::AllowTransparentCandidates));
-#endif // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   overlay_candidates_.clear();
 }
