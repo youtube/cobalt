@@ -1132,6 +1132,7 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   // Either both buffers should be empty or only one should be filled.
   CHECK(frame_buf.empty() || heap_frame_buf.empty());
 
+<<<<<<< HEAD
   const auto buffer_type = audio ? DemuxerStream::AUDIO : DemuxerStream::VIDEO;
   scoped_refptr<StreamParserBuffer> stream_buf;
 
@@ -1164,6 +1165,17 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
           is_keyframe, buffer_type, runs_->track_id());
     }
   }
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  scoped_refptr<StreamParserBuffer> stream_buf =
+      StreamParserBuffer::CopyFrom(&frame_buf[0], frame_buf.size(), is_keyframe,
+                                   buffer_type, runs_->track_id());
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+  auto stream_buf = StreamParserBuffer::FromExternalMemory(
+      std::make_unique<ExternalMemoryAdapter>(std::move(frame_buf)),
+      is_keyframe, buffer_type, runs_->track_id());
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> af3d7334d8c ([media] Support DecoderBufferAllocator (#4348))
 
   if (decrypt_config)
     stream_buf->set_decrypt_config(std::move(decrypt_config));

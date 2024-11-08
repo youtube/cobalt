@@ -15,6 +15,7 @@
 
 namespace media {
 
+<<<<<<< HEAD
 namespace {
 
 template <class T>
@@ -32,6 +33,30 @@ class ExternalSharedMemoryAdapter : public DecoderBuffer::ExternalMemory {
 };
 
 }  // namespace
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+namespace {
+DecoderBuffer::Allocator* s_allocator = nullptr;
+}  // namespace
+
+// static
+DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
+  DCHECK(s_allocator);
+  return s_allocator;
+}
+
+// static
+void DecoderBuffer::Allocator::Set(Allocator* allocator) {
+  s_allocator = allocator;
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+DecoderBuffer::TimeInfo::TimeInfo() = default;
+DecoderBuffer::TimeInfo::~TimeInfo() = default;
+DecoderBuffer::TimeInfo::TimeInfo(const TimeInfo&) = default;
+DecoderBuffer::TimeInfo& DecoderBuffer::TimeInfo::operator=(const TimeInfo&) =
+    default;
+>>>>>>> af3d7334d8c ([media] Support DecoderBufferAllocator (#4348))
 
 DecoderBuffer::DecoderBuffer(size_t size)
     : data_(base::HeapArray<uint8_t>::Uninit(size)) {}
@@ -39,12 +64,49 @@ DecoderBuffer::DecoderBuffer(size_t size)
 DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
     : data_(base::HeapArray<uint8_t>::CopiedFrom(data)) {}
 
+<<<<<<< HEAD
 DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data)
     : data_(std::move(data)) {}
+=======
+  Initialize();
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  memcpy(data_, data, size_);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+  memcpy(data_.get(), data, size_);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+  if (!side_data) {
+    CHECK_EQ(side_data_size, 0u);
+    return;
+  }
+
+  DCHECK_GT(side_data_size_, 0u);
+  memcpy(side_data_.get(), side_data, side_data_size_);
+}
+
+DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    : size_(size) {
+      // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
+    }
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+    : data_(std::move(data)), size_(size) {}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+DecoderBuffer::DecoderBuffer(base::ReadOnlySharedMemoryMapping mapping,
+                             size_t size)
+    : size_(size), read_only_mapping_(std::move(mapping)) {}
+
+DecoderBuffer::DecoderBuffer(base::WritableSharedMemoryMapping mapping,
+                             size_t size)
+    : size_(size), writable_mapping_(std::move(mapping)) {}
+>>>>>>> af3d7334d8c ([media] Support DecoderBufferAllocator (#4348))
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
     : external_memory_(std::move(external_memory)) {}
 
+<<<<<<< HEAD
 DecoderBuffer::DecoderBuffer(DecoderBufferType decoder_buffer_type,
                              std::optional<ConfigVariant> next_config)
     : is_end_of_stream_(decoder_buffer_type ==
@@ -74,6 +136,35 @@ DecoderBuffer::DecoderBuffer(base::PassKey<DecoderBuffer>,
     : DecoderBuffer(decoder_buffer_type, std::move(next_config)) {}
 
 DecoderBuffer::~DecoderBuffer() = default;
+=======
+DecoderBuffer::~DecoderBuffer() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  DCHECK(s_allocator);
+  s_allocator->Free(data_, allocated_size_);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+  data_.reset();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+  side_data_.reset();
+}
+
+void DecoderBuffer::Initialize() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  DCHECK(s_allocator);
+  DCHECK(!data_);
+
+  int alignment = s_allocator->GetBufferAlignment();
+  int padding = s_allocator->GetBufferPadding();
+  allocated_size_ = size_ + padding;
+  data_ = static_cast<uint8_t*>(s_allocator->Allocate(allocated_size_,
+                                                      alignment));
+  memset(data_ + size_, 0, padding);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+  data_.reset(new uint8_t[size_]);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+  if (side_data_size_ > 0)
+    side_data_.reset(new uint8_t[side_data_size_]);
+}
+>>>>>>> af3d7334d8c ([media] Support DecoderBufferAllocator (#4348))
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(

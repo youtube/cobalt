@@ -20,6 +20,10 @@
 #include "ui/gfx/color_space.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/decoder_buffer_allocator.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 class MediaClient;
@@ -65,11 +69,19 @@ class MEDIA_EXPORT MediaClient {
   virtual std::optional<::media::AudioRendererAlgorithmParameters>
   GetAudioRendererAlgorithmParameters(AudioParameters audio_parameters) = 0;
 
+<<<<<<< HEAD
   // Returns custom allocator if embedder has provided one, else nullptr.
   // When an allocator is provided, the MSE pipeline will use the provided
   // allocator during StreamParserBuffer creation. The SRC playback pipeline
   // does not currently use the allocator, but could be updated to do so.
   virtual ExternalMemoryAllocator* GetMediaAllocator() = 0;
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+ private:
+  // TODO(b/326497953): Support Suspend() and Resume().
+  DecoderBufferAllocator decoder_buffer_allocator_;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> af3d7334d8c ([media] Support DecoderBufferAllocator (#4348))
 };
 
 }  // namespace media
