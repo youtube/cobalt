@@ -83,8 +83,6 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
   scoped_refptr<IOBufferWithSize> read_buffer_;
   NetLogWithSource net_log_;
 
-  base::WeakPtrFactory<QuicChromiumPacketReader> weak_factory_{this};
-
 #if defined(STARBOARD)
   // Static flag to remember when ReadMultiplePackets has ever returned
   // ERR_NOT_IMPLEMENTED
@@ -93,6 +91,9 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
   // Results from ReadMultiplePackets.
   Socket::ReadPacketResults read_results_;
 #endif
+
+  // Note: This has to remain the last member of the class.
+  base::WeakPtrFactory<QuicChromiumPacketReader> weak_factory_{this};
 };
 
 }  // namespace net
