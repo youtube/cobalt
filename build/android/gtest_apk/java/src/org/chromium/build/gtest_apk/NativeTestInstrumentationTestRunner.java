@@ -15,6 +15,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Process;
+import android.net.Uri;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.SparseArray;
@@ -27,6 +28,8 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Queue;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import androidx.test.services.storage.TestStorage;
 
 /**
  *  An Instrumentation that runs tests based on NativeTest.
@@ -44,6 +47,8 @@ public class NativeTestInstrumentationTestRunner extends Instrumentation {
             "org.chromium.native_test.NativeTestInstrumentationTestRunner.TestList";
     private static final String EXTRA_TEST =
             "org.chromium.native_test.NativeTestInstrumentationTestRunner.Test";
+    private static final String EXTRA_TEST_STORAGE_FILE =
+            "org.chromium.native_test.NativeTestInstrumentationTestRunner.TestStorageFile";
 
     private static final String TAG = "NativeTest";
 
@@ -86,6 +91,14 @@ public class NativeTestInstrumentationTestRunner extends Instrumentation {
         mTransparentArguments.remove(EXTRA_SHARD_SIZE_LIMIT);
 
         String stdoutFile = arguments.getString(EXTRA_STDOUT_FILE);
+
+        // Override mStdoutFile if we get TestStorage arg passed to us
+        String contentUri = arguments.getString(EXTRA_TEST_STORAGE_FILE);
+        if (contentUri != null && stdoutFile == null) {
+            Uri fileUri = TestStorage.getInputFileUri(contentUri);
+            stdoutFile = fileUri.getPath();
+            Log.i(TAG, "Resolved TestStorage input file:" + stdoutFile);
+        }
         if (stdoutFile != null) {
             mStdoutFile = new File(stdoutFile);
         } else {
