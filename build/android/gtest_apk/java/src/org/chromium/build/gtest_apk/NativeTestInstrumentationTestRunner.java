@@ -69,6 +69,7 @@ public class NativeTestInstrumentationTestRunner extends Instrumentation {
 
     @Override
     public void onCreate(Bundle arguments) {
+        Log.e(TAG, "Hey i'm here");
         Context context = getContext();
         mTransparentArguments = new Bundle(arguments);
 
@@ -91,10 +92,21 @@ public class NativeTestInstrumentationTestRunner extends Instrumentation {
         mTransparentArguments.remove(EXTRA_SHARD_SIZE_LIMIT);
 
         String stdoutFile = arguments.getString(EXTRA_STDOUT_FILE);
+        if(stdoutFile == null) {
+            Log.e(TAG, "point 2 : stdout was null");
+        } else {
+            Log.e(TAG, "point 2 : stdout :" + stdoutFile);
+        }
 
         // Override mStdoutFile if we get TestStorage arg passed to us
         String contentUri = arguments.getString(EXTRA_TEST_STORAGE_FILE);
+        if(contentUri == null) {
+            Log.e(TAG, "point 3 : contentUri was null");
+        } else {
+            Log.e(TAG, "point 3 : contentUri :" + contentUri);
+        }
         if (contentUri != null && stdoutFile == null) {
+            Log.e(TAG, "point 4 : making temp input file something");
             Uri fileUri = TestStorage.getInputFileUri(contentUri);
             stdoutFile = fileUri.getPath();
             Log.i(TAG, "Resolved TestStorage input file:" + stdoutFile);
