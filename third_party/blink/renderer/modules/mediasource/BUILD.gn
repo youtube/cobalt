@@ -57,7 +57,7 @@ blink_modules_sources("mediasource") {
   ]
   if (is_cobalt && use_starboard_media) {
     deps += [
-      "//starboard($starboard_toolchain)",
+      #"//starboard($starboard_toolchain)",
     ]
   }
 }

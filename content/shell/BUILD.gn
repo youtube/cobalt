@@ -100,7 +100,7 @@ static_library("content_shell_app") {
       "//content/web_test:web_test_renderer",
     ]
   }
-  if (!is_fuchsia) {
+  if (!is_fuchsia && !is_starboard) {
     deps += [
       "//components/crash/core/app",
       "//components/crash/core/app:test_support",
@@ -332,7 +332,7 @@ static_library("content_shell_lib") {
   } else {
     deps += [
       "//components/crash/content/browser",
-      "//components/crash/core/app",
+      #"//components/crash/core/app",
     ]
   }
 
@@ -445,7 +445,7 @@ static_library("content_shell_lib") {
 
   if (is_cobalt && use_starboard_media) {
     deps += [
-      "//starboard($starboard_toolchain)",
+      #"//starboard($starboard_toolchain)",
     ]
   }
 }
@@ -666,7 +666,7 @@ if (is_android) {
       data_deps +=
           [ "//third_party/crashpad/crashpad/handler:crashpad_handler" ]
     } else if (is_linux || is_chromeos) {
-      data_deps += [ "//components/crash/core/app:chrome_crashpad_handler" ]
+      #data_deps += [ "//components/crash/core/app:chrome_crashpad_handler" ]
     }
 
     if ((is_linux || is_chromeos) && !is_component_build) {
@@ -755,7 +755,7 @@ if (is_mac) {
     testonly = true
     sources = [ "$root_out_dir/chrome_crashpad_handler" ]
     outputs = [ "{{bundle_contents_dir}}/Helpers/{{source_file_part}}" ]
-    public_deps = [ "//components/crash/core/app:chrome_crashpad_handler" ]
+    #public_deps = [ "//components/crash/core/app:chrome_crashpad_handler" ]
     foreach(helper_params, content_mac_helpers) {
       sources += [
         "$root_out_dir/${content_shell_helper_name}${helper_params[2]}.app",

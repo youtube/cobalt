@@ -355,7 +355,7 @@ struct linger {
 
 #define CMSG_DATA(cmsg) ((unsigned char *) (((struct cmsghdr *)(cmsg)) + 1))
 #define CMSG_NXTHDR(mhdr, cmsg) ((cmsg)->cmsg_len < sizeof (struct cmsghdr) || \
-	__CMSG_LEN(cmsg) + sizeof(struct cmsghdr) >= __MHDR_END(mhdr) - (unsigned char *)(cmsg) \
+	__CMSG_LEN(cmsg) + sizeof(struct cmsghdr) >= static_cast<unsigned long>(__MHDR_END(mhdr) - (unsigned char *)(cmsg)) \
 	? 0 : (struct cmsghdr *)__CMSG_NEXT(cmsg))
 #define CMSG_FIRSTHDR(mhdr) ((size_t) (mhdr)->msg_controllen >= sizeof (struct cmsghdr) ? (struct cmsghdr *) (mhdr)->msg_control : (struct cmsghdr *) 0)
 

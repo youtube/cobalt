@@ -101,9 +101,13 @@ component("policy") {
       ":chromecast_sandbox_allowlist_buildflags",
       "//sandbox:sandbox_buildflags",
       "//sandbox/linux:sandbox_services",
-      "//sandbox/linux:seccomp_bpf",
       "//sandbox/linux:suid_sandbox_client",
     ]
+    if (!is_starboard) {
+      deps += [
+        "//sandbox/linux:seccomp_bpf",
+      ]
+    }
   }
   if (is_chromeos_ash) {
     sources += [

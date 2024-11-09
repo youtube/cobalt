@@ -210,4 +210,11 @@ target(_libcxx_target_type, "libc++") {
       deps = [ "//buildtools/third_party/libc++abi" ]
     }
   }
+
+  if (is_starboard) {
+    deps += [
+      "//third_party/llvm-project/compiler-rt:compiler_rt",
+      "//third_party/musl:c",
+    ]
+  }
 }

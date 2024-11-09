@@ -22,7 +22,7 @@ source_set("support") {
     "//services/service_manager/public/mojom",
   ]
 
-  if (is_linux || is_chromeos) {
+  if ((is_linux || is_chromeos) && !is_starboard) {
     deps += [
       "//sandbox/linux:sandbox",
       "//sandbox/linux:sandbox_services",

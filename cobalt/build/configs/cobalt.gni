@@ -17,4 +17,5 @@
 
 declare_args() {
   is_cobalt = true
+  use_evergreen = false
 }

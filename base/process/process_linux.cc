@@ -5,7 +5,9 @@
 #include "base/process/process.h"
 
 #include <errno.h>
+#if !BUILDFLAG(IS_STARBOARD)
 #include <linux/magic.h>
+#endif
 #include <sys/resource.h>
 #include <sys/vfs.h>
 

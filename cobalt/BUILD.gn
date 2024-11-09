@@ -16,10 +16,12 @@ group("gn_all") {
   testonly = true
 
   # TODO(b/371589344): Fix android build configs.
-  deps = [
-    "//starboard($starboard_toolchain)",
-    "//starboard/nplb",
-  ]
+  if (use_evergreen) {
+    deps = [ "//starboard:starboard_headers_only" ]
+  } else {
+    deps = [ "//starboard($starboard_toolchain)" ]
+  }
+  deps += [ "//starboard/nplb" ]
   if (!is_android) {
     deps += [ ":cobalt" ]
   } else {
@@ -55,7 +57,42 @@ if (!is_android) {
       "//tools/v8_context_snapshot:v8_context_snapshot",
     ]
 
-    data_deps += [ "//components/crash/core/app:chrome_crashpad_handler" ]
+    if (!is_starboard) {
+      data_deps += [ "//components/crash/core/app:chrome_crashpad_handler" ]
+    }
+
+    configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+  }
+
+  shared_library("cobalt_lib") {
+    testonly = true
+
+    sources = [
+      "cobalt.cc",
+      "cobalt_content_browser_client.cc",
+      "cobalt_content_browser_client.h",
+      "cobalt_main_delegate.cc",
+      "cobalt_main_delegate.h",
+    ]
+
+    defines = []
+
+    deps = [
+      "//content/public/app",
+      "//content/shell:content_shell_app",
+      "//content/shell:content_shell_lib",
+      "//content/shell:pak",
+      "//sandbox",
+    ]
+
+    data_deps = [
+      "//content/shell:pak",
+      "//tools/v8_context_snapshot:v8_context_snapshot",
+    ]
+
+    if (!is_starboard) {
+      data_deps += [ "//components/crash/core/app:chrome_crashpad_handler" ]
+    }
 
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
   }

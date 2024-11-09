@@ -231,7 +231,7 @@ source_set("resources") {
   }
 }
 
-if (is_linux) {
+if (is_linux && !use_starboard) {
   pkg_config("xkbcommon") {
     packages = [ "xkbcommon" ]
   }

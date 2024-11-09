@@ -169,7 +169,7 @@ if (!is_cobalt) {
   }
 } else {
   group("starboard_group") {
-    deps = [ "//starboard($starboard_toolchain)" ]
+    #deps = [ "//starboard($starboard_toolchain)" ]
   }
 }
 

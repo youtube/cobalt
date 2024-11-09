@@ -218,7 +218,7 @@ config("default_libs") {
       "CoreText.framework",
       "Foundation.framework",
     ]
-  } else if (is_linux || is_chromeos) {
+  } else if ((is_linux || is_chromeos) && !(is_starboard)) {
     libs = [
       "dl",
       "pthread",
@@ -247,6 +247,13 @@ group("common_deps") {
 
   if (use_custom_libcxx) {
     public_deps += [ "//buildtools/third_party/libc++" ]
+    if (is_starboard) {
+      public_deps += [
+        "//third_party/llvm-project/compiler-rt:compiler_rt",
+        #"//third_party/llvm-project/libunwind:unwind",
+        "//third_party/musl:c",
+      ]
+    }
   }
 
   if (use_afl) {

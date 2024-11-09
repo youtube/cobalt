@@ -237,7 +237,7 @@ config("default_include_dirs") {
 # Compiler instrumentation can introduce dependencies in DSOs to symbols in
 # the executable they are loaded into, so they are unresolved at link-time.
 config("no_unresolved_symbols") {
-  if (!using_sanitizer &&
+  if (!using_sanitizer && !(is_starboard) &&
       (is_linux || is_chromeos || is_android || is_fuchsia)) {
     ldflags = [
       "-Wl,-z,defs",
@@ -652,6 +652,11 @@ config("compiler") {
     ldflags += [ "-fexperimental-relative-c++-abi-vtables" ]
   }
 
+  if (is_starboard) {
+    ldflags += [
+      "-nostdlib",
+    ]
+  }
   # Add flags for link-time optimization. These flags enable
   # optimizations/transformations that require whole-program visibility at link
   # time, so they need to be applied to all translation units, and we may end up

@@ -1,9 +1,8 @@
 #ifndef _PTHREAD_H
 #define _PTHREAD_H
-
 #if defined(STARBOARD)
 
-#include "third_party/musl/src/starboard/pthread/pthread.h"
+#include "pthread_starboard.h"
 
 #else
 
