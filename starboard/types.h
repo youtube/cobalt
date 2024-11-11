@@ -45,10 +45,6 @@ extern "C" {
 
 // --- Standard Include Emulation ----------------------------------------------
 
-#if !SB_HAS(SSIZE_T)
-#error Starboard platforms must define SSIZE_T (size_t).
-#endif  // !SB_HAS(SSIZE_T)
-
 // A value that represents an int that is probably invalid.
 #define kSbInvalidInt INT32_MIN
 
