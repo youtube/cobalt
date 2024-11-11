@@ -29,8 +29,6 @@
 extern "C" {
 #endif
 
-//using kEnumType = int;
-
 // A spectrum of thread priorities. Platforms map them appropriately to their
 // own priority system. Note that scheduling is platform-specific, and what
 // these priorities mean, if they mean anything at all, is also
