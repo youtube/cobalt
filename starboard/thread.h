@@ -76,7 +76,6 @@ typedef enum SbThreadPriority {
   kSbThreadNoPriority = INT_MIN,
 } SbThreadPriority;
 
-
 // An ID type that is unique per thread.
 typedef int32_t SbThreadId;
 
