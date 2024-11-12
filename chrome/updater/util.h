@@ -17,10 +17,22 @@ class FilePath;
 namespace cobalt {
 namespace updater {
 
+// Map of Omaha config IDs with channel and starboard version as indices.
+extern const std::unordered_map<std::string, std::string>
+    kChannelAndSbVersionToOmahaIdMap;
+
 // The default manifest version to assume when the actual manifest cannot be
 // parsed for any reason. This should not be used for installation manager
 // errors, or any other error unrelated to parsing the manifest.
 extern const char kDefaultManifestVersion[];
+
+// Legacy prod config containing all prod, tests and static channels with all
+// SB versions of C25 and prior.
+extern const char kOmahaCobaltAppID[];
+
+extern const char kOmahaCobaltLTSNightlyAppID[];
+
+extern const char kOmahaCobaltTrunkAppID[];
 
 struct EvergreenLibraryMetadata {
   std::string version;
