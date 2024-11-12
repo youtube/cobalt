@@ -103,7 +103,9 @@ public abstract class CobaltActivity extends Activity {
             // run Cobalt as a single process
             "--single-process",
             // enable Blink to work in overlay video mode
-            "--force-video-overlays"
+            "--force-video-overlays",
+            // autoplay video with url
+            "--autoplay-policy=no-user-gesture-required"
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
 
