@@ -15,7 +15,8 @@
         "blink_unittests",
         "content_shell",
         "system_webview_apk",
-        "system_webview_shell_apk"
+        "system_webview_shell_apk",
+        "cobalt:gn_all"
     ],
     "includes": [
         {

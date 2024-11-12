@@ -1,3 +1,4 @@
 target_os = "android"
 target_cpu = "arm"
+is_cobalt = false
 treat_warnings_as_errors = false
