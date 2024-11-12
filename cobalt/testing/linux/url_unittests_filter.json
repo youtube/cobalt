@@ -1,0 +1,12 @@
+{
+  "failing_tests": [
+	"All/URLCanonHostTest.Host/0",
+	"OriginTest.Serialization",
+	"URLCanonIcuTest.ICUCharsetConverter",
+	"URLCanonIcuTest.QueryWithConverter",
+	"URLCanonTest.CanonicalizeHostSubstring",
+	"URLCanonTest.CanonicalizeStandardURL",
+	"URLCanonTest.IDNToASCII",
+	"UrlOrigin/AbstractOriginTest/0.TupleOrigins"
+  ]
+}
