@@ -155,6 +155,13 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
 
   LOG(INFO) << "Flushing StarboardRenderer.";
 
+  // It's possible that Flush() is called immediately after StartPlayingFrom(),
+  // before the underlying SbPlayer is initialized.  Reset
+  // `playing_start_from_time_` here as StartPlayingFrom() checks for
+  // re-entrant.  This also avoids the stale `playing_start_from_time_` to be
+  // used.
+  playing_start_from_time_.reset();
+
   // Prepares the |player_bridge_| for Seek(), the |player_bridge_| won't
   // request more data from us before Seek() is called.
   player_bridge_->PrepareForSeek();
