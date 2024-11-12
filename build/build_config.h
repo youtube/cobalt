@@ -261,9 +261,9 @@
 #endif
 
 #if defined(OS_STARBOARD)
-#define BUILDFLAG_INTERNAL_USE_STARBOARD() (1)
+#define BUILDFLAG_INTERNAL_IS_STARBOARD() (1)
 #else
-#define BUILDFLAG_INTERNAL_USE_STARBOARD() (0)
+#define BUILDFLAG_INTERNAL_IS_STARBOARD() (0)
 #endif
 
 // Compiler detection. Note: clang masquerades as GCC on POSIX and as MSVC on
