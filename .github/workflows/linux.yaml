@@ -22,20 +22,20 @@ on:
 
 jobs:
   # This is default Chromium build config
-  linux-x64:
+  chromium_linux-x64:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: chromium_linux
+      nightly: ${{ github.event.inputs.nightly }}
+  # This is default Cobalt build config
+  linux:
     uses: ./.github/workflows/main.yaml
     permissions:
       packages: write
       pull-requests: write
     with:
       platform: linux
-      nightly: ${{ github.event.inputs.nightly }}
-  # This is default Cobalt build config
-  linux-cobalt:
-    uses: ./.github/workflows/main.yaml
-    permissions:
-      packages: write
-      pull-requests: write
-    with:
-      platform: linux-cobalt
       nightly: ${{ github.event.inputs.nightly }}
