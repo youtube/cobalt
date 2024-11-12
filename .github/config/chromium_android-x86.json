@@ -1,7 +1,7 @@
 {
     "docker_service": "linux",
     "platforms": [
-      "linux-cobalt-x64x11"
+        "chromium_android-x86"
     ],
     "targets": [
         "base_unittests",
@@ -14,12 +14,13 @@
         "gin_unittests",
         "blink_unittests",
         "content_shell",
-        "cobalt:gn_all"
+        "system_webview_apk",
+        "system_webview_shell_apk"
     ],
     "includes": [
-      {
-        "name":"x64",
-        "platform":"linux-cobalt-x64x11"
-      }
+        {
+        "name":"x86",
+        "platform":"chromium_android-x86"
+        }
     ]
-  }
+}
