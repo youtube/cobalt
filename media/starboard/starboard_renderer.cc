@@ -674,6 +674,8 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
 void StarboardRenderer::OnPlayerError(SbPlayerError error,
                                       const std::string& message) {
   // TODO(b/375271948): Implement and verify error reporting.
+  LOG(ERROR) << "StarboardRenderer::OnPlayerError() called with code " << error
+             << " and message \"" << message << "\"";
   NOTIMPLEMENTED();
 }
 
