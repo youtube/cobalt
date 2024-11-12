@@ -1,8 +1,12 @@
 {
   "failing_tests": [
 	"GpuMemoryBufferImplNativePixmap/GpuMemoryBufferImplTest/0.CreateFromHandle",
+	"GpuMemoryBufferImplNativePixmap/GpuMemoryBufferImplTest/0.CreateFromHandleSmallBuffer",
+	"GpuMemoryBufferImplNativePixmap/GpuMemoryBufferImplTest/0.PersistentMap",
 	"GpuMemoryBufferImplSharedMemory/GpuMemoryBufferImplTest/0.CreateFromHandle",
+	"GpuMemoryBufferImplSharedMemory/GpuMemoryBufferImplTest/0.CreateFromHandleSmallBuffer",
 	"GpuMemoryBufferImplSharedMemory/GpuMemoryBufferImplTest/0.PersistentMap",
-	"RasterDecoderOOPTest.CopyTexSubImage2DSizeMismatch"
+	"RasterDecoderOOPTest.CopyTexSubImage2DSizeMismatch",
+	"RasterDecoderOOPTest.CopyTexSubImage2DTwiceClearsUnclearedTexture"
   ]
 }

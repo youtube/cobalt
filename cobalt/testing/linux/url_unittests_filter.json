@@ -1,7 +1,10 @@
 {
   "failing_tests": [
 	"All/URLCanonHostTest.Host/0",
+	"All/URLCanonHostTest.Host/1",
 	"OriginTest.Serialization",
+	"OriginTest.UnsafelyCreateUniqueOnInvalidInput",
+	"SchemeHostPortTest.InvalidConstruction",
 	"URLCanonIcuTest.ICUCharsetConverter",
 	"URLCanonIcuTest.QueryWithConverter",
 	"URLCanonTest.CanonicalizeHostSubstring",

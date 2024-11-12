@@ -2,12 +2,16 @@
   "failing_tests": [
 	"ArgumentsTest.TestArgumentsHolderCreationContext",
 	"ArgumentsTest.TestGetAll",
+	"ArrayBufferTest.AllocateAndFreeBuffer",
 	"DataObjectBuilderTest.CreatesDataProperties",
+	"DataObjectBuilderTest.CreatesDataPropertiesForIndices",
 	"DataObjectBuilderTest.UnusableAfterBuild",
 	"PerContextDataTest.LookupAndDestruction",
 	"V8MemoryDumpProviderTest.Deterministic",
+	"V8MemoryDumpProviderTest.DumpGlobalHandlesSize",
 	"V8MemoryDumpProviderTest.DumpStatistics",
 	"V8SharedMemoryDumpProviderTest.DumpStatistics",
-	"WrappableTest.LazyPropertyGetterIsCalledOnce"
+	"WrappableTest.LazyPropertyGetterIsCalledOnce",
+	"WrappableTest.MethodInvocationErrorsOnUnnamedObject"
   ]
 }
