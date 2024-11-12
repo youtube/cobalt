@@ -49,16 +49,10 @@ _BUILD_TYPES = {
     'debug': {
         'symbol_level': 2,
         'is_debug': 'true',
-        'is_asan': 'false',
-        'is_lsan': 'false',
-        'is_msan': 'false',
     },
     'devel': {
         'symbol_level': 1,
         'is_debug': 'false',
-        'is_asan': 'false',
-        'is_lsan': 'false',
-        'is_msan': 'false',
     },
     'qa': {
         'symbol_level': 1,
@@ -76,9 +70,6 @@ CONTROLLED_ARGS = [
     'is_debug',  # See build/config/BUILDCONFIG.GN
     'is_official_build',  # mutually exclusive with is_debug
     'symbol_level',  # See build/config/compiler/compiler.gni
-    'is_asan',  # See build/config/sanitizers/sanitizers.gni
-    'is_lsan',  # -"-
-    'is_msan'  # -"-
 ]
 
 
