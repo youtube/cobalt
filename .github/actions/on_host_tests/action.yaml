@@ -44,9 +44,9 @@ runs:
           # TODO(b/372303096): Need dedicated xvfb runner.
           echo "Running tests for suite: ${test_binary}"
 
-          test_filter=`jq -r '"-" + (.failing_tests | join(":"))' ${GITHUB_WORKSPACE}/src/cobalt/testing/${{ inputs.platform }}/${test_binary##*/}_filter.json`
-          if [ -z "$test_filter" ]; then
-            test_filter="*"
+          test_filter="*"
+          if [ -f ${GITHUB_WORKSPACE}/src/cobalt/testing/${{ inputs.platform }}/${test_binary##*/}_filter.json ]; then
+            test_filter=`jq -r '"-" + (.failing_tests | join(":"))' ${GITHUB_WORKSPACE}/src/cobalt/testing/${{ inputs.platform }}/${test_binary##*/}_filter.json`
           fi
 
           echo "Test filter evaluated to: $test_filter"
