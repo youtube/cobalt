@@ -1,7 +1,7 @@
 {
     "docker_service": "linux",
     "platforms": [
-        "android-cobalt-arm"
+        "chromium_android-arm"
     ],
     "targets": [
         "base_unittests",
@@ -15,13 +15,12 @@
         "blink_unittests",
         "content_shell",
         "system_webview_apk",
-        "system_webview_shell_apk",
-        "cobalt:gn_all"
+        "system_webview_shell_apk"
     ],
     "includes": [
         {
         "name":"arm",
-        "platform":"android-cobalt-arm"
+        "platform":"chromium_android-arm"
         }
     ]
 }
