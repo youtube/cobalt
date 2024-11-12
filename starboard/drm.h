@@ -220,7 +220,7 @@ typedef void (*SbDrmServerCertificateUpdatedFunc)(SbDrmSystem drm_system,
 #define kSbDrmSystemInvalid ((SbDrmSystem)NULL)
 
 // A ticket for callback invocations initiated by the DRM system.
-#define kSbDrmTicketInvalid kSbInvalidInt
+#define kSbDrmTicketInvalid INT_MIN
 
 // --- Functions -------------------------------------------------------------
 
