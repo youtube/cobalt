@@ -115,6 +115,8 @@ public abstract class CobaltActivity extends Activity {
             "--single-process",
             // enable Blink to work in overlay video mode
             "--force-video-overlays",
+            // autoplay video with url
+            "--autoplay-policy=no-user-gesture-required",
             // remove below if Cobalt rebase to m120+
             "--user-level-memory-pressure-signal-params"
           };
