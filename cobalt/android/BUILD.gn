@@ -22,11 +22,7 @@ android_resources("cobalt_java_resources") {
     "apk/app/src/main/res/values/strings.xml",
     "apk/app/src/main/res/values/styles.xml",
   ]
-
-  #TODO(b/375037287): use Widget.Leanback.ErrorMessageStyle
-  #deps = [
-  #  "//third_party/androidx:androidx_leanback_leanback_java",
-  #]
+  deps = [ "//third_party/androidx:androidx_leanback_leanback_java" ]
 }
 
 jinja_template("cobalt_manifest") {
