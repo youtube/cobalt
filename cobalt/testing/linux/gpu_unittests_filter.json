@@ -1,0 +1,8 @@
+{
+  "failing_tests": [
+	"GpuMemoryBufferImplNativePixmap/GpuMemoryBufferImplTest/0.CreateFromHandle",
+	"GpuMemoryBufferImplSharedMemory/GpuMemoryBufferImplTest/0.CreateFromHandle",
+	"GpuMemoryBufferImplSharedMemory/GpuMemoryBufferImplTest/0.PersistentMap",
+	"RasterDecoderOOPTest.CopyTexSubImage2DSizeMismatch"
+  ]
+}
