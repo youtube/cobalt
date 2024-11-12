@@ -536,6 +536,22 @@ class BASE_EXPORT TaskQueueImpl {
 
   // Reports the task if it was due to IPC and was posted to a disabled queue.
   // This should be called after WillQueueTask has been called for the task.
+#if defined(STARBOARD)
+  // We disable the "lifecycles" tracing group in Cobalt for performance
+  // reasons.
+  void MaybeReportIpcTaskQueuedFromMainThread(const Task& pending_task) {};
+  bool ShouldReportIpcTaskQueuedFromAnyThreadLocked(
+      base::TimeDelta* time_since_disabled)
+      EXCLUSIVE_LOCKS_REQUIRED(any_thread_lock_) {
+    return false;
+  }
+  void MaybeReportIpcTaskQueuedFromAnyThreadLocked(const Task& pending_task)
+      EXCLUSIVE_LOCKS_REQUIRED(any_thread_lock_) {}
+  void MaybeReportIpcTaskQueuedFromAnyThreadUnlocked(const Task& pending_task) {
+  }
+  void ReportIpcTaskQueued(const Task& pending_task,
+                           const base::TimeDelta& time_since_disabled) {}
+#else   // !defined(STARBOARD)
   void MaybeReportIpcTaskQueuedFromMainThread(const Task& pending_task);
   bool ShouldReportIpcTaskQueuedFromAnyThreadLocked(
       base::TimeDelta* time_since_disabled)
@@ -545,6 +561,7 @@ class BASE_EXPORT TaskQueueImpl {
   void MaybeReportIpcTaskQueuedFromAnyThreadUnlocked(const Task& pending_task);
   void ReportIpcTaskQueued(const Task& pending_task,
                            const base::TimeDelta& time_since_disabled);
+#endif  // !defined(STARBOARD)
 
   // Invoked when the queue becomes enabled and not blocked by a fence.
   void OnQueueUnblocked();

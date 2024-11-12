@@ -1402,6 +1402,9 @@ void TaskQueueImpl::ActivateDelayedFenceIfNeeded(const Task& task) {
   main_thread_only().delayed_fence = absl::nullopt;
 }
 
+#if !defined(STARBOARD)
+// We disable the "lifecycles" tracing group in Cobalt for performance
+// reasons.
 void TaskQueueImpl::MaybeReportIpcTaskQueuedFromMainThread(
     const Task& pending_task) {
   if (!pending_task.ipc_hash)
@@ -1502,6 +1505,7 @@ void TaskQueueImpl::ReportIpcTaskQueued(
                 &ctx, pending_task.posted_from));
       });
 }
+#endif
 
 void TaskQueueImpl::OnQueueUnblocked() {
   DCHECK(IsQueueEnabled());
