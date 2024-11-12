@@ -47,6 +47,7 @@ import java.lang.reflect.Method;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -744,13 +745,13 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  boolean hasCobaltService(String serviceName) {
+  public boolean hasCobaltService(String serviceName) {
     return cobaltServiceFactories.get(serviceName) != null;
   }
 
   @SuppressWarnings("unused")
   @UsedByNative
-  CobaltService openCobaltService(long nativeService, String serviceName) {
+  public CobaltService openCobaltService(long nativeService, String serviceName) {
     if (cobaltServices.get(serviceName) != null) {
       // Attempting to re-open an already open service fails.
       Log.e(TAG, String.format("Cannot open already open service %s", serviceName));
@@ -775,7 +776,7 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  void closeCobaltService(String serviceName) {
+  public void closeCobaltService(String serviceName) {
     cobaltServices.remove(serviceName);
   }
 
@@ -874,5 +875,17 @@ public class StarboardBridge {
       Log.w(TAG, "Unable to query Google Play Services package version", e);
       return 0;
     }
+  }
+
+  // Differing impl
+  public void sendToCobaltService(String serviceName, byte [] data) {
+    Log.i(TAG, String.format("Send to : %s data: %s", serviceName, Arrays.toString(data)));
+    CobaltService service = cobaltServices.get(serviceName);
+    if (service == null) {
+      // Attempting to re-open an already open service fails.
+      Log.e(TAG, String.format("Service not opened: %s", serviceName));
+      return;
+    }
+    service.receiveFromClient(data);
   }
 }

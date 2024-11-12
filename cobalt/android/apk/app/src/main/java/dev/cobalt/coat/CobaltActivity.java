@@ -39,6 +39,7 @@ import dev.cobalt.app.CobaltApplication;
 import dev.cobalt.coat.javabridge.AmatiDeviceInspector;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
+import dev.cobalt.coat.javabridge.H5vccPlatformService;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
@@ -118,7 +119,9 @@ public abstract class CobaltActivity extends Activity {
             // autoplay video with url
             "--autoplay-policy=no-user-gesture-required",
             // remove below if Cobalt rebase to m120+
-            "--user-level-memory-pressure-signal-params"
+            "--user-level-memory-pressure-signal-params",
+            // pass javascript console log to adb log
+            "--enable-features=LogJsConsoleMessages"
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
 
@@ -376,6 +379,8 @@ public abstract class CobaltActivity extends Activity {
 
     // 1. Gather all Java objects that need to be exposed to JavaScript.
     javaScriptAndroidObjectList.add(new AmatiDeviceInspector(this));
+    javaScriptAndroidObjectList.add(new H5vccPlatformService(this, getStarboardBridge()));
+
 
     // 2. Use JavascriptInjector to inject Java objects into the WebContents.
     //    This makes the annotated methods in these objects accessible from JavaScript.
@@ -393,6 +398,7 @@ public abstract class CobaltActivity extends Activity {
       if (jsFileName != null) {
         Log.d(TAG, "Evaluate JavaScript from Asset:" + jsFileName);
         String jsCode = AssetLoader.loadJavaScriptFromAssets(this, jsFileName);
+        Log.d(TAG, "Evaluate JavaScript, jsCode:" + jsCode);
         webContents.evaluateJavaScript(jsCode, null);
       }
     }
