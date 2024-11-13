@@ -57,18 +57,7 @@ source_set("starboard") {
     "COBALT_MEDIA_ENABLE_UMA_METRICS=0",
   ]
 
-  sources = [
-    "sbplayer_bridge.cc",
-    "sbplayer_bridge.h",
-    "sbplayer_interface.cc",
-    "sbplayer_interface.h",
-    "sbplayer_set_bounds_helper.cc",
-    "sbplayer_set_bounds_helper.h",
-    "starboard_renderer.cc",
-    "starboard_renderer.h",
-    "starboard_utils.cc",
-    "starboard_utils.h",
-  ]
+  sources = []
 
   if (use_starboard_media) {
     sources += [
@@ -77,7 +66,17 @@ source_set("starboard") {
       "decoder_buffer_allocator.cc",
       "decoder_buffer_allocator.h",
       "decoder_buffer_memory_info.h",
+      "sbplayer_bridge.cc",
+      "sbplayer_bridge.h",
+      "sbplayer_interface.cc",
+      "sbplayer_interface.h",
+      "sbplayer_set_bounds_helper.cc",
+      "sbplayer_set_bounds_helper.h",
       "starboard_memory_allocator.h",
+      "starboard_renderer.cc",
+      "starboard_renderer.h",
+      "starboard_utils.cc",
+      "starboard_utils.h",
     ]
   }
 
@@ -94,9 +93,12 @@ source_set("starboard") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "starboard_utils_test.cc" ]
+  sources = []
   if (use_starboard_media) {
-    sources += [ "bidirectional_fit_reuse_allocator_test.cc" ]
+    sources += [
+      "bidirectional_fit_reuse_allocator_test.cc",
+      "starboard_utils_test.cc",
+    ]
   }
   configs += [ "//media:media_config" ]
   deps = [
