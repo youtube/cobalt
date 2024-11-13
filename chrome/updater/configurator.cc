@@ -4,6 +4,7 @@
 
 #include "chrome/updater/configurator.h"
 
+#include <regex>
 #include <set>
 #include <utility>
 #include "base/command_line.h"
@@ -12,6 +13,7 @@
 #include "chrome/updater/patcher.h"
 #include "chrome/updater/prefs.h"
 #include "chrome/updater/unzipper.h"
+#include "chrome/updater/util.h"
 #include "chrome/updater/updater_constants.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/script/javascript_engine.h"
@@ -33,10 +35,6 @@ namespace {
 const int kDelayOneMinute = 60;
 const int kDelayOneHour = kDelayOneMinute * 60;
 const char kDefaultUpdaterChannel[] = "prod";
-const char kOmahaCobaltLTSNightlyAppID[] =
-    "{26CD2F67-091F-4680-A9A9-2229635B65A5}";
-const char kOmahaCobaltTrunkAppID[] = "{A9557415-DDCD-4948-8113-C643EFCF710C}";
-const char kOmahaCobaltAppID[] = "{6D4E53F3-CC64-4CB8-B6BD-AB0B8F300E1C}";
 
 std::string GetDeviceProperty(SbSystemPropertyId id) {
   char value[kSystemPropertyMaxLength];
@@ -259,20 +257,47 @@ std::vector<uint8_t> Configurator::GetRunActionKeyHash() const {
 }
 
 std::string Configurator::GetAppGuidHelper(const std::string& updater_channel,
-                                           const std::string& version) {
+                                           const std::string& version,
+                                           const int sb_version) {
   if (updater_channel == "ltsnightly" || updater_channel == "ltsnightlyqa") {
     return kOmahaCobaltLTSNightlyAppID;
   }
-  if (version.find(".lts.") != std::string::npos &&
-      version.find(".master.") == std::string::npos) {
-    return kOmahaCobaltAppID;
+  if (version.find(".lts.") == std::string::npos &&
+      version.find(".master.") != std::string::npos) {
+    return kOmahaCobaltTrunkAppID;
   }
-  return kOmahaCobaltTrunkAppID;
+  std::string channel(updater_channel);
+  // This regex matches to all static channels for C25 and newer in the format
+  // of XXltsY.
+  // New Omaha static channel configs contain C25 and later binaries.
+  if (std::regex_match(updater_channel,
+                       std::regex("(2[5-9]|[3-9][0-9])lts\\d+"))) {
+    channel = "static";
+  }
+  auto it = kChannelAndSbVersionToOmahaIdMap.find(
+    channel + std::to_string(sb_version));
+  if (it != kChannelAndSbVersionToOmahaIdMap.end()) {
+    return it->second;
+  }
+  LOG(INFO) << "Configurator::GetAppGuidHelper updater channel and starboard "
+      << "combination is undefined with the new Omaha configs.";
+
+  // All undefined channel requests go to prod configs except for static
+  // channel requestsf for C24 and older.
+  if (!std::regex_match(updater_channel, std::regex("2[0-4]lts\\d+")) &&
+      sb_version >= 14 && sb_version <= 16) {
+    return kChannelAndSbVersionToOmahaIdMap.at("prod" +
+                                               std::to_string(sb_version));
+  }
+  // Requests with other SB versions and older static channels go to the legacy
+  // config.
+  LOG(INFO) << "Configurator::GetAppGuidHelper starboard version is invalid.";
+  return kOmahaCobaltAppID;
 }
 
 std::string Configurator::GetAppGuid() const {
   const std::string version(COBALT_VERSION);
-  return GetAppGuidHelper(updater_channel_, version);
+  return GetAppGuidHelper(updater_channel_, version, SB_API_VERSION);
 }
 
 std::unique_ptr<update_client::ProtocolHandlerFactory>
