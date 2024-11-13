@@ -4,8 +4,3 @@ is_cobalt = false
 
 # TODO(b/376141256): Decide if this flag is needed here or in .gclient file
 chrome_pgo_phase = 0
-
-# Vulkan is a new rendering (and presentation, and more) API intended to replace
-# E/GL(ES). Partners are only required to support upto GLES 2.0 : https://developers.google.com/youtube/cobalt/docs/reference/starboard/modules/16/gles#gles_version
-# Disable Vulkan until we formally decide to support it.
-enable_vulkan = false
