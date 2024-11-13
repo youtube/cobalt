@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if (is_cobalt) {
-  import("//starboard/build/buildflags.gni")
-}
+assert(is_cobalt, "This file builds for cobalt builds, not Chromium builds")
+
+import("//starboard/build/buildflags.gni")
 
 source_set("starboard") {
   visibility = [ "//media" ]
@@ -70,7 +70,7 @@ source_set("starboard") {
     "starboard_utils.h",
   ]
 
-  if (is_cobalt && use_starboard_media) {
+  if (use_starboard_media) {
     sources += [
       "bidirectional_fit_reuse_allocator.cc",
       "bidirectional_fit_reuse_allocator.h",
@@ -95,7 +95,7 @@ source_set("starboard") {
 source_set("unit_tests") {
   testonly = true
   sources = [ "starboard_utils_test.cc" ]
-  if (is_cobalt && use_starboard_media) {
+  if (use_starboard_media) {
     sources += [ "bidirectional_fit_reuse_allocator_test.cc" ]
   }
   configs += [ "//media:media_config" ]
