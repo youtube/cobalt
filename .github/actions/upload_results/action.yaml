@@ -30,7 +30,7 @@ runs:
         DATADOG_SITE: us5.datadoghq.com
         DATADOG_API_KEY: ${{ inputs.datadog_api_key }}
         RESULTS_DIR: ${{ inputs.results_dir }}
-        DD_SERVICE: {{ inputs.datadog_service }}
+        DD_SERVICE: ${{ inputs.datadog_service }}
         DD_TAGS: os.platform:${{ matrix.platform }}
         DD_ENV: ci
       run: |
