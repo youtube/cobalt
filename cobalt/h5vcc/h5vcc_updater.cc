@@ -91,6 +91,60 @@ void H5vccUpdater::SetUseCompressedUpdates(bool use_compressed_updates) {
   return updater_module_->SetUseCompressedUpdates(use_compressed_updates);
 }
 
+bool H5vccUpdater::GetAllowSelfSignedPackages() {
+  if (updater_module_) {
+    return updater_module_->GetAllowSelfSignedPackages();
+  }
+
+  return false;
+}
+
+void H5vccUpdater::SetAllowSelfSignedPackages(bool allow_self_signed_packages) {
+  // TODO(b/325626249): Remove the ALLOW_EVERGREEN_SIDELOADING check once we're
+  // fully launched.
+#if !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
+  if (updater_module_) {
+    updater_module_->SetAllowSelfSignedPackages(allow_self_signed_packages);
+  }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
+}
+
+std::string H5vccUpdater::GetUpdateServerUrl() const {
+  if (updater_module_) {
+    return updater_module_->GetUpdateServerUrl();
+  }
+
+  return "";
+}
+
+void H5vccUpdater::SetUpdateServerUrl(const std::string& update_server_url) {
+  // TODO(b/325626249): Remove the ALLOW_EVERGREEN_SIDELOADING check once we're
+  // fully launched.
+#if !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
+  if (updater_module_) {
+    updater_module_->SetUpdateServerUrl(update_server_url);
+  }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
+}
+
+bool H5vccUpdater::GetRequireNetworkEncryption() const {
+  if (updater_module_) {
+    return updater_module_->GetRequireNetworkEncryption();
+  }
+
+  return false;
+}
+
+void H5vccUpdater::SetRequireNetworkEncryption(
+    bool require_network_encryption) {
+  // TODO(b/325626249): Remove the ALLOW_EVERGREEN_SIDELOADING check once we're
+  // fully launched.
+#if !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
+  if (updater_module_) {
+    updater_module_->SetRequireNetworkEncryption(require_network_encryption);
+  }
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
+}
 #endif  // SB_IS(EVERGREEN)
 }  // namespace h5vcc
 }  // namespace cobalt

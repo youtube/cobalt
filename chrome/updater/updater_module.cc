@@ -266,10 +266,22 @@ void UpdaterModule::Update() {
     return;
   }
 
+  // TODO(b/325626249): Remove the ALLOW_EVERGREEN_SIDELOADING check once we're
+  // fully launched.
+#if !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
+  bool skip_verify_public_key_hash = GetAllowSelfSignedPackages();
+  bool require_network_encryption = GetRequireNetworkEncryption();
+#else
+  bool skip_verify_public_key_hash = false;
+  bool require_network_encryption = true;
+#endif // defined(COBALT_BUILD_TYPE_GOLD)
+
   update_client_->Update(
       app_ids,
       base::BindOnce(
           [](base::Version manifest_version,
+             bool skip_verify_public_key_hash,
+             bool require_network_encryption,
              const std::vector<std::string>& ids)
               -> std::vector<base::Optional<update_client::CrxComponent>> {
             update_client::CrxComponent component;
@@ -279,10 +291,18 @@ void UpdaterModule::Update() {
             component.pk_hash.assign(std::begin(kCobaltPublicKeyHash),
                                      std::end(kCobaltPublicKeyHash));
             component.requires_network_encryption = true;
+            // TODO(b/325626249): Remove the ALLOW_EVERGREEN_SIDELOADING check
+            // once we're fully launched.
+#if !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
+            if (skip_verify_public_key_hash) {
+              component.pk_hash.clear();
+            }
+            component.requires_network_encryption = require_network_encryption;
+#endif // !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
             component.crx_format_requirement = crx_file::VerifierFormat::CRX3;
             return {component};
           },
-          manifest_version),
+          manifest_version, skip_verify_public_key_hash, require_network_encryption),
       false,
       base::BindOnce(
           [](base::OnceClosure closure, update_client::Error error) {
@@ -432,6 +452,80 @@ void UpdaterModule::SetUseCompressedUpdates(bool use_compressed_updates) {
   config->SetUseCompressedUpdates(use_compressed_updates);
 }
 
+bool UpdaterModule::GetAllowSelfSignedPackages() const {
+  LOG(INFO) << "UpdaterModule::GetAllowSelfSignedPackages";
+  auto config = updater_configurator_;
+  if (!config) {
+    LOG(ERROR) << "UpdaterModule::GetAllowSelfSignedPackages: missing configurator";
+    return false;
+  }
+
+  bool allow_self_signed_builds = config->GetAllowSelfSignedPackages();
+  LOG(INFO) << "UpdaterModule::GetAllowSelfSignedPackages allow_self_signed_builds="
+            << allow_self_signed_builds;
+  return allow_self_signed_builds;
+}
+
+void UpdaterModule::SetAllowSelfSignedPackages(bool allow_self_signed_builds) {
+  LOG(INFO) << "UpdaterModule::SetAllowSelfSignedPackages";
+  auto config = updater_configurator_;
+  if (!config) {
+    LOG(ERROR) << "UpdaterModule::SetAllowSelfSignedPackages: missing configurator";
+    return;
+  }
+
+  config->SetAllowSelfSignedPackages(allow_self_signed_builds);
+}
+
+std::string UpdaterModule::GetUpdateServerUrl() const {
+  LOG(INFO) << "UpdaterModule::GetUpdateServerUrl";
+  auto config = updater_configurator_;
+  if (!config) {
+    LOG(ERROR) << "UpdaterModule::GetUpdateServerUrl: missing configurator";
+    return "";
+  }
+
+  std::string update_server_url = config->GetUpdateServerUrl();
+  LOG(INFO) << "UpdaterModule::GetUpdateServerUrl update_server_url="
+            << update_server_url;
+  return update_server_url;
+}
+
+void UpdaterModule::SetUpdateServerUrl(const std::string& update_server_url) {
+  LOG(INFO) << "UpdaterModule::SetUpdateServerUrl";
+  auto config = updater_configurator_;
+  if(!config) {
+    LOG(ERROR) << "UpdaterModule::SetUpdateServerUrl: missing configurator";
+    return;
+  }
+
+  config->SetUpdateServerUrl(update_server_url);
+}
+
+bool UpdaterModule::GetRequireNetworkEncryption() const {
+  LOG(INFO) << "UpdaterModule::GetRequireNetworkEncryption";
+  auto config = updater_configurator_;
+  if (!config) {
+    LOG(ERROR) << "UpdaterModule::GetRequireNetworkEncryption: missing configurator";
+    return true;
+  }
+
+  bool require_network_encryption = config->GetRequireNetworkEncryption();
+  LOG(INFO) << "UpdaterModule::GetRequireNetworkEncryption require_network_encryption="
+            << require_network_encryption;
+  return require_network_encryption;
+}
+
+void UpdaterModule::SetRequireNetworkEncryption(bool require_network_encryption) {
+  LOG(INFO) << "UpdaterModule::SetRequireNetworkEncryption";
+  auto config = updater_configurator_;
+  if (!config) {
+    LOG(ERROR) << "UpdaterModule::SetRequireNetworkEncryption: missing configurator";
+    return;
+  }
+
+  config->SetRequireNetworkEncryption(require_network_encryption);
+}
 
 }  // namespace updater
 }  // namespace cobalt
