@@ -43,11 +43,6 @@
 extern "C" {
 #endif
 
-// --- Standard Include Emulation ----------------------------------------------
-
-// A value that represents an int that is probably invalid.
-#define kSbInvalidInt INT32_MIN
-
 // --- Standard Include Emulation Audits ---------------------------------------
 
 #if (UINT_MIN + 1 == UINT_MAX - 1) || (INT_MIN + 1 == INT_MAX - 1) || \
