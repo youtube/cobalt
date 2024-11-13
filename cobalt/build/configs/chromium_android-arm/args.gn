@@ -1,3 +1,2 @@
 target_os = "android"
 target_cpu = "arm"
-is_cobalt = false
