@@ -35,4 +35,4 @@ runs:
         DD_ENV: ci
       run: |
         set -x
-        ./datadog-ci junit upload --service ${datadog_service} ${RESULTS_DIR}/*.xml
+        ./datadog-ci junit upload --service ${DD_SERVICE} ${RESULTS_DIR}/*.xml
