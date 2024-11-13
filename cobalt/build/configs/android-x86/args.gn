@@ -1,3 +1,7 @@
 target_os = "android"
 target_cpu = "x86"
+
+# TODO(b/378934120): Fix starboard compiler/linker errors while building with chromium flags
+clang_use_chrome_plugins = false
+enable_check_raw_ptr_fields = false
 treat_warnings_as_errors = false
