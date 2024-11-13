@@ -17,7 +17,7 @@ runs:
         run: gclient config --name=src https://github.com/${{ github.repository }}
         shell: bash
       - name: Set target OS for Android
-        if: startsWith(${{matrix.platform}}, 'android')
+        if: ${{ contains(matrix.platform, 'android') }}
         run: |
           echo "target_os=['android']" >> .gclient
           gclient validate
