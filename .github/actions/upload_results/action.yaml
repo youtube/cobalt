@@ -35,4 +35,7 @@ runs:
         DD_ENV: ci
       run: |
         set -x
+        env
+
+        export DATADOG_API_KEY=${DATADOG_API_KEY}
         ./datadog-ci junit upload --service ${DD_SERVICE} ${RESULTS_DIR}/*.xml
