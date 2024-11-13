@@ -57,6 +57,11 @@ declare_args() {
     media_use_libvpx = false
   }
 
+  # Chrobalt doesn't use ffmpeg.
+  if (is_cobalt) {
+    media_use_ffmpeg = false
+  }
+
   # Enable usage of OpenH264 within the media library. Used for software based
   # encoding of H264 content.
   media_use_openh264 = true
