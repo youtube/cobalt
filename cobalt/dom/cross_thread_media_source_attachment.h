@@ -118,7 +118,7 @@ class CrossThreadMediaSourceAttachment
       GUARDED_BY(attachment_state_lock_);
 
   // Reference to the registered MediaSource.
-  scoped_refptr<MediaSource> media_source_ GUARDED_BY(attachment_state_lock_);
+  MediaSource* media_source_ GUARDED_BY(attachment_state_lock_);
 
   // Reference to the HTMLMediaElement the associated MediaSource is attached
   // to. Only set after StartAttachingToMediaElement is called.

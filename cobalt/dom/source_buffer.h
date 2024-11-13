@@ -227,6 +227,7 @@ class SourceBuffer : public web::EventTarget {
 
   // TODO(b/338425449): Remove direct references to MediaSource.
   const bool is_using_media_source_attachment_methods_;
+  bool is_mse_in_workers_enabled_;
 
   bool first_initialization_segment_received_ = false;
   scoped_refptr<AudioTrackList> audio_tracks_;

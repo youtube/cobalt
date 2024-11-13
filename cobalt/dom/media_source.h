@@ -128,7 +128,7 @@ class MediaSource : public web::EventTarget {
   // TODO(b/338425449): Remove direct references to HTMLMediaElement.
   bool StartAttachingToMediaElement(HTMLMediaElement* media_element);
   bool StartAttachingToMediaElement(
-      MediaSourceAttachmentSupplement* media_source_attachment)
+      scoped_refptr<MediaSourceAttachmentSupplement> media_source_attachment)
       LOCKS_EXCLUDED(attachment_link_lock_);
   void CompleteAttachingToMediaElement(ChunkDemuxer* chunk_demuxer)
       LOCKS_EXCLUDED(attachment_link_lock_);
@@ -169,7 +169,8 @@ class MediaSource : public web::EventTarget {
       LOCKS_EXCLUDED(attachment_link_lock_);
 
  private:
-  void SetReadyState(MediaSourceReadyState ready_state)
+  void SetReadyState(MediaSourceReadyState ready_state);
+  void SetReadyState(MediaSourceReadyState ready_state, bool in_dtor)
       LOCKS_EXCLUDED(attachment_link_lock_);
   bool IsUpdating() const;
   void ScheduleEvent(base_token::Token event_name);
@@ -218,8 +219,10 @@ class MediaSource : public web::EventTarget {
   EventQueue event_queue_;
   // TODO(b/338425449): Remove direct references to HTMLMediaElement.
   bool is_using_media_source_attachment_methods_ = false;
+  bool is_mse_in_workers_enabled_ = false;
   base::WeakPtr<HTMLMediaElement> attached_element_;
-  base::WeakPtr<MediaSourceAttachmentSupplement> media_source_attachment_
+
+  scoped_refptr<MediaSourceAttachmentSupplement> media_source_attachment_
       GUARDED_BY(attachment_link_lock_);
 
   scoped_refptr<SourceBufferList> source_buffers_;

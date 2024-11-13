@@ -193,8 +193,8 @@ SourceBuffer::SourceBuffer(script::EnvironmentSettings* settings,
   web::EnvironmentSettings* web_settings =
       base::polymorphic_downcast<web::EnvironmentSettings*>(settings);
   DCHECK(web_settings);
-  if (is_using_media_source_attachment_methods &&
-      IsMseInWorkersEnabled(web_settings)) {
+  is_mse_in_workers_enabled_ = IsMseInWorkersEnabled(web_settings);
+  if (is_using_media_source_attachment_methods && is_mse_in_workers_enabled_) {
     DCHECK(web_settings->context());
     web::WindowOrWorkerGlobalScope* global_scope =
         web_settings->context()->GetWindowOrWorkerGlobalScope();
@@ -253,8 +253,7 @@ void SourceBuffer::set_mode(SourceBufferAppendMode mode,
     return;
   }
 
-  if (is_using_media_source_attachment_methods_ &&
-      IsMseInWorkersEnabled(environment_settings())) {
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
     if (!media_source_->RunUnlessElementGoneOrClosingUs(base::Bind(
             &SourceBuffer::SetMode_Locked, this, mode, exception_state))) {
       web::DOMException::Raise(web::DOMException::kInvalidStateErr,
@@ -294,8 +293,7 @@ scoped_refptr<TimeRanges> SourceBuffer::buffered(
   }
 
   scoped_refptr<TimeRanges> time_ranges = new TimeRanges;
-  if (is_using_media_source_attachment_methods_ &&
-      IsMseInWorkersEnabled(environment_settings())) {
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
     if (!media_source_->RunUnlessElementGoneOrClosingUs(
             base::Bind(&SourceBuffer::GetBuffered_Locked, this, time_ranges))) {
       web::DOMException::Raise(web::DOMException::kInvalidStateErr,
@@ -338,8 +336,7 @@ void SourceBuffer::set_timestamp_offset(
     return;
   }
 
-  if (is_using_media_source_attachment_methods_ &&
-      IsMseInWorkersEnabled(environment_settings())) {
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
     if (!media_source_->RunUnlessElementGoneOrClosingUs(
             base::Bind(&SourceBuffer::SetTimestampOffset_Locked, this, offset,
                        exception_state))) {
@@ -392,8 +389,7 @@ void SourceBuffer::set_append_window_start(
     return;
   }
 
-  if (is_using_media_source_attachment_methods_ &&
-      IsMseInWorkersEnabled(environment_settings())) {
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
     if (!media_source_->RunUnlessElementGoneOrClosingUs(base::Bind(
             &SourceBuffer::SetAppendWindowStart_Locked, this, start))) {
       web::DOMException::Raise(web::DOMException::kInvalidStateErr,
@@ -436,8 +432,7 @@ void SourceBuffer::set_append_window_end(
     return;
   }
 
-  if (is_using_media_source_attachment_methods_ &&
-      IsMseInWorkersEnabled(environment_settings())) {
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
     if (!media_source_->RunUnlessElementGoneOrClosingUs(
             base::Bind(&SourceBuffer::SetAppendWindowEnd_Locked, this, end))) {
       web::DOMException::Raise(web::DOMException::kInvalidStateErr,
@@ -516,8 +511,7 @@ void SourceBuffer::Abort(script::ExceptionState* exception_state) {
     active_algorithm_handle_ = nullptr;
   }
 
-  if (is_using_media_source_attachment_methods_ &&
-      IsMseInWorkersEnabled(environment_settings())) {
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
     if (!media_source_->RunUnlessElementGoneOrClosingUs(
             base::Bind(&SourceBuffer::Abort_Locked, this, exception_state))) {
       web::DOMException::Raise(web::DOMException::kInvalidStateErr,
@@ -539,9 +533,14 @@ void SourceBuffer::Abort_Locked(script::ExceptionState* exception_state) {
                                    &timestamp_offset);
   UpdateTimestampOffset(timestamp_offset);
 
-  set_append_window_start(0, exception_state);
-  set_append_window_end(std::numeric_limits<double>::infinity(),
-                        exception_state);
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
+    SetAppendWindowStart_Locked(0);
+    SetAppendWindowEnd_Locked(std::numeric_limits<double>::infinity());
+  } else {
+    set_append_window_start(0, exception_state);
+    set_append_window_end(std::numeric_limits<double>::infinity(),
+                          exception_state);
+  }
 }
 
 void SourceBuffer::Remove(double start, double end,
@@ -559,8 +558,7 @@ void SourceBuffer::Remove(double start, double end,
     return;
   }
 
-  if (is_using_media_source_attachment_methods_ &&
-      IsMseInWorkersEnabled(environment_settings())) {
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
     if (!media_source_->RunUnlessElementGoneOrClosingUs(base::Bind(
             &SourceBuffer::Remove_Locked, this, start, end, exception_state))) {
       web::DOMException::Raise(web::DOMException::kInvalidStateErr,
@@ -578,8 +576,7 @@ void SourceBuffer::Remove_Locked(double start, double end,
   media_source_->AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
 
   double duration;
-  if (is_using_media_source_attachment_methods_ &&
-      IsMseInWorkersEnabled(environment_settings())) {
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
     duration = media_source_->GetDuration_Locked();
   } else {
     duration = media_source_->duration(NULL);
@@ -646,7 +643,6 @@ void SourceBuffer::OnRemovedFromMediaSource() {
   if (media_source_ == NULL) {
     return;
   }
-  media_source_->AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
 
   DCHECK(on_init_segment_received_helper_);
   on_init_segment_received_helper_->Detach();
@@ -669,22 +665,9 @@ void SourceBuffer::OnRemovedFromMediaSource() {
   //       track, and print the steam type along with the metrics.
   metrics_.PrintCurrentMetricsAndUpdateAccumulatedMetrics();
 
-  if (is_using_media_source_attachment_methods_ &&
-      IsMseInWorkersEnabled(environment_settings())) {
-    MediaSourceAttachmentSupplement* attachment =
-        media_source_->GetMediaSourceAttachment();
-    DCHECK(attachment);
-    if (attachment->FullyAttachedOrSameThread()) {
-      chunk_demuxer_->RemoveId(id_);
-      if (chunk_demuxer_->GetAllStreams().empty()) {
-        metrics_.PrintAccumulatedMetrics();
-      }
-    }
-  } else {
-    chunk_demuxer_->RemoveId(id_);
-    if (chunk_demuxer_->GetAllStreams().empty()) {
-      metrics_.PrintAccumulatedMetrics();
-    }
+  chunk_demuxer_->RemoveId(id_);
+  if (chunk_demuxer_->GetAllStreams().empty()) {
+    metrics_.PrintAccumulatedMetrics();
   }
 
   chunk_demuxer_ = NULL;
@@ -823,8 +806,7 @@ void SourceBuffer::AppendBufferInternal(
   TRACE_EVENT1("cobalt::dom", "SourceBuffer::AppendBufferInternal()", "size",
                size);
 
-  if (is_using_media_source_attachment_methods_ &&
-      IsMseInWorkersEnabled(environment_settings())) {
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
     if (media_source_ == NULL) {
       web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                                exception_state);
@@ -837,8 +819,7 @@ void SourceBuffer::AppendBufferInternal(
     }
   }
 
-  if (is_using_media_source_attachment_methods_ &&
-      IsMseInWorkersEnabled(environment_settings())) {
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
     if (!media_source_->RunUnlessElementGoneOrClosingUs(
             base::Bind(&SourceBuffer::AppendBufferInternal_Locked, this, data,
                        size, exception_state))) {

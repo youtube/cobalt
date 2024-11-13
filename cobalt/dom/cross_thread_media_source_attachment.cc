@@ -36,7 +36,7 @@ namespace dom {
 
 CrossThreadMediaSourceAttachment::CrossThreadMediaSourceAttachment(
     scoped_refptr<MediaSource> media_source)
-    : media_source_(media_source),
+    : media_source_(media_source.get()),
       worker_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       recent_element_time_(0.0),
       element_has_error_(false),
