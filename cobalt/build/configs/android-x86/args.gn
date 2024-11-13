@@ -8,4 +8,6 @@ clang_use_chrome_plugins = false
 enable_check_raw_ptr_fields = false
 
 # This flag comes from build/config/compiler/compiler.gni
+is_cobalt = true
+
 treat_warnings_as_errors = false
