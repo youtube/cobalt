@@ -131,7 +131,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   // Enable bit stream converter for aac and h264 streams, which will convert
   // them into ADTS and Annex B.  This is only required for FFmpegDemuxer, and
-  // is NOP for ChunkDemuxer.
+  // has no effect for other demuxers (e.g. ChunkDemuxer).
   if (audio_stream_ &&
       audio_stream_->audio_decoder_config().codec() == AudioCodec::kAAC) {
     LOG(INFO) << "Encountered AAC stream, enabling bit stream converter ...";
