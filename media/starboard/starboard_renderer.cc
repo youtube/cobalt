@@ -16,6 +16,8 @@
 
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
+#include "media/base/audio_codecs.h"
+#include "media/base/video_codecs.h"
 #include "starboard/common/media.h"
 
 namespace media {
@@ -125,6 +127,21 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
         DEMUXER_ERROR_NO_SUPPORTED_STREAMS,
         "The video has to contain at least an audio track or a video track."));
     return;
+  }
+
+  // Enable bit stream converter for aac and h264 streams, which will convert
+  // them into ADTS and Annex B.  This is only required for FFmpegDemuxer, and
+  // has no effect for other demuxers (e.g. ChunkDemuxer).
+  if (audio_stream_ &&
+      audio_stream_->audio_decoder_config().codec() == AudioCodec::kAAC) {
+    LOG(INFO) << "Encountered AAC stream, enabling bit stream converter ...";
+    audio_stream_->EnableBitstreamConverter();
+  }
+
+  if (video_stream_ &&
+      video_stream_->video_decoder_config().codec() == VideoCodec::kH264) {
+    LOG(INFO) << "Encountered H264 stream, enabling bit stream converter ...";
+    video_stream_->EnableBitstreamConverter();
   }
 
 #if COBALT_MEDIA_ENABLE_ENCRYPTED_PLAYBACKS
