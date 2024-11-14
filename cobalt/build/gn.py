@@ -84,7 +84,7 @@ def write_build_args(build_args_path, original_lines, dict_settings,
         f'The following args cannot be set in configs: {controlled_args}')
   gen_comment = '# Set by gn.py'
   with open(build_args_path, 'w', encoding='utf-8') as f:
-    if os.getenv('USE_RBE', default='0') == '0':
+    if os.getenv('IS_CI', default='0') == '1':
       f.write(f'cc_wrapper = "{CC_WRAPPER}" {gen_comment}\n')
     else:
       f.write(f'use_remoteexec = true {gen_comment}\n')
