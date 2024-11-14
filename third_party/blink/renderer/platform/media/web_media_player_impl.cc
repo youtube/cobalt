@@ -98,13 +98,9 @@
 #include "third_party/blink/renderer/platform/media/web_media_source_impl.h"
 #include "ui/gfx/geometry/size.h"
 
-// For BUILDFLAG(USE_STARBOARD_MEDIA)
-#if BUILDFLAG(IS_COBALT)
-#include "starboard/build/starboard_buildflags.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/starboard/starboard_renderer.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif  // BUILDFLAG(IS_COBALT)
 
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
 #include "third_party/blink/renderer/platform/media/hls_data_source_provider_impl.h"
@@ -2804,10 +2800,12 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
           &WebMediaPlayerImpl::OnOverlayInfoRequested, weak_this_));
 #endif
 
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // TODO(b/375278384): Select the StarboardRenderer properly instead of
   //                    hard coding.
+
+  // StarboardRenderer always uses full screen with overlay video mode.
+  overlay_info_.is_fullscreen = true;
 
   // `media_task_runner_` is always true, use an if statement to avoid
   // potential build warning on unreachable code.
@@ -2815,8 +2813,7 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
     return std::make_unique<media::StarboardRenderer>(media_task_runner_,
         compositor_.get());
   }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (renderer_type) {
     DVLOG(1) << __func__

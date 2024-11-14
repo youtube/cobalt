@@ -30,6 +30,12 @@
 #include "third_party/blink/public/web/modules/media/webmediaplayer_util.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/media.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace blink {
 namespace {
 
@@ -411,12 +417,25 @@ bool KeySystemConfigSelector::IsSupportedContentType(
   // is done primarily to validate extended codecs, but it also ensures that the
   // CDM cannot support codecs that Chrome does not (which could complicate the
   // robustness algorithm).
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  const std::string full_mime = container_lower + "; codecs=\"" + codecs + "\"";
+  if (SbMediaCanPlayMimeAndKeySystem(full_mime.c_str(), key_system.c_str()) ==
+      kSbMediaSupportTypeNotSupported) {
+    LOG(INFO) << __func__ << "(" << full_mime << " and " << key_system
+              << ") are unsupported.";
+    return false;
+  } else {
+    LOG(INFO) << __func__ << "(" << full_mime << " and " << key_system
+              << ") are supported.";
+  }
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!is_supported_media_type_cb_.Run(
           container_lower, codecs,
           key_systems_->CanUseAesDecryptor(key_system))) {
     DVLOG(3) << "Container mime type and codecs are not supported";
     return false;
   }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Before checking CDM support, split |codecs| into a vector of codecs.
   std::vector<std::string> codec_vector;

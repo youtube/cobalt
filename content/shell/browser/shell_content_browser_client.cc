@@ -300,10 +300,6 @@ std::unique_ptr<PrefService> CreateLocalState() {
 }  // namespace
 
 std::string GetShellUserAgent() {
-  // TODO(cobalt b/376147838): Revert the changes here and instead rely on coablt_content_browser_client.cc for UA.
-#if BUILDFLAG(IS_COBALT)
-  return "Mozilla/5.0 (LINUX) Cobalt/26.lts.10.0000001-gold (unlike Gecko) v8/8.8.278.8-jit gles Evergreen/4.10.2 Evergreen-Full Evergreen-Uncompressed Starboard/15, odm_TV_chipset_2024/fw-01-23.45 (brand, model)";
-#else
   if (base::FeatureList::IsEnabled(blink::features::kFullUserAgent))
     return GetShellFullUserAgent();
 
@@ -311,7 +307,6 @@ std::string GetShellUserAgent() {
     return GetShellReducedUserAgent();
 
   return GetShellFullUserAgent();
-#endif
 }
 
 std::string GetShellLanguage() {

@@ -121,6 +121,12 @@
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/display/screen_info.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/media.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #ifndef LOG_MEDIA_EVENTS
 // Default to not logging events because so many are generated they can
 // overwhelm the rest of the logging.
@@ -339,11 +345,30 @@ bool CanLoadURL(const KURL& url, const String& content_type_str) {
   // knows it cannot render.
   if (content_mime_type != "application/octet-stream" ||
       content_type_codecs.empty()) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    SbMediaSupportType support_type =
+        SbMediaCanPlayMimeAndKeySystem(content_type_str.Ascii().c_str(), "");
+    MIMETypeRegistry::SupportsType result;
+    switch (support_type) {
+      case kSbMediaSupportTypeNotSupported:
+        result = MIMETypeRegistry::kNotSupported;
+        break;
+      case kSbMediaSupportTypeMaybe:
+        result = MIMETypeRegistry::kMaybeSupported;
+        break;
+      case kSbMediaSupportTypeProbably:
+        result = MIMETypeRegistry::kSupported;
+        break;
+    }
+    LOG(INFO) << __func__ << "(" << content_type_str.Ascii() << ") -> "
+              << result;
+    return result;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     return MIMETypeRegistry::SupportsMediaMIMEType(content_mime_type,
                                                    content_type_codecs) !=
            MIMETypeRegistry::kNotSupported;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
-
   return false;
 }
 
@@ -385,6 +410,25 @@ std::ostream& operator<<(std::ostream& stream,
 // static
 MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
     const ContentType& content_type) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Interupt Chromium's IsTypeSupported() from here for better performance.
+  SbMediaSupportType support_type =
+      SbMediaCanPlayMimeAndKeySystem(content_type.Raw().Ascii().c_str(), "");
+  MIMETypeRegistry::SupportsType result;
+  switch (support_type) {
+    case kSbMediaSupportTypeNotSupported:
+      result = MIMETypeRegistry::kNotSupported;
+      break;
+    case kSbMediaSupportTypeMaybe:
+      result = MIMETypeRegistry::kMaybeSupported;
+      break;
+    case kSbMediaSupportTypeProbably:
+      result = MIMETypeRegistry::kSupported;
+      break;
+  }
+  LOG(INFO) << __func__ << "(" << content_type.Raw() << ") -> " << result;
+  return result;
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   // TODO(https://crbug.com/809912): Finding source of mime parsing crash.
   static base::debug::CrashKeyString* content_type_crash_key =
       base::debug::AllocateCrashKeyString("media_content_type",
@@ -412,6 +456,7 @@ MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
   MIMETypeRegistry::SupportsType result =
       MIMETypeRegistry::SupportsMediaMIMEType(type, type_codecs);
   return result;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 bool HTMLMediaElement::IsHLSURL(const KURL& url) {
