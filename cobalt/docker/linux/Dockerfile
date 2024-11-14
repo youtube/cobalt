@@ -30,6 +30,7 @@ RUN apt-get update && apt-get install -y \
 
 ADD files/sccache /usr/local/bin
 
+# TODO: b/379174067 - Move variables out of container.
 ENV SCCACHE_GCS_BUCKET=githubactions-chrome-sccache
 ENV SCCACHE_GCS_RW_MODE=READ_WRITE
 ENV SCCACHE_GCS_KEY_PATH=/root/key.json
