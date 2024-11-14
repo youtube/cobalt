@@ -1,7 +1,10 @@
 target_os = "android"
 target_cpu = "arm64"
 
-# TODO(b/378934120): Fix starboard compiler/linker errors while building with chromium flags
+# TODO(b/378934120): Fix starboard/cobalt compiler/linker errors while building with chromium flags
+# These flags come from build/config/clang/clang.gni
 clang_use_chrome_plugins = false
 enable_check_raw_ptr_fields = false
+
+# This flag comes from build/config/compiler/compiler.gni
 treat_warnings_as_errors = false
