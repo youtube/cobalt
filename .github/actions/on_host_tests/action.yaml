@@ -28,7 +28,7 @@ runs:
       id: run-tests
       shell: bash
       env:
-        GTEST_OUTPUT_ARG: ${{ inputs.results_dir }}
+        RESULTS_DIR: ${{ inputs.results_dir }}
         XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
       run: |
         set -x
