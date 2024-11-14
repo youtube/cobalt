@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,371 +12,345 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/base/drm_system.h"
+#include "starboard_cdm.h"
+
+#include <stddef.h>
 
 #include <memory>
 #include <utility>
+#include <vector>
 
-#include "base/bind.h"
-#include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "cobalt/base/instance_counter.h"
 
-namespace cobalt {
 namespace media {
 
-SbDrmSystem CreateSbDrmSystemWithHistogram(
-    const char* key_system, void* context,
-    SbDrmSessionUpdateRequestFunc update_request_callback,
-    SbDrmSessionUpdatedFunc session_updated_callback,
-    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback,
-    SbDrmServerCertificateUpdatedFunc server_certificate_updated_callback,
-    SbDrmSessionClosedFunc session_closed_callback,
-    MediaMetricsProvider& media_metrics_provider) {
-  media_metrics_provider.StartTrackingAction(MediaAction::SBDRM_CREATE);
-  auto drm_system = SbDrmCreateSystem(
-      key_system, context, update_request_callback, session_updated_callback,
-      key_statuses_changed_callback, server_certificate_updated_callback,
-      session_closed_callback);
-  media_metrics_provider.EndTrackingAction(MediaAction::SBDRM_CREATE);
-  return drm_system;
-}
+namespace {
 
-DECLARE_INSTANCE_COUNTER(DrmSystem);
-
-DrmSystem::Session::Session(
-    DrmSystem* drm_system,
-    SessionUpdateKeyStatusesCallback update_key_statuses_callback,
-    SessionClosedCallback session_closed_callback)
-    : drm_system_(drm_system),
-      update_key_statuses_callback_(update_key_statuses_callback),
-      session_closed_callback_(session_closed_callback),
-      closed_(false),
-      weak_factory_(this) {
-  DCHECK(!update_key_statuses_callback_.is_null());
-  DCHECK(!session_closed_callback_.is_null());
-}
-
-DrmSystem::Session::~Session() {
-  if (id_ && !closed_) {
-    // Auto-closing semantics is derived from EME spec.
-    //
-    // If a MediaKeySession object is not closed when it becomes inaccessible
-    // to the page, the CDM shall close the key session associated with
-    // the object.
-    //   https://www.w3.org/TR/encrypted-media/#mediakeysession-interface
-    Close();
+const char* GetInitDataTypeName(EmeInitDataType type) {
+  switch (type) {
+    case EmeInitDataType::WEBM:
+      return "webm";
+    case EmeInitDataType::CENC:
+      return "cenc";
+    case EmeInitDataType::KEYIDS:
+      return "keyids";
+    case EmeInitDataType::UNKNOWN:
+      return "unknown";
   }
+  NOTREACHED() << "Unexpected EmeInitDataType";
 }
 
-void DrmSystem::Session::GenerateUpdateRequest(
-    const std::string& type, const uint8* init_data, int init_data_length,
-    const SessionUpdateRequestGeneratedCallback&
-        session_update_request_generated_callback,
-    const SessionUpdateRequestDidNotGenerateCallback&
-        session_update_request_did_not_generate_callback) {
-  update_request_generated_callback_ =
-      session_update_request_generated_callback;
-  drm_system_->GenerateSessionUpdateRequest(
-      weak_factory_.GetWeakPtr(), type, init_data, init_data_length,
-      session_update_request_generated_callback,
-      session_update_request_did_not_generate_callback);
+CdmMessageType SbDrmSessionRequestTypeToMediaMessageType(
+    SbDrmSessionRequestType type) {
+  switch (type) {
+    case kSbDrmSessionRequestTypeLicenseRequest:
+      return CdmMessageType::LICENSE_REQUEST;
+    case kSbDrmSessionRequestTypeLicenseRenewal:
+      return CdmMessageType::LICENSE_RENEWAL;
+    case kSbDrmSessionRequestTypeLicenseRelease:
+      return CdmMessageType::LICENSE_RELEASE;
+    case kSbDrmSessionRequestTypeIndividualizationRequest:
+      return CdmMessageType::INDIVIDUALIZATION_REQUEST;
+  }
+
+  NOTREACHED() << "Unexpected SbDrmSessionRequestType " << type;
 }
 
-void DrmSystem::Session::Update(
-    const uint8* key, int key_length,
-    const SessionUpdatedCallback& session_updated_callback,
-    const SessionDidNotUpdateCallback& session_did_not_update_callback) {
-  drm_system_->UpdateSession(*id_, key, key_length, session_updated_callback,
-                             session_did_not_update_callback);
+CdmKeyInformation::KeyStatus ToCdmKeyStatus(SbDrmKeyStatus status) {
+  switch (status) {
+    case kSbDrmKeyStatusUsable:
+      return CdmKeyInformation::KeyStatus::USABLE;
+    case kSbDrmKeyStatusExpired:
+      return CdmKeyInformation::KeyStatus::EXPIRED;
+    case kSbDrmKeyStatusReleased:
+      return CdmKeyInformation::KeyStatus::RELEASED;
+    case kSbDrmKeyStatusRestricted:
+      return CdmKeyInformation::KeyStatus::OUTPUT_RESTRICTED;
+    case kSbDrmKeyStatusDownscaled:
+      return CdmKeyInformation::KeyStatus::OUTPUT_DOWNSCALED;
+    case kSbDrmKeyStatusPending:
+      return CdmKeyInformation::KeyStatus::KEY_STATUS_PENDING;
+    case kSbDrmKeyStatusError:
+      return CdmKeyInformation::KeyStatus::INTERNAL_ERROR;
+  }
+  NOTREACHED() << "Unexpected SbDrmKeyStatus " << status;
 }
 
-void DrmSystem::Session::Close() {
-  drm_system_->CloseSession(*id_);
-  closed_ = true;
-}
+}  // namespace
 
-DrmSystem::DrmSystem(const char* key_system)
-    : wrapped_drm_system_(CreateSbDrmSystemWithHistogram(
-          key_system, this, OnSessionUpdateRequestGeneratedFunc,
-          OnSessionUpdatedFunc, OnSessionKeyStatusesChangedFunc,
-          OnServerCertificateUpdatedFunc, OnSessionClosedFunc,
-          media_metrics_provider_)),
+StarboardCdm::StarboardCdm(
+    const CdmConfig& cdm_config,
+    const SessionMessageCB& message_cb,
+    const SessionClosedCB& closed_cb,
+    const SessionKeysChangeCB& keys_change_cb,
+    const SessionExpirationUpdateCB& expiration_update_cb)
+    : message_cb_{message_cb},
+      closed_cb_{closed_cb},
+      keys_change_cb_{keys_change_cb},
+      expiration_update_cb_{expiration_update_cb},
       task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
-      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
-      weak_this_(weak_ptr_factory_.GetWeakPtr()) {
-  ON_INSTANCE_CREATED(DrmSystem);
+      sb_drm_(SbDrmCreateSystem(cdm_config.key_system.c_str(),
+                                this,
+                                OnSessionUpdateRequestGeneratedFunc,
+                                OnSessionUpdatedFunc,
+                                OnSessionKeyStatusesChangedFunc,
+                                OnServerCertificateUpdatedFunc,
+                                OnSessionClosedFunc)) {
+  DCHECK(message_cb_);
+  DCHECK(closed_cb_);
+  DCHECK(keys_change_cb_);
+  DCHECK(expiration_update_cb_);
 
-  if (is_valid()) {
-    LOG(INFO) << "Successfully created SbDrmSystem (" << wrapped_drm_system_
+  std::string key_system = cdm_config.key_system;
+  if (SbDrmSystemIsValid(sb_drm_)) {
+    LOG(INFO) << "Successfully created SbDrmSystem (" << sb_drm_
               << "), key system: " << key_system << ".";
   } else {
     LOG(INFO) << "Failed to create SbDrmSystem, key system: " << key_system;
   }
 }
 
-DrmSystem::~DrmSystem() {
-  ON_INSTANCE_RELEASED(DrmSystem);
-
-  if (is_valid()) {
-    media_metrics_provider_.StartTrackingAction(MediaAction::SBDRM_DESTROY);
-    SbDrmDestroySystem(wrapped_drm_system_);
-    media_metrics_provider_.EndTrackingAction(MediaAction::SBDRM_DESTROY);
+StarboardCdm::~StarboardCdm() {
+  if (SbDrmSystemIsValid(sb_drm_)) {
+    LOG(INFO) << "Starboard CDM destructor. Destroying SbDrm";
+    SbDrmDestroySystem(sb_drm_);
   } else {
     LOG(WARNING) << "Attempting to close invalid SbDrmSystem";
   }
 }
 
-std::unique_ptr<DrmSystem::Session> DrmSystem::CreateSession(
-    SessionUpdateKeyStatusesCallback session_update_key_statuses_callback,
-    SessionClosedCallback session_closed_callback) {
+void StarboardCdm::SetServerCertificate(
+    const std::vector<uint8_t>& certificate,
+    std::unique_ptr<SimpleCdmPromise> promise) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  return std::unique_ptr<DrmSystem::Session>(new Session(
-      this, session_update_key_statuses_callback, session_closed_callback));
-}
-
-bool DrmSystem::IsServerCertificateUpdatable() {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(is_valid());
-
-  if (SbDrmIsServerCertificateUpdatable(wrapped_drm_system_)) {
-    LOG(INFO) << "SbDrmSystem (" << wrapped_drm_system_
-              << ") supports server certificate update";
-    return true;
-  }
-  LOG(INFO) << "SbDrmSystem (" << wrapped_drm_system_
-            << ") doesn't support server certificate update";
-  return false;
-}
-
-void DrmSystem::UpdateServerCertificate(
-    const uint8_t* certificate, int certificate_size,
-    ServerCertificateUpdatedCallback server_certificate_updated_callback) {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(IsServerCertificateUpdatable());
-  DCHECK(is_valid());
-
-  if (!certificate) {
-    LOG(ERROR) << "Updating server with NULL certificate";
-    return;
-  }
-
-  LOG(INFO) << "Updating server certificate of drm system ("
-            << wrapped_drm_system_
-            << "), certificate size: " << certificate_size;
+  LOG(INFO) << "StarboardCdm - Set server cert - size:" << certificate.size();
 
   int ticket = next_ticket_++;
   if (!SbDrmTicketIsValid(ticket)) {
     LOG(ERROR) << "Updating server with invalid ticket";
     return;
   }
+
+  uint32_t promise_id = promises_.SavePromise(std::move(promise));
+
   ticket_to_server_certificate_updated_map_.insert(
-      std::make_pair(ticket, server_certificate_updated_callback));
-  SbDrmUpdateServerCertificate(wrapped_drm_system_, ticket, certificate,
-                               certificate_size);
+      std::make_pair(ticket, promise_id));
+
+  SbDrmUpdateServerCertificate(sb_drm_, ticket, certificate.data(),
+                               certificate.size());
 }
 
-bool DrmSystem::GetMetrics(std::vector<uint8_t>* metrics) {
+void StarboardCdm::CreateSessionAndGenerateRequest(
+    CdmSessionType session_type,
+    EmeInitDataType init_data_type,
+    const std::vector<uint8_t>& init_data,
+    std::unique_ptr<NewSessionCdmPromise> promise) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(metrics);
-  int size = 0;
-  const uint8_t* raw_metrics =
-      static_cast<const uint8_t*>(SbDrmGetMetrics(wrapped_drm_system_, &size));
-  if (!raw_metrics) {
-    return false;
-  }
-  SB_DCHECK(size >= 0);
-  if (size < 0) {
-    return false;
-  }
-  metrics->assign(raw_metrics, raw_metrics + size);
-  return true;
-}
 
-void DrmSystem::GenerateSessionUpdateRequest(
-    const base::WeakPtr<Session>& session, const std::string& type,
-    const uint8_t* init_data, int init_data_length,
-    const SessionUpdateRequestGeneratedCallback&
-        session_update_request_generated_callback,
-    const SessionUpdateRequestDidNotGenerateCallback&
-        session_update_request_did_not_generate_callback) {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(is_valid());
+  uint32_t promise_id = promises_.SavePromise(std::move(promise));
 
-  if (!init_data) {
-    LOG(ERROR) << "Generate session update request with invalid init_data";
-    return;
-  }
-
-  // Store the context of the call.
   SessionUpdateRequest session_update_request;
-  session_update_request.session = session;
-  session_update_request.generated_callback =
-      session_update_request_generated_callback;
-  session_update_request.did_not_generate_callback =
-      session_update_request_did_not_generate_callback;
-  int ticket = next_ticket_++;
+  session_update_request.promise_id = promise_id;
+  session_update_request.session_type = session_type;
 
+  int ticket = next_ticket_++;
   if (!SbDrmTicketIsValid(ticket)) {
     LOG(ERROR) << "Generate session update request with invalid ticket";
     return;
   }
 
   ticket_to_session_update_request_map_.insert(
-      std::make_pair(ticket, session_update_request));
+      std::make_pair(ticket, std::move(session_update_request)));
 
-  LOG(INFO) << "Generate session update request of drm system ("
-            << wrapped_drm_system_ << "), type: " << type
-            << ", init data size: " << init_data_length
+  LOG(INFO) << "Generate session update request of drm system (" << sb_drm_
+            << "), type: " << GetInitDataTypeName(init_data_type)
+            << ", init data size: " << init_data.size()
             << ", ticket: " << ticket;
 
-  media_metrics_provider_.StartTrackingAction(
-      MediaAction::SBDRM_GENERATE_SESSION_UPDATE_REQUEST);
-  SbDrmGenerateSessionUpdateRequest(wrapped_drm_system_, ticket, type.c_str(),
-                                    init_data, init_data_length);
-  media_metrics_provider_.EndTrackingAction(
-      MediaAction::SBDRM_GENERATE_SESSION_UPDATE_REQUEST);
+  SbDrmGenerateSessionUpdateRequest(sb_drm_, ticket,
+                                    GetInitDataTypeName(init_data_type),
+                                    init_data.data(), init_data.size());
 }
 
-void DrmSystem::UpdateSession(
-    const std::string& session_id, const uint8_t* key, int key_length,
-    const SessionUpdatedCallback& session_updated_callback,
-    const SessionDidNotUpdateCallback& session_did_not_update_callback) {
+void StarboardCdm::LoadSession(CdmSessionType session_type,
+                               const std::string& session_id,
+                               std::unique_ptr<NewSessionCdmPromise> promise) {
+  LOG(INFO) << "Starboard CDM - Load Session - NOT IMPL";
+  promise->reject(CdmPromise::Exception::INVALID_STATE_ERROR, 0,
+                  "SbDrm doesn't implement Load Session.");
+  return;
+}
+
+void StarboardCdm::UpdateSession(const std::string& session_id,
+                                 const std::vector<uint8_t>& response,
+                                 std::unique_ptr<SimpleCdmPromise> promise) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(is_valid());
+  LOG(INFO) << "StarboardCdm - update session";
+
+  auto it = std::find(session_list_.begin(), session_list_.end(), session_id);
+  if (it == session_list_.end()) {
+    LOG(WARNING) << "Update session - " << session_id
+                 << " - session doesn't exist";
+    promise->reject(CdmPromise::Exception::INVALID_STATE_ERROR, 0,
+                    "Session doesn't exist.");
+    return;
+  }
+
+  // Caller should NOT pass in an empty response.
+  DCHECK(!response.empty());
+
+  uint32_t promise_id = promises_.SavePromise(std::move(promise));
 
   // Store the context of the call.
   SessionUpdate session_update;
-  session_update.updated_callback = session_updated_callback;
-  session_update.did_not_update_callback = session_did_not_update_callback;
+  session_update.promise_id = promise_id;
   int ticket = next_ticket_++;
 
   if (!SbDrmTicketIsValid(ticket)) {
-    LOG(ERROR) << "Update session with invalid ticket";
+    LOG(WARNING) << "Update session with invalid ticket";
     return;
   }
 
   ticket_to_session_update_map_.insert(std::make_pair(ticket, session_update));
 
-  LOG(INFO) << "Update session of drm system (" << wrapped_drm_system_
-            << "), key length: " << key_length << ", ticket: " << ticket
+  LOG(INFO) << "Update session of drm system (" << sb_drm_
+            << "), key length: " << response.size() << ", ticket: " << ticket
             << ", session id: " << session_id;
 
-  media_metrics_provider_.StartTrackingAction(
-      MediaAction::SBDRM_UPDATE_SESSION);
-  SbDrmUpdateSession(wrapped_drm_system_, ticket, key, key_length,
+  SbDrmUpdateSession(sb_drm_, ticket, response.data(), response.size(),
                      session_id.c_str(), session_id.size());
-  media_metrics_provider_.EndTrackingAction(MediaAction::SBDRM_UPDATE_SESSION);
 }
 
-void DrmSystem::CloseSession(const std::string& session_id) {
+// Runs the parallel steps from https://w3c.github.io/encrypted-media/#close.
+void StarboardCdm::CloseSession(const std::string& session_id,
+                                std::unique_ptr<SimpleCdmPromise> promise) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(is_valid());
+  LOG(INFO) << "StarboardCdm - Close session:" << session_id;
 
-  LOG(INFO) << "Close session of drm system (" << wrapped_drm_system_
-            << "), session id: " << session_id;
+  auto it = std::find(session_list_.begin(), session_list_.end(), session_id);
+  if (it == session_list_.end()) {
+    LOG(WARNING) << "Close session - " << session_id
+                 << " - session doesn't exist";
+    promise->resolve();
+    return;
+  }
 
-  media_metrics_provider_.StartTrackingAction(MediaAction::SBDRM_CLOSE_SESSION);
-  SbDrmCloseSession(wrapped_drm_system_, session_id.c_str(), session_id.size());
-  media_metrics_provider_.EndTrackingAction(MediaAction::SBDRM_CLOSE_SESSION);
+  SbDrmCloseSession(sb_drm_, session_id.c_str(), session_id.size());
+
+  session_list_.erase(it);
+  closed_cb_.Run(session_id, media::CdmSessionClosedReason::kClose);
+  promise->resolve();
 }
 
-void DrmSystem::OnSessionUpdateRequestGenerated(
-    SessionTicketAndOptionalId ticket_and_optional_id, SbDrmStatus status,
-    SbDrmSessionRequestType type, const std::string& error_message,
-    std::unique_ptr<uint8[]> message, int message_size) {
+// Runs the parallel steps from https://w3c.github.io/encrypted-media/#remove.
+void StarboardCdm::RemoveSession(const std::string& session_id,
+                                 std::unique_ptr<SimpleCdmPromise> promise) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  LOG(INFO) << "Starboard CDM - Remove Session - NOT IMPL";
+  promise->reject(CdmPromise::Exception::INVALID_STATE_ERROR, 0,
+                  "SbDrm doesn't implement License Release.");
+  return;
+}
+
+CdmContext* StarboardCdm::GetCdmContext() {
+  return this;
+}
+
+SbDrmSystem StarboardCdm::GetSbDrmSystem() {
+  return sb_drm_;
+}
+
+bool StarboardCdm::HasValidSbDrm() {
+  return SbDrmSystemIsValid(sb_drm_);
+}
+
+std::unique_ptr<CallbackRegistration> StarboardCdm::RegisterEventCB(
+    EventCB event_cb) {
+  return event_callbacks_.Register(std::move(event_cb));
+}
+
+void StarboardCdm::OnSessionUpdateRequestGenerated(
+    SessionTicketAndOptionalId ticket_and_optional_id,
+    SbDrmStatus status,
+    SbDrmSessionRequestType type,
+    const std::string& error_message,
+    std::vector<uint8_t> message,
+    int message_size) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   int ticket = ticket_and_optional_id.ticket;
-  const base::Optional<std::string>& session_id = ticket_and_optional_id.id;
+  const std::optional<std::string>& session_id = ticket_and_optional_id.id;
 
   LOG(INFO) << "Receiving session update request notification from drm system ("
-            << wrapped_drm_system_ << "), status: " << status
-            << ", type: " << type << ", ticket: " << ticket
+            << sb_drm_ << "), status: " << status << ", type: " << type
+            << ", ticket: " << ticket
             << ", session id: " << session_id.value_or("n/a");
 
   if (SbDrmTicketIsValid(ticket)) {
     // Called back as a result of |SbDrmGenerateSessionUpdateRequest|.
 
     // Restore the context of |GenerateSessionUpdateRequest|.
-    TicketToSessionUpdateRequestMap::iterator session_update_request_iterator =
+    auto session_update_request_iterator =
         ticket_to_session_update_request_map_.find(ticket);
     if (session_update_request_iterator ==
         ticket_to_session_update_request_map_.end()) {
-      LOG(ERROR) << "Unknown session update request ticket: " << ticket << ".";
+      LOG(INFO) << "Unknown session update request ticket: " << ticket << ".";
       return;
     }
-    const SessionUpdateRequest& session_update_request =
-        session_update_request_iterator->second;
 
-    // As DrmSystem::Session may be released, need to check it before using it.
-    if (session_update_request.session &&
-        !session_update_request.session->is_closed()) {
-      // Interpret the result.
-      if (session_id) {
-        // Successful request generation.
+    auto session_request = std::move(session_update_request_iterator->second);
 
-        // Enable session lookup by id which is used by spontaneous callbacks.
-        session_update_request.session->set_id(*session_id);
-        id_to_session_map_.insert(
-            std::make_pair(*session_id, session_update_request.session));
-
-        LOG(INFO) << "Calling session update request callback on drm system ("
-                  << wrapped_drm_system_ << ") with type: " << type
-                  << ", message size: " << message_size;
-
-        session_update_request.generated_callback.Run(type, std::move(message),
-                                                      message_size);
-      } else {
-        // Failure during request generation.
-        LOG(INFO) << "Calling session update request callback on drm system ("
-                  << wrapped_drm_system_ << "), status: " << status
-                  << ", error message: " << error_message;
-        session_update_request.did_not_generate_callback.Run(status,
-                                                             error_message);
-      }
+    if (session_id) {
+      session_list_.push_back(session_id.value());
+      promises_.ResolvePromise(session_request.promise_id, session_id.value());
+    } else {
+      // Failure during request generation.
+      LOG(INFO) << "Calling session update request callback on drm system ("
+                << sb_drm_ << "), status: " << status
+                << ", error message: " << error_message;
+      promises_.RejectPromise(session_request.promise_id,
+                              CdmPromise::Exception::INVALID_STATE_ERROR, 0,
+                              "Failure during request generation.");
     }
 
-    // Sweep the context of |GenerateSessionUpdateRequest| once license updated.
     ticket_to_session_update_request_map_.erase(
         session_update_request_iterator);
+
   } else {
     // Called back spontaneously by the underlying DRM system.
-
     // Spontaneous calls must refer to a valid session.
-    if (!session_id) {
+    if (!session_id.has_value()) {
       LOG(ERROR) << "SbDrmSessionUpdateRequestFunc() should not be called "
                     "with both invalid ticket and null session id.";
       NOTREACHED();
       return;
     }
-
-    // Find the session by ID.
-    IdToSessionMap::iterator session_iterator =
-        id_to_session_map_.find(*session_id);
-    if (session_iterator == id_to_session_map_.end()) {
-      LOG(ERROR) << "Unknown session id: " << *session_id << ".";
-      return;
-    }
-
-    // As DrmSystem::Session may be released, need to check it before using it.
-    if (session_iterator->second) {
-      LOG(INFO) << "Calling session update request callback on drm system ("
-                << wrapped_drm_system_ << "), type: " << type
-                << ", message size " << message_size;
-      session_iterator->second->update_request_generated_callback().Run(
-          type, std::move(message), message_size);
-    }
   }
+
+  LOG(INFO) << "Calling session update request callback on drm system ("
+            << sb_drm_ << ") with type: " << type
+            << ", message size: " << message.size();
+
+  auto session_iterator =
+      std::find(session_list_.begin(), session_list_.end(), session_id.value());
+  if (session_iterator == session_list_.end()) {
+    LOG(ERROR) << "Unknown session id: " << session_id.value() << ".";
+    return;
+  }
+
+  task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(message_cb_, session_id.value(),
+                     SbDrmSessionRequestTypeToMediaMessageType(type), message));
 }
 
-void DrmSystem::OnSessionUpdated(int ticket, SbDrmStatus status,
-                                 const std::string& error_message) {
+void StarboardCdm::OnSessionUpdated(int ticket,
+                                    SbDrmStatus status,
+                                    const std::string& error_message) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-
   LOG(INFO) << "Receiving session updated notification from drm system ("
-            << wrapped_drm_system_ << "), status: " << status
-            << ", ticket: " << ticket << ", error message: " << error_message;
+            << sb_drm_ << "), status: " << status << ", ticket: " << ticket
+            << ", error message: " << error_message;
 
   // Restore the context of |UpdateSession|.
   TicketToSessionUpdateMap::iterator session_update_iterator =
@@ -389,67 +363,48 @@ void DrmSystem::OnSessionUpdated(int ticket, SbDrmStatus status,
 
   // Interpret the result.
   if (status == kSbDrmStatusSuccess) {
-    session_update.updated_callback.Run();
+    promises_.ResolvePromise(session_update.promise_id);
   } else {
-    session_update.did_not_update_callback.Run(status, error_message);
+    promises_.RejectPromise(session_update.promise_id,
+                            CdmPromise::Exception::INVALID_STATE_ERROR, 0,
+                            "Unable to create CDM.");
   }
 
+  // TODO(cobalt, b/378957649) Check for removed session ids
   // Sweep the context of |UpdateSession|.
   ticket_to_session_update_map_.erase(session_update_iterator);
 }
 
-void DrmSystem::OnSessionKeyStatusChanged(
-    const std::string& session_id, const std::vector<std::string>& key_ids,
-    const std::vector<SbDrmKeyStatus>& key_statuses) {
+void StarboardCdm::OnSessionKeyStatusChanged(const std::string& session_id,
+                                             CdmKeysInfo keys_info,
+                                             bool has_additional_usable_key) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-
   LOG(INFO) << "Receiving session key status changed notification from drm"
-            << " system (" << wrapped_drm_system_
-            << "), session id: " << session_id
-            << ", number of key ids: " << key_ids.size();
+            << " system (" << sb_drm_ << "), session id: " << session_id
+            << ", number of key ids: " << keys_info.size()
+            << ", has_additional_usable_key?: "
+            << (has_additional_usable_key ? "true" : "false");
 
   // Find the session by ID.
-  IdToSessionMap::iterator session_iterator =
-      id_to_session_map_.find(session_id);
-  if (session_iterator == id_to_session_map_.end()) {
+  auto session_iterator =
+      std::find(session_list_.begin(), session_list_.end(), session_id);
+  if (session_iterator == session_list_.end()) {
     LOG(ERROR) << "Unknown session id: " << session_id << ".";
     return;
   }
 
-  // As DrmSystem::Session may be released, need to check it before using it.
-  if (session_iterator->second) {
-    session_iterator->second->update_key_statuses_callback().Run(key_ids,
-                                                                 key_statuses);
-  }
+  task_runner_->PostTask(FROM_HERE, base::BindOnce(keys_change_cb_, session_id,
+                                                   has_additional_usable_key,
+                                                   std::move(keys_info)));
 }
 
-void DrmSystem::OnSessionClosed(const std::string& session_id) {
+void StarboardCdm::OnServerCertificateUpdated(
+    int ticket,
+    SbDrmStatus status,
+    const std::string& error_message) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-
-  LOG(INFO) << "Receiving session closed notification from drm system ("
-            << wrapped_drm_system_ << "), session id: " << session_id;
-
-  // Find the session by ID.
-  IdToSessionMap::iterator session_iterator =
-      id_to_session_map_.find(session_id);
-  if (session_iterator == id_to_session_map_.end()) {
-    LOG(ERROR) << "Unknown session id: " << session_id << ".";
-    return;
-  }
-
-  // As DrmSystem::Session may be released, need to check it before using it.
-  if (session_iterator->second) {
-    session_iterator->second->session_closed_callback().Run();
-  }
-  id_to_session_map_.erase(session_iterator);
-}
-
-void DrmSystem::OnServerCertificateUpdated(int ticket, SbDrmStatus status,
-                                           const std::string& error_message) {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
-
   LOG(INFO) << "Receiving server certificate updated notification from drm"
-            << " system (" << wrapped_drm_system_ << "), ticket: " << ticket
+            << " system (" << sb_drm_ << "), ticket: " << ticket
             << ", status: " << status << ", error message: " << error_message;
 
   auto iter = ticket_to_server_certificate_updated_map_.find(ticket);
@@ -457,65 +412,109 @@ void DrmSystem::OnServerCertificateUpdated(int ticket, SbDrmStatus status,
     LOG(ERROR) << "Unknown ticket: " << ticket << ".";
     return;
   }
-  iter->second.Run(status, error_message);
+
+  if (status == kSbDrmStatusSuccess) {
+    promises_.ResolvePromise(iter->second);
+  } else {
+    promises_.RejectPromise(iter->second,
+                            CdmPromise::Exception::INVALID_STATE_ERROR, 0,
+                            "Failure to update Certificate.");
+  }
+
   ticket_to_server_certificate_updated_map_.erase(iter);
 }
 
-// static
-void DrmSystem::OnSessionUpdateRequestGeneratedFunc(
-    SbDrmSystem wrapped_drm_system, void* context, int ticket,
-    SbDrmStatus status, SbDrmSessionRequestType type, const char* error_message,
-    const void* session_id, int session_id_size, const void* content,
-    int content_size, const char* url) {
-  DCHECK(context);
-  DrmSystem* drm_system = static_cast<DrmSystem*>(context);
-  DCHECK_EQ(wrapped_drm_system, drm_system->wrapped_drm_system_);
+void StarboardCdm::OnSessionClosed(const std::string& session_id) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  LOG(INFO) << "OnSessionClosed for session id:" << session_id;
 
-  base::Optional<std::string> session_id_copy;
-  std::unique_ptr<uint8[]> content_copy;
+  // Find the session by ID.
+  auto session_iterator =
+      std::find(session_list_.begin(), session_list_.end(), session_id);
+  if (session_iterator == session_list_.end()) {
+    LOG(ERROR) << "Unknown session id: " << session_id << ".";
+    return;
+  }
+
+  closed_cb_.Run(session_id, media::CdmSessionClosedReason::kClose);
+  session_list_.erase(session_iterator);
+}
+
+// static
+void StarboardCdm::OnSessionUpdateRequestGeneratedFunc(
+    SbDrmSystem sb_drm,
+    void* context,
+    int ticket,
+    SbDrmStatus status,
+    SbDrmSessionRequestType type,
+    const char* error_message,
+    const void* session_id,
+    int session_id_size,
+    const void* content,
+    int content_size,
+    const char* url) {
+  DCHECK(context);
+  StarboardCdm* cdm = static_cast<StarboardCdm*>(context);
+  DCHECK_EQ(sb_drm, cdm->sb_drm_);
+
+  std::optional<std::string> session_id_copy;
   if (session_id) {
     session_id_copy =
         std::string(static_cast<const char*>(session_id),
                     static_cast<const char*>(session_id) + session_id_size);
-
-    content_copy.reset(new uint8[content_size]);
-    memcpy(content_copy.get(), content, content_size);
   }
 
-  drm_system->task_runner_->PostTask(
+  LOG(INFO) << "Receiving session update request notification from drm "
+               "system ("
+            << sb_drm << "), status: " << status << ", type: " << type
+            << ", ticket: " << ticket
+            << ", session id: " << session_id_copy.value_or("n/a");
+
+  const uint8_t* begin = static_cast<const uint8_t*>(content);
+  const uint8_t* end = begin + content_size;
+  const std::vector<uint8_t> content_copy(begin, end);
+
+  cdm->task_runner_->PostTask(
       FROM_HERE,
-      base::Bind(&DrmSystem::OnSessionUpdateRequestGenerated,
-                 drm_system->weak_this_,
-                 SessionTicketAndOptionalId{ticket, session_id_copy}, status,
-                 type, error_message ? std::string(error_message) : "",
-                 base::Passed(&content_copy), content_size));
+      base::BindOnce(&StarboardCdm::OnSessionUpdateRequestGenerated,
+                     cdm->weak_factory_.GetWeakPtr(),
+                     SessionTicketAndOptionalId{ticket, session_id_copy},
+                     status, type,
+                     error_message ? std::string(error_message) : "",
+                     std::move(content_copy), content_size));
 }
 
 // static
-void DrmSystem::OnSessionUpdatedFunc(SbDrmSystem wrapped_drm_system,
-                                     void* context, int ticket,
-                                     SbDrmStatus status,
-                                     const char* error_message,
-                                     const void* session_id,
-                                     int session_id_size) {
+void StarboardCdm::OnSessionUpdatedFunc(SbDrmSystem sb_drm,
+                                        void* context,
+                                        int ticket,
+                                        SbDrmStatus status,
+                                        const char* error_message,
+                                        const void* session_id,
+                                        int session_id_size) {
   DCHECK(context);
-  DrmSystem* drm_system = static_cast<DrmSystem*>(context);
-  DCHECK_EQ(wrapped_drm_system, drm_system->wrapped_drm_system_);
+  StarboardCdm* cdm = static_cast<StarboardCdm*>(context);
+  DCHECK_EQ(sb_drm, cdm->sb_drm_);
 
-  drm_system->task_runner_->PostTask(
+  cdm->task_runner_->PostTask(
       FROM_HERE,
-      base::Bind(&DrmSystem::OnSessionUpdated, drm_system->weak_this_, ticket,
-                 status, error_message ? std::string(error_message) : ""));
+      base::BindOnce(&StarboardCdm::OnSessionUpdated,
+                     cdm->weak_factory_.GetWeakPtr(), ticket, status,
+                     error_message ? std::string(error_message) : ""));
 }
 
 // static
-void DrmSystem::OnSessionKeyStatusesChangedFunc(
-    SbDrmSystem wrapped_drm_system, void* context, const void* session_id,
-    int session_id_size, int number_of_keys, const SbDrmKeyId* key_ids,
+void StarboardCdm::OnSessionKeyStatusesChangedFunc(
+    SbDrmSystem sb_drm,
+    void* context,
+    const void* session_id,
+    int session_id_size,
+    int number_of_keys,
+    const SbDrmKeyId* key_ids,
     const SbDrmKeyStatus* key_statuses) {
   DCHECK(context);
-  DrmSystem* drm_system = static_cast<DrmSystem*>(context);
-  DCHECK_EQ(wrapped_drm_system, drm_system->wrapped_drm_system_);
+  StarboardCdm* cdm = static_cast<StarboardCdm*>(context);
+  DCHECK_EQ(sb_drm, cdm->sb_drm_);
 
   DCHECK(session_id != NULL);
 
@@ -523,45 +522,51 @@ void DrmSystem::OnSessionKeyStatusesChangedFunc(
       std::string(static_cast<const char*>(session_id),
                   static_cast<const char*>(session_id) + session_id_size);
 
-  std::vector<std::string> key_ids_copy(number_of_keys);
-  std::vector<SbDrmKeyStatus> key_statuses_copy(number_of_keys);
+  bool has_additional_usable_key = false;
+  CdmKeysInfo keys_info;
 
   for (int i = 0; i < number_of_keys; ++i) {
     const char* identifier =
         reinterpret_cast<const char*>(key_ids[i].identifier);
     std::string key_id(identifier, identifier + key_ids[i].identifier_size);
-    key_ids_copy[i] = key_id;
-    key_statuses_copy[i] = key_statuses[i];
+    CdmKeyInformation::KeyStatus status = ToCdmKeyStatus(key_statuses[i]);
+    has_additional_usable_key |= (status == CdmKeyInformation::USABLE);
+
+    keys_info.emplace_back(new CdmKeyInformation(key_id, status, 0));
   }
 
-  drm_system->task_runner_->PostTask(
+  cdm->task_runner_->PostTask(
       FROM_HERE,
-      base::Bind(&DrmSystem::OnSessionKeyStatusChanged, drm_system->weak_this_,
-                 session_id_copy, key_ids_copy, key_statuses_copy));
+      base::BindOnce(&StarboardCdm::OnSessionKeyStatusChanged,
+                     cdm->weak_factory_.GetWeakPtr(), session_id_copy,
+                     std::move(keys_info), has_additional_usable_key));
 }
 
 // static
-void DrmSystem::OnServerCertificateUpdatedFunc(SbDrmSystem wrapped_drm_system,
-                                               void* context, int ticket,
-                                               SbDrmStatus status,
-                                               const char* error_message) {
+void StarboardCdm::OnServerCertificateUpdatedFunc(SbDrmSystem sb_drm,
+                                                  void* context,
+                                                  int ticket,
+                                                  SbDrmStatus status,
+                                                  const char* error_message) {
   DCHECK(context);
-  DrmSystem* drm_system = static_cast<DrmSystem*>(context);
-  DCHECK_EQ(wrapped_drm_system, drm_system->wrapped_drm_system_);
+  StarboardCdm* cdm = static_cast<StarboardCdm*>(context);
+  DCHECK_EQ(sb_drm, cdm->sb_drm_);
 
-  drm_system->task_runner_->PostTask(
-      FROM_HERE, base::Bind(&DrmSystem::OnServerCertificateUpdated,
-                            drm_system->weak_this_, ticket, status,
-                            error_message ? std::string(error_message) : ""));
+  cdm->task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&StarboardCdm::OnServerCertificateUpdated,
+                     cdm->weak_factory_.GetWeakPtr(), ticket, status,
+                     error_message ? std::string(error_message) : ""));
 }
 
 // static
-void DrmSystem::OnSessionClosedFunc(SbDrmSystem wrapped_drm_system,
-                                    void* context, const void* session_id,
-                                    int session_id_size) {
+void StarboardCdm::OnSessionClosedFunc(SbDrmSystem sb_drm,
+                                       void* context,
+                                       const void* session_id,
+                                       int session_id_size) {
   DCHECK(context);
-  DrmSystem* drm_system = static_cast<DrmSystem*>(context);
-  DCHECK_EQ(wrapped_drm_system, drm_system->wrapped_drm_system_);
+  StarboardCdm* cdm = static_cast<StarboardCdm*>(context);
+  DCHECK_EQ(sb_drm, cdm->sb_drm_);
 
   DCHECK(session_id != NULL);
 
@@ -569,10 +574,10 @@ void DrmSystem::OnSessionClosedFunc(SbDrmSystem wrapped_drm_system,
       std::string(static_cast<const char*>(session_id),
                   static_cast<const char*>(session_id) + session_id_size);
 
-  drm_system->task_runner_->PostTask(
-      FROM_HERE, base::Bind(&DrmSystem::OnSessionClosed, drm_system->weak_this_,
-                            session_id_copy));
+  cdm->task_runner_->PostTask(
+      FROM_HERE,
+      base::BindOnce(&StarboardCdm::OnSessionClosed,
+                     cdm->weak_factory_.GetWeakPtr(), session_id_copy));
 }
 
 }  // namespace media
-}  // namespace cobalt

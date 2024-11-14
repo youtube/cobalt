@@ -51,10 +51,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   void Initialize(MediaResource* media_resource,
                   RendererClient* client,
                   PipelineStatusCallback init_cb) final;
-  void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) final {
-    // TODO(b/328305808): Implement encrypted playback.
-    NOTIMPLEMENTED();
-  }
+  void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) final;
   void SetLatencyHint(absl::optional<base::TimeDelta> latency_hint) final {
     // TODO(b/375271848): Address NOTIMPLEMENTED().
     NOTIMPLEMENTED();
@@ -126,6 +123,8 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   const base::TimeDelta audio_write_duration_remote_ = base::Seconds(10);
   // TODO(b/375674101): Support batched samples write.
   const int max_audio_samples_per_write_ = 1;
+
+  SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 
   base::Lock lock_;
   std::unique_ptr<SbPlayerBridge> player_bridge_;
