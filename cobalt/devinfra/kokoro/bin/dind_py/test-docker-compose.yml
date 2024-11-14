@@ -1,0 +1,9 @@
+services:
+  my_service:
+    image: my_image
+
+  foo_test:
+    image: foo_test
+    build:
+      context: ${COBALT_SRC}/internal/kokoro/bin/dind_py
+      dockerfile: ./Dockerfile.test
