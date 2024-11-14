@@ -37,9 +37,9 @@
 
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "starboard/build/starboard_buildflags.h"
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
 class AudioDecoderConfig;
@@ -100,7 +100,6 @@ class WebMediaSource {
   virtual std::unique_ptr<WebSourceBuffer> AddSourceBuffer(
       std::unique_ptr<media::VideoDecoderConfig> video_config,
       AddStatus& out_status /* out */) = 0;
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Special version of AddSourceBuffer() that retains the full |mime_type|
   // passed to MediaSource.AddSourceBuffer().
@@ -108,7 +107,6 @@ class WebMediaSource {
       const WebString& mime_type,
       AddStatus& out_status /* out */) = 0;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif  // BUILDFLAG(IS_COBALT)
 
   virtual double Duration() = 0;
   virtual void SetDuration(double) = 0;

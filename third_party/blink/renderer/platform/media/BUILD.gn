@@ -7,10 +7,6 @@ if (is_cobalt) {
   import("//starboard/build/buildflags.gni")
 }
 
-if (is_cobalt) {
-  import("//starboard/build/buildflags.gni")
-}
-
 # TODO(https://crbug.com/1198341): use blink_platform_sources once the code is
 # ported to Blink code conventions.
 component("media") {

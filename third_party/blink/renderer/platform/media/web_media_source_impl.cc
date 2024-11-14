@@ -14,9 +14,9 @@
 
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "starboard/build/starboard_buildflags.h"
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
 
@@ -79,7 +79,6 @@ std::unique_ptr<WebSourceBuffer> WebMediaSourceImpl::AddSourceBuffer(
   return nullptr;
 }
 
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 std::unique_ptr<WebSourceBuffer> WebMediaSourceImpl::AddSourceBuffer(
     const WebString& mime_type,
@@ -96,7 +95,6 @@ std::unique_ptr<WebSourceBuffer> WebMediaSourceImpl::AddSourceBuffer(
   return nullptr;
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif  // BUILDFLAG(IS_COBALT)
 
 double WebMediaSourceImpl::Duration() {
   return demuxer_->GetDuration();

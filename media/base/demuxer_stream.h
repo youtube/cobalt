@@ -14,9 +14,9 @@
 
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
-#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "starboard/build/starboard_buildflags.h"
-#endif  // BUILDFLAG(IS_COBALT)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
 
@@ -76,11 +76,9 @@ class MEDIA_EXPORT DemuxerStream {
 
   using DecoderBufferVector = std::vector<scoped_refptr<DecoderBuffer>>;
   using ReadCB = base::OnceCallback<void(Status, DecoderBufferVector)>;
-#if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   virtual std::string mime_type() const { return ""; }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-#endif  // BUILDFLAG(IS_COBALT)
 
   // Request buffers to be returned via the provided callback.
   // The first parameter indicates the status of the read request.
