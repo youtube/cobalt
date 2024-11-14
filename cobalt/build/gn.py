@@ -154,7 +154,8 @@ if __name__ == '__main__':
       '`gn args <out_directory>` to edit it instead.')
   parser.add_argument(
       '--no-check',
-      default=False,
+      # TODO: b/377295011 - Enable gn --check
+      default=True,
       action='store_true',
       help='Pass this flag to disable the header dependency gn check.')
   script_args, gen_args = parser.parse_known_args()

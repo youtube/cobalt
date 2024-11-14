@@ -31,7 +31,7 @@ runs:
       - name: gn gen
         run: |
           cd src
-          cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }} --no-check
+          cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
         shell: bash
       - name: gn dump args
         run: |
