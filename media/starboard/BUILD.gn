@@ -32,9 +32,6 @@ source_set("starboard") {
     # TODO(b/375070492): Revisit decode-to-texture
     "COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER=0",
 
-    # TODO(b/328305808): Enable encrypted playbacks
-    "COBALT_MEDIA_ENABLE_ENCRYPTED_PLAYBACKS=0",
-
     # TODO(b/375218518): Revisit FormatSupportQueryMetrics
     "COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS=0",
 
@@ -72,6 +69,10 @@ source_set("starboard") {
       "sbplayer_interface.h",
       "sbplayer_set_bounds_helper.cc",
       "sbplayer_set_bounds_helper.h",
+      "starboard_cdm.cc",
+      "starboard_cdm.h",
+      "starboard_cdm_factory.cc",
+      "starboard_cdm_factory.h",
       "starboard_memory_allocator.h",
       "starboard_renderer.cc",
       "starboard_renderer.h",
