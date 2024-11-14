@@ -144,25 +144,43 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
     video_stream_->EnableBitstreamConverter();
   }
 
-#if COBALT_MEDIA_ENABLE_ENCRYPTED_PLAYBACKS
-  base::AutoLock auto_lock(lock_);
-
-  bool is_encrypted =
-      audio_stream_ && audio_stream_->audio_decoder_config().is_encrypted();
-  is_encrypted |=
-      video_stream_ && video_stream_->video_decoder_config().is_encrypted();
-  if (is_encrypted) {
-    // TODO(b/328305808): Shall we call client_->OnVideoNaturalSizeChange() to
-    // provide an initial size before the license exchange finishes?
-
-    RunSetDrmSystemReadyCB(BindPostTaskToCurrentDefault(
-        base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
-    return;
-  }
-#endif  // COBALT_MEDIA_ENABLE_ENCRYPTED_PLAYBACKS
+  // TODO(cobalt, b/378958007) ensure SetCdm has been called before
+  // |CreatePlayerBridge()| and the init_cb.
+  //
+  // base::AutoLock auto_lock(lock_);
+  //
+  // bool is_encrypted =
+  //     audio_stream_ && audio_stream_->audio_decoder_config().is_encrypted();
+  // is_encrypted |=
+  //     video_stream_ && video_stream_->video_decoder_config().is_encrypted();
+  // if (is_encrypted) {
+  //   // TODO(b/328305808): Shall we call client_->OnVideoNaturalSizeChange()
+  //   to
+  //   // provide an initial size before the license exchange finishes?
+  //   RunSetDrmSystemReadyCB(BindPostTaskToCurrentDefault(
+  //       base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
+  //   return;
+  // }
 
   // |init_cb| will be called inside |CreatePlayerBridge()|.
   CreatePlayerBridge(std::move(init_cb));
+}
+
+void StarboardRenderer::SetCdm(CdmContext* cdm_context,
+                               CdmAttachedCB cdm_attached_cb) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(cdm_context);
+  TRACE_EVENT0("media", "StarboardRenderer::SetCdm");
+
+  if (SbDrmSystemIsValid(drm_system_)) {
+    LOG(WARNING) << "Switching CDM not supported.";
+    std::move(cdm_attached_cb).Run(false);
+    return;
+  }
+
+  drm_system_ = cdm_context->GetSbDrmSystem();
+  std::move(cdm_attached_cb).Run(true);
+  LOG(INFO) << "CDM set successfully.";
 }
 
 void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
@@ -362,9 +380,7 @@ void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
         video_mime_type,
         // TODO(b/326497953): Support suspend/resume.
         // TODO(b/326508279): Support background mode.
-        kSbWindowInvalid,
-        // TODO(b/328305808): Implement SbDrm support.
-        kSbDrmSystemInvalid, this,
+        kSbWindowInvalid, drm_system_, this,
         // TODO(b/376320224); Verify set bounds works
         nullptr,
         // TODO(b/326497953): Support suspend/resume.
