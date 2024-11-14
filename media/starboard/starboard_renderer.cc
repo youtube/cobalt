@@ -16,6 +16,8 @@
 
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
+#include "media/base/audio_codecs.h"
+#include "media/base/video_codecs.h"
 #include "starboard/common/media.h"
 
 namespace media {
@@ -127,25 +129,58 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
     return;
   }
 
-#if COBALT_MEDIA_ENABLE_ENCRYPTED_PLAYBACKS
-  base::AutoLock auto_lock(lock_);
-
-  bool is_encrypted =
-      audio_stream_ && audio_stream_->audio_decoder_config().is_encrypted();
-  is_encrypted |=
-      video_stream_ && video_stream_->video_decoder_config().is_encrypted();
-  if (is_encrypted) {
-    // TODO(b/328305808): Shall we call client_->OnVideoNaturalSizeChange() to
-    // provide an initial size before the license exchange finishes?
-
-    RunSetDrmSystemReadyCB(BindPostTaskToCurrentDefault(
-        base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
-    return;
+  // Enable bit stream converter for aac and h264 streams, which will convert
+  // them into ADTS and Annex B.  This is only required for FFmpegDemuxer, and
+  // has no effect for other demuxers (e.g. ChunkDemuxer).
+  if (audio_stream_ &&
+      audio_stream_->audio_decoder_config().codec() == AudioCodec::kAAC) {
+    LOG(INFO) << "Encountered AAC stream, enabling bit stream converter ...";
+    audio_stream_->EnableBitstreamConverter();
   }
-#endif  // COBALT_MEDIA_ENABLE_ENCRYPTED_PLAYBACKS
+
+  if (video_stream_ &&
+      video_stream_->video_decoder_config().codec() == VideoCodec::kH264) {
+    LOG(INFO) << "Encountered H264 stream, enabling bit stream converter ...";
+    video_stream_->EnableBitstreamConverter();
+  }
+
+  // TODO(cobalt, b/378958007) ensure SetCdm has been called before
+  // |CreatePlayerBridge()| and the init_cb.
+  //
+  // base::AutoLock auto_lock(lock_);
+  //
+  // bool is_encrypted =
+  //     audio_stream_ && audio_stream_->audio_decoder_config().is_encrypted();
+  // is_encrypted |=
+  //     video_stream_ && video_stream_->video_decoder_config().is_encrypted();
+  // if (is_encrypted) {
+  //   // TODO(b/328305808): Shall we call client_->OnVideoNaturalSizeChange()
+  //   to
+  //   // provide an initial size before the license exchange finishes?
+  //   RunSetDrmSystemReadyCB(BindPostTaskToCurrentDefault(
+  //       base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
+  //   return;
+  // }
 
   // |init_cb| will be called inside |CreatePlayerBridge()|.
   CreatePlayerBridge(std::move(init_cb));
+}
+
+void StarboardRenderer::SetCdm(CdmContext* cdm_context,
+                               CdmAttachedCB cdm_attached_cb) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(cdm_context);
+  TRACE_EVENT0("media", "StarboardRenderer::SetCdm");
+
+  if (SbDrmSystemIsValid(drm_system_)) {
+    LOG(WARNING) << "Switching CDM not supported.";
+    std::move(cdm_attached_cb).Run(false);
+    return;
+  }
+
+  drm_system_ = cdm_context->GetSbDrmSystem();
+  std::move(cdm_attached_cb).Run(true);
+  LOG(INFO) << "CDM set successfully.";
 }
 
 void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
@@ -154,6 +189,13 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   DCHECK(flush_cb);
 
   LOG(INFO) << "Flushing StarboardRenderer.";
+
+  // It's possible that Flush() is called immediately after StartPlayingFrom(),
+  // before the underlying SbPlayer is initialized.  Reset
+  // `playing_start_from_time_` here as StartPlayingFrom() checks for
+  // re-entrant.  This also avoids the stale `playing_start_from_time_` to be
+  // used.
+  playing_start_from_time_.reset();
 
   // Prepares the |player_bridge_| for Seek(), the |player_bridge_| won't
   // request more data from us before Seek() is called.
@@ -338,9 +380,7 @@ void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
         video_mime_type,
         // TODO(b/326497953): Support suspend/resume.
         // TODO(b/326508279): Support background mode.
-        kSbWindowInvalid,
-        // TODO(b/328305808): Implement SbDrm support.
-        kSbDrmSystemInvalid, this,
+        kSbWindowInvalid, drm_system_, this,
         // TODO(b/376320224); Verify set bounds works
         nullptr,
         // TODO(b/326497953): Support suspend/resume.
@@ -674,6 +714,8 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
 void StarboardRenderer::OnPlayerError(SbPlayerError error,
                                       const std::string& message) {
   // TODO(b/375271948): Implement and verify error reporting.
+  LOG(ERROR) << "StarboardRenderer::OnPlayerError() called with code " << error
+             << " and message \"" << message << "\"";
   NOTIMPLEMENTED();
 }
 

@@ -107,16 +107,20 @@ public abstract class CobaltActivity extends Activity {
       String[] cobaltCommandLineParams =
           new String[] {
             "",
-            // disable first run experience
+            // Disable first run experience.
             "--disable-fre",
-            // disable user prompts in the first run
+            // Disable user prompts in the first run.
             "--no-first-run",
-            // run Cobalt as a single process
+            // Run Cobalt as a single process.
             "--single-process",
-            // enable Blink to work in overlay video mode
+            // Enable Blink to work in overlay video mode.
             "--force-video-overlays",
-            // remove below if Cobalt rebase to m120+
-            "--user-level-memory-pressure-signal-params"
+            // Autoplay video with url.
+            "--autoplay-policy=no-user-gesture-required",
+            // Remove below if Cobalt rebase to m120+.
+            "--user-level-memory-pressure-signal-params",
+            // Pass javascript console log to adb log.
+            "--enable-features=LogJsConsoleMessages"
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
 
@@ -327,9 +331,6 @@ public abstract class CobaltActivity extends Activity {
 
   // TODO(b/375442742): re-enable native code.
   // private static native void nativeLowMemoryEvent();
-
-  // TODO(cobalt): make WebContent accessible in CobaltActivity or StarboardBridge.
-  // protected View mContentView = null;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {

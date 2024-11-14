@@ -22,11 +22,7 @@ android_resources("cobalt_java_resources") {
     "apk/app/src/main/res/values/strings.xml",
     "apk/app/src/main/res/values/styles.xml",
   ]
-
-  #TODO(b/375037287): use Widget.Leanback.ErrorMessageStyle
-  #deps = [
-  #  "//third_party/androidx:androidx_leanback_leanback_java",
-  #]
+  deps = [ "//third_party/androidx:androidx_leanback_leanback_java" ]
 }
 
 jinja_template("cobalt_manifest") {
@@ -165,6 +161,8 @@ shared_library("libcobalt_content_shell_content_view") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
+    "//cobalt:common",
+
     # TODO: what can be removed in the dependencies?
     "//components/crash/content/browser",
     "//content/shell:content_shell_app",
