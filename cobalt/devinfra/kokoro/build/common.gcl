@@ -1,0 +1,60 @@
+// -*- protobuffer -*-
+// proto-file: google3/devtools/kokoro/config/proto/build.proto
+// proto-message: BuildConfig
+
+build = {
+  env_vars = [
+    {
+      key = 'IPV6_AVAILABLE'
+      value = '0'
+    },
+    {
+      key = 'IS_BUILDBOT_DOCKER'
+      value = '1'
+    },
+    {
+      key = 'IS_CI'
+      value = '1'
+    },
+    {
+      key = 'IS_DOCKER'
+      value = '1'
+    },
+    {
+      key = 'LANG'
+      value = 'en_US.UTF-8'
+    },
+    {
+      key = 'NINJA_STATUS'
+      value = '[%e sec | %f/%t %u remaining | %c/sec | j%r]'
+    },
+    {
+      key = 'RELEASE_CONFIGS'
+      value = 'qa gold'
+    },
+    {
+      key = 'SCCACHE'
+      value = '1'
+    },
+    {
+      key = 'SCCACHE_GCS_RW_MODE'
+      value = 'READ_WRITE'
+    },
+    {
+      key = 'SCCACHE_IDLE_TIMEOUT'
+      value = '0'
+    },
+    {
+      key = 'REGISTRY_HOSTNAME'
+      value = 'us-central1-docker.pkg.dev'
+    },
+    {
+      key = 'REGISTRY_METADATA'
+      value = 'http://metadata.google.internal./computeMetadata/v1'
+    },
+    {
+      key = 'REGISTRY_GCP_PROJECT'
+      value = 'cobalt-kokoro-gar'
+    },
+  ]
+}
