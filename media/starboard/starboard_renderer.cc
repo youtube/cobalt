@@ -16,6 +16,8 @@
 
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
+#include "media/base/audio_codecs.h"
+#include "media/base/video_codecs.h"
 #include "starboard/common/media.h"
 
 namespace media {
@@ -127,6 +129,21 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
     return;
   }
 
+  // Enable bit stream converter for aac and h264 streams, which will convert
+  // them into ADTS and Annex B.  This is only required for FFmpegDemuxer, and
+  // has no effect for other demuxers (e.g. ChunkDemuxer).
+  if (audio_stream_ &&
+      audio_stream_->audio_decoder_config().codec() == AudioCodec::kAAC) {
+    LOG(INFO) << "Encountered AAC stream, enabling bit stream converter ...";
+    audio_stream_->EnableBitstreamConverter();
+  }
+
+  if (video_stream_ &&
+      video_stream_->video_decoder_config().codec() == VideoCodec::kH264) {
+    LOG(INFO) << "Encountered H264 stream, enabling bit stream converter ...";
+    video_stream_->EnableBitstreamConverter();
+  }
+
 #if COBALT_MEDIA_ENABLE_ENCRYPTED_PLAYBACKS
   base::AutoLock auto_lock(lock_);
 
@@ -154,6 +171,13 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   DCHECK(flush_cb);
 
   LOG(INFO) << "Flushing StarboardRenderer.";
+
+  // It's possible that Flush() is called immediately after StartPlayingFrom(),
+  // before the underlying SbPlayer is initialized.  Reset
+  // `playing_start_from_time_` here as StartPlayingFrom() checks for
+  // re-entrant.  This also avoids the stale `playing_start_from_time_` to be
+  // used.
+  playing_start_from_time_.reset();
 
   // Prepares the |player_bridge_| for Seek(), the |player_bridge_| won't
   // request more data from us before Seek() is called.
@@ -674,6 +698,8 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
 void StarboardRenderer::OnPlayerError(SbPlayerError error,
                                       const std::string& message) {
   // TODO(b/375271948): Implement and verify error reporting.
+  LOG(ERROR) << "StarboardRenderer::OnPlayerError() called with code " << error
+             << " and message \"" << message << "\"";
   NOTIMPLEMENTED();
 }
 

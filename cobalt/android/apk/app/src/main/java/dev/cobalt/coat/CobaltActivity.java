@@ -74,24 +74,8 @@ public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final java.lang.String META_DATA_APP_URL = "cobalt.APP_URL";
 
-  private static final String SPLASH_URL_ARG = "--fallback_splash_screen_url=";
-  private static final String SPLASH_TOPICS_ARG = "--fallback_splash_screen_topics=";
-  private static final java.lang.String META_DATA_SPLASH_URL = "cobalt.SPLASH_URL";
-  private static final java.lang.String META_DATA_SPLASH_TOPICS = "cobalt.SPLASH_TOPIC";
-
-  private static final String FORCE_MIGRATION_FOR_STORAGE_PARTITIONING =
-      "--force_migration_for_storage_partitioning";
-  private static final String META_FORCE_MIGRATION_FOR_STORAGE_PARTITIONING =
-      "cobalt.force_migration_for_storage_partitioning";
-
-  private static final String EVERGREEN_LITE = "--evergreen_lite";
-  private static final java.lang.String META_DATA_EVERGREEN_LITE = "cobalt.EVERGREEN_LITE";
-
   private static final String ACTIVE_SHELL_URL_KEY = "activeUrl";
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
-
-  // Native switch - shell_switches::kRunWebTests
-  private static final String RUN_WEB_TESTS_SWITCH = "run-web-tests";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
@@ -123,16 +107,20 @@ public abstract class CobaltActivity extends Activity {
       String[] cobaltCommandLineParams =
           new String[] {
             "",
-            // disable first run experience
+            // Disable first run experience.
             "--disable-fre",
-            // disable user prompts in the first run
+            // Disable user prompts in the first run.
             "--no-first-run",
-            // run Cobalt as a single process
+            // Run Cobalt as a single process.
             "--single-process",
-            // enable Blink to work in overlay video mode
+            // Enable Blink to work in overlay video mode.
             "--force-video-overlays",
-            // remove below if Cobalt rebase to m120+
-            "--user-level-memory-pressure-signal-params"
+            // Autoplay video with url.
+            "--autoplay-policy=no-user-gesture-required",
+            // Remove below if Cobalt rebase to m120+.
+            "--user-level-memory-pressure-signal-params",
+            // Pass javascript console log to adb log.
+            "--enable-features=LogJsConsoleMessages"
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
 
@@ -177,9 +165,16 @@ public abstract class CobaltActivity extends Activity {
     mWindowAndroid.setAnimationPlaceholderView(
         mShellManager.getContentViewRenderView().getSurfaceView());
 
-    // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
-    if (mStartupUrl.isEmpty()) {
+    if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       mStartupUrl = getUrlFromIntent(getIntent());
+    }
+    if (mStartupUrl == null || mStartupUrl.isEmpty()) {
+      String[] args = getStarboardBridge().getArgs();
+      mStartupUrl = Arrays.stream(args)
+                     .filter(line -> line.contains(URL_ARG))
+                     .findAny()
+                     .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
+                     .orElse(null);
     }
     if (!TextUtils.isEmpty(mStartupUrl)) {
       mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
@@ -279,11 +274,6 @@ public abstract class CobaltActivity extends Activity {
     }
   }
 
-  // TODO(cobalt, b/376148547): set Chrobalt initial url and remove this function.
-  protected void setStartupUrl(String url) {
-    mStartupUrl = url;
-  }
-
   protected void toggleFullscreenMode(boolean enterFullscreen) {
     LinearLayout toolBar = (LinearLayout) findViewById(R.id.toolbar);
     toolBar.setVisibility(enterFullscreen ? View.GONE : View.VISIBLE);
@@ -355,7 +345,6 @@ public abstract class CobaltActivity extends Activity {
     // STREAM_MUSIC whenever the target activity or fragment is visible.
     setVolumeControlStream(AudioManager.STREAM_MUSIC);
 
-    setStartupUrl("https://www.youtube.com/tv");
     super.onCreate(savedInstanceState);
     createContent(savedInstanceState);
 
@@ -504,13 +493,7 @@ public abstract class CobaltActivity extends Activity {
 
     // If the URL arg isn't specified, get it from AndroidManifest.xml.
     boolean hasUrlArg = hasArg(args, URL_ARG);
-    // If the splash screen url arg isn't specified, get it from AndroidManifest.xml.
-    boolean hasSplashUrlArg = hasArg(args, SPLASH_URL_ARG);
-    // If the splash screen topics arg isn't specified, get it from AndroidManifest.xml.
-    boolean hasSplashTopicsArg = hasArg(args, SPLASH_TOPICS_ARG);
-    // If the Evergreen-Lite arg isn't specified, get it from AndroidManifest.xml.
-    boolean hasEvergreenLiteArg = hasArg(args, EVERGREEN_LITE);
-    if (!hasUrlArg || !hasSplashUrlArg || !hasSplashTopicsArg || !hasEvergreenLiteArg) {
+    if (!hasUrlArg) {
       try {
         ActivityInfo ai =
             getPackageManager()
@@ -521,24 +504,6 @@ public abstract class CobaltActivity extends Activity {
             if (url != null) {
               args.add(URL_ARG + url);
             }
-          }
-          if (!hasSplashUrlArg) {
-            String splashUrl = ai.metaData.getString(META_DATA_SPLASH_URL);
-            if (splashUrl != null) {
-              args.add(SPLASH_URL_ARG + splashUrl);
-            }
-          }
-          if (!hasSplashTopicsArg) {
-            String splashTopics = ai.metaData.getString(META_DATA_SPLASH_TOPICS);
-            if (splashTopics != null) {
-              args.add(SPLASH_TOPICS_ARG + splashTopics);
-            }
-          }
-          if (!hasEvergreenLiteArg && ai.metaData.getBoolean(META_DATA_EVERGREEN_LITE)) {
-            args.add(EVERGREEN_LITE);
-          }
-          if (ai.metaData.getBoolean(META_FORCE_MIGRATION_FOR_STORAGE_PARTITIONING)) {
-            args.add(FORCE_MIGRATION_FOR_STORAGE_PARTITIONING);
           }
         }
       } catch (NameNotFoundException e) {
