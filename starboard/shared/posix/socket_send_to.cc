@@ -57,7 +57,6 @@ int SbSocketSendTo(SbSocket socket,
     socket->error = sbposix::TranslateSocketErrno(errno);
     return -1;
   } else if (socket->protocol == kSbSocketProtocolUdp) {
-    ssize_t bytes_written = 0;
     sbposix::SockAddr sock_addr;
     const sockaddr* sockaddr = nullptr;
     socklen_t sockaddr_length = 0;

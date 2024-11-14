@@ -96,7 +96,6 @@ int QuicChromiumPacketReader::StartReadingMultiplePackets() {
 }
 
 bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
-  quic::QuicChromiumClock::GetInstance()->ZeroApproximateNow();
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
     net_log_.AddEventWithIntParams(NetLogEventType::QUIC_READ_ERROR,
@@ -127,14 +126,14 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
   quic::QuicSocketAddress quick_peer_address =
       ToQuicSocketAddress(peer_address);
 
+  auto self = weak_factory_.GetWeakPtr();
   struct Socket::ReadPacketResult* read_packet = read_results_.packets;
   for (int p = 0; p < read_results_.result; ++p, ++read_packet) {
     if (read_packet->result <= 0) {
       continue;
     }
     quic::QuicReceivedPacket packet(read_packet->buffer, read_packet->result,
-                                    clock_->ApproximateNow());
-    auto self = weak_factory_.GetWeakPtr();
+                                    clock_->Now());
     if (!(visitor_->OnPacket(packet, quick_local_address, quick_peer_address) &&
           self)) {
       return false;

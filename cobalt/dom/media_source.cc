@@ -67,7 +67,6 @@
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/event.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
-#include "cobalt/worker/worker_global_scope.h"
 #include "cobalt/worker/worker_settings.h"
 #include "media/base/pipeline_status.h"
 #include "starboard/media.h"
@@ -573,9 +572,9 @@ bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
   web::EnvironmentSettings* web_settings =
       base::polymorphic_downcast<web::EnvironmentSettings*>(settings);
   DCHECK(web_settings);
-  if (IsMediaElementUsingMediaSourceBufferedRangeEnabled(web_settings) &&
+  if (IsMseInWorkersEnabled(web_settings) &&
       IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(web_settings) &&
-      IsMseInWorkersEnabled(web_settings)) {
+      IsMediaElementUsingMediaSourceBufferedRangeEnabled(web_settings)) {
     DCHECK(web_settings->context());
     web::WindowOrWorkerGlobalScope* global_scope =
         web_settings->context()->GetWindowOrWorkerGlobalScope();

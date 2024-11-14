@@ -18,9 +18,6 @@
 
 #include "cobalt/dom/cross_thread_media_source_attachment.h"
 
-#include <utility>
-
-#include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "cobalt/dom/media_source.h"
 #include "cobalt/dom/media_source_attachment.h"
@@ -36,166 +33,76 @@ namespace dom {
 
 CrossThreadMediaSourceAttachment::CrossThreadMediaSourceAttachment(
     scoped_refptr<MediaSource> media_source)
-    : media_source_(media_source.get()),
-      worker_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
+    : media_source_(media_source),
+      task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
       recent_element_time_(0.0),
-      element_has_error_(false),
-      element_has_max_video_capabilities_(false),
-      have_ever_attached_(false),
-      have_ever_started_closing_(false) {}
+      element_has_error_(false) {}
 
 void CrossThreadMediaSourceAttachment::TraceMembers(script::Tracer* tracer) {
-  base::AutoLock auto_lock(attachment_state_lock_);
-  if (worker_runner_->RunsTasksInCurrentSequence()) {
-    tracer->Trace(media_source_);
-  } else {
-    tracer->Trace(attached_element_);
-  }
+  DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+
+  tracer->Trace(attached_element_);
+  tracer->Trace(media_source_);
 }
 
 bool CrossThreadMediaSourceAttachment::StartAttachingToMediaElement(
     HTMLMediaElement* media_element) {
-  base::AutoLock auto_lock(attachment_state_lock_);
-  // Called from main thread. At this point, we can only check if
-  // this is not being called from the worker thread.
-  DCHECK(!worker_runner_->RunsTasksInCurrentSequence());
-
-  if (have_ever_attached_) {
-    return false;
-  }
-
-  DCHECK(!have_ever_started_closing_);
-  DCHECK(!attached_element_);
-
-  // Attach on the main thread.
-  if (!media_source_->StartAttachingToMediaElement(this)) {
-    return false;
-  }
-
-  attached_element_ = media_element;
-  main_runner_ = base::SequencedTaskRunner::GetCurrentDefault();
-  DCHECK(main_runner_->RunsTasksInCurrentSequence());
-
-  // Grab initial state from the HTMLMediaElement while on the main thread.
-  recent_element_time_ = media_element->current_time(NULL);
-  element_has_error_ = static_cast<bool>(media_element->error());
-  element_has_max_video_capabilities_ =
-      media_element->HasMaxVideoCapabilities();
-
-  DCHECK(!element_has_error_);
-
-  have_ever_attached_ = true;
-  return true;
+  DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
+  return false;
 }
 
 void CrossThreadMediaSourceAttachment::CompleteAttachingToMediaElement(
     ::media::ChunkDemuxer* chunk_demuxer) {
-  base::AutoLock auto_lock(attachment_state_lock_);
-  DCHECK(have_ever_attached_);
-  DCHECK(main_runner_->RunsTasksInCurrentSequence());
-  DCHECK(!worker_runner_->RunsTasksInCurrentSequence());
-
-  worker_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&CrossThreadMediaSourceAttachment::
-                         CompleteAttachingToMediaElementOnWorkerThread,
-                     this, chunk_demuxer));
-}
-
-void CrossThreadMediaSourceAttachment::
-    CompleteAttachingToMediaElementOnWorkerThread(
-        ::media::ChunkDemuxer* chunk_demuxer) {
-  base::AutoLock auto_lock(attachment_state_lock_);
-  DCHECK(worker_runner_->RunsTasksInCurrentSequence());
-  DCHECK(!main_runner_->RunsTasksInCurrentSequence());
-
-  if (have_ever_started_closing_) {
-    return;
-  }
-
-  media_source_->CompleteAttachingToMediaElement(chunk_demuxer);
+  DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
 }
 
 void CrossThreadMediaSourceAttachment::Close() {
-  base::AutoLock auto_lock(attachment_state_lock_);
-  DCHECK(have_ever_attached_);
-  DCHECK(!have_ever_started_closing_);
-  DCHECK(main_runner_->RunsTasksInCurrentSequence());
-  DCHECK(!worker_runner_->RunsTasksInCurrentSequence());
-
-  have_ever_started_closing_ = true;
-
-  worker_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(&CrossThreadMediaSourceAttachment::CloseOnWorkerThread,
-                     this));
-}
-
-void CrossThreadMediaSourceAttachment::CloseOnWorkerThread() {
-  base::AutoLock auto_lock(attachment_state_lock_);
-  DCHECK(have_ever_started_closing_);
-  DCHECK(attached_element_);
-  DCHECK(worker_runner_->RunsTasksInCurrentSequence());
-  DCHECK(!main_runner_->RunsTasksInCurrentSequence());
-
-  media_source_->Close();
+  DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
 }
 
 scoped_refptr<TimeRanges> CrossThreadMediaSourceAttachment::GetBufferedRange()
     const {
-  base::AutoLock auto_lock(attachment_state_lock_);
-  DCHECK(attached_element_);
-  DCHECK(!have_ever_started_closing_);
-  DCHECK(have_ever_attached_);
-  DCHECK(main_runner_->RunsTasksInCurrentSequence());
-  DCHECK(!worker_runner_->RunsTasksInCurrentSequence());
-
-  return media_source_->GetBufferedRange();
+  DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
+  return nullptr;
 }
 
 MediaSourceReadyState CrossThreadMediaSourceAttachment::GetReadyState() const {
-  base::AutoLock auto_lock(attachment_state_lock_);
-  DCHECK(attached_element_);
-  DCHECK(!have_ever_started_closing_);
-  DCHECK(have_ever_attached_);
-  DCHECK(main_runner_->RunsTasksInCurrentSequence());
-  DCHECK(!worker_runner_->RunsTasksInCurrentSequence());
-
-  return media_source_->ready_state();
+  DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
+  return kMediaSourceReadyStateClosed;
 }
 
-void CrossThreadMediaSourceAttachment::NotifyDurationChanged(
-    double /*duration*/) {
-  attachment_state_lock_.AssertAcquired();
-  DCHECK(worker_runner_->RunsTasksInCurrentSequence());
-
-  // No-op for cross thread MSA.
+void CrossThreadMediaSourceAttachment::NotifyDurationChanged(double duration) {
+  DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
 }
 
 bool CrossThreadMediaSourceAttachment::HasMaxVideoCapabilities() const {
-  attachment_state_lock_.AssertAcquired();
-  DCHECK(worker_runner_->RunsTasksInCurrentSequence());
-
-  return element_has_max_video_capabilities_;
+  DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
+  return false;
 }
 
 double CrossThreadMediaSourceAttachment::GetRecentMediaTime() {
-  attachment_state_lock_.AssertAcquired();
-  DCHECK(worker_runner_->RunsTasksInCurrentSequence());
-
-  return recent_element_time_;
+  DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
+  return 0;
 }
 
 bool CrossThreadMediaSourceAttachment::GetElementError() {
-  attachment_state_lock_.AssertAcquired();
-  DCHECK(worker_runner_->RunsTasksInCurrentSequence());
-
-  return element_has_error_;
+  DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
+  NOTIMPLEMENTED();
+  return false;
 }
 
 scoped_refptr<AudioTrackList>
 CrossThreadMediaSourceAttachment::CreateAudioTrackList(
     script::EnvironmentSettings* settings) {
+  DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   NOTIMPLEMENTED();
   return nullptr;
 }
@@ -203,81 +110,21 @@ CrossThreadMediaSourceAttachment::CreateAudioTrackList(
 scoped_refptr<VideoTrackList>
 CrossThreadMediaSourceAttachment::CreateVideoTrackList(
     script::EnvironmentSettings* settings) {
+  DCHECK_NE(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
   NOTIMPLEMENTED();
   return nullptr;
 }
 
 void CrossThreadMediaSourceAttachment::OnElementTimeUpdate(double time) {
-  base::AutoLock auto_lock(attachment_state_lock_);
-  DCHECK(main_runner_->RunsTasksInCurrentSequence());
-  DCHECK(!worker_runner_->RunsTasksInCurrentSequence());
-
-  worker_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          &CrossThreadMediaSourceAttachment::UpdateWorkerThreadTimeCache, this,
-          time));
-}
-
-void CrossThreadMediaSourceAttachment::UpdateWorkerThreadTimeCache(
-    double time) {
-  base::AutoLock auto_lock(attachment_state_lock_);
-  DCHECK(worker_runner_->RunsTasksInCurrentSequence());
-  DCHECK(!main_runner_->RunsTasksInCurrentSequence());
-
+  NOTIMPLEMENTED();
   recent_element_time_ = time;
 }
 
 void CrossThreadMediaSourceAttachment::OnElementError() {
-  base::AutoLock auto_lock(attachment_state_lock_);
-  DCHECK(main_runner_->RunsTasksInCurrentSequence());
-  DCHECK(!worker_runner_->RunsTasksInCurrentSequence());
-
-  worker_runner_->PostTask(
-      FROM_HERE,
-      base::BindOnce(
-          &CrossThreadMediaSourceAttachment::HandleElementErrorOnWorkerThread,
-          this));
-}
-
-void CrossThreadMediaSourceAttachment::HandleElementErrorOnWorkerThread() {
-  base::AutoLock auto_lock(attachment_state_lock_);
   DCHECK(!element_has_error_)
       << "At most one transition to element error per attachment is expected";
-  DCHECK(worker_runner_->RunsTasksInCurrentSequence());
-  DCHECK(main_runner_->RunsTasksInCurrentSequence());
-
+  NOTIMPLEMENTED();
   element_has_error_ = true;
-}
-
-bool CrossThreadMediaSourceAttachment::FullyAttachedOrSameThread() const {
-  attachment_state_lock_.AssertAcquired();
-  DCHECK(have_ever_attached_);
-  DCHECK(worker_runner_->RunsTasksInCurrentSequence());
-  DCHECK(!main_runner_->RunsTasksInCurrentSequence());
-
-  return attached_element_ && !have_ever_started_closing_;
-}
-
-bool CrossThreadMediaSourceAttachment::RunExclusively(
-    bool abort_if_not_fully_attached, RunExclusivelyCB cb) {
-  base::AutoLock auto_lock(attachment_state_lock_);
-
-  DCHECK(have_ever_attached_);
-  DCHECK(worker_runner_->RunsTasksInCurrentSequence());
-
-  if (abort_if_not_fully_attached &&
-      (!attached_element_ || have_ever_started_closing_)) {
-    return false;
-  }
-
-  std::move(cb).Run();
-  return true;
-}
-
-void CrossThreadMediaSourceAttachment::
-    AssertCrossThreadMutexIsAcquiredForDebugging() {
-  attachment_state_lock_.AssertAcquired();
 }
 
 }  // namespace dom

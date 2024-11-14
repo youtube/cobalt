@@ -117,13 +117,15 @@ bool IsAndroidAssetFile(const char* path) {
 }
 
 AAsset* OpenAndroidAsset(const char* path) {
-  if (!IsAndroidAssetFile(path) || g_asset_manager == NULL) {
+  if (!IsAndroidAssetPath(path) || g_asset_manager == NULL) {
+    SB_LOG(WARNING) << "Unable to open from Android Asset Manager: " << path;
     errno = ENOENT;
     return NULL;
   }
   const char* asset_path = path + strlen(g_app_assets_dir) + 1;
   AAsset* result = AAssetManager_open(g_asset_manager, asset_path, AASSET_MODE_RANDOM);
   if (!result) {
+    SB_LOG(WARNING) << "Unable to open from Android Asset Manager: " << path;
     errno = ENOENT;
   }
   return result;
