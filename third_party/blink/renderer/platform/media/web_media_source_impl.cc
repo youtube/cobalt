@@ -12,12 +12,6 @@
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/renderer/platform/media/web_source_buffer_impl.h"
 
-// For BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "build/build_config.h"
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "starboard/build/starboard_buildflags.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace blink {
 
 #define STATIC_ASSERT_MATCHING_STATUS_ENUM(webkit_name, chromium_name)    \

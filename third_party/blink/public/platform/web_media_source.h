@@ -37,9 +37,6 @@
 
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "starboard/build/starboard_buildflags.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
 class AudioDecoderConfig;

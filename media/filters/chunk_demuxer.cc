@@ -31,7 +31,6 @@
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/strings/string_split.h"
-#include "starboard/build/starboard_buildflags.h"
 #include "third_party/blink/renderer/platform/network/mime/content_type.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -789,8 +788,8 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
                                          const std::string& mime_type) {
   String mime(mime_type);
   blink::ContentType content_type(mime);
-  auto type = content_type.GetType();
-  auto codecs = content_type.Parameter("codecs");
+  String type = content_type.GetType();
+  String codecs = content_type.Parameter("codecs");
   if (type.empty() || codecs.empty()) {
     return kNotSupported;
   }
