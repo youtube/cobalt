@@ -149,8 +149,12 @@ void MediaPermissionDispatcher::OnPermissionStatus(
   PermissionStatusCB permission_status_cb = std::move(iter->second);
   requests_.erase(iter);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::move(permission_status_cb).Run(true);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::move(permission_status_cb)
       .Run(status == blink::mojom::PermissionStatus::GRANTED);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void MediaPermissionDispatcher::OnConnectionError() {

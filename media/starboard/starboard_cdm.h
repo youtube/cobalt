@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,252 +12,182 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_BASE_DRM_SYSTEM_H_
-#define COBALT_MEDIA_BASE_DRM_SYSTEM_H_
+#ifndef MEDIA_STARBOARD_STARBOARD_CDM_H
+#define MEDIA_STARBOARD_STARBOARD_CDM_H
 
+#include <stdint.h>
+
+#include <list>
+#include <map>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
-#include "base/basictypes.h"
-#include "base/containers/hash_tables.h"
-#include "base/memory/ref_counted.h"
-#include "base/memory/weak_ptr.h"
-#include "base/optional.h"
-#include "base/single_thread_task_runner.h"
-#include "base/task/sequenced_task_runner.h"
-#include "cobalt/media/base/metrics_provider.h"
-#include "starboard/atomic.h"
 #include "starboard/drm.h"
 
-namespace cobalt {
+#include "base/memory/scoped_refptr.h"
+#include "media/base/callback_registry.h"
+#include "media/base/cdm_config.h"
+#include "media/base/cdm_context.h"
+#include "media/base/cdm_key_information.h"
+#include "media/base/cdm_promise.h"
+#include "media/base/cdm_promise_adapter.h"
+#include "media/base/content_decryption_module.h"
+#include "media/base/media_export.h"
+
 namespace media {
 
-// A C++ wrapper around |SbDrmSystem|.
-//
-// Ensures that callbacks are always asynchronous and performed
-// from the same thread where |DrmSystem| was instantiated.
-class DrmSystem : public base::RefCounted<DrmSystem> {
+class MEDIA_EXPORT StarboardCdm : public ContentDecryptionModule,
+                                  public CdmContext {
  public:
-  typedef base::Callback<void(SbDrmSessionRequestType type,
-                              std::unique_ptr<uint8[]> message,
-                              int message_size)>
-      SessionUpdateRequestGeneratedCallback;
-  typedef base::Callback<void(SbDrmStatus status,
-                              const std::string& error_message)>
-      SessionUpdateRequestDidNotGenerateCallback;
-  typedef base::Callback<void()> SessionUpdatedCallback;
-  typedef base::Callback<void(SbDrmStatus status,
-                              const std::string& error_message)>
-      SessionDidNotUpdateCallback;
-  typedef base::Callback<void(const std::vector<std::string>& key_ids,
-                              const std::vector<SbDrmKeyStatus>& key_statuses)>
-      SessionUpdateKeyStatusesCallback;
-  typedef base::Callback<void()> SessionClosedCallback;
-  typedef base::Callback<void(SbDrmStatus status,
-                              const std::string& error_message)>
-      ServerCertificateUpdatedCallback;
+  StarboardCdm(const CdmConfig& cdm_config,
+               const SessionMessageCB& session_message_cb,
+               const SessionClosedCB& session_closed_cb,
+               const SessionKeysChangeCB& session_keys_change_cb,
+               const SessionExpirationUpdateCB& session_expiration_update_cb);
+  ~StarboardCdm();
 
-  // Flyweight that provides RAII semantics for sessions.
-  // Most of logic is implemented by |DrmSystem| and thus sessions must be
-  // destroyed before |DrmSystem|.
-  class Session {
-   public:
-    ~Session();
+  StarboardCdm(const StarboardCdm&) = delete;
+  StarboardCdm& operator=(const StarboardCdm&) = delete;
 
-    const base::Optional<std::string>& id() const { return id_; }
+  // ContentDecryptionModule implementation.
+  void SetServerCertificate(const std::vector<uint8_t>& certificate,
+                            std::unique_ptr<SimpleCdmPromise> promise) override;
+  void CreateSessionAndGenerateRequest(
+      CdmSessionType session_type,
+      EmeInitDataType init_data_type,
+      const std::vector<uint8_t>& init_data,
+      std::unique_ptr<NewSessionCdmPromise> promise) override;
+  void LoadSession(CdmSessionType session_type,
+                   const std::string& session_id,
+                   std::unique_ptr<NewSessionCdmPromise> promise) override;
+  void UpdateSession(const std::string& session_id,
+                     const std::vector<uint8_t>& response,
+                     std::unique_ptr<SimpleCdmPromise> promise) override;
+  void CloseSession(const std::string& session_id,
+                    std::unique_ptr<SimpleCdmPromise> promise) override;
+  void RemoveSession(const std::string& session_id,
+                     std::unique_ptr<SimpleCdmPromise> promise) override;
+  CdmContext* GetCdmContext() override;
 
-    // Wraps |SbDrmGenerateSessionUpdateRequest|.
-    //
-    // |session_update_request_generated_callback| is called upon a successful
-    //     request generation. IMPORTANT: It may be called multiple times after
-    //     a single call to |CreateSessionAndGenerateUpdateRequest|, for example
-    //     when the underlying DRM system needs to update a license.
-    //
-    // |session_update_request_did_not_generate_callback| is called upon a
-    //     failure during request generation. Unlike its successful counterpart,
-    //     never called spontaneously.
-    void GenerateUpdateRequest(
-        const std::string& type, const uint8* init_data, int init_data_length,
-        const SessionUpdateRequestGeneratedCallback&
-            session_update_request_generated_callback,
-        const SessionUpdateRequestDidNotGenerateCallback&
-            session_update_request_did_not_generate_callback);
+  // CdmContext implementation.
+  std::unique_ptr<CallbackRegistration> RegisterEventCB(
+      EventCB event_cb) override;
 
-    // Wraps |SbDrmUpdateSession|.
-    //
-    // |session_updated_callback| is called upon a successful session update.
-    // |session_did_not_update_callback| is called upon a failure during session
-    //     update.
-    void Update(
-        const uint8* key, int key_length,
-        const SessionUpdatedCallback& session_updated_callback,
-        const SessionDidNotUpdateCallback& session_did_not_update_callback);
+  SbDrmSystem GetSbDrmSystem() override;
 
-    // Wraps |SbDrmCloseSession|.
-    void Close();
-    bool is_closed() const { return closed_; }
-
-   private:
-    // Private API for |DrmSystem|.
-    Session(DrmSystem* drm_system,
-            SessionUpdateKeyStatusesCallback update_key_statuses_callback,
-            SessionClosedCallback session_closed_callback);
-    void set_id(const std::string& id) { id_ = id; }
-    const SessionUpdateRequestGeneratedCallback&
-    update_request_generated_callback() const {
-      return update_request_generated_callback_;
-    }
-    const SessionUpdateKeyStatusesCallback& update_key_statuses_callback()
-        const {
-      return update_key_statuses_callback_;
-    }
-    const SessionClosedCallback& session_closed_callback() const {
-      return session_closed_callback_;
-    }
-
-    DrmSystem* const drm_system_;
-    SessionUpdateKeyStatusesCallback update_key_statuses_callback_;
-    SessionClosedCallback session_closed_callback_;
-    bool closed_;
-    base::Optional<std::string> id_;
-    // Supports spontaneous invocations of |SbDrmSessionUpdateRequestFunc|.
-    SessionUpdateRequestGeneratedCallback update_request_generated_callback_;
-
-    base::WeakPtrFactory<Session> weak_factory_;
-
-    friend class DrmSystem;
-
-    DISALLOW_COPY_AND_ASSIGN(Session);
-  };
-
-  explicit DrmSystem(const char* key_system);
-  ~DrmSystem();
-
-  SbDrmSystem wrapped_drm_system() { return wrapped_drm_system_; }
-
-  bool is_valid() const { return SbDrmSystemIsValid(wrapped_drm_system_); }
-
-  std::unique_ptr<Session> CreateSession(
-      SessionUpdateKeyStatusesCallback session_update_key_statuses_callback,
-      SessionClosedCallback session_closed_callback);
-
-  bool IsServerCertificateUpdatable();
-  void UpdateServerCertificate(
-      const uint8_t* certificate, int certificate_size,
-      ServerCertificateUpdatedCallback server_certificate_updated_callback);
-  bool GetMetrics(std::vector<uint8_t>* metrics);
+  bool HasValidSbDrm();
 
  private:
   // Stores context of |GenerateSessionUpdateRequest|.
   struct SessionUpdateRequest {
-    base::WeakPtr<Session> session;
-    SessionUpdateRequestGeneratedCallback generated_callback;
-    SessionUpdateRequestDidNotGenerateCallback did_not_generate_callback;
+    uint32_t promise_id;
+    CdmSessionType session_type;
   };
-  typedef base::hash_map<int, SessionUpdateRequest>
+  typedef std::unordered_map<int, SessionUpdateRequest>
       TicketToSessionUpdateRequestMap;
 
-  typedef base::hash_map<std::string, base::WeakPtr<Session>> IdToSessionMap;
-
-  typedef base::hash_map<int, ServerCertificateUpdatedCallback>
-      TicketToServerCertificateUpdatedMap;
+  typedef std::unordered_map<int, uint32_t> TicketToServerCertificateUpdatedMap;
 
   // Stores context of |Session::Update|.
   struct SessionUpdate {
-    SessionUpdatedCallback updated_callback;
-    SessionDidNotUpdateCallback did_not_update_callback;
+    uint32_t promise_id;
   };
-  typedef base::hash_map<int, SessionUpdate> TicketToSessionUpdateMap;
+  typedef std::unordered_map<int, SessionUpdate> TicketToSessionUpdateMap;
 
-  // Defined to work around the limitation on number of parameters of
-  // base::Bind().
   struct SessionTicketAndOptionalId {
     int ticket;
-    base::Optional<std::string> id;
+    std::optional<std::string> id;
   };
 
-  // Private API for |Session|.
-  void GenerateSessionUpdateRequest(
-      const base::WeakPtr<Session>& session, const std::string& type,
-      const uint8_t* init_data, int init_data_length,
-      const SessionUpdateRequestGeneratedCallback&
-          session_update_request_generated_callback,
-      const SessionUpdateRequestDidNotGenerateCallback&
-          session_update_request_did_not_generate_callback);
-  void UpdateSession(
-      const std::string& session_id, const uint8_t* key, int key_length,
-      const SessionUpdatedCallback& session_updated_callback,
-      const SessionDidNotUpdateCallback& session_did_not_update_callback);
-  void CloseSession(const std::string& session_id);
+  // Default task runner.
+  scoped_refptr<base::SequencedTaskRunner> const task_runner_;
+
+  const SbDrmSystem sb_drm_;
+
+  int next_ticket_ = 0;
+  TicketToSessionUpdateRequestMap ticket_to_session_update_request_map_;
+  TicketToSessionUpdateMap ticket_to_session_update_map_;
+  TicketToServerCertificateUpdatedMap ticket_to_server_certificate_updated_map_;
+
+  SessionMessageCB message_cb_;
+  SessionClosedCB closed_cb_;
+  SessionKeysChangeCB keys_change_cb_;
+  SessionExpirationUpdateCB expiration_update_cb_;
+
+  CdmPromiseAdapter promises_;
+
+  std::list<std::string> session_list_;
+
+  CallbackRegistry<EventCB::RunType> event_callbacks_;
+
+  base::WeakPtrFactory<StarboardCdm> weak_factory_{this};
 
   // Called on the constructor thread, parameters are copied and owned by these
   // methods.
   void OnSessionUpdateRequestGenerated(
-      SessionTicketAndOptionalId ticket_and_optional_id, SbDrmStatus status,
-      SbDrmSessionRequestType type, const std::string& error_message,
-      std::unique_ptr<uint8[]> message, int message_size);
-  void OnSessionUpdated(int ticket, SbDrmStatus status,
+      SessionTicketAndOptionalId ticket_and_optional_id,
+      SbDrmStatus status,
+      SbDrmSessionRequestType type,
+      const std::string& error_message,
+      std::vector<uint8_t> message,
+      int message_size);
+  void OnSessionUpdated(int ticket,
+                        SbDrmStatus status,
                         const std::string& error_message);
-  void OnSessionKeyStatusChanged(
-      const std::string& session_id, const std::vector<std::string>& key_ids,
-      const std::vector<SbDrmKeyStatus>& key_statuses);
-  void OnServerCertificateUpdated(int ticket, SbDrmStatus status,
+  void OnSessionKeyStatusChanged(const std::string& session_id,
+                                 CdmKeysInfo keys_info,
+                                 bool has_additional_usable_keys);
+
+  void OnServerCertificateUpdated(int ticket,
+                                  SbDrmStatus status,
                                   const std::string& error_message);
   void OnSessionClosed(const std::string& session_id);
 
-  // Called on any thread, parameters need to be copied immediately.
+  // SbDrm functions
   static void OnSessionUpdateRequestGeneratedFunc(
-      SbDrmSystem wrapped_drm_system, void* context, int ticket,
-      SbDrmStatus status, SbDrmSessionRequestType type,
-      const char* error_message, const void* session_id, int session_id_size,
-      const void* content, int content_size, const char* url);
+      SbDrmSystem wrapped_drm_system,
+      void* context,
+      int ticket,
+      SbDrmStatus status,
+      SbDrmSessionRequestType type,
+      const char* error_message,
+      const void* session_id,
+      int session_id_size,
+      const void* content,
+      int content_size,
+      const char* url);
+
   static void OnSessionUpdatedFunc(SbDrmSystem wrapped_drm_system,
-                                   void* context, int ticket,
+                                   void* context,
+                                   int ticket,
                                    SbDrmStatus status,
                                    const char* error_message,
                                    const void* session_id,
                                    int session_id_length);
 
   static void OnSessionKeyStatusesChangedFunc(
-      SbDrmSystem wrapped_drm_system, void* context, const void* session_id,
-      int session_id_size, int number_of_keys, const SbDrmKeyId* key_ids,
+      SbDrmSystem wrapped_drm_system,
+      void* context,
+      const void* session_id,
+      int session_id_size,
+      int number_of_keys,
+      const SbDrmKeyId* key_ids,
       const SbDrmKeyStatus* key_statuses);
 
-  static void OnSessionClosedFunc(SbDrmSystem wrapped_drm_system, void* context,
-                                  const void* session_id, int session_id_size);
+  static void OnSessionClosedFunc(SbDrmSystem wrapped_drm_system,
+                                  void* context,
+                                  const void* session_id,
+                                  int session_id_size);
 
   static void OnServerCertificateUpdatedFunc(SbDrmSystem wrapped_drm_system,
-                                             void* context, int ticket,
+                                             void* context,
+                                             int ticket,
                                              SbDrmStatus status,
                                              const char* error_message);
-
-  MediaMetricsProvider media_metrics_provider_;
-  const SbDrmSystem wrapped_drm_system_;
-  scoped_refptr<base::SequencedTaskRunner> const task_runner_;
-
-  // Factory should only be used to create the initial weak pointer. All
-  // subsequent weak pointers are created by copying the initial one. This is
-  // required to keep weak pointers bound to the constructor thread.
-  base::WeakPtrFactory<DrmSystem> weak_ptr_factory_;
-  base::WeakPtr<DrmSystem> weak_this_;
-
-  int next_ticket_ = 0;
-  // Supports concurrent calls to |GenerateSessionUpdateRequest|.
-  TicketToSessionUpdateRequestMap ticket_to_session_update_request_map_;
-
-  // Supports spontaneous invocations of |SbDrmSessionUpdateRequestFunc|.
-  IdToSessionMap id_to_session_map_;
-
-  TicketToServerCertificateUpdatedMap ticket_to_server_certificate_updated_map_;
-
-  // Supports concurrent calls to |Session::Update|.
-  TicketToSessionUpdateMap ticket_to_session_update_map_;
-
-  DISALLOW_COPY_AND_ASSIGN(DrmSystem);
 };
 
 }  // namespace media
-}  // namespace cobalt
 
-#endif  // COBALT_MEDIA_BASE_DRM_SYSTEM_H_
+#endif  // MEDIA_STARBOARD_STARBOARD_CDM_H
