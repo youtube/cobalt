@@ -31,3 +31,9 @@ ozone_external_platform_ui_test_support_deps = []
 # source_set can be listed here so that they can included into
 # interactive_ui_tests.
 ozone_external_interactive_ui_tests_deps = []
+
+if (defined(is_starboard) && is_starboard) {
+  ozone_external_platforms += ["starboard"]
+  ozone_external_platform_deps += ["platform/starboard"]
+  ozone_external_platform_ui_test_support_deps += ["platform/starboard:test_support"]
+}
