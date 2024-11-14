@@ -1,0 +1,24 @@
+// -*- protobuffer -*-
+// proto-file: google3/devtools/kokoro/config/proto/build.proto
+// proto-message: BuildConfig
+
+build = {
+  build_file = 'src/internal/kokoro/bin/on_device_test.sh'
+  before_action = [
+    {
+      invoke_blaze = {
+        name = 'mh_trigger'
+        command = 'BUILD'
+        targets = [
+          '//video/youtube/testing/maneki/cobalt/mh_client:trigger_tests.par',
+        ]
+      }
+    },
+  ]
+  env_vars = [
+    {
+      key = 'TEST_TYPE'
+      value = 'unit_tests'
+    },
+  ]
+}
