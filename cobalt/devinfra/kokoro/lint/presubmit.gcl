@@ -1,0 +1,26 @@
+// -*- protobuffer -*
+// proto-file: google3/devtools/kokoro/config/proto/build.proto
+// proto-message: BuildConfig
+// validation: gcl --message=kokoro.BuildConfig --objtype=config group2.gcl appendascii
+
+config build = {
+  build_file = 'src/internal/kokoro/bin/lint.sh'
+  env_vars = [
+    {
+      key = 'GN_HASH'
+      value = 'r3styzkFvKVmVeEhMbNl8cuo4VnbgNICIzDE9SL6su8C'
+    },
+    {
+      key = 'GN_SHA256SUM'
+      value = 'af7b2dcb3905bca56655e12131b365f1cba8e159db80d2022330c4f522fab2ef'
+    },
+    {
+      key = 'SKIP'
+      value = 'test-download-from-gcs-helper,check-bug-in-commit-message,run-py2-tests,check-if-starboard-interface-changed'
+    },
+    {
+      key = 'STYLE_CHECK_START'
+      value = 'style-check-bookmark'
+    },
+  ]
+}
