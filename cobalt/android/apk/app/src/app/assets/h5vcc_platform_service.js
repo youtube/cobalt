@@ -7,6 +7,15 @@ function arrayBufferToBase64(buffer) {
     return window.btoa(binary);  // Encode binary string to Base64
 }
 
+function base64ToArrayBuffer(base64) {
+    const binaryString = window.atob(base64); // Decode Base64 string to binary string
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    return bytes.buffer;
+}
+
 var platform_services = {
     callbacks: {
     },
@@ -23,7 +32,7 @@ var platform_services = {
         window.H5vccPlatformService.callbacks[serviceID].callback(arrayBuffer);
     },
     has: (name) => {
-        console.log('platformService.has(' + name + ')');
+        console.log('Colin test: platformService.has(' + name + ')');
         return Android_H5vccPlatformService.has_platform_service(name);
     },
     open: function(name, callback) {
@@ -51,7 +60,13 @@ var platform_services = {
                 console.log('1 platformService.send(' + text + ')');
                 var convert_to_b64 = arrayBufferToBase64(data);
                 console.log('sending as b64:' + convert_to_b64);
-                Android_H5vccPlatformService.platform_service_send(name, convert_to_b64);
+                const response_data = Android_H5vccPlatformService.platform_service_send(name, convert_to_b64);
+
+                if (response_data) {
+                    console.log('response as b64:' + response_data);
+                    return base64ToArrayBuffer(response_data);
+                }
+                return null;
             },
             close: () => {
                 console.log('1 platformService.close()');
@@ -68,3 +83,7 @@ var platform_services = {
 }
 
 window.H5vccPlatformService = platform_services;
+
+if (window.H5vccPlatformService) {
+    console.log("Colin test: h5vcc_platform_service log window.H5vccPlatformService exists");
+}

@@ -780,6 +780,23 @@ public class StarboardBridge {
     cobaltServices.remove(serviceName);
   }
 
+  public byte[] sendToCobaltService(String serviceName, byte [] data) {
+    Log.i(TAG, String.format("Send to : %s data: %s", serviceName, Arrays.toString(data)));
+    CobaltService service = cobaltServices.get(serviceName);
+    if (service == null) {
+      // Attempting to re-open an already open service fails.
+      Log.e(TAG, String.format("Service not opened: %s", serviceName));
+      return null;
+    }
+    CobaltService.ResponseToClient response = service.receiveFromClient(data);
+    if (response.invalidState) {
+      Log.e(TAG, String.format("Service %s received invalid data, closing.", serviceName));
+      closeCobaltService(serviceName);
+    }
+
+    return response.data;
+  }
+
   /** Deprecated. Returns an incorrect calculation for the appStart for an existing metric. */
   @SuppressWarnings("unused")
   @UsedByNative
@@ -875,17 +892,5 @@ public class StarboardBridge {
       Log.w(TAG, "Unable to query Google Play Services package version", e);
       return 0;
     }
-  }
-
-  // Differing impl
-  public void sendToCobaltService(String serviceName, byte [] data) {
-    Log.i(TAG, String.format("Send to : %s data: %s", serviceName, Arrays.toString(data)));
-    CobaltService service = cobaltServices.get(serviceName);
-    if (service == null) {
-      // Attempting to re-open an already open service fails.
-      Log.e(TAG, String.format("Service not opened: %s", serviceName));
-      return;
-    }
-    service.receiveFromClient(data);
   }
 }

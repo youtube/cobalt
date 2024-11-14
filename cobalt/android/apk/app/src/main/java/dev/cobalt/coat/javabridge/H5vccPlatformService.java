@@ -48,7 +48,7 @@ public class H5vccPlatformService implements CobaltJavaScriptAndroidObject {
 
     @CobaltJavaScriptInterface
     public boolean has_platform_service(String servicename) {
-        Log.i(TAG, "has_platform_service:" + servicename);
+        Log.i(TAG, "Colin test: has_platform_service:" + servicename);
         return bridge.hasCobaltService(servicename);
     }
 
@@ -65,9 +65,13 @@ public class H5vccPlatformService implements CobaltJavaScriptAndroidObject {
     }
 
     @CobaltJavaScriptInterface
-    public void platform_service_send(String servicename, String base64Data) {
+    public String platform_service_send(String servicename, String base64Data) {
         byte[] data = Base64.decode(base64Data, Base64.DEFAULT);
         Log.i(TAG, "send to kabuki client:" + base64Data);
-        bridge.sendToCobaltService(servicename, data);
+        byte[] result = bridge.sendToCobaltService(servicename, data);
+        if (result != null) {
+            return Base64.encodeToString(result, Base64.DEFAULT);
+        }
+        return "";
     }
 }
