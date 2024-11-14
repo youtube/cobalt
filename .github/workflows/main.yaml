@@ -202,4 +202,4 @@ jobs:
         if: success() || failure()
         uses: mikepenz/action-junit-report@v5
         with:
-          report_paths: ${{ env.TEST_RESULTS_DIR }}/**/*.xml
+          report_paths: "**/${{ env.TEST_RESULTS_DIR }}/**/*.xml"
