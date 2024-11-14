@@ -362,6 +362,10 @@ class Application {
     command_line_.reset(new CommandLine(argc, argv));
   }
 
+  void SetCommandLine(std::unique_ptr<CommandLine> command_line) {
+    command_line_ = std::move(command_line);
+  }
+
   // Sets the launch deep link string, if any, which is passed in the start
   // event that initializes and starts Cobalt.
   void SetStartLink(const char* start_link);

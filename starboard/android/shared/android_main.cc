@@ -44,6 +44,8 @@ std::atomic_bool g_block_swapbuffers{false};
 namespace {
 
 using ::starboard::shared::starboard::CommandLine;
+
+#if SB_IS(EVERGREEN_COMPATIBLE)
 typedef ::starboard::android::shared::ApplicationAndroid::AndroidCommand
     AndroidCommand;
 
@@ -54,6 +56,7 @@ Semaphore* g_app_created_semaphore = nullptr;
 // of the Starboard application, or after the run loop has exited and the
 // ALooper receiving the commands is no longer being polled.
 std::atomic_bool g_app_running{false};
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
 std::vector<std::string> GetArgs() {
   std::vector<std::string> args;
@@ -232,9 +235,7 @@ void InstallCrashpadHandler(const CommandLine& command_line) {
   third_party::crashpad::wrapper::InstallCrashpadHandler(
       extracted_ca_certificates_path);
 }
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
-// TODO(b/377042903): Work out if this event handle is needed.
 void SbEventHandle(const SbEvent* event) {
   SB_LOG(ERROR) << "Starboard event DISCARDED:" << event->type;
 }
@@ -256,6 +257,7 @@ void* ThreadEntryPoint(void* context) {
 
   return NULL;
 }
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
 extern "C" SB_EXPORT_PLATFORM jboolean
 Java_dev_cobalt_coat_StarboardBridge_nativeIsReleaseBuild() {
@@ -266,8 +268,7 @@ Java_dev_cobalt_coat_StarboardBridge_nativeIsReleaseBuild() {
 #endif
 }
 
-// Copied from GameActivity_onCreate
-// TODO(b/377042903): Does the thread need to exist ?
+#if SB_IS(EVERGREEN_COMPATIBLE)
 void StarboardThreadLaunch() {
   // Start the Starboard thread the first time an Activity is created.
   if (g_starboard_thread == 0) {
@@ -289,46 +290,67 @@ void StarboardThreadLaunch() {
   // Ensure application init happens here
   ApplicationAndroid::Get();
 }
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_StarboardBridge_nativeInitialize(
+extern "C" SB_EXPORT_PLATFORM void Java_dev_cobalt_coat_StarboardBridge_initJNI(
     JniEnvExt* env,
     jobject starboard_bridge) {
   JniEnvExt::Initialize(env, starboard_bridge);
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_StarboardBridge_startNativeStarboard(
-    JniEnvExt* env,
-    jobject starboard_bridge) {
-  // TODO(b/377042903): Figure out what's the right init / boot place
-  // for StarboardMain, and do we actually still need one.
-  // For now there's a lot of global state that is maintained and owned
-  // by it.
+extern "C" SB_EXPORT_PLATFORM jlong
+Java_dev_cobalt_coat_StarboardBridge_startNativeStarboard(JniEnvExt* env) {
+#if SB_IS(EVERGREEN_COMPATIBLE)
   StarboardThreadLaunch();
+#else
+  auto command_line = std::make_unique<CommandLine>(GetArgs());
+  LogInit(*command_line);
+  auto* nativeApp = new ApplicationAndroid(std::move(command_line));
+  // Ensure application init happens here
+  ApplicationAndroid::Get();
+  return reinterpret_cast<jlong>(nativeApp);
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_StarboardBridge_closeNativeStarboard(JniEnvExt* env,
+                                                          jlong nativeApp) {
+  auto* app = reinterpret_cast<ApplicationAndroid*>(nativeApp);
+  delete app;
 }
 
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_VolumeStateReceiver_nativeVolumeChanged(JNIEnv* env,
                                                              jobject jcaller,
                                                              jint volumeDelta) {
+#if SB_IS(EVERGREEN_COMPATIBLE)
   if (g_app_running.load()) {
     SbKey key =
         volumeDelta > 0 ? SbKey::kSbKeyVolumeUp : SbKey::kSbKeyVolumeDown;
     ApplicationAndroid::Get()->SendKeyboardInject(key);
   }
+#else
+  // TODO(cobalt, b/378384110): send volume keys to web app through Content
+  // SbKey key = volumeDelta > 0 ? SbKey::kSbKeyVolumeUp :
+  // SbKey::kSbKeyVolumeDown;
+  // ApplicationAndroid::Get()->SendKeyboardInject(key);
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 }
 
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_VolumeStateReceiver_nativeMuteChanged(JNIEnv* env,
                                                            jobject jcaller) {
+#if SB_IS(EVERGREEN_COMPATIBLE)
   if (g_app_running.load()) {
     ApplicationAndroid::Get()->SendKeyboardInject(SbKey::kSbKeyVolumeMute);
   }
+#else
+  // TODO(cobalt, b/378384110): send volume keys to web app through Content
+  // ApplicationAndroid::Get()->SendKeyboardInject(SbKey::kSbKeyVolumeMute);
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 }
 
-}  // namespace
-
+#if SB_IS(EVERGREEN_COMPATIBLE)
 extern "C" int SbRunStarboardMain(int argc,
                                   char** argv,
                                   SbEventHandleCallback callback) {
@@ -360,6 +382,9 @@ extern "C" int SbRunStarboardMain(int argc,
 
   return error_level;
 }
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
+
+}  // namespace
 
 }  // namespace shared
 }  // namespace android
