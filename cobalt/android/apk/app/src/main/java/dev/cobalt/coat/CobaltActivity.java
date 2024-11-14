@@ -332,9 +332,6 @@ public abstract class CobaltActivity extends Activity {
   // TODO(b/375442742): re-enable native code.
   // private static native void nativeLowMemoryEvent();
 
-  // TODO(cobalt): make WebContent accessible in CobaltActivity or StarboardBridge.
-  // protected View mContentView = null;
-
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     // Record the application start timestamp.
