@@ -1,0 +1,68 @@
+# Copyright 2024 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+services:
+  # Generic service defined that can be invoked with parameters passed to Kokoro
+  # Jobs. The underlying image is configured from the FULL_IMAGE_TARGET variable
+  # which is constructed from environment variables set in the Kokoro job.
+  #
+  # The other environment variables are needed during the execution of the build
+  # itself, and configure the metabuild system of GN and Ninja.
+  kokoro-internal-cobalt-image:
+    image: ${FULL_IMAGE_TARGET:-us-central1-docker.pkg.dev/cobalt-kokoro-gar/qa/docker-build-failure:latest}
+    volumes:
+      # This is the path that Kokoro is configured to clone the repo to.
+      # This becomes the new mount point within the container as well, so that
+      # the invocation of the inner-most Cobalt Build script is straight forward
+      - ${KOKORO_ARTIFACTS_DIR}/git/src:${KOKORO_ARTIFACTS_DIR}/git/src
+      - ${COBALT_SRC:-.}:/code/
+    # TODO(b/350543978): This block for environment variables is manually
+    # maintained. It would be easier to maintain if it were programmatically
+    # generated from # the calling environment and passed via arguments to the
+    # compose command.
+    environment:
+      PLATFORM: ${PLATFORM}
+      CONFIG: ${CONFIG}
+      TARGET: ${TARGET}
+      TARGET_PLATFORM: ${TARGET_PLATFORM}
+      EXTRA_GN_ARGUMENTS: ${EXTRA_GN_ARGUMENTS}
+      SB_API_VERSION: ${SB_API_VERSION}
+      TARGET_CPU: ${TARGET_CPU}
+      TARGET_OS: ${TARGET_OS}
+      RELEASE_CONFIGS: ${RELEASE_CONFIGS}
+      BOOTLOADER: ${BOOTLOADER}
+      BOOTLOADER_EXTRA_GN_ARGUMENTS: ${BOOTLOADER_EXTRA_GN_ARGUMENTS}
+      BOOTLOADER_TARGET: ${BOOTLOADER_TARGET}
+      IPV6_AVAILABLE: ${IPV6_AVAILABLE}
+      IS_BUILDBOT_DOCKER: ${IS_BUILDBOT_DOCKER}
+      IS_CI: ${IS_CI}
+      IS_DOCKER: ${IS_DOCKER}
+      LANG: ${LANG}
+      NINJA_STATUS: ${NINJA_STATUS}
+      SCCACHE: ${SCCACHE}
+      SCCACHE_GCS_BUCKET: ${SCCACHE_GCS_BUCKET}
+      SCCACHE_GCS_KEY_PATH: ${SCCACHE_GCS_KEY_PATH}
+      SCCACHE_GCS_OAUTH_URL: ${SCCACHE_GCS_OAUTH_URL}
+      SCCACHE_GCS_RW_MODE: ${SCCACHE_GCS_RW_MODE}
+      SCCACHE_IDLE_TIMEOUT: ${SCCACHE_IDLE_TIMEOUT}
+      # Kokoro Specific Variables to forward:
+      KOKORO_ARTIFACTS_DIR: ${KOKORO_ARTIFACTS_DIR}
+      KOKORO_BUILD_ARTIFACTS_SUBDIR: ${KOKORO_BUILD_ARTIFACTS_SUBDIR}
+      KOKORO_GIT_COMMIT_src: ${KOKORO_GIT_COMMIT_src}
+      KOKORO_GOB_BRANCH: ${KOKORO_GOB_BRANCH}
+      KOKORO_GOB_BRANCH_src: ${KOKORO_GOB_BRANCH_src}
+      KOKORO_ROOT_BUILD_ID: ${KOKORO_ROOT_BUILD_ID}
+      KOKORO_ROOT_BUILD_NUMBER: ${KOKORO_ROOT_BUILD_NUMBER}
+      KOKORO_ROOT_JOB_TYPE: ${KOKORO_ROOT_JOB_TYPE}
+      KOKORO_JOB_NAME: ${KOKORO_JOB_NAME}
