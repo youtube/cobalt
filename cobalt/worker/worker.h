@@ -28,6 +28,7 @@
 #include "base/threading/thread.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/csp/content_security_policy.h"
+#include "cobalt/dom/media_source_attachment.h"
 #include "cobalt/loader/script_loader_factory.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/execution_state.h"
@@ -65,6 +66,9 @@ class Worker : public base::CurrentThread::DestructionObserver {
 
     // True if worker is a SharedWorker object, and false otherwise.
     bool is_shared = false;
+
+    media::CanPlayTypeHandler* can_play_type_handler = nullptr;
+    dom::MediaSourceAttachment::Registry* media_source_registry = nullptr;
 
     // Parameters from 'Run a worker' step 9.1 in the spec.
     //   https://html.spec.whatwg.org/commit-snapshots/465a6b672c703054de278b0f8133eb3ad33d93f4/#dom-worker

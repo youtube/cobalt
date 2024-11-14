@@ -19,6 +19,7 @@
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/synchronization/lock.h"
+#include "base/task/single_thread_task_executor.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/math/rect.h"
@@ -63,6 +64,7 @@ class MediaSandbox::Impl {
                  base::TimeDelta time);
 
   base::Lock lock_;
+  base::SingleThreadTaskExecutor task_executor_;
   MediaSandbox::FrameCB frame_cb_;
 
   std::unique_ptr<trace_event::ScopedTraceToFile> trace_to_file_;

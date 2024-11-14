@@ -15,12 +15,17 @@
 #ifndef COBALT_WORKER_WORKER_SETTINGS_H_
 #define COBALT_WORKER_WORKER_SETTINGS_H_
 
+#include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/message_port.h"
+#include "cobalt/web/url_registry.h"
 
 namespace cobalt {
+namespace dom {
+class MediaSourceAttachment;
+}  // namespace dom
 namespace worker {
 
 // Worker Environment Settings object as described in
@@ -28,8 +33,11 @@ namespace worker {
 
 class WorkerSettings : public web::EnvironmentSettings {
  public:
+  typedef web::UrlRegistry<dom::MediaSourceAttachment> MediaSourceRegistry;
   WorkerSettings();
-  explicit WorkerSettings(web::MessagePort* message_port);
+  WorkerSettings(web::MessagePort* message_port,
+                 MediaSourceRegistry* media_source_registry,
+                 media::CanPlayTypeHandler* can_play_type_handler);
 
   web::MessagePort* message_port() const { return message_port_; }
 
@@ -42,11 +50,22 @@ class WorkerSettings : public web::EnvironmentSettings {
   void set_origin(const loader::Origin& origin) { origin_ = origin; }
   loader::Origin GetOrigin() const override;
 
+  MediaSourceRegistry* media_source_registry() const {
+    return media_source_registry_;
+  }
+
+  media::CanPlayTypeHandler* can_play_type_handler() const {
+    return can_play_type_handler_;
+  }
+
  private:
   // Outer message port.
   web::MessagePort* message_port_ = nullptr;
 
   loader::Origin origin_;
+
+  MediaSourceRegistry* media_source_registry_;
+  media::CanPlayTypeHandler* can_play_type_handler_;
 };
 
 }  // namespace worker

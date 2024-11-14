@@ -13,14 +13,14 @@
 // limitations under the License.
 
 #include "chrome/updater/configurator.h"
+#include "chrome/updater/util.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
-const char kOmahaCobaltLTSNightlyAppID[] =
-    "{26CD2F67-091F-4680-A9A9-2229635B65A5}";
-const char kOmahaCobaltTrunkAppID[] = "{A9557415-DDCD-4948-8113-C643EFCF710C}";
-const char kOmahaCobaltAppID[] = "{6D4E53F3-CC64-4CB8-B6BD-AB0B8F300E1C}";
+const int kTestSbVersion14 = 14;
+const int kTestSbVersion15 = 15;
+const char kTestStaticChannel[] = "24lts10";
 }  // namespace
 
 namespace cobalt {
@@ -34,46 +34,92 @@ class ConfiguratorTest : public testing::Test {
 
 TEST_F(ConfiguratorTest, GetAppGuidReturnsTrunkIdWithVersionMaster) {
   CHECK_EQ(
-      cobalt::updater::Configurator::GetAppGuidHelper("prod", "23.master.0"),
+      cobalt::updater::Configurator::GetAppGuidHelper("prod",
+                                                      "23.master.0",
+                                                      kTestSbVersion14),
       kOmahaCobaltTrunkAppID);
 }
 
 TEST_F(ConfiguratorTest, GetAppGuidReturnsLtsIdWithVersionMaster) {
   CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("ltsnightly",
-                                                           "23.master.0"),
+                                                           "23.master.0",
+                                                           kTestSbVersion14),
            kOmahaCobaltLTSNightlyAppID);
 }
 
 TEST_F(ConfiguratorTest, GetAppGuidReturnsLtsIdWithVersionLts) {
   CHECK_EQ(
-      cobalt::updater::Configurator::GetAppGuidHelper("ltsnightly", "23.lts.0"),
+      cobalt::updater::Configurator::GetAppGuidHelper("ltsnightly",
+                                                      "23.lts.0",
+                                                      kTestSbVersion14),
       kOmahaCobaltLTSNightlyAppID);
 }
 
-TEST_F(ConfiguratorTest, GetAppGuidReturnsTrunkIdWithVersionMain) {
-  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("prod", "23.main.0"),
-           kOmahaCobaltTrunkAppID);
+TEST_F(ConfiguratorTest, GetAppGuidReturnsProdIdWithVersionMain) {
+  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("prod",
+                                                           "23.main.0",
+                                                           kTestSbVersion14),
+           kChannelAndSbVersionToOmahaIdMap.at(
+              "prod" + std::to_string(kTestSbVersion14)));
 }
 
 TEST_F(ConfiguratorTest, GetAppGuidReturnsProdIdWithVersionLts) {
-  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("prod", "23.lts.0"),
-           kOmahaCobaltAppID);
+  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("prod",
+                                                           "23.lts.0",
+                                                           kTestSbVersion14),
+           kChannelAndSbVersionToOmahaIdMap.at(
+              "prod" + std::to_string(kTestSbVersion14)));
 }
 
 TEST_F(ConfiguratorTest, GetAppGuidReturnsProdIdWithChannelEmpty) {
-  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("", "23.lts.0"),
-           kOmahaCobaltAppID);
+  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("",
+                                                           "23.lts.0",
+                                                           kTestSbVersion15),
+           kChannelAndSbVersionToOmahaIdMap.at(
+              "prod" + std::to_string(kTestSbVersion15)));
 }
 
-TEST_F(ConfiguratorTest, GetAppGuidReturnsTrunkIdWithVersionEmpty) {
-  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("", ""),
-           kOmahaCobaltTrunkAppID);
+TEST_F(ConfiguratorTest, GetAppGuidReturnsTrunkIdWithInvalidSbVersion) {
+  CHECK_EQ(cobalt::updater::Configurator::GetAppGuidHelper("", "", 0),
+           kOmahaCobaltAppID);
 }
 
 TEST_F(ConfiguratorTest, GetAppGuidReturnsTrunkIdWithVersionMasterLts) {
   CHECK_EQ(
-      cobalt::updater::Configurator::GetAppGuidHelper("", "23.master.lts.0"),
-      kOmahaCobaltTrunkAppID);
+      cobalt::updater::Configurator::GetAppGuidHelper("",
+                                                      "23.master.lts.0",
+                                                      kTestSbVersion14),
+      kChannelAndSbVersionToOmahaIdMap.at("prod" +
+                                          std::to_string(kTestSbVersion14)));
+}
+
+TEST_F(ConfiguratorTest, GetAppGuidReturnsProdIdWithInvalidChannel) {
+  CHECK_EQ(
+      cobalt::updater::Configurator::GetAppGuidHelper("invalid",
+                                                      "23.lts.0",
+                                                      kTestSbVersion14),
+      kChannelAndSbVersionToOmahaIdMap.at("prod" +
+                                          std::to_string(kTestSbVersion14)));
+}
+
+TEST_F(ConfiguratorTest, GetAppGuidReturnsCorrectNewConfigId) {
+  for (auto kvpair : kChannelAndSbVersionToOmahaIdMap) {
+    std::string channel = kvpair.first.substr(0, kvpair.first.size() - 2);
+    int sb_version = std::stoi(kvpair.first.substr(kvpair.first.size() - 2, 2));
+    CHECK_EQ(
+      cobalt::updater::Configurator::GetAppGuidHelper(channel,
+                                                      "23.lts.0",
+                                                      sb_version),
+      kvpair.second);
+  }
+}
+
+TEST_F(ConfiguratorTest, GetAppGuidReturnsLegacyConfigWithOldStaticChannel) {
+  CHECK_EQ(
+      cobalt::updater::Configurator::GetAppGuidHelper(kTestStaticChannel,
+                                                      "23.lts.0",
+                                                      kTestSbVersion14),
+      kOmahaCobaltAppID);
 }
 
 }  // namespace updater

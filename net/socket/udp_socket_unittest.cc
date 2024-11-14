@@ -592,7 +592,13 @@ TEST_F(UDPSocketTest, ClientGetLocalPeerAddresses) {
     UDPClientSocket client(DatagramSocket::DEFAULT_BIND, nullptr,
                            NetLogSource());
     int rv = client.Connect(remote_address);
+#if defined(STARBOARD)
+    // Starboard currently can not return ERR_ADDRESS_UNREACHABLE and instead
+    // will return ERR_FAILED.
+    if (test.may_fail && (rv == ERR_ADDRESS_UNREACHABLE || rv == ERR_FAILED)) {
+#else
     if (test.may_fail && rv == ERR_ADDRESS_UNREACHABLE) {
+#endif
       // Connect() may return ERR_ADDRESS_UNREACHABLE for IPv6
       // addresses if IPv6 is not configured.
       continue;

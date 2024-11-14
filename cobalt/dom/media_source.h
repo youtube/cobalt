@@ -109,6 +109,9 @@ class MediaSource : public web::EventTarget {
   static bool IsTypeSupported(script::EnvironmentSettings* settings,
                               const std::string& type);
 
+  static bool can_construct_in_dedicated_worker(
+      script::EnvironmentSettings* settings);
+
   // Custom, not in any spec.
   //
   // HTMLMediaSource

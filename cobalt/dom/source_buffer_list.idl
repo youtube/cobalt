@@ -15,6 +15,9 @@
 // https://www.w3.org/TR/media-source/#idl-def-SourceBuffer
 // https://www.w3.org/TR/2016/CR-media-source-20160705/#sourcebufferlist
 
+[
+  Exposed=(Window,DedicatedWorker),
+]
 interface SourceBufferList : EventTarget {
   readonly attribute unsigned long length;
   getter SourceBuffer? item(unsigned long index);
