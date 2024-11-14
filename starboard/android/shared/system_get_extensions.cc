@@ -62,9 +62,7 @@ const void* SbSystemGetExtension(const char* name) {
     return starboard::android::shared::GetConfigurationApi();
   }
   if (strcmp(name, kCobaltExtensionMediaSessionName) == 0) {
-    // TODO(b/377019873): Re-enable
-    // return starboard::android::shared::GetMediaSessionApi();
-    return NULL;
+    return starboard::android::shared::GetMediaSessionApi();
   }
   if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
     // TODO(b/377052944): Check if this is needed, likely can be
