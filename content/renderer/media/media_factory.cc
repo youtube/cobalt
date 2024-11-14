@@ -95,6 +95,8 @@
 #include "media/cdm/fuchsia/fuchsia_cdm_factory.h"
 #include "media/fuchsia/video/fuchsia_decoder_factory.h"
 #include "media/mojo/clients/mojo_fuchsia_cdm_provider.h"
+#elif BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/starboard_cdm_factory.h"
 #elif BUILDFLAG(ENABLE_MOJO_CDM)
 #include "media/mojo/clients/mojo_cdm_factory.h"  // nogncheck
 #else
@@ -866,6 +868,8 @@ media::CdmFactory* MediaFactory::GetCdmFactory() {
   cdm_factory_ = std::make_unique<media::FuchsiaCdmFactory>(
       std::make_unique<media::MojoFuchsiaCdmProvider>(&GetInterfaceBroker()),
       GetKeySystems());
+#elif BUILDFLAG(USE_STARBOARD_MEDIA)
+  cdm_factory_ = std::make_unique<media::StarboardCdmFactory>();
 #elif BUILDFLAG(ENABLE_MOJO_CDM)
   cdm_factory_ = std::make_unique<media::MojoCdmFactory>(
       GetMediaInterfaceFactory(), GetKeySystems());
