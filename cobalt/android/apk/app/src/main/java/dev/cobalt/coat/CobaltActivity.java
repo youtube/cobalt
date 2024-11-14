@@ -36,7 +36,7 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 import dev.cobalt.app.CobaltApplication;
-import dev.cobalt.coat.javabridge.AmatiDeviceInspector;
+// import dev.cobalt.coat.javabridge.AmatiDeviceInspector;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.H5vccPlatformService;
@@ -378,7 +378,7 @@ public abstract class CobaltActivity extends Activity {
     // --- Initialize the Java Bridge ---
 
     // 1. Gather all Java objects that need to be exposed to JavaScript.
-    javaScriptAndroidObjectList.add(new AmatiDeviceInspector(this));
+    // javaScriptAndroidObjectList.add(new AmatiDeviceInspector(this));
     javaScriptAndroidObjectList.add(new H5vccPlatformService(this, getStarboardBridge()));
 
 
@@ -398,11 +398,33 @@ public abstract class CobaltActivity extends Activity {
       if (jsFileName != null) {
         Log.d(TAG, "Evaluate JavaScript from Asset:" + jsFileName);
         String jsCode = AssetLoader.loadJavaScriptFromAssets(this, jsFileName);
-        Log.d(TAG, "Evaluate JavaScript, jsCode:" + jsCode);
+        // Log.d(TAG, "Evaluate JavaScript, jsCode:" + jsCode);
         webContents.evaluateJavaScript(jsCode, null);
       }
     }
+
+    // // wait a little so that the java object has been sent to javascript jvm through IPC
+    // new Handler(Looper.getMainLooper())
+    //   .postDelayed(new Runnable() {
+    //     @Override
+    //     public void run() {
+    //         injectJavaScript(webContents);
+    //     }
+    //   }, 500);
   }
+
+  // private void injectJavaScript(WebContents webContents) {
+  //   // 3. Load and evaluate JavaScript code that interacts with the injected Java objects.
+  //   for (CobaltJavaScriptAndroidObject javaScriptAndroidObject : javaScriptAndroidObjectList) {
+  //     String jsFileName = javaScriptAndroidObject.getJavaScriptAssetName();
+  //     if (jsFileName != null) {
+  //       Log.d(TAG, "Evaluate JavaScript from Asset:" + jsFileName);
+  //       String jsCode = AssetLoader.loadJavaScriptFromAssets(this, jsFileName);
+  //       Log.d(TAG, "Evaluate JavaScript, jsCode:" + jsCode);
+  //       webContents.evaluateJavaScript(jsCode, null);
+  //     }
+  //   }
+  // }
 
   /**
    * Instantiates the StarboardBridge. Apps not supporting sign-in should inject an instance of

@@ -781,7 +781,7 @@ public class StarboardBridge {
   }
 
   public byte[] sendToCobaltService(String serviceName, byte [] data) {
-    Log.i(TAG, String.format("Send to : %s data: %s", serviceName, Arrays.toString(data)));
+    Log.i(TAG, String.format("Colin test: 4. Send to : %s data: %s", serviceName, Arrays.toString(data)));
     CobaltService service = cobaltServices.get(serviceName);
     if (service == null) {
       // Attempting to re-open an already open service fails.
@@ -794,6 +794,7 @@ public class StarboardBridge {
       closeCobaltService(serviceName);
     }
 
+    Log.i(TAG, String.format("Colin test: 5. return response.data"));
     return response.data;
   }
 

@@ -57,13 +57,13 @@ var platform_services = {
             'send': function (data) {
                 const decoder = new TextDecoder('utf-8');
                 const text = decoder.decode(data);
-                console.log('1 platformService.send(' + text + ')');
+                console.log('Colin test: 1. platformService.send(' + text + ')');
                 var convert_to_b64 = arrayBufferToBase64(data);
-                console.log('sending as b64:' + convert_to_b64);
+                console.log('Colin test: 2. sending as b64:' + convert_to_b64);
                 const response_data = Android_H5vccPlatformService.platform_service_send(name, convert_to_b64);
 
                 if (response_data) {
-                    console.log('response as b64:' + response_data);
+                    console.log('Colin test: 7. response as b64:' + response_data);
                     return base64ToArrayBuffer(response_data);
                 }
                 return null;
@@ -83,7 +83,4 @@ var platform_services = {
 }
 
 window.H5vccPlatformService = platform_services;
-
-if (window.H5vccPlatformService) {
-    console.log("Colin test: h5vcc_platform_service log window.H5vccPlatformService exists");
-}
+// window.H5vccPlatformService = Android_H5vccPlatformService;
