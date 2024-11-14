@@ -161,6 +161,8 @@ shared_library("libcobalt_content_shell_content_view") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
+    "//cobalt:common",
+
     # TODO: what can be removed in the dependencies?
     "//components/crash/content/browser",
     "//content/shell:content_shell_app",
