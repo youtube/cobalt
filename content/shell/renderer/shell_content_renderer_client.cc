@@ -46,6 +46,11 @@
 #include "v8/include/v8-initialization.h"
 #include "v8/include/v8.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/media.h"
+#include "components/cdm/renderer/widevine_key_system_info.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #if BUILDFLAG(ENABLE_PLUGINS)
 #include "ppapi/shared_impl/ppapi_switches.h"  // nogncheck
 #endif
@@ -55,6 +60,7 @@
 #include "media/base/media_switches.h"
 #endif
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && \
@@ -76,6 +82,8 @@
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 >>>>>>> fadd93d2326 (Clean up existing media buildflags (#4393))
 
+=======
+>>>>>>> 72257ee34ee (Implement media::ContentDecryptionModule interface for Starboard (#4368))
 namespace content {
 
 namespace {
@@ -375,6 +383,63 @@ ShellContentRendererClient::CreateURLLoaderThrottleProvider(
   return std::make_unique<ShellContentRendererUrlLoaderThrottleProvider>();
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+media::SupportedCodecs GetStarboardEmeSupportedCodecs() {
+  media::SupportedCodecs codecs = ::media::EME_CODEC_AAC |
+                                  ::media::EME_CODEC_AVC1 |
+                                  ::media::EME_CODEC_VP9_PROFILE0 |
+                                  ::media::EME_CODEC_VP9_PROFILE2 |
+                                  ::media::EME_CODEC_VP8 |
+                                  ::media::EME_CODEC_OPUS |
+                                  ::media::EME_CODEC_VORBIS |
+                                  ::media::EME_CODEC_MPEG_H_AUDIO |
+                                  ::media::EME_CODEC_FLAC |
+                                  ::media::EME_CODEC_HEVC_PROFILE_MAIN  |
+                                  ::media::EME_CODEC_HEVC_PROFILE_MAIN10 |
+                                  ::media::EME_CODEC_AV1 |
+                                  ::media::EME_CODEC_AC3 |
+                                  ::media::EME_CODEC_EAC3;
+  // TODO(b/375232937) Add IAMF
+  return codecs;
+}
+
+#if BUILDFLAG(IS_ANDROID)
+void AddStarboardCmaKeySystems(::media::KeySystemInfos* key_system_infos) {
+  media::SupportedCodecs codecs = GetStarboardEmeSupportedCodecs();
+
+  using Robustness = cdm::WidevineKeySystemInfo::Robustness;
+
+  const base::flat_set<media::EncryptionScheme> kEncryptionSchemes = {
+    media::EncryptionScheme::kCenc, media::EncryptionScheme::kCbcs};
+
+  const base::flat_set<media::CdmSessionType> kSessionTypes = {
+    media::CdmSessionType::kTemporary};
+
+  key_system_infos->emplace_back(new cdm::WidevineKeySystemInfo(
+      codecs,                             // Regular codecs.
+      kEncryptionSchemes,                 // Encryption schemes.
+      kSessionTypes,                      // Session types.
+      codecs,                             // Hardware secure codecs.
+      kEncryptionSchemes,                 // Hardware secure encryption schemes.
+      kSessionTypes,                      // Hardware secure session types.
+      Robustness::HW_SECURE_CRYPTO,       // Max audio robustness.
+      Robustness::HW_SECURE_ALL,          // Max video robustness.
+      media::EmeFeatureSupport::ALWAYS_ENABLED,  // Persistent state.
+      media::EmeFeatureSupport::ALWAYS_ENABLED));  // Distinctive identifier.
+}
+#endif
+
+void ShellContentRendererClient::GetSupportedKeySystems(
+    media::GetSupportedKeySystemsCB cb) {
+  media::KeySystemInfos key_systems;
+#if BUILDFLAG(IS_ANDROID)
+  AddStarboardCmaKeySystems(&key_systems);
+  std::move(cb).Run(std::move(key_systems));
+#endif
+}
+
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #if BUILDFLAG(ENABLE_MOJO_CDM)
 std::unique_ptr<media::KeySystemSupportRegistration>
 ShellContentRendererClient::GetSupportedKeySystems(
@@ -388,6 +453,8 @@ ShellContentRendererClient::GetSupportedKeySystems(
   return nullptr;
 }
 #endif
+
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
