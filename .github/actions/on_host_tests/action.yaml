@@ -51,6 +51,6 @@ runs:
 
           echo "Test filter evaluated to: $test_filter"
 
-          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary --gtest_filter=$test_filter --gtest_output="xml:${RESULTS_DIR}/${test_binary}_testoutput.xml" || true
+          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary --gtest_filter=* --gtest_output="xml:${RESULTS_DIR}/${test_binary}_testoutput.xml" || true
         done
         echo "Ran tests..."
