@@ -1,0 +1,58 @@
+# Copyright 2024 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/config/ozone.gni")
+
+source_set("starboard") {
+  visibility = [ "//ui/ozone/*" ]
+
+  defines = [ "OZONE_IMPLEMENTATION" ]
+
+  sources = [
+    "client_native_pixmap_factory_starboard.cc",
+    "client_native_pixmap_factory_starboard.h",
+    "ozone_platform_starboard.cc",
+    "ozone_platform_starboard.h",
+    "platform_screen_starboard.cc",
+    "platform_screen_starboard.h",
+    "platform_window_starboard.cc",
+    "platform_window_starboard.h",
+    "surface_factory_starboard.cc",
+    "surface_factory_starboard.h",
+  ]
+
+  deps = [
+    "//ui/base/ime",
+    "//ui/display",
+    "//ui/display/fake",
+    "//ui/gfx:native_widget_types",
+    "//ui/ozone:ozone_base",
+    "//ui/ozone/common",
+    "//ui/platform_window",
+    "//ui/platform_window/stub",
+  ]
+}
+
+source_set("test_support") {
+  visibility = [ "//ui/ozone/*" ]
+
+  testonly = true
+
+  sources = [
+    "ozone_ui_controls_test_helper_starboard.cc",
+    "ozone_ui_controls_test_helper_starboard.h",
+  ]
+
+  deps = [ "//ui/base/x" ]
+}
