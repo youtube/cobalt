@@ -214,11 +214,17 @@ MessagePumpForIO* CurrentIOThread::GetMessagePumpForIO() const {
 #if defined(STARBOARD)
 bool CurrentIOThread::Watch(SbSocket socket,
                             bool persistent,
-                            int mode,
+                            SbSocketWaiterInterest interests,
                             SocketWatcher* controller,
                             Watcher* delegate) {
   return static_cast<MessagePumpIOStarboard*>(GetMessagePumpForIO())
-      ->Watch(socket, persistent, mode, controller, delegate);
+      ->Watch(socket, persistent, interests, controller, delegate);
+}
+bool CurrentIOThread::UnregisterInterest(SbSocket socket,
+                                         int dropped_interests,
+                                         SocketWatcher* controller) {
+  return static_cast<MessagePumpIOStarboard*>(GetMessagePumpForIO())
+      ->UnregisterInterest(socket, dropped_interests, controller);
 }
 #elif BUILDFLAG(IS_WIN)
 HRESULT CurrentIOThread::RegisterIOHandler(

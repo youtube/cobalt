@@ -39,30 +39,28 @@ MessagePumpIOStarboard::SocketWatcher::~SocketWatcher() {
   }
 }
 
-bool MessagePumpIOStarboard::SocketWatcher::StopWatchingSocket() {
-  watcher_ = nullptr;
-  interests_ = kSbSocketWaiterInterestNone;
-  if (!SbSocketIsValid(socket_)) {
-    pump_ = nullptr;
-    // If this watcher is not watching anything, no-op and return success.
-    return true;
-  }
-
-  SbSocket socket = Release();
+bool MessagePumpIOStarboard::SocketWatcher::UnregisterInterest(int interests) {
   bool result = true;
-  if (SbSocketIsValid(socket)) {
-    DCHECK(pump_);
-#if defined(STARBOARD)
+  if (SbSocketIsValid(socket_)) {
     // This may get called multiple times from TCPSocketStarboard.
     if (pump_) {
-      result = pump_->StopWatching(socket);
-    }
-#else
-    result = pump_->StopWatching(socket);
-#endif
+      result = pump_->UnregisterInterest(socket_, interests, this);
+    } else
+      Release();
+  } else {
+    interests_ = 0;
   }
-  pump_ = nullptr;
+  if (!interests_) {
+    DCHECK(!SbSocketIsValid(socket_));
+    pump_ = nullptr;
+    watcher_ = nullptr;
+  }
   return result;
+}
+
+bool MessagePumpIOStarboard::SocketWatcher::StopWatchingSocket() {
+  return UnregisterInterest(kSbSocketWaiterInterestRead ||
+                            kSbSocketWaiterInterestWrite);
 }
 
 void MessagePumpIOStarboard::SocketWatcher::Init(SbSocket socket,
@@ -109,26 +107,82 @@ MessagePumpIOStarboard::~MessagePumpIOStarboard() {
   SbSocketWaiterDestroy(waiter_);
 }
 
+bool MessagePumpIOStarboard::UnregisterInterest(SbSocket socket,
+                                                int dropped_interests,
+                                                SocketWatcher* controller) {
+  DCHECK(SbSocketIsValid(socket));
+  DCHECK(controller);
+  DCHECK(dropped_interests == kSbSocketWaiterInterestRead ||
+         dropped_interests == kSbSocketWaiterInterestWrite ||
+         dropped_interests ==
+             (kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite));
+  DCHECK_CALLED_ON_VALID_THREAD(watch_socket_caller_checker_);
+
+  // Make sure we don't pick up any funky internal masks.
+  int old_interest_mask =
+      controller->interests() &
+      (kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite);
+  int interests = old_interest_mask & (~dropped_interests);
+  if (interests == old_interest_mask) {
+    // Interests didn't change, return.
+    return true;
+  }
+
+  SbSocket old_socket = controller->Release();
+  if (SbSocketIsValid(old_socket)) {
+    // It's illegal to use this function to listen on 2 separate fds with the
+    // same |controller|.
+    if (old_socket != socket) {
+      NOTREACHED() << "Sockets don't match" << old_socket << "!=" << socket;
+      return false;
+    }
+
+    // Must disarm the event before we can reuse it.
+    SbSocketWaiterRemove(waiter_, old_socket);
+  } else {
+    interests = kSbSocketWaiterInterestNone;
+  }
+  controller->set_interests(interests);
+
+  if (!SbSocketIsValid(socket)) {
+    NOTREACHED() << "Invalid socket" << socket;
+    return false;
+  }
+
+  if (interests) {
+    // Set current interest mask and waiter for this event.
+    if (!SbSocketWaiterAdd(waiter_, socket, controller,
+                           OnSocketWaiterNotification, interests,
+                           controller->persistent())) {
+      SB_DLOG(ERROR) << __FUNCTION__
+                     << " Failed to remain interested in interests="
+                     << interests;
+      return false;
+    }
+    controller->Init(socket, controller->persistent());
+  }
+  return true;
+}
+
 bool MessagePumpIOStarboard::Watch(SbSocket socket,
                                    bool persistent,
-                                   int mode,
+                                   int interests,
                                    SocketWatcher* controller,
                                    Watcher* delegate) {
   DCHECK(SbSocketIsValid(socket));
   DCHECK(controller);
   DCHECK(delegate);
-  DCHECK(mode == WATCH_READ || mode == WATCH_WRITE || mode == WATCH_READ_WRITE);
+  DCHECK(interests == kSbSocketWaiterInterestRead ||
+         interests == kSbSocketWaiterInterestWrite ||
+         interests ==
+             (kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite));
+  if (interests == kSbSocketWaiterInterestNone) {
+    // Interests didn't change, return.
+    return true;
+  }
   // Watch should be called on the pump thread. It is not threadsafe, and your
   // watcher may never be registered.
   DCHECK_CALLED_ON_VALID_THREAD(watch_socket_caller_checker_);
-
-  int interests = kSbSocketWaiterInterestNone;
-  if (mode & WATCH_READ) {
-    interests |= kSbSocketWaiterInterestRead;
-  }
-  if (mode & WATCH_WRITE) {
-    interests |= kSbSocketWaiterInterestWrite;
-  }
 
   SbSocket old_socket = controller->Release();
   if (SbSocketIsValid(old_socket)) {
@@ -151,9 +205,16 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
     SbSocketWaiterRemove(waiter_, old_socket);
   }
 
+  if (!SbSocketIsValid(socket)) {
+    NOTREACHED() << "Invalid socket" << socket;
+    return false;
+  }
+
   // Set current interest mask and waiter for this event.
   if (!SbSocketWaiterAdd(waiter_, socket, controller,
                          OnSocketWaiterNotification, interests, persistent)) {
+    SB_DLOG(ERROR) << __FUNCTION__
+                   << " Failed to remain interested in interests=" << interests;
     return false;
   }
 
@@ -181,6 +242,8 @@ void MessagePumpIOStarboard::Run(Delegate* delegate) {
   AutoReset<bool> auto_reset_keep_running(&keep_running_, true);
 
   for (;;) {
+    if (should_quit())
+      break;
     Delegate::NextWorkInfo next_work_info = delegate->DoWork();
     bool immediate_work_available = next_work_info.is_immediate();
 

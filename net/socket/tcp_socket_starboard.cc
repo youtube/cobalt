@@ -139,9 +139,9 @@ int TCPSocketStarboard::Accept(std::unique_ptr<TCPSocketStarboard>* socket,
   int result = AcceptInternal(socket, address);
 
   if (result == ERR_IO_PENDING) {
-    if (!base::CurrentIOThread::Get()->Watch(
-            socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
-            &socket_watcher_, this)) {
+    if (!base::CurrentIOThread::Get()->Watch(socket_, true,
+                                             kSbSocketWaiterInterestRead,
+                                             &socket_watcher_, this)) {
       DLOG(ERROR) << "WatchSocket failed on read";
       return MapLastSocketError(socket_);
     }
@@ -252,7 +252,8 @@ void TCPSocketStarboard::Close() {
 }
 
 void TCPSocketStarboard::StopWatchingAndCleanUp() {
-  bool ok = socket_watcher_.StopWatchingSocket();
+  bool ok = socket_watcher_.UnregisterInterest(kSbSocketWaiterInterestRead |
+                                               kSbSocketWaiterInterestWrite);
   DCHECK(ok);
 
   if (!accept_callback_.is_null()) {
@@ -293,7 +294,7 @@ void TCPSocketStarboard::OnSocketReadyToRead(SbSocket socket) {
   } else if (read_pending()) {
     DidCompleteRead();
   } else {
-    ClearWatcherIfOperationsNotPending();
+    ClearReadWatcherIfOperationsNotPending();
   }
 }
 
@@ -345,8 +346,7 @@ int TCPSocketStarboard::Connect(const IPEndPoint& address,
 
   // When it is ready to write, it will have connected.
   base::CurrentIOThread::Get()->Watch(
-      socket_, true, base::MessagePumpIOStarboard::WATCH_WRITE,
-      &socket_watcher_, this);
+      socket_, true, kSbSocketWaiterInterestWrite, &socket_watcher_, this);
 
   return ERR_IO_PENDING;
 }
@@ -374,7 +374,7 @@ void TCPSocketStarboard::DidCompleteConnect() {
   waiting_connect_ = false;
   CompletionOnceCallback callback = std::move(write_callback_);
   write_callback_.Reset();
-  ClearWatcherIfOperationsNotPending();
+  ClearWriteWatcherIfOperationsNotPending();
   std::move(callback).Run(HandleConnectCompleted(rv));
 }
 
@@ -460,9 +460,8 @@ int TCPSocketStarboard::ReadIfReady(IOBuffer* buf,
   }
 
   read_if_ready_callback_ = std::move(callback);
-    base::CurrentIOThread::Get()->Watch(
-      socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
-      &socket_watcher_, this);
+  base::CurrentIOThread::Get()->Watch(
+      socket_, true, kSbSocketWaiterInterestRead, &socket_watcher_, this);
 
   return rv;
 }
@@ -470,7 +469,7 @@ int TCPSocketStarboard::ReadIfReady(IOBuffer* buf,
 int TCPSocketStarboard::CancelReadIfReady() {
   DCHECK(read_if_ready_callback_);
 
-  bool ok = socket_watcher_.StopWatchingSocket();
+  bool ok = socket_watcher_.UnregisterInterest(kSbSocketWaiterInterestRead);
   DCHECK(ok);
 
   read_if_ready_callback_.Reset();
@@ -522,7 +521,7 @@ void TCPSocketStarboard::DidCompleteRead() {
   CompletionOnceCallback callback = std::move(read_if_ready_callback_);
   read_if_ready_callback_.Reset();
 
-  ClearWatcherIfOperationsNotPending();
+  ClearReadWatcherIfOperationsNotPending();
   std::move(callback).Run(OK);
 }
 
@@ -545,8 +544,7 @@ int TCPSocketStarboard::Write(
     write_buf_len_ = buf_len;
     write_callback_ = std::move(callback);
     base::CurrentIOThread::Get()->Watch(
-        socket_, true, base::MessagePumpIOStarboard::WATCH_WRITE,
-        &socket_watcher_, this);
+        socket_, true, kSbSocketWaiterInterestWrite, &socket_watcher_, this);
   }
 
   return rv;
@@ -586,7 +584,7 @@ void TCPSocketStarboard::DidCompleteWrite() {
     CompletionOnceCallback callback = std::move(write_callback_);
     write_callback_.Reset();
 
-    ClearWatcherIfOperationsNotPending();
+    ClearWriteWatcherIfOperationsNotPending();
     std::move(callback).Run(rv);
   }
 }
@@ -667,10 +665,16 @@ void TCPSocketStarboard::ApplySocketTag(const SocketTag& tag) {
   tag_ = tag;
 }
 
-void TCPSocketStarboard::ClearWatcherIfOperationsNotPending() {
-  if (!read_pending() && !write_pending() && !accept_pending() &&
-      !connect_pending()) {
-    bool ok = socket_watcher_.StopWatchingSocket();
+void TCPSocketStarboard::ClearReadWatcherIfOperationsNotPending() {
+  if (!read_pending() && !accept_pending() && !connect_pending()) {
+    bool ok = socket_watcher_.UnregisterInterest(kSbSocketWaiterInterestRead);
+    DCHECK(ok);
+  }
+}
+
+void TCPSocketStarboard::ClearWriteWatcherIfOperationsNotPending() {
+  if (!write_pending()) {
+    bool ok = socket_watcher_.UnregisterInterest(kSbSocketWaiterInterestWrite);
     DCHECK(ok);
   }
 }

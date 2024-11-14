@@ -158,7 +158,8 @@ class NET_EXPORT TCPSocketStarboard : public base::MessagePumpIOStarboard::Watch
   int DoWrite(IOBuffer* buf, int buf_len);
 
   void StopWatchingAndCleanUp();
-  void ClearWatcherIfOperationsNotPending();
+  void ClearReadWatcherIfOperationsNotPending();
+  void ClearWriteWatcherIfOperationsNotPending();
 
   bool read_pending() const { return !read_if_ready_callback_.is_null(); }
   bool write_pending() const {
