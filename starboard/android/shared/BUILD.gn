@@ -171,8 +171,6 @@ static_library("starboard_platform") {
     "accessibility_set_captions_enabled.cc",
     "android_main.cc",
     "android_media_session_client.cc",
-    "application_android.cc",
-    "application_android.h",
 
     # TODO: b/374300500 - posix_emu things should not be used on Android anymore
     # "asset_manager.cc",
@@ -249,7 +247,6 @@ static_library("starboard_platform") {
     "media_settings_api.cc",
     "media_settings_api.h",
     "microphone_impl.cc",
-    "network_status_impl.cc",
     "platform_info.cc",
     "platform_info.h",
     "platform_service.cc",
@@ -322,6 +319,19 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/player/player_set_bounds.cc",
     "//starboard/shared/starboard/player/player_set_playback_rate.cc",
   ]
+
+  # TODO(cobalt, b/378971929): Turn on ApplicationAndroid when working on AOSP.
+  if (is_starboard) {
+    sources += [
+      "application_aosp.cc",
+      "application_aosp.h",
+    ]
+  } else {
+    sources += [
+      "application_android.cc",
+      "application_android.h",
+    ]
+  }
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
