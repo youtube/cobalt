@@ -9,7 +9,7 @@ WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/git/src"
 cd "${WORKSPACE_COBALT}"
 
 # Clean up workspace on exit or error.
-trap "bash ${WORKSPACE_COBALT}/internal/kokoro/bin/cleanup.sh" EXIT INT TERM
+trap "bash ${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/cleanup.sh" EXIT INT TERM
 
 
 # Linux build script.
@@ -27,9 +27,9 @@ pipeline () {
     echo "Evergreen Loader is configured."
     # Deploy static manifest.json (see b/338287855#comment24)
     if [[ "${PLATFORM}" =~ "evergreen-arm-hardfp" ]]; then
-      cp "${WORKSPACE_COBALT}/internal/kokoro/bin/manifest.json" "${out_dir}/install/usr/share/manifest.json"
+      cp "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/manifest.json" "${out_dir}/install/usr/share/manifest.json"
     elif [[ "${PLATFORM}" =~ "evergreen-arm-softfp" ]]; then
-      cp "${WORKSPACE_COBALT}/internal/kokoro/bin/manifest.json" "${WORKSPACE_COBALT}/chrome/updater/version_manifest/manifest.json"
+      cp "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/manifest.json" "${WORKSPACE_COBALT}/chrome/updater/version_manifest/manifest.json"
     fi
 
     local bootloader_out_dir="${WORKSPACE_COBALT}/out/${BOOTLOADER}_${CONFIG}"
@@ -55,13 +55,13 @@ pipeline () {
     # Create release package.
     if [[ "${PLATFORM}" =~ "android" ]]; then
       # Creates Android package directory.
-      python3 "${WORKSPACE_COBALT}/internal/kokoro/build/android/simple_packager.py" \
+      python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/build/android/simple_packager.py" \
         "${out_dir}" \
         "${package_dir}" \
         "${WORKSPACE_COBALT}"
     elif [[ "${PLATFORM}" =~ "evergreen" ]]; then
       # Creates Evergreen package directory.
-      python3 "${WORKSPACE_COBALT}/internal/kokoro/build/evergreen/simple_packager.py" \
+      python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/build/evergreen/simple_packager.py" \
         "${out_dir}" \
         "${package_dir}" \
         "${bootloader_out_dir:-}"

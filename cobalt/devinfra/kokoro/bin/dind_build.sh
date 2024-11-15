@@ -60,9 +60,9 @@ pipeline () {
 
     # Deploy static manifest.json (see b/338287855#comment24)
     if [[ "${PLATFORM}" =~ "evergreen-arm-hardfp" ]]; then
-      cp "${WORKSPACE_COBALT}/internal/kokoro/bin/manifest.json" "${out_dir}/install/usr/share/manifest.json"
+      cp "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/manifest.json" "${out_dir}/install/usr/share/manifest.json"
     elif [[ "${PLATFORM}" =~ "evergreen-arm-softfp" ]]; then
-      cp "${WORKSPACE_COBALT}/internal/kokoro/bin/manifest.json" "${WORKSPACE_COBALT}/chrome/updater/version_manifest/manifest.json"
+      cp "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/manifest.json" "${WORKSPACE_COBALT}/chrome/updater/version_manifest/manifest.json"
     fi
 
     local bootloader_out_dir="${WORKSPACE_COBALT}/out/${BOOTLOADER}_${CONFIG}"

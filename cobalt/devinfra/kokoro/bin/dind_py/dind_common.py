@@ -29,7 +29,7 @@ _DOCKER_COMPOSE_SERVICE_TARGET = 'kokoro-internal-cobalt-image'
 
 # This build script is what needs to be invoked to run the full Cobalt build
 # within the inner Docker container.
-_INTERNAL_KOKORO_BUILD_SCRIPT = 'internal/kokoro/bin/dind_build.sh'
+_INTERNAL_KOKORO_BUILD_SCRIPT = 'cobalt/devinfra/kokoro/bin/dind_build.sh'
 
 _WORKSPACE_COBALT_VAR = 'WORKSPACE_COBALT'
 
@@ -134,7 +134,8 @@ def run_cobalt_build(image_to_run, src_root):
   os.environ['FULL_IMAGE_TARGET'] = image_to_run
   service = _DOCKER_COMPOSE_SERVICE_TARGET
   script = os.path.join(src_root, _INTERNAL_KOKORO_BUILD_SCRIPT)
-  compose_file = os.path.join(src_root, 'internal/kokoro/docker-compose.yml')
+  compose_file = os.path.join(src_root,
+                              'cobalt/devinfra/kokoro/docker-compose.yml')
   compose_cmd = (f'docker compose -f {compose_file} ' +
                  f'run -T {service} /bin/bash -c {script}')
   utils.exec_cmd(compose_cmd)
