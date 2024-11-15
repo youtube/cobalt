@@ -96,19 +96,22 @@ def write_build_args(build_args_path, original_lines, dict_settings,
 
 
 def main(out_directory: str, platform: str, build_type: str,
-         overwrite_args: bool, gn_gen_args: List[str]):
+         gn_gen_args: List[str]):
   platform_path = f'cobalt/build/configs/{platform}'
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
   src_args_gn_file = os.path.join(platform_path, 'args.gn')
   Path(out_directory).mkdir(parents=True, exist_ok=True)
 
-  if overwrite_args or not os.path.exists(dst_args_gn_file):
-    build_args = get_build_args(src_args_gn_file)
-    write_build_args(dst_args_gn_file, build_args[0], build_args[1], build_type)
-  else:
-    print(f'{dst_args_gn_file} already exists.' +
-          ' Running ninja will regenerate build files automatically.')
-
+  if os.path.exists(dst_args_gn_file):
+    # Copy the stale args.gn into stale_args.gn
+    stale_dst_args_gn_file = dst_args_gn_file.replace('args', 'stale_args')
+    os.rename(dst_args_gn_file, stale_dst_args_gn_file)
+    print(f' Warning: {dst_args_gn_file} is rewritten.'
+          f' Old file is copied to {stale_dst_args_gn_file}.'
+          'In general, if the file exists, you should run'
+          ' `gn args <out_directory>` to edit it instead.')
+  build_args = get_build_args(src_args_gn_file)
+  write_build_args(dst_args_gn_file, build_args[0], build_args[1], build_type)
   gn_command = ['gn', 'gen', out_directory] + gn_gen_args
   print(' '.join(gn_command))
   subprocess.check_call(gn_command)
@@ -146,13 +149,6 @@ if __name__ == '__main__':
       choices=_BUILD_TYPES.keys(),
       help='The build_type (configuration) to build with.')
   parser.add_argument(
-      '--overwrite_args',
-      default=False,
-      action='store_true',
-      help='Whether or not to overwrite an existing args.gn file if one exists '
-      'in the out directory. In general, if the file exists, you should run '
-      '`gn args <out_directory>` to edit it instead.')
-  parser.add_argument(
       '--no-check',
       # TODO: b/377295011 - Enable gn --check
       default=True,
@@ -173,4 +169,4 @@ if __name__ == '__main__':
     builds_out_directory = os.path.join(
         BUILDS_DIRECTORY, f'{script_args.platform}_{script_args.build_type}')
   main(builds_out_directory, script_args.platform, script_args.build_type,
-       script_args.overwrite_args, gen_args)
+       gen_args)
