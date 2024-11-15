@@ -43,6 +43,10 @@ enum class RendererType {
 // the actual Renderer class name or a descriptive name.
 std::string MEDIA_EXPORT GetRendererName(RendererType renderer_type);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+bool MEDIA_EXPORT SetBoundsNullTask(int x, int y, int width, int height);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 class MEDIA_EXPORT Renderer {
  public:
   Renderer();
@@ -131,6 +135,12 @@ class MEDIA_EXPORT Renderer {
   // enforce RendererType registration for all Renderer implementations.
   // Note: New implementation should update RendererType.
   virtual RendererType GetRendererType() = 0;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Return SetBoundsCB if SbPlayer is used for rendering.
+  using SetBoundsCB = base::OnceCallback<bool(int x, int y, int width, int height)>;
+  virtual SetBoundsCB GetSetBoundsCB();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media
