@@ -3,7 +3,7 @@
 // proto-message: BuildConfig
 
 build = {
-  build_file = 'src/internal/kokoro/bin/on_device_test.sh'
+  build_file = 'src/cobalt/devinfra/kokoro/bin/on_device_test.sh'
   before_action = [
     {
       invoke_blaze = {
