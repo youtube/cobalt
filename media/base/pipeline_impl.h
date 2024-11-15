@@ -119,6 +119,9 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline {
   bool DidLoadingProgress() override;
   PipelineStatistics GetStatistics() const override;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  SetBoundsCB GetSetBoundsCB() override;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // |enabled_track_ids| contains track ids of enabled audio tracks.
   void OnEnabledAudioTracksChanged(
