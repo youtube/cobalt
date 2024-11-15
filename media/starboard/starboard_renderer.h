@@ -33,6 +33,7 @@
 #include "media/base/video_renderer_sink.h"
 #include "media/renderers/video_overlay_factory.h"
 #include "media/starboard/sbplayer_bridge.h"
+#include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
@@ -87,6 +88,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
     // TODO(b/375278384): Properly setup the renderer type.
     return RendererType::kRendererImpl;
   }
+  SetBoundsCB GetSetBoundsCB() override;
 
  private:
   void CreatePlayerBridge(PipelineStatusCallback init_cb);
@@ -116,6 +118,8 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   // Overlay factory used to create overlays for video frames rendered
   // by the remote renderer.
   std::unique_ptr<VideoOverlayFactory> video_overlay_factory_;
+
+  scoped_refptr<SbPlayerSetBoundsHelper> set_bounds_helper_;
 
   DefaultSbPlayerInterface sbplayer_interface_;
   // TODO(b/326652276): Support audio write duration.
