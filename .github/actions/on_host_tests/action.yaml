@@ -32,12 +32,9 @@ runs:
         XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
       run: |
         set -x
-        echo "Running env..."
         env
         pwd
         ls
-        ls ${GITHUB_WORKSPACE}
-        echo "Attempting to run tests..."
 
         cd ${GITHUB_WORKSPACE}/unit_test
         for test_binary in $(ls -d out/**/*tests); do
@@ -51,10 +48,6 @@ runs:
 
           echo "Test filter evaluated to: $test_filter"
 
-          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary --gtest_filter=* --gtest_output="xml:${RESULTS_DIR}/${test_binary}_testoutput.xml" || true
-
-          echo "Testoutput xml for ${test_binary}"
-          cat ${RESULTS_DIR}/${test_binary}_testoutput.xml
-
+          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary --gtest_filter=$test_filter --gtest_output="xml:${RESULTS_DIR}/${test_binary}_testoutput.xml"
         done
-        echo "Ran tests..."
+        echo "Finished running all unit tests..."
