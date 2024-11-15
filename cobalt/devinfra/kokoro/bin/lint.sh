@@ -7,7 +7,7 @@ set -ux
 WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/git/src"
 
 ### Clean up workspace on exit or error.
-trap "bash ${WORKSPACE_COBALT}/internal/kokoro/bin/cleanup.sh" EXIT INT TERM
+trap "bash ${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/cleanup.sh" EXIT INT TERM
 
 configure_environment
 
