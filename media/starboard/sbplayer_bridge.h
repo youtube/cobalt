@@ -294,8 +294,6 @@ class SbPlayerBridge {
   SbWindow window_;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
   Host* const host_;
-  // TODO(b/376320224): Ensure that set bounds works
-  // Consider merge |SbPlayerSetBoundsHelper| into CallbackHelper.
   SbPlayerSetBoundsHelper* const set_bounds_helper_;
   const bool allow_resume_after_suspend_;
 
