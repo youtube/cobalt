@@ -30,6 +30,7 @@ The functionality is migrated to starboard extension.
 ### Removed unused symbols from `starboard/socket.h`
 ### Removed unused symbols from `starboard/thread.h`
 ### Removed unused symbols from `starboard/types.h`
+  * Removed provisions for SSIZE_T
 ### Removed `DEPRECATED_SCOPED_PTR`
 ### Removed `SB_HAS_IPV6` config
 All platforms support IPv6
