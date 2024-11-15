@@ -21,8 +21,6 @@ overridable_clang_toolchain("starboard") {
   toolchain_args = {
     current_os = "linux"
     current_cpu = "x64"
-    clang_use_chrome_plugins = false
-    enable_check_raw_ptr_fields = false
   }
   propagates_configs = true
 }
