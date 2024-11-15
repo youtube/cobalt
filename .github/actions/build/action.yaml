@@ -64,6 +64,7 @@ runs:
         if: startsWith(matrix.platform, 'linux') && matrix.config == 'devel'
         run: |
           set -x
+          shopt -s globstar
           cd src
           tar cvf - out/**/*tests out/**/*.so | xz -T0 -1 -z - > test_artifacts.tar.xz
         shell: bash
