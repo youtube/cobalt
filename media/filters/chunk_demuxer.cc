@@ -30,7 +30,6 @@
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "base/strings/string_split.h"
 #include "third_party/blink/renderer/platform/network/mime/content_type.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

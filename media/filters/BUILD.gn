@@ -257,10 +257,6 @@ source_set("filters") {
       "manifest_demuxer.h",
     ]
   }
-
-  if (is_cobalt && use_starboard_media) {
-    deps += [ "//starboard($starboard_toolchain)" ]
-  }
 }
 
 source_set("perftests") {
