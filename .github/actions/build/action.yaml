@@ -65,7 +65,7 @@ runs:
         run: |
           set -x
           cd src
-          tar cvf - out/linux-x64x11_devel/*tests out/linux-x64x11_devel/*.so out/linux-x64x11_devel/starboard/*tests out/linux-x64x11_devel/starboard/*.so | xz -T0 -1 -z - > test_artifacts.tar.xz
+          tar cvf - out/${{ matrix.platform }}_${{ matrix.config }}/*tests out/${{ matrix.platform }}_${{ matrix.config }}/*.so out/${{ matrix.platform }}_${{ matrix.config }}/starboard/*tests out/${{ matrix.platform }}_${{ matrix.config }}/starboard/*.so | xz -T0 -1 -z - > test_artifacts.tar.xz
         shell: bash
       - name: Upload Test artifacts
         if: startsWith(matrix.platform, 'linux') && matrix.config == 'devel'
