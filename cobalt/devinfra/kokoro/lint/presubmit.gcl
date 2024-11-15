@@ -4,7 +4,7 @@
 // validation: gcl --message=kokoro.BuildConfig --objtype=config group2.gcl appendascii
 
 config build = {
-  build_file = 'src/internal/kokoro/bin/lint.sh'
+  build_file = 'src/cobalt/devinfra/kokoro/bin/lint.sh'
   env_vars = [
     {
       key = 'GN_HASH'

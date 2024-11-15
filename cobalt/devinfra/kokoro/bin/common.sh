@@ -301,7 +301,7 @@ run_package_release_pipeline () {
     # Create release package.
     if [[ "${PLATFORM}" =~ "android" ]]; then
       # Creates Android package directory.
-      python3 "${WORKSPACE_COBALT}/internal/kokoro/build/android/simple_packager.py" \
+      python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/build/android/simple_packager.py" \
         "${out_dir}" \
         "${package_dir}" \
         "${WORKSPACE_COBALT}"
@@ -311,7 +311,7 @@ run_package_release_pipeline () {
         bootloader_out_dir="${WORKSPACE_COBALT}/out/${BOOTLOADER}_${CONFIG}"
       fi
       # Creates Evergreen package directory.
-      python3 "${WORKSPACE_COBALT}/internal/kokoro/build/evergreen/simple_packager.py" \
+      python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/build/evergreen/simple_packager.py" \
         "${out_dir}" \
         "${package_dir}" \
         "${bootloader_out_dir:-}"
