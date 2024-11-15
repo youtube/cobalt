@@ -43,18 +43,6 @@
 extern "C" {
 #endif
 
-// --- Standard Include Emulation ----------------------------------------------
-
-#if !SB_HAS(SSIZE_T)
-#if SB_IS(32_BIT)
-typedef int32_t ssize_t;
-#define SSIZE_MAX INT_MAX
-#elif SB_IS(64_BIT)
-typedef int64_t ssize_t;
-#define SSIZE_MAX LONG_MAX
-#endif
-#endif  // !SB_HAS(SSIZE_T)
-
 // --- Standard Include Emulation Audits ---------------------------------------
 
 #if (UINT_MIN + 1 == UINT_MAX - 1) || (INT_MIN + 1 == INT_MAX - 1) || \
