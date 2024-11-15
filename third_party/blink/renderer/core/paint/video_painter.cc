@@ -35,6 +35,9 @@ void VideoPainter::PaintReplaced(const PaintInfo& paint_info,
       force_video_poster;
   if (!should_display_poster && !media_player)
     return;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  WebMediaPlayer::SetBoundsCB set_bounds_cb = media_player->GetSetBoundsCB();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   PhysicalRect replaced_rect = layout_video_.ReplacedContentRect();
   replaced_rect.Move(paint_offset);
@@ -77,6 +80,15 @@ void VideoPainter::PaintReplaced(const PaintInfo& paint_info,
       layer->SetBounds(snapped_replaced_rect.size());
       layer->SetIsDrawable(true);
       layer->SetHitTestable(true);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      if (!set_bounds_cb.is_null()) {
+        // TODO(b/377754564): revisit it for the impact of performance of SbPlayerSetBounds.
+        std::move(set_bounds_cb).Run(layout_video_.AbsoluteBoundingBoxRect().x(),
+                                     layout_video_.AbsoluteBoundingBoxRect().y(),
+                                     layout_video_.AbsoluteBoundingBoxRect().width(),
+                                     layout_video_.AbsoluteBoundingBoxRect().height());
+      }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
       RecordForeignLayer(context, layout_video_,
                          DisplayItem::kForeignLayerVideo, layer,
                          snapped_replaced_rect.origin());
