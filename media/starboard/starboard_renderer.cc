@@ -422,17 +422,16 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
 
+    base::AutoLock auto_lock(lock_);
+    player_bridge_->UpdateVideoConfig(decoder_config, stream->mime_type());
+
     // TODO(b/375275033): Refine natural size change handling.
 #if 0
-    base::AutoLock auto_lock(lock_);
-
     bool natural_size_changed =
         (decoder_config.natural_size().width() != natural_size_.width() ||
          decoder_config.natural_size().height() != natural_size_.height());
 
     natural_size_ = decoder_config.natural_size();
-
-    player_bridge_->UpdateVideoConfig(decoder_config, stream->mime_type());
 
     if (natural_size_changed) {
       content_size_change_cb_.Run();

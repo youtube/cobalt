@@ -46,14 +46,14 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   ChunkDemuxerStream(const std::string& mime_type,
                      Type type,
                      MediaTrack::Id media_track_id);
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   ChunkDemuxerStream() = delete;
-
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
   ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id);
+  ChunkDemuxerStream() = delete;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   ChunkDemuxerStream(const ChunkDemuxerStream&) = delete;
   ChunkDemuxerStream& operator=(const ChunkDemuxerStream&) = delete;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   ~ChunkDemuxerStream() override;
 

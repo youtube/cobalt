@@ -473,10 +473,6 @@ source_set("blink_headers") {
     "//ui/base:base",
     "//v8:v8_headers",
   ]
-
-  if (is_cobalt && use_starboard_media) {
-    deps += [ "//starboard($starboard_toolchain)" ]
-  }
 }
 
 blink_python_runner("runtime_features_for_public") {

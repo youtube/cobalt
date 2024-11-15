@@ -80,8 +80,7 @@ ChunkDemuxerStream::ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id)
       liveness_(StreamLiveness::kUnknown),
       media_track_id_(media_track_id),
       state_(UNINITIALIZED),
-      is_enabled_(true) {
-}
+      is_enabled_(true) {}
 
 void ChunkDemuxerStream::StartReturningData() {
   DVLOG(1) << "ChunkDemuxerStream::StartReturningData()";
