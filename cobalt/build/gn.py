@@ -102,15 +102,15 @@ def main(out_directory: str, platform: str, build_type: str,
   src_args_gn_file = os.path.join(platform_path, 'args.gn')
   Path(out_directory).mkdir(parents=True, exist_ok=True)
 
-  build_args = get_build_args(src_args_gn_file)
   if os.path.exists(dst_args_gn_file):
     # Copy the stale args.gn into stale_args.gn
     stale_dst_args_gn_file = dst_args_gn_file.replace('args', 'stale_args')
     os.rename(dst_args_gn_file, stale_dst_args_gn_file)
-    print(f' Warning: {dst_args_gn_file} is rewritten.' +
-          ' Old file is copied to {stale_dst_args_gn_file}.' +
-          'In general, if the file exists, you should run' +
+    print(f' Warning: {dst_args_gn_file} is rewritten.'
+          f' Old file is copied to {stale_dst_args_gn_file}.'
+          'In general, if the file exists, you should run'
           ' `gn args <out_directory>` to edit it instead.')
+  build_args = get_build_args(src_args_gn_file)
   write_build_args(dst_args_gn_file, build_args[0], build_args[1], build_type)
   gn_command = ['gn', 'gen', out_directory] + gn_gen_args
   print(' '.join(gn_command))
