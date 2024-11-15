@@ -14,13 +14,14 @@ declare_args() {
   # Chrome OS's.
   clang_use_chrome_plugins =
       is_clang && !is_nacl && current_os != "zos" &&
-      default_toolchain != "//build/toolchain/cros:target" && !is_cobalt
+      default_toolchain != "//build/toolchain/cros:target"
 
   # Use this instead of clang_use_chrome_plugins to enable just the raw-ptr-plugin.
   clang_use_raw_ptr_plugin = false
 
   enable_check_raw_ptr_fields =
       build_with_chromium && !is_official_build &&
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
       ((is_linux && !is_castos) || (is_android && !is_cast_android) || is_mac ||
@@ -38,6 +39,9 @@ declare_args() {
 =======
       ((is_linux && !is_castos) || (is_android && !is_cast_android)) && !is_cobalt
 >>>>>>> cf86d0eb72c (Rename Chrobalt to Cobalt. (#4276))
+=======
+      ((is_linux && !is_castos) || (is_android && !is_cast_android))
+>>>>>>> e841fabe5f9 (Set certain upstream GN flags correctly in args.gn (#4419))
 
   clang_base_path = default_clang_base_path
 
