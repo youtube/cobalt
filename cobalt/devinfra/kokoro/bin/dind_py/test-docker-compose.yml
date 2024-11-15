@@ -5,5 +5,5 @@ services:
   foo_test:
     image: foo_test
     build:
-      context: ${COBALT_SRC}/internal/kokoro/bin/dind_py
+      context: ${COBALT_SRC}/cobalt/devinfra/kokoro/bin/dind_py
       dockerfile: ./Dockerfile.test

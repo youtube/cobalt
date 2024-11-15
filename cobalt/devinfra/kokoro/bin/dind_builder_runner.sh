@@ -30,7 +30,7 @@ export WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/git/src"
 cd "${WORKSPACE_COBALT}"
 
 # Clean up workspace on exit or error.
-trap "bash ${WORKSPACE_COBALT}/internal/kokoro/bin/cleanup.sh" EXIT INT TERM
+trap "bash ${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/cleanup.sh" EXIT INT TERM
 
 configure_dind_environment
 
@@ -38,7 +38,7 @@ configure_environment
 
 set -x
 # The python script is responsible for running containerized Cobalt builds.
-python3 "${WORKSPACE_COBALT}/internal/kokoro/bin/dind_py/main_build_image_and_run.py"
+python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/dind_py/main_build_image_and_run.py"
 
 # The following script is responsible for creating packages and nightly builds
 # which do not need to run inside Cobalt containers.
