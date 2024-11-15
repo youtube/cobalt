@@ -690,6 +690,13 @@ void WebMediaPlayerImpl::DisableOverlay() {
     MaybeSendOverlayInfoToDecoder();
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+WebMediaPlayer::SetBoundsCB WebMediaPlayerImpl::GetSetBoundsCB() {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  return pipeline_controller_->GetSetBoundsCB();
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void WebMediaPlayerImpl::EnteredFullscreen() {
   overlay_info_.is_fullscreen = true;
 
@@ -2813,7 +2820,7 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
     return std::make_unique<media::StarboardRenderer>(media_task_runner_,
         compositor_.get());
   }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (renderer_type) {
     DVLOG(1) << __func__
