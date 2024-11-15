@@ -14,7 +14,7 @@ declare_args() {
   # Chrome OS's.
   clang_use_chrome_plugins =
       is_clang && !is_nacl && current_os != "zos" &&
-      default_toolchain != "//build/toolchain/cros:target" && !is_cobalt
+      default_toolchain != "//build/toolchain/cros:target"
 
   # Use this instead of clang_use_chrome_plugins to enable just the raw-ptr-plugin.
   clang_use_raw_ptr_plugin = false
