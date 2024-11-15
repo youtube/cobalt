@@ -100,6 +100,9 @@ class PipelineImpl::RendererWrapper final : public DemuxerHost,
   bool DidLoadingProgress();
   PipelineStatistics GetStatistics() const;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  SetBoundsCB GetSetBoundsCB();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // |enabled_track_ids| contains track ids of enabled audio tracks.
   void OnEnabledAudioTracksChanged(
@@ -632,6 +635,14 @@ void PipelineImpl::RendererWrapper::SetCdm(CdmContext* cdm_context,
   if (create_renderer_done_cb_)
     CreateRendererInternal(std::move(create_renderer_done_cb_));
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+Pipeline::SetBoundsCB PipelineImpl::RendererWrapper::GetSetBoundsCB() {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  return shared_state_.renderer? shared_state_.renderer->GetSetBoundsCB() :
+      base::BindOnce(&SetBoundsNullTask);
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void PipelineImpl::RendererWrapper::CreateRendererInternal(
     PipelineStatusCallback done_cb) {
@@ -1640,6 +1651,39 @@ void PipelineImpl::SetCdm(CdmContext* cdm_context,
           base::BindPostTaskToCurrentDefault(std::move(cdm_attached_cb))));
 }
 
+<<<<<<< HEAD
+=======
+#define RETURN_STRING(state) \
+  case state:                \
+    return #state;
+
+// static
+const char* PipelineImpl::GetStateString(State state) {
+  switch (state) {
+    RETURN_STRING(kCreated);
+    RETURN_STRING(kStarting);
+    RETURN_STRING(kSeeking);
+    RETURN_STRING(kPlaying);
+    RETURN_STRING(kStopping);
+    RETURN_STRING(kStopped);
+    RETURN_STRING(kSuspending);
+    RETURN_STRING(kSuspended);
+    RETURN_STRING(kResuming);
+  }
+  NOTREACHED();
+  return "INVALID";
+}
+
+#undef RETURN_STRING
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+Pipeline::SetBoundsCB PipelineImpl::GetSetBoundsCB() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return renderer_wrapper_->GetSetBoundsCB();
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+>>>>>>> 7eaf663e928 ([media] Set the bounds of Sbplayer via video_painter.cc (#4385))
 void PipelineImpl::AsyncCreateRenderer(
     std::optional<RendererType> renderer_type,
     RendererCreatedCB renderer_created_cb) {
