@@ -120,7 +120,9 @@ public abstract class CobaltActivity extends Activity {
             // Remove below if Cobalt rebase to m120+.
             "--user-level-memory-pressure-signal-params",
             // Pass javascript console log to adb log.
-            "--enable-features=LogJsConsoleMessages"
+            "--enable-features=LogJsConsoleMessages",
+            // Disable rescaling Webpage.
+            "--force-device-scale-factor=1",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
 
