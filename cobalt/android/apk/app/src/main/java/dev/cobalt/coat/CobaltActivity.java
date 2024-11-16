@@ -105,7 +105,9 @@ public abstract class CobaltActivity extends Activity {
             // enable Blink to work in overlay video mode
             "--force-video-overlays",
             // autoplay video with url
-            "--autoplay-policy=no-user-gesture-required"
+            "--autoplay-policy=no-user-gesture-required",
+            // Disable rescaling Webpage.
+            "--force-device-scale-factor=1",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
 
