@@ -120,7 +120,9 @@ public abstract class CobaltActivity extends Activity {
             // Remove below if Cobalt rebase to m120+.
             "--user-level-memory-pressure-signal-params",
             // Pass javascript console log to adb log.
-            "--enable-features=LogJsConsoleMessages"
+            "--enable-features=LogJsConsoleMessages",
+            // Disable rescaling Webpage.
+            "--force-device-scale-factor=1",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
 
@@ -331,9 +333,6 @@ public abstract class CobaltActivity extends Activity {
 
   // TODO(b/375442742): re-enable native code.
   // private static native void nativeLowMemoryEvent();
-
-  // TODO(cobalt): make WebContent accessible in CobaltActivity or StarboardBridge.
-  // protected View mContentView = null;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {

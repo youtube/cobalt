@@ -60,10 +60,12 @@ StarboardRenderer::StarboardRenderer(
     VideoRendererSink* video_renderer_sink)
     : task_runner_(task_runner),
       video_renderer_sink_(video_renderer_sink),
-      video_overlay_factory_(std::make_unique<VideoOverlayFactory>()) {
+      video_overlay_factory_(std::make_unique<VideoOverlayFactory>()),
+      set_bounds_helper_(new SbPlayerSetBoundsHelper) {
   DCHECK(task_runner_);
   DCHECK(video_renderer_sink_);
   DCHECK(video_overlay_factory_);
+  DCHECK(set_bounds_helper_);
   LOG(INFO) << "StarboardRenderer constructed.";
 }
 
@@ -144,25 +146,43 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
     video_stream_->EnableBitstreamConverter();
   }
 
-#if COBALT_MEDIA_ENABLE_ENCRYPTED_PLAYBACKS
-  base::AutoLock auto_lock(lock_);
-
-  bool is_encrypted =
-      audio_stream_ && audio_stream_->audio_decoder_config().is_encrypted();
-  is_encrypted |=
-      video_stream_ && video_stream_->video_decoder_config().is_encrypted();
-  if (is_encrypted) {
-    // TODO(b/328305808): Shall we call client_->OnVideoNaturalSizeChange() to
-    // provide an initial size before the license exchange finishes?
-
-    RunSetDrmSystemReadyCB(BindPostTaskToCurrentDefault(
-        base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
-    return;
-  }
-#endif  // COBALT_MEDIA_ENABLE_ENCRYPTED_PLAYBACKS
+  // TODO(cobalt, b/378958007) ensure SetCdm has been called before
+  // |CreatePlayerBridge()| and the init_cb.
+  //
+  // base::AutoLock auto_lock(lock_);
+  //
+  // bool is_encrypted =
+  //     audio_stream_ && audio_stream_->audio_decoder_config().is_encrypted();
+  // is_encrypted |=
+  //     video_stream_ && video_stream_->video_decoder_config().is_encrypted();
+  // if (is_encrypted) {
+  //   // TODO(b/328305808): Shall we call client_->OnVideoNaturalSizeChange()
+  //   to
+  //   // provide an initial size before the license exchange finishes?
+  //   RunSetDrmSystemReadyCB(BindPostTaskToCurrentDefault(
+  //       base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
+  //   return;
+  // }
 
   // |init_cb| will be called inside |CreatePlayerBridge()|.
   CreatePlayerBridge(std::move(init_cb));
+}
+
+void StarboardRenderer::SetCdm(CdmContext* cdm_context,
+                               CdmAttachedCB cdm_attached_cb) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(cdm_context);
+  TRACE_EVENT0("media", "StarboardRenderer::SetCdm");
+
+  if (SbDrmSystemIsValid(drm_system_)) {
+    LOG(WARNING) << "Switching CDM not supported.";
+    std::move(cdm_attached_cb).Run(false);
+    return;
+  }
+
+  drm_system_ = cdm_context->GetSbDrmSystem();
+  std::move(cdm_attached_cb).Run(true);
+  LOG(INFO) << "CDM set successfully.";
 }
 
 void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
@@ -299,6 +319,11 @@ base::TimeDelta StarboardRenderer::GetMediaTime() {
   return media_time;
 }
 
+Renderer::SetBoundsCB StarboardRenderer::GetSetBoundsCB() {
+  return base::BindOnce(&SbPlayerSetBoundsHelper::SetBounds,
+                        set_bounds_helper_);
+}
+
 void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(init_cb);
@@ -351,11 +376,7 @@ void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
         audio_config, audio_mime_type, video_config, video_mime_type,
         // TODO(b/326497953): Support suspend/resume.
         // TODO(b/326508279): Support background mode.
-        kSbWindowInvalid,
-        // TODO(b/328305808): Implement SbDrm support.
-        kSbDrmSystemInvalid, this,
-        // TODO(b/376320224); Verify set bounds works
-        nullptr,
+        kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
         // TODO(b/326497953): Support suspend/resume.
         false,
         // TODO(b/326825450): Revisit 360 videos.

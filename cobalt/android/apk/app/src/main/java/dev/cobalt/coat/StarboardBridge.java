@@ -80,17 +80,18 @@ public class StarboardBridge {
   private final Holder<Activity> activityHolder;
   private final Holder<Service> serviceHolder;
   private final String[] args;
+  private final long nativeApp;
   private String startDeepLink;
   private final Runnable stopRequester =
       new Runnable() {
         @Override
         public void run() {
-          requestStop(0);
+          requestSuspend();
         }
       };
 
-  private volatile boolean starboardApplicationStopped;
-  private volatile boolean starboardApplicationReady;
+  private volatile boolean applicationStopped;
+  private volatile boolean applicationReady;
 
   private final HashMap<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
   private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
@@ -113,9 +114,9 @@ public class StarboardBridge {
 
     Log.i(TAG, "StarboardBridge init.");
 
-    // Make sure the JNI stack is properly initialized first as there is
+    // Make sure the JNI stack is properly initialized first as there is a
     // race condition as soon as any of the following objects creates a new thread.
-    nativeInitialize();
+    initJNI();
 
     this.appContext = appContext;
     this.activityHolder = activityHolder;
@@ -128,46 +129,48 @@ public class StarboardBridge {
     // this.cobaltMediaSession =
     //   new CobaltMediaSession(appContext, activityHolder, audioOutputManager, artworkDownloader);
     // this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
+    // TODO(cobalt, b/378718120): delete NetworkStatus if navigator.online works in Content.
     this.networkStatus = new NetworkStatus(appContext);
     this.resourceOverlay = new ResourceOverlay(appContext);
     // this.advertisingId = new AdvertisingId(appContext);
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
 
-    // Run native starboard thread, after all the objects it may access
-    // are set up.
-    // TODO(b/377042903): This may not be the correct for this - it should possible be
-    // started/stopped together with the activity.
-    startNativeStarboard();
+    nativeApp = startNativeStarboard();
   }
 
-  private native boolean nativeInitialize();
+  private native boolean initJNI();
 
-  private native boolean startNativeStarboard();
+  private native long startNativeStarboard();
 
-  private long nativeCurrentMonotonicTime() {
-    // TODO(b/375058047): re-enable monotonic time from native side.
-    return 0;
-  }
+  private native void closeNativeStarboard(long nativeApp);
+
+  private native long nativeCurrentMonotonicTime();
 
   protected void onActivityStart(Activity activity) {
     Log.e(TAG, "onActivityStart ran");
     activityHolder.set(activity);
     sysConfigChangeReceiver.setForeground(true);
+    beforeStartOrResume();
   }
 
   protected void onActivityStop(Activity activity) {
     Log.e(TAG, "onActivityStop ran");
+    beforeSuspend();
     if (activityHolder.get() == activity) {
       activityHolder.set(null);
     }
     sysConfigChangeReceiver.setForeground(false);
+    afterStopped();
   }
 
+  private native void nativeOnStop();
+
   protected void onActivityDestroy(Activity activity) {
-    if (starboardApplicationStopped) {
+    if (applicationStopped) {
       // We can't restart the starboard app, so kill the process for a clean start next time.
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
+      closeNativeStarboard(nativeApp);
       System.exit(0);
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
@@ -190,11 +193,13 @@ public class StarboardBridge {
     Log.i(TAG, "Prepare to resume");
     // Bring our platform services to life before resuming so that they're ready to deal with
     // whatever the web app wants to do with them as part of its start/resume logic.
+    // TODO(cobalt, b/377019873): re-enable MediaSession.
     // cobaltMediaSession.resume();
     networkStatus.beforeStartOrResume();
     for (CobaltService service : cobaltServices.values()) {
       service.beforeStartOrResume();
     }
+    // TODO(cobalt, b/377049113): re-enable advertisingid.
     // advertisingId.refresh();
   }
 
@@ -219,7 +224,7 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   protected void afterStopped() {
-    starboardApplicationStopped = true;
+    applicationStopped = true;
     ttsHelper.shutdown();
     for (CobaltService service : cobaltServices.values()) {
       service.afterStopped();
@@ -238,28 +243,16 @@ public class StarboardBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  protected void starboardApplicationStarted() {
-    starboardApplicationReady = true;
+  protected void applicationStarted() {
+    applicationReady = true;
   }
 
   @SuppressWarnings("unused")
   @UsedByNative
-  protected void starboardApplicationStopping() {
-    starboardApplicationReady = false;
-    starboardApplicationStopped = true;
+  protected void applicationStopping() {
+    applicationReady = false;
+    applicationStopped = true;
   }
-
-  @SuppressWarnings("unused")
-  @UsedByNative
-  public void requestStop(int errorLevel) {
-    if (starboardApplicationReady) {
-      Log.i(TAG, "Request to stop");
-      // TODO(cobalt): re-enable native stop signal if needed.
-      // nativeStopApp(errorLevel);
-    }
-  }
-
-  // private native void nativeStopApp(int errorLevel);
 
   @SuppressWarnings("unused")
   @UsedByNative
@@ -273,7 +266,7 @@ public class StarboardBridge {
 
   public boolean onSearchRequested() {
     // TODO(cobalt): re-enable native search request if needed.
-    // if (starboardApplicationReady) {
+    // if (applicationReady) {
     //   return nativeOnSearchRequested();
     // }
     return false;
@@ -331,7 +324,7 @@ public class StarboardBridge {
 
   /** Sends an event to the web app to navigate to the given URL */
   public void handleDeepLink(String url) {
-    if (starboardApplicationReady) {
+    if (applicationReady) {
       nativeHandleDeepLink(url);
     } else {
       // If this deep link event is received before the starboard application
@@ -779,22 +772,6 @@ public class StarboardBridge {
     cobaltServices.remove(serviceName);
   }
 
-  /** Deprecated. Returns an incorrect calculation for the appStart for an existing metric. */
-  @SuppressWarnings("unused")
-  @UsedByNative
-  protected long getIncorrectAppStartTimestamp() {
-    Activity activity = activityHolder.get();
-    if (activity instanceof CobaltActivity) {
-      long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
-      // long cppTimestamp = nativeCurrentMonotonicTime();
-      long cppTimestamp = System.nanoTime();
-      long javaStopTimestamp = System.nanoTime();
-      return cppTimestamp
-          - (javaStartTimestamp - javaStopTimestamp) / timeNanosecondsPerMicrosecond;
-    }
-    return 0;
-  }
-
   /** Returns the application start timestamp. */
   @SuppressWarnings("unused")
   @UsedByNative
@@ -802,8 +779,7 @@ public class StarboardBridge {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
       long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
-      // long cppTimestamp = nativeCurrentMonotonicTime();
-      long cppTimestamp = System.nanoTime();
+      long cppTimestamp = nativeCurrentMonotonicTime();
       long javaStopTimestamp = System.nanoTime();
       return cppTimestamp
           - (javaStopTimestamp - javaStartTimestamp) / timeNanosecondsPerMicrosecond;

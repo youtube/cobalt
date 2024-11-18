@@ -33,6 +33,7 @@
 #include "media/base/video_renderer_sink.h"
 #include "media/renderers/video_overlay_factory.h"
 #include "media/starboard/sbplayer_bridge.h"
+#include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
@@ -51,10 +52,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   void Initialize(MediaResource* media_resource,
                   RendererClient* client,
                   PipelineStatusCallback init_cb) final;
-  void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) final {
-    // TODO(b/328305808): Implement encrypted playback.
-    NOTIMPLEMENTED();
-  }
+  void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) final;
   void SetLatencyHint(absl::optional<base::TimeDelta> latency_hint) final {
     // TODO(b/375271848): Address NOTIMPLEMENTED().
     NOTIMPLEMENTED();
@@ -90,6 +88,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
     // TODO(b/375278384): Properly setup the renderer type.
     return RendererType::kRendererImpl;
   }
+  SetBoundsCB GetSetBoundsCB() override;
 
  private:
   void CreatePlayerBridge(PipelineStatusCallback init_cb);
@@ -120,12 +119,16 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   // by the remote renderer.
   std::unique_ptr<VideoOverlayFactory> video_overlay_factory_;
 
+  scoped_refptr<SbPlayerSetBoundsHelper> set_bounds_helper_;
+
   DefaultSbPlayerInterface sbplayer_interface_;
   // TODO(b/326652276): Support audio write duration.
   const base::TimeDelta audio_write_duration_local_ = base::Milliseconds(500);
   const base::TimeDelta audio_write_duration_remote_ = base::Seconds(10);
   // TODO(b/375674101): Support batched samples write.
   const int max_audio_samples_per_write_ = 1;
+
+  SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 
   base::Lock lock_;
   std::unique_ptr<SbPlayerBridge> player_bridge_;
