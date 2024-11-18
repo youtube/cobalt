@@ -36,7 +36,7 @@ class UtilsTest(unittest.TestCase):
 
   @mock.patch.dict(
       os.environ, {
-          'KOKORO_GIT_COMMIT_src': '1a2b3c4',
+          'KOKORO_GIT_COMMIT': '1a2b3c4',
           'REGISTRY_PATH': 'us-central1-docker.pkg.dev',
           'REGISTRY_IMAGE_NAME': 'docker-build-failure',
           'PLATFORM': 'linux-x64x11',

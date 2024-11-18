@@ -22,7 +22,7 @@ import logging
 import os
 
 # Environment Variables to fetch values for.
-_GIT_SHA_VAR = 'KOKORO_GIT_COMMIT_src'
+_GIT_SHA_VAR = 'KOKORO_GIT_COMMIT'
 _REGISTRY_PATH_VAR = 'REGISTRY_PATH'
 _REGISTRY_IMAGE_VAR = 'REGISTRY_IMAGE_NAME'
 _PLATFORM_VAR = 'PLATFORM'

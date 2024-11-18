@@ -216,7 +216,7 @@ upload_on_device_test_artifacts () {
   local out_dir=$4
 
   local artifact="${WORKSPACE_COBALT}/builder_tmp/${platform}_${config}/artifacts.tgz"
-  local gcs_archive_path="gs://$(get_project_name)-test-artifacts/${target_platform}/${KOKORO_GIT_COMMIT_src}/${KOKORO_ROOT_BUILD_ID}/${platform}_${config}/artifacts.tgz"
+  local gcs_archive_path="gs://$(get_project_name)-test-artifacts/${target_platform}/${KOKORO_GIT_COMMIT}/${KOKORO_ROOT_BUILD_ID}/${platform}_${config}/artifacts.tgz"
 
   # TODO(b/294130306): Simple file filtering to reduce package sizes.
   # Disable globbing to prevent the wildcard expansion in the patterns below.
