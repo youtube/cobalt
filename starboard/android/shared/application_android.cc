@@ -38,6 +38,7 @@
 #include "starboard/common/time.h"
 #include "starboard/event.h"
 #include "starboard/key.h"
+#include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 namespace starboard {
@@ -122,6 +123,38 @@ Java_dev_cobalt_coat_CobaltSystemConfigChangeReceiver_nativeDateTimeConfiguratio
   // TODO(cobalt, b/378705729): Make sure tzset() is called on the right thread.
   // Set the timezone to allow SbTimeZoneGetName() to return updated timezone.
   tzset();
+}
+
+extern "C" SB_EXPORT_PLATFORM jstring
+Java_dev_cobalt_coat_javabridge_HTMLMediaElementExtension_nativeCanPlayType(
+    JniEnvExt* env,
+    jobject jcaller,
+    jstring j_mime_type,
+    jstring j_key_system) {
+  std::string mime_type, key_system;
+  if (j_mime_type) {
+    mime_type = env->GetStringStandardUTFOrAbort(j_mime_type);
+  }
+  if (j_key_system) {
+    key_system = env->GetStringStandardUTFOrAbort(j_key_system);
+  }
+  SbMediaSupportType support_type =
+      SbMediaCanPlayMimeAndKeySystem(mime_type.c_str(), key_system.c_str());
+  const char* ret;
+  switch (support_type) {
+    case kSbMediaSupportTypeNotSupported:
+      ret = "";
+      break;
+    case kSbMediaSupportTypeMaybe:
+      ret = "maybe";
+      break;
+    case kSbMediaSupportTypeProbably:
+      ret = "probably";
+      break;
+  }
+  SB_LOG(INFO) << __func__ << " (" << mime_type << ", " << key_system
+               << ") --> " << ret;
+  return env->NewStringStandardUTFOrAbort(ret);
 }
 
 int ApplicationAndroid::GetOverlayedIntValue(const char* var_name) {
