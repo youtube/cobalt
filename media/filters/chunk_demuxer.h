@@ -140,7 +140,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
   // DemuxerStream methods.
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::string mime_type() const override { return mime_type_; }
+  std::string mime_type() const override;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   void Read(uint32_t count, ReadCB read_cb) override;
   Type type() const override;

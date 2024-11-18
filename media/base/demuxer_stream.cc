@@ -45,6 +45,12 @@ const char* DemuxerStream::GetStatusName(Status status) {
   }
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+std::string DemuxerStream::mime_type() const {
+  return "";
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 DemuxerStream::~DemuxerStream() = default;
 
 // Most DemuxerStream implementations don't specify liveness. Returns unknown

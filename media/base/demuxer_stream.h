@@ -74,7 +74,7 @@ class MEDIA_EXPORT DemuxerStream {
   using DecoderBufferVector = std::vector<scoped_refptr<DecoderBuffer>>;
   using ReadCB = base::OnceCallback<void(Status, DecoderBufferVector)>;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  virtual std::string mime_type() const { return ""; }
+  virtual std::string mime_type() const;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Request buffers to be returned via the provided callback.

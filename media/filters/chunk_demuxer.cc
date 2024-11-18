@@ -310,6 +310,12 @@ void ChunkDemuxerStream::UnmarkEndOfStream() {
 }
 
 // DemuxerStream methods.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+std::string ChunkDemuxerStream::mime_type() const {
+  return mime_type_;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void ChunkDemuxerStream::Read(uint32_t count, ReadCB read_cb) {
   base::AutoLock auto_lock(lock_);
   DCHECK_NE(state_, UNINITIALIZED);
