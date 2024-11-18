@@ -68,6 +68,7 @@ android_library("cobalt_apk_java") {
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/AmatiDeviceInspector.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptAndroidObject.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptInterface.java",
+    "apk/app/src/main/java/dev/cobalt/coat/javabridge/HTMLMediaElementExtension.java",
 
     # "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
@@ -118,6 +119,7 @@ android_assets("cobalt_apk_assets") {
   testonly = true
   sources = [
     "apk/app/src/app/assets/amati_device_inspector.js",
+    "apk/app/src/app/assets/html_media_element_extension.js",
     "apk/app/src/app/assets/not_empty.txt",
     "apk/app/src/app/assets/test/not_empty.txt",
     "apk/app/src/app/assets/web/cobalt_blue_splash_screen.css",
