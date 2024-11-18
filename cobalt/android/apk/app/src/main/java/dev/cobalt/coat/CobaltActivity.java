@@ -35,6 +35,12 @@ import android.view.ViewParent;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Toast;
+
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.SettableFuture;
+
 import dev.cobalt.app.CobaltApplication;
 // import dev.cobalt.coat.javabridge.AmatiDeviceInspector;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
@@ -49,6 +55,12 @@ import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.Arrays;
+
+
+import java.util.concurrent.Executors;
+// import java.util.concurrent.CompletableFuture;
+// import java.util.concurrent.ExecutionException;
+
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
@@ -64,6 +76,7 @@ import org.chromium.content_shell.Shell;
 import org.chromium.content_shell.ShellManager;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
+
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
@@ -154,6 +167,8 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
 
+    initializeJavaBridge();
+
     setContentView(R.layout.content_shell_activity);
     mShellManager = findViewById(R.id.shell_container);
     final boolean listenToActivityState = true;
@@ -203,8 +218,20 @@ public abstract class CobaltActivity extends Activity {
             });
   }
 
+
   // Initially copied from ContentShellActiviy.java
   private void finishInitialization(Bundle savedInstanceState) {
+    if (!getStarboardBridge().getJavaBridgeReady()) {
+      Log.i(TAG, "finishInitialization -- getJavaBridgeReady is false, wait !!!");
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                finishInitialization(savedInstanceState); // Recursive call to check again
+            }
+        }, JAVA_BRIDGE_INITIALIZATION_DELAY_MILLI_SECONDS);
+        return;
+    }
+
     String shellUrl;
     if (!TextUtils.isEmpty(mStartupUrl)) {
       shellUrl = mStartupUrl;
@@ -217,6 +244,9 @@ public abstract class CobaltActivity extends Activity {
     }
     // Set to overlay video mode.
     mShellManager.getContentViewRenderView().setOverlayVideoMode(true);
+
+    Log.i(TAG, "getJavaBridgeReady is ready, mShellManager.launchShell(shellUrl);");
+
     mShellManager.launchShell(shellUrl);
 
     toggleFullscreenMode(true);
@@ -352,8 +382,6 @@ public abstract class CobaltActivity extends Activity {
     videoSurfaceView = new VideoSurfaceView(this);
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-
-    initializeJavaBridge();
   }
 
   /**
@@ -393,38 +421,31 @@ public abstract class CobaltActivity extends Activity {
     }
 
     // 3. Load and evaluate JavaScript code that interacts with the injected Java objects.
+    List<SettableFuture<String>> callbackList = new ArrayList<>();
     for (CobaltJavaScriptAndroidObject javaScriptAndroidObject : javaScriptAndroidObjectList) {
       String jsFileName = javaScriptAndroidObject.getJavaScriptAssetName();
       if (jsFileName != null) {
         Log.d(TAG, "Evaluate JavaScript from Asset:" + jsFileName);
         String jsCode = AssetLoader.loadJavaScriptFromAssets(this, jsFileName);
         // Log.d(TAG, "Evaluate JavaScript, jsCode:" + jsCode);
-        webContents.evaluateJavaScript(jsCode, null);
+        final SettableFuture<String> future = SettableFuture.create();
+        callbackList.add(future);
+        webContents.evaluateJavaScript(jsCode, result -> {
+          future.set(result);
+          Log.i(TAG, "future.set(result)");
+      });
       }
     }
 
-    // // wait a little so that the java object has been sent to javascript jvm through IPC
-    // new Handler(Looper.getMainLooper())
-    //   .postDelayed(new Runnable() {
-    //     @Override
-    //     public void run() {
-    //         injectJavaScript(webContents);
-    //     }
-    //   }, 500);
+    // 4. JavaBridge finish initialization, set the flag to unblock loading url.
+    // Use Futures.whenAllComplete to wait for all SettableFutures
+    Futures.whenAllComplete(callbackList)
+    .call(() -> {
+        Log.i(TAG, "setJavaBridgeReady");
+        getStarboardBridge().setJavaBridgeReady();
+        return null;
+    }, MoreExecutors.directExecutor());
   }
-
-  // private void injectJavaScript(WebContents webContents) {
-  //   // 3. Load and evaluate JavaScript code that interacts with the injected Java objects.
-  //   for (CobaltJavaScriptAndroidObject javaScriptAndroidObject : javaScriptAndroidObjectList) {
-  //     String jsFileName = javaScriptAndroidObject.getJavaScriptAssetName();
-  //     if (jsFileName != null) {
-  //       Log.d(TAG, "Evaluate JavaScript from Asset:" + jsFileName);
-  //       String jsCode = AssetLoader.loadJavaScriptFromAssets(this, jsFileName);
-  //       Log.d(TAG, "Evaluate JavaScript, jsCode:" + jsCode);
-  //       webContents.evaluateJavaScript(jsCode, null);
-  //     }
-  //   }
-  // }
 
   /**
    * Instantiates the StarboardBridge. Apps not supporting sign-in should inject an instance of

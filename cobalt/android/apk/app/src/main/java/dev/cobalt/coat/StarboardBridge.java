@@ -38,7 +38,19 @@ import android.view.InputDevice;
 import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
+
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.SettableFuture;
+
+
+import dev.cobalt.coat.javabridge.AmatiDeviceInspector;
+import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
+import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
+import dev.cobalt.coat.javabridge.H5vccPlatformService;
 import dev.cobalt.media.AudioOutputManager;
+import dev.cobalt.util.AssetLoader;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
@@ -47,12 +59,16 @@ import java.lang.reflect.Method;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
+import org.chromium.content_public.browser.JavascriptInjector;
+import org.chromium.content_public.browser.WebContents;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
 public class StarboardBridge {
@@ -92,6 +108,7 @@ public class StarboardBridge {
 
   private volatile boolean starboardApplicationStopped;
   private volatile boolean starboardApplicationReady;
+  private volatile boolean javaBridgeReady;
 
   private final HashMap<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
   private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
@@ -103,6 +120,10 @@ public class StarboardBridge {
   private final boolean isAmatiDevice;
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long timeNanosecondsPerMicrosecond = 1000;
+
+  // Maintain the list of JavaScript-exposed objects as a member variable
+  // to prevent them from being garbage collected prematurely.
+  private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
 
   public StarboardBridge(
       Context appContext,
@@ -272,6 +293,68 @@ public class StarboardBridge {
     }
   }
 
+  // /**
+  //  * Initializes the Java Bridge to allow communication between Java and JavaScript.
+  //  * This method injects Java objects into the WebView and loads corresponding JavaScript code.
+  //  */
+  // @UsedByNative
+  // private void initializeJavaBridge() {
+  //   Log.i(TAG, "initializeJavaBridge");
+
+  //   Activity activity = activityHolder.get();
+  //   if (!(activity instanceof CobaltActivity)) {
+  //     return;
+  //   }
+
+  //   WebContents webContents = ((CobaltActivity) activity).getActiveWebContents();
+  //   if (webContents == null) {
+  //     Log.e(TAG, "webContents is null");
+  //     return;
+  //   }
+
+  //   // 1. Gather all Java objects that need to be exposed to JavaScript.
+  //   // javaScriptAndroidObjectList.add(new AmatiDeviceInspector(activity));
+  //   javaScriptAndroidObjectList.add(new H5vccPlatformService(activity, this));
+
+
+  //   // 2. Use JavascriptInjector to inject Java objects into the WebContents.
+  //   //    This makes the annotated methods in these objects accessible from JavaScript.
+  //   JavascriptInjector javascriptInjector = JavascriptInjector.fromWebContents(webContents, false);
+
+  //   javascriptInjector.setAllowInspection(true);
+  //   for (CobaltJavaScriptAndroidObject javascriptAndroidObject : javaScriptAndroidObjectList) {
+  //     Log.d(TAG, "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
+  //     javascriptInjector.addPossiblyUnsafeInterface(javascriptAndroidObject, javascriptAndroidObject.getJavaScriptInterfaceName(), CobaltJavaScriptInterface.class);
+  //   }
+
+  //   // 3. Load and evaluate JavaScript code that interacts with the injected Java objects.
+  //   List<SettableFuture<String>> callbackList = new ArrayList<>();
+  //   for (CobaltJavaScriptAndroidObject javaScriptAndroidObject : javaScriptAndroidObjectList) {
+  //     String jsFileName = javaScriptAndroidObject.getJavaScriptAssetName();
+  //     if (jsFileName != null) {
+  //       Log.d(TAG, "Evaluate JavaScript from Asset:" + jsFileName);
+  //       String jsCode = AssetLoader.loadJavaScriptFromAssets(activity, jsFileName);
+  //       // Log.d(TAG, "Evaluate JavaScript, jsCode:" + jsCode);
+  //       final SettableFuture<String> future = SettableFuture.create();
+  //       callbackList.add(future);
+  //       webContents.evaluateJavaScript(jsCode, result -> {
+  //         future.set(result);
+  //         Log.i(TAG, "future.set(result)");
+  //     });
+  //     }
+  //   }
+
+  //   // 4. JavaBridge finish initialization, set the flag to unblock loading url.
+  //   // Use Futures.whenAllComplete to wait for all SettableFutures
+  //   Futures.whenAllComplete(callbackList)
+  //   .call(() -> {
+  //       Log.i(TAG, "setJavaBridgeReady");
+  //       javaBridgeReady = true;
+  //       return null;
+  //   }, MoreExecutors.directExecutor());
+  // }
+
+
   public boolean onSearchRequested() {
     // TODO(cobalt): re-enable native search request if needed.
     // if (starboardApplicationReady) {
@@ -330,9 +413,17 @@ public class StarboardBridge {
     return startDeepLink;
   }
 
+  public void setJavaBridgeReady() {
+    javaBridgeReady = true;
+  }
+
+  public boolean getJavaBridgeReady() {
+    return javaBridgeReady;
+  }
+
   /** Sends an event to the web app to navigate to the given URL */
   public void handleDeepLink(String url) {
-    if (starboardApplicationReady) {
+    if (starboardApplicationReady && javaBridgeReady) {
       nativeHandleDeepLink(url);
     } else {
       // If this deep link event is received before the starboard application
@@ -781,7 +872,7 @@ public class StarboardBridge {
   }
 
   public byte[] sendToCobaltService(String serviceName, byte [] data) {
-    Log.i(TAG, String.format("Colin test: 4. Send to : %s data: %s", serviceName, Arrays.toString(data)));
+    Log.i(TAG, String.format("Send to : %s data: %s", serviceName, Arrays.toString(data)));
     CobaltService service = cobaltServices.get(serviceName);
     if (service == null) {
       // Attempting to re-open an already open service fails.
@@ -794,7 +885,7 @@ public class StarboardBridge {
       closeCobaltService(serviceName);
     }
 
-    Log.i(TAG, String.format("Colin test: 5. return response.data"));
+    Log.i(TAG, String.format("return response.data: %s", Arrays.toString(response.data)));
     return response.data;
   }
 

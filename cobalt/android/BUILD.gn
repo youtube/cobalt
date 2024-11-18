@@ -51,6 +51,7 @@ android_library("cobalt_apk_java") {
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
     "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
+    "//third_party/android_deps:guava_android_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//ui/android:ui_java",
     "//ui/android:ui_no_recycler_view_java",
@@ -172,6 +173,7 @@ shared_library("libcobalt_content_shell_content_view") {
     "//media",
     "//skia",
     "//starboard/android/shared:starboard_jni_state",
+    "//starboard/android/shared:starboard_platform",
   ]
 
   # Explicit dependency required for JNI registration to be able to
@@ -191,6 +193,17 @@ shared_library("libcobalt_content_shell_content_view") {
   ]
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   configs += [ "//build/config/android:hide_all_but_jni" ]
+
+  # TODO(b/374300500): - Find a way to avoid wrapping these.
+  ldflags = [
+    # "-Wl,--wrap=close",
+    # "-Wl,--wrap=open",
+    # "-Wl,--wrap=stat",
+    # "-Wl,--wrap=opendir",
+    # "-Wl,--wrap=closedir",
+    # "-Wl,--wrap=readdir_r",
+    "-Wl,--wrap=eglSwapBuffers",
+  ]
 }
 
 content_shell_apk_tmpl("cobalt_apk") {

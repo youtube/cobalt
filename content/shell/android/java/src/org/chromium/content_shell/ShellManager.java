@@ -6,6 +6,7 @@ package org.chromium.content_shell;
 
 import android.content.Context;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.widget.FrameLayout;
 
@@ -85,6 +86,7 @@ public class ShellManager extends FrameLayout {
     public void launchShell(String url) {
         ThreadUtils.assertOnUiThread();
         Shell previousShell = mActiveShell;
+        Log.i("starboard", "ShellManager launchShell:" + url);
         ShellManagerJni.get().launchShell(url);
         if (previousShell != null) previousShell.close();
     }

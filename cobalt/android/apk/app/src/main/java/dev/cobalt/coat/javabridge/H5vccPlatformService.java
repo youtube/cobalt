@@ -14,7 +14,7 @@
 
 package dev.cobalt.coat.javabridge;
 
-import static dev.cobalt.util.Log.TAG;
+// import static dev.cobalt.util.Log.TAG;
 
 import android.content.Context;
 import android.util.Base64;
@@ -22,13 +22,15 @@ import android.util.Log;
 import dev.cobalt.coat.StarboardBridge;
 
 /**
- *
+ * TODO: what is this?
  */
 public class H5vccPlatformService implements CobaltJavaScriptAndroidObject {
 
     private final Context context;
 
     private final StarboardBridge bridge;
+
+    private static final String TAG = "COLIANG";
 
     // Instantiate the interface and set the context
     public H5vccPlatformService(Context context, StarboardBridge bridge) {
@@ -47,14 +49,8 @@ public class H5vccPlatformService implements CobaltJavaScriptAndroidObject {
     }
 
     @CobaltJavaScriptInterface
-    public boolean has(String servicename) {
-        Log.i(TAG, "Colin test: has:" + servicename);
-        return bridge.hasCobaltService(servicename);
-    }
-
-    @CobaltJavaScriptInterface
     public boolean has_platform_service(String servicename) {
-        Log.i(TAG, "Colin test: has_platform_service:" + servicename);
+        Log.i(TAG, "has_platform_service:" + servicename);
         return bridge.hasCobaltService(servicename);
     }
 
@@ -72,11 +68,11 @@ public class H5vccPlatformService implements CobaltJavaScriptAndroidObject {
 
     @CobaltJavaScriptInterface
     public String platform_service_send(String servicename, String base64Data) {
+        Log.i(TAG, "platform_service_send, servicename:" + servicename + ", base64Data:"+ base64Data);
         byte[] data = Base64.decode(base64Data, Base64.DEFAULT);
-        Log.i(TAG, "Colin test: 3. send to kabuki client:" + base64Data);
         byte[] result = bridge.sendToCobaltService(servicename, data);
         if (result != null) {
-            Log.i(TAG, "Colin test: 6. Base64.encodeToString(result, Base64.DEFAULT)");
+            Log.i(TAG, "Base64.encodeToString(result, Base64.DEFAULT)");
             return Base64.encodeToString(result, Base64.DEFAULT);
         }
         return "";

@@ -1,3 +1,8 @@
+/**
+ * @license
+ * Copyright The Cobalt Authors.
+ * SPDX-License-Identifier: Apache-2.0
+ */
 function arrayBufferToBase64(buffer) {
     const bytes = new Uint8Array(buffer);
     let binary = '';
@@ -16,7 +21,7 @@ function base64ToArrayBuffer(base64) {
     return bytes.buffer;
 }
 
-var platform_services = {
+window.H5vccPlatformService = {
     callbacks: {
     },
     callback_from_android: (serviceID, dataFromJava) => {
@@ -55,21 +60,26 @@ var platform_services = {
         return {
             'name': name,
             'send': function (data) {
+                // this is for log, but in production, the data may not be bytes of string
                 const decoder = new TextDecoder('utf-8');
                 const text = decoder.decode(data);
-                console.log('Colin test: 1. platformService.send(' + text + ')');
+                console.log('platformService.send(' + text + ')');
+                // ---end---
                 var convert_to_b64 = arrayBufferToBase64(data);
-                console.log('Colin test: 2. sending as b64:' + convert_to_b64);
-                const response_data = Android_H5vccPlatformService.platform_service_send(name, convert_to_b64);
+                console.log('platformService send as b64:' + convert_to_b64);
+                Android_H5vccPlatformService.platform_service_send(name, convert_to_b64);
 
-                if (response_data) {
-                    console.log('Colin test: 7. response as b64:' + response_data);
-                    return base64ToArrayBuffer(response_data);
-                }
-                return null;
+                // -- new code
+                // const response_data = Android_H5vccPlatformService.platform_service_send(name, convert_to_b64);
+                // if (response_data) {
+                //     console.log('platform_service_send response as b64:' + response_data);
+                //     return base64ToArrayBuffer(response_data);
+                // }
+                // return null;
+                // ---end---
             },
             close: () => {
-                console.log('1 platformService.close()');
+                console.log('platformService.close()');
                 Android_H5vccPlatformService.close_platform_service(name);
             },
         }
@@ -82,5 +92,4 @@ var platform_services = {
     },
 }
 
-window.H5vccPlatformService = platform_services;
-// window.H5vccPlatformService = Android_H5vccPlatformService;
+console.log('h5vcc_platform_service.js says window.H5vccPlatformService is ' + window.H5vccPlatformService);
