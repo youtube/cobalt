@@ -1,4 +1,4 @@
-import("cobalt/build/configs/media.gn")
+import("//cobalt/build/configs/proprietary_codecs.gn")
 
 target_os = "android"
 target_cpu = "arm64"
