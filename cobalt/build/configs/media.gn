@@ -1,0 +1,5 @@
+# Build flag declared originally in build/config/features.gni
+# This flag is overridden to enable common video codecs playbacks.
+proprietary_codecs = true
+
+ffmpeg_branding = "Chrome"
