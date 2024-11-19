@@ -172,13 +172,6 @@ int HttpServer::GetLocalInterfaceAddress(IPEndPoint* address) {
     SbSocketAddress interface_address;
     // Prefer to report the interface's IPv4 address.
     any_ip.type = kSbSocketAddressTypeIpv4;
-    if (!SbSocketGetInterfaceAddress(&any_ip, &interface_address, nullptr)) {
-      any_ip.type = kSbSocketAddressTypeIpv6;
-      if (!SbSocketGetInterfaceAddress(&any_ip, &interface_address, nullptr)) {
-        DLOG(ERROR) << "Error getting interface address.";
-        return ERR_FAILED;
-      }
-    }
     interface_address.port = address->port();
     if (!address->FromSbSocketAddress(&interface_address)) {
       DLOG(ERROR) << "Error converting socket address.";

@@ -60,9 +60,6 @@ bool IsLocalIP(const SbSocketAddress& ip, const SbSocketAddress& source_address,
 bool IsIPInLocalNetwork(const SbSocketAddress& destination) {
   SbSocketAddress source_address;
   SbSocketAddress netmask;
-  if (!(SbSocketGetInterfaceAddress(&destination, &source_address, &netmask))) {
-    return false;
-  }
   return IsLocalIP(destination, source_address, netmask);
 }
 
