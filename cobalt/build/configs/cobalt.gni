@@ -12,9 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Get the path to the starboard implementation and include its GN
-# configuration.
-
+# is_cobalt is just declared here and potentially overridden while running gn gen.
 declare_args() {
-  is_cobalt = true
+  is_cobalt = false
 }
