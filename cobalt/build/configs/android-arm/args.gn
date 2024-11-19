@@ -9,3 +9,4 @@ enable_check_raw_ptr_fields = false
 
 # This flag comes from build/config/compiler/compiler.gni
 treat_warnings_as_errors = false
+enable_extensions = true

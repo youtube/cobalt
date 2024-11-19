@@ -340,12 +340,16 @@ static_library("renderer") {
     ]
     deps += [
       "//chrome/common/extensions/api",
-      "//components/guest_view/renderer",
       "//extensions:extensions_resources",
       "//extensions/common:mojom",
       "//extensions/renderer",
       "//services/network/public/cpp",
     ]
+    if(!is_android) {
+      deps += [
+        "//components/guest_view/renderer",
+      ]
+    }
     public_deps += [ "//ipc" ]
   }
   if (enable_spellcheck) {

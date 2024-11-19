@@ -257,9 +257,6 @@ source_set("renderer") {
     "//build:chromeos_buildflags",
     "//chrome:resources",
     "//components/crx_file",
-    "//components/guest_view/common",
-    "//components/guest_view/common:mojom",
-    "//components/guest_view/renderer",
     "//components/version_info",
     "//content:content_resources",
     "//content:dev_ui_content_resources",
@@ -279,6 +276,13 @@ source_set("renderer") {
     "//third_party/cld_3/src/src:cld_3",
     "//third_party/zlib/google:compression_utils",
   ]
+  if(!is_android) {
+    deps += [
+      "//components/guest_view/common",
+      "//components/guest_view/common:mojom",
+      "//components/guest_view/renderer",
+    ]
+  }
 
   # Temporarily allow crash_key; see https://crbug.com/1034755
   deps += [ "//components/crash/core/common:crash_key" ]

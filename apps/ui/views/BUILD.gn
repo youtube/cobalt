@@ -6,6 +6,7 @@ import("//build/config/ui.gni")
 import("//extensions/buildflags/buildflags.gni")
 
 assert(enable_extensions)
+assert(!is_android)
 
 source_set("views") {
   sources = [

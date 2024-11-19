@@ -865,7 +865,9 @@ std::vector<Dispatcher::JsResourceInfo> Dispatcher::GetJsResources() {
       {"webViewInternal", IDR_WEB_VIEW_INTERNAL_CUSTOM_BINDINGS_JS},
 
       {"keep_alive", IDR_KEEP_ALIVE_JS},
+#if !BUILDFLAG(IS_ANDROID)
       {"mojo_bindings", IDR_MOJO_MOJO_BINDINGS_JS},
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS)
       {"mojo_bindings_lite", IDR_MOJO_MOJO_BINDINGS_LITE_JS},

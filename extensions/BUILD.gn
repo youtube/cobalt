@@ -158,7 +158,6 @@ static_library("test_support") {
     "//build:chromeos_buildflags",
     "//chrome/common:buildflags",
     "//components/crx_file",
-    "//components/guest_view/browser:test_support",
     "//components/keyed_service/content",
     "//components/pref_registry",
     "//components/prefs:test_support",
@@ -183,6 +182,11 @@ static_library("test_support") {
     "//third_party/cld_3/src/src:cld_3",
     "//third_party/zlib/google:zip",
   ]
+  if (!is_android) {
+    deps += [
+      "//components/guest_view/browser:test_support",
+    ]
+  }
 
   # Generally, //extensions should not depend on //chromeos. However, a number
   # of the APIs and the extensions shell already do. We should try to avoid
@@ -202,7 +206,7 @@ repack("shell_and_test_pak") {
   testonly = true
 
   sources = [
-    "$root_gen_dir/content/browser/devtools/devtools_resources.pak",
+    # "$root_gen_dir/content/browser/devtools/devtools_resources.pak",
     "$root_gen_dir/content/content_resources.pak",
     "$root_gen_dir/content/dev_ui_content_resources.pak",
     "$root_gen_dir/content/shell/shell_resources.pak",
@@ -228,7 +232,7 @@ repack("shell_and_test_pak") {
     ":extensions_resources",
     "//content:content_resources",
     "//content:dev_ui_content_resources",
-    "//content/browser/devtools:devtools_resources",
+    # "//content/browser/devtools:devtools_resources",
     "//content/shell:resources",
     "//device/bluetooth/strings",
     "//extensions/shell:resources",
@@ -259,7 +263,7 @@ test("extensions_unittests") {
   ]
 
   deps = [
-    ":extensions_resources",
+    # ":extensions_resources",
     ":shell_and_test_pak",
     ":test_support",
     "//base/test:test_support",
@@ -352,7 +356,6 @@ source_set("chrome_extensions_browsertests_sources") {
     "//components/captive_portal/core:test_support",
     "//components/dom_distiller/content/browser",
     "//components/dom_distiller/core:test_support",
-    "//components/guest_view/browser:test_support",
     "//components/javascript_dialogs",
     "//components/resources",
     "//components/strings",
@@ -386,6 +389,11 @@ source_set("chrome_extensions_browsertests_sources") {
     "//ui/web_dialogs:test_support",
     "//v8",
   ]
+  if(!is_android) {
+    deps += [
+      "//components/guest_view/browser:test_support",
+    ]
+  }
 
   if (is_chromeos_ash) {
     deps += [ "//components/user_manager:test_support" ]

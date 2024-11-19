@@ -333,9 +333,13 @@ source_set("browser_tests") {
 
     deps += [
       "//chrome/browser/extensions:test_support",
-      "//chrome/browser/web_applications:web_applications_test_support",
       "//components/webapps/browser:browser",
     ]
+    if(!is_android) {
+      deps += [
+        "//chrome/browser/web_applications:web_applications_test_support",
+      ]
+    }
   }
 
   if (is_android) {
