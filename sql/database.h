@@ -221,9 +221,12 @@ struct COMPONENT_EXPORT(SQL) DatabaseDiagnostics {
   DatabaseDiagnostics();
   ~DatabaseDiagnostics();
 
+// hack
+#if 0
   using TraceProto = perfetto::protos::pbzero::ChromeSqlDiagnostics;
   // Write a representation of this object into tracing proto.
   void WriteIntoTrace(perfetto::TracedProto<TraceProto> context) const;
+#endif
 
   // This was the original error code that triggered the error callback. Should
   // generally match `error_code`, but this isn't guaranteed by the code.

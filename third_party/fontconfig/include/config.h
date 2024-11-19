@@ -153,10 +153,14 @@
 #define HAVE_RAND 1
 
 /* Define to 1 if you have the `random' function. */
-#define HAVE_RANDOM 1
+#define HAVE_RANDOM 0
 
 /* Define to 1 if you have the `random_r' function. */
+#if defined(OS_STARBOARD)
+#define HAVE_RANDOM_R 0
+#else
 #define HAVE_RANDOM_R 1
+#endif
 
 /* Define to 1 if you have the `rand_r' function. */
 #define HAVE_RAND_R 1

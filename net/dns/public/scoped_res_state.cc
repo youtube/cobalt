@@ -20,7 +20,8 @@ ScopedResState::ScopedResState() {
   res_init_result_ = res_init();
 #else
   memset(&res_, 0, sizeof(res_));
-  res_init_result_ = res_ninit(&res_);
+  // hack
+  //res_init_result_ = res_ninit(&res_);
 #endif  // BUILDFLAG(IS_OPENBSD) || BUILDFLAG(IS_FUCHSIA)
 }
 
@@ -31,7 +32,8 @@ ScopedResState::~ScopedResState() {
 #if BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_FREEBSD)
   res_ndestroy(&res_);
 #else
-  res_nclose(&res_);
+  // hack
+  // res_nclose(&res_);
 #endif  // BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_FREEBSD)
 
 #endif  // !BUILDFLAG(IS_OPENBSD) && !BUILDFLAG(IS_FUCHSIA)

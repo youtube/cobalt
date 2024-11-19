@@ -21,9 +21,11 @@
 #include <unistd.h>
 #endif
 
+#if !defined(OS_STARBOARD)
 #ifdef __linux__
 #include <linux/futex.h>
 #include <sys/syscall.h>
+#endif
 #endif
 
 #include <errno.h>
@@ -42,7 +44,7 @@
 // Bionic supports all the futex operations we need even when some of the futex
 // definitions are missing.
 #define ABSL_INTERNAL_HAVE_FUTEX
-#elif defined(__linux__) && defined(FUTEX_CLOCK_REALTIME)
+#elif defined(__linux__) && defined(FUTEX_CLOCK_REALTIME) && !defined(OS_STARBOARD)
 // FUTEX_CLOCK_REALTIME requires Linux >= 2.6.28.
 #define ABSL_INTERNAL_HAVE_FUTEX
 #endif

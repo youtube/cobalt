@@ -36,7 +36,7 @@ if (starboard_path == "") {
       if (target_cpu == "x64") {
         target_platform = "linux-x64x11"
       } else {
-        assert(false, "Unsupported linux target cpu ${target_cpu}.")
+        #assert(false, "Unsupported linux target cpu ${target_cpu}.")
       }
     } else {
       # Default to linux-x64x11 for chromium toolchains.

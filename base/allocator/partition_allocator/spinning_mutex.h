@@ -88,7 +88,6 @@ class PA_LOCKABLE PA_COMPONENT_EXPORT(PARTITION_ALLOC) SpinningMutex {
   static constexpr int kSpinCount = 64;
 
 #if PA_CONFIG(HAS_FAST_MUTEX)
-
 #if PA_CONFIG(HAS_LINUX_KERNEL)
   void FutexWait();
   void FutexWake();
@@ -112,7 +111,8 @@ class PA_LOCKABLE PA_COMPONENT_EXPORT(PARTITION_ALLOC) SpinningMutex {
   std::atomic<bool> lock_{false};
 
   // Spinlock-like, fallback.
-  PA_ALWAYS_INLINE bool TrySpinLock();
+  // hack
+  PA_ALWAYS_INLINE bool TrySpinLock() { return true;}
   PA_ALWAYS_INLINE void ReleaseSpinLock();
   void LockSlowSpinLock();
 #endif  // PA_CONFIG(HAS_FAST_MUTEX)

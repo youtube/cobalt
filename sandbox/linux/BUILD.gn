@@ -206,6 +206,7 @@ test("sandbox_linux_unittests") {
   }
 }
 
+if (use_seccomp_bpf) {
 component("seccomp_bpf") {
   sources = [
     "bpf_dsl/bpf_dsl.cc",
@@ -261,6 +262,7 @@ component("seccomp_bpf") {
       "seccomp-bpf-helpers/baseline_policy_android.h",
     ]
   }
+}
 }
 
 if (is_android) {

@@ -132,6 +132,10 @@ template("single_gcc_toolchain") {
     assert(defined(invoker.toolchain_args),
            "Toolchains must specify toolchain_args")
     invoker_toolchain_args = invoker.toolchain_args
+    if (!defined(invoker_toolchain_args.current_cpu)) {
+      invoker_toolchain_args.current_cpu = "arm"
+      invoker_toolchain_args.current_os = "linux"
+    }
     assert(defined(invoker_toolchain_args.current_cpu),
            "toolchain_args must specify a current_cpu")
     assert(defined(invoker_toolchain_args.current_os),

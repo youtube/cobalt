@@ -108,7 +108,7 @@ bool AdjustOOMScore(ProcessId process, int score) {
 bool UncheckedMalloc(size_t size, void** result) {
 #if BUILDFLAG(USE_ALLOCATOR_SHIM)
   *result = allocator_shim::UncheckedAlloc(size);
-#elif defined(MEMORY_TOOL_REPLACES_ALLOCATOR) || !defined(LIBC_GLIBC)
+#elif defined(MEMORY_TOOL_REPLACES_ALLOCATOR) || !defined(LIBC_GLIBC) || BUILDFLAG(IS_STARBOARD)
   *result = malloc(size);
 #elif defined(LIBC_GLIBC)
   *result = __libc_malloc(size);
@@ -119,7 +119,7 @@ bool UncheckedMalloc(size_t size, void** result) {
 void UncheckedFree(void* ptr) {
 #if BUILDFLAG(USE_ALLOCATOR_SHIM)
   allocator_shim::UncheckedFree(ptr);
-#elif defined(MEMORY_TOOL_REPLACES_ALLOCATOR) || !defined(LIBC_GLIBC)
+#elif defined(MEMORY_TOOL_REPLACES_ALLOCATOR) || !defined(LIBC_GLIBC) ||  BUILDFLAG(IS_STARBOARD)
   free(ptr);
 #elif defined(LIBC_GLIBC)
   __libc_free(ptr);

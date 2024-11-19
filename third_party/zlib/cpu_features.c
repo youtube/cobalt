@@ -41,7 +41,7 @@ int ZLIB_INTERNAL x86_cpu_enable_avx512 = 0;
 
 #if defined(ARMV8_OS_ANDROID)
 #include <cpu-features.h>
-#elif defined(ARMV8_OS_LINUX)
+#elif defined(ARMV8_OS_LINUX) && !defined(OS_STARBOARD)
 #include <asm/hwcap.h>
 #include <sys/auxv.h>
 #elif defined(ARMV8_OS_FUCHSIA)
@@ -114,9 +114,10 @@ static void _cpu_check_features(void)
     arm_cpu_enable_pmull = !!(features & HWCAP_PMULL);
 #elif defined(ARMV8_OS_LINUX) && (defined(__ARM_NEON) || defined(__ARM_NEON__))
     /* Query HWCAP2 for ARMV8-A SoCs running in aarch32 mode */
-    unsigned long features = getauxval(AT_HWCAP2);
-    arm_cpu_enable_crc32 = !!(features & HWCAP2_CRC32);
-    arm_cpu_enable_pmull = !!(features & HWCAP2_PMULL);
+// hack:
+    //unsigned long features = getauxval(AT_HWCAP2);
+    //arm_cpu_enable_crc32 = !!(features & HWCAP2_CRC32);
+    //arm_cpu_enable_pmull = !!(features & HWCAP2_PMULL);
 #elif defined(ARMV8_OS_FUCHSIA)
     uint32_t features;
     zx_status_t rc = zx_system_get_features(ZX_FEATURE_KIND_CPU, &features);

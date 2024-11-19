@@ -39,7 +39,7 @@
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/datagram_client_socket.h"
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
 #include "net/base/address_tracker_linux.h"
 #endif
 
@@ -401,7 +401,7 @@ void AddressSorterPosix::Sort(const std::vector<IPEndPoint>& endpoints,
 void AddressSorterPosix::OnIPAddressChanged() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   source_map_.clear();
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_STARBOARD)
   // TODO(crbug.com/1431364): This always returns nullptr on ChromeOS.
   const AddressMapOwnerLinux* address_map_owner =
       NetworkChangeNotifier::GetAddressMapOwner();

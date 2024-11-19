@@ -56,4 +56,27 @@ config("runtime_library") {
     cflags_objc += sysroot_flags
     cflags_objcc += sysroot_flags
   }
+  if (is_starboard) {
+      cflags_c += [
+        "-isystem" + "../../third_party/musl/include",
+        "-isystem" + "../../third_party/musl/arch/generic",
+      ]
+      if (target_cpu == "x64") {
+        cflags_c += [
+          "-isystem" + "../../third_party/musl/arch/x86_64",
+        ]
+      } else if (target_cpu == "x86") {
+        cflags_c += [
+          "-isystem" + "../../third_party/musl/arch/i386",
+        ]
+      } else if (target_cpu == "arm") {
+        cflags_c += [
+          "-isystem" + "../../third_party/musl/arch/arm",
+        ]
+      } else if (target_cpu == "arm64") {
+        cflags_c += [
+          "-isystem" + "../../third_party/musl/arch/aarch64",
+        ]
+      }
+    }
 }
