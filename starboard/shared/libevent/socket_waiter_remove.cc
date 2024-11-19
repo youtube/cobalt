@@ -16,13 +16,6 @@
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 
-bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket) {
-  if (!SbSocketWaiterIsValid(waiter)) {
-    return false;
-  }
-  return waiter->Remove(socket, waiter);
-}
-
 bool SbPosixSocketWaiterRemove(SbSocketWaiter waiter, int socket) {
   if (!SbSocketWaiterIsValid(waiter)) {
     return false;

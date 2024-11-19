@@ -156,6 +156,7 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/posix/page_internal.cc",
     "//starboard/shared/posix/set_non_blocking_internal.cc",
     "//starboard/shared/posix/socket_internal.cc",
+    "//starboard/shared/posix/socket_is_ipv6_supported.cc",
     "//starboard/shared/posix/storage_write_record.cc",
     "//starboard/shared/posix/system_break_into_debugger.cc",
     "//starboard/shared/posix/system_clear_last_error.cc",

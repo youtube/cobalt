@@ -24,53 +24,9 @@
 #include "starboard/socket_waiter.h"
 #include "starboard/types.h"
 
-struct SbSocketPrivate {
-  SbSocketPrivate(SbSocketAddressType address_type,
-                  SbSocketProtocol protocol,
-                  int fd)
-      : address_type(address_type),
-        protocol(protocol),
-        socket_fd(fd),
-        error(kSbSocketOk),
-        waiter(kSbSocketWaiterInvalid) {}
-  ~SbSocketPrivate() {}
-
-  // The address domain of this socket, IPv4 or IPv6.
-  SbSocketAddressType address_type;
-
-  // The protocol of this socket, UDP or TCP.
-  SbSocketProtocol protocol;
-
-  // The file descriptor for this socket.
-  int socket_fd;
-
-  // The last error that occurred on this socket, or kSbSocketOk.
-  SbSocketError error;
-
-  // The waiter this socket is registered with, or kSbSocketWaiterInvalid.
-  SbSocketWaiter waiter;
-};
-
 namespace starboard {
 namespace shared {
 namespace posix {
-
-// Translates an errno from a socket call into an SbSocketError.
-SbSocketError TranslateSocketErrno(int error);
-
-// Sets a boolean socket option, doing all appropriate checks.
-bool SetBooleanSocketOption(SbSocket socket,
-                            int level,
-                            int option_code,
-                            const char* option_name,
-                            bool value);
-
-// Sets an integer socket option, doing all appropriate checks.
-bool SetIntegerSocketOption(SbSocket socket,
-                            int level,
-                            int option_code,
-                            const char* option_name,
-                            int value);
 
 // A helper class for converting back and forth from sockaddrs, ugh.
 class SockAddr {

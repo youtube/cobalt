@@ -40,33 +40,6 @@
 extern "C" {
 #endif
 
-// Private structure representing a socket, which may or may not be connected or
-// listening.
-typedef struct SbSocketPrivate SbSocketPrivate;
-
-// A handle to a socket.
-typedef SbSocketPrivate* SbSocket;
-
-// Enumeration of all Starboard socket operation results. Despite the enum
-// name, note that the value actually describes the outcome of an operation,
-// which is not always an error.
-typedef enum SbSocketError {
-  // The operation succeeded.
-  kSbSocketOk = 0,
-
-  // The operation is blocked on I/O. Either try again "later," or be very
-  // clever and wait on it with a SbSocketWaiter.
-  kSbSocketPending,
-
-  // This socket error is generated when the connection is reset unexpectedly
-  // and the connection is now invalid.
-  // This might happen for example if an read packet has the "TCP RST" bit set.
-  kSbSocketErrorConnectionReset,
-
-  // The operation failed for some other reason not specified above.
-  kSbSocketErrorFailed,
-} SbSocketError;
-
 // All possible IP socket types.
 typedef enum SbSocketProtocol {
   // The TCP/IP protocol, a reliable, stateful, streaming protocol.
@@ -101,22 +74,8 @@ typedef struct SbSocketAddress {
   int port;
 } SbSocketAddress;
 
-// The result of a host name resolution.
-typedef struct SbSocketResolution {
-  // An array of addresses associated with the host name.
-  SbSocketAddress* addresses;
-
-  // The length of the |addresses| array.
-  int address_count;
-} SbSocketResolution;
-
-// Well-defined value for an invalid socket handle.
-#define kSbSocketInvalid ((SbSocket)NULL)
-
-// Returns whether the given socket handle is valid.
-static inline bool SbSocketIsValid(SbSocket socket) {
-  return socket != kSbSocketInvalid;
-}
+// Returns whether IPV6 is supported on the current platform.
+SB_EXPORT bool SbSocketIsIpv6Supported();
 
 #ifdef __cplusplus
 }  // extern "C"

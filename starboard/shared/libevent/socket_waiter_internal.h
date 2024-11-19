@@ -42,15 +42,6 @@ struct SbSocketWaiterPrivate {
   bool Remove(int socket, SbSocketWaiter waiter);
   bool CheckSocketRegistered(int socket);
 
-  // The Add/Remove pair for SbSocket based socket
-  bool Add(SbSocket socket,
-           void* context,
-           SbSocketWaiterCallback callback,
-           int interests,
-           bool persistent);
-  bool Remove(SbSocket socket, SbSocketWaiter waiter);
-  bool CheckSocketRegistered(SbSocket socket);
-
   void Wait();
   SbSocketWaiterResult WaitTimed(int64_t duration_usec);
   void WakeUp(bool timeout);
@@ -74,30 +65,15 @@ struct SbSocketWaiterPrivate {
           persistent(persistent) {
       use_int_socket = 1;
     }
-    Waitee(SbSocketWaiter waiter,
-           SbSocket socket,
-           void* context,
-           SbSocketWaiterCallback callback,
-           int interests,
-           bool persistent)
-        : waiter(waiter),
-          sb_socket(socket),
-          context(context),
-          sb_callback(callback),
-          interests(interests),
-          persistent(persistent) {
-      use_int_socket = 0;
-    }
 
     // The socket registered with the waiter.
     int i_socket;
-    SbSocket sb_socket;
     int use_int_socket;
 
     // The callback to call when one or more registered interests become ready.
     SbPosixSocketWaiterCallback i_callback;
 
-    SbSocketWaiterCallback sb_callback;
+    // SbSocketWaiterCallback sb_callback;
 
     // The waiter this event is registered with.
     SbSocketWaiter waiter;
@@ -120,7 +96,6 @@ struct SbSocketWaiterPrivate {
   // NOTE: This is a (tree) map because we don't have base::hash_map here. We
   // should keep an eye out for whether this is a performance issue.
   typedef std::map<int, Waitee*> i_WaiteesMap;
-  typedef std::map<SbSocket, Waitee*> sb_WaiteesMap;
 
   // The libevent callback function, which in turn calls the registered callback
   // function for the Waitee.
@@ -150,13 +125,6 @@ struct SbSocketWaiterPrivate {
   // registry, or NULL.
   Waitee* RemoveWaitee(int socket) SB_WARN_UNUSED_RESULT;
 
-  // Gets the Waitee associated with the given socket, or NULL.
-  Waitee* GetWaitee(SbSocket socket);
-
-  // Gets the Waitee associated with the given socket, removing it from the
-  // registry, or NULL.
-  Waitee* RemoveWaitee(SbSocket socket) SB_WARN_UNUSED_RESULT;
-
   // The thread this waiter was created on. Immutable, so accessible from any
   // thread.
   const pthread_t thread_;
@@ -178,17 +146,12 @@ struct SbSocketWaiterPrivate {
 
   // The registry of currently registered Waitees.
   i_WaiteesMap i_waitees_;
-  sb_WaiteesMap sb_waitees_;
 
   // Whether or not the waiter is actually waiting.
   bool waiting_;
 
   // Whether or not the waiter was woken up.
   bool woken_up_;
-
-  // Used to replace pipe.
-  SbSocket server_socket_;
-  SbSocket client_socket_;
 };
 
 #endif  // STARBOARD_SHARED_LIBEVENT_SOCKET_WAITER_INTERNAL_H_

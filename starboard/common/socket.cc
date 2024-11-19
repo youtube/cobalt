@@ -19,49 +19,7 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 
-namespace starboard {
-
-SbSocketAddress GetUnspecifiedAddress(SbSocketAddressType address_type,
-                                      int port) {
-  SbSocketAddress address = {};
-  address.type = address_type;
-  address.port = port;
-  return address;
-}
-
-bool GetLocalhostAddress(SbSocketAddressType address_type,
-                         int port,
-                         SbSocketAddress* address) {
-  if (address_type != kSbSocketAddressTypeIpv4 &&
-      address_type != kSbSocketAddressTypeIpv6) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": unknown address type: " << address_type;
-    return false;
-  }
-  *address = GetUnspecifiedAddress(address_type, port);
-  switch (address_type) {
-    case kSbSocketAddressTypeIpv4:
-      address->address[0] = 127;
-      address->address[3] = 1;
-      break;
-    case kSbSocketAddressTypeIpv6:
-      address->address[15] = 1;
-      break;
-  }
-
-  return true;
-}
-
-bool Socket::IsValid() {
-  return SbSocketIsValid(socket_);
-}
-
-SbSocket Socket::socket() {
-  return socket_;
-}
-
-Socket::Socket(SbSocket socket) : socket_(socket) {}
-
-}  // namespace starboard
+namespace starboard {}  // namespace starboard
 
 std::ostream& operator<<(std::ostream& os, const SbSocketAddress& address) {
   if (address.type == kSbSocketAddressTypeIpv6) {
