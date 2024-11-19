@@ -14,7 +14,7 @@ runs:
         run: echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
         shell: bash
       - name: Generate gclient file
-        run: gclient config --name=src https://github.com/${{ github.repository }}
+        run: gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' https://github.com/${{ github.repository }}
         shell: bash
       - name: Set target OS for Android
         if: ${{ contains(matrix.platform, 'android') }}
@@ -24,9 +24,6 @@ runs:
         shell: bash
       - name: Gclient sync
         run: gclient sync -v --shallow --no-history -r ${{ github.sha }}
-        shell: bash
-      - name: sccache check
-        run: sccache -s
         shell: bash
       - name: gn gen
         run: |
@@ -44,10 +41,7 @@ runs:
         run: |
           set -x
           cd src
-          ninja -C out/${{ matrix.platform }}_${{ matrix.config }} $(echo "${TARGETS}" | tr -d '"')
-        shell: bash
-      - name: Dump sccache stats
-        run: sccache -s
+          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} $(echo "${TARGETS}" | tr -d '"')
         shell: bash
       - name: Archive Android APKs
         if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
