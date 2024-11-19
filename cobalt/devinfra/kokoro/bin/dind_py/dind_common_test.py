@@ -32,7 +32,7 @@ TEST_FAILURE_IMAGE = ('us-central1-docker.pkg.dev/cobalt-kokoro-gar/qa/' +
                       'docker-build-failure:test')
 BROKEN_IMAGE = 'us-central1-docker.pkg.dev/fake-image:fake-tag'
 
-COMPOSE_FILE_PATH = f'{TEST_DIR_PATH}/test-docker-compose.yml'
+COMPOSE_FILE_PATH = f'{TEST_DIR_PATH}/test-docker-compose.yaml'
 
 
 @unittest.skipIf(os.name == 'nt', 'Does not work on Windows')
