@@ -5799,16 +5799,11 @@ static_library("ui") {
 
   if (enable_extensions) {
     deps += [
-      "//apps",
       "//chrome/browser/apps:icon_standardizer",
-      "//chrome/browser/apps/platform_apps",
-      "//chrome/browser/apps/platform_apps/api",
       "//chrome/browser/extensions",
-      "//chrome/browser/web_applications",
       "//chrome/browser/web_share_target",
       "//chrome/common/extensions/api",
       "//components/drive",
-      "//components/guest_view/browser",
       "//extensions/browser",
       "//extensions/browser/api/management",
       "//extensions/common:mojom",
@@ -5817,9 +5812,18 @@ static_library("ui") {
       "//ui/base/cursor",
       "//ui/color:color",
     ]
+    if(!is_android) {
+      deps += [
+        "//chrome/browser/apps/platform_apps",
+        "//chrome/browser/apps/platform_apps/api",
+        "//chrome/browser/web_applications",
+        "//apps",
+        "//components/guest_view/browser",
+      ]
+    }
     allow_circular_includes_from += [
-      "//chrome/browser/apps/platform_apps",
-      "//chrome/browser/apps/platform_apps/api",
+      # "//chrome/browser/apps/platform_apps",
+      # "//chrome/browser/apps/platform_apps/api",
       "//chrome/browser/extensions",
     ]
     sources += [
@@ -5948,7 +5952,9 @@ static_library("ui") {
     if (is_mac) {
       sources += [ "views/javascript_app_modal_event_blocker_mac.h" ]
     } else {
-      deps += [ "//apps/ui/views" ]
+      if(!is_android) {
+        deps += [ "//apps/ui/views" ]
+      }
     }
 
     if (use_aura) {

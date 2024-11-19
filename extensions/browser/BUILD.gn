@@ -579,7 +579,6 @@ source_set("browser_sources") {
     "//components/content_settings/core/common",
     "//components/crx_file",
     "//components/crx_file:crx_creator",
-    "//components/guest_view/browser",
     "//components/keyed_service/content",
     "//components/keyed_service/content:content",
     "//components/keyed_service/core",
@@ -598,7 +597,6 @@ source_set("browser_sources") {
     "//components/version_info",
     "//components/web_cache/browser",
     "//components/web_cache/browser:browser",
-    "//components/web_modal",
     "//components/zoom",
     "//content/public/browser",
     "//content/public/browser:browser",
@@ -616,7 +614,6 @@ source_set("browser_sources") {
     "//pdf:buildflags",
     "//ppapi/buildflags",
     "//services/data_decoder/public/cpp:cpp",
-    "//services/device/public/cpp/hid",
     "//services/device/public/mojom",
     "//services/metrics/public/cpp:metrics_cpp",
     "//services/metrics/public/cpp:ukm_builders",
@@ -633,6 +630,13 @@ source_set("browser_sources") {
     "//ui/display",
     "//url",
   ]
+  if(!is_android) {
+    deps += [
+      "//components/guest_view/browser",
+      "//components/web_modal",
+      "//services/device/public/cpp/hid",
+    ]
+  }
 
   public_deps = [
     "//base",
@@ -728,7 +732,6 @@ source_set("browser_tests") {
     ":browser",
     "//base",
     "//build:chromeos_buildflags",
-    "//components/guest_view/browser:test_support",
     "//components/storage_monitor:test_support",
     "//content/test:test_support",
     "//device/bluetooth:mocks",
@@ -745,6 +748,11 @@ source_set("browser_tests") {
     "//services/service_manager/public/cpp",
     "//ui/display:test_support",
   ]
+  if(!is_android) {
+    deps += [
+      "//components/guest_view/browser:test_support",
+    ]
+  }
 
   if (is_chromeos_ash) {
     sources += [

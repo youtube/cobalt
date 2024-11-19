@@ -4,6 +4,9 @@
 
 import("//build/config/chromeos/ui_mode.gni")
 
+assert(enable_extensions)
+assert(!is_android)
+
 source_set("unit_tests") {
   testonly = true
 

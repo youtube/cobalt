@@ -6,6 +6,9 @@ import("//build/config/chromeos/ui_mode.gni")
 import("//chrome/browser/buildflags.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 
+assert(enable_extensions)
+assert(!is_android)
+
 source_set("web_applications") {
   sources = [
     "app_registrar_observer.h",
@@ -374,7 +377,6 @@ source_set("web_applications") {
     "//components/content_settings/core/browser",
     "//components/custom_handlers",
     "//components/device_event_log",
-    "//components/keep_alive_registry:keep_alive_registry",
     "//components/keyed_service/content",
     "//components/password_manager/content/common",
     "//components/performance_manager",
@@ -418,6 +420,11 @@ source_set("web_applications") {
     "//ui/events/devices:devices",
     "//url",
   ]
+  if(!is_android) {
+    deps += [
+      "//components/keep_alive_registry:keep_alive_registry",
+    ]
+  }
 
   # TODO(crbug.com/1225132): Clean up this legacy crx dependency.
   deps += [ "//components/crx_file" ]

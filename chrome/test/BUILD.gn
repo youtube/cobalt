@@ -248,11 +248,15 @@ static_library("test_support") {
     ]
 
     deps += [
-      "//chrome/browser/apps/app_service",
       "//components/media_router/browser:test_support",
       "//components/media_router/common:test_support",
       "//extensions/renderer",
     ]
+    if(!is_android) {
+      deps += [
+        "//chrome/browser/apps/app_service",
+      ]
+    }
   }
 
   if (is_chrome_branded &&
@@ -805,23 +809,31 @@ static_library("test_support") {
     ]
 
     public_deps += [
-      "//apps:test_support",
       "//chrome/common/extensions/api",
-      "//components/guest_view/browser:test_support",
       "//extensions:test_support",
       "//google_apis/common:test_support",
       "//google_apis/drive",
     ]
+    if(!is_android) {
+      public_deps += [
+        "//apps:test_support",
+        "//components/guest_view/browser:test_support",
+      ]
+    }
 
     deps += [
       "//build:chromeos_buildflags",
-      "//chrome/browser/apps/app_service",
-      "//chrome/browser/web_applications:web_applications_test_support",
       "//components/web_package",
       "//components/web_package/test_support",
       "//components/webapps/browser",
       "//third_party/zlib/google:zip",
     ]
+    if(!is_android) {
+      deps += [
+        "//chrome/browser/apps/app_service",
+        "//chrome/browser/web_applications:web_applications_test_support",
+      ]
+    }
   }
 
   if (enable_message_center) {
@@ -8331,17 +8343,13 @@ test("unit_tests") {
     }
 
     allow_circular_includes_from = [
-      "//chrome/browser/web_applications:web_applications_unit_tests",
-      "//chrome/browser/web_applications/extensions:unit_tests",
+      # "//chrome/browser/web_applications:web_applications_unit_tests",
+      # "//chrome/browser/web_applications/extensions:unit_tests",
     ]
 
     deps += [
       "//chrome/browser/extensions:cws_item_service_proto",
       "//chrome/browser/extensions:test_support",
-      "//chrome/browser/ui/web_applications:unit_tests",
-      "//chrome/browser/web_applications:unit_tests",
-      "//chrome/browser/web_applications:web_applications_unit_tests",
-      "//chrome/browser/web_applications/extensions:unit_tests",
       "//chrome/common/apps/platform_apps",
       "//chrome/common/extensions:extension_features_unittest",
       "//chrome/common/extensions/api",
@@ -8352,7 +8360,7 @@ test("unit_tests") {
       "//components/services/unzip:in_process",
       "//components/value_store",
       "//components/value_store:test_support",
-      "//extensions:extensions_resources",
+      # "//extensions:extensions_resources",
       "//extensions/browser:test_support",
       "//extensions/browser/updater",
       "//extensions/buildflags",
@@ -8373,6 +8381,14 @@ test("unit_tests") {
       "//third_party/blink/common/privacy_budget:test_support",
       "//tools/json_schema_compiler/test:unit_tests",
     ]
+    if(!is_android) {
+      deps += [
+        "//chrome/browser/web_applications:unit_tests",
+        "//chrome/browser/web_applications/extensions:unit_tests",
+        "//chrome/browser/ui/web_applications:unit_tests",
+        "//chrome/browser/web_applications:web_applications_unit_tests",
+      ]
+    }
 
     if (enable_service_discovery) {
       sources += [ "../browser/extensions/api/mdns/mdns_api_unittest.cc" ]

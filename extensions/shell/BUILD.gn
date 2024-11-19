@@ -36,15 +36,10 @@ source_set("app_shell_lib") {
   deps = [
     ":resources",
     ":version_header",
-    "//apps",
     "//base",
     "//build:chromeos_buildflags",
     "//components/feedback",
     "//components/feedback/content:factory",
-    "//components/guest_view/browser",
-    "//components/guest_view/common:mojom",
-    "//components/guest_view/renderer",
-    "//components/keep_alive_registry",
     "//components/keyed_service/content:content",
     "//components/nacl/common:buildflags",
     "//components/network_session_configurator/common",
@@ -77,6 +72,15 @@ source_set("app_shell_lib") {
     "//ui/base",
     "//ui/base/ime/init",
   ]
+  if (!is_android) {
+    deps+=[
+    "//apps",
+    "//components/keep_alive_registry",
+    "//components/guest_view/browser",
+    "//components/guest_view/common:mojom",
+    "//components/guest_view/renderer",
+    ]
+  }
 
   # TODO(michaelpg): remove Mac support and always use aura.
   if (use_aura) {
@@ -313,13 +317,11 @@ test("app_shell_unittests") {
 
   deps = [
     ":app_shell_lib",
-    "//apps",
     "//base",
     "//base/test:test_support",
     "//build:chromeos_buildflags",
     "//components/crx_file",
     "//components/feedback",
-    "//components/keep_alive_registry",
     "//components/prefs",
     "//components/user_prefs",
     "//content/test:test_support",
@@ -334,6 +336,12 @@ test("app_shell_unittests") {
     "//ui/gl:test_support",
     "//ui/platform_window",
   ]
+  if (!is_android) {
+    deps += [
+      "//apps",
+      "//components/keep_alive_registry",
+    ]
+  }
 
   data_deps = [
     # "//gin", # TODO(dpranke): Either gin or v8 data is needed ...
@@ -413,7 +421,6 @@ source_set("browser_tests") {
     "//base",
     "//base/test:test_support",
     "//build:chromeos_buildflags",
-    "//components/keep_alive_registry",
     "//components/version_info",
     "//content/shell:content_shell_lib",
     "//content/test:test_support",
@@ -423,6 +430,11 @@ source_set("browser_tests") {
     "//extensions/common",
     "//ui/base",
   ]
+  if(!is_android) {
+    deps += [
+      "//components/keep_alive_registry",
+    ]
+  }
 
   if (is_chromeos_lacros) {
     deps += [ "//chromeos/lacros" ]
