@@ -167,11 +167,10 @@ exec_script_whitelist =
       "//tools/gritsettings/BUILD.gn",
     ]
 
+# TODO(b/378960295): Try to remove the allowlisted files.
 import("//cobalt/build/configs/cobalt.gni")
-if (is_cobalt) {
-  exec_script_whitelist += [
-    "//starboard/tools/BUILD.gn",
-    "//starboard/build/config/sabi/BUILD.gn",
-    "//starboard/build/platform_path.gni",
-  ]
-}
+exec_script_whitelist += [
+  "//starboard/tools/BUILD.gn",
+  "//starboard/build/config/sabi/BUILD.gn",
+  "//starboard/build/platform_path.gni",
+]
