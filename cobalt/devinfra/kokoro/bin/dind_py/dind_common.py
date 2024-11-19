@@ -88,7 +88,7 @@ def push_image(target_image):
   utils.exec_cmd(command)
 
 
-def get_local_image_name(service, compose_file='docker-compose.yml'):
+def get_local_image_name(service, compose_file='docker-compose.yaml'):
   """
   Parses the docker-compose file to determine the image-name from the
   service-name. When the compose-file is used to build the image, it will get
@@ -108,7 +108,9 @@ def tag_image(src_img, dest_img):
   utils.exec_cmd(tag_command)
 
 
-def run_docker_build(platform, target_image, compose_file='docker-compose.yml'):
+def run_docker_build(platform,
+                     target_image,
+                     compose_file='docker-compose.yaml'):
   """
   Runs the docker build for the provided platform, and tags the newly built
   image with the registry/image/tag arguments. If the build fails, instead it
@@ -135,7 +137,7 @@ def run_cobalt_build(image_to_run, src_root):
   service = _DOCKER_COMPOSE_SERVICE_TARGET
   script = os.path.join(src_root, _INTERNAL_KOKORO_BUILD_SCRIPT)
   compose_file = os.path.join(src_root,
-                              'cobalt/devinfra/kokoro/docker-compose.yml')
+                              'cobalt/devinfra/kokoro/docker-compose.yaml')
   compose_cmd = (f'docker compose -f {compose_file} ' +
                  f'run -T {service} /bin/bash -c {script}')
   utils.exec_cmd(compose_cmd)
