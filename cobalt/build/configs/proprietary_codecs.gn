@@ -1,0 +1,8 @@
+# Build flag declared originally in build/config/features.gni
+# This flag is overridden to enable common video codecs playbacks.
+proprietary_codecs = true
+
+# This flag is needed by both platforms - android and linux.
+# For android: android_webview/docs/aosp-system-integration.md
+# For linux: docs/linux/hw_video_decode.md
+ffmpeg_branding = "Chrome"
