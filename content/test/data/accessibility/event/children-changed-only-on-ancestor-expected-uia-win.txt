@@ -1,0 +1,5 @@
+StructureChanged/ChildRemoved on role=tree
+StructureChanged/ChildrenReordered on role=tree
+=== Start Continuation ===
+StructureChanged/ChildAdded on role=article
+StructureChanged/ChildrenReordered on role=tree

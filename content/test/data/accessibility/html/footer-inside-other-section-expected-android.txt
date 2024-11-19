@@ -1,0 +1,10 @@
+android.webkit.WebView focusable focused
+++android.view.View role_description='article'
+++++android.view.View
+++++++android.widget.TextView name='footer inside article.'
+++android.view.View
+++++android.view.View
+++++++android.widget.TextView name='footer inside section.'
+++android.view.View role_description='main'
+++++android.view.View
+++++++android.widget.TextView name='footer inside main.'

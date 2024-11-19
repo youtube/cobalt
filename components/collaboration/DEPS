@@ -1,0 +1,7 @@
+include_rules = [
+  "+components/data_sharing/public",
+  "+components/data_sharing/test_support",
+  "+components/keyed_service",
+  "+components/saved_tab_groups/public",
+  "+components/signin/public/identity_manager",
+]

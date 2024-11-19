@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<style>
+body {
+  background:none repeat scroll 0 0 #FFFFFF;
+  color:black;
+  margin:0;
+}
+body, a, {
+  font-family:arial,sans-serif;
+  margin-right:2.5em;
+  font-size:13px;
+  text-decoration:underline;
+  color:#0000CC !important;
+}
+</style>
+<span>
+  <div>
+    <nobr>
+      <a href="#" id="start"> test1 </a>
+      <a href="#" id="end"> test2 </a>
+    </nobr>
+  </div>
+</span>
+<p>
+  This test ensures the traversal correctness of spatial navigation:<br>
+  focusable elements accessible, including zero-margin content, should be accessible.<br>
+</p>
+
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/snav-testharness.js"></script>
+<script>
+  var resultMap = [
+    ["Right", "end"]
+  ];
+
+  // Start at a known place.
+  document.getElementById("start").focus();
+  snav.assertFocusMoves(resultMap);
+</script>

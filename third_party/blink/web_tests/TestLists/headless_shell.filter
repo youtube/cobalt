@@ -1,0 +1,87 @@
+# This file lists WPTs that should run against headless shell via chromedriver.
+# It is only used for migrating from RWT to Wptrunner, and will be deleted
+# after the migration is done. WPTs should by default run with headless shell,
+# except those listed in chrome.filter eventually.
+#
+# Further documentation:
+# https://chromium.googlesource.com/chromium/src/+/HEAD/docs/testing/run_web_platform_tests.md
+
+external/wpt/accessibility/*
+external/wpt/acid/*
+external/wpt/ai/*
+external/wpt/apng/*
+external/wpt/css/css-align/*
+external/wpt/css/css-animations/*
+external/wpt/css/css-box/*
+external/wpt/css/css-color-adjust/*
+external/wpt/css/css-device-adapt/*
+external/wpt/css/css-easing/*
+external/wpt/css/css-env/*
+external/wpt/css/css-exclusions/*
+external/wpt/css/css-font-loading/*
+external/wpt/css/css-forced-color-adjust/*
+external/wpt/css/css-gaps/*
+external/wpt/css/css-grid/*
+external/wpt/css/css-logical/*
+external/wpt/css/css-masonry/*
+external/wpt/css/css-namespaces/*
+external/wpt/css/css-nesting/*
+external/wpt/css/css-parser-api/*
+external/wpt/css/css-rhythm/*
+external/wpt/css/css-size-adjust/*
+external/wpt/css/css-style-attr/*
+external/wpt/css/css-syntax/*
+external/wpt/css/css-transitions/*
+external/wpt/css/css-viewport/*
+external/wpt/css/fetching/*
+external/wpt/FileAPI/*
+external/wpt/css/fill-stroke/*
+external/wpt/css/geometry/*
+external/wpt/css/reference/*
+external/wpt/digital-credentials/*
+external/wpt/ecmascript/*
+external/wpt/encoding/*
+external/wpt/font-access/*
+external/wpt/fullscreen/*
+external/wpt/js*
+external/wpt/longtask-timing/*
+external/wpt/media*
+external/wpt/mixed-content/*
+external/wpt/picture-in-picture/*
+external/wpt/preload/*
+external/wpt/referrer-policy/*
+external/wpt/resource-timing/*
+external/wpt/scheduler/*
+external/wpt/selection/*
+external/wpt/signed-exchange/*
+external/wpt/trusted-types/*
+external/wpt/upgrade-insecure-requests/*
+external/wpt/wasm/*
+external/wpt/web-locks/*
+external/wpt/webaudio/*
+external/wpt/webauthn/*
+external/wpt/WebCryptoAPI/*
+external/wpt/webidl/*
+external/wpt/webmessaging/*
+external/wpt/webstorage/*
+external/wpt/xhr/*
+
+virtual/cookie-deprecation-label/*
+virtual/disable-raster-inducing-scroll/*
+virtual/float16array-enabled/external/wpt/xhr/*
+virtual/gpu/external/wpt/*
+virtual/keepalive-in-browser-migration/external/wpt/xhr/*
+virtual/longtask-from-loaf/external/wpt/*
+virtual/media-foundation-for-clear-frameserver/*
+virtual/media-gpu-accelerated/*
+virtual/oopr-canvas2d/external/wpt/mediacapture-record/*
+virtual/prefetch*
+virtual/single-renderer-process/external/wpt/*
+virtual/split-http-cache/external/wpt/signed-exchange/*
+virtual/third-party-storage-partitioning/external/wpt/web-locks/*
+virtual/threaded/external/wpt/scheduler/*
+virtual/webauthn-remote-desktop-client-override/*
+
+# These tests use the virtual authenticator API, which is only supported through webdriver.
+virtual/fenced-frame-mparch/external/wpt/fenced-frame/create-credential.https.html
+external/wpt/permissions-policy/payment-extension-allowed-by-permissions-policy-attribute.https.sub.html
