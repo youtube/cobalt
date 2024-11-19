@@ -2807,21 +2807,6 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
           &WebMediaPlayerImpl::OnOverlayInfoRequested, weak_this_));
 #endif
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // TODO(b/375278384): Select the StarboardRenderer properly instead of
-  //                    hard coding.
-
-  // StarboardRenderer always uses full screen with overlay video mode.
-  overlay_info_.is_fullscreen = true;
-
-  // `media_task_runner_` is always true, use an if statement to avoid
-  // potential build warning on unreachable code.
-  if (media_task_runner_) {
-    return std::make_unique<media::StarboardRenderer>(media_task_runner_,
-        compositor_.get());
-  }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
   if (renderer_type) {
     DVLOG(1) << __func__
              << ": renderer_type=" << static_cast<int>(renderer_type.value());
@@ -2837,6 +2822,14 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
 
   media_metrics_provider_->SetRendererType(renderer_type_);
   media_log_->SetProperty<MediaLogProperty::kRendererName>(renderer_type_);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "Renderer Type is " << GetRendererName(renderer_type_) << ".";
+  if (renderer_type_ == media::RendererType::kStarboard) {
+    // StarboardRenderer always uses full screen with overlay video mode.
+    overlay_info_.is_fullscreen = true;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   return renderer_factory_selector_->GetCurrentFactory()->CreateRenderer(
       media_task_runner_, worker_task_runner_, audio_source_provider_.get(),

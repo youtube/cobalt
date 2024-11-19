@@ -315,6 +315,10 @@ struct EnumTraits<media::mojom::RendererType, ::media::RendererType> {
         return media::mojom::RendererType::kContentEmbedderDefined;
       case ::media::RendererType::kTest:
         return media::mojom::RendererType::kTest;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      case ::media::RendererType::kStarboard:
+        return media::mojom::RendererType::kStarboard;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     }
 
     NOTREACHED();
@@ -359,6 +363,11 @@ struct EnumTraits<media::mojom::RendererType, ::media::RendererType> {
       case media::mojom::RendererType::kTest:
         *output = ::media::RendererType::kTest;
         return true;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      case media::mojom::RendererType::kStarboard:
+        *output = ::media::RendererType::kStarboard;
+        return true;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     }
 
     NOTREACHED();
