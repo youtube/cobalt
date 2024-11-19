@@ -1,4 +1,10 @@
 * @youtube/cobalt-3p-repository-owners
+
+# Consider removing the gn, gni files code owners in April 2025 once
+# people are more familiar with Cobalt-Chrome GN changes.
+*.gn @youtube/cobalt-build
+*.gni @youtube/cobalt-build
+
 /.github/  # no owners
 /cobalt/  # no owners
 /media/starboard/  # no owners
