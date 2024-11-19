@@ -203,7 +203,10 @@ test("media_unittests") {
   ]
 
   if (is_cobalt) {
-    deps += ["//media/starboard:unit_tests"]
+    # TODO(cobalt, b/379934658): add starboard_renderer_test.
+    # TODO(cobalt, b/379936173): enable starboard_utils_test.
+    # TODO(cobalt, b/379934533): enable bidirectional_fit_reuse_allocator_test.
+    # deps += ["//media/starboard:unit_tests"]
   }
 
   data = [

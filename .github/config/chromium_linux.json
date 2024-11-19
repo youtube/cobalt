@@ -13,6 +13,7 @@
         "gpu_unittests",
         "gin_unittests",
         "blink_unittests",
+        "media_unittests",
         "content_shell"
     ],
     "includes": [
