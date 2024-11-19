@@ -101,15 +101,6 @@ typedef struct SbSocketAddress {
   int port;
 } SbSocketAddress;
 
-// The result of a host name resolution.
-typedef struct SbSocketResolution {
-  // An array of addresses associated with the host name.
-  SbSocketAddress* addresses;
-
-  // The length of the |addresses| array.
-  int address_count;
-} SbSocketResolution;
-
 // Well-defined value for an invalid socket handle.
 #define kSbSocketInvalid ((SbSocket)NULL)
 
