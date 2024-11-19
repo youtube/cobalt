@@ -2,6 +2,7 @@ import("//cobalt/build/configs/proprietary_codecs.gn")
 
 target_os = "android"
 target_cpu = "arm"
+is_cobalt = true
 
 # TODO(b/378934120): Remove flags below this line
 
