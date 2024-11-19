@@ -80,13 +80,6 @@ SbSocketWaiterPrivate::~SbSocketWaiterPrivate() {
     Remove(waitee->i_socket, waitee->waiter);
   }
 
-  sb_WaiteesMap::iterator it2 = sb_waitees_.begin();
-  while (it2 != sb_waitees_.end()) {
-    Waitee* waitee = it2->second;
-    ++it2;  // Increment before removal.
-    Remove(waitee->sb_socket, waitee->waiter);
-  }
-
   event_del(&wakeup_event_);
   event_base_free(base_);
 
@@ -191,106 +184,6 @@ bool SbSocketWaiterPrivate::CheckSocketRegistered(int socket) {
   return true;
 }
 
-bool SbSocketWaiterPrivate::Add(SbSocket socket,
-                                void* context,
-                                SbSocketWaiterCallback callback,
-                                int interests,
-                                bool persistent) {
-  SB_DCHECK(pthread_equal(pthread_self(), thread_));
-
-  if (!SbSocketIsValid(socket)) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
-    return false;
-  }
-
-  if (!interests) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": No interests provided.";
-    return false;
-  }
-
-  // The policy is not to add a socket to a waiter if it is registered with
-  // another waiter.
-
-  // TODO: If anyone were to want to add a socket to a different waiter,
-  // it would probably be another thread, so doing this check without locking is
-  // probably wrong. But, it is also a pain, and, at this precise moment, socket
-  // access is all going to come from one I/O thread anyway, and there will only
-  // be one waiter.
-  if (SbSocketWaiterIsValid(socket->waiter)) {
-    if (socket->waiter == this) {
-      SB_DLOG(ERROR) << __FUNCTION__ << ": Socket already has this waiter ("
-                     << this << ").";
-    } else {
-      SB_DLOG(ERROR) << __FUNCTION__ << ": Socket already has waiter ("
-                     << socket->waiter << ", this=" << this << ").";
-    }
-    return false;
-  }
-
-  Waitee* waitee =
-      new Waitee(this, socket, context, callback, interests, persistent);
-  AddWaitee(waitee);
-
-  int16_t events = 0;
-  if (interests & kSbSocketWaiterInterestRead) {
-    events |= EV_READ;
-  }
-
-  if (interests & kSbSocketWaiterInterestWrite) {
-    events |= EV_WRITE;
-  }
-
-  if (persistent) {
-    events |= EV_PERSIST;
-  }
-
-  event_set(&waitee->event, socket->socket_fd, events,
-            &SbSocketWaiterPrivate::LibeventSocketCallback, waitee);
-  event_base_set(base_, &waitee->event);
-  socket->waiter = this;
-  event_add(&waitee->event, NULL);
-  return true;
-}
-
-bool SbSocketWaiterPrivate::Remove(SbSocket socket, SbSocketWaiter waiter) {
-  SB_DCHECK(pthread_equal(pthread_self(), thread_));
-  if (!SbSocketIsValid(socket)) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
-    return false;
-  }
-
-  if (socket->waiter != this) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") "
-                   << "is watched by Waiter (" << socket->waiter << "), "
-                   << "not this Waiter (" << this << ").";
-    SB_DSTACK(ERROR);
-    return false;
-  }
-
-  Waitee* waitee = RemoveWaitee(socket);
-  if (!waitee) {
-    return false;
-  }
-
-  event_del(&waitee->event);
-  socket->waiter = kSbSocketWaiterInvalid;
-
-  delete waitee;
-  return true;
-}
-
-bool SbSocketWaiterPrivate::CheckSocketRegistered(SbSocket socket) {
-  if (!SbSocketIsValid(socket)) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": Socket (" << socket << ") is invalid.";
-    return false;
-  }
-  if (GetWaitee(socket) == NULL) {
-    return false;
-  }
-
-  return true;
-}
-
 void SbSocketWaiterPrivate::Wait() {
   SB_DCHECK(pthread_equal(pthread_self(), thread_));
 
@@ -379,23 +272,13 @@ void SbSocketWaiterPrivate::HandleSignal(Waitee* waitee,
   // Remove the non-persistent waitee before calling the callback, so that we
   // can add another waitee in the callback if we need to. This is also why we
   // copy all the fields we need out of waitee.
-  if (waitee->use_int_socket == 1) {
-    int socket = waitee->i_socket;
-    void* context = waitee->context;
-    SbPosixSocketWaiterCallback callback = waitee->i_callback;
-    if (!waitee->persistent) {
-      Remove(waitee->i_socket, waitee->waiter);
-    }
-    callback(this, socket, context, interests);
-  } else {
-    SbSocket socket = waitee->sb_socket;
-    void* context = waitee->context;
-    SbSocketWaiterCallback callback = waitee->sb_callback;
-    if (!waitee->persistent) {
-      Remove(waitee->sb_socket, waitee->waiter);
-    }
-    callback(this, socket, context, interests);
+  int socket = waitee->i_socket;
+  void* context = waitee->context;
+  SbPosixSocketWaiterCallback callback = waitee->i_callback;
+  if (!waitee->persistent) {
+    Remove(waitee->i_socket, waitee->waiter);
   }
+  callback(this, socket, context, interests);
 }
 
 void SbSocketWaiterPrivate::HandleWakeUpRead() {
@@ -411,26 +294,12 @@ void SbSocketWaiterPrivate::HandleWakeUpRead() {
 }
 
 void SbSocketWaiterPrivate::AddWaitee(Waitee* waitee) {
-  if (waitee->use_int_socket == 1) {
-    i_waitees_.insert(std::make_pair(waitee->i_socket, waitee));
-  } else {
-    sb_waitees_.insert(std::make_pair(waitee->sb_socket, waitee));
-  }
+  i_waitees_.insert(std::make_pair(waitee->i_socket, waitee));
 }
 
 SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::GetWaitee(int socket) {
   i_WaiteesMap::iterator it = i_waitees_.find(socket);
   if (it == i_waitees_.end()) {
-    return NULL;
-  }
-
-  return it->second;
-}
-
-SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::GetWaitee(
-    SbSocket socket) {
-  sb_WaiteesMap::iterator it = sb_waitees_.find(socket);
-  if (it == sb_waitees_.end()) {
     return NULL;
   }
 
@@ -445,17 +314,5 @@ SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::RemoveWaitee(int socket) {
 
   Waitee* result = it->second;
   i_waitees_.erase(it);
-  return result;
-}
-
-SbSocketWaiterPrivate::Waitee* SbSocketWaiterPrivate::RemoveWaitee(
-    SbSocket socket) {
-  sb_WaiteesMap::iterator it = sb_waitees_.find(socket);
-  if (it == sb_waitees_.end()) {
-    return NULL;
-  }
-
-  Waitee* result = it->second;
-  sb_waitees_.erase(it);
   return result;
 }

@@ -72,11 +72,6 @@ absl::optional<net::IPEndPoint> GetLocalIpAddress() {
   SbSocketAddress destination;
   memset(&(destination.address), 0, sizeof(destination.address));
   destination.type = address_types;
-  if (!SbSocketGetInterfaceAddress(&destination, &local_ip, NULL) ||
-      !ip_addr.FromSbSocketAddress(&local_ip)) {
-    DLOG(WARNING) << "Unable to get a local interface address.";
-    return absl::nullopt;
-  }
 
   return ip_addr;
 }
@@ -134,9 +129,6 @@ int DialHttpServer::GetLocalAddress(net::IPEndPoint* addr) {
 
   // DIAL only works with IPv4.
   destination.type = kSbSocketAddressTypeIpv4;
-  if (!SbSocketGetInterfaceAddress(&destination, &local_ip, NULL)) {
-    return net::ERR_FAILED;
-  }
   local_ip.port = addr->port();
   LOG(INFO) << "In-App DIAL Address http://" << addr->address().ToString()
             << ":" << addr->port();

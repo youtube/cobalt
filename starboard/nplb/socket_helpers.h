@@ -64,34 +64,6 @@ static inline void TimedWaitShouldBlock(SbSocketWaiter waiter,
   EXPECT_LE(timeout, TimedWaitTimed(waiter, timeout));
 }
 
-// Socket operations may return specific (e.g. kSbSocketErrorConnectionReset) or
-// general (e.g. kSbSocketErrorFailed) error codes, and while in some cases
-// it may be important that we obtain a specific error message, in other cases
-// it will just be used as a hint and so these methods are provided to make
-// it easy to test against specific or general errors.
-static inline bool SocketErrorIn(
-    SbSocketError error,
-    const std::vector<SbSocketError>& expected_set) {
-  for (size_t i = 0; i < expected_set.size(); ++i) {
-    if (expected_set[i] == error) {
-      return true;
-    }
-  }
-  return false;
-}
-
-#define EXPECT_SB_SOCKET_ERROR_IN(error, ...)        \
-  do {                                               \
-    EXPECT_TRUE(SocketErrorIn(error, {__VA_ARGS__})) \
-        << "With " #error " = " << error;            \
-  } while (false)
-
-#define EXPECT_SB_SOCKET_ERROR_IS_ERROR(error)                          \
-  do {                                                                  \
-    EXPECT_FALSE(SocketErrorIn(error, {kSbSocketOk, kSbSocketPending})) \
-        << "With " #error " = " << error;                               \
-  } while (false)
-
 }  // namespace nplb
 }  // namespace starboard
 

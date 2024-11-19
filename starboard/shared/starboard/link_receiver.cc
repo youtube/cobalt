@@ -95,6 +95,36 @@ int CreateServerSocket(SbSocketAddressType address_type) {
   return socket_fd;
 }
 
+SbSocketAddress GetUnspecifiedAddress(SbSocketAddressType address_type,
+                                      int port) {
+  SbSocketAddress address = {};
+  address.type = address_type;
+  address.port = port;
+  return address;
+}
+
+bool GetLocalhostAddress(SbSocketAddressType address_type,
+                         int port,
+                         SbSocketAddress* address) {
+  if (address_type != kSbSocketAddressTypeIpv4 &&
+      address_type != kSbSocketAddressTypeIpv6) {
+    SB_LOG(ERROR) << __FUNCTION__ << ": unknown address type: " << address_type;
+    return false;
+  }
+  *address = GetUnspecifiedAddress(address_type, port);
+  switch (address_type) {
+    case kSbSocketAddressTypeIpv4:
+      address->address[0] = 127;
+      address->address[3] = 1;
+      break;
+    case kSbSocketAddressTypeIpv6:
+      address->address[15] = 1;
+      break;
+  }
+
+  return true;
+}
+
 // Creates a server socket that is bound to the loopback interface.
 int CreateLocallyBoundSocket(SbSocketAddressType address_type, int port) {
   int socket_fd = CreateServerSocket(address_type);
