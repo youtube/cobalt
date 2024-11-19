@@ -48,6 +48,9 @@ class CipdError(Exception):
 def CipdEnsure(pkg_name, ref, directory, quiet):
     logging.info('ensure %s %s in %s' % (pkg_name, ref, directory))
     log_level = 'warning' if quiet else 'debug'
+    auth = []
+    if os.getenv('IS_CI', default='0') == '1':
+        auth = ['-service-account-json', ':gce']
     ensure_file = """
 $ParanoidMode CheckPresence
 {pkg} {ref}
@@ -55,7 +58,7 @@ $ParanoidMode CheckPresence
     try:
       output = subprocess.check_output(
           ' '.join(['cipd', 'ensure', '-log-level=' + log_level,
-                    '-root', directory, '-ensure-file', '-']),
+                    '-root', directory, '-ensure-file', '-'] + auth),
           shell=True, input=ensure_file, stderr=subprocess.STDOUT,
           universal_newlines=True)
       logging.info(output)

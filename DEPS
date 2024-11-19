@@ -261,7 +261,7 @@ vars = {
   # Fetch configuration files required for the 'use_remoteexec' gn arg
   'download_remoteexec_cfg': False,
   # RBE instance to use for running remote builds
-  'rbe_instance': Str('projects/rbe-chrome-untrusted/instances/default_instance'),
+  'rbe_instance': Str('projects/cobalt-actions-devel/instances/default_instance'),
   # RBE project to download rewrapper config files for. Only needed if
   # different from the project used in 'rbe_instance'
   'rewrapper_cfg_project': Str(''),
