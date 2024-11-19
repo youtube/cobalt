@@ -16,5 +16,5 @@
 # configuration.
 
 declare_args() {
-  is_cobalt = true
+  is_cobalt = false
 }
