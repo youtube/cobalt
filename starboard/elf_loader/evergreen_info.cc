@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "starboard/atomic.h"
+#include "starboard/common/log.h"
 
 static EvergreenInfo g_evergreen_info;
 static bool g_valid_info = false;
@@ -28,6 +29,7 @@ bool SetEvergreenInfo(const EvergreenInfo* evergreen_info) {
     // Bailing out is OK as the process crashed
     // before we launched the application and in that
     // case the evergreen information is not needed.
+    SB_LOG(ERROR) << "SetEvergreenInfo() failed to set the busy flag, bailing";
     return false;
   }
   if (evergreen_info != NULL && evergreen_info->base_address != 0 &&
@@ -58,6 +60,10 @@ bool GetEvergreenInfo(EvergreenInfo* evergreen_info) {
   // Make sure all memory changes are visible to the current thread.
   SbAtomicMemoryBarrier();
   if (!g_valid_info) {
+    SB_LOG(ERROR) << "g_evergreen_info not yet set";
+
+    // Clear the busy flag.
+    SbAtomicNoBarrier_CompareAndSwap(&g_busy, 1, 0);
     return false;
   }
 
