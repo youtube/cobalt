@@ -168,7 +168,7 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
 
-    // initializeJavaBridge();
+    initializeJavaBridge();
 
     setContentView(R.layout.content_shell_activity);
     mShellManager = findViewById(R.id.shell_container);
@@ -222,17 +222,17 @@ public abstract class CobaltActivity extends Activity {
 
   // Initially copied from ContentShellActiviy.java
   private void finishInitialization(Bundle savedInstanceState) {
-    // if (!javaBridgeReady) {
-    // // if (!getStarboardBridge().getJavaBridgeReady()) {
-    //   Log.i(TAG, "finishInitialization -- getJavaBridgeReady is false, wait !!!");
-    //     new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-    //         @Override
-    //         public void run() {
-    //             finishInitialization(savedInstanceState); // Recursive call to check again
-    //         }
-    //     }, JAVA_BRIDGE_INITIALIZATION_DELAY_MILLI_SECONDS);
-    //     return;
-    // }
+    if (!javaBridgeReady) {
+    // if (!getStarboardBridge().getJavaBridgeReady()) {
+      Log.i(TAG, "finishInitialization -- getJavaBridgeReady is false, wait !!!");
+        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                finishInitialization(savedInstanceState); // Recursive call to check again
+            }
+        }, JAVA_BRIDGE_INITIALIZATION_DELAY_MILLI_SECONDS);
+        return;
+    }
 
     String shellUrl;
     if (!TextUtils.isEmpty(mStartupUrl)) {
@@ -249,7 +249,7 @@ public abstract class CobaltActivity extends Activity {
 
     // Log.i(TAG, "getJavaBridgeReady is ready, mShellManager.launchShell(shellUrl);");
 
-    initializeJavaBridge();
+    // initializeJavaBridge();
 
     mShellManager.launchShell(shellUrl);
 
