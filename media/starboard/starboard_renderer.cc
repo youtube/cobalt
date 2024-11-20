@@ -356,15 +356,10 @@ void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
       video_stream_ ? video_stream_->video_decoder_config()
                     : invalid_video_config;
 
-  std::string audio_mime_type = "";
-  std::string video_mime_type = "";
-
-  // TODO(b/321842876): Enable mime type passing in //media.
-  //
-  // audio_mime_type = audio_stream_ ? audio_stream_->mime_type() : "";
-  // if (video_stream_) {
-  //   video_mime_type = video_stream_->mime_type();
-  // }
+  const std::string audio_mime_type =
+      audio_stream_ ? audio_stream_->mime_type() : "";
+  const std::string video_mime_type =
+      video_stream_ ? video_stream_->mime_type() : "";
 
   std::string error_message;
 
@@ -383,11 +378,7 @@ void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
         &sbplayer_interface_, task_runner_,
         // TODO(b/375070492): Implement decode-to-texture support
         SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
-        audio_config,
-        // TODO(b/321842876): Enable mime type passing in //media.
-        audio_mime_type, video_config,
-        // TODO(b/321842876): Enable mime type passing in //media.
-        video_mime_type,
+        audio_config, audio_mime_type, video_config, video_mime_type,
         // TODO(b/326497953): Support suspend/resume.
         // TODO(b/326508279): Support background mode.
         kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
@@ -452,22 +443,21 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
 
   if (stream->type() == DemuxerStream::AUDIO) {
     const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
-    player_bridge_->UpdateAudioConfig(decoder_config, "");
+    player_bridge_->UpdateAudioConfig(decoder_config, stream->mime_type());
   } else {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
 
+    base::AutoLock auto_lock(lock_);
+    player_bridge_->UpdateVideoConfig(decoder_config, stream->mime_type());
+
     // TODO(b/375275033): Refine natural size change handling.
 #if 0
-    base::AutoLock auto_lock(lock_);
-
     bool natural_size_changed =
         (decoder_config.natural_size().width() != natural_size_.width() ||
          decoder_config.natural_size().height() != natural_size_.height());
 
     natural_size_ = decoder_config.natural_size();
-
-    player_bridge_->UpdateVideoConfig(decoder_config, "");
 
     if (natural_size_changed) {
       content_size_change_cb_.Run();

@@ -94,6 +94,13 @@ class WebMediaSource {
   virtual std::unique_ptr<WebSourceBuffer> AddSourceBuffer(
       std::unique_ptr<media::VideoDecoderConfig> video_config,
       AddStatus& out_status /* out */) = 0;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Special version of AddSourceBuffer() that retains the full |mime_type|
+  // passed to MediaSource.AddSourceBuffer().
+  virtual std::unique_ptr<WebSourceBuffer> AddSourceBuffer(
+      const WebString& mime_type,
+      AddStatus& out_status /* out */) = 0;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   virtual double Duration() = 0;
   virtual void SetDuration(double) = 0;
