@@ -535,4 +535,6 @@ enum RendererType {
   kCastStreaming = 9,    // CastStreamingRendererFactory
   kContentEmbedderDefined = 10,  // Defined by the content embedder
   kTest= 11,             // Renderer implementations used in tests
+  [EnableIf=use_starboard_media]
+  kStarboard = 12,       // StarboardRendererFactory
 };

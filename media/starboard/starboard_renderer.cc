@@ -57,13 +57,16 @@ bool HasRemoteAudioOutputs(
 
 StarboardRenderer::StarboardRenderer(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-    VideoRendererSink* video_renderer_sink)
+    VideoRendererSink* video_renderer_sink,
+    MediaLog* media_log)
     : task_runner_(task_runner),
       video_renderer_sink_(video_renderer_sink),
+      media_log_(media_log),
       video_overlay_factory_(std::make_unique<VideoOverlayFactory>()),
       set_bounds_helper_(new SbPlayerSetBoundsHelper) {
   DCHECK(task_runner_);
   DCHECK(video_renderer_sink_);
+  DCHECK(media_log_);
   DCHECK(video_overlay_factory_);
   DCHECK(set_bounds_helper_);
   LOG(INFO) << "StarboardRenderer constructed.";
@@ -718,10 +721,26 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
 
 void StarboardRenderer::OnPlayerError(SbPlayerError error,
                                       const std::string& message) {
-  // TODO(b/375271948): Implement and verify error reporting.
   LOG(ERROR) << "StarboardRenderer::OnPlayerError() called with code " << error
              << " and message \"" << message << "\"";
-  NOTIMPLEMENTED();
+  switch (error) {
+    case kSbPlayerErrorDecode:
+      MEDIA_LOG(ERROR, media_log_) << message;
+      client_->OnError(PIPELINE_ERROR_DECODE);
+      break;
+    case kSbPlayerErrorCapabilityChanged:
+      MEDIA_LOG(ERROR, media_log_)
+          << (message.empty()
+                  ? kSbPlayerCapabilityChangedErrorMessage
+                  : base::StringPrintf("%s: %s",
+                                       kSbPlayerCapabilityChangedErrorMessage,
+                                       message.c_str()));
+      client_->OnError(PIPELINE_ERROR_DECODE);
+      break;
+    case kSbPlayerErrorMax:
+      NOTREACHED();
+      break;
+  }
 }
 
 }  // namespace media

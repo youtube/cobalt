@@ -76,6 +76,8 @@ source_set("starboard") {
       "starboard_memory_allocator.h",
       "starboard_renderer.cc",
       "starboard_renderer.h",
+      "starboard_renderer_factory.cc",
+      "starboard_renderer_factory.h",
       "starboard_utils.cc",
       "starboard_utils.h",
     ]
