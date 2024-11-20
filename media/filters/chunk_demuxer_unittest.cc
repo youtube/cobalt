@@ -4887,7 +4887,7 @@ TEST_F(ChunkDemuxerTest, ZeroLengthFramesDropped) {
 // multiple tracks. crbug.com/646900
 
 // TODO: Add unit tests for the Starboard media customizations to
-// and ChunkDemuxerStream.
+// ChunkDemuxer and ChunkDemuxerStream.
 // b/380001431
 
 }  // namespace media
