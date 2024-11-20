@@ -110,14 +110,14 @@ ChunkDemuxerStream::ChunkDemuxerStream(const std::string& mime_type,
       media_track_id_(media_track_id),
       state_(UNINITIALIZED),
       is_enabled_(true) {}
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 ChunkDemuxerStream::ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id)
     : type_(type),
       liveness_(StreamLiveness::kUnknown),
       media_track_id_(media_track_id),
       state_(UNINITIALIZED),
       is_enabled_(true) {}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void ChunkDemuxerStream::StartReturningData() {
   DVLOG(1) << "ChunkDemuxerStream::StartReturningData()";
