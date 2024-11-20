@@ -73,6 +73,23 @@ std::unique_ptr<WebSourceBuffer> WebMediaSourceImpl::AddSourceBuffer(
   return nullptr;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+std::unique_ptr<WebSourceBuffer> WebMediaSourceImpl::AddSourceBuffer(
+    const WebString& mime_type,
+    AddStatus& out_status /* out */) {
+  std::string id = base::GenerateGUID();
+
+  out_status = static_cast<WebMediaSource::AddStatus>(
+      demuxer_->AddId(id, mime_type.Utf8()));
+
+  if (out_status == WebMediaSource::kAddStatusOk) {
+    return std::make_unique<WebSourceBufferImpl>(id, demuxer_);
+  }
+
+  return nullptr;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 double WebMediaSourceImpl::Duration() {
   return demuxer_->GetDuration();
 }
