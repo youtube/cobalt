@@ -1,0 +1,107 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//starboard/android/apk/apk_sources.gni")
+import("//starboard/android/shared/toolchain/toolchain.gni")
+import("//starboard/build/config/install.gni")
+
+declare_args() {
+  # Must be set to a positive integer. Needs to be a string due to us not being
+  # able to cast to an integer in GN.
+  num_gradle_workers = getenv("COBALT_GRADLE_BUILD_COUNT")
+}
+
+if (num_gradle_workers == "") {
+  num_gradle_workers = "1"
+}
+
+template("install_target") {
+  not_needed(invoker, [ "type" ])
+
+  installable_target_name = invoker.installable_target_name
+
+  action("build_${target_name}_apk") {
+    forward_variables_from(invoker, [ "testonly" ])
+
+    deps = invoker.deps
+    deps += [ ":$installable_target_name" ]
+
+    target_output = "$root_out_dir/lib${installable_target_name}.so"
+    gradle_content_dir = "$sb_install_output_dir/$installable_target_name/$sb_install_content_subdir"
+    gradle_files_dir = "$root_out_dir/gradle/$installable_target_name"
+    if (is_gold) {
+      gradle_build_type = "release"
+    } else {
+      gradle_build_type = build_type
+    }
+
+    gradle_wrapper = "//starboard/android/apk/gradlew"
+
+    sources = [
+      gradle_wrapper,
+      target_output,
+    ]
+    sources += apk_sources
+
+    outputs = [ "$root_out_dir/${installable_target_name}.apk" ]
+
+    cobalt_project_dir = rebase_path("//starboard/android/apk")
+    cobalt_deploy_apk = rebase_path(outputs[0])
+    cobalt_content_dir = rebase_path(gradle_content_dir)
+    cobalt_gradle_dir = rebase_path(gradle_files_dir)
+    cobalt_product_dir = rebase_path(root_out_dir)
+    cobalt_library_dir = rebase_path(root_out_dir)
+    project_cache_dir =
+        rebase_path("$root_build_dir/gradle/$installable_target_name/cache")
+    use_parallel_build = num_gradle_workers != "1"
+
+    script = "//starboard/build/run_bash.py"
+    args = [
+      "env",
+      "ANDROID_HOME=${android_sdk_path}",
+      rebase_path(gradle_wrapper, root_build_dir),
+      "--project-cache-dir=$project_cache_dir",
+      "--project-dir",
+      cobalt_project_dir,
+      "-P",
+      "cobaltBuildAbi=$android_abi",
+      "-P",
+      "cobaltDeployApk=$cobalt_deploy_apk",
+      "-P",
+      "cobaltContentDir=$cobalt_content_dir",
+      "-P",
+      "cobaltGradleDir=$cobalt_gradle_dir",
+      "-P",
+      "cobaltProductDir=$cobalt_product_dir",
+      "-P",
+      "cobaltLibraryDir=$cobalt_library_dir",
+      "-P",
+      "cobaltTarget=$installable_target_name",
+      "-P",
+      "evergreenCompatible=$sb_is_evergreen_compatible",
+      "assembleCobalt_$gradle_build_type",
+      "-Dorg.gradle.workers.max=$num_gradle_workers",
+      "-Dorg.gradle.workers.parallel=$use_parallel_build",
+      "-Dorg.gradle.workers.daemon=$use_parallel_build",
+    ]
+  }
+
+  group(target_name) {
+    forward_variables_from(invoker, [ "testonly" ])
+    deps = [
+      ":$installable_target_name",
+      ":build_${target_name}_apk",
+    ]
+  }
+}
