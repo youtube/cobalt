@@ -26,6 +26,7 @@
 #include "media/base/cdm_context.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/media_log.h"
 #include "media/base/media_resource.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer.h"
@@ -44,7 +45,8 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
                                              private SbPlayerBridge::Host {
  public:
   StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-                    VideoRendererSink* video_renderer_sink);
+                    VideoRendererSink* video_renderer_sink,
+                    MediaLog* media_log);
 
   ~StarboardRenderer() final;
 
@@ -103,8 +105,8 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   void OnPlayerError(SbPlayerError error, const std::string& message) final;
 
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
-
   const raw_ptr<VideoRendererSink> video_renderer_sink_;
+  const raw_ptr<MediaLog> media_log_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
@@ -148,6 +150,12 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
 
   uint32_t last_video_frames_decoded_ = 0;
   uint32_t last_video_frames_dropped_ = 0;
+
+  // Message to signal a capability changed error.
+  // "MEDIA_ERR_CAPABILITY_CHANGED" must be in the error message to be
+  // understood as a capability changed error. Do not change this message.
+  static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
+      "MEDIA_ERR_CAPABILITY_CHANGED";
 
   base::WeakPtrFactory<StarboardRenderer> weak_factory_{this};
   base::WeakPtr<StarboardRenderer> weak_this_{weak_factory_.GetWeakPtr()};
