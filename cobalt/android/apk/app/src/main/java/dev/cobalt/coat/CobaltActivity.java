@@ -55,6 +55,7 @@ import org.chromium.base.CommandLine;
 import org.chromium.base.MemoryPressureListener;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
+import org.chromium.components.version_info.VersionInfo;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
@@ -122,6 +123,14 @@ public abstract class CobaltActivity extends Activity {
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
 
+      if (!VersionInfo.isOfficialBuild()) {
+        String[] debugCommandLineParams =
+            new String[] {
+              "--remote-allow-origins=https://chrome-devtools-frontend.appspot.com",
+            };
+        CommandLine.getInstance().appendSwitchesAndArguments(debugCommandLineParams);
+      }
+
       String[] commandLineParams = getCommandLineParamsFromIntent(getIntent());
       if (commandLineParams != null) {
         CommandLine.getInstance().appendSwitchesAndArguments(commandLineParams);
@@ -168,11 +177,12 @@ public abstract class CobaltActivity extends Activity {
     }
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
-      mStartupUrl = Arrays.stream(args)
-                     .filter(line -> line.contains(URL_ARG))
-                     .findAny()
-                     .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
-                     .orElse(null);
+      mStartupUrl =
+          Arrays.stream(args)
+              .filter(line -> line.contains(URL_ARG))
+              .findAny()
+              .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
+              .orElse(null);
     }
     if (!TextUtils.isEmpty(mStartupUrl)) {
       mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
@@ -354,22 +364,25 @@ public abstract class CobaltActivity extends Activity {
   }
 
   /**
-   * Initializes the Java Bridge to allow communication between Java and JavaScript.
-   * This method injects Java objects into the WebView and loads corresponding JavaScript code.
+   * Initializes the Java Bridge to allow communication between Java and JavaScript. This method
+   * injects Java objects into the WebView and loads corresponding JavaScript code.
    */
   private void initializeJavaBridge() {
     Log.i(TAG, "initializeJavaBridge");
 
     WebContents webContents = getActiveWebContents();
     if (webContents == null) {
-        // WebContents not initialized yet, post a delayed runnable to check again
-        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                initializeJavaBridge(); // Recursive call to check again
-            }
-        }, JAVA_BRIDGE_INITIALIZATION_DELAY_MILLI_SECONDS);
-        return;
+      // WebContents not initialized yet, post a delayed runnable to check again
+      new Handler(Looper.getMainLooper())
+          .postDelayed(
+              new Runnable() {
+                @Override
+                public void run() {
+                  initializeJavaBridge(); // Recursive call to check again
+                }
+              },
+              JAVA_BRIDGE_INITIALIZATION_DELAY_MILLI_SECONDS);
+      return;
     }
 
     // --- Initialize the Java Bridge ---
@@ -383,8 +396,13 @@ public abstract class CobaltActivity extends Activity {
 
     javascriptInjector.setAllowInspection(true);
     for (CobaltJavaScriptAndroidObject javascriptAndroidObject : javaScriptAndroidObjectList) {
-      Log.d(TAG, "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
-      javascriptInjector.addPossiblyUnsafeInterface(javascriptAndroidObject, javascriptAndroidObject.getJavaScriptInterfaceName(), CobaltJavaScriptInterface.class);
+      Log.d(
+          TAG,
+          "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
+      javascriptInjector.addPossiblyUnsafeInterface(
+          javascriptAndroidObject,
+          javascriptAndroidObject.getJavaScriptInterfaceName(),
+          CobaltJavaScriptInterface.class);
     }
 
     // 3. Load and evaluate JavaScript code that interacts with the injected Java objects.
