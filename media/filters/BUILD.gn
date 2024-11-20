@@ -414,9 +414,4 @@ source_set("unit_tests") {
     # Direct dependency required to inherit config.
     deps += [ "//third_party/ffmpeg" ]
   }
-
-  if (true) {
-    sources = []
-    sources = [ "chunk_demuxer_unittest.cc" ]
-  }
 }
