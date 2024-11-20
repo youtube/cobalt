@@ -945,27 +945,7 @@ std::ostream& operator<<(std::ostream& os,
 
 std::ostream& operator<<(std::ostream& os,
                          const SbMediaAudioSampleInfo& sample_info) {
-  using starboard::GetMediaAudioCodecName;
-  using starboard::HexEncode;
-
-  const SbMediaAudioStreamInfo& stream_info = sample_info.stream_info;
-
-  if (stream_info.codec == kSbMediaAudioCodecNone) {
-    return os;
-  }
-
-  os << "codec: " << GetMediaAudioCodecName(stream_info.codec) << ", ";
-  os << "mime: " << (stream_info.mime ? stream_info.mime : "<null>");
-  os << "channels: " << stream_info.number_of_channels
-     << ", sample rate: " << stream_info.samples_per_second
-     << ", config: " << stream_info.audio_specific_config_size << " bytes, "
-     << "["
-     << HexEncode(
-            stream_info.audio_specific_config,
-            std::min(static_cast<int>(stream_info.audio_specific_config_size),
-                     16),
-            " ")
-     << (stream_info.audio_specific_config_size > 16 ? " ...]" : " ]");
+  os << sample_info.stream_info;
 
   return os;
 }
@@ -1002,7 +982,7 @@ std::ostream& operator<<(std::ostream& os,
 
   os << "codec: " << GetMediaAudioCodecName(stream_info.codec) << ", ";
   os << "mime: " << (stream_info.mime ? stream_info.mime : "<null>");
-  os << "channels: " << stream_info.number_of_channels
+  os << ", channels: " << stream_info.number_of_channels
      << ", sample rate: " << stream_info.samples_per_second
      << ", config: " << stream_info.audio_specific_config_size << " bytes, "
      << "["
