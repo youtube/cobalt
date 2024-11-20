@@ -56,6 +56,7 @@ import org.chromium.base.CommandLine;
 import org.chromium.base.MemoryPressureListener;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
+import org.chromium.components.version_info.VersionInfo;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
@@ -126,6 +127,14 @@ public abstract class CobaltActivity extends Activity {
             "--force-device-scale-factor=1",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
+
+      if (!VersionInfo.isOfficialBuild()) {
+        String[] debugCommandLineParams =
+            new String[] {
+              "--remote-allow-origins=https://chrome-devtools-frontend.appspot.com",
+            };
+        CommandLine.getInstance().appendSwitchesAndArguments(debugCommandLineParams);
+      }
 
       String[] commandLineParams = getCommandLineParamsFromIntent(getIntent());
       if (commandLineParams != null) {
