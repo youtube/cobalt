@@ -36,7 +36,12 @@ enum class RendererType {
   kCastStreaming = 9,  // PlaybackCommandForwardingRendererFactory
   kContentEmbedderDefined = 10,  // Defined by the content embedder
   kTest = 11,                    // Renderer implementations used in tests
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  kStarboard = 12,       // StarboardRendererFactory
+  kMaxValue = kStarboard,
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   kMaxValue = kTest,
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 // Get the name of the Renderer for `renderer_type`. The returned name could be
