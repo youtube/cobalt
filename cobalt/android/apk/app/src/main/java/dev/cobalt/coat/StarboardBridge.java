@@ -298,7 +298,7 @@ public class StarboardBridge {
   //  * This method injects Java objects into the WebView and loads corresponding JavaScript code.
   //  */
   // @UsedByNative
-  // private void initializeJavaBridge() {
+  // public void initializeJavaBridge() {
   //   Log.i(TAG, "initializeJavaBridge");
 
   //   Activity activity = activityHolder.get();
@@ -327,31 +327,33 @@ public class StarboardBridge {
   //     javascriptInjector.addPossiblyUnsafeInterface(javascriptAndroidObject, javascriptAndroidObject.getJavaScriptInterfaceName(), CobaltJavaScriptInterface.class);
   //   }
 
-  //   // 3. Load and evaluate JavaScript code that interacts with the injected Java objects.
-  //   List<SettableFuture<String>> callbackList = new ArrayList<>();
-  //   for (CobaltJavaScriptAndroidObject javaScriptAndroidObject : javaScriptAndroidObjectList) {
-  //     String jsFileName = javaScriptAndroidObject.getJavaScriptAssetName();
-  //     if (jsFileName != null) {
-  //       Log.d(TAG, "Evaluate JavaScript from Asset:" + jsFileName);
-  //       String jsCode = AssetLoader.loadJavaScriptFromAssets(activity, jsFileName);
-  //       // Log.d(TAG, "Evaluate JavaScript, jsCode:" + jsCode);
-  //       final SettableFuture<String> future = SettableFuture.create();
-  //       callbackList.add(future);
-  //       webContents.evaluateJavaScript(jsCode, result -> {
-  //         future.set(result);
-  //         Log.i(TAG, "future.set(result)");
-  //     });
-  //     }
-  //   }
+  //   javaBridgeReady = true;
 
-  //   // 4. JavaBridge finish initialization, set the flag to unblock loading url.
-  //   // Use Futures.whenAllComplete to wait for all SettableFutures
-  //   Futures.whenAllComplete(callbackList)
-  //   .call(() -> {
-  //       Log.i(TAG, "setJavaBridgeReady");
-  //       javaBridgeReady = true;
-  //       return null;
-  //   }, MoreExecutors.directExecutor());
+  //   // // 3. Load and evaluate JavaScript code that interacts with the injected Java objects.
+  //   // List<SettableFuture<String>> callbackList = new ArrayList<>();
+  //   // for (CobaltJavaScriptAndroidObject javaScriptAndroidObject : javaScriptAndroidObjectList) {
+  //   //   String jsFileName = javaScriptAndroidObject.getJavaScriptAssetName();
+  //   //   if (jsFileName != null) {
+  //   //     Log.d(TAG, "Evaluate JavaScript from Asset:" + jsFileName);
+  //   //     String jsCode = AssetLoader.loadJavaScriptFromAssets(activity, jsFileName);
+  //   //     // Log.d(TAG, "Evaluate JavaScript, jsCode:" + jsCode);
+  //   //     final SettableFuture<String> future = SettableFuture.create();
+  //   //     callbackList.add(future);
+  //   //     webContents.evaluateJavaScript(jsCode, result -> {
+  //   //       future.set(result);
+  //   //       Log.i(TAG, "future.set(result)");
+  //   //   });
+  //   //   }
+  //   // }
+
+  //   // // 4. JavaBridge finish initialization, set the flag to unblock loading url.
+  //   // // Use Futures.whenAllComplete to wait for all SettableFutures
+  //   // Futures.whenAllComplete(callbackList)
+  //   // .call(() -> {
+  //   //     Log.i(TAG, "setJavaBridgeReady");
+  //   //     javaBridgeReady = true;
+  //   //     return null;
+  //   // }, MoreExecutors.directExecutor());
   // }
 
 

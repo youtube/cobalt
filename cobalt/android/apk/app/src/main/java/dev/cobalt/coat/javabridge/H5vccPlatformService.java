@@ -45,7 +45,8 @@ public class H5vccPlatformService implements CobaltJavaScriptAndroidObject {
 
     @Override
     public String getJavaScriptAssetName() {
-        return "h5vcc_platform_service.js";
+        // return "h5vcc_platform_service.js";
+        return null;
     }
 
     @CobaltJavaScriptInterface

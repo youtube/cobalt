@@ -93,6 +93,7 @@ public abstract class CobaltActivity extends Activity {
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
+  private volatile boolean javaBridgeReady = false;
   public static final int JAVA_BRIDGE_INITIALIZATION_DELAY_MILLI_SECONDS = 100;
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
@@ -167,7 +168,7 @@ public abstract class CobaltActivity extends Activity {
       getStarboardBridge().handleDeepLink(startDeepLink);
     }
 
-    initializeJavaBridge();
+    // initializeJavaBridge();
 
     setContentView(R.layout.content_shell_activity);
     mShellManager = findViewById(R.id.shell_container);
@@ -221,16 +222,17 @@ public abstract class CobaltActivity extends Activity {
 
   // Initially copied from ContentShellActiviy.java
   private void finishInitialization(Bundle savedInstanceState) {
-    if (!getStarboardBridge().getJavaBridgeReady()) {
-      Log.i(TAG, "finishInitialization -- getJavaBridgeReady is false, wait !!!");
-        new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                finishInitialization(savedInstanceState); // Recursive call to check again
-            }
-        }, JAVA_BRIDGE_INITIALIZATION_DELAY_MILLI_SECONDS);
-        return;
-    }
+    // if (!javaBridgeReady) {
+    // // if (!getStarboardBridge().getJavaBridgeReady()) {
+    //   Log.i(TAG, "finishInitialization -- getJavaBridgeReady is false, wait !!!");
+    //     new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
+    //         @Override
+    //         public void run() {
+    //             finishInitialization(savedInstanceState); // Recursive call to check again
+    //         }
+    //     }, JAVA_BRIDGE_INITIALIZATION_DELAY_MILLI_SECONDS);
+    //     return;
+    // }
 
     String shellUrl;
     if (!TextUtils.isEmpty(mStartupUrl)) {
@@ -245,7 +247,9 @@ public abstract class CobaltActivity extends Activity {
     // Set to overlay video mode.
     mShellManager.getContentViewRenderView().setOverlayVideoMode(true);
 
-    Log.i(TAG, "getJavaBridgeReady is ready, mShellManager.launchShell(shellUrl);");
+    // Log.i(TAG, "getJavaBridgeReady is ready, mShellManager.launchShell(shellUrl);");
+
+    initializeJavaBridge();
 
     mShellManager.launchShell(shellUrl);
 
@@ -389,10 +393,9 @@ public abstract class CobaltActivity extends Activity {
    * This method injects Java objects into the WebView and loads corresponding JavaScript code.
    */
   private void initializeJavaBridge() {
-    Log.i(TAG, "initializeJavaBridge");
-
     WebContents webContents = getActiveWebContents();
     if (webContents == null) {
+        Log.i(TAG, "initializeJavaBridge wait! webContents == null");
         // WebContents not initialized yet, post a delayed runnable to check again
         new Handler(Looper.getMainLooper()).postDelayed(new Runnable() {
             @Override
@@ -402,6 +405,8 @@ public abstract class CobaltActivity extends Activity {
         }, JAVA_BRIDGE_INITIALIZATION_DELAY_MILLI_SECONDS);
         return;
     }
+
+    Log.i(TAG, "initializeJavaBridge");
 
     // --- Initialize the Java Bridge ---
 
@@ -420,31 +425,33 @@ public abstract class CobaltActivity extends Activity {
       javascriptInjector.addPossiblyUnsafeInterface(javascriptAndroidObject, javascriptAndroidObject.getJavaScriptInterfaceName(), CobaltJavaScriptInterface.class);
     }
 
-    // 3. Load and evaluate JavaScript code that interacts with the injected Java objects.
-    List<SettableFuture<String>> callbackList = new ArrayList<>();
-    for (CobaltJavaScriptAndroidObject javaScriptAndroidObject : javaScriptAndroidObjectList) {
-      String jsFileName = javaScriptAndroidObject.getJavaScriptAssetName();
-      if (jsFileName != null) {
-        Log.d(TAG, "Evaluate JavaScript from Asset:" + jsFileName);
-        String jsCode = AssetLoader.loadJavaScriptFromAssets(this, jsFileName);
-        // Log.d(TAG, "Evaluate JavaScript, jsCode:" + jsCode);
-        final SettableFuture<String> future = SettableFuture.create();
-        callbackList.add(future);
-        webContents.evaluateJavaScript(jsCode, result -> {
-          future.set(result);
-          Log.i(TAG, "future.set(result)");
-      });
-      }
-    }
+    javaBridgeReady = true;
 
-    // 4. JavaBridge finish initialization, set the flag to unblock loading url.
-    // Use Futures.whenAllComplete to wait for all SettableFutures
-    Futures.whenAllComplete(callbackList)
-    .call(() -> {
-        Log.i(TAG, "setJavaBridgeReady");
-        getStarboardBridge().setJavaBridgeReady();
-        return null;
-    }, MoreExecutors.directExecutor());
+    // // 3. Load and evaluate JavaScript code that interacts with the injected Java objects.
+    // List<SettableFuture<String>> callbackList = new ArrayList<>();
+    // for (CobaltJavaScriptAndroidObject javaScriptAndroidObject : javaScriptAndroidObjectList) {
+    //   String jsFileName = javaScriptAndroidObject.getJavaScriptAssetName();
+    //   if (jsFileName != null) {
+    //     Log.d(TAG, "Evaluate JavaScript from Asset:" + jsFileName);
+    //     String jsCode = AssetLoader.loadJavaScriptFromAssets(this, jsFileName);
+    //     // Log.d(TAG, "Evaluate JavaScript, jsCode:" + jsCode);
+    //     final SettableFuture<String> future = SettableFuture.create();
+    //     callbackList.add(future);
+    //     webContents.evaluateJavaScript(jsCode, result -> {
+    //       future.set(result);
+    //       Log.i(TAG, "future.set(result)");
+    //   });
+    //   }
+    // }
+
+    // // 4. JavaBridge finish initialization, set the flag to unblock loading url.
+    // // Use Futures.whenAllComplete to wait for all SettableFutures
+    // Futures.whenAllComplete(callbackList)
+    // .call(() -> {
+    //     Log.i(TAG, "setJavaBridgeReady");
+    //     getStarboardBridge().setJavaBridgeReady();
+    //     return null;
+    // }, MoreExecutors.directExecutor());
   }
 
   /**
