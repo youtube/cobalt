@@ -48,6 +48,7 @@ DecoderBufferAllocator::DecoderBufferAllocator()
 
   base::AutoLock scoped_lock(mutex_);
   EnsureReuseAllocatorIsCreated();
+  DLOG(INFO) << "Allocated media buffer pool on demand.";
   Allocator::Set(this);
 }
 

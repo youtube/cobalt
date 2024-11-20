@@ -18,10 +18,6 @@ if (is_android) {
   import("//build/config/android/rules.gni")
 }
 
-if (is_cobalt) {
-  import("//starboard/build/buildflags.gni")
-}
-
 blink_public_output_dir = "$root_gen_dir/third_party/blink/public"
 
 group("blink") {

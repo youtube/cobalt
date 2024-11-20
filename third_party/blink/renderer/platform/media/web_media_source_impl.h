@@ -10,9 +10,6 @@
 #include "third_party/blink/public/platform/web_media_source.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 
-// For BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "build/build_config.h"
-
 namespace media {
 class AudioDecoderConfig;
 class ChunkDemuxer;

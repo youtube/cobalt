@@ -12,9 +12,6 @@
 #include "media/base/media_export.h"
 #include "media/base/video_transformation.h"
 
-// For BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "build/build_config.h"
-
 namespace media {
 
 class AudioDecoderConfig;

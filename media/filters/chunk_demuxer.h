@@ -28,9 +28,6 @@
 #include "media/filters/source_buffer_state.h"
 #include "media/filters/source_buffer_stream.h"
 
-// For BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "build/build_config.h"
-
 class MEDIA_EXPORT SourceBufferStream;
 
 namespace media {
@@ -46,11 +43,10 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   ChunkDemuxerStream(const std::string& mime_type,
                      Type type,
                      MediaTrack::Id media_track_id);
-  ChunkDemuxerStream() = delete;
 #else  // BUILDFLAG(USE_STARBOARD_MEDIA)
   ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id);
-  ChunkDemuxerStream() = delete;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  ChunkDemuxerStream() = delete;
 
   ChunkDemuxerStream(const ChunkDemuxerStream&) = delete;
   ChunkDemuxerStream& operator=(const ChunkDemuxerStream&) = delete;

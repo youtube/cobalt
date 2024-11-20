@@ -35,9 +35,6 @@
 #include "third_party/blink/public/platform/web_time_range.h"
 #include "third_party/blink/public/platform/web_url.h"
 
-// For BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "build/build_config.h"
-
 namespace media {
 class AudioDecoderConfig;
 class VideoDecoderConfig;

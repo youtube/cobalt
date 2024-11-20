@@ -27,10 +27,9 @@
 #include "media/filters/source_buffer_stream.h"
 #include "media/filters/stream_parser_factory.h"
 
-// For BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "third_party/blink/renderer/platform/network/mime/content_type.h"
+#include "base/containers/contains.h"
+#include "base/strings/string_split.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace {
@@ -62,6 +61,41 @@ std::string ExpectedCodecs(const std::string& content_type,
   return codecs;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Parse type and codecs from mime type. It will return "video/mp4" and
+// "avc1.42E01E, mp4a.40.2" for "video/mp4; codecs="avc1.42E01E, mp4a.40.2".
+// Note that this function does minimum validation as the media stack will check
+// the type and codecs strictly.
+bool ParseMimeType(const std::string& mime_type,
+                   std::string* type,
+                   std::string* codecs) {
+  DCHECK(type);
+  DCHECK(codecs);
+  static const char kCodecs[] = "codecs=";
+
+  // SplitString will also trim the results.
+  std::vector<std::string> tokens = ::base::SplitString(
+      mime_type, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+  // The first one has to be mime type with delimiter '/' like 'video/mp4'.
+  if (tokens.empty() || tokens[0].find('/') == tokens[0].npos) {
+    return false;
+  }
+  *type = tokens[0];
+  codecs->clear();
+  for (size_t i = 1; i < tokens.size(); ++i) {
+    if (strncasecmp(tokens[i].c_str(), kCodecs, strlen(kCodecs))) {
+      continue;
+    }
+    *codecs = tokens[i].substr(strlen(kCodecs));
+    base::TrimString(*codecs, " \"", codecs);
+    break;
+  }
+  // It is possible to not having any codecs, and will leave the validation to
+  // underlying parsers.
+  return true;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace
 
 namespace media {
@@ -72,14 +106,18 @@ ChunkDemuxerStream::ChunkDemuxerStream(const std::string& mime_type,
                                        MediaTrack::Id media_track_id)
     : mime_type_(mime_type),
       type_(type),
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-ChunkDemuxerStream::ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id)
-    : type_(type),
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       liveness_(StreamLiveness::kUnknown),
       media_track_id_(media_track_id),
       state_(UNINITIALIZED),
       is_enabled_(true) {}
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
+ChunkDemuxerStream::ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id)
+    : type_(type),
+      liveness_(StreamLiveness::kUnknown),
+      media_track_id_(media_track_id),
+      state_(UNINITIALIZED),
+      is_enabled_(true) {}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void ChunkDemuxerStream::StartReturningData() {
   DVLOG(1) << "ChunkDemuxerStream::StartReturningData()";
@@ -790,17 +828,13 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
                                          const std::string& mime_type) {
-  String mime(mime_type);
-  blink::ContentType content_type(mime);
-  String type = content_type.GetType();
-  String codecs = content_type.Parameter("codecs");
-  if (type.empty() || codecs.empty()) {
+  std::string type, codecs;
+  if (!ParseMimeType(mime_type, &type, &codecs)) {
     return kNotSupported;
   }
-
-  DCHECK(id_to_mime_map_.find(id) == id_to_mime_map_.end());
+  DCHECK(!base::Contains(id_to_mime_map_, id));
   id_to_mime_map_[id] = mime_type;
-  return AddId(id, type.Utf8(), codecs.Utf8());
+  return AddId(id, type, codecs);
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
