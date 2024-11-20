@@ -1,0 +1,63 @@
+<!--
+This is a light weighted demo page used to verify ClientLogInfo CobaltService.
+Put this file in a local directory,then start a http server by running this python3 command:
+python3 -m http.server 8000
+Then you should be able to visit http://[IP]:8000/client_log_info_demo.html from a chrome browser.
+Run this command to let CoAT visit the page.
+adb shell am start --esa args "--url=http://[IP]:8000/client_log_info_demo.html,--debug_console=on" dev.cobalt.coat
+-->
+<!DOCTYPE html>
+<meta charset="utf-8">
+<body>
+  <script>
+    // utility functions for string <-> ArrayBuffer conversions.
+    function ab2str(buf) {
+      return String.fromCharCode.apply(null, new Uint8Array(buf));
+    }
+
+    function str2ab(str) {
+      return Uint8Array.from(stringToUtf8ByteArray(str)).buffer;
+    }
+
+    function stringToUtf8ByteArray(str) {
+      'use strict';
+      var out = [], p = 0;
+      for (var i = 0; i < str.length; i++) {
+        var c = str.charCodeAt(i);
+        if (c < 128) {
+          out[p++] = c;
+        } else if (c < 2048) {
+          out[p++] = (c >> 6) | 192;
+          out[p++] = (c & 63) | 128;
+        } else if (
+            ((c & 0xFC00) == 0xD800) && (i + 1) < str.length &&
+            ((str.charCodeAt(i + 1) & 0xFC00) == 0xDC00)) {
+          // Surrogate Pair
+          c = 0x10000 + ((c & 0x03FF) << 10) + (str.charCodeAt(++i) & 0x03FF);
+          out[p++] = (c >> 18) | 240;
+          out[p++] = ((c >> 12) & 63) | 128;
+          out[p++] = ((c >> 6) & 63) | 128;
+          out[p++] = (c & 63) | 128;
+        } else {
+          out[p++] = (c >> 12) | 224;
+          out[p++] = ((c >> 6) & 63) | 128;
+          out[p++] = (c & 63) | 128;
+        }
+      }
+      return out;
+    };
+
+    // The package name is hard-coded also in Kimono java code.
+    const SERVICE_NAME = "dev.cobalt.coat.clientloginfo";
+    if (window.H5vccPlatformService &&
+        window.H5vccPlatformService.has(SERVICE_NAME)) {
+      clientloginfo = window.H5vccPlatformService.open(SERVICE_NAME, (() => { }));
+
+      if (clientloginfo) {
+        response = clientloginfo.send(str2ab(""));
+        console.log("clientloginfo platform service response: " + ab2str(response));
+      }
+    }
+
+  </script>
+</body>
