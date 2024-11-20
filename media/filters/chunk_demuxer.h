@@ -43,9 +43,8 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   ChunkDemuxerStream(const std::string& mime_type,
                      Type type,
                      MediaTrack::Id media_track_id);
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
-  ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  ChunkDemuxerStream(Type type, MediaTrack::Id media_track_id);
   ChunkDemuxerStream() = delete;
 
   ChunkDemuxerStream(const ChunkDemuxerStream&) = delete;
