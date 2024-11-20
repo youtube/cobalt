@@ -5,6 +5,10 @@
 import("//media/media_options.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 mojom("mojom") {
   generate_java = true
 
@@ -121,6 +125,10 @@ mojom("mojom") {
 
   if (enable_cast_renderer) {
     enabled_features += [ "enable_cast_renderer" ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    enabled_features += [ "use_starboard_media" ]
   }
 
   shared_typemaps = [
