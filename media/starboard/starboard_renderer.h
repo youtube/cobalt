@@ -93,7 +93,16 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   SetBoundsCB GetSetBoundsCB() override;
 
  private:
-  void CreatePlayerBridge(PipelineStatusCallback init_cb);
+  enum State {
+    STATE_UNINITIALIZED,
+    STATE_INIT_PENDING_CDM,  // Initialization is waiting for the CDM to be set.
+    STATE_INITIALIZING,      // Initializing to create SbPlayerBridge.
+    STATE_FLUSHED,           // After initialization or after flush completed.
+    STATE_PLAYING,           // After StartPlayingFrom has been called.
+    STATE_ERROR
+  };
+
+  void CreatePlayerBridge();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
                            DemuxerStream::Status status,
@@ -104,24 +113,29 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   void OnPlayerStatus(SbPlayerState state) final;
   void OnPlayerError(SbPlayerError error, const std::string& message) final;
 
+  State state_;
+
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const raw_ptr<VideoRendererSink> video_renderer_sink_;
   const raw_ptr<MediaLog> media_log_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
-  // TODO(b/375273774): Consider calling `void OnWaiting(WaitingReason reason)`
-  //                    on `client_`.
   // TODO(b/375274109): Investigate whether we should call
   //                    `void OnVideoFrameRateChange(absl::optional<int> fps)`
   //                    on `client_`?
   raw_ptr<RendererClient> client_ = nullptr;
+
+  // Temporary callback used for Initialize().
+  PipelineStatusCallback init_cb_;
 
   // Overlay factory used to create overlays for video frames rendered
   // by the remote renderer.
   std::unique_ptr<VideoOverlayFactory> video_overlay_factory_;
 
   scoped_refptr<SbPlayerSetBoundsHelper> set_bounds_helper_;
+
+  raw_ptr<CdmContext> cdm_context_;
 
   DefaultSbPlayerInterface sbplayer_interface_;
   // TODO(b/326652276): Support audio write duration.
