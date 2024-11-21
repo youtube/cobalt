@@ -59,11 +59,13 @@ StarboardRenderer::StarboardRenderer(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     VideoRendererSink* video_renderer_sink,
     MediaLog* media_log)
-    : task_runner_(task_runner),
+    : state_(STATE_UNINITIALIZED),
+      task_runner_(task_runner),
       video_renderer_sink_(video_renderer_sink),
       media_log_(media_log),
       video_overlay_factory_(std::make_unique<VideoOverlayFactory>()),
-      set_bounds_helper_(new SbPlayerSetBoundsHelper) {
+      set_bounds_helper_(new SbPlayerSetBoundsHelper),
+      cdm_context_(nullptr) {
   DCHECK(task_runner_);
   DCHECK(video_renderer_sink_);
   DCHECK(media_log_);
@@ -95,6 +97,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
                                    RendererClient* client,
                                    PipelineStatusCallback init_cb) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK_EQ(state_, STATE_UNINITIALIZED);
   DCHECK(!client_);
   DCHECK(!audio_stream_);
   DCHECK(!video_stream_);
@@ -121,6 +124,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
   client_ = client;
+  init_cb_ = std::move(init_cb);
 
   audio_stream_ = media_resource->GetFirstStream(DemuxerStream::AUDIO);
   video_stream_ = media_resource->GetFirstStream(DemuxerStream::VIDEO);
@@ -149,26 +153,22 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
     video_stream_->EnableBitstreamConverter();
   }
 
-  // TODO(cobalt, b/378958007) ensure SetCdm has been called before
-  // |CreatePlayerBridge()| and the init_cb.
-  //
-  // base::AutoLock auto_lock(lock_);
-  //
-  // bool is_encrypted =
-  //     audio_stream_ && audio_stream_->audio_decoder_config().is_encrypted();
-  // is_encrypted |=
-  //     video_stream_ && video_stream_->video_decoder_config().is_encrypted();
-  // if (is_encrypted) {
-  //   // TODO(b/328305808): Shall we call client_->OnVideoNaturalSizeChange()
-  //   to
-  //   // provide an initial size before the license exchange finishes?
-  //   RunSetDrmSystemReadyCB(BindPostTaskToCurrentDefault(
-  //       base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
-  //   return;
-  // }
+  bool is_encrypted =
+      audio_stream_ && audio_stream_->audio_decoder_config().is_encrypted();
+  is_encrypted |=
+      video_stream_ && video_stream_->video_decoder_config().is_encrypted();
+  if (is_encrypted && !cdm_context_) {
+    // TODO(b/328305808): Shall we call client_->OnVideoNaturalSizeChange()
+    // to provide an initial size before the license exchange finishes?
+    LOG(WARNING) << __func__ << ": Has encrypted stream but CDM is not set.";
+    state_ = STATE_INIT_PENDING_CDM;
+    client_->OnWaiting(WaitingReason::kNoCdm);
+    return;
+  }
 
   // |init_cb| will be called inside |CreatePlayerBridge()|.
-  CreatePlayerBridge(std::move(init_cb));
+  state_ = STATE_INITIALIZING;
+  CreatePlayerBridge();
 }
 
 void StarboardRenderer::SetCdm(CdmContext* cdm_context,
@@ -183,15 +183,28 @@ void StarboardRenderer::SetCdm(CdmContext* cdm_context,
     return;
   }
 
-  drm_system_ = cdm_context->GetSbDrmSystem();
+  cdm_context_ = cdm_context;
+  drm_system_ = cdm_context_->GetSbDrmSystem();
   std::move(cdm_attached_cb).Run(true);
   LOG(INFO) << "CDM set successfully.";
+
+  if (state_ != STATE_INIT_PENDING_CDM) {
+    return;
+  }
+
+  DCHECK(init_cb_);
+  state_ = STATE_INITIALIZING;
+  CreatePlayerBridge();
 }
 
 void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(!pending_flush_cb_);
   DCHECK(flush_cb);
+
+  if (!player_bridge_) {
+    return;
+  }
 
   LOG(INFO) << "Flushing StarboardRenderer.";
 
@@ -211,6 +224,7 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   if (audio_read_in_progress_ || video_read_in_progress_) {
     pending_flush_cb_ = std::move(flush_cb);
   } else {
+    state_ = STATE_FLUSHED;
     std::move(flush_cb).Run();
   }
 }
@@ -223,7 +237,13 @@ void StarboardRenderer::StartPlayingFrom(base::TimeDelta time) {
   LOG_IF(WARNING, time < base::Seconds(0))
       << "Potentially invalid start time " << time << '.';
 
+  if (state_ != STATE_FLUSHED) {
+    DCHECK_EQ(state_, STATE_ERROR);
+    return;
+  }
+
   if (player_bridge_initialized_) {
+    state_ = STATE_PLAYING;
     player_bridge_->Seek(time);
     return;
   }
@@ -327,9 +347,10 @@ Renderer::SetBoundsCB StarboardRenderer::GetSetBoundsCB() {
                         set_bounds_helper_);
 }
 
-void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
+void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(init_cb);
+  DCHECK(init_cb_);
+  DCHECK_EQ(state_, STATE_INITIALIZING);
   DCHECK(audio_stream_ || video_stream_);
 
   TRACE_EVENT0("media", "StarboardRenderer::CreatePlayerBridge");
@@ -419,7 +440,8 @@ void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
     player_bridge_->SetPlaybackRate(playback_rate_);
     player_bridge_->SetVolume(volume_);
 
-    std::move(init_cb).Run(PipelineStatus(PIPELINE_OK));
+    state_ = STATE_FLUSHED;
+    std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
     return;
   }
 
@@ -427,7 +449,8 @@ void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
                " valid SbPlayerBridge - \""
             << error_message << "\"";
 
-  std::move(init_cb).Run(PipelineStatus(
+  state_ = STATE_ERROR;
+  std::move(init_cb_).Run(PipelineStatus(
       DECODER_ERROR_NOT_SUPPORTED,
       "SbPlayerPipeline::CreatePlayerBridge() failed to create a valid"
       " SbPlayerBridge - \"" +
@@ -711,8 +734,17 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
 
 void StarboardRenderer::OnPlayerError(SbPlayerError error,
                                       const std::string& message) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   LOG(ERROR) << "StarboardRenderer::OnPlayerError() called with code " << error
              << " and message \"" << message << "\"";
+
+  // An error has already been delivered.
+  if (state_ == STATE_ERROR) {
+    return;
+  }
+
+  state_ = STATE_ERROR;
+
   switch (error) {
     case kSbPlayerErrorDecode:
       MEDIA_LOG(ERROR, media_log_) << message;
