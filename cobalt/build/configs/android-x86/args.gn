@@ -3,6 +3,7 @@ import("//cobalt/build/configs/proprietary_codecs.gn")
 target_os = "android"
 target_cpu = "x86"
 is_cobalt = true
+
 # Overriding flag from //media/media_options.gni.
 # Cobalt doesn't use //third_party/ffmpeg.
 media_use_ffmpeg = false
