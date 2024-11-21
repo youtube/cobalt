@@ -3118,8 +3118,10 @@ bool QuicConnection::ValidateReceivedPacketNumber(
 
 void QuicConnection::WriteQueuedPackets() {
   QUICHE_DCHECK(!writer_->IsWriteBlocked());
+#if !defined(STARBOARD)
   QUIC_CLIENT_HISTOGRAM_COUNTS("QuicSession.NumQueuedPacketsBeforeWrite",
                                buffered_packets_.size(), 1, 1000, 50, "");
+#endif
 
   while (!buffered_packets_.empty()) {
     if (HandleWriteBlocked()) {
