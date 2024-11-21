@@ -23,4 +23,10 @@ int __abi_wrap_readdir_r(DIR* dirp,
 int readdir_r(DIR* dirp, struct dirent* entry, struct dirent** result) {
   return __abi_wrap_readdir_r(dirp, entry, result);
 }
+
+char* __abi_wrap_getenv(const char* name);
+
+char* getenv(const char* name) {
+  return __abi_wrap_getenv(name);
+}
 }

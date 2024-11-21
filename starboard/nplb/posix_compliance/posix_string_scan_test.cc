@@ -15,6 +15,8 @@
 // Here we are not trying to do anything fancy, just to really sanity check that
 // this is hooked up to something.
 
+#include <stdlib.h>
+
 #include "starboard/common/string.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -90,6 +92,9 @@ TEST(PosixStringScanTest, RainyDayIp3) {
   EXPECT_EQ(0, in[3]);
 }
 
+TEST(PosixStringScanTest, TestGetEnv) {
+  SB_LOG(INFO) << getenv("PATH");
+}
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
