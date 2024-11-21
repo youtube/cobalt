@@ -49,16 +49,10 @@ _BUILD_TYPES = {
     'debug': {
         'symbol_level': 2,
         'is_debug': 'true',
-        'is_asan': 'false',
-        'is_lsan': 'false',
-        'is_msan': 'false',
     },
     'devel': {
         'symbol_level': 1,
         'is_debug': 'false',
-        'is_asan': 'false',
-        'is_lsan': 'false',
-        'is_msan': 'false',
     },
     'qa': {
         'symbol_level': 1,
@@ -76,9 +70,6 @@ CONTROLLED_ARGS = [
     'is_debug',  # See build/config/BUILDCONFIG.GN
     'is_official_build',  # mutually exclusive with is_debug
     'symbol_level',  # See build/config/compiler/compiler.gni
-    'is_asan',  # See build/config/sanitizers/sanitizers.gni
-    'is_lsan',  # -"-
-    'is_msan'  # -"-
 ]
 
 
@@ -93,7 +84,7 @@ def write_build_args(build_args_path, original_lines, dict_settings,
         f'The following args cannot be set in configs: {controlled_args}')
   gen_comment = '# Set by gn.py'
   with open(build_args_path, 'w', encoding='utf-8') as f:
-    if os.getenv('USE_RBE', default='0') == '0':
+    if os.getenv('IS_CI', default='0') == '1':
       f.write(f'cc_wrapper = "{CC_WRAPPER}" {gen_comment}\n')
     else:
       f.write(f'use_remoteexec = true {gen_comment}\n')
@@ -105,19 +96,22 @@ def write_build_args(build_args_path, original_lines, dict_settings,
 
 
 def main(out_directory: str, platform: str, build_type: str,
-         overwrite_args: bool, gn_gen_args: List[str]):
+         gn_gen_args: List[str]):
   platform_path = f'cobalt/build/configs/{platform}'
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
   src_args_gn_file = os.path.join(platform_path, 'args.gn')
   Path(out_directory).mkdir(parents=True, exist_ok=True)
 
-  if overwrite_args or not os.path.exists(dst_args_gn_file):
-    build_args = get_build_args(src_args_gn_file)
-    write_build_args(dst_args_gn_file, build_args[0], build_args[1], build_type)
-  else:
-    print(f'{dst_args_gn_file} already exists.' +
-          ' Running ninja will regenerate build files automatically.')
-
+  if os.path.exists(dst_args_gn_file):
+    # Copy the stale args.gn into stale_args.gn
+    stale_dst_args_gn_file = dst_args_gn_file.replace('args', 'stale_args')
+    os.rename(dst_args_gn_file, stale_dst_args_gn_file)
+    print(f' Warning: {dst_args_gn_file} is rewritten.'
+          f' Old file is copied to {stale_dst_args_gn_file}.'
+          'In general, if the file exists, you should run'
+          ' `gn args <out_directory>` to edit it instead.')
+  build_args = get_build_args(src_args_gn_file)
+  write_build_args(dst_args_gn_file, build_args[0], build_args[1], build_type)
   gn_command = ['gn', 'gen', out_directory] + gn_gen_args
   print(' '.join(gn_command))
   subprocess.check_call(gn_command)
@@ -135,11 +129,16 @@ if __name__ == '__main__':
   parser.add_argument(
       '-p',
       '--platform',
-      default='linux',
+      default='linux-x64x11',
       choices=[
-          'linux-x64x11', 'linux-cobalt-x64x11', 'android-arm', 'android-arm64',
-          'android-x86', 'android-cobalt-arm', 'android-cobalt-arm64',
-          'android-cobalt-x86', 'linux'
+          'chromium_linux-x64x11',
+          'chromium_android-arm',
+          'chromium_android-arm64',
+          'chromium_android-x86',
+          'linux-x64x11',
+          'android-arm',
+          'android-arm64',
+          'android-x86',
       ],
       help='The platform to build.')
   parser.add_argument(
@@ -150,15 +149,9 @@ if __name__ == '__main__':
       choices=_BUILD_TYPES.keys(),
       help='The build_type (configuration) to build with.')
   parser.add_argument(
-      '--overwrite_args',
-      default=False,
-      action='store_true',
-      help='Whether or not to overwrite an existing args.gn file if one exists '
-      'in the out directory. In general, if the file exists, you should run '
-      '`gn args <out_directory>` to edit it instead.')
-  parser.add_argument(
       '--no-check',
-      default=False,
+      # TODO: b/377295011 - Enable gn --check
+      default=True,
       action='store_true',
       help='Pass this flag to disable the header dependency gn check.')
   script_args, gen_args = parser.parse_known_args()
@@ -176,4 +169,4 @@ if __name__ == '__main__':
     builds_out_directory = os.path.join(
         BUILDS_DIRECTORY, f'{script_args.platform}_{script_args.build_type}')
   main(builds_out_directory, script_args.platform, script_args.build_type,
-       script_args.overwrite_args, gen_args)
+       gen_args)

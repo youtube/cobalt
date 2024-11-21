@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if (is_cobalt) {
-  import("//starboard/build/buildflags.gni")
-}
+assert(is_cobalt, "This file builds for cobalt builds, not Chromium builds")
+
+import("//starboard/build/buildflags.gni")
 
 source_set("starboard") {
   visibility = [ "//media" ]
@@ -31,9 +31,6 @@ source_set("starboard") {
 
     # TODO(b/375070492): Revisit decode-to-texture
     "COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER=0",
-
-    # TODO(b/328305808): Enable encrypted playbacks
-    "COBALT_MEDIA_ENABLE_ENCRYPTED_PLAYBACKS=0",
 
     # TODO(b/375218518): Revisit FormatSupportQueryMetrics
     "COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS=0",
@@ -57,27 +54,32 @@ source_set("starboard") {
     "COBALT_MEDIA_ENABLE_UMA_METRICS=0",
   ]
 
-  sources = [
-    "sbplayer_bridge.cc",
-    "sbplayer_bridge.h",
-    "sbplayer_interface.cc",
-    "sbplayer_interface.h",
-    "sbplayer_set_bounds_helper.cc",
-    "sbplayer_set_bounds_helper.h",
-    "starboard_renderer.cc",
-    "starboard_renderer.h",
-    "starboard_utils.cc",
-    "starboard_utils.h",
-  ]
+  sources = []
 
-  if (is_cobalt && use_starboard_media) {
+  if (use_starboard_media) {
     sources += [
       "bidirectional_fit_reuse_allocator.cc",
       "bidirectional_fit_reuse_allocator.h",
       "decoder_buffer_allocator.cc",
       "decoder_buffer_allocator.h",
       "decoder_buffer_memory_info.h",
+      "sbplayer_bridge.cc",
+      "sbplayer_bridge.h",
+      "sbplayer_interface.cc",
+      "sbplayer_interface.h",
+      "sbplayer_set_bounds_helper.cc",
+      "sbplayer_set_bounds_helper.h",
+      "starboard_cdm.cc",
+      "starboard_cdm.h",
+      "starboard_cdm_factory.cc",
+      "starboard_cdm_factory.h",
       "starboard_memory_allocator.h",
+      "starboard_renderer.cc",
+      "starboard_renderer.h",
+      "starboard_renderer_factory.cc",
+      "starboard_renderer_factory.h",
+      "starboard_utils.cc",
+      "starboard_utils.h",
     ]
   }
 
@@ -94,9 +96,12 @@ source_set("starboard") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "starboard_utils_test.cc" ]
-  if (is_cobalt && use_starboard_media) {
-    sources += [ "bidirectional_fit_reuse_allocator_test.cc" ]
+  sources = []
+  if (use_starboard_media) {
+    sources += [
+      "bidirectional_fit_reuse_allocator_test.cc",
+      "starboard_utils_test.cc",
+    ]
   }
   configs += [ "//media:media_config" ]
   deps = [

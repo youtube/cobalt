@@ -16,6 +16,8 @@
 
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
+#include "media/base/audio_codecs.h"
+#include "media/base/video_codecs.h"
 #include "starboard/common/media.h"
 
 namespace media {
@@ -55,13 +57,20 @@ bool HasRemoteAudioOutputs(
 
 StarboardRenderer::StarboardRenderer(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-    VideoRendererSink* video_renderer_sink)
-    : task_runner_(task_runner),
+    VideoRendererSink* video_renderer_sink,
+    MediaLog* media_log)
+    : state_(STATE_UNINITIALIZED),
+      task_runner_(task_runner),
       video_renderer_sink_(video_renderer_sink),
-      video_overlay_factory_(std::make_unique<VideoOverlayFactory>()) {
+      media_log_(media_log),
+      video_overlay_factory_(std::make_unique<VideoOverlayFactory>()),
+      set_bounds_helper_(new SbPlayerSetBoundsHelper),
+      cdm_context_(nullptr) {
   DCHECK(task_runner_);
   DCHECK(video_renderer_sink_);
+  DCHECK(media_log_);
   DCHECK(video_overlay_factory_);
+  DCHECK(set_bounds_helper_);
   LOG(INFO) << "StarboardRenderer constructed.";
 }
 
@@ -88,6 +97,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
                                    RendererClient* client,
                                    PipelineStatusCallback init_cb) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK_EQ(state_, STATE_UNINITIALIZED);
   DCHECK(!client_);
   DCHECK(!audio_stream_);
   DCHECK(!video_stream_);
@@ -114,6 +124,7 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
   client_ = client;
+  init_cb_ = std::move(init_cb);
 
   audio_stream_ = media_resource->GetFirstStream(DemuxerStream::AUDIO);
   video_stream_ = media_resource->GetFirstStream(DemuxerStream::VIDEO);
@@ -127,31 +138,73 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
     return;
   }
 
-#if COBALT_MEDIA_ENABLE_ENCRYPTED_PLAYBACKS
-  base::AutoLock auto_lock(lock_);
+  // Enable bit stream converter for aac and h264 streams, which will convert
+  // them into ADTS and Annex B.  This is only required for FFmpegDemuxer, and
+  // has no effect for other demuxers (e.g. ChunkDemuxer).
+  if (audio_stream_ &&
+      audio_stream_->audio_decoder_config().codec() == AudioCodec::kAAC) {
+    LOG(INFO) << "Encountered AAC stream, enabling bit stream converter ...";
+    audio_stream_->EnableBitstreamConverter();
+  }
+
+  if (video_stream_ &&
+      video_stream_->video_decoder_config().codec() == VideoCodec::kH264) {
+    LOG(INFO) << "Encountered H264 stream, enabling bit stream converter ...";
+    video_stream_->EnableBitstreamConverter();
+  }
 
   bool is_encrypted =
       audio_stream_ && audio_stream_->audio_decoder_config().is_encrypted();
   is_encrypted |=
       video_stream_ && video_stream_->video_decoder_config().is_encrypted();
-  if (is_encrypted) {
-    // TODO(b/328305808): Shall we call client_->OnVideoNaturalSizeChange() to
-    // provide an initial size before the license exchange finishes?
-
-    RunSetDrmSystemReadyCB(BindPostTaskToCurrentDefault(
-        base::Bind(&SbPlayerPipeline::CreatePlayer, this)));
+  if (is_encrypted && !cdm_context_) {
+    // TODO(b/328305808): Shall we call client_->OnVideoNaturalSizeChange()
+    // to provide an initial size before the license exchange finishes?
+    LOG(WARNING) << __func__ << ": Has encrypted stream but CDM is not set.";
+    state_ = STATE_INIT_PENDING_CDM;
+    client_->OnWaiting(WaitingReason::kNoCdm);
     return;
   }
-#endif  // COBALT_MEDIA_ENABLE_ENCRYPTED_PLAYBACKS
 
   // |init_cb| will be called inside |CreatePlayerBridge()|.
-  CreatePlayerBridge(std::move(init_cb));
+  state_ = STATE_INITIALIZING;
+  CreatePlayerBridge();
+}
+
+void StarboardRenderer::SetCdm(CdmContext* cdm_context,
+                               CdmAttachedCB cdm_attached_cb) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(cdm_context);
+  TRACE_EVENT0("media", "StarboardRenderer::SetCdm");
+
+  if (SbDrmSystemIsValid(drm_system_)) {
+    LOG(WARNING) << "Switching CDM not supported.";
+    std::move(cdm_attached_cb).Run(false);
+    return;
+  }
+
+  cdm_context_ = cdm_context;
+  drm_system_ = cdm_context_->GetSbDrmSystem();
+  std::move(cdm_attached_cb).Run(true);
+  LOG(INFO) << "CDM set successfully.";
+
+  if (state_ != STATE_INIT_PENDING_CDM) {
+    return;
+  }
+
+  DCHECK(init_cb_);
+  state_ = STATE_INITIALIZING;
+  CreatePlayerBridge();
 }
 
 void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(!pending_flush_cb_);
   DCHECK(flush_cb);
+
+  if (!player_bridge_) {
+    return;
+  }
 
   LOG(INFO) << "Flushing StarboardRenderer.";
 
@@ -171,6 +224,7 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   if (audio_read_in_progress_ || video_read_in_progress_) {
     pending_flush_cb_ = std::move(flush_cb);
   } else {
+    state_ = STATE_FLUSHED;
     std::move(flush_cb).Run();
   }
 }
@@ -183,7 +237,13 @@ void StarboardRenderer::StartPlayingFrom(base::TimeDelta time) {
   LOG_IF(WARNING, time < base::Seconds(0))
       << "Potentially invalid start time " << time << '.';
 
+  if (state_ != STATE_FLUSHED) {
+    DCHECK_EQ(state_, STATE_ERROR);
+    return;
+  }
+
   if (player_bridge_initialized_) {
+    state_ = STATE_PLAYING;
     player_bridge_->Seek(time);
     return;
   }
@@ -282,9 +342,15 @@ base::TimeDelta StarboardRenderer::GetMediaTime() {
   return media_time;
 }
 
-void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
+Renderer::SetBoundsCB StarboardRenderer::GetSetBoundsCB() {
+  return base::BindOnce(&SbPlayerSetBoundsHelper::SetBounds,
+                        set_bounds_helper_);
+}
+
+void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-  DCHECK(init_cb);
+  DCHECK(init_cb_);
+  DCHECK_EQ(state_, STATE_INITIALIZING);
   DCHECK(audio_stream_ || video_stream_);
 
   TRACE_EVENT0("media", "StarboardRenderer::CreatePlayerBridge");
@@ -311,15 +377,10 @@ void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
       video_stream_ ? video_stream_->video_decoder_config()
                     : invalid_video_config;
 
-  std::string audio_mime_type = "";
-  std::string video_mime_type = "";
-
-  // TODO(b/321842876): Enable mime type passing in //media.
-  //
-  // audio_mime_type = audio_stream_ ? audio_stream_->mime_type() : "";
-  // if (video_stream_) {
-  //   video_mime_type = video_stream_->mime_type();
-  // }
+  const std::string audio_mime_type =
+      audio_stream_ ? audio_stream_->mime_type() : "";
+  const std::string video_mime_type =
+      video_stream_ ? video_stream_->mime_type() : "";
 
   std::string error_message;
 
@@ -338,18 +399,10 @@ void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
         &sbplayer_interface_, task_runner_,
         // TODO(b/375070492): Implement decode-to-texture support
         SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
-        audio_config,
-        // TODO(b/321842876): Enable mime type passing in //media.
-        audio_mime_type, video_config,
-        // TODO(b/321842876): Enable mime type passing in //media.
-        video_mime_type,
+        audio_config, audio_mime_type, video_config, video_mime_type,
         // TODO(b/326497953): Support suspend/resume.
         // TODO(b/326508279): Support background mode.
-        kSbWindowInvalid,
-        // TODO(b/328305808): Implement SbDrm support.
-        kSbDrmSystemInvalid, this,
-        // TODO(b/376320224); Verify set bounds works
-        nullptr,
+        kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
         // TODO(b/326497953): Support suspend/resume.
         false,
         // TODO(b/326825450): Revisit 360 videos.
@@ -387,7 +440,8 @@ void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
     player_bridge_->SetPlaybackRate(playback_rate_);
     player_bridge_->SetVolume(volume_);
 
-    std::move(init_cb).Run(PipelineStatus(PIPELINE_OK));
+    state_ = STATE_FLUSHED;
+    std::move(init_cb_).Run(PipelineStatus(PIPELINE_OK));
     return;
   }
 
@@ -395,7 +449,8 @@ void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
                " valid SbPlayerBridge - \""
             << error_message << "\"";
 
-  std::move(init_cb).Run(PipelineStatus(
+  state_ = STATE_ERROR;
+  std::move(init_cb_).Run(PipelineStatus(
       DECODER_ERROR_NOT_SUPPORTED,
       "SbPlayerPipeline::CreatePlayerBridge() failed to create a valid"
       " SbPlayerBridge - \"" +
@@ -411,22 +466,21 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
 
   if (stream->type() == DemuxerStream::AUDIO) {
     const AudioDecoderConfig& decoder_config = stream->audio_decoder_config();
-    player_bridge_->UpdateAudioConfig(decoder_config, "");
+    player_bridge_->UpdateAudioConfig(decoder_config, stream->mime_type());
   } else {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
 
+    base::AutoLock auto_lock(lock_);
+    player_bridge_->UpdateVideoConfig(decoder_config, stream->mime_type());
+
     // TODO(b/375275033): Refine natural size change handling.
 #if 0
-    base::AutoLock auto_lock(lock_);
-
     bool natural_size_changed =
         (decoder_config.natural_size().width() != natural_size_.width() ||
          decoder_config.natural_size().height() != natural_size_.height());
 
     natural_size_ = decoder_config.natural_size();
-
-    player_bridge_->UpdateVideoConfig(decoder_config, "");
 
     if (natural_size_changed) {
       content_size_change_cb_.Run();
@@ -680,10 +734,35 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
 
 void StarboardRenderer::OnPlayerError(SbPlayerError error,
                                       const std::string& message) {
-  // TODO(b/375271948): Implement and verify error reporting.
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   LOG(ERROR) << "StarboardRenderer::OnPlayerError() called with code " << error
              << " and message \"" << message << "\"";
-  NOTIMPLEMENTED();
+
+  // An error has already been delivered.
+  if (state_ == STATE_ERROR) {
+    return;
+  }
+
+  state_ = STATE_ERROR;
+
+  switch (error) {
+    case kSbPlayerErrorDecode:
+      MEDIA_LOG(ERROR, media_log_) << message;
+      client_->OnError(PIPELINE_ERROR_DECODE);
+      break;
+    case kSbPlayerErrorCapabilityChanged:
+      MEDIA_LOG(ERROR, media_log_)
+          << (message.empty()
+                  ? kSbPlayerCapabilityChangedErrorMessage
+                  : base::StringPrintf("%s: %s",
+                                       kSbPlayerCapabilityChangedErrorMessage,
+                                       message.c_str()));
+      client_->OnError(PIPELINE_ERROR_DECODE);
+      break;
+    case kSbPlayerErrorMax:
+      NOTREACHED();
+      break;
+  }
 }
 
 }  // namespace media

@@ -13,7 +13,9 @@
         "gpu_unittests",
         "gin_unittests",
         "blink_unittests",
-        "content_shell"
+        "media_unittests",
+        "content_shell",
+        "cobalt:gn_all"
     ],
     "includes": [
       {

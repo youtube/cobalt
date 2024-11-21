@@ -35,13 +35,6 @@ public class MainActivity extends CobaltActivity {
   protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
     Holder<Activity> activityHolder = new Holder<>();
     Holder<Service> serviceHolder = new Holder<>();
-    Runnable stopRequester =
-        new Runnable() {
-          @Override
-          public void run() {
-            getStarboardBridge().requestStop(0);
-          }
-        };
     StarboardBridge bridge =
         new StarboardBridge(
             getApplicationContext(),

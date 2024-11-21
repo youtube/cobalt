@@ -303,6 +303,12 @@ class WebMediaPlayer {
   // Sets the poster image URL.
   virtual void SetPoster(const WebURL& poster) {}
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Return SetBoundsCB if SbPlayer is used for rendering.
+  using SetBoundsCB = base::OnceCallback<bool(int x, int y, int width, int height)>;
+  virtual SetBoundsCB GetSetBoundsCB() { return SetBoundsCB(); }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // Inform WebMediaPlayer when the element has entered/exited fullscreen.
   virtual void EnteredFullscreen() {}
   virtual void ExitedFullscreen() {}

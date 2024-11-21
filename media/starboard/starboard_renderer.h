@@ -26,6 +26,7 @@
 #include "media/base/cdm_context.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
+#include "media/base/media_log.h"
 #include "media/base/media_resource.h"
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer.h"
@@ -33,6 +34,7 @@
 #include "media/base/video_renderer_sink.h"
 #include "media/renderers/video_overlay_factory.h"
 #include "media/starboard/sbplayer_bridge.h"
+#include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
@@ -43,7 +45,8 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
                                              private SbPlayerBridge::Host {
  public:
   StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-                    VideoRendererSink* video_renderer_sink);
+                    VideoRendererSink* video_renderer_sink,
+                    MediaLog* media_log);
 
   ~StarboardRenderer() final;
 
@@ -51,10 +54,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   void Initialize(MediaResource* media_resource,
                   RendererClient* client,
                   PipelineStatusCallback init_cb) final;
-  void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) final {
-    // TODO(b/328305808): Implement encrypted playback.
-    NOTIMPLEMENTED();
-  }
+  void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) final;
   void SetLatencyHint(absl::optional<base::TimeDelta> latency_hint) final {
     // TODO(b/375271848): Address NOTIMPLEMENTED().
     NOTIMPLEMENTED();
@@ -90,9 +90,19 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
     // TODO(b/375278384): Properly setup the renderer type.
     return RendererType::kRendererImpl;
   }
+  SetBoundsCB GetSetBoundsCB() override;
 
  private:
-  void CreatePlayerBridge(PipelineStatusCallback init_cb);
+  enum State {
+    STATE_UNINITIALIZED,
+    STATE_INIT_PENDING_CDM,  // Initialization is waiting for the CDM to be set.
+    STATE_INITIALIZING,      // Initializing to create SbPlayerBridge.
+    STATE_FLUSHED,           // After initialization or after flush completed.
+    STATE_PLAYING,           // After StartPlayingFrom has been called.
+    STATE_ERROR
+  };
+
+  void CreatePlayerBridge();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
                            DemuxerStream::Status status,
@@ -103,22 +113,29 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   void OnPlayerStatus(SbPlayerState state) final;
   void OnPlayerError(SbPlayerError error, const std::string& message) final;
 
-  scoped_refptr<base::SequencedTaskRunner> task_runner_;
+  State state_;
 
+  scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const raw_ptr<VideoRendererSink> video_renderer_sink_;
+  const raw_ptr<MediaLog> media_log_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
-  // TODO(b/375273774): Consider calling `void OnWaiting(WaitingReason reason)`
-  //                    on `client_`.
   // TODO(b/375274109): Investigate whether we should call
   //                    `void OnVideoFrameRateChange(absl::optional<int> fps)`
   //                    on `client_`?
   raw_ptr<RendererClient> client_ = nullptr;
 
+  // Temporary callback used for Initialize().
+  PipelineStatusCallback init_cb_;
+
   // Overlay factory used to create overlays for video frames rendered
   // by the remote renderer.
   std::unique_ptr<VideoOverlayFactory> video_overlay_factory_;
+
+  scoped_refptr<SbPlayerSetBoundsHelper> set_bounds_helper_;
+
+  raw_ptr<CdmContext> cdm_context_;
 
   DefaultSbPlayerInterface sbplayer_interface_;
   // TODO(b/326652276): Support audio write duration.
@@ -126,6 +143,8 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   const base::TimeDelta audio_write_duration_remote_ = base::Seconds(10);
   // TODO(b/375674101): Support batched samples write.
   const int max_audio_samples_per_write_ = 1;
+
+  SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 
   base::Lock lock_;
   std::unique_ptr<SbPlayerBridge> player_bridge_;
@@ -145,6 +164,12 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
 
   uint32_t last_video_frames_decoded_ = 0;
   uint32_t last_video_frames_dropped_ = 0;
+
+  // Message to signal a capability changed error.
+  // "MEDIA_ERR_CAPABILITY_CHANGED" must be in the error message to be
+  // understood as a capability changed error. Do not change this message.
+  static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
+      "MEDIA_ERR_CAPABILITY_CHANGED";
 
   base::WeakPtrFactory<StarboardRenderer> weak_factory_{this};
   base::WeakPtr<StarboardRenderer> weak_this_{weak_factory_.GetWeakPtr()};

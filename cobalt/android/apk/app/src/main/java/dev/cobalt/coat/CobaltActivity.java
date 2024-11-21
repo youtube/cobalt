@@ -36,6 +36,7 @@ import dev.cobalt.app.CobaltApplication;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.H5vccPlatformService;
+import dev.cobalt.coat.javabridge.HTMLMediaElementExtension;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
@@ -51,6 +52,7 @@ import org.chromium.base.CommandLine;
 import org.chromium.base.MemoryPressureListener;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
+import org.chromium.components.version_info.VersionInfo;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
@@ -103,22 +105,32 @@ public abstract class CobaltActivity extends Activity {
       String[] cobaltCommandLineParams =
           new String[] {
             "",
-            // disable first run experience
+            // Disable first run experience.
             "--disable-fre",
-            // disable user prompts in the first run
+            // Disable user prompts in the first run.
             "--no-first-run",
-            // run Cobalt as a single process
+            // Run Cobalt as a single process.
             "--single-process",
-            // enable Blink to work in overlay video mode
+            // Enable Blink to work in overlay video mode.
             "--force-video-overlays",
-            // autoplay video with url
+            // Autoplay video with url.
             "--autoplay-policy=no-user-gesture-required",
-            // remove below if Cobalt rebase to m120+
+            // Remove below if Cobalt rebase to m120+.
             "--user-level-memory-pressure-signal-params",
-            // pass javascript console log to adb log
-            "--enable-features=LogJsConsoleMessages"
+            // Pass javascript console log to adb log.
+            "--enable-features=LogJsConsoleMessages",
+            // Disable rescaling Webpage.
+            "--force-device-scale-factor=1",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
+
+      if (!VersionInfo.isOfficialBuild()) {
+        String[] debugCommandLineParams =
+            new String[] {
+              "--remote-allow-origins=https://chrome-devtools-frontend.appspot.com",
+            };
+        CommandLine.getInstance().appendSwitchesAndArguments(debugCommandLineParams);
+      }
 
       String[] commandLineParams = getCommandLineParamsFromIntent(getIntent());
       if (commandLineParams != null) {
@@ -166,11 +178,12 @@ public abstract class CobaltActivity extends Activity {
     }
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
-      mStartupUrl = Arrays.stream(args)
-                     .filter(line -> line.contains(URL_ARG))
-                     .findAny()
-                     .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
-                     .orElse(null);
+      mStartupUrl =
+          Arrays.stream(args)
+              .filter(line -> line.contains(URL_ARG))
+              .findAny()
+              .map(arg -> arg.substring(arg.indexOf(URL_ARG) + URL_ARG.length()))
+              .orElse(null);
     }
     if (!TextUtils.isEmpty(mStartupUrl)) {
       mShellManager.setStartupUrl(Shell.sanitizeUrl(mStartupUrl));
@@ -335,9 +348,6 @@ public abstract class CobaltActivity extends Activity {
   // TODO(b/375442742): re-enable native code.
   // private static native void nativeLowMemoryEvent();
 
-  // TODO(cobalt): make WebContent accessible in CobaltActivity or StarboardBridge.
-  // protected View mContentView = null;
-
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     // Record the application start timestamp.
@@ -357,8 +367,8 @@ public abstract class CobaltActivity extends Activity {
   }
 
   /**
-   * Initializes the Java Bridge to allow communication between Java and JavaScript.
-   * This method injects Java objects into the WebView and loads corresponding JavaScript code.
+   * Initializes the Java Bridge to allow communication between Java and JavaScript. This method
+   * injects Java objects into the WebView and loads corresponding JavaScript code.
    */
   private void initializeJavaBridge() {
     Log.i(TAG, "initializeJavaBridge");
@@ -368,9 +378,9 @@ public abstract class CobaltActivity extends Activity {
     }
 
     // 1. Gather all Java objects that need to be exposed to JavaScript.
-    // javaScriptAndroidObjectList.add(new AmatiDeviceInspector(this));
+    // TODO(b/379701165): consider to refine the way to add JavaScript interfaces.
     javaScriptAndroidObjectList.add(new H5vccPlatformService(this, getStarboardBridge()));
-
+    javaScriptAndroidObjectList.add(new HTMLMediaElementExtension(this));
 
     // 2. Use JavascriptInjector to inject Java objects into the WebContents.
     //    This makes the annotated methods in these objects accessible from JavaScript.

@@ -239,7 +239,6 @@ static_library("starboard_platform") {
     "media_settings_api.cc",
     "media_settings_api.h",
     "microphone_impl.cc",
-    "network_status_impl.cc",
     "platform_info.cc",
     "platform_info.h",
     "platform_service.cc",

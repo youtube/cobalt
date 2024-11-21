@@ -39,7 +39,6 @@ android_library("cobalt_apk_java") {
   deps = [
     ":cobalt_java_resources",
     "//base:base_java",
-    "//base:base_java",
     "//base:process_launcher_java",
     "//build/android:build_java",
     "//components/embedder_support/android:view_java",
@@ -69,6 +68,7 @@ android_library("cobalt_apk_java") {
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptAndroidObject.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/CobaltJavaScriptInterface.java",
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/H5vccPlatformService.java",
+    "apk/app/src/main/java/dev/cobalt/coat/javabridge/HTMLMediaElementExtension.java",
 
     # "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
@@ -118,8 +118,6 @@ android_library("cobalt_apk_java") {
 android_assets("cobalt_apk_assets") {
   testonly = true
   sources = [
-    # "apk/app/src/app/assets/amati_device_inspector.js",
-    # "apk/app/src/app/assets/h5vcc_platform_service.js",
     "apk/app/src/app/assets/not_empty.txt",
     "apk/app/src/app/assets/test/not_empty.txt",
     "apk/app/src/app/assets/web/cobalt_blue_splash_screen.css",
@@ -163,6 +161,8 @@ shared_library("libcobalt_content_shell_content_view") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
+    "//cobalt:common",
+
     # TODO: what can be removed in the dependencies?
     "//components/crash/content/browser",
     "//content/shell:content_shell_app",

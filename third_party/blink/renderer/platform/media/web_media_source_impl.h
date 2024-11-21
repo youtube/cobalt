@@ -36,6 +36,11 @@ class PLATFORM_EXPORT WebMediaSourceImpl : public WebMediaSource {
   std::unique_ptr<WebSourceBuffer> AddSourceBuffer(
       std::unique_ptr<media::VideoDecoderConfig> video_config,
       AddStatus& out_status /* out */) override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::unique_ptr<WebSourceBuffer> AddSourceBuffer(
+      const WebString& mime_type,
+      AddStatus& out_status /* out */) override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   double Duration() override;
   void SetDuration(double duration) override;
   void MarkEndOfStream(EndOfStreamStatus status) override;

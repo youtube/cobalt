@@ -92,6 +92,9 @@
 #include "media/cdm/fuchsia/fuchsia_cdm_factory.h"
 #include "media/fuchsia/video/fuchsia_decoder_factory.h"
 #include "media/mojo/clients/mojo_fuchsia_cdm_provider.h"
+#elif BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/starboard_cdm_factory.h"
+#include "media/starboard/starboard_renderer_factory.h"
 #elif BUILDFLAG(ENABLE_MOJO_CDM)
 #include "media/mojo/clients/mojo_cdm_factory.h"  // nogncheck
 #else
@@ -745,10 +748,18 @@ MediaFactory::CreateRendererFactorySelector(
     // this method were significantly refactored to split things up by
     // Android/non-Android/Cast/etc...
     is_base_renderer_factory_set = true;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    // TODO(b/326827007): Revisit renderer to support secondary videos.
+    factory_selector->AddFactory(
+        RendererType::kStarboard,
+        std::make_unique<media::StarboardRendererFactory>(media_log));
+    factory_selector->SetBaseRendererType(RendererType::kStarboard);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     auto renderer_impl_factory = CreateRendererImplFactory(
         player_id, media_log, decoder_factory, render_thread, render_frame_);
     factory_selector->AddBaseFactory(RendererType::kRendererImpl,
                                      std::move(renderer_impl_factory));
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   return factory_selector;
@@ -855,6 +866,8 @@ media::CdmFactory* MediaFactory::GetCdmFactory() {
   DCHECK(interface_broker_);
   cdm_factory_ = std::make_unique<media::FuchsiaCdmFactory>(
       std::make_unique<media::MojoFuchsiaCdmProvider>(interface_broker_));
+#elif BUILDFLAG(USE_STARBOARD_MEDIA)
+  cdm_factory_ = std::make_unique<media::StarboardCdmFactory>();
 #elif BUILDFLAG(ENABLE_MOJO_CDM)
   cdm_factory_ =
       std::make_unique<media::MojoCdmFactory>(GetMediaInterfaceFactory());
