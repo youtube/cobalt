@@ -14,6 +14,10 @@ chrome_pgo_phase = 0
 # Disable Vulkan until we formally decide to support it.
 enable_vulkan = false
 
+# TODO(b/380293712): Uncomment the following line when linux can build
+# without ffmpeg.
+# media_use_ffmpeg = false
+
 # TODO(b/378934120): Remove flags below this line
 
 # These flags come from build/config/clang/clang.gni
