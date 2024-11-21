@@ -10,6 +10,9 @@ inputs:
   platform:
     description: "Platform on which to run tests."
     required: true
+  config:
+    description: "Environment e.g. devel, qa"
+    required: true
 runs:
   using: "composite"
   steps:
@@ -36,9 +39,10 @@ runs:
         pwd
         ls
 
+        # Update path to find missing library linkages.
+        export LD_LIBRARY_PATH="${GITHUB_WORKSPACE}"/unit_test/out/${{ inputs.platform }}_${{ inputs.config }}/starboard:"${GITHUB_WORKSPACE}"/unit_test/out/${{ inputs.platform }}_${{ inputs.config }}
+
         cd ${GITHUB_WORKSPACE}/unit_test
-        echo "sleeping for 1 hr..."
-        sleep 1h
         for test_binary in $(ls -d out/**/*tests); do
           # TODO(b/372303096): Need dedicated xvfb runner.
           echo "Running tests for suite: ${test_binary}"
