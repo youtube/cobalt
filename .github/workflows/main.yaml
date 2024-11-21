@@ -193,7 +193,6 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           results_dir: ${{ env.TEST_RESULTS_DIR }}
           platform: ${{ inputs.platform }}
-          config: ${{ matrix.config }}
       - name: Run On-Device Tests
         if: needs.initialize.outputs.test_on_device == 'true'
         uses: ./src/.github/actions/on_device_tests
