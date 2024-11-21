@@ -36,10 +36,10 @@ _WORKSPACE_COBALT_VAR = 'WORKSPACE_COBALT'
 _SERVICE_NOT_FOUND = 'SERVICE_NOT_FOUND'
 
 _PLATFORM_TO_SERVICE_MAP = {
-    "android-x86": "linux",
-    "android-arm": "linux",
-    "android-arm64": "linux",
-    "linux-x64x11": "linux",
+    'android-x86': 'linux',
+    'android-arm': 'linux',
+    'android-arm64': 'linux',
+    'linux-x64x11': 'linux',
 }
 
 _REGISTRY_FAILURE_IMAGE = 'docker-build-failure'
