@@ -39,7 +39,7 @@ _PLATFORM_TO_SERVICE_MAP = {
     'android-x86': 'linux',
     'android-arm': 'linux',
     'android-arm64': 'linux',
-    'linux-x64x11': 'linux',
+    'linux-x64x11-internal': 'linux',
 }
 
 _REGISTRY_FAILURE_IMAGE = 'docker-build-failure'
