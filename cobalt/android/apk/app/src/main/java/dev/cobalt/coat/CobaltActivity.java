@@ -388,8 +388,13 @@ public abstract class CobaltActivity extends Activity {
 
     javascriptInjector.setAllowInspection(true);
     for (CobaltJavaScriptAndroidObject javascriptAndroidObject : javaScriptAndroidObjectList) {
-      Log.d(TAG, "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
-      javascriptInjector.addPossiblyUnsafeInterface(javascriptAndroidObject, javascriptAndroidObject.getJavaScriptInterfaceName(), CobaltJavaScriptInterface.class);
+      Log.d(
+          TAG,
+          "Add JavaScriptAndroidObject:" + javascriptAndroidObject.getJavaScriptInterfaceName());
+      javascriptInjector.addPossiblyUnsafeInterface(
+          javascriptAndroidObject,
+          javascriptAndroidObject.getJavaScriptInterfaceName(),
+          CobaltJavaScriptInterface.class);
     }
   }
 
