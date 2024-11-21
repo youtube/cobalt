@@ -93,10 +93,21 @@ QuicChromiumPacketWriter::QuicChromiumPacketWriter(
       &QuicChromiumPacketWriter::OnWriteComplete, weak_factory_.GetWeakPtr());
 }
 
-QuicChromiumPacketWriter::~QuicChromiumPacketWriter() = default;
+QuicChromiumPacketWriter::~QuicChromiumPacketWriter() {
+  while (force_write_blocked_count_ > 0)
+    set_force_write_blocked(false);
+}
 
 void QuicChromiumPacketWriter::set_force_write_blocked(
     bool force_write_blocked) {
+  if (force_write_blocked) {
+    if (++force_write_blocked_count_ > 1)
+      return;
+  } else {
+    if (--force_write_blocked_count_ > 0)
+      return;
+  }
+
   force_write_blocked_ = force_write_blocked;
   if (!IsWriteBlocked() && delegate_ != nullptr)
     delegate_->OnWriteUnblocked();
@@ -133,7 +144,7 @@ quic::WriteResult QuicChromiumPacketWriter::WritePacket(
 
 void QuicChromiumPacketWriter::WritePacketToSocket(
     scoped_refptr<ReusableIOBuffer> packet) {
-  DCHECK(!force_write_blocked_);
+  CHECK(!force_write_blocked_);
   packet_ = std::move(packet);
   quic::WriteResult result = WritePacketToSocketImpl();
   if (result.error_code != ERR_IO_PENDING)

@@ -38,6 +38,7 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
     virtual bool OnPacket(const quic::QuicReceivedPacket& packet,
                           const quic::QuicSocketAddress& local_address,
                           const quic::QuicSocketAddress& peer_address) = 0;
+    virtual void set_force_write_blocked(bool force_write_blocked);
   };
 
   QuicChromiumPacketReader(DatagramClientSocket* socket,
@@ -69,6 +70,7 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketReader {
   void OnReadMultiplePacketComplete(int result);
   // Return true if reading should continue.
   bool ProcessMultiplePacketReadResult(int result);
+  bool ProcessMultiplePacketReadResultInternal(int result);
 #endif
 
   raw_ptr<DatagramClientSocket, DanglingUntriaged> socket_;

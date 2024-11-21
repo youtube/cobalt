@@ -3613,6 +3613,16 @@ bool QuicChromiumClientSession::OnPacket(
   return true;
 }
 
+void QuicChromiumClientSession::set_force_write_blocked(
+    bool force_write_blocked) {
+  quic::QuicConnection* quic_connection = connection();
+  QuicChromiumPacketWriter* writer = static_cast<QuicChromiumPacketWriter*>(
+      quic_connection ? quic_connection->writer() : nullptr);
+  if (writer) {
+    writer->set_force_write_blocked(force_write_blocked);
+  }
+}
+
 void QuicChromiumClientSession::NotifyFactoryOfSessionGoingAway() {
   going_away_ = true;
   if (stream_factory_)
