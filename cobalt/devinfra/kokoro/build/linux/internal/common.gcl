@@ -25,7 +25,7 @@ build = common.build {
     },
     {
       key = 'TARGET'
-      value = 'default'
+      value = 'cobalt:gn_all'
     },
     {
       key = 'TARGET_PLATFORM'
