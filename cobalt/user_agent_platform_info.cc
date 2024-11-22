@@ -25,6 +25,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
 #include "base/system/sys_info_starboard.h"
+#include "starboard/extension/platform_info.h"
 
 namespace cobalt {
 
@@ -238,13 +239,28 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   // #endif
 
   // Retrieve additional platform info.
-
-  // TODO(cobalt, b/374213479): How to retrieve the additional platform info?
-  // C25 builds it using a Cobalt extension.
-  info.set_android_build_fingerprint(
-      "google/sabrina/sabrina:12/STTL.241013.003/12571383:userdebug/dev-keys");
-  info.set_android_os_experience("Amati");
-  info.set_android_play_services_version("244337110");
+  auto platform_info_extension =
+      static_cast<const CobaltExtensionPlatformInfoApi*>(
+          SbSystemGetExtension(kCobaltExtensionPlatformInfoName));
+  if (platform_info_extension) {
+    if (platform_info_extension->version >= 1) {
+      char value[1024];
+      bool result =
+          platform_info_extension->GetFirmwareVersionDetails(value, 1024);
+      if (result) {
+        info.set_android_build_fingerprint(value);
+      }
+      info.set_android_os_experience(
+          platform_info_extension->GetOsExperience());
+    }
+    if (platform_info_extension->version >= 2) {
+      int64_t ver = platform_info_extension->GetCoreServicesVersion();
+      if (ver != 0) {
+        std::string sver = std::to_string(ver);
+        info.set_android_play_services_version(sver);
+      }
+    }
+  }
 
   // TODO(cobalt, b/374213479): How to determine below Cobalt build macros.
   // Migrate cobalt/build/build_info.py from C25?

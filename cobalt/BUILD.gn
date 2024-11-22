@@ -67,7 +67,10 @@ static_library("common") {
     "user_agent_platform_info.h",
   ]
 
-  deps = [ "//base" ]
+  deps = [
+    "//base",
+    "//starboard/common",
+  ]
 }
 
 target(gtest_target_type, "common_unittests") {
