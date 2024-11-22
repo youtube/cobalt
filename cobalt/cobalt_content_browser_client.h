@@ -29,6 +29,8 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   std::string GetFullUserAgent() override;
   std::string GetReducedUserAgent() override;
   blink::UserAgentMetadata GetUserAgentMetadata() override;
+  void OverrideWebkitPrefs(content::WebContents* web_contents,
+                           blink::web_pref::WebPreferences* prefs) override;
 };
 
 }  // namespace cobalt
