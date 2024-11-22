@@ -152,7 +152,6 @@ Java_dev_cobalt_media_VideoSurfaceView_nativeOnVideoSurfaceChanged(
   if (surface) {
     g_j_video_surface = env->NewGlobalRef(surface);
     g_native_video_window = ANativeWindow_fromSurface(env, surface);
-    ClearNativeWindow(g_native_video_window);
   }
 }
 
