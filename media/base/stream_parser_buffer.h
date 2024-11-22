@@ -193,6 +193,8 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
     is_duration_estimated_ = is_estimated;
   }
 
+  size_t GetMemoryUsage() const override;
+
  private:
   StreamParserBuffer(std::unique_ptr<ExternalMemory> external_memory,
                      bool is_key_frame,

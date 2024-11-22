@@ -131,7 +131,7 @@ class MEDIA_EXPORT FFmpegDemuxerStream : public DemuxerStream {
   // Returns true if this stream has capacity for additional data.
   bool HasAvailableCapacity();
 
-  // Returns the total buffer size FFMpegDemuxerStream is holding onto.
+  // Returns the total memory usage of FFMpegDemuxerStream.
   size_t MemoryUsage() const;
 
   TextKind GetTextKind() const;
