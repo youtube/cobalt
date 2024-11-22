@@ -45,90 +45,6 @@ VideoSurfaceHolder* g_video_surface_holder = NULL;
 // vertical video.
 bool g_reset_surface_on_clear_window = false;
 
-void ClearNativeWindow(ANativeWindow* native_window) {
-  EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-  eglInitialize(display, NULL, NULL);
-  if (display == EGL_NO_DISPLAY) {
-    SB_DLOG(ERROR) << "Found no EGL display in ClearVideoWindow";
-    return;
-  }
-
-  const EGLint kAttributeList[] = {
-      EGL_RED_SIZE,
-      8,
-      EGL_GREEN_SIZE,
-      8,
-      EGL_BLUE_SIZE,
-      8,
-      EGL_ALPHA_SIZE,
-      8,
-      EGL_RENDERABLE_TYPE,
-      EGL_OPENGL_ES2_BIT,
-      EGL_NONE,
-      0,
-      EGL_NONE,
-  };
-
-  // First, query how many configs match the given attribute list.
-  EGLint num_configs = 0;
-  EGL_CALL(eglChooseConfig(display, kAttributeList, NULL, 0, &num_configs));
-  SB_DCHECK(num_configs != 0);
-
-  // Allocate space to receive the matching configs and retrieve them.
-  EGLConfig* configs = new EGLConfig[num_configs];
-  EGL_CALL(eglChooseConfig(display, kAttributeList, configs, num_configs,
-                           &num_configs));
-
-  EGLNativeWindowType egl_native_window =
-      static_cast<EGLNativeWindowType>(native_window);
-  EGLConfig config;
-
-  // Find the first config that successfully allow a window surface to be
-  // created.
-  EGLSurface surface;
-  for (int config_number = 0; config_number < num_configs; ++config_number) {
-    config = configs[config_number];
-    surface = eglCreateWindowSurface(display, config, egl_native_window, NULL);
-    if (eglGetError() == EGL_SUCCESS) {
-      break;
-    }
-  }
-  if (surface == EGL_NO_SURFACE) {
-    SB_DLOG(ERROR) << "Found no EGL surface in ClearVideoWindow";
-    return;
-  }
-  SB_DCHECK(surface != EGL_NO_SURFACE);
-
-  delete[] configs;
-
-  // Create an OpenGL ES 2.0 context.
-  EGLContext context = EGL_NO_CONTEXT;
-  EGLint context_attrib_list[] = {
-      EGL_CONTEXT_CLIENT_VERSION,
-      2,
-      EGL_NONE,
-  };
-  context =
-      eglCreateContext(display, config, EGL_NO_CONTEXT, context_attrib_list);
-  SB_DCHECK(eglGetError() == EGL_SUCCESS);
-  SB_DCHECK(context != EGL_NO_CONTEXT);
-
-  /* connect the context to the surface */
-  EGL_CALL(eglMakeCurrent(display, surface, surface, context));
-
-  GL_CALL(glClearColor(0, 0, 0, 1));
-  GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
-  GL_CALL(glFlush());
-  EGL_CALL(eglSwapBuffers(display, surface));
-
-  // Cleanup all used resources.
-  EGL_CALL(
-      eglMakeCurrent(display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT));
-  EGL_CALL(eglDestroyContext(display, context));
-  EGL_CALL(eglDestroySurface(display, surface));
-  EGL_CALL(eglTerminate(display));
-}
-
 }  // namespace
 
 extern "C" SB_EXPORT_PLATFORM void
@@ -152,7 +68,6 @@ Java_dev_cobalt_media_VideoSurfaceView_nativeOnVideoSurfaceChanged(
   if (surface) {
     g_j_video_surface = env->NewGlobalRef(surface);
     g_native_video_window = ANativeWindow_fromSurface(env, surface);
-    ClearNativeWindow(g_native_video_window);
   }
 }
 
@@ -229,7 +144,6 @@ void VideoSurfaceHolder::ClearVideoWindow(bool force_reset_surface) {
       return;
     }
   }
-  ClearNativeWindow(g_native_video_window);
 }
 
 }  // namespace shared
