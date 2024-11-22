@@ -179,8 +179,6 @@ jobs:
       TMPDIR: /__w/_temp
       TEST_RESULTS_DIR: ${{ matrix.name }}_test_results
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
-      IS_POSTSUBMIT: ${{ github.event_name == 'schedule' || github.event_name == 'push' }}
-      TESTING_ENABLED: ${{ needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.test_on_device == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

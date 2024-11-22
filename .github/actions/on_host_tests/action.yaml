@@ -33,8 +33,6 @@ runs:
       run: |
         set -x
         env
-        pwd
-        ls
 
         # Update path to find missing library linkages.
         export LD_LIBRARY_PATH="${GITHUB_WORKSPACE}"/unit_test/out/${{ matrix.platform }}_${{ matrix.config }}/starboard:"${GITHUB_WORKSPACE}"/unit_test/out/${{ matrix.platform }}_${{ matrix.config }}
