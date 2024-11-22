@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="AllTests" tests="45" failures="0" disabled="0" errors="0" time="0.971" timestamp="2024-11-14T23:22:19">
+  <testsuite name="ArgumentsTest" tests="2" failures="0" disabled="0" errors="0" time="0.052" timestamp="2024-11-14T23:22:19">
+    <testcase name="TestArgumentsHolderCreationContext" status="run" time="0.030" timestamp="2024-11-14T23:22:18" classname="ArgumentsTest">
+    </testcase>
+    <testcase name="TestGetAll" status="run" time="0.022" timestamp="2024-11-14T23:22:18" classname="ArgumentsTest">
+    </testcase>
+  </testsuite>
+  <testsuite name="ArrayBufferTest" tests="1" failures="0" disabled="0" errors="0" time="0.021" timestamp="2024-11-14T23:22:19">
+    <testcase name="AllocateAndFreeBuffer" status="run" time="0.021" timestamp="2024-11-14T23:22:18" classname="ArrayBufferTest">
+    </testcase>
+  </testsuite>
+  <testsuite name="ConverterTest" tests="7" failures="0" disabled="0" errors="0" time="0.147" timestamp="2024-11-14T23:22:19">
+    <testcase name="Bool" status="run" time="0.021" timestamp="2024-11-14T23:22:18" classname="ConverterTest">
+    </testcase>
+    <testcase name="Int32" status="run" time="0.021" timestamp="2024-11-14T23:22:18" classname="ConverterTest">
+    </testcase>
+    <testcase name="MoveOnlyParameters" status="run" time="0.021" timestamp="2024-11-14T23:22:18" classname="ConverterTest">
+    </testcase>
+    <testcase name="String16" status="run" time="0.021" timestamp="2024-11-14T23:22:18" classname="ConverterTest">
+    </testcase>
+    <testcase name="Vector" status="run" time="0.021" timestamp="2024-11-14T23:22:18" classname="ConverterTest">
+    </testcase>
+    <testcase name="VectorOfVectors" status="run" time="0.021" timestamp="2024-11-14T23:22:18" classname="ConverterTest">
+    </testcase>
+    <testcase name="VectorOfWrappables" status="run" time="0.021" timestamp="2024-11-14T23:22:18" classname="ConverterTest">
+    </testcase>
+  </testsuite>
+  <testsuite name="DataObjectBuilderTest" tests="5" failures="0" disabled="0" errors="0" time="0.177" timestamp="2024-11-14T23:22:19">
+    <testcase name="CreatesDataProperties" status="run" time="0.027" timestamp="2024-11-14T23:22:18" classname="DataObjectBuilderTest">
+    </testcase>
+    <testcase name="CreatesDataPropertiesForIndices" status="run" time="0.021" timestamp="2024-11-14T23:22:18" classname="DataObjectBuilderTest">
+    </testcase>
+    <testcase name="DoesNotInvokeSetters" status="run" time="0.021" timestamp="2024-11-14T23:22:18" classname="DataObjectBuilderTest">
+    </testcase>
+    <testcase name="ReplacesExistingProperties" status="run" time="0.022" timestamp="2024-11-14T23:22:18" classname="DataObjectBuilderTest">
+    </testcase>
+    <testcase name="UnusableAfterBuild" status="run" time="0.086" timestamp="2024-11-14T23:22:18" classname="DataObjectBuilderTest">
+    </testcase>
+  </testsuite>
+  <testsuite name="GinShellTest" tests="1" failures="0" disabled="0" errors="0" time="0.042" timestamp="2024-11-14T23:22:19">
+    <testcase name="HelloWorld" status="run" time="0.042" timestamp="2024-11-14T23:22:19" classname="GinShellTest">
+    </testcase>
+  </testsuite>
+  <testsuite name="InterceptorTest" tests="5" failures="0" disabled="0" errors="0" time="0.107" timestamp="2024-11-14T23:22:19">
+    <testcase name="BypassInterceptorAllowed" status="run" time="0.022" timestamp="2024-11-14T23:22:18" classname="InterceptorTest">
+    </testcase>
+    <testcase name="BypassInterceptorForbidden" status="run" time="0.021" timestamp="2024-11-14T23:22:19" classname="InterceptorTest">
+    </testcase>
+    <testcase name="IndexedInterceptor" status="run" time="0.021" timestamp="2024-11-14T23:22:18" classname="InterceptorTest">
+    </testcase>
+    <testcase name="NamedInterceptor" status="run" time="0.022" timestamp="2024-11-14T23:22:18" classname="InterceptorTest">
+    </testcase>
+    <testcase name="NamedInterceptorCall" status="run" time="0.021" timestamp="2024-11-14T23:22:18" classname="InterceptorTest">
+    </testcase>
+  </testsuite>
+  <testsuite name="PerContextDataTest" tests="1" failures="0" disabled="0" errors="0" time="0.029" timestamp="2024-11-14T23:22:19">
+    <testcase name="LookupAndDestruction" status="run" time="0.029" timestamp="2024-11-14T23:22:19" classname="PerContextDataTest">
+    </testcase>
+  </testsuite>
+  <testsuite name="RunnerTest" tests="1" failures="0" disabled="0" errors="0" time="0.023" timestamp="2024-11-14T23:22:19">
+    <testcase name="Run" status="run" time="0.023" timestamp="2024-11-14T23:22:19" classname="RunnerTest">
+    </testcase>
+  </testsuite>
+  <testsuite name="TimeClamperTest" tests="4" failures="0" disabled="0" errors="0" time="0.000" timestamp="2024-11-14T23:22:19">
+    <testcase name="CurrentClockTimeMilliseconds" status="run" time="0.000" timestamp="2024-11-14T23:22:19" classname="TimeClamperTest">
+    </testcase>
+    <testcase name="CurrentClockTimeMillisecondsHighResolution" status="run" time="0.000" timestamp="2024-11-14T23:22:19" classname="TimeClamperTest">
+    </testcase>
+    <testcase name="CurrentClockTimeMillisecondsThreshold" status="run" time="0.000" timestamp="2024-11-14T23:22:19" classname="TimeClamperTest">
+    </testcase>
+    <testcase name="CurrentClockTimeMillisecondsThresholdNegative" status="run" time="0.000" timestamp="2024-11-14T23:22:19" classname="TimeClamperTest">
+    </testcase>
+  </testsuite>
+  <testsuite name="V8MemoryDumpProviderTest" tests="5" failures="0" disabled="0" errors="0" time="0.140" timestamp="2024-11-14T23:22:19">
+    <testcase name="Deterministic" status="run" time="0.042" timestamp="2024-11-14T23:22:19" classname="V8MemoryDumpProviderTest">
+    </testcase>
+    <testcase name="DumpCodeStatistics" status="run" time="0.026" timestamp="2024-11-14T23:22:19" classname="V8MemoryDumpProviderTest">
+    </testcase>
+    <testcase name="DumpContextStatistics" status="run" time="0.022" timestamp="2024-11-14T23:22:19" classname="V8MemoryDumpProviderTest">
+    </testcase>
+    <testcase name="DumpGlobalHandlesSize" status="run" time="0.023" timestamp="2024-11-14T23:22:19" classname="V8MemoryDumpProviderTest">
+    </testcase>
+    <testcase name="DumpStatistics" status="run" time="0.027" timestamp="2024-11-14T23:22:19" classname="V8MemoryDumpProviderTest">
+    </testcase>
+  </testsuite>
+  <testsuite name="V8MemoryDumpProviderWorkerTest" tests="1" failures="0" disabled="0" errors="0" time="0.023" timestamp="2024-11-14T23:22:19">
+    <testcase name="DumpContextStatistics" status="run" time="0.023" timestamp="2024-11-14T23:22:19" classname="V8MemoryDumpProviderWorkerTest">
+    </testcase>
+  </testsuite>
+  <testsuite name="V8PlatformPageAllocatorTest" tests="1" failures="0" disabled="0" errors="0" time="0.000" timestamp="2024-11-14T23:22:19">
+    <testcase name="VerifyGetPageConfig" status="run" time="0.000" timestamp="2024-11-14T23:22:19" classname="V8PlatformPageAllocatorTest">
+    </testcase>
+  </testsuite>
+  <testsuite name="V8PlatformTest" tests="2" failures="0" disabled="0" errors="0" time="0.002" timestamp="2024-11-14T23:22:19">
+    <testcase name="PostJobLifetime" status="run" time="0.001" timestamp="2024-11-14T23:22:19" classname="V8PlatformTest">
+    </testcase>
+    <testcase name="PostJobSimple" status="run" time="0.001" timestamp="2024-11-14T23:22:19" classname="V8PlatformTest">
+    </testcase>
+  </testsuite>
+  <testsuite name="V8SharedMemoryDumpProviderTest" tests="1" failures="0" disabled="0" errors="0" time="0.022" timestamp="2024-11-14T23:22:19">
+    <testcase name="DumpStatistics" status="run" time="0.022" timestamp="2024-11-14T23:22:19" classname="V8SharedMemoryDumpProviderTest">
+    </testcase>
+  </testsuite>
+  <testsuite name="WrappableTest" tests="8" failures="0" disabled="0" errors="0" time="0.186" timestamp="2024-11-14T23:22:19">
+    <testcase name="GetAndSetProperty" status="run" time="0.023" timestamp="2024-11-14T23:22:19" classname="WrappableTest">
+    </testcase>
+    <testcase name="LazyPropertyGetterCanBeSetFirst" status="run" time="0.023" timestamp="2024-11-14T23:22:19" classname="WrappableTest">
+    </testcase>
+    <testcase name="LazyPropertyGetterCanBindSpecialArguments" status="run" time="0.021" timestamp="2024-11-14T23:22:19" classname="WrappableTest">
+    </testcase>
+    <testcase name="LazyPropertyGetterIsCalledOnce" status="run" time="0.028" timestamp="2024-11-14T23:22:19" classname="WrappableTest">
+    </testcase>
+    <testcase name="MethodInvocationErrorsOnNamedObject" status="run" time="0.023" timestamp="2024-11-14T23:22:19" classname="WrappableTest">
+    </testcase>
+    <testcase name="MethodInvocationErrorsOnUnnamedObject" status="run" time="0.023" timestamp="2024-11-14T23:22:19" classname="WrappableTest">
+    </testcase>
+    <testcase name="UnwrapFailures" status="run" time="0.023" timestamp="2024-11-14T23:22:19" classname="WrappableTest">
+    </testcase>
+    <testcase name="WrapAndUnwrap" status="run" time="0.022" timestamp="2024-11-14T23:22:19" classname="WrappableTest">
+    </testcase>
+  </testsuite>
+</testsuites>
