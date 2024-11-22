@@ -1,3 +1,5 @@
+is_cobalt = true
+
 # Build flag declared originally in build/config/features.gni
 # This flag is overridden to enable common video codecs playbacks.
 proprietary_codecs = true
@@ -6,3 +8,10 @@ proprietary_codecs = true
 # For android: android_webview/docs/aosp-system-integration.md
 # For linux: docs/linux/hw_video_decode.md
 ffmpeg_branding = "Chrome"
+
+# TODO(b/378934120): Remove flags below this line
+
+# These flags come from build/config/clang/clang.gni
+# Removing these flags causes a lot of compiler errors in starboard code.
+clang_use_chrome_plugins = false
+enable_check_raw_ptr_fields = false
