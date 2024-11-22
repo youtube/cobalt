@@ -173,6 +173,7 @@ shared_library("libcobalt_content_shell_content_view") {
     "//media",
     "//skia",
     "//starboard/android/shared:starboard_jni_state",
+    "//third_party/blink/public/common",
   ]
 
   # Explicit dependency required for JNI registration to be able to
