@@ -36,28 +36,10 @@ _WORKSPACE_COBALT_VAR = 'WORKSPACE_COBALT'
 _SERVICE_NOT_FOUND = 'SERVICE_NOT_FOUND'
 
 _PLATFORM_TO_SERVICE_MAP = {
-    'linux-x64x11-internal': 'linux-x64x11',
-    'android-x86': 'android-x86',
-    'android-arm': 'android-arm',
-    'android-arm64': 'android-arm64',
-    'evergreen-arm-hardfp': 'raspi',
-    'evergreen-arm-hardfp-sbversion-15': 'raspi',
-    'evergreen-arm-hardfp-sbversion-16': 'raspi',
-    'evergreen-arm-hardfp-sbversion-17': 'raspi',
-    'evergreen-arm-softfp': 'build-android-evergreen',
-    'evergreen-arm-softfp-sbversion-15': 'build-android-evergreen',
-    'evergreen-arm-softfp-sbversion-16': 'build-android-evergreen',
-    'evergreen-arm-softfp-sbversion-17': 'build-android-evergreen',
-    'evergreen-arm64': 'build-evergreen',
-    'evergreen-arm64-sbversion-15': 'build-evergreen',
-    'evergreen-arm64-sbversion-16': 'build-evergreen',
-    'evergreen-arm64-sbversion-17': 'build-evergreen',
-    'evergreen-x64': 'linux-x64x11-evergreen',
-    'evergreen-x64-sbversion-15': 'linux-x64x11-evergreen',
-    'evergreen-x64-sbversion-16': 'linux-x64x11-evergreen',
-    'evergreen-x64-sbversion-17': 'linux-x64x11-evergreen',
-    # TODO(b/350542958): Implement the piper SCM changes for building crosstool
-    'linux-x64x11-clang-crosstool': _SERVICE_NOT_FOUND
+    'android-x86': 'linux',
+    'android-arm': 'linux',
+    'android-arm64': 'linux',
+    'linux-x64x11-internal': 'linux',
 }
 
 _REGISTRY_FAILURE_IMAGE = 'docker-build-failure'
