@@ -42,17 +42,38 @@ fi
 # Load common routines (we only need run_gn and ninja_build).
 . $(dirname "$0")/common.sh
 
-# Using repository root as work directory.
 WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/git/src"
-cd "${WORKSPACE_COBALT}"
 
 configure_environment
 
-# Build Cobalt.
 pipeline () {
   local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
-  run_gn "${out_dir}" "${TARGET_PLATFORM}" "${EXTRA_GN_ARGUMENTS:-}"
-  ninja_build "${out_dir}" "${TARGET}"
+  local gclient_root="${KOKORO_ARTIFACTS_DIR}/chromium"
+  mkdir "${gclient_root}"
+  cp -a "${WORKSPACE_COBALT}" "${gclient_root}/src"  # work around b/382250271
+
+  # Set up gclient and run sync.
+  ##############################################################################
+  cd "${gclient_root}"
+  # Clone depot_tools as the GitHub action does, rather than Kokoro doing it.
+  git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools
+  export PATH="${PATH}:${gclient_root}/tools/depot_tools"
+  gclient config --name=src rpc://lbshell-internal/cobalt_src
+  if [[ "${TARGET_PLATFORM}" =~ "android" ]]; then
+    echo "target_os=['android']" >> .gclient
+  fi
+  git config --global --add safe.directory "${gclient_root}/src"
+  gclient sync -v --shallow --no-history -r "${KOKORO_GIT_COMMIT_src}"
+
+  # Run GN and Ninja.
+  ##############################################################################
+  cd "${gclient_root}/src"
+  cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}"
+  ninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${TARGET}  # TARGET may expand to multiple args
+  cp -a out "${WORKSPACE_COBALT}"  # preserve build outputs
+
+  cd "${WORKSPACE_COBALT}"
+  rm -rf "${gclient_root}"  # remove extraneous artifacts
 
   # Build bootloader config if set.
   if [ -n "${BOOTLOADER:-}" ]; then

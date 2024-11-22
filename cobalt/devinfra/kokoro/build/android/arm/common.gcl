@@ -29,7 +29,7 @@ build = common.build {
     },
     {
       key = 'TARGET'
-      value = 'cobalt_install build_app_launcher_zip'
+      value = 'cobalt:gn_all'
     },
     {
       key = 'TARGET_CPU'
