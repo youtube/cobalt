@@ -1,0 +1,9 @@
+import("//cobalt/build/configs/common.gn")
+
+# This flag comes from build/config/compiler/compiler.gni
+# TODO(b/380339614): Remove this flag after resolving build errors.
+treat_warnings_as_errors = false
+
+# Overriding flag from //media/media_options.gni.
+# Cobalt doesn't use //third_party/ffmpeg.
+media_use_ffmpeg = false
