@@ -96,13 +96,7 @@ int QuicChromiumPacketReader::StartReadingMultiplePackets() {
 }
 
 bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
-  if (visitor_ && result > 0) {
-    visitor_->set_force_write_blocked(true);
-  }
   bool success = ProcessMultiplePacketReadResultInternal(result);
-  if (visitor_ && result > 0) {
-    visitor_->set_force_write_blocked(false);
-  }
   return success;
 }
 
@@ -161,8 +155,14 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResultInternal(
 }
 
 void QuicChromiumPacketReader::OnReadMultiplePacketComplete(int result) {
+  if (visitor_ && result > 0) {
+    visitor_->set_force_write_blocked(true);
+  }
   if (ProcessMultiplePacketReadResult(result))
     StartReadingMultiplePackets();
+  if (visitor_ && result > 0) {
+    visitor_->set_force_write_blocked(false);
+  }
 }
 
 #endif
