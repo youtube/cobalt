@@ -7,7 +7,6 @@ use_ozone = true
 # E/GL(ES). Partners are only required to support upto GLES 2.0 : https://developers.google.com/youtube/cobalt/docs/reference/starboard/modules/16/gles#gles_version
 # Disable Vulkan until we formally decide to support it.
 enable_vulkan = false
-
 # TODO(b/380293712): Uncomment the following line when linux can build
 # without ffmpeg.
 # media_use_ffmpeg = false

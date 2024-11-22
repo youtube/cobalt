@@ -1,5 +1,3 @@
-
 import("//cobalt/build/configs/android_common.gn")
 import("//cobalt/build/configs/chromium_android-arm64/args.gn")
 import("//cobalt/build/configs/common.gn")
-
