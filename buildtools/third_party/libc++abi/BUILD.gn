@@ -53,37 +53,37 @@ config("cxxabi_config") {
   ]
 
   include_dirs = [
-    "include",
-    "//third_party/llvm-project/libcxx/src",
+    "trunk/include",
+    "//buildtools/third_party/libc++/trunk/src",
   ]
 }
 
 static_library("cxxabi") {
   sources = [
-    "src/abort_message.cpp",
-    "src/cxa_aux_runtime.cpp",
-    "src/cxa_default_handlers.cpp",
-    "src/cxa_demangle.cpp",
+    "trunk/src/abort_message.cpp",
+    "trunk/src/cxa_aux_runtime.cpp",
+    "trunk/src/cxa_default_handlers.cpp",
+    "trunk/src/cxa_demangle.cpp",
 
     # Requires exception support
-    #"src/cxa_exception.cpp",
+    #"trunk/src/cxa_exception.cpp",
 
-    "src/cxa_exception_storage.cpp",
-    "src/cxa_guard.cpp",
-    "src/cxa_handlers.cpp",
-    "src/cxa_noexception.cpp",
+    "trunk/src/cxa_exception_storage.cpp",
+    "trunk/src/cxa_guard.cpp",
+    "trunk/src/cxa_handlers.cpp",
+    "trunk/src/cxa_noexception.cpp",
 
     # Requires exception support
-    #"src/cxa_personality.cpp",
+    #"trunk/src/cxa_personality.cpp",
 
-    "src/cxa_vector.cpp",
-    "src/cxa_virtual.cpp",
-    "src/fallback_malloc.cpp",
-    "src/private_typeinfo.cpp",
-    "src/stdlib_exception.cpp",
-    "src/stdlib_new_delete.cpp",
-    "src/stdlib_stdexcept.cpp",
-    "src/stdlib_typeinfo.cpp",
+    "trunk/src/cxa_vector.cpp",
+    "trunk/src/cxa_virtual.cpp",
+    "trunk/src/fallback_malloc.cpp",
+    "trunk/src/private_typeinfo.cpp",
+    "trunk/src/stdlib_exception.cpp",
+    "trunk/src/stdlib_new_delete.cpp",
+    "trunk/src/stdlib_stdexcept.cpp",
+    "trunk/src/stdlib_typeinfo.cpp",
 
     # src/cxa_thread_atexit.cpp is unneeded. It introduces
     # "__cxa_thread_atexit_impl" as an API leak.
