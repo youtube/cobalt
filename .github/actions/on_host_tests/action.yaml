@@ -37,6 +37,8 @@ runs:
         ls
 
         cd ${GITHUB_WORKSPACE}/unit_test
+        echo "sleeping for 1 hr..."
+        sleep 1h
         for test_binary in $(ls -d out/**/*tests); do
           # TODO(b/372303096): Need dedicated xvfb runner.
           echo "Running tests for suite: ${test_binary}"
