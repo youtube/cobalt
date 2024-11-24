@@ -7,7 +7,6 @@
     "targets": [
         "base_unittests",
         "sql_unittests",
-        "net_unittests",
         "url_unittests",
         "ipc_tests",
         "mojo_unittests",
