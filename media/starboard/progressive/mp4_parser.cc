@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/progressive/mp4_parser.h"
+#include "media/starboard/progressive/mp4_parser.h"
 
 #include <inttypes.h>
 
@@ -20,11 +20,10 @@
 #include <vector>
 
 #include "base/strings/stringprintf.h"
-#include "cobalt/media/base/endian_util.h"
 #include "media/formats/mp4/es_descriptor.h"
+#include "media/starboard/progressive/endian_util.h"
 #include "starboard/types.h"
 
-namespace cobalt {
 namespace media {
 
 // how many bytes to skip within an avc1 before the config atoms start?
@@ -38,8 +37,8 @@ static const int kFullBoxHeaderAndFlagSize = 4;
 
 // how much to download of an hdlr to get the trak type?
 static const int kDesiredBytes_hdlr = 12;
-static const uint32 kAudioSubtype_hdlr_soun = 0x736f756e;
-static const uint32 kVideoSubtype_hdlr_vide = 0x76696465;
+static const uint32_t kAudioSubtype_hdlr_soun = 0x736f756e;
+static const uint32_t kVideoSubtype_hdlr_vide = 0x76696465;
 
 // how much to download of an mp4a to determine version number?
 static const int kDesiredBytes_mp4a = 2;
@@ -68,34 +67,36 @@ static const int kMapTableAtomCacheEntries_co64 = 740212 / kEntrySize_co64;
 static const int kMapTableAtomCacheEntries_ctts = 51543 / kEntrySize_ctts;
 
 // static
-::media::PipelineStatus MP4Parser::Construct(
-    scoped_refptr<DataSourceReader> reader, const uint8* construction_header,
-    scoped_refptr<ProgressiveParser>* parser, MediaLog* media_log) {
+PipelineStatus MP4Parser::Construct(scoped_refptr<DataSourceReader> reader,
+                                    const uint8_t* construction_header,
+                                    scoped_refptr<ProgressiveParser>* parser,
+                                    MediaLog* media_log) {
   DCHECK(parser);
   DCHECK(media_log);
-  *parser = NULL;
+  *parser = nullptr;
 
   // detect mp4 stream by looking for ftyp atom at top of file
-  uint32 ftyp = endian_util::load_uint32_big_endian(construction_header + 4);
+  uint32_t ftyp = endian_util::load_uint32_big_endian(construction_header + 4);
   if (ftyp != kAtomType_ftyp) {
     // not an mp4
-    return ::media::DEMUXER_ERROR_COULD_NOT_PARSE;
+    return DEMUXER_ERROR_COULD_NOT_PARSE;
   }
 
   // first 4 bytes will be the size of the ftyp atom
-  uint32 ftyp_atom_size =
+  uint32_t ftyp_atom_size =
       endian_util::load_uint32_big_endian(construction_header);
   if (ftyp_atom_size < kAtomMinSize) {
-    return ::media::DEMUXER_ERROR_COULD_NOT_PARSE;
+    return DEMUXER_ERROR_COULD_NOT_PARSE;
   }
 
   // construct new mp4 parser
   *parser = new MP4Parser(reader, ftyp_atom_size, media_log);
-  return ::media::PIPELINE_OK;
+  return PIPELINE_OK;
 }
 
 MP4Parser::MP4Parser(scoped_refptr<DataSourceReader> reader,
-                     uint32 ftyp_atom_size, MediaLog* media_log)
+                     uint32_t ftyp_atom_size,
+                     MediaLog* media_log)
     : AVCParser(reader, media_log),
       atom_offset_(ftyp_atom_size),  // start at next atom, skipping over ftyp
       current_trak_is_video_(false),
@@ -108,7 +109,7 @@ MP4Parser::MP4Parser(scoped_refptr<DataSourceReader> reader,
       audio_sample_(0),
       video_sample_(0),
       first_audio_hole_ticks_(0),
-      first_audio_hole_(base::TimeDelta::FromSeconds(0)) {}
+      first_audio_hole_(base::Seconds(0)) {}
 
 MP4Parser::~MP4Parser() {}
 
@@ -129,17 +130,17 @@ bool MP4Parser::ParseConfig() {
 }
 
 scoped_refptr<AvcAccessUnit> MP4Parser::GetNextAU(DemuxerStream::Type type) {
-  uint32 size = 0;
-  uint32 duration_ticks = 0;
-  uint64 timestamp_ticks = 0;
-  uint64 offset = 0;
+  uint32_t size = 0;
+  uint32_t duration_ticks = 0;
+  uint64_t timestamp_ticks = 0;
+  uint64_t offset = 0;
   bool is_keyframe = false;
   base::TimeDelta timestamp;
   base::TimeDelta duration;
   if (type == DemuxerStream::AUDIO) {
     if (audio_time_scale_hz_ == 0) {
       LOG(ERROR) << "|audio_time_scale_hz_| cannot be 0.";
-      return NULL;
+      return nullptr;
     }
     if (!audio_map_->GetSize(audio_sample_, &size) ||
         !audio_map_->GetOffset(audio_sample_, &offset) ||
@@ -151,7 +152,7 @@ scoped_refptr<AvcAccessUnit> MP4Parser::GetNextAU(DemuxerStream::Type type) {
                                                   audio_track_duration_);
       } else {
         LOG(ERROR) << "parsed bad audio AU";
-        return NULL;
+        return nullptr;
       }
     }
     // all aac frames are random-access, so all are keyframes
@@ -186,7 +187,7 @@ scoped_refptr<AvcAccessUnit> MP4Parser::GetNextAU(DemuxerStream::Type type) {
   } else if (type == DemuxerStream::VIDEO) {
     if (video_time_scale_hz_ == 0) {
       LOG(ERROR) << "|video_time_scale_hz_| cannot be 0.";
-      return NULL;
+      return nullptr;
     }
     if (!video_map_->GetSize(video_sample_, &size) ||
         !video_map_->GetOffset(video_sample_, &offset) ||
@@ -198,7 +199,7 @@ scoped_refptr<AvcAccessUnit> MP4Parser::GetNextAU(DemuxerStream::Type type) {
                                                   video_track_duration_);
       } else {
         LOG(ERROR) << "parsed bad video AU";
-        return NULL;
+        return nullptr;
       }
     }
     video_sample_++;
@@ -212,14 +213,15 @@ scoped_refptr<AvcAccessUnit> MP4Parser::GetNextAU(DemuxerStream::Type type) {
     duration += one_video_tick_;
   } else {
     NOTREACHED() << "unsupported stream type";
-    return NULL;
+    return nullptr;
   }
 
   size_t prepend_size = CalculatePrependSize(type, is_keyframe);
 
-  if (type == DemuxerStream::AUDIO)
+  if (type == DemuxerStream::AUDIO) {
     return AvcAccessUnit::CreateAudioAU(offset, size, prepend_size, is_keyframe,
                                         timestamp, duration, this);
+  }
   return AvcAccessUnit::CreateVideoAU(offset, size, prepend_size,
                                       nal_header_size_, is_keyframe, timestamp,
                                       duration, this);
@@ -235,20 +237,20 @@ bool MP4Parser::SeekTo(base::TimeDelta timestamp) {
   }
 
   // get video timestamp in video time units
-  uint64 video_ticks = TimeToTicks(timestamp, video_time_scale_hz_);
+  uint64_t video_ticks = TimeToTicks(timestamp, video_time_scale_hz_);
   // find nearest keyframe from map, make it our next video sample
   if (!video_map_->GetKeyframe(video_ticks, &video_sample_)) {
     return false;
   }
   // get the timestamp for this video keyframe
-  uint64 video_keyframe_time_ticks = 0;
+  uint64_t video_keyframe_time_ticks = 0;
   if (!video_map_->GetTimestamp(video_sample_, &video_keyframe_time_ticks)) {
     return false;
   }
   base::TimeDelta video_keyframe_time =
       TicksToTime(video_keyframe_time_ticks, video_time_scale_hz_);
   // find the closest audio frame that bounds that timestamp
-  uint64 audio_ticks = TimeToTicks(video_keyframe_time, audio_time_scale_hz_);
+  uint64_t audio_ticks = TimeToTicks(video_keyframe_time, audio_time_scale_hz_);
   if (!audio_map_->GetKeyframe(audio_ticks, &audio_sample_)) {
     return false;
   }
@@ -268,21 +270,22 @@ bool MP4Parser::SeekTo(base::TimeDelta timestamp) {
 // return false on fatal error. General structure of an MP4 atom is:
 // field             | type   | comment
 // ------------------+--------+---------
-// atom size         | uint32 | if 0 means "rest of file", if 1 means extended
-// fourCC code       | ASCII  | four-byte ASCII code we treat as uint32
-// extended size     | uint64 | optional size field, only here if atom size is 1
+// atom size         | uint32_t | if 0 means "rest of file", if 1 means extended
+// fourCC code       | ASCII  | four-byte ASCII code we treat as uint32_t
+// extended size     | uint64_t | optional size field, only here if atom size is
+// 1
 // <--- rest of atom body starts here
 bool MP4Parser::ParseNextAtom() {
-  uint8 atom[kAtomDownload];
+  uint8_t atom[kAtomDownload];
   int bytes_read = reader_->BlockingRead(atom_offset_, kAtomDownload, atom);
   if (bytes_read < kAtomDownload) {
     return false;
   }
-  // first 4 bytes are size of atom uint32
-  uint64 atom_size =
-      static_cast<uint64>(endian_util::load_uint32_big_endian(atom));
+  // first 4 bytes are size of atom uint32_t
+  uint64_t atom_size =
+      static_cast<uint64_t>(endian_util::load_uint32_big_endian(atom));
   // normally atom body starts just past fourCC code
-  uint32 atom_body = kAtomMinSize;
+  uint32_t atom_body = kAtomMinSize;
   // if 1 we need to load the extended size which will be appended just past
   // the fourCC code
   if (atom_size == 1) {
@@ -292,8 +295,8 @@ bool MP4Parser::ParseNextAtom() {
   } else if (atom_size == 0) {
     // calculate size of this atom from remainder of file
     DCHECK_LE(atom_offset_,
-              static_cast<uint64>(std::numeric_limits<int64>::max()));
-    if (reader_->FileSize() > static_cast<int64>(atom_offset_)) {
+              static_cast<uint64_t>(std::numeric_limits<int64_t>::max()));
+    if (reader_->FileSize() > static_cast<int64_t>(atom_offset_)) {
       atom_size = reader_->FileSize() - atom_offset_;
     }
   }
@@ -306,15 +309,15 @@ bool MP4Parser::ParseNextAtom() {
     return false;
   }
 
-  // extract fourCC code as big-endian uint32
-  uint32 four_cc = endian_util::load_uint32_big_endian(atom + 4);
+  // extract fourCC code as big-endian uint32_t
+  uint32_t four_cc = endian_util::load_uint32_big_endian(atom + 4);
   LOG(INFO) << base::StringPrintf("four_cc: %c%c%c%c", atom[4], atom[5],
                                   atom[6], atom[7]);
 
   // advance read pointer to atom body
   atom_offset_ += atom_body;
   // adjust size of body of atom from size of header
-  uint64 atom_data_size = atom_size - atom_body;
+  uint64_t atom_data_size = atom_size - atom_body;
 
   bool atom_parse_success = true;
 
@@ -336,7 +339,9 @@ bool MP4Parser::ParseNextAtom() {
     case kAtomType_avcC:
       atom_parse_success =
           DownloadAndParseAVCConfigRecord(atom_offset_, atom_data_size);
-      if (atom_parse_success) atom_offset_ += atom_data_size;
+      if (atom_parse_success) {
+        atom_offset_ += atom_data_size;
+      }
       break;
 
     // esds atoms contain actually usable audio configuration info for AAC.
@@ -460,7 +465,7 @@ bool MP4Parser::ParseNextAtom() {
   return atom_parse_success;
 }
 
-bool MP4Parser::ParseMP4_esds(uint64 atom_data_size) {
+bool MP4Parser::ParseMP4_esds(uint64_t atom_data_size) {
   if (atom_data_size < kFullBoxHeaderAndFlagSize) {
     LOG(WARNING) << base::StringPrintf(
         "esds box should at least be %d bytes but now it is %" PRId64 " bytes",
@@ -468,25 +473,25 @@ bool MP4Parser::ParseMP4_esds(uint64 atom_data_size) {
     return false;
   }
 
-  uint64 esds_offset = atom_offset_ + kFullBoxHeaderAndFlagSize;
-  uint64 esds_size = atom_data_size - kFullBoxHeaderAndFlagSize;
+  uint64_t esds_offset = atom_offset_ + kFullBoxHeaderAndFlagSize;
+  uint64_t esds_size = atom_data_size - kFullBoxHeaderAndFlagSize;
 
   if (esds_size == 0) {
     return false;
   }
   // we'll need to download entire esds, allocate buffer for it
-  std::vector<uint8> esds_storage(esds_size);
-  uint8* esds = &esds_storage[0];
+  std::vector<uint8_t> esds_storage(esds_size);
+  uint8_t* esds = &esds_storage[0];
   // download esds
   int bytes_read = reader_->BlockingRead(esds_offset, esds_size, esds);
   if (bytes_read < esds_size) {
     LOG(WARNING) << "failed to download esds";
     return false;
   }
-  ::media::mp4::ESDescriptor es_descriptor;
-  std::vector<uint8> data(esds, esds + esds_size);
+  mp4::ESDescriptor es_descriptor;
+  std::vector<uint8_t> data(esds, esds + esds_size);
   if (es_descriptor.Parse(data)) {
-    const std::vector<uint8>& dsi = es_descriptor.decoder_specific_info();
+    const std::vector<uint8_t>& dsi = es_descriptor.decoder_specific_info();
     if (dsi.size() >= 2) {
       ParseAudioSpecificConfig(dsi[0], dsi[1]);
       atom_offset_ += atom_data_size;
@@ -500,7 +505,7 @@ bool MP4Parser::ParseMP4_esds(uint64 atom_data_size) {
   return false;
 }
 
-bool MP4Parser::ParseMP4_hdlr(uint64 atom_data_size, uint8* hdlr) {
+bool MP4Parser::ParseMP4_hdlr(uint64_t atom_data_size, uint8_t* hdlr) {
   // ensure we're downloading enough of the hdlr to parse
   DCHECK_LE(kDesiredBytes_hdlr + 16, kAtomDownload);
   // sanity-check for minimum size
@@ -511,7 +516,7 @@ bool MP4Parser::ParseMP4_hdlr(uint64 atom_data_size, uint8* hdlr) {
   }
   // last 4 bytes of the 12 we need are an ascii code for the trak type, we
   // want 'vide' for video or 'soun' for audio. ignore the rest.
-  uint32 hdlr_subtype = endian_util::load_uint32_big_endian(hdlr + 8);
+  uint32_t hdlr_subtype = endian_util::load_uint32_big_endian(hdlr + 8);
   // update state flags
   current_trak_is_video_ = (hdlr_subtype == kVideoSubtype_hdlr_vide);
   current_trak_is_audio_ = (hdlr_subtype == kAudioSubtype_hdlr_soun);
@@ -520,8 +525,7 @@ bool MP4Parser::ParseMP4_hdlr(uint64 atom_data_size, uint8* hdlr) {
     video_time_scale_hz_ = current_trak_time_scale_;
     current_trak_time_scale_ = 0;
     video_track_duration_ = current_trak_duration_;
-    one_video_tick_ =
-        base::TimeDelta::FromMicroseconds(1000000 / video_time_scale_hz_);
+    one_video_tick_ = base::Microseconds(1000000 / video_time_scale_hz_);
   }
   if (current_trak_time_scale_ > 0 && current_trak_is_audio_) {
     audio_time_scale_hz_ = current_trak_time_scale_;
@@ -533,20 +537,21 @@ bool MP4Parser::ParseMP4_hdlr(uint64 atom_data_size, uint8* hdlr) {
   return true;
 }
 
-bool MP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
+bool MP4Parser::ParseMP4_mdhd(uint64_t atom_data_size, uint8_t* mdhd) {
   DCHECK_LE(kDesiredBytes_mdhd + 16, kAtomDownload);
   if (atom_data_size < kDesiredBytes_mdhd) {
     LOG(WARNING) << base::StringPrintf("bad size %" PRId64 " on mdhd",
                                        atom_data_size);
     return false;
   }
-  uint32 time_scale = endian_util::load_uint32_big_endian(mdhd + 12);
+  uint32_t time_scale = endian_util::load_uint32_big_endian(mdhd + 12);
   if (time_scale == 0) {
     LOG(WARNING) << "got 0 time scale for mvhd";
     return false;
   }
   // double-check track duration, it may be different from the movie duration
-  uint32 track_duration_ticks = endian_util::load_uint32_big_endian(mdhd + 16);
+  uint32_t track_duration_ticks =
+      endian_util::load_uint32_big_endian(mdhd + 16);
   base::TimeDelta track_duration =
       TicksToTime(track_duration_ticks, time_scale);
   if (track_duration > duration_) {
@@ -560,8 +565,7 @@ bool MP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
     video_time_scale_hz_ = time_scale;
     current_trak_time_scale_ = 0;
     video_track_duration_ = track_duration;
-    one_video_tick_ =
-        base::TimeDelta::FromMicroseconds(1000000 / video_time_scale_hz_);
+    one_video_tick_ = base::Microseconds(1000000 / video_time_scale_hz_);
   } else if (current_trak_is_audio_) {
     audio_time_scale_hz_ = time_scale;
     current_trak_time_scale_ = 0;
@@ -576,7 +580,7 @@ bool MP4Parser::ParseMP4_mdhd(uint64 atom_data_size, uint8* mdhd) {
   return true;
 }
 
-bool MP4Parser::ParseMP4_mp4a(uint64 atom_data_size, uint8* mp4a) {
+bool MP4Parser::ParseMP4_mp4a(uint64_t atom_data_size, uint8_t* mp4a) {
   DCHECK_LE(kDesiredBytes_mp4a + 16, kAtomDownload);
   // we only need the first two bytes of the header, which details the version
   // number of this atom, which tells us the size of the rest of the header,
@@ -586,7 +590,7 @@ bool MP4Parser::ParseMP4_mp4a(uint64 atom_data_size, uint8* mp4a) {
                                        atom_data_size);
     return false;
   }
-  uint16 mp4a_version = endian_util::load_uint16_big_endian(mp4a);
+  uint16_t mp4a_version = endian_util::load_uint16_big_endian(mp4a);
   switch (mp4a_version) {
     case 0:
       atom_offset_ += kTotalSize_mp4a_v0;
@@ -618,7 +622,7 @@ bool MP4Parser::ParseMP4_mp4a(uint64 atom_data_size, uint8* mp4a) {
 // 12     | time scale        | 4
 // 16     | duration:         | 4
 //
-bool MP4Parser::ParseMP4_mvhd(uint64 atom_data_size, uint8* mvhd) {
+bool MP4Parser::ParseMP4_mvhd(uint64_t atom_data_size, uint8_t* mvhd) {
   DCHECK_LE(kDesiredBytes_mvhd + 16, kAtomDownload);
   // it should be at least long enough for us to extract the parts we want
   if (atom_data_size < kDesiredBytes_mvhd) {
@@ -626,13 +630,13 @@ bool MP4Parser::ParseMP4_mvhd(uint64 atom_data_size, uint8* mvhd) {
                                        atom_data_size);
     return false;
   }
-  uint32 time_scale_hz = endian_util::load_uint32_big_endian(mvhd + 12);
+  uint32_t time_scale_hz = endian_util::load_uint32_big_endian(mvhd + 12);
   if (time_scale_hz == 0) {
     LOG(WARNING) << "got 0 time scale for mvhd";
     return false;
   }
   // duration is in units of the time scale we just extracted
-  uint64 duration_ticks = endian_util::load_uint32_big_endian(mvhd + 16);
+  uint64_t duration_ticks = endian_util::load_uint32_big_endian(mvhd + 16);
   // calculate actual duration from that and the time scale
   duration_ = TicksToTime(duration_ticks, time_scale_hz);
   // advance read position
@@ -640,17 +644,16 @@ bool MP4Parser::ParseMP4_mvhd(uint64 atom_data_size, uint8* mvhd) {
   return true;
 }
 
-base::TimeDelta MP4Parser::TicksToTime(uint64 ticks, uint32 time_scale_hz) {
+base::TimeDelta MP4Parser::TicksToTime(uint64_t ticks, uint32_t time_scale_hz) {
   DCHECK_NE(time_scale_hz, 0);
 
   if (time_scale_hz == 0) {
-    return base::TimeDelta::FromSeconds(0);
+    return base::Seconds(0);
   }
-  return base::TimeDelta::FromMicroseconds((ticks * 1000000ULL) /
-                                           time_scale_hz);
+  return base::Microseconds((ticks * 1000000ULL) / time_scale_hz);
 }
 
-uint64 MP4Parser::TimeToTicks(base::TimeDelta time, uint32 time_scale_hz) {
+uint64_t MP4Parser::TimeToTicks(base::TimeDelta time, uint32_t time_scale_hz) {
   DCHECK_NE(time_scale_hz, 0);
 
   if (time_scale_hz == 0) {
@@ -660,4 +663,3 @@ uint64 MP4Parser::TimeToTicks(base::TimeDelta time, uint32 time_scale_hz) {
 }
 
 }  // namespace media
-}  // namespace cobalt

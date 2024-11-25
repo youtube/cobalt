@@ -12,21 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/progressive/mp4_map.h"
+#include "media/starboard/progressive/mp4_map.h"
 
 #include <algorithm>
 
 #include "base/strings/stringprintf.h"
-#include "cobalt/media/base/endian_util.h"
-#include "cobalt/media/progressive/mp4_parser.h"
+#include "media/starboard/progressive/endian_util.h"
+#include "media/starboard/progressive/mp4_parser.h"
 
-namespace cobalt {
 namespace media {
 
 // ==== TableCache =============================================================
 
-MP4Map::TableCache::TableCache(uint64 table_offset, uint32 entry_count,
-                               uint32 entry_size, uint32 cache_size_entries,
+MP4Map::TableCache::TableCache(uint64_t table_offset,
+                               uint32_t entry_count,
+                               uint32_t entry_size,
+                               uint32_t cache_size_entries,
                                scoped_refptr<DataSourceReader> reader)
     : entry_size_(entry_size),
       entry_count_(entry_count),
@@ -36,7 +37,7 @@ MP4Map::TableCache::TableCache(uint64 table_offset, uint32 entry_count,
       cache_first_entry_number_(-1),
       cache_entry_count_(0) {}
 
-uint8* MP4Map::TableCache::GetBytesAtEntry(uint32 entry_number) {
+uint8_t* MP4Map::TableCache::GetBytesAtEntry(uint32_t entry_number) {
   // don't fetch the unfetchable
   if (entry_number >= entry_count_) {
     return NULL;
@@ -59,7 +60,7 @@ uint8* MP4Map::TableCache::GetBytesAtEntry(uint32 entry_number) {
     DCHECK_GE(cache_entry_count_, 0);
     int bytes_to_read = cache_entry_count_ * entry_size_;
     cache_.resize(bytes_to_read);
-    uint64 file_offset =
+    uint64_t file_offset =
         table_offset_ + (cache_first_entry_number_ * entry_size_);
     int bytes_read =
         reader_->BlockingRead(file_offset, bytes_to_read, &cache_[0]);
@@ -72,12 +73,12 @@ uint8* MP4Map::TableCache::GetBytesAtEntry(uint32 entry_number) {
   DCHECK_GE(entry_number, cache_first_entry_number_);
   DCHECK_LT(entry_number, cache_first_entry_number_ + cache_entry_count_);
 
-  uint32 cache_offset = entry_number - cache_first_entry_number_;
+  uint32_t cache_offset = entry_number - cache_first_entry_number_;
   return &cache_[0] + (cache_offset * entry_size_);
 }
 
-bool MP4Map::TableCache::ReadU32Entry(uint32 entry_number, uint32* entry) {
-  if (uint8* data = GetBytesAtEntry(entry_number)) {
+bool MP4Map::TableCache::ReadU32Entry(uint32_t entry_number, uint32_t* entry) {
+  if (uint8_t* data = GetBytesAtEntry(entry_number)) {
     *entry = endian_util::load_uint32_big_endian(data);
     return true;
   }
@@ -85,20 +86,25 @@ bool MP4Map::TableCache::ReadU32Entry(uint32 entry_number, uint32* entry) {
   return false;
 }
 
-bool MP4Map::TableCache::ReadU32PairEntry(uint32 entry_number, uint32* first,
-                                          uint32* second) {
-  if (uint8* data = GetBytesAtEntry(entry_number)) {
-    if (first) *first = endian_util::load_uint32_big_endian(data);
-    if (second) *second = endian_util::load_uint32_big_endian(data + 4);
+bool MP4Map::TableCache::ReadU32PairEntry(uint32_t entry_number,
+                                          uint32_t* first,
+                                          uint32_t* second) {
+  if (uint8_t* data = GetBytesAtEntry(entry_number)) {
+    if (first) {
+      *first = endian_util::load_uint32_big_endian(data);
+    }
+    if (second) {
+      *second = endian_util::load_uint32_big_endian(data + 4);
+    }
     return true;
   }
 
   return false;
 }
 
-bool MP4Map::TableCache::ReadU32EntryIntoU64(uint32 entry_number,
-                                             uint64* entry) {
-  if (uint8* data = GetBytesAtEntry(entry_number)) {
+bool MP4Map::TableCache::ReadU32EntryIntoU64(uint32_t entry_number,
+                                             uint64_t* entry) {
+  if (uint8_t* data = GetBytesAtEntry(entry_number)) {
     *entry = endian_util::load_uint32_big_endian(data);
     return true;
   }
@@ -106,8 +112,8 @@ bool MP4Map::TableCache::ReadU32EntryIntoU64(uint32 entry_number,
   return false;
 }
 
-bool MP4Map::TableCache::ReadU64Entry(uint32 entry_number, uint64* entry) {
-  if (uint8* data = GetBytesAtEntry(entry_number)) {
+bool MP4Map::TableCache::ReadU64Entry(uint32_t entry_number, uint64_t* entry) {
+  if (uint8_t* data = GetBytesAtEntry(entry_number)) {
     *entry = endian_util::load_uint64_big_endian(data);
     return true;
   }
@@ -161,7 +167,7 @@ bool MP4Map::IsComplete() {
 
 // The sample size is a lookup in the stsz table, which is indexed per sample
 // number.
-bool MP4Map::GetSize(uint32 sample_number, uint32* size_out) {
+bool MP4Map::GetSize(uint32_t sample_number, uint32_t* size_out) {
   DCHECK(size_out);
   DCHECK(stsz_ || stsz_default_size_);
 
@@ -183,7 +189,7 @@ bool MP4Map::GetSize(uint32 sample_number, uint32* size_out) {
 // then use the stsz to sum samples to the byte offset with that chunk. The sum
 // of the chunk offset and the byte offset within the chunk is the offset of
 // the sample.
-bool MP4Map::GetOffset(uint32 sample_number, uint64* offset_out) {
+bool MP4Map::GetOffset(uint32_t sample_number, uint64_t* offset_out) {
   DCHECK(offset_out);
   DCHECK(stsc_);
   DCHECK(stco_ || co64_);
@@ -204,9 +210,9 @@ bool MP4Map::GetOffset(uint32 sample_number, uint64* offset_out) {
     DCHECK_GE(sample_number, stsc_first_chunk_sample_);
 
     // calculate chunk number based on chunk sample size for this range
-    uint32 sample_offset = sample_number - stsc_first_chunk_sample_;
-    uint32 chunk_range_offset = sample_offset / stsc_samples_per_chunk_;
-    uint32 chunk_number = stsc_first_chunk_ + chunk_range_offset;
+    uint32_t sample_offset = sample_number - stsc_first_chunk_sample_;
+    uint32_t chunk_range_offset = sample_offset / stsc_samples_per_chunk_;
+    uint32_t chunk_number = stsc_first_chunk_ + chunk_range_offset;
     // should be within the range of chunks with this sample size
     DCHECK_LT(chunk_number, stsc_next_first_chunk_);
     // update first sample number contained within this chunk
@@ -216,8 +222,9 @@ bool MP4Map::GetOffset(uint32 sample_number, uint64* offset_out) {
     next_chunk_sample_ = current_chunk_sample_ + stsc_samples_per_chunk_;
     // find offset of this chunk within the file from co64/stco
     if (co64_) {
-      if (!co64_->ReadU64Entry(chunk_number, &current_chunk_offset_))
+      if (!co64_->ReadU64Entry(chunk_number, &current_chunk_offset_)) {
         return false;
+      }
     } else if (!stco_->ReadU32EntryIntoU64(chunk_number,
                                            &current_chunk_offset_)) {
       return false;
@@ -236,7 +243,7 @@ bool MP4Map::GetOffset(uint32 sample_number, uint64* offset_out) {
   } else {
     // sum sample sizes within chunk to get to byte offset of sample
     while (current_chunk_sample_ < sample_number) {
-      uint32 sample_size = 0;
+      uint32_t sample_size = 0;
       if (!GetSize(current_chunk_sample_, &sample_size)) {
         return false;
       }
@@ -254,7 +261,7 @@ bool MP4Map::GetOffset(uint32 sample_number, uint64* offset_out) {
 // durations to find the dts of that sample number. We then integrate sample
 // numbers through the ctts to find the composition time offset, which we add to
 // the dts to return the pts.
-bool MP4Map::GetTimestamp(uint32 sample_number, uint64* timestamp_out) {
+bool MP4Map::GetTimestamp(uint32_t sample_number, uint64_t* timestamp_out) {
   DCHECK(timestamp_out);
   if (sample_number > highest_valid_sample_number_) {
     return false;
@@ -265,8 +272,8 @@ bool MP4Map::GetTimestamp(uint32 sample_number, uint64* timestamp_out) {
   }
   DCHECK_LT(sample_number, stts_next_first_sample_);
   DCHECK_GE(sample_number, stts_first_sample_);
-  uint64 dts = stts_first_sample_time_ +
-               (sample_number - stts_first_sample_) * stts_sample_duration_;
+  uint64_t dts = stts_first_sample_time_ +
+                 (sample_number - stts_first_sample_) * stts_sample_duration_;
   if (ctts_) {
     if (!ctts_AdvanceToSample(sample_number)) {
       return false;
@@ -279,7 +286,7 @@ bool MP4Map::GetTimestamp(uint32 sample_number, uint64* timestamp_out) {
 }
 
 // Sum through the stts to find the duration of the given sample_number.
-bool MP4Map::GetDuration(uint32 sample_number, uint32* duration_out) {
+bool MP4Map::GetDuration(uint32_t sample_number, uint32_t* duration_out) {
   DCHECK(duration_out);
   if (sample_number > highest_valid_sample_number_) {
     return false;
@@ -294,7 +301,7 @@ bool MP4Map::GetDuration(uint32 sample_number, uint32* duration_out) {
   return true;
 }
 
-bool MP4Map::GetIsKeyframe(uint32 sample_number, bool* is_keyframe_out) {
+bool MP4Map::GetIsKeyframe(uint32_t sample_number, bool* is_keyframe_out) {
   DCHECK(is_keyframe_out);
   if (sample_number > highest_valid_sample_number_) {
     return false;
@@ -335,14 +342,14 @@ bool MP4Map::GetIsKeyframe(uint32 sample_number, bool* is_keyframe_out) {
   return true;
 }
 
-bool MP4Map::IsEOS(uint32 sample_number) {
+bool MP4Map::IsEOS(uint32_t sample_number) {
   return (sample_number > highest_valid_sample_number_);
 }
 
 // First look up the sample number for the provided timestamp by integrating
 // timestamps through the stts. Then do a binary search on the stss to find the
 // keyframe nearest that sample number.
-bool MP4Map::GetKeyframe(uint64 timestamp, uint32* sample_out) {
+bool MP4Map::GetKeyframe(uint64_t timestamp, uint32_t* sample_out) {
   DCHECK(sample_out);
   // Advance stts to the provided timestamp range
   if (!stts_AdvanceToTime(timestamp)) {
@@ -352,8 +359,8 @@ bool MP4Map::GetKeyframe(uint64 timestamp, uint32* sample_out) {
   DCHECK_LT(timestamp, stts_next_first_sample_time_);
   DCHECK_GE(timestamp, stts_first_sample_time_);
   // calculate sample number containing this timestamp
-  uint64 time_offset_within_range = timestamp - stts_first_sample_time_;
-  uint32 sample_number =
+  uint64_t time_offset_within_range = timestamp - stts_first_sample_time_;
+  uint32_t sample_number =
       stts_first_sample_ + (time_offset_within_range / stts_sample_duration_);
 
   // TODO: ctts?
@@ -374,14 +381,17 @@ bool MP4Map::GetKeyframe(uint64 timestamp, uint32* sample_out) {
 
 // Set up map state and load first part of table, or entire table if it is small
 // enough, for each of the supported atoms.
-bool MP4Map::SetAtom(uint32 four_cc, uint64 offset, uint64 size,
-                     uint32 cache_size_entries, const uint8* atom) {
+bool MP4Map::SetAtom(uint32_t four_cc,
+                     uint64_t offset,
+                     uint64_t size,
+                     uint32_t cache_size_entries,
+                     const uint8_t* atom) {
   // All map atoms are variable-length tables starting with 4 bytes of
-  // version/flag info followed by a uint32 indicating the number of items in
+  // version/flag info followed by a uint32_t indicating the number of items in
   // table. The stsz atom bucks tradition by putting an optional default value
   // at index 4.
-  uint32 count = 0;
-  uint64 table_offset = offset + 8;
+  uint32_t count = 0;
+  uint64_t table_offset = offset + 8;
   if (four_cc == kAtomType_stsz) {
     if (size < 12) {
       return false;
@@ -392,7 +402,7 @@ bool MP4Map::SetAtom(uint32 four_cc, uint64 offset, uint64 size,
         std::min(count - 1, highest_valid_sample_number_);
     // if a non-zero default size is provided don't bother loading the table
     if (stsz_default_size_) {
-      stsz_ = NULL;
+      stsz_ = nullptr;
       return true;
     }
 
@@ -415,43 +425,57 @@ bool MP4Map::SetAtom(uint32 four_cc, uint64 offset, uint64 size,
     case kAtomType_co64:
       co64_ = new TableCache(table_offset, count, kEntrySize_co64,
                              cache_size_entries, reader_);
-      if (co64_) atom_init = co64_Init();
+      if (co64_) {
+        atom_init = co64_Init();
+      }
       break;
 
     case kAtomType_ctts:
       ctts_ = new TableCache(table_offset, count, kEntrySize_ctts,
                              cache_size_entries, reader_);
-      if (ctts_) atom_init = ctts_Init();
+      if (ctts_) {
+        atom_init = ctts_Init();
+      }
       break;
 
     case kAtomType_stco:
       stco_ = new TableCache(table_offset, count, kEntrySize_stco,
                              cache_size_entries, reader_);
-      if (stco_) atom_init = stco_Init();
+      if (stco_) {
+        atom_init = stco_Init();
+      }
       break;
 
     case kAtomType_stsc:
       stsc_ = new TableCache(table_offset, count, kEntrySize_stsc,
                              cache_size_entries, reader_);
-      if (stsc_) atom_init = stsc_Init();
+      if (stsc_) {
+        atom_init = stsc_Init();
+      }
       break;
 
     case kAtomType_stss:
       stss_ = new TableCache(table_offset, count, kEntrySize_stss,
                              cache_size_entries, reader_);
-      if (stss_) atom_init = stss_Init();
+      if (stss_) {
+        atom_init = stss_Init();
+      }
       break;
 
     case kAtomType_stts:
       stts_ = new TableCache(table_offset, count, kEntrySize_stts,
                              cache_size_entries, reader_);
-      if (stts_) atom_init = stts_Init();
+      if (stts_) {
+        atom_init = stts_Init();
+      }
       break;
 
     case kAtomType_stsz:
       stsz_ = new TableCache(table_offset, count, kEntrySize_stsz,
                              cache_size_entries, reader_);
-      if (stsz_) atom_init = stsz_Init();
+      if (stsz_) {
+        atom_init = stsz_Init();
+      }
       break;
 
     default:
@@ -467,19 +491,19 @@ bool MP4Map::co64_Init() {
   // load offset of first chunk into current_chunk_offset_
   if (co64_->GetEntryCount() > 0) {
     // can drop any stco table already allocated
-    stco_ = NULL;
+    stco_ = nullptr;
     // load initial value of current_chunk_offset_ for 0th chunk
     return co64_->ReadU64Entry(0, &current_chunk_offset_);
   }
 
-  co64_ = NULL;
+  co64_ = nullptr;
 
   return true;
 }
 
 // The ctts table has the following per-entry layout:
-// uint32 sample count
-// uint32 composition offset in ticks
+// uint32_t sample count
+// uint32_t composition offset in ticks
 //
 bool MP4Map::ctts_Init() {
   DCHECK(ctts_);
@@ -497,7 +521,7 @@ bool MP4Map::ctts_Init() {
                                    &ctts_sample_offset_);
   }
   // drop empty ctts_ table
-  ctts_ = NULL;
+  ctts_ = nullptr;
 
   return true;
 }
@@ -505,7 +529,7 @@ bool MP4Map::ctts_Init() {
 // To find the composition offset of a given sample number we must integrate
 // through the ctts to find the range of samples containing sample_number. Note
 // that the ctts is an optional table.
-bool MP4Map::ctts_AdvanceToSample(uint32 sample_number) {
+bool MP4Map::ctts_AdvanceToSample(uint32_t sample_number) {
   // ctts table is optional, so treat not having one as non-fatal
   if (!ctts_) {
     return true;
@@ -550,10 +574,11 @@ bool MP4Map::ctts_AdvanceToSample(uint32 sample_number) {
 
     if (ctts_table_index_ < ctts_->GetEntryCount()) {
       // load the sample count to determine next first sample
-      uint32 sample_count;
+      uint32_t sample_count;
       if (!ctts_->ReadU32PairEntry(ctts_table_index_, &sample_count,
-                                   &ctts_sample_offset_))
+                                   &ctts_sample_offset_)) {
         return false;
+      }
       ctts_next_first_sample_ = ctts_first_sample_ + sample_count;
     } else {
       // This means that the last entry in the table specified a sample range
@@ -572,7 +597,7 @@ bool MP4Map::ctts_AdvanceToSample(uint32 sample_number) {
   return true;
 }
 
-bool MP4Map::ctts_SlipCacheToSample(uint32 sample_number,
+bool MP4Map::ctts_SlipCacheToSample(uint32_t sample_number,
                                     int starting_cache_index) {
   DCHECK_LT(starting_cache_index, ctts_samples_.size());
   int cache_index = starting_cache_index;
@@ -584,10 +609,11 @@ bool MP4Map::ctts_SlipCacheToSample(uint32 sample_number,
   ctts_first_sample_ = ctts_samples_[cache_index];
   ctts_table_index_ = cache_index * ctts_->GetCacheSizeEntries();
   // read sample count and duration to set next values
-  uint32 sample_count;
+  uint32_t sample_count;
   if (!ctts_->ReadU32PairEntry(ctts_table_index_, &sample_count,
-                               &ctts_sample_offset_))
+                               &ctts_sample_offset_)) {
     return false;
+  }
   ctts_next_first_sample_ = ctts_first_sample_ + sample_count;
   return true;
 }
@@ -596,19 +622,19 @@ bool MP4Map::stco_Init() {
   DCHECK(stco_);
   // load offset of first chunk into current_chunk_offset_
   if (stco_->GetEntryCount() > 0) {
-    co64_ = NULL;
+    co64_ = nullptr;
     return stco_->ReadU32EntryIntoU64(0, &current_chunk_offset_);
   }
 
-  stco_ = NULL;
+  stco_ = nullptr;
 
   return true;
 }
 
 // The stsc table has the following per-entry layout:
-// uint32 first chunk number with this sample count
-// uint32 samples-per-chunk
-// uint32 sample description id (unused)
+// uint32_t first chunk number with this sample count
+// uint32_t samples-per-chunk
+// uint32_t sample description id (unused)
 bool MP4Map::stsc_Init() {
   DCHECK(stsc_);
   // set up vector to correct final size
@@ -622,13 +648,13 @@ bool MP4Map::stsc_Init() {
     // first cached entry is always 0
     stsc_sample_sums_.push_back(0);
     if (!stsc_->ReadU32PairEntry(0, NULL, &stsc_samples_per_chunk_)) {
-      stsc_ = NULL;
+      stsc_ = nullptr;
       return false;
     }
     // look up next first chunk at next index in table
     if (stsc_->GetEntryCount() > 1) {
       if (!stsc_->ReadU32PairEntry(1, &stsc_next_first_chunk_, NULL)) {
-        stsc_ = NULL;
+        stsc_ = nullptr;
         return false;
       }
       --stsc_next_first_chunk_;
@@ -646,7 +672,7 @@ bool MP4Map::stsc_Init() {
     next_chunk_sample_ = stsc_samples_per_chunk_;
 
   } else {
-    stsc_ = NULL;
+    stsc_ = nullptr;
   }
 
   return true;
@@ -659,7 +685,7 @@ bool MP4Map::stsc_Init() {
 // to be consumed incrementally and with minimal memory consumption we calculate
 // this integration step only when needed, and save results for each cached
 // piece of the table, to avoid having to recalculate needed data.
-bool MP4Map::stsc_AdvanceToSample(uint32 sample_number) {
+bool MP4Map::stsc_AdvanceToSample(uint32_t sample_number) {
   DCHECK(stsc_);
   // sample_number could be before first chunk, meaning that we are seeking
   // backwards and have left the current chunk. Find the closest part of the
@@ -671,7 +697,7 @@ bool MP4Map::stsc_AdvanceToSample(uint32 sample_number) {
   }
 
   // sample_number could also be well head of our current piece of the
-  // cache, so see if we can re-use any previously calculated summations to
+  // cache, so see if we can reuse any previously calculated summations to
   // skip to the nearest cache entry
   int next_cache_index = (stsc_table_index_ / stsc_->GetCacheSizeEntries()) + 1;
   if ((next_cache_index < stsc_sample_sums_.size()) &&
@@ -735,7 +761,7 @@ bool MP4Map::stsc_AdvanceToSample(uint32 sample_number) {
   return true;
 }
 
-bool MP4Map::stsc_SlipCacheToSample(uint32 sample_number,
+bool MP4Map::stsc_SlipCacheToSample(uint32_t sample_number,
                                     int starting_cache_index) {
   DCHECK_LT(starting_cache_index, stsc_sample_sums_.size());
   // look through old sample sums for the first entry that exceeds sample
@@ -784,7 +810,7 @@ bool MP4Map::stss_Init() {
   if (stss_->GetEntryCount() > 0) {
     // identify first keyframe from first entry in stss
     if (!stss_->ReadU32Entry(0, &stss_last_keyframe_)) {
-      stss_ = NULL;
+      stss_ = nullptr;
       return false;
     }
     --stss_last_keyframe_;
@@ -792,7 +818,7 @@ bool MP4Map::stss_Init() {
     stss_next_keyframe_ = stss_last_keyframe_;
     stss_table_index_ = 0;
   } else {
-    stss_ = NULL;
+    stss_ = nullptr;
   }
 
   return true;
@@ -822,7 +848,7 @@ bool MP4Map::stss_AdvanceStep() {
   return true;
 }
 
-bool MP4Map::stss_FindNearestKeyframe(uint32 sample_number) {
+bool MP4Map::stss_FindNearestKeyframe(uint32_t sample_number) {
   DCHECK(stss_);
   // it is assumed that there's at least one cache entry created by
   // stss_Init();
@@ -872,7 +898,7 @@ bool MP4Map::stss_FindNearestKeyframe(uint32 sample_number) {
       // Use the first key frame in next cache as upper bound.
       int next_cached_entry_number =
           (cache_entry_number + 1) * stss_->GetCacheSizeEntries();
-      uint32 next_cached_keyframe;
+      uint32_t next_cached_keyframe;
       if (!stss_->ReadU32Entry(next_cached_entry_number,
                                &next_cached_keyframe)) {
         return false;
@@ -887,7 +913,7 @@ bool MP4Map::stss_FindNearestKeyframe(uint32 sample_number) {
       cache_entry_number++;
       int first_table_entry_number =
           cache_entry_number * stss_->GetCacheSizeEntries();
-      uint32 first_keyframe_in_cache_entry;
+      uint32_t first_keyframe_in_cache_entry;
       if (!stss_->ReadU32Entry(first_table_entry_number,
                                &first_keyframe_in_cache_entry)) {
         return false;
@@ -901,7 +927,7 @@ bool MP4Map::stss_FindNearestKeyframe(uint32 sample_number) {
         cache_entry_number == stss_keyframes_.size() - 1) {
       int next_cached_entry_number =
           ((cache_entry_number + 1) * stss_->GetCacheSizeEntries());
-      uint32 next_cached_keyframe;
+      uint32_t next_cached_keyframe;
       if (!stss_->ReadU32Entry(next_cached_entry_number,
                                &next_cached_keyframe)) {
         return false;
@@ -952,8 +978,8 @@ bool MP4Map::stss_FindNearestKeyframe(uint32 sample_number) {
 }
 
 // The stts table has the following per-entry layout:
-// uint32 sample count - number of sequential samples with this duration
-// uint32 sample duration - duration in ticks of this sample range
+// uint32_t sample count - number of sequential samples with this duration
+// uint32_t sample duration - duration in ticks of this sample range
 bool MP4Map::stts_Init() {
   int cache_segments =
       (stts_->GetEntryCount() / stts_->GetCacheSizeEntries()) + 1;
@@ -966,7 +992,7 @@ bool MP4Map::stts_Init() {
     stts_timestamps_.push_back(0);
     if (!stts_->ReadU32PairEntry(0, &stts_next_first_sample_,
                                  &stts_sample_duration_)) {
-      stts_ = NULL;
+      stts_ = nullptr;
       return false;
     }
     stts_first_sample_ = 0;
@@ -975,13 +1001,13 @@ bool MP4Map::stts_Init() {
         stts_next_first_sample_ * stts_sample_duration_;
     stts_table_index_ = 0;
   } else {
-    stts_ = NULL;
+    stts_ = nullptr;
   }
 
   return true;
 }
 
-bool MP4Map::stts_AdvanceToSample(uint32 sample_number) {
+bool MP4Map::stts_AdvanceToSample(uint32_t sample_number) {
   DCHECK(stts_);
   // sample_number could be before our current sample range, in which case
   // we skip to the nearest table entry before sample_number and integrate
@@ -1014,7 +1040,7 @@ bool MP4Map::stts_AdvanceToSample(uint32 sample_number) {
 // Move our integration steps to a previously saved entry in the cache tables.
 // Searches linearly through the vector of old cached values, so can accept a
 // starting index to do the search from.
-bool MP4Map::stts_SlipCacheToSample(uint32 sample_number,
+bool MP4Map::stts_SlipCacheToSample(uint32_t sample_number,
                                     int starting_cache_index) {
   DCHECK_LT(starting_cache_index, stts_samples_.size());
   int cache_index = starting_cache_index;
@@ -1026,7 +1052,7 @@ bool MP4Map::stts_SlipCacheToSample(uint32 sample_number,
   stts_first_sample_ = stts_samples_[cache_index];
   stts_first_sample_time_ = stts_timestamps_[cache_index];
   stts_table_index_ = cache_index * stts_->GetCacheSizeEntries();
-  uint32 sample_count;
+  uint32_t sample_count;
   // read sample count and duration to set next values
   if (!stts_->ReadU32PairEntry(stts_table_index_, &sample_count,
                                &stts_sample_duration_)) {
@@ -1038,7 +1064,7 @@ bool MP4Map::stts_SlipCacheToSample(uint32 sample_number,
   return true;
 }
 
-bool MP4Map::stts_AdvanceToTime(uint64 timestamp) {
+bool MP4Map::stts_AdvanceToTime(uint64_t timestamp) {
   DCHECK(stts_);
 
   if (timestamp < stts_first_sample_time_) {
@@ -1068,7 +1094,7 @@ bool MP4Map::stts_AdvanceToTime(uint64 timestamp) {
 
 bool MP4Map::stts_IntegrateStep() {
   // advance time to next sample range
-  uint32 range_size = stts_next_first_sample_ - stts_first_sample_;
+  uint32_t range_size = stts_next_first_sample_ - stts_first_sample_;
   stts_first_sample_time_ += (range_size * stts_sample_duration_);
   // advance sample counter to next range
   stts_first_sample_ = stts_next_first_sample_;
@@ -1090,7 +1116,7 @@ bool MP4Map::stts_IntegrateStep() {
   }
   if (stts_table_index_ < stts_->GetEntryCount()) {
     // load next entry data
-    uint32 sample_count;
+    uint32_t sample_count;
     if (!stts_->ReadU32PairEntry(stts_table_index_, &sample_count,
                                  &stts_sample_duration_)) {
       return false;
@@ -1110,7 +1136,8 @@ bool MP4Map::stts_IntegrateStep() {
   return true;
 }
 
-bool MP4Map::stts_SlipCacheToTime(uint64 timestamp, int starting_cache_index) {
+bool MP4Map::stts_SlipCacheToTime(uint64_t timestamp,
+                                  int starting_cache_index) {
   DCHECK_LT(starting_cache_index, stts_timestamps_.size());
   int cache_index = starting_cache_index;
   for (; cache_index + 1 < stts_timestamps_.size(); cache_index++) {
@@ -1122,7 +1149,7 @@ bool MP4Map::stts_SlipCacheToTime(uint64 timestamp, int starting_cache_index) {
   stts_first_sample_time_ = stts_timestamps_[cache_index];
   stts_table_index_ = cache_index * stts_->GetCacheSizeEntries();
   // read sample count and duration to set next values
-  uint32 sample_count;
+  uint32_t sample_count;
   if (!stts_->ReadU32PairEntry(stts_table_index_, &sample_count,
                                &stts_sample_duration_)) {
     return false;
@@ -1133,7 +1160,8 @@ bool MP4Map::stts_SlipCacheToTime(uint64 timestamp, int starting_cache_index) {
   return true;
 }
 
-bool MP4Map::stsz_Init() { return stsz_->GetBytesAtEntry(0) != NULL; }
+bool MP4Map::stsz_Init() {
+  return stsz_->GetBytesAtEntry(0) != NULL;
+}
 
 }  // namespace media
-}  // namespace cobalt

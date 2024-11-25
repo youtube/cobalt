@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_PROGRESSIVE_DATA_SOURCE_READER_H_
-#define COBALT_MEDIA_PROGRESSIVE_DATA_SOURCE_READER_H_
-#include "base/bind.h"
-#include "base/callback.h"
+#ifndef MEDIA_STARBOARD_PROGRESSIVE_DATA_SOURCE_READER_H_
+#define MEDIA_STARBOARD_PROGRESSIVE_DATA_SOURCE_READER_H_
+
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/task/sequenced_task_runner.h"
-#include "cobalt/media/base/data_source.h"
+#include "media/base/data_source.h"
 
-namespace cobalt {
 namespace media {
 
 // Allows sharing of a DataSource object between multiple objects on a single
@@ -41,11 +41,11 @@ class DataSourceReader : public base::RefCountedThreadSafe<DataSourceReader> {
   // Block the calling thread's task runner until read is complete.
   // returns number of bytes read or kReadError on error.
   // Currently only single-threaded support.
-  virtual int BlockingRead(int64 position, int size, uint8* data);
+  virtual int BlockingRead(int64_t position, int size, uint8_t* data);
 
   // returns size of file in bytes, or -1 if file size not known. If error will
   // retry getting file size on subsequent calls to FileSize().
-  virtual int64 FileSize();
+  virtual int64_t FileSize();
 
   // abort any pending read, then stop the data source
   virtual void Stop();
@@ -59,12 +59,11 @@ class DataSourceReader : public base::RefCountedThreadSafe<DataSourceReader> {
   base::Lock lock_;
   DataSource* data_source_;
   base::WaitableEvent blocking_read_event_;
-  int64 file_size_;
+  int64_t file_size_;
   bool read_has_failed_;
   int last_bytes_read_;  // protected implicitly by blocking_read_event_
 };
 
 }  // namespace media
-}  // namespace cobalt
 
-#endif  // COBALT_MEDIA_PROGRESSIVE_DATA_SOURCE_READER_H_
+#endif  // MEDIA_STARBOARD_PROGRESSIVE_DATA_SOURCE_READER_H_

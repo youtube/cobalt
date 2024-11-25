@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/progressive/demuxer_extension_wrapper.h"
+#include "media/starboard/progressive/demuxer_extension_wrapper.h"
 
 #include <cstdint>
 #include <memory>
@@ -24,40 +24,17 @@
 #include "media/base/audio_codecs.h"
 #include "media/base/encryption_scheme.h"
 #include "media/base/sample_format.h"
-#include "media/base/starboard_utils.h"
 #include "media/base/video_types.h"
 #include "media/filters/h264_to_annex_b_bitstream_converter.h"
 #include "media/formats/mp4/box_definitions.h"
+#include "media/starboard/starboard_utils.h"
 #include "starboard/extension/demuxer.h"
 #include "starboard/system.h"
 #include "ui/gfx/color_space.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
-namespace cobalt {
 namespace media {
-
-using ::media::AudioCodec;
-using ::media::AudioDecoderConfig;
-using ::media::ChannelLayout;
-using ::media::DecoderBuffer;
-using ::media::DemuxerHost;
-using ::media::DemuxerStream;
-using ::media::EncryptionScheme;
-using ::media::H264ToAnnexBBitstreamConverter;
-using ::media::MediaTrack;
-using ::media::PipelineStatus;
-using ::media::PipelineStatusCallback;
-using ::media::PipelineStatusCB;
-using ::media::Ranges;
-using ::media::SampleFormat;
-using ::media::VideoCodec;
-using ::media::VideoCodecProfile;
-using ::media::VideoColorSpace;
-using ::media::VideoDecoderConfig;
-using ::media::VideoPixelFormat;
-using ::media::VideoTransformation;
-using ::media::mp4::AVCDecoderConfigurationRecord;
 
 // Used to convert a lambda to a pure C function.
 // |user_data| is a callback of type T, which takes a U*.
@@ -77,7 +54,7 @@ class DemuxerExtensionWrapper::H264AnnexBConverter {
       LOG(ERROR) << "Invalid inputs to H264AnnexBConverter::Create.";
       return nullptr;
     }
-    AVCDecoderConfigurationRecord config;
+    mp4::AVCDecoderConfigurationRecord config;
     std::unique_ptr<H264ToAnnexBBitstreamConverter> converter(
         new H264ToAnnexBBitstreamConverter);
     if (!converter->ParseConfiguration(
@@ -115,7 +92,7 @@ class DemuxerExtensionWrapper::H264AnnexBConverter {
 
       // The SPS and PPS NALUs -- generated from the config -- should only be
       // sent with the first real NALU.
-      config_ = base::nullopt;
+      config_ = absl::nullopt;
 
       // TODO(b/231994311): Add the buffer's side_data here, for HDR10+ support.
       return DecoderBuffer::CopyFrom(rewritten.data(), rewritten.size());
@@ -124,12 +101,12 @@ class DemuxerExtensionWrapper::H264AnnexBConverter {
 
  private:
   explicit H264AnnexBConverter(
-      AVCDecoderConfigurationRecord config,
+      mp4::AVCDecoderConfigurationRecord config,
       std::unique_ptr<H264ToAnnexBBitstreamConverter> converter)
       : config_(std::move(config)), converter_(std::move(converter)) {}
 
   // This config data is only sent with the first NALU (as SPS and PPS NALUs).
-  base::Optional<AVCDecoderConfigurationRecord> config_;
+  absl::optional<mp4::AVCDecoderConfigurationRecord> config_;
   std::unique_ptr<H264ToAnnexBBitstreamConverter> converter_;
 };
 
@@ -189,13 +166,16 @@ DemuxerExtensionStream::DemuxerExtensionStream(
 }
 
 void DemuxerExtensionStream::Read(uint32_t count, ReadCB read_cb) {
-  DCHECK(!read_cb.is_null());
   base::AutoLock auto_lock(lock_);
+  DCHECK(!read_cb_);
+
+  read_cb_ = base::BindPostTaskToCurrentDefault(std::move(read_cb));
+
   if (stopped_) {
     LOG(INFO) << "Already stopped.";
     std::vector<scoped_refptr<DecoderBuffer>> buffers;
-    buffers.push_back(std::move(DecoderBuffer::CreateEOSBuffer()));
-    std::move(read_cb).Run(DemuxerStream::kOk, buffers);
+    buffers.push_back(DecoderBuffer::CreateEOSBuffer());
+    std::move(read_cb_).Run(DemuxerStream::kOk, buffers);
     return;
   }
 
@@ -203,7 +183,7 @@ void DemuxerExtensionStream::Read(uint32_t count, ReadCB read_cb) {
   CHECK(buffer_queue_.empty() || read_queue_.empty());
 
   if (buffer_queue_.empty()) {
-    read_queue_.push_back(std::move(read_cb));
+    read_queue_.push_back(std::move(read_cb_));
     return;
   }
 
@@ -217,7 +197,7 @@ void DemuxerExtensionStream::Read(uint32_t count, ReadCB read_cb) {
 
   std::vector<scoped_refptr<DecoderBuffer>> buffers;
   buffers.push_back(std::move(buffer));
-  std::move(read_cb).Run(DemuxerStream::kOk, buffers);
+  std::move(read_cb_).Run(DemuxerStream::kOk, buffers);
 }
 
 AudioDecoderConfig DemuxerExtensionStream::audio_decoder_config() {
@@ -255,8 +235,8 @@ void DemuxerExtensionStream::EnqueueBuffer(
 
   if (buffer->end_of_stream()) {
     LOG(INFO) << "Received EOS";
-  } else if (buffer->timestamp() != ::media::kNoTimestamp) {
-    if (last_buffer_timestamp_ != ::media::kNoTimestamp &&
+  } else if (buffer->timestamp() != kNoTimestamp) {
+    if (last_buffer_timestamp_ != kNoTimestamp &&
         last_buffer_timestamp_ < buffer->timestamp()) {
       buffered_ranges_.Add(last_buffer_timestamp_, buffer->timestamp());
     }
@@ -287,7 +267,7 @@ void DemuxerExtensionStream::FlushBuffers() {
   base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
   total_buffer_size_ = 0;
-  last_buffer_timestamp_ = ::media::kNoTimestamp;
+  last_buffer_timestamp_ = kNoTimestamp;
 }
 
 void DemuxerExtensionStream::Stop() {
@@ -296,11 +276,11 @@ void DemuxerExtensionStream::Stop() {
   base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
   total_buffer_size_ = 0;
-  last_buffer_timestamp_ = ::media::kNoTimestamp;
+  last_buffer_timestamp_ = kNoTimestamp;
   // Fulfill any pending callbacks with EOS buffers set to end timestamp.
   for (auto& read_cb : read_queue_) {
     std::vector<scoped_refptr<DecoderBuffer>> buffers;
-    buffers.push_back(std::move(DecoderBuffer::CreateEOSBuffer()));
+    buffers.push_back(DecoderBuffer::CreateEOSBuffer());
     std::move(read_cb).Run(DemuxerStream::kOk, buffers);
   }
   read_queue_.clear();
@@ -325,7 +305,9 @@ PositionalDataSource::PositionalDataSource(
 
 PositionalDataSource::~PositionalDataSource() = default;
 
-void PositionalDataSource::Stop() { reader_->Stop(); }
+void PositionalDataSource::Stop() {
+  reader_->Stop();
+}
 
 int PositionalDataSource::BlockingRead(uint8_t* data, int bytes_requested) {
   const int bytes_read =
@@ -336,16 +318,24 @@ int PositionalDataSource::BlockingRead(uint8_t* data, int bytes_requested) {
   return bytes_read;
 }
 
-void PositionalDataSource::SeekTo(int position) { position_ = position; }
+void PositionalDataSource::SeekTo(int position) {
+  position_ = position;
+}
 
-int64_t PositionalDataSource::GetPosition() const { return position_; }
+int64_t PositionalDataSource::GetPosition() const {
+  return position_;
+}
 
-int64_t PositionalDataSource::GetSize() { return reader_->FileSize(); }
+int64_t PositionalDataSource::GetSize() {
+  return reader_->FileSize();
+}
 
 // Functions for converting a PositionalDataSource to
 // CobaltExtensionDemuxerDataSource.
 static int CobaltExtensionDemuxerDataSource_BlockingReadRead(
-    uint8_t* data, int bytes_requested, void* user_data) {
+    uint8_t* data,
+    int bytes_requested,
+    void* user_data) {
   return static_cast<PositionalDataSource*>(user_data)->BlockingRead(
       data, bytes_requested);
 }
@@ -472,7 +462,7 @@ void DemuxerExtensionWrapper::Initialize(DemuxerHost* host,
   // Start the blocking thread and have it download and parse the media config.
   if (!blocking_thread_.Start()) {
     LOG(ERROR) << "Unable to start blocking thread";
-    std::move(status_cb).Run(::media::DEMUXER_ERROR_COULD_NOT_PARSE);
+    std::move(status_cb).Run(DEMUXER_ERROR_COULD_NOT_PARSE);
     return;
   }
 
@@ -485,7 +475,8 @@ void DemuxerExtensionWrapper::Initialize(DemuxerHost* host,
 }
 
 void DemuxerExtensionWrapper::OnInitializeDone(
-    PipelineStatusCallback status_cb, CobaltExtensionDemuxerStatus status) {
+    PipelineStatusCallback status_cb,
+    CobaltExtensionDemuxerStatus status) {
   if (status == kCobaltExtensionDemuxerOk) {
     // Set up the stream(s) on this end.
     CobaltExtensionDemuxerAudioDecoderConfig audio_config = {};
@@ -495,7 +486,7 @@ void DemuxerExtensionWrapper::OnInitializeDone(
         // TODO(b/232957482): Determine whether we need to handle this case.
         LOG(ERROR)
             << "Encrypted audio is not supported for progressive playback.";
-        std::move(status_cb).Run(::media::DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
+        std::move(status_cb).Run(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
         return;
       }
       audio_stream_.emplace(impl_, task_runner_, std::move(audio_config));
@@ -507,7 +498,7 @@ void DemuxerExtensionWrapper::OnInitializeDone(
         // TODO(b/232957482): Determine whether we need to handle this case.
         LOG(ERROR)
             << "Encrypted video is not supported for progressive playback.";
-        std::move(status_cb).Run(::media::DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
+        std::move(status_cb).Run(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
         return;
       }
       if (video_config.extra_data && video_config.extra_data_size > 0 &&
@@ -528,12 +519,12 @@ void DemuxerExtensionWrapper::OnInitializeDone(
       // Even though initialization seems to have succeeded, something is wrong
       // if there are no streams.
       LOG(ERROR) << "No streams are present";
-      std::move(status_cb).Run(::media::DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
+      std::move(status_cb).Run(DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
       return;
     }
 
-    host_->SetDuration(base::TimeDelta::FromMicroseconds(
-        impl_->GetDuration(impl_->user_data)));
+    host_->SetDuration(
+        base::Microseconds(impl_->GetDuration(impl_->user_data)));
 
     // Begin downloading data.
     Request(audio_stream_.has_value() ? DemuxerStream::AUDIO
@@ -567,15 +558,19 @@ void DemuxerExtensionWrapper::SeekTask(base::TimeDelta time,
   CHECK(blocking_thread_.task_runner()->RunsTasksInCurrentSequence());
 
   // clear any enqueued buffers on demuxer streams
-  if (video_stream_.has_value()) video_stream_->FlushBuffers();
-  if (audio_stream_.has_value()) audio_stream_->FlushBuffers();
+  if (video_stream_.has_value()) {
+    video_stream_->FlushBuffers();
+  }
+  if (audio_stream_.has_value()) {
+    audio_stream_->FlushBuffers();
+  }
 
   const CobaltExtensionDemuxerStatus status =
       impl_->Seek(time.InMicroseconds(), impl_->user_data);
 
   if (status != kCobaltExtensionDemuxerOk) {
     LOG(ERROR) << "Seek failed with status " << status;
-    std::move(status_cb).Run(::media::PIPELINE_ERROR_READ);
+    std::move(status_cb).Run(PIPELINE_ERROR_READ);
     return;
   }
 
@@ -586,7 +581,7 @@ void DemuxerExtensionWrapper::SeekTask(base::TimeDelta time,
   audio_reached_eos_ = false;
   video_reached_eos_ = false;
   flushing_ = true;
-  std::move(status_cb).Run(::media::PIPELINE_OK);
+  std::move(status_cb).Run(PIPELINE_OK);
 
   if (issue_new_request) {
     IssueNextRequest();
@@ -616,13 +611,12 @@ void DemuxerExtensionWrapper::Stop() {
 }
 
 base::TimeDelta DemuxerExtensionWrapper::GetStartTime() const {
-  return base::TimeDelta::FromMicroseconds(
-      impl_->GetStartTime(impl_->user_data));
+  return base::Microseconds(impl_->GetStartTime(impl_->user_data));
 }
 
 base::Time DemuxerExtensionWrapper::GetTimelineOffset() const {
-  const base::TimeDelta reported_time = base::TimeDelta::FromMicroseconds(
-      impl_->GetTimelineOffset(impl_->user_data));
+  const base::TimeDelta reported_time =
+      base::Microseconds(impl_->GetTimelineOffset(impl_->user_data));
   return reported_time.is_zero()
              ? base::Time()
              : base::Time::FromDeltaSinceWindowsEpoch(reported_time);
@@ -634,19 +628,21 @@ int64_t DemuxerExtensionWrapper::GetMemoryUsage() const {
 }
 
 void DemuxerExtensionWrapper::OnEnabledAudioTracksChanged(
-    const std::vector<MediaTrack::Id>& track_ids, base::TimeDelta curr_time,
+    const std::vector<MediaTrack::Id>& track_ids,
+    base::TimeDelta curr_time,
     TrackChangeCB change_completed_cb) {
   NOTREACHED();
 }
 
 void DemuxerExtensionWrapper::OnSelectedVideoTrackChanged(
-    const std::vector<MediaTrack::Id>& track_ids, base::TimeDelta curr_time,
+    const std::vector<MediaTrack::Id>& track_ids,
+    base::TimeDelta curr_time,
     TrackChangeCB change_completed_cb) {
   NOTREACHED();
 }
 
 void DemuxerExtensionWrapper::Request(DemuxerStream::Type type) {
-  static const auto kRequestDelay = base::TimeDelta::FromMilliseconds(100);
+  static const auto kRequestDelay = base::Milliseconds(100);
 
   if (type == DemuxerStream::AUDIO) {
     DCHECK(audio_stream_.has_value());
@@ -656,8 +652,8 @@ void DemuxerExtensionWrapper::Request(DemuxerStream::Type type) {
 
   if (!blocking_thread_.task_runner()->RunsTasksInCurrentSequence()) {
     blocking_thread_.task_runner()->PostTask(
-        FROM_HERE, base::Bind(&DemuxerExtensionWrapper::Request,
-                              base::Unretained(this), type));
+        FROM_HERE, base::BindRepeating(&DemuxerExtensionWrapper::Request,
+                                       base::Unretained(this), type));
     return;
   }
 
@@ -688,8 +684,8 @@ void DemuxerExtensionWrapper::Request(DemuxerStream::Type type) {
     // Retry after a delay.
     blocking_thread_.task_runner()->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&DemuxerExtensionWrapper::Request, base::Unretained(this),
-                   type),
+        base::BindRepeating(&DemuxerExtensionWrapper::Request,
+                            base::Unretained(this), type),
         kRequestDelay);
     return;
   }
@@ -717,10 +713,8 @@ void DemuxerExtensionWrapper::Request(DemuxerStream::Type type) {
       decoder_buffer = DecoderBuffer::CopyFrom(buffer->data, buffer->data_size);
     }
 
-    decoder_buffer->set_timestamp(
-        base::TimeDelta::FromMicroseconds(buffer->pts));
-    decoder_buffer->set_duration(
-        base::TimeDelta::FromMicroseconds(buffer->duration));
+    decoder_buffer->set_timestamp(base::Microseconds(buffer->pts));
+    decoder_buffer->set_duration(base::Microseconds(buffer->duration));
     decoder_buffer->set_is_key_frame(buffer->is_keyframe);
   };
   impl_->Read(static_cast<CobaltExtensionDemuxerStreamType>(type),
@@ -730,12 +724,12 @@ void DemuxerExtensionWrapper::Request(DemuxerStream::Type type) {
   if (!called_cb) {
     LOG(ERROR)
         << "Demuxer extension implementation did not call the read callback.";
-    host_->OnDemuxerError(::media::PIPELINE_ERROR_READ);
+    host_->OnDemuxerError(PIPELINE_ERROR_READ);
     return;
   }
   if (!decoder_buffer) {
     LOG(ERROR) << "Received a null buffer from the demuxer.";
-    host_->OnDemuxerError(::media::PIPELINE_ERROR_READ);
+    host_->OnDemuxerError(PIPELINE_ERROR_READ);
     return;
   }
 
@@ -786,9 +780,9 @@ void DemuxerExtensionWrapper::IssueNextRequest() {
     const base::TimeDelta audio_stamp = audio_stream_->GetLastBufferTimestamp();
     const base::TimeDelta video_stamp = video_stream_->GetLastBufferTimestamp();
     // If the audio demuxer stream is empty, always fill it first.
-    if (audio_stamp == ::media::kNoTimestamp) {
+    if (audio_stamp == kNoTimestamp) {
       type = DemuxerStream::AUDIO;
-    } else if (video_stamp == ::media::kNoTimestamp) {
+    } else if (video_stamp == kNoTimestamp) {
       // The video demuxer stream is empty; we need data for it.
       type = DemuxerStream::VIDEO;
     } else if (video_stamp < audio_stamp) {
@@ -805,8 +799,8 @@ void DemuxerExtensionWrapper::IssueNextRequest() {
   // running in a tight loop and seek/stop requests would have no chance to kick
   // in.
   blocking_thread_.task_runner()->PostTask(
-      FROM_HERE, base::Bind(&DemuxerExtensionWrapper::Request,
-                            base::Unretained(this), type));
+      FROM_HERE, base::BindRepeating(&DemuxerExtensionWrapper::Request,
+                                     base::Unretained(this), type));
 }
 
 bool DemuxerExtensionWrapper::HasStopped() {
@@ -819,8 +813,10 @@ namespace {
 // Ensure that the demuxer extension's enums match up with the internal enums.
 // This doesn't affect any code, but prevents compilation if there's a mismatch
 // somewhere.
-#define DEMUXER_EXTENSION_ENUM_EQ(a, b) \
-  COMPILE_ASSERT(static_cast<int>(a) == static_cast<int>(b), mismatching_enums)
+#define DEMUXER_EXTENSION_ENUM_EQ(a, b)                     \
+  static_assert(static_cast<int>(a) == static_cast<int>(b), \
+                "mismatching_"                              \
+                "enums")
 
 // Pipeline status.
 DEMUXER_EXTENSION_ENUM_EQ(kCobaltExtensionDemuxerOk, ::media::PIPELINE_OK);
@@ -877,7 +873,6 @@ DEMUXER_EXTENSION_ENUM_EQ(kCobaltExtensionDemuxerCodecALAC,
 DEMUXER_EXTENSION_ENUM_EQ(kCobaltExtensionDemuxerCodecAC3,
                           ::media::AudioCodec::kAC3);
 
-
 // Video codecs.
 DEMUXER_EXTENSION_ENUM_EQ(kCobaltExtensionDemuxerCodecUnknownVideo,
                           ::media::VideoCodec::kUnknown);
@@ -921,7 +916,6 @@ DEMUXER_EXTENSION_ENUM_EQ(kCobaltExtensionDemuxerSampleFormatPlanarS32,
                           ::media::kSampleFormatPlanarS32);
 DEMUXER_EXTENSION_ENUM_EQ(kCobaltExtensionDemuxerSampleFormatS24,
                           ::media::kSampleFormatS24);
-
 
 // Channel layouts.
 DEMUXER_EXTENSION_ENUM_EQ(kCobaltExtensionDemuxerChannelLayoutNone,
@@ -1118,4 +1112,3 @@ DEMUXER_EXTENSION_ENUM_EQ(kCobaltExtensionDemuxerEncryptionSchemeCbcs,
 }  // namespace
 
 }  // namespace media
-}  // namespace cobalt
