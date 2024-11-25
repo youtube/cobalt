@@ -351,6 +351,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                            const std::string& max_video_capabilities,
                            int tunnel_mode_audio_session_id,
                            bool force_secure_pipeline_under_tunnel_mode,
+                           bool force_reset_surface,
                            bool force_reset_surface_under_tunnel_mode,
                            bool force_big_endian_hdr_metadata,
                            int max_video_input_size,
@@ -367,6 +368,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       max_video_input_size_(max_video_input_size),
       enable_flush_during_seek_(enable_flush_during_seek),
+      force_reset_surface_(force_reset_surface),
       force_reset_surface_under_tunnel_mode_(
           force_reset_surface_under_tunnel_mode),
       is_video_frame_tracker_enabled_(IsFrameRenderedCallbackEnabled() ||
@@ -415,7 +417,7 @@ VideoDecoder::~VideoDecoder() {
   if (tunnel_mode_audio_session_id_ != -1) {
     ClearVideoWindow(force_reset_surface_under_tunnel_mode_);
   } else {
-    ClearVideoWindow(false);
+    ClearVideoWindow(force_reset_surface_);
   }
 }
 
