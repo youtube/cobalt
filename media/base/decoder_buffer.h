@@ -300,6 +300,10 @@ class MEDIA_EXPORT DecoderBuffer
   // Replaces any existing side data with data copied from |side_data|.
   void CopySideDataFrom(const uint8_t* side_data, size_t side_data_size);
 
+  // Returns total memory usage for both bookkeeping and buffered data. The
+  // function is added for more accurately memory management.
+  virtual size_t GetMemoryUsage() const;
+
  protected:
   friend class base::RefCountedThreadSafe<DecoderBuffer>;
 
