@@ -11,7 +11,7 @@ source_set("renderers") {
   # is a roll-up target which is part of the //media component. Most other DEPs
   # should be using //media and not directly DEP this roll-up target.
   visibility = [ "//media" ]
-  if (use_starboard_media) {
+  if (is_cobalt && use_starboard_media) {
     visibility += [ "//media/starboard" ]
   }
 
