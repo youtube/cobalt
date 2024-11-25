@@ -289,6 +289,10 @@ class MEDIA_EXPORT DecoderBuffer
   
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   bool end_of_stream() const { return !data_; }
+  void shrink_to(size_t size) {
+    DCHECK_LE(size, size_);
+    size_ = size;
+  }
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   bool end_of_stream() const { return is_end_of_stream_; }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)

@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/progressive/progressive_parser.h"
+#include "media/starboard/progressive/progressive_parser.h"
 
 #include "base/logging.h"
-#include "cobalt/media/progressive/mp4_parser.h"
 #include "media/base/timestamp_constants.h"
+#include "media/starboard/progressive/mp4_parser.h"
 
-namespace cobalt {
 namespace media {
 
 // ==== ProgressiveParser
@@ -28,19 +27,20 @@ namespace media {
 const int ProgressiveParser::kInitialHeaderSize = 9;
 
 // static
-::media::PipelineStatus ProgressiveParser::Construct(
+PipelineStatus ProgressiveParser::Construct(
     scoped_refptr<DataSourceReader> reader,
-    scoped_refptr<ProgressiveParser>* parser, MediaLog* media_log) {
+    scoped_refptr<ProgressiveParser>* parser,
+    MediaLog* media_log) {
   DCHECK(parser);
   DCHECK(media_log);
-  *parser = NULL;
+  *parser = nullptr;
 
   // download first kInitialHeaderSize bytes of stream to determine file type
   // and extract basic container-specific stream configuration information
-  uint8 header[kInitialHeaderSize];
+  uint8_t header[kInitialHeaderSize];
   int bytes_read = reader->BlockingRead(0, kInitialHeaderSize, header);
   if (bytes_read != kInitialHeaderSize) {
-    return ::media::DEMUXER_ERROR_COULD_NOT_PARSE;
+    return DEMUXER_ERROR_COULD_NOT_PARSE;
   }
 
   // attempt to construct mp4 parser from this header
@@ -48,14 +48,13 @@ const int ProgressiveParser::kInitialHeaderSize = 9;
 }
 
 ProgressiveParser::ProgressiveParser(scoped_refptr<DataSourceReader> reader)
-    : reader_(reader), duration_(::media::kInfiniteDuration) {}
+    : reader_(reader), duration_(kInfiniteDuration) {}
 
 ProgressiveParser::~ProgressiveParser() {}
 
 bool ProgressiveParser::IsConfigComplete() {
   return video_config_.IsValidConfig() && audio_config_.IsValidConfig() &&
-         duration_ != ::media::kInfiniteDuration;
+         duration_ != kInfiniteDuration;
 }
 
 }  // namespace media
-}  // namespace cobalt
