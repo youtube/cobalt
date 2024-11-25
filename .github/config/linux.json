@@ -5,15 +5,7 @@
       "linux-x64x11"
     ],
     "targets": [
-        "base_unittests",
-        "sql_unittests",
-        "url_unittests",
-        "ipc_tests",
-        "mojo_unittests",
-        "gpu_unittests",
-        "gin_unittests",
-        "content_shell",
-        "cobalt:gn_all"
+        "media_unittests"
     ],
     "includes": [
       {
