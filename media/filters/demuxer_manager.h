@@ -173,6 +173,9 @@ class MEDIA_EXPORT DemuxerManager {
 
 #if BUILDFLAG(ENABLE_FFMPEG)
   std::unique_ptr<media::Demuxer> CreateFFmpegDemuxer();
+#elif BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::unique_ptr<media::Demuxer> CreateDemuxerExtensionWrapper();
+  std::unique_ptr<media::Demuxer> CreateProgressiveDemuxer();
 #endif  // BUILDFLAG(ENABLE_FFMPEG)
 
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
