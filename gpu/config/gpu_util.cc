@@ -289,8 +289,8 @@ GpuFeatureStatus GetGLFeatureStatus(const std::set<int>& blocklisted_features,
     // path on top of SwiftShader driver.
     return kGpuFeatureStatusEnabled;
   }
-  if (blocklisted_features.count(GPU_FEATURE_TYPE_ACCELERATED_GL))
-    return kGpuFeatureStatusBlocklisted;
+  // if (blocklisted_features.count(GPU_FEATURE_TYPE_ACCELERATED_GL))
+  //   return kGpuFeatureStatusBlocklisted;
   return kGpuFeatureStatusEnabled;
 }
 
@@ -816,13 +816,14 @@ bool EnableSwiftShaderIfNeeded(base::CommandLine* command_line,
   // Don't overwrite user preference.
   if (command_line->HasSwitch(switches::kUseGL))
     return false;
-  if (gpu_feature_info.status_values[GPU_FEATURE_TYPE_ACCELERATED_WEBGL] !=
-          kGpuFeatureStatusEnabled ||
-      gpu_feature_info.status_values[GPU_FEATURE_TYPE_ACCELERATED_GL] !=
-          kGpuFeatureStatusEnabled) {
-    gl::SetSoftwareWebGLCommandLineSwitches(command_line);
-    return true;
-  }
+  // if (gpu_feature_info.status_values[GPU_FEATURE_TYPE_ACCELERATED_WEBGL] !=
+  //         kGpuFeatureStatusEnabled ||
+  //     gpu_feature_info.status_values[GPU_FEATURE_TYPE_ACCELERATED_GL] !=
+  //         kGpuFeatureStatusEnabled) {
+  //   LOG(INFO) << "Enabling Swiftshader (BAD)";
+  //   gl::SetSoftwareWebGLCommandLineSwitches(command_line);
+  //   return true;
+  // }
   return false;
 #else
   return false;
