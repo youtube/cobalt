@@ -296,6 +296,10 @@ class MEDIA_EXPORT DecoderBuffer
   // Returns a human-readable string describing |*this|.
   std::string AsHumanReadableString(bool verbose = false) const;
 
+  // Returns total memory usage for both bookkeeping and buffered data. The
+  // function is added for more accurately memory management.
+  virtual size_t GetMemoryUsage() const;
+
  protected:
   friend class base::RefCountedThreadSafe<DecoderBuffer>;
 
