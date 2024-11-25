@@ -14,6 +14,7 @@
 
 assert(is_cobalt, "This file builds for cobalt builds, not Chromium builds")
 
+import("//media/media_options.gni")
 import("//starboard/build/buildflags.gni")
 
 source_set("starboard") {
@@ -55,6 +56,28 @@ source_set("starboard") {
   ]
 
   sources = []
+  if (!media_use_ffmpeg) {
+    sources += [
+      "progressive/avc_access_unit.cc",
+      "progressive/avc_access_unit.h",
+      "progressive/avc_parser.cc",
+      "progressive/avc_parser.h",
+      "progressive/data_source_reader.cc",
+      "progressive/data_source_reader.h",
+      "progressive/demuxer_extension_wrapper.cc",
+      "progressive/demuxer_extension_wrapper.h",
+      "progressive/mp4_map.cc",
+      "progressive/mp4_map.h",
+      "progressive/mp4_parser.cc",
+      "progressive/mp4_parser.h",
+      "progressive/progressive_demuxer.cc",
+      "progressive/progressive_demuxer.h",
+      "progressive/progressive_parser.cc",
+      "progressive/progressive_parser.h",
+      "progressive/rbsp_stream.cc",
+      "progressive/rbsp_stream.h",
+    ]
+  }
 
   if (use_starboard_media) {
     sources += [
@@ -91,12 +114,24 @@ source_set("starboard") {
     "//starboard/common",
   ]
 
+  if (!media_use_ffmpeg) {
+    deps += [ "//third_party/abseil-cpp:absl" ]
+  }
+
   configs += [ "//media:subcomponent_config" ]
 }
 
 source_set("unit_tests") {
   testonly = true
   sources = []
+  if (!media_use_ffmpeg) {
+    sources += [
+      "progressive/demuxer_extension_wrapper_test.cc",
+      "progressive/mock_data_source_reader.h",
+      "progressive/mp4_map_unittest.cc",
+      "progressive/rbsp_stream_unittest.cc",
+    ]
+  }
   if (use_starboard_media) {
     sources += [
       "bidirectional_fit_reuse_allocator_test.cc",
