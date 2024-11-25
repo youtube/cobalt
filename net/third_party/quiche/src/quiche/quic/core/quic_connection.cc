@@ -5881,6 +5881,20 @@ void QuicConnection::SendAllPendingAcks() {
   if (!earliest_ack_timeout.IsInitialized()) {
     return;
   }
+
+  static bool was_blocked = false;
+  if (writer_->IsWriteBlocked()) {
+    was_blocked = true;
+    LOG(INFO) << __FUNCTION__
+              << " writer_->IsWriteBlocked()=" << writer_->IsWriteBlocked();
+    return;
+  }
+  if (was_blocked) {
+    was_blocked = false;
+    LOG(INFO) << __FUNCTION__
+              << " writer_->IsWriteBlocked()=" << writer_->IsWriteBlocked();
+  }
+
   for (int8_t i = INITIAL_DATA; i <= APPLICATION_DATA; ++i) {
     const QuicTime ack_timeout = uber_received_packet_manager_.GetAckTimeout(
         static_cast<PacketNumberSpace>(i));
@@ -5906,10 +5920,9 @@ void QuicConnection::SendAllPendingAcks() {
     QuicFrames frames;
     frames.push_back(uber_received_packet_manager_.GetUpdatedAckFrame(
         static_cast<PacketNumberSpace>(i), clock_->ApproximateNow()));
+
     const bool flushed = packet_creator_.FlushAckFrame(frames);
     if (!flushed) {
-      LOG(INFO) << __FUNCTION__;
-      CHECK(!writer_->IsWriteBlocked());
       // Connection is write blocked.
       QUIC_BUG_IF(quic_bug_12714_33,
                   !writer_->IsWriteBlocked() &&
