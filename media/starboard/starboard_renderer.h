@@ -85,11 +85,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
     // TODO(b/375271848): Address NOTIMPLEMENTED().
     NOTIMPLEMENTED();
   }
-  RendererType GetRendererType() final {
-    // Reuse `kRendererImpl` to avoid introducing a new renderer type.
-    // TODO(b/375278384): Properly setup the renderer type.
-    return RendererType::kRendererImpl;
-  }
+  RendererType GetRendererType() final { return RendererType::kStarboard; }
   SetBoundsCB GetSetBoundsCB() override;
 
  private:
