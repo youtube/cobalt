@@ -365,6 +365,10 @@ blink::WebMediaPlayer* MediaFactory::CreateMediaPlayer(
     const cc::LayerTreeSettings& settings,
     scoped_refptr<base::SingleThreadTaskRunner>
         main_thread_compositor_task_runner,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     scoped_refptr<base::TaskRunner> compositor_worker_task_runner) {
   blink::WebLocalFrame* web_frame = render_frame_->GetWebFrame();
   auto* delegate = GetWebMediaPlayerDelegate();
@@ -522,6 +526,9 @@ blink::WebMediaPlayer* MediaFactory::CreateMediaPlayer(
       render_frame_->GetRenderFrameMediaPlaybackOptions()
           .is_background_video_track_optimization_supported,
       std::move(demuxer_override),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      audio_write_duration_local, audio_write_duration_remote,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       blink::Platform::Current()->GetBrowserInterfaceBroker());
 }
 

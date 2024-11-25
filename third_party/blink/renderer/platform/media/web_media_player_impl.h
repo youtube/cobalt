@@ -153,6 +153,10 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
       bool is_background_video_play_enabled,
       bool is_background_video_track_optimization_supported,
       std::unique_ptr<media::Demuxer> demuxer_override,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      base::TimeDelta audio_write_duration_local,
+      base::TimeDelta audio_write_duration_remote,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       scoped_refptr<ThreadSafeBrowserInterfaceBrokerProxy> remote_interfaces);
   WebMediaPlayerImpl(const WebMediaPlayerImpl&) = delete;
   WebMediaPlayerImpl& operator=(const WebMediaPlayerImpl&) = delete;
@@ -324,6 +328,11 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
   base::WeakPtr<WebMediaPlayer> AsWeakPtr() override;
   void RegisterFrameSinkHierarchy() override;
   void UnregisterFrameSinkHierarchy() override;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Names of audio connectors used by the playback.
+  std::vector<std::string> GetAudioConnectors() const override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   bool IsBackgroundMediaSuspendEnabled() const {
     return is_background_suspend_enabled_;

@@ -412,6 +412,13 @@ class CORE_EXPORT HTMLMediaElement
   // reason while in picture in picture mode.
   LocalFrame* LocalFrameForPlayer();
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Returns semicolon separated names of audio connectors, like
+  // "hdmi;bluetooth".
+  // TODO(b/267678497): The current interface is tentative, to be refined.
+  WebString h5vcc_audio_connectors(ExceptionState& exception_state) const;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
  protected:
   // Assert the correct order of the children in shadow dom when DCHECK is on.
   static void AssertShadowRootChildren(ShadowRoot&);

@@ -109,6 +109,10 @@ class MediaFactory {
       const cc::LayerTreeSettings& settings,
       scoped_refptr<base::SingleThreadTaskRunner>
           main_thread_compositor_task_runner,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      base::TimeDelta audio_write_duration_local,
+      base::TimeDelta audio_write_duration_remote,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       scoped_refptr<base::TaskRunner> compositor_worker_task_runner);
 
   // Provides an EncryptedMediaClient to connect blink's EME layer to media's

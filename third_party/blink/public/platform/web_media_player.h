@@ -34,6 +34,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
+#include "build/build_config.h"
 #include "components/viz/common/surfaces/surface_id.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_frame_metadata.h"
@@ -47,6 +48,10 @@
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <string>
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace cc {
 class PaintCanvas;
@@ -389,6 +394,13 @@ class WebMediaPlayer {
   // Adjusts the frame sink hierarchy for the media frame sink.
   virtual void RegisterFrameSinkHierarchy() {}
   virtual void UnregisterFrameSinkHierarchy() {}
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Names of audio connectors used by the playback.
+  virtual std::vector<std::string> GetAudioConnectors() const {
+    return std::vector<std::string>();
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace blink

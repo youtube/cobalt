@@ -268,6 +268,7 @@ class MEDIA_EXPORT Pipeline {
   // Return SetBoundsCB if SbPlayer is used for rendering.
   using SetBoundsCB = base::OnceCallback<bool(int x, int y, int width, int height)>;
   virtual SetBoundsCB GetSetBoundsCB() = 0;
+  virtual std::vector<std::string> GetAudioConnectors() const = 0;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 

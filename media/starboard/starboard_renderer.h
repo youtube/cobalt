@@ -39,6 +39,9 @@
 
 namespace media {
 
+using base::Time;
+using base::TimeDelta;
+
 // SbPlayer based Renderer implementation, the entry point for all video
 // playbacks on Starboard platforms.
 class MEDIA_EXPORT StarboardRenderer final : public Renderer,
@@ -46,6 +49,8 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
  public:
   StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
                     VideoRendererSink* video_renderer_sink,
+                    base::TimeDelta audio_write_duration_local,
+                    base::TimeDelta audio_write_duration_remote,
                     MediaLog* media_log);
 
   ~StarboardRenderer() final;
@@ -67,6 +72,8 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   RendererType GetRendererType() final { return RendererType::kStarboard; }
   SetBoundsCB GetSetBoundsCB() override;
 
+  std::vector<std::string> GetAudioConnectors() const override;
+
  private:
   enum State {
     STATE_UNINITIALIZED,
@@ -87,6 +94,23 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
                   int max_number_of_buffers_to_write) final;
   void OnPlayerStatus(SbPlayerState state) final;
   void OnPlayerError(SbPlayerError error, const std::string& message) final;
+
+  // Store the media time retrieved by GetMediaTime so we can cache it as an
+  // estimate and avoid calling SbPlayerGetInfo too frequently.
+  void StoreMediaTime(TimeDelta media_time);
+
+  // Used to make a delayed call to OnNeedData() if |audio_read_delayed_| is
+  // true. If |audio_read_delayed_| is false, that means the delayed call has
+  // been cancelled due to a seek.
+  void DelayedNeedData(int max_number_of_buffers_to_write);
+
+  int GetDefaultMaxBuffers(AudioCodec codec,
+                           TimeDelta duration_to_write,
+                           bool is_preroll);
+
+  int GetEstimatedMaxBuffers(TimeDelta write_duration,
+                             TimeDelta time_ahead_of_playback,
+                             bool is_preroll);
 
   State state_;
 
@@ -114,22 +138,21 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
 
   DefaultSbPlayerInterface sbplayer_interface_;
   // TODO(b/326652276): Support audio write duration.
-  const base::TimeDelta audio_write_duration_local_ = base::Milliseconds(500);
-  const base::TimeDelta audio_write_duration_remote_ = base::Seconds(10);
+  // const base::TimeDelta audio_write_duration_local_ =
+  // base::Milliseconds(500); const base::TimeDelta audio_write_duration_remote_
+  // = base::Seconds(10);
   // TODO(b/375674101): Support batched samples write.
   const int max_audio_samples_per_write_ = 1;
 
   SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 
-  base::Lock lock_;
+  mutable base::Lock lock_;
   std::unique_ptr<SbPlayerBridge> player_bridge_;
 
   bool player_bridge_initialized_ = false;
   std::optional<base::TimeDelta> playing_start_from_time_;
 
   base::OnceClosure pending_flush_cb_;
-
-  base::TimeDelta audio_write_duration_ = audio_write_duration_local_;
 
   bool audio_read_in_progress_ = false;
   bool video_read_in_progress_ = false;
@@ -145,6 +168,29 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   // understood as a capability changed error. Do not change this message.
   static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
       "MEDIA_ERR_CAPABILITY_CHANGED";
+  // The following variables are related to audio write ahead.
+  base::Time last_time_media_time_retrieved_;
+  // Only call GetMediaTime() from OnNeedData if it has been
+  // |kMediaTimeCheckInterval| since the last call to GetMediaTime().
+  static constexpr TimeDelta kMediaTimeCheckInterval = base::Microseconds(100);
+  // Timestamp for the last written audio.
+  TimeDelta timestamp_of_last_written_audio_;
+  TimeDelta seek_time_;
+  const TimeDelta audio_write_duration_local_;
+  const TimeDelta audio_write_duration_remote_;
+
+  // The two variables below should always contain the same value.  They are
+  // kept as separate variables so we can keep the existing implementation as
+  // is, which simplifies the implementation across multiple Starboard versions.
+  TimeDelta audio_write_duration_;
+  TimeDelta audio_write_duration_for_preroll_ = audio_write_duration_;
+  // Indicates if video end of stream has been written into the underlying
+  // player.
+  bool is_video_eos_written_ = false;
+  TimeDelta last_audio_sample_interval_ = base::Microseconds(0);
+  TimeDelta last_media_time_;
+  bool audio_read_delayed_ = false;
+  int last_estimated_max_buffers_for_preroll_ = 1;
 
   base::WeakPtrFactory<StarboardRenderer> weak_factory_{this};
   base::WeakPtr<StarboardRenderer> weak_this_{weak_factory_.GetWeakPtr()};

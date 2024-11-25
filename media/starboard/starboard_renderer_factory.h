@@ -39,6 +39,15 @@ class MEDIA_EXPORT StarboardRendererFactory final : public RendererFactory {
       AudioRendererSink* audio_renderer_sink,
       VideoRendererSink* video_renderer_sink,
       RequestOverlayInfoCB request_overlay_info_cb,
+      const gfx::ColorSpace& target_color_space,
+      base::TimeDelta audio_write_duration_local,
+      base::TimeDelta audio_write_duration_remote) final;
+  std::unique_ptr<Renderer> CreateRenderer(
+      const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
+      const scoped_refptr<base::TaskRunner>& worker_task_runner,
+      AudioRendererSink* audio_renderer_sink,
+      VideoRendererSink* video_renderer_sink,
+      RequestOverlayInfoCB request_overlay_info_cb,
       const gfx::ColorSpace& target_color_space) final;
 
  private:

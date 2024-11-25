@@ -16,7 +16,9 @@
 
 #include "base/check.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "media/starboard/starboard_renderer.h"
+#include "starboard/player.h"
 
 namespace media {
 
@@ -31,11 +33,28 @@ std::unique_ptr<Renderer> StarboardRendererFactory::CreateRenderer(
     AudioRendererSink* audio_renderer_sink,
     VideoRendererSink* video_renderer_sink,
     RequestOverlayInfoCB request_overlay_info_cb,
-    const gfx::ColorSpace& target_color_space) {
+    const gfx::ColorSpace& target_color_space,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote) {
   DCHECK(video_renderer_sink);
   DCHECK(media_log_);
   return std::make_unique<media::StarboardRenderer>(
-      media_task_runner, video_renderer_sink, media_log_);
+      media_task_runner, video_renderer_sink, audio_write_duration_local,
+      audio_write_duration_remote, media_log_);
+}
+
+std::unique_ptr<Renderer> StarboardRendererFactory::CreateRenderer(
+    const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
+    const scoped_refptr<base::TaskRunner>& worker_task_runner,
+    AudioRendererSink* audio_renderer_sink,
+    VideoRendererSink* video_renderer_sink,
+    RequestOverlayInfoCB request_overlay_info_cb,
+    const gfx::ColorSpace& target_color_space) {
+  return CreateRenderer(media_task_runner, worker_task_runner,
+                        audio_renderer_sink, video_renderer_sink,
+                        request_overlay_info_cb, target_color_space,
+                        base::Microseconds(kSbPlayerWriteDurationLocal),
+                        base::Microseconds(kSbPlayerWriteDurationRemote));
 }
 
 }  // namespace media

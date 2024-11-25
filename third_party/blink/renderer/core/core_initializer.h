@@ -115,11 +115,21 @@ class CORE_EXPORT CoreInitializer {
   virtual void OnClearWindowObjectInMainWorld(Document&,
                                               const Settings&) const = 0;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual std::unique_ptr<WebMediaPlayer> CreateWebMediaPlayer(
+      WebLocalFrameClient*,
+      HTMLMediaElement&,
+      const WebMediaPlayerSource&,
+      WebMediaPlayerClient*,
+      base::TimeDelta,
+      base::TimeDelta) const;
+#else
   virtual std::unique_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       WebLocalFrameClient*,
       HTMLMediaElement&,
       const WebMediaPlayerSource&,
       WebMediaPlayerClient*) const = 0;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   virtual WebRemotePlaybackClient* CreateWebRemotePlaybackClient(
       HTMLMediaElement&) const = 0;

@@ -329,7 +329,13 @@ std::unique_ptr<WebMediaPlayer> ModulesInitializer::CreateWebMediaPlayer(
     WebLocalFrameClient* web_frame_client,
     HTMLMediaElement& html_media_element,
     const WebMediaPlayerSource& source,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    WebMediaPlayerClient* media_player_client,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote) const {
+#else
     WebMediaPlayerClient* media_player_client) const {
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   HTMLMediaElementEncryptedMedia& encrypted_media =
       HTMLMediaElementEncryptedMedia::From(html_media_element);
   WebString sink_id(
@@ -342,6 +348,9 @@ std::unique_ptr<WebMediaPlayer> ModulesInitializer::CreateWebMediaPlayer(
       source, media_player_client, context_impl, &encrypted_media,
       encrypted_media.ContentDecryptionModule(), sink_id,
       frame_widget->GetLayerTreeSettings(),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      audio_write_duration_local, audio_write_duration_remote,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       base::FeatureList::IsEnabled(kBlinkMediaPlayerUsesBaseThreadPool)
           ? base::ThreadPool::CreateTaskRunner(base::TaskTraits{})
           : cc::CategorizedWorkerPool::GetOrCreate(

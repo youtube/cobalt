@@ -363,6 +363,10 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
     bool is_background_video_playback_enabled,
     bool is_background_video_track_optimization_supported,
     std::unique_ptr<media::Demuxer> demuxer_override,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     scoped_refptr<ThreadSafeBrowserInterfaceBrokerProxy> remote_interfaces)
     : frame_(frame),
       main_task_runner_(frame->GetTaskRunner(TaskType::kMediaElementEvent)),
@@ -449,6 +453,9 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   // |pipeline_controller_|.
   pipeline_controller_ = std::make_unique<media::PipelineController>(
       std::move(pipeline),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      audio_write_duration_local, audio_write_duration_remote,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       base::BindRepeating(&WebMediaPlayerImpl::OnPipelineSeeked, weak_this_),
       base::BindRepeating(&WebMediaPlayerImpl::OnPipelineSuspended, weak_this_),
       base::BindRepeating(&WebMediaPlayerImpl::OnBeforePipelineResume,
@@ -3962,6 +3969,13 @@ void WebMediaPlayerImpl::UnregisterFrameSinkHierarchy() {
   if (bridge_)
     bridge_->UnregisterFrameSinkHierarchy();
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+std::vector<std::string> WebMediaPlayerImpl::GetAudioConnectors() const {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  return pipeline_controller_->GetAudioConnectors();
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void WebMediaPlayerImpl::ReportSessionUMAs() const {
   if (renderer_type_ != media::RendererType::kRendererImpl &&

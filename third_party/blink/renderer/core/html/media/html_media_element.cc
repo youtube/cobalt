@@ -28,6 +28,10 @@
 
 #include <algorithm>
 #include <limits>
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include <string>
+#include <vector>
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #include "base/auto_reset.h"
 #include "base/debug/crash_logging.h"
@@ -121,10 +125,10 @@
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/display/screen_info.h"
 
-// For BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/strings/string_util.h"
 #include "starboard/media.h"
+#include "starboard/player.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #ifndef LOG_MEDIA_EVENTS
@@ -1504,6 +1508,22 @@ LocalFrame* HTMLMediaElement::LocalFrameForPlayer() {
                           : GetDocument().GetFrame();
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+WebString HTMLMediaElement::h5vcc_audio_connectors(
+    ExceptionState& exception_state) const {
+  if (!web_media_player_) {
+    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                      "The WebMediaPlayer is invalid");
+    return WebString();
+  }
+
+  std::vector<std::string> configs = web_media_player_->GetAudioConnectors();
+  std::string joined_string = base::JoinString(configs, ";");
+
+  return WebString::FromUTF8(joined_string);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void HTMLMediaElement::StartPlayerLoad() {
   DCHECK(!web_media_player_);
 
@@ -1552,7 +1572,13 @@ void HTMLMediaElement::StartPlayerLoad() {
   }
 
   web_media_player_ =
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      frame->Client()->CreateWebMediaPlayer(
+          *this, source, this, base::Microseconds(kSbPlayerWriteDurationLocal),
+          base::Microseconds(kSbPlayerWriteDurationRemote));
+#else
       frame->Client()->CreateWebMediaPlayer(*this, source, this);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (!web_media_player_) {
     MediaLoadingFailed(WebMediaPlayer::kNetworkStateFormatError,

@@ -57,12 +57,23 @@ class MEDIA_EXPORT PipelineController {
   //   - |resumed_cb| is called immediately after resuming.
   //   - |error_cb| is called if any operation on |pipeline_| does not result
   //     in PIPELINE_OK or its error callback is called.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  PipelineController(std::unique_ptr<Pipeline> pipeline,
+                     base::TimeDelta audio_write_duration_local,
+                     base::TimeDelta audio_write_duration_remote,
+                     SeekedCB seeked_cb,
+                     SuspendedCB suspended_cb,
+                     BeforeResumeCB before_resume_cb,
+                     ResumedCB resumed_cb,
+                     PipelineStatusCB error_cb);
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   PipelineController(std::unique_ptr<Pipeline> pipeline,
                      SeekedCB seeked_cb,
                      SuspendedCB suspended_cb,
                      BeforeResumeCB before_resume_cb,
                      ResumedCB resumed_cb,
                      PipelineStatusCB error_cb);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   PipelineController(const PipelineController&) = delete;
   PipelineController& operator=(const PipelineController&) = delete;
@@ -151,6 +162,7 @@ class MEDIA_EXPORT PipelineController {
   void OnExternalVideoFrameRequest();
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   Pipeline::SetBoundsCB GetSetBoundsCB();
+  std::vector<std::string> GetAudioConnectors() const;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Used to fire the OnTrackChangeComplete function which is captured in a
@@ -242,6 +254,11 @@ class MEDIA_EXPORT PipelineController {
 
   base::ThreadChecker thread_checker_;
   base::WeakPtrFactory<PipelineController> weak_factory_{this};
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  base::TimeDelta audio_write_duration_local_;
+  base::TimeDelta audio_write_duration_remote_;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

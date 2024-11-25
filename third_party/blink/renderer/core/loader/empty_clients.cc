@@ -164,12 +164,14 @@ WebPluginContainerImpl* EmptyLocalFrameClient::CreatePlugin(
   return nullptr;
 }
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 std::unique_ptr<WebMediaPlayer> EmptyLocalFrameClient::CreateWebMediaPlayer(
     HTMLMediaElement&,
     const WebMediaPlayerSource&,
     WebMediaPlayerClient*) {
   return nullptr;
 }
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 WebRemotePlaybackClient* EmptyLocalFrameClient::CreateWebRemotePlaybackClient(
     HTMLMediaElement&) {

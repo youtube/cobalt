@@ -77,6 +77,10 @@
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "v8/include/v8.h"
 
+// #if BUILDFLAG(USE_STARBOARD_MEDIA)
+// #include "third_party/blink/public/platform/web_media_player.h"
+// #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace network {
 class SharedURLLoaderFactory;
 }  // namespace network
@@ -104,7 +108,9 @@ class SourceLocation;
 class WebContentCaptureClient;
 class WebDedicatedWorkerHostFactoryClient;
 class WebLocalFrame;
+// #if !BUILDFLAG(USE_STARBOARD_MEDIA)
 class WebMediaPlayer;
+// #endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 class WebMediaPlayerClient;
 class WebMediaPlayerSource;
 class WebPluginContainerImpl;
@@ -297,10 +303,21 @@ class CORE_EXPORT LocalFrameClient : public FrameClient {
                                                const String&,
                                                bool load_manually) = 0;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual std::unique_ptr<WebMediaPlayer> CreateWebMediaPlayer(
+      HTMLMediaElement&,
+      const WebMediaPlayerSource&,
+      WebMediaPlayerClient*,
+      base::TimeDelta,
+      base::TimeDelta) {
+    return nullptr;
+  }
+#else
   virtual std::unique_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       HTMLMediaElement&,
       const WebMediaPlayerSource&,
       WebMediaPlayerClient*) = 0;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   virtual WebRemotePlaybackClient* CreateWebRemotePlaybackClient(
       HTMLMediaElement&) = 0;
 
