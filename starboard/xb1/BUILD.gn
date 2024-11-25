@@ -186,6 +186,8 @@ static_library("starboard_platform") {
     "//starboard/shared/win32/win32_audio_decoder.h",
     "//starboard/shared/win32/wrm_header.cc",
     "//starboard/shared/win32/wrm_header.h",
+    "//starboard/xb1/shared/accessibility_extension.cc",
+    "//starboard/xb1/shared/accessibility_get_caption_settings.cc",
     "//starboard/xb1/shared/gpu_base_video_decoder.cc",
     "//starboard/xb1/shared/gpu_base_video_decoder.h",
     "//starboard/xb1/shared/internal_shims.h",
