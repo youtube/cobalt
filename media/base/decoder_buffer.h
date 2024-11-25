@@ -266,6 +266,10 @@ class MEDIA_EXPORT DecoderBuffer
   // If there's no data in this buffer, it represents end of stream.
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   bool end_of_stream() const { return !data_; }
+  void shrink_to(size_t size) {
+    DCHECK_LE(size, size_);
+    size_ = size;
+  }
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   bool end_of_stream() const {
     return !read_only_mapping_.IsValid() && !writable_mapping_.IsValid() &&

@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/progressive/mp4_map.h"
+#include "media/starboard/progressive/mp4_map.h"
 
 #include <stdlib.h>  // for rand and srand
 
@@ -22,33 +22,17 @@
 #include <sstream>
 #include <vector>
 
-#include "cobalt/media/base/endian_util.h"
-#include "cobalt/media/progressive/mock_data_source_reader.h"
-#include "cobalt/media/progressive/mp4_parser.h"
+#include "media/starboard/progressive/endian_util.h"
+#include "media/starboard/progressive/mock_data_source_reader.h"
+#include "media/starboard/progressive/mp4_parser.h"
+#include "starboard/memory.h"
 #include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-using cobalt::media::endian_util::load_uint32_big_endian;
-using cobalt::media::endian_util::store_uint32_big_endian;
-using cobalt::media::endian_util::store_uint64_big_endian;
-
-using cobalt::media::kAtomType_co64;
-using cobalt::media::kAtomType_ctts;
-using cobalt::media::kAtomType_stco;
-using cobalt::media::kAtomType_stsc;
-using cobalt::media::kAtomType_stss;
-using cobalt::media::kAtomType_stsz;
-using cobalt::media::kAtomType_stts;
-using cobalt::media::kEntrySize_co64;
-using cobalt::media::kEntrySize_ctts;
-using cobalt::media::kEntrySize_stco;
-using cobalt::media::kEntrySize_stsc;
-using cobalt::media::kEntrySize_stss;
-using cobalt::media::kEntrySize_stsz;
-using cobalt::media::kEntrySize_stts;
-using cobalt::media::MockDataSourceReader;
-using cobalt::media::MP4Map;
+using endian_util::load_uint32_big_endian;
+using endian_util::store_uint32_big_endian;
+using endian_util::store_uint64_big_endian;
 
 using ::testing::_;
 using ::testing::AllOf;
@@ -62,7 +46,9 @@ using ::testing::SetArrayArgument;
 
 namespace {
 
-int RandomRange(int min, int max) { return min + rand() % (max - min + 1); }
+int RandomRange(int min, int max) {
+  return min + rand() % (max - min + 1);
+}
 
 // Data structure represent a sample inside stbl. It has redundant data for
 // easy access.
@@ -82,10 +68,15 @@ class SampleTable {
  public:
   // All ranges are inclusive at both ends.
   // Set range of composition timestamp to [0, 0] to disable ctts.
-  SampleTable(unsigned int seed, int num_of_samples, int min_sample_size,
-              int max_sample_size, int min_samples_per_chunk,
-              int max_samples_per_chunk, int min_key_frame_gap,
-              int max_key_frame_gap, int min_sample_decode_timestamp_offset,
+  SampleTable(unsigned int seed,
+              int num_of_samples,
+              int min_sample_size,
+              int max_sample_size,
+              int min_samples_per_chunk,
+              int max_samples_per_chunk,
+              int min_key_frame_gap,
+              int max_key_frame_gap,
+              int min_sample_decode_timestamp_offset,
               int max_sample_decode_timestamp_offset,
               int min_sample_composition_timestamp_offset,
               int max_sample_composition_timestamp_offset)
@@ -228,7 +219,9 @@ class SampleTable {
       const uint8_t* data = GetBoxData(boxes[i]);
       for (int64 j = 0; j < size; ++j) {
         ss << static_cast<unsigned int>(data[j]) << ' ';
-        if (j != 0 && j % 32 == 0) ss << '\n';
+        if (j != 0 && j % 32 == 0) {
+          ss << '\n';
+        }
       }
     }
     LOG(INFO) << ss.str();
@@ -271,9 +264,15 @@ class SampleTable {
 
     for (SampleVector::const_iterator iter = samples_.begin();
          iter != samples_.end(); ++iter) {
-      if (!iter->is_key_frame) all_key_frames = false;
-      if (iter->dts != iter->cts) all_ctts_offset_is_zero = false;
-      if (iter->size != samples_[0].size) all_sample_has_same_size = false;
+      if (!iter->is_key_frame) {
+        all_key_frames = false;
+      }
+      if (iter->dts != iter->cts) {
+        all_ctts_offset_is_zero = false;
+      }
+      if (iter->size != samples_[0].size) {
+        all_sample_has_same_size = false;
+      }
     }
 
     // populate the stsz box: 4 bytes flags + 4 bytes default size
@@ -353,8 +352,9 @@ class SampleTable {
       }
     }
     store_uint32_big_endian((stts_.size() - 8) / kEntrySize_stts, &stts_[4]);
-    if (!all_ctts_offset_is_zero)
+    if (!all_ctts_offset_is_zero) {
       store_uint32_big_endian((ctts_.size() - 8) / kEntrySize_ctts, &ctts_[4]);
+    }
 
     // populate stss box
     // stss = 4 bytes count + (4 bytes sample index)*
@@ -373,8 +373,9 @@ class SampleTable {
     const int kGarbageSize = 1024;
     std::vector<uint8_t> garbage;
     garbage.reserve(kGarbageSize);
-    for (int i = 0; i < kGarbageSize; ++i)
+    for (int i = 0; i < kGarbageSize; ++i) {
       garbage.push_back(RandomRange(0xef, 0xfe));
+    }
     combined_.insert(combined_.end(), garbage.begin(), garbage.end());
     combined_.insert(combined_.end(), stsz_.begin(), stsz_.end());
     combined_.insert(combined_.end(), garbage.begin(), garbage.end());
@@ -422,10 +423,13 @@ class MP4MapTest : public testing::Test {
 
   void ResetMap() { map_ = new MP4Map(reader_); }
 
-  void CreateTestSampleTable(unsigned int seed, int num_of_samples,
-                             int min_sample_size, int max_sample_size,
+  void CreateTestSampleTable(unsigned int seed,
+                             int num_of_samples,
+                             int min_sample_size,
+                             int max_sample_size,
                              int min_samples_per_chunk,
-                             int max_samples_per_chunk, int min_key_frame_gap,
+                             int max_samples_per_chunk,
+                             int min_key_frame_gap,
                              int max_key_frame_gap,
                              int min_sample_decode_timestamp_offset,
                              int max_sample_decode_timestamp_offset,
@@ -532,9 +536,10 @@ TEST_F(MP4MapTest, GetSizeIterationTinyCache) {
       }
       ASSERT_LE(sample_table_->read_count(),
                 sample_table_->sample_count() / i + 1);
-      if (sample_table_->read_count())
+      if (sample_table_->read_count()) {
         ASSERT_LE(sample_table_->read_bytes() / sample_table_->read_count(),
                   (i + 1) * kEntrySize_stsz);
+      }
       // call to sample past the table size should still fail
       uint32 failed_size = 0;
       ASSERT_FALSE(map_->GetSize(sample_table_->sample_count(), &failed_size));
@@ -944,7 +949,9 @@ TEST_F(MP4MapTest, GetIsKeyframeRandomAccess) {
 
   // pick a keyframe about halfway
   uint32 sample_number = sample_table_->sample_count() / 2;
-  while (!GetTestSample(sample_number).is_key_frame) ++sample_number;
+  while (!GetTestSample(sample_number).is_key_frame) {
+    ++sample_number;
+  }
   // sample one past it should not be a keyframe
   bool map_is_keyframe_out = false;
   ASSERT_TRUE(map_->GetIsKeyframe(sample_number + 1, &map_is_keyframe_out));
@@ -958,7 +965,9 @@ TEST_F(MP4MapTest, GetIsKeyframeRandomAccess) {
 
   // first keyframe
   sample_number = 0;
-  while (!GetTestSample(sample_number).is_key_frame) ++sample_number;
+  while (!GetTestSample(sample_number).is_key_frame) {
+    ++sample_number;
+  }
   // next sample should not be a keyframe
   ASSERT_TRUE(map_->GetIsKeyframe(sample_number + 1, &map_is_keyframe_out));
   ASSERT_FALSE(map_is_keyframe_out);
@@ -1068,13 +1077,21 @@ TEST_F(MP4MapTest, GetKeyframe) {
 
   // find a first quarter keyframe in file
   uint32 qtr_keyframe = sample_table_->sample_count() / 4;
-  while (!GetTestSample(qtr_keyframe).is_key_frame) ++qtr_keyframe;
+  while (!GetTestSample(qtr_keyframe).is_key_frame) {
+    ++qtr_keyframe;
+  }
   uint32 next_keyframe = qtr_keyframe + 1;
-  while (!GetTestSample(next_keyframe).is_key_frame) ++next_keyframe;
+  while (!GetTestSample(next_keyframe).is_key_frame) {
+    ++next_keyframe;
+  }
   uint32 prev_keyframe = qtr_keyframe - 1;
-  while (!GetTestSample(prev_keyframe).is_key_frame) --prev_keyframe;
+  while (!GetTestSample(prev_keyframe).is_key_frame) {
+    --prev_keyframe;
+  }
   uint32 last_keyframe = sample_table_->sample_count() - 1;
-  while (!GetTestSample(last_keyframe).is_key_frame) --last_keyframe;
+  while (!GetTestSample(last_keyframe).is_key_frame) {
+    --last_keyframe;
+  }
   // midway between this keyframe and the next one
   uint32 test_frame = qtr_keyframe + ((next_keyframe - qtr_keyframe) / 2);
   // get time for this frame
