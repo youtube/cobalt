@@ -12,32 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_PROGRESSIVE_PROGRESSIVE_PARSER_H_
-#define COBALT_MEDIA_PROGRESSIVE_PROGRESSIVE_PARSER_H_
+#ifndef MEDIA_STARBOARD_PROGRESSIVE_PROGRESSIVE_PARSER_H_
+#define MEDIA_STARBOARD_PROGRESSIVE_PROGRESSIVE_PARSER_H_
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/media/base/pipeline.h"
-#include "cobalt/media/progressive/avc_access_unit.h"
-#include "cobalt/media/progressive/data_source_reader.h"
 #include "media/base/audio_decoder_config.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_log.h"
+#include "media/base/pipeline.h"
 #include "media/base/video_decoder_config.h"
+#include "media/starboard/progressive/avc_access_unit.h"
+#include "media/starboard/progressive/data_source_reader.h"
 
-namespace cobalt {
 namespace media {
 
 // abstract base class to define a stream parser interface used by
 // ProgressiveDemuxer.
 class ProgressiveParser : public base::RefCountedThreadSafe<ProgressiveParser> {
  public:
-  typedef ::media::AudioDecoderConfig AudioDecoderConfig;
-  typedef ::media::DecoderBuffer DecoderBuffer;
-  typedef ::media::DemuxerStream DemuxerStream;
-  typedef ::media::MediaLog MediaLog;
-  typedef ::media::PipelineStatus PipelineStatus;
-  typedef ::media::VideoDecoderConfig VideoDecoderConfig;
-
   static const int kInitialHeaderSize;
   // Determine stream type, construct appropriate parser object, and returns
   // PIPELINE_OK on success or error code.
@@ -83,6 +75,5 @@ class ProgressiveParser : public base::RefCountedThreadSafe<ProgressiveParser> {
 };
 
 }  // namespace media
-}  // namespace cobalt
 
-#endif  // COBALT_MEDIA_PROGRESSIVE_PROGRESSIVE_PARSER_H_
+#endif  // MEDIA_STARBOARD_PROGRESSIVE_PROGRESSIVE_PARSER_H_

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_PROGRESSIVE_PROGRESSIVE_DEMUXER_H_
-#define COBALT_MEDIA_PROGRESSIVE_PROGRESSIVE_DEMUXER_H_
+#ifndef MEDIA_STARBOARD_PROGRESSIVE_PROGRESSIVE_DEMUXER_H_
+#define MEDIA_STARBOARD_PROGRESSIVE_PROGRESSIVE_DEMUXER_H_
 
 #include <deque>
 #include <memory>
@@ -23,29 +23,23 @@
 #include "base/logging.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/threading/thread.h"
-#include "cobalt/media/progressive/progressive_parser.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/media_log.h"
 #include "media/base/ranges.h"
+#include "media/starboard/progressive/progressive_parser.h"
 
 namespace media {
+
 class DecoderBuffer;
-}  // namespace media
-
-namespace cobalt {
-namespace media {
-
 class ProgressiveDemuxer;
 
 class ProgressiveDemuxerStream : public ::media::DemuxerStream {
  public:
-  typedef ::media::AudioDecoderConfig AudioDecoderConfig;
-  typedef ::media::DecoderBuffer DecoderBuffer;
-  typedef ::media::VideoDecoderConfig VideoDecoderConfig;
-
   ProgressiveDemuxerStream(ProgressiveDemuxer* demuxer, Type type);
+  ProgressiveDemuxerStream(const ProgressiveDemuxerStream&) = delete;
+  ProgressiveDemuxerStream& operator=(const ProgressiveDemuxerStream&) = delete;
 
   // DemuxerStream implementation
   void Read(uint32_t count, ReadCB read_cb) override;
@@ -76,6 +70,8 @@ class ProgressiveDemuxerStream : public ::media::DemuxerStream {
 
   // Used to protect everything below.
   mutable base::Lock lock_;
+  ReadCB read_cb_ GUARDED_BY(lock_);
+
   // Keeps track of all time ranges this object has seen since creation.
   // The demuxer uses these ranges to update the pipeline about what data
   // it has demuxed.
@@ -95,8 +91,6 @@ class ProgressiveDemuxerStream : public ::media::DemuxerStream {
 
   size_t total_buffer_size_ = 0;
   size_t total_buffer_count_ = 0;
-
-  DISALLOW_COPY_AND_ASSIGN(ProgressiveDemuxerStream);
 };
 
 class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
@@ -112,7 +106,8 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
 
   ProgressiveDemuxer(
       const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-      DataSource* data_source, MediaLog* const media_log);
+      DataSource* data_source,
+      MediaLog* const media_log);
   ~ProgressiveDemuxer() override;
 
   // Demuxer implementation.
@@ -132,25 +127,26 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
   base::TimeDelta GetStartTime() const override;
   base::Time GetTimelineOffset() const override { return base::Time(); }
   int64_t GetMemoryUsage() const override {
-    NOTREACHED();
+    NOTIMPLEMENTED();
     return 0;
   }
   absl::optional<::media::container_names::MediaContainerName>
   GetContainerForMetrics() const override {
-    NOTREACHED();
     return absl::nullopt;
   }
   void OnEnabledAudioTracksChanged(
       const std::vector<::media::MediaTrack::Id>& track_ids,
-      base::TimeDelta currTime, TrackChangeCB change_completed_cb) override {
-    NOTREACHED();
+      base::TimeDelta currTime,
+      TrackChangeCB change_completed_cb) override {
+    NOTIMPLEMENTED();
   }
   void OnSelectedVideoTrackChanged(
       const std::vector<::media::MediaTrack::Id>& track_ids,
-      base::TimeDelta currTime, TrackChangeCB change_completed_cb) override {
-    NOTREACHED();
+      base::TimeDelta currTime,
+      TrackChangeCB change_completed_cb) override {
+    NOTIMPLEMENTED();
   }
-  void SetPlaybackRate(double rate) override { NOTREACHED(); }
+  void SetPlaybackRate(double rate) override { NOTIMPLEMENTED(); }
 
   // TODO: Consider move the following functions to private section.
 
@@ -204,6 +200,5 @@ class MEDIA_EXPORT ProgressiveDemuxer : public ::media::Demuxer {
 };
 
 }  // namespace media
-}  // namespace cobalt
 
-#endif  // COBALT_MEDIA_PROGRESSIVE_PROGRESSIVE_DEMUXER_H_
+#endif  // MEDIA_STARBOARD_PROGRESSIVE_PROGRESSIVE_DEMUXER_H_

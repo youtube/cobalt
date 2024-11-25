@@ -12,55 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/progressive/progressive_demuxer.h"
+#include "media/starboard/progressive/progressive_demuxer.h"
 
 #include <inttypes.h>
 
 #include <utility>
 
-#include "base/bind.h"
-#include "base/callback.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
 #include "base/strings/stringprintf.h"
 #include "base/task/bind_post_task.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
-#include "cobalt/media/base/data_source.h"
-#include "media/base/starboard_utils.h"
+#include "media/base/data_source.h"
 #include "media/base/timestamp_constants.h"
+#include "media/starboard/starboard_utils.h"
 #include "starboard/types.h"
 
-namespace cobalt {
 namespace media {
-namespace {
-
-using ::media::AudioDecoderConfig;
-using ::media::kNoTimestamp;
-using ::media::VideoDecoderConfig;
-
-}  // namespace
 
 ProgressiveDemuxerStream::ProgressiveDemuxerStream(ProgressiveDemuxer* demuxer,
                                                    Type type)
     : demuxer_(demuxer), type_(type) {
-  TRACE_EVENT0("media_stack",
-               "ProgressiveDemuxerStream::ProgressiveDemuxerStream()");
   DCHECK(demuxer_);
 }
 
 void ProgressiveDemuxerStream::Read(uint32_t count, ReadCB read_cb) {
-  TRACE_EVENT0("media_stack", "ProgressiveDemuxerStream::Read()");
-  DCHECK(!read_cb.is_null());
-
   base::AutoLock auto_lock(lock_);
+  DCHECK(!read_cb_);
+
+  read_cb_ = base::BindPostTaskToCurrentDefault(std::move(read_cb));
 
   // Don't accept any additional reads if we've been told to stop.
   // The demuxer_ may have been destroyed in the pipeline thread.
   if (stopped_) {
-    TRACE_EVENT0("media_stack", "ProgressiveDemuxerStream::Read() EOS sent.");
-    std::move(read_cb).Run(DemuxerStream::kOk,
-                           {DecoderBuffer::CreateEOSBuffer()});
+    std::move(read_cb_).Run(DemuxerStream::kOk,
+                            {DecoderBuffer::CreateEOSBuffer()});
     return;
   }
 
@@ -71,18 +60,16 @@ void ProgressiveDemuxerStream::Read(uint32_t count, ReadCB read_cb) {
     // Send the oldest buffer back.
     scoped_refptr<DecoderBuffer> buffer = buffer_queue_.front();
     if (buffer->end_of_stream()) {
-      TRACE_EVENT0("media_stack", "ProgressiveDemuxerStream::Read() EOS sent.");
+      LOG(INFO) << "media_stack ProgressiveDemuxerStream::Read() EOS sent.";
     } else {
       // Do not pop EOS buffers, so that subsequent read requests also get EOS
       total_buffer_size_ -= buffer->data_size();
       --total_buffer_count_;
       buffer_queue_.pop_front();
     }
-    std::move(read_cb).Run(DemuxerStream::kOk, {buffer});
+    std::move(read_cb_).Run(DemuxerStream::kOk, {buffer});
   } else {
-    TRACE_EVENT0("media_stack",
-                 "ProgressiveDemuxerStream::Read() request queued.");
-    read_queue_.push_back(std::move(read_cb));
+    read_queue_.push_back(std::move(read_cb_));
   }
 }
 
@@ -94,22 +81,21 @@ VideoDecoderConfig ProgressiveDemuxerStream::video_decoder_config() {
   return demuxer_->VideoConfig();
 }
 
-::media::Ranges<base::TimeDelta> ProgressiveDemuxerStream::GetBufferedRanges() {
+Ranges<base::TimeDelta> ProgressiveDemuxerStream::GetBufferedRanges() {
   base::AutoLock auto_lock(lock_);
   return buffered_ranges_;
 }
 
-::media::DemuxerStream::Type ProgressiveDemuxerStream::type() const {
+DemuxerStream::Type ProgressiveDemuxerStream::type() const {
   return type_;
 }
 
-void ProgressiveDemuxerStream::EnableBitstreamConverter() { NOTIMPLEMENTED(); }
+void ProgressiveDemuxerStream::EnableBitstreamConverter() {
+  NOTIMPLEMENTED();
+}
 
 void ProgressiveDemuxerStream::EnqueueBuffer(
     scoped_refptr<DecoderBuffer> buffer) {
-  TRACE_EVENT1(
-      "media_stack", "ProgressiveDemuxerStream::EnqueueBuffer()", "timestamp",
-      buffer->end_of_stream() ? -1 : buffer->timestamp().InMicroseconds());
   base::AutoLock auto_lock(lock_);
   if (stopped_) {
     // it's possible due to pipelining both downstream and within the
@@ -120,8 +106,8 @@ void ProgressiveDemuxerStream::EnqueueBuffer(
   }
 
   if (buffer->end_of_stream()) {
-    TRACE_EVENT0("media_stack",
-                 "ProgressiveDemuxerStream::EnqueueBuffer() EOS received.");
+    LOG(INFO) << "media_stack ProgressiveDemuxerStream::EnqueueBuffer() EOS "
+                 "received.";
   } else if (buffer->timestamp() != kNoTimestamp) {
     if (last_buffer_timestamp_ != kNoTimestamp &&
         last_buffer_timestamp_ < buffer->timestamp()) {
@@ -165,7 +151,6 @@ size_t ProgressiveDemuxerStream::GetTotalBufferCount() const {
 }
 
 void ProgressiveDemuxerStream::FlushBuffers() {
-  TRACE_EVENT0("media_stack", "ProgressiveDemuxerStream::FlushBuffers()");
   base::AutoLock auto_lock(lock_);
   // TODO: Investigate if the following warning is valid.
   LOG_IF(WARNING, !read_queue_.empty()) << "Read requests should be empty";
@@ -176,7 +161,6 @@ void ProgressiveDemuxerStream::FlushBuffers() {
 }
 
 void ProgressiveDemuxerStream::Stop() {
-  TRACE_EVENT0("media_stack", "ProgressiveDemuxerStream::Stop()");
   DCHECK(demuxer_->RunsTasksInCurrentSequence());
   base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
@@ -186,7 +170,6 @@ void ProgressiveDemuxerStream::Stop() {
   // fulfill any pending callbacks with EOS buffers set to end timestamp
   for (ReadQueue::iterator it = read_queue_.begin(); it != read_queue_.end();
        ++it) {
-    TRACE_EVENT0("media_stack", "ProgressiveDemuxerStream::Stop() EOS sent.");
     std::move(*it).Run(DemuxerStream::kOk, {DecoderBuffer::CreateEOSBuffer()});
   }
   read_queue_.clear();
@@ -198,7 +181,8 @@ void ProgressiveDemuxerStream::Stop() {
 //
 ProgressiveDemuxer::ProgressiveDemuxer(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-    DataSource* data_source, MediaLog* const media_log)
+    DataSource* data_source,
+    MediaLog* const media_log)
     : task_runner_(task_runner),
       host_(NULL),
       blocking_thread_("ProgDemuxerBlk"),
@@ -223,7 +207,6 @@ ProgressiveDemuxer::~ProgressiveDemuxer() {
 
 void ProgressiveDemuxer::Initialize(DemuxerHost* host,
                                     PipelineStatusCallback status_cb) {
-  TRACE_EVENT0("media_stack", "ProgressiveDemuxer::Initialize()");
   DCHECK(RunsTasksInCurrentSequence());
   DCHECK(reader_);
   DCHECK(!parser_);
@@ -240,7 +223,7 @@ void ProgressiveDemuxer::Initialize(DemuxerHost* host,
 
   // start the blocking thread and have it download and parse the media config
   if (!blocking_thread_.Start()) {
-    std::move(status_cb).Run(::media::DEMUXER_ERROR_COULD_NOT_PARSE);
+    std::move(status_cb).Run(DEMUXER_ERROR_COULD_NOT_PARSE);
     return;
   }
 
@@ -259,11 +242,11 @@ void ProgressiveDemuxer::ParseConfigBlocking(PipelineStatusCallback status_cb) {
   // if we can't construct a parser for this stream it's a fatal error, return
   // false so ParseConfigDone will notify the caller to Initialize() via
   // status_cb.
-  if (!parser_ || status != ::media::PIPELINE_OK) {
+  if (!parser_ || status != PIPELINE_OK) {
     DCHECK(!parser_);
-    DCHECK_NE(status, ::media::PIPELINE_OK);
-    if (status == ::media::PIPELINE_OK) {
-      status = ::media::DEMUXER_ERROR_COULD_NOT_PARSE;
+    DCHECK_NE(status, PIPELINE_OK);
+    if (status == PIPELINE_OK) {
+      status = DEMUXER_ERROR_COULD_NOT_PARSE;
     }
     ParseConfigDone(std::move(status_cb), status);
     return;
@@ -271,25 +254,23 @@ void ProgressiveDemuxer::ParseConfigBlocking(PipelineStatusCallback status_cb) {
 
   // instruct the parser to extract audio and video config from the file
   if (!parser_->ParseConfig()) {
-    ParseConfigDone(std::move(status_cb),
-                    ::media::DEMUXER_ERROR_COULD_NOT_PARSE);
+    ParseConfigDone(std::move(status_cb), DEMUXER_ERROR_COULD_NOT_PARSE);
     return;
   }
 
   // make sure we got a valid and complete configuration
   if (!parser_->IsConfigComplete()) {
-    ParseConfigDone(std::move(status_cb),
-                    ::media::DEMUXER_ERROR_COULD_NOT_PARSE);
+    ParseConfigDone(std::move(status_cb), DEMUXER_ERROR_COULD_NOT_PARSE);
     return;
   }
 
   // IsConfigComplete() should guarantee we know the duration
-  DCHECK(parser_->Duration() != ::media::kInfiniteDuration);
+  DCHECK(parser_->Duration() != kInfiniteDuration);
   host_->SetDuration(parser_->Duration());
 
   // successful parse of config data, inform the nonblocking demuxer thread
-  DCHECK_EQ(status, ::media::PIPELINE_OK);
-  ParseConfigDone(std::move(status_cb), ::media::PIPELINE_OK);
+  DCHECK_EQ(status, PIPELINE_OK);
+  ParseConfigDone(std::move(status_cb), PIPELINE_OK);
 }
 
 void ProgressiveDemuxer::ParseConfigDone(PipelineStatusCallback status_cb,
@@ -301,7 +282,7 @@ void ProgressiveDemuxer::ParseConfigDone(PipelineStatusCallback status_cb,
   }
 
   // if the blocking parser thread cannot parse config we're done.
-  if (status != ::media::PIPELINE_OK) {
+  if (status != PIPELINE_OK) {
     std::move(status_cb).Run(status);
     return;
   }
@@ -309,14 +290,14 @@ void ProgressiveDemuxer::ParseConfigDone(PipelineStatusCallback status_cb,
   // start downloading data
   Request(DemuxerStream::AUDIO);
 
-  std::move(status_cb).Run(::media::PIPELINE_OK);
+  std::move(status_cb).Run(PIPELINE_OK);
 }
 
 void ProgressiveDemuxer::Request(DemuxerStream::Type type) {
   if (!blocking_thread_.task_runner()->RunsTasksInCurrentSequence()) {
     blocking_thread_.task_runner()->PostTask(
-        FROM_HERE,
-        base::Bind(&ProgressiveDemuxer::Request, base::Unretained(this), type));
+        FROM_HERE, base::BindRepeating(&ProgressiveDemuxer::Request,
+                                       base::Unretained(this), type));
     return;
   }
 
@@ -328,7 +309,7 @@ void ProgressiveDemuxer::Request(DemuxerStream::Type type) {
   if (!au || !au->IsValid()) {
     if (!HasStopCalled()) {
       LOG(ERROR) << "got back bad AU from parser";
-      host_->OnDemuxerError(::media::DEMUXER_ERROR_COULD_NOT_PARSE);
+      host_->OnDemuxerError(DEMUXER_ERROR_COULD_NOT_PARSE);
     }
     return;
   }
@@ -336,14 +317,10 @@ void ProgressiveDemuxer::Request(DemuxerStream::Type type) {
   // make sure we got back an AU of the correct type
   DCHECK(au->GetType() == type);
 
-  const char* ALLOW_UNUSED_TYPE event_type =
-      type == DemuxerStream::AUDIO ? "audio" : "video";
-  TRACE_EVENT2("media_stack", "ProgressiveDemuxer::RequestTask()", "type",
-               event_type, "timestamp", au->GetTimestamp().InMicroseconds());
+  const char* event_type = type == DemuxerStream::AUDIO ? "audio" : "video";
 
   // don't issue allocation requests for EOS AUs
   if (au->IsEndOfStream()) {
-    TRACE_EVENT0("media_stack", "ProgressiveDemuxer::RequestTask() EOS sent");
     // enqueue EOS buffer with correct stream
     scoped_refptr<DecoderBuffer> eos_buffer = DecoderBuffer::CreateEOSBuffer();
     if (type == DemuxerStream::AUDIO) {
@@ -381,20 +358,19 @@ void ProgressiveDemuxer::AllocateBuffer() {
         MediaVideoCodecToSbMediaVideoCodec(VideoConfig().codec()),
         VideoConfig().visible_rect().size().width(),
         VideoConfig().visible_rect().size().height(), kBitDepth);
-    base::TimeDelta progressive_duration_cap =
-        base::TimeDelta::FromMicroseconds(
-            SbMediaGetBufferGarbageCollectionDurationThreshold());
+    base::TimeDelta progressive_duration_cap = base::Microseconds(
+        SbMediaGetBufferGarbageCollectionDurationThreshold());
     const int kEstimatedBufferCountPerSeconds = 70;
     int progressive_buffer_count_cap =
         progressive_duration_cap.InSeconds() * kEstimatedBufferCountPerSeconds;
     if (total_buffer_size >= progressive_budget ||
         total_buffer_count > progressive_buffer_count_cap) {
       // Retry after 100 milliseconds.
-      const base::TimeDelta kDelay = base::TimeDelta::FromMilliseconds(100);
+      const base::TimeDelta kDelay = base::Milliseconds(100);
       blocking_thread_.task_runner()->PostDelayedTask(
           FROM_HERE,
-          base::Bind(&ProgressiveDemuxer::AllocateBuffer,
-                     base::Unretained(this)),
+          base::BindRepeating(&ProgressiveDemuxer::AllocateBuffer,
+                              base::Unretained(this)),
           kDelay);
       return;
     }
@@ -414,11 +390,8 @@ void ProgressiveDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
   // are buffering to a new location for this to make sense
   DCHECK(requested_au_);
 
-  const char* ALLOW_UNUSED_TYPE event_type =
+  const char* event_type =
       requested_au_->GetType() == DemuxerStream::AUDIO ? "audio" : "video";
-  TRACE_EVENT2("media_stack", "ProgressiveDemuxer::Download()", "type",
-               event_type, "timestamp",
-               requested_au_->GetTimestamp().InMicroseconds());
   // do nothing if stopped
   if (HasStopCalled()) {
     LOG(INFO) << "aborting download task, stopped";
@@ -430,14 +403,14 @@ void ProgressiveDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
   // flushing_ will be reset by the next call to RequestTask()
   if (flushing_) {
     LOG(INFO) << "skipped AU download due to flush";
-    requested_au_ = NULL;
+    requested_au_ = nullptr;
     IssueNextRequest();
     return;
   }
 
   if (!requested_au_->Read(reader_.get(), buffer.get())) {
     LOG(ERROR) << "au read failed";
-    host_->OnDemuxerError(::media::PIPELINE_ERROR_READ);
+    host_->OnDemuxerError(PIPELINE_ERROR_READ);
     return;
   }
 
@@ -455,18 +428,18 @@ void ProgressiveDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
   }
 
   // finished with this au, deref
-  requested_au_ = NULL;
+  requested_au_ = nullptr;
 
   // Calculate total range of buffered data for both audio and video.
-  ::media::Ranges<base::TimeDelta> buffered(
+  Ranges<base::TimeDelta> buffered(
       audio_demuxer_stream_->GetBufferedRanges().IntersectionWith(
           video_demuxer_stream_->GetBufferedRanges()));
   // Notify host of each disjoint range.
   host_->OnBufferedTimeRangesChanged(buffered);
 
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::Bind(&ProgressiveDemuxer::IssueNextRequest,
-                            base::Unretained(this)));
+      FROM_HERE, base::BindRepeating(&ProgressiveDemuxer::IssueNextRequest,
+                                     base::Unretained(this)));
 }
 
 void ProgressiveDemuxer::IssueNextRequest() {
@@ -517,8 +490,8 @@ void ProgressiveDemuxer::IssueNextRequest() {
   // |blocking_thread_| as otherwise it is possible that this function is
   // running in a tight loop and seek or stop request has no chance to kick in.
   base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE,
-      base::Bind(&ProgressiveDemuxer::Request, base::Unretained(this), type));
+      FROM_HERE, base::BindRepeating(&ProgressiveDemuxer::Request,
+                                     base::Unretained(this), type));
 }
 
 void ProgressiveDemuxer::Stop() {
@@ -549,17 +522,14 @@ void ProgressiveDemuxer::Seek(base::TimeDelta time, PipelineStatusCallback cb) {
 // runs on blocking thread
 void ProgressiveDemuxer::SeekTask(base::TimeDelta time,
                                   PipelineStatusCallback cb) {
-  TRACE_EVENT1("media_stack", "ProgressiveDemuxer::SeekTask()", "timestamp",
-               time.InMicroseconds());
-  LOG(INFO) << base::StringPrintf("seek to: %" PRId64 " ms",
-                                  time.InMilliseconds());
+  LOG(ERROR) << base::StringPrintf("Cobalt seek to: %" PRId64 " ms",
+                                   time.InMilliseconds());
   // clear any enqueued buffers on demuxer streams
   audio_demuxer_stream_->FlushBuffers();
   video_demuxer_stream_->FlushBuffers();
   // advance parser to new timestamp
   if (!parser_->SeekTo(time)) {
-    LOG(ERROR) << "parser seek failed.";
-    std::move(cb).Run(::media::PIPELINE_ERROR_READ);
+    std::move(cb).Run(PIPELINE_ERROR_READ);
     return;
   }
   // if both streams had finished downloading, we need to restart the request
@@ -567,14 +537,13 @@ void ProgressiveDemuxer::SeekTask(base::TimeDelta time,
   audio_reached_eos_ = false;
   video_reached_eos_ = false;
   flushing_ = true;
-  std::move(cb).Run(::media::PIPELINE_OK);
+  std::move(cb).Run(PIPELINE_OK);
   if (issue_new_request) {
-    LOG(INFO) << "restarting stopped request loop";
     Request(DemuxerStream::AUDIO);
   }
 }
 
-std::vector<::media::DemuxerStream*> ProgressiveDemuxer::GetAllStreams() {
+std::vector<DemuxerStream*> ProgressiveDemuxer::GetAllStreams() {
   return std::vector<DemuxerStream*>(
       {audio_demuxer_stream_.get(), video_demuxer_stream_.get()});
 }
@@ -593,4 +562,3 @@ const VideoDecoderConfig& ProgressiveDemuxer::VideoConfig() {
 }
 
 }  // namespace media
-}  // namespace cobalt

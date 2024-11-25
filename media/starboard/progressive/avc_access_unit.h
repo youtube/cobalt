@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_PROGRESSIVE_AVC_ACCESS_UNIT_H_
-#define COBALT_MEDIA_PROGRESSIVE_AVC_ACCESS_UNIT_H_
+#ifndef MEDIA_STARBOARD_PROGRESSIVE_AVC_ACCESS_UNIT_H_
+#define MEDIA_STARBOARD_PROGRESSIVE_AVC_ACCESS_UNIT_H_
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/media/progressive/data_source_reader.h"
 #include "media/base/demuxer_stream.h"
+#include "media/starboard/progressive/data_source_reader.h"
 
-namespace cobalt {
 namespace media {
 
 class ProgressiveParser;
@@ -33,24 +32,31 @@ static const uint8_t kAnnexBStartCode[] = {0, 0, 0, 1};
 class AvcAccessUnit : public base::RefCountedThreadSafe<AvcAccessUnit> {
  public:
   typedef base::TimeDelta TimeDelta;
-  typedef ::media::DemuxerStream::Type Type;
+  typedef DemuxerStream::Type Type;
 
   static scoped_refptr<AvcAccessUnit> CreateEndOfStreamAU(Type type,
                                                           TimeDelta timestamp);
-  static scoped_refptr<AvcAccessUnit> CreateAudioAU(
-      uint64 offset, size_t size, size_t prepend_size, bool is_keyframe,
-      TimeDelta timestamp, TimeDelta duration, ProgressiveParser* parser);
-  static scoped_refptr<AvcAccessUnit> CreateVideoAU(
-      uint64 offset, size_t size, size_t prepend_size,
-      uint8 length_of_nalu_size, bool is_keyframe, TimeDelta timestamp,
-      TimeDelta duration, ProgressiveParser* parser);
+  static scoped_refptr<AvcAccessUnit> CreateAudioAU(uint64_t offset,
+                                                    size_t size,
+                                                    size_t prepend_size,
+                                                    bool is_keyframe,
+                                                    TimeDelta timestamp,
+                                                    TimeDelta duration,
+                                                    ProgressiveParser* parser);
+  static scoped_refptr<AvcAccessUnit> CreateVideoAU(uint64_t offset,
+                                                    size_t size,
+                                                    size_t prepend_size,
+                                                    uint8_t length_of_nalu_size,
+                                                    bool is_keyframe,
+                                                    TimeDelta timestamp,
+                                                    TimeDelta duration,
+                                                    ProgressiveParser* parser);
 
   virtual bool IsEndOfStream() const = 0;
   virtual bool IsValid() const = 0;
   // Read an AU from reader to buffer and also do all the necessary operations
   // like prepending head to make it ready to decode.
-  virtual bool Read(DataSourceReader* reader,
-                    ::media::DecoderBuffer* buffer) = 0;
+  virtual bool Read(DataSourceReader* reader, DecoderBuffer* buffer) = 0;
   virtual Type GetType() const = 0;
   virtual bool IsKeyframe() const = 0;
   virtual bool AddPrepend() const = 0;
@@ -71,6 +77,5 @@ class AvcAccessUnit : public base::RefCountedThreadSafe<AvcAccessUnit> {
 };
 
 }  // namespace media
-}  // namespace cobalt
 
-#endif  // COBALT_MEDIA_PROGRESSIVE_AVC_ACCESS_UNIT_H_
+#endif  // MEDIA_STARBOARD_PROGRESSIVE_AVC_ACCESS_UNIT_H_
