@@ -5,8 +5,7 @@
       "linux-x64x11"
     ],
     "targets": [
-	"net_unittests",
-        "media_unittests"
+	"net_unittests"
     ],
     "includes": [
       {
