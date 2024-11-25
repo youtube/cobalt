@@ -135,6 +135,7 @@ void VideoSurfaceHolder::ClearVideoWindow(bool force_reset_surface) {
 
   if (force_reset_surface) {
     env->CallStarboardVoidMethodOrAbort("resetVideoSurface", "()V");
+    SB_LOG(INFO) << "Video surface has been reset.";
     return;
   } else if (g_reset_surface_on_clear_window) {
     int width = ANativeWindow_getWidth(g_native_video_window);
