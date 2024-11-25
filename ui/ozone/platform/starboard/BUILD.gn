@@ -22,6 +22,8 @@ source_set("starboard") {
   sources = [
     "client_native_pixmap_factory_starboard.cc",
     "client_native_pixmap_factory_starboard.h",
+    "gl_ozone_egl_starboard.cc",
+    "gl_ozone_egl_starboard.h",
     "ozone_platform_starboard.cc",
     "ozone_platform_starboard.h",
     "platform_screen_starboard.cc",
@@ -33,6 +35,8 @@ source_set("starboard") {
   ]
 
   deps = [
+    "//starboard:starboard_group",
+    "//starboard:starboard_headers_only",
     "//ui/base/ime",
     "//ui/display",
     "//ui/display/fake",
@@ -41,6 +45,20 @@ source_set("starboard") {
     "//ui/ozone/common",
     "//ui/platform_window",
     "//ui/platform_window/stub",
+  ]
+}
+
+source_set("starboard_unittests") {
+  visibility = [ "//ui/ozone/*" ]
+
+  testonly = true
+
+  sources = [ "test/surface_factory_starboard_unittest.cc" ]
+
+  deps = [
+    ":starboard",
+    "//testing/gtest",
+    "//ui/gl",
   ]
 }
 
