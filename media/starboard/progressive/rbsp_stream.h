@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_PROGRESSIVE_RBSP_STREAM_H_
-#define COBALT_MEDIA_PROGRESSIVE_RBSP_STREAM_H_
+#ifndef MEDIA_STARBOARD_PROGRESSIVE_RBSP_STREAM_H_
+#define MEDIA_STARBOARD_PROGRESSIVE_RBSP_STREAM_H_
 
-#include "base/basictypes.h"
+#include <stddef.h>
+#include <stdint.h>
 
-namespace cobalt {
 namespace media {
 
 // ISO 14496-10 describes a byte encoding format for NALUs (network abstraction
@@ -29,19 +29,19 @@ class RBSPStream {
  public:
   // NON-OWNING pointer to buffer. It is assumed the client will dispose of
   // this buffer.
-  RBSPStream(const uint8* nalu_buffer, size_t nalu_buffer_size);
+  RBSPStream(const uint8_t* nalu_buffer, size_t nalu_buffer_size);
   // all Read/Skip methods return the value by reference and return true
   // on success, false on read error/EOB. Once the object has returned
   // false the consistency of the data is not guaranteed.
   // read unsigned Exp-Golomb coded integer, ISO 14496-10 Section 9.1
-  bool ReadUEV(uint32* uev_out);
+  bool ReadUEV(uint32_t* uev_out);
   // read signed Exp-Golomb coded integer, ISO 14496-10 Section 9.1
-  bool ReadSEV(int32* sev_out);
+  bool ReadSEV(int32_t* sev_out);
   // read and return up to 32 bits, filling from the right, meaning that
   // ReadBits(17) on a stream of all 1s would return 0x01ffff
-  bool ReadBits(size_t bits, uint32* bits_out);
-  bool ReadByte(uint8* byte_out) { return ReadRBSPByte(byte_out); }
-  bool ReadBit(uint8* bit_out) { return ReadRBSPBit(bit_out); }
+  bool ReadBits(size_t bits, uint32_t* bits_out);
+  bool ReadByte(uint8_t* byte_out) { return ReadRBSPByte(byte_out); }
+  bool ReadBit(uint8_t* bit_out) { return ReadRBSPBit(bit_out); }
   // jump over bytes in the RBSP stream
   bool SkipBytes(size_t bytes);
   // jump over bits in the RBSP stream
@@ -55,19 +55,18 @@ class RBSPStream {
   bool ConsumeNALUByte();
   // return single bit in the LSb from the RBSP stream. Bits are read from MSb
   // to LSb in the stream.
-  bool ReadRBSPBit(uint8* bit_out);
-  bool ReadRBSPByte(uint8* byte_out);
+  bool ReadRBSPBit(uint8_t* bit_out);
+  bool ReadRBSPByte(uint8_t* byte_out);
 
-  const uint8* nalu_buffer_;
+  const uint8_t* nalu_buffer_;
   size_t nalu_buffer_size_;
   size_t nalu_buffer_byte_offset_;
-  uint8 current_nalu_byte_;
+  uint8_t current_nalu_byte_;
   int number_consecutive_zeros_;
   // location of rbsp bit cursor within current_nalu_byte_
   size_t rbsp_bit_offset_;
 };
 
 }  // namespace media
-}  // namespace cobalt
 
-#endif  // COBALT_MEDIA_PROGRESSIVE_RBSP_STREAM_H_
+#endif  // MEDIA_STARBOARD_PROGRESSIVE_RBSP_STREAM_H_

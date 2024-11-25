@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/progressive/rbsp_stream.h"
+#include "media/starboard/progressive/rbsp_stream.h"
 
 #include <list>
 #include <memory>
@@ -22,7 +22,6 @@
 #include "base/strings/stringprintf.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace cobalt {
 namespace media {
 
 class RBSPStreamTest : public testing::Test {
@@ -634,4 +633,3 @@ TEST_F(RBSPStreamTest, SkipBits) {
 }
 
 }  // namespace media
-}  // namespace cobalt

@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/media/progressive/data_source_reader.h"
+#include "media/starboard/progressive/data_source_reader.h"
 
 #include "starboard/types.h"
 
-namespace cobalt {
 namespace media {
 
 const int DataSourceReader::kReadError = DataSource::kReadError;
@@ -37,7 +36,7 @@ void DataSourceReader::SetDataSource(DataSource* data_source) {
 }
 
 // currently only single-threaded reads supported
-int DataSourceReader::BlockingRead(int64 position, int size, uint8* data) {
+int DataSourceReader::BlockingRead(int64_t position, int size, uint8_t* data) {
   // read failures are unrecoverable, all subsequent reads will also fail
   if (read_has_failed_) {
     return kReadError;
@@ -57,7 +56,7 @@ int DataSourceReader::BlockingRead(int64 position, int size, uint8* data) {
       }
       data_source_->Read(
           position, size, data,
-          base::Bind(&DataSourceReader::BlockingReadCompleted, this));
+          base::BindRepeating(&DataSourceReader::BlockingReadCompleted, this));
     }
 
     // wait for callback on read completion
@@ -77,7 +76,9 @@ int DataSourceReader::BlockingRead(int64 position, int size, uint8* data) {
     }
 
     // Avoid entering an endless loop here.
-    if (last_bytes_read_ == 0) break;
+    if (last_bytes_read_ == 0) {
+      break;
+    }
 
     total_bytes_read += last_bytes_read_;
     position += last_bytes_read_;
@@ -106,7 +107,7 @@ void DataSourceReader::BlockingReadCompleted(int bytes_read) {
   blocking_read_event_.Signal();
 }
 
-int64 DataSourceReader::FileSize() {
+int64_t DataSourceReader::FileSize() {
   if (file_size_ == -1) {
     base::AutoLock auto_lock(lock_);
     if (data_source_ && !data_source_->GetSize(&file_size_)) {
@@ -117,4 +118,3 @@ int64 DataSourceReader::FileSize() {
 }
 
 }  // namespace media
-}  // namespace cobalt
