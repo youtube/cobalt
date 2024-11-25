@@ -260,4 +260,24 @@ void DecoderBuffer::set_timestamp(base::TimeDelta timestamp) {
   time_info_.timestamp = timestamp;
 }
 
+size_t DecoderBuffer::GetMemoryUsage() const {
+  size_t memory_usage = sizeof(DecoderBuffer);
+
+  if (end_of_stream()) {
+    return memory_usage;
+  }
+
+  memory_usage += data_size();
+
+  if (decrypt_config_) {
+    memory_usage += sizeof(DecryptConfig);
+    memory_usage += decrypt_config_->key_id().capacity();
+    memory_usage += decrypt_config_->iv().capacity();
+    memory_usage +=
+        sizeof(SubsampleEntry) * decrypt_config_->subsamples().capacity();
+  }
+
+  return memory_usage;
+}
+
 }  // namespace media
