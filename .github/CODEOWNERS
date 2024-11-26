@@ -10,4 +10,5 @@
 /media/starboard/  # no owners
 /starboard/  # no owners
 /components/viz/service/display/starboard/  # no owners
+/ui/ozone/platform/starboard/  # no owners
 /cobalt/build @youtube/cobalt-build
