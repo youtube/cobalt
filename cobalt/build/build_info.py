@@ -106,7 +106,7 @@ def _get_cobalt_version():
   return compiled_cobalt_version_pattern.search(contents).group(1)
 
 
-def build_json(output_path, cwd=_FILE_DIR):
+def write_build_json(output_path, cwd=_FILE_DIR):
   """Writes a Cobalt build_info json file."""
   build_rev = _get_hash_from_last_commit(cwd=cwd)
   build_id, git_rev = _get_build_id_and_git_rev(cwd=cwd, build_rev=build_rev)
@@ -156,13 +156,13 @@ BUILD_ID_HEADER_TEMPLATE = """
 """
 
 
-def build_id_header(output_path):
+def write_build_id_header(output_path):
   """Writes a cobalt_build_id header file.
 
   Args:
     output_path: Location to write Cobalt build ID header to.
   Returns:
-    0 on success.
+    Nothing
   """
   with open(output_path, 'w', encoding='utf-8') as f:
     f.write(
@@ -171,5 +171,5 @@ def build_id_header(output_path):
 
 
 if __name__ == '__main__':
-  build_id_header(sys.argv[1])
-  build_json(sys.argv[2])
+  write_build_id_header(sys.argv[1])
+  write_build_json(sys.argv[2])
