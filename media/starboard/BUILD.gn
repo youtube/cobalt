@@ -110,6 +110,7 @@ source_set("starboard") {
     "//base",
     "//media:media_buildflags",
     "//media/base",
+    "//media/renderers",
     "//starboard($starboard_toolchain)",
     "//starboard/common",
   ]
