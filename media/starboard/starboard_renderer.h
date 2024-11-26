@@ -56,16 +56,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
                   PipelineStatusCallback init_cb) final;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) final;
   void SetLatencyHint(absl::optional<base::TimeDelta> latency_hint) final {
-    // TODO(b/375271848): Address NOTIMPLEMENTED().
-    NOTIMPLEMENTED();
-  }
-  void SetPreservesPitch(bool preserves_pitch) final {
-    // TODO(b/375271848): Address NOTIMPLEMENTED().
-    NOTIMPLEMENTED();
-  }
-  void SetWasPlayedWithUserActivation(
-      bool was_played_with_user_activation) final {
-    // TODO(b/375271848): Address NOTIMPLEMENTED().
+    // TODO(b/380935131): Consider to implement `LatencyHint` for SbPlayer.
     NOTIMPLEMENTED();
   }
   void Flush(base::OnceClosure flush_cb) final;
@@ -73,18 +64,6 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   void SetPlaybackRate(double playback_rate) final;
   void SetVolume(float volume) final;
   base::TimeDelta GetMediaTime() final;
-  void OnSelectedVideoTracksChanged(
-      const std::vector<DemuxerStream*>& enabled_tracks,
-      base::OnceClosure change_completed_cb) final {
-    // TODO(b/375271848): Address NOTIMPLEMENTED().
-    NOTIMPLEMENTED();
-  }
-  void OnEnabledAudioTracksChanged(
-      const std::vector<DemuxerStream*>& enabled_tracks,
-      base::OnceClosure change_completed_cb) final {
-    // TODO(b/375271848): Address NOTIMPLEMENTED().
-    NOTIMPLEMENTED();
-  }
   RendererType GetRendererType() final { return RendererType::kStarboard; }
   SetBoundsCB GetSetBoundsCB() override;
 
