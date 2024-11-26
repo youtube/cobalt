@@ -15,10 +15,10 @@
 # Cobalt-specific support for dealing with Chromium's tracing system.
 static_library("trace_event") {
   sources = [
-    "json_file_outputter.cc",
-    "json_file_outputter.h",
-    "scoped_trace_to_file.cc",
-    "scoped_trace_to_file.h",
+    #"json_file_outputter.cc",
+    #"json_file_outputter.h",
+    #"scoped_trace_to_file.cc",
+    #"scoped_trace_to_file.h",
     "switches.cc",
     "switches.h",
   ]

@@ -30,8 +30,11 @@ void WriteIntoTracedValue(TracedValue context, T&& value);
 template <typename MessageType, typename T>
 void WriteIntoTracedProto(TracedProto<MessageType> context, T&& value);
 
+#if defined(BASE_TRACE_EVENT_BASE_TRACING_FORWARD_H_) && \
+    BUILDFLAG(ENABLE_BASE_TRACING)
 template <typename T, class = void>
 struct TraceFormatTraits;
+#endif
 
 // Helpers to check whether a given type T can be written into a TracedValue /
 // TracedProto<MessageType>.
@@ -60,9 +63,11 @@ struct TraceFormatTraits;
 //      WriteIntoTracedProto(std::move(message), *ptr_);
 //   }
 // };
+#if defined(BASE_TRACE_EVENT_BASE_TRACING_FORWARD_H_) && \
+    BUILDFLAG(ENABLE_BASE_TRACING)
 template <typename T, typename ResultType = void, typename = void>
 struct check_traced_value_support;
-
+#endif
 template <typename MessageType,
           typename T,
           typename ResultType = void,

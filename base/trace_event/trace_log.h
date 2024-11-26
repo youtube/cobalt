@@ -26,7 +26,9 @@
 #include "base/trace_event/category_registry.h"
 #include "base/trace_event/memory_dump_provider.h"
 #include "base/trace_event/trace_config.h"
+#if BUILDFLAG(ENABLE_BASE_TRACING)
 #include "base/trace_event/trace_event_impl.h"
+#endif
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 

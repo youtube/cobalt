@@ -1035,6 +1035,11 @@ struct BASE_EXPORT TraceTimestampTraits<::base::TimeTicks> {
       TRACE_EVENT_PHASE_DELETE_OBJECT, category_group, name, id,     \
       TRACE_EVENT_FLAG_NONE)
 
+#if defined(STARBOARD)
+#define TRACE_EVENT_CATEGORY_GROUP_ENABLED(category_group, ret) \
+  do {                                                          \
+  } while ()
+#else
 // Macro to efficiently determine if a given category group is enabled.
 #define TRACE_EVENT_CATEGORY_GROUP_ENABLED(category_group, ret)             \
   do {                                                                      \
@@ -1045,6 +1050,7 @@ struct BASE_EXPORT TraceTimestampTraits<::base::TimeTicks> {
       *ret = false;                                                         \
     }                                                                       \
   } while (0)
+#endif
 
 // Macro to efficiently determine, through polling, if a new trace has begun.
 #define TRACE_EVENT_IS_NEW_TRACE(ret)                                      \

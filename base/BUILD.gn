@@ -2518,6 +2518,13 @@ component("base") {
       "trace_event/trace_event_stub.cc",
       "trace_event/trace_event_stub.h",
     ]
+    deps += [
+      "//base/tracing/protos:chrome_track_event",
+      "//third_party/perfetto/include/perfetto/protozero",
+    ]
+    all_dependent_configs += [
+      "//third_party/perfetto/gn:public_config",
+    ]
   }
 
   if (using_sanitizer && !is_fuchsia) {

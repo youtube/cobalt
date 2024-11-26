@@ -17,9 +17,13 @@
 #include "base/memory/raw_ptr_exclusion.h"
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/tracing_buildflags.h"
+#if BUILDFLAG(ENABLE_BASE_TRACING)
 #include "third_party/perfetto/include/perfetto/protozero/scattered_heap_buffer.h"
+#endif
 #include "third_party/perfetto/include/perfetto/tracing/traced_value.h"
+#if BUILDFLAG(ENABLE_BASE_TRACING)
 #include "third_party/perfetto/protos/perfetto/trace/track_event/debug_annotation.pbzero.h"
+#endif
 
 // Trace macro can have one or two optional arguments, each one of them
 // identified by a name (a C string literal) and a value, which can be an

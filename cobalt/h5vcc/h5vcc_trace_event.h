@@ -63,9 +63,11 @@ class H5vccTraceEvent : public script::Wrappable {
  private:
   // This object can be set to start a trace.
   // While initialized, it means that a trace is on-going.
+#if BUILDFLAG(ENABLE_BASE_TRACING)
   std::unique_ptr<trace_event::ScopedTraceToFile> trace_to_file_;
 
   base::FilePath last_absolute_path_;
+#endif
 
   DISALLOW_COPY_AND_ASSIGN(H5vccTraceEvent);
 };

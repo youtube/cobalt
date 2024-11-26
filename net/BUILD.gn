@@ -720,8 +720,6 @@ component("net") {
     "log/net_log_values.h",
     "log/net_log_with_source.cc",
     "log/net_log_with_source.h",
-    "log/trace_net_log_observer.cc",
-    "log/trace_net_log_observer.h",
     "nqe/cached_network_quality.cc",
     "nqe/cached_network_quality.h",
     "nqe/effective_connection_type.cc",
@@ -1071,6 +1069,14 @@ component("net") {
     "url_request/websocket_handshake_userdata_key.cc",
     "url_request/websocket_handshake_userdata_key.h",
   ]
+
+
+  if (enable_base_tracing) {
+   sources += [
+    "log/trace_net_log_observer.cc",
+    "log/trace_net_log_observer.h",
+   ]
+  }
 
   if (is_starboard) {
     sources += [

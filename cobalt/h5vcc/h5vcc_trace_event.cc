@@ -19,13 +19,16 @@
 namespace cobalt {
 namespace h5vcc {
 
+#if BUILDFLAG(ENABLE_BASE_TRACING)
 namespace {
 const char* kOutputTraceFilename = "h5vcc_trace_event.json";
 }  // namespace
+#endif
 
 H5vccTraceEvent::H5vccTraceEvent() {}
 
 void H5vccTraceEvent::Start(const std::string& output_filename) {
+#if BUILDFLAG(ENABLE_BASE_TRACING)
   if (trace_to_file_) {
     DLOG(WARNING) << "H5vccTraceEvent is already started.";
   } else {
@@ -34,18 +37,22 @@ void H5vccTraceEvent::Start(const std::string& output_filename) {
     last_absolute_path_.clear();
     trace_to_file_.reset(new trace_event::ScopedTraceToFile(output_filepath));
   }
+#endif
 }
 
 void H5vccTraceEvent::Stop() {
+#if BUILDFLAG(ENABLE_BASE_TRACING)
   if (trace_to_file_) {
     last_absolute_path_ = trace_to_file_->absolute_output_path();
     trace_to_file_.reset();
   } else {
     DLOG(WARNING) << "H5vccTraceEvent is already stopped.";
   }
+#endif
 }
 
 std::string H5vccTraceEvent::Read(const std::string& read_filename) {
+#if BUILDFLAG(ENABLE_BASE_TRACING)
   if (trace_to_file_) {
     Stop();
   }
@@ -58,6 +65,9 @@ std::string H5vccTraceEvent::Read(const std::string& read_filename) {
     ReadFileToString(last_absolute_path_, &trace);
   }
   return trace;
+#else
+  return std::string();
+#endif
 }
 
 

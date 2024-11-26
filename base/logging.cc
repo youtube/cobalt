@@ -40,6 +40,7 @@
 
 #if defined(STARBOARD)
 #include <fcntl.h>
+#include <unistd.h>
 
 #include "base/files/file_starboard.h"
 #include "starboard/client_porting/eztime/eztime.h"

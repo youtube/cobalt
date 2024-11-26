@@ -15,6 +15,10 @@
 #include <memory>
 #include <utility>
 
+#include "base/tracing_buildflags.h"
+
+#if BUILDFLAG(ENABLE_BASE_TRACING)
+
 #include "base/atomicops.h"
 #include "base/base_export.h"
 #include "base/debug/debugging_buildflags.h"
@@ -792,5 +796,9 @@ class TraceScopedTrackableObject {
 
 }  // namespace trace_event
 }  // namespace base
+
+#else  // BUILDFLAG(ENABLE_BASE_TRACING)
+#include "base/trace_event/trace_event_stub.h"
+#endif  // BUILDFLAG(ENABLE_BASE_TRACING)
 
 #endif  // BASE_TRACE_EVENT_TRACE_EVENT_H_

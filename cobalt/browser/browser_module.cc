@@ -538,6 +538,7 @@ void BrowserModule::NavigateResetWebModule() {
   main_web_module_layer_->Reset();
 
 #if defined(ENABLE_DEBUGGER)
+#if BUILDFLAG(ENABLE_BASE_TRACING)
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
   if (navigate_timed_trace_duration_ != base::TimeDelta()) {
@@ -546,6 +547,7 @@ void BrowserModule::NavigateResetWebModule() {
         navigate_timed_trace_duration_);
     navigate_timed_trace_duration_ = base::TimeDelta();
   }
+#endif
 #endif  // defined(ENABLE_DEBUGGER)
 }
 

@@ -636,6 +636,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
   } else {
     start_timestamp_ = timestamp;
   }
+#if BUILDFLAG(ENABLE_BASE_TRACING)
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
   base::TimeDelta trace_duration = GetTimedTraceDuration();
@@ -643,7 +644,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload,
     trace_event::TraceToFileForDuration(
         base::FilePath(FILE_PATH_LITERAL("timed_trace.json")), trace_duration);
   }
-
+#endif
   TRACE_EVENT0("cobalt::browser", "Application::Application()");
 
 

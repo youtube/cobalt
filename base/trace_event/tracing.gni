@@ -17,5 +17,5 @@ declare_args() {
   # Disabled by default on Android and ChromeOS due to binary size impact,
   # enabled everywhere else.
   optional_trace_events_enabled =
-      (!is_android && !is_chromeos_ash) || extended_tracing_enabled
+      (!is_android && !is_chromeos_ash && !is_starboard) || extended_tracing_enabled
 }
