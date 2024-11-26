@@ -27,6 +27,9 @@
 #include "base/system/sys_info_starboard.h"
 #include "starboard/extension/platform_info.h"
 
+#include "cobalt/cobalt_build_id.h"  // Generated
+#include "cobalt/version.h"
+
 namespace cobalt {
 
 void GetUserAgentInputMap(
@@ -265,9 +268,8 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   // TODO(cobalt, b/374213479): How to determine below Cobalt build macros.
   // Migrate cobalt/build/build_info.py from C25?
   info.set_starboard_version("Starboard/17");  // SB_API_VERSION macro in C25.
-  info.set_cobalt_version("26.lts.0");         // COBALT_VERSION in C25.
-  info.set_cobalt_build_version_number(
-      "1234567");                      // COBALT_BUILD_VERSION_NUMBER in C25.
+  info.set_cobalt_version(COBALT_VERSION);
+  info.set_cobalt_build_version_number(COBALT_BUILD_VERSION_NUMBER);
   info.set_build_configuration("qa");  // COBALT_BUILD_TYPE_DEBUG in C25.
 
 // Apply overrides from command line
