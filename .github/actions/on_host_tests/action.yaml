@@ -1,0 +1,54 @@
+name: On Host Tests
+description: Runs on-host tests.
+inputs:
+  test_artifacts_key:
+    description: "Artifact key used to store test artifacts."
+    required: true
+  results_dir:
+    description: "Path to directory where test results are saved."
+    required: true
+  platform:
+    description: "Platform on which to run tests."
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.test_artifacts_key }}
+    - name: Extract Artifacts
+      shell: bash
+      run: |
+        set -x
+        mkdir -p ${GITHUB_WORKSPACE}/unit_test
+        cd ${GITHUB_WORKSPACE}/unit_test
+        tar xvf ${GITHUB_WORKSPACE}/test_artifacts.tar.xz
+    - name: Run Tests
+      id: run-tests
+      shell: bash
+      env:
+        RESULTS_DIR: ${{ inputs.results_dir }}
+        XVFB_SERVER_ARGS: "-screen 0 1920x1080x24i +render +extension GLX -noreset"
+      run: |
+        set -x
+        env
+
+        # Update path to find missing library linkages.
+        export LD_LIBRARY_PATH="${GITHUB_WORKSPACE}"/unit_test/out/${{ matrix.platform }}_${{ matrix.config }}/starboard:"${GITHUB_WORKSPACE}"/unit_test/out/${{ matrix.platform }}_${{ matrix.config }}
+
+        cd ${GITHUB_WORKSPACE}/unit_test
+        for test_binary in $(ls -d out/**/*tests); do
+          # TODO(b/372303096): Need dedicated xvfb runner.
+          echo "Running tests for suite: ${test_binary}"
+
+          test_filter="*"
+          if [ -f ${GITHUB_WORKSPACE}/src/cobalt/testing/${{ inputs.platform }}/${test_binary##*/}_filter.json ]; then
+            test_filter=`jq -r '"-" + (.failing_tests | join(":"))' ${GITHUB_WORKSPACE}/src/cobalt/testing/${{ inputs.platform }}/${test_binary##*/}_filter.json`
+          fi
+
+          echo "Test filter evaluated to: $test_filter"
+
+          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary --gtest_filter="$test_filter" --gtest_output="xml:${RESULTS_DIR}/${test_binary}_testoutput.xml"
+        done
+        echo "Finished running all unit tests..."
