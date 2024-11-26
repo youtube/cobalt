@@ -4,6 +4,9 @@ inputs:
   targets:
     description: "List of ninja targets for Cobalt build."
     required: true
+  test_artifacts_key:
+    description: "Artifact key used to store test artifacts."
+    required: true
 runs:
   using: "composite"
   steps:
@@ -33,12 +36,12 @@ runs:
           cd src
           cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
         shell: bash
-      - name: gn dump args
+      - name: Dump GN args
         run: |
           cd src
           gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
         shell: bash
-      - name: ninja build
+      - name: Ninja build
         env:
           TARGETS: ${{ inputs.targets }}
         run: |
@@ -46,11 +49,8 @@ runs:
           cd src
           ninja -C out/${{ matrix.platform }}_${{ matrix.config }} $(echo "${TARGETS}" | tr -d '"')
         shell: bash
-      - name: sccache check
+      - name: Dump sccache stats
         run: sccache -s
-        shell: bash
-      - name: find apks
-        run: find src/out -name \*.apk -print
         shell: bash
       - name: Archive Android APKs
         if: startsWith(${{matrix.platform}}, 'android')
@@ -60,3 +60,17 @@ runs:
           path: |
             src/out/${{ matrix.platform }}_qa/apks/*.apk
             src/out/${{ matrix.platform }}_qa/*_apk/*.apk
+      - name: Create Test Files Archive
+        if: startsWith(matrix.platform, 'linux') && matrix.config == 'devel'
+        run: |
+          set -x
+          cd src
+          tar cvf - out/${{ matrix.platform }}_${{ matrix.config }}/*tests out/${{ matrix.platform }}_${{ matrix.config }}/*.so out/${{ matrix.platform }}_${{ matrix.config }}/*.so.* out/${{ matrix.platform }}_${{ matrix.config }}/starboard/*.so.* | xz -T0 -1 -z - > test_artifacts.tar.xz
+        shell: bash
+      - name: Upload Test artifacts
+        if: startsWith(matrix.platform, 'linux') && matrix.config == 'devel'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.test_artifacts_key }}
+          path: src/test_artifacts.tar.xz
+          retention-days: 3

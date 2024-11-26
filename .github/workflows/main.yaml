@@ -67,6 +67,16 @@ jobs:
         run: |
           includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
           echo "includes=${includes}" >> $GITHUB_ENV
+      - id: set-test-on-host
+        shell: bash
+        run: |
+          test_on_host=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_host')
+          echo "test_on_host=${test_on_host}" >> $GITHUB_ENV
+      - id: set-test-on-device
+        shell: bash
+        run: |
+          test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
+          echo "test_on_device=${test_on_device}" >> $GITHUB_ENV
       - id: set-docker-service
         shell: bash
         run: |
@@ -77,6 +87,8 @@ jobs:
       targets: ${{ env.targets }}
       includes: ${{ env.includes }}
       docker_service: ${{ env.docker_service }}
+      test_on_host: ${{ env.test_on_host }}
+      test_on_device: ${{ env.test_on_device }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -121,6 +133,7 @@ jobs:
         config: [devel, debug, qa, gold]
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
+      TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
       DEPOT_TOOLS_UPDATE: 0
       DEPOT_TOOLS_REPORT_BUILD: 0
       DEPOT_TOOLS_COLLECT_METRICS: 0
@@ -147,3 +160,56 @@ jobs:
         if: ${{ ! (startsWith(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           targets: ${{ needs.initialize.outputs.targets }}
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+
+  test:
+    needs: [initialize, docker-build-image, build]
+    permissions: {}
+    # TODO(b/372303096): Should have dedicated runner?
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    name: ${{ matrix.name }}_tests
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    container: ${{ needs.docker-build-image.outputs.docker_tag }}
+    env:
+      TMPDIR: /__w/_temp
+      TEST_RESULTS_DIR: ${{ matrix.name }}_test_results
+      TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
+      IS_POSTSUBMIT: ${{ github.event_name == 'schedule' || github.event_name == 'push' }}
+      TESTING_ENABLED: ${{ needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.test_on_device == 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: src
+      - name: Run On-Host Tests
+        if: needs.initialize.outputs.test_on_host == 'true'
+        uses: ./src/.github/actions/on_host_tests
+        with:
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+          results_dir: ${{ env.TEST_RESULTS_DIR }}
+          platform: ${{ inputs.platform }}
+      - name: Run On-Device Tests
+        if: needs.initialize.outputs.test_on_device == 'true'
+        uses: ./src/.github/actions/on_device_tests
+        with:
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+          results_dir: ${{ env.TEST_RESULTS_DIR }}
+      - name: Publish Test Report
+        if: success() || failure()
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: "**/${{ env.TEST_RESULTS_DIR }}/**/*.xml"
+          annotate_only: true
+      - name: Upload test results to datadog
+        if: needs.build.result =='success' && env.IS_POSTSUBMIT && env.TESTING_ENABLED
+        uses: ./src/.github/actions/upload_results
+        with:
+          results_dir: ${{ env.TEST_RESULTS_DIR }}
+          datadog_api_key: ${{ secrets.DD_API_KEY }}
+          datadog_service: ${{ matrix.platform }}_${{ matrix.name }}
+        continue-on-error: true

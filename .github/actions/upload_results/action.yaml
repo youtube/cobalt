@@ -1,0 +1,41 @@
+name: Upload Results
+description: Uploads test results to DataDog.
+with:
+  results_dir:
+    description: "Path to directory where test results are saved."
+    required: true
+  datadog_api_key:
+    description: "Path to directory where test results are saved."
+    required: true
+  datadog_service:
+    description: "Name of the platform under test."
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Get Datadog CLI
+      shell: bash
+      env:
+        DD_VERSION: 'v2.18.0'
+        DD_SHA256SUM: 'adbe9b3a41faaf0b1d9702ba256cf8fa9e474c0cc8216f25e5b489c53d6f0a70  datadog-ci'
+      run: |
+        set -x
+        download_url="https://github.com/DataDog/datadog-ci/releases/download/${DD_VERSION}/datadog-ci_linux-x64"
+        curl -L --fail $download_url --output datadog-ci
+        echo ${DD_SHA256SUM} | sha256sum --check
+        chmod +x datadog-ci
+    - name: Upload to Datadog
+      shell: bash
+      env:
+        DATADOG_SITE: us5.datadoghq.com
+        DATADOG_API_KEY: ${{ inputs.datadog_api_key }}
+        RESULTS_DIR: ${{ inputs.results_dir }}
+        DD_SERVICE: ${{ inputs.datadog_service }}
+        DD_TAGS: os.platform:${{ matrix.platform }}
+        DD_ENV: ci
+      run: |
+        set -x
+        env
+
+        export DATADOG_API_KEY=${DATADOG_API_KEY}
+        ./datadog-ci junit upload --service ${DD_SERVICE} ${RESULTS_DIR}/*.xml
