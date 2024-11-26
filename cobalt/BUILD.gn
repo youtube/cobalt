@@ -81,7 +81,6 @@ static_library("common") {
   ]
 
   deps = [
-    ":cobalt_build_id",
     ":cobalt_build_info",
     "//base",
     "//starboard/common",
