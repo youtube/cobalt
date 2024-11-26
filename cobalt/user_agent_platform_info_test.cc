@@ -54,7 +54,7 @@ UserAgentPlatformInfo CreateOnlyOSNameAndVersionPlatformInfo() {
 TEST(UserAgentStringTest, StartsWithMozilla) {
   std::string user_agent_string =
       CreateOnlyOSNameAndVersionPlatformInfo().ToString();
-  EXPECT_EQ(0, user_agent_string.find("Mozilla/5.0"));
+  EXPECT_EQ(0UL, user_agent_string.find("Mozilla/5.0"));
 }
 
 TEST(UserAgentStringTest, ContainsCobalt) {
