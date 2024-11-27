@@ -15,6 +15,7 @@
 #include "media/starboard/starboard_renderer_factory.h"
 
 #include "base/check.h"
+#include "base/notreached.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "media/starboard/starboard_renderer.h"
@@ -50,11 +51,11 @@ std::unique_ptr<Renderer> StarboardRendererFactory::CreateRenderer(
     VideoRendererSink* video_renderer_sink,
     RequestOverlayInfoCB request_overlay_info_cb,
     const gfx::ColorSpace& target_color_space) {
-  return CreateRenderer(media_task_runner, worker_task_runner,
-                        audio_renderer_sink, video_renderer_sink,
-                        request_overlay_info_cb, target_color_space,
-                        base::Microseconds(kSbPlayerWriteDurationLocal),
-                        base::Microseconds(kSbPlayerWriteDurationRemote));
+  // The StarboardRenderer needs to be created with the
+  // audio_write_duration_local and audio_write_duration_remote
+  // parameters.
+  NOTREACHED();
+  return nullptr;
 }
 
 }  // namespace media

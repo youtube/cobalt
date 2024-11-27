@@ -62,10 +62,6 @@ class MEDIA_EXPORT PipelineController {
                      SuspendedCB suspended_cb,
                      BeforeResumeCB before_resume_cb,
                      ResumedCB resumed_cb,
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-                     base::TimeDelta audio_write_duration_local,
-                     base::TimeDelta audio_write_duration_remote,
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
                      PipelineStatusCB error_cb);
 
   PipelineController(const PipelineController&) = delete;
@@ -247,11 +243,6 @@ class MEDIA_EXPORT PipelineController {
 
   base::ThreadChecker thread_checker_;
   base::WeakPtrFactory<PipelineController> weak_factory_{this};
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  const base::TimeDelta audio_write_duration_local_;
-  const base::TimeDelta audio_write_duration_remote_;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

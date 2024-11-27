@@ -1509,7 +1509,7 @@ LocalFrame* HTMLMediaElement::LocalFrameForPlayer() {
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-WebString HTMLMediaElement::h5vcc_audio_connectors(
+WebString HTMLMediaElement::h5vccAudioConnectors(
     ExceptionState& exception_state) const {
   if (!web_media_player_) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,

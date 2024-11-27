@@ -454,10 +454,6 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       base::BindRepeating(&WebMediaPlayerImpl::OnBeforePipelineResume,
                           weak_this_),
       base::BindRepeating(&WebMediaPlayerImpl::OnPipelineResumed, weak_this_),
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      client_->GetAudioWriteDurationLocal(),
-      client_->GetAudioWriteDurationRemote(),
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       base::BindRepeating(&media::DemuxerManager::OnPipelineError,
                           base::Unretained(demuxer_manager_.get())));
 
@@ -2838,7 +2834,12 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
   return renderer_factory_selector_->GetCurrentFactory()->CreateRenderer(
       media_task_runner_, worker_task_runner_, audio_source_provider_.get(),
       compositor_.get(), std::move(request_overlay_info_cb),
-      client_->TargetColorSpace());
+      client_->TargetColorSpace(),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      client_->GetAudioWriteDurationLocal(),
+      client_->GetAudioWriteDurationRemote()
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  );
 }
 
 absl::optional<media::DemuxerType> WebMediaPlayerImpl::GetDemuxerType() const {
