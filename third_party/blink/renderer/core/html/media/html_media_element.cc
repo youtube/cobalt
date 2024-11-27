@@ -128,7 +128,6 @@
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "base/strings/string_util.h"
 #include "starboard/media.h"
-#include "starboard/player.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #ifndef LOG_MEDIA_EVENTS
@@ -1508,9 +1507,9 @@ LocalFrame* HTMLMediaElement::LocalFrameForPlayer() {
                           : GetDocument().GetFrame();
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
 WebString HTMLMediaElement::h5vccAudioConnectors(
     ExceptionState& exception_state) const {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!web_media_player_) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
                                       "The WebMediaPlayer is invalid");
@@ -1521,8 +1520,10 @@ WebString HTMLMediaElement::h5vccAudioConnectors(
   std::string joined_string = base::JoinString(configs, ";");
 
   return WebString::FromUTF8(joined_string);
-}
+#else
+  return WebString();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+}
 
 void HTMLMediaElement::StartPlayerLoad() {
   DCHECK(!web_media_player_);
@@ -4877,15 +4878,6 @@ void HTMLMediaElement::OnRemotePlaybackDisabled(bool disabled) {
   is_remote_playback_disabled_ = disabled;
   OnRemotePlaybackMetadataChange();
 }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-base::TimeDelta HTMLMediaElement::GetAudioWriteDurationLocal() const {
-  return base::Microseconds(kSbPlayerWriteDurationLocal);
-}
-base::TimeDelta HTMLMediaElement::GetAudioWriteDurationRemote() const {
-  return base::Microseconds(kSbPlayerWriteDurationRemote);
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 media::mojom::blink::MediaPlayerHost&
 HTMLMediaElement::GetMediaPlayerHostRemote() {

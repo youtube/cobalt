@@ -412,12 +412,10 @@ class CORE_EXPORT HTMLMediaElement
   // reason while in picture in picture mode.
   LocalFrame* LocalFrameForPlayer();
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Returns semicolon separated names of audio connectors, like
   // "hdmi;bluetooth".
   // TODO(b/267678497): The current interface is tentative, to be refined.
   WebString h5vccAudioConnectors(ExceptionState& exception_state) const;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  protected:
   // Assert the correct order of the children in shadow dom when DCHECK is on.
@@ -587,10 +585,6 @@ class CORE_EXPORT HTMLMediaElement
   void DidUseAudioServiceChange(bool uses_audio_service) override;
   void DidPlayerSizeChange(const gfx::Size& size) override;
   void OnRemotePlaybackDisabled(bool disabled) override;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  base::TimeDelta GetAudioWriteDurationLocal() const override;
-  base::TimeDelta GetAudioWriteDurationRemote() const override;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Returns a reference to the mojo remote for the MediaPlayerHost interface,
   // requesting it first from the BrowserInterfaceBroker if needed. It is an

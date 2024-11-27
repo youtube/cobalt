@@ -232,15 +232,6 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerClient {
   // Notify the client that the RemotePlayback has been disabled/enabled.
   virtual void OnRemotePlaybackDisabled(bool disabled) = 0;
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  virtual base::TimeDelta GetAudioWriteDurationLocal() const {
-    return base::TimeDelta();
-  }
-  virtual base::TimeDelta GetAudioWriteDurationRemote() const {
-    return base::TimeDelta();
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
  protected:
   ~WebMediaPlayerClient() = default;
 };

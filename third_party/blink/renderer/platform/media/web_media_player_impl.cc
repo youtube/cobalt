@@ -100,6 +100,7 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/starboard/starboard_renderer.h"
+#include "starboard/player.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
@@ -2834,10 +2835,13 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
   return renderer_factory_selector_->GetCurrentFactory()->CreateRenderer(
       media_task_runner_, worker_task_runner_, audio_source_provider_.get(),
       compositor_.get(), std::move(request_overlay_info_cb),
-      client_->TargetColorSpace(),
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-      client_->GetAudioWriteDurationLocal(),
-      client_->GetAudioWriteDurationRemote()
+      client_->TargetColorSpace(),
+      // TODO: Inject these values
+      base::Microseconds(kSbPlayerWriteDurationLocal),
+      base::Microseconds(kSbPlayerWriteDurationRemote)
+#else
+      client_->TargetColorSpace()
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   );
 }
