@@ -107,8 +107,8 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
 StarboardRenderer::StarboardRenderer(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     VideoRendererSink* video_renderer_sink,
-    base::TimeDelta audio_write_duration_local,
-    base::TimeDelta audio_write_duration_remote,
+    TimeDelta audio_write_duration_local,
+    TimeDelta audio_write_duration_remote,
     MediaLog* media_log)
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
@@ -118,8 +118,7 @@ StarboardRenderer::StarboardRenderer(
       media_log_(media_log),
       video_overlay_factory_(std::make_unique<VideoOverlayFactory>()),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
-      cdm_context_(nullptr),
-      last_media_time_(TimeDelta()) {
+      cdm_context_(nullptr) {
   DCHECK(task_runner_);
   DCHECK(video_renderer_sink_);
   DCHECK(media_log_);
@@ -283,7 +282,7 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   }
 }
 
-void StarboardRenderer::StartPlayingFrom(base::TimeDelta time) {
+void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   LOG(INFO) << "StarboardRenderer::StartPlayingFrom() called with " << time
@@ -367,7 +366,7 @@ void StarboardRenderer::SetVolume(float volume) {
 }
 
 // TODO(b/376328722): Revisit playback time reporting.
-base::TimeDelta StarboardRenderer::GetMediaTime() {
+TimeDelta StarboardRenderer::GetMediaTime() {
   base::AutoLock auto_lock(lock_);
 
   if (!player_bridge_) {
@@ -376,7 +375,7 @@ base::TimeDelta StarboardRenderer::GetMediaTime() {
   }
 
   uint32_t video_frames_decoded, video_frames_dropped;
-  base::TimeDelta media_time;
+  TimeDelta media_time;
 
   player_bridge_->GetInfo(&video_frames_decoded, &video_frames_dropped,
                           &media_time);
@@ -406,22 +405,6 @@ base::TimeDelta StarboardRenderer::GetMediaTime() {
                                   base::Unretained(client_), statistics));
   }
   StoreMediaTime(media_time);
-
-  // Guarantee that we report monotonically increasing media time
-  // TODO: Enable if needed.
-  // if (media_time < last_media_time_) {
-  //   if (retrograde_media_time_counter_ == 0) {
-  //     DLOG(WARNING) << "Received retrograde media time, new:"
-  //                   << media_time.InMicroseconds()
-  //                   << ", last: " << last_media_time_ << ".";
-  //   }
-  //   media_time = last_media_time_;
-  //   retrograde_media_time_counter_++;
-  // } else if (retrograde_media_time_counter_ != 0) {
-  //   DLOG(WARNING) << "Received " << retrograde_media_time_counter_
-  //                 << " retrograde media time before recovered.";
-  //   retrograde_media_time_counter_ = 0;
-  // }
 
   return media_time;
 }
@@ -705,7 +688,7 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
 
 #if COBALT_MEDIA_ENABLE_AUDIO_DURATION
     // If we haven't checked the media time recently, update it now.
-    if (base::Time::Now() - last_time_media_time_retrieved_ >
+    if (Time::Now() - last_time_media_time_retrieved_ >
         kMediaTimeCheckInterval) {
       GetMediaTime();
     }
@@ -714,7 +697,7 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
     // after the player has received enough audio for preroll, taking into
     // account that our estimate of playback time might be behind by
     // |kMediaTimeCheckInterval|.
-    base::TimeDelta time_ahead_of_playback_for_preroll =
+    TimeDelta time_ahead_of_playback_for_preroll =
         timestamp_of_last_written_audio_ - seek_time_;
     auto adjusted_write_duration_for_preroll =
         AdjustWriteDurationForPlaybackRate(audio_write_duration_for_preroll_,

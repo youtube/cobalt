@@ -5,10 +5,6 @@
 import("//media/gpu/args.gni")
 import("//media/media_options.gni")
 
-if (is_cobalt) {
-  import("//starboard/build/buildflags.gni")
-}
-
 source_set("filters") {
   # Do not expand the visibility here without double-checking with OWNERS, this
   # is a roll-up target which is part of the //media component. Most other DEPs
@@ -256,10 +252,6 @@ source_set("filters") {
       "manifest_demuxer.cc",
       "manifest_demuxer.h",
     ]
-  }
-
-  if (is_cobalt && use_starboard_media) {
-    deps += [ "//starboard($starboard_toolchain)" ]
   }
 }
 

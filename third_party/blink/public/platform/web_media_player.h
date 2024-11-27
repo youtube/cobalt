@@ -34,7 +34,6 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/time/time.h"
-#include "build/build_config.h"
 #include "components/viz/common/surfaces/surface_id.h"
 #include "media/base/video_frame.h"
 #include "media/base/video_frame_metadata.h"

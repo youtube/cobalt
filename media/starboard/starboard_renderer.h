@@ -49,8 +49,8 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
  public:
   StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
                     VideoRendererSink* video_renderer_sink,
-                    base::TimeDelta audio_write_duration_local,
-                    base::TimeDelta audio_write_duration_remote,
+                    TimeDelta audio_write_duration_local,
+                    TimeDelta audio_write_duration_remote,
                     MediaLog* media_log);
 
   ~StarboardRenderer() final;
@@ -65,7 +65,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
     NOTIMPLEMENTED();
   }
   void Flush(base::OnceClosure flush_cb) final;
-  void StartPlayingFrom(base::TimeDelta time) final;
+  void StartPlayingFrom(TimeDelta time) final;
   void SetPlaybackRate(double playback_rate) final;
   void SetVolume(float volume) final;
   base::TimeDelta GetMediaTime() final;
@@ -160,7 +160,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   // Last media time reported by GetMediaTime().
   TimeDelta last_media_time_;
   // Timestamp microseconds when we last checked the media time.
-  base::Time last_time_media_time_retrieved_;
+  Time last_time_media_time_retrieved_;
 
   bool audio_read_delayed_ = false;
   // TODO(b/375674101): Support batched samples write.
@@ -172,7 +172,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   std::unique_ptr<SbPlayerBridge> player_bridge_;
 
   bool player_bridge_initialized_ = false;
-  std::optional<base::TimeDelta> playing_start_from_time_;
+  std::optional<TimeDelta> playing_start_from_time_;
 
   base::OnceClosure pending_flush_cb_;
 

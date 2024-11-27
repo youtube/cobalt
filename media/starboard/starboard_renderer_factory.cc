@@ -19,7 +19,6 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "media/starboard/starboard_renderer.h"
-#include "starboard/player.h"
 
 namespace media {
 
@@ -51,7 +50,7 @@ std::unique_ptr<Renderer> StarboardRendererFactory::CreateRenderer(
     VideoRendererSink* video_renderer_sink,
     RequestOverlayInfoCB request_overlay_info_cb,
     const gfx::ColorSpace& target_color_space) {
-  // The StarboardRenderer needs to be created with the
+  // The StarboardRenderer must be created with the
   // audio_write_duration_local and audio_write_duration_remote
   // parameters.
   NOTREACHED();
