@@ -29,6 +29,7 @@
 
 #include "cobalt/cobalt_build_id.h"  // Generated
 #include "cobalt/version.h"
+#include "v8/include/v8-version-string.h"
 
 namespace cobalt {
 
@@ -222,14 +223,18 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   // Below UA info fields can NOT be retrieved directly from platform's native
   // system properties.
 
-  // TODO(cobalt, b/374213479): How to retrieve aux_field?
-  info.set_aux_field("dev.cobalt.coat/DeveloperBuild");
+  char value[1024];
+  bool result =
+      SbSystemGetProperty(kSbSystemPropertyUserAgentAuxField, value, 1024);
+  if (result) {
+    info.set_aux_field(value);
+  }
 
-  // TODO(cobalt, b/374213479): How to retrieve javascript_engine_version?
-  // C25 retrieves it from cobalt v8c.
-  info.set_javascript_engine_version("v8/8.8.278.8-jit");
+  // We only support JIT for both Linux and Android.
+  info.set_javascript_engine_version(
+      base::StringPrintf("v8/%s-jit", V8_VERSION_STRING));
 
-  // TODO(cobalt, b/374213479): How to retrieve rasterizer_type_setting?
+  // Rasterizer type is gles for both Linux and Android.
   info.set_rasterizer_type("gles");
 
   // TODO(cobalt, b/374213479): Retrieve Evergreen info.
@@ -265,9 +270,8 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
     }
   }
 
-  // TODO(cobalt, b/374213479): How to determine below Cobalt build macros.
-  // Migrate cobalt/build/build_info.py from C25?
-  info.set_starboard_version("Starboard/17");  // SB_API_VERSION macro in C25.
+  info.set_starboard_version(
+      base::StringPrintf("Starboard/%d", SB_API_VERSION));
   info.set_cobalt_version(COBALT_VERSION);
   info.set_cobalt_build_version_number(COBALT_BUILD_VERSION_NUMBER);
   info.set_build_configuration("qa");  // COBALT_BUILD_TYPE_DEBUG in C25.
