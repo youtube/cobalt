@@ -9,52 +9,34 @@
 
 namespace media {
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
 PipelineController::PipelineController(
     std::unique_ptr<Pipeline> pipeline,
-    base::TimeDelta audio_write_duration_local,
-    base::TimeDelta audio_write_duration_remote,
     SeekedCB seeked_cb,
     SuspendedCB suspended_cb,
     BeforeResumeCB before_resume_cb,
     ResumedCB resumed_cb,
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote,
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     PipelineStatusCB error_cb)
     : pipeline_(std::move(pipeline)),
+      seeked_cb_(std::move(seeked_cb)),
+      suspended_cb_(std::move(suspended_cb)),
+      before_resume_cb_(std::move(before_resume_cb)),
+      resumed_cb_(std::move(resumed_cb)),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-      seeked_cb_(std::move(seeked_cb)),
-      suspended_cb_(std::move(suspended_cb)),
-      before_resume_cb_(std::move(before_resume_cb)),
-      resumed_cb_(std::move(resumed_cb)),
-      error_cb_(std::move(error_cb)) {
-  DCHECK(pipeline_);
-  DCHECK(seeked_cb_);
-  DCHECK(suspended_cb_);
-  DCHECK(before_resume_cb_);
-  DCHECK(resumed_cb_);
-  DCHECK(error_cb_);
-}
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-PipelineController::PipelineController(std::unique_ptr<Pipeline> pipeline,
-                                       SeekedCB seeked_cb,
-                                       SuspendedCB suspended_cb,
-                                       BeforeResumeCB before_resume_cb,
-                                       ResumedCB resumed_cb,
-                                       PipelineStatusCB error_cb)
-    : pipeline_(std::move(pipeline)),
-      seeked_cb_(std::move(seeked_cb)),
-      suspended_cb_(std::move(suspended_cb)),
-      before_resume_cb_(std::move(before_resume_cb)),
-      resumed_cb_(std::move(resumed_cb)),
-      error_cb_(std::move(error_cb)) {
-  DCHECK(pipeline_);
-  DCHECK(seeked_cb_);
-  DCHECK(suspended_cb_);
-  DCHECK(before_resume_cb_);
-  DCHECK(resumed_cb_);
-  DCHECK(error_cb_);
-}
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+      error_cb_(std::move(error_cb)) {
+  DCHECK(pipeline_);
+  DCHECK(seeked_cb_);
+  DCHECK(suspended_cb_);
+  DCHECK(before_resume_cb_);
+  DCHECK(resumed_cb_);
+  DCHECK(error_cb_);
+}
 
 PipelineController::~PipelineController() {
   DCHECK(thread_checker_.CalledOnValidThread());

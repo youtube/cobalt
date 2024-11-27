@@ -61,10 +61,6 @@ WebMediaPlayer* WebMediaPlayerBuilder::Build(
     bool is_background_video_playback_enabled,
     bool is_background_video_track_optimization_supported,
     std::unique_ptr<media::Demuxer> demuxer_override,
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    base::TimeDelta audio_write_duration_local,
-    base::TimeDelta audio_write_duration_remote,
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     scoped_refptr<ThreadSafeBrowserInterfaceBrokerProxy> remote_interfaces) {
   return new WebMediaPlayerImpl(
       frame, client, encrypted_client, delegate, std::move(factory_selector),
@@ -80,11 +76,7 @@ WebMediaPlayer* WebMediaPlayerBuilder::Build(
       std::move(raster_context_provider), use_surface_layer,
       is_background_suspend_enabled, is_background_video_playback_enabled,
       is_background_video_track_optimization_supported,
-      std::move(demuxer_override),
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      audio_write_duration_local, audio_write_duration_remote,
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-      std::move(remote_interfaces));
+      std::move(demuxer_override), std::move(remote_interfaces));
 }
 
 }  // namespace blink

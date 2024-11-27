@@ -24,6 +24,8 @@ namespace media {
 
 namespace {
 
+using ::starboard::GetMediaAudioConnectorName;
+
 // In the OnNeedData(), it attempts to write one more audio access
 // unit than the audio write duration. Specifically, the check
 // |time_ahead_of_playback_for_preroll| > |adjusted_write_duration_for_preroll|
@@ -46,14 +48,14 @@ bool HasRemoteAudioOutputs(
       case kSbMediaAudioConnectorSpdif:
       case kSbMediaAudioConnectorUsb:
         LOG(INFO) << "Encountered local audio connector: "
-                  << starboard::GetMediaAudioConnectorName(connector);
+                  << GetMediaAudioConnectorName(connector);
         break;
       case kSbMediaAudioConnectorBluetooth:
       case kSbMediaAudioConnectorRemoteWired:
       case kSbMediaAudioConnectorRemoteWireless:
       case kSbMediaAudioConnectorRemoteOther:
         LOG(INFO) << "Encountered remote audio connector: "
-                  << starboard::GetMediaAudioConnectorName(connector);
+                  << GetMediaAudioConnectorName(connector);
         return true;
     }
   }
@@ -873,16 +875,16 @@ void StarboardRenderer::OnPlayerError(SbPlayerError error,
   }
 }
 
-void StarboardRenderer::StoreMediaTime(TimeDelta media_time) {
-  last_media_time_ = media_time;
-  last_time_media_time_retrieved_ = Time::Now();
-}
-
 void StarboardRenderer::DelayedNeedData(int max_number_of_buffers_to_write) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   if (audio_read_delayed_) {
     OnNeedData(DemuxerStream::AUDIO, max_number_of_buffers_to_write);
   }
+}
+
+void StarboardRenderer::StoreMediaTime(TimeDelta media_time) {
+  last_media_time_ = media_time;
+  last_time_media_time_retrieved_ = Time::Now();
 }
 
 int StarboardRenderer::GetDefaultMaxBuffers(AudioCodec codec,

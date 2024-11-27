@@ -1572,13 +1572,7 @@ void HTMLMediaElement::StartPlayerLoad() {
   }
 
   web_media_player_ =
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      frame->Client()->CreateWebMediaPlayer(
-          *this, source, this, base::Microseconds(kSbPlayerWriteDurationLocal),
-          base::Microseconds(kSbPlayerWriteDurationRemote));
-#else
       frame->Client()->CreateWebMediaPlayer(*this, source, this);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   if (!web_media_player_) {
     MediaLoadingFailed(WebMediaPlayer::kNetworkStateFormatError,

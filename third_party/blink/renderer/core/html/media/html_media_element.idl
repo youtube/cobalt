@@ -96,4 +96,8 @@ enum CanPlayTypeResult { "" /* empty string */, "maybe", "probably" };
     // The number of bytes consumed by the media decoder.
     [MeasureAs=PrefixedAudioDecodedByteCount] readonly attribute unsigned long long webkitAudioDecodedByteCount;
     [MeasureAs=PrefixedVideoDecodedByteCount] readonly attribute unsigned long long webkitVideoDecodedByteCount;
+
+    // Semicolon separated names of audio connectors, like "hdmi;bluetooth".
+    // Used for Cobalt only.
+    readonly attribute DOMString h5vccAudioConnectors;
 };

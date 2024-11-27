@@ -63,10 +63,6 @@
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/webrtc_overrides/low_precision_timer.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "starboard/player.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace cc {
 class Layer;
 }

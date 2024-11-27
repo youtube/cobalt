@@ -363,10 +363,6 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
     bool is_background_video_playback_enabled,
     bool is_background_video_track_optimization_supported,
     std::unique_ptr<media::Demuxer> demuxer_override,
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    base::TimeDelta audio_write_duration_local,
-    base::TimeDelta audio_write_duration_remote,
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     scoped_refptr<ThreadSafeBrowserInterfaceBrokerProxy> remote_interfaces)
     : frame_(frame),
       main_task_runner_(frame->GetTaskRunner(TaskType::kMediaElementEvent)),
@@ -453,15 +449,15 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   // |pipeline_controller_|.
   pipeline_controller_ = std::make_unique<media::PipelineController>(
       std::move(pipeline),
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      client_->GetAudioWriteDurationLocal(),
-      client_->GetAudioWriteDurationRemote(),
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       base::BindRepeating(&WebMediaPlayerImpl::OnPipelineSeeked, weak_this_),
       base::BindRepeating(&WebMediaPlayerImpl::OnPipelineSuspended, weak_this_),
       base::BindRepeating(&WebMediaPlayerImpl::OnBeforePipelineResume,
                           weak_this_),
       base::BindRepeating(&WebMediaPlayerImpl::OnPipelineResumed, weak_this_),
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      client_->GetAudioWriteDurationLocal(),
+      client_->GetAudioWriteDurationRemote(),
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       base::BindRepeating(&media::DemuxerManager::OnPipelineError,
                           base::Unretained(demuxer_manager_.get())));
 

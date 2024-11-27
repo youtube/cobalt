@@ -175,10 +175,6 @@ class BLINK_EXPORT WebLocalFrameClient {
       WebContentDecryptionModule*,
       const WebString& sink_id,
       const cc::LayerTreeSettings* settings,
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      base::TimeDelta audio_write_duration_local,
-      base::TimeDelta audio_write_duration_remote,
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       scoped_refptr<base::TaskRunner> compositor_worker_task_runner) {
     return nullptr;
   }

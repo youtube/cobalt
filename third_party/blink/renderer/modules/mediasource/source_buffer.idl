@@ -103,4 +103,10 @@ enum AppendMode {
     // Gets or sets the TrackDefaultList this SourceBuffer may consult during
     // the initialization segment algorithm.
     [RaisesException=Setter, RuntimeEnabled=MediaSourceExperimental] attribute TrackDefaultList trackDefaults;
+
+    // Non standard interface used for Cobalt only.
+    // Returns the highest presentation timestamp written to SbPlayer, raises
+    // `InvalidStateError` if the SourceBuffer object has been removed from the
+    // MediaSource object.
+    [RaisesException] readonly attribute double writeHead;
 };

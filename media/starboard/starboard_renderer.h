@@ -95,14 +95,14 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   void OnPlayerStatus(SbPlayerState state) final;
   void OnPlayerError(SbPlayerError error, const std::string& message) final;
 
-  // Store the media time retrieved by GetMediaTime so we can cache it as an
-  // estimate and avoid calling SbPlayerGetInfo too frequently.
-  void StoreMediaTime(TimeDelta media_time);
-
   // Used to make a delayed call to OnNeedData() if |audio_read_delayed_| is
   // true. If |audio_read_delayed_| is false, that means the delayed call has
   // been cancelled due to a seek.
   void DelayedNeedData(int max_number_of_buffers_to_write);
+
+  // Store the media time retrieved by GetMediaTime so we can cache it as an
+  // estimate and avoid calling SbPlayerGetInfo too frequently.
+  void StoreMediaTime(TimeDelta media_time);
 
   int GetDefaultMaxBuffers(AudioCodec codec,
                            TimeDelta duration_to_write,
@@ -137,10 +137,32 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   raw_ptr<CdmContext> cdm_context_;
 
   DefaultSbPlayerInterface sbplayer_interface_;
-  // TODO(b/326652276): Support audio write duration.
-  // const base::TimeDelta audio_write_duration_local_ =
-  // base::Milliseconds(500); const base::TimeDelta audio_write_duration_remote_
-  // = base::Seconds(10);
+
+  TimeDelta seek_time_;
+
+  const TimeDelta audio_write_duration_local_;
+  const TimeDelta audio_write_duration_remote_;
+  // The two variables below should always contain the same value.  They are
+  // kept as separate variables so we can keep the existing implementation as
+  // is, which simplifies the implementation across multiple Starboard versions.
+  TimeDelta audio_write_duration_;
+  TimeDelta audio_write_duration_for_preroll_ = audio_write_duration_;
+  // Only call GetMediaTime() from OnNeedData if it has been
+  // |kMediaTimeCheckInterval| since the last call to GetMediaTime().
+  static constexpr TimeDelta kMediaTimeCheckInterval = base::Microseconds(100);
+  // Timestamp for the last written audio.
+  TimeDelta timestamp_of_last_written_audio_;
+  // Indicates if video end of stream has been written into the underlying
+  // player.
+  bool is_video_eos_written_ = false;
+  TimeDelta last_audio_sample_interval_ = base::Microseconds(0);
+  int last_estimated_max_buffers_for_preroll_ = 1;
+  // Last media time reported by GetMediaTime().
+  TimeDelta last_media_time_;
+  // Timestamp microseconds when we last checked the media time.
+  base::Time last_time_media_time_retrieved_;
+
+  bool audio_read_delayed_ = false;
   // TODO(b/375674101): Support batched samples write.
   const int max_audio_samples_per_write_ = 1;
 
@@ -168,29 +190,6 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   // understood as a capability changed error. Do not change this message.
   static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
       "MEDIA_ERR_CAPABILITY_CHANGED";
-  // The following variables are related to audio write ahead.
-  base::Time last_time_media_time_retrieved_;
-  // Only call GetMediaTime() from OnNeedData if it has been
-  // |kMediaTimeCheckInterval| since the last call to GetMediaTime().
-  static constexpr TimeDelta kMediaTimeCheckInterval = base::Microseconds(100);
-  // Timestamp for the last written audio.
-  TimeDelta timestamp_of_last_written_audio_;
-  TimeDelta seek_time_;
-  const TimeDelta audio_write_duration_local_;
-  const TimeDelta audio_write_duration_remote_;
-
-  // The two variables below should always contain the same value.  They are
-  // kept as separate variables so we can keep the existing implementation as
-  // is, which simplifies the implementation across multiple Starboard versions.
-  TimeDelta audio_write_duration_;
-  TimeDelta audio_write_duration_for_preroll_ = audio_write_duration_;
-  // Indicates if video end of stream has been written into the underlying
-  // player.
-  bool is_video_eos_written_ = false;
-  TimeDelta last_audio_sample_interval_ = base::Microseconds(0);
-  TimeDelta last_media_time_;
-  bool audio_read_delayed_ = false;
-  int last_estimated_max_buffers_for_preroll_ = 1;
 
   base::WeakPtrFactory<StarboardRenderer> weak_factory_{this};
   base::WeakPtr<StarboardRenderer> weak_this_{weak_factory_.GetWeakPtr()};
