@@ -1,0 +1,63 @@
+# Copyright 2022 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# The java files that are compiled and packaged into the Cobalt apk.
+# This list is only used to tell GN which files are included. Gradle will
+# package all files under //starboard/android/apk/app.
+apk_sources = [
+  "//starboard/android/apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
+  "//starboard/android/apk/app/src/app/java/dev/cobalt/app/MainActivity.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloader.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloaderDefault.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/ArtworkLoader.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltHttpHelper.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CrashContextUpdateHandler.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/ErrorDialog.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/MediaImage.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/NetworkStatus.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/NullCobaltFactory.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/ResourceOverlay.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfo.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfoModule.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/AudioOutputManager.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/AudioTrackBridge.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/Log.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecBridgeBuilder.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecCapabilitiesLogger.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaCodecUtil.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaDrmBridge.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/MediaFormatBuilder.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/VideoFrameReleaseTimeHelper.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/VideoSurfaceTexture.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/media/VideoSurfaceView.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/storage/CobaltStorageLoader.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/storage/StorageProto.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/util/DisplayUtil.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/util/Holder.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/util/IsEmulator.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/util/Log.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/util/SystemPropertiesHelper.java",
+  "//starboard/android/apk/app/src/main/java/dev/cobalt/util/UsedByNative.java",
+]

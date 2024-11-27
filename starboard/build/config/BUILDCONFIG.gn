@@ -1,0 +1,653 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+_is_python2 = exec_script("//starboard/build/util/is_python2.py", [], "json")
+assert(!_is_python2, "`python` must resolve to Python 3 when building with GN.")
+
+declare_args() {
+  # Temporary gn arg for work on base/net update.
+  cobalt_pending_clean_up = true
+
+  is_clang = true
+
+  build_type = "devel"
+
+  is_starboard = true
+
+  # Used to guard any customizations to Chromium or third-party code for builds
+  # where the Starboard porting layer is not used.
+  is_native_target_build = false
+
+  cobalt_fastbuild = getenv("IS_CI") == "1"
+
+  is_internal_build = getenv("COBALT_USE_INTERNAL_BUILD") == "1"
+
+  is_docker_build = getenv("IS_DOCKER") == "1"
+
+  using_old_compiler = false
+
+  build_with_separate_cobalt_toolchain = false
+
+  use_xcode_clang = false
+}
+
+_is_on_pythonpath = exec_script("//starboard/build/is_on_path.py", [], "json")
+assert(!is_starboard || _is_on_pythonpath,
+       "The current repo is not first on the PYTHONPATH.")
+
+assert(!(is_starboard && is_native_target_build),
+       "Targets should be built for Starboard or natively, but not both")
+
+# Used to guard customizations to Chromium or third-party code. We historically
+# used is_starboard for this, but we developed the need to distinguish between
+# a) customizations that should only be used for Starboard builds and b)
+# those that should only be used for native target builds (see
+# is_native_target_build). use_cobalt_customizations is a convenience in the
+# sense that it is functionally equivalent to
+# (is_starboard || is_native_target_build), but it should be used in lieu of
+# that since the intent is more clear.
+use_cobalt_customizations = true
+
+is_debug = build_type == "debug"
+is_devel = build_type == "devel"
+is_qa = build_type == "qa"
+is_gold = build_type == "gold"
+assert(is_debug || is_devel || is_qa || is_gold)
+
+# Set some variables we never want to change.
+host_byteorder = "little"
+is_official_build = false  # Chromium's build files expect this to be set.
+is_component_build = false
+
+# The os/cpu definitions are here to set the current platform type in
+# os_definitions.gni below.
+if (target_os == "") {
+  target_os = host_os
+}
+if (target_cpu == "") {
+  target_cpu = host_cpu
+}
+if (current_os == "") {
+  current_os = target_os
+}
+if (current_cpu == "") {
+  current_cpu = target_cpu
+}
+import("//starboard/build/config/os_definitions.gni")
+
+if (is_mac) {
+  declare_args() {
+    use_system_xcode = true
+  }
+}
+
+# Get the path to the starboard implementation and include its GN
+# configuration.
+import("//starboard/build/platform_path.gni")
+
+# TODO(b/272790873): Set host_cpu to x86 for 32 bit builds.
+if (target_cpu == "x86" || target_cpu == "arm") {
+  _host_toolchain_cpu = "x86"
+} else if (target_cpu == "arm64") {
+  # TODO(b/292107465): Set host_cpu to x64 for arm64 builds.
+  _host_toolchain_cpu = "x64"
+} else {
+  _host_toolchain_cpu = host_cpu
+}
+host_toolchain = "//starboard/build/toolchain/$host_os:$_host_toolchain_cpu"
+
+if (build_with_separate_cobalt_toolchain) {
+  cobalt_toolchain = "//$starboard_path/toolchain:cobalt"
+  starboard_toolchain = "//$starboard_path/toolchain:starboard"
+} else {
+  cobalt_toolchain = "//$starboard_path/toolchain:target"
+  starboard_toolchain = cobalt_toolchain
+}
+set_default_toolchain(cobalt_toolchain)
+import("//starboard/build/config/toolchain_variables.gni")
+
+import("//$starboard_path/platform_configuration/configuration.gni")
+import("//starboard/build/config/build_assertions.gni")
+
+# TODO(b/295399926) Clean up flag by moving to modular/helper_var.gni
+sb_is_modular = sb_is_evergreen || build_with_separate_cobalt_toolchain
+
+declare_args() {
+  use_tsan = getenv("USE_TSAN") == 1
+}
+
+_use_asan_default =
+    (is_debug || is_devel) && (is_linux || is_mac) && is_clang &&
+    (!sb_is_evergreen || build_with_separate_cobalt_toolchain) &&
+    !using_old_compiler
+
+declare_args() {
+  use_asan = (_use_asan_default || getenv("USE_ASAN") == 1) && !use_tsan
+}
+
+assert(!(use_tsan && use_asan), "ASAN and TSAN are mutually exclusive.")
+
+# =============================================================================
+# TARGET DEFAULTS
+# =============================================================================
+#
+# Set up the default configuration for every build target of the given type.
+# The values configured here will be automatically set on the scope of the
+# corresponding target. Target definitions can add or remove to the settings
+# here as needed.
+#
+# WHAT GOES HERE?
+#
+# Other than the main compiler and linker configs, the only reason for a config
+# to be in this list is if some targets need to explicitly override that config
+# by removing it. This is how targets opt-out of flags. If you don't have that
+# requirement and just need to add a config everywhere, reference it as a
+# sub-config of an existing one, most commonly the main "compiler" one.
+
+default_compiler_configs = [
+  "//build/config/coverage:default_coverage",
+  "//build/config/compiler:default_include_dirs",
+  "//build/config/compiler:no_exceptions",
+  "//starboard/build/config:base",
+  "//starboard/build/config:host",
+  "//starboard/build/config:size",
+  "//starboard/build/config:target",
+  "//starboard/build/config:warnings_as_errors",
+  "//starboard/build/config:default_compiler_flags",
+  "//starboard/build/config:default_cpp_standard",
+  "//build/config/compiler:thin_archive",
+  "//build/config/compiler:default_optimization",
+  "//build/config/compiler:chromium_code",
+  "//build/config/sanitizers:default_sanitizer_flags",
+]
+
+if (cobalt_pending_clean_up) {
+  default_compiler_configs += [ "//starboard/build/config:hacky_build_config" ]
+}
+
+if (is_starboard) {
+  default_compiler_configs += [ "//starboard/build/config:starboard" ]
+}
+
+if (is_qa || is_gold || sb_use_no_rtti) {
+  default_compiler_configs += [ "//build/config/compiler:no_rtti" ]
+}
+
+if (is_native_target_build) {
+  default_compiler_configs += [ "//starboard/build/config:native_target" ]
+}
+
+set_defaults("static_library") {
+  configs = default_compiler_configs + static_library_configs
+  has_pedantic_warnings = false
+}
+set_defaults("source_set") {
+  configs = default_compiler_configs + source_set_configs
+  has_pedantic_warnings = false
+}
+set_defaults("loadable_module") {
+  configs = default_compiler_configs + loadable_module_configs
+  has_pedantic_warnings = false
+}
+set_defaults("executable") {
+  configs = default_compiler_configs + executable_configs
+  has_pedantic_warnings = false
+}
+set_defaults("shared_library") {
+  configs = default_compiler_configs + shared_library_configs
+  has_pedantic_warnings = false
+}
+
+# We make sure to change the pedantic_warnings configs in a particular order to
+# ensure -Wno-foo compiler flags (usually set in no_pedantic_warnings and some
+# of the platform_configuration) come after -Wfoo flags (including -Wall and
+# -Wextra which are set in pedantic_warnings). It is only certain that the "foo"
+# error will be ignored if -Wfoo precedes -Wno-foo in the compilation line.
+declare_args() {
+  toolchain_config_path = "//$starboard_path/platform_configuration"
+}
+
+template("target_with_platform_configs") {
+  target(invoker.target_type, target_name) {
+    forward_variables_from(invoker, "*", [ "target_type" ])
+
+    if (has_pedantic_warnings) {
+      configs += [ "//starboard/build/config:pedantic_warnings" ]
+    }
+    configs += [ toolchain_config_path ]
+    if (!has_pedantic_warnings) {
+      configs += [ "//starboard/build/config:no_pedantic_warnings" ]
+    }
+    if (cobalt_pending_clean_up) {
+      configs += [ "//starboard/build/config:hacky_wnos" ]
+    }
+  }
+}
+
+# Ensure the platform_configuration config is the last one included.
+template("static_library") {
+  target_with_platform_configs(target_name) {
+    target_type = "static_library"
+    forward_variables_from(invoker, "*")
+  }
+}
+
+template("source_set") {
+  target_with_platform_configs(target_name) {
+    target_type = "source_set"
+    forward_variables_from(invoker, "*")
+  }
+}
+
+template("loadable_module") {
+  target_with_platform_configs(target_name) {
+    target_type = "loadable_module"
+    forward_variables_from(invoker, "*")
+  }
+}
+
+# Import configuration variables needed for the install targets and install
+# content targets.
+import("//starboard/build/config/install.gni")
+
+# Template for copying content files to the install directory.
+template("install_content") {
+  target(invoker.target_type, target_name) {
+    forward_variables_from(invoker, "*", [ "install_content" ])
+    if (defined(visibility)) {
+      visibility += [ ":${target_name}_install_content" ]
+    }
+  }
+
+  if (defined(invoker.install_content) && invoker.install_content &&
+      current_toolchain == default_toolchain) {
+    # We're using a custom script to copy the files here because rebase_path
+    # can't be used with {{}} expansions in the outputs of a copy target.
+    action("${target_name}_install_content") {
+      forward_variables_from(invoker, [ "testonly" ])
+
+      deps = [ ":${invoker.target_name}" ]
+
+      sources = get_target_outputs(":${invoker.target_name}")
+
+      # List of files in metadata so they can be forwarded for bundling.
+      metadata = {
+        install_content = sources
+
+        # Don't inherit any metadata from upstream deps.
+        ignore_install_content = deps
+      }
+
+      install_content_dir = "$sb_install_output_dir/$sb_install_content_subdir"
+      outputs = []
+      foreach(source, sources) {
+        output_path = install_content_dir + "/" +
+                      rebase_path(source, sb_static_contents_output_data_dir)
+        outputs += [ output_path ]
+      }
+
+      # Write the file list to a unique temp file to avoid blowing out the
+      # command line length limit.
+      files_list = "$root_gen_dir/${target_name}_files.tmp"
+      write_file(files_list, rebase_path(sources, root_build_dir))
+
+      script = "//starboard/build/copy_install_content.py"
+      args = [
+        "--output_dir",
+        rebase_path(install_content_dir, root_build_dir),
+        "--base_dir",
+        rebase_path(sb_static_contents_output_data_dir, root_build_dir),
+        "--files_list",
+        rebase_path(files_list, root_build_dir),
+      ]
+    }
+  } else if (current_toolchain == starboard_toolchain &&
+             build_with_separate_cobalt_toolchain) {
+    outer_target_name = target_name
+    group("${target_name}_install_content") {
+      forward_variables_from(invoker, [ "testonly" ])
+      deps = [ ":${outer_target_name}_install_content($default_toolchain)" ]
+    }
+  }
+}
+
+# Set up the method of generating the install targets as defined by the
+# platform.
+import("$install_target_path")
+template("action") {
+  install_content(target_name) {
+    forward_variables_from(invoker, "*")
+    target_type = "action"
+  }
+}
+
+template("action_foreach") {
+  install_content(target_name) {
+    forward_variables_from(invoker, "*")
+    target_type = "action_foreach"
+  }
+}
+
+template("copy") {
+  install_content(target_name) {
+    forward_variables_from(invoker, "*")
+    target_type = "copy"
+  }
+}
+
+template("evergreen_loader") {
+  # Add additional evergreen_loader target for every native target.
+  original_target_name = invoker.original_target_name
+  shared_data_deps = invoker.data_deps
+  shared_data_deps += [
+    ":copy_loader_app_lib${original_target_name}",
+    "//starboard/loader_app:copy_loader_app_content",
+  ]
+  if (cobalt_font_package == "empty") {
+    shared_data_deps += [ "//starboard/content/fonts:copy_font_data" ]
+  } else {
+    shared_data_deps += [
+      "//starboard/content/fonts:copy_fonts",
+      "//starboard/content/fonts:fonts_xml",
+    ]
+  }
+  shared_library(target_name) {
+    forward_variables_from(invoker, [ "testonly" ])
+    if (has_pedantic_warnings) {
+      configs += [ "//starboard/build/config:pedantic_warnings" ]
+    }
+
+    configs += [ "//$starboard_path/platform_configuration" ]
+    if (!has_pedantic_warnings) {
+      configs += [ "//starboard/build/config:no_pedantic_warnings" ]
+    }
+
+    sources = [ "//starboard/elf_loader/elf_loader_sandbox.cc" ]
+    configs += [ "//starboard/elf_loader:elf_loader_config" ]
+
+    deps = [
+      ":copy_loader_app_lib${original_target_name}",
+      "//starboard:starboard_group",
+      "//starboard/content/fonts:copy_font_data",
+      "//starboard/elf_loader:constants",
+      "//starboard/elf_loader:elf_loader",
+      "//starboard/elf_loader:evergreen_info",
+      "//starboard/elf_loader:sabi_string",
+      "//starboard/loader_app:copy_crashpad_handler_named_as_so",
+      "//starboard/loader_app:copy_loader_app_content",
+    ]
+
+    if (!sb_is_evergreen_compatible) {
+      deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
+    }
+  }
+  if (separate_install_targets_for_bundling) {
+    import("//starboard/build/config/bundle_content.gni")
+    bundle_content(
+        "copy_loader_app_lib${original_target_name}_bundle_content") {
+      forward_variables_from(invoker, [ "testonly" ])
+
+      bundle_name = "${original_target_name}_evergreen_loader"
+      bundle_deps = shared_data_deps
+    }
+  }
+  copy("copy_loader_app_lib${original_target_name}") {
+    install_content = true
+
+    # TODO(b/348401006): remove this special case when we support compression
+    # for all targets.
+    if (original_target_name == "cobalt") {
+      library_extension = "lz4"
+    } else {
+      library_extension = "so"
+    }
+
+    abi_suffix = ""
+    if (target_cpu == "arm" && arm_float_abi == "softfp") {
+      abi_suffix = "-${arm_float_abi}"
+    }
+    sources = [ "$root_out_dir/../evergreen-$target_cpu${abi_suffix}_$build_type/install/lib/lib${original_target_name}.${library_extension}" ]
+    outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/lib/lib${original_target_name}.${library_extension}" ]
+  }
+  install_target(original_target_name + "_evergreen_loader_install") {
+    forward_variables_from(invoker, [ "testonly" ])
+    installable_target_name = original_target_name + "_evergreen_loader"
+    type = "shared_library"
+    deps = []
+    if (defined(invoker.deps)) {
+      deps += invoker.deps
+    }
+    foreach(dep, shared_data_deps) {
+      deps += [ "${dep}_install_content" ]
+    }
+    if (separate_install_targets_for_bundling) {
+      deps += [ ":copy_loader_app_lib${original_target_name}_bundle_content" ]
+    }
+  }
+}
+
+template("executable") {
+  not_needed(invoker,
+             [
+               "build_loader",
+
+               # TODO(b/305091479): Investigate when this variable is unneeded
+               # so that we can refactor this to avoid the not_needed
+               # declaration.
+               "shared_library_target_name",
+             ])
+
+  target_with_platform_configs(target_name) {
+    target_type = "executable"
+    forward_variables_from(invoker, "*", [ "install_target" ])
+  }
+
+  if (is_starboardized_toolchain &&
+      (!defined(invoker.install_target) || invoker.install_target)) {
+    executable_target_name = target_name
+
+    data_deps = []
+    if (defined(invoker.data_deps)) {
+      data_deps += invoker.data_deps
+    }
+    if (defined(platform_i18n_config_path)) {
+      data_deps += [ platform_i18n_config_path ]
+    }
+
+    if (separate_install_targets_for_bundling) {
+      import("//starboard/build/config/bundle_content.gni")
+      bundle_content("${executable_target_name}_bundle_content") {
+        forward_variables_from(invoker, [ "testonly" ])
+
+        bundle_name = executable_target_name
+        bundle_deps = data_deps
+      }
+    }
+
+    install_target(target_name + "_install") {
+      # "shared_library_target_name" is used when this executable install_target
+      # is invoked from within a shared_library target that is building a loader
+      # In this case, it allows the install_target to determine the inputs/deps
+      # for the corresponding shared_library install_target.
+      forward_variables_from(invoker,
+                             [
+                               "testonly",
+                               "shared_library_target_name",
+                             ])
+
+      installable_target_name = executable_target_name
+      installable_target_dep = ":$executable_target_name"
+      not_needed([ "installable_target_dep" ])
+      type = "executable"
+
+      deps = []
+      if (defined(invoker.deps)) {
+        deps += invoker.deps
+      }
+      foreach(dep, data_deps) {
+        spl = []
+        spl = string_split(dep, "(")
+        if ([ spl[0] ] == spl) {
+          deps += [ "${dep}_install_content" ]
+        }
+      }
+      if (separate_install_targets_for_bundling) {
+        deps += [ ":${executable_target_name}_bundle_content" ]
+      }
+    }
+  }
+}
+
+template("shared_library") {
+  if (defined(invoker.build_loader) && invoker.build_loader == false) {
+    build_loader = false
+  } else {
+    build_loader = build_with_separate_cobalt_toolchain
+  }
+
+  if (build_loader) {
+    original_target_name = "${target_name}_original_target"
+  } else {
+    original_target_name = target_name
+  }
+  actual_target_name = target_name
+
+  target_with_platform_configs(original_target_name) {
+    output_name = actual_target_name
+    target_type = "shared_library"
+    forward_variables_from(invoker, "*", [ "install_target" ])
+  }
+
+  if (build_loader) {
+    group(target_name) {
+      forward_variables_from(invoker, [ "testonly" ])
+      deps = [
+        ":${actual_target_name}_loader($starboard_toolchain)",
+        ":${actual_target_name}_loader_copy($starboard_toolchain)",
+        ":${actual_target_name}_loader_install($starboard_toolchain)",
+      ]
+    }
+    if (current_toolchain == starboard_toolchain) {
+      executable("${actual_target_name}_loader") {
+        output_name = "${actual_target_name}_loader"
+        forward_variables_from(invoker,
+                               [
+                                 "testonly",
+                                 "data_deps",
+                               ])
+        sources = [ "//$starboard_path/starboard_loader.cc" ]
+
+        # Forwards the "shared_library_target_name" to allow this loader install
+        # target to depend the corresponding shared_library install_target outputs.
+        shared_library_target_name = actual_target_name
+
+        if (defined(extra_platform_loader_sources)) {
+          sources += extra_platform_loader_sources
+        }
+
+        if (use_asan) {
+          sources += [ "//$starboard_path/sanitizer_options.cc" ]
+        }
+
+        out_dir = rebase_path(root_build_dir)
+        defines = [
+          "SB_LOADER_MODULE=\"$actual_target_name\"",
+          "OUT_DIRECTORY=\"${out_dir}\"",
+        ]
+        configs += [ "//starboard/build/config:starboard_implementation" ]
+
+        ldflags = [
+          "-Wl,-rpath=" + rebase_path("$root_build_dir/starboard"),
+          "-Wl,-rpath=" + rebase_path("$root_build_dir"),
+          "-Wl,-rpath=\$ORIGIN/../lib",
+          "-Wl,-rpath=\$ORIGIN",
+        ]
+
+        deps = [
+          ":$original_target_name($cobalt_toolchain)",
+          "//starboard($starboard_toolchain)",
+        ]
+        if (!separate_install_targets_for_bundling) {
+          deps += [ "//starboard:starboard_install($starboard_toolchain)" ]
+        }
+      }
+      copy("${actual_target_name}_loader_copy") {
+        forward_variables_from(invoker, [ "testonly" ])
+        sources = [ "$root_out_dir/${actual_target_name}_loader" ]
+        outputs = [ "$root_build_dir/${actual_target_name}_loader" ]
+        deps = [ ":${actual_target_name}_loader" ]
+      }
+    }
+  }
+
+  if (is_starboardized_toolchain &&
+      (!defined(invoker.install_target) || invoker.install_target)) {
+    shared_library_target_name = target_name
+
+    data_deps = []
+    if (defined(invoker.data_deps)) {
+      data_deps += invoker.data_deps
+    }
+    if (defined(platform_i18n_config_path)) {
+      data_deps += [ platform_i18n_config_path ]
+    }
+
+    if (separate_install_targets_for_bundling) {
+      import("//starboard/build/config/bundle_content.gni")
+      bundle_content("${shared_library_target_name}_bundle_content") {
+        forward_variables_from(invoker, [ "testonly" ])
+
+        bundle_name = shared_library_target_name
+        bundle_deps = []
+        bundle_deps = data_deps
+      }
+    }
+
+    if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
+        target_name != "loader_app") {
+      evergreen_loader(original_target_name + "_evergreen_loader") {
+        forward_variables_from(invoker, "*")
+      }
+    }
+
+    install_target(target_name + "_install") {
+      forward_variables_from(invoker, [ "testonly" ])
+      installable_target_name = shared_library_target_name
+      installable_target_dep = ":$original_target_name"
+      not_needed([ "installable_target_dep" ])
+      type = "shared_library"
+
+      # When we build "{target_name}_install", we expect all files
+      # needed for a working target to be present.
+      deps = [ ":${actual_target_name}" ]
+
+      if (defined(invoker.deps)) {
+        deps += invoker.deps
+      }
+      foreach(dep, data_deps) {
+        spl = []
+        spl = string_split(dep, "(")
+        if ([ spl[0] ] == spl) {
+          deps += [ "${dep}_install_content" ]
+        }
+      }
+      if (separate_install_targets_for_bundling) {
+        deps += [ ":${shared_library_target_name}_bundle_content" ]
+      }
+    }
+  }
+}
+
+# Import this down here as it relies on variables set during configuration.
+import("//starboard/build/config/components.gni")

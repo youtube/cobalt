@@ -1,0 +1,11 @@
+# Allowlisted Libraries
+
+libANGLE.a
+libangle_common.a
+libffmpeg_dynamic_load.a
+libgtest.a
+libpreprocessor.a
+libstarboard_base_symbolize.a
+libstarboard_platform.a
+libangle_gpu_info_util.a
+libtranslator.a

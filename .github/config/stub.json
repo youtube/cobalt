@@ -1,0 +1,13 @@
+{
+  "docker_service": "build-linux-stub",
+  "platforms": [
+    "stub"
+  ],
+  "includes": [
+    {
+      "name":"stub",
+      "platform":"stub",
+      "target_platform":"stub"
+    }
+  ]
+}

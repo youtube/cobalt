@@ -1,0 +1,40 @@
+name: Build Cobalt
+description: Builds Cobalt targets
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Cloud SDK
+      if: startsWith(${{matrix.target_platform}}, 'android')
+      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+    - name: Set Android env vars
+      if: startsWith(${{matrix.target_platform}}, 'android')
+      run: |
+        echo "ANDROID_HOME=/root/starboard-toolchains/AndroidSdk/" >> $GITHUB_ENV
+        PROJECT_NAME=$(gcloud config get-value project)
+        echo "GCS_NIGHTLY_PATH=gs://${PROJECT_NAME}-build-artifacts" >> $GITHUB_ENV
+      shell: bash
+    - name: Build
+      run: |
+        set -x
+        env
+        if [ -z ${COBALT_EVERGREEN_LOADER+x} ]; then
+          BUILD_PLATFORM=${{ matrix.target_platform }}
+          BUILD_TARGET=all
+          if [[ "${{matrix.config}}" =~ ^(qa|gold)$ ]]; then
+            BUILD_TARGET=default
+          fi
+        else
+          BUILD_PLATFORM=${COBALT_EVERGREEN_LOADER}
+          BUILD_TARGET='loader_app_install elf_loader_sandbox_install native_target/crashpad_handler'
+        fi
+        # GitHub Runners have home set to /github/home.
+        if [ -d /root/starboard-toolchains ]; then
+          ln -s /root/starboard-toolchains /github/home/starboard-toolchains
+        fi
+        # Set Ninja output format
+        NINJA_STATUS="[%e sec | %f/%t %u remaining | %c/sec | j%r] "
+        ninja -C ${GITHUB_WORKSPACE}/out/${BUILD_PLATFORM}_${{matrix.config}} ${BUILD_TARGET}
+      shell: bash
+    - name: Show Sccache Stats
+      run: sccache -s
+      shell: bash

@@ -1,0 +1,346 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//build/config/compiler/compiler.gni")
+import("//starboard/build/config/os_definitions.gni")
+
+# TODO: b/319085130 - This macro is only used temporarily to enable compilation
+#                     of upstream libraries being updated in Cobalt. Use it as
+#                     a way to show where we should be eventually using
+#                     upstream code as is.
+
+if (cobalt_pending_clean_up) {
+  config("hacky_build_config") {
+    defines = [ "COBALT_PENDING_CLEAN_UP" ]
+
+    defines += [
+      "BASE_HASH_NAMESPACE=std",
+      "BASE_HASH_USE_HASH_STRUCT",
+    ]
+  }
+
+  config("hacky_wnos") {
+    if (is_clang) {
+      cflags = [
+        "-Wno-c99-designator",
+        "-Wno-deprecated-declarations",
+        "-Wno-ignored-qualifiers",
+        "-Wno-implicit-fallthrough",
+        "-Wno-inconsistent-missing-override",
+        "-Wno-invalid-noreturn",
+        "-Wno-macro-redefined",
+        "-Wno-pessimizing-move",
+        "-Wno-reorder-ctor",
+        "-Wno-sign-compare",
+        "-Wno-unused-but-set-variable",
+        "-Wno-unused-private-field",
+
+        # Needed for Evergreen, Android, and Stub.
+        "-Wno-return-type",
+        "-Wno-shorten-64-to-32",
+        "-Wno-unknown-attributes",
+        "-Wno-unused-command-line-argument",
+        "-Wno-unused-function",
+
+        # musl getaddrinfo implementation null-check static array on Linux
+        "-Wno-tautological-pointer-compare",
+      ]
+
+      if (!using_old_compiler) {
+        cflags += [
+          "-Wno-shadow",
+          "-Wno-unreachable-code-break",
+        ]
+      }
+    }
+  }
+}
+
+config("base") {
+  defines = [ "USE_COBALT_CUSTOMIZATIONS" ]
+
+  if (is_debug) {
+    defines += [
+      "STARBOARD_BUILD_TYPE_DEBUG",
+      "COBALT_BUILD_TYPE_DEBUG",
+      "_DEBUG",
+      "COBALT_LOGGING_ENABLED",
+    ]
+  }
+
+  if (is_devel) {
+    defines += [
+      "STARBOARD_BUILD_TYPE_DEVEL",
+      "COBALT_BUILD_TYPE_DEVEL",
+      "_DEBUG",
+      "COBALT_LOGGING_ENABLED",
+    ]
+  }
+
+  if (is_qa) {
+    defines += [
+      "STARBOARD_BUILD_TYPE_QA",
+      "COBALT_BUILD_TYPE_QA",
+      "NDEBUG",
+    ]
+  }
+
+  if (is_gold) {
+    defines += [
+      "STARBOARD_BUILD_TYPE_GOLD",
+      "COBALT_BUILD_TYPE_GOLD",
+      "NDEBUG",
+      "OFFICIAL_BUILD",
+      "TRACING_DISABLED",
+      "COBALT_FORCE_CSP",
+      "COBALT_FORCE_CORS",
+    ]
+  }
+
+  if (enable_in_app_dial) {
+    defines += [ "DIAL_SERVER" ]
+  }
+}
+
+config("host") {
+  if (current_toolchain == host_toolchain &&
+      current_toolchain != default_toolchain) {
+    if (is_linux) {
+      ldflags = [ "-pthread" ]
+      configs = [ ":linux_host_cpp_config" ]
+
+      if (target_cpu == "arm" || target_cpu == "x86") {
+        cflags = [ "-m32" ]
+        ldflags += [ "-latomic" ]
+
+        if (is_clang) {
+          ldflags += [
+            "-target",
+            "i386-unknown-linux-gnu",
+          ]
+        } else {
+          ldflags += [ "-m32" ]
+        }
+      }
+    } else if (is_apple) {
+      configs = [ ":apple_cpp17_config" ]
+    }
+  }
+}
+
+config("target") {
+  if (current_toolchain != host_toolchain) {
+    if (final_executable_type == "shared_library") {
+      if (!sb_is_modular || sb_is_evergreen) {
+        # Rewrite main() functions into StarboardMain. TODO: This is a
+        # hack, it would be better to be more surgical, here.
+        defines = [ "main=StarboardMain" ]
+      }
+
+      # To link into a shared library on Linux and similar platforms,
+      # the compiler must be told to generate Position Independent Code.
+      # This appears to cause errors when linking the code statically,
+      # however.
+      # For windows based platforms this flag causes a linker error while building with cobalt toolchain
+      if (!(host_os == "win" && sb_is_modular &&
+            current_toolchain == cobalt_toolchain)) {
+        cflags = [ "-fPIC" ]
+      }
+    }
+
+    if (is_starboard) {
+      configs = [ ":starboard" ]
+    } else if (is_native_target_build) {
+      configs = [ ":native_target_build" ]
+    }
+  }
+}
+
+# TODO(b/212641065): Scope global defines migrated from
+# cobalt_configuration.gypi to only the targets they're necessary in.
+config("starboard") {
+  if (is_starboardized_toolchain) {
+    defines = [
+      "STARBOARD",
+      "COBALT",  # TODO: See if this can be replaced by STARBOARD macro.
+    ]
+
+    if (!is_gold) {
+      defines += [
+        "ENABLE_DEBUGGER",
+        "ENABLE_DEBUG_COMMAND_LINE_SWITCHES",
+        "ENABLE_TEST_RUNNER",
+        "ENABLE_IGNORE_CERTIFICATE_ERRORS",
+      ]
+    }
+
+    if (is_internal_build) {
+      defines += [ "INTERNAL_BUILD" ]
+    }
+
+    if (sb_enable_lib) {
+      defines += [ "SB_IS_LIBRARY=1" ]
+    }
+
+    if (sb_is_modular) {
+      defines += [ "SB_IS_MODULAR=1" ]
+    }
+
+    if (sb_is_evergreen) {
+      defines += [ "SB_IS_EVERGREEN=1" ]
+    }
+
+    if (sb_is_evergreen_compatible) {
+      defines += [ "SB_IS_EVERGREEN_COMPATIBLE=1" ]
+    }
+
+    if (sb_evergreen_compatible_use_libunwind) {
+      defines += [ "SB_IS_EVERGREEN_COMPATIBLE_LIBUNWIND=1" ]
+    }
+
+    defines += [
+      "STARBOARD_ATOMIC_INCLUDE=\"$starboard_path/atomic_public.h\"",
+      "STARBOARD_CONFIGURATION_INCLUDE=\"$starboard_path/configuration_public.h\"",
+    ]
+  }
+}
+
+config("native_target_build") {
+  defines = [ "NATIVE_TARGET_BUILD" ]
+}
+
+config("starboard_implementation") {
+  # This allows the benchmarks to include internal only header files.
+  defines = [ "STARBOARD_IMPLEMENTATION" ]
+  if (current_cpu == "arm64" || (current_cpu == "arm" && arm_use_neon)) {
+    defines += [ "USE_NEON" ]
+  }
+}
+
+config("speed") {
+  if (is_starboardized_toolchain) {
+    if (defined(speed_config_path)) {
+      configs = [ speed_config_path ]
+    }
+  }
+}
+
+config("size") {
+  if (is_starboardized_toolchain) {
+    if (defined(size_config_path)) {
+      configs = [ size_config_path ]
+    }
+  }
+}
+
+config("pedantic_warnings") {
+  if (is_starboardized_toolchain) {
+    if (defined(pedantic_warnings_config_path)) {
+      configs = [ pedantic_warnings_config_path ]
+    }
+  }
+}
+
+config("no_pedantic_warnings") {
+  if (is_starboardized_toolchain ||
+      current_toolchain == "//$starboard_path/toolchain:native_target") {
+    if (defined(no_pedantic_warnings_config_path)) {
+      configs = [ no_pedantic_warnings_config_path ]
+    }
+  }
+}
+
+config("warnings_as_errors") {
+}
+
+# This config is defined here and added as a default config so that the flags
+# specified in it can be overridden by targets. It's not possible for targets to
+# override flags specified in a platform's "platform_configuration" config,
+# which is where these particular flags would otherwise naturally fit.
+config("default_compiler_flags") {
+  if (is_starboardized_toolchain && sb_is_modular &&
+      current_toolchain == cobalt_toolchain && target_cpu == "arm") {
+    cflags = [ "-mfpu=vfpv3" ]
+    asmflags = cflags
+  }
+}
+
+# This config is intended to encapsulate all platform-specific logic for selecting the C++ standard
+# version in shared code while building with the default toolchain.
+# Starboard platform-specific build code should not attempt to overload this.
+config("default_cpp_standard") {
+  if (current_toolchain == default_toolchain) {
+    if (sb_is_modular || is_android) {
+      configs = [ ":modular_cpp17_config" ]
+    } else if (is_linux) {
+      configs = [ ":linux_non_modular_cpp17_config" ]
+    } else if (is_apple) {
+      configs = [ ":apple_cpp17_config" ]
+    } else {
+      assert(
+          false,
+          "One of the above compiler c++ standard flags must be applicable while building with default toolchain.")
+    }
+  }
+}
+
+config("cpp20_supported_config") {
+  if (current_toolchain == default_toolchain) {
+    if (sb_is_modular || is_android) {
+      configs = [ ":modular_cpp20_config" ]
+    } else if (is_linux) {
+      configs = [ ":linux_non_modular_cpp20_config" ]
+    } else if (is_apple) {
+      configs = [ ":apple_cpp20_config" ]
+    } else {
+      assert(
+          false,
+          "One of the above compiler c++ standard flags must be applicable while building with default toolchain.")
+    }
+  }
+}
+
+config("apple_cpp17_config") {
+  cflags_cc = [ "-std=gnu++17" ]
+  cflags_objcc = [ "-std=gnu++17" ]
+}
+
+config("apple_cpp20_config") {
+  cflags_cc = [ "-std=gnu++20" ]
+  cflags_objcc = [ "-std=gnu++20" ]
+}
+
+config("linux_host_cpp_config") {
+  cflags_cc = [ "-std=gnu++17" ]
+}
+
+config("linux_non_modular_cpp17_config") {
+  cflags_cc = [ "-std=gnu++17" ]
+}
+
+config("linux_non_modular_cpp20_config") {
+  cflags_cc = [ "-std=gnu++20" ]
+}
+
+config("modular_cpp17_config") {
+  cflags_cc = [ "-std=c++17" ]
+}
+
+config("modular_cpp20_config") {
+  cflags_cc = [ "-std=c++20" ]
+}
+
+config("native_target") {
+  configs = [ ":modular_cpp17_config" ]
+}

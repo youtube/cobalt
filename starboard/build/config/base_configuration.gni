@@ -1,0 +1,181 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//starboard/build/config/clang.gni")
+import("//starboard/content/fonts/font_configuration.gni")
+
+# NOTE:
+# All build arguments in this file must have documentation.
+# Please follow the formatting in this file when adding new ones.
+
+if (build_with_separate_cobalt_toolchain) {
+  default_target_type = "shared_library"
+} else {
+  default_target_type = "executable"
+}
+
+declare_args() {
+  # Enables the nasm compiler to be used to compile .asm files.
+  nasm_exists = false
+
+  # Where yasm can be found on the host device.
+  path_to_nasm = "nasm"
+
+  # The Starboard API version of the current build configuration. The default
+  # value is meant to be overridden by a Starboard ABI file.
+  sb_api_version = 17
+
+  # Enables embedding Cobalt as a shared library within another app. This
+  # requires a 'lib' starboard implementation for the corresponding platform.
+  sb_enable_lib = false
+
+  # Directory path to static contents' data.
+  sb_static_contents_output_data_dir = "$root_out_dir/content/data"
+
+  # Whether this is an Evergreen build.
+  sb_is_evergreen = false
+
+  # Whether this is an Evergreen compatible platform. A compatible platform
+  # can run the elf_loader and launch the Evergreen build.
+  sb_is_evergreen_compatible = false
+
+  # Whether to use the libunwind library on Evergreen compatible platform.
+  sb_evergreen_compatible_use_libunwind = false
+
+  # Whether to generate the whole package containing both Loader app and Cobalt
+  # core on the Evergreen compatible platform.
+  sb_evergreen_compatible_package = false
+
+  # The target type for test targets. Allows changing the target type
+  # on platforms where the native code may require an additional packaging step
+  # (ex. Android).
+  gtest_target_type = default_target_type
+
+  # The target type for executable targets. Allows changing the target type
+  # on platforms where the native code may require an additional packaging step
+  # (ex. Android).
+  final_executable_type = default_target_type
+
+  starboard_level_gtest_target_type = "executable"
+  starboard_level_final_executable_type = "executable"
+
+  # The source of EGL and GLES headers and libraries.
+  # Valid values (case and everything sensitive!):
+  #   "system_gles2" - Use the system implementation of EGL + GLES2. The
+  #                    headers and libraries must be on the system include and
+  #                    link paths.
+  #   "glimp"  - Cobalt's own EGL + GLES2 implementation. This requires a
+  #              valid Glimp implementation for the platform.
+  #   "angle"  - A DirectX-to-OpenGL adaptation layer. This requires a valid
+  #              ANGLE implementation for the platform.
+  gl_type = "system_gles2"
+
+  # The event polling mechanism available on this platform to support libevent.
+  # Platforms may redefine to 'poll' if necessary.
+  # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
+  sb_libevent_method = "epoll"
+
+  # Used to indicate that the player is filter based.
+  sb_filter_based_player = true
+
+  # Used to enable benchmarks.
+  sb_enable_benchmark = false
+
+  # Where the Starboard ABI file for this platform can be found.
+  sabi_path = "starboard/sabi/default/sabi.json"
+
+  # Set to the starboard_platform_tests target if the platform implements them.
+  platform_tests_path = ""
+
+  # Whether the platform has platform-specific targets to depend on.
+  has_platform_targets = false
+
+  # The path to the gni file containing the install_target template which
+  # defines how the build should produce the install/ directory.
+  install_target_path = "//starboard/build/install/no_install.gni"
+
+  # Target-specific configurations for static_library targets.
+  static_library_configs = []
+
+  # Target-specific configurations for source_set targets.
+  source_set_configs = []
+
+  # Target-specific configurations for loadable_module targets.
+  loadable_module_configs = []
+
+  # Enables optimizations on SSE compatible platforms.
+  sb_enable_opus_sse = true
+
+  # Enables or disables the DIAL server that runs inside Cobalt.
+  # Note: Only enable if there's no system-wide DIAL support.
+  enable_in_app_dial = false
+
+  # A symbolizer path for ASAN can be added to allow translation of callstacks.
+  asan_symbolizer_path = "$clang_base_path/bin/llvm-symbolizer"
+
+  # Sub-directory to copy license file to.
+  cobalt_licenses_platform = "default"
+
+  # TODO(b/173248397): Migrate to CobaltExtensions or PlatformServices.
+  # List of platform-specific targets that get compiled into cobalt.
+  cobalt_platform_dependencies = []
+
+  # Some compiler can not compile with raw assembly(.S files) and v8
+  # converts asm to inline assembly for these platforms.
+  cobalt_v8_emit_builtins_as_inline_asm = false
+
+  # Set to true to enable pointer compression for v8.
+  v8_enable_pointer_compression_override = true
+
+  # Whether or not to disable run-time type information (adding no_rtti flag).
+  sb_use_no_rtti = false
+
+  # Set to true to separate install target directories.
+  separate_install_targets_for_bundling = false
+
+  # Enables an NPLB audit of C++17 support.
+  sb_enable_cpp17_audit = true
+
+  # Enables an NPLB audit of C++20 support.
+  sb_enable_cpp20_audit = true
+
+  # Enable WASM and install WebAssembly global.
+  v8_enable_webassembly = false
+
+  # Set this to true if the modular toolchain linker doesn't strip
+  # all unused symbols and nplb fails to link.
+  # TODO: b/297808555 Remove this flag after nplb is fixed
+  sb_has_unused_symbol_issue = false
+}
+
+if (current_toolchain == starboard_toolchain &&
+    build_with_separate_cobalt_toolchain) {
+  declare_args() {
+    # Target-specific configurations for executable targets.
+    executable_configs =
+        [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+
+    # Target-specific configurations for shared_library targets.
+    shared_library_configs =
+        [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+  }
+} else {
+  declare_args() {
+    # Target-specific configurations for executable targets.
+    executable_configs = []
+
+    # Target-specific configurations for shared_library targets.
+    shared_library_configs = []
+  }
+}

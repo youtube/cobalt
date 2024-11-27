@@ -1,0 +1,90 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//starboard/sabi/sabi.gni")
+
+config("sabi") {
+  forward_variables_from(sabi_variables, "*")
+
+  arch_uppercase =
+      exec_script("uppercase_string.py", [ target_arch ], "trim string")
+  calling_convention_uppercase =
+      exec_script("uppercase_string.py", [ calling_convention ], "trim string")
+  floating_point_abi_uppercase =
+      exec_script("uppercase_string.py", [ floating_point_abi ], "trim string")
+
+  sabi_id = exec_script("//starboard/sabi/generate_sabi_id.py",
+                        [
+                          "-f",
+                          rebase_path(sabi_path, root_build_dir),
+                        ],
+                        "trim string")
+
+  defines = [
+    "SB_SABI_JSON_ID=R\"($sabi_id)\"",
+    "SB_API_VERSION=$sb_api_version",
+
+    "SB_SABI_TARGET_ARCH=\"${target_cpu}\"",
+    "SB_SABI_WORD_SIZE=\"${word_size}\"",
+
+    "SB_IS_ARCH_${arch_uppercase}=1",
+    "SB_HAS_${calling_convention_uppercase}_CALLING=1",
+    "SB_HAS_${floating_point_abi_uppercase}_FLOATS=1",
+
+    "SB_IS_${word_size}_BIT=1",
+    "SB_ALIGNMENT_OF_CHAR=${alignment_char}",
+    "SB_ALIGNMENT_OF_DOUBLE=${alignment_double}",
+    "SB_ALIGNMENT_OF_FLOAT=${alignment_float}",
+    "SB_ALIGNMENT_OF_INT=${alignment_int}",
+    "SB_ALIGNMENT_OF_LLONG=${alignment_llong}",
+    "SB_ALIGNMENT_OF_LONG=${alignment_long}",
+    "SB_ALIGNMENT_OF_POINTER=${alignment_pointer}",
+    "SB_ALIGNMENT_OF_SHORT=${alignment_short}",
+    "SB_SIZE_OF_CHAR=${size_of_char}",
+    "SB_SIZE_OF_ENUM=${size_of_enum}",
+    "SB_SIZE_OF_DOUBLE=${size_of_double}",
+    "SB_SIZE_OF_FLOAT=${size_of_float}",
+    "SB_SIZE_OF_INT=${size_of_int}",
+    "SB_SIZE_OF_LONG=${size_of_long}",
+    "SB_SIZE_OF_LLONG=${size_of_llong}",
+    "SB_SIZE_OF_POINTER=${size_of_pointer}",
+    "SB_SIZE_OF_SHORT=${size_of_short}",
+  ]
+
+  if (endianness == "little") {
+    defines += [
+      "SB_IS_BIG_ENDIAN=0",
+      "SB_IS_LITTLE_ENDIAN=1",
+    ]
+  } else {
+    defines += [
+      "SB_IS_BIG_ENDIAN=1",
+      "SB_IS_LITTLE_ENDIAN=0",
+    ]
+  }
+
+  if (signedness_of_char == "signed") {
+    defines += [ "SB_HAS_SIGNED_CHAR=1" ]
+  } else {
+    defines += [ "SB_HAS_SIGNED_CHAR=0" ]
+  }
+
+  if (signedness_of_enum == "signed") {
+    defines += [ "SB_HAS_SIGNED_ENUM=1" ]
+  } else {
+    defines += [ "SB_HAS_SIGNED_ENUM=1" ]
+  }
+
+  not_needed("*")
+}

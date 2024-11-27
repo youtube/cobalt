@@ -1,0 +1,78 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+static_library("filter_based_player_sources") {
+  check_includes = false
+  sources = [
+    "//starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.cc",
+    "//starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h",
+    "//starboard/shared/starboard/player/filter/audio_channel_layout_mixer.h",
+    "//starboard/shared/starboard/player/filter/audio_channel_layout_mixer_impl.cc",
+    "//starboard/shared/starboard/player/filter/audio_decoder_internal.h",
+    "//starboard/shared/starboard/player/filter/audio_frame_discarder.cc",
+    "//starboard/shared/starboard/player/filter/audio_frame_discarder.h",
+    "//starboard/shared/starboard/player/filter/audio_frame_tracker.cc",
+    "//starboard/shared/starboard/player/filter/audio_frame_tracker.h",
+    "//starboard/shared/starboard/player/filter/audio_renderer_internal.h",
+    "//starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.cc",
+    "//starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h",
+    "//starboard/shared/starboard/player/filter/audio_renderer_sink.h",
+    "//starboard/shared/starboard/player/filter/audio_renderer_sink_impl.cc",
+    "//starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h",
+    "//starboard/shared/starboard/player/filter/audio_resampler.h",
+    "//starboard/shared/starboard/player/filter/audio_resampler_impl.cc",
+    "//starboard/shared/starboard/player/filter/audio_time_stretcher.cc",
+    "//starboard/shared/starboard/player/filter/audio_time_stretcher.h",
+    "//starboard/shared/starboard/player/filter/common.h",
+    "//starboard/shared/starboard/player/filter/cpu_video_frame.cc",
+    "//starboard/shared/starboard/player/filter/cpu_video_frame.h",
+    "//starboard/shared/starboard/player/filter/decoded_audio_queue.cc",
+    "//starboard/shared/starboard/player/filter/decoded_audio_queue.h",
+    "//starboard/shared/starboard/player/filter/filter_based_player_worker_handler.cc",
+    "//starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h",
+    "//starboard/shared/starboard/player/filter/interleaved_sinc_resampler.cc",
+    "//starboard/shared/starboard/player/filter/interleaved_sinc_resampler.h",
+    "//starboard/shared/starboard/player/filter/media_time_provider.h",
+    "//starboard/shared/starboard/player/filter/media_time_provider_impl.cc",
+    "//starboard/shared/starboard/player/filter/media_time_provider_impl.h",
+    "//starboard/shared/starboard/player/filter/mock_audio_decoder.h",
+    "//starboard/shared/starboard/player/filter/mock_audio_renderer_sink.h",
+    "//starboard/shared/starboard/player/filter/player_components.cc",
+    "//starboard/shared/starboard/player/filter/player_components.h",
+    "//starboard/shared/starboard/player/filter/punchout_video_renderer_sink.cc",
+    "//starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h",
+    "//starboard/shared/starboard/player/filter/stub_audio_decoder.cc",
+    "//starboard/shared/starboard/player/filter/stub_audio_decoder.h",
+    "//starboard/shared/starboard/player/filter/stub_player_components_factory.cc",
+    "//starboard/shared/starboard/player/filter/stub_player_components_factory.h",
+    "//starboard/shared/starboard/player/filter/stub_video_decoder.cc",
+    "//starboard/shared/starboard/player/filter/stub_video_decoder.h",
+    "//starboard/shared/starboard/player/filter/video_decoder_internal.h",
+    "//starboard/shared/starboard/player/filter/video_frame_cadence_pattern_generator.cc",
+    "//starboard/shared/starboard/player/filter/video_frame_cadence_pattern_generator.h",
+    "//starboard/shared/starboard/player/filter/video_frame_internal.h",
+    "//starboard/shared/starboard/player/filter/video_frame_rate_estimator.cc",
+    "//starboard/shared/starboard/player/filter/video_frame_rate_estimator.h",
+    "//starboard/shared/starboard/player/filter/video_render_algorithm.h",
+    "//starboard/shared/starboard/player/filter/video_render_algorithm_impl.cc",
+    "//starboard/shared/starboard/player/filter/video_render_algorithm_impl.h",
+    "//starboard/shared/starboard/player/filter/video_renderer_internal.h",
+    "//starboard/shared/starboard/player/filter/video_renderer_internal_impl.cc",
+    "//starboard/shared/starboard/player/filter/video_renderer_internal_impl.h",
+    "//starboard/shared/starboard/player/filter/video_renderer_sink.h",
+    "//starboard/shared/starboard/player/filter/wsola_internal.cc",
+    "//starboard/shared/starboard/player/filter/wsola_internal.h",
+  ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+}

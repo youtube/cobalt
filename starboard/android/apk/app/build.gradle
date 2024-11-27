@@ -1,0 +1,219 @@
+// Copyright 2016 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+apply plugin: 'com.android.application'
+
+final DEFAULT_COBALT_TARGET = 'cobalt'
+final String[] SUPPORTED_ABIS = [ 'x86', 'armeabi-v7a', 'arm64-v8a' ]
+final MIN_SUPPORTED_SDK_VERSION = 24
+final LATEST_SUPPORTED_SDK_VERSION = 34
+
+// Parse the NDK_VERSION and CMAKE_VERSION defined in sdk_utils.py
+final SDK_UTILS = project.rootProject.file('../shared/sdk_utils.py')
+final NDK_VERSION = SDK_UTILS.find { it.startsWith('_NDK_VERSION =') }.split("'")[1]
+final CMAKE_VERSION = SDK_UTILS.find { it.startsWith('_CMAKE_VERSION =') }.split("'")[1]
+
+ext {
+    // Provide defaults if these properties aren't specified on the command line.
+    buildAbi = project.hasProperty('cobaltBuildAbi') ? cobaltBuildAbi : SUPPORTED_ABIS
+    cobaltTarget = project.hasProperty('cobaltTarget') ? cobaltTarget : DEFAULT_COBALT_TARGET
+    cobaltProductDir =
+            project.hasProperty('cobaltProductDir') ? new File(cobaltProductDir).canonicalPath : ''
+    cobaltContentDir =
+            project.hasProperty('cobaltContentDir') ? new File(cobaltContentDir).canonicalPath : ''
+    cobaltLibraryDir =
+            project.hasProperty('cobaltLibraryDir') ? new File(cobaltLibraryDir).canonicalPath : ''
+    evergreenCompatible =
+            project.hasProperty('evergreenCompatible') ? evergreenCompatible : "false"
+
+    buildIdFile = rootProject.file('build.id')
+    buildId = buildIdFile.exists() ? buildIdFile.text.trim() : '0'
+}
+
+println "TARGET: ${cobaltTarget}"
+
+android {
+    namespace "dev.cobalt.coat"
+    compileSdkVersion "android-${LATEST_SUPPORTED_SDK_VERSION}"
+    buildToolsVersion "${LATEST_SUPPORTED_SDK_VERSION}.0.0"
+    ndkVersion NDK_VERSION
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    aaptOptions {
+        // The following pattern matches the default aapt pattern with the
+        // exception that it is missing the blanket ignore wildcard (!.*) that
+        // matches any "hidden" file, i.e. files with names beginning with |.|.
+        //
+        // For more information check out |gDefaultIgnoreAssets| in AOSP
+        // frameworks/base/tools/aapt/AaptAssets.cpp.
+        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+
+    signingConfigs {
+        // A signing config that matches what is implicitly used for the "debug" build type.
+        debugConfig {
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            storeFile file("${System.getProperty('user.home')}/.android/debug.keystore")
+            storePassword 'android'
+        }
+    }
+    defaultConfig {
+        applicationId "dev.cobalt.coat"
+        minSdkVersion MIN_SUPPORTED_SDK_VERSION
+        targetSdkVersion LATEST_SUPPORTED_SDK_VERSION
+        compileSdkVersion LATEST_SUPPORTED_SDK_VERSION
+        versionCode 1
+        versionName "${buildId}"
+        manifestPlaceholders = [
+            applicationName: "CoAT: ${cobaltTarget}",
+            evergreenCompatible: "${evergreenCompatible}"
+        ]
+        externalNativeBuild {
+            cmake {
+                arguments "-DCOBALT_TARGET=${cobaltTarget}"
+                arguments "-DCOBALT_PRODUCT_DIR=${cobaltProductDir}"
+                arguments "-DCOBALT_CONTENT_DIR=${cobaltContentDir}"
+                arguments "-DCOBALT_LIBRARY_DIR=${cobaltLibraryDir}"
+                arguments "-DCOBALT_PLATFORM_DEPLOY=${project.hasProperty('cobaltDeployApk')}"
+                arguments "-DEVERGREEN_COMPATIBLE=${evergreenCompatible}"
+            }
+        }
+    }
+    splits {
+        abi {
+            enable true
+            reset()
+            include buildAbi
+        }
+    }
+    buildTypes {
+        debug {
+            debuggable true
+            jniDebuggable true
+            externalNativeBuild {
+                cmake.arguments "-DCOBALT_CONFIG=debug"
+            }
+            signingConfig signingConfigs.debugConfig
+            enableUnitTestCoverage true
+        }
+        devel {
+            debuggable true
+            jniDebuggable true
+            externalNativeBuild {
+                cmake.arguments "-DCOBALT_CONFIG=devel"
+            }
+            signingConfig signingConfigs.debugConfig
+            enableUnitTestCoverage true
+        }
+        qa {
+            debuggable true
+            jniDebuggable true
+            externalNativeBuild {
+                cmake.arguments "-DCOBALT_CONFIG=qa"
+            }
+            signingConfig signingConfigs.debugConfig
+            enableUnitTestCoverage true
+        }
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            externalNativeBuild {
+                cmake.arguments "-DCOBALT_CONFIG=gold"
+            }
+            signingConfig signingConfigs.debugConfig
+        }
+    }
+    sourceSets {
+        // The source is split into two parts:
+        //   "main" is the code that should go into any Cobalt-based app for Android TV.
+        //   "app" is the specialization needed to make "the blue app" out of the main code.
+        // The Android Gradle plugin includes "main" by default, so we just need to add "app".
+        main {
+            manifest.srcFile "src/app/AndroidManifest.xml"
+            java.srcDir "src/app/java"
+            res.srcDir "src/app/res"
+            assets.srcDir "src/app/assets"
+        }
+        // Add the directories symlinked by the CMake "cobalt_content" custom command.
+        debug {
+            assets.srcDir "${cobaltContentDir}"
+        }
+        devel {
+            assets.srcDir "${cobaltContentDir}"
+        }
+        qa {
+            assets.srcDir "${cobaltContentDir}"
+        }
+        release {
+            assets.srcDir "${cobaltContentDir}"
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            version CMAKE_VERSION
+            path 'CMakeLists.txt'
+            // Move the staging directory to be a sibling of the build directory, which we moved
+            // in the top-level build.gradle to be in a common top-level 'build' directory. Get
+            // the canonical file at config time so that it's still right at build time.
+            buildStagingDirectory new File("${buildDir}.cxx").canonicalFile
+        }
+    }
+    packagingOptions {
+        jniLibs {
+            // extractNativeLibs, which we set, based on evergreenCompatible, in the manifest file,
+            // is deprecated. Gradle asks that useLegacyPackaging be set if extractNativeLibs is
+            // set, and complains if they have different values. To be safe, both are set for now.
+            useLegacyPackaging "${evergreenCompatible}" == "true" ? true : false
+        }
+    }
+}
+
+// When running in the platform deploy action, make tasks that depend on the appropriate Android
+// assemble tasks, then the move the assembled "app" apk to the desired path for deployment.
+if (project.hasProperty('cobaltDeployApk')) {
+    android.applicationVariants.all { variant ->
+        task "assembleCobalt_${variant.name}"(dependsOn: "assemble${variant.name.capitalize()}") {
+            def assembledApk = variant.outputs[0].outputFile
+            def deployApk = new File(cobaltDeployApk).canonicalFile
+            doLast {
+                assembledApk.renameTo(deployApk)
+            }
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    // GameActivity dependency. Follow the steps in
+    // //starboard/android/apk/app/src/main/java/dev/cobalt/libraries/game_activity/README.md
+    // if you want to update to a new version.
+    implementation fileTree(dir: 'src/main/java/dev/cobalt/libraries/game_activity',
+                            include: ['games-activity*.aar'])
+    implementation 'androidx.annotation:annotation:1.1.0'
+    implementation 'androidx.appcompat:appcompat:1.4.2'
+    implementation 'androidx.core:core:1.8.0'
+    implementation 'androidx.leanback:leanback:1.0.0'
+    implementation 'androidx.legacy:legacy-support-v4:1.0.0'
+    implementation 'com.google.android.gms:play-services-ads-identifier:17.0.0'
+    implementation 'com.google.android.gms:play-services-auth:18.0.0'
+    implementation 'com.google.protobuf:protobuf-lite:3.0.1'
+
+    testImplementation 'junit:junit:4.12'
+    testImplementation "com.google.truth:truth:1.1.3"
+}

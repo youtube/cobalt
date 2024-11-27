@@ -1,0 +1,17 @@
+name: pre-commit
+description: Runs pre-commit
+inputs:
+  base_ref:
+    description: "Ref to run from"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - run: pre-commit run --show-diff-on-failure --color=always --from-ref ${{ inputs.base_ref }} --to-ref HEAD
+      shell: bash
+      env:
+        SKIP: 'run-py2-tests'
+    - run: pre-commit run --show-diff-on-failure --color=always --hook-stage push --from-ref ${{ inputs.base_ref }} --to-ref HEAD
+      shell: bash
+      env:
+        SKIP: 'test-download-from-gcs-helper,check-bug-in-commit-message,check-if-starboard-interface-changed'

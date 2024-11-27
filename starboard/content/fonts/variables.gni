@@ -1,0 +1,144 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+declare_args() {
+  copy_font_files = true
+  source_font_files_dir = "font_files"
+}
+
+if (cobalt_font_package == "standard") {
+  declare_args() {
+    source_font_config_dir = "config/common"
+    package_named_sans_serif = 4
+    package_named_serif = 3
+    package_named_fcc_fonts = 2
+    package_fallback_lang_non_cjk = 2
+    package_fallback_lang_cjk = 1
+    package_fallback_lang_cjk_low_quality = 0
+    package_fallback_historic = 1
+    package_fallback_color_emoji = 1
+    package_fallback_emoji = 0
+    package_fallback_symbols = 1
+  }
+} else if (cobalt_font_package == "limited") {
+  declare_args() {
+    source_font_config_dir = "config/common"
+    package_named_sans_serif = 2
+    package_named_serif = 0
+    package_named_fcc_fonts = 0
+    package_fallback_lang_non_cjk = 1
+    package_fallback_lang_cjk = 0
+    package_fallback_lang_cjk_low_quality = 1
+    package_fallback_historic = 0
+    package_fallback_color_emoji = 0
+    package_fallback_emoji = 1
+    package_fallback_symbols = 1
+  }
+} else if (cobalt_font_package == "minimal") {
+  declare_args() {
+    source_font_config_dir = "config/common"
+    package_named_sans_serif = 0
+    package_named_serif = 0
+    package_named_fcc_fonts = 0
+    package_fallback_lang_non_cjk = 0
+    package_fallback_lang_cjk = 0
+    package_fallback_lang_cjk_low_quality = 0
+    package_fallback_historic = 0
+    package_fallback_color_emoji = 0
+    package_fallback_emoji = 0
+    package_fallback_symbols = 0
+  }
+} else if (cobalt_font_package == "empty") {
+  declare_args() {
+    source_font_config_dir = "config/empty"
+    package_named_sans_serif = 0
+    package_named_serif = 0
+    package_named_fcc_fonts = 0
+    package_fallback_lang_non_cjk = 0
+    package_fallback_lang_cjk = 0
+    package_fallback_lang_cjk_low_quality = 0
+    package_fallback_historic = 0
+    package_fallback_color_emoji = 0
+    package_fallback_emoji = 0
+    package_fallback_symbols = 0
+  }
+} else if (cobalt_font_package == "android_system") {
+  # fonts.xml contains a superset of what we expect to find on Android
+  # devices. The Android SbFile implementation falls back to system font
+  # files for those not in cobalt content.
+  declare_args() {
+    source_font_config_dir = "config/android"
+    package_named_sans_serif = 0
+    package_named_serif = 0
+    package_named_fcc_fonts = 0
+    package_fallback_lang_non_cjk = 0
+    package_fallback_lang_cjk = 0
+    package_fallback_lang_cjk_low_quality = 0
+    package_fallback_historic = 0
+    package_fallback_color_emoji = 0
+    package_fallback_emoji = 0
+    package_fallback_symbols = 0
+  }
+
+  # Don't copy font files for Android since it falls back to system
+  # font files for everything listed in fonts.xml.
+  copy_font_files = false
+}
+
+if (cobalt_font_package_override_named_sans_serif >= 0) {
+  package_named_sans_serif = cobalt_font_package_override_named_sans_serif
+}
+if (cobalt_font_package_override_named_serif >= 0) {
+  package_named_serif = cobalt_font_package_override_named_serif
+}
+if (cobalt_font_package_override_named_fcc_fonts >= 0) {
+  package_named_fcc_fonts = cobalt_font_package_override_named_fcc_fonts
+}
+if (cobalt_font_package_override_fallback_lang_non_cjk >= 0) {
+  package_fallback_lang_non_cjk =
+      cobalt_font_package_override_fallback_lang_non_cjk
+}
+if (cobalt_font_package_override_fallback_lang_cjk >= 0) {
+  package_fallback_lang_cjk = cobalt_font_package_override_fallback_lang_cjk
+}
+if (cobalt_font_package_override_fallback_lang_cjk_low_quality >= 0) {
+  package_fallback_lang_cjk_low_quality =
+      cobalt_font_package_override_fallback_lang_cjk_low_quality
+}
+if (cobalt_font_package_override_fallback_historic >= 0) {
+  package_fallback_historic = cobalt_font_package_override_fallback_historic
+}
+if (cobalt_font_package_override_fallback_color_emoji >= 0) {
+  package_fallback_color_emoji =
+      cobalt_font_package_override_fallback_color_emoji
+}
+if (cobalt_font_package_override_fallback_emoji >= 0) {
+  package_fallback_emoji = cobalt_font_package_override_fallback_emoji
+}
+if (cobalt_font_package_override_fallback_symbols >= 0) {
+  package_fallback_symbols = cobalt_font_package_override_fallback_symbols
+}
+
+package_categories = [
+  "sans-serif=${package_named_sans_serif}",
+  "serif=${package_named_serif}",
+  "fcc-captions=${package_named_fcc_fonts}",
+  "fallback-lang-non-cjk=${package_fallback_lang_non_cjk}",
+  "fallback-lang-cjk=${package_fallback_lang_cjk}",
+  "fallback-lang-cjk-low-quality=${package_fallback_lang_cjk_low_quality}",
+  "fallback-historic=${package_fallback_historic}",
+  "fallback-color-emoji=${package_fallback_color_emoji}",
+  "fallback-emoji=${package_fallback_emoji}",
+  "fallback-symbols=${package_fallback_symbols}",
+]

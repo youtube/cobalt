@@ -1,0 +1,305 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//starboard/build/config/os_definitions.gni")
+
+declare_args() {
+  sb_enable_cast_codec_tests = false
+}
+
+config("cast_codec_tests") {
+  cflags = [ "ENABLE_CAST_CODEC_TESTS" ]
+}
+
+target(gtest_target_type, "nplb") {
+  testonly = true
+
+  sources = [
+    "//starboard/common/test_main.cc",
+    "//starboard/nplb/sabi/alignment_test.cc",
+    "//starboard/nplb/sabi/endianness_test.cc",
+    "//starboard/nplb/sabi/signedness_and_size_of_enum_test.cc",
+    "//starboard/nplb/sabi/signedness_of_char_test.cc",
+    "//starboard/nplb/sabi/size_test.cc",
+    "//starboard/nplb/sabi/struct_alignment_test.cc",
+    "//starboard/shared/starboard/drm/drm_test_helpers.cc",
+    "//starboard/shared/starboard/drm/drm_test_helpers.h",
+    "//starboard/testing/fake_graphics_context_provider.cc",
+    "//starboard/testing/fake_graphics_context_provider.h",
+    "align_test.cc",
+    "atomic_base_test.cc",
+    "atomic_test.cc",
+    "audio_sink_create_test.cc",
+    "audio_sink_destroy_test.cc",
+    "audio_sink_get_max_channels_test.cc",
+    "audio_sink_get_min_buffer_size_in_frames_test.cc",
+    "audio_sink_get_nearest_supported_sample_frequency_test.cc",
+    "audio_sink_helpers.cc",
+    "audio_sink_helpers.h",
+    "audio_sink_is_audio_frame_storage_type_supported_test.cc",
+    "audio_sink_is_audio_sample_type_supported_test.cc",
+    "audio_sink_test.cc",
+    "char_is_signed_test.cc",
+    "configuration_test.cc",
+    "cpu_features_get_test.cc",
+    "drm_get_metrics_test.cc",
+    "drm_helpers.h",
+    "drm_is_server_certificate_updatable_test.cc",
+    "drm_session_test.cc",
+    "drm_update_server_certificate_test.cc",
+    "egl_test.cc",
+    "extern_c_test.cc",
+    "file_atomic_replace_test.cc",
+    "file_delete_recursive_test.cc",
+    "file_helpers.cc",
+    "flat_map_test.cc",
+    "gles_test.cc",
+    "include_all.c",
+    "include_all_too.c",
+    "key_test.cc",
+    "log_flush_test.cc",
+    "log_format_test.cc",
+    "log_raw_dump_stack_test.cc",
+    "log_raw_test.cc",
+    "log_test.cc",
+
+    # TODO: Separate functions tested by media buffer test into multiple
+    # files.
+    "drm_create_system_test.cc",
+    "maximum_player_configuration_explorer.cc",
+    "maximum_player_configuration_explorer.h",
+    "maximum_player_configuration_explorer_test.cc",
+    "media_buffer_test.cc",
+    "media_can_play_mime_and_key_system_test.cc",
+    "media_configuration_test.cc",
+    "media_set_audio_write_duration_test.cc",
+    "microphone_close_test.cc",
+    "microphone_create_test.cc",
+    "microphone_destroy_test.cc",
+    "microphone_get_available_test.cc",
+    "microphone_is_sample_rate_supported_test.cc",
+    "microphone_open_test.cc",
+    "microphone_read_test.cc",
+    "multiple_player_test.cc",
+    "murmurhash2_test.cc",
+    "optional_test.cc",
+    "player_create_test.cc",
+    "player_creation_param_helpers.cc",
+    "player_creation_param_helpers.h",
+    "player_get_audio_configuration_test.cc",
+    "player_get_media_time_test.cc",
+    "player_get_preferred_output_mode_test.cc",
+    "player_test_fixture.cc",
+    "player_test_fixture.h",
+    "player_test_util.cc",
+    "player_test_util.h",
+    "player_write_sample_test.cc",
+    "posix_compliance/posix_arpa_inet_test.cc",
+    "posix_compliance/posix_condition_variable_broadcast_test.cc",
+    "posix_compliance/posix_condition_variable_create_test.cc",
+    "posix_compliance/posix_condition_variable_destroy_test.cc",
+    "posix_compliance/posix_condition_variable_signal_test.cc",
+    "posix_compliance/posix_condition_variable_wait_test.cc",
+    "posix_compliance/posix_condition_variable_wait_timed_test.cc",
+    "posix_compliance/posix_directory_can_open_test.cc",
+    "posix_compliance/posix_directory_create_test.cc",
+    "posix_compliance/posix_directory_get_next_test.cc",
+    "posix_compliance/posix_directory_open_test.cc",
+    "posix_compliance/posix_file_can_open_test.cc",
+    "posix_compliance/posix_file_close_test.cc",
+    "posix_compliance/posix_file_delete_test.cc",
+    "posix_compliance/posix_file_fsync_test.cc",
+    "posix_compliance/posix_file_ftruncate_test.cc",
+    "posix_compliance/posix_file_get_info_test.cc",
+    "posix_compliance/posix_file_get_path_info_test.cc",
+    "posix_compliance/posix_file_mode_string_to_flags_test.cc",
+    "posix_compliance/posix_file_open_test.cc",
+    "posix_compliance/posix_file_read_test.cc",
+    "posix_compliance/posix_file_seek_test.cc",
+    "posix_compliance/posix_file_write_test.cc",
+    "posix_compliance/posix_memory_allocate_aligned_test.cc",
+    "posix_compliance/posix_memory_allocate_test.cc",
+    "posix_compliance/posix_memory_deallocate_aligned_test.cc",
+    "posix_compliance/posix_memory_deallocate_test.cc",
+    "posix_compliance/posix_memory_map_test.cc",
+    "posix_compliance/posix_mutex_acquire_test.cc",
+    "posix_compliance/posix_mutex_acquire_try_test.cc",
+    "posix_compliance/posix_mutex_create_test.cc",
+    "posix_compliance/posix_mutex_destroy_test.cc",
+    "posix_compliance/posix_once_test.cc",
+    "posix_compliance/posix_socket_accept_test.cc",
+    "posix_compliance/posix_socket_bind_test.cc",
+    "posix_compliance/posix_socket_connect_test.cc",
+    "posix_compliance/posix_socket_create_test.cc",
+    "posix_compliance/posix_socket_errno_test.cc",
+    "posix_compliance/posix_socket_helpers.cc",
+    "posix_compliance/posix_socket_join_multicast_group_test.cc",
+    "posix_compliance/posix_socket_listen_test.cc",
+    "posix_compliance/posix_socket_receive_test.cc",
+    "posix_compliance/posix_socket_recvfrom_test.cc",
+    "posix_compliance/posix_socket_resolve_test.cc",
+    "posix_compliance/posix_socket_send_test.cc",
+    "posix_compliance/posix_socket_sendto_test.cc",
+    "posix_compliance/posix_socket_set_options_test.cc",
+    "posix_compliance/posix_socket_waiter_add_test.cc",
+    "posix_compliance/posix_socket_waiter_remove_test.cc",
+    "posix_compliance/posix_socket_waiter_wait_test.cc",
+    "posix_compliance/posix_socket_waiter_wait_timed_test.cc",
+    "posix_compliance/posix_string_compare_no_case_n_test.cc",
+    "posix_compliance/posix_string_compare_no_case_test.cc",
+    "posix_compliance/posix_string_format_test.cc",
+    "posix_compliance/posix_string_format_wide_test.cc",
+    "posix_compliance/posix_string_scan_test.cc",
+    "posix_compliance/posix_thread_attr_test.cc",
+    "posix_compliance/posix_thread_create_test.cc",
+    "posix_compliance/posix_thread_detach_test.cc",
+    "posix_compliance/posix_thread_get_current_test.cc",
+    "posix_compliance/posix_thread_get_name_test.cc",
+    "posix_compliance/posix_thread_helpers.cc",
+    "posix_compliance/posix_thread_is_equal_test.cc",
+    "posix_compliance/posix_thread_join_test.cc",
+    "posix_compliance/posix_thread_local_value_test.cc",
+    "posix_compliance/posix_thread_set_name_test.cc",
+    "posix_compliance/posix_thread_sleep_test.cc",
+    "posix_compliance/posix_thread_yield_test.cc",
+    "posix_compliance/posix_time_test.cc",
+    "random_helpers.cc",
+    "recursive_mutex_test.cc",
+    "semaphore_test.cc",
+    "socket_clear_last_error_test.cc",
+    "socket_destroy_test.cc",
+    "socket_get_interface_address_test.cc",
+    "socket_get_last_error_test.cc",
+    "socket_get_local_address_test.cc",
+    "socket_helpers.cc",
+    "socket_is_connected_and_idle_test.cc",
+    "socket_is_connected_test.cc",
+    "socket_receive_from_test.cc",
+    "socket_waiter_create_test.cc",
+    "socket_waiter_destroy_test.cc",
+    "socket_waiter_wake_up_test.cc",
+    "socket_wrapper_test.cc",
+    "speech_synthesis_basic_test.cc",
+    "storage_close_record_test.cc",
+    "storage_get_record_size_test.cc",
+    "storage_read_record_test.cc",
+    "storage_write_record_test.cc",
+    "system_clear_last_error_test.cc",
+    "system_get_error_string_test.cc",
+    "system_get_extension_test.cc",
+    "system_get_last_error_test.cc",
+    "system_get_locale_id_test.cc",
+    "system_get_number_of_processors_test.cc",
+    "system_get_path_test.cc",
+    "system_get_property_test.cc",
+    "system_get_random_data_test.cc",
+    "system_get_random_uint64_test.cc",
+    "system_get_stack_test.cc",
+    "system_get_total_cpu_memory_test.cc",
+    "system_get_total_gpu_memory_test.cc",
+    "system_get_used_cpu_memory_test.cc",
+    "system_get_used_gpu_memory_test.cc",
+    "system_has_capability_test.cc",
+    "system_hide_splash_screen_test.cc",
+    "system_is_debugger_attached_test.cc",
+    "system_network_status_test.cc",
+    "system_sign_with_certification_secret_key_test.cc",
+    "system_symbolize_test.cc",
+    "thread_get_id_test.cc",
+    "thread_priority_test.cc",
+    "thread_sampler_test.cc",
+    "thread_test.cc",
+    "time_zone_get_current_test.cc",
+    "time_zone_get_name_test.cc",
+    "ui_navigation_test.cc",
+    "undefined_behavior_test.cc",
+    "url_player_create_test.cc",
+    "vertical_video_test.cc",
+    "window_create_test.cc",
+    "window_destroy_test.cc",
+    "window_get_diagonal_size_in_inches_test.cc",
+    "window_get_platform_handle_test.cc",
+    "window_get_size_test.cc",
+  ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+  if (sb_enable_cast_codec_tests) {
+    configs += [ ":cast_codec_tests" ]
+  }
+
+  deps = [
+    "//starboard:starboard_group",
+    "//starboard/common",
+    "//starboard/common:file_wrapper",
+    "//starboard/nplb/compiler_compliance:cpp14_supported",
+    "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player:video_dmp",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  deps += cobalt_platform_dependencies
+
+  if (is_internal_build) {
+    deps += [ "//internal/starboard/private/nplb:nplb_private" ]
+  }
+
+  if (sb_enable_cpp17_audit) {
+    deps += [ "//starboard/nplb/compiler_compliance:cpp17_supported" ]
+  }
+
+  if (sb_enable_cpp20_audit) {
+    deps += [ "//starboard/nplb/compiler_compliance:cpp20_supported" ]
+  }
+
+  data_deps = [
+    "//starboard/content/ssl:copy_ssl_certificates",
+    "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
+    "//starboard/shared/starboard/player:player_download_test_data",
+  ]
+
+  if (is_clang && !is_android) {
+    # signedness_and_size_of_enum_test.cc casts -1 to enum value
+    cflags = [ "-Wno-enum-constexpr-conversion" ]
+  }
+
+  #  TODO: b/297808555 - Add these tests for all  modular builds.
+  if (sb_has_unused_symbol_issue) {
+    sources -= [
+      "maximum_player_configuration_explorer.cc",
+      "maximum_player_configuration_explorer.h",
+      "maximum_player_configuration_explorer_test.cc",
+      "media_buffer_test.cc",
+      "media_set_audio_write_duration_test.cc",
+      "multiple_player_test.cc",
+      "player_create_test.cc",
+      "player_creation_param_helpers.cc",
+      "player_creation_param_helpers.h",
+      "player_get_audio_configuration_test.cc",
+      "player_get_media_time_test.cc",
+      "player_get_preferred_output_mode_test.cc",
+      "player_test_fixture.cc",
+      "player_test_fixture.h",
+      "player_test_util.cc",
+      "player_test_util.h",
+      "player_write_sample_test.cc",
+      "vertical_video_test.cc",
+    ]
+
+    deps -= [
+      "//starboard/shared/starboard/media:media_util",
+      "//starboard/shared/starboard/player:video_dmp",
+    ]
+  }
+}

@@ -1,0 +1,69 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+config("platform_configuration") {
+  configs = [ "//starboard/build/config/modular" ]
+  ldflags = []
+  if (sb_is_evergreen) {
+    ldflags += [
+      "-fuse-ld=lld",
+      "-Wl,--build-id",
+      "-Wl,--gc-sections",
+      "-Wl,-X",
+      "-Wl,-v",
+      "-Wl,-eh-frame-hdr",
+      "-Wl,--fini=__cxa_finalize",
+      "-Wl,-shared",
+      "-Wl,-L$clang_base_path",
+      "-Wl,-L/usr/lib",
+      "-Wl,-L/lib",
+      "-Wl,-u GetEvergreenSabiString",
+    ]
+  }
+
+  if (sb_is_evergreen) {
+    ldflags += [ "-nostdlib" ]
+  }
+
+  defines = [
+    # During Evergreen updates the CRX package is kept in-memory, instead of
+    # on the file system, before getting unpacked.
+    # TODO(b/158043520): we need to make significant customizations to Chromium
+    # code to implement this feature and this macro allows us to switch back
+    # to the legacy behavior during development to verify the customizations
+    # are made cleanly. Once the feature is complete we may want to remove
+    # existing customizations that enable the legacy behavior for Cobalt builds,
+    # change IN_MEMORY_UPDATES references to USE_COBALT_CUSTOMIZATIONS
+    # references, and remove this macro.
+    "IN_MEMORY_UPDATES",
+  ]
+
+  if (use_asan) {
+    ldflags += [
+      "-fsanitize=address",
+
+      # Force linking of the helpers in sanitizer_options.cc
+      "-Wl,-u_sanitizer_options_link_helper",
+    ]
+  } else if (use_tsan) {
+    ldflags += [ "-fsanitize=thread" ]
+  }
+}
+
+config("size") {
+  configs = [ "//starboard/build/config/modular:size" ]
+  if (sb_is_evergreen && (is_qa || is_gold)) {
+    ldflags = [ "-Wl,--icf=safe" ]
+  }
+}

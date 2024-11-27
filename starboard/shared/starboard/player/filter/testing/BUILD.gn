@@ -1,0 +1,87 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+if (current_toolchain == starboard_toolchain) {
+  target(starboard_level_gtest_target_type, "player_filter_tests") {
+    # build_loader = false
+    testonly = true
+
+    sources = [
+      "//starboard/common/test_main.cc",
+      "//starboard/testing/fake_graphics_context_provider.cc",
+      "//starboard/testing/fake_graphics_context_provider.h",
+      "adaptive_audio_decoder_test.cc",
+      "audio_channel_layout_mixer_test.cc",
+      "audio_decoder_test.cc",
+      "audio_frame_discarder_test.cc",
+      "audio_renderer_internal_test.cc",
+      "audio_resampler_test.cc",
+      "file_cache_reader_test.cc",
+      "media_time_provider_impl_test.cc",
+      "player_components_test.cc",
+      "video_decoder_test.cc",
+      "video_decoder_test_fixture.cc",
+      "video_decoder_test_fixture.h",
+      "video_frame_cadence_pattern_generator_test.cc",
+      "video_frame_rate_estimator_test.cc",
+    ]
+
+    public_deps = [
+      ":test_util",
+      "//starboard:starboard_with_main",
+      "//starboard/shared/starboard/media:media_util",
+      "//testing/gmock",
+    ]
+
+    deps = cobalt_platform_dependencies
+
+    data_deps =
+        [ "//starboard/shared/starboard/player:player_download_test_data" ]
+  }
+
+  target(final_executable_type, "player_filter_benchmarks") {
+    testonly = true
+
+    sources = [
+      "//starboard/common/benchmark_main.cc",
+      "audio_decoder_benchmark.cc",
+    ]
+
+    public_deps = [
+      ":test_util",
+      "//third_party/google_benchmark",
+    ]
+
+    deps = cobalt_platform_dependencies
+  }
+
+  static_library("test_util") {
+    testonly = true
+
+    sources = [
+      "test_util.cc",
+      "test_util.h",
+    ]
+
+    public_configs = [ "//starboard/build/config:starboard_implementation" ]
+
+    public_deps = [
+      "//starboard:starboard_group",
+      "//starboard/shared/starboard/media:media_util",
+      "//starboard/shared/starboard/player:player_download_test_data",
+      "//starboard/shared/starboard/player:video_dmp",
+      "//testing/gtest",
+    ]
+  }
+}

@@ -1,0 +1,58 @@
+# Copyright 2023 The Cobalt Authors. All rights reserved.
+import("//starboard/contrib/cast/cast.gni")
+
+assert(build_with_separate_cobalt_toolchain && use_contrib_cast)
+
+group("cast") {
+  public_deps = [ ":cast_starboard_api($starboard_toolchain)" ]
+}
+
+config("default") {
+  ldflags = [
+    # Hide unwanted symbols, which also shrinks the resulting binary.
+    "-Wl,--version-script=" +
+        rebase_path("./cast_starboard_api.lds", root_build_dir),
+  ]
+
+  if (!use_asan) {
+    ldflags += [
+      # Prevent unresolved symbols, which would require the consumer of
+      # `cast_starboard_api` to be aware of transitive dependences at runtime.
+      "-Wl,-z,defs",
+    ]
+  }
+}
+
+if (current_toolchain == starboard_toolchain) {
+  import("//starboard/build/config/starboard_target_type.gni")
+  starboard_platform_target("cast_starboard_api") {
+    extra_configs = [ ":default" ]
+  }
+
+  copy("cast_starboard_api_test_data") {
+    install_content = true
+    sources = [ "$root_out_dir/libcast_starboard_api.${starboard_shared_library_extension}" ]
+
+    # This artifact is consumed by a test built outside of the
+    # starboard_toolchain; move from `starboard/content/` to `content/`.
+    outputs = [
+      "$sb_static_contents_output_data_dir/../../content/{{source_file_part}}",
+    ]
+    deps = [ ":cast_starboard_api" ]
+  }
+}
+
+target(gtest_target_type, "cast_starboard_api_test") {
+  testonly = true
+  sources = [
+    "//starboard/common/test_main.cc",
+    "cast_starboard_api_test.cc",
+  ]
+  data_deps = [ ":cast_starboard_api_test_data($starboard_toolchain)" ]
+  deps = [
+    "//starboard:starboard_group",
+    "//starboard/common",
+    "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
+    "//testing/gtest",
+  ]
+}

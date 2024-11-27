@@ -1,0 +1,419 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//starboard/android/shared/toolchain/toolchain.gni")
+import("//starboard/shared/starboard/media/media_tests.gni")
+import("//starboard/shared/starboard/player/buildfiles.gni")
+import("//starboard/shared/starboard/player/player_tests.gni")
+
+##########################################################
+# Configuration to extract GameActivity native files.
+##########################################################
+
+game_activity_aar_file = "//starboard/android/apk/app/src/main/java/dev/cobalt/libraries/game_activity/games-activity-2.0.2.aar"
+
+game_activity_source_files = [
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivity.cpp",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivity.h",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityEvents.cpp",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityEvents.h",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-activity/GameActivityLog.h",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gamecommon.h",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gametextinput.cpp",
+  "$target_gen_dir/game_activity/prefab/modules/game-activity/include/game-text-input/gametextinput.h",
+]
+
+game_activity_include_dirs =
+    [ "$target_gen_dir/game_activity/prefab/modules/game-activity/include" ]
+
+action("game_activity_sources") {
+  script = "//starboard/tools/unzip_file.py"
+  sources = [ game_activity_aar_file ]
+  outputs = game_activity_source_files
+  args = [
+    "--zip_file",
+    rebase_path(game_activity_aar_file, root_build_dir),
+    "--output_dir",
+    rebase_path(target_gen_dir, root_build_dir) + "/game_activity",
+  ]
+}
+
+##########################################################
+# Configuration for overall Android Starboard Platform.
+##########################################################
+
+static_library("starboard_platform") {
+  sources = [
+    "//starboard/shared/egl/system_egl.cc",
+    "//starboard/shared/gcc/atomic_gcc_public.h",
+    "//starboard/shared/gles/gl_call.h",
+    "//starboard/shared/gles/system_gles2.cc",
+    "//starboard/shared/internal_only.h",
+    "//starboard/shared/iso/memory_allocate_unchecked.cc",
+    "//starboard/shared/iso/memory_free.cc",
+    "//starboard/shared/iso/memory_reallocate_unchecked.cc",
+    "//starboard/shared/libevent/socket_waiter_add.cc",
+    "//starboard/shared/libevent/socket_waiter_create.cc",
+    "//starboard/shared/libevent/socket_waiter_destroy.cc",
+    "//starboard/shared/libevent/socket_waiter_internal.cc",
+    "//starboard/shared/libevent/socket_waiter_remove.cc",
+    "//starboard/shared/libevent/socket_waiter_wait.cc",
+    "//starboard/shared/libevent/socket_waiter_wait_timed.cc",
+    "//starboard/shared/libevent/socket_waiter_wake_up.cc",
+    "//starboard/shared/linux/cpu_features_get.cc",
+    "//starboard/shared/linux/system_get_random_data.cc",
+    "//starboard/shared/linux/system_get_total_cpu_memory.cc",
+    "//starboard/shared/linux/system_get_used_cpu_memory.cc",
+    "//starboard/shared/linux/system_is_debugger_attached.cc",
+    "//starboard/shared/linux/system_symbolize.cc",
+    "//starboard/shared/linux/thread_get_id.cc",
+    "//starboard/shared/opus/opus_audio_decoder.cc",
+    "//starboard/shared/opus/opus_audio_decoder.h",
+    "//starboard/shared/posix/environment.cc",
+    "//starboard/shared/posix/file_atomic_replace.cc",
+    "//starboard/shared/posix/memory_allocate_aligned_unchecked.cc",
+    "//starboard/shared/posix/memory_free_aligned.cc",
+    "//starboard/shared/posix/page_internal.cc",
+    "//starboard/shared/posix/set_non_blocking_internal.cc",
+    "//starboard/shared/posix/socket_accept.cc",
+    "//starboard/shared/posix/socket_bind.cc",
+    "//starboard/shared/posix/socket_connect.cc",
+    "//starboard/shared/posix/socket_create.cc",
+    "//starboard/shared/posix/socket_destroy.cc",
+    "//starboard/shared/posix/socket_get_local_address.cc",
+    "//starboard/shared/posix/socket_internal.cc",
+    "//starboard/shared/posix/socket_is_ipv6_supported.cc",
+    "//starboard/shared/posix/socket_listen.cc",
+    "//starboard/shared/posix/socket_receive_from.cc",
+    "//starboard/shared/posix/socket_set_reuse_address.cc",
+    "//starboard/shared/posix/storage_write_record.cc",
+    "//starboard/shared/posix/system_break_into_debugger.cc",
+    "//starboard/shared/posix/system_clear_last_error.cc",
+    "//starboard/shared/posix/system_get_error_string.cc",
+    "//starboard/shared/posix/system_get_last_error.cc",
+    "//starboard/shared/posix/system_get_number_of_processors.cc",
+    "//starboard/shared/posix/thread_sleep.cc",
+    "//starboard/shared/posix/time_zone_get_current.cc",
+    "//starboard/shared/pthread/thread_context_get_pointer.cc",
+    "//starboard/shared/pthread/thread_context_internal.cc",
+    "//starboard/shared/pthread/thread_context_internal.h",
+    "//starboard/shared/pthread/thread_create_priority.h",
+    "//starboard/shared/pthread/thread_sampler_create.cc",
+    "//starboard/shared/pthread/thread_sampler_destroy.cc",
+    "//starboard/shared/pthread/thread_sampler_freeze.cc",
+    "//starboard/shared/pthread/thread_sampler_internal.cc",
+    "//starboard/shared/pthread/thread_sampler_internal.h",
+    "//starboard/shared/pthread/thread_sampler_is_supported.cc",
+    "//starboard/shared/pthread/thread_sampler_thaw.cc",
+    "//starboard/shared/pthread/thread_yield.cc",
+    "//starboard/shared/signal/crash_signals.h",
+    "//starboard/shared/signal/crash_signals_sigaction.cc",
+    "//starboard/shared/signal/suspend_signals.cc",
+    "//starboard/shared/signal/suspend_signals.h",
+    "//starboard/shared/starboard/application.cc",
+    "//starboard/shared/starboard/application.h",
+    "//starboard/shared/starboard/audio_sink/audio_sink_create.cc",
+    "//starboard/shared/starboard/audio_sink/audio_sink_destroy.cc",
+    "//starboard/shared/starboard/audio_sink/audio_sink_internal.cc",
+    "//starboard/shared/starboard/audio_sink/audio_sink_internal.h",
+    "//starboard/shared/starboard/audio_sink/audio_sink_is_valid.cc",
+    "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.cc",
+    "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.h",
+    "//starboard/shared/starboard/command_line.cc",
+    "//starboard/shared/starboard/command_line.h",
+    "//starboard/shared/starboard/drm/drm_close_session.cc",
+    "//starboard/shared/starboard/drm/drm_destroy_system.cc",
+    "//starboard/shared/starboard/drm/drm_generate_session_update_request.cc",
+    "//starboard/shared/starboard/drm/drm_get_metrics.cc",
+    "//starboard/shared/starboard/drm/drm_is_server_certificate_updatable.cc",
+    "//starboard/shared/starboard/drm/drm_system_internal.h",
+    "//starboard/shared/starboard/drm/drm_update_server_certificate.cc",
+    "//starboard/shared/starboard/drm/drm_update_session.cc",
+    "//starboard/shared/starboard/event_cancel.cc",
+    "//starboard/shared/starboard/event_schedule.cc",
+    "//starboard/shared/starboard/file_atomic_replace_write_file.cc",
+    "//starboard/shared/starboard/file_atomic_replace_write_file.h",
+    "//starboard/shared/starboard/file_storage/storage_close_record.cc",
+    "//starboard/shared/starboard/file_storage/storage_delete_record.cc",
+    "//starboard/shared/starboard/file_storage/storage_get_record_size.cc",
+    "//starboard/shared/starboard/file_storage/storage_open_record.cc",
+    "//starboard/shared/starboard/file_storage/storage_read_record.cc",
+    "//starboard/shared/starboard/log_mutex.cc",
+    "//starboard/shared/starboard/log_mutex.h",
+    "//starboard/shared/starboard/log_raw_dump_stack.cc",
+    "//starboard/shared/starboard/log_raw_format.cc",
+    "//starboard/shared/starboard/media/media_can_play_mime_and_key_system.cc",
+    "//starboard/shared/starboard/media/media_get_audio_buffer_budget.cc",
+    "//starboard/shared/starboard/media/media_get_buffer_alignment.cc",
+    "//starboard/shared/starboard/media/media_get_buffer_allocation_unit.cc",
+    "//starboard/shared/starboard/media/media_get_buffer_garbage_collection_duration_threshold.cc",
+    "//starboard/shared/starboard/media/media_get_buffer_padding.cc",
+    "//starboard/shared/starboard/media/media_get_progressive_buffer_budget.cc",
+    "//starboard/shared/starboard/media/media_is_buffer_using_memory_pool.cc",
+    "//starboard/shared/starboard/microphone/microphone_close.cc",
+    "//starboard/shared/starboard/microphone/microphone_create.cc",
+    "//starboard/shared/starboard/microphone/microphone_destroy.cc",
+    "//starboard/shared/starboard/microphone/microphone_get_available.cc",
+    "//starboard/shared/starboard/microphone/microphone_internal.h",
+    "//starboard/shared/starboard/microphone/microphone_is_sample_rate_supported.cc",
+    "//starboard/shared/starboard/microphone/microphone_open.cc",
+    "//starboard/shared/starboard/microphone/microphone_read.cc",
+    "//starboard/shared/starboard/new.cc",
+    "//starboard/shared/starboard/queue_application.cc",
+    "//starboard/shared/starboard/queue_application.h",
+    "//starboard/shared/starboard/system_get_random_uint64.cc",
+    "//starboard/shared/starboard/system_supports_resume.cc",
+    "//starboard/shared/starboard/thread_checker.h",
+    "//starboard/shared/starboard/window_set_default_options.cc",
+    "//starboard/shared/stub/system_get_total_gpu_memory.cc",
+    "//starboard/shared/stub/system_get_used_gpu_memory.cc",
+    "//starboard/shared/stub/system_hide_splash_screen.cc",
+    "//starboard/shared/stub/system_request_blur.cc",
+    "//starboard/shared/stub/system_request_focus.cc",
+    "//starboard/shared/stub/system_request_reveal.cc",
+    "//starboard/shared/stub/system_sign_with_certification_secret_key.cc",
+    "accessibility_extension.cc",
+    "accessibility_extension.h",
+    "accessibility_get_caption_settings.cc",
+    "accessibility_get_display_settings.cc",
+    "accessibility_get_text_to_speech_settings.cc",
+    "accessibility_set_captions_enabled.cc",
+    "android_main.cc",
+    "android_media_session_client.cc",
+    "application_android.cc",
+    "application_android.h",
+    "asset_manager.cc",
+    "asset_manager.h",
+    "atomic_public.h",
+    "audio_decoder.cc",
+    "audio_decoder.h",
+    "audio_decoder_passthrough.h",
+    "audio_renderer_passthrough.cc",
+    "audio_renderer_passthrough.h",
+    "audio_sink_get_max_channels.cc",
+    "audio_sink_get_min_buffer_size_in_frames.cc",
+    "audio_sink_get_nearest_supported_sample_frequency.cc",
+    "audio_sink_is_audio_frame_storage_type_supported.cc",
+    "audio_sink_is_audio_sample_type_supported.cc",
+    "audio_sink_min_required_frames_tester.cc",
+    "audio_sink_min_required_frames_tester.h",
+    "audio_track_audio_sink_type.cc",
+    "audio_track_audio_sink_type.h",
+    "audio_track_bridge.cc",
+    "audio_track_bridge.h",
+    "configuration.cc",
+    "configuration.h",
+    "configuration_constants.cc",
+    "configuration_public.h",
+    "crash_handler.cc",
+    "crash_handler.h",
+    "decode_target_create.cc",
+    "decode_target_create.h",
+    "decode_target_get_info.cc",
+    "decode_target_internal.cc",
+    "decode_target_internal.h",
+    "decode_target_release.cc",
+    "drm_create_system.cc",
+    "drm_system.cc",
+    "drm_system.h",
+    "egl_swap_buffers.cc",
+    "file_internal.cc",
+    "file_internal.h",
+    "get_home_directory.cc",
+    "graphics.cc",
+    "graphics.h",
+    "input_events_generator.cc",
+    "input_events_generator.h",
+    "jni_env_ext.cc",
+    "jni_env_ext.h",
+    "jni_utils.h",
+    "log.cc",
+    "log_flush.cc",
+    "log_format.cc",
+    "log_internal.cc",
+    "log_internal.h",
+    "log_raw.cc",
+    "main.cc",
+    "max_media_codec_output_buffers_lookup_table.cc",
+    "max_media_codec_output_buffers_lookup_table.h",
+    "media_capabilities_cache.cc",
+    "media_capabilities_cache.h",
+    "media_codec_bridge.cc",
+    "media_codec_bridge.h",
+    "media_codec_bridge_eradicator.cc",
+    "media_codec_bridge_eradicator.h",
+    "media_common.h",
+    "media_decoder.cc",
+    "media_decoder.h",
+    "media_get_audio_configuration.cc",
+    "media_get_audio_output_count.cc",
+    "media_get_initial_buffer_capacity.cc",
+    "media_get_max_buffer_capacity.cc",
+    "media_get_video_buffer_budget.cc",
+    "media_is_audio_supported.cc",
+    "media_is_buffer_pool_allocate_on_demand.cc",
+    "media_is_supported.cc",
+    "media_is_video_supported.cc",
+    "media_settings_api.cc",
+    "media_settings_api.h",
+    "microphone_impl.cc",
+    "network_status_impl.cc",
+    "platform_info.cc",
+    "platform_info.h",
+    "platform_service.cc",
+    "player_components_factory.cc",
+    "player_components_factory.h",
+    "player_create.cc",
+    "player_destroy.cc",
+    "player_get_maximum_number_of_samples_per_write.cc",
+    "player_get_preferred_output_mode.cc",
+    "player_set_bounds.cc",
+    "player_set_max_video_input_size.cc",
+    "player_set_max_video_input_size.h",
+    "player_set_playback_rate.cc",
+    "posix_emu/dirent.cc",
+    "posix_emu/errno.cc",
+    "posix_emu/file.cc",
+    "posix_emu/pthread.cc",
+    "posix_emu/stat.cc",
+    "sanitizer_options.cc",
+    "socket_get_interface_address.cc",
+    "speech_synthesis_cancel.cc",
+    "speech_synthesis_internal.cc",
+    "speech_synthesis_is_supported.cc",
+    "speech_synthesis_speak.cc",
+    "system_get_extensions.cc",
+    "system_get_locale_id.cc",
+    "system_get_path.cc",
+    "system_get_property.cc",
+    "system_get_stack.cc",
+    "system_has_capability.cc",
+    "system_info_api.cc",
+    "system_info_api.h",
+    "system_network_is_disconnected.cc",
+    "system_platform_error.cc",
+    "system_request_conceal.cc",
+    "system_request_freeze_no_freezedone_callback.cc",
+    "system_request_stop.cc",
+    "thread_create_priority.cc",
+    "time_zone_get_name.cc",
+    "trace_util.h",
+    "video_decoder.cc",
+    "video_decoder.h",
+    "video_frame_tracker.cc",
+    "video_frame_tracker.h",
+    "video_max_video_input_size.cc",
+    "video_max_video_input_size.h",
+    "video_render_algorithm.cc",
+    "video_render_algorithm.h",
+    "video_window.cc",
+    "video_window.h",
+    "window_create.cc",
+    "window_destroy.cc",
+    "window_get_diagonal_size_in_inches.cc",
+    "window_get_platform_handle.cc",
+    "window_get_size.cc",
+    "window_internal.h",
+  ]
+
+  sources += game_activity_source_files
+  sources += common_player_sources
+
+  sources -= [
+    "//starboard/shared/starboard/player/player_create.cc",
+    "//starboard/shared/starboard/player/player_destroy.cc",
+    "//starboard/shared/starboard/player/player_get_maximum_number_of_samples_per_write.cc",
+    "//starboard/shared/starboard/player/player_get_preferred_output_mode_prefer_punchout.cc",
+    "//starboard/shared/starboard/player/player_set_bounds.cc",
+    "//starboard/shared/starboard/player/player_set_playback_rate.cc",
+  ]
+
+  include_dirs = game_activity_include_dirs
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+
+  public_deps = [
+    ":game_activity_sources",
+    ":starboard_base_symbolize",
+    "//starboard/common",
+    "//starboard/shared/starboard/media:media_util",
+    "//starboard/shared/starboard/player/filter:filter_based_player_sources",
+  ]
+
+  deps = [
+    "//third_party/libevent",
+    "//third_party/opus",
+  ]
+
+  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+    sources -= [
+      "crash_handler.cc",
+      "crash_handler.h",
+    ]
+    sources += [
+      "//starboard/shared/starboard/crash_handler.cc",
+      "//starboard/shared/starboard/crash_handler.h",
+      "//starboard/shared/starboard/loader_app_metrics.cc",
+      "//starboard/shared/starboard/loader_app_metrics.h",
+    ]
+
+    public_deps += [
+      "//starboard/elf_loader:evergreen_config",
+      "//starboard/loader_app:pending_restart",
+    ]
+
+    deps += [ "//third_party/crashpad/crashpad/wrapper" ]
+  }
+
+  if (sb_evergreen_compatible_use_libunwind) {
+    deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
+  }
+}
+
+static_library("starboard_base_symbolize") {
+  sources = [
+    "//third_party/symbolize/demangle.cc",
+    "//third_party/symbolize/symbolize.cc",
+  ]
+
+  deps = [
+    "//starboard:starboard_headers_only",
+    "//starboard/common:common_headers_only",
+  ]
+  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+    public_deps = [ "//starboard/elf_loader:evergreen_info" ]
+  }
+}
+
+target(gtest_target_type, "starboard_platform_tests") {
+  testonly = true
+
+  sources = media_tests_sources + player_tests_sources + [
+              "//starboard/common/test_main.cc",
+              "//starboard/shared/starboard/drm/drm_test_helpers.cc",
+              "//starboard/shared/starboard/drm/drm_test_helpers.h",
+              "jni_env_ext_test.cc",
+              "model_year_test.cc",
+              "player_get_preferred_output_mode_test.cc",
+            ]
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+
+  deps = [
+    "//starboard:starboard_group",
+    "//starboard/shared/starboard/player/filter/testing:test_util",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+}

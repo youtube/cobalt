@@ -1,0 +1,65 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+group("starboard_platform") {
+  public_deps = [
+    ":starboard_platform_sources",
+    "//starboard/egl_and_gles",
+    "//starboard/linux/shared:starboard_platform",
+  ]
+
+  deps = [
+    "//third_party/dav1d",
+    "//third_party/libjpeg_turbo:libjpeg",
+    "//third_party/libvpx",
+  ]
+}
+
+# TODO(b/348280514): Used on platforms where linker cannot resolve wrapped
+# functions
+static_library("starboard_egl_wrapped_functions") {
+  sources = [ "//starboard/shared/x11/egl_swap_buffers.cc" ]
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+}
+
+static_library("starboard_platform_sources") {
+  check_includes = false
+  sources = [
+    "//starboard/linux/x64x11/system_get_property.cc",
+    "//starboard/linux/x64x11/system_get_property_impl.cc",
+    "//starboard/shared/libjpeg/jpeg_image_decoder.cc",
+    "//starboard/shared/libjpeg/jpeg_image_decoder.h",
+    "//starboard/shared/starboard/link_receiver.cc",
+    "//starboard/shared/x11/application_x11.cc",
+    "//starboard/shared/x11/egl_swap_buffers.cc",
+    "//starboard/shared/x11/player_set_bounds.cc",
+    "//starboard/shared/x11/window_create.cc",
+    "//starboard/shared/x11/window_destroy.cc",
+    "//starboard/shared/x11/window_get_platform_handle.cc",
+    "//starboard/shared/x11/window_get_size.cc",
+    "//starboard/shared/x11/window_internal.cc",
+  ]
+
+  if (!sb_is_modular || sb_is_evergreen) {
+    sources += [ "//starboard/linux/x64x11/sanitizer_options.cc" ]
+  }
+
+  if (is_internal_build) {
+    sources += [ "//starboard/keyboxes/linux/system_properties.cc" ]
+  } else {
+    sources += [ "//starboard/linux/x64x11/public_system_properties.cc" ]
+  }
+
+  configs += [ "//starboard/build/config:starboard_implementation" ]
+}

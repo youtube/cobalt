@@ -1,0 +1,385 @@
+# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+import("//starboard/build/config/os_definitions.gni")
+import("//third_party/protobuf/proto_library.gni")
+
+_common_loader_app_sources = [
+  "loader_app.cc",
+  "loader_app_switches.cc",
+  "loader_app_switches.h",
+  "system_get_extension_shim.cc",
+  "system_get_extension_shim.h",
+]
+
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  group("common_loader_app_dependencies") {
+    public_deps = [
+      ":app_key",
+      ":installation_manager",
+      ":memory_tracker_thread",
+      ":record_loader_app_status",
+      ":reset_evergreen_update",
+      ":slot_management",
+      "//starboard:starboard_group",
+      "//starboard/elf_loader:constants",
+      "//starboard/elf_loader:evergreen_info",
+      "//starboard/elf_loader:sabi_string",
+      "//third_party/crashpad/crashpad/wrapper",
+    ]
+  }
+}
+
+if (sb_is_evergreen_compatible && sb_evergreen_compatible_package &&
+    current_toolchain == starboard_toolchain) {
+  copy("copy_loader_app_content") {
+    install_content = true
+    if (target_cpu == "arm" && arm_float_abi == "softfp") {
+      sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/content" ]
+    } else if (target_cpu == "arm64") {
+      sources =
+          [ "$root_out_dir/../evergreen-${target_cpu}_$build_type/content" ]
+    } else {
+      sources = []
+    }
+    outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/content" ]
+  }
+  copy("copy_loader_app_manifest") {
+    install_content = true
+    if (target_cpu == "arm" && arm_float_abi == "softfp") {
+      sources = [ "$root_out_dir/../evergreen-$target_cpu-${arm_float_abi}_$build_type/manifest.json" ]
+    } else if (target_cpu == "arm64") {
+      sources = [
+        "$root_out_dir/../evergreen-${target_cpu}_$build_type/manifest.json",
+      ]
+    } else {
+      sources = []
+    }
+    outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/manifest.json" ]
+  }
+
+  # This trick to name the Crashpad handler executable as a shared library, so
+  # that the Package Manager extracts it to the file system on install, is
+  # borrowed from Chrome on Android.
+  copy("copy_crashpad_handler_named_as_so") {
+    install_content = true
+    sources = [ "$root_out_dir/native_target/crashpad_handler" ]
+    outputs = [ "$root_out_dir/libcrashpad_handler.so" ]
+    deps = [ "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)" ]
+  }
+}
+
+static_library("record_loader_app_status") {
+  sources = [
+    "record_loader_app_status.cc",
+    "record_loader_app_status.h",
+  ]
+  deps = [ "//starboard:starboard_group" ]
+}
+
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  target(starboard_level_final_executable_type, "loader_app") {
+    build_loader = false
+    if (target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") {
+      if (cobalt_font_package == "empty") {
+        data_deps = [ "//starboard/content/fonts:copy_font_data" ]
+      } else {
+        data_deps = [
+          "//starboard/content/fonts:copy_fonts",
+          "//starboard/content/fonts:fonts_xml",
+        ]
+      }
+      sources = _common_loader_app_sources
+      deps = [
+        ":common_loader_app_dependencies",
+        "//starboard:starboard_with_main",
+        "//starboard/content/fonts:copy_font_data",
+        "//starboard/elf_loader",
+      ]
+      if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
+        data_deps += [
+          ":copy_crashpad_handler_named_as_so",
+          ":copy_loader_app_content",
+          ":copy_loader_app_manifest",
+          "//cobalt/browser:copy_loader_app_libcobalt",
+        ]
+        deps += [
+          ":copy_crashpad_handler_named_as_so",
+          ":copy_loader_app_content",
+          ":copy_loader_app_manifest",
+          "//cobalt/browser:copy_loader_app_libcobalt",
+        ]
+      }
+    }
+  }
+} else {
+  not_needed([ "_common_loader_app_sources" ])
+}
+
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  # TODO: b/261635039 enable this target on Android
+  target(starboard_level_final_executable_type, "loader_app_sys") {
+    if ((target_cpu == "x64" || target_cpu == "arm" || target_cpu == "arm64") &&
+        target_os != "android") {
+      sources = _common_loader_app_sources
+
+      starboard_syms_path =
+          rebase_path("//starboard/starboard.syms", root_build_dir)
+      ldflags = [
+        "-Wl,--dynamic-list=$starboard_syms_path",
+        "-ldl",
+      ]
+      deps = [
+        ":common_loader_app_dependencies",
+        "//starboard/content/fonts:copy_font_data",
+        "//starboard/elf_loader:elf_loader_sys",
+      ]
+    }
+  }
+}
+
+static_library("app_key_files") {
+  sources = [
+    "app_key_files.cc",
+    "app_key_files.h",
+  ]
+  deps = [
+    "//starboard:starboard_group",
+    "//starboard/common",
+  ]
+}
+
+if (sb_is_evergreen) {
+  target(gtest_target_type, "app_key_files_test") {
+    testonly = true
+    sources = [
+      "//starboard/common/test_main.cc",
+      "app_key_files_test.cc",
+    ]
+    deps = [
+      ":app_key_files",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+}
+
+static_library("app_key") {
+  sources = [
+    "app_key.cc",
+    "app_key.h",
+    "app_key_internal.cc",
+    "app_key_internal.h",
+  ]
+  deps = [
+    "//starboard:starboard_group",
+    "//starboard/common",
+    "//third_party/modp_b64",
+  ]
+}
+
+if (sb_is_evergreen) {
+  target(gtest_target_type, "app_key_test") {
+    testonly = true
+    sources = [
+      "//starboard/common/test_main.cc",
+      "app_key_test.cc",
+    ]
+    deps = [
+      ":app_key",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+}
+
+static_library("drain_file") {
+  sources = [
+    "drain_file.cc",
+    "drain_file.h",
+  ]
+  deps = [ "//starboard/common" ]
+}
+
+static_library("drain_file_helper") {
+  testonly = true
+  sources = [
+    "drain_file_helper.cc",
+    "drain_file_helper.h",
+  ]
+  deps = [
+    ":drain_file",
+    "//starboard/common",
+    "//testing/gtest",
+  ]
+}
+
+if (sb_is_evergreen) {
+  target(gtest_target_type, "drain_file_test") {
+    testonly = true
+    sources = [
+      "//starboard/common/test_main.cc",
+      "drain_file_test.cc",
+    ]
+    deps = [
+      ":drain_file",
+      ":drain_file_helper",
+      "//starboard/common",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+}
+
+proto_library("installation_store_proto") {
+  sources = [ "installation_store.proto" ]
+  generate_python = false
+}
+
+static_library("installation_manager") {
+  sources = [
+    "installation_manager.cc",
+    "installation_manager.h",
+  ]
+
+  include_dirs = [
+    # Get protobuf headers from the chromium tree.
+    "//third_party/protobuf/src",
+  ]
+
+  deps = [
+    ":installation_store_proto",
+    ":pending_restart",
+    ":record_loader_app_status",
+    "//starboard:starboard_group",
+    "//starboard/common",
+  ]
+}
+
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  target(starboard_level_gtest_target_type, "installation_manager_test") {
+    testonly = true
+    sources = [
+      "//starboard/common/test_main.cc",
+      "installation_manager_test.cc",
+      "pending_restart_test.cc",
+    ]
+    deps = [
+      ":installation_manager",
+      ":installation_store_proto",
+      ":pending_restart",
+      "//starboard:starboard_with_main",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+}
+
+## NOTE: This target is shared between Evergreen and EG platform code
+## It needs to be built with both Starboard and Cobalt toolchains
+static_library("slot_management") {
+  sources = [
+    "slot_management.cc",
+    "slot_management.h",
+  ]
+  deps = [
+    ":app_key_files",
+    ":drain_file",
+    ":installation_manager",
+    "//starboard:starboard_group",
+    "//starboard/common",
+    "//starboard/elf_loader",
+    "//starboard/elf_loader:constants",
+    "//starboard/elf_loader:sabi_string",
+    "//third_party/jsoncpp:jsoncpp",
+  ]
+
+  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+    deps += [ "//third_party/crashpad/crashpad/wrapper" ]
+  } else {
+    deps += [ "//third_party/crashpad/crashpad/wrapper:wrapper_stub" ]
+  }
+
+  configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
+}
+if (sb_is_evergreen) {
+  target(starboard_level_gtest_target_type, "slot_management_test") {
+    testonly = true
+    build_loader = false
+
+    sources = [
+      "//starboard/common/test_main.cc",
+      "slot_management_test.cc",
+    ]
+    deps = [
+      ":app_key_files",
+      ":drain_file",
+      ":installation_manager",
+      ":installation_store_proto",
+      ":slot_management",
+      "//starboard:starboard_with_main",
+      "//starboard/common",
+      "//starboard/elf_loader:sabi_string",
+      "//testing/gmock",
+      "//testing/gtest",
+      "//third_party/jsoncpp:jsoncpp",
+    ]
+    configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
+  }
+}
+
+static_library("pending_restart") {
+  sources = [
+    "pending_restart.cc",
+    "pending_restart.h",
+  ]
+
+  public_deps = [ "//starboard:starboard_headers_only" ]
+}
+
+if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  static_library("memory_tracker_thread") {
+    sources = [
+      "memory_tracker_thread.cc",
+      "memory_tracker_thread.h",
+    ]
+
+    deps = [
+      "//starboard:starboard_headers_only",
+      "//starboard/common",
+    ]
+  }
+
+  static_library("reset_evergreen_update") {
+    sources = [
+      "reset_evergreen_update.cc",
+      "reset_evergreen_update.h",
+    ]
+    deps = [ "//starboard:starboard_group" ]
+  }
+
+  target(starboard_level_gtest_target_type, "reset_evergreen_update_test") {
+    testonly = true
+    sources = [
+      "//starboard/common/test_main.cc",
+      "reset_evergreen_update_test.cc",
+    ]
+    deps = [
+      ":reset_evergreen_update",
+      "//starboard:starboard_with_main",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+  }
+}
