@@ -63,6 +63,10 @@
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 #include "third_party/webrtc_overrides/low_precision_timer.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "starboard/player.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace cc {
 class Layer;
 }
@@ -587,6 +591,10 @@ class CORE_EXPORT HTMLMediaElement
   void DidUseAudioServiceChange(bool uses_audio_service) override;
   void DidPlayerSizeChange(const gfx::Size& size) override;
   void OnRemotePlaybackDisabled(bool disabled) override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  base::TimeDelta GetAudioWriteDurationLocal() const override;
+  base::TimeDelta GetAudioWriteDurationRemote() const override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Returns a reference to the mojo remote for the MediaPlayerHost interface,
   // requesting it first from the BrowserInterfaceBroker if needed. It is an

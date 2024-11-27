@@ -387,12 +387,10 @@ class CORE_EXPORT EmptyLocalFrameClient : public LocalFrameClient {
                                        const Vector<String>&,
                                        const String&,
                                        bool) override;
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       HTMLMediaElement&,
       const WebMediaPlayerSource&,
       WebMediaPlayerClient*) override;
-#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
   WebRemotePlaybackClient* CreateWebRemotePlaybackClient(
       HTMLMediaElement&) override;
 

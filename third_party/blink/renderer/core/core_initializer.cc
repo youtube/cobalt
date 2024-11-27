@@ -167,16 +167,4 @@ void CoreInitializer::Initialize() {
   CSSDefaultStyleSheets::Init();
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-std::unique_ptr<WebMediaPlayer> CoreInitializer::CreateWebMediaPlayer(
-    WebLocalFrameClient*,
-    HTMLMediaElement&,
-    const WebMediaPlayerSource&,
-    WebMediaPlayerClient*,
-    base::TimeDelta audio_write_duration_local,
-    base::TimeDelta audio_write_duration_remote) const {
-  return nullptr;
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 }  // namespace blink

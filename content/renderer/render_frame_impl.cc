@@ -3251,10 +3251,6 @@ blink::WebMediaPlayer* RenderFrameImpl::CreateMediaPlayer(
     WebContentDecryptionModule* initial_cdm,
     const blink::WebString& sink_id,
     const cc::LayerTreeSettings* settings,
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    base::TimeDelta audio_write_duration_local,
-    base::TimeDelta audio_write_duration_remote,
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
     scoped_refptr<base::TaskRunner> compositor_worker_task_runner) {
   // `settings` should be non-null since the WebView created for
   // RenderFrameImpl always composites.
@@ -3263,9 +3259,6 @@ blink::WebMediaPlayer* RenderFrameImpl::CreateMediaPlayer(
       source, client, inspector_context, encrypted_client, initial_cdm, sink_id,
       GetLocalRootWebFrameWidget()->GetFrameSinkId(), *settings,
       agent_scheduling_group_.agent_group_scheduler().CompositorTaskRunner(),
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      audio_write_duration_local, audio_write_duration_remote,
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       std::move(compositor_worker_task_runner));
 }
 

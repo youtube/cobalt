@@ -938,25 +938,6 @@ WebPluginContainerImpl* LocalFrameClientImpl::CreatePlugin(
   return container;
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-std::unique_ptr<WebMediaPlayer> LocalFrameClientImpl::CreateWebMediaPlayer(
-    HTMLMediaElement& html_media_element,
-    const WebMediaPlayerSource& source,
-    WebMediaPlayerClient* client,
-    base::TimeDelta audio_write_duration_local,
-    base::TimeDelta audio_write_duration_remote) {
-  LocalFrame* local_frame = html_media_element.LocalFrameForPlayer();
-  WebLocalFrameImpl* web_frame = WebLocalFrameImpl::FromFrame(local_frame);
-
-  if (!web_frame || !web_frame->Client()) {
-    return nullptr;
-  }
-
-  return CoreInitializer::GetInstance().CreateWebMediaPlayer(
-      web_frame->Client(), html_media_element, source, client,
-      audio_write_duration_local, audio_write_duration_remote);
-}
-#else
 std::unique_ptr<WebMediaPlayer> LocalFrameClientImpl::CreateWebMediaPlayer(
     HTMLMediaElement& html_media_element,
     const WebMediaPlayerSource& source,
@@ -970,7 +951,6 @@ std::unique_ptr<WebMediaPlayer> LocalFrameClientImpl::CreateWebMediaPlayer(
   return CoreInitializer::GetInstance().CreateWebMediaPlayer(
       web_frame->Client(), html_media_element, source, client);
 }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 WebRemotePlaybackClient* LocalFrameClientImpl::CreateWebRemotePlaybackClient(
     HTMLMediaElement& html_media_element) {

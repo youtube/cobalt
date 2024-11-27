@@ -4884,6 +4884,15 @@ void HTMLMediaElement::OnRemotePlaybackDisabled(bool disabled) {
   OnRemotePlaybackMetadataChange();
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+base::TimeDelta HTMLMediaElement::GetAudioWriteDurationLocal() const {
+  return base::Microseconds(kSbPlayerWriteDurationLocal);
+}
+base::TimeDelta HTMLMediaElement::GetAudioWriteDurationRemote() const {
+  return base::Microseconds(kSbPlayerWriteDurationRemote);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 media::mojom::blink::MediaPlayerHost&
 HTMLMediaElement::GetMediaPlayerHostRemote() {
   // It is an error to call this before having access to the document's frame.

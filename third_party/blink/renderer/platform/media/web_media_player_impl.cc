@@ -454,7 +454,8 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
   pipeline_controller_ = std::make_unique<media::PipelineController>(
       std::move(pipeline),
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-      audio_write_duration_local, audio_write_duration_remote,
+      client_->GetAudioWriteDurationLocal(),
+      client_->GetAudioWriteDurationRemote(),
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       base::BindRepeating(&WebMediaPlayerImpl::OnPipelineSeeked, weak_this_),
       base::BindRepeating(&WebMediaPlayerImpl::OnPipelineSuspended, weak_this_),

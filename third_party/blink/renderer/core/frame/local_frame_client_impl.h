@@ -195,19 +195,10 @@ class CORE_EXPORT LocalFrameClientImpl final : public LocalFrameClient {
                                        const Vector<WTF::String>&,
                                        const WTF::String&,
                                        bool load_manually) override;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::unique_ptr<WebMediaPlayer> CreateWebMediaPlayer(
-      HTMLMediaElement&,
-      const WebMediaPlayerSource&,
-      WebMediaPlayerClient*,
-      base::TimeDelta,
-      base::TimeDelta) override;
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       HTMLMediaElement&,
       const WebMediaPlayerSource&,
       WebMediaPlayerClient*) override;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   WebRemotePlaybackClient* CreateWebRemotePlaybackClient(
       HTMLMediaElement&) override;
   void DidChangeScrollOffset() override;

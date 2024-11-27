@@ -31,21 +31,11 @@ class MODULES_EXPORT ModulesInitializer : public CoreInitializer {
                                  InspectorDOMAgent*,
                                  InspectedFrames*,
                                  Page*) const override;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  std::unique_ptr<WebMediaPlayer> CreateWebMediaPlayer(
-      WebLocalFrameClient*,
-      HTMLMediaElement&,
-      const WebMediaPlayerSource&,
-      WebMediaPlayerClient*,
-      base::TimeDelta,
-      base::TimeDelta) const override;
-#else
   std::unique_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       WebLocalFrameClient*,
       HTMLMediaElement&,
       const WebMediaPlayerSource&,
       WebMediaPlayerClient*) const override;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   WebRemotePlaybackClient* CreateWebRemotePlaybackClient(
       HTMLMediaElement&) const override;
 
