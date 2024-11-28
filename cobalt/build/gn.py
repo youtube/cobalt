@@ -56,11 +56,13 @@ _BUILD_TYPES = {
     },
     'qa': {
         'symbol_level': 1,
-        'is_debug': 'false'
+        'is_debug': 'false',
+        'is_official_build': 'true'
     },
     'gold': {
         'symbol_level': 0,
-        'is_official_build': 'true'
+        'is_official_build': 'true',
+        'cobalt_is_release_build': 'true'
     }
 }
 
