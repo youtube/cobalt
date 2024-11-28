@@ -284,6 +284,12 @@
 #define BUILDFLAG_INTERNAL_MODULAR_BUILD() (0)
 #endif
 
+#if defined(COBALT_IS_RELEASE_BUILD)
+#define BUILDFLAG_INTERNAL_COBALT_IS_RELEASE_BUILD() (1)
+#else
+#define BUILDFLAG_INTERNAL_COBALT_IS_RELEASE_BUILD() (0)
+#endif
+
 // Compiler detection. Note: clang masquerades as GCC on POSIX and as MSVC on
 // Windows.
 #if defined(__GNUC__)

@@ -179,6 +179,11 @@ assert(!(is_debug && is_official_build), "Can't do official debug builds")
 assert(!(current_os == "ios" && is_component_build),
        "Can't use component build on iOS")
 
+if (is_cobalt) {
+assert(!cobalt_is_release_build || is_official_build,
+       "Release builds are only available in official builds.")
+}
+
 # ==============================================================================
 # TOOLCHAIN SETUP
 # ==============================================================================
