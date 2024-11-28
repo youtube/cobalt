@@ -1,14 +1,11 @@
 name: Upload Results
 description: Uploads test results to DataDog.
-with:
+inputs:
   results_dir:
     description: "Path to directory where test results are saved."
     required: true
   datadog_api_key:
     description: "Path to directory where test results are saved."
-    required: true
-  datadog_service:
-    description: "Name of the platform under test."
     required: true
 runs:
   using: "composite"
@@ -30,12 +27,9 @@ runs:
         DATADOG_SITE: us5.datadoghq.com
         DATADOG_API_KEY: ${{ inputs.datadog_api_key }}
         RESULTS_DIR: ${{ inputs.results_dir }}
-        DD_SERVICE: ${{ inputs.datadog_service }}
+        DD_SERVICE: ${{ github.event.repository.name }}
         DD_TAGS: os.platform:${{ matrix.platform }}
         DD_ENV: ci
       run: |
         set -x
-        env
-
-        export DATADOG_API_KEY=${DATADOG_API_KEY}
-        ./datadog-ci junit upload --service ${DD_SERVICE} ${RESULTS_DIR}/*.xml
+        ./datadog-ci junit upload --service ${DD_SERVICE} ${RESULTS_DIR}/**/*.xml
