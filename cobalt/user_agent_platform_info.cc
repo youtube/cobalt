@@ -274,7 +274,16 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
       base::StringPrintf("Starboard/%d", SB_API_VERSION));
   info.set_cobalt_version(COBALT_VERSION);
   info.set_cobalt_build_version_number(COBALT_BUILD_VERSION_NUMBER);
-  info.set_build_configuration("qa");  // COBALT_BUILD_TYPE_DEBUG in C25.
+
+#if defined(COBALT_IS_RELEASE_BUILD)
+  info.set_build_configuration("gold");
+#elif defined(OFFICIAL_BUILD)
+  info.set_build_configuration("qa");
+#elif defined(_DEBUG)
+  info.set_build_configuration("debug");
+#else
+  info.set_build_configuration("devel");
+#endif
 
 // Apply overrides from command line
 #if !defined(COBALT_BUILD_TYPE_GOLD)
