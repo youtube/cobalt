@@ -46,7 +46,7 @@ loadable_module("clear_key_cdm_bin") {
     ]
     defines += [ "CLEAR_KEY_CDM_USE_FFMPEG_DECODER" ]
     deps += [ "//third_party/ffmpeg" ]
-  } else if (is_cobalt) {
+  } else {
     sources -= [
       "clear_key_cdm.cc",
       "clear_key_cdm.h",
