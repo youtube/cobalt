@@ -115,7 +115,7 @@ source_set("media_remoting_tests") {
     "//url",
   ]
 
-  if (enable_media_remoting_rpc) {
+  if (enable_media_remoting_rpc && media_use_ffmpeg) {
     sources += [
       "courier_renderer_unittest.cc",
       "demuxer_stream_adapter_unittest.cc",
