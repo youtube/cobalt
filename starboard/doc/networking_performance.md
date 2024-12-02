@@ -7,7 +7,7 @@ extension.
 
 The extension allows a platform to provide an API to read multiple
 UDP packets in a single call.  When on a Linux kernel, the `recvmmsg`
-system call can be used for that resulting in a significantly reduced
+system call can be used and results in a significantly reduced
 amount of CPU usage and corresponding increase in networking
 throughput.  This not only makes the application more responsive, but
 also improves the video quality the devices can play.
