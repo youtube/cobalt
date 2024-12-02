@@ -42,6 +42,7 @@ android_library("cobalt_apk_java") {
     "//base:process_launcher_java",
     "//build/android:build_java",
     "//components/embedder_support/android:view_java",
+    "//components/version_info/android:version_constants_java",
     "//content/public/android:content_java",
     "//content/shell/android:content_shell_apk_java",
     "//content/shell/android:content_shell_apk_resources",
