@@ -279,7 +279,7 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   info.set_build_configuration("gold");
 #elif defined(OFFICIAL_BUILD)
   info.set_build_configuration("qa");
-#elif defined(_DEBUG)
+#elif !defined(NDEBUG)
   info.set_build_configuration("debug");
 #else
   info.set_build_configuration("devel");
