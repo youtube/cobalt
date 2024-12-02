@@ -41,6 +41,11 @@ runs:
           cd src
           gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
         shell: bash
+       - name: gn check
+        run: |
+          cd src
+          gn check out/${{ matrix.platform }}_${{ matrix.config }}
+        shell: bash
       - name: Ninja build
         env:
           TARGETS: ${{ inputs.targets }}

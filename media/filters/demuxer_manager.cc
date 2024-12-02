@@ -28,8 +28,9 @@
 #if BUILDFLAG(ENABLE_FFMPEG)
 // ProgressiveDemuxer is enabled when use_starboard_media=true and media_use_ffmpeg=false.
 #elif BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/starboard/progressive/demuxer_extension_wrapper.h"
-#include "media/starboard/progressive/progressive_demuxer.h"
+// TODO(b/377295011): see if we can remove these nogncheck annotations.
+#include "media/starboard/progressive/demuxer_extension_wrapper.h"  // nogncheck
+#include "media/starboard/progressive/progressive_demuxer.h"  // nogncheck
 #endif // BUILDFLAG(ENABLE_FFMPEG)
 
 namespace media {

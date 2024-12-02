@@ -74,6 +74,9 @@ no_check_targets = [
   "//v8/test/unittests:inspector_unittests_sources",  # 2 errors
   "//v8:cppgc_base",  # 1 error
   "//v8:v8_internal_headers",  # 11 errors
+  # TODO(b/377295011): figure out a better long-term solution here, or at least
+  # a way to guard this variable.
+  "//v8:v8_libbase",  # 9 errors
   "//v8:v8_libplatform",  # 2 errors
 
   # After making partition_alloc a standalone library, remove partition_alloc
