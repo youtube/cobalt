@@ -120,6 +120,9 @@ source_set("starboard") {
     deps += [ "//third_party/abseil-cpp:absl" ]
   }
 
+  # TODO(b/380940036): remove the circular dependency.
+  allow_circular_includes_from = [ "//media/base" ]
+
   configs += [ "//media:subcomponent_config" ]
 }
 
