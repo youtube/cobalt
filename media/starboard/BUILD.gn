@@ -113,6 +113,7 @@ source_set("starboard") {
     "//media/renderers",
     "//starboard($starboard_toolchain)",
     "//starboard/common",
+    "//url",
   ]
 
   if (!media_use_ffmpeg) {
