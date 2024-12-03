@@ -259,10 +259,6 @@ test("nplb") {
     "//testing/gtest",
   ]
 
-  if (sb_filter_based_player) {
-    deps += [ "//starboard/shared/starboard/player/filter/testing:player_filter_tests($starboard_toolchain)" ]
-  }
-
   deps += cobalt_platform_dependencies
 
   if (is_internal_build) {

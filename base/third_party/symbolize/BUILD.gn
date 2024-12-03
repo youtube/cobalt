@@ -22,13 +22,6 @@ config("symbolize_config") {
 
 static_library("symbolize") {
   visibility = [ "//base/*" ]
-  if (is_cobalt) {
-    visibility += [
-      "//starboard/android/shared:starboard_base_symbolize",
-      "//starboard/android/shared:starboard_platform",
-      "//starboard/linux/shared:starboard_base_symbolize",
-    ]
-  }
   sources = [
     "config.h",
     "demangle.cc",
