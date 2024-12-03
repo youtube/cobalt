@@ -56,7 +56,7 @@ Configurator::Configurator(network::NetworkModule* network_module)
     : pref_service_(CreatePrefService()),
       persisted_data_(std::make_unique<update_client::PersistedData>(
           pref_service_.get(), nullptr)),
-      is_channel_changed_(0),
+      is_forced_update_(0),
       unzip_factory_(base::MakeRefCounted<UnzipperFactory>()),
       network_fetcher_factory_(
           base::MakeRefCounted<NetworkFetcherFactoryCobalt>(network_module)),
@@ -172,9 +172,14 @@ base::flat_map<std::string, std::string> Configurator::ExtraRequestParams()
   params.insert(std::make_pair("sbversion", std::to_string(SB_API_VERSION)));
   params.insert(
       std::make_pair("jsengine", script::GetJavaScriptEngineNameAndVersion()));
+  // The flag name to force an update is changed to "is_forced_update_" to cover
+  // the cases where update is requested by client but channel stays the same, but
+  // the flag name sent to Omaha remains "updaterchannelchanged" to isolate
+  // the changes to Omaha configs. If it's decided to change this flag name
+  // on Omaha, it'll be done in a separate PR after the Omaha configs are updated.
   params.insert(std::make_pair(
       "updaterchannelchanged",
-      SbAtomicNoBarrier_Load(&is_channel_changed_) == 1 ? "True" : "False"));
+      SbAtomicNoBarrier_Load(&is_forced_update_) == 1 ? "True" : "False"));
   // Brand name
   params.insert(
       std::make_pair("brand", GetDeviceProperty(kSbSystemPropertyBrandName)));
@@ -318,8 +323,8 @@ update_client::RecoveryCRXElevator Configurator::GetRecoveryCRXElevator()
   return {};
 }
 
-void Configurator::CompareAndSwapChannelChanged(int old_value, int new_value) {
-  SbAtomicNoBarrier_CompareAndSwap(&is_channel_changed_, old_value, new_value);
+void Configurator::CompareAndSwapForcedUpdate(int old_value, int new_value) {
+  SbAtomicNoBarrier_CompareAndSwap(&is_forced_update_, old_value, new_value);
 }
 
 // The updater channel is get and set by main web module thread and update
