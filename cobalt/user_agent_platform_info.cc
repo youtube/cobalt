@@ -210,7 +210,11 @@ void InitializeUserAgentPlatformInfoFields(UserAgentPlatformInfo& info) {
   info.set_device_type("TV");
 #endif  // BUILDFLAG(IS_ANDROID)
 
+// TODO(cobalt, b/374213479): figure out firmware version for other platforms.
+#if BUILDFLAG(IS_ANDROID)
   info.set_firmware_version(base::SysInfo::GetAndroidBuildID());
+#endif  // BUILDFLAG(IS_ANDROID)
+
   info.set_model(base::SysInfo::HardwareModelName());
 
   info.set_original_design_manufacturer(

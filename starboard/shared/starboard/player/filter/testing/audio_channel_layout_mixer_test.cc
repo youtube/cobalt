@@ -21,6 +21,7 @@
 #include <string>
 
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/string.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "testing/gtest/include/gtest/gtest.h"
 

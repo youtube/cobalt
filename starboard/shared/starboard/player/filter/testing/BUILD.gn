@@ -45,6 +45,10 @@ if (current_toolchain == starboard_toolchain) {
     ]
 
     deps = cobalt_platform_dependencies
+    deps += [
+      "//$starboard_path:starboard_platform",
+      "//starboard/shared/starboard/player/filter:filter_based_player_sources",
+    ]
 
     data_deps =
         [ "//starboard/shared/starboard/player:player_download_test_data" ]
@@ -64,6 +68,7 @@ if (current_toolchain == starboard_toolchain) {
     ]
 
     deps = cobalt_platform_dependencies
+    deps += [ "//$starboard_path:starboard_platform" ]
   }
 
   static_library("test_util") {
@@ -82,6 +87,11 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/shared/starboard/player:player_download_test_data",
       "//starboard/shared/starboard/player:video_dmp",
       "//testing/gtest",
+    ]
+
+    deps = [
+      "//$starboard_path:starboard_platform",
+      "//starboard/shared/starboard/player/filter:filter_based_player_sources",
     ]
   }
 }
