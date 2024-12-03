@@ -38,7 +38,7 @@ using ::starboard::shared::starboard::CommandLine;
 class ApplicationAndroid
     : public ::starboard::shared::starboard::QueueApplication {
  public:
-  ApplicationAndroid(std::unique_ptr<CommandLine> command_line);
+  ApplicationAndroid(int argc, char** argv);
   ~ApplicationAndroid();
 
   static ApplicationAndroid* Get() {

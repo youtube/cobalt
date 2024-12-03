@@ -30,6 +30,7 @@
 #include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/log_internal.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
@@ -53,18 +54,13 @@ int64_t GetAppStartTimestamp() {
 }
 }  // namespace
 
-// TODO(cobalt, b/378708359): Remove this dummy init.
-void stubSbEventHandle(const SbEvent* event) {
-  SB_LOG(ERROR) << "Starboard event DISCARDED:" << event->type;
-}
-
-ApplicationAndroid::ApplicationAndroid(
-    std::unique_ptr<CommandLine> command_line)
-    : QueueApplication(stubSbEventHandle) {
-  SetCommandLine(std::move(command_line));
+ApplicationAndroid::ApplicationAndroid(int argc, char** argv)
+    : QueueApplication(argc, argv) {
   // Initialize Time Zone early so that local time works correctly.
   // Called once here to help SbTimeZoneGet*Name()
   tzset();
+
+  LogInit(get_command_line());
 
   // Initialize Android asset access early so that ICU can load its tables
   // from the assets. The use ICU is used in our logging.
