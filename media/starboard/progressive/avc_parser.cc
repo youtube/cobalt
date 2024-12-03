@@ -27,7 +27,8 @@
 #include "media/base/video_color_space.h"
 #include "media/base/video_transformation.h"
 #include "media/base/video_types.h"
-#include "media/formats/mp4/aac.h"
+// TODO(cobalt, b/377295011): remove the nogncheck annotation.
+#include "media/formats/mp4/aac.h"  // nogncheck
 #include "media/starboard/progressive/avc_access_unit.h"
 #include "media/starboard/progressive/endian_util.h"
 #include "media/starboard/progressive/rbsp_stream.h"
