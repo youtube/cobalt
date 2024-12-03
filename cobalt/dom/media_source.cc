@@ -282,7 +282,7 @@ void MediaSource::DurationChangeAlgorithm(
     double duration, script::ExceptionState* exception_state) {
   AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
 
-  double old_duration;
+  double old_duration = 0;
   if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
     old_duration = GetDuration_Locked();
     if (duration == old_duration) {
