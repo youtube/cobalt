@@ -108,5 +108,5 @@ enum AppendMode {
     // Returns the highest presentation timestamp written to SbPlayer, raises
     // `InvalidStateError` if the SourceBuffer object has been removed from the
     // MediaSource object.
-    [RaisesException] readonly attribute double writeHead;
+    [RaisesException, RuntimeEnabled=SourceBufferWriteHead] readonly attribute double writeHead;
 };

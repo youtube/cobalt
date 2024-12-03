@@ -247,6 +247,10 @@ SourceBuffer::SourceBuffer(std::unique_ptr<WebSourceBuffer> web_source_buffer,
 
   source_->AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
   web_source_buffer_->SetClient(this);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  RuntimeEnabledFeatures::SetSourceBufferWriteHeadEnabled(true);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 SourceBuffer::~SourceBuffer() {
@@ -476,6 +480,9 @@ VideoTrackList& SourceBuffer::videoTracks() {
 }
 
 double SourceBuffer::writeHead(ExceptionState& exception_state) const {
+  if (!RuntimeEnabledFeatures::SourceBufferWriteHeadEnabled()) {
+    return 0.0;
+  }
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (source_ == NULL) {
     MediaSource::LogAndThrowDOMException(

@@ -100,7 +100,6 @@
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/starboard/starboard_renderer.h"
-#include "starboard/player.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
@@ -695,6 +694,11 @@ void WebMediaPlayerImpl::DisableOverlay() {
 WebMediaPlayer::SetBoundsCB WebMediaPlayerImpl::GetSetBoundsCB() {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
   return pipeline_controller_->GetSetBoundsCB();
+}
+
+std::vector<std::string> WebMediaPlayerImpl::GetAudioConnectors() const {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  return pipeline_controller_->GetAudioConnectors();
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -2835,15 +2839,7 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
   return renderer_factory_selector_->GetCurrentFactory()->CreateRenderer(
       media_task_runner_, worker_task_runner_, audio_source_provider_.get(),
       compositor_.get(), std::move(request_overlay_info_cb),
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-      client_->TargetColorSpace(),
-      // TODO: Inject these values
-      base::Microseconds(kSbPlayerWriteDurationLocal),
-      base::Microseconds(kSbPlayerWriteDurationRemote)
-#else
-      client_->TargetColorSpace()
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-  );
+      client_->TargetColorSpace());
 }
 
 absl::optional<media::DemuxerType> WebMediaPlayerImpl::GetDemuxerType() const {
@@ -3971,13 +3967,6 @@ void WebMediaPlayerImpl::UnregisterFrameSinkHierarchy() {
   if (bridge_)
     bridge_->UnregisterFrameSinkHierarchy();
 }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-std::vector<std::string> WebMediaPlayerImpl::GetAudioConnectors() const {
-  DCHECK(main_task_runner_->BelongsToCurrentThread());
-  return pipeline_controller_->GetAudioConnectors();
-}
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void WebMediaPlayerImpl::ReportSessionUMAs() const {
   if (renderer_type_ != media::RendererType::kRendererImpl &&

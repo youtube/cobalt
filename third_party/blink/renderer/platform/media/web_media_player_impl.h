@@ -260,6 +260,8 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   SetBoundsCB GetSetBoundsCB() override;
+  // Names of audio connectors used by the playback.
+  std::vector<std::string> GetAudioConnectors() const override;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void EnteredFullscreen() override;
@@ -324,11 +326,6 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
   base::WeakPtr<WebMediaPlayer> AsWeakPtr() override;
   void RegisterFrameSinkHierarchy() override;
   void UnregisterFrameSinkHierarchy() override;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Names of audio connectors used by the playback.
-  std::vector<std::string> GetAudioConnectors() const override;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   bool IsBackgroundMediaSuspendEnabled() const {
     return is_background_suspend_enabled_;

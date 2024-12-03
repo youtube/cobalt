@@ -573,6 +573,10 @@ HTMLMediaElement::HTMLMediaElement(const QualifiedName& tag_name,
   AddElementToDocumentMap(this, &document);
 
   UseCounter::Count(document, WebFeature::kHTMLMediaElement);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  RuntimeEnabledFeatures::SetH5vccAudioConnectorsEnabled(true);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 HTMLMediaElement::~HTMLMediaElement() {
@@ -1509,6 +1513,9 @@ LocalFrame* HTMLMediaElement::LocalFrameForPlayer() {
 
 WebString HTMLMediaElement::h5vccAudioConnectors(
     ExceptionState& exception_state) const {
+  if (!RuntimeEnabledFeatures::H5vccAudioConnectorsEnabled()) {
+    return WebString();
+  }
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!web_media_player_) {
     exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,

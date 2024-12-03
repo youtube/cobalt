@@ -99,5 +99,5 @@ enum CanPlayTypeResult { "" /* empty string */, "maybe", "probably" };
 
     // Semicolon separated names of audio connectors, like "hdmi;bluetooth".
     // Used for Cobalt only.
-    [RaisesException] readonly attribute DOMString h5vccAudioConnectors;
+    [RaisesException, RuntimeEnabled=H5vccAudioConnectors] readonly attribute DOMString h5vccAudioConnectors;
 };

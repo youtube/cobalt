@@ -311,6 +311,10 @@ class WebMediaPlayer {
   // Return SetBoundsCB if SbPlayer is used for rendering.
   using SetBoundsCB = base::OnceCallback<bool(int x, int y, int width, int height)>;
   virtual SetBoundsCB GetSetBoundsCB() { return SetBoundsCB(); }
+  // Names of audio connectors used by the playback.
+  virtual std::vector<std::string> GetAudioConnectors() const {
+    return std::vector<std::string>();
+  }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Inform WebMediaPlayer when the element has entered/exited fullscreen.
@@ -393,13 +397,6 @@ class WebMediaPlayer {
   // Adjusts the frame sink hierarchy for the media frame sink.
   virtual void RegisterFrameSinkHierarchy() {}
   virtual void UnregisterFrameSinkHierarchy() {}
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Names of audio connectors used by the playback.
-  virtual std::vector<std::string> GetAudioConnectors() const {
-    return std::vector<std::string>();
-  }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace blink

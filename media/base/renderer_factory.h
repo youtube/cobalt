@@ -39,17 +39,6 @@ class MEDIA_EXPORT RendererFactory {
   // GetMediaTime() could be called on any thread.
   // The created Renderer can use |audio_renderer_sink| to render audio and
   // |video_renderer_sink| to render video.
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  virtual std::unique_ptr<Renderer> CreateRenderer(
-      const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
-      const scoped_refptr<base::TaskRunner>& worker_task_runner,
-      AudioRendererSink* audio_renderer_sink,
-      VideoRendererSink* video_renderer_sink,
-      RequestOverlayInfoCB request_overlay_info_cb,
-      const gfx::ColorSpace& target_color_space,
-      base::TimeDelta audio_write_duration_local,
-      base::TimeDelta audio_write_duration_remote);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   virtual std::unique_ptr<Renderer> CreateRenderer(
       const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
       const scoped_refptr<base::TaskRunner>& worker_task_runner,

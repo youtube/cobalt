@@ -17,6 +17,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "media/base/media_log.h"
 #include "media/base/renderer_factory.h"
 
@@ -25,7 +26,10 @@ namespace media {
 // Creates Renderers using Starboard.
 class MEDIA_EXPORT StarboardRendererFactory final : public RendererFactory {
  public:
-  explicit StarboardRendererFactory(MediaLog* media_log);
+  explicit StarboardRendererFactory(
+      MediaLog* media_log,
+      base::TimeDelta audio_write_duration_local,
+      base::TimeDelta audio_write_duration_remote);
 
   StarboardRendererFactory(const StarboardRendererFactory&) = delete;
   StarboardRendererFactory& operator=(const StarboardRendererFactory&) = delete;
@@ -39,19 +43,12 @@ class MEDIA_EXPORT StarboardRendererFactory final : public RendererFactory {
       AudioRendererSink* audio_renderer_sink,
       VideoRendererSink* video_renderer_sink,
       RequestOverlayInfoCB request_overlay_info_cb,
-      const gfx::ColorSpace& target_color_space,
-      base::TimeDelta audio_write_duration_local,
-      base::TimeDelta audio_write_duration_remote) final;
-  std::unique_ptr<Renderer> CreateRenderer(
-      const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
-      const scoped_refptr<base::TaskRunner>& worker_task_runner,
-      AudioRendererSink* audio_renderer_sink,
-      VideoRendererSink* video_renderer_sink,
-      RequestOverlayInfoCB request_overlay_info_cb,
       const gfx::ColorSpace& target_color_space) final;
 
  private:
   raw_ptr<MediaLog> media_log_;
+  const base::TimeDelta audio_write_duration_local_;
+  const base::TimeDelta audio_write_duration_remote_;
 };
 
 }  // namespace media

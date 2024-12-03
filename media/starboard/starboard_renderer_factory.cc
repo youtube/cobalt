@@ -22,8 +22,13 @@
 
 namespace media {
 
-StarboardRendererFactory::StarboardRendererFactory(MediaLog* media_log)
-    : media_log_(media_log) {}
+StarboardRendererFactory::StarboardRendererFactory(
+    MediaLog* media_log,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote)
+    : media_log_(media_log),
+      audio_write_duration_local_(audio_write_duration_local),
+      audio_write_duration_remote_(audio_write_duration_remote) {}
 
 StarboardRendererFactory::~StarboardRendererFactory() = default;
 
@@ -33,28 +38,12 @@ std::unique_ptr<Renderer> StarboardRendererFactory::CreateRenderer(
     AudioRendererSink* audio_renderer_sink,
     VideoRendererSink* video_renderer_sink,
     RequestOverlayInfoCB request_overlay_info_cb,
-    const gfx::ColorSpace& target_color_space,
-    base::TimeDelta audio_write_duration_local,
-    base::TimeDelta audio_write_duration_remote) {
+    const gfx::ColorSpace& target_color_space) {
   DCHECK(video_renderer_sink);
   DCHECK(media_log_);
   return std::make_unique<media::StarboardRenderer>(
-      media_task_runner, video_renderer_sink, audio_write_duration_local,
-      audio_write_duration_remote, media_log_);
-}
-
-std::unique_ptr<Renderer> StarboardRendererFactory::CreateRenderer(
-    const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
-    const scoped_refptr<base::TaskRunner>& worker_task_runner,
-    AudioRendererSink* audio_renderer_sink,
-    VideoRendererSink* video_renderer_sink,
-    RequestOverlayInfoCB request_overlay_info_cb,
-    const gfx::ColorSpace& target_color_space) {
-  // The StarboardRenderer must be created with the
-  // audio_write_duration_local and audio_write_duration_remote
-  // parameters.
-  NOTREACHED();
-  return nullptr;
+      media_task_runner, video_renderer_sink, audio_write_duration_local_,
+      audio_write_duration_remote_, media_log_);
 }
 
 }  // namespace media

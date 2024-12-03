@@ -95,6 +95,7 @@
 #elif BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/starboard/starboard_cdm_factory.h"
 #include "media/starboard/starboard_renderer_factory.h"
+#include "starboard/player.h"
 #elif BUILDFLAG(ENABLE_MOJO_CDM)
 #include "media/mojo/clients/mojo_cdm_factory.h"  // nogncheck
 #else
@@ -752,7 +753,11 @@ MediaFactory::CreateRendererFactorySelector(
     // TODO(b/326827007): Revisit renderer to support secondary videos.
     factory_selector->AddFactory(
         RendererType::kStarboard,
-        std::make_unique<media::StarboardRendererFactory>(media_log));
+        std::make_unique<media::StarboardRendererFactory>(
+            media_log,
+            // TODO: Inject these values
+            base::Microseconds(kSbPlayerWriteDurationLocal),
+            base::Microseconds(kSbPlayerWriteDurationRemote)));
     factory_selector->SetBaseRendererType(RendererType::kStarboard);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
     auto renderer_impl_factory = CreateRendererImplFactory(

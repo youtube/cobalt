@@ -686,7 +686,6 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
       return;
     }
 
-#if COBALT_MEDIA_ENABLE_AUDIO_DURATION
     // If we haven't checked the media time recently, update it now.
     if (Time::Now() - last_time_media_time_retrieved_ >
         kMediaTimeCheckInterval) {
@@ -753,7 +752,6 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
     max_buffers = std::min(max_buffers, estimated_max_buffers);
 
     audio_read_delayed_ = false;
-#endif  // COBALT_MEDIA_ENABLE_AUDIO_DURATION
     audio_read_in_progress_ = true;
   } else {
     DCHECK_EQ(type, DemuxerStream::VIDEO);
