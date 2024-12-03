@@ -11,7 +11,7 @@ For HTTP/3, Cobalt benefits from more specific tuning and customizations to impr
 It is strongly encouraged for platforms to include the
 `CobaltExtensionSocketReceiveMultiMsgApi` extension.
 
-Starting in Cobalt 25.tls.20, a significant networking performance
+Starting in Cobalt 25.lts.20, a significant networking performance
 improvement can be achieved on platforms that implement the
 extension.
 
