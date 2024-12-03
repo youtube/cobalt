@@ -1059,6 +1059,10 @@ component("base") {
     deps += [ "//third_party/rust/serde_json_lenient/v0_1/wrapper" ]
   }
 
+  if (is_cobalt) {
+    deps += [ "//base/third_party/symbolize" ]
+  }
+
   # native_unwinder_android is intended for use solely via a dynamic feature
   # module, to avoid increasing Chrome's executable size.
   assert_no_deps = [ ":native_unwinder_android" ]

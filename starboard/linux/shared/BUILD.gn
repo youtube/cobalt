@@ -51,6 +51,7 @@ static_library("starboard_base_symbolize") {
     "//base/third_party/symbolize/symbolize.cc",
   ]
   deps = [
+    "//base/third_party/symbolize:symbolize",
     "//starboard:starboard_headers_only",
     "//starboard/common:common_headers_only",
   ]

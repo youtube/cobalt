@@ -322,6 +322,7 @@ static_library("starboard_platform") {
   ]
 
   deps = [
+    "//base/third_party/symbolize:symbolize",
     "//third_party/libevent",
     "//third_party/opus",
   ]
@@ -358,6 +359,7 @@ static_library("starboard_base_symbolize") {
   ]
 
   deps = [
+    "//base/third_party/symbolize:symbolize",
     "//starboard:starboard_headers_only",
     "//starboard/common:common_headers_only",
   ]
@@ -381,6 +383,7 @@ target(gtest_target_type, "starboard_platform_tests") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
+    ":starboard_platform",
     "//starboard:starboard_group",
     "//starboard/shared/starboard/player/filter/testing:test_util",
     "//testing/gmock",
