@@ -104,11 +104,20 @@ bool SequencedTaskRunner::PostDelayedTaskAt(
                              : delayed_run_time - TimeTicks::Now());
 }
 
+#if defined(STARBOARD)
+// static
+scoped_refptr<SequencedTaskRunner>*
+    SequencedTaskRunner::null_sequenced_task_runner_(
+        new scoped_refptr<SequencedTaskRunner>);
+#endif
+
 // static
 const scoped_refptr<SequencedTaskRunner>&
 SequencedTaskRunner::GetCurrentDefault() {
 #if defined(STARBOARD)
   auto current_default_handle = GetCurrentDefaultHandle();
+  return (!current_default_handle ? *null_sequenced_task_runner_
+                                  : current_default_handle->task_runner_);
 #endif
   CHECK(current_default_handle)
       << "Error: This caller requires a sequenced context (i.e. the current "
