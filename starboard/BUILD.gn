@@ -39,10 +39,6 @@ if (!is_cobalt) {
       ]
     }
 
-    if (has_platform_targets) {
-      deps += [ "//$starboard_path/platform_targets" ]
-    }
-
     if (platform_tests_path == "") {
       deps += [
         ":starboard_platform_tests($starboard_toolchain)",

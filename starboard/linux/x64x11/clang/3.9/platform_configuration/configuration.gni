@@ -27,7 +27,5 @@ if (current_toolchain == default_toolchain &&
 
   gl_type = "system_gles2"
 
-  cobalt_v8_emit_builtins_as_inline_asm = true
-
   v8_enable_webassembly = false
 }

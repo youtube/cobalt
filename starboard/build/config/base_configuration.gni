@@ -26,19 +26,12 @@ if (build_with_separate_cobalt_toolchain) {
 }
 
 declare_args() {
-  # Enables the nasm compiler to be used to compile .asm files.
-  nasm_exists = false
-
   # Where yasm can be found on the host device.
   path_to_nasm = "nasm"
 
   # The Starboard API version of the current build configuration. The default
   # value is meant to be overridden by a Starboard ABI file.
   sb_api_version = 17
-
-  # Enables embedding Cobalt as a shared library within another app. This
-  # requires a 'lib' starboard implementation for the corresponding platform.
-  sb_enable_lib = false
 
   # Directory path to static contents' data.
   sb_static_contents_output_data_dir = "$root_out_dir/content/data"
@@ -81,11 +74,6 @@ declare_args() {
   #              ANGLE implementation for the platform.
   gl_type = "system_gles2"
 
-  # The event polling mechanism available on this platform to support libevent.
-  # Platforms may redefine to 'poll' if necessary.
-  # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
-  sb_libevent_method = "epoll"
-
   # Used to indicate that the player is filter based.
   sb_filter_based_player = true
 
@@ -98,24 +86,12 @@ declare_args() {
   # Set to the starboard_platform_tests target if the platform implements them.
   platform_tests_path = ""
 
-  # Whether the platform has platform-specific targets to depend on.
-  has_platform_targets = false
-
   # The path to the gni file containing the install_target template which
   # defines how the build should produce the install/ directory.
   install_target_path = "//starboard/build/install/no_install.gni"
 
   # Target-specific configurations for static_library targets.
   static_library_configs = []
-
-  # Target-specific configurations for source_set targets.
-  source_set_configs = []
-
-  # Target-specific configurations for loadable_module targets.
-  loadable_module_configs = []
-
-  # Enables optimizations on SSE compatible platforms.
-  sb_enable_opus_sse = true
 
   # Enables or disables the DIAL server that runs inside Cobalt.
   # Note: Only enable if there's no system-wide DIAL support.
@@ -124,31 +100,8 @@ declare_args() {
   # A symbolizer path for ASAN can be added to allow translation of callstacks.
   asan_symbolizer_path = "$clang_base_path/bin/llvm-symbolizer"
 
-  # Sub-directory to copy license file to.
-  cobalt_licenses_platform = "default"
-
-  # TODO(b/173248397): Migrate to CobaltExtensions or PlatformServices.
-  # List of platform-specific targets that get compiled into cobalt.
-  cobalt_platform_dependencies = []
-
-  # Some compiler can not compile with raw assembly(.S files) and v8
-  # converts asm to inline assembly for these platforms.
-  cobalt_v8_emit_builtins_as_inline_asm = false
-
-  # Set to true to enable pointer compression for v8.
-  v8_enable_pointer_compression_override = true
-
-  # Whether or not to disable run-time type information (adding no_rtti flag).
-  sb_use_no_rtti = false
-
   # Set to true to separate install target directories.
   separate_install_targets_for_bundling = false
-
-  # Enables an NPLB audit of C++17 support.
-  sb_enable_cpp17_audit = true
-
-  # Enables an NPLB audit of C++20 support.
-  sb_enable_cpp20_audit = true
 
   # Set this to true if the modular toolchain linker doesn't strip
   # all unused symbols and nplb fails to link.

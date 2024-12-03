@@ -96,40 +96,6 @@ if (cobalt_font_package == "standard") {
   copy_font_files = false
 }
 
-if (cobalt_font_package_override_named_sans_serif >= 0) {
-  package_named_sans_serif = cobalt_font_package_override_named_sans_serif
-}
-if (cobalt_font_package_override_named_serif >= 0) {
-  package_named_serif = cobalt_font_package_override_named_serif
-}
-if (cobalt_font_package_override_named_fcc_fonts >= 0) {
-  package_named_fcc_fonts = cobalt_font_package_override_named_fcc_fonts
-}
-if (cobalt_font_package_override_fallback_lang_non_cjk >= 0) {
-  package_fallback_lang_non_cjk =
-      cobalt_font_package_override_fallback_lang_non_cjk
-}
-if (cobalt_font_package_override_fallback_lang_cjk >= 0) {
-  package_fallback_lang_cjk = cobalt_font_package_override_fallback_lang_cjk
-}
-if (cobalt_font_package_override_fallback_lang_cjk_low_quality >= 0) {
-  package_fallback_lang_cjk_low_quality =
-      cobalt_font_package_override_fallback_lang_cjk_low_quality
-}
-if (cobalt_font_package_override_fallback_historic >= 0) {
-  package_fallback_historic = cobalt_font_package_override_fallback_historic
-}
-if (cobalt_font_package_override_fallback_color_emoji >= 0) {
-  package_fallback_color_emoji =
-      cobalt_font_package_override_fallback_color_emoji
-}
-if (cobalt_font_package_override_fallback_emoji >= 0) {
-  package_fallback_emoji = cobalt_font_package_override_fallback_emoji
-}
-if (cobalt_font_package_override_fallback_symbols >= 0) {
-  package_fallback_symbols = cobalt_font_package_override_fallback_symbols
-}
-
 package_categories = [
   "sans-serif=${package_named_sans_serif}",
   "serif=${package_named_serif}",

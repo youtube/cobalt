@@ -25,7 +25,6 @@ target(final_executable_type, "benchmark") {
     "//starboard:starboard_group",
     "//third_party/google_benchmark",
   ]
-  deps = cobalt_platform_dependencies
 
   configs += [ "//starboard/build/config:starboard_implementation" ]
 }
