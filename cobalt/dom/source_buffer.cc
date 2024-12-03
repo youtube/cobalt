@@ -810,12 +810,12 @@ void SourceBuffer::AppendBufferInternal(
     if (media_source_ == NULL) {
       web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                                exception_state);
-      return false;
+      return;
     }
     if (updating()) {
       web::DOMException::Raise(web::DOMException::kInvalidStateErr,
                                exception_state);
-      return false;
+      return;
     }
   }
 
