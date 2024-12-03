@@ -735,15 +735,11 @@ public class StarboardBridge {
     cobaltServiceFactories.put(factory.getServiceName(), factory);
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
-  boolean hasCobaltService(String serviceName) {
+  public boolean hasCobaltService(String serviceName) {
     return cobaltServiceFactories.get(serviceName) != null;
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
-  CobaltService openCobaltService(long nativeService, String serviceName) {
+  public CobaltService openCobaltService(long nativeService, String serviceName) {
     if (cobaltServices.get(serviceName) != null) {
       // Attempting to re-open an already open service fails.
       Log.e(TAG, String.format("Cannot open already open service %s", serviceName));
@@ -758,6 +754,11 @@ public class StarboardBridge {
     if (service != null) {
       service.receiveStarboardBridge(this);
       cobaltServices.put(serviceName, service);
+
+      Activity activity = activityHolder.get();
+      if (activity instanceof CobaltActivity) {
+        service.setCobaltActivity((CobaltActivity) activity);
+      }
     }
     return service;
   }
@@ -766,10 +767,23 @@ public class StarboardBridge {
     return cobaltServices.get(serviceName);
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
-  void closeCobaltService(String serviceName) {
+  public void closeCobaltService(String serviceName) {
     cobaltServices.remove(serviceName);
+  }
+
+  public byte[] sendToCobaltService(String serviceName, byte [] data) {
+    CobaltService service = cobaltServices.get(serviceName);
+    if (service == null) {
+      Log.e(TAG, String.format("Service not opened: %s", serviceName));
+      return null;
+    }
+    CobaltService.ResponseToClient response = service.receiveFromClient(data);
+    if (response.invalidState) {
+      Log.e(TAG, String.format("Service %s received invalid data, closing.", serviceName));
+      closeCobaltService(serviceName);
+      return null;
+    }
+    return response.data;
   }
 
   /** Returns the application start timestamp. */
