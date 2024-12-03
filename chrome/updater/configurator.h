@@ -97,6 +97,15 @@ class Configurator : public update_client::Configurator {
                                       const std::string& version,
                                       const int sb_version);
 
+  bool GetAllowSelfSignedPackages() const override;
+  void SetAllowSelfSignedPackages(bool allow_self_signed_packages) override;
+
+  std::string GetUpdateServerUrl() const override;
+  void SetUpdateServerUrl(const std::string& update_server_url) override;
+
+  bool GetRequireNetworkEncryption() const override;
+  void SetRequireNetworkEncryption(bool require_network_encryption) override;
+
  private:
   friend class base::RefCountedThreadSafe<Configurator>;
   ~Configurator() override;
@@ -117,6 +126,10 @@ class Configurator : public update_client::Configurator {
   uint64_t min_free_space_bytes_ = 48 * 1024 * 1024;
   base::Lock min_free_space_bytes_lock_;
   std::atomic_bool use_compressed_updates_;
+  std::atomic_bool allow_self_signed_packages_;
+  std::string update_server_url_;
+  base::Lock update_server_url_lock_;
+  std::atomic_bool require_network_encryption_;
 
   DISALLOW_COPY_AND_ASSIGN(Configurator);
 };

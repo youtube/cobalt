@@ -141,6 +141,15 @@ class TestConfigurator : public Configurator {
 
   bool GetUseCompressedUpdates() const override { return false; }
   void SetUseCompressedUpdates(bool use_compressed_updates) override {}
+
+  bool GetAllowSelfSignedPackages() const override { return false; }
+  void SetAllowSelfSignedPackages(bool allow_self_signed_packages) override {}
+
+  std::string GetUpdateServerUrl() const override { return ""; }
+  void SetUpdateServerUrl(const std::string& update_server_url) override {}
+
+  bool GetRequireNetworkEncryption() const override { return true; }
+  void SetRequireNetworkEncryption(bool require_network_encryption) override {}
 #else
   network::TestURLLoaderFactory* test_url_loader_factory() {
     return &test_url_loader_factory_;

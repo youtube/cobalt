@@ -60,7 +60,9 @@ Configurator::Configurator(network::NetworkModule* network_module)
       unzip_factory_(base::MakeRefCounted<UnzipperFactory>()),
       network_fetcher_factory_(
           base::MakeRefCounted<NetworkFetcherFactoryCobalt>(network_module)),
-      patch_factory_(base::MakeRefCounted<PatcherFactory>()) {
+      patch_factory_(base::MakeRefCounted<PatcherFactory>()),
+      allow_self_signed_packages_(false),
+      require_network_encryption_(true) {
   LOG(INFO) << "Configurator::Configurator";
   const std::string persisted_channel = persisted_data_->GetLatestChannel();
   if (persisted_channel.empty()) {
@@ -107,6 +109,12 @@ int Configurator::UpdateDelay() const {
 }
 
 std::vector<GURL> Configurator::UpdateUrl() const {
+// TODO(b/325626249): Remove the ALLOW_EVERGREEN_SIDELOADING check once we're fully launched.
+#if !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
+  if (allow_self_signed_packages_ && !update_server_url_.empty()) {
+    return std::vector<GURL>{GURL(update_server_url_)};
+  }
+#endif // !defined(COBALT_BUILD_TYPE_GOLD) && ALLOW_EVERGREEN_SIDELOADING
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           browser::switches::kUseQAUpdateServer)) {
     return std::vector<GURL>{GURL(kUpdaterJSONDefaultUrlQA)};
@@ -367,6 +375,32 @@ bool Configurator::GetUseCompressedUpdates() const {
 
 void Configurator::SetUseCompressedUpdates(bool use_compressed_updates) {
   use_compressed_updates_.store(use_compressed_updates);
+}
+
+bool Configurator::GetAllowSelfSignedPackages() const {
+  return allow_self_signed_packages_.load();
+}
+
+void Configurator::SetAllowSelfSignedPackages(bool allow_self_signed_packages) {
+  allow_self_signed_packages_.store(allow_self_signed_packages);
+}
+
+std::string Configurator::GetUpdateServerUrl() const {
+  base::AutoLock auto_lock(const_cast<base::Lock&>(update_server_url_lock_));
+  return update_server_url_;
+}
+
+void Configurator::SetUpdateServerUrl(const std::string& update_server_url) {
+  LOG(INFO) << "Configurator::SetUpdateServerUrl update_server_url=" << update_server_url;
+  base::AutoLock auto_lock(update_server_url_lock_);
+  update_server_url_ = update_server_url;
+}
+
+bool Configurator::GetRequireNetworkEncryption() const {
+  return require_network_encryption_.load();
+}
+void Configurator::SetRequireNetworkEncryption(bool require_network_encryption) {
+  require_network_encryption_.store(require_network_encryption);
 }
 
 }  // namespace updater
