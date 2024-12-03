@@ -47,6 +47,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <utility>
 #include <vector>
 
 #include "base/compiler_specific.h"
@@ -66,6 +67,7 @@
 #include "cobalt/web/environment_settings.h"
 #include "cobalt/web/event.h"
 #include "cobalt/web/window_or_worker_global_scope.h"
+#include "cobalt/worker/worker_global_scope.h"
 #include "cobalt/worker/worker_settings.h"
 #include "media/base/pipeline_status.h"
 #include "starboard/media.h"
@@ -185,7 +187,12 @@ MediaSource::MediaSource(script::EnvironmentSettings* settings)
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       source_buffers_(new SourceBufferList(settings, &event_queue_)),
       active_source_buffers_(new SourceBufferList(settings, &event_queue_)),
-      live_seekable_range_(new TimeRanges) {
+      live_seekable_range_(new TimeRanges),
+      has_live_seekable_range_(false),
+      live_seekable_range_start_(0.0),
+      live_seekable_range_end_(0.0),
+      is_mse_in_workers_enabled_(
+          IsMseInWorkersEnabled(environment_settings())) {
   LOG(INFO) << "Algorithm offloading is "
             << (algorithm_offload_enabled_ ? "enabled" : "disabled");
   LOG(INFO) << "Asynchronous reduction is "
@@ -194,7 +201,9 @@ MediaSource::MediaSource(script::EnvironmentSettings* settings)
             << max_size_for_immediate_job_;
 }
 
-MediaSource::~MediaSource() { SetReadyState(kMediaSourceReadyStateClosed); }
+MediaSource::~MediaSource() {
+  SetReadyState(kMediaSourceReadyStateClosed, true);
+}
 
 scoped_refptr<SourceBufferList> MediaSource::source_buffers() const {
   return source_buffers_;
@@ -206,7 +215,35 @@ scoped_refptr<SourceBufferList> MediaSource::active_source_buffers() const {
 
 MediaSourceReadyState MediaSource::ready_state() const { return ready_state_; }
 
-double MediaSource::duration(script::ExceptionState* exception_state) const {
+double MediaSource::duration(script::ExceptionState* exception_state) {
+  double duration_result = std::numeric_limits<float>::quiet_NaN();
+
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
+    if (IsClosed()) {
+      return duration_result;
+    }
+
+    if (!RunUnlessElementGoneOrClosingUs(
+            base::Bind(&MediaSource::GetDurationInternal_Locked, this,
+                       &duration_result))) {
+      DCHECK_EQ(duration_result, std::numeric_limits<float>::quiet_NaN());
+    }
+
+    return duration_result;
+  } else {
+    return GetDuration_Locked();
+  }
+}
+
+void MediaSource::GetDurationInternal_Locked(double* result) {
+  AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
+
+  *result = GetDuration_Locked();
+}
+
+double MediaSource::GetDuration_Locked() const {
+  AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
+
   if (ready_state_ == kMediaSourceReadyStateClosed) {
     return std::numeric_limits<float>::quiet_NaN();
   }
@@ -228,8 +265,33 @@ void MediaSource::set_duration(double duration,
   }
 
   // Run the duration change algorithm
-  if (duration == this->duration(NULL)) {
-    return;
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
+    if (!RunUnlessElementGoneOrClosingUs(
+            base::Bind(&MediaSource::DurationChangeAlgorithm, this, duration,
+                       exception_state))) {
+      web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                               exception_state);
+      return;
+    }
+  } else {
+    DurationChangeAlgorithm(duration, exception_state);
+  }
+}
+
+void MediaSource::DurationChangeAlgorithm(
+    double duration, script::ExceptionState* exception_state) {
+  AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
+
+  double old_duration = 0;
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
+    old_duration = GetDuration_Locked();
+    if (duration == old_duration) {
+      return;
+    }
+  } else {
+    if (duration == this->duration(NULL)) {
+      return;
+    }
   }
 
   double highest_buffered_presentation_timestamp = 0;
@@ -246,7 +308,10 @@ void MediaSource::set_duration(double duration,
   }
 
   // 3. Set old duration to the current value of duration.
-  double old_duration = this->duration(NULL);
+  if (!(is_using_media_source_attachment_methods_ &&
+        is_mse_in_workers_enabled_)) {
+    old_duration = this->duration(NULL);
+  }
   DCHECK_LE(highest_buffered_presentation_timestamp,
             std::isnan(old_duration) ? 0 : old_duration);
 
@@ -267,6 +332,7 @@ void MediaSource::set_duration(double duration,
   // 6. Update the media controller duration to new duration and run the
   //    HTMLMediaElement duration change algorithm.
   if (is_using_media_source_attachment_methods_) {
+    base::AutoLock auto_lock(attachment_link_lock_);
     media_source_attachment_->NotifyDurationChanged(duration);
   } else {
     attached_element_->DurationChanged(duration, request_seek);
@@ -298,31 +364,55 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
     return NULL;
   }
 
+  SourceBuffer* source_buffer = nullptr;
+
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
+    if (!RunUnlessElementGoneOrClosingUs(
+            base::Bind(&MediaSource::AddSourceBuffer_Locked, this, settings,
+                       type, exception_state, &source_buffer))) {
+      web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                               exception_state);
+      return NULL;
+    }
+  } else {
+    AddSourceBuffer_Locked(settings, type, exception_state, &source_buffer);
+  }
+
+  if (source_buffer == nullptr) {
+    return NULL;
+  }
+
+  return base::WrapRefCounted(source_buffer);
+}
+
+void MediaSource::AddSourceBuffer_Locked(
+    script::EnvironmentSettings* settings, const std::string& type,
+    script::ExceptionState* exception_state, SourceBuffer** created_buffer) {
+  AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
+
   std::string guid = base::GenerateGUID();
-  scoped_refptr<SourceBuffer> source_buffer;
   ChunkDemuxer::Status status = chunk_demuxer_->AddId(guid, type);
   switch (status) {
     case ChunkDemuxer::kOk:
-      source_buffer =
+      *created_buffer =
           new SourceBuffer(settings, guid, this, chunk_demuxer_, &event_queue_,
                            is_using_media_source_attachment_methods_);
       break;
     case ChunkDemuxer::kNotSupported:
       web::DOMException::Raise(web::DOMException::kNotSupportedErr,
                                exception_state);
-      return NULL;
+      return;
     case ChunkDemuxer::kReachedIdLimit:
       web::DOMException::Raise(web::DOMException::kQuotaExceededErr,
                                exception_state);
-      return NULL;
+      return;
   }
 
-  DCHECK(source_buffer);
-  source_buffers_->Add(source_buffer);
-  LOG(INFO) << "added SourceBuffer (0x" << source_buffer.get()
+  DCHECK(*created_buffer);
+  source_buffers_->Add(base::WrapRefCounted(*created_buffer));
+  LOG(INFO) << "added SourceBuffer (0x" << *created_buffer
             << ") to MediaSource (0x" << this << ") with type " << type
             << " id = " << guid;
-  return source_buffer;
 }
 
 void MediaSource::RemoveSourceBuffer(
@@ -341,6 +431,22 @@ void MediaSource::RemoveSourceBuffer(
     return;
   }
 
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
+    if (!RunUnlessElementGoneOrClosingUs(base::Bind(
+            &MediaSource::RemoveSourceBuffer_Locked, this, source_buffer))) {
+      web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                               exception_state);
+      return;
+    }
+  } else {
+    RemoveSourceBuffer_Locked(source_buffer);
+  }
+}
+
+void MediaSource::RemoveSourceBuffer_Locked(
+    const scoped_refptr<SourceBuffer>& source_buffer) {
+  AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
+
   source_buffer->OnRemovedFromMediaSource();
 
   active_source_buffers_->Remove(source_buffer);
@@ -348,6 +454,8 @@ void MediaSource::RemoveSourceBuffer(
 }
 
 void MediaSource::EndOfStreamAlgorithm(MediaSourceEndOfStreamError error) {
+  AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
+
   if (IsClosed()) {
     if (IsCallingEndedWhenClosedEnabled(environment_settings())) {
       LOG(INFO) << "Setting state to ended when MediaSource object is closed";
@@ -390,7 +498,17 @@ void MediaSource::EndOfStream(MediaSourceEndOfStreamError error,
                              exception_state);
     return;
   }
-  EndOfStreamAlgorithm(error);
+
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
+    if (!RunUnlessElementGoneOrClosingUs(
+            base::Bind(&MediaSource::EndOfStreamAlgorithm, this, error))) {
+      web::DOMException::Raise(web::DOMException::kInvalidStateErr,
+                               exception_state);
+      return;
+    }
+  } else {
+    EndOfStreamAlgorithm(error);
+  }
 }
 
 void MediaSource::SetLiveSeekableRange(
@@ -408,7 +526,16 @@ void MediaSource::SetLiveSeekableRange(
     return;
   }
 
-  live_seekable_range_ = new TimeRanges(start, end);
+  if (IsMediaElementUsingMediaSourceBufferedRangeEnabled(
+          environment_settings()) &&
+      is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
+    base::AutoLock auto_lock(attachment_link_lock_);
+    has_live_seekable_range_ = true;
+    live_seekable_range_start_ = start;
+    live_seekable_range_end_ = end;
+  } else {
+    live_seekable_range_ = new TimeRanges(start, end);
+  }
 }
 
 void MediaSource::ClearLiveSeekableRange(
@@ -420,8 +547,19 @@ void MediaSource::ClearLiveSeekableRange(
     return;
   }
 
-  if (live_seekable_range_->length() != 0) {
-    live_seekable_range_ = new TimeRanges;
+  if (IsMediaElementUsingMediaSourceBufferedRangeEnabled(
+          environment_settings()) &&
+      is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
+    base::AutoLock auto_lock(attachment_link_lock_);
+    if (has_live_seekable_range_) {
+      has_live_seekable_range_ = false;
+      live_seekable_range_start_ = 0.0;
+      live_seekable_range_end_ = 0.0;
+    }
+  } else {
+    if (live_seekable_range_->length() != 0) {
+      live_seekable_range_ = new TimeRanges;
+    }
   }
 }
 
@@ -435,9 +573,9 @@ bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
   web::EnvironmentSettings* web_settings =
       base::polymorphic_downcast<web::EnvironmentSettings*>(settings);
   DCHECK(web_settings);
-  if (IsMseInWorkersEnabled(web_settings) &&
+  if (IsMediaElementUsingMediaSourceBufferedRangeEnabled(web_settings) &&
       IsMediaElementUsingMediaSourceAttachmentMethodsEnabled(web_settings) &&
-      IsMediaElementUsingMediaSourceBufferedRangeEnabled(web_settings)) {
+      IsMseInWorkersEnabled(web_settings)) {
     DCHECK(web_settings->context());
     web::WindowOrWorkerGlobalScope* global_scope =
         web_settings->context()->GetWindowOrWorkerGlobalScope();
@@ -529,7 +667,9 @@ bool MediaSource::StartAttachingToMediaElement(
 }
 
 bool MediaSource::StartAttachingToMediaElement(
-    MediaSourceAttachmentSupplement* media_source_attachment) {
+    scoped_refptr<MediaSourceAttachmentSupplement> media_source_attachment) {
+  base::AutoLock auto_lock(attachment_link_lock_);
+
   is_using_media_source_attachment_methods_ = true;
 
   if (media_source_attachment_) {
@@ -539,9 +679,11 @@ bool MediaSource::StartAttachingToMediaElement(
   DCHECK(IsClosed());
   DCHECK(!algorithm_process_thread_);
 
-  media_source_attachment_ = base::AsWeakPtr(media_source_attachment);
-  has_max_video_capabilities_ =
-      media_source_attachment->HasMaxVideoCapabilities();
+  media_source_attachment_ = media_source_attachment;
+  if (!is_mse_in_workers_enabled_) {
+    has_max_video_capabilities_ =
+        media_source_attachment->HasMaxVideoCapabilities();
+  }
 
   if (algorithm_offload_enabled_) {
     algorithm_process_thread_.reset(new base::Thread("MSEAlgorithm"));
@@ -565,9 +707,11 @@ bool MediaSource::StartAttachingToMediaElement(
 }
 
 void MediaSource::CompleteAttachingToMediaElement(ChunkDemuxer* chunk_demuxer) {
+  AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
   DCHECK(chunk_demuxer);
   DCHECK(!chunk_demuxer_);
   if (is_using_media_source_attachment_methods_) {
+    base::AutoLock auto_lock(attachment_link_lock_);
     DCHECK(media_source_attachment_);
   } else {
     DCHECK(attached_element_);
@@ -576,13 +720,18 @@ void MediaSource::CompleteAttachingToMediaElement(ChunkDemuxer* chunk_demuxer) {
   SetReadyState(kMediaSourceReadyStateOpen);
 }
 
-void MediaSource::Close() { SetReadyState(kMediaSourceReadyStateClosed); }
+void MediaSource::Close() {
+  AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
+  SetReadyState(kMediaSourceReadyStateClosed);
+}
 
 bool MediaSource::IsClosed() const {
   return ready_state_ == kMediaSourceReadyStateClosed;
 }
 
 scoped_refptr<TimeRanges> MediaSource::GetBufferedRange() const {
+  AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
+
   std::vector<scoped_refptr<TimeRanges> > ranges(
       active_source_buffers_->length());
   for (uint32 i = 0; i < active_source_buffers_->length(); ++i)
@@ -626,8 +775,10 @@ scoped_refptr<TimeRanges> MediaSource::GetBufferedRange() const {
 }
 
 scoped_refptr<TimeRanges> MediaSource::GetSeekable() const {
+  AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
+
   // Implements MediaSource algorithm for HTMLMediaElement.seekable.
-  double source_duration = duration(NULL);
+  double source_duration = GetDuration_Locked();
 
   if (std::isnan(source_duration)) {
     return new TimeRanges;
@@ -640,23 +791,45 @@ scoped_refptr<TimeRanges> MediaSource::GetSeekable() const {
       buffered = GetBufferedRange();
     } else {
       if (is_using_media_source_attachment_methods_) {
+        base::AutoLock auto_lock(attachment_link_lock_);
         buffered = media_source_attachment_->media_element()->buffered();
       } else {
         buffered = attached_element_->buffered();
       }
     }
 
-    if (live_seekable_range_->length() != 0) {
-      if (buffered->length() == 0) {
-        return new TimeRanges(live_seekable_range_->Start(0, NULL),
-                              live_seekable_range_->End(0, NULL));
-      }
+    {
+      base::AutoLock auto_lock(attachment_link_lock_);
 
-      return new TimeRanges(
-          std::min(live_seekable_range_->Start(0, NULL),
-                   buffered->Start(0, NULL)),
-          std::max(live_seekable_range_->End(0, NULL),
-                   buffered->End(buffered->length() - 1, NULL)));
+      if (IsMediaElementUsingMediaSourceBufferedRangeEnabled(
+              environment_settings()) &&
+          is_using_media_source_attachment_methods_ &&
+          is_mse_in_workers_enabled_) {
+        if (has_live_seekable_range_) {
+          if (buffered->length() == 0) {
+            return new TimeRanges(live_seekable_range_start_,
+                                  live_seekable_range_end_);
+          }
+
+          return new TimeRanges(
+              std::min(live_seekable_range_start_, buffered->Start(0, NULL)),
+              std::max(live_seekable_range_end_,
+                       buffered->End(buffered->length() - 1, NULL)));
+        }
+      } else {
+        if (live_seekable_range_->length() != 0) {
+          if (buffered->length() == 0) {
+            return new TimeRanges(live_seekable_range_->Start(0, NULL),
+                                  live_seekable_range_->End(0, NULL));
+          }
+
+          return new TimeRanges(
+              std::min(live_seekable_range_->Start(0, NULL),
+                       buffered->Start(0, NULL)),
+              std::max(live_seekable_range_->End(0, NULL),
+                       buffered->End(buffered->length() - 1, NULL)));
+        }
+      }
     }
 
     if (buffered->length() == 0) {
@@ -708,6 +881,9 @@ void MediaSource::OpenIfInEndedState() {
     return;
   }
 
+  DCHECK(!IsClosed());
+  AssertAttachmentsMutexHeldIfCrossThreadForDebugging();
+
   SetReadyState(kMediaSourceReadyStateOpen);
   chunk_demuxer_->UnmarkEndOfStream();
 }
@@ -750,17 +926,25 @@ HTMLMediaElement* MediaSource::GetMediaElement() const {
 }
 
 MediaSourceAttachmentSupplement* MediaSource::GetMediaSourceAttachment() const {
+  base::AutoLock auto_lock(attachment_link_lock_);
   DCHECK(is_using_media_source_attachment_methods_);
   return media_source_attachment_;
 }
 
-bool MediaSource::MediaElementHasMaxVideoCapabilities() const {
+bool MediaSource::MediaElementHasMaxVideoCapabilities() {
   if (is_using_media_source_attachment_methods_) {
-    SB_DCHECK(media_source_attachment_);
+    if (is_mse_in_workers_enabled_) {
+      base::AutoLock auto_lock(attachment_link_lock_);
+      return media_source_attachment_->HasMaxVideoCapabilities();
+    } else {
+      base::AutoLock auto_lock(attachment_link_lock_);
+      SB_DCHECK(media_source_attachment_);
+      return has_max_video_capabilities_;
+    }
   } else {
     SB_DCHECK(attached_element_);
+    return has_max_video_capabilities_;
   }
-  return has_max_video_capabilities_;
 }
 
 SerializedAlgorithmRunner<SourceBufferAlgorithm>*
@@ -792,7 +976,7 @@ void MediaSource::TraceMembers(script::Tracer* tracer) {
 
   tracer->Trace(event_queue_);
   if (is_using_media_source_attachment_methods_) {
-    tracer->Trace(media_source_attachment_);
+    tracer->Trace(TS_UNCHECKED_READ(media_source_attachment_));
   } else {
     tracer->Trace(attached_element_);
   }
@@ -802,6 +986,11 @@ void MediaSource::TraceMembers(script::Tracer* tracer) {
 }
 
 void MediaSource::SetReadyState(MediaSourceReadyState ready_state) {
+  SetReadyState(ready_state, false);
+}
+
+void MediaSource::SetReadyState(MediaSourceReadyState ready_state,
+                                bool in_dtor) {
   if (!offload_algorithm_runner_) {
     // Setting `chunk_demuxer_` to NULL when there is an active algorithm
     // running may cause crash.  So `chunk_demuxer_` is reset later in the
@@ -842,12 +1031,19 @@ void MediaSource::SetReadyState(MediaSourceReadyState ready_state) {
   source_buffers_->Clear();
 
   if (is_using_media_source_attachment_methods_) {
+    base::AutoLock auto_lock(attachment_link_lock_);
     media_source_attachment_.reset();
   } else {
     attached_element_.reset();
   }
 
-  ScheduleEvent(base::Tokens::sourceclose());
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
+    if (!in_dtor) {
+      ScheduleEvent(base::Tokens::sourceclose());
+    }
+  } else {
+    ScheduleEvent(base::Tokens::sourceclose());
+  }
 
   if (algorithm_process_thread_) {
     algorithm_process_thread_->Stop();
@@ -872,6 +1068,26 @@ void MediaSource::ScheduleEvent(base_token::Token event_name) {
   scoped_refptr<web::Event> event = new web::Event(event_name);
   event->set_target(this);
   event_queue_.Enqueue(event);
+}
+
+bool MediaSource::RunUnlessElementGoneOrClosingUs(
+    MediaSourceAttachmentSupplement::RunExclusivelyCB cb) {
+  auto attachment = GetMediaSourceAttachment();
+  CHECK(attachment) << "Attempt to run operation requiring attachment, but "
+                       "without having one.";
+
+  return attachment->RunExclusively(
+      /*abort_if_not_fully_attached=*/true, std::move(cb));
+}
+
+void MediaSource::AssertAttachmentsMutexHeldIfCrossThreadForDebugging() const {
+#if DCHECK_IS_ON()
+  if (is_using_media_source_attachment_methods_ && is_mse_in_workers_enabled_) {
+    base::AutoLock auto_lock(attachment_link_lock_);
+    DCHECK(media_source_attachment_);
+    media_source_attachment_->AssertCrossThreadMutexIsAcquiredForDebugging();
+  }
+#endif  // DCHECK_IS_ON()
 }
 
 }  // namespace dom

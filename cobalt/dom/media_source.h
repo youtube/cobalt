@@ -50,6 +50,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
+#include "base/synchronization/lock.h"
 #include "base/threading/thread.h"
 #include "base/threading/thread_task_runner_handle.h"
 #include "cobalt/base/token.h"
@@ -90,21 +91,30 @@ class MediaSource : public web::EventTarget {
   scoped_refptr<SourceBufferList> source_buffers() const;
   scoped_refptr<SourceBufferList> active_source_buffers() const;
   MediaSourceReadyState ready_state() const;
-  double duration(script::ExceptionState* exception_state) const;
-  void set_duration(double duration, script::ExceptionState* exception_state);
+  double duration(script::ExceptionState* exception_state)
+      LOCKS_EXCLUDED(attachment_link_lock_);
+  void set_duration(double duration, script::ExceptionState* exception_state)
+      LOCKS_EXCLUDED(attachment_link_lock_);
   scoped_refptr<SourceBuffer> AddSourceBuffer(
       script::EnvironmentSettings* settings, const std::string& type,
-      script::ExceptionState* exception_state);
+      script::ExceptionState* exception_state)
+      LOCKS_EXCLUDED(attachment_link_lock_);
   void RemoveSourceBuffer(const scoped_refptr<SourceBuffer>& source_buffer,
-                          script::ExceptionState* exception_state);
+                          script::ExceptionState* exception_state)
+      LOCKS_EXCLUDED(attachment_link_lock_);
 
-  void EndOfStreamAlgorithm(MediaSourceEndOfStreamError error);
-  void EndOfStream(script::ExceptionState* exception_state);
+  void EndOfStreamAlgorithm(MediaSourceEndOfStreamError error)
+      LOCKS_EXCLUDED(attachment_link_lock_);
+  void EndOfStream(script::ExceptionState* exception_state)
+      LOCKS_EXCLUDED(attachment_link_lock_);
   void EndOfStream(MediaSourceEndOfStreamError error,
-                   script::ExceptionState* exception_state);
+                   script::ExceptionState* exception_state)
+      LOCKS_EXCLUDED(attachment_link_lock_);
   void SetLiveSeekableRange(double start, double end,
-                            script::ExceptionState* exception_state);
-  void ClearLiveSeekableRange(script::ExceptionState* exception_state);
+                            script::ExceptionState* exception_state)
+      LOCKS_EXCLUDED(attachment_link_lock_);
+  void ClearLiveSeekableRange(script::ExceptionState* exception_state)
+      LOCKS_EXCLUDED(attachment_link_lock_);
 
   static bool IsTypeSupported(script::EnvironmentSettings* settings,
                               const std::string& type);
@@ -118,33 +128,68 @@ class MediaSource : public web::EventTarget {
   // TODO(b/338425449): Remove direct references to HTMLMediaElement.
   bool StartAttachingToMediaElement(HTMLMediaElement* media_element);
   bool StartAttachingToMediaElement(
-      MediaSourceAttachmentSupplement* media_source_attachment);
-  void CompleteAttachingToMediaElement(ChunkDemuxer* chunk_demuxer);
+      scoped_refptr<MediaSourceAttachmentSupplement> media_source_attachment)
+      LOCKS_EXCLUDED(attachment_link_lock_);
+  void CompleteAttachingToMediaElement(ChunkDemuxer* chunk_demuxer)
+      LOCKS_EXCLUDED(attachment_link_lock_);
   void Close();
   bool IsClosed() const;
-  scoped_refptr<TimeRanges> GetBufferedRange() const;
-  scoped_refptr<TimeRanges> GetSeekable() const;
+  scoped_refptr<TimeRanges> GetBufferedRange() const
+      LOCKS_EXCLUDED(attachment_link_lock_);
+  scoped_refptr<TimeRanges> GetSeekable() const
+      LOCKS_EXCLUDED(attachment_link_lock_);
   void OnAudioTrackChanged(AudioTrack* audio_track);
   void OnVideoTrackChanged(VideoTrack* video_track);
 
   // Used by SourceBuffer.
-  void OpenIfInEndedState();
+  void OpenIfInEndedState() LOCKS_EXCLUDED(attachment_link_lock_);
   bool IsOpen() const;
-  void SetSourceBufferActive(SourceBuffer* source_buffer, bool is_active);
+  void SetSourceBufferActive(SourceBuffer* source_buffer, bool is_active)
+      LOCKS_EXCLUDED(attachment_link_lock_);
   // TODO(b/338425449): Remove direct references to HTMLMediaElement.
   HTMLMediaElement* GetMediaElement() const;
-  MediaSourceAttachmentSupplement* GetMediaSourceAttachment() const;
-  bool MediaElementHasMaxVideoCapabilities() const;
+  MediaSourceAttachmentSupplement* GetMediaSourceAttachment() const
+      LOCKS_EXCLUDED(attachment_link_lock_);
+  bool MediaElementHasMaxVideoCapabilities()
+      LOCKS_EXCLUDED(attachment_link_lock_);
+
+  // "_Locked" methods requires these to be called while in the scope of
+  // a MediaSourceAttachmentSupplement::RunExclusively bound function.
+  double GetDuration_Locked() const LOCKS_EXCLUDED(attachment_link_lock_);
   SerializedAlgorithmRunner<SourceBufferAlgorithm>* GetAlgorithmRunner(
       int job_size);
 
   DEFINE_WRAPPABLE_TYPE(MediaSource);
   void TraceMembers(script::Tracer* tracer) override;
 
+  bool RunUnlessElementGoneOrClosingUs(
+      MediaSourceAttachmentSupplement::RunExclusivelyCB cb)
+      LOCKS_EXCLUDED(attachment_link_lock_);
+  void AssertAttachmentsMutexHeldIfCrossThreadForDebugging() const
+      LOCKS_EXCLUDED(attachment_link_lock_);
+
  private:
   void SetReadyState(MediaSourceReadyState ready_state);
+  void SetReadyState(MediaSourceReadyState ready_state, bool in_dtor)
+      LOCKS_EXCLUDED(attachment_link_lock_);
   bool IsUpdating() const;
   void ScheduleEvent(base_token::Token event_name);
+  void DurationChangeAlgorithm(double new_duration,
+                               script::ExceptionState* exception_state)
+      LOCKS_EXCLUDED(attachment_link_lock_);
+
+  // "_Locked" methods requires these to be called while in the scope of
+  // a MediaSourceAttachmentSupplement::RunExclusively bound function.
+  void AddSourceBuffer_Locked(script::EnvironmentSettings* settings,
+                              const std::string& type,
+                              script::ExceptionState* exception_state,
+                              SourceBuffer** created_buffer)
+      LOCKS_EXCLUDED(attachment_link_lock_);
+  void RemoveSourceBuffer_Locked(
+      const scoped_refptr<SourceBuffer>& source_buffer)
+      LOCKS_EXCLUDED(attachment_link_lock_);
+  void GetDurationInternal_Locked(double* result)
+      LOCKS_EXCLUDED(attachment_link_lock_);
 
   // Set to true to offload SourceBuffer buffer append and removal algorithms to
   // a non-web thread.
@@ -174,15 +219,25 @@ class MediaSource : public web::EventTarget {
   EventQueue event_queue_;
   // TODO(b/338425449): Remove direct references to HTMLMediaElement.
   bool is_using_media_source_attachment_methods_ = false;
+  bool is_mse_in_workers_enabled_ = false;
   base::WeakPtr<HTMLMediaElement> attached_element_;
-  base::WeakPtr<MediaSourceAttachmentSupplement> media_source_attachment_;
+
+  scoped_refptr<MediaSourceAttachmentSupplement> media_source_attachment_
+      GUARDED_BY(attachment_link_lock_);
 
   scoped_refptr<SourceBufferList> source_buffers_;
   scoped_refptr<SourceBufferList> active_source_buffers_;
 
   scoped_refptr<TimeRanges> live_seekable_range_;
+  // Used when MediaSourceAttachment methods and MSE-in-Workers is enabled
+  // to avoid deadlocks while tracing.
+  bool has_live_seekable_range_ GUARDED_BY(attachment_link_lock_);
+  double live_seekable_range_start_ GUARDED_BY(attachment_link_lock_);
+  double live_seekable_range_end_ GUARDED_BY(attachment_link_lock_);
 
   bool has_max_video_capabilities_ = false;
+
+  mutable base::Lock attachment_link_lock_;
 };
 
 }  // namespace dom

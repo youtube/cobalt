@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<!--
+  Copyright 2024 The Cobalt Authors.All Rights Reserved.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+  Copyright 2020 The Chromium Authors
+  Use of this source code is governed by a BSD-style license that can be
+  found in the LICENSE file.
+-->
+<html>
+<head>
+<title>Simple MediaSource-in-Worker playback test case</title>
+<script src="black_box_js_test_utils.js"></script>
+</head>
+<body>
+<script>
+const timeoutId = window.setTimeout(notReached, 10000);
+
+// Enable MSE-in-Workers H5VCC flags.
+h5vcc.settings.set('MediaElement.EnableUsingMediaSourceBufferedRange', 1);
+h5vcc.settings.set('MediaElement.EnableUsingMediaSourceAttachmentMethods', 1);
+h5vcc.settings.set('MediaSource.EnableInWorkers', 1);
+
+// Fail fast if MSE-in-Workers is not supported.
+assertTrue(MediaSource.hasOwnProperty('canConstructInDedicatedWorker'),
+  "MediaSource hasOwnProperty 'canConstructInDedicatedWorker'");
+assertTrue(MediaSource.canConstructInDedicatedWorker,
+  'MediaSource.canConstructInDedicatedWorker');
+
+const video = document.createElement('video');
+document.body.appendChild(video);
+video.addEventListener('error', () => notReached('video error'));
+video.addEventListener('ended', () => {
+  window.clearTimeout(timeoutId);
+  onEndTest();
+});
+
+const worker = new Worker('mediasource_worker_play.js');
+worker.addEventListener('error', () => notReached('worker error'));
+worker.addEventListener('message', (event) => {
+  const subject = event.data.subject;
+  assertTrue(subject !== undefined, 'message must have a subject field');
+  switch(subject) {
+    case 'error':
+      notReached(event.data.info);
+      break;
+    case 'handle':
+      const handle = event.data.info;
+      video.src = handle;
+      video.play();
+      break;
+    default:
+      notReached();
+  }
+});
+
+setupFinished();
+</script>
+</body>
+</html>

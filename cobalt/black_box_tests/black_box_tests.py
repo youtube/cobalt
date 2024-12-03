@@ -75,6 +75,7 @@ _TESTS_NO_SIGNAL = [
     # 'h5vcc_watchdog_api_test',
     'http_cache',
     'javascript_profiler',
+    'mediasource_worker_play',
     'navigator_test',
     'performance_resource_timing_test',
     'persistent_cookie',
