@@ -152,8 +152,7 @@ if __name__ == '__main__':
       help='The build_type (configuration) to build with.')
   parser.add_argument(
       '--no-check',
-      # TODO: b/377295011 - Enable gn --check
-      default=True,
+      default=False,
       action='store_true',
       help='Pass this flag to disable the header dependency gn check.')
   script_args, gen_args = parser.parse_known_args()
