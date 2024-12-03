@@ -378,6 +378,10 @@ scoped_refptr<SourceBuffer> MediaSource::AddSourceBuffer(
     AddSourceBuffer_Locked(settings, type, exception_state, &source_buffer);
   }
 
+  if (source_buffer == nullptr) {
+    return NULL;
+  }
+
   return base::WrapRefCounted(source_buffer);
 }
 
@@ -397,11 +401,11 @@ void MediaSource::AddSourceBuffer_Locked(
     case ChunkDemuxer::kNotSupported:
       web::DOMException::Raise(web::DOMException::kNotSupportedErr,
                                exception_state);
-      return NULL;
+      return;
     case ChunkDemuxer::kReachedIdLimit:
       web::DOMException::Raise(web::DOMException::kQuotaExceededErr,
                                exception_state);
-      return NULL;
+      return;
   }
 
   DCHECK(*created_buffer);
