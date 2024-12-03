@@ -47,7 +47,9 @@ declare_args() {
   #     and doesn't wish to incur the library size increase (crbug.com/674570).
   # 2.  On NaCl (through this declaration), where PartitionAlloc doesn't
   #     build at all.
-  use_partition_alloc = !is_nacl
+
+# TODO(cobalt, b/382115610): Re-enable use_partition_alloc
+  use_partition_alloc = !is_cobalt && !is_nacl
 }
 
 declare_args() {
@@ -305,7 +307,8 @@ assert(!use_asan_backup_ref_ptr || use_hookable_raw_ptr,
        "AsanBackupRefPtr requires RawPtrHookableImpl")
 
 declare_args() {
-  enable_pkeys = is_linux && target_cpu == "x64"
+  # TODO(cobalt, b/382115610): Re-enable enable_pkeys
+  enable_pkeys = is_linux && target_cpu == "x64" && !is_cobalt
 }
 assert(!enable_pkeys || (is_linux && target_cpu == "x64"),
        "Pkeys are only supported on x64 linux")
