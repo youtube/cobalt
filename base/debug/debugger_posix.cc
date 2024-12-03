@@ -52,7 +52,8 @@
 #include "base/strings/string_piece.h"
 
 #if defined(USE_SYMBOLIZE)
-#include "base/third_party/symbolize/symbolize.h"
+// TODO(cobalt, b/377295011): remove the nogncheck annotation.
+#include "base/third_party/symbolize/symbolize.h"  // nogncheck
 #endif
 
 namespace base {

@@ -24,7 +24,8 @@
 #include "starboard/nplb/maximum_player_configuration_explorer.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
-#include "starboard/testing/fake_graphics_context_provider.h"
+// TODO(cobalt, b/377295011): remove the nogncheck annotation.
+#include "starboard/testing/fake_graphics_context_provider.h"  // nogncheck
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
