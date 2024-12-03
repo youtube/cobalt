@@ -43,6 +43,7 @@ if (!is_android) {
     defines = []
 
     deps = [
+      ":common",
       "//content/public/app",
       "//content/shell:content_shell_app",
       "//content/shell:content_shell_lib",
@@ -84,6 +85,7 @@ static_library("common") {
     ":cobalt_build_info",
     "//base",
     "//starboard/common",
+    "//v8:v8_version",
   ]
 }
 
