@@ -27,7 +27,7 @@
 #include "media/base/video_types.h"
 // TODO(cobalt, b/377295011): remove the nogncheck annotations.
 #include "media/filters/h264_to_annex_b_bitstream_converter.h"  // nogncheck
-#include "media/formats/mp4/box_definitions.h"  // nogncheck
+#include "media/formats/mp4/box_definitions.h"                  // nogncheck
 #include "media/starboard/starboard_utils.h"
 #include "starboard/extension/demuxer.h"
 #include "starboard/system.h"
