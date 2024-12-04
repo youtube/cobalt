@@ -107,15 +107,15 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
 StarboardRenderer::StarboardRenderer(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     VideoRendererSink* video_renderer_sink,
+    MediaLog* media_log,
     TimeDelta audio_write_duration_local,
-    TimeDelta audio_write_duration_remote,
-    MediaLog* media_log)
+    TimeDelta audio_write_duration_remote)
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       video_renderer_sink_(video_renderer_sink),
+      media_log_(media_log),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-      media_log_(media_log),
       video_overlay_factory_(std::make_unique<VideoOverlayFactory>()),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       cdm_context_(nullptr) {
@@ -432,6 +432,8 @@ std::vector<std::string> StarboardRenderer::GetAudioConnectors() const {
 }
 
 void StarboardRenderer::CreatePlayerBridge() {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(init_cb_);
   DCHECK_EQ(state_, STATE_INITIALIZING);
   DCHECK(audio_stream_ || video_stream_);
 

@@ -15,7 +15,6 @@
 #include "media/starboard/starboard_renderer_factory.h"
 
 #include "base/check.h"
-#include "base/notreached.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "media/starboard/starboard_renderer.h"
@@ -42,8 +41,8 @@ std::unique_ptr<Renderer> StarboardRendererFactory::CreateRenderer(
   DCHECK(video_renderer_sink);
   DCHECK(media_log_);
   return std::make_unique<media::StarboardRenderer>(
-      media_task_runner, video_renderer_sink, audio_write_duration_local_,
-      audio_write_duration_remote_, media_log_);
+      media_task_runner, video_renderer_sink, media_log_,
+      audio_write_duration_local_, audio_write_duration_remote_);
 }
 
 }  // namespace media

@@ -49,9 +49,9 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
  public:
   StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
                     VideoRendererSink* video_renderer_sink,
+                    MediaLog* media_log,
                     TimeDelta audio_write_duration_local,
-                    TimeDelta audio_write_duration_remote,
-                    MediaLog* media_log);
+                    TimeDelta audio_write_duration_remote);
 
   ~StarboardRenderer() final;
 
@@ -60,7 +60,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
                   RendererClient* client,
                   PipelineStatusCallback init_cb) final;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) final;
-  void SetLatencyHint(absl::optional<base::TimeDelta> latency_hint) final {
+  void SetLatencyHint(absl::optional<TimeDelta> latency_hint) final {
     // TODO(b/380935131): Consider to implement `LatencyHint` for SbPlayer.
     NOTIMPLEMENTED();
   }
@@ -68,7 +68,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   void StartPlayingFrom(TimeDelta time) final;
   void SetPlaybackRate(double playback_rate) final;
   void SetVolume(float volume) final;
-  base::TimeDelta GetMediaTime() final;
+  TimeDelta GetMediaTime() final;
   RendererType GetRendererType() final { return RendererType::kStarboard; }
   SetBoundsCB GetSetBoundsCB() override;
 
