@@ -15,6 +15,7 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_WINDOW_STARBOARD_H_
 #define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_WINDOW_STARBOARD_H_
 
+#include "ui/events/platform/platform_event_dispatcher.h"
 #include "ui/platform_window/platform_window_delegate.h"
 #include "ui/platform_window/stub/stub_window.h"
 
@@ -23,15 +24,18 @@ namespace ui {
 // TODO(b/371272304): Stop extending StubWindow and create a more robust window
 // implementation.
 // TODO(b/371272304): Add event handling (i.e. extend PlatformEventDispatcher).
-class PlatformWindowStarboard : public StubWindow {
+class PlatformWindowStarboard : public StubWindow, public PlatformEventDispatcher {
  public:
-  PlatformWindowStarboard(PlatformWindowDelegate* delegate,
-                          const gfx::Rect& bounds);
+  PlatformWindowStarboard(PlatformWindowDelegate* delegate, const gfx::Rect& bounds);
 
   PlatformWindowStarboard(const PlatformWindowStarboard&) = delete;
   PlatformWindowStarboard& operator=(const PlatformWindowStarboard&) = delete;
 
   ~PlatformWindowStarboard() override;
+
+  // PlatformEventDispatcher implementation:
+  bool CanDispatchEvent(const PlatformEvent& event) override;
+  uint32_t DispatchEvent(const PlatformEvent& event) override;
 };
 
 }  // namespace ui

@@ -32,6 +32,8 @@ source_set("starboard") {
     "platform_window_starboard.h",
     "surface_factory_starboard.cc",
     "surface_factory_starboard.h",
+    "starboard_platform_event_source.h",
+    "starboard_platform_event_source.cc",
   ]
 
   deps = [
