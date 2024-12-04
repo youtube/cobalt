@@ -113,7 +113,8 @@ class SourceBuffer final : public EventTargetWithInlineData,
   AudioTrackList& audioTracks();
   VideoTrackList& videoTracks();
 
-  // Return the highest presentation timestamp written to SbPlayer.
+  // Cobalt-specific method that returns the highest presentation
+  // timestamp written to the SbPlayer.
   double writeHead(ExceptionState& exception_state) const;
 
   // "_Locked" requires these be called while in the scope of callback of

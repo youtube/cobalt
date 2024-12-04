@@ -145,7 +145,8 @@ class MEDIA_EXPORT Renderer {
   // Return SetBoundsCB if SbPlayer is used for rendering.
   using SetBoundsCB = base::OnceCallback<bool(int x, int y, int width, int height)>;
   virtual SetBoundsCB GetSetBoundsCB();
-
+  // Returns a semicolon-separated list audio connectors for the playback
+  // device if the SbPlayer is used for rendering.
   virtual std::vector<std::string> GetAudioConnectors() const;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };

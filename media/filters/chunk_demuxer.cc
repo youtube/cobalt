@@ -221,12 +221,10 @@ bool ChunkDemuxerStream::EvictCodedFrames(base::TimeDelta media_time,
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-
 base::TimeDelta ChunkDemuxerStream::GetWriteHead() const {
   base::AutoLock auto_lock(lock_);
   return write_head_;
 }
-
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void ChunkDemuxerStream::OnMemoryPressure(

@@ -146,9 +146,7 @@ class WebSourceBuffer {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Return the highest presentation timestamp written to SbPlayer.
-  virtual double write_head(ExceptionState& exception_state) const {
-    return 0.0;
-  }
+  virtual double writeHead(ExceptionState& exception_state) const = 0;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 

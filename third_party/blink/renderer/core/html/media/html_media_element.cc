@@ -573,10 +573,6 @@ HTMLMediaElement::HTMLMediaElement(const QualifiedName& tag_name,
   AddElementToDocumentMap(this, &document);
 
   UseCounter::Count(document, WebFeature::kHTMLMediaElement);
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  RuntimeEnabledFeatures::SetH5vccAudioConnectorsEnabled(true);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 HTMLMediaElement::~HTMLMediaElement() {
@@ -1513,6 +1509,7 @@ LocalFrame* HTMLMediaElement::LocalFrameForPlayer() {
 
 WebString HTMLMediaElement::h5vccAudioConnectors(
     ExceptionState& exception_state) const {
+  // TODO: Enable via command line for Cobalt on Linux.
   if (!RuntimeEnabledFeatures::H5vccAudioConnectorsEnabled()) {
     return WebString();
   }

@@ -246,7 +246,7 @@ void WebSourceBufferImpl::RemovedFromMediaSource() {
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-double WebSourceBufferImpl::write_head(ExceptionState& exception_state) const {
+double WebSourceBufferImpl::writeHead(ExceptionState& exception_state) const {
   DCHECK(demuxer_);
   return demuxer_->GetWriteHead(id_).InSecondsF();
 }

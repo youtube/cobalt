@@ -1878,7 +1878,6 @@
     // devices connected to the host device.
     {
       name: "H5vccAudioConnectors",
-      status: "stable",
       base_feature: "none",
     },
     {
@@ -3192,7 +3191,6 @@
     // presentation timestamp of buffers written to the Renderer.
     {
       name: "SourceBufferWriteHead",
-      status: "stable",
       base_feature: "none",
     },
     // An origin trial feature name is required for this, even though it's

@@ -63,7 +63,7 @@ class PLATFORM_EXPORT WebSourceBufferImpl : public WebSourceBuffer {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Return the highest presentation timestamp written to SbPlayer.
-  double write_head(ExceptionState& exception_state) const override;
+  double writeHead(ExceptionState& exception_state) const override;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:

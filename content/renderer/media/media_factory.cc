@@ -145,7 +145,13 @@ namespace {
 constexpr size_t kDefaultMaxWebMediaPlayers = 1000;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-constexpr int kWriteDurationLocal = 1000000 / 2;    // 0.5 seconds
+// The following variables match |kSbPlayerWriteDurationLocal|
+// and |kSbplayerWriteDurationRemote| in //starboard/player.h.
+//
+// The audio write duration when all the audio connectors are local.
+constexpr int kWriteDurationLocal = 1000000 / 2;  // 0.5 seconds
+// The audio write duration when at least one of the audio connectors are
+// remote.
 constexpr int kWriteDurationRemote = 1000000 * 10;  // 10 seconds
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
