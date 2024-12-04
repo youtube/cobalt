@@ -95,7 +95,6 @@
 #elif BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/starboard/starboard_cdm_factory.h"
 #include "media/starboard/starboard_renderer_factory.h"
-#include "starboard/player.h"
 #elif BUILDFLAG(ENABLE_MOJO_CDM)
 #include "media/mojo/clients/mojo_cdm_factory.h"  // nogncheck
 #else
@@ -144,6 +143,11 @@ namespace {
 // is also capping audio-only media streams, and it is quite normal for their
 // to be many of those. See http://crbug.com/1232649
 constexpr size_t kDefaultMaxWebMediaPlayers = 1000;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+constexpr int kWriteDurationLocal = 1000000 / 2;    // 0.5 seconds
+constexpr int kWriteDurationRemote = 1000000 * 10;  // 10 seconds
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 size_t GetMaxWebMediaPlayers() {
   static const size_t kMaxWebMediaPlayers = []() {
@@ -756,8 +760,8 @@ MediaFactory::CreateRendererFactorySelector(
         std::make_unique<media::StarboardRendererFactory>(
             media_log,
             // TODO: Inject these values
-            base::Microseconds(kSbPlayerWriteDurationLocal),
-            base::Microseconds(kSbPlayerWriteDurationRemote)));
+            base::Microseconds(kWriteDurationLocal),
+            base::Microseconds(kWriteDurationRemote)));
     factory_selector->SetBaseRendererType(RendererType::kStarboard);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
     auto renderer_impl_factory = CreateRendererImplFactory(
