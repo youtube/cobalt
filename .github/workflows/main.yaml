@@ -187,7 +187,7 @@ jobs:
           path: src
       - name: Run On-Host Tests
         id: on-host-tests
-        if: needs.initialize.outputs.test_on_host == 'true'
+        if: always() && needs.initialize.outputs.test_on_host == 'true'
         uses: ./src/.github/actions/on_host_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
@@ -195,7 +195,7 @@ jobs:
           platform: ${{ inputs.platform }}
       - name: Run On-Device Tests
         id: on-device-tests
-        if: needs.initialize.outputs.test_on_device == 'true'
+        if: always() && needs.initialize.outputs.test_on_device == 'true'
         uses: ./src/.github/actions/on_device_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}

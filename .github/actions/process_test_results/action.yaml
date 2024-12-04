@@ -20,7 +20,7 @@ runs:
         annotate_only: true
 
     - name: Get Datadog CLI
-      if: inputs.is_postsubmit
+      if: inputs.is_postsubmit == 'true'
       env:
         DD_VERSION: 'v2.18.0'
         DD_SHA256SUM: 'adbe9b3a41faaf0b1d9702ba256cf8fa9e474c0cc8216f25e5b489c53d6f0a70  datadog-ci'
@@ -33,7 +33,7 @@ runs:
       shell: bash
 
     - name: Upload to Datadog
-      if: inputs.is_postsubmit
+      if: inputs.is_postsubmit == 'true'
       env:
         DATADOG_SITE: us5.datadoghq.com
         DATADOG_API_KEY: ${{ inputs.datadog_api_key }}
