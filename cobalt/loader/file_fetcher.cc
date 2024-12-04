@@ -85,7 +85,7 @@ FileFetcher::FileFetcher(const base::FilePath& file_path, Handler* handler,
       task_runner_(options.task_runner_proxy),
       file_path_(file_path),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
-      file_proxy_(task_runner_.get()) {
+      file_proxy_(new base::FileProxy(task_runner_.get())) {
   DCHECK_GT(buffer_size_, 0);
 
   // Ensure the request does not attempt to navigate outside the whitelisted
@@ -106,6 +106,10 @@ FileFetcher::FileFetcher(const base::FilePath& file_path, Handler* handler,
 
 FileFetcher::~FileFetcher() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  // Ensure FileProxy runs its destructor before the TaskRunner that it posts
+  // to is destroyes.
+  file_proxy_.reset();
 
   if (task_runner_ != base::SequencedTaskRunner::GetCurrentDefault()) {
     // In case we are currently in the middle of a fetch (in which case it will
@@ -145,10 +149,10 @@ void FileFetcher::TryFileOpen() {
   base::FilePath actual_file_path;
   actual_file_path = curr_search_path_iter_->Append(file_path_);
 
-  file_proxy_.CreateOrOpen(actual_file_path,
-                           base::File::FLAG_OPEN | base::File::FLAG_READ,
-                           base::Bind(&FileFetcher::DidCreateOrOpen,
-                                      weak_ptr_factory_.GetWeakPtr()));
+  file_proxy_->CreateOrOpen(actual_file_path,
+                            base::File::FLAG_OPEN | base::File::FLAG_READ,
+                            base::Bind(&FileFetcher::DidCreateOrOpen,
+                                       weak_ptr_factory_.GetWeakPtr()));
 }
 
 void FileFetcher::ReadNextChunk() {
@@ -156,7 +160,7 @@ void FileFetcher::ReadNextChunk() {
   if (bytes_to_read > bytes_left_to_read_) {
     bytes_to_read = static_cast<int32>(bytes_left_to_read_);
   }
-  file_proxy_.Read(
+  file_proxy_->Read(
       file_offset_, bytes_to_read,
       base::Bind(&FileFetcher::DidRead, weak_ptr_factory_.GetWeakPtr()));
 }
