@@ -57,6 +57,7 @@ int SbSocketSendTo(SbSocket socket,
     socket->error = sbposix::TranslateSocketErrno(errno);
     return -1;
   } else if (socket->protocol == kSbSocketProtocolUdp) {
+#if !SB_HAS_QUIRK(SENDING_CONNECTED_UDP_SOCKETS)
     sbposix::SockAddr sock_addr;
     const sockaddr* sockaddr = NULL;
     socklen_t sockaddr_length = 0;
@@ -72,6 +73,10 @@ int SbSocketSendTo(SbSocket socket,
 
     ssize_t bytes_written = sendto(socket->socket_fd, data, data_size,
                                    kSendFlags, sockaddr, sockaddr_length);
+#else
+    ssize_t bytes_written =
+        sendto(socket->socket_fd, data, data_size, kSendFlags, nullptr, 0);
+#endif
     if (bytes_written >= 0) {
       socket->error = kSbSocketOk;
       return static_cast<int>(bytes_written);
