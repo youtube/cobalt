@@ -1725,12 +1725,13 @@ component("base") {
     # partition_alloc code if use_partition_alloc = false because no code uses
     # partition_alloc.
     public_deps += [
+      "allocator/partition_allocator:partition_alloc",
       "allocator/partition_allocator:raw_ptr",
     ]
 
     # TODO(cobalt, b/382115610): Re-enable use_partition_alloc
-    if (!is_cobalt) {
-      public_deps += [
+    if (is_cobalt) {
+      public_deps -= [
         "allocator/partition_allocator:partition_alloc",
       ]
     }
