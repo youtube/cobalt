@@ -30,11 +30,6 @@ public class HTMLMediaElementExtension implements CobaltJavaScriptAndroidObject 
     return "HTMLMediaElementExtension";
   }
 
-  @Override
-  public String getJavaScriptAssetName() {
-    return "html_media_element_extension.js";
-  }
-
   @CobaltJavaScriptInterface
   public String canPlayType(String mimeType, String keySystem) {
     return nativeCanPlayType(mimeType, keySystem);

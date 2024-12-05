@@ -37,11 +37,6 @@ public class AmatiDeviceInspector implements CobaltJavaScriptAndroidObject {
         return "Android_AmatiDeviceInspector";
     }
 
-    @Override
-    public String getJavaScriptAssetName() {
-        return "amati_device_inspector.js";
-    }
-
     @CobaltJavaScriptInterface
     public void printIsAmatiDevice() {
         boolean isAmatiDevice = context.getPackageManager().hasSystemFeature("com.google.android.feature.AMATI_EXPERIENCE");
