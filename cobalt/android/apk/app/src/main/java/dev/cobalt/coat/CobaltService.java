@@ -14,16 +14,20 @@
 
 package dev.cobalt.coat;
 
-import static dev.cobalt.util.Log.TAG;
+// import static dev.cobalt.util.Log.TAG;
 
-import dev.cobalt.util.Log;
+// import android.util.Base64;
+// import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
+// import org.chromium.content_public.browser.WebContents;
+
 
 /** Abstract class that provides an interface for Cobalt to interact with a platform service. */
 public abstract class CobaltService {
   // Indicate is the service opened, and be able to send data to client
   protected boolean opened = true;
   private final Object lock = new Object();
+  // private StarboardBridge bridge = null;
 
   /** Interface that returns an object that extends CobaltService. */
   public interface Factory {
@@ -35,7 +39,9 @@ public abstract class CobaltService {
   }
 
   /** Take in a reference to StarboardBridge & use it as needed. Default behavior is no-op. */
-  public void receiveStarboardBridge(StarboardBridge bridge) {}
+  public void receiveStarboardBridge(StarboardBridge bridge) {
+    // this.bridge = bridge;
+  }
 
   // Lifecycle
   /** Prepare service for start or resume. */
@@ -91,6 +97,16 @@ public abstract class CobaltService {
    */
   protected void sendToClient(long nativeService, byte[] data) {
     // TODO(b/372558900): Implement Javascript Injection
+
+    // String jsCode = String.format("window.H5vccPlatformService.callback_from_android(%d, %s);", nativeService, Base64.encodeToString(data, Base64.DEFAULT));
+    // Log.i(TAG, "sendToClient jsCode:" + jsCode);
+    // CobaltActivity activity = (CobaltActivity)bridge.getActivityHolder().get();
+    // if (activity != null) {
+    //   WebContents webContents = activity.getActiveWebContents();
+    //   if (webContents != null) {
+    //     webContents.evaluateJavaScript(jsCode, null);
+    //   }
+    // }
   }
 
   private void nativeSendToClient(long nativeService, byte[] data) {

@@ -31,12 +31,16 @@ public class ClientLogInfo extends CobaltService {
 
   @Override
   public ResponseToClient receiveFromClient(byte[] data) {
+    String dataString = new String(data, UTF_8);
+    Log.i(TAG, "received data from html:" + dataString);
+
     ResponseToClient response = new ResponseToClient();
     response.invalidState = false;
 
     String responseString =
         "displayRefreshRate:" + DisplayUtil.getDefaultDisplayRefreshRate() + ";";
     responseString += clientInfo;
+    // synchronize response, send back display refresh rate to client.
     response.data = responseString.getBytes(UTF_8);
     return response;
   }
