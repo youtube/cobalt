@@ -420,7 +420,7 @@ std::string GetMimeFromVideoType(const media::VideoType& type) {
   }
 }
 
-bool ShellContentRendererClient::IsSupportedAudioType(
+bool ShellContentRendererClient::IsDecoderSupportedAudioType(
     const media::AudioType& type) {
   std::string mime = GetMimeFromAudioType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;
@@ -433,7 +433,7 @@ bool ShellContentRendererClient::IsSupportedAudioType(
   return result;
 }
 
-bool ShellContentRendererClient::IsSupportedVideoType(
+bool ShellContentRendererClient::IsDecoderSupportedVideoType(
     const media::VideoType& type) {
   std::string mime = GetMimeFromVideoType(type);
   SbMediaSupportType support_type = kSbMediaSupportTypeNotSupported;

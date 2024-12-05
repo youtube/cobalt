@@ -70,8 +70,8 @@ class ShellContentRendererClient : public ContentRendererClient {
 
 #if BUILDFLAG(IS_COBALT)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  bool IsSupportedAudioType(const media::AudioType& type) override;
-  bool IsSupportedVideoType(const media::VideoType& type) override;
+  bool IsDecoderSupportedAudioType(const media::AudioType& type) override;
+  bool IsDecoderSupportedVideoType(const media::VideoType& type) override;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #endif  // BUILDFLAG(IS_COBALT)
 
