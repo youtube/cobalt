@@ -32,12 +32,18 @@ jinja_template("cobalt_manifest") {
   variables = [ "manifest_package=dev.cobalt.coat" ]
 }
 
+android_aar_prebuilt("google_play_services_ads_identifier_java") {
+  aar_path = "//third_party/android_deps/libs/com_google_android_gms_ads_identifier/play-services-ads-identifier-17.0.0.aar"
+  info_path = "//third_party/android_deps/libs/com_google_android_gms_ads_identifier/com_google_android_gms_ads_identifier.info"
+}
+
 # TODO(cobalt): Re-enable or remove disabled java files.
 android_library("cobalt_apk_java") {
   testonly = true
   resources_package = "dev.cobalt.coat"
   deps = [
     ":cobalt_java_resources",
+    ":google_play_services_ads_identifier_java",
     "//base:base_java",
     "//base:process_launcher_java",
     "//build/android:build_java",
@@ -70,6 +76,7 @@ android_library("cobalt_apk_java") {
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/HTMLMediaElementExtension.java",
 
     # "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
+    "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
@@ -80,8 +87,6 @@ android_library("cobalt_apk_java") {
     "apk/app/src/main/java/dev/cobalt/coat/NullCobaltFactory.java",
     "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
     "apk/app/src/main/java/dev/cobalt/coat/ResourceOverlay.java",
-
-    # "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
     "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/VolumeStateReceiver.java",
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfo.java",
