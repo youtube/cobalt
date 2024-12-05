@@ -1,12 +1,6 @@
 name: android
 
 on:
-  pull_request:
-    types: [opened, reopened, synchronize, labeled]
-    branches:
-      - main
-      - experimental/*
-      - feature/*
   push:
     branches:
       - main
