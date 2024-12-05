@@ -49,6 +49,7 @@ runs:
 
           echo "Test filter evaluated to: $test_filter"
 
-          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary --gtest_filter="$test_filter" --gtest_output="xml:${RESULTS_DIR}/${test_binary}_testoutput.xml"
+          xml_path=${RESULTS_DIR}/$(basename ${test_binary})_testoutput.xml
+          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary --gtest_filter="$test_filter" --gtest_output="xml:${xml_path}"
         done
         echo "Finished running all unit tests..."
