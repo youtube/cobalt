@@ -9,7 +9,10 @@ adb shell am start --esa args "--url=http://[IP]:8000/client_log_info_demo.html,
 <!DOCTYPE html>
 <meta charset="utf-8">
 <body>
-  <script>
+  <script type="module">
+    import { chrobaltPreload } from './chrobalt_preload.js';
+    chrobaltPreload();
+
     // utility functions for string <-> ArrayBuffer conversions.
     function ab2str(buf) {
       return String.fromCharCode.apply(null, new Uint8Array(buf));
@@ -51,11 +54,15 @@ adb shell am start --esa args "--url=http://[IP]:8000/client_log_info_demo.html,
     const SERVICE_NAME = "dev.cobalt.coat.clientloginfo";
     if (window.H5vccPlatformService &&
         window.H5vccPlatformService.has(SERVICE_NAME)) {
-      clientloginfo = window.H5vccPlatformService.open(SERVICE_NAME, (() => { }));
+        const clientloginfo = window.H5vccPlatformService.open(SERVICE_NAME, (nativeService, messageData) => {
+          console.log("async response, messageData:" + ab2str(messageData));
+        });
 
       if (clientloginfo) {
-        response = clientloginfo.send(str2ab(""));
-        console.log("clientloginfo platform service response: " + ab2str(response));
+        const response = clientloginfo.send(str2ab("sample string to send to platform service."));
+        const decoder = new TextDecoder('utf-8');
+        const text = decoder.decode(response);
+        console.log("sync response, data as utf-8 text:" + text);
       }
     }
 
