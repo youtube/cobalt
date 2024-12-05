@@ -23,19 +23,19 @@ class PlatformServiceClient {
 
     send(data) {
         // convert the ArrayBuffer to base64 string because java bridge only takes primitive types as input.
-        const convert_to_b64 = arrayBufferToBase64(data);
-        const response_data = Android_H5vccPlatformService.platform_service_send(this.name, convert_to_b64);
-        if (response_data === "") {
+        const convertToB64 = arrayBufferToBase64(data);
+        const responseData = Android_H5vccPlatformService.platformServiceSend(this.name, convertToB64);
+        if (responseData === "") {
             return null;
         }
 
         // response_data has the synchronize response data converted to base64 string.
         // convert it to ArrayBuffer, and return the ArrayBuffer to client.
-        return base64ToArrayBuffer(response_data);
+        return base64ToArrayBuffer(responseData);
     }
 
     close() {
-        Android_H5vccPlatformService.close_platform_service(this.name);
+        Android_H5vccPlatformService.closePlatformService(this.name);
     }
 }
 
@@ -49,12 +49,12 @@ export function initializeH5vccPlatformService() {
         // Holds the callback functions for the platform services when open() is called.
         callbacks: {
         },
-        callback_from_android: (serviceID, dataFromJava) => {
+        callbackFromAndroid: (serviceID, dataFromJava) => {
             const arrayBuffer = base64ToArrayBuffer(dataFromJava);
             window.H5vccPlatformService.callbacks[serviceID].callback(serviceID, arrayBuffer);
         },
         has: (name) => {
-            return Android_H5vccPlatformService.has_platform_service(name);
+            return Android_H5vccPlatformService.hasPlatformService(name);
         },
         open: function(name, callback) {
             if (typeof callback !== 'function') {
@@ -67,7 +67,7 @@ export function initializeH5vccPlatformService() {
                 name: name,
                 callback: callback
             };
-            Android_H5vccPlatformService.open_platform_service(serviceID, name);
+            Android_H5vccPlatformService.openPlatformService(serviceID, name);
             return new PlatformServiceClient(name);
         },
     }

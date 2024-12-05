@@ -103,7 +103,7 @@ public abstract class CobaltService {
 
     // Use Base64.NO_WRAP instead of Base64.DEFAULT to avoid adding a new line.
     String base64Data = Base64.encodeToString(data, Base64.NO_WRAP);
-    String jsCode = String.format("window.H5vccPlatformService.callback_from_android(%d, '%s');", nativeService, base64Data);
+    String jsCode = String.format("window.H5vccPlatformService.callbackFromAndroid(%d, '%s');", nativeService, base64Data);
     this.cobaltActivity.evaluateJavaScript(jsCode);
   }
 }

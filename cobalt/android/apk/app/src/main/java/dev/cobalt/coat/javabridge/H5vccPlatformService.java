@@ -37,22 +37,22 @@ public class H5vccPlatformService implements CobaltJavaScriptAndroidObject {
     }
 
     @CobaltJavaScriptInterface
-    public boolean has_platform_service(String servicename) {
+    public boolean hasPlatformService(String servicename) {
         return bridge.hasCobaltService(servicename);
     }
 
     @CobaltJavaScriptInterface
-    public void open_platform_service(long serviceId, String servicename) {
+    public void openPlatformService(long serviceId, String servicename) {
         bridge.openCobaltService(serviceId, servicename);
     }
 
     @CobaltJavaScriptInterface
-    public void close_platform_service(String servicename) {
+    public void closePlatformService(String servicename) {
         bridge.closeCobaltService(servicename);
     }
 
     @CobaltJavaScriptInterface
-    public String platform_service_send(String servicename, String base64Data) {
+    public String platformServiceSend(String servicename, String base64Data) {
         byte[] data = Base64.decode(base64Data, Base64.DEFAULT);
         byte[] result = bridge.sendToCobaltService(servicename, data);
         if (result == null) {
