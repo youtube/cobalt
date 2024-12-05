@@ -14,6 +14,9 @@ on:
         required: true
         type: string
         default: 'false'
+    secrets:
+      datadog_api_key:
+        required: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}
@@ -212,6 +215,6 @@ jobs:
         uses: ./src/.github/actions/process_test_results
         with:
           results_dir: ${{ env.TEST_RESULTS_DIR }}
-          datadog_api_key: ${{ secrets.DD_API_KEY }}
+          datadog_api_key: ${{ secrets.datadog_api_key }}
           is_postsubmit: ${{ github.event_name == 'schedule' || github.event_name == 'push' }}
         continue-on-error: true
