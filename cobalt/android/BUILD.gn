@@ -1,6 +1,7 @@
 import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
 import("//third_party/icu/config.gni")
+import("//third_party/jni_zero/jni_zero.gni")
 
 cobalt_manifest = "$target_gen_dir/cobalt_manifest/AndroidManifest.xml"
 
@@ -56,6 +57,7 @@ android_library("cobalt_apk_java") {
     "//net/android:net_java",
     "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/jni_zero:jni_zero_java",
     "//ui/android:ui_java",
     "//ui/android:ui_no_recycler_view_java",
     "//url:gurl_java",
@@ -156,7 +158,7 @@ template("content_shell_apk_tmpl") {
 
 # Copied from target: libcontent_shell_content_view
 # TODO(b/376867565) rename this library, NO shell
-shared_library("libcobalt_content_shell_content_view") {
+shared_library_with_jni("libcobalt_content_shell_content_view") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
@@ -188,6 +190,7 @@ shared_library("libcobalt_content_shell_content_view") {
   ]
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   configs += [ "//build/config/android:hide_all_but_jni" ]
+  java_targets = [ ":cobalt_apk" ]
 }
 
 content_shell_apk_tmpl("cobalt_apk") {
@@ -200,5 +203,6 @@ content_shell_apk_tmpl("cobalt_apk") {
     ":cobalt_apk_java",
   ]
   shared_libraries = [ ":libcobalt_content_shell_content_view" ]
+  srcjar_deps = [ ":libcobalt_content_shell_content_view__jni_registration" ]
   command_line_flags_file = "content-shell-command-line"
 }
