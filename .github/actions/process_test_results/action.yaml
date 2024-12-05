@@ -1,4 +1,4 @@
-name: Upload Results
+name: Process Test Results
 description: Uploads test results to DataDog.
 inputs:
   results_dir:
