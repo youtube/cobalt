@@ -84,6 +84,8 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   bool EvictCodedFrames(base::TimeDelta media_time, size_t newDataSize);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Returns the latest presentation timestamp of the buffers received
+  // from the ChunkDemuxer.
   base::TimeDelta GetWriteHead() const;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -425,6 +427,8 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
                                       size_t newDataSize);
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Returns the latest presentation timestamp of the buffers sent to the
+  // DemuxerStream.
   [[nodiscard]] base::TimeDelta GetWriteHead(const std::string& id) const;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
