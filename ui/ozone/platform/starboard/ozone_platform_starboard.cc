@@ -20,8 +20,11 @@
 #include "starboard/event.h"
 #include "ui/base/ime/input_method_minimal.h"
 #include "ui/display/fake/fake_display_delegate.h"
+#include "ui/events/ozone/layout/keyboard_layout_engine_manager.h"
+#include "ui/events/ozone/layout/stub/stub_keyboard_layout_engine.h"
 #include "ui/ozone/common/bitmap_cursor_factory.h"
 #include "ui/ozone/common/stub_overlay_manager.h"
+#include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 #include "ui/ozone/platform/starboard/platform_screen_starboard.h"
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 #include "ui/ozone/platform/starboard/surface_factory_starboard.h"
@@ -33,22 +36,13 @@
 namespace ui {
 namespace {
 
-static void SbEventHandle(const SbEvent* event) {
-  // Do nothing.
-}
-
 // Ozone platform implementation for Starboard, an OS abstraction and porting
 // layer for Cobalt (https://github.com/youtube/cobalt). Platform specific
 // implementation details are abstracted out using Starboard.
 //  - TODO(tholcombe): fill out implementation details as they're added.
 class OzonePlatformStarboard : public OzonePlatform {
  public:
-  OzonePlatformStarboard() {
-    // TODO: Initializing starboard here for now. This is for testing only.
-    sb_main_ = std::make_unique<std::thread>(&SbRunStarboardMain, /*argc=*/0,
-                                             /*argv=*/nullptr, &SbEventHandle);
-    sb_main_->detach();
-  }
+  OzonePlatformStarboard() {}
 
   OzonePlatformStarboard(const OzonePlatformStarboard&) = delete;
   OzonePlatformStarboard& operator=(const OzonePlatformStarboard&) = delete;
@@ -116,7 +110,36 @@ class OzonePlatformStarboard : public OzonePlatform {
     return std::make_unique<InputMethodMinimal>(ime_key_event_dispatcher);
   }
 
+  //   bool IsNativePixmapConfigSupported(gfx::BufferFormat format,
+  //                                    gfx::BufferUsage usage) const override {
+  //   return true;
+  // }
+
+  void PostCreateMainMessageLoop(base::OnceCallback<void()> shutdown_cb,
+                                 scoped_refptr<base::SingleThreadTaskRunner>
+                                     user_input_task_runner) override {}
+
   bool InitializeUI(const InitParams& params) override {
+    if (!surface_factory_) {
+      surface_factory_ = std::make_unique<SurfaceFactoryStarboard>();
+    }
+    // Not thread safe. This is just for prototyping.
+    platform_event_source_ =
+        std::make_unique<starboard::PlatformEventSourceStarboard>();
+    keyboard_layout_engine_ = std::make_unique<StubKeyboardLayoutEngine>();
+    KeyboardLayoutEngineManager::SetKeyboardLayoutEngine(
+        keyboard_layout_engine_.get());
+
+    // TODO(b/371272304): Investigate if we need our own implementation of
+    // OverlayManager.
+    // It doesn't matter which of the UI or GPU creates | overlay_manager_ | and
+    // | surface_factory_ | in single-process mode.
+    if (!overlay_manager_) {
+      overlay_manager_ = std::make_unique<StubOverlayManager>();
+    }
+    // TODO(b/371272304): Investigate if we need our own implementation of
+    // InputController for things like gamepads or other atypical input devices.
+    input_controller_ = CreateStubInputController();
     // TODO(b/371272304): Investigate if we need a more robust cursor factory or
     // if we can continue using BitmapCursorFactory.
     cursor_factory_ = std::make_unique<BitmapCursorFactory>();
@@ -125,19 +148,6 @@ class OzonePlatformStarboard : public OzonePlatform {
     // single process, investigate if this is needed or if there's any
     // additional features we might need to implement from there.
     gpu_platform_support_host_.reset(CreateStubGpuPlatformSupportHost());
-    // TODO(b/371272304): Investigate if we need our own implementation of
-    // InputController for things like gamepads or other atypical input devices.
-    input_controller_ = CreateStubInputController();
-    // TODO(b/371272304): Investigate if we need our own implementation of
-    // OverlayManager.
-    // It doesn't matter which of the UI or GPU creates | overlay_manager_ | and
-    // | surface_factory_ | in single-process mode.
-    if (!overlay_manager_) {
-      overlay_manager_ = std::make_unique<StubOverlayManager>();
-    }
-    if (!surface_factory_) {
-      surface_factory_ = std::make_unique<SurfaceFactoryStarboard>();
-    }
 
     return true;
   }
@@ -154,13 +164,14 @@ class OzonePlatformStarboard : public OzonePlatform {
   }
 
  private:
+  std::unique_ptr<KeyboardLayoutEngine> keyboard_layout_engine_;
   std::unique_ptr<CursorFactory> cursor_factory_;
   std::unique_ptr<GpuPlatformSupportHost> gpu_platform_support_host_;
   std::unique_ptr<InputController> input_controller_;
   std::unique_ptr<OverlayManagerOzone> overlay_manager_;
+  std::unique_ptr<starboard::PlatformEventSourceStarboard>
+      platform_event_source_;
   std::unique_ptr<SurfaceFactoryStarboard> surface_factory_;
-
-  std::unique_ptr<std::thread> sb_main_;
 };
 
 }  // namespace
