@@ -33,6 +33,7 @@ runs:
       shell: bash
 
     - name: Upload to Datadog
+      if: inputs.is_postsubmit == 'true'
       env:
         DATADOG_SITE: us5.datadoghq.com
         DATADOG_API_KEY: ${{ inputs.datadog_api_key }}
