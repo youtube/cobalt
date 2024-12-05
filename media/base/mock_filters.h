@@ -142,6 +142,7 @@ class MockPipeline : public Pipeline {
                void(CdmContext* cdm_context, CdmAttachedCB& cdm_attached_cb));
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   MOCK_METHOD0(GetSetBoundsCB, SetBoundsCB());
+  MOCK_CONST_METHOD0(GetAudioConnectors, std::vector<std::string>());
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 

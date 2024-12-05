@@ -270,9 +270,7 @@ class MEDIA_EXPORT Pipeline {
   virtual SetBoundsCB GetSetBoundsCB() = 0;
   // Returns a semicolon-separated list audio connectors for the playback
   // device if the SbPlayer is used for rendering.
-  virtual std::vector<std::string> GetAudioConnectors() const {
-    return std::vector<std::string>();
-  }
+  virtual std::vector<std::string> GetAudioConnectors() const = 0;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
