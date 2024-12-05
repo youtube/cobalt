@@ -42,6 +42,8 @@ int main(int argc, const char** argv) {
     // This flag is added specifically for m114 and should be removed after
     // rebasing to m120+
     "--user-level-memory-pressure-signal-params",
+    // Enable Cobalt-specific JS attributes/methods.
+    "--enable-blink-features=H5vccAudioConnectors,SourceBufferWriteHead",
     "https://www.youtube.com/tv"
   });
   std::vector<const char*> args(argv, argv + argc);

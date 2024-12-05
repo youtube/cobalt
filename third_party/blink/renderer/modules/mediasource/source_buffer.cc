@@ -476,7 +476,6 @@ VideoTrackList& SourceBuffer::videoTracks() {
 }
 
 double SourceBuffer::writeHead(ExceptionState& exception_state) const {
-  // TODO: Enable via command line for Cobalt on Linux.
   if (!RuntimeEnabledFeatures::SourceBufferWriteHeadEnabled()) {
     return 0.0;
   }
@@ -489,7 +488,7 @@ double SourceBuffer::writeHead(ExceptionState& exception_state) const {
   }
 
   DCHECK(web_source_buffer_);
-  return web_source_buffer_->writeHead(exception_state);
+  return web_source_buffer_->WriteHead(exception_state);
 #else
   return 0.0;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

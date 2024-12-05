@@ -1509,7 +1509,6 @@ LocalFrame* HTMLMediaElement::LocalFrameForPlayer() {
 
 WebString HTMLMediaElement::h5vccAudioConnectors(
     ExceptionState& exception_state) const {
-  // TODO: Enable via command line for Cobalt on Linux.
   if (!RuntimeEnabledFeatures::H5vccAudioConnectorsEnabled()) {
     return WebString();
   }
