@@ -52,7 +52,7 @@ config("cxx_config") {
   include_dirs = [
     "trunk/include",
     "trunk/src",
-    "//buildtools/third_party/libc++abi/trunk/include",
+    "//buildtools/third_party/libc++abi/trunk/include/include",
   ]
 }
 

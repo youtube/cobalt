@@ -1725,7 +1725,7 @@ component("base") {
     # partition_alloc code if use_partition_alloc = false because no code uses
     # partition_alloc.
     public_deps += [
-      "allocator/partition_allocator:partition_alloc",
+      # "allocator/partition_allocator:partition_alloc",
       "allocator/partition_allocator:raw_ptr",
     ]
   }

@@ -104,7 +104,7 @@ static_assert(sizeof(void*) != 8, "");
 // POSIX is not only UNIX, e.g. macOS and other OSes. We do use Linux-specific
 // features such as futex(2).
 #define PA_CONFIG_HAS_LINUX_KERNEL() \
-  (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID))
+  (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD))
 
 // On some platforms, we implement locking by spinning in userspace, then going
 // into the kernel only if there is contention. This requires platform support,
@@ -120,7 +120,7 @@ static_assert(sizeof(void*) != 8, "");
 //
 // Otherwise, a userspace spinlock implementation is used.
 #if PA_CONFIG(HAS_LINUX_KERNEL) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || \
-    BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+    BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_STARBOARD)
 #define PA_CONFIG_HAS_FAST_MUTEX() 1
 #else
 #define PA_CONFIG_HAS_FAST_MUTEX() 0

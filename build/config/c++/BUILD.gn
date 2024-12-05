@@ -32,6 +32,11 @@ config("runtime_library") {
   }
 
   include_dirs += [ "//buildtools/third_party/libc++" ]
+  include_dirs += [ "//buildtools/third_party/libc++/trunk/include" ]
+
+  if (is_starboard) {
+    defines += [ "_LIBCPP_HAS_MUSL_LIBC" ]
+  }
 
   # libc++ has two levels of additional checking:
   # 1. _LIBCPP_ENABLE_ASSERTIONS enables assertions for bounds checking.
@@ -69,11 +74,32 @@ config("runtime_library") {
       "-isystem" + rebase_path("$libcxxabi_prefix/include", root_build_dir),
     ]
 
+    if (is_starboard) {
+      cflags_cc += [
+        "-isystem" + "../../third_party/musl/include",
+        "-isystem" + "../../third_party/musl/arch/generic",
+      ]
+      if (target_cpu == "x64") {
+        cflags_cc += [ "-isystem" + "../../third_party/musl/arch/x86_64" ]
+      } else if (target_cpu == "x86") {
+        cflags_cc += [ "-isystem" + "../../third_party/musl/arch/i386" ]
+      } else if (target_cpu == "arm") {
+        cflags_cc += [ "-isystem" + "../../third_party/musl/arch/arm" ]
+      } else if (target_cpu == "arm64") {
+        cflags_cc += [ "-isystem" + "../../third_party/musl/arch/aarch64" ]
+      }
+    }
+
+    # print(cflags_cc, "cfalg_cc")
+
     cflags_objcc = cflags_cc
 
     # Make sure we don't link against the system libstdc++ or libc++.
     if (is_clang) {
       ldflags += [ "-nostdlib++" ]
+      if (is_starboard) {
+        ldflags += [ "-nodefaultlibs" ]
+      }
     } else {
       # Gcc has a built-in abs() definition with default visibility.
       # If it was not disabled, it would conflict with libc++'s abs()

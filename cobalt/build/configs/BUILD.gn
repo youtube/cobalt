@@ -22,6 +22,9 @@ config("cobalt_config") {
   if (current_toolchain == starboard_toolchain) {
     configs += [ "//${starboard_path}/platform_configuration" ]
   }
+  if (current_toolchain == cobalt_toolchain && sb_is_modular) {
+    configs += [ "//starboard/build/config/modular/x64" ]
+  }
 
   defines = [
     "ENABLE_BUILDFLAG_IS_COBALT",

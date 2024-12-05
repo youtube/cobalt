@@ -18,19 +18,23 @@ config("modular") {
     "-ffunction-sections",
     "-fdata-sections",
     "-nostdlibinc",
-    "-isystem" + rebase_path("//third_party/llvm-project/libcxxabi/include",
-                             root_build_dir),
+
+    # "-isystem" + rebase_path("//third_party/llvm-project/libcxxabi/include",
+    #                          root_build_dir),
     "-isystem" + rebase_path("//third_party/llvm-project/libunwind/include",
                              root_build_dir),
-    "-isystem" + rebase_path("//third_party/llvm-project/libcxx/include",
-                             root_build_dir),
-    "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
-    "-isystem" + rebase_path("//third_party/musl/arch/generic", root_build_dir),
+
+    # "-isystem" + rebase_path("//third_party/llvm-project/libcxx/include",
+    #                          root_build_dir),
+
+    # Moved to build/config/c++/BUILD.gn
+    # "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
+    # "-isystem" + rebase_path("//third_party/musl/arch/generic", root_build_dir),
   ]
 
   cflags += [ "-fPIC" ]
 
-  cflags_cc = [ "-nostdinc++" ]
+  # cflags_cc = [ "-nostdinc++" ]
 
   defines = [
     # Ensure that the Starboardized __external_threading file is included.
