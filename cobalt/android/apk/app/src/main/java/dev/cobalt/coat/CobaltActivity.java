@@ -24,8 +24,6 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Pair;
 import android.view.KeyEvent;
@@ -36,14 +34,13 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 import dev.cobalt.app.CobaltApplication;
-import dev.cobalt.coat.javabridge.AmatiDeviceInspector;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
+import dev.cobalt.coat.javabridge.H5vccPlatformService;
 import dev.cobalt.coat.javabridge.HTMLMediaElementExtension;
 import dev.cobalt.media.AudioOutputManager;
 import dev.cobalt.media.MediaCodecCapabilitiesLogger;
 import dev.cobalt.media.VideoSurfaceView;
-import dev.cobalt.util.AssetLoader;
 import dev.cobalt.util.DisplayUtil;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
@@ -81,7 +78,6 @@ public abstract class CobaltActivity extends Activity {
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
-  public static final int JAVA_BRIDGE_INITIALIZATION_DELAY_MILLI_SECONDS = 100;
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
   private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
@@ -229,7 +225,14 @@ public abstract class CobaltActivity extends Activity {
     }
     // Set to overlay video mode.
     mShellManager.getContentViewRenderView().setOverlayVideoMode(true);
-    mShellManager.launchShell(shellUrl);
+
+    // Load an empty page to let shell create WebContents.
+    mShellManager.launchShell("");
+    // Inject JavaBridge objects to the WebContents.
+    initializeJavaBridge();
+    // Load the `url` with the same shell we created above.
+    Log.i(TAG, "shellManager load url:" + shellUrl);
+    mShellManager.getActiveShell().loadUrl(shellUrl);
 
     toggleFullscreenMode(true);
   }
@@ -361,8 +364,6 @@ public abstract class CobaltActivity extends Activity {
     videoSurfaceView = new VideoSurfaceView(this);
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-
-    initializeJavaBridge();
   }
 
   /**
@@ -374,24 +375,14 @@ public abstract class CobaltActivity extends Activity {
 
     WebContents webContents = getActiveWebContents();
     if (webContents == null) {
-      // WebContents not initialized yet, post a delayed runnable to check again
-      new Handler(Looper.getMainLooper())
-          .postDelayed(
-              new Runnable() {
-                @Override
-                public void run() {
-                  initializeJavaBridge(); // Recursive call to check again
-                }
-              },
-              JAVA_BRIDGE_INITIALIZATION_DELAY_MILLI_SECONDS);
-      return;
+      throw new RuntimeException("webContents is null in initializeJavaBridge. This should never happen.");
     }
 
     // --- Initialize the Java Bridge ---
 
     // 1. Gather all Java objects that need to be exposed to JavaScript.
     // TODO(b/379701165): consider to refine the way to add JavaScript interfaces.
-    javaScriptAndroidObjectList.add(new AmatiDeviceInspector(this));
+    javaScriptAndroidObjectList.add(new H5vccPlatformService(this, getStarboardBridge()));
     javaScriptAndroidObjectList.add(new HTMLMediaElementExtension(this));
 
     // 2. Use JavascriptInjector to inject Java objects into the WebContents.
@@ -407,16 +398,6 @@ public abstract class CobaltActivity extends Activity {
           javascriptAndroidObject,
           javascriptAndroidObject.getJavaScriptInterfaceName(),
           CobaltJavaScriptInterface.class);
-    }
-
-    // 3. Load and evaluate JavaScript code that interacts with the injected Java objects.
-    for (CobaltJavaScriptAndroidObject javaScriptAndroidObject : javaScriptAndroidObjectList) {
-      String jsFileName = javaScriptAndroidObject.getJavaScriptAssetName();
-      if (jsFileName != null) {
-        Log.d(TAG, "Evaluate JavaScript from Asset:" + jsFileName);
-        String jsCode = AssetLoader.loadJavaScriptFromAssets(this, jsFileName);
-        webContents.evaluateJavaScript(jsCode, null);
-      }
     }
   }
 
@@ -694,5 +675,19 @@ public abstract class CobaltActivity extends Activity {
 
   public long getAppStartTimestamp() {
     return timeInNanoseconds;
+  }
+
+  public void evaluateJavaScript(String jsCode) {
+    // evaluateJavaScript must run on UI thread.
+    runOnUiThread(
+        new Runnable() {
+          @Override
+          public void run() {
+            WebContents webContents = getActiveWebContents();
+            if (webContents != null) {
+              webContents.evaluateJavaScript(jsCode, null);
+            }
+          }
+        });
   }
 }

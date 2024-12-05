@@ -16,6 +16,7 @@ package dev.cobalt.coat;
 
 import static dev.cobalt.util.Log.TAG;
 
+import android.util.Base64;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 
@@ -24,6 +25,8 @@ public abstract class CobaltService {
   // Indicate is the service opened, and be able to send data to client
   protected boolean opened = true;
   private final Object lock = new Object();
+  private StarboardBridge bridge;
+  protected CobaltActivity cobaltActivity;
 
   /** Interface that returns an object that extends CobaltService. */
   public interface Factory {
@@ -36,6 +39,10 @@ public abstract class CobaltService {
 
   /** Take in a reference to StarboardBridge & use it as needed. Default behavior is no-op. */
   public void receiveStarboardBridge(StarboardBridge bridge) {}
+
+  public void setCobaltActivity(CobaltActivity cobaltActivity) {
+    this.cobaltActivity = cobaltActivity;
+  }
 
   // Lifecycle
   /** Prepare service for start or resume. */
@@ -87,13 +94,16 @@ public abstract class CobaltService {
 
   /**
    * Send data from the service to the client.
-   *
    */
   protected void sendToClient(long nativeService, byte[] data) {
-    // TODO(b/372558900): Implement Javascript Injection
-  }
+    if (this.cobaltActivity == null) {
+      Log.e(TAG, "CobaltActivity is null, can not run evaluateJavaScript()");
+      return;
+    }
 
-  private void nativeSendToClient(long nativeService, byte[] data) {
-    // TODO(b/372558900): Implement Javascript Injection
+    // Use Base64.NO_WRAP instead of Base64.DEFAULT to avoid adding a new line.
+    String base64Data = Base64.encodeToString(data, Base64.NO_WRAP);
+    String jsCode = String.format("window.H5vccPlatformService.callbackFromAndroid(%d, '%s');", nativeService, base64Data);
+    this.cobaltActivity.evaluateJavaScript(jsCode);
   }
 }
