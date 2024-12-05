@@ -10,6 +10,9 @@ inputs:
   is_postsubmit:
     description: "Indicates if this is a postsubmit run or not."
     required: true
+  is_fork_pr:
+    description: "Indicates if this is a PR run originating from a fork."
+    required: true
 runs:
   using: "composite"
   steps:
@@ -20,7 +23,9 @@ runs:
         annotate_only: true
 
     - name: Get Datadog CLI
-      if: inputs.is_postsubmit == 'true'
+      id: download-dd-cli
+      # Only upload to DD on postsubmit and non-fork PRs.
+      if: inputs.is_postsubmit == 'true' || inputs.is_fork_pr == 'false'
       env:
         DD_VERSION: 'v2.18.0'
         DD_SHA256SUM: 'adbe9b3a41faaf0b1d9702ba256cf8fa9e474c0cc8216f25e5b489c53d6f0a70  datadog-ci'
@@ -33,7 +38,7 @@ runs:
       shell: bash
 
     - name: Upload to Datadog
-      if: inputs.is_postsubmit == 'true'
+      if: steps.download-dd-cli.outcome == 'success'
       env:
         DATADOG_SITE: us5.datadoghq.com
         DATADOG_API_KEY: ${{ inputs.datadog_api_key }}
