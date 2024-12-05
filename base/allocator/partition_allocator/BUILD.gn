@@ -361,6 +361,7 @@ component("partition_alloc") {
     configs += [ ":no_stack_protector" ]
   }
 
+ # TODO(cobalt, b/382115610): Re-enable use_partition_alloc
   if (is_cobalt) {
     sources -= [
       "address_pool_manager.h",
@@ -447,15 +448,15 @@ component("partition_alloc") {
       "partition_ref_count.h",
       "partition_root.h",
       "partition_stats.h",
-      # "partition_tls.h",
-      # "pkey.h",
-      # "random.h",
-      # "reservation_offset_table.h",
-      # "reverse_bytes.h",
-      # "spinning_mutex.h",
-      # "tagging.h",
-      # "thread_cache.h",
-      # "yield_processor.h",
+      "partition_tls.h",
+      "pkey.h",
+      "random.h",
+      "reservation_offset_table.h",
+      "reverse_bytes.h",
+      "spinning_mutex.h",
+      "tagging.h",
+      "thread_cache.h",
+      "yield_processor.h",
     ]
   }
 }

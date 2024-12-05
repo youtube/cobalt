@@ -1730,7 +1730,7 @@ component("base") {
     ]
 
     # TODO(cobalt, b/382115610): Re-enable use_partition_alloc
-    if (is_cobalt) {
+    if (is_cobalt && !is_android) {
       public_deps -= [
         "allocator/partition_allocator:partition_alloc",
       ]
