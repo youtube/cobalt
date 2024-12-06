@@ -184,8 +184,8 @@ jobs:
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TMPDIR: /__w/_temp
-      TEST_RESULTS_DIR: ${{ github.workspace }}/${{ matrix.name }}_test_results
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -197,21 +197,18 @@ jobs:
         uses: ./src/.github/actions/on_host_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          results_dir: ${{ env.TEST_RESULTS_DIR }}
-          platform: ${{ inputs.platform }}
+          test_result_key: ${{ env.TEST_RESULTS_KEY }}
       - name: Process Test Results
         if: |
           always() &&
           (
             steps.on-host-tests.outcome == 'success' ||
-            steps.on-host-tests.outcome == 'failure' ||
-            steps.on-device-tests.outcome == 'success' ||
-            steps.on-device-tests.outcome == 'failure'
+            steps.on-host-tests.outcome == 'failure'
           )
         uses: ./src/.github/actions/process_test_results
         with:
-          results_dir: ${{ env.TEST_RESULTS_DIR }}
+          test_results_key: ${{ env.TEST_RESULTS_KEY }}
           datadog_api_key: ${{ secrets.datadog_api_key }}
           is_postsubmit: ${{ github.event_name == 'schedule' || github.event_name == 'push' }}
-          is_fork_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+          is_fork_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == 'true' }}
         continue-on-error: true
