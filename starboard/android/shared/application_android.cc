@@ -24,8 +24,10 @@
 #include <string>
 #include <vector>
 
+#include "base/android/jni_android.h"
 #include "starboard/extension/accessibility.h"
 
+#include "cobalt/android/jni_headers/StarboardBridge_jni.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
@@ -94,67 +96,17 @@ ApplicationAndroid::~ApplicationAndroid() {
   JniEnvExt::OnThreadShutdown();
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_StarboardBridge_nativeOnStop(JniEnvExt* env) {
+extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_OnStop(
+    _JNIEnv* env,
+    base::android::JavaParamRef<_jobject*> const& jcaller) {
   SbAudioSinkPrivate::TearDown();
   SbFileAndroidTeardown();
 }
 
-extern "C" SB_EXPORT_PLATFORM jboolean
-Java_dev_cobalt_coat_StarboardBridge_nativeOnSearchRequested(
-    JniEnvExt* env,
-    jobject unused_this) {
-  // TODO(cobalt, b/378581064): how to handle onSearchRequested()?
-  return true;
-}
-
-extern "C" SB_EXPORT_PLATFORM jlong
-Java_dev_cobalt_coat_StarboardBridge_nativeCurrentMonotonicTime(
-    JNIEnv* env,
-    jobject jcaller,
-    jboolean online) {
+extern "C" SB_EXPORT_PLATFORM jlong JNI_StarboardBridge_CurrentMonotonicTime(
+    _JNIEnv* env,
+    base::android::JavaParamRef<_jobject*> const& jcaller) {
   return CurrentMonotonicTime();
-}
-
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_CobaltSystemConfigChangeReceiver_nativeDateTimeConfigurationChanged(
-    JNIEnv* env,
-    jobject jcaller) {
-  // TODO(cobalt, b/378705729): Make sure tzset() is called on the right thread.
-  // Set the timezone to allow SbTimeZoneGetName() to return updated timezone.
-  tzset();
-}
-
-extern "C" SB_EXPORT_PLATFORM jstring
-Java_dev_cobalt_coat_javabridge_HTMLMediaElementExtension_nativeCanPlayType(
-    JniEnvExt* env,
-    jobject jcaller,
-    jstring j_mime_type,
-    jstring j_key_system) {
-  std::string mime_type, key_system;
-  if (j_mime_type) {
-    mime_type = env->GetStringStandardUTFOrAbort(j_mime_type);
-  }
-  if (j_key_system) {
-    key_system = env->GetStringStandardUTFOrAbort(j_key_system);
-  }
-  SbMediaSupportType support_type =
-      SbMediaCanPlayMimeAndKeySystem(mime_type.c_str(), key_system.c_str());
-  const char* ret;
-  switch (support_type) {
-    case kSbMediaSupportTypeNotSupported:
-      ret = "";
-      break;
-    case kSbMediaSupportTypeMaybe:
-      ret = "maybe";
-      break;
-    case kSbMediaSupportTypeProbably:
-      ret = "probably";
-      break;
-  }
-  SB_LOG(INFO) << __func__ << " (" << mime_type << ", " << key_system
-               << ") --> " << ret;
-  return env->NewStringStandardUTFOrAbort(ret);
 }
 
 int ApplicationAndroid::GetOverlayedIntValue(const char* var_name) {
