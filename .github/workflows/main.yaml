@@ -194,7 +194,7 @@ jobs:
         uses: ./src/.github/actions/on_host_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          test_result_key: ${{ env.TEST_RESULTS_KEY }}
+          test_results_key: ${{ env.TEST_RESULTS_KEY }}
       - name: Run On-Device Tests
         id: on-device-tests
         if: always() && needs.initialize.outputs.test_on_device == 'true'
