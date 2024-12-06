@@ -161,6 +161,9 @@ jobs:
         with:
           targets: ${{ needs.initialize.outputs.targets }}
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+      - name: Upload On Device Test Artifacts
+        if: matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true'
+        uses: ./src/.github/actions/upload_test_artifacts
 
   test:
     needs: [initialize, docker-build-image, build]
@@ -193,13 +196,6 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           results_dir: ${{ env.TEST_RESULTS_DIR }}
           platform: ${{ inputs.platform }}
-      - name: Run On-Device Tests
-        id: on-device-tests
-        if: always() && needs.initialize.outputs.test_on_device == 'true'
-        uses: ./src/.github/actions/on_device_tests
-        with:
-          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          results_dir: ${{ env.TEST_RESULTS_DIR }}
       - name: Process Test Results
         if: |
           always() &&
