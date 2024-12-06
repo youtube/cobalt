@@ -184,7 +184,7 @@ jobs:
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TMPDIR: /__w/_temp
-      TEST_RESULTS_DIR: ${{ matrix.name }}_test_results
+      TEST_RESULTS_DIR: ${{ github.workspace }}/${{ matrix.name }}_test_results
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
     steps:
       - name: Checkout
