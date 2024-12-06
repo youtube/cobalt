@@ -35,25 +35,28 @@ runs:
         env
 
         # Explicitly point to libraries in extracted dir.
-        export LD_LIBRARY_PATH="${GITHUB_WORKSPACE}"/unit_test/out/${{ matrix.platform }}_${{ matrix.config }}/starboard:"${GITHUB_WORKSPACE}"/unit_test/out/${{ matrix.platform }}_${{ matrix.config }}
+        LD_LIBRARY_PATH="${test_dir}/out/${{ matrix.platform }}_${{ matrix.config }}/starboard"
+        LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${test_dir}/out/${{ matrix.platform }}_${{ matrix.config }}"
+        export LD_LIBRARY_PATH
 
         # Make results dir available to the archiving step below.
         results_dir="${GITHUB_WORKSPACE}/results"
         echo "results_dir=${results_dir}" >> $GITHUB_ENV
 
-        cd ${GITHUB_WORKSPACE}/unit_test
+        cd ${test_dir}
         for test_binary_path in $(ls -d out/**/*tests out/**/nplb); do
-          echo "Running tests for suite: ${test_binary_path}"
+          test_binary=$(basename "${test_binary_path}")
+          echo "Running tests for suite: ${test_binary}"
 
           test_filter="*"
-          test_filter_json_dir="${GITHUB_WORKSPACE}/src/cobalt/testing/${{ matrix.platform }}/${test_binary_path##*/}_filter.json"
+          test_filter_json_dir="${GITHUB_WORKSPACE}/src/cobalt/testing/${{ matrix.platform }}/${test_binary}_filter.json"
           if [ -f ${test_filter_json_dir} ]; then
             test_filter=`jq -r '"-" + (.failing_tests | join(":"))' ${test_filter_json_dir}`
           fi
 
           echo "Test filter evaluated to: ${test_filter}"
 
-          xml_path="${results_dir}/$(basename ${test_binary_path})_testoutput.xml"
+          xml_path="${results_dir}/${test_binary}_testoutput.xml"
           /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary_path --gtest_filter="${test_filter}" --gtest_output="xml:${xml_path}"
         done
         echo "Finished running all unit tests..."
