@@ -4,12 +4,6 @@ inputs:
   datadog_api_key:
     description: "Path to directory where test results are saved."
     required: true
-  is_postsubmit:
-    description: "Indicates if this is a postsubmit run or not."
-    required: true
-  is_fork_pr:
-    description: "Indicates if this is a PR run originating from a fork."
-    required: true
   test_results_key:
     description: "Artifact key used to store test results."
     required: true
@@ -31,15 +25,15 @@ runs:
 
     - name: Get Datadog CLI
       id: download-dd-cli
-      # Only upload to DD on postsubmit and non-fork PRs.
-      if: inputs.is_postsubmit == 'true' || inputs.is_fork_pr == 'false'
+      # The API key is not available on PRs created from a fork.
+      if: inputs.datadog_api_key != ''
       env:
         DD_VERSION: 'v2.18.0'
         DD_SHA256SUM: 'adbe9b3a41faaf0b1d9702ba256cf8fa9e474c0cc8216f25e5b489c53d6f0a70  datadog-ci'
       run: |
         set -x
         download_url="https://github.com/DataDog/datadog-ci/releases/download/${DD_VERSION}/datadog-ci_linux-x64"
-        curl -L --fail $download_url --output datadog-ci
+        curl -L --fail ${download_url} --output datadog-ci
         echo ${DD_SHA256SUM} | sha256sum --check
         chmod +x datadog-ci
       shell: bash

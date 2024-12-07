@@ -209,6 +209,4 @@ jobs:
         with:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           datadog_api_key: ${{ secrets.datadog_api_key }}
-          is_postsubmit: ${{ github.event_name == 'schedule' || github.event_name == 'push' }}
-          is_fork_pr: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == 'true' }}
         continue-on-error: true
