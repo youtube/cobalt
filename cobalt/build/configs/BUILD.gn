@@ -21,6 +21,13 @@ config("cobalt_config") {
   ]
   if (current_toolchain == starboard_toolchain) {
     configs += [ "//${starboard_path}/platform_configuration" ]
+  } else if (current_toolchain == cobalt_toolchain) {
+    assert(
+        current_toolchain != host_toolchain,
+        "Host and cobalt toolchain are the same. They compile with different configurations and need to be separated.")
+    # TODO(nyardi) : Add modular/cobalt toolchain configs as needed"
+  } else {
+    # No configs to add for any other toolchain
   }
 }
 
