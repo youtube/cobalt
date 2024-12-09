@@ -700,8 +700,6 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
       DCHECK(!player_bridge_initialized_);
       player_bridge_initialized_ = true;
 
-      // TODO(b/376317639): Revisit the handling of StartPlayingFrom() called
-      //                    before player enters kSbPlayerStateInitialized.
       if (playing_start_from_time_) {
         StartPlayingFrom(std::move(playing_start_from_time_).value());
       }
@@ -709,6 +707,7 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
     case kSbPlayerStatePrerolling:
       LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
                    "kSbPlayerStatePrerolling.";
+      DCHECK(player_bridge_initialized_);
       break;
     case kSbPlayerStatePresenting:
       client_->OnBufferingStateChange(BUFFERING_HAVE_ENOUGH,
@@ -719,10 +718,12 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
               : audio_write_duration_local_;
       LOG(INFO) << "SbPlayerBridge reaches kSbPlayerStatePresenting, with audio"
                 << " write duration at " << audio_write_duration_;
+      DCHECK(player_bridge_initialized_);
       break;
     case kSbPlayerStateEndOfStream:
       LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
                    "kSbPlayerStateEndOfStream.";
+      DCHECK(player_bridge_initialized_);
       client_->OnEnded();
       break;
     case kSbPlayerStateDestroyed:
