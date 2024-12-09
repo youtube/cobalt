@@ -384,7 +384,7 @@ shared_library("test_shared_library") {
 }
 
 
-if (!is_starboard) {
+if (is_cobalt && !is_starboard) {
   if (is_fuchsia || is_linux || is_chromeos) {
     shared_library("malloc_wrapper") {
       testonly = true

@@ -1730,7 +1730,7 @@ component("base") {
     ]
 
     # TODO(cobalt, b/382115610): Re-enable use_partition_alloc
-    if (is_starboard) {
+    if (is_cobalt && is_starboard) {
       public_deps -= [ "allocator/partition_allocator:partition_alloc" ]
     }
   }
@@ -3860,7 +3860,7 @@ test("base_unittests") {
   }
 
   # TODO(cobalt, b/382115610): Re-enable use_partition_alloc
-  if (!is_starboard) {
+  if (is_cobalt && !is_starboard) {
     if (is_fuchsia || is_linux || is_chromeos) {
       sources += [
         "debug/elf_reader_unittest.cc",
@@ -4025,7 +4025,7 @@ test("base_unittests") {
     ]
 
     # TODO(cobalt, b/382115610): Re-enable use_partition_alloc
-    if (is_starboard) {
+    if (is_cobalt && is_starboard) {
       sources -= [
         # Cobalt builds don't include build timestamps.
         "build_time_unittest.cc",

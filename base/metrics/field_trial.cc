@@ -189,13 +189,11 @@ void AddFeatureAndFieldTrialFlags(CommandLine* cmd_line) {
 #endif  // !BUILDFLAG(IS_IOS)
 
 void OnOutOfMemory(size_t size) {
-#if BUILDFLAG(IS_NACL)
+// TODO(b/382115610): Re-enable use_partition_alloc
+#if BUILDFLAG(IS_NACL) || BUILDFLAG(IS_STARBOARD)
   NOTREACHED();
 #else
-// TODO(b/382115610): Re-enable use_partition_alloc
-#if !BUILDFLAG(IS_STARBOARD)
   TerminateBecauseOutOfMemory(size);
-#endif 
 #endif
 }
 
