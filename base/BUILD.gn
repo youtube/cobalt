@@ -1012,6 +1012,10 @@ component("base") {
       "threading/thread_type_delegate.h",
     ]
   }
+  if (is_linux && is_cobalt && is_starboard) {
+    sources -= [ "process/memory_linux.cc" ]
+    sources += [ "process/memory_starboard.cc" ]
+  }
 
   if (is_linux || is_chromeos || is_android) {
     sources += [
