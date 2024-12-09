@@ -16,8 +16,27 @@
 
 namespace ui {
 
-SurfaceFactoryStarboard::SurfaceFactoryStarboard() {}
+SurfaceFactoryStarboard::SurfaceFactoryStarboard() {
+  egl_implementation_ = std::make_unique<GLOzoneEGLStarboard>();
+}
 
 SurfaceFactoryStarboard::~SurfaceFactoryStarboard() {}
 
+std::vector<gl::GLImplementationParts>
+SurfaceFactoryStarboard::GetAllowedGLImplementations() {
+  return std::vector<gl::GLImplementationParts>{
+      gl::GLImplementationParts(gl::kGLImplementationEGLGLES2),
+  };
+}
+
+GLOzone* SurfaceFactoryStarboard::GetGLOzone(
+    const gl::GLImplementationParts& implementation) {
+  switch (implementation.gl) {
+    case gl::kGLImplementationEGLGLES2:
+    case gl::kGLImplementationEGLANGLE:
+      return egl_implementation_.get();
+    default:
+      return nullptr;
+  }
+}
 }  // namespace ui
