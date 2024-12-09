@@ -383,11 +383,14 @@ shared_library("test_shared_library") {
   deps = [ ":native_library_test_utils" ]
 }
 
-if (is_fuchsia || is_linux || is_chromeos) {
-  shared_library("malloc_wrapper") {
-    testonly = true
-    sources = [ "malloc_wrapper.cc" ]
-    deps = [ "//base" ]
+
+if (!is_starboard) {
+  if (is_fuchsia || is_linux || is_chromeos) {
+    shared_library("malloc_wrapper") {
+      testonly = true
+      sources = [ "malloc_wrapper.cc" ]
+      deps = [ "//base" ]
+    }
   }
 }
 

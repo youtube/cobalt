@@ -1731,9 +1731,7 @@ component("base") {
 
     # TODO(cobalt, b/382115610): Re-enable use_partition_alloc
     if (is_cobalt && !is_android) {
-      public_deps -= [
-        "allocator/partition_allocator:partition_alloc",
-      ]
+      public_deps -= [ "allocator/partition_allocator:partition_alloc" ]
     }
   }
 
@@ -3861,22 +3859,25 @@ test("base_unittests") {
     }
   }
 
-  if (is_fuchsia || is_linux || is_chromeos) {
-    sources += [
-      "debug/elf_reader_unittest.cc",
-      "debug/test_elf_image_builder.cc",
-      "debug/test_elf_image_builder.h",
-    ]
+  # TODO(cobalt, b/382115610): Re-enable use_partition_alloc
+  if (!is_starboard) {
+    if (is_fuchsia || is_linux || is_chromeos) {
+      sources += [
+        "debug/elf_reader_unittest.cc",
+        "debug/test_elf_image_builder.cc",
+        "debug/test_elf_image_builder.h",
+      ]
 
-    deps += [ "//base/test:malloc_wrapper" ]
-    defines += [
-      # This library is used by ElfReaderTest to test reading elf files.
-      "MALLOC_WRAPPER_LIB=\"${shlib_prefix}malloc_wrapper${shlib_extension}\"",
-    ]
+      deps += [ "//base/test:malloc_wrapper" ]
+      defines += [
+        # This library is used by ElfReaderTest to test reading elf files.
+        "MALLOC_WRAPPER_LIB=\"${shlib_prefix}malloc_wrapper${shlib_extension}\"",
+      ]
 
-    if (!is_component_build) {
-      # Set rpath to find libmalloc_wrapper.so even in a non-component build.
-      configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+      if (!is_component_build) {
+        # Set rpath to find libmalloc_wrapper.so even in a non-component build.
+        configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+      }
     }
   }
 
@@ -4022,6 +4023,69 @@ test("base_unittests") {
       "trace_event/typed_macros_unittest.cc",
       "tracing/perfetto_task_runner_unittest.cc",
     ]
+
+    # TODO(cobalt, b/382115610): Re-enable use_partition_alloc
+    if (is_cobalt) {
+      sources -= [
+        # Cobalt builds don't include build timestamps.
+        "build_time_unittest.cc",
+
+        # Since Starboard lacks abstractions for multi-processing, and shared
+        # memory is solely used for inter-process communication, we disable
+        # shared memory and process code in Cobalt.
+        "memory/discardable_memory_backing_field_trial_unittest.cc",
+        "memory/discardable_shared_memory_unittest.cc",
+        "memory/memory_pressure_listener_unittest.cc",
+        "memory/platform_shared_memory_region_unittest.cc",
+        "memory/shared_memory_hooks_unittest.cc",
+        "memory/shared_memory_mapping_unittest.cc",
+        "memory/shared_memory_region_unittest.cc",
+        "memory/unsafe_shared_memory_pool_unittest.cc",
+
+        # MessagePumpUIStarboard lives on top of an external message pump
+        # and behaves differently than normal message pumps.
+        "message_loop/message_pump_unittest.cc",
+        "process/process_metrics_unittest.cc",
+        "process/process_unittest.cc",
+        "process/process_util_unittest.cc",
+
+        # moduleCache is not implemented in Starboard.
+        "profiler/module_cache_unittest.cc",
+
+        # TODO: b/327008491 - Not used by Cobalt, but should be tested to get
+        # closer to Chrome.
+        "feature_list_unittest.cc",
+        "immediate_crash_unittest.cc",
+        "metrics/field_trial_params_unittest.cc",
+        "native_library_unittest.cc",
+        "test/gtest_links_unittest.cc",
+        "test/gtest_tags_unittest.cc",
+        "test/gtest_xml_unittest_result_printer_unittest.cc",
+        "test/launcher/test_launcher_unittest.cc",
+        "test/launcher/test_results_tracker_unittest.cc",
+        "test/metrics/histogram_enum_reader_unittest.cc",
+        "test/scoped_feature_list_unittest.cc",
+        "threading/hang_watcher_unittest.cc",
+
+        # SyncSocket is not implemented in Starboard.
+        "sync_socket_unittest.cc",
+
+        # WaitableEventWatcher is not implemented by Starboard.
+        "synchronization/waitable_event_watcher_unittest.cc",
+
+        # Depends on USE_PARTITION_ALLOC.
+        "allocator/dispatcher/dispatcher_unittest.cc",
+        "allocator/partition_allocator/pointers/raw_ptr_test_support.h",
+        "allocator/partition_allocator/pointers/raw_ptr_unittest.cc",
+        "allocator/partition_allocator/pointers/raw_ref_unittest.cc",
+        "allocator/partition_allocator/tagging_unittest.cc",
+        "memory/safe_ref_unittest.cc",
+
+        # Previously disabled tests.
+        "environment_unittest.cc",
+        "files/memory_mapped_file_unittest.cc",
+      ]
+    }
 
     if (is_android) {
       sources += [

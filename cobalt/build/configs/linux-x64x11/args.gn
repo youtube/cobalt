@@ -15,3 +15,4 @@ media_use_ffmpeg = false
 # TODO(b/382115610): Re-enable use_partition_alloc, enable_pkeys
 use_partition_alloc = false
 enable_pkeys = false
+use_allocator_shim = false

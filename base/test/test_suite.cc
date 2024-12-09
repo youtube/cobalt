@@ -452,8 +452,12 @@ int TestSuite::Run() {
   // There's no standard way to opt processes into MTE on Linux just yet,
   // so this call explicitly opts this test into synchronous MTE mode, where
   // pointer mismatches are detected immediately.
+
+// TODO(cobalt, b/382115610): Re-enable use_partition_alloc
+#if !BUILDFLAG(IS_STARBOARD)
   ::partition_alloc::ChangeMemoryTaggingModeForCurrentThread(
       ::partition_alloc::TagViolationReportingMode::kSynchronous);
+#endif
 #elif BUILDFLAG(IS_ANDROID)
     // On Android, the tests are opted into synchronous MTE mode by the
     // memtagMode attribute in an AndroidManifest.xml file or via an `am compat`

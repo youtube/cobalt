@@ -192,7 +192,10 @@ void OnOutOfMemory(size_t size) {
 #if BUILDFLAG(IS_NACL)
   NOTREACHED();
 #else
+// TODO(b/382115610): Re-enable use_partition_alloc
+#if !BUILDFLAG(IS_STARBOARD)
   TerminateBecauseOutOfMemory(size);
+#endif 
 #endif
 }
 
