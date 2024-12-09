@@ -26,7 +26,10 @@
 #endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
 
 #if BUILDFLAG(ENABLE_FFMPEG)
-// ProgressiveDemuxer is enabled when use_starboard_media=true and media_use_ffmpeg=false.
+// The ProgressiveDemuxer is enabled when use_starboard_media=true and
+// media_use_ffmpeg=false. This can be overridden by the BASE_FEATURE
+// CobaltProgressivePlayback, which will disable the ProgressiveDemuxer
+// when false.
 #elif BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/starboard/progressive/demuxer_extension_wrapper.h"  // nogncheck
 #include "media/starboard/progressive/progressive_demuxer.h"  // nogncheck
@@ -417,7 +420,11 @@ PipelineStatus DemuxerManager::CreateDemuxer(
 #if BUILDFLAG(ENABLE_FFMPEG)
     SetDemuxer(CreateFFmpegDemuxer());
 #elif BUILDFLAG(USE_STARBOARD_MEDIA)
-    SetDemuxer(CreateProgressiveDemuxer());
+    if (base::FeatureList::IsEnabled(media::kCobaltProgressivePlayback)) {
+      SetDemuxer(CreateProgressiveDemuxer());
+    } else {
+      LOG(INFO) << "Cobalt progressive playback is disabled via base features.";
+    }
 #else
     return DEMUXER_ERROR_COULD_NOT_OPEN;
 #endif

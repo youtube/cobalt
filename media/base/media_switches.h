@@ -176,6 +176,9 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kDecreaseProcessingAudioFifoSize);
 MEDIA_EXPORT extern const base::FeatureParam<int>
     kDecreaseProcessingAudioFifoSizeValue;
 #endif
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kCobaltProgressivePlayback);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(IS_CHROMEOS)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCrOSSystemAEC);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCrOSSystemAECDeactivatedGroups);
