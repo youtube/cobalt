@@ -362,7 +362,7 @@ component("partition_alloc") {
   }
 
  # TODO(cobalt, b/382115610): Re-enable use_partition_alloc
-  if (is_cobalt) {
+  if (is_starboard) {
     sources -= [
       "address_pool_manager.h",
       "address_pool_manager_bitmap.h",
