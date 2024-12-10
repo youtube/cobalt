@@ -410,15 +410,17 @@ std::ostream& operator<<(std::ostream& stream,
 // These formats have a mime type of "video/mp4", and lists both audio and
 // video formats under the "codecs" parameter.
 bool IsProgressiveFormat(const ContentType& content_type) {
-  String type = content_type.GetType();
-  String codecs = content_type.Parameter("codecs");
-  if (!type.empty() && !codecs.empty()) {
-    Vector<String> split_codecs;
-    String separator(", ");
-    codecs.Split(separator, split_codecs);
-    return type.Utf8() == "video/mp4" && split_codecs.size() == 2;
+  const String type = content_type.GetType();
+  const String codecs = content_type.Parameter("codecs");
+
+  if (type.empty() && codecs.empty()) {
+    return false;
   }
-  return false;
+
+  Vector<String> split_codecs;
+  const String separator(", ");
+  codecs.Split(separator, split_codecs);
+  return type.Utf8() == "video/mp4" && split_codecs.size() == 2;
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
