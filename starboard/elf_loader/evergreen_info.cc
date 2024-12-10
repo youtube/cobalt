@@ -60,8 +60,6 @@ bool GetEvergreenInfo(EvergreenInfo* evergreen_info) {
   // Make sure all memory changes are visible to the current thread.
   SbAtomicMemoryBarrier();
   if (!g_valid_info) {
-    SB_LOG(ERROR) << "g_evergreen_info not yet set";
-
     // Clear the busy flag.
     SbAtomicNoBarrier_CompareAndSwap(&g_busy, 1, 0);
     return false;
