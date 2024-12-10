@@ -174,3 +174,7 @@ exec_script_whitelist += [
   "//starboard/build/config/sabi/BUILD.gn",
   "//starboard/build/platform_path.gni",
 ]
+
+# TODO(cobalt, b/377295011): figure out a better long-term solution here, or
+# at least a way to guard this variable.
+no_check_targets += [ "//v8:v8_libbase" ]  # 9 errors

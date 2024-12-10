@@ -17,7 +17,8 @@
 
 #include "starboard/system.h"
 
-#include "base/third_party/symbolize/symbolize.h"
+// TODO(cobalt, b/380940036): remove the nogncheck annotation.
+#include "base/third_party/symbolize/symbolize.h"  // nogncheck
 
 bool SbSystemSymbolize(const void* address, char* out_buffer, int buffer_size) {
   if (address == nullptr || *reinterpret_cast<const uintptr_t*>(address) == 0) {

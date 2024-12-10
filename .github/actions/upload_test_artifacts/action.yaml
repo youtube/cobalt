@@ -1,0 +1,16 @@
+name: Test Artifact Upload
+description: Uploads test archives to GCS for on-device tests.
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Cloud SDK
+      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+    - name: Upload Artifacts to GCS
+      env:
+        WORKFLOW: ${{ github.workflow }}
+      run: |
+        set -eux
+        project_name=$(gcloud config get-value project)
+        gsutil cp "${GITHUB_WORKSPACE}"/src/out/${{ matrix.platform }}_${{ matrix.config }}/**/*.apk \
+          gs://"${project_name}"-test-artifacts/"${WORKFLOW}"/"${GITHUB_RUN_NUMBER}"/${{matrix.platform}}/
+      shell: bash

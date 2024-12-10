@@ -17,7 +17,8 @@
 #include "base/debug/buffered_dwarf_reader.h"
 #include "base/debug/stack_trace.h"
 #include "base/memory/raw_ptr.h"
-#include "base/third_party/symbolize/symbolize.h"
+// TODO(cobalt, b/377295011): remove the nogncheck annotation.
+#include "base/third_party/symbolize/symbolize.h"  // nogncheck
 
 namespace base {
 namespace debug {

@@ -57,6 +57,11 @@ static_library("starboard_base_symbolize") {
   if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     public_deps = [ "//starboard/elf_loader:evergreen_info" ]
   }
+
+  # TODO(cobalt, 377295011): enable dependency checking. A dependency on
+  # //base/third_party/symbolize:symbolize is needed but introduces a duplicate
+  # symbol error.
+  check_includes = false
 }
 
 static_library("starboard_platform_sources") {

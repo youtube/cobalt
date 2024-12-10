@@ -364,6 +364,11 @@ static_library("starboard_base_symbolize") {
   if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     public_deps = [ "//starboard/elf_loader:evergreen_info" ]
   }
+
+  # TODO(cobalt, 377295011): enable dependency checking. A dependency on
+  # //base/third_party/symbolize:symbolize is needed but introduces a duplicate
+  # symbol error.
+  check_includes = false
 }
 
 target(gtest_target_type, "starboard_platform_tests") {
@@ -381,6 +386,7 @@ target(gtest_target_type, "starboard_platform_tests") {
   configs += [ "//starboard/build/config:starboard_implementation" ]
 
   deps = [
+    ":starboard_platform",
     "//starboard:starboard_group",
     "//starboard/shared/starboard/player/filter/testing:test_util",
     "//testing/gmock",
