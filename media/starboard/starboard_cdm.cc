@@ -367,10 +367,9 @@ void StarboardCdm::OnSessionUpdated(int ticket,
   } else {
     promises_.RejectPromise(session_update.promise_id,
                             CdmPromise::Exception::INVALID_STATE_ERROR, 0,
-                            "Unable to create CDM.");
+                            error_message);
   }
 
-  // TODO(cobalt, b/378957649) Check for removed session ids
   // Sweep the context of |UpdateSession|.
   ticket_to_session_update_map_.erase(session_update_iterator);
 }
