@@ -279,6 +279,14 @@ if (target_os == "android") {
   assert(false, "Unsupported target_os: $target_os")
 }
 
+if (is_cobalt && target_os == "linux" && is_clang) {
+  _default_toolchain =
+          "//cobalt/build/toolchain/linux:cobalt_clang_$target_cpu"
+  assert(
+      _default_toolchain != host_toolchain,
+      "Host and _default_toolchain are the same. They compile with different configurations and need to be separated.")
+}
+
 # If a custom toolchain has been set in the args, set it as default. Otherwise,
 # set the default toolchain for the platform (if any).
 if (custom_toolchain != "") {
@@ -291,12 +299,7 @@ if (is_cobalt) {
   if (custom_toolchain != "") {
     cobalt_toolchain = custom_toolchain
   } else if (_default_toolchain != "") {
-    if (target_os == "linux" && is_clang) {
-      cobalt_toolchain =
-          "//cobalt/build/toolchain/linux:cobalt_clang_$target_cpu"
-    } else {
-      cobalt_toolchain = _default_toolchain
-    }
+    cobalt_toolchain = _default_toolchain
   }
 }
 
