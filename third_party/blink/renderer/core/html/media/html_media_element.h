@@ -412,11 +412,6 @@ class CORE_EXPORT HTMLMediaElement
   // reason while in picture in picture mode.
   LocalFrame* LocalFrameForPlayer();
 
-  // Returns semicolon separated names of audio connectors, like
-  // "hdmi;bluetooth".
-  // TODO(b/267678497): The current interface is tentative, to be refined.
-  WebString h5vccAudioConnectors(ExceptionState& exception_state) const;
-
  protected:
   // Assert the correct order of the children in shadow dom when DCHECK is on.
   static void AssertShadowRootChildren(ShadowRoot&);

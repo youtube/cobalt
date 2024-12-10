@@ -24,10 +24,6 @@ enum class SourceBufferParseWarning;
 
 namespace blink {
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-class ExceptionState;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 class PLATFORM_EXPORT WebSourceBufferImpl : public WebSourceBuffer {
  public:
   WebSourceBufferImpl(const std::string& id, media::ChunkDemuxer* demuxer);
@@ -60,11 +56,6 @@ class PLATFORM_EXPORT WebSourceBufferImpl : public WebSourceBuffer {
   void SetAppendWindowStart(double start) override;
   void SetAppendWindowEnd(double end) override;
   void RemovedFromMediaSource() override;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Return the highest presentation timestamp written to SbPlayer.
-  double WriteHead(ExceptionState& exception_state) const override;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
   // Demuxer callback handler to process an initialization segment received

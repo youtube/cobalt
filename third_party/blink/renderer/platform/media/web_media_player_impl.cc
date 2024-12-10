@@ -695,11 +695,6 @@ WebMediaPlayer::SetBoundsCB WebMediaPlayerImpl::GetSetBoundsCB() {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
   return pipeline_controller_->GetSetBoundsCB();
 }
-
-std::vector<std::string> WebMediaPlayerImpl::GetAudioConnectors() const {
-  DCHECK(main_task_runner_->BelongsToCurrentThread());
-  return pipeline_controller_->GetAudioConnectors();
-}
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void WebMediaPlayerImpl::EnteredFullscreen() {

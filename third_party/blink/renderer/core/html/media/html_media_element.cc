@@ -28,10 +28,6 @@
 
 #include <algorithm>
 #include <limits>
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include <string>
-#include <vector>
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #include "base/auto_reset.h"
 #include "base/debug/crash_logging.h"
@@ -125,8 +121,9 @@
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/display/screen_info.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "base/strings/string_util.h"
 #include "starboard/media.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -1505,27 +1502,6 @@ void HTMLMediaElement::LoadResource(const WebMediaPlayerSource& source,
 LocalFrame* HTMLMediaElement::LocalFrameForPlayer() {
   return opener_document_ ? opener_document_->GetFrame()
                           : GetDocument().GetFrame();
-}
-
-WebString HTMLMediaElement::h5vccAudioConnectors(
-    ExceptionState& exception_state) const {
-  if (!RuntimeEnabledFeatures::H5vccAudioConnectorsEnabled()) {
-    return WebString();
-  }
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (!web_media_player_) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
-                                      "The WebMediaPlayer is invalid");
-    return WebString();
-  }
-
-  std::vector<std::string> configs = web_media_player_->GetAudioConnectors();
-  std::string joined_string = base::JoinString(configs, ";");
-
-  return WebString::FromUTF8(joined_string);
-#else
-  return WebString();
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 void HTMLMediaElement::StartPlayerLoad() {

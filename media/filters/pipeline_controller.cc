@@ -453,11 +453,6 @@ Pipeline::SetBoundsCB PipelineController::GetSetBoundsCB() {
   DCHECK(thread_checker_.CalledOnValidThread());
   return pipeline_->GetSetBoundsCB();
 }
-
-std::vector<std::string> PipelineController::GetAudioConnectors() const {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  return pipeline_->GetAudioConnectors();
-}
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void PipelineController::FireOnTrackChangeCompleteForTesting(State set_to) {

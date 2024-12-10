@@ -1874,12 +1874,6 @@
       status: "test",
       base_feature: "none",
     },
-    // Cobalt-specific feature that allows web apps to query for audio
-    // devices connected to the host device.
-    {
-      name: "H5vccAudioConnectors",
-      base_feature: "none",
-    },
     {
       name: "HandwritingRecognition",
       status: {
@@ -3186,12 +3180,6 @@
     },
     {
       name: "SolidColorLayers",
-    },
-    // Cobalt-specific feature that lets the web app query the latest
-    // presentation timestamp of buffers written to the Renderer.
-    {
-      name: "SourceBufferWriteHead",
-      base_feature: "none",
     },
     // An origin trial feature name is required for this, even though it's
     // actually enabled by the more specific trial. Having these as separate

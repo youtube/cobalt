@@ -260,8 +260,6 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   SetBoundsCB GetSetBoundsCB() override;
-  // Names of audio connectors used by the playback.
-  std::vector<std::string> GetAudioConnectors() const override;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void EnteredFullscreen() override;

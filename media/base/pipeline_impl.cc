@@ -90,7 +90,6 @@ class PipelineImpl::RendererWrapper final : public DemuxerHost,
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb);
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   SetBoundsCB GetSetBoundsCB();
-  std::vector<std::string> GetAudioConnectors() const;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // |enabled_track_ids| contains track ids of enabled audio tracks.
@@ -602,13 +601,6 @@ Pipeline::SetBoundsCB PipelineImpl::RendererWrapper::GetSetBoundsCB() {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
   return shared_state_.renderer? shared_state_.renderer->GetSetBoundsCB() :
       base::BindOnce(&SetBoundsNullTask);
-}
-
-std::vector<std::string> PipelineImpl::RendererWrapper::GetAudioConnectors()
-    const {
-  DCHECK(main_task_runner_->BelongsToCurrentThread());
-  return shared_state_.renderer ? shared_state_.renderer->GetAudioConnectors()
-                                : std::vector<std::string>();
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -1599,11 +1591,6 @@ const char* PipelineImpl::GetStateString(State state) {
 Pipeline::SetBoundsCB PipelineImpl::GetSetBoundsCB() {
   DCHECK(thread_checker_.CalledOnValidThread());
   return renderer_wrapper_->GetSetBoundsCB();
-}
-
-std::vector<std::string> PipelineImpl::GetAudioConnectors() const {
-  DCHECK(thread_checker_.CalledOnValidThread());
-  return renderer_wrapper_->GetAudioConnectors();
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 

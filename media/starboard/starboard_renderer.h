@@ -72,8 +72,6 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   RendererType GetRendererType() final { return RendererType::kStarboard; }
   SetBoundsCB GetSetBoundsCB() override;
 
-  std::vector<std::string> GetAudioConnectors() const override;
-
  private:
   enum State {
     STATE_UNINITIALIZED,

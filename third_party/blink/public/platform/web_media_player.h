@@ -48,10 +48,6 @@
 #include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include <string>
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace cc {
 class PaintCanvas;
 class PaintFlags;
@@ -311,10 +307,6 @@ class WebMediaPlayer {
   // Return SetBoundsCB if SbPlayer is used for rendering.
   using SetBoundsCB = base::OnceCallback<bool(int x, int y, int width, int height)>;
   virtual SetBoundsCB GetSetBoundsCB() { return SetBoundsCB(); }
-  // Names of audio connectors used by the playback.
-  virtual std::vector<std::string> GetAudioConnectors() const {
-    return std::vector<std::string>();
-  }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Inform WebMediaPlayer when the element has entered/exited fullscreen.

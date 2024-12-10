@@ -151,7 +151,6 @@ class MEDIA_EXPORT PipelineController {
   void OnExternalVideoFrameRequest();
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   Pipeline::SetBoundsCB GetSetBoundsCB();
-  std::vector<std::string> GetAudioConnectors() const;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Used to fire the OnTrackChangeComplete function which is captured in a

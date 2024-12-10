@@ -87,12 +87,6 @@ Renderer::SetBoundsCB Renderer::GetSetBoundsCB() {
   // Default implementation of GetSetBoundsCB is to no-op.
   return base::BindOnce(&SetBoundsNullTask);
 }
-
-std::vector<std::string> Renderer::GetAudioConnectors() const {
-  // Default implementation of GetAudioConnectors() is to return an empty
-  // vector.
-  return std::vector<std::string>();
-}
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media

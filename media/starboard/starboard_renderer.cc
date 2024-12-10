@@ -414,23 +414,6 @@ Renderer::SetBoundsCB StarboardRenderer::GetSetBoundsCB() {
                         set_bounds_helper_);
 }
 
-std::vector<std::string> StarboardRenderer::GetAudioConnectors() const {
-  base::AutoLock auto_lock(lock_);
-  if (!player_bridge_) {
-    return std::vector<std::string>();
-  }
-
-  std::vector<std::string> connectors;
-
-  auto configurations = player_bridge_->GetAudioConfigurations();
-  for (auto&& configuration : configurations) {
-    connectors.push_back(
-        starboard::GetMediaAudioConnectorName(configuration.connector));
-  }
-
-  return connectors;
-}
-
 void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(init_cb_);
