@@ -197,7 +197,7 @@ jobs:
         uses: ./src/.github/actions/on_host_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          test_result_key: ${{ env.TEST_RESULTS_KEY }}
+          test_results_key: ${{ env.TEST_RESULTS_KEY }}
       - name: Process Test Results
         if: |
           always() &&
