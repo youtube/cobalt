@@ -6,13 +6,6 @@
     ],
     "targets": [
  	"base_unittests",
-        "sql_unittests",
-        "url_unittests",
-        "ipc_tests",
-        "mojo_unittests",
-        "gpu_unittests",
-        "media_unittests",
-        "content_shell",
         "cobalt:gn_all"
     ],
     "includes": [

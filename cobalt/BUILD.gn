@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//base/allocator/partition_allocator/partition_alloc.gni")
+
 group("gn_all") {
   testonly = true
 
@@ -21,7 +23,10 @@ group("gn_all") {
     "//starboard/nplb",
   ]
   if (!is_android) {
-    deps += [ ":cobalt" ]
+    # TODO(b/382115610): Re-enable use_partition_alloc
+    if (use_partition_alloc) {
+      deps += [ ":cobalt" ]
+    }
   } else {
     # TODO(cobalt): reuse build rules below to define Android target.
     deps += [ "android:cobalt_apk" ]
