@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/common/log.h"
 #include "starboard/extension/time_zone.h"
 #include "starboard/time_zone.h"
-#include "starboard/common/log.h"
 
-#include <string>
 #include <Windows.h>
+#include <string>
 
 namespace starboard {
 namespace shared {
@@ -25,9 +25,47 @@ namespace win32 {
 
 namespace {
 
+bool SetPrivilege(HANDLE hToken, LPCTSTR lpszPrivilege, bool bEnablePrivilege) {
+  TOKEN_PRIVILEGES tp;
+  LUID luid;
+
+  if (!LookupPrivilegeValue(NULL, lpszPrivilege, &luid)) {
+    SB_LOG(ERROR) << "LookupPrivilegeValue error: " << GetLastError();
+    return false;
+  }
+
+  tp.PrivilegeCount = 1;
+  tp.Privileges[0].Luid = luid;
+  tp.Privileges[0].Attributes = bEnablePrivilege ? SE_PRIVILEGE_ENABLED : 0;
+
+  if (!AdjustTokenPrivileges(hToken, FALSE, &tp, sizeof(TOKEN_PRIVILEGES),
+                             (PTOKEN_PRIVILEGES)NULL, (PDWORD)NULL)) {
+    SB_LOG(ERROR) << "AdjustTokenPrivileges error: " << GetLastError();
+    return false;
+  }
+
+  if (GetLastError() == ERROR_NOT_ALL_ASSIGNED) {
+    SB_LOG(ERROR) << "The token does not have the specified privilege.";
+    return false;
+  }
+
+  return true;
+}
+
 bool SetTimeZone(const char* time_zone_name) {
   std::string tzName(time_zone_name);
   std::wstring windowsTzName(tzName.begin(), tzName.end());
+
+  HANDLE hToken;
+  if (!OpenProcessToken(GetCurrentProcess(),
+                        TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken)) {
+    SB_LOG(ERROR) << "OpenProcessToken error: " << GetLastError();
+    return false;
+  }
+
+  if (!SetPrivilege(hToken, SE_TIME_ZONE_NAME, true)) {
+    return false;
+  }
 
   DYNAMIC_TIME_ZONE_INFORMATION dtzi{0};
   TIME_ZONE_INFORMATION tzi{0};
@@ -51,10 +89,16 @@ bool SetTimeZone(const char* time_zone_name) {
   if (result == 0) {
     DWORD error = GetLastError();
     SB_LOG(ERROR) << "SetDynamicTimeZoneInformation failed for  time zone: "
-              << tzName.c_str() << " return code: " << result
-              << " last error: " << error;
+                  << tzName.c_str() << " return code: " << result
+                  << " last error: " << error;
     return false;
   }
+
+  if (!SetPrivilege(hToken, SE_TIME_ZONE_NAME, false)) {
+    return false;
+  }
+
+  CloseHandle(hToken);
 
   return true;
 }

@@ -309,6 +309,14 @@ target(gtest_target_type, "nplb") {
         [ "//starboard/nplb/compiler_compliance/cpp_compiler_version_check.cc" ]
   }
 
+  if (is_win) {
+    sources +=
+        [ "//starboard/nplb/time_zone_with_expect_value_win.cc" ]
+  } else {
+    sources +=
+        [ "//starboard/nplb/time_zone_with_expect_value.cc" ]
+  }
+
   configs += [ "//starboard/build/config:starboard_implementation" ]
   if (sb_enable_cast_codec_tests) {
     configs += [ ":cast_codec_tests" ]

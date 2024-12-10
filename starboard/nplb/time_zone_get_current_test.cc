@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "time_zone_with_expect_value.h"
+
 #include "starboard/extension/time_zone.h"
 #include "starboard/nplb/time_constants.h"
 #include "starboard/system.h"
@@ -24,20 +26,6 @@
 namespace starboard {
 namespace nplb {
 namespace {
-
-struct TimeZoneWithExpectValue {
-  TimeZoneWithExpectValue(std::string timeZoneName_,
-                          SbTimeZone expectedStandardValue_,
-                          SbTimeZone expectedDaylightValue_)
-      : timeZoneName{timeZoneName_},
-        expectedStandardValue{expectedStandardValue_},
-        expectedDaylightValue{expectedDaylightValue_} {}
-
-  std::string timeZoneName;
-
-  SbTimeZone expectedStandardValue;
-  SbTimeZone expectedDaylightValue;
-};
 
 class SbTimeZoneGetCurrentSetTimeZoneTest
     : public testing::Test,
@@ -79,39 +67,6 @@ TEST(SbTimeZoneGetCurrentTest, IsKindOfSane) {
   // ... and +24 hours from the Prime Meridian, inclusive
   EXPECT_LE(zone, 24 * 60);
 }
-
-#if defined(_WIN32)
-
-std::array<TimeZoneWithExpectValue, 12> timeZonesWithExpectedTimeValues{
-    TimeZoneWithExpectValue("UTC", 0, 0),
-    TimeZoneWithExpectValue("Atlantic Standard Time", 240, 180),
-    TimeZoneWithExpectValue("Eastern Standard Time", 300, 240),
-    TimeZoneWithExpectValue("Central Standard Time", 360, 300),
-    TimeZoneWithExpectValue("Mountain Standard Time", 420, 360),
-    TimeZoneWithExpectValue("Pacific Standard Time", 480, 420),
-    TimeZoneWithExpectValue("Yukon Standard Time", 420, 420),
-    TimeZoneWithExpectValue("Samoa Standard Time", -780, -780),
-    TimeZoneWithExpectValue("China Standard Time", -480, -480),
-    TimeZoneWithExpectValue("Central European Standard Time", -60, -120),
-    TimeZoneWithExpectValue("Omsk Standard Time", -360, -360),
-    TimeZoneWithExpectValue("Cen. Australia Standard Time", -570, -630)};
-
-#else
-
-std::array<TimeZoneWithExpectValue, 11> timeZonesWithExpectedTimeValues{
-    TimeZoneWithExpectValue("UTC", 0, 0),
-    TimeZoneWithExpectValue("America/Puerto_Rico", 240, 240),
-    TimeZoneWithExpectValue("America/New_York", 300, 300),
-    TimeZoneWithExpectValue("US/Eastern", 300, 300),
-    TimeZoneWithExpectValue("America/Chicago", 360, 360),
-    TimeZoneWithExpectValue("US/Mountain", 420, 420),
-    TimeZoneWithExpectValue("US/Pacific", 480, 480),
-    TimeZoneWithExpectValue("US/Alaska", 540, 540),
-    TimeZoneWithExpectValue("Pacific/Honolulu", 600, 600),
-    TimeZoneWithExpectValue("US/Samoa", 660, 660),
-    TimeZoneWithExpectValue("Pacific/Guam", -600, -600)};
-
-#endif
 
 TEST_P(SbTimeZoneGetCurrentSetTimeZoneTest, IsKindOfSane) {
   EXPECT_TRUE(time_zone_extension->SetTimeZone(GetParam().timeZoneName.c_str()));
