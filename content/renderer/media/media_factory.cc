@@ -765,7 +765,7 @@ MediaFactory::CreateRendererFactorySelector(
         RendererType::kStarboard,
         std::make_unique<media::StarboardRendererFactory>(
             media_log,
-            // TODO: Inject these values
+            // TODO: b/383327725 - Cobalt: Inject these values from the web app.
             kWriteDurationLocal, kWriteDurationRemote));
     factory_selector->SetBaseRendererType(RendererType::kStarboard);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
