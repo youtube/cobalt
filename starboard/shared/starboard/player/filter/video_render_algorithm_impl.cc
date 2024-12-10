@@ -170,8 +170,48 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
   SbTime media_time = media_time_provider->GetCurrentMediaTime(
       &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
 
+  // Video frames are synced to the audio timestamp. However, the audio
+  // timestamp is not queried at a consistent interval. For example, if the
+  // query intervals are 16ms, 17ms, 16ms, 17ms, etc., then a 60fps video may
+  // display even frames twice and drop odd frames.
+  //
+  // The following diagram illustrates the situation using frames that should
+  // last 10 units of time:
+  //   frame timestamp:   10          20          30          40          50
+  //   sample timestamp:   11        19            31         40           51
+  // Using logic which drops frames whose timestamp is less than the sample
+  // timestamp:
+  // * The frame with timestamp 20 is displayed twice (for sample timestamps
+  // 11 and 19).
+  // * Then the frame with timestamp 30 is dropped.
+  // * Then the frame with timestamp 40 is displayed twice (for sample
+  //   timestamps 31 and 40).
+  // * Then the frame with timestamp 50 is dropped.
+  auto frame_duration = static_cast<SbTime>(kSbTimeSecond / refresh_rate);
+
+  // Favor advancing the frame sooner. This addresses the situation where the
+  // audio timestamp query interval is a little shorter than a frame. This
+  // favors displaying the next frame over displaying the current frame twice.
+  //
+  // In the above example, this ensures advancement from frame timestamp 20
+  // to frame timestamp 30 when the sample time is 19.
+  if (is_audio_playing && frames->size() > 1 &&
+      frames->front()->timestamp() == last_frame_timestamp_ &&
+      last_frame_timestamp_ - frame_duration < media_time) {
+    frames->pop_front();
+  }
+
+  // Favor displaying the frame for a little longer. This addresses the
+  // situation where the audio timestamp query interval is a little longer
+  // than a frame.
+  //
+  // In the above example, this allows frames with timestamps 30 and 50 to be
+  // displayed for sample timestamps 31 and 51, respectively. This may sound
+  // like frame 30 is displayed twice (for sample timestamps 19 and 31);
+  // however, the "early advance" logic from above would force frame 30 to
+  // move onto frame 40 on sample timestamp 31.
   while (frames->size() > 1 && !frames->front()->is_end_of_stream() &&
-         frames->front()->timestamp() < media_time) {
+         frames->front()->timestamp() + frame_duration < media_time) {
     auto second_iter = frames->begin();
     ++second_iter;
 
@@ -188,9 +228,6 @@ void VideoRenderAlgorithmImpl::RenderWithCadence(
     }
     cadence_pattern_generator_.UpdateFrameRate(frame_rate * playback_rate);
     SB_DCHECK(cadence_pattern_generator_.has_cadence());
-
-    auto frame_duration =
-        static_cast<SbTime>(kSbTimeSecond / refresh_rate);
 
     if (current_frame_rendered_times_ >=
         cadence_pattern_generator_.GetNumberOfTimesCurrentFrameDisplays()) {
