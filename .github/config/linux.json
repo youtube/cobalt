@@ -11,7 +11,6 @@
         "ipc_tests",
         "mojo_unittests",
         "gpu_unittests",
-        "gin_unittests",
         "media_unittests",
         "content_shell",
         "cobalt:gn_all"
