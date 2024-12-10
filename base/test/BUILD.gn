@@ -383,9 +383,8 @@ shared_library("test_shared_library") {
   deps = [ ":native_library_test_utils" ]
 }
 
-
-if (is_cobalt && !is_starboard) {
-  if (is_fuchsia || is_linux || is_chromeos) {
+if (is_fuchsia || is_linux || is_chromeos) {
+  if (!is_cobalt || !is_starboard) {
     shared_library("malloc_wrapper") {
       testonly = true
       sources = [ "malloc_wrapper.cc" ]
