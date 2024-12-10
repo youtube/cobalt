@@ -29,8 +29,7 @@
 // The ProgressiveDemuxer is enabled when use_starboard_media=true and
 // media_use_ffmpeg=false. Cobalt enables the ProgressiveDemuxer by
 // default. This can disabled by the BASE_FEATURE
-// CobaltProgressivePlayback, which will disable the ProgressiveDemuxer
-// when disabled.
+// CobaltProgressivePlayback at runtime.
 #elif BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/starboard/progressive/demuxer_extension_wrapper.h"  // nogncheck
 #include "media/starboard/progressive/progressive_demuxer.h"  // nogncheck
