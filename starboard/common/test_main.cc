@@ -13,12 +13,12 @@
 // limitations under the License.
 
 #include "starboard/configuration.h"
-#include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_IS(EVERGREEN)
+#include "build/build_config.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace {
 int InitAndRunAllTests(int argc, char** argv) {
@@ -27,12 +27,19 @@ int InitAndRunAllTests(int argc, char** argv) {
 }
 }  // namespace
 
-// When we are building Evergreen we need to export SbEventHandle so that the
-// ELF loader can find and invoke it.
+#if BUILDFLAG(IS_STARBOARD)
+// For the Starboard OS define SbEventHandle as the entry point
 SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
-#else
+
+#if !SB_IS(EVERGREEN)
+// Define main() for non-Evergreen Starboard OS.
 int main(int argc, char** argv) {
-  ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
 }
-#endif
+#endif  // !SB_IS(EVERGREEN)
+#else
+// If the OS is not Starboard use the regular main e.g. ATV.
+int main(int argc, char** argv) {
+  return InitAndRunAllTests(argc, argv);
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
