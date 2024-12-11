@@ -72,7 +72,28 @@ int post_starboard() {
 
 extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   preinit_starboard(argc, argv);
-  int result = SbRunStarboardMain(argc, argv, SbEventHandle);
+  // Previous code
+  // int result = SbRunStarboardMain(argc, argv, SbEventHandle);
+  int result = 0;
+
+  // Code taken out from SbRunStarboardMain
+  if (false) {
+    // Current/Old version
+    starboard::shared::x11::ApplicationX11 application(SbEventHandle);
+    result = application.Run(argc, argv);
+  } else {
+    // non-blocking version, with loop owned by caller
+    starboard::shared::x11::ApplicationX11 application(SbEventHandle, false);
+    result = application.Run(argc, argv);
+
+    // Loop taken out and broken
+    application.RunLoop_Part0();
+    // This does nothing but DispatchNextEvent()
+    while (application.RunLoop_Part1()) {
+    }
+    application.RunLoop_Part2();
+  }
+
   post_starboard();
   return result;
 }

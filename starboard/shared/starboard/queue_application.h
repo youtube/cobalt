@@ -36,8 +36,9 @@ namespace starboard {
 class QueueApplication : public Application {
  public:
 #if SB_API_VERSION >= 15
-  explicit QueueApplication(SbEventHandleCallback sb_event_handle_callback)
-      : Application(sb_event_handle_callback) {}
+  explicit QueueApplication(SbEventHandleCallback sb_event_handle_callback,
+                            bool blocking = true)
+      : Application(sb_event_handle_callback, blocking) {}
 #else
   QueueApplication() {}
 #endif  // SB_API_VERSION >= 15

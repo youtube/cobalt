@@ -694,7 +694,8 @@ int ErrorHandler(Display* display, XErrorEvent* event) {
 using shared::starboard::player::filter::CpuVideoFrame;
 
 #if SB_API_VERSION >= 15
-ApplicationX11::ApplicationX11(SbEventHandleCallback sb_event_handle_callback)
+ApplicationX11::ApplicationX11(SbEventHandleCallback sb_event_handle_callback,
+                               bool blocking)
 #else
 ApplicationX11::ApplicationX11()
 #endif  // SB_API_VERSION >= 15
@@ -702,7 +703,7 @@ ApplicationX11::ApplicationX11()
       wm_delete_atom_(None),
       wm_change_state_atom_(None),
 #if SB_API_VERSION >= 15
-      QueueApplication(sb_event_handle_callback),
+      QueueApplication(sb_event_handle_callback, blocking),
 #endif  // SB_API_VERSION >= 15
       composite_event_id_(kSbEventIdInvalid),
       display_(NULL),
