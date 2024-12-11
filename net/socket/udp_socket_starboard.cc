@@ -224,8 +224,7 @@ int UDPSocketStarboard::ReadMultiplePackets(Socket::ReadPacketResults* results,
   }
 
   if (!base::CurrentIOThread::Get()->Watch(
-          socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
-          &socket_watcher_, this)) {
+          socket_, true, kSbSocketWaiterInterestRead, &socket_watcher_, this)) {
     PLOG(ERROR) << "WatchSocket failed on read";
     Error result = MapLastSocketError(socket_);
     if (result == ERR_IO_PENDING) {
@@ -266,8 +265,7 @@ int UDPSocketStarboard::RecvFrom(IOBuffer* buf,
     return nread;
 
   if (!base::CurrentIOThread::Get()->Watch(
-          socket_, true, base::MessagePumpIOStarboard::WATCH_READ,
-          &socket_watcher_, this)) {
+          socket_, true, kSbSocketWaiterInterestRead, &socket_watcher_, this)) {
     PLOG(ERROR) << "WatchSocket failed on read";
     Error result = MapLastSocketError(socket_);
     if (result == ERR_IO_PENDING) {
@@ -315,9 +313,9 @@ int UDPSocketStarboard::SendToOrWrite(IOBuffer* buf,
   if (result != ERR_IO_PENDING)
     return result;
 
-  if (!base::CurrentIOThread::Get()->Watch(
-          socket_, true, base::MessagePumpIOStarboard::WATCH_WRITE,
-          &socket_watcher_, this)) {
+  if (!base::CurrentIOThread::Get()->Watch(socket_, true,
+                                           kSbSocketWaiterInterestWrite,
+                                           &socket_watcher_, this)) {
     DVLOG(1) << "Watch failed on write, error "
              << SbSocketGetLastError(socket_);
     Error result = MapLastSocketError(socket_);
@@ -476,7 +474,7 @@ void UDPSocketStarboard::WriteAsyncWatcher::OnSocketReadyToWrite(
     SbSocket /*socket*/) {
   DVLOG(1) << __func__ << " queue " << socket_->pending_writes_.size()
            << " out of " << socket_->write_async_outstanding_ << " total";
-  socket_->StopWatchingSocket();
+  socket_->StopWatchingSocketForWriting();
   socket_->FlushPending();
 }
 
@@ -504,7 +502,7 @@ void UDPSocketStarboard::DidCompleteRead() {
     read_buf_ = NULL;
     read_buf_len_ = 0;
     recv_from_address_ = NULL;
-    InternalStopWatchingSocket();
+    StopWatchingSocketForReading();
     DoReadCallback(result);
   }
 }
@@ -513,7 +511,7 @@ void UDPSocketStarboard::DidCompleteMultiplePacketRead() {
   int result = InternalReadMultiplePackets(results_);
   if (result != ERR_IO_PENDING) {
     results_ = nullptr;
-    InternalStopWatchingSocket();
+    StopWatchingSocketForReading();
     DoReadCallback(result);
   }
 }
@@ -543,7 +541,7 @@ void UDPSocketStarboard::DidCompleteWrite() {
     write_buf_ = NULL;
     write_buf_len_ = 0;
     send_to_address_.reset();
-    InternalStopWatchingSocket();
+    StopWatchingSocketForWriting();
     DoWriteCallback(result);
   }
 }
@@ -959,7 +957,7 @@ void UDPSocketStarboard::DidSendBuffers(SendResult send_result) {
   last_async_result_ = send_result.rv;
   if (last_async_result_ == ERR_IO_PENDING) {
     DVLOG(2) << __func__ << " WatchSocket start";
-    if (!WatchSocket()) {
+    if (!WatchSocketForWriting()) {
       last_async_result_ = MapLastSocketError(socket_);
       DVLOG(1) << "WatchSocket failed on write, error: " << last_async_result_;
       LogWrite(last_async_result_, NULL, NULL);
@@ -970,7 +968,7 @@ void UDPSocketStarboard::DidSendBuffers(SendResult send_result) {
     DVLOG(2) << __func__ << " WatchSocket stop: result "
              << ErrorToShortString(last_async_result_) << " pending_writes "
              << pending_writes_.size();
-    StopWatchingSocket();
+    StopWatchingSocketForWriting();
   }
   DCHECK(last_async_result_ != ERR_IO_PENDING);
 
@@ -1002,32 +1000,30 @@ void UDPSocketStarboard::SetMsgConfirm(bool confirm) {
   NOTIMPLEMENTED();
 }
 
-bool UDPSocketStarboard::WatchSocket() {
+bool UDPSocketStarboard::WatchSocketForWriting() {
   if (write_async_watcher_->watching())
     return true;
-  bool result = InternalWatchSocket();
+  bool result = base::CurrentIOThread::Get()->Watch(
+      socket_, true, kSbSocketWaiterInterestWrite, &socket_watcher_, this);
   if (result) {
     write_async_watcher_->set_watching(true);
   }
   return result;
 }
 
-void UDPSocketStarboard::StopWatchingSocket() {
+void UDPSocketStarboard::StopWatchingSocketForWriting() {
   if (!write_async_watcher_->watching())
     return;
   write_async_watcher_->set_watching(false);
-  InternalStopWatchingSocket();
+  if (!write_buf_) {
+    bool ok = socket_watcher_.UnregisterInterest(kSbSocketWaiterInterestWrite);
+    DCHECK(ok);
+  }
 }
 
-bool UDPSocketStarboard::InternalWatchSocket() {
-  return base::CurrentIOThread::Get()->Watch(
-      socket_, true, base::MessagePumpIOStarboard::WATCH_WRITE,
-      &socket_watcher_, this);
-}
-
-void UDPSocketStarboard::InternalStopWatchingSocket() {
-  if (!read_buf_ && !write_buf_ && !write_async_watcher_->watching()) {
-    bool ok = socket_watcher_.StopWatchingSocket();
+void UDPSocketStarboard::StopWatchingSocketForReading() {
+  if (!read_buf_) {
+    bool ok = socket_watcher_.UnregisterInterest(kSbSocketWaiterInterestRead);
     DCHECK(ok);
   }
 }

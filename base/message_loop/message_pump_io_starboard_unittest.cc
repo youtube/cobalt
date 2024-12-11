@@ -36,6 +36,8 @@ class MessagePumpIOStarboardTest : public testing::Test {
   MessagePumpIOStarboardTest()
       : task_environment_(std::make_unique<test::SingleThreadTaskEnvironment>(
             test::SingleThreadTaskEnvironment::MainThreadType::DEFAULT)),
+        event_(WaitableEvent::ResetPolicy::AUTOMATIC,
+               WaitableEvent::InitialState::NOT_SIGNALED),
         io_thread_("MessagePumpIOStarboardTestIOThread") {}
   ~MessagePumpIOStarboardTest() override = default;
 
@@ -68,13 +70,14 @@ class MessagePumpIOStarboardTest : public testing::Test {
   }
 
   void SimulateIOEvent(MessagePumpIOStarboard::SocketWatcher* controller) {
-    MessagePumpIOStarboard::OnSocketWaiterNotification(nullptr,
-                                                       nullptr,
-                                                       controller,
-                                                       (kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite));
+    MessagePumpIOStarboard::OnSocketWaiterNotification(
+        nullptr, nullptr, controller,
+        (kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite));
   }
 
   std::unique_ptr<test::SingleThreadTaskEnvironment> task_environment_;
+
+  WaitableEvent event_;
 
  private:
   Thread io_thread_;
@@ -137,10 +140,9 @@ TEST_F(MessagePumpIOStarboardTest, DISABLED_DeleteWatcher) {
       std::make_unique<MessagePumpIOStarboard::SocketWatcher>(FROM_HERE));
   std::unique_ptr<MessagePumpIOStarboard> pump = CreateMessagePump();
   pump->Watch(socket(),
-      /*persistent=*/false,
-     MessagePumpIOStarboard::WATCH_READ_WRITE,
-     delegate.controller(),
-     &delegate);
+              /*persistent=*/false,
+              (kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite),
+              delegate.controller(), &delegate);
   SimulateIOEvent(delegate.controller());
 }
 
@@ -165,10 +167,9 @@ TEST_F(MessagePumpIOStarboardTest, DISABLED_StopWatcher) {
   MessagePumpIOStarboard::SocketWatcher controller(FROM_HERE);
   StopWatcher delegate(&controller);
   pump->Watch(socket(),
-      /*persistent=*/false,
-     MessagePumpIOStarboard::WATCH_READ_WRITE,
-     &controller,
-     &delegate);
+              /*persistent=*/false,
+              (kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite),
+              &controller, &delegate);
   SimulateIOEvent(&controller);
 }
 
@@ -202,10 +203,8 @@ TEST_F(MessagePumpIOStarboardTest, DISABLED_NestedPumpWatcher) {
   std::unique_ptr<MessagePumpIOStarboard> pump = CreateMessagePump();
   MessagePumpIOStarboard::SocketWatcher controller(FROM_HERE);
   pump->Watch(socket(),
-      /*persistent=*/false,
-     MessagePumpIOStarboard::WATCH_READ,
-     &controller,
-     &delegate);
+              /*persistent=*/false, kSbSocketWaiterInterestRead, &controller,
+              &delegate);
   SimulateIOEvent(&controller);
 }
 
@@ -247,29 +246,25 @@ TEST_F(MessagePumpIOStarboardTest, DISABLED_QuitWatcher) {
   RunLoop run_loop;
   QuitWatcher delegate(run_loop.QuitClosure());
   MessagePumpIOStarboard::SocketWatcher controller(FROM_HERE);
-  WaitableEvent event(WaitableEvent::ResetPolicy::AUTOMATIC,
-                      WaitableEvent::InitialState::NOT_SIGNALED);
   std::unique_ptr<WaitableEventWatcher> watcher(new WaitableEventWatcher);
 
   // Tell the pump to watch the pipe.
   pump->Watch(socket(),
-        /*persistent=*/false,
-       MessagePumpIOStarboard::WATCH_READ,
-       &controller,
-       &delegate);
+              /*persistent=*/false, kSbSocketWaiterInterestRead, &controller,
+              &delegate);
 
-  // Make the IO thread wait for |event| before writing to pipefds[1].
+  // Make the IO thread wait for |event_| before writing to pipefds[1].
   const char buf = 0;
   WaitableEventWatcher::EventCallback write_socket_task =
       BindOnce(&WriteSocketWrapper, base::Unretained(pump));
   io_runner()->PostTask(
       FROM_HERE, BindOnce(IgnoreResult(&WaitableEventWatcher::StartWatching),
-                          Unretained(watcher.get()), &event,
+                          Unretained(watcher.get()), &event_,
                           std::move(write_socket_task), io_runner()));
 
-  // Queue |event| to signal on |sequence_manager|.
+  // Queue task to signal |event_|.
   SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, BindOnce(&WaitableEvent::Signal, Unretained(&event)));
+      FROM_HERE, BindOnce(&WaitableEvent::Signal, Unretained(&event_)));
 
   // Now run the MessageLoop.
   run_loop.Run();

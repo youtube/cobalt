@@ -275,13 +275,9 @@ class BASE_EXPORT CurrentIOThread : public CurrentThread {
   typedef base::MessagePumpIOStarboard::SocketWatcher SocketWatcher;
   typedef base::MessagePumpIOStarboard::IOObserver IOObserver;
 
-  enum Mode{WATCH_READ = base::MessagePumpIOStarboard::WATCH_READ,
-            WATCH_WRITE = base::MessagePumpIOStarboard::WATCH_WRITE,
-            WATCH_READ_WRITE = base::MessagePumpIOStarboard::WATCH_READ_WRITE};
-
   bool Watch(SbSocket socket,
              bool persistent,
-             int mode,
+             SbSocketWaiterInterest interests,
              SocketWatcher* controller,
              Watcher* delegate);
 #elif BUILDFLAG(IS_WIN)
