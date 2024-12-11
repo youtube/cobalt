@@ -16,12 +16,18 @@
 
 #include "base/check.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "media/starboard/starboard_renderer.h"
 
 namespace media {
 
-StarboardRendererFactory::StarboardRendererFactory(MediaLog* media_log)
-    : media_log_(media_log) {}
+StarboardRendererFactory::StarboardRendererFactory(
+    MediaLog* media_log,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote)
+    : media_log_(media_log),
+      audio_write_duration_local_(audio_write_duration_local),
+      audio_write_duration_remote_(audio_write_duration_remote) {}
 
 StarboardRendererFactory::~StarboardRendererFactory() = default;
 
@@ -35,7 +41,8 @@ std::unique_ptr<Renderer> StarboardRendererFactory::CreateRenderer(
   DCHECK(video_renderer_sink);
   DCHECK(media_log_);
   return std::make_unique<media::StarboardRenderer>(
-      media_task_runner, video_renderer_sink, media_log_);
+      media_task_runner, video_renderer_sink, media_log_,
+      audio_write_duration_local_, audio_write_duration_remote_);
 }
 
 }  // namespace media
