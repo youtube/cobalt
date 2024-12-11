@@ -28,22 +28,23 @@ int main(int argc, const char** argv) {
 
   // TODO: (cobalt b/375241103) Reimplement this in a clean way.
 
-  constexpr auto cobalt_args = std::to_array<const char*>({
-    // Disable first run experience, kiosk, etc.
-    "--disable-fre", "--no-first-run", "--kiosk",
-    // Enable Blink to work in overlay video mode
-    "--force-video-overlays",
-    // Disable multiprocess mode.
-    "--single-process",
-    // TODO(mcasas): Add "--ozone-platform=starboard".
-    // Enable remote Devtools access.
-    "--remote-debugging-port=9222",
-    "--remote-allow-origins=http://localhost:9222",
-    // This flag is added specifically for m114 and should be removed after
-    // rebasing to m120+
-    "--user-level-memory-pressure-signal-params",
-    "https://www.youtube.com/tv"
-  });
+  constexpr auto cobalt_args = std::to_array<const char*>(
+      {// Disable first run experience, kiosk, etc.
+       "--disable-fre", "--no-first-run", "--kiosk",
+       // Enable Blink to work in overlay video mode
+       "--force-video-overlays",
+       // Disable multiprocess mode.
+       "--single-process",
+       // Disable Vulkan.
+       "--disable-features=Vulkan",
+       // TODO(mcasas): Add "--ozone-platform=starboard".
+       // Enable remote Devtools access.
+       "--remote-debugging-port=9222",
+       "--remote-allow-origins=http://localhost:9222",
+       // This flag is added specifically for m114 and should be removed after
+       // rebasing to m120+
+       "--user-level-memory-pressure-signal-params",
+       "https://www.youtube.com/tv"});
   std::vector<const char*> args(argv, argv + argc);
   args.insert(args.end(), cobalt_args.begin(), cobalt_args.end());
 
