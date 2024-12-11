@@ -279,13 +279,9 @@ if (target_os == "android") {
   assert(false, "Unsupported target_os: $target_os")
 }
 
+# Create a separation between cobalt and host toolchain if needed.
 if (is_cobalt && _default_toolchain == host_toolchain) {
-  _toolchain_parts = string_split(_default_toolchain, ":")
-  _toolchain_parts[1] = "cobalt_" + _toolchain_parts[1]
-  _default_toolchain = string_join(":", _toolchain_parts)
-  assert(
-      _default_toolchain != host_toolchain,
-      "Host and _default_toolchain are the same. They compile with different configurations and need to be separated.")
+  _default_toolchain = "//cobalt" + _default_toolchain
 }
 
 # If a custom toolchain has been set in the args, set it as default. Otherwise,
