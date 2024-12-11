@@ -63,42 +63,15 @@ volatile std::atomic<int32_t> g_next_event_id{0};
 
 std::atomic<Application*> Application::g_instance{NULL};
 
-Application::Application(SbEventHandleCallback sb_event_handle_callback)
+Application::Application(int argc, char** argv)
     : error_level_(0),
       thread_(pthread_self()),
       start_link_(NULL),
       state_(kStateUnstarted),
-      sb_event_handle_callback_(sb_event_handle_callback) {
-  SB_CHECK(sb_event_handle_callback_)
-      << "sb_event_handle_callback_ has not been set.";
-  Application* old_instance = NULL;
-  g_instance.compare_exchange_weak(old_instance, this,
-                                   std::memory_order_acquire);
-  SB_DCHECK(!old_instance);
-}
+      sb_event_handle_callback_(NULL) {
+  command_line_.reset(new CommandLine(argc, argv));
 
-Application::~Application() {
-  Application* old_instance = this;
-  g_instance.compare_exchange_weak(old_instance, NULL,
-                                   std::memory_order_acquire);
-  SB_DCHECK(old_instance);
-  SB_DCHECK(old_instance == this);
-  free(start_link_);
-}
-
-int Application::Run(CommandLine command_line, const char* link_data) {
   Initialize();
-  command_line_.reset(new CommandLine(command_line));
-  if (link_data) {
-    SetStartLink(link_data);
-  }
-
-  return RunLoop();
-}
-
-int Application::Run(CommandLine command_line) {
-  Initialize();
-  command_line_.reset(new CommandLine(command_line));
 
   if (command_line_->HasSwitch(kLinkSwitch)) {
     std::string value = command_line_->GetSwitchValue(kLinkSwitch);
@@ -117,6 +90,27 @@ int Application::Run(CommandLine command_line) {
     ::starboard::logging::SetMinLogLevel(::starboard::logging::SB_LOG_INFO);
 #endif
   }
+
+  Application* old_instance = NULL;
+  g_instance.compare_exchange_weak(old_instance, this,
+                                   std::memory_order_acquire);
+  SB_DCHECK(!old_instance);
+}
+
+Application::~Application() {
+  Application* old_instance = this;
+  g_instance.compare_exchange_weak(old_instance, NULL,
+                                   std::memory_order_acquire);
+  SB_DCHECK(old_instance);
+  SB_DCHECK(old_instance == this);
+  free(start_link_);
+}
+
+int Application::Run(SbEventHandleCallback sb_event_handle_callback) {
+  SB_CHECK(sb_event_handle_callback_)
+      << "sb_event_handle_callback_ has not been set.";
+
+  sb_event_handle_callback_ = sb_event_handle_callback;
 
   return RunLoop();
 }

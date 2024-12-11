@@ -244,8 +244,7 @@ void* ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "StarboardMain");
   g_app_created_semaphore = static_cast<Semaphore*>(context);
 
-  int unused_value = -1;
-  int error_level = SbRunStarboardMain(unused_value, nullptr, SbEventHandle);
+  int error_level = SbRunStarboardMain(SbEventHandle);
 
   // Our launcher.py looks for this to know when the app (test) is done.
   SB_LOG(INFO) << "***Application Stopped*** " << error_level;
@@ -298,25 +297,38 @@ extern "C" SB_EXPORT_PLATFORM void Java_dev_cobalt_coat_StarboardBridge_initJNI(
   JniEnvExt::Initialize(env, starboard_bridge);
 }
 
-extern "C" SB_EXPORT_PLATFORM jlong
+static ApplicationAndroid* g_application = nullptr;
+
+extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_StarboardBridge_startNativeStarboard(JniEnvExt* env) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
   StarboardThreadLaunch();
 #else
-  auto command_line = std::make_unique<CommandLine>(GetArgs());
-  LogInit(*command_line);
-  auto* nativeApp = new ApplicationAndroid(std::move(command_line));
-  // Ensure application init happens here
-  ApplicationAndroid::Get();
-  return reinterpret_cast<jlong>(nativeApp);
+  std::vector<std::string> args = GetArgs();
+  int argc = args.size();
+  std::vector<char*> argv(argc + 1);
+  for (int i = 0; i < args.size(); i++) {
+    argv[i] = const_cast<char*>(args[i].c_str());
+  }
+  argv[argc] = nullptr;
+
+  SbInitialize(argc, &argv[0]);
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 }
 
+extern "C" bool SbInitialize(int argc, char** argv) {
+  g_application = new ApplicationAndroid(argc, argv);
+  return true;
+}
+
+extern "C" void SbShutdown() {
+  delete g_application;
+  g_application = nullptr;
+}
+
 extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_StarboardBridge_closeNativeStarboard(JniEnvExt* env,
-                                                          jlong nativeApp) {
-  auto* app = reinterpret_cast<ApplicationAndroid*>(nativeApp);
-  delete app;
+Java_dev_cobalt_coat_StarboardBridge_closeNativeStarboard(JniEnvExt* env) {
+  SbShutdown();
 }
 
 extern "C" SB_EXPORT_PLATFORM void
@@ -351,9 +363,7 @@ Java_dev_cobalt_coat_VolumeStateReceiver_nativeMuteChanged(JNIEnv* env,
 }
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
-extern "C" int SbRunStarboardMain(int argc,
-                                  char** argv,
-                                  SbEventHandleCallback callback) {
+extern "C" int SbRunStarboardMain(SbEventHandleCallback callback) {
   ALooper* looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
   ApplicationAndroid app(looper, callback);
 

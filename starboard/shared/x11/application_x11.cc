@@ -693,11 +693,11 @@ int ErrorHandler(Display* display, XErrorEvent* event) {
 
 using shared::starboard::player::filter::CpuVideoFrame;
 
-ApplicationX11::ApplicationX11(SbEventHandleCallback sb_event_handle_callback)
+ApplicationX11::ApplicationX11(int argc, char** argv)
     : wake_up_atom_(None),
       wm_delete_atom_(None),
       wm_change_state_atom_(None),
-      QueueApplication(sb_event_handle_callback),
+      QueueApplication(argc, argv),
       composite_event_id_(kSbEventIdInvalid),
       display_(NULL),
       paste_buffer_key_release_pending_(false) {

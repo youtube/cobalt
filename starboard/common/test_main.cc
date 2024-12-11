@@ -15,9 +15,10 @@
 #include "starboard/configuration.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#include "starboard/event.h"
+
 #if SB_IS(EVERGREEN)
 #include "starboard/client_porting/wrap_main/wrap_main.h"
-#include "starboard/event.h"
 #include "starboard/system.h"
 
 namespace {
@@ -32,7 +33,10 @@ int InitAndRunAllTests(int argc, char** argv) {
 SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
 #else
 int main(int argc, char** argv) {
+  SbInitialize(argc, argv);
   ::testing::InitGoogleTest(&argc, argv);
-  return RUN_ALL_TESTS();
+  int res = RUN_ALL_TESTS();
+  SbShutdown();
+  return res;
 }
 #endif

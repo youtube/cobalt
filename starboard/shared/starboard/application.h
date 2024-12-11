@@ -154,7 +154,7 @@ class Application {
     int error_level;
   };
 
-  explicit Application(SbEventHandleCallback sb_event_handle_callback);
+  explicit Application(int argc, char** argv);
   virtual ~Application();
 
   // Gets the current instance of the Application. DCHECKS if called before the
@@ -168,12 +168,7 @@ class Application {
   // Runs the application with the current thread as the Main Starboard Thread,
   // blocking until application exit. This method will dispatch all appropriate
   // initialization and teardown events. Returns the resulting error level.
-  int Run(CommandLine command_line, const char* link_data);
-  int Run(CommandLine command_line);
-  int Run(int argc, char** argv, const char* link_data) {
-    return Run(CommandLine(argc, argv), link_data);
-  }
-  int Run(int argc, char** argv) { return Run(CommandLine(argc, argv)); }
+  int Run(SbEventHandleCallback sb_event_handle_callback);
 
 // Prevents GetCommandLine from being redefined.  For example, Windows
 // defines it to GetCommandLineW, which causes link errors.
@@ -365,6 +360,9 @@ class Application {
   void SetCommandLine(std::unique_ptr<CommandLine> command_line) {
     command_line_ = std::move(command_line);
   }
+
+  // Returns the command line.
+  const CommandLine& get_command_line() { return *command_line_; }
 
   // Sets the launch deep link string, if any, which is passed in the start
   // event that initializes and starts Cobalt.

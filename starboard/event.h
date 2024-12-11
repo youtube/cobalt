@@ -336,9 +336,14 @@ static SB_C_FORCE_INLINE bool SbEventIsIdValid(SbEventId handle) {
 typedef void (*SbEventHandleCallback)(const SbEvent* event);
 // Serves as the entry point in the Starboard library for running the Starboard
 // event loop with the application event handler.
-SB_EXPORT int SbRunStarboardMain(int argc,
-                                 char** argv,
-                                 SbEventHandleCallback callback);
+SB_EXPORT int SbRunStarboardMain(SbEventHandleCallback callback);
+
+// Initialize Starboard.
+SB_EXPORT bool SbInitialize(int argc, char** argv);
+
+// Shutdown Starboard.
+SB_EXPORT void SbShutdown();
+
 // The entry point that Starboard applications MUST implement. Any memory
 // pointed at by |event| or the |data| field inside |event| is owned by the
 // system, and that memory is reclaimed after this function returns, so the

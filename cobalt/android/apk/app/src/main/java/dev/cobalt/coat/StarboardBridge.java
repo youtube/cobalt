@@ -80,7 +80,6 @@ public class StarboardBridge {
   private final Holder<Activity> activityHolder;
   private final Holder<Service> serviceHolder;
   private final String[] args;
-  private final long nativeApp;
   private String startDeepLink;
   private final Runnable stopRequester =
       new Runnable() {
@@ -136,14 +135,14 @@ public class StarboardBridge {
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
 
-    nativeApp = startNativeStarboard();
+    startNativeStarboard();
   }
 
   private native boolean initJNI();
 
-  private native long startNativeStarboard();
+  private native void startNativeStarboard();
 
-  private native void closeNativeStarboard(long nativeApp);
+  private native void closeNativeStarboard();
 
   private native long nativeCurrentMonotonicTime();
 
@@ -170,7 +169,7 @@ public class StarboardBridge {
     if (applicationStopped) {
       // We can't restart the starboard app, so kill the process for a clean start next time.
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
-      closeNativeStarboard(nativeApp);
+      closeNativeStarboard();
       System.exit(0);
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");

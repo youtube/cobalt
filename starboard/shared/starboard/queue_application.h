@@ -35,8 +35,7 @@ namespace starboard {
 // manage event dispatching.
 class QueueApplication : public Application {
  public:
-  explicit QueueApplication(SbEventHandleCallback sb_event_handle_callback)
-      : Application(sb_event_handle_callback) {}
+  explicit QueueApplication(int argc, char** argv) : Application(argc, argv) {}
   ~QueueApplication() override {}
 
  protected:

@@ -17,12 +17,23 @@
 #include "starboard/shared/starboard/link_receiver.h"
 #include "starboard/shared/x11/application_x11.h"
 
+static starboard::shared::x11::ApplicationX11* g_application = nullptr;
+
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
-  starboard::shared::x11::ApplicationX11 application(callback);
-  int result = 0;
-  {
-    starboard::shared::starboard::LinkReceiver receiver(&application);
-    result = application.Run(argc, argv);
+  if (!g_application) {
+    return -1;
   }
-  return result;
+  starboard::shared::starboard::LinkReceiver receiver(g_application);
+  return g_application->Run(callback);
+}
+
+bool SbInitialize(int argc, char** argv) {
+  g_application = new starboard::shared::x11::ApplicationX11(argc, argv);
+  starboard::shared::starboard::LinkReceiver receiver(g_application);
+  return true;
+}
+
+void SbShutdown() {
+  delete g_application;
+  g_application = nullptr;
 }
