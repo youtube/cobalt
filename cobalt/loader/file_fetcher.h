@@ -104,7 +104,7 @@ class FileFetcher : public Fetcher {
   base::WeakPtrFactory<FileFetcher> weak_ptr_factory_;
   // Current iterator into the search path vector.
   std::vector<base::FilePath>::const_iterator curr_search_path_iter_;
-  base::FileProxy file_proxy_;
+  std::unique_ptr<base::FileProxy> file_proxy_;
 };
 
 }  // namespace loader
