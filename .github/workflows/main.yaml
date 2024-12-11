@@ -14,6 +14,9 @@ on:
         required: true
         type: string
         default: 'false'
+    secrets:
+      datadog_api_key:
+        required: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}
@@ -181,8 +184,8 @@ jobs:
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TMPDIR: /__w/_temp
-      TEST_RESULTS_DIR: ${{ matrix.name }}_test_results
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -194,20 +197,16 @@ jobs:
         uses: ./src/.github/actions/on_host_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          results_dir: ${{ env.TEST_RESULTS_DIR }}
-          platform: ${{ inputs.platform }}
+          test_results_key: ${{ env.TEST_RESULTS_KEY }}
       - name: Process Test Results
         if: |
           always() &&
           (
             steps.on-host-tests.outcome == 'success' ||
-            steps.on-host-tests.outcome == 'failure' ||
-            steps.on-device-tests.outcome == 'success' ||
-            steps.on-device-tests.outcome == 'failure'
+            steps.on-host-tests.outcome == 'failure'
           )
         uses: ./src/.github/actions/process_test_results
         with:
-          results_dir: ${{ env.TEST_RESULTS_DIR }}
-          datadog_api_key: ${{ secrets.DD_API_KEY }}
-          is_postsubmit: ${{ github.event_name == 'schedule' || github.event_name == 'push' }}
+          test_results_key: ${{ env.TEST_RESULTS_KEY }}
+          datadog_api_key: ${{ secrets.datadog_api_key }}
         continue-on-error: true
