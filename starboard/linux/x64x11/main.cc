@@ -30,7 +30,7 @@
 
 #include "third_party/crashpad/crashpad/wrapper/wrapper.h"
 
-extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
+int preinit_starboard(int argc, char** argv) {
   // Set M_ARENA_MAX to a low value to slow memory growth due to fragmentation.
   mallopt(M_ARENA_MAX, 2);
 
@@ -61,19 +61,18 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   // crash bugs in glibc, in dlopen()
   SbLogRawDumpStack(3);
 #endif
-
-#if SB_API_VERSION >= 15
-  int result = SbRunStarboardMain(argc, argv, SbEventHandle);
-#else
-  starboard::shared::x11::ApplicationX11 application;
-  int result = 0;
-  {
-    starboard::shared::starboard::LinkReceiver receiver(&application);
-    result = application.Run(argc, argv);
-  }
-#endif  // SB_API_VERSION >= 15
+  return 0;
+}
+int post_starboard() {
   starboard::shared::signal::UninstallSuspendSignalHandlers();
   starboard::shared::signal::UninstallDebugSignalHandlers();
   starboard::shared::signal::UninstallCrashSignalHandlers();
+  return 0;
+}
+
+extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
+  preinit_starboard(argc, argv);
+  int result = SbRunStarboardMain(argc, argv, SbEventHandle);
+  post_starboard();
   return result;
 }
