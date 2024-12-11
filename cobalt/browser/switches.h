@@ -131,6 +131,7 @@ extern const char kOffscreenTargetCacheSizeInBytes[];
 extern const char kOffscreenTargetCacheSizeInBytesHelp[];
 extern const char kOmitDeviceAuthenticationQueryParameters[];
 extern const char kOmitDeviceAuthenticationQueryParametersHelp[];
+extern const char kDisableProgressivePlayback[];
 extern const char kProxy[];
 extern const char kProxyHelp[];
 extern const char kQrCodeOverlay[];

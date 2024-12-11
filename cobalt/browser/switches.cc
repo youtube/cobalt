@@ -333,6 +333,10 @@ const char kOmitDeviceAuthenticationQueryParametersHelp[] =
     "When set, no device authentication parameters will be appended to the"
     "initial URL.";
 
+const char kDisableProgressivePlayback[] = "disable_progressive_playback";
+const char kDisableProgressivePlaybackHelp[] =
+    "Setting this switch disables support for progressive media playback";
+
 const char kProxy[] = "proxy";
 const char kProxyHelp[] =
     "Specifies a proxy to use for network connections. "
@@ -507,6 +511,7 @@ std::string HelpMessage() {
       {kOffscreenTargetCacheSizeInBytes, kOffscreenTargetCacheSizeInBytesHelp},
       {kOmitDeviceAuthenticationQueryParameters,
        kOmitDeviceAuthenticationQueryParametersHelp},
+      {kDisableProgressivePlayback, kDisableProgressivePlaybackHelp},
       {kProxy, kProxyHelp},
       {kQrCodeOverlay, kQrCodeOverlayHelp},
       {kRemoteTypefaceCacheSizeInBytes, kRemoteTypefaceCacheSizeInBytesHelp},

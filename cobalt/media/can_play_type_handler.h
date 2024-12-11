@@ -33,6 +33,7 @@ class CanPlayTypeHandler {
   virtual void SetDisabledMediaCodecs(const std::string& codecs) = 0;
   virtual void SetDisabledMediaEncryptionSchemes(
       const std::string& disabled_encryption_schemes) = 0;
+  virtual void DisableProgressiveSupport() = 0;
 
  protected:
   CanPlayTypeHandler() {}

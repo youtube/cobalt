@@ -93,24 +93,6 @@ static std::string ExtractEncryptionScheme(const std::string& key_system) {
 
 class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
  public:
-  void SetDisabledMediaCodecs(
-      const std::string& disabled_media_codecs) override {
-    disabled_media_codecs_ =
-        base::SplitString(disabled_media_codecs, ";", base::TRIM_WHITESPACE,
-                          base::SPLIT_WANT_NONEMPTY);
-    LOG(INFO) << "Disabled media codecs \"" << disabled_media_codecs
-              << "\" from console/command line.";
-  }
-
-  void SetDisabledMediaEncryptionSchemes(
-      const std::string& disabled_encryption_schemes) override {
-    disabled_encryption_schemes_ =
-        base::SplitString(disabled_encryption_schemes, ";",
-                          base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-    LOG(INFO) << "Disabled encryption scheme(s) \""
-              << disabled_encryption_schemes << "\" from command line.";
-  }
-
   SbMediaSupportType CanPlayProgressive(
       const std::string& mime_type) const override {
     // |mime_type| is something like:
@@ -122,8 +104,9 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
     // progressive.
     SbMediaSupportType support_type;
     media::FormatSupportQueryMetrics metrics;
-    if (strstr(mime_type.c_str(), "video/mp4") == 0 &&
-        strstr(mime_type.c_str(), "application/x-mpegURL") == 0) {
+    if (disable_progressive_support_ ||
+        (strstr(mime_type.c_str(), "video/mp4") == 0 &&
+         strstr(mime_type.c_str(), "application/x-mpegURL") == 0)) {
       support_type = kSbMediaSupportTypeNotSupported;
     } else {
       support_type = CanPlayType(mime_type, "");
@@ -143,6 +126,29 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
         FormatSupportQueryAction::MEDIA_SOURCE_IS_TYPE_SUPPORTED, mime_type,
         key_system, support_type);
     return support_type;
+  }
+
+  void SetDisabledMediaCodecs(
+      const std::string& disabled_media_codecs) override {
+    disabled_media_codecs_ =
+        base::SplitString(disabled_media_codecs, ";", base::TRIM_WHITESPACE,
+                          base::SPLIT_WANT_NONEMPTY);
+    LOG(INFO) << "Disabled media codecs \"" << disabled_media_codecs
+              << "\" from console/command line.";
+  }
+
+  void SetDisabledMediaEncryptionSchemes(
+      const std::string& disabled_encryption_schemes) override {
+    disabled_encryption_schemes_ =
+        base::SplitString(disabled_encryption_schemes, ";",
+                          base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    LOG(INFO) << "Disabled encryption scheme(s) \""
+              << disabled_encryption_schemes << "\" from command line.";
+  }
+
+  void DisableProgressiveSupport() override {
+    disable_progressive_support_ = true;
+    LOG(INFO) << "Disabled progressive playback support from command line";
   }
 
  private:
@@ -181,6 +187,7 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
   // List of disabled DRM encryption schemes that will be treated as
   // unsupported.
   std::vector<std::string> disabled_encryption_schemes_;
+  bool disable_progressive_support_ = false;
 };
 
 }  // namespace

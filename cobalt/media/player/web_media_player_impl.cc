@@ -32,6 +32,8 @@
 #include "media/base/limits.h"
 #include "media/base/timestamp_constants.h"
 #include "media/filters/chunk_demuxer.h"
+#include "starboard/shared/starboard/application.h"
+#include "starboard/shared/starboard/command_line.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
 #include "ui/gfx/geometry/rect.h"
@@ -270,6 +272,15 @@ void WebMediaPlayerImpl::LoadProgressive(
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
 
   UMA_HISTOGRAM_ENUMERATION("Media.URLScheme", URLScheme(url), kMaxURLScheme);
+  auto command_line =
+      starboard::shared::starboard::Application::Get()->GetCommandLine();
+  if (command_line->HasSwitch("disable_progressive_playback")) {
+    LOG(INFO) << "Disabled progressive playback support from command line";
+    SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,
+                    "Disabled progressive playback support from command line");
+    return;
+  }
+
   LOG(INFO) << "Start PROGRESSIVE playback";
 
   // Handle any volume changes that occurred before load().
