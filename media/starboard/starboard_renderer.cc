@@ -24,6 +24,18 @@ namespace media {
 
 namespace {
 
+using ::starboard::GetMediaAudioConnectorName;
+
+// In the OnNeedData(), it attempts to write one more audio access
+// unit than the audio write duration. Specifically, the check
+// |time_ahead_of_playback_for_preroll| > |adjusted_write_duration_for_preroll|
+// is used to skip audio writing, using '>' instead of '>='.
+// Since the calculated write duration during preroll may align exactly
+// with the audio write duration, the current check can fail, leading to an
+// additional call to SbPlayerWriteSamples(). By writing an extra guard audio
+// buffer, this extra write during preroll can be eliminated.
+const int kPrerollGuardAudioBuffer = 1;
+
 bool HasRemoteAudioOutputs(
     const std::vector<SbMediaAudioConfiguration>& configurations) {
   for (auto&& configuration : configurations) {
@@ -36,14 +48,14 @@ bool HasRemoteAudioOutputs(
       case kSbMediaAudioConnectorSpdif:
       case kSbMediaAudioConnectorUsb:
         LOG(INFO) << "Encountered local audio connector: "
-                  << starboard::GetMediaAudioConnectorName(connector);
+                  << GetMediaAudioConnectorName(connector);
         break;
       case kSbMediaAudioConnectorBluetooth:
       case kSbMediaAudioConnectorRemoteWired:
       case kSbMediaAudioConnectorRemoteWireless:
       case kSbMediaAudioConnectorRemoteOther:
         LOG(INFO) << "Encountered remote audio connector: "
-                  << starboard::GetMediaAudioConnectorName(connector);
+                  << GetMediaAudioConnectorName(connector);
         return true;
     }
   }
@@ -53,16 +65,57 @@ bool HasRemoteAudioOutputs(
   return false;
 }
 
+// The function adjusts audio write duration proportionally to the playback
+// rate, when the playback rate is greater than 1.0.
+//
+// Having the right write duration is important:
+// 1. Too small of it causes audio underflow.
+// 2. Too large of it causes excessive audio switch latency.
+// When playback rate is 2x, an 0.5 seconds of write duration effectively only
+// lasts for 0.25 seconds and causes audio underflow, and the function will
+// adjust it to 1 second in this case.
+TimeDelta AdjustWriteDurationForPlaybackRate(TimeDelta write_duration,
+                                             float playback_rate) {
+  if (playback_rate <= 1.0) {
+    return write_duration;
+  }
+
+  return write_duration * playback_rate;
+}
+
+// The function returns the default frames per DecoderBuffer.
+//
+// The number of frames is used to estimate the number of samples per write for
+// audio preroll according to |audio_write_duration_|.
+int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
+  switch (codec) {
+    case AudioCodec::kOpus:
+      return 960;
+    case AudioCodec::kAAC:
+      return 1024;
+    case AudioCodec::kAC3:
+    case AudioCodec::kEAC3:
+      return 1536;
+    default:
+      NOTREACHED();
+      return 1;
+  }
+}
+
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     VideoRendererSink* video_renderer_sink,
-    MediaLog* media_log)
+    MediaLog* media_log,
+    TimeDelta audio_write_duration_local,
+    TimeDelta audio_write_duration_remote)
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       video_renderer_sink_(video_renderer_sink),
       media_log_(media_log),
+      audio_write_duration_local_(audio_write_duration_local),
+      audio_write_duration_remote_(audio_write_duration_remote),
       video_overlay_factory_(std::make_unique<VideoOverlayFactory>()),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       cdm_context_(nullptr) {
@@ -229,13 +282,25 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   }
 }
 
-void StarboardRenderer::StartPlayingFrom(base::TimeDelta time) {
+void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   LOG(INFO) << "StarboardRenderer::StartPlayingFrom() called with " << time
             << '.';
   LOG_IF(WARNING, time < base::Seconds(0))
       << "Potentially invalid start time " << time << '.';
+
+  timestamp_of_last_written_audio_ = TimeDelta();
+  is_video_eos_written_ = false;
+  StoreMediaTime(time);
+  // Ignore pending delayed calls to OnNeedData, and update variables used to
+  // decide when to delay.
+  audio_read_delayed_ = false;
+
+  {
+    base::AutoLock auto_lock(lock_);
+    seek_time_ = time;
+  }
 
   if (state_ != STATE_FLUSHED) {
     DCHECK_EQ(state_, STATE_ERROR);
@@ -301,15 +366,16 @@ void StarboardRenderer::SetVolume(float volume) {
 }
 
 // TODO(b/376328722): Revisit playback time reporting.
-base::TimeDelta StarboardRenderer::GetMediaTime() {
+TimeDelta StarboardRenderer::GetMediaTime() {
   base::AutoLock auto_lock(lock_);
 
   if (!player_bridge_) {
+    StoreMediaTime(TimeDelta());
     return base::Microseconds(0);
   }
 
   uint32_t video_frames_decoded, video_frames_dropped;
-  base::TimeDelta media_time;
+  TimeDelta media_time;
 
   player_bridge_->GetInfo(&video_frames_decoded, &video_frames_dropped,
                           &media_time);
@@ -338,6 +404,7 @@ base::TimeDelta StarboardRenderer::GetMediaTime() {
         FROM_HERE, base::BindOnce(&RendererClient::OnStatisticsUpdate,
                                   base::Unretained(client_), statistics));
   }
+  StoreMediaTime(media_time);
 
   return media_time;
 }
@@ -416,12 +483,12 @@ void StarboardRenderer::CreatePlayerBridge() {
       // TODO(b/267678497): When `player_bridge_->GetAudioConfigurations()`
       // returns no audio configurations, update the write durations again
       // before the SbPlayer reaches `kSbPlayerStatePresenting`.
-      audio_write_duration_ =
+      audio_write_duration_for_preroll_ = audio_write_duration_ =
           HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
               ? audio_write_duration_remote_
               : audio_write_duration_local_;
       LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
-                << audio_write_duration_;
+                << audio_write_duration_for_preroll_;
     } else {
       error_message = player_bridge_->GetPlayerCreationErrorMessage();
       player_bridge_.reset();
@@ -445,14 +512,14 @@ void StarboardRenderer::CreatePlayerBridge() {
     return;
   }
 
-  LOG(INFO) << "SbPlayerPipeline::CreatePlayerBridge() failed to create a"
+  LOG(INFO) << "StarboardRenderer::CreatePlayerBridge() failed to create a"
                " valid SbPlayerBridge - \""
             << error_message << "\"";
 
   state_ = STATE_ERROR;
   std::move(init_cb_).Run(PipelineStatus(
       DECODER_ERROR_NOT_SUPPORTED,
-      "SbPlayerPipeline::CreatePlayerBridge() failed to create a valid"
+      "StarboardRenderer::CreatePlayerBridge() failed to create a valid"
       " SbPlayerBridge - \"" +
           error_message + "\""));
 }
@@ -524,10 +591,20 @@ void StarboardRenderer::OnDemuxerStreamRead(
     if (stream == audio_stream_) {
       DCHECK(audio_read_in_progress_);
       audio_read_in_progress_ = false;
+      for (const auto& buffer : buffers) {
+        last_audio_sample_interval_ =
+            buffer->timestamp() - timestamp_of_last_written_audio_;
+        timestamp_of_last_written_audio_ = buffer->timestamp();
+      }
       player_bridge_->WriteBuffers(DemuxerStream::AUDIO, buffers);
     } else {
       DCHECK(video_read_in_progress_);
       video_read_in_progress_ = false;
+      for (const auto& buffer : buffers) {
+        if (buffer->end_of_stream()) {
+          is_video_eos_written_ = true;
+        }
+      }
       player_bridge_->WriteBuffers(DemuxerStream::VIDEO, buffers);
     }
   } else if (status == DemuxerStream::kAborted) {
@@ -594,7 +671,6 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
       return;
     }
 
-#if COBALT_MEDIA_ENABLE_AUDIO_DURATION
     // If we haven't checked the media time recently, update it now.
     if (Time::Now() - last_time_media_time_retrieved_ >
         kMediaTimeCheckInterval) {
@@ -605,7 +681,7 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
     // after the player has received enough audio for preroll, taking into
     // account that our estimate of playback time might be behind by
     // |kMediaTimeCheckInterval|.
-    base::TimeDelta time_ahead_of_playback_for_preroll =
+    TimeDelta time_ahead_of_playback_for_preroll =
         timestamp_of_last_written_audio_ - seek_time_;
     auto adjusted_write_duration_for_preroll =
         AdjustWriteDurationForPlaybackRate(audio_write_duration_for_preroll_,
@@ -631,7 +707,8 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
           (adjusted_write_duration + kMediaTimeCheckInterval)) {
         task_runner_->PostDelayedTask(
             FROM_HERE,
-            base::Bind(&SbPlayerPipeline::DelayedNeedData, this, max_buffers),
+            base::BindOnce(&StarboardRenderer::DelayedNeedData, weak_this_,
+                           max_buffers),
             kMediaTimeCheckInterval);
         audio_read_delayed_ = true;
         return;
@@ -660,7 +737,6 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
     max_buffers = std::min(max_buffers, estimated_max_buffers);
 
     audio_read_delayed_ = false;
-#endif  // COBALT_MEDIA_ENABLE_AUDIO_DURATION
     audio_read_in_progress_ = true;
   } else {
     DCHECK_EQ(type, DemuxerStream::VIDEO);
@@ -713,7 +789,7 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
     case kSbPlayerStatePresenting:
       client_->OnBufferingStateChange(BUFFERING_HAVE_ENOUGH,
                                       BUFFERING_CHANGE_REASON_UNKNOWN);
-      audio_write_duration_ =
+      audio_write_duration_for_preroll_ = audio_write_duration_ =
           HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
               ? audio_write_duration_remote_
               : audio_write_duration_local_;
@@ -763,6 +839,79 @@ void StarboardRenderer::OnPlayerError(SbPlayerError error,
       NOTREACHED();
       break;
   }
+}
+
+void StarboardRenderer::DelayedNeedData(int max_number_of_buffers_to_write) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  if (audio_read_delayed_) {
+    OnNeedData(DemuxerStream::AUDIO, max_number_of_buffers_to_write);
+  }
+}
+
+void StarboardRenderer::StoreMediaTime(TimeDelta media_time) {
+  last_media_time_ = media_time;
+  last_time_media_time_retrieved_ = Time::Now();
+}
+
+int StarboardRenderer::GetDefaultMaxBuffers(AudioCodec codec,
+                                            TimeDelta duration_to_write,
+                                            bool is_preroll) {
+  // Return default maximum samples per write to speed up the initial sample
+  // write, including guard number of samples per write for audio preroll.
+  // The guard number kPrerollGuardAudioBuffer is used to ensure Cobalt
+  // can do one initial write for audio preroll.
+  int default_max_buffers = static_cast<int>(
+      std::ceil(duration_to_write.InSecondsF() *
+                audio_stream_->audio_decoder_config().samples_per_second() /
+                GetDefaultAudioFramesPerBuffer(codec)));
+  if (is_preroll) {
+    default_max_buffers += kPrerollGuardAudioBuffer;
+  }
+  DCHECK_GT(default_max_buffers, 0);
+  return default_max_buffers;
+}
+
+int StarboardRenderer::GetEstimatedMaxBuffers(TimeDelta write_duration,
+                                              TimeDelta time_ahead_of_playback,
+                                              bool is_preroll) {
+  DCHECK_GE(time_ahead_of_playback.InMicroseconds(), 0);
+
+  int estimated_max_buffers = 1;
+  if (!(max_audio_samples_per_write_ > 1) ||
+      write_duration <= time_ahead_of_playback) {
+    return estimated_max_buffers;
+  }
+
+  TimeDelta duration_to_write = write_duration - time_ahead_of_playback;
+  DCHECK_GT(duration_to_write.InMicroseconds(), 0);
+  switch (audio_stream_->audio_decoder_config().codec()) {
+    case AudioCodec::kOpus:
+    case AudioCodec::kAAC:
+    case AudioCodec::kAC3:
+    case AudioCodec::kEAC3:
+      if (last_audio_sample_interval_.is_zero()) {
+        estimated_max_buffers =
+            GetDefaultMaxBuffers(audio_stream_->audio_decoder_config().codec(),
+                                 duration_to_write, is_preroll);
+        break;
+      }
+    // TODO(b/41486346): Support multiple samples per write on the format IAMF.
+    // case AudioCodec::kIAMF:
+    default:
+      if (!last_audio_sample_interval_.is_zero()) {
+        DCHECK_GT(last_audio_sample_interval_.InMicroseconds(), 0);
+        estimated_max_buffers =
+            duration_to_write.InMillisecondsRoundedUp() /
+                last_audio_sample_interval_.InMilliseconds() +
+            1;
+      }
+  }
+  DCHECK_GT(estimated_max_buffers, 0);
+  // Return 1 if |estimated_max_buffers| is non-positive. This ensures
+  // in corner cases, |estimated_max_buffers| falls back to 1.
+  // The maximum number samples of write should be guarded by
+  // SbPlayerGetMaximumNumberOfSamplesPerWrite() in OnNeedData().
+  return estimated_max_buffers > 0 ? estimated_max_buffers : 1;
 }
 
 }  // namespace media

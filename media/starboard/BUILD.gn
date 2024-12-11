@@ -21,9 +21,6 @@ source_set("starboard") {
   visibility = [ "//media" ]
 
   defines = [
-    # TODO(b/326652276): Support audio write ahead
-    "COBALT_MEDIA_ENABLE_AUDIO_DURATION=0",
-
     # TODO(b/326508279): Revisit background mode
     "COBALT_MEDIA_ENABLE_BACKGROUND_MODE=0",
 

@@ -39,6 +39,9 @@
 
 namespace media {
 
+using base::Time;
+using base::TimeDelta;
+
 // SbPlayer based Renderer implementation, the entry point for all video
 // playbacks on Starboard platforms.
 class MEDIA_EXPORT StarboardRenderer final : public Renderer,
@@ -46,7 +49,9 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
  public:
   StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
                     VideoRendererSink* video_renderer_sink,
-                    MediaLog* media_log);
+                    MediaLog* media_log,
+                    TimeDelta audio_write_duration_local,
+                    TimeDelta audio_write_duration_remote);
 
   ~StarboardRenderer() final;
 
@@ -55,15 +60,15 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
                   RendererClient* client,
                   PipelineStatusCallback init_cb) final;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb) final;
-  void SetLatencyHint(absl::optional<base::TimeDelta> latency_hint) final {
+  void SetLatencyHint(absl::optional<TimeDelta> latency_hint) final {
     // TODO(b/380935131): Consider to implement `LatencyHint` for SbPlayer.
     NOTIMPLEMENTED();
   }
   void Flush(base::OnceClosure flush_cb) final;
-  void StartPlayingFrom(base::TimeDelta time) final;
+  void StartPlayingFrom(TimeDelta time) final;
   void SetPlaybackRate(double playback_rate) final;
   void SetVolume(float volume) final;
-  base::TimeDelta GetMediaTime() final;
+  TimeDelta GetMediaTime() final;
   RendererType GetRendererType() final { return RendererType::kStarboard; }
   SetBoundsCB GetSetBoundsCB() override;
 
@@ -87,6 +92,23 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
                   int max_number_of_buffers_to_write) final;
   void OnPlayerStatus(SbPlayerState state) final;
   void OnPlayerError(SbPlayerError error, const std::string& message) final;
+
+  // Used to make a delayed call to OnNeedData() if |audio_read_delayed_| is
+  // true. If |audio_read_delayed_| is false, that means the delayed call has
+  // been cancelled due to a seek.
+  void DelayedNeedData(int max_number_of_buffers_to_write);
+
+  // Store the media time retrieved by GetMediaTime so we can cache it as an
+  // estimate and avoid calling SbPlayerGetInfo too frequently.
+  void StoreMediaTime(TimeDelta media_time);
+
+  int GetDefaultMaxBuffers(AudioCodec codec,
+                           TimeDelta duration_to_write,
+                           bool is_preroll);
+
+  int GetEstimatedMaxBuffers(TimeDelta write_duration,
+                             TimeDelta time_ahead_of_playback,
+                             bool is_preroll);
 
   State state_;
 
@@ -113,23 +135,44 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   raw_ptr<CdmContext> cdm_context_;
 
   DefaultSbPlayerInterface sbplayer_interface_;
-  // TODO(b/326652276): Support audio write duration.
-  const base::TimeDelta audio_write_duration_local_ = base::Milliseconds(500);
-  const base::TimeDelta audio_write_duration_remote_ = base::Seconds(10);
+
+  TimeDelta seek_time_;
+
+  const TimeDelta audio_write_duration_local_;
+  const TimeDelta audio_write_duration_remote_;
+  // The two variables below should always contain the same value.  They are
+  // kept as separate variables so we can keep the existing implementation as
+  // is, which simplifies the implementation across multiple Starboard versions.
+  TimeDelta audio_write_duration_;
+  TimeDelta audio_write_duration_for_preroll_ = audio_write_duration_;
+  // Only call GetMediaTime() from OnNeedData if it has been
+  // |kMediaTimeCheckInterval| since the last call to GetMediaTime().
+  static constexpr TimeDelta kMediaTimeCheckInterval = base::Microseconds(100);
+  // Timestamp for the last written audio.
+  TimeDelta timestamp_of_last_written_audio_;
+  // Indicates if video end of stream has been written into the underlying
+  // player.
+  bool is_video_eos_written_ = false;
+  TimeDelta last_audio_sample_interval_ = base::Microseconds(0);
+  int last_estimated_max_buffers_for_preroll_ = 1;
+  // Last media time reported by GetMediaTime().
+  TimeDelta last_media_time_;
+  // Timestamp microseconds when we last checked the media time.
+  Time last_time_media_time_retrieved_;
+
+  bool audio_read_delayed_ = false;
   // TODO(b/375674101): Support batched samples write.
   const int max_audio_samples_per_write_ = 1;
 
   SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 
-  base::Lock lock_;
+  mutable base::Lock lock_;
   std::unique_ptr<SbPlayerBridge> player_bridge_;
 
   bool player_bridge_initialized_ = false;
-  std::optional<base::TimeDelta> playing_start_from_time_;
+  std::optional<TimeDelta> playing_start_from_time_;
 
   base::OnceClosure pending_flush_cb_;
-
-  base::TimeDelta audio_write_duration_ = audio_write_duration_local_;
 
   bool audio_read_in_progress_ = false;
   bool video_read_in_progress_ = false;
