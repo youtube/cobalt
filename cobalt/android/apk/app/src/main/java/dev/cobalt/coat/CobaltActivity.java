@@ -121,8 +121,6 @@ public abstract class CobaltActivity extends Activity {
             "--enable-features=LogJsConsoleMessages",
             // Disable rescaling Webpage.
             "--force-device-scale-factor=1",
-            // Enable Cobalt-specific JS attributes/methods.
-            "--enable-blink-features=SourceBufferWriteHead",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
 

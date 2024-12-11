@@ -20,5 +20,5 @@
 [
     ImplementedAs=SourceBufferWriteHead
 ] partial interface SourceBuffer {
-    [RaisesException, RuntimeEnabled=SourceBufferWriteHead] readonly attribute double writeHead;
+    [RaisesException] readonly attribute double writeHead;
 };

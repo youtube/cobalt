@@ -113,9 +113,11 @@ class SourceBuffer final : public EventTargetWithInlineData,
   AudioTrackList& audioTracks();
   VideoTrackList& videoTracks();
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Cobalt-specific method that returns the highest presentation
   // timestamp written to the SbPlayer.
   double writeHead(ExceptionState& exception_state) const;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // "_Locked" requires these be called while in the scope of callback of
   // |source_|'s attachment's RunExclusively(). Other methods without "_Locked"
