@@ -110,6 +110,7 @@ public abstract class CobaltActivity extends GameActivity {
     a11yHelper = new CobaltA11yHelper(videoSurfaceView);
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    getWindow().setPreferMinimalPostProcessing(true);
   }
 
   /**
@@ -121,6 +122,7 @@ public abstract class CobaltActivity extends GameActivity {
     mSurfaceView = null;
 
     getWindow().takeSurface(this);
+    getWindow().setPreferMinimalPostProcessing(true);
 
     mContentView = new View(this);
     setContentView(mContentView);
