@@ -252,8 +252,7 @@ void TCPSocketStarboard::Close() {
 }
 
 void TCPSocketStarboard::StopWatchingAndCleanUp() {
-  bool ok = socket_watcher_.UnregisterInterest(kSbSocketWaiterInterestRead |
-                                               kSbSocketWaiterInterestWrite);
+  bool ok = socket_watcher_.StopWatchingSocket();
   DCHECK(ok);
 
   if (!accept_callback_.is_null()) {

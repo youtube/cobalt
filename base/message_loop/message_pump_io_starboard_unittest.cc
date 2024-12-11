@@ -75,18 +75,6 @@ class MessagePumpIOStarboardTest : public testing::Test {
         (kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite));
   }
 
-  void SimulateIOReadEvent(MessagePumpIOStarboard::SocketWatcher* controller) {
-    MessagePumpIOStarboard::OnSocketWaiterNotification(
-        nullptr, nullptr, controller,
-        kSbSocketWaiterInterestRead);
-  }
-
-  void SimulateIOWriteEvent(MessagePumpIOStarboard::SocketWatcher* controller) {
-    MessagePumpIOStarboard::OnSocketWaiterNotification(
-        nullptr, nullptr, controller,
-        kSbSocketWaiterInterestWrite);
-  }
-
   std::unique_ptr<test::SingleThreadTaskEnvironment> task_environment_;
 
   WaitableEvent event_;

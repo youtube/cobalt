@@ -220,12 +220,6 @@ bool CurrentIOThread::Watch(SbSocket socket,
   return static_cast<MessagePumpIOStarboard*>(GetMessagePumpForIO())
       ->Watch(socket, persistent, interests, controller, delegate);
 }
-bool CurrentIOThread::UnregisterInterest(SbSocket socket,
-                                         int dropped_interests,
-                                         SocketWatcher* controller) {
-  return static_cast<MessagePumpIOStarboard*>(GetMessagePumpForIO())
-      ->UnregisterInterest(socket, dropped_interests, controller);
-}
 #elif BUILDFLAG(IS_WIN)
 HRESULT CurrentIOThread::RegisterIOHandler(
     HANDLE file,

@@ -132,8 +132,7 @@ void UDPSocketStarboard::Close() {
   write_callback_.Reset();
   send_to_address_.reset();
 
-  bool ok = socket_watcher_.UnregisterInterest(kSbSocketWaiterInterestRead |
-                                               kSbSocketWaiterInterestWrite);
+  bool ok = socket_watcher_.StopWatchingSocket();
   DCHECK(ok);
 
   is_connected_ = false;

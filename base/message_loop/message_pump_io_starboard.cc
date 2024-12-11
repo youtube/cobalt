@@ -59,7 +59,7 @@ bool MessagePumpIOStarboard::SocketWatcher::UnregisterInterest(int interests) {
 }
 
 bool MessagePumpIOStarboard::SocketWatcher::StopWatchingSocket() {
-  return UnregisterInterest(kSbSocketWaiterInterestRead ||
+  return UnregisterInterest(kSbSocketWaiterInterestRead |
                             kSbSocketWaiterInterestWrite);
 }
 
@@ -133,7 +133,7 @@ bool MessagePumpIOStarboard::UnregisterInterest(SbSocket socket,
     // It's illegal to use this function to listen on 2 separate fds with the
     // same |controller|.
     if (old_socket != socket) {
-      NOTREACHED() << "Sockets don't match" << old_socket << "!=" << socket;
+      NOTREACHED() << "Sockets don't match " << old_socket << "!=" << socket;
       return false;
     }
 
@@ -145,7 +145,7 @@ bool MessagePumpIOStarboard::UnregisterInterest(SbSocket socket,
   controller->set_interests(interests);
 
   if (!SbSocketIsValid(socket)) {
-    NOTREACHED() << "Invalid socket" << socket;
+    NOTREACHED() << "Invalid socket " << socket;
     return false;
   }
 
@@ -154,9 +154,6 @@ bool MessagePumpIOStarboard::UnregisterInterest(SbSocket socket,
     if (!SbSocketWaiterAdd(waiter_, socket, controller,
                            OnSocketWaiterNotification, interests,
                            controller->persistent())) {
-      SB_DLOG(ERROR) << __FUNCTION__
-                     << " Failed to remain interested in interests="
-                     << interests;
       return false;
     }
     controller->Init(socket, controller->persistent());
@@ -176,7 +173,7 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
          interests == kSbSocketWaiterInterestWrite ||
          interests ==
              (kSbSocketWaiterInterestRead | kSbSocketWaiterInterestWrite));
-  if (interests == kSbSocketWaiterInterestNone) {
+  if ((controller->interests() & interests) == interests) {
     // Interests didn't change, return.
     return true;
   }
@@ -189,7 +186,7 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
     // It's illegal to use this function to listen on 2 separate fds with the
     // same |controller|.
     if (old_socket != socket) {
-      NOTREACHED() << "Sockets don't match" << old_socket << "!=" << socket;
+      NOTREACHED() << "Sockets don't match " << old_socket << "!=" << socket;
       return false;
     }
 
@@ -206,15 +203,13 @@ bool MessagePumpIOStarboard::Watch(SbSocket socket,
   }
 
   if (!SbSocketIsValid(socket)) {
-    NOTREACHED() << "Invalid socket" << socket;
+    NOTREACHED() << "Invalid socket " << socket;
     return false;
   }
 
   // Set current interest mask and waiter for this event.
   if (!SbSocketWaiterAdd(waiter_, socket, controller,
                          OnSocketWaiterNotification, interests, persistent)) {
-    SB_DLOG(ERROR) << __FUNCTION__
-                   << " Failed to remain interested in interests=" << interests;
     return false;
   }
 
@@ -242,8 +237,6 @@ void MessagePumpIOStarboard::Run(Delegate* delegate) {
   AutoReset<bool> auto_reset_keep_running(&keep_running_, true);
 
   for (;;) {
-    if (should_quit())
-      break;
     Delegate::NextWorkInfo next_work_info = delegate->DoWork();
     bool immediate_work_available = next_work_info.is_immediate();
 

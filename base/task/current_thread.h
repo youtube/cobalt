@@ -280,9 +280,6 @@ class BASE_EXPORT CurrentIOThread : public CurrentThread {
              SbSocketWaiterInterest interests,
              SocketWatcher* controller,
              Watcher* delegate);
-  bool UnregisterInterest(SbSocket socket,
-                          int dropped_interests,
-                          SocketWatcher* controller);
 #elif BUILDFLAG(IS_WIN)
   // Please see MessagePumpWin for definitions of these methods.
   HRESULT RegisterIOHandler(HANDLE file, MessagePumpForIO::IOHandler* handler);
