@@ -279,7 +279,7 @@ if (target_os == "android") {
   assert(false, "Unsupported target_os: $target_os")
 }
 
-if (is_cobalt && target_os == "linux" && is_clang) {
+if (is_cobalt) {
   _toolchain_parts = string_split(_default_toolchain, ":")
   _toolchain_parts[1] = "cobalt_" + _toolchain_parts[1]
   _default_toolchain = string_join(":", _toolchain_parts)
