@@ -30,6 +30,8 @@ jobs:
     with:
       platform: chromium_linux
       nightly: ${{ github.event.inputs.nightly }}
+    secrets:
+      datadog_api_key: ${{ secrets.DD_API_KEY }}
   # This is default Cobalt build config
   linux:
     uses: ./.github/workflows/main.yaml
@@ -39,3 +41,5 @@ jobs:
     with:
       platform: linux
       nightly: ${{ github.event.inputs.nightly }}
+    secrets:
+      datadog_api_key: ${{ secrets.DD_API_KEY }}
