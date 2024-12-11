@@ -1,39 +1,45 @@
-name: Upload Results
+name: Process Test Results
 description: Uploads test results to DataDog.
 inputs:
-  results_dir:
-    description: "Path to directory where test results are saved."
-    required: true
   datadog_api_key:
     description: "Path to directory where test results are saved."
     required: true
-  is_postsubmit:
-    description: "Indicates if this is a postsubmit run or not."
+  test_results_key:
+    description: "Artifact key used to store test results."
     required: true
 runs:
   using: "composite"
   steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.test_results_key }}
+        path: results/
+
     - name: Publish Test Report
+      continue-on-error: true
       uses: mikepenz/action-junit-report@992d97d6eb2e5f3de985fbf9df6a04386874114d
       with:
-        report_paths: "**/${{ inputs.results_dir }}/**/*.xml"
+        report_paths: results/*.xml
         annotate_only: true
 
     - name: Get Datadog CLI
-      if: inputs.is_postsubmit == 'true'
+      id: download-dd-cli
+      # The API key is not available on PRs created from a fork.
+      if: inputs.datadog_api_key != ''
       env:
         DD_VERSION: 'v2.18.0'
         DD_SHA256SUM: 'adbe9b3a41faaf0b1d9702ba256cf8fa9e474c0cc8216f25e5b489c53d6f0a70  datadog-ci'
       run: |
         set -x
         download_url="https://github.com/DataDog/datadog-ci/releases/download/${DD_VERSION}/datadog-ci_linux-x64"
-        curl -L --fail $download_url --output datadog-ci
+        curl -L --fail ${download_url} --output datadog-ci
         echo ${DD_SHA256SUM} | sha256sum --check
         chmod +x datadog-ci
       shell: bash
 
     - name: Upload to Datadog
-      if: inputs.is_postsubmit == 'true'
+      if: steps.download-dd-cli.outcome == 'success'
       env:
         DATADOG_SITE: us5.datadoghq.com
         DATADOG_API_KEY: ${{ inputs.datadog_api_key }}
@@ -42,5 +48,5 @@ runs:
         DD_ENV: ci
       run: |
         set -x
-        ./datadog-ci junit upload --service ${DD_SERVICE} "${{ inputs.results_dir }}/**/*.xml"
+        ./datadog-ci junit upload --service ${DD_SERVICE} results/*.xml
       shell: bash
