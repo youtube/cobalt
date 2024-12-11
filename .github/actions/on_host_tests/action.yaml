@@ -38,7 +38,7 @@ runs:
         export LD_LIBRARY_PATH="${GITHUB_WORKSPACE}"/unit_test/out/${{ matrix.platform }}_${{ matrix.config }}/starboard:"${GITHUB_WORKSPACE}"/unit_test/out/${{ matrix.platform }}_${{ matrix.config }}
 
         cd ${GITHUB_WORKSPACE}/unit_test
-        for test_binary in $(ls -d out/**/*tests); do
+        for test_binary in $(ls -d out/**/*tests out/**/nplb); do
           # TODO(b/372303096): Need dedicated xvfb runner.
           echo "Running tests for suite: ${test_binary}"
 
