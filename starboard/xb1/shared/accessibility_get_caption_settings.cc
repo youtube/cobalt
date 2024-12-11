@@ -181,10 +181,10 @@ bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings) {
           ClosedCaptionProperties::RegionOpacity);
   caption_settings->window_opacity_state = kSbAccessibilityCaptionStateSet;
 
-  caption_settings->is_enabled = true; // TODO: check it
+  caption_settings->is_enabled =
+      ClosedCaptionProperties::BackgroundColor != ClosedCaptionColor::Default;
   caption_settings->supports_is_enabled = true;
   caption_settings->supports_set_enabled = false;
-  caption_settings->supports_override = true;
   return true;
 }
 
