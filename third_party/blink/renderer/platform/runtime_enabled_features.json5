@@ -3181,6 +3181,12 @@
     {
       name: "SolidColorLayers",
     },
+    // Cobalt-specific feature that lets the web app query the latest
+    // presentation timestamp of buffers written to the Renderer.
+    {
+      name: "SourceBufferWriteHead",
+      base_feature: "none",
+    },
     // An origin trial feature name is required for this, even though it's
     // actually enabled by the more specific trial. Having these as separate
     // features will allow Blink to distinguish for which thing the trial

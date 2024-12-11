@@ -172,6 +172,9 @@ void ChunkDemuxerStream::Seek(base::TimeDelta time) {
   DCHECK(state_ == UNINITIALIZED || state_ == RETURNING_ABORT_FOR_READS)
       << state_;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  write_head_ = time;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   stream_->Seek(time);
 }
 
@@ -216,6 +219,13 @@ bool ChunkDemuxerStream::EvictCodedFrames(base::TimeDelta media_time,
   // know which GOP currentTime points to.
   return stream_->GarbageCollectIfNeeded(media_time, newDataSize);
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+base::TimeDelta ChunkDemuxerStream::GetWriteHead() const {
+  base::AutoLock auto_lock(lock_);
+  return write_head_;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void ChunkDemuxerStream::OnMemoryPressure(
     base::TimeDelta media_time,
@@ -490,6 +500,13 @@ void ChunkDemuxerStream::CompletePendingReadIfPossible_Locked() {
   // Other cases are kOk and just return the buffers.
   DCHECK(!buffers.empty());
   requested_buffer_count_ = 0;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  for (auto&& buffer : buffers) {
+    if (!buffer->end_of_stream()) {
+      write_head_ = std::max(write_head_, buffer->timestamp());
+    }
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::move(read_cb_).Run(kOk, std::move(buffers));
 }
 
@@ -1050,6 +1067,22 @@ bool ChunkDemuxer::EvictCodedFrames(const std::string& id,
   }
   return itr->second->EvictCodedFrames(currentMediaTime, newDataSize);
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+base::TimeDelta ChunkDemuxer::GetWriteHead(const std::string& id) const {
+  base::AutoLock auto_lock(lock_);
+  DCHECK(IsValidId_Locked(id));
+
+  auto iter = id_to_streams_map_.find(id);
+  if (iter == id_to_streams_map_.end() || iter->second.empty()) {
+    // Handled just in case.
+    NOTREACHED();
+    return base::TimeDelta();
+  }
+
+  return iter->second[0]->GetWriteHead();
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 bool ChunkDemuxer::AppendToParseBuffer(const std::string& id,
                                        const uint8_t* data,
