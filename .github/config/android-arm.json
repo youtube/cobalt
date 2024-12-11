@@ -19,6 +19,15 @@
         "system_webview_shell_apk",
         "cobalt:gn_all"
     ],
+    "tests": [
+      {
+        "test_name": "base_unittests",
+      },
+      {
+        "test_name": "url_unittests",
+        "gtest_filters": "GURL*"
+      }
+    ],
     "test_on_device": true,
     "includes": [
         {
