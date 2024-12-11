@@ -280,8 +280,9 @@ if (target_os == "android") {
 }
 
 if (is_cobalt && target_os == "linux" && is_clang) {
-  _default_toolchain =
-          "//cobalt/build/toolchain/linux:cobalt_clang_$target_cpu"
+  _toolchain_parts = string_split(_default_toolchain, ":")
+  _toolchain_parts[1] = "cobalt_" + _toolchain_parts[1]
+  _default_toolchain = string_join(":", _toolchain_parts)
   assert(
       _default_toolchain != host_toolchain,
       "Host and _default_toolchain are the same. They compile with different configurations and need to be separated.")
