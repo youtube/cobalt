@@ -94,30 +94,6 @@ android_clang_toolchain("android_clang_x86") {
   }
 }
 
-android_clang_toolchain("cobalt_android_clang_x86") {
-  toolchain_args = {
-    current_cpu = "x86"
-
-    # We lack the libclang_rt.profile library for x86 and x86_64, so we cannot
-    # link any binaries that are generated with coverage instrumentation.
-    # Therefore we need to turn off 'use_clang_coverage' for this toolchain.
-    # TODO(crbug.com/865376)
-    use_clang_coverage = false
-
-    # This turns off all of the LaCrOS-specific flags. A LaCrOS related build
-    # may use |ash_clang_x64| or |lacros_clang_x64| toolchain, which are
-    # chromeos toolchains, to build Ash-Chrome or Lacros-Chrome in a
-    # subdirectory, and because chromeos toolchain uses android toolchain, which
-    # eventually resulted in that android toolchains being used inside a LaCrOS
-    # build.
-    also_build_ash_chrome = false
-    also_build_lacros_chrome = false
-    chromeos_is_browser_only = false
-    ozone_platform = ""
-    ozone_platform_wayland = false
-  }
-}
-
 android_clang_toolchain("android_clang_arm") {
   if (is_cobalt) {
     toolchain_args = {
@@ -126,20 +102,11 @@ android_clang_toolchain("android_clang_arm") {
       target_platform = "android-arm"
     }
   } else {
-    toolchain_args = {
-      current_cpu = "arm"
-    }
-  }
-}
-
-android_clang_toolchain("cobalt_android_clang_arm") {
   toolchain_args = {
     current_cpu = "arm"
-    starboard_toolchain = "//build/toolchain/android:cobalt_android_clang_arm"
-    target_platform = "android-arm"
+  }
   }
 }
-
 
 android_clang_toolchain("android_clang_mipsel") {
   toolchain_args = {
@@ -172,16 +139,16 @@ android_clang_toolchain("android_clang_x64") {
 }
 
 android_clang_toolchain("android_clang_arm64") {
+  if (is_cobalt) {
+    toolchain_args = {
+      current_cpu = "arm64"
+      starboard_toolchain = "//build/toolchain/android:android_clang_arm64"
+      target_platform = "android-arm64"
+    }
+  } else {
   toolchain_args = {
     current_cpu = "arm64"
   }
-}
-
-android_clang_toolchain("cobalt_android_clang_arm64") {
-  toolchain_args = {
-    current_cpu = "arm64"
-    starboard_toolchain = "//build/toolchain/android:cobalt_android_clang_arm64"
-    target_platform = "android-arm64"
   }
 }
 
