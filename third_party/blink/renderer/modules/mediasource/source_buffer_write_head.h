@@ -15,7 +15,12 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASOURCE_SOURCE_BUFFER_WRITE_HEAD_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASOURCE_SOURCE_BUFFER_WRITE_HEAD_H_
 
+#include "build/build_config.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
+
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
+#error "This file only works with Starboard media"
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
 

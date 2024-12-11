@@ -17,6 +17,10 @@
 #include "third_party/blink/renderer/modules/mediasource/source_buffer.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
+#error "This file only works with Starboard media"
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace blink {
 
 // static
