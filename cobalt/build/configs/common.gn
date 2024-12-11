@@ -15,3 +15,5 @@ ffmpeg_branding = "Chrome"
 # Removing these flags causes a lot of compiler errors in starboard code.
 clang_use_chrome_plugins = false
 enable_check_raw_ptr_fields = false
+
+optimize_for_size = true
