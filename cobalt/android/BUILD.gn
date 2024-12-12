@@ -32,12 +32,20 @@ jinja_template("cobalt_manifest") {
   variables = [ "manifest_package=dev.cobalt.coat" ]
 }
 
+# Chromium does not accept this package because of privacy concerns.
+# go/no-ads-identifier.
+android_aar_prebuilt("google_play_services_ads_identifier_java") {
+  aar_path = "//third_party/android_deps/libs/com_google_android_gms_ads_identifier/play-services-ads-identifier-17.0.0.aar"
+  info_path = "//third_party/android_deps/libs/com_google_android_gms_ads_identifier/com_google_android_gms_ads_identifier.info"
+}
+
 # TODO(cobalt): Re-enable or remove disabled java files.
 android_library("cobalt_apk_java") {
   testonly = true
   resources_package = "dev.cobalt.coat"
   deps = [
     ":cobalt_java_resources",
+    ":google_play_services_ads_identifier_java",
     "//base:base_java",
     "//base:process_launcher_java",
     "//build/android:build_java",
@@ -50,7 +58,6 @@ android_library("cobalt_apk_java") {
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
     "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
-    "//third_party/android_deps:google_play_services_ads_identifier_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//ui/android:ui_java",
     "//ui/android:ui_no_recycler_view_java",
