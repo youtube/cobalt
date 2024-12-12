@@ -17,7 +17,7 @@
 
 #include "ui/events/platform/platform_event_source.h"
 
-#include "content/public/browser/browser_thread.h"
+#include "base/task/single_thread_task_runner.h"
 #include "starboard/event.h"
 
 #include <thread>
