@@ -24,7 +24,6 @@ std::vector<gl::GLImplementationParts>
 SurfaceFactoryStarboard::GetAllowedGLImplementations() {
   return std::vector<gl::GLImplementationParts>{
       gl::GLImplementationParts(gl::kGLImplementationEGLGLES2),
-      gl::GLImplementationParts(gl::kGLImplementationEGLANGLE),
   };
 }
 
