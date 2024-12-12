@@ -207,19 +207,20 @@ SbPlayer SbPlayerCreate(SbWindow window,
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));
 
-  if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
-    // TODO: accomplish this through more direct means.
-    // Set the bounds to initialize the VideoSurfaceView. The initial values
-    // don't matter.
-    SbPlayerSetBounds(player, 0, 0, 0, 0, 0);
+  if (SbPlayerIsValid(player)) {
+    if (creation_param->output_mode != kSbPlayerOutputModeDecodeToTexture) {
+      // TODO: accomplish this through more direct means.
+      // Set the bounds to initialize the VideoSurfaceView. The initial values
+      // don't matter.
+      SbPlayerSetBounds(player, 0, 0, 0, 0, 0);
+    }
+    return player;
   }
 
-  if (!SbPlayerIsValid(player)) {
-    SB_LOG(ERROR)
-        << "Invalid player returned by SbPlayerPrivate::CreateInstance().";
-    player_error_func(
-        kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-        "Invalid player returned by SbPlayerPrivate::CreateInstance()");
-  }
-  return player;
+  SB_LOG(ERROR)
+      << "Invalid player returned by SbPlayerPrivate::CreateInstance().";
+  player_error_func(
+      kSbPlayerInvalid, context, kSbPlayerErrorDecode,
+      "Invalid player returned by SbPlayerPrivate::CreateInstance()");
+  return kSbPlayerInvalid;
 }
