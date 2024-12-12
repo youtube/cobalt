@@ -330,9 +330,11 @@ void UpdaterModule::Update() {
 
 // The following methods are called by other threads than the updater_thread_.
 
-void UpdaterModule::CompareAndSwapChannelChanged(int old_value, int new_value) {
+void UpdaterModule::CompareAndSwapForcedUpdate(int old_value, int new_value) {
   auto config = updater_configurator_;
-  if (config) config->CompareAndSwapChannelChanged(old_value, new_value);
+  if (config) {
+    config->CompareAndSwapForcedUpdate(old_value, new_value);
+  }
 }
 
 std::string UpdaterModule::GetUpdaterChannel() const {
@@ -352,7 +354,9 @@ void UpdaterModule::SetUpdaterChannel(const std::string& updater_channel) {
   LOG(INFO) << "UpdaterModule::SetUpdaterChannel updater_channel="
             << updater_channel;
   auto config = updater_configurator_;
-  if (config) config->SetChannel(updater_channel);
+  if (config) {
+    config->SetChannel(updater_channel);
+  }
 }
 
 std::string UpdaterModule::GetUpdaterStatus() const {

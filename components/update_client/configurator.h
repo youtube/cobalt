@@ -178,7 +178,7 @@ class Configurator : public base::RefCountedThreadSafe<Configurator> {
   virtual void SetUpdaterStatus(const std::string& status) = 0;
 
   // Compare and swap the is_channel_changed flag.
-  virtual void CompareAndSwapChannelChanged(int old_value, int new_value) = 0;
+  virtual void CompareAndSwapForcedUpdate(int old_value, int new_value) = 0;
 
   virtual void SetMinFreeSpaceBytes(uint64_t bytes) = 0;
   virtual uint64_t GetMinFreeSpaceBytes() = 0;

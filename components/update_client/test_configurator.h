@@ -128,7 +128,7 @@ class TestConfigurator : public Configurator {
 #if defined(STARBOARD)
   // TODO: add unit tests for updater channels, status, and compressed updates.
   void SetChannel(const std::string& channel) override {}
-  void CompareAndSwapChannelChanged(int old_value, int new_value) override {}
+  void CompareAndSwapForcedUpdate(int old_value, int new_value) override {}
   std::string GetUpdaterStatus() const override { return ""; }
   void SetUpdaterStatus(const std::string& status) override {}
 

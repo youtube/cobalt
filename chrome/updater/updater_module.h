@@ -141,7 +141,7 @@ class UpdaterModule {
   std::string GetUpdaterChannel() const;
   void SetUpdaterChannel(const std::string& updater_channel);
 
-  void CompareAndSwapChannelChanged(int old_value, int new_value);
+  void CompareAndSwapForcedUpdate(int old_value, int new_value);
 
   void RunUpdateCheck();
 
