@@ -408,7 +408,7 @@ std::ostream& operator<<(std::ostream& stream,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // Checks for progressive formats served by the YouTube H5 player.
 // These formats have a mime type of "video/mp4", and lists both audio and
-// video formats under the "codecs" parameter.
+// video codecs under the "codecs" parameter.
 bool IsProgressiveFormat(const ContentType& content_type) {
   const String type = content_type.GetType();
   const String codecs = content_type.Parameter("codecs");
@@ -439,7 +439,7 @@ MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
                  "via base features.";
     result = MIMETypeRegistry::kNotSupported;
   } else {
-    SbMediaSupportType support_type =
+    const SbMediaSupportType support_type =
         SbMediaCanPlayMimeAndKeySystem(content_type.Raw().Ascii().c_str(), "");
     switch (support_type) {
       case kSbMediaSupportTypeNotSupported:
