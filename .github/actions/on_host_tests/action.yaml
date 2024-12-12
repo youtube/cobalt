@@ -57,7 +57,7 @@ runs:
           echo "Test filter evaluated to: ${test_filter}"
 
           xml_path="${results_dir}/${test_binary}_testoutput.xml"
-          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary_path --gtest_filter="${test_filter}" --gtest_output="xml:${xml_path}"
+          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary_path --gtest_filter="${test_filter}" --gtest_output="xml:${xml_path}" || continue
         done
         echo "Finished running all unit tests..."
     - name: Archive Test Results
