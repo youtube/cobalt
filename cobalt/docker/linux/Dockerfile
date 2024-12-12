@@ -1,6 +1,30 @@
 # Use the official Ubuntu image as the base
 FROM debian:12
 
+# TODO(b/372303096): Move to dedicated unittest image.
+RUN echo deb http://deb.debian.org/debian-debug \
+    $(. /etc/os-release && echo "${VERSION_CODENAME}")-debug main \
+    >> /etc/apt/sources.list
+
+# TODO(b/372303096): Move to dedicated unittest image.
+# The following list of debs were added from the pre-chrobalt unittest image:
+# * libatomic1 \
+# * libavcodec-dev \
+# * libavformat-dev \
+# * libgles2-mesa \
+# * libegl1-mesa \
+# * libgl1-mesa-dri-dbgsym \
+# * libx11-6 \
+# * libxi-dev \
+# * libxrender1 \
+# * procps \
+# * libasound2-dbgsym \
+# * libegl1-dbgsym \
+# * libglapi-mesa-dbgsym \
+# * libgles2-dbgsym \
+# * libglx-mesa0-dbgsym \
+# * libglx0-dbgsym \
+
 # Install any necessary dependencies
 # NOTE: From libxcomposite down, these are minimal requirements to run a
 # V8 snapshot binary, on X11/GTK builds
