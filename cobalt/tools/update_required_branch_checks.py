@@ -36,6 +36,8 @@ EXCLUDED_CHECK_PATTERNS = [
     'prepare_branch_list',
     'cherry_pick',
     'assign-reviewer',
+    'import/copybara',
+    'upload-release-artifacts',
 
     # Excludes coverage and test reports.
     'linux-coverage',
@@ -52,18 +54,20 @@ EXCLUDED_CHECK_PATTERNS = [
     # Excludes templated check names.
     '${{',
 
-    # Excludes artifact upload jobs.
-    'upload-release-artifacts',
+    # Old compiler versions have started failing due to node/glibc
+    # incompatibilities.
+    'linux-clang-3-9',
+    'linux-gcc-6-3',
 ]
 
 # Exclude rc_11 and COBALT_9 releases.
-MINIMUM_LTS_RELEASE_NUMBER = 19
-LATEST_LTS_RELEASE_NUMBER = 25
+MINIMUM_LTS_RELEASE = 19
+LATEST_LTS_RELEASE = 25
 
 
 def get_protected_branches() -> List[str]:
   branches = ['main']
-  for i in range(MINIMUM_LTS_RELEASE_NUMBER, LATEST_LTS_RELEASE_NUMBER + 1):
+  for i in range(MINIMUM_LTS_RELEASE, LATEST_LTS_RELEASE + 1)[:-1]:
     branches.append(f'{i}.lts.1+')
   return branches
 
