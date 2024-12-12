@@ -11,3 +11,7 @@ enable_vulkan = false
 # Overriding flag from //media/media_options.gni.
 # Cobalt doesn't use //third_party/ffmpeg.
 media_use_ffmpeg = false
+
+# Overriding flag from components/nacl/features.gni
+# NACL platform is deprecated in 2022 : https://sites.google.com/a/google.com/sandboxing-mitigations/reviews/nacl
+enable_nacl = false
