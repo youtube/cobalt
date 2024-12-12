@@ -203,4 +203,5 @@ content_shell_apk_tmpl("cobalt_apk") {
   ]
   shared_libraries = [ ":libcobalt_content_shell_content_view" ]
   command_line_flags_file = "content-shell-command-line"
+  include_size_info = is_official_build
 }
