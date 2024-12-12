@@ -191,7 +191,13 @@ void CreateRendererTestService(
 
 }  // namespace
 
-ShellContentRendererClient::ShellContentRendererClient() {}
+ShellContentRendererClient::ShellContentRendererClient() {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Registers a custom content::AudioDeviceFactory
+  starboard_audio_device_factory_ =
+      std::make_unique<media::StarboardAudioDeviceFactory>();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+}
 
 ShellContentRendererClient::~ShellContentRendererClient() {
 }

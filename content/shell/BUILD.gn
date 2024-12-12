@@ -446,6 +446,7 @@ static_library("content_shell_lib") {
   if (is_cobalt && use_starboard_media) {
     deps += [
       "//starboard($starboard_toolchain)",
+      "//media/starboard:webaudio",
     ]
   }
 }

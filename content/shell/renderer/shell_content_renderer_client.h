@@ -16,6 +16,10 @@
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/starboard_audio_device_factory.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace blink {
 class URLLoaderThrottleProvider;
 enum class URLLoaderThrottleProviderType;
@@ -65,6 +69,7 @@ class ShellContentRendererClient : public ContentRendererClient {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   bool IsSupportedAudioType(const media::AudioType& type) override;
   bool IsSupportedVideoType(const media::VideoType& type) override;
+  std::unique_ptr<media::StarboardAudioDeviceFactory> starboard_audio_device_factory_;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   std::unique_ptr<blink::WebPrescientNetworking> CreatePrescientNetworking(

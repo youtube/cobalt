@@ -126,6 +126,19 @@ source_set("starboard") {
   configs += [ "//media:subcomponent_config" ]
 }
 
+source_set("webaudio") {
+  sources = [
+    "starboard_audio_device_factory.cc",
+    "starboard_audio_device_factory.h",
+    "starboard_audio_renderer_sink.cc",
+    "starboard_audio_renderer_sink.h",
+  ]
+  deps = [
+    "//starboard:starboard_headers_only",
+    "//third_party/blink/public:blink_headers",
+  ]
+}
+
 source_set("unit_tests") {
   testonly = true
   sources = []
