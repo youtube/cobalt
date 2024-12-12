@@ -105,7 +105,7 @@ void IncreaseFdLimitTo(unsigned int max_descriptors) {
 
 #endif  // !BUILDFLAG(IS_FUCHSIA)
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
 namespace {
 
 size_t GetMallocUsageMallinfo() {
@@ -131,10 +131,12 @@ size_t ProcessMetrics::GetMallocUsage() {
   malloc_statistics_t stats = {0};
   malloc_zone_statistics(nullptr, &stats);
   return stats.size_in_use;
-#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
   return GetMallocUsageMallinfo();
 #elif BUILDFLAG(IS_FUCHSIA)
   // TODO(fuchsia): Not currently exposed. https://crbug.com/735087.
+  return 0;
+#elif BUILDFLAG(IS_STARBOARD)
   return 0;
 #endif
 }

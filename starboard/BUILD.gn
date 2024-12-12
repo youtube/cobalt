@@ -102,7 +102,7 @@ if (!is_cobalt) {
       "//starboard/tools:build_app_launcher_zip",
     ]
   }
-
+} else {
   group("starboard_group") {
     deps = []
     public_deps = [
@@ -113,8 +113,10 @@ if (!is_cobalt) {
     if (sb_is_modular && current_toolchain == cobalt_toolchain) {
       public_deps += [
         "//third_party/llvm-project/compiler-rt:compiler_rt",
-        "//third_party/llvm-project/libcxx:cxx",
-        "//third_party/llvm-project/libcxxabi:cxxabi",
+
+        # TODO: Talk about this with yavor/andrew
+        # "//third_party/llvm-project/libcxx:cxx",
+        # "//third_party/llvm-project/libcxxabi:cxxabi",
         "//third_party/musl:c",
       ]
 
@@ -166,10 +168,6 @@ if (!is_cobalt) {
         }
       }
     }
-  }
-} else {
-  group("starboard_group") {
-    deps = [ "//starboard($starboard_toolchain)" ]
   }
 }
 

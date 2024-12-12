@@ -21,6 +21,9 @@ config("sabi_flags") {
 }
 
 config("x64") {
+  print(host_toolchain, "host_tc")
+
+  # assert(current_toolchain != host_toolchain)
   configs = [
     "//starboard/build/config/modular",
     "//starboard/build/config/sabi",
@@ -29,4 +32,6 @@ config("x64") {
 
   cflags = [ "-isystem" +
              rebase_path("//third_party/musl/arch/x86_64", root_build_dir) ]
+
+  ldflags = [ "-Wl,--gc-sections" ]
 }

@@ -52,8 +52,11 @@ config("cxx_config") {
   include_dirs = [
     "trunk/include",
     "trunk/src",
-    "//buildtools/third_party/libc++abi/trunk/include",
   ]
+  if (current_toolchain != host_toolchain) {
+    include_dirs +=
+        [ "//buildtools/third_party/libc++abi/trunk/include/include" ]
+  }
 }
 
 static_library("cxx") {
@@ -112,12 +115,13 @@ static_library("cxx") {
   ]
 
   configs += [ ":cxx_config" ]
+
   # configs -= ["//starboard/build/config:default_cpp_standard"]
   deps = [
+    "//buildtools/third_party/libc++abi:cxxabi",
     "//starboard:starboard_headers_only",
     "//starboard/common",
     "//third_party/llvm-project/compiler-rt:compiler_rt",
-    "//buildtools/third_party/libc++abi:cxxabi",
     "//third_party/musl:c",
   ]
 }

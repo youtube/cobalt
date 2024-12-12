@@ -21,6 +21,11 @@ source_set("browser") {
     "//content/public/browser",
     "//content/public/common",
   ]
+    if (is_starboard) {
+    deps -= [
+      "//components/crash/core/app",
+    ]
+  }
 
   if (is_castos || is_chromeos || is_android) {
     sources += [

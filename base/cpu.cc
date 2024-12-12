@@ -18,7 +18,7 @@
 #include "build/build_config.h"
 
 #if defined(ARCH_CPU_ARM_FAMILY) && \
-    (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
+    (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_STARBOARD))
 #include <asm/hwcap.h>
 #include <sys/auxv.h>
 
@@ -143,7 +143,7 @@ uint64_t xgetbv(uint32_t xcr) {
 #endif  // ARCH_CPU_X86_FAMILY
 
 #if defined(ARCH_CPU_ARM_FAMILY) && \
-    (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))
+    (BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_STARBOARD))
 StringPairs::const_iterator FindFirstProcCpuKey(const StringPairs& pairs,
                                                 StringPiece key) {
   return ranges::find_if(pairs, [key](const StringPairs::value_type& pair) {
@@ -340,7 +340,7 @@ void CPU::Initialize(bool require_branding) {
     }
   }
 #elif defined(ARCH_CPU_ARM_FAMILY)
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_STARBOARD)
   if (require_branding) {
     const ProcCpuInfo& info = ParseProcCpu();
     cpu_brand_ = info.brand;

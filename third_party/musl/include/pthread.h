@@ -3,7 +3,7 @@
 
 #if defined(STARBOARD)
 
-#include "third_party/musl/src/starboard/pthread/pthread.h"
+#include "pthread_starboard.h"
 
 #else
 

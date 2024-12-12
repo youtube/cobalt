@@ -238,6 +238,7 @@ config("default_include_dirs") {
 # the executable they are loaded into, so they are unresolved at link-time.
 config("no_unresolved_symbols") {
   if (!using_sanitizer &&
+      (!is_starboard && current_toolchain == cobalt_toolchain) &&
       (is_linux || is_chromeos || is_android || is_fuchsia)) {
     ldflags = [
       "-Wl,-z,defs",
@@ -650,6 +651,12 @@ config("compiler") {
   if (use_relative_vtables_abi) {
     cflags_cc += [ "-fexperimental-relative-c++-abi-vtables" ]
     ldflags += [ "-fexperimental-relative-c++-abi-vtables" ]
+  }
+
+  if (current_toolchain == cobalt_toolchain) {
+    if (is_starboard) {
+      ldflags += [ "-nostdlib" ]
+    }
   }
 
   # Add flags for link-time optimization. These flags enable
