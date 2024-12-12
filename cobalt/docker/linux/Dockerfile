@@ -53,6 +53,22 @@ RUN apt-get update && apt-get install -y \
     xauth \
     xvfb \
     jq \
+    libatomic1 \
+    libavcodec-dev \
+    libavformat-dev \
+    libgles2-mesa \
+    libegl1-mesa \
+    libgl1-mesa-dri-dbgsym \
+    libx11-6 \
+    libxi-dev \
+    libxrender1 \
+    procps \
+    libasound2-dbgsym \
+    libegl1-dbgsym \
+    libglapi-mesa-dbgsym \
+    libgles2-dbgsym \
+    libglx-mesa0-dbgsym \
+    libglx0-dbgsym \
     && rm -rf /var/lib/apt/lists/*
 
 # === Install portable sccache binary
