@@ -16,7 +16,7 @@
 
 #include <string>
 
-#include "cobalt/user_agent_platform_info.h"
+#include "cobalt/user_agent/user_agent_platform_info.h"
 #include "content/public/common/user_agent.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 

@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//testing/test.gni")
+
 group("gn_all") {
   testonly = true
 
@@ -43,7 +45,7 @@ if (!is_android) {
     defines = []
 
     deps = [
-      ":common",
+      "//cobalt/user_agent",
       "//content/public/app",
       "//content/shell:content_shell_app",
       "//content/shell:content_shell_lib",
@@ -75,27 +77,15 @@ action("cobalt_build_info") {
   ]
 }
 
-static_library("common") {
-  sources = [
-    "user_agent_platform_info.cc",
-    "user_agent_platform_info.h",
-  ]
-
-  deps = [
-    ":cobalt_build_info",
-    "//base",
-    "//starboard/common",
-    "//v8:v8_version",
-  ]
-}
-
-target(gtest_target_type, "common_unittests") {
+test("cobalt_unittests") {
   testonly = true
 
-  sources = [ "user_agent_platform_info_test.cc" ]
+  sources = [ "//cobalt/user_agent/user_agent_platform_info_test.cc" ]
 
   deps = [
-    ":common",
+    "//base/test:run_all_unittests",
+    "//cobalt/user_agent",
+    "//starboard:starboard_group",
     "//testing/gmock",
     "//testing/gtest",
   ]
