@@ -180,8 +180,8 @@ assert(!(current_os == "ios" && is_component_build),
        "Can't use component build on iOS")
 
 if (is_cobalt) {
-assert(!cobalt_is_release_build || is_official_build,
-       "Release builds are only available in official builds.")
+  assert(!cobalt_is_release_build || is_official_build,
+         "Release builds are only available in official builds.")
 }
 
 # ==============================================================================
@@ -277,6 +277,11 @@ if (target_os == "android") {
   _default_toolchain = "//build/toolchain/zos:$target_cpu"
 } else {
   assert(false, "Unsupported target_os: $target_os")
+}
+
+# Create a separation between cobalt and host toolchain if needed.
+if (is_cobalt && _default_toolchain == host_toolchain) {
+  _default_toolchain = "//cobalt" + _default_toolchain
 }
 
 # If a custom toolchain has been set in the args, set it as default. Otherwise,
