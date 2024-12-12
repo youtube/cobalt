@@ -141,6 +141,8 @@ class MediaModule : public WebMediaPlayerFactory,
 #endif  // SB_API_VERSION >= 15
 
   DecoderBufferAllocator decoder_buffer_allocator_;
+
+  bool disable_progressive_playback_ = false;
 };
 
 }  // namespace media

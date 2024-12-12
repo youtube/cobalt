@@ -116,6 +116,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                      base::TimeDelta audio_write_duration_local,
                      base::TimeDelta audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
+                     bool disable_progressive_playback,
                      ::media::MediaLog* const media_log);
   ~WebMediaPlayerImpl() override;
 
@@ -328,6 +329,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   PipelineWindow window_;
 
   bool is_resuming_from_background_mode_ = false;
+
+  const bool disable_progressive_playback_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMediaPlayerImpl);
 };

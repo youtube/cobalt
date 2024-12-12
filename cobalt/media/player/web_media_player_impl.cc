@@ -117,7 +117,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
-    ::media::MediaLog* const media_log)
+    bool disable_progressive_playback, ::media::MediaLog* const media_log)
     : pipeline_thread_("media_pipeline"),
       network_state_(WebMediaPlayer::kNetworkStateEmpty),
       ready_state_(WebMediaPlayer::kReadyStateHaveNothing),
@@ -128,6 +128,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       max_audio_samples_per_write_(max_audio_samples_per_write),
       force_punch_out_by_default_(force_punch_out_by_default),
       proxy_(new WebMediaPlayerProxy(task_runner_, this)),
+      disable_progressive_playback_(disable_progressive_playback),
       media_log_(media_log),
       is_local_source_(false),
       suppress_destruction_errors_(false),
@@ -274,10 +275,13 @@ void WebMediaPlayerImpl::LoadProgressive(
   UMA_HISTOGRAM_ENUMERATION("Media.URLScheme", URLScheme(url), kMaxURLScheme);
   auto command_line =
       starboard::shared::starboard::Application::Get()->GetCommandLine();
-  if (command_line->HasSwitch("disable_progressive_playback")) {
-    LOG(INFO) << "Disabled progressive playback support from command line";
-    SetNetworkError(WebMediaPlayer::kNetworkStateFormatError,
-                    "Disabled progressive playback support from command line");
+  if (disable_progressive_playback_ ||
+      command_line->HasSwitch("disable_progressive_playback")) {
+    LOG(INFO)
+        << "Disabled progressive playback support via command line or H5vcc";
+    SetNetworkError(
+        WebMediaPlayer::kNetworkStateFormatError,
+        "Disabled progressive playback support via command line or H5vcc");
     return;
   }
 

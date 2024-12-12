@@ -254,6 +254,11 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
         return true;
       }
     }
+  } else if (name == "DisableProgressivePlayback") {
+    disable_progressive_playback_ = value;
+    LOG(INFO) << "Progressive playback is " << (value ? "disabled" : "enabled")
+              << ".";
+    return true;
   }
 
   return false;
@@ -275,7 +280,7 @@ std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(
 #if SB_API_VERSION >= 15
       audio_write_duration_local_, audio_write_duration_remote_,
 #endif  // SB_API_VERSION >= 15
-      &media_log_));
+      disable_progressive_playback_, &media_log_));
 }
 
 void MediaModule::Suspend() {
