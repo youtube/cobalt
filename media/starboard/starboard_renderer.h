@@ -64,11 +64,33 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
     // TODO(b/380935131): Consider to implement `LatencyHint` for SbPlayer.
     NOTIMPLEMENTED();
   }
+  void SetPreservesPitch(bool preserves_pitch) final {
+    LOG_IF(INFO, !preserves_pitch)
+        << "SetPreservesPitch() with preserves_pitch=false is not supported.";
+  }
+  void SetWasPlayedWithUserActivation(
+      bool was_played_with_user_activation) final {
+    LOG_IF(INFO, was_played_with_user_activation)
+        << "SetWasPlayedWithUserActivation() with "
+           "was_played_with_user_activation=true is not supported.";
+  }
   void Flush(base::OnceClosure flush_cb) final;
   void StartPlayingFrom(TimeDelta time) final;
   void SetPlaybackRate(double playback_rate) final;
   void SetVolume(float volume) final;
   TimeDelta GetMediaTime() final;
+  void OnSelectedVideoTracksChanged(
+      const std::vector<DemuxerStream*>& enabled_tracks,
+      base::OnceClosure change_completed_cb) final {
+    LOG(INFO) << "Track changes are not supported.";
+    std::move(change_completed_cb).Run();
+  }
+  void OnEnabledAudioTracksChanged(
+      const std::vector<DemuxerStream*>& enabled_tracks,
+      base::OnceClosure change_completed_cb) final {
+    LOG(INFO) << "Track changes are not supported.";
+    std::move(change_completed_cb).Run();
+  }
   RendererType GetRendererType() final { return RendererType::kStarboard; }
   SetBoundsCB GetSetBoundsCB() override;
 
