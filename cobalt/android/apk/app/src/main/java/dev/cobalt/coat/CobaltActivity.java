@@ -24,6 +24,7 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.text.TextUtils;
 import android.util.Pair;
 import android.view.KeyEvent;
@@ -33,6 +34,7 @@ import android.view.ViewParent;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Toast;
+import androidx.annotation.Nullable;
 import dev.cobalt.app.CobaltApplication;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
@@ -48,12 +50,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
 import org.chromium.base.MemoryPressureListener;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.components.version_info.VersionInfo;
+import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
@@ -259,18 +263,39 @@ public abstract class CobaltActivity extends Activity {
     mIntentRequestTracker.saveInstanceState(outState);
   }
 
-  // Initially copied from ContentShellActiviy.java
-  @Override
-  public boolean onKeyUp(int keyCode, KeyEvent event) {
+  protected static Optional<KeyEvent> getRemappedKeyEvent(int keyCode, int action) {
+    int mappedKeyCode;
     if (keyCode == KeyEvent.KEYCODE_BACK) {
-      WebContents webContents = getActiveWebContents();
-      if (webContents != null && webContents.getNavigationController().canGoBack()) {
-        webContents.getNavigationController().goBack();
-        return true;
-      }
+      mappedKeyCode = KeyEvent.KEYCODE_ESCAPE;
+    } else {
+      return Optional.empty();
+    }
+    // |KeyEvent| needs to be created with |downTime| and |eventTime| set. If they are not set the
+    // app closes.
+    long eventTime = SystemClock.uptimeMillis();
+    return Optional.of(new KeyEvent(eventTime, eventTime, action, mappedKeyCode, 0));
+  }
+
+  protected boolean tryDispatchRemappedKey(int keyCode, int action) {
+    ImeAdapterImpl imeAdapter = getImeAdapterImpl();
+    if (imeAdapter == null) {
+      return false;
     }
 
-    return super.onKeyUp(keyCode, event);
+    return getRemappedKeyEvent(keyCode, action)
+        .map(event -> imeAdapter.dispatchKeyEvent(event))
+        .orElse(false);
+  }
+
+  @Override
+  public boolean onKeyDown(int keyCode, KeyEvent event) {
+    Log.i(TAG, "Ignoring command line params: can only be set when creating the activity.");
+    return tryDispatchRemappedKey(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
+  }
+
+  @Override
+  public boolean onKeyUp(int keyCode, KeyEvent event) {
+    return tryDispatchRemappedKey(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -279,7 +304,9 @@ public abstract class CobaltActivity extends Activity {
       Log.i(TAG, "Ignoring command line params: can only be set when creating the activity.");
     }
 
-    if (MemoryPressureListener.handleDebugIntent(this, intent.getAction())) return;
+    if (MemoryPressureListener.handleDebugIntent(this, intent.getAction())) {
+      return;
+    }
 
     String url = getUrlFromIntent(intent);
     if (!TextUtils.isEmpty(url)) {
@@ -340,9 +367,16 @@ public abstract class CobaltActivity extends Activity {
    * @return The {@link WebContents} owned by the currently visible {@link Shell} or null if one is
    *     not showing.
    */
+  @Nullable
   public WebContents getActiveWebContents() {
     Shell shell = getActiveShell();
     return shell != null ? shell.getWebContents() : null;
+  }
+
+  @Nullable
+  protected ImeAdapterImpl getImeAdapterImpl() {
+    WebContents webContents = getActiveWebContents();
+    return webContents != null ? ImeAdapterImpl.fromWebContents(webContents) : null;
   }
 
   // TODO(b/375442742): re-enable native code.
@@ -375,7 +409,8 @@ public abstract class CobaltActivity extends Activity {
 
     WebContents webContents = getActiveWebContents();
     if (webContents == null) {
-      throw new RuntimeException("webContents is null in initializeJavaBridge. This should never happen.");
+      throw new RuntimeException(
+          "webContents is null in initializeJavaBridge. This should never happen.");
     }
 
     // --- Initialize the Java Bridge ---
@@ -430,7 +465,9 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStart(this);
 
     WebContents webContents = getActiveWebContents();
-    if (webContents != null) webContents.onShow();
+    if (webContents != null) {
+      webContents.onShow();
+    }
     super.onStart();
   }
 
@@ -450,7 +487,9 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onDestroy() {
-    if (mShellManager != null) mShellManager.destroy();
+    if (mShellManager != null) {
+      mShellManager.destroy();
+    }
     mWindowAndroid.destroy();
     super.onDestroy();
     getStarboardBridge().onActivityDestroy(this);
