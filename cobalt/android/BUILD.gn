@@ -205,3 +205,17 @@ content_shell_apk_tmpl("cobalt_apk") {
   command_line_flags_file = "content-shell-command-line"
   include_size_info = is_official_build
 }
+
+robolectric_binary("cobalt_coat_junit_tests") {
+  sources = [ "apk/app/src/test/java/dev/cobalt/coat/CobaltActivityTest.java" ]
+  deps = [
+    ":cobalt_apk_java",
+    "//base:base_java",
+    "//base:base_java_test_support",
+    "//base:base_junit_test_support",
+    "//content/public/android:content_java",
+    "//third_party/androidx:androidx_test_runner_java",
+    "//third_party/google-truth:google_truth_java",
+    "//third_party/junit",
+  ]
+}
