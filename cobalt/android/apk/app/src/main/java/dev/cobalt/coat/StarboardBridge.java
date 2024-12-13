@@ -71,8 +71,7 @@ public class StarboardBridge {
   // private AudioPermissionRequester audioPermissionRequester;
   private NetworkStatus networkStatus;
   private ResourceOverlay resourceOverlay;
-  // TODO(cobalt): Re-enable AdvertisingId.
-  // private AdvertisingId advertisingId;
+  private AdvertisingId advertisingId;
   private VolumeStateReceiver volumeStateReceiver;
   private CrashContextUpdateHandler crashContextUpdateHandler;
 
@@ -132,7 +131,7 @@ public class StarboardBridge {
     // TODO(cobalt, b/378718120): delete NetworkStatus if navigator.online works in Content.
     this.networkStatus = new NetworkStatus(appContext);
     this.resourceOverlay = new ResourceOverlay(appContext);
-    // this.advertisingId = new AdvertisingId(appContext);
+    this.advertisingId = new AdvertisingId(appContext);
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
 
@@ -199,8 +198,7 @@ public class StarboardBridge {
     for (CobaltService service : cobaltServices.values()) {
       service.beforeStartOrResume();
     }
-    // TODO(cobalt, b/377049113): re-enable advertisingid.
-    // advertisingId.refresh();
+    advertisingId.refresh();
   }
 
   @SuppressWarnings("unused")
@@ -654,20 +652,14 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   protected String getAdvertisingId() {
-    // TODO(b/377049113): re-enable
-    Log.e(TAG, "IFA is disabled");
-    // return this.advertisingId.getId();
-    return "";
+    return this.advertisingId.getId();
   }
 
   /** Returns boolean for kSbSystemPropertyLimitAdTracking */
   @SuppressWarnings("unused")
   @UsedByNative
   protected boolean getLimitAdTracking() {
-    // TODO(b/377049113): re-enable
-    Log.e(TAG, "IFA is disabled");
-    // return this.advertisingId.isLimitAdTrackingEnabled();
-    return false;
+    return this.advertisingId.isLimitAdTrackingEnabled();
   }
 
   @SuppressWarnings("unused")
