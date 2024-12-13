@@ -16,13 +16,6 @@ runs:
         name: ${{ inputs.test_results_key }}
         path: results/
 
-    - name: Publish Test Report
-      continue-on-error: true
-      uses: mikepenz/action-junit-report@992d97d6eb2e5f3de985fbf9df6a04386874114d
-      with:
-        report_paths: results/*.xml
-        skip_annotations: true
-
     - name: Get Datadog CLI
       id: download-dd-cli
       # The API key is not available on PRs created from a fork.
