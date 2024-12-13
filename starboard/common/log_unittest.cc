@@ -23,7 +23,7 @@ struct TextAndSbPriority {
 
 using MinLogLevelTranslationTest = testing::TestWithParam<TextAndSbPriority>;
 
-TEST_P(MinLogLevelTranslationTest, Test) {
+TEST_P(MinLogLevelTranslationTest, ExpectedBehaviour) {
   EXPECT_EQ(StringToLogLevel(GetParam().text), GetParam().sb_log_priority);
 }
 
@@ -47,7 +47,7 @@ INSTANTIATE_TEST_SUITE_P(
 using ChromiumLogLevelTranslationTest =
     testing::TestWithParam<TextAndSbPriority>;
 
-TEST_P(ChromiumLogLevelTranslationTest, Test) {
+TEST_P(ChromiumLogLevelTranslationTest, ExpectedBehaviour) {
   EXPECT_EQ(ChromiumIntToStarboardLogLevel(GetParam().text),
             GetParam().sb_log_priority);
 }
