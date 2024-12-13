@@ -1,0 +1,15 @@
+{
+  "docker_service": "linux",
+  "platforms": [
+    "linux-x64x11-evergreen"
+  ],
+  "targets": [
+    "base_unittests"
+  ],
+  "includes": [
+    {
+      "name": "x64",
+      "platform": "linux-x64x11-evergreen"
+    }
+  ]
+}
