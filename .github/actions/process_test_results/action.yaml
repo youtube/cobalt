@@ -16,6 +16,21 @@ runs:
         name: ${{ inputs.test_results_key }}
         path: results/
 
+    - name: Publish Test Results publish-unit-test-result
+      uses: EnricoMi/publish-unit-test-result-action@170bf24d20d201b842d7a52403b73ed297e6645b
+      if: success() || failure()
+      with:
+        files: |
+          **/${{ env.TEST_RESULTS_DIR }}/**/*.xml
+
+    - name: Publish test results test reporter
+      uses: dorny/test-reporter@v1.9.1
+      if: success() || failure()
+      with:
+        name: chrobalt unit tests
+        path: "**/${{ env.TEST_RESULTS_DIR }}/**/*.xml"
+        reporter: jset-junit
+
     - name: Get Datadog CLI
       id: download-dd-cli
       # The API key is not available on PRs created from a fork.
