@@ -115,6 +115,7 @@ void CommandLine::InitFromArgv(int argc,
   for (int i = 0; i < argc; ++i) {
     new_argv.push_back(argv[i]);
   }
+
   InitFromArgv(new_argv);
 }
 
