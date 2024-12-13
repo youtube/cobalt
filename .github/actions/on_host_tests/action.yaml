@@ -43,6 +43,7 @@ runs:
         results_dir="${GITHUB_WORKSPACE}/results"
         echo "results_dir=${results_dir}" >> $GITHUB_ENV
 
+        exit_code=0
         cd ${test_dir}
         for test_binary in $(ls {*tests,nplb}); do
           echo "Running tests for suite: ${test_binary}"
@@ -56,9 +57,13 @@ runs:
           echo "Test filter evaluated to: ${test_filter}"
 
           xml_path="${results_dir}/${test_binary}_testoutput.xml"
-          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" "./${test_binary}" --gtest_filter="${test_filter}" --gtest_output="xml:${xml_path}" || continue
+          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" "./${test_binary}" --gtest_filter="${test_filter}" --gtest_output="xml:${xml_path}" || {
+            # Set exit code on failure.
+            exit_code=1
+          }
         done
         echo "Finished running all unit tests..."
+        exit ${exit_code}
     - name: Archive Test Results
       if: success() || failure()
       uses: actions/upload-artifact@v4
