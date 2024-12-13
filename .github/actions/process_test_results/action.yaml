@@ -24,7 +24,7 @@ runs:
           **/${{ env.TEST_RESULTS_DIR }}/**/*.xml
 
     - name: Publish test results test reporter
-      uses: dorny/test-reporter@v1.9.1
+      uses: dorny/test-reporter@31a54ee7ebcacc03a09ea97a7e5465a47b84aea5
       if: success() || failure()
       with:
         name: chrobalt unit tests
