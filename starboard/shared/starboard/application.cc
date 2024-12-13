@@ -116,8 +116,9 @@ int Application::Run(CommandLine command_line) {
     ::starboard::logging::SetMinLogLevel(::starboard::logging::StringToLogLevel(
         command_line_->GetSwitchValue(kMinLogLevel)));
   } else if (command_line_->HasSwitch(kV)) {
-    ::starboard::logging::SetMinLogLevel(::starboard::logging::ChromiumIntToStarboardLogLevel(
-      command_line_->GetSwitchValue(kV)));
+    ::starboard::logging::SetMinLogLevel(
+        ::starboard::logging::ChromiumIntToStarboardLogLevel(
+            command_line_->GetSwitchValue(kV)));
   } else {
 #if SB_LOGGING_IS_OFFICIAL_BUILD
     ::starboard::logging::SetMinLogLevel(::starboard::logging::SB_LOG_FATAL);
