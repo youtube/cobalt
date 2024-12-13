@@ -23,7 +23,7 @@ runs:
         files: |
           **/${{ env.TEST_RESULTS_DIR }}/**/*.xml
 
-    - name: Publish test results test reporter
+    - name: Publish test results test reporter dorny
       uses: dorny/test-reporter@31a54ee7ebcacc03a09ea97a7e5465a47b84aea5
       if: always()
       with:
