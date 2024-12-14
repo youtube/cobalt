@@ -164,7 +164,7 @@ jobs:
         with:
           targets: ${{ needs.initialize.outputs.targets }}
       - name: Upload Test Artifacts
-        if: matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true'
+        if: matrix.config == 'devel'
         uses: ./src/.github/actions/upload_test_artifacts
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
