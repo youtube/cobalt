@@ -39,7 +39,7 @@ bool CheckForAndExecuteVersionSwitch() {
 bool CheckForAndExecuteHelpSwitch() {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           cobalt::browser::switches::kHelp)) {
-    SbLogRaw("Options: \n");
+    SbLogRaw("Usage:\n cobalt [options] [url]\n");
     SbLogRaw(cobalt::browser::switches::HelpMessage().c_str());
     return true;
   }

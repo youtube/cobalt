@@ -212,9 +212,18 @@ GURL GetInitialURL(bool should_preload) {
   GURL initial_url = GURL(kDefaultURL);
   // Allow the user to override the default URL via a command line parameter.
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kInitialURL)) {
+  bool has_initial_url_switch = command_line->HasSwitch(switches::kInitialURL);
+  const auto& argv = command_line->argv();
+  bool last_argv_is_not_a_switch =
+      (argv.size() > 1) && argv.back().substr(0, 2) != "--";
+  LOG(INFO) << __FUNCTION__
+            << " last_argv_is_not_a_switch=" << last_argv_is_not_a_switch
+            << " argv.size()=" << argv.size() << " argv.back()=" << argv.back();
+  if (has_initial_url_switch || last_argv_is_not_a_switch) {
     std::string url_switch =
-        command_line->GetSwitchValueASCII(switches::kInitialURL);
+        has_initial_url_switch
+            ? command_line->GetSwitchValueASCII(switches::kInitialURL)
+            : argv.back();
 #if defined(ENABLE_ABOUT_SCHEME)
     // Check the switch itself since some non-empty strings parse to empty URLs.
     if (url_switch.empty()) {
@@ -223,6 +232,9 @@ GURL GetInitialURL(bool should_preload) {
     }
 #endif  // defined(ENABLE_ABOUT_SCHEME)
     GURL url = GURL(url_switch);
+    if (!url.is_valid()) {
+      url = GURL("https://" + url_switch);
+    }
     if (url.is_valid()) {
       initial_url = url;
     } else {
