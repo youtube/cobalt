@@ -1,4 +1,4 @@
-# Reusable Cobalt CI workflow.
+vi # Reusable Cobalt CI workflow.
 
 name: main
 
@@ -65,6 +65,11 @@ jobs:
         run: |
           targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.targets  | join(" ")')
           echo "targets=${targets}" >> $GITHUB_ENV
+      - id: set-test-targets
+        shell: bash
+        run: |
+          gtest_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.gtest_targets  | join(" ")')
+          echo "gtest_targets=${gtest_targets}" >> $GITHUB_ENV
       - id: set-includes
         shell: bash
         run: |
@@ -98,6 +103,7 @@ jobs:
     outputs:
       platforms: ${{ env.platforms }}
       targets: ${{ env.targets }}
+      gtest_targets: ${{ env.gtest_targets }}
       includes: ${{ env.includes }}
       docker_service: ${{ env.docker_service }}
       num_gtest_shards: ${{ env.num_gtest_shards }}
@@ -179,6 +185,10 @@ jobs:
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           targets: ${{ needs.initialize.outputs.targets }}
+      - name: Upload Test Artifacts
+        if: matrix.config == 'devel'
+        uses: ./src/.github/actions/upload_test_artifacts
+        with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device }}
