@@ -4,19 +4,21 @@
         "chromium_android-arm"
     ],
     "targets": [
-        "base_unittests",
-        "sql_unittests",
-        "net_unittests",
-        "url_unittests",
-        "ipc_tests",
-        "mojo_unittests",
-        "gpu_unittests",
-        "gin_unittests",
-        "blink_unittests",
-        "media_unittests",
         "content_shell",
         "system_webview_apk",
         "system_webview_shell_apk"
+    ],
+    "gtest_targets": [
+        "base_unittests",
+        "blink_unittests",
+        "gin_unittests",
+        "gpu_unittests",
+        "ipc_tests",
+        "media_unittests",
+        "mojo_unittests",
+        "net_unittests",
+        "sql_unittests",
+        "url_unittests"
     ],
     "includes": [
         {

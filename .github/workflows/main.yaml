@@ -65,6 +65,11 @@ jobs:
         run: |
           targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.targets  | join(" ")')
           echo "targets=${targets}" >> $GITHUB_ENV
+      - id: set-test-targets
+        shell: bash
+        run: |
+          gtest_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.gtest_targets  | join(" ")')
+          echo "gtest_targets=${gtest_targets}" >> $GITHUB_ENV
       - id: set-includes
         shell: bash
         run: |
@@ -98,6 +103,7 @@ jobs:
     outputs:
       platforms: ${{ env.platforms }}
       targets: ${{ env.targets }}
+      gtest_targets: ${{ env.gtest_targets }}
       includes: ${{ env.includes }}
       docker_service: ${{ env.docker_service }}
       num_gtest_shards: ${{ env.num_gtest_shards }}
@@ -178,9 +184,10 @@ jobs:
         # TODO(bug?): android debug builds are broken.
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
-          targets: ${{ needs.initialize.outputs.targets }}
-      - name: Upload Test Artifacts
-        if: matrix.config == 'devel'
+          targets: ${{ needs.initialize.outputs.targets }} ${{ needs.initialize.outputs.gtest_targets }}
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+      - name: Upload On Device Test Artifacts
+        if: matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true'
         uses: ./src/.github/actions/upload_test_artifacts
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
