@@ -20,8 +20,6 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#include "starboard/common/log.h"
-
 namespace {
 int InitAndRunAllTests(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
