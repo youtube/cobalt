@@ -15,6 +15,7 @@
 #ifndef COBALT_CSS_PARSER_SWITCHES_H_
 #define COBALT_CSS_PARSER_SWITCHES_H_
 
+#include <map>
 #include <string>
 
 namespace cobalt {
@@ -28,7 +29,7 @@ extern const char kOnCssWarning[];
 extern const char kOnCssWarningHelp[];
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
-std::string HelpMessage();
+std::map<std::string, const char*> HelpMap();
 
 }  // namespace switches
 }  // namespace css_parser

@@ -15,6 +15,7 @@
 #include "cobalt/css_parser/switches.h"
 
 #include <map>
+#include <string>
 
 namespace cobalt {
 namespace css_parser {
@@ -29,23 +30,13 @@ const char kOnCssWarning[] = "on_css_warning";
 const char kOnCssWarningHelp[] = "If set to \"crash\", crashes on CSS warning.";
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
-std::string HelpMessage() {
-  std::string help_message;
+std::map<std::string, const char*> HelpMap() {
   std::map<std::string, const char*> help_map {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
     {kOnCssError, kOnCssErrorHelp}, {kOnCssWarning, kOnCssWarningHelp},
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
   };
-
-  for (const auto& switch_message : help_map) {
-    help_message.append("  --")
-        .append(switch_message.first)
-        .append("\n")
-        .append("  ")
-        .append(switch_message.second)
-        .append("\n\n");
-  }
-  return help_message;
+  return help_map;
 }
 
 }  // namespace switches
