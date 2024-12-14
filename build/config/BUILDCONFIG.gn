@@ -281,7 +281,8 @@ if (target_os == "android") {
 
 # Create a separation between cobalt and host toolchain if needed.
 if (is_cobalt && _default_toolchain == host_toolchain) {
-  _default_toolchain = "//cobalt" + _default_toolchain
+  default_toolchain_path = string_split(_default_toolchain, "//")
+  _default_toolchain = "//cobalt/" + default_toolchain_path[1]
 }
 
 # If a custom toolchain has been set in the args, set it as default. Otherwise,
