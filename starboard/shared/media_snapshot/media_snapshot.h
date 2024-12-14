@@ -1,0 +1,27 @@
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef STARBOARD_SHARED_MEDIA_SNAPSHOT_MEDIA_SNAPSHOT_H_
+#define STARBOARD_SHARED_MEDIA_SNAPSHOT_MEDIA_SNAPSHOT_H_
+
+inline int GetMediaSnapshotVersion() {
+#if SB_API_VERSION >= 15
+  return 2500;
+#else   // SB_API_VERSION >= 15
+  // Media snapshot is only support for C25 or after.
+  return 0;
+#endif  // SB_API_VERSION >= 15
+}
+
+#endif  // STARBOARD_SHARED_MEDIA_SNAPSHOT_MEDIA_SNAPSHOT_H_
