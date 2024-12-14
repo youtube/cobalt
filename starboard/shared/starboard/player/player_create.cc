@@ -38,6 +38,7 @@ using ::starboard::shared::media_session::
     UpdateActiveSessionPlatformPlaybackState;
 using ::starboard::shared::starboard::media::MimeType;
 using ::starboard::shared::starboard::player::PlayerWorker;
+using ::starboard::shared::starboard::player::SbPlayerPrivateImpl;
 using ::starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
 
@@ -208,7 +209,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   std::unique_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(creation_param, provider));
 
-  SbPlayer player = SbPlayerPrivate::CreateInstance(
+  SbPlayer player = SbPlayerPrivateImpl::CreateInstance(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));
 

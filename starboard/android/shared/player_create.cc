@@ -29,6 +29,7 @@
 #include "starboard/shared/starboard/player/player_worker.h"
 
 using starboard::shared::starboard::player::PlayerWorker;
+using starboard::shared::starboard::player::SbPlayerPrivateImpl;
 using starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
 
@@ -203,7 +204,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
       new FilterBasedPlayerWorkerHandler(creation_param, provider));
   handler->SetMaxVideoInputSize(
       starboard::android::shared::GetMaxVideoInputSizeForCurrentThread());
-  SbPlayer player = SbPlayerPrivate::CreateInstance(
+  SbPlayer player = SbPlayerPrivateImpl::CreateInstance(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context, std::move(handler));
 
@@ -218,9 +219,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
   }
 
   SB_LOG(ERROR)
-      << "Invalid player returned by SbPlayerPrivate::CreateInstance().";
+      << "Invalid player returned by SbPlayerPrivateImpl::CreateInstance().";
   player_error_func(
       kSbPlayerInvalid, context, kSbPlayerErrorDecode,
-      "Invalid player returned by SbPlayerPrivate::CreateInstance()");
+      "Invalid player returned by SbPlayerPrivateImpl::CreateInstance()");
   return kSbPlayerInvalid;
 }
