@@ -54,6 +54,7 @@
 #include "net/quic/quic_context.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/ssl/ssl_config_service_defaults.h"
+#include "net/third_party/quiche/src/quiche/quic/core/quic_tag.h"
 #include "starboard/common/murmurhash2.h"
 #include "starboard/configuration_constants.h"
 
@@ -207,9 +208,27 @@ URLRequestContext::URLRequestContext(
   auto quic_context = std::make_unique<net::QuicContext>();
   quic_context->params()->supported_versions =
       quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::Q046()};
-  url_request_context_builder->set_quic_context(std::move(quic_context));
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  std::string quic_connection_options =
+      command_line->GetSwitchValueASCII(switches::kQuicConnectionOptions);
+  if (!quic_connection_options.empty()) {
+    quic_context->params()->connection_options =
+        quic::ParseQuicTagVector(quic_connection_options);
+  }
+
+  std::string quic_client_connection_options =
+      command_line->GetSwitchValueASCII(switches::kQuicClientConnectionOptions);
+  if (!quic_connection_options.empty()) {
+    quic_context->params()->client_connection_options =
+        quic::ParseQuicTagVector(quic_client_connection_options);
+  }
+#endif
+
+  url_request_context_builder->set_quic_context(std::move(quic_context));
+
   bool quic_enabled =
       configuration::Configuration::GetInstance()->CobaltEnableQuic() &&
       !command_line->HasSwitch(switches::kDisableQuic);

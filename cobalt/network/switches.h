@@ -29,6 +29,10 @@ extern const char kUserAgent[];
 extern const char kMaxNetworkDelay[];
 extern const char kMaxNetworkDelayHelp[];
 extern const char kDisableInAppDial[];
+extern const char kQuicConnectionOptions[];
+extern const char kQuicConnectionOptionsHelp[];
+extern const char kQuicClientConnectionOptions[];
+extern const char kQuicClientConnectionOptionsHelp[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 extern const char kDisableQuic[];
 extern const char kDisableHttp2[];

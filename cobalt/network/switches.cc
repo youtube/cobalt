@@ -55,6 +55,15 @@ const char kMaxNetworkDelayHelp[] =
 const char kDisableInAppDial[] = "disable_in_app_dial";
 const char kDisableInAppDialHelp[] = "Disable the in-app dial server.";
 
+const char kQuicConnectionOptions[] = "quic_connection_options";
+const char kQuicConnectionOptionsHelp[] =
+    "Specify QUIC connection options. "
+    "For example: --quic_connection_options=AKDU";
+
+const char kQuicClientConnectionOptions[] = "quic_client_connection_options.";
+const char kQuicClientConnectionOptionsHelp[] =
+    "Specify QUIC client connection options";
+
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 const char kDisableQuic[] = "disable_quic";
@@ -71,7 +80,10 @@ std::map<std::string, const char*> HelpMap() {
       {kNetLog, kNetLogHelp},
       {kNetLogCaptureMode, kNetLogCaptureModeHelp},
       {kUserAgent, kUserAgentHelp},
+      {kMaxNetworkDelay, kMaxNetworkDelayHelp},
       {kDisableInAppDial, kDisableInAppDialHelp},
+      {kQuicConnectionOptions, kQuicConnectionOptionsHelp},
+      {kQuicClientConnectionOptions, kQuicClientConnectionOptionsHelp},
 #endif  // !defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
       {kDisableQuic, kDisableQuicHelp},
       {kDisableHttp2, kDisableHttp2Help},
