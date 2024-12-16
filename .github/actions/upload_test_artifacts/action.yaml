@@ -16,7 +16,7 @@ runs:
     - name: Set up Cloud SDK
       if: inputs.on_device == 'true'
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    - name: Upload On-Host Test Artifacts to GCS
+    - name: Upload Android Test Artifacts to GCS
       if: inputs.on_device == 'true'
       env:
         WORKFLOW: ${{ github.workflow }}
