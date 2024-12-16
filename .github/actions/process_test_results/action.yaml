@@ -22,6 +22,7 @@ runs:
       with:
         files: |
           results/*.xml
+        check_run: 'false'
 
     - name: Publish test results test reporter dorny
       uses: dorny/test-reporter@31a54ee7ebcacc03a09ea97a7e5465a47b84aea5
@@ -31,6 +32,7 @@ runs:
         path: 'results/*.xml'
         reporter: 'jest-junit'
         fail-on-error: 'false'
+        only-summary: 'true'
 
     - name: Get Datadog CLI
       id: download-dd-cli
