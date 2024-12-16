@@ -159,7 +159,7 @@ shared_library("libcobalt_content_shell_content_view") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
-    "//cobalt:common",
+    "//cobalt/user_agent",
 
     # TODO: what can be removed in the dependencies?
     "//components/crash/content/browser",
@@ -203,4 +203,19 @@ content_shell_apk_tmpl("cobalt_apk") {
   ]
   shared_libraries = [ ":libcobalt_content_shell_content_view" ]
   command_line_flags_file = "content-shell-command-line"
+  include_size_info = is_official_build
+}
+
+robolectric_binary("cobalt_coat_junit_tests") {
+  sources = [ "apk/app/src/test/java/dev/cobalt/coat/CobaltActivityTest.java" ]
+  deps = [
+    ":cobalt_apk_java",
+    "//base:base_java",
+    "//base:base_java_test_support",
+    "//base:base_junit_test_support",
+    "//content/public/android:content_java",
+    "//third_party/androidx:androidx_test_runner_java",
+    "//third_party/google-truth:google_truth_java",
+    "//third_party/junit",
+  ]
 }

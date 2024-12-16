@@ -144,6 +144,17 @@ namespace {
 // to be many of those. See http://crbug.com/1232649
 constexpr size_t kDefaultMaxWebMediaPlayers = 1000;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// The following variables match |kSbPlayerWriteDurationLocal|
+// and |kSbplayerWriteDurationRemote| in //starboard/player.h.
+//
+// The audio write duration when all the audio connectors are local.
+const base::TimeDelta kWriteDurationLocal = base::Milliseconds(500);
+// The audio write duration when at least one of the audio connectors are
+// remote.
+const base::TimeDelta kWriteDurationRemote = base::Seconds(10);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 size_t GetMaxWebMediaPlayers() {
   static const size_t kMaxWebMediaPlayers = []() {
     auto* command_line = base::CommandLine::ForCurrentProcess();
@@ -752,7 +763,10 @@ MediaFactory::CreateRendererFactorySelector(
     // TODO(b/326827007): Revisit renderer to support secondary videos.
     factory_selector->AddFactory(
         RendererType::kStarboard,
-        std::make_unique<media::StarboardRendererFactory>(media_log));
+        std::make_unique<media::StarboardRendererFactory>(
+            media_log,
+            // TODO: b/383327725 - Cobalt: Inject these values from the web app.
+            kWriteDurationLocal, kWriteDurationRemote));
     factory_selector->SetBaseRendererType(RendererType::kStarboard);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
     auto renderer_impl_factory = CreateRendererImplFactory(
