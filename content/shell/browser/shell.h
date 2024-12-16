@@ -23,6 +23,8 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
 
+#include "components/js_injection/browser/js_communication_host.h"
+
 class GURL;
 
 namespace content {
@@ -226,6 +228,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void PrimaryPageChanged(Page& page) override;
 #endif
 
+  void PrimaryMainDocumentElementAvailable() override;
+
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
   std::unique_ptr<WebContents> web_contents_;
@@ -243,6 +247,8 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   static std::vector<Shell*> windows_;
 
   static base::OnceCallback<void(Shell*)> shell_created_callback_;
+
+  std::unique_ptr<js_injection::JsCommunicationHost> js_communication_host_;
 };
 
 }  // namespace content

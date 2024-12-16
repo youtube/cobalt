@@ -32,6 +32,9 @@ class ShellContentRendererClient : public ContentRendererClient {
   ShellContentRendererClient();
   ~ShellContentRendererClient() override;
 
+  // JS Injection hook
+  void RunScriptsAtDocumentStart(RenderFrame* render_frame) override;
+
   // ContentRendererClient implementation.
   void RenderThreadStarted() override;
   void ExposeInterfacesToBrowser(mojo::BinderMap* binders) override;
