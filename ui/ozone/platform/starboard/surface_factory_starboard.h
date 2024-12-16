@@ -15,6 +15,7 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_SURFACE_FACTORY_STARBOARD_H_
 #define UI_OZONE_PLATFORM_STARBOARD_SURFACE_FACTORY_STARBOARD_H_
 
+#include "ui/ozone/platform/starboard/gl_ozone_egl_starboard.h"
 #include "ui/ozone/public/surface_factory_ozone.h"
 
 namespace ui {
@@ -27,6 +28,13 @@ class SurfaceFactoryStarboard : public SurfaceFactoryOzone {
   SurfaceFactoryStarboard& operator=(const SurfaceFactoryStarboard&) = delete;
 
   ~SurfaceFactoryStarboard() override;
+
+  std::vector<gl::GLImplementationParts> GetAllowedGLImplementations() override;
+
+  GLOzone* GetGLOzone(const gl::GLImplementationParts& implementation) override;
+
+ private:
+  GLOzoneEGLStarboard egl_implementation_;
 };
 
 }  // namespace ui
