@@ -85,6 +85,12 @@
       ]);
     assertTrue(reset());
     assertFalse(reset());
+
+    assertTrue(window.h5vcc.settings.set('QUICConnectionOptions', 'AKDU'));
+    assertTrue(window.h5vcc.settings.set('QUICClientConnectionOptions', 'TBBR'));
+    assertTrue(window.h5vcc.settings.set('QUICConnectionOptions', ''));
+    assertTrue(window.h5vcc.settings.set('QUICClientConnectionOptions', ''));
+
     onEndTest();
   </script>
 </body>

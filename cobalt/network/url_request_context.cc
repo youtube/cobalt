@@ -364,6 +364,22 @@ void URLRequestContext::SetEnableHttp2(bool enable_http2) {
       enable_http2 && http2_commandline_enabled);
 }
 
+void URLRequestContext::SetQuicConnectionOptions(
+    const std::string& connection_options) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  url_request_context_->quic_context()->params()->connection_options =
+      quic::ParseQuicTagVector(connection_options);
+}
+
+void URLRequestContext::SetQuicClientConnectionOptions(
+    const std::string& client_connection_options) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  url_request_context_->quic_context()->params()->client_connection_options =
+      quic::ParseQuicTagVector(client_connection_options);
+}
+
 bool URLRequestContext::using_http_cache() { return using_http_cache_; }
 
 #if defined(ENABLE_DEBUGGER)

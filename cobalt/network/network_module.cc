@@ -274,6 +274,22 @@ void NetworkModule::SetProtocolFilterFromPersistentSettings() {
                      std::move(protocol_filter)));
 }
 
+void NetworkModule::SetQuicConnectionOptions(
+    const std::string& connection_options) {
+  task_runner()->PostTask(
+      FROM_HERE, base::Bind(&URLRequestContext::SetQuicConnectionOptions,
+                            base::Unretained(url_request_context_.get()),
+                            connection_options));
+}
+
+void NetworkModule::SetQuicClientConnectionOptions(
+    const std::string& client_connection_options) {
+  task_runner()->PostTask(
+      FROM_HERE, base::Bind(&URLRequestContext::SetQuicClientConnectionOptions,
+                            base::Unretained(url_request_context_.get()),
+                            client_connection_options));
+}
+
 void NetworkModule::EnsureStorageManagerStarted() {
   DCHECK(storage_manager_);
   storage_manager_->EnsureStarted();
