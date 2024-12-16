@@ -1143,9 +1143,9 @@ void SbPlayerBridge::OnPlayerStatus(SbPlayer player,
     if (sb_player_state_initialized_time_.is_null()) {
       sb_player_state_initialized_time_ = Time::Now();
     }
-    sbplayer_interface_->Seek(player_, preroll_timestamp_, ticket_);
-    SetVolume(volume_);
-    sbplayer_interface_->SetPlaybackRate(player_, playback_rate_);
+    // TODO(b/326497953): revisit if we need to call Seek() here once we support
+    // suspend and resume.
+    PrepareForSeek();
   } else if (state == kSbPlayerStatePrerolling &&
              sb_player_state_prerolling_time_.is_null()) {
     sb_player_state_prerolling_time_ = Time::Now();
