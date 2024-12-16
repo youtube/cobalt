@@ -173,22 +173,4 @@ int64_t AudioFramesToDuration(int frames, int samples_per_second);
 }  // namespace shared
 }  // namespace starboard
 
-bool operator==(const SbMediaColorMetadata& metadata_1,
-                const SbMediaColorMetadata& metadata_2);
-
-bool operator==(const SbMediaVideoSampleInfo& sample_info_1,
-                const SbMediaVideoSampleInfo& sample_info_2);
-
-bool operator==(const SbMediaVideoStreamInfo& stream_info_1,
-                const SbMediaVideoStreamInfo& stream_info_2);
-
-bool operator!=(const SbMediaColorMetadata& metadata_1,
-                const SbMediaColorMetadata& metadata_2);
-
-bool operator!=(const SbMediaVideoSampleInfo& sample_info_1,
-                const SbMediaVideoSampleInfo& sample_info_2);
-
-bool operator!=(const SbMediaVideoStreamInfo& stream_info_1,
-                const SbMediaVideoStreamInfo& stream_info_2);
-
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_UTIL_H_
