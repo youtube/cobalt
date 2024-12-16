@@ -60,6 +60,7 @@ runs:
           path: |
             src/out/${{ matrix.platform }}_qa/apks/*.apk
             src/out/${{ matrix.platform }}_qa/*_apk/*.apk
+            src/out/${{ matrix.platform }}_qa/gen/build_info.json
       - name: Create Test Files Archive
         if: startsWith(matrix.platform, 'linux') && matrix.config == 'devel'
         run: |
