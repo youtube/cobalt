@@ -169,7 +169,68 @@ if (!is_cobalt) {
   }
 } else {
   group("starboard_group") {
-    deps = [ "//starboard($starboard_toolchain)" ]
+    deps = []
+    public_deps = [
+      ":starboard_headers_only",
+      "//starboard/client_porting/eztime",
+    ]
+
+    if (sb_is_modular && current_toolchain == cobalt_toolchain) {
+      public_deps += [
+        "//buildtools/third_party/libc++",
+        "//buildtools/third_party/libc++abi",
+        "//third_party/llvm-project/compiler-rt:compiler_rt",
+        "//third_party/musl:c",
+      ]
+
+      if (!sb_is_evergreen) {
+        # For modular builds, we need to wrap any POSIX APIs that may not be ABI
+        # equivalent across the Cobalt toolchain and the platform toolchain. For
+        # non-Evergreen builds, this is done via the below wrapper implementations
+        # of the API functions, which will simply call a renamed version of the
+        # function that will be implemented in the Starboard shared library. The
+        # same behavior is achieved in Evergreen via exported_symbols.cc remapping
+        # the functions to the same renamed version. In both cases, implementation
+        # of these renamed functions will handle translating data types across the
+        # ABI boundary and be compiled into the Starboard shared library in
+        # //starboard/build/config/starboard_target_type.gni.
+        deps += [ "//starboard/shared/modular:cobalt_layer_posix_abi_wrappers" ]
+      }
+
+      if (sb_is_evergreen) {
+        public_deps += [ "//starboard/elf_loader:sabi_string" ]
+      } else {
+        data_deps = [ ":starboard($starboard_toolchain)" ]
+      }
+
+      # TODO: b/295702296 Fix libunwind for modular builds.
+      if (sb_is_evergreen) {
+        public_deps += [ "//third_party/llvm-project/libunwind:unwind" ]
+      }
+    } else {
+      public_deps += [
+        ":starboard($starboard_toolchain)",
+        "//starboard/common",
+      ]
+
+      if (enable_evergreen_code) {
+        if (!sb_is_modular || sb_is_evergreen) {
+          if (sb_is_evergreen_compatible &&
+              current_toolchain == starboard_toolchain) {
+            public_deps += [ "//starboard/crashpad_wrapper" ]
+          } else {
+            public_deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
+          }
+        }
+      }
+
+      if (final_executable_type == "shared_library" &&
+          current_toolchain != default_toolchain) {
+        set_defaults("executable") {
+          sources = [ "//starboard/shared/starboard/shared_main_adapter.cc" ]
+        }
+      }
+    }
   }
 }
 

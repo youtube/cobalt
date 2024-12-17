@@ -54,6 +54,13 @@ target(_libcxx_target_type, "libc++") {
     "//build/config:common_deps",
     "//third_party/catapult/devil:devil",
   ]
+  if (is_cobalt && is_starboard && current_toolchain == cobalt_toolchain) {
+    import("//cobalt/build/configs/modular_variables.gni")
+    if (use_custom_libc) {
+      visibility += [ "//starboard:starboard_group" ]
+    }
+  }
+
   if (is_linux) {
     # This target packages libc++.so, so must have an explicit dependency on
     # libc++.
@@ -114,6 +121,14 @@ target(_libcxx_target_type, "libc++") {
     "trunk/src/vector.cpp",
     "trunk/src/verbose_abort.cpp",
   ]
+
+  if (is_cobalt && is_starboard && current_toolchain == cobalt_toolchain) {
+    import("//cobalt/build/configs/modular_variables.gni")
+    if (use_custom_libc) {
+      # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+      sources -= [ "trunk/src/atomic.cpp" ]
+    }
+  }
 
   if (enable_iterator_debugging) {
     sources += [
@@ -208,6 +223,16 @@ target(_libcxx_target_type, "libc++") {
     defines += [ "LIBCXX_BUILDING_LIBCXXABI" ]
     if (!export_libcxxabi_from_executables) {
       deps = [ "//buildtools/third_party/libc++abi" ]
+    }
+  }
+  if (is_cobalt) {
+    import("//cobalt/build/configs/modular_variables.gni")
+    if (is_starboard && current_toolchain == cobalt_toolchain &&
+        use_custom_libc) {
+      deps += [
+        "//third_party/llvm-project/compiler-rt:compiler_rt",
+        "//third_party/musl:c",
+      ]
     }
   }
 }
