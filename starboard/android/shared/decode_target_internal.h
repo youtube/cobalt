@@ -23,6 +23,10 @@
 #include "starboard/decode_target.h"
 
 struct SbDecodeTargetPrivate {
+  explicit SbDecodeTargetPrivate(
+      SbDecodeTargetGraphicsContextProvider* provider);
+  SbDecodeTargetPrivate(const SbDecodeTargetPrivate& that);
+
   class Data : public starboard::RefCounted<Data> {
    public:
     Data() {}
@@ -42,6 +46,9 @@ struct SbDecodeTargetPrivate {
   };
 
   starboard::scoped_refptr<Data> data;
+
+ private:
+  void CreateOnContextRunner();
 };
 
 #endif  // STARBOARD_ANDROID_SHARED_DECODE_TARGET_INTERNAL_H_
