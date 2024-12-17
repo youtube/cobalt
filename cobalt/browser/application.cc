@@ -216,9 +216,6 @@ GURL GetInitialURL(bool should_preload) {
   const auto& argv = command_line->argv();
   bool last_argv_is_not_a_switch =
       (argv.size() > 1) && argv.back().substr(0, 2) != "--";
-  LOG(INFO) << __FUNCTION__
-            << " last_argv_is_not_a_switch=" << last_argv_is_not_a_switch
-            << " argv.size()=" << argv.size() << " argv.back()=" << argv.back();
   if (has_initial_url_switch || last_argv_is_not_a_switch) {
     std::string url_switch =
         has_initial_url_switch
