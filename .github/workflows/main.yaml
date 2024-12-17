@@ -163,10 +163,13 @@ jobs:
         if: ${{ ! (startsWith(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           targets: ${{ needs.initialize.outputs.targets }}
-          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-      - name: Upload On Device Test Artifacts
-        if: matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true'
+      - name: Upload Test Artifacts
+        if: matrix.config == 'devel'
         uses: ./src/.github/actions/upload_test_artifacts
+        with:
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+          on_host: ${{ needs.initialize.outputs.test_on_host }}
+          on_device: ${{ needs.initialize.outputs.test_on_device }}
 
   test:
     needs: [initialize, docker-build-image, build]
