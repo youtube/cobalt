@@ -4,9 +4,6 @@ inputs:
   targets:
     description: "List of ninja targets for Cobalt build."
     required: true
-  test_artifacts_key:
-    description: "Artifact key used to store test artifacts."
-    required: true
 runs:
   using: "composite"
   steps:
@@ -61,17 +58,3 @@ runs:
             src/out/${{ matrix.platform }}_qa/apks/*.apk
             src/out/${{ matrix.platform }}_qa/*_apk/*.apk
             src/out/${{ matrix.platform }}_qa/gen/build_info.json
-      - name: Create Test Files Archive
-        if: startsWith(matrix.platform, 'linux') && matrix.config == 'devel'
-        run: |
-          set -x
-          cd src
-          tar cvf - out/${{ matrix.platform }}_${{ matrix.config }}/*tests out/${{ matrix.platform }}_${{ matrix.config }}/nplb out/${{ matrix.platform }}_${{ matrix.config }}/*.so out/${{ matrix.platform }}_${{ matrix.config }}/*.so.* out/${{ matrix.platform }}_${{ matrix.config }}/starboard/*.so.* out/${{ matrix.platform }}_${{ matrix.config }}/content/test | xz -T0 -1 -z - > test_artifacts.tar.xz
-        shell: bash
-      - name: Upload Test artifacts
-        if: startsWith(matrix.platform, 'linux') && matrix.config == 'devel'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ inputs.test_artifacts_key }}
-          path: src/test_artifacts.tar.xz
-          retention-days: 3
