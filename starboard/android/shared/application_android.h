@@ -29,6 +29,8 @@
 #include "starboard/shared/starboard/queue_application.h"
 #include "starboard/types.h"
 
+#include "starboard/android/shared/starboard_bridge.h"
+
 namespace starboard {
 namespace android {
 namespace shared {
@@ -66,6 +68,9 @@ class ApplicationAndroid
   void WakeSystemEventWait() override {}
 
  private:
+  // starboard_bridge_ is a global singleton, use a raw pointer to not interfere
+  // with it's lifecycle management.
+  StarboardBridge* starboard_bridge_;
   jobject resource_overlay_;
 
   Mutex overlay_mutex_;
