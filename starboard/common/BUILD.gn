@@ -112,6 +112,7 @@ target(gtest_target_type, "common_test") {
   ]
   deps = [
     ":common",
+    "//starboard:starboard_group",
     "//testing/gmock",
     "//testing/gtest",
   ]

@@ -15,6 +15,7 @@
 import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/config/starboard_target_type.gni")
 import("//starboard/contrib/cast/cast.gni")
+import("//testing/test.gni")
 
 if (!is_cobalt) {
   group("gn_all") {
