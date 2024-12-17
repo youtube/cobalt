@@ -13,6 +13,7 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/command_line.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_number_conversions.h"
@@ -22,6 +23,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/instance_counter.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/media/base/drm_system.h"
 #include "cobalt/media/base/metrics_provider.h"
 #include "cobalt/media/base/sbplayer_pipeline.h"
@@ -32,8 +34,6 @@
 #include "media/base/limits.h"
 #include "media/base/timestamp_constants.h"
 #include "media/filters/chunk_demuxer.h"
-#include "starboard/shared/starboard/application.h"
-#include "starboard/shared/starboard/command_line.h"
 #include "starboard/system.h"
 #include "starboard/types.h"
 #include "ui/gfx/geometry/rect.h"
@@ -273,10 +273,9 @@ void WebMediaPlayerImpl::LoadProgressive(
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
 
   UMA_HISTOGRAM_ENUMERATION("Media.URLScheme", URLScheme(url), kMaxURLScheme);
-  auto command_line =
-      starboard::shared::starboard::Application::Get()->GetCommandLine();
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   if (disable_progressive_playback_ ||
-      command_line->HasSwitch("disable_progressive_playback")) {
+      command_line->HasSwitch(browser::switches::kDisableProgressivePlayback)) {
     LOG(INFO)
         << "Disabled progressive playback support via command line or H5vcc";
     SetNetworkError(
