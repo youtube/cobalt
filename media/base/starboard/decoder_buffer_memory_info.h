@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_
-#define MEDIA_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_
+#ifndef MEDIA_BASE_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_
+#define MEDIA_BASE_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_
 
 #include "starboard/media.h"
 #include "starboard/types.h"
@@ -40,4 +40,4 @@ class StubDecoderBufferMemoryInfo : public DecoderBufferMemoryInfo {
 
 }  // namespace media
 
-#endif  // MEDIA_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_
+#endif  // MEDIA_BASE_STARBOARD_DECODER_BUFFER_MEMORY_INFO_H_

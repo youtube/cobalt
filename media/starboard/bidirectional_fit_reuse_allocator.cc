@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "media/starboard/bidirectional_fit_reuse_allocator.h"
+#include "media/base/starboard/bidirectional_fit_reuse_allocator.h"
 
 #include <algorithm>
 

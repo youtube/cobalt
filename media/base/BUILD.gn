@@ -371,6 +371,15 @@ source_set("base") {
     "webvtt_util.h",
   ]
 
+  if (use_starboard_media) {
+    sources += [
+      "starboard/bidirectional_fit_reuse_allocator.h",
+      "starboard/decoder_buffer_allocator.h",
+      "starboard/decoder_buffer_memory_info.h",
+      "starboard/starboard_memory_allocator.h",
+    ]
+  }
+
   defines = []
   public_deps = [
     ":video_facing",

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
-#define MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
+#ifndef MEDIA_BASE_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
+#define MEDIA_BASE_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
 
 #include <atomic>
 #include <memory>
@@ -23,9 +23,9 @@
 #include "base/time/time.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/video_decoder_config.h"
-#include "media/starboard/bidirectional_fit_reuse_allocator.h"
-#include "media/starboard/decoder_buffer_memory_info.h"
-#include "media/starboard/starboard_memory_allocator.h"
+#include "media/base/starboard/bidirectional_fit_reuse_allocator.h"
+#include "media/base/starboard/decoder_buffer_memory_info.h"
+#include "media/base/starboard/starboard_memory_allocator.h"
 #include "starboard/media.h"
 
 namespace media {
@@ -77,4 +77,4 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
 
 }  // namespace media
 
-#endif  // MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
+#endif  // MEDIA_BASE_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_

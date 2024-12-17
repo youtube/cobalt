@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_STARBOARD_STARBOARD_MEMORY_ALLOCATOR_H_
-#define MEDIA_STARBOARD_STARBOARD_MEMORY_ALLOCATOR_H_
+#ifndef MEDIA_BASE_STARBOARD_STARBOARD_MEMORY_ALLOCATOR_H_
+#define MEDIA_BASE_STARBOARD_STARBOARD_MEMORY_ALLOCATOR_H_
 
 #include <stdlib.h>
 
@@ -54,4 +54,4 @@ class StarboardMemoryAllocator : public starboard::common::Allocator {
 
 }  // namespace media
 
-#endif  // MEDIA_STARBOARD_STARBOARD_MEMORY_ALLOCATOR_H_
+#endif  // MEDIA_BASE_STARBOARD_STARBOARD_MEMORY_ALLOCATOR_H_

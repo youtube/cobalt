@@ -20,7 +20,7 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/starboard/decoder_buffer_allocator.h"
+#include "media/base/starboard/decoder_buffer_allocator.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {

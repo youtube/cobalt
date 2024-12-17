@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_STARBOARD_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
-#define MEDIA_STARBOARD_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
+#ifndef MEDIA_BASE_STARBOARD_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
+#define MEDIA_BASE_STARBOARD_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
 
 #include "starboard/common/reuse_allocator_base.h"
 #include "starboard/configuration.h"
@@ -50,4 +50,4 @@ class BidirectionalFitReuseAllocator
 
 }  // namespace media
 
-#endif  // MEDIA_STARBOARD_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
+#endif  // MEDIA_BASE_STARBOARD_BIDIRECTIONAL_FIT_REUSE_ALLOCATOR_H_
