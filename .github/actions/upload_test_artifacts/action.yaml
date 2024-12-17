@@ -1,16 +1,43 @@
 name: Test Artifact Upload
-description: Uploads test archives to GCS for on-device tests.
+description: Uploads test archives for on-device and on-host tests.
+inputs:
+  on_host:
+    description: "Indicates if on-host test artifacts should be uploaded."
+    required: true
+  on_device:
+    description: "Indicates if on-device test artifacts should be uploaded."
+    required: true
+  test_artifacts_key:
+    description: "Artifact key used to store on-host test artifacts."
+    required: true
 runs:
   using: "composite"
   steps:
     - name: Set up Cloud SDK
+      if: inputs.on_device == 'true'
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    - name: Upload Artifacts to GCS
+    - name: Upload Android Test Artifacts to GCS
+      if: inputs.on_device == 'true'
       env:
         WORKFLOW: ${{ github.workflow }}
       run: |
         set -eux
         project_name=$(gcloud config get-value project)
-        gsutil cp "${GITHUB_WORKSPACE}"/src/out/${{ matrix.platform }}_${{ matrix.config }}/**/*.apk \
-          gs://"${project_name}"-test-artifacts/"${WORKFLOW}"/"${GITHUB_RUN_NUMBER}"/${{matrix.platform}}/
+        gsutil cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/**/*.apk" \
+          "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
       shell: bash
+
+    - name: Create On-Host Test Artifacts Archive
+      if: inputs.on_host == 'true'
+      run: |
+        set -x
+        cd src
+        tar cvf - out/${{ matrix.platform }}_${{ matrix.config }}/*tests out/${{ matrix.platform }}_${{ matrix.config }}/nplb out/${{ matrix.platform }}_${{ matrix.config }}/*.so out/${{ matrix.platform }}_${{ matrix.config }}/*.so.* out/${{ matrix.platform }}_${{ matrix.config }}/starboard/*.so.* out/${{ matrix.platform }}_${{ matrix.config }}/content/test | xz -T0 -1 -z - > test_artifacts.tar.xz
+      shell: bash
+    - name: Upload On-Host Test Artifacts Archive
+      if: inputs.on_host == 'true'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.test_artifacts_key }}
+        path: src/test_artifacts.tar.xz
+        retention-days: 3
