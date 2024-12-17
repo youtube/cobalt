@@ -418,6 +418,18 @@ CommonConnectJobParams HttpNetworkSession::CreateCommonConnectJobParams(
       for_websockets ? &websocket_endpoint_lock_manager_ : nullptr);
 }
 
+#if defined(STARBOARD)
+void HttpNetworkSession::SetConnectionOptions(
+    const quic::QuicTagVector& options) {
+  quic_stream_factory_.SetConnectionOptions(options);
+}
+
+void HttpNetworkSession::SetClientConnectionOptions(
+    const quic::QuicTagVector& options) {
+  quic_stream_factory_.SetClientConnectionOptions(options);
+}
+#endif
+
 ClientSocketPoolManager* HttpNetworkSession::GetSocketPoolManager(
     SocketPoolType pool_type) {
   switch (pool_type) {

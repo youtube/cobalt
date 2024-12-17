@@ -368,16 +368,23 @@ void URLRequestContext::SetQuicConnectionOptions(
     const std::string& connection_options) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  url_request_context_->quic_context()->params()->connection_options =
-      quic::ParseQuicTagVector(connection_options);
+  quic::QuicTagVector options = quic::ParseQuicTagVector(connection_options);
+  // Set the new tags in all copies of QuicParams.
+  url_request_context_->quic_context()->params()->connection_options = options;
+  url_request_context_->http_network_session()->SetConnectionOptions(options);
 }
 
 void URLRequestContext::SetQuicClientConnectionOptions(
     const std::string& client_connection_options) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
 
-  url_request_context_->quic_context()->params()->client_connection_options =
+  quic::QuicTagVector options =
       quic::ParseQuicTagVector(client_connection_options);
+  // Set the new tags in all copies of QuicParams.
+  url_request_context_->quic_context()->params()->client_connection_options =
+      options;
+  url_request_context_->http_network_session()->SetClientConnectionOptions(
+      options);
 }
 
 bool URLRequestContext::using_http_cache() { return using_http_cache_; }

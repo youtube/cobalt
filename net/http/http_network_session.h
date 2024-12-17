@@ -331,6 +331,11 @@ class NET_EXPORT HttpNetworkSession {
   CommonConnectJobParams CreateCommonConnectJobParams(
       bool for_websockets = false);
 
+#if defined(STARBOARD)
+  void SetConnectionOptions(const quic::QuicTagVector& options);
+  void SetClientConnectionOptions(const quic::QuicTagVector& options);
+#endif
+
  private:
   friend class HttpNetworkSessionPeer;
 
