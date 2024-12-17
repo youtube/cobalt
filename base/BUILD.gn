@@ -1087,6 +1087,14 @@ component("base") {
     "//third_party/abseil-cpp:absl",
   ]
 
+  if (is_cobalt && is_starboard && current_toolchain == cobalt_toolchain) {
+    import("//cobalt/build/configs/modular_variables.gni")
+    if (use_custom_libc) {
+      deps -= [ "//base/allocator/partition_allocator:raw_ptr" ]
+      deps += [ "//starboard:starboard_group" ]
+    }
+  }
+
   if (build_rust_base_conversions) {
     # Base provides conversions between CXX types and base types (e.g.
     # StringPiece).
@@ -1639,6 +1647,24 @@ component("base") {
         "rand_util_posix.cc",
         "system/sys_info_posix.cc",
       ]
+    }
+
+    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+    if (is_cobalt && is_starboard && current_toolchain == cobalt_toolchain) {
+      import("//cobalt/build/configs/modular_variables.gni")
+      if (use_custom_libc) {
+        sources -= [
+          "base_paths_posix.h",
+          "memory/madv_free_discardable_memory_allocator_posix.cc",
+          "memory/madv_free_discardable_memory_allocator_posix.h",
+          "memory/madv_free_discardable_memory_posix.cc",
+          "memory/madv_free_discardable_memory_posix.h",
+          "posix/unix_domain_socket.cc",
+          "posix/unix_domain_socket.h",
+          "rand_util_posix.cc",
+          "system/sys_info_posix.cc",
+        ]
+      }
     }
 
     if (is_posix || is_fuchsia) {
@@ -2230,7 +2256,7 @@ component("base") {
     sources += [
       "system/sys_info_starboard.cc",
       "system/sys_info_starboard.h",
-      ]
+    ]
   }
 
   if (use_blink) {
