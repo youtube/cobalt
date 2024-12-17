@@ -22,7 +22,6 @@
 #include <limits>
 #include <list>
 
-#include "starboard/android/shared/decode_target_create.h"
 #include "starboard/android/shared/decode_target_internal.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
@@ -685,8 +684,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       // done behind the scenes, the acquired texture is not actually backed
       // by texture data until updateTexImage() is called on it.
       SbDecodeTarget decode_target =
-          DecodeTargetCreate(decode_target_graphics_context_provider_,
-                             kSbDecodeTargetFormat1PlaneRGBA, 0, 0);
+          new SbDecodeTargetPrivate(decode_target_graphics_context_provider_);
       if (!SbDecodeTargetIsValid(decode_target)) {
         *error_message = "Could not acquire a decode target from provider.";
         SB_LOG(ERROR) << *error_message;
@@ -1064,8 +1062,8 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
     }
 
     if (first_texture_received_) {
-      SbDecodeTarget out_decode_target = new SbDecodeTargetPrivate;
-      out_decode_target->data = decode_target_->data;
+      SbDecodeTarget out_decode_target =
+          new SbDecodeTargetPrivate(*decode_target_);
       return out_decode_target;
     }
   }
