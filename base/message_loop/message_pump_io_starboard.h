@@ -65,8 +65,9 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
     SocketWatcher(const SocketWatcher&) = delete;
     SocketWatcher& operator=(const SocketWatcher&) = delete;
 
-    // NOTE: These methods aren't called StartWatching()/StopWatching() to avoid
-    // confusion with the win32 ObjectWatcher class.
+    // Unregisters the interests for watching the socket, always safe to call.
+    // No-op if there's nothing to do.
+    bool UnregisterInterest(int interests);
 
     // Stops watching the socket, always safe to call.  No-op if there's nothing
     // to do.
@@ -102,12 +103,6 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
     base::WeakPtrFactory<SocketWatcher> weak_factory_;
   };
 
-  enum Mode {
-    WATCH_READ = 1 << 0,
-    WATCH_WRITE = 1 << 1,
-    WATCH_READ_WRITE = WATCH_READ | WATCH_WRITE
-  };
-
   MessagePumpIOStarboard();
   virtual ~MessagePumpIOStarboard();
 
@@ -125,9 +120,14 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
   // success.  Must be called on the same thread the message_pump is running on.
   bool Watch(SbSocket socket,
              bool persistent,
-             int mode,
+             int interests,
              SocketWatcher* controller,
              Watcher* delegate);
+
+  // Removes an interest from a socket, and stops watching the socket if needed.
+  bool UnregisterInterest(SbSocket socket,
+                          int dropped_interests,
+                          SocketWatcher* controller);
 
   // Stops watching the socket.
   bool StopWatching(SbSocket socket);

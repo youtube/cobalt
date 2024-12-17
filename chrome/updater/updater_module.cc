@@ -38,6 +38,7 @@
 #include "cobalt/browser/switches.h"
 #include "components/crx_file/crx_verifier.h"
 #include "components/update_client/cobalt_slot_management.h"
+#include "components/update_client/update_client_errors.h"
 #include "components/update_client/utils.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/installation_manager.h"
@@ -46,6 +47,7 @@ namespace {
 
 using update_client::CobaltSlotManagement;
 using update_client::ComponentState;
+using update_client::UpdateCheckError;
 
 // The SHA256 hash of the "cobalt_evergreen_public" key.
 constexpr uint8_t kCobaltPublicKeyHash[] = {
@@ -98,17 +100,24 @@ void Observer::OnEvent(Events event, const std::string& id) {
       status = "Status is unknown.";
     } else if (crx_update_item_.state == ComponentState::kUpToDate &&
                updater_configurator_->GetPreviousUpdaterStatus().compare(
-                   updater_status_string_map.find(UpdaterStatus::kUpdated)
-                       ->second) == 0) {
+                   updater_status_string_map.at(UpdaterStatus::kUpdated)) == 0) {
       status = std::string(
-          updater_status_string_map.find(UpdaterStatus::kUpdated)->second);
+          updater_status_string_map.at(UpdaterStatus::kUpdated));
     } else {
       status = std::string(
           updater_status_string_map.find(status_iterator->second)->second);
     }
     if (crx_update_item_.state == ComponentState::kUpdateError) {
-      status +=
-          ", error code is " + std::to_string(crx_update_item_.error_code);
+      // QUICK_ROLL_FORWARD update, adjust the message to "Update installed,
+      // pending restart"
+      if (crx_update_item_.error_code == static_cast<int>(UpdateCheckError::QUICK_ROLL_FORWARD)) {
+        status = std::string(
+            updater_status_string_map.at(UpdaterStatus::kUpdated));
+      } else {
+        status +=
+            ", error category is " + std::to_string(static_cast<int>(crx_update_item_.error_category)) +
+            ",  error code is " + std::to_string(crx_update_item_.error_code);
+      }
     }
     if (updater_notification_ext_ != nullptr) {
       updater_notification_ext_->UpdaterState(
@@ -330,9 +339,11 @@ void UpdaterModule::Update() {
 
 // The following methods are called by other threads than the updater_thread_.
 
-void UpdaterModule::CompareAndSwapChannelChanged(int old_value, int new_value) {
+void UpdaterModule::CompareAndSwapForcedUpdate(int old_value, int new_value) {
   auto config = updater_configurator_;
-  if (config) config->CompareAndSwapChannelChanged(old_value, new_value);
+  if (config) {
+    config->CompareAndSwapForcedUpdate(old_value, new_value);
+  }
 }
 
 std::string UpdaterModule::GetUpdaterChannel() const {
@@ -352,7 +363,9 @@ void UpdaterModule::SetUpdaterChannel(const std::string& updater_channel) {
   LOG(INFO) << "UpdaterModule::SetUpdaterChannel updater_channel="
             << updater_channel;
   auto config = updater_configurator_;
-  if (config) config->SetChannel(updater_channel);
+  if (config) {
+    config->SetChannel(updater_channel);
+  }
 }
 
 std::string UpdaterModule::GetUpdaterStatus() const {

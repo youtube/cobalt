@@ -361,9 +361,6 @@ class NET_EXPORT UDPSocketStarboard
     write_async_outstanding_ += increment;
   }
 
-  virtual bool InternalWatchSocket();
-  virtual void InternalStopWatchingSocket();
-
   void SetWriteCallback(CompletionOnceCallback callback) {
     write_callback_ = std::move(callback);
   }
@@ -385,8 +382,9 @@ class NET_EXPORT UDPSocketStarboard
 
   int InternalWriteAsync(CompletionOnceCallback callback,
                          const NetworkTrafficAnnotationTag& traffic_annotation);
-  bool WatchSocket();
-  void StopWatchingSocket();
+  bool WatchSocketForWriting();
+  void StopWatchingSocketForReading();
+  void StopWatchingSocketForWriting();
 
   void DoReadCallback(int rv);
   void DoWriteCallback(int rv);
