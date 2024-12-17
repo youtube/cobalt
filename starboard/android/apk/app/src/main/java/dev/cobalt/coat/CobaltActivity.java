@@ -421,4 +421,18 @@ public abstract class CobaltActivity extends GameActivity {
   public long getAppStartTimestamp() {
     return timeInNanoseconds;
   }
+
+  public void setPreferMinimalPostProcessing(boolean value) {
+    Runnable runnable =
+        new Runnable() {
+          @Override
+          public void run() {
+            if (getDisplay().isMinimalPostProcessingSupported()) {
+              getWindow().setPreferMinimalPostProcessing(value);
+            }
+          }
+        };
+
+    runOnUiThread(runnable);
+  }
 }

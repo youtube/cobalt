@@ -33,6 +33,7 @@
 #include "cobalt/media/player/web_media_player_delegate.h"
 #include "cobalt/media/player/web_media_player_impl.h"
 #include "cobalt/media/web_media_player_factory.h"
+#include "cobalt/persistent_storage/persistent_settings.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/system_window/system_window.h"
@@ -42,13 +43,17 @@
 namespace cobalt {
 namespace media {
 
+const char kPreferMinimalPostProcessingPersistentSettingsKey[] =
+    "PreferMinimalPostProcessing";
+
 class MediaModule : public WebMediaPlayerFactory,
                     public WebMediaPlayerDelegate {
  public:
   struct Options {
-    Options() {}
+    Options() : persistent_settings(nullptr) {}
 
     bool allow_resume_after_suspend = true;
+    persistent_storage::PersistentSettings* persistent_settings;
   };
 
   typedef render_tree::Image Image;
@@ -59,16 +64,13 @@ class MediaModule : public WebMediaPlayerFactory,
 
   MediaModule(system_window::SystemWindow* system_window,
               render_tree::ResourceProvider* resource_provider,
-              const Options& options = Options())
-      : sbplayer_interface_(new DefaultSbPlayerInterface),
-        options_(options),
-        system_window_(system_window),
-        resource_provider_(resource_provider) {}
+              const Options& options = Options());
 
   // Returns true when the setting is set successfully or if the setting has
   // already been set to the expected value.  Returns false when the setting is
   // invalid or not set to the expected value.
   bool SetConfiguration(const std::string& name, int32 value);
+  void SetPreferMinimalPostProcessingFromPersistentSettings();
 
   const DecoderBufferAllocator* GetDecoderBufferAllocator() const {
     return &decoder_buffer_allocator_;
@@ -98,6 +100,8 @@ class MediaModule : public WebMediaPlayerFactory,
   }
 
  private:
+  void Initialize();
+
   void RegisterDebugState(WebMediaPlayer* player);
   void DeregisterDebugState();
 
