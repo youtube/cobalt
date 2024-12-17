@@ -157,6 +157,8 @@ jobs:
         if: ${{ ! (startsWith(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           path: src
+          # Use fetch depth of 0 to get full history for a valid build id.
+          fetch-depth: 0
       - name: Build Cobalt
         uses: ./src/.github/actions/build
         # TODO(bug?): android debug builds are broken.
