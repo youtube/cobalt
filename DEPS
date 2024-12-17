@@ -3082,7 +3082,22 @@ deps = {
       'dep_type': 'cipd',
   },
 
+<<<<<<< HEAD
   'src/third_party/android_deps/cipd/libs/com_google_android_gms_play_services_auth': {
+=======
+  'src/third_party/android_deps/cipd/libs/com_google_android_gms_play_services_ads_identifier': {
+      'packages': [
+          {
+              'package': 'chromium/third_party/android_deps/libs/com_google_android_gms_play_services_ads_identifier',
+              'version': 'version:2@18.2.0.cr1',
+          },
+      ],
+      'condition': 'checkout_android',
+      'dep_type': 'cipd',
+  },
+  
+  'src/third_party/android_deps/libs/com_google_android_gms_play_services_auth': {
+>>>>>>> a6de1c352f5 (Add play-services-ads-identifier-18.2.0 to the dependency and re-enable AdvertisingId.java. (#4579))
       'packages': [
           {
               'package': 'chromium/third_party/android_deps/libs/com_google_android_gms_play_services_auth',
