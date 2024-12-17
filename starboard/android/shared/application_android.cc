@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 
+#include "base/android/jni_android.h"
 #include "starboard/extension/accessibility.h"
 
 #include "starboard/android/shared/file_internal.h"
@@ -44,14 +45,6 @@
 namespace starboard {
 namespace android {
 namespace shared {
-namespace {
-int64_t GetAppStartTimestamp() {
-  JniEnvExt* env = JniEnvExt::Get();
-  jlong app_start_timestamp =
-      env->CallStarboardLongMethodOrAbort("getAppStartTimestamp", "()J");
-  return app_start_timestamp;
-}
-}  // namespace
 
 // TODO(cobalt, b/378708359): Remove this dummy init.
 void stubSbEventHandle(const SbEvent* event) {
@@ -70,18 +63,19 @@ ApplicationAndroid::ApplicationAndroid(
   // from the assets. The use ICU is used in our logging.
   SbFileAndroidInitialize();
 
-  JniEnvExt* env = JniEnvExt::Get();
-  jobject local_ref = env->CallStarboardObjectMethodOrAbort(
-      "getResourceOverlay", "()Ldev/cobalt/coat/ResourceOverlay;");
-  resource_overlay_ = env->ConvertLocalRefToGlobalRef(local_ref);
+  base::android::ScopedJavaLocalRef<jobject> resource_overlay =
+      starboard_bridge_->GetResourceOverlay();
+  resource_overlay_ =
+      JniEnvExt::Get()->ConvertLocalRefToGlobalRef(resource_overlay.obj());
+
   SbAudioSinkPrivate::Initialize();
-  app_start_timestamp_ = GetAppStartTimestamp();
-  env->CallStarboardVoidMethodOrAbort("applicationStarted", "()V");
+
+  app_start_timestamp_ = starboard_bridge_->GetAppStartTimestamp();
+  starboard_bridge_->ApplicationStarted();
 }
 
 ApplicationAndroid::~ApplicationAndroid() {
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallStarboardVoidMethodOrAbort("applicationStopping", "()V");
+  starboard_bridge_->ApplicationStopping();
 
   // The application is exiting.
   // Release the global reference.
@@ -94,26 +88,12 @@ ApplicationAndroid::~ApplicationAndroid() {
   JniEnvExt::OnThreadShutdown();
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_coat_StarboardBridge_nativeOnStop(JniEnvExt* env) {
-  SbAudioSinkPrivate::TearDown();
-  SbFileAndroidTeardown();
-}
-
 extern "C" SB_EXPORT_PLATFORM jboolean
 Java_dev_cobalt_coat_StarboardBridge_nativeOnSearchRequested(
     JniEnvExt* env,
     jobject unused_this) {
   // TODO(cobalt, b/378581064): how to handle onSearchRequested()?
   return true;
-}
-
-extern "C" SB_EXPORT_PLATFORM jlong
-Java_dev_cobalt_coat_StarboardBridge_nativeCurrentMonotonicTime(
-    JNIEnv* env,
-    jobject jcaller,
-    jboolean online) {
-  return CurrentMonotonicTime();
 }
 
 extern "C" SB_EXPORT_PLATFORM void
