@@ -168,8 +168,8 @@ jobs:
         uses: ./src/.github/actions/upload_test_artifacts
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          on_host: needs.initialize.outputs.test_on_host
-          on_device: needs.initialize.outputs.test_on_device
+          on_host: ${{ needs.initialize.outputs.test_on_host }}
+          on_device: ${{ needs.initialize.outputs.test_on_device }}
 
   test:
     needs: [initialize, docker-build-image, build]
