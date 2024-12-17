@@ -15,7 +15,6 @@
 import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/config/starboard_target_type.gni")
 import("//starboard/contrib/cast/cast.gni")
-import("//testing/test.gni")
 
 if (!is_cobalt) {
   group("gn_all") {
@@ -313,14 +312,5 @@ if (current_toolchain == starboard_toolchain) {
   }
 }
 
-test("starboard_unittests") {
-  testonly = true
-
-  sources = [ "//starboard/common/log_unittest.cc" ]
-
-  public_deps = [
-    "//base/test:run_all_unittests",
-    "//starboard/common",
-    "//testing/gtest",
-  ]
-}
+# TODO: Create a starboard_unittest target here and fold any gtest_target_type
+# in it, e.g. common:common_test.
