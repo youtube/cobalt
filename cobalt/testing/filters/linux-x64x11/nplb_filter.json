@@ -1,7 +1,5 @@
 {
   "failing_tests": [
-    "SbDrmTest.AnySupportedKeySystems",
-    "SbMediaCanPlayMimeAndKeySystem.AnySupportedKeySystems",
     "SbSystemGetLocaleIdTest.SunnyDay",
     "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.*",
     "MultiplePlayerTests/MultiplePlayerTest.*",
