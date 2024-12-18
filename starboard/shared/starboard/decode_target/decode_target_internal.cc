@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/decode_target_internal.h"
-#include "starboard/common/memory.h"
-#include "starboard/decode_target.h"
+#include "starboard/shared/starboard/decode_target/decode_target_internal.h"
 
-bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
-                           SbDecodeTargetInfo* out_info) {
-  if (!starboard::common::MemoryIsZero(out_info, sizeof(*out_info))) {
-    SB_DCHECK(false) << "out_info must be zeroed out.";
-    return false;
-  }
+SbDecodeTargetPrivate::SbDecodeTargetPrivate() = default;
 
-  memcpy(out_info, &decode_target->data->info, sizeof(*out_info));
-
-  return true;
-}
+SbDecodeTargetPrivate::~SbDecodeTargetPrivate() = default;

@@ -22,7 +22,6 @@
 #include <limits>
 #include <list>
 
-#include "starboard/android/shared/decode_target_internal.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
@@ -683,17 +682,17 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       // actually allocate any memory into the texture at this time.  That is
       // done behind the scenes, the acquired texture is not actually backed
       // by texture data until updateTexImage() is called on it.
-      SbDecodeTarget decode_target =
-          new SbDecodeTargetPrivate(decode_target_graphics_context_provider_);
+      DecodeTarget* decode_target =
+          new DecodeTarget(decode_target_graphics_context_provider_);
       if (!SbDecodeTargetIsValid(decode_target)) {
         *error_message = "Could not acquire a decode target from provider.";
         SB_LOG(ERROR) << *error_message;
         return false;
       }
-      j_output_surface = decode_target->data->surface;
+      j_output_surface = decode_target->surface();
 
       JniEnvExt* env = JniEnvExt::Get();
-      env->CallVoidMethodOrAbort(decode_target->data->surface_texture,
+      env->CallVoidMethodOrAbort(decode_target->surface_texture(),
                                  "setOnFrameAvailableListener", "(J)V", this);
 
       ScopedLock lock(decode_target_mutex_);
@@ -765,15 +764,15 @@ void VideoDecoder::TeardownCodec() {
   SbDecodeTarget decode_target_to_release = kSbDecodeTargetInvalid;
   {
     ScopedLock lock(decode_target_mutex_);
-    if (SbDecodeTargetIsValid(decode_target_)) {
+    if (decode_target_ != nullptr) {
       // Remove OnFrameAvailableListener to make sure the callback
       // would not be called.
       JniEnvExt* env = JniEnvExt::Get();
-      env->CallVoidMethodOrAbort(decode_target_->data->surface_texture,
+      env->CallVoidMethodOrAbort(decode_target_->surface_texture(),
                                  "removeOnFrameAvailableListener", "()V");
 
       decode_target_to_release = decode_target_;
-      decode_target_ = kSbDecodeTargetInvalid;
+      decode_target_ = nullptr;
       first_texture_received_ = false;
       has_new_texture_available_.store(false);
     } else {
@@ -990,8 +989,7 @@ int RoundToNearInteger(float x) {
 // an equivalent rectangle representing the region within the texture where
 // the pixel data is valid.  Note that the width and height of this region may
 // be negative to indicate that that axis should be flipped.
-void SetDecodeTargetContentRegionFromMatrix(
-    SbDecodeTargetInfoContentRegion* content_region,
+SbDecodeTargetInfoContentRegion GetDecodeTargetContentRegionFromMatrix(
     int width,
     int height,
     const float* matrix4x4) {
@@ -1033,13 +1031,17 @@ void SetDecodeTargetContentRegionFromMatrix(
   origin_y = 1.0f - origin_y;
   extent_y = 1.0f - extent_y;
 
-  content_region->left = origin_x * width;
-  content_region->right = extent_x * width;
+  SbDecodeTargetInfoContentRegion content_region;
+
+  content_region.left = origin_x * width;
+  content_region.right = extent_x * width;
 
   // Note that in GL coordinates, the origin is the bottom and the extent
   // is the top.
-  content_region->top = extent_y * height;
-  content_region->bottom = origin_y * height;
+  content_region.top = extent_y * height;
+  content_region.bottom = origin_y * height;
+
+  return content_region;
 }
 
 }  // namespace
@@ -1050,10 +1052,10 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   // We must take a lock here since this function can be called from a separate
   // thread.
   ScopedLock lock(decode_target_mutex_);
-  if (SbDecodeTargetIsValid(decode_target_)) {
+  if (decode_target_ != nullptr) {
     bool has_new_texture = has_new_texture_available_.exchange(false);
     if (has_new_texture) {
-      updateTexImage(decode_target_->data->surface_texture);
+      updateTexImage(decode_target_->surface_texture());
       UpdateDecodeTargetSizeAndContentRegion_Locked();
 
       if (!first_texture_received_) {
@@ -1062,9 +1064,8 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
     }
 
     if (first_texture_received_) {
-      SbDecodeTarget out_decode_target =
-          new SbDecodeTargetPrivate(*decode_target_);
-      return out_decode_target;
+      decode_target_->AddRef();
+      return decode_target_;
     }
   }
   return kSbDecodeTargetInvalid;
@@ -1078,19 +1079,15 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   while (!frame_sizes_.empty()) {
     const auto& frame_size = frame_sizes_.front();
     if (frame_size.has_crop_values()) {
-      decode_target_->data->info.planes[0].width = frame_size.texture_width;
-      decode_target_->data->info.planes[0].height = frame_size.texture_height;
-      decode_target_->data->info.width = frame_size.texture_width;
-      decode_target_->data->info.height = frame_size.texture_height;
+      decode_target_->set_dimension(frame_size.texture_width,
+                                    frame_size.texture_height);
 
       float matrix4x4[16];
-      getTransformMatrix(decode_target_->data->surface_texture, matrix4x4);
+      getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
 
-      auto& content_region =
-          decode_target_->data->info.planes[0].content_region;
-      SetDecodeTargetContentRegionFromMatrix(
-          &content_region, frame_size.texture_width, frame_size.texture_height,
-          matrix4x4);
+      auto content_region = GetDecodeTargetContentRegionFromMatrix(
+          frame_size.texture_width, frame_size.texture_height, matrix4x4);
+      decode_target_->set_content_region(content_region);
 
       // Now we have two crop rectangles, one from the MediaFormat, one from the
       // transform of the surface texture.  Their sizes should match.
@@ -1146,19 +1143,15 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
   // the video texture, which is true for most of the playbacks.
   // Leaving the legacy logic in place in case the new logic above doesn't work
   // on some devices, so at least the majority of playbacks still work.
-  decode_target_->data->info.planes[0].width =
-      frame_sizes_.back().display_width();
-  decode_target_->data->info.planes[0].height =
-      frame_sizes_.back().display_height();
-  decode_target_->data->info.width = frame_sizes_.back().display_width();
-  decode_target_->data->info.height = frame_sizes_.back().display_height();
+  decode_target_->set_dimension(frame_sizes_.back().display_width(),
+                                frame_sizes_.back().display_height());
 
   float matrix4x4[16];
-  getTransformMatrix(decode_target_->data->surface_texture, matrix4x4);
-  SetDecodeTargetContentRegionFromMatrix(
-      &decode_target_->data->info.planes[0].content_region,
+  getTransformMatrix(decode_target_->surface_texture(), matrix4x4);
+
+  decode_target_->set_content_region(GetDecodeTargetContentRegionFromMatrix(
       frame_sizes_.back().display_width(), frame_sizes_.back().display_height(),
-      matrix4x4);
+      matrix4x4));
 }
 
 void VideoDecoder::SetPlaybackRate(double playback_rate) {

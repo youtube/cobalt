@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/decode_target_internal.h"
+#include "starboard/android/shared/decode_target.h"
 
 #include <android/native_window_jni.h>
 #include <jni.h>
@@ -28,6 +28,9 @@
 
 using starboard::android::shared::JniEnvExt;
 
+namespace starboard {
+namespace android {
+namespace shared {
 namespace {
 
 jobject CreateSurfaceTexture(int gl_texture_id) {
@@ -61,17 +64,30 @@ void RunOnContextRunner(void* context) {
 
 }  // namespace
 
-SbDecodeTargetPrivate::SbDecodeTargetPrivate(
-    SbDecodeTargetGraphicsContextProvider* provider) {
+DecodeTarget::DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider) {
   std::function<void()> closure =
-      std::bind(&SbDecodeTargetPrivate::CreateOnContextRunner, this);
+      std::bind(&DecodeTarget::CreateOnContextRunner, this);
   SbDecodeTargetRunInGlesContext(provider, &RunOnContextRunner, &closure);
 }
 
-SbDecodeTargetPrivate::SbDecodeTargetPrivate(const SbDecodeTargetPrivate& that)
-    : data(that.data) {}
+bool DecodeTarget::GetInfo(SbDecodeTargetInfo* out_info) {
+  SB_DCHECK(out_info);
 
-void SbDecodeTargetPrivate::CreateOnContextRunner() {
+  *out_info = info_;
+}
+
+DecodeTarget::~DecodeTarget() {
+  ANativeWindow_release(native_window_);
+
+  JniEnvExt* env = JniEnvExt::Get();
+  env->DeleteGlobalRef(surface_);
+  env->DeleteGlobalRef(surface_texture_);
+
+  glDeleteTextures(1, &info_.planes[0].texture);
+  SB_DCHECK(glGetError() == GL_NO_ERROR);
+}
+
+void DecodeTarget::CreateOnContextRunner() {
   // Setup the GL texture that Android's MediaCodec library will target with
   // the decoder.  We don't call glTexImage2d() on it, Android will handle
   // the creation of the content when SurfaceTexture::updateTexImage() is
@@ -88,44 +104,34 @@ void SbDecodeTargetPrivate::CreateOnContextRunner() {
   GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T,
                           GL_CLAMP_TO_EDGE));
 
-  data = new SbDecodeTargetPrivate::Data;
-
   // Wrap the GL texture in an Android SurfaceTexture object.
-  data->surface_texture = CreateSurfaceTexture(texture);
+  surface_texture_ = CreateSurfaceTexture(texture);
 
   // We will also need an Android Surface object in order to obtain a
   // ANativeWindow object that we can pass into the AMediaCodec library.
-  data->surface = CreateSurfaceFromSurfaceTexture(data->surface_texture);
+  surface_ = CreateSurfaceFromSurfaceTexture(surface_texture_);
 
-  data->native_window =
-      ANativeWindow_fromSurface(JniEnvExt::Get(), data->surface);
+  native_window_ = ANativeWindow_fromSurface(JniEnvExt::Get(), surface_);
 
   // Setup our publicly accessible decode target information.
-  data->info.format = kSbDecodeTargetFormat1PlaneRGBA;
-  data->info.is_opaque = true;
-  data->info.width = 0;
-  data->info.height = 0;
-  data->info.planes[0].texture = texture;
-  data->info.planes[0].gl_texture_target = GL_TEXTURE_EXTERNAL_OES;
-  data->info.planes[0].width = 0;
-  data->info.planes[0].height = 0;
+  info_.format = kSbDecodeTargetFormat1PlaneRGBA;
+  info_.is_opaque = true;
+  info_.width = 0;
+  info_.height = 0;
+  info_.planes[0].texture = texture;
+  info_.planes[0].gl_texture_target = GL_TEXTURE_EXTERNAL_OES;
+  info_.planes[0].width = 0;
+  info_.planes[0].height = 0;
 
   // These values will be initialized when SbPlayerGetCurrentFrame() is called.
-  data->info.planes[0].content_region.left = 0;
-  data->info.planes[0].content_region.right = 0;
-  data->info.planes[0].content_region.top = 0;
-  data->info.planes[0].content_region.bottom = 0;
+  info_.planes[0].content_region.left = 0;
+  info_.planes[0].content_region.right = 0;
+  info_.planes[0].content_region.top = 0;
+  info_.planes[0].content_region.bottom = 0;
 
   GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0));
 }
 
-SbDecodeTargetPrivate::Data::~Data() {
-  ANativeWindow_release(native_window);
-
-  JniEnvExt* env = JniEnvExt::Get();
-  env->DeleteGlobalRef(surface);
-  env->DeleteGlobalRef(surface_texture);
-
-  glDeleteTextures(1, &info.planes[0].texture);
-  SB_DCHECK(glGetError() == GL_NO_ERROR);
-}
+}  // namespace shared
+}  // namespace android
+}  // namespace starboard

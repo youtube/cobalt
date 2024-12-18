@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/android/shared/decode_target.h"
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_codec_bridge.h"
@@ -173,15 +174,15 @@ class VideoDecoder
   std::atomic_bool tunnel_mode_prerolling_{true};
   std::atomic_bool tunnel_mode_frame_rendered_{false};
 
-  // If decode-to-texture is enabled, then we store the decode target texture
-  // inside of this |decode_target_| member.
-  SbDecodeTarget decode_target_ = kSbDecodeTargetInvalid;
-
   // Since GetCurrentDecodeTarget() needs to be called from an arbitrary thread
   // to obtain the current decode target (which ultimately ends up being a
   // copy of |decode_target_|), we need to safe-guard access to |decode_target_|
   // and we do so through this mutex.
   Mutex decode_target_mutex_;
+
+  // If decode-to-texture is enabled, then we store the decode target texture
+  // inside of this |decode_target_| member.
+  DecodeTarget* decode_target_ = nullptr;
 
   // The size infos of the frames in use, i.e. the frames being displayed, and
   // the frames recently decoded frames and pending display.
