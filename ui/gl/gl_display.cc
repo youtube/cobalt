@@ -727,6 +727,7 @@ bool GLDisplayEGL::InitializeDisplay(bool supports_angle,
                                      std::vector<DisplayType> init_displays,
                                      EGLDisplayPlatform native_display,
                                      gl::GLDisplayEGL* existing_display) {
+  supports_angle = false;
   if (display_ != EGL_NO_DISPLAY)
     return true;
 

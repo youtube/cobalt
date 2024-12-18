@@ -4,6 +4,7 @@
 
 #include "ui/events/ozone/events_ozone.h"
 
+#include "base/logging.h"
 #include "base/check.h"
 #include "ui/events/event.h"
 
@@ -15,6 +16,7 @@ bool dispatch_disabled = false;
 bool DispatchEventFromNativeUiEvent(
     const PlatformEvent& event,
     base::OnceCallback<void(ui::Event*)> callback) {
+  LOG(INFO) << "DispatchEventFromNativeUiEvent";
   // If it's disabled for test, just return as if it's handled.
   if (dispatch_disabled)
     return true;
@@ -27,6 +29,7 @@ bool DispatchEventFromNativeUiEvent(
   if (event->IsKeyEvent()) {
     ui::KeyEvent key_event(event);
     std::move(callback).Run(&key_event);
+    LOG(INFO) << "key_event keycode: " << key_event.GetCodeString();
     handled = key_event.handled();
   } else if (event->IsMouseWheelEvent()) {
     ui::MouseWheelEvent wheel_event(event);
