@@ -52,12 +52,8 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.TimeZone;
-import org.chromium.base.annotations.CalledByNative;
-import org.chromium.base.annotations.JNINamespace;
-import org.chromium.base.annotations.NativeMethods;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
-@JNINamespace("starboard::android::shared")
 public class StarboardBridge {
 
   /** Interface to be implemented by the Android Application hosting the starboard app. */
@@ -148,19 +144,7 @@ public class StarboardBridge {
 
   private native void closeNativeStarboard(long nativeApp);
 
-  @NativeMethods
-    interface Natives {
-        void onStop();
-
-        long currentMonotonicTime();
-
-        // TODO(cobalt, b/372559388): move below native methods to the Natives interface.
-        // boolean initJNI();
-
-        // long startNativeStarboard();
-
-        // void closeNativeStarboard(long nativeApp);
-    }
+  private native long nativeCurrentMonotonicTime();
 
   protected void onActivityStart(Activity activity) {
     Log.e(TAG, "onActivityStart ran");
@@ -178,6 +162,8 @@ public class StarboardBridge {
     sysConfigChangeReceiver.setForeground(false);
     afterStopped();
   }
+
+  private native void nativeOnStop();
 
   protected void onActivityDestroy(Activity activity) {
     if (applicationStopped) {
@@ -201,7 +187,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected void beforeStartOrResume() {
     Log.i(TAG, "Prepare to resume");
     // Bring our platform services to life before resuming so that they're ready to deal with
@@ -216,7 +202,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected void beforeSuspend() {
     try {
       Log.i(TAG, "Prepare to suspend");
@@ -234,7 +220,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected void afterStopped() {
     applicationStopped = true;
     ttsHelper.shutdown();
@@ -254,20 +240,20 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected void applicationStarted() {
     applicationReady = true;
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected void applicationStopping() {
     applicationReady = false;
     applicationStopped = true;
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   public void requestSuspend() {
     Activity activity = activityHolder.get();
     if (activity != null) {
@@ -287,7 +273,7 @@ public class StarboardBridge {
   // private native boolean nativeOnSearchRequested();
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   public Context getApplicationContext() {
     if (appContext == null) {
       throw new IllegalArgumentException("appContext cannot be null");
@@ -296,7 +282,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
     PlatformError error = new PlatformError(activityHolder, errorType, data);
     error.raise();
@@ -316,7 +302,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected String[] getArgs() {
     if (args == null) {
       throw new IllegalArgumentException("args cannot be null");
@@ -326,7 +312,7 @@ public class StarboardBridge {
 
   /** Returns the URL from the Intent that started the app. */
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected String getStartDeepLink() {
     if (startDeepLink == null) {
       throw new IllegalArgumentException("startDeepLink cannot be null");
@@ -354,7 +340,7 @@ public class StarboardBridge {
    * May be overridden for use cases that need to segregate storage.
    */
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected String getFilesAbsolutePath() {
     return appContext.getFilesDir().getAbsolutePath();
   }
@@ -364,7 +350,7 @@ public class StarboardBridge {
    * overridden for use cases that need to segregate storage.
    */
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected String getCacheAbsolutePath() {
     return appContext.getCacheDir().getAbsolutePath();
   }
@@ -376,9 +362,6 @@ public class StarboardBridge {
    */
   @SuppressWarnings("unused")
   @UsedByNative
-  // TODO: (cobalt b/372559388) Migrate complicated returned type functions to JNI zero.
-  // The @CalledByNative annotation has strict signature parsing rules,
-  // and Pair<byte[], byte[]> is not be supported well.
   Pair<byte[], byte[]> getLocalInterfaceAddressAndNetmask(boolean wantIPv6) {
     try {
       Enumeration<NetworkInterface> it = NetworkInterface.getNetworkInterfaces();
@@ -426,7 +409,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   CobaltTextToSpeechHelper getTextToSpeechHelper() {
     if (ttsHelper == null) {
       throw new IllegalArgumentException("ttsHelper cannot be null for native code");
@@ -438,7 +421,7 @@ public class StarboardBridge {
    * @return A new CaptionSettings object with the current system caption settings.
    */
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   CaptionSettings getCaptionSettings() {
     CaptioningManager cm =
         (CaptioningManager) appContext.getSystemService(Context.CAPTIONING_SERVICE);
@@ -447,13 +430,13 @@ public class StarboardBridge {
 
   /** Java-layer implementation of SbSystemGetLocaleId. */
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   String systemGetLocaleId() {
     return Locale.getDefault().toLanguageTag();
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   String getTimeZoneId() {
     Locale locale = Locale.getDefault();
     Calendar calendar = Calendar.getInstance(locale);
@@ -465,19 +448,19 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   SizeF getDisplayDpi() {
     return DisplayUtil.getDisplayDpi();
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   Size getDisplaySize() {
     return DisplayUtil.getSystemDisplaySize();
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   public ResourceOverlay getResourceOverlay() {
     if (resourceOverlay == null) {
       throw new IllegalArgumentException("resourceOverlay cannot be null for native code");
@@ -499,7 +482,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   Size getDeviceResolution() {
     String displaySize =
         android.os.Build.VERSION.SDK_INT < 28
@@ -523,7 +506,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   boolean isNetworkConnected() {
     if (networkStatus == null) {
       throw new IllegalArgumentException("networkStatus cannot be null for native code");
@@ -537,7 +520,7 @@ public class StarboardBridge {
    * @return true if no device is connected.
    */
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   public boolean isMicrophoneDisconnected() {
     // A check specifically for microphones is not available before API 28, so it is assumed that a
     // connected input audio device is a microphone.
@@ -566,7 +549,7 @@ public class StarboardBridge {
    * @return true if the microphone mute is on.
    */
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   public boolean isMicrophoneMute() {
     AudioManager audioManager = (AudioManager) appContext.getSystemService(AUDIO_SERVICE);
     return audioManager.isMicrophoneMute();
@@ -576,7 +559,7 @@ public class StarboardBridge {
    * @return true if we have an active network connection and it's on an wireless network.
    */
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   boolean isCurrentNetworkWireless() {
     ConnectivityManager connMgr =
         (ConnectivityManager) appContext.getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -596,7 +579,7 @@ public class StarboardBridge {
    * @return true if the user has enabled accessibility high contrast text in the operating system.
    */
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   boolean isAccessibilityHighContrastTextEnabled() {
     AccessibilityManager am =
         (AccessibilityManager) appContext.getSystemService(Context.ACCESSIBILITY_SERVICE);
@@ -611,7 +594,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   void updateMediaSession(
       int playbackState,
       long actions,
@@ -630,7 +613,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   public void deactivateMediaSession() {
     // TODO(b/377019873): re-enable
     Log.e(TAG, "MediaSession is disabled");
@@ -639,7 +622,7 @@ public class StarboardBridge {
 
   /** Returns string for kSbSystemPropertyUserAgentAuxField */
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected String getUserAgentAuxField() {
     StringBuilder sb = new StringBuilder();
 
@@ -667,20 +650,20 @@ public class StarboardBridge {
 
   /** Returns string for kSbSystemPropertyAdvertisingId */
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected String getAdvertisingId() {
     return this.advertisingId.getId();
   }
 
   /** Returns boolean for kSbSystemPropertyLimitAdTracking */
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected boolean getLimitAdTracking() {
     return this.advertisingId.isLimitAdTrackingEnabled();
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   AudioOutputManager getAudioOutputManager() {
     if (audioOutputManager == null) {
       throw new IllegalArgumentException("audioOutputManager cannot be null for native code");
@@ -690,7 +673,7 @@ public class StarboardBridge {
 
   /** Returns Java layer implementation for AudioPermissionRequester */
   // @SuppressWarnings("unused")
-  // @CalledByNative
+  // @UsedByNative
   // AudioPermissionRequester getAudioPermissionRequester() {
   //   return audioPermissionRequester;
   // }
@@ -700,7 +683,7 @@ public class StarboardBridge {
   // }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   public void resetVideoSurface() {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
@@ -709,7 +692,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
@@ -719,7 +702,7 @@ public class StarboardBridge {
 
   /** Return supported hdr types. */
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   public int[] getSupportedHdrTypes() {
     Display defaultDisplay = DisplayUtil.getDefaultDisplay();
     if (defaultDisplay == null) {
@@ -797,12 +780,12 @@ public class StarboardBridge {
 
   /** Returns the application start timestamp. */
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected long getAppStartTimestamp() {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
       long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
-      long cppTimestamp = StarboardBridgeJni.get().currentMonotonicTime();
+      long cppTimestamp = nativeCurrentMonotonicTime();
       long javaStopTimestamp = System.nanoTime();
       return cppTimestamp
           - (javaStopTimestamp - javaStartTimestamp) / timeNanosecondsPerMicrosecond;
@@ -811,7 +794,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   void reportFullyDrawn() {
     Activity activity = activityHolder.get();
     if (activity != null) {
@@ -820,7 +803,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   public void setCrashContext(String key, String value) {
     Log.i(TAG, "setCrashContext Called: " + key + ", " + value);
     crashContext.put(key, value);
@@ -838,19 +821,19 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected boolean getIsAmatiDevice() {
     return this.isAmatiDevice;
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected String getBuildFingerprint() {
     return Build.FINGERPRINT;
   }
 
   @SuppressWarnings("unused")
-  @CalledByNative
+  @UsedByNative
   protected long getPlayServicesVersion() {
     try {
       if (android.os.Build.VERSION.SDK_INT < 28) {
