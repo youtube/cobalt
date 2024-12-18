@@ -194,8 +194,26 @@ const QuicTag kMAD0 = TAG('M', 'A', 'D', '0');   // Ignore ack delay
 const QuicTag kMAD2 = TAG('M', 'A', 'D', '2');   // No min TLP
 const QuicTag kMAD3 = TAG('M', 'A', 'D', '3');   // No min RTO
 const QuicTag k1ACK = TAG('1', 'A', 'C', 'K');   // 1 fast ack for reordering
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+const QuicTag kAKD1 = TAG('A', 'K', 'D', '1');   // 10 packets received before
+                                                 // acking
+const QuicTag kAKD2 = TAG('A', 'K', 'D', '2');   // 20 packets received before
+                                                 // acking
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
 const QuicTag kAKD3 = TAG('A', 'K', 'D', '3');   // Ack decimation style acking
                                                  // with 1/8 RTT acks.
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+const QuicTag kAKD5 = TAG('A', 'K', 'D', '5');   // 40 packets received before
+                                                 // acking
+const QuicTag kAKD6 = TAG('A', 'K', 'D', '6');   // 80 packets received before
+                                                 // acking
+const QuicTag kAKD7 = TAG('A', 'K', 'D', '7');   // 120 packets received before
+                                                 // acking
+const QuicTag kAKD8 = TAG('A', 'K', 'D', '8');   // 160 packets received before
+                                                 // acking
+const QuicTag kAKD9 = TAG('A', 'K', 'D', '9');   // 240 packets received before
+                                                 // acking
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
 const QuicTag kAKDU = TAG('A', 'K', 'D', 'U');   // Unlimited number of packets
                                                  // received before acking
 const QuicTag kAFFE = TAG('A', 'F', 'F', 'E');   // Enable client receiving

@@ -312,13 +312,14 @@ TEST_F(UberReceivedPacketManagerTest, AckSentEveryNthPacket) {
   }
 }
 
-// Note: Disabled in Cobalt because this test assumes
-//       kMaxRetransmittablePacketsBeforeAck = 10
-TEST_F(UberReceivedPacketManagerTest, DISABLED_AckDecimationReducesAcks) {
+TEST_F(UberReceivedPacketManagerTest, AckDecimationReducesAcks) {
   EXPECT_FALSE(HasPendingAck());
 
   // Start ack decimation from 10th packet.
   manager_->set_min_received_before_ack_decimation(10);
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+  manager_->set_max_retransmittable_packets_before_ack(10);
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
 
   // Receives packets 1 - 29.
   for (size_t i = 1; i <= 29; ++i) {
@@ -347,10 +348,11 @@ TEST_F(UberReceivedPacketManagerTest, DISABLED_AckDecimationReducesAcks) {
   CheckAckTimeout(clock_.ApproximateNow());
 }
 
-// Note: Disabled in Cobalt because this test assumes
-//       kMaxRetransmittablePacketsBeforeAck = 10
-TEST_F(UberReceivedPacketManagerTest, DISABLED_SendDelayedAckDecimation) {
+TEST_F(UberReceivedPacketManagerTest, SendDelayedAckDecimation) {
   EXPECT_FALSE(HasPendingAck());
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+  manager_->set_max_retransmittable_packets_before_ack(10);
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
   // The ack time should be based on min_rtt * 1/4, since it's less than the
   // default delayed ack time.
   QuicTime ack_time = clock_.ApproximateNow() + kMinRttMs * 0.25;
@@ -420,11 +422,11 @@ TEST_F(UberReceivedPacketManagerTest,
   CheckAckTimeout(ack_time);
 }
 
-// Note: Disabled in Cobalt because this test assumes
-//       kMaxRetransmittablePacketsBeforeAck = 10
-TEST_F(UberReceivedPacketManagerTest,
-       DISABLED_SendDelayedAckDecimationEighthRtt) {
+TEST_F(UberReceivedPacketManagerTest, SendDelayedAckDecimationEighthRtt) {
   EXPECT_FALSE(HasPendingAck());
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+  manager_->set_max_retransmittable_packets_before_ack(10);
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
   UberReceivedPacketManagerPeer::SetAckDecimationDelay(manager_.get(), 0.125);
 
   // The ack time should be based on min_rtt/8, since it's less than the
