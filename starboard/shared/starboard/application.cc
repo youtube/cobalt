@@ -34,6 +34,10 @@ namespace {
 const char kPreloadSwitch[] = "preload";
 const char kLinkSwitch[] = "link";
 const char kMinLogLevel[] = "min_log_level";
+// Chromium's base/base_switches.h "--v". Positive numbers are equivalent to
+// debug (0), info, warning, error, fatal. Note that Starboard has no debug;
+// levels start at kSbLogPriorityInfo which is a 1.
+const char kV[] = "v";
 
 // Dispatches an event of |type| with |data| to the system event handler,
 // calling |destructor| on |data| when finished dispatching. Does all
@@ -107,9 +111,14 @@ int Application::Run(CommandLine command_line) {
     }
   }
 
+  // kMinLogLevel should take priority over kV if both are defined.
   if (command_line_->HasSwitch(kMinLogLevel)) {
     ::starboard::logging::SetMinLogLevel(::starboard::logging::StringToLogLevel(
         command_line_->GetSwitchValue(kMinLogLevel)));
+  } else if (command_line_->HasSwitch(kV)) {
+    ::starboard::logging::SetMinLogLevel(
+        ::starboard::logging::ChromiumIntToStarboardLogLevel(
+            command_line_->GetSwitchValue(kV)));
   } else {
 #if SB_LOGGING_IS_OFFICIAL_BUILD
     ::starboard::logging::SetMinLogLevel(::starboard::logging::SB_LOG_FATAL);

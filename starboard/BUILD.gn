@@ -311,3 +311,5 @@ if (current_toolchain == starboard_toolchain) {
     }
   }
 }
+# TODO: Create a starboard_unittest target here and fold any gtest_target_type
+# in it, e.g. common:common_test.
