@@ -37,7 +37,10 @@ int main(int argc, const char** argv) {
        "--single-process",
        // Disable Vulkan.
        "--disable-features=Vulkan",
-       // TODO(mcasas): Add "--ozone-platform=starboard".
+       // Force Ozone Starboard backend.
+       "--ozone-platform=starboard", 
+       // Avoid using Angle, use EGL directly (this implies GLES2). 
+       "--use-gl=egl",
        // Enable remote Devtools access.
        "--remote-debugging-port=9222",
        "--remote-allow-origins=http://localhost:9222",
