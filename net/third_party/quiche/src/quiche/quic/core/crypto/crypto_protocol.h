@@ -194,26 +194,8 @@ const QuicTag kMAD0 = TAG('M', 'A', 'D', '0');   // Ignore ack delay
 const QuicTag kMAD2 = TAG('M', 'A', 'D', '2');   // No min TLP
 const QuicTag kMAD3 = TAG('M', 'A', 'D', '3');   // No min RTO
 const QuicTag k1ACK = TAG('1', 'A', 'C', 'K');   // 1 fast ack for reordering
-#if defined(USE_COBALT_CUSTOMIZATIONS)
-const QuicTag kAKD1 = TAG('A', 'K', 'D', '1');   // 10 packets received before
-                                                 // acking
-const QuicTag kAKD2 = TAG('A', 'K', 'D', '2');   // 20 packets received before
-                                                 // acking
-#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
 const QuicTag kAKD3 = TAG('A', 'K', 'D', '3');   // Ack decimation style acking
                                                  // with 1/8 RTT acks.
-#if defined(USE_COBALT_CUSTOMIZATIONS)
-const QuicTag kAKD5 = TAG('A', 'K', 'D', '5');   // 40 packets received before
-                                                 // acking
-const QuicTag kAKD6 = TAG('A', 'K', 'D', '6');   // 80 packets received before
-                                                 // acking
-const QuicTag kAKD7 = TAG('A', 'K', 'D', '7');   // 120 packets received before
-                                                 // acking
-const QuicTag kAKD8 = TAG('A', 'K', 'D', '8');   // 160 packets received before
-                                                 // acking
-const QuicTag kAKD9 = TAG('A', 'K', 'D', '9');   // 240 packets received before
-                                                 // acking
-#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
 const QuicTag kAKDU = TAG('A', 'K', 'D', 'U');   // Unlimited number of packets
                                                  // received before acking
 const QuicTag kAFFE = TAG('A', 'F', 'F', 'E');   // Enable client receiving
@@ -506,6 +488,30 @@ const QuicTag kSourceAddressTokenTag =
 const QuicTag kCertificateTag = TAG('C', 'R', 'T', 255);  // Certificate chain
 const QuicTag kCertificateSCTTag =
     TAG('C', 'S', 'C', 'T');  // Signed cert timestamp (RFC6962) of leaf cert.
+
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+// A number of tags for evaluation to find the optimal value.
+const QuicTag kCOB0 = TAG('C', 'O', 'B', '0');  // 10 packets received before
+                                                // acking
+const QuicTag kCOB1 = TAG('C', 'O', 'B', '1');  // 20 packets received before
+                                                // acking
+const QuicTag kCOB2 = TAG('C', 'O', 'B', '2');  // 40 packets received before
+                                                // acking
+const QuicTag kCOB3 = TAG('C', 'O', 'B', '3');  // 60 packets received before
+                                                // acking
+const QuicTag kCOB4 = TAG('C', 'O', 'B', '4');  // 80 packets received before
+                                                // acking
+const QuicTag kCOB5 = TAG('C', 'O', 'B', '5');  // 100 packets received before
+                                                // acking
+const QuicTag kCOB6 = TAG('C', 'O', 'B', '6');  // 120 packets received before
+                                                // acking
+const QuicTag kCOB7 = TAG('C', 'O', 'B', '7');  // 160 packets received before
+                                                // acking
+const QuicTag kCOB8 = TAG('C', 'O', 'B', '8');  // 200 packets received before
+                                                // acking
+const QuicTag kCOB9 = TAG('C', 'O', 'B', '9');  // 240 packets received before
+                                                // acking
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
 
 #undef TAG
 
