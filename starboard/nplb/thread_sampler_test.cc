@@ -112,8 +112,7 @@ TEST(ThreadSamplerTest, CreateIfSupported) {
 
 TEST(ThreadSamplerTest, SunnyDayThreadFreeze) {
   if (!SbThreadSamplerIsSupported()) {
-    SB_LOG(WARNING) << "Skipping test, as there is no implementation.";
-    return;
+    GTEST_SKIP() << "No implementation.";
   }
 
   CountingThread counting_thread;
@@ -138,8 +137,7 @@ TEST(ThreadSamplerTest, SunnyDayThreadFreeze) {
 
 TEST(ThreadSamplerTest, SunnyDayThreadContextPointers) {
   if (!SbThreadSamplerIsSupported()) {
-    SB_LOG(WARNING) << "Skipping test, as there is no implementation.";
-    return;
+    GTEST_SKIP() << "No implementation.";
   }
 
   CountingThread counting_thread;

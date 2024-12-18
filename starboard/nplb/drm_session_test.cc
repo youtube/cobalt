@@ -162,6 +162,9 @@ void SbDrmSessionTest::SetUp() {
       kWidevineKeySystem, this, OnSessionUpdateRequestGeneratedFunc,
       DummySessionUpdatedFunc, DummySessionKeyStatusesChangedFunc,
       OnServerCertificateUpdatedFunc, OnSessionClosedFunc);
+  if (!SbDrmSystemIsValid(drm_system_)) {
+    GTEST_SKIP() << "DRM Widevine is not supported on this platform.";
+  }
 }
 
 void SbDrmSessionTest::TearDown() {
@@ -285,12 +288,6 @@ void SbDrmSessionTest::OnSessionClosedFunc(SbDrmSystem drm_system,
 }
 
 TEST_F(SbDrmSessionTest, SunnyDay) {
-  if (!SbDrmSystemIsValid(drm_system_)) {
-    SB_LOG(INFO) << "Skipping test, DRM system Widevine is not supported on "
-                    "this platform.";
-    return;
-  }
-
   if (SbDrmIsServerCertificateUpdatable(drm_system_)) {
     SbDrmUpdateServerCertificate(drm_system_, kInitialTicket,
                                  kWidevineCertificate,
@@ -320,12 +317,6 @@ TEST_F(SbDrmSessionTest, SunnyDay) {
 }
 
 TEST_F(SbDrmSessionTest, CloseDrmSessionBeforeUpdateSession) {
-  if (!SbDrmSystemIsValid(drm_system_)) {
-    SB_LOG(INFO) << "Skipping test, DRM system Widevine is not supported on "
-                    "this platform.";
-    return;
-  }
-
   SbDrmGenerateSessionUpdateRequest(drm_system_, kInitialTicket,
                                     kCencInitDataType, kCencInitData,
                                     SB_ARRAY_SIZE_INT(kCencInitData));
@@ -349,12 +340,6 @@ TEST_F(SbDrmSessionTest, CloseDrmSessionBeforeUpdateSession) {
 }
 
 TEST_F(SbDrmSessionTest, InvalidSessionUpdateRequestParams) {
-  if (!SbDrmSystemIsValid(drm_system_)) {
-    SB_LOG(INFO) << "Skipping test, DRM system Widevine is not supported on "
-                    "this platform.";
-    return;
-  }
-
   SbDrmGenerateSessionUpdateRequest(drm_system_, kSbDrmTicketInvalid,
                                     kCencInitDataType, kCencInitData,
                                     SB_ARRAY_SIZE_INT(kCencInitData));

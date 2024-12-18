@@ -22,8 +22,7 @@ namespace {
 
 TEST(SbSpeechSynthesisBasicTest, Basic) {
   if (!SbSpeechSynthesisIsSupported()) {
-    SB_LOG(INFO) << "Speech synthesis not supported. Test skipped.";
-    return;
+    GTEST_SKIP() << "Speech synthesis not supported.";
   }
   SbSpeechSynthesisSpeak("Hello");
   SbSpeechSynthesisCancel();

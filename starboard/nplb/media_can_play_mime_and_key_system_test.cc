@@ -323,7 +323,16 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
       key_system));
 }
 
-TEST(SbMediaCanPlayMimeAndKeySystem, AnySupportedKeySystems) {
+// On e.g. linux/shared, raspi, EG platforms, there is no key system supported.
+// TODO(b/384921365): Figure out a way to disable this test using GN
+// arguments/preprocessor.
+#if !defined(OS_ANDROID)
+#define MAYBE_AnySupportedKeySystems DISABLED_AnySupportedKeySystems
+#else
+#define MAYBE_AnySupportedKeySystems AnySupportedKeySystems
+#endif
+
+TEST(SbMediaCanPlayMimeAndKeySystem, MAYBE_AnySupportedKeySystems) {
   bool any_supported_key_systems = false;
   for (auto key_system : kKeySystems) {
     if (SbMediaCanPlayMimeAndKeySystem("video/mp4; codecs=\"avc1.4d4015\"",
@@ -337,9 +346,7 @@ TEST(SbMediaCanPlayMimeAndKeySystem, AnySupportedKeySystems) {
 
 TEST(SbMediaCanPlayMimeAndKeySystem, KeySystemWithAttributes) {
   if (!IsKeySystemWithAttributesSupported()) {
-    SB_LOG(INFO) << "KeySystemWithAttributes test skipped because key system"
-                 << " with attribute is not supported.";
-    return;
+    GTEST_SKIP() << "Key system with attribute is not supported.";
   }
 
   for (auto key_system : kKeySystems) {

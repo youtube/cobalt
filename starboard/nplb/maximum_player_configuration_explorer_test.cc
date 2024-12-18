@@ -77,9 +77,7 @@ TEST_P(MaximumPlayerConfigurationExplorerTest, SunnyDay) {
   }
 
   if (supported_player_configs.empty()) {
-    // TODO: Use GTEST_SKIP when we have a newer version of gtest.
-    SB_LOG(INFO) << "No supported video codec. Skip the tests.";
-    return;
+    GTEST_SKIP() << "No supported video codec.";
   }
 
   // The test only ensures the explorer doesn't crash and can get result, but

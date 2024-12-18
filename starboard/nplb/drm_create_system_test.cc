@@ -23,7 +23,16 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-TEST(SbDrmTest, AnySupportedKeySystems) {
+// On e.g. linux/shared, raspi, EG platforms, there is no key system supported.
+// TODO(b/384921365): Figure out a way to disable this test using GN
+// arguments/preprocessor.
+#if !defined(OS_ANDROID)
+#define MAYBE_AnySupportedKeySystems DISABLED_AnySupportedKeySystems
+#else
+#define MAYBE_AnySupportedKeySystems AnySupportedKeySystems
+#endif
+
+TEST(SbDrmTest, MAYBE_AnySupportedKeySystems) {
   bool any_supported_key_systems = false;
   for (int i = 0; i < SB_ARRAY_SIZE_INT(kKeySystems); ++i) {
     const char* key_system = kKeySystems[i];
