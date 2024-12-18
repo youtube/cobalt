@@ -168,15 +168,10 @@ TEST_P(SbPlayerWriteSampleTest, LimitedAudioInput) {
 
 TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
   if (!IsPartialAudioSupported()) {
-    // TODO: Use GTEST_SKIP when we have a newer version of gtest.
-    SB_LOG(INFO)
-        << "The platform doesn't support partial audio. Skip the tests.";
-    return;
+    GTEST_SKIP() << "The platform doesn't support partial audio.";
   }
   if (IsAudioPassthroughUsed(GetParam())) {
-    SB_LOG(INFO) << "The audio passthrough doesn't support partial audio. Skip "
-                    "the tests.";
-    return;
+    GTEST_SKIP() << "The audio passthrough doesn't support partial audio.";
   }
 
   SbPlayerTestFixture player_fixture(GetParam(),
@@ -185,9 +180,7 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
     return;
   }
   if (!player_fixture.HasAudio()) {
-    // TODO: Use GTEST_SKIP when we have a newer version of gtest.
-    SB_LOG(INFO) << "Skip PartialAudio test for audioless content.";
-    return;
+    GTEST_SKIP() << "Skip PartialAudio test for audioless content.";
   }
 
   const int64_t kDurationToPlay = 1'000'000;  // 1 second
@@ -249,15 +242,11 @@ TEST_P(SbPlayerWriteSampleTest, PartialAudio) {
 
 TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
   if (!IsPartialAudioSupported()) {
-    // TODO: Use GTEST_SKIP when we have a newer version of gtest.
-    SB_LOG(INFO)
-        << "The platform doesn't support partial audio. Skip the tests.";
+    GTEST_SKIP() << "The platform doesn't support partial audio.";
     return;
   }
   if (IsAudioPassthroughUsed(GetParam())) {
-    SB_LOG(INFO) << "The audio passthrough doesn't support partial audio. Skip "
-                    "the tests.";
-    return;
+    GTEST_SKIP() << "The audio passthrough doesn't support partial audio.";
   }
 
   SbPlayerTestFixture player_fixture(GetParam(),
@@ -266,9 +255,7 @@ TEST_P(SbPlayerWriteSampleTest, DiscardAllAudio) {
     return;
   }
   if (!player_fixture.HasAudio()) {
-    // TODO: Use GTEST_SKIP when we have a newer version of gtest.
-    SB_LOG(INFO) << "Skip PartialAudio test for audioless content.";
-    return;
+    GTEST_SKIP() << "Skip PartialAudio test for audioless content.";
   }
 
   const int64_t kDurationToPlay = 1'000'000;  // 1 second
