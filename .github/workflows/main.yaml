@@ -143,6 +143,7 @@ jobs:
       DEPOT_TOOLS_METRICS: 0
       SCCACHE: 1
       SCCACHE_GCS_BUCKET: cobalt-actions-sccache-linux
+      SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
       SCCACHE_GCS_SERVICE_ACCOUNT: ${{ vars.SCCACHE_GCS_SERVICE_ACCOUNT }}
       SCCACHE_GCS_RW_MODE: READ_WRITE
       SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
