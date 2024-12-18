@@ -2029,7 +2029,7 @@ const std::set<std::string>& QuicStreamFactory::GetDnsAliasesForSessionKey(
   return it->second;
 }
 
-#if defined(STARBOARD)
+#if defined(USE_COBALT_CUSTOMIZATIONS)
 void QuicStreamFactory::SetConnectionOptions(
     const quic::QuicTagVector& options) {
   params_.connection_options = options;
@@ -2041,7 +2041,7 @@ void QuicStreamFactory::SetClientConnectionOptions(
   params_.client_connection_options = options;
   config_.SetClientConnectionOptions(options);
 }
-#endif
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
 
 bool QuicStreamFactory::HasMatchingIpSession(
     const QuicSessionAliasKey& key,

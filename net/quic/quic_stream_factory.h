@@ -454,10 +454,10 @@ class NET_EXPORT_PRIVATE QuicStreamFactory
   const std::set<std::string>& GetDnsAliasesForSessionKey(
       const QuicSessionKey& key) const;
 
-#if defined(STARBOARD)
+#if defined(USE_COBALT_CUSTOMIZATIONS)
   void SetConnectionOptions(const quic::QuicTagVector& options);
   void SetClientConnectionOptions(const quic::QuicTagVector& options);
-#endif
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
 
  private:
   class Job;
@@ -690,11 +690,11 @@ class NET_EXPORT_PRIVATE QuicStreamFactory
                  std::unique_ptr<QuicCryptoClientConfigOwner>>
       recent_crypto_config_map_;
 
-#if defined(STARBOARD)
+#if defined(USE_COBALT_CUSTOMIZATIONS)
   quic::QuicConfig config_;
 #else
   const quic::QuicConfig config_;
-#endif
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
 
   JobMap active_jobs_;
 
