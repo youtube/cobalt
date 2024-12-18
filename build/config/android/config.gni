@@ -287,7 +287,8 @@ if (is_android || is_chromeos) {
     enable_incremental_d8 = true
 
     # Use hashed symbol names to reduce JNI symbol overhead.
-    use_hashed_jni_names = !is_java_debug
+    # Cobalt avoids hash names to facilitate Kimono build.
+    use_hashed_jni_names = false
 
     # Enables JNI multiplexing to reduce JNI native methods overhead.
     allow_jni_multiplexing = false

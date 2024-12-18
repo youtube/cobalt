@@ -891,6 +891,7 @@ def main(argv):
       'Adds a prefix to the classes fully qualified-name. Effectively changing a class name from'
       'foo.bar -> prefix.foo.bar')
   args = arg_parser.parse_args(build_utils.ExpandFileArgs(argv[1:]))
+  args.package_prefix = 'cobalt'
 
   if not args.enable_proxy_mocks and args.require_mocks:
     arg_parser.error(

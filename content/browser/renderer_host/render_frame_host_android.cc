@@ -132,7 +132,7 @@ ScopedJavaLocalRef<jobjectArray> RenderFrameHostAndroid::GetAllRenderFrameHosts(
   render_frame_host_->ForEachRenderFrameHost(
       [&frames](RenderFrameHostImpl* rfh) { frames.push_back(rfh); });
   jclass clazz =
-      org_chromium_content_browser_framehost_RenderFrameHostImpl_clazz(env);
+      cobalt_org_chromium_content_browser_framehost_RenderFrameHostImpl_clazz(env);
   jobjectArray jframes = env->NewObjectArray(frames.size(), clazz, nullptr);
   for (size_t i = 0; i < frames.size(); i++) {
     ScopedJavaLocalRef<jobject> frame = frames[i]->GetJavaRenderFrameHost();

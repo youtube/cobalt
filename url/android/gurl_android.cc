@@ -112,7 +112,7 @@ ScopedJavaLocalRef<jobject> GURLAndroid::EmptyGURL(JNIEnv* env) {
 ScopedJavaLocalRef<jobjectArray> GURLAndroid::ToJavaArrayOfGURLs(
     JNIEnv* env,
     base::span<ScopedJavaLocalRef<jobject>> v) {
-  jclass clazz = org_chromium_url_GURL_clazz(env);
+  jclass clazz = cobalt_org_chromium_url_GURL_clazz(env);
   DCHECK(clazz);
   jobjectArray joa = env->NewObjectArray(v.size(), clazz, nullptr);
   base::android::CheckException(env);

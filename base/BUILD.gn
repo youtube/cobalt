@@ -4104,6 +4104,7 @@ if (enable_nocompile_tests) {
 
 if (is_android || is_robolectric) {
   generate_jni("base_jni_headers") {
+    jni_prefix = "cobalt"
     sources = [
       "android/java/src/org/chromium/base/ApkAssets.java",
       "android/java/src/org/chromium/base/ApplicationStatus.java",

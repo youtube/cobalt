@@ -78,6 +78,7 @@ public abstract class CobaltActivity extends Activity {
 
   private static final String ACTIVE_SHELL_URL_KEY = "activeUrl";
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
+  public static final String COMMAND_LINE_FILE = "/data/local/tmp/content-shell-command-line";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
@@ -102,7 +103,7 @@ public abstract class CobaltActivity extends Activity {
   protected void createContent(final Bundle savedInstanceState) {
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
-      ((CobaltApplication) getApplication()).initCommandLine();
+      CommandLine.initFromFile(COMMAND_LINE_FILE);
 
       // Note that appendSwitchesAndArguments excludes cobaltCommandLineParams[0]
       // as the program name, and all other arguments SHOULD start with '--'.
@@ -231,7 +232,7 @@ public abstract class CobaltActivity extends Activity {
     mShellManager.getContentViewRenderView().setOverlayVideoMode(true);
     mShellManager.launchShell(shellUrl);
 
-    toggleFullscreenMode(true);
+    // toggleFullscreenMode(true);
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -287,10 +288,10 @@ public abstract class CobaltActivity extends Activity {
     }
   }
 
-  protected void toggleFullscreenMode(boolean enterFullscreen) {
-    LinearLayout toolBar = (LinearLayout) findViewById(R.id.toolbar);
-    toolBar.setVisibility(enterFullscreen ? View.GONE : View.VISIBLE);
-  }
+  // protected void toggleFullscreenMode(boolean enterFullscreen) {
+  //   LinearLayout toolBar = (LinearLayout) findViewById(R.id.toolbar);
+  //   toolBar.setVisibility(enterFullscreen ? View.GONE : View.VISIBLE);
+  // }
 
   // Initially copied from ContentShellActiviy.java
   @Override

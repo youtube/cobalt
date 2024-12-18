@@ -99,12 +99,12 @@ public class JniProcessor extends AbstractProcessor {
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         super.init(processingEnv);
-        if (processingEnv.getOptions().containsKey(PACKAGE_PREFIX_OPTION)) {
+        // if (processingEnv.getOptions().containsKey(PACKAGE_PREFIX_OPTION)) {
             mGenJniClassName = ClassName.get(
-                    String.format("%s.%s", processingEnv.getOptions().get(PACKAGE_PREFIX_OPTION),
+                    String.format("%s.%s", "cobalt",
                             mGenJniClassName.packageName()),
                     mGenJniClassName.simpleName());
-        }
+        // }
     }
 
     /**
@@ -236,7 +236,7 @@ public class JniProcessor extends AbstractProcessor {
         // e.g. org.chromium.base.Foo_Class.bar
         // => org_chromium_base_Foo_1Class_bar()
         final String packagePrefix =
-                processingEnv.getOptions().getOrDefault(PACKAGE_PREFIX_OPTION, "");
+                processingEnv.getOptions().getOrDefault(PACKAGE_PREFIX_OPTION, "cobalt");
         return (packagePrefix.length() > 0
                         ? String.format(
                                 "%s.%s.%s.%s", packagePrefix, packageName, className, oldMethodName)

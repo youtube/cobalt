@@ -1413,7 +1413,19 @@ deps = {
       'packages': [
           {
               'package': 'chromium/third_party/jdk',
-              'version': '2Of9Pe_OdO4xoAATuiLDiMVNebKTNO3WrwJGqil4RosC',
+              'version': 'U-h0kbYoIUjL__n_sfiudzFLH7-C9vKVsLSOA2XHkBEC',
+          },
+      ],
+      # Needed on Linux for use on chromium_presubmit (for checkstyle).
+      'condition': 'checkout_android or checkout_linux',
+      'dep_type': 'cipd',
+  },
+
+  'src/third_party/jdk/current': {
+      'packages': [
+          {
+              'package': 'chromium/third_party/jdk',
+              'version': 'U-h0kbYoIUjL__n_sfiudzFLH7-C9vKVsLSOA2XHkBEC',
           },
       ],
       # Needed on Linux for use on chromium_presubmit (for checkstyle).
@@ -1735,7 +1747,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/third_party/r8',
-              'version': 'iFuVaazPwWVf3lFPwZbgAKcF-mHQhFetogi2J9b5ktYC',
+              'version': 'lrcfrwv2WpEoHAk051sZiwXxKxnNIUTYYEwM3oBDlhMC',
           },
       ],
       'condition': 'checkout_android',
@@ -1749,7 +1761,7 @@ deps = {
       'packages': [
           {
               'package': 'chromium/third_party/r8',
-              'version': 'PwglNZFRNPkBBXdnY9NfrZFk2ULWDTRxhV9rl2kvkpUC',
+              'version': 'zh70w_Qc37LtNjNFZAOnZVT6jxYseh_1UEkt_lwbRuQC',
           },
       ],
       'condition': 'checkout_android',

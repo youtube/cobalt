@@ -26,6 +26,7 @@ public class ApkAssets {
 
     @CalledByNative
     public static long[] open(String fileName, String splitName) {
+        Log.e(LOGTAG, "here in ApkAssets_open "+fileName+", "+splitName);
         AssetFileDescriptor afd = null;
         try {
             Context context = ContextUtils.getApplicationContext();

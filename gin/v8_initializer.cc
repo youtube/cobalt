@@ -167,6 +167,7 @@ base::File OpenV8File(const char* file_name,
   base::File file(base::android::OpenApkAsset(path.value(), region_out));
   OpenV8FileResult result = file.IsValid() ? OpenV8FileResult::OPENED
                                            : OpenV8FileResult::FAILED_OTHER;
+  LOG(INFO)<<"opened v8 file? "<<(result== OpenV8FileResult::OPENED);
 #else
   // Re-try logic here is motivated by http://crbug.com/479537
   // for A/V on Windows (https://support.microsoft.com/en-us/kb/316609).
