@@ -485,7 +485,7 @@ const base::FeatureParam<int> kDecreaseProcessingAudioFifoSizeValue{
 // When disabled, Cobalt rejects progressive video formats.
 BASE_FEATURE(kCobaltProgressivePlayback,
              "CobaltProgressivePlayback",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)
