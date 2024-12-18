@@ -219,8 +219,7 @@ GURL GetInitialURL(bool should_preload) {
     std::string url_string =
         has_initial_url_switch
             ? command_line->GetSwitchValueASCII(switches::kInitialURL)
-        : args.empty() ? std::string()
-                       : args[0];
+            : args[0];
 #if defined(ENABLE_ABOUT_SCHEME)
     // Check the switch itself since some non-empty strings parse to empty URLs.
     if (url_string.empty()) {
