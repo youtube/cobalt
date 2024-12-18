@@ -354,7 +354,9 @@ TEST_F(QuicReceivedPacketManagerTest, AckSentEveryNthPacket) {
   }
 }
 
-TEST_F(QuicReceivedPacketManagerTest, AckDecimationReducesAcks) {
+// Note: Disabled in Cobalt because this test assumes
+//       kMaxRetransmittablePacketsBeforeAck = 10
+TEST_F(QuicReceivedPacketManagerTest, DISABLED_AckDecimationReducesAcks) {
   EXPECT_FALSE(HasPendingAck());
 
   // Start ack decimation from 10th packet.
@@ -387,7 +389,9 @@ TEST_F(QuicReceivedPacketManagerTest, AckDecimationReducesAcks) {
   CheckAckTimeout(clock_.ApproximateNow());
 }
 
-TEST_F(QuicReceivedPacketManagerTest, SendDelayedAckDecimation) {
+// Note: Disabled in Cobalt because this test assumes
+//       kMaxRetransmittablePacketsBeforeAck = 10
+TEST_F(QuicReceivedPacketManagerTest, DISABLED_SendDelayedAckDecimation) {
   EXPECT_FALSE(HasPendingAck());
   // The ack time should be based on min_rtt * 1/4, since it's less than the
   // default delayed ack time.
@@ -418,7 +422,9 @@ TEST_F(QuicReceivedPacketManagerTest, SendDelayedAckDecimation) {
   CheckAckTimeout(clock_.ApproximateNow());
 }
 
-TEST_F(QuicReceivedPacketManagerTest, SendDelayedAckDecimationMin1ms) {
+// Note: Disabled in Cobalt because this test assumes
+//       kMaxRetransmittablePacketsBeforeAck = 10
+TEST_F(QuicReceivedPacketManagerTest, DISABLED_SendDelayedAckDecimationMin1ms) {
   EXPECT_FALSE(HasPendingAck());
   // Seed the min_rtt with a kAlarmGranularity signal.
   rtt_stats_.UpdateRtt(kAlarmGranularity, QuicTime::Delta::Zero(),
@@ -451,8 +457,10 @@ TEST_F(QuicReceivedPacketManagerTest, SendDelayedAckDecimationMin1ms) {
   CheckAckTimeout(clock_.ApproximateNow());
 }
 
+// Note: Disabled in Cobalt because this test assumes
+//       kMaxRetransmittablePacketsBeforeAck = 10
 TEST_F(QuicReceivedPacketManagerTest,
-       SendDelayedAckDecimationUnlimitedAggregation) {
+       DISABLED_SendDelayedAckDecimationUnlimitedAggregation) {
   EXPECT_FALSE(HasPendingAck());
   QuicConfig config;
   QuicTagVector connection_options;
@@ -491,7 +499,10 @@ TEST_F(QuicReceivedPacketManagerTest,
   CheckAckTimeout(ack_time);
 }
 
-TEST_F(QuicReceivedPacketManagerTest, SendDelayedAckDecimationEighthRtt) {
+// Note: Disabled in Cobalt because this test assumes
+//       kMaxRetransmittablePacketsBeforeAck = 10
+TEST_F(QuicReceivedPacketManagerTest,
+       DISABLED_SendDelayedAckDecimationEighthRtt) {
   EXPECT_FALSE(HasPendingAck());
   QuicReceivedPacketManagerPeer::SetAckDecimationDelay(&received_manager_,
                                                        0.125);

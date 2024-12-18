@@ -312,7 +312,9 @@ TEST_F(UberReceivedPacketManagerTest, AckSentEveryNthPacket) {
   }
 }
 
-TEST_F(UberReceivedPacketManagerTest, AckDecimationReducesAcks) {
+// Note: Disabled in Cobalt because this test assumes
+//       kMaxRetransmittablePacketsBeforeAck = 10
+TEST_F(UberReceivedPacketManagerTest, DISABLED_AckDecimationReducesAcks) {
   EXPECT_FALSE(HasPendingAck());
 
   // Start ack decimation from 10th packet.
@@ -345,7 +347,9 @@ TEST_F(UberReceivedPacketManagerTest, AckDecimationReducesAcks) {
   CheckAckTimeout(clock_.ApproximateNow());
 }
 
-TEST_F(UberReceivedPacketManagerTest, SendDelayedAckDecimation) {
+// Note: Disabled in Cobalt because this test assumes
+//       kMaxRetransmittablePacketsBeforeAck = 10
+TEST_F(UberReceivedPacketManagerTest, DISABLED_SendDelayedAckDecimation) {
   EXPECT_FALSE(HasPendingAck());
   // The ack time should be based on min_rtt * 1/4, since it's less than the
   // default delayed ack time.
@@ -416,7 +420,10 @@ TEST_F(UberReceivedPacketManagerTest,
   CheckAckTimeout(ack_time);
 }
 
-TEST_F(UberReceivedPacketManagerTest, SendDelayedAckDecimationEighthRtt) {
+// Note: Disabled in Cobalt because this test assumes
+//       kMaxRetransmittablePacketsBeforeAck = 10
+TEST_F(UberReceivedPacketManagerTest,
+       DISABLED_SendDelayedAckDecimationEighthRtt) {
   EXPECT_FALSE(HasPendingAck());
   UberReceivedPacketManagerPeer::SetAckDecimationDelay(manager_.get(), 0.125);
 
