@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/blink/renderer/modules/cobalt/crash_context/crash_context.h"
+#include "content/browser/cobalt/crash_annotator/crash_annotator_impl.h"
 
-#include "base/logging.h"
-#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+#include "base/functional/bind.h"
+#include "base/functional/callback.h"
 
-namespace blink {
+namespace content {
 
-bool CrashContext::setAnnotation(const String& key, const String& value) {
+void CrashAnnotatorImpl::SetString(const std::string& key,
+                                   const std::string& value,
+                                   SetStringCallback callback) {
   // TODO(cobalt, b/383301493): actually implement this.
-
-  LOG(INFO) << "setAnnotation: key=" << key.EncodeForDebugging() << " value="
-            << value.EncodeForDebugging();
-  return false;
+  LOG(INFO) << "CrashAnnotatorImpl::SetString key=" << key << " value="
+            << value;
+  std::move(callback).Run(false);
 }
 
-}  // namespace blink
+}  // namespace content

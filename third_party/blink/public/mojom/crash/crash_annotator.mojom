@@ -12,23 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_CONTEXT_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_CONTEXT_H_
+module blink.mojom;
 
-#include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
-
-namespace blink {
-
-class CrashContext : public ScriptWrappable {
-  DEFINE_WRAPPERTYPEINFO();
-
- public:
-  // Objects of this class, which has only static members, shouldn't be created.
-  CrashContext() = delete;
-
-  static bool setAnnotation(const String& key, const String& value);
+// The browser process must provide an implementation of this interface so that
+// the renderer process can implement the CrashAnnotator Blink API.
+interface CrashAnnotator {
+  // Recieves an annotation to set and responds with the result.
+  SetString(string key, string value) => (bool result);
 };
-
-}  // namespace blink
-
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_CONTEXT_H_

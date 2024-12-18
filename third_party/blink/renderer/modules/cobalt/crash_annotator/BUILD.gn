@@ -14,9 +14,9 @@
 
 import("//third_party/blink/renderer/modules/modules.gni")
 
-blink_modules_sources("crash_context") {
+blink_modules_sources("crash_annotator") {
   sources = [
-    "crash_context.cc",
-    "crash_context.h",
+    "crash_annotator.cc",
+    "crash_annotator.h",
   ]
 }

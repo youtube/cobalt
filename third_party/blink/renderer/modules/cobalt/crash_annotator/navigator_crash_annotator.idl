@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Extends the navigator interface.
 [
-    Exposed=(Window),
-    SecureContext
-]
-interface CrashContext {
-    // Sets a (key, value) pair to be included as context for an uploaded crash
-    // report. Returns true on success and false on failure.
-    static boolean setAnnotation(DOMString key, DOMString value);
+  ImplementedAs=CrashAnnotator,
+  SecureContext
+] partial interface Navigator {
+  [SameObject] readonly attribute CrashAnnotator crashAnnotator;
 };
