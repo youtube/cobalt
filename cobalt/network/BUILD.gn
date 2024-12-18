@@ -22,6 +22,16 @@ config("network_all_dependent_config") {
   }
 }
 
+source_set("switches") {
+  has_pedantic_warnings = true
+  sources = [
+    "switches.cc",
+    "switches.h",
+  ]
+  public_deps = [ "//starboard:starboard_headers_only" ]
+}
+
+
 static_library("network") {
   has_pedantic_warnings = true
 
@@ -74,8 +84,6 @@ static_library("network") {
     "socket_address_parser.h",
     "starboard/network_system.cc",
     "starboard/proxy_config_service.cc",
-    "switches.cc",
-    "switches.h",
     "url_request_context.cc",
     "url_request_context.h",
     "url_request_context_getter.cc",
@@ -86,6 +94,7 @@ static_library("network") {
 
   deps = [
     ":copy_ssl_certificates",
+    ":switches",
     "//cobalt/base",
     "//cobalt/build:cobalt_build_id",
     "//cobalt/configuration",

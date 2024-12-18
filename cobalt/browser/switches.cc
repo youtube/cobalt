@@ -15,6 +15,10 @@
 #include "cobalt/browser/switches.h"
 
 #include <map>
+#include <string>
+
+#include "cobalt/css_parser/switches.h"
+#include "cobalt/network/switches.h"
 
 namespace cobalt {
 namespace browser {
@@ -172,15 +176,6 @@ const char kTimedTraceHelp[] =
     "which is the duration in seconds of how long the trace will be done "
     "for before ending and saving the results to disk.  Results will be saved"
     " to the file timed_trace.json in the log output directory.";
-
-const char kUserAgent[] = "user_agent";
-const char kUserAgentHelp[] =
-    "Specifies a custom user agent for device simulations. The expected "
-    "format is \"Mozilla/5.0 ('os_name_and_version') Cobalt/'cobalt_version'."
-    "'cobalt_build_version_number'-'build_configuration' (unlike Gecko) "
-    "'javascript_engine_version' 'rasterizer_type' 'starboard_version', "
-    "'network_operator'_'device_type'_'chipset_model_number'_'model_year'/"
-    "'firmware_version' ('brand', 'model', 'connection_type') 'aux_field'\".";
 
 const char kUserAgentClientHints[] = "user_agent_client_hints";
 const char kUserAgentClientHintsHelp[] =
@@ -444,8 +439,7 @@ const char kVideoPlaybackRateMultiplierHelp[] =
     "than 1.0 to play video faster.  Set to a value less than 1.0 to play "
     "video slower.";
 
-std::string HelpMessage() {
-  std::string help_message;
+std::map<std::string, const char*> HelpMap() {
   std::map<std::string, const char*> help_map{
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
       {kDebugConsoleMode, kDebugConsoleModeHelp},
@@ -477,7 +471,6 @@ std::string HelpMessage() {
       {kStubImageDecoder, kStubImageDecoderHelp},
       {kSuspendFuzzer, kSuspendFuzzerHelp},
       {kTimedTrace, kTimedTraceHelp},
-      {kUserAgent, kUserAgentHelp},
       {kUserAgentClientHints, kUserAgentClientHintsHelp},
       {kUserAgentOsNameVersion, kUserAgentOsNameVersionHelp},
       {kUseTTS, kUseTTSHelp},
@@ -525,6 +518,14 @@ std::string HelpMessage() {
       {kVideoPlaybackRateMultiplier, kVideoPlaybackRateMultiplierHelp},
   };
 
+  return help_map;
+}
+
+std::string HelpMessage() {
+  std::string help_message;
+  std::map<std::string, const char*> help_map = HelpMap();
+  help_map.merge(cobalt::css_parser::switches::HelpMap());
+  help_map.merge(cobalt::network::switches::HelpMap());
   for (const auto& switch_message : help_map) {
     help_message.append("  --")
         .append(switch_message.first)
@@ -535,6 +536,7 @@ std::string HelpMessage() {
   }
   return help_message;
 }
+
 
 }  // namespace switches
 }  // namespace browser

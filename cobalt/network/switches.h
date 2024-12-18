@@ -15,6 +15,9 @@
 #ifndef COBALT_NETWORK_SWITCHES_H_
 #define COBALT_NETWORK_SWITCHES_H_
 
+#include <map>
+#include <string>
+
 namespace cobalt {
 namespace network {
 namespace switches {
@@ -29,6 +32,8 @@ extern const char kDisableInAppDial[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 extern const char kDisableQuic[];
 extern const char kDisableHttp2[];
+
+std::map<std::string, const char*> HelpMap();
 
 }  // namespace switches
 }  // namespace network

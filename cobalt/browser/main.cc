@@ -18,7 +18,6 @@
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/browser/application.h"
 #include "cobalt/browser/switches.h"
-#include "cobalt/css_parser/switches.h"
 #include "cobalt/version.h"
 
 namespace {
@@ -40,16 +39,15 @@ bool CheckForAndExecuteVersionSwitch() {
 bool CheckForAndExecuteHelpSwitch() {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           cobalt::browser::switches::kHelp)) {
-    SbLogRaw("Options: \n");
+    SbLogRaw("Usage:\n cobalt [options] [url]\n");
     SbLogRaw(cobalt::browser::switches::HelpMessage().c_str());
-    SbLogRaw(cobalt::css_parser::switches::HelpMessage().c_str());
     return true;
   }
   return false;
 }
 
 // If startup switches are set, the Cobalt browser application will not be
-// initiallized and will exit early.
+// initialized and will exit early.
 bool CheckForAndExecuteStartupSwitches() {
   if (CheckForAndExecuteVersionSwitch()) g_is_startup_switch_set = true;
   if (CheckForAndExecuteHelpSwitch()) g_is_startup_switch_set = true;
