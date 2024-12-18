@@ -41,6 +41,3 @@ RUN cd /tmp \
     && chmod +x /usr/local/bin/sccache \
     && rm -rf ${SCCACHE} \
     && sccache --version
-
-# TODO: b/379174067 - Move variables out of container.
-ENV IS_CI=1
