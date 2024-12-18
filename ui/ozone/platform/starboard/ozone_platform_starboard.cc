@@ -154,7 +154,6 @@ class OzonePlatformStarboard : public OzonePlatform {
 
 OzonePlatform* CreateOzonePlatformStarboard() {
   base::CommandLine* cmd = base::CommandLine::ForCurrentProcess();
-  base::FilePath location;
   if (cmd->HasSwitch(switches::kUseGL)) {
     CHECK_EQ(cmd->GetSwitchValueASCII(switches::kUseGL),
              gl::kGLImplementationEGLName)
