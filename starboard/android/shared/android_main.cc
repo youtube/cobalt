@@ -35,8 +35,6 @@
 #include "starboard/crashpad_wrapper/wrapper.h"  // nogncheck
 #endif
 
-#include "starboard/android/shared/starboard_bridge.h"
-
 namespace starboard {
 namespace android {
 namespace shared {
@@ -294,15 +292,10 @@ void StarboardThreadLaunch() {
 }
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 
-// TODO(cobalt, b/372559388): consolidate this function when fully deprecate
-// JniEnvExt.
 extern "C" SB_EXPORT_PLATFORM void Java_dev_cobalt_coat_StarboardBridge_initJNI(
     JniEnvExt* env,
     jobject starboard_bridge) {
   JniEnvExt::Initialize(env, starboard_bridge);
-
-  // Initialize the singleton instance of StarboardBridge
-  StarboardBridge::GetInstance()->Initialize(env, starboard_bridge);
 }
 
 extern "C" SB_EXPORT_PLATFORM jlong
