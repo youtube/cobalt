@@ -58,11 +58,13 @@ const char kDisableInAppDialHelp[] = "Disable the in-app dial server.";
 const char kQuicConnectionOptions[] = "quic_connection_options";
 const char kQuicConnectionOptionsHelp[] =
     "Specify QUIC connection options. "
+    "Refer to QUICHE header crypto_protocol.h for existing tags. "
     "For example: --quic_connection_options=AKDU";
 
 const char kQuicClientConnectionOptions[] = "quic_client_connection_options.";
 const char kQuicClientConnectionOptionsHelp[] =
-    "Specify QUIC client connection options";
+    "Specify QUIC client connection options"
+    "Refer to QUICHE header crypto_protocol.h for existing tags. ";
 
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
