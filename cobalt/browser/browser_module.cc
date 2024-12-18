@@ -398,6 +398,10 @@ BrowserModule::BrowserModule(const GURL& url,
                    base::Unretained(this))));
   }
 
+  if (command_line->HasSwitch(switches::kDisableProgressivePlayback)) {
+    can_play_type_handler_->DisableProgressiveSupport();
+  }
+
   // Set the fallback splash screen url to the default fallback url.
   fallback_splash_screen_url_ = options.fallback_splash_screen_url;
 
