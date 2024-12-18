@@ -324,7 +324,8 @@ TEST(SbMediaCanPlayMimeAndKeySystem, MinimumSupport) {
 }
 
 // On e.g. linux/shared, raspi, EG platforms, there is no key system supported.
-// TODO: Figure out a way to disable this test using GN arguments/preprocessor.
+// TODO(b/384921365): Figure out a way to disable this test using GN
+// arguments/preprocessor.
 #if !defined(OS_ANDROID)
 #define MAYBE_AnySupportedKeySystems DISABLED_AnySupportedKeySystems
 #else
