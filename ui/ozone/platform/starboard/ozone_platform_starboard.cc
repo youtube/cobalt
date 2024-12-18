@@ -17,6 +17,7 @@
 #include "base/logging.h"
 #include "ui/base/ime/input_method_minimal.h"
 #include "ui/display/fake/fake_display_delegate.h"
+#include "ui/gl/gl_switches.h"
 #include "ui/ozone/common/bitmap_cursor_factory.h"
 #include "ui/ozone/common/stub_overlay_manager.h"
 #include "ui/ozone/platform/starboard/platform_screen_starboard.h"
@@ -152,6 +153,15 @@ class OzonePlatformStarboard : public OzonePlatform {
 }  // namespace
 
 OzonePlatform* CreateOzonePlatformStarboard() {
+  base::CommandLine* cmd = base::CommandLine::ForCurrentProcess();
+  if (cmd->HasSwitch(switches::kUseGL)) {
+    CHECK_EQ(cmd->GetSwitchValueASCII(switches::kUseGL),
+             gl::kGLImplementationEGLName)
+        << " Unsupported " << switches::kUseGL << " implementation";
+  } else {
+    cmd->AppendSwitchASCII(switches::kUseGL, gl::kGLImplementationEGLName);
+  }
+
   return new OzonePlatformStarboard();
 }
 

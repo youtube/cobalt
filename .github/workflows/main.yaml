@@ -14,6 +14,9 @@ on:
         required: true
         type: string
         default: 'false'
+    secrets:
+      datadog_api_key:
+        required: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}
@@ -140,6 +143,7 @@ jobs:
       DEPOT_TOOLS_METRICS: 0
       SCCACHE: 1
       SCCACHE_GCS_BUCKET: cobalt-actions-sccache-linux
+      SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
       SCCACHE_GCS_SERVICE_ACCOUNT: ${{ vars.SCCACHE_GCS_SERVICE_ACCOUNT }}
       SCCACHE_GCS_RW_MODE: READ_WRITE
       SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
@@ -154,16 +158,21 @@ jobs:
         if: ${{ ! (startsWith(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           path: src
+          # Use fetch depth of 0 to get full history for a valid build id.
+          fetch-depth: 0
       - name: Build Cobalt
         uses: ./src/.github/actions/build
         # TODO(bug?): android debug builds are broken.
         if: ${{ ! (startsWith(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           targets: ${{ needs.initialize.outputs.targets }}
-          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-      - name: Upload On Device Test Artifacts
-        if: matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true'
+      - name: Upload Test Artifacts
+        if: matrix.config == 'devel'
         uses: ./src/.github/actions/upload_test_artifacts
+        with:
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+          on_host: ${{ needs.initialize.outputs.test_on_host }}
+          on_device: ${{ needs.initialize.outputs.test_on_device }}
 
   test:
     needs: [initialize, docker-build-image, build]
@@ -181,8 +190,8 @@ jobs:
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TMPDIR: /__w/_temp
-      TEST_RESULTS_DIR: ${{ matrix.name }}_test_results
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -194,20 +203,16 @@ jobs:
         uses: ./src/.github/actions/on_host_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          results_dir: ${{ env.TEST_RESULTS_DIR }}
-          platform: ${{ inputs.platform }}
+          test_results_key: ${{ env.TEST_RESULTS_KEY }}
       - name: Process Test Results
         if: |
           always() &&
           (
             steps.on-host-tests.outcome == 'success' ||
-            steps.on-host-tests.outcome == 'failure' ||
-            steps.on-device-tests.outcome == 'success' ||
-            steps.on-device-tests.outcome == 'failure'
+            steps.on-host-tests.outcome == 'failure'
           )
         uses: ./src/.github/actions/process_test_results
         with:
-          results_dir: ${{ env.TEST_RESULTS_DIR }}
-          datadog_api_key: ${{ secrets.DD_API_KEY }}
-          is_postsubmit: ${{ github.event_name == 'schedule' || github.event_name == 'push' }}
+          test_results_key: ${{ env.TEST_RESULTS_KEY }}
+          datadog_api_key: ${{ secrets.datadog_api_key }}
         continue-on-error: true
