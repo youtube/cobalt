@@ -26,6 +26,10 @@
 #include SB_PLAYER_DMP_WRITER_INCLUDE_PATH
 #endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
+namespace starboard {
+namespace shared {
+namespace starboard {
+namespace player {
 namespace {
 
 using std::placeholders::_1;
@@ -36,15 +40,15 @@ using std::placeholders::_4;
 int64_t CalculateMediaTime(int64_t media_time,
                            int64_t media_time_update_time,
                            double playback_rate) {
-  int64_t elapsed = starboard::CurrentMonotonicTime() - media_time_update_time;
+  int64_t elapsed = CurrentMonotonicTime() - media_time_update_time;
   return media_time + static_cast<int64_t>(elapsed * playback_rate);
 }
 
 }  // namespace
 
-int SbPlayerPrivate::number_of_players_ = 0;
+int SbPlayerPrivateImpl::number_of_players_ = 0;
 
-SbPlayerPrivate::SbPlayerPrivate(
+SbPlayerPrivateImpl::SbPlayerPrivateImpl(
     SbMediaAudioCodec audio_codec,
     SbMediaVideoCodec video_codec,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
@@ -55,20 +59,20 @@ SbPlayerPrivate::SbPlayerPrivate(
     std::unique_ptr<PlayerWorker::Handler> player_worker_handler)
     : sample_deallocate_func_(sample_deallocate_func),
       context_(context),
-      media_time_updated_at_(starboard::CurrentMonotonicTime()) {
+      media_time_updated_at_(CurrentMonotonicTime()) {
   worker_ = std::unique_ptr<PlayerWorker>(PlayerWorker::CreateInstance(
       audio_codec, video_codec, std::move(player_worker_handler),
-      std::bind(&SbPlayerPrivate::UpdateMediaInfo, this, _1, _2, _3, _4),
+      std::bind(&SbPlayerPrivateImpl::UpdateMediaInfo, this, _1, _2, _3, _4),
       decoder_status_func, player_status_func, player_error_func, this,
       context));
 
   ++number_of_players_;
-  SB_DLOG(INFO) << "Creating SbPlayerPrivate. There are " << number_of_players_
-                << " players.";
+  SB_LOG(INFO) << "Creating SbPlayerPrivateImpl. There are "
+               << number_of_players_ << " players.";
 }
 
 // static
-SbPlayerPrivate* SbPlayerPrivate::CreateInstance(
+SbPlayerPrivate* SbPlayerPrivateImpl::CreateInstance(
     SbMediaAudioCodec audio_codec,
     SbMediaVideoCodec video_codec,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
@@ -77,7 +81,7 @@ SbPlayerPrivate* SbPlayerPrivate::CreateInstance(
     SbPlayerErrorFunc player_error_func,
     void* context,
     std::unique_ptr<PlayerWorker::Handler> player_worker_handler) {
-  SbPlayerPrivate* ret = new SbPlayerPrivate(
+  SbPlayerPrivateImpl* ret = new SbPlayerPrivateImpl(
       audio_codec, video_codec, sample_deallocate_func, decoder_status_func,
       player_status_func, player_error_func, context,
       std::move(player_worker_handler));
@@ -89,12 +93,12 @@ SbPlayerPrivate* SbPlayerPrivate::CreateInstance(
   return nullptr;
 }
 
-void SbPlayerPrivate::Seek(int64_t seek_to_time, int ticket) {
+void SbPlayerPrivateImpl::Seek(int64_t seek_to_time, int ticket) {
   {
-    starboard::ScopedLock lock(mutex_);
+    ScopedLock lock(mutex_);
     SB_DCHECK(ticket_ != ticket);
     media_time_ = seek_to_time;
-    media_time_updated_at_ = starboard::CurrentMonotonicTime();
+    media_time_updated_at_ = CurrentMonotonicTime();
     is_progressing_ = false;
     ticket_ = ticket;
   }
@@ -102,24 +106,50 @@ void SbPlayerPrivate::Seek(int64_t seek_to_time, int ticket) {
   worker_->Seek(seek_to_time, ticket);
 }
 
-void SbPlayerPrivate::WriteEndOfStream(SbMediaType stream_type) {
+void SbPlayerPrivateImpl::WriteSamples(const SbPlayerSampleInfo* sample_infos,
+                                       int number_of_sample_infos) {
+  SB_DCHECK(sample_infos);
+  SB_DCHECK(number_of_sample_infos > 0);
+
+  InputBuffers input_buffers;
+  input_buffers.reserve(number_of_sample_infos);
+  for (int i = 0; i < number_of_sample_infos; i++) {
+    input_buffers.push_back(new InputBuffer(sample_deallocate_func_, this,
+                                            context_, sample_infos[i]));
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER
+    using video_dmp::VideoDmpWriter;
+    VideoDmpWriter::OnPlayerWriteSample(this, input_buffers.back());
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
+  }
+
+  const auto& last_input_buffer = input_buffers.back();
+  if (last_input_buffer->sample_type() == kSbMediaTypeVideo) {
+    total_video_frames_ += number_of_sample_infos;
+    frame_width_ = last_input_buffer->video_stream_info().frame_width;
+    frame_height_ = last_input_buffer->video_stream_info().frame_height;
+  }
+
+  worker_->WriteSamples(std::move(input_buffers));
+}
+
+void SbPlayerPrivateImpl::WriteEndOfStream(SbMediaType stream_type) {
   worker_->WriteEndOfStream(stream_type);
 }
 
-void SbPlayerPrivate::SetBounds(int z_index,
-                                int x,
-                                int y,
-                                int width,
-                                int height) {
+void SbPlayerPrivateImpl::SetBounds(int z_index,
+                                    int x,
+                                    int y,
+                                    int width,
+                                    int height) {
   PlayerWorker::Bounds bounds = {z_index, x, y, width, height};
   worker_->SetBounds(bounds);
   // TODO: Wait until a frame is rendered with the updated bounds.
 }
 
-void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
+void SbPlayerPrivateImpl::GetInfo(SbPlayerInfo* out_player_info) {
   SB_DCHECK(out_player_info != NULL);
 
-  starboard::ScopedLock lock(mutex_);
+  ScopedLock lock(mutex_);
   out_player_info->duration = SB_PLAYER_NO_DURATION;
   if (is_paused_ || !is_progressing_) {
     out_player_info->current_media_timestamp = media_time_;
@@ -138,49 +168,49 @@ void SbPlayerPrivate::GetInfo(SbPlayerInfo* out_player_info) {
   out_player_info->playback_rate = playback_rate_;
 }
 
-void SbPlayerPrivate::SetPause(bool pause) {
+void SbPlayerPrivateImpl::SetPause(bool pause) {
   is_paused_ = pause;
   worker_->SetPause(pause);
 }
 
-void SbPlayerPrivate::SetPlaybackRate(double playback_rate) {
+void SbPlayerPrivateImpl::SetPlaybackRate(double playback_rate) {
   playback_rate_ = playback_rate;
   worker_->SetPlaybackRate(playback_rate);
 }
 
-void SbPlayerPrivate::SetVolume(double volume) {
+void SbPlayerPrivateImpl::SetVolume(double volume) {
   volume_ = volume;
   worker_->SetVolume(volume_);
 }
 
-void SbPlayerPrivate::UpdateMediaInfo(int64_t media_time,
-                                      int dropped_video_frames,
-                                      int ticket,
-                                      bool is_progressing) {
-  starboard::ScopedLock lock(mutex_);
+void SbPlayerPrivateImpl::UpdateMediaInfo(int64_t media_time,
+                                          int dropped_video_frames,
+                                          int ticket,
+                                          bool is_progressing) {
+  ScopedLock lock(mutex_);
   if (ticket_ != ticket) {
     return;
   }
   media_time_ = media_time;
   is_progressing_ = is_progressing;
-  media_time_updated_at_ = starboard::CurrentMonotonicTime();
+  media_time_updated_at_ = CurrentMonotonicTime();
   dropped_video_frames_ = dropped_video_frames;
 }
 
-SbDecodeTarget SbPlayerPrivate::GetCurrentDecodeTarget() {
+SbDecodeTarget SbPlayerPrivateImpl::GetCurrentDecodeTarget() {
   return worker_->GetCurrentDecodeTarget();
 }
 
-bool SbPlayerPrivate::GetAudioConfiguration(
+bool SbPlayerPrivateImpl::GetAudioConfiguration(
     int index,
     SbMediaAudioConfiguration* out_audio_configuration) {
   SB_DCHECK(index >= 0);
   SB_DCHECK(out_audio_configuration);
 
-  starboard::ScopedLock lock(audio_configurations_mutex_);
+  ScopedLock lock(audio_configurations_mutex_);
   if (audio_configurations_.empty()) {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-    int64_t start = starboard::CurrentMonotonicTime();
+    int64_t start = CurrentMonotonicTime();
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
     for (int i = 0; i < 32; ++i) {
       SbMediaAudioConfiguration audio_configuration;
@@ -202,14 +232,13 @@ bool SbPlayerPrivate::GetAudioConfiguration(
       }
     }
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-    int64_t elapsed = starboard::CurrentMonotonicTime() - start;
+    int64_t elapsed = CurrentMonotonicTime() - start;
     SB_LOG(INFO)
         << "GetAudioConfiguration(): Updating audio configurations takes "
         << elapsed << " microseconds.";
     for (auto&& audio_configuration : audio_configurations_) {
       SB_LOG(INFO) << "Found audio configuration "
-                   << starboard::GetMediaAudioConnectorName(
-                          audio_configuration.connector)
+                   << GetMediaAudioConnectorName(audio_configuration.connector)
                    << ", channels " << audio_configuration.number_of_channels;
     }
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
@@ -222,3 +251,14 @@ bool SbPlayerPrivate::GetAudioConfiguration(
 
   return false;
 }
+
+SbPlayerPrivateImpl::~SbPlayerPrivateImpl() {
+  --number_of_players_;
+  SB_LOG(INFO) << "Destroying SbPlayerPrivateImpl. There are "
+               << number_of_players_ << " players.";
+}
+
+}  // namespace player
+}  // namespace starboard
+}  // namespace shared
+}  // namespace starboard
