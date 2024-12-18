@@ -141,6 +141,7 @@ jobs:
       DEPOT_TOOLS_REPORT_BUILD: 0
       DEPOT_TOOLS_COLLECT_METRICS: 0
       DEPOT_TOOLS_METRICS: 0
+      IS_CI: 1
       SCCACHE: 1
       SCCACHE_GCS_BUCKET: cobalt-actions-sccache-linux
       SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
