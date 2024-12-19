@@ -117,6 +117,11 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   void set_min_received_before_ack_decimation(size_t new_value) {
     min_received_before_ack_decimation_ = new_value;
   }
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+  void set_max_retransmittable_packets_before_ack(size_t new_value) {
+    max_retransmittable_packets_before_ack_ = new_value;
+  }
+#endif  // #if defined(USE_COBALT_CUSTOMIZATIONS)
 
   void set_ack_frequency(size_t new_value) {
     QUICHE_DCHECK_GT(new_value, 0u);
@@ -186,9 +191,13 @@ class QUIC_EXPORT_PRIVATE QuicReceivedPacketManager {
   size_t min_received_before_ack_decimation_;
   // Ack every n-th packet.
   size_t ack_frequency_;
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+  // Ack at least every n-th packet.
+  size_t max_retransmittable_packets_before_ack_;
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
   // The max delay in fraction of min_rtt to use when sending decimated acks.
   float ack_decimation_delay_;
-  // When true, removes ack decimation's max number of packets(10) before
+  // When true, removes ack decimation's max number of packets before
   // sending an ack.
   bool unlimited_ack_decimation_;
   // When true, only send 1 immediate ACK when reordering is detected.

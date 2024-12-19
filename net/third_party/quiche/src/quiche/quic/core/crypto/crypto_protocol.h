@@ -489,6 +489,30 @@ const QuicTag kCertificateTag = TAG('C', 'R', 'T', 255);  // Certificate chain
 const QuicTag kCertificateSCTTag =
     TAG('C', 'S', 'C', 'T');  // Signed cert timestamp (RFC6962) of leaf cert.
 
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+// A number of tags for evaluation to find the optimal value.
+const QuicTag kCOB0 = TAG('C', 'O', 'B', '0');  // 10 packets received before
+                                                // acking
+const QuicTag kCOB1 = TAG('C', 'O', 'B', '1');  // 20 packets received before
+                                                // acking
+const QuicTag kCOB2 = TAG('C', 'O', 'B', '2');  // 40 packets received before
+                                                // acking
+const QuicTag kCOB3 = TAG('C', 'O', 'B', '3');  // 60 packets received before
+                                                // acking
+const QuicTag kCOB4 = TAG('C', 'O', 'B', '4');  // 80 packets received before
+                                                // acking
+const QuicTag kCOB5 = TAG('C', 'O', 'B', '5');  // 100 packets received before
+                                                // acking
+const QuicTag kCOB6 = TAG('C', 'O', 'B', '6');  // 120 packets received before
+                                                // acking
+const QuicTag kCOB7 = TAG('C', 'O', 'B', '7');  // 160 packets received before
+                                                // acking
+const QuicTag kCOB8 = TAG('C', 'O', 'B', '8');  // 200 packets received before
+                                                // acking
+const QuicTag kCOB9 = TAG('C', 'O', 'B', '9');  // 240 packets received before
+                                                // acking
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
+
 #undef TAG
 
 const size_t kMaxEntries = 128;  // Max number of entries in a message.
