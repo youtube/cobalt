@@ -2461,7 +2461,18 @@ source_set("browser") {
     "worker_host/worker_script_loader_factory.h",
   ]
 
+<<<<<<< HEAD
   if (is_android) {
+=======
+  if (is_cobalt) {
+    sources += [
+      "cobalt/crash_annotator/crash_annotator_impl.cc",
+      "cobalt/crash_annotator/crash_annotator_impl.h",
+    ]
+  }
+
+  if (use_starscan) {
+>>>>>>> 8631cdb0c28 (Add web IDL interface for crash annotations (#4574))
     sources += [
       "memory_pressure/user_level_memory_pressure_signal_generator.cc",
       "memory_pressure/user_level_memory_pressure_signal_generator.h",
