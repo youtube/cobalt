@@ -8,6 +8,7 @@ class FakeCrashAnnotator {
     this.interceptor_.oninterfacerequest = e => this.bind(e.handle);
     this.receiver_ = new CrashAnnotatorReceiver(this);
     this.stub_result_ = null;
+    this.annotations_ = new Map();
   }
 
   start() {
@@ -25,7 +26,6 @@ class FakeCrashAnnotator {
 
   async setString(key, value) {
     this.annotations_.set(key, value);
-
     return {
       result: this.stub_result_
     };
