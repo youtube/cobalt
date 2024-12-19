@@ -23,6 +23,9 @@
 
 namespace content {
 
+// TODO(cobalt, b/383301493): consider another location for Cobalt's Mojo
+// implementations, since they are not "core" services. mcasas@ suggested
+// //components or //services as possible destinations.
 class CrashAnnotatorImpl : public blink::mojom::CrashAnnotator {
  public:
   explicit CrashAnnotatorImpl(
