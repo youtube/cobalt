@@ -55,6 +55,6 @@ config("buildflag_defines") {
     defines += [ "ENABLE_BUILDFLAG_MODULAR_BUILD" ]
   }
   if (cobalt_is_release_build) {
-    defines += [ "COBALT_IS_RELEASE_BUILD" ]
+    defines += [ "ENABLE_BUILDFLAG_COBALT_IS_RELEASE_BUILD" ]
   }
 }
