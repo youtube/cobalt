@@ -12,6 +12,11 @@ buildSrc/build/
 
 # JAR and AAR files will be fetched via CIPD.
 cipd/
+<<<<<<< HEAD
+=======
+libs/*/*.jar
+libs/*/*.aar
+>>>>>>> 336292b803d (Add cipd directory to android_deps/.gitignore)
 
 # vulnerability reports are for local viewing only.
 vulnerability_reports/*
