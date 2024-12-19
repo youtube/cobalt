@@ -265,6 +265,8 @@ static_library("starboard_platform") {
     #"speech_synthesis_internal.cc",
     #"speech_synthesis_is_supported.cc",
     #"speech_synthesis_speak.cc",
+    "starboard_bridge.cc",
+    "starboard_bridge.h",
     "system_get_extensions.cc",
     "system_get_locale_id.cc",
     "system_get_path.cc",
@@ -316,12 +318,14 @@ static_library("starboard_platform") {
   public_deps = [
     ":starboard_base_symbolize",
     ":starboard_jni_state",
+    "//cobalt/android:jni_headers",
     "//starboard/common",
     "//starboard/shared/starboard/media:media_util",
     "//starboard/shared/starboard/player/filter:filter_based_player_sources",
   ]
 
   deps = [
+    "//base",
     "//third_party/libevent",
     "//third_party/opus",
   ]
