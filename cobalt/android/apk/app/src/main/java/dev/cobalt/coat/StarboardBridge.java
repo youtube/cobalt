@@ -52,8 +52,12 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.TimeZone;
+import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
+@JNINamespace("starboard::android::shared")
 public class StarboardBridge {
 
   /** Interface to be implemented by the Android Application hosting the starboard app. */
@@ -144,7 +148,19 @@ public class StarboardBridge {
 
   private native void closeNativeStarboard(long nativeApp);
 
-  private native long nativeCurrentMonotonicTime();
+  @NativeMethods
+    interface Natives {
+        void onStop();
+
+        long currentMonotonicTime();
+
+        // TODO(cobalt, b/372559388): move below native methods to the Natives interface.
+        // boolean initJNI();
+
+        // long startNativeStarboard();
+
+        // void closeNativeStarboard(long nativeApp);
+    }
 
   protected void onActivityStart(Activity activity) {
     Log.e(TAG, "onActivityStart ran");
@@ -162,8 +178,6 @@ public class StarboardBridge {
     sysConfigChangeReceiver.setForeground(false);
     afterStopped();
   }
-
-  private native void nativeOnStop();
 
   protected void onActivityDestroy(Activity activity) {
     if (applicationStopped) {
@@ -240,13 +254,13 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected void applicationStarted() {
     applicationReady = true;
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected void applicationStopping() {
     applicationReady = false;
     applicationStopped = true;
@@ -362,6 +376,9 @@ public class StarboardBridge {
    */
   @SuppressWarnings("unused")
   @UsedByNative
+  // TODO: (cobalt b/372559388) Migrate complicated returned type functions to JNI zero.
+  // The @UsedByNative annotation has strict signature parsing rules,
+  // and Pair<byte[], byte[]> is not be supported well.
   Pair<byte[], byte[]> getLocalInterfaceAddressAndNetmask(boolean wantIPv6) {
     try {
       Enumeration<NetworkInterface> it = NetworkInterface.getNetworkInterfaces();
@@ -780,12 +797,12 @@ public class StarboardBridge {
 
   /** Returns the application start timestamp. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected long getAppStartTimestamp() {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
       long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
-      long cppTimestamp = nativeCurrentMonotonicTime();
+      long cppTimestamp = StarboardBridgeJni.get().currentMonotonicTime();
       long javaStopTimestamp = System.nanoTime();
       return cppTimestamp
           - (javaStopTimestamp - javaStartTimestamp) / timeNanosecondsPerMicrosecond;
