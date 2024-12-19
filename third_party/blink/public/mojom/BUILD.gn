@@ -242,7 +242,7 @@ mojom("mojom_platform") {
   ]
 
   if (is_cobalt) {
-    sources += [ "crash/crash_annotator.mojom" ]
+    sources += [ "cobalt/crash_annotator/crash_annotator.mojom" ]
   }
 
   if (is_android) {

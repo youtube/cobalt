@@ -16,7 +16,7 @@
 
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/blink/public/mojom/crash/crash_annotator.mojom-blink.h"
+#include "third_party/blink/public/mojom/cobalt/crash_annotator/crash_annotator.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
@@ -66,7 +66,7 @@ ScriptPromise CrashAnnotator::setString(ScriptState* script_state,
 }
 
 void CrashAnnotator::OnSetString(ScriptPromiseResolver* resolver, bool result) {
-  resolver->Resolve(result);   
+  resolver->Resolve(result);
 }
 
 void CrashAnnotator::EnsureReceiverIsBound() {

@@ -1,4 +1,4 @@
-import {CrashAnnotator, CrashAnnotatorReceiver} from '/gen/third_party/blink/public/mojom/crash/crash_annotator.mojom.m.js';
+import {CrashAnnotator, CrashAnnotatorReceiver} from '/gen/third_party/blink/public/mojom/cobalt/crash_annotator/crash_annotator.mojom.m.js';
 
 // Implementation of blink.mojom.CrashAnnotator.
 class FakeCrashAnnotator {
@@ -20,17 +20,25 @@ class FakeCrashAnnotator {
 
   reset() {
     this.stub_result_ = null;
+    this.annotations_ = new Map();
   }
 
   async setString(key, value) {
+    this.annotations_.set(key, value);
+
     return {
       result: this.stub_result_
     };
   }
 
-  // Added for stubbing setString() in tests.
+  // Added for stubbing setString() result in tests.
   stubResult(stub_result) {
     this.stub_result_ = stub_result;
+  }
+
+  // Added for testing setString() interactions.
+  getAnnotation(key) {
+    return this.annotations_.get(key);
   }
 
   bind(handle) {

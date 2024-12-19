@@ -176,7 +176,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "content/browser/cobalt/crash_annotator/crash_annotator_impl.h"
-#include "third_party/blink/public/mojom/crash/crash_annotator.mojom.h"
+#include "third_party/blink/public/mojom/cobalt/crash_annotator/crash_annotator.mojom.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROID)

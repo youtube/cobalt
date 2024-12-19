@@ -173,8 +173,8 @@
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_COBALT)
-#include "third_party/blink/public/mojom/crash/crash_annotator.mojom-forward.h"
-#include "third_party/blink/public/mojom/crash/crash_annotator.mojom.h"
+#include "third_party/blink/public/mojom/cobalt/crash_annotator/crash_annotator.mojom-forward.h"
+#include "third_party/blink/public/mojom/cobalt/crash_annotator/crash_annotator.mojom.h"
 #endif
 
 #if BUILDFLAG(IS_ANDROID)
