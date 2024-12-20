@@ -253,6 +253,10 @@ mojom("mojom_platform") {
     "worker/worklet_global_scope_creation_params.mojom",
   ]
 
+  if (is_cobalt) {
+    sources += [ "cobalt/crash_annotator/crash_annotator.mojom" ]
+  }
+
   if (is_android) {
     sources += [ "input/synchronous_compositor.mojom" ]
   }

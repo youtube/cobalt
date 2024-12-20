@@ -278,6 +278,10 @@
 #include "url/origin.h"
 #include "url/url_constants.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "content/browser/cobalt/crash_annotator/crash_annotator_impl.h"
+#endif
+
 #if BUILDFLAG(IS_ANDROID)
 #include "content/browser/android/content_url_loader_factory.h"
 #include "content/browser/android/java_interfaces_impl.h"
@@ -12170,6 +12174,13 @@ void RenderFrameHostImpl::GetFileSystemManager(
                                 base::Unretained(file_system_manager_.get()),
                                 GetStorageKey(), std::move(receiver)));
 }
+
+#if BUILDFLAG(IS_COBALT)
+void RenderFrameHostImpl::GetCrashAnnotator(
+    mojo::PendingReceiver<blink::mojom::CrashAnnotator> receiver) {
+  crash_annotator_ = std::make_unique<CrashAnnotatorImpl>(std::move(receiver));
+}
+#endif
 
 void RenderFrameHostImpl::GetGeolocationService(
     mojo::PendingReceiver<blink::mojom::GeolocationService> receiver) {
