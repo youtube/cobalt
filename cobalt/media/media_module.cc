@@ -286,8 +286,6 @@ void MediaModule::SetPreferMinimalPostProcessingFromPersistentSettings() {
       media_settings_api->version >= 3) {
     media_settings_api->SetPreferMinimalPostProcessing(
         prefer_minimal_post_processing);
-    LOG(INFO) << "Set PreferMinimalPostProcessing to "
-              << (prefer_minimal_post_processing ? "true" : "false");
   }
 }
 
