@@ -1,4 +1,4 @@
-name: Prcess Test Results
+name: Process Test Results
 description: Uploads test results to DataDog.
 inputs:
   datadog_api_key:
