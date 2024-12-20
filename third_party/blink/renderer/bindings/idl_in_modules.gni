@@ -1202,6 +1202,14 @@ static_idl_files_in_modules = get_path_info(
         ],
         "abspath")
 
+if (is_cobalt) {
+  static_idl_files_in_modules += get_path_info(
+          [ "//third_party/blink/renderer/modules/cobalt/crash_annotator/crash_annotator.idl",
+            "//third_party/blink/renderer/modules/cobalt/crash_annotator/navigator_crash_annotator.idl",
+          ],
+          "abspath")
+}
+
 # Direct Sockets
 # This uses target_os rather than current_os (which is what is_android is set
 # from) for the case of generating the v8 context snapshot for android. When
