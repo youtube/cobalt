@@ -1,4 +1,4 @@
-name: Process Test Results
+name: Prcess Test Results
 description: Uploads test results to DataDog.
 inputs:
   datadog_api_key:
@@ -22,6 +22,13 @@ runs:
       with:
         paths: "results/*.xml"
         output: test-summary-foo.md
+
+    - name: Upload test summary
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: test-summary upload
+        path: test-summary-foo.md
 
     - name: Publish Test Results publish-unit-test-result
       uses: EnricoMi/publish-unit-test-result-action@170bf24d20d201b842d7a52403b73ed297e6645b
