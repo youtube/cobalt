@@ -2386,6 +2386,13 @@ source_set("browser") {
     "worker_host/worker_script_loader_factory.h",
   ]
 
+  if (is_cobalt) {
+    sources += [
+      "cobalt/crash_annotator/crash_annotator_impl.cc",
+      "cobalt/crash_annotator/crash_annotator_impl.h",
+    ]
+  }
+
   if (is_android) {
     sources += [
       "memory_pressure/user_level_memory_pressure_signal_generator.cc",
