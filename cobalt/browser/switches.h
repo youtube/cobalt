@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <map>
 #include <string>
 
 #include "starboard/configuration.h"
@@ -131,6 +132,7 @@ extern const char kOffscreenTargetCacheSizeInBytes[];
 extern const char kOffscreenTargetCacheSizeInBytesHelp[];
 extern const char kOmitDeviceAuthenticationQueryParameters[];
 extern const char kOmitDeviceAuthenticationQueryParametersHelp[];
+extern const char kDisableProgressivePlayback[];
 extern const char kProxy[];
 extern const char kProxyHelp[];
 extern const char kQrCodeOverlay[];
@@ -164,8 +166,8 @@ extern const char kViewportHelp[];
 extern const char kVideoPlaybackRateMultiplier[];
 extern const char kVideoPlaybackRateMultiplierHelp[];
 
+std::map<std::string, const char*> HelpMap();
 std::string HelpMessage();
-
 }  // namespace switches
 }  // namespace browser
 }  // namespace cobalt

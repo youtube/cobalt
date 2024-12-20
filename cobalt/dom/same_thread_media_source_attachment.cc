@@ -49,7 +49,7 @@ bool SameThreadMediaSourceAttachment::StartAttachingToMediaElement(
     HTMLMediaElement* media_element) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  if (attached_element_) {
+  if (!media_source_) {
     return false;
   }
   attached_element_ = base::AsWeakPtr(media_element);

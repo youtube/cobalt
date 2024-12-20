@@ -45,6 +45,10 @@ QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
       num_retransmittable_packets_received_since_last_ack_sent_(0),
       min_received_before_ack_decimation_(kMinReceivedBeforeAckDecimation),
       ack_frequency_(kDefaultRetransmittablePacketsBeforeAck),
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+      max_retransmittable_packets_before_ack_(
+          kMaxRetransmittablePacketsBeforeAck),
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
       ack_decimation_delay_(kAckDecimationDelay),
       unlimited_ack_decimation_(false),
       one_immediate_ack_(false),
@@ -54,7 +58,8 @@ QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
       ack_timeout_(QuicTime::Zero()),
       time_of_previous_received_packet_(QuicTime::Zero()),
       was_last_packet_missing_(false),
-      last_ack_frequency_frame_sequence_number_(-1) {}
+      last_ack_frequency_frame_sequence_number_(-1) {
+}
 
 QuicReceivedPacketManager::~QuicReceivedPacketManager() {}
 
@@ -69,6 +74,38 @@ void QuicReceivedPacketManager::SetFromConfig(const QuicConfig& config,
   if (config.HasClientSentConnectionOption(k1ACK, perspective)) {
     one_immediate_ack_ = true;
   }
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+  if (config.HasClientSentConnectionOption(kCOB0, perspective)) {
+    max_retransmittable_packets_before_ack_ = 10;
+  }
+  if (config.HasClientSentConnectionOption(kCOB1, perspective)) {
+    max_retransmittable_packets_before_ack_ = 20;
+  }
+  if (config.HasClientSentConnectionOption(kCOB2, perspective)) {
+    max_retransmittable_packets_before_ack_ = 40;
+  }
+  if (config.HasClientSentConnectionOption(kCOB3, perspective)) {
+    max_retransmittable_packets_before_ack_ = 60;
+  }
+  if (config.HasClientSentConnectionOption(kCOB4, perspective)) {
+    max_retransmittable_packets_before_ack_ = 80;
+  }
+  if (config.HasClientSentConnectionOption(kCOB5, perspective)) {
+    max_retransmittable_packets_before_ack_ = 100;
+  }
+  if (config.HasClientSentConnectionOption(kCOB6, perspective)) {
+    max_retransmittable_packets_before_ack_ = 120;
+  }
+  if (config.HasClientSentConnectionOption(kCOB7, perspective)) {
+    max_retransmittable_packets_before_ack_ = 160;
+  }
+  if (config.HasClientSentConnectionOption(kCOB8, perspective)) {
+    max_retransmittable_packets_before_ack_ = 200;
+  }
+  if (config.HasClientSentConnectionOption(kCOB9, perspective)) {
+    max_retransmittable_packets_before_ack_ = 240;
+  }
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
 }
 
 void QuicReceivedPacketManager::RecordPacketReceived(
@@ -251,7 +288,7 @@ void QuicReceivedPacketManager::MaybeUpdateAckFrequency(
   }
   ack_frequency_ = unlimited_ack_decimation_
                        ? std::numeric_limits<size_t>::max()
-                       : kMaxRetransmittablePacketsBeforeAck;
+                       : max_retransmittable_packets_before_ack_;
 }
 
 void QuicReceivedPacketManager::MaybeUpdateAckTimeout(

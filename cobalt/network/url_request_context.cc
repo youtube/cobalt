@@ -54,6 +54,7 @@
 #include "net/quic/quic_context.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/ssl/ssl_config_service_defaults.h"
+#include "net/third_party/quiche/src/quiche/quic/core/quic_tag.h"
 #include "starboard/common/murmurhash2.h"
 #include "starboard/configuration_constants.h"
 
@@ -207,9 +208,27 @@ URLRequestContext::URLRequestContext(
   auto quic_context = std::make_unique<net::QuicContext>();
   quic_context->params()->supported_versions =
       quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::Q046()};
-  url_request_context_builder->set_quic_context(std::move(quic_context));
 
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  std::string quic_connection_options =
+      command_line->GetSwitchValueASCII(switches::kQuicConnectionOptions);
+  if (!quic_connection_options.empty()) {
+    quic_context->params()->connection_options =
+        quic::ParseQuicTagVector(quic_connection_options);
+  }
+
+  std::string quic_client_connection_options =
+      command_line->GetSwitchValueASCII(switches::kQuicClientConnectionOptions);
+  if (!quic_connection_options.empty()) {
+    quic_context->params()->client_connection_options =
+        quic::ParseQuicTagVector(quic_client_connection_options);
+  }
+#endif
+
+  url_request_context_builder->set_quic_context(std::move(quic_context));
+
   bool quic_enabled =
       configuration::Configuration::GetInstance()->CobaltEnableQuic() &&
       !command_line->HasSwitch(switches::kDisableQuic);
@@ -343,6 +362,29 @@ void URLRequestContext::SetEnableHttp2(bool enable_http2) {
       !command_line->HasSwitch(switches::kDisableHttp2);
   url_request_context_->http_network_session()->SetEnableHttp2(
       enable_http2 && http2_commandline_enabled);
+}
+
+void URLRequestContext::SetQuicConnectionOptions(
+    const std::string& connection_options) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  quic::QuicTagVector options = quic::ParseQuicTagVector(connection_options);
+  // Set the new tags in all copies of QuicParams.
+  url_request_context_->quic_context()->params()->connection_options = options;
+  url_request_context_->http_network_session()->SetConnectionOptions(options);
+}
+
+void URLRequestContext::SetQuicClientConnectionOptions(
+    const std::string& client_connection_options) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  quic::QuicTagVector options =
+      quic::ParseQuicTagVector(client_connection_options);
+  // Set the new tags in all copies of QuicParams.
+  url_request_context_->quic_context()->params()->client_connection_options =
+      options;
+  url_request_context_->http_network_session()->SetClientConnectionOptions(
+      options);
 }
 
 bool URLRequestContext::using_http_cache() { return using_http_cache_; }

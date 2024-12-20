@@ -62,6 +62,9 @@ class URLRequestContext {
   void SetEnableQuic(bool enable_quic);
   void SetEnableHttp2(bool enable_http2);
 
+  void SetQuicConnectionOptions(const std::string&);
+  void SetQuicClientConnectionOptions(const std::string&);
+
   bool using_http_cache();
 
   void UpdateCacheSizeSetting(disk_cache::ResourceType type, uint32_t bytes);

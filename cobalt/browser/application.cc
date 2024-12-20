@@ -212,21 +212,30 @@ GURL GetInitialURL(bool should_preload) {
   GURL initial_url = GURL(kDefaultURL);
   // Allow the user to override the default URL via a command line parameter.
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kInitialURL)) {
-    std::string url_switch =
-        command_line->GetSwitchValueASCII(switches::kInitialURL);
+  bool has_initial_url_switch = command_line->HasSwitch(switches::kInitialURL);
+
+  const base::CommandLine::StringVector& args = command_line->GetArgs();
+  if (has_initial_url_switch || !args.empty()) {
+    std::string url_string =
+        has_initial_url_switch
+            ? command_line->GetSwitchValueASCII(switches::kInitialURL)
+            : args[0];
 #if defined(ENABLE_ABOUT_SCHEME)
     // Check the switch itself since some non-empty strings parse to empty URLs.
-    if (url_switch.empty()) {
+    if (url_string.empty()) {
       LOG(ERROR) << "URL from parameter is empty, using " << kAboutBlankURL;
       return GURL(kAboutBlankURL);
     }
 #endif  // defined(ENABLE_ABOUT_SCHEME)
-    GURL url = GURL(url_switch);
+    GURL url = GURL(url_string);
+    if (!url.is_valid() && !url.has_scheme()) {
+      LOG(INFO) << __FUNCTION__ << "URL was not valid: " << url_string;
+      url = GURL("https://" + url_string);
+    }
     if (url.is_valid()) {
       initial_url = url;
     } else {
-      LOG(ERROR) << "URL \"" << url_switch
+      LOG(ERROR) << "URL \"" << url_string
                  << "\" from parameter is not valid, using default URL "
                  << initial_url;
     }
