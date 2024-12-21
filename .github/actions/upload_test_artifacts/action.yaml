@@ -31,13 +31,20 @@ runs:
       if: inputs.on_host == 'true'
       run: |
         set -x
-        cd src
-        tar cvf - out/${{ matrix.platform }}_${{ matrix.config }}/*tests out/${{ matrix.platform }}_${{ matrix.config }}/nplb out/${{ matrix.platform }}_${{ matrix.config }}/*.so out/${{ matrix.platform }}_${{ matrix.config }}/*.so.* out/${{ matrix.platform }}_${{ matrix.config }}/starboard/*.so.* out/${{ matrix.platform }}_${{ matrix.config }}/content/test | xz -T0 -1 -z - > test_artifacts.tar.xz
+        cd src/out/${{ matrix.platform }}_${{ matrix.config }}
+        test_deps_file="test.deps"
+        for test_binary in $(ls {nplb,*tests}); do
+          echo $test_binary
+          if [ -f "${test_binary}.runtime_deps" ]; then
+            cat "${test_binary}.runtime_deps" >> "${test_deps_file}"
+          fi
+        done
+        tar cvf - -T "${test_deps_file}" | xz -T0 -1 -z - > "${GITHUB_WORKSPACE}/test_artifacts.tar.xz"
       shell: bash
     - name: Upload On-Host Test Artifacts Archive
       if: inputs.on_host == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.test_artifacts_key }}
-        path: src/test_artifacts.tar.xz
+        path: test_artifacts.tar.xz
         retention-days: 3
