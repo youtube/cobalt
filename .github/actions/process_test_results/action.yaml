@@ -1,5 +1,11 @@
 name: Process Test Results
 description: Uploads test results to DataDog.
+
+on:
+  workflow_run:
+    workflows: [ main ]
+    types: [ completed ]
+
 inputs:
   datadog_api_key:
     description: "Path to directory where test results are saved."
@@ -51,6 +57,7 @@ runs:
         path: "results/*.xml"
         reporter: jest-junit
         fail-on-error: 'false'
+        only-summary: 'true'
 
     - name: Get Datadog CLI
       id: download-dd-cli
