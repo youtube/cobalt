@@ -10,7 +10,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Download Artifacts
+    - name: Download Test Results
       uses: actions/download-artifact@v4
       with:
         name: ${{ inputs.test_results_key }}
@@ -21,7 +21,7 @@ runs:
       uses: mikepenz/action-junit-report@992d97d6eb2e5f3de985fbf9df6a04386874114d
       with:
         report_paths: results/*.xml
-        annotate_only: true
+        skip_annotations: true
 
     - name: Get Datadog CLI
       id: download-dd-cli
