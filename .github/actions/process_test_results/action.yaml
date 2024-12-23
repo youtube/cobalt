@@ -21,11 +21,11 @@ runs:
       if: always()
       with:
         paths: "results/*.xml"
-        output: test-summary-foo.md
+        output: test-report-summary.md
         show: "fail, skip"
 
     - name: Output test summary markdown to github
-      run: cat test-summary-foo.md >> $GITHUB_STEP_SUMMARY
+      run: cat test-report-summary.md >> $GITHUB_STEP_SUMMARY
       shell: bash
 
     - name: Get Datadog CLI
