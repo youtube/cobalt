@@ -24,7 +24,7 @@ runs:
         output: test-summary-foo.md
         show: "fail, skip"
 
-    - name: Adding markdown
+    - name: Output test summary markdown to github
       run: cat test-summary-foo.md >> $GITHUB_STEP_SUMMARY
       shell: bash
 
