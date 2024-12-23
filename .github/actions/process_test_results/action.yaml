@@ -30,35 +30,9 @@ runs:
         output: test-summary-foo.md
         show: "fail, skip"
 
-    - name: Upload test summary
-      uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: test-summary upload
-        path: test-summary-foo.md
-
     - name: Adding markdown
       run: cat test-summary-foo.md >> $GITHUB_STEP_SUMMARY
       shell: bash
-
-    - name: Publish Test Results publish-unit-test-result
-      uses: EnricoMi/publish-unit-test-result-action@170bf24d20d201b842d7a52403b73ed297e6645b
-      if: always()
-      with:
-        files: |
-          results/*.xml
-        check_run: 'false'
-        report_individual_runs: 'true'
-
-    - name: Publish test results dorny
-      uses: dorny/test-reporter@31a54ee7ebcacc03a09ea97a7e5465a47b84aea5
-      if: always()
-      with:
-        name: chrobalt unit tests
-        path: "results/*.xml"
-        reporter: jest-junit
-        fail-on-error: 'false'
-        only-summary: 'true'
 
     - name: Get Datadog CLI
       id: download-dd-cli
