@@ -19,7 +19,6 @@ runs:
     - name: Test Summary action
       continue-on-error: true
       uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86
-      if: always()
       with:
         paths: "results/*.xml"
         output: test-report-summary.md
