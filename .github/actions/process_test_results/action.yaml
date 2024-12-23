@@ -1,6 +1,5 @@
 name: Process Test Results
 description: Uploads test results to DataDog.
-
 inputs:
   datadog_api_key:
     description: "Path to directory where test results are saved."
