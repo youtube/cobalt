@@ -28,6 +28,7 @@ runs:
       with:
         paths: "results/*.xml"
         output: test-summary-foo.md
+        show: "fail, skip"
 
     - name: Upload test summary
       uses: actions/upload-artifact@v3
