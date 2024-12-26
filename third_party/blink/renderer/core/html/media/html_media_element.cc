@@ -124,6 +124,7 @@
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/strings/string_util.h"
 #include "starboard/media.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -420,7 +421,7 @@ bool IsProgressiveFormat(const ContentType& content_type) {
 
   Vector<String> split_codecs;
   const String separator(",");
-  codecs.StripWhiteSpace().Split(separator, split_codecs);
+  codecs.RemoveCharacters(base::IsWhitespace).Split(separator, split_codecs);
   return type.Utf8() == "video/mp4" && split_codecs.size() == 2;
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
