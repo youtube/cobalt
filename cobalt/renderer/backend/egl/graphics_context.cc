@@ -31,6 +31,7 @@
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/egl_and_gles.h"
 #include "starboard/configuration.h"
+#include "starboard/extension/egl_context_lost_handler.h"
 
 #if defined(GLES3_SUPPORTED)
 #error "Support for gles3 features has been deprecated."
@@ -251,6 +252,9 @@ void GraphicsContextEGL::SafeEglMakeCurrent(RenderTargetEGL* surface) {
   // a thread can result in global allocations being made that are never freed.
   ANNOTATE_SCOPED_MEMORY_LEAK;
 
+  if (error_context_lost_) {
+    return;
+  }
   EGLSurface egl_surface = surface->GetSurface();
 
   // This should only be used with egl surfaces (not framebuffer objects).
@@ -279,6 +283,21 @@ void GraphicsContextEGL::SafeEglMakeCurrent(RenderTargetEGL* surface) {
       surface->set_surface_bad();
       egl_surface = null_surface_->GetSurface();
       EGL_CALL(eglMakeCurrent(display_, egl_surface, egl_surface, context_));
+    } else if (make_current_error == EGL_CONTEXT_LOST) {
+      const CobaltExtensionEglContextLostHandlerApi* context_lost_handler =
+          static_cast<const CobaltExtensionEglContextLostHandlerApi*>(
+              SbSystemGetExtension(kCobaltExtensionEglContextLostHandlerName));
+      if (context_lost_handler &&
+          strcmp(context_lost_handler->name,
+                 kCobaltExtensionEglContextLostHandlerName) == 0 &&
+          context_lost_handler->version >= 1) {
+        error_context_lost_ = true;
+        EGL_CALL(eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE,
+                                EGL_NO_CONTEXT));
+        context_lost_handler->HandleEglContextLost();
+      } else {
+        NOTREACHED() << "EGL_CONTEXT_LOST when calling eglMakeCurrent().";
+      }
     } else {
       NOTREACHED() << "Unexpected error when calling eglMakeCurrent().";
     }
