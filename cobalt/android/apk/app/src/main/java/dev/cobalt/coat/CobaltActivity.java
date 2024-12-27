@@ -476,6 +476,9 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().onActivityStop(this);
     super.onStop();
 
+    WebContents webContents = getActiveWebContents();
+    if (webContents != null) webContents.onHide();
+
     if (VideoSurfaceView.getCurrentSurface() != null) {
       forceCreateNewVideoSurfaceView = true;
     }
