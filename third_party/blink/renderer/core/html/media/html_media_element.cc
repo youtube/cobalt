@@ -124,6 +124,7 @@
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/strings/string_util.h"
 #include "starboard/media.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -408,7 +409,8 @@ std::ostream& operator<<(std::ostream& stream,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 // Checks for progressive formats served by the YouTube H5 player.
 // These formats have a mime type of "video/mp4", and lists both audio and
-// video codecs under the "codecs" parameter.
+// video codecs under the "codecs" parameter. This is not a comprehensive
+// check and may not detect all progressive formats.
 bool IsProgressiveFormat(const ContentType& content_type) {
   const String type = content_type.GetType();
   const String codecs = content_type.Parameter("codecs");
@@ -418,7 +420,7 @@ bool IsProgressiveFormat(const ContentType& content_type) {
   }
 
   Vector<String> split_codecs;
-  const String separator(", ");
+  const String separator(",");
   codecs.Split(separator, split_codecs);
   return type.Utf8() == "video/mp4" && split_codecs.size() == 2;
 }
