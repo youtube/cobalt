@@ -19,11 +19,9 @@
 
 #include <atomic>
 #include <functional>
-#include <map>
 #include <string>
 #include <vector>
 
-#include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 #include "starboard/android/shared/audio_track_bridge.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
@@ -85,19 +83,6 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
     }
     delete audio_sink;
   }
-
-  void TestMinRequiredFrames();
-
- private:
-  int GetMinBufferSizeInFramesInternal(int channels,
-                                       SbMediaAudioSampleType sample_type,
-                                       int sampling_frequency_hz);
-
-  Mutex min_required_frames_map_mutex_;
-  // The minimum frames required to avoid underruns of different frequencies.
-  std::map<int, int> min_required_frames_map_;
-  MinRequiredFramesTester min_required_frames_tester_;
-  bool has_remote_audio_output_ = false;
 };
 
 class AudioTrackAudioSink

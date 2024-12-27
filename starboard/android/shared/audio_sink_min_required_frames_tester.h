@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <functional>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -43,18 +44,16 @@ class MinRequiredFramesTester {
                              int min_required_frames)>
       OnMinRequiredFramesReceivedCallback;
 
-  MinRequiredFramesTester(int max_required_frames,
-                          int required_frames_increment,
-                          int min_stable_played_frames);
+  MinRequiredFramesTester();
+
+  MinRequiredFramesTester(const MinRequiredFramesTester&) = delete;
+  MinRequiredFramesTester& operator=(const MinRequiredFramesTester&) = delete;
+
   ~MinRequiredFramesTester();
 
-  void AddTest(int number_of_channels,
-               SbMediaAudioSampleType sample_type,
-               int sample_rate,
-               const OnMinRequiredFramesReceivedCallback& received_cb,
-               int default_required_frames);
-
-  void Start();
+  int GetMinBufferSizeInFrames(int channels,
+                               SbMediaAudioSampleType sample_type,
+                               int sampling_frequency_hz);
 
  private:
   struct TestTask {
@@ -76,6 +75,14 @@ class MinRequiredFramesTester {
     const int default_required_frames;
   };
 
+  void AddTest(int number_of_channels,
+               SbMediaAudioSampleType sample_type,
+               int sample_rate,
+               const OnMinRequiredFramesReceivedCallback& received_cb,
+               int default_required_frames);
+
+  void Start();
+
   static void* TesterThreadEntryPoint(void* context);
   void TesterThreadFunc();
 
@@ -96,12 +103,12 @@ class MinRequiredFramesTester {
                           bool* is_eos_reached);
   void ConsumeFrames(int frames_consumed);
 
-  MinRequiredFramesTester(const MinRequiredFramesTester&) = delete;
-  MinRequiredFramesTester& operator=(const MinRequiredFramesTester&) = delete;
+  static constexpr int kMaxRequiredFramesLocal = 16 * 1024;
+  static constexpr int kMaxRequiredFramesRemote = 32 * 1024;
 
-  const int max_required_frames_;
-  const int required_frames_increment_;
-  const int min_stable_played_frames_;
+  static constexpr int kMaxRequiredFrames = kMaxRequiredFramesRemote;
+  static constexpr int kRequiredFramesIncrement_ = 4 * 1024;
+  static constexpr int kMinStablePlayedFrames_ = 12 * 1024;
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
@@ -115,10 +122,16 @@ class MinRequiredFramesTester {
   int last_underrun_count_;
   int last_total_consumed_frames_;
 
-  Mutex mutex_;
-  ConditionVariable condition_variable_;
+  Mutex condition_variable_mutex_;  // Only used by `condition_variable_` below
+  ConditionVariable condition_variable_{condition_variable_mutex_};
+
   pthread_t tester_thread_ = 0;
-  std::atomic_bool destroying_;
+  std::atomic_bool destroying_ = false;
+
+  Mutex min_required_frames_map_mutex_;
+  // The minimum frames required to avoid underruns of different frequencies.
+  std::map<int, int> min_required_frames_map_;
+  bool has_remote_audio_output_ = false;
 };
 
 }  // namespace shared
