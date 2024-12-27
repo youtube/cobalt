@@ -592,9 +592,11 @@ void StarboardRenderer::OnDemuxerStreamRead(
       DCHECK(audio_read_in_progress_);
       audio_read_in_progress_ = false;
       for (const auto& buffer : buffers) {
-        last_audio_sample_interval_ =
-            buffer->timestamp() - timestamp_of_last_written_audio_;
-        timestamp_of_last_written_audio_ = buffer->timestamp();
+        if (!buffer->end_of_stream()) {
+          last_audio_sample_interval_ =
+              buffer->timestamp() - timestamp_of_last_written_audio_;
+          timestamp_of_last_written_audio_ = buffer->timestamp();
+        }
       }
       player_bridge_->WriteBuffers(DemuxerStream::AUDIO, buffers);
     } else {

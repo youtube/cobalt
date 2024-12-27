@@ -141,8 +141,10 @@ jobs:
       DEPOT_TOOLS_REPORT_BUILD: 0
       DEPOT_TOOLS_COLLECT_METRICS: 0
       DEPOT_TOOLS_METRICS: 0
+      IS_CI: 1
       SCCACHE: 1
       SCCACHE_GCS_BUCKET: cobalt-actions-sccache-linux
+      SCCACHE_GCS_OAUTH_URL: http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
       SCCACHE_GCS_SERVICE_ACCOUNT: ${{ vars.SCCACHE_GCS_SERVICE_ACCOUNT }}
       SCCACHE_GCS_RW_MODE: READ_WRITE
       SCCACHE_IDLE_TIMEOUT: 0 # prevent sccache server from shutting down after long idle.
@@ -154,7 +156,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         # TODO(bug?): android debug builds are broken.
-        if: ${{ ! (startsWith(matrix.platform, 'android') && matrix.config == 'debug') }}
+        if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           path: src
           # Use fetch depth of 0 to get full history for a valid build id.
@@ -162,7 +164,7 @@ jobs:
       - name: Build Cobalt
         uses: ./src/.github/actions/build
         # TODO(bug?): android debug builds are broken.
-        if: ${{ ! (startsWith(matrix.platform, 'android') && matrix.config == 'debug') }}
+        if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           targets: ${{ needs.initialize.outputs.targets }}
       - name: Upload Test Artifacts
