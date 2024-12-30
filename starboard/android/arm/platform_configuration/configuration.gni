@@ -14,7 +14,6 @@
 
 import("//starboard/android/shared/platform_configuration/configuration.gni")
 
-android_abi = "armeabi-v7a"
 arm_float_abi = "softfp"
 
 sb_evergreen_compatible_package = true
