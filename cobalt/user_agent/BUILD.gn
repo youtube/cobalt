@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if (is_android) {
+  import("//build/config/android/abi.gni")
+}
+
 static_library("user_agent") {
   sources = [
     "user_agent_platform_info.cc",
@@ -24,4 +28,11 @@ static_library("user_agent") {
     "//starboard/common",
     "//v8:v8_version",
   ]
+
+  if (is_android) {
+    defines = [
+      # Enable compile-time decisions based on the ABI
+      "ANDROID_ABI=$android_app_abi",
+    ]
+  }
 }
