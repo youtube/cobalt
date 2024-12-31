@@ -20,7 +20,7 @@
 #include "starboard/common/ref_counted.h"
 
 struct SbDecodeTargetPrivate : starboard::RefCounted<SbDecodeTargetPrivate> {
-  SbDecodeTargetPrivate();
+  SbDecodeTargetPrivate() = default;
 
   SbDecodeTargetPrivate(const SbDecodeTargetPrivate&) = delete;
   SbDecodeTargetPrivate& operator=(const SbDecodeTargetPrivate&) = delete;
@@ -30,7 +30,7 @@ struct SbDecodeTargetPrivate : starboard::RefCounted<SbDecodeTargetPrivate> {
  protected:
   friend class starboard::RefCounted<SbDecodeTargetPrivate>;
 
-  virtual ~SbDecodeTargetPrivate();
+  virtual ~SbDecodeTargetPrivate() = default;
 };
 
 #endif  // STARBOARD_SHARED_STARBOARD_DECODE_TARGET_DECODE_TARGET_INTERNAL_H_
