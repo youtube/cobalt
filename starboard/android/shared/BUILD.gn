@@ -103,7 +103,6 @@ static_library("starboard_platform") {
     "//starboard/shared/starboard/command_line.cc",
     "//starboard/shared/starboard/command_line.h",
     "//starboard/shared/starboard/decode_target/decode_target_get_info.cc",
-    "//starboard/shared/starboard/decode_target/decode_target_internal.cc",
     "//starboard/shared/starboard/decode_target/decode_target_internal.h",
     "//starboard/shared/starboard/decode_target/decode_target_release.cc",
     "//starboard/shared/starboard/drm/drm_close_session.cc",
