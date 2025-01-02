@@ -2,9 +2,5 @@
   "failing_tests": [
     "BreakIteratorTest.BreakCharacter",
     "ValuesUtilTest.FilePath"
-  ],
-  "passing_tests": [
-    "test1",
-    "test2"
   ]
 }
