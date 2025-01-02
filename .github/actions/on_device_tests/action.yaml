@@ -28,7 +28,7 @@ runs:
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
-        GCS_PATH: gs://${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}_${{ matrix.config }}
+        GCS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}_${{ matrix.config }}
       run: |
         set -uxe
         python3 -u tools/on_device_tests_gateway_client.py \
