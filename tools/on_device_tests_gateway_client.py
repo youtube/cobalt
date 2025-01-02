@@ -28,10 +28,10 @@ import on_device_tests_gateway_pb2_grpc
 
 _WORK_DIR = '/on_device_tests_gateway'
 
-# Comment out thw next three lines for local testing
-_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
-    'on-device-tests-gateway-service.on-device-tests.svc.cluster.local')
-_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
+# Comment out the next three lines for local testing
+#_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
+#    'on-device-tests-gateway-service.on-device-tests.svc.cluster.local')
+#_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 
 # Uncomment the next two lines for local testing
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = ('localhost')
@@ -153,11 +153,11 @@ def _process_apk_tests(args):
       print("   This gtest_target does not have gtest_filters specified");
     else:
       failing_tests_list = gtest_filter_json_file_data["failing_tests"]
-      passing_tests_list = gtest_filter_json_file_data["passing_tests"]
+      #passing_tests_list = gtest_filter_json_file_data["passing_tests"]
       failing_tests_string = ":".join(failing_tests_list)
-      passing_tests_string = ":".join(passing_tests_list)
-      if passing_tests_string:
-        gtest_filters += ":" + passing_tests_string
+      #passing_tests_string = ":".join(passing_tests_list)
+      #if passing_tests_string:
+      #  gtest_filters += ":" + passing_tests_string
       if failing_tests_string:
         gtest_filters += ":-" + failing_tests_string
       print(f"    gtest_filters = {gtest_filters}");
