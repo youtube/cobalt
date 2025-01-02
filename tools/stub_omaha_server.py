@@ -20,7 +20,7 @@ def post_updates():
     filename = path.basename(f.name)
 
   # Populate the JSON response with required fields.
-  update = {'response':{'protocol':'3.1','app':[{'appid':'{A9557415-DDCD-4948-8113-C643EFCF710C}','updatecheck':{'status':'ok','urls':{'url':[{'codebase': self_endpoint + '/omaha/stub/file/'}]},'manifest':{'version':'99.99.1030','packages':{'package':[{'hash_sha256':digest,'name':filename}]}}}}]}}
+  update = {'response':{'protocol':'3.1','app':[{'appid':'{B725A22D-553A-49DC-BD61-F042B07C6B22}','cohort':'1:0/1/2:','status':'ok','cohortname':'SB16.qa.25.lts.10','ping':{'status':'ok'},'updatecheck':{'status':'ok','urls':{'url':[{'codebase': self_endpoint + '/omaha/stub/file/'}]},'manifest':{'version':'99.99.1030','packages':{'package':[{'hash_sha256':digest,'name':filename}]}}}}]}}
 
   # Add a prefix to the response data.
   response = jsonify(update)
