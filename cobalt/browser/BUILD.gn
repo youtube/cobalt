@@ -103,6 +103,10 @@ source_set("browser_switches") {
     "switches.cc",
     "switches.h",
   ]
+  deps = [
+    "//cobalt/css_parser:switches",
+    "//cobalt/network:switches",
+  ]
   public_deps = [ "//starboard:starboard_headers_only" ]
 }
 

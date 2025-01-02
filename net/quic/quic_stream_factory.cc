@@ -2029,6 +2029,20 @@ const std::set<std::string>& QuicStreamFactory::GetDnsAliasesForSessionKey(
   return it->second;
 }
 
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+void QuicStreamFactory::SetConnectionOptions(
+    const quic::QuicTagVector& options) {
+  params_.connection_options = options;
+  config_.SetConnectionOptionsToSend(options);
+}
+
+void QuicStreamFactory::SetClientConnectionOptions(
+    const quic::QuicTagVector& options) {
+  params_.client_connection_options = options;
+  config_.SetClientConnectionOptions(options);
+}
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
+
 bool QuicStreamFactory::HasMatchingIpSession(
     const QuicSessionAliasKey& key,
     const std::vector<IPEndPoint>& ip_endpoints,

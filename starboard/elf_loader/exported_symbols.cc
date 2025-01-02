@@ -468,7 +468,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(free);
   REGISTER_SYMBOL(freeifaddrs);
   REGISTER_SYMBOL(fsync);
-  REGISTER_SYMBOL(ftruncate);
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(malloc);
@@ -585,6 +584,7 @@ ExportedSymbols::ExportedSymbols() {
   map_["read"] = reinterpret_cast<const void*>(&__abi_wrap_read);
   map_["readdir_r"] = reinterpret_cast<const void*>(&__abi_wrap_readdir_r);
   map_["stat"] = reinterpret_cast<const void*>(&__abi_wrap_stat);
+  map_["ftruncate"] = reinterpret_cast<const void*>(&__abi_wrap_ftruncate);
   map_["time"] = reinterpret_cast<const void*>(&__abi_wrap_time);
   map_["accept"] = reinterpret_cast<const void*>(&__abi_wrap_accept);
   map_["bind"] = reinterpret_cast<const void*>(&__abi_wrap_bind);

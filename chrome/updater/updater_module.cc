@@ -108,11 +108,11 @@ void Observer::OnEvent(Events event, const std::string& id) {
           updater_status_string_map.find(status_iterator->second)->second);
     }
     if (crx_update_item_.state == ComponentState::kUpdateError) {
-      // QUICK_ROLL_FORWARD update, adjust the message to "Update installed,
+      // QUICK_ROLL_FORWARD update, adjust the message to "Updated locally,
       // pending restart"
       if (crx_update_item_.error_code == static_cast<int>(UpdateCheckError::QUICK_ROLL_FORWARD)) {
         status = std::string(
-            updater_status_string_map.at(UpdaterStatus::kUpdated));
+            updater_status_string_map.at(UpdaterStatus::kRolledForward));
       } else {
         status +=
             ", error category is " + std::to_string(static_cast<int>(crx_update_item_.error_category)) +

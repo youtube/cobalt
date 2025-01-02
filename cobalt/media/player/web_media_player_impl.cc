@@ -13,6 +13,7 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/command_line.h"
 #include "base/metrics/histogram.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/strings/string_number_conversions.h"
@@ -22,6 +23,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/trace_event/trace_event.h"
 #include "cobalt/base/instance_counter.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/media/base/drm_system.h"
 #include "cobalt/media/base/metrics_provider.h"
 #include "cobalt/media/base/sbplayer_pipeline.h"
@@ -115,7 +117,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
 #endif  // SB_API_VERSION >= 15
-    ::media::MediaLog* const media_log)
+    bool disable_progressive_playback, ::media::MediaLog* const media_log)
     : pipeline_thread_("media_pipeline"),
       network_state_(WebMediaPlayer::kNetworkStateEmpty),
       ready_state_(WebMediaPlayer::kReadyStateHaveNothing),
@@ -126,6 +128,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       max_audio_samples_per_write_(max_audio_samples_per_write),
       force_punch_out_by_default_(force_punch_out_by_default),
       proxy_(new WebMediaPlayerProxy(task_runner_, this)),
+      disable_progressive_playback_(disable_progressive_playback),
       media_log_(media_log),
       is_local_source_(false),
       suppress_destruction_errors_(false),
@@ -270,6 +273,17 @@ void WebMediaPlayerImpl::LoadProgressive(
   DCHECK_EQ(task_runner_, base::SequencedTaskRunner::GetCurrentDefault());
 
   UMA_HISTOGRAM_ENUMERATION("Media.URLScheme", URLScheme(url), kMaxURLScheme);
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  if (disable_progressive_playback_ ||
+      command_line->HasSwitch(browser::switches::kDisableProgressivePlayback)) {
+    LOG(INFO)
+        << "Disabled progressive playback support via command line or H5vcc";
+    SetNetworkError(
+        WebMediaPlayer::kNetworkStateFormatError,
+        "Disabled progressive playback support via command line or H5vcc");
+    return;
+  }
+
   LOG(INFO) << "Start PROGRESSIVE playback";
 
   // Handle any volume changes that occurred before load().

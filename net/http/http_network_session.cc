@@ -369,7 +369,7 @@ void HttpNetworkSession::DisableQuic() {
   params_.enable_quic = false;
 }
 
-#if defined(STARBOARD)
+#if defined(USE_COBALT_CUSTOMIZATIONS)
 void HttpNetworkSession::SetEnableQuic(bool enable_quic) {
   params_.enable_quic = enable_quic;
 }
@@ -396,7 +396,7 @@ void HttpNetworkSession::SetEnableHttp2(bool enable_http2) {
 bool HttpNetworkSession::UseQuicForUnknownOrigin() const {
   return params_.use_quic_for_unknown_origins;
 }
-#endif  // defined(STARBOARD)
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
 
 void HttpNetworkSession::ClearSSLSessionCache() {
   ssl_client_session_cache_.Flush();
@@ -417,6 +417,18 @@ CommonConnectJobParams HttpNetworkSession::CreateCommonConnectJobParams(
       context_.network_quality_estimator, context_.net_log,
       for_websockets ? &websocket_endpoint_lock_manager_ : nullptr);
 }
+
+#if defined(USE_COBALT_CUSTOMIZATIONS)
+void HttpNetworkSession::SetConnectionOptions(
+    const quic::QuicTagVector& options) {
+  quic_stream_factory_.SetConnectionOptions(options);
+}
+
+void HttpNetworkSession::SetClientConnectionOptions(
+    const quic::QuicTagVector& options) {
+  quic_stream_factory_.SetClientConnectionOptions(options);
+}
+#endif  // defined(USE_COBALT_CUSTOMIZATIONS)
 
 ClientSocketPoolManager* HttpNetworkSession::GetSocketPoolManager(
     SocketPoolType pool_type) {

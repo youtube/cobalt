@@ -56,7 +56,10 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   const char kMediaPrefix[] = "Media.";
   const char kMediaCodecBlockList[] = "MediaCodecBlockList";
   const char kNavigatorUAData[] = "NavigatorUAData";
+  const char kDeprecatedProtocolFilter[] = "protocolfilter";
   const char kQUIC[] = "QUIC";
+  const char kQUICConectionOptions[] = "QUICConnectionOptions";
+  const char kQUICClientConectionOptions[] = "QUICClientConnectionOptions";
   const char kHTTP2[] = "HTTP2";
   const char kHTTP3[] = "HTTP3";
   const char kSkiaRasterizer[] = "SkiaRasterizer";
@@ -96,6 +99,18 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
     }
   }
 
+  if (name.compare(kQUICConectionOptions) == 0 && value.IsType<std::string>()) {
+    network_module_->SetQuicConnectionOptions(value.AsType<std::string>());
+    return true;
+  }
+
+  if (name.compare(kQUICClientConectionOptions) == 0 &&
+      value.IsType<std::string>()) {
+    network_module_->SetQuicClientConnectionOptions(
+        value.AsType<std::string>());
+    return true;
+  }
+
   if (name.compare(kHTTP2) == 0 && value.IsType<int32>()) {
     if (!persistent_settings_ || !network_module_) {
       return false;
@@ -119,7 +134,7 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   }
 
   // Disabled due to a bug with previous implementation.
-  if (name.compare("protocolfilter") == 0) {
+  if (name.compare(kDeprecatedProtocolFilter) == 0) {
     return false;
   }
   if (name.compare(network::kProtocolFilterKey) == 0 &&

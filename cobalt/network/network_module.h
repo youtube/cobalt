@@ -136,6 +136,8 @@ class NetworkModule : public base::CurrentThread::DestructionObserver {
   void SetEnableHttp3FromPersistentSettings();
   bool SetHttpProtocolFilterPersistentSetting(const std::string&);
   void SetProtocolFilterFromPersistentSettings();
+  void SetQuicConnectionOptions(const std::string&);
+  void SetQuicClientConnectionOptions(const std::string&);
 
   // Adds the Client Hint Headers to the provided URLFetcher if enabled.
   void AddClientHintHeaders(net::URLFetcher& url_fetcher,
