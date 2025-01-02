@@ -26,25 +26,15 @@ import grpc
 import on_device_tests_gateway_pb2
 import on_device_tests_gateway_pb2_grpc
 
-# All tests On-Device tests support
-_TEST_TYPES = [
-    'black_box_test',
-    'evergreen_test',
-    'unit_test',
-]
-
-# All test configs On-Device tests support
-_TEST_CONFIGS = [
-    'devel',
-    'staging',
-    'production',
-]
-
 _WORK_DIR = '/on_device_tests_gateway'
+
+# Comment out thw next three lines for local testing
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
-    #'on-device-tests-gateway-service.on-device-tests.svc.cluster.local')
-    'localhost')
-#_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
+    'on-device-tests-gateway-service.on-device-tests.svc.cluster.local')
+_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
+
+# Uncomment the next two lines for local testing
+_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = ('localhost')
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '12345'
 
 
@@ -75,23 +65,13 @@ class OnDeviceTestsGatewayClient():
         on_device_tests_gateway_pb2.OnDeviceTestsCommand(
             workdir=workdir,
             token=args.token,
-            #test_type=args.test_type,
             platform=args.platform,
             archive_path=args.archive_path,
-            #config=args.config,
-            #tag=args.tag,
             labels=args.label,
             gcs_result_path=args.gcs_result_path,
-            #builder_name=args.builder_name,
-            #builder_url=args.builder_url,
             change_id=args.change_id,
-            #build_number=args.build_number,
-            #loader_platform=args.loader_platform,
-            #loader_config=args.loader_config,
-            #version=args.version,
             dry_run=args.dry_run,
             dimension=args.dimension or [],
-            #unittest_shard_index=args.unittest_shard_index,
             test_attempts=args.test_attempts,
             retry_level=args.retry_level,
             apk_tests=apk_tests,
@@ -131,10 +111,10 @@ def _read_json_config(filename):
       data = json.load(f)
     return data
   except FileNotFoundError:
-    #print(f" Config file '{filename}' not found.")
+    print(f" Config file '{filename}' not found.")
     return None
   except json.JSONDecodeError:
-    #print(f" Invalid JSON format in '{filename}'.")
+    print(f" Invalid JSON format in '{filename}'.")
     return None
 
 def _default_platform_json_file(platform):
@@ -150,12 +130,12 @@ def _get_tests_filter_json_file(platform, gtest_target):
 def _process_apk_tests(args):
   apk_tests = []
   platform_json_file = args.platform_json if args.platform_json else _default_platform_json_file(args.platform)
-  #print(' The platform_json_file is ' + platform_json_file)
+  print(f" The platform_json_file is '{platform_json_file}'")
   platform_json_file_data = _read_json_config(platform_json_file)
   gtest_device = platform_json_file_data["gtest_device"]
   gtest_lab = platform_json_file_data["gtest_lab"]
   gtest_blaze_target = "//experimental/cobalt/chrobalt_poc:custom_chrobalt_unit_tests_" + gtest_device
-  default_gtest_filters = "GURL*"
+  default_gtest_filters = "*"
 
   #print(' processing gtest_targets in json file')
   for gtest_target in platform_json_file_data["gtest_targets"]:
@@ -170,22 +150,20 @@ def _process_apk_tests(args):
     gtest_filter_json_file_data = _read_json_config(gtest_filter_json_file)
     gtest_filters = default_gtest_filters
     if gtest_filter_json_file_data is None:
-      print("   This gtest_target does not have gtest_filters_specified");
+      print("   This gtest_target does not have gtest_filters specified");
     else:
       failing_tests_list = gtest_filter_json_file_data["failing_tests"]
       passing_tests_list = gtest_filter_json_file_data["passing_tests"]
-      #print(f"    failing tests in json: {failing_tests_list}")
-      #print(f"    passing tests in json: {passing_tests_list}")
       failing_tests_string = ":".join(failing_tests_list)
       passing_tests_string = ":".join(passing_tests_list)
-      #print(f"    failing_tests_string = '{failing_tests_string}'")
-      #print(f"    passing_tests_string = '{passing_tests_string}'")
       if passing_tests_string:
         gtest_filters += ":" + passing_tests_string
       if failing_tests_string:
         gtest_filters += ":-" + failing_tests_string
-      #print(f"    gtest_filters = {gtest_filters}");
-    apk_test["apk_path"] = "/bigstore/yt-temp/" + gtest_target + "-debug.apk"
+      print(f"    gtest_filters = {gtest_filters}");
+
+    #apk_test["apk_path"] = "/bigstore/yt-temp/" + gtest_target + "-debug.apk"
+    apk_test["apk_path"] = "/bigstore/yt-temp/base_unittests-debug.apk"
     apk_test["gtest_filters"] = gtest_filters
     apk_tests.append(apk_test)
 

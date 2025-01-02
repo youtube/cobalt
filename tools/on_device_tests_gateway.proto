@@ -29,33 +29,23 @@ service on_device_tests_gateway {
 
 // Working directory and command line arguments to be passed to the gateway.
 message OnDeviceTestsCommand {
-  // Next ID: 23
   string workdir = 1;
   string token = 2;
-  string test_type = 3;
-  string platform = 4;
-  string archive_path = 5;
-  string config = 6;
-  string tag = 7;
-  repeated string labels = 8;
-  string builder_name = 9;
-  string change_id = 10;
-  string build_number = 11;
-  string loader_platform = 12;
-  string loader_config = 13;
-  string version = 14;
-  bool dry_run = 15;
-  repeated string dimension = 16;
-  string unittest_shard_index = 17;
-  string test_attempts = 18;
-  string retry_level = 19;
-  string start_timeout = 20;
-  string test_timeout = 21;
-  string builder_url = 22;
-  string gcs_result_path = 23;
-  repeated ApkTest apk_tests = 24;
+  string platform = 3;
+  string archive_path = 4;
+  repeated string labels = 5;
+  string change_id = 6;
+  bool dry_run = 7;
+  repeated string dimension = 8;
+  string test_attempts = 9;
+  string retry_level = 10;
+  string start_timeout = 11;
+  string test_timeout = 12;
+  string gcs_result_path = 13;
+  repeated ApkTest apk_tests = 14;
 }
 
+// apk_test details
 message ApkTest {
   string test_target = 1;
   string apk_path = 2;
