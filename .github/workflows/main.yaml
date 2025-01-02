@@ -133,7 +133,7 @@ jobs:
       matrix:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel, debug, qa, gold]
+        config: [devel, qa, gold]
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts

@@ -16,12 +16,17 @@ runs:
         name: ${{ inputs.test_results_key }}
         path: results/
 
-    - name: Publish Test Report
+    - name: Test Summary action
       continue-on-error: true
-      uses: mikepenz/action-junit-report@992d97d6eb2e5f3de985fbf9df6a04386874114d
+      uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86
       with:
-        report_paths: results/*.xml
-        skip_annotations: true
+        paths: "results/*.xml"
+        output: test-report-summary.md
+        show: "fail, skip"
+
+    - name: Output test summary markdown to github
+      run: cat test-report-summary.md >> $GITHUB_STEP_SUMMARY
+      shell: bash
 
     - name: Get Datadog CLI
       id: download-dd-cli
