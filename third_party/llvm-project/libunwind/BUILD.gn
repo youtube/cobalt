@@ -134,10 +134,19 @@ config("unwind_starboard_config") {
   ]
 }
 
+config("unwind_hide_symbols_config") {
+  cflags = [ "-fvisibility=hidden" ]
+
+  defines = [
+    "_LIBUNWIND_HIDE_SYMBOLS",
+  ]
+}
+
 static_library("unwind_starboard") {
   sources = common_sources
 
   configs += [ ":unwind_starboard_config" ]
+  configs += [ ":unwind_hide_symbols_config" ]
   all_dependent_configs = [ ":common_unwind_dependents_config" ]
 
   public_deps = [
