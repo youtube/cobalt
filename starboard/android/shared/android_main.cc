@@ -18,11 +18,11 @@
 #include <unistd.h>
 #include <atomic>
 
-// #include "game-activity/GameActivity.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/log_internal.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/file.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
@@ -35,8 +35,6 @@
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/crashpad_wrapper/wrapper.h"  // nogncheck
 #endif
-
-#include "starboard/android/shared/starboard_bridge.h"
 
 namespace starboard {
 namespace android {
@@ -64,38 +62,12 @@ std::atomic_bool g_app_running{false};
 std::vector<std::string> GetArgs() {
   std::vector<std::string> args;
   // Fake program name as args[0]
-  args.push_back(strdup("android_main"));
+  args.push_back("android_main");
 
-  JniEnvExt* env = JniEnvExt::Get();
-
-  ScopedLocalJavaRef<jobjectArray> args_array(
-      env->CallStarboardObjectMethodOrAbort("getArgs",
-                                            "()[Ljava/lang/String;"));
-  jint argc = !args_array ? 0 : env->GetArrayLength(args_array.Get());
-
-  for (jint i = 0; i < argc; i++) {
-    ScopedLocalJavaRef<jstring> element(
-        env->GetObjectArrayElementOrAbort(args_array.Get(), i));
-    args.push_back(env->GetStringStandardUTFOrAbort(element.Get()));
-  }
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge::GetInstance()->AppendArgs(env, &args);
 
   return args;
-}
-
-std::string GetStartDeepLink() {
-  JniEnvExt* env = JniEnvExt::Get();
-  std::string start_url;
-
-  ScopedLocalJavaRef<jstring> j_url(env->CallStarboardObjectMethodOrAbort(
-      "getStartDeepLink", "()Ljava/lang/String;"));
-  if (j_url) {
-    auto j_url_str = j_url.Get();
-    if (env->GetStringLength(j_url_str) != 0) {
-      start_url = env->GetStringStandardUTFOrAbort(j_url_str);
-    }
-  }
-  SB_LOG(INFO) << "GetStartDeepLink: " << start_url;
-  return start_url;
 }
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
@@ -255,9 +227,8 @@ void* ThreadEntryPoint(void* context) {
 
   // Inform StarboardBridge that the run loop has exited so it can cleanup and
   // kill the process.
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallStarboardVoidMethodOrAbort("afterStopped", "()V");
-
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge::GetInstance()->AfterStopped(env);
   return NULL;
 }
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
@@ -303,7 +274,8 @@ extern "C" SB_EXPORT_PLATFORM void Java_dev_cobalt_coat_StarboardBridge_initJNI(
   JniEnvExt::Initialize(env, starboard_bridge);
 
   // Initialize the singleton instance of StarboardBridge
-  StarboardBridge::GetInstance()->Initialize(env, starboard_bridge);
+  JNIEnv* jni_env = base::android::AttachCurrentThread();
+  StarboardBridge::GetInstance()->Initialize(jni_env, starboard_bridge);
 }
 
 extern "C" SB_EXPORT_PLATFORM jlong
@@ -381,8 +353,10 @@ extern "C" int SbRunStarboardMain(int argc,
   g_app_created_semaphore->Put();
 
   // Enter the Starboard run loop until stopped.
-  int error_level =
-      app.Run(std::move(command_line), GetStartDeepLink().c_str());
+  JNIEnv* env = base::android::AttachCurrentThread();
+  std::string start_url = StarboardBridge::GetInstance()->GetStartDeepLink(env);
+  SB_LOG(INFO) << "GetStartDeepLink: " << start_url;
+  int error_level = app.Run(std::move(command_line), start_url.c_str());
 
   // Mark the app not running before informing StarboardBridge that the app is
   // stopped so that we won't send any more AndroidCommands as a result of
