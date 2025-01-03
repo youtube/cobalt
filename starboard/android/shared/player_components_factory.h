@@ -99,7 +99,8 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                 SbAudioSinkPrivate::ErrorFunc error_func,
                 void* context) {
               auto type = static_cast<AudioTrackAudioSinkType*>(
-                  SbAudioSinkPrivate::GetPreferredType());
+                  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::
+                      GetPreferredType());
 
               return type->Create(
                   channels, sampling_frequency_hz, audio_sample_type,

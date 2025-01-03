@@ -27,7 +27,7 @@ namespace android {
 namespace shared {
 
 extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_OnStop(JNIEnv* env) {
-  SbAudioSinkPrivate::TearDown();
+  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::TearDown();
   SbFileAndroidTeardown();
 }
 
