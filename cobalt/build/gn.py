@@ -56,7 +56,7 @@ _BUILD_TYPES = {
     },
     'qa': {
         'symbol_level': 1,
-        'is_debug': 'false'
+        'is_official_build': 'true'
     },
     'gold': {
         'symbol_level': 0,

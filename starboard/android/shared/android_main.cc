@@ -30,6 +30,7 @@
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/shared/starboard/command_line.h"
+#include "starboard/shared/starboard/log_mutex.h"
 #include "starboard/thread.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/crashpad_wrapper/wrapper.h"  // nogncheck
@@ -310,6 +311,7 @@ Java_dev_cobalt_coat_StarboardBridge_startNativeStarboard(JniEnvExt* env) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
   StarboardThreadLaunch();
 #else
+  starboard::shared::starboard::GetLoggingMutex();
   auto command_line = std::make_unique<CommandLine>(GetArgs());
   LogInit(*command_line);
   auto* nativeApp = new ApplicationAndroid(std::move(command_line));
