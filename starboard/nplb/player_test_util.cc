@@ -24,8 +24,6 @@
 #include "starboard/nplb/maximum_player_configuration_explorer.h"
 #include "starboard/nplb/player_creation_param_helpers.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
-// TODO(cobalt, b/377295011): remove the nogncheck annotation.
-#include "starboard/testing/fake_graphics_context_provider.h"  // nogncheck
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -40,7 +38,6 @@ using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
 using std::placeholders::_4;
-using testing::FakeGraphicsContextProvider;
 
 const char* kAudioTestFiles[] = {
     "beneath_the_canopy_aac_stereo.dmp",
