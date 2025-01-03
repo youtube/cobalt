@@ -37,7 +37,7 @@ runs:
           --token ${GITHUB_TOKEN} \
           ${DIMENSION:+"--dimension" "$DIMENSION"} \
           ${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" "$ON_DEVICE_TEST_ATTEMPTS"} \
-          --archive_path "${GCS_PATH}/artifacts.tar" \
+          --archive_path "${GCS_PATH}" \
           --gcs_result_path "${GCS_RESULTS_PATH}" \
           trigger \
       shell: bash
