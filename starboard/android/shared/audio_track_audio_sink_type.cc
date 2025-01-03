@@ -561,20 +561,30 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFramesInternal(
 }  // namespace android
 }  // namespace starboard
 
+namespace starboard {
+namespace shared {
+namespace starboard {
+namespace audio_sink {
+
 // static
-void SbAudioSinkPrivate::PlatformInitialize() {
+void SbAudioSinkImpl::PlatformInitialize() {
   SB_DCHECK(!audio_track_audio_sink_type_);
   audio_track_audio_sink_type_ =
-      new starboard::android::shared::AudioTrackAudioSinkType;
+      new ::starboard::android::shared::AudioTrackAudioSinkType;
   SetPrimaryType(audio_track_audio_sink_type_);
   EnableFallbackToStub();
   audio_track_audio_sink_type_->TestMinRequiredFrames();
 }
 
 // static
-void SbAudioSinkPrivate::PlatformTearDown() {
+void SbAudioSinkImpl::PlatformTearDown() {
   SB_DCHECK(audio_track_audio_sink_type_ == GetPrimaryType());
   SetPrimaryType(NULL);
   delete audio_track_audio_sink_type_;
   audio_track_audio_sink_type_ = NULL;
 }
+
+}  // namespace audio_sink
+}  // namespace starboard
+}  // namespace shared
+}  // namespace starboard

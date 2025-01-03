@@ -36,10 +36,11 @@ namespace shared {
 namespace alsa {
 namespace {
 
-using starboard::ScopedLock;
-using starboard::ScopedTryLock;
-using starboard::shared::alsa::AlsaGetBufferedFrames;
-using starboard::shared::alsa::AlsaWriteFrames;
+using ::starboard::ScopedLock;
+using ::starboard::ScopedTryLock;
+using ::starboard::shared::alsa::AlsaGetBufferedFrames;
+using ::starboard::shared::alsa::AlsaWriteFrames;
+using ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl;
 
 // The maximum number of frames that can be written to ALSA once.  It must be a
 // power of 2.  It is also used as the ALSA polling size.  A small number will
@@ -81,7 +82,7 @@ void* IncrementPointerByBytes(void* pointer, size_t offset) {
 // 2. It never stops the underlying ALSA audio sink once created.  When its
 //    source cannot provide enough data to continue playback, it simply writes
 //    silence to ALSA.
-class AlsaAudioSink : public SbAudioSinkPrivate {
+class AlsaAudioSink : public SbAudioSinkImpl {
  public:
   AlsaAudioSink(Type* type,
                 int channels,
@@ -142,8 +143,8 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
   SbMediaAudioSampleType sample_type_;
 
   pthread_t audio_out_thread_;
-  starboard::Mutex mutex_;
-  starboard::ConditionVariable creation_signal_;
+  ::starboard::Mutex mutex_;
+  ::starboard::ConditionVariable creation_signal_;
 
   int64_t time_to_wait_;
 
@@ -215,7 +216,7 @@ AlsaAudioSink::~AlsaAudioSink() {
 // static
 void* AlsaAudioSink::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "alsa_audio_out");
-  starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
+  ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
   SB_DCHECK(context);
   AlsaAudioSink* sink = reinterpret_cast<AlsaAudioSink*>(context);
   sink->AudioThreadFunc();
@@ -228,7 +229,7 @@ void AlsaAudioSink::AudioThreadFunc() {
       sample_type_ == kSbMediaAudioSampleTypeFloat32 ? SND_PCM_FORMAT_FLOAT_LE
                                                      : SND_PCM_FORMAT_S16;
 
-  playback_handle_ = starboard::shared::alsa::AlsaOpenPlaybackDevice(
+  playback_handle_ = ::starboard::shared::alsa::AlsaOpenPlaybackDevice(
       channels_, sampling_frequency_hz_, kFramesPerRequest,
       kALSABufferSizeInFrames, alsa_sample_type);
   {
@@ -249,7 +250,7 @@ void AlsaAudioSink::AudioThreadFunc() {
     }
   }
 
-  starboard::shared::alsa::AlsaCloseDevice(playback_handle_);
+  ::starboard::shared::alsa::AlsaCloseDevice(playback_handle_);
   ScopedLock lock(mutex_);
   playback_handle_ = NULL;
 }
@@ -450,25 +451,23 @@ SbAudioSink AlsaAudioSinkType::Create(
   return audio_sink;
 }
 
-}  // namespace
-
-namespace {
 AlsaAudioSinkType* alsa_audio_sink_type_;
+
 }  // namespace
 
 // static
 void PlatformInitialize() {
   SB_DCHECK(!alsa_audio_sink_type_);
   alsa_audio_sink_type_ = new AlsaAudioSinkType();
-  SbAudioSinkPrivate::SetPrimaryType(alsa_audio_sink_type_);
+  SbAudioSinkImpl::SetPrimaryType(alsa_audio_sink_type_);
 }
 
 // static
 void PlatformTearDown() {
   SB_DCHECK(alsa_audio_sink_type_);
-  SB_DCHECK(alsa_audio_sink_type_ == SbAudioSinkPrivate::GetPrimaryType());
+  SB_DCHECK(alsa_audio_sink_type_ == SbAudioSinkImpl::GetPrimaryType());
 
-  SbAudioSinkPrivate::SetPrimaryType(NULL);
+  SbAudioSinkImpl::SetPrimaryType(NULL);
   delete alsa_audio_sink_type_;
   alsa_audio_sink_type_ = NULL;
 }

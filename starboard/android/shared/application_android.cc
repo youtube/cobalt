@@ -68,7 +68,7 @@ ApplicationAndroid::ApplicationAndroid(
       "getResourceOverlay", "()Ldev/cobalt/coat/ResourceOverlay;");
   resource_overlay_ = env->ConvertLocalRefToGlobalRef(local_ref);
 
-  SbAudioSinkPrivate::Initialize();
+  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
 
   app_start_timestamp_ = starboard_bridge_->GetAppStartTimestamp();
 
