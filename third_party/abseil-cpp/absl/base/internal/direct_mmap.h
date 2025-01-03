@@ -24,8 +24,8 @@
 
 #include <sys/mman.h>
 
-#ifdef __linux__
-
+#include "build/build_config.h"
+#if defined(__linux__) && !BUILDFLAG(IS_STARBOARD)
 #include <sys/types.h>
 #ifdef __BIONIC__
 #include <sys/syscall.h>
