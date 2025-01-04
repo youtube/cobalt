@@ -8,13 +8,11 @@
 # Kokoro Instance
 # └── Generic DinD Image
 #     ├── dind_builder_runner.sh
-#     │   ├── configure_environment (common.sh)
 #     │   ├── main_build_image_and_run.py
 #     │   │   └── Specific Cobalt Image
 #     │   │       └── dind_build.sh                             <= THIS SCRIPT
 #     │   └── run_package_release_pipeline (common.sh)
 #     └── dind_runner.sh
-#         ├── configure_environment (common.sh)
 #         ├── main_pull_image_and_run.py
 #         │   └── Specific Cobalt Image
 #         │       └── dind_build.sh                             <= THIS SCRIPT
@@ -43,8 +41,6 @@ fi
 . $(dirname "$0")/common.sh
 
 WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/git/src"
-
-configure_environment
 
 pipeline () {
   local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"

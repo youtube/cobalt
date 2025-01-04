@@ -21,13 +21,11 @@ Implements a periodic check for the image on the registry with a timeout.
    Kokoro Instance
    └── Generic DinD Image
        ├── dind_builder_runner.sh
-       │   ├── configure_environment (common.sh)
        │   ├── main_build_image_and_run.py
        │   │   └── Specific Cobalt Image
        │   │       └── dind_build.sh
        │   └── run_package_release_pipeline (common.sh)
        └── dind_runner.sh
-           ├── configure_environment (common.sh)
            ├── main_pull_image_and_run.py                       <= THIS SCRIPT
            │   └── Specific Cobalt Image
            │       └── dind_build.sh
