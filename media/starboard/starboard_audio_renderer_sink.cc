@@ -29,12 +29,17 @@ int AlignUp(int value, int alignment) {
 
 void StarboardAudioRendererSink::Initialize(const AudioParameters& params,
                                             RenderCallback* callback) {
-  DCHECK(callback);
   LOG(INFO) << "StarboardAudioRendererSink::Initialize - called with following "
                "parameters:"
             << params.AsHumanReadableString();
   params_ = params;
-  callback_ = callback;
+
+  DCHECK(callback);
+  {
+    base::AutoLock auto_lock(callback_lock_);
+    DCHECK(!callback_);
+    callback_ = callback;
+  }
 }
 
 void StarboardAudioRendererSink::Start() {
@@ -44,11 +49,16 @@ void StarboardAudioRendererSink::Start() {
 void StarboardAudioRendererSink::Stop() {
   is_eos_reached_ = true;
   SbAudioSinkDestroy(audio_sink_);
-  callback_ = nullptr;
+  {
+    base::AutoLock auto_lock(callback_lock_);
+    callback_ = nullptr;
+  }
 }
+
 void StarboardAudioRendererSink::Play() {
   is_playing_ = true;
 }
+
 void StarboardAudioRendererSink::Pause() {
   is_playing_ = false;
 }
@@ -117,6 +127,10 @@ void StarboardAudioRendererSink::UpdateSourceStatus(int* frames_in_buffer,
   *frames_in_buffer = static_cast<int>(frames_rendered_ - frames_consumed_);
 
   DCHECK(input_audio_bus_);
+  base::AutoLock lock(callback_lock_);
+  if (!callback_) {
+    return;
+  }
 
   while ((frames_per_channel_ - *frames_in_buffer) >=
          params_.frames_per_buffer()) {

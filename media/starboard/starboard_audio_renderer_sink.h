@@ -17,6 +17,8 @@
 
 #include "starboard/audio_sink.h"
 
+#include "base/synchronization/lock.h"
+
 #include "media/base/audio_renderer_sink.h"
 #include "media/base/media_export.h"
 
@@ -73,7 +75,11 @@ class MEDIA_EXPORT StarboardAudioRendererSink : public AudioRendererSink {
   std::vector<float_t> output_frame_buffer_;
   std::vector<void*> output_frame_buffers_;
 
-  RenderCallback* callback_;
+  // |callback_| is set in Initialize() and nulled in Stop() which are run on
+  // main thread, however the callback_->Render() is run on audio thread and
+  // must be guaranteed not to run after Stop() has been called.
+  base::Lock callback_lock_;
+  RenderCallback* callback_ GUARDED_BY(callback_lock_) = nullptr;
 
   int64_t frames_rendered_ = 0;  // Frames retrieved from |callback_|.
   int64_t frames_consumed_ = 0;  // Accumulated frames consumed by the sink.
