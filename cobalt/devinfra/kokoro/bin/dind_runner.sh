@@ -9,13 +9,11 @@
 # Kokoro Instance
 # └── Generic DinD Image
 #     ├── dind_builder_runner.sh
-#     │   ├── configure_environment (common.sh)
 #     │   ├── main_build_image_and_run.py
 #     │   │   └── Specific Cobalt Image
 #     │   │       └── dind_build.sh
 #     │   └── run_package_release_pipeline (common.sh)
 #     └── dind_runner.sh                                    <== THIS SCRIPT
-#         ├── configure_environment (common.sh)
 #         ├── main_pull_image_and_run.py
 #         │   └── Specific Cobalt Image
 #         │       └── dind_build.sh
@@ -33,8 +31,6 @@ cd "${WORKSPACE_COBALT}"
 trap "bash ${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/cleanup.sh" EXIT INT TERM
 
 configure_dind_environment
-
-configure_environment
 
 set -x
 # The python script is responsible for running containerized Cobalt builds.
