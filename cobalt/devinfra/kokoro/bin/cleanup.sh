@@ -5,5 +5,6 @@ set -x
 # Especially on Windows, the rsync can take long time, so we cleanup the cobalt workspace
 # after finishing each build.
 set +e
+git config --global --add safe.directory "${WORKSPACE_COBALT}"
 time git -C "${WORKSPACE_COBALT}" clean -dfx
 exit 0
