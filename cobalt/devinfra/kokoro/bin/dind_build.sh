@@ -40,8 +40,6 @@ fi
 # Load common routines (we only need run_gn and ninja_build).
 . $(dirname "$0")/common.sh
 
-WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/git/src"
-
 pipeline () {
   local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
   local gclient_root="${KOKORO_ARTIFACTS_DIR}/chromium"
