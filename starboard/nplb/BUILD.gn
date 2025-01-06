@@ -47,6 +47,8 @@ test("nplb") {
     "//starboard/nplb/sabi/struct_alignment_test.cc",
     "//starboard/shared/starboard/drm/drm_test_helpers.cc",
     "//starboard/shared/starboard/drm/drm_test_helpers.h",
+    "//starboard/testing/fake_graphics_context_provider.cc",
+    "//starboard/testing/fake_graphics_context_provider.h",
     "align_test.cc",
     "audio_sink_create_test.cc",
     "audio_sink_destroy_test.cc",
@@ -219,8 +221,6 @@ test("nplb") {
 
   if (!is_android) {
     sources += [
-      "//starboard/testing/fake_graphics_context_provider.cc",
-      "//starboard/testing/fake_graphics_context_provider.h",
       "maximum_player_configuration_explorer_test.cc",
       "media_set_audio_write_duration_test.cc",
       "multiple_player_test.cc",

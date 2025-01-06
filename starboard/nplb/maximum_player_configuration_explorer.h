@@ -23,8 +23,7 @@
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
-// TODO(cobalt, b/377295011): remove the nogncheck annotation.
-#include "starboard/testing/fake_graphics_context_provider.h"  // nogncheck
+#include "starboard/testing/fake_graphics_context_provider.h"
 
 namespace starboard {
 namespace nplb {
