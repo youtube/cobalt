@@ -192,6 +192,20 @@ class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
 
 }  // namespace
 
+MediaModule::MediaModule(system_window::SystemWindow* system_window,
+                         render_tree::ResourceProvider* resource_provider,
+                         const Options& options)
+    : sbplayer_interface_(new DefaultSbPlayerInterface),
+      options_(options),
+      system_window_(system_window),
+      resource_provider_(resource_provider) {
+  Initialize();
+}
+
+void MediaModule::Initialize() {
+  SetPreferMinimalPostProcessingFromPersistentSettings();
+}
+
 bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
   if (name == "MaxAudioSamplesPerWrite" && value > 0) {
     max_audio_samples_per_write_ = value;
@@ -262,6 +276,29 @@ bool MediaModule::SetConfiguration(const std::string& name, int32 value) {
   }
 
   return false;
+}
+
+void MediaModule::SetPreferMinimalPostProcessingFromPersistentSettings() {
+  // Called on initialization and when the persistent setting is changed.
+  if (options_.persistent_settings == nullptr) {
+    return;
+  }
+
+  base::Value value;
+  options_.persistent_settings->Get(
+      kPreferMinimalPostProcessingPersistentSettingsKey, &value);
+  bool prefer_minimal_post_processing = value.GetIfBool().value_or(false);
+
+  const StarboardExtensionMediaSettingsApi* media_settings_api =
+      static_cast<const StarboardExtensionMediaSettingsApi*>(
+          SbSystemGetExtension(kStarboardExtensionMediaSettingsName));
+  if (media_settings_api &&
+      std::string(media_settings_api->name) ==
+          kStarboardExtensionMediaSettingsName &&
+      media_settings_api->version >= 3) {
+    media_settings_api->SetPreferMinimalPostProcessing(
+        prefer_minimal_post_processing);
+  }
 }
 
 std::unique_ptr<WebMediaPlayer> MediaModule::CreateWebMediaPlayer(

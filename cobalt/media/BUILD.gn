@@ -106,6 +106,7 @@ component("media") {
     "//cobalt/loader:origin",
     "//cobalt/math",
     "//cobalt/network",
+    "//cobalt/persistent_storage:persistent_settings",
     "//cobalt/render_tree:render_tree",
     "//cobalt/system_window:system_window",
     "//media",

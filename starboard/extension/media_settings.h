@@ -40,6 +40,10 @@ typedef struct StarboardExtensionMediaSettingsApi {
   // Android TV.
   void (*SetAsyncReleaseMediaCodecBridgeTimeoutSeconds)(int timeout);
 
+  // This API passes the boolean through to
+  // Window.setPreferMinimalPostProcessing on Android TV.
+  // Added in extension version 3.
+  void (*SetPreferMinimalPostProcessing)(bool value);
 } StarboardExtensionMediaSettingsApi;
 
 #ifdef __cplusplus

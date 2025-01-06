@@ -827,4 +827,13 @@ public class StarboardBridge {
       return 0;
     }
   }
+
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected void setPreferMinimalPostProcessing(boolean value) {
+    Activity activity = activityHolder.get();
+    if (activity instanceof CobaltActivity) {
+      ((CobaltActivity) activity).setPreferMinimalPostProcessing(value);
+    }
+  }
 }

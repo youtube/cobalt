@@ -63,6 +63,8 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
   const char kHTTP2[] = "HTTP2";
   const char kHTTP3[] = "HTTP3";
   const char kSkiaRasterizer[] = "SkiaRasterizer";
+  const char kSetPreferMinimalPostProcessing[] =
+      "SetPreferMinimalPostProcessing";
 
 #if SB_IS(EVERGREEN)
   const char kUpdaterMinFreeSpaceBytes[] = "Updater.MinFreeSpaceBytes";
@@ -79,6 +81,19 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
                ? media_module_->SetConfiguration(
                      name.substr(strlen(kMediaPrefix)), value.AsType<int32>())
                : false;
+  }
+
+  if (name.compare(kSetPreferMinimalPostProcessing) == 0 &&
+      value.IsType<int32>()) {
+    if (!persistent_settings_ || !media_module_) {
+      return false;
+    } else {
+      persistent_settings_->Set(
+          media::kPreferMinimalPostProcessingPersistentSettingsKey,
+          base::Value(value.AsType<int32>() == 1));
+      media_module_->SetPreferMinimalPostProcessingFromPersistentSettings();
+      return true;
+    }
   }
 
   if (name.compare(kNavigatorUAData) == 0 && value.IsType<int32>() &&

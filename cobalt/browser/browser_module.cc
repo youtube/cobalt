@@ -1675,6 +1675,8 @@ void BrowserModule::InitializeComponents() {
   } else {
     options_.media_module_options.allow_resume_after_suspend =
         SbSystemSupportsResume();
+    options_.media_module_options.persistent_settings =
+        options_.persistent_settings;
     media_module_.reset(new media::MediaModule(system_window_.get(),
                                                GetResourceProvider(),
                                                options_.media_module_options));

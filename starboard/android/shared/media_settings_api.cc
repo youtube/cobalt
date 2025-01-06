@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/android/shared/media_settings_api.h"
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/media_codec_bridge_eradicator.h"
 #include "starboard/extension/media_settings.h"
 
@@ -33,11 +34,18 @@ void SetAsyncReleaseMediaCodecBridgeTimeoutSeconds(int timeout_seconds) {
   MediaCodecBridgeEradicator::GetInstance()->SetTimeoutSeconds(timeout_seconds);
 }
 
+void SetPreferMinimalPostProcessing(bool value) {
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallStarboardVoidMethodOrAbort("setPreferMinimalPostProcessing", "(Z)V",
+                                      static_cast<jboolean>(value));
+}
+
 const StarboardExtensionMediaSettingsApi kMediaSettingsApi = {
     kStarboardExtensionMediaSettingsName,
-    2,  // API version that's implemented.
+    3,  // API version that's implemented.
     &EnableAsyncReleaseMediaCodecBridge,
     &SetAsyncReleaseMediaCodecBridgeTimeoutSeconds,
+    &SetPreferMinimalPostProcessing,
 };
 
 }  // namespace

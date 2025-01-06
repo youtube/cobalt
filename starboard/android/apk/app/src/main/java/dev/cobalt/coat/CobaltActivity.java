@@ -23,6 +23,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Pair;
 import android.view.View;
@@ -420,5 +421,23 @@ public abstract class CobaltActivity extends GameActivity {
 
   public long getAppStartTimestamp() {
     return timeInNanoseconds;
+  }
+
+  public void setPreferMinimalPostProcessing(boolean value) {
+    if (Build.VERSION.SDK_INT < 30) {
+      return;
+    }
+
+    Runnable runnable =
+        new Runnable() {
+          @Override
+          public void run() {
+            if (getDisplay().isMinimalPostProcessingSupported()) {
+              getWindow().setPreferMinimalPostProcessing(value);
+            }
+          }
+        };
+
+    runOnUiThread(runnable);
   }
 }
