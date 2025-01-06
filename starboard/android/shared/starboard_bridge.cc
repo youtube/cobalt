@@ -62,6 +62,12 @@ void StarboardBridge::ApplicationStopping() {
   CHECK(env);
   return Java_StarboardBridge_applicationStopping(env, j_starboard_bridge_);
 }
+
+base::android::ScopedJavaLocalRef<jintArray>
+StarboardBridge::GetSupportedHdrTypes(JNIEnv* env) {
+  CHECK(env);
+  return Java_StarboardBridge_getSupportedHdrTypes(env, j_starboard_bridge_);
+}
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard

@@ -719,7 +719,7 @@ public class StarboardBridge {
 
   /** Return supported hdr types. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public int[] getSupportedHdrTypes() {
     Display defaultDisplay = DisplayUtil.getDefaultDisplay();
     if (defaultDisplay == null) {

@@ -39,6 +39,9 @@ class StarboardBridge {
 
   void ApplicationStopping();
 
+  base::android::ScopedJavaLocalRef<jintArray> GetSupportedHdrTypes(
+      JNIEnv* env);
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;
