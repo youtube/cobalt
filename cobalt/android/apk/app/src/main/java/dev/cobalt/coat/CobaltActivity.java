@@ -104,11 +104,8 @@ public abstract class CobaltActivity extends Activity {
     if (!CommandLine.isInitialized()) {
       ((CobaltApplication) getApplication()).initCommandLine();
 
-      // Note that appendSwitchesAndArguments excludes cobaltCommandLineParams[0]
-      // as the program name, and all other arguments SHOULD start with '--'.
       String[] cobaltCommandLineParams =
           new String[] {
-            "",
             // Disable first run experience.
             "--disable-fre",
             // Disable user prompts in the first run.
@@ -125,6 +122,8 @@ public abstract class CobaltActivity extends Activity {
             "--enable-features=LogJsConsoleMessages",
             // Disable rescaling Webpage.
             "--force-device-scale-factor=1",
+            // Enable low end device mode.
+            "--enable-low-end-device-mode",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
 
