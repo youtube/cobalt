@@ -355,6 +355,10 @@ extern "C" SB_EXPORT_PLATFORM void GameActivity_onCreate(
     pthread_attr_init(&attributes);
     pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
 
+    // 1MB (Android default) stack size is not enough
+    //  for "installation_manager". Change it to 2MB.
+    pthread_attr_setstacksize(&attributes, 2 * (1024 * 1024));
+
     pthread_create(&g_starboard_thread, &attributes, &ThreadEntryPoint,
                    &semaphore);
 
