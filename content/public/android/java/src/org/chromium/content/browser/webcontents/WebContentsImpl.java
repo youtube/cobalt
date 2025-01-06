@@ -607,6 +607,7 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
 
     @Override
     public void onHide() {
+        Log.e(TAG, "Cobalt: WebContentsImpl onHide");
         checkNotDestroyed();
         SelectionPopupControllerImpl controller = getSelectionPopupController();
         if (controller != null) controller.hidePopupsAndPreserveSelection();
@@ -615,6 +616,7 @@ public class WebContentsImpl implements WebContents, RenderFrameHostDelegate, Wi
 
     @Override
     public void onShow() {
+        Log.e(TAG, "Cobalt: WebContentsImpl onShow");
         checkNotDestroyed();
         SelectionPopupControllerImpl controller = getSelectionPopupController();
         if (controller != null) controller.restoreSelectionPopupsIfNecessary();

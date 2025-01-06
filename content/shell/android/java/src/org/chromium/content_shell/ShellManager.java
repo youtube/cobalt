@@ -13,6 +13,7 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
+import org.chromium.base.Log;
 import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.WindowAndroid;
@@ -23,6 +24,7 @@ import org.chromium.ui.base.WindowAndroid;
 @JNINamespace("content")
 public class ShellManager extends FrameLayout {
 
+    private static final String TAG = "ShellManager";
     public static final String DEFAULT_SHELL_URL = "http://www.google.com";
     private WindowAndroid mWindow;
     private Shell mActiveShell;
@@ -44,6 +46,7 @@ public class ShellManager extends FrameLayout {
      * @param window The window used to generate all shells.
      */
     public void setWindow(WindowAndroid window) {
+        Log.e(TAG, "Cobalt: ShellManager setWindow");
         assert window != null;
         mWindow = window;
         mContentViewRenderView = new ContentViewRenderView(getContext());
@@ -75,6 +78,7 @@ public class ShellManager extends FrameLayout {
      * @return The currently visible shell view or null if one is not showing.
      */
     public Shell getActiveShell() {
+        Log.e(TAG, "Cobalt: ShellManager getActiveShell " + mActiveShell);
         return mActiveShell;
     }
 
@@ -83,6 +87,7 @@ public class ShellManager extends FrameLayout {
      * @param url The URL the shell should load upon creation.
      */
     public void launchShell(String url) {
+        Log.e(TAG, "Cobalt: ShellManager launchShell " + url);
         ThreadUtils.assertOnUiThread();
         Shell previousShell = mActiveShell;
         ShellManagerJni.get().launchShell(url);
@@ -92,6 +97,7 @@ public class ShellManager extends FrameLayout {
     @SuppressWarnings("unused")
     @CalledByNative
     private Object createShell(long nativeShellPtr) {
+        Log.e(TAG, "Cobalt: ShellManager createShell");
         if (mContentViewRenderView == null) {
             mContentViewRenderView = new ContentViewRenderView(getContext());
             mContentViewRenderView.onNativeLibraryLoaded(mWindow);
@@ -109,12 +115,14 @@ public class ShellManager extends FrameLayout {
     }
 
     private void showShell(Shell shellView) {
+        Log.e(TAG, "Cobalt: ShellManager showShell 11");
         shellView.setContentViewRenderView(mContentViewRenderView);
         addView(shellView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         mActiveShell = shellView;
         WebContents webContents = mActiveShell.getWebContents();
         if (webContents != null) {
+            Log.e(TAG, "Cobalt: ShellManager showShell 22");
             mContentViewRenderView.setCurrentWebContents(webContents);
             webContents.onShow();
         }
@@ -122,6 +130,7 @@ public class ShellManager extends FrameLayout {
 
     @CalledByNative
     private void removeShell(Shell shellView) {
+        Log.e(TAG, "Cobalt: ShellManager removeShell 11");
         if (shellView == mActiveShell) mActiveShell = null;
         if (shellView.getParent() == null) return;
         shellView.setContentViewRenderView(null);

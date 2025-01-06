@@ -172,21 +172,27 @@ public class StarboardBridge {
   protected void onActivityStop(Activity activity) {
     Log.e(TAG, "onActivityStop ran");
     beforeSuspend();
+    Log.e(TAG, "onActivityStop ran 11");
     if (activityHolder.get() == activity) {
+      Log.e(TAG, "onActivityStop ran 22");
       activityHolder.set(null);
+      Log.e(TAG, "onActivityStop ran 33");
     }
+    Log.e(TAG, "onActivityStop ran 44");
     sysConfigChangeReceiver.setForeground(false);
+    Log.e(TAG, "onActivityStop ran 55");
     afterStopped();
+    Log.e(TAG, "onActivityStop ran 66");
   }
 
   protected void onActivityDestroy(Activity activity) {
     if (applicationStopped) {
       // We can't restart the starboard app, so kill the process for a clean start next time.
-      Log.i(TAG, "Activity destroyed after shutdown; killing app.");
+      Log.e(TAG, "Cobalt: Activity destroyed after shutdown; killing app.");
       closeNativeStarboard(nativeApp);
-      System.exit(0);
+      //System.exit(0);
     } else {
-      Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
+      Log.e(TAG, "Cobalt: Activity destroyed without shutdown; app suspended in background.");
     }
   }
 
@@ -241,16 +247,16 @@ public class StarboardBridge {
     for (CobaltService service : cobaltServices.values()) {
       service.afterStopped();
     }
-    Activity activity = activityHolder.get();
+    /*Activity activity = activityHolder.get();
     if (activity != null) {
       // Wait until the activity is destroyed to exit.
-      Log.i(TAG, "Shutdown in foreground; finishing Activity and removing task.");
+      Log.e(TAG, "Cobalt: Shutdown in foreground; finishing Activity and removing task.");
       activity.finishAndRemoveTask();
     } else {
       // We can't restart the starboard app, so kill the process for a clean start next time.
-      Log.i(TAG, "Shutdown in background; killing app without removing task.");
+      Log.e(TAG, "Cobalt: Shutdown in background; killing app without removing task.");
       System.exit(0);
-    }
+    }*/
   }
 
   @SuppressWarnings("unused")

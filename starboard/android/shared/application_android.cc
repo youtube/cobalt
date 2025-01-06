@@ -54,6 +54,7 @@ void stubSbEventHandle(const SbEvent* event) {
 ApplicationAndroid::ApplicationAndroid(
     std::unique_ptr<CommandLine> command_line)
     : QueueApplication(stubSbEventHandle) {
+  SB_LOG(ERROR) << "Cobalt: " << __func__;
   SetCommandLine(std::move(command_line));
   // Initialize Time Zone early so that local time works correctly.
   // Called once here to help SbTimeZoneGet*Name()
@@ -76,6 +77,7 @@ ApplicationAndroid::ApplicationAndroid(
 }
 
 ApplicationAndroid::~ApplicationAndroid() {
+  SB_LOG(ERROR) << "Cobalt: " << __func__;
   starboard_bridge_->ApplicationStopping();
 
   // The application is exiting.

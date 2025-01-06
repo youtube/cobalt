@@ -27,6 +27,7 @@ import org.chromium.base.Callback;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
+import org.chromium.base.Log;
 import org.chromium.components.embedder_support.view.ContentView;
 import org.chromium.components.embedder_support.view.ContentViewRenderView;
 import org.chromium.content_public.browser.ActionModeCallbackHelper;
@@ -43,6 +44,7 @@ import org.chromium.ui.base.WindowAndroid;
 @JNINamespace("content")
 public class Shell extends LinearLayout {
 
+    private static final String TAG = "Shell";
     private static final long COMPLETED_PROGRESS_TIMEOUT_MS = 200;
 
     // Stylus handwriting: Setting this ime option instructs stylus writing service to restrict
@@ -110,6 +112,7 @@ public class Shell extends LinearLayout {
      * @param window The owning window for this shell.
      */
     public void initialize(long nativeShell, WindowAndroid window) {
+        Log.e(TAG, "Cobalt: Shell initialize");
         mNativeShell = nativeShell;
         mWindow = window;
     }
@@ -125,6 +128,7 @@ public class Shell extends LinearLayout {
 
     @CalledByNative
     private void onNativeDestroyed() {
+        Log.e(TAG, "Cobalt: Shell onNativeDestroyed");
         mWindow = null;
         mNativeShell = 0;
         mWebContents = null;
@@ -302,6 +306,7 @@ public class Shell extends LinearLayout {
     @SuppressWarnings("unused")
     @CalledByNative
     private void initFromNativeTabContents(WebContents webContents) {
+        Log.e(TAG, "Cobalt: Shell initFromNativeTabContents 11");
         Context context = getContext();
         ContentView cv =
                 ContentView.createContentView(context, null /* eventOffsetHandler */, webContents);
@@ -314,7 +319,10 @@ public class Shell extends LinearLayout {
         SelectionPopupController.fromWebContents(webContents)
                 .setActionModeCallback(defaultActionCallback());
         mNavigationController = mWebContents.getNavigationController();
-        if (getParent() != null) mWebContents.onShow();
+        if (getParent() != null) {
+            Log.e(TAG, "Cobalt: Shell initFromNativeTabContents 22");
+            mWebContents.onShow();
+        }
         mUrlTextView.setText(mWebContents.getVisibleUrl().getSpec());
         ((FrameLayout) findViewById(R.id.contentview_holder)).addView(cv,
                 new FrameLayout.LayoutParams(
@@ -401,6 +409,7 @@ public class Shell extends LinearLayout {
      * @return The {@link WebContents} currently managing the content shown by this Shell.
      */
     public WebContents getWebContents() {
+        Log.e(TAG, "Cobalt: Shell getWebContents " + mWebContents);
         return mWebContents;
     }
 

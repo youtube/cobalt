@@ -234,7 +234,7 @@ public abstract class CobaltActivity extends Activity {
     // Inject JavaBridge objects to the WebContents.
     initializeJavaBridge();
     // Load the `url` with the same shell we created above.
-    Log.i(TAG, "shellManager load url:" + shellUrl);
+    Log.e(TAG, "Cobalt: shellManager load url:" + shellUrl);
     mShellManager.getActiveShell().loadUrl(shellUrl);
 
     toggleFullscreenMode(true);
@@ -252,6 +252,7 @@ public abstract class CobaltActivity extends Activity {
   // Initially copied from ContentShellActiviy.java
   @Override
   protected void onSaveInstanceState(Bundle outState) {
+    Log.e(TAG, "Cobalt: CobaltActivity onSaveInstanceState");
     super.onSaveInstanceState(outState);
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
@@ -359,6 +360,7 @@ public abstract class CobaltActivity extends Activity {
    * @return The currently visible {@link Shell} or null if one is not showing.
    */
   public Shell getActiveShell() {
+    Log.e(TAG, "Cobalt: CobaltActivity getActiveShell " + mShellManager);
     return mShellManager != null ? mShellManager.getActiveShell() : null;
   }
 
@@ -369,6 +371,7 @@ public abstract class CobaltActivity extends Activity {
   @Nullable
   public WebContents getActiveWebContents() {
     Shell shell = getActiveShell();
+    Log.e(TAG, "Cobalt: CobaltActivity getActiveWebContents " + shell);
     return shell != null ? shell.getWebContents() : null;
   }
 
@@ -383,6 +386,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
+    Log.e(TAG, "Cobalt: CobaltActivity onCreate");
     // Record the application start timestamp.
     timeInNanoseconds = System.nanoTime();
 
@@ -448,6 +452,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStart() {
+    Log.e(TAG, "Cobalt: CobaltActivity onStart 11");
     if (!isReleaseBuild()) {
       getStarboardBridge().getAudioOutputManager().dumpAllOutputDevices();
       MediaCodecCapabilitiesLogger.dumpAllDecoders();
@@ -465,6 +470,7 @@ public abstract class CobaltActivity extends Activity {
 
     WebContents webContents = getActiveWebContents();
     if (webContents != null) {
+      Log.e(TAG, "Cobalt: CobaltActivity onStart 22");
       webContents.onShow();
     }
     super.onStart();
@@ -472,11 +478,16 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onStop() {
-    getStarboardBridge().onActivityStop(this);
+    Log.e(TAG, "Cobalt: CobaltActivity onStop 22");
     super.onStop();
+    Log.e(TAG, "Cobalt: CobaltActivity onStop 33");
 
     WebContents webContents = getActiveWebContents();
-    if (webContents != null) webContents.onHide();
+    Log.e(TAG, "Cobalt: CobaltActivity onStop 44");
+    if (webContents != null) {
+      Log.e(TAG, "Cobalt: CobaltActivity onStop 55");
+      webContents.onHide();
+    }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
       forceCreateNewVideoSurfaceView = true;
@@ -485,16 +496,20 @@ public abstract class CobaltActivity extends Activity {
     // Set the SurfaceView to fullscreen.
     View rootView = getWindow().getDecorView();
     setVideoSurfaceBounds(0, 0, rootView.getWidth(), rootView.getHeight());
+
+    Log.e(TAG, "Cobalt: CobaltActivity onStop 11");
+    getStarboardBridge().onActivityStop(this);
   }
 
   @Override
   protected void onDestroy() {
+    Log.e(TAG, "Cobalt: CobaltActivity onDestroy");
     if (mShellManager != null) {
       mShellManager.destroy();
     }
     mWindowAndroid.destroy();
     super.onDestroy();
-    getStarboardBridge().onActivityDestroy(this);
+    //getStarboardBridge().onActivityDestroy(this);
   }
 
   @Override

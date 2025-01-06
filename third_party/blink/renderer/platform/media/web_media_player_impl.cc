@@ -411,6 +411,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
                               base::Unretained(this))),
       will_play_helper_(nullptr) {
   DVLOG(1) << __func__;
+  LOG(ERROR) << "Cobalt: " << __func__;
   DCHECK(adjust_allocated_memory_cb_);
   DCHECK(renderer_factory_selector_);
   DCHECK(client_);
@@ -530,6 +531,7 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 
 WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   DVLOG(1) << __func__;
+  LOG(ERROR) << "Cobalt: " << __func__;
   DCHECK(main_task_runner_->BelongsToCurrentThread());
 
   ReportSessionUMAs();
