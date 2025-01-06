@@ -90,7 +90,7 @@ bool H5vccSettings::Set(const std::string& name, SetValueType value) const {
     } else {
       persistent_settings_->Set(
           media::kPreferMinimalPostProcessingPersistentSettingsKey,
-          base::Value(value.AsType<int32>() != 0));
+          base::Value(value.AsType<int32>() == 1));
       media_module_->SetPreferMinimalPostProcessingFromPersistentSettings();
       return true;
     }

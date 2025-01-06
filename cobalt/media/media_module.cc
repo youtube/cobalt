@@ -293,8 +293,8 @@ void MediaModule::SetPreferMinimalPostProcessingFromPersistentSettings() {
       static_cast<const StarboardExtensionMediaSettingsApi*>(
           SbSystemGetExtension(kStarboardExtensionMediaSettingsName));
   if (media_settings_api &&
-      strcmp(media_settings_api->name, kStarboardExtensionMediaSettingsName) ==
-          0 &&
+      std::string(media_settings_api->name) ==
+          kStarboardExtensionMediaSettingsName &&
       media_settings_api->version >= 3) {
     media_settings_api->SetPreferMinimalPostProcessing(
         prefer_minimal_post_processing);
