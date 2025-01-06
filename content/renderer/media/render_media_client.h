@@ -15,6 +15,10 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "mojo/public/cpp/bindings/shared_remote.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/decoder_buffer_allocator.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace content {
 
 // RenderMediaClient is purely plumbing to make content embedder customizations
@@ -59,6 +63,11 @@ class RenderMediaClient : public media::MediaClient {
   [[maybe_unused]] mojo::SharedRemote<media::mojom::VideoDecoder>
       video_decoder_for_supported_profiles_
           GUARDED_BY_CONTEXT(main_thread_sequence_checker_);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // TODO(b/326497953): Support Suspend() and Resume().
+  ::media::DecoderBufferAllocator decoder_buffer_allocator_;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace content
