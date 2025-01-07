@@ -40,7 +40,6 @@ class UtilsTest(unittest.TestCase):
           'REGISTRY_PATH': 'us-central1-docker.pkg.dev',
           'REGISTRY_IMAGE_NAME': 'docker-build-failure',
           'PLATFORM': 'linux-x64x11',
-          'KOKORO_BUILD_NUMBER': '999',
           'WORKSPACE_COBALT': '/tmp'
       },
       clear=True)
@@ -50,7 +49,6 @@ class UtilsTest(unittest.TestCase):
     self.assertEqual(args.registry_path, 'us-central1-docker.pkg.dev')
     self.assertEqual(args.registry_img, 'docker-build-failure')
     self.assertEqual(args.platform, 'linux-x64x11')
-    self.assertEqual(args.build_num, '999')
     self.assertEqual(args.src_root, '/tmp')
 
   @mock.patch('subprocess.check_output')
