@@ -29,15 +29,45 @@ runs:
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
         GCS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}_${{ matrix.config }}
+        GITHUB_SHA: ${{ github.sha }}
+        GITHUB_TOKEN: ${{ github.token }}
+        GITHUB_EVENT_NAME: ${{ github.event_name }}
+        GITHUB_ACTOR: ${{ github.actor }}
+        GITHUB_TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        GITHUB_ACTOR_ID: ${{ github.actor_id }}
+        GITHUB_REPO: ${{ github.repository }}
+        GITHUB_PR_HEAD_USER_LOGIN: ${{ github.event.pull_request.head.user.login }}
+        GITHUB_PR_HEAD_USER_ID: ${{ github.event.pull_request.head.user.id }}
+        GITHUB_COMMIT_AUTHOR_USERNAME: ${{ github.event.commits[0].author.username }}
+        GITHUB_COMMIT_AUTHOR_EMAIL: ${{ github.event.commits[0].author.email }}
+        GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
+        GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        GITHUB_WORKFLOW: ${{ github.workflow }} 
       run: |
         set -uxe
         python3 -u tools/on_device_tests_gateway_client.py \
           --platform_json "${GITHUB_WORKSPACE}/src/.github/config/${{ matrix.platform}}.json" \
           --filter_json_dir "${GITHUB_WORKSPACE}/src/cobalt/testing/${{ matrix.platform}}" \
           --token ${GITHUB_TOKEN} \
+          --change_id ${GITHUB_PR_NUMBER:-postsubmit} \
+          --tag cobalt_github_${GITHUB_EVENT_NAME} \
+          --builder_name github_${{ matrix.platform }}_tests \
+          --build_number ${GITHUB_RUN_NUMBER} \
+          --builder_url ${GITHUB_RUN_URL} \
+          --label github \
+          --label ${GITHUB_EVENT_NAME} \
+          --label ${GITHUB_WORKFLOW} \
+          --label actor-${GITHUB_ACTOR} \
+          --label actor_id-${GITHUB_ACTOR_ID} \
+          --label triggering_actor-${GITHUB_TRIGGERING_ACTOR} \
+          --label sha-${GITHUB_SHA} \
+          --label repository-${GITHUB_REPO} \
+          --label author-${GITHUB_PR_HEAD_USER_LOGIN:-$GITHUB_COMMIT_AUTHOR_USERNAME} \
+          --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL}
           ${DIMENSION:+"--dimension" "$DIMENSION"} \
           ${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" "$ON_DEVICE_TEST_ATTEMPTS"} \
           --archive_path "${GCS_PATH}" \
           --gcs_result_path "${GCS_RESULTS_PATH}" \
-          trigger \
+          trigger
       shell: bash
