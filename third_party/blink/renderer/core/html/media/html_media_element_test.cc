@@ -1578,6 +1578,8 @@ TEST_P(HTMLMediaElementTest, CanFreezeWithMediaPlayerAttached) {
 TEST(HTMLMediaElementTest, CanHandleCobaltProgressiveSupportQueries) {
   const ContentType progressive_type(
       "video/mp4; codecs=\"avc1.42001E, mp4a.40.2\"");
+  const ContentType progressive_type_missing_whitespace(
+      "video/mp4; codecs=\"avc1.42001E,mp4a.40.2\"");
   const ContentType adaptive_video_type(
       "video/mp4; codecs=\"avc1.4d4015\"; framerate=30");
   const ContentType adaptive_audio_type(
@@ -1590,6 +1592,11 @@ TEST(HTMLMediaElementTest, CanHandleCobaltProgressiveSupportQueries) {
     // disabled.
     EXPECT_EQ(HTMLMediaElement::GetSupportsType(progressive_type),
               MIMETypeRegistry::kNotSupported);
+    // Reject progressive content types when the "codecs" parameter lacks
+    // whitespace.
+    EXPECT_EQ(
+        HTMLMediaElement::GetSupportsType(progressive_type_missing_whitespace),
+        MIMETypeRegistry::kNotSupported);
     // Continue to support adaptive content types.
     EXPECT_NE(HTMLMediaElement::GetSupportsType(adaptive_video_type),
               MIMETypeRegistry::kNotSupported);
@@ -1603,6 +1610,11 @@ TEST(HTMLMediaElementTest, CanHandleCobaltProgressiveSupportQueries) {
     // enabled.
     EXPECT_NE(HTMLMediaElement::GetSupportsType(progressive_type),
               MIMETypeRegistry::kNotSupported);
+    // Continue to accept progressive content types when the "codecs" parameter
+    // lacks whitespace.
+    EXPECT_NE(
+        HTMLMediaElement::GetSupportsType(progressive_type_missing_whitespace),
+        MIMETypeRegistry::kNotSupported);
     // Continue to support adaptive content types.
     EXPECT_NE(HTMLMediaElement::GetSupportsType(adaptive_video_type),
               MIMETypeRegistry::kNotSupported);
