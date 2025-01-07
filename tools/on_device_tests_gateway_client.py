@@ -117,162 +117,258 @@ def _read_json_config(filename):
     print(f" Invalid JSON format in '{filename}'.")
     return None
 
-def _default_platform_json_file(platform):
-  current_dir = os.path.dirname(os.path.abspath(__file__))
-  relative_path = os.path.join("..", ".github", "config", platform + ".json")
-  return os.path.join(current_dir, relative_path)
+def _get_platform_json_file(platform):
+  """Constructs the path to the platform JSON configuration file.
+
+  Args:
+    platform: The name of the platform.
+
+  Returns:
+    The absolute path to the platform JSON file.
+  """
+  return os.path.join(
+      os.path.dirname(os.path.abspath(__file__)), 
+      "..", 
+      ".github", 
+      "config", 
+      f"{platform}.json"
+  )
 
 def _get_tests_filter_json_file(platform, gtest_target):
-  current_dir = os.path.dirname(os.path.abspath(__file__))
-  relative_path = os.path.join("..", "cobalt", "testing", platform, gtest_target + "_filter.json")
-  return os.path.join(current_dir, relative_path)
+  """Constructs the path to the gtest filter JSON file.
+
+  Args:
+    platform: The name of the platform.
+    gtest_target: The name of the gtest target.
+
+  Returns:
+    The absolute path to the gtest filter JSON file.
+  """
+  return os.path.join(
+      os.path.dirname(os.path.abspath(__file__)), 
+      "..", 
+      "cobalt", 
+      "testing", 
+      platform, 
+      f"{gtest_target}_filter.json"
+  )
 
 def _process_apk_tests(args):
-  apk_tests = []
-  platform_json_file = args.platform_json if args.platform_json else _default_platform_json_file(args.platform)
-  print(f" The platform_json_file is '{platform_json_file}'")
-  platform_json_file_data = _read_json_config(platform_json_file)
-  gtest_device = platform_json_file_data["gtest_device"]
-  gtest_lab = platform_json_file_data["gtest_lab"]
-  gtest_blaze_target = "//experimental/cobalt/chrobalt_poc:custom_chrobalt_unit_tests_" + gtest_device
-  default_gtest_filters = "*"
+    """Processes APK tests based on provided arguments.
 
-  for gtest_target in platform_json_file_data["gtest_targets"]:
-    apk_test = {
-        "test_target": gtest_blaze_target,
-        "device_model": gtest_device,
-        "device_pool": gtest_lab
-    }
-    print(f"  gtest_target: {gtest_target}")
-    gtest_filter_json_file = _get_tests_filter_json_file(args.platform, gtest_target)
-    print(f"    gtest_filter_json_file = {gtest_filter_json_file}")
-    gtest_filter_json_file_data = _read_json_config(gtest_filter_json_file)
-    gtest_filters = default_gtest_filters
-    if gtest_filter_json_file_data is None:
-      print("   This gtest_target does not have gtest_filters specified");
+    Args:
+      args: An argparse.Namespace object containing the following attributes:
+        platform: The platform for the tests.
+        platform_json: Optional path to a platform JSON file.
+        blaze_targets: A list of Blaze targets.
+        archive_path: Path to the archive containing APKs.
+
+    Returns:
+      A list of dictionaries, where each dictionary represents an APK test 
+      with keys like "test_target", "device_model", "device_pool", 
+      "apk_path", and "gtest_filters".
+    """
+
+    apk_tests = []
+    platform_json_file = args.platform_json or _default_platform_json_file(args.platform)
+    print(f"The platform_json_file is '{platform_json_file}'")
+    platform_data = _read_json_config(platform_json_file)
+    print(f"Loaded platform data: {platform_data}") # Added verbosity
+
+    for target in args.blaze_targets:
+        print(f"Processing Blaze target: {target}") # Added verbosity
+        for gtest_target in platform_data["gtest_targets"]:
+            print(f"  Processing gtest_target: {gtest_target}") # Added verbosity
+            apk_test = {
+                "test_target": target,
+                "device_model": platform_data["gtest_device"],
+                "device_pool": platform_data["gtest_lab"],
+                "apk_path": f"{args.archive_path}/{gtest_target}-debug.apk",
+                "gtest_filters": _get_gtest_filters(args.platform, gtest_target)
+            }
+            apk_tests.append(apk_test)
+            print(f"  Created apk_test: {apk_test}") # Added verbosity
+
+    print(f"apk_tests: {apk_tests}")
+    return apk_tests
+
+
+def _get_gtest_filters(platform, gtest_target):
+    """Retrieves gtest filters for a given target.
+
+    Args:
+      platform: The platform for the tests.
+      gtest_target: The name of the gtest target.
+
+    Returns:
+      A string representing the gtest filters.
+    """
+
+    gtest_filters = "*"
+    filter_json_file = _get_tests_filter_json_file(platform, gtest_target)
+    print(f"  gtest_filter_json_file = {filter_json_file}")
+    filter_data = _read_json_config(filter_json_file)
+    if filter_data:
+        print(f"  Loaded filter data: {filter_data}") # Added verbosity
+        failing_tests = ":".join(filter_data.get("failing_tests", []))
+        if failing_tests:
+            gtest_filters += ":-" + failing_tests
+        print(f"  gtest_filters = {gtest_filters}")
     else:
-      failing_tests_list = gtest_filter_json_file_data["failing_tests"]
-      failing_tests_string = ":".join(failing_tests_list)
-      if failing_tests_string:
-        gtest_filters += ":-" + failing_tests_string
-      print(f"    gtest_filters = {gtest_filters}");
+        print(f"  This gtest_target does not have gtest_filters specified")
+    return gtest_filters
 
-    apk_test["apk_path"] = f"{args.archive_path}/{gtest_target}-debug.apk"
-    #apk_test["apk_path"] = "/bigstore/yt-temp/base_unittests-debug.apk"
-    apk_test["gtest_filters"] = gtest_filters
-    apk_tests.append(apk_test)
-
-  print(f" apk_tests: {apk_tests}")
-  return apk_tests
 
 def main():
-  """Main routine."""
-  print('Starting main routine')
+    """Main routine for the on-device tests gateway client."""
 
-  logging.basicConfig(
-      level=logging.INFO, format='[%(filename)s:%(lineno)s] %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, 
+        format='[%(filename)s:%(lineno)s] %(message)s'
+    )
+    print('Starting main routine')
 
-  parser = argparse.ArgumentParser(
-      epilog=('Example: ./on_device_tests_gateway_client.py'
-              'trigger'
-              '--token token1'
-              '--platform android-arm'
-              '--archive_path /bigstore/yt-temp'
-              '--dimension host_name=regex:maneki-mhserver-05.*'),
-      formatter_class=argparse.RawDescriptionHelpFormatter)
-  parser.add_argument(
-      '-t',
-      '--token',
-      type=str,
-      required=True,
-      help='On Device Tests authentication token')
-  parser.add_argument(
-      '--dry_run',
-      action='store_true',
-      help='Specifies to show what would be done without actually doing it.')
-  parser.add_argument(
-      '-i',
-      '--change_id',
-      type=str,
-      help='ChangeId that triggered this test, if any. '
-      'Saved with performance test results.')
+    parser = argparse.ArgumentParser(
+        description="Client for interacting with the On-Device Tests gateway.",
+        epilog=(
+            'Example: ./on_device_tests_gateway_client.py trigger '
+            '--token token1 '
+            '--platform android-arm '
+            '--archive_path /bigstore/yt-temp '
+            '--blaze_targets //experimental/cobalt/chrobalt_poc:chrobalt_unit_tests_maneki_sabrina //experimental/cobalt/chrobalt_poc:chrobalt_unit_tests_shared_boreal '
+            '--dimension host_name=regex:maneki-mhserver-05.*'
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
 
-  subparsers = parser.add_subparsers(
-      dest='action', help='On-Device tests commands', required=True)
-  trigger_parser = subparsers.add_parser(
-      'trigger', help='Trigger On-Device tests')
+    # Authentication
+    parser.add_argument(
+        '-t',
+        '--token',
+        type=str,
+        required=True,
+        help='On Device Tests authentication token'
+    )
 
-  trigger_parser.add_argument(
-      '-p',
-      '--platform',
-      type=str,
-      required=True,
-      help='Platform this test was built for.')
-  trigger_parser.add_argument(
-      '-pf',
-      '--platform_json',
-      type=str,
-      help='Platform-specific json file containing the list of target tests.')
-  trigger_parser.add_argument(
-      '-a',
-      '--archive_path',
-      type=str,
-      required=True,
-      help='Path to Chrobalt archive to be tested. Must be on gcs.')
-  trigger_parser.add_argument(
-      '-l',
-      '--label',
-      type=str,
-      default=[],
-      action='append',
-      help='Additional labels to assign to the test.')
-  trigger_parser.add_argument(
-    '--gcs_result_path',
-    type=str,
-    help='GCS url where test result files should be uploaded.')
-  trigger_parser.add_argument(
-      '--dimension',
-      type=str,
-      action='append',
-      help='On-Device Tests dimension used to select a device. '
-      'Must have the following form: <dimension>=<value>.'
-      ' E.G. "release_version=regex:10.*')
-  trigger_parser.add_argument(
-      '--test_attempts',
-      type=str,
-      default='1',
-      required=False,
-      help='The maximum number of times a test could retry.')
-  trigger_parser.add_argument(
-      '--retry_level',
-      type=str,
-      default='ERROR',
-      required=False,
-      help='The retry level of Mobile harness job. Either ERROR (to retry for '
-      'MH errors) or FAIL (to retry for failing tests). Setting retry_level to '
-      'FAIL will also retry for MH errors.')
+    # General options
+    parser.add_argument(
+        '--dry_run',
+        action='store_true',
+        help='Show what would be done without actually doing it.'
+    )
+    parser.add_argument(
+        '-i',
+        '--change_id',
+        type=str,
+        help='ChangeId that triggered this test, if any. Saved with performance test results.'
+    )
 
-  watch_parser = subparsers.add_parser('watch', help='Trigger On-Device tests')
-  watch_parser.add_argument(
-      'session_id',
-      type=str,
-      help='Session id of a previously triggered mobile '
-      'harness test. If passed, the test will not be '
-      'triggered, but will be watched until the exit '
-      'status is reached.')
+    subparsers = parser.add_subparsers(
+        dest='action', 
+        help='On-Device tests commands', 
+        required=True
+    )
 
-  args = parser.parse_args()
-  apk_tests = _process_apk_tests(args)
+    # Trigger command
+    trigger_parser = subparsers.add_parser(
+        'trigger', 
+        help='Trigger On-Device tests',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    trigger_parser.add_argument(
+        '-p',
+        '--platform',
+        type=str,
+        required=True,
+        help='Platform this test was built for.'
+    )
+    trigger_parser.add_argument(
+        '-pf',
+        '--platform_json',
+        type=str,
+        help='Platform-specific JSON file containing the list of target tests.'
+    )
+    trigger_parser.add_argument(
+        '-a',
+        '--archive_path',
+        type=str,
+        required=True,
+        help='Path to Chrobalt archive to be tested. Must be on GCS.'
+    )
+    trigger_parser.add_argument(
+        '-l',
+        '--label',
+        type=str,
+        action='append',
+        default=[],
+        help='Additional labels to assign to the test.'
+    )
+    trigger_parser.add_argument(
+        '--gcs_result_path',
+        type=str,
+        help='GCS URL where test result files should be uploaded.'
+    )
+    trigger_parser.add_argument(
+        '--dimension',
+        type=str,
+        action='append',
+        help=(
+            'On-Device Tests dimension used to select a device. '
+            'Must have the following form: <dimension>=<value>. '
+            'E.G. "release_version=regex:10.*"'
+        )
+    )
+    trigger_parser.add_argument(
+        '--test_attempts',
+        type=str,
+        default='1',
+        help='The maximum number of times a test could retry.'
+    )
+    trigger_parser.add_argument(
+        '--blaze_targets',
+        nargs="+",
+        type=str,
+        required=True,
+        help='A list of Blaze targets to run.'
+    )
+    trigger_parser.add_argument(
+        '--retry_level',
+        type=str,
+        default='ERROR',
+        choices=['ERROR', 'FAIL'],
+        help=(
+            'The retry level of Mobile Harness job. '
+            'ERROR to retry for MH errors, '
+            'FAIL to retry for failing tests (and MH errors).'
+        )
+    )
 
-  client = OnDeviceTestsGatewayClient()
-  try:
-    if args.action == 'trigger':
-      client.run_trigger_command(workdir=_WORK_DIR, args=args, apk_tests=apk_tests)
-    else:
-      client.run_watch_command(workdir=_WORK_DIR, args=args)
-  except grpc.RpcError as e:
-    print(e)
-    return e.code().value
+    # Watch command
+    watch_parser = subparsers.add_parser(
+        'watch', 
+        help='Watch a previously triggered On-Device test'
+    )
+    watch_parser.add_argument(
+        'session_id',
+        type=str,
+        help=(
+            'Session ID of a previously triggered Mobile Harness test. '
+            'The test will be watched until it completes.'
+        )
+    )
+
+    args = parser.parse_args()
+    apk_tests = _process_apk_tests(args)
+
+    client = OnDeviceTestsGatewayClient()
+    try:
+        if args.action == 'trigger':
+            client.run_trigger_command(workdir=_WORK_DIR, args=args, apk_tests=apk_tests)
+        else:
+            client.run_watch_command(workdir=_WORK_DIR, args=args)
+    except grpc.RpcError as e:
+        print(e)
+        return e.code().value
 
 
 if __name__ == '__main__':
