@@ -5,6 +5,7 @@ runs:
   using: "composite"
   steps:
     - name: Install Requirements
+      # TODO (b/388329764) - set up requirements file.
       run: |
         pip3 install grpcio==1.38.0 grpcio-tools==1.38.0
       shell: bash
