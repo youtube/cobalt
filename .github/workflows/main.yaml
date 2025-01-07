@@ -205,15 +205,34 @@ jobs:
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
+
+  test-upload:
+    needs: [initialize, docker-build-image, build, test]
+    if: needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.test_on_device == 'true'
+    permissions: {}
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    name: ${{ matrix.name }}_tests_upload
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    container: ${{ needs.docker-build-image.outputs.docker_tag }}
+    env:
+      TMPDIR: /__w/_temp
+      TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+    steps:
       - name: Process Test Results
-        if: |
-          always() &&
-          (
-            steps.on-host-tests.outcome == 'success' ||
-            steps.on-host-tests.outcome == 'failure'
-          )
-        uses: ./src/.github/actions/process_test_results
-        with:
-          test_results_key: ${{ env.TEST_RESULTS_KEY }}
-          datadog_api_key: ${{ secrets.datadog_api_key }}
-        continue-on-error: true
+      if: |
+        always() &&
+        (
+          steps.on-host-tests.outcome == 'success' ||
+          steps.on-host-tests.outcome == 'failure'
+        )
+      uses: ./src/.github/actions/process_test_results
+      with:
+        test_results_key: ${{ env.TEST_RESULTS_KEY }}
+        datadog_api_key: ${{ secrets.datadog_api_key }}
+      continue-on-error: true
