@@ -10,7 +10,7 @@ runs:
       shell: bash
     - name: Generate gRPC files
       run: |
-        python -m grpc_tools.protoc -Itools/ --python_out=tools/ --grpc_python_out=tools/ tools/on_device_tests_gateway.proto
+        python -m grpc_tools.protoc -Itools/ --python_out=cobalt/tools/ --grpc_python_out=cobalt/tools/ cobalt/tools/on_device_tests_gateway.proto
       shell: bash
     - name: Set Up Cloud SDK
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
@@ -46,7 +46,7 @@ runs:
         GITHUB_WORKFLOW: ${{ github.workflow }} 
       run: |
         set -uxe
-        python3 -u tools/on_device_tests_gateway_client.py \
+        python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --platform_json "${GITHUB_WORKSPACE}/src/.github/config/${{ matrix.platform}}.json" \
           --filter_json_dir "${GITHUB_WORKSPACE}/src/cobalt/testing/${{ matrix.platform}}" \
           --token ${GITHUB_TOKEN} \
