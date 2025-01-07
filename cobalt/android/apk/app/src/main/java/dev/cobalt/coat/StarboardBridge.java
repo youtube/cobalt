@@ -176,7 +176,6 @@ public class StarboardBridge {
       activityHolder.set(null);
     }
     sysConfigChangeReceiver.setForeground(false);
-    afterStopped();
   }
 
   protected void onActivityDestroy(Activity activity) {
@@ -184,6 +183,7 @@ public class StarboardBridge {
       // We can't restart the starboard app, so kill the process for a clean start next time.
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
       closeNativeStarboard(nativeApp);
+      closeAllServices();
       System.exit(0);
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
@@ -233,14 +233,19 @@ public class StarboardBridge {
     }
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
-  protected void afterStopped() {
-    applicationStopped = true;
+  private void closeAllServices() {
     ttsHelper.shutdown();
     for (CobaltService service : cobaltServices.values()) {
       service.afterStopped();
     }
+  }
+
+  // Warning: "Stopped" refers to Starboard "Stopped" event, it's different from Android's "onStop".
+  @SuppressWarnings("unused")
+  @UsedByNative
+  protected void afterStopped() {
+    applicationStopped = true;
+    closeAllServices();
     Activity activity = activityHolder.get();
     if (activity != null) {
       // Wait until the activity is destroyed to exit.
