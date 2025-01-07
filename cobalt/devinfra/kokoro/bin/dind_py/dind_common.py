@@ -66,7 +66,7 @@ def push_image(target_image):
   utils.exec_cmd(command)
 
 
-def get_local_image_name(service, compose_file='docker-compose.yaml'):
+def get_local_image_name(service, compose_file):
   """
   Parses the docker-compose file to determine the image-name from the
   service-name. When the compose-file is used to build the image, it will get
@@ -86,9 +86,7 @@ def tag_image(src_img, dest_img):
   utils.exec_cmd(tag_command)
 
 
-def run_docker_build(platform,
-                     target_image,
-                     compose_file='docker-compose.yaml'):
+def run_docker_build(platform, target_image, compose_file):
   """
   Runs the docker build for the provided platform, and tags the newly built
   image with the registry/image/tag arguments. If the build fails, instead it
