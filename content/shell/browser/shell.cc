@@ -108,6 +108,14 @@ Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
                           bool should_set_delegate) {
   WebContents* raw_web_contents = web_contents.get();
   Shell* shell = new Shell(std::move(web_contents), should_set_delegate);
+#if BUILDFLAG(IS_COBALT)
+  return CreateShellFromPointer(shell, raw_web_contents, initial_size, should_set_delegate);
+}
+
+Shell* Shell::CreateShellFromPointer(Shell* shell, WebContents* raw_web_contents,
+                            const gfx::Size& initial_size,
+                            bool should_set_delegate) {
+#endif
   g_platform->CreatePlatformWindow(shell, initial_size);
 
   // Note: Do not make RenderFrameHost or RenderViewHost specific state changes
