@@ -25,7 +25,6 @@ set -ueEx
 
 # Using repository root as work directory.
 export WORKSPACE_COBALT="${KOKORO_ARTIFACTS_DIR}/git/src"
-cd "${WORKSPACE_COBALT}"
 
 # Clean up workspace on exit or error.
 trap "bash ${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/bin/cleanup.sh" EXIT INT TERM

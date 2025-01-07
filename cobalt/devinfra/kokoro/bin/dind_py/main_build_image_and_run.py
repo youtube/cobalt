@@ -93,7 +93,8 @@ def main():
       utils.logging_info_spacer('Building Docker Image')
       build_start_time = time.time()
       try:
-        dind.run_docker_build(args.platform, target_image)
+        dind.run_docker_build(args.platform, target_image,
+                              args.src_root + '/docker-compose.yaml')
         dind.tag_image(target_image, floating_image)
         dind.push_image(floating_image)
         docker_build_duration = time.time() - build_start_time
