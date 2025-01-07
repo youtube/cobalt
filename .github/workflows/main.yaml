@@ -188,7 +188,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-        shard: [0,1,2,3,4,5]
+        shard: [0,1,2,3,4,5,6,7,8,9]
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TMPDIR: /__w/_temp
@@ -206,6 +206,7 @@ jobs:
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
+          num_shards: 10
 
   test-upload:
     needs: [initialize, docker-build-image, build, test]
