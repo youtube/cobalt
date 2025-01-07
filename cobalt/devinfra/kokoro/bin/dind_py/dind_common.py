@@ -31,10 +31,6 @@ _DOCKER_COMPOSE_SERVICE_TARGET = 'kokoro-internal-cobalt-image'
 # within the inner Docker container.
 _INTERNAL_KOKORO_BUILD_SCRIPT = 'cobalt/devinfra/kokoro/bin/dind_build.sh'
 
-_WORKSPACE_COBALT_VAR = 'WORKSPACE_COBALT'
-
-_SERVICE_NOT_FOUND = 'SERVICE_NOT_FOUND'
-
 _PLATFORM_TO_SERVICE_MAP = {
     'android-x86': 'linux',
     'android-arm': 'linux',
