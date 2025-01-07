@@ -25,7 +25,7 @@ services:
       # This is the path that Kokoro is configured to clone the repo to.
       # This becomes the new mount point within the container as well, so that
       # the invocation of the inner-most Cobalt Build script is straight forward
-      - ${KOKORO_ARTIFACTS_DIR}/git/src:${KOKORO_ARTIFACTS_DIR}/git/src
+      - ${KOKORO_ARTIFACTS_DIR}:${KOKORO_ARTIFACTS_DIR}
       - ${COBALT_SRC:-.}:/code/
     # TODO(b/350543978): This block for environment variables is manually
     # maintained. It would be easier to maintain if it were programmatically
