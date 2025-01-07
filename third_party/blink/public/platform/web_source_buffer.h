@@ -146,8 +146,8 @@ class WebSourceBuffer {
   virtual void RemovedFromMediaSource() = 0;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Return the highest presentation timestamp written to the SbPlayer.
-  virtual double WriteHead(ExceptionState& exception_state) const = 0;
+  // Return the highest presentation timestamp written to the Renderer.
+  virtual double GetWriteHead(ExceptionState& exception_state) const = 0;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 

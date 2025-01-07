@@ -26,6 +26,6 @@ namespace blink {
 // static
 double SourceBufferWriteHead::writeHead(SourceBuffer& source_buffer,
                                         ExceptionState& exception_state) {
-  return source_buffer.writeHead(exception_state);
+  return source_buffer.GetWriteHead(exception_state);
 }
 }  // namespace blink

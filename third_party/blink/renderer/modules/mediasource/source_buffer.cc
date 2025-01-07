@@ -476,7 +476,7 @@ VideoTrackList& SourceBuffer::videoTracks() {
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-double SourceBuffer::writeHead(ExceptionState& exception_state) const {
+double SourceBuffer::GetWriteHead(ExceptionState& exception_state) const {
   if (source_ == NULL) {
     MediaSource::LogAndThrowDOMException(
         exception_state, DOMExceptionCode::kInvalidStateError,
@@ -485,7 +485,7 @@ double SourceBuffer::writeHead(ExceptionState& exception_state) const {
   }
 
   DCHECK(web_source_buffer_);
-  return web_source_buffer_->WriteHead(exception_state);
+  return web_source_buffer_->GetWriteHead(exception_state);
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

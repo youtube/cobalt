@@ -116,7 +116,7 @@ class SourceBuffer final : public EventTargetWithInlineData,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Cobalt-specific method that returns the highest presentation
   // timestamp written to the SbPlayer.
-  double writeHead(ExceptionState& exception_state) const;
+  double GetWriteHead(ExceptionState& exception_state) const;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // "_Locked" requires these be called while in the scope of callback of
