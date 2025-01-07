@@ -21,8 +21,10 @@
         "sql_unittests",
         "url_unittests"
     ],
-    "gtest_device": "sabrina",
-    "gtest_lab": "maneki",
+    "test_dimensions": {
+        "gtest_device": "sabrina",
+        "gtest_lab": "maneki"
+    },
     "test_on_device": true,
     "includes": [
         {
