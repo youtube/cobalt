@@ -225,14 +225,14 @@ jobs:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
       - name: Process Test Results
-      if: |
-        always() &&
-        (
-          steps.on-host-tests.outcome == 'success' ||
-          steps.on-host-tests.outcome == 'failure'
-        )
-      uses: ./src/.github/actions/process_test_results
-      with:
-        test_results_key: ${{ env.TEST_RESULTS_KEY }}
-        datadog_api_key: ${{ secrets.datadog_api_key }}
-      continue-on-error: true
+        if: |
+          always() &&
+          (
+            steps.on-host-tests.outcome == 'success' ||
+            steps.on-host-tests.outcome == 'failure'
+          )
+        uses: ./src/.github/actions/process_test_results
+        with:
+          test_results_key: ${{ env.TEST_RESULTS_KEY }}
+          datadog_api_key: ${{ secrets.datadog_api_key }}
+        continue-on-error: true
