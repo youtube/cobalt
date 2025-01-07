@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Non standard interface used for Cobalt only.
-// Returns the highest presentation timestamp written to the SbPlayer;
+// Returns the highest presentation timestamp written to the Renderer;
 // raises `InvalidStateError` if the SourceBuffer object has been removed
 // from the MediaSource object.
 

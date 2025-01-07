@@ -62,7 +62,7 @@ class PLATFORM_EXPORT WebSourceBufferImpl : public WebSourceBuffer {
   void RemovedFromMediaSource() override;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Return the highest presentation timestamp written to the SbPlayer.
+  // Return the highest presentation timestamp written to the Renderer.
   double GetWriteHead(ExceptionState& exception_state) const override;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
