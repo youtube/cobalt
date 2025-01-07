@@ -43,7 +43,7 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
   sa.nl_groups = RTMGRP_IPV4_IFADDR;
   sa.nl_pid = getpid();
   int bind_result = bind(netlink_fd, (struct sockaddr*)&sa, sizeof(sa));
-  // TODO: fix this
+  // TODO(cobalt, b/371272304): Re-enable
   // SB_DCHECK(bind_result == 0);
 
   char buf[8192];
