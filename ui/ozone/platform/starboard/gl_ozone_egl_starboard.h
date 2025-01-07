@@ -44,24 +44,11 @@ class GLOzoneEGLStarboard : public GLOzoneEGL {
       const gl::GLImplementationParts& implementation) override;
 
  private:
-  // Straightforward lifetime tracker of an SbWindow
-  class ScopedSbWindow {
-   public:
-    // Need default ctor for GLOzoneEGLStarboard to have a default ctor.
-    ScopedSbWindow() : sb_window_(kSbWindowInvalid) {}
-    explicit ScopedSbWindow(SbWindow&& window);
-    ~ScopedSbWindow();
-
-    SbWindow get() { return sb_window_; }
-
-   private:
-    SbWindow sb_window_;
-  };
   void CreateDisplayTypeAndWindowIfNeeded();
 
   void* display_type_ = nullptr;
   bool have_display_type_ = false;
-  ScopedSbWindow sb_window_;
+  SbWindow sb_window_;
   void* window_ = nullptr;
 };
 

@@ -18,18 +18,6 @@
 
 namespace ui {
 
-namespace {
-static const std::map<gl::GLImplementation, std::string>
-    kGLImplementationToString = {
-        {gl::kGLImplementationNone, "none"},
-        {gl::kGLImplementationEGLGLES2, "eglgles2"},
-        {gl::kGLImplementationMockGL, "mockgl"},
-        {gl::kGLImplementationStubGL, "stubgl"},
-        {gl::kGLImplementationDisabled, "disabled"},
-        {gl::kGLImplementationEGLANGLE, "eglangle"},
-};
-}
-
 class SurfaceFactoryStarboardSupportTest
     : public testing::TestWithParam<
           testing::tuple<gl::GLImplementation, bool>> {
@@ -61,9 +49,5 @@ INSTANTIATE_TEST_SUITE_P(
                     std::make_tuple(gl::kGLImplementationMockGL, false),
                     std::make_tuple(gl::kGLImplementationStubGL, false),
                     std::make_tuple(gl::kGLImplementationDisabled, false),
-                    std::make_tuple(gl::kGLImplementationEGLANGLE, false)),
-    [](const testing::TestParamInfo<
-        SurfaceFactoryStarboardSupportTest::ParamType>& info) {
-      return kGLImplementationToString.at(testing::get<0>(info.param));
-    });
+                    std::make_tuple(gl::kGLImplementationEGLANGLE, false)));
 }  // namespace ui
