@@ -45,6 +45,7 @@ if (!is_android) {
     defines = []
 
     deps = [
+      "//cobalt/renderer:renderer",
       "//cobalt/user_agent",
       "//content/public/app",
       "//content/shell:content_shell_app",
