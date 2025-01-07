@@ -29,13 +29,13 @@ import on_device_tests_gateway_pb2_grpc
 _WORK_DIR = '/on_device_tests_gateway'
 
 # Comment out the next three lines for local testing
-#_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
-#    'on-device-tests-gateway-service.on-device-tests.svc.cluster.local')
-#_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
+_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
+    'on-device-tests-gateway-service.on-device-tests.svc.cluster.local')
+_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 
 # Uncomment the next two lines for local testing
-_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = ('localhost')
-_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '12345'
+#_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = ('localhost')
+#_ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '12345'
 
 
 class OnDeviceTestsGatewayClient():
@@ -137,7 +137,6 @@ def _process_apk_tests(args):
   gtest_blaze_target = "//experimental/cobalt/chrobalt_poc:custom_chrobalt_unit_tests_" + gtest_device
   default_gtest_filters = "*"
 
-  #print(' processing gtest_targets in json file')
   for gtest_target in platform_json_file_data["gtest_targets"]:
     apk_test = {
         "test_target": gtest_blaze_target,
@@ -153,17 +152,13 @@ def _process_apk_tests(args):
       print("   This gtest_target does not have gtest_filters specified");
     else:
       failing_tests_list = gtest_filter_json_file_data["failing_tests"]
-      #passing_tests_list = gtest_filter_json_file_data["passing_tests"]
       failing_tests_string = ":".join(failing_tests_list)
-      #passing_tests_string = ":".join(passing_tests_list)
-      #if passing_tests_string:
-      #  gtest_filters += ":" + passing_tests_string
       if failing_tests_string:
         gtest_filters += ":-" + failing_tests_string
       print(f"    gtest_filters = {gtest_filters}");
 
-    #apk_test["apk_path"] = "/bigstore/yt-temp/" + gtest_target + "-debug.apk"
-    apk_test["apk_path"] = "/bigstore/yt-temp/base_unittests-debug.apk"
+    apk_test["apk_path"] = f"{args.archive_path}/{gtest_target}-debug.apk"
+    #apk_test["apk_path"] = "/bigstore/yt-temp/base_unittests-debug.apk"
     apk_test["gtest_filters"] = gtest_filters
     apk_tests.append(apk_test)
 
@@ -178,11 +173,12 @@ def main():
       level=logging.INFO, format='[%(filename)s:%(lineno)s] %(message)s')
 
   parser = argparse.ArgumentParser(
-      epilog=('Example: ./on_device_tests_gateway_client.py '
-              '--test_type=unit_test '
-              '--remote_archive_path=gs://my_bucket/path/to/artifacts.tar '
-              '--platform=raspi-2 '
-              '--config=devel'),
+      epilog=('Example: ./on_device_tests_gateway_client.py'
+              'trigger'
+              '--token token1'
+              '--platform android-arm'
+              '--archive_path /bigstore/yt-temp'
+              '--dimension host_name=regex:maneki-mhserver-05.*'),
       formatter_class=argparse.RawDescriptionHelpFormatter)
   parser.add_argument(
       '-t',
