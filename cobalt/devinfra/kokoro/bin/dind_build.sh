@@ -42,9 +42,7 @@ fi
 
 pipeline () {
   local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
-  local gclient_root="${KOKORO_ARTIFACTS_DIR}/chromium"
-  mkdir "${gclient_root}"
-  cp -a "${WORKSPACE_COBALT}" "${gclient_root}/src"  # work around b/382250271
+  local gclient_root="${KOKORO_ARTIFACTS_DIR}/git"
 
   # Set up gclient and run sync.
   ##############################################################################
@@ -64,10 +62,6 @@ pipeline () {
   cd "${gclient_root}/src"
   cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}"
   ninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${TARGET}  # TARGET may expand to multiple args
-  cp -a out "${WORKSPACE_COBALT}"  # preserve build outputs
-
-  cd "${WORKSPACE_COBALT}"
-  rm -rf "${gclient_root}"  # remove extraneous artifacts
 
   # Build bootloader config if set.
   if [ -n "${BOOTLOADER:-}" ]; then
