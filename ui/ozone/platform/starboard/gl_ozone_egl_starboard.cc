@@ -32,7 +32,11 @@ namespace ui {
 
 GLOzoneEGLStarboard::GLOzoneEGLStarboard() = default;
 
-GLOzoneEGLStarboard::~GLOzoneEGLStarboard() = default;
+GLOzoneEGLStarboard::~GLOzoneEGLStarboard() {
+  if (sb_window_) {
+    SbWindowDestroy(sb_window_);
+  }
+}
 
 scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateViewGLSurface(
     gl::GLDisplay* display,
@@ -89,20 +93,11 @@ void GLOzoneEGLStarboard::CreateDisplayTypeAndWindowIfNeeded() {
     SbWindowOptions options{};
     SbWindowSetDefaultOptions(&options);
 
-    sb_window_ = ScopedSbWindow(SbWindowCreate(&options));
-    window_ = SbWindowGetPlatformHandle(sb_window_.get());
+    sb_window_ = SbWindowCreate(&options);
+    window_ = SbWindowGetPlatformHandle(sb_window_);
   }
 
   CHECK(window_);
-}
-
-GLOzoneEGLStarboard::ScopedSbWindow::ScopedSbWindow(SbWindow&& window)
-    : sb_window_(std::move(window)) {}
-
-GLOzoneEGLStarboard::ScopedSbWindow::~ScopedSbWindow() {
-  if (sb_window_ != kSbWindowInvalid) {
-    SbWindowDestroy(sb_window_);
-  }
 }
 
 }  // namespace ui
