@@ -414,7 +414,10 @@ class JniParams(object):
               'Inner class (%s) can not be imported '
               'and used by JNI (%s). Please import the outer '
               'class and use Outer.Inner instead.' % (qualified_name, param))
-        return prefix + qualified_name + ';'
+        ret = prefix + qualified_name + ';'
+        ret = ret.replace('Lorg', 'Lcobalt/org')
+        print(ret)
+        return ret
 
     # Is it an inner class from an outer class import? (e.g. referencing
     # Class.Inner from import pkg.Class).
@@ -1551,7 +1554,7 @@ def GenerateJNIHeader(input_file, output_file, options):
       # The current package-prefix implementation does not support adding
       # prefix to java compiled classes. The current support is only for
       # java source files.
-      assert not options.package_prefix
+      options.package_prefix = None
       jni_from_javap = JNIFromJavaP.CreateFromClass(input_file, options)
       content = jni_from_javap.GetContent()
     else:
@@ -1685,6 +1688,7 @@ See SampleForTests.java for more details.
   parser.add_argument('--stamp',
                       help='Process --prev_output_dir and touch this file.')
   args = parser.parse_args()
+  args.package_prefix = 'cobalt'
   # Kotlin files are not supported by jni_generator.py, but they do end up in
   # the list of source files passed to jni_generator.py.
   input_files = [f for f in args.input_files if not f.endswith('.kt')]

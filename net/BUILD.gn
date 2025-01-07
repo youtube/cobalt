@@ -2312,6 +2312,7 @@ if (is_android) {
       "android/java/src/org/chromium/net/ProxyChangeListener.java",
       "android/java/src/org/chromium/net/X509Util.java",
     ]
+    jni_prefix = "cobalt"
   }
   generate_jni("net_test_jni_headers") {
     testonly = true

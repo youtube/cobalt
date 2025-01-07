@@ -228,6 +228,10 @@ if (enable_java_templates) {
         args += [ "--split_name=${invoker.split_name}" ]
       }
 
+      if (defined(invoker.jni_prefix)) {
+        args += ["--package_prefix=${invoker.jni_prefix}" ]
+      }
+
       outputs = []
       foreach(_name, _input_names) {
         _name = get_path_info(_name, "name") + "_jni.h"
@@ -430,6 +434,10 @@ if (enable_java_templates && is_android) {
       if (use_hashed_jni_names) {
         args += [ "--use-proxy-hash" ]
       }
+
+      #if (defined(invoker.jni_prefix)) {
+      #  args += ["--package_prefix=${invoker.jni_prefix}" ]
+      #}
 
       if (defined(invoker.enable_native_mocks) && invoker.enable_native_mocks) {
         args += [ "--enable-proxy-mocks" ]

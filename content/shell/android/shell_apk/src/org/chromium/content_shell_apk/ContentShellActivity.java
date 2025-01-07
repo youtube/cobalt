@@ -21,8 +21,8 @@ import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.content_shell.Shell;
 import org.chromium.content_shell.ShellManager;
-import org.chromium.ui.base.ActivityWindowAndroid;
-import org.chromium.ui.base.IntentRequestTracker;
+// import org.chromium.ui.base.ActivityWindowAndroid;
+// import org.chromium.ui.base.IntentRequestTracker;
 
 /**
  * Activity for managing the Content Shell.
@@ -38,10 +38,10 @@ public class ContentShellActivity extends Activity {
     private static final String RUN_WEB_TESTS_SWITCH = "run-web-tests";
 
     private ShellManager mShellManager;
-    private ActivityWindowAndroid mWindowAndroid;
+    // private ActivityWindowAndroid mWindowAndroid;
     private Intent mLastSentIntent;
     private String mStartupUrl;
-    private IntentRequestTracker mIntentRequestTracker;
+    // private IntentRequestTracker mIntentRequestTracker;
 
     @Override
     protected void onCreate(final Bundle savedInstanceState) {
@@ -63,15 +63,15 @@ public class ContentShellActivity extends Activity {
         setContentView(R.layout.content_shell_activity);
         mShellManager = findViewById(R.id.shell_container);
         final boolean listenToActivityState = true;
-        mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
-        mWindowAndroid =
-                new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
-        mIntentRequestTracker.restoreInstanceState(savedInstanceState);
-        mShellManager.setWindow(mWindowAndroid);
+        // mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
+        // mWindowAndroid =
+                // new ActivityWindowAndroid(this, listenToActivityState, mIntentRequestTracker);
+        // mIntentRequestTracker.restoreInstanceState(savedInstanceState);
+        // mShellManager.setWindow(mWindowAndroid);
         // Set up the animation placeholder to be the SurfaceView. This disables the
         // SurfaceView's 'hole' clipping during animations that are notified to the window.
-        mWindowAndroid.setAnimationPlaceholderView(
-                mShellManager.getContentViewRenderView().getSurfaceView());
+        // mWindowAndroid.setAnimationPlaceholderView(
+        //         mShellManager.getContentViewRenderView().getSurfaceView());
 
         mStartupUrl = getUrlFromIntent(getIntent());
         if (!TextUtils.isEmpty(mStartupUrl)) {
@@ -130,7 +130,7 @@ public class ContentShellActivity extends Activity {
             outState.putString(ACTIVE_SHELL_URL_KEY, webContents.getLastCommittedUrl().getSpec());
         }
 
-        mIntentRequestTracker.saveInstanceState(outState);
+        // mIntentRequestTracker.saveInstanceState(outState);
     }
 
     @Override
@@ -174,7 +174,7 @@ public class ContentShellActivity extends Activity {
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        mIntentRequestTracker.onActivityResult(requestCode, resultCode, data);
+        // mIntentRequestTracker.onActivityResult(requestCode, resultCode, data);
     }
 
     @Override
@@ -186,7 +186,7 @@ public class ContentShellActivity extends Activity {
     @Override
     protected void onDestroy() {
         if (mShellManager != null) mShellManager.destroy();
-        mWindowAndroid.destroy();
+        // mWindowAndroid.destroy();
         super.onDestroy();
     }
 
