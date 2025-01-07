@@ -31,37 +31,37 @@
 namespace starboard {
 
 constexpr auto kSbKeyToDomCodeMap = base::MakeFixedFlatMap<SbKey, ui::DomCode>({
-  // Convenience keys for keyboard support.
-  {kSbKeySpace, ui::DomCode::MEDIA_PLAY_PAUSE},
+    // Convenience keys for keyboard support.
+    {kSbKeySpace, ui::DomCode::MEDIA_PLAY_PAUSE},
 
-      // Keys which are used by the Cast SDK.
-      {kSbKeyReturn, ui::DomCode::ENTER}, {kSbKeySelect, ui::DomCode::SELECT},
-      {kSbKeyUp, ui::DomCode::ARROW_UP}, {kSbKeyDown, ui::DomCode::ARROW_DOWN},
-      {kSbKeyLeft, ui::DomCode::ARROW_LEFT},
-      {kSbKeyRight, ui::DomCode::ARROW_RIGHT},
-      {kSbKeyBack, ui::DomCode::BROWSER_BACK},
+    // Keys which are used by the Cast SDK.
+    {kSbKeyReturn, ui::DomCode::ENTER},
+    {kSbKeySelect, ui::DomCode::SELECT},
+    {kSbKeyUp, ui::DomCode::ARROW_UP},
+    {kSbKeyDown, ui::DomCode::ARROW_DOWN},
+    {kSbKeyLeft, ui::DomCode::ARROW_LEFT},
+    {kSbKeyRight, ui::DomCode::ARROW_RIGHT},
+    {kSbKeyBack, ui::DomCode::BROWSER_BACK},
 
-      // Keys which are used by the Cast SDK when the DPAD UI is enabled.
-      {kSbKeyMediaPlayPause, ui::DomCode::MEDIA_PLAY_PAUSE},
-      {kSbKeyMediaRewind, ui::DomCode::MEDIA_REWIND},
-      {kSbKeyMediaFastForward, ui::DomCode::MEDIA_FAST_FORWARD},
-      {kSbKeyMediaNextTrack, ui::DomCode::MEDIA_TRACK_NEXT},
-      {kSbKeyMediaPrevTrack, ui::DomCode::MEDIA_TRACK_PREVIOUS},
-      {kSbKeyPause, ui::DomCode::MEDIA_PAUSE},
-      {kSbKeyPlay, ui::DomCode::MEDIA_PLAY},
-      {kSbKeyMediaStop, ui::DomCode::MEDIA_STOP},
+    // Keys which are used by the Cast SDK when the DPAD UI is enabled.
+    {kSbKeyMediaPlayPause, ui::DomCode::MEDIA_PLAY_PAUSE},
+    {kSbKeyMediaRewind, ui::DomCode::MEDIA_REWIND},
+    {kSbKeyMediaFastForward, ui::DomCode::MEDIA_FAST_FORWARD},
+    {kSbKeyMediaNextTrack, ui::DomCode::MEDIA_TRACK_NEXT},
+    {kSbKeyMediaPrevTrack, ui::DomCode::MEDIA_TRACK_PREVIOUS},
+    {kSbKeyPause, ui::DomCode::MEDIA_PAUSE},
+    {kSbKeyPlay, ui::DomCode::MEDIA_PLAY},
+    {kSbKeyMediaStop, ui::DomCode::MEDIA_STOP},
 
-      // Keys which are not used by the Cast SDK, but are defined in the HDMI
-      // CEC specification.
-      {kSbKeyMenu, ui::DomCode::HOME},
-      {kSbKeyChannelUp, ui::DomCode::CHANNEL_UP},
-      {kSbKeyChannelDown, ui::DomCode::CHANNEL_DOWN},
-      {kSbKeyClosedCaption, ui::DomCode::CLOSED_CAPTION_TOGGLE},
-#if SB_API_VERSION >= 15
-      {kSbKeyRecord, ui::DomCode::MEDIA_RECORD},
-#endif  // SB_API_VERSION >=15
+    // Keys which are not used by the Cast SDK, but are defined in the HDMI
+    // CEC specification.
+    {kSbKeyMenu, ui::DomCode::HOME},
+    {kSbKeyChannelUp, ui::DomCode::CHANNEL_UP},
+    {kSbKeyChannelDown, ui::DomCode::CHANNEL_DOWN},
+    {kSbKeyClosedCaption, ui::DomCode::CLOSED_CAPTION_TOGGLE},
+    {kSbKeyRecord, ui::DomCode::MEDIA_RECORD},
 });
-// Hack:
+// Hack: replace this when implementing event handling
 static scoped_refptr<base::TaskRunner> g_reply_runner_;
 
 void DeliverEventHandler(std::unique_ptr<ui::Event> ui_event) {

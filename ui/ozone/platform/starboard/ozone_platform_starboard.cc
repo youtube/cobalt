@@ -111,11 +111,6 @@ class OzonePlatformStarboard : public OzonePlatform {
     return std::make_unique<InputMethodMinimal>(ime_key_event_dispatcher);
   }
 
-  //   bool IsNativePixmapConfigSupported(gfx::BufferFormat format,
-  //                                    gfx::BufferUsage usage) const override {
-  //   return true;
-  // }
-
   void PostCreateMainMessageLoop(base::OnceCallback<void()> shutdown_cb,
                                  scoped_refptr<base::SingleThreadTaskRunner>
                                      user_input_task_runner) override {}

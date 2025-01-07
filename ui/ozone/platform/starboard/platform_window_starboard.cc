@@ -15,7 +15,6 @@
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 
 #include "base/functional/bind.h"
-#include "base/logging.h"
 #include "ui/events/event.h"
 #include "ui/events/ozone/events_ozone.h"
 #include "ui/events/platform/platform_event_source.h"
@@ -46,7 +45,6 @@ bool PlatformWindowStarboard::CanDispatchEvent(const PlatformEvent& event) {
 }
 
 uint32_t PlatformWindowStarboard::DispatchEvent(const PlatformEvent& event) {
-  LOG(INFO) << "PlatformWindowStarboard::DispatchEvent";
   DispatchEventFromNativeUiEvent(
       event, base::BindOnce(&PlatformWindowDelegate::DispatchEvent,
                             base::Unretained(delegate())));
