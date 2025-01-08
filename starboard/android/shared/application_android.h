@@ -20,7 +20,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/shared/internal_only.h"
@@ -28,8 +28,6 @@
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/queue_application.h"
 #include "starboard/types.h"
-
-#include "starboard/android/shared/starboard_bridge.h"
 
 namespace starboard {
 namespace android {

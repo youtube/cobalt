@@ -20,6 +20,8 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
+#include "base/android/jni_array.h"
+#include "base/android/jni_string.h"
 #include "cobalt/android/jni_headers/StarboardBridge_jni.h"
 
 namespace starboard {
@@ -36,6 +38,10 @@ JNI_StarboardBridge_CurrentMonotonicTime(JNIEnv* env) {
   return CurrentMonotonicTime();
 }
 
+// StarboardBridge::GetInstance() should not be inlined in the
+// header. This makes sure that when source files from multiple targets include
+// this header they don't end up with different copies of the inlined code
+// creating multiple copies of the singleton.
 // static
 StarboardBridge* StarboardBridge::GetInstance() {
   return base::Singleton<StarboardBridge>::get();
@@ -45,22 +51,42 @@ void StarboardBridge::Initialize(JNIEnv* env, jobject obj) {
   j_starboard_bridge_.Reset(env, obj);
 }
 
-long StarboardBridge::GetAppStartTimestamp() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+long StarboardBridge::GetAppStartTimestamp(JNIEnv* env) {
   CHECK(env);
   return Java_StarboardBridge_getAppStartTimestamp(env, j_starboard_bridge_);
 }
 
-void StarboardBridge::ApplicationStarted() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+void StarboardBridge::ApplicationStarted(JNIEnv* env) {
   CHECK(env);
-  return Java_StarboardBridge_applicationStarted(env, j_starboard_bridge_);
+  Java_StarboardBridge_applicationStarted(env, j_starboard_bridge_);
 }
 
-void StarboardBridge::ApplicationStopping() {
-  JNIEnv* env = base::android::AttachCurrentThread();
+void StarboardBridge::ApplicationStopping(JNIEnv* env) {
   CHECK(env);
-  return Java_StarboardBridge_applicationStopping(env, j_starboard_bridge_);
+  Java_StarboardBridge_applicationStopping(env, j_starboard_bridge_);
+}
+
+void StarboardBridge::AfterStopped(JNIEnv* env) {
+  CHECK(env);
+  Java_StarboardBridge_afterStopped(env, j_starboard_bridge_);
+}
+
+void StarboardBridge::AppendArgs(JNIEnv* env,
+                                 std::vector<std::string>* args_vector) {
+  CHECK(env);
+  base::android::ScopedJavaLocalRef<jobjectArray> args_java =
+      Java_StarboardBridge_getArgs(env, j_starboard_bridge_);
+  base::android::AppendJavaStringArrayToStringVector(env, args_java,
+                                                     args_vector);
+}
+
+std::string StarboardBridge::GetStartDeepLink(JNIEnv* env) {
+  CHECK(env);
+  base::android::ScopedJavaLocalRef<jstring> start_deep_link_java =
+      Java_StarboardBridge_getStartDeepLink(env, j_starboard_bridge_);
+  std::string start_deep_link =
+      base::android::ConvertJavaStringToUTF8(env, start_deep_link_java);
+  return start_deep_link;
 }
 }  // namespace shared
 }  // namespace android
