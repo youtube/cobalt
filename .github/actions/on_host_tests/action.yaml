@@ -59,7 +59,7 @@ runs:
 
           echo "Test filter evaluated to: ${test_filter}"
 
-          xml_path="${results_dir}/${test_binary}_testoutput.xml"
+          xml_path="${results_dir}/shard_${{ matrix.shard }}/${test_binary}_testoutput.xml"
           /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" "./${test_binary}" --test-launcher-shard-index=${{ matrix.shard }} --test-launcher-total-shards=${{ inputs.num_shards }} --gtest_filter="${test_filter}" --gtest_output="xml:${xml_path}" || {
             # Set exit code on failure.
             failed_suites="${failed_suites} ${test_binary}"
