@@ -32,4 +32,22 @@ const char* GetPlayerOutputModeName(SbPlayerOutputMode output_mode) {
   return "invalid";
 }
 
+const char* GetPlayerStateName(SbPlayerState state) {
+  switch (state) {
+    case kSbPlayerStateInitialized:
+      return "kSbPlayerStateInitialized";
+    case kSbPlayerStatePrerolling:
+      return "kSbPlayerStatePrerolling";
+    case kSbPlayerStatePresenting:
+      return "kSbPlayerStatePresenting";
+    case kSbPlayerStateEndOfStream:
+      return "kSbPlayerStateEndOfStream";
+    case kSbPlayerStateDestroyed:
+      return "kSbPlayerStateDestroyed";
+  }
+
+  SB_NOTREACHED();
+  return "invalid";
+}
+
 }  // namespace starboard

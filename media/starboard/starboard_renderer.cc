@@ -19,12 +19,14 @@
 #include "media/base/audio_codecs.h"
 #include "media/base/video_codecs.h"
 #include "starboard/common/media.h"
+#include "starboard/common/player.h"
 
 namespace media {
 
 namespace {
 
 using ::starboard::GetMediaAudioConnectorName;
+using ::starboard::GetPlayerStateName;
 
 // In the OnNeedData(), it attempts to write one more audio access
 // unit than the audio write duration. Specifically, the check
@@ -762,19 +764,21 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
 void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
+  static auto log_player_state = [](SbPlayerState state) {
+    LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
+              << GetPlayerStateName(state);
+  };
+
   // In case if state is changed when creation of the `player_bridge_` fails.
   // We may also need this for suspend/resume support.
   if (!player_bridge_) {
-    // TODO(b/376316272): Turn `state` into its string form and consolidate all
-    //                    player state loggings below.
-    LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with " << state;
+    log_player_state(state);
     return;
   }
 
   switch (state) {
     case kSbPlayerStateInitialized:
-      LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
-                   "kSbPlayerStateInitialized.";
+      log_player_state(state);
       DCHECK(!player_bridge_initialized_);
       player_bridge_initialized_ = true;
 
@@ -783,8 +787,7 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
       }
       break;
     case kSbPlayerStatePrerolling:
-      LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
-                   "kSbPlayerStatePrerolling.";
+      log_player_state(state);
       DCHECK(player_bridge_initialized_);
       break;
     case kSbPlayerStatePresenting:
@@ -794,19 +797,17 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
           HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
               ? audio_write_duration_remote_
               : audio_write_duration_local_;
-      LOG(INFO) << "SbPlayerBridge reaches kSbPlayerStatePresenting, with audio"
-                << " write duration at " << audio_write_duration_;
+      LOG(INFO) << "SbPlayerBridge reaches " << GetPlayerStateName(state)
+                << ", with audio write duration at " << audio_write_duration_;
       DCHECK(player_bridge_initialized_);
       break;
     case kSbPlayerStateEndOfStream:
-      LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
-                   "kSbPlayerStateEndOfStream.";
+      log_player_state(state);
       DCHECK(player_bridge_initialized_);
       client_->OnEnded();
       break;
     case kSbPlayerStateDestroyed:
-      LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
-                   "kSbPlayerStateDestroyed.";
+      log_player_state(state);
       break;
   }
 }
