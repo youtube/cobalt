@@ -129,8 +129,8 @@ config("modular") {
       "-fno-delete-null-pointer-checks",
 
       # ../../third_party/perfetto/src/base/unix_socket.cc:555:17: error: comparison of integers of different signs: 'unsigned long' and 'long' [-Werror,-Wsign-compare]
-        #  cmsg = CMSG_NXTHDR(&msg_hdr, cmsg)) {
-        #         ^~~~~~~~~~~~~~~~~~~~~~~~~~~
+      #  cmsg = CMSG_NXTHDR(&msg_hdr, cmsg)) {
+      #         ^~~~~~~~~~~~~~~~~~~~~~~~~~~
       "-Wno-sign-compare",
     ]
   }
