@@ -83,6 +83,12 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   // https://w3c.github.io/media-source/#sourcebuffer-coded-frame-eviction
   bool EvictCodedFrames(base::TimeDelta media_time, size_t newDataSize);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Returns the latest presentation timestamp of the buffers queued in the
+  // stream.
+  base::TimeDelta GetWriteHead() const;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   void OnMemoryPressure(
       base::TimeDelta media_time,
       base::MemoryPressureListener::MemoryPressureLevel memory_pressure_level,
@@ -190,6 +196,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   const std::string mime_type_;
+  base::TimeDelta write_head_ GUARDED_BY(lock_);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Specifies the type of the stream.
@@ -415,6 +422,12 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   [[nodiscard]] bool EvictCodedFrames(const std::string& id,
                                       base::TimeDelta currentMediaTime,
                                       size_t newDataSize);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Returns the latest presentation timestamp of the buffers to be read
+  // from the DemuxerStream.
+  [[nodiscard]] base::TimeDelta GetWriteHead(const std::string& id) const;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void OnMemoryPressure(
       base::TimeDelta currentMediaTime,

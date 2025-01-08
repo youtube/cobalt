@@ -4,6 +4,10 @@
 
 import("//third_party/blink/renderer/config.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 # Statically-defined (not build-time-generated) IDL files in 'modules' component
 # for production.
 static_idl_files_in_modules = get_path_info(
@@ -1204,7 +1208,8 @@ static_idl_files_in_modules = get_path_info(
 
 if (is_cobalt) {
   static_idl_files_in_modules += get_path_info(
-          [ "//third_party/blink/renderer/modules/cobalt/crash_annotator/crash_annotator.idl",
+          [
+            "//third_party/blink/renderer/modules/cobalt/crash_annotator/crash_annotator.idl",
             "//third_party/blink/renderer/modules/cobalt/crash_annotator/navigator_crash_annotator.idl",
           ],
           "abspath")
@@ -1284,6 +1289,15 @@ if (target_os != "android") {
             "//third_party/blink/renderer/modules/document_picture_in_picture/document_picture_in_picture_options.idl",
             "//third_party/blink/renderer/modules/document_picture_in_picture/window_document_picture_in_picture.idl",
           ],
+          "abspath")
+}
+
+# SourceBufferWriteHead
+# An extension to the SourceBuffer interface that allows web apps to check the
+# highest presentation timestamp written to the Renderer.
+if (is_cobalt && use_starboard_media) {
+  static_idl_files_in_modules += get_path_info(
+          [ "//third_party/blink/renderer/modules/mediasource/source_buffer_write_head.idl" ],
           "abspath")
 }
 
