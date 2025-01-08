@@ -57,11 +57,8 @@ class ConditionVariable {
 };
 
 }  // namespace starboard
+}
 
-} 
-
-#endif //__cplusplus
+#endif  //__cplusplus
 
 #endif  // STARBOARD_COMMON_CONDITION_VARIABLE_H_
-
-
