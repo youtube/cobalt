@@ -82,6 +82,19 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
 
   windows_.push_back(this);
 
+  // Quick hack to demo injecting scripts
+
+  // Create browser-side mojo service component
+  js_communication_host_ =
+          std::make_unique<js_injection::JsCommunicationHost>(web_contents_.get());
+
+  // Inject a script at document start for all origins
+  const std::u16string script(u"console.log('Hello from JS injection');");
+  const std::vector<std::string> allowed_origins({"*"});
+  auto result = js_communication_host_->AddDocumentStartJavaScript(script, allowed_origins);
+  CHECK(!result.error_message);
+  // End inject
+
   if (shell_created_callback_)
     std::move(shell_created_callback_).Run(this);
 }
@@ -765,5 +778,10 @@ void Shell::TitleWasSet(NavigationEntry* entry) {
   if (entry)
     g_platform->SetTitle(this, entry->GetTitle());
 }
+
+void Shell::PrimaryMainDocumentElementAvailable() {
+  LOG(WARNING) << "Primary doc element created";
+}
+
 
 }  // namespace content
