@@ -22,13 +22,17 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/media.h"
 
-using starboard::android::shared::MediaCapabilitiesCache;
-using starboard::android::shared::SupportedAudioCodecToMimeType;
-using starboard::shared::starboard::media::MimeType;
+namespace starboard {
+namespace shared {
+namespace starboard {
+namespace media {
 
-bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
-                             const MimeType* mime_type,
-                             int64_t bitrate) {
+using ::starboard::android::shared::MediaCapabilitiesCache;
+using ::starboard::android::shared::SupportedAudioCodecToMimeType;
+
+bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
+                           const MimeType* mime_type,
+                           int64_t bitrate) {
   if (bitrate >= kSbMediaMaxAudioBitrateInBitsPerSecond) {
     return false;
   }
@@ -80,3 +84,8 @@ bool SbMediaIsAudioSupported(SbMediaAudioCodec audio_codec,
   return MediaCapabilitiesCache::GetInstance()->IsPassthroughSupported(
       audio_codec);
 }
+
+}  // namespace media
+}  // namespace starboard
+}  // namespace shared
+}  // namespace starboard
