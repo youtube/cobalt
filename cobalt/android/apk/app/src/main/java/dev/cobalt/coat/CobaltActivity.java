@@ -35,7 +35,6 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
-import dev.cobalt.app.CobaltApplication;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptInterface;
 import dev.cobalt.coat.javabridge.H5vccPlatformService;
@@ -102,7 +101,7 @@ public abstract class CobaltActivity extends Activity {
   protected void createContent(final Bundle savedInstanceState) {
     // Initializing the command line must occur before loading the library.
     if (!CommandLine.isInitialized()) {
-      ((CobaltApplication) getApplication()).initCommandLine();
+      CommandLine.init(null);
 
       String[] cobaltCommandLineParams =
           new String[] {
@@ -480,7 +479,9 @@ public abstract class CobaltActivity extends Activity {
     super.onStop();
 
     WebContents webContents = getActiveWebContents();
-    if (webContents != null) webContents.onHide();
+    if (webContents != null) {
+      webContents.onHide();
+    }
 
     if (VideoSurfaceView.getCurrentSurface() != null) {
       forceCreateNewVideoSurfaceView = true;
