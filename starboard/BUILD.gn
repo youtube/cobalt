@@ -200,7 +200,7 @@ if (!is_cobalt) {
       if (sb_is_evergreen) {
         public_deps += [ "//starboard/elf_loader:sabi_string" ]
       } else {
-        data_deps = [ ":starboard($starboard_toolchain)" ]
+        deps += [ ":starboard($starboard_toolchain)" ]
       }
 
       # TODO: b/295702296 Fix libunwind for modular builds.

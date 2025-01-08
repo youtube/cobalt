@@ -101,8 +101,10 @@ if (is_apple) {
          "mac requires mach absolute time ticks")
 }
 
+# ../../third_party/libevent/signal.c:43:10: fatal error: 'sys/queue.h' file not found
+# #include <sys/queue.h>
 # Determines whether libevent should be dep.
-dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
+dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl &&!is_starboard
 
 # Determines whether message_pump_libevent should be used.
 use_libevent = dep_libevent && !is_ios
@@ -197,7 +199,7 @@ buildflag_header("ios_cronet_buildflags") {
   flags = [ "CRONET_BUILD=$is_cronet_build" ]
 }
 
-enable_message_pump_epoll = is_linux || is_chromeos || is_android
+enable_message_pump_epoll = is_linux || is_chromeos || is_android && !is_starboard
 buildflag_header("message_pump_buildflags") {
   header = "message_pump_buildflags.h"
   header_dir = "base/message_loop"
@@ -994,7 +996,8 @@ component("base") {
     ]
   }
 
-  if (is_linux || is_chromeos) {
+  if ((is_linux || is_chromeos) && !is_starboard) {
+    print("wohooo")
     sources += [
       "debug/proc_maps_linux.cc",
       "debug/proc_maps_linux.h",
@@ -1119,7 +1122,9 @@ component("base") {
       "allocator/partition_allocator/shim/allocator_shim.h",
       "allocator/partition_allocator/shim/allocator_shim_internals.h",
     ]
-    if (use_partition_alloc) {
+#     loc.cc -o obj/base/base/allocator_shim_default_dispatch_to_partition_alloc.o
+# ../../base/allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc:748:36: error: incomplete result type 'struct mallinfo' in function definition
+    if (use_partition_alloc && !is_starboard) {
       sources += [
         "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc",
         "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h",
@@ -1140,7 +1145,12 @@ component("base") {
       ]
       configs += [ "//base/allocator:mac_no_default_new_delete_symbols" ]
     }
-    if (is_chromeos || is_linux) {
+
+#     SHIM_ALWAYS_EXPORT size_t malloc_usable_size(void* address) __THROW {
+#                           ^
+# ../../third_party/musl/include/malloc.h:19:8: note: previous declaration is here
+# size_t malloc_usable_size(void *);
+    if ((is_chromeos || is_linux) && !is_starboard) {
       sources += [
         "allocator/partition_allocator/shim/allocator_shim_override_cpp_symbols.h",
         "allocator/partition_allocator/shim/allocator_shim_override_glibc_weak_symbols.h",
@@ -1677,14 +1687,17 @@ component("base") {
       ]
     }
 
-    if ((is_posix && !is_ios) || is_fuchsia) {
+    if (((is_posix && !is_ios) || is_fuchsia) && !is_starboard){
       sources += [
         "process/process_metrics_posix.cc",
         "sync_socket_posix.cc",
       ]
     }
 
-    if (is_posix && !is_apple) {
+  #   ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
+  # return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
+
+    if (is_posix && !is_apple && !is_starboard) {
       sources += [
         "native_library_posix.cc",
         "posix/can_lower_nice_to.cc",

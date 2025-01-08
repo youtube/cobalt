@@ -22,6 +22,11 @@
 
 #include "starboard/configuration.h"
 
+#ifdef __cplusplus
+
+extern "C++" {
+
+
 namespace starboard {
 
 // Inline class wrapper for mutex.
@@ -88,4 +93,9 @@ class ScopedTryLock {
 
 }  // namespace starboard
 
+} 
+
+#endif //__cplusplus
+
 #endif  // STARBOARD_COMMON_MUTEX_H_
+

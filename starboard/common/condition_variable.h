@@ -26,6 +26,10 @@
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 
+#ifdef __cplusplus
+
+extern "C++" {
+
 namespace starboard {
 
 // Inline class wrapper for pthread_cond_t.
@@ -54,4 +58,10 @@ class ConditionVariable {
 
 }  // namespace starboard
 
+} 
+
+#endif //__cplusplus
+
 #endif  // STARBOARD_COMMON_CONDITION_VARIABLE_H_
+
+

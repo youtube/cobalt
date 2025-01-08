@@ -175,6 +175,7 @@ int pthread_join(pthread_t thread, void** value_ptr);
 int pthread_detach(pthread_t thread);
 pthread_t pthread_self();
 int pthread_equal(pthread_t t1, pthread_t t2);
+int pthread_atfork(void (*)(void), void (*)(void), void (*)(void));
 
 int pthread_setname_np(pthread_t thread, const char* name);
 int pthread_getname_np(pthread_t thread, char* name, size_t len);

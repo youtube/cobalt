@@ -39,6 +39,7 @@ absl_source_set("raw_logging_internal") {
     ":log_severity",
   ]
   visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  public_deps += ["//starboard:starboard_headers_only"]
 }
 
 absl_source_set("spinlock_wait") {
