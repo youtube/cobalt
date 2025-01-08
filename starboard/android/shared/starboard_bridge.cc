@@ -14,14 +14,14 @@
 
 #include "starboard/android/shared/starboard_bridge.h"
 
+#include "base/android/jni_array.h"
+#include "base/android/jni_string.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
-#include "base/android/jni_array.h"
-#include "base/android/jni_string.h"
 #include "cobalt/android/jni_headers/StarboardBridge_jni.h"
 
 namespace starboard {
