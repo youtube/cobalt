@@ -775,7 +775,7 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
   switch (state) {
     case kSbPlayerStateInitialized:
       LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
-              << GetPlayerStateName(state);
+                << GetPlayerStateName(state);
       DCHECK(!player_bridge_initialized_);
       player_bridge_initialized_ = true;
 
@@ -785,7 +785,7 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
       break;
     case kSbPlayerStatePrerolling:
       LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
-              << GetPlayerStateName(state);
+                << GetPlayerStateName(state);
       DCHECK(player_bridge_initialized_);
       break;
     case kSbPlayerStatePresenting:
@@ -801,13 +801,13 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
       break;
     case kSbPlayerStateEndOfStream:
       LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
-              << GetPlayerStateName(state);
+                << GetPlayerStateName(state);
       DCHECK(player_bridge_initialized_);
       client_->OnEnded();
       break;
     case kSbPlayerStateDestroyed:
       LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
-              << GetPlayerStateName(state);
+                << GetPlayerStateName(state);
       break;
   }
 }
