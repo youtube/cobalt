@@ -243,6 +243,14 @@ void WebSourceBufferImpl::RemovedFromMediaSource() {
   client_ = nullptr;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+double WebSourceBufferImpl::GetWriteHead(
+    ExceptionState& exception_state) const {
+  DCHECK(demuxer_);
+  return demuxer_->GetWriteHead(id_).InSecondsF();
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 WebMediaPlayer::TrackType mediaTrackTypeToBlink(media::MediaTrack::Type type) {
   switch (type) {
     case media::MediaTrack::Type::kAudio:
