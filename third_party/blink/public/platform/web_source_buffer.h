@@ -37,6 +37,10 @@
 
 namespace blink {
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+class ExceptionState;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 class WebSourceBufferClient;
 
 // Interface for actuating the media engine implementation of Media Source
@@ -140,6 +144,11 @@ class WebSourceBuffer {
   // After this method is called, this WebSourceBuffer should never use the
   // client pointer passed to SetClient().
   virtual void RemovedFromMediaSource() = 0;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Return the highest presentation timestamp written to the Renderer.
+  virtual double GetWriteHead(ExceptionState& exception_state) const = 0;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace blink
