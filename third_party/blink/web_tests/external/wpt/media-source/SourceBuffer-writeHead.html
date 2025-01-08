@@ -75,7 +75,7 @@
                     expectedWriteHead = expectedWriteHead + segmentLength;
                     assert_equals(sourceBuffer.writeHead, expectedWriteHead);
                     index = index - 1;
-                    if (index == 0) {
+                    if (index <= 0) {
                         test.done();
                         return;
                     }
