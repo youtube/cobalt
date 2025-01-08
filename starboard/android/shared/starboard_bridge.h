@@ -46,6 +46,9 @@ class StarboardBridge {
 
   std::string GetStartDeepLink(JNIEnv* env);
 
+  base::android::ScopedJavaLocalRef<jintArray> GetSupportedHdrTypes(
+      JNIEnv* env);
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;
