@@ -18,6 +18,7 @@
 
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/once.h"
 #include "starboard/shared/starboard/media/key_system_supportability_cache.h"
@@ -188,9 +189,9 @@ bool GetIsCbcsSupported() {
 std::set<SbMediaTransferId> GetSupportedHdrTypes() {
   std::set<SbMediaTransferId> supported_transfer_ids;
 
-  JniEnvExt* env = JniEnvExt::Get();
-  jintArray j_supported_hdr_types = static_cast<jintArray>(
-      env->CallStarboardObjectMethodOrAbort("getSupportedHdrTypes", "()[I"));
+  JNIEnv* env = base::android::AttachCurrentThread();
+  base::android::ScopedJavaLocalRef<jintArray> j_supported_hdr_types =
+      StarboardBridge::GetInstance()->GetSupportedHdrTypes(env);
 
   if (!j_supported_hdr_types) {
     // Failed to get supported hdr types.
@@ -198,8 +199,9 @@ std::set<SbMediaTransferId> GetSupportedHdrTypes() {
     return std::set<SbMediaTransferId>();
   }
 
-  jsize length = env->GetArrayLength(j_supported_hdr_types);
-  jint* numbers = env->GetIntArrayElements(j_supported_hdr_types, 0);
+  jsize length = env->GetArrayLength(j_supported_hdr_types.obj());
+  jint* numbers =
+      env->GetIntArrayElements(j_supported_hdr_types.obj(), nullptr);
   for (int i = 0; i < length; i++) {
     switch (numbers[i]) {
       case HDR_TYPE_DOLBY_VISION:
@@ -214,7 +216,7 @@ std::set<SbMediaTransferId> GetSupportedHdrTypes() {
         continue;
     }
   }
-  env->ReleaseIntArrayElements(j_supported_hdr_types, numbers, 0);
+  env->ReleaseIntArrayElements(j_supported_hdr_types.obj(), numbers, 0);
 
   return supported_transfer_ids;
 }
