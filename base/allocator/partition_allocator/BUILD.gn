@@ -233,8 +233,6 @@ component("partition_alloc") {
       import("//cobalt/build/configs/modular_variables.gni")
       if (use_custom_libc) {
         sources -= [ "partition_alloc_base/rand_util_posix.cc" ]
-              deps += [ "//starboard:starboard_group" ]
-
       }
     }
 

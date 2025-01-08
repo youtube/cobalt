@@ -21,9 +21,11 @@
 #include <unistd.h>
 #endif
 
-#ifdef __linux__
+#if !defined(OS_STARBOARD)
+#ifdef __linux__ &&
 #include <linux/futex.h>
 #include <sys/syscall.h>
+#endif
 #endif
 
 #include <errno.h>

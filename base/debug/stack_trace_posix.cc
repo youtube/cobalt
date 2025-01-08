@@ -301,7 +301,7 @@ void PrintToStderr(const char* output) {
   std::ignore = HANDLE_EINTR(write(STDERR_FILENO, output, strlen(output)));
 }
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) 
 void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // We have seen rare cases on AMD linux where the default signal handler
   // either does not run or a thread (Probably an AMD driver thread) prevents
@@ -317,8 +317,13 @@ void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
   PrintToStderr(
       "Warning: Default signal handler failed to terminate process.\n");
   PrintToStderr("Calling exit_group() directly to prevent timeout.\n");
+
+#if !BUILDFLAG(IS_STARBOARD) 
   // See: https://man7.org/linux/man-pages/man2/exit_group.2.html
   syscall(SYS_exit_group, EXIT_FAILURE);
+#else
+// No clue how to substitue , ask yavor
+#endif // IS_STARBOARD
 }
 #endif  // BUILDFLAG(IS_LINUX)
 
