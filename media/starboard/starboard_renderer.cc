@@ -764,21 +764,18 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
 void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  static auto log_player_state = [](SbPlayerState state) {
-    LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
-              << GetPlayerStateName(state);
-  };
-
   // In case if state is changed when creation of the `player_bridge_` fails.
   // We may also need this for suspend/resume support.
   if (!player_bridge_) {
-    log_player_state(state);
+    LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
+              << GetPlayerStateName(state);
     return;
   }
 
   switch (state) {
     case kSbPlayerStateInitialized:
-      log_player_state(state);
+      LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
+              << GetPlayerStateName(state);
       DCHECK(!player_bridge_initialized_);
       player_bridge_initialized_ = true;
 
@@ -787,7 +784,8 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
       }
       break;
     case kSbPlayerStatePrerolling:
-      log_player_state(state);
+      LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
+              << GetPlayerStateName(state);
       DCHECK(player_bridge_initialized_);
       break;
     case kSbPlayerStatePresenting:
@@ -802,12 +800,14 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
       DCHECK(player_bridge_initialized_);
       break;
     case kSbPlayerStateEndOfStream:
-      log_player_state(state);
+      LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
+              << GetPlayerStateName(state);
       DCHECK(player_bridge_initialized_);
       client_->OnEnded();
       break;
     case kSbPlayerStateDestroyed:
-      log_player_state(state);
+      LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
+              << GetPlayerStateName(state);
       break;
   }
 }
