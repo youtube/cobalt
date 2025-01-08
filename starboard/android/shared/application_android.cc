@@ -70,13 +70,15 @@ ApplicationAndroid::ApplicationAndroid(
 
   ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
 
-  app_start_timestamp_ = starboard_bridge_->GetAppStartTimestamp();
+  JNIEnv* jni_env = base::android::AttachCurrentThread();
+  app_start_timestamp_ = starboard_bridge_->GetAppStartTimestamp(jni_env);
 
-  starboard_bridge_->ApplicationStarted();
+  starboard_bridge_->ApplicationStarted(jni_env);
 }
 
 ApplicationAndroid::~ApplicationAndroid() {
-  starboard_bridge_->ApplicationStopping();
+  JNIEnv* env = base::android::AttachCurrentThread();
+  starboard_bridge_->ApplicationStopping(env);
 
   // The application is exiting.
   // Release the global reference.
