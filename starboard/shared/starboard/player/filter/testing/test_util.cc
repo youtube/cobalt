@@ -143,8 +143,8 @@ std::vector<const char*> GetSupportedAudioTestFiles(
     const std::string audio_mime = GetContentTypeFromAudioCodec(
         audio_file_info.audio_codec, extra_mime_attributes);
     const MimeType audio_mime_type(audio_mime.c_str());
-    if (!SbMediaIsAudioSupported(audio_file_info.audio_codec, &audio_mime_type,
-                                 audio_file_info.bitrate)) {
+    if (!MediaIsAudioSupported(audio_file_info.audio_codec, &audio_mime_type,
+                               audio_file_info.bitrate)) {
       continue;
     }
 
@@ -186,7 +186,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
       const auto& video_stream_info = dmp_reader.video_stream_info();
       const std::string video_mime = dmp_reader.video_mime_type();
       const MimeType video_mime_type(video_mime.c_str());
-      // SbMediaIsVideoSupported may return false for gpu based decoder that in
+      // MediaIsVideoSupported may return false for gpu based decoder that in
       // fact supports av1 or/and vp9 because the system can make async
       // initialization at startup.
       // To minimize probability of false negative we check result few times
@@ -196,7 +196,7 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
       bool need_to_check_with_wait = video_codec == kSbMediaVideoCodecAv1 ||
                                      video_codec == kSbMediaVideoCodecVp9;
       do {
-        if (SbMediaIsVideoSupported(
+        if (MediaIsVideoSupported(
                 video_codec, video_mime.size() > 0 ? &video_mime_type : nullptr,
                 -1, -1, 8, kSbMediaPrimaryIdUnspecified,
                 kSbMediaTransferIdUnspecified, kSbMediaMatrixIdUnspecified,

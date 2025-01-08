@@ -59,7 +59,7 @@ bool IsSupportedKeySystem(SbMediaAudioCodec codec, const char* key_system) {
   // |key_system|, so here it should always be non empty.
   SB_DCHECK(strlen(key_system) > 0);
 
-  return SbMediaIsSupported(kSbMediaVideoCodecNone, codec, key_system);
+  return MediaIsSupported(kSbMediaVideoCodecNone, codec, key_system);
 }
 
 bool IsSupportedKeySystem(SbMediaVideoCodec codec, const char* key_system) {
@@ -68,7 +68,7 @@ bool IsSupportedKeySystem(SbMediaVideoCodec codec, const char* key_system) {
   // |key_system|, so here it should always be non empty.
   SB_DCHECK(strlen(key_system) > 0);
 
-  return SbMediaIsSupported(codec, kSbMediaAudioCodecNone, key_system);
+  return MediaIsSupported(codec, kSbMediaAudioCodecNone, key_system);
 }
 
 bool IsSupportedAudioCodec(const ParsedMimeInfo& mime_info) {
@@ -123,8 +123,8 @@ bool IsSupportedAudioCodec(const ParsedMimeInfo& mime_info) {
     return false;
   }
 
-  return SbMediaIsAudioSupported(audio_info.codec, &mime_type,
-                                 audio_info.bitrate);
+  return MediaIsAudioSupported(audio_info.codec, &mime_type,
+                               audio_info.bitrate);
 }
 
 bool IsSupportedVideoCodec(const ParsedMimeInfo& mime_info) {
@@ -175,7 +175,7 @@ bool IsSupportedVideoCodec(const ParsedMimeInfo& mime_info) {
     }
   }
 
-  return SbMediaIsVideoSupported(
+  return MediaIsVideoSupported(
       video_info.codec, &mime_type, video_info.profile, video_info.level,
       video_info.bit_depth, video_info.primary_id, video_info.transfer_id,
       video_info.matrix_id, video_info.frame_width, video_info.frame_height,

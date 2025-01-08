@@ -21,13 +21,17 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
-bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
-                        SbMediaAudioCodec audio_codec,
-                        const char* key_system) {
-  using starboard::android::shared::IsWidevineL1;
-  using starboard::android::shared::IsWidevineL3;
-  using starboard::android::shared::MediaCapabilitiesCache;
-  using starboard::shared::starboard::media::MimeType;
+namespace starboard {
+namespace shared {
+namespace starboard {
+namespace media {
+
+bool MediaIsSupported(SbMediaVideoCodec video_codec,
+                      SbMediaAudioCodec audio_codec,
+                      const char* key_system) {
+  using ::starboard::android::shared::IsWidevineL1;
+  using ::starboard::android::shared::IsWidevineL3;
+  using ::starboard::android::shared::MediaCapabilitiesCache;
 
   // It is possible that the |key_system| comes with extra attributes, like
   // `com.widevine.alpha; encryptionscheme="cenc"`. We prepend "key_system/"
@@ -64,3 +68,8 @@ bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
 
   return true;
 }
+
+}  // namespace media
+}  // namespace starboard
+}  // namespace shared
+}  // namespace starboard
