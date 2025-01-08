@@ -31,10 +31,6 @@ _DOCKER_COMPOSE_SERVICE_TARGET = 'kokoro-internal-cobalt-image'
 # within the inner Docker container.
 _INTERNAL_KOKORO_BUILD_SCRIPT = 'cobalt/devinfra/kokoro/bin/dind_build.sh'
 
-_WORKSPACE_COBALT_VAR = 'WORKSPACE_COBALT'
-
-_SERVICE_NOT_FOUND = 'SERVICE_NOT_FOUND'
-
 _PLATFORM_TO_SERVICE_MAP = {
     'android-x86': 'linux',
     'android-arm': 'linux',
@@ -70,7 +66,7 @@ def push_image(target_image):
   utils.exec_cmd(command)
 
 
-def get_local_image_name(service, compose_file='docker-compose.yaml'):
+def get_local_image_name(service, compose_file):
   """
   Parses the docker-compose file to determine the image-name from the
   service-name. When the compose-file is used to build the image, it will get
@@ -90,9 +86,7 @@ def tag_image(src_img, dest_img):
   utils.exec_cmd(tag_command)
 
 
-def run_docker_build(platform,
-                     target_image,
-                     compose_file='docker-compose.yaml'):
+def run_docker_build(platform, target_image, compose_file):
   """
   Runs the docker build for the provided platform, and tags the newly built
   image with the registry/image/tag arguments. If the build fails, instead it

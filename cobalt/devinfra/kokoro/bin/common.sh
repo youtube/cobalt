@@ -265,19 +265,9 @@ create_and_upload_nightly_archive () {
   fi
   local gcs_archive_path="gs://$(get_bucket_name)/${platform}${gcs_path_suffix}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
 
-  # Creates nightly archive from package directory.
-  python3 "${WORKSPACE_COBALT}/tools/create_archive.py" \
-    -s "${package_dir}" \
-    -d "${local_archive_path}" \
-    --intermediate
-
   init_gcloud
 
-  # Uploads nightly archive.
-  "${GSUTIL}" cp "${local_archive_path}" "${gcs_archive_path}"
-
-  # Uploads build_info.json.
-  "${GSUTIL}" cp "${build_info_path}" "${gcs_archive_path}"
+  "${GSUTIL}" cp -r "${package_dir}" "${gcs_archive_path}"
 }
 
 run_package_release_pipeline () {
@@ -300,11 +290,7 @@ run_package_release_pipeline () {
 
     # Create release package.
     if [[ "${PLATFORM}" =~ "android" ]]; then
-      # Creates Android package directory.
-      python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/build/android/simple_packager.py" \
-        "${out_dir}" \
-        "${package_dir}" \
-        "${WORKSPACE_COBALT}"
+      cp "${out_dir}/apks/Cobalt.apk" "${package_dir}"
     elif [[ "${PLATFORM}" =~ "evergreen" ]]; then
       local bootloader_out_dir=
       if [ -n "${BOOTLOADER:-}" ]; then
@@ -316,8 +302,7 @@ run_package_release_pipeline () {
         "${package_dir}" \
         "${bootloader_out_dir:-}"
     else
-      # Sets package directory as out directory.
-      package_dir="${out_dir}"
+      cp "${out_dir}/cobalt" "${package_dir}"
     fi
 
     # Create and upload nightly archive.

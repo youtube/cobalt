@@ -12,8 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/decode_target/decode_target_internal.h"
+#include "third_party/blink/renderer/modules/mediasource/source_buffer_write_head.h"
 
-SbDecodeTargetPrivate::SbDecodeTargetPrivate() = default;
+#include "third_party/blink/renderer/modules/mediasource/source_buffer.h"
+#include "third_party/blink/renderer/platform/bindings/exception_state.h"
 
-SbDecodeTargetPrivate::~SbDecodeTargetPrivate() = default;
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
+#error "This file only works with Starboard media"
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
+
+namespace blink {
+
+// static
+double SourceBufferWriteHead::writeHead(SourceBuffer& source_buffer,
+                                        ExceptionState& exception_state) {
+  return source_buffer.GetWriteHead(exception_state);
+}
+}  // namespace blink

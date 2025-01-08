@@ -2791,6 +2791,13 @@ generated_interface_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_xr_webgl_sub_image.h",
 ]
 
+if (is_cobalt) {
+  generated_interface_sources_in_modules += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_crash_annotator.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_crash_annotator.h",
+  ]
+}
+
 generated_namespace_sources_in_modules = [
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_css.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_css.h",

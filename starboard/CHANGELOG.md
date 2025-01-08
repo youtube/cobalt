@@ -50,6 +50,13 @@ It was only used by win32 platforms
 ### Removed starboad/atomic.h support for C.
 The existing code was migrated to C11 atomics.
 
+### Renamed `SbMediaIs*Supported()` functions
+`SbMediaIsAudioSupported()`, `SbMediaIsSupported()`, and
+`SbMediaIsVideoSupported()` were never part of the Starboard interface.
+Their Sb prefixes were removed and renamed to `MediaIsAudioSupported()`,
+`MediaIsSupported()`, and `MediaIsVideoSupported()`.  They are also moved from
+the global namespace into ::starboard::shared::starboard::media.
+
 ## Version 16
 A key update in Starboard version 16 is the adoption of POSIX APIs.
 For a full overview of Starboard POSIX migrations, please refer to

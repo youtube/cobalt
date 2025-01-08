@@ -26,11 +26,7 @@ import android.content.pm.PackageManager;
 import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
-import android.net.ConnectivityManager;
-import android.net.Network;
-import android.net.NetworkCapabilities;
 import android.os.Build;
-import android.util.Pair;
 import android.util.Size;
 import android.util.SizeF;
 import android.view.Display;
@@ -44,16 +40,16 @@ import dev.cobalt.util.Holder;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.lang.reflect.Method;
-import java.net.InterfaceAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
 import java.util.Calendar;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.TimeZone;
+import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
+@JNINamespace("starboard::android::shared")
 public class StarboardBridge {
 
   /** Interface to be implemented by the Android Application hosting the starboard app. */
@@ -144,7 +140,19 @@ public class StarboardBridge {
 
   private native void closeNativeStarboard(long nativeApp);
 
-  private native long nativeCurrentMonotonicTime();
+  @NativeMethods
+    interface Natives {
+        void onStop();
+
+        long currentMonotonicTime();
+
+        // TODO(cobalt, b/372559388): move below native methods to the Natives interface.
+        // boolean initJNI();
+
+        // long startNativeStarboard();
+
+        // void closeNativeStarboard(long nativeApp);
+    }
 
   protected void onActivityStart(Activity activity) {
     Log.e(TAG, "onActivityStart ran");
@@ -160,16 +168,14 @@ public class StarboardBridge {
       activityHolder.set(null);
     }
     sysConfigChangeReceiver.setForeground(false);
-    afterStopped();
   }
-
-  private native void nativeOnStop();
 
   protected void onActivityDestroy(Activity activity) {
     if (applicationStopped) {
       // We can't restart the starboard app, so kill the process for a clean start next time.
       Log.i(TAG, "Activity destroyed after shutdown; killing app.");
       closeNativeStarboard(nativeApp);
+      closeAllServices();
       System.exit(0);
     } else {
       Log.i(TAG, "Activity destroyed without shutdown; app suspended in background.");
@@ -186,8 +192,6 @@ public class StarboardBridge {
     }
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
   protected void beforeStartOrResume() {
     Log.i(TAG, "Prepare to resume");
     // Bring our platform services to life before resuming so that they're ready to deal with
@@ -201,8 +205,6 @@ public class StarboardBridge {
     advertisingId.refresh();
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
   protected void beforeSuspend() {
     try {
       Log.i(TAG, "Prepare to suspend");
@@ -219,14 +221,19 @@ public class StarboardBridge {
     }
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
-  protected void afterStopped() {
-    applicationStopped = true;
+  private void closeAllServices() {
     ttsHelper.shutdown();
     for (CobaltService service : cobaltServices.values()) {
       service.afterStopped();
     }
+  }
+
+  // Warning: "Stopped" refers to Starboard "Stopped" event, it's different from Android's "onStop".
+  @SuppressWarnings("unused")
+  @CalledByNative
+  protected void afterStopped() {
+    applicationStopped = true;
+    closeAllServices();
     Activity activity = activityHolder.get();
     if (activity != null) {
       // Wait until the activity is destroyed to exit.
@@ -240,18 +247,20 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected void applicationStarted() {
     applicationReady = true;
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected void applicationStopping() {
     applicationReady = false;
     applicationStopped = true;
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/system_request_conceal.cc
   @SuppressWarnings("unused")
   @UsedByNative
   public void requestSuspend() {
@@ -272,6 +281,7 @@ public class StarboardBridge {
 
   // private native boolean nativeOnSearchRequested();
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
   @SuppressWarnings("unused")
   @UsedByNative
   public Context getApplicationContext() {
@@ -281,6 +291,8 @@ public class StarboardBridge {
     return appContext;
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/system_platform_error.cc
   @SuppressWarnings("unused")
   @UsedByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
@@ -302,7 +314,7 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected String[] getArgs() {
     if (args == null) {
       throw new IllegalArgumentException("args cannot be null");
@@ -312,7 +324,7 @@ public class StarboardBridge {
 
   /** Returns the URL from the Intent that started the app. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected String getStartDeepLink() {
     if (startDeepLink == null) {
       throw new IllegalArgumentException("startDeepLink cannot be null");
@@ -335,6 +347,8 @@ public class StarboardBridge {
     // TODO(b/374147993): Implement deep link
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/file_internal.cc
   /**
    * Returns the absolute path to the directory where application specific files should be written.
    * May be overridden for use cases that need to segregate storage.
@@ -345,6 +359,8 @@ public class StarboardBridge {
     return appContext.getFilesDir().getAbsolutePath();
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/file_internal.cc
   /**
    * Returns the absolute path to the application specific cache directory on the filesystem. May be
    * overridden for use cases that need to segregate storage.
@@ -355,59 +371,8 @@ public class StarboardBridge {
     return appContext.getCacheDir().getAbsolutePath();
   }
 
-  /**
-   * Returns non-loopback network interface address and its netmask, or null if none.
-   *
-   * <p>A Java function to help implement Starboard's SbSocketGetLocalInterfaceAddress.
-   */
-  @SuppressWarnings("unused")
-  @UsedByNative
-  Pair<byte[], byte[]> getLocalInterfaceAddressAndNetmask(boolean wantIPv6) {
-    try {
-      Enumeration<NetworkInterface> it = NetworkInterface.getNetworkInterfaces();
-
-      while (it.hasMoreElements()) {
-        NetworkInterface ni = it.nextElement();
-        if (ni.isLoopback()) {
-          continue;
-        }
-        if (!ni.isUp()) {
-          continue;
-        }
-        if (ni.isPointToPoint()) {
-          continue;
-        }
-
-        for (InterfaceAddress ia : ni.getInterfaceAddresses()) {
-          byte[] address = ia.getAddress().getAddress();
-          boolean isIPv6 = (address.length > 4);
-          if (isIPv6 == wantIPv6) {
-            // Convert the network prefix length to a network mask.
-            int prefix = ia.getNetworkPrefixLength();
-            byte[] netmask = new byte[address.length];
-            for (int i = 0; i < netmask.length; i++) {
-              if (prefix == 0) {
-                netmask[i] = 0;
-              } else if (prefix >= 8) {
-                netmask[i] = (byte) 0xFF;
-                prefix -= 8;
-              } else {
-                netmask[i] = (byte) (0xFF << (8 - prefix));
-                prefix = 0;
-              }
-            }
-            return new Pair<>(address, netmask);
-          }
-        }
-      }
-    } catch (SocketException ex) {
-      // TODO should we have a logging story that strips logs for production?
-      Log.w(TAG, "sbSocketGetLocalInterfaceAddress exception", ex);
-      return null;
-    }
-    return null;
-  }
-
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/speech_synthesis_speak.cc
   @SuppressWarnings("unused")
   @UsedByNative
   CobaltTextToSpeechHelper getTextToSpeechHelper() {
@@ -417,6 +382,8 @@ public class StarboardBridge {
     return ttsHelper;
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/accessibility_get_caption_settings.cc
   /**
    * @return A new CaptionSettings object with the current system caption settings.
    */
@@ -428,6 +395,8 @@ public class StarboardBridge {
     return new CaptionSettings(cm);
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/system_get_locale_id.cc
   /** Java-layer implementation of SbSystemGetLocaleId. */
   @SuppressWarnings("unused")
   @UsedByNative
@@ -435,6 +404,8 @@ public class StarboardBridge {
     return Locale.getDefault().toLanguageTag();
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/time_zone_get_name.cc
   @SuppressWarnings("unused")
   @UsedByNative
   String getTimeZoneId() {
@@ -447,18 +418,19 @@ public class StarboardBridge {
     return timeZone.getID();
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/window_get_diagonal_size_in_inches.cc
   @SuppressWarnings("unused")
   @UsedByNative
   SizeF getDisplayDpi() {
     return DisplayUtil.getDisplayDpi();
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
   Size getDisplaySize() {
     return DisplayUtil.getSystemDisplaySize();
   }
 
+  // TODO: (cobalt b/372559388) migrate JNI.
   @SuppressWarnings("unused")
   @UsedByNative
   public ResourceOverlay getResourceOverlay() {
@@ -481,6 +453,8 @@ public class StarboardBridge {
     }
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/window_get_size.cc
   @SuppressWarnings("unused")
   @UsedByNative
   Size getDeviceResolution() {
@@ -505,6 +479,8 @@ public class StarboardBridge {
     }
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/system_network_is_disconnected.cc
   @SuppressWarnings("unused")
   @UsedByNative
   boolean isNetworkConnected() {
@@ -514,6 +490,8 @@ public class StarboardBridge {
     return networkStatus.isConnected();
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/microphone_impl.cc
   /**
    * Checks if there is no microphone connected to the system.
    *
@@ -543,6 +521,8 @@ public class StarboardBridge {
     return true;
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/microphone_impl.cc
   /**
    * Checks if the microphone is muted.
    *
@@ -555,26 +535,8 @@ public class StarboardBridge {
     return audioManager.isMicrophoneMute();
   }
 
-  /**
-   * @return true if we have an active network connection and it's on an wireless network.
-   */
-  @SuppressWarnings("unused")
-  @UsedByNative
-  boolean isCurrentNetworkWireless() {
-    ConnectivityManager connMgr =
-        (ConnectivityManager) appContext.getSystemService(Context.CONNECTIVITY_SERVICE);
-    Network activeNetwork = connMgr.getActiveNetwork();
-    if (activeNetwork == null) {
-      return false;
-    }
-    NetworkCapabilities activeCapabilities = connMgr.getNetworkCapabilities(activeNetwork);
-    if (activeCapabilities == null) {
-      return false;
-    }
-    // Consider anything that's not definitely wired to be wireless.
-    return !activeCapabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET);
-  }
-
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/accessibility_get_display_settings.cc
   /**
    * @return true if the user has enabled accessibility high contrast text in the operating system.
    */
@@ -593,6 +555,8 @@ public class StarboardBridge {
     }
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/android_media_session_client.cc
   @SuppressWarnings("unused")
   @UsedByNative
   void updateMediaSession(
@@ -612,6 +576,8 @@ public class StarboardBridge {
     //     playbackState, actions, positionMs, speed, title, artist, album, artwork, duration);
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/android_media_session_client.cc
   @SuppressWarnings("unused")
   @UsedByNative
   public void deactivateMediaSession() {
@@ -620,6 +586,8 @@ public class StarboardBridge {
     // cobaltMediaSession.deactivateMediaSession();
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/system_get_property.cc
   /** Returns string for kSbSystemPropertyUserAgentAuxField */
   @SuppressWarnings("unused")
   @UsedByNative
@@ -648,6 +616,8 @@ public class StarboardBridge {
     return sb.toString();
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/system_get_property.cc
   /** Returns string for kSbSystemPropertyAdvertisingId */
   @SuppressWarnings("unused")
   @UsedByNative
@@ -655,6 +625,8 @@ public class StarboardBridge {
     return this.advertisingId.getId();
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/system_get_property.cc
   /** Returns boolean for kSbSystemPropertyLimitAdTracking */
   @SuppressWarnings("unused")
   @UsedByNative
@@ -662,6 +634,8 @@ public class StarboardBridge {
     return this.advertisingId.isLimitAdTrackingEnabled();
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/audio_track_bridge.cc
   @SuppressWarnings("unused")
   @UsedByNative
   AudioOutputManager getAudioOutputManager() {
@@ -682,6 +656,8 @@ public class StarboardBridge {
   //   audioPermissionRequester.onRequestPermissionsResult(requestCode, permissions, grantResults);
   // }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/video_window.cc
   @SuppressWarnings("unused")
   @UsedByNative
   public void resetVideoSurface() {
@@ -691,6 +667,8 @@ public class StarboardBridge {
     }
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/player_set_bounds.cc
   @SuppressWarnings("unused")
   @UsedByNative
   public void setVideoSurfaceBounds(final int x, final int y, final int width, final int height) {
@@ -700,9 +678,11 @@ public class StarboardBridge {
     }
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/media_capabilities_cache.cc
   /** Return supported hdr types. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public int[] getSupportedHdrTypes() {
     Display defaultDisplay = DisplayUtil.getDefaultDisplay();
     if (defaultDisplay == null) {
@@ -778,14 +758,15 @@ public class StarboardBridge {
     return response.data;
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
   /** Returns the application start timestamp. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected long getAppStartTimestamp() {
     Activity activity = activityHolder.get();
     if (activity instanceof CobaltActivity) {
       long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
-      long cppTimestamp = nativeCurrentMonotonicTime();
+      long cppTimestamp = StarboardBridgeJni.get().currentMonotonicTime();
       long javaStopTimestamp = System.nanoTime();
       return cppTimestamp
           - (javaStopTimestamp - javaStartTimestamp) / timeNanosecondsPerMicrosecond;
@@ -793,6 +774,8 @@ public class StarboardBridge {
     return 0;
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/graphics.cc
   @SuppressWarnings("unused")
   @UsedByNative
   void reportFullyDrawn() {
@@ -802,6 +785,8 @@ public class StarboardBridge {
     }
   }
 
+  // TODO: (cobalt b/372559388) remove or migrate JNI?
+  // Used in starboard/android/shared/crash_handler.cc
   @SuppressWarnings("unused")
   @UsedByNative
   public void setCrashContext(String key, String value) {
@@ -821,19 +806,19 @@ public class StarboardBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected boolean getIsAmatiDevice() {
     return this.isAmatiDevice;
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected String getBuildFingerprint() {
     return Build.FINGERPRINT;
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected long getPlayServicesVersion() {
     try {
       if (android.os.Build.VERSION.SDK_INT < 28) {

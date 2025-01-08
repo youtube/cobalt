@@ -167,6 +167,10 @@ component("modules") {
     "//third_party/blink/renderer/modules/xr",
   ]
 
+  if (is_cobalt) {
+    sub_modules += [ "//third_party/blink/renderer/modules/cobalt/crash_annotator" ]
+  }
+
   # This uses target_os rather than current_os (which is what is_android is set
   # from) for the case of generating the v8 context snapshot for android. When
   # generating the snapshot for android, blink is compiled with

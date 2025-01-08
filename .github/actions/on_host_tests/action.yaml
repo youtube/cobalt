@@ -35,17 +35,17 @@ runs:
         env
 
         # Explicitly point to libraries in extracted dir.
-        LD_LIBRARY_PATH="${test_dir}/out/${{ matrix.platform }}_${{ matrix.config }}/starboard"
-        LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${test_dir}/out/${{ matrix.platform }}_${{ matrix.config }}"
+        LD_LIBRARY_PATH="${test_dir}/starboard"
+        LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${test_dir}"
         export LD_LIBRARY_PATH
 
         # Make results dir available to the archiving step below.
         results_dir="${GITHUB_WORKSPACE}/results"
         echo "results_dir=${results_dir}" >> $GITHUB_ENV
 
+        failed_suites=""
         cd ${test_dir}
-        for test_binary_path in $(ls -d out/**/*tests out/**/nplb); do
-          test_binary=$(basename "${test_binary_path}")
+        for test_binary in $(ls {*tests,nplb}); do
           echo "Running tests for suite: ${test_binary}"
 
           test_filter="*"
@@ -57,9 +57,16 @@ runs:
           echo "Test filter evaluated to: ${test_filter}"
 
           xml_path="${results_dir}/${test_binary}_testoutput.xml"
-          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" ./$test_binary_path --gtest_filter="${test_filter}" --gtest_output="xml:${xml_path}"
+          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" "./${test_binary}" --gtest_filter="${test_filter}" --gtest_output="xml:${xml_path}" || {
+            # Set exit code on failure.
+            failed_suites="${failed_suites} ${test_binary}"
+          }
         done
         echo "Finished running all unit tests..."
+        if [ -n "${failed_suites}" ]; then
+          echo "Test suites failed:${failed_suites}"
+          exit 1
+        fi
     - name: Archive Test Results
       if: success() || failure()
       uses: actions/upload-artifact@v4
