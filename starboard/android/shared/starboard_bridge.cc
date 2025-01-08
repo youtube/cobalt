@@ -88,6 +88,12 @@ std::string StarboardBridge::GetStartDeepLink(JNIEnv* env) {
       base::android::ConvertJavaStringToUTF8(env, start_deep_link_java);
   return start_deep_link;
 }
+
+base::android::ScopedJavaLocalRef<jintArray>
+StarboardBridge::GetSupportedHdrTypes(JNIEnv* env) {
+  CHECK(env);
+  return Java_StarboardBridge_getSupportedHdrTypes(env, j_starboard_bridge_);
+}
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard

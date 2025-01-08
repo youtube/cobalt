@@ -682,7 +682,7 @@ public class StarboardBridge {
   // Used in starboard/android/shared/media_capabilities_cache.cc
   /** Return supported hdr types. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public int[] getSupportedHdrTypes() {
     Display defaultDisplay = DisplayUtil.getDefaultDisplay();
     if (defaultDisplay == null) {
