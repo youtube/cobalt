@@ -238,6 +238,10 @@ jobs:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: src
       - name: Process Test Results
         if: always()
         uses: ./src/.github/actions/process_test_results
