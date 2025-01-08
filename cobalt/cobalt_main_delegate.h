@@ -29,6 +29,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
 
   // ContentMainDelegate implementation:
   content::ContentBrowserClient* CreateContentBrowserClient() override;
+  content::ContentRendererClient* CreateContentRendererClient() override;
   absl::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
 
   ~CobaltMainDelegate() override;

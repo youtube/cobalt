@@ -163,6 +163,8 @@ shared_library("libcobalt_content_shell_content_view") {
 
     # TODO: what can be removed in the dependencies?
     "//components/crash/content/browser",
+    "//components/js_injection/browser:browser",
+    "//components/js_injection/renderer:renderer",
     "//content/shell:content_shell_app",
     "//content/shell:content_shell_lib",
     "//content/shell:pak",
@@ -184,6 +186,10 @@ shared_library("libcobalt_content_shell_content_view") {
   sources = [
     "//cobalt/cobalt_content_browser_client.cc",
     "//cobalt/cobalt_content_browser_client.h",
+    "//cobalt/cobalt_content_renderer_client.cc",
+    "//cobalt/cobalt_content_renderer_client.h",
+    "//cobalt/cobalt_contents.cc",
+    "//cobalt/cobalt_contents.h",
     "//cobalt/cobalt_main_delegate.cc",
     "//cobalt/cobalt_main_delegate.h",
     "cobalt_library_loader.cc",
