@@ -17,6 +17,7 @@
 
 #include <jni.h>
 
+#include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/singleton.h"
 
@@ -33,11 +34,17 @@ class StarboardBridge {
 
   void Initialize(JNIEnv* env, jobject obj);
 
-  long GetAppStartTimestamp();
+  long GetAppStartTimestamp(JNIEnv* env);
 
-  void ApplicationStarted();
+  void ApplicationStarted(JNIEnv* env);
 
-  void ApplicationStopping();
+  void ApplicationStopping(JNIEnv* env);
+
+  void AfterStopped(JNIEnv* env);
+
+  void AppendArgs(JNIEnv* env, std::vector<std::string>* args_vector);
+
+  std::string GetStartDeepLink(JNIEnv* env);
 
  private:
   StarboardBridge() = default;
