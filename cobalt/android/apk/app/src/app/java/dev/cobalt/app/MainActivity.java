@@ -50,4 +50,10 @@ public class MainActivity extends CobaltActivity {
 
     return bridge;
   }
+
+  @Override
+  public void onCreate(Bundle savedInstanceState) {
+    this.shouldSetJNIPrefix = false;
+    super.onCreate(savedInstanceState);
+  }
 }
