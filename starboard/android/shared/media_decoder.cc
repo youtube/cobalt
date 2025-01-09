@@ -475,7 +475,9 @@ bool MediaDecoder::ProcessOneInputBuffer(
       ReportError(kSbPlayerErrorDecode, error_message);
       return false;
     }
-    byte_buffer.CopyInto(data, size);
+    if (data) {
+      byte_buffer.CopyInto(data, size);
+    }
   }
 
   jint status;
