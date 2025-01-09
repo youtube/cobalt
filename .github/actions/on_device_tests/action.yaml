@@ -1,5 +1,9 @@
 name: On Device Test
 description: Runs on-device tests.
+inputs:
+  results_dir:
+    description: "Path to directory where test results are saved."
+    required: true
 
 runs:
   using: "composite"
@@ -18,10 +22,8 @@ runs:
     - name: Set env vars
       run: |
         echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
-  
         # Test results and logs
         echo "GCS_RESULTS_PATH=gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}" >> $GITHUB_ENV
-
         # Dimension env
         if [ "${{ matrix.dimension }}" != "null" ]; then
           echo "DIMENSION=${{ matrix.dimension }}" >> $GITHUB_ENV
@@ -72,3 +74,21 @@ runs:
           --gcs_result_path "${GCS_RESULTS_PATH}" \
           trigger
       shell: bash
+    - name: Download ${{ matrix.platform }} Test Results
+      if: always()
+      env:
+        RESULTS_DIR: ${{ inputs.results_dir }}
+      run: |
+        set -uxe
+        mkdir -p "${GITHUB_WORKSPACE}/${RESULTS_DIR}"
+        cd "${GITHUB_WORKSPACE}/${RESULTS_DIR}"
+        gsutil cp "${GCS_RESULTS_PATH}/" .
+        echo "TEST_LOG=${GITHUB_WORKSPACE}/${RESULTS_DIR}/test_results.txt" >> $GITHUB_ENV
+      shell: bash
+    - name: Archive Test Logs
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: Test log
+        path: ${{ env.TEST_LOG }}/
+
