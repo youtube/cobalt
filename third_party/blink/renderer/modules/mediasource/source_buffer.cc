@@ -475,6 +475,20 @@ VideoTrackList& SourceBuffer::videoTracks() {
   return *video_tracks_;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+double SourceBuffer::GetWriteHead(ExceptionState& exception_state) const {
+  if (source_ == NULL) {
+    MediaSource::LogAndThrowDOMException(
+        exception_state, DOMExceptionCode::kInvalidStateError,
+        "Cannot obtain SourceBuffer write head with an invalid MediaSource");
+    return 0.0;
+  }
+
+  DCHECK(web_source_buffer_);
+  return web_source_buffer_->GetWriteHead(exception_state);
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 double SourceBuffer::appendWindowStart() const {
   return append_window_start_;
 }

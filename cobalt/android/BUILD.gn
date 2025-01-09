@@ -32,13 +32,21 @@ jinja_template("cobalt_manifest") {
   variables = [ "manifest_package=dev.cobalt.coat" ]
 }
 
+generate_jni("jni_headers") {
+  sources = [ "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java" ]
+}
+
 # TODO(cobalt): Re-enable or remove disabled java files.
 android_library("cobalt_apk_java") {
   testonly = true
   resources_package = "dev.cobalt.coat"
+  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+
   deps = [
     ":cobalt_java_resources",
+    ":jni_headers",
     "//base:base_java",
+    "//base:jni_java",
     "//base:process_launcher_java",
     "//build/android:build_java",
     "//components/embedder_support/android:view_java",
@@ -51,11 +59,13 @@ android_library("cobalt_apk_java") {
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
     "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
+    "//third_party/android_deps:google_play_services_ads_identifier_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
     "//ui/android:ui_java",
     "//ui/android:ui_no_recycler_view_java",
     "//url:gurl_java",
   ]
+
   sources = [
     "apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
     "apk/app/src/app/java/dev/cobalt/app/MainActivity.java",
@@ -72,6 +82,7 @@ android_library("cobalt_apk_java") {
     "apk/app/src/main/java/dev/cobalt/coat/javabridge/HTMLMediaElementExtension.java",
 
     # "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
+    "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
@@ -82,8 +93,6 @@ android_library("cobalt_apk_java") {
     "apk/app/src/main/java/dev/cobalt/coat/NullCobaltFactory.java",
     "apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",
     "apk/app/src/main/java/dev/cobalt/coat/ResourceOverlay.java",
-
-    # "apk/app/src/main/java/dev/cobalt/coat/AdvertisingId.java",
     "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/coat/VolumeStateReceiver.java",
     "apk/app/src/main/java/dev/cobalt/libraries/services/clientloginfo/ClientLogInfo.java",
@@ -159,7 +168,8 @@ shared_library("libcobalt_content_shell_content_view") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
-    "//cobalt:common",
+    "//cobalt/renderer:renderer",
+    "//cobalt/user_agent",
 
     # TODO: what can be removed in the dependencies?
     "//components/crash/content/browser",
@@ -202,5 +212,19 @@ content_shell_apk_tmpl("cobalt_apk") {
     ":cobalt_apk_java",
   ]
   shared_libraries = [ ":libcobalt_content_shell_content_view" ]
-  command_line_flags_file = "content-shell-command-line"
+  include_size_info = is_official_build
+}
+
+robolectric_binary("cobalt_coat_junit_tests") {
+  sources = [ "apk/app/src/test/java/dev/cobalt/coat/CobaltActivityTest.java" ]
+  deps = [
+    ":cobalt_apk_java",
+    "//base:base_java",
+    "//base:base_java_test_support",
+    "//base:base_junit_test_support",
+    "//content/public/android:content_java",
+    "//third_party/androidx:androidx_test_runner_java",
+    "//third_party/google-truth:google_truth_java",
+    "//third_party/junit",
+  ]
 }

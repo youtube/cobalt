@@ -16,7 +16,7 @@
 
 #include <string>
 
-#include "cobalt/user_agent_platform_info.h"
+#include "cobalt/user_agent/user_agent_platform_info.h"
 #include "content/public/common/user_agent.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
@@ -83,11 +83,11 @@ blink::UserAgentMetadata CobaltContentBrowserClient::GetUserAgentMetadata() {
 void CobaltContentBrowserClient::OverrideWebkitPrefs(
     content::WebContents* web_contents,
     blink::web_pref::WebPreferences* prefs) {
-#if !defined(OFFICIAL_BUILD)
+#if !defined(COBALT_IS_RELEASE_BUILD)
   // Allow creating a ws: connection on a https: page to allow current
   // testing set up. See b/377410179.
   prefs->allow_running_insecure_content = true;
-#endif  // !defined(OFFICIAL_BUILD)
+#endif  // !defined(COBALT_IS_RELEASE_BUILD)
   content::ShellContentBrowserClient::OverrideWebkitPrefs(web_contents, prefs);
 }
 

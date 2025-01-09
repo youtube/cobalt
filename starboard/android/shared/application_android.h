@@ -20,7 +20,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
 #include "starboard/shared/internal_only.h"
@@ -66,6 +66,10 @@ class ApplicationAndroid
   void WakeSystemEventWait() override {}
 
  private:
+  // starboard_bridge_ is a global singleton, use a raw pointer to not interfere
+  // with it's lifecycle management.
+  const raw_ptr<StarboardBridge> starboard_bridge_ =
+      StarboardBridge::GetInstance();
   jobject resource_overlay_;
 
   Mutex overlay_mutex_;

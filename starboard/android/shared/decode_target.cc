@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/decode_target_create.h"
+#include "starboard/android/shared/decode_target.h"
 
 #include <android/native_window_jni.h>
 #include <jni.h>
@@ -21,9 +21,9 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
-#include "starboard/android/shared/decode_target_internal.h"
+#include <functional>
+
 #include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/decode_target.h"
 #include "starboard/shared/gles/gl_call.h"
 
 using starboard::android::shared::JniEnvExt;
@@ -31,8 +31,8 @@ using starboard::android::shared::JniEnvExt;
 namespace starboard {
 namespace android {
 namespace shared {
-
 namespace {
+
 jobject CreateSurfaceTexture(int gl_texture_id) {
   JniEnvExt* env = JniEnvExt::Get();
 
@@ -57,17 +57,37 @@ jobject CreateSurfaceFromSurfaceTexture(jobject surface_texture) {
   return global_surface;
 }
 
-struct CreateParams {
-  int width;
-  int height;
-  SbDecodeTargetFormat format;
+void RunOnContextRunner(void* context) {
+  std::function<void()>* closure = static_cast<std::function<void()>*>(context);
+  (*closure)();
+}
 
-  SbDecodeTarget decode_target_out;
-};
+}  // namespace
 
-void CreateWithContextRunner(void* context) {
-  CreateParams* params = static_cast<CreateParams*>(context);
+DecodeTarget::DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider) {
+  std::function<void()> closure =
+      std::bind(&DecodeTarget::CreateOnContextRunner, this);
+  SbDecodeTargetRunInGlesContext(provider, &RunOnContextRunner, &closure);
+}
 
+bool DecodeTarget::GetInfo(SbDecodeTargetInfo* out_info) {
+  SB_DCHECK(out_info);
+
+  *out_info = info_;
+}
+
+DecodeTarget::~DecodeTarget() {
+  ANativeWindow_release(native_window_);
+
+  JniEnvExt* env = JniEnvExt::Get();
+  env->DeleteGlobalRef(surface_);
+  env->DeleteGlobalRef(surface_texture_);
+
+  glDeleteTextures(1, &info_.planes[0].texture);
+  SB_DCHECK(glGetError() == GL_NO_ERROR);
+}
+
+void DecodeTarget::CreateOnContextRunner() {
   // Setup the GL texture that Android's MediaCodec library will target with
   // the decoder.  We don't call glTexImage2d() on it, Android will handle
   // the creation of the content when SurfaceTexture::updateTexImage() is
@@ -84,62 +104,32 @@ void CreateWithContextRunner(void* context) {
   GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_WRAP_T,
                           GL_CLAMP_TO_EDGE));
 
-  SbDecodeTarget decode_target = new SbDecodeTargetPrivate;
-  decode_target->data = new SbDecodeTargetPrivate::Data;
-
   // Wrap the GL texture in an Android SurfaceTexture object.
-  decode_target->data->surface_texture = CreateSurfaceTexture(texture);
+  surface_texture_ = CreateSurfaceTexture(texture);
 
   // We will also need an Android Surface object in order to obtain a
   // ANativeWindow object that we can pass into the AMediaCodec library.
-  decode_target->data->surface =
-      CreateSurfaceFromSurfaceTexture(decode_target->data->surface_texture);
+  surface_ = CreateSurfaceFromSurfaceTexture(surface_texture_);
 
-  decode_target->data->native_window =
-      ANativeWindow_fromSurface(JniEnvExt::Get(), decode_target->data->surface);
+  native_window_ = ANativeWindow_fromSurface(JniEnvExt::Get(), surface_);
 
   // Setup our publicly accessible decode target information.
-  decode_target->data->info.format = params->format;
-  decode_target->data->info.is_opaque = true;
-  decode_target->data->info.width = params->width;
-  decode_target->data->info.height = params->height;
-  decode_target->data->info.planes[0].texture = texture;
-  decode_target->data->info.planes[0].gl_texture_target =
-      GL_TEXTURE_EXTERNAL_OES;
-  decode_target->data->info.planes[0].width = params->width;
-  decode_target->data->info.planes[0].height = params->height;
+  info_.format = kSbDecodeTargetFormat1PlaneRGBA;
+  info_.is_opaque = true;
+  info_.width = 0;
+  info_.height = 0;
+  info_.planes[0].texture = texture;
+  info_.planes[0].gl_texture_target = GL_TEXTURE_EXTERNAL_OES;
+  info_.planes[0].width = 0;
+  info_.planes[0].height = 0;
 
   // These values will be initialized when SbPlayerGetCurrentFrame() is called.
-  decode_target->data->info.planes[0].content_region.left = 0;
-  decode_target->data->info.planes[0].content_region.right = 0;
-  decode_target->data->info.planes[0].content_region.top = 0;
-  decode_target->data->info.planes[0].content_region.bottom = 0;
+  info_.planes[0].content_region.left = 0;
+  info_.planes[0].content_region.right = 0;
+  info_.planes[0].content_region.top = 0;
+  info_.planes[0].content_region.bottom = 0;
 
   GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0));
-
-  params->decode_target_out = decode_target;
-}
-
-}  // namespace
-
-SbDecodeTarget DecodeTargetCreate(
-    SbDecodeTargetGraphicsContextProvider* provider,
-    SbDecodeTargetFormat format,
-    int width,
-    int height) {
-  SB_DCHECK(format == kSbDecodeTargetFormat1PlaneRGBA);
-  if (format != kSbDecodeTargetFormat1PlaneRGBA) {
-    return kSbDecodeTargetInvalid;
-  }
-
-  CreateParams params;
-  params.width = width;
-  params.height = height;
-  params.format = format;
-  params.decode_target_out = kSbDecodeTargetInvalid;
-
-  SbDecodeTargetRunInGlesContext(provider, &CreateWithContextRunner, &params);
-  return params.decode_target_out;
 }
 
 }  // namespace shared

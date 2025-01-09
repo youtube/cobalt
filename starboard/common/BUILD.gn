@@ -103,6 +103,7 @@ target(gtest_target_type, "common_test") {
   testonly = true
   sources = [
     "fixed_no_free_allocator_test.cc",
+    "log_unittest.cc",
     "media_test.cc",
     "memory_test.cc",
     "player_test.cc",
@@ -111,6 +112,7 @@ target(gtest_target_type, "common_test") {
   ]
   deps = [
     ":common",
+    "//starboard:starboard_group",
     "//testing/gmock",
     "//testing/gtest",
   ]

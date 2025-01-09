@@ -16,8 +16,24 @@
 
 namespace ui {
 
-SurfaceFactoryStarboard::SurfaceFactoryStarboard() {}
+SurfaceFactoryStarboard::SurfaceFactoryStarboard() = default;
 
-SurfaceFactoryStarboard::~SurfaceFactoryStarboard() {}
+SurfaceFactoryStarboard::~SurfaceFactoryStarboard() = default;
 
+std::vector<gl::GLImplementationParts>
+SurfaceFactoryStarboard::GetAllowedGLImplementations() {
+  return std::vector<gl::GLImplementationParts>{
+      gl::GLImplementationParts(gl::kGLImplementationEGLGLES2),
+  };
+}
+
+GLOzone* SurfaceFactoryStarboard::GetGLOzone(
+    const gl::GLImplementationParts& implementation) {
+  switch (implementation.gl) {
+    case gl::kGLImplementationEGLGLES2:
+      return &egl_implementation_;
+    default:
+      return nullptr;
+  }
+}
 }  // namespace ui

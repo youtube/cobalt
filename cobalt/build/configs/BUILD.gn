@@ -21,6 +21,10 @@ config("cobalt_config") {
   ]
   if (current_toolchain == starboard_toolchain) {
     configs += [ "//${starboard_path}/platform_configuration" ]
+  } else if (current_toolchain == cobalt_toolchain) {
+    # TODO(nyardi) : Add modular/cobalt toolchain configs as needed"
+  } else {
+    # No configs to add for any other toolchain
   }
 }
 
@@ -51,6 +55,6 @@ config("buildflag_defines") {
     defines += [ "ENABLE_BUILDFLAG_MODULAR_BUILD" ]
   }
   if (cobalt_is_release_build) {
-    defines += [ "COBALT_IS_RELEASE_BUILD" ]
+    defines += [ "ENABLE_BUILDFLAG_COBALT_IS_RELEASE_BUILD" ]
   }
 }

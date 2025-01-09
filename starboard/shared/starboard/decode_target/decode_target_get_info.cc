@@ -12,19 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/decode_target_internal.h"
+#include "starboard/decode_target.h"
 
-#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/common/log.h"
+#include "starboard/common/memory.h"
+#include "starboard/shared/starboard/decode_target/decode_target_internal.h"
 
-using starboard::android::shared::JniEnvExt;
+bool SbDecodeTargetGetInfo(SbDecodeTarget decode_target,
+                           SbDecodeTargetInfo* out_info) {
+  SB_DCHECK(SbDecodeTargetIsValid(decode_target));
 
-SbDecodeTargetPrivate::Data::~Data() {
-  ANativeWindow_release(native_window);
+  if (!starboard::common::MemoryIsZero(out_info, sizeof(*out_info))) {
+    SB_DCHECK(false) << "out_info must be zeroed out.";
+    return false;
+  }
 
-  JniEnvExt* env = JniEnvExt::Get();
-  env->DeleteGlobalRef(surface);
-  env->DeleteGlobalRef(surface_texture);
-
-  glDeleteTextures(1, &info.planes[0].texture);
-  SB_DCHECK(glGetError() == GL_NO_ERROR);
+  return decode_target->GetInfo(out_info);
 }

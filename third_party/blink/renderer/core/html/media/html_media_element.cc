@@ -124,6 +124,7 @@
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/strings/string_util.h"
 #include "starboard/media.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
@@ -405,6 +406,26 @@ std::ostream& operator<<(std::ostream& stream,
   return stream << static_cast<void const*>(&media_element);
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Checks for progressive formats served by the YouTube H5 player.
+// These formats have a mime type of "video/mp4", and lists both audio and
+// video codecs under the "codecs" parameter. This is not a comprehensive
+// check and may not detect all progressive formats.
+bool IsProgressiveFormat(const ContentType& content_type) {
+  const String type = content_type.GetType();
+  const String codecs = content_type.Parameter("codecs");
+
+  if (type.empty() && codecs.empty()) {
+    return false;
+  }
+
+  Vector<String> split_codecs;
+  const String separator(",");
+  codecs.Split(separator, split_codecs);
+  return type.Utf8() == "video/mp4" && split_codecs.size() == 2;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // anonymous namespace
 
 // static
@@ -412,19 +433,27 @@ MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
     const ContentType& content_type) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // Interupt Chromium's IsTypeSupported() from here for better performance.
-  SbMediaSupportType support_type =
-      SbMediaCanPlayMimeAndKeySystem(content_type.Raw().Ascii().c_str(), "");
   MIMETypeRegistry::SupportsType result;
-  switch (support_type) {
-    case kSbMediaSupportTypeNotSupported:
-      result = MIMETypeRegistry::kNotSupported;
-      break;
-    case kSbMediaSupportTypeMaybe:
-      result = MIMETypeRegistry::kMaybeSupported;
-      break;
-    case kSbMediaSupportTypeProbably:
-      result = MIMETypeRegistry::kSupported;
-      break;
+  if (!base::FeatureList::IsEnabled(media::kCobaltProgressivePlayback) &&
+      IsProgressiveFormat(content_type)) {
+    LOG(INFO) << "Content type \'" << content_type.Raw()
+              << "\' is unsupported as Cobalt progressive playback is disabled "
+                 "via base features.";
+    result = MIMETypeRegistry::kNotSupported;
+  } else {
+    const SbMediaSupportType support_type =
+        SbMediaCanPlayMimeAndKeySystem(content_type.Raw().Ascii().c_str(), "");
+    switch (support_type) {
+      case kSbMediaSupportTypeNotSupported:
+        result = MIMETypeRegistry::kNotSupported;
+        break;
+      case kSbMediaSupportTypeMaybe:
+        result = MIMETypeRegistry::kMaybeSupported;
+        break;
+      case kSbMediaSupportTypeProbably:
+        result = MIMETypeRegistry::kSupported;
+        break;
+    }
   }
   LOG(INFO) << __func__ << "(" << content_type.Raw() << ") -> " << result;
   return result;
