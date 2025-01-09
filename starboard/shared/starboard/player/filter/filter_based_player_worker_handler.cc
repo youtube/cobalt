@@ -20,6 +20,7 @@
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
 #include "starboard/common/murmurhash2.h"
+#include "starboard/common/player.h"
 #include "starboard/common/string.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
@@ -35,6 +36,7 @@ namespace filter {
 
 namespace {
 
+using ::starboard::GetPlayerStateName;
 using std::placeholders::_1;
 using std::placeholders::_2;
 
@@ -432,7 +434,7 @@ void FilterBasedPlayerWorkerHandler::OnPrerolled(SbMediaType media_type) {
   }
 
   SB_DCHECK(get_player_state_cb_() == kSbPlayerStatePrerolling)
-      << "Invalid player state " << get_player_state_cb_();
+      << "Invalid player state " << GetPlayerStateName(get_player_state_cb_());
 
   if (media_type == kSbMediaTypeAudio) {
     SB_LOG(INFO) << "Audio prerolled.";
