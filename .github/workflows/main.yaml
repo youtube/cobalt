@@ -302,6 +302,8 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         config: [devel]
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
+    env:
+      TEST_RESULTS_DIR: ${{ matrix.name }}_test_results
     steps:
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
@@ -309,5 +311,21 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-      - name: Run Tests (${{ matrix.shard }})
+      - name: Run On-Device Tests (${{ matrix.shard }})
+        id: on-device-tests
         uses: ./.github/actions/on_device_tests
+        with:
+          results_dir: ${{ env.TEST_RESULTS_DIR }}
+      - name: Process Test Results
+        if: |
+          always() &&
+          (
+            steps.on-device-tests.outcome == 'success' ||
+            steps.on-device-tests.outcome == 'failure'
+          )
+        uses: ./src/.github/actions/process_test_results
+        with:
+          results_dir: ${{ env.TEST_RESULTS_DIR }}
+          datadog_api_key: ${{ secrets.DD_API_KEY }}
+          is_postsubmit: ${{ github.event_name == 'schedule' || github.event_name == 'push' }}
+        continue-on-error: true
