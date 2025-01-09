@@ -21,6 +21,8 @@ namespace starboard {
 
 const char* GetPlayerOutputModeName(SbPlayerOutputMode output_mode);
 
+const char* GetPlayerStateName(SbPlayerState state);
+
 }  // namespace starboard
 
 #endif  // STARBOARD_COMMON_PLAYER_H_

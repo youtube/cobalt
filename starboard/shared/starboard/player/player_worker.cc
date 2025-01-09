@@ -23,6 +23,7 @@
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/instance_counter.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/player.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard {
@@ -32,6 +33,7 @@ namespace player {
 
 namespace {
 
+using ::starboard::GetPlayerStateName;
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
@@ -278,7 +280,7 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
       player_state_ == kSbPlayerStateEndOfStream ||
       player_state_ == kSbPlayerStateDestroyed) {
     SB_LOG(ERROR) << "Tried to write sample when |player_state_| is "
-                  << player_state_;
+                  << GetPlayerStateName(player_state_);
     return;
   }
   if (error_occurred_) {
@@ -347,7 +349,7 @@ void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
   if (player_state_ == kSbPlayerStateInitialized ||
       player_state_ == kSbPlayerStateEndOfStream) {
     SB_LOG(ERROR) << "Tried to write EOS when |player_state_| is "
-                  << player_state_;
+                  << GetPlayerStateName(player_state_);
     return;
   }
 
