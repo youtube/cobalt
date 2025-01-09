@@ -279,6 +279,16 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
         /* bitrate = */ 0,
         /* fps = */ 0);
   }
+  if (decoder_name.empty() && require_software_codec) {
+    // On third pass, forget software codec required.
+    decoder_name = MediaCapabilitiesCache::GetInstance()->FindVideoDecoder(
+        mime, must_support_secure, /* must_support_hdr = */ false,
+        /* require_software_codec = */ false, must_support_tunnel_mode,
+        /* frame_width = */ 0,
+        /* frame_height = */ 0,
+        /* bitrate = */ 0,
+        /* fps = */ 0);
+  }
 
   if (decoder_name.empty()) {
     *error_message =
