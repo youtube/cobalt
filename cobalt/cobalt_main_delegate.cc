@@ -14,6 +14,7 @@
 
 #include "cobalt/cobalt_main_delegate.h"
 #include "cobalt/cobalt_content_browser_client.h"
+#include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "content/public/browser/render_frame_host.h"
 
 namespace cobalt {
@@ -27,6 +28,12 @@ content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
   browser_client_ = std::make_unique<CobaltContentBrowserClient>();
   return browser_client_.get();
+}
+
+content::ContentRendererClient*
+CobaltMainDelegate::CreateContentRendererClient() {
+  renderer_client_ = std::make_unique<CobaltContentRendererClient>();
+  return renderer_client_.get();
 }
 
 absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(

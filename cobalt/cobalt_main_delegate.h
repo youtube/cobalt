@@ -16,6 +16,7 @@
 #define COBALT_COBALT_MAIN_DELEGATE_H_
 
 #include "build/build_config.h"
+#include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "content/shell/app/shell_main_delegate.h"
 
 namespace cobalt {
@@ -29,9 +30,13 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
 
   // ContentMainDelegate implementation:
   content::ContentBrowserClient* CreateContentBrowserClient() override;
+  content::ContentRendererClient* CreateContentRendererClient() override;
   absl::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
 
   ~CobaltMainDelegate() override;
+
+ private:
+  std::unique_ptr<CobaltContentRendererClient> renderer_client_;
 };
 
 }  // namespace cobalt
