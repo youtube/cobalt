@@ -164,7 +164,7 @@ component("boringssl") {
   # config is forwarded to callers. In particular, boringssl_crypto_tests
   # requires it.
   public_deps = [ ":boringssl_asm" ]
-  if (is_starboard) {
+  if (is_cobalt && is_starboard) {
     public_deps += [ "//starboard/common", "//starboard:starboard_headers_only"  ]
   }
 
