@@ -32,6 +32,7 @@ import android.media.MediaFormat;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Surface;
+import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
 import dev.cobalt.util.UsedByNative;
@@ -769,7 +770,13 @@ class MediaCodecBridge {
 
   @SuppressWarnings("unused")
   @UsedByNative
-  public boolean start(CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
+  private boolean restart() {
+    // Restart MediaCodec after flush().
+    return start(null);
+  }
+
+  @SuppressWarnings("unused")
+  public boolean start(@Nullable CreateMediaCodecBridgeResult outCreateMediaCodecBridgeResult) {
     try {
       mMediaCodec.get().start();
     } catch (IllegalStateException | IllegalArgumentException e) {

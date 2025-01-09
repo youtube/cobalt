@@ -495,9 +495,9 @@ void MediaCodecBridge::SetPlaybackRate(double playback_rate) {
       j_media_codec_bridge_, "setPlaybackRate", "(D)V", playback_rate);
 }
 
-bool MediaCodecBridge::Start() {
-  return JniEnvExt::Get()->CallBooleanMethodOrAbort(j_media_codec_bridge_,
-                                                    "start", "()Z") == JNI_TRUE;
+bool MediaCodecBridge::Restart() {
+  return JniEnvExt::Get()->CallBooleanMethodOrAbort(
+             j_media_codec_bridge_, "restart", "()Z") == JNI_TRUE;
 }
 
 jint MediaCodecBridge::Flush() {

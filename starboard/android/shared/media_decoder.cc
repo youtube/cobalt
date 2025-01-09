@@ -702,11 +702,11 @@ bool MediaDecoder::Flush() {
     dequeue_output_result.index = -1;
     dequeue_output_results_.push_back(dequeue_output_result);
 
-    // 2.4. Start() |media_codec_bridge_|. As the codec is configured in
+    // 2.4. Restart() |media_codec_bridge_|. As the codec is configured in
     // asynchronous mode, call Start() after Flush() has returned to
-    // resume codec operations. After Start(), input_buffer_index should
+    // resume codec operations. After Restart(), input_buffer_index should
     // start with 0.
-    if (!media_codec_bridge_->Start()) {
+    if (!media_codec_bridge_->Restart()) {
       SB_LOG(ERROR) << "Failed to start media codec.";
       return false;
     }
