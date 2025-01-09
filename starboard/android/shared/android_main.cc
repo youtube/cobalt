@@ -30,7 +30,6 @@
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/shared/starboard/command_line.h"
-#include "starboard/shared/starboard/log_mutex.h"
 #include "starboard/thread.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/crashpad_wrapper/wrapper.h"  // nogncheck
@@ -58,17 +57,6 @@ Semaphore* g_app_created_semaphore = nullptr;
 // ALooper receiving the commands is no longer being polled.
 std::atomic_bool g_app_running{false};
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
-
-std::vector<std::string> GetArgs() {
-  std::vector<std::string> args;
-  // Fake program name as args[0]
-  args.push_back("android_main");
-
-  JNIEnv* env = base::android::AttachCurrentThread();
-  StarboardBridge::GetInstance()->AppendArgs(env, &args);
-
-  return args;
-}
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
 bool CopyDirContents(const std::string& src_dir_path,
@@ -242,30 +230,6 @@ Java_dev_cobalt_coat_StarboardBridge_nativeIsReleaseBuild() {
 #endif
 }
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
-void StarboardThreadLaunch() {
-  // Start the Starboard thread the first time an Activity is created.
-  if (g_starboard_thread == 0) {
-    Semaphore semaphore;
-
-    pthread_attr_t attributes;
-    pthread_attr_init(&attributes);
-    pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
-
-    pthread_create(&g_starboard_thread, &attributes, &ThreadEntryPoint,
-                   &semaphore);
-
-    pthread_attr_destroy(&attributes);
-
-    // Wait for the ApplicationAndroid to be created.
-    semaphore.Take();
-  }
-
-  // Ensure application init happens here
-  ApplicationAndroid::Get();
-}
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
-
 // TODO(cobalt, b/372559388): consolidate this function when fully deprecate
 // JniEnvExt.
 extern "C" SB_EXPORT_PLATFORM void Java_dev_cobalt_coat_StarboardBridge_initJNI(
@@ -276,21 +240,6 @@ extern "C" SB_EXPORT_PLATFORM void Java_dev_cobalt_coat_StarboardBridge_initJNI(
   // Initialize the singleton instance of StarboardBridge
   JNIEnv* jni_env = base::android::AttachCurrentThread();
   StarboardBridge::GetInstance()->Initialize(jni_env, starboard_bridge);
-}
-
-extern "C" SB_EXPORT_PLATFORM jlong
-Java_dev_cobalt_coat_StarboardBridge_startNativeStarboard(JniEnvExt* env) {
-#if SB_IS(EVERGREEN_COMPATIBLE)
-  StarboardThreadLaunch();
-#else
-  starboard::shared::starboard::GetLoggingMutex();
-  auto command_line = std::make_unique<CommandLine>(GetArgs());
-  LogInit(*command_line);
-  auto* nativeApp = new ApplicationAndroid(std::move(command_line));
-  // Ensure application init happens here
-  ApplicationAndroid::Get();
-  return reinterpret_cast<jlong>(nativeApp);
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 }
 
 extern "C" SB_EXPORT_PLATFORM void

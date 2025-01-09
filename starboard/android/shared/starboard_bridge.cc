@@ -16,11 +16,15 @@
 
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
+#include "starboard/android/shared/log_internal.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/command_line.h"
+#include "starboard/shared/starboard/log_mutex.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/StarboardBridge_jni.h"
@@ -28,6 +32,43 @@
 namespace starboard {
 namespace android {
 namespace shared {
+
+namespace {
+#if SB_IS(EVERGREEN_COMPATIBLE)
+void StarboardThreadLaunch() {
+  // Start the Starboard thread the first time an Activity is created.
+  if (g_starboard_thread == 0) {
+    Semaphore semaphore;
+
+    pthread_attr_t attributes;
+    pthread_attr_init(&attributes);
+    pthread_attr_setdetachstate(&attributes, PTHREAD_CREATE_DETACHED);
+
+    pthread_create(&g_starboard_thread, &attributes, &ThreadEntryPoint,
+                   &semaphore);
+
+    pthread_attr_destroy(&attributes);
+
+    // Wait for the ApplicationAndroid to be created.
+    semaphore.Take();
+  }
+
+  // Ensure application init happens here
+  ApplicationAndroid::Get();
+}
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
+}  // namespace
+
+std::vector<std::string> GetArgs() {
+  std::vector<std::string> args;
+  // Fake program name as args[0]
+  args.push_back("android_main");
+
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge::GetInstance()->AppendArgs(env, &args);
+
+  return args;
+}
 
 extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_OnStop(JNIEnv* env) {
   ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::TearDown();
@@ -37,6 +78,21 @@ extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_OnStop(JNIEnv* env) {
 extern "C" SB_EXPORT_PLATFORM jlong
 JNI_StarboardBridge_CurrentMonotonicTime(JNIEnv* env) {
   return CurrentMonotonicTime();
+}
+
+extern "C" SB_EXPORT_PLATFORM jlong
+JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
+#if SB_IS(EVERGREEN_COMPATIBLE)
+  StarboardThreadLaunch();
+#else
+  starboard::shared::starboard::GetLoggingMutex();
+  auto command_line = std::make_unique<CommandLine>(GetArgs());
+  LogInit(*command_line);
+  auto* nativeApp = new ApplicationAndroid(std::move(command_line));
+  // Ensure application init happens here
+  ApplicationAndroid::Get();
+  return reinterpret_cast<jlong>(nativeApp);
+#endif  // SB_IS(EVERGREEN_COMPATIBLE)
 }
 
 // StarboardBridge::GetInstance() should not be inlined in the

@@ -131,12 +131,10 @@ public class StarboardBridge {
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
 
-    nativeApp = startNativeStarboard();
+    nativeApp = StarboardBridgeJni.get().startNativeStarboard();
   }
 
   private native boolean initJNI();
-
-  private native long startNativeStarboard();
 
   private native void closeNativeStarboard(long nativeApp);
 
@@ -146,10 +144,9 @@ public class StarboardBridge {
 
         long currentMonotonicTime();
 
+        long startNativeStarboard();
         // TODO(cobalt, b/372559388): move below native methods to the Natives interface.
         // boolean initJNI();
-
-        // long startNativeStarboard();
 
         // void closeNativeStarboard(long nativeApp);
     }
