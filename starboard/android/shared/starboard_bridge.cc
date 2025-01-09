@@ -17,6 +17,7 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/file_internal.h"
+#include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
@@ -52,28 +53,28 @@ void StarboardBridge::Initialize(JNIEnv* env, jobject obj) {
 }
 
 long StarboardBridge::GetAppStartTimestamp(JNIEnv* env) {
-  CHECK(env);
+  SB_DCHECK(env);
   return Java_StarboardBridge_getAppStartTimestamp(env, j_starboard_bridge_);
 }
 
 void StarboardBridge::ApplicationStarted(JNIEnv* env) {
-  CHECK(env);
+  SB_DCHECK(env);
   Java_StarboardBridge_applicationStarted(env, j_starboard_bridge_);
 }
 
 void StarboardBridge::ApplicationStopping(JNIEnv* env) {
-  CHECK(env);
+  SB_DCHECK(env);
   Java_StarboardBridge_applicationStopping(env, j_starboard_bridge_);
 }
 
 void StarboardBridge::AfterStopped(JNIEnv* env) {
-  CHECK(env);
+  SB_DCHECK(env);
   Java_StarboardBridge_afterStopped(env, j_starboard_bridge_);
 }
 
 void StarboardBridge::AppendArgs(JNIEnv* env,
                                  std::vector<std::string>* args_vector) {
-  CHECK(env);
+  SB_DCHECK(env);
   base::android::ScopedJavaLocalRef<jobjectArray> args_java =
       Java_StarboardBridge_getArgs(env, j_starboard_bridge_);
   base::android::AppendJavaStringArrayToStringVector(env, args_java,
@@ -81,7 +82,7 @@ void StarboardBridge::AppendArgs(JNIEnv* env,
 }
 
 std::string StarboardBridge::GetStartDeepLink(JNIEnv* env) {
-  CHECK(env);
+  SB_DCHECK(env);
   base::android::ScopedJavaLocalRef<jstring> start_deep_link_java =
       Java_StarboardBridge_getStartDeepLink(env, j_starboard_bridge_);
   std::string start_deep_link =
@@ -91,7 +92,7 @@ std::string StarboardBridge::GetStartDeepLink(JNIEnv* env) {
 
 base::android::ScopedJavaLocalRef<jintArray>
 StarboardBridge::GetSupportedHdrTypes(JNIEnv* env) {
-  CHECK(env);
+  SB_DCHECK(env);
   return Java_StarboardBridge_getSupportedHdrTypes(env, j_starboard_bridge_);
 }
 }  // namespace shared
