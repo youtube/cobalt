@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,36 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "media/starboard/starboard_audio_device_factory.h"
-#include "media/starboard/starboard_audio_renderer_sink.h"
+#include "cobalt/media/audio/cobalt_audio_device_factory.h"
 
 #include "base/logging.h"
+#include "cobalt/media/audio/audio_helpers.h"
+#include "cobalt/media/audio/cobalt_audio_renderer_sink.h"
 
 namespace media {
 
-StarboardAudioDeviceFactory::StarboardAudioDeviceFactory() {
-  LOG(INFO) << "Register StarboardAudioDeviceFactory";
+CobaltAudioDeviceFactory::CobaltAudioDeviceFactory() {
+  LOG(INFO) << "Register CobaltAudioDeviceFactory";
 }
 
-StarboardAudioDeviceFactory::~StarboardAudioDeviceFactory() {
-  LOG(INFO) << "Unregister StarboardAudioDeviceFactory";
+CobaltAudioDeviceFactory::~CobaltAudioDeviceFactory() {
+  LOG(INFO) << "Unregister CobaltAudioDeviceFactory";
 }
 
 scoped_refptr<media::AudioRendererSink>
-StarboardAudioDeviceFactory::NewAudioRendererSink(
+CobaltAudioDeviceFactory::NewAudioRendererSink(
     blink::WebAudioDeviceSourceType source_type,
     const blink::LocalFrameToken& frame_token,
     const media::AudioSinkParameters& params) {
-  return base::MakeRefCounted<media::StarboardAudioRendererSink>();
+  return base::MakeRefCounted<media::CobaltAudioRendererSink>();
 }
 
-OutputDeviceInfo StarboardAudioDeviceFactory::GetOutputDeviceInfo(
+OutputDeviceInfo CobaltAudioDeviceFactory::GetOutputDeviceInfo(
     const blink::LocalFrameToken& frame_token,
     const std::string& device_id) {
-  LOG(ERROR) << "GetOutputDeviceInfo - NOT IMPL";
-  return OutputDeviceInfo(
-      std::string(), OUTPUT_DEVICE_STATUS_OK,
-      AudioParameters(AudioParameters::AUDIO_PCM_LOW_LATENCY,
-                      ChannelLayoutConfig::Stereo(), 48000, 480));
+  return GetPreferredOutputParameters();
 }
 }  // namespace media

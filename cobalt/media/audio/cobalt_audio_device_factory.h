@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,31 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_STARBOARD_STARBOARD_AUDIO_DEVICE_FACTORY_H
-#define MEDIA_STARBOARD_STARBOARD_AUDIO_DEVICE_FACTORY_H
+#ifndef COBALT_MEDIA_AUDIO_COBALT_AUDIO_DEVICE_FACTORY_H
+#define COBALT_MEDIA_AUDIO_COBALT_AUDIO_DEVICE_FACTORY_H
 
 #include "media/base/media_export.h"
 #include "third_party/blink/public/web/modules/media/audio/audio_device_factory.h"
 
 namespace media {
 
-class MEDIA_EXPORT StarboardAudioDeviceFactory final
+class MEDIA_EXPORT CobaltAudioDeviceFactory final
     : public blink::AudioDeviceFactory {
  public:
-  StarboardAudioDeviceFactory();
-  ~StarboardAudioDeviceFactory() override;
+  CobaltAudioDeviceFactory();
+  ~CobaltAudioDeviceFactory() final;
 
-  // blink::AudioDeviceFactory overrides.
   scoped_refptr<media::AudioRendererSink> NewAudioRendererSink(
       blink::WebAudioDeviceSourceType source_type,
       const blink::LocalFrameToken& frame_token,
-      const media::AudioSinkParameters& params) override;
+      const media::AudioSinkParameters& params) final;
 
   OutputDeviceInfo GetOutputDeviceInfo(
       const blink::LocalFrameToken& frame_token,
-      const std::string& device_id) override;
+      const std::string& device_id) final;
 };
 
 }  // namespace media
 
-#endif  // MEDIA_STARBOARD_STARBOARD_AUDIO_DEVICE_FACTORY_H
+#endif  // COBALT_MEDIA_AUDIO_COBALT_AUDIO_DEVICE_FACTORY_H
