@@ -168,6 +168,7 @@ shared_library("libcobalt_content_shell_content_view") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
+    "//cobalt/renderer:renderer",
     "//cobalt/user_agent",
 
     # TODO: what can be removed in the dependencies?

@@ -1,9 +1,9 @@
-// Copyright 2012 The Chromium Authors
+// Copyright 2025 The Cobalt Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CONTENT_SHELL_RENDERER_SHELL_CONTENT_RENDERER_CLIENT_H_
-#define CONTENT_SHELL_RENDERER_SHELL_CONTENT_RENDERER_CLIENT_H_
+#ifndef COBALT_RENDERER_COBALT_CONTENT_RENDERER_CLIENT_H_
+#define COBALT_RENDERER_COBALT_CONTENT_RENDERER_CLIENT_H_
 
 #include <memory>
 #include <string>
@@ -12,6 +12,9 @@
 #include "content/public/common/alternative_error_page_override_info.mojom-forward.h"
 #include "content/public/renderer/content_renderer_client.h"
 #include "media/mojo/buildflags.h"
+
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
 
 namespace blink {
 class URLLoaderThrottleProvider;
@@ -22,18 +25,18 @@ namespace web_cache {
 class WebCacheImpl;
 }
 
-namespace content {
+namespace cobalt {
 
-class ShellContentRendererClient : public ContentRendererClient {
+class CobaltContentRendererClient : public content::ContentRendererClient {
  public:
-  ShellContentRendererClient();
-  ~ShellContentRendererClient() override;
+  CobaltContentRendererClient();
+  ~CobaltContentRendererClient() override;
 
   // ContentRendererClient implementation.
   void RenderThreadStarted() override;
   void ExposeInterfacesToBrowser(mojo::BinderMap* binders) override;
-  void RenderFrameCreated(RenderFrame* render_frame) override;
-  void PrepareErrorPage(RenderFrame* render_frame,
+  void RenderFrameCreated(content::RenderFrame* render_frame) override;
+  void PrepareErrorPage(content::RenderFrame* render_frame,
                         const blink::WebURLError& error,
                         const std::string& http_method,
                         content::mojom::AlternativeErrorPageOverrideInfoPtr
@@ -59,13 +62,18 @@ class ShellContentRendererClient : public ContentRendererClient {
   void GetSupportedKeySystems(media::GetSupportedKeySystemsCB cb) override;
 #endif
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  bool IsSupportedAudioType(const media::AudioType& type) override;
+  bool IsSupportedVideoType(const media::VideoType& type) override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   std::unique_ptr<blink::WebPrescientNetworking> CreatePrescientNetworking(
-      RenderFrame* render_frame) override;
+      content::RenderFrame* render_frame) override;
 
  private:
   std::unique_ptr<web_cache::WebCacheImpl> web_cache_impl_;
 };
 
-}  // namespace content
+}  // namespace cobalt
 
-#endif  // CONTENT_SHELL_RENDERER_SHELL_CONTENT_RENDERER_CLIENT_H_
+#endif  // COBALT_RENDERER_COBALT_CONTENT_RENDERER_CLIENT_H_
