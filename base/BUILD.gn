@@ -104,7 +104,7 @@ if (is_apple) {
 # ../../third_party/libevent/signal.c:43:10: fatal error: 'sys/queue.h' file not found
 # #include <sys/queue.h>
 # Determines whether libevent should be dep.
-if (is_cobalt && is_starboard && use_custom_libc) {
+if (is_cobalt && is_starboard) {
   dep_libevent = false
 } else {
   dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
@@ -203,7 +203,7 @@ buildflag_header("ios_cronet_buildflags") {
   flags = [ "CRONET_BUILD=$is_cronet_build" ]
 }
 
-if (is_cobalt && is_starboard && use_custom_libc) {
+if (is_cobalt && is_starboard ) {
   enable_message_pump_epoll = false
 } else {
   enable_message_pump_epoll = is_linux || is_chromeos || is_android

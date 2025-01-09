@@ -22,7 +22,7 @@
 #endif
 
 #if !defined(OS_STARBOARD)
-#ifdef __linux__ &&
+#ifdef __linux__
 #include <linux/futex.h>
 #include <sys/syscall.h>
 #endif
