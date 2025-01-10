@@ -110,16 +110,20 @@ bool IsAndroidAssetPath(const char* path) {
          (path[prefix_len] == '/' || path[prefix_len] == '\0');
 }
 
+bool IsAndroidAssetFile(const char* path) {
+  size_t prefix_len = strlen(g_app_assets_dir);
+  return path != NULL && strncmp(g_app_assets_dir, path, prefix_len) == 0 &&
+         path[prefix_len] == '/';
+}
+
 AAsset* OpenAndroidAsset(const char* path) {
-  if (!IsAndroidAssetPath(path) || g_asset_manager == NULL) {
-    SB_LOG(WARNING) << "Unable to open from Android Asset Manager: " << path;
+  if (!IsAndroidAssetFile(path) || g_asset_manager == NULL) {
     errno = ENOENT;
     return NULL;
   }
   const char* asset_path = path + strlen(g_app_assets_dir) + 1;
   AAsset* result = AAssetManager_open(g_asset_manager, asset_path, AASSET_MODE_RANDOM);
   if (!result) {
-    SB_LOG(WARNING) << "Unable to open from Android Asset Manager: " << path;
     errno = ENOENT;
   }
   return result;
