@@ -5,7 +5,7 @@
       "linux-x64x11"
     ],
     "targets": [
-	"base_unittests",
+        "base_unittests",
         "cobalt:gn_all",
         "content_shell",
         "gin_unittests",
