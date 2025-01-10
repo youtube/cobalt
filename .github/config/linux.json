@@ -1,6 +1,7 @@
 {
     "docker_service": "linux",
     "test_on_host": true,
+    "num_gtest_shards": 10,
     "platforms": [
       "linux-x64x11"
     ],
@@ -21,6 +22,5 @@
         "name":"x64",
         "platform":"linux-x64x11"
       }
-    ],
-    "num_shards": 10
+    ]
   }

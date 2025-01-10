@@ -85,23 +85,23 @@ jobs:
         run: |
           docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')
           echo "docker_service=${docker_service}" >> $GITHUB_ENV
-      - id: set-shards
+      - id: set-gtest-shards
         shell: bash
         run: |
           # Retrieve number of shards from config. If not specified, default to 1 shard.
-          num_shards=$(cat .github/config/${{ inputs.platform }}.json | jq -rc '.num_shards' || echo 1)
-          echo "num_shards=${num_shards}" >> $GITHUB_ENV
+          num_gtest_shards=$(cat .github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards' || echo 1)
+          echo "num_gtest_shards=${num_gtest_shards}" >> $GITHUB_ENV
 
           # create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5]
-          shards="[$(seq -s, 0 1 $((${num_shards} - 1)))]"
-          echo "shards=${shards}" >> $GITHUB_ENV
+          gtest_shards="[$(seq -s, 0 1 $((${num_gtest_shards} - 1)))]"
+          echo "gtest_shards=${gtest_shards}" >> $GITHUB_ENV
     outputs:
       platforms: ${{ env.platforms }}
       targets: ${{ env.targets }}
       includes: ${{ env.includes }}
       docker_service: ${{ env.docker_service }}
-      num_shards: ${{ env.num_shards }}
-      shards: ${{ env.shards }}
+      num_gtest_shards: ${{ env.num_gtest_shards }}
+      gtest_shards: ${{ env.gtest_shards }}
       test_on_host: ${{ env.test_on_host }}
       test_on_device: ${{ env.test_on_device }}
 
@@ -200,7 +200,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-        shard: ${{ fromJson(needs.initialize.outputs.shards) }}
+        shard: ${{ fromJson(needs.initialize.outputs.gtest_shards) }}
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TMPDIR: /__w/_temp
@@ -218,7 +218,7 @@ jobs:
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
-          num_shards: ${{ needs.initialize.outputs.num_shards }}
+          num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
 
   test-upload:
     needs: [initialize, docker-build-image, build, test]
