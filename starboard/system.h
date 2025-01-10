@@ -181,16 +181,6 @@ typedef enum SbSystemCapabilityId {
   // function in the relevant module.
 } SbSystemCapabilityId;
 
-// Enumeration of possible values for the |type| parameter passed to  the
-// |SbSystemRaisePlatformError| function.
-typedef enum SbSystemPlatformErrorType {
-  // Cobalt received a network connection error, or a network disconnection
-  // event. If the |response| passed to |SbSystemPlatformErrorCallback| is
-  // |kSbSystemPlatformErrorResponsePositive| then the request should be
-  // retried, otherwise the app should be stopped.
-  kSbSystemPlatformErrorTypeConnectionError,
-} SbSystemPlatformErrorType;
-
 // Possible responses for |SbSystemPlatformErrorCallback|.
 typedef enum SbSystemPlatformErrorResponse {
   kSbSystemPlatformErrorResponsePositive,
@@ -209,31 +199,6 @@ typedef void (*SbSystemPlatformErrorCallback)(
 
 // Private structure used to represent a raised platform error.
 typedef struct SbSystemPlatformErrorPrivate SbSystemPlatformErrorPrivate;
-
-// Cobalt calls this function to notify the platform that an error has occurred
-// in the application that the platform may need to handle. The platform is
-// expected to then notify the user of the error and to provide a means for
-// any required interaction, such as by showing a dialog.
-//
-// The return value is a boolean. If the platform cannot respond to the error,
-// then this function should return |false|, otherwise it should return |true|.
-//
-// This function may be called from any thread, and it is the platform's
-// responsibility to decide how to handle an error received while a previous
-// error is still pending. If that platform can only handle one error at a
-// time, then it may queue the second error or ignore it by returning
-// |kSbSystemPlatformErrorInvalid|.
-//
-// |type|: An error type, from the SbSystemPlatformErrorType enum,
-//    that defines the error.
-// |callback|: A function that may be called by the platform to let the caller
-//   know that the user has reacted to the error.
-// |user_data|: An opaque pointer that the platform should pass as an argument
-//   to the callback function, if it is called.
-SB_EXPORT bool SbSystemRaisePlatformError(
-    SbSystemPlatformErrorType type,
-    SbSystemPlatformErrorCallback callback,
-    void* user_data);
 
 // Pointer to a function to compare two items. The return value uses standard
 // |*cmp| semantics:

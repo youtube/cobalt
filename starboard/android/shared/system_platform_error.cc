@@ -37,35 +37,6 @@ enum {
 
 }  // namespace
 
-bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
-                                SbSystemPlatformErrorCallback callback,
-                                void* user_data) {
-  jint jni_error_type;
-  switch (type) {
-    case kSbSystemPlatformErrorTypeConnectionError:
-      jni_error_type = kJniErrorTypeConnectionError;
-      break;
-    default:
-      SB_NOTREACHED();
-      return false;
-  }
-
-  JniEnvExt* env = JniEnvExt::Get();
-
-  auto send_response_callback =
-      callback ? new SendResponseCallback(
-                     [callback,
-                      user_data](SbSystemPlatformErrorResponse error_response) {
-                       callback(error_response, user_data);
-                     })
-               : nullptr;
-
-  env->CallStarboardVoidMethodOrAbort(
-      "raisePlatformError", "(IJ)V", jni_error_type,
-      reinterpret_cast<jlong>(send_response_callback));
-  return true;
-}
-
 extern "C" SB_EXPORT_PLATFORM void
 Java_dev_cobalt_coat_PlatformError_nativeSendResponse(JNIEnv* env,
                                                       jobject unused_this,

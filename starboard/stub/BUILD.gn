@@ -136,7 +136,6 @@ static_library("stub_sources") {
     "//starboard/shared/stub/system_hide_splash_screen.cc",
     "//starboard/shared/stub/system_is_debugger_attached.cc",
     "//starboard/shared/stub/system_network_is_disconnected.cc",
-    "//starboard/shared/stub/system_raise_platform_error.cc",
     "//starboard/shared/stub/system_request_blur.cc",
     "//starboard/shared/stub/system_request_conceal.cc",
     "//starboard/shared/stub/system_request_focus.cc",

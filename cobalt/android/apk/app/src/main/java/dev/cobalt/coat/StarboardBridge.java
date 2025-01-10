@@ -288,15 +288,6 @@ public class StarboardBridge {
     return appContext;
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/system_platform_error.cc
-  @SuppressWarnings("unused")
-  @UsedByNative
-  void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
-    PlatformError error = new PlatformError(activityHolder, errorType, data);
-    error.raise();
-  }
-
   /** Returns true if the native code is compiled for release (i.e. 'gold' build). */
   public static boolean isReleaseBuild() {
     // TODO(cobalt): find a way to determine if is release build.

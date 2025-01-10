@@ -185,7 +185,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbSystemHideSplashScreen);
   REGISTER_SYMBOL(SbSystemIsDebuggerAttached);
   REGISTER_SYMBOL(SbSystemNetworkIsDisconnected);
-  REGISTER_SYMBOL(SbSystemRaisePlatformError);
   REGISTER_SYMBOL(SbSystemRequestBlur);
   REGISTER_SYMBOL(SbSystemRequestConceal);
   REGISTER_SYMBOL(SbSystemRequestFocus);
