@@ -89,7 +89,7 @@ jobs:
         shell: bash
         run: |
           # Retrieve number of shards from config. If not specified, default to 1 shard.
-          num_gtest_shards=$(cat .github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards' || echo 1)
+          num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards' || echo 1)
           echo "num_gtest_shards=${num_gtest_shards}" >> $GITHUB_ENV
 
           # create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5]
