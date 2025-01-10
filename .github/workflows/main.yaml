@@ -88,7 +88,7 @@ jobs:
       - id: set-gtest-shards
         shell: bash
         run: |
-          # Retrieve number of shards from config. If not specified, default to 1 shard.
+          # Retrieve number of shards from config. If not specified, default to 1 shard with `echo 1`.
           num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards' || echo 1)
           echo "num_gtest_shards=${num_gtest_shards}" >> $GITHUB_ENV
 
