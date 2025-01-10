@@ -18,10 +18,10 @@
 
 #include "media/base/demuxer_memory_limit.h"
 
+#include "base/logging.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/starboard_utils.h"
 #include "media/base/video_codecs.h"
-#include "base/logging.h"
 
 namespace media {
 
@@ -30,10 +30,9 @@ size_t GetDemuxerStreamAudioMemoryLimit(
   return DecoderBuffer::Allocator::GetInstance()->GetAudioBufferBudget();
 }
 
-size_t GetDemuxerStreamVideoMemoryLimit(
-    Demuxer::DemuxerTypes /*demuxer_type*/,
-    const VideoDecoderConfig* video_config,
-    const std::string& mime_type) {
+size_t GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes /*demuxer_type*/,
+                                        const VideoDecoderConfig* video_config,
+                                        const std::string& mime_type) {
   return static_cast<size_t>(
       GetSbMediaVideoBufferBudget(video_config, mime_type));
 }
