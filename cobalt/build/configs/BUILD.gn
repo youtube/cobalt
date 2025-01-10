@@ -22,8 +22,8 @@ config("cobalt_config") {
   ]
   if (current_toolchain == starboard_toolchain) {
     configs += [ "//${starboard_path}/platform_configuration" ]
-  } else if (current_toolchain == cobalt_toolchain && is_starboard &&
-             use_custom_libc) {
+  } else if (is_starboard && use_custom_libc &&
+             current_toolchain == cobalt_toolchain) {
     configs += [
       "//starboard/build/config/modular/x64",
       "//starboard/build/config:starboard",

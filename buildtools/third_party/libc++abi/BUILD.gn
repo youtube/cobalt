@@ -3,6 +3,9 @@
 # found in the LICENSE file.
 
 import("//build/config/c++/c++.gni")
+if (is_cobalt) {
+  import("//cobalt/build/configs/modular_variables.gni")
+}
 
 source_set("libc++abi") {
   if (export_libcxxabi_from_executables) {
@@ -13,11 +16,9 @@ source_set("libc++abi") {
   } else {
     visibility = [ "//buildtools/third_party/libc++" ]
   }
-  if (is_cobalt && is_starboard && current_toolchain == cobalt_toolchain) {
-    import("//cobalt/build/configs/modular_variables.gni")
-    if (use_custom_libc) {
-      visibility += [ "//starboard:starboard_group" ]
-    }
+  if (is_cobalt && is_starboard && use_custom_libc &&
+      current_toolchain == cobalt_toolchain) {
+    visibility += [ "//starboard:starboard_group" ]
   }
 
   # Fuchsia builds don't link against any libraries that provide stack
@@ -27,11 +28,9 @@ source_set("libc++abi") {
     deps = [ "//buildtools/third_party/libunwind" ]
   }
 
-  if (is_cobalt && is_starboard && current_toolchain == cobalt_toolchain) {
-    import("//cobalt/build/configs/modular_variables.gni")
-    if (use_custom_libc) {
-      deps = [ "//third_party/musl:c" ]
-    }
+  if (is_cobalt && is_starboard && current_toolchain == cobalt_toolchain &&
+      use_custom_libc) {
+    deps = [ "//third_party/musl:c" ]
   }
 
   sources = [

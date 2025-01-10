@@ -6,6 +6,10 @@ import("//build/config/c++/c++.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/toolchain/toolchain.gni")
 
+if (is_cobalt) {
+  import("//cobalt/build/configs/modular_variables.gni")
+}
+
 # Used by libc++ and libc++abi.
 config("config") {
   cflags = [ "-fstrict-aliasing" ]
@@ -54,11 +58,9 @@ target(_libcxx_target_type, "libc++") {
     "//build/config:common_deps",
     "//third_party/catapult/devil:devil",
   ]
-  if (is_cobalt && is_starboard && current_toolchain == cobalt_toolchain) {
-    import("//cobalt/build/configs/modular_variables.gni")
-    if (use_custom_libc) {
-      visibility += [ "//starboard:starboard_group" ]
-    }
+  if (is_cobalt && is_starboard && use_custom_libc &&
+      current_toolchain == cobalt_toolchain) {
+    visibility += [ "//starboard:starboard_group" ]
   }
 
   if (is_linux) {
@@ -122,12 +124,10 @@ target(_libcxx_target_type, "libc++") {
     "trunk/src/verbose_abort.cpp",
   ]
 
-  if (is_cobalt && is_starboard && current_toolchain == cobalt_toolchain) {
-    import("//cobalt/build/configs/modular_variables.gni")
-    if (use_custom_libc) {
-      # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
-      sources -= [ "trunk/src/atomic.cpp" ]
-    }
+  if (is_cobalt && is_starboard && use_custom_libc &&
+      current_toolchain == cobalt_toolchain) {
+    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+    sources -= [ "trunk/src/atomic.cpp" ]
   }
 
   if (enable_iterator_debugging) {
@@ -225,14 +225,12 @@ target(_libcxx_target_type, "libc++") {
       deps = [ "//buildtools/third_party/libc++abi" ]
     }
   }
-  if (is_cobalt) {
-    import("//cobalt/build/configs/modular_variables.gni")
-    if (is_starboard && current_toolchain == cobalt_toolchain &&
-        use_custom_libc) {
-      deps += [
-        "//third_party/llvm-project/compiler-rt:compiler_rt",
-        "//third_party/musl:c",
-      ]
-    }
+
+  if (is_cobalt && is_starboard && current_toolchain == cobalt_toolchain &&
+      use_custom_libc) {
+    deps += [
+      "//third_party/llvm-project/compiler-rt:compiler_rt",
+      "//third_party/musl:c",
+    ]
   }
 }
