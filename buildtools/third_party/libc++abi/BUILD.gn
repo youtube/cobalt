@@ -28,8 +28,7 @@ source_set("libc++abi") {
     deps = [ "//buildtools/third_party/libunwind" ]
   }
 
-  if (is_cobalt && is_starboard && current_toolchain == cobalt_toolchain &&
-      use_custom_libc) {
+  if (is_cobalt && is_starboard && use_custom_libc && current_toolchain == cobalt_toolchain) {
     deps = [ "//third_party/musl:c" ]
   }
 

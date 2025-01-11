@@ -27,8 +27,10 @@
 #include "absl/base/internal/errno_saver.h"
 #include "absl/base/log_severity.h"
 
-#if defined(STARBOARD)
-#include "starboard/log.h"
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC)
+#include "starboard/log.h" // nogncheck
 #else
 // We know how to perform low-level writes to stderr in POSIX and Windows.  For
 // these platforms, we define the token ABSL_LOW_LEVEL_WRITE_SUPPORTED.

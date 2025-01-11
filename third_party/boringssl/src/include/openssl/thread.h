@@ -61,10 +61,13 @@
 
 #include <openssl/base.h>
 
-#ifdef STARBOARD
-#include "starboard/common/condition_variable.h"
-#include "starboard/common/mutex.h"
-#endif
+#include "build/build_config.h"
+
+#if BUILDFLAG(STARBOARD) &&  defined(_LIBCPP_HAS_MUSL_LIBC) 
+#include "starboard/common/condition_variable.h" // nogncheck
+#include "starboard/common/mutex.h" // nogncheck
+#endif // defined(STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC)
+
 
 #if defined(__cplusplus)
 extern "C" {
