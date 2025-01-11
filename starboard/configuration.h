@@ -29,7 +29,7 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_COBALT)
+#if !BUILDFLAG(IS_COBALT)
 #error "IS_COBALT should be defined while building this file"
 #endif
 

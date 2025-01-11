@@ -63,7 +63,7 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(STARBOARD) &&  defined(_LIBCPP_HAS_MUSL_LIBC) 
+#if BUILDFLAG(IS_STARBOARD) &&  defined(_LIBCPP_HAS_MUSL_LIBC) 
 #include "starboard/common/condition_variable.h" // nogncheck
 #include "starboard/common/mutex.h" // nogncheck
 #endif // defined(STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC)
@@ -73,7 +73,7 @@
 extern "C" {
 #endif
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) &&  defined(_LIBCPP_HAS_MUSL_LIBC)
 typedef struct crypto_mutex_st {
   // It would be nice to use starboard::RWLock. However, that's a C++ class, so
   // it can't even be included in this C header. It's possible to use an opaque
@@ -108,7 +108,7 @@ typedef union crypto_mutex_st {
   double alignment;
   uint8_t padding[3*sizeof(int) + 5*sizeof(unsigned) + 16 + 8];
 } CRYPTO_MUTEX;
-#endif
+#endif // BUILDFLAG(IS_STARBOARD) &&  defined(_LIBCPP_HAS_MUSL_LIBC)
 
 // CRYPTO_refcount_t is the type of a reference count.
 //
