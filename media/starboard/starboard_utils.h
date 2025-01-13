@@ -47,9 +47,6 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
     const absl::optional<gfx::HDRMetadata>& hdr_metadata,
     const std::string& mime_type);
 
-int GetSbMediaVideoBufferBudget(const VideoDecoderConfig* video_config,
-                                const std::string& mime_type);
-
 // Extract the value of "codecs" parameter from |mime_type|. It will return
 // "avc1.42E01E" for `video/mp4; codecs="avc1.42E01E"`.
 // Note that this function assumes that the input is always valid and does
