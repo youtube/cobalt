@@ -85,7 +85,6 @@ JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
   StarboardThreadLaunch();
 #else
-  starboard::shared::starboard::GetLoggingMutex();
   auto command_line = std::make_unique<CommandLine>(GetArgs());
   LogInit(*command_line);
   auto* nativeApp = new ApplicationAndroid(std::move(command_line));
