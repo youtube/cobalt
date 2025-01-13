@@ -15,7 +15,6 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_GL_OZONE_EGL_STARBOARD_H_
 #define UI_OZONE_PLATFORM_STARBOARD_GL_OZONE_EGL_STARBOARD_H_
 
-#include "starboard/window.h"
 #include "ui/gfx/native_widget_types.h"
 #include "ui/ozone/common/gl_ozone_egl.h"
 
@@ -36,19 +35,16 @@ class GLOzoneEGLStarboard : public GLOzoneEGL {
       gl::GLDisplay* display,
       const gfx::Size& size) override;
 
-  intptr_t GetNativeWindow();
-
  protected:
   gl::EGLDisplayPlatform GetNativeDisplay() override;
   bool LoadGLES2Bindings(
       const gl::GLImplementationParts& implementation) override;
 
  private:
-  void CreateDisplayTypeAndWindowIfNeeded();
+  void CreateDisplayTypeIfNeeded();
 
   void* display_type_ = nullptr;
   bool have_display_type_ = false;
-  SbWindow sb_window_;
   void* window_ = nullptr;
 };
 
