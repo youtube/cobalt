@@ -29,7 +29,7 @@
 #include "media/base/timestamp_constants.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "starboard/media.h"
+#include "media/base/video_codecs.h"
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace media {
@@ -93,12 +93,13 @@ class MEDIA_EXPORT DecoderBuffer
     virtual int GetAudioBufferBudget() const = 0;
     virtual int GetBufferAlignment() const = 0;
     virtual int GetBufferPadding() const = 0;
-    virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const = 0;
-    virtual int GetProgressiveBufferBudget(SbMediaVideoCodec codec,
+    virtual base::TimeDelta GetBufferGarbageCollectionDurationThreshold()
+        const = 0;
+    virtual int GetProgressiveBufferBudget(VideoCodec codec,
                                            int resolution_width,
                                            int resolution_height,
                                            int bits_per_pixel) const = 0;
-    virtual int GetVideoBufferBudget(SbMediaVideoCodec codec,
+    virtual int GetVideoBufferBudget(VideoCodec codec,
                                      int resolution_width,
                                      int resolution_height,
                                      int bits_per_pixel) const = 0;
@@ -108,7 +109,7 @@ class MEDIA_EXPORT DecoderBuffer
 
     static void Set(Allocator* allocator);
   };
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Allocates buffer with |size| > 0. |is_key_frame_| will default to false.
   // If size is 0, no buffer will be allocated.
@@ -198,7 +199,7 @@ class MEDIA_EXPORT DecoderBuffer
     DCHECK(!end_of_stream());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     return data_;
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     if (read_only_mapping_.IsValid())
       return read_only_mapping_.GetMemoryAs<const uint8_t>();
     if (writable_mapping_.IsValid())
@@ -206,7 +207,7 @@ class MEDIA_EXPORT DecoderBuffer
     if (external_memory_)
       return external_memory_->span().data();
     return data_.data();
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   // The number of bytes in the buffer.
@@ -221,13 +222,13 @@ class MEDIA_EXPORT DecoderBuffer
   uint8_t* writable_data() const {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     return data_;
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     DCHECK(!end_of_stream());
     DCHECK(!read_only_mapping_.IsValid());
     DCHECK(!writable_mapping_.IsValid());
     DCHECK(!external_memory_);
     return const_cast<uint8_t*>(data_.data());
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   // TODO(sandersd): Remove writable_span(). https://crbug.com/834088
@@ -269,9 +270,9 @@ class MEDIA_EXPORT DecoderBuffer
     DCHECK_LE(size, size_);
     size_ = size;
   }
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   bool end_of_stream() const { return is_end_of_stream_; }
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   bool is_key_frame() const {
     DCHECK(!end_of_stream());
@@ -339,10 +340,10 @@ class MEDIA_EXPORT DecoderBuffer
   // Encoded data, allocated from DecoderBuffer::Allocator.
   uint8_t* data_ = nullptr;
   size_t allocated_size_ = 0;
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   // Encoded data, if it is stored on the heap.
   base::HeapArray<uint8_t> data_;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
   // Constructor helper method for memory allocations.
