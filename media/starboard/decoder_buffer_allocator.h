@@ -47,11 +47,11 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   int GetBufferAlignment() const override;
   int GetBufferPadding() const override;
   base::TimeDelta GetBufferGarbageCollectionDurationThreshold() const override;
-  int GetProgressiveBufferBudget(SbMediaVideoCodec codec,
+  int GetProgressiveBufferBudget(VideoCodec codec,
                                  int resolution_width,
                                  int resolution_height,
                                  int bits_per_pixel) const override;
-  int GetVideoBufferBudget(SbMediaVideoCodec codec,
+  int GetVideoBufferBudget(VideoCodec codec,
                            int resolution_width,
                            int resolution_height,
                            int bits_per_pixel) const override;
