@@ -188,6 +188,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
+        shard: [0,1,2,3,4,5,6,7,8,9]
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TMPDIR: /__w/_temp
@@ -205,6 +206,26 @@ jobs:
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
+          num_shards: 10
+
+  test-upload:
+    needs: [initialize, docker-build-image, build, test]
+    if: needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.test_on_device == 'true'
+    permissions: {}
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    name: ${{ matrix.name }}_tests_upload
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    container: ${{ needs.docker-build-image.outputs.docker_tag }}
+    env:
+      TMPDIR: /__w/_temp
+      TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+    steps:
       - name: Process Test Results
         if: |
           always() &&
