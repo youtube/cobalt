@@ -764,16 +764,16 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
 void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
+  LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
+            << GetPlayerStateName(state);
+
   // In case if state is changed when creation of the `player_bridge_` fails.
   // We may also need this for suspend/resume support.
   if (!player_bridge_) {
-    LOG(WARNING) << "StarboardRenderer::OnPlayerStatus() called with "
-                 << GetPlayerStateName(state);
+    LOG(WARNING) << "StarboardRenderer::OnPlayerStatus() called with invalid "
+                    "|player_bridge_|";
     return;
   }
-
-  LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
-            << GetPlayerStateName(state);
 
   switch (state) {
     case kSbPlayerStateInitialized:
