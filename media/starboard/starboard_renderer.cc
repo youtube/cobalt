@@ -771,7 +771,7 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
   // We may also need this for suspend/resume support.
   if (!player_bridge_) {
     LOG(WARNING) << "StarboardRenderer::OnPlayerStatus() called with invalid "
-                    "|player_bridge_|";
+                    "SbPlayerBridge";
     return;
   }
 
