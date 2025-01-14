@@ -54,7 +54,6 @@ runs:
           --filter_json_dir "${GITHUB_WORKSPACE}/src/cobalt/testing/${{ matrix.platform}}" \
           --token ${GITHUB_TOKEN} \
           --change_id ${GITHUB_PR_NUMBER:-postsubmit} \
-          --tag cobalt_github_${GITHUB_EVENT_NAME} \
           --label builder-${{ matrix.platform }} \
           --label builder_url-${GITHUB_RUN_URL} \
           --label github \
