@@ -23,8 +23,6 @@
 #include "ui/gfx/geometry/size.h"
 #include "ui/gfx/native_widget_types.h"
 
-#include "components/js_injection/browser/js_communication_host.h"
-
 class GURL;
 
 namespace content {
@@ -197,16 +195,32 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
  private:
   class DevToolsWebContentsObserver;
 
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt Hack: make following members protected to be able to partially
+  // customize Shell in a derived class.
+protected:
+#endif
   Shell(std::unique_ptr<WebContents> web_contents, bool should_set_delegate);
 
   // Helper to create a new Shell given a newly created WebContents.
   static Shell* CreateShell(std::unique_ptr<WebContents> web_contents,
                             const gfx::Size& initial_size,
                             bool should_set_delegate);
+#if BUILDFLAG(IS_COBALT)
+  // Cobalt Hack: Splits CreateShell to two parts, so a derived class instance can be
+  //              passed to factory function.
+  static Shell* CreateShellFromPointer(Shell * shell, WebContents* raw_web_contents,
+                            const gfx::Size& initial_size,
+                            bool should_set_delegate);
+#endif
 
   // Adjust the size when Blink sends 0 for width and/or height.
   // This happens when Blink requests a default-sized window.
   static gfx::Size AdjustWindowSize(const gfx::Size& initial_size);
+
+#if BUILDFLAG(IS_COBALT)
+private:
+#endif
 
   // Helper method for the two public LoadData methods.
   void LoadDataWithBaseURLInternal(const GURL& url,
@@ -228,8 +242,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   void PrimaryPageChanged(Page& page) override;
 #endif
 
-  void PrimaryMainDocumentElementAvailable() override;
-
   std::unique_ptr<JavaScriptDialogManager> dialog_manager_;
 
   std::unique_ptr<WebContents> web_contents_;
@@ -247,8 +259,6 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   static std::vector<Shell*> windows_;
 
   static base::OnceCallback<void(Shell*)> shell_created_callback_;
-
-  std::unique_ptr<js_injection::JsCommunicationHost> js_communication_host_;
 };
 
 }  // namespace content

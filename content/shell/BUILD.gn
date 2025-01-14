@@ -192,12 +192,14 @@ static_library("content_shell_lib") {
   ]
 
   if (is_android) {
-    sources += [
-      "android/shell_manager.cc",
-      "android/shell_manager.h",
-      "browser/shell_platform_delegate_android.cc",
-      "browser/shell_web_contents_view_delegate_android.cc",
-    ]
+    if (!is_cobalt) {
+      sources += [
+        "android/shell_manager.cc",
+        "android/shell_manager.h",
+        "browser/shell_platform_delegate_android.cc",
+        "browser/shell_web_contents_view_delegate_android.cc",
+      ]
+    }
   }
 
   if (is_mac) {
@@ -289,10 +291,6 @@ static_library("content_shell_lib") {
     "//components/variations",
     "//components/variations/service",
     "//components/web_cache/renderer",
-
-    "//components/js_injection/browser:browser",
-    "//components/js_injection/renderer:renderer",
-
     "//content:content_resources",
     "//content:dev_ui_content_resources",
     "//content/common:main_frame_counter",
