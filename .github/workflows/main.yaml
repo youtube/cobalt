@@ -255,7 +255,7 @@ jobs:
         continue-on-error: true
 
   validate-test-result:
-    needs: test
+    needs: [initialize, docker-build-image, build, test]
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_tests_passing
