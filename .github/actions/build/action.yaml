@@ -10,7 +10,7 @@ runs:
       - name: Get depot tools
         run: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
         shell: bash
-      - name: Add directory to PATH
+      - name: Add depot tools to PATH
         run: echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
         shell: bash
       - name: Generate gclient file
@@ -22,15 +22,18 @@ runs:
           echo "target_os=['android']" >> .gclient
           gclient validate
         shell: bash
-      - name: Gclient sync
+      - name: gclient sync
         run: gclient sync -v --shallow --no-history -r ${{ github.sha }}
         shell: bash
-      - name: gn gen
+      - name: Disable Chromium client side build telemetry
+        run: build_telemetry opt-out
+        shell: bash
+      - name: GN gen
         run: |
           cd src
           cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
         shell: bash
-      - name: Dump GN args
+      - name: List GN args
         run: |
           cd src
           gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
