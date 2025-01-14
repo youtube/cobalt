@@ -61,6 +61,11 @@ inline const char* SupportedAudioCodecToMimeType(
   if (audio_codec == kSbMediaAudioCodecOpus) {
     return "audio/opus";
   }
+#if SB_API_VERSION >= 15 && ENABLE_IAMF_DECODE
+  if (audio_codec == kSbMediaAudioCodecIamf) {
+    return "audio/iamf";
+  }
+#endif  // SB_API_VERSION >= 15 && ENABLE_IAMF_DECOD
   return nullptr;
 }
 

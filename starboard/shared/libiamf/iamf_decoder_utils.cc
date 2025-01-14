@@ -90,9 +90,10 @@ class BufferReader {
     if (!HasBytes(1) || !ptr) {
       return false;
     }
-    int bytes_read = ReadLeb128Internal(
-        buf_ + pos_, ptr,
-        std::min(static_cast<uint64_t>(RemainingSize()), sizeof(uint32_t)));
+    int bytes_read =
+        ReadLeb128Internal(buf_ + pos_, ptr,
+                           std::min(static_cast<uint64_t>(RemainingSize()),
+                                    static_cast<uint64_t>(sizeof(uint32_t))));
     if (bytes_read < 0) {
       return false;
     }

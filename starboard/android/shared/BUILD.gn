@@ -130,10 +130,10 @@ static_library("starboard_platform") {
     "//starboard/shared/posix/socket_join_multicast_group.cc",
     "//starboard/shared/posix/socket_listen.cc",
     "//starboard/shared/posix/socket_receive_from.cc",
-    "//starboard/shared/posix/socket_receive_multi_msg_internal.cc",
-    "//starboard/shared/posix/socket_receive_multi_msg_internal.h",
     "//starboard/shared/posix/socket_receive_multi_msg.cc",
     "//starboard/shared/posix/socket_receive_multi_msg.h",
+    "//starboard/shared/posix/socket_receive_multi_msg_internal.cc",
+    "//starboard/shared/posix/socket_receive_multi_msg_internal.h",
     "//starboard/shared/posix/socket_resolve.cc",
     "//starboard/shared/posix/socket_send_to.cc",
     "//starboard/shared/posix/socket_set_broadcast.cc",
@@ -496,6 +496,17 @@ static_library("starboard_platform") {
 
   if (sb_evergreen_compatible_use_libunwind) {
     deps += [ "//third_party/llvm-project/libunwind:unwind_starboard" ]
+  }
+
+  if (enable_iamf_decode) {
+    sources += [
+      "//starboard/shared/libiamf/iamf_audio_decoder.cc",
+      "//starboard/shared/libiamf/iamf_audio_decoder.h",
+      "//starboard/shared/libiamf/iamf_decoder_utils.cc",
+      "//starboard/shared/libiamf/iamf_decoder_utils.h",
+    ]
+
+    defines = [ "ENABLE_IAMF_DECODE" ]
   }
 }
 
