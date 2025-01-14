@@ -65,9 +65,11 @@ SbDrmSessionRequestType SbDrmSessionRequestTypeFromMediaDrmKeyRequestType(
 
 }  // namespace
 
-// This has to be defined outside the above anonymous namespace to be picked up
-// by the comparison of std::vector<SbDrmKeyId>.
-bool operator==(const SbDrmKeyId& left, const SbDrmKeyId& right) {
+// Declare the function as static instead of putting it in the above anonymous
+// namespace so it can be picked up by `std::vector<SbDrmKeyId>::operator==()`
+// as functions in anonymous namespace doesn't participate in argument dependent
+// lookup.
+static bool operator==(const SbDrmKeyId& left, const SbDrmKeyId& right) {
   if (left.identifier_size != right.identifier_size) {
     return false;
   }
