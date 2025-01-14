@@ -411,7 +411,7 @@ void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
 
 QuicConnection::~QuicConnection() {
   QUICHE_DCHECK_GE(stats_.max_egress_mtu, long_term_mtu_);
-  if (owns_writer_) {
+  if (writer_ != nullptr && owns_writer_) {
     delete writer_;
   }
   ClearQueuedPackets();
@@ -2439,7 +2439,7 @@ QuicPacketNumber QuicConnection::GetLeastUnacked() const {
 }
 
 bool QuicConnection::HandleWriteBlocked() {
-  if (!writer_->IsWriteBlocked()) {
+  if (writer_ != nullptr && !writer_->IsWriteBlocked()) {
     return false;
   }
 
@@ -2808,12 +2808,14 @@ void QuicConnection::ProcessUdpPacket(const QuicSocketAddress& self_address,
 }
 
 void QuicConnection::OnBlockedWriterCanWrite() {
-  writer_->SetWritable();
-  OnCanWrite();
+  if (writer_) {
+    writer_->SetWritable();
+    OnCanWrite();
+  }
 }
 
 void QuicConnection::OnCanWrite() {
-  if (!connected_) {
+  if (!connected_ || !writer_) {
     return;
   }
   if (writer_->IsWriteBlocked()) {
@@ -6911,6 +6913,10 @@ bool QuicConnection::MigratePath(const QuicSocketAddress& self_address,
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT);
   if (!connected_) {
     if (owns_writer) {
+      if (writer_ == writer) {
+        writer_ = nullptr;
+        owns_writer_ = false;
+      }
       delete writer;
     }
     return false;
@@ -6921,6 +6927,10 @@ bool QuicConnection::MigratePath(const QuicSocketAddress& self_address,
   if (connection_migration_use_new_cid_) {
     if (!UpdateConnectionIdsOnMigration(self_address, peer_address)) {
       if (owns_writer) {
+        if (writer_ == writer) {
+          writer_ = nullptr;
+          owns_writer_ = false;
+        }
         delete writer;
       }
       return false;

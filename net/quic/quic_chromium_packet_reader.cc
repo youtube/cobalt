@@ -127,7 +127,6 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
   quic::QuicSocketAddress quick_peer_address =
       ToQuicSocketAddress(peer_address);
 
-  auto self = weak_factory_.GetWeakPtr();
   struct Socket::ReadPacketResult* read_packet = read_results_.packets;
   for (int p = 0; p < read_results_.result; ++p, ++read_packet) {
     if (read_packet->result <= 0) {
@@ -135,6 +134,7 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
     }
     quic::QuicReceivedPacket packet(read_packet->buffer, read_packet->result,
                                     clock_->ApproximateNow());
+    auto self = weak_factory_.GetWeakPtr();
     if (!(visitor_->OnPacket(packet, quick_local_address, quick_peer_address) &&
           self)) {
       return false;
