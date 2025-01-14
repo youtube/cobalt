@@ -109,7 +109,7 @@ if (is_apple) {
 # ../../third_party/libevent/signal.c:43:10: fatal error: 'sys/queue.h' file not found
 # #include <sys/queue.h>
 # Determines whether libevent should be dep.
-if (is_cobalt && is_starboard && use_custom_libc) {
+if (is_cobalt && is_cobalt_hermetic_build) {
   dep_libevent = false
 } else {
   dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
@@ -209,7 +209,6 @@ buildflag_header("ios_cronet_buildflags") {
 }
 
 enable_message_pump_epoll = is_linux || is_chromeos || is_android
-
 buildflag_header("message_pump_buildflags") {
   header = "message_pump_buildflags.h"
   header_dir = "base/message_loop"
@@ -1025,7 +1024,7 @@ component("base") {
     ]
   }
 
-  if (is_cobalt && is_starboard && use_custom_libc) {
+  if (is_cobalt && is_cobalt_hermetic_build) {
     sources -= [
       "debug/proc_maps_linux.cc",
       "debug/proc_maps_linux.h",
@@ -1118,8 +1117,7 @@ component("base") {
     "//third_party/abseil-cpp:absl",
   ]
 
-  if (is_cobalt && is_starboard && use_custom_libc &&
-      current_toolchain == cobalt_toolchain) {
+  if (is_cobalt && is_cobalt_hermetic_build) {
     deps -= [ "//base/allocator/partition_allocator:raw_ptr" ]
     deps += [ "//starboard:starboard_group" ]
   }
@@ -1157,7 +1155,7 @@ component("base") {
         "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h",
       ]
     }
-    if (is_cobalt && is_starboard && use_custom_libc) {
+    if (is_cobalt && is_cobalt_hermetic_build) {
       sources -= [
         "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc",
         "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h",
@@ -1192,7 +1190,7 @@ component("base") {
     #                           ^
     # ../../third_party/musl/include/malloc.h:19:8: note: previous declaration is here
     # size_t malloc_usable_size(void *);
-    if (is_cobalt && is_starboard && use_custom_libc) {
+    if (is_cobalt && is_cobalt_hermetic_build) {
       sources -= [
         "allocator/partition_allocator/shim/allocator_shim_override_cpp_symbols.h",
         "allocator/partition_allocator/shim/allocator_shim_override_glibc_weak_symbols.h",
@@ -1703,8 +1701,7 @@ component("base") {
     }
 
     # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
-    if (is_cobalt && is_starboard && use_custom_libc &&
-        current_toolchain == cobalt_toolchain) {
+    if (is_cobalt && is_cobalt_hermetic_build) {
       sources -= [
         "base_paths_posix.h",
         "memory/madv_free_discardable_memory_allocator_posix.cc",
@@ -1735,7 +1732,7 @@ component("base") {
       ]
     }
 
-    if (is_cobalt && is_starboard && use_custom_libc) {
+    if (is_cobalt && is_cobalt_hermetic_build) {
       sources -= [
         "process/process_metrics_posix.cc",
         "sync_socket_posix.cc",
@@ -1761,7 +1758,7 @@ component("base") {
       ]
     }
 
-    if (is_cobalt && is_starboard && use_custom_libc) {
+    if (is_cobalt && is_cobalt_hermetic_build) {
       sources -= [
         "native_library_posix.cc",
         "posix/can_lower_nice_to.cc",

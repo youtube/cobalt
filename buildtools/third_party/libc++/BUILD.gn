@@ -58,8 +58,7 @@ target(_libcxx_target_type, "libc++") {
     "//build/config:common_deps",
     "//third_party/catapult/devil:devil",
   ]
-  if (is_cobalt && is_starboard && use_custom_libc &&
-      current_toolchain == cobalt_toolchain) {
+  if (is_cobalt && is_cobalt_hermetic_build) {
     visibility += [ "//starboard:starboard_group" ]
   }
 
@@ -124,8 +123,7 @@ target(_libcxx_target_type, "libc++") {
     "trunk/src/verbose_abort.cpp",
   ]
 
-  if (is_cobalt && is_starboard && use_custom_libc &&
-      current_toolchain == cobalt_toolchain) {
+  if (is_cobalt && is_cobalt_hermetic_build) {
     # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
     sources -= [ "trunk/src/atomic.cpp" ]
   }
@@ -226,8 +224,7 @@ target(_libcxx_target_type, "libc++") {
     }
   }
 
-  if (is_cobalt && is_starboard && current_toolchain == cobalt_toolchain &&
-      use_custom_libc) {
+  if (is_cobalt && is_cobalt_hermetic_build) {
     deps += [
       "//third_party/llvm-project/compiler-rt:compiler_rt",
       "//third_party/musl:c",

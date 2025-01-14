@@ -111,7 +111,7 @@ if (!is_cobalt) {
       "//starboard/client_porting/eztime",
     ]
 
-    if (sb_is_modular && current_toolchain == cobalt_toolchain) {
+    if (is_cobalt_hermetic_build) {
       public_deps += [
         "//third_party/llvm-project/compiler-rt:compiler_rt",
         "//third_party/llvm-project/libcxx:cxx",
@@ -177,8 +177,7 @@ if (!is_cobalt) {
         "//starboard/client_porting/eztime",
       ]
 
-      if (sb_is_modular && use_custom_libc &&
-          current_toolchain == cobalt_toolchain) {
+      if (is_cobalt_hermetic_build) {
         public_deps += [
           "//buildtools/third_party/libc++",
           "//buildtools/third_party/libc++abi",
