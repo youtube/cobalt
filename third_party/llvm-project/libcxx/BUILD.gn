@@ -39,7 +39,7 @@ config("cxx_config") {
     "_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION",
 
     "_LIBCPP_HAS_MUSL_LIBC",
-    # "_LIBCPP_HAS_THREAD_API_EXTERNAL",
+    "_LIBCPP_HAS_THREAD_API_EXTERNAL",
 
     # Let the library headers know they are currently being used to build the
     # library.

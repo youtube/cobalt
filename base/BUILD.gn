@@ -1024,6 +1024,7 @@ component("base") {
     ]
   }
 
+  # TODO: b/384652502 - Cobalt: Add source files after fixing compiler errors.
   if (is_cobalt && is_cobalt_hermetic_build) {
     sources -= [
       "debug/proc_maps_linux.cc",
@@ -1118,6 +1119,7 @@ component("base") {
   ]
 
   if (is_cobalt && is_cobalt_hermetic_build) {
+    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
     deps -= [ "//base/allocator/partition_allocator:raw_ptr" ]
     deps += [ "//starboard:starboard_group" ]
   }
@@ -1147,6 +1149,7 @@ component("base") {
       "allocator/partition_allocator/shim/allocator_shim_internals.h",
     ]
 
+    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
     #     loc.cc -o obj/base/base/allocator_shim_default_dispatch_to_partition_alloc.o
     # ../../base/allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc:748:36: error: incomplete result type 'struct mallinfo' in function definition
     if (use_partition_alloc) {
@@ -1186,6 +1189,8 @@ component("base") {
       ]
     }
 
+    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+    # Ask yavor if these files need to be excluded, as the symbols are coming from musl.
     #     SHIM_ALWAYS_EXPORT size_t malloc_usable_size(void* address) __THROW {
     #                           ^
     # ../../third_party/musl/include/malloc.h:19:8: note: previous declaration is here
@@ -1732,15 +1737,13 @@ component("base") {
       ]
     }
 
+    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
     if (is_cobalt && is_cobalt_hermetic_build) {
       sources -= [
         "process/process_metrics_posix.cc",
         "sync_socket_posix.cc",
       ]
     }
-
-    #   ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
-    # return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
 
     if (is_posix && !is_apple) {
       sources += [
@@ -1758,6 +1761,9 @@ component("base") {
       ]
     }
 
+    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+    #   ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
+    # return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
     if (is_cobalt && is_cobalt_hermetic_build) {
       sources -= [
         "native_library_posix.cc",

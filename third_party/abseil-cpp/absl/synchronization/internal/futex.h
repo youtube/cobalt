@@ -15,18 +15,19 @@
 #define ABSL_SYNCHRONIZATION_INTERNAL_FUTEX_H_
 
 #include "absl/base/config.h"
+#include "build/build_config.h"
 
 #ifndef _WIN32
 #include <sys/time.h>
 #include <unistd.h>
 #endif
 
-#if !defined(OS_STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 #ifdef __linux__
 #include <linux/futex.h>
 #include <sys/syscall.h>
 #endif
-#endif
+#endif // !BUILDFLAG(IS_STARBOARD)
 
 #include <errno.h>
 #include <stdio.h>

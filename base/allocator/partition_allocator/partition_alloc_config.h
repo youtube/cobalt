@@ -64,7 +64,6 @@ static_assert(sizeof(void*) != 8, "");
 #define PA_CONFIG_GLUE_CORE_POOLS() 0
 #endif
 
-// Cobalt comment: Avoid including Linux headers when OS is starboard.
 #if BUILDFLAG(HAS_64_BIT_POINTERS) && \
     (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)) && !BUILDFLAG(IS_STARBOARD)
 #include <linux/version.h>
@@ -104,7 +103,6 @@ static_assert(sizeof(void*) != 8, "");
 
 // POSIX is not only UNIX, e.g. macOS and other OSes. We do use Linux-specific
 // features such as futex(2).
-// Cobalt comment: Avoid including Linux headers when OS is starboard.
 #define PA_CONFIG_HAS_LINUX_KERNEL() \
   (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)) && !BUILDFLAG(IS_STARBOARD)
 

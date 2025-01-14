@@ -16,8 +16,9 @@
 // without faulting.
 
 #include "absl/debugging/internal/address_is_readable.h"
+#include "build/build_config.h"
 
-#if !defined(__linux__) || defined(__ANDROID__) || defined(OS_STARBOARD)
+#if !defined(__linux__) || defined(__ANDROID__) || BUILDFLAG(IS_STARBOARD)
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

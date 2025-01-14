@@ -330,9 +330,6 @@ component("partition_alloc") {
     deps += [ "//third_party/android_ndk:cpu_features" ]
   }
 
-  if (is_cobalt && is_cobalt_hermetic_build) {
-      deps += [ "//starboard:starboard_group" ]
-  }
   if (is_fuchsia) {
     public_deps += [
       "//third_party/fuchsia-sdk/sdk/pkg/fit",

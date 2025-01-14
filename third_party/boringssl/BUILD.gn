@@ -169,7 +169,10 @@ component("boringssl") {
   # requires it.
   public_deps = [ ":boringssl_asm" ]
   if (is_cobalt && is_cobalt_hermetic_build) {
-    public_deps += [ "//starboard/common", "//starboard:starboard_headers_only"  ]
+    public_deps += [
+      "//starboard:starboard_headers_only",
+      "//starboard/common",
+    ]
   }
 
   public_configs = [ ":external_config" ]
