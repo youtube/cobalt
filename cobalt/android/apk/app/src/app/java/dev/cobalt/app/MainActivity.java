@@ -16,6 +16,7 @@ package dev.cobalt.app;
 
 import android.app.Activity;
 import android.app.Service;
+import android.os.Bundle;
 import dev.cobalt.coat.ArtworkDownloaderDefault;
 import dev.cobalt.coat.CobaltActivity;
 import dev.cobalt.coat.CobaltService;

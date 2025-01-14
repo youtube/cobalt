@@ -45,6 +45,8 @@
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
+#include "components/js_injection/renderer/js_communication.h"
+
 #if BUILDFLAG(ENABLE_PLUGINS)
 #include "ppapi/shared_impl/ppapi_switches.h"  // nogncheck
 #endif
@@ -222,6 +224,7 @@ void ShellContentRendererClient::RenderFrameCreated(RenderFrame* render_frame) {
   // browser tests. If we only create that for browser tests then the override
   // of this method in WebTestContentRendererClient would not be needed.
   new ShellRenderFrameObserver(render_frame);
+  new js_injection::JsCommunication(render_frame);
 }
 
 void ShellContentRendererClient::PrepareErrorPage(
@@ -412,6 +415,13 @@ ShellContentRendererClient::CreatePrescientNetworking(
     RenderFrame* render_frame) {
   return std::make_unique<network_hints::WebPrescientNetworkingImpl>(
       render_frame);
+}
+
+void ShellContentRendererClient::RunScriptsAtDocumentStart(RenderFrame* render_frame) {
+  LOG(WARNING) << "Should run scripts here";
+  js_injection::JsCommunication* communication =
+      js_injection::JsCommunication::Get(render_frame);
+  communication->RunScriptsAtDocumentStart();
 }
 
 }  // namespace content
