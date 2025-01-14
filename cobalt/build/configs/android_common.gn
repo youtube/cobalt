@@ -4,6 +4,10 @@ import("//cobalt/build/configs/common.gn")
 # TODO(b/380339614): Remove this flag after resolving build errors.
 treat_warnings_as_errors = false
 
+# hashed jni names make build artifact opaque for Kimono build.
+use_hashed_jni_names = false
+use_errorprone_java_compiler = false
+
 # Overriding flag from //media/media_options.gni.
 # Cobalt doesn't use //third_party/ffmpeg.
 media_use_ffmpeg = false
