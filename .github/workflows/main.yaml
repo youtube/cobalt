@@ -253,3 +253,21 @@ jobs:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           datadog_api_key: ${{ secrets.datadog_api_key }}
         continue-on-error: true
+
+  validate-test-result:
+    needs: test
+    permissions: {}
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    name: ${{ matrix.name }}_tests_passing
+    strategy:
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    container: ${{ needs.docker-build-image.outputs.docker_tag }}
+    steps:
+      - name: Fail if any test shards have failed
+        if:  ${{ needs.test.result != 'success' }}
+        run: |
+          echo "Failing because at least one test shard had errors."
+          exit 1
