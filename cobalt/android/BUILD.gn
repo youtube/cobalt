@@ -15,6 +15,7 @@ android_resources("cobalt_java_resources") {
     "apk/app/src/app/res/mipmap-xxhdpi/ic_app.png",
     "apk/app/src/app/res/values/strings.xml",
     "apk/app/src/main/res/layout/coat_error_dialog.xml",
+    "apk/app/src/main/res/layout/content_shell_activity.xml",
     "apk/app/src/main/res/values/colors.xml",
     "apk/app/src/main/res/values/ids.xml",
     "apk/app/src/main/res/values/overlayable.xml",
@@ -36,14 +37,77 @@ generate_jni("jni_headers") {
   sources = [ "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java" ]
 }
 
-# TODO(cobalt): Re-enable or remove disabled java files.
-android_library("cobalt_apk_java") {
-  testonly = true
-  resources_package = "dev.cobalt.coat"
-  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+generate_jni("content_shell_jni_headers") {
+  sources = [
+    "apk/app/src/org/chromium/content_shell/Shell.java",
+    "apk/app/src/org/chromium/content_shell/ShellManager.java",
+  ]
+}
 
+android_library("content_shell_apk_java") {
+  testonly = true
+
+  resources_package = "org.chromium.content_shell_apk"
+  deps = [
+    ":cobalt_shell_java",
+    "//base:base_java",
+    "//base:process_launcher_java",
+    "//build/android:build_java",
+    "//components/embedder_support/android:view_java",
+    "//content/public/android:content_java",
+    "//content/shell/android:content_shell_apk_resources",
+    "//content/shell/android:content_shell_manifest",
+    "//media/capture/video/android:capture_java",
+    "//net/android:net_java",
+    "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
+    "//ui/android:ui_java",
+    "//url:gurl_java",
+  ]
+
+  sources = [
+    "//content/shell/android/shell_apk/src/org/chromium/content_shell_apk/ContentShellActivity.java",
+    "//content/shell/android/shell_apk/src/org/chromium/content_shell_apk/ContentShellApplication.java",
+  ]
+}
+
+android_library("cobalt_shell_java") {
+  testonly = true
+  resources_package = "org.chromium.content_shell"
   deps = [
     ":cobalt_java_resources",
+    "//base:base_java",
+    "//base:jni_java",
+    "//build/android:build_java",
+    "//components/download/internal/common:internal_java",
+    "//components/embedder_support/android:content_view_java",
+    "//components/embedder_support/android:view_java",
+    "//components/viz/service:service_java",
+    "//content/public/android:content_java",
+    "//content/shell/android:content_shell_java_resources",
+    "//media/base/android:media_java",
+    "//media/capture/video/android:capture_java",
+    "//mojo/public/java:system_java",
+    "//net/android:net_java",
+    "//ui/android:ui_java",
+    "//ui/base/cursor/mojom:cursor_type_java",
+    "//url:gurl_java",
+  ]
+  sources = [
+    "apk/app/src/org/chromium/content_shell/Shell.java",
+    "apk/app/src/org/chromium/content_shell/ShellManager.java",
+    "apk/app/src/org/chromium/content_shell/ShellViewAndroidDelegate.java",
+  ]
+
+  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+}
+
+android_library("cobalt_main_java") {
+  testonly = true
+  resources_package = "dev.cobalt.coat"
+  deps = [
+    ":cobalt_java_resources",
+    ":cobalt_shell_java",
+    ":content_shell_apk_java",
     ":jni_headers",
     "//base:base_java",
     "//base:jni_java",
@@ -52,9 +116,6 @@ android_library("cobalt_apk_java") {
     "//components/embedder_support/android:view_java",
     "//components/version_info/android:version_constants_java",
     "//content/public/android:content_java",
-    "//content/shell/android:content_shell_apk_java",
-    "//content/shell/android:content_shell_apk_resources",
-    "//content/shell/android:content_shell_java",
     "//content/shell/android:content_shell_manifest",
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
@@ -65,10 +126,7 @@ android_library("cobalt_apk_java") {
     "//ui/android:ui_no_recycler_view_java",
     "//url:gurl_java",
   ]
-
   sources = [
-    "apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
-    "apk/app/src/app/java/dev/cobalt/app/MainActivity.java",
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloader.java",
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloaderDefault.java",
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkLoader.java",
@@ -120,6 +178,20 @@ android_library("cobalt_apk_java") {
     "apk/app/src/main/java/dev/cobalt/util/SystemPropertiesHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/UsedByNative.java",
   ]
+
+  annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
+}
+
+android_library("cobalt_apk_java") {
+  testonly = true
+  resources_package = "dev.cobalt.coat"
+
+  deps = [ ":cobalt_main_java" ]
+
+  sources = [
+    "apk/app/src/app/java/dev/cobalt/app/CobaltApplication.java",
+    "apk/app/src/app/java/dev/cobalt/app/MainActivity.java",
+  ]
 }
 
 android_assets("cobalt_apk_assets") {
@@ -143,15 +215,15 @@ template("content_shell_apk_tmpl") {
       deps = []
     }
     deps += [
+      ":cobalt_shell_java",
+      ":content_shell_apk_java",
       "//base:base_java_test_support",
       "//components/crash/android:java",
       "//components/crash/core/app:chrome_crashpad_handler_named_as_so",
       "//components/metrics:metrics_java",
       "//content/public/android:content_java",
       "//content/public/test/android:android_test_message_pump_support_java",
-      "//content/shell/android:content_shell_apk_java",
       "//content/shell/android:content_shell_assets",
-      "//content/shell/android:content_shell_java",
       "//media/capture/video/android:capture_java",
       "//net/android:net_java",
       "//services/shape_detection:shape_detection_java",
@@ -168,6 +240,7 @@ shared_library("libcobalt_content_shell_content_view") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
+    ":content_shell_jni_headers",
     "//cobalt/renderer:renderer",
     "//cobalt/user_agent",
 
@@ -176,7 +249,6 @@ shared_library("libcobalt_content_shell_content_view") {
     "//content/shell:content_shell_app",
     "//content/shell:content_shell_lib",
     "//content/shell:pak",
-    "//content/shell/android:content_shell_jni_headers",
     "//media",
     "//skia",
     "//starboard/android/shared:starboard_jni_state",
