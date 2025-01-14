@@ -115,13 +115,6 @@ if (is_cobalt_hermetic_build) {
     ]
 
     if (is_cobalt_hermetic_build) {
-      public_deps += [
-        "//buildtools/third_party/libc++",
-        "//buildtools/third_party/libc++abi",
-        "//third_party/llvm-project/compiler-rt:compiler_rt",
-        "//third_party/musl:c",
-      ]
-
       if (!sb_is_evergreen) {
         # For modular builds, we need to wrap any POSIX APIs that may not be ABI
         # equivalent across the Cobalt toolchain and the platform toolchain. For

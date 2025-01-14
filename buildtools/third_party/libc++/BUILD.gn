@@ -58,9 +58,6 @@ target(_libcxx_target_type, "libc++") {
     "//build/config:common_deps",
     "//third_party/catapult/devil:devil",
   ]
-  if (is_cobalt && is_cobalt_hermetic_build) {
-    visibility += [ "//starboard:starboard_group" ]
-  }
 
   if (is_linux) {
     # This target packages libc++.so, so must have an explicit dependency on

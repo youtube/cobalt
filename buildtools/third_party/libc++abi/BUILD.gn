@@ -16,9 +16,6 @@ source_set("libc++abi") {
   } else {
     visibility = [ "//buildtools/third_party/libc++" ]
   }
-  if (is_cobalt && is_cobalt_hermetic_build) {
-    visibility += [ "//starboard:starboard_group" ]
-  }
 
   # Fuchsia builds don't link against any libraries that provide stack
   # unwinding symbols, unlike Linux does with glibc (same applies for Android).
