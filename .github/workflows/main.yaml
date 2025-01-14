@@ -247,7 +247,6 @@ jobs:
         with:
           path: src
       - name: Process Test Results
-        if: always()
         uses: ./src/.github/actions/process_test_results
         with:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
@@ -256,6 +255,7 @@ jobs:
 
   validate-test-result:
     needs: [initialize, docker-build-image, build, test]
+    if: always()
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_tests_passing
