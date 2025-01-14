@@ -387,6 +387,7 @@ static void* ThreadEntry(void* arg) {
   // we don't know which thread will run first (the original thread or the new
   // one).
   { LockGuard<Mutex> lock_guard(&thread->data()->thread_creation_mutex_); }
+  SbThreadSetPriority(kSbThreadPriorityNormal);
   SetThreadName(thread->name());
   // DCHECK_NE(thread->data()->thread_, kNoThread);
   thread->NotifyStartedAndRun();
