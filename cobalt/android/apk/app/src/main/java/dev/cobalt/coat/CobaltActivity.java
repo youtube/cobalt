@@ -32,7 +32,6 @@ import android.view.View;
 import android.view.ViewGroup.LayoutParams;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
-import android.widget.LinearLayout;
 import android.widget.Toast;
 import androidx.annotation.Nullable;
 import dev.cobalt.coat.javabridge.CobaltJavaScriptAndroidObject;
@@ -96,6 +95,7 @@ public abstract class CobaltActivity extends Activity {
   private Intent mLastSentIntent;
   private String mStartupUrl;
   private IntentRequestTracker mIntentRequestTracker;
+  protected Boolean shouldSetJNIPrefix = true;
 
   // Initially copied from ContentShellActiviy.java
   protected void createContent(final Bundle savedInstanceState) {
@@ -123,6 +123,14 @@ public abstract class CobaltActivity extends Activity {
             "--force-device-scale-factor=1",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
+      if (shouldSetJNIPrefix) {
+        CommandLine.getInstance().appendSwitchesAndArguments(
+          new String[] {
+            // Helps Kimono build avoid package name conflict with cronet.
+            "--cobalt-jni-prefix",
+          }
+        );
+      }
 
       if (!VersionInfo.isOfficialBuild()) {
         String[] debugCommandLineParams =
@@ -233,8 +241,6 @@ public abstract class CobaltActivity extends Activity {
     // Load the `url` with the same shell we created above.
     Log.i(TAG, "shellManager load url:" + shellUrl);
     mShellManager.getActiveShell().loadUrl(shellUrl);
-
-    toggleFullscreenMode(true);
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -313,10 +319,6 @@ public abstract class CobaltActivity extends Activity {
     }
   }
 
-  protected void toggleFullscreenMode(boolean enterFullscreen) {
-    LinearLayout toolBar = (LinearLayout) findViewById(R.id.toolbar);
-    toolBar.setVisibility(enterFullscreen ? View.GONE : View.VISIBLE);
-  }
 
   // Initially copied from ContentShellActiviy.java
   @Override
