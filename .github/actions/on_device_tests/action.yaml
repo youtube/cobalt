@@ -1,6 +1,9 @@
 name: On Device Test
 description: Runs on-device tests.
 inputs:
+  gcs_results_path:
+    description: "GCS path for the test results"
+    required: true
   results_dir:
     description: "Path to directory where test results are saved."
     required: true
@@ -31,7 +34,8 @@ runs:
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
-        GCS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}_${{ matrix.config }}
+        GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}_${{ matrix.config }}
+        GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
@@ -68,13 +72,14 @@ runs:
           --label author_id-${GITHUB_PR_HEAD_USER_ID:-$GITHUB_COMMIT_AUTHOR_EMAIL}
           ${DIMENSION:+"--dimension" "$DIMENSION"} \
           ${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" "$ON_DEVICE_TEST_ATTEMPTS"} \
-          --archive_path "${GCS_PATH}" \
+          --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
           --gcs_result_path "${GCS_RESULTS_PATH}" \
           trigger
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results
       if: always()
       env:
+        GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         RESULTS_DIR: ${{ inputs.results_dir }}
       run: |
         set -uxe
