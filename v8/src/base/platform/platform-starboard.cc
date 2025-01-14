@@ -23,6 +23,7 @@
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/thread.h"
 #include "starboard/time_zone.h"
 
 #include "sys/mman.h"
@@ -387,6 +388,9 @@ static void* ThreadEntry(void* arg) {
   // we don't know which thread will run first (the original thread or the new
   // one).
   { LockGuard<Mutex> lock_guard(&thread->data()->thread_creation_mutex_); }
+#if SB_API_VERSION >= 16
+  SbThreadSetPriority(kSbThreadPriorityNormal);
+#endif
   SetThreadName(thread->name());
   // DCHECK_NE(thread->data()->thread_, kNoThread);
   thread->NotifyStartedAndRun();
