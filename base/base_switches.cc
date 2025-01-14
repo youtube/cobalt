@@ -196,4 +196,8 @@ extern const char kEnableCrashpad[] = "enable-crashpad";
 const char kSchedulerBoostUrgent[] = "scheduler-boost-urgent";
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+const char kCobaltJniPrefix[] = "cobalt-jni-prefix";
+#endif
+
 }  // namespace switches
