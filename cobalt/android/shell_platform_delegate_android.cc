@@ -24,6 +24,9 @@ using base::android::ConvertUTF8ToJavaString;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
 
+// Note: Origin of this file is
+//  content/shell/browser/shell_platform_delegate_android.cc from m114
+
 namespace content {
 
 struct ShellPlatformDelegate::ShellData {

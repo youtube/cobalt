@@ -35,9 +35,6 @@ void RemoveShellView(const base::android::JavaRef<jobject>& shell_view);
 }  // namespace cobalt
 namespace content {
 
-void ShellAttachLayer(cc::Layer* layer);
-void ShellRemoveLayer(cc::Layer* layer);
-
 // Destroys the ShellManager on app exit. Must not use the above functions
 // after this is called.
 void DestroyShellManager();

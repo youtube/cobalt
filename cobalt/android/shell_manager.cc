@@ -66,6 +66,8 @@ void JNI_ShellManager_LaunchShell(JNIEnv* env,
   content::ShellBrowserContext* browserContext =
       content::ShellContentBrowserClient::Get()->browser_context();
   GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));
+
+  // Cobalt specific shell creation
   cobalt::CobaltShell::CreateNewWindow(browserContext, url, nullptr,
                                        gfx::Size());
 }
