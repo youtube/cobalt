@@ -51,6 +51,7 @@ void ShellPlatformDelegate::CreatePlatformWindow(
   DCHECK(!base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
+  // Cobalt specific ShellView creation
   shell_data.java_object.Reset(cobalt::CreateShellView(shell));
 }
 
@@ -59,6 +60,7 @@ void ShellPlatformDelegate::CleanUp(Shell* shell) {
   DCHECK(base::Contains(shell_data_map_, shell));
   ShellData& shell_data = shell_data_map_[shell];
 
+  // Cobalt specific ShellView removal
   cobalt::RemoveShellView(shell_data.java_object);
 
   if (!shell_data.java_object.is_null()) {
