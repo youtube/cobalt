@@ -1,5 +1,7 @@
 * @youtube/cobalt-3p-repository-owners
 
+/media/ @youtube/cobalt-media
+
 # Consider removing the gn, gni files code owners in April 2025 once
 # people are more familiar with Cobalt-Chrome GN changes.
 *.gn @youtube/cobalt-build
