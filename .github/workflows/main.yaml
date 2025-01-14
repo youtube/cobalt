@@ -315,6 +315,7 @@ jobs:
         id: on-device-tests
         uses: ./.github/actions/on_device_tests
         with:
+          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
           results_dir: ${{ env.TEST_RESULTS_DIR }}
       - name: Process Test Results
         if: |
