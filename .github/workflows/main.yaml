@@ -268,7 +268,6 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-    container: ${{ needs.docker-build-image.outputs.docker_tag }}
     steps:
       - name: Fail if any test shards have failed
         if:  ${{ needs.test.result != 'success' }}
