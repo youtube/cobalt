@@ -255,7 +255,11 @@ jobs:
 
   validate-test-result:
     needs: [initialize, docker-build-image, build, test]
-    if: always() && needs.initialize.outputs.test_on_host == 'true'
+    if: always() &&
+        (
+          needs.initialize.outputs.test_on_host == 'true' ||
+          needs.initialize.outputs.test_on_device == 'true'
+        )
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_tests_passing
