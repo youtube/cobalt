@@ -26,30 +26,37 @@
 
 namespace cobalt {
 
-std::unique_ptr<js_injection::JsCommunicationHost>
-    CobaltShell::js_communication_host_;
+// std::unique_ptr<js_injection::JsCommunicationHost>
+//     CobaltShell::js_communication_host_;
 
-CobaltShell::CobaltShell(std::unique_ptr<content::WebContents> web_contents,
-                         bool should_set_delegate)
-    : content::Shell(std::move(web_contents), should_set_delegate) {}
+CobaltShell::CobaltShell(std::unique_ptr<content::WebContents> web_contents)
+    : content::Shell(std::move(web_contents), false) {
+  LOG(INFO) << "Colin: CobaltShell::CobaltShell() ";
+}
 
 // static
 content::Shell* CobaltShell::CreateShell(
     std::unique_ptr<content::WebContents> web_contents,
     const gfx::Size& initial_size,
     bool should_set_delegate) {
+  LOG(INFO) << "Colin: CobaltShell::CreateShell() should_set_delegate is "
+            << should_set_delegate;
   content::WebContents* raw_web_contents = web_contents.get();
   // Create a Cobalt specific shell instance
-  CobaltShell* shell =
-      new CobaltShell(std::move(web_contents), should_set_delegate);
+  CobaltShell* shell = new CobaltShell(std::move(web_contents));
+  if (should_set_delegate) {
+    LOG(INFO) << "Colin: CobaltShell::CreateShell() call "
+                 "shell->web_contents()->SetDelegate(shell); shell is "
+              << shell << ", shell->web_contents() is "
+              << shell->web_contents();
+    shell->web_contents()->SetDelegate(shell);
+  }
 
-  CobaltShell::js_communication_host_ =
-      std::make_unique<js_injection::JsCommunicationHost>(
-          shell->web_contents());
+  LOG(INFO) << "Colin: CobaltShell is " << shell;
 
   // Delegate the rest of Shell setup to content::Shell
-  return content::Shell::CreateShellFromPointer(
-      shell, raw_web_contents, initial_size, should_set_delegate);
+  return content::Shell::CreateShellFromPointer(shell, raw_web_contents,
+                                                initial_size, false);
 }
 
 // static
@@ -58,6 +65,7 @@ content::Shell* CobaltShell::CreateNewWindow(
     const GURL& url,
     const scoped_refptr<content::SiteInstance>& site_instance,
     const gfx::Size& initial_size) {
+  LOG(INFO) << "Colin: CobaltShell::CreateNewWindow()";
   content::WebContents::CreateParams create_params(browser_context,
                                                    site_instance);
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
@@ -79,7 +87,16 @@ content::Shell* CobaltShell::CreateNewWindow(
 
 // Placeholder for a WebContentsObserver override
 void CobaltShell::PrimaryMainDocumentElementAvailable() {
-  LOG(INFO) << "Cobalt::PrimaryMainDocumentElementAvailable";
+  LOG(INFO) << "CobaltShell::PrimaryMainDocumentElementAvailable";
+}
+
+void CobaltShell::WebContentsCreated(content::WebContents* source_contents,
+                                     int opener_render_process_id,
+                                     int opener_render_frame_id,
+                                     const std::string& frame_name,
+                                     const GURL& target_url,
+                                     content::WebContents* new_contents) {
+  LOG(INFO) << "CobaltShell::WebContentsCreated";
 
   // Quick hack to demo injecting scripts
   // Create browser-side mojo service component
@@ -168,11 +185,19 @@ function initializeH5vccPlatformService() {
 initializeH5vccPlatformService();
 )";
 
+  std::unique_ptr<js_injection::JsCommunicationHost> js_communication_host =
+      std::make_unique<js_injection::JsCommunicationHost>(new_contents);
+
   const std::vector<std::string> allowed_origins({"*"});
-  auto result = CobaltShell::js_communication_host_->AddDocumentStartJavaScript(
+  auto result = js_communication_host->AddDocumentStartJavaScript(
       script, allowed_origins);
   CHECK(!result.error_message);
   // End inject
+}
+
+void CobaltShell::PortalWebContentsCreated(
+    content::WebContents* portal_web_contents) {
+  LOG(INFO) << "CobaltShell::PortalWebContentsCreated";
 }
 
 }  // namespace cobalt

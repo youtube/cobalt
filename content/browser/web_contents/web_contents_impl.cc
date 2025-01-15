@@ -1366,6 +1366,8 @@ WebContentsDelegate* WebContentsImpl::GetDelegate() {
 }
 
 void WebContentsImpl::SetDelegate(WebContentsDelegate* delegate) {
+  LOG(INFO) << "Colin: WebContentsImpl::SetDelegate, delegate is " << delegate << ", WebContentsImpl is " << this;
+
   OPTIONAL_TRACE_EVENT1("content", "WebContentsImpl::SetDelegate", "delegate",
                         static_cast<void*>(delegate));
   // TODO(cbentzel): remove this debugging code?
@@ -4043,6 +4045,8 @@ FrameTree* WebContentsImpl::CreateNewWindow(
     bool is_new_browsing_instance,
     bool has_user_gesture,
     SessionStorageNamespace* session_storage_namespace) {
+  LOG(INFO) << "Colin: WebContentsImpl::CreateNewWindow";
+
   TRACE_EVENT2("browser,content,navigation", "WebContentsImpl::CreateNewWindow",
                "opener", opener, "params", params);
   DCHECK(opener);
@@ -4205,7 +4209,9 @@ FrameTree* WebContentsImpl::CreateNewWindow(
     AddWebContentsDestructionObserver(new_contents_impl);
   }
 
+  LOG(INFO) << "Colin:" << "delegate_ is " << delegate_;
   if (delegate_) {
+    LOG(INFO) << "Colin: delegate_->WebContentsCreated";
     delegate_->WebContentsCreated(this, render_process_id,
                                   opener->GetRoutingID(), params.frame_name,
                                   params.target_url, new_contents_impl);

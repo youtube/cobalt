@@ -72,8 +72,12 @@ Shell::Shell(std::unique_ptr<WebContents> web_contents,
              bool should_set_delegate)
     : WebContentsObserver(web_contents.get()),
       web_contents_(std::move(web_contents)) {
-  if (should_set_delegate)
+  LOG(INFO) << "Colin: Shell() constructor; this is " << this << ", should_set_delegate is " << should_set_delegate;
+  if (should_set_delegate) {
+    LOG(INFO) << "Colin: Shell() web_contents_->SetDelegate(this); this(Shell) is " << this;
     web_contents_->SetDelegate(this);
+  }
+    
 
   if (!switches::IsRunWebTestsSwitchPresent()) {
     UpdateFontRendererPreferencesFromSystemSettings(
@@ -106,7 +110,9 @@ Shell::~Shell() {
 Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
                           const gfx::Size& initial_size,
                           bool should_set_delegate) {
+  LOG(INFO) << "Colin: Shell::CreateShell()";
   WebContents* raw_web_contents = web_contents.get();
+  LOG(INFO) << "Colin: Shell::CreateShell() -- new Shell() should_set_delegate is " << should_set_delegate;
   Shell* shell = new Shell(std::move(web_contents), should_set_delegate);
 #if BUILDFLAG(IS_COBALT)
   return CreateShellFromPointer(shell, raw_web_contents, initial_size, should_set_delegate);
@@ -223,6 +229,7 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const GURL& url,
                               const scoped_refptr<SiteInstance>& site_instance,
                               const gfx::Size& initial_size) {
+  LOG(INFO) << "Colin: Shell::CreateNewWindow()";
   WebContents::CreateParams create_params(browser_context, site_instance);
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {

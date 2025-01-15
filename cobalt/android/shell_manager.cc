@@ -63,6 +63,7 @@ static void JNI_ShellManager_Init(JNIEnv* env,
 
 void JNI_ShellManager_LaunchShell(JNIEnv* env,
                                   const JavaParamRef<jstring>& jurl) {
+  LOG(INFO) << "Colin: Cobalt::JNI_ShellManager_LaunchShell()";
   content::ShellBrowserContext* browserContext =
       content::ShellContentBrowserClient::Get()->browser_context();
   GURL url(base::android::ConvertJavaStringToUTF8(env, jurl));

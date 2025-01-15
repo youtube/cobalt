@@ -31,12 +31,11 @@ class CobaltShell : public content::Shell {
       const scoped_refptr<content::SiteInstance>& site_instance,
       const gfx::Size& initial_size);
 
-  static std::unique_ptr<js_injection::JsCommunicationHost>
-      js_communication_host_;
+  //   static std::unique_ptr<js_injection::JsCommunicationHost>
+  //       js_communication_host_;
 
  private:
-  CobaltShell(std::unique_ptr<content::WebContents> web_contents,
-              bool should_set_delegate);
+  CobaltShell(std::unique_ptr<content::WebContents> web_contents);
 
   // Overridden from content::Shell
   static content::Shell* CreateShell(
@@ -46,6 +45,16 @@ class CobaltShell : public content::Shell {
 
   // WebContentsObserver interface
   void PrimaryMainDocumentElementAvailable() override;
+
+  void WebContentsCreated(content::WebContents* source_contents,
+                          int opener_render_process_id,
+                          int opener_render_frame_id,
+                          const std::string& frame_name,
+                          const GURL& target_url,
+                          content::WebContents* new_contents) override;
+
+  void PortalWebContentsCreated(
+      content::WebContents* portal_web_contents) override;
 };
 
 }  // namespace cobalt
