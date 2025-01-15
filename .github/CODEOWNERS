@@ -9,8 +9,6 @@
 
 /.github/  # no owners
 /cobalt/  # no owners
-/media/base/starboard/  # no owners
-/media/starboard/  # no owners
 /starboard/  # no owners
 /components/viz/service/display/starboard/  # no owners
 /ui/ozone/platform/starboard/  # no owners
