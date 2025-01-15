@@ -7,6 +7,9 @@ inputs:
   test_results_key:
     description: "Artifact key used to store test results."
     required: true
+  num_gtest_shards:
+    description: "Total number of shards used to run the steps in this file."
+    required: true
 runs:
   using: "composite"
   steps:
@@ -56,8 +59,8 @@ runs:
 
           echo "Test filter evaluated to: ${test_filter}"
 
-          xml_path="${results_dir}/${test_binary}_testoutput.xml"
-          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" "./${test_binary}" --gtest_filter="${test_filter}" --gtest_output="xml:${xml_path}" || {
+          xml_path="${results_dir}/shard_${{ matrix.shard }}/${test_binary}_testoutput.xml"
+          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" "./${test_binary}" --test-launcher-shard-index=${{ matrix.shard }} --test-launcher-total-shards=${{ inputs.num_gtest_shards }} --gtest_filter="${test_filter}" --gtest_output="xml:${xml_path}" || {
             # Set exit code on failure.
             failed_suites="${failed_suites} ${test_binary}"
           }
@@ -71,5 +74,5 @@ runs:
       if: success() || failure()
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ inputs.test_results_key }}
-        path: ${{ env.results_dir }}/*.xml
+        name: ${{ inputs.test_results_key }}-${{ matrix.shard }}
+        path: ${{ env.results_dir }}/shard_${{ matrix.shard }}/*.xml

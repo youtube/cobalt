@@ -85,11 +85,23 @@ jobs:
         run: |
           docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')
           echo "docker_service=${docker_service}" >> $GITHUB_ENV
+      - id: set-gtest-shards
+        shell: bash
+        run: |
+          # Retrieve number of shards from config. If not specified, default to 1 shard with `echo 1`.
+          num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards' || echo 1)
+          echo "num_gtest_shards=${num_gtest_shards}" >> $GITHUB_ENV
+
+          # create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5]
+          gtest_shards="[$(seq -s, 0 1 $((${num_gtest_shards} - 1)))]"
+          echo "gtest_shards=${gtest_shards}" >> $GITHUB_ENV
     outputs:
       platforms: ${{ env.platforms }}
       targets: ${{ env.targets }}
       includes: ${{ env.includes }}
       docker_service: ${{ env.docker_service }}
+      num_gtest_shards: ${{ env.num_gtest_shards }}
+      gtest_shards: ${{ env.gtest_shards }}
       test_on_host: ${{ env.test_on_host }}
       test_on_device: ${{ env.test_on_device }}
 
@@ -181,13 +193,14 @@ jobs:
     permissions: {}
     # TODO(b/372303096): Should have dedicated runner?
     runs-on: [self-hosted, chrobalt-linux-runner]
-    name: ${{ matrix.name }}_tests
+    name: ${{ matrix.name }}_tests_shard_${{ matrix.shard }}
     strategy:
       fail-fast: false
       matrix:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
+        shard: ${{ fromJson(needs.initialize.outputs.gtest_shards) }}
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TMPDIR: /__w/_temp
@@ -205,15 +218,60 @@ jobs:
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
+          num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
+
+  test-upload:
+    needs: [initialize, docker-build-image, build, test]
+    if: always() &&
+        (
+          needs.initialize.outputs.test_on_host == 'true' ||
+          needs.initialize.outputs.test_on_device == 'true'
+        )
+    permissions: {}
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    name: ${{ matrix.name }}_tests_upload
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    container: ${{ needs.docker-build-image.outputs.docker_tag }}
+    env:
+      TMPDIR: /__w/_temp
+      TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: src
       - name: Process Test Results
-        if: |
-          always() &&
-          (
-            steps.on-host-tests.outcome == 'success' ||
-            steps.on-host-tests.outcome == 'failure'
-          )
         uses: ./src/.github/actions/process_test_results
         with:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           datadog_api_key: ${{ secrets.datadog_api_key }}
         continue-on-error: true
+
+  validate-test-result:
+    needs: [initialize, docker-build-image, build, test]
+    if: always() &&
+        (
+          needs.initialize.outputs.test_on_host == 'true' ||
+          needs.initialize.outputs.test_on_device == 'true'
+        )
+    permissions: {}
+    runs-on: ubuntu-latest
+    name: ${{ matrix.name }}_tests_passing
+    strategy:
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    container: ${{ needs.docker-build-image.outputs.docker_tag }}
+    steps:
+      - name: Fail if any test shards have failed
+        if:  ${{ needs.test.result != 'success' }}
+        run: |
+          echo "Failing because at least one test shard had errors."
+          exit 1
