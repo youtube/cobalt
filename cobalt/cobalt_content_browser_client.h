@@ -15,6 +15,8 @@
 #ifndef COBALT_COBALT_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_COBALT_CONTENT_BROWSER_CLIENT_H_
 
+#include "cobalt/cobalt_web_contents_observer.h"
+#include "content/public/browser/web_contents.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 
 namespace cobalt {
@@ -31,6 +33,10 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   blink::UserAgentMetadata GetUserAgentMetadata() override;
   void OverrideWebkitPrefs(content::WebContents* web_contents,
                            blink::web_pref::WebPreferences* prefs) override;
+  void OnWebContentsCreated(content::WebContents* web_contents);
+
+ private:
+  std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
 };
 
 }  // namespace cobalt
