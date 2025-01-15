@@ -249,6 +249,7 @@ shared_library("libcobalt_content_shell_content_view") {
     "//content/shell:content_shell_app",
     "//content/shell:content_shell_lib",
     "//content/shell:pak",
+    "//content/shell/android:content_shell_jni_headers",
     "//media",
     "//skia",
     "//starboard/android/shared:starboard_jni_state",
