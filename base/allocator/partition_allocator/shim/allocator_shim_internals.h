@@ -9,7 +9,7 @@
 
 #if defined(__GNUC__)
 
-#if BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_POSIX) && !(BUILDFLAG(IS_STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC))
 #include <sys/cdefs.h>  // for __THROW
 #endif
 

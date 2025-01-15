@@ -59,7 +59,7 @@
 //   syscall(SYS_write, /*int*/ fd, /*char* */ buf, /*size_t*/ len);
 // for low level operations that want to avoid libc.
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)) && \
-    !defined(__ANDROID__) && !BUILDFLAG(IS_STARBOARD)
+    !defined(__ANDROID__) && !(BUILDFLAG(IS_STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC))
 #include <sys/syscall.h>
 #define ABSL_HAVE_SYSCALL_WRITE 1
 #define ABSL_LOW_LEVEL_WRITE_SUPPORTED 1
@@ -217,7 +217,7 @@ void AsyncSignalSafeWriteToStderr(const char* s, size_t len) {
   write(STDERR_FILENO, s, len);
 #elif defined(ABSL_HAVE_RAW_IO)
   _write(/* stderr */ 2, s, static_cast<unsigned>(len));
-#elif BUILDFLAG(IS_STARBOARD)
+#elif (BUILDFLAG(IS_STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC))
   SbLog(kSbLogPriorityError, s);
 #else
   // stderr logging unsupported on this platform

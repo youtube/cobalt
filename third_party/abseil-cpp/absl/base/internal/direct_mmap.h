@@ -25,7 +25,7 @@
 #include <sys/mman.h>
 
 #include "build/build_config.h"
-#if defined(__linux__) && !BUILDFLAG(IS_STARBOARD)
+#if defined(__linux__) && !(BUILDFLAG(IS_STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC))
 #include <sys/types.h>
 #ifdef __BIONIC__
 #include <sys/syscall.h>

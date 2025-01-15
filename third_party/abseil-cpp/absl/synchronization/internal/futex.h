@@ -22,12 +22,12 @@
 #include <unistd.h>
 #endif
 
-#if !BUILDFLAG(IS_STARBOARD)
+#if !(BUILDFLAG(IS_STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC))
 #ifdef __linux__
 #include <linux/futex.h>
 #include <sys/syscall.h>
 #endif
-#endif // !BUILDFLAG(IS_STARBOARD)
+#endif // !(BUILDFLAG(IS_STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC))
 
 #include <errno.h>
 #include <stdio.h>

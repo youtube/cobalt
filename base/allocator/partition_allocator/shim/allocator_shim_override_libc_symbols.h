@@ -12,13 +12,6 @@
 #ifndef BASE_ALLOCATOR_PARTITION_ALLOCATOR_SHIM_ALLOCATOR_SHIM_OVERRIDE_LIBC_SYMBOLS_H_
 #define BASE_ALLOCATOR_PARTITION_ALLOCATOR_SHIM_ALLOCATOR_SHIM_OVERRIDE_LIBC_SYMBOLS_H_
 
-#include "build/build_config.h"
-
-// TODO: b/384652502 - Cobalt: Add source files after fixing compiler errors.
-// /arch/generic --sysroot=../../build/linux/debian_bullseye_amd64-sysroot -fvisibility-inlines-hidden -c ../../base/allocator/partition_allocator/shim/allocator_shim.cc -o obj/base/base/allocator_shim.o
-// In file included from ../../base/allocator/partition_allocator/shim/allocator_shim.cc:409:
-// ../../base/allocator/partition_allocator/shim/allocator_shim_override_libc_symbols.h:36:26: error: exception specification in declaration does not match previous declaration
-#if BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_APPLE)
 #include <malloc/malloc.h>
 #else
@@ -93,8 +86,6 @@ SHIM_ALWAYS_EXPORT size_t malloc_usable_size(void* address) __THROW {
 //   struct mallinfo mallinfo(void);
 
 }  // extern "C"
-
-#endif // IS_STARBOARD
 
 #endif  // BASE_ALLOCATOR_PARTITION_ALLOCATOR_SHIM_ALLOCATOR_SHIM_OVERRIDE_LIBC_SYMBOLS_H_
 

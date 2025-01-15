@@ -24,7 +24,7 @@
 
 #if defined(_WIN32)
 #include "absl/base/internal/spinlock_win32.inc"
-#elif defined(__linux__) && !BUILDFLAG(IS_STARBOARD)
+#elif defined(__linux__) && !(BUILDFLAG(IS_STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC))
 #include "absl/base/internal/spinlock_linux.inc"
 #elif defined(__akaros__)
 #include "absl/base/internal/spinlock_akaros.inc"
