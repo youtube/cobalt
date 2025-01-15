@@ -19,7 +19,6 @@
         "system_webview_shell_apk",
         "cobalt:gn_all"
     ],
-    "test_on_device": true,
     "includes": [
         {
         "name":"arm",
