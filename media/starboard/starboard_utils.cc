@@ -361,25 +361,6 @@ SbMediaColorMetadata MediaToSbMediaColorMetadata(
 
   return sb_media_color_metadata;
 }
-int GetSbMediaVideoBufferBudget(const VideoDecoderConfig* video_config,
-                                const std::string& mime_type) {
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  if (!video_config) {
-    return DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(
-        kSbMediaVideoCodecH264, 1920, 1080, 8);
-  }
-
-  auto width = video_config->visible_rect().size().width();
-  auto height = video_config->visible_rect().size().height();
-  auto bits_per_pixel = GetBitsPerPixel(mime_type);
-  auto codec = MediaVideoCodecToSbMediaVideoCodec(video_config->codec());
-  return DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(
-      codec, width, height, bits_per_pixel);
-#else   // BUILDFLAG(USE_STARBOARD_MEDIA)
-  NOTREACHED();
-  return 0;
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-}
 
 std::string ExtractCodecs(const std::string& mime_type) {
   static const char kCodecs[] = "codecs=";

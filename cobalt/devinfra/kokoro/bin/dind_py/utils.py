@@ -26,14 +26,12 @@ _GIT_SHA_VAR = 'KOKORO_GIT_COMMIT_src'
 _REGISTRY_PATH_VAR = 'REGISTRY_PATH'
 _REGISTRY_IMAGE_VAR = 'REGISTRY_IMAGE_NAME'
 _PLATFORM_VAR = 'PLATFORM'
-_KOKORO_BUILD_NUM_VAR = 'KOKORO_BUILD_NUMBER'
 _WORKSPACE_COBALT_VAR = 'WORKSPACE_COBALT'
 
 # These values are used to determine Floating Tag parameters for images used in
 # Docker/Cobalt build steps.
 _BASE_BRANCH_VAR = 'KOKORO_GOB_BRANCH_src'
 _GERRIT_CHANGE_NUMBER_VAR = 'KOKORO_GERRIT_CHANGE_NUMBER_src'
-_GERRIT_PATCH_NUMBER_VAR = 'KOKORO_GERRIT_PATCHSET_NUMBER_src'
 _KOKORO_JOB_TYPE_VAR = 'KOKORO_ROOT_JOB_TYPE'
 
 
@@ -54,9 +52,6 @@ class EnvArgs(object):
 
   # Target platform to build Cobalt for
   platform = None
-
-  # The cardinal number of the Kokoro job being run
-  build_num = None
 
   # Path to the checkout of Cobalt repo's root
   src_root = ''
@@ -79,12 +74,6 @@ class EnvArgs(object):
   # reused for image build cache purposes when running presubmit tests.
   gerrit_change_number = ''
 
-  # This value is the current iteration of the changelist uploaded to Gerrit.
-  # Whenever new changes are made to an existing CL, it will increment this
-  # value from 1 onwards. This is not used in the floating tag, but can help
-  # uniquely identify Kokoro jobs running on the same CL.
-  gerrit_change_patch = ''
-
   # Whether the root job of the Kokoro job chain that triggered this build is a
   # postsubmit card. This controls what type of floating tag is applied to any
   # built docker image.
@@ -99,7 +88,6 @@ class EnvArgs(object):
     if self.registry_img is None:
       self.registry_img = f'cobalt-build-{self.platform}'
 
-    self.build_num = os.environ[_KOKORO_BUILD_NUM_VAR]
     self.src_root = os.environ[_WORKSPACE_COBALT_VAR]
     self.base_branch_name = os.environ.get(_BASE_BRANCH_VAR)
     # Normalize LTS branch names: 24.lts.1+ => 24_lts
@@ -108,14 +96,9 @@ class EnvArgs(object):
       raise ValueError('Branch name was not set in the environment.')
     self.gerrit_change_number = int(
         os.environ.get(_GERRIT_CHANGE_NUMBER_VAR, 0))
-    self.gerrit_change_patch = int(os.environ.get(_GERRIT_PATCH_NUMBER_VAR, 0))
 
     job_type = os.environ.get(_KOKORO_JOB_TYPE_VAR, '')
     self.is_postsubmit = job_type in ['CONTINUOUS_INTEGRATION', 'RELEASE']
-    if (not self.is_postsubmit) and (self.gerrit_change_number == 0 or
-                                     self.gerrit_change_patch == 0):
-      raise ValueError(
-          'Gerrit change number/patch not set in environment for presubmits.')
 
 
 def get_args_from_env():

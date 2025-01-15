@@ -9,6 +9,7 @@ files: |
     (?x)^(
         .github/|
         cobalt/|
+        media/base/starboard/|
         media/starboard/|
         starboard/|
         components/viz/service/display/starboard/|

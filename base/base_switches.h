@@ -67,6 +67,10 @@ extern const char kEnableCrashpad[];
 extern const char kSchedulerBoostUrgent[];
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+extern const char kCobaltJniPrefix[];
+#endif
+
 }  // namespace switches
 
 #endif  // BASE_BASE_SWITCHES_H_
