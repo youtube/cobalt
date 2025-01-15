@@ -91,4 +91,9 @@ void CobaltContentBrowserClient::OverrideWebkitPrefs(
   content::ShellContentBrowserClient::OverrideWebkitPrefs(web_contents, prefs);
 }
 
+void CobaltContentBrowserClient::OnWebContentsCreated(
+    content::WebContents* web_contents) {
+  web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
+}
+
 }  // namespace cobalt
