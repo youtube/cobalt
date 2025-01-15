@@ -13,14 +13,14 @@ runs:
     - name: Download Test Results
       uses: actions/download-artifact@v4
       with:
-        name: ${{ inputs.test_results_key }}
-        path: results/
+        pattern: ${{ inputs.test_results_key }}-*
+        path: results/**/*
 
     - name: Test Summary action
       continue-on-error: true
       uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86
       with:
-        paths: "results/*.xml"
+        paths: "results/**/*.xml"
         output: test-report-summary.md
         show: "fail, skip"
 
@@ -53,5 +53,5 @@ runs:
         DD_ENV: ci
       run: |
         set -x
-        ./datadog-ci junit upload --service ${DD_SERVICE} results/*.xml
+        ./datadog-ci junit upload --service ${DD_SERVICE} results/**/*.xml
       shell: bash
