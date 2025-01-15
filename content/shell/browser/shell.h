@@ -196,6 +196,7 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
   class DevToolsWebContentsObserver;
 
 #if BUILDFLAG(IS_COBALT)
+  // TODO: b/87654321 - Cobalt: Remove these hacks as we remove Shell dependency
   // Cobalt Hack: make following members protected to be able to partially
   // customize Shell in a derived class.
 protected:
