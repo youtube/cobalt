@@ -261,7 +261,7 @@ jobs:
           needs.initialize.outputs.test_on_device == 'true'
         )
     permissions: {}
-    runs-on: [self-hosted, chrobalt-linux-runner]
+    runs-on: ubuntu-latest
     name: ${{ matrix.name }}_tests_passing
     strategy:
       matrix:
