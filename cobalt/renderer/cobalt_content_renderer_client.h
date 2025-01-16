@@ -16,6 +16,8 @@
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
 
+#include "components/js_injection/renderer/js_communication.h"
+
 namespace blink {
 class URLLoaderThrottleProvider;
 enum class URLLoaderThrottleProviderType;
@@ -66,6 +68,9 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   bool IsSupportedAudioType(const media::AudioType& type) override;
   bool IsSupportedVideoType(const media::VideoType& type) override;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+  // JS Injection hook
+  void RunScriptsAtDocumentStart(content::RenderFrame* render_frame) override;
 
   std::unique_ptr<blink::WebPrescientNetworking> CreatePrescientNetworking(
       content::RenderFrame* render_frame) override;

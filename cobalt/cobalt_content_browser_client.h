@@ -33,7 +33,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   blink::UserAgentMetadata GetUserAgentMetadata() override;
   void OverrideWebkitPrefs(content::WebContents* web_contents,
                            blink::web_pref::WebPreferences* prefs) override;
-  void OnWebContentsCreated(content::WebContents* web_contents);
+  void OnWebContentsCreated(content::WebContents* web_contents) override;
 
  private:
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;

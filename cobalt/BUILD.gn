@@ -49,6 +49,7 @@ if (!is_android) {
     deps = [
       "//cobalt/renderer:renderer",
       "//cobalt/user_agent",
+      "//components/js_injection/browser:browser",
       "//content/public/app",
       "//content/shell:content_shell_app",
       "//content/shell:content_shell_lib",
