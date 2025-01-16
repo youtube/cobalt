@@ -10,11 +10,11 @@ runs:
       - name: Get depot tools
         run: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
         shell: bash
-      - name: Add directory to PATH
+      - name: Add depot tools to PATH
         run: echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
         shell: bash
       - name: Generate gclient file
-        run: gclient config --name=src https://github.com/${{ github.repository }}
+        run: gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' https://github.com/${{ github.repository }}
         shell: bash
       - name: Set target OS for Android
         if: ${{ contains(matrix.platform, 'android') }}
@@ -22,18 +22,18 @@ runs:
           echo "target_os=['android']" >> .gclient
           gclient validate
         shell: bash
-      - name: Gclient sync
+      - name: gclient sync
         run: gclient sync -v --shallow --no-history -r ${{ github.sha }}
         shell: bash
-      - name: sccache check
-        run: sccache -s
+      - name: Disable Chromium client side build telemetry
+        run: build_telemetry opt-out
         shell: bash
-      - name: gn gen
+      - name: GN gen
         run: |
           cd src
           cobalt/build/gn.py -p ${{ matrix.platform }} -C ${{ matrix.config }}
         shell: bash
-      - name: Dump GN args
+      - name: List GN args
         run: |
           cd src
           gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
@@ -44,10 +44,7 @@ runs:
         run: |
           set -x
           cd src
-          ninja -C out/${{ matrix.platform }}_${{ matrix.config }} $(echo "${TARGETS}" | tr -d '"')
-        shell: bash
-      - name: Dump sccache stats
-        run: sccache -s
+          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} $(echo "${TARGETS}" | tr -d '"')
         shell: bash
       - name: Archive Android APKs
         if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
