@@ -20,7 +20,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
-#include "third_party/blink/renderer/core/execution_context/navigator_base.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
@@ -30,20 +30,20 @@ namespace blink {
 const char CrashAnnotator::kSupplementName[] = "CrashAnnotator";
 
 // static
-CrashAnnotator* CrashAnnotator::crashAnnotator(NavigatorBase& navigator) {
+CrashAnnotator* CrashAnnotator::crashAnnotator(LocalDOMWindow& window) {
   CrashAnnotator* crash_annotator =
-      Supplement<NavigatorBase>::From<CrashAnnotator>(navigator);
-  if (!crash_annotator && navigator.GetExecutionContext()) {
-    crash_annotator = MakeGarbageCollected<CrashAnnotator>(navigator);
-    ProvideTo(navigator, crash_annotator);
+      Supplement<LocalDOMWindow>::From<CrashAnnotator>(window);
+  if (!crash_annotator && window.GetExecutionContext()) {
+    crash_annotator = MakeGarbageCollected<CrashAnnotator>(window);
+    ProvideTo(window, crash_annotator);
   }
   return crash_annotator;
 }
 
-CrashAnnotator::CrashAnnotator(NavigatorBase& navigator)
-    : Supplement<NavigatorBase>(navigator),
-      ExecutionContextLifecycleObserver(navigator.GetExecutionContext()),
-      service_(navigator.GetExecutionContext()) {}
+CrashAnnotator::CrashAnnotator(LocalDOMWindow& window)
+    : Supplement<LocalDOMWindow>(window),
+      ExecutionContextLifecycleObserver(window.GetExecutionContext()),
+      service_(window.GetExecutionContext()) {}
 
 void CrashAnnotator::ContextDestroyed() {}
 
@@ -84,7 +84,7 @@ void CrashAnnotator::EnsureReceiverIsBound() {
 
 void CrashAnnotator::Trace(Visitor* visitor) const {
   visitor->Trace(service_);
-  Supplement<NavigatorBase>::Trace(visitor);
+  Supplement<LocalDOMWindow>::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
   ScriptWrappable::Trace(visitor);
 }
