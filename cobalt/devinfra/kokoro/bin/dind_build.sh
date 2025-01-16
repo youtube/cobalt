@@ -55,7 +55,7 @@ pipeline () {
   fi
   git config --global --add safe.directory "${gclient_root}/src"
   gclient sync -v --shallow --no-history -r "${KOKORO_GIT_COMMIT_src}"
-  build_telemtry opt-out
+  build_telemetry opt-out
 
   # Run GN and Ninja.
   ##############################################################################
