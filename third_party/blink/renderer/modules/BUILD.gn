@@ -168,7 +168,10 @@ component("modules") {
   ]
 
   if (is_cobalt) {
-    sub_modules += [ "//third_party/blink/renderer/modules/cobalt/crash_annotator" ]
+    sub_modules += [
+      "//third_party/blink/renderer/modules/cobalt/crash_annotator",
+      "//third_party/blink/renderer/modules/cobalt:hvcc",
+    ]
   }
 
   # This uses target_os rather than current_os (which is what is_android is set
