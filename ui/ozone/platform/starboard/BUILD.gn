@@ -58,7 +58,6 @@ source_set("starboard_unittests") {
 
   sources = [
     "test/platform_window_starboard_unittest.cc",
-    "test/starboard_test_helper.cc",
     "test/starboard_test_helper.h",
     "test/surface_factory_starboard_unittest.cc",
   ]

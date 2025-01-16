@@ -24,7 +24,7 @@
 namespace ui {
 namespace {
 // Using OzoneStarboardTest to allow SbWindowCreate and SbWindowDestroy.
-class PlatformWindowStarboardTest : public OzoneStarboardTest {
+class PlatformWindowStarboardTest : public testing::Test {
  public:
   PlatformWindowStarboardTest() {
     sb_window_ =
