@@ -227,7 +227,7 @@ jobs:
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
 
   test-upload:
-    needs: [initialize, docker-build-image, build, test]
+    needs: [initialize, docker-build-image, build, on-host-test]
     if: always() &&
         (
           needs.initialize.outputs.test_on_host == 'true' ||
