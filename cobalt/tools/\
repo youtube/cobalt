@@ -27,11 +27,14 @@ import on_device_tests_gateway_pb2_grpc
 
 _WORK_DIR = '/on_device_tests_gateway'
 
-# For local testing, set: _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = ('localhost')
+# Comment out the next three lines for local testing
 # _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
 #    'on-device-tests-gateway-service.on-device-tests.svc.cluster.local')
-_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = ('localhost')
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
+
+# Uncomment the next two lines for local testing
+_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = ('localhost')
+# _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '12345'
 
 _ON_DEVICE_OUTPUT_FILES_DIR = '/sdcard/Download'
 _CHROMIUM_TEST_ROOT = '/sdcard/chromium_tests_root'
@@ -194,8 +197,6 @@ def _process_test_requests(args):
         f'--gtest_filter={gtest_filter}'
     ]
 
-    print(f" test dimensions is: {platform_data.get('test_dimensions', {})}")
-
     test_request = {
         'test_args': tests_args,
         'test_cmd_args': test_cmd_args,
@@ -297,13 +298,11 @@ def main() -> int:  # Add a return type hint
       '-pf',
       '--platform_json',
       type=str,
-      required=True,
       help='Platform-specific JSON file containing the list of target tests.',
   )
   trigger_parser.add_argument(
       '--filter_json_dir',
       type=str,
-      required=True,
       help='Directory containing filter JSON files for test selection.',
   )
   trigger_parser.add_argument(
@@ -331,7 +330,7 @@ def main() -> int:  # Add a return type hint
   )
   trigger_args.add_argument(
       '-a',
-      '--gcs_archive_path',
+      '--archive_path',
       type=str,
       required=True,
       help='Path to Chrobalt archive to be tested. Must be on GCS.',
@@ -342,19 +341,19 @@ def main() -> int:  # Add a return type hint
       help='GCS URL where test result files should be uploaded.',
   )
   trigger_parser.add_argument(
-      '--job_timeout_secs',
+      '--job_timeout_sec',
       type=str,
       default='1800',
       help='Timeout in seconds for the job (default: 1800 seconds).',
   )
   trigger_parser.add_argument(
-      '--test_timeout_secs',
+      '--test_timeout_sec',
       type=str,
       default='1800',
       help='Timeout in seconds for the test (default: 1800 seconds).',
   )
   trigger_parser.add_argument(
-      '--start_timeout_secs',
+      '--start_timeout_sec',
       type=str,
       default='180',
       help='Timeout in seconds for the test to start (default: 180 seconds).',
