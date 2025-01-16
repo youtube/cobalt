@@ -99,6 +99,8 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
   PopulateCobaltFrameBinders(render_frame_host, map);
+  ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
+      render_frame_host, map);
 }
 
 }  // namespace cobalt

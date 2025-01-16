@@ -266,6 +266,8 @@ shared_library("libcobalt_content_shell_content_view") {
     ]
   }
   sources = [
+    # TODO(cobalt, b/383301493): move browser-related source files under a
+    # //cobalt/browser directory and define a "browser" build target there.
     "//cobalt/cobalt_browser_interface_binders.cc",
     "//cobalt/cobalt_browser_interface_binders.h",
     "//cobalt/cobalt_content_browser_client.cc",
