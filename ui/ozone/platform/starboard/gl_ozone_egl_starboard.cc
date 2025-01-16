@@ -32,22 +32,20 @@ namespace ui {
 
 GLOzoneEGLStarboard::GLOzoneEGLStarboard() = default;
 
-GLOzoneEGLStarboard::~GLOzoneEGLStarboard() {
-  if (sb_window_) {
-    SbWindowDestroy(sb_window_);
-  }
-}
+GLOzoneEGLStarboard::~GLOzoneEGLStarboard() = default;
 
 scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateViewGLSurface(
     gl::GLDisplay* display,
     gfx::AcceleratedWidget window) {
+  CHECK(window != gfx::kNullAcceleratedWidget);
   // TODO(b/371272304): Verify widget dimensions match our expected display size
   // (likely full screen for Cobalt).
   return gl::InitializeGLSurface(new gl::NativeViewGLSurfaceEGL(
-      display->GetAs<gl::GLDisplayEGL>(), GetNativeWindow(),
+      display->GetAs<gl::GLDisplayEGL>(), window,
       std::make_unique<gfx::FixedVSyncProvider>(base::TimeTicks(),
                                                 GetVSyncInterval())));
 }
+
 scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateOffscreenGLSurface(
     gl::GLDisplay* display,
     const gfx::Size& size) {
@@ -55,13 +53,8 @@ scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateOffscreenGLSurface(
       new gl::PbufferGLSurfaceEGL(display->GetAs<gl::GLDisplayEGL>(), size));
 }
 
-intptr_t GLOzoneEGLStarboard::GetNativeWindow() {
-  CreateDisplayTypeAndWindowIfNeeded();
-  return reinterpret_cast<intptr_t>(window_);
-}
-
 gl::EGLDisplayPlatform GLOzoneEGLStarboard::GetNativeDisplay() {
-  CreateDisplayTypeAndWindowIfNeeded();
+  CreateDisplayTypeIfNeeded();
   return gl::EGLDisplayPlatform(
       reinterpret_cast<EGLNativeDisplayType>(display_type_));
 }
@@ -83,21 +76,12 @@ bool GLOzoneEGLStarboard::LoadGLES2Bindings(
   return true;
 }
 
-void GLOzoneEGLStarboard::CreateDisplayTypeAndWindowIfNeeded() {
+void GLOzoneEGLStarboard::CreateDisplayTypeIfNeeded() {
   // TODO(b/371272304): Initialize hardware here if needed.
   if (!have_display_type_) {
     display_type_ = reinterpret_cast<void*>(SB_EGL_DEFAULT_DISPLAY);
     have_display_type_ = true;
   }
-  if (!window_) {
-    SbWindowOptions options{};
-    SbWindowSetDefaultOptions(&options);
-
-    sb_window_ = SbWindowCreate(&options);
-    window_ = SbWindowGetPlatformHandle(sb_window_);
-  }
-
-  CHECK(window_);
 }
 
 }  // namespace ui
