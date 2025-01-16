@@ -28,9 +28,8 @@ import on_device_tests_gateway_pb2_grpc
 _WORK_DIR = '/on_device_tests_gateway'
 
 # For local testing, set: _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = ('localhost')
-# _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
-#    'on-device-tests-gateway-service.on-device-tests.svc.cluster.local')
-_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = ('localhost')
+_ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
+    'on-device-tests-gateway-service.on-device-tests.svc.cluster.local')
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 
 _ON_DEVICE_OUTPUT_FILES_DIR = '/sdcard/Download'
@@ -193,8 +192,6 @@ def _process_test_requests(args):
         f'command_line_args=--gtest_output=xml:{_ON_DEVICE_OUTPUT_FILES_DIR}/{gtest_target}_result.xml',
         f'--gtest_filter={gtest_filter}'
     ]
-
-    print(f" test dimensions is: {platform_data.get('test_dimensions', {})}")
 
     test_request = {
         'test_args': tests_args,
@@ -404,7 +401,6 @@ def main() -> int:  # Add a return type hint
       client.run_watch_command(workdir=_WORK_DIR, args=args)
   except grpc.RpcError as e:
     logging.exception('gRPC error occurred:')  # Log the full traceback
-    print(f'Error: {e}')
     return e.code().value  # Return the error code
 
   return 0  # Indicate successful execution
