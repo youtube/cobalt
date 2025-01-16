@@ -172,11 +172,6 @@
 #include "ui/gfx/geometry/rect.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "third_party/blink/public/mojom/cobalt/crash_annotator/crash_annotator.mojom-forward.h"
-#include "third_party/blink/public/mojom/cobalt/crash_annotator/crash_annotator.mojom.h"
-#endif
-
 #if BUILDFLAG(IS_ANDROID)
 #include "base/containers/id_map.h"
 #include "services/device/public/mojom/nfc.mojom.h"
@@ -254,9 +249,6 @@ class DocumentServiceBase;
 class AgentSchedulingGroupHost;
 class BrowsingContextState;
 class CodeCacheHostImpl;
-#if BUILDFLAG(IS_COBALT)
-class CrashAnnotatorImpl;
-#endif
 class CrossOriginEmbedderPolicyReporter;
 class CrossOriginOpenerPolicyAccessReportManager;
 class FeatureObserver;
@@ -1949,11 +1941,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
 
   void GetFileSystemAccessManager(
       mojo::PendingReceiver<blink::mojom::FileSystemAccessManager> receiver);
-
-#if BUILDFLAG(IS_COBALT)
-  void GetCrashAnnotator(
-      mojo::PendingReceiver<blink::mojom::CrashAnnotator> receiver);
-#endif
 
 #if !BUILDFLAG(IS_ANDROID)
   void GetHidService(mojo::PendingReceiver<blink::mojom::HidService> receiver);
@@ -4504,10 +4491,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
 
   // Tracks the document policy which has been set on this frame.
   std::unique_ptr<blink::DocumentPolicy> document_policy_;
-
-#if BUILDFLAG(IS_COBALT)
-  std::unique_ptr<CrashAnnotatorImpl> crash_annotator_;
-#endif
 
 #if BUILDFLAG(IS_ANDROID)
   // An InterfaceProvider for Java-implemented interfaces that are scoped to

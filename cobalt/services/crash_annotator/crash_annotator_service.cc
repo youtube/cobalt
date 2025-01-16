@@ -12,20 +12,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "content/browser/cobalt/crash_annotator/crash_annotator_impl.h"
+#include "cobalt/services/crash_annotator/crash_annotator_service.h"
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 
-namespace content {
+namespace crash_annotator {
 
-void CrashAnnotatorImpl::SetString(const std::string& key,
-                                   const std::string& value,
-                                   SetStringCallback callback) {
+CrashAnnotatorService::CrashAnnotatorService(
+    content::RenderFrameHost& render_frame_host,
+    mojo::PendingReceiver<mojom::CrashAnnotatorService> receiver)
+    : content::DocumentService<mojom::CrashAnnotatorService>(
+          render_frame_host,
+          std::move(receiver)) {}
+
+void CrashAnnotatorService::Create(
+    content::RenderFrameHost* render_frame_host,
+    mojo::PendingReceiver<mojom::CrashAnnotatorService> receiver) {
+  new CrashAnnotatorService(*render_frame_host, std::move(receiver));
+}
+
+void CrashAnnotatorService::SetString(const std::string& key,
+                                      const std::string& value,
+                                      SetStringCallback callback) {
   // TODO(cobalt, b/383301493): actually implement this.
   LOG(INFO) << "CrashAnnotatorImpl::SetString key=" << key << " value="
             << value;
   std::move(callback).Run(false);
 }
 
-}  // namespace content
+}  // namespace crash_annotator

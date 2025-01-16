@@ -36,6 +36,8 @@ if (!is_android) {
 
     sources = [
       "cobalt.cc",
+      "cobalt_browser_interface_binders.cc",
+      "cobalt_browser_interface_binders.h",
       "cobalt_content_browser_client.cc",
       "cobalt_content_browser_client.h",
       "cobalt_main_delegate.cc",
@@ -48,6 +50,8 @@ if (!is_android) {
 
     deps = [
       "//cobalt/renderer:renderer",
+      "//cobalt/services/crash_annotator",
+      "//cobalt/services/crash_annotator/public/mojom",
       "//cobalt/user_agent",
       "//content/public/app",
       "//content/shell:content_shell_app",
