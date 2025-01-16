@@ -45,7 +45,8 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   void OnWebContentsCreated(content::WebContents* web_contents);
   void RegisterBrowserInterfaceBindersForFrame(
       content::RenderFrameHost* render_frame_host,
-      mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map) override;
+      mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map)
+      override;
 
  private:
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;

@@ -33,7 +33,6 @@ namespace crash_annotator {
 class CrashAnnotatorService
     : public content::DocumentService<mojom::CrashAnnotatorService> {
  public:
-
   // Creates a CrashAnnotatorService. The CrashAnnotatorService is bound to the
   // receiver and its lifetime is scoped to the render_frame_host.
   static void Create(

@@ -36,8 +36,8 @@ void CrashAnnotatorService::SetString(const std::string& key,
                                       const std::string& value,
                                       SetStringCallback callback) {
   // TODO(cobalt, b/383301493): actually implement this.
-  LOG(INFO) << "CrashAnnotatorImpl::SetString key=" << key << " value="
-            << value;
+  LOG(INFO) << "CrashAnnotatorImpl::SetString key=" << key
+            << " value=" << value;
   std::move(callback).Run(false);
 }
 
