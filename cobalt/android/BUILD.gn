@@ -241,11 +241,13 @@ shared_library("libcobalt_content_shell_content_view") {
   testonly = true
   deps = [
     ":content_shell_jni_headers",
+    "//cobalt:embed_polyfilled_javascript",
     "//cobalt/renderer:renderer",
     "//cobalt/user_agent",
 
     # TODO: what can be removed in the dependencies?
     "//components/crash/content/browser",
+    "//components/js_injection/browser:browser",
     "//content/shell:content_shell_app",
     "//content/shell:content_shell_lib",
     "//content/shell:pak",

@@ -47,8 +47,10 @@ if (!is_android) {
     defines = []
 
     deps = [
+      ":embed_polyfilled_javascript",
       "//cobalt/renderer:renderer",
       "//cobalt/user_agent",
+      "//components/js_injection/browser:browser",
       "//content/public/app",
       "//content/shell:content_shell_app",
       "//content/shell:content_shell_lib",
@@ -77,6 +79,28 @@ action("cobalt_build_info") {
   args = [
     rebase_path(outputs[0], root_build_dir),
     rebase_path(outputs[1], root_build_dir),
+  ]
+}
+
+config("embed_polyfilled_javascript_config") {
+  include_dirs = [ root_gen_dir ]
+}
+
+action("embed_polyfilled_javascript") {
+  script = "//cobalt/build/generate_data_header.py"
+
+  inputs = [
+    "embedded_resources/test.js",
+    "embedded_resources/test2.js",
+  ]
+  outputs = [ "$target_gen_dir/embedded_resources/embedded_js.h" ]
+
+  public_configs = [ ":embed_polyfilled_javascript_config" ]
+
+  args = [
+    "CobaltJavaScriptPolyfill",
+    rebase_path(outputs[0], root_build_dir),
+    rebase_path("embedded_resources", root_build_dir),
   ]
 }
 

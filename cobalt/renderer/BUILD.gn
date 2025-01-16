@@ -20,6 +20,7 @@ source_set("renderer") {
 
   deps = [
     "//components/cdm/renderer",
+    "//components/js_injection/renderer:renderer",
     "//components/network_hints/renderer",
     "//components/web_cache/renderer",
     "//content/public/common",
