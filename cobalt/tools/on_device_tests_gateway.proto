@@ -20,38 +20,36 @@ package on_device_tests_gateway;
 service on_device_tests_gateway {
   // A dumb proxy RPC service that passes user defined command line options
   // to the on-device tests gateway and streams back output in real time.
-  rpc exec_command (OnDeviceTestsCommand) returns (stream OnDeviceTestsResponse) {
-  }
+  rpc exec_command(OnDeviceTestsCommand)
+      returns (stream OnDeviceTestsResponse) {}
 
-  rpc exec_watch_command (OnDeviceTestsWatchCommand) returns (stream OnDeviceTestsResponse) {
-  }
+  // A dumb proxy RPC service that passes user defined command line options
+  // to the on-device tests gateway and streams back output in real time.
+  rpc exec_watch_command(OnDeviceTestsWatchCommand)
+      returns (stream OnDeviceTestsResponse) {}
 }
 
 // Working directory and command line arguments to be passed to the gateway.
 message OnDeviceTestsCommand {
-  string workdir = 1;
   string token = 2;
-  string platform = 3;
-  string archive_path = 4;
-  repeated string labels = 5;
-  string change_id = 6;
-  bool dry_run = 7;
-  repeated string dimension = 8;
-  string test_attempts = 9;
-  string retry_level = 10;
-  string start_timeout = 11;
-  string test_timeout = 12;
-  string gcs_result_path = 13;
-  repeated ApkTest apk_tests = 14;
+  repeated string labels = 8;
+  repeated TestRequest test_requests = 24;
 }
 
-// apk_test details
-message ApkTest {
-  string test_target = 1;
-  string apk_path = 2;
-  string device_model = 3;
-  string device_pool = 4;
-  string gtest_filters = 5;
+message TestRequest {
+  // Args picked up by MH, e.g. "name1=value", "name2=value.
+  repeated string test_args = 1;
+  // Args sent to test binary/apk, e.g. "--arg1", "--arg2=value".
+  repeated string test_cmd_args = 2;
+  // Files to send to device, e.g. "build_apk=/bigstore/bucket/test.apk",
+  // "test_apk=/bigstore/bucket/test.apk",
+  repeated string files = 3;
+  // e.g. "gcs_result_path=gs://some/gcs/path"
+  repeated string params = 4;
+  // "sabrina" or "boreal"
+  string device_type = 5;
+  // "shared" or "maneki"
+  string device_pool = 6;
 }
 
 // Working directory and command line arguments to be passed to the gateway.
@@ -69,3 +67,4 @@ message OnDeviceTestsResponse {
   // Next ID: 2
   string response = 1;
 }
+
