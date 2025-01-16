@@ -47,21 +47,21 @@ pipeline () {
   # Set up gclient and run sync.
   ##############################################################################
   cd "${gclient_root}"
-  # Clone depot_tools as the GitHub action does, rather than Kokoro doing it.
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools
   export PATH="${PATH}:${gclient_root}/tools/depot_tools"
-  gclient config --name=src rpc://lbshell-internal/cobalt_src
+  gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' rpc://lbshell-internal/cobalt_src
   if [[ "${TARGET_PLATFORM}" =~ "android" ]]; then
     echo "target_os=['android']" >> .gclient
   fi
   git config --global --add safe.directory "${gclient_root}/src"
   gclient sync -v --shallow --no-history -r "${KOKORO_GIT_COMMIT_src}"
+  build_telemtry opt-out
 
   # Run GN and Ninja.
   ##############################################################################
   cd "${gclient_root}/src"
   cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}"
-  ninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${TARGET}  # TARGET may expand to multiple args
+  time autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${TARGET}  # TARGET may expand to multiple args
 
   # Build bootloader config if set.
   if [ -n "${BOOTLOADER:-}" ]; then
