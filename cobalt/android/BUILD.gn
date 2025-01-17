@@ -242,6 +242,8 @@ shared_library("libcobalt_content_shell_content_view") {
   deps = [
     ":content_shell_jni_headers",
     "//cobalt/renderer:renderer",
+    "//cobalt/services/crash_annotator",
+    "//cobalt/services/crash_annotator/public/mojom",
     "//cobalt/user_agent",
 
     # TODO: what can be removed in the dependencies?
@@ -264,6 +266,10 @@ shared_library("libcobalt_content_shell_content_view") {
     ]
   }
   sources = [
+    # TODO(cobalt, b/383301493): move browser-related source files under a
+    # //cobalt/browser directory and define a "browser" build target there.
+    "//cobalt/cobalt_browser_interface_binders.cc",
+    "//cobalt/cobalt_browser_interface_binders.h",
     "//cobalt/cobalt_content_browser_client.cc",
     "//cobalt/cobalt_content_browser_client.h",
     "//cobalt/cobalt_main_delegate.cc",

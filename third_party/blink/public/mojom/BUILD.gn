@@ -241,10 +241,6 @@ mojom("mojom_platform") {
     "worker/worker_options.mojom",
   ]
 
-  if (is_cobalt) {
-    sources += [ "cobalt/crash_annotator/crash_annotator.mojom" ]
-  }
-
   if (is_android) {
     sources += [ "input/synchronous_compositor.mojom" ]
   }
