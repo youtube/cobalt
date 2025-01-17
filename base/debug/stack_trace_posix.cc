@@ -537,7 +537,7 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   if (::signal(signal, SIG_DFL) == SIG_ERR) {
     _exit(EXIT_FAILURE);
   }
-#elif !BUILDFLAG(IS_LINUX)
+#elif !BUILDFLAG(IS_LINUX) || (BUILDFLAG(IS_STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC))
   // For all operating systems but Linux we do not reraise the signal that
   // brought us here but terminate the process immediately.
   // Otherwise various tests break on different operating systems, see
