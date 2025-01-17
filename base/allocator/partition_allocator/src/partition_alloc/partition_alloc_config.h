@@ -46,6 +46,7 @@ static_assert(sizeof(void*) != 8, "");
 #define PA_CONFIG_DYNAMICALLY_SELECT_POOL_SIZE() 1
 #else
 #define PA_CONFIG_DYNAMICALLY_SELECT_POOL_SIZE() 0
+<<<<<<< HEAD:base/allocator/partition_allocator/src/partition_alloc/partition_alloc_config.h
 #endif  // PA_BUILDFLAG(HAS_64_BIT_POINTERS) && PA_BUILDFLAG(IS_IOS)
 
 // POSIX is not only UNIX, e.g. macOS and other OSes. We do use Linux-specific
@@ -53,6 +54,81 @@ static_assert(sizeof(void*) != 8, "");
 #define PA_CONFIG_HAS_LINUX_KERNEL()                      \
   (PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS) || \
    PA_BUILDFLAG(IS_ANDROID))
+=======
+#endif  // BUILDFLAG(HAS_64_BIT_POINTERS) && BUILDFLAG(IS_IOS)
+
+// Puts the regular and BRP pools right next to each other, so that we can
+// check "belongs to one of the two pools" with a single bitmask operation.
+//
+// This setting is specific to 64-bit, as 32-bit has a different implementation.
+#if BUILDFLAG(HAS_64_BIT_POINTERS) && BUILDFLAG(GLUE_CORE_POOLS)
+#define PA_CONFIG_GLUE_CORE_POOLS() 1
+#else
+#define PA_CONFIG_GLUE_CORE_POOLS() 0
+#endif
+
+#if BUILDFLAG(HAS_64_BIT_POINTERS) && \
+    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)) && !defined(IS_COBALT_HERMETIC_BUILD)
+#include <linux/version.h>
+// TODO(bikineev): Enable for ChromeOS.
+#define PA_CONFIG_STARSCAN_UFFD_WRITE_PROTECTOR_SUPPORTED() \
+  (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0))
+#else
+#define PA_CONFIG_STARSCAN_UFFD_WRITE_PROTECTOR_SUPPORTED() 0
+#endif  // BUILDFLAG(HAS_64_BIT_POINTERS) &&
+        // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID))
+
+#if BUILDFLAG(USE_STARSCAN)
+// Use card table to avoid races for PCScan configuration without safepoints.
+// The card table provides the guaranteee that for a marked card the underling
+// super-page is fully initialized.
+#define PA_CONFIG_STARSCAN_USE_CARD_TABLE() 1
+#else
+// The card table is permanently disabled for 32-bit.
+#define PA_CONFIG_STARSCAN_USE_CARD_TABLE() 0
+#endif  // BUILDFLAG(USE_STARSCAN)
+
+// Use batched freeing when sweeping pages. This builds up a freelist in the
+// scanner thread and appends to the slot-span's freelist only once.
+#define PA_CONFIG_STARSCAN_BATCHED_FREE() 1
+
+// TODO(bikineev): Temporarily disable inlining in *Scan to get clearer
+// stacktraces.
+#define PA_CONFIG_STARSCAN_NOINLINE_SCAN_FUNCTIONS() 1
+
+// TODO(bikineev): Temporarily disable *Scan in MemoryReclaimer as it seems to
+// cause significant jank.
+#define PA_CONFIG_STARSCAN_ENABLE_STARSCAN_ON_RECLAIM() 0
+
+// Double free detection comes with expensive cmpxchg (with the loop around it).
+// We currently disable it to improve the runtime.
+#define PA_CONFIG_STARSCAN_EAGER_DOUBLE_FREE_DETECTION_ENABLED() 0
+
+// POSIX is not only UNIX, e.g. macOS and other OSes. We do use Linux-specific
+// features such as futex(2).
+#define PA_CONFIG_HAS_LINUX_KERNEL() \
+  (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)) && !defined(IS_COBALT_HERMETIC_BUILD)
+
+// On some platforms, we implement locking by spinning in userspace, then going
+// into the kernel only if there is contention. This requires platform support,
+// namely:
+// - On Linux, futex(2)
+// - On Windows, a fast userspace "try" operation which is available
+//   with SRWLock
+// - On macOS, pthread_mutex_trylock() is fast by default starting with macOS
+//   10.14. Chromium targets an earlier version, so it cannot be known at
+//   compile-time. So we use something different.
+// - Otherwise, on POSIX we assume that a fast userspace pthread_mutex_trylock()
+//   is available.
+//
+// Otherwise, a userspace spinlock implementation is used.
+#if PA_CONFIG(HAS_LINUX_KERNEL) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_APPLE) || \
+    BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#define PA_CONFIG_HAS_FAST_MUTEX() 1
+#else
+#define PA_CONFIG_HAS_FAST_MUTEX() 0
+#endif
+>>>>>>> 216d6ca3ac8 (Build nplb hermetically (#4587)):base/allocator/partition_allocator/partition_alloc_config.h
 
 // If defined, enables zeroing memory on Free() with roughly 1% probability.
 // This applies only to normal buckets, as direct-map allocations are always

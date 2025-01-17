@@ -9,7 +9,11 @@
 
 #if defined(__GNUC__)
 
+<<<<<<< HEAD:base/allocator/partition_allocator/src/partition_alloc/shim/allocator_shim_internals.h
 #if PA_BUILDFLAG(IS_POSIX)
+=======
+#if BUILDFLAG(IS_POSIX) && !defined(IS_COBALT_HERMETIC_BUILD)
+>>>>>>> 216d6ca3ac8 (Build nplb hermetically (#4587)):base/allocator/partition_allocator/shim/allocator_shim_internals.h
 #include <sys/cdefs.h>  // for __THROW
 #endif
 

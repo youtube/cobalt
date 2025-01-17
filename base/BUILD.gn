@@ -44,12 +44,17 @@ import("//build_overrides/build.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
 
+<<<<<<< HEAD
 if (is_ios) {
   # Used to access target_environment.
   import("//build/config/apple/mobile_config.gni")
 
   # Used to access ios_is_app_extension variable definition.
   import("//build/config/ios/ios_sdk.gni")
+=======
+if (is_cobalt) {
+  import("//cobalt/build/configs/modular_variables.gni")
+>>>>>>> 216d6ca3ac8 (Build nplb hermetically (#4587))
 }
 
 if (is_mac) {
@@ -97,6 +102,30 @@ assert(!is_nacl || is_nacl_saigo,
 assert(!is_win || is_clang,
        "only clang-cl is supported on Windows, see https://crbug.com/988071")
 
+<<<<<<< HEAD
+=======
+if (is_apple) {
+  assert(!use_blink || enable_mach_absolute_time_ticks,
+         "use_blink requires mach absolute time ticks")
+
+  assert(!is_mac || enable_mach_absolute_time_ticks,
+         "mac requires mach absolute time ticks")
+}
+
+# TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+# ../../third_party/libevent/signal.c:43:10: fatal error: 'sys/queue.h' file not found
+# #include <sys/queue.h>
+# Determines whether libevent should be dep.
+if (is_cobalt && is_cobalt_hermetic_build) {
+  dep_libevent = false
+} else {
+  dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
+}
+
+# Determines whether message_pump_libevent should be used.
+use_libevent = dep_libevent && !is_ios
+
+>>>>>>> 216d6ca3ac8 (Build nplb hermetically (#4587))
 if (is_android || is_robolectric) {
   import("//build/config/android/rules.gni")
   import("//third_party/jni_zero/jni_zero.gni")
@@ -1098,6 +1127,31 @@ component("base") {
   }
 
   if (use_allocator_shim) {
+<<<<<<< HEAD
+=======
+    sources += [
+      "allocator/partition_allocator/shim/allocator_shim.cc",
+      "allocator/partition_allocator/shim/allocator_shim.h",
+      "allocator/partition_allocator/shim/allocator_shim_internals.h",
+    ]
+
+    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+    #     loc.cc -o obj/base/base/allocator_shim_default_dispatch_to_partition_alloc.o
+    # ../../base/allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc:748:36: error: incomplete result type 'struct mallinfo' in function definition
+    if (use_partition_alloc) {
+      sources += [
+        "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc",
+        "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h",
+      ]
+    }
+    if (is_android) {
+      sources += [
+        "allocator/partition_allocator/shim/allocator_shim_override_cpp_symbols.h",
+        "allocator/partition_allocator/shim/allocator_shim_override_linker_wrapped_symbols.h",
+      ]
+      all_dependent_configs += [ "//base/allocator:wrap_malloc_symbols" ]
+    }
+>>>>>>> 216d6ca3ac8 (Build nplb hermetically (#4587))
     if (is_apple) {
       sources += [ "allocator/early_zone_registration_apple.h" ]
     }
@@ -1739,6 +1793,74 @@ component("base") {
     }
   }
 
+  # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+  if (is_cobalt && is_cobalt_hermetic_build) {
+    sources -= [
+      #           ../../base/process/process_linux.cc:8:10: fatal error: 'linux/magic.h' file not found
+      # #include <linux/magic.h>
+      "debug/proc_maps_linux.cc",
+      "debug/proc_maps_linux.h",
+      "files/dir_reader_linux.h",
+      "files/scoped_file_linux.cc",
+      "process/internal_linux.cc",
+      "process/internal_linux.h",
+      "process/memory_linux.cc",
+      "process/process_handle_linux.cc",
+      "process/process_iterator_linux.cc",
+      "process/process_linux.cc",
+      "process/process_metrics_linux.cc",
+      "threading/platform_thread_linux.cc",
+      "threading/thread_type_delegate.cc",
+      "threading/thread_type_delegate.h",
+
+      #   ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
+      # return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
+      "native_library_posix.cc",
+      "posix/can_lower_nice_to.cc",
+      "posix/can_lower_nice_to.h",
+      "process/launch_posix.cc",
+      "profiler/module_cache_posix.cc",
+      "profiler/stack_base_address_posix.cc",
+      "profiler/stack_base_address_posix.h",
+      "profiler/stack_copier_signal.cc",
+      "profiler/stack_copier_signal.h",
+      "profiler/thread_delegate_posix.cc",
+      "profiler/thread_delegate_posix.h",
+
+      #         ../../base/process/process_metrics_posix.cc:119:27: error: invalid use of incomplete type 'mallinfo'
+      # struct mallinfo minfo = mallinfo();
+      "process/process_metrics_posix.cc",
+      "sync_socket_posix.cc",
+
+      #           ../../base/allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc:748:36: error: incomplete result type 'struct mallinfo' in function definition
+      # SHIM_ALWAYS_EXPORT struct mallinfo mallinfo(void) __THROW {
+      "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc",
+      "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h",
+
+      # In file included from ../../base/rand_util_posix.cc:26:
+      # ../../third_party/lss/linux_syscall_support.h:118:10: fatal error: 'linux/unistd.h' file not found
+      "base_paths_posix.h",
+      "memory/madv_free_discardable_memory_allocator_posix.cc",
+      "memory/madv_free_discardable_memory_allocator_posix.h",
+      "memory/madv_free_discardable_memory_posix.cc",
+      "memory/madv_free_discardable_memory_posix.h",
+      "posix/unix_domain_socket.cc",
+      "posix/unix_domain_socket.h",
+      "rand_util_posix.cc",
+      "system/sys_info_posix.cc",
+
+      #     SHIM_ALWAYS_EXPORT size_t malloc_usable_size(void* address) __THROW {
+      #                           ^
+      # ../../third_party/musl/include/malloc.h:19:8: note: previous declaration is here
+      # size_t malloc_usable_size(void *);
+      "allocator/partition_allocator/shim/allocator_shim_override_cpp_symbols.h",
+      "allocator/partition_allocator/shim/allocator_shim_override_glibc_weak_symbols.h",
+      "allocator/partition_allocator/shim/allocator_shim_override_libc_symbols.h",
+    ]
+
+    deps += [ "//starboard:starboard_group" ]
+  }
+
   # Windows.
   if (is_win) {
     sources += [
@@ -2302,7 +2424,7 @@ component("base") {
     sources += [
       "system/sys_info_starboard.cc",
       "system/sys_info_starboard.h",
-      ]
+    ]
   }
 
   if (use_blink) {
