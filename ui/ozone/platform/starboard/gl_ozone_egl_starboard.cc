@@ -61,9 +61,10 @@ gl::EGLDisplayPlatform GLOzoneEGLStarboard::GetNativeDisplay() {
 
 bool GLOzoneEGLStarboard::LoadGLES2Bindings(
     const gl::GLImplementationParts& implementation) {
-  DCHECK_EQ(implementation.gl, gl::kGLImplementationEGLGLES2)
+  DCHECK_EQ(implementation.gl, gl::kGLImplementationEGLANGLE)
       << "Not supported: " << implementation.ToString();
-  // TODO(b/371272304): Initialize hardware here if needed.
+  // TODO(b/371272304): call into LoadDefaultEGLGLES2Bindings instead and let
+  // Angle load GLES and EGL.
   gl::GLGetProcAddressProc gl_proc = reinterpret_cast<gl::GLGetProcAddressProc>(
       SbGetEglInterface()->eglGetProcAddress);
 

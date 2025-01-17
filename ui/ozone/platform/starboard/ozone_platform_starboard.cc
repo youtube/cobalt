@@ -176,10 +176,10 @@ OzonePlatform* CreateOzonePlatformStarboard() {
   base::CommandLine* cmd = base::CommandLine::ForCurrentProcess();
   if (cmd->HasSwitch(switches::kUseGL)) {
     CHECK_EQ(cmd->GetSwitchValueASCII(switches::kUseGL),
-             gl::kGLImplementationEGLName)
+             gl::kGLImplementationANGLEName)
         << " Unsupported " << switches::kUseGL << " implementation";
   } else {
-    cmd->AppendSwitchASCII(switches::kUseGL, gl::kGLImplementationEGLName);
+    cmd->AppendSwitchASCII(switches::kUseGL, gl::kGLImplementationANGLEName);
   }
 
   return new OzonePlatformStarboard();
