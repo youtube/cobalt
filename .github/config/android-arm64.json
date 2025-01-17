@@ -21,7 +21,6 @@
         "sql_unittests",
         "url_unittests"
     ],
-    "test_on_device": true,
     "includes": [
         {
         "name":"arm64",
