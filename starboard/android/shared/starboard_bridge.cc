@@ -33,6 +33,12 @@ namespace starboard {
 namespace android {
 namespace shared {
 
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AppendJavaStringArrayToStringVector;
+using base::android::AttachCurrentThread;
+using base::android::ConvertJavaStringToUTF8;
+using base::android::GetClass;
+
 namespace {
 #if SB_IS(EVERGREEN_COMPATIBLE)
 void StarboardThreadLaunch() {
@@ -64,7 +70,7 @@ std::vector<std::string> GetArgs() {
   // Fake program name as args[0]
   args.push_back("android_main");
 
-  JNIEnv* env = base::android::AttachCurrentThread();
+  JNIEnv* env = AttachCurrentThread();
   StarboardBridge::GetInstance()->AppendArgs(env, &args);
 
   return args;
@@ -87,10 +93,10 @@ JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
 #else
   auto command_line = std::make_unique<CommandLine>(GetArgs());
   LogInit(*command_line);
-  auto* nativeApp = new ApplicationAndroid(std::move(command_line));
+  auto* native_app = new ApplicationAndroid(std::move(command_line));
   // Ensure application init happens here
   ApplicationAndroid::Get();
-  return reinterpret_cast<jlong>(nativeApp);
+  return reinterpret_cast<jlong>(native_app);
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 }
 
@@ -130,25 +136,98 @@ void StarboardBridge::AfterStopped(JNIEnv* env) {
 void StarboardBridge::AppendArgs(JNIEnv* env,
                                  std::vector<std::string>* args_vector) {
   SB_DCHECK(env);
-  base::android::ScopedJavaLocalRef<jobjectArray> args_java =
+  ScopedJavaLocalRef<jobjectArray> args_java =
       Java_StarboardBridge_getArgs(env, j_starboard_bridge_);
-  base::android::AppendJavaStringArrayToStringVector(env, args_java,
-                                                     args_vector);
+  AppendJavaStringArrayToStringVector(env, args_java, args_vector);
 }
 
 std::string StarboardBridge::GetStartDeepLink(JNIEnv* env) {
   SB_DCHECK(env);
-  base::android::ScopedJavaLocalRef<jstring> start_deep_link_java =
+  ScopedJavaLocalRef<jstring> start_deep_link_java =
       Java_StarboardBridge_getStartDeepLink(env, j_starboard_bridge_);
   std::string start_deep_link =
-      base::android::ConvertJavaStringToUTF8(env, start_deep_link_java);
+      ConvertJavaStringToUTF8(env, start_deep_link_java);
   return start_deep_link;
 }
 
-base::android::ScopedJavaLocalRef<jintArray>
-StarboardBridge::GetSupportedHdrTypes(JNIEnv* env) {
+ScopedJavaLocalRef<jintArray> StarboardBridge::GetSupportedHdrTypes(
+    JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_getSupportedHdrTypes(env, j_starboard_bridge_);
+}
+
+void StarboardBridge::RaisePlatformError(JNIEnv* env,
+                                         jint errorType,
+                                         jlong data) {
+  SB_DCHECK(env);
+  Java_StarboardBridge_raisePlatformError(env, j_starboard_bridge_, errorType,
+                                          data);
+}
+
+void StarboardBridge::RequestSuspend(JNIEnv* env) {
+  SB_DCHECK(env);
+  Java_StarboardBridge_requestSuspend(env, j_starboard_bridge_);
+}
+
+ScopedJavaLocalRef<jobject> StarboardBridge::GetApplicationContext(
+    JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getApplicationContext(env, j_starboard_bridge_);
+}
+
+ScopedJavaGlobalRef<jobject> StarboardBridge::GetAssetsFromContext(
+    JNIEnv* env,
+    ScopedJavaLocalRef<jobject>& context) {
+  SB_DCHECK(env);
+  ScopedJavaLocalRef<jclass> context_class(
+      GetClass(env, "android/content/Context"));
+  jmethodID get_assets_method = env->GetMethodID(
+      context_class.obj(), "getAssets", "()Landroid/content/res/AssetManager;");
+  ScopedJavaLocalRef<jobject> asset_manager(
+      env, env->CallObjectMethod(context.obj(), get_assets_method));
+  ScopedJavaGlobalRef<jobject> global_asset_manager;
+  global_asset_manager.Reset(asset_manager);
+  return global_asset_manager;
+}
+
+std::string StarboardBridge::GetNativeLibraryDirFromContext(
+    JNIEnv* env,
+    ScopedJavaLocalRef<jobject>& context) {
+  SB_DCHECK(env);
+  ScopedJavaLocalRef<jclass> context_class(
+      GetClass(env, "android/content/Context"));
+  jmethodID get_application_info_method =
+      env->GetMethodID(context_class.obj(), "getApplicationInfo",
+                       "()Landroid/content/pm/ApplicationInfo;");
+  ScopedJavaLocalRef<jobject> application_info(
+      env, env->CallObjectMethod(context.obj(), get_application_info_method));
+
+  ScopedJavaLocalRef<jclass> application_info_class(
+      env, env->GetObjectClass(application_info.obj()));
+  jfieldID native_library_dir_field = env->GetFieldID(
+      application_info_class.obj(), "nativeLibraryDir", "Ljava/lang/String;");
+  ScopedJavaLocalRef<jstring> native_library_dir_java(
+      env, static_cast<jstring>(env->GetObjectField(application_info.obj(),
+                                                    native_library_dir_field)));
+  std::string native_library_dir =
+      ConvertJavaStringToUTF8(env, native_library_dir_java.obj());
+  return native_library_dir.c_str();
+}
+
+std::string StarboardBridge::GetFilesAbsolutePath(JNIEnv* env) {
+  SB_DCHECK(env);
+  ScopedJavaLocalRef<jstring> file_path_java =
+      Java_StarboardBridge_getFilesAbsolutePath(env, j_starboard_bridge_);
+  std::string file_path = ConvertJavaStringToUTF8(env, file_path_java);
+  return file_path;
+}
+
+std::string StarboardBridge::GetCacheAbsolutePath(JNIEnv* env) {
+  SB_DCHECK(env);
+  ScopedJavaLocalRef<jstring> file_path_java =
+      Java_StarboardBridge_getCacheAbsolutePath(env, j_starboard_bridge_);
+  std::string file_path = ConvertJavaStringToUTF8(env, file_path_java);
+  return file_path;
 }
 }  // namespace shared
 }  // namespace android
