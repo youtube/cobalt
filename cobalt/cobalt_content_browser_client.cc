@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "cobalt/cobalt_browser_interface_binders.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
 #include "content/public/common/user_agent.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
@@ -90,10 +91,16 @@ void CobaltContentBrowserClient::OverrideWebkitPrefs(
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
   content::ShellContentBrowserClient::OverrideWebkitPrefs(web_contents, prefs);
 }
-
 void CobaltContentBrowserClient::OnWebContentsCreated(
     content::WebContents* web_contents) {
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
+}
+void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
+    content::RenderFrameHost* render_frame_host,
+    mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
+  PopulateCobaltFrameBinders(render_frame_host, map);
+  ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
+      render_frame_host, map);
 }
 
 }  // namespace cobalt

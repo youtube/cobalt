@@ -12,23 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("renderer") {
-  sources = [
-    "cobalt_content_renderer_client.cc",
-    "cobalt_content_renderer_client.h",
-  ]
+import("//mojo/public/tools/bindings/mojom.gni")
 
-  deps = [
-    "//cobalt/media/audio:webaudio",
-    "//components/cdm/renderer",
-    "//components/js_injection/renderer:renderer",
-    "//components/network_hints/renderer",
-    "//components/web_cache/renderer",
-    "//content/public/common",
-    "//content/public/renderer",
-    "//content/test:content_test_mojo_bindings",
-    "//media/mojo:buildflags",
-    "//starboard:starboard_headers_only",
-    "//v8",
-  ]
+mojom("mojom") {
+  sources = [ "crash_annotator_service.mojom" ]
 }

@@ -14,11 +14,10 @@
 
 #include "starboard/system.h"
 
-#include "starboard/android/shared/jni_env_ext.h"
-
-using starboard::android::shared::JniEnvExt;
+#include "starboard/android/shared/starboard_bridge.h"
 
 void SbSystemRequestConceal() {
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallStarboardVoidMethodOrAbort("requestSuspend", "()V");
+  JNIEnv* env = base::android::AttachCurrentThread();
+  starboard::android::shared::StarboardBridge::GetInstance()->RequestSuspend(
+      env);
 }

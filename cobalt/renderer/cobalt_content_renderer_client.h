@@ -9,14 +9,11 @@
 #include <string>
 
 #include "build/build_config.h"
+#include "cobalt/media/audio/cobalt_audio_device_factory.h"
+#include "components/js_injection/renderer/js_communication.h"
 #include "content/public/common/alternative_error_page_override_info.mojom-forward.h"
 #include "content/public/renderer/content_renderer_client.h"
 #include "media/mojo/buildflags.h"
-
-// For BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "build/build_config.h"
-
-#include "components/js_injection/renderer/js_communication.h"
 
 namespace blink {
 class URLLoaderThrottleProvider;
@@ -77,6 +74,8 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
 
  private:
   std::unique_ptr<web_cache::WebCacheImpl> web_cache_impl_;
+  // Registers a custom content::AudioDeviceFactory
+  media::CobaltAudioDeviceFactory cobalt_audio_device_factory_;
 };
 
 }  // namespace cobalt
