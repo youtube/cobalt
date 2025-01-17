@@ -24,10 +24,6 @@ source_set("libc++abi") {
     deps = [ "//buildtools/third_party/libunwind" ]
   }
 
-  if (is_cobalt && is_cobalt_hermetic_build) {
-    deps = [ "//third_party/musl:c" ]
-  }
-
   sources = [
     "trunk/src/abort_message.cpp",
     "trunk/src/cxa_aux_runtime.cpp",

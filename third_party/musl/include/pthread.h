@@ -1,13 +1,6 @@
 #ifndef _PTHREAD_H
 #define _PTHREAD_H
 
-#include "build/build_config.h"
-
-#if (BUILDFLAG(IS_STARBOARD) && !defined(_LIBCPP_HAS_MUSL_LIBC))
-#include "pthread_starboard.h"
-
-#elif (BUILDFLAG(IS_STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC))
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -250,5 +243,4 @@ __REDIR(pthread_timedjoin_np, __pthread_timedjoin_np_time64);
 }
 #endif
 
-#endif  // defined(STARBOARD)
 #endif

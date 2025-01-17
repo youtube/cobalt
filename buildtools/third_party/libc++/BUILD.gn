@@ -120,11 +120,6 @@ target(_libcxx_target_type, "libc++") {
     "trunk/src/verbose_abort.cpp",
   ]
 
-  if (is_cobalt && is_cobalt_hermetic_build) {
-    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
-    sources -= [ "trunk/src/atomic.cpp" ]
-  }
-
   if (enable_iterator_debugging) {
     sources += [
       "trunk/src/debug.cpp",
@@ -222,6 +217,8 @@ target(_libcxx_target_type, "libc++") {
   }
 
   if (is_cobalt && is_cobalt_hermetic_build) {
+    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+    sources -= [ "trunk/src/atomic.cpp" ]
     deps += [
       "//third_party/llvm-project/compiler-rt:compiler_rt",
       "//third_party/musl:c",

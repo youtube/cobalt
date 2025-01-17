@@ -301,6 +301,7 @@ void PrintToStderr(const char* output) {
   std::ignore = HANDLE_EINTR(write(STDERR_FILENO, output, strlen(output)));
 }
 
+#if !(BUILDFLAG(IS_STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC))
 #if BUILDFLAG(IS_LINUX)
 void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // We have seen rare cases on AMD linux where the default signal handler
@@ -318,14 +319,11 @@ void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
       "Warning: Default signal handler failed to terminate process.\n");
   PrintToStderr("Calling exit_group() directly to prevent timeout.\n");
 
-#if !(BUILDFLAG(IS_STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC))
   // See: https://man7.org/linux/man-pages/man2/exit_group.2.html
   syscall(SYS_exit_group, EXIT_FAILURE);
-#else
-// No clue how to substitue , ask yavor
-#endif // (BUILDFLAG(IS_STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC))
 }
 #endif  // BUILDFLAG(IS_LINUX)
+#endif // !BUILDFLAG(IS_STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC)
 
 void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // NOTE: This code MUST be async-signal safe.
