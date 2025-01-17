@@ -111,6 +111,24 @@ jobs:
       test_on_host: ${{ env.test_on_host }}
       test_on_device: ${{ env.test_on_device }}
 
+  foo:
+    needs: [initialize]
+
+    if: |
+      ${{ needs.initialize.outputs.test_on_device == 'true' && ((
+        github.event_name == 'pull_request' &&
+        contains(github.event.pull_request.labels.*.name, 'on_device') ) || ((
+            inputs.nightly == 'true' || github.event_name == 'schedule') &&
+            vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+          ( github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' ) ) }}
+    runs-on: [self-hosted, odt-runner]
+    name: foo-bar
+    permissions: {}
+    steps:
+      - name: Run Foo Bar
+        shell: bash
+        run: echo "HELLO WORLD"
+  
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
     needs: [initialize]
