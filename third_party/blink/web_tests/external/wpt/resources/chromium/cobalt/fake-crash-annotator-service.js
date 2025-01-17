@@ -1,12 +1,12 @@
-import {CrashAnnotator, CrashAnnotatorReceiver} from '/gen/third_party/blink/public/mojom/cobalt/crash_annotator/crash_annotator.mojom.m.js';
+import {CrashAnnotatorService, CrashAnnotatorServiceReceiver} from '/gen/cobalt/services/crash_annotator/public/mojom/crash_annotator_service.mojom.m.js';
 
-// Implementation of blink.mojom.CrashAnnotator.
-class FakeCrashAnnotator {
+// Implementation of crash_annotator.mojom.CrashAnnotatorService.
+class FakeCrashAnnotatorService {
   constructor() {
     this.interceptor_ =
-        new MojoInterfaceInterceptor(CrashAnnotator.$interfaceName);
+        new MojoInterfaceInterceptor(CrashAnnotatorService.$interfaceName);
     this.interceptor_.oninterfacerequest = e => this.bind(e.handle);
-    this.receiver_ = new CrashAnnotatorReceiver(this);
+    this.receiver_ = new CrashAnnotatorServiceReceiver(this);
     this.stub_result_ = null;
     this.annotations_ = new Map();
   }
@@ -47,4 +47,4 @@ class FakeCrashAnnotator {
 
 }
 
-export const fakeCrashAnnotator = new FakeCrashAnnotator();
+export const fakeCrashAnnotatorService = new FakeCrashAnnotatorService();
