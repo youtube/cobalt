@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "base/logging.h"
+#include "media/base/video_codecs.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/allocator.h"
 #include "starboard/configuration.h"
@@ -139,19 +140,21 @@ DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold() const {
 }
 
 int DecoderBufferAllocator::GetProgressiveBufferBudget(
-    SbMediaVideoCodec codec,
+    VideoCodec codec,
     int resolution_width,
     int resolution_height,
     int bits_per_pixel) const {
-  return SbMediaGetProgressiveBufferBudget(codec, resolution_width,
-                                           resolution_height, bits_per_pixel);
+  return SbMediaGetProgressiveBufferBudget(
+      MediaVideoCodecToSbMediaVideoCodec(codec), resolution_width,
+      resolution_height, bits_per_pixel);
 }
 
-int DecoderBufferAllocator::GetVideoBufferBudget(SbMediaVideoCodec codec,
+int DecoderBufferAllocator::GetVideoBufferBudget(VideoCodec codec,
                                                  int resolution_width,
                                                  int resolution_height,
                                                  int bits_per_pixel) const {
-  return SbMediaGetVideoBufferBudget(codec, resolution_width, resolution_height,
+  return SbMediaGetVideoBufferBudget(MediaVideoCodecToSbMediaVideoCodec(codec),
+                                     resolution_width, resolution_height,
                                      bits_per_pixel);
 }
 

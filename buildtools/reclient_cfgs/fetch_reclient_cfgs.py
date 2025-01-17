@@ -134,6 +134,10 @@ def main():
             return 1
         if not GenerateReproxyCfg(args.reproxy_cfg_template, args.rbe_instance):
            return 1
+# COBALT Disables CIPD fetch of rewrapper configs in favor of local rewrapper configs.
+        return 0
+    return 1
+# COBALT END
 
     if not args.rewrapper_cfg_project and not args.rbe_instance:
         logging.error(

@@ -764,18 +764,19 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
 void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
+  LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
+            << GetPlayerStateName(state);
+
   // In case if state is changed when creation of the `player_bridge_` fails.
   // We may also need this for suspend/resume support.
   if (!player_bridge_) {
-    LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
-              << GetPlayerStateName(state);
+    LOG(WARNING) << "StarboardRenderer::OnPlayerStatus() called with invalid "
+                    "SbPlayerBridge";
     return;
   }
 
   switch (state) {
     case kSbPlayerStateInitialized:
-      LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
-                << GetPlayerStateName(state);
       DCHECK(!player_bridge_initialized_);
       player_bridge_initialized_ = true;
 
@@ -784,8 +785,6 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
       }
       break;
     case kSbPlayerStatePrerolling:
-      LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
-                << GetPlayerStateName(state);
       DCHECK(player_bridge_initialized_);
       break;
     case kSbPlayerStatePresenting:
@@ -795,19 +794,14 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
           HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
               ? audio_write_duration_remote_
               : audio_write_duration_local_;
-      LOG(INFO) << "SbPlayerBridge reaches " << GetPlayerStateName(state)
-                << ", with audio write duration at " << audio_write_duration_;
+      LOG(INFO) << "Audio write duration is " << audio_write_duration_;
       DCHECK(player_bridge_initialized_);
       break;
     case kSbPlayerStateEndOfStream:
-      LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
-                << GetPlayerStateName(state);
       DCHECK(player_bridge_initialized_);
       client_->OnEnded();
       break;
     case kSbPlayerStateDestroyed:
-      LOG(INFO) << "StarboardRenderer::OnPlayerStatus() called with "
-                << GetPlayerStateName(state);
       break;
   }
 }
