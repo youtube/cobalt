@@ -12,22 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("renderer") {
+source_set("webaudio") {
   sources = [
-    "cobalt_content_renderer_client.cc",
-    "cobalt_content_renderer_client.h",
+    "cobalt_audio_device_factory.cc",
+    "cobalt_audio_device_factory.h",
+    "cobalt_audio_renderer_sink.cc",
+    "cobalt_audio_renderer_sink.h",
   ]
-
   deps = [
-    "//cobalt/media/audio:webaudio",
-    "//components/cdm/renderer",
-    "//components/network_hints/renderer",
-    "//components/web_cache/renderer",
-    "//content/public/common",
-    "//content/public/renderer",
-    "//content/test:content_test_mojo_bindings",
-    "//media/mojo:buildflags",
     "//starboard:starboard_headers_only",
-    "//v8",
+    "//third_party/blink/public:blink_headers",
   ]
 }
