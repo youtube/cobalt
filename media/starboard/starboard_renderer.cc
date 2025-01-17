@@ -367,7 +367,8 @@ void StarboardRenderer::SetVolume(float volume) {
   }
 }
 
-// TODO(b/376328722): Revisit playback time reporting.
+// Note: Renderer::GetMediaTime() could be called on both main and media
+// threads.
 TimeDelta StarboardRenderer::GetMediaTime() {
   base::AutoLock auto_lock(lock_);
 
@@ -675,12 +676,6 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
       return;
     }
 
-    // If we haven't checked the media time recently, update it now.
-    if (Time::Now() - last_time_media_time_retrieved_ >
-        kMediaTimeCheckInterval) {
-      GetMediaTime();
-    }
-
     // Delay reading audio more than |audio_write_duration_| ahead of playback
     // after the player has received enough audio for preroll, taking into
     // account that our estimate of playback time might be behind by
@@ -701,10 +696,17 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
     int estimated_max_buffers = max_buffers;
     if (!is_video_eos_written_ && time_ahead_of_playback_for_preroll >
                                       adjusted_write_duration_for_preroll) {
-      // The estimated time ahead of playback may be negative if no audio has
-      // been written.
-      TimeDelta time_ahead_of_playback =
-          timestamp_of_last_written_audio_ - last_media_time_;
+      TimeDelta time_ahead_of_playback;
+      {
+        base::AutoLock auto_lock(lock_);
+        TimeDelta time_since_last_update =
+            Time::Now() - last_time_media_time_retrieved_;
+        // The estimated time ahead of playback may be negative if no audio has
+        // been written.
+        time_ahead_of_playback = timestamp_of_last_written_audio_ -
+                                 (last_media_time_ + time_since_last_update);
+      }
+
       auto adjusted_write_duration = AdjustWriteDurationForPlaybackRate(
           audio_write_duration_, playback_rate_);
       if (time_ahead_of_playback >
