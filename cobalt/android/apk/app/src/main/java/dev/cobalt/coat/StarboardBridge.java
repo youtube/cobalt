@@ -256,10 +256,8 @@ public class StarboardBridge {
     applicationStopped = true;
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/system_request_conceal.cc
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public void requestSuspend() {
     Activity activity = activityHolder.get();
     if (activity != null) {
@@ -281,9 +279,8 @@ public class StarboardBridge {
 
   // private native boolean nativeOnSearchRequested();
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public Context getApplicationContext() {
     if (appContext == null) {
       throw new IllegalArgumentException("appContext cannot be null");
@@ -291,10 +288,8 @@ public class StarboardBridge {
     return appContext;
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/system_platform_error.cc
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   void raisePlatformError(@PlatformError.ErrorType int errorType, long data) {
     PlatformError error = new PlatformError(activityHolder, errorType, data);
     error.raise();
@@ -347,26 +342,22 @@ public class StarboardBridge {
     // TODO(b/374147993): Implement deep link
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/file_internal.cc
   /**
    * Returns the absolute path to the directory where application specific files should be written.
    * May be overridden for use cases that need to segregate storage.
    */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected String getFilesAbsolutePath() {
     return appContext.getFilesDir().getAbsolutePath();
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/file_internal.cc
   /**
    * Returns the absolute path to the application specific cache directory on the filesystem. May be
    * overridden for use cases that need to segregate storage.
    */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected String getCacheAbsolutePath() {
     return appContext.getCacheDir().getAbsolutePath();
   }
@@ -586,11 +577,9 @@ public class StarboardBridge {
     // cobaltMediaSession.deactivateMediaSession();
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/system_get_property.cc
   /** Returns string for kSbSystemPropertyUserAgentAuxField */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected String getUserAgentAuxField() {
     StringBuilder sb = new StringBuilder();
 

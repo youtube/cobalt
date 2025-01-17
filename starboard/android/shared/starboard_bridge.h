@@ -25,6 +25,11 @@ namespace starboard {
 namespace android {
 namespace shared {
 
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::JavaParamRef;
+using base::android::ScopedJavaGlobalRef;
+using base::android::ScopedJavaLocalRef;
+
 // This class serves as a bridge between the native code and Android
 // StarboardBridge Java class.
 class StarboardBridge {
@@ -46,8 +51,25 @@ class StarboardBridge {
 
   std::string GetStartDeepLink(JNIEnv* env);
 
-  base::android::ScopedJavaLocalRef<jintArray> GetSupportedHdrTypes(
-      JNIEnv* env);
+  ScopedJavaLocalRef<jintArray> GetSupportedHdrTypes(JNIEnv* env);
+
+  void RaisePlatformError(JNIEnv* env, jint errorType, jlong data);
+
+  void RequestSuspend(JNIEnv* env);
+
+  ScopedJavaLocalRef<jobject> GetApplicationContext(JNIEnv* env);
+
+  ScopedJavaGlobalRef<jobject> GetAssetsFromContext(
+      JNIEnv* env,
+      ScopedJavaLocalRef<jobject>& context);
+
+  std::string GetNativeLibraryDirFromContext(
+      JNIEnv* env,
+      ScopedJavaLocalRef<jobject>& context);
+
+  std::string GetFilesAbsolutePath(JNIEnv* env);
+
+  std::string GetCacheAbsolutePath(JNIEnv* env);
 
  private:
   StarboardBridge() = default;
@@ -60,7 +82,7 @@ class StarboardBridge {
   friend struct base::DefaultSingletonTraits<StarboardBridge>;
 
   // Java StarboardBridge instance.
-  base::android::ScopedJavaGlobalRef<jobject> j_starboard_bridge_;
+  ScopedJavaGlobalRef<jobject> j_starboard_bridge_;
 };
 
 }  // namespace shared
