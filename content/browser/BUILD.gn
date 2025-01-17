@@ -2462,6 +2462,7 @@ source_set("browser") {
   ]
 
 <<<<<<< HEAD
+<<<<<<< HEAD
   if (is_android) {
 =======
   if (is_cobalt) {
@@ -2471,6 +2472,8 @@ source_set("browser") {
     ]
   }
 
+=======
+>>>>>>> 9cf39210e4f (Refactor CrashAnnotator impl as a Cobalt service (#4709))
   if (use_starscan) {
 >>>>>>> 8631cdb0c28 (Add web IDL interface for crash annotations (#4574))
     sources += [
