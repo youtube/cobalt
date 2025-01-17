@@ -15,7 +15,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_Hvcc_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_Hvcc_H_
 
-#include "third_party/blink/renderer/core/frame/local_dom_window.h"
+// #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
@@ -23,7 +23,13 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 
+// #include "third_party/blink/renderer/modules/cobalt/crash_annotator/crash_annotator.h"
+
 namespace blink {
+
+class ScriptState;
+class CrashAnnotator;
+class LocalDOMWindow;
 
 class MODULES_EXPORT Hvcc final
     : public ScriptWrappable,
@@ -38,7 +44,12 @@ class MODULES_EXPORT Hvcc final
 
   explicit Hvcc(LocalDOMWindow&);
 
-  // void Trace(Visitor*) const override;
+  CrashAnnotator* crashAnnotator() { return crash_annotator_; }
+
+  void Trace(Visitor*) const override;
+
+ private:
+  Member<CrashAnnotator> crash_annotator_;
 };
 
 }

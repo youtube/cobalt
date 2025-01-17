@@ -15,6 +15,7 @@
 #include "third_party/blink/renderer/modules/cobalt/hvcc.h"
 
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/modules/cobalt/crash_annotator/crash_annotator.h"
 
 namespace blink {
 
@@ -32,12 +33,13 @@ Hvcc* Hvcc::hvcc(LocalDOMWindow& window) {
 }
 
 Hvcc::Hvcc(LocalDOMWindow& window)
-    : Supplement<LocalDOMWindow>(window) {}
+    : Supplement<LocalDOMWindow>(window),
+      crash_annotator_(MakeGarbageCollected<CrashAnnotator>(window)) {}
 
-// void Hvcc::Trace(Visitor* visitor) const {
-//   visitor->Trace(hvcc_);
-//   Supplement<LocalDOMWindow>::Trace(visitor);
-//   ScriptWrappable::Trace(visitor);
-// }
+void Hvcc::Trace(Visitor* visitor) const {
+  crash_annotator_->Trace(visitor);
+  Supplement<LocalDOMWindow>::Trace(visitor);
+  ScriptWrappable::Trace(visitor);
+}
 
 }  // namespace blink

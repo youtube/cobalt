@@ -26,23 +26,8 @@
 
 namespace blink {
 
-// static
-const char CrashAnnotator::kSupplementName[] = "CrashAnnotator";
-
-// static
-CrashAnnotator* CrashAnnotator::crashAnnotator(LocalDOMWindow& window) {
-  CrashAnnotator* crash_annotator =
-      Supplement<LocalDOMWindow>::From<CrashAnnotator>(window);
-  if (!crash_annotator && window.GetExecutionContext()) {
-    crash_annotator = MakeGarbageCollected<CrashAnnotator>(window);
-    ProvideTo(window, crash_annotator);
-  }
-  return crash_annotator;
-}
-
 CrashAnnotator::CrashAnnotator(LocalDOMWindow& window)
-    : Supplement<LocalDOMWindow>(window),
-      ExecutionContextLifecycleObserver(window.GetExecutionContext()),
+    : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
       service_(window.GetExecutionContext()) {}
 
 void CrashAnnotator::ContextDestroyed() {}
@@ -84,7 +69,6 @@ void CrashAnnotator::EnsureReceiverIsBound() {
 
 void CrashAnnotator::Trace(Visitor* visitor) const {
   visitor->Trace(service_);
-  Supplement<LocalDOMWindow>::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
   ScriptWrappable::Trace(visitor);
 }

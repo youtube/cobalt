@@ -34,16 +34,10 @@ class ScriptState;
 
 class MODULES_EXPORT CrashAnnotator final
     : public ScriptWrappable,
-      public Supplement<LocalDOMWindow>,
       public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static const char kSupplementName[];
-
-  // For window.crashAnnotator
-  static CrashAnnotator* crashAnnotator(LocalDOMWindow&);
-
   explicit CrashAnnotator(LocalDOMWindow&);
 
   void ContextDestroyed() override;

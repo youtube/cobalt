@@ -17,5 +17,5 @@
     SecureContext
 ]
 interface Hvcc {
-    // readonly attribute CrashAnnotator crashLog;
+    readonly attribute CrashAnnotator crashAnnotator;
 };
