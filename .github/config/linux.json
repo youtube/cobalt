@@ -1,21 +1,48 @@
 {
     "docker_service": "linux",
     "test_on_host": true,
+    "test_targets": [
+      "base:base_nocompile_tests",
+      "base:base_unittests",
+      "cc:cc_perftests",
+      "cc:cc_unittests",
+      "components/viz:viz_perftests",
+      "components/viz:viz_unittests",
+      "content/test:content_browsertests",
+      "content/test:content_nocompile_tests",
+      "content/test:content_unittests",
+      "crypto:crypto_unittests",
+      "device:device_unittests",
+      "google_apis/gcm:gcm_unit_tests",
+      "google_apis:google_apis_unittests",
+      "gpu/gles2_conform_support:gles2_conform_test",
+      "gpu:command_buffer_perftests",
+      "gpu:gl_tests",
+      "gpu:gpu_benchmark",
+      "gpu:gpu_perftests",
+      "gpu:gpu_unittests",
+      "ipc:ipc_tests",
+      "media/capture:capture_unittests",
+      "media:media_unittestss",
+      "media/midi:midi_unittests",
+      "mojo:mojo_perftests",
+      "net:net_unittests",
+      "ppapi:ppapi_perftests",
+      "ppapi:ppapi_unittests",
+      "services/service_manager/tests:service_manager_unittests",
+      "skia:skia_unittests",
+      "sql:sql_unittests",
+      "ui/wm:wm_unittests",
+      "url:url_perftests",
+      "url:url_unittests"
+    ],
     "num_gtest_shards": 10,
     "platforms": [
       "linux-x64x11"
     ],
     "targets": [
-        "base_unittests",
         "cobalt:gn_all",
-        "content_shell",
-        "gin_unittests",
-        "gpu_unittests",
-        "ipc_tests",
-        "media_unittests",
-        "mojo_unittests",
-        "sql_unittests",
-        "url_unittests"
+        "content_shell"
     ],
     "includes": [
       {
