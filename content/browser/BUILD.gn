@@ -2321,13 +2321,6 @@ source_set("browser") {
     "worker_host/worker_script_loader_factory.h",
   ]
 
-  if (is_cobalt) {
-    sources += [
-      "cobalt/crash_annotator/crash_annotator_impl.cc",
-      "cobalt/crash_annotator/crash_annotator_impl.h",
-    ]
-  }
-
   if (use_starscan) {
     sources += [
       "starscan_load_observer.cc",
