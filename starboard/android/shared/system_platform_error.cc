@@ -20,10 +20,9 @@
 #include <functional>
 
 #include "starboard/android/shared/application_android.h"
-#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/starboard_bridge.h"
 
 using starboard::android::shared::ApplicationAndroid;
-using starboard::android::shared::JniEnvExt;
 
 namespace {
 
@@ -50,7 +49,7 @@ bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
       return false;
   }
 
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = base::android::AttachCurrentThread();
 
   auto send_response_callback =
       callback ? new SendResponseCallback(
@@ -60,9 +59,9 @@ bool SbSystemRaisePlatformError(SbSystemPlatformErrorType type,
                      })
                : nullptr;
 
-  env->CallStarboardVoidMethodOrAbort(
-      "raisePlatformError", "(IJ)V", jni_error_type,
-      reinterpret_cast<jlong>(send_response_callback));
+  starboard::android::shared::StarboardBridge::GetInstance()
+      ->RaisePlatformError(env, jni_error_type,
+                           reinterpret_cast<jlong>(send_response_callback));
   return true;
 }
 
