@@ -53,5 +53,7 @@ runs:
         DD_ENV: ci
       run: |
         set -x
+        # Enable globstar shell option for globstar paths e.g. /**/*.xml
+        shopt -s globstar
         ./datadog-ci junit upload --service ${DD_SERVICE} results/**/*.xml
       shell: bash
