@@ -310,9 +310,6 @@ static inline bool SbPlayerIsValid(SbPlayer player) {
 // - The associated decoder of the returned player should be assumed to not be
 //   in |kSbPlayerDecoderStateNeedsData| until SbPlayerSeek() has been called
 //   on it.
-// - It is expected either that the thread that calls SbPlayerCreate is the same
-//   thread that calls the other |SbPlayer| functions for that player, or that
-//   there is a mutex guarding calls into each |SbPlayer| instance.
 // - If there is a platform limitation on how many players can coexist
 //   simultaneously, then calls made to this function that attempt to exceed
 //   that limit must return |kSbPlayerInvalid|. Multiple calls to SbPlayerCreate
@@ -585,8 +582,8 @@ SB_EXPORT bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate);
 SB_EXPORT void SbPlayerSetVolume(SbPlayer player, double volume);
 
 // Gets a snapshot of the current player state and writes it to
-// |out_player_info|. This function may be called very frequently and is
-// expected to be inexpensive.
+// |out_player_info|. This function may be called very frequently from arbitrary
+// threads and is expected to be inexpensive and thread safe.
 //
 // |player|: The player about which information is being retrieved. Must not be
 // |kSbPlayerInvalid|.
