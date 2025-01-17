@@ -19,6 +19,15 @@
 #include "content/public/browser/web_contents.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 
+namespace content {
+class RenderFrameHost;
+}
+
+namespace mojo {
+template <typename>
+class BinderMapWithContext;
+}  // namespace mojo
+
 namespace cobalt {
 
 class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
@@ -34,6 +43,10 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   void OverrideWebkitPrefs(content::WebContents* web_contents,
                            blink::web_pref::WebPreferences* prefs) override;
   void OnWebContentsCreated(content::WebContents* web_contents);
+  void RegisterBrowserInterfaceBindersForFrame(
+      content::RenderFrameHost* render_frame_host,
+      mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map)
+      override;
 
  private:
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
