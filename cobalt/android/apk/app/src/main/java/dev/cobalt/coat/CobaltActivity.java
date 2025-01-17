@@ -121,6 +121,12 @@ public abstract class CobaltActivity extends Activity {
             "--enable-features=LogJsConsoleMessages",
             // Disable rescaling Webpage.
             "--force-device-scale-factor=1",
+            // Enable low end device mode.
+            "--enable-low-end-device-mode",
+            // Disables RGBA_4444 textures which
+            // causes rendering artifacts when
+            // low-end-device-mode is enabled.
+            "--disable-rgba-4444-textures",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
