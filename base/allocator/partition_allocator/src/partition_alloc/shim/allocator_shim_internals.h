@@ -9,7 +9,7 @@
 
 #if defined(__GNUC__)
 
-#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX) && !defined(IS_COBALT_HERMETIC_BUILD)
 #include <sys/cdefs.h>  // for __THROW
 #endif
 
