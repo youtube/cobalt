@@ -24,7 +24,6 @@ if (target_cpu == "x64") {
 
 config("external_settings") {
   include_dirs = [
-    "musl/include",
     "arch/$musl_arch",
     "arch/generic",
   ]
