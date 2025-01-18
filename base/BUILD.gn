@@ -1132,7 +1132,6 @@ component("base") {
         "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h",
       ]
     }
-
     if (is_android) {
       sources += [
         "allocator/partition_allocator/shim/allocator_shim_override_cpp_symbols.h",
@@ -1148,7 +1147,6 @@ component("base") {
       ]
       configs += [ "//base/allocator:mac_no_default_new_delete_symbols" ]
     }
-
     if (is_chromeos || is_linux) {
       sources += [
         "allocator/partition_allocator/shim/allocator_shim_override_cpp_symbols.h",
@@ -1156,7 +1154,6 @@ component("base") {
         "allocator/partition_allocator/shim/allocator_shim_override_libc_symbols.h",
       ]
     }
-
     if (is_win) {
       sources += [
         "allocator/partition_allocator/shim/allocator_shim_override_ucrt_symbols_win.h",

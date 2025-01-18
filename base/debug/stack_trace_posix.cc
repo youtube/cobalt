@@ -318,7 +318,6 @@ void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
   PrintToStderr(
       "Warning: Default signal handler failed to terminate process.\n");
   PrintToStderr("Calling exit_group() directly to prevent timeout.\n");
-
   // See: https://man7.org/linux/man-pages/man2/exit_group.2.html
   syscall(SYS_exit_group, EXIT_FAILURE);
 }

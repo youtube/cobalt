@@ -27,7 +27,6 @@
 #include "absl/base/internal/errno_saver.h"
 #include "absl/base/log_severity.h"
 
-
 // We know how to perform low-level writes to stderr in POSIX and Windows.  For
 // these platforms, we define the token ABSL_LOW_LEVEL_WRITE_SUPPORTED.
 // Much of raw_logging.cc becomes a no-op when we can't output messages,
