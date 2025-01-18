@@ -406,8 +406,6 @@ ALWAYS_INLINE void ShimAlignedFree(void* address, void* context) {
 #include "base/allocator/partition_allocator/shim/allocator_shim_override_mac_symbols.h"
 #endif  // BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 #elif (BUILDFLAG(IS_STARBOARD) && defined(_LIBCPP_HAS_MUSL_LIBC))
-// // In file included from ../../base/allocator/partition_allocator/shim/allocator_shim.cc:409:
-// ../../base/allocator/partition_allocator/shim/allocator_shim_override_libc_symbols.h:40:26: error: exception specification in declaration does not match previous declaration
 // Don't include anything, all includes are already set up in MUSL libc
 #else
 #include "base/allocator/partition_allocator/shim/allocator_shim_override_libc_symbols.h"
