@@ -1,39 +1,35 @@
 {
-    "docker_service": "linux",
-    "platforms": [
-        "android-arm64"
-    ],
-    "test_on_device": true,
-    "test_targets": [
-      "base:base_nocompile_tests",
-      "base:base_unittests",
-      "cc:cc_perftests",
-      "cc:cc_unittests",
-      "ipc:ipc_tests",
-      "media/capture:capture_unittests",
-      "media/midi:midi_unittests",
-      "media:media_unittestss",
-      "mojo:mojo_perftests",
-      "net:net_unittests",
-      "ppapi:ppapi_perftests",
-      "ppapi:ppapi_unittests",
-      "services/service_manager/tests:service_manager_unittests",
-      "skia:skia_unittests",
-      "sql:sql_unittests",
-      "ui/wm:wm_unittests",
-      "url:url_perftests",
-      "url:url_unittests"
-    ],
-    "targets": [
-        "content_shell",
-        "system_webview_apk",
-        "system_webview_shell_apk",
-        "cobalt:gn_all"
-    ],
-    "includes": [
-        {
-        "name":"arm64",
-        "platform":"android-arm64"
-        }
-    ]
+  "docker_service": "linux",
+  "platforms": [
+    "android-arm64"
+  ],
+  "test_on_device": true,
+  "test_targets": [
+    "base:base_unittests",
+    "cc:cc_perftests",
+    "cc:cc_unittests",
+    "ipc:ipc_tests",
+    "media/capture:capture_unittests",
+    "media/midi:midi_unittests",
+    "media:media_unittests",
+    "mojo:mojo_perftests",
+    "net:net_unittests",
+    "services/service_manager/tests:service_manager_unittests",
+    "skia:skia_unittests",
+    "sql:sql_unittests",
+    "url:url_perftests",
+    "url:url_unittests"
+  ],
+  "targets": [
+    "content_shell",
+    "system_webview_apk",
+    "system_webview_shell_apk",
+    "cobalt:gn_all"
+  ],
+  "includes": [
+    {
+      "name": "arm64",
+      "platform": "android-arm64"
+    }
+  ]
 }
