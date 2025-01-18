@@ -110,7 +110,7 @@ jobs:
       gtest_shards: ${{ env.gtest_shards }}
       test_on_host: ${{ env.test_on_host }}
       test_on_device: ${{ env.test_on_device }}
-  
+
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
     needs: [initialize]
@@ -287,13 +287,14 @@ jobs:
     needs: [initialize, build]
     # Run ODT when on_device label is applied on PR.
     # Also, run ODT on push and schedule if not explicitly disabled via repo vars.
-    if: |
-      ${{ needs.initialize.outputs.test_on_device == 'true' && ((
-        github.event_name == 'pull_request' &&
-        contains(github.event.pull_request.labels.*.name, 'on_device') ) || ((
-            inputs.nightly == 'true' || github.event_name == 'schedule') &&
-            vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
-          ( github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' ) ) }}
+    if: needs.initialize.outputs.test_on_device == 'true' && 
+        ((
+          github.event_name == 'pull_request' &&
+          contains(github.event.pull_request.labels.*.name, 'on_device') ) || ((
+              inputs.nightly == 'true' || github.event_name == 'schedule') &&
+              vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+            ( github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False'
+        ))
     runs-on: [self-hosted, odt-runner]
     name: ${{ matrix.name }}_on_device
     permissions: {}
