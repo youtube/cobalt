@@ -43,6 +43,10 @@ import("//build_overrides/build.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
 
+if (is_cobalt) {
+  import("//cobalt/build/configs/modular_variables.gni")
+}
+
 if (is_mac) {
   # Used to generate fuzzer corpus :base_mach_port_rendezvous_convert_corpus.
   import("//third_party/protobuf/proto_library.gni")
@@ -101,8 +105,15 @@ if (is_apple) {
          "mac requires mach absolute time ticks")
 }
 
+# TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+# ../../third_party/libevent/signal.c:43:10: fatal error: 'sys/queue.h' file not found
+# #include <sys/queue.h>
 # Determines whether libevent should be dep.
-dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
+if (is_cobalt && is_cobalt_hermetic_build) {
+  dep_libevent = false
+} else {
+  dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
+}
 
 # Determines whether message_pump_libevent should be used.
 use_libevent = dep_libevent && !is_ios
@@ -1111,6 +1122,10 @@ component("base") {
       "allocator/partition_allocator/shim/allocator_shim.h",
       "allocator/partition_allocator/shim/allocator_shim_internals.h",
     ]
+
+    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+    #     loc.cc -o obj/base/base/allocator_shim_default_dispatch_to_partition_alloc.o
+    # ../../base/allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc:748:36: error: incomplete result type 'struct mallinfo' in function definition
     if (use_partition_alloc) {
       sources += [
         "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc",
@@ -1730,6 +1745,74 @@ component("base") {
     ]
   }
 
+  # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+  if (is_cobalt && is_cobalt_hermetic_build) {
+    sources -= [
+      #           ../../base/process/process_linux.cc:8:10: fatal error: 'linux/magic.h' file not found
+      # #include <linux/magic.h>
+      "debug/proc_maps_linux.cc",
+      "debug/proc_maps_linux.h",
+      "files/dir_reader_linux.h",
+      "files/scoped_file_linux.cc",
+      "process/internal_linux.cc",
+      "process/internal_linux.h",
+      "process/memory_linux.cc",
+      "process/process_handle_linux.cc",
+      "process/process_iterator_linux.cc",
+      "process/process_linux.cc",
+      "process/process_metrics_linux.cc",
+      "threading/platform_thread_linux.cc",
+      "threading/thread_type_delegate.cc",
+      "threading/thread_type_delegate.h",
+
+      #   ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
+      # return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
+      "native_library_posix.cc",
+      "posix/can_lower_nice_to.cc",
+      "posix/can_lower_nice_to.h",
+      "process/launch_posix.cc",
+      "profiler/module_cache_posix.cc",
+      "profiler/stack_base_address_posix.cc",
+      "profiler/stack_base_address_posix.h",
+      "profiler/stack_copier_signal.cc",
+      "profiler/stack_copier_signal.h",
+      "profiler/thread_delegate_posix.cc",
+      "profiler/thread_delegate_posix.h",
+
+      #         ../../base/process/process_metrics_posix.cc:119:27: error: invalid use of incomplete type 'mallinfo'
+      # struct mallinfo minfo = mallinfo();
+      "process/process_metrics_posix.cc",
+      "sync_socket_posix.cc",
+
+      #           ../../base/allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc:748:36: error: incomplete result type 'struct mallinfo' in function definition
+      # SHIM_ALWAYS_EXPORT struct mallinfo mallinfo(void) __THROW {
+      "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc",
+      "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h",
+
+      # In file included from ../../base/rand_util_posix.cc:26:
+      # ../../third_party/lss/linux_syscall_support.h:118:10: fatal error: 'linux/unistd.h' file not found
+      "base_paths_posix.h",
+      "memory/madv_free_discardable_memory_allocator_posix.cc",
+      "memory/madv_free_discardable_memory_allocator_posix.h",
+      "memory/madv_free_discardable_memory_posix.cc",
+      "memory/madv_free_discardable_memory_posix.h",
+      "posix/unix_domain_socket.cc",
+      "posix/unix_domain_socket.h",
+      "rand_util_posix.cc",
+      "system/sys_info_posix.cc",
+
+      #     SHIM_ALWAYS_EXPORT size_t malloc_usable_size(void* address) __THROW {
+      #                           ^
+      # ../../third_party/musl/include/malloc.h:19:8: note: previous declaration is here
+      # size_t malloc_usable_size(void *);
+      "allocator/partition_allocator/shim/allocator_shim_override_cpp_symbols.h",
+      "allocator/partition_allocator/shim/allocator_shim_override_glibc_weak_symbols.h",
+      "allocator/partition_allocator/shim/allocator_shim_override_libc_symbols.h",
+    ]
+
+    deps += [ "//starboard:starboard_group" ]
+  }
+
   # Windows.
   if (is_win) {
     sources += [
@@ -2230,7 +2313,7 @@ component("base") {
     sources += [
       "system/sys_info_starboard.cc",
       "system/sys_info_starboard.h",
-      ]
+    ]
   }
 
   if (use_blink) {

@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//cobalt/build/configs/modular_variables.gni")
+
 # TODO: b/315170518 - Revert to static library after fixing
 # symbol visibility issues for windows based modular platform builds.
 if ((sb_is_modular || sb_is_evergreen_compatible) &&
@@ -44,8 +46,7 @@ if ((sb_is_modular || sb_is_evergreen_compatible) &&
   }
 }
 
-if (sb_is_modular && !sb_is_evergreen &&
-    current_toolchain == cobalt_toolchain) {
+if (is_cobalt_hermetic_build && !sb_is_evergreen) {
   source_set("cobalt_layer_posix_abi_wrappers") {
     sources = [
       "cobalt_layer_posix_directory_abi_wrappers.cc",

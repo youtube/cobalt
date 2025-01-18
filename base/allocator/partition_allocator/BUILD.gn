@@ -9,6 +9,10 @@ import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//build/config/logging.gni")
 
+if (is_cobalt) {
+  import("//cobalt/build/configs/modular_variables.gni")
+}
+
 # Add partition_alloc.gni and import it for partition_alloc configs.
 
 config("partition_alloc_implementation") {
@@ -228,6 +232,11 @@ component("partition_alloc") {
       "partition_alloc_base/time/time_conversion_posix.cc",
     ]
 
+    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+    if (is_cobalt && is_cobalt_hermetic_build) {
+      sources -= [ "partition_alloc_base/rand_util_posix.cc" ]
+    }
+
     if (is_android || is_chromeos_ash) {
       sources += [ "partition_alloc_base/time/time_android.cc" ]
     }
@@ -320,6 +329,7 @@ component("partition_alloc") {
     # tagging.cc requires __arm_mte_set_* functions.
     deps += [ "//third_party/android_ndk:cpu_features" ]
   }
+
   if (is_fuchsia) {
     public_deps += [
       "//third_party/fuchsia-sdk/sdk/pkg/fit",
