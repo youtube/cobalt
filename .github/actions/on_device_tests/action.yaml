@@ -54,10 +54,11 @@ runs:
       run: |
         set -uxe
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
-          --platform_json "${GITHUB_WORKSPACE}/.github/config/${{ matrix.platform}}.json" \
-          --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/${{ matrix.platform}}" \
           --token ${GITHUB_TOKEN} \
           --change_id ${GITHUB_PR_NUMBER:-postsubmit} \
+          trigger \
+          --platform_json "${GITHUB_WORKSPACE}/.github/config/${{ matrix.platform}}.json" \
+          --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/${{ matrix.platform}}" \
           --label builder-${{ matrix.platform }} \
           --label builder_url-${GITHUB_RUN_URL} \
           --label github \
@@ -73,8 +74,7 @@ runs:
           ${DIMENSION:+"--dimension" "$DIMENSION"} \
           ${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" "$ON_DEVICE_TEST_ATTEMPTS"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
-          --gcs_result_path "${GCS_RESULTS_PATH}" \
-          trigger
+          --gcs_result_path "${GCS_RESULTS_PATH}"
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results
       if: always()
