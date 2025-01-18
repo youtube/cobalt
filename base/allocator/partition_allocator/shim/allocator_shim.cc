@@ -405,6 +405,8 @@ ALWAYS_INLINE void ShimAlignedFree(void* address, void* context) {
 #else  // BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 #include "base/allocator/partition_allocator/shim/allocator_shim_override_mac_symbols.h"
 #endif  // BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#elif defined(IS_COBALT_HERMETIC_BUILD)
+// Don't include anything, all includes are already set up in MUSL libc
 #else
 #include "base/allocator/partition_allocator/shim/allocator_shim_override_libc_symbols.h"
 #endif

@@ -6,6 +6,10 @@ import("//build/config/c++/c++.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/toolchain/toolchain.gni")
 
+if (is_cobalt) {
+  import("//cobalt/build/configs/modular_variables.gni")
+}
+
 # Used by libc++ and libc++abi.
 config("config") {
   cflags = [ "-fstrict-aliasing" ]
@@ -54,6 +58,7 @@ target(_libcxx_target_type, "libc++") {
     "//build/config:common_deps",
     "//third_party/catapult/devil:devil",
   ]
+
   if (is_linux) {
     # This target packages libc++.so, so must have an explicit dependency on
     # libc++.
@@ -209,5 +214,14 @@ target(_libcxx_target_type, "libc++") {
     if (!export_libcxxabi_from_executables) {
       deps = [ "//buildtools/third_party/libc++abi" ]
     }
+  }
+
+  if (is_cobalt && is_cobalt_hermetic_build) {
+    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
+    sources -= [ "trunk/src/atomic.cpp" ]
+    deps += [
+      "//third_party/llvm-project/compiler-rt:compiler_rt",
+      "//third_party/musl:c",
+    ]
   }
 }

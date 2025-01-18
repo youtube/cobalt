@@ -3,6 +3,9 @@
 # found in the LICENSE file.
 
 import("//third_party/abseil-cpp/absl.gni")
+if (is_cobalt) {
+  import("//cobalt/build/configs/modular_variables.gni")
+}
 
 absl_source_set("atomic_hook") {
   public = [ "internal/atomic_hook.h" ]
@@ -39,6 +42,9 @@ absl_source_set("raw_logging_internal") {
     ":log_severity",
   ]
   visibility = [ "//third_party/abseil-cpp/absl/*" ]
+  if (is_cobalt && is_cobalt_hermetic_build) {
+    public_deps += [ "//starboard:starboard_headers_only" ]
+  }
 }
 
 absl_source_set("spinlock_wait") {

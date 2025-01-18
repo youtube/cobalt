@@ -301,6 +301,7 @@ void PrintToStderr(const char* output) {
   std::ignore = HANDLE_EINTR(write(STDERR_FILENO, output, strlen(output)));
 }
 
+#if !defined(IS_COBALT_HERMETIC_BUILD)
 #if BUILDFLAG(IS_LINUX)
 void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // We have seen rare cases on AMD linux where the default signal handler
@@ -321,6 +322,7 @@ void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
   syscall(SYS_exit_group, EXIT_FAILURE);
 }
 #endif  // BUILDFLAG(IS_LINUX)
+#endif // !defined(IS_COBALT_HERMETIC_BUILD)
 
 void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // NOTE: This code MUST be async-signal safe.
@@ -534,7 +536,7 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   if (::signal(signal, SIG_DFL) == SIG_ERR) {
     _exit(EXIT_FAILURE);
   }
-#elif !BUILDFLAG(IS_LINUX)
+#elif !BUILDFLAG(IS_LINUX) || defined(IS_COBALT_HERMETIC_BUILD)
   // For all operating systems but Linux we do not reraise the signal that
   // brought us here but terminate the process immediately.
   // Otherwise various tests break on different operating systems, see
