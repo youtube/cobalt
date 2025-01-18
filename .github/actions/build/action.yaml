@@ -51,7 +51,7 @@ runs:
         if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
         env:
           # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
-          TEST_TARGETS_JSON_FILE: src/cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
+          TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
         run: |
           set -x
           cd src
