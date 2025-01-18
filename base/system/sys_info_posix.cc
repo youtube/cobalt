@@ -42,7 +42,7 @@
 #include <sys/statvfs.h>
 #endif
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !defined(IS_COBALT_HERMETIC_BUILD)
 #include <linux/magic.h>
 #include <sys/vfs.h>
 #endif
@@ -66,7 +66,7 @@ base::LazyInstance<
     base::internal::LazySysInfoValue<uint64_t, AmountOfVirtualMemory>>::Leaky
     g_lazy_virtual_memory = LAZY_INSTANCE_INITIALIZER;
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS))  && !defined(IS_COBALT_HERMETIC_BUILD)
 bool IsStatsZeroIfUnlimited(const base::FilePath& path) {
   struct statfs stats;
 
@@ -98,7 +98,7 @@ bool GetDiskSpaceInfo(const base::FilePath& path,
     return false;
   }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !defined(IS_COBALT_HERMETIC_BUILD)
   const bool zero_size_means_unlimited =
       stats.f_blocks == 0 && IsStatsZeroIfUnlimited(path);
 #else

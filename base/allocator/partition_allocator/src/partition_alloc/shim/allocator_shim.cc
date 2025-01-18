@@ -31,7 +31,12 @@
 // noexcept needs to be routed to
 // allocator_shim::internal::PartitionMallocUnchecked through the shim layer.
 #include "partition_alloc/shim/allocator_shim_override_cpp_symbols.h"
+
+#if defined(IS_COBALT_HERMETIC_BUILD)
+// Don't include anything, all includes are already set up in MUSL libc
+#else
 #include "partition_alloc/shim/allocator_shim_override_libc_symbols.h"
+#endif
 
 // Some glibc versions (until commit 6c444ad6e953dbdf9c7be065308a0a777)
 // incorrectly call __libc_memalign() to allocate memory (see elf/dl-tls.c in
