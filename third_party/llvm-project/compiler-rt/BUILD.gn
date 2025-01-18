@@ -92,5 +92,4 @@ static_library("compiler_rt") {
   }
 
   configs += [ ":compiler_rt_config" ]
-  configs -= [ "//starboard/build/config:default_cpp_standard" ]
 }
