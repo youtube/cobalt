@@ -38,7 +38,7 @@ runs:
         cd src/
         ./cobalt/build/create_archive.py \
           --source out/${{ matrix.platform }}_${{ matrix.config }}/ \
-          --destination ${GITHUB_WORKSPACE}/artifacts
+          --destination ${GITHUB_WORKSPACE}/artifacts \
           --platform ${{ matrix.platform }} \
           --targets $(cat "${{ inputs.test_targets_json_file }}" | jq -cr '.test_targets | join(",")')
       shell: bash
