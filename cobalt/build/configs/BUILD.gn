@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//cobalt/build/configs/modular_variables.gni")
 import("//starboard/build/buildflags.gni")
 
 config("cobalt_config") {
@@ -21,8 +22,12 @@ config("cobalt_config") {
   ]
   if (current_toolchain == starboard_toolchain) {
     configs += [ "//${starboard_path}/platform_configuration" ]
-  } else if (current_toolchain == cobalt_toolchain) {
-    # TODO(nyardi) : Add modular/cobalt toolchain configs as needed"
+  } else if (is_cobalt_hermetic_build) {
+    configs += [
+      # TODO: b/390500840 - Remove hardcoded x64 config, switch config based on platform.
+      "//starboard/build/config/modular/x64",
+      "//starboard/build/config:starboard",
+    ]
   } else {
     # No configs to add for any other toolchain
   }

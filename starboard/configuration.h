@@ -27,8 +27,10 @@
 #ifndef STARBOARD_CONFIGURATION_H_
 #define STARBOARD_CONFIGURATION_H_
 
-#if !defined(STARBOARD)
-#error "You must define STARBOARD in Starboard builds."
+#include "build/build_config.h"
+
+#if !BUILDFLAG(IS_COBALT)
+#error "IS_COBALT should be defined while building this file"
 #endif
 
 // --- Common Defines --------------------------------------------------------
