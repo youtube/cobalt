@@ -63,7 +63,7 @@ runs:
 
           xml_path="${results_dir}/shard_${{ matrix.shard }}/${test_binary}_testoutput.xml"
           # TODO: Investigate test_runner.py
-          /usr/bin/xvfb-run -a server-args="${XVFB_SERVER_ARGS}" \
+          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
               ./"${test_binary_path}" \
               --test-launcher-shard-index=${{ matrix.shard }} \
               --test-launcher-total-shards=${{ inputs.num_gtest_shards }} \
