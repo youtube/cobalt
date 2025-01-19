@@ -81,4 +81,5 @@ runs:
           test_artifacts_key: ${{ inputs.test_artifacts_key }}
           upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts }}
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
-          test_targets_json_file: '${{ env.TEST_TARGETS_JSON_FILE }}'
+          # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
+          test_targets_json_file: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
