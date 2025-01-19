@@ -29,6 +29,8 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   void PrimaryMainDocumentElementAvailable() override;
 
  private:
+  void RegisterInjectedJavaScript();
+
   std::unique_ptr<js_injection::JsCommunicationHost> js_communication_host_;
 };
 

@@ -25,6 +25,10 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
   js_communication_host_ =
       std::make_unique<js_injection::JsCommunicationHost>(web_contents);
 
+  RegisterInjectedJavaScript();
+}
+
+void CobaltWebContentsObserver::RegisterInjectedJavaScript() {
   // Get the embedded header resource
   GeneratedResourceMap resource_map;
   CobaltJavaScriptPolyfill::GenerateMap(resource_map);
@@ -42,7 +46,7 @@ CobaltWebContentsObserver::CobaltWebContentsObserver(
 
     if (result.error_message.has_value()) {
       // error_message contains a value
-      LOG(WARNING) << "Failed to run JS injection for:" << file_name
+      LOG(WARNING) << "Failed to register JS injection for:" << file_name
                    << ", error message: " << result.error_message.value();
     }
   }
