@@ -77,7 +77,7 @@ def create_archive(targets: List[str], source_dir: str, destination_dir: str,
       _make_tar(output_path, deps)
 
   if combine:
-    output_path = os.path.join(destination_dir, 'artifacts.tar.gz')
+    output_path = os.path.join(destination_dir, 'test_artifacts.tar.gz')
     _make_tar(output_path, deps)
 
 
@@ -93,9 +93,9 @@ if __name__ == '__main__':
       '-d',
       '--destination-dir',
       required=True,
-      help='The output directory. If -u is passed the filename is '
-      'artifacts.tar.gz, else a `<target_name>_runtime_deps.tar.gz` is created '
-      'for each target passed.')
+      help='The output directory. For linux test_artifacts.tar.gz is created '
+      'with all test artifacts, else a `<target_name>_runtime_deps.tar.gz` is '
+      'created for each target passed.')
   parser.add_argument(
       '-p', '--platform', required=True, help='The platform getting packaged.')
   parser.add_argument(

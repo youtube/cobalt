@@ -36,7 +36,7 @@ runs:
         set -x
         mkdir ${GITHUB_WORKSPACE}/artifacts
         cd src/
-        ./cobalt/build/create_archive.py \
+        ./cobalt/build/archive_test_artifacts.py \
           --source out/${{ matrix.platform }}_${{ matrix.config }}/ \
           --destination ${GITHUB_WORKSPACE}/artifacts \
           --platform ${{ matrix.platform }} \
