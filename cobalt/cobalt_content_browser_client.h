@@ -42,7 +42,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   blink::UserAgentMetadata GetUserAgentMetadata() override;
   void OverrideWebkitPrefs(content::WebContents* web_contents,
                            blink::web_pref::WebPreferences* prefs) override;
-  void OnWebContentsCreated(content::WebContents* web_contents);
+  void OnWebContentsCreated(content::WebContents* web_contents) override;
   void RegisterBrowserInterfaceBindersForFrame(
       content::RenderFrameHost* render_frame_host,
       mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map)

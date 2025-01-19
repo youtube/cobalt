@@ -39,7 +39,7 @@ class PlatformServiceClient {
     }
 }
 
-export function initializeH5vccPlatformService() {
+function initializeH5vccPlatformService() {
     if (typeof Android_H5vccPlatformService === 'undefined') {
         return;
     }
@@ -72,3 +72,5 @@ export function initializeH5vccPlatformService() {
         },
     }
 }
+
+initializeH5vccPlatformService();

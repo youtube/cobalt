@@ -18,14 +18,20 @@
 #include "content/public/browser/web_contents_observer.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 
+#include "components/js_injection/browser/js_communication_host.h"
+
 namespace cobalt {
 
 class CobaltWebContentsObserver : public content::WebContentsObserver {
  public:
-  explicit CobaltWebContentsObserver(content::WebContents* web_contents)
-      : content::WebContentsObserver(web_contents) {}
+  explicit CobaltWebContentsObserver(content::WebContents* web_contents);
 
   void PrimaryMainDocumentElementAvailable() override;
+
+ private:
+  void RegisterInjectedJavaScript();
+
+  std::unique_ptr<js_injection::JsCommunicationHost> js_communication_host_;
 };
 
 }  // namespace cobalt
