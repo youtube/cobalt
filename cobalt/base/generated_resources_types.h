@@ -17,16 +17,16 @@
 
 #include <string>
 
-#include "base/containers/hash_tables.h"
+#include <map>
 
 struct FileContents {
   FileContents() {}
-  FileContents(const unsigned char *data, int size) : data(data), size(size) {}
+  FileContents(const unsigned char* data, int size) : data(data), size(size) {}
 
-  const unsigned char *data;
+  const unsigned char* data;
   int size;
 };
 
-typedef base::hash_map<std::string, FileContents> GeneratedResourceMap;
+typedef std::map<std::string, FileContents> GeneratedResourceMap;
 
 #endif  // COBALT_BASE_GENERATED_RESOURCES_TYPES_H_

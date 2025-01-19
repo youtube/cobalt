@@ -105,7 +105,9 @@ void CobaltContentRendererClient::ExposeInterfacesToBrowser(
 }
 
 void CobaltContentRendererClient::RenderFrameCreated(
-    content::RenderFrame* render_frame) {}
+    content::RenderFrame* render_frame) {
+  new js_injection::JsCommunication(render_frame);
+}
 
 void CobaltContentRendererClient::PrepareErrorPage(
     content::RenderFrame* render_frame,
@@ -284,6 +286,13 @@ bool CobaltContentRendererClient::IsSupportedVideoType(
   return result;
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+void CobaltContentRendererClient::RunScriptsAtDocumentStart(
+    content::RenderFrame* render_frame) {
+  js_injection::JsCommunication* communication =
+      js_injection::JsCommunication::Get(render_frame);
+  communication->RunScriptsAtDocumentStart();
+}
 
 std::unique_ptr<blink::WebPrescientNetworking>
 CobaltContentRendererClient::CreatePrescientNetworking(
