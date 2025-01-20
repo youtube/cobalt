@@ -220,7 +220,7 @@ jobs:
           path: src
       - name: Run On-Host Tests
         id: on-host-tests
-        if: always() && needs.initialize.outputs.test_on_host == 'true'
+        if: always()
         uses: ./src/.github/actions/on_host_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
@@ -229,11 +229,7 @@ jobs:
 
   test-upload:
     needs: [initialize, docker-build-image, build, on-host-test]
-    if: always() &&
-        (
-          needs.initialize.outputs.test_on_host == 'true' ||
-          needs.initialize.outputs.test_on_device == 'true'
-        )
+    if: always() && needs.initialize.outputs.test_on_host == 'true' 
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_tests_upload
@@ -320,13 +316,8 @@ jobs:
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
           results_dir: ${{ env.TEST_RESULTS_DIR }}
       - name: Process Test Results
-        if: |
-          always() &&
-          (
-            steps.on-device-tests.outcome == 'success' ||
-            steps.on-device-tests.outcome == 'failure'
-          )
-        uses: ./src/.github/actions/process_test_results
+        if: always()
+        uses: ./.github/actions/process_test_results
         with:
           results_dir: ${{ env.TEST_RESULTS_DIR }}
           datadog_api_key: ${{ secrets.DD_API_KEY }}
