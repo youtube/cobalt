@@ -172,7 +172,8 @@ def _process_test_requests(args):
     print(f"  Processing gtest_target: {gtest_target}")
 
     apk_file = f"{args.gcs_archive_path}/{gtest_target}-debug.apk"
-    test_runtime_deps = f"{args.gcs_archive_path}/{gtest_target}_deps.tar.gz"
+    # test_runtime_deps = f"{args.gcs_archive_path}/{gtest_target}_deps.tar.gz"
+    test_runtime_deps = "/bigstore/yt-temp/odt-test/url_unittests_deps.tar.gz"
 
     files = [
         f'test_apk={apk_file}',
