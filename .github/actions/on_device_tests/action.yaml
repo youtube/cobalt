@@ -85,7 +85,7 @@ runs:
         set -uxe
         mkdir -p "${GITHUB_WORKSPACE}/${RESULTS_DIR}"
         cd "${GITHUB_WORKSPACE}/${RESULTS_DIR}"
-        gsutil cp "${GCS_RESULTS_PATH}/" .
+        gsutil cp -r "${GCS_RESULTS_PATH}/" .
         echo "TEST_LOG=${GITHUB_WORKSPACE}/${RESULTS_DIR}/test_results.txt" >> $GITHUB_ENV
       shell: bash
     - name: Archive Test Logs
