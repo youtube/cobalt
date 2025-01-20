@@ -83,14 +83,14 @@ runs:
         RESULTS_DIR: ${{ inputs.results_dir }}
       run: |
         set -uxe
-        mkdir -p "${GITHUB_WORKSPACE}/${RESULTS_DIR}"
-        cd "${GITHUB_WORKSPACE}/${RESULTS_DIR}"
-        gsutil cp -r "${GCS_RESULTS_PATH}/" .
-        echo "TEST_LOG=${GITHUB_WORKSPACE}/${RESULTS_DIR}/test_results.txt" >> $GITHUB_ENV
+        TEST_LOGS="${GITHUB_WORKSPACE}/${RESULTS_DIR}/"
+        mkdir -p "${TEST_LOGS}"
+        gsutil cp -r "${GCS_RESULTS_PATH}/" "${TEST_LOGS}"
+        echo "TEST_LOGS=${TEST_LOGS}" >> $GITHUB_ENV
       shell: bash
     - name: Archive Test Logs
       uses: actions/upload-artifact@v3
       if: always()
       with:
         name: Test log
-        path: ${{ env.TEST_LOG }}/
+        path: ${{ env.TEST_LOGS }}
