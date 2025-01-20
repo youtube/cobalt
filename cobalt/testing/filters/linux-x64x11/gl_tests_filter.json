@@ -1,0 +1,9 @@
+{
+  "failing_tests": [
+    "SharedImageGLBackingProduceDawnTest.Basic",
+    "TranslatorVariants/EXTBlendFuncExtendedES3DrawTest.ES3Getters/0",
+    "TranslatorVariants/EXTBlendFuncExtendedES3DrawTest.ESSL3BindArrayAsArray/1",
+    "WebGPUMailboxTest.DissociateMailboxCmd/RGBA_F16_UnsafeWebGPU_FallbackAdapter",
+    "WebGPUMailboxTest.ReflectionOfDescriptor/RGBA_F16_UnsafeWebGPU_FallbackAdapter"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "failing_tests": [
+    "VideoCaptureDeviceTests/VideoCaptureDeviceTest.UsingRealWebcam_CaptureMjpeg/1",
+    "VideoCaptureDeviceTests/VideoCaptureDeviceTest.UsingRealWebcam_CaptureWithSize/0"
+  ]
+}
