@@ -20,6 +20,7 @@
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
+#include "starboard/nplb/testcase_helpers.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -43,6 +44,11 @@ TEST(PosixDirectoryOpenTest, SunnyDay) {
 }
 
 TEST(PosixDirectoryOpenTest, SunnyDayStaticContent) {
+  // TODO(b/380030274): Skip test case(s) not applicable to Android.
+  if (GetRuntimePlatform() == PlatformType::kPlatformTypeAndroid) {
+    GTEST_SKIP() << "Not applicable on Android";
+  }
+
   for (auto dir_path : GetFileTestsDirectoryPaths()) {
     DIR* directory = opendir(dir_path.c_str());
     EXPECT_TRUE(directory != NULL) << dir_path;

@@ -18,6 +18,7 @@
 #include "starboard/string.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "starboard/nplb/testcase_helpers.h"
 
 #if SB_API_VERSION >= 15
 
@@ -155,6 +156,11 @@ TEST_P(SbPlayerGetAudioConfigurationTest, SunnyDay) {
 }
 
 TEST_P(SbPlayerGetAudioConfigurationTest, NoInput) {
+  // TODO(b/380031306): Skip test case(s) not applicable to Android.
+  if (GetRuntimePlatform() == PlatformType::kPlatformTypeAndroid) {
+    GTEST_SKIP() << "Not applicable on Android";
+  }
+
   SbPlayerTestFixture player_fixture(GetParam(),
                                      &fake_graphics_context_provider_);
   if (HasFatalFailure()) {

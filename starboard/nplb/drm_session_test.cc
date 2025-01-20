@@ -20,6 +20,7 @@
 #include "starboard/common/log.h"
 #include "starboard/common/queue.h"
 #include "starboard/nplb/drm_helpers.h"
+#include "starboard/nplb/testcase_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -285,6 +286,11 @@ void SbDrmSessionTest::OnSessionClosedFunc(SbDrmSystem drm_system,
 }
 
 TEST_F(SbDrmSessionTest, SunnyDay) {
+  // TODO(b/338229737): Skip test case(s) not applicable to Android.
+  if (GetRuntimePlatform() == PlatformType::kPlatformTypeAndroid) {
+    GTEST_SKIP() << "Not applicable on Android";
+  }
+
   if (!SbDrmSystemIsValid(drm_system_)) {
     SB_LOG(INFO) << "Skipping test, DRM system Widevine is not supported on "
                     "this platform.";
@@ -320,6 +326,11 @@ TEST_F(SbDrmSessionTest, SunnyDay) {
 }
 
 TEST_F(SbDrmSessionTest, CloseDrmSessionBeforeUpdateSession) {
+  // TODO(b/338229737): Skip test case(s) not applicable to Android.
+  if (GetRuntimePlatform() == PlatformType::kPlatformTypeAndroid) {
+    GTEST_SKIP() << "Not applicable on Android";
+  }
+
   if (!SbDrmSystemIsValid(drm_system_)) {
     SB_LOG(INFO) << "Skipping test, DRM system Widevine is not supported on "
                     "this platform.";
@@ -349,6 +360,11 @@ TEST_F(SbDrmSessionTest, CloseDrmSessionBeforeUpdateSession) {
 }
 
 TEST_F(SbDrmSessionTest, InvalidSessionUpdateRequestParams) {
+  // TODO(b/338229737): Skip test case(s) not applicable to Android.
+  if (GetRuntimePlatform() == PlatformType::kPlatformTypeAndroid) {
+    GTEST_SKIP() << "Not applicable on Android";
+  }
+
   if (!SbDrmSystemIsValid(drm_system_)) {
     SB_LOG(INFO) << "Skipping test, DRM system Widevine is not supported on "
                     "this platform.";
