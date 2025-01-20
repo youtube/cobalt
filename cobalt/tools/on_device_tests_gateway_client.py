@@ -33,7 +33,7 @@ _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 
 _ON_DEVICE_OUTPUT_FILES_DIR = '/sdcard/Download'
-_CHROMIUM_TEST_ROOT = '/sdcard/chromium_tests_root'
+_DEPS_ARCHIVE = '/sdcard/chromium_tests_root/deps.tar.gz'
 
 class OnDeviceTestsGatewayClient():
   """On-device tests Gateway Client class."""
@@ -163,7 +163,7 @@ def _process_test_requests(args):
         f'dimension_{dimension}' for dimension in args.dimension
     )
 
-  base_params = [f'push_files=test_runtime_deps:{_CHROMIUM_TEST_ROOT}']
+  base_params = [f'push_files=test_runtime_deps:{_DEPS_ARCHIVE}']
 
   if args.gcs_result_path:
     base_params.append(f'gcs_result_path={args.gcs_result_path}')
