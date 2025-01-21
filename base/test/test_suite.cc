@@ -4,7 +4,9 @@
 
 #include "base/test/test_suite.h"
 
+#ifndef STARBOARD
 #include <signal.h>
+#endif
 
 #include <memory>
 
@@ -53,6 +55,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/multiprocess_func_list.h"
 
+#if !defined(STARBOARD)
 #if BUILDFLAG(IS_APPLE)
 #include "base/mac/scoped_nsautorelease_pool.h"
 #endif  // BUILDFLAG(IS_APPLE)
@@ -85,6 +88,7 @@
 
 #include "base/debug/handle_hooks_win.h"
 #endif  // BUILDFLAG(IS_WIN)
+#endif
 
 #if BUILDFLAG(USE_PARTITION_ALLOC)
 #include "base/allocator/partition_alloc_support.h"
@@ -159,7 +163,9 @@ class FeatureListScopedToEachTest : public testing::EmptyTestEventListener {
         command_line->GetSwitchValueASCII(switches::kDisableFeatures);
     enabled += ",TestFeatureForBrowserTest1";
     disabled += ",TestFeatureForBrowserTest2";
+#if !defined(STARBOARD)
     scoped_feature_list_.InitFromCommandLine(enabled, disabled);
+#endif
 
     // The enable-features and disable-features flags were just slurped into a
     // FeatureList, so remove them from the command line. Tests should enable
@@ -282,12 +288,20 @@ void InitializeLogging() {
   constexpr auto kLoggingDest =
       logging::LOG_TO_SYSTEM_DEBUG_LOG | logging::LOG_TO_STDERR;
 #endif
+#if defined(STARBOARD)
+// TODO: Remove once we use c++20
+  CHECK(logging::InitLogging({kLoggingDest}));
+#else
   CHECK(logging::InitLogging({.logging_dest = kLoggingDest}));
+#endif
 
   // We want process and thread IDs because we may have multiple processes.
 #if BUILDFLAG(IS_ANDROID)
   // To view log output with IDs and timestamps use "adb logcat -v threadtime".
   logging::SetLogItems(false, false, false, false);
+#elif defined(STARBOARD)
+  // Starboard applications are single process
+  logging::SetLogItems(false, true, false, false);
 #else
   // We want process and thread IDs because we may have multiple processes.
   logging::SetLogItems(true, true, false, false);
@@ -296,11 +310,13 @@ void InitializeLogging() {
 
 }  // namespace
 
+#if !defined(STARBOARD)
 int RunUnitTestsUsingBaseTestSuite(int argc, char** argv) {
   TestSuite test_suite(argc, argv);
   return LaunchUnitTests(argc, argv,
                          BindOnce(&TestSuite::Run, Unretained(&test_suite)));
 }
+#endif
 
 TestSuite::TestSuite(int argc, char** argv) {
   PreInitialize();
@@ -381,7 +397,7 @@ void TestSuite::PreInitialize() {
 
   // On Android, AtExitManager is created in
   // testing/android/native_test_wrapper.cc before main() is called.
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !defined(STARBOARD)
   at_exit_manager_ = std::make_unique<AtExitManager>();
 #endif
 
@@ -408,6 +424,7 @@ void TestSuite::AddTestLauncherResultPrinter() {
     return;
   }
 
+#if !defined(STARBOARD)
   printer_ = new XmlUnitTestResultPrinter;
   CHECK(printer_->Initialize(output_path))
       << "Output path is " << output_path.AsUTF8Unsafe()
@@ -415,6 +432,7 @@ void TestSuite::AddTestLauncherResultPrinter() {
   testing::TestEventListeners& listeners =
       testing::UnitTest::GetInstance()->listeners();
   listeners.Append(printer_);
+#endif
 }
 
 // Don't add additional code to this method.  Instead add it to
@@ -503,6 +521,7 @@ void TestSuite::UnitTestAssertHandler(const char* file,
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if !defined(STARBOARD)
   // XmlUnitTestResultPrinter inherits gtest format, where assert has summary
   // and message. In GTest, summary is just a logged text, and message is a
   // logged text, concatenated with stack trace of assert.
@@ -512,10 +531,15 @@ void TestSuite::UnitTestAssertHandler(const char* file,
     const std::string stack_trace_str = summary_str + std::string(stack_trace);
     printer_->OnAssert(file, line, summary_str, stack_trace_str);
   }
+#endif
 
+#if defined(STARBOARD)
+  SbSystemRequestStop(1);
+#else
   // The logging system actually prints the message before calling the assert
   // handler. Just exit now to avoid printing too many stack traces.
   _exit(1);
+#endif
 }
 
 #if BUILDFLAG(IS_WIN)
@@ -649,7 +673,8 @@ void TestSuite::Initialize() {
   // TODO(jshin): Should we set the locale via an OS X locale API here?
   i18n::SetICUDefaultLocale("en_US");
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   test_fonts::SetUpFontconfig();
 #endif
 

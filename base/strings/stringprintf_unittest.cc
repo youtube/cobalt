@@ -139,7 +139,9 @@ TEST(StringPrintfTest, Grow) {
 
   const int kRefSize = 320000;
   char* ref = new char[kRefSize];
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+  snprintf(ref, kRefSize, fmt, src, src, src, src, src, src, src);
+#elif defined(OS_WIN)
   sprintf_s(ref, kRefSize, fmt, src, src, src, src, src, src, src);
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   snprintf(ref, kRefSize, fmt, src, src, src, src, src, src, src);

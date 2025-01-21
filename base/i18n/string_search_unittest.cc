@@ -17,6 +17,8 @@
 namespace base {
 namespace i18n {
 
+#if !defined(UCONFIG_NO_COLLATION)
+
 #define EXPECT_MATCH_IGNORE_CASE(find_this, in_this, ex_start, ex_len)         \
   {                                                                            \
     size_t index = 0;                                                          \
@@ -391,6 +393,8 @@ TEST(StringSearchTest, RepeatingStringSearch) {
   if (locale_is_posix)
     SetICUDefaultLocale(default_locale.data());
 }
+
+#endif
 
 }  // namespace i18n
 }  // namespace base
