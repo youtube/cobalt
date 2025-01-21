@@ -14,8 +14,8 @@
 
 // Extends the window interface.
 [
-  ImplementedAs=Hvcc,
+  ImplementedAs=H5vcc,
   SecureContext
 ] partial interface Window {
-  [SameObject] readonly attribute Hvcc hvcc;
+  [SameObject, ImplementedAs=hvccImpl] readonly attribute H5vcc a1def;
 };

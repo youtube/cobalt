@@ -16,6 +16,6 @@
     Exposed=Window,
     SecureContext
 ]
-interface Hvcc {
+interface H5vcc {
     readonly attribute CrashAnnotator crashAnnotator;
 };

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_Hvcc_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_Hvcc_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5vcc_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5vcc_H_
 
 // #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
@@ -31,7 +31,7 @@ class ScriptState;
 class CrashAnnotator;
 class LocalDOMWindow;
 
-class MODULES_EXPORT Hvcc final
+class MODULES_EXPORT H5vcc final
     : public ScriptWrappable,
       public Supplement<LocalDOMWindow> {
   DEFINE_WRAPPERTYPEINFO();
@@ -39,10 +39,10 @@ class MODULES_EXPORT Hvcc final
  public:
   static const char kSupplementName[];
 
-  // For window.hvcc
-  static Hvcc* hvcc(LocalDOMWindow&);
+  // For window.h5vcc
+  static H5vcc* hvccImpl(LocalDOMWindow&);
 
-  explicit Hvcc(LocalDOMWindow&);
+  explicit H5vcc(LocalDOMWindow&);
 
   CrashAnnotator* crashAnnotator() { return crash_annotator_; }
 
@@ -54,4 +54,4 @@ class MODULES_EXPORT Hvcc final
 
 }
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_Hvcc_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5vcc_H_

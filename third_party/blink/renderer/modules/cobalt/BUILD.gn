@@ -14,10 +14,10 @@
 
 import("//third_party/blink/renderer/modules/modules.gni")
 
-blink_modules_sources("hvcc") {
+blink_modules_sources("h_5_vcc") {
   sources = [
-    "hvcc.cc",
-    "hvcc.h",
+    "h_5_vcc.cc",
+    "h_5_vcc.h",
   ]
   deps = ["//third_party/blink/renderer/modules/cobalt/crash_annotator"]
 }

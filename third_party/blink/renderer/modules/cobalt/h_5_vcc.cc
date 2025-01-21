@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/blink/renderer/modules/cobalt/hvcc.h"
+#include "third_party/blink/renderer/modules/cobalt/h_5_vcc.h"
 
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/cobalt/crash_annotator/crash_annotator.h"
@@ -20,23 +20,23 @@
 namespace blink {
 
 // static
-const char Hvcc::kSupplementName[] = "Hvcc";
+const char H5vcc::kSupplementName[] = "H5vcc";
 
 //static
-Hvcc* Hvcc::hvcc(LocalDOMWindow& window) {
-  Hvcc* hvcc = Supplement<LocalDOMWindow>::From<Hvcc>(window);
+H5vcc* H5vcc::hvccImpl(LocalDOMWindow& window) {
+  H5vcc* hvcc = Supplement<LocalDOMWindow>::From<H5vcc>(window);
   if (!hvcc && window.GetExecutionContext()) {
-    hvcc = MakeGarbageCollected<Hvcc>(window);
+    hvcc = MakeGarbageCollected<H5vcc>(window);
     ProvideTo(window, hvcc);
   }
   return hvcc;
 }
 
-Hvcc::Hvcc(LocalDOMWindow& window)
+H5vcc::H5vcc(LocalDOMWindow& window)
     : Supplement<LocalDOMWindow>(window),
       crash_annotator_(MakeGarbageCollected<CrashAnnotator>(window)) {}
 
-void Hvcc::Trace(Visitor* visitor) const {
+void H5vcc::Trace(Visitor* visitor) const {
   crash_annotator_->Trace(visitor);
   Supplement<LocalDOMWindow>::Trace(visitor);
   ScriptWrappable::Trace(visitor);
