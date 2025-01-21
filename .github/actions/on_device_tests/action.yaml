@@ -7,6 +7,9 @@ inputs:
   results_dir:
     description: "Path to directory where test results are saved."
     required: true
+  test_results_key:
+    description: "Artifact key used to store test results."
+    required: true
 
 runs:
   using: "composite"
@@ -88,9 +91,10 @@ runs:
         gsutil cp -r "${GCS_RESULTS_PATH}/" "${TEST_LOGS}"
         echo "TEST_LOGS=${TEST_LOGS}" >> $GITHUB_ENV
       shell: bash
-    - name: Archive Test Logs
+    - name: Archive Test Results
       uses: actions/upload-artifact@v3
       if: always()
       with:
-        name: Test log
-        path: ${{ env.TEST_LOGS }}
+        name: ${{ inputs.test_results_key }}
+        path: ${{ env.TEST_LOGS }}/
+  
