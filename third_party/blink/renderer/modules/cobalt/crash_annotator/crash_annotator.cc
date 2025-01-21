@@ -14,9 +14,9 @@
 
 #include "third_party/blink/renderer/modules/cobalt/crash_annotator/crash_annotator.h"
 
+#include "cobalt/services/crash_annotator/public/mojom/crash_annotator_service.mojom-blink.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
-#include "third_party/blink/public/mojom/cobalt/crash_annotator/crash_annotator.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
@@ -43,7 +43,7 @@ CrashAnnotator* CrashAnnotator::crashAnnotator(NavigatorBase& navigator) {
 CrashAnnotator::CrashAnnotator(NavigatorBase& navigator)
     : Supplement<NavigatorBase>(navigator),
       ExecutionContextLifecycleObserver(navigator.GetExecutionContext()),
-      crash_annotator_(navigator.GetExecutionContext()) {}
+      service_(navigator.GetExecutionContext()) {}
 
 void CrashAnnotator::ContextDestroyed() {}
 
@@ -56,11 +56,11 @@ ScriptPromise CrashAnnotator::setString(ScriptState* script_state,
 
   EnsureReceiverIsBound();
 
-  crash_annotator_->SetString(key,
-                              value,
-                              WTF::BindOnce(
-                                  &CrashAnnotator::OnSetString,
-                                  WrapPersistent(this), WrapPersistent(resolver)));
+  service_->SetString(key,
+                      value,
+                      WTF::BindOnce(
+                          &CrashAnnotator::OnSetString,
+                          WrapPersistent(this), WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -72,18 +72,18 @@ void CrashAnnotator::OnSetString(ScriptPromiseResolver* resolver, bool result) {
 void CrashAnnotator::EnsureReceiverIsBound() {
   DCHECK(GetExecutionContext());
 
-  if (crash_annotator_.is_bound()) {
+  if (service_.is_bound()) {
     return;
   }
 
   auto task_runner =
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
-      crash_annotator_.BindNewPipeAndPassReceiver(task_runner));
+      service_.BindNewPipeAndPassReceiver(task_runner));
 }
 
 void CrashAnnotator::Trace(Visitor* visitor) const {
-  visitor->Trace(crash_annotator_);
+  visitor->Trace(service_);
   Supplement<NavigatorBase>::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
   ScriptWrappable::Trace(visitor);

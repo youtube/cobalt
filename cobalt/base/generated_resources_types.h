@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2013 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module blink.mojom;
+#ifndef COBALT_BASE_GENERATED_RESOURCES_TYPES_H_
+#define COBALT_BASE_GENERATED_RESOURCES_TYPES_H_
 
-// The browser process must provide an implementation of this interface so that
-// the renderer process can implement the CrashAnnotator Blink API.
-interface CrashAnnotator {
-  // Recieves an annotation to set and responds with the result.
-  SetString(string key, string value) => (bool result);
+#include <string>
+
+#include <map>
+
+struct FileContents {
+  FileContents() {}
+  FileContents(const unsigned char* data, int size) : data(data), size(size) {}
+
+  const unsigned char* data;
+  int size;
 };
+
+typedef std::map<std::string, FileContents> GeneratedResourceMap;
+
+#endif  // COBALT_BASE_GENERATED_RESOURCES_TYPES_H_

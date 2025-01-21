@@ -3,6 +3,9 @@
 # found in the LICENSE file.
 
 import("//build/config/c++/c++.gni")
+if (is_cobalt) {
+  import("//cobalt/build/configs/modular_variables.gni")
+}
 
 source_set("libc++abi") {
   if (export_libcxxabi_from_executables) {

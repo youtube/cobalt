@@ -174,11 +174,6 @@
 #include "third_party/blink/public/public_buildflags.h"
 #include "url/origin.h"
 
-#if BUILDFLAG(IS_COBALT)
-#include "content/browser/cobalt/crash_annotator/crash_annotator_impl.h"
-#include "third_party/blink/public/mojom/cobalt/crash_annotator/crash_annotator.mojom.h"
-#endif
-
 #if BUILDFLAG(IS_ANDROID)
 #include "content/browser/android/date_time_chooser_android.h"
 #include "content/browser/android/text_suggestion_host_android.h"
@@ -845,11 +840,6 @@ void PopulateFrameBinders(RenderFrameHostImpl* host, mojo::BinderMap* map) {
 
   map->Add<blink::mojom::SpeechSynthesis>(base::BindRepeating(
       &RenderFrameHostImpl::GetSpeechSynthesis, base::Unretained(host)));
-
-#if BUILDFLAG(IS_COBALT)
-  map->Add<blink::mojom::CrashAnnotator>(base::BindRepeating(
-    &RenderFrameHostImpl::GetCrashAnnotator, base::Unretained(host)));
-#endif
 
 #if !BUILDFLAG(IS_ANDROID)
   map->Add<blink::mojom::DeviceAPIService>(base::BindRepeating(

@@ -12,20 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "content/browser/cobalt/crash_annotator/crash_annotator_impl.h"
+module crash_annotator.mojom;
 
-#include "base/functional/bind.h"
-#include "base/functional/callback.h"
-
-namespace content {
-
-void CrashAnnotatorImpl::SetString(const std::string& key,
-                                   const std::string& value,
-                                   SetStringCallback callback) {
-  // TODO(cobalt, b/383301493): actually implement this.
-  LOG(INFO) << "CrashAnnotatorImpl::SetString key=" << key << " value="
-            << value;
-  std::move(callback).Run(false);
-}
-
-}  // namespace content
+// The browser process must provide an implementation of this interface so that
+// the renderer process can implement the CrashAnnotator Blink API.
+interface CrashAnnotatorService {
+  // Receives an annotation to set and responds with the result.
+  SetString(string key, string value) => (bool result);
+};
