@@ -17,5 +17,5 @@
   ImplementedAs=H5vcc,
   SecureContext
 ] partial interface Window {
-  [SameObject, ImplementedAs=hvccImpl] readonly attribute H5vcc a1def;
+  [SameObject, ImplementedAs=h5vcc] readonly attribute H5vcc h4vcc;
 };

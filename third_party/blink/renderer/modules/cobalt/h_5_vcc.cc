@@ -23,7 +23,7 @@ namespace blink {
 const char H5vcc::kSupplementName[] = "H5vcc";
 
 //static
-H5vcc* H5vcc::hvccImpl(LocalDOMWindow& window) {
+H5vcc* H5vcc::h5vcc(LocalDOMWindow& window) {
   H5vcc* hvcc = Supplement<LocalDOMWindow>::From<H5vcc>(window);
   if (!hvcc && window.GetExecutionContext()) {
     hvcc = MakeGarbageCollected<H5vcc>(window);

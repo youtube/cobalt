@@ -40,7 +40,7 @@ class MODULES_EXPORT H5vcc final
   static const char kSupplementName[];
 
   // For window.h5vcc
-  static H5vcc* hvccImpl(LocalDOMWindow&);
+  static H5vcc* h5vcc(LocalDOMWindow&);
 
   explicit H5vcc(LocalDOMWindow&);
 
