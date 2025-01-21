@@ -1123,9 +1123,6 @@ component("base") {
       "allocator/partition_allocator/shim/allocator_shim_internals.h",
     ]
 
-    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
-    #     loc.cc -o obj/base/base/allocator_shim_default_dispatch_to_partition_alloc.o
-    # ../../base/allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc:748:36: error: incomplete result type 'struct mallinfo' in function definition
     if (use_partition_alloc) {
       sources += [
         "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc",
