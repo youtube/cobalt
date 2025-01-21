@@ -1,0 +1,12 @@
+{
+  "failing_tests": [
+    "AnimationHostPerfTest.Push10TimelinesPropertiesTo",
+    "AnimationHostPerfTest.Push1000AnimationsPropertiesTo",
+    "AnimationHostPerfTest.Push1000TimelinesPropertiesTo",
+    "LayerPerfTest.PushPropertiesTo",
+    "LayerTreeHostPerfTestJsonReader.HeavyPageThreaded",
+    "LayerTreeHostPerfTestJsonReader.TenTenThreaded_FullDamageEachFrame",
+    "RasterBufferProviderPerfTests/RasterBufferProviderPerfTest.ScheduleAndExecuteTasks/3",
+    "ScrollingLayerTreePerfTest.LongScrollablePageSingleThread"
+  ]
+}

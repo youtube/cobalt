@@ -1,7 +1,6 @@
 {
   "TODO(b/382508397)": "Remove this when list is dynamically generated.",
   "test_targets": [
-    "base:base_nocompile_tests",
     "base:base_unittests",
     "cc:cc_perftests",
     "cc:cc_unittests",

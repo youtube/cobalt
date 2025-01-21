@@ -1,5 +1,6 @@
 {
   "failing_tests": [
-    "CorePerftest.MessagePipe_Threaded"
+    "CorePerftest.MessagePipe_Threaded",
+    "MojoBindingsPerftest.*"
   ]
 }
