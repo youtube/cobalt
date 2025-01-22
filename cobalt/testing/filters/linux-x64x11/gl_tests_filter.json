@@ -1,0 +1,8 @@
+{
+  "failing_tests": [
+    "SharedImageGLBackingProduceDawnTest.Basic",
+    "TranslatorVariants/EXTBlendFuncExtendedES3DrawTest.*",
+    "WebGPUMailboxTest.*",
+    "WebGPUTest.*"
+  ]
+}
