@@ -1,23 +1,26 @@
 name: Test Artifact Upload
 description: Uploads test archives for on-device and on-host tests.
 inputs:
-  on_host:
+  upload_on_host_test_artifacts:
     description: "Indicates if on-host test artifacts should be uploaded."
     required: true
-  on_device:
+  upload_on_device_test_artifacts:
     description: "Indicates if on-device test artifacts should be uploaded."
     required: true
   test_artifacts_key:
     description: "Artifact key used to store on-host test artifacts."
     required: true
+  test_targets_json_file:
+    description: "File containing the test target json."
+    required: true
 runs:
   using: "composite"
   steps:
     - name: Set up Cloud SDK
-      if: inputs.on_device == 'true'
+      if: inputs.upload_on_device_test_artifacts == 'true'
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Upload Android Test Artifacts to GCS
-      if: inputs.on_device == 'true'
+      if: inputs.upload_on_device_test_artifacts == 'true'
       env:
         WORKFLOW: ${{ github.workflow }}
       run: |
@@ -28,23 +31,21 @@ runs:
       shell: bash
 
     - name: Create On-Host Test Artifacts Archive
-      if: inputs.on_host == 'true'
+      if: inputs.upload_on_host_test_artifacts == 'true'
       run: |
         set -x
-        cd src/out/${{ matrix.platform }}_${{ matrix.config }}
-        test_deps_file="test.deps"
-        for test_binary in $(ls {nplb,*tests}); do
-          echo $test_binary
-          if [ -f "${test_binary}.runtime_deps" ]; then
-            cat "${test_binary}.runtime_deps" >> "${test_deps_file}"
-          fi
-        done
-        tar cvf - -T "${test_deps_file}" | xz -T0 -1 -z - > "${GITHUB_WORKSPACE}/test_artifacts.tar.xz"
+        mkdir ${GITHUB_WORKSPACE}/artifacts
+        cd src/
+        ./cobalt/build/archive_test_artifacts.py \
+          --source out/${{ matrix.platform }}_${{ matrix.config }}/ \
+          --destination ${GITHUB_WORKSPACE}/artifacts \
+          --platform ${{ matrix.platform }} \
+          --targets $(cat "${{ inputs.test_targets_json_file }}" | jq -cr '.test_targets | join(",")')
       shell: bash
     - name: Upload On-Host Test Artifacts Archive
-      if: inputs.on_host == 'true'
+      if: inputs.upload_on_host_test_artifacts == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.test_artifacts_key }}
-        path: test_artifacts.tar.xz
+        path: artifacts/*
         retention-days: 3

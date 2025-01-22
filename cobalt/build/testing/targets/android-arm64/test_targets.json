@@ -1,0 +1,19 @@
+{
+  "TODO(b/382508397)": "Remove this when list is dynamically generated.",
+  "test_targets": [
+    "base:base_unittests",
+    "cc:cc_perftests",
+    "cc:cc_unittests",
+    "ipc:ipc_tests",
+    "media/capture:capture_unittests",
+    "media/midi:midi_unittests",
+    "media:media_unittests",
+    "mojo:mojo_perftests",
+    "net:net_unittests",
+    "services/service_manager/tests:service_manager_unittests",
+    "skia:skia_unittests",
+    "sql:sql_unittests",
+    "url:url_perftests",
+    "url:url_unittests"
+  ]
+}
