@@ -144,9 +144,8 @@ def _process_test_requests(args):
       A list of test request dictionaries.
   """
   test_requests = []
-  platform_data = _read_json_config(args.platform_json)
 
-  for gtest_target in platform_data['gtest_targets']:
+  for gtest_target in args.targets.split(','):
     print(f'  Processing gtest_target: {gtest_target}')
 
     tests_args = [
@@ -182,8 +181,9 @@ def _process_test_requests(args):
         f'gcs_log_filename={gtest_target}_log.txt'
     ]
 
-    device_type = platform_data.get('test_dimensions', {}).get('gtest_device')
-    device_pool = platform_data.get('test_dimensions', {}).get('gtest_lab')
+    # TODO(oxv): Figure out how to get dimensions from config to here.
+    device_type = 'sabrina'
+    device_pool = 'maneki'
 
     test_requests.append({
         'test_args': tests_args,
@@ -256,12 +256,12 @@ def main() -> int:
 
   # Group trigger arguments
   trigger_args = trigger_parser.add_argument_group('Trigger Arguments')
-  trigger_args.add_argument(
-      '-pf',
-      '--platform_json',
+  trigger_parser.add_argument(
+      '--targets',
       type=str,
       required=True,
-      help='Platform-specific JSON file containing the list of target tests.',
+      help='List of targets to test, comma separated. Must be fully qualified '
+      'ninja target.',
   )
   trigger_parser.add_argument(
       '--filter_json_dir',
