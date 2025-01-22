@@ -74,8 +74,8 @@ CONTROLLED_ARGS = [
 ]
 
 
-def write_build_args(build_args_path, original_lines, dict_settings,
-                     build_type):
+def write_build_args(build_args_path, original_lines, dict_settings, build_type,
+                     use_rbe):
   """ Write args file, modifying settings for config"""
   controlled_args = [
       (k, dict_settings[k]) for k in CONTROLLED_ARGS if k in dict_settings
@@ -85,7 +85,8 @@ def write_build_args(build_args_path, original_lines, dict_settings,
         f'The following args cannot be set in configs: {controlled_args}')
   gen_comment = '# Set by gn.py'
   with open(build_args_path, 'w', encoding='utf-8') as f:
-    f.write(f'use_remoteexec = true {gen_comment}\n')
+    if use_rbe:
+      f.write(f'use_remoteexec = true {gen_comment}\n')
     f.write(
         f'rbe_cfg_dir = rebase_path("//cobalt/reclient_cfgs") {gen_comment}\n')
     f.write(f'build_type = "{build_type}" {gen_comment}\n')
@@ -95,12 +96,12 @@ def write_build_args(build_args_path, original_lines, dict_settings,
       f.write(line)
 
 
-def main(out_directory: str, platform: str, build_type: str,
+def main(out_directory: str, platform: str, build_type: str, use_rbe: bool,
          gn_gen_args: List[str]):
+  Path(out_directory).mkdir(parents=True, exist_ok=True)
   platform_path = f'cobalt/build/configs/{platform}'
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
   src_args_gn_file = os.path.join(platform_path, 'args.gn')
-  Path(out_directory).mkdir(parents=True, exist_ok=True)
 
   if os.path.exists(dst_args_gn_file):
     # Copy the stale args.gn into stale_args.gn
@@ -111,7 +112,9 @@ def main(out_directory: str, platform: str, build_type: str,
           'In general, if the file exists, you should run'
           ' `gn args <out_directory>` to edit it instead.')
   build_args = get_build_args(src_args_gn_file)
-  write_build_args(dst_args_gn_file, build_args[0], build_args[1], build_type)
+  write_build_args(dst_args_gn_file, build_args[0], build_args[1], build_type,
+                   use_rbe)
+
   gn_command = ['gn', 'gen', out_directory] + gn_gen_args
   print(' '.join(gn_command))
   subprocess.check_call(gn_command)
@@ -154,6 +157,11 @@ if __name__ == '__main__':
       default=False,
       action='store_true',
       help='Pass this flag to disable the header dependency gn check.')
+  parser.add_argument(
+      '--no-rbe',
+      default=False,
+      action='store_true',
+      help='Pass this flag to disable Remote Build Execution.')
   script_args, gen_args = parser.parse_known_args()
 
   if script_args.platform == 'linux':
@@ -169,4 +177,4 @@ if __name__ == '__main__':
     builds_out_directory = os.path.join(
         BUILDS_DIRECTORY, f'{script_args.platform}_{script_args.build_type}')
   main(builds_out_directory, script_args.platform, script_args.build_type,
-       gen_args)
+       not script_args.no_rbe, gen_args)
