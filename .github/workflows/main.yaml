@@ -201,8 +201,8 @@ jobs:
       fail-fast: false
       matrix:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
-        config: [devel]
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
     env:
       TEST_RESULTS_DIR: ${{ matrix.name }}_test_results
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
@@ -220,14 +220,6 @@ jobs:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
           results_dir: ${{ env.TEST_RESULTS_DIR }}
-      - name: Process Test Results
-        if: always()
-        uses: ./.github/actions/process_test_results
-        with:
-          results_dir: ${{ env.TEST_RESULTS_DIR }}
-          datadog_api_key: ${{ secrets.DD_API_KEY }}
-          is_postsubmit: ${{ github.event_name == 'schedule' || github.event_name == 'push' }}
-        continue-on-error: true
 
   on-host-test:
     needs: [initialize, docker-build-image, build]
