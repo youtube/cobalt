@@ -290,7 +290,8 @@ run_package_release_pipeline () {
 
     # Create release package.
     if [[ "${PLATFORM}" =~ "android" ]]; then
-      cp "${out_dir}/apks/Cobalt.apk" "${package_dir}"
+      python3 "${WORKSPACE_COBALT}/cobalt/build/android/package.py" \
+        --name=cobalt-android "${out_dir}" "${package_dir}"
     elif [[ "${PLATFORM}" =~ "evergreen" ]]; then
       local bootloader_out_dir=
       if [ -n "${BOOTLOADER:-}" ]; then
