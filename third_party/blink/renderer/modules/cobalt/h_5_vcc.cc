@@ -37,7 +37,7 @@ H5vcc::H5vcc(LocalDOMWindow& window)
       crash_annotator_(MakeGarbageCollected<CrashAnnotator>(window)) {}
 
 void H5vcc::Trace(Visitor* visitor) const {
-  crash_annotator_->Trace(visitor);
+  visitor->Trace(crash_annotator_);
   Supplement<LocalDOMWindow>::Trace(visitor);
   ScriptWrappable::Trace(visitor);
 }
