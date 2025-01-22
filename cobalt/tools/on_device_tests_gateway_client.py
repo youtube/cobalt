@@ -19,6 +19,7 @@ import argparse
 import json
 import logging
 import sys
+from typing import List
 
 import grpc
 import on_device_tests_gateway_pb2
@@ -52,7 +53,7 @@ class OnDeviceTestsGatewayClient():
     self.stub = on_device_tests_gateway_pb2_grpc.on_device_tests_gatewayStub(
         self.channel)
 
-  def run_trigger_command(self, args: argparse.Namespace, test_requests):
+  def run_trigger_command(self, token: str, labels: List[str], test_requests):
     """Calls On-Device Tests service and passing given parameters to it.
 
     Args:
@@ -61,26 +62,23 @@ class OnDeviceTestsGatewayClient():
     """
     for response_line in self.stub.exec_command(
         on_device_tests_gateway_pb2.OnDeviceTestsCommand(
-            token=args.token,
-            labels=args.label,
+            token=token,
+            labels=labels,
             test_requests=test_requests,
         )):
 
       print(response_line.response)
 
-  def run_watch_command(self, workdir: str, args: argparse.Namespace):
+  def run_watch_command(self, token: str, session_id: str):
     """Calls On-Device Tests watch service and passing given parameters to it.
 
     Args:
-        workdir (str): Current script workdir.
         args (Namespace): Arguments passed in command line.
     """
     for response_line in self.stub.exec_watch_command(
         on_device_tests_gateway_pb2.OnDeviceTestsWatchCommand(
-            workdir=workdir,
-            token=args.token,
-            change_id=args.change_id,
-            session_id=args.session_id,
+            token=token,
+            session_id=session_id,
         )):
 
       print(response_line.response)
@@ -98,14 +96,13 @@ def _read_json_config(filename):
   """
   try:
     with open(filename, 'r', encoding='utf-8') as f:
-      data = json.load(f)
-    return data
+      return json.load(f)
   except FileNotFoundError:
     print(f" Config file '{filename}' not found.")
-    return None
+    raise
   except json.JSONDecodeError:
     print(f" Invalid JSON format in '{filename}'.")
-    return None
+    raise
 
 
 def _get_gtest_filters(filter_json_dir, gtest_target):
@@ -151,32 +148,18 @@ def _process_test_requests(args):
 
   for gtest_target in platform_data['gtest_targets']:
     print(f'  Processing gtest_target: {gtest_target}')
+
     tests_args = [
         f'job_timeout_secs={args.job_timeout_secs}',
         f'test_timeout_secs={args.test_timeout_secs}',
         f'start_timeout_secs={args.start_timeout_secs}'
     ]
-
-    if args.change_id:
-      tests_args.append(f'change_id={args.change_id}')
     if args.test_attempts:
       tests_args.append(f'test_attempts={args.test_attempts}')
     if args.dimension:
-      tests_args.extend(
-          f'dimension_{dimension}' for dimension in args.dimension)
-
-    params = [f'push_files=test_runtime_deps:{_DEPS_ARCHIVE}']
-
-    if args.gcs_result_path:
-      params.append(f'gcs_result_path={args.gcs_result_path}')
-    params += [
-        f'gtest_xml_file_on_device={_DIR_ON_DEVICE}/{gtest_target}_result.xml',
-        f'gcs_result_filename={gtest_target}_result.xml',
-        f'gcs_log_filename={gtest_target}_log.txt'
-    ]
+      tests_args += [f'dimension_{dimension}' for dimension in args.dimension]
 
     gtest_filter = _get_gtest_filters(args.filter_json_dir, gtest_target)
-
     command_line_args = [
         f'--gtest_output=xml:{_DIR_ON_DEVICE}/{gtest_target}_result.xml',
         f'--gtest_filter={gtest_filter}',
@@ -187,6 +170,16 @@ def _process_test_requests(args):
         f'test_apk={args.gcs_archive_path}/{gtest_target}-debug.apk',
         f'build_apk={args.gcs_archive_path}/{gtest_target}-debug.apk',
         f'test_runtime_deps={args.gcs_archive_path}/{gtest_target}_deps.tar.gz',
+    ]
+
+    params = []
+    if args.gcs_result_path:
+      params.append(f'gcs_result_path={args.gcs_result_path}')
+    params += [
+        f'push_files=test_runtime_deps:{_DEPS_ARCHIVE}',
+        f'gtest_xml_file_on_device={_DIR_ON_DEVICE}/{gtest_target}_result.xml',
+        f'gcs_result_filename={gtest_target}_result.xml',
+        f'gcs_log_filename={gtest_target}_log.txt'
     ]
 
     device_type = platform_data.get('test_dimensions', {}).get('gtest_device')
@@ -203,7 +196,7 @@ def _process_test_requests(args):
   return test_requests
 
 
-def main() -> int:  # Add a return type hint
+def main() -> int:
   """Main routine for the on-device tests gateway client."""
 
   logging.basicConfig(
@@ -338,28 +331,14 @@ def main() -> int:  # Add a return type hint
   )
 
   args = parser.parse_args()
-
-  if not args.platform_json:
-    print('Error: The \'--platform_json\' argument is required. '
-          'Please provide the path to the Platform JSON file.')
-    return 1
-  if not args.filter_json_dir:
-    print('Error: The \'--filter_json_dir\' argument is required. '
-          'Please provide the directory containing filter JSON files.')
-    return 1
-  if not args.gcs_archive_path:
-    print('Error: The \'--gcs_archive_path\' argument is required. '
-          'Please provide the GCS archive path info.')
-    return 1
-
   test_requests = _process_test_requests(args)
-  client = OnDeviceTestsGatewayClient()
 
+  client = OnDeviceTestsGatewayClient()
   try:
     if args.action == 'trigger':
-      client.run_trigger_command(args, test_requests)
+      client.run_trigger_command(args.token, args.label, test_requests)
     else:
-      client.run_watch_command(workdir=_WORK_DIR, args=args)
+      client.run_watch_command(args.token, args.session_id)
   except grpc.RpcError as e:
     logging.exception('gRPC error occurred:')  # Log the full traceback
     return e.code().value  # Return the error code
