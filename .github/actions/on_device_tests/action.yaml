@@ -96,5 +96,5 @@ runs:
       if: always()
       with:
         name: ${{ inputs.test_results_key }}
-        path: ${{ env.TEST_LOGS }}/
+        path: ${{ env.TEST_LOGS }}
   
