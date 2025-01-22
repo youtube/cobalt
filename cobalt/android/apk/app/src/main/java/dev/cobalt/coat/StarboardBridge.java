@@ -779,7 +779,6 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   public void setCrashContext(String key, String value) {
-    Log.i(TAG, "setCrashContext Called: " + key + ", " + value);
     crashContext.put(key, value);
     if (this.crashContextUpdateHandler != null) {
       this.crashContextUpdateHandler.onCrashContextUpdate();
