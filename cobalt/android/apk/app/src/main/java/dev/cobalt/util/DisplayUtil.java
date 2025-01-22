@@ -154,17 +154,17 @@ public class DisplayUtil {
       new DisplayListener() {
         @Override
         public void onDisplayAdded(int displayId) {
-          // nativeOnDisplayChanged();
+          nativeOnDisplayChanged();
         }
 
         @Override
         public void onDisplayChanged(int displayId) {
-          // nativeOnDisplayChanged();
+          nativeOnDisplayChanged();
         }
 
         @Override
         public void onDisplayRemoved(int displayId) {
-          // nativeOnDisplayChanged();
+          nativeOnDisplayChanged();
         }
       };
 
@@ -181,8 +181,8 @@ public class DisplayUtil {
 
     // Call nativeOnDisplayChanged() to reload supported hdr types here after a default
     // Display created.
-    // nativeOnDisplayChanged();
+    nativeOnDisplayChanged();
   }
 
-  // private static native void nativeOnDisplayChanged();
+  private static native void nativeOnDisplayChanged();
 }
