@@ -53,7 +53,7 @@ runs:
         GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
         GITHUB_RUN_NUMBER: ${{ github.run_number }}
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        GITHUB_WORKFLOW: ${{ github.workflow }} 
+        GITHUB_WORKFLOW: ${{ github.workflow }}
       run: |
         set -uxe
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
@@ -96,5 +96,4 @@ runs:
       if: always()
       with:
         name: ${{ inputs.test_results_key }}
-        path: ${{ env.TEST_LOGS }}
-  
+        path: ${{ env.TEST_LOGS }}/

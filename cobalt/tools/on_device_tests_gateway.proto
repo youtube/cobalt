@@ -67,4 +67,3 @@ message OnDeviceTestsResponse {
   // Next ID: 2
   string response = 1;
 }
-

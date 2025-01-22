@@ -24,7 +24,6 @@ import grpc
 import on_device_tests_gateway_pb2
 import on_device_tests_gateway_pb2_grpc
 
-
 _WORK_DIR = '/on_device_tests_gateway'
 
 # For local testing, set: _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = ('localhost')
@@ -34,6 +33,7 @@ _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 
 _ON_DEVICE_OUTPUT_FILES_DIR = '/sdcard/Download'
 _DEPS_ARCHIVE = '/sdcard/chromium_tests_root/deps.tar.gz'
+
 
 class OnDeviceTestsGatewayClient():
   """On-device tests Gateway Client class."""
@@ -96,7 +96,7 @@ def _read_json_config(filename):
     configuration.
   """
   try:
-    with open(filename, 'r') as f:
+    with open(filename, 'r', encoding='utf-8') as f:
       data = json.load(f)
     return data
   except FileNotFoundError:
@@ -119,14 +119,14 @@ def _get_gtest_filters(filter_json_dir, gtest_target):
   """
   gtest_filters = '*'
   filter_json_file = f'{filter_json_dir}/{gtest_target}_filter.json'
-  print(f"  gtest_filter_json_file = {filter_json_file}")
+  print(f'  gtest_filter_json_file = {filter_json_file}')
   filter_data = _read_json_config(filter_json_file)
   if filter_data:
-    print(f"  Loaded filter data: {filter_data}")
+    print(f'  Loaded filter data: {filter_data}')
     failing_tests = ':'.join(filter_data.get('failing_tests', []))
     if failing_tests:
       gtest_filters += ':-' + failing_tests
-    print(f"  gtest_filters = {gtest_filters}")
+    print(f'  gtest_filters = {gtest_filters}')
   else:
     print('  This gtest_target does not have gtest_filters specified')
   return gtest_filters
@@ -159,9 +159,7 @@ def _process_test_requests(args):
   if args.test_attempts:
     tests_args.append(f'test_attempts={args.test_attempts}')
   if args.dimension:
-    tests_args.extend(
-        f'dimension_{dimension}' for dimension in args.dimension
-    )
+    tests_args.extend(f'dimension_{dimension}' for dimension in args.dimension)
 
   base_params = [f'push_files=test_runtime_deps:{_DEPS_ARCHIVE}']
 
@@ -169,20 +167,20 @@ def _process_test_requests(args):
     base_params.append(f'gcs_result_path={args.gcs_result_path}')
 
   for gtest_target in platform_data['gtest_targets']:
-    print(f"  Processing gtest_target: {gtest_target}")
+    print(f'  Processing gtest_target: {gtest_target}')
 
-    apk_file = f"{args.gcs_archive_path}/{gtest_target}-debug.apk"
-    # test_runtime_deps = f"{args.gcs_archive_path}/{gtest_target}_deps.tar.gz"
-    test_runtime_deps = "/bigstore/yt-temp/odt-test/url_unittests_deps.tar.gz"
+    apk_file = f'{args.gcs_archive_path}/{gtest_target}-debug.apk'
+    # test_runtime_deps = f'{args.gcs_archive_path}/{gtest_target}_deps.tar.gz'
+    test_runtime_deps = '/bigstore/yt-temp/odt-test/url_unittests_deps.tar.gz'
 
     files = [
-        f'test_apk={apk_file}',
-        f'build_apk={apk_file}',
+        f'test_apk={apk_file}', f'build_apk={apk_file}',
         f'test_runtime_deps={test_runtime_deps}'
     ]
 
     gtest_params = [
-        f'gtest_xml_file_on_device={_ON_DEVICE_OUTPUT_FILES_DIR}/{gtest_target}_result.xml',
+        f'gtest_xml_file_on_device={_ON_DEVICE_OUTPUT_FILES_DIR}/'
+        '{gtest_target}_result.xml',
         f'gcs_result_filename={gtest_target}_result.xml',
         f'gcs_log_filename={gtest_target}_log.txt'
     ]
@@ -190,21 +188,23 @@ def _process_test_requests(args):
     gtest_filter = _get_gtest_filters(args.filter_json_dir, gtest_target)
 
     test_cmd_args = [
-        f'command_line_args=--gtest_output=xml:{_ON_DEVICE_OUTPUT_FILES_DIR}/{gtest_target}_result.xml',
-        f'--gtest_filter={gtest_filter}'
+        f'command_line_args=--gtest_output=xml:{_ON_DEVICE_OUTPUT_FILES_DIR}/'
+        '{gtest_target}_result.xml', f'--gtest_filter={gtest_filter}'
     ]
 
     test_request = {
-        'test_args': tests_args,
-        'test_cmd_args': test_cmd_args,
-        'files': files,
-        'params': base_params + gtest_params,
-        'device_type': platform_data.get('test_dimensions', {}).get(
-            'gtest_device'
-        ),
-        'device_pool': platform_data.get('test_dimensions', {}).get(
-            'gtest_lab'
-        ),
+        'test_args':
+            tests_args,
+        'test_cmd_args':
+            test_cmd_args,
+        'files':
+            files,
+        'params':
+            base_params + gtest_params,
+        'device_type':
+            platform_data.get('test_dimensions', {}).get('gtest_device'),
+        'device_pool':
+            platform_data.get('test_dimensions', {}).get('gtest_lab'),
     }
 
     test_requests.append(test_request)
@@ -218,43 +218,39 @@ def main() -> int:  # Add a return type hint
   """Main routine for the on-device tests gateway client."""
 
   logging.basicConfig(
-      level=logging.INFO, format='[%(filename)s:%(lineno)s] %(message)s'
-  )
+      level=logging.INFO, format='[%(filename)s:%(lineno)s] %(message)s')
   print('Starting main routine')
 
   parser = argparse.ArgumentParser(
       description='Client for interacting with the On-Device Tests gateway.',
-      epilog=(
-          'Example:'
-          'python3 -u cobalt/tools/on_device_tests_gateway_client.py'
-          '--platform_json "${GITHUB_WORKSPACE}/src/.github/config/'
-          '${{ matrix.platform}}.json"'
-          '--filter_json_dir "${GITHUB_WORKSPACE}/src/cobalt/testing/'
-          '${{ matrix.platform}}"'
-          '--token ${GITHUB_TOKEN}'
-          '--change_id ${GITHUB_PR_NUMBER:-postsubmit}'
-          '--label builder-${{ matrix.platform }}'
-          '--label builder_url-${GITHUB_RUN_URL}'
-          '--label github'
-          '--label ${GITHUB_EVENT_NAME}'
-          '--label ${GITHUB_WORKFLOW}'
-          '--label actor-${GITHUB_ACTOR}'
-          '--label actor_id-${GITHUB_ACTOR_ID}'
-          '--label triggering_actor-${GITHUB_TRIGGERING_ACTOR}'
-          '--label sha-${GITHUB_SHA}'
-          '--label repository-${GITHUB_REPO}'
-          '--label author-${GITHUB_PR_HEAD_USER_LOGIN:-'
-          '$GITHUB_COMMIT_AUTHOR_USERNAME}'
-          '--label author_id-${GITHUB_PR_HEAD_USER_ID:-'
-          '$GITHUB_COMMIT_AUTHOR_EMAIL}'
-          '--dimension host_name=regex:maneki-mhserver-05.*'
-          '${DIMENSION:+"--dimension" "$DIMENSION"}'
-          '${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" '
-          '"$ON_DEVICE_TEST_ATTEMPTS"}'
-          '--gcs_archive_path "${GCS_ARTIFACTS_PATH}"'
-          '--gcs_result_path "${GCS_RESULTS_PATH}"'
-          'trigger'
-      ),
+      epilog=('Example:'
+              'python3 -u cobalt/tools/on_device_tests_gateway_client.py'
+              '--platform_json "${GITHUB_WORKSPACE}/src/.github/config/'
+              '${{ matrix.platform}}.json"'
+              '--filter_json_dir "${GITHUB_WORKSPACE}/src/cobalt/testing/'
+              '${{ matrix.platform}}"'
+              '--token ${GITHUB_TOKEN}'
+              '--label builder-${{ matrix.platform }}'
+              '--label builder_url-${GITHUB_RUN_URL}'
+              '--label github'
+              '--label ${GITHUB_EVENT_NAME}'
+              '--label ${GITHUB_WORKFLOW}'
+              '--label actor-${GITHUB_ACTOR}'
+              '--label actor_id-${GITHUB_ACTOR_ID}'
+              '--label triggering_actor-${GITHUB_TRIGGERING_ACTOR}'
+              '--label sha-${GITHUB_SHA}'
+              '--label repository-${GITHUB_REPO}'
+              '--label author-${GITHUB_PR_HEAD_USER_LOGIN:-'
+              '$GITHUB_COMMIT_AUTHOR_USERNAME}'
+              '--label author_id-${GITHUB_PR_HEAD_USER_ID:-'
+              '$GITHUB_COMMIT_AUTHOR_EMAIL}'
+              '--dimension host_name=regex:maneki-mhserver-05.*'
+              '${DIMENSION:+"--dimension" "$DIMENSION"}'
+              '${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" '
+              '"$ON_DEVICE_TEST_ATTEMPTS"}'
+              '--gcs_archive_path "${GCS_ARTIFACTS_PATH}"'
+              '--gcs_result_path "${GCS_RESULTS_PATH}"'
+              'trigger'),
       formatter_class=argparse.RawDescriptionHelpFormatter,
   )
 
@@ -272,15 +268,12 @@ def main() -> int:  # Add a return type hint
       '-i',
       '--change_id',
       type=str,
-      help=(
-          'ChangeId that triggered this test, if any. Saved with performance'
-          ' test results.'
-      ),
+      help=('ChangeId that triggered this test, if any. Saved with performance'
+            ' test results.'),
   )
 
   subparsers = parser.add_subparsers(
-      dest='action', help='On-Device tests commands', required=True
-  )
+      dest='action', help='On-Device tests commands', required=True)
 
   # Trigger command
   trigger_parser = subparsers.add_parser(
@@ -315,12 +308,8 @@ def main() -> int:  # Add a return type hint
       '--dimension',
       type=str,
       action='append',
-      help=(
-          'On-Device Tests dimension used to select a device. '
-          'Must have the following form: <dimension>=<value>. '
-          'E.G. "release_version=regex:10.*"'
-      ),
-  )
+      help='On-Device Tests dimension used to select a device. Must have the '
+      'following form: <dimension>=<value>. E.G. "release_version=regex:10.*"')
   trigger_parser.add_argument(
       '--test_attempts',
       type=str,
@@ -360,37 +349,28 @@ def main() -> int:  # Add a return type hint
 
   # Watch command
   watch_parser = subparsers.add_parser(
-      'watch', help='Watch a previously triggered On-Device test'
-  )
+      'watch', help='Watch a previously triggered On-Device test')
   watch_parser.add_argument(
       'session_id',
       type=str,
-      help=(
-          'Session ID of a previously triggered Mobile Harness test. '
-          'The test will be watched until it completes.'
-      ),
+      help=('Session ID of a previously triggered Mobile Harness test. '
+            'The test will be watched until it completes.'),
   )
 
   args = parser.parse_args()
 
   if not args.platform_json:
-    print(
-        "Error: The '--platform_json' argument is required. "
-        'Please provide the path to the Platform JSON file.'
-    )
-    exit(1)  # Exit with an error code
+    print('Error: The \'--platform_json\' argument is required. '
+          'Please provide the path to the Platform JSON file.')
+    return 1
   if not args.filter_json_dir:
-    print(
-        "Error: The '--filter_json_dir' argument is required. "
-        'Please provide the directory containing filter JSON files.'
-    )
-    exit(1)  # Exit with an error code
+    print('Error: The \'--filter_json_dir\' argument is required. '
+          'Please provide the directory containing filter JSON files.')
+    return 1
   if not args.gcs_archive_path:
-    print(
-        "Error: The '--gcs_archive_path' argument is required. "
-        'Please provide the GCS archive path info.'
-    )
-    exit(1)  # Exit with an error code
+    print('Error: The \'--gcs_archive_path\' argument is required. '
+          'Please provide the GCS archive path info.')
+    return 1
 
   test_requests = _process_test_requests(args)
   client = OnDeviceTestsGatewayClient()
