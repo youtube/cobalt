@@ -4,6 +4,15 @@ inputs:
   targets:
     description: "List of ninja targets for Cobalt build."
     required: true
+  upload_on_host_test_artifacts:
+    description: "Indicates if on-host test artifacts should be uploaded."
+    required: true
+  upload_on_device_test_artifacts:
+    description: "Indicates if on-device test artifacts should be uploaded."
+    required: true
+  test_artifacts_key:
+    description: "Artifact key used to store on-host test artifacts."
+    required: true
 runs:
   using: "composite"
   steps:
@@ -38,13 +47,23 @@ runs:
           cd src
           gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
         shell: bash
+      - name: Ninja build test targets
+        if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
+        env:
+          # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
+          TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
+        run: |
+          set -x
+          cd src
+          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} $(cat "${TEST_TARGETS_JSON_FILE}" | jq -cr '.test_targets | join(" ")')
+        shell: bash
       - name: Ninja build
         env:
           TARGETS: ${{ inputs.targets }}
         run: |
           set -x
           cd src
-          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} $(echo "${TARGETS}" | tr -d '"')
+          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
         shell: bash
       - name: Archive Android APKs
         if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
@@ -55,3 +74,12 @@ runs:
             src/out/${{ matrix.platform }}_qa/apks/*.apk
             src/out/${{ matrix.platform }}_qa/*_apk/*.apk
             src/out/${{ matrix.platform }}_qa/gen/build_info.json
+      - name: Upload Test Artifacts
+        if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
+        uses: ./src/.github/actions/upload_test_artifacts
+        with:
+          test_artifacts_key: ${{ inputs.test_artifacts_key }}
+          upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts }}
+          upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
+          # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
+          test_targets_json_file: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json

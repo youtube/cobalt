@@ -1,11 +1,11 @@
 {
   "failing_tests": [
-	"ValidationIntegrationTest.Receiver",
-	"ValidationIntegrationTest.Remote",
-	"ValidationTest.AssociatedConformace",
-	"ValidationTest.BoundsCheck",
-	"ValidationTest.Conformance",
-	"ValidationTest.ResponseBoundsCheck",
-	"ValidationTest.ResponseConformance"
+    "ValidationIntegrationTest.Receiver",
+    "ValidationIntegrationTest.Remote",
+    "ValidationTest.AssociatedConformace",
+    "ValidationTest.BoundsCheck",
+    "ValidationTest.Conformance",
+    "ValidationTest.ResponseBoundsCheck",
+    "ValidationTest.ResponseConformance"
   ]
 }
