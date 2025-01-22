@@ -52,9 +52,9 @@ struct AudioStreamInfo {
   // of `SbMediaAudioStreamInfo` for more details.
   SbMediaAudioCodec codec = kSbMediaAudioCodecNone;
   std::string mime;
-  uint16_t number_of_channels;
-  uint32_t samples_per_second;
-  uint16_t bits_per_sample;
+  uint16_t number_of_channels = 0;
+  uint32_t samples_per_second = 0;
+  uint16_t bits_per_sample = 0;
   std::vector<uint8_t> audio_specific_config;
 };
 
@@ -111,9 +111,9 @@ struct VideoStreamInfo {
   SbMediaVideoCodec codec = kSbMediaVideoCodecNone;
   std::string mime;
   std::string max_video_capabilities;
-  int frame_width;
-  int frame_height;
-  SbMediaColorMetadata color_metadata;
+  int frame_width = 0;
+  int frame_height = 0;
+  SbMediaColorMetadata color_metadata = {};
 };
 
 bool operator==(const VideoStreamInfo& left, const VideoStreamInfo& right);
@@ -141,7 +141,7 @@ struct VideoSampleInfo {
   // `SbMediaVideoSampleInfo` defined in `media.h`.  Please refer to the comment
   // of `SbMediaVideoSampleInfo` for more details.
   VideoStreamInfo stream_info;
-  bool is_key_frame;
+  bool is_key_frame = false;
 };
 
 std::ostream& operator<<(std::ostream& os, const VideoSampleInfo& stream_info);
