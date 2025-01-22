@@ -63,28 +63,5 @@ class MockPlatformWindowDelegate : public ui::PlatformWindowDelegate {
   MOCK_METHOD(void, OnActivationChanged, (bool active), (override));
   MOCK_METHOD(void, OnMouseEnter, (), (override));
 };
-
-class OzoneStarboardTest : public testing::Test {
- public:
-  OzoneStarboardTest();
-
-  virtual ~OzoneStarboardTest();
-
-  virtual void EventHandleInternal(const SbEvent* event);
-
- private:
-  class OzoneStarboardThread : public Thread {
-   public:
-    OzoneStarboardThread() : Thread("sb_thread") {}
-
-    void Run() override;
-  };
-
-  // These are used to initialize the main Starboard thread, which must be
-  // running before some Starboard functions can be called.
-  std::unique_ptr<OzoneStarboardThread> sb_main_;
-  std::unique_ptr<ConditionVariable> started_condition_;
-  Mutex started_mutex_;
-};
 }  // namespace ui
 #endif  // UI_OZONE_PLATFORM_STARBOARD_TEST_STARBOARD_TEST_HELPER_H_
