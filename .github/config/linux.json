@@ -1,26 +1,18 @@
 {
-    "docker_service": "linux",
-    "test_on_host": true,
-    "num_gtest_shards": 10,
-    "platforms": [
-      "linux-x64x11"
-    ],
-    "targets": [
-        "base_unittests",
-        "cobalt:gn_all",
-        "content_shell",
-        "gin_unittests",
-        "gpu_unittests",
-        "ipc_tests",
-        "media_unittests",
-        "mojo_unittests",
-        "sql_unittests",
-        "url_unittests"
-    ],
-    "includes": [
-      {
-        "name":"x64",
-        "platform":"linux-x64x11"
-      }
-    ]
-  }
+  "docker_service": "linux",
+  "platforms": [
+    "linux-x64x11"
+  ],
+  "test_on_host": true,
+  "num_gtest_shards": 10,
+  "targets": [
+    "cobalt:gn_all",
+    "content_shell"
+  ],
+  "includes": [
+    {
+      "name": "x64",
+      "platform": "linux-x64x11"
+    }
+  ]
+}
