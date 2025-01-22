@@ -17,6 +17,7 @@
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 from typing import List
@@ -35,7 +36,7 @@ def _make_tar(archive_path: str, file_list: str):
 
 
 def create_archive(targets: List[str], source_dir: str, destination_dir: str,
-                   platform: str, combine: bool):
+                   platform: str, uber_archive: bool):
   """Main logic. Collects runtime dependencies from the source directory for
   each target."""
   # TODO(b/382508397): Remove when dynamically generated.
@@ -72,16 +73,27 @@ def create_archive(targets: List[str], source_dir: str, destination_dir: str,
       }
       deps |= target_deps
 
-    if not combine:
+    if not uber_archive:
       output_path = os.path.join(destination_dir, f'{target_name}_deps.tar.gz')
       _make_tar(output_path, deps)
 
-  if combine:
+  if uber_archive:
     output_path = os.path.join(destination_dir, 'test_artifacts.tar.gz')
     _make_tar(output_path, deps)
 
 
-if __name__ == '__main__':
+def copy_apks(targets: List[str], source_dir: str, destination_dir: str):
+  """Copies the target APKs from the source directory to the destination.
+  The path to the APK in the source directory (assumed here to be the out
+  directory) is defined in build/config/android/rules.gni
+  """
+  for target in targets:
+    _, target_name = target.split(':')
+    apk_path = f'{source_dir}/{target_name}_apk/{target_name}-debug.apk'
+    shutil.copy2(apk_path, destination_dir)
+
+
+def main():
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '-s',
@@ -103,9 +115,17 @@ if __name__ == '__main__':
       '--targets',
       required=True,
       type=lambda arg: arg.split(','),
-      help='The targets to package, comma-separated. Must be fully qualified '
-      'for android.')
+      help='The targets to package, comma-separated. Must be fully qualified, '
+      'e.g. path/to:target.')
   args = parser.parse_args()
 
+  uber_archive = args.platform.startswith('linux')
   create_archive(args.targets, args.source_dir, args.destination_dir,
-                 args.platform, args.platform.startswith('linux'))
+                 args.platform, uber_archive)
+
+  if args.platform.startswith('android'):
+    copy_apks(args.targets, args.source_dir, args.destination_dir)
+
+
+if __name__ == '__main__':
+  main()
