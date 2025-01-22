@@ -63,7 +63,7 @@ jobs:
       - id: set-targets
         shell: bash
         run: |
-          targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.targets  | join(" ")')
+          targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.targets  | join(" ")')
           echo "targets=${targets}" >> $GITHUB_ENV
       - id: set-includes
         shell: bash
@@ -179,13 +179,9 @@ jobs:
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           targets: ${{ needs.initialize.outputs.targets }}
-      - name: Upload Test Artifacts
-        if: matrix.config == 'devel'
-        uses: ./src/.github/actions/upload_test_artifacts
-        with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          on_host: ${{ needs.initialize.outputs.test_on_host }}
-          on_device: ${{ needs.initialize.outputs.test_on_device }}
+          upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host }}
+          upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device }}
 
   test:
     needs: [initialize, docker-build-image, build]
