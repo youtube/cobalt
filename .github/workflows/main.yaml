@@ -65,11 +65,6 @@ jobs:
         run: |
           targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.targets  | join(" ")')
           echo "targets=${targets}" >> $GITHUB_ENV
-      - id: set-test-targets
-        shell: bash
-        run: |
-          gtest_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.gtest_targets  | join(" ")')
-          echo "gtest_targets=${gtest_targets}" >> $GITHUB_ENV
       - id: set-includes
         shell: bash
         run: |
@@ -103,7 +98,6 @@ jobs:
     outputs:
       platforms: ${{ env.platforms }}
       targets: ${{ env.targets }}
-      gtest_targets: ${{ env.gtest_targets }}
       includes: ${{ env.includes }}
       docker_service: ${{ env.docker_service }}
       num_gtest_shards: ${{ env.num_gtest_shards }}
