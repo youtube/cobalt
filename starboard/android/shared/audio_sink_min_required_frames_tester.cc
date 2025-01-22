@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "starboard/android/shared/audio_track_audio_sink_type.h"
+#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
 
 namespace starboard {
@@ -25,7 +26,10 @@ namespace android {
 namespace shared {
 
 namespace {
+
 const int kCheckpointFramesInterval = 1024;
+const int kSampleFrequency22050 = 22050;
+const int kSampleFrequency48000 = 48000;
 
 // Helper function to compute the size of the two valid starboard audio sample
 // types.
@@ -39,28 +43,81 @@ size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
   SB_NOTREACHED();
   return 0u;
 }
+
+bool HasRemoteAudioOutput() {
+  // SbPlayerBridge::GetAudioConfigurations() reads up to 32 configurations. The
+  // limit here is to avoid infinite loop and also match
+  // SbPlayerBridge::GetAudioConfigurations().
+  const int kMaxAudioConfigurations = 32;
+  SbMediaAudioConfiguration configuration;
+  int index = 0;
+  while (index < kMaxAudioConfigurations &&
+         MediaCapabilitiesCache::GetInstance()->GetAudioConfiguration(
+             index, &configuration)) {
+    switch (configuration.connector) {
+      case kSbMediaAudioConnectorUnknown:
+      case kSbMediaAudioConnectorAnalog:
+      case kSbMediaAudioConnectorBuiltIn:
+      case kSbMediaAudioConnectorHdmi:
+      case kSbMediaAudioConnectorSpdif:
+      case kSbMediaAudioConnectorUsb:
+        break;
+      case kSbMediaAudioConnectorBluetooth:
+      case kSbMediaAudioConnectorRemoteWired:
+      case kSbMediaAudioConnectorRemoteWireless:
+      case kSbMediaAudioConnectorRemoteOther:
+        return true;
+    }
+    index++;
+  }
+  return false;
+}
+
 }  // namespace
 
-MinRequiredFramesTester::MinRequiredFramesTester(int max_required_frames,
-                                                 int required_frames_increment,
-                                                 int min_stable_played_frames)
-    : max_required_frames_(max_required_frames),
-      required_frames_increment_(required_frames_increment),
-      min_stable_played_frames_(min_stable_played_frames),
-      condition_variable_(mutex_),
-      destroying_(false) {}
+MinRequiredFramesTester::MinRequiredFramesTester() {
+  Start();
+}
 
 MinRequiredFramesTester::~MinRequiredFramesTester() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
+
   destroying_.store(true);
   if (tester_thread_ != 0) {
     {
-      ScopedLock scoped_lock(mutex_);
+      ScopedLock scoped_lock(condition_variable_mutex_);
       condition_variable_.Signal();
     }
-    pthread_join(tester_thread_, NULL);
+    pthread_join(tester_thread_, nullptr);
     tester_thread_ = 0;
   }
+}
+
+int MinRequiredFramesTester::GetMinBufferSizeInFrames(
+    int channels,
+    SbMediaAudioSampleType sample_type,
+    int sampling_frequency_hz) {
+  bool has_remote_audio_output = HasRemoteAudioOutput();
+  ScopedLock lock(min_required_frames_map_mutex_);
+  if (has_remote_audio_output == has_remote_audio_output_) {
+    // There's no audio output type change, we can use the numbers we got from
+    // the tests at app launch.
+    if (sampling_frequency_hz <= kSampleFrequency22050) {
+      if (min_required_frames_map_.find(kSampleFrequency22050) !=
+          min_required_frames_map_.end()) {
+        return min_required_frames_map_[kSampleFrequency22050];
+      }
+    } else if (sampling_frequency_hz <= kSampleFrequency48000) {
+      if (min_required_frames_map_.find(kSampleFrequency48000) !=
+          min_required_frames_map_.end()) {
+        return min_required_frames_map_[kSampleFrequency48000];
+      }
+    }
+  }
+  // We cannot find a matched result from our tests, or the audio output type
+  // has changed. We use the default max required frames to avoid underruns.
+  return has_remote_audio_output ? kMaxRequiredFramesRemote
+                                 : kMaxRequiredFramesLocal;
 }
 
 void MinRequiredFramesTester::AddTest(
@@ -82,6 +139,33 @@ void MinRequiredFramesTester::Start() {
   // MinRequiredFramesTester only supports to start once.
   SB_DCHECK(tester_thread_ == 0);
 
+  auto onMinRequiredFramesForWebAudioReceived =
+      [&](int number_of_channels, SbMediaAudioSampleType sample_type,
+          int sample_rate, int min_required_frames) {
+        bool has_remote_audio_output = HasRemoteAudioOutput();
+        SB_LOG(INFO) << "Received min required frames " << min_required_frames
+                     << " for " << number_of_channels << " channels, "
+                     << sample_rate << "hz, with "
+                     << (has_remote_audio_output ? "remote" : "local")
+                     << " audio output device.";
+        ScopedLock lock(min_required_frames_map_mutex_);
+        has_remote_audio_output_ = has_remote_audio_output;
+        min_required_frames_map_[sample_rate] =
+            std::min(min_required_frames, has_remote_audio_output_
+                                              ? kMaxRequiredFramesRemote
+                                              : kMaxRequiredFramesLocal);
+      };
+
+  SbMediaAudioSampleType sample_type = kSbMediaAudioSampleTypeFloat32;
+  if (!SbAudioSinkIsAudioSampleTypeSupported(sample_type)) {
+    sample_type = kSbMediaAudioSampleTypeInt16Deprecated;
+    SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type));
+  }
+  AddTest(2, sample_type, kSampleFrequency48000,
+          onMinRequiredFramesForWebAudioReceived, 8 * 1024);
+  AddTest(2, sample_type, kSampleFrequency22050,
+          onMinRequiredFramesForWebAudioReceived, 4 * 1024);
+
   pthread_create(&tester_thread_, nullptr,
                  &MinRequiredFramesTester::TesterThreadEntryPoint, this);
   SB_DCHECK(tester_thread_ != 0);
@@ -97,7 +181,7 @@ void* MinRequiredFramesTester::TesterThreadEntryPoint(void* context) {
   MinRequiredFramesTester* tester =
       static_cast<MinRequiredFramesTester*>(context);
   tester->TesterThreadFunc();
-  return NULL;
+  return nullptr;
 }
 
 void MinRequiredFramesTester::TesterThreadFunc() {
@@ -108,7 +192,7 @@ void MinRequiredFramesTester::TesterThreadFunc() {
     if (destroying_.load()) {
       break;
     }
-    std::vector<uint8_t> silence_buffer(max_required_frames_ *
+    std::vector<uint8_t> silence_buffer(kMaxRequiredFrames *
                                             task.number_of_channels *
                                             GetSampleSize(task.sample_type),
                                         0);
@@ -123,15 +207,15 @@ void MinRequiredFramesTester::TesterThreadFunc() {
     last_total_consumed_frames_ = 0;
 
     audio_sink_ = new AudioTrackAudioSink(
-        NULL, task.number_of_channels, task.sample_rate, task.sample_type,
-        frame_buffers, max_required_frames_,
+        nullptr, task.number_of_channels, task.sample_rate, task.sample_type,
+        frame_buffers, kMaxRequiredFrames,
         min_required_frames_ * task.number_of_channels *
             GetSampleSize(task.sample_type),
         &MinRequiredFramesTester::UpdateSourceStatusFunc,
         &MinRequiredFramesTester::ConsumeFramesFunc,
         &MinRequiredFramesTester::ErrorFunc, 0, -1, false, this);
     {
-      ScopedLock scoped_lock(mutex_);
+      ScopedLock scoped_lock(condition_variable_mutex_);
       wait_timeout = !condition_variable_.WaitTimed(5'000'000);
     }
 
@@ -149,14 +233,14 @@ void MinRequiredFramesTester::TesterThreadFunc() {
     if (wait_timeout) {
       SB_LOG(ERROR) << "Audio sink min required frames tester timeout.";
       // Overwrite |min_required_frames_| if failed to get a stable result.
-      min_required_frames_ = max_required_frames_;
+      min_required_frames_ = kMaxRequiredFrames;
     }
 
     if (has_error_) {
       SB_LOG(ERROR) << "There's an error while running the test. Fallback to "
                        "max required frames "
-                    << max_required_frames_ << ".";
-      min_required_frames_ = max_required_frames_;
+                    << kMaxRequiredFrames << ".";
+      min_required_frames_ = kMaxRequiredFrames;
     }
 
     if (start_threshold > min_required_frames_) {
@@ -242,8 +326,8 @@ void MinRequiredFramesTester::ConsumeFrames(int frames_consumed) {
   // we need to write more buffers into audio sink.
   int underrun_count = audio_sink_->GetUnderrunCount();
   if (underrun_count > last_underrun_count_) {
-    min_required_frames_ += required_frames_increment_;
-    if (min_required_frames_ >= max_required_frames_) {
+    min_required_frames_ += kRequiredFramesIncrement_;
+    if (min_required_frames_ >= kMaxRequiredFrames) {
       SB_LOG(WARNING) << "Min required frames reached maximum.";
     } else {
       last_underrun_count_ = -1;
@@ -252,13 +336,13 @@ void MinRequiredFramesTester::ConsumeFrames(int frames_consumed) {
     }
   }
 
-  if (min_required_frames_ >= max_required_frames_ ||
-      total_consumed_frames_ - min_stable_played_frames_ >=
+  if (min_required_frames_ >= kMaxRequiredFrames ||
+      total_consumed_frames_ - kMinStablePlayedFrames_ >=
           last_total_consumed_frames_) {
     // |min_required_frames_| reached maximum, or playback is stable and
     // doesn't have underruns. Stop the test.
     last_total_consumed_frames_ = INT_MAX;
-    ScopedLock scoped_lock(mutex_);
+    ScopedLock scoped_lock(condition_variable_mutex_);
     condition_variable_.Signal();
   }
 }

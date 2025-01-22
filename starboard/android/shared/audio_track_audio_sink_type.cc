@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-#include "starboard/android/shared/media_capabilities_cache.h"
+#include "starboard/android/shared/audio_sink_min_required_frames_tester.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
@@ -27,9 +27,13 @@
 #include "starboard/shared/starboard/player/filter/common.h"
 
 namespace {
-starboard::android::shared::AudioTrackAudioSinkType*
-    audio_track_audio_sink_type_;
-}
+
+::starboard::android::shared::MinRequiredFramesTester*
+    s_min_required_frames_tester;
+::starboard::android::shared::AudioTrackAudioSinkType*
+    s_audio_track_audio_sink_type;
+
+}  // namespace
 
 namespace starboard {
 namespace android {
@@ -54,15 +58,6 @@ const int64_t kMaxDurationPerRequestInTunnelMode = 16'000;  // 16ms
 
 const size_t kSilenceFramesPerAppend = 1024;
 
-const int kMaxRequiredFramesLocal = 16 * 1024;
-const int kMaxRequiredFramesRemote = 32 * 1024;
-const int kMaxRequiredFrames = kMaxRequiredFramesRemote;
-const int kRequiredFramesIncrement = 4 * 1024;
-const int kMinStablePlayedFrames = 12 * 1024;
-
-const int kSampleFrequency22050 = 22050;
-const int kSampleFrequency48000 = 48000;
-
 void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
 }
@@ -71,35 +66,6 @@ int GetMaxFramesPerRequestForTunnelMode(int sampling_frequency_hz) {
   auto max_frames =
       kMaxDurationPerRequestInTunnelMode * sampling_frequency_hz / 1'000'000LL;
   return (max_frames + 15) / 16 * 16;  // align to 16
-}
-
-bool HasRemoteAudioOutput() {
-  // SbPlayerBridge::GetAudioConfigurations() reads up to 32 configurations. The
-  // limit here is to avoid infinite loop and also match
-  // SbPlayerBridge::GetAudioConfigurations().
-  const int kMaxAudioConfigurations = 32;
-  SbMediaAudioConfiguration configuration;
-  int index = 0;
-  while (index < kMaxAudioConfigurations &&
-         MediaCapabilitiesCache::GetInstance()->GetAudioConfiguration(
-             index, &configuration)) {
-    switch (configuration.connector) {
-      case kSbMediaAudioConnectorUnknown:
-      case kSbMediaAudioConnectorAnalog:
-      case kSbMediaAudioConnectorBuiltIn:
-      case kSbMediaAudioConnectorHdmi:
-      case kSbMediaAudioConnectorSpdif:
-      case kSbMediaAudioConnectorUsb:
-        break;
-      case kSbMediaAudioConnectorBluetooth:
-      case kSbMediaAudioConnectorRemoteWired:
-      case kSbMediaAudioConnectorRemoteWireless:
-      case kSbMediaAudioConnectorRemoteOther:
-        return true;
-    }
-    index++;
-  }
-  return false;
 }
 
 }  // namespace
@@ -168,7 +134,7 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
   quit_ = true;
 
   if (audio_out_thread_ != 0) {
-    pthread_join(audio_out_thread_, NULL);
+    pthread_join(audio_out_thread_, nullptr);
   }
 }
 
@@ -192,7 +158,7 @@ void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
   AudioTrackAudioSink* sink = reinterpret_cast<AudioTrackAudioSink*>(context);
   sink->AudioThreadFunc();
 
-  return NULL;
+  return nullptr;
 }
 
 // TODO: Break down the function into manageable pieces.
@@ -430,19 +396,15 @@ int AudioTrackAudioSinkType::GetMinBufferSizeInFrames(
     int channels,
     SbMediaAudioSampleType sample_type,
     int sampling_frequency_hz) {
-  SB_DCHECK(audio_track_audio_sink_type_);
+  SB_DCHECK(s_audio_track_audio_sink_type);
 
-  return std::max(
-      AudioTrackBridge::GetMinBufferSizeInFrames(sample_type, channels,
-                                                 sampling_frequency_hz),
-      audio_track_audio_sink_type_->GetMinBufferSizeInFramesInternal(
-          channels, sample_type, sampling_frequency_hz));
+  return std::max(AudioTrackBridge::GetMinBufferSizeInFrames(
+                      sample_type, channels, sampling_frequency_hz),
+                  s_min_required_frames_tester->GetMinBufferSizeInFrames(
+                      channels, sample_type, sampling_frequency_hz));
 }
 
-AudioTrackAudioSinkType::AudioTrackAudioSinkType()
-    : min_required_frames_tester_(kMaxRequiredFrames,
-                                  kRequiredFramesIncrement,
-                                  kMinStablePlayedFrames) {}
+AudioTrackAudioSinkType::AudioTrackAudioSinkType() = default;
 
 SbAudioSink AudioTrackAudioSinkType::Create(
     int channels,
@@ -498,65 +460,6 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   return audio_sink;
 }
 
-void AudioTrackAudioSinkType::TestMinRequiredFrames() {
-  auto onMinRequiredFramesForWebAudioReceived =
-      [&](int number_of_channels, SbMediaAudioSampleType sample_type,
-          int sample_rate, int min_required_frames) {
-        bool has_remote_audio_output = HasRemoteAudioOutput();
-        SB_LOG(INFO) << "Received min required frames " << min_required_frames
-                     << " for " << number_of_channels << " channels, "
-                     << sample_rate << "hz, with "
-                     << (has_remote_audio_output ? "remote" : "local")
-                     << " audio output device.";
-        ScopedLock lock(min_required_frames_map_mutex_);
-        has_remote_audio_output_ = has_remote_audio_output;
-        min_required_frames_map_[sample_rate] =
-            std::min(min_required_frames, has_remote_audio_output_
-                                              ? kMaxRequiredFramesRemote
-                                              : kMaxRequiredFramesLocal);
-      };
-
-  SbMediaAudioSampleType sample_type = kSbMediaAudioSampleTypeFloat32;
-  if (!SbAudioSinkIsAudioSampleTypeSupported(sample_type)) {
-    sample_type = kSbMediaAudioSampleTypeInt16Deprecated;
-    SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type));
-  }
-  min_required_frames_tester_.AddTest(2, sample_type, kSampleFrequency48000,
-                                      onMinRequiredFramesForWebAudioReceived,
-                                      8 * 1024);
-  min_required_frames_tester_.AddTest(2, sample_type, kSampleFrequency22050,
-                                      onMinRequiredFramesForWebAudioReceived,
-                                      4 * 1024);
-  min_required_frames_tester_.Start();
-}
-
-int AudioTrackAudioSinkType::GetMinBufferSizeInFramesInternal(
-    int channels,
-    SbMediaAudioSampleType sample_type,
-    int sampling_frequency_hz) {
-  bool has_remote_audio_output = HasRemoteAudioOutput();
-  ScopedLock lock(min_required_frames_map_mutex_);
-  if (has_remote_audio_output == has_remote_audio_output_) {
-    // There's no audio output type change, we can use the numbers we got from
-    // the tests at app launch.
-    if (sampling_frequency_hz <= kSampleFrequency22050) {
-      if (min_required_frames_map_.find(kSampleFrequency22050) !=
-          min_required_frames_map_.end()) {
-        return min_required_frames_map_[kSampleFrequency22050];
-      }
-    } else if (sampling_frequency_hz <= kSampleFrequency48000) {
-      if (min_required_frames_map_.find(kSampleFrequency48000) !=
-          min_required_frames_map_.end()) {
-        return min_required_frames_map_[kSampleFrequency48000];
-      }
-    }
-  }
-  // We cannot find a matched result from our tests, or the audio output type
-  // has changed. We use the default max required frames to avoid underruns.
-  return has_remote_audio_output ? kMaxRequiredFramesRemote
-                                 : kMaxRequiredFramesLocal;
-}
-
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
@@ -568,20 +471,28 @@ namespace audio_sink {
 
 // static
 void SbAudioSinkImpl::PlatformInitialize() {
-  SB_DCHECK(!audio_track_audio_sink_type_);
-  audio_track_audio_sink_type_ =
+  SB_DCHECK(!s_min_required_frames_tester);
+  SB_DCHECK(!s_audio_track_audio_sink_type);
+
+  s_min_required_frames_tester =
+      new ::starboard::android::shared::MinRequiredFramesTester;
+
+  s_audio_track_audio_sink_type =
       new ::starboard::android::shared::AudioTrackAudioSinkType;
-  SetPrimaryType(audio_track_audio_sink_type_);
+  SetPrimaryType(s_audio_track_audio_sink_type);
   EnableFallbackToStub();
-  audio_track_audio_sink_type_->TestMinRequiredFrames();
 }
 
 // static
 void SbAudioSinkImpl::PlatformTearDown() {
-  SB_DCHECK(audio_track_audio_sink_type_ == GetPrimaryType());
-  SetPrimaryType(NULL);
-  delete audio_track_audio_sink_type_;
-  audio_track_audio_sink_type_ = NULL;
+  SB_DCHECK(s_audio_track_audio_sink_type == GetPrimaryType());
+
+  SetPrimaryType(nullptr);
+  delete s_audio_track_audio_sink_type;
+  s_audio_track_audio_sink_type = nullptr;
+
+  delete s_min_required_frames_tester;
+  s_min_required_frames_tester = nullptr;
 }
 
 }  // namespace audio_sink
