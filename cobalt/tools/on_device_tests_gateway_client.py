@@ -31,7 +31,8 @@ _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
     'on-device-tests-gateway-service.on-device-tests.svc.cluster.local')
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 
-_ON_DEVICE_OUTPUT_FILES_DIR = '/sdcard/Download'
+# These paths are hardcoded in various places. DO NOT CHANGE!
+_DIR_ON_DEVICE = '/sdcard/Download'
 _DEPS_ARCHIVE = '/sdcard/chromium_tests_root/deps.tar.gz'
 
 
@@ -148,69 +149,57 @@ def _process_test_requests(args):
   test_requests = []
   platform_data = _read_json_config(args.platform_json)
 
-  tests_args = [
-      f'job_timeout_secs={args.job_timeout_secs}',
-      f'test_timeout_secs={args.test_timeout_secs}',
-      f'start_timeout_secs={args.start_timeout_secs}'
-  ]
-
-  if args.change_id:
-    tests_args.append(f'change_id={args.change_id}')
-  if args.test_attempts:
-    tests_args.append(f'test_attempts={args.test_attempts}')
-  if args.dimension:
-    tests_args.extend(f'dimension_{dimension}' for dimension in args.dimension)
-
-  base_params = [f'push_files=test_runtime_deps:{_DEPS_ARCHIVE}']
-
-  if args.gcs_result_path:
-    base_params.append(f'gcs_result_path={args.gcs_result_path}')
-
   for gtest_target in platform_data['gtest_targets']:
     print(f'  Processing gtest_target: {gtest_target}')
-
-    apk_file = f'{args.gcs_archive_path}/{gtest_target}-debug.apk'
-    # test_runtime_deps = f'{args.gcs_archive_path}/{gtest_target}_deps.tar.gz'
-    test_runtime_deps = '/bigstore/yt-temp/odt-test/url_unittests_deps.tar.gz'
-
-    files = [
-        f'test_apk={apk_file}', f'build_apk={apk_file}',
-        f'test_runtime_deps={test_runtime_deps}'
+    tests_args = [
+        f'job_timeout_secs={args.job_timeout_secs}',
+        f'test_timeout_secs={args.test_timeout_secs}',
+        f'start_timeout_secs={args.start_timeout_secs}'
     ]
 
-    gtest_params = [
-        f'gtest_xml_file_on_device={_ON_DEVICE_OUTPUT_FILES_DIR}/'
-        '{gtest_target}_result.xml',
+    if args.change_id:
+      tests_args.append(f'change_id={args.change_id}')
+    if args.test_attempts:
+      tests_args.append(f'test_attempts={args.test_attempts}')
+    if args.dimension:
+      tests_args.extend(
+          f'dimension_{dimension}' for dimension in args.dimension)
+
+    params = [f'push_files=test_runtime_deps:{_DEPS_ARCHIVE}']
+
+    if args.gcs_result_path:
+      params.append(f'gcs_result_path={args.gcs_result_path}')
+    params += [
+        f'gtest_xml_file_on_device={_DIR_ON_DEVICE}/{gtest_target}_result.xml',
         f'gcs_result_filename={gtest_target}_result.xml',
         f'gcs_log_filename={gtest_target}_log.txt'
     ]
 
     gtest_filter = _get_gtest_filters(args.filter_json_dir, gtest_target)
 
-    test_cmd_args = [
-        f'command_line_args=--gtest_output=xml:{_ON_DEVICE_OUTPUT_FILES_DIR}/'
-        '{gtest_target}_result.xml', f'--gtest_filter={gtest_filter}'
+    command_line_args = [
+        f'--gtest_output=xml:{_DIR_ON_DEVICE}/{gtest_target}_result.xml',
+        f'--gtest_filter={gtest_filter}',
+    ]
+    test_cmd_args = [f'command_line_args={" ".join(command_line_args)}']
+
+    files = [
+        f'test_apk={args.gcs_archive_path}/{gtest_target}-debug.apk',
+        f'build_apk={args.gcs_archive_path}/{gtest_target}-debug.apk',
+        f'test_runtime_deps={args.gcs_archive_path}/{gtest_target}_deps.tar.gz',
     ]
 
-    test_request = {
-        'test_args':
-            tests_args,
-        'test_cmd_args':
-            test_cmd_args,
-        'files':
-            files,
-        'params':
-            base_params + gtest_params,
-        'device_type':
-            platform_data.get('test_dimensions', {}).get('gtest_device'),
-        'device_pool':
-            platform_data.get('test_dimensions', {}).get('gtest_lab'),
-    }
+    device_type = platform_data.get('test_dimensions', {}).get('gtest_device')
+    device_pool = platform_data.get('test_dimensions', {}).get('gtest_lab')
 
-    test_requests.append(test_request)
-    print(f'  Created test_request: {test_request}')
-
-  print(f'test_requests: {test_requests}')
+    test_requests.append({
+        'test_args': tests_args,
+        'test_cmd_args': test_cmd_args,
+        'files': files,
+        'params': params,
+        'device_type': device_type,
+        'device_pool': device_pool,
+    })
   return test_requests
 
 
@@ -262,16 +251,6 @@ def main() -> int:  # Add a return type hint
       required=True,
       help='On Device Tests authentication token',
   )
-
-  # General options
-  parser.add_argument(
-      '-i',
-      '--change_id',
-      type=str,
-      help=('ChangeId that triggered this test, if any. Saved with performance'
-            ' test results.'),
-  )
-
   subparsers = parser.add_subparsers(
       dest='action', help='On-Device tests commands', required=True)
 
@@ -309,7 +288,8 @@ def main() -> int:  # Add a return type hint
       type=str,
       action='append',
       help='On-Device Tests dimension used to select a device. Must have the '
-      'following form: <dimension>=<value>. E.G. "release_version=regex:10.*"')
+      'following form: <dimension>=<value>. E.G. "release_version=regex:10.*"',
+  )
   trigger_parser.add_argument(
       '--test_attempts',
       type=str,
