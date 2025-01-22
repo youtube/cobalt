@@ -295,6 +295,8 @@ bool IsSDRVideo(int bit_depth,
                 SbMediaPrimaryId primary_id,
                 SbMediaTransferId transfer_id,
                 SbMediaMatrixId matrix_id) {
+  SB_DCHECK(bit_depth == 8 || bit_depth == 10);
+
   if (bit_depth != 8) {
     return false;
   }
