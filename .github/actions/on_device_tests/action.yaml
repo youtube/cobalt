@@ -30,10 +30,6 @@ runs:
         echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
         # Test results and logs
         echo "GCS_RESULTS_PATH=gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}" >> $GITHUB_ENV
-        # Dimension env
-        if [ "${{ matrix.dimension }}" != "null" ]; then
-          echo "DIMENSION=${{ matrix.dimension }}" >> $GITHUB_ENV
-        fi
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
@@ -58,10 +54,10 @@ runs:
         set -uxe
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
-          --change_id ${GITHUB_PR_NUMBER:-postsubmit} \
           trigger \
           --platform_json "${GITHUB_WORKSPACE}/.github/config/${{ matrix.platform}}.json" \
           --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/${{ matrix.platform}}" \
+          --label github_${GITHUB_PR_NUMBER:-postsubmit} \
           --label builder-${{ matrix.platform }} \
           --label builder_url-${GITHUB_RUN_URL} \
           --label github \
