@@ -6,8 +6,8 @@ let fakeCrashAnnotatorService = undefined;
 
 function crash_annotator_test(func, name, properties) {
   promise_test(async (test) => {
-    assert_implements(navigator.crashAnnotator,
-                      'missing navigator.crashAnnotator');
+    assert_implements(window.h5vcc.crashAnnotator,
+                      'missing window.h5vcc.crashAnnotator');
     if (fakeCrashAnnotatorService === undefined) {
       const fakes =
           await import('/resources/chromium/cobalt/fake-crash-annotator-service.js');
