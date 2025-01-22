@@ -24,12 +24,12 @@ const char H5vcc::kSupplementName[] = "H5vcc";
 
 //static
 H5vcc* H5vcc::h5vcc(LocalDOMWindow& window) {
-  H5vcc* hvcc = Supplement<LocalDOMWindow>::From<H5vcc>(window);
-  if (!hvcc && window.GetExecutionContext()) {
-    hvcc = MakeGarbageCollected<H5vcc>(window);
-    ProvideTo(window, hvcc);
+  H5vcc* h5vcc = Supplement<LocalDOMWindow>::From<H5vcc>(window);
+  if (!h5vcc && window.GetExecutionContext()) {
+    h5vcc = MakeGarbageCollected<H5vcc>(window);
+    ProvideTo(window, h5vcc);
   }
-  return hvcc;
+  return h5vcc;
 }
 
 H5vcc::H5vcc(LocalDOMWindow& window)

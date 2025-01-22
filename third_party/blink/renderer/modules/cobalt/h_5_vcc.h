@@ -12,18 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5vcc_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5vcc_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H_5_VCC_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H_5_VCC_H_
 
-// #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
-
-// #include "third_party/blink/renderer/modules/cobalt/crash_annotator/crash_annotator.h"
 
 namespace blink {
 
@@ -54,4 +51,4 @@ class MODULES_EXPORT H5vcc final
 
 }
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H5vcc_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H_5_VCC_H_
