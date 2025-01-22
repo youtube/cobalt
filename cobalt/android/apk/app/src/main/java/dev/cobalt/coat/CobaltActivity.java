@@ -127,6 +127,8 @@ public abstract class CobaltActivity extends Activity {
             // causes rendering artifacts when
             // low-end-device-mode is enabled.
             "--disable-rgba-4444-textures",
+            // Align with MSE spec for MediaSource.duration.
+            "--enable-blink-features=MediaSourceNewAbortAndDuration",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
