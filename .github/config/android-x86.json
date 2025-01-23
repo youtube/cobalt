@@ -4,7 +4,6 @@
     "android-x86"
   ],
   "targets": [
-    "content_shell",
     "system_webview_apk",
     "system_webview_shell_apk",
     "cobalt:gn_all"
