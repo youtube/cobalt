@@ -87,9 +87,9 @@ runs:
       run: |
         set -uxe
         TEST_LOGS="${GITHUB_WORKSPACE}/${RESULTS_DIR}/"
+        echo "TEST_LOGS=${TEST_LOGS}" >> $GITHUB_ENV
         mkdir -p "${TEST_LOGS}"
         gsutil cp -r "${GCS_RESULTS_PATH}/" "${TEST_LOGS}"
-        echo "TEST_LOGS=${TEST_LOGS}" >> $GITHUB_ENV
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@v4

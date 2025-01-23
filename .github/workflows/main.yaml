@@ -188,7 +188,7 @@ jobs:
         # TODO(bug?): android debug builds are broken.
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
-          targets: ${{ needs.initialize.outputs.targets }}
+          targets: ${{ needs.initialize.outputs.targets }} ${{ needs.initialize.outputs.gtest_targets }}
       - name: Upload Test Artifacts
         if: matrix.config == 'devel'
         uses: ./src/.github/actions/upload_test_artifacts
