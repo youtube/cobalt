@@ -57,7 +57,7 @@ runs:
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
           trigger \
-          --targets $(cat "${{ env.TEST_TARGETS_JSON_FILE }}" | jq -cr '.test_targets | join(",")')
+          --targets $(cat "${{ env.TEST_TARGETS_JSON_FILE }}" | jq -cr '.test_targets | join(",")') \
           --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform}}" \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
           --label builder-${{ matrix.platform }} \
