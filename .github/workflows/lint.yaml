@@ -28,6 +28,11 @@ jobs:
           sudo apt update
           sudo apt install python3 gn pipx
           pipx install pre-commit
+      - name: Cache .git
+        uses: actions/cache@v3
+        with:
+          path: .git
+          key: git-folder
       - name: Checkout
         uses: actions/checkout@v4
         with:

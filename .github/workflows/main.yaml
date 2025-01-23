@@ -42,6 +42,11 @@ jobs:
       )
     timeout-minutes: 10
     steps:
+      - name: Cache .git
+        uses: actions/cache@v3
+        with:
+          path: .git
+          key: git-folder
       - name: Checkout
         uses: actions/checkout@v4
       - name: Remove runtest if exists
@@ -110,6 +115,11 @@ jobs:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
+    - name: Cache .git
+      uses: actions/cache@v3
+      with:
+        path: .git
+        key: git-folder
     - name: Checkout
       uses: actions/checkout@v4
     # Handle GitHub registry used for everything other than pull requests off forked repos.
@@ -165,6 +175,11 @@ jobs:
       # filesystem, whereas /__w which contains Cobalt source code is on tmpfs.
       TMPDIR: /__w/_temp
     steps:
+      - name: Cache .git
+        uses: actions/cache@v3
+        with:
+          path: src/.git
+          key: git-folder
       - name: Checkout
         uses: actions/checkout@v4
         # TODO(bug?): android debug builds are broken.
@@ -203,6 +218,11 @@ jobs:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
+      - name: Cache .git
+        uses: actions/cache@v3
+        with:
+          path: src/.git
+          key: git-folder
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -238,6 +258,11 @@ jobs:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
+      - name: Cache .git
+        uses: actions/cache@v3
+        with:
+          path: src/.git
+          key: git-folder
       - name: Checkout
         uses: actions/checkout@v4
         with:
