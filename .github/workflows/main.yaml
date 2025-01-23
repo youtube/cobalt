@@ -68,7 +68,7 @@ jobs:
       - id: set-test-targets
         shell: bash
         run: |
-          if `cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.gtest_targets | has("name")'`; then
+          if [ $(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq 'has("gtest_targets")') != 'false']; then
             gtest_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.gtest_targets  | join(" ")')
           else
             gtest_targets=""
