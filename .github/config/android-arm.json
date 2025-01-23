@@ -3,7 +3,6 @@
   "platforms": [
     "android-arm"
   ],
-  "test_on_device": true,
   "targets": [
     "content_shell",
     "system_webview_apk",
