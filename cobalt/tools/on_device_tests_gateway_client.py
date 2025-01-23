@@ -18,6 +18,7 @@
 import argparse
 import json
 import logging
+import os
 import sys
 from typing import List
 
@@ -84,27 +85,6 @@ class OnDeviceTestsGatewayClient():
       print(response_line.response)
 
 
-def _read_json_config(filename):
-  """Reads and parses data from a JSON configuration file.
-
-  Args:
-    filename: The name of the JSON configuration file.
-
-  Returns:
-    A list of dictionaries, where each dictionary represents a test
-    configuration.
-  """
-  try:
-    with open(filename, 'r', encoding='utf-8') as f:
-      return json.load(f)
-  except FileNotFoundError:
-    print(f" Config file '{filename}' not found.")
-    raise
-  except json.JSONDecodeError:
-    print(f" Invalid JSON format in '{filename}'.")
-    raise
-
-
 def _get_gtest_filters(filter_json_dir, target_name):
   """Retrieves gtest filters for a given target.
 
@@ -116,17 +96,16 @@ def _get_gtest_filters(filter_json_dir, target_name):
       A string containing the gtest filters.
   """
   gtest_filters = '*'
-  filter_json_file = f'{filter_json_dir}/{target_name}_filter.json'
+  filter_json_file = os.path.join(filter_json_dir, f'{target_name}_filter.json')
   print(f'  gtest_filter_json_file = {filter_json_file}')
-  filter_data = _read_json_config(filter_json_file)
-  if filter_data:
-    print(f'  Loaded filter data: {filter_data}')
-    failing_tests = ':'.join(filter_data.get('failing_tests', []))
-    if failing_tests:
-      gtest_filters += ':-' + failing_tests
-    print(f'  gtest_filters = {gtest_filters}')
-  else:
-    print('  This target_name does not have gtest_filters specified')
+  if os.path.exists(filter_json_file):
+    with open(filter_json_file, 'r', encoding='utf-8') as f:
+      filter_data = json.load(f)
+      print(f'  Loaded filter data: {filter_data}')
+      failing_tests = ':'.join(filter_data.get('failing_tests', []))
+      if failing_tests:
+        gtest_filters = '-' + failing_tests
+  print(f'  gtest_filters = {gtest_filters}')
   return gtest_filters
 
 
