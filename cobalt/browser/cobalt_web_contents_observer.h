@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_COBALT_WEB_CONTENTS_OBSERVER_H_
-#define COBALT_COBALT_WEB_CONTENTS_OBSERVER_H_
+#ifndef COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
+#define COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
 
 #include "content/public/browser/web_contents_observer.h"
 #include "content/shell/browser/shell_content_browser_client.h"
@@ -36,4 +36,4 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
 
 }  // namespace cobalt
 
-#endif  // COBALT_COBALT_WEB_CONTENTS_OBSERVER_H_
+#endif  // COBALT_BROWSER_COBALT_WEB_CONTENTS_OBSERVER_H_
