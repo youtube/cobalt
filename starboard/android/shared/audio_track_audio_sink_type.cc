@@ -521,12 +521,16 @@ void AudioTrackAudioSinkType::TestMinRequiredFrames() {
     sample_type = kSbMediaAudioSampleTypeInt16Deprecated;
     SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type));
   }
-  min_required_frames_tester_.AddTest(2, sample_type, kSampleFrequency48000,
-                                      onMinRequiredFramesForWebAudioReceived,
-                                      8 * 1024);
-  min_required_frames_tester_.AddTest(2, sample_type, kSampleFrequency22050,
-                                      onMinRequiredFramesForWebAudioReceived,
-                                      4 * 1024);
+  min_required_frames_tester_.AddTest(
+      2, sample_type, kSampleFrequency48000,
+      onMinRequiredFramesForWebAudioReceived,
+      std::max(8 * 1024, AudioTrackBridge::GetMinBufferSizeInFrames(
+                             sample_type, 2, kSampleFrequency48000)));
+  min_required_frames_tester_.AddTest(
+      2, sample_type, kSampleFrequency22050,
+      onMinRequiredFramesForWebAudioReceived,
+      std::max(4 * 1024, AudioTrackBridge::GetMinBufferSizeInFrames(
+                             sample_type, 2, kSampleFrequency22050)));
   min_required_frames_tester_.Start();
 }
 
