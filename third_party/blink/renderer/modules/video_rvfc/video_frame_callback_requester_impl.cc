@@ -16,9 +16,11 @@
 #include "third_party/blink/renderer/core/timing/performance.h"
 #include "third_party/blink/renderer/core/timing/time_clamper.h"
 #include "third_party/blink/renderer/modules/video_rvfc/video_frame_request_callback_collection.h"
+#if !BUILDFLAG(DISABLE_XR)
 #include "third_party/blink/renderer/modules/xr/xr_frame_provider.h"
 #include "third_party/blink/renderer/modules/xr/xr_session.h"
 #include "third_party/blink/renderer/modules/xr/xr_system.h"
+#endif
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 
@@ -126,12 +128,15 @@ void VideoFrameCallbackRequesterImpl::ScheduleExecution() {
 
   pending_execution_ = true;
 
+#if !BUILDFLAG(DISABLE_XR)
   if (TryScheduleImmersiveXRSessionRaf())
     return;
+#endif
 
   ScheduleWindowRaf();
 }
 
+#if !BUILDFLAG(DISABLE_XR)
 void VideoFrameCallbackRequesterImpl::OnImmersiveSessionStart() {
   in_immersive_session_ = true;
 
@@ -190,6 +195,7 @@ bool VideoFrameCallbackRequesterImpl::TryScheduleImmersiveXRSessionRaf() {
 
   return true;
 }
+#endif  // !BUILDFLAG(DISABLE_XR)
 
 void VideoFrameCallbackRequesterImpl::OnRequestVideoFrameCallback() {
   TRACE_EVENT1("blink",
