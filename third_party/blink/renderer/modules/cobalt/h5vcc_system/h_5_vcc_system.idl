@@ -16,7 +16,6 @@
     Exposed=Window,
     SecureContext
 ]
-interface H5vcc {
-    readonly attribute CrashAnnotator crashAnnotator;
-    readonly attribute H5vccSystem h5vccSystem;
+interface H5vccSystem {
+    readonly attribute DOMString advertisingId;
 };

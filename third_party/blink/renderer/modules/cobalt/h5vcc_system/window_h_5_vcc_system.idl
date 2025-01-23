@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Extends the window interface.
 [
-    Exposed=Window,
-    SecureContext
-]
-interface H5vcc {
-    readonly attribute CrashAnnotator crashAnnotator;
-    readonly attribute H5vccSystem h5vccSystem;
+  ImplementedAs=H5vccSystem,
+  SecureContext
+] partial interface Window {
+  [SameObject] readonly attribute H5vccSystem h5vccSystem;
 };

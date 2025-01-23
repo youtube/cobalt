@@ -19,5 +19,8 @@ blink_modules_sources("h_5_vcc") {
     "h_5_vcc.cc",
     "h_5_vcc.h",
   ]
-  deps = ["//third_party/blink/renderer/modules/cobalt/crash_annotator"]
+  deps = [
+    "//third_party/blink/renderer/modules/cobalt/crash_annotator",
+    "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
+  ]
 }
