@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/cobalt_browser_interface_binders.h"
+#include "cobalt/browser/cobalt_browser_interface_binders.h"
 
 #include "base/functional/bind.h"
 #include "cobalt/services/crash_annotator/crash_annotator_service.h"

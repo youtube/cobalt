@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_COBALT_BROWSER_INTERFACE_BINDERS_H_
-#define COBALT_COBALT_BROWSER_INTERFACE_BINDERS_H_
+#ifndef COBALT_BROWSER_COBALT_BROWSER_INTERFACE_BINDERS_H_
+#define COBALT_BROWSER_COBALT_BROWSER_INTERFACE_BINDERS_H_
 
 #include "mojo/public/cpp/bindings/binder_map.h"
 
@@ -30,4 +30,4 @@ void PopulateCobaltFrameBinders(
 
 }  // namespace cobalt
 
-#endif  // COBALT_COBALT_BROWSER_INTERFACE_BINDERS_H_
+#endif  // COBALT_BROWSER_COBALT_BROWSER_INTERFACE_BINDERS_H_
