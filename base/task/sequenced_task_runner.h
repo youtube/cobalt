@@ -315,7 +315,9 @@ class BASE_EXPORT SequencedTaskRunner : public TaskRunner {
     friend class SequencedTaskRunner;
     friend class CurrentHandleOverride;
 
+#if !defined(STARBOARD)
     const AutoReset<CurrentDefaultHandle*> resetter_;
+#endif
 
     scoped_refptr<SequencedTaskRunner> task_runner_;
   };
@@ -334,6 +336,10 @@ class BASE_EXPORT SequencedTaskRunner : public TaskRunner {
   virtual bool DeleteOrReleaseSoonInternal(const Location& from_here,
                                            void (*deleter)(const void*),
                                            const void* object);
+
+#if defined(STARBOARD)
+  static scoped_refptr<SequencedTaskRunner>* null_sequenced_task_runner_;
+#endif
 };
 
 // Sample usage with std::unique_ptr :
