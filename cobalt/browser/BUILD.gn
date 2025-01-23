@@ -27,9 +27,9 @@ source_set("browser") {
 
   deps = [
     ":embed_polyfilled_javascript",
-    "//cobalt/user_agent",
     "//cobalt/services/crash_annotator",
     "//cobalt/services/crash_annotator/public/mojom",
+    "//cobalt/user_agent",
     "//components/js_injection/browser:browser",
     "//content/public/browser",
     "//content/shell:content_shell_lib",
