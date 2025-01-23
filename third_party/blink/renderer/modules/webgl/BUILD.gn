@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//third_party/blink/renderer/modules/modules.gni")
+import("//build/config/lightweight.gni")
 
 blink_modules_sources("webgl") {
   sources = [
@@ -198,5 +199,13 @@ blink_modules_sources("webgl") {
     "//third_party/blink/renderer/modules/webcodecs:webcodecs",
     "//third_party/blink/renderer/modules/xr:xr",
   ]
+  deps += [ "//third_party/blink/renderer/modules/webcodecs:webcodecs" ]
+
+  # Disable xr from build based on build flags.
+  deps += ["//build:lightweight_buildflags"]
+  if (disable_xr) {
+    deps -= ["//third_party/blink/renderer/modules/xr:xr" ]
+  }
+
   allow_circular_includes_from = deps
 }

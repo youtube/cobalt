@@ -3,6 +3,10 @@
 # found in the LICENSE file.
 
 import("//third_party/blink/renderer/modules/modules.gni")
+import("//build/config/lightweight.gni")
+
+# If disable_xr is true this should not be built.
+assert(!disable_xr)
 
 blink_modules_sources("xr") {
   sources = [
