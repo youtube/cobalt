@@ -5,11 +5,14 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_VIDEO_RVFC_VIDEO_FRAME_CALLBACK_REQUESTER_IMPL_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_VIDEO_RVFC_VIDEO_FRAME_CALLBACK_REQUESTER_IMPL_H_
 
+#include "build/lightweight_buildflags.h"
 #include "third_party/blink/renderer/core/html/media/html_video_element.h"
 #include "third_party/blink/renderer/core/html/media/video_frame_callback_requester.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/modules/video_rvfc/video_frame_request_callback_collection.h"
+#if !BUILDFLAG(DISABLE_XR)
 #include "third_party/blink/renderer/modules/xr/xr_frame_provider.h"
+#endif
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/weak_cell.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
@@ -21,8 +24,12 @@ class HTMLVideoElement;
 // Implementation of the <video>.requestVideoFrameCallback() API.
 // Extends HTMLVideoElement via the VideoFrameCallbackRequester interface.
 class MODULES_EXPORT VideoFrameCallbackRequesterImpl final
+#if BUILDFLAG(DISABLE_XR)
+    : public VideoFrameCallbackRequester {
+#else
     : public VideoFrameCallbackRequester,
       public XRFrameProvider::ImmersiveSessionObserver {
+#endif
  public:
   static VideoFrameCallbackRequesterImpl& From(HTMLVideoElement&);
 
@@ -53,10 +60,12 @@ class MODULES_EXPORT VideoFrameCallbackRequesterImpl final
   // right before executing window.rAF callbacks. Also called by OnXRFrame().
   void OnExecution(double high_res_now_ms);
 
+#if !BUILDFLAG(DISABLE_XR)
   // XRFrameProvider::ImmersiveSessionObserver implementation.
   void OnImmersiveSessionStart() override;
   void OnImmersiveSessionEnd() override;
   void OnImmersiveFrame() override;
+#endif
 
  private:
   friend class VideoFrameCallbackRequesterImplTest;
@@ -85,6 +94,7 @@ class MODULES_EXPORT VideoFrameCallbackRequesterImpl final
   // Also causes rendering steps to be scheduled if needed.
   void ScheduleWindowRaf();
 
+#if !BUILDFLAG(DISABLE_XR)
   // Check whether there is an immersive XR session, and adds |this| to the list
   // of video.rVFC callbacks that should be run the next time there is an XR
   // frame. Requests a new XR frame if needed.
@@ -93,6 +103,7 @@ class MODULES_EXPORT VideoFrameCallbackRequesterImpl final
   bool TryScheduleImmersiveXRSessionRaf();
 
   XRFrameProvider* GetXRFrameProvider();
+#endif
 
   // Used to keep track of whether or not we have already scheduled a call to
   // ExecuteFrameCallbacks() in the next rendering steps.
@@ -114,8 +125,10 @@ class MODULES_EXPORT VideoFrameCallbackRequesterImpl final
   // provider to be notified of immersive XR session events.
   bool observing_immersive_session_ = false;
 
+#if !BUILDFLAG(DISABLE_XR)
   // Indicates if we are currently in an XR session.
   bool in_immersive_session_ = false;
+#endif
 
   // Indicates we are cross-origin isolated.
   bool cross_origin_isolated_capability_ = false;
