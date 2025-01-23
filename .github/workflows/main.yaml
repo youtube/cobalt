@@ -205,7 +205,7 @@ jobs:
         config: [devel]
     env:
       TEST_RESULTS_DIR: ${{ matrix.name }}_test_results
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
     steps:
       - name: Checkout
         uses: kaidokert/checkout@v3.5.999
@@ -238,7 +238,7 @@ jobs:
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TMPDIR: /__w/_temp
-      TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
+      TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts-0
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
       - name: Checkout
