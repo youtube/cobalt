@@ -159,11 +159,11 @@ def _process_test_requests(args):
       tests_args += [f'dimension_{dimension}' for dimension in args.dimension]
 
     gtest_filter = _get_gtest_filters(args.filter_json_dir, gtest_target)
-    command_line_args = [
+    command_line_args = ' '.join([
         f'--gtest_output=xml:{_DIR_ON_DEVICE}/{gtest_target}_result.xml',
         f'--gtest_filter={gtest_filter}',
-    ]
-    test_cmd_args = [f'command_line_args={" ".join(command_line_args)}']
+    ])
+    test_cmd_args = [f'command_line_args={command_line_args}']
 
     files = [
         f'test_apk={args.gcs_archive_path}/{gtest_target}-debug.apk',
