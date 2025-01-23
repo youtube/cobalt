@@ -133,7 +133,7 @@ jobs:
       matrix:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel, qa, gold]
+        config: [devel, debug, qa, gold]
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
@@ -156,7 +156,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         # TODO(bug?): android debug builds are broken.
-        if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
+        if: ${{ ! (startsWith(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           path: src
           # Use fetch depth of 0 to get full history for a valid build id.
@@ -164,7 +164,7 @@ jobs:
       - name: Build Cobalt
         uses: ./src/.github/actions/build
         # TODO(bug?): android debug builds are broken.
-        if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
+        if: ${{ ! (startsWith(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           targets: ${{ needs.initialize.outputs.targets }}
       - name: Upload Test Artifacts

@@ -18,18 +18,16 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 void SbAudioSinkDestroy(SbAudioSink audio_sink) {
-  using ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl;
-
   if (audio_sink == kSbAudioSinkInvalid) {
     return;
   }
 
-  SbAudioSinkPrivate::Type* type = SbAudioSinkImpl::GetPrimaryType();
+  SbAudioSinkPrivate::Type* type = SbAudioSinkPrivate::GetPrimaryType();
   if (type && type->IsValid(audio_sink)) {
     type->Destroy(audio_sink);
     return;
   }
-  type = SbAudioSinkImpl::GetFallbackType();
+  type = SbAudioSinkPrivate::GetFallbackType();
   if (type && type->IsValid(audio_sink)) {
     type->Destroy(audio_sink);
     return;

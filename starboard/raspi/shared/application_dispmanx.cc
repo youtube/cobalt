@@ -68,12 +68,12 @@ bool ApplicationDispmanx::DestroyWindow(SbWindow window) {
 }
 
 void ApplicationDispmanx::Initialize() {
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
+  SbAudioSinkPrivate::Initialize();
 }
 
 void ApplicationDispmanx::Teardown() {
   ShutdownDispmanx();
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::TearDown();
+  SbAudioSinkPrivate::TearDown();
 }
 
 void ApplicationDispmanx ::OnSuspend() {

@@ -19,24 +19,22 @@
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+using ::starboard::shared::starboard::media::IsSDRVideo;
+using ::starboard::shared::starboard::media::MimeType;
 
-bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                           const MimeType* mime_type,
-                           int profile,
-                           int level,
-                           int bit_depth,
-                           SbMediaPrimaryId primary_id,
-                           SbMediaTransferId transfer_id,
-                           SbMediaMatrixId matrix_id,
-                           int frame_width,
-                           int frame_height,
-                           int64_t bitrate,
-                           int fps,
-                           bool decode_to_texture_required) {
+bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
+                             const MimeType* mime_type,
+                             int profile,
+                             int level,
+                             int bit_depth,
+                             SbMediaPrimaryId primary_id,
+                             SbMediaTransferId transfer_id,
+                             SbMediaMatrixId matrix_id,
+                             int frame_width,
+                             int frame_height,
+                             int64_t bitrate,
+                             int fps,
+                             bool decode_to_texture_required) {
   if (!IsSDRVideo(bit_depth, primary_id, transfer_id, matrix_id)) {
     return false;
   }
@@ -48,8 +46,3 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
          frame_height <= 1080 &&
          bitrate <= kSbMediaMaxVideoBitrateInBitsPerSecond && fps <= 30;
 }
-
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard

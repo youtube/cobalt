@@ -20,10 +20,9 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/mime_type.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 // Indicates whether this platform supports decoding |video_codec| and
 // |audio_codec| along with decrypting using |key_system|. If |video_codec| is
@@ -36,9 +35,9 @@ namespace media {
 // |audio_codec|: The |SbMediaAudioCodec| being checked for platform
 //                compatibility.
 // |key_system|: The key system being checked for platform compatibility.
-SB_EXPORT bool MediaIsSupported(SbMediaVideoCodec video_codec,
-                                SbMediaAudioCodec audio_codec,
-                                const char* key_system);
+SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
+                                  SbMediaAudioCodec audio_codec,
+                                  const char* key_system);
 
 // Indicates whether a given combination of (|frame_width| x |frame_height|)
 // frames at |bitrate| and |fps| is supported on this platform with
@@ -74,19 +73,20 @@ SB_EXPORT bool MediaIsSupported(SbMediaVideoCodec video_codec,
 //        it indicates that the fps shouldn't be considered.
 // |decode_to_texture_required|: Whether or not the resulting video frames can
 //                               be decoded and used as textures by the GPU.
-bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                           const MimeType* mime_type,
-                           int profile,
-                           int level,
-                           int bit_depth,
-                           SbMediaPrimaryId primary_id,
-                           SbMediaTransferId transfer_id,
-                           SbMediaMatrixId matrix_id,
-                           int frame_width,
-                           int frame_height,
-                           int64_t bitrate,
-                           int fps,
-                           bool decode_to_texture_required);
+bool SbMediaIsVideoSupported(
+    SbMediaVideoCodec video_codec,
+    const starboard::shared::starboard::media::MimeType* mime_type,
+    int profile,
+    int level,
+    int bit_depth,
+    SbMediaPrimaryId primary_id,
+    SbMediaTransferId transfer_id,
+    SbMediaMatrixId matrix_id,
+    int frame_width,
+    int frame_height,
+    int64_t bitrate,
+    int fps,
+    bool decode_to_texture_required);
 
 // Indicates whether this platform supports |audio_codec| at |bitrate|.
 // If |audio_codec| is not supported under any condition, this function
@@ -96,13 +96,13 @@ bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
 // |mime_type|: The parsed mime type passed to the corresponding interface.
 //              Note that |mime_type| can be NULL.
 // |bitrate|: The media's bitrate.
-bool MediaIsAudioSupported(SbMediaAudioCodec audio_codec,
-                           const MimeType* mime_type,
-                           int64_t bitrate);
+bool SbMediaIsAudioSupported(
+    SbMediaAudioCodec audio_codec,
+    const starboard::shared::starboard::media::MimeType* mime_type,
+    int64_t bitrate);
 
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
+#ifdef __cplusplus
+}  // extern "C"
+#endif
 
 #endif  // STARBOARD_SHARED_STARBOARD_MEDIA_MEDIA_SUPPORT_INTERNAL_H_

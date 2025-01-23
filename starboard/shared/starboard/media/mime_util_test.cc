@@ -35,7 +35,8 @@ TEST(MimeUtilTest, ChecksSupportedMp3Containers) {
   const MimeType valid_mp3_mime_1(valid_mp3_mime_str_1);
   EXPECT_EQ(
       CanPlayMimeAndKeySystem(valid_mp3_mime_str_1.c_str(), kEmptyKeySystem),
-      MediaIsAudioSupported(kSbMediaAudioCodecMp3, &valid_mp3_mime_1, kBitrate)
+      SbMediaIsAudioSupported(kSbMediaAudioCodecMp3, &valid_mp3_mime_1,
+                              kBitrate)
           ? kSbMediaSupportTypeProbably
           : kSbMediaSupportTypeNotSupported);
 
@@ -44,7 +45,8 @@ TEST(MimeUtilTest, ChecksSupportedMp3Containers) {
   const MimeType valid_mp3_mime_2(valid_mp3_mime_str_2);
   EXPECT_EQ(
       CanPlayMimeAndKeySystem(valid_mp3_mime_str_2.c_str(), kEmptyKeySystem),
-      MediaIsAudioSupported(kSbMediaAudioCodecMp3, &valid_mp3_mime_2, kBitrate)
+      SbMediaIsAudioSupported(kSbMediaAudioCodecMp3, &valid_mp3_mime_2,
+                              kBitrate)
           ? kSbMediaSupportTypeProbably
           : kSbMediaSupportTypeNotSupported);
 }
@@ -65,7 +67,8 @@ TEST(MimeUtilTest, ChecksSupportedFlacContainers) {
   const MimeType valid_flac_mime_1(valid_flac_mime_str_1);
   EXPECT_EQ(
       CanPlayMimeAndKeySystem(valid_flac_mime_str_1.c_str(), kEmptyKeySystem),
-      MediaIsAudioSupported(kSbMediaAudioCodecMp3, &valid_flac_mime_1, kBitrate)
+      SbMediaIsAudioSupported(kSbMediaAudioCodecMp3, &valid_flac_mime_1,
+                              kBitrate)
           ? kSbMediaSupportTypeProbably
           : kSbMediaSupportTypeNotSupported);
 
@@ -74,7 +77,8 @@ TEST(MimeUtilTest, ChecksSupportedFlacContainers) {
   const MimeType valid_flac_mime_2(valid_flac_mime_str_2);
   EXPECT_EQ(
       CanPlayMimeAndKeySystem(valid_flac_mime_str_2.c_str(), kEmptyKeySystem),
-      MediaIsAudioSupported(kSbMediaAudioCodecMp3, &valid_flac_mime_2, kBitrate)
+      SbMediaIsAudioSupported(kSbMediaAudioCodecMp3, &valid_flac_mime_2,
+                              kBitrate)
           ? kSbMediaSupportTypeProbably
           : kSbMediaSupportTypeNotSupported);
 }
@@ -95,7 +99,7 @@ TEST(MimeUtilTest, ChecksSupportedPcmContainers) {
   const MimeType valid_pcm_mime(valid_pcm_mime_str);
   EXPECT_EQ(
       CanPlayMimeAndKeySystem(valid_pcm_mime_str.c_str(), kEmptyKeySystem),
-      MediaIsAudioSupported(kSbMediaAudioCodecPcm, &valid_pcm_mime, kBitrate)
+      SbMediaIsAudioSupported(kSbMediaAudioCodecPcm, &valid_pcm_mime, kBitrate)
           ? kSbMediaSupportTypeProbably
           : kSbMediaSupportTypeNotSupported);
 }

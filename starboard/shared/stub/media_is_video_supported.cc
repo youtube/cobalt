@@ -16,28 +16,20 @@
 
 #include "starboard/media.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace media {
+using ::starboard::shared::starboard::media::MimeType;
 
-bool MediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                           const MimeType* mime_type,
-                           int profile,
-                           int level,
-                           int bit_depth,
-                           SbMediaPrimaryId primary_id,
-                           SbMediaTransferId transfer_id,
-                           SbMediaMatrixId matrix_id,
-                           int frame_width,
-                           int frame_height,
-                           int64_t bitrate,
-                           int fps,
-                           bool decode_to_texture_required) {
+bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
+                             const MimeType* mime_type,
+                             int profile,
+                             int level,
+                             int bit_depth,
+                             SbMediaPrimaryId primary_id,
+                             SbMediaTransferId transfer_id,
+                             SbMediaMatrixId matrix_id,
+                             int frame_width,
+                             int frame_height,
+                             int64_t bitrate,
+                             int fps,
+                             bool decode_to_texture_required) {
   return false;
 }
-
-}  // namespace media
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard

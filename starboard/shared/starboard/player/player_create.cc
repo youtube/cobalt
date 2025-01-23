@@ -132,7 +132,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   const int64_t kDefaultBitRate = 0;
   if (audio_codec != kSbMediaAudioCodecNone) {
     const MimeType audio_mime_type(audio_mime);
-    if (!MediaIsAudioSupported(
+    if (!SbMediaIsAudioSupported(
             audio_codec, strlen(audio_mime) > 0 ? &audio_mime_type : nullptr,
             kDefaultBitRate)) {
       SB_LOG(ERROR) << "Unsupported audio codec "
@@ -154,7 +154,7 @@ SbPlayer SbPlayerCreate(SbWindow window,
   const int kDefaultFrameRate = 0;
   if (video_codec != kSbMediaVideoCodecNone) {
     const MimeType video_mime_type(video_mime);
-    if (!MediaIsVideoSupported(
+    if (!SbMediaIsVideoSupported(
             video_codec, strlen(video_mime) > 0 ? &video_mime_type : nullptr,
             kDefaultProfile, kDefaultLevel, kDefaultColorDepth,
             kSbMediaPrimaryIdUnspecified, kSbMediaTransferIdUnspecified,

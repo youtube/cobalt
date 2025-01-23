@@ -17,13 +17,11 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 
 bool SbAudioSinkIsValid(SbAudioSink audio_sink) {
-  using ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl;
-
-  SbAudioSinkPrivate::Type* type = SbAudioSinkImpl::GetPrimaryType();
+  SbAudioSinkPrivate::Type* type = SbAudioSinkPrivate::GetPrimaryType();
   if (type && type->IsValid(audio_sink)) {
     return true;
   }
-  type = SbAudioSinkImpl::GetFallbackType();
+  type = SbAudioSinkPrivate::GetFallbackType();
   if (type && type->IsValid(audio_sink)) {
     return true;
   }

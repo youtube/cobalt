@@ -100,8 +100,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
   bool has_remote_audio_output_ = false;
 };
 
-class AudioTrackAudioSink
-    : public ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl {
+class AudioTrackAudioSink : public SbAudioSinkPrivate {
  public:
   AudioTrackAudioSink(
       Type* type,

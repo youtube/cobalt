@@ -83,11 +83,11 @@ blink::UserAgentMetadata CobaltContentBrowserClient::GetUserAgentMetadata() {
 void CobaltContentBrowserClient::OverrideWebkitPrefs(
     content::WebContents* web_contents,
     blink::web_pref::WebPreferences* prefs) {
-#if !defined(COBALT_IS_RELEASE_BUILD)
+#if !defined(OFFICIAL_BUILD)
   // Allow creating a ws: connection on a https: page to allow current
   // testing set up. See b/377410179.
   prefs->allow_running_insecure_content = true;
-#endif  // !defined(COBALT_IS_RELEASE_BUILD)
+#endif  // !defined(OFFICIAL_BUILD)
   content::ShellContentBrowserClient::OverrideWebkitPrefs(web_contents, prefs);
 }
 

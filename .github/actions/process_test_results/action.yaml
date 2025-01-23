@@ -10,23 +10,18 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Download Test Results
+    - name: Download Artifacts
       uses: actions/download-artifact@v4
       with:
         name: ${{ inputs.test_results_key }}
         path: results/
 
-    - name: Test Summary action
+    - name: Publish Test Report
       continue-on-error: true
-      uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86
+      uses: mikepenz/action-junit-report@992d97d6eb2e5f3de985fbf9df6a04386874114d
       with:
-        paths: "results/*.xml"
-        output: test-report-summary.md
-        show: "fail, skip"
-
-    - name: Output test summary markdown to github
-      run: cat test-report-summary.md >> $GITHUB_STEP_SUMMARY
-      shell: bash
+        report_paths: results/*.xml
+        annotate_only: true
 
     - name: Get Datadog CLI
       id: download-dd-cli

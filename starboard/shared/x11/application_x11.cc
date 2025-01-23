@@ -701,12 +701,12 @@ ApplicationX11::ApplicationX11(SbEventHandleCallback sb_event_handle_callback)
       composite_event_id_(kSbEventIdInvalid),
       display_(NULL),
       paste_buffer_key_release_pending_(false) {
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
+  SbAudioSinkPrivate::Initialize();
   NetworkNotifier::GetOrCreateInstance();
 }
 
 ApplicationX11::~ApplicationX11() {
-  ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::TearDown();
+  SbAudioSinkPrivate::TearDown();
 }
 
 SbWindow ApplicationX11::CreateWindow(const SbWindowOptions* options) {

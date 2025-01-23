@@ -21,10 +21,6 @@
 #include "starboard/shared/starboard/audio_sink/stub_audio_sink_type.h"
 #include "starboard/shared/starboard/command_line.h"
 
-namespace starboard {
-namespace shared {
-namespace starboard {
-namespace audio_sink {
 namespace {
 
 using std::placeholders::_1;
@@ -32,8 +28,8 @@ using std::placeholders::_2;
 using std::placeholders::_3;
 
 bool is_fallback_to_stub_enabled;
-SbAudioSinkImpl::Type* primary_audio_sink_type;
-SbAudioSinkImpl::Type* fallback_audio_sink_type;
+SbAudioSinkPrivate::Type* primary_audio_sink_type;
+SbAudioSinkPrivate::Type* fallback_audio_sink_type;
 
 // Command line switch that controls whether we default to the stub audio sink,
 // even when the primary audio sink may be available.
@@ -49,34 +45,36 @@ void WrapConsumeFramesFunc(SbAudioSinkConsumeFramesFunc sb_consume_frames_func,
 
 }  // namespace
 
+using starboard::shared::starboard::audio_sink::StubAudioSinkType;
+
 // static
-void SbAudioSinkImpl::Initialize() {
+void SbAudioSinkPrivate::Initialize() {
   fallback_audio_sink_type = new StubAudioSinkType;
   PlatformInitialize();
 }
 
 // static
-void SbAudioSinkImpl::TearDown() {
+void SbAudioSinkPrivate::TearDown() {
   PlatformTearDown();
   delete fallback_audio_sink_type;
   fallback_audio_sink_type = NULL;
 }
 
 // static
-void SbAudioSinkImpl::SetPrimaryType(Type* type) {
+void SbAudioSinkPrivate::SetPrimaryType(Type* type) {
   primary_audio_sink_type = type;
 }
 
 // static
-SbAudioSinkImpl::Type* SbAudioSinkImpl::GetPrimaryType() {
+SbAudioSinkPrivate::Type* SbAudioSinkPrivate::GetPrimaryType() {
   return primary_audio_sink_type;
 }
 // static
-void SbAudioSinkImpl::EnableFallbackToStub() {
+void SbAudioSinkPrivate::EnableFallbackToStub() {
   is_fallback_to_stub_enabled = true;
 }
 // static
-SbAudioSinkImpl::Type* SbAudioSinkImpl::GetFallbackType() {
+SbAudioSinkPrivate::Type* SbAudioSinkPrivate::GetFallbackType() {
   if (is_fallback_to_stub_enabled) {
     return fallback_audio_sink_type;
   }
@@ -84,16 +82,17 @@ SbAudioSinkImpl::Type* SbAudioSinkImpl::GetFallbackType() {
 }
 
 // static
-SbAudioSinkImpl::Type* SbAudioSinkImpl::GetPreferredType() {
-  SbAudioSinkImpl::Type* audio_sink_type = NULL;
-  auto command_line = Application::Get()->GetCommandLine();
+SbAudioSinkPrivate::Type* SbAudioSinkPrivate::GetPreferredType() {
+  SbAudioSinkPrivate::Type* audio_sink_type = NULL;
+  auto command_line =
+      starboard::shared::starboard::Application::Get()->GetCommandLine();
   if (!command_line->HasSwitch(kUseStubAudioSink)) {
-    audio_sink_type = SbAudioSinkImpl::GetPrimaryType();
+    audio_sink_type = SbAudioSinkPrivate::GetPrimaryType();
   }
   if (!audio_sink_type) {
     SB_LOG(WARNING) << "Primary audio sink type not selected or missing, "
                        "opting to use Fallback instead.";
-    audio_sink_type = SbAudioSinkImpl::GetFallbackType();
+    audio_sink_type = SbAudioSinkPrivate::GetFallbackType();
   }
   if (audio_sink_type == NULL) {
     SB_LOG(WARNING) << "Fallback audio sink type is not enabled.";
@@ -101,7 +100,7 @@ SbAudioSinkImpl::Type* SbAudioSinkImpl::GetPreferredType() {
   return audio_sink_type;
 }
 
-SbAudioSink SbAudioSinkImpl::Create(
+SbAudioSink SbAudioSinkPrivate::Create(
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType audio_sample_type,
@@ -170,7 +169,7 @@ SbAudioSink SbAudioSinkImpl::Create(
   }
 
   SB_LOG(WARNING) << "Try to create AudioSink using fallback type.";
-  if (auto fallback_type = SbAudioSinkImpl::GetFallbackType()) {
+  if (auto fallback_type = SbAudioSinkPrivate::GetFallbackType()) {
     auto audio_sink = fallback_type->Create(
         channels, sampling_frequency_hz, audio_sample_type,
         audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
@@ -187,7 +186,7 @@ SbAudioSink SbAudioSinkImpl::Create(
 }
 
 // static
-SbAudioSink SbAudioSinkImpl::Create(
+SbAudioSink SbAudioSinkPrivate::Create(
     int channels,
     int sampling_frequency_hz,
     SbMediaAudioSampleType audio_sample_type,
@@ -202,13 +201,8 @@ SbAudioSink SbAudioSinkImpl::Create(
                 audio_frame_storage_type, frame_buffers,
                 frame_buffers_size_in_frames, update_source_status_func,
                 sb_consume_frames_func
-                    ? std::bind(&WrapConsumeFramesFunc, sb_consume_frames_func,
-                                _1, _2, _3)
+                    ? std::bind(&::WrapConsumeFramesFunc,
+                                sb_consume_frames_func, _1, _2, _3)
                     : ConsumeFramesFunc(),
                 error_func, context);
 }
-
-}  // namespace audio_sink
-}  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
