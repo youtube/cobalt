@@ -1,29 +1,17 @@
 {
-    "docker_service": "linux",
-    "platforms": [
-        "chromium_android-arm64"
-    ],
-    "targets": [
-        "content_shell",
-        "system_webview_apk",
-        "system_webview_shell_apk"
-    ],
-    "gtest_targets": [
-        "base_unittests",
-        "blink_unittests",
-        "gin_unittests",
-        "gpu_unittests",
-        "ipc_tests",
-        "media_unittests",
-        "mojo_unittests",
-        "net_unittests",
-        "sql_unittests",
-        "url_unittests"
-    ],
-    "includes": [
-        {
-        "name":"arm64",
-        "platform":"chromium_android-arm64"
-        }
-    ]
+  "docker_service": "linux",
+  "platforms": [
+    "chromium_android-arm64"
+  ],
+  "targets": [
+    "content_shell",
+    "system_webview_apk",
+    "system_webview_shell_apk"
+  ],
+  "includes": [
+    {
+      "name": "arm64",
+      "platform": "chromium_android-arm64"
+    }
+  ]
 }

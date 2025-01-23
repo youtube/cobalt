@@ -30,13 +30,11 @@ runs:
         echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
         # Test results and logs
         echo "GCS_RESULTS_PATH=gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}" >> $GITHUB_ENV
-        # Dimension env
-        if [ "${{ matrix.dimension }}" != "null" ]; then
-          echo "DIMENSION=${{ matrix.dimension }}" >> $GITHUB_ENV
-        fi
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
+        # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
+        TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
         GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         GITHUB_SHA: ${{ github.sha }}
@@ -53,15 +51,15 @@ runs:
         GITHUB_PR_NUMBER: ${{ github.event.pull_request.number }}
         GITHUB_RUN_NUMBER: ${{ github.run_number }}
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        GITHUB_WORKFLOW: ${{ github.workflow }} 
+        GITHUB_WORKFLOW: ${{ github.workflow }}
       run: |
         set -uxe
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
-          --change_id ${GITHUB_PR_NUMBER:-postsubmit} \
           trigger \
-          --platform_json "${GITHUB_WORKSPACE}/.github/config/${{ matrix.platform}}.json" \
-          --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/${{ matrix.platform}}" \
+          --targets $(cat "${{ env.TEST_TARGETS_JSON_FILE }}" | jq -cr '.test_targets | join(",")') \
+          --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform}}" \
+          --label github_${GITHUB_PR_NUMBER:-postsubmit} \
           --label builder-${{ matrix.platform }} \
           --label builder_url-${GITHUB_RUN_URL} \
           --label github \
@@ -87,14 +85,13 @@ runs:
       run: |
         set -uxe
         TEST_LOGS="${GITHUB_WORKSPACE}/${RESULTS_DIR}/"
-        echo "TEST_LOGS=${TEST_LOGS}" >> $GITHUB_ENV
         mkdir -p "${TEST_LOGS}"
         gsutil cp -r "${GCS_RESULTS_PATH}/" "${TEST_LOGS}"
+        echo "TEST_LOGS=${TEST_LOGS}" >> $GITHUB_ENV
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: ${{ inputs.test_results_key }}
-        path: ${{ env.TEST_LOGS }}
-  
+        path: ${{ env.TEST_LOGS }}/
