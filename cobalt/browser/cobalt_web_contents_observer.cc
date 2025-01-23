@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/cobalt_web_contents_observer.h"
+#include "cobalt/browser/cobalt_web_contents_observer.h"
+
 #include "base/strings/utf_string_conversions.h"
-#include "cobalt/embedded_resources/embedded_js.h"
+#include "cobalt/browser/embedded_resources/embedded_js.h"
 
 namespace cobalt {
 
