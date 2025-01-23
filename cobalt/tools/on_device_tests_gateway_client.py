@@ -146,6 +146,7 @@ def _process_test_requests(args):
   test_requests = []
 
   for gtest_target in args.targets.split(','):
+    _, target_name = gtest_target.split(':')
     print(f'  Processing gtest_target: {gtest_target}')
 
     tests_args = [
@@ -158,17 +159,17 @@ def _process_test_requests(args):
     if args.dimension:
       tests_args += [f'dimension_{dimension}' for dimension in args.dimension]
 
-    gtest_filter = _get_gtest_filters(args.filter_json_dir, gtest_target)
+    gtest_filter = _get_gtest_filters(args.filter_json_dir, target_name)
     command_line_args = ' '.join([
-        f'--gtest_output=xml:{_DIR_ON_DEVICE}/{gtest_target}_result.xml',
+        f'--gtest_output=xml:{_DIR_ON_DEVICE}/{target_name}_result.xml',
         f'--gtest_filter={gtest_filter}',
     ])
     test_cmd_args = [f'command_line_args={command_line_args}']
 
     files = [
-        f'test_apk={args.gcs_archive_path}/{gtest_target}-debug.apk',
-        f'build_apk={args.gcs_archive_path}/{gtest_target}-debug.apk',
-        f'test_runtime_deps={args.gcs_archive_path}/{gtest_target}_deps.tar.gz',
+        f'test_apk={args.gcs_archive_path}/{target_name}-debug.apk',
+        f'build_apk={args.gcs_archive_path}/{target_name}-debug.apk',
+        f'test_runtime_deps={args.gcs_archive_path}/{target_name}_deps.tar.gz',
     ]
 
     params = []
@@ -176,9 +177,9 @@ def _process_test_requests(args):
       params.append(f'gcs_result_path={args.gcs_result_path}')
     params += [
         f'push_files=test_runtime_deps:{_DEPS_ARCHIVE}',
-        f'gtest_xml_file_on_device={_DIR_ON_DEVICE}/{gtest_target}_result.xml',
-        f'gcs_result_filename={gtest_target}_result.xml',
-        f'gcs_log_filename={gtest_target}_log.txt'
+        f'gtest_xml_file_on_device={_DIR_ON_DEVICE}/{target_name}_result.xml',
+        f'gcs_result_filename={target_name}_result.xml',
+        f'gcs_log_filename={target_name}_log.txt'
     ]
 
     # TODO(oxv): Figure out how to get dimensions from config to here.
