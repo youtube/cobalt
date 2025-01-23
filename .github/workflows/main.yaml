@@ -301,7 +301,6 @@ jobs:
           datadog_api_key: ${{ secrets.datadog_api_key }}
         continue-on-error: true
 
-
   validate-test-result:
     needs: [initialize, docker-build-image, build, on-host-test]
     if: always() &&
