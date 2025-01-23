@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/cobalt_content_browser_client.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
 
 #include <string>
 
-#include "cobalt/cobalt_browser_interface_binders.h"
+#include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
 #include "content/public/common/user_agent.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
