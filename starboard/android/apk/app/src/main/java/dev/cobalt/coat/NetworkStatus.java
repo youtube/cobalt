@@ -59,6 +59,7 @@ public class NetworkStatus {
         new Runnable() {
           @Override
           public void run() {
+            Log.i(TAG, "NetworkStatus is changed, online=" + online);
             sendStatusChangeInternal(online);
           }
         });
