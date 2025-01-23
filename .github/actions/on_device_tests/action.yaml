@@ -4,9 +4,6 @@ inputs:
   gcs_results_path:
     description: "GCS path for the test results"
     required: true
-  results_dir:
-    description: "Path to directory where test results are saved."
-    required: true
   test_results_key:
     description: "Artifact key used to store test results."
     required: true
@@ -77,21 +74,21 @@ runs:
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
           --gcs_result_path "${GCS_RESULTS_PATH}"
       shell: bash
-    - name: Download ${{ matrix.platform }} Test Results
+    - name: Download ${{ matrix.platform }} Test Results from GCS
       if: always()
       env:
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
-        RESULTS_DIR: ${{ inputs.results_dir }}
       run: |
         set -uxe
-        TEST_LOGS="${GITHUB_WORKSPACE}/${RESULTS_DIR}/"
-        mkdir -p "${TEST_LOGS}"
-        gsutil cp -r "${GCS_RESULTS_PATH}/" "${TEST_LOGS}"
-        echo "TEST_LOGS=${TEST_LOGS}" >> $GITHUB_ENV
+        test_output="${GITHUB_WORKSPACE}/results"
+        echo "test_output=${test_output}" >> $GITHUB_ENV
+
+        mkdir -p "${test_output}"
+        gsutil cp -r "${GCS_RESULTS_PATH}/" "${test_output}"
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: ${{ inputs.test_results_key }}
-        path: ${{ env.TEST_LOGS }}/
+        path: ${{ env.test_output }}/*

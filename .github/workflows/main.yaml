@@ -220,7 +220,6 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     env:
-      TEST_RESULTS_DIR: ${{ matrix.name }}_test_results
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-0
     steps:
       - name: Checkout
@@ -235,7 +234,6 @@ jobs:
         with:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
-          results_dir: ${{ env.TEST_RESULTS_DIR }}
 
   on-host-test:
     needs: [initialize, docker-build-image, build]
@@ -254,8 +252,8 @@ jobs:
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TMPDIR: /__w/_temp
-      TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts-0
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+      TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
