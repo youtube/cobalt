@@ -208,8 +208,17 @@ void VideoRendererImpl::SetBounds(int z_index,
                                   int y,
                                   int width,
                                   int height) {
+  if (z_index == z_index_ && x == x_ && y == y_ && width == width_ &&
+      height == height_) {
+    return;
+  }
+  z_index_ = z_index;
+  x_ = x;
+  y_ = y;
+  width_ = width;
+  height_ = height;
   if (sink_) {
-    sink_->SetBounds(z_index, x, y, width, height);
+    sink_->SetBounds(z_index_, x_, y_, width_, height_);
   }
 }
 

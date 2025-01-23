@@ -27,5 +27,7 @@ void SbPlayerSetBounds(SbPlayer player,
     SB_DLOG(WARNING) << "player is invalid.";
     return;
   }
+  SB_LOG(ERROR) << "JA: SbPlayerSetBounds " << z_index << " " << x << " " << y
+                << " " << width << " " << height;
   player->SetBounds(z_index, x, y, width, height);
 }

@@ -326,7 +326,13 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
     render_cb_ = render_cb;
   }
 
-  void SetBounds(int z_index, int x, int y, int width, int height) override {}
+  void SetBounds(int z_index, int x, int y, int width, int height) override {
+    SB_LOG(ERROR) << "JA: VideoDecoder " << z_index << " " << x << " " << y
+                  << " " << width << " " << height;
+    starboard::android::shared::JniEnvExt::Get()
+        ->CallStarboardVoidMethodOrAbort("setVideoSurfaceBounds", "(IIII)V", x,
+                                         y, width, height);
+  }
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
