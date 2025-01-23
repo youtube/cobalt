@@ -68,7 +68,11 @@ jobs:
       - id: set-test-targets
         shell: bash
         run: |
-          gtest_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.gtest_targets  | join(" ")')
+          if `cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.gtest_targets | has("name")'`; then
+            gtest_targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.gtest_targets  | join(" ")')
+          else
+            gtest_targets=""
+          fi
           echo "gtest_targets=${gtest_targets}" >> $GITHUB_ENV
       - id: set-includes
         shell: bash
