@@ -1,0 +1,55 @@
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+source_set("browser") {
+  # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
+  # content_shell_lib.
+  testonly = true
+
+  sources = [
+    "cobalt_browser_interface_binders.cc",
+    "cobalt_browser_interface_binders.h",
+    "cobalt_content_browser_client.cc",
+    "cobalt_content_browser_client.h",
+    "cobalt_web_contents_observer.cc",
+    "cobalt_web_contents_observer.h",
+  ]
+
+  deps = [
+    ":embed_polyfilled_javascript",
+    "//cobalt/services/crash_annotator",
+    "//cobalt/services/crash_annotator/public/mojom",
+    "//cobalt/user_agent",
+    "//components/js_injection/browser:browser",
+    "//content/public/browser",
+    "//content/shell:content_shell_lib",
+  ]
+}
+
+config("embed_polyfilled_javascript_config") {
+  include_dirs = [ root_gen_dir ]
+}
+
+# TODO(cobalt, b/390710539): migrate to GRIT.
+action("embed_polyfilled_javascript") {
+  script = "//cobalt/build/generate_data_header.py"
+  outputs = [ "$target_gen_dir/embedded_resources/embedded_js.h" ]
+  public_configs = [ ":embed_polyfilled_javascript_config" ]
+
+  args = [
+    "CobaltJavaScriptPolyfill",
+    rebase_path(outputs[0], root_build_dir),
+    rebase_path("embedded_resources", root_build_dir),
+  ]
+}
