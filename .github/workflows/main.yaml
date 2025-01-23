@@ -1,4 +1,4 @@
-vi # Reusable Cobalt CI workflow.
+# Reusable Cobalt CI workflow.
 
 name: main
 
@@ -322,4 +322,3 @@ jobs:
         run: |
           echo "Failing because at least one test shard had errors."
           exit 1
-

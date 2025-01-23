@@ -9,18 +9,6 @@
         "system_webview_shell_apk",
         "cobalt:gn_all"
     ],
-    "gtest_targets": [
-        "base_unittests",
-        "blink_unittests",
-        "gin_unittests",
-        "gpu_unittests",
-        "ipc_tests",
-        "media_unittests",
-        "mojo_unittests",
-        "net_unittests",
-        "sql_unittests",
-        "url_unittests"
-    ],
     "includes": [
         {
         "name":"arm64",
