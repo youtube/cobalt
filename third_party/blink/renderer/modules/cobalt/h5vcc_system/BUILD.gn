@@ -1,0 +1,7 @@
+import("//third_party/blink/renderer/modules/modules.gni")
+blink_modules_sources("h5vcc_system") {
+  sources = [
+    "h_5_vcc_system.cc",
+    "h_5_vcc_system.h",
+  ]
+}

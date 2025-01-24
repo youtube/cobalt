@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2024 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H_5_VCC_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H_5_VCC_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H_5_VCC_SYSTEM_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_H_5_VCC_SYSTEM_H_
 
+#include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
@@ -24,35 +26,36 @@
 
 namespace blink {
 
-class ScriptState;
-class CrashAnnotator;
+class ExecutionContext;
 class LocalDOMWindow;
-class H5vccSystem;
+class ScriptPromiseResolver;
+class ScriptState;
 
-class MODULES_EXPORT H5vcc final
+class MODULES_EXPORT H5vccSystem final
     : public ScriptWrappable,
-      public Supplement<LocalDOMWindow> {
+      public Supplement<LocalDOMWindow>,
+      public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
   static const char kSupplementName[];
 
-  // For window.h5vcc
-  static H5vcc* h5vcc(LocalDOMWindow&);
+  // For window.h5vccSystem
+  static H5vccSystem* h5vccSystem(LocalDOMWindow&);
 
-  explicit H5vcc(LocalDOMWindow&);
+  explicit H5vccSystem(LocalDOMWindow&);
 
-  CrashAnnotator* crashAnnotator() { return crash_annotator_; }
+  void ContextDestroyed() override;
 
-  H5vccSystem* h5vccSystem() { return h5vcc_system_; }
+  // Web-exposed interface:
+  const String advertisingId() const;
 
   void Trace(Visitor*) const override;
 
  private:
-  Member<CrashAnnotator> crash_annotator_;
-  Member<H5vccSystem> h5vcc_system_;
+  String advertising_id_;
 };
 
-}
+}  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H_5_VCC_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_H_5_VCC_SYSTEM_H_
