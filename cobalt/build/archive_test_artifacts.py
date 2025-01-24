@@ -76,6 +76,7 @@ def create_archive(targets: List[str], source_dir: str, destination_dir: str,
     if not uber_archive:
       output_path = os.path.join(destination_dir, f'{target_name}_deps.tar.gz')
       _make_tar(output_path, deps)
+      deps = set([test_targets_json])
 
   if uber_archive:
     output_path = os.path.join(destination_dir, 'test_artifacts.tar.gz')
