@@ -16,6 +16,7 @@
 #define COBALT_COBALT_MAIN_DELEGATE_H_
 
 #include "build/build_config.h"
+#include "content/public/browser/browser_main_runner.h"
 #include "content/shell/app/shell_main_delegate.h"
 
 namespace cobalt {
@@ -31,7 +32,20 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   content::ContentBrowserClient* CreateContentBrowserClient() override;
   absl::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
 
+  // Override the RunProcess method to store the  reference to
+  // BrowserMainRunner instead of leaking it. The reference would
+  // be used for proper shutdown and cleanup.
+  absl::variant<int, content::MainFunctionParams> RunProcess(
+      const std::string& process_type,
+      content::MainFunctionParams main_function_params) override;
+
+  // Shutdown method that trigger the BrowserMainRunner shutdown.
+  void Shutdown();
+
   ~CobaltMainDelegate() override;
+
+ private:
+  std::unique_ptr<content::BrowserMainRunner> main_runner_;
 };
 
 }  // namespace cobalt

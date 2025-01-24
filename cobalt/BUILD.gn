@@ -40,6 +40,8 @@ if (!is_android) {
       "cobalt_content_browser_client.h",
       "cobalt_main_delegate.cc",
       "cobalt_main_delegate.h",
+      "platform_event_source_starboard.cc",
+      "platform_event_source_starboard.h",
     ]
 
     defines = []
@@ -51,6 +53,7 @@ if (!is_android) {
       "//content/shell:content_shell_lib",
       "//content/shell:pak",
       "//sandbox",
+      "//starboard($starboard_toolchain)",
       "//third_party/blink/public/common",
     ]
 

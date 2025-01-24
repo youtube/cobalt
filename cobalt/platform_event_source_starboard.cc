@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
+#include "cobalt/platform_event_source_starboard.h"
 
 #include "base/logging.h"
 #include "starboard/event.h"
@@ -22,6 +22,7 @@
 #include "ui/events/event.h"
 
 #include "base/containers/fixed_flat_map.h"
+#include "base/task/single_thread_task_runner.h"
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/dom_key.h"
 #include "ui/events/keycodes/keyboard_code_conversion.h"
@@ -61,8 +62,6 @@ constexpr auto kSbKeyToDomCodeMap = base::MakeFixedFlatMap<SbKey, ui::DomCode>({
     {kSbKeyClosedCaption, ui::DomCode::CLOSED_CAPTION_TOGGLE},
     {kSbKeyRecord, ui::DomCode::MEDIA_RECORD},
 });
-// Hack: replace this when implementing event handling
-static scoped_refptr<base::TaskRunner> g_reply_runner_;
 
 void DeliverEventHandler(std::unique_ptr<ui::Event> ui_event) {
   CHECK(ui::PlatformEventSource::GetInstance());
@@ -71,7 +70,7 @@ void DeliverEventHandler(std::unique_ptr<ui::Event> ui_event) {
       ->DeliverEvent(std::move(ui_event));
 }
 
-void PlatformEventSourceStarboard::SbEventHandle(const SbEvent* event) {
+void PlatformEventSourceStarboard::HandleEvent(const SbEvent* event) {
   if (event->type != kSbEventTypeInput) {
     return;
   }
@@ -170,16 +169,11 @@ void PlatformEventSourceStarboard::SbEventHandle(const SbEvent* event) {
     return;
   }
 
-  g_reply_runner_->PostTask(
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE, base::BindOnce(&DeliverEventHandler, std::move(ui_event)));
 }
 
-PlatformEventSourceStarboard::PlatformEventSourceStarboard() {
-  sb_main_ = std::make_unique<std::thread>(&SbRunStarboardMain, /*argc=*/0,
-                                           /*argv=*/nullptr, &SbEventHandle);
-  g_reply_runner_ = base::SingleThreadTaskRunner::GetCurrentDefault();
-  sb_main_->detach();
-}
+PlatformEventSourceStarboard::PlatformEventSourceStarboard() {}
 
 uint32_t PlatformEventSourceStarboard::DeliverEvent(
     std::unique_ptr<ui::Event> ui_event) {
@@ -187,4 +181,5 @@ uint32_t PlatformEventSourceStarboard::DeliverEvent(
 }
 
 PlatformEventSourceStarboard::~PlatformEventSourceStarboard() {}
+
 }  // namespace starboard
