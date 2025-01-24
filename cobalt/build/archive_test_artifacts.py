@@ -20,10 +20,18 @@ import os
 import shutil
 import subprocess
 import tempfile
-from typing import List
+from typing import List, Optional
+
+# Exclude paths that contain files we don't need to run tests.
+_EXCLUDE_DIRS = [
+    '../../third_party/jdk/', 'lib.java/', './exe.unstripped/',
+    './lib.unstripped/'
+]
 
 
-def _make_tar(archive_path: str, file_list: str):
+def _make_tar(archive_path: str,
+              file_list: str,
+              base_path: Optional[str] = None):
   """Creates the tar file. Uses tar command instead of tarfile for performance.
   """
   print(f'Creating {os.path.basename(archive_path)}')
@@ -31,7 +39,11 @@ def _make_tar(archive_path: str, file_list: str):
   with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8') as temp_file:
     temp_file.write('\n'.join(sorted(file_list)))
     temp_file.flush()
-    tar_cmd = ['tar', '-I gzip -1', '-cvf', archive_path, '-T', temp_file.name]
+    base_path_arg = ['-C', base_path] if base_path else []
+    tar_cmd = [
+        'tar', '-I gzip -1', '-cvf', archive_path, *base_path_arg, '-T',
+        temp_file.name
+    ]
     subprocess.check_call(tar_cmd)
 
 
@@ -39,10 +51,11 @@ def create_archive(targets: List[str], source_dir: str, destination_dir: str,
                    platform: str, uber_archive: bool):
   """Main logic. Collects runtime dependencies from the source directory for
   each target."""
+  tar_root = '.' if platform.startswith('android') else source_dir
   # TODO(b/382508397): Remove when dynamically generated.
   # Put the test targets in a json file in the archive.
   test_target_names = [target.split(':')[1] for target in targets]
-  test_targets_json = os.path.join(source_dir, 'test_targets.json')
+  test_targets_json = os.path.join(tar_root, 'test_targets.json')
   with open(test_targets_json, 'w', encoding='utf-8') as test_targets_file:
     test_targets_file.write(
         json.dumps({
@@ -67,15 +80,18 @@ def create_archive(targets: List[str], source_dir: str, destination_dir: str,
       deps_file = os.path.join(source_dir, f'{target_name}.runtime_deps')
 
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
+      # Android assumes files will not be extracted to out dir.
       target_deps = {
-          os.path.relpath(os.path.join(source_dir, line.strip()))
+          os.path.relpath(os.path.join(tar_root, line.strip()))
           for line in runtime_deps_file
+          if not any(line.startswith(path) for path in _EXCLUDE_DIRS)
       }
       deps |= target_deps
 
     if not uber_archive:
       output_path = os.path.join(destination_dir, f'{target_name}_deps.tar.gz')
-      _make_tar(output_path, deps)
+      base_path = source_dir if platform.startswith('android') else None
+      _make_tar(output_path, deps, base_path)
       deps = set([test_targets_json])
 
   if uber_archive:
