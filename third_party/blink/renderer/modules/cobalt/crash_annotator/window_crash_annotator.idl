@@ -16,6 +16,6 @@
 [
   ImplementedAs=CrashAnnotator,
   SecureContext
-] partial interface Navigator {
+] partial interface Window {
   [SameObject] readonly attribute CrashAnnotator crashAnnotator;
 };
