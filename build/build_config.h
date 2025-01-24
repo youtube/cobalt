@@ -290,6 +290,12 @@
 #define BUILDFLAG_INTERNAL_COBALT_IS_RELEASE_BUILD() (0)
 #endif
 
+#if defined(ENABLE_BUILDFLAG_ENABLE_COBALT_HACKS)
+#define BUILDFLAG_INTERNAL_ENABLE_COBALT_HACKS() (1)
+#else
+#define BUILDFLAG_INTERNAL_ENABLE_COBALT_HACKS() (0)
+#endif
+
 // Compiler detection. Note: clang masquerades as GCC on POSIX and as MSVC on
 // Windows.
 #if defined(__GNUC__)
