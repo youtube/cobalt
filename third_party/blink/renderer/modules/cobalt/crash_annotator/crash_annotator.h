@@ -23,30 +23,26 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
 class ExecutionContext;
-class NavigatorBase;
+class LocalDOMWindow;
 class ScriptPromiseResolver;
 class ScriptState;
 
 class MODULES_EXPORT CrashAnnotator final
     : public ScriptWrappable,
-      public Supplement<NavigatorBase>,
       public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static const char kSupplementName[];
-
-  // For navigator.crashAnnotator
-  static CrashAnnotator* crashAnnotator(NavigatorBase&);
-
-  explicit CrashAnnotator(NavigatorBase&);
+  explicit CrashAnnotator(LocalDOMWindow&);
 
   void ContextDestroyed() override;
 
+  // Web-exposed interface:
   ScriptPromise setString(ScriptState*,
                           const String& key,
                           const String& value,
