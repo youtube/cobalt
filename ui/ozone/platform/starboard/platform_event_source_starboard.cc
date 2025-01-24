@@ -197,8 +197,10 @@ constexpr auto kSbKeyToDomCodeMap = base::MakeFixedFlatMap<SbKey, ui::DomCode>({
     {kSbKeyTab, ui::DomCode::TAB},
     {kSbKeyEscape, ui::DomCode::ESCAPE},
 });
-// Hack: replace this when implementing event handling
+// TODO(b/391414243): Implement this in a clean way.
+#if BUILDFLAG(ENABLE_COBALT_HACKS)
 static scoped_refptr<base::TaskRunner> g_reply_runner_;
+#endif  // BUILDFLAG(ENABLE_COBALT_HACKS)
 
 void DeliverEventHandler(std::unique_ptr<ui::Event> ui_event) {
   CHECK(ui::PlatformEventSource::GetInstance());
@@ -305,16 +307,21 @@ void PlatformEventSourceStarboard::SbEventHandle(const SbEvent* event) {
   } else {
     return;
   }
-
+  // TODO(b/391414243): Implement this in a clean way.
+#if BUILDFLAG(ENABLE_COBALT_HACKS)
   g_reply_runner_->PostTask(
       FROM_HERE, base::BindOnce(&DeliverEventHandler, std::move(ui_event)));
+#endif  // BUILDFLAG(ENABLE_COBALT_HACKS)
 }
 
 PlatformEventSourceStarboard::PlatformEventSourceStarboard() {
+  // TODO(b/391414243): Initialize Starboard correctly.
+#if BUILDFLAG(ENABLE_COBALT_HACKS)
   sb_main_ = std::make_unique<std::thread>(&SbRunStarboardMain, /*argc=*/0,
                                            /*argv=*/nullptr, &SbEventHandle);
   g_reply_runner_ = base::SingleThreadTaskRunner::GetCurrentDefault();
   sb_main_->detach();
+#endif  // BUILDFLAG(ENABLE_COBALT_HACKS)
 }
 
 uint32_t PlatformEventSourceStarboard::DeliverEvent(
