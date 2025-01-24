@@ -57,9 +57,11 @@ int SbSocketSendTo(SbSocket socket,
     socket->error = sbposix::TranslateSocketErrno(errno);
     return -1;
   } else if (socket->protocol == kSbSocketProtocolUdp) {
+    ssize_t bytes_written = 0;
     sbposix::SockAddr sock_addr;
-    const sockaddr* sockaddr = NULL;
+    const sockaddr* sockaddr = nullptr;
     socklen_t sockaddr_length = 0;
+
     if (destination) {
       if (!sock_addr.FromSbSocketAddress(destination)) {
         SB_LOG(FATAL) << "Invalid destination passed to UDP send.";
@@ -70,8 +72,9 @@ int SbSocketSendTo(SbSocket socket,
       sockaddr_length = sock_addr.length;
     }
 
-    ssize_t bytes_written = sendto(socket->socket_fd, data, data_size,
-                                   kSendFlags, sockaddr, sockaddr_length);
+    bytes_written = sendto(socket->socket_fd, data, data_size, kSendFlags,
+                           sockaddr, sockaddr_length);
+
     if (bytes_written >= 0) {
       socket->error = kSbSocketOk;
       return static_cast<int>(bytes_written);

@@ -621,19 +621,37 @@ int UDPSocketStarboard::InternalReadMultiplePackets(
 int UDPSocketStarboard::InternalSendTo(IOBuffer* buf,
                                        int buf_len,
                                        const IPEndPoint* address) {
+#if SB_HAS_QUIRK(SENDING_CONNECTED_UDP_SOCKETS)
+  // If the socket is already connected (remote_address_ is set),
+  // call SbSocketSendTo without destination address as it will use
+  // the address from the connection
+  if (remote_address_) {
+    int result = SbSocketSendTo(socket_, buf->data(), buf_len, nullptr);
+    if (result < 0) {
+      result = MapLastSocketError(socket_);
+    }
+    if (result != ERR_IO_PENDING) {
+      LogWrite(result, buf->data(), nullptr);
+    }
+    return result;
+  }
+#endif
+
+  // Old logic for platforms without SENDING_CONNECTED_UDP_SOCKETS support
+  // or for unconnected sockets
   SbSocketAddress sb_address;
   if (!address && !g_socket_extension) {
     // Platforms without the socket extension require a destination address.
     address = remote_address_.get();
     if (!address) {
       int result = ERR_FAILED;
-      LogWrite(result, NULL, NULL);
+      LogWrite(result, nullptr, nullptr);
       return result;
     }
   }
   if (address && !address->ToSbSocketAddress(&sb_address)) {
     int result = ERR_FAILED;
-    LogWrite(result, NULL, NULL);
+    LogWrite(result, nullptr, nullptr);
     return result;
   }
 
