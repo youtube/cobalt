@@ -15,17 +15,15 @@
 """Creates test artifacts tar with runtime dependencies."""
 
 import argparse
-import json
 import os
 import shutil
 import subprocess
 import tempfile
 from typing import List, Optional
 
-# Exclude paths that contain files we don't need to run tests.
+# Path prefixes that contain files we don't need to run tests.
 _EXCLUDE_DIRS = [
-    '../../third_party/jdk/', 'lib.java/', './exe.unstripped/',
-    './lib.unstripped/'
+    '../../', 'lib.java/', './exe.unstripped/', './lib.unstripped/'
 ]
 
 
@@ -51,26 +49,11 @@ def create_archive(targets: List[str], source_dir: str, destination_dir: str,
                    platform: str, uber_archive: bool):
   """Main logic. Collects runtime dependencies from the source directory for
   each target."""
-  tar_root = '.' if platform.startswith('android') else source_dir
-  # TODO(b/382508397): Remove when dynamically generated.
-  # Put the test targets in a json file in the archive.
-  test_target_names = [target.split(':')[1] for target in targets]
-  test_targets_json = os.path.join(tar_root, 'test_targets.json')
-  with open(test_targets_json, 'w', encoding='utf-8') as test_targets_file:
-    test_targets_file.write(
-        json.dumps({
-            'test_targets':
-                test_target_names,
-            'executables': [
-                os.path.join(source_dir, target_name)
-                for target_name in test_target_names
-            ]
-        }))
-
-  deps = set([test_targets_json])
+  # Always add test_targets.json to archive.
+  deps = set(['test_targets.json'])
   for target in targets:
     target_path, target_name = target.split(':')
-    # These paths are configured in test.gni:
+    # These are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
     if platform.startswith('android'):
       deps_file = os.path.join(
@@ -80,7 +63,11 @@ def create_archive(targets: List[str], source_dir: str, destination_dir: str,
       deps_file = os.path.join(source_dir, f'{target_name}.runtime_deps')
 
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
-      # Android assumes files will not be extracted to out dir.
+      # The paths in the runtime_deps files are relative to the out folder.
+      # Android tests expects files to be relative to the out folder in the
+      # archive whereas Linux tests expect it relative to the source root.
+      # TODO(oxv): Pass as argument?
+      tar_root = '.' if platform.startswith('android') else source_dir
       target_deps = {
           os.path.relpath(os.path.join(tar_root, line.strip()))
           for line in runtime_deps_file
@@ -92,7 +79,7 @@ def create_archive(targets: List[str], source_dir: str, destination_dir: str,
       output_path = os.path.join(destination_dir, f'{target_name}_deps.tar.gz')
       base_path = source_dir if platform.startswith('android') else None
       _make_tar(output_path, deps, base_path)
-      deps = set([test_targets_json])
+      deps = set(['test_targets.json'])
 
   if uber_archive:
     output_path = os.path.join(destination_dir, 'test_artifacts.tar.gz')
@@ -133,7 +120,7 @@ def main():
       required=True,
       type=lambda arg: arg.split(','),
       help='The targets to package, comma-separated. Must be fully qualified, '
-      'e.g. path/to:target.')
+      'e.g. path/to:target_name,other/path/to:target_name.')
   args = parser.parse_args()
 
   uber_archive = args.platform.startswith('linux')

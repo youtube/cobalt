@@ -19,6 +19,9 @@ runs:
     - name: Archive Test Artifacts
       run: |
         set -x
+        # Put test targets json file in the out folder for the archiving script to pick up.
+        cp "${{ inputs.test_targets_json_file }}" out/${{ matrix.platform }}_${{ matrix.config }}/
+
         mkdir ${GITHUB_WORKSPACE}/artifacts
         cd src/
         time ./cobalt/build/archive_test_artifacts.py \
