@@ -190,11 +190,11 @@ jobs:
     if: needs.initialize.outputs.test_on_device == 'true' &&
         (
           (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'on_device')) ||
-          (vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False' && (inputs.nightly == 'true' || github.event_name == 'schedule')) ||
-          (vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False' && github.event_name == 'push')
+          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
         )
     runs-on: [self-hosted, odt-runner]
-    name: ${{ matrix.name }}_on_device
+    name: ${{ matrix.name }}_on_device_tests
     permissions: {}
     strategy:
       fail-fast: false
@@ -203,7 +203,7 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     env:
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-0
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
       - name: Checkout
         uses: actions/checkout@v4
