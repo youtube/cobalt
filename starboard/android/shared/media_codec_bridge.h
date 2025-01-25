@@ -18,6 +18,7 @@
 #include <memory>
 #include <string>
 
+#include "base/android/scoped_java_ref.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
@@ -27,6 +28,9 @@
 namespace starboard {
 namespace android {
 namespace shared {
+
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::ScopedJavaGlobalRef;
 
 // GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
 // GENERATED_JAVA_PREFIX_TO_STRIP: MEDIA_CODEC_
@@ -230,7 +234,7 @@ class MediaCodecBridge {
   // playback.  We mitigate this by reusing these output objects between calls
   // to |DequeueInputBuffer|, |DequeueOutputBuffer|, and
   // |GetOutputDimensions|.
-  jobject j_reused_get_output_format_result_ = NULL;
+  ScopedJavaGlobalRef<jobject> j_reused_get_output_format_result_ = NULL;
 
   MediaCodecBridge(const MediaCodecBridge&) = delete;
   void operator=(const MediaCodecBridge&) = delete;
