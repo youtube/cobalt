@@ -365,7 +365,7 @@ public class StarboardBridge {
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/speech_synthesis_speak.cc
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   CobaltTextToSpeechHelper getTextToSpeechHelper() {
     if (ttsHelper == null) {
       throw new IllegalArgumentException("ttsHelper cannot be null for native code");
