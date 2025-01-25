@@ -12,19 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/accessibility_extension.h"
+
+#include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/memory.h"
 
-#include "starboard/android/shared/accessibility_extension.h"
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "cobalt/android/jni_headers/CobaltTextToSpeechHelper_jni.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
 namespace accessibility {
 
-using starboard::android::shared::JniEnvExt;
-using starboard::android::shared::ScopedLocalJavaRef;
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
+using base::android::ScopedJavaLocalRef;
 
 bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
   if (!out_setting ||
@@ -33,15 +36,15 @@ bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
     return false;
   }
 
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = AttachCurrentThread();
 
   out_setting->has_text_to_speech_setting = true;
-  ScopedLocalJavaRef<jobject> j_tts_helper(
-      env->CallStarboardObjectMethodOrAbort(
-          "getTextToSpeechHelper",
-          "()Ldev/cobalt/coat/CobaltTextToSpeechHelper;"));
-  out_setting->is_text_to_speech_enabled = env->CallBooleanMethodOrAbort(
-      j_tts_helper.Get(), "isScreenReaderEnabled", "()Z");
+  ScopedJavaLocalRef<jobject> j_tts_helper =
+      starboard::android::shared::StarboardBridge::GetInstance()
+          ->GetTextToSpeechHelper(env);
+
+  out_setting->is_text_to_speech_enabled =
+      Java_CobaltTextToSpeechHelper_isScreenReaderEnabled(env, j_tts_helper);
 
   return true;
 }
