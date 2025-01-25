@@ -229,6 +229,12 @@ std::string StarboardBridge::GetCacheAbsolutePath(JNIEnv* env) {
   std::string file_path = ConvertJavaStringToUTF8(env, file_path_java);
   return file_path;
 }
+
+ScopedJavaLocalRef<jobject> StarboardBridge::GetTextToSpeechHelper(
+    JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getTextToSpeechHelper(env, j_starboard_bridge_);
+}
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
