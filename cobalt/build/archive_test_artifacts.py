@@ -49,8 +49,9 @@ def create_archive(targets: List[str], source_dir: str, destination_dir: str,
                    platform: str, uber_archive: bool):
   """Main logic. Collects runtime dependencies from the source directory for
   each target."""
+  tar_root = '.' if platform.startswith('android') else source_dir
   # Always add test_targets.json to archive.
-  deps = set(['test_targets.json'])
+  deps = set([os.path.relpath(os.path.join(tar_root, 'test_targets.json'))])
   for target in targets:
     target_path, target_name = target.split(':')
     # These are configured in test.gni:
@@ -67,7 +68,6 @@ def create_archive(targets: List[str], source_dir: str, destination_dir: str,
       # Android tests expects files to be relative to the out folder in the
       # archive whereas Linux tests expect it relative to the source root.
       # TODO(oxv): Pass as argument?
-      tar_root = '.' if platform.startswith('android') else source_dir
       target_deps = {
           os.path.relpath(os.path.join(tar_root, line.strip()))
           for line in runtime_deps_file
@@ -79,7 +79,7 @@ def create_archive(targets: List[str], source_dir: str, destination_dir: str,
       output_path = os.path.join(destination_dir, f'{target_name}_deps.tar.gz')
       base_path = source_dir if platform.startswith('android') else None
       _make_tar(output_path, deps, base_path)
-      deps = set(['test_targets.json'])
+      deps = set([os.path.relpath(os.path.join(tar_root, 'test_targets.json'))])
 
   if uber_archive:
     output_path = os.path.join(destination_dir, 'test_artifacts.tar.gz')
