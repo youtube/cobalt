@@ -15,15 +15,15 @@
 #include "third_party/blink/renderer/modules/cobalt/h_5_vcc.h"
 
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/modules/cobalt/cobalt_system/cobalt_system.h"
 #include "third_party/blink/renderer/modules/cobalt/crash_annotator/crash_annotator.h"
-#include "third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.h"
 
 namespace blink {
 
 // static
 const char H5vcc::kSupplementName[] = "H5vcc";
 
-//static
+// static
 H5vcc* H5vcc::h5vcc(LocalDOMWindow& window) {
   H5vcc* h5vcc = Supplement<LocalDOMWindow>::From<H5vcc>(window);
   if (!h5vcc && window.GetExecutionContext()) {
@@ -36,11 +36,11 @@ H5vcc* H5vcc::h5vcc(LocalDOMWindow& window) {
 H5vcc::H5vcc(LocalDOMWindow& window)
     : Supplement<LocalDOMWindow>(window),
       crash_annotator_(MakeGarbageCollected<CrashAnnotator>(window)),
-      h5vcc_system_(MakeGarbageCollected<H5vccSystem>(window)) {}
+      cobalt_system_(MakeGarbageCollected<CobaltSystem>(window)) {}
 
 void H5vcc::Trace(Visitor* visitor) const {
   visitor->Trace(crash_annotator_);
-  visitor->Trace(h5vcc_system_);
+  visitor->Trace(cobalt_system_);
   Supplement<LocalDOMWindow>::Trace(visitor);
   ScriptWrappable::Trace(visitor);
 }

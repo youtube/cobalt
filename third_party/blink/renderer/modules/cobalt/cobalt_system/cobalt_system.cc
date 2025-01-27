@@ -12,10 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-[
-    Exposed=Window,
-    SecureContext
-]
-interface H5vccSystem {
-    readonly attribute DOMString advertisingId;
-};
+#include "third_party/blink/renderer/modules/cobalt/cobalt_system/cobalt_system.h"
+
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
+
+namespace blink {
+
+CobaltSystem::CobaltSystem(LocalDOMWindow& window) {}
+
+const String CobaltSystem::advertisingId() const {
+  NOTIMPLEMENTED();
+
+  // TODO add a mojom service and populate the value for advertising_id_.
+  //   return advertising_id_;
+  return String("fake advertisingId");
+}
+
+void CobaltSystem::Trace(Visitor* visitor) const {
+  ScriptWrappable::Trace(visitor);
+}
+
+}  // namespace blink
