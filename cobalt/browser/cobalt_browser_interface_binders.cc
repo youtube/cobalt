@@ -15,16 +15,16 @@
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 
 #include "base/functional/bind.h"
-#include "cobalt/services/crash_annotator/crash_annotator_service.h"
-#include "cobalt/services/crash_annotator/public/mojom/crash_annotator_service.mojom.h"
+#include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
+#include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
 
 namespace cobalt {
 
 void PopulateCobaltFrameBinders(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map) {
-  binder_map->Add<crash_annotator::mojom::CrashAnnotatorService>(
-      base::BindRepeating(&crash_annotator::CrashAnnotatorService::Create));
+  binder_map->Add<crash_annotator::mojom::CrashAnnotator>(
+      base::BindRepeating(&crash_annotator::CrashAnnotatorImpl::Create));
 }
 
 }  // namespace cobalt

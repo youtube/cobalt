@@ -12,12 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SERVICES_CRASH_ANNOTATOR_CRASH_ANNOTATOR_SERVICE_H_
-#define COBALT_SERVICES_CRASH_ANNOTATOR_CRASH_ANNOTATOR_SERVICE_H_
+#ifndef COBALT_BROWSER_CRASH_ANNOTATOR_CRASH_ANNOTATOR_IMPL_H_
+#define COBALT_BROWSER_CRASH_ANNOTATOR_CRASH_ANNOTATOR_IMPL_H_
 
 #include <string>
 
-#include "cobalt/services/crash_annotator/public/mojom/crash_annotator_service.mojom.h"
+#include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
@@ -27,31 +27,29 @@ class RenderFrameHost;
 
 namespace crash_annotator {
 
-// Implements the CrashAnnotatorService Mojo interface and extends
+// Implements the CrashAnnotator Mojo interface and extends
 // DocumentService so that an object's lifetime is scoped to the corresponding
 // document / RenderFrameHost (see DocumentService for details).
-class CrashAnnotatorService
-    : public content::DocumentService<mojom::CrashAnnotatorService> {
+class CrashAnnotatorImpl
+    : public content::DocumentService<mojom::CrashAnnotator> {
  public:
-  // Creates a CrashAnnotatorService. The CrashAnnotatorService is bound to the
+  // Creates a CrashAnnotatorImpl. The CrashAnnotatorImpl is bound to the
   // receiver and its lifetime is scoped to the render_frame_host.
-  static void Create(
-      content::RenderFrameHost* render_frame_host,
-      mojo::PendingReceiver<mojom::CrashAnnotatorService> receiver);
+  static void Create(content::RenderFrameHost* render_frame_host,
+                     mojo::PendingReceiver<mojom::CrashAnnotator> receiver);
 
-  CrashAnnotatorService(const CrashAnnotatorService&) = delete;
-  CrashAnnotatorService& operator=(const CrashAnnotatorService&) = delete;
+  CrashAnnotatorImpl(const CrashAnnotatorImpl&) = delete;
+  CrashAnnotatorImpl& operator=(const CrashAnnotatorImpl&) = delete;
 
   void SetString(const std::string& key,
                  const std::string& value,
                  SetStringCallback callback) override;
 
  private:
-  CrashAnnotatorService(
-      content::RenderFrameHost& render_frame_host,
-      mojo::PendingReceiver<mojom::CrashAnnotatorService> receiver);
+  CrashAnnotatorImpl(content::RenderFrameHost& render_frame_host,
+                     mojo::PendingReceiver<mojom::CrashAnnotator> receiver);
 };
 
 }  // namespace crash_annotator
 
-#endif  // COBALT_SERVICES_CRASH_ANNOTATOR_CRASH_ANNOTATOR_SERVICE_H_
+#endif  // COBALT_BROWSER_CRASH_ANNOTATOR_CRASH_ANNOTATOR_IMPL_H_
