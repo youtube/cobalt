@@ -1,0 +1,8 @@
+template("target_with_platform_configs") {
+  target(invoker.target_type, target_name) {
+    forward_variables_from(invoker, "*", [ "target_type" ])
+  }
+}
+
+template("cobalt_test") {
+}
