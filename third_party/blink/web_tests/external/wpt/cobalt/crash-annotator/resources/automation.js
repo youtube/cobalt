@@ -1,26 +1,26 @@
 'use strict';
 
-// These tests use a fake implementation of the CrashAnnotatorService Mojo interface.
+// These tests use a fake implementation of the CrashAnnotator Mojo interface.
 
-let fakeCrashAnnotatorService = undefined;
+let fakeCrashAnnotatorImpl = undefined;
 
 function crash_annotator_test(func, name, properties) {
   promise_test(async (test) => {
     assert_implements(window.h5vcc.crashAnnotator,
                       'missing window.h5vcc.crashAnnotator');
-    if (fakeCrashAnnotatorService === undefined) {
+    if (fakeCrashAnnotatorImpl === undefined) {
       const fakes =
-          await import('/resources/chromium/cobalt/fake-crash-annotator-service.js');
-          fakeCrashAnnotatorService = fakes.fakeCrashAnnotatorService;
+          await import('/resources/chromium/cobalt/fake-crash-annotator-impl.js');
+          fakeCrashAnnotatorImpl = fakes.fakeCrashAnnotatorImpl;
     }
-    assert_implements(fakeCrashAnnotatorService, 'missing fakeCrashAnnotatorService');
+    assert_implements(fakeCrashAnnotatorImpl, 'missing fakeCrashAnnotatorImpl');
 
-    fakeCrashAnnotatorService.start();
+    fakeCrashAnnotatorImpl.start();
     try {
-      await func(test, fakeCrashAnnotatorService);
+      await func(test, fakeCrashAnnotatorImpl);
     } finally {
-      fakeCrashAnnotatorService.stop();
-      fakeCrashAnnotatorService.reset();
+      fakeCrashAnnotatorImpl.stop();
+      fakeCrashAnnotatorImpl.reset();
     }
     }, name, properties);
   }
