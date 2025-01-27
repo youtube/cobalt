@@ -20,5 +20,5 @@ blink_modules_sources("crash_annotator") {
     "crash_annotator.h",
   ]
 
-  deps = [ "//cobalt/services/crash_annotator/public/mojom:mojom_blink" ]
+  deps = [ "//cobalt/browser/crash_annotator/public/mojom:mojom_blink" ]
 }

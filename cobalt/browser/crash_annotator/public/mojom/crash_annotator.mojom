@@ -16,7 +16,7 @@ module crash_annotator.mojom;
 
 // The browser process must provide an implementation of this interface so that
 // the renderer process can implement the CrashAnnotator Blink API.
-interface CrashAnnotatorService {
+interface CrashAnnotator {
   // Receives an annotation to set and responds with the result.
   SetString(string key, string value) => (bool result);
 };

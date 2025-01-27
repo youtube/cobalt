@@ -15,5 +15,5 @@
 import("//mojo/public/tools/bindings/mojom.gni")
 
 mojom("mojom") {
-  sources = [ "crash_annotator_service.mojom" ]
+  sources = [ "crash_annotator.mojom" ]
 }
