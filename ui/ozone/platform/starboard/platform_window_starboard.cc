@@ -14,6 +14,10 @@
 
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 
+#include "base/functional/bind.h"
+#include "ui/events/event.h"
+#include "ui/events/ozone/events_ozone.h"
+#include "ui/events/platform/platform_event_source.h"
 #include "ui/gfx/native_widget_types.h"
 
 namespace ui {
@@ -22,10 +26,41 @@ PlatformWindowStarboard::PlatformWindowStarboard(
     PlatformWindowDelegate* delegate,
     const gfx::Rect& bounds)
     : StubWindow(delegate, /*use_default_accelerated_widget=*/false, bounds) {
-  gfx::AcceleratedWidget widget = (bounds.width() << 16) + bounds.height();
-  delegate->OnAcceleratedWidgetAvailable(widget);
+  SbWindowOptions options{};
+  SbWindowSetDefaultOptions(&options);
+  options.size.width = bounds.width();
+  options.size.height = bounds.height();
+  sb_window_ = SbWindowCreate(&options);
+  CHECK(SbWindowIsValid(sb_window_));
+
+  delegate->OnAcceleratedWidgetAvailable(
+      reinterpret_cast<intptr_t>(SbWindowGetPlatformHandle(sb_window_)));
+
+  if (PlatformEventSource::GetInstance()) {
+    PlatformEventSource::GetInstance()->AddPlatformEventDispatcher(this);
+  }
 }
 
-PlatformWindowStarboard::~PlatformWindowStarboard() {}
+PlatformWindowStarboard::~PlatformWindowStarboard() {
+  if (sb_window_) {
+    SbWindowDestroy(sb_window_);
+  }
+
+  if (PlatformEventSource::GetInstance()) {
+    PlatformEventSource::GetInstance()->RemovePlatformEventDispatcher(this);
+  }
+}
+
+bool PlatformWindowStarboard::CanDispatchEvent(const PlatformEvent& event) {
+  return true;
+}
+
+uint32_t PlatformWindowStarboard::DispatchEvent(const PlatformEvent& event) {
+  DispatchEventFromNativeUiEvent(
+      event, base::BindOnce(&PlatformWindowDelegate::DispatchEvent,
+                            base::Unretained(delegate())));
+
+  return ui::POST_DISPATCH_STOP_PROPAGATION;
+}
 
 }  // namespace ui
