@@ -33,3 +33,19 @@
 -keepclasseswithmembers class * {
   @dev.cobalt.util.UsedByNative <fields>;
 }
+
+-keepclasseswithmembers,allowaccessmodification class ** {
+  @**cobalt.org.chromium.base.annotations.AccessedByNative <fields>;
+}
+
+-keepclasseswithmembers,includedescriptorclasses,allowaccessmodification,allowoptimization class ** {
+  @cobalt.org.chromium.base.annotations.CalledByNative <methods>;
+}
+
+-keepclasseswithmembernames,includedescriptorclasses,allowaccessmodification class ** {
+  native <methods>;
+}
+
+-keepclasseswithmembers,allowaccessmodification class ** {
+  @**cobalt.org.chromium.base.annotations.AccessedByNative <fields>;
+}
