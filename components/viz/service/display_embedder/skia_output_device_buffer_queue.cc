@@ -155,6 +155,7 @@ SkiaOutputDeviceBufferQueue::SkiaOutputDeviceBufferQueue(
       workarounds_(deps->GetGpuDriverBugWorkarounds()),
       context_state_(deps->GetSharedContextState()),
       representation_factory_(representation_factory) {
+
 #if BUILDFLAG(IS_OZONE)
   capabilities_.needs_background_image = ui::OzonePlatform::GetInstance()
                                              ->GetPlatformRuntimeProperties()

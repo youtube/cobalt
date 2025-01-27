@@ -143,6 +143,7 @@ void OutputPresenterGL::InitializeCapabilities(
 
   // Set supports_surfaceless to enable overlays.
   capabilities->supports_surfaceless = true;
+  CHECK(false); // mcasas: do we reach here?
   // We expect origin of buffers is at top left.
   capabilities->output_surface_origin = gfx::SurfaceOrigin::kTopLeft;
   // Set resize_based_on_root_surface to omit platform proposed size.

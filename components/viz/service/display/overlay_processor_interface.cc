@@ -96,6 +96,7 @@ OverlayProcessorInterface::CreateOverlayProcessor(
     gpu::SharedImageInterface* shared_image_interface,
     const RendererSettings& renderer_settings,
     const DebugRendererSettings* debug_settings) {
+
   // If we are offscreen, we don't have overlay support.
   // TODO(vasilyt): WebView would have a kNullSurfaceHandle. Make sure when
   // overlay for WebView is enabled, this check still works.
@@ -117,12 +118,14 @@ OverlayProcessorInterface::CreateOverlayProcessor(
               ? 2
               : 1));
 #elif BUILDFLAG(IS_OZONE)
-#if !BUILDFLAG(IS_CASTOS)
+// TODO(mcasas): We should have |supports_surfaceless| true. Investigate why
+// that isn't the case.
+#if !BUILDFLAG(IS_CASTOS) && !BUILDFLAG(IS_STARBOARD)
   // In tests and Ozone/X11, we do not expect surfaceless surface support.
-  // For CastOS, we always need OverlayProcessorOzone.
+  // For CastOS or Starboard, we always need OverlayProcessorOzone.
   if (!capabilities.supports_surfaceless)
     return std::make_unique<OverlayProcessorStub>();
-#endif  // #if !BUILDFLAG(IS_CASTOS)
+#endif  // #if !BUILDFLAG(IS_CASTOS) && !BUILDFLAG(IS_STARBOARD)
 
   gpu::SharedImageInterface* sii = nullptr;
   auto* overlay_manager = ui::OzonePlatform::GetInstance()->GetOverlayManager();

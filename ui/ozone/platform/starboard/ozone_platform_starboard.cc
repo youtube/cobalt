@@ -159,6 +159,12 @@ class OzonePlatformStarboard : public OzonePlatform {
     }
   }
 
+  const PlatformRuntimeProperties& GetPlatformRuntimeProperties() override {
+    static OzonePlatform::PlatformRuntimeProperties properties{
+        .supports_overlays = true, .supports_native_pixmaps = true};
+    return properties;
+  }
+
  private:
   std::unique_ptr<KeyboardLayoutEngine> keyboard_layout_engine_;
   std::unique_ptr<CursorFactory> cursor_factory_;
