@@ -227,7 +227,7 @@ buildflag_header("message_pump_buildflags") {
 # base compilation units to be linked in where they wouldn't have otherwise.
 # This does not include test code (test support and anything in the test
 # directory) which should use source_set as is recommended for GN targets).
-component("base") {
+shared_library("base") {
   sources = [
     "allocator/allocator_check.cc",
     "allocator/allocator_check.h",
@@ -1783,8 +1783,8 @@ component("base") {
 
       #           ../../base/allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc:748:36: error: incomplete result type 'struct mallinfo' in function definition
       # SHIM_ALWAYS_EXPORT struct mallinfo mallinfo(void) __THROW {
-      "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc",
-      "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h",
+      # "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc",
+      # "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h",
 
       # In file included from ../../base/rand_util_posix.cc:26:
       # ../../third_party/lss/linux_syscall_support.h:118:10: fatal error: 'linux/unistd.h' file not found
@@ -1795,7 +1795,7 @@ component("base") {
       "memory/madv_free_discardable_memory_posix.h",
       "posix/unix_domain_socket.cc",
       "posix/unix_domain_socket.h",
-      "rand_util_posix.cc",
+      # "rand_util_posix.cc",
       "system/sys_info_posix.cc",
 
       #     SHIM_ALWAYS_EXPORT size_t malloc_usable_size(void* address) __THROW {
