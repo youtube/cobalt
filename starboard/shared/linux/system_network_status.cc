@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <cstring>
 
+#include "build/build_config.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/linux/singleton.h"
 #include "starboard/shared/linux/system_network_status.h"
@@ -43,7 +44,10 @@ bool GetOnlineStatus(bool* is_online_ptr, int netlink_fd) {
   sa.nl_groups = RTMGRP_IPV4_IFADDR;
   sa.nl_pid = getpid();
   int bind_result = bind(netlink_fd, (struct sockaddr*)&sa, sizeof(sa));
+  // TODO(cobalt, b/371272304): Re-enable
+#if !BUILDFLAG(ENABLE_COBALT_HACKS)
   SB_DCHECK(bind_result == 0);
+#endif  // !BUILDFLAG(ENABLE_COBALT_HACKS)
 
   char buf[8192];
   struct iovec iov;
