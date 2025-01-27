@@ -25,7 +25,7 @@
 #include "third_party/icu/source/common/unicode/utypes.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/common/time.h"
 #include "starboard/types.h"
 #include "base/test/time_helpers.h"
@@ -42,7 +42,7 @@ namespace base {
 
 namespace {
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 time_t sb_mktime(struct tm *tm) {
   if (tm == nullptr) {
     return -1;
@@ -219,7 +219,7 @@ class TimeTest : public testing::Test {
       -1            // DST in effect, -1 tells mktime to figure it out
     };
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     time_t converted_time = sb_mktime(&local_comparison_tm);
 #else
     time_t converted_time = mktime(&local_comparison_tm);
@@ -275,7 +275,7 @@ TEST_F(TimeTest, TimeT) {
 
 // TODO: b/327008491 - Not used by Cobalt, but should be tested to get
 // closer to Chrome.
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 
 // Test conversions to/from time_t and exploding/unexploding (utc time).
 TEST_F(TimeTest, UTCTimeT) {
@@ -368,7 +368,7 @@ TEST_F(TimeTest, JsTime) {
   EXPECT_EQ(kWindowsEpoch, time.ToJsTimeIgnoringNull());
 }
 
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 TEST_F(TimeTest, FromTimeVal) {
   Time now = Time::Now();
@@ -536,7 +536,7 @@ TEST_F(TimeTest, LocalMidnightIsLocal) {
 }
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 TEST_F(TimeTest, ParseTimeTest1) {
   Time now = Time::Now();
 
@@ -551,7 +551,7 @@ TEST_F(TimeTest, ParseTimeTest1) {
   EXPECT_GE(1, (now - parsed_time).InSecondsF());
   EXPECT_GE(1, (parsed_time - now).InSecondsF());
 }
-#else  // !defined(STARBOARD)
+#else  // !BUILDFLAG(IS_STARBOARD)
 TEST_F(TimeTest, ParseTimeTest1) {
   time_t current_time = 0;
   time(&current_time);
@@ -925,7 +925,7 @@ TEST_F(TimeTest, MaxConversions) {
   EXPECT_TRUE(t.is_max());
   EXPECT_EQ(std::numeric_limits<time_t>::max(), t.ToTimeT());
 
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   struct timeval tval;
   tval.tv_sec = std::numeric_limits<time_t>::max();
@@ -1043,7 +1043,7 @@ TEST_F(TimeTest, Explode_Y10KCompliance) {
     Time time;
     Time::Exploded expected;
   } kTestCases[] = {
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
       // A very long time ago.
       {Time::Min(), Time::Exploded{-290677, 12, 4, 23, 19, 59, 5, 224}},
 #endif
@@ -1094,7 +1094,7 @@ TEST_F(TimeTest, Explode_Y10KCompliance) {
       {make_time(kIcuMaxMicrosOffset + kHalfYearInMicros),
        Time::Exploded{287397, 4, 3, 12, 8, 59, 0, 992}},
 
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
       // A very long time from now.
       {Time::Max(), Time::Exploded{293878, 1, 4, 10, 4, 0, 54, 775}},
 #endif
@@ -1737,7 +1737,7 @@ TEST(TimeDelta, InXXXOverflow) {
       "");
 }
 
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 TEST(TimeDelta, TimeSpecConversion) {
   TimeDelta delta = Seconds(0);

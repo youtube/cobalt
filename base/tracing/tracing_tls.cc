@@ -9,7 +9,7 @@ namespace tracing {
 
 // static
 bool* GetThreadIsInTraceEvent() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   // This is only used in //services, which Cobalt does not use.
   static bool thread_is_in_trace_event = false;
   return &thread_is_in_trace_event;

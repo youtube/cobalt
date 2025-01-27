@@ -42,7 +42,7 @@ class BASE_EXPORT SequenceToken {
   // if any.
   static SequenceToken GetForCurrentThread();
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   int GetToken() const { return token_; }
 #endif
 
@@ -82,7 +82,7 @@ class BASE_EXPORT TaskToken {
   // invalid TaskToken.
   static TaskToken GetForCurrentThread();
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   int GetToken() { return token_; }
 #endif
 
@@ -118,7 +118,7 @@ class BASE_EXPORT
   ~ScopedSetSequenceTokenForCurrentThread();
 
  private:
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   void* scoped_sequence_reset_value_;
   void* scoped_task_reset_value_;
 #else

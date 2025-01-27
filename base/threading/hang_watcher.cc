@@ -32,7 +32,7 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -52,7 +52,7 @@ enum class LoggingLevel { kNone = 0, kUmaOnly = 1, kUmaAndCrash = 2 };
 
 HangWatcher* g_instance = nullptr;
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
@@ -1194,7 +1194,7 @@ uint64_t HangWatchDeadline::SwitchBitsForTesting() {
 }
 
 HangWatchState::HangWatchState(HangWatcher::ThreadType thread_type)
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     : thread_type_(thread_type) {
   EnsureThreadLocalKeyInited();
   pthread_setspecific(s_thread_local_key, this);
@@ -1225,7 +1225,7 @@ HangWatchState::~HangWatchState() {
   DCHECK(!current_watch_hangs_in_scope_);
 #endif
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalKeyInited();
   pthread_setspecific(s_thread_local_key, nullptr);
 #endif
@@ -1307,7 +1307,7 @@ void HangWatchState::DecrementNestingLevel() {
 
 // static
 HangWatchState* HangWatchState::GetHangWatchStateForCurrentThread() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   return GetHangWatchState();
 #else
   // Workaround false-positive MSAN use-of-uninitialized-value on

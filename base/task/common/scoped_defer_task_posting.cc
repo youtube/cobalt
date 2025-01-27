@@ -7,7 +7,7 @@
 #include "base/compiler_specific.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -18,7 +18,7 @@ namespace base {
 
 namespace {
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
@@ -63,7 +63,7 @@ void ScopedDeferTaskPosting::PostOrDefer(
 
 // static
 ScopedDeferTaskPosting* ScopedDeferTaskPosting::Get() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   return GetScopedDeferTaskPosting();
 #else
   // Workaround false-positive MSAN use-of-uninitialized-value on
@@ -81,7 +81,7 @@ bool ScopedDeferTaskPosting::Set(ScopedDeferTaskPosting* scope) {
   // get nested scopes. In this case ignore all except the top one.
   if (Get() && scope)
     return false;
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalKeyInited();
   pthread_setspecific(s_thread_local_key, scope);
 #else

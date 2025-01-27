@@ -26,7 +26,7 @@
 #include "third_party/perfetto/protos/perfetto/trace/track_event/chrome_mojo_event_info.pbzero.h"  // nogncheck
 #endif
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -39,7 +39,7 @@ namespace {
 
 TaskAnnotator::ObserverForTesting* g_task_annotator_observer = nullptr;
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_task_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_task_key = 0;
 
@@ -100,7 +100,7 @@ ABSL_CONST_INIT thread_local TaskAnnotator::LongTaskTracker*
 // These functions can be removed, and the calls below replaced with direct
 // variable accesses, once the MSAN workaround is not necessary.
 TaskAnnotator::ScopedSetIpcHash* GetCurrentScopedIpcHash() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalHashKeyInited();
   return static_cast<TaskAnnotator::ScopedSetIpcHash*>(
       pthread_getspecific(s_thread_local_hash_key));
@@ -116,7 +116,7 @@ TaskAnnotator::ScopedSetIpcHash* GetCurrentScopedIpcHash() {
 }
 
 TaskAnnotator::LongTaskTracker* GetCurrentLongTaskTracker() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalTrackerKeyInited();
   return static_cast<TaskAnnotator::LongTaskTracker*>(
       pthread_getspecific(s_thread_local_tracker_key));
@@ -134,7 +134,7 @@ TaskAnnotator::LongTaskTracker* GetCurrentLongTaskTracker() {
 }  // namespace
 
 const PendingTask* TaskAnnotator::CurrentTaskForThread() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   return GetCurrentPendingTask();
 #else
   // Workaround false-positive MSAN use-of-uninitialized-value on
@@ -244,7 +244,7 @@ void TaskAnnotator::RunTaskImpl(PendingTask& pending_task) {
   base::debug::Alias(&task_time);
 
   {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     EnsureThreadLocalTaskKeyInited();
     void* reset_to = pthread_getspecific(s_thread_local_task_key);
     pthread_setspecific(s_thread_local_task_key, &pending_task);
@@ -278,7 +278,7 @@ void TaskAnnotator::RunTaskImpl(PendingTask& pending_task) {
           "%xmm13", "%xmm14", "%xmm15");
 #endif
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     pthread_setspecific(s_thread_local_task_key, reset_to);
 #endif
   }
@@ -359,14 +359,14 @@ TaskAnnotator::ScopedSetIpcHash::ScopedSetIpcHash(
 TaskAnnotator::ScopedSetIpcHash::ScopedSetIpcHash(
     uint32_t ipc_hash,
     const char* ipc_interface_name)
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     :
 #else
     : resetter_(&current_scoped_ipc_hash, this),
 #endif
       ipc_hash_(ipc_hash),
       ipc_interface_name_(ipc_interface_name) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalHashKeyInited();
   scoped_reset_value_ = pthread_getspecific(s_thread_local_hash_key);
   pthread_setspecific(s_thread_local_hash_key, this);
@@ -386,7 +386,7 @@ uint32_t TaskAnnotator::ScopedSetIpcHash::MD5HashMetricName(
 
 TaskAnnotator::ScopedSetIpcHash::~ScopedSetIpcHash() {
   DCHECK_EQ(this, GetCurrentScopedIpcHash());
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalHashKeyInited();
   pthread_setspecific(s_thread_local_hash_key, scoped_reset_value_);
 #endif
@@ -395,7 +395,7 @@ TaskAnnotator::ScopedSetIpcHash::~ScopedSetIpcHash() {
 TaskAnnotator::LongTaskTracker::LongTaskTracker(const TickClock* tick_clock,
                                                 PendingTask& pending_task,
                                                 TaskAnnotator* task_annotator)
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     :
 #else
     : resetter_(&current_long_task_tracker, this),
@@ -403,7 +403,7 @@ TaskAnnotator::LongTaskTracker::LongTaskTracker(const TickClock* tick_clock,
       tick_clock_(tick_clock),
       pending_task_(pending_task),
       task_annotator_(task_annotator) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalTrackerKeyInited();
   scoped_reset_value_ = pthread_getspecific(s_thread_local_tracker_key);
   pthread_setspecific(s_thread_local_tracker_key, this);
@@ -417,7 +417,7 @@ TaskAnnotator::LongTaskTracker::LongTaskTracker(const TickClock* tick_clock,
 
 TaskAnnotator::LongTaskTracker::~LongTaskTracker() {
   DCHECK_EQ(this, GetCurrentLongTaskTracker());
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalTrackerKeyInited();
   pthread_setspecific(s_thread_local_tracker_key, scoped_reset_value_);
 #endif

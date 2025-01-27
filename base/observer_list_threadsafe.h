@@ -25,7 +25,7 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include  <pthread.h>
 #endif
 
@@ -92,7 +92,7 @@ class BASE_EXPORT ObserverListThreadSafeBase
 
   static const NotificationDataBase*& GetCurrentNotification();
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   static void EnsureThreadLocalKeyInited();
   static const pthread_key_t GetThreadLocalKey();
 #endif
@@ -155,7 +155,7 @@ class ObserverListThreadSafe : public internal::ObserverListThreadSafeBase {
     // may not make it to |observer| depending on the outcome of the race to
     // |lock_|).
     if (policy_ == ObserverListPolicy::ALL) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
       void* current_notification_void = pthread_getspecific(GetThreadLocalKey());
       if (current_notification_void) {
       if (const NotificationDataBase* const current_notification =
@@ -180,7 +180,7 @@ class ObserverListThreadSafe : public internal::ObserverListThreadSafeBase {
                                       current_notification->from_here,
                                       notification_data->method)));
       }
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
       }
 #endif
     }
@@ -274,7 +274,7 @@ class ObserverListThreadSafe : public internal::ObserverListThreadSafeBase {
     // Note: GetCurrentNotification() may not return null if this runs in a
     // nested loop started by a notification callback. In that case, it is
     // important to save the previous value to restore it later.
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     EnsureThreadLocalKeyInited();
     void* scoped_reset_value = pthread_getspecific(GetThreadLocalKey());
     pthread_setspecific(GetThreadLocalKey(), const_cast<NotificationData*>(&notification));
@@ -286,7 +286,7 @@ class ObserverListThreadSafe : public internal::ObserverListThreadSafeBase {
     // Invoke the callback.
     notification.method.Run(observer);
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     pthread_setspecific(GetThreadLocalKey(), scoped_reset_value);
 #endif
   }

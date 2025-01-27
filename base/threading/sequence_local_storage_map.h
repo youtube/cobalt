@@ -100,7 +100,7 @@ class BASE_EXPORT
 
   ~ScopedSetSequenceLocalStorageMapForCurrentThread();
 
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
  private:
   const base::AutoReset<SequenceLocalStorageMap*> resetter_;
 #endif

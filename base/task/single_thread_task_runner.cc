@@ -16,7 +16,7 @@
 #include "base/run_loop.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -27,7 +27,7 @@ namespace base {
 
 namespace {
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
@@ -47,7 +47,7 @@ ABSL_CONST_INIT thread_local SingleThreadTaskRunner::CurrentDefaultHandle*
 // This function can be removed, and the calls below replaced with direct
 // variable accesses, once the MSAN workaround is not necessary.
 SingleThreadTaskRunner::CurrentDefaultHandle* GetCurrentDefaultHandle() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalKeyInited();
   return static_cast<SingleThreadTaskRunner::CurrentDefaultHandle*>(
       pthread_getspecific(s_thread_local_key));
@@ -88,14 +88,14 @@ bool SingleThreadTaskRunner::HasCurrentDefault() {
 
 SingleThreadTaskRunner::CurrentDefaultHandle::CurrentDefaultHandle(
     scoped_refptr<SingleThreadTaskRunner> task_runner)
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     :
 #else
     : resetter_(&current_default_handle, this, nullptr),
 #endif
       task_runner_(std::move(task_runner)),
       sequenced_task_runner_current_default_(task_runner_) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalKeyInited();
   pthread_setspecific(s_thread_local_key, this);
 #endif
@@ -105,7 +105,7 @@ SingleThreadTaskRunner::CurrentDefaultHandle::CurrentDefaultHandle(
 SingleThreadTaskRunner::CurrentDefaultHandle::~CurrentDefaultHandle() {
   DCHECK(task_runner_->BelongsToCurrentThread());
   DCHECK_EQ(GetCurrentDefaultHandle(), this);
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   pthread_setspecific(s_thread_local_key, nullptr);
 #endif
 }

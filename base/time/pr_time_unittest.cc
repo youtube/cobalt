@@ -11,7 +11,7 @@
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/client_porting/eztime/eztime.h"
 #endif
 
@@ -19,7 +19,7 @@ using base::Time;
 
 namespace {
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 time_t sb_mktime(struct tm *tm) {
   if (tm == nullptr) {
     return -1;
@@ -59,7 +59,7 @@ class PRTimeTest : public testing::Test {
       0,            // day of year (ignored, output only)
       -1            // DST in effect, -1 tells mktime to figure it out
     };
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     comparison_time_local_ =
         sb_mktime(&local_comparison_tm) * Time::kMicrosecondsPerSecond;
 #else
@@ -80,7 +80,7 @@ class PRTimeTest : public testing::Test {
       0,            // day of year (ignored, output only)
       -1            // DST in effect, -1 tells mktime to figure it out
     };
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     comparison_time_local_2_ =
         sb_mktime(&local_comparison_tm_2) * Time::kMicrosecondsPerSecond;
 #else
@@ -95,7 +95,7 @@ class PRTimeTest : public testing::Test {
   PRTime comparison_time_local_2_;
 };
 
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 // More of the no local time on Starboard issue. We can't use these standard
 // functions to check NSPR Time against because they don't always work on all
 // platforms, making these tests inherently flaky and non-portable.

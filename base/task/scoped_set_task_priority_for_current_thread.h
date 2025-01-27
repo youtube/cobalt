@@ -27,7 +27,7 @@ class BASE_EXPORT
   ~ScopedSetTaskPriorityForCurrentThread();
 
  private:
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   void* scoped_reset_value_;
 #else
   const AutoReset<TaskPriority> resetter_;

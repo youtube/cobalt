@@ -10,7 +10,7 @@
 
 #include "build/build_config.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include "base/base_paths_starboard.h"
 #else
 #if BUILDFLAG(IS_WIN)

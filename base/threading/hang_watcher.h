@@ -649,7 +649,7 @@ class BASE_EXPORT HangWatchState {
   // the deadline.
   THREAD_CHECKER(thread_checker_);
 
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
   const AutoReset<HangWatchState*> resetter_;
 #endif
 

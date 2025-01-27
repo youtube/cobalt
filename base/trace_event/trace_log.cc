@@ -76,7 +76,7 @@
 extern char __executable_start;
 #endif
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -118,7 +118,7 @@ constexpr TimeDelta kThreadFlushTimeout = Seconds(3);
 
 TraceLog* g_trace_log_for_testing = nullptr;
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_thread_local_event_buffer_flag =
     PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_event_buffer_key = 0;
@@ -565,13 +565,13 @@ class TraceLog::ThreadLocalEventBuffer
   void FlushWhileLocked();
 
   void CheckThisIsCurrentBuffer() const {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     auto thread_local_event_buffer = GetThreadLocalEventBuffer();
 #endif
     DCHECK_EQ(thread_local_event_buffer, this);
   }
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   void* reset_to_ = nullptr;
 #else
   const AutoReset<ThreadLocalEventBuffer*> resetter_{&thread_local_event_buffer,
@@ -592,7 +592,7 @@ void ThreadLocalEventBufferDestructor(void* buffer) {
 TraceLog::ThreadLocalEventBuffer::ThreadLocalEventBuffer(TraceLog* trace_log)
     : trace_log_(trace_log),
       generation_(trace_log->generation()) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   reset_to_ = pthread_getspecific(s_thread_local_event_buffer_key);
   pthread_setspecific(s_thread_local_event_buffer_key, this);
 #endif
@@ -621,7 +621,7 @@ TraceLog::ThreadLocalEventBuffer::~ThreadLocalEventBuffer() {
   FlushWhileLocked();
   trace_log_->thread_task_runners_.erase(PlatformThread::CurrentId());
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   pthread_setspecific(s_thread_local_event_buffer_key, reset_to_);
 #endif
 }
@@ -780,7 +780,7 @@ void TraceLog::InitializeThreadLocalEventBufferIfSupported() {
   // - to handle the final flush.
   // For a thread without a message loop or if the message loop may be blocked,
   // the trace events will be added into the main buffer directly.
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   bool thread_blocks_message_loop = GetThreadBlocksMessageLoop();
 #endif
   if (thread_blocks_message_loop || !CurrentThread::IsSet() ||
@@ -788,20 +788,20 @@ void TraceLog::InitializeThreadLocalEventBufferIfSupported() {
     return;
   }
   HEAP_PROFILER_SCOPED_IGNORE;
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   auto thread_local_event_buffer = GetThreadLocalEventBuffer();
 #endif
   if (thread_local_event_buffer &&
       !CheckGeneration(thread_local_event_buffer->generation())) {
     delete thread_local_event_buffer;
   }
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   thread_local_event_buffer = GetThreadLocalEventBuffer();
 #endif
   if (!thread_local_event_buffer) {
     thread_local_event_buffer = new ThreadLocalEventBuffer(this);
   }
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   pthread_setspecific(s_thread_local_event_buffer_key,
                       thread_local_event_buffer);
 #endif
@@ -1605,7 +1605,7 @@ void TraceLog::FlushCurrentThread(int generation, bool discard_events) {
     }
   }
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   auto thread_local_event_buffer = GetThreadLocalEventBuffer();
 #endif
   // This will flush the thread local buffer.
@@ -1674,7 +1674,7 @@ bool TraceLog::ShouldAddAfterUpdatingState(
   // Avoid re-entrance of AddTraceEvent. This may happen in GPU process when
   // ECHO_TO_CONSOLE is enabled: AddTraceEvent -> LOG(ERROR) ->
   // GpuProcessLogMessageHandler -> PostPendingTask -> TRACE_EVENT ...
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   bool thread_is_in_trace_event = GetThreadIsInTraceEvent();
 #endif
   if (thread_is_in_trace_event) {
@@ -1690,7 +1690,7 @@ bool TraceLog::ShouldAddAfterUpdatingState(
     // call (if any), but don't bother if the new name is empty. Note this will
     // not detect a thread name change within the same char* buffer address: we
     // favor common case performance over corner case correctness.
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     static pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
     static pthread_key_t s_thread_local_key = 0;
 
@@ -1708,7 +1708,7 @@ bool TraceLog::ShouldAddAfterUpdatingState(
 #endif
     if (new_name != current_thread_name && new_name && *new_name) {
       current_thread_name = new_name;
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
       pthread_setspecific(s_thread_local_key,
                           const_cast<char*>(current_thread_name));
 #endif
@@ -1859,7 +1859,7 @@ TraceEventHandle TraceLog::AddTraceEventWithThreadIdAndTimestamps(
   }
   DCHECK(!timestamp.is_null());
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   void* reset_to = pthread_getspecific(s_thread_is_in_trace_event_key);
   pthread_setspecific(s_thread_is_in_trace_event_key,
                       reinterpret_cast<void*>(static_cast<intptr_t>(true)));
@@ -1881,7 +1881,7 @@ TraceEventHandle TraceLog::AddTraceEventWithThreadIdAndTimestamps(
     // |thread_local_event_buffer| can be null if the current thread doesn't
     // have a message loop or the message loop is blocked.
     InitializeThreadLocalEventBufferIfSupported();
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     auto thread_local_event_buffer = GetThreadLocalEventBuffer();
 #endif
     event_buffer = thread_local_event_buffer;
@@ -1934,7 +1934,7 @@ TraceEventHandle TraceLog::AddTraceEventWithThreadIdAndTimestamps(
   if (!console_message.empty())
     LOG(ERROR) << console_message;
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   pthread_setspecific(s_thread_is_in_trace_event_key, reset_to);
 #endif
 
@@ -2037,13 +2037,13 @@ void TraceLog::UpdateTraceEventDurationExplicit(
   // Avoid re-entrance of AddTraceEvent. This may happen in GPU process when
   // ECHO_TO_CONSOLE is enabled: AddTraceEvent -> LOG(ERROR) ->
   // GpuProcessLogMessageHandler -> PostPendingTask -> TRACE_EVENT ...
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   bool thread_is_in_trace_event = GetThreadIsInTraceEvent();
 #endif
   if (thread_is_in_trace_event) {
     return;
   }
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   void* reset_to = pthread_getspecific(s_thread_is_in_trace_event_key);
   pthread_setspecific(s_thread_is_in_trace_event_key,
                       reinterpret_cast<void*>(static_cast<intptr_t>(true)));
@@ -2087,7 +2087,7 @@ void TraceLog::UpdateTraceEventDurationExplicit(
   if (!console_message.empty())
     LOG(ERROR) << console_message;
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   pthread_setspecific(s_thread_is_in_trace_event_key, reset_to);
 #endif
 }
@@ -2206,7 +2206,7 @@ TraceEvent* TraceLog::GetEventByHandleInternal(TraceEventHandle handle,
   DCHECK(handle.chunk_index <= TraceBufferChunk::kMaxChunkIndex);
   DCHECK(handle.event_index <= TraceBufferChunk::kTraceBufferChunkSize - 1);
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   auto thread_local_event_buffer = GetThreadLocalEventBuffer();
 #endif
   if (thread_local_event_buffer) {
@@ -2299,7 +2299,7 @@ size_t TraceLog::GetObserverCountForTest() const {
 }
 
 void TraceLog::SetCurrentThreadBlocksMessageLoop() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   auto thread_local_event_buffer = GetThreadLocalEventBuffer();
   pthread_setspecific(s_thread_blocks_message_loop_key,
                       reinterpret_cast<void*>(static_cast<intptr_t>(true)));

@@ -687,7 +687,7 @@ TEST(JSONReaderTest, LiteralRoots) {
 TEST(JSONReaderTest, ReadFromFile) {
   FilePath path;
   ASSERT_TRUE(PathService::Get(base::DIR_TEST_DATA, &path));
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   path = path.Append(FILE_PATH_LITERAL("base"));
   path = path.Append(FILE_PATH_LITERAL("test"));
   path = path.Append(FILE_PATH_LITERAL("data"));

@@ -1061,7 +1061,7 @@ void VerifyHasStringsOnStack(const std::string& pool_str,
 // See CanUseBackgroundPriorityForSchedulerWorker() for more details.
 // And Starboard can also reproduce the StackTrace().ToString() crash described
 // down below on Linux.
-#ifndef STARBOARD
+#if !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_POSIX)
 // Many POSIX bots flakily crash on |debug::StackTrace().ToString()|,
 // https://crbug.com/840429.
@@ -1157,7 +1157,7 @@ TEST_P(ThreadPoolImplTest, MAYBE_IdentifiableStacks) {
 
   thread_pool_->FlushForTesting();
 }
-#endif  // STARBOARD
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 TEST_P(ThreadPoolImplTest, WorkerThreadObserver) {
   auto owned_observer =

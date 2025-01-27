@@ -11,7 +11,7 @@
 #include "base/fuchsia/scheduler.h"
 #endif
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -21,7 +21,7 @@ namespace base {
 
 namespace {
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 
 enum TlsValue {
   kDefault = 0,
@@ -117,7 +117,7 @@ void PlatformThread::SetCurrentThreadType(ThreadType thread_type) {
 
 // static
 ThreadType PlatformThread::GetCurrentThreadType() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   ThreadType type = GetCurrentThreadTypeValue(); 
   return type;
 #else
@@ -144,7 +144,7 @@ void SetCurrentThreadType(ThreadType thread_type,
                           MessagePumpType pump_type_hint) {
   CHECK_LE(thread_type, ThreadType::kMaxValue);
   SetCurrentThreadTypeImpl(thread_type, pump_type_hint);
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalKeyInited();
   pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(ThreadTypeToTlsValue(thread_type)));
 #else

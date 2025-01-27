@@ -19,7 +19,7 @@
 #if DCHECK_IS_ON()
 #include "base/auto_reset.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -32,7 +32,7 @@ namespace base {
 namespace {
 
 #if DCHECK_IS_ON()
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
@@ -66,7 +66,7 @@ ScopedBlockingCall::ScopedBlockingCall(const Location& from_here,
           blocking_type,
           UncheckedScopedBlockingCall::BlockingCallType::kRegular) {
 #if DCHECK_IS_ON()
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalKeyInited();
   pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(true)));
 #else
@@ -81,7 +81,7 @@ ScopedBlockingCall::ScopedBlockingCall(const Location& from_here,
             base::trace_event::InternedSourceLocation::Get(&ctx, from_here));
       });
 
-#if DCHECK_IS_ON() && defined(STARBOARD)
+#if DCHECK_IS_ON() && BUILDFLAG(IS_STARBOARD)
   pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(false)));
 #endif
 }
@@ -99,7 +99,7 @@ ScopedBlockingCallWithBaseSyncPrimitives::
           blocking_type,
           UncheckedScopedBlockingCall::BlockingCallType::kBaseSyncPrimitives) {
 #if DCHECK_IS_ON()
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalKeyInited();
   pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(true)));
 #else
@@ -117,7 +117,7 @@ ScopedBlockingCallWithBaseSyncPrimitives::
         source_location_data->set_function_name(from_here.function_name());
       });
 
-#if DCHECK_IS_ON() && defined(STARBOARD)
+#if DCHECK_IS_ON() && BUILDFLAG(IS_STARBOARD)
   pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(false)));
 #endif
 }

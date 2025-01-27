@@ -10,7 +10,7 @@
 #include "build/build_config.h"
 
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include "base/test/allow_check_is_test_for_testing.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 

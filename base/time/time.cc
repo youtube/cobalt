@@ -174,7 +174,7 @@ double Time::ToDoubleT() const {
                    : std::numeric_limits<double>::infinity();
 }
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 // static
 Time Time::FromTimeSpec(const timespec& ts) {

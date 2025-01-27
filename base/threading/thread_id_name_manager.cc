@@ -15,7 +15,7 @@
 #include "base/trace_event/heap_profiler_allocation_context_tracker.h"  // no-presubmit-check
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -28,7 +28,7 @@ namespace {
 static const char kDefaultName[] = "";
 static std::string* g_default_name;
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
@@ -108,7 +108,7 @@ void ThreadIdNameManager::SetName(const std::string& name) {
 
     auto id_to_handle_iter = thread_id_to_handle_.find(id);
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     EnsureThreadLocalKeyInited();
     pthread_setspecific(s_thread_local_key, const_cast<char*>(leaked_str->c_str()));
 #else
@@ -152,7 +152,7 @@ const char* ThreadIdNameManager::GetName(PlatformThreadId id) {
 }
 
 const char* ThreadIdNameManager::GetNameForCurrentThread() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   return GetThreadName();
 #else
   return thread_name;

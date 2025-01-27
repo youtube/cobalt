@@ -29,7 +29,7 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -50,7 +50,7 @@ namespace base {
 #if DCHECK_IS_ON()
 namespace {
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
@@ -372,7 +372,7 @@ void Thread::Run(RunLoop* run_loop) {
 // static
 void Thread::SetThreadWasQuitProperly(bool flag) {
 #if DCHECK_IS_ON()
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalKeyInited();
   pthread_setspecific(s_thread_local_key, reinterpret_cast<void*>(static_cast<intptr_t>(flag)));
 #else
@@ -384,7 +384,7 @@ void Thread::SetThreadWasQuitProperly(bool flag) {
 // static
 bool Thread::GetThreadWasQuitProperly() {
 #if DCHECK_IS_ON()
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   return GetWasQuitProperly();
 #else
   return was_quit_properly;
@@ -416,7 +416,7 @@ void Thread::ThreadMain() {
   delegate_->BindToCurrentThread(timer_slack_);
   DCHECK(CurrentThread::Get());
   DCHECK(SingleThreadTaskRunner::HasCurrentDefault());
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
 #if (BUILDFLAG(IS_POSIX) && !BUILDFLAG(IS_NACL)) || BUILDFLAG(IS_FUCHSIA)
   // Allow threads running a MessageLoopForIO to use FileDescriptorWatcher API.
   std::unique_ptr<FileDescriptorWatcher> file_descriptor_watcher;

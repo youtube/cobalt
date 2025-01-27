@@ -6,14 +6,14 @@
 #include "base/compiler_specific.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 #endif
 
 namespace base {
 namespace internal {
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 
 namespace {
 
@@ -44,7 +44,7 @@ ABSL_CONST_INIT thread_local const ObserverListThreadSafeBase::
 // static
 const ObserverListThreadSafeBase::NotificationDataBase*&
 ObserverListThreadSafeBase::GetCurrentNotification() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   // We can't use a reference to a pointer in Starboard here.
   NOTIMPLEMENTED();
   static const ObserverListThreadSafeBase::NotificationDataBase* rv = nullptr;

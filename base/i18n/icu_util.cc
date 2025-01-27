@@ -56,7 +56,7 @@
 #include "third_party/icu/source/i18n/unicode/timezone.h"
 #endif
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/client_porting/icu_init/icu_init.h"
 #include "starboard/types.h"
 #endif
@@ -423,7 +423,7 @@ void SetIcuTimeZoneDataDirForTesting(const char* dir) {
 #endif  // (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_FILE)
 
 bool InitializeICU() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   IcuInit();
   return true;
 #else
@@ -442,7 +442,7 @@ bool InitializeICU() {
 #endif  // (ICU_UTIL_DATA_IMPL == ICU_UTIL_DATA_STATIC)
 
   return DoCommonInitialization();
-#endif  // defined(STARBOARD)
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
 
 void AllowMultipleInitializeCallsForTesting() {

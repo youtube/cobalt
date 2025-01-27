@@ -11,7 +11,7 @@
 #include "base/message_loop/ios_cronet_buildflags.h"
 #include "build/build_config.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include "base/message_loop/message_pump_io_starboard.h"
 #elif BUILDFLAG(IS_WIN)
 #include "base/message_loop/message_pump_win.h"
@@ -29,7 +29,7 @@
 
 namespace base {
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 using MessagePumpForIO = MessagePumpIOStarboard;
 #elif BUILDFLAG(IS_WIN)
 // Windows defines it as-is.

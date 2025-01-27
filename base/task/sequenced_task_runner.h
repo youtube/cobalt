@@ -315,7 +315,7 @@ class BASE_EXPORT SequencedTaskRunner : public TaskRunner {
     friend class SequencedTaskRunner;
     friend class CurrentHandleOverride;
 
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
     const AutoReset<CurrentDefaultHandle*> resetter_;
 #endif
 
@@ -337,7 +337,7 @@ class BASE_EXPORT SequencedTaskRunner : public TaskRunner {
                                            void (*deleter)(const void*),
                                            const void* object);
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   static scoped_refptr<SequencedTaskRunner>* null_sequenced_task_runner_;
 #endif
 };

@@ -38,7 +38,7 @@
 #include <sys/prctl.h>
 #endif
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -95,7 +95,7 @@ const char* GetAndLeakThreadName() {
 }
 
 const char* UpdateAndGetThreadName(const char* name) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   static pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
   static pthread_key_t s_thread_local_key = 0;
   

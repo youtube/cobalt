@@ -15,7 +15,7 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "starboard/thread.h"
@@ -25,7 +25,7 @@ namespace base {
 
 namespace {
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_delegate_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_delegate_key = 0;
 
@@ -100,7 +100,7 @@ RunLoop::Delegate::~Delegate() {
   // be on its creation thread (e.g. a Thread that fails to start) and
   // shouldn't disrupt that thread's state.
   if (bound_) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     DCHECK_EQ(this, GetDelegate());
     EnsureThreadLocalDelegateKeyInited();
     pthread_setspecific(s_thread_local_delegate_key, nullptr);
@@ -128,7 +128,7 @@ void RunLoop::RegisterDelegateForCurrentThread(Delegate* new_delegate) {
   DCHECK_CALLED_ON_VALID_THREAD(new_delegate->bound_thread_checker_);
 
   // There can only be one RunLoop::Delegate per thread.
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   DCHECK(!GetDelegate())
 #else
   DCHECK(!delegate)
@@ -136,7 +136,7 @@ void RunLoop::RegisterDelegateForCurrentThread(Delegate* new_delegate) {
       << "Error: Multiple RunLoop::Delegates registered on the same thread.\n\n"
          "Hint: You perhaps instantiated a second "
          "MessageLoop/TaskEnvironment on a thread that already had one?";
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalDelegateKeyInited();
   pthread_setspecific(s_thread_local_delegate_key, new_delegate);
   new_delegate->bound_ = true;
@@ -147,7 +147,7 @@ void RunLoop::RegisterDelegateForCurrentThread(Delegate* new_delegate) {
 }
 
 RunLoop::RunLoop(Type type)
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     : delegate_(GetDelegate()),
 #else
     : delegate_(delegate),
@@ -290,7 +290,7 @@ bool RunLoop::AnyQuitCalled() {
 
 // static
 bool RunLoop::IsRunningOnCurrentThread() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   auto delegate = GetDelegate();
 #endif
   return delegate && !delegate->active_run_loops_.empty();
@@ -298,7 +298,7 @@ bool RunLoop::IsRunningOnCurrentThread() {
 
 // static
 bool RunLoop::IsNestedOnCurrentThread() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   auto delegate = GetDelegate();
 #endif
   return delegate && delegate->active_run_loops_.size() > 1;
@@ -306,7 +306,7 @@ bool RunLoop::IsNestedOnCurrentThread() {
 
 // static
 void RunLoop::AddNestingObserverOnCurrentThread(NestingObserver* observer) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   auto delegate = GetDelegate();
 #endif
   DCHECK(delegate);
@@ -315,7 +315,7 @@ void RunLoop::AddNestingObserverOnCurrentThread(NestingObserver* observer) {
 
 // static
 void RunLoop::RemoveNestingObserverOnCurrentThread(NestingObserver* observer) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   auto delegate = GetDelegate();
 #endif
   DCHECK(delegate);
@@ -325,7 +325,7 @@ void RunLoop::RemoveNestingObserverOnCurrentThread(NestingObserver* observer) {
 // static
 void RunLoop::QuitCurrentDeprecated() {
   DCHECK(IsRunningOnCurrentThread());
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   auto delegate = GetDelegate();
 #endif
   DCHECK(delegate->active_run_loops_.top()->allow_quit_current_deprecated_)
@@ -336,7 +336,7 @@ void RunLoop::QuitCurrentDeprecated() {
 // static
 void RunLoop::QuitCurrentWhenIdleDeprecated() {
   DCHECK(IsRunningOnCurrentThread());
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   auto delegate = GetDelegate();
 #endif
   DCHECK(delegate->active_run_loops_.top()->allow_quit_current_deprecated_)
@@ -356,7 +356,7 @@ RepeatingClosure RunLoop::QuitCurrentWhenIdleClosureDeprecated() {
 
 #if DCHECK_IS_ON()
 ScopedDisallowRunningRunLoop::ScopedDisallowRunningRunLoop()
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     : current_delegate_(GetDelegate()),
 #else
     : current_delegate_(delegate),
@@ -368,7 +368,7 @@ ScopedDisallowRunningRunLoop::ScopedDisallowRunningRunLoop()
 }
 
 ScopedDisallowRunningRunLoop::~ScopedDisallowRunningRunLoop() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   DCHECK_EQ(current_delegate_, GetDelegate());
 #else
   DCHECK_EQ(current_delegate_, delegate);
@@ -390,7 +390,7 @@ RunLoop::RunLoopTimeout::~RunLoopTimeout() = default;
 
 // static
 void RunLoop::SetTimeoutForCurrentThread(const RunLoopTimeout* timeout) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalTimeoutKeyInited();
   pthread_setspecific(s_thread_local_timeout_key, const_cast<RunLoopTimeout*>(timeout));
 #else
@@ -400,7 +400,7 @@ void RunLoop::SetTimeoutForCurrentThread(const RunLoopTimeout* timeout) {
 
 // static
 const RunLoop::RunLoopTimeout* RunLoop::GetTimeoutForCurrentThread() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   return GetRunLoopTimeout();
 #else
   // Workaround false-positive MSAN use-of-uninitialized-value on

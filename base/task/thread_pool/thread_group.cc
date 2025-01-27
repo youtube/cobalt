@@ -19,7 +19,7 @@
 #include "base/win/scoped_winrt_initializer.h"
 #endif
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -31,7 +31,7 @@ namespace internal {
 
 namespace {
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
@@ -104,7 +104,7 @@ ThreadGroup::~ThreadGroup() = default;
 
 void ThreadGroup::BindToCurrentThread() {
   DCHECK(!CurrentThreadHasGroup());
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalKeyInited();
   pthread_setspecific(s_thread_local_key, this);
 #else
@@ -114,7 +114,7 @@ void ThreadGroup::BindToCurrentThread() {
 
 void ThreadGroup::UnbindFromCurrentThread() {
   DCHECK(IsBoundToCurrentThread());
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalKeyInited();
   pthread_setspecific(s_thread_local_key, nullptr);
 #else
@@ -123,7 +123,7 @@ void ThreadGroup::UnbindFromCurrentThread() {
 }
 
 bool ThreadGroup::IsBoundToCurrentThread() const {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   return GetCurrentThreadGroup() == this;
 #else
   return current_thread_group == this;
@@ -381,7 +381,7 @@ ThreadGroup::GetScopedWindowsThreadEnvironment(WorkerEnvironment environment) {
 
 // static
 bool ThreadGroup::CurrentThreadHasGroup() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   return GetCurrentThreadGroup() != nullptr;
 #else
   return current_thread_group != nullptr;

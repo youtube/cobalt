@@ -77,7 +77,7 @@
 #include <string.h>
 #include <time.h>
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/client_porting/eztime/eztime.h"
 #endif
 
@@ -100,7 +100,7 @@
 #define COUNT_DAYS(Y) (((Y)-1) * 365 + COUNT_LEAPS(Y))
 #define DAYS_BETWEEN_YEARS(A, B) (COUNT_DAYS(B) - COUNT_DAYS(A))
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 static void sb_localtime_r(const time_t* secs, struct tm* time) {
   if (secs == nullptr || time == nullptr) {
     return;
@@ -1177,7 +1177,7 @@ PR_ParseTimeString(
                      and if you're wrong, it will "fix" it for you. */
                   localTime.tm_isdst = -1;
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
                   secs = sb_mktime(&localTime);
 #elif _MSC_VER == 1400  /* 1400 = Visual C++ 2005 (8.0) */
                   /*
@@ -1216,7 +1216,7 @@ PR_ParseTimeString(
                    zone_offset for the date we are parsing is the same as
                    the zone offset on 00:00:00 2 Jan 1970 GMT. */
                 secs = 86400;
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
                 sb_localtime_r(&secs, &localTime);
 #else
                 localtime_r(&secs, &localTime);

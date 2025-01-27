@@ -7,7 +7,7 @@
 #include "base/compiler_specific.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -19,7 +19,7 @@ namespace internal {
 
 namespace {
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
@@ -58,7 +58,7 @@ ABSL_CONST_INIT thread_local TaskPriority task_priority_for_current_thread =
 
 ScopedSetTaskPriorityForCurrentThread::ScopedSetTaskPriorityForCurrentThread(
     TaskPriority priority)
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 {
   EnsureThreadLocalKeyInited();
   scoped_reset_value_ = reinterpret_cast<void*>(static_cast<intptr_t>(
@@ -77,7 +77,7 @@ ScopedSetTaskPriorityForCurrentThread::ScopedSetTaskPriorityForCurrentThread(
                 TaskPriority::USER_BLOCKING) {}
 #endif
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ScopedSetTaskPriorityForCurrentThread::
     ~ScopedSetTaskPriorityForCurrentThread() {
   EnsureThreadLocalKeyInited();
@@ -89,7 +89,7 @@ ScopedSetTaskPriorityForCurrentThread::
 #endif
 
 TaskPriority GetTaskPriorityForCurrentThread() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalKeyInited();
   void* task_priority_for_current_thread =
       pthread_getspecific(s_thread_local_key);

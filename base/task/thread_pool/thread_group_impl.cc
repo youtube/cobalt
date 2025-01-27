@@ -52,7 +52,7 @@ namespace internal {
 
 namespace {
 
-#ifdef STARBOARD
+#if BUILDFLAG(IS_STARBOARD)
 const size_t kMaxNumberOfWorkers = kSbMaxThreads;
 #else
 constexpr size_t kMaxNumberOfWorkers = 256;

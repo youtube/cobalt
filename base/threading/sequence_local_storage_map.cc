@@ -10,7 +10,7 @@
 #include "base/check_op.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -22,7 +22,7 @@ namespace internal {
 
 namespace {
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
@@ -59,7 +59,7 @@ SequenceLocalStorageMap& SequenceLocalStorageMap::GetForCurrentThread() {
          "ScopedSetSequenceLocalStorageMapForCurrentThread to store a "
          "SequenceLocalStorageMap object in TLS.";
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   return *GetCurrentSequenceLocalStorage();
 #else
   return *current_sequence_local_storage;
@@ -68,7 +68,7 @@ SequenceLocalStorageMap& SequenceLocalStorageMap::GetForCurrentThread() {
 
 // static
 bool SequenceLocalStorageMap::IsSetForCurrentThread() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   return GetCurrentSequenceLocalStorage() != nullptr;
 #else
   return current_sequence_local_storage != nullptr;
@@ -132,7 +132,7 @@ SequenceLocalStorageMap::ValueDestructorPair::operator=(
 ScopedSetSequenceLocalStorageMapForCurrentThread::
     ScopedSetSequenceLocalStorageMapForCurrentThread(
         SequenceLocalStorageMap* sequence_local_storage)
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 {
   EnsureThreadLocalKeyInited();
   pthread_setspecific(s_thread_local_key, sequence_local_storage);
@@ -143,7 +143,7 @@ ScopedSetSequenceLocalStorageMapForCurrentThread::
                 nullptr) {}
 #endif
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ScopedSetSequenceLocalStorageMapForCurrentThread::
     ~ScopedSetSequenceLocalStorageMapForCurrentThread() {
   EnsureThreadLocalKeyInited();

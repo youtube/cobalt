@@ -34,11 +34,11 @@
 #endif  // !BUILDFLAG(IS_NACL)
 
 #if (defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)) || \
-    (defined(STARBOARD) && defined(ADDRESS_SANITIZER))
+    (BUILDFLAG(IS_STARBOARD) && defined(ADDRESS_SANITIZER))
 #include "base/debug/leak_annotations.h"
 #endif  // defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <fcntl.h>
 
 #include "base/files/file_starboard.h"
@@ -293,7 +293,7 @@ base::stack<LogAssertHandlerFunction>& GetLogAssertHandlerStack() {
 LogMessageHandlerFunction g_log_message_handler = nullptr;
 
 uint64_t TickCount() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   return starboard::CurrentMonotonicTime();
 #elif BUILDFLAG(IS_WIN)
   return GetTickCount();
@@ -319,7 +319,7 @@ uint64_t TickCount() {
 }
 
 void DeleteFilePath(const PathString& log_name) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   unlink(log_name.c_str());
 #elif BUILDFLAG(IS_WIN)
   DeleteFile(log_name.c_str());
@@ -333,7 +333,7 @@ void DeleteFilePath(const PathString& log_name) {
 }
 
 PathString GetDefaultLogFile() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   // On Starboard, we politely ask for the log directory, like a civilized
   // platform.
   std::vector<char> path(kSbFileMaxPath + 1);
@@ -393,7 +393,7 @@ bool InitializeLogFileHandle() {
     g_log_file_name = new PathString(GetDefaultLogFile());
   }
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   // This seems to get called a lot with an empty filename, at least in
   // base_unittests.
   if (g_log_file_name->empty()) {
@@ -404,7 +404,7 @@ bool InitializeLogFileHandle() {
   if ((g_logging_destination & LOG_TO_FILE) == 0)
     return true;
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   int g_log_file_descriptor =
     open(g_log_file_name->c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
   g_log_file = &g_log_file_descriptor;
@@ -459,7 +459,7 @@ bool InitializeLogFileHandle() {
 }
 
 void CloseFile(FileHandle log) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   if (*log >= 0) {
     close(*log);
   }
@@ -485,7 +485,7 @@ void CloseLogFileUnlocked() {
     g_logging_destination &= ~LOG_TO_FILE;
 }
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 SbLogPriority LogLevelToStarboardLogPriority(int level) {
   switch (level) {
     case LOG_INFO:
@@ -508,7 +508,7 @@ SbLogPriority LogLevelToStarboardLogPriority(int level) {
       return kSbLogPriorityInfo;
   }
 }
-#endif  // defined(STARBOARD)
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 #if BUILDFLAG(IS_FUCHSIA)
 inline FuchsiaLogSeverity LogSeverityToFuchsiaLogSeverity(
@@ -534,7 +534,7 @@ inline FuchsiaLogSeverity LogSeverityToFuchsiaLogSeverity(
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
 void WriteToFd(int fd, const char* data, size_t length) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   if (length > 0) {
     SbLogRaw(data);
     if (data[length - 1] != '\n') {
@@ -552,7 +552,7 @@ void WriteToFd(int fd, const char* data, size_t length) {
     }
     bytes_written += static_cast<size_t>(rv);
   }
-#endif  // defined(STARBOARD)
+#endif  // BUILDFLAG(IS_STARBOARD)
 }
 
 void SetLogFatalCrashKey(LogMessage* log_message) {
@@ -700,7 +700,7 @@ bool ShouldCreateLogMessage(int severity) {
 // set, or only LOG_TO_FILE is set, since that is useful for local development
 // and debugging.
 bool ShouldLogToStderr(int severity) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   if ((g_logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) != 0) {
     // Don't SbLog to stderr if already logging to system debug log.
     return false;
@@ -854,7 +854,7 @@ LogMessage::~LogMessage() {
   }
 
   if ((g_logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) != 0) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
 #elif BUILDFLAG(IS_WIN)
     OutputDebugStringA(str_newline.c_str());
@@ -994,7 +994,7 @@ LogMessage::~LogMessage() {
     //   LOG(ERROR) << "Something went wrong";
     //   free_something();
     // }
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
 #else
     WriteToFd(STDERR_FILENO, str_newline.data(), str_newline.size());
@@ -1011,7 +1011,7 @@ LogMessage::~LogMessage() {
     base::AutoLock guard(GetLoggingLock());
 #endif
     if (InitializeLogFileHandle()) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
       lseek(*g_log_file, 0, SEEK_END);
       int written = 0;
       while (written < str_newline.length()) {
@@ -1104,7 +1104,7 @@ void LogMessage::Init(const char* file, int line) {
     if (g_log_process_id)
       stream_ << base::GetUniqueIdForProcess() << ':';
     if (g_log_thread_id)
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
       // Logging the thread name is added for Starboard logs.
       stream_ << base::PlatformThread::GetName() << '/'
               << base::PlatformThread::CurrentId() << ":";
@@ -1112,7 +1112,7 @@ void LogMessage::Init(const char* file, int line) {
       stream_ << base::PlatformThread::CurrentId() << ':';
 #endif
     if (g_log_timestamp) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     EzTimeValue time_value;
     EzTimeValueGetNow(&time_value, NULL);
     struct EzTimeExploded local_time = {0};
@@ -1181,7 +1181,7 @@ typedef DWORD SystemErrorCode;
 #endif
 
 SystemErrorCode GetLastSystemErrorCode() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   return SbSystemGetLastError();
 #elif BUILDFLAG(IS_WIN)
   return ::GetLastError();
@@ -1191,7 +1191,7 @@ SystemErrorCode GetLastSystemErrorCode() {
 }
 
 BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   const int kErrorMessageBufferSize = 256;
   char msgbuf[kErrorMessageBufferSize];
 
@@ -1222,7 +1222,7 @@ BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
 #endif  // BUILDFLAG(IS_WIN)
 }
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 StarboardErrorLogMessage::StarboardErrorLogMessage(const char* file,
                                                    int line,
                                                    LogSeverity severity,
@@ -1319,7 +1319,7 @@ ScopedLoggingSettings::ScopedLoggingSettings()
 ScopedLoggingSettings::~ScopedLoggingSettings() {
   // Re-initialize logging via the normal path. This will clean up old file
   // name and handle state, including re-initializing the VLOG internal state.
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   CHECK(InitLogging({
     logging_destination_,
     log_file_name_ ? log_file_name_->data() : nullptr,
@@ -1350,7 +1350,7 @@ void ScopedLoggingSettings::SetLogFormat(LogFormat log_format) const {
 
 void RawLog(int level, const char* message) {
   if (level >= g_min_log_level && message) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     SbLogRaw(message);
     const size_t message_len = strlen(message);
     if (message_len > 0 && message[message_len - 1] != '\n') {
@@ -1424,7 +1424,7 @@ void ScopedVmoduleSwitches::InitWithSwitches(
   CHECK(!scoped_vlog_info_);
   {
 #if (defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)) || \
-    (defined(STARBOARD) && defined(ADDRESS_SANITIZER))
+    (BUILDFLAG(IS_STARBOARD) && defined(ADDRESS_SANITIZER))
     // See comments on |g_vlog_info|.
     ScopedLeakSanitizerDisabler lsan_disabler;
 #endif  // defined(LEAK_SANITIZER)

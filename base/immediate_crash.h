@@ -6,7 +6,7 @@
 #define BASE_IMMEDIATE_CRASH_H_
 
 #include "build/build_config.h"
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include "starboard/common/log.h"
 #endif
 
@@ -44,7 +44,7 @@
 // be removed in followups, so splitting it up like this now makes it easy to
 // land the followups.
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #define IMMEDIATE_CRASH() SB_CHECK(false)
 #define TRAP_SEQUENCE1_() SB_CHECK(false)
 #define TRAP_SEQUENCE2_()

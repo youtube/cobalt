@@ -11,7 +11,7 @@
 #include "base/time/time.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -22,7 +22,7 @@ namespace base {
 
 namespace {
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
@@ -104,7 +104,7 @@ bool SequencedTaskRunner::PostDelayedTaskAt(
                              : delayed_run_time - TimeTicks::Now());
 }
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 // static
 scoped_refptr<SequencedTaskRunner>*
     SequencedTaskRunner::null_sequenced_task_runner_(
@@ -114,7 +114,7 @@ scoped_refptr<SequencedTaskRunner>*
 // static
 const scoped_refptr<SequencedTaskRunner>&
 SequencedTaskRunner::GetCurrentDefault() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   auto current_default_handle = GetCurrentDefaultHandle();
   return (!current_default_handle ? *null_sequenced_task_runner_
                                   : current_default_handle->task_runner_);
@@ -128,7 +128,7 @@ SequencedTaskRunner::GetCurrentDefault() {
 
 // static
 bool SequencedTaskRunner::HasCurrentDefault() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   auto current_default_handle = GetCurrentDefaultHandle();
 #endif
   return !!current_default_handle;
@@ -136,13 +136,13 @@ bool SequencedTaskRunner::HasCurrentDefault() {
 
 SequencedTaskRunner::CurrentDefaultHandle::CurrentDefaultHandle(
     scoped_refptr<SequencedTaskRunner> task_runner)
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     :
 #else
     : resetter_(&current_default_handle, this, nullptr),
 #endif
       task_runner_(std::move(task_runner)) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalKeyInited();
   pthread_setspecific(s_thread_local_key, this);
 #endif
@@ -151,7 +151,7 @@ SequencedTaskRunner::CurrentDefaultHandle::CurrentDefaultHandle(
 
 SequencedTaskRunner::CurrentDefaultHandle::~CurrentDefaultHandle() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   auto current_default_handle = GetCurrentDefaultHandle();
   pthread_setspecific(s_thread_local_key, nullptr);
 #endif

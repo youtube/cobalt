@@ -38,7 +38,7 @@
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -49,7 +49,7 @@ namespace base {
 namespace sequence_manager {
 namespace {
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
 
@@ -186,7 +186,7 @@ bool g_explicit_high_resolution_timer_win = false;
 
 // static
 SequenceManagerImpl* SequenceManagerImpl::GetCurrent() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   return GetThreadLocalSequenceManager();
 #else
   // Workaround false-positive MSAN use-of-uninitialized-value on
@@ -266,7 +266,7 @@ SequenceManagerImpl::~SequenceManagerImpl() {
   // OK, now make it so that no one can find us.
   if (GetMessagePump()) {
     DCHECK_EQ(this, GetCurrent());
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     EnsureThreadLocalKeyInited();
     pthread_setspecific(s_thread_local_key, nullptr);
 #else
@@ -368,7 +368,7 @@ void SequenceManagerImpl::BindToMessagePump(std::unique_ptr<MessagePump> pump) {
 #endif
 
   // On iOS attach to the native loop when there is one.
-#if BUILDFLAG(IS_IOS) || defined(STARBOARD)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
   if (settings_.message_loop_type == MessagePumpType::UI) {
     controller_->AttachToMessagePump();
   }
@@ -396,7 +396,7 @@ void SequenceManagerImpl::CompleteInitializationOnBoundThread() {
   if (GetMessagePump()) {
     DCHECK(!GetCurrent())
         << "Can't register a second SequenceManagerImpl on the same thread.";
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
     EnsureThreadLocalKeyInited();
     pthread_setspecific(s_thread_local_key, this);
 #else
@@ -1159,7 +1159,7 @@ bool SequenceManagerImpl::IsTaskExecutionAllowed() const {
   return controller_->IsTaskExecutionAllowed();
 }
 
-#if BUILDFLAG(IS_IOS) || defined(STARBOARD)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
 void SequenceManagerImpl::AttachToMessagePump() {
   return controller_->AttachToMessagePump();
 }

@@ -22,7 +22,7 @@
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "starboard/thread.h"
@@ -33,7 +33,7 @@ namespace internal {
 
 namespace {
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t s_once_observer_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_observer_key = 0;
 ABSL_CONST_INIT pthread_once_t s_once_call_flag = PTHREAD_ONCE_INIT;
@@ -67,7 +67,7 @@ ABSL_CONST_INIT thread_local UncheckedScopedBlockingCall*
 // These functions can be removed, and the calls below replaced with direct
 // variable accesses, once the MSAN workaround is not necessary.
 BlockingObserver* GetBlockingObserver() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalObserverKeyInited();
   return static_cast<BlockingObserver*>(
       pthread_getspecific(s_thread_local_observer_key));
@@ -81,7 +81,7 @@ BlockingObserver* GetBlockingObserver() {
 #endif
 }
 UncheckedScopedBlockingCall* GetLastScopedBlockingCall() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalCallKeyInited();
   return static_cast<UncheckedScopedBlockingCall*>(
       pthread_getspecific(s_thread_local_call_key));
@@ -110,7 +110,7 @@ bool IsBackgroundPriorityWorker() {
 void SetBlockingObserverForCurrentThread(
     BlockingObserver* new_blocking_observer) {
   DCHECK(!GetBlockingObserver());
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalObserverKeyInited();
   pthread_setspecific(s_thread_local_observer_key, new_blocking_observer);
 #else
@@ -119,7 +119,7 @@ void SetBlockingObserverForCurrentThread(
 }
 
 void ClearBlockingObserverForCurrentThread() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalObserverKeyInited();
   pthread_setspecific(s_thread_local_observer_key, nullptr);
 #else
@@ -373,13 +373,13 @@ UncheckedScopedBlockingCall::UncheckedScopedBlockingCall(
     BlockingCallType blocking_call_type)
     : blocking_observer_(GetBlockingObserver()),
       previous_scoped_blocking_call_(GetLastScopedBlockingCall()),
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_STARBOARD)
       resetter_(&last_scoped_blocking_call, this),
 #endif
       is_will_block_(blocking_type == BlockingType::WILL_BLOCK ||
                      (previous_scoped_blocking_call_ &&
                       previous_scoped_blocking_call_->is_will_block_)) {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalCallKeyInited();
   reset_to_ = pthread_getspecific(s_thread_local_call_key);
   pthread_setspecific(s_thread_local_call_key, this);
@@ -419,7 +419,7 @@ UncheckedScopedBlockingCall::~UncheckedScopedBlockingCall() {
   if (blocking_observer_ && !previous_scoped_blocking_call_)
     blocking_observer_->BlockingEnded();
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   EnsureThreadLocalCallKeyInited();
   pthread_setspecific(s_thread_local_call_key, reset_to_);
 #endif

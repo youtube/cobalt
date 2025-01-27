@@ -7,7 +7,7 @@
 #include "base/atomic_sequence_num.h"
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 
 #include "base/check_op.h"
@@ -23,7 +23,7 @@ base::AtomicSequenceNumber g_sequence_token_generator;
 
 base::AtomicSequenceNumber g_task_token_generator;
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ABSL_CONST_INIT pthread_once_t  s_once_sequence_flag = PTHREAD_ONCE_INIT;
 ABSL_CONST_INIT pthread_key_t s_thread_local_sequence_key = 0;
 
@@ -112,7 +112,7 @@ SequenceToken SequenceToken::Create() {
 }
 
 SequenceToken SequenceToken::GetForCurrentThread() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   if (IsSequenceSetForThread()) {
     EnsureThreadLocalSequenceKeyInited();
     int token = static_cast<int>(reinterpret_cast<intptr_t>(
@@ -143,7 +143,7 @@ TaskToken TaskToken::Create() {
 }
 
 TaskToken TaskToken::GetForCurrentThread() {
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
   if (IsTaskSetForThread()) {
     EnsureThreadLocalTaskKeyInited();
     int token = static_cast<int>(reinterpret_cast<intptr_t>(
@@ -159,7 +159,7 @@ TaskToken TaskToken::GetForCurrentThread() {
 
 ScopedSetSequenceTokenForCurrentThread::ScopedSetSequenceTokenForCurrentThread(
     const SequenceToken& sequence_token)
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 {
   EnsureThreadLocalSequenceKeyInited();
   auto sequence_reset_token = TaskToken::GetForCurrentThread();
@@ -201,7 +201,7 @@ ScopedSetSequenceTokenForCurrentThread::ScopedSetSequenceTokenForCurrentThread(
       }()) {}
 #endif
 
-#if defined(STARBOARD)
+#if BUILDFLAG(IS_STARBOARD)
 ScopedSetSequenceTokenForCurrentThread::
     ~ScopedSetSequenceTokenForCurrentThread() {
   EnsureThreadLocalSequenceKeyInited();
