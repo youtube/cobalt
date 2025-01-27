@@ -86,7 +86,9 @@ extern char __executable_start;
 namespace base {
 namespace trace_event {
 
+#if BUILDFLAG(IS_STARBOARD)
 void ThreadLocalEventBufferDestructor(void* buffer);
+#endif
 
 namespace {
 

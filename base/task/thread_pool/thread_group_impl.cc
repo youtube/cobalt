@@ -38,7 +38,6 @@
 #include "base/time/time_override.h"
 #include "build/build_config.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
-#include "starboard/configuration_constants.h"
 
 #if BUILDFLAG(IS_WIN)
 #include "base/win/scoped_com_initializer.h"
@@ -46,6 +45,10 @@
 #include "base/win/scoped_winrt_initializer.h"
 #include "base/win/windows_version.h"
 #endif  // BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/configuration_constants.h"
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 namespace base {
 namespace internal {
