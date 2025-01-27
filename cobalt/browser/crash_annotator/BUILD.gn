@@ -14,13 +14,13 @@
 
 source_set("crash_annotator") {
   sources = [
-    "crash_annotator_service.cc",
-    "crash_annotator_service.h",
+    "crash_annotator_impl.cc",
+    "crash_annotator_impl.h",
   ]
 
   deps = [
     "//base",
-    "//cobalt/services/crash_annotator/public/mojom",
+    "//cobalt/browser/crash_annotator/public/mojom",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
   ]
