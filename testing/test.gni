@@ -15,6 +15,7 @@ import("//build/rust/rust_static_library.gni")
 import("//build_overrides/build.gni")
 if (is_cobalt) {
   import("//cobalt/build/configs/modular_variables.gni")
+  import("//cobalt/build/testing/cobalt_test_templates.gni")
 }
 
 declare_args() {
@@ -59,12 +60,6 @@ if (is_android) {
 } else {
   import("//build/config/sanitizers/sanitizers.gni")
   import("//build/util/generate_wrapper.gni")
-}
-
-template("target_with_platform_configs") {
-  target(invoker.target_type, target_name) {
-    forward_variables_from(invoker, "*", [ "target_type" ])
-  }
 }
 
 # This template generates the test target (of type `target_type`) but also
@@ -225,9 +220,6 @@ template("test") {
 
   testonly = true
   not_needed("*", [ "testonly" ])
-  if (testonly) {
-    print("testonly is being used")
-  }
   if (!is_ios) {
     assert(!defined(invoker.is_xctest) || !invoker.is_xctest,
            "is_xctest can be set only for iOS builds")
@@ -1032,87 +1024,81 @@ template("test") {
       assert(!defined(invoker.use_xvfb) || !invoker.use_xvfb)
     }
 
-    # _runtime_deps_file = "$root_out_dir/${target_name}.runtime_deps"
-    # _executable = target_name
-    # _gen_runner_target = "${target_name}__runner"
+    _runtime_deps_file = "$root_out_dir/${target_name}.runtime_deps"
+    _executable = target_name
+    _gen_runner_target = "${target_name}__runner"
 
     if ((is_linux || is_chromeos) && defined(invoker.use_xvfb)) {
-      # _use_xvfb = invoker.use_xvfb
-      not_needed(invoker, [ "_use_xvfb" ])
-      print("yohoo")
+      _use_xvfb = invoker.use_xvfb
     } else {
+      _use_xvfb = false
     }
 
-    # generate_wrapper(_gen_runner_target) {
-    #   wrapper_script = "$root_build_dir/bin/run_" + _executable
+    generate_wrapper(_gen_runner_target) {
+      wrapper_script = "$root_build_dir/bin/run_" + _executable
 
-    #   data = []
-    #   data_deps = [ "//testing:test_scripts_shared" ]
+      data = []
+      data_deps = [ "//testing:test_scripts_shared" ]
 
-    #   if (_use_xvfb) {
-    #     executable = "//testing/xvfb.py"
-    #   } else {
-    #     executable = "//testing/test_env.py"
-    #   }
-    #   if (tests_have_location_tags) {
-    #     data += [ "//testing/location_tags.json" ]
-    #   }
+      if (_use_xvfb) {
+        executable = "//testing/xvfb.py"
+      } else {
+        executable = "//testing/test_env.py"
+      }
+      if (tests_have_location_tags) {
+        data += [ "//testing/location_tags.json" ]
+      }
 
-    #   executable_args = [
-    #     "@WrappedPath(./${_executable})",
-    #     "--test-launcher-bot-mode",
-    #   ]
-    #   if (is_asan) {
-    #     executable_args += [ "--asan=1" ]
-    #   }
-    #   if (is_msan) {
-    #     executable_args += [ "--msan=1" ]
-    #   }
-    #   if (is_tsan) {
-    #     executable_args += [ "--tsan=1" ]
-    #   }
-    #   if (use_cfi_diag) {
-    #     executable_args += [ "--cfi-diag=1" ]
-    #   }
+      executable_args = [
+        "@WrappedPath(./${_executable})",
+        "--test-launcher-bot-mode",
+      ]
+      if (is_asan) {
+        executable_args += [ "--asan=1" ]
+      }
+      if (is_msan) {
+        executable_args += [ "--msan=1" ]
+      }
+      if (is_tsan) {
+        executable_args += [ "--tsan=1" ]
+      }
+      if (use_cfi_diag) {
+        executable_args += [ "--cfi-diag=1" ]
+      }
 
-    #   if (use_rts) {
-    #     data_deps += [ ":${invoker.target_name}__rts_filters" ]
-    #   }
-    # }
+      if (use_rts) {
+        data_deps += [ ":${invoker.target_name}__rts_filters" ]
+      }
+    }
 
-    # cobalt_loader(target_name) {
-    #   target_type = "shared_library"
-    #   forward_variables_from(invoker,
-    #                          "*",
-    #                          TESTONLY_AND_VISIBILITY + [ "use_xvfb" ])
-    #   forward_variables_from(invoker, [ "visibility" ])
-    #   if (!defined(deps)) {
-    #     deps = []
-    #   }
+    mixed_test(target_name) {
+      target_type = "executable"
+      forward_variables_from(invoker,
+                             "*",
+                             TESTONLY_AND_VISIBILITY + [ "use_xvfb" ])
+      forward_variables_from(invoker, [ "visibility" ])
+      if (!defined(deps)) {
+        deps = []
+      }
 
-    #   deps += [
-    #     # Give tests the default manifest on Windows (a no-op elsewhere).
-    #     "//build/win:default_exe_manifest",
-    #   ]
+      deps += [
+        # Give tests the default manifest on Windows (a no-op elsewhere).
+        "//build/win:default_exe_manifest",
+      ]
 
-    #   write_runtime_deps = _runtime_deps_file
-    #   deps += [ ":$_gen_runner_target" ]
+      write_runtime_deps = _runtime_deps_file
+      deps += [ ":$_gen_runner_target" ]
 
-    #   if (!defined(data_deps)) {
-    #     data_deps = []
-    #   }
+      if (!defined(data_deps)) {
+        data_deps = []
+      }
 
-    #   data_deps += [ "//testing:test_scripts_shared" ]
+      data_deps += [ "//testing:test_scripts_shared" ]
 
-    #   if (use_rts) {
-    #     data_deps += [ ":${invoker.target_name}__rts_filters" ]
-    #   }
-    # }
-
-    # if (defined(invoker.testonly)) {
-    #   not_needed(invoker.testonly)
-    #   print("use_testonly1")
-    # }
+      if (use_rts) {
+        data_deps += [ ":${invoker.target_name}__rts_filters" ]
+      }
+    }
   } else {
     # This is a catch-all clause for NaCl toolchains and other random
     # configurations that might define tests; test() in these configs
