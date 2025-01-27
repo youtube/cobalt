@@ -6,6 +6,7 @@
 
 #include <memory>
 
+#include "base/logging.h"
 #include "ui/ozone/public/overlay_candidates_ozone.h"
 
 namespace ui {
@@ -18,6 +19,7 @@ StubOverlayManager::~StubOverlayManager() {
 
 std::unique_ptr<OverlayCandidatesOzone>
 StubOverlayManager::CreateOverlayCandidates(gfx::AcceleratedWidget w) {
+  NOTIMPLEMENTED();
   return nullptr;
 }
 
