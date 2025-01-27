@@ -55,10 +55,8 @@ message TestRequest {
 // Working directory and command line arguments to be passed to the gateway.
 message OnDeviceTestsWatchCommand {
   // Next ID: 6
-  string workdir = 1;
   string token = 2;
   string session_id = 3;
-  string change_id = 4;
   bool dry_run = 5;
 }
 
