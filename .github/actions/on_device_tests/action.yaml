@@ -14,7 +14,7 @@ runs:
     - name: Install Requirements
       # TODO (b/388329764) - set up requirements file.
       run: |
-        pip3 install grpcio==1.38.0 grpcio-tools==1.38.0
+        pip3 install --require-hashes --no-deps -r src/cobalt/tools/requirements.txt
       shell: bash
     - name: Generate gRPC files
       run: |
