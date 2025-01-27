@@ -64,11 +64,11 @@ PlatformScreenStarboard::GetAcceleratedWidgetAtScreenPoint(
 }
 
 void PlatformScreenStarboard::AddObserver(display::DisplayObserver* observer) {
-  // TODO(b/371272304): Add Observer to display::DisplayList.
+  display_list_.AddObserver(observer);
 }
 void PlatformScreenStarboard::RemoveObserver(
     display::DisplayObserver* observer) {
-  // TODO(b/371272304): Remove Observer from display::DisplayList.
+  display_list_.RemoveObserver(observer);
 }
 
 }  // namespace ui
