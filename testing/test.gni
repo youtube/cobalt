@@ -1052,9 +1052,8 @@ template("test") {
     #   }
     # }
     actual_target_name = target_name
-    original_target_name = "${target_name}_original_target"
 
-    target_with_platform_configs(original_target_name) {
+    target_with_platform_configs(actual_target_name) {
       output_name = actual_target_name
       target_type = "shared_library"
       forward_variables_from(invoker,
@@ -1107,7 +1106,7 @@ template("test") {
         ]
 
         deps = [
-          ":$original_target_name($cobalt_toolchain)",
+          ":$actual_target_name($cobalt_toolchain)",
           "//starboard($starboard_toolchain)",
         ]
       }
