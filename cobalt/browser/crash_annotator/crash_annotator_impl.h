@@ -35,9 +35,8 @@ class CrashAnnotatorImpl
  public:
   // Creates a CrashAnnotatorImpl. The CrashAnnotatorImpl is bound to the
   // receiver and its lifetime is scoped to the render_frame_host.
-  static void Create(
-      content::RenderFrameHost* render_frame_host,
-      mojo::PendingReceiver<mojom::CrashAnnotator> receiver);
+  static void Create(content::RenderFrameHost* render_frame_host,
+                     mojo::PendingReceiver<mojom::CrashAnnotator> receiver);
 
   CrashAnnotatorImpl(const CrashAnnotatorImpl&) = delete;
   CrashAnnotatorImpl& operator=(const CrashAnnotatorImpl&) = delete;
@@ -47,9 +46,8 @@ class CrashAnnotatorImpl
                  SetStringCallback callback) override;
 
  private:
-  CrashAnnotatorImpl(
-      content::RenderFrameHost& render_frame_host,
-      mojo::PendingReceiver<mojom::CrashAnnotator> receiver);
+  CrashAnnotatorImpl(content::RenderFrameHost& render_frame_host,
+                     mojo::PendingReceiver<mojom::CrashAnnotator> receiver);
 };
 
 }  // namespace crash_annotator

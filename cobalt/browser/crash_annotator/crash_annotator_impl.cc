@@ -22,9 +22,8 @@ namespace crash_annotator {
 CrashAnnotatorImpl::CrashAnnotatorImpl(
     content::RenderFrameHost& render_frame_host,
     mojo::PendingReceiver<mojom::CrashAnnotator> receiver)
-    : content::DocumentService<mojom::CrashAnnotator>(
-          render_frame_host,
-          std::move(receiver)) {}
+    : content::DocumentService<mojom::CrashAnnotator>(render_frame_host,
+                                                      std::move(receiver)) {}
 
 void CrashAnnotatorImpl::Create(
     content::RenderFrameHost* render_frame_host,
