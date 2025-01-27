@@ -15,7 +15,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_ANNOTATOR_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_ANNOTATOR_H_
 
-#include "cobalt/services/crash_annotator/public/mojom/crash_annotator_service.mojom-blink.h"
+#include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
@@ -54,7 +54,8 @@ class MODULES_EXPORT CrashAnnotator final
   void OnSetString(ScriptPromiseResolver*, bool);
   void EnsureReceiverIsBound();
 
-  HeapMojoRemote<crash_annotator::mojom::blink::CrashAnnotatorService> service_;
+  HeapMojoRemote<crash_annotator::mojom::blink::CrashAnnotator>
+      remote_crash_annotator_;
 };
 
 }  // namespace blink
