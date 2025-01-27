@@ -14,13 +14,22 @@
 
 #include "starboard/android/shared/media_codec_bridge.h"
 
+#include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_bridge_eradicator.h"
 #include "starboard/common/string.h"
 
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "cobalt/android/jni_headers/MediaCodecBridge_jni.h"
+
 namespace starboard {
 namespace android {
 namespace shared {
+
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
+using base::android::ConvertJavaStringToUTF8;
+using base::android::JavaParamRef;
 
 namespace {
 
@@ -86,39 +95,34 @@ jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
 }  // namespace
 
 extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecFrameRendered(
-    JNIEnv* env,
-    jobject unused_this,
-    jlong native_media_codec_bridge,
-    jlong presentation_time_us,
-    jlong render_at_system_time_ns) {
+JNI_MediaCodecBridge_OnMediaCodecFrameRendered(JNIEnv* env,
+                                               jlong native_media_codec_bridge,
+                                               jlong presentation_time_us,
+                                               jlong render_at_system_time_ns) {
   MediaCodecBridge* media_codec_bridge =
       reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
   SB_DCHECK(media_codec_bridge);
   media_codec_bridge->OnMediaCodecFrameRendered(presentation_time_us);
 }
 
-extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecError(
-    JniEnvExt* env,
-    jobject unused_this,
+extern "C" SB_EXPORT_PLATFORM void JNI_MediaCodecBridge_OnMediaCodecError(
+    JNIEnv* env,
     jlong native_media_codec_bridge,
     jboolean is_recoverable,
     jboolean is_transient,
-    jstring diagnostic_info) {
+    const JavaParamRef<jstring>& diagnostic_info) {
   MediaCodecBridge* media_codec_bridge =
       reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
   SB_DCHECK(media_codec_bridge);
   std::string diagnostic_info_in_str =
-      env->GetStringStandardUTFOrAbort(diagnostic_info);
+      ConvertJavaStringToUTF8(env, diagnostic_info);
   media_codec_bridge->OnMediaCodecError(is_recoverable, is_transient,
                                         diagnostic_info_in_str);
 }
 
 extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecInputBufferAvailable(
+JNI_MediaCodecBridge_OnMediaCodecInputBufferAvailable(
     JNIEnv* env,
-    jobject unused_this,
     jlong native_media_codec_bridge,
     jint buffer_index) {
   MediaCodecBridge* media_codec_bridge =
@@ -128,9 +132,8 @@ Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecInputBufferAvailable(
 }
 
 extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecOutputBufferAvailable(
+JNI_MediaCodecBridge_OnMediaCodecOutputBufferAvailable(
     JNIEnv* env,
-    jobject unused_this,
     jlong native_media_codec_bridge,
     jint buffer_index,
     jint flags,
@@ -145,9 +148,8 @@ Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecOutputBufferAvailable(
 }
 
 extern "C" SB_EXPORT_PLATFORM void
-Java_dev_cobalt_media_MediaCodecBridge_nativeOnMediaCodecOutputFormatChanged(
+JNI_MediaCodecBridge_OnMediaCodecOutputFormatChanged(
     JNIEnv* env,
-    jobject unused_this,
     jlong native_media_codec_bridge) {
   MediaCodecBridge* media_codec_bridge =
       reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
@@ -390,7 +392,7 @@ MediaCodecBridge::~MediaCodecBridge() {
 
   if (MediaCodecBridgeEradicator::GetInstance()->IsEnabled()) {
     if (MediaCodecBridgeEradicator::GetInstance()->Destroy(
-            j_media_codec_bridge_, j_reused_get_output_format_result_)) {
+            j_media_codec_bridge_, j_reused_get_output_format_result_.obj())) {
       return;
     }
     SB_LOG(WARNING)
@@ -403,10 +405,6 @@ MediaCodecBridge::~MediaCodecBridge() {
   env->CallVoidMethodOrAbort(j_media_codec_bridge_, "release", "()V");
   env->DeleteGlobalRef(j_media_codec_bridge_);
   j_media_codec_bridge_ = NULL;
-
-  SB_DCHECK(j_reused_get_output_format_result_);
-  env->DeleteGlobalRef(j_reused_get_output_format_result_);
-  j_reused_get_output_format_result_ = NULL;
 }
 
 jobject MediaCodecBridge::GetInputBuffer(jint index) {
@@ -510,17 +508,25 @@ FrameSize MediaCodecBridge::GetOutputSize() {
   env->CallVoidMethodOrAbort(
       j_media_codec_bridge_, "getOutputFormat",
       "(Ldev/cobalt/media/MediaCodecBridge$GetOutputFormatResult;)V",
-      j_reused_get_output_format_result_);
+      j_reused_get_output_format_result_.obj());
 
-  auto call_int_method = [env, this](const char* name) {
-    return env->CallIntMethodOrAbort(j_reused_get_output_format_result_, name,
-                                     "()I");
-  };
+  JNIEnv* env_jni = AttachCurrentThread();
 
-  FrameSize size = {
-      call_int_method("textureWidth"), call_int_method("textureHeight"),
-      call_int_method("cropLeft"),     call_int_method("cropTop"),
-      call_int_method("cropRight"),    call_int_method("cropBottom")};
+  jint textureWidth = Java_GetOutputFormatResult_textureWidth(
+      env_jni, j_reused_get_output_format_result_);
+  jint textureHeight = Java_GetOutputFormatResult_textureHeight(
+      env_jni, j_reused_get_output_format_result_);
+  jint cropLeft = Java_GetOutputFormatResult_cropLeft(
+      env_jni, j_reused_get_output_format_result_);
+  jint cropTop = Java_GetOutputFormatResult_cropTop(
+      env_jni, j_reused_get_output_format_result_);
+  jint cropRight = Java_GetOutputFormatResult_cropRight(
+      env_jni, j_reused_get_output_format_result_);
+  jint cropBottom = Java_GetOutputFormatResult_cropBottom(
+      env_jni, j_reused_get_output_format_result_);
+
+  FrameSize size = {textureWidth, textureHeight, cropLeft,
+                    cropTop,      cropRight,     cropBottom};
 
   size.DCheckValid();
   return size;
@@ -531,19 +537,23 @@ AudioOutputFormatResult MediaCodecBridge::GetAudioOutputFormat() {
   env->CallVoidMethodOrAbort(
       j_media_codec_bridge_, "getOutputFormat",
       "(Ldev/cobalt/media/MediaCodecBridge$GetOutputFormatResult;)V",
-      j_reused_get_output_format_result_);
+      j_reused_get_output_format_result_.obj());
 
-  jint status = env->CallIntMethodOrAbort(j_reused_get_output_format_result_,
-                                          "status", "()I");
+  JNIEnv* env_jni = AttachCurrentThread();
+
+  jint status = Java_GetOutputFormatResult_status(
+      env_jni, j_reused_get_output_format_result_);
+
   if (status == MEDIA_CODEC_ERROR) {
     return {status, 0, 0};
   }
 
-  return {status,
-          env->CallIntMethodOrAbort(j_reused_get_output_format_result_,
-                                    "sampleRate", "()I"),
-          env->CallIntMethodOrAbort(j_reused_get_output_format_result_,
-                                    "channelCount", "()I")};
+  jint sample_rate = Java_GetOutputFormatResult_sampleRate(
+      env_jni, j_reused_get_output_format_result_);
+  jint channel_count = Java_GetOutputFormatResult_channelCount(
+      env_jni, j_reused_get_output_format_result_);
+
+  return {status, sample_rate, channel_count};
 }
 
 void MediaCodecBridge::OnMediaCodecError(bool is_recoverable,
@@ -583,14 +593,18 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
 
   j_media_codec_bridge_ = j_media_codec_bridge;
 
+  // TODO: (cobalt b/390481510) Consolidate env variables when the rest of
+  // MediaCodecBridge is migrated.
   JniEnvExt* env = JniEnvExt::Get();
   SB_DCHECK(env->GetObjectRefType(j_media_codec_bridge_) == JNIGlobalRefType);
 
-  j_reused_get_output_format_result_ = env->NewObjectOrAbort(
+  jobject j_reused_get_output_format_result_raw = env->NewObjectOrAbort(
       "dev/cobalt/media/MediaCodecBridge$GetOutputFormatResult", "()V");
-  SB_DCHECK(j_reused_get_output_format_result_);
-  j_reused_get_output_format_result_ =
-      env->ConvertLocalRefToGlobalRef(j_reused_get_output_format_result_);
+  SB_DCHECK(j_reused_get_output_format_result_raw);
+
+  JNIEnv* env_jni = AttachCurrentThread();
+  j_reused_get_output_format_result_.Reset(
+      env_jni, j_reused_get_output_format_result_raw);
 }
 
 }  // namespace shared

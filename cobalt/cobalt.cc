@@ -27,7 +27,6 @@ int main(int argc, const char** argv) {
   content::ContentMainParams params(&delegate);
 
   // TODO: (cobalt b/375241103) Reimplement this in a clean way.
-
   constexpr auto cobalt_args = std::to_array<const char*>(
       {// Disable first run experience, kiosk, etc.
        "--disable-fre", "--no-first-run", "--kiosk",
@@ -37,7 +36,10 @@ int main(int argc, const char** argv) {
        "--single-process",
        // Disable Vulkan.
        "--disable-features=Vulkan",
-       // TODO(mcasas): Add "--ozone-platform=starboard".
+       // Force some ozone settings.
+       "--ozone-platform=starboard", "--use-gl=angle", "--use-angle=gles-egl",
+       // Set the default size for the content shell/starboard window.
+       "--content-shell-host-window-size=1920x1080",
        // Enable remote Devtools access.
        "--remote-debugging-port=9222",
        "--remote-allow-origins=http://localhost:9222",
