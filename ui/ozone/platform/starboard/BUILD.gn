@@ -26,8 +26,6 @@ source_set("starboard") {
     "gl_ozone_egl_starboard.h",
     "ozone_platform_starboard.cc",
     "ozone_platform_starboard.h",
-    "platform_event_source_starboard.cc",
-    "platform_event_source_starboard.h",
     "platform_screen_starboard.cc",
     "platform_screen_starboard.h",
     "platform_window_starboard.cc",
@@ -86,5 +84,5 @@ source_set("test_support") {
     "ozone_ui_controls_test_helper_starboard.h",
   ]
 
-  deps = [ "//ui/base/x" ]
+  deps = [ "//base:base" ]
 }

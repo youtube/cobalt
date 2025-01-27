@@ -248,7 +248,7 @@ absl::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
   base::trace_event::TraceLog::GetInstance()->SetProcessSortIndex(
       kTraceEventBrowserProcessSortIndex);
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
   // On Android and iOS, we defer to the system message loop when the stack
   // unwinds. So here we only create (and leak) a BrowserMainRunner. The
   // shutdown of BrowserMainRunner doesn't happen in Chrome Android/iOS and

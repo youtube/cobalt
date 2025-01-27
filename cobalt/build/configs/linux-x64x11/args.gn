@@ -18,3 +18,15 @@ enable_nacl = false
 
 # Overriding the flag from //ui/gl/features.gni
 use_static_angle = true
+
+# Disable udev
+use_udev = false
+
+# Disable glib
+use_glib = false
+
+# Disable PipeWire in WebRTC
+rtc_use_pipewire = false
+
+# Disable Chrome Remote Desktop
+enable_remoting = false
