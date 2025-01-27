@@ -41,11 +41,10 @@ ScriptPromise CrashAnnotator::setString(ScriptState* script_state,
 
   EnsureReceiverIsBound();
 
-  service_->SetString(key,
-                      value,
-                      WTF::BindOnce(
-                          &CrashAnnotator::OnSetString,
-                          WrapPersistent(this), WrapPersistent(resolver)));
+  service_->SetString(
+      key, value,
+      WTF::BindOnce(&CrashAnnotator::OnSetString, WrapPersistent(this),
+                    WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
