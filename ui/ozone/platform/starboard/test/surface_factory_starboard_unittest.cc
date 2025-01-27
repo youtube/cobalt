@@ -28,7 +28,6 @@ static const std::map<gl::GLImplementation, std::string>
         {gl::kGLImplementationDisabled, "disabled"},
         {gl::kGLImplementationEGLANGLE, "eglangle"},
 };
-}
 
 class SurfaceFactoryStarboardSupportTest
     : public testing::TestWithParam<
@@ -66,4 +65,5 @@ INSTANTIATE_TEST_SUITE_P(
         SurfaceFactoryStarboardSupportTest::ParamType>& info) {
       return kGLImplementationToString.at(testing::get<0>(info.param));
     });
+}  // namespace
 }  // namespace ui
