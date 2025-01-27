@@ -1089,10 +1089,12 @@ void BrowserMainLoop::PreShutdown() {
   __lsan_do_leak_check();
 #endif  // LEAK_SANITIZER
 
+#if !BUILDFLAG(IS_STARBOARD)
   // Clear OnNextIdleCallback if it's still pending. Failure to do so can result
   // in an OnFirstIdle phase incorrectly triggering during shutdown if an early
   // exit paths results in a shutdown path that happens to RunLoop.
   base::CurrentThread::Get()->RegisterOnNextIdleCallback(base::NullCallback());
+#endif
 
   ui::Clipboard::OnPreShutdownForCurrentThread();
 }

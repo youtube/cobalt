@@ -13,6 +13,8 @@
 
 #if BUILDFLAG(IS_APPLE)
 #include "base/message_loop/message_pump_mac.h"
+#elif BUILDFLAG(IS_STARBOARD)
+#include "base/message_loop/message_pump_ui_starboard.h"
 #endif
 
 namespace base {
@@ -54,6 +56,8 @@ std::unique_ptr<MessagePump> MessagePump::Create(MessagePumpType type) {
       // TODO(abarth): Figure out if we need this.
       NOTREACHED();
       return nullptr;
+#elif BUILDFLAG(IS_STARBOARD)
+      return std::make_unique<MessagePumpUIStarboard>();
 #else
       return std::make_unique<MessagePumpForUI>();
 #endif

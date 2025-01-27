@@ -19,6 +19,7 @@
 
 #include "base/base_export.h"
 #include "base/message_loop/message_pump.h"
+#include "base/run_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "starboard/event.h"
@@ -82,6 +83,9 @@ class BASE_EXPORT MessagePumpUIStarboard : public MessagePump {
 
   // If the delegate has been removed, Quit() has been called.
   bool should_quit() const { return delegate_ == nullptr; }
+
+  // Maintain a RunLoop attached to the starboard thread.
+  std::unique_ptr<RunLoop> run_loop_;
 
   // The MessagePump::Delegate configured in Start().
   Delegate* delegate_;

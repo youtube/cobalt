@@ -61,7 +61,7 @@ std::unique_ptr<VizCompositorThreadType> CreateAndStartCompositorThread() {
   if (!thread)
     thread = std::make_unique<base::Thread>(kThreadName);
 
-#if BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_STARBOARD)
   // An IO message pump is needed to use FIDL.
   thread_options.message_pump_type = base::MessagePumpType::IO;
 #endif

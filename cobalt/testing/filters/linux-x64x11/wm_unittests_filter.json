@@ -1,0 +1,23 @@
+{
+  "failing_tests": [
+    "CaptureControllerTest.GestureResetWithCapture",
+    "CaptureControllerTest.ReparentedWhileCaptured",
+    "CaptureControllerTest.ResetMouseEventHandlerOnCapture",
+    "CompoundEventFilterTest.DontHideWhenMouseDown",
+    "CompoundEventFilterTest.FilterConsumedGesture",
+    "CursorManagerTest.IsMouseEventsEnabled",
+    "CursorManagerTest.MultipleEnableMouseEvents",
+    "FocusControllerApiTest.DuplicateFocusEvents",
+    "FocusControllerApiTest.ShiftFocusToChildOfInactiveWindow",
+    "FocusControllerApiTest.ShiftFocusWithinActiveWindow",
+    "FocusControllerDestructionTest.FocusEvents",
+    "FocusControllerGestureEventTest.BasicFocus",
+    "FocusControllerGestureEventTest.ShiftFocusToParentOfFocusedWindow",
+    "FocusControllerHideTest.FocusEvents",
+    "FocusControllerMouseEnterEventTest.FocusEvents",
+    "TransientWindowManagerTest.TransientChildren",
+    "TransientWindowManagerTest.TransientChildrenGroupAbove",
+    "WindowAnimationsTest.LayerTargetVisibility_AnimateShow",
+    "WindowAnimationsTest.NotifyHideCompleted"
+  ]
+}
