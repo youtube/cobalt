@@ -92,7 +92,11 @@ if (is_component_build && !is_android) {
 # Settings for executables.
 config("executable_config") {
   configs = executable_and_shared_library_configs_
-  ldflags = [ "-pie" ]
+  if (is_starboard) {
+    ldflags = []
+  } else {
+    ldflags = [ "-pie" ]
+  }
   if (is_android) {
     ldflags += [
       "-Bdynamic",
