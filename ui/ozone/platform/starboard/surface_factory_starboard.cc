@@ -23,14 +23,14 @@ SurfaceFactoryStarboard::~SurfaceFactoryStarboard() = default;
 std::vector<gl::GLImplementationParts>
 SurfaceFactoryStarboard::GetAllowedGLImplementations() {
   return std::vector<gl::GLImplementationParts>{
-      gl::GLImplementationParts(gl::kGLImplementationEGLGLES2),
+      gl::GLImplementationParts(gl::kGLImplementationEGLANGLE),
   };
 }
 
 GLOzone* SurfaceFactoryStarboard::GetGLOzone(
     const gl::GLImplementationParts& implementation) {
   switch (implementation.gl) {
-    case gl::kGLImplementationEGLGLES2:
+    case gl::kGLImplementationEGLANGLE:
       return &egl_implementation_;
     default:
       return nullptr;
