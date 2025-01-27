@@ -11,3 +11,8 @@ use_errorprone_java_compiler = false
 # Overriding flag from //media/media_options.gni.
 # Cobalt doesn't use //third_party/ffmpeg.
 media_use_ffmpeg = false
+
+# Overrides the default debug keystore Chromium provides.
+android_keystore_path = getenv("HOME") + "/.android/debug.keystore"
+android_keystore_name = "androiddebugkey"
+android_keystore_password = "android"
