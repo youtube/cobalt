@@ -38,7 +38,6 @@ gcc_toolchain("native_target") {
   nm = "nm"
 
   toolchain_args = {
-    is_starboard = false
     is_native_target_build = true
     is_clang = true
   }
