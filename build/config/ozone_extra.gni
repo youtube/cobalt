@@ -32,7 +32,7 @@ ozone_external_platform_ui_test_support_deps = []
 # interactive_ui_tests.
 ozone_external_interactive_ui_tests_deps = []
 
-if (defined(is_starboard) && is_starboard) {
+if (is_starboard) {
   ozone_external_platforms += ["starboard"]
   ozone_external_platform_deps += ["platform/starboard"]
   ozone_external_platform_test_deps += ["platform/starboard:starboard_unittests"]
