@@ -302,7 +302,8 @@ run_package_release_pipeline () {
         "${package_dir}" \
         "${bootloader_out_dir:-}"
     else
-      cp "${out_dir}/cobalt" "${package_dir}"
+      python3 "${WORKSPACE_COBALT}/cobalt/build/linux/package.py" \
+        --name=cobalt-linux "${out_dir}" "${package_dir}"
     fi
 
     # Create and upload nightly archive.
