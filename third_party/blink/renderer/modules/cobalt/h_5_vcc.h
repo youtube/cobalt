@@ -27,10 +27,10 @@ namespace blink {
 class ScriptState;
 class CrashAnnotator;
 class LocalDOMWindow;
+class H5vccSystem;
 
-class MODULES_EXPORT H5vcc final
-    : public ScriptWrappable,
-      public Supplement<LocalDOMWindow> {
+class MODULES_EXPORT H5vcc final : public ScriptWrappable,
+                                   public Supplement<LocalDOMWindow> {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -43,12 +43,15 @@ class MODULES_EXPORT H5vcc final
 
   CrashAnnotator* crashAnnotator() { return crash_annotator_; }
 
+  H5vccSystem* system() { return system_; }
+
   void Trace(Visitor*) const override;
 
  private:
   Member<CrashAnnotator> crash_annotator_;
+  Member<H5vccSystem> system_;
 };
 
-}
+}  // namespace blink
 
 #endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H_5_VCC_H_
