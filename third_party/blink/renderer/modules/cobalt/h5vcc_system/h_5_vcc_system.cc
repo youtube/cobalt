@@ -16,21 +16,55 @@
 
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 
+#include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+// #include
+// "third_party/blink/renderer/core/execution_context/execution_context.h"
+
 namespace blink {
 
-H5vccSystem::H5vccSystem(LocalDOMWindow& window) {}
+H5vccSystem::H5vccSystem(LocalDOMWindow& window)
+    : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
+      remote_h5vcc_system_(window.GetExecutionContext()) {}
 
-const String H5vccSystem::advertisingId() const {
-  NOTIMPLEMENTED();
+void H5vccSystem::ContextDestroyed() {}
 
-  // TODO(b/377049113) add a mojom service and populate the value for
-  // advertising_id_.
-  //   return advertising_id_;
-  return String("fake advertisingId");
+const String H5vccSystem::advertisingId(ScriptState* script_state) {
+  if (advertising_id_.empty()) {
+    auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(script_state);
+
+    EnsureReceiverIsBound();
+
+    remote_h5vcc_system_->GetAdvertisingId(
+        WTF::BindOnce(&H5vccSystem::OnGetAdvertisingId, WrapPersistent(this),
+                      WrapPersistent(resolver)));
+  }
+
+  return advertising_id_;
+}
+
+void H5vccSystem::OnGetAdvertisingId(ScriptPromiseResolver* resolver,
+                                     const String& result) {
+  advertising_id_ = result;
+}
+
+void H5vccSystem::EnsureReceiverIsBound() {
+  DCHECK(GetExecutionContext());
+
+  if (remote_h5vcc_system_.is_bound()) {
+    return;
+  }
+
+  auto task_runner =
+      GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
+  GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
+      remote_h5vcc_system_.BindNewPipeAndPassReceiver(task_runner));
 }
 
 void H5vccSystem::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
+  ExecutionContextLifecycleObserver::Trace(visitor);
+  visitor->Trace(remote_h5vcc_system_);
 }
 
 }  // namespace blink
