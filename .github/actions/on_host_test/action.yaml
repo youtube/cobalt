@@ -103,18 +103,23 @@ runs:
         tags="platform:${{ matrix.platform }}"
         tags="${tags},os:${{ inputs.os }}"
         echo $tags > ${TEST_RESULTS_DIR}/${{ matrix.platform }}/TAGS
-    - name: Archive unit test results
-      uses: actions/upload-artifact@v3
-      if: (success() || failure()) && steps.run-tests.outputs.test_type == 'unit_tests'
-      with:
-        name: unit-test-results
-        path: ${{env.TEST_RESULTS_DIR}}/
-    - name: Archive coverage html report
-      if: success() && matrix.shard == 'coverage'
-      uses: actions/upload-artifact@v3
-      with:
-        name: coverage-report
-        path: ${{env.COVERAGE_DIR}}/html
+    # TODO(b/392611572)
+    # Temporarily disabled because we need to upgrade to v4, but that
+    # requires additional work to build workflows that consume the uploaded test
+    # results.
+    #
+    # - name: Archive unit test results
+    #   uses: actions/upload-artifact@v3
+    #   if: (success() || failure()) && steps.run-tests.outputs.test_type == 'unit_tests'
+    #   with:
+    #     name: unit-test-results
+    #     path: ${{env.TEST_RESULTS_DIR}}/
+    # - name: Archive coverage html report
+    #   if: success() && matrix.shard == 'coverage'
+    #   uses: actions/upload-artifact@v3
+    #   with:
+    #     name: coverage-report
+    #     path: ${{env.COVERAGE_DIR}}/html
     - name: Upload to Codecov
       if: success() && matrix.shard == 'coverage'
       uses: codecov/codecov-action@v3
