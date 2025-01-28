@@ -143,7 +143,7 @@ jobs:
       matrix:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel]
+        config: [devel, qa, gold]
     container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
@@ -208,7 +208,7 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-      - name: Run On-Device Tests (${{ matrix.shard }})
+      - name: Run On-Device Tests
         id: on-device-tests
         uses: ./.github/actions/on_device_tests
         with:
