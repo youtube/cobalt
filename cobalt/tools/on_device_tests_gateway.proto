@@ -16,35 +16,37 @@ syntax = "proto3";
 
 package on_device_tests_gateway;
 
-// Interface exported by the server.
+// A dumb proxy RPC service that passes user arguments to OmniLab
+// to the on-device tests gateway and streams back output in real time.
 service on_device_tests_gateway {
-  // A dumb proxy RPC service that passes user defined command line options
-  // to the on-device tests gateway and streams back output in real time.
+  // Request to start a test session.
   rpc exec_command(OnDeviceTestsCommand)
       returns (stream OnDeviceTestsResponse) {}
 
-  // A dumb proxy RPC service that passes user defined command line options
-  // to the on-device tests gateway and streams back output in real time.
+  // Request to start watching a running test session.
   rpc exec_watch_command(OnDeviceTestsWatchCommand)
       returns (stream OnDeviceTestsResponse) {}
 }
 
-// Working directory and command line arguments to be passed to the gateway.
 message OnDeviceTestsCommand {
+  // Next ID: 25
   string token = 2;
   repeated string labels = 8;
   repeated TestRequest test_requests = 24;
 }
 
 message TestRequest {
-  // Args picked up by MH, e.g. "name1=value", "name2=value.
+  // Next ID: 7
+  // Args picked up by MH, e.g. "name1=value", "name2=value".
   repeated string test_args = 1;
-  // Args sent to test binary/apk, e.g. "--arg1", "--arg2=value".
+  // Args picked up by the test target "command_line_args=--arg1=value",
+  // "base_dir=/sdcard".
   repeated string test_cmd_args = 2;
   // Files to send to device, e.g. "build_apk=/bigstore/bucket/test.apk",
   // "test_apk=/bigstore/bucket/test.apk",
   repeated string files = 3;
-  // e.g. "gcs_result_path=gs://some/gcs/path"
+  // Args picked up by drivers, decorators, and plugins, e.g.
+  // "gcs_result_path=gs://some/gcs/path", "log_filename=test_output.txt".
   repeated string params = 4;
   // "sabrina" or "boreal"
   string device_type = 5;
@@ -52,7 +54,6 @@ message TestRequest {
   string device_pool = 6;
 }
 
-// Working directory and command line arguments to be passed to the gateway.
 message OnDeviceTestsWatchCommand {
   // Next ID: 6
   string token = 2;
@@ -60,7 +61,6 @@ message OnDeviceTestsWatchCommand {
   bool dry_run = 5;
 }
 
-// Response from the on-device tests.
 message OnDeviceTestsResponse {
   // Next ID: 2
   string response = 1;
