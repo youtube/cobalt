@@ -12,6 +12,7 @@ files: |
         media/base/starboard/|
         media/starboard/|
         starboard/|
+        third_party/blink/renderer/modules/cobalt/|
         components/viz/service/display/starboard/|
         ui/ozone/platform/starboard/|
         .pre-commit-config.yaml|
