@@ -42,11 +42,9 @@ ScriptPromise CrashAnnotator::setString(ScriptState* script_state,
   EnsureReceiverIsBound();
 
   remote_crash_annotator_->SetString(
-      key,
-      value,
-      WTF::BindOnce(
-          &CrashAnnotator::OnSetString,
-          WrapPersistent(this), WrapPersistent(resolver)));
+      key, value,
+      WTF::BindOnce(&CrashAnnotator::OnSetString, WrapPersistent(this),
+                    WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
