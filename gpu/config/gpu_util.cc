@@ -289,11 +289,8 @@ GpuFeatureStatus GetGLFeatureStatus(const std::set<int>& blocklisted_features,
     // path on top of SwiftShader driver.
     return kGpuFeatureStatusEnabled;
   }
-  // TODO(cobalt, b/371272304): Re-enable
-#if !BUILDFLAG(ENABLE_COBALT_HACKS)
   if (blocklisted_features.count(GPU_FEATURE_TYPE_ACCELERATED_GL))
     return kGpuFeatureStatusBlocklisted;
-#endif  // !BUILDFLAG(ENABLE_COBALT_HACKS)
   return kGpuFeatureStatusEnabled;
 }
 
