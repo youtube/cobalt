@@ -22,18 +22,14 @@ runs:
       shell: bash
     - name: Set Up Cloud SDK
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    - name: Set env vars
+    - name: Set GCS Project Name
       run: |
         echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
-        # Test results and logs
-        echo "GCS_RESULTS_PATH=gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}" >> $GITHUB_ENV
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
-        # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
-        TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
         GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
-        GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
+        GCS_RESULTS_PATH: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
@@ -49,6 +45,8 @@ runs:
         GITHUB_RUN_NUMBER: ${{ github.run_number }}
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
+        # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
+        TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
       run: |
         set -uxe
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
