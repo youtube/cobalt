@@ -23,7 +23,10 @@ from typing import List, Optional
 
 # Path prefixes that contain files we don't need to run tests.
 _EXCLUDE_DIRS = [
-    '../../', 'lib.java/', './exe.unstripped/', './lib.unstripped/'
+    '../../',
+    'lib.java/',
+    './exe.unstripped/',
+    './lib.unstripped/',
 ]
 
 
