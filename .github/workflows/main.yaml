@@ -177,6 +177,7 @@ jobs:
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
         with:
           targets: ${{ needs.initialize.outputs.targets }}
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device }}
 
