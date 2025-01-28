@@ -53,7 +53,7 @@ def create_archive(targets: List[str], source_dir: str, destination_dir: str,
   deps = set()
   # TODO(oxv): Make output from build step instead.
   # Add test_targets.json to archive so that test runners know what to run.
-  deps.add([os.path.relpath(os.path.join(tar_root, 'test_targets.json'))])
+  deps.add(os.path.relpath(os.path.join(tar_root, 'test_targets.json')))
 
   for target in targets:
     target_path, target_name = target.split(':')
