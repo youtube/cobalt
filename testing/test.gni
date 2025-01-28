@@ -14,7 +14,6 @@ import("//build/config/rts.gni")
 import("//build/rust/rust_static_library.gni")
 import("//build_overrides/build.gni")
 if (is_cobalt) {
-  import("//cobalt/build/configs/modular_variables.gni")
   import("//cobalt/build/testing/cobalt_test_templates.gni")
 }
 
@@ -966,7 +965,6 @@ template("test") {
       forward_variables_from(invoker,
                              "*",
                              TESTONLY_AND_VISIBILITY + [ "use_xvfb" ])
-      forward_variables_from(invoker, [ "visibility" ])
       testonly = true
     }
   } else if (!is_nacl) {
