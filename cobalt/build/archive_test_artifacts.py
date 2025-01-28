@@ -50,11 +50,14 @@ def create_archive(targets: List[str], source_dir: str, destination_dir: str,
   """Main logic. Collects runtime dependencies from the source directory for
   each target."""
   tar_root = '.' if platform.startswith('android') else source_dir
-  # Always add test_targets.json to archive.
-  deps = set([os.path.relpath(os.path.join(tar_root, 'test_targets.json'))])
+  deps = set()
+  # TODO(oxv): Make output from build step instead.
+  # Add test_targets.json to archive so that test runners know what to run.
+  deps.add([os.path.relpath(os.path.join(tar_root, 'test_targets.json'))])
+
   for target in targets:
     target_path, target_name = target.split(':')
-    # These are configured in test.gni:
+    # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
     if platform.startswith('android'):
       deps_file = os.path.join(
