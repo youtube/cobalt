@@ -13,9 +13,10 @@
 # limitations under the License.
 
 import("//third_party/blink/renderer/modules/modules.gni")
-blink_modules_sources("cobalt_system") {
+
+blink_modules_sources("h5vcc_system") {
   sources = [
-    "cobalt_system.cc",
-    "cobalt_system.h",
+    "h_5_vcc_system.cc",
+    "h_5_vcc_system.h",
   ]
 }

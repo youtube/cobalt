@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_SYSTEM_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_SYSTEM_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H_5_VCC_SYSTEM_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_H_5_VCC_SYSTEM_H_
 
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -24,11 +24,11 @@ namespace blink {
 class LocalDOMWindow;
 class ScriptState;
 
-class MODULES_EXPORT CobaltSystem final : public ScriptWrappable {
+class MODULES_EXPORT H5vccSystem final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  explicit CobaltSystem(LocalDOMWindow&);
+  explicit H5vccSystem(LocalDOMWindow&);
 
   // Web-exposed interface:
   const String advertisingId() const;
@@ -38,4 +38,4 @@ class MODULES_EXPORT CobaltSystem final : public ScriptWrappable {
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_SYSTEM_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_H_5_VCC_SYSTEM_H_
