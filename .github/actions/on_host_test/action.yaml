@@ -92,9 +92,14 @@ runs:
         tags="os.platform:${{ matrix.platform }}"
         tags="${tags},os.family:${{ inputs.os }}"
         echo $tags > ${TEST_RESULTS_DIR}/${{ matrix.platform }}/TAGS
-    - name: Archive unit test results
-      uses: actions/upload-artifact@v3
-      if: always() && steps.run-tests.outputs.test_type == 'unit_tests'
-      with:
-        name: unit-test-reports
-        path: ${{env.TEST_REPORT_FILE}}
+    # TODO(b/392611572)
+    # Temporarily disabled because we need to upgrade to v4, but that
+    # requires additional work to build workflows that consume the uploaded test
+    # results.
+    #
+    # - name: Archive unit test results
+    #  uses: actions/upload-artifact@v3
+    #  if: always() && steps.run-tests.outputs.test_type == 'unit_tests'
+    #  with:
+    #    name: unit-test-reports
+    #    path: ${{env.TEST_REPORT_FILE}}
