@@ -28,40 +28,29 @@ using ::starboard::Mutex;
 using ::starboard::Thread;
 
 namespace ui {
-
-class MockPlatformWindowDelegate : public ui::PlatformWindowDelegate {
+class TestPlatformDelegate : public ui::PlatformWindowDelegate {
  public:
-  // Mock ui::PlatformWindowDelegate implementation.
-  MockPlatformWindowDelegate();
+  // Test ui::PlatformWindowDelegate implementation.
+  void OnBoundsChanged(const BoundsChange& change) override {}
+  void OnDamageRect(const gfx::Rect& damaged_region) override {}
+  void DispatchEvent(ui::Event* event) override {
+    type = ui::EventTypeFromNative(event);
+  }
+  void OnCloseRequest() override {}
+  void OnClosed() override {}
+  void OnWindowStateChanged(ui::PlatformWindowState old_state,
+                            ui::PlatformWindowState new_state) override {}
+  void OnLostCapture() override {}
+  void OnAcceleratedWidgetAvailable(gfx::AcceleratedWidget widget) override {}
+  void OnWillDestroyAcceleratedWidget() override {}
+  void OnAcceleratedWidgetDestroyed() override {}
+  void OnActivationChanged(bool active) override {}
+  void OnMouseEnter() override {}
 
-  MockPlatformWindowDelegate(const MockPlatformWindowDelegate&) = delete;
-  MockPlatformWindowDelegate& operator=(const MockPlatformWindowDelegate&) =
-      delete;
+  ui::EventType GetEventType() { return type; }
 
-  ~MockPlatformWindowDelegate() override;
-
-  MOCK_METHOD(void, OnBoundsChanged, (const BoundsChange& change), (override));
-  MOCK_METHOD(void,
-              OnDamageRect,
-              (const gfx::Rect& damaged_region),
-              (override));
-  MOCK_METHOD(void, DispatchEvent, (ui::Event * event), (override));
-  MOCK_METHOD(void, OnCloseRequest, (), (override));
-  MOCK_METHOD(void, OnClosed, (), (override));
-  MOCK_METHOD(void,
-              OnWindowStateChanged,
-              (ui::PlatformWindowState old_state,
-               ui::PlatformWindowState new_state),
-              (override));
-  MOCK_METHOD(void, OnLostCapture, (), (override));
-  MOCK_METHOD(void,
-              OnAcceleratedWidgetAvailable,
-              (gfx::AcceleratedWidget widget),
-              (override));
-  MOCK_METHOD(void, OnWillDestroyAcceleratedWidget, (), (override));
-  MOCK_METHOD(void, OnAcceleratedWidgetDestroyed, (), (override));
-  MOCK_METHOD(void, OnActivationChanged, (bool active), (override));
-  MOCK_METHOD(void, OnMouseEnter, (), (override));
+ private:
+  ui::EventType type = ui::ET_UNKNOWN;
 };
 }  // namespace ui
 #endif  // UI_OZONE_PLATFORM_STARBOARD_TEST_STARBOARD_TEST_HELPER_H_
