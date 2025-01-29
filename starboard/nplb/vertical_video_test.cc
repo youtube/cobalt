@@ -135,10 +135,10 @@ TEST_P(VerticalVideoTest, WriteSamples) {
       player_fixture.ConvertDurationToVideoBufferCount(200'000);
 
   GroupedSamples samples;
-  samples.AddVideoSamples(0, audio_samples_to_write);
-  samples.AddVideoEOS();
-  samples.AddAudioSamples(0, video_samples_to_write);
+  samples.AddAudioSamples(0, audio_samples_to_write);
   samples.AddAudioEOS();
+  samples.AddVideoSamples(0, video_samples_to_write);
+  samples.AddVideoEOS();
 
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
   ASSERT_NO_FATAL_FAILURE(player_fixture.WaitForPlayerEndOfStream());
