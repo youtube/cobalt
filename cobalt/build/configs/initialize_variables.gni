@@ -21,8 +21,6 @@ declare_args() {
 
   build_type = "devel"
 
-  is_starboard = target_os != "android"
-
   # Used to guard any customizations to Chromium or third-party code for builds
   # where the Starboard porting layer is not used.
   is_native_target_build = false

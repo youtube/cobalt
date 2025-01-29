@@ -109,6 +109,7 @@ VideoStreamInfo CreateVideoStreamInfo(SbMediaVideoCodec codec) {
 
   video_stream_info.mime = "";
   video_stream_info.max_video_capabilities = "";
+  video_stream_info.color_metadata.bits_per_channel = 8;
   video_stream_info.color_metadata.primaries = kSbMediaPrimaryIdBt709;
   video_stream_info.color_metadata.transfer = kSbMediaTransferIdBt709;
   video_stream_info.color_metadata.matrix = kSbMediaMatrixIdBt709;

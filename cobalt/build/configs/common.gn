@@ -15,3 +15,6 @@ ffmpeg_branding = "Chrome"
 # Removing these flags causes a lot of compiler errors in starboard code.
 clang_use_chrome_plugins = false
 enable_check_raw_ptr_fields = false
+
+# Enable e/ac3 support for Cobalt.
+enable_platform_ac3_eac3_audio = true
