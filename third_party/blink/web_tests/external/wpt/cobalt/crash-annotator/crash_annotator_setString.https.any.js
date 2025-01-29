@@ -6,13 +6,13 @@ crash_annotator_test(async (t, fake) => {
   let expectedSetStringResult = true;
   fake.stubResult(expectedSetStringResult);
   let setStringResult =
-      await navigator.crashAnnotator.setString("some key", "some val");
+      await window.h5vcc.crashAnnotator.setString("some key", "some val");
   assert_equals(setStringResult, expectedSetStringResult);
 }, 'setString() returns value provided by browser endpoint');
 
 crash_annotator_test(async (t, fake) => {
   let key = "some key";
   let value = "some value";
-  await navigator.crashAnnotator.setString(key, value);
+  await window.h5vcc.crashAnnotator.setString(key, value);
   assert_equals(fake.getAnnotation(key), value);
 }, 'setString() sends expected key and value to browser endpoint');

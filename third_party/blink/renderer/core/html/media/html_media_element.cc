@@ -432,7 +432,7 @@ bool IsProgressiveFormat(const ContentType& content_type) {
 MIMETypeRegistry::SupportsType HTMLMediaElement::GetSupportsType(
     const ContentType& content_type) {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // Interupt Chromium's IsTypeSupported() from here for better performance.
+  // Interrupt Chromium's IsTypeSupported() from here for better performance.
   MIMETypeRegistry::SupportsType result;
   if (!base::FeatureList::IsEnabled(media::kCobaltProgressivePlayback) &&
       IsProgressiveFormat(content_type)) {

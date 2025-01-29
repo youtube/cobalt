@@ -14,23 +14,27 @@
 
 #include "starboard/speech_synthesis.h"
 
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/starboard_bridge.h"
 
-using starboard::android::shared::JniEnvExt;
-using starboard::android::shared::ScopedLocalJavaRef;
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "cobalt/android/jni_headers/CobaltTextToSpeechHelper_jni.h"
+
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
+using base::android::ScopedJavaLocalRef;
 
 void SbSpeechSynthesisSpeak(const char* text) {
   if (!text) {
     return;
   }
-  JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jobject> j_tts_helper(
-      env->CallStarboardObjectMethodOrAbort(
-          "getTextToSpeechHelper",
-          "()Ldev/cobalt/coat/CobaltTextToSpeechHelper;"));
-  ScopedLocalJavaRef<jstring> j_text_string(
-      env->NewStringStandardUTFOrAbort(text));
-  env->CallVoidMethodOrAbort(j_tts_helper.Get(), "speak",
-                             "(Ljava/lang/String;)V", j_text_string.Get());
+  JNIEnv* env = AttachCurrentThread();
+
+  ScopedJavaLocalRef<jobject> j_tts_helper =
+      starboard::android::shared::StarboardBridge::GetInstance()
+          ->GetTextToSpeechHelper(env);
+
+  jstring text_string = env->NewStringUTF(text);
+  ScopedJavaLocalRef<jstring> j_text_string(env, text_string);
+
+  Java_CobaltTextToSpeechHelper_speak(env, j_tts_helper, j_text_string);
 }

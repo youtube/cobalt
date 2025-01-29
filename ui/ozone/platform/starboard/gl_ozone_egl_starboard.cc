@@ -37,13 +37,15 @@ GLOzoneEGLStarboard::~GLOzoneEGLStarboard() = default;
 scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateViewGLSurface(
     gl::GLDisplay* display,
     gfx::AcceleratedWidget window) {
+  CHECK(window != gfx::kNullAcceleratedWidget);
   // TODO(b/371272304): Verify widget dimensions match our expected display size
   // (likely full screen for Cobalt).
   return gl::InitializeGLSurface(new gl::NativeViewGLSurfaceEGL(
-      display->GetAs<gl::GLDisplayEGL>(), GetNativeWindow(),
+      display->GetAs<gl::GLDisplayEGL>(), window,
       std::make_unique<gfx::FixedVSyncProvider>(base::TimeTicks(),
                                                 GetVSyncInterval())));
 }
+
 scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateOffscreenGLSurface(
     gl::GLDisplay* display,
     const gfx::Size& size) {
@@ -51,22 +53,18 @@ scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateOffscreenGLSurface(
       new gl::PbufferGLSurfaceEGL(display->GetAs<gl::GLDisplayEGL>(), size));
 }
 
-intptr_t GLOzoneEGLStarboard::GetNativeWindow() {
-  CreateDisplayTypeAndWindowIfNeeded();
-  return reinterpret_cast<intptr_t>(window_);
-}
-
 gl::EGLDisplayPlatform GLOzoneEGLStarboard::GetNativeDisplay() {
-  CreateDisplayTypeAndWindowIfNeeded();
+  CreateDisplayTypeIfNeeded();
   return gl::EGLDisplayPlatform(
       reinterpret_cast<EGLNativeDisplayType>(display_type_));
 }
 
 bool GLOzoneEGLStarboard::LoadGLES2Bindings(
     const gl::GLImplementationParts& implementation) {
-  DCHECK_EQ(implementation.gl, gl::kGLImplementationEGLGLES2)
+  DCHECK_EQ(implementation.gl, gl::kGLImplementationEGLANGLE)
       << "Not supported: " << implementation.ToString();
-  // TODO(b/371272304): Initialize hardware here if needed.
+  // TODO(b/371272304): call into LoadDefaultEGLGLES2Bindings instead and let
+  // Angle load GLES and EGL.
   gl::GLGetProcAddressProc gl_proc = reinterpret_cast<gl::GLGetProcAddressProc>(
       SbGetEglInterface()->eglGetProcAddress);
 
@@ -79,29 +77,11 @@ bool GLOzoneEGLStarboard::LoadGLES2Bindings(
   return true;
 }
 
-void GLOzoneEGLStarboard::CreateDisplayTypeAndWindowIfNeeded() {
+void GLOzoneEGLStarboard::CreateDisplayTypeIfNeeded() {
   // TODO(b/371272304): Initialize hardware here if needed.
   if (!have_display_type_) {
     display_type_ = reinterpret_cast<void*>(SB_EGL_DEFAULT_DISPLAY);
     have_display_type_ = true;
-  }
-  if (!window_) {
-    SbWindowOptions options{};
-    SbWindowSetDefaultOptions(&options);
-
-    sb_window_ = ScopedSbWindow(SbWindowCreate(&options));
-    window_ = SbWindowGetPlatformHandle(sb_window_.get());
-  }
-
-  CHECK(window_);
-}
-
-GLOzoneEGLStarboard::ScopedSbWindow::ScopedSbWindow(SbWindow&& window)
-    : sb_window_(std::move(window)) {}
-
-GLOzoneEGLStarboard::ScopedSbWindow::~ScopedSbWindow() {
-  if (sb_window_ != kSbWindowInvalid) {
-    SbWindowDestroy(sb_window_);
   }
 }
 
