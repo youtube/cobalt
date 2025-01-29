@@ -77,7 +77,8 @@ def create_archive(targets: List[str], source_dir: str, destination_dir: str,
       target_deps = {
           os.path.relpath(os.path.join(tar_root, line.strip()))
           for line in runtime_deps_file
-          if not any(line.startswith(path) for path in _EXCLUDE_DIRS)
+          if not (platform.startswith('android') and any(
+              line.startswith(path) for path in _EXCLUDE_DIRS))
       }
       deps |= target_deps
 
