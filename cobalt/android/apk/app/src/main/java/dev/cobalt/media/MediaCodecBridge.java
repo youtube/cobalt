@@ -40,8 +40,14 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Locale;
 import java.util.Optional;
+import org.chromium.base.annotations.CalledByNative;
+import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
 
 /** A wrapper of the MediaCodec class. */
+
+@JNINamespace("starboard::android::shared")
+
 @SuppressWarnings("unused")
 @UsedByNative
 class MediaCodecBridge {
@@ -261,7 +267,7 @@ class MediaCodecBridge {
     private Optional<Boolean> mFormatHasCropValues = Optional.empty();
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("GetOutputFormatResult")
     private GetOutputFormatResult() {
       mStatus = MediaCodecStatus.ERROR;
       mFormat = null;
@@ -280,13 +286,13 @@ class MediaCodecBridge {
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("GetOutputFormatResult")
     private int status() {
       return mStatus;
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("GetOutputFormatResult")
     private int textureWidth() {
       return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_WIDTH))
           ? mFormat.getInteger(MediaFormat.KEY_WIDTH)
@@ -294,7 +300,7 @@ class MediaCodecBridge {
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("GetOutputFormatResult")
     private int textureHeight() {
       return (mFormat != null && mFormat.containsKey(MediaFormat.KEY_HEIGHT))
           ? mFormat.getInteger(MediaFormat.KEY_HEIGHT)
@@ -302,37 +308,37 @@ class MediaCodecBridge {
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("GetOutputFormatResult")
     private int cropLeft() {
       return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_LEFT) : -1;
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("GetOutputFormatResult")
     private int cropTop() {
       return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_TOP) : -1;
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("GetOutputFormatResult")
     private int cropRight() {
       return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_RIGHT) : -1;
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("GetOutputFormatResult")
     private int cropBottom() {
       return formatHasCropValues() ? mFormat.getInteger(KEY_CROP_BOTTOM) : -1;
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("GetOutputFormatResult")
     private int sampleRate() {
       return mFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE);
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("GetOutputFormatResult")
     private int channelCount() {
       return mFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
     }
@@ -458,7 +464,7 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
-              nativeOnMediaCodecError(
+              MediaCodecBridgeJni.get().onMediaCodecError(
                   mNativeMediaCodecBridge,
                   e.isRecoverable(),
                   e.isTransient(),
@@ -472,7 +478,7 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
-              nativeOnMediaCodecInputBufferAvailable(mNativeMediaCodecBridge, index);
+              MediaCodecBridgeJni.get().onMediaCodecInputBufferAvailable(mNativeMediaCodecBridge, index);
             }
           }
 
@@ -483,7 +489,7 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
-              nativeOnMediaCodecOutputBufferAvailable(
+              MediaCodecBridgeJni.get().onMediaCodecOutputBufferAvailable(
                   mNativeMediaCodecBridge,
                   index,
                   info.flags,
@@ -507,7 +513,7 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
-              nativeOnMediaCodecOutputFormatChanged(mNativeMediaCodecBridge);
+              MediaCodecBridgeJni.get().onMediaCodecOutputFormatChanged(mNativeMediaCodecBridge);
               if (mFrameRateEstimator != null) {
                 mFrameRateEstimator.reset();
               }
@@ -525,7 +531,7 @@ class MediaCodecBridge {
                 if (mNativeMediaCodecBridge == 0) {
                   return;
                 }
-                nativeOnMediaCodecFrameRendered(
+                MediaCodecBridgeJni.get().onMediaCodecFrameRendered(
                     mNativeMediaCodecBridge, presentationTimeUs, nanoTime);
               }
             }
@@ -1204,25 +1210,29 @@ class MediaCodecBridge {
     }
   }
 
-  private native void nativeOnMediaCodecError(
-      long nativeMediaCodecBridge,
+  @NativeMethods
+  interface Natives {
+    void onMediaCodecError(
+      long mediaCodecBridge,
       boolean isRecoverable,
       boolean isTransient,
-      String diagnosticInfo);
+      String diagnosticInfo
+    );
 
-  private native void nativeOnMediaCodecInputBufferAvailable(
-      long nativeMediaCodecBridge, int bufferIndex);
+    void onMediaCodecInputBufferAvailable(
+      long mediaCodecBridge, int bufferIndex);
 
-  private native void nativeOnMediaCodecOutputBufferAvailable(
-      long nativeMediaCodecBridge,
+    void onMediaCodecOutputBufferAvailable(
+      long mediaCodecBridge,
       int bufferIndex,
       int flags,
       int offset,
       long presentationTimeUs,
       int size);
 
-  private native void nativeOnMediaCodecOutputFormatChanged(long nativeMediaCodecBridge);
+    void onMediaCodecOutputFormatChanged(long mediaCodecBridge);
 
-  private native void nativeOnMediaCodecFrameRendered(
-      long nativeMediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
+    void onMediaCodecFrameRendered(
+      long mediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
+  }
 }

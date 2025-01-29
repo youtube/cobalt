@@ -23,9 +23,10 @@ import android.os.HandlerThread;
 import android.speech.tts.TextToSpeech;
 import android.view.accessibility.AccessibilityManager;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.List;
+import org.chromium.base.annotations.CalledByNative;
+// import org.chromium.base.annotations.NativeMethods;
 
 /**
  * Helper class to implement the SbSpeechSynthesis* Starboard API for Audio accessibility.
@@ -92,7 +93,7 @@ class CobaltTextToSpeechHelper
 
   /** Returns whether a screen reader is currently enabled */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public boolean isScreenReaderEnabled() {
     AccessibilityManager am =
         (AccessibilityManager) context.getSystemService(Context.ACCESSIBILITY_SERVICE);
@@ -127,9 +128,8 @@ class CobaltTextToSpeechHelper
    * of Starboard's SbSpeechSynthesisSpeak.
    */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   void speak(final String text) {
-
     handler.post(
         new Runnable() {
           @Override
@@ -162,7 +162,7 @@ class CobaltTextToSpeechHelper
 
   /** Cancels all speaking. Java-layer implementation of Starboard's SbSpeechSynthesisCancel. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   void cancel() {
     handler.post(
         new Runnable() {
@@ -199,9 +199,14 @@ class CobaltTextToSpeechHelper
   private void finishIfScreenReaderChanged() {
     if (wasScreenReaderEnabled != isScreenReaderEnabled()) {
       wasScreenReaderEnabled = isScreenReaderEnabled();
-      nativeSendTTSChangedEvent();
+      // TODO: (cobalt b/392178584) clean up speech synthesis code, investigate if this is still needed.
+      // CobaltTextToSpeechHelperJni.get().sendTTSChangedEvent();
     }
   }
 
-  private native void nativeSendTTSChangedEvent();
+  // TODO: (cobalt b/392178584) clean up speech synthesis code, investigate if this is still needed.
+  // @NativeMethods
+  // interface Natives {
+  //   void sendTTSChangedEvent();
+  // }
 }

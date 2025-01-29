@@ -34,7 +34,11 @@ jinja_template("cobalt_manifest") {
 }
 
 generate_jni("jni_headers") {
-  sources = [ "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java" ]
+  sources = [
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
+    "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
+    "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
+  ]
 }
 
 generate_jni("content_shell_jni_headers") {
@@ -241,15 +245,11 @@ shared_library("libcobalt_content_shell_content_view") {
   testonly = true
   deps = [
     ":content_shell_jni_headers",
-    "//cobalt:embed_polyfilled_javascript",
+    "//cobalt/browser",
     "//cobalt/renderer:renderer",
-    "//cobalt/services/crash_annotator",
-    "//cobalt/services/crash_annotator/public/mojom",
-    "//cobalt/user_agent",
 
     # TODO: what can be removed in the dependencies?
     "//components/crash/content/browser",
-    "//components/js_injection/browser:browser",
     "//content/shell:content_shell_app",
     "//content/shell:content_shell_lib",
     "//content/shell:pak",
@@ -268,16 +268,8 @@ shared_library("libcobalt_content_shell_content_view") {
     ]
   }
   sources = [
-    # TODO(cobalt, b/383301493): move browser-related source files under a
-    # //cobalt/browser directory and define a "browser" build target there.
-    "//cobalt/cobalt_browser_interface_binders.cc",
-    "//cobalt/cobalt_browser_interface_binders.h",
-    "//cobalt/cobalt_content_browser_client.cc",
-    "//cobalt/cobalt_content_browser_client.h",
     "//cobalt/cobalt_main_delegate.cc",
     "//cobalt/cobalt_main_delegate.h",
-    "//cobalt/cobalt_web_contents_observer.cc",
-    "//cobalt/cobalt_web_contents_observer.h",
     "cobalt_library_loader.cc",
   ]
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]

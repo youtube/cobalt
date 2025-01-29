@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "cobalt/cobalt_main_delegate.h"
-#include "cobalt/cobalt_content_browser_client.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "content/public/browser/render_frame_host.h"
 

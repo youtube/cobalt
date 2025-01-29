@@ -4,7 +4,8 @@
     "chromium_linux-x64x11"
   ],
   "targets": [
-    "content_shell"
+    "content_shell",
+    "chromedriver"
   ],
   "includes": [
     {

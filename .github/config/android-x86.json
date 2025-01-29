@@ -1,18 +1,16 @@
 {
-    "docker_service": "linux",
-    "platforms": [
-        "android-x86"
-    ],
-    "targets": [
-        "content_shell",
-        "system_webview_apk",
-        "system_webview_shell_apk",
-        "cobalt:gn_all"
-    ],
-    "includes": [
-        {
-        "name":"x86",
-        "platform":"android-x86"
-        }
-    ]
+  "docker_service": "linux",
+  "platforms": [
+    "android-x86"
+  ],
+  "targets": [
+    "content_shell",
+    "cobalt:gn_all"
+  ],
+  "includes": [
+    {
+      "name": "x86",
+      "platform": "android-x86"
+    }
+  ]
 }

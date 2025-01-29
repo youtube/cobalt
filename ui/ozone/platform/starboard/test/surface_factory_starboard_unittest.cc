@@ -28,7 +28,6 @@ static const std::map<gl::GLImplementation, std::string>
         {gl::kGLImplementationDisabled, "disabled"},
         {gl::kGLImplementationEGLANGLE, "eglangle"},
 };
-}
 
 class SurfaceFactoryStarboardSupportTest
     : public testing::TestWithParam<
@@ -57,13 +56,14 @@ INSTANTIATE_TEST_SUITE_P(
     ImplementationTypes,
     SurfaceFactoryStarboardSupportTest,
     testing::Values(std::make_tuple(gl::kGLImplementationNone, false),
-                    std::make_tuple(gl::kGLImplementationEGLGLES2, true),
+                    std::make_tuple(gl::kGLImplementationEGLGLES2, false),
                     std::make_tuple(gl::kGLImplementationMockGL, false),
                     std::make_tuple(gl::kGLImplementationStubGL, false),
                     std::make_tuple(gl::kGLImplementationDisabled, false),
-                    std::make_tuple(gl::kGLImplementationEGLANGLE, false)),
+                    std::make_tuple(gl::kGLImplementationEGLANGLE, true)),
     [](const testing::TestParamInfo<
         SurfaceFactoryStarboardSupportTest::ParamType>& info) {
       return kGLImplementationToString.at(testing::get<0>(info.param));
     });
+}  // namespace
 }  // namespace ui

@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//cobalt/build/configs/hacks.gni")
 import("//cobalt/build/configs/modular_variables.gni")
 import("//starboard/build/buildflags.gni")
 
@@ -61,5 +62,8 @@ config("buildflag_defines") {
   }
   if (cobalt_is_release_build) {
     defines += [ "ENABLE_BUILDFLAG_COBALT_IS_RELEASE_BUILD" ]
+  }
+  if (enable_cobalt_hacks) {
+    defines += [ "ENABLE_BUILDFLAG_ENABLE_COBALT_HACKS" ]
   }
 }
