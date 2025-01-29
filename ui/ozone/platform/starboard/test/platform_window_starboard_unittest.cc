@@ -23,29 +23,20 @@
 
 namespace ui {
 namespace {
-// Using OzoneStarboardTest to allow SbWindowCreate and SbWindowDestroy.
 class PlatformWindowStarboardTest : public testing::Test {
  public:
-  PlatformWindowStarboardTest() {
-    sb_window_ =
-        std::make_unique<PlatformWindowStarboard>(&delegate_, gfx::Rect(0, 0));
-  }
+  PlatformWindowStarboardTest() : sb_window_(&delegate_, gfx::Rect(0, 0)) {}
 
-  ~PlatformWindowStarboardTest() {
-    // Reset |sb_window_| before parent destructor is called so SbWindowDestroy
-    // can run.
-    sb_window_.reset();
-  }
+  ~PlatformWindowStarboardTest() = default;
 
-  PlatformWindowStarboard* window() { return sb_window_.get(); }
+  PlatformWindowStarboard* window() { return &sb_window_; }
+  TestPlatformDelegate delegate() { return delegate_; }
 
  protected:
-  MockPlatformWindowDelegate delegate_;
+  TestPlatformDelegate delegate_;
 
  private:
-  // Using a pointer to delay initialization of the window until after starting
-  // the main Starboard thread in partent constructor.
-  std::unique_ptr<PlatformWindowStarboard> sb_window_;
+  PlatformWindowStarboard sb_window_;
 };
 
 TEST_F(PlatformWindowStarboardTest, CanDispatchEvent) {
@@ -61,16 +52,9 @@ TEST_F(PlatformWindowStarboardTest, DispatchEvent) {
                        ui::EventTimeForNow(), 0, 0);
   const PlatformEvent& platform_event = &event;
 
-  ui::EventType type;
-  EXPECT_CALL(delegate_, DispatchEvent(testing::_))
-      .Times(1)
-      .WillOnce([&type](const PlatformEvent& event) {
-        type = ui::EventTypeFromNative(event);
-      });
-
   auto result = window()->DispatchEvent(platform_event);
   EXPECT_EQ(result, ui::POST_DISPATCH_STOP_PROPAGATION);
-  EXPECT_EQ(type, ui::ET_MOUSE_PRESSED);
+  EXPECT_EQ(delegate().GetEventType(), ui::ET_MOUSE_PRESSED);
 }
 }  // namespace
 }  // namespace ui
