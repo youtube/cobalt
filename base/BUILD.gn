@@ -1753,8 +1753,12 @@ component("base") {
     ]
   }
 
+    print(current_toolchain, "outside hermetic build")
+
   # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
   if (is_cobalt && is_cobalt_hermetic_build) {
+
+    print(current_toolchain, "inside hermetic build")
     sources -= [
       #           ../../base/process/process_linux.cc:8:10: fatal error: 'linux/magic.h' file not found
       # #include <linux/magic.h>
