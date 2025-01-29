@@ -36,6 +36,9 @@ int main(int argc, const char** argv) {
        "--single-process",
        // Disable Vulkan.
        "--disable-features=Vulkan",
+       // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
+       // to enable it.
+       "--ignore-gpu-blocklist",
        // Force some ozone settings.
        "--ozone-platform=starboard", "--use-gl=angle", "--use-angle=gles-egl",
        // Set the default size for the content shell/starboard window.
