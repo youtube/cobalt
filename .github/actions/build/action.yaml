@@ -64,6 +64,10 @@ runs:
           set -x
           cd src
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
+          echo "derp derp"
+          cat out/${{ matrix.platform }}_${{ matrix.config }}/.reproxy_tmp/logs/*/rbe_metrics.txt
+          cat out/${{ matrix.platform }}_${{ matrix.config }}/.reproxy_tmp/logs/*/reproxy.INFO
+          echo "mischief managed"
         shell: bash
       - name: Archive Android APKs
         if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
