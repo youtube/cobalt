@@ -170,7 +170,8 @@ if (is_android && enable_java_templates &&
             "//tools/v8_context_snapshot($android_secondary_abi_toolchain)",
           ]
         }
-        if (!use_v8_context_snapshot || include_both_v8_snapshots) {
+        if ((!use_v8_context_snapshot && v8_use_external_startup_data) ||
+            include_both_v8_snapshots) {
           _secondary_abi_out_dir =
               get_label_info("//v8($android_secondary_abi_toolchain)",
                              "root_out_dir")
