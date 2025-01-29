@@ -11,3 +11,6 @@ use_errorprone_java_compiler = false
 # Overriding flag from //media/media_options.gni.
 # Cobalt doesn't use //third_party/ffmpeg.
 media_use_ffmpeg = false
+
+# This will force V8 to embed snapshot blob in binary.
+v8_use_external_startup_data = false
