@@ -26,6 +26,7 @@
     "services/service_manager/tests:service_manager_unittests",
     "skia:skia_unittests",
     "sql:sql_unittests",
+    "ui/ozone:ozone_unittests",
     "ui/wm:wm_unittests",
     "url:url_perftests",
     "url:url_unittests"
@@ -56,6 +57,7 @@
     "out/linux-x64x11_devel/midi_unittests",
     "out/linux-x64x11_devel/mojo_perftests",
     "out/linux-x64x11_devel/net_unittests",
+    "out/linux-x64x11_devel/ozone_unittests",
     "out/linux-x64x11_devel/ppapi_perftests",
     "out/linux-x64x11_devel/ppapi_unittests",
     "out/linux-x64x11_devel/service_manager_unittests",
