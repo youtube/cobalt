@@ -25,22 +25,6 @@ overridable_clang_toolchain("starboard") {
   propagates_configs = true
 }
 
-overridable_clang_toolchain("cobalt") {
-  clang_base_path = clang_base_path
-  toolchain_args = {
-    current_os = "linux"
-    current_cpu = "x64"
-  }
-}
-
-overridable_clang_toolchain("target") {
-  clang_base_path = clang_base_path
-  toolchain_args = {
-    current_os = "linux"
-    current_cpu = "x64"
-  }
-}
-
 clang_toolchain("native_target") {
   toolchain_args = {
     is_starboard = false

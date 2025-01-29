@@ -17,5 +17,4 @@ declare_args() {
   use_custom_libc = false
 }
 
-is_cobalt_hermetic_build =
-    is_starboard && use_custom_libc && current_toolchain == cobalt_toolchain
+is_cobalt_hermetic_build = is_starboard && use_custom_libc

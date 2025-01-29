@@ -19,5 +19,5 @@ declare_args() {
 }
 
 declare_args() {
-  is_starboard = is_cobalt && target_os != "android"
+  is_starboard = false
 }
