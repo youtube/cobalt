@@ -15,3 +15,6 @@ media_use_ffmpeg = false
 # Overriding flag from components/nacl/features.gni
 # NACL platform is deprecated in 2022 : https://sites.google.com/a/google.com/sandboxing-mitigations/reviews/nacl
 enable_nacl = false
+
+# Overriding the flag from //ui/gl/features.gni
+use_static_angle = true
