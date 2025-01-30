@@ -33,25 +33,10 @@
 #include "base/debug/crash_logging.h"
 #endif  // !BUILDFLAG(IS_NACL)
 
-#if (defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)) || \
-    (BUILDFLAG(IS_STARBOARD) && defined(ADDRESS_SANITIZER))
+#if defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
 #include "base/debug/leak_annotations.h"
 #endif  // defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
 
-#if BUILDFLAG(IS_STARBOARD)
-#include <fcntl.h>
-
-#include "starboard/client_porting/eztime/eztime.h"
-#include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
-#include "starboard/common/time.h"
-#include "starboard/configuration.h"
-#include "starboard/configuration_constants.h"
-#include "starboard/file.h"
-#include "starboard/system.h"
-typedef int* FileHandle;
-typedef pthread_mutex_t MutexHandle;
-#else
 #if BUILDFLAG(IS_WIN)
 #include <io.h>
 #include <windows.h>
@@ -93,6 +78,18 @@ typedef HANDLE FileHandle;
 #define MAX_PATH PATH_MAX
 typedef FILE* FileHandle;
 #endif
+
+#if BUILDFLAG(IS_STARBOARD)
+#include <fcntl.h>
+
+#include "starboard/client_porting/eztime/eztime.h"
+#include "starboard/common/log.h"
+#include "starboard/common/mutex.h"
+#include "starboard/common/time.h"
+#include "starboard/configuration.h"
+#include "starboard/configuration_constants.h"
+#include "starboard/file.h"
+#include "starboard/system.h"
 #endif
 
 #include <algorithm>
@@ -292,9 +289,7 @@ base::stack<LogAssertHandlerFunction>& GetLogAssertHandlerStack() {
 LogMessageHandlerFunction g_log_message_handler = nullptr;
 
 uint64_t TickCount() {
-#if BUILDFLAG(IS_STARBOARD)
-  return starboard::CurrentMonotonicTime();
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   return GetTickCount();
 #elif BUILDFLAG(IS_FUCHSIA)
   return static_cast<uint64_t>(
@@ -318,9 +313,7 @@ uint64_t TickCount() {
 }
 
 void DeleteFilePath(const PathString& log_name) {
-#if BUILDFLAG(IS_STARBOARD)
-  unlink(log_name.c_str());
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   DeleteFile(log_name.c_str());
 #elif BUILDFLAG(IS_NACL)
   // Do nothing; unlink() isn't supported on NaCl.
@@ -403,15 +396,7 @@ bool InitializeLogFileHandle() {
   if ((g_logging_destination & LOG_TO_FILE) == 0)
     return true;
 
-#if BUILDFLAG(IS_STARBOARD)
-  int g_log_file_descriptor =
-    open(g_log_file_name->c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR);
-  g_log_file = &g_log_file_descriptor;
-  if (g_log_file_descriptor < 0)
-    return false;
-
-  lseek(g_log_file_descriptor, 0, SEEK_END);
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   // The FILE_APPEND_DATA access mask ensures that the file is atomically
   // appended to across accesses from multiple threads.
   // https://msdn.microsoft.com/en-us/library/windows/desktop/aa364399(v=vs.85).aspx
@@ -458,11 +443,7 @@ bool InitializeLogFileHandle() {
 }
 
 void CloseFile(FileHandle log) {
-#if BUILDFLAG(IS_STARBOARD)
-  if (*log >= 0) {
-    close(*log);
-  }
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   CloseHandle(log);
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   fclose(log);
@@ -533,14 +514,6 @@ inline FuchsiaLogSeverity LogSeverityToFuchsiaLogSeverity(
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
 void WriteToFd(int fd, const char* data, size_t length) {
-#if BUILDFLAG(IS_STARBOARD)
-  if (length > 0) {
-    SbLogRaw(data);
-    if (data[length - 1] != '\n') {
-      SbLogRaw("\n");
-    }
-  }
-#else
   size_t bytes_written = 0;
   long rv;
   while (bytes_written < length) {
@@ -551,7 +524,6 @@ void WriteToFd(int fd, const char* data, size_t length) {
     }
     bytes_written += static_cast<size_t>(rv);
   }
-#endif  // BUILDFLAG(IS_STARBOARD)
 }
 
 void SetLogFatalCrashKey(LogMessage* log_message) {
@@ -699,12 +671,6 @@ bool ShouldCreateLogMessage(int severity) {
 // set, or only LOG_TO_FILE is set, since that is useful for local development
 // and debugging.
 bool ShouldLogToStderr(int severity) {
-#if BUILDFLAG(IS_STARBOARD)
-  if ((g_logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) != 0) {
-    // Don't SbLog to stderr if already logging to system debug log.
-    return false;
-  }
-#endif
   if (g_logging_destination & LOG_TO_STDERR)
     return true;
 
@@ -853,9 +819,7 @@ LogMessage::~LogMessage() {
   }
 
   if ((g_logging_destination & LOG_TO_SYSTEM_DEBUG_LOG) != 0) {
-#if BUILDFLAG(IS_STARBOARD)
-    SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
     OutputDebugStringA(str_newline.c_str());
 #elif BUILDFLAG(IS_APPLE)
     // In LOG_TO_SYSTEM_DEBUG_LOG mode, log messages are always written to
@@ -1010,20 +974,7 @@ LogMessage::~LogMessage() {
     base::AutoLock guard(GetLoggingLock());
 #endif
     if (InitializeLogFileHandle()) {
-#if BUILDFLAG(IS_STARBOARD)
-      lseek(*g_log_file, 0, SEEK_END);
-      int written = 0;
-      while (written < str_newline.length()) {
-        int result =
-            HANDLE_EINTR(write(*g_log_file, &(str_newline.c_str()[written]),
-                                 str_newline.length() - written));
-        // base::RecordFileWriteStat(result);
-        if (result < 0) {
-          break;
-        }
-        written += result;
-      }
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
       DWORD num_written;
       WriteFile(g_log_file,
                 static_cast<const void*>(str_newline.c_str()),
@@ -1111,22 +1062,7 @@ void LogMessage::Init(const char* file, int line) {
       stream_ << base::PlatformThread::CurrentId() << ':';
 #endif
     if (g_log_timestamp) {
-#if BUILDFLAG(IS_STARBOARD)
-    EzTimeValue time_value;
-    EzTimeValueGetNow(&time_value, NULL);
-    struct EzTimeExploded local_time = {0};
-    EzTimeTExplodeLocal(&(time_value.tv_sec), &local_time);
-    struct EzTimeExploded* tm_time = &local_time;
-    stream_ << std::setfill('0')
-            << std::setw(2) << 1 + tm_time->tm_mon
-            << std::setw(2) << tm_time->tm_mday
-            << '/'
-            << std::setw(2) << tm_time->tm_hour
-            << std::setw(2) << tm_time->tm_min
-            << std::setw(2) << tm_time->tm_sec
-            << '.' << std::setw(6) << time_value.tv_usec
-            << ':';
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
       SYSTEMTIME local_time;
       GetLocalTime(&local_time);
       stream_ << std::setfill('0')
@@ -1221,21 +1157,7 @@ BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
 #endif  // BUILDFLAG(IS_WIN)
 }
 
-#if BUILDFLAG(IS_STARBOARD) && 0
-StarboardErrorLogMessage::StarboardErrorLogMessage(const char* file,
-                                                   int line,
-                                                   LogSeverity severity,
-                                                   SystemErrorCode err)
-    : LogMessage(file, line, severity), err_(err) {}
-
-StarboardErrorLogMessage::~StarboardErrorLogMessage() {
-  stream() << ": " << SystemErrorCodeToString(err_);
-  // We're about to crash (CHECK). Put |err_| on the stack (by placing it in a
-  // field) and use Alias in hopes that it makes it into crash dumps.
-  SystemErrorCode last_error = err_;
-  base::debug::Alias(&last_error);
-}
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 Win32ErrorLogMessage::Win32ErrorLogMessage(const char* file,
                                            int line,
                                            LogSeverity severity,
@@ -1318,12 +1240,6 @@ ScopedLoggingSettings::ScopedLoggingSettings()
 ScopedLoggingSettings::~ScopedLoggingSettings() {
   // Re-initialize logging via the normal path. This will clean up old file
   // name and handle state, including re-initializing the VLOG internal state.
-#if BUILDFLAG(IS_STARBOARD)
-  CHECK(InitLogging({
-    logging_destination_,
-    log_file_name_ ? log_file_name_->data() : nullptr,
-  })) << "~ScopedLoggingSettings() failed to restore settings.";
-#else
   CHECK(InitLogging({
     .logging_dest = logging_destination_,
     .log_file_path = log_file_name_ ? log_file_name_->data() : nullptr,
@@ -1331,7 +1247,6 @@ ScopedLoggingSettings::~ScopedLoggingSettings() {
     .log_format = log_format_
 #endif
   })) << "~ScopedLoggingSettings() failed to restore settings.";
-#endif
 
   // Restore plain data settings.
   SetMinLogLevel(min_log_level_);
@@ -1422,8 +1337,7 @@ void ScopedVmoduleSwitches::InitWithSwitches(
   // Make sure we are only initialized once.
   CHECK(!scoped_vlog_info_);
   {
-#if (defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)) || \
-    (BUILDFLAG(IS_STARBOARD) && defined(ADDRESS_SANITIZER))
+#if defined(LEAK_SANITIZER) && !BUILDFLAG(IS_NACL)
     // See comments on |g_vlog_info|.
     ScopedLeakSanitizerDisabler lsan_disabler;
 #endif  // defined(LEAK_SANITIZER)
