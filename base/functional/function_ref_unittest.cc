@@ -27,7 +27,11 @@ TEST(FunctionRefTest, FreeFunction) {
 
 TEST(FunctionRefTest, Method) {
   [](FunctionRef<long(C*)> ref) {
+#if defined(STARBOARD)
+    C c = {25L};
+#else
     C c = {.value = 25L};
+#endif
     EXPECT_EQ(25L, ref(&c));
   }(&C::Method);
 }

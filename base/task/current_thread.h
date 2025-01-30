@@ -270,7 +270,17 @@ class BASE_EXPORT CurrentIOThread : public CurrentThread {
 
 #if !BUILDFLAG(IS_NACL)
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+  typedef base::MessagePumpIOStarboard::Watcher Watcher;
+  typedef base::MessagePumpIOStarboard::SocketWatcher SocketWatcher;
+  typedef base::MessagePumpIOStarboard::IOObserver IOObserver;
+
+  bool Watch(SbSocket socket,
+             bool persistent,
+             SbSocketWaiterInterest interests,
+             SocketWatcher* controller,
+             Watcher* delegate);
+#elif BUILDFLAG(IS_WIN)
   // Please see MessagePumpWin for definitions of these methods.
   HRESULT RegisterIOHandler(HANDLE file, MessagePumpForIO::IOHandler* handler);
   bool RegisterJobObject(HANDLE job, MessagePumpForIO::IOHandler* handler);

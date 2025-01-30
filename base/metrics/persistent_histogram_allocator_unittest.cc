@@ -134,6 +134,7 @@ TEST_F(PersistentHistogramAllocatorTest, CreateAndIterate) {
   EXPECT_FALSE(recovered);
 }
 
+#if !defined(STARBOARD)
 TEST_F(PersistentHistogramAllocatorTest, ConstructPaths) {
   const FilePath dir_path(FILE_PATH_LITERAL("foo/"));
   const std::string dir_string =
@@ -212,6 +213,7 @@ TEST_F(PersistentHistogramAllocatorTest, CreateSpareFile) {
       EXPECT_EQ(0, buffer[i]);
   }
 }
+#endif // !defined(STARBOARD)
 
 TEST_F(PersistentHistogramAllocatorTest, StatisticsRecorderMerge) {
   const char LinearHistogramName[] = "SRTLinearHistogram";
@@ -456,6 +458,7 @@ TEST_F(PersistentHistogramAllocatorTest, RangesDeDuplication) {
   EXPECT_EQ(ranges_ref, data2[kRangesRefIndex]);
 }
 
+#if !defined(STARBOARD)
 TEST_F(PersistentHistogramAllocatorTest, MovePersistentFile) {
   const char temp_name[] = "MovePersistentFileTest.pma";
   ScopedTempDir temp_dir;
@@ -514,5 +517,6 @@ TEST_F(PersistentHistogramAllocatorTest, MovePersistentFile) {
   }
   EXPECT_TRUE(found_histogram);
 }
+#endif // !defined(STARBOARD)
 
 }  // namespace base

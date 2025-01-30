@@ -1,0 +1,10 @@
+--- BUILD.gn
++++ BUILD.gn
+@@ -103,6 +103,7 @@ if (is_apple) {
+ 
+ # Determines whether libevent should be dep.
+ dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
++    && !use_cobalt_customizations
+ 
+ # Determines whether message_pump_libevent should be used.
+ use_libevent = dep_libevent && !is_ios

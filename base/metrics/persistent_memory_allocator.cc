@@ -29,11 +29,14 @@
 #include <windows.h>
 // Must be after <windows.h>
 #include <winbase.h>
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
 #include <sys/mman.h>
 #if BUILDFLAG(IS_ANDROID)
 #include <sys/prctl.h>
 #endif
+#endif
+#if defined(STARBOARD)
+#include "starboard/memory.h"
 #endif
 
 namespace {
@@ -348,11 +351,17 @@ PersistentMemoryAllocator::PersistentMemoryAllocator(Memory memory,
   // Ensure that memory segment is of acceptable size.
   CHECK(IsMemoryAcceptable(memory.base, size, page_size, readonly));
 
+  // The |is_lock_free| function has been found to require additional library
+  // linkage that we'd like to avoid on Starboard platforms.  Additionally we
+  // don't support multi-process applications on Starboard currently, so this
+  // code will not be used.
+#if !defined(STARBOARD)
   // These atomics operate inter-process and so must be lock-free.
   DCHECK(SharedMetadata().freeptr.is_lock_free());
   DCHECK(SharedMetadata().flags.is_lock_free());
   DCHECK(BlockHeader().next.is_lock_free());
   CHECK(corrupt_.is_lock_free());
+#endif  // !defined(STARBOARD)
 
   if (shared_meta()->cookie != kGlobalCookie) {
     if (readonly) {
@@ -981,7 +990,8 @@ LocalPersistentMemoryAllocator::AllocateLocalMemory(size_t size,
                                                     base::StringPiece name) {
   void* address;
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_WIN)
   address =
       ::VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
   if (address)
@@ -1025,7 +1035,8 @@ void LocalPersistentMemoryAllocator::DeallocateLocalMemory(void* memory,
   }
 
   DCHECK_EQ(MEM_VIRTUAL, type);
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#elif BUILDFLAG(IS_WIN)
   BOOL success = ::VirtualFree(memory, 0, MEM_DECOMMIT);
   DCHECK(success);
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
@@ -1037,6 +1048,7 @@ void LocalPersistentMemoryAllocator::DeallocateLocalMemory(void* memory,
 }
 
 //----- WritableSharedPersistentMemoryAllocator --------------------------------
+#if !defined(STARBOARD)
 
 WritableSharedPersistentMemoryAllocator::
     WritableSharedPersistentMemoryAllocator(
@@ -1059,9 +1071,11 @@ bool WritableSharedPersistentMemoryAllocator::IsSharedMemoryAcceptable(
     const base::WritableSharedMemoryMapping& memory) {
   return IsMemoryAcceptable(memory.memory(), memory.size(), 0, false);
 }
+#endif  // !defined(STARBOARD)
 
 //----- ReadOnlySharedPersistentMemoryAllocator --------------------------------
 
+#if !defined(STARBOARD)
 ReadOnlySharedPersistentMemoryAllocator::
     ReadOnlySharedPersistentMemoryAllocator(
         base::ReadOnlySharedMemoryMapping memory,
@@ -1084,6 +1098,7 @@ bool ReadOnlySharedPersistentMemoryAllocator::IsSharedMemoryAcceptable(
     const base::ReadOnlySharedMemoryMapping& memory) {
   return IsMemoryAcceptable(memory.memory(), memory.size(), 0, true);
 }
+#endif  // !defined(STARBOARD)
 
 #if !BUILDFLAG(IS_NACL)
 //----- FilePersistentMemoryAllocator ------------------------------------------
@@ -1158,12 +1173,14 @@ void FilePersistentMemoryAllocator::FlushPartial(size_t length, bool sync) {
   int result =
       ::msync(const_cast<void*>(data()), length, sync ? MS_SYNC : MS_ASYNC);
   DCHECK_NE(EINVAL, result);
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD) && !defined(COMPILER_MSVC)
   // On POSIX, "invalidate" forces _other_ processes to recognize what has
   // been written to disk and so is applicable to "flush".
   int result = ::msync(const_cast<void*>(data()), length,
                        MS_INVALIDATE | (sync ? MS_SYNC : MS_ASYNC));
   DCHECK_NE(EINVAL, result);
+#elif defined(STARBOARD) && defined(COMPILER_MSVC)
+  msync(const_cast<void*>(data()), length, 0);
 #else
 #error Unsupported OS.
 #endif

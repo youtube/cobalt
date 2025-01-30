@@ -38,12 +38,39 @@
 #include "third_party/abseil-cpp/absl/base/attributes.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
+#if defined(STARBOARD)
+#include <pthread.h>
+
+#include "base/check_op.h"
+#include "starboard/thread.h"
+#endif
+
 namespace base {
 namespace sequence_manager {
 namespace {
 
+#if defined(STARBOARD)
+ABSL_CONST_INIT pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
+ABSL_CONST_INIT pthread_key_t s_thread_local_key = 0;
+
+void InitThreadLocalKey() {
+  int res = pthread_key_create(&s_thread_local_key, NULL);
+  DCHECK(res == 0);
+}
+
+void EnsureThreadLocalKeyInited() {
+  pthread_once(&s_once_flag, InitThreadLocalKey);
+}
+
+internal::SequenceManagerImpl* GetThreadLocalSequenceManager() {
+   EnsureThreadLocalKeyInited();
+  return static_cast<internal::SequenceManagerImpl*>(
+      pthread_getspecific(s_thread_local_key));
+}
+#else
 ABSL_CONST_INIT thread_local internal::SequenceManagerImpl*
     thread_local_sequence_manager = nullptr;
+#endif
 
 class TracedBaseValue : public trace_event::ConvertableToTraceFormat {
  public:
@@ -159,12 +186,16 @@ bool g_explicit_high_resolution_timer_win = false;
 
 // static
 SequenceManagerImpl* SequenceManagerImpl::GetCurrent() {
+#if defined(STARBOARD)
+  return GetThreadLocalSequenceManager();
+#else
   // Workaround false-positive MSAN use-of-uninitialized-value on
   // thread_local storage for loaded libraries:
   // https://github.com/google/sanitizers/issues/1265
   MSAN_UNPOISON(&thread_local_sequence_manager, sizeof(SequenceManagerImpl*));
 
   return thread_local_sequence_manager;
+#endif
 }
 
 SequenceManagerImpl::SequenceManagerImpl(
@@ -235,7 +266,12 @@ SequenceManagerImpl::~SequenceManagerImpl() {
   // OK, now make it so that no one can find us.
   if (GetMessagePump()) {
     DCHECK_EQ(this, GetCurrent());
+#if defined(STARBOARD)
+    EnsureThreadLocalKeyInited();
+    pthread_setspecific(s_thread_local_key, nullptr);
+#else
     thread_local_sequence_manager = nullptr;
+#endif
   }
 }
 
@@ -332,7 +368,7 @@ void SequenceManagerImpl::BindToMessagePump(std::unique_ptr<MessagePump> pump) {
 #endif
 
   // On iOS attach to the native loop when there is one.
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) || defined(STARBOARD)
   if (settings_.message_loop_type == MessagePumpType::UI) {
     controller_->AttachToMessagePump();
   }
@@ -360,7 +396,12 @@ void SequenceManagerImpl::CompleteInitializationOnBoundThread() {
   if (GetMessagePump()) {
     DCHECK(!GetCurrent())
         << "Can't register a second SequenceManagerImpl on the same thread.";
+#if defined(STARBOARD)
+    EnsureThreadLocalKeyInited();
+    pthread_setspecific(s_thread_local_key, this);
+#else
     thread_local_sequence_manager = this;
+#endif
   }
 }
 
@@ -1118,7 +1159,7 @@ bool SequenceManagerImpl::IsTaskExecutionAllowed() const {
   return controller_->IsTaskExecutionAllowed();
 }
 
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) || defined(STARBOARD)
 void SequenceManagerImpl::AttachToMessagePump() {
   return controller_->AttachToMessagePump();
 }

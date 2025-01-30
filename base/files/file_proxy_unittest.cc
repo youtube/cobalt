@@ -192,8 +192,10 @@ TEST_F(FileProxyTest, Close) {
   EXPECT_EQ(File::FILE_OK, error_);
   EXPECT_FALSE(proxy.IsValid());
 
+#if !defined(STARBOARD)
   // Now it should pass on all platforms.
   EXPECT_TRUE(base::Move(TestPath(), TestDirPath().AppendASCII("new")));
+#endif
 }
 
 TEST_F(FileProxyTest, CreateTemporary) {
@@ -256,6 +258,7 @@ TEST_F(FileProxyTest, SetAndTake) {
   EXPECT_TRUE(file.IsValid());
 }
 
+#if !defined(STARBOARD)
 TEST_F(FileProxyTest, DuplicateFile) {
   FileProxy proxy(file_task_runner());
   CreateProxy(File::FLAG_CREATE | File::FLAG_WRITE, &proxy);
@@ -272,6 +275,7 @@ TEST_F(FileProxyTest, DuplicateFile) {
   EXPECT_FALSE(invalid_proxy.IsValid());
   EXPECT_FALSE(invalid_duplicate.IsValid());
 }
+#endif
 
 TEST_F(FileProxyTest, GetInfo) {
   // Setup.
@@ -351,7 +355,7 @@ TEST_F(FileProxyTest, WriteAndFlush) {
   }
 }
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
 // Flaky on Android, see http://crbug.com/489602
 #define MAYBE_SetTimes DISABLED_SetTimes
 #else

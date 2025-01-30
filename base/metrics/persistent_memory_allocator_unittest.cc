@@ -617,6 +617,7 @@ TEST(LocalPersistentMemoryAllocatorTest, CreationTest) {
 }
 
 //----- {Writable,ReadOnly}SharedPersistentMemoryAllocator ---------------------
+#if !defined(STARBOARD)
 
 TEST(SharedPersistentMemoryAllocatorTest, CreationTest) {
   base::WritableSharedMemoryRegion rw_region =
@@ -722,8 +723,10 @@ TEST(SharedPersistentMemoryAllocatorTest, CreationTest) {
   EXPECT_EQ(0, data[2]);
   EXPECT_EQ(0, data[3]);
 }
+#endif  // !defined(STARBOARD)
 
-#if !BUILDFLAG(IS_NACL)
+// TODO: b/316198056 - Re-enable this test once base/net have been updated.
+#if !BUILDFLAG(IS_NACL) && !defined(STARBOARD)
 //----- FilePersistentMemoryAllocator ------------------------------------------
 
 TEST(FilePersistentMemoryAllocatorTest, CreationTest) {

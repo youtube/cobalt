@@ -4,6 +4,7 @@
 
 #include "base/sync_socket.h"
 
+#if !defined(STARBOARD)
 namespace base {
 
 const SyncSocket::Handle SyncSocket::kInvalidHandle = kInvalidPlatformFile;
@@ -29,3 +30,5 @@ CancelableSyncSocket::CancelableSyncSocket(ScopedHandle handle)
     : SyncSocket(std::move(handle)) {}
 
 }  // namespace base
+
+#endif // !defined(STARBOARD)

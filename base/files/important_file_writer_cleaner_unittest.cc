@@ -22,6 +22,9 @@ using ::testing::ElementsAre;
 
 namespace base {
 
+#if defined(STARBOARD)
+// base::File::SetTimes is not implemented for starboard.
+#else
 class ImportantFileWriterCleanerTest : public ::testing::Test {
  public:
   ImportantFileWriterCleanerTest()
@@ -306,5 +309,6 @@ TEST_F(ImportantFileWriterCleanerTest, StopWhileRunning) {
   StopCleaner();
   task_environment_.RunUntilIdle();
 }
+#endif
 
 }  // namespace base

@@ -8,16 +8,28 @@
 #include <stdio.h>
 
 #include <memory>
+#include <unistd.h>
 
 #include "base/base_export.h"
 #include "base/scoped_generic.h"
 #include "build/build_config.h"
 
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#include "starboard/types.h"
+#include "starboard/common/file.h"
+#endif
+
 namespace base {
 
 namespace internal {
 
-#if BUILDFLAG(IS_ANDROID)
+#if defined(STARBOARD)
+struct BASE_EXPORT ScopedFDCloseTraits {
+  static int InvalidValue() { return -1; }
+  static void Free(int file) { if (file >= 0) {close(file);} }
+};
+#elif BUILDFLAG(IS_ANDROID)
 // Use fdsan on android.
 struct BASE_EXPORT ScopedFDCloseTraits : public ScopedGenericOwnershipTracking {
   static int InvalidValue() { return -1; }
@@ -44,6 +56,18 @@ struct BASE_EXPORT ScopedFDCloseTraits {
 };
 #endif
 
+#if defined(STARBOARD)
+// Functor for |ScopedFILE| (below).
+struct ScopedFILECloser {
+  inline void operator()(int* x) const {
+    if (x) {
+      if (*x >= 0) {
+        close(*x);
+      }
+    }
+  }
+};
+#else
 // Functor for |ScopedFILE| (below).
 struct ScopedFILECloser {
   inline void operator()(FILE* x) const {
@@ -51,6 +75,7 @@ struct ScopedFILECloser {
       fclose(x);
   }
 };
+#endif
 
 }  // namespace internal
 
@@ -86,7 +111,7 @@ void BASE_EXPORT ResetFDOwnership();
 
 // -----------------------------------------------------------------------------
 
-#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(STARBOARD)
 // A low-level Posix file descriptor closer class. Use this when writing
 // platform-specific code, especially that does non-file-like things with the
 // FD (like sockets).
@@ -102,7 +127,11 @@ typedef ScopedGeneric<int, internal::ScopedFDCloseTraits> ScopedFD;
 #endif
 
 // Automatically closes |FILE*|s.
+#if defined(STARBOARD)
+typedef std::unique_ptr<starboard::ScopedFile> ScopedFILE;
+#else
 typedef std::unique_ptr<FILE, internal::ScopedFILECloser> ScopedFILE;
+#endif
 
 #if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
 // Queries the ownership status of an FD, i.e. whether it is currently owned by

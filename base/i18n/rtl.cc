@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <algorithm>
+#include <unicode/utf16.h>
 
 #include "base/check_op.h"
 #include "base/command_line.h"

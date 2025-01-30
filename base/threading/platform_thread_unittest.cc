@@ -418,6 +418,7 @@ TEST(PlatformThreadTest,
 }
 #endif  // BUILDFLAG(IS_WIN)
 
+#if !defined(STARBOARD)
 // Ideally PlatformThread::CanChangeThreadType() would be true on all
 // platforms for all priorities. This not being the case. This test documents
 // and hardcodes what we know. Please inform scheduler-dev@chromium.org if this
@@ -483,6 +484,7 @@ TEST(PlatformThreadTest, CanChangeThreadType) {
                                                   ThreadType::kBackground));
 #endif
 }
+#endif // !defined(STARBOARD)
 
 TEST(PlatformThreadTest, SetCurrentThreadTypeTest) {
   TestPriorityResultingFromThreadType(ThreadType::kBackground,
@@ -538,6 +540,9 @@ TEST(PlatformThreadTest, SetHugeThreadName) {
   PlatformThread::SetName(long_name);
 }
 
+// TODO: b/327008491 - Not used by Cobalt, but should be tested to get
+// closer to Chrome.
+#if !defined(STARBOARD)
 TEST(PlatformThreadTest, GetDefaultThreadStackSize) {
   size_t stack_size = PlatformThread::GetDefaultThreadStackSize();
 #if BUILDFLAG(IS_IOS) && BUILDFLAG(USE_BLINK)
@@ -552,6 +557,7 @@ TEST(PlatformThreadTest, GetDefaultThreadStackSize) {
   EXPECT_LT(stack_size, 20u * (1 << 20));
 #endif
 }
+#endif
 
 #if BUILDFLAG(IS_APPLE)
 

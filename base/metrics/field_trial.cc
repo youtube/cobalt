@@ -189,14 +189,14 @@ void AddFeatureAndFieldTrialFlags(CommandLine* cmd_line) {
 #endif  // !BUILDFLAG(IS_IOS)
 
 void OnOutOfMemory(size_t size) {
-#if BUILDFLAG(IS_NACL)
+#if BUILDFLAG(IS_NACL) || defined(STARBOARD)
   NOTREACHED();
 #else
   TerminateBecauseOutOfMemory(size);
 #endif
 }
 
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS) && !defined(STARBOARD)
 // Returns whether the operation succeeded.
 bool DeserializeGUIDFromStringPieces(StringPiece first,
                                      StringPiece second,
@@ -215,7 +215,7 @@ bool DeserializeGUIDFromStringPieces(StringPiece first,
   *guid = token.value();
   return true;
 }
-#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#endif  // !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS) && !defined(STARBOARD)
 
 }  // namespace
 
@@ -694,7 +694,7 @@ void FieldTrialList::CreateTrialsFromCommandLine(const CommandLine& cmd_line,
                                                  uint32_t fd_key) {
   global_->create_trials_from_command_line_called_ = true;
 
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS) && !defined(STARBOARD)
   if (cmd_line.HasSwitch(switches::kFieldTrialHandle)) {
     std::string switch_value =
         cmd_line.GetSwitchValueASCII(switches::kFieldTrialHandle);
@@ -748,7 +748,7 @@ void FieldTrialList::PopulateLaunchOptionsWithFieldTrialState(
     return;
   }
 
-#if !BUILDFLAG(IS_NACL)
+#if !BUILDFLAG(IS_NACL) && !defined(STARBOARD)
   global_->field_trial_allocator_->UpdateTrackingHistograms();
   std::string switch_value = SerializeSharedMemoryRegionMetadata(
       global_->readonly_allocator_region_, launch_options);
@@ -782,7 +782,7 @@ int FieldTrialList::GetFieldTrialDescriptor() {
   if (!global_ || !global_->readonly_allocator_region_.IsValid())
     return -1;
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || defined(STARBOARD)
   return global_->readonly_allocator_region_.GetPlatformHandle();
 #else
   return global_->readonly_allocator_region_.GetPlatformHandle().fd;
@@ -1047,7 +1047,9 @@ void FieldTrialList::RestoreInstanceForTesting(FieldTrialList* instance) {
   global_ = instance;
 }
 
-#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
+#ifdef COBALT_PENDING_CLEAN_UP
+// TODO(b/298237462): Try to enable the below code.
+#elif !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_IOS)
 
 // static
 std::string FieldTrialList::SerializeSharedMemoryRegionMetadata(
@@ -1217,6 +1219,9 @@ bool FieldTrialList::CreateTrialsFromSharedMemoryRegion(
 // static
 bool FieldTrialList::CreateTrialsFromSharedMemoryMapping(
     ReadOnlySharedMemoryMapping shm_mapping) {
+#if defined(STARBOARD)
+  return false;
+#else
   global_->field_trial_allocator_ =
       std::make_unique<ReadOnlySharedPersistentMemoryAllocator>(
           std::move(shm_mapping), 0, kAllocatorName);
@@ -1241,10 +1246,14 @@ bool FieldTrialList::CreateTrialsFromSharedMemoryMapping(
     }
   }
   return true;
+#endif // defined(STARBOARD)
 }
 
 // static
 void FieldTrialList::InstantiateFieldTrialAllocatorIfNeeded() {
+#if defined(STARBOARD)
+  return;
+#else
   if (!global_)
     return;
 
@@ -1277,6 +1286,7 @@ void FieldTrialList::InstantiateFieldTrialAllocatorIfNeeded() {
 #if !BUILDFLAG(IS_NACL)
   global_->readonly_allocator_region_ = std::move(shm.region);
 #endif
+#endif // !defined(STARBOARD)
 }
 
 // static
