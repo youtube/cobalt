@@ -53,7 +53,7 @@ runs:
           # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
         run: |
-          set -x
+          set -ex
           cd src
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} $(cat "${TEST_TARGETS_JSON_FILE}" | jq -cr '.test_targets | join(" ")')
         shell: bash
@@ -61,7 +61,7 @@ runs:
         env:
           TARGETS: ${{ inputs.targets }}
         run: |
-          set -x
+          set -ex
           cd src
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
         shell: bash
