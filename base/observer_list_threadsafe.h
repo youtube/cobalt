@@ -94,7 +94,7 @@ class BASE_EXPORT ObserverListThreadSafeBase
 
 #if BUILDFLAG(IS_STARBOARD)
   static void EnsureThreadLocalKeyInited();
-  static const pthread_key_t GetThreadLocalKey();
+  static pthread_key_t GetThreadLocalKey();
 #endif
 
   virtual ~ObserverListThreadSafeBase() = default;

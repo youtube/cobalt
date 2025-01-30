@@ -77,7 +77,7 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && 0
 #include "starboard/common/time.h"
 #else
 #if BUILDFLAG(IS_APPLE)
@@ -102,6 +102,9 @@
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 #include <unistd.h>
 #include <sys/time.h>
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/common/time.h"
+#endif
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -133,7 +136,7 @@ class BASE_EXPORT TimeDelta {
  public:
   constexpr TimeDelta() = default;
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && 0
   static constexpr int64_t kHoursPerDay = 24;
   static constexpr int64_t kSecondsPerMinute = 60;
   static constexpr int64_t kMinutesPerHour = 60;
@@ -739,7 +742,7 @@ class BASE_EXPORT Time : public time_internal::TimeBase<Time> {
   static Time FromDoubleT(double dt);
   double ToDoubleT() const;
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && 0
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   // Converts the timespec structure to time. MacOS X 10.8.3 (and tentatively,
   // earlier versions) will have the |ts|'s tv_nsec component zeroed out,

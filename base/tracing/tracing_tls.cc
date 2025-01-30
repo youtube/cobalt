@@ -4,6 +4,8 @@
 
 #include "base/tracing/tracing_tls.h"
 
+#include "build/build_config.h"
+
 namespace base {
 namespace tracing {
 

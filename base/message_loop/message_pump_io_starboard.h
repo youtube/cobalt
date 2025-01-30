@@ -103,6 +103,33 @@ class BASE_EXPORT MessagePumpIOStarboard : public MessagePump {
     base::WeakPtrFactory<SocketWatcher> weak_factory_;
   };
 
+  enum Mode {
+    WATCH_READ = 1 << 0,
+    WATCH_WRITE = 1 << 1,
+    WATCH_READ_WRITE = WATCH_READ | WATCH_WRITE
+  };
+
+  class FdWatcher {
+   public:
+    virtual void OnFileCanReadWithoutBlocking(int fd) = 0;
+    virtual void OnFileCanWriteWithoutBlocking(int fd) = 0;
+
+   protected:
+    virtual ~FdWatcher() = default;
+  };
+
+  class FdWatchController {
+   public:
+    FdWatchController(const Location& from_here) {}
+    bool StopWatchingFileDescriptor() { return false; }
+  };
+
+  bool WatchFileDescriptor(int fd,
+                           bool persistent,
+                           int mode,
+                           FdWatchController* controller,
+                           FdWatcher* delegate) { return false; }
+
   MessagePumpIOStarboard();
   virtual ~MessagePumpIOStarboard();
 

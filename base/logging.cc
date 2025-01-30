@@ -41,7 +41,7 @@
 #if BUILDFLAG(IS_STARBOARD)
 #include <fcntl.h>
 
-#include "base/files/file_starboard.h"
+// #include "base/files/file_starboard.h"
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
@@ -1018,7 +1018,7 @@ LogMessage::~LogMessage() {
         int result =
             HANDLE_EINTR(write(*g_log_file, &(str_newline.c_str()[written]),
                                  str_newline.length() - written));
-        base::RecordFileWriteStat(result);
+        // base::RecordFileWriteStat(result);
         if (result < 0) {
           break;
         }
@@ -1222,21 +1222,7 @@ BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
 #endif  // BUILDFLAG(IS_WIN)
 }
 
-#if BUILDFLAG(IS_STARBOARD)
-StarboardErrorLogMessage::StarboardErrorLogMessage(const char* file,
-                                                   int line,
-                                                   LogSeverity severity,
-                                                   SystemErrorCode err)
-    : LogMessage(file, line, severity), err_(err) {}
-
-StarboardErrorLogMessage::~StarboardErrorLogMessage() {
-  stream() << ": " << SystemErrorCodeToString(err_);
-  // We're about to crash (CHECK). Put |err_| on the stack (by placing it in a
-  // field) and use Alias in hopes that it makes it into crash dumps.
-  SystemErrorCode last_error = err_;
-  base::debug::Alias(&last_error);
-}
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
 Win32ErrorLogMessage::Win32ErrorLogMessage(const char* file,
                                            int line,
                                            LogSeverity severity,

@@ -1006,6 +1006,7 @@ component("base") {
   }
 
   if (is_cobalt && is_starboard) {
+    configs += [":no_flags"]
     sources += [
       "message_loop/message_pump_ui_starboard.cc",
       "message_loop/message_pump_ui_starboard.h",
@@ -1046,9 +1047,9 @@ component("base") {
 
   configs += [
     "//build/config:precompiled_headers",
-    "//build/config/compiler:prevent_unsafe_narrowing",
+    # "//build/config/compiler:prevent_unsafe_narrowing",
     "//build/config/compiler:wexit_time_destructors",
-    "//build/config/compiler:wglobal_constructors",
+    # "//build/config/compiler:wglobal_constructors",
   ]
 
   deps = [
@@ -1730,6 +1731,11 @@ component("base") {
         "stack_canary_linux.cc",
         "stack_canary_linux.h",
       ]
+    }
+    if (is_cobalt && is_starboard) {
+      sources += [ "message_loop/message_pump_io_starboard.cc"]
+      # sources += ["base_paths_starboard.cc"]
+      # sources -= ["base_paths_posix.cc"]
     }
     if (use_partition_alloc) {
       # Add stuff that doesn't work in NaCl.
@@ -2549,6 +2555,13 @@ component("base") {
   }
 }
 
+config("no_flags") {
+      cflags = [
+      "-Wno-global-constructors",
+      "-Wno-shorten-64-to-32",
+    ]
+}
+
 # Build flags for Control Flow Integrity
 # https://www.chromium.org/developers/testing/control-flow-integrity
 buildflag_header("cfi_buildflags") {
@@ -2739,6 +2752,9 @@ if (use_custom_libcxx && enable_safe_libcxx && !is_debug) {
     defines = [ "BASE_IMPLEMENTATION" ]
     sources = [ "nodebug_assertion.cc" ]
     deps = [ ":base_static" ]
+    if (is_starboard) {
+      deps += ["//starboard:starboard_group"]
+    }
   }
 }
 

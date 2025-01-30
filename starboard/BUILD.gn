@@ -151,7 +151,10 @@ if (is_cobalt_hermetic_build) {
   }
 } else {
   group("starboard_group") {
-    deps = [ "//starboard($starboard_toolchain)" ]
+    deps = [
+      "//starboard($starboard_toolchain)",
+      "//starboard/client_porting/eztime",
+    ]
   }
 }
 

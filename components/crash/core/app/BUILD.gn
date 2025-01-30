@@ -223,6 +223,7 @@ if (is_mac || is_android || is_linux || is_chromeos) {
   # We build a chromium-specific crashpad_handler executable so that we can
   # define custom UserStreamDataSources.
   executable("chrome_crashpad_handler") {
+    print(current_toolchain)
     sources = [ "chrome_crashpad_handler.cc" ]
 
     deps = [

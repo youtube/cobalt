@@ -31,7 +31,7 @@ void ObserverListThreadSafeBase::EnsureThreadLocalKeyInited() {
   pthread_once(&s_once_flag, InitThreadLocalKey);
 }
 
-const pthread_key_t ObserverListThreadSafeBase::GetThreadLocalKey() {
+pthread_key_t ObserverListThreadSafeBase::GetThreadLocalKey() {
   EnsureThreadLocalKeyInited();
   return s_thread_local_key;
 }

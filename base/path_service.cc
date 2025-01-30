@@ -26,7 +26,7 @@ namespace base {
 
 bool PathProvider(int key, FilePath* result);
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && 0
 bool PathProviderStarboard(int key, FilePath* result);
 #elif BUILDFLAG(IS_WIN)
 bool PathProviderWin(int key, FilePath* result);
@@ -66,7 +66,7 @@ Provider base_provider = {PathProvider, nullptr,
 #endif
                           true};
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && 0
 Provider base_provider_starboard = {
   base::PathProviderStarboard,
   &base_provider,
@@ -144,7 +144,7 @@ struct PathData {
   bool cache_disabled;  // Don't use cache if true;
 
   PathData() : cache_disabled(false) {
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && 0
     providers = &base_provider_starboard;
 #elif BUILDFLAG(IS_WIN)
     providers = &base_provider_win;
@@ -207,7 +207,7 @@ bool PathService::Get(int key, FilePath* result) {
 
   // Special case the current directory because it can never be cached.
   if (key == DIR_CURRENT)
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && 0
   {
     NOTREACHED() << "DIR_CURRENT not supported in Starboard.";
     return false;
@@ -293,13 +293,13 @@ bool PathService::OverrideAndCreateIfNeeded(int key,
   }
 
   // We need to have an absolute path.
-#if !BUILDFLAG(IS_STARBOARD)
+// #if !BUILDFLAG(IS_STARBOARD)
   if (!is_absolute) {
     file_path = MakeAbsoluteFilePath(file_path);
     if (file_path.empty())
       return false;
   }
-#endif
+// #endif
   DCHECK(file_path.IsAbsolute());
 
   AutoLock scoped_lock(path_data->lock);
