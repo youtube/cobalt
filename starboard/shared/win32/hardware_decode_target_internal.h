@@ -46,7 +46,9 @@ struct HardwareDecodeTargetPrivate : public SbDecodeTargetPrivate {
       const ComPtr<ID3D11VideoProcessor>& video_processor,
       const ComPtr<IMFSample>& video_sample,
       const RECT& video_area,
-      bool texture_RGBA);
+      bool texture_RGBA,
+      SbMediaTransferId transfer_id,
+      SbOnRenderCallback callback);
   ~HardwareDecodeTargetPrivate() override;
 
   // Update the existing texture with the given video_sample's data.

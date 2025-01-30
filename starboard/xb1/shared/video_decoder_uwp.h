@@ -29,18 +29,11 @@ class VideoDecoderUwp : public ::starboard::shared::win32::VideoDecoder {
   typedef ::starboard::shared::starboard::media::VideoStreamInfo
       VideoStreamInfo;
 
-  VideoDecoderUwp::VideoDecoderUwp(
+  VideoDecoderUwp(
       SbMediaVideoCodec video_codec,
       SbPlayerOutputMode output_mode,
       SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
-      SbDrmSystem drm_system)
-      : VideoDecoder(
-            video_codec,
-            output_mode,
-            graphics_context_provider,
-            drm_system,
-            ::starboard::shared::uwp::ApplicationUwp::Get()->IsHdrSupported()) {
-  }
+      SbDrmSystem drm_system);
 
   ~VideoDecoderUwp() override;
 
@@ -53,7 +46,12 @@ class VideoDecoderUwp : public ::starboard::shared::win32::VideoDecoder {
   size_t GetMaxNumberOfCachedFrames() const override;
 
  private:
+  void OnDraw(bool fullscreen);
+
   SbMediaColorMetadata current_color_metadata_ = {};
+  Mutex metadata_mutex_;
+  bool metadata_available_ = false;
+  bool metadata_is_set_ = false;
   bool is_first_input_ = true;
 };
 

@@ -338,8 +338,10 @@ HardwareFrontendImage::HardwareFrontendImage(
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     std::unique_ptr<math::RectF> content_region,
     scoped_refptr<base::SequencedTaskRunner> rasterizer_task_runner,
-    base::Optional<AlternateRgbaFormat> alternate_rgba_format)
-    : is_opaque_(alpha_format == render_tree::kAlphaFormatOpaque),
+    base::Optional<AlternateRgbaFormat> alternate_rgba_format,
+    SbMediaTransferId transfer_id, SbOnRenderCallback cb)
+    : SinglePlaneImage(transfer_id, cb),
+      is_opaque_(alpha_format == render_tree::kAlphaFormatOpaque),
       content_region_(std::move(content_region)),
       alternate_rgba_format_(alternate_rgba_format),
       size_(AdjustSizeForFormat(
@@ -460,8 +462,11 @@ HardwareMultiPlaneImage::HardwareMultiPlaneImage(
 
 HardwareMultiPlaneImage::HardwareMultiPlaneImage(
     render_tree::MultiPlaneImageFormat format,
-    const std::vector<scoped_refptr<HardwareFrontendImage> >& planes)
-    : size_(planes[0]->GetSize()), format_(format) {
+    const std::vector<scoped_refptr<HardwareFrontendImage> >& planes,
+    SbMediaTransferId transfer_id, SbOnRenderCallback cb)
+    : MultiPlaneImage(transfer_id, cb),
+      size_(planes[0]->GetSize()),
+      format_(format) {
   DCHECK(planes.size() <=
          render_tree::MultiPlaneImageDataDescriptor::kMaxPlanes);
   estimated_size_in_bytes_ = 0;
