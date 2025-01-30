@@ -41,7 +41,6 @@
 #if BUILDFLAG(IS_STARBOARD)
 #include <fcntl.h>
 
-#include "base/files/file_starboard.h"
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
@@ -1018,7 +1017,7 @@ LogMessage::~LogMessage() {
         int result =
             HANDLE_EINTR(write(*g_log_file, &(str_newline.c_str()[written]),
                                  str_newline.length() - written));
-        base::RecordFileWriteStat(result);
+        // base::RecordFileWriteStat(result);
         if (result < 0) {
           break;
         }
@@ -1222,7 +1221,7 @@ BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
 #endif  // BUILDFLAG(IS_WIN)
 }
 
-#if BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_STARBOARD) && 0
 StarboardErrorLogMessage::StarboardErrorLogMessage(const char* file,
                                                    int line,
                                                    LogSeverity severity,

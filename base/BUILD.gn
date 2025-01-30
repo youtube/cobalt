@@ -1040,7 +1040,7 @@ component("base") {
 
   configs += [
     "//build/config:precompiled_headers",
-    "//build/config/compiler:prevent_unsafe_narrowing",
+    # "//build/config/compiler:prevent_unsafe_narrowing",
     "//build/config/compiler:wexit_time_destructors",
     "//build/config/compiler:wglobal_constructors",
   ]
@@ -1806,7 +1806,9 @@ component("base") {
       "allocator/partition_allocator/shim/allocator_shim_override_glibc_weak_symbols.h",
       "allocator/partition_allocator/shim/allocator_shim_override_libc_symbols.h",
     ]
+  }
 
+  if (is_starboard) {
     deps += [ "//starboard:starboard_group" ]
   }
 
