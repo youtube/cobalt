@@ -147,7 +147,7 @@ const Platform::String ^ kGenericPnpMonitorAqs = ref new Platform::String(
     L"True");
 
 const uint32_t kYuv420BitsPerPixelForHdr10Mode = 24;
-const uint32_t kHdr4kRefreshRateMaximum = 60;
+const uint32_t kRefreshRateMaximum = 60;
 const uint32_t k4kResolutionWidth = 3840;
 const uint32_t k4kResolutionHeight = 2160;
 
@@ -976,6 +976,8 @@ void ApplicationUwp::UpdateDisplayPreferredMode() {
   ScopedLock lock(preferred_display_mode_mutex_);
   preferred_display_mode_hdmi_ = nullptr;
   preferred_display_mode_hdr_ = nullptr;
+  Windows::Graphics::Display::Core::HdmiDisplayMode ^
+    preferred_display_mode_sdr_ = nullptr;
   if (!ApiInformation::IsTypePresent(
           "Windows.Graphics.Display.Core.HdmiDisplayInformation")) {
     return;
@@ -988,12 +990,22 @@ void ApplicationUwp::UpdateDisplayPreferredMode() {
 
   preferred_display_mode_hdmi_ = hdmi_display_info->GetCurrentDisplayMode();
   for (auto mode : hdmi_display_info->GetSupportedDisplayModes()) {
+    // 120Hz is not supported in UWP apps even though the app can select 120Hz display mode.
+    // Microsoft Support recommend that UWPs do not select 120Hz display mode.
+    if (mode->RefreshRate > kRefreshRateMaximum) {
+      continue;
+    }
     // Check that resolution matches the preferred display mode.
     if (mode->ResolutionWidthInRawPixels !=
             preferred_display_mode_hdmi_->ResolutionWidthInRawPixels ||
         mode->ResolutionHeightInRawPixels !=
             preferred_display_mode_hdmi_->ResolutionHeightInRawPixels) {
       continue;
+    }
+    if (preferred_display_mode_hdmi_->RefreshRate > kRefreshRateMaximum &&
+        (!preferred_display_mode_sdr_ ||
+         preferred_display_mode_sdr_->RefreshRate < mode->RefreshRate)) {
+      preferred_display_mode_sdr_ = mode;
     }
     // Verify HDR metadata and transfer function are supported.
     if (!mode->Is2086MetadataSupported || !mode->IsSmpte2084Supported) {
@@ -1004,18 +1016,14 @@ void ApplicationUwp::UpdateDisplayPreferredMode() {
         mode->ColorSpace != HdmiDisplayColorSpace::BT2020) {
       continue;
     }
-    // We don't serve 4k HDR videos over 60fps, skipping display modes that will
-    // consume more power than needed.
-    if (mode->ResolutionWidthInRawPixels >= k4kResolutionWidth &&
-        mode->ResolutionHeightInRawPixels >= k4kResolutionHeight &&
-        mode->RefreshRate > kHdr4kRefreshRateMaximum) {
-      continue;
-    }
     if (!preferred_display_mode_hdr_ ||
         preferred_display_mode_hdr_->RefreshRate < mode->RefreshRate) {
       preferred_display_mode_hdr_ = mode;
     }
   }
+  preferred_display_mode_hdmi_ = preferred_display_mode_sdr_
+                                    ? preferred_display_mode_sdr_
+                                    : preferred_display_mode_hdmi_;
 }
 
 bool ApplicationUwp::DispatchNextEvent() {
