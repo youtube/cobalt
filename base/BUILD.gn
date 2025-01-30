@@ -2731,6 +2731,9 @@ if (use_custom_libcxx && enable_safe_libcxx && !is_debug) {
     defines = [ "BASE_IMPLEMENTATION" ]
     sources = [ "nodebug_assertion.cc" ]
     deps = [ ":base_static" ]
+    if (is_cobalt && is_starboard) {
+      deps += ["//starboard:starboard_group"]
+    }
   }
 }
 
