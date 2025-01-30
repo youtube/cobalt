@@ -289,6 +289,7 @@ run_package_release_pipeline () {
     cp "${build_info_path}" "${package_dir}/"
 
     # Create release package.
+    export PYTHONPATH="${WORKSPACE_COBALT}"
     if [[ "${PLATFORM}" =~ "android" ]]; then
       python3 "${WORKSPACE_COBALT}/cobalt/build/android/package.py" \
         --name=cobalt-android "${out_dir}" "${package_dir}"
