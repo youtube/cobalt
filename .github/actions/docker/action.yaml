@@ -8,6 +8,11 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: Cache .git
+      uses: actions/cache@v3
+      with:
+        path: .git
+        key: git-folder
     - name: Checkout files
       uses: actions/checkout@v4
       with:
