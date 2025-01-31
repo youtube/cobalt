@@ -7,7 +7,6 @@ from cobalt.build import packaging
 
 
 def lay_out(out_dir, base_dir):
-  shutil.copy2(os.path.join(out_dir, 'gen', 'build_info.json'), base_dir)
   shutil.copy2(os.path.join(out_dir, 'apks/Cobalt.apk'), base_dir)
   shutil.copytree(
       os.path.join(out_dir, 'content'),
