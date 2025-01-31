@@ -44,6 +44,7 @@ import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
 
 if (is_cobalt) {
+  import("//cobalt/build/configs/hacks.gni")
   import("//cobalt/build/configs/modular_variables.gni")
 }
 
@@ -1793,8 +1794,18 @@ component("base") {
       "allocator/partition_allocator/shim/allocator_shim_override_glibc_weak_symbols.h",
       "allocator/partition_allocator/shim/allocator_shim_override_libc_symbols.h",
     ]
+  }
 
-    deps += [ "//starboard:starboard_group" ]
+  if (is_cobalt && enable_cobalt_hacks && is_starboard) {
+    # Find a way to fix the offending customizations instead.
+    configs -= [ "//build/config/compiler:prevent_unsafe_narrowing" ]
+  }
+
+  if (is_starboard) {
+    deps += [
+      "//starboard:starboard_group",
+      "//starboard/common",
+    ]
   }
 
   # Windows.
@@ -2708,6 +2719,10 @@ static_library("base_static") {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
+
+  if (is_starboard) {
+    deps += [ "//starboard/common" ]
+  }
 }
 
 if (use_safe_libcxx && !is_debug) {
@@ -2718,6 +2733,9 @@ if (use_safe_libcxx && !is_debug) {
     defines = [ "BASE_IMPLEMENTATION" ]
     sources = [ "nodebug_assertion.cc" ]
     deps = [ ":base_static" ]
+    if (is_starboard) {
+      deps += ["//starboard:starboard_group"]
+    }
   }
 }
 
@@ -3602,6 +3620,13 @@ test("base_unittests") {
     "//third_party/icu",
     "//third_party/modp_b64",
   ]
+
+  if (is_starboard) {
+    deps += [
+      "//starboard:starboard_group",
+      "//starboard/common",
+    ]
+  }
 
   data_deps = [
     "//base/test:immediate_crash_test_helper",

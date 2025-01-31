@@ -85,8 +85,6 @@ PostTaskAndReplyRelay::~PostTaskAndReplyRelay() {
     return;
   }
 
-  // Case 1b and 3: Any remaining state will be destroyed synchronously at the
-  // end of this scope.
 }
 
 }  // namespace base::internal
