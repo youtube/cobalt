@@ -19,7 +19,7 @@
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
 #include "content/public/common/user_agent.h"
-// TODO(b/390021478): Remove this include when CobaltShellBrowserMainParts stops
+// TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "content/shell/browser/shell_browser_main_parts.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
@@ -29,25 +29,22 @@
 namespace cobalt {
 
 // TODO(b/390021478): When CobaltContentBrowserClient stops deriving from
-// ShellContentBrowserClient, this should also become a subclass of
-// BrowserMainParts.
-class CobaltShellBrowserMainParts : public content::ShellBrowserMainParts {
+// ShellContentBrowserClient, this should implement BrowserMainParts.
+class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
  public:
-  CobaltShellBrowserMainParts() = default;
+  CobaltBrowserMainParts() = default;
 
-  CobaltShellBrowserMainParts(const CobaltShellBrowserMainParts&) = delete;
-  CobaltShellBrowserMainParts& operator=(const CobaltShellBrowserMainParts&) =
-      delete;
+  CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
+  CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
 
-  ~CobaltShellBrowserMainParts() override = default;
+  ~CobaltBrowserMainParts() override = default;
 
   // ShellBrowserMainParts overrides.
   int PreCreateThreads() override {
     // TODO(b/372559349): setup metrics similarly to what SetupMetrics() does
-    // from ChromeBrowserMainParts::PreCreateThreadsImpl().
+    // when called from ChromeBrowserMainParts::PreCreateThreadsImpl().
     return ShellBrowserMainParts::PreCreateThreads();
   }
-
 };
 
 std::string GetCobaltUserAgent() {
@@ -93,7 +90,7 @@ CobaltContentBrowserClient::~CobaltContentBrowserClient() = default;
 std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
-  auto browser_main_parts = std::make_unique<CobaltShellBrowserMainParts>();
+  auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
 }
