@@ -66,6 +66,8 @@ def create_archive(targets: List[str], source_dir: str, destination_dir: str,
       deps_file = os.path.join(
           source_dir, 'gen.runtime', target_path,
           f'{target_name}__test_runner_script.runtime_deps')
+    else:
+      deps_file = os.path.join(source_dir, f'{target_name}.runtime_deps')
 
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
       # The paths in the runtime_deps files are relative to the out folder.
