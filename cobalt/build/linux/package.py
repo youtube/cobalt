@@ -8,6 +8,7 @@ from cobalt.build import packaging
 
 def lay_out(out_dir, base_dir):
   place_in_base_dir = [
+      'gen/build_info.json',
       'cobalt',
       'content_shell.pak',
       'icudtl.dat',
