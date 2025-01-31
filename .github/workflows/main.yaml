@@ -22,7 +22,6 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}
   cancel-in-progress: true
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # Retrieves configuration from json file.
   initialize:
@@ -92,7 +91,7 @@ jobs:
           num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards' || echo 1)
           echo "num_gtest_shards=${num_gtest_shards}" >> $GITHUB_ENV
 
-          # create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5]
+          # Create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5].
           gtest_shards="[$(seq -s, 0 1 $((${num_gtest_shards} - 1)))]"
           echo "gtest_shards=${gtest_shards}" >> $GITHUB_ENV
     outputs:
@@ -134,7 +133,6 @@ jobs:
     outputs:
       docker_tag: ${{ env.docker_tag }}
 
-  # Runs builds.
   build:
     needs: [initialize, docker-build-image]
     permissions: {}
@@ -183,9 +181,44 @@ jobs:
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device }}
 
-  test:
+  on-device-test:
+    needs: [initialize, build]
+    # Run ODT when on_device label is applied on PR.
+    # Also, run ODT on push and schedule if not explicitly disabled via repo vars.
+    if: needs.initialize.outputs.test_on_device == 'true' &&
+        (
+          (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'on_device')) ||
+          ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
+          (github.event_name == 'push' && vars.RUN_ODT_TESTS_ON_POSTSUBMIT != 'False')
+        )
+    runs-on: [self-hosted, odt-runner]
+    name: ${{ matrix.name }}_on_device_tests
+    permissions: {}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    env:
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        timeout-minutes: 30
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Run On-Device Tests
+        id: on-device-tests
+        uses: ./.github/actions/on_device_tests
+        with:
+          test_results_key: ${{ env.TEST_RESULTS_KEY }}
+          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
+
+  on-host-test:
     needs: [initialize, docker-build-image, build]
-    if: needs.initialize.outputs.test_on_host == 'true' || needs.initialize.outputs.test_on_device == 'true'
+    if: always() && needs.initialize.outputs.test_on_host == 'true'
     permissions: {}
     # TODO(b/372303096): Should have dedicated runner?
     runs-on: [self-hosted, chrobalt-linux-runner]
@@ -201,7 +234,7 @@ jobs:
     env:
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -209,7 +242,6 @@ jobs:
           path: src
       - name: Run On-Host Tests
         id: on-host-tests
-        if: always() && needs.initialize.outputs.test_on_host == 'true'
         uses: ./src/.github/actions/on_host_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
@@ -217,14 +249,14 @@ jobs:
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
 
   test-upload:
-    needs: [initialize, docker-build-image, build, test]
+    needs: [initialize, on-host-test, on-device-test]
     if: always() &&
-        (
-          needs.initialize.outputs.test_on_host == 'true' ||
-          needs.initialize.outputs.test_on_device == 'true'
-        )
+      (
+        needs.initialize.outputs.test_on_host == 'true' ||
+        needs.initialize.outputs.test_on_device == 'true'
+      )
     permissions: {}
-    runs-on: [self-hosted, chrobalt-linux-runner]
+    runs-on: ubuntu-latest
     name: ${{ matrix.name }}_tests_upload
     strategy:
       fail-fast: false
@@ -232,7 +264,6 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-    container: ${{ needs.docker-build-image.outputs.docker_tag }}
     env:
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
@@ -249,8 +280,9 @@ jobs:
           datadog_api_key: ${{ secrets.datadog_api_key }}
         continue-on-error: true
 
+
   validate-test-result:
-    needs: [initialize, docker-build-image, build, test]
+    needs: [initialize, on-device-test, on-host-test]
     if: always() &&
         (
           needs.initialize.outputs.test_on_host == 'true' ||
@@ -265,8 +297,15 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     steps:
-      - name: Fail if any test shards have failed
-        if:  ${{ needs.test.result != 'success' }}
+      - name: Check Status
+        if: ${{ ! (needs.on-device-test.result == 'success' || needs.on-host-test.result == 'success') }}
         run: |
-          echo "Failing because at least one test shard had errors."
-          exit 1
+          if [ "${{ needs.on-device-test.result }}" != "success" ]; then
+            echo "On device tests failed. See separate job log for details."
+            exit 1
+          fi
+
+          if [ "${{ needs.on-host-test.result }}" != "success" ]; then
+            echo "On host tests failed. See separate job log for details."
+            exit 1
+          fi
