@@ -28,7 +28,6 @@
 #if BUILDFLAG(IS_STARBOARD)
 #include "starboard/common/time.h"  // nogncheck
 #include "starboard/types.h"  // nogncheck
-#include "base/test/time_helpers.h"  // nogncheck
 #include "starboard/client_porting/eztime/eztime.h"  // nogncheck
 #elif BUILDFLAG(IS_ANDROID)
 #include "base/android/jni_android.h"
@@ -536,22 +535,6 @@ TEST_F(TimeTest, LocalMidnightIsLocal) {
 }
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
-#if BUILDFLAG(IS_STARBOARD)
-TEST_F(TimeTest, ParseTimeTest1) {
-  Time now = Time::Now();
-
-  Time parsed_time;
-  std::string formatted = base::test::time_helpers::TimeFormatUTC(now);
-  EXPECT_TRUE(Time::FromUTCString(formatted.c_str(), &parsed_time));
-  EXPECT_GE(1, (now - parsed_time).InSecondsF());
-  EXPECT_GE(1, (parsed_time - now).InSecondsF());
-
-  formatted = base::test::time_helpers::TimeFormatLocal(now);
-  EXPECT_TRUE(Time::FromString(formatted.c_str(), &parsed_time));
-  EXPECT_GE(1, (now - parsed_time).InSecondsF());
-  EXPECT_GE(1, (parsed_time - now).InSecondsF());
-}
-#else  // !BUILDFLAG(IS_STARBOARD)
 TEST_F(TimeTest, ParseTimeTest1) {
   time_t current_time = 0;
   time(&current_time);
@@ -570,7 +553,6 @@ TEST_F(TimeTest, ParseTimeTest1) {
   EXPECT_TRUE(Time::FromString(time_buf, &parsed_time));
   EXPECT_EQ(current_time, parsed_time.ToTimeT());
 }
-#endif
 
 TEST_F(TimeTest, DayOfWeekSunday) {
   Time time;
