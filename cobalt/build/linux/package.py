@@ -7,6 +7,7 @@ from cobalt.build import packaging
 
 
 def lay_out(out_dir, base_dir):
+  shutil.copy2(os.path.join(out_dir, 'gen', 'build_info.json'), base_dir)
   place_in_base_dir = [
       'cobalt',
       'content_shell.pak',
