@@ -9,8 +9,10 @@
 
 #include "base/logging.h"
 
+#ifndef COBALT_PENDING_CLEAN_UP
 #ifdef BASE_CHECK_H_
 #error "logging.h should not include check.h"
+#endif
 #endif
 
 #include <limits.h>
@@ -116,6 +118,18 @@ typedef FILE* FileHandle;
 #include <android/log.h>
 #include "base/android/jni_android.h"
 #endif
+
+#if BUILDFLAG(IS_STARBOARD)
+#include <fcntl.h>
+#include "starboard/client_porting/eztime/eztime.h"  // nogncheck
+#include "starboard/common/log.h"  // nogncheck
+#include "starboard/common/mutex.h"  // nogncheck
+#include "starboard/common/time.h"  // nogncheck
+#include "starboard/configuration.h"  // nogncheck
+#include "starboard/configuration_constants.h"  // nogncheck
+#include "starboard/file.h"  // nogncheck
+#include "starboard/system.h"  // nogncheck
+#endif // BUILDFLAG(IS_STARBOARD)
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
 #include "base/files/scoped_file.h"
@@ -296,7 +310,15 @@ void DeleteFilePath(const PathString& log_name) {
 }
 
 PathString GetDefaultLogFile() {
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_STARBOARD)
+  // On Starboard, we politely ask for the log directory, like a civilized
+  // platform.
+  std::vector<char> path(kSbFileMaxPath + 1);
+  SbSystemGetPath(kSbSystemPathDebugOutputDirectory, path.data(), path.size());
+  PathString log_file = path.data();
+  log_file += std::string(kSbFileSepString) + "debug.log";
+  return log_file;
+#elif BUILDFLAG(IS_WIN)
   // On Windows we use the same path as the exe.
   wchar_t module_name[MAX_PATH];
   GetModuleFileName(nullptr, module_name, MAX_PATH);
@@ -347,6 +369,14 @@ bool InitializeLogFileHandle() {
     // initialize the log file name to a default.
     g_log_file_name = new PathString(GetDefaultLogFile());
   }
+
+#if BUILDFLAG(IS_STARBOARD)
+  // This seems to get called a lot with an empty filename, at least in
+  // base_unittests.
+  if (g_log_file_name->empty()) {
+    return false;
+  }
+#endif
 
   if ((g_logging_destination & LOG_TO_FILE) == 0)
     return true;
@@ -419,6 +449,31 @@ void CloseLogFileUnlocked() {
   if (!g_log_file_name)
     g_logging_destination &= ~LOG_TO_FILE;
 }
+
+#if BUILDFLAG(IS_STARBOARD)
+SbLogPriority LogLevelToStarboardLogPriority(int level) {
+  switch (level) {
+    case LOG_INFO:
+      return kSbLogPriorityInfo;
+    case LOG_WARNING:
+      return kSbLogPriorityWarning;
+    case LOG_ERROR:
+      return kSbLogPriorityError;
+    case LOG_FATAL:
+      return kSbLogPriorityFatal;
+    case LOG_VERBOSE:
+    default:
+      if (level <= LOG_VERBOSE) {
+        // Verbose level can be any negative integer, sanity check its range to
+        // filter out potential errors.
+        DCHECK_GE(level, -256);
+        return kSbLogPriorityInfo;
+      }
+      NOTREACHED() << "Unrecognized log level.";
+      return kSbLogPriorityInfo;
+  }
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
 
 #if BUILDFLAG(IS_FUCHSIA)
 inline FuchsiaLogSeverity LogSeverityToFuchsiaLogSeverity(
@@ -899,7 +954,11 @@ void LogMessage::Flush() {
     //   LOG(ERROR) << "Something went wrong";
     //   free_something();
     // }
+#if BUILDFLAG(IS_STARBOARD)
+    SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
+#else
     WriteToFd(STDERR_FILENO, str_newline.data(), str_newline.size());
+#endif
   }
 
   if ((g_logging_destination & LOG_TO_FILE) != 0) {
@@ -961,7 +1020,13 @@ void LogMessage::Init(const char* file, int line) {
     if (g_log_process_id)
       stream_ << base::GetUniqueIdForProcess() << ':';
     if (g_log_thread_id)
+#if BUILDFLAG(IS_STARBOARD)
+      // Logging the thread name is added for Starboard logs.
+      stream_ << base::PlatformThread::GetName() << '/'
+              << base::PlatformThread::CurrentId() << ":";
+#else
       stream_ << base::PlatformThread::CurrentId() << ':';
+#endif
     if (g_log_timestamp) {
 #if BUILDFLAG(IS_WIN)
       SYSTEMTIME local_time;
@@ -1062,7 +1127,9 @@ typedef DWORD SystemErrorCode;
 #endif
 
 SystemErrorCode GetLastSystemErrorCode() {
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_STARBOARD)
+  return SbSystemGetLastError();
+#elif BUILDFLAG(IS_WIN)
   return ::GetLastError();
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   return errno;
@@ -1070,7 +1137,19 @@ SystemErrorCode GetLastSystemErrorCode() {
 }
 
 BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_STARBOARD)
+  const int kErrorMessageBufferSize = 256;
+  char msgbuf[kErrorMessageBufferSize];
+
+  if (SbSystemGetErrorString(error_code, msgbuf, kErrorMessageBufferSize) > 0) {
+    // Messages returned by system end with line breaks.
+    return base::CollapseWhitespaceASCII(msgbuf, true) +
+           base::StringPrintf(" (%d)", error_code);
+  } else {
+    return base::StringPrintf("Error (%d) while retrieving error. (%d)",
+                              GetLastSystemErrorCode(), error_code);
+  }
+#elif BUILDFLAG(IS_WIN)
   LPWSTR msgbuf = nullptr;
   DWORD len = ::FormatMessageW(
       FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
@@ -1246,6 +1325,13 @@ void ScopedLoggingSettings::SetLogFormat(LogFormat log_format) const {
 
 void RawLog(int level, const char* message) {
   if (level >= g_min_log_level && message) {
+#if BUILDFLAG(IS_STARBOARD)
+    SbLogRaw(message);
+    const size_t message_len = strlen(message);
+    if (message_len > 0 && message[message_len - 1] != '\n') {
+      SbLogRaw("\n");
+    }
+#else
     const size_t message_len = strlen(message);
     WriteToFd(STDERR_FILENO, message, message_len);
 
@@ -1259,6 +1345,7 @@ void RawLog(int level, const char* message) {
         }
       } while (rv != 1);
     }
+#endif
   }
 
   if (level == LOGGING_FATAL)
