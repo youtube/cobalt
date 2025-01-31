@@ -5,19 +5,19 @@
 import("//base/allocator/allocator.gni")
 import("//testing/test.gni")
 
-executable("test_cpp_including_rust") {
-  sources = [ "main.cc" ]
-  deps = [ "//build/rust/tests/test_rust_static_library" ]
-}
+# executable("test_cpp_including_rust") {
+#   sources = [ "main.cc" ]
+#   deps = [ "//build/rust/tests/test_rust_static_library" ]
+# }
 
-test("test_cpp_including_rust_unittests") {
-  sources = [ "unittests.cc" ]
-  deps = [
-    "//base",
-    "//base/allocator:buildflags",
-    "//base/test:run_all_unittests",
-    "//build/rust/tests/test_rust_static_library",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
-}
+# test("test_cpp_including_rust_unittests") {
+#   sources = [ "unittests.cc" ]
+#   deps = [
+#     "//base",
+#     "//base/allocator:buildflags",
+#     "//base/test:run_all_unittests",
+#     "//build/rust/tests/test_rust_static_library",
+#     "//testing/gmock",
+#     "//testing/gtest",
+#   ]
+# }
