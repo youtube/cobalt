@@ -7,7 +7,7 @@
 
 #include "build/build_config.h"
 #if BUILDFLAG(IS_STARBOARD)
-#include "starboard/common/log.h"
+#include "starboard/common/log.h"  // nogncheck
 #endif
 
 // Crashes in the fastest possible way with no attempt at logging.

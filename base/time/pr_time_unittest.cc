@@ -12,7 +12,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(IS_STARBOARD)
-#include "starboard/client_porting/eztime/eztime.h"
+#include "starboard/client_porting/eztime/eztime.h"  // nogncheck
 #endif
 
 using base::Time;

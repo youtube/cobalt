@@ -116,7 +116,7 @@ struct TimeSpan;
 #endif
 
 #if BUILDFLAG(IS_STARBOARD)
-#include "starboard/common/time.h"
+#include "starboard/common/time.h"  // nogncheck
 #endif
 
 namespace base {

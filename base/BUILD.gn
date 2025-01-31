@@ -1809,7 +1809,10 @@ component("base") {
   }
 
   if (is_starboard) {
-    deps += [ "//starboard:starboard_group" ]
+    deps += [
+      "//starboard:starboard_group",
+      "//starboard/common",
+    ]
   }
 
   # Windows.
@@ -2721,6 +2724,10 @@ static_library("base_static") {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
+
+  if (is_starboard) {
+    deps += [ "//starboard/common" ]
+  }
 }
 
 if (use_custom_libcxx && enable_safe_libcxx && !is_debug) {
@@ -2731,7 +2738,7 @@ if (use_custom_libcxx && enable_safe_libcxx && !is_debug) {
     defines = [ "BASE_IMPLEMENTATION" ]
     sources = [ "nodebug_assertion.cc" ]
     deps = [ ":base_static" ]
-    if (is_cobalt && is_starboard) {
+    if (is_starboard) {
       deps += ["//starboard:starboard_group"]
     }
   }
@@ -3553,6 +3560,13 @@ test("base_unittests") {
     "//third_party/icu",
     "//third_party/modp_b64",
   ]
+
+  if (is_starboard) {
+    deps += [
+      "//starboard:starboard_group",
+      "//starboard/common",
+    ]
+  }
 
   data_deps = [
     "//base/test:immediate_crash_test_helper",

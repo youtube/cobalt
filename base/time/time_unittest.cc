@@ -26,10 +26,10 @@
 #include "third_party/icu/source/i18n/unicode/timezone.h"
 
 #if BUILDFLAG(IS_STARBOARD)
-#include "starboard/common/time.h"
-#include "starboard/types.h"
-#include "base/test/time_helpers.h"
-#include "starboard/client_porting/eztime/eztime.h"
+#include "starboard/common/time.h"  // nogncheck
+#include "starboard/types.h"  // nogncheck
+#include "base/test/time_helpers.h"  // nogncheck
+#include "starboard/client_porting/eztime/eztime.h"  // nogncheck
 #elif BUILDFLAG(IS_ANDROID)
 #include "base/android/jni_android.h"
 #elif BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_CHROMEOS)

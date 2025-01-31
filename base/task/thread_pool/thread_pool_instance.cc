@@ -15,7 +15,7 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #if BUILDFLAG(IS_STARBOARD)
-#include "starboard/configuration_constants.h"
+#include "starboard/configuration_constants.h"  // nogncheck
 #endif
 
 namespace base {
