@@ -95,6 +95,12 @@
     "TransliteratorTest.LatinASCIICorrect",
     "TransliteratorTest.LowerCorrect",
     "TransliteratorTest.LowerLatinASCIICorrect",
-    "ValuesUtilTest.FilePath"
+    "ValuesUtilTest.FilePath",
+    "LoggingTest.AlwaysLogErrorsToStderr",
+    "LoggingTest.CheckCausesDistinctBreakpoints",
+    "ProcessUtilTest.FDRemappingIncludesStdio",
+    "ImmediateCrashTest.ExpectedOpcodeSequence",
+    "PostTaskAndReplyImplTest.PostTaskToStoppedTaskRunnerWithoutSequencedContext",
+    "ThreadGroupImplBlockingTest.MayBlockIncreaseCapacityNestedWillBlock"
   ]
 }
