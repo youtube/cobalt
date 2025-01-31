@@ -13,7 +13,7 @@ runs:
     - name: Download Test Results
       uses: actions/download-artifact@v4
       with:
-        pattern: ${{ inputs.test_results_key }}-*
+        pattern: ${{ inputs.test_results_key }}*
         path: results/**/*
 
     - name: Test Summary action
