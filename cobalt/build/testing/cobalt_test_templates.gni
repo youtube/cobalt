@@ -14,15 +14,31 @@
 
 template("cobalt_test") {
   actual_target_name = target_name
-
+  group("${actual_target_name}_group") {
+    testonly = true
+    deps = [ ":${actual_target_name}_loader($starboard_toolchain)" ]
+  }
   shared_library(actual_target_name) {
     output_name = actual_target_name
     forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
     testonly = true
+
+    # if(defined(invoker.data_deps)) {
+    # data_deps += [":${actual_target_name}_loader($starboard_toolchain)"]
+    # } else {
+    # data_deps = [":${actual_target_name}_loader($starboard_toolchain)"]
+    # }
+    #         allow_circular_includes_from = [
+    #  ":${actual_target_name}_loader($starboard_toolchain)",
+    # ]
   }
 
   if (current_toolchain == starboard_toolchain) {
     executable("${actual_target_name}_loader") {
+      # if (actual_target_name == "url_unittests") {
+      #   print("yaay")
+      # }
+      _runtime_deps_file = "$root_out_dir/${actual_target_name}.runtime_deps"
       output_name = "${actual_target_name}_loader"
       sources = [ "//$starboard_path/starboard_loader.cc" ]
       testonly = true
@@ -53,6 +69,11 @@ template("cobalt_test") {
         ":$actual_target_name($cobalt_toolchain)",
         "//starboard($starboard_toolchain)",
       ]
+
+      #         allow_circular_includes_from = [
+      #   ":${actual_target_name}($cobalt_toolchain)",
+      # ]
+      write_runtime_deps = _runtime_deps_file
     }
   }
 }

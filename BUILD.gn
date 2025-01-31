@@ -850,8 +850,9 @@ group("all_rust") {
 
   # Unconditional because this includes things that should work whether or not
   # Rust is enabled.
-  deps = [ ":rust_build_tests" ]
-
+  if (!is_cobalt) {
+    deps = [ ":rust_build_tests" ]
+  }
   if (toolchain_has_rust) {
     if (enable_rust_mojo) {
       deps += [
@@ -876,10 +877,10 @@ group("all_rust") {
 }
 
 # This group exists to give targets for the waterfall to refer to.
-group("rust_build_tests") {
-  testonly = true
-  deps = [ "//build/rust/tests" ]
-}
+# group("rust_build_tests") {
+#   testonly = true
+#   deps = [ "//build/rust/tests" ]
+# }
 
 # TODO(https://crbug.com/1112776): ensure remoting is functional on Linux builds with
 # other than X11 Ozone backends.
