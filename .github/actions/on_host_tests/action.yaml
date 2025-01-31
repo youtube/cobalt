@@ -82,5 +82,5 @@ runs:
       if: success() || failure()
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ inputs.test_results_key }}-${{ matrix.shard }}
+        name: ${{ inputs.test_results_key }}
         path: ${{ env.results_dir }}/shard_${{ matrix.shard }}/*.xml
