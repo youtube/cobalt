@@ -39,9 +39,6 @@ source_set("starboard") {
     # TODO(b/326654546): Revisit max video input size
     "COBALT_MEDIA_ENABLE_PLAYER_SET_MAX_VIDEO_INPUT_SIZE=0",
 
-    # TODO(b/375059645): Revisit side data (aka hdr10+) support
-    "COBALT_MEDIA_ENABLE_SIDE_DATA=0",
-
     # TODO(b/375234428): Revisit startup latency tracking
     "COBALT_MEDIA_ENABLE_STARTUP_LATENCY_TRACKING=0",
 
