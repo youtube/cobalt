@@ -53,6 +53,7 @@ if (is_ios) {
   import("//build/config/ios/ios_sdk.gni")
 =======
 if (is_cobalt) {
+  import("//cobalt/build/configs/hacks.gni")
   import("//cobalt/build/configs/modular_variables.gni")
 >>>>>>> 216d6ca3ac8 (Build nplb hermetically (#4587))
 }
@@ -1854,8 +1855,18 @@ component("base") {
       "allocator/partition_allocator/shim/allocator_shim_override_glibc_weak_symbols.h",
       "allocator/partition_allocator/shim/allocator_shim_override_libc_symbols.h",
     ]
+  }
 
-    deps += [ "//starboard:starboard_group" ]
+  if (is_cobalt && enable_cobalt_hacks && is_starboard) {
+    # Find a way to fix the offending customizations instead.
+    configs -= [ "//build/config/compiler:prevent_unsafe_narrowing" ]
+  }
+
+  if (is_starboard) {
+    deps += [
+      "//starboard:starboard_group",
+      "//starboard/common",
+    ]
   }
 
   # Windows.
@@ -2889,8 +2900,29 @@ static_library("base_static") {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
+
+  if (is_starboard) {
+    deps += [ "//starboard/common" ]
+  }
 }
 
+<<<<<<< HEAD
+=======
+if (use_custom_libcxx && enable_safe_libcxx && !is_debug) {
+  # nodebug_assertion.cc has to be in its own source_set instead of being
+  # included as a source in //base as otherwise its symbols won't be linked in
+  # if they end up in an archive.
+  source_set("nodebug_assertion") {
+    defines = [ "BASE_IMPLEMENTATION" ]
+    sources = [ "nodebug_assertion.cc" ]
+    deps = [ ":base_static" ]
+    if (is_starboard) {
+      deps += ["//starboard:starboard_group"]
+    }
+  }
+}
+
+>>>>>>> 5a95b1d472b (Bring 25.lts.1+ base customizations to trunk (#4800))
 component("i18n") {
   output_name = "base_i18n"
   sources = [
@@ -3787,6 +3819,7 @@ test("base_unittests") {
     "allocator/partition_allocator/src/partition_alloc:test_support",
   ]
 
+<<<<<<< HEAD
   # TODO(crbug.com/40158212): Move partition_alloc tests into its repository.
   #
   # Note: This requires checking `build_with_chromium` because partition_alloc
@@ -3799,6 +3832,13 @@ test("base_unittests") {
 
   if (!is_nacl) {
     deps += [ "//build/rust:cxx_cppdeps" ]
+=======
+  if (is_starboard) {
+    deps += [
+      "//starboard:starboard_group",
+      "//starboard/common",
+    ]
+>>>>>>> 5a95b1d472b (Bring 25.lts.1+ base customizations to trunk (#4800))
   }
 
   data_deps = [

@@ -4,6 +4,15 @@
 
 #include "base/logging.h"
 
+<<<<<<< HEAD
+=======
+#ifndef COBALT_PENDING_CLEAN_UP
+#ifdef BASE_CHECK_H_
+#error "logging.h should not include check.h"
+#endif
+#endif
+
+>>>>>>> 5a95b1d472b (Bring 25.lts.1+ base customizations to trunk (#4800))
 #include <limits.h>
 #include <stdint.h>
 
@@ -110,7 +119,62 @@ typedef FILE* FileHandle;
 #include "base/android/jni_android.h"
 #endif
 
+<<<<<<< HEAD
 #if BUILDFLAG(IS_CHROMEOS)
+=======
+#if BUILDFLAG(IS_STARBOARD)
+#include <fcntl.h>
+
+#include "starboard/client_porting/eztime/eztime.h"  // nogncheck
+#include "starboard/common/log.h"  // nogncheck
+#include "starboard/common/mutex.h"  // nogncheck
+#include "starboard/common/time.h"  // nogncheck
+#include "starboard/configuration.h"  // nogncheck
+#include "starboard/configuration_constants.h"  // nogncheck
+#include "starboard/file.h"  // nogncheck
+#include "starboard/system.h"  // nogncheck
+#endif
+
+#include <algorithm>
+#include <cstring>
+#include <ctime>
+#include <iomanip>
+#include <ostream>
+#include <string>
+#include <utility>
+
+#include "base/base_switches.h"
+#include "base/command_line.h"
+#include "base/containers/stack.h"
+#include "base/debug/alias.h"
+#include "base/debug/debugger.h"
+#include "base/debug/stack_trace.h"
+#include "base/debug/task_trace.h"
+#include "base/functional/callback.h"
+#include "base/no_destructor.h"
+#include "base/path_service.h"
+#include "base/posix/eintr_wrapper.h"
+#include "base/strings/string_split.h"
+#include "base/strings/string_util.h"
+#include "base/strings/stringprintf.h"
+#include "base/strings/sys_string_conversions.h"
+#include "base/strings/utf_string_conversions.h"
+#include "base/synchronization/lock.h"
+#include "base/test/scoped_logging_settings.h"
+#include "base/threading/platform_thread.h"
+#include "base/vlog.h"
+#include "build/chromeos_buildflags.h"
+
+#if BUILDFLAG(IS_WIN)
+#include "base/win/win_util.h"
+#endif
+
+#if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#include "base/posix/safe_strerror.h"
+#endif
+
+#if BUILDFLAG(IS_CHROMEOS_ASH)
+>>>>>>> 5a95b1d472b (Bring 25.lts.1+ base customizations to trunk (#4800))
 #include "base/files/scoped_file.h"
 #endif
 
@@ -295,7 +359,15 @@ void DeleteFilePath(const PathString& log_name) {
 }
 
 PathString GetDefaultLogFile() {
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_STARBOARD)
+  // On Starboard, we politely ask for the log directory, like a civilized
+  // platform.
+  std::vector<char> path(kSbFileMaxPath + 1);
+  SbSystemGetPath(kSbSystemPathDebugOutputDirectory, path.data(), path.size());
+  PathString log_file = path.data();
+  log_file += std::string(kSbFileSepString) + "debug.log";
+  return log_file;
+#elif BUILDFLAG(IS_WIN)
   // On Windows we use the same path as the exe.
   wchar_t module_name[MAX_PATH];
   GetModuleFileName(nullptr, module_name, MAX_PATH);
@@ -349,7 +421,19 @@ bool InitializeLogFileHandle() {
     g_log_file_name = new PathString(GetDefaultLogFile());
   }
 
+<<<<<<< HEAD
   if ((g_logging_destination & LOG_TO_FILE) == 0) {
+=======
+#if BUILDFLAG(IS_STARBOARD)
+  // This seems to get called a lot with an empty filename, at least in
+  // base_unittests.
+  if (g_log_file_name->empty()) {
+    return false;
+  }
+#endif
+
+  if ((g_logging_destination & LOG_TO_FILE) == 0)
+>>>>>>> 5a95b1d472b (Bring 25.lts.1+ base customizations to trunk (#4800))
     return true;
   }
 
@@ -424,6 +508,49 @@ void CloseLogFileUnlocked() {
   // won't have a log path set and shouldn't try to reopen the log file.
   if (!g_log_file_name) {
     g_logging_destination &= ~LOG_TO_FILE;
+<<<<<<< HEAD
+=======
+}
+
+#if BUILDFLAG(IS_STARBOARD)
+SbLogPriority LogLevelToStarboardLogPriority(int level) {
+  switch (level) {
+    case LOG_INFO:
+      return kSbLogPriorityInfo;
+    case LOG_WARNING:
+      return kSbLogPriorityWarning;
+    case LOG_ERROR:
+      return kSbLogPriorityError;
+    case LOG_FATAL:
+      return kSbLogPriorityFatal;
+    case LOG_VERBOSE:
+    default:
+      if (level <= LOG_VERBOSE) {
+        // Verbose level can be any negative integer, sanity check its range to
+        // filter out potential errors.
+        DCHECK_GE(level, -256);
+        return kSbLogPriorityInfo;
+      }
+      NOTREACHED() << "Unrecognized log level.";
+      return kSbLogPriorityInfo;
+  }
+}
+#endif  // BUILDFLAG(IS_STARBOARD)
+
+#if BUILDFLAG(IS_FUCHSIA)
+inline FuchsiaLogSeverity LogSeverityToFuchsiaLogSeverity(
+    LogSeverity severity) {
+  switch (severity) {
+    case LOGGING_INFO:
+      return FUCHSIA_LOG_INFO;
+    case LOGGING_WARNING:
+      return FUCHSIA_LOG_WARNING;
+    case LOGGING_ERROR:
+      return FUCHSIA_LOG_ERROR;
+    case LOGGING_FATAL:
+      // Don't use FX_LOG_FATAL, otherwise fx_logger_log() will abort().
+      return FUCHSIA_LOG_ERROR;
+>>>>>>> 5a95b1d472b (Bring 25.lts.1+ base customizations to trunk (#4800))
   }
 }
 
@@ -921,7 +1048,11 @@ void LogMessage::Flush() {
     //   LOG(ERROR) << "Something went wrong";
     //   free_something();
     // }
+#if BUILDFLAG(IS_STARBOARD)
+    SbLog(LogLevelToStarboardLogPriority(severity_), str_newline.c_str());
+#else
     WriteToFd(STDERR_FILENO, str_newline.data(), str_newline.size());
+#endif
   }
 
   if ((g_logging_destination & LOG_TO_FILE) != 0) {
@@ -981,10 +1112,21 @@ void LogMessage::Init(const char* file, int line) {
     }
     if (g_log_process_id) {
       stream_ << base::GetUniqueIdForProcess() << ':';
+<<<<<<< HEAD
     }
     if (g_log_thread_id) {
       stream_ << base::PlatformThread::CurrentId() << ':';
     }
+=======
+    if (g_log_thread_id)
+#if BUILDFLAG(IS_STARBOARD)
+      // Logging the thread name is added for Starboard logs.
+      stream_ << base::PlatformThread::GetName() << '/'
+              << base::PlatformThread::CurrentId() << ":";
+#else
+      stream_ << base::PlatformThread::CurrentId() << ':';
+#endif
+>>>>>>> 5a95b1d472b (Bring 25.lts.1+ base customizations to trunk (#4800))
     if (g_log_timestamp) {
 #if BUILDFLAG(IS_WIN)
       SYSTEMTIME local_time;
@@ -1076,7 +1218,9 @@ typedef DWORD SystemErrorCode;
 #endif
 
 SystemErrorCode GetLastSystemErrorCode() {
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_STARBOARD)
+  return SbSystemGetLastError();
+#elif BUILDFLAG(IS_WIN)
   return ::GetLastError();
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   return errno;
@@ -1084,12 +1228,33 @@ SystemErrorCode GetLastSystemErrorCode() {
 }
 
 BASE_EXPORT std::string SystemErrorCodeToString(SystemErrorCode error_code) {
+<<<<<<< HEAD
 #if BUILDFLAG(IS_WIN)
   LPWSTR msgbuf = nullptr;
   DWORD len = ::FormatMessageW(
       FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
           FORMAT_MESSAGE_IGNORE_INSERTS,
       nullptr, error_code, 0, reinterpret_cast<LPWSTR>(&msgbuf), 0, nullptr);
+=======
+#if BUILDFLAG(IS_STARBOARD)
+  const int kErrorMessageBufferSize = 256;
+  char msgbuf[kErrorMessageBufferSize];
+
+  if (SbSystemGetErrorString(error_code, msgbuf, kErrorMessageBufferSize) > 0) {
+    // Messages returned by system end with line breaks.
+    return base::CollapseWhitespaceASCII(msgbuf, true) +
+           base::StringPrintf(" (%d)", error_code);
+  } else {
+    return base::StringPrintf("Error (%d) while retrieving error. (%d)",
+                              GetLastSystemErrorCode(), error_code);
+  }
+#elif BUILDFLAG(IS_WIN)
+  const int kErrorMessageBufferSize = 256;
+  char msgbuf[kErrorMessageBufferSize];
+  DWORD flags = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
+  DWORD len = FormatMessageA(flags, nullptr, error_code, 0, msgbuf,
+                             std::size(msgbuf), nullptr);
+>>>>>>> 5a95b1d472b (Bring 25.lts.1+ base customizations to trunk (#4800))
   if (len) {
     std::u16string message = base::WideToUTF16(msgbuf);
     ::LocalFree(msgbuf);
@@ -1265,6 +1430,13 @@ void ScopedLoggingSettings::SetLogFormat(LogFormat log_format) const {
 
 void RawLog(int level, const char* message) {
   if (level >= g_min_log_level && message) {
+#if BUILDFLAG(IS_STARBOARD)
+    SbLogRaw(message);
+    const size_t message_len = strlen(message);
+    if (message_len > 0 && message[message_len - 1] != '\n') {
+      SbLogRaw("\n");
+    }
+#else
     const size_t message_len = strlen(message);
     WriteToFd(STDERR_FILENO, message, message_len);
 
@@ -1278,6 +1450,7 @@ void RawLog(int level, const char* message) {
         }
       } while (rv != 1);
     }
+#endif
   }
 
   if (level == LOGGING_FATAL) {

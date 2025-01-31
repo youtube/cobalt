@@ -13,6 +13,7 @@
 
 // Various opaque system types that should still be usable with the base
 // callback system. Please keep sorted.
+<<<<<<< HEAD
 #define BASE_INTERNAL_LIST_OF_SAFE_FOR_UNRETAINED           \
   BASE_INTERNAL_SAFE_FOR_UNRETAINED(ANativeWindow)          \
   BASE_INTERNAL_SAFE_FOR_UNRETAINED(DBusMessage)            \
@@ -39,6 +40,35 @@
 #define BASE_INTERNAL_SAFE_FOR_UNRETAINED(x) struct x;
 BASE_INTERNAL_LIST_OF_SAFE_FOR_UNRETAINED
 #undef BASE_INTERNAL_SAFE_FOR_UNRETAINED
+=======
+struct ANativeWindow;
+struct DBusMessage;
+struct HWND__;
+struct VkBuffer_T;
+struct VkDeviceMemory_T;
+struct VkImage_T;
+struct VkSemaphore_T;
+struct VmaAllocation_T;
+struct WGPUAdapterImpl;
+struct fpdf_action_t__;
+struct fpdf_annotation_t__;
+struct fpdf_attachment_t__;
+struct fpdf_bookmark_t__;
+struct fpdf_document_t__;
+struct fpdf_form_handle_t__;
+struct fpdf_page_t__;
+struct fpdf_structelement_t__;
+struct hb_set_t;
+struct wl_gpu;
+struct wl_shm;
+struct wl_surface;
+#ifdef COBALT_PENDING_CLEAN_UP
+struct SbPlayerPrivate;
+struct SbWindowPrivate;
+struct SbUiNavItemPrivate;
+struct SbDrmSystemPrivate;
+#endif
+>>>>>>> 5a95b1d472b (Bring 25.lts.1+ base customizations to trunk (#4800))
 
 namespace base::internal {
 
@@ -69,6 +99,7 @@ concept DisallowsUnretained = !kCustomizeSupportsUnretained<T> || requires {
   typename T::DisallowBaseUnretainedMarker;
 };
 
+<<<<<<< HEAD
 template <typename T>
 struct SupportsUnretainedImpl {
   // For context on this "templated struct with a lambda that asserts" pattern,
@@ -76,6 +107,73 @@ struct SupportsUnretainedImpl {
   template <bool v = IsComplete<T> || SafeIncompleteTypeForUnretained<T>>
   struct AllowlistIncompleteTypes {
     static constexpr bool value = [] {
+=======
+// Various opaque system types that should still be usable with the base
+// callback system. Please keep sorted.
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<ANativeWindow> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<DBusMessage> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<HWND__> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<VkBuffer_T> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<VkDeviceMemory_T> =
+    true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<VkImage_T> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<VkSemaphore_T> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<VmaAllocation_T> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<WGPUAdapterImpl> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<fpdf_action_t__> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<fpdf_annotation_t__> =
+    true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<fpdf_attachment_t__> =
+    true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<fpdf_bookmark_t__> =
+    true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<fpdf_document_t__> =
+    true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<fpdf_form_handle_t__> =
+    true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<fpdf_page_t__> = true;
+template <>
+inline constexpr bool
+    IsIncompleteTypeSafeForUnretained<fpdf_structelement_t__> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<hb_set_t> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<wl_gpu> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<wl_shm> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<wl_surface> = true;
+
+#ifdef COBALT_PENDING_CLEAN_UP
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<SbPlayerPrivate> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<SbWindowPrivate> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<SbUiNavItemPrivate> = true;
+template <>
+inline constexpr bool IsIncompleteTypeSafeForUnretained<SbDrmSystemPrivate> = true;
+#endif
+
+template <typename T, typename SFINAE = void>
+struct TypeSupportsUnretained {
+>>>>>>> 5a95b1d472b (Bring 25.lts.1+ base customizations to trunk (#4800))
 // Incrementally enforce the requirement to be completely defined. For now,
 // limit the failures to:
 //
