@@ -940,10 +940,8 @@ void SbPlayerBridge::WriteBuffersInternal(
 
     gathered_sbplayer_sample_infos_side_data.push_back(
         SbPlayerSampleSideData());
-#if COBALT_MEDIA_ENABLE_SIDE_DATA
     SbPlayerSampleSideData* side_data =
         &gathered_sbplayer_sample_infos_side_data[i];
-#endif  // COBALT_MEDIA_ENABLE_SIDE_DATA
 
     PlayerSampleInfo sample_info = {};
     sample_info.type = sample_type;
@@ -951,7 +949,6 @@ void SbPlayerBridge::WriteBuffersInternal(
     sample_info.buffer_size = buffer->data_size();
     sample_info.timestamp = buffer->timestamp().InMicroseconds();
 
-#if COBALT_MEDIA_ENABLE_SIDE_DATA
     if (buffer->side_data_size() > 0) {
       // We only support at most one side data currently.
       side_data->type = kMatroskaBlockAdditional;
@@ -960,7 +957,6 @@ void SbPlayerBridge::WriteBuffersInternal(
       sample_info.side_data = side_data;
       sample_info.side_data_count = 1;
     }
-#endif  // COBALT_MEDIA_ENABLE_SIDE_DATA
 
     if (sample_type == kSbMediaTypeAudio) {
       DCHECK(audio_stream_info);
