@@ -22,7 +22,7 @@
 namespace content {
 class BrowserMainParts;
 class RenderFrameHost;
-}
+}  // namespace content
 
 namespace mojo {
 template <typename>
