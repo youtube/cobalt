@@ -94,7 +94,6 @@
 #include "media/mojo/clients/mojo_fuchsia_cdm_provider.h"
 #elif BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/starboard/starboard_cdm_factory.h"
-#include "media/starboard/starboard_renderer_factory.h"
 #elif BUILDFLAG(ENABLE_MOJO_CDM)
 #include "media/mojo/clients/mojo_cdm_factory.h"  // nogncheck
 #else
@@ -143,17 +142,6 @@ namespace {
 // is also capping audio-only media streams, and it is quite normal for their
 // to be many of those. See http://crbug.com/1232649
 constexpr size_t kDefaultMaxWebMediaPlayers = 1000;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-// The following variables match |kSbPlayerWriteDurationLocal|
-// and |kSbplayerWriteDurationRemote| in //starboard/player.h.
-//
-// The audio write duration when all the audio connectors are local.
-const base::TimeDelta kWriteDurationLocal = base::Milliseconds(500);
-// The audio write duration when at least one of the audio connectors are
-// remote.
-const base::TimeDelta kWriteDurationRemote = base::Seconds(10);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 size_t GetMaxWebMediaPlayers() {
   static const size_t kMaxWebMediaPlayers = []() {
@@ -582,8 +570,15 @@ MediaFactory::CreateRendererFactorySelector(
                           base::Unretained(render_thread)));
   if (factory) {
     is_base_renderer_factory_set = true;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    // TODO(b/326827007): Revisit renderer to support secondary videos.
+    // TODO(b/394368542): Add Content API to create StarboardRenderer.
+    factory_selector->AddBaseFactory(RendererType::kStarboard,
+                                     std::move(factory));
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     factory_selector->AddBaseFactory(RendererType::kContentEmbedderDefined,
                                      std::move(factory));
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -759,21 +754,10 @@ MediaFactory::CreateRendererFactorySelector(
     // this method were significantly refactored to split things up by
     // Android/non-Android/Cast/etc...
     is_base_renderer_factory_set = true;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    // TODO(b/326827007): Revisit renderer to support secondary videos.
-    factory_selector->AddFactory(
-        RendererType::kStarboard,
-        std::make_unique<media::StarboardRendererFactory>(
-            media_log,
-            // TODO: b/383327725 - Cobalt: Inject these values from the web app.
-            kWriteDurationLocal, kWriteDurationRemote));
-    factory_selector->SetBaseRendererType(RendererType::kStarboard);
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     auto renderer_impl_factory = CreateRendererImplFactory(
         player_id, media_log, decoder_factory, render_thread, render_frame_);
     factory_selector->AddBaseFactory(RendererType::kRendererImpl,
                                      std::move(renderer_impl_factory));
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   return factory_selector;
