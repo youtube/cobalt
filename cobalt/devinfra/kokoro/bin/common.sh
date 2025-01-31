@@ -258,7 +258,8 @@ create_and_upload_nightly_archive () {
 
   init_gcloud
 
-  "${GSUTIL}" cp -r "${package_dir}" "${gcs_archive_path}"
+  # Copy everything in package_dir but not its last path segment; gcs_archive_path already exists.
+  "${GSUTIL}" cp -r "${package_dir}/." "${gcs_archive_path}"
 }
 
 run_package_release_pipeline () {
