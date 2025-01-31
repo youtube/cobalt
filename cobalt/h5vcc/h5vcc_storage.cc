@@ -38,6 +38,8 @@ namespace h5vcc {
 
 namespace {
 
+const char kCrashpadDBName[] = "crashpad_database";
+
 const char kTestFileName[] = "cache_test_file.json";
 
 const uint32 kBufferSize = 16384;  // 16 KB
@@ -427,6 +429,15 @@ void H5vccStorage::ClearServiceWorkerCache() {
       base::FilePath(storage_dir.data())
           .Append(worker::WorkerConsts::kSettingsJson);
   base::DeleteFile(service_worker_file_path);
+}
+
+void H5vccStorage::ClearCrashpadDatabase() {
+  std::vector<char> cache_dir(kSbFileMaxPath + 1, 0);
+  SbSystemGetPath(kSbSystemPathCacheDirectory, cache_dir.data(),
+                  kSbFileMaxPath);
+  base::FilePath crashpad_db_dir =
+      base::FilePath(cache_dir.data()).Append(kCrashpadDBName);
+  ClearDirectory(crashpad_db_dir);
 }
 
 bool H5vccStorage::ValidatedCacheBackend() {

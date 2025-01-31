@@ -71,6 +71,8 @@ class H5vccStorage : public script::Wrappable {
 
   void ClearServiceWorkerCache();
 
+  void ClearCrashpadDatabase();
+
   DEFINE_WRAPPABLE_TYPE(H5vccStorage);
 
  private:

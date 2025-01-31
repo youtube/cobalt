@@ -31,4 +31,7 @@ interface H5vccStorage {
   void clearCache();
   void clearCacheOfType(octet type_index);
   void clearServiceWorkerCache();
+
+  // Only intended to be used by tests
+  void clearCrashpadDatabase();
 };
