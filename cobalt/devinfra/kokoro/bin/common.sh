@@ -247,31 +247,72 @@ upload_on_device_test_artifacts () {
   echo -n "${gcs_archive_path}" > "${KOKORO_ARTIFACTS_DIR}/gcs_archive_path"
 }
 
+
+create_and_upload_nightly_archive () {
+  if [[ $# -ne 4 ]]; then
+    echo "Error: Exactly 4 arguments required!"
+    exit 1
+  fi
+
+  local platform=$1
+  local package_dir=$2
+  local local_archive_path=$3
+  local build_info_path=$4
+
+  local gcs_path_suffix="_nightly"
+  if [[ "${KOKORO_GOB_BRANCH_src}" != "COBALT" ]]; then
+    gcs_path_suffix="_${KOKORO_GOB_BRANCH_src}"
+  fi
+  local gcs_archive_path="gs://$(get_bucket_name)/${platform}${gcs_path_suffix}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
+
+  init_gcloud
+
+  "${GSUTIL}" cp -r "${package_dir}" "${gcs_archive_path}"
+}
+
 run_package_release_pipeline () {
   # NOTE: For DinD builds, we only run the GN and Ninja steps in the container.
   # Artifacts and build-products from these steps are used in subsequent steps
   # for packaging and nightly post-build tasks, and do not need to be run in the
   # inner container environment (which has build tools and deps).
 
+  local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
+
+  # Package and upload nightly release archive.
   if is_release_build && is_release_config; then
-    local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
+    # Setup package dir.
     local package_dir="${WORKSPACE_COBALT}/package/${PLATFORM}_${CONFIG}"
     mkdir -p "${package_dir}"
 
-    # Create reference build_info.json
-    cp "${out_dir}/gen/build_info.json" "${package_dir}/"
+    # TODO(b/294130306): Move build_info to gn packaging.
+    local build_info_path="${out_dir}/gen/build_info.json"
+    cp "${build_info_path}" "${package_dir}/"
 
-    # Create release package
-    local package_platform="linux"
+    # Create release package.
+    export PYTHONPATH="${WORKSPACE_COBALT}"
     if [[ "${PLATFORM}" =~ "android" ]]; then
-      package_platform="android"
+      python3 "${WORKSPACE_COBALT}/cobalt/build/android/package.py" \
+        --name=cobalt-android "${out_dir}" "${package_dir}"
+    elif [[ "${PLATFORM}" =~ "evergreen" ]]; then
+      local bootloader_out_dir=
+      if [ -n "${BOOTLOADER:-}" ]; then
+        bootloader_out_dir="${WORKSPACE_COBALT}/out/${BOOTLOADER}_${CONFIG}"
+      fi
+      # Creates Evergreen package directory.
+      python3 "${WORKSPACE_COBALT}/cobalt/devinfra/kokoro/build/evergreen/simple_packager.py" \
+        "${out_dir}" \
+        "${package_dir}" \
+        "${bootloader_out_dir:-}"
+    else
+      python3 "${WORKSPACE_COBALT}/cobalt/build/linux/package.py" \
+        --name=cobalt-linux "${out_dir}" "${package_dir}"
     fi
-    python3 "${WORKSPACE_COBALT}/cobalt/build/${package_platform}/package.py" \
-      --name="${PLATFORM}_${CONFIG}" "${out_dir}" "${package_dir}"
 
-    # Upload release package
-    local gcs_archive_path="gs://$(get_bucket_name)/${PLATFORM}_${KOKORO_GOB_BRANCH_src}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
-    init_gcloud
-    "${GSUTIL}" cp -r "${package_dir}/." "${gcs_archive_path}"
+    # Create and upload nightly archive.
+    create_and_upload_nightly_archive \
+      "${PLATFORM}" \
+      "${package_dir}" \
+      "${package_dir}.tar.gz" \
+      "${build_info_path}"
   fi
 }
