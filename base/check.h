@@ -200,7 +200,7 @@ class BASE_EXPORT NotReachedNoreturnError : public CheckError {
 // LOGGING_CHECK_FUNCTION_IMPL(), since it is incompatible with
 // EAT_CHECK_STREAM_PARAMETERS().
 #define CHECK(condition) \
-  UNLIKELY(!(condition)) ? logging::CheckFailure() : EAT_CHECK_STREAM_PARAMS()
+  UNLIKELY(!(condition)) ? ::logging::CheckFailure() : EAT_CHECK_STREAM_PARAMS()
 
 #define CHECK_WILL_STREAM() false
 
