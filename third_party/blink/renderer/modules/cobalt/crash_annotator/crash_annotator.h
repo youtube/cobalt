@@ -15,7 +15,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_ANNOTATOR_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_ANNOTATOR_H_
 
-#include "cobalt/services/crash_annotator/public/mojom/crash_annotator_service.mojom-blink.h"
+#include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
@@ -23,30 +23,26 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
+#include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
 
 class ExecutionContext;
-class NavigatorBase;
+class LocalDOMWindow;
 class ScriptPromiseResolver;
 class ScriptState;
 
 class MODULES_EXPORT CrashAnnotator final
     : public ScriptWrappable,
-      public Supplement<NavigatorBase>,
       public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static const char kSupplementName[];
-
-  // For navigator.crashAnnotator
-  static CrashAnnotator* crashAnnotator(NavigatorBase&);
-
-  explicit CrashAnnotator(NavigatorBase&);
+  explicit CrashAnnotator(LocalDOMWindow&);
 
   void ContextDestroyed() override;
 
+  // Web-exposed interface:
   ScriptPromise setString(ScriptState*,
                           const String& key,
                           const String& value,
@@ -58,7 +54,8 @@ class MODULES_EXPORT CrashAnnotator final
   void OnSetString(ScriptPromiseResolver*, bool);
   void EnsureReceiverIsBound();
 
-  HeapMojoRemote<crash_annotator::mojom::blink::CrashAnnotatorService> service_;
+  HeapMojoRemote<crash_annotator::mojom::blink::CrashAnnotator>
+      remote_crash_annotator_;
 };
 
 }  // namespace blink
