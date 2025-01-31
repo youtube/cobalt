@@ -13,6 +13,33 @@
 
 // Various opaque system types that should still be usable with the base
 // callback system. Please keep sorted.
+#ifdef COBALT_PENDING_CLEAN_UP
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(ANativeWindow)          \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(DBusMessage)            \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(HWND__)                 \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(VkBuffer_T)             \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(VkDeviceMemory_T)       \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(VkImage_T)              \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(VkSemaphore_T)          \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(VmaAllocation_T)        \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(WGPUAdapterImpl)        \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(fpdf_action_t__)        \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(fpdf_annotation_t__)    \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(fpdf_attachment_t__)    \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(fpdf_bookmark_t__)      \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(fpdf_document_t__)      \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(fpdf_form_handle_t__)   \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(fpdf_page_t__)          \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(fpdf_structelement_t__) \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(hb_set_t)               \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(wl_gpu)                 \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(wl_shm)                 \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(wl_surface)             \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(SbPlayerPrivate)        \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(SbWindowPrivate)        \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(SbUiNavItemPrivate)     \
+  BASE_INTERNAL_SAFE_FOR_UNRETAINED(SbDrmSystemPrivate)
+#else
 #define BASE_INTERNAL_LIST_OF_SAFE_FOR_UNRETAINED           \
   BASE_INTERNAL_SAFE_FOR_UNRETAINED(ANativeWindow)          \
   BASE_INTERNAL_SAFE_FOR_UNRETAINED(DBusMessage)            \
@@ -35,6 +62,7 @@
   BASE_INTERNAL_SAFE_FOR_UNRETAINED(wl_gpu)                 \
   BASE_INTERNAL_SAFE_FOR_UNRETAINED(wl_shm)                 \
   BASE_INTERNAL_SAFE_FOR_UNRETAINED(wl_surface)
+#endif
 
 #define BASE_INTERNAL_SAFE_FOR_UNRETAINED(x) struct x;
 BASE_INTERNAL_LIST_OF_SAFE_FOR_UNRETAINED
@@ -79,6 +107,7 @@ struct SupportsUnretainedImpl {
   template <bool v = IsComplete<T> || SafeIncompleteTypeForUnretained<T>>
   struct AllowlistIncompleteTypes {
     static constexpr bool value = [] {
+
 // Incrementally enforce the requirement to be completely defined. For now,
 // limit the failures to:
 //

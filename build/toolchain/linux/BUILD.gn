@@ -111,6 +111,7 @@ clang_toolchain("clang_x64") {
   toolchain_args = {
     current_cpu = "x64"
     current_os = "linux"
+    is_starboard = false
   }
 }
 
