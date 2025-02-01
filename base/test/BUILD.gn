@@ -222,6 +222,12 @@ static_library("test_support") {
     ]
   }
 
+  if (is_starboard) {
+    sources += [
+      "test_support_starboard.cc",
+      "test_support_starboard.h",
+    ]
+  }
   if (is_android) {
     sources += [
       "android/java_handler_thread_helpers.cc",

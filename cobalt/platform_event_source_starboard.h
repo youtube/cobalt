@@ -12,15 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef UI_OZONE_PLATFORM_STARBOARD_STARBOARD_PLATFORM_EVENT_SOURCE_H_
-#define UI_OZONE_PLATFORM_STARBOARD_STARBOARD_PLATFORM_EVENT_SOURCE_H_
+#ifndef COBALT_PLATFORM_EVENT_SOURCE_H_
+#define COBALT_PLATFORM_EVENT_SOURCE_H_
 
 #include "ui/events/platform/platform_event_source.h"
 
-#include "base/task/single_thread_task_runner.h"
 #include "starboard/event.h"
-
-#include <thread>
 
 namespace starboard {
 
@@ -32,16 +29,13 @@ class PlatformEventSourceStarboard : public ui::PlatformEventSource {
   PlatformEventSourceStarboard& operator=(const PlatformEventSourceStarboard&) =
       delete;
 
+  void HandleEvent(const SbEvent* event);
+
   ~PlatformEventSourceStarboard() override;
 
-  static void SbEventHandle(const SbEvent* event);
-
   uint32_t DeliverEvent(std::unique_ptr<ui::Event> ui_event);
-
- private:
-  std::unique_ptr<std::thread> sb_main_;
 };
 
 }  // namespace starboard
 
-#endif  // UI_OZONE_PLATFORM_STARBOARD_STARBOARD_PLATFORM_EVENT_SOURCE_H_
+#endif  // COBALT_PLATFORM_EVENT_SOURCE_H_

@@ -89,7 +89,9 @@ declare_args() {
       ozone_platform_wayland = true
     } else if (is_linux) {
       ozone_platform = "x11"
-      ozone_platform_wayland = true
+      if (!is_starboard) {
+        ozone_platform_wayland = true
+      }
       ozone_platform_x11 = true
     } else if (is_fuchsia) {
       ozone_platform = "flatland"
