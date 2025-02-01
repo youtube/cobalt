@@ -132,7 +132,7 @@ class BASE_EXPORT ThreadController {
   // Returns true if the current run loop should quit when idle.
   virtual bool ShouldQuitRunLoopWhenIdle() = 0;
 
-#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
   // On iOS, the main message loop cannot be Run().  Instead call
   // AttachToMessagePump(), which connects this ThreadController to the
   // UI thread's CFRunLoop and allows PostTask() to work.
