@@ -13,13 +13,9 @@
 // limitations under the License.
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.h"
-
-#include "third_party/blink/renderer/core/frame/local_dom_window.h"
-
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
-// #include
-// "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
 
 namespace blink {
 
@@ -29,23 +25,23 @@ H5vccSystem::H5vccSystem(LocalDOMWindow& window)
 
 void H5vccSystem::ContextDestroyed() {}
 
-const String H5vccSystem::advertisingId(ScriptState* script_state) {
-  if (advertising_id_.empty()) {
-    auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(script_state);
+ScriptPromise H5vccSystem::getAdvertisingId(ScriptState* script_state,
+                                            ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
 
-    EnsureReceiverIsBound();
+  EnsureReceiverIsBound();
 
-    remote_h5vcc_system_->GetAdvertisingId(
-        WTF::BindOnce(&H5vccSystem::OnGetAdvertisingId, WrapPersistent(this),
-                      WrapPersistent(resolver)));
-  }
+  remote_h5vcc_system_->GetAdvertisingId(
+      WTF::BindOnce(&H5vccSystem::OnGetAdvertisingId, WrapPersistent(this),
+                    WrapPersistent(resolver)));
 
-  return advertising_id_;
+  return resolver->Promise();
 }
 
 void H5vccSystem::OnGetAdvertisingId(ScriptPromiseResolver* resolver,
                                      const String& result) {
-  advertising_id_ = result;
+  resolver->Resolve(result);
 }
 
 void H5vccSystem::EnsureReceiverIsBound() {
