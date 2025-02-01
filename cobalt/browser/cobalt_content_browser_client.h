@@ -20,8 +20,9 @@
 #include "content/shell/browser/shell_content_browser_client.h"
 
 namespace content {
+class BrowserMainParts;
 class RenderFrameHost;
-}
+}  // namespace content
 
 namespace mojo {
 template <typename>
@@ -30,12 +31,19 @@ class BinderMapWithContext;
 
 namespace cobalt {
 
+// This class allows Cobalt to inject specific logic in the business of the
+// browser (i.e. of Content), for example for startup or to override the UA.
+// TODO(b/390021478): In time CobaltContentBrowserClient should derive and
+// implement ContentBrowserClient, since ShellContentBrowserClient is more like
+// a demo around Content.
 class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  public:
   CobaltContentBrowserClient();
   ~CobaltContentBrowserClient() override;
 
-  // ContentBrowserClient overrides.
+  // ShellContentBrowserClient overrides.
+  std::unique_ptr<content::BrowserMainParts> CreateBrowserMainParts(
+      bool is_integration_test) override;
   std::string GetUserAgent() override;
   std::string GetFullUserAgent() override;
   std::string GetReducedUserAgent() override;
