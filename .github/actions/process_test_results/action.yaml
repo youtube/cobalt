@@ -63,7 +63,9 @@ runs:
       if: always()
       run: |
         set -x
-        echo "test_targets=$(ls results/*log.txt)" >> $GITHUB_OUTPUT
-
+        echo "test_targets=$(ls results/*log.txt | jq -R . | jq -sc .)" >> $GITHUB_OUTPUT
+      shell: bash
 outputs:
-  test_targets: ${{ steps.set-output.outputs.test_targets }}
+  test_targets:
+    description: The test targets
+    value: ${{ steps.set-output.outputs.test_targets }}

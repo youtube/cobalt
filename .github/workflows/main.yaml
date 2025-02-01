@@ -284,11 +284,13 @@ jobs:
       test_targets: ${{ steps.process-results.outputs.test_targets }}
 
   on-device-test-logs:
-    needs: [initialize, process-results]
-    if: always() && needs.process-results.result != 'skipped'
+    needs: [initialize, on-device-test, process-results]
+    if: always() && needs.on-device-test.result != 'skipped' && needs.process-results.result != 'skipped'
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_targets }}
+    env:
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     strategy:
       fail-fast: false
       matrix:
@@ -297,9 +299,13 @@ jobs:
         config: [devel]
         test_targets: ${{ fromJson(needs.process-results.outputs.test_targets) }}
     steps:
+      - name: Download Test Results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ env.TEST_RESULTS_KEY }}
+          path: results/
       - name: Print logs
-        run: |
-          echo hej
+        run: cat ${{ matrix.test_targets }}
         shell: bash
 
   validate-test-result:
