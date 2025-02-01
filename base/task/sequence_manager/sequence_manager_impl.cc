@@ -313,6 +313,14 @@ void SequenceManagerImpl::BindToMessagePump(std::unique_ptr<MessagePump> pump) {
   }
 #endif
 #endif
+
+  // On Starboard attach to the Starboard loop.
+#if BUILDFLAG(IS_STARBOARD)
+  if (settings_.message_loop_type == MessagePumpType::UI) {
+    controller_->AttachToMessagePump();
+  }
+#endif  // BUILDFLAG(IS_STARBOARD)
+
 }
 
 void SequenceManagerImpl::BindToCurrentThread() {

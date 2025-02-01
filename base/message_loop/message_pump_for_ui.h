@@ -14,6 +14,8 @@
 #include "base/message_loop/message_pump_win.h"
 #elif BUILDFLAG(IS_ANDROID)
 #include "base/message_loop/message_pump_android.h"
+#elif BUILDFLAG(IS_STARBOARD)
+#include "base/message_loop/message_pump_ui_starboard.h"
 #elif BUILDFLAG(IS_APPLE)
 #include "base/message_loop/message_pump.h"
 #elif BUILDFLAG(IS_NACL) || BUILDFLAG(IS_AIX)
@@ -32,7 +34,14 @@ namespace base {
 // Windows defines it as-is.
 using MessagePumpForUI = MessagePumpForUI;
 #elif BUILDFLAG(IS_ANDROID)
+<<<<<<< HEAD
 using MessagePumpForUI = MessagePumpAndroid;
+=======
+// Android defines it as-is.
+using MessagePumpForUI = MessagePumpForUI;
+#elif BUILDFLAG(IS_STARBOARD)
+using MessagePumpForUI = MessagePumpUIStarboard;
+>>>>>>> 8f694c58f23 (Use the Starboard message pump. (#4772))
 #elif BUILDFLAG(IS_APPLE)
 // MessagePumpForUI isn't bound to a specific impl on Mac. While each impl can
 // be represented by a plain MessagePump: message_pump_apple::Create() must be
