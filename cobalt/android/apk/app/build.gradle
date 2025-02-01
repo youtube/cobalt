@@ -20,7 +20,7 @@ final MIN_SUPPORTED_SDK_VERSION = 24
 final LATEST_SUPPORTED_SDK_VERSION = 34
 
 // Parse the NDK_VERSION and CMAKE_VERSION defined in sdk_utils.py
-final SDK_UTILS = project.rootProject.file('../shared/sdk_utils.py')
+final SDK_UTILS = project.rootProject.file('../../../starboard/android/shared/sdk_utils.py')
 final NDK_VERSION = SDK_UTILS.find { it.startsWith('_NDK_VERSION =') }.split("'")[1]
 final CMAKE_VERSION = SDK_UTILS.find { it.startsWith('_CMAKE_VERSION =') }.split("'")[1]
 
