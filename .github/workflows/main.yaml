@@ -251,10 +251,10 @@ jobs:
   test-upload:
     needs: [initialize, on-host-test, on-device-test]
     if: always() &&
-      (
-        needs.initialize.outputs.test_on_host == 'true' ||
-        needs.initialize.outputs.test_on_device == 'true'
-      )
+        (
+          needs.on-device-test.result != 'skipped' ||
+          needs.on-host-test.result != 'skipped'
+        )
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.name }}_tests_upload
@@ -285,8 +285,8 @@ jobs:
     needs: [initialize, on-device-test, on-host-test]
     if: always() &&
         (
-          needs.initialize.outputs.test_on_host == 'true' ||
-          needs.initialize.outputs.test_on_device == 'true'
+          needs.on-device-test.result != 'skipped' ||
+          needs.on-host-test.result != 'skipped'
         )
     permissions: {}
     runs-on: ubuntu-latest
