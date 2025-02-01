@@ -3,6 +3,11 @@
   "platforms": [
     "android-arm"
   ],
+  "test_on_device": true,
+  "test_dimensions": {
+    "gtest_device": "sabrina",
+    "gtest_lab": "maneki"
+  },
   "targets": [
     "content_shell",
     "cobalt:gn_all"
