@@ -19,15 +19,33 @@
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
 #include "content/public/common/user_agent.h"
+// TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
+// being a ShellBrowserMainParts.
+#include "content/shell/browser/shell_browser_main_parts.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
 #include "base/logging.h"
 
 namespace cobalt {
 
-#define COBALT_BRAND_NAME "Cobalt"
-#define COBALT_MAJOR_VERSION "26"
-#define COBALT_VERSION "26.lts.0-qa"
+// TODO(b/390021478): When CobaltContentBrowserClient stops deriving from
+// ShellContentBrowserClient, this should implement BrowserMainParts.
+class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
+ public:
+  CobaltBrowserMainParts() = default;
+
+  CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
+  CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
+
+  ~CobaltBrowserMainParts() override = default;
+
+  // ShellBrowserMainParts overrides.
+  int PreCreateThreads() override {
+    // TODO(b/372559349): setup metrics similarly to what SetupMetrics() does
+    // when called from ChromeBrowserMainParts::PreCreateThreadsImpl().
+    return ShellBrowserMainParts::PreCreateThreads();
+  }
+};
 
 std::string GetCobaltUserAgent() {
 // TODO: (cobalt b/375243230) enable UserAgentPlatformInfo on Linux.
@@ -47,6 +65,9 @@ std::string GetCobaltUserAgent() {
 blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   blink::UserAgentMetadata metadata;
 
+#define COBALT_BRAND_NAME "Cobalt"
+#define COBALT_MAJOR_VERSION "26"
+#define COBALT_VERSION "26.lts.0-qa"
   metadata.brand_version_list.emplace_back(COBALT_BRAND_NAME,
                                            COBALT_MAJOR_VERSION);
   metadata.brand_full_version_list.emplace_back(COBALT_BRAND_NAME,
@@ -62,8 +83,17 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
-CobaltContentBrowserClient::CobaltContentBrowserClient() {}
-CobaltContentBrowserClient::~CobaltContentBrowserClient() {}
+CobaltContentBrowserClient::CobaltContentBrowserClient() = default;
+
+CobaltContentBrowserClient::~CobaltContentBrowserClient() = default;
+
+std::unique_ptr<content::BrowserMainParts>
+CobaltContentBrowserClient::CreateBrowserMainParts(
+    bool /* is_integration_test */) {
+  auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
+  set_browser_main_parts(browser_main_parts.get());
+  return browser_main_parts;
+}
 
 std::string CobaltContentBrowserClient::GetUserAgent() {
   return GetCobaltUserAgent();
