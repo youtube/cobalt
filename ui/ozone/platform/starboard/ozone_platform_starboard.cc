@@ -25,7 +25,6 @@
 #include "ui/gl/gl_switches.h"
 #include "ui/ozone/common/bitmap_cursor_factory.h"
 #include "ui/ozone/common/stub_overlay_manager.h"
-#include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 #include "ui/ozone/platform/starboard/platform_screen_starboard.h"
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 #include "ui/ozone/platform/starboard/surface_factory_starboard.h"
@@ -119,9 +118,7 @@ class OzonePlatformStarboard : public OzonePlatform {
     if (!surface_factory_) {
       surface_factory_ = std::make_unique<SurfaceFactoryStarboard>();
     }
-    // Not thread safe. This is just for prototyping.
-    platform_event_source_ =
-        std::make_unique<starboard::PlatformEventSourceStarboard>();
+
     keyboard_layout_engine_ = std::make_unique<StubKeyboardLayoutEngine>();
     KeyboardLayoutEngineManager::SetKeyboardLayoutEngine(
         keyboard_layout_engine_.get());
@@ -165,8 +162,6 @@ class OzonePlatformStarboard : public OzonePlatform {
   std::unique_ptr<GpuPlatformSupportHost> gpu_platform_support_host_;
   std::unique_ptr<InputController> input_controller_;
   std::unique_ptr<OverlayManagerOzone> overlay_manager_;
-  std::unique_ptr<starboard::PlatformEventSourceStarboard>
-      platform_event_source_;
   std::unique_ptr<SurfaceFactoryStarboard> surface_factory_;
 };
 

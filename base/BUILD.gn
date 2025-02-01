@@ -1005,6 +1005,12 @@ component("base") {
     ]
   }
 
+  if (is_starboard) {
+    sources += [
+      "message_loop/message_pump_ui_starboard.cc",
+      "message_loop/message_pump_ui_starboard.h",
+    ]
+  }
   if (is_linux || is_chromeos) {
     sources += [
       "debug/proc_maps_linux.cc",
@@ -1066,6 +1072,10 @@ component("base") {
   # Its gateway to being a component is through `//base`, so we have
   # to provide the appropriate `#define` here.
   defines += [ "IS_RAW_PTR_IMPL" ]
+
+  if (is_starboard) {
+    deps += [ "//starboard($starboard_toolchain)" ]
+  }
 
   if (build_rust_json_reader) {
     deps += [ "//third_party/rust/serde_json_lenient/v0_1/wrapper" ]
