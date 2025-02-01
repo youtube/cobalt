@@ -58,51 +58,51 @@ jobs:
         shell: bash
         run: |
           platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
-          echo "platforms=${platforms}" >> $GITHUB_ENV
+          echo "platforms=${platforms}" >> $GITHUB_OUTPUT
       - id: set-targets
         shell: bash
         run: |
           targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.targets  | join(" ")')
-          echo "targets=${targets}" >> $GITHUB_ENV
+          echo "targets=${targets}" >> $GITHUB_OUTPUT
       - id: set-includes
         shell: bash
         run: |
           includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
-          echo "includes=${includes}" >> $GITHUB_ENV
+          echo "includes=${includes}" >> $GITHUB_OUTPUT
       - id: set-test-on-host
         shell: bash
         run: |
           test_on_host=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_host')
-          echo "test_on_host=${test_on_host}" >> $GITHUB_ENV
+          echo "test_on_host=${test_on_host}" >> $GITHUB_OUTPUT
       - id: set-test-on-device
         shell: bash
         run: |
           test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
-          echo "test_on_device=${test_on_device}" >> $GITHUB_ENV
+          echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
       - id: set-docker-service
         shell: bash
         run: |
           docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')
-          echo "docker_service=${docker_service}" >> $GITHUB_ENV
+          echo "docker_service=${docker_service}" >> $GITHUB_OUTPUT
       - id: set-gtest-shards
         shell: bash
         run: |
           # Retrieve number of shards from config. If not specified, default to 1 shard with `echo 1`.
           num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards' || echo 1)
-          echo "num_gtest_shards=${num_gtest_shards}" >> $GITHUB_ENV
+          echo "num_gtest_shards=${num_gtest_shards}" >> $GITHUB_OUTPUT
 
           # Create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5].
           gtest_shards="[$(seq -s, 0 1 $((${num_gtest_shards} - 1)))]"
-          echo "gtest_shards=${gtest_shards}" >> $GITHUB_ENV
+          echo "gtest_shards=${gtest_shards}" >> $GITHUB_OUTPUT
     outputs:
-      platforms: ${{ env.platforms }}
-      targets: ${{ env.targets }}
-      includes: ${{ env.includes }}
-      docker_service: ${{ env.docker_service }}
-      num_gtest_shards: ${{ env.num_gtest_shards }}
-      gtest_shards: ${{ env.gtest_shards }}
-      test_on_host: ${{ env.test_on_host }}
-      test_on_device: ${{ env.test_on_device }}
+      platforms: ${{ steps.set-platforms.outputs.platforms }}
+      targets: ${{ steps.set-targets.outputs.targets }}
+      includes: ${{ steps.set-includes.outputs.includes }}
+      docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
+      num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
+      gtest_shards: ${{ steps.set-gtest-shards.outputs.gtest_shards }}
+      test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
+      test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -129,9 +129,9 @@ jobs:
       run: |
         set -u
         echo $DOCKER_TAG
-        echo "docker_tag=$DOCKER_TAG" | head -n 1  >> $GITHUB_ENV
+        echo "docker_tag=$DOCKER_TAG" | head -n 1  >> $GITHUB_OUTPUT
     outputs:
-      docker_tag: ${{ env.docker_tag }}
+      docker_tag: ${{ steps.set-docker-tag-output.outputs.docker_tag }}
 
   build:
     needs: [initialize, docker-build-image]
@@ -248,7 +248,7 @@ jobs:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
 
-  test-upload:
+  process-results:
     needs: [initialize, on-host-test, on-device-test]
     if: always() &&
       (
@@ -257,7 +257,7 @@ jobs:
       )
     permissions: {}
     runs-on: ubuntu-latest
-    name: ${{ matrix.name }}_tests_upload
+    name: ${{ matrix.name }}_process_results
     strategy:
       fail-fast: false
       matrix:
@@ -274,12 +274,33 @@ jobs:
         with:
           path: src
       - name: Process Test Results
+        id: process-results
         uses: ./src/.github/actions/process_test_results
         with:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           datadog_api_key: ${{ secrets.datadog_api_key }}
         continue-on-error: true
+    outputs:
+      test_targets: ${{ steps.process-results.outputs.test_targets }}
 
+  on-device-test-logs:
+    needs: [initialize, process-results]
+    if: always() && needs.process-results.result != 'skipped'
+    permissions: {}
+    runs-on: ubuntu-latest
+    name: ${{ matrix.test_targets }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+        test_targets: ${{ fromJson(needs.process-results.outputs.test_targets) }}
+    steps:
+      - name: Print logs
+        run: |
+          echo hej
+        shell: bash
 
   validate-test-result:
     needs: [initialize, on-device-test, on-host-test]
