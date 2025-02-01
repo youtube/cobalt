@@ -286,6 +286,12 @@ class BASE_EXPORT RunLoop {
   friend class MessagePumpUIApplication;
 #endif
 
+#if BUILDFLAG(IS_STARBOARD)
+  // Starboard doesn't support the blocking RunLoop::Run, so it calls
+  // BeforeRun and AfterRun directly.
+  friend class MessagePumpUIStarboard;
+#endif  // BUILDFLAG(IS_STARBOARD)
+
   // Support for //base/test/scoped_run_loop_timeout.h.
   friend class test::ScopedRunLoopTimeout;
   friend class test::ScopedDisableRunLoopTimeout;

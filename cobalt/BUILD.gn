@@ -19,7 +19,7 @@ group("gn_all") {
 
   # TODO(b/371589344): Fix android build configs.
   deps = [
-    "//starboard($starboard_toolchain)",
+    "//starboard:starboard_group",
     "//starboard/nplb",
   ]
   if (!is_android) {
@@ -38,6 +38,8 @@ if (!is_android) {
       "cobalt.cc",
       "cobalt_main_delegate.cc",
       "cobalt_main_delegate.h",
+      "platform_event_source_starboard.cc",
+      "platform_event_source_starboard.h",
     ]
 
     defines = []
@@ -50,6 +52,7 @@ if (!is_android) {
       "//content/shell:content_shell_lib",
       "//content/shell:pak",
       "//sandbox",
+      "//starboard:starboard_group",
       "//third_party/blink/public/common",
     ]
 
