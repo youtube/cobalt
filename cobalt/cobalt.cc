@@ -18,13 +18,36 @@
 #include <string>
 #include <vector>
 
+#include "base/at_exit.h"
+#include "base/lazy_instance.h"
+#include "base/logging.h"
+#include "base/no_destructor.h"
 #include "build/build_config.h"
 #include "cobalt/cobalt_main_delegate.h"
+#include "cobalt/platform_event_source_starboard.h"
 #include "content/public/app/content_main.h"
+#include "content/public/app/content_main_runner.h"
+#include "content/shell/browser/shell.h"
+#include "starboard/event.h"
 
-int main(int argc, const char** argv) {
-  cobalt::CobaltMainDelegate delegate;
-  content::ContentMainParams params(&delegate);
+using starboard::PlatformEventSourceStarboard;
+
+namespace {
+
+content::ContentMainRunner* GetContentMainRunner() {
+  static base::NoDestructor<std::unique_ptr<content::ContentMainRunner>> runner{
+      content::ContentMainRunner::Create()};
+  return runner->get();
+}
+
+static base::AtExitManager* g_exit_manager = nullptr;
+static cobalt::CobaltMainDelegate* g_content_main_delegate = nullptr;
+static PlatformEventSourceStarboard* g_platform_event_source = nullptr;
+}  // namespace
+
+int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
+  // content::ContentMainParams params(g_content_main_delegate.Get().get());
+  content::ContentMainParams params(g_content_main_delegate);
 
   // TODO: (cobalt b/375241103) Reimplement this in a clean way.
   constexpr auto cobalt_args = std::to_array<const char*>(
@@ -48,7 +71,7 @@ int main(int argc, const char** argv) {
        "--remote-allow-origins=http://localhost:9222",
        // This flag is added specifically for m114 and should be removed after
        // rebasing to m120+
-       "--user-level-memory-pressure-signal-params",
+       "--user-level-memory-pressure-signal-params", "--no-sandbox",
        "https://www.youtube.com/tv"});
   std::vector<const char*> args(argv, argv + argc);
   args.insert(args.end(), cobalt_args.begin(), cobalt_args.end());
@@ -64,5 +87,86 @@ int main(int argc, const char** argv) {
     params.argc = args.size();
     params.argv = args.data();
   }
-  return content::ContentMain(std::move(params));
+
+  return RunContentProcess(std::move(params), GetContentMainRunner());
+}
+
+void SbEventHandle(const SbEvent* event) {
+  switch (event->type) {
+    case kSbEventTypePreload: {
+      SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
+      g_exit_manager = new base::AtExitManager();
+      g_content_main_delegate = new cobalt::CobaltMainDelegate();
+      g_platform_event_source = new PlatformEventSourceStarboard();
+      // TODO: (cobalt b/392613336) Initialize the musl hardware capabilities.
+      // init_musl_hwcap();
+      InitCobalt(data->argument_count,
+                 const_cast<const char**>(data->argument_values), data->link);
+
+      break;
+    }
+    case kSbEventTypeStart: {
+      SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
+
+      g_exit_manager = new base::AtExitManager();
+      g_content_main_delegate = new cobalt::CobaltMainDelegate();
+      g_platform_event_source = new PlatformEventSourceStarboard();
+      // TODO: (cobalt b/392613336 Initialize the musl hardware capabilities.
+      // init_musl_hwcap();
+      InitCobalt(data->argument_count,
+                 const_cast<const char**>(data->argument_values), data->link);
+      break;
+    }
+    case kSbEventTypeStop: {
+      content::Shell::Shutdown();
+
+      g_content_main_delegate->Shutdown();
+
+      GetContentMainRunner()->Shutdown();
+
+      delete g_content_main_delegate;
+      g_content_main_delegate = nullptr;
+
+      delete g_platform_event_source;
+      g_platform_event_source = nullptr;
+
+      delete g_exit_manager;
+      g_exit_manager = nullptr;
+      break;
+    }
+    case kSbEventTypeBlur:
+    case kSbEventTypeFocus:
+    case kSbEventTypeConceal:
+    case kSbEventTypeReveal:
+    case kSbEventTypeFreeze:
+    case kSbEventTypeUnfreeze:
+      break;
+    case kSbEventTypeInput:
+      if (g_platform_event_source) {
+        g_platform_event_source->HandleEvent(event);
+      }
+      break;
+    case kSbEventTypeUser:
+    case kSbEventTypeLink:
+    case kSbEventTypeVerticalSync:
+    case kSbEventTypeScheduled:
+    case kSbEventTypeAccessibilitySettingsChanged:
+    case kSbEventTypeLowMemory:
+    case kSbEventTypeWindowSizeChanged:
+    case kSbEventTypeOnScreenKeyboardShown:
+    case kSbEventTypeOnScreenKeyboardHidden:
+    case kSbEventTypeOnScreenKeyboardFocused:
+    case kSbEventTypeOnScreenKeyboardBlurred:
+    case kSbEventTypeAccessibilityCaptionSettingsChanged:
+    case kSbEventTypeAccessibilityTextToSpeechSettingsChanged:
+    case kSbEventTypeOsNetworkDisconnected:
+    case kSbEventTypeOsNetworkConnected:
+    case kSbEventDateTimeConfigurationChanged:
+    case kSbEventTypeReserved1:
+      break;
+  }
+}
+
+int main(int argc, char** argv) {
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
 }
