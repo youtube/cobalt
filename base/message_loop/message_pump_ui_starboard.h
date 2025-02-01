@@ -19,6 +19,8 @@
 
 #include "base/base_export.h"
 #include "base/message_loop/message_pump.h"
+#include "base/message_loop/watchable_io_message_pump_posix.h"
+#include "base/run_loop.h"
 #include "base/synchronization/lock.h"
 #include "base/time/time.h"
 #include "starboard/event.h"
@@ -37,8 +39,28 @@ namespace base {
 // Starboard message pump as a MessageLoop. That would typically be for the
 // entire lifetime of the application, and in that case, the MessageLoop would
 // traditionally be deleted in the kSbEventStop handler.
-class BASE_EXPORT MessagePumpUIStarboard : public MessagePump {
+class BASE_EXPORT MessagePumpUIStarboard : public MessagePump, public WatchableIOMessagePumpPosix {
  public:
+
+  // TODO (cobalt b/393772370): Remove the stub FD support when x11/wayland are disabled.
+  class FdWatchController : public FdWatchControllerInterface {
+   public:
+    explicit FdWatchController(const Location& from_here): FdWatchControllerInterface(from_here) {}
+
+    FdWatchController(const FdWatchController&) = delete;
+    FdWatchController& operator=(const FdWatchController&) = delete;
+
+    ~FdWatchController() override {}
+
+    bool StopWatchingFileDescriptor() override {}
+  };
+
+  bool WatchFileDescriptor(int fd,
+                           bool persistent,
+                           int mode,
+                           FdWatchController* controller,
+                           FdWatcher* delegate) {}
+
   MessagePumpUIStarboard();
   virtual ~MessagePumpUIStarboard() { Quit(); }
 
@@ -82,6 +104,9 @@ class BASE_EXPORT MessagePumpUIStarboard : public MessagePump {
 
   // If the delegate has been removed, Quit() has been called.
   bool should_quit() const { return delegate_ == nullptr; }
+
+  // Maintain a RunLoop attached to the starboard thread.
+  std::unique_ptr<RunLoop> run_loop_;
 
   // The MessagePump::Delegate configured in Start().
   Delegate* delegate_;

@@ -74,7 +74,7 @@ class BASE_EXPORT ThreadControllerWithMessagePumpImpl
   bool IsTaskExecutionAllowed() const override;
   MessagePump* GetBoundMessagePump() const override;
   void PrioritizeYieldingToNative(base::TimeTicks prioritize_until) override;
-#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_STARBOARD)
   void AttachToMessagePump() override;
 #endif
 #if BUILDFLAG(IS_IOS)
