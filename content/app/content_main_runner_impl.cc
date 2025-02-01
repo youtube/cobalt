@@ -843,7 +843,7 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
 // On Android, AtExitManager is set up when library is loaded.
 // A consequence of this is that you can't use the ctor/dtor-based
 // TRACE_EVENT methods on Linux or iOS builds till after we set this up.
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_STARBOARD)
   if (!content_main_params_->ui_task) {
     // When running browser tests, don't create a second AtExitManager as that
     // interfers with shutdown when objects created before ContentMain is
@@ -1280,7 +1280,7 @@ void ContentMainRunnerImpl::Shutdown() {
   DCHECK(is_initialized_);
   DCHECK(!is_shutdown_);
 
-#if BUILDFLAG(IS_IOS)
+#if BUILDFLAG(IS_IOS) || BUILDFLAG(IS_STARBOARD)
   // This would normally be handled by BrowserMainLoop shutdown, but since iOS
   // (like Android) does not run this shutdown, we also need to ensure that we
   // permit sync primitives during shutdown. If we don't do this, eg, tearing

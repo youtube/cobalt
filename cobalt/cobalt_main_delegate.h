@@ -17,6 +17,7 @@
 
 #include "build/build_config.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
+#include "content/public/browser/browser_main_runner.h"
 #include "content/shell/app/shell_main_delegate.h"
 
 namespace cobalt {
@@ -33,9 +34,20 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   content::ContentRendererClient* CreateContentRendererClient() override;
   absl::optional<int> PostEarlyInitialization(InvokedIn invoked_in) override;
 
+  // Override the RunProcess method to store the  reference to
+  // BrowserMainRunner instead of leaking it. The reference would
+  // be used for proper shutdown and cleanup.
+  absl::variant<int, content::MainFunctionParams> RunProcess(
+      const std::string& process_type,
+      content::MainFunctionParams main_function_params) override;
+
+  // Shutdown method that trigger the BrowserMainRunner shutdown.
+  void Shutdown();
+
   ~CobaltMainDelegate() override;
 
  private:
+  std::unique_ptr<content::BrowserMainRunner> main_runner_;
   std::unique_ptr<CobaltContentRendererClient> renderer_client_;
 };
 
