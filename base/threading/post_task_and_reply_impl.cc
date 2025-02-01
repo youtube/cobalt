@@ -141,6 +141,20 @@ bool PostTaskAndReplyImpl::PostTaskAndReply(const Location& from_here,
   DCHECK(task) << from_here.ToString();
   DCHECK(reply) << from_here.ToString();
 
+#if BUILDFLAG(IS_STARBOARD)
+  // This is a slight performance optimization for Starboard.
+  // With Starboard, HasCurrentDefault() and GetCurrentDefault() are quite
+  // expensive, and GetCurrentDefault() is safe to call and will return
+  // nullptr when needed.
+  const auto& current_context = SequencedTaskRunner::GetCurrentDefault();
+  const bool has_sequenced_context = !!current_context;
+  const bool post_task_success = PostTask(
+      from_here,
+      BindOnce(&PostTaskAndReplyRelay::RunTaskAndPostReply,
+               PostTaskAndReplyRelay(
+                   from_here, std::move(task), std::move(reply),
+                   has_sequenced_context ? current_context : nullptr)));
+#else
   const bool has_sequenced_context = SequencedTaskRunner::HasCurrentDefault();
 
   const bool post_task_success = PostTask(
@@ -150,6 +164,7 @@ bool PostTaskAndReplyImpl::PostTaskAndReply(const Location& from_here,
                               has_sequenced_context
                                   ? SequencedTaskRunner::GetCurrentDefault()
                                   : nullptr)));
+#endif
 
   // PostTaskAndReply() requires a SequencedTaskRunner::CurrentDefaultHandle to
   // post the reply.  Having no SequencedTaskRunner::CurrentDefaultHandle is
