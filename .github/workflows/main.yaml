@@ -322,7 +322,7 @@ jobs:
             exit 1
           fi
 
-          grep "<failure" results/**/${{ matrix.test_target }}*.xml >> /dev/null
+          grep -E "<failure|<error" results/**/${{ matrix.test_target }}*.xml >> /dev/null
           if [ $? -eq 0 ]; then
             echo "::error::Failed tests in ${{ matrix.test_target }}"
             exit 1
