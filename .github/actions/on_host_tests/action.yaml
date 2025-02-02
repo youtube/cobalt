@@ -78,4 +78,4 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.test_results_key }}
-        path: ${{ env.results_dir }}/*.xml
+        path: ${{ env.results_dir }}/*
