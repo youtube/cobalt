@@ -312,7 +312,9 @@ jobs:
           path: results/
       - name: Print logs
         run: |
+          set -x
           shopt -s globstar
+
           test_target="${{ matrix.test_target }}"
           # Remove the path segment of the target_name.
           test_target=${test_target#*:}
@@ -330,4 +332,7 @@ jobs:
             echo "::error::Failed tests in ${test_target}"
             exit 1
           fi
+
+          # Must explicitly exit successfully since the last command failed.
+          exit 0
         shell: bash
