@@ -62,22 +62,16 @@ runs:
           echo "Test filter evaluated to: ${test_filter}"
 
           xml_path="${results_dir}/shard_${{ matrix.shard }}/${test_binary}_testoutput.xml"
+          log_path="${results_dir}/shard_${{ matrix.shard }}/${test_binary}_log.txt"
           # TODO: Investigate test_runner.py
           /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
               ./"${test_binary_path}" \
               --test-launcher-shard-index=${{ matrix.shard }} \
               --test-launcher-total-shards=${{ inputs.num_gtest_shards }} \
               --gtest_output="xml:${xml_path}" \
-              --gtest_filter="${test_filter}" || {
-            # Set exit code on failure.
-            failed_suites="${failed_suites} ${test_binary}"
-          }
+              --gtest_filter="${test_filter}" | tee ${log_path}
         done
         echo "Finished running all unit tests..."
-        if [ -n "${failed_suites}" ]; then
-          echo "Test suites failed:${failed_suites}"
-          exit 1
-        fi
     - name: Archive Test Results
       if: success() || failure()
       uses: actions/upload-artifact@v4

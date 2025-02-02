@@ -286,8 +286,12 @@ jobs:
         continue-on-error: true
 
   on-device-test-results:
-    needs: [initialize, build, on-device-test]
-    if: always() && needs.on-device-test.result != 'skipped'
+    needs: [initialize, build, on-device-test, on-host-test]
+    if: always() &&
+        (
+          needs.on-device-test.result != 'skipped' ||
+          needs.on-host-test.result != 'skipped'
+        )
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_target }}
@@ -324,32 +328,3 @@ jobs:
             exit 1
           fi
         shell: bash
-
-  validate-test-result:
-    needs: [initialize, on-device-test, on-host-test]
-    if: always() &&
-        (
-          needs.initialize.outputs.test_on_host == 'true' ||
-          needs.initialize.outputs.test_on_device == 'true'
-        )
-    permissions: {}
-    runs-on: ubuntu-latest
-    name: ${{ matrix.name }}_tests_passing
-    strategy:
-      matrix:
-        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
-        include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel]
-    steps:
-      - name: Check Status
-        if: ${{ ! (needs.on-device-test.result == 'success' || needs.on-host-test.result == 'success') }}
-        run: |
-          if [ "${{ needs.on-device-test.result }}" != "success" ]; then
-            echo "On device tests failed. See separate job log for details."
-            exit 1
-          fi
-
-          if [ "${{ needs.on-host-test.result }}" != "success" ]; then
-            echo "On host tests failed. See separate job log for details."
-            exit 1
-          fi
