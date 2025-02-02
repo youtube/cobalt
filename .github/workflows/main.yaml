@@ -313,18 +313,21 @@ jobs:
       - name: Print logs
         run: |
           shopt -s globstar
+          test_target="${{ matrix.test_target }}"
+          # Remove the path segment of the target_name.
+          test_target=${test_target#*:}
 
-          cat results/**/${{ matrix.test_target }}*log.txt
+          cat results/**/${test_target}*log.txt
 
-          ls results/**/${{ matrix.test_target }}*.xml >> /dev/null
+          ls results/**/${test_target}*.xml >> /dev/null
           if [ $? -ne 0 ]; then
             echo "::error::Test Result XML is missing. Did the test crash?"
             exit 1
           fi
 
-          grep -E "<failure|<error" results/**/${{ matrix.test_target }}*.xml >> /dev/null
+          grep -E "<failure|<error" results/**/${test_target}*.xml >> /dev/null
           if [ $? -eq 0 ]; then
-            echo "::error::Failed tests in ${{ matrix.test_target }}"
+            echo "::error::Failed tests in ${test_target}"
             exit 1
           fi
         shell: bash
