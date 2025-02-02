@@ -43,8 +43,9 @@ runs:
         export LD_LIBRARY_PATH
 
         # Make results dir available to the archiving step below.
-        results_dir="${GITHUB_WORKSPACE}/results"
+        results_dir="${GITHUB_WORKSPACE}/results/shard_${{ matrix.shard }}"
         echo "results_dir=${results_dir}" >> $GITHUB_ENV
+        mkdir -p ${results_dir}
 
         failed_suites=""
         cd "${test_dir}"
@@ -61,8 +62,8 @@ runs:
 
           echo "Test filter evaluated to: ${test_filter}"
 
-          xml_path="${results_dir}/shard_${{ matrix.shard }}/${test_binary}_testoutput.xml"
-          log_path="${results_dir}/shard_${{ matrix.shard }}/${test_binary}_log.txt"
+          xml_path="${results_dir}/${test_binary}_testoutput.xml"
+          log_path="${results_dir}/${test_binary}_log.txt"
           # TODO: Investigate test_runner.py
           /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
               ./"${test_binary_path}" \
@@ -77,4 +78,4 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.test_results_key }}
-        path: ${{ env.results_dir }}/shard_${{ matrix.shard }}/*.xml
+        path: ${{ env.results_dir }}/*.xml
