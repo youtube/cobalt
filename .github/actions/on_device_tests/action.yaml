@@ -1,8 +1,11 @@
 name: On Device Test
 description: Runs on-device tests.
 inputs:
+  test_targets:
+    description: "The test targets in a JSON array."
+    required: true
   gcs_results_path:
-    description: "GCS path for the test results"
+    description: "GCS path for the test results."
     required: true
   test_results_key:
     description: "Artifact key used to store test results."
@@ -47,14 +50,12 @@ runs:
         GITHUB_RUN_NUMBER: ${{ github.run_number }}
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
-        # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
-        TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
       run: |
         set -uxe
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
           trigger \
-          --targets $(cat "${{ env.TEST_TARGETS_JSON_FILE }}" | jq -cr '.test_targets | join(",")') \
+          --targets $(jq -cr '.test_targets | join(",")' <<< '${{ inputs.test_targets }}') \
           --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform}}" \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
           --label builder-${{ matrix.platform }} \

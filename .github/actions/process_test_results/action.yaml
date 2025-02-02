@@ -57,16 +57,3 @@ runs:
         shopt -s globstar
         ./datadog-ci junit upload --service ${DD_SERVICE} results/**/*.xml
       shell: bash
-
-    - name: Set Output
-      id: set-output
-      if: always()
-      run: |
-        set -x
-        shopt -s globstar
-        echo "test_targets=$(ls results/**/*log.txt | jq -R . | jq -sc .)" >> $GITHUB_OUTPUT
-      shell: bash
-outputs:
-  test_targets:
-    description: The test targets
-    value: ${{ steps.set-output.outputs.test_targets }}

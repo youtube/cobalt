@@ -172,6 +172,7 @@ jobs:
           # Use fetch depth of 0 to get full history for a valid build id.
           fetch-depth: 0
       - name: Build Cobalt
+        id: build
         uses: ./src/.github/actions/build
         # TODO(bug?): android debug builds are broken.
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
@@ -180,6 +181,8 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device }}
+    outputs:
+      test_targets: ${{ steps.build.outputs.test_targets }}
 
   on-device-test:
     needs: [initialize, build]
@@ -213,6 +216,7 @@ jobs:
         id: on-device-tests
         uses: ./.github/actions/on_device_tests
         with:
+          test_targets: ${{ needs.build.outputs.test_targets }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
 
@@ -280,12 +284,10 @@ jobs:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           datadog_api_key: ${{ secrets.datadog_api_key }}
         continue-on-error: true
-    outputs:
-      test_targets: ${{ steps.process-results.outputs.test_targets }}
 
-  on-device-test-logs:
-    needs: [initialize, on-device-test, process-results]
-    if: always() && needs.on-device-test.result != 'skipped' && needs.process-results.result != 'skipped'
+  on-device-test-results:
+    needs: [initialize, build, on-device-test]
+    if: always() && needs.on-device-test.result != 'skipped'
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_target }}
@@ -297,7 +299,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-        test_target: ${{ fromJson(needs.process-results.outputs.test_targets) }}
+        test_target: ${{ fromJson(needs.build.outputs.test_targets) }}
     steps:
       - name: Download Test Results
         uses: actions/download-artifact@v4
@@ -305,7 +307,22 @@ jobs:
           pattern: ${{ env.TEST_RESULTS_KEY }}
           path: results/
       - name: Print logs
-        run: cat ${{ matrix.test_target }}
+        run: |
+          shopt -s globstar
+
+          cat results/**/${{ matrix.test_target }}*log.txt
+
+          ls results/**/${{ matrix.test_target }}*.xml >> /dev/null
+          if [ $? -ne 0 ]; then
+            echo "::error::Test Result XML is missing. Did the test crash?"
+            exit 1
+          fi
+
+          grep "<failure" results/**/${{ matrix.test_target }}*.xml >> /dev/null
+          if [ $? -eq 0 ]; then
+            echo "::error::Failed tests in ${{ matrix.test_target }}"
+            exit 1
+          fi
         shell: bash
 
   validate-test-result:
