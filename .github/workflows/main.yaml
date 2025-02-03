@@ -275,7 +275,7 @@ jobs:
       - name: Download Test Results
         uses: actions/download-artifact@v4
         with:
-          pattern: ${{ env.TEST_RESULTS_KEY }}
+          pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
       - name: ${{ matrix.test_target }} logs
         run: |
