@@ -290,7 +290,7 @@ jobs:
 
           ls results/**/${test_target}*log.txt >> /dev/null
           if [ $? -ne 0 ]; then
-            echo "::error::Test logs is missing. Check Device logs link in test job."
+            echo "::error::No test logs found. Check test job to see what went wrong."
             exit 1
           fi
 
