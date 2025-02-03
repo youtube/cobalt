@@ -29,7 +29,8 @@
     "ui/ozone:ozone_unittests",
     "ui/wm:wm_unittests",
     "url:url_perftests",
-    "url:url_unittests"
+    "url:url_unittests",
+    "starboard/nplb:nplb"
   ],
   "executables": [
     "out/linux-x64x11_devel/base_unittests",
@@ -60,6 +61,7 @@
     "out/linux-x64x11_devel/sql_unittests",
     "out/linux-x64x11_devel/wm_unittests",
     "out/linux-x64x11_devel/url_perftests",
-    "out/linux-x64x11_devel/url_unittests"
+    "out/linux-x64x11_devel/url_unittests",
+    "out/linux-x64x11_devel/nplb"
   ]
 }
