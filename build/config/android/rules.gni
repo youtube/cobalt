@@ -2021,7 +2021,15 @@ if (!is_robolectric && enable_java_templates) {
       if (!is_java_debug && !_test_only) {
         defines += [ "_DISABLE_DEBUG_LOGS" ]
       }
+<<<<<<< HEAD
 >>>>>>> 4ee1bf16b34 (Android: Fix VERBOSE and DEBUG logs not appearing in debug builds)
+=======
+
+      # TODO(cobalt, b/375655377): Remove once Cobalt build targets remove test_only tag.
+      if (is_cobalt) {
+        defines += [ "_DISABLE_DEBUG_LOGS" ]
+      }
+>>>>>>> 5b13fc77a8c (Turn on _DISABLE_DEBUG_LOGS to avoid Java debug logs (#4818))
     }
   }
 
