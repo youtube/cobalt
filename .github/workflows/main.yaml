@@ -297,6 +297,7 @@ jobs:
           echo "${{ matrix.test_target }} ran successfully"
         shell: bash
       - name: Process Test Results
+        if: always()
         id: process-results
         uses: ./src/.github/actions/process_test_results
         with:
