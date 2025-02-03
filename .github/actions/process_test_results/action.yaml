@@ -14,11 +14,19 @@ runs:
   using: "composite"
   steps:
     - name: Create Test Summary
+      id: test-summary
       uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86
       with:
         paths: ${{ inputs.results_path }}
         output: test-report-summary.md
-        show: "fail, skip"
+        show: "all"
+
+    - name: Check Failed Tests
+      if: steps.test-summary.outputs.failed > 0
+      run: |
+        echo "::error::${{ inputs.target_name }} has ${{ steps.test-summary.outputs.failed }} failed test(s)."
+        exit 1
+      shell: bash
 
     - name: Populate GitHub Summary
       if: always()
