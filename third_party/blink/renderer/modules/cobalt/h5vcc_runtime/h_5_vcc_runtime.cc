@@ -24,7 +24,7 @@ const String H5vccRuntime::initialDeepLink() const {
   NOTIMPLEMENTED();
 
   // TODO(b/374147993) add a mojom service and populate the value.
-  return String("https://www.youtube.com/tv");
+  return String("https://fake.domain.com/tv");
 }
 
 void H5vccRuntime::Trace(Visitor* visitor) const {
