@@ -14,14 +14,9 @@
 
 import("//third_party/blink/renderer/modules/modules.gni")
 
-blink_modules_sources("h_5_vcc") {
+blink_modules_sources("h5vcc_runtime") {
   sources = [
-    "h_5_vcc.cc",
-    "h_5_vcc.h",
-  ]
-  deps = [
-    "//third_party/blink/renderer/modules/cobalt/crash_annotator",
-    "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
-    "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
+    "h_5_vcc_runtime.cc",
+    "h_5_vcc_runtime.h",
   ]
 }
