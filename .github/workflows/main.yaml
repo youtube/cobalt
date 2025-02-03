@@ -310,14 +310,20 @@ jobs:
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}
           path: results/
-      - name: Print logs
+      - name: ${{ matrix.test_target }} logs
         run: |
-          set -x
+          set -ex
           shopt -s globstar
 
           test_target="${{ matrix.test_target }}"
           # Remove the path segment of the target_name.
           test_target=${test_target#*:}
+
+          ls results/**/${test_target}*log.txt >> /dev/null
+          if [ $? -ne 0 ]; then
+            echo "::error::Test logs is missing. Check Device logs link in test job?"
+            exit 1
+          fi
 
           cat results/**/${test_target}*log.txt
 
