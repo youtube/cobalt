@@ -309,3 +309,26 @@ jobs:
           results_path: results/**/${{ matrix.test_target }}*.xml
           datadog_api_key: ${{ secrets.datadog_api_key }}
         continue-on-error: true
+
+  validate-test-result:
+    needs: [initialize, on-device-test, on-host-test]
+    if: always() && needs.on-device-test.result != 'skipped' || needs.on-host-test.result != 'skipped'
+    permissions: {}
+    runs-on: ubuntu-latest
+    name: ${{ matrix.name }}_tests_passing
+    strategy:
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    steps:
+      - name: Fail
+        if: always() &&
+            (
+              needs.on-device-test.result != 'skipped' && needs.on-device-test.result != 'success' ||
+              needs.on-host-test.result != 'skipped' && needs.on-host-test.result != 'success'
+            )
+        run: |
+            echo "Test jobs failed. See separate job log for details."
+            exit 1
+        shell: bash

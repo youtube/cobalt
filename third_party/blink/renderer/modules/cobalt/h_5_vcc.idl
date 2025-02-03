@@ -21,4 +21,5 @@
 interface H5vcc {
     readonly attribute CrashAnnotator crashAnnotator;
     readonly attribute H5vccSystem system;
+    readonly attribute H5vccRuntime runtime;
 };

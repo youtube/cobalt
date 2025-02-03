@@ -90,6 +90,9 @@
 #include "base/allocator/partition_alloc_support.h"
 #endif  // BUILDFLAG(USE_PARTITION_ALLOC)
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "base/test/test_support_starboard.h"
+#endif
 namespace base {
 
 namespace {
@@ -623,6 +626,10 @@ void TestSuite::Initialize() {
 #if BUILDFLAG(IS_ANDROID)
   InitAndroidTestMessageLoop();
 #endif  // else BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_STARBOARD)
+  InitStarboardTestMessageLoop();
+#endif
 
   CHECK(debug::EnableInProcessStackDumping());
 #if BUILDFLAG(IS_WIN)

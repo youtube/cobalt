@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This interface mirrors the H5vccSystem Web IDL defined in Cobalt LTS 25:
-// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_system.idl
+// This interface mirrors the H5vccRuntime Web IDL defined in Cobalt LTS 25:
+// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_runtime.idl
 [
     Exposed=Window,
     SecureContext
 ]
-interface H5vccSystem {
-    readonly attribute DOMString advertisingId;
-    readonly attribute boolean limitAdTracking;
+interface H5vccRuntime {
+    readonly attribute DOMString initialDeepLink;
 };

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_SYSTEM_H_5_VCC_SYSTEM_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_SYSTEM_H_5_VCC_SYSTEM_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_RUNTIME_H_5_VCC_RUNTIME_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_RUNTIME_H_5_VCC_RUNTIME_H_
 
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -24,19 +24,18 @@ namespace blink {
 class LocalDOMWindow;
 class ScriptState;
 
-class MODULES_EXPORT H5vccSystem final : public ScriptWrappable {
+class MODULES_EXPORT H5vccRuntime final : public ScriptWrappable {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  explicit H5vccSystem(LocalDOMWindow&);
+  explicit H5vccRuntime(LocalDOMWindow&);
 
   // Web-exposed interface:
-  const String advertisingId() const;
-  bool limitAdTracking() const;
+  const String initialDeepLink() const;
 
   void Trace(Visitor*) const override;
 };
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_SYSTEM_H_5_VCC_SYSTEM_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_RUNTIME_H_5_VCC_RUNTIME_H_

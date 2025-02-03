@@ -222,6 +222,12 @@ static_library("test_support") {
     ]
   }
 
+  if (is_starboard) {
+    sources += [
+      "test_support_starboard.cc",
+      "test_support_starboard.h",
+    ]
+  }
   if (is_android) {
     sources += [
       "android/java_handler_thread_helpers.cc",
@@ -372,6 +378,10 @@ shared_library("immediate_crash_test_helper") {
 
   if (is_android) {
     configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
+  }
+
+  if (is_starboard) {
+    deps = [ "//starboard:starboard_group" ]
   }
 }
 
