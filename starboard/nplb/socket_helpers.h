@@ -17,6 +17,7 @@
 
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -218,6 +219,8 @@ std::string GetSbSocketFilterAddressTypePairName(
 std::string GetSbSocketAddressTypeProtocolPairName(
     ::testing::TestParamInfo<std::pair<SbSocketAddressType, SbSocketProtocol>>
         info);
+std::string GetPosixSocketHintsName(
+    ::testing::TestParamInfo<std::tuple<int, std::pair<int, int>>> info);
 #endif  // #if !defined(COBALT_BUILD_TYPE_GOLD)
 
 }  // namespace nplb

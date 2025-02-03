@@ -19,6 +19,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <tuple>
 #include <utility>
 
 #include "starboard/nplb/socket_helpers.h"
@@ -610,6 +611,54 @@ const char* SbSocketProtocolName(SbSocketProtocol protocol) {
   }
   return name;
 }
+
+const char* PosixAddressFamilyName(int family) {
+  const char* name = "unknown";
+  switch (family) {
+    case AF_UNSPEC:
+      name = "unspecified";
+      break;
+    case AF_INET:
+      name = "inet";
+      break;
+    case AF_INET6:
+      name = "inet6";
+      break;
+  }
+  return name;
+}
+
+const char* PosixSocketTypeName(int socktype) {
+  const char* name = "unknown";
+  switch (socktype) {
+    case 0:
+      name = "unspecified";
+      break;
+    case SOCK_STREAM:
+      name = "stream";
+      break;
+    case SOCK_DGRAM:
+      name = "dgram";
+      break;
+  }
+  return name;
+}
+
+const char* PosixProtocolName(int protocol) {
+  const char* name = "unknown";
+  switch (protocol) {
+    case 0:
+      name = "unspecified";
+      break;
+    case IPPROTO_UDP:
+      name = "udp";
+      break;
+    case IPPROTO_TCP:
+      name = "tcp";
+      break;
+  }
+  return name;
+}
 }  // namespace
 
 std::string GetSbSocketAddressTypeName(
@@ -645,6 +694,14 @@ std::string GetSbSocketAddressTypeProtocolPairName(
         info) {
   return FormatString("type_%s_%s", SbSocketAddressTypeName(info.param.first),
                       SbSocketProtocolName(info.param.second));
+}
+
+std::string GetPosixSocketHintsName(
+    ::testing::TestParamInfo<std::tuple<int, std::pair<int, int>>> info) {
+  return FormatString("family_%s_socktype_%s_protocol_%s",
+                      PosixAddressFamilyName(std::get<0>(info.param)),
+                      PosixSocketTypeName(std::get<1>(info.param).first),
+                      PosixProtocolName(std::get<1>(info.param).second));
 }
 
 #endif  // #if !defined(COBALT_BUILD_TYPE_GOLD)
