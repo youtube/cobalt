@@ -238,7 +238,7 @@ jobs:
     env:
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -249,7 +249,7 @@ jobs:
         uses: ./src/.github/actions/on_host_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          test_results_key: ${{ env.TEST_RESULTS_KEY }}_test_results-${{ matrix.shard }}
+          test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
 
   on-device-test-results:
