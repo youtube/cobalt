@@ -30,3 +30,6 @@ rtc_use_pipewire = false
 
 # Disable Chrome Remote Desktop
 enable_remoting = false
+
+# Disable Wayland Ozone Backend
+ozone_platform_wayland = false
