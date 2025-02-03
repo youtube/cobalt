@@ -296,6 +296,10 @@ jobs:
 
           echo "${{ matrix.test_target }} ran successfully"
         shell: bash
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: src
       - name: Process Test Results
         if: always()
         id: process-results
