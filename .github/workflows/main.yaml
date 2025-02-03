@@ -279,7 +279,7 @@ jobs:
           path: results/
       - name: ${{ matrix.test_target }} logs
         run: |
-          set -ex
+          set -x
           shopt -s globstar
 
           test_target="${{ matrix.test_target }}"
