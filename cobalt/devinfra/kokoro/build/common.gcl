@@ -33,18 +33,6 @@ build = {
       value = 'qa gold'
     },
     {
-      key = 'SCCACHE'
-      value = '1'
-    },
-    {
-      key = 'SCCACHE_GCS_RW_MODE'
-      value = 'READ_WRITE'
-    },
-    {
-      key = 'SCCACHE_IDLE_TIMEOUT'
-      value = '0'
-    },
-    {
       key = 'REGISTRY_HOSTNAME'
       value = 'us-central1-docker.pkg.dev'
     },
