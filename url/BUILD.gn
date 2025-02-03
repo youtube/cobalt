@@ -227,6 +227,12 @@ test("url_unittests") {
     "//testing/gtest",
   ]
 
+  if (is_starboard) {
+    # Replace the standard runner with the starboard test runner in mojo.
+    sources -= [ "run_all_unittests.cc" ]
+    deps += [ "//mojo/core/test:run_all_unittests" ]
+  }
+
   if (use_platform_icu_alternatives) {
     # Unit tests that are not supported by the current ICU alternatives on Android.
     if (is_android) {

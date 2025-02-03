@@ -46,11 +46,8 @@ template("cobalt_test") {
         sources += [ "//$starboard_path/sanitizer_options.cc" ]
       }
 
-      out_dir = rebase_path(root_build_dir)
-      defines = [
-        "SB_LOADER_MODULE=\"$actual_target_name\"",
-        "OUT_DIRECTORY=\"${out_dir}\"",
-      ]
+      output_dir = root_build_dir
+      defines = [ "SB_LOADER_MODULE=\"$actual_target_name\"" ]
       configs += [ "//starboard/build/config:starboard_implementation" ]
 
       ldflags = [
