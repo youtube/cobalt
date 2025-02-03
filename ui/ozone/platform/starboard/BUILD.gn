@@ -84,5 +84,5 @@ source_set("test_support") {
     "ozone_ui_controls_test_helper_starboard.h",
   ]
 
-  deps = [ "//base:base" ]
+  deps = [ "//base" ]
 }
