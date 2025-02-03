@@ -70,9 +70,15 @@ runs:
               --test-launcher-shard-index=${{ matrix.shard }} \
               --test-launcher-total-shards=${{ inputs.num_gtest_shards }} \
               --gtest_output="xml:${xml_path}" \
-              --gtest_filter="${test_filter}" | tee ${log_path}
+              --gtest_filter="${test_filter}" | tee ${log_path} || {
+            failed_suites="${failed_suites} ${test_binary}"
+          }
         done
         echo "Finished running tests..."
+        if [ -n "${failed_suites}" ]; then
+          echo "Test suites failed:${failed_suites}"
+          exit 1
+        fi
     - name: Archive Test Results
       if: success() || failure()
       uses: actions/upload-artifact@v4

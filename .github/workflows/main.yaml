@@ -309,7 +309,6 @@ jobs:
           target_name: ${{ matrix.test_target }}
           results_path: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           datadog_api_key: ${{ secrets.datadog_api_key }}
-        continue-on-error: true
 
   validate-test-result:
     needs: [initialize, test-results]
