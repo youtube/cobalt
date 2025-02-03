@@ -77,7 +77,7 @@ LayoutBoxes* GetLayoutBoxesIfNotEmpty(dom::Element* element) {
         dom_layout_boxes->type() == dom::LayoutBoxes::kLayoutLayoutBoxes) {
       LayoutBoxes* layout_boxes =
           base::polymorphic_downcast<LayoutBoxes*>(dom_layout_boxes);
-      if (!layout_boxes->boxes().empty()) {
+      if (layout_boxes && !layout_boxes->boxes().empty()) {
         return layout_boxes;
       }
     }
@@ -191,7 +191,10 @@ struct CanTargetBox {
 bool CanTargetElementAndChildren(dom::Element* element,
                                  math::Vector2dF* coordinate) {
   LayoutBoxes* layout_boxes = GetLayoutBoxesIfNotEmpty(element);
-  const Boxes boxes = layout_boxes->boxes();
+  if (!layout_boxes) {
+    return false;
+  }
+  const Boxes& boxes = layout_boxes->boxes();
   const Box* box = boxes.front();
   if (!box->computed_style()) {
     return true;
@@ -431,6 +434,9 @@ math::Matrix3F GetCompleteTransformMatrix(dom::Element* element) {
   auto current_element = element;
   while (current_element) {
     LayoutBoxes* layout_boxes = GetLayoutBoxesIfNotEmpty(current_element);
+    if (!layout_boxes) {
+      continue;
+    }
     const Box* box = layout_boxes->boxes().front();
     complete_matrix = complete_matrix * box->GetCSSTransformForBox();
     current_element = current_element->parent_element();
@@ -471,8 +477,10 @@ void TopmostEventTarget::ConsiderElement(dom::Element* element,
   if (!element) return;
   math::Vector2dF element_coordinate(coordinate);
   LayoutBoxes* layout_boxes = GetLayoutBoxesIfNotEmpty(element);
-  bool consider_element_and_children = ShouldConsiderElementAndChildren(
-      element, &element_coordinate, consider_only_fixed_elements);
+  bool consider_element_and_children =
+      layout_boxes &&
+      ShouldConsiderElementAndChildren(element, &element_coordinate,
+                                       consider_only_fixed_elements);
 
   if (consider_element_and_children) {
     scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
