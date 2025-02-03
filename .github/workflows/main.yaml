@@ -252,7 +252,7 @@ jobs:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
 
-  on-device-test-results:
+  test-results:
     needs: [initialize, build, on-device-test, on-host-test]
     if: always() &&
         (
@@ -278,6 +278,7 @@ jobs:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
       - name: ${{ matrix.test_target }} logs
+        continue-on-error: true
         run: |
           set -x
           shopt -s globstar
@@ -301,7 +302,6 @@ jobs:
         with:
           path: src
       - name: Process Test Results
-        if: always()
         id: process-results
         uses: ./src/.github/actions/process_test_results
         with:
@@ -311,8 +311,8 @@ jobs:
         continue-on-error: true
 
   validate-test-result:
-    needs: [initialize, on-device-test, on-host-test]
-    if: always() && needs.on-device-test.result != 'skipped' || needs.on-host-test.result != 'skipped'
+    needs: [initialize, test-results]
+    if: always()
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.name }}_tests_passing
@@ -323,11 +323,7 @@ jobs:
         config: [devel]
     steps:
       - name: Fail
-        if: always() &&
-            (
-              needs.on-device-test.result != 'skipped' && needs.on-device-test.result != 'success' ||
-              needs.on-host-test.result != 'skipped' && needs.on-host-test.result != 'success'
-            )
+        if: needs.test-results.result != 'skipped' && needs.test-results.result != 'success'
         run: |
             echo "Test jobs failed. See separate job log for details."
             exit 1
