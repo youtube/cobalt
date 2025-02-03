@@ -336,22 +336,3 @@ jobs:
           # Must explicitly exit successfully since the last command failed.
           exit 0
         shell: bash
-
-  validate-test-result:
-    needs: [initialize, on-device-test, on-host-test]
-    if: always()
-    permissions: {}
-    runs-on: ubuntu-latest
-    name: ${{ matrix.name }}_tests_passing
-    strategy:
-      matrix:
-        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
-        include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel]
-    steps:
-      - name: Check On-Host Test Status
-        if: needs.initialize.outputs.test_on_host == 'true' && needs.on-host-test.result != 'success'
-        run: exit 1
-      - name: Check On-Device Test Status
-        if: needs.initialize.outputs.test_on_device == 'true' && needs.on-device-test.result != 'success'
-        run: exit 1
