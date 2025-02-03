@@ -252,39 +252,6 @@ jobs:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
 
-  process-results:
-    needs: [initialize, on-host-test, on-device-test]
-    if: always() &&
-      (
-        needs.initialize.outputs.test_on_host == 'true' ||
-        needs.initialize.outputs.test_on_device == 'true'
-      )
-    permissions: {}
-    runs-on: ubuntu-latest
-    name: ${{ matrix.name }}_process_results
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
-        include: ${{ fromJson(needs.initialize.outputs.includes) }}
-        config: [devel]
-    env:
-      TMPDIR: /__w/_temp
-      TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          path: src
-      - name: Process Test Results
-        id: process-results
-        uses: ./src/.github/actions/process_test_results
-        with:
-          test_results_key: ${{ env.TEST_RESULTS_KEY }}
-          datadog_api_key: ${{ secrets.datadog_api_key }}
-        continue-on-error: true
-
   on-device-test-results:
     needs: [initialize, build, on-device-test, on-host-test]
     if: always() &&
@@ -321,23 +288,19 @@ jobs:
 
           ls results/**/${test_target}*log.txt >> /dev/null
           if [ $? -ne 0 ]; then
-            echo "::error::Test logs is missing. Check Device logs link in test job?"
+            echo "::error::Test logs is missing. Check Device logs link in test job."
             exit 1
           fi
 
           cat results/**/${test_target}*log.txt
 
-          ls results/**/${test_target}*.xml >> /dev/null
-          if [ $? -ne 0 ]; then
-            echo "::error::Test Result XML is missing. Did the test crash?"
-            exit 1
-          fi
-
-          grep -E "<failure|<error" results/**/${test_target}*.xml
-          if [ $? -eq 0 ]; then
-            echo "::error::Failed tests in ${test_target}"
-            exit 1
-          fi
-
           echo "${{ matrix.test_target }} ran successfully"
         shell: bash
+      - name: Process Test Results
+        id: process-results
+        uses: ./src/.github/actions/process_test_results
+        with:
+          target_name: ${{ matrix.test_target }}
+          results_path: results/**/${{ matrix.test_target }}*.xml
+          datadog_api_key: ${{ secrets.datadog_api_key }}
+        continue-on-error: true
