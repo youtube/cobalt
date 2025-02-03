@@ -72,7 +72,7 @@ runs:
               --gtest_output="xml:${xml_path}" \
               --gtest_filter="${test_filter}" | tee ${log_path}
         done
-        echo "Finished running all unit tests..."
+        echo "Finished running tests..."
     - name: Archive Test Results
       if: success() || failure()
       uses: actions/upload-artifact@v4

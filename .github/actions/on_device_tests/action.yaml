@@ -51,7 +51,8 @@ runs:
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
       run: |
-        set -uxe
+        set -x
+        # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
           trigger \
@@ -74,6 +75,7 @@ runs:
           ${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" "$ON_DEVICE_TEST_ATTEMPTS"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
           --gcs_result_path "${GCS_RESULTS_PATH}"
+        echo "Finished running tests..."
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results from GCS
       if: always()
