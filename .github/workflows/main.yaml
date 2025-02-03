@@ -333,12 +333,11 @@ jobs:
             exit 1
           fi
 
-          grep -E "<failure|<error" results/**/${test_target}*.xml >> /dev/null
+          grep -E "<failure|<error" results/**/${test_target}*.xml
           if [ $? -eq 0 ]; then
             echo "::error::Failed tests in ${test_target}"
             exit 1
           fi
 
-          # Must explicitly exit successfully since the last command failed.
-          exit 0
+          echo "${{ matrix.test_target }} ran successfully"
         shell: bash
