@@ -7,11 +7,9 @@ from cobalt.build import packaging
 
 
 def lay_out(out_dir, base_dir):
-  shutil.copy2(os.path.join(out_dir, 'gen', 'build_info.json'), base_dir)
-  shutil.copy2(os.path.join(out_dir, 'apks/Cobalt.apk'), base_dir)
-  shutil.copytree(
-      os.path.join(out_dir, 'content'),
-      os.path.join(base_dir, 'cobalt_package', 'content'))
+  shutil.copytree(out_dir, base_dir, dirs_exist_ok=True)
+  shutil.rmtree(os.path.join(base_dir, 'lib.unstripped'))
+  shutil.rmtree(os.path.join(base_dir, 'thinlto-cache'))
 
 
 if __name__ == '__main__':
