@@ -20,7 +20,7 @@ runs:
         output: test-report-summary.md
         show: "fail, skip"
 
-    - name: Output Summary to GitHub
+    - name: Populate GitHub Summary
       if: always()
       run: cat test-report-summary.md >> $GITHUB_STEP_SUMMARY
       shell: bash
