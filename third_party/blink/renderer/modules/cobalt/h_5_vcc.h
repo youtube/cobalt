@@ -28,6 +28,7 @@ class ScriptState;
 class CrashAnnotator;
 class LocalDOMWindow;
 class H5vccSystem;
+class H5vccRuntime;
 
 class MODULES_EXPORT H5vcc final : public ScriptWrappable,
                                    public Supplement<LocalDOMWindow> {
@@ -45,11 +46,14 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
 
   H5vccSystem* system() { return system_; }
 
+  H5vccRuntime* runtime() { return runtime_; }
+
   void Trace(Visitor*) const override;
 
  private:
   Member<CrashAnnotator> crash_annotator_;
   Member<H5vccSystem> system_;
+  Member<H5vccRuntime> runtime_;
 };
 
 }  // namespace blink
