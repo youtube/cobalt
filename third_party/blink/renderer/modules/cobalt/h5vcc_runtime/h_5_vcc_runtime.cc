@@ -12,14 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This interface mirrors the H5vcc Web IDL defined in Cobalt LTS 25:
-// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc.idl
-[
-    Exposed=Window,
-    SecureContext
-]
-interface H5vcc {
-    readonly attribute CrashAnnotator crashAnnotator;
-    readonly attribute H5vccSystem system;
-    readonly attribute H5vccRuntime runtime;
-};
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_runtime/h_5_vcc_runtime.h"
+
+#include "third_party/blink/renderer/core/frame/local_dom_window.h"
+
+namespace blink {
+
+H5vccRuntime::H5vccRuntime(LocalDOMWindow& window) {}
+
+const String H5vccRuntime::initialDeepLink() const {
+  NOTIMPLEMENTED();
+
+  // TODO(b/374147993) add a mojom service and populate the value.
+  return String("https://fake.domain.com/tv");
+}
+
+void H5vccRuntime::Trace(Visitor* visitor) const {
+  ScriptWrappable::Trace(visitor);
+}
+
+}  // namespace blink
