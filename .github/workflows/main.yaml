@@ -286,6 +286,7 @@ jobs:
           test_target="${{ matrix.test_target }}"
           # Remove the path segment of the target_name.
           test_target=${test_target#*:}
+          echo "test_target=${test_target}" >> $GITHUB_ENV
 
           ls results/**/${test_target}*log.txt >> /dev/null
           if [ $? -ne 0 ]; then
@@ -306,7 +307,7 @@ jobs:
         uses: ./src/.github/actions/process_test_results
         with:
           target_name: ${{ matrix.test_target }}
-          results_path: results/**/${{ matrix.test_target }}*.xml
+          results_path: results/**/${{ env.target_name }}*.xml
           datadog_api_key: ${{ secrets.datadog_api_key }}
         continue-on-error: true
 
