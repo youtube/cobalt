@@ -19,7 +19,7 @@ runs:
       with:
         paths: ${{ inputs.results_path }}
         output: test-report-summary.md
-        show: "all"
+        show: "fail, skip"
 
     - name: Check Failed Tests
       if: steps.test-summary.outputs.failed > 0
