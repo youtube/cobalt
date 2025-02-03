@@ -1,5 +1,0 @@
-{
-  "failing_tests": [
-    "SQLiteFeaturesTest.FTS3_Prefix"
-  ]
-}
