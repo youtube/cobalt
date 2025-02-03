@@ -29,6 +29,13 @@ const String H5vccSystem::advertisingId() const {
   return String("fake advertisingId");
 }
 
+bool H5vccSystem::limitAdTracking() const {
+  NOTIMPLEMENTED();
+
+  // TODO(b/377049113) add a mojom service and populate the value.
+  return false;
+}
+
 void H5vccSystem::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
 }
