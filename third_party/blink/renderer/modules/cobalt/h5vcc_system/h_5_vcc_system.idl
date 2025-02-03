@@ -20,4 +20,5 @@
 ]
 interface H5vccSystem {
     readonly attribute DOMString advertisingId;
+    readonly attribute boolean limitAdTracking;
 };

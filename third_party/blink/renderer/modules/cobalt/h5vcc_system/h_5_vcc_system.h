@@ -32,6 +32,7 @@ class MODULES_EXPORT H5vccSystem final : public ScriptWrappable {
 
   // Web-exposed interface:
   const String advertisingId() const;
+  bool limitAdTracking() const;
 
   void Trace(Visitor*) const override;
 };
