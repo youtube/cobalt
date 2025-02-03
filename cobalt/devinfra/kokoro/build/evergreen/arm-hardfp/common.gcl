@@ -24,14 +24,6 @@ build = common.build {
       value = 'use_asan=false is_internal_build=true'
     },
     {
-      key = 'SCCACHE_GCS_BUCKET'
-      value = 'cobalt-kokoro-sccache-linux'
-    },
-    {
-      key = 'SCCACHE_GCS_OAUTH_URL'
-      value = 'http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token'
-    },
-    {
       key = 'TARGET'
       value = 'default'
     },

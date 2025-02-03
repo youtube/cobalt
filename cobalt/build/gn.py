@@ -61,7 +61,6 @@ _BUILD_TYPES = {
     }
 }
 
-CC_WRAPPER = 'sccache'
 CONTROLLED_ARGS = [
     'cc_wrapper',  # See build/toolschain/cc_wrapper.gni
     'is_debug',  # See build/config/BUILDCONFIG.GN
