@@ -64,11 +64,6 @@ configure_environment () {
   # Add repository root to PYTHONPATH.
   export PYTHONPATH="${WORKSPACE_COBALT}${PYTHONPATH:+:${PYTHONPATH}}"
 
-  # Setup SCCACHE.
-  if [ -n "${SCCACHE_GCS_KEY_FILE_NAME+set}" ]; then
-    export SCCACHE_GCS_KEY_PATH="${KOKORO_KEYSTORE_DIR}/${SCCACHE_GCS_KEY_FILE_NAME}"
-  fi
-
   # In some instances KOKORO_GOB_BRANCH_src is not set, set by default to 'COBALT'.
   if [ -z "${KOKORO_GOB_BRANCH_src+set}" ]; then
     echo 'WARNING: $KOKORO_GOB_BRANCH_src is unset. Defaulting to "COBALT"'
@@ -187,12 +182,8 @@ ninja_build () {
   local out_dir=$1
   local targets=("$2")
 
-  sccache -z
-
   echo 'Running Ninja build...'
   time ninja -C "${out_dir}" ${targets[@]}
-
-  sccache -s
 
   echo "Generated build info"
   build_info_file="${out_dir}/gen/build_info.json"
