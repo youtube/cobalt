@@ -14,26 +14,8 @@
 
 template("cobalt_test") {
   actual_target_name = target_name
-
-  # shlib_target_name = "${actual_target_name}_shared_lib"
   shlib_target_name = actual_target_name
   loader_target_name = "${actual_target_name}_loader"
-
-  # group("${actual_target_name}") {
-  #   forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
-  #   testonly = true
-  #   if (defined(invoker.deps)) {
-  #     deps += [
-  #       ":${loader_target_name}($starboard_toolchain)",
-  #       ":${shlib_target_name}($cobalt_toolchain)",
-  #     ]
-  #   } else {
-  #     deps = [
-  #       ":${loader_target_name}($starboard_toolchain)",
-  #       ":${shlib_target_name}($cobalt_toolchain)",
-  #     ]
-  #   }
-  # }
 
   shared_library(shlib_target_name) {
     output_name = actual_target_name
@@ -48,19 +30,11 @@ template("cobalt_test") {
     }
     data_deps += [ "//starboard($starboard_toolchain)" ]
 
-    #         allow_circular_includes_from = [
-    #  ":${actual_target_name}_loader($starboard_toolchain)",
-    # ]
     write_runtime_deps = _runtime_deps_file
   }
 
   if (current_toolchain == starboard_toolchain) {
     executable(loader_target_name) {
-      # if (actual_target_name == "url_unittests") {
-      #   print("yaay")
-      # }
-
-      # output_name = "${actual_target_name}"
       sources = [ "//$starboard_path/starboard_loader.cc" ]
       testonly = true
 
@@ -86,14 +60,7 @@ template("cobalt_test") {
         "-Wl,-rpath=\$ORIGIN",
       ]
 
-      deps = [
-        # ":${shlib_target_name}($cobalt_toolchain)",
-        "//starboard($starboard_toolchain)",
-      ]
-
-      #         allow_circular_includes_from = [
-      #   ":${actual_target_name}($cobalt_toolchain)",
-      # ]
+      deps = [ "//starboard($starboard_toolchain)" ]
     }
   }
 }
