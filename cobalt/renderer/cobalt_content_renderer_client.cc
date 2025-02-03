@@ -6,157 +6,51 @@
 
 #include <string>
 
-#include "base/check_op.h"
-#include "base/command_line.h"
-#include "base/files/file.h"
-#include "base/functional/bind.h"
-#include "base/notreached.h"
-#include "base/strings/string_number_conversions.h"
-#include "base/task/single_thread_task_runner.h"
-#include "cobalt/common/shell_switches.h"
-#include "components/cdm/renderer/external_clear_key_key_system_info.h"
-#include "components/network_hints/renderer/web_prescient_networking_impl.h"
-#include "components/web_cache/renderer/web_cache_impl.h"
-#include "content/public/common/pseudonymization_util.h"
-#include "content/public/common/web_identity.h"
-#include "content/public/renderer/render_frame.h"
-#include "content/public/renderer/render_thread.h"
-#include "content/public/test/test_service.mojom.h"
-#include "mojo/public/cpp/bindings/binder_map.h"
-#include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "mojo/public/cpp/bindings/receiver.h"
-#include "mojo/public/cpp/system/message_pipe.h"
-#include "net/base/net_errors.h"
-#include "ppapi/buildflags/buildflags.h"
-#include "sandbox/policy/sandbox.h"
-#include "third_party/blink/public/platform/url_loader_throttle_provider.h"
-#include "third_party/blink/public/platform/web_url_error.h"
-#include "third_party/blink/public/web/modules/credentialmanagement/throttle_helper.h"
-#include "third_party/blink/public/web/web_local_frame.h"
-#include "third_party/blink/public/web/web_testing_support.h"
-#include "third_party/blink/public/web/web_view.h"
-#include "v8/include/v8.h"
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "starboard/media.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-#if BUILDFLAG(ENABLE_PLUGINS)
-#include "ppapi/shared_impl/ppapi_switches.h"  // nogncheck
-#endif
-
-#if BUILDFLAG(ENABLE_MOJO_CDM)
-#include "base/feature_list.h"
-#include "media/base/media_switches.h"
-#endif
 
 namespace cobalt {
 
 namespace {
 
-class CobaltContentRendererUrlLoaderThrottleProvider
-    : public blink::URLLoaderThrottleProvider {
- public:
-  std::unique_ptr<URLLoaderThrottleProvider> Clone() override {
-    return std::make_unique<CobaltContentRendererUrlLoaderThrottleProvider>();
-  }
-
-  blink::WebVector<std::unique_ptr<blink::URLLoaderThrottle>> CreateThrottles(
-      int render_frame_id,
-      const blink::WebURLRequest& request) override {
-    blink::WebVector<std::unique_ptr<blink::URLLoaderThrottle>> throttles;
-    // Workers can call us on a background thread. We don't care about such
-    // requests because we purposefully only look at resources from frames
-    // that the user can interact with.`
-    content::RenderFrame* frame =
-        content::RenderThread::IsMainThread()
-            ? content::RenderFrame::FromRoutingID(render_frame_id)
-            : nullptr;
-    if (frame) {
-      auto throttle = content::MaybeCreateIdentityUrlLoaderThrottle(
-          base::BindRepeating(blink::SetIdpSigninStatus, frame->GetWebFrame()));
-      if (throttle) {
-        throttles.push_back(std::move(throttle));
-      }
-    }
-
-    return throttles;
-  }
-
-  void SetOnline(bool is_online) override {}
-};
-
-}  // namespace
-
-CobaltContentRendererClient::CobaltContentRendererClient() {}
-CobaltContentRendererClient::~CobaltContentRendererClient() {}
-
-void CobaltContentRendererClient::RenderThreadStarted() {
-  web_cache_impl_ = std::make_unique<web_cache::WebCacheImpl>();
-}
-
-void CobaltContentRendererClient::ExposeInterfacesToBrowser(
-    mojo::BinderMap* binders) {
-  binders->Add<web_cache::mojom::WebCache>(
-      base::BindRepeating(&web_cache::WebCacheImpl::BindReceiver,
-                          base::Unretained(web_cache_impl_.get())),
-      base::SingleThreadTaskRunner::GetCurrentDefault());
-}
-
-void CobaltContentRendererClient::RenderFrameCreated(
-    content::RenderFrame* render_frame) {
-  new js_injection::JsCommunication(render_frame);
-}
-
-void CobaltContentRendererClient::PrepareErrorPage(
-    content::RenderFrame* render_frame,
-    const blink::WebURLError& error,
-    const std::string& http_method,
-    content::mojom::AlternativeErrorPageOverrideInfoPtr
-        alternative_error_page_info,
-    std::string* error_html) {
-  if (error_html && error_html->empty()) {
-    *error_html =
-        "<head><title>Error</title></head><body>Could not load the requested "
-        "resource.<br/>Error code: " +
-        base::NumberToString(error.reason()) +
-        (error.reason() < 0 ? " (" + net::ErrorToString(error.reason()) + ")"
-                            : "") +
-        "</body>";
+// TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
+// support to query codec capabilities with configs. The profile information
+// gets lost with hardcoded MIME string. This can sometimes cause issues. For
+// example, vp9 profile 2 indicates hdr support, so an implementation accepts
+// "codecs=vp9" may reject "codecs=vp9.2".
+std::string GetMimeFromVideoType(const media::VideoType& type) {
+  // The MIME string is for very basic video codec supportability check.
+  switch (type.codec) {
+    case media::VideoCodec::kH264:
+      return "video/mp4; codecs=\"avc1.4d4015\"";
+    case media::VideoCodec::kVP9:
+      return "video/webm; codecs=\"vp9\"";
+    case media::VideoCodec::kAV1:
+      return "video/mp4; codecs=\"av01.0.08M.08\"";
+    default:
+      return "";
   }
 }
 
-void CobaltContentRendererClient::PrepareErrorPageForHttpStatusError(
-    content::RenderFrame* render_frame,
-    const blink::WebURLError& error,
-    const std::string& http_method,
-    int http_status,
-    content::mojom::AlternativeErrorPageOverrideInfoPtr
-        alternative_error_page_info,
-    std::string* error_html) {
-  if (error_html) {
-    *error_html =
-        "<head><title>Error</title></head><body>Server returned HTTP status " +
-        base::NumberToString(http_status) + "</body>";
+// TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
+// support to query codec capabilities with configs.
+std::string GetMimeFromAudioType(const media::AudioType& type) {
+  // The MIME string is for very basic audio codec supportability check.
+  switch (type.codec) {
+    case media::AudioCodec::kAAC:
+      return "audio/mp4; codecs=\"mp4a.40.2\"";
+    case media::AudioCodec::kAC3:
+      return "audio/mp4; codecs=\"ac-3\"";
+    case media::AudioCodec::kEAC3:
+      return "audio/mp4; codecs=\"ec-3\"";
+    case media::AudioCodec::kOpus:
+      return "audio/webm; codecs=\"opus\"";
+    // TODO(b/375232937): Support IAMF
+    default:
+      return "";
   }
 }
 
-void CobaltContentRendererClient::DidInitializeWorkerContextOnWorkerThread(
-    v8::Local<v8::Context> context) {
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
-          switches::kExposeInternalsForTesting)) {
-    blink::WebTestingSupport::InjectInternalsObject(context);
-  }
-}
-
-std::unique_ptr<blink::URLLoaderThrottleProvider>
-CobaltContentRendererClient::CreateURLLoaderThrottleProvider(
-    blink::URLLoaderThrottleProviderType provider_type) {
-  return std::make_unique<CobaltContentRendererUrlLoaderThrottleProvider>();
-}
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
 media::SupportedCodecs GetStarboardEmeSupportedCodecs() {
   media::SupportedCodecs codecs =
       ::media::EME_CODEC_AAC | ::media::EME_CODEC_AVC1 |
@@ -168,6 +62,16 @@ media::SupportedCodecs GetStarboardEmeSupportedCodecs() {
       ::media::EME_CODEC_AC3 | ::media::EME_CODEC_EAC3;
   // TODO(b/375232937) Add IAMF
   return codecs;
+}
+
+}  // namespace
+
+CobaltContentRendererClient::CobaltContentRendererClient() {}
+CobaltContentRendererClient::~CobaltContentRendererClient() {}
+
+void CobaltContentRendererClient::RenderFrameCreated(
+    content::RenderFrame* render_frame) {
+  new js_injection::JsCommunication(render_frame);
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -205,61 +109,6 @@ void CobaltContentRendererClient::GetSupportedKeySystems(
 #endif
 }
 
-#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-#if BUILDFLAG(ENABLE_MOJO_CDM)
-void CobaltContentRendererClient::GetSupportedKeySystems(
-    media::GetSupportedKeySystemsCB cb) {
-  media::KeySystemInfos key_systems;
-  if (base::FeatureList::IsEnabled(media::kExternalClearKeyForTesting)) {
-    key_systems.push_back(
-        std::make_unique<cdm::ExternalClearKeyKeySystemInfo>());
-  }
-  std::move(cb).Run(std::move(key_systems));
-}
-#endif
-
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-// TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
-// support to query codec capabilities with configs.
-std::string GetMimeFromAudioType(const media::AudioType& type) {
-  // The MIME string is for very basic audio codec supportability check.
-  switch (type.codec) {
-    case media::AudioCodec::kAAC:
-      return "audio/mp4; codecs=\"mp4a.40.2\"";
-    case media::AudioCodec::kAC3:
-      return "audio/mp4; codecs=\"ac-3\"";
-    case media::AudioCodec::kEAC3:
-      return "audio/mp4; codecs=\"ec-3\"";
-    case media::AudioCodec::kOpus:
-      return "audio/webm; codecs=\"opus\"";
-    // TODO(b/375232937): Support IAMF
-    default:
-      return "";
-  }
-}
-
-// TODO(b/376542844): Eliminate the usage of hardcoded MIME string once we
-// support to query codec capabilities with configs. The profile information
-// gets lost with hardcoded MIME string. This can sometimes cause issues. For
-// example, vp9 profile 2 indicates hdr support, so an implementation accepts
-// "codecs=vp9" may reject "codecs=vp9.2".
-std::string GetMimeFromVideoType(const media::VideoType& type) {
-  // The MIME string is for very basic video codec supportability check.
-  switch (type.codec) {
-    case media::VideoCodec::kH264:
-      return "video/mp4; codecs=\"avc1.4d4015\"";
-    case media::VideoCodec::kVP9:
-      return "video/webm; codecs=\"vp9\"";
-    case media::VideoCodec::kAV1:
-      return "video/mp4; codecs=\"av01.0.08M.08\"";
-    default:
-      return "";
-  }
-}
-
 bool CobaltContentRendererClient::IsSupportedAudioType(
     const media::AudioType& type) {
   std::string mime = GetMimeFromAudioType(type);
@@ -285,20 +134,12 @@ bool CobaltContentRendererClient::IsSupportedVideoType(
             << (result ? "true" : "false");
   return result;
 }
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void CobaltContentRendererClient::RunScriptsAtDocumentStart(
     content::RenderFrame* render_frame) {
   js_injection::JsCommunication* communication =
       js_injection::JsCommunication::Get(render_frame);
   communication->RunScriptsAtDocumentStart();
-}
-
-std::unique_ptr<blink::WebPrescientNetworking>
-CobaltContentRendererClient::CreatePrescientNetworking(
-    content::RenderFrame* render_frame) {
-  return std::make_unique<network_hints::WebPrescientNetworkingImpl>(
-      render_frame);
 }
 
 }  // namespace cobalt
