@@ -272,6 +272,7 @@ void StartServerOnHandlerThread(
     const base::FilePath& debug_frontend_dir,
     const std::string& browser_guid,
     bool bundles_resources) {
+  RAW_LOG(INFO, "ARJUN: StartServerOnHandlerThread");
   DCHECK(thread->task_runner()->BelongsToCurrentThread());
   std::unique_ptr<ServerWrapper> server_wrapper;
   std::unique_ptr<net::ServerSocket> server_socket =
@@ -820,6 +821,7 @@ DevToolsHttpHandler::DevToolsHttpHandler(
     const base::FilePath& output_directory,
     const base::FilePath& debug_frontend_dir)
     : delegate_(delegate) {
+  RAW_LOG(INFO, "ARJUN: DevToolsHttpHandler");
   browser_guid_ =
       delegate_->IsBrowserTargetDiscoverable()
           ? kBrowserUrlPrefix

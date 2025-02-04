@@ -9,6 +9,7 @@
 #include "base/debug/alias.h"
 #include "base/process/current_process.h"
 #include "base/time/time.h"
+#include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "content/browser/browser_main_runner_impl.h"
 #include "content/common/content_constants_internal.h"
@@ -17,6 +18,7 @@ namespace content {
 
 // Main routine for running as the Browser process.
 int BrowserMain(MainFunctionParams parameters) {
+  RAW_LOG(INFO, "ARJUN: BrowserMain A");
   TRACE_EVENT_INSTANT0("startup", "BrowserMain", TRACE_EVENT_SCOPE_THREAD);
 
   base::CurrentProcess::GetInstance().SetProcessType(
@@ -27,6 +29,7 @@ int BrowserMain(MainFunctionParams parameters) {
   std::unique_ptr<BrowserMainRunnerImpl> main_runner(
       BrowserMainRunnerImpl::Create());
 
+  RAW_LOG(INFO, "ARJUN: BrowserMain B");
   int exit_code = main_runner->Initialize(std::move(parameters));
   if (exit_code >= 0)
     return exit_code;

@@ -134,6 +134,7 @@ void DevToolsAgentHost::StartRemoteDebuggingServer(
   DevToolsManagerDelegate* delegate =
       DevToolsManager::GetInstance()->delegate();
   CHECK(delegate);
+  RAW_LOG(INFO, "ARJUN: DevToolsAgentHost::StartRemoteDebuggingServer");
   SetDevToolsHttpHandler(std::make_unique<DevToolsHttpHandler>(
       delegate, std::move(server_socket_factory), active_port_output_directory,
       debug_frontend_dir));

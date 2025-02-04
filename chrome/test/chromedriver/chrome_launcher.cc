@@ -554,6 +554,7 @@ Status LaunchDesktopChrome(network::mojom::URLLoaderFactory* factory,
     return Status(
         kUnknownError,
         base::StringPrintf("Failed to create %s process.", kBrowserShortName));
+  VLOG(0) << "Launched chrome process";
 
   // Attempt to connect to devtools in order to send commands to Chrome. If
   // attempts fail, check if Chrome has crashed and return error.

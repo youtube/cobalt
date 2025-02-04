@@ -1189,10 +1189,12 @@ std::unique_ptr<WebContentsImpl> WebContentsImpl::CreateWithOpener(
   OPTIONAL_TRACE_EVENT1("browser", "WebContentsImpl::CreateWithOpener",
                         "opener", opener_rfh);
   FrameTreeNode* opener = nullptr;
+  RAW_LOG(INFO, "ARJUN: WebContents::CreateWithOpener 9");
   if (opener_rfh)
     opener = opener_rfh->frame_tree_node();
   std::unique_ptr<WebContentsImpl> new_contents(
       new WebContentsImpl(params.browser_context));
+  RAW_LOG(INFO, "ARJUN: WebContents::CreateWithOpener 8");
   new_contents->SetOpenerForNewContents(opener, params.opener_suppressed);
 
   // If the opener is sandboxed, a new popup must inherit the opener's sandbox
@@ -1201,6 +1203,7 @@ std::unique_ptr<WebContentsImpl> WebContentsImpl::CreateWithOpener(
   // bit (which is controlled by the "allow-popups-to-escape-sandbox" token).
   // See https://html.spec.whatwg.org/C/#attr-iframe-sandbox.
   FrameTreeNode* new_root = new_contents->GetPrimaryFrameTree().root();
+  RAW_LOG(INFO, "ARJUN: WebContents::CreateWithOpener 7");
   if (opener) {
     network::mojom::WebSandboxFlags opener_flags =
         opener_rfh->active_sandbox_flags();
@@ -1215,16 +1218,19 @@ std::unique_ptr<WebContentsImpl> WebContentsImpl::CreateWithOpener(
   }
 
   // Apply starting sandbox flags.
+  RAW_LOG(INFO, "ARJUN: WebContents::CreateWithOpener 6");
   blink::FramePolicy frame_policy(new_root->pending_frame_policy());
   frame_policy.sandbox_flags |= params.starting_sandbox_flags;
   new_root->SetPendingFramePolicy(frame_policy);
 
   // This may be true even when opener is null, such as when opening blocked
   // popups.
+  RAW_LOG(INFO, "ARJUN: WebContents::CreateWithOpener 5");
   if (params.opened_by_another_window)
     new_contents->opened_by_another_window_ = true;
 
   WebContentsImpl* outer_web_contents = nullptr;
+  RAW_LOG(INFO, "ARJUN: WebContents::CreateWithOpener 4");
   if (params.guest_delegate) {
     // This makes |new_contents| act as a guest.
     // For more info, see comment above class BrowserPluginGuest.
@@ -1234,9 +1240,12 @@ std::unique_ptr<WebContentsImpl> WebContentsImpl::CreateWithOpener(
         params.guest_delegate->GetOwnerWebContents());
   }
 
+  RAW_LOG(INFO, "ARJUN: WebContents::CreateWithOpener 3");
   new_contents->Init(params, frame_policy);
+  RAW_LOG(INFO, "ARJUN: WebContents::CreateWithOpener 2");
   if (outer_web_contents)
     outer_web_contents->InnerWebContentsCreated(new_contents.get());
+  RAW_LOG(INFO, "ARJUN: WebContents::CreateWithOpener 1");
   return new_contents;
 }
 

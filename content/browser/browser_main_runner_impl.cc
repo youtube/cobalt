@@ -69,6 +69,7 @@ BrowserMainRunnerImpl::~BrowserMainRunnerImpl() {
 }
 
 int BrowserMainRunnerImpl::Initialize(MainFunctionParams parameters) {
+  RAW_LOG(INFO, "ARJUN: BrowserMainRunnerImpl::Initialize A");
   SCOPED_UMA_HISTOGRAM_LONG_TIMER(
       "Startup.BrowserMainRunnerImplInitializeLongTime");
   TRACE_EVENT0("startup", "BrowserMainRunnerImpl::Initialize");
@@ -136,6 +137,7 @@ int BrowserMainRunnerImpl::Initialize(MainFunctionParams parameters) {
 
     ui::InitializeInputMethod();
   }
+  RAW_LOG(INFO, "ARJUN: BrowserMainRunnerImpl::Initialize B");
   main_loop_->CreateStartupTasks();
   int result_code = main_loop_->GetResultCode();
   if (result_code > 0) {

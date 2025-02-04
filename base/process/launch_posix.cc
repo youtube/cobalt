@@ -485,6 +485,9 @@ Process LaunchProcess(const std::vector<std::string>& argv,
     const char* executable_path = !options.real_path.empty() ?
         options.real_path.value().c_str() : argv_cstr[0];
 
+    RAW_LOG(INFO, "arjun");
+    RAW_LOG(INFO, executable_path);
+
     execvp(executable_path, argv_cstr.data());
 
     RAW_LOG(ERROR, "LaunchProcess: failed to execvp:");
