@@ -45,7 +45,12 @@ runs:
         # Make results dir available to the archiving step below.
         results_dir="${GITHUB_WORKSPACE}/results"
         echo "results_dir=${results_dir}" >> $GITHUB_ENV
-        mkdir -p ${results_dir}
+
+        # Test results (xml and logs) must be in a subfolder in results_dir
+        # to be picked up by the test result processor.
+        # This also prevents accidental overwriting when collecting results.
+        test_output="${results_dir}/shard_${{ matrix.shard }}"
+        mkdir -p ${test_output}
 
         failed_suites=""
         cd "${test_dir}"
@@ -62,10 +67,8 @@ runs:
 
           echo "Test filter evaluated to: ${test_filter}"
 
-          # Test results (xml and logs) must be in a subfolder in results_dir
-          # to be picked up by the test result processor.
-          xml_path="${results_dir}/shard_${{ matrix.shard }}/${test_binary}_testoutput.xml"
-          log_path="${results_dir}/shard_${{ matrix.shard }}/${test_binary}_log.txt"
+          xml_path="${test_output}/${test_binary}_result.xml"
+          log_path="${test_output}/${test_binary}_log.txt"
           # TODO: Investigate test_runner.py
           /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
               ./"${test_binary_path}" \
