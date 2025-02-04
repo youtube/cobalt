@@ -98,9 +98,15 @@ TEST_P(PosixSocketResolveTest, SunnyDayFiltered) {
                   result == EAI_FAMILY || result == EAI_ADDRFAMILY)
           << " result = " << result;
 #else
+#if defined(WSANO_DATA)
+      EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
+                  result == WSANO_DATA || result == EAI_FAMILY)
+          << " result = " << result;
+#else
       EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
                   result == EAI_FAMILY)
           << " result = " << result;
+#endif
 #endif
       ASSERT_EQ(nullptr, ai);
     }
@@ -160,9 +166,15 @@ TEST_P(PosixSocketResolveTest, SunnyDayFlags) {
                     result == EAI_FAMILY || result == EAI_ADDRFAMILY)
             << " result = " << result;
 #else
+#if defined(WSANO_DATA)
+        EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
+                    result == WSANO_DATA || result == EAI_FAMILY)
+            << " result = " << result;
+#else
         EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
                     result == EAI_FAMILY)
             << " result = " << result;
+#endif
 #endif
         ASSERT_EQ(nullptr, ai);
       }
@@ -170,7 +182,7 @@ TEST_P(PosixSocketResolveTest, SunnyDayFlags) {
 
     for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
       // Not all platforms report these flags with the results.
-      if (hints.ai_flags & ~(AI_PASSIVE | AI_CANONNAME | AI_NUMERICSERV)) {
+      if (hints.ai_flags & ~(AI_PASSIVE | AI_CANONNAME | AI_ADDRCONFIG)) {
         EXPECT_EQ(hints.ai_flags, i->ai_flags);
       }
       if (GetAddressFamily() != AF_UNSPEC) {
