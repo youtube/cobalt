@@ -295,7 +295,6 @@ jobs:
           datadog_api_key: ${{ secrets.datadog_api_key }}
       - name: Print ${{ matrix.test_target }} Logs
         if: always()
-        continue-on-error: true
         run: |
           set -x
           shopt -s globstar
