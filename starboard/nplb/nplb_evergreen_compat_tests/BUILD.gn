@@ -12,11 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target(gtest_target_type, "nplb_evergreen_compat_tests") {
+source_set("nplb_evergreen_compat_tests") {
   testonly = true
 
   sources = [
-    "//starboard/common/test_main.cc",
     "checks.h",
     "crashpad_config_test.cc",
     "executable_memory_test.cc",
@@ -27,6 +26,7 @@ target(gtest_target_type, "nplb_evergreen_compat_tests") {
     "storage_test.cc",
   ]
 
+  deps = [ "//starboard/common" ]
   public_deps = [
     "//starboard:starboard_group",
     "//testing/gmock",
