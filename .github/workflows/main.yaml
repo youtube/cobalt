@@ -300,15 +300,13 @@ jobs:
           set -x
           shopt -s globstar
 
-          test_target="${{ steps.extract-target-name.outputs.test_target }}"
-
-          ls "results/**/${test_target}*log.txt" >> /dev/null
+          ls "results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt"
           if [ $? -ne 0 ]; then
             echo "::error::No test logs found. Check test job to see what went wrong."
             exit 1
           fi
 
-          cat "results/**/${test_target}*log.txt"
+          cat "results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt"
 
           if [ "${{ steps.process-results.outcome }}" != "success" ]; then
             echo "Tests failed"
