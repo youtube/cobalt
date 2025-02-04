@@ -53,7 +53,6 @@ class MODULES_EXPORT H5vccSystem final
   void OnGetAdvertisingId(ScriptPromiseResolver*, const String&);
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_system::mojom::blink::H5vccSystem> remote_h5vcc_system_;
-  String advertising_id_;
 };
 
 }  // namespace blink
