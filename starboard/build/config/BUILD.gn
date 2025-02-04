@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/contrib/cast/cast.gni")
+
 config("base") {
   defines = []
 
@@ -71,17 +73,20 @@ config("host") {
 
 config("target") {
   if (current_toolchain != host_toolchain) {
-    if (final_executable_type == "shared_library") {
-      # Rewrite main() functions into StarboardMain. TODO: This is a
-      # hack, it would be better to be more surgical, here.
-      defines = [ "main=StarboardMain" ]
-    } else {
+    if (final_executable_type == "shared_library" || use_contrib_cast) {
       # To link into a shared library on Linux and similar platforms,
       # the compiler must be told to generate Position Independent Code.
       # This appears to cause errors when linking the code statically,
       # however.
       cflags = [ "-fPIC" ]
     }
+
+    if (final_executable_type == "shared_library") {
+      # Rewrite main() functions into StarboardMain. TODO: This is a
+      # hack, it would be better to be more surgical, here.
+      defines = [ "main=StarboardMain" ]
+    }
+
 
     if (is_starboard) {
       configs = [ ":starboard" ]
@@ -104,6 +109,10 @@ config("starboard") {
 
   if (sb_allows_memory_tracking) {
     defines += [ "STARBOARD_ALLOWS_MEMORY_TRACKING" ]
+  }
+
+  if (use_contrib_cast) {
+    defines += [ "SB_IS_CAST_API=1" ]
   }
 
   if (sb_enable_lib) {
