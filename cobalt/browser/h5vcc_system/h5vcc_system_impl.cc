@@ -13,9 +13,11 @@
 // limitations under the License.
 
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl.h"
-
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "starboard/android/shared/starboard_bridge.h"
+
+using starboard::android::shared::StarboardBridge;
 
 namespace h5vcc_system {
 
@@ -33,7 +35,12 @@ void H5vccSystemImpl::Create(
 
 void H5vccSystemImpl::GetAdvertisingId(GetAdvertisingIdCallback callback) {
   LOG(INFO) << "H5vccSystemImpl::GetAdvertisingId";
-  std::move(callback).Run("fake advertisingId from H5vccSystemImpl");
+
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge* starbooard_bridge = StarboardBridge::GetInstance();
+  std::string advertising_id = starbooard_bridge->GetAdvertisingId(env);
+
+  std::move(callback).Run(advertising_id);
 }
 
 }  // namespace h5vcc_system
