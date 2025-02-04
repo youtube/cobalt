@@ -213,8 +213,9 @@ TEST_P(PosixSocketResolveTest, Localhost) {
 
   int result = getaddrinfo(kLocalhost, 0, &hints, &ai);
 #if SB_API_VERSION < 16
-  if (result == EAI_BADFLAGS && GetAddressFamily() == AF_INET6) {
-    // It's ok to return EAI_BADFLAGS for IPv6 on Starboard < 16.
+  if ((result == EAI_BADFLAGS || result == EAI_NODATA) &&
+      GetAddressFamily() == AF_INET6) {
+    // It's ok to return EAI_BADFLAGS or EAI_NODATA for IPv6 on Starboard < 16.
     freeaddrinfo(ai);
     return;
   }
