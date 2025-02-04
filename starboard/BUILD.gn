@@ -303,7 +303,18 @@ if (current_toolchain == starboard_toolchain) {
 target( "executable", "starboard_unittest") {
   testonly = true
   deps = [
+    "//starboard/client_porting/eztime:eztime_test",
     "//starboard/common:common_test",
     "//starboard/extension:extension_test",
+    "//starboard/loader_app:app_key_files_test",
+    "//starboard/loader_app:app_key_test",
+    "//starboard/loader_app:drain_file_test",
+    "//starboard/nplb/nplb_evergreen_compat_tests",
   ]
+  # TODO(mcasas): Give this condition a meaningful name.
+  if (current_toolchain == starboard_toolchain) {
+    deps += [
+      "//starboard/elf_loader:elf_loader_test",
+    ]
+  }
 }
