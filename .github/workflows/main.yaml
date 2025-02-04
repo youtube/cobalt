@@ -331,6 +331,7 @@ jobs:
       - name: Fail
         if: needs.test-results.result != 'skipped' && needs.test-results.result != 'success'
         run: |
+            # TODO: Print a summary of failed tests here.
             echo "Test jobs failed. See separate job log for details."
             exit 1
         shell: bash
