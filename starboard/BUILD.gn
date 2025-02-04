@@ -26,10 +26,6 @@ if (!is_cobalt) {
       "//starboard/client_porting/icu_init",
     ]
     if (enable_test_targets) {
-      if (sb_is_evergreen_compatible &&
-          current_toolchain == starboard_toolchain) {
-        deps += [ "//starboard/nplb/nplb_evergreen_compat_tests" ]
-      }
       deps += [
         ":starboard_unittest",
         "//starboard/examples/glclear:starboard_glclear_example",
@@ -306,7 +302,8 @@ target( "executable", "starboard_unittests") {
     "//starboard/loader_app:app_key_test",
     "//starboard/loader_app:drain_file_test",
   ]
-  if (sb_is_evergreen_compatible) {
+  if (sb_is_evergreen_compatible &&
+      current_toolchain == starboard_toolchain) {
     deps += [ "//starboard/nplb/nplb_evergreen_compat_tests" ]
   }
   # TODO(mcasas): Give this condition a meaningful name.
