@@ -78,8 +78,8 @@ static_library("common") {
     "socket.cc",
     "socket.h",
     "spin_lock.cc",
-    "spin_lock.h",
-    "storage.cc",
+    "spin_lock.h"
+,    "storage.cc",
     "storage.h",
     "string.h",
     "system_property.h",
@@ -99,7 +99,7 @@ static_library("file_wrapper") {
   deps = [ "//starboard:starboard_headers_only" ]
 }
 
-target(gtest_target_type, "common_test") {
+source_set("common_test") {
   testonly = true
   sources = [
     "fixed_no_free_allocator_test.cc",
@@ -117,3 +117,4 @@ target(gtest_target_type, "common_test") {
     "//testing/gtest",
   ]
 }
+
