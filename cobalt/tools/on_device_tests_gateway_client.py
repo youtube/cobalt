@@ -139,8 +139,8 @@ def _process_test_requests(args):
     if args.dimensions:
       dimensions = json.loads(args.dimensions)
       # Pop mandatory dimensions for special handling.
-      device_type = dimensions.pop(device_type)
-      device_pool = dimensions.pop(device_pool)
+      device_type = dimensions.pop('device_type')
+      device_pool = dimensions.pop('device_pool')
       tests_args += [f'dimension_{key}={value}' for key, value in dimensions]
     else:
       raise RuntimeError('Dimensions not specified: device_type, device_pool')
