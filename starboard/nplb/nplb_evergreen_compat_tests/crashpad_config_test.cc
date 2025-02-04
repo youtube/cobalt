@@ -19,7 +19,6 @@
 
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/crash_handler.h"
-#include "starboard/nplb/nplb_evergreen_compat_tests/checks.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
