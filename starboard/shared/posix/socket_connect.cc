@@ -15,6 +15,7 @@
 #include "starboard/common/socket.h"
 
 #include <errno.h>
+#include <string.h>
 #include <sys/socket.h>
 
 #include "starboard/common/log.h"
@@ -49,7 +50,7 @@ SbSocketError SbSocketConnect(SbSocket socket, const SbSocketAddress* address) {
   }
 
   if (result != 0) {
-    SB_LOG(ERROR) << __FUNCTION__ << ": connect failed: " << errno;
+    SB_LOG(ERROR) << __FUNCTION__ << ": connect failed: " << strerror(errno);
     return (socket->error = kSbSocketErrorFailed);
   }
 
