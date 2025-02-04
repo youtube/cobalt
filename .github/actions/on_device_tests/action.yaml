@@ -33,7 +33,7 @@ runs:
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
-        TEST_TARGETS: ${{ inputs.test_targets }}
+        TEST_TARGETS_JSON: ${{ inputs.test_targets }}
         GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
         GCS_RESULTS_PATH: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
         GITHUB_SHA: ${{ github.sha }}
@@ -53,11 +53,13 @@ runs:
         GITHUB_WORKFLOW: ${{ github.workflow }}
       run: |
         set -x
+        test_targets=$(echo "${TEST_TARGETS_JSON}" | jq -cr '. | join(",")')
+
         # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
           trigger \
-          --targets $(jq -cr '. | join(",")' <<< '$(echo ${TEST_TARGETS})') \
+          --targets ${test_targets} \
           --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform}}" \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
           --label builder-${{ matrix.platform }} \
