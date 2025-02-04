@@ -135,8 +135,15 @@ def _process_test_requests(args):
     ]
     if args.test_attempts:
       tests_args.append(f'test_attempts={args.test_attempts}')
-    if args.dimension:
-      tests_args += [f'dimension_{dimension}' for dimension in args.dimension]
+
+    if args.dimensions:
+      dimensions = json.loads(args.dimensions)
+      # Pop mandatory dimensions for special handling.
+      device_type = dimensions.pop('device_type')
+      device_pool = dimensions.pop('device_pool')
+      tests_args += [f'dimension_{key}={value}' for key, value in dimensions]
+    else:
+      raise RuntimeError('Dimensions not specified: device_type, device_pool')
 
     gtest_filter = _get_gtest_filters(args.filter_json_dir, target_name)
     command_line_args = ' '.join([
@@ -160,10 +167,6 @@ def _process_test_requests(args):
         f'gcs_result_filename={target_name}_result.xml',
         f'gcs_log_filename={target_name}_log.txt'
     ]
-
-    # TODO(oxv): Figure out how to get dimensions from config to here.
-    device_type = 'sabrina'
-    device_pool = 'maneki'
 
     test_requests.append({
         'test_args': tests_args,
@@ -257,11 +260,9 @@ def main() -> int:
       help='Additional labels to assign to the test.',
   )
   trigger_parser.add_argument(
-      '--dimension',
+      '--dimensions',
       type=str,
-      action='append',
-      help='On-Device Tests dimension used to select a device. Must have the '
-      'following form: <dimension>=<value>. E.G. "release_version=regex:10.*"',
+      help='On-Device Tests dimensions as JSON key-values.',
   )
   trigger_parser.add_argument(
       '--test_attempts',
