@@ -177,44 +177,72 @@ int ConvertSocketAddressPosixToSb(const struct sockaddr* address, SbSocketAddres
     errno = EINVAL;
     return -1;
   }
-  struct sockaddr_in* addr_in = (struct sockaddr_in*)address;
-  switch (addr_in->sin_family){
-    case AF_INET:
+  switch (address->sa_family) {
+    case AF_INET: {
+      struct sockaddr_in* addr_in = (struct sockaddr_in*)address;
       sbAddress->type = kSbSocketAddressTypeIpv4;
+      sbAddress->port = addr_in->sin_port;
       memcpy(sbAddress->address, &addr_in->sin_addr, kAddressLengthIpv4);
       break;
+    }
 #if SB_HAS(IPV6)
-    case AF_INET6:
+    case AF_INET6: {
+      struct sockaddr_in6* addr_in = (struct sockaddr_in6*)address;
       sbAddress->type = kSbSocketAddressTypeIpv6;
-      memcpy(sbAddress->address, &addr_in->sin_addr, kAddressLengthIpv6);
+      sbAddress->port = addr_in->sin6_port;
+      memcpy(sbAddress->address, &addr_in->sin6_addr, kAddressLengthIpv6);
       break;
+    }
 #endif
   }
-  sbAddress->port = addr_in->sin_port;
 
   return 0;
 }
 
-int ConvertSocketAddressSbToPosix(const SbSocketAddress* sbAddress, struct sockaddr* address){
-  if (sbAddress == NULL){
+int SocketAddressSbToPosixAddressSize(const SbSocketAddress* sbAddress) {
+  if (sbAddress == NULL) {
+    return 0;
+  }
+  switch (sbAddress->type) {
+    case kSbSocketAddressTypeIpv4: {
+      return sizeof(struct sockaddr_in);
+    }
+#if SB_HAS(IPV6)
+    case kSbSocketAddressTypeIpv6: {
+      return sizeof(struct sockaddr_in6);
+    }
+#endif
+    default: {
+    }
+  }
+  return 0;
+}
+
+int ConvertSocketAddressSbToPosix(const SbSocketAddress* sbAddress,
+                                  struct sockaddr* address) {
+  if (sbAddress == NULL) {
     errno = EINVAL;
     return -1;
   }
-  struct sockaddr_in* addr_in = (struct sockaddr_in*)address;
-  switch (sbAddress->type){
-    case kSbSocketAddressTypeIpv4:
+  switch (sbAddress->type) {
+    case kSbSocketAddressTypeIpv4: {
+      struct sockaddr_in* addr_in = (struct sockaddr_in*)address;
       addr_in->sin_family = AF_INET;
+      addr_in->sin_port = sbAddress->port;
       memcpy(&addr_in->sin_addr, sbAddress->address, kAddressLengthIpv4);
       break;
+    }
 #if SB_HAS(IPV6)
-    case kSbSocketAddressTypeIpv6:
-      addr_in->sin_family = AF_INET6;
-      memcpy(&addr_in->sin_addr, sbAddress->address, kAddressLengthIpv6);
+    case kSbSocketAddressTypeIpv6: {
+      struct sockaddr_in6* addr_in = (struct sockaddr_in6*)address;
+      addr_in->sin6_family = AF_INET6;
+      addr_in->sin6_port = sbAddress->port;
+      memcpy(&addr_in->sin6_addr, sbAddress->address, kAddressLengthIpv6);
       break;
+    }
 #endif
     default:{}
   }
-  addr_in->sin_port = sbAddress->port;
 
   return 0;
 }
@@ -878,12 +906,14 @@ int getaddrinfo(const char* node, const char* service, const struct addrinfo* hi
       filters = kSbSocketResolveFilterIpv6 & kSbSocketResolveFilterIpv4;
     }
     else {
+      *res = NULL;
       return -1;
     }
   }
 
   SbSocketResolution* sbSockResolve = SbSocketResolve(node, filters);
-  if (sbSockResolve == NULL){
+  if (sbSockResolve == NULL) {
+    *res = NULL;
     return -1;
   }
 
@@ -892,16 +922,20 @@ int getaddrinfo(const char* node, const char* service, const struct addrinfo* hi
   *res = ai;
 
   for(int i = 0; i < sbSockResolve->address_count; i++){
-    ai->ai_addr = (struct sockaddr*)malloc(sizeof(struct sockaddr));
-    memset(ai->ai_addr, 0, sizeof(struct sockaddr));
-    ConvertSocketAddressSbToPosix( &sbSockResolve->addresses[i], ai->ai_addr);
-    ai->ai_addrlen = sizeof(struct sockaddr);
+    SbSocketAddress* address = &sbSockResolve->addresses[i];
+    int address_size = SocketAddressSbToPosixAddressSize(address);
+    ai->ai_addr = (struct sockaddr*)malloc(address_size);
+    memset(ai->ai_addr, 0, address_size);
+    ConvertSocketAddressSbToPosix(address, ai->ai_addr);
+    ai->ai_addrlen = 0;
 
     if (sbSockResolve->addresses[i].type == kSbSocketAddressTypeIpv4) {
+      ai->ai_addrlen = sizeof(struct sockaddr_in);
       ai->ai_family = AF_INET;
     }
 #if SB_HAS(IPV6)
     if (sbSockResolve->addresses[i].type == kSbSocketAddressTypeIpv6) {
+      ai->ai_addrlen = sizeof(struct sockaddr_in6);
       ai->ai_family = AF_INET6;
     }
 #endif
@@ -938,8 +972,10 @@ int getifaddrs(struct ifaddrs** ifap) {
   *ifap = (struct ifaddrs*)malloc(sizeof(struct ifaddrs));
   memset(*ifap, 0, sizeof(struct ifaddrs));
   struct ifaddrs* ifa = *ifap;
-  ifa->ifa_addr = (struct sockaddr*)malloc(sizeof(struct sockaddr));
-  memset(ifa->ifa_addr, 0, sizeof(struct sockaddr));
+
+  int address_size = SocketAddressSbToPosixAddressSize(&sbAddress);
+  ifa->ifa_addr = (struct sockaddr*)malloc(address_size);
+  memset(ifa->ifa_addr, 0, address_size);
   ConvertSocketAddressSbToPosix(&sbAddress, ifa->ifa_addr);
   return 0;
 }
