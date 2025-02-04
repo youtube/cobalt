@@ -31,11 +31,10 @@ if (!is_cobalt) {
         deps += [ "//starboard/nplb/nplb_evergreen_compat_tests" ]
       }
       deps += [
-        "//starboard/client_porting/eztime:eztime_test",
+        ":starboard_unittest",
         "//starboard/examples/glclear:starboard_glclear_example",
         "//starboard/examples/hello_world:starboard_hello_world_example",
         "//starboard/examples/window:starboard_window_example",
-        "//starboard/extension:extension_test",
         "//starboard/nplb",
       ]
     }
@@ -309,8 +308,10 @@ target( "executable", "starboard_unittest") {
     "//starboard/loader_app:app_key_files_test",
     "//starboard/loader_app:app_key_test",
     "//starboard/loader_app:drain_file_test",
-    "//starboard/nplb/nplb_evergreen_compat_tests",
   ]
+  if (sb_is_evergreen_compatible) {
+    deps += [ "//starboard/nplb/nplb_evergreen_compat_tests" ]
+  }
   # TODO(mcasas): Give this condition a meaningful name.
   if (current_toolchain == starboard_toolchain) {
     deps += [

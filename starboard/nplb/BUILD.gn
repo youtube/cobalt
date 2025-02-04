@@ -100,6 +100,8 @@ test("nplb") {
     "microphone_open_test.cc",
     "microphone_read_test.cc",
     "murmurhash2_test.cc",
+    "nplb_evergreen_compat_tests/crashpad_config_test.cc",
+    "nplb_evergreen_compat_tests/fonts_test.cc",
     "optional_test.cc",
     "player_creation_param_helpers.cc",
     "player_creation_param_helpers.h",
