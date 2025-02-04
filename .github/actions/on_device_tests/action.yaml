@@ -87,7 +87,7 @@ runs:
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
       run: |
         set -uxe
-        test_output="${GITHUB_WORKSPACE}/results/"
+        test_output="${GITHUB_WORKSPACE}/results"
         echo "test_output=${test_output}" >> $GITHUB_ENV
 
         # Test results (xml and logs) must be in a subfolder in results_dir
