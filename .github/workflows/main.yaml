@@ -79,6 +79,11 @@ jobs:
         run: |
           test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
           echo "test_on_device=${test_on_device}" >> $GITHUB_ENV
+      - id: set-test-dimensions
+        shell: bash
+        run: |
+          test_dimensions=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_dimensions')
+          echo "test_dimensions=${test_dimensions}" >> $GITHUB_ENV
       - id: set-docker-service
         shell: bash
         run: |
@@ -103,6 +108,7 @@ jobs:
       gtest_shards: ${{ env.gtest_shards }}
       test_on_host: ${{ env.test_on_host }}
       test_on_device: ${{ env.test_on_device }}
+      test_dimensions: ${{ env.test_dimensions }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -209,6 +215,7 @@ jobs:
         with:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
+          test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
 
   on-host-test:
     needs: [initialize, docker-build-image, build]
