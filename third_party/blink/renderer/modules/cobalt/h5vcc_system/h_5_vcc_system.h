@@ -45,6 +45,7 @@ class MODULES_EXPORT H5vccSystem final
 
   // Web-exposed interface:
   ScriptPromise getAdvertisingId(ScriptState*, ExceptionState&);
+  bool limitAdTracking() const;
 
   void Trace(Visitor*) const override;
 

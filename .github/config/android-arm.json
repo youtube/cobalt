@@ -3,10 +3,13 @@
   "platforms": [
     "android-arm"
   ],
+  "test_on_device": true,
+  "test_dimensions": {
+    "gtest_device": "sabrina",
+    "gtest_lab": "maneki"
+  },
   "targets": [
     "content_shell",
-    "system_webview_apk",
-    "system_webview_shell_apk",
     "cobalt:gn_all"
   ],
   "includes": [

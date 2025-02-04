@@ -57,6 +57,13 @@ void H5vccSystem::EnsureReceiverIsBound() {
       remote_h5vcc_system_.BindNewPipeAndPassReceiver(task_runner));
 }
 
+bool H5vccSystem::limitAdTracking() const {
+  NOTIMPLEMENTED();
+
+  // TODO(b/377049113) add a mojom service and populate the value.
+  return false;
+}
+
 void H5vccSystem::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);

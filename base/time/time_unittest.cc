@@ -14,6 +14,7 @@
 #include "base/check_op.h"
 #include "base/compiler_specific.h"
 #include "base/environment.h"
+#include "base/logging.h"
 #include "base/test/gtest_util.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time_override.h"
@@ -24,7 +25,11 @@
 #include "third_party/icu/source/common/unicode/utypes.h"
 #include "third_party/icu/source/i18n/unicode/timezone.h"
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/common/time.h"  // nogncheck
+#include "starboard/types.h"  // nogncheck
+#include "starboard/client_porting/eztime/eztime.h"  // nogncheck
+#elif BUILDFLAG(IS_ANDROID)
 #include "base/android/jni_android.h"
 #elif BUILDFLAG(IS_FUCHSIA) || BUILDFLAG(IS_CHROMEOS)
 #include "base/test/icu_test_util.h"
@@ -35,6 +40,19 @@
 namespace base {
 
 namespace {
+
+#if BUILDFLAG(IS_STARBOARD)
+time_t sb_mktime(struct tm *tm) {
+  if (tm == nullptr) {
+    return -1;
+  }
+  EzTimeExploded exploded = {tm->tm_sec,  tm->tm_min,  tm->tm_hour,
+                             tm->tm_mday, tm->tm_mon,  tm->tm_year,
+                             tm->tm_wday, tm->tm_yday, tm->tm_isdst};
+  EzTimeT secs = EzTimeTImplode(&exploded, EzTimeZone::kEzTimeZoneLocal);
+  return static_cast<time_t>(secs);
+}
+#endif
 
 #if BUILDFLAG(IS_FUCHSIA)
 // Hawaii does not observe daylight saving time, which is useful for having a
@@ -200,7 +218,11 @@ class TimeTest : public testing::Test {
       -1            // DST in effect, -1 tells mktime to figure it out
     };
 
+#if BUILDFLAG(IS_STARBOARD)
+    time_t converted_time = sb_mktime(&local_comparison_tm);
+#else
     time_t converted_time = mktime(&local_comparison_tm);
+#endif
     ASSERT_GT(converted_time, 0);
     comparison_time_local_ = Time::FromTimeT(converted_time);
 
@@ -249,6 +271,10 @@ TEST_F(TimeTest, TimeT) {
   EXPECT_EQ(0, Time().ToTimeT());
   EXPECT_EQ(0, Time::FromTimeT(0).ToInternalValue());
 }
+
+// TODO: b/327008491 - Not used by Cobalt, but should be tested to get
+// closer to Chrome.
+#if !BUILDFLAG(IS_STARBOARD)
 
 // Test conversions to/from time_t and exploding/unexploding (utc time).
 TEST_F(TimeTest, UTCTimeT) {
@@ -322,6 +348,7 @@ TEST_F(TimeTest, LocalTimeT) {
   time_t now_t_2 = our_time_2.ToTimeT();
   EXPECT_EQ(now_t_1, now_t_2);
 }
+#endif
 
 // Test conversions to/from javascript time.
 TEST_F(TimeTest, JsTime) {
@@ -340,6 +367,7 @@ TEST_F(TimeTest, JsTime) {
   EXPECT_EQ(kWindowsEpoch, time.ToJsTimeIgnoringNull());
 }
 
+#if !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 TEST_F(TimeTest, FromTimeVal) {
   Time now = Time::Now();
@@ -347,6 +375,7 @@ TEST_F(TimeTest, FromTimeVal) {
   EXPECT_EQ(now, also_now);
 }
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#endif
 
 TEST_F(TimeTest, FromExplodedWithMilliseconds) {
   // Some platform implementations of FromExploded are liable to drop
@@ -878,6 +907,7 @@ TEST_F(TimeTest, MaxConversions) {
   EXPECT_TRUE(t.is_max());
   EXPECT_EQ(std::numeric_limits<time_t>::max(), t.ToTimeT());
 
+#if !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
   struct timeval tval;
   tval.tv_sec = std::numeric_limits<time_t>::max();
@@ -888,6 +918,7 @@ TEST_F(TimeTest, MaxConversions) {
   EXPECT_EQ(std::numeric_limits<time_t>::max(), tval.tv_sec);
   EXPECT_EQ(static_cast<suseconds_t>(Time::kMicrosecondsPerSecond) - 1,
       tval.tv_usec);
+#endif
 #endif
 
 #if BUILDFLAG(IS_APPLE)
@@ -994,8 +1025,10 @@ TEST_F(TimeTest, Explode_Y10KCompliance) {
     Time time;
     Time::Exploded expected;
   } kTestCases[] = {
+#if !BUILDFLAG(IS_STARBOARD)
       // A very long time ago.
       {Time::Min(), Time::Exploded{-290677, 12, 4, 23, 19, 59, 5, 224}},
+#endif
 
       // Before/On/After 1 Jan 1601.
       {make_time(-kHalfYearInMicros),
@@ -1043,8 +1076,10 @@ TEST_F(TimeTest, Explode_Y10KCompliance) {
       {make_time(kIcuMaxMicrosOffset + kHalfYearInMicros),
        Time::Exploded{287397, 4, 3, 12, 8, 59, 0, 992}},
 
+#if !BUILDFLAG(IS_STARBOARD)
       // A very long time from now.
       {Time::Max(), Time::Exploded{293878, 1, 4, 10, 4, 0, 54, 775}},
+#endif
   };
 
   for (const TestCase& test_case : kTestCases) {
@@ -1434,6 +1469,13 @@ ThreadTicks ThreadTicksOverride::now_ticks_;
 #define MAYBE_NowOverride NowOverride
 #endif
 TEST(ThreadTicks, MAYBE_NowOverride) {
+#if BUILDFLAG(IS_STARBOARD)
+  if (starboard::CurrentMonotonicThreadTime() == 0) {
+    LOG(INFO) << "Time thread now not supported. Test skipped.";
+    return;
+  }
+#endif
+
   ThreadTicksOverride::now_ticks_ = ThreadTicks::Min();
 
   // Override is not active. All Now() methods should return a sensible value.
@@ -1679,6 +1721,7 @@ TEST(TimeDelta, InXXXOverflow) {
       "");
 }
 
+#if !BUILDFLAG(IS_STARBOARD)
 #if BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
 TEST(TimeDelta, TimeSpecConversion) {
   TimeDelta delta = Seconds(0);
@@ -1706,6 +1749,7 @@ TEST(TimeDelta, TimeSpecConversion) {
   EXPECT_EQ(delta, TimeDelta::FromTimeSpec(result));
 }
 #endif  // BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#endif
 
 // Our internal time format is serialized in things like databases, so it's
 // important that it's consistent across all our platforms.  We use the 1601

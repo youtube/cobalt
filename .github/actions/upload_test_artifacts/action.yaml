@@ -16,27 +16,16 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: Set up Cloud SDK
-      if: inputs.upload_on_device_test_artifacts == 'true'
-      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    - name: Upload Android Test Artifacts to GCS
-      if: inputs.upload_on_device_test_artifacts == 'true'
-      env:
-        WORKFLOW: ${{ github.workflow }}
-      run: |
-        set -eux
-        project_name=$(gcloud config get-value project)
-        gsutil cp "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/**/*.apk" \
-          "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
-      shell: bash
-
-    - name: Create On-Host Test Artifacts Archive
-      if: inputs.upload_on_host_test_artifacts == 'true'
+    - name: Archive Test Artifacts
       run: |
         set -x
         mkdir ${GITHUB_WORKSPACE}/artifacts
         cd src/
-        ./cobalt/build/archive_test_artifacts.py \
+
+        # Put test targets json file in the out folder for the archiving script to pick up.
+        cp "${{ inputs.test_targets_json_file }}" out/${{ matrix.platform }}_${{ matrix.config }}/
+
+        time ./cobalt/build/archive_test_artifacts.py \
           --source out/${{ matrix.platform }}_${{ matrix.config }}/ \
           --destination ${GITHUB_WORKSPACE}/artifacts \
           --platform ${{ matrix.platform }} \
@@ -49,3 +38,17 @@ runs:
         name: ${{ inputs.test_artifacts_key }}
         path: artifacts/*
         retention-days: 3
+    - name: Set up Cloud SDK
+      if: inputs.upload_on_device_test_artifacts == 'true'
+      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+    - name: Upload Android Test Artifacts to GCS
+      if: inputs.upload_on_device_test_artifacts == 'true'
+      env:
+        WORKFLOW: ${{ github.workflow }}
+      run: |
+        set -eux
+        project_name=$(gcloud config get-value project)
+
+        gsutil cp "${GITHUB_WORKSPACE}/artifacts/*" \
+          "gs://${project_name}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/"
+      shell: bash

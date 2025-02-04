@@ -33,3 +33,20 @@
 -keepclasseswithmembers class * {
   @dev.cobalt.util.UsedByNative <fields>;
 }
+
+# TODO(cobalt, b/393465183): Remove the cobalt prefix if we can avoid symbol relocation.
+-keepclasseswithmembers,allowaccessmodification class ** {
+  @**cobalt.org.chromium.base.annotations.AccessedByNative <fields>;
+}
+
+-keepclasseswithmembers,includedescriptorclasses,allowaccessmodification,allowoptimization class ** {
+  @cobalt.org.chromium.base.annotations.CalledByNative <methods>;
+}
+
+-keepclasseswithmembernames,includedescriptorclasses,allowaccessmodification class ** {
+  native <methods>;
+}
+
+-keepclasseswithmembers,allowaccessmodification class ** {
+  @**cobalt.org.chromium.base.annotations.AccessedByNative <fields>;
+}

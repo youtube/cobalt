@@ -454,6 +454,17 @@ test("device_unittests") {
   if (is_chromeos) {
     deps += [ "//chromeos/dbus/u2f" ]
   }
+
+  # The following tests fail to build when udev is disabled.
+  if (is_cobalt && is_linux_without_udev) {
+    sources -= [
+      "fido/ble_adapter_manager_unittest.cc",
+      "fido/fake_fido_discovery_unittest.cc",
+      "fido/fido_request_handler_unittest.cc",
+      "fido/get_assertion_handler_unittest.cc",
+      "fido/make_credential_handler_unittest.cc",
+    ]
+  }
 }
 
 if (is_android) {

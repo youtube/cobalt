@@ -21,4 +21,5 @@
 interface H5vccSystem {
     [CallWith=ScriptState, RaisesException]
     Promise<DOMString> getAdvertisingId();
+    readonly attribute boolean limitAdTracking;
 };

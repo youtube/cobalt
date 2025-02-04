@@ -329,7 +329,7 @@ RunContentProcess(ContentMainParams params,
   autorelease_pool.reset();
 #endif
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_STARBOARD)
   content_main_runner->Shutdown();
 #endif
 

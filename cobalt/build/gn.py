@@ -47,25 +47,20 @@ def get_build_args(build_args_path):
 
 _BUILD_TYPES = {
     'debug': {
-        'symbol_level': 2,
         'is_debug': 'true',
     },
     'devel': {
-        'symbol_level': 1,
         'is_debug': 'false',
     },
     'qa': {
-        'symbol_level': 1,
         'is_official_build': 'true'
     },
     'gold': {
-        'symbol_level': 0,
         'is_official_build': 'true',
         'cobalt_is_release_build': 'true'
     }
 }
 
-CC_WRAPPER = 'sccache'
 CONTROLLED_ARGS = [
     'cc_wrapper',  # See build/toolschain/cc_wrapper.gni
     'is_debug',  # See build/config/BUILDCONFIG.GN
