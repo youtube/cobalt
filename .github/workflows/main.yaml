@@ -293,7 +293,7 @@ jobs:
           target_name: ${{ matrix.test_target }}
           results_path: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           datadog_api_key: ${{ secrets.datadog_api_key }}
-      - name: ${{ matrix.test_target }} logs
+      - name: Print ${{ matrix.test_target }} Logs
         if: always()
         continue-on-error: true
         run: |
@@ -309,6 +309,11 @@ jobs:
           fi
 
           cat "results/**/${test_target}*log.txt"
+
+          if [ "${{ steps.process-results.outcome }}" != "success" ]; then
+            echo "Tests failed"
+            exit 1
+          fi
         shell: bash
 
   validate-test-result:
