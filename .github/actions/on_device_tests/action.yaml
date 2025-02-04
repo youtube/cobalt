@@ -87,11 +87,13 @@ runs:
         GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
       run: |
         set -uxe
-        test_output="${GITHUB_WORKSPACE}/results"
+        test_output="${GITHUB_WORKSPACE}/results/"
         echo "test_output=${test_output}" >> $GITHUB_ENV
 
-        mkdir -p "${test_output}"
-        gsutil cp -r "${GCS_RESULTS_PATH}/" "${test_output}"
+        # Test results (xml and logs) must be in a subfolder in results_dir
+        # to be picked up by the test result processor.
+        mkdir -p "${test_output}/${{ matrix.platform }}"
+        gsutil cp -r "${GCS_RESULTS_PATH}/" "${test_output}/${{ matrix.platform }}"
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@v4
