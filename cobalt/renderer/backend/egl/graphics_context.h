@@ -167,6 +167,8 @@ class GraphicsContextEGL : public GraphicsContext {
   // OpenGL ES implementation.
   bool bgra_format_supported_;
 
+  bool error_context_lost_ = false;
+
   // Data required to provide BlitToRenderTarget() functionality via OpenGL ES.
   GLuint blit_vertex_shader_;
   GLuint blit_fragment_shader_;
