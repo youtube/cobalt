@@ -587,7 +587,7 @@ TEST(ExtensionTest, MediaSettings) {
   EXPECT_STREQ(extension_api->name, kExtensionName);
 
   EXPECT_GE(extension_api->version, 1u);
-  EXPECT_LE(extension_api->version, 2u);
+  EXPECT_LE(extension_api->version, 3u);
   EXPECT_NE(extension_api->EnableAsyncReleaseMediaCodecBridge, nullptr);
 
   if (extension_api->version >= 2) {
