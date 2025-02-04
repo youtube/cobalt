@@ -15,6 +15,7 @@ import("//build/rust/rust_static_library.gni")
 import("//build_overrides/build.gni")
 if (is_starboard) {
   import("//cobalt/build/testing/cobalt_test_templates.gni")
+  import("//cobalt/build/configs/modular_variables.gni")
 }
 
 declare_args() {
@@ -960,7 +961,8 @@ template("test") {
         data_deps += [ ":${invoker.target_name}__rts_filters" ]
       }
     }
-  } else if (is_starboard) {
+  # TODO: b/384652502 - Cobalt: Remove use_custom_libc
+  } else if (is_starboard && use_custom_libc) {
     cobalt_test(target_name) {
       forward_variables_from(invoker,
                              "*",
