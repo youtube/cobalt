@@ -34,12 +34,12 @@ void H5vccSystemImpl::Create(
 }
 
 void H5vccSystemImpl::GetAdvertisingId(GetAdvertisingIdCallback callback) {
-  LOG(INFO) << "H5vccSystemImpl::GetAdvertisingId";
-
+  std::string advertising_id;
+#if BUILDFLAG(IS_ANDROID)
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starbooard_bridge = StarboardBridge::GetInstance();
-  std::string advertising_id = starbooard_bridge->GetAdvertisingId(env);
-
+  advertising_id = starbooard_bridge->GetAdvertisingId(env);
+#endif
   std::move(callback).Run(advertising_id);
 }
 
