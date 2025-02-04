@@ -5,8 +5,8 @@
   ],
   "test_on_device": true,
   "test_dimensions": {
-    "gtest_device": "sabrina",
-    "gtest_lab": "maneki"
+    "device_type": "sabrina",
+    "device_pool": "maneki"
   },
   "targets": [
     "content_shell",
