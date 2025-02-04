@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <netdb.h>
+#include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 
@@ -44,6 +45,7 @@ class PosixSocketResolveTest
 
 // A random host name to use to test DNS resolution.
 const char kTestHostName[] = "www.example.com";
+const char kTestService[] = "443";
 const char kLocalhost[] = "localhost";
 
 TEST_F(PosixSocketResolveTest, SunnyDay) {
@@ -82,8 +84,27 @@ TEST_P(PosixSocketResolveTest, SunnyDayFiltered) {
   struct addrinfo* ai = nullptr;
 
   int result = getaddrinfo(kTestHostName, 0, &hints, &ai);
-  EXPECT_EQ(result, 0);
-  ASSERT_NE(nullptr, ai);
+  if (GetAddressFamily() == AF_UNSPEC) {
+    ASSERT_EQ(result, 0);
+    ASSERT_NE(nullptr, ai);
+  } else {
+    // Requests with a specified address family are allowed to return that there
+    // are no matches.
+    if (result == 0) {
+      ASSERT_NE(nullptr, ai);
+    } else {
+#if defined(EAI_ADDRFAMILY)
+      EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
+                  result == EAI_FAMILY || result == EAI_ADDRFAMILY)
+          << " result = " << result;
+#else
+      EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
+                  result == EAI_FAMILY)
+          << " result = " << result;
+#endif
+      ASSERT_EQ(nullptr, ai);
+    }
+  }
 
   for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
     if (GetAddressFamily() != AF_UNSPEC) {
@@ -109,9 +130,9 @@ TEST_P(PosixSocketResolveTest, SunnyDayFlags) {
   // Non-modular builds use native libc getaddrinfo.
 #if defined(SB_MODULAR_BUILD)
       // And bionic does not support these flags.
-      AI_V4MAPPED, AI_NUMERICHOST, AI_NUMERICSERV,
+      AI_V4MAPPED, AI_V4MAPPED | AI_ALL, AI_NUMERICHOST, AI_NUMERICSERV,
 #endif
-      AI_PASSIVE,  AI_CANONNAME,   AI_ADDRCONFIG,
+      AI_PASSIVE,  AI_CANONNAME,         AI_ADDRCONFIG,
   };
   for (auto flag : flags_to_test) {
     hints.ai_family = GetAddressFamily();
@@ -120,12 +141,38 @@ TEST_P(PosixSocketResolveTest, SunnyDayFlags) {
     hints.ai_flags = flag;
     struct addrinfo* ai = nullptr;
 
-    int result = getaddrinfo(kTestHostName, 0, &hints, &ai);
-    EXPECT_EQ(result, 0);
-    ASSERT_NE(nullptr, ai);
+    int result =
+        getaddrinfo((flag & AI_PASSIVE) ? nullptr : kTestHostName,
+                    (flag & AI_PASSIVE) ? kTestService : nullptr, &hints, &ai);
+    if (GetAddressFamily() == AF_UNSPEC) {
+      ASSERT_EQ(result, 0);
+      ASSERT_NE(nullptr, ai);
+    } else {
+      // Requests with a specified address family are allowed to return that
+      // there are no matches, unless it's AF_INET6 with AI_V4MAPPED.
+      if (result == 0 ||
+          (GetAddressFamily() == AF_INET6 && flag == AI_V4MAPPED)) {
+        ASSERT_EQ(result, 0);
+        ASSERT_NE(nullptr, ai);
+      } else {
+#if defined(EAI_ADDRFAMILY)
+        EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
+                    result == EAI_FAMILY || result == EAI_ADDRFAMILY)
+            << " result = " << result;
+#else
+        EXPECT_TRUE(result == EAI_NONAME || result == EAI_NODATA ||
+                    result == EAI_FAMILY)
+            << " result = " << result;
+#endif
+        ASSERT_EQ(nullptr, ai);
+      }
+    }
 
     for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
-      EXPECT_EQ(i->ai_flags, hints.ai_flags);
+      // Not all platforms report these flags with the results.
+      if (hints.ai_flags & ~(AI_PASSIVE | AI_CANONNAME | AI_NUMERICSERV)) {
+        EXPECT_EQ(hints.ai_flags, i->ai_flags);
+      }
       if (GetAddressFamily() != AF_UNSPEC) {
         EXPECT_EQ(i->ai_addr->sa_family, GetAddressFamily());
       } else {
@@ -153,6 +200,13 @@ TEST_P(PosixSocketResolveTest, Localhost) {
   struct addrinfo* ai = nullptr;
 
   int result = getaddrinfo(kLocalhost, 0, &hints, &ai);
+#if SB_API_VERSION < 16
+  if (result == EAI_BADFLAGS && GetAddressFamily() == AF_INET6) {
+    // It's ok to return EAI_BADFLAGS for IPv6 on Starboard < 16.
+    freeaddrinfo(ai);
+    return;
+  }
+#endif
   EXPECT_EQ(result, 0);
   ASSERT_NE(nullptr, ai);
 
@@ -177,12 +231,13 @@ TEST_P(PosixSocketResolveTest, Localhost) {
   freeaddrinfo(ai);
 }
 
-TEST_F(PosixSocketResolveTest, RainyDayNullHostname) {
+TEST_P(PosixSocketResolveTest, RainyDayNullHostname) {
   struct addrinfo hints = {0};
-  struct addrinfo* ai = nullptr;
-
+  hints.ai_family = GetAddressFamily();
+  hints.ai_socktype = GetSocketType();
+  hints.ai_protocol = GetProtocol();
   hints.ai_flags = AI_ADDRCONFIG;
-  hints.ai_socktype = SOCK_STREAM;
+  struct addrinfo* ai = nullptr;
 
   EXPECT_FALSE(getaddrinfo(nullptr, nullptr, &hints, &ai) == 0);
 }
@@ -191,23 +246,29 @@ TEST_F(PosixSocketResolveTest, RainyDayNullHostname) {
 INSTANTIATE_TEST_CASE_P(
     PosixSocketHints,
     PosixSocketResolveTest,
-    ::testing::Combine(::testing::Values(AF_UNSPEC, AF_INET, AF_INET6),
-                       ::testing::Values(std::make_pair(0, 0),
-                                         std::make_pair(0, IPPROTO_UDP),
-                                         std::make_pair(0, IPPROTO_TCP),
-                                         std::make_pair(SOCK_STREAM, 0),
-                                         std::make_pair(SOCK_DGRAM, 0))),
+    ::testing::Combine(
+        ::testing::Values(AF_UNSPEC, AF_INET, AF_INET6),
+        ::testing::Values(std::make_pair(0, 0),
+                          std::make_pair(0, IPPROTO_UDP),
+                          std::make_pair(0, IPPROTO_TCP),
+                          std::make_pair(SOCK_STREAM, 0),
+                          std::make_pair(SOCK_DGRAM, 0),
+                          std::make_pair(SOCK_DGRAM, IPPROTO_UDP),
+                          std::make_pair(SOCK_STREAM, IPPROTO_TCP))),
     GetPosixSocketHintsName);
 #else
 INSTANTIATE_TEST_CASE_P(
     PosixSocketHints,
     PosixSocketResolveTest,
-    ::testing::Combine(::testing::Values(AF_UNSPEC, AF_INET),
-                       ::testing::Values(std::make_pair(0, 0),
-                                         std::make_pair(0, IPPROTO_UDP),
-                                         std::make_pair(0, IPPROTO_TCP),
-                                         std::make_pair(SOCK_STREAM, 0),
-                                         std::make_pair(SOCK_DGRAM, 0))),
+    ::testing::Combine(
+        ::testing::Values(AF_UNSPEC, AF_INET),
+        ::testing::Values(std::make_pair(0, 0),
+                          std::make_pair(0, IPPROTO_UDP),
+                          std::make_pair(0, IPPROTO_TCP),
+                          std::make_pair(SOCK_STREAM, 0),
+                          std::make_pair(SOCK_DGRAM, 0),
+                          std::make_pair(SOCK_DGRAM, IPPROTO_UDP),
+                          std::make_pair(SOCK_STREAM, IPPROTO_TCP))),
     GetPosixSocketHintsName);
 #endif
 

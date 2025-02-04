@@ -22,8 +22,6 @@ _FILTERED_TESTS = {
         # TODO(b/304335954): Re-enable the test for UWP after fixing DST
         # implementation.
         'SbTimeZoneGetNameTest.IsIANAFormat',
-        'PosixSocketResolveTest.SunnyDayFamily',
-        'PosixSocketResolveTest.SunnyDayFlags',
     ],
     'base_test': [
         # The `ProcessMetricsHelper` depends on the virtual files in /proc.
