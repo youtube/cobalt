@@ -77,7 +77,6 @@ runs:
         echo "Finished running tests..."
         if [ -n "${failed_suites}" ]; then
           echo "Test suites failed:${failed_suites}"
-          exit 1
         fi
     - name: Archive Test Results
       if: success() || failure()

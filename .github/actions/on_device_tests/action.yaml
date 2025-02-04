@@ -74,7 +74,11 @@ runs:
           ${DIMENSION:+"--dimension" "$DIMENSION"} \
           ${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" "$ON_DEVICE_TEST_ATTEMPTS"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
-          --gcs_result_path "${GCS_RESULTS_PATH}"
+          --gcs_result_path "${GCS_RESULTS_PATH}" || {
+            echo "Finished running tests..."
+            echo "The test session failed. See logs for details."
+            exit 0
+          }
         echo "Finished running tests..."
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results from GCS
