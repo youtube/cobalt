@@ -226,7 +226,7 @@ jobs:
     permissions: {}
     # TODO(b/372303096): Should have dedicated runner?
     runs-on: [self-hosted, chrobalt-linux-runner]
-    name: ${{ matrix.name }}_tests_shard_${{ matrix.shard }}
+    name: ${{ matrix.name }}_on_host_tests_${{ matrix.shard }}
     strategy:
       fail-fast: false
       matrix:
