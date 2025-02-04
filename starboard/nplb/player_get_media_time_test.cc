@@ -111,9 +111,11 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
   const int64_t kDurationToPlay = 1'000'000;  // 1 second
   samples = GroupedSamples();
   if (player_fixture.HasAudio()) {
+    int start_index =
+        player_fixture.ConvertDurationToAudioBufferCount(seek_to_time);
     samples.AddAudioSamples(
-        0,
-        player_fixture.ConvertDurationToAudioBufferCount(seek_to_time) +
+        start_index,
+        start_index +
             player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay));
     samples.AddAudioEOS();
   }
