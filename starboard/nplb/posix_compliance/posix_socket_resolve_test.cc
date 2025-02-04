@@ -21,6 +21,7 @@
 #include <utility>
 
 #include "starboard/nplb/posix_compliance/posix_socket_helpers.h"
+#include "testing/gmock/include/gmock/gmock.h"
 
 namespace starboard {
 namespace nplb {
@@ -225,21 +226,41 @@ TEST_P(PosixSocketResolveTest, Localhost) {
 
   int address_count = 0;
   struct sockaddr_in* ai_addr = nullptr;
+  struct sockaddr_in6* ai_addr6 = nullptr;
   for (const struct addrinfo* i = ai; i != nullptr; i = i->ai_next) {
     ++address_count;
     if (ai_addr == nullptr && i->ai_addr != nullptr) {
       ai_addr = reinterpret_cast<sockaddr_in*>(i->ai_addr);
-      break;
+      ai_addr6 = reinterpret_cast<sockaddr_in6*>(i->ai_addr);
+
+      EXPECT_TRUE(ai_addr->sin_family == AF_INET ||
+                  ai_addr->sin_family == AF_INET6);
+      if (GetAddressFamily() != AF_UNSPEC) {
+        EXPECT_EQ(ai_addr->sin_family, GetAddressFamily());
+        if (GetAddressFamily() == AF_INET) {
+          struct in_addr loopback_addr;
+          loopback_addr.s_addr = htonl(INADDR_LOOPBACK);
+          EXPECT_EQ(ai_addr->sin_addr.s_addr, loopback_addr.s_addr);
+
+          struct in_addr expected_addr;
+          expected_addr.s_addr = htonl((127 << 24) | 1);
+          EXPECT_EQ(ai_addr->sin_addr.s_addr, expected_addr.s_addr);
+        }
+        if (GetAddressFamily() == AF_INET6) {
+          struct in6_addr loopback = IN6ADDR_LOOPBACK_INIT;
+          EXPECT_EQ(memcmp(&ai_addr6->sin6_addr, &loopback, sizeof(loopback)),
+                    0);
+
+          const unsigned char kExpectedAddress[16] = {0, 0, 0, 0, 0, 0, 0, 0,
+                                                      0, 0, 0, 0, 0, 0, 0, 1};
+          EXPECT_THAT(ai_addr6->sin6_addr.s6_addr,
+                      testing::ElementsAreArray(kExpectedAddress));
+        }
+      }
     }
   }
   EXPECT_LT(0, address_count);
   EXPECT_NE(nullptr, ai_addr);
-
-  EXPECT_TRUE(ai_addr->sin_family == AF_INET ||
-              ai_addr->sin_family == AF_INET6);
-  if (GetAddressFamily() != AF_UNSPEC) {
-    EXPECT_EQ(ai_addr->sin_family, GetAddressFamily());
-  }
 
   freeaddrinfo(ai);
 }
