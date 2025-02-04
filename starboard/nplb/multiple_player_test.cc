@@ -20,6 +20,7 @@
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
+#include "starboard/nplb/testcase_helpers.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -55,6 +56,11 @@ class MultiplePlayerTest
 };
 
 void MultiplePlayerTest::RunTest(const MultiplePlayerTestFunctor& functor) {
+  // TODO(b/368228941): Skip test case(s) not applicable to Android.
+  if (GetRuntimePlatform() == PlatformType::kPlatformTypeAndroid) {
+    GTEST_SKIP() << "Not applicable on Android";
+  }
+
   const SbPlayerMultiplePlayerTestConfig& multiplayer_test_config = GetParam();
   std::list<PlayerThread> player_threads;
   for (const SbPlayerTestConfig& player_config : multiplayer_test_config) {

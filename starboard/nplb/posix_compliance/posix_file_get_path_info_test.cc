@@ -22,6 +22,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
+#include "starboard/nplb/testcase_helpers.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -102,6 +103,11 @@ TEST(PosixFileGetPathInfoTest, WorksOnStaticContentFiles) {
 }
 
 TEST(PosixFileGetPathInfoTest, WorksOnStaticContentDirectories) {
+  // TODO(b/380030274): Skip test case(s) not applicable to Android.
+  if (GetRuntimePlatform() == PlatformType::kPlatformTypeAndroid) {
+    GTEST_SKIP() << "Not applicable on Android";
+  }
+
   for (auto path : GetFileTestsDirectoryPaths()) {
     struct stat info;
     EXPECT_TRUE(stat(path.data(), &info) == 0);

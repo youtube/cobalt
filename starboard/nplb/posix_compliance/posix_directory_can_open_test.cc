@@ -19,6 +19,7 @@
 #include "starboard/configuration_constants.h"
 #include "starboard/directory.h"
 #include "starboard/nplb/file_helpers.h"
+#include "starboard/nplb/testcase_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -35,6 +36,11 @@ TEST(PosixDirectoryCanOpenTest, SunnyDay) {
 }
 
 TEST(PosixDirectoryCanOpenTest, SunnyDayStaticContent) {
+  // TODO(b/380030274): Skip test case(s) not applicable to Android.
+  if (GetRuntimePlatform() == PlatformType::kPlatformTypeAndroid) {
+    GTEST_SKIP() << "Not applicable on Android";
+  }
+
   for (auto dir_path : GetFileTestsDirectoryPaths()) {
     struct stat file_info;
     stat(dir_path.c_str(), &file_info);

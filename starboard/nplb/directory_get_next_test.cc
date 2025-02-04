@@ -25,6 +25,7 @@
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/nplb/file_helpers.h"
+#include "starboard/nplb/testcase_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -90,6 +91,11 @@ TEST(SbDirectoryGetNextTest, SunnyDay) {
 }
 
 TEST(SbDirectoryGetNextTest, SunnyDayStaticContent) {
+  // TODO(b/380344836): Skip test case(s) not applicable to Android.
+  if (GetRuntimePlatform() == PlatformType::kPlatformTypeAndroid) {
+    GTEST_SKIP() << "Not applicable on Android";
+  }
+
   std::string testdata_dir = GetFileTestsDataDir();
   EXPECT_FALSE(testdata_dir.empty());
   EXPECT_TRUE(FileExists(testdata_dir.c_str()))

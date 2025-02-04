@@ -21,6 +21,7 @@
 #include "starboard/string.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "starboard/nplb/testcase_helpers.h"
 
 namespace starboard {
 namespace nplb {
@@ -47,6 +48,11 @@ TEST_P(SbPlayerWriteSampleTest, SeekAndDestroy) {
 }
 
 TEST_P(SbPlayerWriteSampleTest, NoInput) {
+  // TODO(b/380032222): Skip test case(s) not applicable to Android.
+  if (GetRuntimePlatform() == PlatformType::kPlatformTypeAndroid) {
+    GTEST_SKIP() << "Not applicable on Android";
+  }
+
   SbPlayerTestFixture player_fixture(GetParam(),
                                      &fake_graphics_context_provider_);
   if (HasFatalFailure()) {
@@ -379,6 +385,11 @@ class SecondaryPlayerTestThread : public posix::AbstractTestThread {
 };
 
 TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
+  // TODO(b/380347735): Skip test case(s) not applicable to Android.
+  if (GetRuntimePlatform() == PlatformType::kPlatformTypeAndroid) {
+    GTEST_SKIP() << "Not applicable on Android";
+  }
+
   // The secondary player should at least support h264 at 480p, 30fps and with
   // a drm system.
   const char* kMaxVideoCapabilities = "width=640; height=480; framerate=30;";
