@@ -47,15 +47,24 @@ runs:
           cd src
           gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
         shell: bash
-      - name: Ninja build test targets
+      - name: Calculate Test Targets
+        # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
+        id: test-targets
         if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
         env:
-          # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
         run: |
           set -ex
           cd src
-          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} $(cat "${TEST_TARGETS_JSON_FILE}" | jq -cr '.test_targets | join(" ")')
+          echo "test_targets=$(cat ${TEST_TARGETS_JSON_FILE} | jq -c '.test_targets')" >> $GITHUB_OUTPUT
+        shell: bash
+      - name: Ninja build test targets
+        if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
+        run: |
+          set -ex
+          cd src
+          TEST_TARGETS=$(jq -cr '. | join(" ")' <<< '${{ steps.test-targets.outputs.test_targets }}')
+          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TEST_TARGETS}
         shell: bash
       - name: Ninja build
         env:
@@ -83,3 +92,7 @@ runs:
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
           # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           test_targets_json_file: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
+outputs:
+  test_targets:
+    description: The test targets that were built
+    value: ${{ steps.test-targets.outputs.test_targets }}
