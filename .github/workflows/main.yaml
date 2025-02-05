@@ -316,7 +316,7 @@ jobs:
 
   validate-test-result:
     needs: [initialize, test-results]
-    if: always() && needs.test-results.result != 'skipped' && needs.test-results.result != 'success'
+    if: always() && needs.test-results.result != 'skipped'
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.name }}_tests_passing
@@ -327,6 +327,7 @@ jobs:
         config: [devel]
     steps:
       - name: Fail
+        if: needs.test-results.result == 'failure'
         run: |
             # TODO: Print a summary of failed tests here.
             echo "Test jobs failed. See separate job log for details."
