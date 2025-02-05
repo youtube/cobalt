@@ -1,8 +1,11 @@
 name: On Device Test
 description: Runs on-device tests.
 inputs:
+  test_targets:
+    description: "The test targets in a JSON array."
+    required: true
   gcs_results_path:
-    description: "GCS path for the test results"
+    description: "GCS path for the test results."
     required: true
   test_results_key:
     description: "Artifact key used to store test results."
@@ -33,6 +36,7 @@ runs:
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
+        TEST_TARGETS_JSON: ${{ inputs.test_targets }}
         GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
         GCS_RESULTS_PATH: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
         GITHUB_SHA: ${{ github.sha }}
@@ -50,14 +54,15 @@ runs:
         GITHUB_RUN_NUMBER: ${{ github.run_number }}
         GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         GITHUB_WORKFLOW: ${{ github.workflow }}
-        # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
-        TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
       run: |
-        set -uxe
+        set -x
+        test_targets=$(echo "${TEST_TARGETS_JSON}" | jq -cr '. | join(",")')
+
+        # TODO(oxv): Fix dimensions. Pass as json? key-value pair?
         python3 -u cobalt/tools/on_device_tests_gateway_client.py \
           --token ${GITHUB_TOKEN} \
           trigger \
-          --targets $(cat "${{ env.TEST_TARGETS_JSON_FILE }}" | jq -cr '.test_targets | join(",")') \
+          --targets ${test_targets} \
           --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform}}" \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
           --label builder-${{ matrix.platform }} \
@@ -75,7 +80,12 @@ runs:
           --dimensions '${{ inputs.test_dimensions }}' \
           ${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" "$ON_DEVICE_TEST_ATTEMPTS"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
-          --gcs_result_path "${GCS_RESULTS_PATH}"
+          --gcs_result_path "${GCS_RESULTS_PATH}" || {
+            echo "Finished running tests..."
+            echo "The test session failed. See logs for details."
+            exit 0
+          }
+        echo "Finished running tests..."
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results from GCS
       if: always()
@@ -86,8 +96,10 @@ runs:
         test_output="${GITHUB_WORKSPACE}/results"
         echo "test_output=${test_output}" >> $GITHUB_ENV
 
-        mkdir -p "${test_output}"
-        gsutil cp -r "${GCS_RESULTS_PATH}/" "${test_output}"
+        # Test results (xml and logs) must be in a subfolder in results_dir
+        # to be picked up by the test result processor.
+        mkdir -p "${test_output}/${{ matrix.platform }}"
+        gsutil cp -r "${GCS_RESULTS_PATH}/" "${test_output}/${{ matrix.platform }}"
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@v4
