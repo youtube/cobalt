@@ -2312,6 +2312,11 @@ if (enable_java_templates && is_android) {
       if (!is_java_debug && !_test_only) {
         defines += [ "_DISABLE_DEBUG_LOGS" ]
       }
+
+      # TODO(cobalt, b/375655377): Remove once Cobalt build targets remove test_only tag.
+      if (is_cobalt) {
+        defines += [ "_DISABLE_DEBUG_LOGS" ]
+      }
     }
   }
 
