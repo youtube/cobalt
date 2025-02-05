@@ -21,7 +21,6 @@ overridable_clang_toolchain("starboard") {
   toolchain_args = {
     current_os = "linux"
     current_cpu = "x64"
-    is_starboard = true
   }
   propagates_configs = true
 }
