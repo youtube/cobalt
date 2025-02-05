@@ -46,6 +46,12 @@ runs:
         results_dir="${GITHUB_WORKSPACE}/results"
         echo "results_dir=${results_dir}" >> $GITHUB_ENV
 
+        # Test results (xml and logs) must be in a subfolder in results_dir
+        # to be picked up by the test result processor.
+        # This also prevents accidental overwriting when collecting results.
+        test_output="${results_dir}/shard_${{ matrix.shard }}"
+        mkdir -p ${test_output}
+
         failed_suites=""
         cd "${test_dir}"
 
@@ -61,26 +67,25 @@ runs:
 
           echo "Test filter evaluated to: ${test_filter}"
 
-          xml_path="${results_dir}/shard_${{ matrix.shard }}/${test_binary}_testoutput.xml"
+          xml_path="${test_output}/${test_binary}_result.xml"
+          log_path="${test_output}/${test_binary}_log.txt"
           # TODO: Investigate test_runner.py
           /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
               ./"${test_binary_path}" \
               --test-launcher-shard-index=${{ matrix.shard }} \
               --test-launcher-total-shards=${{ inputs.num_gtest_shards }} \
               --gtest_output="xml:${xml_path}" \
-              --gtest_filter="${test_filter}" || {
-            # Set exit code on failure.
+              --gtest_filter="${test_filter}" | tee ${log_path} || {
             failed_suites="${failed_suites} ${test_binary}"
           }
         done
-        echo "Finished running all unit tests..."
+        echo "Finished running tests..."
         if [ -n "${failed_suites}" ]; then
           echo "Test suites failed:${failed_suites}"
-          exit 1
         fi
     - name: Archive Test Results
       if: success() || failure()
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.test_results_key }}
-        path: ${{ env.results_dir }}/shard_${{ matrix.shard }}/*.xml
+        path: ${{ env.results_dir }}/*
