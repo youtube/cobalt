@@ -301,6 +301,8 @@ if (is_cobalt) {
   }
 }
 
+# This include has been deliberately added after setting the default toolchain above.
+# as is_starboard depends on the _default_toolchain variable being set.
 import("//cobalt/build/configs/starboard.gni")
 
 # =============================================================================

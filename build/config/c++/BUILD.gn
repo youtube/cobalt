@@ -5,10 +5,6 @@ import("//build/config/compiler/compiler.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//buildtools/deps_revisions.gni")
 
-if (is_cobalt) {
-  import("//cobalt/build/configs/modular_variables.gni")
-}
-
 assert(use_custom_libcxx, "should only be used if use_custom_libcxx is set")
 
 # This is included by reference in the //build/config/compiler:runtime_library
@@ -72,7 +68,7 @@ config("runtime_library") {
       "-isystem" + rebase_path("$libcxx_prefix/include", root_build_dir),
       "-isystem" + rebase_path("$libcxxabi_prefix/include", root_build_dir),
     ]
-    if (is_cobalt && is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) {
+    if (is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) {
       cflags_cc += [
         "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
         "-isystem" +
