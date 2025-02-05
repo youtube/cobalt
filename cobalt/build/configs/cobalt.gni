@@ -17,7 +17,3 @@ declare_args() {
   is_cobalt = false
   cobalt_is_release_build = false
 }
-
-declare_args() {
-  is_starboard = is_cobalt && target_os != "android"
-}

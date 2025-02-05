@@ -1819,7 +1819,7 @@ component("base") {
       "process/process_metrics_posix.cc",
       "sync_socket_posix.cc",
 
-      # base/posix/unix_domain_socket.cc:91:22: error: implicit conversion loses integer precision: 
+      # base/posix/unix_domain_socket.cc:91:22: error: implicit conversion loses integer precision:
       "posix/unix_domain_socket.cc",
       "posix/unix_domain_socket.h",
 
