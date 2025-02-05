@@ -1792,22 +1792,9 @@ component("base") {
       "process/process_metrics_posix.cc",
       "sync_socket_posix.cc",
 
-      #           ../../base/allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc:748:36: error: incomplete result type 'struct mallinfo' in function definition
-      # SHIM_ALWAYS_EXPORT struct mallinfo mallinfo(void) __THROW {
-      "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.cc",
-      "allocator/partition_allocator/shim/allocator_shim_default_dispatch_to_partition_alloc.h",
-
-      # In file included from ../../base/rand_util_posix.cc:26:
-      # ../../third_party/lss/linux_syscall_support.h:118:10: fatal error: 'linux/unistd.h' file not found
-      "base_paths_posix.h",
-      "memory/madv_free_discardable_memory_allocator_posix.cc",
-      "memory/madv_free_discardable_memory_allocator_posix.h",
-      "memory/madv_free_discardable_memory_posix.cc",
-      "memory/madv_free_discardable_memory_posix.h",
+      # base/posix/unix_domain_socket.cc:91:22: error: implicit conversion loses integer precision: 
       "posix/unix_domain_socket.cc",
       "posix/unix_domain_socket.h",
-      "rand_util_posix.cc",
-      "system/sys_info_posix.cc",
 
       #     SHIM_ALWAYS_EXPORT size_t malloc_usable_size(void* address) __THROW {
       #                           ^

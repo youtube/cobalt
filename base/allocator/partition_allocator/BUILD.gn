@@ -232,10 +232,6 @@ component("partition_alloc") {
       "partition_alloc_base/time/time_conversion_posix.cc",
     ]
 
-    # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
-    if (is_cobalt && is_cobalt_hermetic_build) {
-      sources -= [ "partition_alloc_base/rand_util_posix.cc" ]
-    }
 
     if (is_android || is_chromeos_ash) {
       sources += [ "partition_alloc_base/time/time_android.cc" ]

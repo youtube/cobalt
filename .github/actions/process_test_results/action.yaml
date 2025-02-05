@@ -1,37 +1,42 @@
 name: Process Test Results
 description: Uploads test results to DataDog.
 inputs:
+  target_name:
+    description: "The test target name."
+    required: true
   datadog_api_key:
     description: "Path to directory where test results are saved."
     required: true
-  test_results_key:
-    description: "Artifact key used to store test results."
+  results_path:
+    description: "Path (or glob) to test logs and result xml."
     required: true
 runs:
   using: "composite"
   steps:
-    - name: Download Test Results
-      uses: actions/download-artifact@v4
-      with:
-        pattern: ${{ inputs.test_results_key }}*
-        path: results/**/*
-
-    - name: Test Summary action
-      continue-on-error: true
+    - name: Create Test Summary
+      id: test-summary
       uses: test-summary/action@31493c76ec9e7aa675f1585d3ed6f1da69269a86
       with:
-        paths: "results/**/*.xml"
+        paths: ${{ inputs.results_path }}
         output: test-report-summary.md
         show: "fail, skip"
 
-    - name: Output test summary markdown to github
+    - name: Check Failed Tests
+      if: steps.test-summary.outputs.failed > 0
+      run: |
+        echo "::error::${{ inputs.target_name }} has ${{ steps.test-summary.outputs.failed }} failed test(s)."
+        exit 1
+      shell: bash
+
+    - name: Populate GitHub Summary
+      if: always()
       run: cat test-report-summary.md >> $GITHUB_STEP_SUMMARY
       shell: bash
 
     - name: Get Datadog CLI
       id: download-dd-cli
       # The API key is not available on PRs created from a fork.
-      if: inputs.datadog_api_key != ''
+      if: always() && inputs.datadog_api_key != ''
       env:
         DD_VERSION: 'v2.18.0'
         DD_SHA256SUM: 'adbe9b3a41faaf0b1d9702ba256cf8fa9e474c0cc8216f25e5b489c53d6f0a70  datadog-ci'
@@ -44,7 +49,7 @@ runs:
       shell: bash
 
     - name: Upload to Datadog
-      if: steps.download-dd-cli.outcome == 'success'
+      if: always() && steps.download-dd-cli.outcome == 'success'
       env:
         DATADOG_SITE: us5.datadoghq.com
         DATADOG_API_KEY: ${{ inputs.datadog_api_key }}
@@ -55,5 +60,5 @@ runs:
         set -x
         # Enable globstar shell option for globstar paths e.g. /**/*.xml
         shopt -s globstar
-        ./datadog-ci junit upload --service ${DD_SERVICE} results/**/*.xml
+        ./datadog-ci junit upload --service ${DD_SERVICE} ${{ inputs.results_path }}
       shell: bash

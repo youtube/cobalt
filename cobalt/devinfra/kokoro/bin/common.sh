@@ -258,7 +258,8 @@ create_and_upload_nightly_archive () {
 
   init_gcloud
 
-  "${GSUTIL}" cp -r "${package_dir}" "${gcs_archive_path}"
+  # Copy everything in package_dir but not its last path segment; gcs_archive_path already exists.
+  "${GSUTIL}" cp -r "${package_dir}/." "${gcs_archive_path}"
 }
 
 run_package_release_pipeline () {
@@ -283,7 +284,7 @@ run_package_release_pipeline () {
     export PYTHONPATH="${WORKSPACE_COBALT}"
     if [[ "${PLATFORM}" =~ "android" ]]; then
       python3 "${WORKSPACE_COBALT}/cobalt/build/android/package.py" \
-        --name=cobalt-android "${out_dir}" "${package_dir}"
+        --name="${PLATFORM}_${CONFIG}" "${out_dir}" "${package_dir}"
     elif [[ "${PLATFORM}" =~ "evergreen" ]]; then
       local bootloader_out_dir=
       if [ -n "${BOOTLOADER:-}" ]; then
@@ -296,7 +297,7 @@ run_package_release_pipeline () {
         "${bootloader_out_dir:-}"
     else
       python3 "${WORKSPACE_COBALT}/cobalt/build/linux/package.py" \
-        --name=cobalt-linux "${out_dir}" "${package_dir}"
+        --name="${PLATFORM}_${CONFIG}" "${out_dir}" "${package_dir}"
     fi
 
     # Create and upload nightly archive.
