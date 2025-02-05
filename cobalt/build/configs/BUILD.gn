@@ -23,7 +23,8 @@ config("cobalt_config") {
   ]
   if (current_toolchain == starboard_toolchain) {
     configs += [ "//${starboard_path}/platform_configuration" ]
-  } else if (is_cobalt_hermetic_build) {
+  } else if (is_cobalt_hermetic_build &&
+             current_toolchain == cobalt_toolchain) {
     configs += [
       # TODO: b/390500840 - Remove hardcoded x64 config, switch config based on platform.
       "//starboard/build/config/modular/x64",
