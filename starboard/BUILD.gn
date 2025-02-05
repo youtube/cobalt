@@ -114,7 +114,7 @@ if (is_cobalt_hermetic_build) {
       "//starboard/client_porting/eztime",
     ]
 
-    if (!sb_is_evergreen) {
+    if (!sb_is_evergreen && current_toolchain == cobalt_toolchain) {
       # For modular builds, we need to wrap any POSIX APIs that may not be ABI
       # equivalent across the Cobalt toolchain and the platform toolchain. For
       # non-Evergreen builds, this is done via the below wrapper implementations

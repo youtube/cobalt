@@ -72,7 +72,7 @@ config("runtime_library") {
       "-isystem" + rebase_path("$libcxx_prefix/include", root_build_dir),
       "-isystem" + rebase_path("$libcxxabi_prefix/include", root_build_dir),
     ]
-    if (is_cobalt && is_cobalt_hermetic_build) {
+    if (is_cobalt && is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) {
       cflags_cc += [
         "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
         "-isystem" +
