@@ -18,7 +18,7 @@
 #include "base/allocator/partition_allocator/partition_alloc_check.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !defined(IS_COBALT_HERMETIC_BUILD)
 #include "third_party/lss/linux_syscall_support.h"
 #elif BUILDFLAG(IS_MAC)
 // TODO(crbug.com/995996): Waiting for this header to appear in the iOS SDK.
@@ -68,7 +68,7 @@ namespace partition_alloc::internal::base {
 // (https://chromium-review.googlesource.com/c/chromium/src/+/1545096) and land
 // it or some form of it.
 void RandBytes(void* output, size_t output_length) {
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !defined(IS_COBALT_HERMETIC_BUILD)
   // We have to call `getrandom` via Linux Syscall Support, rather than through
   // the libc wrapper, because we might not have an up-to-date libc (e.g. on
   // some bots).
