@@ -92,7 +92,12 @@ if (is_component_build && !is_android) {
 # Settings for executables.
 config("executable_config") {
   configs = executable_and_shared_library_configs_
-  ldflags = [ "-pie" ]
+  # TODO: b/384652502 - Cobalt: Fix linker errors for cobalt_toolchain
+  if (is_starboard && current_toolchain == cobalt_toolchain) {
+    ldflags = []
+  } else {
+    ldflags = [ "-pie" ]
+  }
   if (is_android) {
     ldflags += [
       "-Bdynamic",
