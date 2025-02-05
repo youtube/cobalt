@@ -1,0 +1,18 @@
+{
+  "docker_service": "linux",
+  "platforms": [
+    "linux-x64x11-coverage"
+  ],
+  "test_on_host": true,
+  "test_root_target": "//cobalt:gn_all",
+  "num_gtest_shards": 10,
+  "targets": [
+    "cobalt:gn_all"
+  ],
+  "includes": [
+    {
+      "name": "x64",
+      "platform": "linux-x64x11-coverage"
+    }
+  ]
+}
