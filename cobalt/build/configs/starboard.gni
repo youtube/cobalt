@@ -16,3 +16,11 @@ declare_args() {
   is_starboard = is_cobalt && target_os != "android" &&
                  current_toolchain == default_toolchain
 }
+
+declare_args() {
+  # TODO: b/371241293 - Remove this variable when the hermetic toolchain is setup
+  use_custom_libc = false
+}
+
+# TODO: b/371241293 - Remove this variable when the hermetic toolchain is setup
+is_cobalt_hermetic_build = is_starboard && use_custom_libc
