@@ -53,8 +53,8 @@ source_set("deprecated_experimental_mojo") {
   }
 
   # TODO: b/384652502 - Cobalt: Fix linker errors.
-  if(is_starboard) {
-        sources -= [
+  if (is_starboard) {
+    sources -= [
       "bluez/metrics_recorder.cc",
       "bluez/metrics_recorder.h",
     ]

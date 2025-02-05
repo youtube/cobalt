@@ -21,12 +21,13 @@ template("cobalt_test") {
     output_name = actual_target_name
     forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
     testonly = true
-    if (defined(invoker.data_deps)) {
-      data_deps += [ ":${loader_target_name}($starboard_toolchain)" ]
-    } else {
-      data_deps = [ ":${loader_target_name}($starboard_toolchain)" ]
+    if (!defined(data_deps)) {
+      data_deps = []
     }
-    data_deps += [ "//starboard:starboard_group($starboard_toolchain)" ]
+    data_deps += [
+      ":${loader_target_name}($starboard_toolchain)",
+      "//starboard:starboard_group($starboard_toolchain)",
+    ]
   }
 
   if (current_toolchain == starboard_toolchain) {
