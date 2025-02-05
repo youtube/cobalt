@@ -12,7 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//cobalt/build/configs/modular_variables.gni")
 import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/config/starboard_target_type.gni")
 import("//starboard/contrib/cast/cast.gni")
