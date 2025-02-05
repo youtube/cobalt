@@ -3,6 +3,11 @@
   "platforms": [
     "android-arm64"
   ],
+  "test_on_device": true,
+  "test_dimensions": {
+    "device_type": "nvidia_shield",
+    "device_pool": "maneki"
+  },
   "targets": [
     "content_shell",
     "cobalt:gn_all"
