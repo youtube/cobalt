@@ -50,3 +50,7 @@
 -keepclasseswithmembers,allowaccessmodification class ** {
   @**cobalt.org.chromium.base.annotations.AccessedByNative <fields>;
 }
+
+-keepclasseswithmembers,includedescriptorclasses,allowaccessmodification,allowoptimization class ** {
+  @dev.cobalt.coat.javabridge.CobaltJavaScriptInterface <methods>;
+}
