@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/blink/renderer/modules/mediasource/source_buffer_write_head.h"
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASOURCE_SOURCE_BUFFER_WRITE_HEAD_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASOURCE_SOURCE_BUFFER_WRITE_HEAD_H_
 
-#include "third_party/blink/renderer/modules/mediasource/source_buffer.h"
-#include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "build/build_config.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
 #error "This file only works with Starboard media"
@@ -23,9 +24,16 @@
 
 namespace blink {
 
-// static
-double SourceBufferWriteHead::writeHead(SourceBuffer& source_buffer,
-                                        ExceptionState& exception_state) {
-  return source_buffer.GetWriteHead(exception_state);
-}
+class ExceptionState;
+class SourceBuffer;
+
+class SourceBufferWriteHead {
+  STATIC_ONLY(SourceBufferWriteHead);
+
+ public:
+  static double writeHead(SourceBuffer&, ExceptionState&);
+};
+
 }  // namespace blink
+
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASOURCE_SOURCE_BUFFER_WRITE_HEAD_H_
