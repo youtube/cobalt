@@ -14,7 +14,6 @@ import("//build/config/rts.gni")
 import("//build/rust/rust_static_library.gni")
 import("//build_overrides/build.gni")
 if (is_starboard) {
-  import("//cobalt/build/configs/modular_variables.gni")
   import("//cobalt/build/testing/cobalt_test_templates.gni")
 }
 
