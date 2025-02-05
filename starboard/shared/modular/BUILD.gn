@@ -46,7 +46,8 @@ if ((sb_is_modular || sb_is_evergreen_compatible) &&
   }
 }
 
-if (is_cobalt_hermetic_build && !sb_is_evergreen) {
+if (is_cobalt_hermetic_build && !sb_is_evergreen &&
+    current_toolchain == cobalt_toolchain) {
   source_set("cobalt_layer_posix_abi_wrappers") {
     sources = [
       "cobalt_layer_posix_directory_abi_wrappers.cc",
