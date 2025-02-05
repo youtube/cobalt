@@ -1752,7 +1752,6 @@ component("base") {
       "allocator/partition_allocator:raw_ptr",
     ]
   }
-    print(current_toolchain, is_starboard, "current tc is_starboard val")
 
   # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
   if (is_cobalt && is_cobalt_hermetic_build) {
