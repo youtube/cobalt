@@ -8,7 +8,8 @@
   "targets": [
     "cobalt:gn_all",
     "content_shell",
-    "chromedriver"
+    "chromedriver",
+    "crashpad_handler"
   ],
   "includes": [
     {

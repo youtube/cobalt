@@ -5,7 +5,8 @@
   ],
   "targets": [
     "content_shell",
-    "chromedriver"
+    "chromedriver",
+    "crashpad_handler"
   ],
   "includes": [
     {
