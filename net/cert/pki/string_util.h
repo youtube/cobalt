@@ -11,6 +11,7 @@
 
 #include <string_view>
 #include <vector>
+#include <string>
 
 namespace net::string_util {
 
