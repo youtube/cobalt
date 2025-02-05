@@ -216,7 +216,7 @@ target(_libcxx_target_type, "libc++") {
     }
   }
 
-  if (is_cobalt && is_cobalt_hermetic_build) {
+  if (is_cobalt && is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) {
     # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
     sources -= [ "trunk/src/atomic.cpp" ]
     deps += [
