@@ -134,6 +134,7 @@ if __name__ == '__main__':
           'chromium_android-arm64',
           'chromium_android-x86',
           'linux-x64x11',
+          'linux-x64x11-coverage',
           'linux-x64x11-evergreen',
           'android-arm',
           'android-arm64',
