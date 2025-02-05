@@ -45,7 +45,6 @@ import("//testing/test.gni")
 
 if (is_cobalt) {
   import("//cobalt/build/configs/hacks.gni")
-  import("//cobalt/build/configs/modular_variables.gni")
 }
 
 if (is_mac) {
@@ -110,7 +109,7 @@ if (is_apple) {
 # ../../third_party/libevent/signal.c:43:10: fatal error: 'sys/queue.h' file not found
 # #include <sys/queue.h>
 # Determines whether libevent should be dep.
-if (is_cobalt && is_cobalt_hermetic_build) {
+if (is_cobalt_hermetic_build) {
   dep_libevent = false
 } else {
   dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
@@ -1754,7 +1753,7 @@ component("base") {
   }
 
   # TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
-  if (is_cobalt && is_cobalt_hermetic_build) {
+  if (is_cobalt_hermetic_build) {
     sources -= [
       #           ../../base/process/process_linux.cc:8:10: fatal error: 'linux/magic.h' file not found
       # #include <linux/magic.h>

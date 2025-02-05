@@ -9,10 +9,6 @@ import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//build/config/logging.gni")
 
-if (is_cobalt) {
-  import("//cobalt/build/configs/modular_variables.gni")
-}
-
 # Add partition_alloc.gni and import it for partition_alloc configs.
 
 config("partition_alloc_implementation") {
@@ -231,7 +227,6 @@ component("partition_alloc") {
       "partition_alloc_base/threading/platform_thread_posix.cc",
       "partition_alloc_base/time/time_conversion_posix.cc",
     ]
-
 
     if (is_android || is_chromeos_ash) {
       sources += [ "partition_alloc_base/time/time_android.cc" ]
