@@ -13,6 +13,10 @@ import("//build/config/gclient_args.gni")
 import("//build/config/rts.gni")
 import("//build/rust/rust_static_library.gni")
 import("//build_overrides/build.gni")
+if (is_starboard) {
+  import("//cobalt/build/configs/modular_variables.gni")
+  import("//cobalt/build/testing/cobalt_test_templates.gni")
+}
 
 declare_args() {
   # Some component repos (e.g. ANGLE) import //testing but do not have
@@ -956,6 +960,15 @@ template("test") {
       if (use_rts) {
         data_deps += [ ":${invoker.target_name}__rts_filters" ]
       }
+    }
+    # TODO: b/384652502 - Cobalt: Remove use_custom_libc after setting
+    # is_starboard as a toolchain arg.
+  } else if (is_starboard && use_custom_libc) {
+    cobalt_test(target_name) {
+      forward_variables_from(invoker,
+                             "*",
+                             TESTONLY_AND_VISIBILITY + [ "use_xvfb" ])
+      testonly = true
     }
   } else if (!is_nacl) {
     if (is_mac || is_win) {
