@@ -13,6 +13,9 @@ RUN apt-get update && apt-get install -y \
     libnss3 \
     gperf \
     libdbus-1-3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcairo2-dev \
     libxcomposite1 \
     libxdamage1 \
     libxext6 \
