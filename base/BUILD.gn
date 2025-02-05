@@ -1811,7 +1811,7 @@ component("base") {
       "process/process_metrics_posix.cc",
       "sync_socket_posix.cc",
 
-      # base/posix/unix_domain_socket.cc:91:22: error: implicit conversion loses integer precision: 
+      # base/posix/unix_domain_socket.cc:91:22: error: implicit conversion loses integer precision:
       "posix/unix_domain_socket.cc",
       "posix/unix_domain_socket.h",
 
@@ -2839,7 +2839,7 @@ if (use_nodebug_assertion) {
     sources = [ "nodebug_assertion.cc" ]
     deps = [ ":base_static" ]
     if (is_starboard) {
-      deps += ["//starboard:starboard_group"]
+      deps += [ "//starboard:starboard_group" ]
     }
   }
 }
