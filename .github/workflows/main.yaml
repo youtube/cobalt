@@ -58,57 +58,57 @@ jobs:
         shell: bash
         run: |
           platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
-          echo "platforms=${platforms}" >> $GITHUB_ENV
+          echo "platforms=${platforms}" >> $GITHUB_OUTPUT
       - id: set-targets
         shell: bash
         run: |
           targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.targets  | join(" ")')
-          echo "targets=${targets}" >> $GITHUB_ENV
+          echo "targets=${targets}" >> $GITHUB_OUTPUT
       - id: set-includes
         shell: bash
         run: |
           includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
-          echo "includes=${includes}" >> $GITHUB_ENV
+          echo "includes=${includes}" >> $GITHUB_OUTPUT
       - id: set-test-on-host
         shell: bash
         run: |
           test_on_host=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_host')
-          echo "test_on_host=${test_on_host}" >> $GITHUB_ENV
+          echo "test_on_host=${test_on_host}" >> $GITHUB_OUTPUT
       - id: set-test-on-device
         shell: bash
         run: |
           test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
-          echo "test_on_device=${test_on_device}" >> $GITHUB_ENV
+          echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
       - id: set-test-dimensions
         shell: bash
         run: |
           test_dimensions=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_dimensions')
-          echo "test_dimensions=${test_dimensions}" >> $GITHUB_ENV
+          echo "test_dimensions=${test_dimensions}" >> $GITHUB_OUTPUT
       - id: set-docker-service
         shell: bash
         run: |
           docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')
-          echo "docker_service=${docker_service}" >> $GITHUB_ENV
+          echo "docker_service=${docker_service}" >> $GITHUB_OUTPUT
       - id: set-gtest-shards
         shell: bash
         run: |
           # Retrieve number of shards from config. If not specified, default to 1 shard with `echo 1`.
           num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards' || echo 1)
-          echo "num_gtest_shards=${num_gtest_shards}" >> $GITHUB_ENV
+          echo "num_gtest_shards=${num_gtest_shards}" >> $GITHUB_OUTPUT
 
           # Create a zero-indexed list of shards for use by matrix, e.g. [0,1,2,3,4,5].
           gtest_shards="[$(seq -s, 0 1 $((${num_gtest_shards} - 1)))]"
-          echo "gtest_shards=${gtest_shards}" >> $GITHUB_ENV
+          echo "gtest_shards=${gtest_shards}" >> $GITHUB_OUTPUT
     outputs:
-      platforms: ${{ env.platforms }}
-      targets: ${{ env.targets }}
-      includes: ${{ env.includes }}
-      docker_service: ${{ env.docker_service }}
-      num_gtest_shards: ${{ env.num_gtest_shards }}
-      gtest_shards: ${{ env.gtest_shards }}
-      test_on_host: ${{ env.test_on_host }}
-      test_on_device: ${{ env.test_on_device }}
-      test_dimensions: ${{ env.test_dimensions }}
+      platforms: ${{ steps.set-platforms.outputs.platforms }}
+      targets: ${{ steps.set-targets.outputs.targets }}
+      includes: ${{ steps.set-includes.outputs.includes }}
+      docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
+      num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
+      gtest_shards: ${{ steps.set-gtest-shards.outputs.gtest_shards }}
+      test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
+      test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
+      test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -135,9 +135,9 @@ jobs:
       run: |
         set -u
         echo $DOCKER_TAG
-        echo "docker_tag=$DOCKER_TAG" | head -n 1  >> $GITHUB_ENV
+        echo "docker_tag=$DOCKER_TAG" | head -n 1  >> $GITHUB_OUTPUT
     outputs:
-      docker_tag: ${{ env.docker_tag }}
+      docker_tag: ${{ steps.set-docker-tag-output.outputs.docker_tag }}
 
   build:
     needs: [initialize, docker-build-image]
@@ -172,6 +172,7 @@ jobs:
           # Use fetch depth of 0 to get full history for a valid build id.
           fetch-depth: 0
       - name: Build Cobalt
+        id: build
         uses: ./src/.github/actions/build
         # TODO(bug?): android debug builds are broken.
         if: ${{ ! (contains(matrix.platform, 'android') && matrix.config == 'debug') }}
@@ -180,6 +181,8 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device }}
+    outputs:
+      test_targets: ${{ steps.build.outputs.test_targets }}
 
   on-device-test:
     needs: [initialize, build]
@@ -213,6 +216,7 @@ jobs:
         id: on-device-tests
         uses: ./.github/actions/on_device_tests
         with:
+          test_targets: ${{ needs.build.outputs.test_targets }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
@@ -223,7 +227,7 @@ jobs:
     permissions: {}
     # TODO(b/372303096): Should have dedicated runner?
     runs-on: [self-hosted, chrobalt-linux-runner]
-    name: ${{ matrix.name }}_tests_shard_${{ matrix.shard }}
+    name: ${{ matrix.name }}_on_host_tests_${{ matrix.shard }}
     strategy:
       fail-fast: false
       matrix:
@@ -249,8 +253,8 @@ jobs:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
 
-  test-upload:
-    needs: [initialize, on-host-test, on-device-test]
+  test-results:
+    needs: [initialize, build, on-device-test, on-host-test]
     if: always() &&
         (
           needs.on-device-test.result != 'skipped' ||
@@ -258,37 +262,61 @@ jobs:
         )
     permissions: {}
     runs-on: ubuntu-latest
-    name: ${{ matrix.name }}_tests_upload
+    name: ${{ matrix.test_target }}
+    env:
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     strategy:
       fail-fast: false
       matrix:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-    env:
-      TMPDIR: /__w/_temp
-      TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
-      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+        test_target: ${{ fromJson(needs.build.outputs.test_targets) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           path: src
+      - name: Download Test Results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ env.TEST_RESULTS_KEY }}*
+          path: results/
+      - name: Extract Test Target Name
+        id: extract-target-name
+        env:
+          test_target_with_path: ${{ matrix.test_target }}
+        run: echo "test_target=${test_target_with_path#*:}" >> $GITHUB_OUTPUT
       - name: Process Test Results
+        id: process-results
         uses: ./src/.github/actions/process_test_results
         with:
-          test_results_key: ${{ env.TEST_RESULTS_KEY }}
+          target_name: ${{ matrix.test_target }}
+          results_path: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           datadog_api_key: ${{ secrets.datadog_api_key }}
-        continue-on-error: true
+      - name: Print ${{ matrix.test_target }} Logs
+        if: always()
+        run: |
+          set -x
+          shopt -s globstar
 
+          ls results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+          if [ $? -ne 0 ]; then
+            echo "::error::No test logs found. Check test job to see what went wrong."
+            exit 1
+          fi
+
+          cat results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+
+          if [ "${{ steps.process-results.outcome }}" != "success" ]; then
+            echo "Tests failed"
+            exit 1
+          fi
+        shell: bash
 
   validate-test-result:
-    needs: [initialize, on-device-test, on-host-test]
-    if: always() &&
-        (
-          needs.on-device-test.result != 'skipped' ||
-          needs.on-host-test.result != 'skipped'
-        )
+    needs: [initialize, test-results]
+    if: always() && needs.test-results.result != 'skipped'
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.name }}_tests_passing
@@ -298,15 +326,10 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     steps:
-      - name: Check Status
-        if: ${{ ! (needs.on-device-test.result == 'success' || needs.on-host-test.result == 'success') }}
+      - name: Fail
+        if: needs.test-results.result == 'failure'
         run: |
-          if [ "${{ needs.on-device-test.result }}" != "success" ]; then
-            echo "On device tests failed. See separate job log for details."
+            # TODO: Print a summary of failed tests here.
+            echo "Test jobs failed. See separate job log for details."
             exit 1
-          fi
-
-          if [ "${{ needs.on-host-test.result }}" != "success" ]; then
-            echo "On host tests failed. See separate job log for details."
-            exit 1
-          fi
+        shell: bash
