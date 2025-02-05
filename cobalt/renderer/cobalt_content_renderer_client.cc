@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "starboard/media.h"
 
@@ -140,6 +141,8 @@ void CobaltContentRendererClient::RunScriptsAtDocumentStart(
   js_injection::JsCommunication* communication =
       js_injection::JsCommunication::Get(render_frame);
   communication->RunScriptsAtDocumentStart();
+  // CobaltRenderFrameObserver::OnDestruct deletes this.
+  new CobaltRenderFrameObserver(render_frame);
 }
 
 }  // namespace cobalt
