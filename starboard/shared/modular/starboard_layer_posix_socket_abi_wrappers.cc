@@ -197,7 +197,8 @@ SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
   // https://datatracker.ietf.org/doc/html/rfc6761#section-6.3
   // Note: This returns the IPv4 localhost first, and falls back to system
   // resolution when a service is supplied.
-  if (!service && node && strcmp("localhost", node) == 0) {
+  // Use case insensitive match: https://datatracker.ietf.org/doc/html/rfc4343.
+  if (!service && node && strcasecmp("localhost", node) == 0) {
     struct musl_addrinfo* last_ai = nullptr;
     *res = nullptr;
     const int ai_family[2] = {MUSL_AF_INET, MUSL_AF_INET6};

@@ -31,7 +31,8 @@ SbSocketResolution* SbSocketResolve(const char* hostname, int filters) {
   // Recognize "localhost" as special and resolve to the loopback address.
   // https://datatracker.ietf.org/doc/html/rfc6761#section-6.3
   // Note: This returns the IPv4 localhost first.
-  if (hostname && strcmp("localhost", hostname) == 0) {
+  // Use case insensitive match: https://datatracker.ietf.org/doc/html/rfc4343.
+  if (hostname && strcasecmp("localhost", hostname) == 0) {
     SbSocketResolution* result = new SbSocketResolution();
     int address = 0;
     result->address_count = 0;
