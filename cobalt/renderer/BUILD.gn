@@ -12,18 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//testing/test.gni")
-
 source_set("renderer") {
   sources = [
     "cobalt_content_renderer_client.cc",
     "cobalt_content_renderer_client.h",
-    "cobalt_render_frame_observer.cc",
-    "cobalt_render_frame_observer.h",
   ]
 
   deps = [
-    "//cobalt/configuration",
     "//cobalt/media/audio:webaudio",
     "//components/cdm/renderer",
     "//components/js_injection/renderer:renderer",
@@ -32,27 +27,8 @@ source_set("renderer") {
     "//content/public/common",
     "//content/public/renderer",
     "//content/test:content_test_mojo_bindings",
-    "//gin",
     "//media/mojo:buildflags",
     "//starboard:starboard_headers_only",
-    "//v8",
-  ]
-}
-
-test("renderer_browsertests") {
-  sources = [ "cobalt_render_frame_observer_browsertest.cc" ]
-
-  deps = [
-    ":renderer",
-    "//cobalt/configuration",
-    "//content/public/browser",
-    "//content/shell:content_shell_lib",
-    "//content/test:browsertest_support",
-    "//content/test:test_support",
-    "//skia",
-    "//testing/gmock",
-    "//testing/gtest",
-    "//third_party/abseil-cpp:absl",
     "//v8",
   ]
 }
