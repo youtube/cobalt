@@ -14,6 +14,28 @@
 #include "mojo/core/embedder/embedder.h"  // nogncheck
 #endif
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/client_porting/wrap_main/wrap_main.h"
+
+namespace {
+int LaunchUnitTests(int argc, char** argv) {
+  base::TestSuite test_suite(argc, argv);
+
+#if !BUILDFLAG(IS_IOS)
+  mojo::core::Init();
+#endif
+
+  return base::LaunchUnitTests(
+      argc, argv,
+      base::BindOnce(&base::TestSuite::Run, base::Unretained(&test_suite)));
+}
+}
+
+// For the Starboard OS define SbEventHandle as the entry point
+SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(LaunchUnitTests);
+
+#else
+
 int main(int argc, char** argv) {
   base::TestSuite test_suite(argc, argv);
 
@@ -25,3 +47,4 @@ int main(int argc, char** argv) {
       argc, argv,
       base::BindOnce(&base::TestSuite::Run, base::Unretained(&test_suite)));
 }
+#endif
