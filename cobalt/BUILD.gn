@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//build/linux/strip_binary.gni")
 import("//testing/test.gni")
 
 group("gn_all") {
@@ -23,7 +24,7 @@ group("gn_all") {
     "//starboard/nplb",
   ]
   if (!is_android) {
-    deps += [ ":cobalt" ]
+    deps += [ ":strip_cobalt_binary" ]
   } else {
     # TODO(cobalt): reuse build rules below to define Android target.
     deps += [ "android:cobalt_apk" ]
@@ -70,6 +71,12 @@ if (!is_android) {
     data_deps += [ "//components/crash/core/app:chrome_crashpad_handler" ]
 
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+  }
+
+  strip_binary("strip_cobalt_binary") {
+    binary_input = "$root_out_dir/cobalt"
+    deps = [ ":cobalt" ]
+    testonly = true
   }
 }
 
