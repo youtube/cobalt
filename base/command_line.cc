@@ -232,6 +232,21 @@ bool CommandLine::Init(int argc, const char* const* argv) {
 #error Unsupported platform
 #endif
 
+  const StringVector& args = current_process_commandline_->GetArgs();
+  LOG(INFO) << "ARJUN: ";
+  LOG(INFO) << "ARJUN: Parsed the following...";
+  for (const auto& iter : current_process_commandline_->GetSwitches()) {
+    LOG(INFO) << "ARJUN: " << "KEY=" << iter.first << "  VAL=" << iter.second;
+  }
+  if (!args.empty()) {
+    LOG(INFO) << "ARJUN: ";
+    LOG(INFO) << "ARJUN: Did not parse the following ...";
+    for (const auto& arg : args) {
+      LOG(INFO) << "ARJUN:" << arg;
+    }
+  }
+  LOG(INFO) << "ARJUN: ";
+
   return true;
 }
 

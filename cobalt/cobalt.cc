@@ -67,12 +67,12 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
        // Set the default size for the content shell/starboard window.
        "--content-shell-host-window-size=1920x1080",
        // Enable remote Devtools access.
-       "--remote-debugging-port=9222",
-       "--remote-allow-origins=http://localhost:9222",
+       // "--remote-debugging-port=9222",
+       // "--remote-allow-origins=http://localhost:9222",
        // This flag is added specifically for m114 and should be removed after
        // rebasing to m120+
-       "--user-level-memory-pressure-signal-params", "--no-sandbox",
-       "https://www.youtube.com/tv"});
+       "--user-level-memory-pressure-signal-params", "--no-sandbox"
+      });
   std::vector<const char*> args(argv, argv + argc);
   args.insert(args.end(), cobalt_args.begin(), cobalt_args.end());
 
