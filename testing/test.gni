@@ -960,9 +960,7 @@ template("test") {
         data_deps += [ ":${invoker.target_name}__rts_filters" ]
       }
     }
-    # TODO: b/384652502 - Cobalt: Remove use_custom_libc after setting
-    # is_starboard as a toolchain arg.
-  } else if (is_starboard && use_custom_libc) {
+  } else if (is_starboard) {
     cobalt_test(target_name) {
       forward_variables_from(invoker,
                              "*",
