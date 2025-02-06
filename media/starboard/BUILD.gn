@@ -27,9 +27,6 @@ source_set("starboard") {
     # TODO(b/375069564): Revisit CValStats
     "COBALT_MEDIA_ENABLE_CVAL=0",
 
-    # TODO(b/375070492): Revisit decode-to-texture
-    "COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER=0",
-
     # TODO(b/375218518): Revisit FormatSupportQueryMetrics
     "COBALT_MEDIA_ENABLE_FORMAT_SUPPORT_QUERY_METRICS=0",
 
@@ -77,6 +74,7 @@ source_set("starboard") {
     sources += [
       "bidirectional_fit_reuse_allocator.cc",
       "bidirectional_fit_reuse_allocator.h",
+      "decode_target_provider.h",
       "decoder_buffer_allocator.cc",
       "decoder_buffer_allocator.h",
       "decoder_buffer_memory_info.h",

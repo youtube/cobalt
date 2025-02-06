@@ -35,6 +35,7 @@
 #include "media/base/renderer_client.h"
 #include "media/base/video_renderer_sink.h"
 #include "media/renderers/video_overlay_factory.h"
+#include "media/starboard/decode_target_provider.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -49,9 +50,10 @@ using base::TimeDelta;
 // SbPlayer based Renderer implementation, the entry point for all video
 // playbacks on Starboard platforms.
 class MEDIA_EXPORT StarboardRenderer final
-    : public Renderer,
-      private SbPlayerBridge::Host,
-      public cobalt::media::mojom::VideoGeometryChangeClient {
+    : public cobalt::media::mojom::VideoGeometryChangeClient,
+      public Renderer,
+      public VideoRendererSink::RenderCallback,
+      private SbPlayerBridge::Host {
  public:
   StarboardRenderer(
       const scoped_refptr<base::SequencedTaskRunner>& task_runner,
@@ -106,6 +108,13 @@ class MEDIA_EXPORT StarboardRenderer final
   void OnVideoGeometryChange(const gfx::RectF& rect_f,
                              gfx::OverlayTransform transform) override;
 
+  // VideoRendererSink::RenderCallback implementation.
+  scoped_refptr<VideoFrame> Render(base::TimeTicks deadline_min,
+                                   base::TimeTicks deadline_max,
+                                   RenderingMode rendering_mode) override;
+  void OnFrameDropped() override;
+  base::TimeDelta GetPreferredRenderInterval() override;
+
  private:
   enum State {
     STATE_UNINITIALIZED,
@@ -150,6 +159,9 @@ class MEDIA_EXPORT StarboardRenderer final
 
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const raw_ptr<VideoRendererSink> video_renderer_sink_;
+  bool video_renderer_sink_started_;
+  // TODO(borongchen): remove below
+  int frame_counter_;
   const raw_ptr<MediaLog> media_log_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
@@ -230,6 +242,8 @@ class MEDIA_EXPORT StarboardRenderer final
       video_geometry_change_subcriber_remote_;
   mojo::Receiver<cobalt::media::mojom::VideoGeometryChangeClient>
       video_geometry_change_client_receiver_{this};
+
+  scoped_refptr<DecodeTargetProvider> decode_target_provider_;
 
   base::WeakPtrFactory<StarboardRenderer> weak_factory_{this};
   base::WeakPtr<StarboardRenderer> weak_this_{weak_factory_.GetWeakPtr()};
