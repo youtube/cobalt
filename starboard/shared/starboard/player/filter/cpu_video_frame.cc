@@ -238,6 +238,9 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
       Plane(uv_width, uv_height, destination_uv_pitch_in_bytes,
             frame->pixel_buffer_.get() + y_plane_size_in_bytes +
                 uv_plane_size_in_bytes));
+
+  frame->y_stride_ = destination_y_pitch_in_bytes;
+  frame->uv_stride_ = destination_uv_pitch_in_bytes;
   return frame;
 }
 

@@ -77,10 +77,16 @@ class CpuVideoFrame : public VideoFrame {
       const uint8_t* u,
       const uint8_t* v);
 
+  uint8_t* pixel_buffer() const { return pixel_buffer_.get(); }
+  int y_stride() const { return y_stride_; }
+  int uv_stride() const { return uv_stride_; }
+
  private:
   Format format_;
   int width_;
   int height_;
+  int y_stride_;
+  int uv_stride_;
 
   // The following two variables are valid when the frame contains pixel data.
   std::vector<Plane> planes_;
