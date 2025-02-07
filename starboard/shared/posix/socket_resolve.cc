@@ -16,6 +16,7 @@
 
 #include <errno.h>
 #include <netdb.h>
+#include <string.h>
 #include <sys/socket.h>
 
 #include "starboard/common/log.h"
@@ -26,6 +27,49 @@ namespace sbposix = starboard::shared::posix;
 SbSocketResolution* SbSocketResolve(const char* hostname, int filters) {
   struct addrinfo* ai = NULL;
   struct addrinfo hints = {0};
+
+  // Recognize "localhost" as special and resolve to the loopback address.
+  // https://datatracker.ietf.org/doc/html/rfc6761#section-6.3
+  // Note: This returns the IPv4 localhost first.
+  // Use case insensitive match: https://datatracker.ietf.org/doc/html/rfc4343.
+  if (hostname && strcasecmp("localhost", hostname) == 0) {
+    SbSocketResolution* result = new SbSocketResolution();
+    int address = 0;
+    result->address_count = 0;
+    if (filters == kSbSocketResolveFilterNone) {
+      result->address_count = 2;
+    } else {
+      if (filters & kSbSocketResolveFilterIpv4) {
+        result->address_count++;
+      }
+#if SB_HAS(IPV6)
+      if (filters & kSbSocketResolveFilterIpv6) {
+        result->address_count++;
+      }
+#endif
+    }
+    result->addresses =
+        new SbSocketAddress[result->address_count]();  // ensure zero
+                                                       // initialization
+
+    if ((filters == kSbSocketResolveFilterNone) ||
+        (filters & kSbSocketResolveFilterIpv4)) {
+      result->addresses[address].port = 0;
+      result->addresses[address].type = kSbSocketAddressTypeIpv4;
+      result->addresses[address].address[0] = 127;
+      result->addresses[address].address[3] = 1;
+      address++;
+    }
+#if SB_HAS(IPV6)
+    if ((filters == kSbSocketResolveFilterNone) ||
+        (filters & kSbSocketResolveFilterIpv6)) {
+      result->addresses[address].port = 0;
+      result->addresses[address].type = kSbSocketAddressTypeIpv6;
+      result->addresses[address].address[15] = 1;
+    }
+#endif
+    return result;
+  }
 
   if (filters & kSbSocketResolveFilterIpv4) {
     if (filters & kSbSocketResolveFilterIpv6) {
