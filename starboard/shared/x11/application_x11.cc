@@ -702,10 +702,13 @@ ApplicationX11::ApplicationX11(SbEventHandleCallback sb_event_handle_callback)
       display_(NULL),
       paste_buffer_key_release_pending_(false) {
   ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
+  SB_LOG(INFO) << "Before NetworkNotifier::GetOrCreateInstance()";
   NetworkNotifier::GetOrCreateInstance();
+  SB_LOG(INFO) << "After NetworkNotifier::GetOrCreateInstance()";
 }
 
 ApplicationX11::~ApplicationX11() {
+  SB_LOG(INFO) << "Entered teardown";
   ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::TearDown();
 }
 
