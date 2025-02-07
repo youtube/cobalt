@@ -166,6 +166,20 @@ TEST(JobThreadTest, QueueBelongsToCorrectThread) {
   EXPECT_TRUE(belongs_to_main_thread);
 }
 
+TEST(JobThreadTest, ScheduleJobDuringShutdown) {
+  std::unique_ptr<JobThread> job_thread_ptr(new JobThread{"JobThreadTests"});
+
+  bool job_thread_is_null = true;
+
+  job_thread_ptr->Schedule(
+      [&]() { job_thread_is_null = job_thread_ptr == nullptr; },
+      10 * kPrecisionUsec);
+
+  job_thread_ptr.reset();
+
+  EXPECT_FALSE(job_thread_is_null);
+}
+
 }  // namespace
 }  // namespace player
 }  // namespace starboard
