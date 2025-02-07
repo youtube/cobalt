@@ -11,10 +11,6 @@ import("//testing/libfuzzer/fuzzer_test.gni")
 import("BUILD.generated.gni")
 import("BUILD.generated_tests.gni")
 
-if (is_cobalt) {
-  import("//cobalt/build/configs/modular_variables.gni")
-}
-
 if (enable_rust) {
   import("//build/rust/cargo_crate.gni")
   import("//build/rust/rust_bindgen.gni")
@@ -22,7 +18,7 @@ if (enable_rust) {
 
 # Config for us and everybody else depending on BoringSSL.
 config("external_config") {
-  if (is_cobalt && is_cobalt_hermetic_build) {
+  if (is_cobalt_hermetic_build) {
     include_dirs = [
       "//cobalt/third_party/boringssl/src/include",
       "src/include",
@@ -121,7 +117,7 @@ if (is_win && !is_msan && current_cpu != "arm64") {
 
     sources = []
     asmflags = []
-    if (is_cobalt && is_cobalt_hermetic_build) {
+    if (is_cobalt_hermetic_build) {
       include_dirs = [
         "//cobalt/third_party/boringssl/src/include",
         "src/include",
@@ -182,7 +178,7 @@ component("boringssl") {
   # config is forwarded to callers. In particular, boringssl_crypto_tests
   # requires it.
   public_deps = [ ":boringssl_asm" ]
-  if (is_cobalt && is_cobalt_hermetic_build) {
+  if (is_cobalt_hermetic_build) {
     public_deps += [
       "//starboard:starboard_headers_only",
       "//starboard/common",
