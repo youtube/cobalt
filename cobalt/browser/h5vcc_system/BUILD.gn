@@ -25,6 +25,7 @@ source_set("h5vcc_system") {
     "//mojo/public/cpp/bindings",
   ]
 
+  # TODO (b/395154617) clean up
   if (is_android) {
     deps += [ "//starboard/android/shared:starboard_platform" ]
   }
