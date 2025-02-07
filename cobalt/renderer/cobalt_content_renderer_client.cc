@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "starboard/media.h"
 
@@ -72,6 +73,7 @@ CobaltContentRendererClient::~CobaltContentRendererClient() {}
 void CobaltContentRendererClient::RenderFrameCreated(
     content::RenderFrame* render_frame) {
   new js_injection::JsCommunication(render_frame);
+  new CobaltRenderFrameObserver(render_frame);
 }
 
 #if BUILDFLAG(IS_ANDROID)
