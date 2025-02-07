@@ -33,12 +33,8 @@ jobs:
       GITHUB_PR_REPO_URL: ${{ github.event.pull_request.base.repo.url }}
       GITHUB_EVENT_NUMBER: ${{ github.event.number }}
     if: |
-      github.event.action != 'labeled' ||
-      github.event.pull_request.merged == false &&
-      (
-        github.event.action == 'labeled' &&
-        github.event.label.name == 'runtest'
-      )
+      github.event.action != 'labeled' || github.event.pull_request.merged == false &&
+      (github.event.label.name == 'runtest' || github.event.label.name == 'on_device')
     timeout-minutes: 10
     steps:
       - name: Checkout
