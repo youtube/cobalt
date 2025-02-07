@@ -18,14 +18,9 @@ permissions: {}
 jobs:
   debug:
     runs-on: ubuntu-latest
-    permissions: {}
     timeout-minutes: 10
     steps:
-      - name: Print github
+      - name: Print github context
         shell: bash
         run: |
           echo '${{ toJSON(github) }}' | jq '.'
-      - name: Print concurrency expression
-        shell: bash
-        run: |
-          echo "${{ github.workflow }}-${{ github.event_name }}-platform @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}"
