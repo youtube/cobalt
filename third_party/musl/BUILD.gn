@@ -24,6 +24,7 @@ if (target_cpu == "x64") {
 
 config("external_settings") {
   include_dirs = [
+    "musl/include",
     "arch/$musl_arch",
     "arch/generic",
   ]
@@ -388,6 +389,9 @@ static_library("c_internal") {
     "src/starboard/stdio/stderr.c",
     "src/starboard/stdio/stdout.c",
     "src/starboard/stdio/vfprintf.c",
+    "src/starboard/stdio/vsnprintf.c",
+    "src/starboard/stdio/vsscanf.c",
+    "src/starboard/stdio/vswprintf.c",
     "src/starboard/stdlib/strtod_l.c",
     "src/starboard/time/__tz.c",
     "src/stdio/__toread.c",
