@@ -253,6 +253,51 @@ SB_EXPORT int __abi_wrap_getaddrinfo(const char* node,
     return -1;
   }
 
+  // Recognize "localhost" as special and resolve to the loopback address.
+  // https://datatracker.ietf.org/doc/html/rfc6761#section-6.3
+  // Note: This returns the IPv4 localhost first, and falls back to system
+  // resolution when a service is supplied.
+  // Use case insensitive match: https://datatracker.ietf.org/doc/html/rfc4343.
+  if (!service && node && strcasecmp("localhost", node) == 0) {
+    struct musl_addrinfo* last_ai = nullptr;
+    *res = nullptr;
+    const int ai_family[2] = {MUSL_AF_INET, MUSL_AF_INET6};
+    for (int family_idx = 0; family_idx < 2; ++family_idx) {
+      int family = ai_family[family_idx];
+      if (!hints || hints->ai_family == AF_UNSPEC ||
+          hints->ai_family == family) {
+        struct musl_addrinfo* musl_ai =
+            (struct musl_addrinfo*)calloc(1, sizeof(struct musl_addrinfo));
+        musl_ai->ai_addrlen = family == MUSL_AF_INET
+                                  ? sizeof(struct sockaddr_in)
+                                  : sizeof(struct sockaddr_in6);
+        musl_ai->ai_addr = reinterpret_cast<struct musl_sockaddr*>(
+            calloc(1, sizeof(struct musl_sockaddr)));
+        musl_ai->ai_addr->sa_family = family;
+
+        if (family == MUSL_AF_INET) {
+          struct sockaddr_in* address =
+              reinterpret_cast<struct sockaddr_in*>(musl_ai->ai_addr);
+          address->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+          // address->sin_addr.s_addr = -1;
+        } else if (family == MUSL_AF_INET6) {
+          struct sockaddr_in6* address =
+              reinterpret_cast<struct sockaddr_in6*>(musl_ai->ai_addr);
+          address->sin6_addr = IN6ADDR_LOOPBACK_INIT;
+          // address->sin6_addr.__in6_u.__u6_addr8[0] = 5;
+        }
+        if (*res == nullptr) {
+          *res = musl_ai;
+          last_ai = musl_ai;
+        } else {
+          last_ai->ai_next = musl_ai;
+          last_ai = musl_ai;
+        }
+      }
+    }
+    return 0;
+  }
+
   // musl addrinfo definition might differ from platform definition.
   // So we need to do a manual conversion to avoid header mismatches.
   struct addrinfo new_hints = {0};
