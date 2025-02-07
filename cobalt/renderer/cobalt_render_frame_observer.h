@@ -20,6 +20,7 @@
 
 namespace cobalt {
 
+// Enables Cobalt-specific responses to notifications of changes to the frame.
 class CobaltRenderFrameObserver : public content::RenderFrameObserver {
  public:
   explicit CobaltRenderFrameObserver(content::RenderFrame* render_frame);
@@ -30,7 +31,14 @@ class CobaltRenderFrameObserver : public content::RenderFrameObserver {
       delete;
 
  private:
+  // content::RenderFrameObserver impl.
+
+  // Overridden so that the observer has the same lifetime as the RenderFrame.
   void OnDestruct() override;
+
+  // Overridden for Cobalt-specific responses to this particular notification.
+  // See blink::WebLocalFrameClient.DidClearWindowObject() for details about
+  // when it's sent.
   void DidClearWindowObject() override;
 };
 
