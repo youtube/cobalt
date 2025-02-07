@@ -21,6 +21,7 @@ using starboard::android::shared::StarboardBridge;
 
 namespace h5vcc_system {
 
+// TODO (b/395126160): refactor mojom implementation on Android
 H5vccSystemImpl::H5vccSystemImpl(
     content::RenderFrameHost& render_frame_host,
     mojo::PendingReceiver<mojom::H5vccSystem> receiver)
