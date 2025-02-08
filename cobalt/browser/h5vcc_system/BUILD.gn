@@ -12,13 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//third_party/blink/renderer/modules/modules.gni")
-
-blink_modules_sources("h5vcc_system") {
+source_set("h5vcc_system") {
   sources = [
-    "h_5_vcc_system.cc",
-    "h_5_vcc_system.h",
+    "h5vcc_system_impl.cc",
+    "h5vcc_system_impl.h",
   ]
 
-  deps = [ "//cobalt/browser/h5vcc_system/public/mojom:mojom_blink" ]
+  deps = [
+    "//base",
+    "//cobalt/browser/h5vcc_system/public/mojom",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+  ]
+
+  # TODO (b/395154617) clean up
+  if (is_android) {
+    deps += [ "//starboard/android/shared:starboard_platform" ]
+  }
 }
