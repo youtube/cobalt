@@ -609,7 +609,7 @@ public class StarboardBridge {
   // Used in starboard/android/shared/system_get_property.cc
   /** Returns string for kSbSystemPropertyAdvertisingId */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   protected String getAdvertisingId() {
     return this.advertisingId.getId();
   }
