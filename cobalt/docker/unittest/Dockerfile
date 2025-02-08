@@ -6,8 +6,9 @@ RUN apt-get update && apt-get install -y \
     curl python3-dev git \
     xz-utils \
     pkgconf \
-    libglib2.0-0 \
-  # libnss3 \
+    libxcomposite-dev \
+   # libglib2.0-0 \
+  # gp \
     gperf \
    # libdbus-1-3 \
    # gcc-multilib \
