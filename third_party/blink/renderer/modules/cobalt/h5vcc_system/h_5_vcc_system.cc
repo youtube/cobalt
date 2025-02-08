@@ -13,20 +13,48 @@
 // limitations under the License.
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.h"
-
+#include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 
 namespace blink {
 
-H5vccSystem::H5vccSystem(LocalDOMWindow& window) {}
+H5vccSystem::H5vccSystem(LocalDOMWindow& window)
+    : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
+      remote_h5vcc_system_(window.GetExecutionContext()) {}
 
-const String H5vccSystem::advertisingId() const {
-  NOTIMPLEMENTED();
+void H5vccSystem::ContextDestroyed() {}
 
-  // TODO(b/377049113) add a mojom service and populate the value for
-  // advertising_id_.
-  //   return advertising_id_;
-  return String("fake advertisingId");
+ScriptPromise H5vccSystem::getAdvertisingId(ScriptState* script_state,
+                                            ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_system_->GetAdvertisingId(
+      WTF::BindOnce(&H5vccSystem::OnGetAdvertisingId, WrapPersistent(this),
+                    WrapPersistent(resolver)));
+
+  return resolver->Promise();
+}
+
+void H5vccSystem::OnGetAdvertisingId(ScriptPromiseResolver* resolver,
+                                     const String& result) {
+  resolver->Resolve(result);
+}
+
+void H5vccSystem::EnsureReceiverIsBound() {
+  DCHECK(GetExecutionContext());
+
+  if (remote_h5vcc_system_.is_bound()) {
+    return;
+  }
+
+  auto task_runner =
+      GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
+  GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
+      remote_h5vcc_system_.BindNewPipeAndPassReceiver(task_runner));
 }
 
 bool H5vccSystem::limitAdTracking() const {
@@ -38,6 +66,8 @@ bool H5vccSystem::limitAdTracking() const {
 
 void H5vccSystem::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
+  ExecutionContextLifecycleObserver::Trace(visitor);
+  visitor->Trace(remote_h5vcc_system_);
 }
 
 }  // namespace blink
