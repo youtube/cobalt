@@ -30,6 +30,8 @@ source_set("browser") {
     ":embed_polyfilled_javascript",
     "//cobalt/browser/crash_annotator",
     "//cobalt/browser/crash_annotator/public/mojom",
+    "//cobalt/browser/h5vcc_system",
+    "//cobalt/browser/h5vcc_system/public/mojom",
     "//cobalt/user_agent",
     "//components/js_injection/browser:browser",
     "//content/public/browser",
