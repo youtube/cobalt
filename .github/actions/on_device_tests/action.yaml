@@ -64,6 +64,7 @@ runs:
           trigger \
           --targets ${test_targets} \
           --filter_json_dir "${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform}}" \
+          --label chrobalt_on_device_test \
           --label github_${GITHUB_PR_NUMBER:-postsubmit} \
           --label builder-${{ matrix.platform }} \
           --label builder_url-${GITHUB_RUN_URL} \
