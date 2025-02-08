@@ -12,14 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This interface mirrors the H5vccSystem Web IDL defined in Cobalt LTS 25:
-// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_system.idl
-[
-    Exposed=Window,
-    SecureContext
-]
+module h5vcc_system.mojom;
+
+// The browser process must provide an implementation of this interface so that
+// the renderer process can implement the H5vccSystem Blink API.
 interface H5vccSystem {
-    [CallWith=ScriptState, RaisesException]
-    Promise<DOMString> getAdvertisingId();
-    readonly attribute boolean limitAdTracking;
+  // Get the GetAdvertisingId for the device.
+  GetAdvertisingId() => (string advertising_id);
 };

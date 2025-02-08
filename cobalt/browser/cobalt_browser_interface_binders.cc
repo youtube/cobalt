@@ -17,6 +17,8 @@
 #include "base/functional/bind.h"
 #include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
+#include "cobalt/browser/h5vcc_system/h5vcc_system_impl.h"
+#include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 
 namespace cobalt {
 
@@ -25,6 +27,8 @@ void PopulateCobaltFrameBinders(
     mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map) {
   binder_map->Add<crash_annotator::mojom::CrashAnnotator>(
       base::BindRepeating(&crash_annotator::CrashAnnotatorImpl::Create));
+  binder_map->Add<h5vcc_system::mojom::H5vccSystem>(
+      base::BindRepeating(&h5vcc_system::H5vccSystemImpl::Create));
 }
 
 }  // namespace cobalt

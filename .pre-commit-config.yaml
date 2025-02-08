@@ -13,6 +13,7 @@ files: |
         media/starboard/|
         starboard/|
         third_party/blink/renderer/modules/cobalt/|
+        third_party/blink/web_tests/wpt_internal/h5vcc/|
         components/viz/service/display/starboard/|
         ui/ozone/platform/starboard/|
         .pre-commit-config.yaml|
