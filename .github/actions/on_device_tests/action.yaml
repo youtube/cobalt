@@ -83,7 +83,8 @@ runs:
           --gcs_result_path "${GCS_RESULTS_PATH}" || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."
-            exit 0
+            # Fail the job so it's easy to retrigger.
+            exit 1
           }
         echo "Finished running tests..."
       shell: bash
