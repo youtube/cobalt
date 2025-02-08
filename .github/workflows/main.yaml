@@ -117,10 +117,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      timeout-minutes: 30
-      with:
-        fetch-depth: 1
-        persist-credentials: false
     # Handle GitHub registry used for everything other than pull requests off forked repos.
     - name: Login to GitHub Docker Registry
       uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
@@ -151,10 +147,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        timeout-minutes: 30
-        with:
-          fetch-depth: 1
-          persist-credentials: false
       - name: Login to GitHub Docker Registry
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
         with:
