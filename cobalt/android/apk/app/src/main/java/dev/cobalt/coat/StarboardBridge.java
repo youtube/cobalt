@@ -64,7 +64,7 @@ public class StarboardBridge {
   // TODO(cobalt): Re-enable these classes or remove if unnecessary.
   private AudioOutputManager audioOutputManager;
   // private CobaltMediaSession cobaltMediaSession;
-  // private AudioPermissionRequester audioPermissionRequester;
+  private AudioPermissionRequester audioPermissionRequester;
   private NetworkStatus networkStatus;
   private ResourceOverlay resourceOverlay;
   private AdvertisingId advertisingId;
@@ -123,7 +123,7 @@ public class StarboardBridge {
     this.audioOutputManager = new AudioOutputManager(appContext);
     // this.cobaltMediaSession =
     //   new CobaltMediaSession(appContext, activityHolder, audioOutputManager, artworkDownloader);
-    // this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
+    this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     // TODO(cobalt, b/378718120): delete NetworkStatus if navigator.online works in Content.
     this.networkStatus = new NetworkStatus(appContext);
     this.resourceOverlay = new ResourceOverlay(appContext);
@@ -156,6 +156,8 @@ public class StarboardBridge {
     activityHolder.set(activity);
     sysConfigChangeReceiver.setForeground(true);
     beforeStartOrResume();
+
+    this.audioPermissionRequester.requestRecordAudioPermission(1);
   }
 
   protected void onActivityStop(Activity activity) {
@@ -635,15 +637,15 @@ public class StarboardBridge {
   }
 
   /** Returns Java layer implementation for AudioPermissionRequester */
-  // @SuppressWarnings("unused")
-  // @UsedByNative
-  // AudioPermissionRequester getAudioPermissionRequester() {
-  //   return audioPermissionRequester;
-  // }
+  @SuppressWarnings("unused")
+  @UsedByNative
+  AudioPermissionRequester getAudioPermissionRequester() {
+    return audioPermissionRequester;
+  }
 
-  // void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-  //   audioPermissionRequester.onRequestPermissionsResult(requestCode, permissions, grantResults);
-  // }
+  void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    audioPermissionRequester.onRequestPermissionsResult(requestCode, permissions, grantResults);
+  }
 
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/video_window.cc
