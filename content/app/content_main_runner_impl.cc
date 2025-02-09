@@ -815,6 +815,14 @@ int ContentMainRunnerImpl::Initialize(ContentMainParams params) {
   TRACE_EVENT0("startup,benchmark,rail", "ContentMainRunnerImpl::Initialize");
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(IS_ANDROID) && defined(IS_COBALT)
+  SbFileAndroidInitialize();
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject local_ref = env->CallStarboardObjectMethodOrAbort(
+      "getResourceOverlay", "()Ldev/cobalt/coat/ResourceOverlay;");
+  resource_overlay_ = env->ConvertLocalRefToGlobalRef(local_ref);
+#endif
+
 #if !BUILDFLAG(IS_WIN)
 
   [[maybe_unused]] base::GlobalDescriptors* g_fds =
