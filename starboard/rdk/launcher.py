@@ -165,6 +165,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # used in RDK's loader
     rdk_tmp = '/var/lib/persistent/rdkservices/Cobalt/Cobalt/.cobalt_storage'
     self.test_prep_command = (f'rm -rf {rdk_tmp}; '
+                              f'ls -la {rdk_tmp}; '
                               f'rm -rf {rdk_test_dir}/cobalt; '
                               f'ln -s {rdk_storage_dir}/{self.target_name} '
                               f'{rdk_test_dir}/cobalt')
