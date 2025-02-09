@@ -428,7 +428,10 @@ QuicConnection::~QuicConnection() {
   }
 }
 
-void QuicConnection::ClearQueuedPackets() { buffered_packets_.clear(); }
+void QuicConnection::ClearQueuedPackets() {
+  LOG(INFO) << __FUNCTION__ << " " << buffered_packets_.size();
+  buffered_packets_.clear();
+}
 
 bool QuicConnection::ValidateConfigConnectionIds(const QuicConfig& config) {
   QUICHE_DCHECK(config.negotiated());
@@ -2407,6 +2410,7 @@ void QuicConnection::CloseIfTooManyOutstandingSentPackets() {
           sent_packet_manager_.GetLeastUnacked() + max_tracked_packets_;
 
   if (should_close) {
+    LOG(INFO) << __FUNCTION__ << "\n\n*************************\n\n";
     CloseConnection(
         QUIC_TOO_MANY_OUTSTANDING_SENT_PACKETS,
         absl::StrCat("More than ", max_tracked_packets_,
@@ -2821,6 +2825,7 @@ void QuicConnection::OnCanWrite() {
   if (writer_->IsWriteBlocked()) {
     const std::string error_details =
         "Writer is blocked while calling OnCanWrite.";
+    LOG(INFO) << __FUNCTION__ << " " << error_details;
     QUIC_BUG(quic_bug_10511_22) << ENDPOINT << error_details;
     CloseConnection(QUIC_INTERNAL_ERROR, error_details,
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -3119,6 +3124,25 @@ bool QuicConnection::ValidateReceivedPacketNumber(
 }
 
 void QuicConnection::WriteQueuedPackets() {
+  static int cnt = 0;
+  static int count = 0;
+  static int singles = 0;
+  static int multiples = 0;
+  ++count;
+  if (buffered_packets_.size() > 1) {
+    multiples += buffered_packets_.size();
+  } else {
+    ++singles;
+  }
+  if (++cnt > 99) {
+    cnt = 0;
+    LOG(INFO) << __FUNCTION__ << " " << buffered_packets_.size()
+              << " count=" << count << " singles=" << singles
+              << " mutiples=" << (double)multiples / (count - singles);
+    count = 0;
+    singles = 0;
+    multiples = 0;
+  }
   QUICHE_DCHECK(!writer_->IsWriteBlocked());
 #if !defined(STARBOARD)
   QUIC_CLIENT_HISTOGRAM_COUNTS("QuicSession.NumQueuedPacketsBeforeWrite",
@@ -3127,6 +3151,7 @@ void QuicConnection::WriteQueuedPackets() {
 
   while (!buffered_packets_.empty()) {
     if (HandleWriteBlocked()) {
+      LOG(INFO) << __FUNCTION__;
       break;
     }
     const BufferedPacket& packet = buffered_packets_.front();
@@ -3135,6 +3160,7 @@ void QuicConnection::WriteQueuedPackets() {
         packet.peer_address, per_packet_options_);
     QUIC_DVLOG(1) << ENDPOINT << "Sending buffered packet, result: " << result;
     if (IsMsgTooBig(writer_, result) && packet.length > long_term_mtu_) {
+      LOG(INFO) << __FUNCTION__;
       // When MSG_TOO_BIG is returned, the system typically knows what the
       // actual MTU is, so there is no need to probe further.
       // TODO(wub): Reduce max packet size to a safe default, or the actual MTU.
@@ -3144,6 +3170,7 @@ void QuicConnection::WriteQueuedPackets() {
       continue;
     }
     if (IsWriteError(result.status)) {
+      LOG(INFO) << __FUNCTION__;
       OnWriteError(result.error_code);
       break;
     }
@@ -3152,6 +3179,7 @@ void QuicConnection::WriteQueuedPackets() {
       buffered_packets_.pop_front();
     }
     if (IsWriteBlockedStatus(result.status)) {
+      LOG(INFO) << __FUNCTION__;
       visitor_->OnWriteBlocked();
       break;
     }
@@ -3545,6 +3573,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
     // duplicate packet being sent.  The helper must call OnCanWrite
     // when the write completes, and OnWriteError if an error occurs.
     if (result.status != WRITE_STATUS_BLOCKED_DATA_BUFFERED) {
+      LOG(INFO) << __FUNCTION__;
       QUIC_DVLOG(1) << ENDPOINT << "Adding packet: " << packet->packet_number
                     << " to buffered packets";
       buffered_packets_.emplace_back(*packet, send_from_address,
@@ -4541,6 +4570,7 @@ bool QuicConnection::MaybeProcessCoalescedPackets() {
 void QuicConnection::CloseConnection(
     QuicErrorCode error, const std::string& details,
     ConnectionCloseBehavior connection_close_behavior) {
+  LOG(INFO) << __FUNCTION__ << " " << details << " *************************";
   CloseConnection(error, NO_IETF_QUIC_ERROR, details,
                   connection_close_behavior);
 }
@@ -5073,6 +5103,7 @@ bool QuicConnection::SendConnectivityProbingPacket(
     QUIC_DLOG(INFO)
         << ENDPOINT
         << "Writer blocked when sending connectivity probing packet.";
+    LOG(INFO) << __FUNCTION__;
     if (probing_writer == writer_) {
       // Visitor should not be write blocked if the probing writer is not the
       // default packet writer.
@@ -5852,6 +5883,20 @@ void QuicConnection::SendAllPendingAcks() {
   if (!earliest_ack_timeout.IsInitialized()) {
     return;
   }
+
+  static bool was_blocked = false;
+  if (writer_->IsWriteBlocked()) {
+    was_blocked = true;
+    LOG(INFO) << __FUNCTION__
+              << " writer_->IsWriteBlocked()=" << writer_->IsWriteBlocked();
+    return;
+  }
+  if (was_blocked) {
+    was_blocked = false;
+    LOG(INFO) << __FUNCTION__
+              << " writer_->IsWriteBlocked()=" << writer_->IsWriteBlocked();
+  }
+
   for (int8_t i = INITIAL_DATA; i <= APPLICATION_DATA; ++i) {
     const QuicTime ack_timeout = uber_received_packet_manager_.GetAckTimeout(
         static_cast<PacketNumberSpace>(i));
@@ -5877,6 +5922,7 @@ void QuicConnection::SendAllPendingAcks() {
     QuicFrames frames;
     frames.push_back(uber_received_packet_manager_.GetUpdatedAckFrame(
         static_cast<PacketNumberSpace>(i), clock_->ApproximateNow()));
+
     const bool flushed = packet_creator_.FlushAckFrame(frames);
     if (!flushed) {
       // Connection is write blocked.

@@ -124,6 +124,7 @@ class NET_EXPORT_PRIVATE QuicChromiumPacketWriter
 
   // If ture, IsWriteBlocked() will return true regardless of
   // |write_in_progress_|.
+  int force_write_blocked_count_ = 0;
   bool force_write_blocked_ = false;
 
   int retry_count_ = 0;
