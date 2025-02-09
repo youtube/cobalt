@@ -70,7 +70,8 @@
         <data android:pathPattern=".*"/>
       </intent-filter>
     </activity>
-
+    <!-- https://developer.android.com/guide/topics/manifest/profileable-element -->
+    <profileable android:shell="true"  android:enabled="true" />
   </application>
 
   <queries>
