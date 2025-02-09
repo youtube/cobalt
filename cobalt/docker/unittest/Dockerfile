@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     bzip2 \
    # python3-certifi \
    libasound2 \
+   libgbm-dev \
     xauth \
     xvfb \
     jq \
