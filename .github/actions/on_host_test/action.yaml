@@ -100,8 +100,8 @@ runs:
       shell: bash
       run: |
         # Set tags for test differentiation.
-        tags="platform:${{ matrix.platform }}"
-        tags="${tags},os:${{ inputs.os }}"
+        tags="os.platform:${{ matrix.platform }}"
+        tags="${tags},os.family:${{ inputs.os }}"
         echo $tags > ${TEST_RESULTS_DIR}/${{ matrix.platform }}/TAGS
     # TODO(b/392611572)
     # Temporarily disabled because we need to upgrade to v4, but that
