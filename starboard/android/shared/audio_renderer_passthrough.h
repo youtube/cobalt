@@ -29,6 +29,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_discard_duration_tracker.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/common.h"
 #include "starboard/shared/starboard/player/filter/media_time_provider.h"
@@ -50,6 +51,8 @@ class AudioRendererPassthrough
  public:
   typedef ::starboard::shared::starboard::media::AudioStreamInfo
       AudioStreamInfo;
+  typedef ::starboard::shared::starboard::player::filter::
+      AudioDiscardDurationTracker AudioDiscardDurationTracker;
 
   AudioRendererPassthrough(const AudioStreamInfo& audio_stream_info,
                            SbDrmSystem drm_system,
@@ -147,6 +150,8 @@ class AudioRendererPassthrough
   // invalidated.
   std::unique_ptr<AudioTrackBridge> audio_track_bridge_;
   std::unique_ptr<JobThread> audio_track_thread_;
+
+  AudioDiscardDurationTracker discard_duration_tracker_;
 };
 
 }  // namespace shared

@@ -20,6 +20,8 @@ static_library("filter_based_player_sources") {
     "//starboard/shared/starboard/player/filter/audio_channel_layout_mixer.h",
     "//starboard/shared/starboard/player/filter/audio_channel_layout_mixer_impl.cc",
     "//starboard/shared/starboard/player/filter/audio_decoder_internal.h",
+    "//starboard/shared/starboard/player/filter/audio_discard_duration_tracker.cc",
+    "//starboard/shared/starboard/player/filter/audio_discard_duration_tracker.h",
     "//starboard/shared/starboard/player/filter/audio_frame_discarder.cc",
     "//starboard/shared/starboard/player/filter/audio_frame_discarder.h",
     "//starboard/shared/starboard/player/filter/audio_frame_tracker.cc",
