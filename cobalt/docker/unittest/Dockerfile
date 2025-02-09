@@ -8,12 +8,13 @@ RUN apt-get update && apt-get install -y \
     pkgconf \
     libxcomposite-dev \
    # libglib2.0-0 \
-  # gp \
+  # libnss3 \
     gperf \
    # libdbus-1-3 \
    # gcc-multilib \
     bzip2 \
    # python3-certifi \
+   libasound2 \
     xauth \
     xvfb \
     jq \
