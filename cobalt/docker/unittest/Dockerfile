@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y \
     pkgconf \
     libxcomposite-dev \
    # libglib2.0-0 \
-  # libnss3 \
+    libnss3 \
     gperf \
    # libdbus-1-3 \
    # gcc-multilib \
