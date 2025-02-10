@@ -85,7 +85,7 @@ public class Log {
      */
     @AlwaysInline
     public static boolean isLoggable(String tag, int level) {
-        return BuildConfig.ENABLE_DEBUG_LOGS || android.util.Log.isLoggable(tag, level);
+        return BuildConfig.ENABLE_DEBUG_LOGS;
     }
 
     /**
