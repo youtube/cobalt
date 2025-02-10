@@ -141,7 +141,7 @@ void StarboardBridge::AppendArgs(JNIEnv* env,
   AppendJavaStringArrayToStringVector(env, args_java, args_vector);
 }
 
-std::string StarboardBridge::GetStartDeepLink(JNIEnv* env) {
+SB_EXPORT_ANDROID std::string StarboardBridge::GetStartDeepLink(JNIEnv* env) {
   SB_DCHECK(env);
   ScopedJavaLocalRef<jstring> start_deep_link_java =
       Java_StarboardBridge_getStartDeepLink(env, j_starboard_bridge_);

@@ -12,13 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//third_party/blink/renderer/modules/modules.gni")
-
-blink_modules_sources("h5vcc_runtime") {
+source_set("h5vcc_runtime") {
   sources = [
-    "h_5_vcc_runtime.cc",
-    "h_5_vcc_runtime.h",
+    "h5vcc_runtime_impl.cc",
+    "h5vcc_runtime_impl.h",
   ]
 
-  deps = [ "//cobalt/browser/h5vcc_runtime/public/mojom:mojom_blink" ]
+  deps = [
+    "//base",
+    "//cobalt/browser/h5vcc_runtime/public/mojom",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+    "//starboard($starboard_toolchain)",
+  ]
 }
