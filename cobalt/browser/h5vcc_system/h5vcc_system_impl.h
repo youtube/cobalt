@@ -41,6 +41,7 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
   H5vccSystemImpl& operator=(const H5vccSystemImpl&) = delete;
 
   void GetAdvertisingId(GetAdvertisingIdCallback) override;
+  void GetLimitAdTracking(GetLimitAdTrackingCallback) override;
 
  private:
   H5vccSystemImpl(content::RenderFrameHost& render_frame_host,
