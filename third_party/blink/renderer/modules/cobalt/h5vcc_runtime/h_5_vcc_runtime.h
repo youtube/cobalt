@@ -12,50 +12,50 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H_5_VCC_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H_5_VCC_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_RUNTIME_H_5_VCC_RUNTIME_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_RUNTIME_H_5_VCC_RUNTIME_H_
 
+#include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom-blink.h"
+
+#include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
-#include "third_party/blink/renderer/platform/supplementable.h"
+#include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
 
-class ScriptState;
-class CrashAnnotator;
+class ExecutionContext;
 class LocalDOMWindow;
-class H5vccSystem;
-class H5vccRuntime;
+class ScriptState;
+class ScriptPromiseResolver;
 
-class MODULES_EXPORT H5vcc final : public ScriptWrappable,
-                                   public Supplement<LocalDOMWindow> {
+class MODULES_EXPORT H5vccRuntime final
+    : public ScriptWrappable,
+      public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static const char kSupplementName[];
+  explicit H5vccRuntime(LocalDOMWindow&);
 
-  // For window.h5vcc
-  static H5vcc* h5vcc(LocalDOMWindow&);
+  void ContextDestroyed() override;
 
-  explicit H5vcc(LocalDOMWindow&);
-
-  CrashAnnotator* crashAnnotator() { return crash_annotator_; }
-
-  H5vccSystem* system() { return system_; }
-
-  H5vccRuntime* runtime() { return runtime_; }
+  // Web-exposed interface:
+  ScriptPromise getInitialDeepLink(ScriptState*, ExceptionState&);
 
   void Trace(Visitor*) const override;
 
  private:
-  Member<CrashAnnotator> crash_annotator_;
-  Member<H5vccSystem> system_;
-  Member<H5vccRuntime> runtime_;
+  void OnGetInitialDeepLink(ScriptPromiseResolver*, const String&);
+  void EnsureReceiverIsBound();
+  HeapMojoRemote<h5vcc_runtime::mojom::blink::H5vccRuntime>
+      remote_h5vcc_runtime_;
+  String initial_deep_link_;
 };
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_H_5_VCC_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_RUNTIME_H_5_VCC_RUNTIME_H_
