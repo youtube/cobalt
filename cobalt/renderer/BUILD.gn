@@ -16,6 +16,8 @@ source_set("renderer") {
   sources = [
     "cobalt_content_renderer_client.cc",
     "cobalt_content_renderer_client.h",
+    "cobalt_render_frame_observer.cc",
+    "cobalt_render_frame_observer.h",
   ]
 
   deps = [

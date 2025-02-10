@@ -250,11 +250,7 @@ create_and_upload_nightly_archive () {
   local local_archive_path=$3
   local build_info_path=$4
 
-  local gcs_path_suffix="_nightly"
-  if [[ "${KOKORO_GOB_BRANCH_src}" != "COBALT" ]]; then
-    gcs_path_suffix="_${KOKORO_GOB_BRANCH_src}"
-  fi
-  local gcs_archive_path="gs://$(get_bucket_name)/${platform}${gcs_path_suffix}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
+  local gcs_archive_path="gs://$(get_bucket_name)/${platform}_${KOKORO_GOB_BRANCH_src}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
 
   init_gcloud
 
