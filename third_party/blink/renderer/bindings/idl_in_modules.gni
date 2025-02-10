@@ -1214,7 +1214,7 @@ if (is_cobalt) {
             "//third_party/blink/renderer/modules/cobalt/window_h_5_vcc.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime/h_5_vcc_runtime.idl",
-            "//third_party/blink/renderer/modules/cobalt/mediasource/source_buffer_write_head.idl",
+            "//third_party/blink/renderer/modules/cobalt/mediasource/source_buffer_extensions.idl",
           ],
           "abspath")
 }

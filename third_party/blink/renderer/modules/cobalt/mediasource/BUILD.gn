@@ -20,7 +20,5 @@ blink_modules_sources("mediasource") {
     "source_buffer_write_head.h",
   ]
 
-  deps = [
-    "//third_party/blink/renderer/modules/mediasource:mediasource"
-  ]
+  deps = [ "//third_party/blink/renderer/modules/mediasource:mediasource" ]
 }
