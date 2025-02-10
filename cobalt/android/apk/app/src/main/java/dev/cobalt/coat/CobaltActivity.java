@@ -521,7 +521,11 @@ public abstract class CobaltActivity extends Activity {
    * dev.cobalt.coat/dev.cobalt.app.MainActivity
    */
   protected String[] getArgs() {
-    List<String> args = new ArrayList<>(Arrays.asList(getCommandLineParamsFromIntent(getIntent())));
+    ArrayList<String> args = new ArrayList<>();
+    String[] commandLineArgs = getCommandLineParamsFromIntent(getIntent());
+    if (commandLineArgs != null) {
+      args.addAll(Arrays.asList(commandLineArgs));
+    }
 
     // If the URL arg isn't specified, get it from AndroidManifest.xml.
     boolean hasUrlArg = hasArg(args, URL_ARG);
