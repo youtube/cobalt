@@ -116,6 +116,19 @@ source_set("gtest") {
     "src/googletest/src/gtest.cc",
   ]
 
+  if (is_cobalt_hermetic_build) {
+    sources -= [
+      "src/googletest/include/gtest/internal/custom/gtest-port.h",
+      "src/googletest/include/gtest/internal/gtest-port-arch.h",
+      "src/googletest/src/gtest.cc",
+    ]
+    sources += [
+      "//cobalt/third_party/googletest/src/googletest/include/gtest/internal/custom/gtest-port.h",
+      "//cobalt/third_party/googletest/src/googletest/include/gtest/internal/gtest-port-arch.h",
+      "//cobalt/third_party/googletest/src/googletest/src/gtest.cc",
+    ]
+  }
+
   # Some files include "src/gtest-internal-inl.h".
   include_dirs = [ "src/googletest" ]
 
