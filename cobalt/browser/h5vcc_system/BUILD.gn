@@ -12,25 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("renderer") {
+source_set("h5vcc_system") {
   sources = [
-    "cobalt_content_renderer_client.cc",
-    "cobalt_content_renderer_client.h",
-    "cobalt_render_frame_observer.cc",
-    "cobalt_render_frame_observer.h",
+    "h5vcc_system_impl.cc",
+    "h5vcc_system_impl.h",
   ]
 
   deps = [
-    "//cobalt/media/audio:webaudio",
-    "//components/cdm/renderer",
-    "//components/js_injection/renderer:renderer",
-    "//components/network_hints/renderer",
-    "//components/web_cache/renderer",
-    "//content/public/common",
-    "//content/public/renderer",
-    "//content/test:content_test_mojo_bindings",
-    "//media/mojo:buildflags",
-    "//starboard:starboard_headers_only",
-    "//v8",
+    "//base",
+    "//cobalt/browser/h5vcc_system/public/mojom",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
   ]
+
+  # TODO (b/395154617) clean up
+  if (is_android) {
+    deps += [ "//starboard/android/shared:starboard_platform" ]
+  }
 }

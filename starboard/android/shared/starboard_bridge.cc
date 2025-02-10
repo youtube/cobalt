@@ -235,6 +235,21 @@ ScopedJavaLocalRef<jobject> StarboardBridge::GetTextToSpeechHelper(
   SB_DCHECK(env);
   return Java_StarboardBridge_getTextToSpeechHelper(env, j_starboard_bridge_);
 }
+
+std::string StarboardBridge::GetAdvertisingId(JNIEnv* env) {
+  SB_DCHECK(env);
+  ScopedJavaLocalRef<jstring> advertising_id_java =
+      Java_StarboardBridge_getAdvertisingId(env, j_starboard_bridge_);
+  return ConvertJavaStringToUTF8(env, advertising_id_java);
+}
+
+bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
+  SB_DCHECK(env);
+  jboolean limit_ad_tracking_java =
+      Java_StarboardBridge_getLimitAdTracking(env, j_starboard_bridge_);
+  return limit_ad_tracking_java;
+}
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
