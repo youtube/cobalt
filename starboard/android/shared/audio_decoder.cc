@@ -211,6 +211,12 @@ void AudioDecoder::ProcessOutputBuffer(
   SB_DCHECK(media_codec_bridge);
   SB_DCHECK(output_cb_);
   SB_DCHECK(dequeue_output_result.index >= 0);
+  if (!media_codec_bridge) {
+    ReportError(
+        kSbPlayerErrorDecode,
+        "Missing media_codec_bridge for processing audio output buffers.");
+    return;
+  }
 
   if (dequeue_output_result.num_bytes > 0) {
     ScopedJavaByteBuffer byte_buffer(
@@ -268,6 +274,12 @@ void AudioDecoder::ProcessOutputBuffer(
 }
 
 void AudioDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
+  SB_DCHECK(media_codec_bridge);
+  if (!media_codec_bridge) {
+    ReportError(kSbPlayerErrorDecode,
+                "Missing media_codec_bridge for audio output format.");
+    return;
+  }
   AudioOutputFormatResult output_format =
       media_codec_bridge->GetAudioOutputFormat();
   if (output_format.status == MEDIA_CODEC_ERROR) {

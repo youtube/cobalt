@@ -887,8 +887,15 @@ void VideoDecoder::WriteInputBuffersInternal(
 void VideoDecoder::ProcessOutputBuffer(
     MediaCodecBridge* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result) {
+  SB_DCHECK(media_codec_bridge);
   SB_DCHECK(decoder_status_cb_);
   SB_DCHECK(dequeue_output_result.index >= 0);
+  if (!media_codec_bridge) {
+    ReportError(
+        kSbPlayerErrorDecode,
+        "Missing media_codec_bridge for processing audio output buffers.");
+    return;
+  }
 
   bool is_end_of_stream =
       dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM;
@@ -917,6 +924,11 @@ void VideoDecoder::ProcessOutputBuffer(
 
 void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
   SB_DCHECK(media_codec_bridge);
+  if (!media_codec_bridge) {
+    ReportError(kSbPlayerErrorDecode,
+                "Missing media_codec_bridge for video output format.");
+    return;
+  }
   SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
 
   ScopedLock lock(decode_target_mutex_);

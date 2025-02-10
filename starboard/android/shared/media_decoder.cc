@@ -229,6 +229,9 @@ void MediaDecoder::WriteEndOfStream() {
 void MediaDecoder::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(media_type_ == kSbMediaTypeVideo);
   SB_DCHECK(media_codec_bridge_);
+  if (!media_codec_bridge_) {
+    return;
+  }
   media_codec_bridge_->SetPlaybackRate(playback_rate);
 }
 
@@ -404,6 +407,11 @@ bool MediaDecoder::ProcessOneInputBuffer(
     std::deque<Event>* pending_tasks,
     std::vector<int>* input_buffer_indices) {
   SB_DCHECK(media_codec_bridge_);
+  if (!media_codec_bridge_) {
+    ReportError(kSbPlayerErrorDecode,
+                "Missing media_codec_bridge for processing input buffer.");
+    return false;
+  }
 
   // During secure playback, and only secure playback, it is possible that our
   // attempt to enqueue an input buffer will be rejected by MediaCodec because
