@@ -12,6 +12,7 @@ class MockH5vccSystem {
   }
 
   STUB_KEY_ADVERTISING_ID = 'advertisingId';
+  STUB_KEY_LIMIT_AD_TRACKING = 'limitAdTracking';
 
   start() {
     this.interceptor_.start();
@@ -37,11 +38,19 @@ class MockH5vccSystem {
     this.stubResult(this.STUB_KEY_ADVERTISING_ID, id);
   }
 
+  stubLimitAdTracking(limitAdTracking) {
+    this.stubResult(this.STUB_KEY_LIMIT_AD_TRACKING, limitAdTracking);
+  }
+
   // h5vcc_system.mojom.H5vccSystem impl.
   getAdvertisingId() {
     // VERY IMPORTANT: this should return (a resolved Promise with) a dictionary
     // with the same "key" as the mojom definition, find the name of the key in the generated js file imported on the top of this file.
     return Promise.resolve({ advertisingId: this.stub_result_.get(this.STUB_KEY_ADVERTISING_ID) });
+  }
+
+  getLimitAdTracking() {
+    return Promise.resolve({ limitAdTracking: this.stub_result_.get(this.STUB_KEY_LIMIT_AD_TRACKING) });
   }
 }
 

@@ -44,6 +44,25 @@ void H5vccSystem::OnGetAdvertisingId(ScriptPromiseResolver* resolver,
   resolver->Resolve(result);
 }
 
+ScriptPromise H5vccSystem::getLimitAdTracking(ScriptState* script_state,
+                                              ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_system_->GetLimitAdTracking(
+      WTF::BindOnce(&H5vccSystem::OnGetLimitAdTracking, WrapPersistent(this),
+                    WrapPersistent(resolver)));
+
+  return resolver->Promise();
+}
+
+void H5vccSystem::OnGetLimitAdTracking(ScriptPromiseResolver* resolver,
+                                       bool result) {
+  resolver->Resolve(result);
+}
+
 void H5vccSystem::EnsureReceiverIsBound() {
   DCHECK(GetExecutionContext());
 
@@ -55,13 +74,6 @@ void H5vccSystem::EnsureReceiverIsBound() {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_h5vcc_system_.BindNewPipeAndPassReceiver(task_runner));
-}
-
-bool H5vccSystem::limitAdTracking() const {
-  NOTIMPLEMENTED();
-
-  // TODO(b/377049113) add a mojom service and populate the value.
-  return false;
 }
 
 void H5vccSystem::Trace(Visitor* visitor) const {
