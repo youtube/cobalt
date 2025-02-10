@@ -9,9 +9,8 @@ function crash_annotator_test(func, name, properties) {
     assert_implements(window.h5vcc.crashAnnotator,
                       'missing window.h5vcc.crashAnnotator');
     if (fakeCrashAnnotatorImpl === undefined) {
-      const fakes =
-          await import('/resources/chromium/cobalt/fake-crash-annotator-impl.js');
-          fakeCrashAnnotatorImpl = fakes.fakeCrashAnnotatorImpl;
+      const fakes = await import('./fake-crash-annotator-impl.js');
+      fakeCrashAnnotatorImpl = fakes.fakeCrashAnnotatorImpl;
     }
     assert_implements(fakeCrashAnnotatorImpl, 'missing fakeCrashAnnotatorImpl');
 
