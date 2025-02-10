@@ -7,9 +7,11 @@
   "num_gtest_shards": 10,
   "targets": [
     "cobalt:gn_all",
-    "content_shell",
     "chromedriver",
-    "crashpad_handler"
+    "content_shell",
+    "crashpad_handler",
+    "dump_syms",
+    "minidump_stackwalk"
   ],
   "includes": [
     {
