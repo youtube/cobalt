@@ -47,4 +47,14 @@ void H5vccSystemImpl::GetAdvertisingId(GetAdvertisingIdCallback callback) {
   std::move(callback).Run(advertising_id);
 }
 
+void H5vccSystemImpl::GetLimitAdTracking(GetLimitAdTrackingCallback callback) {
+  bool limit_ad_tracking = false;
+#if BUILDFLAG(IS_ANDROID)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge* starbooard_bridge = StarboardBridge::GetInstance();
+  limit_ad_tracking = starbooard_bridge->GetLimitAdTracking(env);
+#endif
+  std::move(callback).Run(limit_ad_tracking);
+}
+
 }  // namespace h5vcc_system
