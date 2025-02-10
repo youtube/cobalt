@@ -1,4 +1,4 @@
-// Copyright 2023 The Cobalt Authors. All Rights Reserved.
+// Copyright 2015 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/event.h"
+#ifndef STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
+#define STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
 
-#include "starboard/shared/starboard/link_receiver.h"
-#include "starboard/shared/x11/application_x11.h"
+#include "starboard/atomic.h"
 
-int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
-  SB_LOG(INFO) << "SbRunStarboardMain loader";
-  starboard::shared::x11::ApplicationX11 application(callback);
-  int result = 0;
-  {
-    starboard::shared::starboard::LinkReceiver receiver(&application);
-    result = application.Run(argc, argv);
-  }
-  return result;
-}
+#if SB_IS(COMPILER_GCC)
+#include "starboard/shared/gcc/atomic_gcc_public.h"
+#else
+#error "Unknown Linux compiler."
+#endif
+
+#endif  // STARBOARD_LINUX_SHARED_ATOMIC_PUBLIC_H_
