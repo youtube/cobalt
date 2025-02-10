@@ -104,8 +104,12 @@ public class Log {
      */
     @AlwaysInline
     public static boolean isLoggable(String tag, int level) {
+<<<<<<< HEAD
         return BuildConfig.ENABLE_DEBUG_LOGS || android.util.Log.isLoggable(tag, level);
 >>>>>>> 4ee1bf16b34 (Android: Fix VERBOSE and DEBUG logs not appearing in debug builds)
+=======
+        return BuildConfig.ENABLE_DEBUG_LOGS;
+>>>>>>> ff9fd4b534f (Ignore log settings on device (#4842))
     }
 
     /**
