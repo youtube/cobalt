@@ -19,7 +19,8 @@ on:
         required: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ inputs.platform }} @ ${{ github.event.label.name || github.event.pull_request.number || github.sha }} @ ${{ github.event.label.name && github.event.pull_request.number || github.event.action }}
+  # Cancel existing jobs on the same workflow, platform, and branch (or sha if merged).
+  group: ${{ github.workflow }}-${{ inputs.platform }} @ ${{ github.head_ref || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -33,12 +34,8 @@ jobs:
       GITHUB_PR_REPO_URL: ${{ github.event.pull_request.base.repo.url }}
       GITHUB_EVENT_NUMBER: ${{ github.event.number }}
     if: |
-      github.event.action != 'labeled' ||
-      github.event.pull_request.merged == false &&
-      (
-        github.event.action == 'labeled' &&
-        github.event.label.name == 'runtest'
-      )
+      github.event.action != 'labeled' || github.event.pull_request.merged == false &&
+      (github.event.label.name == 'runtest' || github.event.label.name == 'on_device')
     timeout-minutes: 10
     steps:
       - name: Checkout
