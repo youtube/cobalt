@@ -15,5 +15,3 @@ services:
       cache_from:
         - ghcr.io/youtube/cobalt/unittest:latest
     image: ghcr.io/youtube/cobalt/unittest:latest
-    environment:
-      - DEPOT_TOOLS_UPDATE=0
