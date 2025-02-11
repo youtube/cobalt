@@ -243,7 +243,7 @@ SB_EXPORT_ANDROID std::string StarboardBridge::GetAdvertisingId(JNIEnv* env) {
   return ConvertJavaStringToUTF8(env, advertising_id_java);
 }
 
-bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
+SB_EXPORT_ANDROID bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
   SB_DCHECK(env);
   jboolean limit_ad_tracking_java =
       Java_StarboardBridge_getLimitAdTracking(env, j_starboard_bridge_);
