@@ -1,0 +1,26 @@
+name: Workflow Debug
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, labeled]
+    branches:
+      - main
+      - experimental/*
+      - feature/*
+  push:
+    branches:
+      - main
+      - experimental/*
+      - feature/*
+
+permissions: {}
+
+jobs:
+  debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Print github context
+        shell: bash
+        run: |
+          echo '${{ toJSON(github) }}' | jq '.'
