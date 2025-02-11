@@ -1,5 +1,4 @@
-# Use the official Ubuntu image as the base
-FROM debian:12
+FROM debian:12@sha256:4abf773f2a570e6873259c4e3ba16de6c6268fb571fd46ec80be7c67822823b3
 
 # Install any necessary dependencies
 RUN apt-get update && apt-get install -y \
