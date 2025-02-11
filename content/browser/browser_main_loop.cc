@@ -843,7 +843,6 @@ int BrowserMainLoop::PreCreateThreads() {
 void BrowserMainLoop::CreateStartupTasks() {
   TRACE_EVENT0("startup", "BrowserMainLoop::CreateStartupTasks");
 
-  RAW_LOG(INFO, "ARJUN: BrowserMainLoop::CreateStartupTasks 5");
   DCHECK(!startup_task_runner_);
 #if BUILDFLAG(IS_ANDROID)
   // Some java scheduler tests need to test migration to C++, but the browser
@@ -859,22 +858,18 @@ void BrowserMainLoop::CreateStartupTasks() {
       base::OnceCallback<void(int)>(),
       base::SingleThreadTaskRunner::GetCurrentDefault());
 #endif
-  RAW_LOG(INFO, "ARJUN: BrowserMainLoop::CreateStartupTasks 4");
   StartupTask pre_create_threads = base::BindOnce(
       &BrowserMainLoop::PreCreateThreads, base::Unretained(this));
   startup_task_runner_->AddTask(std::move(pre_create_threads));
 
-  RAW_LOG(INFO, "ARJUN: BrowserMainLoop::CreateStartupTasks 3");
   StartupTask create_threads =
       base::BindOnce(&BrowserMainLoop::CreateThreads, base::Unretained(this));
   startup_task_runner_->AddTask(std::move(create_threads));
 
-  RAW_LOG(INFO, "ARJUN: BrowserMainLoop::CreateStartupTasks 2");
   StartupTask post_create_threads = base::BindOnce(
       &BrowserMainLoop::PostCreateThreads, base::Unretained(this));
   startup_task_runner_->AddTask(std::move(post_create_threads));
 
-  RAW_LOG(INFO, "ARJUN: BrowserMainLoop::CreateStartupTasks 1");
   StartupTask pre_main_message_loop_run = base::BindOnce(
       &BrowserMainLoop::PreMainMessageLoopRun, base::Unretained(this));
   startup_task_runner_->AddTask(std::move(pre_main_message_loop_run));
@@ -977,7 +972,6 @@ int BrowserMainLoop::PostCreateThreads() {
 }
 
 int BrowserMainLoop::PreMainMessageLoopRun() {
-  RAW_LOG(INFO, "ARJUN: BrowserMainLoop::PreMainMessageLoopRun 2");
   TRACE_EVENT0("startup", "BrowserMainLoop::PreMainMessageLoopRun");
 
 #if BUILDFLAG(IS_ANDROID)
@@ -988,7 +982,6 @@ int BrowserMainLoop::PreMainMessageLoopRun() {
   ui::SetScreenAndroid(use_display_wide_color_gamut);
 #endif  // BUILDFLAG(IS_ANDROID)
 
-  RAW_LOG(INFO, "ARJUN: BrowserMainLoop::PreMainMessageLoopRun 1");
   if (parts_)
     result_code_ = parts_->PreMainMessageLoopRun();
 

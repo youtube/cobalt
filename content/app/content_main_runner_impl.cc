@@ -694,7 +694,6 @@ static void RegisterMainThreadFactories() {
 // Returns the exit code for this process.
 int RunBrowserProcessMain(MainFunctionParams main_function_params,
                           ContentMainDelegate* delegate) {
-  RAW_LOG(INFO, "ARJUN: RunBrowserProcessMain A");
 #if BUILDFLAG(IS_WIN)
   if (delegate->ShouldHandleConsoleControlEvents())
     InstallConsoleControlHandler(/*is_browser_process=*/true);
@@ -704,7 +703,6 @@ int RunBrowserProcessMain(MainFunctionParams main_function_params,
     DCHECK_GE(absl::get<int>(exit_code), 0);
     return absl::get<int>(exit_code);
   }
-  RAW_LOG(INFO, "ARJUN: RunBrowserProcessMain B");
   return BrowserMain(std::move(absl::get<MainFunctionParams>(exit_code)));
 }
 
@@ -1059,7 +1057,6 @@ void ContentMainRunnerImpl::ReInitializeParams(ContentMainParams new_params) {
 // This function must be marked with NO_STACK_PROTECTOR or it may crash on
 // return, see the --change-stack-guard-on-fork command line flag.
 int NO_STACK_PROTECTOR ContentMainRunnerImpl::Run() {
-  RAW_LOG(INFO, "ARJUN: ContentMainRunnerImpl::Run A");
   DCHECK(is_initialized_);
   DCHECK(content_main_params_);
   DCHECK(!is_shutdown_);
@@ -1129,7 +1126,6 @@ int NO_STACK_PROTECTOR ContentMainRunnerImpl::Run() {
 
   RegisterMainThreadFactories();
 
-  RAW_LOG(INFO, "ARJUN: ContentMainRunnerImpl::Run B");
   if (process_type.empty())
     return RunBrowser(std::move(main_params), start_minimal_browser);
 
@@ -1139,7 +1135,6 @@ int NO_STACK_PROTECTOR ContentMainRunnerImpl::Run() {
 
 int ContentMainRunnerImpl::RunBrowser(MainFunctionParams main_params,
                                       bool start_minimal_browser) {
-  RAW_LOG(INFO, "ARJUN: ContentMainRunnerImpl::RunBrowser A");
   TRACE_EVENT_INSTANT0("startup", "ContentMainRunnerImpl::RunBrowser(begin)",
                        TRACE_EVENT_SCOPE_THREAD);
   if (is_browser_main_loop_started_)
@@ -1278,7 +1273,6 @@ int ContentMainRunnerImpl::RunBrowser(MainFunctionParams main_params,
 
   is_browser_main_loop_started_ = true;
   main_params.startup_data = mojo_ipc_support_->CreateBrowserStartupData();
-  RAW_LOG(INFO, "ARJUN: ContentMainRunnerImpl::RunBrowser B");
   return RunBrowserProcessMain(std::move(main_params), delegate_);
 }
 

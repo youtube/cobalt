@@ -178,7 +178,6 @@ ContentMainParams& ContentMainParams::operator=(ContentMainParams&&) = default;
 int NO_STACK_PROTECTOR
 RunContentProcess(ContentMainParams params,
                   ContentMainRunner* content_main_runner) {
-  LOG(INFO) << "ARJUN: ContentMainRunner::RunContentProcess A";
   base::FeatureList::FailOnFeatureAccessWithoutFeatureList();
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
   // Lacros is launched with inherited priority. Revert to normal priority
@@ -324,7 +323,6 @@ RunContentProcess(ContentMainParams params,
 
   if (IsSubprocess())
     CommonSubprocessInit();
-  LOG(INFO) << "ARJUN: ContentMainRunner::RunContentProcess B";
   exit_code = content_main_runner->Run();
 
 #if BUILDFLAG(IS_MAC)

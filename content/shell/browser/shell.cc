@@ -106,42 +106,33 @@ Shell::~Shell() {
 Shell* Shell::CreateShell(std::unique_ptr<WebContents> web_contents,
                           const gfx::Size& initial_size,
                           bool should_set_delegate) {
-  RAW_LOG(INFO, "ARJUN: Shell::CreateShell 8");
   WebContents* raw_web_contents = web_contents.get();
   Shell* shell = new Shell(std::move(web_contents), should_set_delegate);
-  RAW_LOG(INFO, "ARJUN: Shell::CreateShell 7");
   g_platform->CreatePlatformWindow(shell, initial_size);
 
   // Note: Do not make RenderFrameHost or RenderViewHost specific state changes
   // here, because they will be forgotten after a cross-process navigation. Use
   // RenderFrameCreated or RenderViewCreated instead.
-  RAW_LOG(INFO, "ARJUN: Shell::CreateShell 6");
   if (switches::IsRunWebTestsSwitchPresent()) {
     raw_web_contents->GetMutableRendererPrefs()->use_custom_colors = false;
     raw_web_contents->SyncRendererPrefs();
   }
 
-  RAW_LOG(INFO, "ARJUN: Shell::CreateShell 5");
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  RAW_LOG(INFO, "ARJUN: Shell::CreateShell 4");
   if (command_line->HasSwitch(switches::kForceWebRtcIPHandlingPolicy)) {
     raw_web_contents->GetMutableRendererPrefs()->webrtc_ip_handling_policy =
         command_line->GetSwitchValueASCII(
             switches::kForceWebRtcIPHandlingPolicy);
   }
 
-  RAW_LOG(INFO, "ARJUN: Shell::CreateShell 3");
   g_platform->SetContents(shell);
-  RAW_LOG(INFO, "ARJUN: Shell::CreateShell 2");
   g_platform->DidCreateOrAttachWebContents(shell, raw_web_contents);
   // If the RenderFrame was created during WebContents construction (as happens
   // for windows opened from the renderer) then the Shell won't hear about the
   // main frame being created as a WebContentsObservers. This gives the delegate
   // a chance to act on the main frame accordingly.
-  RAW_LOG(INFO, "ARJUN: Shell::CreateShell 1");
   if (raw_web_contents->GetPrimaryMainFrame()->IsRenderFrameLive())
     g_platform->MainFrameCreated(shell);
-  RAW_LOG(INFO, "ARJUN: Shell::CreateShell 0");
 
   return shell;
 }
@@ -184,11 +175,8 @@ Shell* Shell::FromWebContents(WebContents* web_contents) {
 // static
 void Shell::Initialize(std::unique_ptr<ShellPlatformDelegate> platform) {
   DCHECK(!g_platform);
-  RAW_LOG(INFO, "ARJUN: Shell::Initialize 3");
   g_platform = platform.release();
-  RAW_LOG(INFO, "ARJUN: Shell::Initialize 2");
   g_platform->Initialize(GetShellDefaultSize());
-  RAW_LOG(INFO, "ARJUN: Shell::Initialize 1");
 }
 
 // static
@@ -229,25 +217,19 @@ Shell* Shell::CreateNewWindow(BrowserContext* browser_context,
                               const GURL& url,
                               const scoped_refptr<SiteInstance>& site_instance,
                               const gfx::Size& initial_size) {
-  RAW_LOG(INFO, "ARJUN: Shell::CreateNewWindow 6");
   WebContents::CreateParams create_params(browser_context, site_instance);
-  RAW_LOG(INFO, "ARJUN: Shell::CreateNewWindow 5");
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kForcePresentationReceiverForTesting)) {
     create_params.starting_sandbox_flags = kPresentationReceiverSandboxFlags;
   }
-  RAW_LOG(INFO, "ARJUN: Shell::CreateNewWindow 4");
   std::unique_ptr<WebContents> web_contents =
       WebContents::Create(create_params);
-  RAW_LOG(INFO, "ARJUN: Shell::CreateNewWindow 3");
   Shell* shell =
       CreateShell(std::move(web_contents), AdjustWindowSize(initial_size),
                   true /* should_set_delegate */);
 
-  RAW_LOG(INFO, "ARJUN: Shell::CreateNewWindow 2");
   if (!url.is_empty())
     shell->LoadURL(url);
-  RAW_LOG(INFO, "ARJUN: Shell::CreateNewWindow 1");
   return shell;
 }
 

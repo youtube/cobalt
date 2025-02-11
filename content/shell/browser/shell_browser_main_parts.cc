@@ -149,25 +149,18 @@ int ShellBrowserMainParts::PreEarlyInitialization() {
 }
 
 void ShellBrowserMainParts::InitializeBrowserContexts() {
-  RAW_LOG(INFO, "ARJUN: ShellBrowserMainParts::InitializeBrowserContexts 5");
   set_browser_context(new ShellBrowserContext(false));
-  RAW_LOG(INFO, "ARJUN: ShellBrowserMainParts::InitializeBrowserContexts 4");
   set_off_the_record_browser_context(new ShellBrowserContext(true));
   // Persistent Origin Trials needs to be instantiated as soon as possible
   // during browser startup, to ensure data is available prior to the first
   // request.
-  RAW_LOG(INFO, "ARJUN: ShellBrowserMainParts::InitializeBrowserContexts 3");
   browser_context_->GetOriginTrialsControllerDelegate();
-  RAW_LOG(INFO, "ARJUN: ShellBrowserMainParts::InitializeBrowserContexts 2");
   off_the_record_browser_context_->GetOriginTrialsControllerDelegate();
-  RAW_LOG(INFO, "ARJUN: ShellBrowserMainParts::InitializeBrowserContexts 1");
 }
 
 void ShellBrowserMainParts::InitializeMessageLoopContext() {
-  RAW_LOG(INFO, "ARJUN: ShellBrowserMainParts::InitializeMessageLoopContext 2");
   Shell::CreateNewWindow(browser_context_.get(), GetStartupURL(), nullptr,
                          gfx::Size());
-  RAW_LOG(INFO, "ARJUN: ShellBrowserMainParts::InitializeMessageLoopContext 1");
 }
 
 void ShellBrowserMainParts::ToolkitInitialized() {
@@ -203,17 +196,11 @@ int ShellBrowserMainParts::PreMainMessageLoopRun() {
   fuchsia_view_presenter_ = std::make_unique<FuchsiaViewPresenter>();
 #endif
 
-  RAW_LOG(INFO, "ARJUN: ShellBrowserMainParts::PreMainMessageLoopRun 5");
   InitializeBrowserContexts();
-  RAW_LOG(INFO, "ARJUN: ShellBrowserMainParts::PreMainMessageLoopRun 4");
   Shell::Initialize(CreateShellPlatformDelegate());
-  RAW_LOG(INFO, "ARJUN: ShellBrowserMainParts::PreMainMessageLoopRun 3");
   net::NetModule::SetResourceProvider(PlatformResourceProvider);
-  RAW_LOG(INFO, "ARJUN: ShellBrowserMainParts::PreMainMessageLoopRun 2");
   ShellDevToolsManagerDelegate::StartHttpHandler(browser_context_.get());
-  RAW_LOG(INFO, "ARJUN: ShellBrowserMainParts::PreMainMessageLoopRun 1");
   InitializeMessageLoopContext();
-  RAW_LOG(INFO, "ARJUN: ShellBrowserMainParts::PreMainMessageLoopRun 0");
   return 0;
 }
 

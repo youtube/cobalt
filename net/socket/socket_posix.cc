@@ -145,7 +145,6 @@ int SocketPosix::Bind(const SockaddrStorage& address) {
   int rv = bind(socket_fd_, address.addr, address.addr_len);
   if (rv < 0) {
     PLOG(ERROR) << "bind() failed";
-    PLOG(ERROR) << " (" << address.addr << ") ";
     return MapSystemError(errno);
   }
 

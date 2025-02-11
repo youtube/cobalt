@@ -348,20 +348,14 @@ void ShellPlatformDelegate::CreatePlatformWindow(
     Shell* shell,
     const gfx::Size& initial_size) {
   DCHECK(!base::Contains(shell_data_map_, shell));
-  RAW_LOG(INFO, "ARJUN: ShellPlatformDelegate::CreatePlatformWindow 7");
   ShellData& shell_data = shell_data_map_[shell];
 
   shell_data.content_size = initial_size;
 
-  RAW_LOG(INFO, "ARJUN: ShellPlatformDelegate::CreatePlatformWindow 6");
   auto delegate = std::make_unique<views::WidgetDelegate>();
-  RAW_LOG(INFO, "ARJUN: ShellPlatformDelegate::CreatePlatformWindow 5");
   delegate->SetContentsView(std::make_unique<ShellView>(shell));
-  RAW_LOG(INFO, "ARJUN: ShellPlatformDelegate::CreatePlatformWindow 4");
   delegate->SetHasWindowSizeControls(true);
-  RAW_LOG(INFO, "ARJUN: ShellPlatformDelegate::CreatePlatformWindow 3");
   delegate->SetOwnedByWidget(true);
-  RAW_LOG(INFO, "ARJUN: ShellPlatformDelegate::CreatePlatformWindow 2");
 
 #if BUILDFLAG(IS_CHROMEOS_ASH)
   shell_data.window_widget = views::Widget::CreateWindowWithContext(
@@ -380,7 +374,6 @@ void ShellPlatformDelegate::CreatePlatformWindow(
 
   // |window_widget| is made visible in PlatformSetContents(), so that the
   // platform-window size does not need to change due to layout again.
-  RAW_LOG(INFO, "ARJUN: ShellPlatformDelegate::CreatePlatformWindow 1");
 }
 
 gfx::NativeWindow ShellPlatformDelegate::GetNativeWindow(Shell* shell) {

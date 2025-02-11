@@ -167,7 +167,6 @@ int ShellDevToolsManagerDelegate::GetHttpHandlerPort() {
 void ShellDevToolsManagerDelegate::StartHttpHandler(
     BrowserContext* browser_context) {
   std::string frontend_url;
-  RAW_LOG(INFO, "ARJUN: ShellDevToolsManagerDelegate::StartHttpHandler");
   DevToolsAgentHost::StartRemoteDebuggingServer(
       CreateSocketFactory(), browser_context->GetPath(), base::FilePath());
 

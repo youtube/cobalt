@@ -242,12 +242,9 @@ ShellBrowserContext::GetReduceAcceptLanguageControllerDelegate() {
 
 OriginTrialsControllerDelegate*
 ShellBrowserContext::GetOriginTrialsControllerDelegate() {
-  RAW_LOG(INFO, "ARJUN: ShellBrowserContext::GetOriginTrialsController 3");
   if (!origin_trials::features::IsPersistentOriginTrialsEnabled())
-    RAW_LOG(INFO, "ARJUN: PersistentOriginTrials disabled");
     return nullptr;
 
-  RAW_LOG(INFO, "ARJUN: ShellBrowserContext::GetOriginTrialsController 2");
   if (!origin_trials_controller_delegate_) {
     origin_trials_controller_delegate_ =
         std::make_unique<origin_trials::OriginTrials>(
@@ -256,7 +253,6 @@ ShellBrowserContext::GetOriginTrialsControllerDelegate() {
                 GetDefaultStoragePartition()->GetProtoDatabaseProvider()),
             std::make_unique<blink::TrialTokenValidator>());
   }
-  RAW_LOG(INFO, "ARJUN: ShellBrowserContext::GetOriginTrialsController 1");
   return origin_trials_controller_delegate_.get();
 }
 
