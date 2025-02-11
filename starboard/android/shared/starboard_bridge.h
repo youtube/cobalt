@@ -73,6 +73,9 @@ class StarboardBridge {
 
   ScopedJavaLocalRef<jobject> GetTextToSpeechHelper(JNIEnv* env);
 
+  std::string GetAdvertisingId(JNIEnv* env);
+  bool GetLimitAdTracking(JNIEnv* env);
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;

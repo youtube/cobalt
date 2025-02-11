@@ -1,41 +1,45 @@
-// Copyright 2025 The Cobalt Authors
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_RENDERER_COBALT_RENDERER_FRAME_OBSERVER_H_
 #define COBALT_RENDERER_COBALT_RENDERER_FRAME_OBSERVER_H_
 
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_frame_observer.h"
-#include "v8/include/v8.h"
 
 namespace cobalt {
 
-// This class allows Cobalt to install custom Javascript implementations.
+// Enables Cobalt-specific responses to notifications of changes to the frame.
 class CobaltRenderFrameObserver : public content::RenderFrameObserver {
  public:
   explicit CobaltRenderFrameObserver(content::RenderFrame* render_frame);
+  ~CobaltRenderFrameObserver() override;
 
   CobaltRenderFrameObserver(const CobaltRenderFrameObserver&) = delete;
   CobaltRenderFrameObserver& operator=(const CobaltRenderFrameObserver&) =
       delete;
 
  private:
-  friend class CobaltRenderFrameObserverTest;
+  // content::RenderFrameObserver impl.
 
-  // content::RenderFrameObserver implementation.
-  void DidCreateScriptContext(v8::Local<v8::Context>, int32_t) override;
+  // Overridden so that the observer has the same lifetime as the RenderFrame.
   void OnDestruct() override;
 
-  static void DoWindowCloseOrMinimize(
-      const v8::FunctionCallbackInfo<v8::Value>& info);
-  void InstallCloseAndMinimize();
-  void set_user_on_exit_strategy_callback_for_testing(
-      base::RepeatingClosure closure) {
-    user_on_exit_strategy_callback_ = closure;
-  }
-
-  base::RepeatingClosure user_on_exit_strategy_callback_;
+  // Overridden for Cobalt-specific responses to this particular notification.
+  // See blink::WebLocalFrameClient.DidClearWindowObject() for details about
+  // when it's sent.
+  void DidClearWindowObject() override;
 };
 
 }  // namespace cobalt

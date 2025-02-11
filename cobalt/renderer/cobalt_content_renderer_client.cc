@@ -73,6 +73,7 @@ CobaltContentRendererClient::~CobaltContentRendererClient() {}
 void CobaltContentRendererClient::RenderFrameCreated(
     content::RenderFrame* render_frame) {
   new js_injection::JsCommunication(render_frame);
+  new CobaltRenderFrameObserver(render_frame);
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -141,8 +142,6 @@ void CobaltContentRendererClient::RunScriptsAtDocumentStart(
   js_injection::JsCommunication* communication =
       js_injection::JsCommunication::Get(render_frame);
   communication->RunScriptsAtDocumentStart();
-  // CobaltRenderFrameObserver::OnDestruct deletes this.
-  new CobaltRenderFrameObserver(render_frame);
 }
 
 }  // namespace cobalt

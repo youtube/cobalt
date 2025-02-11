@@ -105,7 +105,7 @@ JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
 // this header they don't end up with different copies of the inlined code
 // creating multiple copies of the singleton.
 // static
-StarboardBridge* StarboardBridge::GetInstance() {
+SB_EXPORT_ANDROID StarboardBridge* StarboardBridge::GetInstance() {
   return base::Singleton<StarboardBridge>::get();
 }
 
@@ -235,6 +235,21 @@ ScopedJavaLocalRef<jobject> StarboardBridge::GetTextToSpeechHelper(
   SB_DCHECK(env);
   return Java_StarboardBridge_getTextToSpeechHelper(env, j_starboard_bridge_);
 }
+
+SB_EXPORT_ANDROID std::string StarboardBridge::GetAdvertisingId(JNIEnv* env) {
+  SB_DCHECK(env);
+  ScopedJavaLocalRef<jstring> advertising_id_java =
+      Java_StarboardBridge_getAdvertisingId(env, j_starboard_bridge_);
+  return ConvertJavaStringToUTF8(env, advertising_id_java);
+}
+
+SB_EXPORT_ANDROID bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
+  SB_DCHECK(env);
+  jboolean limit_ad_tracking_java =
+      Java_StarboardBridge_getLimitAdTracking(env, j_starboard_bridge_);
+  return limit_ad_tracking_java;
+}
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard

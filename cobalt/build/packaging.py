@@ -7,6 +7,11 @@ import shutil
 import tempfile
 
 
+def copy(src_file_path, dst_file_path):
+  os.makedirs(os.path.dirname(dst_file_path), exist_ok=True)
+  shutil.copy2(src_file_path, dst_file_path)
+
+
 def run(lay_out):
   parser = argparse.ArgumentParser()
   parser.add_argument('--name', required=True, help='of archive and base dir')
