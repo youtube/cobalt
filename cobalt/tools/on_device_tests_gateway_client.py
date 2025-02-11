@@ -129,9 +129,9 @@ def _process_test_requests(args):
     print(f'  Processing gtest_target: {gtest_target}')
 
     tests_args = [
-        f'job_timeout_secs={args.job_timeout_secs}',
-        f'test_timeout_secs={args.test_timeout_secs}',
-        f'start_timeout_secs={args.start_timeout_secs}'
+        f'job_timeout_sec={args.job_timeout_sec}',
+        f'test_timeout_sec={args.test_timeout_sec}',
+        f'start_timeout_sec={args.start_timeout_sec}'
     ]
     if args.test_attempts:
       tests_args.append(f'test_attempts={args.test_attempts}')
@@ -283,19 +283,19 @@ def main() -> int:
       help='GCS URL where test result files should be uploaded.',
   )
   trigger_parser.add_argument(
-      '--job_timeout_secs',
+      '--job_timeout_sec',
       type=str,
       default='1800',
       help='Timeout in seconds for the job (default: 1800 seconds).',
   )
   trigger_parser.add_argument(
-      '--test_timeout_secs',
+      '--test_timeout_sec',
       type=str,
       default='1800',
       help='Timeout in seconds for the test (default: 1800 seconds).',
   )
   trigger_parser.add_argument(
-      '--start_timeout_secs',
+      '--start_timeout_sec',
       type=str,
       default='180',
       help='Timeout in seconds for the test to start (default: 180 seconds).',
