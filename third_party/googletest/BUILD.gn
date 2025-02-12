@@ -146,14 +146,21 @@ source_set("gtest") {
   }
 
   # Some files include "src/gtest-internal-inl.h".
-  include_dirs = [
-    "//cobalt/third_party/googletest/src/googletest",
-    "src/googletest",
-  ]
+  if (is_cobalt_hermetic_build) {
+    include_dirs = [
+      "//cobalt/third_party/googletest/src/googletest",
+      "src/googletest",
+    ]
+  } else {
+    include_dirs = [ "src/googletest" ]
+  }
 
   public_configs = [ ":gtest_config" ]
 
-  # configs -= [ "//build/config/compiler:chromium_code" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  if (is_cobalt_hermetic_build) {
+    configs += [ "//build/config/compiler:chromium_code" ]
+  }
   configs += [ "//build/config/compiler:no_chromium_code" ]
 
   defines = []
