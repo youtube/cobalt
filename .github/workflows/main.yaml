@@ -136,6 +136,35 @@ jobs:
     outputs:
       docker_tag: ${{ steps.set-docker-tag-output.outputs.docker_tag }}
 
+  # Builds, tags, and pushes Cobalt unit test image to ghr.
+  docker-unittest-image:
+    if: needs.initialize.outputs.test_on_host == 'true'
+    needs: [initialize]
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Login to GitHub Docker Registry
+        uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build docker image
+        id: build-docker-image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: unittest
+      - name: Set Docker Tag Output
+        id: set-docker-unittest-tag-output
+        shell: bash
+        run: |
+          set -u
+          echo $DOCKER_TAG
+          echo "docker_unittest_tag=$DOCKER_TAG" | head -n 1 >> $GITHUB_OUTPUT
+    outputs:
+      docker_unittest_tag: ${{ steps.set-docker-unittest-tag-output.outputs.docker_unittest_tag }}
+
   build:
     needs: [initialize, docker-build-image]
     permissions: {}
@@ -219,7 +248,7 @@ jobs:
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
 
   on-host-test:
-    needs: [initialize, docker-build-image, build]
+    needs: [initialize, docker-unittest-image, build]
     if: always() && needs.initialize.outputs.test_on_host == 'true'
     permissions: {}
     # TODO(b/372303096): Should have dedicated runner?
@@ -232,7 +261,7 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
         shard: ${{ fromJson(needs.initialize.outputs.gtest_shards) }}
-    container: ${{ needs.docker-build-image.outputs.docker_tag }}
+    container: ${{ needs.docker-unittest-image.outputs.docker_unittest_tag }}
     env:
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
