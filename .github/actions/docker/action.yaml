@@ -58,6 +58,7 @@ runs:
       run: |
         docker pull "${DOCKER_TAG}" || true
         docker pull "${DOCKER_FLOATING_TAG}" || true
+        cat ${GITHUB_WORKSPACE}/cobalt/docker/unittest/Dockerfile
       shell: bash
     - name: Docker Build
       run: docker compose build ${{inputs.docker_service}}
