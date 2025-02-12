@@ -21,7 +21,7 @@ build = common.build {
     },
     {
       key = 'TARGET'
-      value = 'cobalt:gn_all'
+      value = 'cobalt:gn_all content_shell'
     },
     {
       key = 'TARGET_CPU'
