@@ -168,10 +168,10 @@ source_set("gtest") {
   public_deps = []
   if (is_nacl || !build_with_chromium) {
     defines += [ "GTEST_DISABLE_PRINT_STACK_TRACE" ]
-    # sources -= [
-    #   "custom/gtest/internal/custom/stack_trace_getter.cc",
-    #   "custom/gtest/internal/custom/stack_trace_getter.h",
-    # ]
+    sources -= [
+      "custom/gtest/internal/custom/stack_trace_getter.cc",
+      "custom/gtest/internal/custom/stack_trace_getter.h",
+    ]
   } else {
     deps += [ "//base" ]
   }
@@ -183,20 +183,22 @@ source_set("gtest") {
     ]
   }
 
-  #if (gtest_enable_absl_printers) {
-  #  deps += [ "//third_party/abseil-cpp:absl" ]
-  #}
+  if (gtest_enable_absl_printers && !is_cobalt_hermetic_build) {
+    deps += [ "//third_party/abseil-cpp:absl" ]
+  }
 
-  # Ideally we would want to remove
-  # //starboard/build/config:default_rtti from the list of configs too.
-  # Unfortunately GN doesn't provide us a way to remove things from
-  # dependents' configs list.
-  # It happens to be that all_dependent_configs get processed after default
-  # configs, so the -frtti flag comes after the -fno-rtti flag on the command
-  # line, so it happens to work in this case.
-  all_dependent_configs = [ "//build/config/compiler:rtti" ]
+  if (is_cobalt_hermetic_build) {
+    # Ideally we would want to remove
+    # //starboard/build/config:default_rtti from the list of configs too.
+    # Unfortunately GN doesn't provide us a way to remove things from
+    # dependents' configs list.
+    # It happens to be that all_dependent_configs get processed after default
+    # configs, so the -frtti flag comes after the -fno-rtti flag on the command
+    # line, so it happens to work in this case.
+    all_dependent_configs = [ "//build/config/compiler:rtti" ]
 
-  public_deps = [ "//starboard:starboard_group" ]
+    public_deps = [ "//starboard:starboard_group" ]
+  }
 }
 
 # Do NOT depend on this directly. Use //testing/gtest:gtest_main instead.
