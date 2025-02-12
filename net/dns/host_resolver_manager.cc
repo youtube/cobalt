@@ -686,7 +686,12 @@ class HostResolverManager::RequestImpl
       next_state_ = STATE_NONE;
       switch (state) {
         case STATE_IPV6_REACHABILITY:
+#if SB_HAS(IPV6)
           rv = DoIPv6Reachability();
+#else
+          rv = OK;
+          next_state_ = STATE_GET_PARAMETERS;
+#endif
           break;
         case STATE_GET_PARAMETERS:
           DCHECK_EQ(OK, rv);
