@@ -25,12 +25,12 @@
     "ppapi:ppapi_unittests",
     "services/service_manager/tests:service_manager_unittests",
     "skia:skia_unittests",
+    "starboard/nplb:nplb",
     "sql:sql_unittests",
     "ui/ozone:ozone_unittests",
     "ui/wm:wm_unittests",
     "url:url_perftests",
-    "url:url_unittests",
-    "starboard/nplb:nplb"
+    "url:url_unittests"
   ],
   "executables": [
     "out/linux-x64x11_devel/base_unittests",
