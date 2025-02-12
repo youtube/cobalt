@@ -48,7 +48,7 @@ def _make_tar(archive_path: str, file_lists: List[Tuple[str, str]]):
     base_dir_arg = ['-C', base_dir] if base_dir else []
     tar_cmd += [*base_dir_arg, '-T', tmp_file.name]
 
-  print(f'Running `{" ".join(tar_cmd)}`')
+  print(f'Running `{" ".join(tar_cmd)}`')  # pylint: disable=inconsistent-quotes
   subprocess.check_call(tar_cmd)
 
 
