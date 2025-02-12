@@ -107,8 +107,10 @@ GLImplementationParts GetRequestedGLImplementation(
   if (!impl_from_cmdline)
     return allowed_impls[0];
 
-  if (IsSoftwareGLImplementation(*impl_from_cmdline))
+  if (IsSoftwareGLImplementation(*impl_from_cmdline)) {
+    LOG(INFO) << "ARJUN: use software GL from cmdline";
     return *impl_from_cmdline;
+  }
 
   if (impl_from_cmdline->IsAllowed(allowed_impls))
     return *impl_from_cmdline;
@@ -142,6 +144,7 @@ GLDisplay* InitializeGLOneOffPlatformHelper(bool init_extensions,
 GLDisplay* InitializeGLOneOff(gl::GpuPreference gpu_preference) {
   TRACE_EVENT0("gpu,startup", "gl::init::InitializeOneOff");
 
+  LOG(INFO) << "ARJUN: init GL oneoff (w/ ext)";
   if (!InitializeStaticGLBindingsOneOff())
     return nullptr;
   if (GetGLImplementation() == kGLImplementationDisabled) {
@@ -155,6 +158,7 @@ GLDisplay* InitializeGLNoExtensionsOneOff(bool init_bindings,
                                           gl::GpuPreference gpu_preference) {
   TRACE_EVENT1("gpu,startup", "gl::init::InitializeNoExtensionsOneOff",
                "init_bindings", init_bindings);
+  LOG(INFO) << "ARJUN: init GL oneoff (w/o ext)";
   if (init_bindings) {
     if (!InitializeStaticGLBindingsOneOff())
       return nullptr;
@@ -169,6 +173,7 @@ GLDisplay* InitializeGLNoExtensionsOneOff(bool init_bindings,
 bool InitializeStaticGLBindingsOneOff() {
   DCHECK_EQ(kGLImplementationNone, GetGLImplementation());
 
+  LOG(INFO) << "ARJUN: init static GL bindings";
   bool fallback_to_software_gl = false;
   GLImplementationParts impl =
       GetRequestedGLImplementation(&fallback_to_software_gl);
