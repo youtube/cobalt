@@ -1,5 +1,6 @@
-# Use the official Ubuntu image as the base
-FROM debian:12
+ARG BASE_IMAGE_SHA=sha256:4abf773f2a570e6873259c4e3ba16de6c6268fb571fd46ec80be7c67822823b3
+
+FROM debian:12@${BASE_IMAGE_SHA}
 
 # Install any necessary dependencies
 # NOTE: From libxcomposite down, these are minimal requirements to run a
@@ -26,8 +27,6 @@ RUN apt-get update && apt-get install -y \
     gcc-multilib \
     bzip2 \
     python3-certifi \
-    xauth \
-    xvfb \
     jq \
     && rm -rf /var/lib/apt/lists/*
 

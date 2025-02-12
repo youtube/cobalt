@@ -9,3 +9,9 @@ services:
     platform: linux/amd64
     environment:
       - DEPOT_TOOLS_UPDATE=0
+  unittest:
+    build:
+      context: cobalt/docker/unittest
+      cache_from:
+        - ghcr.io/youtube/cobalt/unittest:latest
+    image: ghcr.io/youtube/cobalt/unittest:latest
