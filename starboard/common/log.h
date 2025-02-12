@@ -20,7 +20,7 @@
 #ifndef STARBOARD_COMMON_LOG_H_
 #define STARBOARD_COMMON_LOG_H_
 
-#include "base/component_export.h"
+#include "base/component_export.h"  // nogncheck
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #include "starboard/system.h"

@@ -15,7 +15,7 @@
 #ifndef STARBOARD_COMMON_TIME_H_
 #define STARBOARD_COMMON_TIME_H_
 
-#include "base/component_export.h"
+#include "base/component_export.h"  // nogncheck
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 
