@@ -180,4 +180,11 @@ MessagePump::Delegate* MessagePumpForUI::SetDelegate(Delegate* delegate) {
   return std::exchange(delegate_, delegate);
 }
 
+MessagePumpUIStarboard::FdWatchController::FdWatchController(const Location& from_here)
+    : FdWatchControllerInterface(from_here) {}
+
+MessagePumpUIStarboard::FdWatchController::~FdWatchController() {}
+
+bool MessagePumpUIStarboard::FdWatchController::StopWatchingFileDescriptor() {}
+
 }  // namespace base

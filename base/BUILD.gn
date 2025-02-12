@@ -2728,7 +2728,10 @@ static_library("base_static") {
   }
 
   if (is_starboard) {
-    deps += [ "//starboard/common" ]
+    deps += [
+      "//starboard:starboard_group",
+      "//starboard/common",
+    ]
   }
 }
 

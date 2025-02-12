@@ -20,6 +20,7 @@
 #ifndef STARBOARD_COMMON_LOG_H_
 #define STARBOARD_COMMON_LOG_H_
 
+#include "base/component_export.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #include "starboard/system.h"
@@ -43,11 +44,13 @@ extern "C++" {
 namespace starboard {
 namespace logging {
 
-void SetMinLogLevel(SbLogPriority level);
-SbLogPriority GetMinLogLevel();
+COMPONENT_EXPORT(STARBOARD_COMMON) void SetMinLogLevel(SbLogPriority level);
+COMPONENT_EXPORT(STARBOARD_COMMON) SbLogPriority GetMinLogLevel();
+COMPONENT_EXPORT(STARBOARD_COMMON)
 SbLogPriority StringToLogLevel(const std::string& log_level);
+COMPONENT_EXPORT(STARBOARD_COMMON)
 SbLogPriority ChromiumIntToStarboardLogLevel(const std::string& log_level);
-void Break();
+COMPONENT_EXPORT(STARBOARD_COMMON) void Break();
 
 // An object which will dumps the stack to the given ostream, without adding any
 // frames of its own. |skip_frames| is the number of frames to skip in the dump.
@@ -66,10 +69,7 @@ const SbLogPriority SB_LOG_ERROR = kSbLogPriorityError;
 const SbLogPriority SB_LOG_FATAL = kSbLogPriorityFatal;
 const SbLogPriority SB_LOG_0 = SB_LOG_ERROR;
 
-// TODO: Export this, e.g. by wrapping in straight-C functions which can then be
-// SB_EXPORT'd. Using SB_EXPORT here directly causes issues on Windows because
-// it uses std classes which also need to be exported.
-class LogMessage {
+class COMPONENT_EXPORT(STARBOARD_COMMON) LogMessage {
  public:
   LogMessage(const char* file, int line, SbLogPriority priority);
   ~LogMessage();
@@ -88,7 +88,7 @@ class LogMessage {
   const int line_;
 };
 
-class LogMessageVoidify {
+class COMPONENT_EXPORT(STARBOARD_COMMON) LogMessageVoidify {
  public:
   LogMessageVoidify();
   // This has to be an operator with a precedence lower than << but

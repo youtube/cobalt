@@ -15,6 +15,7 @@
 #ifndef STARBOARD_COMMON_TIME_H_
 #define STARBOARD_COMMON_TIME_H_
 
+#include "base/component_export.h"
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 
@@ -25,7 +26,7 @@ int64_t CurrentMonotonicTime();
 
 // A convenience helper to get the current thread-specific Monotonic time in
 // microseconds. Returns 0 if the system doesn't support thread-specific clock.
-int64_t CurrentMonotonicThreadTime();
+COMPONENT_EXPORT(STARBOARD_COMMON) int64_t CurrentMonotonicThreadTime();
 
 // A convenience helper to get the current POSIX system time in microseconds.
 int64_t CurrentPosixTime();

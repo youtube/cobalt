@@ -23,11 +23,6 @@ source_set("common_headers_only") {
 static_library("common") {
   check_includes = false
 
-  public_deps = [
-    ":common_headers_only",
-    "//starboard:starboard_headers_only",
-  ]
-
   sources = [
     "//starboard/shared/media_session/playback_state.cc",
     "//starboard/shared/media_session/playback_state.h",
@@ -87,6 +82,13 @@ static_library("common") {
     "thread.h",
     "time.cc",
     "time.h",
+  ]
+
+  defines = [ "IS_STARBOARD_COMMON_IMPL" ]
+
+  public_deps = [
+    ":common_headers_only",
+    "//starboard:starboard_headers_only",
   ]
 }
 
