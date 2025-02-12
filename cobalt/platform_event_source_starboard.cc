@@ -159,8 +159,8 @@ constexpr auto kSbKeyToDomCodeMap = base::MakeFixedFlatMap<SbKey, ui::DomCode>({
     {kSbKeyRwin, ui::DomCode::META_RIGHT},
     {kSbKeyLshift, ui::DomCode::SHIFT_LEFT},
     {kSbKeyRshift, ui::DomCode::SHIFT_RIGHT},
-    {kSbKeyLcontrol, ui::DomCode::CONTROL_LEFT} {kSbKeyRcontrol,
-                                                 ui::DomCode::CONTROL_RIGHT},
+    {kSbKeyLcontrol, ui::DomCode::CONTROL_LEFT},
+    {kSbKeyRcontrol, ui::DomCode::CONTROL_RIGHT},
 
     // Oem keys
     {kSbKeyOemPlus, ui::DomCode::EQUAL},
@@ -197,7 +197,6 @@ constexpr auto kSbKeyToDomCodeMap = base::MakeFixedFlatMap<SbKey, ui::DomCode>({
     {kSbKeyCancel, ui::DomCode::ABORT},
     {kSbKeyTab, ui::DomCode::TAB},
     {kSbKeyEscape, ui::DomCode::ESCAPE},
-    {kSbKeyBackspace, ui::DomCode::BACKSPACE},
 
     // Languages
     {kSbKeyConvert, ui::DomCode::CONVERT},
