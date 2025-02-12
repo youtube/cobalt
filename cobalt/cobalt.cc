@@ -62,16 +62,8 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
        // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
        // to enable it.
        "--ignore-gpu-blocklist",
-       // Force some ozone settings.
-       "--ozone-platform=starboard",
-       "--use-gl=angle",
-       // "--use-angle=gles-egl",
-       "--use-angle=swiftshader",
        // Set the default size for the content shell/starboard window.
        "--content-shell-host-window-size=1920x1080",
-       // Enable remote Devtools access.
-       // "--remote-debugging-port=9222",
-       // "--remote-allow-origins=http://localhost:9222",
        // This flag is added specifically for m114 and should be removed after
        // rebasing to m120+
        "--user-level-memory-pressure-signal-params", "--no-sandbox"
