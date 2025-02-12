@@ -24,7 +24,6 @@ def lay_out(out_dir, base_dir):
       'icudtl.dat',
       'libchrome_crashpad_handler.so',
       'libcobalt_content_shell_content_view.so',
-      'libcontent_shell_content_view.so',
       'libnplb__library.so',
       'libstarboard_jni_state.so',
       'libtest_trace_processor.so',
