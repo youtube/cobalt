@@ -16,6 +16,7 @@
 
 #include "build/build_config.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
+#include "starboard/common/log.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -23,6 +24,7 @@
 namespace {
 int InitAndRunAllTests(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
+  SB_LOG(INFO) << "In InitAndRunAllTests";
   return RUN_ALL_TESTS();
 }
 }  // namespace
@@ -30,6 +32,8 @@ int InitAndRunAllTests(int argc, char** argv) {
 #if BUILDFLAG(IS_STARBOARD)
 // For the Starboard OS define SbEventHandle as the entry point
 SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
+
+#if !defined(IS_COBALT_HERMETIC_BUILD)
 
 #if !SB_IS(EVERGREEN)
 // Define main() for non-Evergreen Starboard OS.
@@ -42,4 +46,6 @@ int main(int argc, char** argv) {
 int main(int argc, char** argv) {
   return InitAndRunAllTests(argc, argv);
 }
+
+#endif  // !defined(IS_COBALT_HERMETIC_BUILD)
 #endif  // BUILDFLAG(IS_STARBOARD)
