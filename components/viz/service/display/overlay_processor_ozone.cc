@@ -30,6 +30,10 @@
 #include "components/viz/service/display/overlay_strategy_underlay_cast.h"
 #endif
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "components/viz/service/display/starboard/overlay_strategy_underlay_starboard.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace viz {
 
 namespace {
@@ -163,6 +167,9 @@ OverlayProcessorOzone::OverlayProcessorOzone(
       overlay_candidates_(std::move(overlay_candidates)),
       available_strategies_(std::move(available_strategies)),
       shared_image_interface_(shared_image_interface) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  strategies_.push_back(std::make_unique<OverlayStrategyUnderlayStarboard>(this));
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   for (OverlayStrategy strategy : available_strategies_) {
     switch (strategy) {
       case OverlayStrategy::kFullscreen:
@@ -186,6 +193,7 @@ OverlayProcessorOzone::OverlayProcessorOzone(
         NOTREACHED();
     }
   }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 OverlayProcessorOzone::~OverlayProcessorOzone() = default;
