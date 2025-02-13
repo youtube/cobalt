@@ -28,6 +28,10 @@ runs:
     - name: Check Failed Tests
       if: always()
       run: |
+        set -x
+        # Enable globstar shell option for globstar paths e.g. /**/*.xml
+        shopt -s globstar
+
         ls ${{ inputs.results_path }}
         if [ $? -ne 0 ]; then
           echo "::error::No test results found. Did the test crash?"
