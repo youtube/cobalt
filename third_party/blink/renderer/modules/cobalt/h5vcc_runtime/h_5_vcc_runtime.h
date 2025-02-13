@@ -52,7 +52,6 @@ class MODULES_EXPORT H5vccRuntime final
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_runtime::mojom::blink::H5vccRuntime>
       remote_h5vcc_runtime_;
-  String initial_deep_link_;
 };
 
 }  // namespace blink
