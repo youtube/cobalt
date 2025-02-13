@@ -22,7 +22,6 @@
     "mojo:mojo_perftests",
     "services/service_manager/tests:service_manager_unittests",
     "skia:skia_unittests",
-    "starboard/nplb:nplb",
     "sql:sql_unittests",
     "url:url_perftests",
     "url:url_unittests"
