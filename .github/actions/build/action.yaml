@@ -4,6 +4,9 @@ inputs:
   targets:
     description: "List of ninja targets for Cobalt build."
     required: true
+  test_root_target:
+    description: "The root target from which to deduce what tests to run."
+    required: true
   upload_on_host_test_artifacts:
     description: "Indicates if on-host test artifacts should be uploaded."
     required: true
@@ -47,16 +50,35 @@ runs:
           cd src
           gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
         shell: bash
-      - name: Calculate Test Targets
-        # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
-        id: test-targets
-        if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
-        env:
-          TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
+      - name: Get list of changed files
+        if: github.event_name == 'pull_request'
+        id: changed-files
         run: |
-          set -ex
+          set -x
           cd src
-          echo "test_targets=$(cat ${TEST_TARGETS_JSON_FILE} | jq -c '.test_targets')" >> $GITHUB_OUTPUT
+          changed_files=($(git diff --name-only -r ${{ github.event.before }} ${{ github.event.after }}))
+          changed_files_json=$(jq -nc '$ARGS.positional' --args ${changed_files[@]})
+          echo "changed_files_json=${changed_files_json}" >> $GITHUB_OUTPUT
+      - name: Calculate test targets
+        id: calculate-test-targets
+        if: inputs.test_root_target != 'null'
+        env:
+          CHANGED_FILES_JSON: ${{ steps.changed-files.outputs.changed_files_json }}
+          ROOT_TARGET: ${{ inputs.test_root_target }}
+          TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+        run: |
+          set -x
+          cd src
+          gn desc out/${{ matrix.platform }}_${{ matrix.config }}/ "*" --format=json > gn_desc.json
+          # Trim any warning gn printed before the json (all lines above the first curly brace).
+          sed -n '/^{/,$p' -i gn_desc.json
+
+          vpython3 cobalt/build/test_targets.py \
+              --root-target="${ROOT_TARGET}" \
+              --sources $(cat ${CHANGED_FILES_JSON} | jq -cr '. join(",")')
+              --gn-json=gn_desc.json \
+              --json-output > "${TEST_TARGETS_JSON_FILE}"
+          echo "test_targets_json_file=${TEST_TARGETS_JSON_FILE}" >> $GITHUB_OUTPUT
         shell: bash
       - name: Ninja build test targets
         if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
@@ -90,8 +112,7 @@ runs:
           test_artifacts_key: ${{ inputs.test_artifacts_key }}
           upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts }}
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
-          # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
-          test_targets_json_file: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
+          test_targets_json_file: '${{ steps.calculate-test-targets.outputs.test_targets_json_file }}'
 outputs:
   test_targets:
     description: The test targets that were built
