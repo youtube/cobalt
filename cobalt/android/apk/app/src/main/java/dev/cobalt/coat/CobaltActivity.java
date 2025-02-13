@@ -122,15 +122,17 @@ public abstract class CobaltActivity extends Activity {
             "--disable-rgba-4444-textures",
             // Align with MSE spec for MediaSource.duration.
             "--enable-blink-features=MediaSourceNewAbortAndDuration",
+            // TODO(crbug.com/41482978): Fixes nvidia shield rendering issues.
+            "--disable-features=DefaultPassthroughCommandDecoder,Vulkan",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
-        CommandLine.getInstance().appendSwitchesAndArguments(
-          new String[] {
-            // Helps Kimono build avoid package name conflict with cronet.
-            "--cobalt-jni-prefix",
-          }
-        );
+        CommandLine.getInstance()
+            .appendSwitchesAndArguments(
+                new String[] {
+                  // Helps Kimono build avoid package name conflict with cronet.
+                  "--cobalt-jni-prefix",
+                });
       }
 
       if (!VersionInfo.isOfficialBuild()) {
@@ -319,7 +321,6 @@ public abstract class CobaltActivity extends Activity {
       }
     }
   }
-
 
   // Initially copied from ContentShellActiviy.java
   @Override
