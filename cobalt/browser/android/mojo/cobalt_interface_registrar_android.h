@@ -17,7 +17,7 @@
 
 namespace cobalt {
 
-// Registers Cobalt's Java Mojo intefaces with its independent registrar.
+// Registers Cobalt's Java Mojo interfaces with its independent registrar.
 void RegisterCobaltJavaMojoInterfaces();
 
 }  // namespace cobalt
