@@ -50,26 +50,7 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
   content::ContentMainParams params(g_content_main_delegate);
 
   // TODO: (cobalt b/375241103) Reimplement this in a clean way.
-  constexpr auto cobalt_args = std::to_array<const char*>(
-      {// Disable first run experience, kiosk, etc.
-       "--disable-fre", "--no-first-run", "--kiosk",
-       // Enable Blink to work in overlay video mode
-       "--force-video-overlays",
-       // Disable multiprocess mode.
-       "--single-process",
-       // Disable Vulkan.
-       "--disable-features=Vulkan",
-       // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
-       // to enable it.
-       "--ignore-gpu-blocklist",
-       // Set the default size for the content shell/starboard window.
-       "--content-shell-host-window-size=1920x1080",
-       // This flag is added specifically for m114 and should be removed after
-       // rebasing to m120+
-       "--user-level-memory-pressure-signal-params", "--no-sandbox"
-      });
   std::vector<const char*> args(argv, argv + argc);
-  args.insert(args.end(), cobalt_args.begin(), cobalt_args.end());
 
   // TODO: (cobalt b/375241103) Reimplement this in a clean way.
   // This expression exists to ensure that we apply the argument overrides
@@ -82,6 +63,13 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
     params.argc = args.size();
     params.argv = args.data();
   }
+
+  VLOG(0) << "Command line arguments passed (pre-parse): ";
+  VLOG(0) << "";
+  for (const auto& iarg : args) {
+    VLOG(0) << iarg;
+  }
+  VLOG(0) << "";
 
   return RunContentProcess(std::move(params), GetContentMainRunner());
 }
