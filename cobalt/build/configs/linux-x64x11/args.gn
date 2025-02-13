@@ -11,6 +11,7 @@ angle_enable_gl = true
 # Disable Vulkan until we formally decide to support it.
 enable_vulkan = false
 angle_enable_vulkan = false
+angle_use_vulkan_display = false
 
 # Overriding flag from //media/media_options.gni.
 # Cobalt doesn't use //third_party/ffmpeg.
