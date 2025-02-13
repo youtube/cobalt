@@ -19,99 +19,124 @@ import os
 import shutil
 import subprocess
 import tempfile
-from typing import List, Optional
+from typing import List, Tuple
 
 # Path prefixes that contain files we don't need to run tests.
 _EXCLUDE_DIRS = [
-    '../../',
+    'obj/',
     'lib.java/',
     './exe.unstripped/',
     './lib.unstripped/',
+    '../../third_party/jdk/',
 ]
 
 
-def _make_tar(archive_path: str,
-              file_list: str,
-              base_path: Optional[str] = None):
+def _make_tar(archive_path: str, file_lists: List[Tuple[str, str]]):
   """Creates the tar file. Uses tar command instead of tarfile for performance.
   """
   print(f'Creating {os.path.basename(archive_path)}')
-  # Create temporary file to hold file list to not blow out the commandline.
-  with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8') as temp_file:
-    temp_file.write('\n'.join(sorted(file_list)))
-    temp_file.flush()
-    base_path_arg = ['-C', base_path] if base_path else []
-    tar_cmd = [
-        'tar', '-I gzip -1', '-cvf', archive_path, *base_path_arg, '-T',
-        temp_file.name
-    ]
-    subprocess.check_call(tar_cmd)
+  tar_cmd = ['tar', '-I gzip -1', '-cvf', archive_path]
+  tmp_files = []
+  for file_list, base_dir in file_lists:
+    # Create temporary file to hold file list to not blow out the commandline.
+    # It will get cleaned up via implicit close.
+    # pylint: disable=consider-using-with
+    tmp_file = tempfile.NamedTemporaryFile(mode='w', encoding='utf-8')
+    tmp_files.append(tmp_file)
+    tmp_file.write('\n'.join(sorted(file_list)))
+    tmp_file.flush()
+    base_dir_arg = ['-C', base_dir] if base_dir else []
+    tar_cmd += [*base_dir_arg, '-T', tmp_file.name]
+
+  print(f'Running `{" ".join(tar_cmd)}`')  # pylint: disable=inconsistent-quotes
+  subprocess.check_call(tar_cmd)
 
 
-def create_archive(targets: List[str], source_dir: str, destination_dir: str,
-                   platform: str, uber_archive: bool):
+def create_archive(
+    *,
+    targets: List[str],
+    source_dir: str,
+    out_dir: str,
+    destination_dir: str,
+    platform: str,
+):
   """Main logic. Collects runtime dependencies from the source directory for
   each target."""
-  tar_root = '.' if platform.startswith('android') else source_dir
-  deps = set()
+  # TODO(oxv): Move logic behind parameters instead of using platform.
+  is_linux = platform.startswith('linux')
+  is_android = platform.startswith('android')
+
+  tar_root = '.' if is_android else out_dir
+  combined_deps = set()
   # TODO(oxv): Make output from build step instead.
   # Add test_targets.json to archive so that test runners know what to run.
-  deps.add(os.path.relpath(os.path.join(tar_root, 'test_targets.json')))
+  combined_deps.add(
+      os.path.relpath(os.path.join(tar_root, 'test_targets.json')))
 
   for target in targets:
     target_path, target_name = target.split(':')
     # Paths are configured in test.gni:
     # https://github.com/youtube/cobalt/blob/main/testing/test.gni
-    if platform.startswith('android'):
+    if is_android:
       deps_file = os.path.join(
-          source_dir, 'gen.runtime', target_path,
+          out_dir, 'gen.runtime', target_path,
           f'{target_name}__test_runner_script.runtime_deps')
     else:
-      deps_file = os.path.join(source_dir, f'{target_name}.runtime_deps')
+      deps_file = os.path.join(out_dir, f'{target_name}.runtime_deps')
 
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
       # The paths in the runtime_deps files are relative to the out folder.
       # Android tests expects files to be relative to the out folder in the
       # archive whereas Linux tests expect it relative to the source root.
-      # TODO(oxv): Pass as argument?
-      target_deps = {
-          os.path.relpath(os.path.join(tar_root, line.strip()))
-          for line in runtime_deps_file
-          if not (platform.startswith('android') and any(
-              line.startswith(path) for path in _EXCLUDE_DIRS))
-      }
-      deps |= target_deps
+      # Files that are to be picked up from the source root should be
+      # include in the archive without the prefix.
+      target_deps = set()
+      target_src_root_deps = set()
+      for line in runtime_deps_file:
+        if any(line.startswith(path) for path in _EXCLUDE_DIRS):
+          continue
 
-    if not uber_archive:
-      output_path = os.path.join(destination_dir, f'{target_name}_deps.tar.gz')
-      base_path = source_dir if platform.startswith('android') else None
-      _make_tar(output_path, deps, base_path)
-      deps = set([os.path.relpath(os.path.join(tar_root, 'test_targets.json'))])
+        if is_android and line.startswith('../../'):
+          target_src_root_deps.add(line[6:])
+        else:
+          rel_path = os.path.relpath(os.path.join(tar_root, line.strip()))
+          target_deps.add(rel_path)
+      combined_deps |= target_deps
 
-  if uber_archive:
+      # Android tests and deps are bundled into one tar file per target.
+      if is_android:
+        output_path = os.path.join(destination_dir,
+                                   f'{target_name}_deps.tar.gz')
+        _make_tar(output_path, [(combined_deps, out_dir),
+                                (target_src_root_deps, source_dir)])
+        combined_deps = set(
+            [os.path.relpath(os.path.join(tar_root, 'test_targets.json'))])
+
+  # Linux tests and deps are all bundled into a single tar file.
+  if is_linux:
     output_path = os.path.join(destination_dir, 'test_artifacts.tar.gz')
-    _make_tar(output_path, deps)
+    _make_tar(output_path, [(combined_deps, source_dir)])
 
 
-def copy_apks(targets: List[str], source_dir: str, destination_dir: str):
-  """Copies the target APKs from the source directory to the destination.
-  The path to the APK in the source directory (assumed here to be the out
-  directory) is defined in build/config/android/rules.gni
-  """
+def copy_apks(targets: List[str], out_dir: str, destination_dir: str):
+  """Copies the target APKs from the out directory to the destination."""
   for target in targets:
     _, target_name = target.split(':')
-    apk_path = f'{source_dir}/{target_name}_apk/{target_name}-debug.apk'
+    # The path to the APK in the out directory is defined in
+    # build/config/android/rules.gni.
+    apk_path = f'{out_dir}/{target_name}_apk/{target_name}-debug.apk'
     shutil.copy2(apk_path, destination_dir)
 
 
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument(
-      '-s',
-      '--source-dir',
+      '-s', '--source-dir', required=True, help='The path to the source root.')
+  parser.add_argument(
+      '-o',
+      '--out-dir',
       required=True,
-      help='The path to where the artifacts are stored. '
-      'Typically the out folder.')
+      help='The path to where the build artifacts are stored.')
   parser.add_argument(
       '-d',
       '--destination-dir',
@@ -130,12 +155,15 @@ def main():
       'e.g. path/to:target_name,other/path/to:target_name.')
   args = parser.parse_args()
 
-  uber_archive = args.platform.startswith('linux')
-  create_archive(args.targets, args.source_dir, args.destination_dir,
-                 args.platform, uber_archive)
+  create_archive(
+      targets=args.targets,
+      source_dir=args.source_dir,
+      out_dir=args.out_dir,
+      destination_dir=args.destination_dir,
+      platform=args.platform)
 
   if args.platform.startswith('android'):
-    copy_apks(args.targets, args.source_dir, args.destination_dir)
+    copy_apks(args.targets, args.out_dir, args.destination_dir)
 
 
 if __name__ == '__main__':
