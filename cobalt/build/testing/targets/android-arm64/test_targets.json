@@ -10,7 +10,6 @@
     "device:device_unittests",
     "google_apis/gcm:gcm_unit_tests",
     "google_apis:google_apis_unittests",
-    "gpu/gles2_conform_support:gles2_conform_test",
     "gpu:command_buffer_perftests",
     "gpu:gl_tests",
     "gpu:gpu_benchmark",
@@ -21,14 +20,10 @@
     "media:media_unittests",
     "media/midi:midi_unittests",
     "mojo:mojo_perftests",
-    "ppapi:ppapi_perftests",
-    "ppapi:ppapi_unittests",
     "services/service_manager/tests:service_manager_unittests",
     "skia:skia_unittests",
     "starboard/nplb:nplb",
     "sql:sql_unittests",
-    "ui/ozone:ozone_unittests",
-    "ui/wm:wm_unittests",
     "url:url_perftests",
     "url:url_unittests"
   ]
