@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This interface mirrors the H5vccRuntime Web IDL defined in Cobalt LTS 25:
-// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_runtime.idl
-[
-    Exposed=Window,
-    SecureContext
-]
+module h5vcc_runtime.mojom;
+
+// The browser process must provide an implementation of this interface so that
+// the renderer process can implement the H5vccRuntime Blink API.
 interface H5vccRuntime {
-    [CallWith=ScriptState, RaisesException]
-    Promise<DOMString> getInitialDeepLink();
+  // Get the GetInitialDeepLink for the device.
+  GetInitialDeepLink() => (string initial_deep_link);
 };
