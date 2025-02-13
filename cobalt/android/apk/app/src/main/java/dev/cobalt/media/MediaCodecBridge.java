@@ -156,27 +156,27 @@ class MediaCodecBridge {
     private int mIndex;
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("DequeueInputResult")
     private DequeueInputResult() {
       mStatus = MediaCodecStatus.ERROR;
       mIndex = -1;
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("DequeueInputResult")
     private DequeueInputResult(int status, int index) {
       mStatus = status;
       mIndex = index;
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("DequeueInputResult")
     private int status() {
       return mStatus;
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("DequeueInputResult")
     private int index() {
       return mIndex;
     }
@@ -193,7 +193,7 @@ class MediaCodecBridge {
     private int mNumBytes;
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("DequeueOutputResult")
     private DequeueOutputResult() {
       mStatus = MediaCodecStatus.ERROR;
       mIndex = -1;
@@ -204,7 +204,7 @@ class MediaCodecBridge {
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("DequeueOutputResult")
     private DequeueOutputResult(
         int status,
         int index,
@@ -221,37 +221,37 @@ class MediaCodecBridge {
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("DequeueOutputResult")
     private int status() {
       return mStatus;
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("DequeueOutputResult")
     private int index() {
       return mIndex;
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("DequeueOutputResult")
     private int flags() {
       return mFlags;
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("DequeueOutputResult")
     private int offset() {
       return mOffset;
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("DequeueOutputResult")
     private long presentationTimeMicroseconds() {
       return mPresentationTimeMicroseconds;
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("DequeueOutputResult")
     private int numBytes() {
       return mNumBytes;
     }
@@ -357,7 +357,7 @@ class MediaCodecBridge {
     public ByteBuffer hdrStaticInfo;
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("ColorInfo")
     ColorInfo(
         int colorRange,
         int colorStandard,
@@ -422,20 +422,20 @@ class MediaCodecBridge {
     private String mErrorMessage;
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("CreateMediaCodecBridgeResult")
     private CreateMediaCodecBridgeResult() {
       mMediaCodecBridge = null;
       mErrorMessage = "";
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("CreateMediaCodecBridgeResult")
     private MediaCodecBridge mediaCodecBridge() {
       return mMediaCodecBridge;
     }
 
     @SuppressWarnings("unused")
-    @UsedByNative
+    @CalledByNative("CreateMediaCodecBridgeResult")
     private String errorMessage() {
       return mErrorMessage;
     }

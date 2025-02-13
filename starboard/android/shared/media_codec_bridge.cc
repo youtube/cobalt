@@ -30,6 +30,7 @@ namespace shared {
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::JavaParamRef;
+using base::android::ScopedJavaLocalRef;
 
 namespace {
 
@@ -318,7 +319,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
   ScopedLocalJavaRef<jstring> j_decoder_name(
       env->NewStringStandardUTFOrAbort(decoder_name.c_str()));
 
-  ScopedLocalJavaRef<jobject> j_color_info(nullptr);
+  ScopedJavaLocalRef<jobject> j_color_info(nullptr);
   if (color_metadata) {
     jint color_standard =
         SbMediaPrimaryIdToColorStandard(color_metadata->primaries);
@@ -330,9 +331,9 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
         color_transfer != COLOR_VALUE_UNKNOWN &&
         color_range != COLOR_VALUE_UNKNOWN) {
       const auto& mastering_metadata = color_metadata->mastering_metadata;
-      j_color_info.Reset(env->NewObjectOrAbort(
-          "dev/cobalt/media/MediaCodecBridge$ColorInfo", "(IIIFFFFFFFFFFIIZ)V",
-          color_range, color_standard, color_transfer,
+      JNIEnv* env_jni = base::android::AttachCurrentThread();
+      j_color_info.Reset(Java_ColorInfo_Constructor(
+          env_jni, color_range, color_standard, color_transfer,
           mastering_metadata.primary_r_chromaticity_x,
           mastering_metadata.primary_r_chromaticity_y,
           mastering_metadata.primary_g_chromaticity_x,
@@ -347,10 +348,9 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     }
   }
 
-  ScopedLocalJavaRef<jobject> j_create_media_codec_bridge_result(
-      env->NewObjectOrAbort(
-          "dev/cobalt/media/MediaCodecBridge$CreateMediaCodecBridgeResult",
-          "()V"));
+  JNIEnv* env_jni = base::android::AttachCurrentThread();
+  ScopedJavaLocalRef<jobject> j_create_media_codec_bridge_result(
+      Java_CreateMediaCodecBridgeResult_Constructor(env_jni));
 
   std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
       new MediaCodecBridge(handler));
@@ -365,16 +365,16 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
       reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
       j_decoder_name.Get(), width_hint, height_hint, fps,
       max_width.value_or(-1), max_height.value_or(-1), j_surface,
-      j_media_crypto, j_color_info.Get(), tunnel_mode_audio_session_id,
-      max_video_input_size, j_create_media_codec_bridge_result.Get());
+      j_media_crypto, j_color_info.obj(), tunnel_mode_audio_session_id,
+      max_video_input_size, j_create_media_codec_bridge_result.obj());
 
   jobject j_media_codec_bridge = env->CallObjectMethodOrAbort(
-      j_create_media_codec_bridge_result.Get(), "mediaCodecBridge",
+      j_create_media_codec_bridge_result.obj(), "mediaCodecBridge",
       "()Ldev/cobalt/media/MediaCodecBridge;");
 
   if (!j_media_codec_bridge) {
     ScopedLocalJavaRef<jstring> j_error_message(
-        env->CallObjectMethodOrAbort(j_create_media_codec_bridge_result.Get(),
+        env->CallObjectMethodOrAbort(j_create_media_codec_bridge_result.obj(),
                                      "errorMessage", "()Ljava/lang/String;"));
     *error_message = env->GetStringStandardUTFOrAbort(j_error_message.Get());
     return std::unique_ptr<MediaCodecBridge>();
