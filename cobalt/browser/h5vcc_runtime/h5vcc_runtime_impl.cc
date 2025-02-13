@@ -12,7 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/h5vcc_system/h5vcc_system_impl.h"
+#include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "build/build_config.h"
@@ -23,39 +24,29 @@
 using starboard::android::shared::StarboardBridge;
 #endif
 
-namespace h5vcc_system {
+namespace h5vcc_runtime {
 
 // TODO (b/395126160): refactor mojom implementation on Android
-H5vccSystemImpl::H5vccSystemImpl(
+H5vccRuntimeImpl::H5vccRuntimeImpl(
     content::RenderFrameHost& render_frame_host,
-    mojo::PendingReceiver<mojom::H5vccSystem> receiver)
-    : content::DocumentService<mojom::H5vccSystem>(render_frame_host,
-                                                   std::move(receiver)) {}
+    mojo::PendingReceiver<mojom::H5vccRuntime> receiver)
+    : content::DocumentService<mojom::H5vccRuntime>(render_frame_host,
+                                                    std::move(receiver)) {}
 
-void H5vccSystemImpl::Create(
+void H5vccRuntimeImpl::Create(
     content::RenderFrameHost* render_frame_host,
-    mojo::PendingReceiver<mojom::H5vccSystem> receiver) {
-  new H5vccSystemImpl(*render_frame_host, std::move(receiver));
+    mojo::PendingReceiver<mojom::H5vccRuntime> receiver) {
+  new H5vccRuntimeImpl(*render_frame_host, std::move(receiver));
 }
 
-void H5vccSystemImpl::GetAdvertisingId(GetAdvertisingIdCallback callback) {
-  std::string advertising_id;
+void H5vccRuntimeImpl::GetInitialDeepLink(GetInitialDeepLinkCallback callback) {
+  std::string start_deep_link;
 #if BUILDFLAG(IS_ANDROID)
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starbooard_bridge = StarboardBridge::GetInstance();
-  advertising_id = starbooard_bridge->GetAdvertisingId(env);
+  start_deep_link = starbooard_bridge->GetStartDeepLink(env);
 #endif
-  std::move(callback).Run(advertising_id);
+  std::move(callback).Run(start_deep_link);
 }
 
-void H5vccSystemImpl::GetLimitAdTracking(GetLimitAdTrackingCallback callback) {
-  bool limit_ad_tracking = false;
-#if BUILDFLAG(IS_ANDROID)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  StarboardBridge* starbooard_bridge = StarboardBridge::GetInstance();
-  limit_ad_tracking = starbooard_bridge->GetLimitAdTracking(env);
-#endif
-  std::move(callback).Run(limit_ad_tracking);
-}
-
-}  // namespace h5vcc_system
+}  // namespace h5vcc_runtime
