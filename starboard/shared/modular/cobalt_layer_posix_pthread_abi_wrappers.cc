@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <pthread.h>
+#include "starboard/common/log.h"
 
 extern "C" {
 
@@ -175,6 +176,7 @@ int pthread_key_delete(pthread_key_t key) {
 void* __abi_wrap_pthread_getspecific(pthread_key_t key);
 
 void* pthread_getspecific(pthread_key_t key) {
+  SB_LOG_STREAM(INFO) << "key value cobalt side" << key;
   return __abi_wrap_pthread_getspecific(key);
 }
 
