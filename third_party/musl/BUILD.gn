@@ -33,6 +33,8 @@ config("external_settings") {
 group("c") {
   public_configs = [ ":external_settings" ]
   deps = [ ":c_internal" ]
+
+  all_dependent_configs = ["//starboard/build/config/modular/x64"]
 }
 
 static_library("c_internal") {

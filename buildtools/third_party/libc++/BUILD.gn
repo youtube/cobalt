@@ -27,7 +27,20 @@ config("config") {
     cflags_cc = [ "-std=c++20" ]
   }
 
-  defines = [ "_LIBCPP_BUILDING_LIBRARY" ]
+  defines = [
+    "_LIBCPP_HAS_NO_FSTREAM",
+    "_LIBCPP_HAS_NO_LIBRARY_ALIGNED_ALLOCATION",
+
+    "_LIBCPP_HAS_MUSL_LIBC",
+    "_LIBCPP_HAS_THREAD_API_EXTERNAL",
+
+    # Let the library headers know they are currently being used to build the
+    # library.
+    "_LIBCPP_BUILDING_LIBRARY",
+
+    # This macro is used to build libcxxabi with libunwind.
+    "LIBCXX_BUILDING_LIBCXXABI",
+  ]
 }
 
 # Explicitly set version macros to Windows 7 to prevent libc++ from adding a

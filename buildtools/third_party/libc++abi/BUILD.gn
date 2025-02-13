@@ -90,4 +90,5 @@ source_set("libc++abi") {
 
   # libc++abi depends on libc++ internals.
   include_dirs = [ "../libc++/trunk/src" ]
+    deps = [ "//third_party/musl:c" ]
 }
