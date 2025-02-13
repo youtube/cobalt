@@ -20,13 +20,32 @@
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_EVERGREEN)
+#include "content/public/browser/render_frame_host.h"
+#include "services/service_manager/public/cpp/interface_provider.h"
+#endif  // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_EVERGREEN)
+
 namespace cobalt {
+
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_EVERGREEN)
+template <typename Interface>
+void ForwardToJavaFrame(content::RenderFrameHost* render_frame_host,
+                        mojo::PendingReceiver<Interface> receiver) {
+  render_frame_host->GetJavaInterfaces()->GetInterface(std::move(receiver));
+}
+#endif  // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_EVERGREEN)
 
 void PopulateCobaltFrameBinders(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map) {
+// We want to use the Java Mojo implementation for ATV only.
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_EVERGREEN)
+  binder_map->Add<crash_annotator::mojom::CrashAnnotator>(base::BindRepeating(
+      &ForwardToJavaFrame<crash_annotator::mojom::CrashAnnotator>));
+#else
   binder_map->Add<crash_annotator::mojom::CrashAnnotator>(
       base::BindRepeating(&crash_annotator::CrashAnnotatorImpl::Create));
+#endif  // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_EVERGREEN)
   binder_map->Add<h5vcc_system::mojom::H5vccSystem>(
       base::BindRepeating(&h5vcc_system::H5vccSystemImpl::Create));
 }
