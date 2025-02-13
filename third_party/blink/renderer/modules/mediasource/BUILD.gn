@@ -56,10 +56,6 @@ blink_modules_sources("mediasource") {
     "//third_party/blink/renderer/modules/webcodecs:webcodecs",
   ]
   if (is_cobalt && use_starboard_media) {
-    sources += [
-      "source_buffer_write_head.cc",
-      "source_buffer_write_head.h",
-    ]
     deps += [ "//starboard($starboard_toolchain)" ]
   }
 }
