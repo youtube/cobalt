@@ -253,6 +253,7 @@ run_package_release_pipeline () {
     cp "${out_dir}/gen/build_info.json" "${package_dir}/"
 
     # Create release package
+    export PYTHONPATH="${WORKSPACE_COBALT}"
     local package_platform="linux"
     if [[ "${PLATFORM}" =~ "android" ]]; then
       package_platform="android"
