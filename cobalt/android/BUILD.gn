@@ -1,5 +1,6 @@
 import("//build/config/android/config.gni")
 import("//build/config/android/rules.gni")
+import("//starboard/build/buildflags.gni")
 import("//third_party/icu/config.gni")
 
 cobalt_manifest = "$target_gen_dir/cobalt_manifest/AndroidManifest.xml"
@@ -39,6 +40,12 @@ generate_jni("jni_headers") {
     "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
   ]
+
+  if (!use_evergreen) {
+    sources += [
+      "apk/app/src/main/java/dev/cobalt/browser/CobaltInterfaceRegistrar.java",
+    ]
+  }
 }
 
 generate_jni("content_shell_jni_headers") {
@@ -130,6 +137,17 @@ android_library("cobalt_main_java") {
     "//ui/android:ui_no_recycler_view_java",
     "//url:gurl_java",
   ]
+
+  if (!use_evergreen) {
+    deps += [
+      "//cobalt/browser/crash_annotator/public/mojom:mojom_java",
+      "//mojo/public/java:base_java",
+      "//mojo/public/java:bindings_java",
+      "//mojo/public/java:system_java",
+      "//services/service_manager/public/java:service_manager_java",
+    ]
+  }
+
   sources = [
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloader.java",
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloaderDefault.java",
@@ -182,6 +200,14 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/util/SystemPropertiesHelper.java",
     "apk/app/src/main/java/dev/cobalt/util/UsedByNative.java",
   ]
+
+  if (!use_evergreen) {
+    sources += [
+      "apk/app/src/main/java/dev/cobalt/browser/CobaltInterfaceRegistrar.java",
+      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImpl.java",
+      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFactory.java",
+    ]
+  }
 
   annotation_processor_deps = [ "//base/android/jni_generator:jni_processor" ]
 }
