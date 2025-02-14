@@ -59,6 +59,7 @@ runs:
           changed_files=($(git diff --name-only -r ${{ github.event.before }} ${{ github.event.after }}))
           changed_files_json=$(jq -nc '$ARGS.positional' --args ${changed_files[@]})
           echo "changed_files_json=${changed_files_json}" >> $GITHUB_OUTPUT
+        shell: bash
       - name: Calculate test targets
         id: calculate-test-targets
         if: inputs.test_root_target != 'null'
