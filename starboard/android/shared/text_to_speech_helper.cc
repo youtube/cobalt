@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,22 +12,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/accessibility_extension.h"
+#include <android/native_activity.h>
 
+#include "starboard/android/shared/accessibility_extension.h"
+#include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/memory.h"
+#include "starboard/speech_synthesis.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/CobaltTextToSpeechHelper_jni.h"
 
-namespace starboard {
-namespace android {
-namespace shared {
-namespace accessibility {
-
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
 using base::android::ScopedJavaLocalRef;
+
+namespace starboard {
+namespace android {
+namespace shared {
+
+namespace accessibility {
 
 bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
   if (!out_setting ||
@@ -46,10 +50,45 @@ bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
   out_setting->is_text_to_speech_enabled =
       Java_CobaltTextToSpeechHelper_isScreenReaderEnabled(env, j_tts_helper);
 
+  SB_LOG(INFO) << "TTS: out_setting->is_text_to_speech_enabled "
+               << out_setting->is_text_to_speech_enabled;
   return true;
 }
 
 }  // namespace accessibility
+
+extern "C" SB_EXPORT_PLATFORM void
+JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {
+  ApplicationAndroid::Get()->SendTTSChangedEvent();
+}
+
+void SbSpeechSynthesisSpeak(const char* text) {
+  if (!text) {
+    return;
+  }
+
+  JNIEnv* env = AttachCurrentThread();
+
+  ScopedJavaLocalRef<jobject> j_tts_helper =
+      starboard::android::shared::StarboardBridge::GetInstance()
+          ->GetTextToSpeechHelper(env);
+
+  jstring text_string = env->NewStringUTF(text);
+  ScopedJavaLocalRef<jstring> j_text_string(env, text_string);
+
+  Java_CobaltTextToSpeechHelper_speak(env, j_tts_helper, j_text_string);
+}
+
+void SbSpeechSynthesisCancel() {
+  JNIEnv* env = AttachCurrentThread();
+
+  ScopedJavaLocalRef<jobject> j_tts_helper =
+      starboard::android::shared::StarboardBridge::GetInstance()
+          ->GetTextToSpeechHelper(env);
+
+  Java_CobaltTextToSpeechHelper_cancel(env, j_tts_helper);
+}
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard

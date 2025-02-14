@@ -36,6 +36,7 @@ jinja_template("cobalt_manifest") {
 
 generate_jni("jni_headers") {
   sources = [
+    #"apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/StarboardBridge.java",
     "apk/app/src/main/java/dev/cobalt/media/MediaCodecBridge.java",
@@ -134,6 +135,8 @@ android_library("cobalt_main_java") {
     "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
     "//third_party/android_deps:google_play_services_ads_identifier_java",
     "//third_party/androidx:androidx_annotation_annotation_java",
+    "//third_party/androidx:androidx_core_core_java",
+    "//third_party/androidx:androidx_customview_customview_java",
     "//third_party/androidx:androidx_media_media_java",
     "//ui/android:ui_java",
     "//ui/android:ui_no_recycler_view_java",
@@ -156,6 +159,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkDownloaderDefault.java",
     "apk/app/src/main/java/dev/cobalt/coat/ArtworkLoader.java",
     "apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltHttpHelper.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
