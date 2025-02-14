@@ -17,6 +17,7 @@
 #include "base/process/current_process.h"
 #include "base/trace_event/trace_log.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
+#include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "content/common/content_constants_internal.h"
 #include "content/public/browser/render_frame_host.h"
@@ -32,6 +33,11 @@ content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
   browser_client_ = std::make_unique<CobaltContentBrowserClient>();
   return browser_client_.get();
+}
+
+content::ContentGpuClient* CobaltMainDelegate::CreateContentGpuClient() {
+  gpu_client_ = std::make_unique<CobaltContentGpuClient>();
+  return gpu_client_.get();
 }
 
 content::ContentRendererClient*
