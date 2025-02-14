@@ -211,9 +211,9 @@ jobs:
         with:
           targets: ${{ needs.initialize.outputs.targets }}
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          test_root_target: ${{ needs.initialize.outputs.test_root_target }}
-          upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host }}
-          upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device }}
+          test_root_target: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_root_target || '' }}
+          upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host == 'true' }}
+          upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
     outputs:
       test_targets: ${{ steps.build.outputs.test_targets }}
 
