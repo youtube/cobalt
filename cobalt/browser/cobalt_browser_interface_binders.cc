@@ -15,37 +15,38 @@
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 
 #include "base/functional/bind.h"
-#include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 
-#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_COAT)
 #include "content/public/browser/render_frame_host.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
-#endif  // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_EVERGREEN)
+#else
+#include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
+#endif  // BUILDFLAG(IS_COAT)
 
 namespace cobalt {
 
-#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_COAT)
 template <typename Interface>
 void ForwardToJavaFrame(content::RenderFrameHost* render_frame_host,
                         mojo::PendingReceiver<Interface> receiver) {
   render_frame_host->GetJavaInterfaces()->GetInterface(std::move(receiver));
 }
-#endif  // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_EVERGREEN)
+#endif  // BUILDFLAG(IS_COAT)
 
 void PopulateCobaltFrameBinders(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map) {
-// We want to use the Java Mojo implementation for ATV only.
-#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_EVERGREEN)
+// We want to use the Java Mojo implementation for 1P ATV only.
+#if BUILDFLAG(IS_COAT)
   binder_map->Add<crash_annotator::mojom::CrashAnnotator>(base::BindRepeating(
       &ForwardToJavaFrame<crash_annotator::mojom::CrashAnnotator>));
 #else
   binder_map->Add<crash_annotator::mojom::CrashAnnotator>(
       base::BindRepeating(&crash_annotator::CrashAnnotatorImpl::Create));
-#endif  // BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_EVERGREEN)
+#endif  // BUILDFLAG(IS_COAT)
   binder_map->Add<h5vcc_system::mojom::H5vccSystem>(
       base::BindRepeating(&h5vcc_system::H5vccSystemImpl::Create));
 }

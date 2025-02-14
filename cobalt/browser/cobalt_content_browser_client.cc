@@ -26,7 +26,7 @@
 
 #include "base/logging.h"
 
-#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_COAT)
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
 #endif
 
@@ -53,7 +53,7 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 // TODO(cobalt, b/383301493): we should consider moving any ATV-specific
 // behaviors into an ATV implementation of BrowserMainParts. For example, see
 // Chrome's ChromeBrowserMainPartsAndroid.
-#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_EVERGREEN)
+#if BUILDFLAG(IS_COAT)
   void PostCreateThreads() override {
     // TODO(cobalt, b/383301493): this looks like a reasonable stage at which to
     // register these interfaces and it seems to work. But we may want to
@@ -61,7 +61,7 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
     RegisterCobaltJavaMojoInterfaces();
     ShellBrowserMainParts::PostCreateThreads();
   }
-#endif  // #if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(USE_EVERGREEN)
+#endif  // BUILDFLAG(IS_COAT)
 };
 
 std::string GetCobaltUserAgent() {

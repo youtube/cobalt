@@ -28,8 +28,7 @@ source_set("browser") {
     "cobalt_web_contents_observer.h",
   ]
 
-  # These sources are needed only for ATV.
-  if (is_android && !use_evergreen) {
+  if (is_coat) {
     sources += [
       "android/mojo/cobalt_interface_registrar_android.cc",
       "android/mojo/cobalt_interface_registrar_android.h",
@@ -38,7 +37,6 @@ source_set("browser") {
 
   deps = [
     ":embed_polyfilled_javascript",
-    "//cobalt/browser/crash_annotator",
     "//cobalt/browser/crash_annotator/public/mojom",
     "//cobalt/browser/h5vcc_system",
     "//cobalt/browser/h5vcc_system/public/mojom",
@@ -48,9 +46,10 @@ source_set("browser") {
     "//content/shell:content_shell_lib",
   ]
 
-  # These deps are needed only for ATV.
-  if (is_android && !use_evergreen) {
+  if (is_coat) {
     deps += [ "//cobalt/android:jni_headers" ]
+  } else {
+    deps += [ "//cobalt/browser/crash_annotator" ]
   }
 }
 

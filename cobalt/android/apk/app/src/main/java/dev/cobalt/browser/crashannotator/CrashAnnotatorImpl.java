@@ -39,7 +39,6 @@ public class CrashAnnotatorImpl implements CrashAnnotator {
         // StarboardBridge.setCrashContext().
         Log.i(TAG, "Java CrashAnnotator impl key=%s value=%s", key, value);
         callback.call(false);
-        return;
     }
 
     /** This abstract method must be overridden. */
