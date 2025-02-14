@@ -15,20 +15,40 @@
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 
 #include "base/functional/bind.h"
-#include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
 #include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "content/public/browser/render_frame_host.h"
+#include "services/service_manager/public/cpp/interface_provider.h"
+#else
+#include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
+#endif  // BUILDFLAG(IS_ANDROIDTV)
+
 namespace cobalt {
+
+#if BUILDFLAG(IS_ANDROIDTV)
+template <typename Interface>
+void ForwardToJavaFrame(content::RenderFrameHost* render_frame_host,
+                        mojo::PendingReceiver<Interface> receiver) {
+  render_frame_host->GetJavaInterfaces()->GetInterface(std::move(receiver));
+}
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 
 void PopulateCobaltFrameBinders(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map) {
+// We want to use the Java Mojo implementation for 1P ATV only.
+#if BUILDFLAG(IS_ANDROIDTV)
+  binder_map->Add<crash_annotator::mojom::CrashAnnotator>(base::BindRepeating(
+      &ForwardToJavaFrame<crash_annotator::mojom::CrashAnnotator>));
+#else
   binder_map->Add<crash_annotator::mojom::CrashAnnotator>(
       base::BindRepeating(&crash_annotator::CrashAnnotatorImpl::Create));
+#endif  // BUILDFLAG(IS_ANDROIDTV)
   binder_map->Add<h5vcc_system::mojom::H5vccSystem>(
       base::BindRepeating(&h5vcc_system::H5vccSystemImpl::Create));
   binder_map->Add<h5vcc_runtime::mojom::H5vccRuntime>(
