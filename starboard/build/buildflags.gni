@@ -6,4 +6,4 @@ declare_args() {
 }
 
 # Differentiates our 1P ATV platform from 3P AOSP.
-is_coat = is_android && !use_evergreen
+is_androidtv = is_android && !use_evergreen
