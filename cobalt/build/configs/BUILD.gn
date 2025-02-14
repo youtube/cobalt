@@ -66,4 +66,7 @@ config("buildflag_defines") {
   if (enable_cobalt_hacks) {
     defines += [ "ENABLE_BUILDFLAG_ENABLE_COBALT_HACKS" ]
   }
+  if (is_androidtv) {
+    defines += [ "ENABLE_BUILFLAG_IS_ANDROIDTV" ]
+  }
 }
