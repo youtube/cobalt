@@ -56,6 +56,12 @@ class ApplicationAndroid
   std::string GetOverlayedStringValue(const char* var_name);
   bool GetOverlayedBoolValue(const char* var_name);
 
+  void SendTTSChangedEvent() {
+    SB_LOG(INFO) << "TTS: native SendTTSChangedEvent";
+    Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
+                     nullptr, nullptr));
+  }
+
  protected:
   // --- QueueApplication overrides ---
   bool MayHaveSystemEvents() override { return false; }

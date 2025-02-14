@@ -160,7 +160,6 @@ static_library("starboard_platform") {
     "accessibility_extension.h",
     "accessibility_get_caption_settings.cc",
     "accessibility_get_display_settings.cc",
-    "accessibility_get_text_to_speech_settings.cc",
     "accessibility_set_captions_enabled.cc",
     "android_main.cc",
     "android_media_session_client.cc",
@@ -259,12 +258,6 @@ static_library("starboard_platform") {
     # "posix_emu/pthread.cc",
     # "posix_emu/stat.cc",
     "sanitizer_options.cc",
-
-    # TODO: (cobalt b/392178584) clean up speech synthesis code.
-    #"speech_synthesis_cancel.cc",
-    #"speech_synthesis_internal.cc",
-    #"speech_synthesis_is_supported.cc",
-    #"speech_synthesis_speak.cc",
     "starboard_bridge.cc",
     "starboard_bridge.h",
     "system_get_extensions.cc",
@@ -280,6 +273,7 @@ static_library("starboard_platform") {
     "system_request_conceal.cc",
     "system_request_freeze_no_freezedone_callback.cc",
     "system_request_stop.cc",
+    "text_to_speech_helper.cc",
     "thread_create_priority.cc",
     "time_zone_get_name.cc",
     "trace_util.h",
