@@ -28,12 +28,12 @@ namespace android {
 namespace shared {
 
 class InputEventsGenerator {
-  //  public:
-  //   typedef ::starboard::shared::starboard::Application::Event Event;
-  //   typedef std::vector<std::unique_ptr<Event>> Events;
+ public:
+  typedef ::starboard::shared::starboard::Application::Event Event;
+  typedef std::vector<std::unique_ptr<Event>> Events;
 
-  //   explicit InputEventsGenerator(SbWindow window);
-  //   virtual ~InputEventsGenerator();
+  explicit InputEventsGenerator(SbWindow window);
+  virtual ~InputEventsGenerator();
 
   //   // Translates an Android input event into a series of Starboard
   //   application
@@ -47,11 +47,11 @@ class InputEventsGenerator {
   //       GameActivityKeyEvent* android_event,
   //       Events* events);
 
-  //   // Create press/unpress events from SbKey
-  //   // (for use with CobaltA11yHelper injection)
-  //   void CreateInputEventsFromSbKey(SbKey key, Events* events);
+  // Create press/unpress events from SbKey
+  // (for use with CobaltA11yHelper injection)
+  void CreateInputEventsFromSbKey(SbKey key, Events* events);
 
-  //  private:
+ private:
   //   enum FlatAxis {
   //     kLeftX,
   //     kLeftY,
@@ -79,14 +79,14 @@ class InputEventsGenerator {
   //       GameActivityMotionEvent* android_event,
   //       Events* events);
 
-  //   SbWindow window_;
+  SbWindow window_;
 
   //   // Map the device id with joystick flat position.
   //   // Cache the flat area of joystick to avoid calling jni functions
   //   frequently. std::map<int32_t, std::vector<float>> device_flat_;
 
-  //   // The current X/Y analog values of the "hat" (dpad on the game
-  //   controller). float hat_value_[2];
+  // The current X/Y analog values of the "hat" (dpad on the game controller).
+  // float hat_value_[2];
 
   //   // The last known value of the left thumbstick, used to track when we
   //   should

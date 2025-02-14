@@ -1489,6 +1489,7 @@ jboolean WebContentsAccessibilityAndroid::GetImageData(
 
 BrowserAccessibilityManagerAndroid*
 WebContentsAccessibilityAndroid::GetRootBrowserAccessibilityManager() {
+  return nullptr;
   if (snapshot_root_manager_) {
     return snapshot_root_manager_.get();
   }

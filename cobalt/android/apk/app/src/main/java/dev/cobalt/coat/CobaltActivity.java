@@ -77,6 +77,9 @@ public abstract class CobaltActivity extends Activity {
   // to prevent them from being garbage collected prematurely.
   private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
 
+  @SuppressWarnings("unused")
+  private CobaltA11yHelper a11yHelper;
+
   private VideoSurfaceView videoSurfaceView;
 
   private boolean forceCreateNewVideoSurfaceView;
@@ -398,6 +401,7 @@ public abstract class CobaltActivity extends Activity {
     createContent(savedInstanceState);
 
     videoSurfaceView = new VideoSurfaceView(this);
+    a11yHelper = new CobaltA11yHelper(videoSurfaceView);
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
   }
@@ -667,6 +671,7 @@ public abstract class CobaltActivity extends Activity {
       int index = frameLayout.indexOfChild(videoSurfaceView);
       frameLayout.removeView(videoSurfaceView);
       videoSurfaceView = new VideoSurfaceView(this);
+      a11yHelper = new CobaltA11yHelper(videoSurfaceView);
       frameLayout.addView(
           videoSurfaceView,
           index,

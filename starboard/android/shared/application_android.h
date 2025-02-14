@@ -15,14 +15,19 @@
 #ifndef STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 #define STARBOARD_ANDROID_SHARED_APPLICATION_ANDROID_H_
 
+#include <android/looper.h>
 #include <atomic>
 #include <memory>
 #include <string>
 #include <unordered_map>
 
+#include <android/looper.h>
+#include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
+#include "starboard/event.h"
+#include "starboard/input.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
@@ -38,7 +43,8 @@ using ::starboard::shared::starboard::CommandLine;
 class ApplicationAndroid
     : public ::starboard::shared::starboard::QueueApplication {
  public:
-  ApplicationAndroid(std::unique_ptr<CommandLine> command_line);
+  ApplicationAndroid(ALooper* looper,
+                     std::unique_ptr<CommandLine> command_line);
   ~ApplicationAndroid();
 
   static ApplicationAndroid* Get() {
@@ -56,14 +62,18 @@ class ApplicationAndroid
   std::string GetOverlayedStringValue(const char* var_name);
   bool GetOverlayedBoolValue(const char* var_name);
 
+  void SendTTSChangedEvent() {
+    SB_LOG(INFO) << "TTS: native SendTTSChangedEvent";
+    Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
+                     nullptr, nullptr));
+  }
+  void SendKeyboardInject(SbKey key);
+
  protected:
   // --- QueueApplication overrides ---
-  bool MayHaveSystemEvents() override { return false; }
-  Event* WaitForSystemEventWithTimeout(int64_t time) override {
-    SB_NOTIMPLEMENTED();
-    return NULL;
-  }
-  void WakeSystemEventWait() override {}
+  bool MayHaveSystemEvents() override { return handle_system_events_.load(); }
+  Event* WaitForSystemEventWithTimeout(int64_t time) override;
+  void WakeSystemEventWait() override;
 
  private:
   // starboard_bridge_ is a global singleton, use a raw pointer to not interfere
@@ -78,6 +88,24 @@ class ApplicationAndroid
   std::unordered_map<std::string, std::string> overlayed_string_variables_;
 
   int64_t app_start_timestamp_ = 0;
+
+  ALooper* looper_;
+
+  // |input_events_generator_| is accessed from multiple threads, so use a mutex
+  // to safely access it.
+  Mutex input_mutex_;
+  std::unique_ptr<InputEventsGenerator> input_events_generator_;
+
+  // Pipes attached to the looper.
+  int keyboard_inject_readfd_;
+  int keyboard_inject_writefd_;
+
+  // In certain situations, the Starboard thread should not try to process new
+  // system events (e.g. while one is being processed).
+  std::atomic_bool handle_system_events_;
+
+  // Methods to process pipes attached to the Looper.
+  void ProcessKeyboardInject();
 };
 
 }  // namespace shared
