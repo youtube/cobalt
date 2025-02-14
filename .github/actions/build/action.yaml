@@ -62,7 +62,7 @@ runs:
         shell: bash
       - name: Calculate test targets
         id: calculate-test-targets
-        if: inputs.test_root_target != 'null'
+        if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
         env:
           CHANGED_FILES_JSON: ${{ steps.changed-files.outputs.changed_files_json }}
           ROOT_TARGET: ${{ inputs.test_root_target }}
