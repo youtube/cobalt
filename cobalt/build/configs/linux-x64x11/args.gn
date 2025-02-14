@@ -33,3 +33,11 @@ enable_remoting = false
 
 # Disable Wayland Ozone Backend
 ozone_platform_wayland = false
+
+# Configs for running on Forge
+enable_nacl = false
+enable_print_preview = false
+use_bluez = false
+use_cups = false
+use_dbus = false
+use_kerberos = false

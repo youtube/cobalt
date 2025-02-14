@@ -159,6 +159,31 @@ std::wstring QuoteForCommandLineToArgvWInternal(
 }
 #endif  // BUILDFLAG(IS_WIN)
 
+class LogDuplicateSwitchHandler : public DuplicateSwitchHandler {
+ public:
+  ~LogDuplicateSwitchHandler() override;
+
+  void ResolveDuplicate(base::StringPiece key,
+                        CommandLine::StringPieceType new_value,
+                        CommandLine::StringType& out_value) override;
+};
+
+LogDuplicateSwitchHandler::~LogDuplicateSwitchHandler() = default;
+
+void LogDuplicateSwitchHandler::ResolveDuplicate(
+    base::StringPiece key,
+    CommandLine::StringPieceType new_value,
+    CommandLine::StringType& out_value) {
+  if (std::string(out_value) != "") {
+    LOG(INFO) << "ARJUN: ";
+    LOG(INFO) << "ARJUN: duplicate switch detected" << "\tkey=" << key << "\told=" << out_value << "\tnew=" << new_value;
+    LOG(INFO) << "ARJUN: ";
+  }
+
+  // default behavior
+  out_value = CommandLine::StringType(new_value);
+}
+
 }  // namespace
 
 // static
@@ -224,6 +249,9 @@ bool CommandLine::Init(int argc, const char* const* argv) {
   }
 
   current_process_commandline_ = new CommandLine(NO_PROGRAM);
+  current_process_commandline_->SetDuplicateSwitchHandler(
+      std::make_unique<LogDuplicateSwitchHandler>());
+
 #if BUILDFLAG(IS_WIN)
   current_process_commandline_->ParseFromString(::GetCommandLineW());
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
