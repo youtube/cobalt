@@ -64,8 +64,6 @@ def _are_related(node1, node2) -> bool:
 
 
 def _is_test_target(g, node) -> bool:
-  if not node in g.nodes:
-    return False
   if not any(
       node.startswith(target_prefix) for target_prefix in _EXCLUDE_TESTS):
     # Test targets get a runner target added to its deps. On linux the name of
@@ -96,6 +94,7 @@ def _create_graph(data: dict) -> Tuple[nx.DiGraph, Dict[str, List[str]]]:
       source_map[source_file] += [target_name]
     for source_file in attributes.get('sources', []):
       source_map[source_file] += [target_name]
+    source_map[target_name.split(':')[0]] += [target_name]
   return g, source_map
 
 
@@ -142,9 +141,14 @@ def get_test_targets_from_sources(
     for source_file in source_files:
       for target in source_map.get(f'//{source_file}', []):
         target_queue.put(target)
-        if _is_test_target(g, target):
-          _add_test_target(g, target, test_targets, executables)
-  else:
+      # Add all targets from BUILD.gn files.
+      if source_file.endswith('/BUILD.gn'):
+        for target in source_map.get(f'//{source_file}'[:-len('/BUILD.gn')]):
+          target_queue.put(target)
+      # TODO: What about gni files?
+
+  if len(source_files) == 0 or target_queue.qsize() == 0:
+    # Consider the entire tree.
     for target in root_target_descendants:
       target_queue.put(target)
 
@@ -154,6 +158,9 @@ def get_test_targets_from_sources(
     if target in visited or target not in root_g.nodes:
       continue
     visited.add(target)
+
+    if _is_test_target(g, target):
+      _add_test_target(g, target, test_targets, executables)
 
     for target_dep in root_g.predecessors(target):
       target_queue.put(target_dep)
