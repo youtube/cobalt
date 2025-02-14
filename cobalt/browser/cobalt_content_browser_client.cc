@@ -26,6 +26,10 @@
 
 #include "base/logging.h"
 
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
+#endif
+
 namespace cobalt {
 
 // TODO(b/390021478): When CobaltContentBrowserClient stops deriving from
@@ -45,6 +49,19 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
     // when called from ChromeBrowserMainParts::PreCreateThreadsImpl().
     return ShellBrowserMainParts::PreCreateThreads();
   }
+
+// TODO(cobalt, b/383301493): we should consider moving any ATV-specific
+// behaviors into an ATV implementation of BrowserMainParts. For example, see
+// Chrome's ChromeBrowserMainPartsAndroid.
+#if BUILDFLAG(IS_ANDROIDTV)
+  void PostCreateThreads() override {
+    // TODO(cobalt, b/383301493): this looks like a reasonable stage at which to
+    // register these interfaces and it seems to work. But we may want to
+    // consider if there's a more suitable stage.
+    RegisterCobaltJavaMojoInterfaces();
+    ShellBrowserMainParts::PostCreateThreads();
+  }
+#endif  // BUILDFLAG(IS_ANDROIDTV)
 };
 
 std::string GetCobaltUserAgent() {

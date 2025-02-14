@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/buildflags.gni")
+
 source_set("browser") {
   # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
   # content_shell_lib.
@@ -26,9 +28,15 @@ source_set("browser") {
     "cobalt_web_contents_observer.h",
   ]
 
+  if (is_androidtv) {
+    sources += [
+      "android/mojo/cobalt_interface_registrar_android.cc",
+      "android/mojo/cobalt_interface_registrar_android.h",
+    ]
+  }
+
   deps = [
     ":embed_polyfilled_javascript",
-    "//cobalt/browser/crash_annotator",
     "//cobalt/browser/crash_annotator/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime/public/mojom",
@@ -39,6 +47,12 @@ source_set("browser") {
     "//content/public/browser",
     "//content/shell:content_shell_lib",
   ]
+
+  if (is_androidtv) {
+    deps += [ "//cobalt/android:jni_headers" ]
+  } else {
+    deps += [ "//cobalt/browser/crash_annotator" ]
+  }
 }
 
 config("embed_polyfilled_javascript_config") {
