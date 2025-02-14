@@ -29,8 +29,8 @@
 #ifndef NATIVE_TARGET_BUILD
 #define IS_EVERGREEN_ADDRESS(address, evergreen_info)                    \
   (evergreen_info.base_address != 0 &&                                   \
-   reinterpret_cast<uint64_t>(address) >= evergreen_info.base_address && \
-   (reinterpret_cast<uint64_t>(address) - evergreen_info.base_address) < \
+   reinterpret_cast<uintptr_t>(address) >= evergreen_info.base_address && \
+   (reinterpret_cast<uintptr_t>(address) - evergreen_info.base_address) < \
        evergreen_info.load_size)
 
 #ifdef __cplusplus
