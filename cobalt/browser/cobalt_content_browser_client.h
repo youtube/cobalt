@@ -15,13 +15,15 @@
 #ifndef COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
-#include "cobalt/browser/cobalt_web_contents_observer.h"
-#include "content/public/browser/web_contents.h"
+#include "cobalt/browser/cobalt_single_render_process_observer.h"
 #include "content/shell/browser/shell_content_browser_client.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 
 namespace content {
 class BrowserMainParts;
 class RenderFrameHost;
+class RenderProcessHost;
+class WebContents;
 }  // namespace content
 
 namespace mojo {
@@ -31,6 +33,8 @@ class BinderMapWithContext;
 
 namespace cobalt {
 
+class CobaltWebContentsObserver;
+
 // This class allows Cobalt to inject specific logic in the business of the
 // browser (i.e. of Content), for example for startup or to override the UA.
 // TODO(b/390021478): In time CobaltContentBrowserClient should derive and
@@ -39,11 +43,17 @@ namespace cobalt {
 class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  public:
   CobaltContentBrowserClient();
+
+  CobaltContentBrowserClient(const CobaltContentBrowserClient&) = delete;
+  CobaltContentBrowserClient& operator=(const CobaltContentBrowserClient&) =
+      delete;
+
   ~CobaltContentBrowserClient() override;
 
   // ShellContentBrowserClient overrides.
   std::unique_ptr<content::BrowserMainParts> CreateBrowserMainParts(
       bool is_integration_test) override;
+  void RenderProcessWillLaunch(content::RenderProcessHost* host) override;
   std::string GetUserAgent() override;
   std::string GetFullUserAgent() override;
   std::string GetReducedUserAgent() override;
@@ -55,9 +65,11 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       content::RenderFrameHost* render_frame_host,
       mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map)
       override;
+  void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
 
  private:
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
+  CobaltSingleRenderProcessObserver single_render_process_observer_;
 };
 
 }  // namespace cobalt
