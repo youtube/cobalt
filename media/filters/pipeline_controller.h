@@ -149,9 +149,6 @@ class MEDIA_EXPORT PipelineController {
   void OnSelectedVideoTrackChanged(
       absl::optional<MediaTrack::Id> selected_track_id);
   void OnExternalVideoFrameRequest();
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  Pipeline::SetBoundsCB GetSetBoundsCB();
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Used to fire the OnTrackChangeComplete function which is captured in a
   // OnceCallback, and doesn't play nicely with gmock.

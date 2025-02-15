@@ -690,13 +690,6 @@ void WebMediaPlayerImpl::DisableOverlay() {
     MaybeSendOverlayInfoToDecoder();
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-WebMediaPlayer::SetBoundsCB WebMediaPlayerImpl::GetSetBoundsCB() {
-  DCHECK(main_task_runner_->BelongsToCurrentThread());
-  return pipeline_controller_->GetSetBoundsCB();
-}
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 void WebMediaPlayerImpl::EnteredFullscreen() {
   overlay_info_.is_fullscreen = true;
 

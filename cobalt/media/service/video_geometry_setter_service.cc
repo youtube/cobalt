@@ -16,7 +16,7 @@
     return;                                                                    \
   }
 
-namespace chromecast {
+namespace cobalt {
 namespace media {
 
 VideoGeometrySetterService::VideoGeometrySetterService()
@@ -35,6 +35,7 @@ void VideoGeometrySetterService::GetVideoGeometryChangeSubscriber(
   video_geometry_change_subscriber_receivers_.Add(this,
                                                   std::move(pending_receiver));
 }
+
 void VideoGeometrySetterService::GetVideoGeometrySetter(
     mojo::PendingReceiver<mojom::VideoGeometrySetter> pending_receiver) {
   MAKE_SURE_ON_SEQUENCE(GetVideoGeometrySetter, std::move(pending_receiver));
@@ -43,6 +44,13 @@ void VideoGeometrySetterService::GetVideoGeometrySetter(
     video_geometry_setter_receiver_.reset();
   }
   video_geometry_setter_receiver_.Bind(std::move(pending_receiver));
+}
+
+base::RepeatingCallback<void(mojo::PendingReceiver<mojom::VideoGeometrySetter>)>
+VideoGeometrySetterService::GetBindCallback() {
+  return base::BindRepeating(
+      &VideoGeometrySetterService::GetVideoGeometrySetter,
+      weak_factory_.GetWeakPtr());
 }
 
 void VideoGeometrySetterService::SubscribeToVideoGeometryChange(
@@ -86,4 +94,4 @@ void VideoGeometrySetterService::OnVideoGeometryChangeClientGone(
 }
 
 }  // namespace media
-}  // namespace chromecast
+}  // namespace cobalt
