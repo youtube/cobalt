@@ -40,12 +40,6 @@ std::string GetRendererName(RendererType renderer_type) {
   }
 }
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-bool SetBoundsNullTask(int x, int y, int width, int height) {
-  return false;
-}
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 Renderer::Renderer() = default;
 
 Renderer::~Renderer() = default;
@@ -81,12 +75,5 @@ void Renderer::SetWasPlayedWithUserActivation(
 void Renderer::OnExternalVideoFrameRequest() {
   // Default implementation of OnExternalVideoFrameRequest is to no-op.
 }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-Renderer::SetBoundsCB Renderer::GetSetBoundsCB() {
-  // Default implementation of GetSetBoundsCB is to no-op.
-  return base::BindOnce(&SetBoundsNullTask);
-}
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace media
