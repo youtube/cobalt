@@ -15,6 +15,8 @@
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_system/h_5_vcc_system.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_void_function.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_system_conceal_or_stop_params.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 
 namespace blink {
@@ -61,6 +63,48 @@ ScriptPromise H5vccSystem::getLimitAdTracking(ScriptState* script_state,
 void H5vccSystem::OnGetLimitAdTracking(ScriptPromiseResolver* resolver,
                                        bool result) {
   resolver->Resolve(result);
+}
+
+ScriptPromise H5vccSystem::concealOrStop(
+    ScriptState* script_state,
+    const H5vccSystemConcealOrStopParams* params,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_system_->GetUserOnExitStrategy(
+      WTF::BindOnce(&H5vccSystem::OnGetUserOnExitStrategy, WrapPersistent(this),
+                    WrapPersistent(resolver), WrapPersistent(params)));
+  return resolver->Promise();
+}
+
+ScriptPromise H5vccSystem::concealOrStop(ScriptState* script_state,
+                                         ExceptionState& exception_state) {
+  return concealOrStop(script_state, /*callbacks=*/nullptr, exception_state);
+}
+
+void H5vccSystem::OnGetUserOnExitStrategy(
+    ScriptPromiseResolver* resolver,
+    const H5vccSystemConcealOrStopParams* params,
+    h5vcc_system::mojom::blink::UserOnExitStrategy result) {
+  if (result == h5vcc_system::mojom::blink::UserOnExitStrategy::kNoExit) {
+    resolver->Resolve(/*concealedOrStopped=*/false);
+    return;
+  }
+
+  if (result == h5vcc_system::mojom::blink::UserOnExitStrategy::kConceal &&
+      params && params->hasBeforeConceal()) {
+    params->beforeConceal()->InvokeAndReportException(this);
+  }
+
+  if (result == h5vcc_system::mojom::blink::UserOnExitStrategy::kStop &&
+      params && params->hasBeforeStop()) {
+    params->beforeStop()->InvokeAndReportException(this);
+  }
+  remote_h5vcc_system_->ConcealOrStop(WTF::BindOnce(
+      &ScriptPromiseResolver::Resolve<bool>, WrapPersistent(resolver),
+      /*concealedOrStopped=*/true));
 }
 
 void H5vccSystem::EnsureReceiverIsBound() {

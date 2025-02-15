@@ -2802,6 +2802,10 @@ if (is_cobalt) {
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_runtime.cc",
     "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_runtime.h",
   ]
+  generated_dictionary_sources_in_modules += [
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_system_conceal_or_stop_params.cc",
+    "$root_gen_dir/third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_system_conceal_or_stop_params.h",
+  ]
 }
 
 generated_namespace_sources_in_modules = [
