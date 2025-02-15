@@ -20,6 +20,7 @@
 #include "media/base/video_codecs.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
+#include "ui/gfx/geometry/rect_conversions.h"
 
 namespace media {
 
@@ -110,17 +111,20 @@ StarboardRenderer::StarboardRenderer(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
     VideoRendererSink* video_renderer_sink,
     MediaLog* media_log,
+    std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
     TimeDelta audio_write_duration_local,
-    TimeDelta audio_write_duration_remote)
+    TimeDelta audio_write_duration_remote,
+    cobalt::media::VideoGeometrySetterService* video_geometry_setter_service)
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       video_renderer_sink_(video_renderer_sink),
       media_log_(media_log),
+      video_overlay_factory_(std::move(video_overlay_factory)),
+      set_bounds_helper_(new SbPlayerSetBoundsHelper),
+      cdm_context_(nullptr),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-      video_overlay_factory_(std::make_unique<VideoOverlayFactory>()),
-      set_bounds_helper_(new SbPlayerSetBoundsHelper),
-      cdm_context_(nullptr) {
+      video_geometry_setter_service_(video_geometry_setter_service) {
   DCHECK(task_runner_);
   DCHECK(video_renderer_sink_);
   DCHECK(media_log_);
@@ -181,6 +185,16 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   client_ = client;
   init_cb_ = std::move(init_cb);
 
+  DCHECK(video_geometry_setter_service_);
+  DCHECK(video_geometry_change_subcriber_remote_);
+  video_geometry_setter_service_->GetVideoGeometryChangeSubscriber(
+      video_geometry_change_subcriber_remote_.BindNewPipeAndPassReceiver());
+  video_geometry_change_subcriber_remote_->SubscribeToVideoGeometryChange(
+      video_overlay_factory_->overlay_plane_id(),
+      video_geometry_change_client_receiver_.BindNewPipeAndPassRemote(),
+      base::BindOnce(&StarboardRenderer::OnSubscribeToVideoGeometryChange,
+                     base::Unretained(this), media_resource, client));
+
   audio_stream_ = media_resource->GetFirstStream(DemuxerStream::AUDIO);
   video_stream_ = media_resource->GetFirstStream(DemuxerStream::VIDEO);
 
@@ -224,6 +238,12 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   // |init_cb| will be called inside |CreatePlayerBridge()|.
   state_ = STATE_INITIALIZING;
   CreatePlayerBridge();
+}
+
+void StarboardRenderer::OnSubscribeToVideoGeometryChange(
+    MediaResource* media_resource,
+    RendererClient* client) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 }
 
 void StarboardRenderer::SetCdm(CdmContext* cdm_context,
@@ -412,9 +432,12 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   return media_time;
 }
 
-Renderer::SetBoundsCB StarboardRenderer::GetSetBoundsCB() {
-  return base::BindOnce(&SbPlayerSetBoundsHelper::SetBounds,
-                        set_bounds_helper_);
+void StarboardRenderer::OnVideoGeometryChange(
+    const gfx::RectF& rect_f,
+    gfx::OverlayTransform /* transform */) {
+  gfx::Rect new_bounds = gfx::ToNearestRect(rect_f);
+  set_bounds_helper_->SetBounds(new_bounds.x(), new_bounds.y(),
+                                new_bounds.width(), new_bounds.height());
 }
 
 void StarboardRenderer::CreatePlayerBridge() {
