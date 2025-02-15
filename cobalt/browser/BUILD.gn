@@ -55,6 +55,15 @@ source_set("browser") {
   }
 }
 
+source_set("switches") {
+  sources = [
+    "switches.cc",
+    "switches.h",
+  ]
+
+  deps = [ "//base" ]
+}
+
 config("embed_polyfilled_javascript_config") {
   include_dirs = [ root_gen_dir ]
 }
