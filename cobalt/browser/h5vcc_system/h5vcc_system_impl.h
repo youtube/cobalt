@@ -42,6 +42,7 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
 
   void GetAdvertisingId(GetAdvertisingIdCallback) override;
   void GetLimitAdTracking(GetLimitAdTrackingCallback) override;
+  void GetUserOnExitStrategy(GetUserOnExitStrategyCallback) override;
 
  private:
   H5vccSystemImpl(content::RenderFrameHost& render_frame_host,

@@ -46,12 +46,15 @@ class MODULES_EXPORT H5vccSystem final
   // Web-exposed interface:
   ScriptPromise getAdvertisingId(ScriptState*, ExceptionState&);
   ScriptPromise getLimitAdTracking(ScriptState*, ExceptionState&);
+  ScriptPromise getUserOnExitStrategy(ScriptState*, ExceptionState&);
 
   void Trace(Visitor*) const override;
 
  private:
   void OnGetAdvertisingId(ScriptPromiseResolver*, const String&);
   void OnGetLimitAdTracking(ScriptPromiseResolver*, bool);
+  void OnGetUserOnExitStrategy(ScriptPromiseResolver*,
+                               h5vcc_system::mojom::blink::UserOnExitStrategy);
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_system::mojom::blink::H5vccSystem> remote_h5vcc_system_;
 };

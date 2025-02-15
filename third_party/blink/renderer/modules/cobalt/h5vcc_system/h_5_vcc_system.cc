@@ -63,6 +63,25 @@ void H5vccSystem::OnGetLimitAdTracking(ScriptPromiseResolver* resolver,
   resolver->Resolve(result);
 }
 
+ScriptPromise H5vccSystem::getUserOnExitStrategy(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_system_->GetUserOnExitStrategy(
+      WTF::BindOnce(&H5vccSystem::OnGetUserOnExitStrategy, WrapPersistent(this),
+                    WrapPersistent(resolver)));
+  return resolver->Promise();
+}
+
+void H5vccSystem::OnGetUserOnExitStrategy(
+    ScriptPromiseResolver* resolver,
+    h5vcc_system::mojom::blink::UserOnExitStrategy result) {
+  resolver->Resolve(static_cast<uint32_t>(result));
+}
+
 void H5vccSystem::EnsureReceiverIsBound() {
   DCHECK(GetExecutionContext());
 

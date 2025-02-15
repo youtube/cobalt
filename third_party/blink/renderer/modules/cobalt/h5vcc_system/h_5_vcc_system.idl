@@ -15,12 +15,19 @@
 // This interface mirrors the H5vccSystem Web IDL defined in Cobalt LTS 25:
 // https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_system.idl
 [
-    Exposed=Window,
-    SecureContext
+  Exposed=Window,
+  SecureContext
 ]
 interface H5vccSystem {
-    [CallWith=ScriptState, RaisesException]
-    Promise<DOMString> getAdvertisingId();
-    [CallWith=ScriptState, RaisesException]
-    Promise<boolean> getLimitAdTracking();
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> getAdvertisingId();
+  [CallWith=ScriptState, RaisesException]
+  Promise<boolean> getLimitAdTracking();
+
+  // This variable defines what Cobalt's preferred strategy should be for
+  // handling internally triggered application exit requests (e.g. the user
+  // chooses to back out of the application).  See the comments in the
+  // enum above for more information about possible values.
+  [CallWith=ScriptState, RaisesException]
+  Promise<unsigned long> getUserOnExitStrategy();
 };

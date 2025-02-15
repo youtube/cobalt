@@ -16,6 +16,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "build/build_config.h"
+#include "cobalt/configuration/configuration.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -56,6 +57,14 @@ void H5vccSystemImpl::GetLimitAdTracking(GetLimitAdTrackingCallback callback) {
   limit_ad_tracking = starbooard_bridge->GetLimitAdTracking(env);
 #endif
   std::move(callback).Run(limit_ad_tracking);
+}
+
+void H5vccSystemImpl::GetUserOnExitStrategy(
+    GetUserOnExitStrategyCallback callback) {
+  auto strategy = cobalt::configuration::Configuration::GetInstance()
+                      ->CobaltUserOnExitStrategy();
+  std::move(callback).Run(
+      static_cast<h5vcc_system::mojom::UserOnExitStrategy>(strategy));
 }
 
 }  // namespace h5vcc_system
