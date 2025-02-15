@@ -44,6 +44,8 @@
     "backgroundfetchclick",
     "backgroundfetchfail",
     "backgroundfetchsuccess",
+    # TODO(b/400518318): Cobalt Event
+    "beforeconceal",
     "beforecopy",
     "beforecreatepolicy",
     "beforecut",
@@ -52,6 +54,8 @@
     "beforematch",
     "beforepaste",
     "beforeprint",
+    # TODO(b/400518318): Cobalt Event
+    "beforestop",
     "beforetoggle",
     "beforeunload",
     "beforexrselect",

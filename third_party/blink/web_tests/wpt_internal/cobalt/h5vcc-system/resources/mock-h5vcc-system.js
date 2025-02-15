@@ -1,4 +1,13 @@
-import {H5vccSystem, H5vccSystemReceiver} from '/gen/cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.m.js';
+import {
+  H5vccSystem,
+  H5vccSystemReceiver,
+  UserOnExitStrategy,
+} from '/gen/cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.m.js';
+
+// Defined in cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.
+const USER_ON_EXIT_STRATEGY_STOP = 0;
+const USER_ON_EXIT_STRATEGY_CONCEAL = 1;
+const USER_ON_EXIT_STRATEGY_NOEXIT = 2;
 
 // Implementation of h5vcc_system.mojom.H5vccSystem.
 class MockH5vccSystem {
@@ -13,6 +22,7 @@ class MockH5vccSystem {
 
   STUB_KEY_ADVERTISING_ID = 'advertisingId';
   STUB_KEY_LIMIT_AD_TRACKING = 'limitAdTracking';
+  STUB_KEY_USER_ON_EXIT_STRATEGY = 'userOnExitStrategy';
 
   start() {
     this.interceptor_.start();
@@ -42,6 +52,18 @@ class MockH5vccSystem {
     this.stubResult(this.STUB_KEY_LIMIT_AD_TRACKING, limitAdTracking);
   }
 
+  stubUserOnExitStrategyStop() {
+    this.stubResult(this.STUB_KEY_USER_ON_EXIT_STRATEGY, USER_ON_EXIT_STRATEGY_STOP);
+  }
+
+  stubUserOnExitStrategyConceal() {
+    this.stubResult(this.STUB_KEY_USER_ON_EXIT_STRATEGY, USER_ON_EXIT_STRATEGY_CONCEAL);
+  }
+
+  stubUserOnExitStrategyNoexit() {
+    this.stubResult(this.STUB_KEY_USER_ON_EXIT_STRATEGY, USER_ON_EXIT_STRATEGY_NOEXIT);
+  }
+
   // h5vcc_system.mojom.H5vccSystem impl.
   getAdvertisingId() {
     // VERY IMPORTANT: this should return (a resolved Promise with) a dictionary
@@ -51,6 +73,14 @@ class MockH5vccSystem {
 
   getLimitAdTracking() {
     return Promise.resolve({ limitAdTracking: this.stub_result_.get(this.STUB_KEY_LIMIT_AD_TRACKING) });
+  }
+
+  getUserOnExitStrategy() {
+    return Promise.resolve({ userOnExitStrategy: this.stub_result_.get(this.STUB_KEY_USER_ON_EXIT_STRATEGY) });
+  }
+
+  concealOrStop() {
+    return Promise.resolve();
   }
 }
 

@@ -72,6 +72,6 @@ config("buildflag_defines") {
     defines += [ "ENABLE_BUILDFLAG_ENABLE_COBALT_HERMETIC_HACKS" ]
   }
   if (is_androidtv) {
-    defines += [ "ENABLE_BUILFLAG_IS_ANDROIDTV" ]
+    defines += [ "ENABLE_BUILDFLAG_IS_ANDROIDTV" ]
   }
 }
