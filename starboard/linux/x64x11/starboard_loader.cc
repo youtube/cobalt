@@ -23,13 +23,18 @@ int main(int argc, char** argv) {
   void* handle_ = dlopen(s_target_lib_path, RTLD_LAZY);
   if (!handle_) {
     std::cerr << "dlopen failure: " << dlerror() << std::endl;
+  } else {
+    printf("loaded SB_LOADER_MODULE module succcessfully \n");
   }
 
   void* callback = nullptr;
   callback = dlsym(handle_, "SbEventHandle");
   if (!callback) {
     std::cerr << "dlsym failure: " << dlerror() << std::endl;
+  } else {
+    printf("loaded SbEventHandle succcessfully\n");
   }
+
   return SbRunStarboardMain(argc, argv,
                             reinterpret_cast<SbEventHandleCallback>(callback));
 }
