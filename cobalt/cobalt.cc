@@ -19,10 +19,12 @@
 #include <vector>
 
 #include "base/at_exit.h"
+#include "base/command_line.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "build/build_config.h"
+#include "cobalt/browser/switches.h"
 #include "cobalt/cobalt_main_delegate.h"
 #include "cobalt/platform_event_source_starboard.h"
 #include "content/public/app/content_main.h"
@@ -46,11 +48,14 @@ static PlatformEventSourceStarboard* g_platform_event_source = nullptr;
 }  // namespace
 
 int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
+  const std::string initial_url =
+      cobalt::switches::GetInitialURL(base::CommandLine(argc, argv));
+
   // content::ContentMainParams params(g_content_main_delegate.Get().get());
   content::ContentMainParams params(g_content_main_delegate);
 
   // TODO: (cobalt b/375241103) Reimplement this in a clean way.
-  constexpr auto cobalt_args = std::to_array<const char*>(
+  const auto cobalt_args = std::to_array<const char*>(
       {// Disable first run experience, kiosk, etc.
        "--disable-fre", "--no-first-run", "--kiosk",
        // Enable Blink to work in overlay video mode
@@ -72,7 +77,7 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
        // This flag is added specifically for m114 and should be removed after
        // rebasing to m120+
        "--user-level-memory-pressure-signal-params", "--no-sandbox",
-       "https://www.youtube.com/tv"});
+       initial_url.c_str()});
   std::vector<const char*> args(argv, argv + argc);
   args.insert(args.end(), cobalt_args.begin(), cobalt_args.end());
 
