@@ -28,6 +28,8 @@ source_set("browser") {
     "cobalt_single_render_process_observer.h",
     "cobalt_web_contents_observer.cc",
     "cobalt_web_contents_observer.h",
+    "metrics/metrics_service_wrapper.cc",
+    "metrics/metrics_service_wrapper.h",
   ]
 
   if (is_androidtv) {
@@ -47,6 +49,8 @@ source_set("browser") {
     "//cobalt/media/service/mojom",
     "//cobalt/user_agent",
     "//components/js_injection/browser:browser",
+    "//components/prefs",
+    "//components/metrics",
     "//content/public/browser",
     "//content/shell:content_shell_lib",
   ]
