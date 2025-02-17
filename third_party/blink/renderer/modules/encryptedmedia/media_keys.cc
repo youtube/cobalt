@@ -441,6 +441,17 @@ ScriptPromise MediaKeys::getStatusForPolicy(
   return promise;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+WebString MediaKeys::getMetrics(ExceptionState& exception_state) {
+  std::string metrics;
+  if (cdm_->GetMetrics(metrics)) {
+    return WebString::FromUTF8(metrics);
+  }
+  exception_state.ThrowDOMException(DOMExceptionCode::kInvalidStateError,
+                                    "CDM returned empty GetMetrics()");
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void MediaKeys::GetStatusForPolicyTask(const String& min_hdcp_version,
                                        ContentDecryptionModuleResult* result) {
   DVLOG(MEDIA_KEYS_LOG_LEVEL) << __func__ << ": " << min_hdcp_version;

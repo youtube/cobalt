@@ -14,16 +14,11 @@
 
 import("//third_party/blink/renderer/modules/modules.gni")
 
-blink_modules_sources("h_5_vcc") {
+blink_modules_sources("encryptedmedia") {
   sources = [
-    "h_5_vcc.cc",
-    "h_5_vcc.h",
+    "media_keys_get_metrics.cc",
+    "media_keys_get_metrics.h",
   ]
-  deps = [
-    "//third_party/blink/renderer/modules/cobalt/crash_annotator",
-    "//third_party/blink/renderer/modules/cobalt/encryptedmedia",
-    "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
-    "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
-    "//third_party/blink/renderer/modules/cobalt/mediasource",
-  ]
+  deps =
+      [ "//third_party/blink/renderer/modules/encryptedmedia:encryptedmedia" ]
 }
