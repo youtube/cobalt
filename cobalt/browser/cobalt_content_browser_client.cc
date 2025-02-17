@@ -57,11 +57,8 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   // ShellBrowserMainParts overrides.
   int PreCreateThreads() override {
-    // TODO(b/372559349): setup metrics similarly to what SetupMetrics() does
-    // when called from ChromeBrowserMainParts::PreCreateThreadsImpl().
-
-    //CobaltMetricsServiceClient le_metrics;
-
+    metrics_ = std::make_unique<CobaltMetricsServiceClient>();
+    metrics_->Start();
     return ShellBrowserMainParts::PreCreateThreads();
   }
 
@@ -77,6 +74,9 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
     ShellBrowserMainParts::PostCreateThreads();
   }
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+
+ private:
+  std::unique_ptr<CobaltMetricsServiceClient> metrics_;
 };
 
 std::string GetCobaltUserAgent() {
