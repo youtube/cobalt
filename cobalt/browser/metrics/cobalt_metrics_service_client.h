@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/threading/thread_checker.h"
+#include "components/metrics/enabled_state_provider.h"
 #include "components/metrics/metrics_service_client.h"
 
 class PrefService;
@@ -21,20 +23,29 @@ class MetricsService;
 class MetricsStateManager;
 }  // namespace metrics
 
-namespace network {
-class SharedURLLoaderFactory;
-}
-
 namespace variations {
 class SyntheticTrialRegistry;
 }
 
 namespace cobalt {
 
-class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
+// This class allows for necessary customizations of metrics::MetricsService,
+// the central metrics (e.g. UMA) collecting and reporting control. It's also a
+// EnabledStateProvider to provide information of consent/activation of metrics
+// reporting. Threading: this class is intended to be used on a single thread
+// after construction. Usually it's created in the early Browser times (e.g.
+// BrowserMainParts::PreCreateThreads, so in practice threading doesn't matter
+// much.
+//
+// TODO(b/372559349): Chromium also provides a MetricsServicesManager/Client
+// pair to wrangle together metrics, variations, etc. If needed or interesting,
+// CobaltMetricsServiceClient could be embedded in a hypothetical
+// CobaltMetricsServicesManager/Client.
+class CobaltMetricsServiceClient : public metrics::MetricsServiceClient,
+                                   public metrics::EnabledStateProvider {
  public:
   CobaltMetricsServiceClient();
-  ~CobaltMetricsServiceClient() override = default;
+  ~CobaltMetricsServiceClient() override;
 
   CobaltMetricsServiceClient(const CobaltMetricsServiceClient&) = delete;
   CobaltMetricsServiceClient& operator=(const CobaltMetricsServiceClient&) =
@@ -67,6 +78,10 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   base::TimeDelta GetStandardUploadInterval() override;
   // Of note: GetStorageLimits() can also be overriden.
 
+  // ::metrics::EnabledStateProvider:
+  bool IsConsentGiven() const override;
+  bool IsReportingEnabled() const override;
+
  private:
   std::unique_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
 
@@ -74,8 +89,10 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager_;
   std::unique_ptr<metrics::MetricsService> metrics_service_;
 
-  // TODO(mcasas): Construct this guy.
-  scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
+  // For DCHECK()s.
+  bool IsInitialized() const { return !!metrics_service_; }
+
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace cobalt

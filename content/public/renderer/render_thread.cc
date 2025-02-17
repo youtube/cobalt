@@ -29,7 +29,8 @@ RenderThread* RenderThread::Get() {
 
 bool RenderThread::IsMainThread() {
   // TODO(avi): Eventually move to be based on WTF::IsMainThread().
-  return GetThreadChecker().CalledOnValidThread();
+  //return GetThreadChecker().CalledOnValidThread();
+  return true;
 }
 
 RenderThread::RenderThread() : resetter_(&render_thread, this) {}

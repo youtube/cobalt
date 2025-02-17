@@ -20,15 +20,13 @@
 #include "components/metrics/metrics_log_uploader.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.cc"
+#include "components/prefs/in_memory_pref_store.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/synthetic_trial_registry.h"
 #include "content/public/common/content_paths.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "url/gurl.h"
-
-// TODO(mcasas): not use a test thing.
-#include "components/metrics/test/test_enabled_state_provider.h"
 
 namespace cobalt {
 
@@ -37,13 +35,14 @@ namespace {
 class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
  public:
   CobaltMetricsLogUploader() = default;
-  ~CobaltMetricsLogUploader()  = default;
+  ~CobaltMetricsLogUploader() = default;
 
   void UploadLog(const std::string& compressed_log_data,
                  const std::string& log_hash,
                  const std::string& log_signature,
-                 const metrics::ReportingInfo& reporting_info)  {
-    // TODO(mcasas): Add logic here to report the Blob to the WebApp.
+                 const metrics::ReportingInfo& reporting_info) {
+    // TODO(b/372559349): Add logic here to report the Blob to the WebApp.
+    LOG(ERROR) << "Miguelao";
   }
 };
 
@@ -51,29 +50,30 @@ class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
 
 CobaltMetricsServiceClient::CobaltMetricsServiceClient()
     : synthetic_trial_registry_(new variations::SyntheticTrialRegistry) {
-  // TODO(mcasas): Extract initialization into a method if any of the
+  DETACH_FROM_THREAD(thread_checker_);
+
+  // TODO(b/372559349): Extract initialization into a method if any of the
   // following calls can fail (likely).
 
-  // No need to make |pref_registry| a member, |pref_service_| will keep a
+  // No need to make `pref_registry` a member, `pref_service_` will keep a
   // reference to it.
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
   metrics::MetricsService::RegisterPrefs(pref_registry.get());
 
   PrefServiceFactory pref_service_factory;
+  pref_service_factory.set_user_prefs(
+      base::MakeRefCounted<InMemoryPrefStore>());
+
   pref_service_ = pref_service_factory.Create(std::move(pref_registry));
-  // Alias used in Content embedders.
+  // `local_state` is a common alias used in Content embedders.
   auto* local_state = pref_service_.get();
 
-  // TODO(mcasas): not use a test thing.
-  metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
-                                                           /*enabled=*/false);
-
   base::FilePath user_data_dir;
-  // TODO(mcasas): use a real path.
+  // TODO(b/372559349): use a real path.
   base::PathService::Get(content::PATH_START, &user_data_dir);
 
   metrics_state_manager_ = metrics::MetricsStateManager::Create(
-      local_state, &enabled_state_provider,
+      local_state, /* enabled_state_provider= */ this,
       /* backup_registry_key= */ std::wstring(), user_data_dir
       // Other params left as by-default.
   );
@@ -83,99 +83,130 @@ CobaltMetricsServiceClient::CobaltMetricsServiceClient()
   metrics_service_->InitializeMetricsRecordingState();
 }
 
+CobaltMetricsServiceClient::~CobaltMetricsServiceClient() = default;
+
 void CobaltMetricsServiceClient::Start() {
-  DCHECK(metrics_service_);
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
   metrics_service_->Start();
 }
 
 void CobaltMetricsServiceClient::Stop() {
-  DCHECK(metrics_service_);
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
   metrics_service_->Stop();
 }
 
 variations::SyntheticTrialRegistry*
 CobaltMetricsServiceClient::GetSyntheticTrialRegistry() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
   return synthetic_trial_registry_.get();
 }
 
-::metrics::MetricsService* CobaltMetricsServiceClient::GetMetricsService() {
+metrics::MetricsService* CobaltMetricsServiceClient::GetMetricsService() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
   return metrics_service_.get();
 }
 
 void CobaltMetricsServiceClient::SetMetricsClientId(
-    const std::string& client_id) {}
+    const std::string& client_id) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
+}
+
 int32_t CobaltMetricsServiceClient::GetProduct() {
-  // TODO(mcasas): Return Cobalt product ID.
+  // TODO(b/372559349): Return Cobalt product ID.
   return 0;
 }
 
 std::string CobaltMetricsServiceClient::GetApplicationLocale() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
   return base::i18n::GetConfiguredLocale();
 }
 
 const network_time::NetworkTimeTracker*
 CobaltMetricsServiceClient::GetNetworkTimeTracker() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
   return nullptr;
 }
 
 bool CobaltMetricsServiceClient::GetBrand(std::string* brand_code) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
   return false;
 }
 
-::metrics::SystemProfileProto::Channel GetChannel() {
-  // TODO(mcasas): Figure out the channel, if needed.
-  return ::metrics::SystemProfileProto::CHANNEL_CANARY;
+metrics::SystemProfileProto::Channel CobaltMetricsServiceClient::GetChannel() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
+  // TODO(b/372559349): Figure out the channel, if needed.
+  return metrics::SystemProfileProto::CHANNEL_CANARY;
 }
 
 bool CobaltMetricsServiceClient::IsExtendedStableChannel() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
   return false;  // Not supported on Cobalt.
 }
 
 std::string CobaltMetricsServiceClient::GetVersionString() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
   // E.g. 134.0.6998.19.
   return base::Version().GetString();
 }
 
 void CobaltMetricsServiceClient::CollectFinalMetricsForLog(
     base::OnceClosure done_callback) {
-  // TODO(mcasas): Figure out whether we want to use this chance to collect
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
+  // TODO(b/372559349): Figure out whether we want to use this chance to collect
   // some extra metrics before repoting.
   std::move(done_callback).Run();
 }
 
 GURL CobaltMetricsServiceClient::GetMetricsServerUrl() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
   // Chrome keeps the actual URL in an internal file, likely to avoid abuse.
-  // This below is made up. TODO(mcasas): Figure out Cobalt's server.
+  // This below is made up, and in any case likely not to be used (it ends up
+  // in CreateUploader()'s `server_url`. Return empty in favour of a
+  // CobaltMetricsLogUploader.
   return GURL("https://youtube.com/tv/uma");
 }
 
-std::unique_ptr<::metrics::MetricsLogUploader>
+std::unique_ptr<metrics::MetricsLogUploader>
 CobaltMetricsServiceClient::CreateUploader(
     const GURL& server_url,
     const GURL& insecure_server_url,
     base::StringPiece mime_type,
-    ::metrics::MetricsLogUploader::MetricServiceType service_type,
-    const ::metrics::MetricsLogUploader::UploadCallback& on_upload_complete) {
-  // TODO(mcasas): In all likelihood, pass the parameters.
+    metrics::MetricsLogUploader::MetricServiceType service_type,
+    const metrics::MetricsLogUploader::UploadCallback& on_upload_complete) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
+  // TODO(b/372559349): In all likelihood, pass the parameters.
   return std::make_unique<CobaltMetricsLogUploader>();
 }
 
 base::TimeDelta CobaltMetricsServiceClient::GetStandardUploadInterval() {
   const int kStandardUploadIntervalMinutes = 5;
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(IsInitialized());
   return base::Minutes(kStandardUploadIntervalMinutes);
 }
 
-//MetricsServiceWrapper::MetricsServiceWrapper() {
+bool CobaltMetricsServiceClient::IsConsentGiven() const {
+  // TODO(b/372559349): User consent should be verified here.
+  return true;
+}
 
-
-
-
-  // then also
-  //  auto client =
-  //      std::make_unique<ChromeMetricsServicesManagerClient>(local_state());
-  //  metrics_services_manager_client_ = client.get();
-  //  metrics_services_manager_ =
-  //      std::make_unique<metrics_services_manager::MetricsServicesManager>(
-  //          std::move(client));
+bool CobaltMetricsServiceClient::IsReportingEnabled() const {
+  // TODO(b/372559349): Usually TOS should be verified accepted here.
+  return true;
+}
 
 }  // namespace cobalt
