@@ -17,8 +17,17 @@
 #include <string>
 
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
+<<<<<<< HEAD
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
+=======
+<<<<<<< HEAD
+=======
+#include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
+#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
+>>>>>>> 3b6ab07566b (Moved CobaltMetricsServiceClient to exposed class)
+>>>>>>> 11d209b1b38 (Moved CobaltMetricsServiceClient to exposed class)
 #include "cobalt/user_agent/user_agent_platform_info.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
@@ -50,6 +59,9 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   int PreCreateThreads() override {
     // TODO(b/372559349): setup metrics similarly to what SetupMetrics() does
     // when called from ChromeBrowserMainParts::PreCreateThreadsImpl().
+
+    //CobaltMetricsServiceClient le_metrics;
+
     return ShellBrowserMainParts::PreCreateThreads();
   }
 
