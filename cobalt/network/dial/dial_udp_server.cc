@@ -126,7 +126,7 @@ void DialUdpServer::AcceptAndProcessConnection() {
   auto err_code = socket_->RecvFrom(
       read_buf_.get(), kReadBufferSize, &client_address_,
       base::Bind(&DialUdpServer::DidRead, base::Unretained(this)));
-  if (err_code > 0) {
+  if (err_code >= 0) {
     // RecvFrom can also return the number of received bytes right away as well.
     DidRead(err_code);
   } else if (err_code != net::ERR_IO_PENDING) {
