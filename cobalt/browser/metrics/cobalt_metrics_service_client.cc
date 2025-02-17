@@ -15,6 +15,7 @@
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 
 #include "base/i18n/rtl.h"
+#include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/version.h"
 #include "components/metrics/metrics_log_uploader.h"
@@ -42,6 +43,7 @@ class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
                  const std::string& log_signature,
                  const metrics::ReportingInfo& reporting_info) {
     // TODO(b/372559349): Add logic here to report the Blob to the WebApp.
+    NOTIMPLEMENTED();
   }
 };
 
