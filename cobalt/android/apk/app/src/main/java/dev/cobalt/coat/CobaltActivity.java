@@ -122,6 +122,8 @@ public abstract class CobaltActivity extends Activity {
             "--disable-rgba-4444-textures",
             // Align with MSE spec for MediaSource.duration.
             "--enable-blink-features=MediaSourceNewAbortAndDuration",
+            // Trades a little V8 performance for significant memory savings.
+            "--js-flags=--optimize_for_size=true",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
