@@ -42,7 +42,6 @@ class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
                  const std::string& log_signature,
                  const metrics::ReportingInfo& reporting_info) {
     // TODO(b/372559349): Add logic here to report the Blob to the WebApp.
-    LOG(ERROR) << "Miguelao";
   }
 };
 
@@ -173,8 +172,8 @@ GURL CobaltMetricsServiceClient::GetMetricsServerUrl() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
   // Chrome keeps the actual URL in an internal file, likely to avoid abuse.
-  // This below is made up, and in any case likely not to be used (it ends up
-  // in CreateUploader()'s `server_url`. Return empty in favour of a
+  // This below is made up, and in any case likely not to be used (it ends up in
+  // CreateUploader()'s `server_url`. Return empty and use instead logic in
   // CobaltMetricsLogUploader.
   return GURL("https://youtube.com/tv/uma");
 }
