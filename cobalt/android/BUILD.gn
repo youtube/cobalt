@@ -272,8 +272,7 @@ shared_library("libcobalt_content_shell_content_view") {
   deps = [
     ":content_shell_jni_headers",
     "//cobalt/browser",
-    "//cobalt/gpu",
-    "//cobalt/renderer",
+    "//cobalt/renderer:renderer",
 
     # TODO: what can be removed in the dependencies?
     "//components/crash/content/browser",
