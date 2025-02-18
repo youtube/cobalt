@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-[JavaPackage="org.chromium.crashannotator.mojom"]
-module crash_annotator.mojom;
+#include "cobalt/browser/switches.h"
 
-// The browser process must provide an implementation of this interface so that
-// the renderer process can implement the CrashAnnotator Blink API.
-interface CrashAnnotator {
-  // Receives an annotation to set and responds with the result.
-  SetString(string key, string value) => (bool result);
-};
+namespace cobalt {
+namespace switches {
+
+namespace {
+
+constexpr char kDefaultURL[] = "https://www.youtube.com/tv";
+
+}  // namespace
+
+std::string GetInitialURL(const base::CommandLine& command_line) {
+  if (command_line.HasSwitch(kInitialURL)) {
+    return command_line.GetSwitchValueASCII(kInitialURL);
+  }
+  return kDefaultURL;
+}
+
+}  // namespace switches
+}  // namespace cobalt

@@ -12,9 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//mojo/public/tools/bindings/mojom.gni")
+import("//third_party/blink/renderer/modules/modules.gni")
 
-mojom("mojom") {
-  generate_java = true
-  sources = [ "crash_annotator.mojom" ]
+blink_modules_sources("encryptedmedia") {
+  sources = [
+    "media_keys_get_metrics.cc",
+    "media_keys_get_metrics.h",
+  ]
+  deps =
+      [ "//third_party/blink/renderer/modules/encryptedmedia:encryptedmedia" ]
 }

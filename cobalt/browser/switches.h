@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,12 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-[JavaPackage="org.chromium.crashannotator.mojom"]
-module crash_annotator.mojom;
+#include <string>
 
-// The browser process must provide an implementation of this interface so that
-// the renderer process can implement the CrashAnnotator Blink API.
-interface CrashAnnotator {
-  // Receives an annotation to set and responds with the result.
-  SetString(string key, string value) => (bool result);
-};
+#include "base/command_line.h"
+
+#ifndef COBALT_BROWSER_SWITCHES_H_
+#define COBALT_BROWSER_SWITCHES_H_
+
+namespace cobalt {
+namespace switches {
+
+// Allow the user to override the default URL via a command line parameter.
+std::string GetInitialURL(const base::CommandLine& command_line);
+
+constexpr char kInitialURL[] = "url";
+
+}  // namespace switches
+}  // namespace cobalt
+
+#endif  // COBALT_BROWSER_SWITCHES_H_

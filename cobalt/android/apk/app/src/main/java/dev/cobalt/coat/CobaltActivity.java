@@ -122,8 +122,8 @@ public abstract class CobaltActivity extends Activity {
             "--disable-rgba-4444-textures",
             // Align with MSE spec for MediaSource.duration.
             "--enable-blink-features=MediaSourceNewAbortAndDuration",
-            // TODO(crbug.com/41482978): Fixes nvidia shield rendering issues.
-            "--disable-features=DefaultPassthroughCommandDecoder,Vulkan",
+            // Trades a little V8 performance for significant memory savings.
+            "--js-flags=--optimize_for_size=true",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
@@ -241,6 +241,8 @@ public abstract class CobaltActivity extends Activity {
     mShellManager.launchShell("");
     // Inject JavaBridge objects to the WebContents.
     initializeJavaBridge();
+    getStarboardBridge().setWebContents(getActiveWebContents());
+
     // Load the `url` with the same shell we created above.
     Log.i(TAG, "shellManager load url:" + shellUrl);
     mShellManager.getActiveShell().loadUrl(shellUrl);
