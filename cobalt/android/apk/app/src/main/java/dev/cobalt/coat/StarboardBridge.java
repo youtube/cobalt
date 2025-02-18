@@ -47,6 +47,7 @@ import java.util.TimeZone;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
+import org.chromium.content_public.browser.WebContents;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
 @JNINamespace("starboard::android::shared")
@@ -63,7 +64,7 @@ public class StarboardBridge {
   private CobaltTextToSpeechHelper ttsHelper;
   // TODO(cobalt): Re-enable these classes or remove if unnecessary.
   private AudioOutputManager audioOutputManager;
-  // private CobaltMediaSession cobaltMediaSession;
+  private CobaltMediaSession cobaltMediaSession;
   // private AudioPermissionRequester audioPermissionRequester;
   private NetworkStatus networkStatus;
   private ResourceOverlay resourceOverlay;
@@ -121,8 +122,7 @@ public class StarboardBridge {
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
     this.ttsHelper = new CobaltTextToSpeechHelper(appContext);
     this.audioOutputManager = new AudioOutputManager(appContext);
-    // this.cobaltMediaSession =
-    //   new CobaltMediaSession(appContext, activityHolder, audioOutputManager, artworkDownloader);
+    this.cobaltMediaSession = new CobaltMediaSession(appContext, activityHolder, artworkDownloader);
     // this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     // TODO(cobalt, b/378718120): delete NetworkStatus if navigator.online works in Content.
     this.networkStatus = new NetworkStatus(appContext);
@@ -139,17 +139,17 @@ public class StarboardBridge {
   private native void closeNativeStarboard(long nativeApp);
 
   @NativeMethods
-    interface Natives {
-        void onStop();
+  interface Natives {
+    void onStop();
 
-        long currentMonotonicTime();
+    long currentMonotonicTime();
 
-        long startNativeStarboard();
-        // TODO(cobalt, b/372559388): move below native methods to the Natives interface.
-        // boolean initJNI();
+    long startNativeStarboard();
+    // TODO(cobalt, b/372559388): move below native methods to the Natives interface.
+    // boolean initJNI();
 
-        // void closeNativeStarboard(long nativeApp);
-    }
+    // void closeNativeStarboard(long nativeApp);
+  }
 
   protected void onActivityStart(Activity activity) {
     Log.e(TAG, "onActivityStart ran");
@@ -193,8 +193,6 @@ public class StarboardBridge {
     Log.i(TAG, "Prepare to resume");
     // Bring our platform services to life before resuming so that they're ready to deal with
     // whatever the web app wants to do with them as part of its start/resume logic.
-    // TODO(cobalt, b/377019873): re-enable MediaSession.
-    // cobaltMediaSession.resume();
     networkStatus.beforeStartOrResume();
     for (CobaltService service : cobaltServices.values()) {
       service.beforeStartOrResume();
@@ -208,7 +206,6 @@ public class StarboardBridge {
       // We want the MediaSession to be deactivated immediately before suspending so that by the
       // time, the launcher is visible our "Now Playing" card is already gone. Then Cobalt and
       // the web app can take their time suspending after that.
-      // cobaltMediaSession.suspend();
       networkStatus.beforeSuspend();
       for (CobaltService service : cobaltServices.values()) {
         service.beforeSuspend();
@@ -546,37 +543,6 @@ public class StarboardBridge {
     }
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/android_media_session_client.cc
-  @SuppressWarnings("unused")
-  @UsedByNative
-  void updateMediaSession(
-      int playbackState,
-      long actions,
-      long positionMs,
-      float speed,
-      String title,
-      String artist,
-      String album,
-      MediaImage[] artwork,
-      long duration) {
-
-    // TODO(b/377019873): re-enable
-    Log.e(TAG, "MediaSession is disabled");
-    // cobaltMediaSession.updateMediaSession(
-    //     playbackState, actions, positionMs, speed, title, artist, album, artwork, duration);
-  }
-
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/android_media_session_client.cc
-  @SuppressWarnings("unused")
-  @UsedByNative
-  public void deactivateMediaSession() {
-    // TODO(b/377019873): re-enable
-    Log.e(TAG, "MediaSession is disabled");
-    // cobaltMediaSession.deactivateMediaSession();
-  }
-
   /** Returns string for kSbSystemPropertyUserAgentAuxField */
   @SuppressWarnings("unused")
   @CalledByNative
@@ -686,11 +652,9 @@ public class StarboardBridge {
     return hdrCapabilities.getSupportedHdrTypes();
   }
 
-  // TODO(b/377019873): Re-enable MediaSession
-  /** Return the CobaltMediaSession. */
-  // public CobaltMediaSession cobaltMediaSession() {
-  //   return cobaltMediaSession;
-  // }
+  public CobaltMediaSession cobaltMediaSession() {
+    return cobaltMediaSession;
+  }
 
   public void registerCobaltService(CobaltService.Factory factory) {
     cobaltServiceFactories.put(factory.getServiceName(), factory);
@@ -732,7 +696,7 @@ public class StarboardBridge {
     cobaltServices.remove(serviceName);
   }
 
-  public byte[] sendToCobaltService(String serviceName, byte [] data) {
+  public byte[] sendToCobaltService(String serviceName, byte[] data) {
     CobaltService service = cobaltServices.get(serviceName);
     if (service == null) {
       Log.e(TAG, String.format("Service not opened: %s", serviceName));
@@ -829,5 +793,9 @@ public class StarboardBridge {
       Log.w(TAG, "Unable to query Google Play Services package version", e);
       return 0;
     }
+  }
+
+  public void setWebContents(WebContents webContents) {
+    cobaltMediaSession.setWebContents(webContents);
   }
 }

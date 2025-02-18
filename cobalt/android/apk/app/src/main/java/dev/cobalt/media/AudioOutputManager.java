@@ -25,8 +25,6 @@ import android.media.AudioManager;
 import android.media.AudioTrack;
 import android.os.Build;
 import androidx.annotation.RequiresApi;
-// TODO(b/377019873): Re-enable Mediasession
-// import dev.cobalt.coat.CobaltMediaSession;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
@@ -36,8 +34,6 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /** Creates and destroys AudioTrackBridge and handles the volume change. */
-// TODO(b/377019873): Re-enable Mediasession as below:
-// public class AudioOutputManager implements CobaltMediaSession.UpdateVolumeListener {
 public class AudioOutputManager {
   private List<AudioTrackBridge> audioTrackBridgeList;
   private Context context;
@@ -49,15 +45,6 @@ public class AudioOutputManager {
     this.context = context;
     audioTrackBridgeList = new ArrayList<AudioTrackBridge>();
   }
-
-  /* TODO(b/377019873): Re-enable MediaSession
-  @Override
-  public void onUpdateVolume(float gain) {
-    for (AudioTrackBridge audioTrackBridge : audioTrackBridgeList) {
-      audioTrackBridge.setVolume(gain);
-    }
-  }
-  */
 
   @SuppressWarnings("unused")
   @UsedByNative
