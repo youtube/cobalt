@@ -15,13 +15,15 @@
 package dev.cobalt.coat;
 
 import android.graphics.Bitmap;
+import android.graphics.Rect;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Pair;
 import android.util.Size;
 import androidx.annotation.NonNull;
 import dev.cobalt.util.DisplayUtil;
-import java.util.Locale;
+import java.util.List;
+import org.chromium.services.media_session.MediaImage;
 
 /** Loads MediaImage artwork, and caches one image. */
 public class ArtworkLoader {
@@ -48,9 +50,13 @@ public class ArtworkLoader {
    * Returns a cached image if available. If not cached, returns null and starts downloading it in
    * the background, and then when ready the callback will be called with the image.
    */
-  public synchronized Bitmap getOrLoadArtwork(MediaImage[] artwork) {
-    MediaImage image = getBestFitImage(artwork, DisplayUtil.getDisplaySize());
-    String url = (image == null) ? "" : image.src;
+  public synchronized Bitmap getOrLoadArtwork(List<MediaImage> images) {
+    if (images == null || images.isEmpty() == true) {
+      return null;
+    }
+
+    MediaImage image = getBestFitImage(images, DisplayUtil.getDisplaySize());
+    String url = image.getSrc().getSpec();
 
     // Check if this artwork is already loaded or requested.
     if (url.equals(currentArtworkUrl)) {
@@ -70,16 +76,16 @@ public class ArtworkLoader {
    * TV launcher, or any other observer of the MediaSession), so we use display size as the largest
    * useful size on any particular device.
    */
-  private MediaImage getBestFitImage(MediaImage[] artwork, Size displaySize) {
-    if (artwork == null || artwork.length == 0) {
-      return null;
-    }
-    MediaImage bestImage = artwork[0];
+  private MediaImage getBestFitImage(List<MediaImage> images, Size displaySize) {
+    MediaImage bestImage = images.get(0);
     int minDiagonalSquared = Integer.MAX_VALUE;
-    for (MediaImage image : artwork) {
-      Size imageSize = parseImageSize(image);
-      int widthDelta = displaySize.getWidth() - imageSize.getWidth();
-      int heightDelta = displaySize.getHeight() - imageSize.getHeight();
+    for (MediaImage image : images) {
+      if (image.getSizes().isEmpty()) {
+        continue;
+      }
+      Rect imageRect = image.getSizes().get(0);
+      int widthDelta = displaySize.getWidth() - imageRect.width();
+      int heightDelta = displaySize.getHeight() - imageRect.height();
       int diagonalSquared = widthDelta * widthDelta + heightDelta * heightDelta;
       if (diagonalSquared < minDiagonalSquared) {
         bestImage = image;
@@ -87,15 +93,6 @@ public class ArtworkLoader {
       }
     }
     return bestImage;
-  }
-
-  private Size parseImageSize(MediaImage image) {
-    try {
-      String sizeStr = image.sizes.split("\\s+", -1)[0];
-      return Size.parseSize(sizeStr.toLowerCase(Locale.US));
-    } catch (NumberFormatException | NullPointerException e) {
-      return new Size(0, 0);
-    }
   }
 
   public Bitmap cropTo16x9(Bitmap bitmap) {
