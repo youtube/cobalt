@@ -30,7 +30,6 @@ H5vcc* H5vcc::h5vcc(LocalDOMWindow& window) {
   if (!h5vcc && window.GetExecutionContext()) {
     h5vcc = MakeGarbageCollected<H5vcc>(window);
     ProvideTo(window, h5vcc);
-    LOG(INFO) << "Colin test: h5vcc provide to window.";
   }
   return h5vcc;
 }
@@ -39,12 +38,9 @@ H5vcc::H5vcc(LocalDOMWindow& window)
     : Supplement<LocalDOMWindow>(window),
       crash_annotator_(MakeGarbageCollected<CrashAnnotator>(window)),
       system_(MakeGarbageCollected<H5vccSystem>(window)),
-      runtime_(MakeGarbageCollected<H5vccRuntime>(window)) {
-  LOG(INFO) << "Colin test: H5vcc::H5vcc()";
-}
+      runtime_(MakeGarbageCollected<H5vccRuntime>(window)) {}
 
 void H5vcc::Trace(Visitor* visitor) const {
-  LOG(INFO) << "Colin test: H5vcc::Trace()";
   visitor->Trace(crash_annotator_);
   visitor->Trace(system_);
   visitor->Trace(runtime_);

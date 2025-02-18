@@ -17,23 +17,18 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
-// #include "third_party/blink/renderer/core/events/event.h"
-// #include "third_party/blink/renderer/core/events/event_init.h"
 
 namespace blink {
 
 H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
-      remote_h5vcc_runtime_(window.GetExecutionContext()) {
-  LOG(INFO) << "Colin test: H5vccRuntime::H5vccRuntime()";
-}
+      remote_h5vcc_runtime_(window.GetExecutionContext()) {}
 
 void H5vccRuntime::ContextDestroyed() {}
 
 ScriptPromise H5vccRuntime::getInitialDeepLink(
     ScriptState* script_state,
     ExceptionState& exception_state) {
-  LOG(INFO) << "Colin test: getInitialDeepLink() called";
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
@@ -48,8 +43,6 @@ ScriptPromise H5vccRuntime::getInitialDeepLink(
 
 void H5vccRuntime::OnGetInitialDeepLink(ScriptPromiseResolver* resolver,
                                         const String& result) {
-  LOG(INFO) << "Colin test: OnGetInitialDeepLink() return";
-  LOG(INFO) << "Colin test: result is " << result;
   resolver->Resolve(result);
 }
 
@@ -69,26 +62,9 @@ void H5vccRuntime::EnsureReceiverIsBound() {
 void H5vccRuntime::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
-  // EventTarget::Trace(visitor);
+  // Do I need this?
+  EventTarget::Trace(visitor);
   visitor->Trace(remote_h5vcc_runtime_);
 }
-
-// void H5vccRuntime::setOndeeplinkchanged(EventHandler* handler) {
-//     EventTarget::setEventHandler(EventTypeNames::deeplinkchanged, handler);
-//     if(handler){
-//         DispatchDeepLinkChangedEvent("fake_deep_link");
-//     }
-// }
-
-// EventHandler* H5vccRuntime::ondeeplinkchanged() const {
-//   return EventTarget::eventHandler(EventTypeNames::deeplinkchanged);
-// }
-
-// void H5vccRuntime::DispatchDeepLinkChangedEvent(const String& deep_link) {
-//   EventInit event_init;
-//   auto event = Event::Create(EventTypeNames::deeplinkchanged, event_init);
-//   event->SetDeepLink(deep_link); //Add setDeepLink method to event.
-//   DispatchEvent(event);
-// }
 
 }  // namespace blink
