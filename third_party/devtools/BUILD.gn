@@ -24,7 +24,6 @@ all_devtools_files = [
   "front_end/audits_worker.js",
   "front_end/audits_worker.json",
   "front_end/audits_worker/AuditsService.js",
-  "front_end/audits_worker/lighthouse/lighthouse-dt-bundle.js",
   "front_end/audits_worker/module.json",
   "front_end/audits/auditsDialog.css",
   "front_end/audits/auditsStartView.css",
