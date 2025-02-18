@@ -54,9 +54,7 @@ class ExtendedResourcesManager {
                        Microsoft::WRL::ComPtr<ID3D12Heap>* buffer_heap,
                        void** command_queue);
 
-  bool IsGpuDecoderReady() const {
-    return is_av1_shader_compiled_ && is_vp9_shader_compiled_;
-  }
+  bool IsGpuDecoderReady() const;
 
   // This is called when it is found that the D3D12 driver is in an
   // error state that can not be recovered from.
@@ -87,8 +85,8 @@ class ExtendedResourcesManager {
   Mutex mutex_;
   atomic_bool is_extended_resources_acquired_;
 
-  std::atomic_bool is_av1_shader_compiled_ = {false};
-  std::atomic_bool is_vp9_shader_compiled_ = {false};
+  bool is_av1_shader_compiled_ = {false};
+  bool is_vp9_shader_compiled_ = {false};
 
   bool is_nonrecoverable_failure_ = false;
   Queue<Event> event_queue_;

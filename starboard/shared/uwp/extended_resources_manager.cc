@@ -180,6 +180,7 @@ void ExtendedResourcesManager::Quit() {
 }
 
 void ExtendedResourcesManager::ReleaseBuffersHeap() {
+  ScopedLock scoped_lock(mutex_);
   d3d12FrameBuffersHeap_.Reset();
 }
 
@@ -234,6 +235,11 @@ bool ExtendedResourcesManager::GetD3D12Objects(
   *command_queue = d3d12queue_.Get();
   *buffer_heap = d3d12FrameBuffersHeap_.Get();
   return true;
+}
+
+bool ExtendedResourcesManager::IsGpuDecoderReady() const {
+  ScopedLock scoped_lock(mutex_);
+  return is_av1_shader_compiled_ && is_vp9_shader_compiled_;
 }
 
 bool ExtendedResourcesManager::GetD3D12ObjectsInternal() {
