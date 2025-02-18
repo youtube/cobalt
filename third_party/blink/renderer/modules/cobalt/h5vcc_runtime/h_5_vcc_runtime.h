@@ -17,6 +17,7 @@
 
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
@@ -41,6 +42,8 @@ class MODULES_EXPORT H5vccRuntime final
   explicit H5vccRuntime(LocalDOMWindow&);
 
   void ContextDestroyed() override;
+
+  DEFINE_ATTRIBUTE_EVENT_LISTENER(deeplink, kDeeplink)
 
   // Web-exposed interface:
   ScriptPromise getInitialDeepLink(ScriptState*, ExceptionState&);

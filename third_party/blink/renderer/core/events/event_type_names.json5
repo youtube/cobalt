@@ -364,5 +364,6 @@
     "writeend",
     "writestart",
     "zoom",
+    "deeplink",
   ],
 }
