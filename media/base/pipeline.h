@@ -263,6 +263,12 @@ class MEDIA_EXPORT Pipeline {
   using CdmAttachedCB = base::OnceCallback<void(bool)>;
   virtual void SetCdm(CdmContext* cdm_context,
                       CdmAttachedCB cdm_attached_cb) = 0;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Return SetBoundsCB if SbPlayer is used for rendering.
+  using SetBoundsCB = base::OnceCallback<bool(int x, int y, int width, int height)>;
+  virtual SetBoundsCB GetSetBoundsCB() = 0;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

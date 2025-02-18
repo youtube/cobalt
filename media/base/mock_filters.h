@@ -140,6 +140,9 @@ class MockPipeline : public Pipeline {
   }
   MOCK_METHOD2(OnSetCdm,
                void(CdmContext* cdm_context, CdmAttachedCB& cdm_attached_cb));
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  MOCK_METHOD0(GetSetBoundsCB, SetBoundsCB());
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 class MockMediaResource : public MediaResource {
