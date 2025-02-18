@@ -122,8 +122,6 @@ public abstract class CobaltActivity extends Activity {
             "--disable-rgba-4444-textures",
             // Align with MSE spec for MediaSource.duration.
             "--enable-blink-features=MediaSourceNewAbortAndDuration",
-            // TODO(crbug.com/41482978): Fixes nvidia shield rendering issues.
-            "--disable-features=DefaultPassthroughCommandDecoder,Vulkan",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
