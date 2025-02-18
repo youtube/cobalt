@@ -23,8 +23,6 @@
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
-#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
-#include "cobalt/media/service/video_geometry_setter_service.h"
 #include "media/base/cdm_context.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
@@ -37,8 +35,6 @@
 #include "media/renderers/video_overlay_factory.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "media/starboard/sbplayer_set_bounds_helper.h"
-#include "mojo/public/cpp/bindings/receiver.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
@@ -48,19 +44,14 @@ using base::TimeDelta;
 
 // SbPlayer based Renderer implementation, the entry point for all video
 // playbacks on Starboard platforms.
-class MEDIA_EXPORT StarboardRenderer final
-    : public Renderer,
-      private SbPlayerBridge::Host,
-      public cobalt::media::mojom::VideoGeometryChangeClient {
+class MEDIA_EXPORT StarboardRenderer final : public Renderer,
+                                             private SbPlayerBridge::Host {
  public:
-  StarboardRenderer(
-      const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-      VideoRendererSink* video_renderer_sink,
-      MediaLog* media_log,
-      std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
-      TimeDelta audio_write_duration_local,
-      TimeDelta audio_write_duration_remote,
-      cobalt::media::VideoGeometrySetterService* video_geometry_setter_service);
+  StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+                    VideoRendererSink* video_renderer_sink,
+                    MediaLog* media_log,
+                    TimeDelta audio_write_duration_local,
+                    TimeDelta audio_write_duration_remote);
 
   ~StarboardRenderer() final;
 
@@ -101,10 +92,7 @@ class MEDIA_EXPORT StarboardRenderer final
     std::move(change_completed_cb).Run();
   }
   RendererType GetRendererType() final { return RendererType::kStarboard; }
-
-  // cobalt::media::mojom::VideoGeometryChangeClient implementation.
-  void OnVideoGeometryChange(const gfx::RectF& rect_f,
-                             gfx::OverlayTransform transform) override;
+  SetBoundsCB GetSetBoundsCB() override;
 
  private:
   enum State {
@@ -116,8 +104,6 @@ class MEDIA_EXPORT StarboardRenderer final
     STATE_ERROR
   };
 
-  void OnSubscribeToVideoGeometryChange(MediaResource* media_resource,
-                                        RendererClient* client);
   void CreatePlayerBridge();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
@@ -224,12 +210,6 @@ class MEDIA_EXPORT StarboardRenderer final
   // understood as a capability changed error. Do not change this message.
   static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
       "MEDIA_ERR_CAPABILITY_CHANGED";
-
-  cobalt::media::VideoGeometrySetterService* video_geometry_setter_service_;
-  mojo::Remote<cobalt::media::mojom::VideoGeometryChangeSubscriber>
-      video_geometry_change_subcriber_remote_;
-  mojo::Receiver<cobalt::media::mojom::VideoGeometryChangeClient>
-      video_geometry_change_client_receiver_{this};
 
   base::WeakPtrFactory<StarboardRenderer> weak_factory_{this};
   base::WeakPtr<StarboardRenderer> weak_this_{weak_factory_.GetWeakPtr()};

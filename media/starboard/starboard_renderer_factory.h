@@ -18,10 +18,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
-#include "cobalt/media/service/video_geometry_setter_service.h"
 #include "media/base/media_log.h"
 #include "media/base/renderer_factory.h"
-#include "media/renderers/video_overlay_factory.h"
 
 namespace media {
 
@@ -30,10 +28,8 @@ class MEDIA_EXPORT StarboardRendererFactory final : public RendererFactory {
  public:
   explicit StarboardRendererFactory(
       MediaLog* media_log,
-      std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
       base::TimeDelta audio_write_duration_local,
-      base::TimeDelta audio_write_duration_remote,
-      cobalt::media::VideoGeometrySetterService* video_geometry_setter);
+      base::TimeDelta audio_write_duration_remote);
 
   StarboardRendererFactory(const StarboardRendererFactory&) = delete;
   StarboardRendererFactory& operator=(const StarboardRendererFactory&) = delete;
@@ -51,10 +47,8 @@ class MEDIA_EXPORT StarboardRendererFactory final : public RendererFactory {
 
  private:
   raw_ptr<MediaLog> media_log_;
-  std::unique_ptr<VideoOverlayFactory> video_overlay_factory_;
   const base::TimeDelta audio_write_duration_local_;
   const base::TimeDelta audio_write_duration_remote_;
-  cobalt::media::VideoGeometrySetterService* video_geometry_setter_;
 };
 
 }  // namespace media
