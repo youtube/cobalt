@@ -47,8 +47,7 @@ if (!is_android) {
     deps = [
       "//cobalt/browser",
       "//cobalt/browser:switches",
-      "//cobalt/gpu",
-      "//cobalt/renderer",
+      "//cobalt/renderer:renderer",
       "//content/public/app",
       "//content/shell:content_shell_app",
       "//content/shell:content_shell_lib",

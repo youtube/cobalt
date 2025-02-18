@@ -351,8 +351,6 @@ viz_component("service") {
         "display/starboard/overlay_strategy_underlay_starboard.cc",
         "display/starboard/overlay_strategy_underlay_starboard.h",
       ]
-
-      deps += [ "//cobalt/media/service/mojom" ]
     }
   }
 
