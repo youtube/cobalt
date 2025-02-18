@@ -42,7 +42,7 @@ public class ArtworkDownloaderDefault implements ArtworkDownloader {
       is = conn.getInputStream();
       bitmap = BitmapFactory.decodeStream(is);
     } catch (IOException e) {
-      Log.e(TAG, "Could not download artwork", e);
+      Log.e(TAG, "Could not download artwork %s", url, e);
     } finally {
       try {
         if (conn != null) {
@@ -59,6 +59,7 @@ public class ArtworkDownloaderDefault implements ArtworkDownloader {
     }
 
     bitmap = artworkLoader.cropTo16x9(bitmap);
+    Log.i(TAG, "Artwork downloaded %s.", url);
     artworkLoader.onDownloadFinished(Pair.create(url, bitmap));
   }
 }

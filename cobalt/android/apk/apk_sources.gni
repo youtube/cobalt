@@ -32,7 +32,6 @@ apk_sources = [
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CrashContextUpdateHandler.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/ErrorDialog.java",
-  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/MediaImage.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/NetworkStatus.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/NullCobaltFactory.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/PlatformError.java",

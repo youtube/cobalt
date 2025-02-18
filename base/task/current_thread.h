@@ -213,7 +213,16 @@ class BASE_EXPORT CurrentUIThread : public CurrentThread {
 
   CurrentUIThread* operator->() { return this; }
 
-#if BUILDFLAG(IS_OZONE) && !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_WIN)
+// TODO (cobalt b/393772370): Remove when x11/wayland are disabled.
+#if BUILDFLAG(IS_STARBOARD)
+  bool WatchFileDescriptor(int fd,
+                           bool persistent,
+                           MessagePumpForUI::Mode mode,
+                           MessagePumpForUI::FdWatchController* controller,
+                           MessagePumpForUI::FdWatcher* delegate) { return false; }
+#endif
+
+#if BUILDFLAG(IS_OZONE) && !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_STARBOARD)
   static_assert(
       std::is_base_of<WatchableIOMessagePumpPosix, MessagePumpForUI>::value,
       "CurrentThreadForUI::WatchFileDescriptor is supported only"

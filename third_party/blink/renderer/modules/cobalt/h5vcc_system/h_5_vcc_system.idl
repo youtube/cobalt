@@ -19,5 +19,8 @@
     SecureContext
 ]
 interface H5vccSystem {
-    readonly attribute DOMString advertisingId;
+    [CallWith=ScriptState, RaisesException]
+    Promise<DOMString> getAdvertisingId();
+    [CallWith=ScriptState, RaisesException]
+    Promise<boolean> getLimitAdTracking();
 };

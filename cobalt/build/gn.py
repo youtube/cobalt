@@ -59,13 +59,12 @@ _BUILD_TYPES = {
         'is_official_build': 'true'
     },
     'gold': {
-        'symbol_level': 0,
+        'symbol_level': 1,
         'is_official_build': 'true',
         'cobalt_is_release_build': 'true'
     }
 }
 
-CC_WRAPPER = 'sccache'
 CONTROLLED_ARGS = [
     'cc_wrapper',  # See build/toolschain/cc_wrapper.gni
     'is_debug',  # See build/config/BUILDCONFIG.GN

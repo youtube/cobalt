@@ -15,6 +15,7 @@
 #include "base/message_loop/message_pump_ui_starboard.h"
 
 #include "base/logging.h"
+#include "base/notreached.h"
 #include "base/time/time.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
@@ -107,11 +108,20 @@ void MessagePumpUIStarboard::Attach(Delegate* delegate) {
   // return control back to the Looper.
 
   SetDelegate(delegate);
+
+  run_loop_ = std::make_unique<RunLoop>();
+  // Since the RunLoop was just created above, BeforeRun should be guaranteed to
+  // return true (it only returns false if the RunLoop has been Quit already).
+  CHECK(run_loop_->BeforeRun());
 }
 
 void MessagePumpUIStarboard::Quit() {
   delegate_ = nullptr;
   CancelAll();
+  if (run_loop_) {
+    run_loop_->AfterRun();
+    run_loop_ = nullptr;
+  }
 }
 
 void MessagePumpUIStarboard::ScheduleWork() {

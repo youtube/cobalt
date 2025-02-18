@@ -4,6 +4,7 @@
 
 package org.chromium.base;
 
+import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.AlwaysInline;
 import org.chromium.build.annotations.CheckDiscard;
 import org.chromium.build.annotations.DoNotInline;
@@ -75,21 +76,16 @@ public class Log {
         return "[" + getCallOrigin() + "] " + formatLog(messageTemplate, tr, params);
     }
 
-    private static boolean isDebug() {
-        // Proguard sets value to false in release builds.
-        return true;
-    }
-
     /**
-     * In debug: Forwards to {@link android.util.Log#isLoggable(String, int)}, but always
-     * In release: Always returns false (via proguard rule).
+     * When BuildConfig.ENABLE_DEBUG_LOGS=true, returns true. Otherwise, forwards to {@link
+     * android.util.Log#isLoggable(String, int)} (which returns false for levels < INFO, unless
+     * configured otherwise by R8's -maximumremovedandroidloglevel).
+     *
+     * <p>https://stackoverflow.com/questions/7948204/does-log-isloggable-returns-wrong-values
      */
+    @AlwaysInline
     public static boolean isLoggable(String tag, int level) {
-        // Early return helps optimizer eliminate calls to isLoggable().
-        if (!isDebug() && level <= INFO) {
-            return false;
-        }
-        return android.util.Log.isLoggable(tag, level);
+        return BuildConfig.ENABLE_DEBUG_LOGS;
     }
 
     /**
@@ -104,7 +100,7 @@ public class Log {
      */
     @CheckDiscard("crbug.com/1231625")
     public static void v(String tag, String messageTemplate, Object... args) {
-        if (!isDebug()) return;
+        if (!isLoggable(tag, VERBOSE)) return;
 
         Throwable tr = getThrowableToLog(args);
         String message = formatLogWithStack(messageTemplate, tr, args);
@@ -128,7 +124,7 @@ public class Log {
      */
     @CheckDiscard("crbug.com/1231625")
     public static void d(String tag, String messageTemplate, Object... args) {
-        if (!isDebug()) return;
+        if (!isLoggable(tag, DEBUG)) return;
 
         Throwable tr = getThrowableToLog(args);
         String message = formatLogWithStack(messageTemplate, tr, args);

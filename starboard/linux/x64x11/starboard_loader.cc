@@ -12,8 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <dlfcn.h>
+#include <iostream>
 #include "starboard/event.h"
 
 int main(int argc, char** argv) {
-  return SbRunStarboardMain(argc, argv, SbEventHandle);
+  static const char* s_target_lib_path = "lib" SB_LOADER_MODULE ".so";
+  int start_result;
+
+  void* handle_ = dlopen(s_target_lib_path, RTLD_LAZY);
+  if (!handle_) {
+    std::cerr << "dlopen failure: " << dlerror() << std::endl;
+  }
+
+  void* callback = nullptr;
+  callback = dlsym(handle_, "SbEventHandle");
+  if (!callback) {
+    std::cerr << "dlsym failure: " << dlerror() << std::endl;
+  }
+  return SbRunStarboardMain(argc, argv,
+                            reinterpret_cast<SbEventHandleCallback>(callback));
 }
