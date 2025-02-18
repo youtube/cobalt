@@ -241,6 +241,8 @@ public abstract class CobaltActivity extends Activity {
     mShellManager.launchShell("");
     // Inject JavaBridge objects to the WebContents.
     initializeJavaBridge();
+    getStarboardBridge().setWebContents(getActiveWebContents());
+
     // Load the `url` with the same shell we created above.
     Log.i(TAG, "shellManager load url:" + shellUrl);
     mShellManager.getActiveShell().loadUrl(shellUrl);
