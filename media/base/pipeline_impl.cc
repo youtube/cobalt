@@ -100,6 +100,9 @@ class PipelineImpl::RendererWrapper final : public DemuxerHost,
   bool DidLoadingProgress();
   PipelineStatistics GetStatistics() const;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  SetBoundsCB GetSetBoundsCB();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Handles asynchronous track changing for the demuxer and renderer.
   void OnTracksChanged(DemuxerStream::Type track_type,
@@ -626,6 +629,14 @@ void PipelineImpl::RendererWrapper::SetCdm(CdmContext* cdm_context,
   if (create_renderer_done_cb_)
     CreateRendererInternal(std::move(create_renderer_done_cb_));
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+Pipeline::SetBoundsCB PipelineImpl::RendererWrapper::GetSetBoundsCB() {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  return shared_state_.renderer? shared_state_.renderer->GetSetBoundsCB() :
+      base::BindOnce(&SetBoundsNullTask);
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void PipelineImpl::RendererWrapper::CreateRendererInternal(
     PipelineStatusCallback done_cb) {
@@ -1576,6 +1587,13 @@ void PipelineImpl::SetCdm(CdmContext* cdm_context,
           base::BindPostTaskToCurrentDefault(std::move(cdm_attached_cb))));
 }
 
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+Pipeline::SetBoundsCB PipelineImpl::GetSetBoundsCB() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return renderer_wrapper_->GetSetBoundsCB();
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void PipelineImpl::AsyncCreateRenderer(
     std::optional<RendererType> renderer_type,
