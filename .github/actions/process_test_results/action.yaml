@@ -1,5 +1,5 @@
 name: Process Test Results
-description: Uploads test results to DataDog.
+description: Processes test results to produce a test summary and upload results to DataDog.
 inputs:
   target_name:
     description: "The test target name."
@@ -8,7 +8,7 @@ inputs:
     description: "Path to directory where test results are saved."
     required: true
   results_path:
-    description: "Path (or glob) to test logs and result xml."
+    description: "Path (or glob) to test result xml files."
     required: true
 runs:
   using: "composite"
@@ -21,16 +21,27 @@ runs:
         output: test-report-summary.md
         show: "fail, skip"
 
-    - name: Check Failed Tests
-      if: steps.test-summary.outputs.failed > 0
-      run: |
-        echo "::error::${{ inputs.target_name }} has ${{ steps.test-summary.outputs.failed }} failed test(s)."
-        exit 1
+    - name: Populate GitHub Summary
+      run: cat test-report-summary.md >> $GITHUB_STEP_SUMMARY
       shell: bash
 
-    - name: Populate GitHub Summary
+    - name: Check Failed Tests
       if: always()
-      run: cat test-report-summary.md >> $GITHUB_STEP_SUMMARY
+      run: |
+        set -x
+        # Enable globstar shell option for globstar paths e.g. /**/*.xml and
+        # nullglob to return empty string if the glob matches no files.
+        shopt -s globstar nullglob
+
+        result_xmls=(${{ inputs.results_path }})
+        if [ ${#result_xmls[@]} -eq 0 ]; then
+          echo "::error::No test results found. Did the test crash?"
+          exit 1
+        fi
+        if [ ${{ steps.test-summary.outputs.failed }} -gt 0 ]; then
+          echo "::error::${{ inputs.target_name }} has ${{ steps.test-summary.outputs.failed }} failed test(s)."
+          exit 1
+        fi
       shell: bash
 
     - name: Get Datadog CLI
