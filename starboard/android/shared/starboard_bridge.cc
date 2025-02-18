@@ -127,6 +127,7 @@ SB_EXPORT_ANDROID StarboardBridge* StarboardBridge::GetInstance() {
 }
 
 void StarboardBridge::Initialize(JNIEnv* env, jobject obj) {
+  // VLOG(2) << "TTS: test grep work";
   j_starboard_bridge_.Reset(env, obj);
 }
 
