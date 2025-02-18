@@ -324,15 +324,19 @@ jobs:
         if: always()
         run: |
           set -x
-          shopt -s globstar
+          # Enable globstar shell option for globstar paths e.g. /**/*.xml and
+          # nullopt to returns empty string if the glob matches no files.
+          shopt -s globstar nullglob
 
-          ls results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
-          if [ $? -ne 0 ]; then
-            echo "::error::No test logs found. Check test job to see what went wrong."
+          log_files=(results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt)
+          if [ ${#log_files[@]} -eq 0 ]; then
+            echo "::error::No test logs found. Check device lab logs to see what went wrong."
             exit 1
           fi
 
-          cat results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+          for log_file in ${log_files[@]}; do
+            cat ${log_file}
+          done
 
           if [ "${{ steps.process-results.outcome }}" != "success" ]; then
             echo "Tests failed"
