@@ -15,4 +15,8 @@ third_party {
     type: "UpstreamSubdir"
     value: "third_party/libvpx"
   }
+  identifier {
+    type: "SubPackages"
+    value: "source/libvpx"
+  }
 }
