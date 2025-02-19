@@ -153,7 +153,8 @@ def get_test_targets_from_sources(
         target_queue.put(target)
       # Add all targets from BUILD.gn files.
       if source_file.endswith('/BUILD.gn'):
-        for target in source_map.get(f'//{source_file}'[:-len('/BUILD.gn')]):
+        gn_path = f'//{source_file}'[:-len('/BUILD.gn')]
+        for target in source_map.get(gn_path, []):
           target_queue.put(target)
       # TODO: What about gni files?
 
