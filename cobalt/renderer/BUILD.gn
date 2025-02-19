@@ -22,6 +22,8 @@ source_set("renderer") {
 
   deps = [
     "//cobalt/media/audio:webaudio",
+    "//cobalt/media/service",
+    "//cobalt/media/service/mojom",
     "//components/cdm/renderer",
     "//components/js_injection/renderer:renderer",
     "//components/network_hints/renderer",
@@ -29,6 +31,7 @@ source_set("renderer") {
     "//content/public/common",
     "//content/public/renderer",
     "//content/test:content_test_mojo_bindings",
+    "//media",
     "//media/mojo:buildflags",
     "//starboard:starboard_headers_only",
     "//v8",
