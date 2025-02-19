@@ -47,6 +47,9 @@ config("platform_configuration") {
     # Suppress import library warning caused by the win32/posix_emu
     "/ignore:4286",
   ]
+  if (is_qa || is_gold || !cobalt_fastbuild) {
+    ldflags += [ "/DEBUG:FASTLINK" ]
+  }
 
   if (cobalt_pending_clean_up) {
     # TODO: b/330363799 - These were added for the base/net update and should
