@@ -1,0 +1,23 @@
+# Copyright 2021 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+import("//chromeos/ash/components/assistant/assistant.gni")
+import("//mojo/public/tools/bindings/mojom.gni")
+import("//ppapi/buildflags/buildflags.gni")
+
+mojom("mojom") {
+  generate_java = true
+  sources = [
+    "context.mojom",
+    "sandbox.mojom",
+  ]
+
+  enabled_features = []
+  if (enable_ppapi && !is_win) {
+    enabled_features += [ "enable_ppapi_sandbox" ]
+  }
+  if (enable_cros_libassistant) {
+    enabled_features += [ "enable_cros_libassistant" ]
+  }
+}

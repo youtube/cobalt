@@ -1,0 +1,11 @@
+< [index] >
+
+security.drawImage.canvas
+
+drawImage of unclean canvas makes the canvas origin-unclean
+
+References: security.drawImage.canvas
+
+Actual output:
+
+Passed

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<title>Default passive document level touchmove event listener test</title>
+<link rel="help" href="https://github.com/WICG/interventions/issues/35">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/gesture-util.js"></script>
+<body>
+<div id="touchDiv">
+</div>
+</body>
+<style>
+#touchDiv {
+  width: 100px;
+  height: 100px;
+}
+</style>
+<script>
+
+function injectInput() {
+  const touch_div = document.getElementById("touchDiv");
+  const rect = touch_div.getBoundingClientRect();
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
+  return smoothScroll(10, x, y, GestureSourceType.TOUCH_INPUT, "down");
+}
+
+window.onload = async () => {
+  promise_test (async () => {
+    const touchMovePromise = waitForEvent(document, 'touchmove');
+    await waitForCompositorCommit();
+    await injectInput();
+    await touchMovePromise.then((event) => {
+      assert_false(event.cancelable);
+      event.preventDefault();
+    });
+  }, "Touchmove events are non-cancelable since the event listener is " +
+     "treated as passive.");
+};
+
+</script>

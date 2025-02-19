@@ -1,0 +1,23 @@
+[
+    RuntimeEnabled=LanguageDetectionAPI,
+    Exposed=(Window, Worker),
+    SecureContext
+]
+interface AILanguageDetectorFactory {
+  [
+    Measure,
+    CallWith=ScriptState,
+    RaisesException
+  ]
+  Promise<AILanguageDetector> create(optional AILanguageDetectorCreateOptions options = {});
+  // TODO(crbug.com/390459311): Replace with availability.
+  [
+    CallWith=ScriptState
+  ]
+  Promise<AILanguageDetectorCapabilities> capabilities();
+};
+
+dictionary AILanguageDetectorCreateOptions {
+  AbortSignal signal;
+  AICreateMonitorCallback monitor;
+};

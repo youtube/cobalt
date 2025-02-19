@@ -1,0 +1,48 @@
+#!special-case-list-v1
+# TODO(crbug.com/41488956): update to glob patterns
+
+#############################################################################
+# UBSan ignorelist.
+
+#############################################################################
+# V8 UBSan suppressions
+
+# Bug v8:8735: PropertyCallbackInfo<void> vs PropertyCallbackInfo<T>.
+[function]
+fun:*v8*internal*PropertyCallbackArguments*CallAccessorSetter*
+fun:*v8*internal*PropertyCallbackArguments*BasicCallNamedGetterCallback*
+fun:*v8*internal*InvokeAccessorGetterCallback*
+
+# Bug v8:8735: WeakCallbackInfo<void> vs. WeakCallbackInfo<T>.
+[function]
+fun:*v8*internal*GlobalHandles*PendingPhantomCallback*Invoke*
+fun:*v8*internal*GlobalHandles*Node*PostGarbageCollectionProcessing*
+
+#############################################################################
+# https://crbug.com/40943968
+[signed-integer-overflow]
+fun:*OT*Layout*propagate_attachment_offsets*
+src:*/hb-ot-shape-fallback.cc
+
+# https://crbug.com/363189664
+[null]
+fun:*views*ViewAccessibilityUtils*IsFocusedChildWidget*
+
+# https://crbug.com/363225486
+[alignment]
+fun:*base*Pickle*
+
+# null + 0 suppressions. Remove these once
+# https://github.com/llvm/llvm-project/pull/120719 has landed.
+[pointer-overflow]
+fun:*FcSerializeResize*
+fun:*iterate_string_chunks*
+fun:*find_best_partition_order_*
+
+# https://crbug.com/385062729
+[pointer-overflow]
+fun:*angle*PoolAllocator*allocate*
+
+# https://crbug.com/385155394
+[pointer-overflow]
+fun:*VP8BitReaderSetBuffer*

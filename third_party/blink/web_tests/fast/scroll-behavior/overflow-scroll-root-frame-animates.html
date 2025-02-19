@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../../resources/gesture-util.js"></script>
+<title>Tests that overflow scrolls on the root element are animated.</title>
+
+<style>
+#content {
+  width: 750px;
+  height: 10000px;
+  background-color: blue;
+}
+</style>
+
+<div id="content"></div>
+
+<script>
+if (!window.internals) {
+  assert_unreached("This test must be run in the test harness");
+}
+internals.settings.setScrollAnimatorEnabled(true);
+
+promise_test(async () => {
+  await waitForCompositorCommit();
+  await waitForScrollReset(document.scrollingElement);
+  await Promise.all([
+    animatedScrollPromise(document),
+    keyboardScroll("End", document),
+  ]);
+  assert_true(
+      window.scrollY >= document.body.scrollHeight - window.innerHeight);
+}, "Tests that overflow scrolls on the root element are animated.");
+</script>

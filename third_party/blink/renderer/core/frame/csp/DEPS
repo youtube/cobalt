@@ -1,0 +1,14 @@
+include_rules = [
+  "+testing/libfuzzer",
+]
+specific_include_rules = {
+  "csp_directive_list.cc": [
+    "+services/network/public/cpp/content_security_policy/content_security_policy.h",
+  ],
+  "content_security_policy.h": [
+    "+services/network/public/cpp/content_security_policy/content_security_policy.h",
+  ],
+  "csp_source_test\.cc": [
+    "+url/url_features.h",
+  ],
+}
