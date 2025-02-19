@@ -34,7 +34,6 @@ _UNRELATED_TARGETS_PATHS = {'components', 'third_party', 'ui'}
 _EXCLUDE_TESTS = {
     '//android_webview',
     '//base:base_i18n_perftests',
-    '//base:base_perftests',
     '//build/rust',
     '//chrome',
     '//components/paint_preview',
