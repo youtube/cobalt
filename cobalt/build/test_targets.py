@@ -145,23 +145,22 @@ def get_test_targets_from_sources(
   target_queue = queue.Queue()
   test_targets = set()
   executables = set()
-  # Get affected targets from the source files provided. If no files were
-  # provided assume the entire tree should be considered.
-  if len(source_files) > 0:
+  # Get affected targets from the source files provided.
+  gni_changes = any(file_path.endswith('.gni') for file_path in source_files)
+  if len(source_files) == 0 or gni_changes:
+    # If no files were provided or if .gni files were modified assume the entire
+    # tree should be considered.
+    for target in root_target_descendants:
+      target_queue.put(target)
+  else:
     for source_file in source_files:
       for target in source_map.get(f'//{source_file}', []):
         target_queue.put(target)
-      # Add all targets from BUILD.gn files.
+      # Add all targets from modified BUILD.gn files.
       if source_file.endswith('/BUILD.gn'):
         gn_path = f'//{source_file}'[:-len('/BUILD.gn')]
         for target in source_map.get(gn_path, []):
           target_queue.put(target)
-      # TODO: What about gni files?
-
-  if len(source_files) == 0 or target_queue.qsize() == 0:
-    # Consider the entire tree.
-    for target in root_target_descendants:
-      target_queue.put(target)
 
   visited = set()
   while target_queue.qsize() > 0:
