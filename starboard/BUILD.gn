@@ -15,6 +15,7 @@
 import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/config/starboard_target_type.gni")
 import("//starboard/contrib/cast/cast.gni")
+import("//testing/test.gni")
 
 # TODO: b/389791129 - Evaluate and cleanup targets in if(!is_cobalt) code block.
 if (!is_cobalt) {
@@ -292,8 +293,7 @@ if (current_toolchain == starboard_toolchain) {
   }
 }
 
-target( "executable", "starboard_unittests") {
-  testonly = true
+test("starboard_unittests") {
   deps = [
     "//starboard/client_porting/eztime:eztime_test",
     "//starboard/common:common_test",
