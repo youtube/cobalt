@@ -49,7 +49,8 @@ repos:
                 starboard/content/ssl/certs/|
                 starboard/shared/starboard/player/testdata/|
                 starboard/android/apk/app/src/app/assets/web/link_android_splash_screen.html |
-                cobalt/third_party/boringssl/src/include/openssl/thread.h
+                cobalt/third_party/boringssl/src/include/openssl/thread.h |
+                cobalt/third_party/googletest/
             )
 
 -   repo: local

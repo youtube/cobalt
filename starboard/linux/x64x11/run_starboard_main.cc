@@ -18,6 +18,7 @@
 #include "starboard/shared/x11/application_x11.h"
 
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
+  SB_LOG(INFO) << "SbRunStarboardMain loader";
   starboard::shared::x11::ApplicationX11 application(callback);
   int result = 0;
   {
