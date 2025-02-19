@@ -83,9 +83,7 @@ action("cobalt_build_info") {
 test("cobalt_unittests") {
   testonly = true
 
-  sources = [
-    "//cobalt/user_agent/user_agent_platform_info_test.cc",
-  ]
+  sources = [ "//cobalt/user_agent/user_agent_platform_info_test.cc" ]
 
   deps = [
     "//base/test:run_all_unittests",
