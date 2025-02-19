@@ -14,7 +14,6 @@
 
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 
-#include "base/i18n/rtl.h"
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/version.h"
@@ -113,21 +112,26 @@ metrics::MetricsService* CobaltMetricsServiceClient::GetMetricsService() {
 
 void CobaltMetricsServiceClient::SetMetricsClientId(
     const std::string& client_id) {
-  // ClientId is unnecessary within Cobalt. We expect the web client responsible
-  // for uploading these to have its own concept of device/client identifiers.
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
+  // ClientId is unnecessary within Cobalt. We expect the web client responsible
+  // for uploading these to have its own concept of device/client identifiers.
 }
 
+// TODO(b/286884542): Audit all stub implementations in this class and reaffirm
+// they're not needed and/or add a reasonable implementation.
 int32_t CobaltMetricsServiceClient::GetProduct() {
-  // TODO(b/372559349): Return Cobalt product ID.
+  // Note, Product is a Chrome concept and similar dimensions will get logged
+  // elsewhere downstream. This value doesn't matter.
   return 0;
 }
 
 std::string CobaltMetricsServiceClient::GetApplicationLocale() {
+  // The locale will be populated by the web client, so return value is
+  // inconsequential.
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
-  return base::i18n::GetConfiguredLocale();
+  return "en-US";
 }
 
 const network_time::NetworkTimeTracker*
@@ -140,14 +144,16 @@ CobaltMetricsServiceClient::GetNetworkTimeTracker() {
 bool CobaltMetricsServiceClient::GetBrand(std::string* brand_code) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
+  // "false" means no brand code available. We set the brand when uploading
+  // via GEL.
   return false;
 }
 
 metrics::SystemProfileProto::Channel CobaltMetricsServiceClient::GetChannel() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
-  // TODO(b/372559349): Figure out the channel, if needed.
-  return metrics::SystemProfileProto::CHANNEL_CANARY;
+  // Return value here is unused in downstream logging.
+  return metrics::SystemProfileProto::CHANNEL_UNKNOWN;
 }
 
 bool CobaltMetricsServiceClient::IsExtendedStableChannel() {
@@ -167,9 +173,17 @@ void CobaltMetricsServiceClient::CollectFinalMetricsForLog(
     base::OnceClosure done_callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
-  // TODO(b/372559349): Figure out whether we want to use this chance to collect
-  // some extra metrics before repoting.
+  // Any hooks that should be called before each new log is uploaded, goes here.
+  // Chrome uses this to update memory histograms. Regardless, you must call
+  // done_callback when done else the uploader will never get invoked.
   std::move(done_callback).Run();
+
+  // MetricsService will shut itself down if the app doesn't periodically tell
+  // it it's not idle. In Cobalt's case, we don't want this behavior. Watch
+  // sessions for LR can happen for extended periods of time with no action by
+  // the user. So, we always just set the app as "non-idle" immediately after
+  // each metric log is finalized.
+  GetMetricsService()->OnApplicationNotIdle();
 }
 
 GURL CobaltMetricsServiceClient::GetMetricsServerUrl() {
@@ -209,7 +223,8 @@ bool CobaltMetricsServiceClient::IsConsentGiven() const {
 
 bool CobaltMetricsServiceClient::IsReportingEnabled() const {
   // TODO(b/372559349): Usually TOS should be verified accepted here.
-  return true;
+  // TODO(b/372559349): Wire this to the appropriate Web platform IDL.
+  return false;
 }
 
 }  // namespace cobalt
