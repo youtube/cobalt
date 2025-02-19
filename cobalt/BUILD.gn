@@ -81,18 +81,16 @@ action("cobalt_build_info") {
   ]
 }
 
-if (is_android) {
-  test("cobalt_unittests") {
-    testonly = true
+test("cobalt_unittests") {
+  testonly = true
 
-    sources = [ "//cobalt/user_agent/user_agent_platform_info_test.cc" ]
+  sources = [ "//cobalt/user_agent/user_agent_platform_info_test.cc" ]
 
-    deps = [
-      "//base/test:run_all_unittests",
-      "//cobalt/user_agent",
-      "//starboard:starboard_group",
-      "//testing/gmock",
-      "//testing/gtest",
-    ]
-  }
+  deps = [
+    "//base/test:run_all_unittests",
+    "//cobalt/user_agent",
+    "//starboard:starboard_group",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 }
