@@ -37,6 +37,7 @@
     "out/linux-x64x11_devel/base_unittests",
     "out/linux-x64x11_devel/cc_perftests",
     "out/linux-x64x11_devel/cc_unittests",
+    "out/linux-x64x11_devel/cobalt_unittests",
     "out/linux-x64x11_devel/viz_perftests",
     "out/linux-x64x11_devel/viz_unittests",
     "out/linux-x64x11_devel/crypto_unittests",
