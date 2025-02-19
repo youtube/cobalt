@@ -2,15 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef CHROMECAST_MEDIA_SERVICE_VIDEO_GEOMETRY_SETTER_SERVICE_H_
-#define CHROMECAST_MEDIA_SERVICE_VIDEO_GEOMETRY_SETTER_SERVICE_H_
+#ifndef COBALT_MEDIA_SERVICE_VIDEO_GEOMETRY_SETTER_SERVICE_H_
+#define COBALT_MEDIA_SERVICE_VIDEO_GEOMETRY_SETTER_SERVICE_H_
 
 #include "base/containers/flat_map.h"
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/unguessable_token.h"
-#include "chromecast/media/service/mojom/video_geometry_setter.mojom.h"
+#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -20,7 +20,7 @@ namespace base {
 class SequencedTaskRunner;
 }  // namespace base
 
-namespace chromecast {
+namespace cobalt {
 namespace media {
 
 // This service runs and destructs on the sequence where it's constructed, but
@@ -42,6 +42,9 @@ class VideoGeometrySetterService final
           pending_receiver);
   void GetVideoGeometrySetter(
       mojo::PendingReceiver<mojom::VideoGeometrySetter> pending_receiver);
+  base::RepeatingCallback<
+      void(mojo::PendingReceiver<mojom::VideoGeometrySetter>)>
+  GetBindCallback();
 
  private:
   // mojom::VideoGeometryChangeSubscriber implementation.
@@ -70,10 +73,10 @@ class VideoGeometrySetterService final
   mojo::Receiver<mojom::VideoGeometrySetter> video_geometry_setter_receiver_{
       this};
 
-  base::WeakPtrFactory<VideoGeometrySetterService> weak_factory_;
+  base::WeakPtrFactory<VideoGeometrySetterService> weak_factory_{this};
 };
 
 }  // namespace media
-}  // namespace chromecast
+}  // namespace cobalt
 
-#endif  // CHROMECAST_MEDIA_SERVICE_VIDEO_GEOMETRY_SETTER_SERVICE_H_
+#endif  // COBALT_MEDIA_SERVICE_VIDEO_GEOMETRY_SETTER_SERVICE_H_
