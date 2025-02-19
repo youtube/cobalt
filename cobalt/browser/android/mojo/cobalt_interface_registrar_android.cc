@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.coat;
+#include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
 
-import dev.cobalt.util.UsedByNative;
+#include <jni.h>
 
-/** https://wicg.github.io/mediasession/#dictdef-mediaimage */
-public class MediaImage {
-  public final String src;
-  public final String sizes;
-  public final String type;
+#include "base/android/jni_android.h"
 
-  @UsedByNative
-  public MediaImage(String src, String sizes, String type) {
-    this.src = src;
-    this.sizes = sizes;
-    this.type = type;
-  }
+// Must come after all headers that specialize FromJniType() / ToJniType().
+#include "cobalt/android/jni_headers/CobaltInterfaceRegistrar_jni.h"
+
+namespace cobalt {
+
+void RegisterCobaltJavaMojoInterfaces() {
+  Java_CobaltInterfaceRegistrar_registerMojoInterfaces(
+      base::android::AttachCurrentThread());
 }
+
+}  // namespace cobalt

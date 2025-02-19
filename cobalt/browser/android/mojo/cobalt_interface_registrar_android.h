@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Non standard interface used for Cobalt only.
-// Returns the highest presentation timestamp written to the Renderer;
-// raises `InvalidStateError` if the SourceBuffer object has been removed
-// from the MediaSource object.
+#ifndef COBALT_BROWSER_ANDROID_MOJO_COBALT_INTERFACE_REGISTRAR_ANDROID_H_
+#define COBALT_BROWSER_ANDROID_MOJO_COBALT_INTERFACE_REGISTRAR_ANDROID_H_
 
-[
-    ImplementedAs=SourceBufferWriteHead
-] partial interface SourceBuffer {
-    [RaisesException] readonly attribute double writeHead;
-};
+namespace cobalt {
+
+// Registers Cobalt's Java Mojo interfaces with its independent registrar.
+void RegisterCobaltJavaMojoInterfaces();
+
+}  // namespace cobalt
+
+#endif  // COBALT_BROWSER_ANDROID_MOJO_COBALT_INTERFACE_REGISTRAR_ANDROID_H_

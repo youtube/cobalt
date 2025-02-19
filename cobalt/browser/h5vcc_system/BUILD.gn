@@ -23,10 +23,6 @@ source_set("h5vcc_system") {
     "//cobalt/browser/h5vcc_system/public/mojom",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
+    "//starboard($starboard_toolchain)",
   ]
-
-  # TODO (b/395154617) clean up
-  if (is_android) {
-    deps += [ "//starboard/android/shared:starboard_platform" ]
-  }
 }

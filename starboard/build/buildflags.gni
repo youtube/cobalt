@@ -4,3 +4,6 @@ declare_args() {
   use_starboard_media = is_cobalt
   use_evergreen = false
 }
+
+# Differentiates our 1P ATV platform from 3P AOSP.
+is_androidtv = is_android && !use_evergreen

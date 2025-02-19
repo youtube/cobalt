@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,20 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/blink/renderer/modules/mediasource/source_buffer_write_head.h"
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_ENCRYPTEDMEDIA_MEDIA_KEYS_GET_METRICS_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_ENCRYPTEDMEDIA_MEDIA_KEYS_GET_METRICS_H_
 
-#include "third_party/blink/renderer/modules/mediasource/source_buffer.h"
+#include "build/build_config.h"
+#include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
-
-#if !BUILDFLAG(USE_STARBOARD_MEDIA)
-#error "This file only works with Starboard media"
-#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
 
-// static
-double SourceBufferWriteHead::writeHead(SourceBuffer& source_buffer,
-                                        ExceptionState& exception_state) {
-  return source_buffer.GetWriteHead(exception_state);
-}
+class MediaKeys;
+
+class MediaKeysGetMetrics {
+  STATIC_ONLY(MediaKeysGetMetrics);
+
+ public:
+  static WebString getMetrics(MediaKeys&, ExceptionState&);
+};
+
 }  // namespace blink
+
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_ENCRYPTEDMEDIA_MEDIA_KEYS_GET_METRICS_H_

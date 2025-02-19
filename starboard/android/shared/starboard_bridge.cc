@@ -105,7 +105,7 @@ JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
 // this header they don't end up with different copies of the inlined code
 // creating multiple copies of the singleton.
 // static
-StarboardBridge* StarboardBridge::GetInstance() {
+SB_EXPORT_ANDROID StarboardBridge* StarboardBridge::GetInstance() {
   return base::Singleton<StarboardBridge>::get();
 }
 
@@ -141,7 +141,7 @@ void StarboardBridge::AppendArgs(JNIEnv* env,
   AppendJavaStringArrayToStringVector(env, args_java, args_vector);
 }
 
-std::string StarboardBridge::GetStartDeepLink(JNIEnv* env) {
+SB_EXPORT_ANDROID std::string StarboardBridge::GetStartDeepLink(JNIEnv* env) {
   SB_DCHECK(env);
   ScopedJavaLocalRef<jstring> start_deep_link_java =
       Java_StarboardBridge_getStartDeepLink(env, j_starboard_bridge_);
@@ -236,14 +236,14 @@ ScopedJavaLocalRef<jobject> StarboardBridge::GetTextToSpeechHelper(
   return Java_StarboardBridge_getTextToSpeechHelper(env, j_starboard_bridge_);
 }
 
-std::string StarboardBridge::GetAdvertisingId(JNIEnv* env) {
+SB_EXPORT_ANDROID std::string StarboardBridge::GetAdvertisingId(JNIEnv* env) {
   SB_DCHECK(env);
   ScopedJavaLocalRef<jstring> advertising_id_java =
       Java_StarboardBridge_getAdvertisingId(env, j_starboard_bridge_);
   return ConvertJavaStringToUTF8(env, advertising_id_java);
 }
 
-bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
+SB_EXPORT_ANDROID bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
   SB_DCHECK(env);
   jboolean limit_ad_tracking_java =
       Java_StarboardBridge_getLimitAdTracking(env, j_starboard_bridge_);

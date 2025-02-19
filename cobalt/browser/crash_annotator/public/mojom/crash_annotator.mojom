@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+[JavaPackage="org.chromium.crashannotator.mojom"]
 module crash_annotator.mojom;
 
 // The browser process must provide an implementation of this interface so that

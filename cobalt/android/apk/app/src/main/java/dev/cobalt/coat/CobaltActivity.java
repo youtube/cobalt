@@ -26,7 +26,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.text.TextUtils;
-import android.util.Pair;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
@@ -47,7 +46,6 @@ import dev.cobalt.util.UsedByNative;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
@@ -67,11 +65,6 @@ import org.chromium.ui.base.IntentRequestTracker;
 
 /** Native activity that has the required JNI methods called by the Starboard implementation. */
 public abstract class CobaltActivity extends Activity {
-
-  // A place to put args while debugging so they're used even when starting from the launcher.
-  // This should always be empty in submitted code.
-  private static final String[] DEBUG_ARGS = {};
-
   private static final String URL_ARG = "--url=";
   private static final java.lang.String META_DATA_APP_URL = "cobalt.APP_URL";
 
@@ -129,15 +122,17 @@ public abstract class CobaltActivity extends Activity {
             "--disable-rgba-4444-textures",
             // Align with MSE spec for MediaSource.duration.
             "--enable-blink-features=MediaSourceNewAbortAndDuration",
+            // Trades a little V8 performance for significant memory savings.
+            "--js-flags=--optimize_for_size=true",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
-        CommandLine.getInstance().appendSwitchesAndArguments(
-          new String[] {
-            // Helps Kimono build avoid package name conflict with cronet.
-            "--cobalt-jni-prefix",
-          }
-        );
+        CommandLine.getInstance()
+            .appendSwitchesAndArguments(
+                new String[] {
+                  // Helps Kimono build avoid package name conflict with cronet.
+                  "--cobalt-jni-prefix",
+                });
       }
 
       if (!VersionInfo.isOfficialBuild()) {
@@ -246,6 +241,8 @@ public abstract class CobaltActivity extends Activity {
     mShellManager.launchShell("");
     // Inject JavaBridge objects to the WebContents.
     initializeJavaBridge();
+    getStarboardBridge().setWebContents(getActiveWebContents());
+
     // Load the `url` with the same shell we created above.
     Log.i(TAG, "shellManager load url:" + shellUrl);
     mShellManager.getActiveShell().loadUrl(shellUrl);
@@ -326,7 +323,6 @@ public abstract class CobaltActivity extends Activity {
       }
     }
   }
-
 
   // Initially copied from ContentShellActiviy.java
   @Override
@@ -528,18 +524,10 @@ public abstract class CobaltActivity extends Activity {
    * dev.cobalt.coat/dev.cobalt.app.MainActivity
    */
   protected String[] getArgs() {
-    Bundle extras = getIntent().getExtras();
-    CharSequence[] argsExtra =
-        (extras == null || isReleaseBuild()) ? null : extras.getCharSequenceArray("args");
-
-    List<String> args = new ArrayList<>(Arrays.asList(DEBUG_ARGS));
-    if (argsExtra != null) {
-      for (int i = 0; i < argsExtra.length; i++) {
-        // Replace escaped commas with commas. In order to have a comma in the arg string, it has
-        // to be escaped when forming the Intent with "am start --esa". However, "am" doesn't remove
-        // the escape after splitting on unescaped commas, so it's still in the string we get.
-        args.add(argsExtra[i].toString().replace("\\,", ","));
-      }
+    ArrayList<String> args = new ArrayList<>();
+    String[] commandLineArgs = getCommandLineParamsFromIntent(getIntent());
+    if (commandLineArgs != null) {
+      args.addAll(Arrays.asList(commandLineArgs));
     }
 
     // If the URL arg isn't specified, get it from AndroidManifest.xml.
@@ -562,12 +550,12 @@ public abstract class CobaltActivity extends Activity {
       }
     }
 
+    Bundle extras = getIntent().getExtras();
     CharSequence[] urlParams = (extras == null) ? null : extras.getCharSequenceArray("url_params");
     if (urlParams != null) {
       appendUrlParamsToUrl(args, urlParams);
     }
 
-    addCustomProxyArgs(args);
     return args.toArray(new String[0]);
   }
 
@@ -602,34 +590,6 @@ public abstract class CobaltActivity extends Activity {
       urlBuilder.deleteCharAt(urlBuilder.length() - 1);
       args.set(idx, urlBuilder.toString());
     }
-  }
-
-  private static void addCustomProxyArgs(List<String> args) {
-    Pair<String, String> config = detectSystemProxyConfig();
-
-    if (config.first == null || config.second == null) {
-      return;
-    }
-
-    try {
-      int port = Integer.parseInt(config.second);
-      if (port <= 0 || port > 0xFFFF) {
-        return;
-      }
-
-      String customProxy =
-          String.format(Locale.US, "--proxy=\"http=http://%s:%d\"", config.first, port);
-      Log.i(TAG, "addCustomProxyArgs: " + customProxy);
-      args.add(customProxy);
-    } catch (NumberFormatException e) {
-      Log.w(TAG, "http.proxyPort: %s is not valid number", config.second, e);
-    }
-  }
-
-  private static Pair<String, String> detectSystemProxyConfig() {
-    String httpHost = System.getProperty("http.proxyHost", null);
-    String httpPort = System.getProperty("http.proxyPort", null);
-    return new Pair<String, String>(httpHost, httpPort);
   }
 
   protected boolean isReleaseBuild() {

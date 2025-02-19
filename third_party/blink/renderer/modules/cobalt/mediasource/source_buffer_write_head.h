@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASOURCE_SOURCE_BUFFER_WRITE_HEAD_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASOURCE_SOURCE_BUFFER_WRITE_HEAD_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_MEDIASOURCE_SOURCE_BUFFER_WRITE_HEAD_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_MEDIASOURCE_SOURCE_BUFFER_WRITE_HEAD_H_
 
 #include "build/build_config.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
@@ -36,4 +36,4 @@ class SourceBufferWriteHead {
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_MEDIASOURCE_SOURCE_BUFFER_WRITE_HEAD_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_MEDIASOURCE_SOURCE_BUFFER_WRITE_HEAD_H_
