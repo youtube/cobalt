@@ -1,0 +1,10 @@
+[document web]
+++[paragraph]
+++++[static] name='Before frame'
+++[section]
+++++[internal frame] name='Cross-process iframe'
+++++++[document web]
+++++++++[section]
+++++++++++[static] name='Text in iframe'
+++[paragraph]
+++++[static] name='After frame'

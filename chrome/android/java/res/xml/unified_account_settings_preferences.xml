@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2024 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <org.chromium.chrome.browser.sync.settings.IdentityErrorCardPreference
+        android:key="identity_error_card"
+        app:isPreferenceVisible="false"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+        android:key="sync_history_and_tabs"
+        android:title="@string/sync_history_and_tabs"
+        android:persistent="false"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+        android:key="sync_bookmarks"
+        android:title="@string/sync_bookmarks"
+        android:persistent="false"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+        android:key="sync_reading_list"
+        android:title="@string/sync_reading_list"
+        android:persistent="false"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+        android:key="sync_autofill"
+        android:title="@string/sync_autofill"
+        android:persistent="false"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+        android:key="sync_passwords"
+        android:title="@string/sync_passwords"
+        android:persistent="false"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+        android:key="sync_payments_integration"
+        android:title="@string/sync_payments_integration"
+        android:persistent="false"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeSwitchPreference
+        android:key="sync_settings"
+        android:title="@string/sync_settings"
+        android:persistent="false"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="account_section_footer"
+        android:summary="@string/account_section_footer"/>
+
+    <PreferenceCategory
+        android:key="account_advanced_header"
+        android:title="@string/account_advanced_header"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="google_activity_controls"
+        android:title="@string/sign_in_google_activity_controls_title"
+        android:summary="@string/sign_in_google_activity_controls_summary"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="encryption"
+        android:title="@string/sync_encryption"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="sync_review_data"
+        android:title="@string/signin_review_data_title"
+        android:summary="@string/signin_review_data_summary"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="manage_your_google_account"
+        android:title="@string/manage_your_google_account"/>
+
+    <org.chromium.components.browser_ui.settings.ChromeBasePreference
+        android:key="manage_accounts_on_this_device"
+        android:title="@string/manage_accounts_on_this_device"/>
+
+</PreferenceScreen>

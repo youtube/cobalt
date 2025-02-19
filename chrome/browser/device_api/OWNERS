@@ -1,0 +1,5 @@
+# Kiosk team is primary owner
+file://chromeos/components/kiosk/OWNERS
+
+# Policy stack owners
+file://chrome/browser/ash/policy/OWNERS
