@@ -91,7 +91,7 @@ runs:
         run: |
           set -ex
           cd src
-          TEST_TARGETS=$(jq -cr '. | join(" ")' <<< '${{ steps.test-targets.outputs.test_targets }}')
+          TEST_TARGETS=$(cat ${{ steps.calculate-test-targets.outputs.test_targets_json_file }} | jq -cr '.test_targets | join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TEST_TARGETS}
         shell: bash
       - name: Ninja build
@@ -120,6 +120,6 @@ runs:
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
           test_targets_json_file: '${{ steps.calculate-test-targets.outputs.test_targets_json_file }}'
 outputs:
-  test_targets:
-    description: The test targets that were built
-    value: ${{ steps.test-targets.outputs.test_targets }}
+  test_targets_json_file:
+    description: The generated test targets json file path
+    value: ${{ steps.calculate-test-targets.outputs.test_targets_json_file }}
