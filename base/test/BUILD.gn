@@ -172,7 +172,7 @@ static_library("test_support") {
 
   if (enable_base_tracing) {
     public_deps += [ "//third_party/perfetto:perfetto_test_support" ]
-    if (!is_chromeos) {
+    if (!is_chromeos && !is_cobalt_hermetic_build) {
       # TODO(rasikan): Add to ios and chromeos when unblocked by the chromiumos
       # change to add the shared lib to the chrome-binary-tests directory.
       public_deps += [ ":test_trace_processor" ]
@@ -292,7 +292,7 @@ static_library("test_support") {
     ]
   }
 
-  if (use_blink) {
+  if (use_blink && !is_cobalt_hermetic_build) {
     sources += [
       "launcher/test_launcher.cc",
       "launcher/test_launcher.h",
@@ -385,12 +385,14 @@ shared_library("immediate_crash_test_helper") {
   }
 }
 
+if (!is_starboard) {
 # This shared library is dynamically loaded by NativeLibrary unittests.
 shared_library("test_shared_library") {
   testonly = true
   sources = [ "test_shared_library.cc" ]
 
   deps = [ ":native_library_test_utils" ]
+}
 }
 
 if (is_fuchsia || is_linux || is_chromeos) {
@@ -484,14 +486,16 @@ if (is_ios) {
   }
 }
 
+if (!is_starboard) {
 # Trivial executable which outputs space-delimited argv to stdout,
 # used for testing.
 executable("test_child_process") {
   testonly = true
   sources = [ "test_child_process.cc" ]
 }
+}
 
-if (enable_base_tracing) {
+if (enable_base_tracing && !is_cobalt_hermetic_build) {
   # We encapsulate the trace processor in a separate shared library to prevent
   # any duplicate symbol issues. Perfetto symbols are exported by chromium’s
   # base via a public_dep on libperfetto; libtrace_processor also depends on
