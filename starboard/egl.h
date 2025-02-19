@@ -50,7 +50,7 @@ typedef intptr_t SbEglNativeWindowType;
 // The following type definitions were adapted from the types declared in
 // https://www.khronos.org/registry/EGL/api/EGL/egl.h.
 typedef void (*SbEglCastsToProperFunctionPointerType)(void);
-typedef int64_t SbEglAttrib;
+typedef intptr_t SbEglAttrib;
 typedef uint32_t SbEglBoolean;
 typedef void* SbEglClientBuffer;
 typedef void* SbEglConfig;
