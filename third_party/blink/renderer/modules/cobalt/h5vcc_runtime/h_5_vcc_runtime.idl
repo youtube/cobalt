@@ -19,5 +19,6 @@
     SecureContext
 ]
 interface H5vccRuntime {
-    readonly attribute DOMString initialDeepLink;
+    [CallWith=ScriptState, RaisesException]
+    Promise<DOMString> getInitialDeepLink();
 };

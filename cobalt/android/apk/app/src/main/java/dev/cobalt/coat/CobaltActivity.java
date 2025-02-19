@@ -122,15 +122,17 @@ public abstract class CobaltActivity extends Activity {
             "--disable-rgba-4444-textures",
             // Align with MSE spec for MediaSource.duration.
             "--enable-blink-features=MediaSourceNewAbortAndDuration",
+            // Trades a little V8 performance for significant memory savings.
+            "--js-flags=--optimize_for_size=true",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
-        CommandLine.getInstance().appendSwitchesAndArguments(
-          new String[] {
-            // Helps Kimono build avoid package name conflict with cronet.
-            "--cobalt-jni-prefix",
-          }
-        );
+        CommandLine.getInstance()
+            .appendSwitchesAndArguments(
+                new String[] {
+                  // Helps Kimono build avoid package name conflict with cronet.
+                  "--cobalt-jni-prefix",
+                });
       }
 
       if (!VersionInfo.isOfficialBuild()) {
@@ -239,6 +241,8 @@ public abstract class CobaltActivity extends Activity {
     mShellManager.launchShell("");
     // Inject JavaBridge objects to the WebContents.
     initializeJavaBridge();
+    getStarboardBridge().setWebContents(getActiveWebContents());
+
     // Load the `url` with the same shell we created above.
     Log.i(TAG, "shellManager load url:" + shellUrl);
     mShellManager.getActiveShell().loadUrl(shellUrl);
@@ -319,7 +323,6 @@ public abstract class CobaltActivity extends Activity {
       }
     }
   }
-
 
   // Initially copied from ContentShellActiviy.java
   @Override

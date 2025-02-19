@@ -15,6 +15,7 @@
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "build/build_config.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/starboard_bridge.h"

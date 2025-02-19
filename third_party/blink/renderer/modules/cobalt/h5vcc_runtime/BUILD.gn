@@ -19,4 +19,6 @@ blink_modules_sources("h5vcc_runtime") {
     "h_5_vcc_runtime.cc",
     "h_5_vcc_runtime.h",
   ]
+
+  deps = [ "//cobalt/browser/h5vcc_runtime/public/mojom:mojom_blink" ]
 }
