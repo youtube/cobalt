@@ -12,22 +12,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-source_set("service") {
+source_set("gpu") {
   sources = [
-    "video_geometry_setter_service.cc",
-    "video_geometry_setter_service.h",
-  ]
-
-  public_deps = [
-    "//mojo/public/cpp/bindings",
-    "//mojo/public/mojom/base",
-    "//services/service_manager/public/cpp",
+    "cobalt_content_gpu_client.cc",
+    "cobalt_content_gpu_client.h",
   ]
 
   deps = [
     "//base",
     "//cobalt/media/service/mojom",
-    "//ui/gfx",
-    "//ui/gfx/geometry",
+    "//components/viz/common",
+    "//components/viz/service",
+    "//content/public/child",
+    "//content/public/gpu",
   ]
 }
