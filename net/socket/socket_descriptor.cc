@@ -6,7 +6,10 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+#include "starboard/socket.h"
+#include "base/notreached.h"
+#elif BUILDFLAG(IS_WIN)
 #include <ws2tcpip.h>
 #include "net/base/winsock_init.h"
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
@@ -21,7 +24,10 @@
 namespace net {
 
 SocketDescriptor CreatePlatformSocket(int family, int type, int protocol) {
-#if BUILDFLAG(IS_WIN)
+#if defined(STARBOARD)
+  NOTREACHED();
+  return kSbSocketInvalid;
+#elif BUILDFLAG(IS_WIN)
   EnsureWinsockInit();
   SocketDescriptor result = ::WSASocket(family, type, protocol, nullptr, 0,
                                         WSA_FLAG_OVERLAPPED);

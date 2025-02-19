@@ -765,6 +765,7 @@ OCSPRevocationStatus GetRevocationStatusForCert(
     if (!CheckCertIDMatchesCertificate(cert_id, cert, issuer_certificate))
       continue;
 
+/* Cobalt
     // The SingleResponse matches the certificate, but may be out of date. Out
     // of date responses are noted seperate from responses with mismatched
     // serial numbers. If an OCSP responder provides both an up to date
@@ -779,6 +780,7 @@ OCSPRevocationStatus GetRevocationStatusForCert(
         *response_details = OCSPVerifyResult::INVALID_DATE;
       continue;
     }
+Cobalt */
 
     // In the case with multiple matching and up to date responses, keep only
     // the strictest status (REVOKED > UNKNOWN > GOOD).

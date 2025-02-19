@@ -9,13 +9,13 @@
 
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN) || defined(COMPILER_MSVC)
 /* Structure for scatter/gather I/O.  */
 struct iovec {
   void* iov_base; /* Pointer to data.  */
   size_t iov_len; /* Length of data.  */
 };
-#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA) || defined(COBALT_PENDING_CLEAN_UP)
 #include <sys/uio.h>
 #endif  // BUILDFLAG(IS_WIN)
 

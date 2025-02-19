@@ -7,7 +7,7 @@
 #include "base/logging.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_POSIX) || defined(COBALT_PENDING_CLEAN_UP)
 #include <unistd.h>
 #endif
 
@@ -46,6 +46,10 @@ NetworkInterface::~NetworkInterface() = default;
 ScopedWifiOptions::~ScopedWifiOptions() = default;
 
 std::string GetHostName() {
+#if defined(STARBOARD)
+  NOTIMPLEMENTED();
+  return "";
+#else
 #if BUILDFLAG(IS_WIN)
   EnsureWinsockInit();
 #endif
@@ -58,6 +62,7 @@ std::string GetHostName() {
     buffer[0] = '\0';
   }
   return std::string(buffer);
+#endif
 }
 
 }  // namespace net
