@@ -100,9 +100,6 @@ class PipelineImpl::RendererWrapper final : public DemuxerHost,
   bool DidLoadingProgress();
   PipelineStatistics GetStatistics() const;
   void SetCdm(CdmContext* cdm_context, CdmAttachedCB cdm_attached_cb);
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  SetBoundsCB GetSetBoundsCB();
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // |enabled_track_ids| contains track ids of enabled audio tracks.
   void OnEnabledAudioTracksChanged(
@@ -635,14 +632,6 @@ void PipelineImpl::RendererWrapper::SetCdm(CdmContext* cdm_context,
   if (create_renderer_done_cb_)
     CreateRendererInternal(std::move(create_renderer_done_cb_));
 }
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-Pipeline::SetBoundsCB PipelineImpl::RendererWrapper::GetSetBoundsCB() {
-  DCHECK(main_task_runner_->BelongsToCurrentThread());
-  return shared_state_.renderer? shared_state_.renderer->GetSetBoundsCB() :
-      base::BindOnce(&SetBoundsNullTask);
-}
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void PipelineImpl::RendererWrapper::CreateRendererInternal(
     PipelineStatusCallback done_cb) {
@@ -1678,6 +1667,7 @@ const char* PipelineImpl::GetStateString(State state) {
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> b93b7ecbd01 (Revert "Add VideoGeometrySetter Service for Cobalt" (#4918))
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -1693,6 +1683,8 @@ Pipeline::SetBoundsCB PipelineImpl::GetSetBoundsCB() {
 >>>>>>> f0842a76c14 (Add VideoGeometrySetter Service for Cobalt (#4810))
 =======
 >>>>>>> b93b7ecbd01 (Revert "Add VideoGeometrySetter Service for Cobalt" (#4918))
+=======
+>>>>>>> fcf6b388565 (Reland "Add VideoGeometrySetter Service for Cobalt (#4810)" (#4921))
 void PipelineImpl::AsyncCreateRenderer(
     std::optional<RendererType> renderer_type,
     RendererCreatedCB renderer_created_cb) {
