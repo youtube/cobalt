@@ -1935,6 +1935,13 @@ config("no_rtti") {
   }
 }
 
+config("emulated_tls") {
+  # Support "thread_local" with emulated TLS that maps to pthread calls.
+  if (!is_win) {
+    cflags_cc = [ "-femulated-tls" ]
+  }
+}
+
 # export_dynamic ---------------------------------------------------------------
 #
 # Ensures all exported symbols are added to the dynamic symbol table.  This is
