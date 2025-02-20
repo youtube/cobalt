@@ -19,11 +19,11 @@
 #include <vector>
 
 #include "base/at_exit.h"
+#include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
-#include "base/switches.h"
 #include "build/build_config.h"
 #include "chrome/common/chrome_switches.h"
 #include "cobalt/browser/switches.h"
@@ -56,7 +56,7 @@ static cobalt::CobaltMainDelegate* g_content_main_delegate = nullptr;
 static PlatformEventSourceStarboard* g_platform_event_source = nullptr;
 
 // Toggle-only Switches.
-constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
+const auto kCobaltToggleSwitches = std::to_array<const char*>({
   // Disable first run experience, kiosk, etc.
   "disable-fre",
   switches::kNoFirstRun,
@@ -70,12 +70,14 @@ constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
   switches::kIgnoreGpuBlocklist,
   // This flag is added specifically for m114 and should be removed after
   // rebasing to m120+
+#if BUILDFLAG(IS_ANDROID)
   switches::kUserLevelMemoryPressureSignalParams,
-  switches::kNoSandbox
+#endif  // BUILDFLAG(IS_ANDROID)
+  sandbox::policy::switches::kNoSandbox
 });
 
 // Switches with parameters. May require special handling with passed in values.
-constexpr auto kCobaltParamSwitches = base::CommandLine::SwitchMap({
+const auto kCobaltParamSwitches = base::CommandLine::SwitchMap({
   // Disable Vulkan.
   {switches::kDisableFeatures, "Vulkan"},
   // Force some ozone settings.
@@ -99,19 +101,23 @@ class CommandLinePreprocessor {
     }
 
     // Handle special-case switches with duplicated entries.
-    if (cmd_line_.HasSwitch(kDisableFeatures)) {
+    if (cmd_line_.HasSwitch(switches::kDisableFeatures)) {
       // Merge all disabled features together.
       std::string disabled_features(cmd_line_.GetSwitchValueASCII(
-          kDisableFeatures));
-      disabled_features += cobalt_default_switch_map.find(kDisableFeatures);
-      cmd_line_.AppendSwitchNative(kDisableFeatures, disabled_features);
+          switches::kDisableFeatures));
+      auto old_value = kCobaltParamSwitches.find(switches::kDisableFeatures);
+      if (old_value != kCobaltParamSwitches.end()) {
+        disabled_features += std::string(old_value->second);
+        cmd_line_.AppendSwitchNative(switches::kDisableFeatures,
+                                     disabled_features);
+      }
     }
-    if (cmd_line_.HasSwitch(kContentShellHostWindowSize)) {
+    if (cmd_line_.HasSwitch(switches::kContentShellHostWindowSize)) {
       // Replace with the passed in argument for window-size.
-      if (cmd_line_.HasSwitch(kWindowSize)) {
-        cmd_line_.RemoveSwitch(kContentShellHostWindowSize);
-        cmd_line_.AppendSwitchASCII(kContentShellHostWindowSize,
-                                    cmd_line_.GetSwitchValueASCII(kWindowSize));
+      if (cmd_line_.HasSwitch(switches::kWindowSize)) {
+        cmd_line_.RemoveSwitch(switches::kContentShellHostWindowSize);
+        cmd_line_.AppendSwitchASCII(switches::kContentShellHostWindowSize,
+          cmd_line_.GetSwitchValueASCII(switches::kWindowSize));
       }
     }
 
@@ -127,7 +133,7 @@ class CommandLinePreprocessor {
     // Sanity checks for various graphics configurations.
   }
 
-  const StringVector& argv() const {
+  const base::CommandLine::StringVector& argv() const {
     return cmd_line_.argv();
   }
 
@@ -138,7 +144,7 @@ class CommandLinePreprocessor {
  private:
   base::CommandLine cmd_line_;
 
-} // CommandLinePreprocessor
+}; // CommandLinePreprocessor
 
 
 }  // namespace
@@ -150,7 +156,9 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
   CommandLinePreprocessor init_cmd_line(argc, argv);
   const auto& init_argv = init_cmd_line.argv();
   std::vector<const char*> args;
-  args.insert(args.end(), init_argv.begin(), init_argv.end());
+  for (const auto& arg : init_argv) {
+    args.push_back(arg.c_str());
+  }
 
   // TODO: (cobalt b/375241103) Reimplement this in a clean way.
   // This expression exists to ensure that we apply the argument overrides
