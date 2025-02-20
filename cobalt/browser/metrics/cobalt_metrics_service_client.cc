@@ -65,6 +65,7 @@ CobaltMetricsServiceClient::CobaltMetricsServiceClient()
       base::MakeRefCounted<InMemoryPrefStore>());
 
   pref_service_ = pref_service_factory.Create(std::move(pref_registry));
+  CHECK(pref_service_);
   // `local_state` is a common alias used in Content embedders.
   auto* local_state = pref_service_.get();
 
@@ -83,7 +84,9 @@ CobaltMetricsServiceClient::CobaltMetricsServiceClient()
   metrics_service_->InitializeMetricsRecordingState();
 }
 
-CobaltMetricsServiceClient::~CobaltMetricsServiceClient() = default;
+CobaltMetricsServiceClient::~CobaltMetricsServiceClient() {
+  Stop();
+}
 
 void CobaltMetricsServiceClient::Start() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
