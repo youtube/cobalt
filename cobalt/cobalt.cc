@@ -23,14 +23,23 @@
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
+#include "base/switches.h"
 #include "build/build_config.h"
+#include "chrome/common/chrome_switches.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/cobalt_main_delegate.h"
 #include "cobalt/platform_event_source_starboard.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
+#include "content/public/common/content_switches.h"
 #include "content/shell/browser/shell.h"
+#include "content/shell/common/shell_switches.h"
+#include "gpu/config/gpu_switches.h"
+#include "media/base/media_switches.h"
+#include "sandbox/policy/switches.h"
 #include "starboard/event.h"
+#include "ui/gl/gl_switches.h"
+#include "ui/ozone/public/ozone_switches.h"
 
 using starboard::PlatformEventSourceStarboard;
 
@@ -45,41 +54,103 @@ content::ContentMainRunner* GetContentMainRunner() {
 static base::AtExitManager* g_exit_manager = nullptr;
 static cobalt::CobaltMainDelegate* g_content_main_delegate = nullptr;
 static PlatformEventSourceStarboard* g_platform_event_source = nullptr;
+
+// Toggle-only Switches.
+constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
+  // Disable first run experience, kiosk, etc.
+  "disable-fre",
+  switches::kNoFirstRun,
+  switches::kKioskMode,
+  // Enable Blink to work in overlay video mode
+  switches::kForceVideoOverlays,
+  // Disable multiprocess mode.
+  switches::kSingleProcess,
+  // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
+  // to enable it.
+  switches::kIgnoreGpuBlocklist,
+  // This flag is added specifically for m114 and should be removed after
+  // rebasing to m120+
+  switches::kUserLevelMemoryPressureSignalParams,
+  switches::kNoSandbox
+});
+
+// Switches with parameters. May require special handling with passed in values.
+constexpr auto kCobaltParamSwitches = base::CommandLine::SwitchMap({
+  // Disable Vulkan.
+  {switches::kDisableFeatures, "Vulkan"},
+  // Force some ozone settings.
+  {switches::kOzonePlatform, "starboard"},
+  {switches::kUseGL, "angle"},
+  {switches::kUseANGLE, "gles-egl"},
+  // Set the default size for the content shell/starboard window.
+  {switches::kContentShellHostWindowSize, "1920x1080"},
+  // Enable remote Devtools access.
+  {switches::kRemoteDebuggingPort, "9222"},
+  {switches::kRemoteAllowOrigins, "http://localhost:9222"},
+});
+
+class CommandLinePreprocessor {
+
+ public:
+  CommandLinePreprocessor(int argc, const char** argv) : cmd_line_(argc, argv) {
+    // Insert these switches if they are missing.
+    for (const auto& cobalt_switch : kCobaltToggleSwitches) {
+      cmd_line_.AppendSwitch(cobalt_switch);
+    }
+
+    // Handle special-case switches with duplicated entries.
+    if (cmd_line_.HasSwitch(kDisableFeatures)) {
+      // Merge all disabled features together.
+      std::string disabled_features(cmd_line_.GetSwitchValueASCII(
+          kDisableFeatures));
+      disabled_features += cobalt_default_switch_map.find(kDisableFeatures);
+      cmd_line_.AppendSwitchNative(kDisableFeatures, disabled_features);
+    }
+    if (cmd_line_.HasSwitch(kContentShellHostWindowSize)) {
+      // Replace with the passed in argument for window-size.
+      if (cmd_line_.HasSwitch(kWindowSize)) {
+        cmd_line_.RemoveSwitch(kContentShellHostWindowSize);
+        cmd_line_.AppendSwitchASCII(kContentShellHostWindowSize,
+                                    cmd_line_.GetSwitchValueASCII(kWindowSize));
+      }
+    }
+
+    // Insert these switches if they are mising.
+    for (const auto& iter : kCobaltParamSwitches) {
+      const auto& switch_key = iter.first;
+      const auto& switch_val = iter.second;
+      if (!cmd_line_.HasSwitch(iter.first)) {
+        cmd_line_.AppendSwitchNative(switch_key, switch_val);
+      }
+    }
+
+    // Sanity checks for various graphics configurations.
+  }
+
+  const StringVector& argv() const {
+    return cmd_line_.argv();
+  }
+
+  const std::string GetInitialURL() const {
+    return cobalt::switches::GetInitialURL(cmd_line_);
+  }
+
+ private:
+  base::CommandLine cmd_line_;
+
+} // CommandLinePreprocessor
+
+
 }  // namespace
 
 int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
-  const std::string initial_url =
-      cobalt::switches::GetInitialURL(base::CommandLine(argc, argv));
-
   // content::ContentMainParams params(g_content_main_delegate.Get().get());
   content::ContentMainParams params(g_content_main_delegate);
 
-  // TODO: (cobalt b/375241103) Reimplement this in a clean way.
-  const auto cobalt_args = std::to_array<const char*>(
-      {// Disable first run experience, kiosk, etc.
-       "--disable-fre", "--no-first-run", "--kiosk",
-       // Enable Blink to work in overlay video mode
-       "--force-video-overlays",
-       // Disable multiprocess mode.
-       "--single-process",
-       // Disable Vulkan.
-       "--disable-features=Vulkan",
-       // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
-       // to enable it.
-       "--ignore-gpu-blocklist",
-       // Force some ozone settings.
-       "--ozone-platform=starboard", "--use-gl=angle", "--use-angle=gles-egl",
-       // Set the default size for the content shell/starboard window.
-       "--content-shell-host-window-size=1920x1080",
-       // Enable remote Devtools access.
-       "--remote-debugging-port=9222",
-       "--remote-allow-origins=http://localhost:9222",
-       // This flag is added specifically for m114 and should be removed after
-       // rebasing to m120+
-       "--user-level-memory-pressure-signal-params", "--no-sandbox",
-       initial_url.c_str()});
-  std::vector<const char*> args(argv, argv + argc);
-  args.insert(args.end(), cobalt_args.begin(), cobalt_args.end());
+  CommandLinePreprocessor init_cmd_line(argc, argv);
+  const auto& init_argv = init_cmd_line.argv();
+  std::vector<const char*> args;
+  args.insert(args.end(), init_argv.begin(), init_argv.end());
 
   // TODO: (cobalt b/375241103) Reimplement this in a clean way.
   // This expression exists to ensure that we apply the argument overrides
