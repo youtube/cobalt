@@ -14,10 +14,10 @@
 
 import("//third_party/blink/renderer/modules/modules.gni")
 
-blink_modules_sources("crash_annotator") {
+blink_modules_sources("crash_log") {
   sources = [
-    "crash_annotator.cc",
-    "crash_annotator.h",
+    "crash_log.cc",
+    "crash_log.h",
   ]
 
   deps = [ "//cobalt/browser/crash_annotator/public/mojom:mojom_blink" ]
