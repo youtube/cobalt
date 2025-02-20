@@ -18,10 +18,10 @@
 #include "starboard/nplb/player_test_fixture.h"
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/nplb/posix_compliance/posix_thread_helpers.h"
+#include "starboard/nplb/testcase_helpers.h"
 #include "starboard/string.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "starboard/nplb/testcase_helpers.h"
 
 namespace starboard {
 namespace nplb {
@@ -35,6 +35,8 @@ typedef testing::FakeGraphicsContextProvider FakeGraphicsContextProvider;
 class SbPlayerWriteSampleTest
     : public ::testing::TestWithParam<SbPlayerTestConfig> {
  protected:
+  void SetUp() override { SkipTestIfUnsupported(GetParam()); }
+
   FakeGraphicsContextProvider fake_graphics_context_provider_;
 };
 
@@ -417,25 +419,9 @@ TEST_P(SbPlayerWriteSampleTest, SecondaryPlayerTest) {
   secondary_player_thread.Join();
 }
 
-std::vector<SbPlayerTestConfig> GetSupportedTestConfigs() {
-  static std::vector<SbPlayerTestConfig> supported_configs;
-  if (supported_configs.size() > 0) {
-    return supported_configs;
-  }
-
-  const std::vector<const char*>& key_systems = GetKeySystems();
-  for (auto key_system : key_systems) {
-    std::vector<SbPlayerTestConfig> configs =
-        GetSupportedSbPlayerTestConfigs(key_system);
-    supported_configs.insert(supported_configs.end(), configs.begin(),
-                             configs.end());
-  }
-  return supported_configs;
-}
-
 INSTANTIATE_TEST_CASE_P(SbPlayerWriteSampleTests,
                         SbPlayerWriteSampleTest,
-                        ValuesIn(GetSupportedTestConfigs()),
+                        ValuesIn(GetAllPlayerTestConfigs()),
                         GetSbPlayerTestConfigName);
 
 }  // namespace

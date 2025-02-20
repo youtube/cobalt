@@ -15,10 +15,10 @@
 #include <vector>
 
 #include "starboard/nplb/player_test_fixture.h"
+#include "starboard/nplb/testcase_helpers.h"
 #include "starboard/string.h"
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "starboard/nplb/testcase_helpers.h"
 
 #if SB_API_VERSION >= 15
 
@@ -39,6 +39,8 @@ typedef SbPlayerTestFixture::GroupedSamples GroupedSamples;
 class SbPlayerGetAudioConfigurationTest
     : public ::testing::TestWithParam<SbPlayerTestConfig> {
  public:
+  void SetUp() override { SkipTestIfUnsupported(GetParam()); }
+
   void ReadAudioConfigurations(
       const SbPlayerTestFixture& player_fixture,
       std::vector<SbMediaAudioConfiguration>* configurations) const {
@@ -275,7 +277,7 @@ TEST_P(SbPlayerGetAudioConfigurationTest, MultipleSeeks) {
 
 INSTANTIATE_TEST_CASE_P(SbPlayerGetAudioConfigurationTests,
                         SbPlayerGetAudioConfigurationTest,
-                        ValuesIn(GetSupportedSbPlayerTestConfigs()),
+                        ValuesIn(GetAllPlayerTestConfigs()),
                         GetSbPlayerTestConfigName);
 
 }  // namespace

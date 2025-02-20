@@ -20,7 +20,7 @@ from starboard.tools.testing import test_filter
 _FILTERED_TESTS = {
     'nplb': [
         # Enable multiplayer tests once it's supported.
-        'MultiplePlayerTests/*',
+        'MultiplePlayerTest.*',
         'SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.SecondaryPlayerTest/*',
         # TODO: b/333412348
         'SbMediaCanPlayMimeAndKeySystem.MinimumSupport',
