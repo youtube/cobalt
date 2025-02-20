@@ -25,7 +25,7 @@
 namespace blink {
 
 class ScriptState;
-class CrashAnnotator;
+class CrashLog;
 class LocalDOMWindow;
 class H5vccSystem;
 class H5vccRuntime;
@@ -42,7 +42,7 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
 
   explicit H5vcc(LocalDOMWindow&);
 
-  CrashAnnotator* crashAnnotator() { return crash_annotator_; }
+  CrashLog* crashLog() { return crash_log_; }
 
   H5vccSystem* system() { return system_; }
 
@@ -51,7 +51,7 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
   void Trace(Visitor*) const override;
 
  private:
-  Member<CrashAnnotator> crash_annotator_;
+  Member<CrashLog> crash_log_;
   Member<H5vccSystem> system_;
   Member<H5vccRuntime> runtime_;
 };
