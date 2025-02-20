@@ -750,10 +750,6 @@ public enum StarboardBridge {
     }
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/crash_handler.cc
-  @SuppressWarnings("unused")
-  @UsedByNative
   public void setCrashContext(String key, String value) {
     Log.i(TAG, "StarboardBridge received crash context key=%s value=%s", key, value);
     crashContext.put(key, value);
