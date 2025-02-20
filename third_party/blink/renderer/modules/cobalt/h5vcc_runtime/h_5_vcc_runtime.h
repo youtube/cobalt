@@ -34,7 +34,8 @@ class ScriptState;
 class ScriptPromiseResolver;
 
 class MODULES_EXPORT H5vccRuntime final
-    : public ScriptWrappable,
+    : public EventTargetWithInlineData,
+      public ScriptWrappable,
       public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
 

@@ -62,8 +62,7 @@ void H5vccRuntime::EnsureReceiverIsBound() {
 void H5vccRuntime::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
-  // Do I need this?
-  EventTarget::Trace(visitor);
+  EventTargetWithInlineData::Trace(visitor);
   visitor->Trace(remote_h5vcc_runtime_);
 }
 
