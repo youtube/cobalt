@@ -62,6 +62,7 @@
     "out/linux-x64x11_devel/service_manager_unittests",
     "out/linux-x64x11_devel/skia_unittests",
     "out/linux-x64x11_devel/sql_unittests",
+    "out/linux-x64x11_devel/starboard_unittests",
     "out/linux-x64x11_devel/wm_unittests",
     "out/linux-x64x11_devel/url_perftests",
     "out/linux-x64x11_devel/url_unittests",

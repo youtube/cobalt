@@ -55,9 +55,6 @@ TEST_F(CrashpadConfigTest, VerifyUploadCert) {
 
 #endif  // !defined(ANDROID)
 
-// N.B. No need to test SbSystemGetExtension(kCobaltExtensionCrashHandlerName),
-// since that is done in ExtensionTest.CrashHandler.
-
 }  // namespace
 }  // namespace nplb_evergreen_compat_tests
 }  // namespace nplb
