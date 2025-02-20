@@ -45,8 +45,8 @@ def _make_tar(archive_path: str, file_lists: List[Tuple[str, str]]):
     tmp_files.append(tmp_file)
     tmp_file.write('\n'.join(sorted(file_list)))
     tmp_file.flush()
-    base_dir_arg = ['-C', base_dir] if base_dir else []
-    tar_cmd += [*base_dir_arg, '-T', tmp_file.name]
+    # Change the tar working directory and add the file list.
+    tar_cmd += ['-C', base_dir, '-T', tmp_file.name]
 
   print(f'Running `{" ".join(tar_cmd)}`')  # pylint: disable=inconsistent-quotes
   subprocess.check_call(tar_cmd)
