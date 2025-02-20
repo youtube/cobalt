@@ -364,6 +364,7 @@
     "writeend",
     "writestart",
     "zoom",
+    # Cobalt Event
     "deeplink",
   ],
 }

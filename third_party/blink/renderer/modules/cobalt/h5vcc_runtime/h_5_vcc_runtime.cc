@@ -24,7 +24,9 @@ H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
       remote_h5vcc_runtime_(window.GetExecutionContext()) {}
 
-void H5vccRuntime::ContextDestroyed() {}
+void H5vccRuntime::ContextDestroyed() {
+  remote_h5vcc_runtime_.reset();
+}
 
 ScriptPromise H5vccRuntime::getInitialDeepLink(
     ScriptState* script_state,
