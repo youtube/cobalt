@@ -48,19 +48,12 @@ class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
 
 }  // namespace
 
-//static
-std::unique_ptr<CobaltMetricsServiceClient>
-CobaltMetricsServiceClient::CreateForTesting() {
-  auto client = std::make_unique<CobaltMetricsServiceClient>();
-  client->metrics_service_.reset();
-}
-
 CobaltMetricsServiceClient::CobaltMetricsServiceClient()
     : synthetic_trial_registry_(new variations::SyntheticTrialRegistry) {
   DETACH_FROM_THREAD(thread_checker_);
 
   // TODO(b/372559349): Extract initialization into a method if any of the
-  // following calls can fail (likely).
+  // following calls can fail (e.g. base::PathService::Get()).
 
   // No need to make `pref_registry` a member, `pref_service_` will keep a
   // reference to it.

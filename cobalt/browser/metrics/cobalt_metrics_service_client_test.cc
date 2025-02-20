@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 
+#include "base/metrics/user_metrics.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -23,13 +25,22 @@ namespace cobalt {
 class CobaltMetricsServiceClientTest : public ::testing::Test {
  public:
   CobaltMetricsServiceClientTest() = default;
+  void SetUp() override {
+    // This set up (and the corresponding include) are only to support the
+    // Add/RemoveActionCallback() calls inside CobaltMetricsServiceClient's
+    // MetricsService.
+    // TODO(b/372559349): Mock here said MetricsService, add expectations to its
+    // methods and remove this call and include file.
+    base::SetRecordActionTaskRunner(
+        task_environment_.GetMainThreadTaskRunner());
+  }
  protected:
   base::test::SingleThreadTaskEnvironment task_environment_;
 };
 
-// Verifies that...
+// Verifies that a CobaltMetricsServiceClient can be constructed and destroyed.
 TEST_F(CobaltMetricsServiceClientTest, ConstructDestruct) {
-  auto metrics_client = CobaltMetricsServiceClient::CreateForTesting();
+  auto metrics_client = std::make_unique<CobaltMetricsServiceClient>();
   EXPECT_TRUE(metrics_client->GetMetricsService());
 }
 
