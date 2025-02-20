@@ -32,9 +32,8 @@ class LocalDOMWindow;
 class ScriptPromiseResolver;
 class ScriptState;
 
-class MODULES_EXPORT CrashLog final
-    : public ScriptWrappable,
-      public ExecutionContextLifecycleObserver {
+class MODULES_EXPORT CrashLog final : public ScriptWrappable,
+                                      public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
