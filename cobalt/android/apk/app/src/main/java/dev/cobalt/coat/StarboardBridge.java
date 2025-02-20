@@ -49,9 +49,15 @@ import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content_public.browser.WebContents;
 
-/** Implementation of the required JNI methods called by the Starboard C++ code. */
+/**
+ * Implementation of the required JNI methods called by the Starboard C++ code.
+ * This class is a singleton, as is its C++ counterpart.
+ */
 @JNINamespace("starboard::android::shared")
-public class StarboardBridge {
+// TODO(cobalt, b/383301493): consider making this enum class private and adding
+// a public interface that it implements.
+public enum StarboardBridge {
+  INSTANCE;
 
   /** Interface to be implemented by the Android Application hosting the starboard app. */
   public interface HostApplication {
@@ -72,11 +78,11 @@ public class StarboardBridge {
   private VolumeStateReceiver volumeStateReceiver;
   private CrashContextUpdateHandler crashContextUpdateHandler;
 
-  private final Context appContext;
-  private final Holder<Activity> activityHolder;
-  private final Holder<Service> serviceHolder;
-  private final String[] args;
-  private final long nativeApp;
+  private Context appContext;
+  private Holder<Activity> activityHolder;
+  private Holder<Service> serviceHolder;
+  private String[] args;
+  private long nativeApp;
   private String startDeepLink;
   private final Runnable stopRequester =
       new Runnable() {
@@ -96,11 +102,17 @@ public class StarboardBridge {
   private static final String GOOGLE_PLAY_SERVICES_PACKAGE = "com.google.android.gms";
   private static final String AMATI_EXPERIENCE_FEATURE =
       "com.google.android.feature.AMATI_EXPERIENCE";
-  private final boolean isAmatiDevice;
+  private boolean isAmatiDevice;
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long timeNanosecondsPerMicrosecond = 1000;
 
-  public StarboardBridge(
+  /**
+   * Initializes the single StarboardBridge instance.
+   *
+   * This method should be called before the StarboardBridge instance is used,
+   * and it should only be called one.
+   */
+  public void init(
       Context appContext,
       Holder<Activity> activityHolder,
       Holder<Service> serviceHolder,
@@ -743,6 +755,7 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @UsedByNative
   public void setCrashContext(String key, String value) {
+    Log.i(TAG, "StarboardBridge received crash context key=%s value=%s", key, value);
     crashContext.put(key, value);
     if (this.crashContextUpdateHandler != null) {
       this.crashContextUpdateHandler.onCrashContextUpdate();
