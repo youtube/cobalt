@@ -17,7 +17,7 @@
     Exposed=Window,
     SecureContext
 ]
-interface CrashAnnotator {
+interface CrashLog {
     // Returns a promise of true on success and false on failure.
     [CallWith=ScriptState, RaisesException]
     Promise<boolean> setString(DOMString key, DOMString value);
