@@ -85,9 +85,13 @@ runs:
               ${changed_files_arg} \
               --gn-json gn_desc.json \
               --json-output > "${TEST_TARGETS_JSON_FILE}"
+
           echo "test_targets_json_file=${TEST_TARGETS_JSON_FILE}" >> $GITHUB_OUTPUT
 
-          test_targets_count=$(cat ${TEST_TARGETS_JSON_FILE} | jq '.test_targets | length')
+          test_targets_json=$(cat ${TEST_TARGETS_JSON_FILE} | jq -cr '.test_targets')
+          echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
+
+          test_targets_count=$(echo ${test_targets_json} | jq -cr 'length')
           echo "test_targets_count=${test_targets_count}" >> $GITHUB_OUTPUT
         shell: bash
       - name: Ninja build test targets
@@ -124,6 +128,9 @@ runs:
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
           test_targets_json_file: '${{ steps.calculate-test-targets.outputs.test_targets_json_file }}'
 outputs:
+  test_targets_json:
+    description: The test targets in a JSON array.
+    value: ${{ steps.calculate-test-targets.outputs.test_targets_json }}
   test_targets_json_file:
-    description: The generated test targets json file path
+    description: The generated test targets json file path.
     value: ${{ steps.calculate-test-targets.outputs.test_targets_json_file }}

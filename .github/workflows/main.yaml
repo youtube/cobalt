@@ -215,6 +215,7 @@ jobs:
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host == 'true' }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
     outputs:
+      test_targets_json: ${{ steps.build.outputs.test_targets_json }}
       test_targets_json_file: ${{ steps.build.outputs.test_targets_json_file }}
 
   on-device-test:
@@ -246,17 +247,11 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
-      - name: Extract target names
-        id: target-names
-        run: |
-          test_targets_json=$(cat ${TEST_TARGETS_JSON_FILE} | jq -cr '.test_targets')
-          echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
-        shell: bash
       - name: Run On-Device Tests
         id: on-device-tests
         uses: ./.github/actions/on_device_tests
         with:
-          test_targets_json: ${{ steps.target-names.outputs.test_targets_json }}
+          test_targets_json: ${{ needs.build.outputs.test_targets_json }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
@@ -311,7 +306,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-        test_target: ${{ fromJson(needs.build.outputs.test_targets) }}
+        test_target: ${{ fromJson(needs.build.outputs.test_targets_json) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
