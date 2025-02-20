@@ -74,7 +74,7 @@ runs:
           echo "test_targets_count=${test_targets_count}" >> $GITHUB_OUTPUT
         shell: bash
       - name: Ninja build test targets
-        if: ${{ fromJSON(steps.calculate-test-targets.outputs.test_targets_count) > 0 }}
+        if: ${{ steps.calculate-test-targets.outcome == 'success' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count) > 0 }}
         run: |
           set -ex
           cd src
