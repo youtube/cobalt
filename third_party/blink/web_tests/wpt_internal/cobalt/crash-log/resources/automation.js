@@ -6,8 +6,8 @@ let fakeCrashAnnotatorImpl = undefined;
 
 function crash_annotator_test(func, name, properties) {
   promise_test(async (test) => {
-    assert_implements(window.h5vcc.crashAnnotator,
-                      'missing window.h5vcc.crashAnnotator');
+    assert_implements(window.h5vcc.crashLog,
+                      'missing window.h5vcc.crashLog');
     if (fakeCrashAnnotatorImpl === undefined) {
       const fakes = await import('./fake-crash-annotator-impl.js');
       fakeCrashAnnotatorImpl = fakes.fakeCrashAnnotatorImpl;
