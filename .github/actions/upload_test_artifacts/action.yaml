@@ -22,9 +22,6 @@ runs:
         mkdir ${GITHUB_WORKSPACE}/artifacts
         cd src/
 
-        # Put test targets json file in the out folder for the archiving script to pick up.
-        cp "${{ inputs.test_targets_json_file }}" out/${{ matrix.platform }}_${{ matrix.config }}/
-
         time vpython3 -u ./cobalt/build/archive_test_artifacts.py \
           --source-dir ${GITHUB_WORKSPACE}/src \
           --out-dir out/${{ matrix.platform }}_${{ matrix.config }}/ \
