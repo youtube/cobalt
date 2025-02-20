@@ -15,7 +15,6 @@
 source_set("extension_test") {
   testonly = true
   sources = [
-    #"//starboard/common/test_main.cc",
     "enhanced_audio_test.cc",
     "extension_test.cc",
   ]
