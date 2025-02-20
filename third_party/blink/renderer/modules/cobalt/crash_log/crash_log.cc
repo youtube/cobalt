@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/blink/renderer/modules/cobalt/crash_annotator/crash_annotator.h"
+#include "third_party/blink/renderer/modules/cobalt/crash_log/crash_log.h"
 
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom-blink.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -26,16 +26,16 @@
 
 namespace blink {
 
-CrashAnnotator::CrashAnnotator(LocalDOMWindow& window)
+CrashLog::CrashLog(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
       remote_crash_annotator_(window.GetExecutionContext()) {}
 
-void CrashAnnotator::ContextDestroyed() {}
+void CrashLog::ContextDestroyed() {}
 
-ScriptPromise CrashAnnotator::setString(ScriptState* script_state,
-                                        const String& key,
-                                        const String& value,
-                                        ExceptionState& exception_state) {
+ScriptPromise CrashLog::setString(ScriptState* script_state,
+                                  const String& key,
+                                  const String& value,
+                                  ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
@@ -43,17 +43,17 @@ ScriptPromise CrashAnnotator::setString(ScriptState* script_state,
 
   remote_crash_annotator_->SetString(
       key, value,
-      WTF::BindOnce(&CrashAnnotator::OnSetString, WrapPersistent(this),
+      WTF::BindOnce(&CrashLog::OnSetString, WrapPersistent(this),
                     WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
 
-void CrashAnnotator::OnSetString(ScriptPromiseResolver* resolver, bool result) {
+void CrashLog::OnSetString(ScriptPromiseResolver* resolver, bool result) {
   resolver->Resolve(result);
 }
 
-void CrashAnnotator::EnsureReceiverIsBound() {
+void CrashLog::EnsureReceiverIsBound() {
   DCHECK(GetExecutionContext());
 
   if (remote_crash_annotator_.is_bound()) {
@@ -66,7 +66,7 @@ void CrashAnnotator::EnsureReceiverIsBound() {
       remote_crash_annotator_.BindNewPipeAndPassReceiver(task_runner));
 }
 
-void CrashAnnotator::Trace(Visitor* visitor) const {
+void CrashLog::Trace(Visitor* visitor) const {
   visitor->Trace(remote_crash_annotator_);
   ExecutionContextLifecycleObserver::Trace(visitor);
   ScriptWrappable::Trace(visitor);
