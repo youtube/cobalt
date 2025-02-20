@@ -66,6 +66,11 @@ jobs:
         run: |
           includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
           echo "includes=${includes}" >> $GITHUB_OUTPUT
+      - id: set-docker-service
+        shell: bash
+        run: |
+          docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')
+          echo "docker_service=${docker_service}" >> $GITHUB_OUTPUT
       - id: set-test-on-host
         shell: bash
         run: |
@@ -86,11 +91,6 @@ jobs:
         run: |
           test_dimensions=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_dimensions')
           echo "test_dimensions=${test_dimensions}" >> $GITHUB_OUTPUT
-      - id: set-docker-service
-        shell: bash
-        run: |
-          docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')
-          echo "docker_service=${docker_service}" >> $GITHUB_OUTPUT
       - id: set-gtest-shards
         shell: bash
         run: |
@@ -106,12 +106,12 @@ jobs:
       targets: ${{ steps.set-targets.outputs.targets }}
       includes: ${{ steps.set-includes.outputs.includes }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
-      num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
       gtest_shards: ${{ steps.set-gtest-shards.outputs.gtest_shards }}
       test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
       test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
+      num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
