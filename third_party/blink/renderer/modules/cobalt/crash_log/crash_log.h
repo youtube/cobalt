@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_ANNOTATOR_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_ANNOTATOR_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_H_
+#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_H_
 
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
@@ -32,13 +32,12 @@ class LocalDOMWindow;
 class ScriptPromiseResolver;
 class ScriptState;
 
-class MODULES_EXPORT CrashAnnotator final
-    : public ScriptWrappable,
-      public ExecutionContextLifecycleObserver {
+class MODULES_EXPORT CrashLog final : public ScriptWrappable,
+                                      public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  explicit CrashAnnotator(LocalDOMWindow&);
+  explicit CrashLog(LocalDOMWindow&);
 
   void ContextDestroyed() override;
 
@@ -54,10 +53,15 @@ class MODULES_EXPORT CrashAnnotator final
   void OnSetString(ScriptPromiseResolver*, bool);
   void EnsureReceiverIsBound();
 
+  // TODO(cobalt, b/383301493): consider renaming the web interface and
+  // associated Blink types from "crash log" to the preferred "crash annotator"
+  // name that is used elsewhere, for example in the corresponding Mojo
+  // interface. We chose to keep the legacy "crash log" name for the initial
+  // version of Chrobalt to ease the migration process for web clients.
   HeapMojoRemote<crash_annotator::mojom::blink::CrashAnnotator>
       remote_crash_annotator_;
 };
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_ANNOTATOR_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_CRASH_LOG_H_
