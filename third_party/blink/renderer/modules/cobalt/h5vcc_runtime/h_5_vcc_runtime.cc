@@ -22,7 +22,10 @@ namespace blink {
 
 H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
-      remote_h5vcc_runtime_(window.GetExecutionContext()) {}
+      remote_h5vcc_runtime_(window.GetExecutionContext()) {
+        // // this is test code
+        // DispatchEvent(*MakeGarbageCollected<DeeplinkEvent>(event_type_names::kInputreport, "Colin_test_ondeeplink"));
+      }
 
 void H5vccRuntime::ContextDestroyed() {
   remote_h5vcc_runtime_.reset();
