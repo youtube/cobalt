@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/media_codec_bridge.h"
 
+#include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_bridge_eradicator.h"
@@ -31,6 +32,8 @@ using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
 using base::android::JavaParamRef;
 using base::android::ScopedJavaLocalRef;
+using base::android::ToJavaByteArray;
+using base::android::ToJavaIntArray;
 
 namespace {
 
@@ -196,28 +199,31 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     }
   }
 
+  // TODO(cobalt): remove all the JniEnvExt references when we can, after all
+  // JNI usages are migrated to jni_zero in this file.
   JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jbyteArray> configuration_data;
+
+  JNIEnv* env_jni = AttachCurrentThread();
+  ScopedJavaLocalRef<jbyteArray> configuration_data;
   if (audio_stream_info.codec == kSbMediaAudioCodecOpus &&
       !audio_stream_info.audio_specific_config.empty()) {
-    configuration_data.Reset(env->NewByteArrayFromRaw(
-        reinterpret_cast<const jbyte*>(
-            audio_stream_info.audio_specific_config.data()),
-        audio_stream_info.audio_specific_config.size()));
+    configuration_data.Reset(
+        ToJavaByteArray(env, audio_stream_info.audio_specific_config.data(),
+                        audio_stream_info.audio_specific_config.size()));
   }
-  ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
-  ScopedLocalJavaRef<jstring> j_decoder_name(
-      env->NewStringStandardUTFOrAbort(decoder_name.c_str()));
+  ScopedJavaLocalRef<jstring> j_mime(env_jni, env_jni->NewStringUTF(mime));
+  ScopedJavaLocalRef<jstring> j_decoder_name(
+      env_jni, env_jni->NewStringUTF(decoder_name.c_str()));
   std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
       new MediaCodecBridge(handler));
   jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
       "dev/cobalt/media/MediaCodecBridgeBuilder", "createAudioDecoder",
       "(JLjava/lang/String;Ljava/lang/String;IILandroid/media/MediaCrypto;"
       "[B)Ldev/cobalt/media/MediaCodecBridge;",
-      reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
-      j_decoder_name.Get(), audio_stream_info.samples_per_second,
+      reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.obj(),
+      j_decoder_name.obj(), audio_stream_info.samples_per_second,
       audio_stream_info.number_of_channels, j_media_crypto,
-      configuration_data.Get());
+      configuration_data.obj());
 
   if (!j_media_codec_bridge) {
     SB_LOG(ERROR) << "Failed to create codec bridge for "
@@ -315,9 +321,11 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
   }
 
   JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
-  ScopedLocalJavaRef<jstring> j_decoder_name(
-      env->NewStringStandardUTFOrAbort(decoder_name.c_str()));
+
+  JNIEnv* env_jni = AttachCurrentThread();
+  ScopedJavaLocalRef<jstring> j_mime(env_jni, env_jni->NewStringUTF(mime));
+  ScopedJavaLocalRef<jstring> j_decoder_name(
+      env_jni, env_jni->NewStringUTF(decoder_name.c_str()));
 
   ScopedJavaLocalRef<jobject> j_color_info(nullptr);
   if (color_metadata) {
@@ -348,7 +356,6 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     }
   }
 
-  JNIEnv* env_jni = base::android::AttachCurrentThread();
   ScopedJavaLocalRef<jobject> j_create_media_codec_bridge_result(
       Java_CreateMediaCodecBridgeResult_Constructor(env_jni));
 
@@ -362,8 +369,8 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
       "II"
       "Ldev/cobalt/media/MediaCodecBridge$CreateMediaCodecBridgeResult;)"
       "V",
-      reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.Get(),
-      j_decoder_name.Get(), width_hint, height_hint, fps,
+      reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.obj(),
+      j_decoder_name.obj(), width_hint, height_hint, fps,
       max_width.value_or(-1), max_height.value_or(-1), j_surface,
       j_media_crypto, j_color_info.obj(), tunnel_mode_audio_session_id,
       max_video_input_size, j_create_media_codec_bridge_result.obj());
@@ -373,10 +380,10 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
       "()Ldev/cobalt/media/MediaCodecBridge;");
 
   if (!j_media_codec_bridge) {
-    ScopedLocalJavaRef<jstring> j_error_message(
-        env->CallObjectMethodOrAbort(j_create_media_codec_bridge_result.obj(),
-                                     "errorMessage", "()Ljava/lang/String;"));
-    *error_message = env->GetStringStandardUTFOrAbort(j_error_message.Get());
+    ScopedJavaLocalRef<jstring> j_error_message(
+        Java_CreateMediaCodecBridgeResult_errorMessage(
+            env_jni, j_create_media_codec_bridge_result));
+    *error_message = ConvertJavaStringToUTF8(env_jni, j_error_message);
     return std::unique_ptr<MediaCodecBridge>();
   }
 
@@ -430,12 +437,13 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
     const SbDrmSampleInfo& drm_sample_info,
     jlong presentation_time_microseconds) {
   JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jbyteArray> j_iv(env->NewByteArrayFromRaw(
-      reinterpret_cast<const jbyte*>(drm_sample_info.initialization_vector),
-      drm_sample_info.initialization_vector_size));
-  ScopedLocalJavaRef<jbyteArray> j_key_id(env->NewByteArrayFromRaw(
-      reinterpret_cast<const jbyte*>(drm_sample_info.identifier),
-      drm_sample_info.identifier_size));
+
+  JNIEnv* env_jni = AttachCurrentThread();
+  ScopedJavaLocalRef<jbyteArray> j_iv =
+      ToJavaByteArray(env_jni, drm_sample_info.initialization_vector,
+                      drm_sample_info.initialization_vector_size);
+  ScopedJavaLocalRef<jbyteArray> j_key_id = ToJavaByteArray(
+      env_jni, drm_sample_info.identifier, drm_sample_info.identifier_size);
 
   // Reshape the sub sample mapping like this:
   // [(c0, e0), (c1, e1), ...] -> [c0, c1, ...] and [e0, e1, ...]
@@ -447,10 +455,10 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
     encrypted_bytes[i] =
         drm_sample_info.subsample_mapping[i].encrypted_byte_count;
   }
-  ScopedLocalJavaRef<jintArray> j_clear_bytes(
-      env->NewIntArrayFromRaw(clear_bytes.get(), subsample_count));
-  ScopedLocalJavaRef<jintArray> j_encrypted_bytes(
-      env->NewIntArrayFromRaw(encrypted_bytes.get(), subsample_count));
+  ScopedJavaLocalRef<jintArray> j_clear_bytes =
+      ToJavaIntArray(env_jni, clear_bytes.get(), subsample_count);
+  ScopedJavaLocalRef<jintArray> j_encrypted_bytes =
+      ToJavaIntArray(env_jni, encrypted_bytes.get(), subsample_count);
 
   jint cipher_mode = CRYPTO_MODE_AES_CTR;
   jint blocks_to_encrypt = 0;
@@ -463,8 +471,8 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
 
   return env->CallIntMethodOrAbort(
       j_media_codec_bridge_, "queueSecureInputBuffer", "(II[B[B[I[IIIIIJ)I",
-      index, offset, j_iv.Get(), j_key_id.Get(), j_clear_bytes.Get(),
-      j_encrypted_bytes.Get(), subsample_count, cipher_mode, blocks_to_encrypt,
+      index, offset, j_iv.obj(), j_key_id.obj(), j_clear_bytes.obj(),
+      j_encrypted_bytes.obj(), subsample_count, cipher_mode, blocks_to_encrypt,
       blocks_to_skip, presentation_time_microseconds);
 }
 
