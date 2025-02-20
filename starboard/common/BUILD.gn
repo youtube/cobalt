@@ -78,8 +78,8 @@ static_library("common") {
     "socket.cc",
     "socket.h",
     "spin_lock.cc",
-    "spin_lock.h"
-,    "storage.cc",
+    "spin_lock.h",
+    "storage.cc",
     "storage.h",
     "string.h",
     "system_property.h",

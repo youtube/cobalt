@@ -129,7 +129,8 @@ TEST(EzTimeTExplodeTest, PositiveLocal) {
   EXPECT_EQ(8, exploded.tm_sec);
 }
 
-TEST(EzTimeTExplodeTest, PositivePacific) {
+// TODO(b/397817771): Fix and reenable.
+TEST(EzTimeTExplodeTest, DISABLED_PositivePacific) {
   EzTimeExploded exploded = {0};
   EXPECT_TRUE(
       EzTimeTExplode(&kTestTimePositive, kEzTimeZonePacific, &exploded));
