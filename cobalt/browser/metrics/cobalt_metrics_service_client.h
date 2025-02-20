@@ -44,6 +44,8 @@ namespace cobalt {
 class CobaltMetricsServiceClient : public metrics::MetricsServiceClient,
                                    public metrics::EnabledStateProvider {
  public:
+  static std::unique_ptr<CobaltMetricsServiceClient> CreateForTesting();
+
   CobaltMetricsServiceClient();
   ~CobaltMetricsServiceClient() override;
 

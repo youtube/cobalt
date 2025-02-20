@@ -48,6 +48,13 @@ class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
 
 }  // namespace
 
+//static
+std::unique_ptr<CobaltMetricsServiceClient>
+CobaltMetricsServiceClient::CreateForTesting() {
+  auto client = std::make_unique<CobaltMetricsServiceClient>();
+  client->metrics_service_.reset();
+}
+
 CobaltMetricsServiceClient::CobaltMetricsServiceClient()
     : synthetic_trial_registry_(new variations::SyntheticTrialRegistry) {
   DETACH_FROM_THREAD(thread_checker_);

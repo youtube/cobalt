@@ -29,9 +29,8 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
 
 // Verifies that...
 TEST_F(CobaltMetricsServiceClientTest, ConstructDestruct) {
-
-  auto metrics = std::make_unique<CobaltMetricsServiceClient>();
-  EXPECT_TRUE(metrics->GetMetricsService());
+  auto metrics_client = CobaltMetricsServiceClient::CreateForTesting();
+  EXPECT_TRUE(metrics_client->GetMetricsService());
 }
 
 }  // namespace cobalt
