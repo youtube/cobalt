@@ -62,12 +62,10 @@
 
 // Specification for an Android-specific symbol that should be exported for
 // use at layers above Starboard. Only needed for component builds.
-#if BUILDFLAG(IS_ANDROID)
-#if defined(COMPONENT_BUILD)
+#if BUILDFLAG(IS_ANDROID) && defined(COMPONENT_BUILD)
 #define SB_EXPORT_ANDROID SB_EXPORT
 #else
 #define SB_EXPORT_ANDROID
-#endif
 #endif
 
 #endif  // STARBOARD_EXPORT_H_
