@@ -206,6 +206,10 @@ component("boringssl") {
     ldflags = [ "-Wl,--version-script=" +
                 rebase_path(version_script, root_build_dir) ]
   }
+
+  if (is_cobalt_hermetic_build) {
+    deps += [ "//starboard:starboard_headers_only" ]
+  }
 }
 
 if (build_with_chromium) {
@@ -283,6 +287,9 @@ if (build_with_chromium) {
 
     sources = all_sources
     deps = [ "//third_party/boringssl/src/third_party/fiat:fiat_license" ]
+    if (is_cobalt_hermetic_build) {
+      deps += [ "//starboard:starboard_headers_only" ]
+    }
 
     # Mark boringssl_asm as a public dependency so the OPENSSL_NO_ASM
     # config is forwarded to callers. In particular, boringssl_crypto_tests
@@ -348,6 +355,9 @@ if (build_with_chromium) {
 
     sources = all_sources
     deps = [ "//third_party/boringssl/src/third_party/fiat:fiat_license" ]
+    if (is_cobalt_hermetic_build) {
+      deps += [ "//starboard:starboard_headers_only" ]
+    }
 
     # Mark boringssl_asm as a public dependency so the OPENSSL_NO_ASM
     # config is forwarded to callers. In particular, boringssl_crypto_tests
