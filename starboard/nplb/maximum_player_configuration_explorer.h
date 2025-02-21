@@ -23,7 +23,7 @@
 #include "starboard/nplb/player_test_util.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/media/media_util.h"
-#include "starboard/testing/fake_graphics_context_provider.h"
+#include "starboard/testing/fake_graphics_context_provider.h"  // nogncheck
 
 namespace starboard {
 namespace nplb {
