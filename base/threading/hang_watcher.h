@@ -649,9 +649,7 @@ class BASE_EXPORT HangWatchState {
   // the deadline.
   THREAD_CHECKER(thread_checker_);
 
-#if !defined(STARBOARD)
   const AutoReset<HangWatchState*> resetter_;
-#endif
 
   // If the deadline fails to be updated before TimeTicks::Now() ever
   // reaches the value contained in it this constistutes a hang.
