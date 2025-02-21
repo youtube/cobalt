@@ -125,7 +125,7 @@
 #include <pthread.h>
 
 #include "starboard/atomic.h"
-#include "starboard/thread.h"
+#include "starboard/thread.h" // nogncheck
 #endif
 
 #if defined(BORINGSSL_CONSTANT_TIME_VALIDATION)
