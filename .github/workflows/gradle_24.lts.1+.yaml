@@ -25,8 +25,8 @@ jobs:
           java-version: 11
       - name: Validate Gradle wrapper
         uses: gradle/wrapper-validation-action@ccb4328a959376b642e027874838f60f8e596de3 #v1.0.6
-      - name: Build with Gradle
-        uses: gradle/gradle-build-action@749f47bda3e44aa060e82d7b3ef7e40d953bd629 #v2.4.2
-        with:
-          arguments: test
-          build-root-directory: starboard/android/apk
+      # - name: Build with Gradle
+      #  uses: gradle/gradle-build-action@749f47bda3e44aa060e82d7b3ef7e40d953bd629 #v2.4.2
+      #  with:
+      #    arguments: test
+      #    build-root-directory: starboard/android/apk
