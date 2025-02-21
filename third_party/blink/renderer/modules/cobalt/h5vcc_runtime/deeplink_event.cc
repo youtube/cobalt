@@ -13,13 +13,12 @@
 // limitations under the License.
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deeplink_event.h"
-// #include "third_party/blink/renderer/core/typed_arrays/dom_array_buffer.h"
-// #include "third_party/blink/renderer/core/typed_arrays/dom_data_view.h"
-// #include "third_party/blink/renderer/modules/hid/hid_device.h"
+#include "third_party/blink/renderer/modules/event_interface_modules_names.h"
 
 namespace blink {
 
-DeeplinkEvent::DeeplinkEvent(const AtomicString& type, const String& deeplink)
+DeeplinkEvent::DeeplinkEvent(const AtomicString& type,
+                                 const String& deeplink)
     : Event(type, Bubbles::kNo, Cancelable::kNo),
       deeplink_(deeplink) {}
 
@@ -30,7 +29,6 @@ const AtomicString& DeeplinkEvent::InterfaceName() const {
 }
 
 void DeeplinkEvent::Trace(Visitor* visitor) const {
-  // visitor->Trace(deeplink_);
   Event::Trace(visitor);
 }
 

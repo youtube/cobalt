@@ -15,29 +15,30 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_RUNTIME_DEEPLINK_EVENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_RUNTIME_DEEPLINK_EVENT_H_
 
-// #include "third_party/blink/renderer/core/typed_arrays/array_buffer_view_helpers.h"
-// #include "third_party/blink/renderer/core/typed_arrays/dom_data_view.h"
 #include "third_party/blink/renderer/modules/event_modules.h"
-// #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+#include "third_party/blink/renderer/modules/modules_export.h"
 
 namespace blink {
 
-class DeeplinkEvent final : public Event {
+class MODULES_EXPORT DeeplinkEvent final : public Event {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  DeeplinkEvent(const AtomicString& type, const String& deeplink);
+  static DeeplinkEvent* Create(const AtomicString& type,
+                               const String& deeplink) {
+    return MakeGarbageCollected<DeeplinkEvent>(type, deeplink);
+  }
+
+  DeeplinkEvent(const AtomicString& type,
+                  const String& deeplink);
   ~DeeplinkEvent() override;
 
-  // String deeplink() const { return *deeplink_.Get(); }
-  String deeplink() const { return deeplink_; }
+  const String& deeplink() const { return deeplink_; }
 
-  // Event:
   const AtomicString& InterfaceName() const override;
   void Trace(Visitor*) const override;
 
  private:
-  // Member<String> deeplink_; 
   String deeplink_;
 };
 

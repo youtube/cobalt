@@ -49,6 +49,7 @@ void H5vccRuntime::OnGetInitialDeepLink(ScriptPromiseResolver* resolver,
 }
 
 EventListener* H5vccRuntime::ondeeplink() {
+  LOG(INFO) << "ColinL: ondeeplink.";
   return GetAttributeEventListener(event_type_names::kDeeplink);
 }
 
