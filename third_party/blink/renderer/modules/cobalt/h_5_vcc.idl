@@ -19,7 +19,7 @@
     SecureContext
 ]
 interface H5vcc {
-    readonly attribute CrashAnnotator crashAnnotator;
+    readonly attribute CrashLog crashLog;
     readonly attribute H5vccSystem system;
     readonly attribute H5vccRuntime runtime;
 };

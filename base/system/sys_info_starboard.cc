@@ -18,6 +18,9 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include <sys/system_properties.h>
+#else
+// TODO(b/374213479): Remove after the functions below are implemented.
+#include "base/notreached.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
 namespace base {
@@ -60,6 +63,30 @@ std::string SbSysInfo::Brand() {
   char brand_str[PROP_VALUE_MAX];
   __system_property_get("ro.product.brand", brand_str);
   return std::string(brand_str);
+}
+#else
+std::string SbSysInfo::OriginalDesignManufacturer() {
+  // TODO(b/374213479): Implement for non-Android.
+  NOTIMPLEMENTED();
+  return "";
+}
+
+std::string SbSysInfo::ChipsetModelNumber() {
+  // TODO(b/374213479): Implement for non-Android.
+  NOTIMPLEMENTED();
+  return "";
+}
+
+std::string SbSysInfo::ModelYear() {
+  // TODO(b/374213479): Implement for non-Android.
+  NOTIMPLEMENTED();
+  return "";
+}
+
+std::string SbSysInfo::Brand() {
+  // TODO(b/374213479): Implement for non-Android.
+  NOTIMPLEMENTED();
+  return "";
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 

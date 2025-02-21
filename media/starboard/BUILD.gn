@@ -102,6 +102,8 @@ source_set("starboard") {
 
   deps = [
     "//base",
+    "//cobalt/media/service",
+    "//cobalt/media/service/mojom",
     "//media:media_buildflags",
     "//media/base",
     "//media/renderers",

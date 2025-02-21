@@ -24,6 +24,8 @@ source_set("browser") {
     "cobalt_browser_interface_binders.h",
     "cobalt_content_browser_client.cc",
     "cobalt_content_browser_client.h",
+    "cobalt_single_render_process_observer.cc",
+    "cobalt_single_render_process_observer.h",
     "cobalt_web_contents_observer.cc",
     "cobalt_web_contents_observer.h",
   ]
@@ -42,6 +44,7 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_runtime/public/mojom",
     "//cobalt/browser/h5vcc_system",
     "//cobalt/browser/h5vcc_system/public/mojom",
+    "//cobalt/media/service/mojom",
     "//cobalt/user_agent",
     "//components/js_injection/browser:browser",
     "//content/public/browser",
