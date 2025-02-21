@@ -41,8 +41,8 @@ runs:
           echo "changed_files_json=${changed_files_json}" >> $GITHUB_OUTPUT
         shell: bash
       - name: Calculate test targets
-        id: calculate-test-targets
         if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
+        id: calculate-test-targets
         env:
           CHANGED_FILES_JSON: ${{ steps.changed-files.outputs.changed_files_json }}
           ROOT_TARGET: ${{ inputs.test_root_target }}
@@ -75,6 +75,7 @@ runs:
         shell: bash
       - name: Ninja build test targets
         if: ${{ steps.calculate-test-targets.outcome == 'success' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count) > 0 }}
+        id: build-test-targets
         run: |
           set -ex
           cd src
@@ -99,7 +100,7 @@ runs:
             src/out/${{ matrix.platform }}_qa/*_apk/*.apk
             src/out/${{ matrix.platform }}_qa/gen/build_info.json
       - name: Upload Test Artifacts
-        if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
+        if: steps.build-test-targets.outcome == 'success'
         uses: ./src/.github/actions/upload_test_artifacts
         with:
           test_artifacts_key: ${{ inputs.test_artifacts_key }}
