@@ -21,17 +21,16 @@ namespace blink {
 
 DeeplinkEvent::DeeplinkEvent(const AtomicString& type, const String& deeplink)
     : Event(type, Bubbles::kNo, Cancelable::kNo),
-      deeplink_(deeplink)) {
-}
+      deeplink_(deeplink) {}
 
 DeeplinkEvent::~DeeplinkEvent() = default;
 
 const AtomicString& DeeplinkEvent::InterfaceName() const {
-  return event_interface_names::kHIDInputReportEvent;
+  return event_interface_names::kDeeplinkEvent;
 }
 
 void DeeplinkEvent::Trace(Visitor* visitor) const {
-  visitor->Trace(deeplink_);
+  // visitor->Trace(deeplink_);
   Event::Trace(visitor);
 }
 

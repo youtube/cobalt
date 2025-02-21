@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_runtime/h_5_vcc_runtime.h"
-
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deeplink_event.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -22,10 +22,7 @@ namespace blink {
 
 H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
-      remote_h5vcc_runtime_(window.GetExecutionContext()) {
-        // // this is test code
-        // DispatchEvent(*MakeGarbageCollected<DeeplinkEvent>(event_type_names::kInputreport, "Colin_test_ondeeplink"));
-      }
+      remote_h5vcc_runtime_(window.GetExecutionContext()) {}
 
 void H5vccRuntime::ContextDestroyed() {
   remote_h5vcc_runtime_.reset();
@@ -49,6 +46,31 @@ ScriptPromise H5vccRuntime::getInitialDeepLink(
 void H5vccRuntime::OnGetInitialDeepLink(ScriptPromiseResolver* resolver,
                                         const String& result) {
   resolver->Resolve(result);
+}
+
+EventListener* H5vccRuntime::ondeeplink() {
+  return GetAttributeEventListener(event_type_names::kDeeplink);
+}
+
+void H5vccRuntime::setOndeeplink(EventListener* listener) {
+  LOG(INFO) << "ColinL: setOndeeplink.";
+
+  SetAttributeEventListener(event_type_names::kDeeplink, listener);
+
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_runtime_->GetInitialDeepLink(
+      WTF::BindOnce(&H5vccRuntime::OnMaybeFireDeeplinkEvent, WrapPersistent(this)));
+}
+
+void H5vccRuntime::OnMaybeFireDeeplinkEvent(const String& result) {
+  if (result.empty()) {
+    LOG(INFO) << "ColinL: OnMaybeFireDeeplinkEvent: empty deeplink";
+    return;
+  }
+
+  LOG(INFO) << "ColinL: OnMaybeFireDeeplinkEvent: " << result;
+  DispatchEvent(*MakeGarbageCollected<DeeplinkEvent>(event_type_names::kDeeplink, result));
 }
 
 void H5vccRuntime::EnsureReceiverIsBound() {

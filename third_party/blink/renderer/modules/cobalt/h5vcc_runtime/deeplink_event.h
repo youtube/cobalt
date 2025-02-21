@@ -18,7 +18,7 @@
 // #include "third_party/blink/renderer/core/typed_arrays/array_buffer_view_helpers.h"
 // #include "third_party/blink/renderer/core/typed_arrays/dom_data_view.h"
 #include "third_party/blink/renderer/modules/event_modules.h"
-#include "third_party/blink/renderer/platform/heap/garbage_collected.h"
+// #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 
 namespace blink {
 
@@ -29,6 +29,7 @@ class DeeplinkEvent final : public Event {
   DeeplinkEvent(const AtomicString& type, const String& deeplink);
   ~DeeplinkEvent() override;
 
+  // String deeplink() const { return *deeplink_.Get(); }
   String deeplink() const { return deeplink_; }
 
   // Event:
@@ -36,6 +37,7 @@ class DeeplinkEvent final : public Event {
   void Trace(Visitor*) const override;
 
  private:
+  // Member<String> deeplink_; 
   String deeplink_;
 };
 

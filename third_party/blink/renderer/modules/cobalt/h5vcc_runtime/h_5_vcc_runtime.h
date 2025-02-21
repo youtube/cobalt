@@ -47,10 +47,10 @@ class MODULES_EXPORT H5vccRuntime final
 
   void ContextDestroyed() override;
 
-  DEFINE_ATTRIBUTE_EVENT_LISTENER(deeplink, kDeeplink)
-
   // Web-exposed interface:
   ScriptPromise getInitialDeepLink(ScriptState*, ExceptionState&);
+  EventListener* ondeeplink();
+  void setOndeeplink(EventListener* listener);
 
   ExecutionContext* GetExecutionContext() const override {
     return ExecutionContextLifecycleObserver::GetExecutionContext();
@@ -64,6 +64,7 @@ class MODULES_EXPORT H5vccRuntime final
 
  private:
   void OnGetInitialDeepLink(ScriptPromiseResolver*, const String&);
+  void OnMaybeFireDeeplinkEvent(const String&);
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_runtime::mojom::blink::H5vccRuntime>
       remote_h5vcc_runtime_;
