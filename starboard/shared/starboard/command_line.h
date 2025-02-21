@@ -18,13 +18,14 @@
 #include <utility>
 #include <vector>
 
+#include "starboard/export.h"
 #include "starboard/types.h"
 
 namespace starboard {
 namespace shared {
 namespace starboard {
 
-class CommandLine {
+class SB_EXPORT_ANDROID CommandLine {
  public:
   typedef std::string StringType;
 
