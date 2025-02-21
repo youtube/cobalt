@@ -64,8 +64,7 @@ double CalculateCPUUsageSeconds(const std::string& utime_string,
 
 // static
 int ProcessMetricsHelper::GetClockTicksPerS() {
-  int result = clock_ticks_per_s.load();
-  return result > 0 ? result : 100;
+  return clock_ticks_per_s.load();
 }
 
 // static
@@ -105,12 +104,15 @@ void ProcessMetricsHelper::PopulateClockTicksPerS() {
 
 // static
 TimeDelta ProcessMetricsHelper::GetCumulativeCPUUsage() {
-  return GetCPUUsage(FilePath("/proc/self"), GetClockTicksPerS());
+  int ticks_per_s = clock_ticks_per_s.load();
+  if (ticks_per_s == 0) return TimeDelta();
+  return GetCPUUsage(FilePath("/proc/self"), ticks_per_s);
 }
 
 // static
 Value ProcessMetricsHelper::GetCumulativeCPUUsagePerThread() {
-  int ticks_per_s = GetClockTicksPerS();
+  int ticks_per_s = clock_ticks_per_s.load();
+  if (ticks_per_s == 0) return Value();
   ListValue cpu_per_thread;
   FileEnumerator file_enum(FilePath("/proc/self/task"), /*recursive=*/false,
                            FileEnumerator::DIRECTORIES);
