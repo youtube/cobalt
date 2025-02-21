@@ -23,8 +23,13 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-// These tests are not applicable to AOSP
-#if SB_IS(EVERGREEN_COMPATIBLE) && !defined(ANDROID)
+#if !SB_IS(EVERGREEN_COMPATIBLE)
+#error These tests apply only to EVERGREEN_COMPATIBLE platforms.
+#endif
+
+#if defined(ANDROID)
+#error These tests are not applicable to AOSP
+#endif
 
 namespace starboard {
 namespace nplb {
@@ -35,6 +40,9 @@ namespace {
 const char kFileName[] = "fonts.xml";
 
 TEST(FontsTest, VerifySystemFontsDirectory) {
+#if !SB_IS(EVERGREEN)
+  GTEST_SKIP() << "Only full Evergreen platforms support this test.";
+#endif
   std::vector<char> system_fonts_dir(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathFontDirectory,
                               system_fonts_dir.data(), kSbFileMaxPath));
@@ -44,6 +52,9 @@ TEST(FontsTest, VerifySystemFontsDirectory) {
 }
 
 TEST(FontsTest, VerifySystemFontsConfigDirectory) {
+#if !SB_IS(EVERGREEN)
+  GTEST_SKIP() << "Only full Evergreen platforms support this test.";
+#endif
   std::vector<char> system_fonts_conf_dir(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathFontConfigurationDirectory,
                               system_fonts_conf_dir.data(), kSbFileMaxPath));
@@ -62,5 +73,3 @@ TEST(FontsTest, VerifySystemFontsConfigDirectory) {
 }  // namespace nplb_evergreen_compat_tests
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_IS(EVERGREEN_COMPATIBLE) && !defined(ANDROID)

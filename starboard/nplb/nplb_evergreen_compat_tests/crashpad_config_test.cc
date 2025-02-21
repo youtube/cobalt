@@ -23,7 +23,9 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if !SB_IS(EVERGREEN_COMPATIBLE)
+#error These tests apply only to EVERGREEN_COMPATIBLE platforms.
+#endif
 
 namespace starboard {
 namespace nplb {
@@ -41,6 +43,10 @@ class CrashpadConfigTest : public ::testing::Test {
 #if !defined(ANDROID)
 
 TEST_F(CrashpadConfigTest, VerifyUploadCert) {
+#if !SB_IS(EVERGREEN)
+  GTEST_SKIP() << "Only full Evergreen platforms support this test.";
+#endif
+
   std::vector<char> buffer(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory, buffer.data(),
                               buffer.size()));
@@ -66,5 +72,3 @@ TEST_F(CrashpadConfigTest, VerifyCrashHandlerExtension) {
 }  // namespace nplb_evergreen_compat_tests
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
