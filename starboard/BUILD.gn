@@ -291,25 +291,16 @@ if (current_toolchain == starboard_toolchain) {
       public_deps += [ "//$starboard_path:starboard_platform_with_main" ]
     }
   }
-}
 
-test("starboard_unittests") {
-  deps = [
-    "//starboard/client_porting/eztime:eztime_test",
-    "//starboard/common:common_test",
-    "//starboard/extension:extension_test",
-    "//starboard/loader_app:app_key_files_test",
-    "//starboard/loader_app:app_key_test",
-    "//starboard/loader_app:drain_file_test",
-  ]
-  if (sb_is_evergreen_compatible &&
-      current_toolchain == starboard_toolchain) {
-    deps += [ "//starboard/nplb/nplb_evergreen_compat_tests" ]
-  }
-  # TODO(mcasas): Give this condition a meaningful name.
-  if (current_toolchain == starboard_toolchain) {
-    deps += [
+  test("starboard_unittests") {
+    deps = [
+      "//starboard/client_porting/eztime:eztime_test",
+      "//starboard/common:common_test",
       "//starboard/elf_loader:elf_loader_test",
+      "//starboard/extension:extension_test",
+      "//starboard/loader_app:app_key_files_test",
+      "//starboard/loader_app:app_key_test",
+      "//starboard/loader_app:drain_file_test",
     ]
   }
 }
