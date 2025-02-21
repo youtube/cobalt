@@ -28,6 +28,8 @@
 extern "C" {
 #endif
 
+// This is not a comment.
+
 // --- Types -----------------------------------------------------------------
 
 // Types of media component streams.
