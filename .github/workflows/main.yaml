@@ -324,6 +324,7 @@ jobs:
         env:
           test_target_with_path: ${{ matrix.test_target }}
         run: echo "test_target=${test_target_with_path#*:}" >> $GITHUB_OUTPUT
+        shell: bash
       - name: Process Test Results
         id: process-results
         uses: ./src/.github/actions/process_test_results
@@ -341,7 +342,7 @@ jobs:
 
           log_files=(results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt)
           if [ ${#log_files[@]} -eq 0 ]; then
-            echo "::error::No test logs found. Check device lab logs to see what went wrong."
+            echo "::error::No test logs found. Check device logs (if available) to see what went wrong."
             exit 1
           fi
 
@@ -352,6 +353,22 @@ jobs:
           if [ "${{ steps.process-results.outcome }}" != "success" ]; then
             echo "Tests failed"
             exit 1
+          fi
+        shell: bash
+      - name: Print ${{ matrix.test_target }} Device Logs
+        if: always()
+        run: |
+          set -x
+          # Enable globstar shell option for globstar paths e.g. /**/*.xml and
+          # nullopt to returns empty string if the glob matches no files.
+          shopt -s globstar nullglob
+
+          # Check for Android device logs.
+          log_files=(results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt)
+          if [ ${#log_files[@]} -gt 0 ]; then
+            for log_file in ${log_files[@]}; do
+              cat ${log_file}
+            done
           fi
         shell: bash
 
