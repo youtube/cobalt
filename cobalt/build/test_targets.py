@@ -24,38 +24,6 @@ from typing import Dict, List, Set, Tuple
 
 import networkx as nx
 
-# The two nodes are adjacent in a path that contains many unrelated components.
-# Targets in these paths must share an additional path segment to be considered
-# related and subject for test target considerations.
-_UNRELATED_TARGETS_PATHS = {'components', 'third_party', 'ui'}
-
-# Exclude some paths and targets that either are not relevant or don't support
-# test sharding.
-_EXCLUDE_TESTS = {
-    '//android_webview',
-    '//base:base_i18n_perftests',
-    '//build/rust',
-    '//chrome',
-    '//components/paint_preview',
-    '//components/services/paint_preview_compositor',
-    '//components/ukm',
-    '//ipc:ipc_perftests',
-    '//media/cast',
-    '//mojo/core:mojo_core_unittests',
-    '//mojo/core:mojo_perftests',
-    '//net:net_perftests',
-    '//pdf',
-    '//testing/libfuzzer/tests:libfuzzer_tests',
-    '//third_party/angle',
-    '//third_party/dawn',
-    '//third_party/pdfium',
-    '//third_party/libaddressinput',
-    '//third_party/libphonenumber',
-    '//third_party/swiftshader',
-    '//ui/shell_dialogs',
-    '//weblayer',
-}
-
 # Limit results to the allowlist for now. Once test infra can run more
 # we'll extend or remove this list.
 _ALLOWLIST = {
@@ -85,6 +53,38 @@ _ALLOWLIST = {
     '//url:url_unittests',
 }
 
+# Exclude some paths and targets that either are not relevant or don't support
+# test sharding.
+_EXCLUDE_TESTS = {
+    '//android_webview',
+    '//base:base_i18n_perftests',
+    '//build/rust',
+    '//chrome',
+    '//components/paint_preview',
+    '//components/services/paint_preview_compositor',
+    '//components/ukm',
+    '//ipc:ipc_perftests',
+    '//media/cast',
+    '//mojo/core:mojo_core_unittests',
+    '//mojo/core:mojo_perftests',
+    '//net:net_perftests',
+    '//pdf',
+    '//testing/libfuzzer/tests:libfuzzer_tests',
+    '//third_party/angle',
+    '//third_party/dawn',
+    '//third_party/pdfium',
+    '//third_party/libaddressinput',
+    '//third_party/libphonenumber',
+    '//third_party/swiftshader',
+    '//ui/shell_dialogs',
+    '//weblayer',
+}
+
+# The two nodes are adjacent in a path that contains many unrelated components.
+# Targets in these paths must share an additional path segment to be considered
+# related and subject for test target considerations.
+_UNRELATED_TARGETS_PATHS = {'components', 'third_party', 'ui'}
+
 
 def _are_related(node1, node2) -> bool:
   """Two targets are considered related if the share at least one path segment
@@ -98,7 +98,7 @@ def _are_related(node1, node2) -> bool:
   if len(common) == 2:
     # Only the initial // matches.
     return False
-  # If the length is 3 the two targets must not be in one of the unrelated path.
+  # At least one path segment matches.
   return len(common) > 3 or common[2] not in _UNRELATED_TARGETS_PATHS
 
 
@@ -106,8 +106,7 @@ def _is_test_target(g, node) -> bool:
   if not any(node == target for target in _ALLOWLIST):
     return False
 
-  if not any(
-      node.startswith(target_prefix) for target_prefix in _EXCLUDE_TESTS):
+  if not any(node.startswith(path_prefix) for path_prefix in _EXCLUDE_TESTS):
     # Test targets get a runner target added to its deps. On linux the name of
     # this target is ${target_name}__runner, on android it's
     # ${target_name}__test_runner_script.
