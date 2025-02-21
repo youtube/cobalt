@@ -16,6 +16,7 @@
 
 #include <pthread.h>
 
+#include "starboard/common/log.h"
 #include "starboard/shared/modular/starboard_layer_posix_errno_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 #include "starboard/shared/pthread/is_success.h"
@@ -357,6 +358,7 @@ int __abi_wrap_pthread_key_create(musl_pthread_key_t* key,
     return errno_to_musl_errno(ret);
   }
   *key = private_key;
+  SB_LOG_STREAM(INFO) << "Created key value" << key;
   return 0;
 }
 
@@ -375,7 +377,7 @@ void* __abi_wrap_pthread_getspecific(musl_pthread_key_t key) {
   if (!key) {
     return NULL;
   }
-
+  SB_LOG_STREAM(INFO) << "key value" << key;
   return pthread_getspecific(
       reinterpret_cast<PosixThreadLocalKeyPrivate*>(key)->key);
 }

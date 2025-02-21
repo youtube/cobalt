@@ -30,7 +30,6 @@ config("sabi") {
                           rebase_path(sabi_path, root_build_dir),
                         ],
                         "trim string")
-
   defines = [
     "SB_SABI_JSON_ID=R\"($sabi_id)\"",
     "SB_API_VERSION=$sb_api_version",

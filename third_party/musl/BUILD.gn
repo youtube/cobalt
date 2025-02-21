@@ -24,6 +24,7 @@ if (target_cpu == "x64") {
 
 config("external_settings") {
   include_dirs = [
+    "include",
     "arch/$musl_arch",
     "arch/generic",
   ]
@@ -32,6 +33,8 @@ config("external_settings") {
 group("c") {
   public_configs = [ ":external_settings" ]
   deps = [ ":c_internal" ]
+
+  all_dependent_configs = ["//starboard/build/config/modular/x64"]
 }
 
 static_library("c_internal") {
