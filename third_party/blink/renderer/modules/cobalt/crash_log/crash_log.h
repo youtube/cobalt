@@ -46,6 +46,7 @@ class MODULES_EXPORT CrashLog final : public ScriptWrappable,
                           const String& key,
                           const String& value,
                           ExceptionState&);
+  void triggerCrash();
 
   void Trace(Visitor*) const override;
 
