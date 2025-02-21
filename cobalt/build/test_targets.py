@@ -56,6 +56,35 @@ _EXCLUDE_TESTS = {
     '//weblayer',
 }
 
+# Limit results to the allowlist for now. Once test infra can run more
+# we'll extend or remove this list.
+_ALLOWLIST = {
+    '//base:base_perftests',
+    '//base:base_unittests',
+    '//cobalt/renderer:renderer_browsertests',
+    '//cobalt:cobalt_unittests',
+    '//gpu/gles2_conform_support:gles2_conform_test',
+    '//mojo:mojo_perftests',
+    '//mojo:mojo_unittests',
+    '//net:net_unittests',
+    '//skia:skia_unittests',
+    '//starboard/nplb:nplb',
+    '//third_party/blink/renderer/platform/heap:blink_heap_perftests',
+    '//third_party/blink/renderer/platform/heap:blink_heap_unittests',
+    '//third_party/blink/renderer/platform/wtf:wtf_unittests',
+    '//third_party/blink/renderer/platform:blink_fuzzer_unittests',
+    '//third_party/blink/renderer/platform:blink_platform_nocompile_tests',
+    '//third_party/blink/renderer/platform:blink_platform_perftests',
+    '//third_party/blink/renderer/platform:blink_platform_unittests',
+    '//third_party/boringssl:boringssl_crypto_tests',
+    '//third_party/boringssl:boringssl_ssl_tests',
+    '//third_party/perfetto:perfetto_unittests',
+    '//third_party/perfetto:trace_processor_minimal_smoke_tests',
+    '//third_party/zlib:zlib_unittests',
+    '//url:url_perftests',
+    '//url:url_unittests',
+}
+
 
 def _are_related(node1, node2) -> bool:
   """Two targets are considered related if the share at least one path segment
@@ -74,6 +103,9 @@ def _are_related(node1, node2) -> bool:
 
 
 def _is_test_target(g, node) -> bool:
+  if not any(node == target for target in _ALLOWLIST):
+    return False
+
   if not any(
       node.startswith(target_prefix) for target_prefix in _EXCLUDE_TESTS):
     # Test targets get a runner target added to its deps. On linux the name of
