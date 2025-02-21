@@ -53,6 +53,10 @@ void CrashLog::OnSetString(ScriptPromiseResolver* resolver, bool result) {
   resolver->Resolve(result);
 }
 
+void CrashLog::triggerCrash() {
+  CHECK(false) << "Intentionally triggered crash";
+}
+
 void CrashLog::EnsureReceiverIsBound() {
   DCHECK(GetExecutionContext());
 
