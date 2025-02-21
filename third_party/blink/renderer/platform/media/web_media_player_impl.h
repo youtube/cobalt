@@ -59,10 +59,6 @@
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "url/gurl.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/starboard/starboard_renderer.h"
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace base {
 class SingleThreadTaskRunner;
 class TaskRunner;
@@ -257,10 +253,6 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
   void SetContentDecryptionModule(
       WebContentDecryptionModule* cdm,
       WebContentDecryptionModuleResult result) override;
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-  SetBoundsCB GetSetBoundsCB() override;
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   void EnteredFullscreen() override;
   void ExitedFullscreen() override;

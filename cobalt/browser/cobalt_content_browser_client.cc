@@ -17,14 +17,17 @@
 #include <string>
 
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
+#include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
+#include "content/public/browser/browser_thread.h"
+#include "content/public/browser/render_process_host.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/common/user_agent.h"
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "content/shell/browser/shell_browser_main_parts.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
-
-#include "base/logging.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
@@ -100,37 +103,51 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
-CobaltContentBrowserClient::CobaltContentBrowserClient() = default;
+CobaltContentBrowserClient::CobaltContentBrowserClient() {
+  DETACH_FROM_THREAD(thread_checker_);
+}
 
 CobaltContentBrowserClient::~CobaltContentBrowserClient() = default;
+
+void CobaltContentBrowserClient::RenderProcessWillLaunch(
+    content::RenderProcessHost* host) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  single_render_process_observer_.UpdateRenderProcessHost(host);
+}
 
 std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
 }
 
 std::string CobaltContentBrowserClient::GetUserAgent() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return GetCobaltUserAgent();
 }
 
 std::string CobaltContentBrowserClient::GetFullUserAgent() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return GetCobaltUserAgent();
 }
 
 std::string CobaltContentBrowserClient::GetReducedUserAgent() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return GetCobaltUserAgent();
 }
 
 blink::UserAgentMetadata CobaltContentBrowserClient::GetUserAgentMetadata() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return GetCobaltUserAgentMetadata();
 }
 
 void CobaltContentBrowserClient::OverrideWebkitPrefs(
     content::WebContents* web_contents,
     blink::web_pref::WebPreferences* prefs) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if !defined(COBALT_IS_RELEASE_BUILD)
   // Allow creating a ws: connection on a https: page to allow current
   // testing set up. See b/377410179.
@@ -138,16 +155,34 @@ void CobaltContentBrowserClient::OverrideWebkitPrefs(
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
   content::ShellContentBrowserClient::OverrideWebkitPrefs(web_contents, prefs);
 }
+
 void CobaltContentBrowserClient::OnWebContentsCreated(
     content::WebContents* web_contents) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
 }
+
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     content::RenderFrameHost* render_frame_host,
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   PopulateCobaltFrameBinders(render_frame_host, map);
   ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
+}
+
+void CobaltContentBrowserClient::BindGpuHostReceiver(
+    mojo::GenericPendingReceiver receiver) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (auto r = receiver.As<media::mojom::VideoGeometrySetter>()) {
+    const auto renderer_process_id =
+        single_render_process_observer_.renderer_id();
+    content::RenderProcessHost* host =
+        content::RenderProcessHost::FromID(renderer_process_id);
+    if (host) {
+      host->BindReceiver(std::move(r));
+    }
+  }
 }
 
 }  // namespace cobalt
