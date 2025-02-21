@@ -109,10 +109,12 @@
 #ifndef OPENSSL_HEADER_CRYPTO_INTERNAL_H
 #define OPENSSL_HEADER_CRYPTO_INTERNAL_H
 
+#if defined(IS_COBALT_HERMETIC_BUILD)
 #include "build/build_config.h" 
+#endif
 #include <openssl/crypto.h>
 #include <openssl/ex_data.h>
-#if defined(IS_COBALT_HERMETIC_BUILD)
+#if (BUILDFLAG(ENABLE_COBALT_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
 #include <openssl/mem.h>
 #endif
 #include <openssl/stack.h>
@@ -121,9 +123,7 @@
 #include <assert.h>
 #include <string.h>
 
-#if BUILDFLAG(ENABLE_COBALT_HACKS)
-#include <pthread.h>
-
+#if (BUILDFLAG(ENABLE_COBALT_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
 #include "starboard/atomic.h"
 #include "starboard/thread.h" // nogncheck
 #endif
@@ -157,7 +157,7 @@
 #endif
 #endif
 
-#if !defined(IS_COBALT_HERMETIC_BUILD)
+#if !(BUILDFLAG(ENABLE_COBALT_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
 #if defined(OPENSSL_THREADS) && \
     (!defined(OPENSSL_WINDOWS) || defined(__MINGW32__))
 #include <pthread.h>
@@ -182,9 +182,6 @@ extern "C" {
     defined(OPENSSL_AARCH64)
 // OPENSSL_cpuid_setup initializes the platform-specific feature cache.
 void OPENSSL_cpuid_setup(void);
-#if defined(IS_COBALT_HERMETIC_BUILD)
-void OPENSSL_cpuid_setup_starboard(void);
-#endif
 #endif
 
 #if (defined(OPENSSL_ARM) || defined(OPENSSL_AARCH64)) && \
@@ -532,7 +529,7 @@ static inline int constant_time_declassify_int(int v) {
 
 // Thread-safe initialisation.
 
-#if defined(IS_COBALT_HERMETIC_BUILD)
+#if (BUILDFLAG(ENABLE_COBALT_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
 typedef pthread_once_t CRYPTO_once_t;
 #define CRYPTO_ONCE_INIT PTHREAD_ONCE_INIT
 #elif !defined(OPENSSL_THREADS)
@@ -555,7 +552,7 @@ typedef pthread_once_t CRYPTO_once_t;
 //
 // The |once| argument must be a |CRYPTO_once_t| that has been initialised with
 // the value |CRYPTO_ONCE_INIT|.
-#if defined(IS_COBALT_HERMETIC_BUILD)
+#if (BUILDFLAG(ENABLE_COBALT_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
 #define CRYPTO_once pthread_once 
 #else
 OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void));
@@ -566,14 +563,16 @@ OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void));
 
 // Automatically enable C11 atomics if implemented.
 #if !defined(OPENSSL_C11_ATOMIC) && defined(OPENSSL_THREADS) &&   \
-    !defined(IS_COBALT_HERMETIC_BUILD) && \
     !defined(__STDC_NO_ATOMICS__) && defined(__STDC_VERSION__) && \
     __STDC_VERSION__ >= 201112L
+#if !(BUILDFLAG(ENABLE_COBALT_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
 #define OPENSSL_C11_ATOMIC
+#endif
 #endif
 
 // CRYPTO_REFCOUNT_MAX is the value at which the reference count saturates.
 #if defined(IS_COBALT_HERMETIC_BUILD)
+// TODO: b/398292397 - Cobalt: Investigate if this is really needed and add a comment explaining why.
 #define CRYPTO_REFCOUNT_MAX 0x7fffffff
 #else
 #define CRYPTO_REFCOUNT_MAX 0xffffffff
@@ -607,7 +606,7 @@ OPENSSL_EXPORT int CRYPTO_refcount_dec_and_test_zero(CRYPTO_refcount_t *count);
 // thread.h as a structure large enough to fit the real type. The global lock is
 // a different type so it may be initialized with platform initializer macros.
 
-#if BUILDFLAG(ENABLE_COBALT_HACKS)
+#if (BUILDFLAG(ENABLE_COBALT_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
 struct CRYPTO_STATIC_MUTEX {
   SbAtomic32 initialized;
   CRYPTO_MUTEX mutex;
@@ -628,7 +627,7 @@ struct CRYPTO_STATIC_MUTEX {
   pthread_rwlock_t lock;
 };
 
-#if BUILDFLAG(ENABLE_COBALT_HACKS) && !defined(PTHREAD_RWLOCK_INITIALIZER)
+#if (BUILDFLAG(ENABLE_COBALT_HACKS) && defined(IS_COBALT_HERMETIC_BUILD)) && !defined(PTHREAD_RWLOCK_INITIALIZER)
 #define PTHREAD_RWLOCK_INITIALIZER {{{1, 0}}}
 #endif
 
