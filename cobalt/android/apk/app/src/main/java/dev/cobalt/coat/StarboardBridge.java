@@ -751,7 +751,6 @@ public enum StarboardBridge {
   }
 
   public void setCrashContext(String key, String value) {
-    Log.i(TAG, "StarboardBridge received crash context key=%s value=%s", key, value);
     crashContext.put(key, value);
     if (this.crashContextUpdateHandler != null) {
       this.crashContextUpdateHandler.onCrashContextUpdate();
