@@ -19,6 +19,7 @@
 
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/crash_handler.h"
+#include "starboard/nplb/nplb_evergreen_compat_tests/checks.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -54,6 +55,12 @@ TEST_F(CrashpadConfigTest, VerifyUploadCert) {
 }
 
 #endif  // !defined(ANDROID)
+
+TEST_F(CrashpadConfigTest, VerifyCrashHandlerExtension) {
+  auto crash_handler_extension =
+      SbSystemGetExtension(kCobaltExtensionCrashHandlerName);
+  ASSERT_TRUE(crash_handler_extension != nullptr);
+}
 
 }  // namespace
 }  // namespace nplb_evergreen_compat_tests
