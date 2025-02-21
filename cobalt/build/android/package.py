@@ -27,7 +27,7 @@ def lay_out(out_dir, base_dir):
       'libnplb__library.so',
       'libstarboard_jni_state.so',
       'libtest_trace_processor.so',
-      'lib.unstripped/libcontent_shell_content_view.so',
+      'lib.unstripped/libcobalt_content_shell_content_view.so',
       'obj/cobalt/android/cobalt_java_resources.resources.zip',
       'obj/components/metrics/metrics_java.javac.jar',
       'obj/content/shell/android/content_shell_java_resources.resources.zip',
