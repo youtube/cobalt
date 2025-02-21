@@ -260,7 +260,7 @@ jobs:
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
-    if: always() && needs.initialize.outputs.test_on_host == 'true'
+    if: needs.initialize.outputs.test_on_host == 'true'
     permissions: {}
     # TODO(b/372303096): Should have dedicated runner?
     runs-on: [self-hosted, chrobalt-linux-runner]
