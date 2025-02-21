@@ -217,6 +217,7 @@ jobs:
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host == 'true' }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
     outputs:
+      test_targets_count: ${{ steps.build.outputs.test_targets_count }}
       test_targets_json: ${{ steps.build.outputs.test_targets_json }}
       test_targets_json_file: ${{ steps.build.outputs.test_targets_json_file }}
 
@@ -224,7 +225,7 @@ jobs:
     needs: [initialize, build]
     # Run ODT when on_device label is applied on PR.
     # Also, run ODT on push and schedule if not explicitly disabled via repo vars.
-    if: needs.initialize.outputs.test_on_device == 'true' &&
+    if: fromJson(needs.build.outputs.test_targets_count) > 0 &&
         (
           (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'on_device')) ||
           ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
@@ -260,7 +261,7 @@ jobs:
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
-    if: needs.initialize.outputs.test_on_host == 'true'
+    if: fromJson(needs.build.outputs.test_targets_count) > 0
     permissions: {}
     # TODO(b/372303096): Should have dedicated runner?
     runs-on: [self-hosted, chrobalt-linux-runner]
@@ -283,20 +284,20 @@ jobs:
         with:
           path: src
       - name: Run On-Host Tests
+        if: ${{ fromJson(needs.build.outputs.test_targets_count) > 0 }}
         id: on-host-tests
         uses: ./src/.github/actions/on_host_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
+      - name: No test targets affected.
+        if: ${{ fromJson(needs.build.outputs.test_targets_count) == 0 }}
+        run: echo "Skipping tests"
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
-    if: always() &&
-        (
-          needs.on-device-test.result != 'skipped' ||
-          needs.on-host-test.result != 'skipped'
-        )
+    if: always()
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_target }}
@@ -374,7 +375,7 @@ jobs:
 
   validate-test-result:
     needs: [initialize, test-results]
-    if: always() && needs.test-results.result != 'skipped'
+    if: always()
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.name }}_tests_passing

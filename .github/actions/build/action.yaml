@@ -108,6 +108,9 @@ runs:
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
           test_targets_json_file: '${{ steps.calculate-test-targets.outputs.test_targets_json_file }}'
 outputs:
+  test_targets_count:
+    description: The number of test targets build.
+    value: ${{ steps.calculate-test-targets.outputs.test_targets_count }}
   test_targets_json:
     description: The test targets in a JSON array.
     value: ${{ steps.calculate-test-targets.outputs.test_targets_json }}
