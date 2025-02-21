@@ -16,7 +16,6 @@
 #include <set>
 #include <string>
 
-#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/nplb/nplb_evergreen_compat_tests/checks.h"
 #include "testing/gtest/include/gtest/gtest.h"
