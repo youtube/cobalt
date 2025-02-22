@@ -52,6 +52,17 @@ repos:
         types: [c++]
         args: [-i, -style=file]
         additional_dependencies: ['clang-format==17.0.1']
+    -   id: cpplint
+        name: cpplint
+        entry: cpplint
+        language: system
+        types: [c++]
+        args: [--verbose=4, --quiet]
+        exclude: |
+            (?x)(
+                ^cobalt/bindings/(templates|generated)/|
+                ^starboard/shared/uikit/.*\.h$
+            )
     -   id: yapf
         name: yapf
         entry: yapf
