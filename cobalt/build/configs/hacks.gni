@@ -15,5 +15,5 @@
 declare_args() {
   # Allows for the explicit tracking of changes that should be addressed in a
   # timely fashion. Should not be used for most permanent or long-term changes.
-  enable_cobalt_hacks = is_cobalt
+  enable_cobalt_linux_hacks = is_cobalt && is_starboard
 }
