@@ -273,7 +273,10 @@ void StackTrace::Print() const {
 }
 
 void StackTrace::OutputToStream(std::ostream* os) const {
+// TODO: (cobalt b/398296821) Use stack_trace_starboard.cc or port stack_trace_posix.cc.
+#if !defined(IS_COBALT_HERMETIC_BUILD)
   OutputToStreamWithPrefix(os, nullptr);
+#endif
 }
 
 std::string StackTrace::ToString() const {

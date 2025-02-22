@@ -54,12 +54,12 @@
 #endif
 
 #if BUILDFLAG(IS_POSIX)
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !defined(IS_COBALT_HERMETIC_BUILD)
 // We need PKEY_DISABLE_WRITE in this file; glibc defines it in sys/mman.h but
 // it's actually Linux-specific and other Linux libcs define it in linux/mman.h.
 // We have to include both to be sure we get the definition.
 #include <linux/mman.h>
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) && !defined(IS_COBALT_HERMETIC_BUILD)
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/time.h>
