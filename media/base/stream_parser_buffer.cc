@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "base/check_op.h"
+#include "base/logging.h"
 #include "base/memory/ptr_util.h"
 #include "media/base/timestamp_constants.h"
 
@@ -101,7 +102,13 @@ StreamParserBuffer::StreamParserBuffer(const uint8_t* data,
     set_is_key_frame(true);
 }
 
-StreamParserBuffer::~StreamParserBuffer() = default;
+StreamParserBuffer::~StreamParserBuffer() {
+  if (end_of_stream()) {
+    LOG(INFO) << "StreamParserBuffer dtor " << " type:" << type() << " end_of_stream";
+  } else {
+    LOG(INFO) << "StreamParserBuffer dtor " << static_cast<const void*>(data()) << " type:" << type() << " timestamp:" << timestamp().InMicroseconds();
+  }
+}
 
 int StreamParserBuffer::GetConfigId() const {
   return config_id_;

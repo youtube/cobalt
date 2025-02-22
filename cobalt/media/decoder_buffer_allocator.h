@@ -37,6 +37,8 @@ class DecoderBufferAllocator : public ::media::DecoderBuffer::Allocator,
   DecoderBufferAllocator();
   ~DecoderBufferAllocator() override;
 
+  static bool AllocationLogEnabled();
+
   void Suspend();
   void Resume();
 
