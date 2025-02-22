@@ -26,6 +26,7 @@ import networkx as nx
 
 # Limit results to the allowlist for now. Once test infra can run more
 # we'll extend or remove this list.
+# TODO: Move this list to a GN target under //cobalt.
 _ALLOWLIST = {
     '//base:base_perftests',
     '//base:base_unittests',
@@ -169,6 +170,7 @@ def get_test_targets_from_sources(
   # of a collection of source_sets.
   all_source_sets = {n for n in g.nodes if g.nodes[n]['type'] == 'source_set'}
 
+  # Create a subgraph of nodes in the GN graph we care about.
   root_g = g.subgraph({root_target} | root_target_descendants
                       | all_test_targets | all_test_targets_libs
                       | all_source_sets)
