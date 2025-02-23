@@ -28,6 +28,46 @@
 #include "starboard/testing/fake_graphics_context_provider.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#include <windows.h>
+
+#include <dxgi1_6.h>
+
+void checkGPUMemory() {
+  IDXGIFactory6* dxgiFactory = nullptr;
+  HRESULT hr = CreateDXGIFactory1(IID_PPV_ARGS(&dxgiFactory));
+
+  if (FAILED(hr)) {
+    SB_LOG(INFO) << "GOOGAMCONS-95: Error: Failed to create DXGI Factory!";
+    return;
+  }
+
+  // Retrieve GPU adapter
+  IDXGIAdapter3* adapter = nullptr;
+  hr = dxgiFactory->EnumAdapters(0, reinterpret_cast<IDXGIAdapter**>(&adapter));
+
+  if (FAILED(hr)) {
+    SB_LOG(INFO) << "GOOGAMCONS-95: Error: Failed to get GPU adapter!";
+    return;
+  }
+
+  // Query video memory usage
+  DXGI_QUERY_VIDEO_MEMORY_INFO memoryInfo = {};
+  hr = adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL,
+                                     &memoryInfo);
+
+  if (FAILED(hr)) {
+    SB_LOG(INFO) << "GOOGAMCONS-95: Error: Failed to query GPU memory info!";
+    return;
+  }
+
+  // Print current GPU memory usage in MB
+  SB_LOG(INFO) << "GOOGAMCONS-95: Current GPU memory usage: "
+               << memoryInfo.CurrentUsage / (1024 * 1024) << " MB";
+
+  adapter->Release();
+  dxgiFactory->Release();
+}
+
 namespace starboard {
 namespace nplb {
 namespace {
@@ -428,6 +468,9 @@ TEST_F(SbPlayerTest, MultiPlayer) {
           }
 
           ClearPlayerStateAndError();
+
+          checkGPUMemory();
+          SB_LOG(INFO) << "GOOGAMCONS-95: num of players: " << created_players.size() << ".";
         }
       }
     }
