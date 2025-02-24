@@ -56,6 +56,9 @@ if (!is_android) {
       "//sandbox",
       "//starboard:starboard_group",
       "//third_party/blink/public/common",
+      "//chrome/common:non_code_constants",
+      # For the ozone command-line switches.
+      "//ui/ozone:ozone"
     ]
 
     data_deps = [
