@@ -129,8 +129,6 @@ class CommandLinePreprocessor {
         cmd_line_.AppendSwitchNative(switch_key, switch_val);
       }
     }
-
-    // Sanity checks for various graphics configurations.
   }
 
   const base::CommandLine::StringVector& argv() const {
