@@ -50,4 +50,8 @@ void H5vccRuntimeImpl::GetInitialDeepLink(GetInitialDeepLinkCallback callback) {
   std::move(callback).Run(start_deep_link);
 }
 
+void H5vccRuntimeImpl::SetDeepLinkConsumed(const std::string& deeplink) {
+
+}
+
 }  // namespace h5vcc_runtime

@@ -1,0 +1,2 @@
+per-file *.mojom=set noparent
+per-file *.mojom=cobalt-team@google.com

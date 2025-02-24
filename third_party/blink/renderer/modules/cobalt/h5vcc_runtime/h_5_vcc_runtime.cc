@@ -49,18 +49,7 @@ void H5vccRuntime::OnGetInitialDeepLink(ScriptPromiseResolver* resolver,
 }
 
 EventListener* H5vccRuntime::ondeeplink() {
-  
-  EventListener* listener = GetAttributeEventListener(event_type_names::kDeeplink);
-  if (listener == NULL) {
-    // Do nothing
-    LOG(INFO) << "ColinL: ondeeplink. onDeeplink listener is not registered";
-    return NULL;
-  } else {
-    // TODO: Add logic to call mojom for the deeplink is consumed.
-    LOG(INFO) << "ColinL: ondeeplink. onDeeplink listener is registered, call consumed deeplink";
-    // Then return
-    return listener;
-  }
+  return GetAttributeEventListener(event_type_names::kDeeplink);
 }
 
 void H5vccRuntime::setOndeeplink(EventListener* listener) {
@@ -102,6 +91,24 @@ void H5vccRuntime::Trace(Visitor* visitor) const {
   ExecutionContextLifecycleObserver::Trace(visitor);
   EventTargetWithInlineData::Trace(visitor);
   visitor->Trace(remote_h5vcc_runtime_);
+}
+
+// Mojom interface implementation.
+void H5vccRuntime::OnDeeplink(const std::string& deeplink) {
+  EventListener* listener = GetAttributeEventListener(event_type_names::kDeeplink);
+  if (listener == NULL) {
+    // Do nothing
+    LOG(INFO) << "ColinL: ondeeplink. onDeeplink listener is not registered";
+  } else {
+    LOG(INFO) << "ColinL: ondeeplink. onDeeplink listener is registered, call consumed deeplink";
+
+    String wtf_deeplink = String::FromUTF8(deeplink);
+
+    DispatchEvent(*MakeGarbageCollected<DeeplinkEvent>(event_type_names::kDeeplink, wtf_deeplink));
+    // TODO: Add logic to call mojom for the deeplink is consumed.
+    EnsureReceiverIsBound();
+    remote_h5vcc_runtime_->SetDeepLinkConsumed(wtf_deeplink);
+  }
 }
 
 }  // namespace blink

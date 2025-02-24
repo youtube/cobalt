@@ -28,6 +28,8 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
+#include "third_party/blink/public/mojom/cobalt/deeplink/deeplink.mojom.h"
+
 namespace blink {
 
 class ExecutionContext;
@@ -39,7 +41,8 @@ class MODULES_EXPORT H5vccRuntime final
     // TODO: EventTargetWithInlineData should be replaced with EventTarget in the future
     // see https://chromium-review.googlesource.com/c/chromium/src/+/4621887
     : public EventTargetWithInlineData,
-      public ExecutionContextLifecycleObserver {
+      public ExecutionContextLifecycleObserver,
+      public cobalt::mojom::Deeplink {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -51,6 +54,9 @@ class MODULES_EXPORT H5vccRuntime final
   ScriptPromise getInitialDeepLink(ScriptState*, ExceptionState&);
   EventListener* ondeeplink();
   void setOndeeplink(EventListener* listener);
+
+  // Mojom interface:
+  void OnDeeplink(const std::string& deeplink) override;
 
   ExecutionContext* GetExecutionContext() const override {
     return ExecutionContextLifecycleObserver::GetExecutionContext();

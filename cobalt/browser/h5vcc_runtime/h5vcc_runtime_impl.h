@@ -42,6 +42,8 @@ class H5vccRuntimeImpl : public content::DocumentService<mojom::H5vccRuntime> {
 
   void GetInitialDeepLink(GetInitialDeepLinkCallback) override;
 
+  void SetDeepLinkConsumed(const std::string&) override;
+
  private:
   H5vccRuntimeImpl(content::RenderFrameHost& render_frame_host,
                    mojo::PendingReceiver<mojom::H5vccRuntime> receiver);
