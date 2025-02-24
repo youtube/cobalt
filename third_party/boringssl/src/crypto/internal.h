@@ -122,7 +122,6 @@
 #include <string.h>
 
 #if (BUILDFLAG(ENABLE_COBALT_LINUX_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
-#include "starboard/atomic.h"
 #include "starboard/thread.h" // nogncheck
 #endif
 
@@ -606,7 +605,6 @@ OPENSSL_EXPORT int CRYPTO_refcount_dec_and_test_zero(CRYPTO_refcount_t *count);
 
 #if (BUILDFLAG(ENABLE_COBALT_LINUX_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
 struct CRYPTO_STATIC_MUTEX {
-  SbAtomic32 initialized;
   CRYPTO_MUTEX mutex;
 };
 #define CRYPTO_STATIC_MUTEX_INIT { 0 }
