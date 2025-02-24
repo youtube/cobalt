@@ -14,17 +14,11 @@
 
 import("//third_party/blink/renderer/modules/modules.gni")
 
-blink_modules_sources("h_5_vcc") {
+blink_modules_sources("memory_info") {
   sources = [
-    "h_5_vcc.cc",
-    "h_5_vcc.h",
+    "media_source_memory_info.cc",
+    "media_source_memory_info.h",
   ]
-  deps = [
-    "//third_party/blink/renderer/modules/cobalt/crash_log",
-    "//third_party/blink/renderer/modules/cobalt/encryptedmedia",
-    "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
-    "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
-    "//third_party/blink/renderer/modules/cobalt/mediasource",
-    "//third_party/blink/renderer/modules/cobalt/memory_info",
-  ]
+
+  deps = [ "//media" ]
 }
