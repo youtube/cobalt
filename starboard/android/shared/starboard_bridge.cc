@@ -100,6 +100,14 @@ JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 }
 
+extern "C" SB_EXPORT_PLATFORM void
+JNI_StarboardBridge_HandleDeepLink(JNIEnv* env, const JavaParamRef<jstring>& jurl) {
+  // TODO
+  const std::string& url = base::android::ConvertJavaStringToUTF8(env, jurl);
+  LOG(INFO) << "ColinL: JNI_StarboardBridge_HandleDeepLink url = " << url;
+}
+
+
 // StarboardBridge::GetInstance() should not be inlined in the
 // header. This makes sure that when source files from multiple targets include
 // this header they don't end up with different copies of the inlined code

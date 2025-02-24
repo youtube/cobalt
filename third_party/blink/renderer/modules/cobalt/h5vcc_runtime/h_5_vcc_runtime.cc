@@ -49,8 +49,18 @@ void H5vccRuntime::OnGetInitialDeepLink(ScriptPromiseResolver* resolver,
 }
 
 EventListener* H5vccRuntime::ondeeplink() {
-  LOG(INFO) << "ColinL: ondeeplink.";
-  return GetAttributeEventListener(event_type_names::kDeeplink);
+  
+  EventListener* listener = GetAttributeEventListener(event_type_names::kDeeplink);
+  if (listener == NULL) {
+    // Do nothing
+    LOG(INFO) << "ColinL: ondeeplink. onDeeplink listener is not registered";
+    return NULL;
+  } else {
+    // TODO: Add logic to call mojom for the deeplink is consumed.
+    LOG(INFO) << "ColinL: ondeeplink. onDeeplink listener is registered, call consumed deeplink";
+    // Then return
+    return listener;
+  }
 }
 
 void H5vccRuntime::setOndeeplink(EventListener* listener) {

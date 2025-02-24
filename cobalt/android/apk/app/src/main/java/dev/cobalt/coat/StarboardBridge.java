@@ -149,6 +149,8 @@ public class StarboardBridge {
     // boolean initJNI();
 
     // void closeNativeStarboard(long nativeApp);
+
+    void handleDeepLink(String url);
   }
 
   protected void onActivityStart(Activity activity) {
@@ -327,16 +329,12 @@ public class StarboardBridge {
   /** Sends an event to the web app to navigate to the given URL */
   public void handleDeepLink(String url) {
     if (applicationReady) {
-      nativeHandleDeepLink(url);
+      StarboardBridgeJni.get().handleDeepLink(url);
     } else {
       // If this deep link event is received before the starboard application
       // is ready, it replaces the start deep link.
       startDeepLink = url;
     }
-  }
-
-  private void nativeHandleDeepLink(String url) {
-    // TODO(b/374147993): Implement deep link
   }
 
   /**
