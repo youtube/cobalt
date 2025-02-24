@@ -3674,7 +3674,6 @@ test("base_unittests") {
       "debug/proc_maps_linux_unittest.cc",
       "debug/stack_trace_unittest.cc",
       "files/file_util_unittest.cc",
-      "files/scoped_file_linux_unittest.cc",
       "immediate_crash_unittest.cc",
       "memory/platform_shared_memory_region_unittest.cc",
       "metrics/field_trial_unittest.cc",
@@ -3734,8 +3733,6 @@ test("base_unittests") {
     ]
     if (is_starboard) {
       sources -= [
-        "message_loop/fd_watch_controller_posix_unittest.cc",
-        "files/file_descriptor_watcher_posix_unittest.cc",
         "posix/unix_domain_socket_unittest.cc",
       ]
     }
