@@ -375,6 +375,11 @@ jobs:
       - name: Symbolized crash dumps
         if: always() && startsWith(matrix.platform, 'android') && steps.process-results.outcome != 'success'
         run: |
+          set -x
+          # Enable globstar shell option for globstar paths e.g. /**/*.xml and
+          # nullopt to returns empty string if the glob matches no files.
+          shopt -s globstar nullglob
+
           log_files=(results/**/${{ steps.extract-target-name.outputs.test_target }}*.txt)
           for log_file in ${log_files[@]}; do
             third_party/android_platform/development/scripts/stack --output-directory out/${{ matrix.platform }}_${{ matrix.config }}/ ${log_file}
