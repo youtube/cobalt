@@ -73,11 +73,13 @@ config("runtime_library") {
         "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
         "-isystem" +
             rebase_path("//third_party/musl/arch/generic", root_build_dir),
+        "-femulated-tls",
       ]
       cflags_c = [
         "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
         "-isystem" +
             rebase_path("//third_party/musl/arch/generic", root_build_dir),
+        "-femulated-tls",
       ]
     }
 
