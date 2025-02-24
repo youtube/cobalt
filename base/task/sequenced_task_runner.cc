@@ -76,14 +76,28 @@ bool SequencedTaskRunner::PostDelayedTaskAt(
                              : delayed_run_time - TimeTicks::Now());
 }
 
+#if defined(STARBOARD)
+// static
+scoped_refptr<SequencedTaskRunner>*
+    SequencedTaskRunner::null_sequenced_task_runner_(
+        new scoped_refptr<SequencedTaskRunner>);
+#endif
+
 // static
 const scoped_refptr<SequencedTaskRunner>&
 SequencedTaskRunner::GetCurrentDefault() {
+#if defined(STARBOARD)
+  // An optimization in PostTaskAndReplyImpl::PostTaskAndReply relies on
+  // allowing this to be called without a sequenced context.
+  return (!current_default_handle ? *null_sequenced_task_runner_
+                                  : current_default_handle->task_runner_);
+#else
   CHECK(current_default_handle)
       << "Error: This caller requires a sequenced context (i.e. the current "
          "task needs to run from a SequencedTaskRunner). If you're in a test "
          "refer to //docs/threading_and_tasks_testing.md.";
   return current_default_handle->task_runner_;
+#endif
 }
 
 // static
