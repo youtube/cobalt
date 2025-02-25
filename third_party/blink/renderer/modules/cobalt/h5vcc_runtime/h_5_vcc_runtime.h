@@ -28,8 +28,6 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
-// #include "third_party/blink/public/mojom/cobalt/deeplink/deeplink.mojom.h"
-
 namespace blink {
 
 class ExecutionContext;
@@ -56,9 +54,6 @@ class MODULES_EXPORT H5vccRuntime final
   void setOndeeplink(EventListener* listener);
 
   // Mojom interface:
-  // TODO: bind the service, see example at 
-  // https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/modules/modules_initializer.cc;l=248;drc=20799f4c32d950ce93d495f44eec648400f38a19;bpv=0;bpt=1
-  // void OnDeeplink(const std::string& deeplink) override;
   void OnDeepLink(const WTF::String& deep_link) override;
 
   ExecutionContext* GetExecutionContext() const override {
@@ -77,7 +72,6 @@ class MODULES_EXPORT H5vccRuntime final
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_runtime::mojom::blink::H5vccRuntime> remote_h5vcc_runtime_;
   HeapMojoReceiver<h5vcc_runtime::mojom::blink::DeepLinkListener, H5vccRuntime> receiver_;
-  // mojo::Receiver<h5vcc_runtime::mojom::blink::DeepLinkListener> receiver_{this};
 };
 
 }  // namespace blink

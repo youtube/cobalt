@@ -24,9 +24,6 @@ H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
       remote_h5vcc_runtime_(window.GetExecutionContext()),
       receiver_(this, window.GetExecutionContext()) {
-  // // bind the pending_remote 
-  // remote_h5vcc_runtime_->AddListener(receiver_.BindNewPipeAndPassRemote());
-
   // Questions here, when should I bind the receiver_?
   // EnsureReceiverIsBound();
 }
@@ -112,8 +109,6 @@ void H5vccRuntime::OnDeepLink(const WTF::String& deeplink) {
     LOG(INFO) << "ColinL: ondeeplink. onDeeplink listener is not registered";
   } else {
     LOG(INFO) << "ColinL: ondeeplink. onDeeplink listener is registered, call consumed deeplink";
-
-    // String wtf_deeplink = String::FromUTF8(deeplink);
 
     DispatchEvent(*MakeGarbageCollected<DeeplinkEvent>(event_type_names::kDeeplink, deeplink));
     // TODO: Add logic to call mojom for the deeplink is consumed.
