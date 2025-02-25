@@ -50,9 +50,13 @@ static_assert(sizeof(void*) != 8, "");
 
 // POSIX is not only UNIX, e.g. macOS and other OSes. We do use Linux-specific
 // features such as futex(2).
+#if defined(IS_COBALT_HERMETIC_BUILD)
+#define PA_CONFIG_HAS_LINUX_KERNEL() false
+#else
 #define PA_CONFIG_HAS_LINUX_KERNEL()                      \
   (PA_BUILDFLAG(IS_LINUX) || PA_BUILDFLAG(IS_CHROMEOS) || \
    PA_BUILDFLAG(IS_ANDROID))
+#endif
 
 // If defined, enables zeroing memory on Free() with roughly 1% probability.
 // This applies only to normal buckets, as direct-map allocations are always
