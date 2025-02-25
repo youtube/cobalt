@@ -22,12 +22,12 @@
 #include <unistd.h>
 #endif
 
-#if !defined(IS_COBALT_HERMETIC_BUILD)
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #ifdef __linux__
 #include <linux/futex.h>
 #include <sys/syscall.h>
 #endif
-#endif // !defined(IS_COBALT_HERMETIC_BUILD)
+#endif // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #include <errno.h>
 #include <stdio.h>

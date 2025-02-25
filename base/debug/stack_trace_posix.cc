@@ -306,7 +306,7 @@ void PrintToStderr(const char* output) {
   std::ignore = HANDLE_EINTR(write(STDERR_FILENO, output, strlen(output)));
 }
 
-#if !defined(IS_COBALT_HERMETIC_BUILD)
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // We have seen rare cases on AMD linux where the default signal handler
@@ -328,7 +328,7 @@ void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
 }
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) ||
         // BUILDFLAG(IS_CHROMEOS)
-#endif // !defined(IS_COBALT_HERMETIC_BUILD)
+#endif // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // NOTE: This code MUST be async-signal safe.
