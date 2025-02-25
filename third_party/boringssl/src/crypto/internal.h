@@ -15,14 +15,23 @@
 #ifndef OPENSSL_HEADER_CRYPTO_INTERNAL_H
 #define OPENSSL_HEADER_CRYPTO_INTERNAL_H
 
+#include "build/build_config.h" 
+
 #include <openssl/crypto.h>
 #include <openssl/ex_data.h>
+#if (BUILDFLAG(ENABLE_COBALT_LINUX_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
+#include <openssl/mem.h>
+#endif
 #include <openssl/stack.h>
 #include <openssl/thread.h>
 
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if (BUILDFLAG(ENABLE_COBALT_LINUX_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
+#include "starboard/thread.h" // nogncheck
+#endif
 
 #if defined(BORINGSSL_CONSTANT_TIME_VALIDATION)
 #include <valgrind/memcheck.h>
@@ -32,6 +41,7 @@
 #include <stdlib.h>
 #endif
 
+#if !(BUILDFLAG(ENABLE_COBALT_LINUX_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
 #if defined(OPENSSL_THREADS) && \
     (!defined(OPENSSL_WINDOWS) || defined(__MINGW32__))
 #include <pthread.h>
@@ -50,6 +60,7 @@
 #if defined(OPENSSL_WINDOWS_THREADS)
 #include <windows.h>
 #endif
+#endif // !(BUILDFLAG(ENABLE_COBALT_LINUX_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
 
 #if defined(__cplusplus)
 extern "C" {
@@ -496,7 +507,10 @@ static inline int constant_time_declassify_int(int v) {
 
 // Thread-safe initialisation.
 
-#if !defined(OPENSSL_THREADS)
+#if (BUILDFLAG(ENABLE_COBALT_LINUX_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
+typedef pthread_once_t CRYPTO_once_t;
+#define CRYPTO_ONCE_INIT PTHREAD_ONCE_INIT
+#elif !defined(OPENSSL_THREADS)
 typedef uint32_t CRYPTO_once_t;
 #define CRYPTO_ONCE_INIT 0
 #elif defined(OPENSSL_WINDOWS_THREADS)
@@ -516,7 +530,11 @@ typedef pthread_once_t CRYPTO_once_t;
 //
 // The |once| argument must be a |CRYPTO_once_t| that has been initialised with
 // the value |CRYPTO_ONCE_INIT|.
+#if (BUILDFLAG(ENABLE_COBALT_LINUX_HACKS) && defined(IS_COBALT_HERMETIC_BUILD))
+#define CRYPTO_once pthread_once 
+#else
 OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void));
+#endif
 
 
 // Atomics.
@@ -578,7 +596,12 @@ static_assert(alignof(CRYPTO_atomic_u32) == alignof(uint32_t),
 // Reference counting.
 
 // CRYPTO_REFCOUNT_MAX is the value at which the reference count saturates.
+#if defined(IS_COBALT_HERMETIC_BUILD)
+// TODO: b/398292397 - Cobalt: Investigate if this is really needed and add a comment explaining why.
+#define CRYPTO_REFCOUNT_MAX 0x7fffffff
+#else
 #define CRYPTO_REFCOUNT_MAX 0xffffffff
+#endif
 
 // CRYPTO_refcount_inc atomically increments the value at |*count| unless the
 // value would overflow. It's safe for multiple threads to concurrently call
