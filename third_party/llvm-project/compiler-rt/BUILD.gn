@@ -35,6 +35,7 @@ config("compiler_rt_config") {
 
 static_library("compiler_rt") {
   sources = [
+    "lib/builtins/emutls.c",    
     "lib/builtins/udivmodti4.c",
     "lib/builtins/udivti3.c",
     "lib/builtins/umodti3.c",
