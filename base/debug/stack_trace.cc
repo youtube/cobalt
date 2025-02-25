@@ -330,7 +330,7 @@ std::string StackTrace::ToString() const {
 
 std::string StackTrace::ToStringWithPrefix(cstring_view prefix_string) const {
   std::stringstream stream;
-#if (!defined(__UCLIBC__) && !defined(_AIX)) && !defined(IS_COBALT_HERMETIC_BUILD)
+#if (!defined(__UCLIBC__) && !defined(_AIX)) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   OutputToStreamWithPrefix(&stream, prefix_string);
 #endif
   return stream.str();

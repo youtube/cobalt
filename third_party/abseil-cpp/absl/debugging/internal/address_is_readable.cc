@@ -18,7 +18,7 @@
 #include "absl/debugging/internal/address_is_readable.h"
 #include "build/build_config.h"
 
-#if !defined(__linux__) || defined(__ANDROID__) || defined(IS_COBALT_HERMETIC_BUILD)
+#if !defined(__linux__) || defined(__ANDROID__) || BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN

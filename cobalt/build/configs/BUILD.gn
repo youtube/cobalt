@@ -51,6 +51,11 @@ config("buildflag_defines") {
   if (is_starboard) {
     defines += [ "OS_STARBOARD" ]
   }
+
+  # TODO: b/390675141 - Replace IS_COBALT_HERMETIC_BUILD with IS_STARBOARD.
+  if (is_cobalt_hermetic_build) {
+    defines += [ "ENABLE_BUILDFLAG_IS_COBALT_HERMETIC_BUILD" ]
+  }
   if (use_starboard_media) {
     defines += [ "ENABLE_BUILDFLAG_USE_STARBOARD_MEDIA" ]
   }

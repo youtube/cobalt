@@ -330,9 +330,13 @@ void PrintToStderr(const char* output) {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_CHROMEOS)
 =======
 #if !defined(IS_COBALT_HERMETIC_BUILD)
+=======
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+>>>>>>> 0278a7464e5 (Add BUILDFLAG IS_COBALT_HERMETIC_BUILD (#4966))
 #if BUILDFLAG(IS_LINUX)
 >>>>>>> 216d6ca3ac8 (Build nplb hermetically (#4587))
 void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
@@ -358,8 +362,12 @@ void AlarmSignalHandler(int signal, siginfo_t* info, void* void_context) {
         // BUILDFLAG(IS_CHROMEOS)
 =======
 #endif  // BUILDFLAG(IS_LINUX)
+<<<<<<< HEAD
 #endif // !defined(IS_COBALT_HERMETIC_BUILD)
 >>>>>>> 216d6ca3ac8 (Build nplb hermetically (#4587))
+=======
+#endif // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+>>>>>>> 0278a7464e5 (Add BUILDFLAG IS_COBALT_HERMETIC_BUILD (#4966))
 
 void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // NOTE: This code MUST be async-signal safe.
@@ -562,8 +570,12 @@ void StackDumpSignalHandler(int signal, siginfo_t* info, void* void_context) {
     _exit(EXIT_FAILURE);
   }
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 #elif !BUILDFLAG(IS_LINUX) || defined(IS_COBALT_HERMETIC_BUILD)
+=======
+#elif !BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+>>>>>>> 0278a7464e5 (Add BUILDFLAG IS_COBALT_HERMETIC_BUILD (#4966))
   // For all operating systems but Linux we do not reraise the signal that
   // brought us here but terminate the process immediately.
   // Otherwise various tests break on different operating systems, see
