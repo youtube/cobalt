@@ -24,7 +24,7 @@
 
 #if defined(_WIN32)
 #include "absl/base/internal/spinlock_win32.inc"
-#elif defined(__linux__) && !defined(IS_COBALT_HERMETIC_BUILD)
+#elif defined(__linux__) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "absl/base/internal/spinlock_linux.inc"
 #elif defined(__akaros__)
 #include "absl/base/internal/spinlock_akaros.inc"
