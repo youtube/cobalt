@@ -540,10 +540,11 @@ class MediaCodecBridge {
     }
   }
 
-  @UsedByNative
+  @CalledByNative
   public static boolean isFrameRenderedCallbackEnabled() {
     // Starting with Android 14, onFrameRendered should be called accurately for each rendered
     // frame.
+    Log.i(TAG, "JNI_LOG: isFrameRenderedCallbackEnabled");
     return Build.VERSION.SDK_INT >= 34;
   }
 
@@ -756,11 +757,12 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public void release() {
     try {
       String codecName = mMediaCodec.get().getName();
       Log.w(TAG, "calling MediaCodec.release() on " + codecName);
+      Log.i(TAG, "JNI_LOG: alling MediaCodec.release() on " + codecName);
       mMediaCodec.get().release();
     } catch (Exception e) {
       // The MediaCodec is stuck in a wrong state, possibly due to losing
@@ -854,11 +856,12 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void stop() {
     resetNativeMediaCodecBridge();
     try {
       mMediaCodec.get().stop();
+      Log.i(TAG, "JNI_LOG: stop");
     } catch (Exception e) {
       Log.e(TAG, "Failed to stop MediaCodec", e);
     }
@@ -877,7 +880,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void getOutputFormat(GetOutputFormatResult outGetOutputFormatResult) {
     MediaFormat format = null;
     int status = MediaCodecStatus.OK;
@@ -889,13 +892,16 @@ class MediaCodecBridge {
     }
     outGetOutputFormatResult.mStatus = status;
     outGetOutputFormatResult.mFormat = format;
+
+    Log.i(TAG, String.format("JNI_LOG: getOutputFormat: status=%d", status));
   }
 
   /** Returns null if MediaCodec throws IllegalStateException. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private ByteBuffer getInputBuffer(int index) {
     try {
+      Log.i(TAG, String.format("JNI_LOG: getInputBuffer: index=%d", index));
       return mMediaCodec.get().getInputBuffer(index);
     } catch (IllegalStateException e) {
       Log.e(TAG, "Failed to get input buffer", e);
@@ -905,9 +911,10 @@ class MediaCodecBridge {
 
   /** Returns null if MediaCodec throws IllegalStateException. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private ByteBuffer getOutputBuffer(int index) {
     try {
+      Log.i(TAG, String.format("JNI_LOG: getOutputBuffer: index=%d", index));
       return mMediaCodec.get().getOutputBuffer(index);
     } catch (IllegalStateException e) {
       Log.e(TAG, "Failed to get output buffer", e);
@@ -916,7 +923,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private int queueInputBuffer(
       int index, int offset, int size, long presentationTimeUs, int flags) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
@@ -926,6 +933,7 @@ class MediaCodecBridge {
       Log.e(TAG, "Failed to queue input buffer", e);
       return MediaCodecStatus.ERROR;
     }
+    Log.i(TAG, String.format("JNI_LOG: queueInputBuffer: index=%d", index));
     return MediaCodecStatus.OK;
   }
 
@@ -960,7 +968,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private int queueSecureInputBuffer(
       int index,
       int offset,
@@ -1011,11 +1019,12 @@ class MediaCodecBridge {
       Log.e(TAG, "Failed to queue secure input buffer, IllegalStateException " + e);
       return MediaCodecStatus.ERROR;
     }
+    Log.i(TAG, "JNI_LOG: queueSecureInputBuffer");
     return MediaCodecStatus.OK;
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void releaseOutputBuffer(int index, boolean render) {
     try {
       mMediaCodec.get().releaseOutputBuffer(index, render);
@@ -1023,10 +1032,11 @@ class MediaCodecBridge {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);
     }
+    Log.i(TAG, "JNI_LOG: releaseOutputBuffer");
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void releaseOutputBuffer(int index, long renderTimestampNs) {
     try {
       mMediaCodec.get().releaseOutputBuffer(index, renderTimestampNs);
@@ -1034,6 +1044,7 @@ class MediaCodecBridge {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);
     }
+    Log.i(TAG, "JNI_LOG: releaseOutputBuffer");
   }
 
   @SuppressWarnings("unused")
