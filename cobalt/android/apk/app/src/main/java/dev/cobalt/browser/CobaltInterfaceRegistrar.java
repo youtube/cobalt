@@ -15,6 +15,7 @@
 package dev.cobalt.browser;
 
 import dev.cobalt.browser.crashannotator.CrashAnnotatorImplFactory;
+import dev.cobalt.coat.StarboardBridge;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.content_public.browser.InterfaceRegistrar;
 import org.chromium.content_public.browser.RenderFrameHost;
@@ -24,20 +25,27 @@ import org.chromium.services.service_manager.InterfaceRegistry;
 /** Registers Mojo interface implementations exposed to C++ code at the Cobalt layer. */
 class CobaltInterfaceRegistrar {
     @CalledByNative
-    private static void registerMojoInterfaces() {
+    private static void registerMojoInterfaces(StarboardBridge starboardBridge) {
         InterfaceRegistrar.Registry.addRenderFrameHostRegistrar(
-            new CobaltRenderFrameHostInterfaceRegistrar());
+            new CobaltRenderFrameHostInterfaceRegistrar(starboardBridge));
     }
 
     private static class CobaltRenderFrameHostInterfaceRegistrar
             implements InterfaceRegistrar<RenderFrameHost> {
+
+        private final StarboardBridge mStarboardBridge;
+
+        public CobaltRenderFrameHostInterfaceRegistrar(StarboardBridge starboardBridge) {
+          mStarboardBridge = starboardBridge;
+        }
+
         @Override
         public void registerInterfaces(
                 InterfaceRegistry registry,
                 final RenderFrameHost renderFrameHost) {
             registry.addInterface(
                 CrashAnnotator.MANAGER,
-                new CrashAnnotatorImplFactory(renderFrameHost));
+                new CrashAnnotatorImplFactory(renderFrameHost, mStarboardBridge));
         }
     }
 }

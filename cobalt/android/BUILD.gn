@@ -204,8 +204,8 @@ android_library("cobalt_main_java") {
   if (!use_evergreen) {
     sources += [
       "apk/app/src/main/java/dev/cobalt/browser/CobaltInterfaceRegistrar.java",
-      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImpl.java",
       "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFactory.java",
+      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFirstParty.java",
     ]
   }
 

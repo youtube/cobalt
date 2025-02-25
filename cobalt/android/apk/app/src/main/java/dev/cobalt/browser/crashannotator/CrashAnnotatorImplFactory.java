@@ -14,6 +14,7 @@
 
 package dev.cobalt.browser.crashannotator;
 
+import dev.cobalt.coat.StarboardBridge;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.crashannotator.mojom.CrashAnnotator;
 import org.chromium.services.service_manager.InterfaceFactory;
@@ -21,13 +22,16 @@ import org.chromium.services.service_manager.InterfaceFactory;
 /** Creates instances of CrashAnnotator Mojo interface implementations. */
 public class CrashAnnotatorImplFactory implements InterfaceFactory {
     private final RenderFrameHost mRenderFrameHost;
+    private final StarboardBridge mStarboardBridge;
 
-    public CrashAnnotatorImplFactory(RenderFrameHost renderFrameHost) {
+    public CrashAnnotatorImplFactory(RenderFrameHost renderFrameHost,
+                                     StarboardBridge starboardBridge) {
         mRenderFrameHost = renderFrameHost;
+        mStarboardBridge = starboardBridge;
     }
 
     @Override
     public CrashAnnotator createImpl() {
-        return new CrashAnnotatorImpl(mRenderFrameHost);
+        return new CrashAnnotatorImplFirstParty(mRenderFrameHost, mStarboardBridge);
     }
 }
