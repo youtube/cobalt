@@ -380,6 +380,8 @@ jobs:
           # nullopt to returns empty string if the glob matches no files.
           shopt -s globstar nullglob
 
+          cd src
+
           log_files=(results/**/${{ steps.extract-target-name.outputs.test_target }}*.txt)
           for log_file in ${log_files[@]}; do
             third_party/android_platform/development/scripts/stack --output-directory out/${{ matrix.platform }}_${{ matrix.config }}/ ${log_file}
