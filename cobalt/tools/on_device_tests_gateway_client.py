@@ -297,8 +297,8 @@ def main() -> int:
   trigger_parser.add_argument(
       '--start_timeout_sec',
       type=str,
-      default='180',
-      help='Timeout in seconds for the test to start (default: 180 seconds).',
+      default='900',
+      help='Timeout in seconds for the test to start (default: 900 seconds).',
   )
 
   # Watch command
