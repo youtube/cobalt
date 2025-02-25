@@ -36,7 +36,9 @@
 #define GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_PORT_ARCH_H_
 
 // Determines the platform on which Google Test is compiled.
-#ifdef __CYGWIN__
+#if defined(STARBOARD)
+# define GTEST_OS_STARBOARD 1
+#elif __CYGWIN__
 #define GTEST_OS_CYGWIN 1
 #elif defined(__MINGW__) || defined(__MINGW32__) || defined(__MINGW64__)
 #define GTEST_OS_WINDOWS_MINGW 1
