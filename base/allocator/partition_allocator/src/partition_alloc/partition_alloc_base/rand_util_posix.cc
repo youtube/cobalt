@@ -19,7 +19,9 @@
 #include "base/allocator/partition_allocator/src/partition_alloc/partition_alloc_base/posix/eintr_wrapper.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_MAC)
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#include "third_party/lss/linux_syscall_support.h"
+#elif BUILDFLAG(IS_MAC)
 // TODO(crbug.com/995996): Waiting for this header to appear in the iOS SDK.
 // (See below.)
 #include <sys/random.h>
