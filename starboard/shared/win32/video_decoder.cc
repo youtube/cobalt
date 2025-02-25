@@ -196,10 +196,12 @@ VideoDecoder::VideoDecoder(
     SbPlayerOutputMode output_mode,
     SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
     SbDrmSystem drm_system,
+    SbOnRenderCallback render_callback,
     bool is_hdr_supported)
     : video_codec_(video_codec),
       graphics_context_provider_(graphics_context_provider),
       drm_system_(drm_system),
+      render_callback_(render_callback),
       is_hdr_supported_(is_hdr_supported) {
   SB_DCHECK(output_mode == kSbPlayerOutputModeDecodeToTexture);
 
@@ -306,7 +308,9 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
     return;
   }
   const auto& input_buffer = input_buffers[0];
-  if (TryUpdateOutputForHdrVideo(input_buffer->video_stream_info())) {
+  const VideoStreamInfo& stream_info = input_buffer->video_stream_info();
+  transfer_id_ = stream_info.color_metadata.transfer;
+  if (TryUpdateOutputForHdrVideo(stream_info)) {
     ScopedLock lock(thread_lock_);
     thread_events_.emplace_back(
         new Event{Event::kWriteInputBuffer, input_buffer});
@@ -417,7 +421,8 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
     if (!SbDecodeTargetIsValid(decode_target)) {
       decode_target = new HardwareDecodeTargetPrivate(
           d3d_device_, video_device_, video_context_, video_enumerator_,
-          video_processor_, video_sample, video_area, is_hdr_supported_);
+          video_processor_, video_sample, video_area, is_hdr_supported_,
+          transfer_id_, render_callback_);
       auto hardware_decode_target =
           reinterpret_cast<HardwareDecodeTargetPrivate*>(decode_target);
 
@@ -434,7 +439,8 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
 
           decode_target = new HardwareDecodeTargetPrivate(
               d3d_device_, video_device_, video_context_, video_enumerator_,
-              video_processor_, video_sample, video_area, is_hdr_supported_);
+              video_processor_, video_sample, video_area, is_hdr_supported_,
+              transfer_id_, render_callback_);
           hardware_decode_target =
               reinterpret_cast<HardwareDecodeTargetPrivate*>(decode_target);
         }
