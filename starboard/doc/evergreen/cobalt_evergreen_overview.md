@@ -288,9 +288,9 @@ For example, building these targets for the Raspberry Pi 2 would use the
 
 ## Verifying Platform Requirements
 
-In order to verify the platform requirements you should run the
-`nplb_evergreen_compat_tests`. These tests ensure that the platform is
-configured appropriately for Evergreen.
+In order to verify the platform requirements you should run the `nplb` tests
+defined under `nplb_evergreen_compat_tests` . These tests ensure that the
+platform is configured appropriately for Evergreen.
 
 To enable the test, set the `sb_is_evergreen_compatible` GN variable to `true`
 in the platform's `configuration.gni`. For more details please take a look at

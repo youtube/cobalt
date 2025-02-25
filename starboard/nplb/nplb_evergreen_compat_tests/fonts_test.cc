@@ -40,8 +40,8 @@ namespace {
 const char kFileName[] = "fonts.xml";
 
 TEST(FontsTest, VerifySystemFontsDirectory) {
-#if !SB_IS(EVERGREEN)
-  GTEST_SKIP() << "Only full Evergreen platforms support this test.";
+#if defined(SKIP_TESTS_VERIFYING_PLATFORM_PATHS)
+  GTEST_SKIP() << "Platform doesn't support this test.";
 #endif
   std::vector<char> system_fonts_dir(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathFontDirectory,
@@ -52,8 +52,8 @@ TEST(FontsTest, VerifySystemFontsDirectory) {
 }
 
 TEST(FontsTest, VerifySystemFontsConfigDirectory) {
-#if !SB_IS(EVERGREEN)
-  GTEST_SKIP() << "Only full Evergreen platforms support this test.";
+#if defined(SKIP_TESTS_VERIFYING_PLATFORM_PATHS)
+  GTEST_SKIP() << "Platform doesn't support this test.";
 #endif
   std::vector<char> system_fonts_conf_dir(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathFontConfigurationDirectory,

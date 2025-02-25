@@ -43,8 +43,8 @@ class CrashpadConfigTest : public ::testing::Test {
 #if !defined(ANDROID)
 
 TEST_F(CrashpadConfigTest, VerifyUploadCert) {
-#if !SB_IS(EVERGREEN)
-  GTEST_SKIP() << "Only full Evergreen platforms support this test.";
+#if defined(SKIP_TESTS_VERIFYING_PLATFORM_PATHS)
+  GTEST_SKIP() << "Platform doesn't support this test.";
 #endif
 
   std::vector<char> buffer(kSbFileMaxPath);

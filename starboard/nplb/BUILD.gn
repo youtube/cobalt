@@ -240,6 +240,13 @@ test("nplb") {
     ]
   }
   if (sb_is_evergreen_compatible) {
+    _target_platform_name_parts = string_split(target_platform, "-")
+    _building_linux_platform = _target_platform_name_parts[0] == "linux"
+    if (_building_linux_platform) {
+      defines = [ "SKIP_TESTS_VERIFYING_PLATFORM_PATHS" ]
+    #  configs += [ ":skip_tests_verifying_platform_paths" ]
+    }
+
     sources += [
       "nplb_evergreen_compat_tests/checks.h",
       "nplb_evergreen_compat_tests/crashpad_config_test.cc",
