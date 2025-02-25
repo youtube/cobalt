@@ -28,6 +28,7 @@
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
+#include "starboard/android/shared/starboard_bridge.h"
 #endif
 
 namespace cobalt {
@@ -141,6 +142,8 @@ void CobaltContentBrowserClient::OverrideWebkitPrefs(
 void CobaltContentBrowserClient::OnWebContentsCreated(
     content::WebContents* web_contents) {
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
+  starboard::android::shared::StarboardBridge* starbooard_bridge = starboard::android::shared::StarboardBridge::GetInstance();
+  starbooard_bridge->SetWebContents(web_contents);
 }
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
     content::RenderFrameHost* render_frame_host,
