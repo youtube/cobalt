@@ -1,6 +1,5 @@
 {
   "failing_tests": [
-    "SbSystemGetLocaleIdTest.SunnyDay",
     "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.*",
     "MultiplePlayerTests/MultiplePlayerTest.*",
     "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.*",
