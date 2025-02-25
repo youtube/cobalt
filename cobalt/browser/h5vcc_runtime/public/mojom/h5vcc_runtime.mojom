@@ -16,9 +16,17 @@ module h5vcc_runtime.mojom;
 
 // The browser process must provide an implementation of this interface so that
 // the renderer process can implement the H5vccRuntime Blink API.
+
+interface DeepLinkListener {
+  OnDeepLink(string deep_link);
+};
+
 interface H5vccRuntime {
   // Get the GetInitialDeepLink for the device.
   GetInitialDeepLink() => (string initial_deep_link);
-
   SetDeepLinkConsumed(string deep_link);
+
+  AddListener(pending_remote<DeepLinkListener> listener);
 };
+
+

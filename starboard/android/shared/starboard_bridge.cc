@@ -108,15 +108,15 @@ JNI_StarboardBridge_HandleDeepLink(JNIEnv* env, const JavaParamRef<jstring>& jur
   const std::string& url = base::android::ConvertJavaStringToUTF8(env, jurl);
   LOG(INFO) << "ColinL: JNI_StarboardBridge_HandleDeepLink url = " << url;
 
-  mojo::AssociatedRemote<cobalt::mojom::Deeplink> deeplink_service;
-  if (web_contents_ != NULL) {
-    web_contents_
-      ->GetPrimaryMainFrame()
-      ->GetRemoteAssociatedInterfaces()
-      ->GetInterface(&deeplink_service);
-    DCHECK(deeplink_service);
-    deeplink_service->OnDeeplink(url);
-  }
+  // mojo::AssociatedRemote<cobalt::mojom::Deeplink> deeplink_service;
+  // if (web_contents_ != NULL) {
+  //   web_contents_
+  //     ->GetPrimaryMainFrame()
+  //     ->GetRemoteAssociatedInterfaces()
+  //     ->GetInterface(&deeplink_service);
+  //   DCHECK(deeplink_service);
+  //   deeplink_service->OnDeeplink(url);
+  // }
 }
 
 

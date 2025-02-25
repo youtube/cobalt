@@ -18,6 +18,8 @@
 #include "base/functional/callback.h"
 #include "build/build_config.h"
 
+// #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
+
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/starboard_bridge.h"
 
@@ -51,7 +53,20 @@ void H5vccRuntimeImpl::GetInitialDeepLink(GetInitialDeepLinkCallback callback) {
 }
 
 void H5vccRuntimeImpl::SetDeepLinkConsumed(const std::string& deeplink) {
+  LOG(INFO) << "ColinL: H5vccRuntimeImpl::SetDeepLinkConsumed. deeplink = " << deeplink;
+}
 
+void H5vccRuntimeImpl::AddListener(mojo::PendingRemote<mojom::DeepLinkListener> listener) {
+  mojo::Remote<mojom::DeepLinkListener> listener_remote;
+  listener_remote.Bind(std::move(listener));
+  // listener_remote->OnInit(std::move(infos));
+  listeners_.Add(std::move(listener_remote));
+}
+
+void H5vccRuntimeImpl::OnDeepLink(const std::string& deeplink) {
+  for (auto& listener : listeners_) {
+    listener->OnDeepLink(deeplink);
+  }
 }
 
 }  // namespace h5vcc_runtime
