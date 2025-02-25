@@ -540,7 +540,7 @@ class MediaCodecBridge {
     }
   }
 
-  @UsedByNative
+  @CalledByNative
   public static boolean isFrameRenderedCallbackEnabled() {
     // Starting with Android 14, onFrameRendered should be called accurately for each rendered
     // frame.
@@ -756,7 +756,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public void release() {
     try {
       String codecName = mMediaCodec.get().getName();
@@ -854,7 +854,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void stop() {
     resetNativeMediaCodecBridge();
     try {
@@ -877,7 +877,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void getOutputFormat(GetOutputFormatResult outGetOutputFormatResult) {
     MediaFormat format = null;
     int status = MediaCodecStatus.OK;
@@ -893,7 +893,7 @@ class MediaCodecBridge {
 
   /** Returns null if MediaCodec throws IllegalStateException. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private ByteBuffer getInputBuffer(int index) {
     try {
       return mMediaCodec.get().getInputBuffer(index);
@@ -905,7 +905,7 @@ class MediaCodecBridge {
 
   /** Returns null if MediaCodec throws IllegalStateException. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private ByteBuffer getOutputBuffer(int index) {
     try {
       return mMediaCodec.get().getOutputBuffer(index);
@@ -916,7 +916,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private int queueInputBuffer(
       int index, int offset, int size, long presentationTimeUs, int flags) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
@@ -960,7 +960,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private int queueSecureInputBuffer(
       int index,
       int offset,
@@ -1015,7 +1015,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void releaseOutputBuffer(int index, boolean render) {
     try {
       mMediaCodec.get().releaseOutputBuffer(index, render);
@@ -1026,7 +1026,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void releaseOutputBuffer(int index, long renderTimestampNs) {
     try {
       mMediaCodec.get().releaseOutputBuffer(index, renderTimestampNs);
