@@ -55,9 +55,10 @@ runs:
           sed -n '/^{/,$p' -i gn_desc.json
 
           changed_files_arg=""
-          if [[ -n "${CHANGED_FILES_JSON}" ]]; then
-            changed_files_arg="--sources $(echo ${CHANGED_FILES_JSON} | jq -cr '. | join(",")')"
-          fi
+          # Disable sources arg to get all test targets.
+          # if [[ -n "${CHANGED_FILES_JSON}" ]]; then
+          #   changed_files_arg="--sources $(echo ${CHANGED_FILES_JSON} | jq -cr '. | join(",")')"
+          # fi
 
           vpython3 cobalt/build/test_targets.py \
               --root-target "${ROOT_TARGET}" \
