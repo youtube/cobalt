@@ -401,7 +401,7 @@ jobs:
         config: [devel]
     steps:
       - name: Fail
-        if: fromJson(needs.build.outputs.test_targets_count) > 0 && needs.test-results.result == 'failure'
+        if: needs.test-results.result == 'failure' && fromJson(needs.build.outputs.test_targets_count) > 0
         run: |
             # TODO: Print a summary of failed tests here.
             echo "Test jobs failed. See separate job log for details."
