@@ -1,0 +1,7 @@
+{
+  "failing_tests": [
+    "WTFTypesTest.*",
+    "OffsetForPosition/OffsetForPositionPerfTest.*",
+    "CharacterRange/CharacterRangePerfTest.*"
+  ]
+}
