@@ -41,10 +41,13 @@ config("gtest_config") {
     cflags = [ "/wd4800" ]  # Unused variable warning.
   }
 
-  # if (gtest_enable_absl_printers) {
-  #   configs = [ "//third_party/abseil-cpp:absl_include_config" ]
-  #   defines += [ "GTEST_HAS_ABSL=1" ]
-  # }
+  if (gtest_enable_absl_printers && !is_cobalt_hermetic_build) {
+    configs = [ "//third_party/abseil-cpp:absl_include_config" ]
+    defines += [ "GTEST_HAS_ABSL=1" ]
+  }
+  if (is_cobalt_hermetic_build) {
+    include_dirs -= [ "custom" ]
+  }
 }
 
 config("gmock_config") {
@@ -58,6 +61,9 @@ config("gmock_config") {
     # TODO(tikuta): remove this when the issue is fixed.
     # https://github.com/google/googletest/issues/533
     cflags = [ "-Wno-inconsistent-missing-override" ]
+  }
+  if (is_cobalt_hermetic_build) {
+    include_dirs -= [ "custom" ]
   }
 }
 
@@ -148,12 +154,36 @@ source_set("gtest") {
   public_deps = []
   if (is_nacl || !build_with_chromium) {
     defines += [ "GTEST_DISABLE_PRINT_STACK_TRACE" ]
-    # sources -= [
-    #   "custom/gtest/internal/custom/stack_trace_getter.cc",
-    #   "custom/gtest/internal/custom/stack_trace_getter.h",
-    # ]
+    sources -= [
+      "custom/gtest/internal/custom/stack_trace_getter.cc",
+      "custom/gtest/internal/custom/stack_trace_getter.h",
+    ]
   } else {
     deps += [ "//base" ]
+  }
+
+  if (is_starboard) {
+    sources -= [
+      "custom/gtest/internal/custom/chrome_custom_temp_dir.cc",
+      "custom/gtest/internal/custom/chrome_custom_temp_dir.h",
+      "custom/gtest/internal/custom/gtest.h",
+      "custom/gtest/internal/custom/gtest_port_wrapper.cc",
+      "custom/gtest/internal/custom/stack_trace_getter.cc",
+      "custom/gtest/internal/custom/stack_trace_getter.h",
+    ]
+    sources += [ "src/googletest/src/gtest-port.cc" ]
+    deps += [ "//starboard/common:common_headers_only" ]
+    public_deps = [ "//starboard:starboard_group" ]
+    configs += [ "//build/config/compiler:chromium_code" ]
+
+    # Ideally we would want to remove
+    # //starboard/build/config:default_rtti from the list of configs too.
+    # Unfortunately GN doesn't provide us a way to remove things from
+    # dependents' configs list.
+    # It happens to be that all_dependent_configs get processed after default
+    # configs, so the -frtti flag comes after the -fno-rtti flag on the command
+    # line, so it happens to work in this case.
+    all_dependent_configs = [ "//build/config/compiler:rtti" ]
   }
 
   if (is_fuchsia) {
@@ -163,20 +193,9 @@ source_set("gtest") {
     ]
   }
 
-  #if (gtest_enable_absl_printers) {
-  #  deps += [ "//third_party/abseil-cpp:absl" ]
-  #}
-
-  # Ideally we would want to remove
-  # //starboard/build/config:default_rtti from the list of configs too.
-  # Unfortunately GN doesn't provide us a way to remove things from
-  # dependents' configs list.
-  # It happens to be that all_dependent_configs get processed after default
-  # configs, so the -frtti flag comes after the -fno-rtti flag on the command
-  # line, so it happens to work in this case.
-  all_dependent_configs = [ "//build/config/compiler:rtti" ]
-
-  public_deps = [ "//starboard:starboard_group" ]
+  if (gtest_enable_absl_printers && !is_starboard) {
+    deps += [ "//third_party/abseil-cpp:absl" ]
+  }
 }
 
 # Do NOT depend on this directly. Use //testing/gtest:gtest_main instead.
