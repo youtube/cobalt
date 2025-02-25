@@ -30,7 +30,7 @@ namespace cobalt {
 void RegisterCobaltJavaMojoInterfaces() {
   Java_CobaltInterfaceRegistrar_registerMojoInterfaces(
       base::android::AttachCurrentThread(),
-      (const JavaParamRef<jobject>&) JNIState::GetStarboardBridge());
+      (const JavaParamRef<jobject>&)JNIState::GetStarboardBridge());
 }
 
 }  // namespace cobalt
