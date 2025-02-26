@@ -33,7 +33,7 @@ int InitAndRunAllTests(int argc, char** argv) {
 // For the Starboard OS define SbEventHandle as the entry point
 SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
 
-#if !defined(IS_COBALT_HERMETIC_BUILD)
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #if !SB_IS(EVERGREEN)
 // Define main() for non-Evergreen Starboard OS.
@@ -47,5 +47,5 @@ int main(int argc, char** argv) {
   return InitAndRunAllTests(argc, argv);
 }
 
-#endif  // !defined(IS_COBALT_HERMETIC_BUILD)
+#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #endif  // BUILDFLAG(IS_STARBOARD)

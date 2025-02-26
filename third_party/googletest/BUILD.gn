@@ -32,7 +32,8 @@ config("gtest_config") {
 
   # Gtest headers need to be able to find themselves.
   include_dirs = [
-    "custom",
+    #"custom",
+    # "//cobalt/third_party/googletest/src/googletest/include",
     "src/googletest/include",
   ]
 
@@ -44,15 +45,15 @@ config("gtest_config") {
     configs = [ "//third_party/abseil-cpp:absl_include_config" ]
     defines += [ "GTEST_HAS_ABSL=1" ]
   }
-  if (is_cobalt_hermetic_build) {
-    include_dirs -= [ "custom" ]
-  }
+  # if (is_cobalt_hermetic_build) {
+  #   include_dirs -= [ "custom" ]
+  # }
 }
 
 config("gmock_config") {
   # Gmock headers need to be able to find themselves.
   include_dirs = [
-    "custom",
+    #"custom",
     "src/googlemock/include",
   ]
 
@@ -61,9 +62,9 @@ config("gmock_config") {
     # https://github.com/google/googletest/issues/533
     cflags = [ "-Wno-inconsistent-missing-override" ]
   }
-  if (is_cobalt_hermetic_build) {
-    include_dirs -= [ "custom" ]
-  }
+  # if (is_cobalt_hermetic_build) {
+  #   include_dirs -= [ "custom" ]
+  # }
 }
 
 # Do NOT depend on this directly. Use //testing/gtest instead.
@@ -71,15 +72,15 @@ config("gmock_config") {
 source_set("gtest") {
   testonly = true
   sources = [
-    "custom/gtest/internal/custom/gtest.h",
-    "custom/gtest/internal/custom/stack_trace_getter.cc",
-    "custom/gtest/internal/custom/stack_trace_getter.h",
+    # "custom/gtest/internal/custom/gtest.h",
+    # "custom/gtest/internal/custom/stack_trace_getter.cc",
+    # "custom/gtest/internal/custom/stack_trace_getter.h",
 
     # TODO(crbug.com/1009553): Remove this wrapper and custom temp dir
     # after plumbing a workable temporary path into googletest on Android.
-    "custom/gtest/internal/custom/chrome_custom_temp_dir.cc",
-    "custom/gtest/internal/custom/chrome_custom_temp_dir.h",
-    "custom/gtest/internal/custom/gtest_port_wrapper.cc",
+    # "custom/gtest/internal/custom/chrome_custom_temp_dir.cc",
+    # "custom/gtest/internal/custom/chrome_custom_temp_dir.h",
+    # "custom/gtest/internal/custom/gtest_port_wrapper.cc",
     "src/googletest/include/gtest/gtest-assertion-result.h",
     "src/googletest/include/gtest/gtest-death-test.h",
     "src/googletest/include/gtest/gtest-matchers.h",
@@ -122,12 +123,30 @@ source_set("gtest") {
     "src/googletest/src/gtest.cc",
   ]
 
+  if (is_cobalt_hermetic_build) {
+    # sources -= [
+    #   # "src/googletest/include/gtest/internal/gtest-port-arch.h",
+    #   # "src/googletest/include/gtest/internal/gtest-port.h",
+    #   # "src/googletest/src/gtest.cc",
+    #       # "src/googletest/src/gtest-port.cc",
+    # ]
+    # sources += [
+    #   "//cobalt/third_party/googletest/src/googletest/include/gtest/internal/gtest-port-arch.h",
+    #   "//cobalt/third_party/googletest/src/googletest/include/gtest/internal/gtest-port.h",
+    #   "//cobalt/third_party/googletest/src/googletest/src/gtest.cc",
+    #   "//cobalt/third_party/googletest/src/googletest/src/gtest-port.cc",
+    # ]
+  }
+
   # Some files include "src/gtest-internal-inl.h".
-  include_dirs = [ "src/googletest" ]
+  include_dirs = [
+    # "//cobalt/third_party/googletest/src/googletest",
+    "src/googletest",
+  ]
 
   public_configs = [ ":gtest_config" ]
 
-  configs -= [ "//build/config/compiler:chromium_code" ]
+  # configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 
   defines = []
@@ -145,17 +164,17 @@ source_set("gtest") {
 
   if (is_starboard) {
     sources -= [
-      "custom/gtest/internal/custom/chrome_custom_temp_dir.cc",
-      "custom/gtest/internal/custom/chrome_custom_temp_dir.h",
-      "custom/gtest/internal/custom/gtest.h",
-      "custom/gtest/internal/custom/gtest_port_wrapper.cc",
-      "custom/gtest/internal/custom/stack_trace_getter.cc",
-      "custom/gtest/internal/custom/stack_trace_getter.h",
+      # "custom/gtest/internal/custom/chrome_custom_temp_dir.cc",
+      # "custom/gtest/internal/custom/chrome_custom_temp_dir.h",
+      # "custom/gtest/internal/custom/gtest.h",
+      # "custom/gtest/internal/custom/gtest_port_wrapper.cc",
+      # "custom/gtest/internal/custom/stack_trace_getter.cc",
+      # "custom/gtest/internal/custom/stack_trace_getter.h",
     ]
     sources += [ "src/googletest/src/gtest-port.cc" ]
     deps += [ "//starboard/common:common_headers_only" ]
     public_deps = [ "//starboard:starboard_group" ]
-    configs += [ "//build/config/compiler:chromium_code" ]
+    # configs += [ "//build/config/compiler:chromium_code" ]
 
     # Ideally we would want to remove
     # //starboard/build/config:default_rtti from the list of configs too.
