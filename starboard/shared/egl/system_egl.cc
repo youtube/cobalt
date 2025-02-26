@@ -99,7 +99,13 @@ const SbEglInterface g_sb_egl_interface = {
     nullptr,  // eglGetSyncAttrib
     nullptr,  // eglCreateImage
     nullptr,  // eglDestroyImage
+// TODO(b/399196540): Remove OS check once eglGetPlatformDisplay is supported
+// for Android.
+#if defined(OS_ANDROID)
+    nullptr,  // eglGetPlatformDisplay
+#else
     &eglGetPlatformDisplay,
+#endif        // defined(OS_ANDROID)
     nullptr,  // eglCreatePlatformWindowSurface
     nullptr,  // eglCreatePlatformPixmapSurface
     nullptr,  // eglWaitSync

@@ -185,9 +185,15 @@ void FakeGraphicsContextProvider::InitializeWindow() {
 }
 
 void FakeGraphicsContextProvider::InitializeEGL() {
+  // TODO(b/399196540): Remove OS check once eglGetPlatformDisplay is supported
+  // for Android.
+#if defined(OS_ANDROID)
+  display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
+#else
   display_ = EGL_CALL_SIMPLE(eglGetPlatformDisplay(
       EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(SB_EGL_DEFAULT_DISPLAY),
       kDisplayAttribList));
+#endif  // defined(OS_ANDROID)
   SB_DCHECK(EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
   SB_CHECK(EGL_NO_DISPLAY != display_);
 
