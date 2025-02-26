@@ -24,6 +24,7 @@ third_party {
   }
   security {
     mitigated_security_patch: "CVE-2022-40303"  # commit 04a4b26c
+    mitigated_security_patch: "CVE-2022-40304"  # commit d88efc03
     mitigated_security_patch: "CVE-2024-25062"  # commit 09f8bb7f
   }
   license_type: NOTICE
