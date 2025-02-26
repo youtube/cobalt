@@ -51,7 +51,6 @@ TEST(CrashpadConfigTest, VerifyUploadCert) {
 
   struct stat info;
   ASSERT_TRUE(stat(cert_location.c_str(), &info) == 0) << cert_location;
-
 }
 
 #endif  // !defined(ANDROID)
