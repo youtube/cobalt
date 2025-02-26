@@ -40,9 +40,6 @@ namespace {
 const char kFileName[] = "fonts.xml";
 
 TEST(FontsTest, VerifySystemFontsDirectory) {
-#if defined(SKIP_TESTS_VERIFYING_PLATFORM_PATHS)
-  GTEST_SKIP() << "Platform doesn't support this test.";
-#endif
   std::vector<char> system_fonts_dir(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathFontDirectory,
                               system_fonts_dir.data(), kSbFileMaxPath));
@@ -52,9 +49,6 @@ TEST(FontsTest, VerifySystemFontsDirectory) {
 }
 
 TEST(FontsTest, VerifySystemFontsConfigDirectory) {
-#if defined(SKIP_TESTS_VERIFYING_PLATFORM_PATHS)
-  GTEST_SKIP() << "Platform doesn't support this test.";
-#endif
   std::vector<char> system_fonts_conf_dir(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathFontConfigurationDirectory,
                               system_fonts_conf_dir.data(), kSbFileMaxPath));

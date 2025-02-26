@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/paths.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/nplb/nplb_evergreen_compat_tests/checks.h"
@@ -33,36 +34,29 @@ namespace nplb_evergreen_compat_tests {
 
 namespace {
 
-class CrashpadConfigTest : public ::testing::Test {
- protected:
-  CrashpadConfigTest() {}
-  ~CrashpadConfigTest() {}
-};
-
 // These tests are not applicable to AOSP
 #if !defined(ANDROID)
 
-TEST_F(CrashpadConfigTest, VerifyUploadCert) {
-#if defined(SKIP_TESTS_VERIFYING_PLATFORM_PATHS)
-  GTEST_SKIP() << "Platform doesn't support this test.";
-#endif
-
+TEST(CrashpadConfigTest, VerifyUploadCert) {
   std::vector<char> buffer(kSbFileMaxPath);
   ASSERT_TRUE(SbSystemGetPath(kSbSystemPathContentDirectory, buffer.data(),
                               buffer.size()));
+  ASSERT_LE(kSbFileMaxPath, buffer.size());
 
   std::string cert_location(buffer.data());
-  cert_location.append(std::string(kSbFileSepString) + "app" +
-                       kSbFileSepString + "cobalt" + kSbFileSepString +
-                       "content" + kSbFileSepString + "ssl" + kSbFileSepString +
-                       "certs");
+  cert_location.append(std::string(kSbFileSepString) + "ssl" +
+                       kSbFileSepString + "certs");
+
+  ASSERT_EQ(::starboard::common::GetCACertificatesPath(), cert_location);
+
   struct stat info;
-  ASSERT_TRUE(stat(cert_location.c_str(), &info) == 0);
+  ASSERT_TRUE(stat(cert_location.c_str(), &info) == 0) << cert_location;
+
 }
 
 #endif  // !defined(ANDROID)
 
-TEST_F(CrashpadConfigTest, VerifyCrashHandlerExtension) {
+TEST(CrashpadConfigTest, VerifyCrashHandlerExtension) {
   auto crash_handler_extension =
       SbSystemGetExtension(kCobaltExtensionCrashHandlerName);
   ASSERT_TRUE(crash_handler_extension != nullptr);
