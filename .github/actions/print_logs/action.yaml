@@ -1,0 +1,43 @@
+name: Print Logs
+description: Processes test results to produce a test summary and upload results to DataDog.
+inputs:
+  logfile_glob:
+    description: "Path (or glob) to test log files."
+    required: true
+  test_status:
+    description: "Test status. If the value is not success this step will fail."
+    required: false
+    default: 'success'
+runs:
+  using: "composite"
+  steps:
+    - run: |
+        set -x
+        # Enable globstar shell option for globstar paths e.g. /**/*.xml and
+        # nullopt to returns empty string if the glob matches no files.
+        shopt -s globstar nullglob
+
+        log_files=(${{ inputs.logfile_glob }})
+
+        if [ ${#log_files[@]} -eq 0 ]; then
+          echo "::error::No log files were collected."
+          exit 1
+        else
+          for log_file in ${log_files[@]}; do
+            if [ "${{ startsWith(matrix.platform, 'android') }}" -eq "true" ]; then
+              # TODO(oxv): Enable when symbol files are available.
+              # cat ${log_file} | vpython3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/${{ matrix.platform }}_${{ matrix.config }}/
+              cat ${log_file}
+            else
+              cat ${log_file}
+            fi
+          done
+        fi
+
+        # By failing this step if tests failed the logs will be expanded by default.
+        # Note that if any steps after this one fails the logs will no longer be expanded.
+        if [ "${{ steps.process-results.outcome }}" != "success" ]; then
+          echo "Tests failed"
+          exit 1
+        fi
+      shell: bash
