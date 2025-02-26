@@ -50,6 +50,8 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   // ShellBrowserMainParts overrides.
   int PreCreateThreads() override {
     metrics_ = std::make_unique<CobaltMetricsServiceClient>();
+    // TODO(b/372559349): Double check that this initializes UMA collection,
+    // similar to what ChromeBrowserMainParts::StartMetricsRecording() does.
     metrics_->Start();
     return ShellBrowserMainParts::PreCreateThreads();
   }

@@ -61,6 +61,8 @@ CobaltMetricsServiceClient::CobaltMetricsServiceClient()
   metrics::MetricsService::RegisterPrefs(pref_registry.get());
 
   PrefServiceFactory pref_service_factory;
+  // TODO(b/397929564): Investigate using a Chrome's memory-mapped file store
+  // instead of in-memory.
   pref_service_factory.set_user_prefs(
       base::MakeRefCounted<InMemoryPrefStore>());
 
@@ -213,6 +215,7 @@ CobaltMetricsServiceClient::CreateUploader(
 }
 
 base::TimeDelta CobaltMetricsServiceClient::GetStandardUploadInterval() {
+  // TODO(b/372559349): Wire this to the appropriate Web platform IDL method.
   const int kStandardUploadIntervalMinutes = 5;
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
@@ -221,12 +224,14 @@ base::TimeDelta CobaltMetricsServiceClient::GetStandardUploadInterval() {
 
 bool CobaltMetricsServiceClient::IsConsentGiven() const {
   // TODO(b/372559349): User consent should be verified here.
+  NOTIMPLEMENTED();
   return true;
 }
 
 bool CobaltMetricsServiceClient::IsReportingEnabled() const {
   // TODO(b/372559349): Usually TOS should be verified accepted here.
   // TODO(b/372559349): Wire this to the appropriate Web platform IDL.
+  NOTIMPLEMENTED();
   return false;
 }
 
