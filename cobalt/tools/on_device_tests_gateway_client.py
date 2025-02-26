@@ -163,7 +163,7 @@ def _process_test_requests(args):
       params.append(f'gcs_result_path={args.gcs_result_path}')
     params += [
         f'push_files=test_runtime_deps:{_DEPS_ARCHIVE}',
-        f'gtest_xml_file_on_device={_DIR_ON_DEVICE}/{target_name}_testoutput.xml', # pylint:disable=line-too-long
+        f'gtest_xml_file_on_device={_DIR_ON_DEVICE}/{target_name}_testoutput.xml',  # pylint:disable=line-too-long
         f'gcs_result_filename={target_name}_testoutput.xml',
         f'gcs_log_filename={target_name}_log.txt'
     ]
