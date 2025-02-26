@@ -150,6 +150,7 @@ group("gn_all") {
       ]
     }
 
+
     if (!is_castos) {
       deps += [ "//chrome/installer" ]
     }
