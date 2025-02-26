@@ -98,6 +98,10 @@ class MEDIA_EXPORT DecoderBuffer
                                      int resolution_height,
                                      int bits_per_pixel) const = 0;
 
+    virtual size_t GetAllocatedMemory() const = 0;
+    virtual size_t GetCurrentMemoryCapacity() const = 0;
+    virtual size_t GetMaximumMemoryCapacity() const = 0;
+
    protected:
     ~Allocator() {}
 

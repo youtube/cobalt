@@ -12,27 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_MEMORY_INFO_MEDIA_SOURCE_MEMORY_INFO_H_
-#define THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_MEMORY_INFO_MEDIA_SOURCE_MEMORY_INFO_H_
+#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_MEMORY_INFO_MEDIA_SOURCE_MEMORY_INFO_H_
+#define THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_MEMORY_INFO_MEDIA_SOURCE_MEMORY_INFO_H_
 
 #include "build/build_config.h"
+#include "third_party/blink/renderer/core/timing/memory_info.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 
-// #if !BUILDFLAG(USE_STARBOARD_MEDIA)
-// #error "This file only works with Starboard media"
-// #endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
+#error "This file only works with Starboard media"
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace blink {
 
-class MediaSourceMemoryInfo final : public ScriptWrappable {
-  DEFINE_WRAPPERTYPEINFO();
+class MediaSourceMemoryInfo final {
+  STATIC_ONLY(MediaSourceMemoryInfo);
 
  public:
-  static uint64_t mediaSourceSizeLimit();
-  static uint64_t totalMediaSourceSize();
-  static uint64_t usedMediaSourceMemorySize();
+  static uint64_t mediaSourceSizeLimit(MemoryInfo&);
+  static uint64_t totalMediaSourceSize(MemoryInfo&);
+  static uint64_t usedMediaSourceMemorySize(MemoryInfo&);
 };
 
 }  // namespace blink
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_MODULES_COBALT_MEMORY_INFO_MEDIA_SOURCE_MEMORY_INFO_H_
+#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_MEMORY_INFO_MEDIA_SOURCE_MEMORY_INFO_H_

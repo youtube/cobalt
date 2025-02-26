@@ -24,17 +24,15 @@
 #include "media/base/decoder_buffer.h"
 #include "media/base/video_decoder_config.h"
 #include "media/starboard/bidirectional_fit_reuse_allocator.h"
-#include "media/starboard/decoder_buffer_memory_info.h"
 #include "media/starboard/starboard_memory_allocator.h"
 #include "starboard/media.h"
 
 namespace media {
 
-class DecoderBufferAllocator : public DecoderBuffer::Allocator,
-                               public DecoderBufferMemoryInfo {
+class DecoderBufferAllocator : public DecoderBuffer::Allocator {
  public:
   DecoderBufferAllocator();
-  ~DecoderBufferAllocator() override;
+  ~DecoderBufferAllocator();
 
   void Suspend();
   void Resume();
@@ -56,7 +54,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
                            int resolution_height,
                            int bits_per_pixel) const override;
 
-  // DecoderBufferMemoryInfo methods.
   size_t GetAllocatedMemory() const override;
   size_t GetCurrentMemoryCapacity() const override;
   size_t GetMaximumMemoryCapacity() const override;

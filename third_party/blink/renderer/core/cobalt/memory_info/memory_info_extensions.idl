@@ -12,25 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "third_party/blink/renderer/modules/cobalt/memory_info/media_source_memory_info.h"
-
-#include "media/base/decoder_buffer.h"
-
-namespace blink {
-
-MediaSourceMemoryInfo::mediaSourceSizeLimit() {
-  return media::DecoderBuffer::Allocator::GetInstance()
-      .GetMaximumMemoryCapacity();
-}
-
-MediaSourceMemoryInfo::totalMediaSourceSize() {
-  return media::DecoderBuffer::Allocator::GetInstance()
-      .GetCurrentMemoryCapacity();
-}
-
-MediaSourceMemoryInfo::usedMediaSourceMemorySize() {
-  return media::DecoderBuffer::Allocator::GetInstance().GetAllocatedMemory();
-}
-
-}  //  namespace blink
-                     
+// Non standard interface used for Cobalt only.
+// Exposes the memory used by media buffers during playback.
+[
+    ImplementedAs=MediaSourceMemoryInfo
+] partial interface MemoryInfo {
+    readonly attribute unsigned long long mediaSourceSizeLimit;
+    readonly attribute unsigned long long totalMediaSourceSize;
+    readonly attribute unsigned long long usedMediaSourceMemorySize;
+};

@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//third_party/blink/renderer/modules/modules.gni")
+assert(is_cobalt)
 
-blink_modules_sources("memory_info") {
-  sources = [
-    "media_source_memory_info.cc",
-    "media_source_memory_info.h",
-  ]
+import("//starboard/build/buildflags.gni")
 
-  deps = [ "//media" ]
-}
+assert(use_starboard_media)
+
+blink_core_sources_cobalt = [
+  "memory_info/media_source_memory_info.cc",
+  "memory_info/media_source_memory_info.h",
+]
