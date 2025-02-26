@@ -16,30 +16,22 @@
 
 #include <array>
 #include <string>
+#include <sstream>
 #include <vector>
 
 #include "base/at_exit.h"
-#include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "build/build_config.h"
-#include "chrome/common/chrome_switches.h"
-#include "cobalt/browser/switches.h"
 #include "cobalt/cobalt_main_delegate.h"
+#include "cobalt/cobalt_switch_defaults.h"
 #include "cobalt/platform_event_source_starboard.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
-#include "content/public/common/content_switches.h"
 #include "content/shell/browser/shell.h"
-#include "content/shell/common/shell_switches.h"
-#include "gpu/config/gpu_switches.h"
-#include "media/base/media_switches.h"
-#include "sandbox/policy/switches.h"
 #include "starboard/event.h"
-#include "ui/gl/gl_switches.h"
-#include "ui/ozone/public/ozone_switches.h"
 
 using starboard::PlatformEventSourceStarboard;
 
@@ -55,110 +47,26 @@ static base::AtExitManager* g_exit_manager = nullptr;
 static cobalt::CobaltMainDelegate* g_content_main_delegate = nullptr;
 static PlatformEventSourceStarboard* g_platform_event_source = nullptr;
 
-// Toggle-only Switches.
-const auto kCobaltToggleSwitches = std::to_array<const char*>({
-  // Disable first run experience, kiosk, etc.
-  "disable-fre",
-  switches::kNoFirstRun,
-  switches::kKioskMode,
-  // Enable Blink to work in overlay video mode
-  switches::kForceVideoOverlays,
-  // Disable multiprocess mode.
-  switches::kSingleProcess,
-  // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
-  // to enable it.
-  switches::kIgnoreGpuBlocklist,
-  // This flag is added specifically for m114 and should be removed after
-  // rebasing to m120+
-#if BUILDFLAG(IS_ANDROID)
-  switches::kUserLevelMemoryPressureSignalParams,
-#endif  // BUILDFLAG(IS_ANDROID)
-  sandbox::policy::switches::kNoSandbox
-});
-
-// Switches with parameters. May require special handling with passed in values.
-const auto kCobaltParamSwitches = base::CommandLine::SwitchMap({
-  // Disable Vulkan.
-  {switches::kDisableFeatures, "Vulkan"},
-  // Force some ozone settings.
-  {switches::kOzonePlatform, "starboard"},
-  {switches::kUseGL, "angle"},
-  {switches::kUseANGLE, "gles-egl"},
-  // Set the default size for the content shell/starboard window.
-  {switches::kContentShellHostWindowSize, "1920x1080"},
-  // Enable remote Devtools access.
-  {switches::kRemoteDebuggingPort, "9222"},
-  {switches::kRemoteAllowOrigins, "http://localhost:9222"},
-});
-
-class CommandLinePreprocessor {
-
- public:
-  CommandLinePreprocessor(int argc, const char** argv) : cmd_line_(argc, argv) {
-    // Insert these switches if they are missing.
-    for (const auto& cobalt_switch : kCobaltToggleSwitches) {
-      cmd_line_.AppendSwitch(cobalt_switch);
-    }
-
-    // Handle special-case switches with duplicated entries.
-    if (cmd_line_.HasSwitch(switches::kDisableFeatures)) {
-      // Merge all disabled features together.
-      std::string disabled_features(cmd_line_.GetSwitchValueASCII(
-          switches::kDisableFeatures));
-      auto old_value = kCobaltParamSwitches.find(switches::kDisableFeatures);
-      if (old_value != kCobaltParamSwitches.end()) {
-        disabled_features += std::string(old_value->second);
-        cmd_line_.AppendSwitchNative(switches::kDisableFeatures,
-                                     disabled_features);
-      }
-    }
-    if (cmd_line_.HasSwitch(switches::kContentShellHostWindowSize)) {
-      // Replace with the passed in argument for window-size.
-      if (cmd_line_.HasSwitch(switches::kWindowSize)) {
-        cmd_line_.RemoveSwitch(switches::kContentShellHostWindowSize);
-        cmd_line_.AppendSwitchASCII(switches::kContentShellHostWindowSize,
-          cmd_line_.GetSwitchValueASCII(switches::kWindowSize));
-      }
-    }
-
-    // Insert these switches if they are mising.
-    for (const auto& iter : kCobaltParamSwitches) {
-      const auto& switch_key = iter.first;
-      const auto& switch_val = iter.second;
-      if (!cmd_line_.HasSwitch(iter.first)) {
-        cmd_line_.AppendSwitchNative(switch_key, switch_val);
-      }
-    }
-  }
-
-  const base::CommandLine::StringVector& argv() const {
-    return cmd_line_.argv();
-  }
-
-  const std::string GetInitialURL() const {
-    return cobalt::switches::GetInitialURL(cmd_line_);
-  }
-
- private:
-  base::CommandLine cmd_line_;
-
-}; // CommandLinePreprocessor
-
-
 }  // namespace
 
 int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
   // content::ContentMainParams params(g_content_main_delegate.Get().get());
   content::ContentMainParams params(g_content_main_delegate);
 
-  CommandLinePreprocessor init_cmd_line(argc, argv);
+  // TODO: (cobalt b/375241103) Reimplement this in a clean way.
+  // Preprocess the raw command line arguments with the defaults expected by
+  // Cobalt.
+  cobalt::CommandLinePreprocessor init_cmd_line(argc, argv);
   const auto& init_argv = init_cmd_line.argv();
+
+  std::stringstream ss;
   std::vector<const char*> args;
   for (const auto& arg : init_argv) {
     args.push_back(arg.c_str());
+    ss << " " << arg;
   }
+  LOG(INFO) << "Parsed command line string:" << ss.str();
 
-  // TODO: (cobalt b/375241103) Reimplement this in a clean way.
   // This expression exists to ensure that we apply the argument overrides
   // only on the main process, not on spawned processes such as the zygote.
   if ((!strcmp(argv[0], "/proc/self/exe")) ||
