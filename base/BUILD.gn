@@ -105,15 +105,7 @@ if (is_apple) {
          "mac requires mach absolute time ticks")
 }
 
-# TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
-# ../../third_party/libevent/signal.c:43:10: fatal error: 'sys/queue.h' file not found
-# #include <sys/queue.h>
-# Determines whether libevent should be dep.
-if (is_cobalt_hermetic_build) {
-  dep_libevent = false
-} else {
-  dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
-}
+dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
 
 # Determines whether message_pump_libevent should be used.
 use_libevent = dep_libevent && !is_ios
@@ -1760,15 +1752,12 @@ component("base") {
       "debug/proc_maps_linux.cc",
       "debug/proc_maps_linux.h",
       "files/dir_reader_linux.h",
-      "files/scoped_file_linux.cc",
       "process/internal_linux.cc",
       "process/internal_linux.h",
-      "process/memory_linux.cc",
       "process/process_handle_linux.cc",
       "process/process_iterator_linux.cc",
       "process/process_linux.cc",
       "process/process_metrics_linux.cc",
-      "threading/platform_thread_linux.cc",
       "threading/thread_type_delegate.cc",
       "threading/thread_type_delegate.h",
 
@@ -1789,19 +1778,12 @@ component("base") {
       #         ../../base/process/process_metrics_posix.cc:119:27: error: invalid use of incomplete type 'mallinfo'
       # struct mallinfo minfo = mallinfo();
       "process/process_metrics_posix.cc",
+      "scoped_native_library.cc",
       "sync_socket_posix.cc",
 
       # base/posix/unix_domain_socket.cc:91:22: error: implicit conversion loses integer precision:
       "posix/unix_domain_socket.cc",
       "posix/unix_domain_socket.h",
-
-      #     SHIM_ALWAYS_EXPORT size_t malloc_usable_size(void* address) __THROW {
-      #                           ^
-      # ../../third_party/musl/include/malloc.h:19:8: note: previous declaration is here
-      # size_t malloc_usable_size(void *);
-      "allocator/partition_allocator/shim/allocator_shim_override_cpp_symbols.h",
-      "allocator/partition_allocator/shim/allocator_shim_override_glibc_weak_symbols.h",
-      "allocator/partition_allocator/shim/allocator_shim_override_libc_symbols.h",
     ]
   }
 
@@ -3568,14 +3550,14 @@ test("base_unittests") {
       "//starboard:starboard_group",
       "//starboard/common",
     ]
-  }
-
+  } else {
   data_deps = [
     "//base/test:immediate_crash_test_helper",
     "//base/test:test_child_process",
     "//base/test:test_shared_library",
     "//testing/buildbot/filters:base_unittests_filters",
   ]
+  }
 
   if (is_android && enable_chrome_android_internal) {
     data_deps += [ "//clank/build/bot/filters:base_unittests_filters" ]
@@ -3682,6 +3664,30 @@ test("base_unittests") {
     }
   }
 
+  if (is_starboard) {
+    sources -= [
+      "debug/proc_maps_linux_unittest.cc",
+      "debug/stack_trace_unittest.cc",
+      "files/file_util_unittest.cc",
+      "immediate_crash_unittest.cc",
+      "memory/platform_shared_memory_region_unittest.cc",
+      "metrics/field_trial_unittest.cc",
+      "native_library_unittest.cc",
+      "process/process_metrics_unittest.cc",
+      "process/process_util_unittest.cc",
+      "process/process_unittest.cc",
+      "profiler/module_cache_unittest.cc",
+      "profiler/stack_sampling_profiler_unittest.cc",
+      "profiler/stack_sampler_unittest.cc",
+      "sync_socket_unittest.cc",
+      "system/sys_info_unittest.cc",
+      "test/launcher/test_launcher_unittest.cc",
+      "test/launcher/test_results_tracker_unittest.cc",
+      "test/task_environment_unittest.cc",
+      "task/thread_pool/thread_pool_impl_unittest.cc",
+    ]
+  }
+
   if (is_mac) {
     sources += [
       "allocator/partition_allocator/shim/allocator_interception_mac_unittest.mm",
@@ -3720,7 +3726,12 @@ test("base_unittests") {
       "posix/file_descriptor_shuffle_unittest.cc",
       "posix/unix_domain_socket_unittest.cc",
     ]
-    if (!is_nacl && !is_apple) {
+    if (is_starboard) {
+      sources -= [
+        "posix/unix_domain_socket_unittest.cc",
+      ]
+    }
+    if (!is_nacl && !is_apple && !is_starboard) {
       sources += [
         "profiler/stack_base_address_posix_unittest.cc",
         "profiler/stack_copier_signal_unittest.cc",
@@ -3898,6 +3909,11 @@ test("base_unittests") {
       "allocator/partition_allocator/thread_cache_unittest.cc",
     ]
 
+    if (is_starboard) {
+      sources -= [
+        "allocator/partition_allocator/page_allocator_unittest.cc",
+      ]
+    }
     if (use_starscan) {
       sources += [
         "allocator/partition_allocator/starscan/pcscan_scheduling_unittest.cc",
@@ -3955,7 +3971,7 @@ test("base_unittests") {
     }
   }
 
-  if (is_fuchsia || is_linux || is_chromeos) {
+  if (is_fuchsia || (is_linux && !is_cobalt_hermetic_build) || is_chromeos) {
     sources += [
       "debug/elf_reader_unittest.cc",
       "debug/test_elf_image_builder.cc",
@@ -4045,7 +4061,7 @@ test("base_unittests") {
         [ "//build/config/fuchsia/test/logger.shard.test-cml" ]
   }
 
-  if (!is_fuchsia && !is_ios) {
+  if (!is_fuchsia && !is_ios && !is_starboard) {
     sources += [ "files/file_locking_unittest.cc" ]
   }
 
