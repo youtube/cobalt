@@ -27,9 +27,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "build/build_config.h"
 #include "gtest/internal/gtest-port.h"
 
-#if !GTEST_OS_STARBOARD
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,7 +52,7 @@
 #else
 #include <unistd.h>
 #endif  // GTEST_OS_WINDOWS
-#endif  // !GTEST_OS_STARBOARD
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 #if GTEST_OS_MAC
 #include <mach/mach_init.h>
@@ -92,7 +93,7 @@
 namespace testing {
 namespace internal {
 
-#if defined(_MSC_VER) || defined(__BORLANDC__) || GTEST_OS_STARBOARD
+#if defined(_MSC_VER) || defined(__BORLANDC__) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 // MSVC and C++Builder do not provide a definition of STDERR_FILENO.
 const int kStdOutFileno = 1;
 const int kStdErrFileno = 2;
@@ -1199,7 +1200,7 @@ std::string GetCapturedStderr() {
 #endif  // GTEST_HAS_STREAM_REDIRECTION
 
 size_t GetFileSize(FILE* file) {
-#if !GTEST_OS_STARBOARD
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   fseek(file, 0, SEEK_END);
   return static_cast<size_t>(ftell(file));
 #else
@@ -1208,7 +1209,7 @@ size_t GetFileSize(FILE* file) {
 }
 
 std::string ReadEntireFile(FILE* file) {
-#if !GTEST_OS_STARBOARD
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   const size_t file_size = GetFileSize(file);
   char* const buffer = new char[file_size];
 

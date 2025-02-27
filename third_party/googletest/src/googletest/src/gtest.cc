@@ -30,9 +30,10 @@
 //
 // The Google C++ Testing and Mocking Framework (Google Test)
 
+#include "build/build_config.h"
 #include "gtest/gtest.h"
 
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #include "starboard/client_porting/eztime/eztime.h"
 #include "starboard/common/file.h"
 #include "starboard/system.h"
@@ -66,7 +67,7 @@
 
 
 
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 // Starboard does not require any additional includes.
 
 #elif GTEST_OS_LINUX
@@ -194,7 +195,7 @@ const char kStackTraceMarker[] = "\nStack trace:\n";
 bool g_help_flag = false;
 
 
-#if !GTEST_OS_STARBOARD
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 // Utility function to Open File for Writing
 static FILE* OpenFileForWriting(const std::string& output_file) {
   FILE* fileout = nullptr;
@@ -379,7 +380,7 @@ GTEST_DEFINE_string_(
     "This flag specifies the flagfile to read command-line flags from.");
 #endif  // GTEST_USE_OWN_FLAGFILE_FLAG_
 
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 GTEST_DEFINE_int32_(
     total_shards,
     internal::Int32FromGTestEnv("total_shards", -1),
@@ -388,7 +389,7 @@ GTEST_DEFINE_int32_(
     shard_index,
     internal::Int32FromGTestEnv("shard_index", -1),
     "The shard index that determines the subset of unit tests run in the shard.");
-#endif  // GTEST_OS_STARBOARD
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 namespace testing {
 namespace internal {
@@ -1132,7 +1133,7 @@ std::string UnitTestImpl::CurrentOsStackTraceExceptTop(int skip_count) {
 }
 
 // A helper class for measuring elapsed times.
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 class Timer {
  public:
   Timer() : start_(GetTimeInMillis()) {
@@ -1146,7 +1147,7 @@ class Timer {
  private:
   TimeInMillis start_;
 };
-#else  // GTEST_OS_STARBOARD
+#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 class Timer {
  public:
   Timer() : start_(std::chrono::steady_clock::now()) {}
@@ -1161,7 +1162,7 @@ class Timer {
  private:
   std::chrono::steady_clock::time_point start_;
 };
-#endif  // GTEST_OS_STARBOARD
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // Returns a timestamp as milliseconds since the epoch. Note this time may jump
 // around subject to adjustments by the system, to measure elapsed time use
@@ -3273,7 +3274,7 @@ bool ShouldUseColor(bool stdout_is_tty) {
   const char* const gtest_color = c.c_str();
 
   if (String::CaseInsensitiveCStringEquals(gtest_color, "auto")) {
-#if (GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_MINGW) || GTEST_OS_STARBOARD
+#if (GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_MINGW) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     // On Windows the TERM variable is usually not set, but the
     // console there does support colors.
     return stdout_is_tty;
@@ -3440,19 +3441,19 @@ void PrettyUnitTestResultPrinter::OnTestIterationStart(
   }
 
   if (internal::ShouldShard(kTestTotalShards, kTestShardIndex, false)) {
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     const int32_t shard_index = GTEST_FLAG(shard_index);
     const int32_t total_shards = GTEST_FLAG(total_shards);
     ColoredPrintf(GTestColor::kYellow,
                   "Note: This is test shard %d of %d.\n",
                   static_cast<int>(shard_index) + 1,
                   static_cast<int>(total_shards));
-#else  // GTEST_OS_STARBOARD
+#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     const int32_t shard_index = Int32FromEnvOrDie(kTestShardIndex, -1);
     ColoredPrintf(GTestColor::kYellow, "Note: This is test shard %d of %s.\n",
                   static_cast<int>(shard_index) + 1,
                   internal::posix::GetEnv(kTestTotalShards));
-#endif  // GTEST_OS_STARBOARD
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   }
 
   if (GTEST_FLAG_GET(shuffle)) {
@@ -3657,7 +3658,7 @@ void PrettyUnitTestResultPrinter::PrintSkippedTests(const UnitTest& unit_test) {
   }
 }
 
-#if !GTEST_OS_STARBOARD
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                      int /*iteration*/) {
   ColoredPrintf(GTestColor::kGreen, "[==========] ");
@@ -3695,7 +3696,7 @@ void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
   // Ensure that Google Test output is printed before, e.g., heapchecker output.
   posix::Flush();
 }
-#else  // !GTEST_OS_STARBOARD
+#else  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                      int /*iteration*/) {
   // Due to the test processes relying on regex-parsing of GTEST test result
@@ -3795,7 +3796,7 @@ void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
   posix::PrintF("%s", out_stream.str().c_str());
   posix::Flush();
 }
-#endif  // !GTEST_OS_STARBOARD
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // End PrettyUnitTestResultPrinter
 
@@ -3870,7 +3871,7 @@ void BriefUnitTestResultPrinter::OnTestEnd(const TestInfo& test_info) {
   }
 }
 
-#if !GTEST_OS_STARBOARD
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 void BriefUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                     int /*iteration*/) {
   ColoredPrintf(GTestColor::kGreen, "[==========] ");
@@ -3902,7 +3903,7 @@ void BriefUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
   // Ensure that Google Test output is printed before, e.g., heapchecker output.
   internal::posix::Flush();
 }
-#else  // !GTEST_OS_STARBOARD
+#else  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 void BriefUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                     int /*iteration*/) {
   // Due to the test processes relying on regex-parsing of GTEST test result
@@ -3957,7 +3958,7 @@ void BriefUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
   internal::posix::PrintF("%s", out_stream.str().c_str());
   internal::posix::Flush();
 }
-#endif  // !GTEST_OS_STARBOARD
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // End BriefUnitTestResultPrinter
 
@@ -4187,7 +4188,7 @@ class XmlUnitTestResultPrinter : public EmptyTestEventListener {
   GTEST_DISALLOW_COPY_AND_ASSIGN_(XmlUnitTestResultPrinter);
 };
 
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 void WriteOuputFile(const std::string &output_file, const std::string &data) {
   starboard::ScopedFile cache_file(output_file.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
   if (!cache_file.IsValid()) {
@@ -4208,7 +4209,7 @@ XmlUnitTestResultPrinter::XmlUnitTestResultPrinter(const char* output_file)
 // Called after the unit test ends.
 void XmlUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                   int /*iteration*/) {
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   std::stringstream stream;
   PrintXmlUnitTest(&stream, unit_test);
 
@@ -4224,7 +4225,7 @@ void XmlUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
 
 void XmlUnitTestResultPrinter::ListTestsMatchingFilter(
     const std::vector<TestSuite*>& test_suites) {
-#if !GTEST_OS_STARBOARD
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   FILE* xmlout = OpenFileForWriting(output_file_);
   std::stringstream stream;
   PrintXmlTestsList(&stream, test_suites);
@@ -4324,7 +4325,7 @@ std::string FormatTimeInMillisAsSeconds(TimeInMillis ms) {
   return ss.str();
 }
 
-#if !GTEST_OS_STARBOARD
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 static bool PortableLocaltime(time_t seconds, struct tm* out) {
 #if defined(_MSC_VER)
   return localtime_s(out, &seconds) == 0;
@@ -4343,12 +4344,12 @@ static bool PortableLocaltime(time_t seconds, struct tm* out) {
   return localtime_r(&seconds, out) != nullptr;
 #endif
 }
-#endif // !GTEST_OS_STARBOARD
+#endif // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // Converts the given epoch time in milliseconds to a date string in the ISO
 // 8601 format, without the timezone information.
 std::string FormatEpochTimeInMillisAsIso8601(TimeInMillis ms) {
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   EzTimeExploded time_struct;
   const EzTimeT seconds = static_cast<EzTimeT>(ms / 1000);
   if (EzTimeTExplodeLocal(&seconds, &time_struct) == NULL) {
@@ -4738,7 +4739,7 @@ JsonUnitTestResultPrinter::JsonUnitTestResultPrinter(const char* output_file)
 
 void JsonUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                    int /*iteration*/) {
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   std::stringstream stream;
   PrintJsonUnitTest(&stream, unit_test);
   WriteOuputFile(output_file_, StringStreamToString(&stream));
@@ -4804,7 +4805,7 @@ static std::string FormatTimeInMillisAsDuration(TimeInMillis ms) {
 // Converts the given epoch time in milliseconds to a date string in the
 // RFC3339 format, without the timezone information.
 static std::string FormatEpochTimeInMillisAsRFC3339(TimeInMillis ms) {
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   EzTimeExploded time_struct;
   const EzTimeT seconds = static_cast<EzTimeT>(ms / 1000);
   if (EzTimeTExplodeLocal(&seconds, &time_struct) == NULL) {
@@ -5263,28 +5264,28 @@ class ScopedPrematureExitFile {
             premature_exit_filepath ? premature_exit_filepath : "") {
     // If a path to the premature-exit file is specified...
     if (!premature_exit_filepath_.empty()) {
-#if !GTEST_OS_STARBOARD
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
       // create the file with a single "0" character in it.  I/O
       // errors are ignored as there's nothing better we can do and we
       // don't want to fail the test because of this.
       FILE* pfile = posix::FOpen(premature_exit_filepath_.c_str(), "w");
       fwrite("0", 1, 1, pfile);
       fclose(pfile);
-#endif // !GTEST_OS_STARBOARD
+#endif // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     }
   }
 
   ~ScopedPrematureExitFile() {
 #if !defined GTEST_OS_ESP8266
     if (!premature_exit_filepath_.empty()) {
-#if !GTEST_OS_STARBOARD
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
       int retval = remove(premature_exit_filepath_.c_str());
       if (retval) {
         GTEST_LOG_(ERROR) << "Failed to remove premature exit filepath \""
                           << premature_exit_filepath_ << "\" with error "
                           << retval;
       }
-#endif // !GTEST_OS_STARBOARD
+#endif // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     }
 #endif
   }
@@ -5581,7 +5582,7 @@ void UnitTest::AddTestPartResult(TestPartResult::Type result_type,
      (defined(__x86_64__) || defined(__i386__)))
       // with clang/gcc we can achieve the same effect on x86 by invoking int3
       asm("int3");
-#elif GTEST_OS_STARBOARD
+#elif BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
       SbSystemBreakIntoDebugger();
 #else
       // Dereference nullptr through a volatile pointer to prevent the compiler
@@ -6224,13 +6225,13 @@ bool ShouldShard(const char* total_shards_env, const char* shard_index_env,
     return false;
   }
 
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   const int32_t total_shards = GTEST_FLAG(total_shards);
   const int32_t shard_index = GTEST_FLAG(shard_index);
-#else  // GTEST_OS_STARBOARD
+#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   const int32_t total_shards = Int32FromEnvOrDie(total_shards_env, -1);
   const int32_t shard_index = Int32FromEnvOrDie(shard_index_env, -1);
-#endif  // GTEST_OS_STARBOARD
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
   if (total_shards == -1 && shard_index == -1) {
     return false;
@@ -6297,19 +6298,19 @@ bool ShouldRunTestOnShard(int total_shards, int shard_index, int test_id) {
 // https://github.com/google/googletest/blob/master/googletest/docs/advanced.md
 // . Returns the number of tests that should run.
 int UnitTestImpl::FilterTests(ReactionToSharding shard_tests) {
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   const int32_t total_shards = shard_tests == HONOR_SHARDING_PROTOCOL ?
       GTEST_FLAG(total_shards) : -1;
   const int32_t shard_index = shard_tests == HONOR_SHARDING_PROTOCOL ?
       GTEST_FLAG(shard_index) : -1;
-#else  // GTEST_OS_STARBOARD
+#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   const int32_t total_shards = shard_tests == HONOR_SHARDING_PROTOCOL
                                    ? Int32FromEnvOrDie(kTestTotalShards, -1)
                                    : -1;
   const int32_t shard_index = shard_tests == HONOR_SHARDING_PROTOCOL
                                   ? Int32FromEnvOrDie(kTestShardIndex, -1)
                                   : -1;
-#endif  // GTEST_OS_STARBOARD
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
   const PositiveAndNegativeUnitTestFilter gtest_flag_filter(
       GTEST_FLAG_GET(filter));
@@ -6414,7 +6415,7 @@ void UnitTestImpl::ListTestsMatchingFilter() {
     }
   }
   internal::posix::Flush();
-#if !GTEST_OS_STARBOARD
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   const std::string& output_format = UnitTestOptions::GetOutputFormat();
   if (output_format == "xml" || output_format == "json") {
     FILE* fileout = OpenFileForWriting(
@@ -6818,10 +6819,10 @@ static bool ParseGoogleTestFlag(const char* const arg) {
   GTEST_INTERNAL_PARSE_FLAG(stack_trace_depth);
   GTEST_INTERNAL_PARSE_FLAG(stream_result_to);
   GTEST_INTERNAL_PARSE_FLAG(throw_on_failure);
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   GTEST_INTERNAL_PARSE_FLAG(total_shards);
   GTEST_INTERNAL_PARSE_FLAG(shard_index);
-#endif //  GTEST_OS_STARBOARD
+#endif //  BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   return false;
 }
 

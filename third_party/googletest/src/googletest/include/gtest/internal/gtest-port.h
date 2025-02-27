@@ -255,6 +255,8 @@
 //                                        deprecated; calling a marked function
 //                                        should generate a compiler warning
 
+#include "build/build_config.h"
+
 #if !defined(STARBOARD)
 #include <ctype.h>   // for isspace, etc
 #include <stddef.h>  // for ptrdiff_t
@@ -357,13 +359,13 @@
 #define GTEST_DISABLE_MSC_DEPRECATED_POP_() GTEST_DISABLE_MSC_WARNINGS_POP_()
 #endif
 
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 # define GTEST_HAS_EXCEPTIONS 0
 # define GTEST_HAS_POSIX_RE 0
 # define GTEST_HAS_RTTI 0
 # define GTEST_HAS_SEH 0
 # define GTEST_HAS_STREAM_REDIRECTION 0
-#else  // GTEST_OS_STARBOARD
+#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 // Brings in definitions for functions used in the testing::internal::posix
 // namespace (read, write, close, chdir, isatty, stat). We do not currently
 // use them on Windows Mobile.
@@ -394,7 +396,7 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #include <strings.h>
 #include <unistd.h>
 #endif  // GTEST_OS_WINDOWS
-#endif  // GTEST_OS_STARBOARD
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 #if GTEST_OS_LINUX_ANDROID
 // Used to define __ANDROID_API__ matching the target NDK API level.
@@ -574,7 +576,7 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
    GTEST_OS_HAIKU || GTEST_OS_GNU_HURD)
 #endif  // GTEST_HAS_PTHREAD
 
-#if GTEST_HAS_PTHREAD || GTEST_OS_STARBOARD
+#if GTEST_HAS_PTHREAD || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 // gtest-port.h guarantees to #include <pthread.h> when GTEST_HAS_PTHREAD is
 // true.
 #include <pthread.h>  // NOLINT
@@ -1011,7 +1013,7 @@ class GTEST_API_ GTestLog {
 };
 
 #if !defined(GTEST_LOG_)
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #define GTEST_LOG_ SB_LOG
 #else
 #define GTEST_LOG_(severity)                                           \
@@ -1021,7 +1023,7 @@ class GTEST_API_ GTestLog {
 #endif
 
 inline void LogToStderr() {}
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 inline void FlushInfoLog() {}
 #else
 inline void FlushInfoLog() { fflush(nullptr); }
@@ -1205,7 +1207,7 @@ void ClearInjectableArgvs();
 #endif  // GTEST_HAS_DEATH_TEST
 
 // Defines synchronization primitives.
-#if defined(GTEST_OS_STARBOARD)
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 class Mutex {
  public:
   enum MutexType { kStatic = 0, kDynamic = 1 };
@@ -1301,7 +1303,7 @@ class ThreadLocal {
   pthread_key_t key_;
 };
 
-#else  // GTEST_OS_STARBOARD
+#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #if GTEST_IS_THREADSAFE
 
 #if GTEST_OS_WINDOWS
@@ -1990,7 +1992,7 @@ class GTEST_API_ ThreadLocal {
 };
 
 #endif  // GTEST_IS_THREADSAFE
-#endif  // GTEST_OS_STARBOARD
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // Returns the number of threads running in the process, or 0 to indicate that
 // we cannot detect it.
@@ -2071,7 +2073,7 @@ inline std::string StripTrailingSpaces(std::string str) {
 
 namespace posix {
 
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 typedef struct stat StatStruct;
 
@@ -2153,7 +2155,7 @@ inline int IsATTY(int fd) {
   return DoIsATTY(fd);
 }
 
-#else // GTEST_OS_STARBOARD
+#else // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // Functions with a different name on Windows.
 
@@ -2300,7 +2302,7 @@ GTEST_DISABLE_MSC_DEPRECATED_POP_()
 [[noreturn]] inline void Abort() { abort(); }
 #endif  // GTEST_OS_WINDOWS_MOBILE
 
-#endif  // GTEST_OS_STARBOARD
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 inline void SNPrintF(char* out_buffer, size_t size, const char* format,...) {
   va_list args;
@@ -2311,9 +2313,9 @@ inline void SNPrintF(char* out_buffer, size_t size, const char* format,...) {
 
 }  // namespace posix
 
-#if GTEST_OS_STARBOARD
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 # define GTEST_SNPRINTF_ internal::posix::SNPrintF
-#else  // GTEST_OS_STARBOARD
+#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 // MSVC "deprecates" snprintf and issues warnings wherever it is used.  In
 // order to avoid these warnings, we need to use _snprintf or _snprintf_s on
 // MSVC-based platforms.  We map the GTEST_SNPRINTF_ macro to the appropriate
@@ -2329,7 +2331,7 @@ inline void SNPrintF(char* out_buffer, size_t size, const char* format,...) {
 #else
 #define GTEST_SNPRINTF_ snprintf
 #endif
-#endif  // GTEST_OS_STARBOARD
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // The biggest signed integer type the compiler supports.
 //
