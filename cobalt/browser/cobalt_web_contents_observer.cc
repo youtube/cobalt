@@ -16,6 +16,8 @@
 
 #include "base/strings/utf_string_conversions.h"
 #include "cobalt/browser/embedded_resources/embedded_js.h"
+#include "cobalt/browser/migrate_storage_record/migration_manager.h"
+#include "content/public/browser/web_contents.h"
 
 namespace cobalt {
 
@@ -53,9 +55,8 @@ void CobaltWebContentsObserver::RegisterInjectedJavaScript() {
   }
 }
 
-// Placeholder for a WebContentsObserver override
 void CobaltWebContentsObserver::PrimaryMainDocumentElementAvailable() {
-  LOG(INFO) << "Cobalt::PrimaryMainDocumentElementAvailable";
+  migrate_storage_record::DoMigrationTasksOnce(web_contents());
 }
 
 }  // namespace cobalt
