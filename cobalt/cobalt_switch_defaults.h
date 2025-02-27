@@ -28,7 +28,6 @@ namespace cobalt {
 // expected for Cobalt. This prevents switches from getting clobbered, leading
 // to unintended behavior.
 class CommandLinePreprocessor {
-
  public:
   CommandLinePreprocessor(int argc, const char* const* argv);
 
@@ -44,8 +43,8 @@ class CommandLinePreprocessor {
 
   std::string startup_url_;
 
-}; // CommandLinePreprocessor
+};  // CommandLinePreprocessor
 
-} // namespace cobalt
+}  // namespace cobalt
 
 #endif  // COBALT_COBALT_SWITCH_DEFAULTS_H_

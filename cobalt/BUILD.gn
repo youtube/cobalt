@@ -47,6 +47,7 @@ if (!is_android) {
     defines = []
 
     deps = [
+      "//chrome/common:non_code_constants",
       "//cobalt/browser",
       "//cobalt/browser:switches",
       "//cobalt/gpu",
@@ -58,8 +59,7 @@ if (!is_android) {
       "//sandbox",
       "//starboard:starboard_group",
       "//third_party/blink/public/common",
-      "//chrome/common:non_code_constants",
-      "//ui/ozone:ozone"
+      "//ui/ozone:ozone",
     ]
 
     data_deps = [
@@ -89,26 +89,26 @@ test("cobalt_unittests") {
   testonly = true
 
   sources = [
-    "//cobalt/user_agent/user_agent_platform_info_test.cc",
-    "//cobalt/cobalt_switch_defaults_test.cc",
     "//cobalt/cobalt_switch_defaults.cc",
     "//cobalt/cobalt_switch_defaults.h",
+    "//cobalt/cobalt_switch_defaults_test.cc",
+    "//cobalt/user_agent/user_agent_platform_info_test.cc",
   ]
 
   deps = [
     "//base/test:run_all_unittests",
+    "//chrome/common:non_code_constants",
+    "//cobalt:cobalt",
+    "//cobalt/browser:switches",
+    "//cobalt/gpu",
     "//cobalt/user_agent",
+    "//content/public/app",
+    "//content/shell:content_shell_lib",
+    "//sandbox",
     "//starboard:starboard_group",
     "//testing/gmock",
     "//testing/gtest",
-    "//chrome/common:non_code_constants",
-    "//ui/ozone:ozone",
     "//third_party/blink/public/common",
-    "//sandbox",
-    "//content/shell:content_shell_lib",
-    "//content/public/app",
-    "//cobalt/browser:switches",
-    "//cobalt/gpu",
-    "//cobalt:cobalt"
+    "//ui/ozone:ozone",
   ]
 }
