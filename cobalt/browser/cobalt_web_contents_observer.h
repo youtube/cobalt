@@ -24,7 +24,7 @@ namespace cobalt {
 
 class CobaltWebContentsObserver : public content::WebContentsObserver {
  public:
-  explicit CobaltWebContentsObserver(content::WebContents* web_contents);
+  CobaltWebContentsObserver(content::WebContents* web_contents);
 
   void PrimaryMainDocumentElementAvailable() override;
 
