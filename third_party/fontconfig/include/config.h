@@ -5,6 +5,8 @@
 
 #pragma once
 
+#include "build/build_config.h"
+
 #define ALIGNOF_DOUBLE 8
 
 #define ALIGNOF_VOID_P 8
@@ -74,7 +76,12 @@
 
 #define HAVE_RANDOM 1
 
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+/* TODO: (cobalt b/398295440) Add `random_r' support to Evergreen. */
+#define HAVE_RANDOM_R 0
+#else
 #define HAVE_RANDOM_R 1
+#endif
 
 #define HAVE_RAND_R 1
 
