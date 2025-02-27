@@ -313,7 +313,7 @@ static_library("test_support") {
     ]
   }
 
-  if (use_blink) {
+  if (use_blink && !is_cobalt_hermetic_build) {
     sources += [
       "launcher/test_launcher.cc",
       "launcher/test_launcher.h",
@@ -434,12 +434,14 @@ shared_library("immediate_crash_test_helper") {
   }
 }
 
+if (!is_starboard) {
 # This shared library is dynamically loaded by NativeLibrary unittests.
 shared_library("test_shared_library") {
   testonly = true
   sources = [ "test_shared_library.cc" ]
 
   deps = [ ":native_library_test_utils" ]
+}
 }
 
 if (is_fuchsia || is_linux || is_chromeos) {
@@ -529,14 +531,16 @@ if (is_ios) {
   }
 }
 
+if (!is_starboard) {
 # Trivial executable which outputs space-delimited argv to stdout,
 # used for testing.
 executable("test_child_process") {
   testonly = true
   sources = [ "test_child_process.cc" ]
 }
+}
 
-if (enable_base_tracing) {
+if (enable_base_tracing && !is_cobalt_hermetic_build) {
   perfetto_cc_proto_descriptor("gen_cc_chrome_track_event_descriptor") {
     descriptor_name = "chrome_track_event.descriptor"
     descriptor_target = "//base/tracing/protos:chrome_track_event"
