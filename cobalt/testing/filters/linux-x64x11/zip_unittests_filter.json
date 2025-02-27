@@ -1,0 +1,8 @@
+{
+  "failing_tests": [
+    "ZipTest.UnzipSjis",
+    "ZipTest.ZipNonASCIIDir",
+    "ZipTest.UnzipSjisAsUtf8"
+  ]
+
+}
