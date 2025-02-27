@@ -28,6 +28,5 @@ copy("copy_ssl_certificates_evergreen") {
     install_content = true
   }
   sources = network_certs
-  outputs =
-      [ "$sb_static_contents_output_data_dir/app/cobalt/content/ssl/certs/{{source_file_part}}" ]
+  outputs = [ "$sb_static_contents_output_data_dir/app/cobalt/content/ssl/certs/{{source_file_part}}" ]
 }
