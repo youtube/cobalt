@@ -310,7 +310,10 @@ void StackTrace::PrintWithPrefix(cstring_view prefix_string) const {
 }
 
 void StackTrace::OutputToStream(std::ostream* os) const {
+// TODO: (cobalt b/398296821) Use stack_trace_starboard.cc or port stack_trace_posix.cc.
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   OutputToStreamWithPrefix(os, {});
+#endif
 }
 
 void StackTrace::OutputToStreamWithPrefix(std::ostream* os,
@@ -330,7 +333,7 @@ std::string StackTrace::ToString() const {
 
 std::string StackTrace::ToStringWithPrefix(cstring_view prefix_string) const {
   std::stringstream stream;
-#if (!defined(__UCLIBC__) && !defined(_AIX)) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if (!defined(__UCLIBC__) && !defined(_AIX)) && !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   OutputToStreamWithPrefix(&stream, prefix_string);
 #endif
   return stream.str();
