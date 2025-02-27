@@ -36,7 +36,7 @@ static_library("libevent") {
   ]
 
   defines = [ "HAVE_CONFIG_H" ]
-  if (is_cronet_build) {
+  if (is_cronet_build || is_starboard) {
     include_dirs = [ "compat" ]
   } else {
     include_dirs = []
