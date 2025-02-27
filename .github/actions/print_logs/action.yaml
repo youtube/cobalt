@@ -33,6 +33,8 @@ runs:
           echo "::error::No log files were collected."
           exit 1
         else
+          # TODO: Remove extra log file cat (in cases symbolization is broken above).
+          cat ${log_file}
           for log_file in ${log_files[@]}; do
             if [ "${{ inputs.symbolize }}" == "true" ]; then
               # TODO(oxv): Enable when symbol files are available.
@@ -42,8 +44,6 @@ runs:
               cat ${log_file}
             fi
           done
-          # TODO: Remove extra log file cat (in cases symbolization is broken above).
-          cat ${log_file}
         fi
 
         # By failing this step if tests failed the logs will be expanded by default.
