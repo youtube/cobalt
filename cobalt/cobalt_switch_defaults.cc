@@ -81,7 +81,7 @@ bool IsSwitch(const base::CommandLine::StringType& string) {
 
 namespace cobalt {
 
-CommandLinePreprocessor::CommandLinePreprocessor(int argc, const char** argv)
+CommandLinePreprocessor::CommandLinePreprocessor(int argc, const char* const* argv)
   : cmd_line_(argc, argv) {
 
   // Toggle-switch defaults are just turned on by default.
@@ -101,6 +101,7 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc, const char** argv)
         ::switches::kDisableFeatures));
     auto old_value = cobalt_param_switch_defaults.find(::switches::kDisableFeatures);
     if (old_value != cobalt_param_switch_defaults.end()) {
+      disabled_features += std::string(",");
       disabled_features += std::string(old_value->second);
       cmd_line_.AppendSwitchNative(::switches::kDisableFeatures,
                                    disabled_features);
@@ -108,12 +109,10 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc, const char** argv)
   }
 
   // Ensure the window size configs are consistent wherever they are set.
-  if (cmd_line_.HasSwitch(::switches::kContentShellHostWindowSize)) {
-    if (cmd_line_.HasSwitch(::switches::kWindowSize)) {
-      cmd_line_.RemoveSwitch(::switches::kContentShellHostWindowSize);
-      cmd_line_.AppendSwitchASCII(::switches::kContentShellHostWindowSize,
-        cmd_line_.GetSwitchValueASCII(::switches::kWindowSize));
-    }
+  if (cmd_line_.HasSwitch(::switches::kWindowSize)) {
+    // --window-size takes priority over other window-size configs.
+    const auto window_size = cmd_line_.GetSwitchValueASCII(::switches::kWindowSize);
+    cmd_line_.AppendSwitchASCII(::switches::kContentShellHostWindowSize, window_size);
   }
 
   // Any remaining parameter switches are set to their defaults.
