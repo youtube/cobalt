@@ -568,7 +568,7 @@ OPENSSL_EXPORT void CRYPTO_once(CRYPTO_once_t *once, void (*init)(void));
 #endif
 
 // CRYPTO_REFCOUNT_MAX is the value at which the reference count saturates.
-#if defined(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 // TODO: b/398292397 - Cobalt: Investigate if this is really needed and add a comment explaining why.
 #define CRYPTO_REFCOUNT_MAX 0x7fffffff
 #else

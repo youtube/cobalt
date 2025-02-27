@@ -19,7 +19,7 @@
 
 
 #if !defined(OPENSSL_C11_ATOMIC)
-#if !defined(IS_COBALT_HERMETIC_BUILD)
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 static_assert((CRYPTO_refcount_t)-1 == CRYPTO_REFCOUNT_MAX,
               "CRYPTO_REFCOUNT_MAX is incorrect");
