@@ -364,8 +364,13 @@ void PlatformThreadBase::Detach(PlatformThreadHandle thread_handle) {
 #if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_FUCHSIA)
 
 // static
+<<<<<<< HEAD
 bool PlatformThreadBase::CanChangeThreadType(ThreadType from, ThreadType to) {
 #if BUILDFLAG(IS_NACL)
+=======
+bool PlatformThread::CanChangeThreadType(ThreadType from, ThreadType to) {
+#if BUILDFLAG(IS_NACL) || BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+>>>>>>> 1181c533483 (Build base_unittests hermetically. (#4935))
   return false;
 #else
   if (from >= to) {
@@ -377,7 +382,7 @@ bool PlatformThreadBase::CanChangeThreadType(ThreadType from, ThreadType to) {
   }
 
   return internal::CanLowerNiceTo(internal::ThreadTypeToNiceValue(to));
-#endif  // BUILDFLAG(IS_NACL)
+#endif  // BUILDFLAG(IS_NACL) || BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 }
 
 namespace internal {

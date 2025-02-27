@@ -116,15 +116,7 @@ if (is_apple) {
          "mac requires mach absolute time ticks")
 }
 
-# TODO: b/384652502 - Cobalt: Fix compiler errors building hermetically.
-# ../../third_party/libevent/signal.c:43:10: fatal error: 'sys/queue.h' file not found
-# #include <sys/queue.h>
-# Determines whether libevent should be dep.
-if (is_cobalt_hermetic_build) {
-  dep_libevent = false
-} else {
-  dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
-}
+dep_libevent = !is_fuchsia && !is_win && !is_mac && !is_nacl
 
 # Determines whether message_pump_libevent should be used.
 use_libevent = dep_libevent && !is_ios
@@ -1825,15 +1817,12 @@ component("base") {
       "debug/proc_maps_linux.cc",
       "debug/proc_maps_linux.h",
       "files/dir_reader_linux.h",
-      "files/scoped_file_linux.cc",
       "process/internal_linux.cc",
       "process/internal_linux.h",
-      "process/memory_linux.cc",
       "process/process_handle_linux.cc",
       "process/process_iterator_linux.cc",
       "process/process_linux.cc",
       "process/process_metrics_linux.cc",
-      "threading/platform_thread_linux.cc",
       "threading/thread_type_delegate.cc",
       "threading/thread_type_delegate.h",
 
@@ -1854,19 +1843,12 @@ component("base") {
       #         ../../base/process/process_metrics_posix.cc:119:27: error: invalid use of incomplete type 'mallinfo'
       # struct mallinfo minfo = mallinfo();
       "process/process_metrics_posix.cc",
+      "scoped_native_library.cc",
       "sync_socket_posix.cc",
 
       # base/posix/unix_domain_socket.cc:91:22: error: implicit conversion loses integer precision:
       "posix/unix_domain_socket.cc",
       "posix/unix_domain_socket.h",
-
-      #     SHIM_ALWAYS_EXPORT size_t malloc_usable_size(void* address) __THROW {
-      #                           ^
-      # ../../third_party/musl/include/malloc.h:19:8: note: previous declaration is here
-      # size_t malloc_usable_size(void *);
-      "allocator/partition_allocator/shim/allocator_shim_override_cpp_symbols.h",
-      "allocator/partition_allocator/shim/allocator_shim_override_glibc_weak_symbols.h",
-      "allocator/partition_allocator/shim/allocator_shim_override_libc_symbols.h",
     ]
   }
 
@@ -3851,17 +3833,24 @@ test("base_unittests") {
       "//starboard:starboard_group",
       "//starboard/common",
     ]
+<<<<<<< HEAD
 >>>>>>> 5a95b1d472b (Bring 25.lts.1+ base customizations to trunk (#4800))
   }
 
+=======
+  } else {
+>>>>>>> 1181c533483 (Build base_unittests hermetically. (#4935))
   data_deps = [
     "//base/test:immediate_crash_test_helper",
     "//base/test:test_child_process",
     "//base/test:test_shared_library",
     "//testing/buildbot/filters:base_unittests_filters",
   ]
+<<<<<<< HEAD
   if (is_ios) {
     deps += [ "//base/test:test_shared_library_ios+bundle" ]
+=======
+>>>>>>> 1181c533483 (Build base_unittests hermetically. (#4935))
   }
 
   if (is_android && enable_chrome_android_internal) {
@@ -4003,8 +3992,61 @@ test("base_unittests") {
     }
   }
 
+<<<<<<< HEAD
   if (enable_base_tracing) {
     sources += [ "test/test_trace_processor_example_unittest.cc" ]
+=======
+  if (is_starboard) {
+    sources -= [
+      "debug/proc_maps_linux_unittest.cc",
+      "debug/stack_trace_unittest.cc",
+      "files/file_util_unittest.cc",
+      "immediate_crash_unittest.cc",
+      "memory/platform_shared_memory_region_unittest.cc",
+      "metrics/field_trial_unittest.cc",
+      "native_library_unittest.cc",
+      "process/process_metrics_unittest.cc",
+      "process/process_util_unittest.cc",
+      "process/process_unittest.cc",
+      "profiler/module_cache_unittest.cc",
+      "profiler/stack_sampling_profiler_unittest.cc",
+      "profiler/stack_sampler_unittest.cc",
+      "sync_socket_unittest.cc",
+      "system/sys_info_unittest.cc",
+      "test/launcher/test_launcher_unittest.cc",
+      "test/launcher/test_results_tracker_unittest.cc",
+      "test/task_environment_unittest.cc",
+      "task/thread_pool/thread_pool_impl_unittest.cc",
+    ]
+  }
+
+  if (is_mac) {
+    sources += [
+      "allocator/partition_allocator/shim/allocator_interception_mac_unittest.mm",
+      "allocator/partition_allocator/shim/malloc_zone_functions_mac_unittest.cc",
+      "enterprise_util_mac_unittest.mm",
+      "mac/backup_util_unittest.mm",
+      "mac/bind_objc_block_unittest.mm",
+      "mac/call_with_eh_frame_unittest.mm",
+      "mac/dispatch_source_mach_unittest.cc",
+      "mac/foundation_util_unittest.mm",
+      "mac/mac_util_unittest.mm",
+      "mac/mach_port_rendezvous_unittest.cc",
+      "mac/scoped_mach_vm_unittest.cc",
+      "mac/scoped_nsobject_unittest.mm",
+      "mac/scoped_objc_class_swizzler_unittest.mm",
+      "mac/scoped_sending_event_unittest.mm",
+      "message_loop/message_pump_mac_unittest.mm",
+      "power_monitor/thermal_state_observer_mac_unittest.mm",
+      "process/memory_unittest_mac.h",
+      "process/memory_unittest_mac.mm",
+      "strings/sys_string_conversions_mac_unittest.mm",
+    ]
+  }
+
+  if (is_apple && enable_mach_absolute_time_ticks) {
+    sources += [ "time/time_mac_unittest.mm" ]
+>>>>>>> 1181c533483 (Build base_unittests hermetically. (#4935))
   }
 
   if (is_posix) {
@@ -4018,7 +4060,12 @@ test("base_unittests") {
       "posix/file_descriptor_shuffle_unittest.cc",
       "posix/unix_domain_socket_unittest.cc",
     ]
-    if (!is_nacl && !is_apple) {
+    if (is_starboard) {
+      sources -= [
+        "posix/unix_domain_socket_unittest.cc",
+      ]
+    }
+    if (!is_nacl && !is_apple && !is_starboard) {
       sources += [
         "profiler/stack_base_address_posix_unittest.cc",
         "profiler/stack_copier_signal_unittest.cc",
@@ -4209,6 +4256,83 @@ test("base_unittests") {
     }
   }
 
+<<<<<<< HEAD
+=======
+  if (use_partition_alloc) {
+    sources += [
+      "allocator/partition_allocator/address_pool_manager_unittest.cc",
+      "allocator/partition_allocator/address_space_randomization_unittest.cc",
+      "allocator/partition_allocator/compressed_pointer_unittest.cc",
+      "allocator/partition_allocator/freeslot_bitmap_unittest.cc",
+      "allocator/partition_allocator/hardening_unittest.cc",
+      "allocator/partition_allocator/memory_reclaimer_unittest.cc",
+      "allocator/partition_allocator/page_allocator_unittest.cc",
+      "allocator/partition_allocator/partition_alloc_base/bits_pa_unittest.cc",
+      "allocator/partition_allocator/partition_alloc_base/component_export_pa_unittest.cc",
+      "allocator/partition_allocator/partition_alloc_base/cpu_pa_unittest.cc",
+      "allocator/partition_allocator/partition_alloc_base/cxx17_backports_pa_unittest.cc",
+      "allocator/partition_allocator/partition_alloc_base/logging_pa_unittest.cc",
+      "allocator/partition_allocator/partition_alloc_base/rand_util_pa_unittest.cc",
+      "allocator/partition_allocator/partition_alloc_base/scoped_clear_last_error_pa_unittest.cc",
+      "allocator/partition_allocator/partition_alloc_base/strings/stringprintf_pa_unittest.cc",
+      "allocator/partition_allocator/partition_alloc_base/thread_annotations_pa_unittest.cc",
+      "allocator/partition_allocator/partition_alloc_unittest.cc",
+      "allocator/partition_allocator/partition_lock_unittest.cc",
+      "allocator/partition_allocator/reverse_bytes_unittest.cc",
+      "allocator/partition_allocator/thread_cache_unittest.cc",
+    ]
+
+    if (is_starboard) {
+      sources -= [
+        "allocator/partition_allocator/page_allocator_unittest.cc",
+      ]
+    }
+    if (use_starscan) {
+      sources += [
+        "allocator/partition_allocator/starscan/pcscan_scheduling_unittest.cc",
+        "allocator/partition_allocator/starscan/pcscan_unittest.cc",
+        "allocator/partition_allocator/starscan/scan_loop_unittest.cc",
+        "allocator/partition_allocator/starscan/stack/stack_unittest.cc",
+        "allocator/partition_allocator/starscan/state_bitmap_unittest.cc",
+      ]
+    }
+
+    if ((is_android || is_linux) && target_cpu == "arm64") {
+      cflags = [
+        "-Xclang",
+        "-target-feature",
+        "-Xclang",
+        "+mte",
+      ]
+    }
+
+    if (is_android) {
+      sources += [
+        "allocator/partition_allocator/partition_alloc_base/files/file_path_pa_unittest.cc",
+        "allocator/partition_allocator/partition_alloc_base/native_library_pa_unittest.cc",
+      ]
+    } else if (is_fuchsia) {
+      sources += [ "allocator/partition_allocator/partition_alloc_base/fuchsia/fuchsia_logging_pa_unittest.cc" ]
+    }
+
+    if (enable_pkeys && is_debug && !is_component_build) {
+      # This test requires RELRO, which is not enabled in component builds.
+      # Also, require a debug build, since we only disable stack protectors in
+      # debug builds in partition alloc (see below why it's needed).
+      sources += [ "allocator/partition_allocator/pkey_unittest.cc" ]
+
+      # We want to test the pkey code without access to memory that is not
+      # pkey-tagged. This will allow us to catch unintended memory accesses
+      # that could break our security assumptions. The stack protector reads a
+      # value from the TLS which won't be pkey-tagged, hence disabling it for
+      # the test.
+      configs += [ ":no_stack_protector" ]
+    }
+
+    deps += [ ":partition_alloc_test_support" ]
+  }
+
+>>>>>>> 1181c533483 (Build base_unittests hermetically. (#4935))
   if (is_mac) {
     sources += [ "message_loop/message_pump_kqueue_unittest.cc" ]
     frameworks += [
@@ -4219,7 +4343,7 @@ test("base_unittests") {
     deps += [ ":base_profiler_test_support_library" ]
   }
 
-  if (is_fuchsia || is_linux || is_chromeos) {
+  if (is_fuchsia || (is_linux && !is_cobalt_hermetic_build) || is_chromeos) {
     sources += [
       "debug/elf_reader_unittest.cc",
       "debug/test_elf_image_builder.cc",
@@ -4300,7 +4424,7 @@ test("base_unittests") {
     ]
   }
 
-  if (!is_fuchsia && !is_ios) {
+  if (!is_fuchsia && !is_ios && !is_starboard) {
     sources += [ "files/file_locking_unittest.cc" ]
   }
 

@@ -57,13 +57,22 @@
 #include <arm_acle.h>
 #endif
 
+<<<<<<< HEAD:base/allocator/partition_allocator/src/partition_alloc/partition_alloc_unittest.cc
 #if PA_BUILDFLAG(IS_POSIX)
 #if PA_BUILDFLAG(IS_LINUX)
+=======
+#if BUILDFLAG(IS_POSIX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+>>>>>>> 1181c533483 (Build base_unittests hermetically. (#4935)):base/allocator/partition_allocator/partition_alloc_unittest.cc
 // We need PKEY_DISABLE_WRITE in this file; glibc defines it in sys/mman.h but
 // it's actually Linux-specific and other Linux libcs define it in linux/mman.h.
 // We have to include both to be sure we get the definition.
 #include <linux/mman.h>
+<<<<<<< HEAD:base/allocator/partition_allocator/src/partition_alloc/partition_alloc_unittest.cc
 #endif  // PA_BUILDFLAG(IS_LINUX)
+=======
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+>>>>>>> 1181c533483 (Build base_unittests hermetically. (#4935)):base/allocator/partition_allocator/partition_alloc_unittest.cc
 #include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/time.h>
