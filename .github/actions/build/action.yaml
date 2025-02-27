@@ -105,7 +105,7 @@ runs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}_${{ matrix.name }}_test_symbols
-          pattern: src/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/*.so
+          path: ./src/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/*.so
       - name: Upload Test Artifacts
         if: steps.build-test-targets.outcome == 'success'
         uses: ./src/.github/actions/upload_test_artifacts
