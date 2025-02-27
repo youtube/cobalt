@@ -64,6 +64,7 @@ source_set("browser") {
     "//components/metrics",
     "//components/metrics:test_support",
     "//components/metrics_services_manager",
+    "//components/navigation_interception",
     "//components/os_crypt/sync",
     "//components/prefs",
     "//components/variations/service:service",

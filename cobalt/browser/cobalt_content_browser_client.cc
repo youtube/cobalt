@@ -39,6 +39,7 @@
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/navigation_interception/intercept_navigation_throttle.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
@@ -58,6 +59,19 @@
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
+
+// #if BUILDFLAG(IS_ANDROIDTV)
+// #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
+// #endif
+
+// #if BUILDFLAG(IS_LINUX)
+// #include "components/os_crypt/sync/key_storage_config_linux.h"
+// #include "components/os_crypt/sync/os_crypt.h"
+// #endif
+
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/android/shared/starboard_bridge.h"
+#endif
 
 namespace cobalt {
 
@@ -423,5 +437,29 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
 
   base::FeatureList::SetInstance(std::move(feature_list));
 }
+
+#if BUILDFLAG(IS_ANDROID)
+std::vector<std::unique_ptr<content::NavigationThrottle>>
+CobaltContentBrowserClient::CreateThrottlesForNavigation(
+    content::NavigationHandle* handle) {
+  std::vector<std::unique_ptr<content::NavigationThrottle>> throttles;
+
+  if (!handle || !handle->IsInPrimaryMainFrame() || !handle->GetWebContents()) {
+    return throttles;
+  }
+  throttles.push_back(
+      std::make_unique<navigation_interception::InterceptNavigationThrottle>(
+          handle, base::BindRepeating([](content::NavigationHandle* handle) {
+            DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+            JNIEnv* env = base::android::AttachCurrentThread();
+            auto* starbooard_bridge =
+                starboard::android::shared::StarboardBridge::GetInstance();
+            return starbooard_bridge->ShouldOverrideUrlLoading(
+                env, handle->GetURL());
+          }),
+          navigation_interception::SynchronyMode::kSync));
+  return throttles;
+}
+#endif  // BUILDFLAG(IS_ANDROID)
 
 }  // namespace cobalt

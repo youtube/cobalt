@@ -28,6 +28,7 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/log_mutex.h"
+#include "url/android/gurl_android.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/StarboardBridge_jni.h"
@@ -40,6 +41,7 @@ namespace shared {
 using base::android::AppendJavaStringArrayToStringVector;
 using base::android::AttachCurrentThread;
 using base::android::ConvertJavaStringToUTF8;
+using base::android::ConvertUTF8ToJavaString;
 using base::android::GetClass;
 
 namespace {
@@ -294,6 +296,14 @@ SB_EXPORT_ANDROID bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
   jboolean limit_ad_tracking_java =
       Java_StarboardBridge_getLimitAdTracking(env, j_starboard_bridge_);
   return limit_ad_tracking_java;
+}
+
+SB_EXPORT_ANDROID bool StarboardBridge::ShouldOverrideUrlLoading(
+    JNIEnv* env,
+    const GURL& url) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_shouldOverrideUrlLoading(
+      env, j_starboard_bridge_, url::GURLAndroid::FromNativeGURL(env, url));
 }
 
 }  // namespace shared

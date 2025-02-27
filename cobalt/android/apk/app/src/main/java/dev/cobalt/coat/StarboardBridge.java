@@ -21,7 +21,9 @@ import static dev.cobalt.util.Log.TAG;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.Service;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.hardware.input.InputManager;
 import android.media.AudioDeviceInfo;
@@ -43,10 +45,13 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.util.regex.Pattern;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.annotations.CalledByNative;
 import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.url.GURL;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
 @JNINamespace("starboard::android::shared")
@@ -100,6 +105,8 @@ public class StarboardBridge {
   private final boolean isAmatiDevice;
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long timeNanosecondsPerMicrosecond = 1000;
+  private static final Pattern FILE_ANDROID_ASSET_PATTERN =
+      Pattern.compile("^file:///android_(asset|res)/.*");
 
   public StarboardBridge(
       Context appContext,
@@ -133,7 +140,7 @@ public class StarboardBridge {
 
     nativeApp = StarboardBridgeJni.get().startNativeStarboard();
 
-    StarboardBridgeJni.get().handleDeepLink(startDeepLink, /*applicationStarted=*/ false);
+    StarboardBridgeJni.get().handleDeepLink(startDeepLink, /* applicationStarted= */ false);
     StarboardBridgeJni.get().setAndroidBuildFingerprint(getBuildFingerprint());
     StarboardBridgeJni.get().setAndroidOSExperience(this.isAmatiDevice);
     StarboardBridgeJni.get().setAndroidPlayServicesVersion(getPlayServicesVersion());
@@ -150,6 +157,7 @@ public class StarboardBridge {
     long currentMonotonicTime();
 
     long startNativeStarboard();
+
     // TODO(cobalt, b/372559388): move below native methods to the Natives interface.
     // boolean initJNI();
 
@@ -158,7 +166,9 @@ public class StarboardBridge {
     void handleDeepLink(String url, boolean applicationStarted);
 
     void setAndroidBuildFingerprint(String fingerprint);
+
     void setAndroidOSExperience(boolean isAmatiDevice);
+
     void setAndroidPlayServicesVersion(long version);
   }
 
@@ -559,6 +569,55 @@ public class StarboardBridge {
     return this.advertisingId.isLimitAdTrackingEnabled();
   }
 
+  @SuppressWarnings("unused")
+  @CalledByNative
+  protected boolean shouldOverrideUrlLoading(GURL url) {
+    Log.i(TAG, String.format("Possible outbound deeplink: %s", url.getSpec()));
+    GURL intentUrl;
+    if (url.getScheme().equals("intent")) {
+      intentUrl = url;
+    } else if (url.getScheme().equals("https") && url.getHost().equals("tv.youtube.com")) {
+      intentUrl =
+          new GURL(url.getSpec().replace("https://", "intent://") + "/#Intent;scheme=https");
+    } else {
+      return false;
+    }
+    return sendBrowsingIntent(activityHolder.get(), url.getSpec());
+  }
+
+  private static boolean sendBrowsingIntent(Context context, String url) {
+    Intent intent;
+    try {
+      Log.w(TAG, "Parsing intent: %s", url);
+      intent = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+    } catch (Exception ex) {
+      Log.w(TAG, "Bad URI %s", url, ex);
+      return false;
+    }
+
+    // Check whether the context is activity context.
+    if (ContextUtils.activityFromContext(context) == null) {
+      Log.w(TAG, "Cannot call startActivity on non-activity context.");
+      return false;
+    }
+
+    try {
+      Log.w(TAG, "Starting activity.");
+      context.startActivity(intent);
+      return true;
+    } catch (ActivityNotFoundException ex) {
+      Log.w(TAG, "No application can handle %s", url);
+    } catch (SecurityException ex) {
+      // This can happen if the Activity is exported="true", guarded by a permission, and sets
+      // up an intent filter matching this intent. This is a valid configuration for an
+      // Activity, so instead of crashing, we catch the exception and do nothing. See
+      // https://crbug.com/808494 and https://crbug.com/889300.
+      Log.w(TAG, "SecurityException when starting intent for %s", url);
+    }
+
+    return false;
+  }
+
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/audio_track_bridge.cc
   @SuppressWarnings("unused")
@@ -636,7 +695,8 @@ public class StarboardBridge {
 
   // Explicitly pass activity as parameter.
   // Avoid using activityHolder.get(), because onActivityStop() can set it to null.
-  public CobaltService openCobaltService(Activity activity, long nativeService, String serviceName) {
+  public CobaltService openCobaltService(
+      Activity activity, long nativeService, String serviceName) {
     if (cobaltServices.get(serviceName) != null) {
       // Attempting to re-open an already open service fails.
       Log.e(TAG, String.format("Cannot open already open service %s", serviceName));

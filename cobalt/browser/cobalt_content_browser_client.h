@@ -22,6 +22,11 @@
 #include "content/shell/browser/shell_content_browser_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
+#if BUILDFLAG(IS_ANDROID)
+#include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/navigation_throttle.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 class PrefService;
 
 namespace content {
@@ -117,6 +122,12 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       bool* bypass_redirect_checks,
       bool* disable_secure_dns,
       network::mojom::URLLoaderFactoryOverridePtr* factory_override) override;
+
+#if BUILDFLAG(IS_ANDROID)
+  std::vector<std::unique_ptr<content::NavigationThrottle>>
+  CreateThrottlesForNavigation(content::NavigationHandle*) override;
+#endif  // BUILDFLAG(IS_ANDROID)
+
 
  private:
   void CreateVideoGeometrySetterService();
