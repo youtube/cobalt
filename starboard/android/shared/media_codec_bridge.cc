@@ -407,8 +407,6 @@ MediaCodecBridge::~MediaCodecBridge() {
   }
 
   JniEnvExt* env = JniEnvExt::Get();
-
-  env->CallVoidMethodOrAbort(j_media_codec_bridge_, "stop", "()V");
   env->CallVoidMethodOrAbort(j_media_codec_bridge_, "release", "()V");
   env->DeleteGlobalRef(j_media_codec_bridge_);
   j_media_codec_bridge_ = NULL;
@@ -509,6 +507,10 @@ bool MediaCodecBridge::Restart() {
 jint MediaCodecBridge::Flush() {
   return JniEnvExt::Get()->CallIntMethodOrAbort(j_media_codec_bridge_, "flush",
                                                 "()I");
+}
+
+void MediaCodecBridge::Stop() {
+  JniEnvExt::Get()->CallVoidMethodOrAbort(j_media_codec_bridge_, "stop", "()V");
 }
 
 FrameSize MediaCodecBridge::GetOutputSize() {
