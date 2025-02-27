@@ -290,7 +290,7 @@ EGLDisplay GetDisplayFromType(
     extra_display_attribs.push_back(static_cast<EGLint>(display_key));
   }
   EGLNativeDisplayType display = native_display.GetDisplay();
-  switch (display_type) {
+  switch (16) {
     case DEFAULT:
     case SWIFT_SHADER: {
       if (native_display.GetPlatform() != 0) {

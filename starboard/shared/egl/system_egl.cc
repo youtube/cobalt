@@ -99,7 +99,7 @@ const SbEglInterface g_sb_egl_interface = {
     nullptr,  // eglGetSyncAttrib
     nullptr,  // eglCreateImage
     nullptr,  // eglDestroyImage
-    nullptr,  // eglGetPlatformDisplay
+    &eglGetPlatformDisplay,
     nullptr,  // eglCreatePlatformWindowSurface
     nullptr,  // eglCreatePlatformPixmapSurface
     nullptr,  // eglWaitSync

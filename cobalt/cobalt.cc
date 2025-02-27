@@ -68,7 +68,7 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
        // to enable it.
        "--ignore-gpu-blocklist",
        // Force some ozone settings.
-       "--ozone-platform=starboard", "--use-gl=angle", "--use-angle=gles-egl",
+       "--use-gl=angle", "--use-angle=gles-egl",
        // Set the default size for the content shell/starboard window.
        "--content-shell-host-window-size=1920x1080",
        // Enable remote Devtools access.
