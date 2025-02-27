@@ -21,4 +21,10 @@ interface CrashLog {
     // Returns a promise of true on success and false on failure.
     [CallWith=ScriptState, RaisesException]
     Promise<boolean> setString(DOMString key, DOMString value);
+
+    // Forces a crash in the renderer. This API should only be called by tests
+    // or for debugging.
+    // TODO(cobalt, b/393406740): consider replacing with internals.crash.
+    // TODO(cobalt, b/392940729): add a web test to verify the expected crash.
+    void triggerCrash();
 };
