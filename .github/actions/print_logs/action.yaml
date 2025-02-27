@@ -37,11 +37,13 @@ runs:
             if [ "${{ inputs.symbolize }}" == "true" ]; then
               # TODO(oxv): Enable when symbol files are available.
               cd src/
-              cat ../${log_file} | vpython3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/${{ matrix.platform }}_${{ matrix.config }}/
+              cat ../${log_file} | python3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/${{ matrix.platform }}_${{ matrix.config }}/
             else
               cat ${log_file}
             fi
           done
+          # TODO: Remove extra log file cat (in cases symbolization is broken above).
+          cat ${log_file}
         fi
 
         # By failing this step if tests failed the logs will be expanded by default.
