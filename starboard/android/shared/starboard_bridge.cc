@@ -29,6 +29,9 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/StarboardBridge_jni.h"
 
+// #include "third_party/blink/public/mojom/cobalt/deeplink/deeplink.mojom.h"
+#include "cobalt/browser/h5vcc_runtime/deeplink_manager.h"
+
 namespace starboard {
 namespace android {
 namespace shared {
@@ -99,6 +102,23 @@ JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
   return reinterpret_cast<jlong>(native_app);
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 }
+
+extern "C" SB_EXPORT_PLATFORM void
+JNI_StarboardBridge_HandleDeepLink(JNIEnv* env, const JavaParamRef<jstring>& jurl, jboolean applicationReady) {
+  const std::string& url = base::android::ConvertJavaStringToUTF8(env, jurl);
+  LOG(INFO) << "ColinL: JNI_StarboardBridge_HandleDeepLink url = " << url;
+
+  cobalt::browser::DeepLinkManager* manager = cobalt::browser::DeepLinkManager::GetInstance();
+  if (applicationReady) {
+    LOG(INFO) << "ColinL: DeepLinkManager::OnWarmStartupDeepLink url = " << url;
+    manager->OnWarmStartupDeepLink(url);
+  } else {
+    LOG(INFO) << "ColinL: DeepLinkManager::SetDeepLink url = " << url;
+    manager->SetDeepLink(url);
+  }
+  
+}
+
 
 // StarboardBridge::GetInstance() should not be inlined in the
 // header. This makes sure that when source files from multiple targets include

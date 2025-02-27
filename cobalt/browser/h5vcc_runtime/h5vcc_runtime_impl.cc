@@ -18,8 +18,13 @@
 #include "base/functional/callback.h"
 #include "build/build_config.h"
 
+// #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
+
+#include "cobalt/browser/h5vcc_runtime/deeplink_manager.h"
+
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/starboard_bridge.h"
+
 
 using starboard::android::shared::StarboardBridge;
 #endif
@@ -40,13 +45,23 @@ void H5vccRuntimeImpl::Create(
 }
 
 void H5vccRuntimeImpl::GetInitialDeepLink(GetInitialDeepLinkCallback callback) {
-  std::string start_deep_link;
-#if BUILDFLAG(IS_ANDROID)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  StarboardBridge* starbooard_bridge = StarboardBridge::GetInstance();
-  start_deep_link = starbooard_bridge->GetStartDeepLink(env);
-#endif
-  std::move(callback).Run(start_deep_link);
+  LOG(INFO) << "ColinL: H5vccRuntimeImpl::GetInitialDeepLink.";
+  
+  cobalt::browser::DeepLinkManager* manager = cobalt::browser::DeepLinkManager::GetInstance();
+  std::move(callback).Run(manager->GetDeepLink());
+
+  // Erase the deeplink after deliver the deeplink to the application to avoid redeliver.
+  manager->SetDeepLink("");
+}
+
+void H5vccRuntimeImpl::AddListener(mojo::PendingRemote<mojom::DeepLinkListener> listener) {
+  LOG(INFO) << "ColinL: H5vccRuntimeImpl::AddListener.";
+  mojo::Remote<mojom::DeepLinkListener> listener_remote;
+  listener_remote.Bind(std::move(listener));
+  
+  // Move the remote mojom connection to DeepLinkManager (singleton), so that it can be accessed anywhere.
+  cobalt::browser::DeepLinkManager* manager = cobalt::browser::DeepLinkManager::GetInstance();
+  manager->AddListener(std::move(listener_remote));
 }
 
 }  // namespace h5vcc_runtime

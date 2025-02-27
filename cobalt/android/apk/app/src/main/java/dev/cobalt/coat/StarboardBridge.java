@@ -118,7 +118,7 @@ public class StarboardBridge {
     this.activityHolder = activityHolder;
     this.serviceHolder = serviceHolder;
     this.args = args;
-    this.startDeepLink = startDeepLink;
+    // this.startDeepLink = startDeepLink;
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
     this.ttsHelper = new CobaltTextToSpeechHelper(appContext);
     this.audioOutputManager = new AudioOutputManager(appContext);
@@ -132,6 +132,9 @@ public class StarboardBridge {
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
 
     nativeApp = StarboardBridgeJni.get().startNativeStarboard();
+
+    // Move startDeepLink to DeeplinkManager
+    StarboardBridgeJni.get().handleDeepLink(startDeepLink, false);
   }
 
   private native boolean initJNI();
@@ -149,6 +152,7 @@ public class StarboardBridge {
     // boolean initJNI();
 
     // void closeNativeStarboard(long nativeApp);
+    void handleDeepLink(String url, boolean applicationReady);
   }
 
   protected void onActivityStart(Activity activity) {
@@ -326,17 +330,14 @@ public class StarboardBridge {
 
   /** Sends an event to the web app to navigate to the given URL */
   public void handleDeepLink(String url) {
-    if (applicationReady) {
-      nativeHandleDeepLink(url);
-    } else {
-      // If this deep link event is received before the starboard application
-      // is ready, it replaces the start deep link.
-      startDeepLink = url;
-    }
-  }
-
-  private void nativeHandleDeepLink(String url) {
-    // TODO(b/374147993): Implement deep link
+    StarboardBridgeJni.get().handleDeepLink(url, applicationReady);
+    // if (applicationReady) {
+    //   StarboardBridgeJni.get().handleDeepLink(url, applicationReady);
+    // } else {
+    //   // If this deep link event is received before the starboard application
+    //   // is ready, it replaces the start deep link.
+    //   startDeepLink = url;
+    // }
   }
 
   /**

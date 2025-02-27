@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_runtime/h_5_vcc_runtime.h"
-
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deeplink_event.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
@@ -22,9 +22,14 @@ namespace blink {
 
 H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
-      remote_h5vcc_runtime_(window.GetExecutionContext()) {}
+      remote_h5vcc_runtime_(window.GetExecutionContext()),
+      receiver_(this, window.GetExecutionContext()) {
+}
 
-void H5vccRuntime::ContextDestroyed() {}
+void H5vccRuntime::ContextDestroyed() {
+  remote_h5vcc_runtime_.reset();
+  receiver_.reset();
+}
 
 ScriptPromise H5vccRuntime::getInitialDeepLink(
     ScriptState* script_state,
@@ -32,7 +37,7 @@ ScriptPromise H5vccRuntime::getInitialDeepLink(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-  EnsureReceiverIsBound();
+  EnsureRemoteReceiverIsBound();
 
   remote_h5vcc_runtime_->GetInitialDeepLink(
       WTF::BindOnce(&H5vccRuntime::OnGetInitialDeepLink, WrapPersistent(this),
@@ -46,7 +51,39 @@ void H5vccRuntime::OnGetInitialDeepLink(ScriptPromiseResolver* resolver,
   resolver->Resolve(result);
 }
 
-void H5vccRuntime::EnsureReceiverIsBound() {
+EventListener* H5vccRuntime::ondeeplink() {
+  return GetAttributeEventListener(event_type_names::kDeeplink);
+}
+
+void H5vccRuntime::setOndeeplink(EventListener* listener) {
+  LOG(INFO) << "ColinL: setOndeeplink.";
+
+  SetAttributeEventListener(event_type_names::kDeeplink, listener);
+
+  EnsureRemoteReceiverIsBound();
+
+  // Bound the receiver for the RemoteListener, this is when the ondeeplink event is called.
+  auto task_runner =
+    GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
+  LOG(INFO) << "ColinL: remote_h5vcc_runtime_ AddListener.";
+  remote_h5vcc_runtime_->AddListener(receiver_.BindNewPipeAndPassRemote(task_runner));
+
+  // Get InitialDeepLink immediately, if not empty, fire the event after receiving it.
+  remote_h5vcc_runtime_->GetInitialDeepLink(
+      WTF::BindOnce(&H5vccRuntime::MaybeFireDeeplinkEvent, WrapPersistent(this)));
+}
+
+void H5vccRuntime::MaybeFireDeeplinkEvent(const String& result) {
+  if (result.empty()) {
+    LOG(INFO) << "ColinL: OnMaybeFireDeeplinkEvent: empty deeplink";
+    return;
+  }
+
+  LOG(INFO) << "ColinL: OnMaybeFireDeeplinkEvent: " << result;
+  DispatchEvent(*MakeGarbageCollected<DeeplinkEvent>(event_type_names::kDeeplink, result));
+}
+
+void H5vccRuntime::EnsureRemoteReceiverIsBound() {
   DCHECK(GetExecutionContext());
 
   if (remote_h5vcc_runtime_.is_bound()) {
@@ -62,7 +99,16 @@ void H5vccRuntime::EnsureReceiverIsBound() {
 void H5vccRuntime::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
+  EventTargetWithInlineData::Trace(visitor);
   visitor->Trace(remote_h5vcc_runtime_);
+  visitor->Trace(receiver_);
+}
+
+// Mojom interface implementation.
+void H5vccRuntime::OnDeepLink(const WTF::String& deeplink) {
+  LOG(INFO) << "ColinL: H5vccRuntime::OnDeepLink";
+
+  MaybeFireDeeplinkEvent(deeplink);
 }
 
 }  // namespace blink
