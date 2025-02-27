@@ -196,9 +196,10 @@ int pthread_attr_getstack(const pthread_attr_t *__restrict, void **__restrict, s
 int pthread_mutexattr_init(pthread_mutexattr_t *);
 int pthread_mutexattr_destroy(pthread_mutexattr_t *);
 int pthread_mutexattr_settype(pthread_mutexattr_t *, int);
-int pthread_getschedparam(pthread_t, int *__restrict, struct sched_param *__restrict);
 int pthread_atfork(void (*)(void), void (*)(void), void (*)(void));
 int pthread_mutexattr_setprotocol(pthread_mutexattr_t *, int);
+int pthread_getschedparam(pthread_t, int *__restrict, struct sched_param *__restrict);
+int pthread_setschedparam(pthread_t, int, const struct sched_param *);
 
 #ifdef __cplusplus
 }  // extern "C"
