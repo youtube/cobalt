@@ -13,8 +13,8 @@
 // limitations under the License.
 
 #include <array>
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "base/base_switches.h"
 #include "base/files/file_path.h"
@@ -47,55 +47,53 @@ std::string GetSwitchValue(const CommandLinePreprocessor& cmd_line_pxr,
 }
 
 TEST(CobaltSwitchDefaultsTest, MergeDisabledFeatures) {
-  const auto input_argv = std::to_array<const char*>({
-    "PROGRAM",
-    "--disable-features=PersistentOriginTrials"
-  });
+  const auto input_argv = std::to_array<const char*>(
+      {"PROGRAM", "--disable-features=PersistentOriginTrials"});
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
-  std::string disabled_features = GetSwitchValue(cmd_line_pxr,
-                                                 ::switches::kDisableFeatures);
+  std::string disabled_features =
+      GetSwitchValue(cmd_line_pxr, ::switches::kDisableFeatures);
   EXPECT_EQ(std::string("PersistentOriginTrials,Vulkan"), disabled_features);
 }
 
 TEST(CobaltSwitchDefaultsTest, ConsistentWindowSizes) {
   const auto input_argv = std::to_array<const char*>({
-    "PROGRAM",
-    "--window-size=1280x1024",
+      "PROGRAM",
+      "--window-size=1280x1024",
   });
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
-  std::string content_shell_size = (
-      GetSwitchValue(cmd_line_pxr, ::switches::kContentShellHostWindowSize));
+  std::string content_shell_size =
+      (GetSwitchValue(cmd_line_pxr, ::switches::kContentShellHostWindowSize));
   EXPECT_EQ(std::string("1280x1024"), content_shell_size);
 }
 
 TEST(CobaltSwitchDefaultsTest, ConsistentWindowSizesOverride) {
   const auto input_argv = std::to_array<const char*>({
-    "PROGRAM",
-    "--window-size=1280x1024",
-    "--content-shell-host-window-size=1920x1080",
+      "PROGRAM",
+      "--window-size=1280x1024",
+      "--content-shell-host-window-size=1920x1080",
   });
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
-  std::string content_shell_size = (
-      GetSwitchValue(cmd_line_pxr, ::switches::kContentShellHostWindowSize));
+  std::string content_shell_size =
+      (GetSwitchValue(cmd_line_pxr, ::switches::kContentShellHostWindowSize));
   EXPECT_EQ(std::string("1280x1024"), content_shell_size);
 }
 
 TEST(CobaltSwitchDefaultsTest, GfxAngleOverride) {
   const auto input_argv = std::to_array<const char*>({
-    "PROGRAM",
-    "--use-angle=swiftshader",
+      "PROGRAM",
+      "--use-angle=swiftshader",
   });
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
-  std::string use_angle_setting = GetSwitchValue(cmd_line_pxr,
-                                                 ::switches::kUseANGLE);
+  std::string use_angle_setting =
+      GetSwitchValue(cmd_line_pxr, ::switches::kUseANGLE);
   EXPECT_EQ(std::string("swiftshader"), use_angle_setting);
   // Note: This swiftshader argument being respected by the defaults is required
   // for running in Forge environments.
@@ -106,33 +104,30 @@ TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
-  std::vector<const char*> always_on_switches{
-    "disable-fre",
-    ::switches::kNoFirstRun,
-    ::switches::kKioskMode,
-    ::switches::kForceVideoOverlays,
-    ::switches::kSingleProcess,
-    ::switches::kIgnoreGpuBlocklist,
+  std::vector<const char*> always_on_switches {
+    "disable-fre", ::switches::kNoFirstRun, ::switches::kKioskMode,
+        ::switches::kForceVideoOverlays, ::switches::kSingleProcess,
+        ::switches::kIgnoreGpuBlocklist,
 #if BUILDFLAG(IS_ANDROID)
-    ::switches::kUserLevelMemoryPressureSignalParams,
+        ::switches::kUserLevelMemoryPressureSignalParams,
 #endif  // BUILDFLAG(IS_ANDROID)
-    sandbox::policy::switches::kNoSandbox
+        sandbox::policy::switches::kNoSandbox
   };
 
   for (const auto& switch_key : always_on_switches) {
     EXPECT_TRUE(HasSwitch(cmd_line_pxr, switch_key));
   }
 
-  const auto ozone_pf = GetSwitchValue(cmd_line_pxr,
-                                       ::switches::kOzonePlatform);
+  const auto ozone_pf =
+      GetSwitchValue(cmd_line_pxr, ::switches::kOzonePlatform);
   EXPECT_EQ("starboard", ozone_pf);
   // Other default switches are subject to changes later down the line.
 }
 
 TEST(CobaltSwitchDefaultsTest, StartupURLSwitch) {
   const auto input_argv = std::to_array<const char*>({
-    "PROGRAM",
-    "--url=foo",
+      "PROGRAM",
+      "--url=foo",
   });
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
@@ -142,11 +137,8 @@ TEST(CobaltSwitchDefaultsTest, StartupURLSwitch) {
 }
 
 TEST(CobaltSwitchDefaultsTest, StartupURLSwitchAndArg) {
-  const auto input_argv = std::to_array<const char*>({
-    "PROGRAM",
-    "--url=foo",
-    "bar"
-  });
+  const auto input_argv =
+      std::to_array<const char*>({"PROGRAM", "--url=foo", "bar"});
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
@@ -155,15 +147,13 @@ TEST(CobaltSwitchDefaultsTest, StartupURLSwitchAndArg) {
 }
 
 TEST(CobaltSwitchDefaultsTest, StartupURLArg) {
-  const auto input_argv = std::to_array<const char*>({
-    "PROGRAM",
-    "data:,"
-  });
+  const auto input_argv = std::to_array<const char*>({"PROGRAM", "data:,"});
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
 
   EXPECT_EQ("data:,", cmd_line_pxr.get_startup_url_for_test());
-  EXPECT_EQ("data:,", GetSwitchValue(cmd_line_pxr, cobalt::switches::kInitialURL));
+  EXPECT_EQ("data:,",
+            GetSwitchValue(cmd_line_pxr, cobalt::switches::kInitialURL));
 }
 
 TEST(CobaltSwitchDefaultsTest, StartupURLDefault) {
@@ -173,8 +163,7 @@ TEST(CobaltSwitchDefaultsTest, StartupURLDefault) {
 
   EXPECT_EQ("https://www.youtube.com/tv",
             cmd_line_pxr.get_startup_url_for_test());
-  EXPECT_EQ("",
-            GetSwitchValue(cmd_line_pxr, cobalt::switches::kInitialURL));
+  EXPECT_EQ("", GetSwitchValue(cmd_line_pxr, cobalt::switches::kInitialURL));
 }
 
 }  // namespace
