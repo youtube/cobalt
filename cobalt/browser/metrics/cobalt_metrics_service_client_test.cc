@@ -34,6 +34,7 @@ class CobaltMetricsServiceClientTest : public ::testing::Test {
     base::SetRecordActionTaskRunner(
         task_environment_.GetMainThreadTaskRunner());
   }
+
  protected:
   base::test::SingleThreadTaskEnvironment task_environment_;
 };

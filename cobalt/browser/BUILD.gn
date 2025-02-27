@@ -96,8 +96,8 @@ source_set("metrics") {
     "metrics/cobalt_metrics_service_client.h",
   ]
   deps = [
-    "//components/prefs",
     "//components/metrics",
+    "//components/prefs",
     "//components/variations",
     "//content/public/browser",
     "//url",
