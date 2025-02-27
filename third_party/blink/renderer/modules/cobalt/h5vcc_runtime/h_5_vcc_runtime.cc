@@ -24,8 +24,6 @@ H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
       remote_h5vcc_runtime_(window.GetExecutionContext()),
       receiver_(this, window.GetExecutionContext()) {
-  // Questions here, when should I bind the receiver_?
-  // EnsureReceiverIsBound();
 }
 
 void H5vccRuntime::ContextDestroyed() {
@@ -39,7 +37,7 @@ ScriptPromise H5vccRuntime::getInitialDeepLink(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-  EnsureReceiverIsBound();
+  EnsureRemoteReceiverIsBound();
 
   remote_h5vcc_runtime_->GetInitialDeepLink(
       WTF::BindOnce(&H5vccRuntime::OnGetInitialDeepLink, WrapPersistent(this),
@@ -62,13 +60,20 @@ void H5vccRuntime::setOndeeplink(EventListener* listener) {
 
   SetAttributeEventListener(event_type_names::kDeeplink, listener);
 
+  EnsureRemoteReceiverIsBound();
+
+  // Bound the receiver for the RemoteListener, this is when the ondeeplink event is called.
+  auto task_runner =
+    GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
+  LOG(INFO) << "ColinL: remote_h5vcc_runtime_ AddListener.";
+  remote_h5vcc_runtime_->AddListener(receiver_.BindNewPipeAndPassRemote(task_runner));
+
   // Get InitialDeepLink immediately, if not empty, fire the event after receiving it.
-  EnsureReceiverIsBound();
   remote_h5vcc_runtime_->GetInitialDeepLink(
-      WTF::BindOnce(&H5vccRuntime::OnMaybeFireDeeplinkEvent, WrapPersistent(this)));
+      WTF::BindOnce(&H5vccRuntime::MaybeFireDeeplinkEvent, WrapPersistent(this)));
 }
 
-void H5vccRuntime::OnMaybeFireDeeplinkEvent(const String& result) {
+void H5vccRuntime::MaybeFireDeeplinkEvent(const String& result) {
   if (result.empty()) {
     LOG(INFO) << "ColinL: OnMaybeFireDeeplinkEvent: empty deeplink";
     return;
@@ -78,7 +83,7 @@ void H5vccRuntime::OnMaybeFireDeeplinkEvent(const String& result) {
   DispatchEvent(*MakeGarbageCollected<DeeplinkEvent>(event_type_names::kDeeplink, result));
 }
 
-void H5vccRuntime::EnsureReceiverIsBound() {
+void H5vccRuntime::EnsureRemoteReceiverIsBound() {
   DCHECK(GetExecutionContext());
 
   if (remote_h5vcc_runtime_.is_bound()) {
@@ -89,8 +94,6 @@ void H5vccRuntime::EnsureReceiverIsBound() {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_h5vcc_runtime_.BindNewPipeAndPassReceiver(task_runner));
-
-  remote_h5vcc_runtime_->AddListener(receiver_.BindNewPipeAndPassRemote(task_runner));
 }
 
 void H5vccRuntime::Trace(Visitor* visitor) const {
@@ -103,18 +106,9 @@ void H5vccRuntime::Trace(Visitor* visitor) const {
 
 // Mojom interface implementation.
 void H5vccRuntime::OnDeepLink(const WTF::String& deeplink) {
-  EventListener* listener = GetAttributeEventListener(event_type_names::kDeeplink);
-  if (listener == NULL) {
-    // Do nothing
-    LOG(INFO) << "ColinL: ondeeplink. onDeeplink listener is not registered";
-  } else {
-    LOG(INFO) << "ColinL: ondeeplink. onDeeplink listener is registered, call consumed deeplink";
+  LOG(INFO) << "ColinL: H5vccRuntime::OnDeepLink";
 
-    DispatchEvent(*MakeGarbageCollected<DeeplinkEvent>(event_type_names::kDeeplink, deeplink));
-    // TODO: Add logic to call mojom for the deeplink is consumed.
-    EnsureReceiverIsBound();
-    remote_h5vcc_runtime_->SetDeepLinkConsumed(deeplink);
-  }
+  MaybeFireDeeplinkEvent(deeplink);
 }
 
 }  // namespace blink

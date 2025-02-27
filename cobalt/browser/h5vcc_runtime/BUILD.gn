@@ -16,6 +16,8 @@ source_set("h5vcc_runtime") {
   sources = [
     "h5vcc_runtime_impl.cc",
     "h5vcc_runtime_impl.h",
+    "deeplink_manager.cc",
+    "deeplink_manager.h",
   ]
 
   deps = [

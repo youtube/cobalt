@@ -24,7 +24,6 @@ interface DeepLinkListener {
 interface H5vccRuntime {
   // Get the GetInitialDeepLink for the device.
   GetInitialDeepLink() => (string initial_deep_link);
-  SetDeepLinkConsumed(string deep_link);
 
   AddListener(pending_remote<DeepLinkListener> listener);
 };

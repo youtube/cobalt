@@ -68,8 +68,8 @@ class MODULES_EXPORT H5vccRuntime final
 
  private:
   void OnGetInitialDeepLink(ScriptPromiseResolver*, const String&);
-  void OnMaybeFireDeeplinkEvent(const String&);
-  void EnsureReceiverIsBound();
+  void MaybeFireDeeplinkEvent(const String&);
+  void EnsureRemoteReceiverIsBound();
   HeapMojoRemote<h5vcc_runtime::mojom::blink::H5vccRuntime> remote_h5vcc_runtime_;
   HeapMojoReceiver<h5vcc_runtime::mojom::blink::DeepLinkListener, H5vccRuntime> receiver_;
 };

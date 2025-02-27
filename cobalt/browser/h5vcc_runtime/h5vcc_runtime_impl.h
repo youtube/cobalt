@@ -21,7 +21,6 @@
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
-#include "mojo/public/cpp/bindings/remote_set.h"
 
 namespace content {
 class RenderFrameHost;
@@ -44,19 +43,11 @@ class H5vccRuntimeImpl : public content::DocumentService<mojom::H5vccRuntime> {
 
   void GetInitialDeepLink(GetInitialDeepLinkCallback) override;
 
-  void SetDeepLinkConsumed(const std::string&) override;
-
-  // Called from the instance implementing mojom::DeepLinkListener.
   void AddListener(mojo::PendingRemote<mojom::DeepLinkListener> listener);
-
-  // TODO: this should be triggered when the app receives the warm deep link from the intent?
-  void OnDeepLink(const std::string& deeplink);
-
+  
  private:
   H5vccRuntimeImpl(content::RenderFrameHost& render_frame_host,
                    mojo::PendingReceiver<mojom::H5vccRuntime> receiver);
-
-  mojo::RemoteSet<mojom::DeepLinkListener> listeners_;
 };
 
 }  // namespace h5vcc_runtime

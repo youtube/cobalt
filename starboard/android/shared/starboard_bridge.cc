@@ -29,7 +29,8 @@
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/StarboardBridge_jni.h"
 
-#include "third_party/blink/public/mojom/cobalt/deeplink/deeplink.mojom.h"
+// #include "third_party/blink/public/mojom/cobalt/deeplink/deeplink.mojom.h"
+#include "cobalt/browser/h5vcc_runtime/deeplink_manager.h"
 
 namespace starboard {
 namespace android {
@@ -103,20 +104,19 @@ JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
 }
 
 extern "C" SB_EXPORT_PLATFORM void
-JNI_StarboardBridge_HandleDeepLink(JNIEnv* env, const JavaParamRef<jstring>& jurl) {
-  // TODO
+JNI_StarboardBridge_HandleDeepLink(JNIEnv* env, const JavaParamRef<jstring>& jurl, jboolean applicationReady) {
   const std::string& url = base::android::ConvertJavaStringToUTF8(env, jurl);
   LOG(INFO) << "ColinL: JNI_StarboardBridge_HandleDeepLink url = " << url;
 
-  // mojo::AssociatedRemote<cobalt::mojom::Deeplink> deeplink_service;
-  // if (web_contents_ != NULL) {
-  //   web_contents_
-  //     ->GetPrimaryMainFrame()
-  //     ->GetRemoteAssociatedInterfaces()
-  //     ->GetInterface(&deeplink_service);
-  //   DCHECK(deeplink_service);
-  //   deeplink_service->OnDeeplink(url);
-  // }
+  cobalt::browser::DeepLinkManager* manager = cobalt::browser::DeepLinkManager::GetInstance();
+  if (applicationReady) {
+    LOG(INFO) << "ColinL: DeepLinkManager::OnWarmStartupDeepLink url = " << url;
+    manager->OnWarmStartupDeepLink(url);
+  } else {
+    LOG(INFO) << "ColinL: DeepLinkManager::SetDeepLink url = " << url;
+    manager->SetDeepLink(url);
+  }
+  
 }
 
 

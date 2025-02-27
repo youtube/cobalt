@@ -20,7 +20,6 @@
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/memory/singleton.h"
-// #include "content/public/browser/web_contents.h"
 
 namespace starboard {
 namespace android {
@@ -77,10 +76,6 @@ class StarboardBridge {
   std::string GetAdvertisingId(JNIEnv* env);
   bool GetLimitAdTracking(JNIEnv* env);
 
-  // void SetWebContents(content::WebContents* web_contents) {
-  //   web_contents_ = web_contents;
-  // }
-
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;
@@ -93,10 +88,6 @@ class StarboardBridge {
 
   // Java StarboardBridge instance.
   ScopedJavaGlobalRef<jobject> j_starboard_bridge_;
-
-  // // Will there be multiple instances of web_contents for devtools and the application?
-  // // Copied from web_contents_observer.h
-  // raw_ptr<content::WebContents, DanglingUntriaged> web_contents_ = nullptr;
 };
 
 }  // namespace shared
