@@ -104,19 +104,18 @@ def _are_related(node1, node2) -> bool:
 
 
 def _is_test_target(g, node) -> bool:
-  if not any(node == target for target in _ALLOWLIST):
+  if not any(node == target for target in _ALLOWLIST) or \
+    any(node.startswith(path_prefix) for path_prefix in _EXCLUDE_TESTS):
     return False
 
-  if not any(node.startswith(path_prefix) for path_prefix in _EXCLUDE_TESTS):
-    # Test targets get a runner target added to its deps. On linux the name of
-    # this target is ${target_name}__runner, on android it's
-    # ${target_name}__test_runner_script.
-    # See src/testing/test.gni for the test() template definition.
-    linux_runner = f'{node}__runner'
-    android_runner = f'{node}__test_runner_script'
-    successors = set(g.successors(node))
-    return linux_runner in successors or android_runner in successors
-  return False
+  # Test targets get a runner target added to its deps. On linux the name of
+  # this target is ${target_name}__runner, on android it's
+  # ${target_name}__test_runner_script.
+  # See src/testing/test.gni for the test() template definition.
+  linux_runner = f'{node}__runner'
+  android_runner = f'{node}__test_runner_script'
+  successors = set(g.successors(node))
+  return linux_runner in successors or android_runner in successors
 
 
 def _create_graph(data: dict) -> Tuple[nx.DiGraph, Dict[str, List[str]]]:
