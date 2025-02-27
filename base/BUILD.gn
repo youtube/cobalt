@@ -1805,7 +1805,7 @@ component("base") {
     ]
   }
 
-  if (is_cobalt && enable_cobalt_linux_hacks) {
+  if (is_cobalt && enable_cobalt_hermetic_hacks) {
     # Find a way to fix the offending customizations instead.
     configs -= [ "//build/config/compiler:prevent_unsafe_narrowing" ]
   }
