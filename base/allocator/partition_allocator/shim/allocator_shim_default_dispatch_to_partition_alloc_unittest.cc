@@ -25,7 +25,7 @@ namespace allocator_shim::internal {
 #if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
 // Platforms on which we override weak libc symbols.
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
 
 PA_NOINLINE void FreeForTest(void* data) {
   free(data);
@@ -85,7 +85,7 @@ TEST(PartitionAllocAsMalloc, Mallinfo) {
 #endif
 }
 
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
 
 #endif  // BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
 
