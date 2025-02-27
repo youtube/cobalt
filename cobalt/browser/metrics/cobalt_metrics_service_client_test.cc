@@ -21,7 +21,6 @@
 
 namespace cobalt {
 
-
 class CobaltMetricsServiceClientTest : public ::testing::Test {
  public:
   CobaltMetricsServiceClientTest() = default;

@@ -49,6 +49,7 @@ source_set("browser") {
     "//cobalt/user_agent",
     "//components/js_injection/browser:browser",
     "//content/public/browser",
+
     # TODO(b/390021478): Do not depend on content_shell_lib here.
     "//content/shell:content_shell_lib",
   ]
