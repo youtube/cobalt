@@ -28,7 +28,22 @@ static_library("http_server") {
     "//content/browser",
   ]
 
-  if (enable_websockets) {
+  if (use_cobalt_customizations) {
+    visibility += [
+      "//cobalt/debug",
+      "//cobalt/h5vcc",
+      "//cobalt/network:*",
+      "//cobalt/webdriver",
+    ]
+    friend += [
+      "//cobalt/webdriver",
+      "//cobalt/debug",
+      "//cobalt/network:*",
+      "//cobalt/h5vcc",
+    ]
+  }
+
+  if (enable_websockets || true) {
     sources = [
       "http_connection.cc",
       "http_connection.h",
@@ -60,6 +75,7 @@ source_set("tests") {
       "http_server_unittest.cc",
       "web_socket_encoder_unittest.cc",
     ]
+
     deps = [
       ":http_server",
       "//base",
@@ -70,7 +86,7 @@ source_set("tests") {
   }
 }
 
-if (enable_websockets && use_fuzzing_engine) {
+if (enable_websockets && !use_cobalt_customizations && use_fuzzing_engine) {
   # This is a separate target because //net/server:http_server
   # wants to limit its visibility to a select number of target, but the
   # "fuzzer_test" template expands on iOS to many targets that need to

@@ -157,6 +157,39 @@ int HttpServer::GetLocalAddress(IPEndPoint* address) {
   return server_socket_->GetLocalAddress(address);
 }
 
+#if defined(STARBOARD)
+int HttpServer::GetLocalInterfaceAddress(IPEndPoint* address) {
+  int result = GetLocalAddress(address);
+  if (result != net::OK) {
+    DLOG(ERROR) << "Error getting server local address.";
+    return result;
+  }
+
+  // If listening to INADDR_ANY get an interface IP address.
+  if (address->address().IsZero()) {
+    SbSocketAddress any_ip;
+    memset(&(any_ip.address), 0, sizeof(any_ip.address));
+    SbSocketAddress interface_address;
+    // Prefer to report the interface's IPv4 address.
+    any_ip.type = kSbSocketAddressTypeIpv4;
+    if (!SbSocketGetInterfaceAddress(&any_ip, &interface_address, nullptr)) {
+      any_ip.type = kSbSocketAddressTypeIpv6;
+      if (!SbSocketGetInterfaceAddress(&any_ip, &interface_address, nullptr)) {
+        DLOG(ERROR) << "Error getting interface address.";
+        return ERR_FAILED;
+      }
+    }
+    interface_address.port = address->port();
+    if (!address->FromSbSocketAddress(&interface_address)) {
+      DLOG(ERROR) << "Error converting socket address.";
+      return ERR_FAILED;
+    }
+  }
+
+  return OK;
+}
+#endif  // defined(STARBOARD)
+
 void HttpServer::SetReceiveBufferSize(int connection_id, int32_t size) {
   HttpConnection* connection = FindConnection(connection_id);
   if (connection)
