@@ -30,10 +30,14 @@ namespace cobalt {
 class CommandLinePreprocessor {
 
  public:
-
-  CommandLinePreprocessor(int argc, const char** argv);
+  CommandLinePreprocessor(int argc, const char* const* argv);
 
   const base::CommandLine::StringVector argv() const;
+
+#ifdef UNIT_TEST
+  const base::CommandLine& get_cmd_line_for_test() const { return cmd_line_; }
+  const std::string& get_startup_url_for_test() const { return startup_url_; }
+#endif  // UNIT_TEST
 
  private:
   base::CommandLine cmd_line_;
