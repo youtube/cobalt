@@ -730,7 +730,7 @@ static_assert(alignof(CRYPTO_atomic_u32) == alignof(uint32_t),
 // Reference counting.
 
 // CRYPTO_REFCOUNT_MAX is the value at which the reference count saturates.
-#if defined(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 // TODO: b/398292397 - Cobalt: Investigate if this is really needed and add a comment explaining why.
 #define CRYPTO_REFCOUNT_MAX 0x7fffffff
 #else
