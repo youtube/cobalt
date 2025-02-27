@@ -8,9 +8,19 @@ inputs:
     description: "Test status. If the value is not success this step will fail."
     required: false
     default: 'success'
+  symbolize:
+    description: "If logs should be ran through crash symbolization tools."
+    required: false
+    default: "false"
 runs:
   using: "composite"
   steps:
+    - name: Download Test Symbols
+      if: inputs.symbolize == 'true'
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ matrix.platform }}_${{ matrix.name }}_test_symbols
+        path: out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/
     - run: |
         set -x
         # Enable globstar shell option for globstar paths e.g. /**/*.xml and
@@ -24,10 +34,10 @@ runs:
           exit 1
         else
           for log_file in ${log_files[@]}; do
-            if [ "${{ startsWith(matrix.platform, 'android') }}" -eq "true" ]; then
+            if [ "${{ inputs.symbolize }}" == "true" ]; then
               # TODO(oxv): Enable when symbol files are available.
-              # cat ${log_file} | vpython3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/${{ matrix.platform }}_${{ matrix.config }}/
-              cat ${log_file}
+              cd src/
+              cat ../${log_file} | vpython3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/${{ matrix.platform }}_${{ matrix.config }}/
             else
               cat ${log_file}
             fi

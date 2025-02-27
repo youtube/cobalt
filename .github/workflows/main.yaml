@@ -338,12 +338,14 @@ jobs:
         uses: ./src/.github/actions/print_logs
         with:
           logfile_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
+          symbolize: true
       - name: ${{ matrix.test_target }} Test Logs
         if: always()
         uses: ./src/.github/actions/print_logs
         with:
-          logfile_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*cat.txt
+          logfile_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           test_status: ${{ steps.process-results.outcome }}
+          symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
 
   validate-test-result:
     needs: [initialize, build, test-results]
