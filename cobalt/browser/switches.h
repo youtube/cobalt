@@ -20,6 +20,9 @@
 #define COBALT_BROWSER_SWITCHES_H_
 
 namespace cobalt {
+
+constexpr char kDefaultURL[] = "https://www.youtube.com/tv";
+
 namespace switches {
 
 // Allow the user to override the default URL via a command line parameter.

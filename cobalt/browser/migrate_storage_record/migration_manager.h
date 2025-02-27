@@ -12,17 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/switches.h"
+#ifndef COBALT_COBALT_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
+#define COBALT_COBALT_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
+
+#include "content/public/browser/web_contents.h"
 
 namespace cobalt {
-namespace switches {
+namespace migrate_storage_record {
 
-std::string GetInitialURL(const base::CommandLine& command_line) {
-  if (command_line.HasSwitch(kInitialURL)) {
-    return command_line.GetSwitchValueASCII(kInitialURL);
-  }
-  return kDefaultURL;
-}
+void DoMigrationTasksOnce(content::WebContents* web_contents);
 
-}  // namespace switches
+}  // namespace migrate_storage_record
 }  // namespace cobalt
+
+#endif  // COBALT_COBALT_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
