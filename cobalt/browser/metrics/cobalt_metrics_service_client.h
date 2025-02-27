@@ -76,7 +76,7 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient,
       const ::metrics::MetricsLogUploader::UploadCallback& on_upload_complete)
       override;
   base::TimeDelta GetStandardUploadInterval() override;
-  // Of note: GetStorageLimits() can also be overriden.
+  // Of note: GetStorageLimits() can also be overridden.
 
   // ::metrics::EnabledStateProvider:
   bool IsConsentGiven() const override;
