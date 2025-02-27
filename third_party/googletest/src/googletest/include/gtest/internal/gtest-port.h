@@ -257,7 +257,7 @@
 
 #include "build/build_config.h"
 
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <ctype.h>   // for isspace, etc
 #include <stddef.h>  // for ptrdiff_t
 #include <stdio.h>
@@ -267,7 +267,7 @@
 #ifndef _WIN32_WCE
 #include <sys/types.h>
 #endif  // !_WIN32_WCE
-#else  // !defined(STARBOARD)
+#else  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -283,7 +283,7 @@
 #include "starboard/system.h"
 #include "starboard/thread.h"
 #include "starboard/types.h"
-#endif  // !defined(STARBOARD)
+#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #if defined __APPLE__
 #include <AvailabilityMacros.h>
@@ -2394,11 +2394,11 @@ using TimeInMillis = int64_t;  // Represents time in milliseconds.
 #endif  // !defined(GTEST_FLAG)
 
 #if !defined(GTEST_USE_OWN_FLAGFILE_FLAG_)
-#if !defined(STARBOARD)
+#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #define GTEST_USE_OWN_FLAGFILE_FLAG_ 1
 #else
 # define GTEST_USE_OWN_FLAGFILE_FLAG_ 0
-#endif // !defined(STARBOARD)
+#endif // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #endif  // !defined(GTEST_USE_OWN_FLAGFILE_FLAG_)
 
 #if !defined(GTEST_DECLARE_bool_)
