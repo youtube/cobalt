@@ -143,6 +143,8 @@ const network_time::NetworkTimeTracker*
 CobaltMetricsServiceClient::GetNetworkTimeTracker() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
+  // TODO(b/372559349): Figure out whether we need to return a real object.
+  NOTIMPLEMENTED();
   return nullptr;
 }
 

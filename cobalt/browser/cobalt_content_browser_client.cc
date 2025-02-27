@@ -52,6 +52,7 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
     metrics_ = std::make_unique<CobaltMetricsServiceClient>();
     // TODO(b/372559349): Double check that this initializes UMA collection,
     // similar to what ChromeBrowserMainParts::StartMetricsRecording() does.
+    // It might need to be moved to other parts, e.g. PreMainMessageLoopRun().
     metrics_->Start();
     return ShellBrowserMainParts::PreCreateThreads();
   }
