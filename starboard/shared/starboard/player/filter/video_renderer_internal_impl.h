@@ -91,6 +91,12 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   PrerolledCB prerolled_cb_;
   EndedCB ended_cb_;
 
+  std::atomic_int z_index_ = {-1};
+  std::atomic_int x_ = {-1};
+  std::atomic_int y_ = {-1};
+  std::atomic_int width_ = {-1};
+  std::atomic_int height_ = {-1};
+
   // Our owner will attempt to seek to time 0 when playback begins.  In
   // general, seeking could require a full reset of the underlying decoder on
   // some platforms, so we make an effort to improve playback startup
