@@ -257,55 +257,52 @@
 
 #include "build/build_config.h"
 
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <ctype.h>   // for isspace, etc
 #include <stddef.h>  // for ptrdiff_t
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#ifndef _WIN32_WCE
-#include <sys/types.h>
-#endif  // !_WIN32_WCE
-#else  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include "starboard/common/log.h"
 #include "starboard/common/spin_lock.h"
 #include "starboard/common/string.h"
-// #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/log.h"
-// #include "starboard/memory.h"
 #include "starboard/common/mutex.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
 #include "starboard/types.h"
-#endif  // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#endif // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
-#if defined __APPLE__
-#include <AvailabilityMacros.h>
-#include <TargetConditionals.h>
-#endif  // defined __APPLE__
-
-#include <algorithm>  // NOLINT
-#include <iostream>
-#include <memory>
 #include <cerrno>
 // #include <condition_variable>  // Guarded by GTEST_IS_THREADSAFE below
 #include <cstdint>
+#include <iostream>
 #include <limits>
 #include <locale>
+#include <memory>
 #include <string>
 // #include <mutex>  // Guarded by GTEST_IS_THREADSAFE below
 #include <tuple>
 #include <type_traits>
 #include <vector>
 
-#include <stdio.h>
-#include <unistd.h>
+#ifndef _WIN32_WCE
+#include <sys/stat.h>
+#include <sys/types.h>
+#endif  // !_WIN32_WCE
+
+#if defined __APPLE__
+#include <AvailabilityMacros.h>
+#include <TargetConditionals.h>
+#endif
 
 #include "gtest/internal/custom/gtest-port.h"
 #include "gtest/internal/gtest-port-arch.h"
@@ -359,13 +356,6 @@
 #define GTEST_DISABLE_MSC_DEPRECATED_POP_() GTEST_DISABLE_MSC_WARNINGS_POP_()
 #endif
 
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-# define GTEST_HAS_EXCEPTIONS 0
-# define GTEST_HAS_POSIX_RE 0
-# define GTEST_HAS_RTTI 0
-# define GTEST_HAS_SEH 0
-# define GTEST_HAS_STREAM_REDIRECTION 0
-#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 // Brings in definitions for functions used in the testing::internal::posix
 // namespace (read, write, close, chdir, isatty, stat). We do not currently
 // use them on Windows Mobile.
@@ -396,7 +386,6 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #include <strings.h>
 #include <unistd.h>
 #endif  // GTEST_OS_WINDOWS
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 #if GTEST_OS_LINUX_ANDROID
 // Used to define __ANDROID_API__ matching the target NDK API level.
@@ -576,7 +565,7 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
    GTEST_OS_HAIKU || GTEST_OS_GNU_HURD)
 #endif  // GTEST_HAS_PTHREAD
 
-#if GTEST_HAS_PTHREAD || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#if GTEST_HAS_PTHREAD
 // gtest-port.h guarantees to #include <pthread.h> when GTEST_HAS_PTHREAD is
 // true.
 #include <pthread.h>  // NOLINT
@@ -1013,21 +1002,17 @@ class GTEST_API_ GTestLog {
 };
 
 #if !defined(GTEST_LOG_)
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #define GTEST_LOG_ SB_LOG
 #else
 #define GTEST_LOG_(severity)                                           \
   ::testing::internal::GTestLog(::testing::internal::GTEST_##severity, \
                                 __FILE__, __LINE__)                    \
       .GetStream()
-#endif
+#endif // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 inline void LogToStderr() {}
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-inline void FlushInfoLog() {}
-#else
 inline void FlushInfoLog() { fflush(nullptr); }
-#endif
 
 #endif  // !defined(GTEST_LOG_)
 
@@ -1206,8 +1191,9 @@ void ClearInjectableArgvs();
 
 #endif  // GTEST_HAS_DEATH_TEST
 
-// Defines synchronization primitives.
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+// Define synchronization primitives.
 class Mutex {
  public:
   enum MutexType { kStatic = 0, kDynamic = 1 };
@@ -2073,6 +2059,7 @@ inline std::string StripTrailingSpaces(std::string str) {
 
 namespace posix {
 
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 typedef struct stat StatStruct;
@@ -2082,11 +2069,6 @@ inline int DoIsATTY(int fd) { return 1; } // only called for stdout
 inline int Stat(const char* path, StatStruct* buf) {
   return stat(path, buf);
 }
-#if SB_API_VERSION < 16
-inline int StrCaseCmp(const char* s1, const char* s2) {
-  return SbStringCompareNoCase(s1, s2);
-}
-#endif //SB_API_VERSION < 16
 inline char* StrDup(const char* src) { return strdup(src); }
 
 inline int RmDir(const char* dir) { return rmdir(dir); }
@@ -2153,6 +2135,13 @@ inline void Free(void *p) { return free(p); }
 
 inline int IsATTY(int fd) {
   return DoIsATTY(fd);
+}
+
+inline void SNPrintF(char* out_buffer, size_t size, const char* format,...) {
+  va_list args;
+  va_start(args, format);
+  VSNPrintF(out_buffer, size, format, args);
+  va_end(args);
 }
 
 #else // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
@@ -2304,18 +2293,8 @@ GTEST_DISABLE_MSC_DEPRECATED_POP_()
 
 #endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
-inline void SNPrintF(char* out_buffer, size_t size, const char* format,...) {
-  va_list args;
-  va_start(args, format);
-  VSNPrintF(out_buffer, size, format, args);
-  va_end(args);
-}
-
 }  // namespace posix
 
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-# define GTEST_SNPRINTF_ internal::posix::SNPrintF
-#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 // MSVC "deprecates" snprintf and issues warnings wherever it is used.  In
 // order to avoid these warnings, we need to use _snprintf or _snprintf_s on
 // MSVC-based platforms.  We map the GTEST_SNPRINTF_ macro to the appropriate
@@ -2331,7 +2310,6 @@ inline void SNPrintF(char* out_buffer, size_t size, const char* format,...) {
 #else
 #define GTEST_SNPRINTF_ snprintf
 #endif
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // The biggest signed integer type the compiler supports.
 //
@@ -2394,11 +2372,7 @@ using TimeInMillis = int64_t;  // Represents time in milliseconds.
 #endif  // !defined(GTEST_FLAG)
 
 #if !defined(GTEST_USE_OWN_FLAGFILE_FLAG_)
-#if !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-#define GTEST_USE_OWN_FLAGFILE_FLAG_ 1
-#else
-# define GTEST_USE_OWN_FLAGFILE_FLAG_ 0
-#endif // !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#define GTEST_USE_OWN_FLAGFILE_FLAG_ 0
 #endif  // !defined(GTEST_USE_OWN_FLAGFILE_FLAG_)
 
 #if !defined(GTEST_DECLARE_bool_)

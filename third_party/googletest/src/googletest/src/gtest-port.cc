@@ -30,7 +30,6 @@
 #include "build/build_config.h"
 #include "gtest/internal/gtest-port.h"
 
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -52,7 +51,6 @@
 #else
 #include <unistd.h>
 #endif  // GTEST_OS_WINDOWS
-#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 #if GTEST_OS_MAC
 #include <mach/mach_init.h>
@@ -93,7 +91,7 @@
 namespace testing {
 namespace internal {
 
-#if defined(_MSC_VER) || defined(__BORLANDC__) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#if defined(_MSC_VER) || defined(__BORLANDC__)
 // MSVC and C++Builder do not provide a definition of STDERR_FILENO.
 const int kStdOutFileno = 1;
 const int kStdErrFileno = 2;
@@ -678,7 +676,7 @@ RE::~RE() {
     regfree(&partial_regex_);
     regfree(&full_regex_);
   }
-  posix::Free(const_cast<char*>(pattern_));
+  free(const_cast<char*>(pattern_));
 }
 
 // Returns true if and only if regular expression re matches the entire str.
@@ -931,8 +929,8 @@ bool MatchRegexAnywhere(const char* regex, const char* str) {
 // Implements the RE class.
 
 RE::~RE() {
-  posix::Free(const_cast<char*>(pattern_));
-  posix::Free(const_cast<char*>(full_pattern_));
+  free(const_cast<char*>(pattern_));	  posix::Free(const_cast<char*>(pattern_));
+  free(const_cast<char*>(full_pattern_));
 }
 
 // Returns true if and only if regular expression re matches the entire str.
@@ -963,7 +961,7 @@ void RE::Init(const char* regex) {
   // Reserves enough bytes to hold the regular expression used for a
   // full match: we need space to prepend a '^', append a '$', and
   // terminate the string with '\0'.
-  char* buffer = static_cast<char*>(posix::Malloc(len + 3));
+  char* buffer = static_cast<char*>(malloc(len + 3));
   full_pattern_ = buffer;
 
   if (*regex != '^')
@@ -1029,7 +1027,7 @@ GTestLog::GTestLog(GTestLogSeverity severity, const char* file, int line)
 GTestLog::~GTestLog() {
   GetStream() << ::std::endl;
   if (severity_ == GTEST_FATAL) {
-    posix::Flush();
+    fflush(stderr);
     posix::Abort();
   }
 }
@@ -1117,7 +1115,7 @@ class CapturedStream {
     }
     filename_ = std::move(name_template);
 #endif  // GTEST_OS_WINDOWS
-    posix::Flush();
+    fflush(nullptr);
     dup2(captured_fd, fd_);
     close(captured_fd);
   }
@@ -1127,7 +1125,7 @@ class CapturedStream {
   std::string GetCapturedString() {
     if (uncaptured_fd_ != -1) {
       // Restores the original stream.
-      posix::Flush();
+      fflush(nullptr);
       dup2(uncaptured_fd_, fd_);
       close(uncaptured_fd_);
       uncaptured_fd_ = -1;
@@ -1200,16 +1198,11 @@ std::string GetCapturedStderr() {
 #endif  // GTEST_HAS_STREAM_REDIRECTION
 
 size_t GetFileSize(FILE* file) {
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   fseek(file, 0, SEEK_END);
   return static_cast<size_t>(ftell(file));
-#else
-  return 0;
-#endif
 }
 
 std::string ReadEntireFile(FILE* file) {
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   const size_t file_size = GetFileSize(file);
   char* const buffer = new char[file_size];
 
@@ -1230,9 +1223,7 @@ std::string ReadEntireFile(FILE* file) {
   delete[] buffer;
 
   return content;
-#else
   return std::string();
-#endif
 }
 
 #if GTEST_HAS_DEATH_TEST
@@ -1301,7 +1292,7 @@ bool ParseInt32(const Message& src_text, const char* str, int32_t* value) {
     msg << "WARNING: " << src_text
         << " is expected to be a 32-bit integer, but actually"
         << " has value \"" << str << "\".\n";
-    posix::PrintF("%s", msg.GetString().c_str());
+    printf("%s", msg.GetString().c_str());
     fflush(stdout);
     return false;
   }
@@ -1318,7 +1309,7 @@ bool ParseInt32(const Message& src_text, const char* str, int32_t* value) {
     msg << "WARNING: " << src_text
         << " is expected to be a 32-bit integer, but actually"
         << " has value " << str << ", which overflows.\n";
-    posix::PrintF("%s", msg.GetString().c_str());
+    printf("%s", msg.GetString().c_str());
     fflush(stdout);
     return false;
   }
@@ -1359,7 +1350,7 @@ int32_t Int32FromGTestEnv(const char* flag, int32_t default_value) {
   int32_t result = default_value;
   if (!ParseInt32(Message() << "Environment variable " << env_var, string_value,
                   &result)) {
-    posix::PrintF("The default value %s is used.\n",
+    printf("The default value %s is used.\n",
            (Message() << default_value).GetString().c_str());
     fflush(stdout);
     return default_value;
