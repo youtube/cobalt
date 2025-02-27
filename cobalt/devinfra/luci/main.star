@@ -11,7 +11,6 @@ lucicfg.config(
 
 luci.project(
     name = "ytdevinfra",
-
     buildbucket = "cr-buildbucket.appspot.com",
     logdog = "luci-logdog.appspot.com",
     milo = "luci-milo.appspot.com",
@@ -19,7 +18,6 @@ luci.project(
     scheduler = "luci-scheduler.appspot.com",
     swarming = "chromium-swarm.appspot.com",
     tricium = "tricium-prod.appspot.com",
-
     bindings = [
         # Allow owners to submit any task in any pool.
         luci.binding(
@@ -28,7 +26,10 @@ luci.project(
                 "role/swarming.poolUser",
                 "role/swarming.taskTriggerer",
             ],
-            groups = "ytdevinfra",
+            groups = [
+                "ytdevinfra",
+                "mdb/tv-engprod-team",
+            ],
         ),
 
         # Allow any googler to see all bots and tasks there.
@@ -41,7 +42,7 @@ luci.project(
         luci.binding(
             roles = "role/configs.developer",
             groups = "googlers",
-        )
+        ),
     ],
 )
 
