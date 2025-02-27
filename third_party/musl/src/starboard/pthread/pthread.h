@@ -20,6 +20,8 @@
 
 #define PTHREAD_CREATE_JOINABLE 0
 #define PTHREAD_CREATE_DETACHED 1
+#define PTHREAD_MUTEX_RECURSIVE 1
+#define PTHREAD_PRIO_INHERIT 1
 
 #ifdef __cplusplus
 extern "C" {
@@ -187,6 +189,17 @@ int pthread_attr_setstacksize(pthread_attr_t* attr, size_t stack_size);
 
 int pthread_attr_getdetachstate(const pthread_attr_t* att, int* detach_state);
 int pthread_attr_setdetachstate(pthread_attr_t *attr, int detach_state);
+
+// TODO: b/399696581 - Cobalt: Implement pthread API's
+int pthread_getattr_np(pthread_t, pthread_attr_t *);
+int pthread_attr_getstack(const pthread_attr_t *__restrict, void **__restrict, size_t *__restrict);
+int pthread_mutexattr_init(pthread_mutexattr_t *);
+int pthread_mutexattr_destroy(pthread_mutexattr_t *);
+int pthread_mutexattr_settype(pthread_mutexattr_t *, int);
+int pthread_atfork(void (*)(void), void (*)(void), void (*)(void));
+int pthread_mutexattr_setprotocol(pthread_mutexattr_t *, int);
+int pthread_getschedparam(pthread_t, int *__restrict, struct sched_param *__restrict);
+int pthread_setschedparam(pthread_t, int, const struct sched_param *);
 
 #ifdef __cplusplus
 }  // extern "C"
