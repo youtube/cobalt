@@ -38,7 +38,5 @@ ozone_platform_wayland = false
 # Additionally helps with running on Forge.
 enable_nacl = false
 enable_print_preview = false
-use_bluez = false
 use_cups = false
-use_dbus = false
 use_kerberos = false
