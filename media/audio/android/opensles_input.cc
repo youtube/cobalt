@@ -332,6 +332,13 @@ void OpenSLESInputStream::ReadBufferQueue() {
   callback_->OnData(audio_bus_.get(), base::TimeTicks::Now() - hardware_delay_,
                     0.0, {});
 
+  auto sum = 0;
+  int8_t* ptr= reinterpret_cast<int8_t*>(audio_data_[active_buffer_index_]);
+  for(int i =0 ; i < buffer_size_bytes_; i++ ) {
+    sum+= ptr[i];
+  }
+  LOG(WARNING) << "Audio frame sum: " << sum;
+
   // Done with this buffer. Send it to device for recording.
   SLresult err =
       (*simple_buffer_queue_)->Enqueue(simple_buffer_queue_,
