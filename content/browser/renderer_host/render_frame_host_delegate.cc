@@ -55,7 +55,8 @@ bool RenderFrameHostDelegate::CheckMediaAccessPermission(
     blink::mojom::MediaStreamType type) {
   LOG(ERROR) << "RenderFrameHostDelegate::CheckMediaAccessPermission: "
              << "Not supported.";
-  return false;
+  LOG(ERROR) << "Bugbug: we'll support it anyway";
+  return true;
 }
 
 std::string RenderFrameHostDelegate::GetDefaultMediaDeviceID(

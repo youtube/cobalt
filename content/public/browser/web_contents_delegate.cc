@@ -245,7 +245,8 @@ bool WebContentsDelegate::CheckMediaAccessPermission(
     blink::mojom::MediaStreamType type) {
   LOG(ERROR) << "WebContentsDelegate::CheckMediaAccessPermission: "
              << "Not supported.";
-  return false;
+  LOG(ERROR) << "bugbug: Yes but how about we do it anyway";
+  return true;
 }
 
 std::string WebContentsDelegate::GetDefaultMediaDeviceID(

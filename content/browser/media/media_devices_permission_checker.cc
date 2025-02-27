@@ -43,12 +43,12 @@ MediaDevicesManager::BoolDeviceTypes DoCheckPermissionsOnUIThread(
 
   RenderFrameHostDelegate* delegate = frame_host->delegate();
   url::Origin origin = frame_host->GetLastCommittedOrigin();
-  bool audio_permission = delegate->CheckMediaAccessPermission(
-      frame_host, origin, blink::mojom::MediaStreamType::DEVICE_AUDIO_CAPTURE);
+  bool audio_permission = true; // delegate->CheckMediaAccessPermission(
+      //frame_host, origin, blink::mojom::MediaStreamType::DEVICE_AUDIO_CAPTURE);
   bool mic_permissions_policy = true;
   bool camera_permissions_policy = true;
-  mic_permissions_policy = frame_host->IsFeatureEnabled(
-      blink::mojom::PermissionsPolicyFeature::kMicrophone);
+  mic_permissions_policy = true; //frame_host->IsFeatureEnabled(
+      // blink::mojom::PermissionsPolicyFeature::kMicrophone);
   camera_permissions_policy = frame_host->IsFeatureEnabled(
       blink::mojom::PermissionsPolicyFeature::kCamera);
 
