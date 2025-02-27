@@ -324,7 +324,10 @@ test("nplb") {
       "nplb_evergreen_compat_tests/sabi_test.cc",
       "nplb_evergreen_compat_tests/storage_test.cc",
     ]
-    data_deps += [ "//starboard/content/fonts:copy_font_data" ]
+    data_deps += [
+      "//starboard/content/fonts:copy_font_data",
+      "//starboard/content/ssl:copy_ssl_certificates_evergreen",
+    ]
     deps += [ "//starboard/content/fonts:copy_font_data" ]
   }
 }

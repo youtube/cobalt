@@ -27,13 +27,7 @@ namespace nplb_evergreen_compat_tests {
 
 namespace {
 
-class LoaderAppMetricsTest : public ::testing::Test {
- protected:
-  LoaderAppMetricsTest() {}
-  ~LoaderAppMetricsTest() {}
-};
-
-TEST_F(LoaderAppMetricsTest, VerifyLoaderAppMetricsExtension) {
+TEST(LoaderAppMetricsTest, VerifyLoaderAppMetricsExtension) {
   auto extension = static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
       SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName));
 

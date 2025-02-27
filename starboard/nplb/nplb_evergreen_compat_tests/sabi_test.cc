@@ -80,13 +80,7 @@ const char* kSabiJsonIdX64Sysv =
     "\"target_arch\":\"x64\",\"target_arch_sub\":\"\",\"word_size\":64}";
 #endif  // SB_API_VERSION == 17
 
-class SabiTest : public ::testing::Test {
- protected:
-  SabiTest() {}
-  ~SabiTest() {}
-};
-
-TEST_F(SabiTest, VerifySABI) {
+TEST(SabiTest, VerifySABI) {
   SB_LOG(INFO) << "Using SB_API_VERSION=" << SB_API_VERSION;
   SB_LOG(INFO) << "Using SABI=" << SB_SABI_JSON_ID;
 

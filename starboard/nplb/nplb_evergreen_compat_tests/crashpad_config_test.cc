@@ -17,7 +17,6 @@
 #include <string>
 #include <vector>
 
-#include "starboard/common/paths.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/extension/crash_handler.h"
 #include "starboard/nplb/nplb_evergreen_compat_tests/checks.h"
@@ -44,10 +43,10 @@ TEST(CrashpadConfigTest, VerifyUploadCert) {
   ASSERT_LE(kSbFileMaxPath, buffer.size());
 
   std::string cert_location(buffer.data());
-  cert_location.append(std::string(kSbFileSepString) + "ssl" +
-                       kSbFileSepString + "certs");
-
-  ASSERT_EQ(::starboard::common::GetCACertificatesPath(), cert_location);
+  cert_location.append(std::string(kSbFileSepString) + "app" +
+                       kSbFileSepString + "cobalt" + kSbFileSepString +
+                       "content" + kSbFileSepString + "ssl" + kSbFileSepString +
+                       "certs");
 
   struct stat info;
   ASSERT_TRUE(stat(cert_location.c_str(), &info) == 0) << cert_location;
