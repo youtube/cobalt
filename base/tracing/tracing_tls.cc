@@ -9,14 +9,8 @@ namespace tracing {
 
 // static
 bool* GetThreadIsInTraceEvent() {
-#if defined(STARBOARD)
-  // This is only used in //services, which Cobalt does not use.
-  static bool thread_is_in_trace_event = false;
-  return &thread_is_in_trace_event;
-#else
   thread_local bool thread_is_in_trace_event = false;
   return &thread_is_in_trace_event;
-#endif
 }
 
 }  // namespace tracing

@@ -38,13 +38,6 @@
 #include <sys/prctl.h>
 #endif
 
-#if defined(STARBOARD)
-#include <pthread.h>
-
-#include "base/check_op.h"
-#include "starboard/thread.h"
-#endif
-
 namespace base {
 
 constexpr uint32_t kMaxStackEntries = 256;
@@ -95,33 +88,12 @@ const char* GetAndLeakThreadName() {
 }
 
 const char* UpdateAndGetThreadName(const char* name) {
-#if defined(STARBOARD)
-  static pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-  static pthread_key_t s_thread_local_key = 0;
-  
-  auto InitThreadLocalKey = [](){
-    int res = pthread_key_create(&s_thread_local_key , NULL);
-    DCHECK(res == 0);
-  };
-
-  pthread_once(&s_once_flag, InitThreadLocalKey);
-
-  const char* thread_name =
-      static_cast<const char*>(pthread_getspecific(s_thread_local_key));
-  if (name)
-    pthread_setspecific(s_thread_local_key, const_cast<char*>(name));
-  else if (!thread_name)
-    pthread_setspecific(s_thread_local_key,
-                        const_cast<char*>(GetAndLeakThreadName()));
-  return static_cast<const char*>(pthread_getspecific(s_thread_local_key));
-#else
   static thread_local const char* thread_name;
   if (name)
     thread_name = name;
   if (!thread_name)
     thread_name = GetAndLeakThreadName();
   return thread_name;
-#endif
 }
 
 // Checks whether unwinding from this function works.

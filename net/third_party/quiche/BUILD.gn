@@ -735,6 +735,12 @@ component("quiche") {
   ]
 
   defines = [ "IS_QUICHE_IMPL" ]
+
+  if (use_cobalt_customizations) {
+    configs += [
+      "//build/config/compiler:emulated_tls",
+    ]
+  }
 }
 
 proto_library("net_quic_proto") {
