@@ -37,7 +37,7 @@ class MODULES_EXPORT DeepLinkEvent final : public Event {
   void Trace(Visitor*) const override;
 
  private:
-  String url_;
+  const String url_;
 };
 
 }  // namespace blink

@@ -11,6 +11,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// A custom event that carries deep link information. This event is
+// dispatched on the H5vccRuntime object when a deep link is received.
 [
     Exposed=Window,
     SecureContext

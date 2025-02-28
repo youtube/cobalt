@@ -53,10 +53,10 @@ class MODULES_EXPORT H5vccRuntime final
   EventListener* onDeepLink();
   void setOnDeepLink(EventListener* listener);
 
+  // EventTargetWithInlineData impl.
   ExecutionContext* GetExecutionContext() const override {
     return ExecutionContextLifecycleObserver::GetExecutionContext();
   }
-
   const AtomicString& InterfaceName() const override {
     return event_target_names::kH5VccRuntime;
   }
