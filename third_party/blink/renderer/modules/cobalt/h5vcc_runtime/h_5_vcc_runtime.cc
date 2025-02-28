@@ -48,12 +48,12 @@ void H5vccRuntime::OnGetInitialDeepLink(ScriptPromiseResolver* resolver,
   resolver->Resolve(result);
 }
 
-EventListener* H5vccRuntime::ondeeplink() {
+EventListener* H5vccRuntime::onDeepLink() {
   LOG(INFO) << "ColinL: ondeeplink.";
   return GetAttributeEventListener(event_type_names::kDeeplink);
 }
 
-void H5vccRuntime::setOndeeplink(EventListener* listener) {
+void H5vccRuntime::setOnDeepLink(EventListener* listener) {
   LOG(INFO) << "ColinL: setOndeeplink.";
 
   SetAttributeEventListener(event_type_names::kDeeplink, listener);

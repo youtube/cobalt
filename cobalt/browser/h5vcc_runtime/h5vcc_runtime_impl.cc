@@ -40,7 +40,6 @@ void H5vccRuntimeImpl::Create(
 }
 
 void H5vccRuntimeImpl::GetInitialDeepLink(GetInitialDeepLinkCallback callback) {
-  LOG(INFO) << "ColinL: H5vccRuntimeImpl::GetInitialDeepLink.";
   std::string start_deep_link;
 #if BUILDFLAG(IS_ANDROID)
   JNIEnv* env = base::android::AttachCurrentThread();
