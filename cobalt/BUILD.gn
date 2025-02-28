@@ -88,6 +88,7 @@ test("cobalt_unittests") {
 
   deps = [
     "//base/test:run_all_unittests",
+    "//cobalt/browser/migrate_storage_record:unittest",
     "//cobalt/user_agent",
     "//starboard:starboard_group",
     "//testing/gmock",
