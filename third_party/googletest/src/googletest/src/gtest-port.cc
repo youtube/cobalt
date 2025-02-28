@@ -27,7 +27,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "build/build_config.h"
 #include "gtest/internal/gtest-port.h"
 
 #include <limits.h>
@@ -929,7 +928,7 @@ bool MatchRegexAnywhere(const char* regex, const char* str) {
 // Implements the RE class.
 
 RE::~RE() {
-  free(const_cast<char*>(pattern_));	  posix::Free(const_cast<char*>(pattern_));
+  free(const_cast<char*>(pattern_));
   free(const_cast<char*>(full_pattern_));
 }
 
@@ -1223,7 +1222,6 @@ std::string ReadEntireFile(FILE* file) {
   delete[] buffer;
 
   return content;
-  return std::string();
 }
 
 #if GTEST_HAS_DEATH_TEST
