@@ -315,18 +315,38 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: src
-      - name: Download Test Results
-        uses: actions/download-artifact@v4
-        with:
-          pattern: ${{ env.TEST_RESULTS_KEY }}*
-          path: results/
       - name: Extract Test Target Name
         id: extract-target-name
         env:
           test_target_with_path: ${{ matrix.test_target }}
         run: echo "test_target=${test_target_with_path#*:}" >> $GITHUB_OUTPUT
         shell: bash
+      - name: Check Test Filter
+        id: filter
+        run: |
+          set -x
+          # Get first entry in test filters file.
+          test_filter=""
+          test_target="${{ steps.extract-target-name.outputs.test_target }}"
+          test_filter_json_dir="${GITHUB_WORKSPACE}/src/cobalt/testing/filters/${{ matrix.platform }}/${test_target}_filter.json"
+          if [ -f ${test_filter_json_dir} ]; then
+            test_filter="$(jq -cr '.failing_tests[0]' ${test_filter_json_dir})"
+            if [ "${test_filter}" = '*' ]; then
+              echo "${test_target} was skipped due to test filter."
+              echo "skipped=true" >> $GITHUB_OUTPUT
+            else
+              echo "skipped=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+        shell: bash
+      - name: Download Test Results
+        if: steps.filter.outputs.skipped != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ env.TEST_RESULTS_KEY }}*
+          path: results/
       - name: Process Test Results
+        if: steps.filter.outputs.skipped != 'true'
         id: process-results
         uses: ./src/.github/actions/process_test_results
         with:
@@ -334,13 +354,13 @@ jobs:
           results_path: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           datadog_api_key: ${{ secrets.datadog_api_key }}
       - name: ${{ matrix.test_target }} Device Logs
-        if: always() && needs.initialize.outputs.test_on_device == 'true'
+        if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true'
         uses: ./src/.github/actions/print_logs
         with:
           logfile_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
           symbolize: true
       - name: ${{ matrix.test_target }} Test Logs
-        if: always()
+        if: always() && steps.filter.outputs.skipped != 'true'
         uses: ./src/.github/actions/print_logs
         with:
           logfile_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
