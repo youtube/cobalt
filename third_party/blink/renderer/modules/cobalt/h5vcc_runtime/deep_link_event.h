@@ -20,25 +20,24 @@
 
 namespace blink {
 
-class MODULES_EXPORT DeeplinkEvent final : public Event {
+class MODULES_EXPORT DeepLinkEvent final : public Event {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static DeeplinkEvent* Create(const AtomicString& type,
-                               const String& deeplink) {
-    return MakeGarbageCollected<DeeplinkEvent>(type, deeplink);
+  static DeepLinkEvent* Create(const AtomicString& type, const String& url) {
+    return MakeGarbageCollected<DeepLinkEvent>(type, url);
   }
 
-  DeeplinkEvent(const AtomicString& type, const String& deeplink);
-  ~DeeplinkEvent() override;
+  DeepLinkEvent(const AtomicString& type, const String& url);
+  ~DeepLinkEvent() override;
 
-  const String& deeplink() const { return deeplink_; }
+  const String& url() const { return url_; }
 
   const AtomicString& InterfaceName() const override;
   void Trace(Visitor*) const override;
 
  private:
-  String deeplink_;
+  String url_;
 };
 
 }  // namespace blink

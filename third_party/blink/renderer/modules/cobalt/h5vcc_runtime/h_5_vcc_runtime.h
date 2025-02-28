@@ -36,8 +36,8 @@ class ScriptState;
 class ScriptPromiseResolver;
 
 class MODULES_EXPORT H5vccRuntime final
-    // TODO: EventTargetWithInlineData should be replaced with EventTarget in
-    // the future see
+    // TODO: EventTargetWithInlineData should be replaced with EventTarget
+    // after Chromium base version update, see
     // https://chromium-review.googlesource.com/c/chromium/src/+/4621887
     : public EventTargetWithInlineData,
       public ExecutionContextLifecycleObserver {
@@ -65,7 +65,7 @@ class MODULES_EXPORT H5vccRuntime final
 
  private:
   void OnGetInitialDeepLink(ScriptPromiseResolver*, const String&);
-  void OnMaybeFireDeeplinkEvent(const String&);
+  void MaybeFireDeepLinkEvent(const String&);
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_runtime::mojom::blink::H5vccRuntime>
       remote_h5vcc_runtime_;

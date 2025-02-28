@@ -11,10 +11,23 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-[
-    Exposed=Window,
-    SecureContext
-]
-interface DeeplinkEvent : Event {
-    readonly attribute DOMString deeplink;
-};
+
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deep_link_event.h"
+#include "third_party/blink/renderer/modules/event_interface_modules_names.h"
+
+namespace blink {
+
+DeepLinkEvent::DeepLinkEvent(const AtomicString& type, const String& url)
+    : Event(type, Bubbles::kNo, Cancelable::kNo), url_(url) {}
+
+DeepLinkEvent::~DeepLinkEvent() = default;
+
+const AtomicString& DeepLinkEvent::InterfaceName() const {
+  return event_interface_names::kDeepLinkEvent;
+}
+
+void DeepLinkEvent::Trace(Visitor* visitor) const {
+  Event::Trace(visitor);
+}
+
+}  // namespace blink

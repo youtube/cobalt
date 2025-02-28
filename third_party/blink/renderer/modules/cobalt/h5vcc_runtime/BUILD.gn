@@ -16,8 +16,8 @@ import("//third_party/blink/renderer/modules/modules.gni")
 
 blink_modules_sources("h5vcc_runtime") {
   sources = [
-    "deeplink_event.cc",
-    "deeplink_event.h",
+    "deep_link_event.cc",
+    "deep_link_event.h",
     "h_5_vcc_runtime.cc",
     "h_5_vcc_runtime.h",
   ]
