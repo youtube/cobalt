@@ -27,7 +27,7 @@ import networkx as nx
 # Limit results to the allowlist for now. Once test infra can run more
 # we'll extend or remove this list.
 # TODO: Move this list to a GN target under //cobalt.
-_ALLOWLIST = {
+_ALLOW_TESTS = {
     '//base:base_perftests',
     '//base:base_unittests',
     '//cobalt/renderer:renderer_browsertests',
@@ -104,7 +104,7 @@ def _are_related(node1, node2) -> bool:
 
 
 def _is_test_target(g, node) -> bool:
-  if not any(node == target for target in _ALLOWLIST) or \
+  if not node in _ALLOW_TESTS or \
     any(node.startswith(path_prefix) for path_prefix in _EXCLUDE_TESTS):
     return False
 
