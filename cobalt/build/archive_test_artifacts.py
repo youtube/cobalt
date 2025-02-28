@@ -93,6 +93,10 @@ def create_archive(
       target_deps = set()
       target_src_root_deps = set()
       for line in runtime_deps_file:
+        # The unstripped libs are needed to symbolize crash dumps in the logs.
+        if line.startswith('./lib.unstripped'):
+          shutil.copy2(line, destination_dir)
+
         if any(line.startswith(path) for path in _EXCLUDE_DIRS):
           continue
 
