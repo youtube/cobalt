@@ -67,6 +67,9 @@ struct WebCSPSourceList {
   bool allow_dynamic;
   bool allow_unsafe_hashes;
   bool report_sample;
+#if BUILDFLAG(IS_COBALT)
+  bool cobalt_insecure_local_network;
+#endif
 };
 
 struct WebContentSecurityPolicyDirective {
