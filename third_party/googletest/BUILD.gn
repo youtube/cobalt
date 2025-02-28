@@ -32,8 +32,7 @@ config("gtest_config") {
 
   # Gtest headers need to be able to find themselves.
   include_dirs = [
-    #"custom",
-    # "//cobalt/third_party/googletest/src/googletest/include",
+    "custom",
     "src/googletest/include",
   ]
 
@@ -53,7 +52,7 @@ config("gtest_config") {
 config("gmock_config") {
   # Gmock headers need to be able to find themselves.
   include_dirs = [
-    #"custom",
+    "custom",
     "src/googlemock/include",
   ]
 
@@ -72,15 +71,15 @@ config("gmock_config") {
 source_set("gtest") {
   testonly = true
   sources = [
-    # "custom/gtest/internal/custom/gtest.h",
-    # "custom/gtest/internal/custom/stack_trace_getter.cc",
-    # "custom/gtest/internal/custom/stack_trace_getter.h",
+    "custom/gtest/internal/custom/gtest.h",
+    "custom/gtest/internal/custom/stack_trace_getter.cc",
+    "custom/gtest/internal/custom/stack_trace_getter.h",
 
     # TODO(crbug.com/1009553): Remove this wrapper and custom temp dir
     # after plumbing a workable temporary path into googletest on Android.
-    # "custom/gtest/internal/custom/chrome_custom_temp_dir.cc",
-    # "custom/gtest/internal/custom/chrome_custom_temp_dir.h",
-    # "custom/gtest/internal/custom/gtest_port_wrapper.cc",
+    "custom/gtest/internal/custom/chrome_custom_temp_dir.cc",
+    "custom/gtest/internal/custom/chrome_custom_temp_dir.h",
+    "custom/gtest/internal/custom/gtest_port_wrapper.cc",
     "src/googletest/include/gtest/gtest-assertion-result.h",
     "src/googletest/include/gtest/gtest-death-test.h",
     "src/googletest/include/gtest/gtest-matchers.h",
@@ -116,37 +115,21 @@ source_set("gtest") {
     # gtest_port_wrapper.cc is used instead of gtest-port.cc.
     # TODO(crbug.com/1009553): Re-enable this file after plumbing a workable
     #                          temporary path into googletest on Android.
-    "src/googletest/src/gtest-port.cc",
+    #"src/googletest/src/gtest-port.cc",
     "src/googletest/src/gtest-printers.cc",
     "src/googletest/src/gtest-test-part.cc",
     "src/googletest/src/gtest-typed-test.cc",
     "src/googletest/src/gtest.cc",
   ]
 
-  if (is_cobalt_hermetic_build) {
-    # sources -= [
-    #   # "src/googletest/include/gtest/internal/gtest-port-arch.h",
-    #   # "src/googletest/include/gtest/internal/gtest-port.h",
-    #   # "src/googletest/src/gtest.cc",
-    #       # "src/googletest/src/gtest-port.cc",
-    # ]
-    # sources += [
-    #   "//cobalt/third_party/googletest/src/googletest/include/gtest/internal/gtest-port-arch.h",
-    #   "//cobalt/third_party/googletest/src/googletest/include/gtest/internal/gtest-port.h",
-    #   "//cobalt/third_party/googletest/src/googletest/src/gtest.cc",
-    #   "//cobalt/third_party/googletest/src/googletest/src/gtest-port.cc",
-    # ]
-  }
-
   # Some files include "src/gtest-internal-inl.h".
   include_dirs = [
-    # "//cobalt/third_party/googletest/src/googletest",
     "src/googletest",
   ]
 
   public_configs = [ ":gtest_config" ]
 
-  # configs -= [ "//build/config/compiler:chromium_code" ]
+  configs -= [ "//build/config/compiler:chromium_code" ]
   configs += [ "//build/config/compiler:no_chromium_code" ]
 
   defines = []
@@ -162,7 +145,7 @@ source_set("gtest") {
     deps += [ "//base" ]
   }
 
-  if (is_starboard) {
+  if (is_cobalt_hermetic_build) {
     sources -= [
       "custom/gtest/internal/custom/chrome_custom_temp_dir.cc",
       "custom/gtest/internal/custom/chrome_custom_temp_dir.h",

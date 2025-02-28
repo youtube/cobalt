@@ -37,10 +37,9 @@
 
 #include "build/build_config.h"
 
-// Determines the platform on which Google Test is compiled.
-#if defined(IS_COBALT_HERMETIC_BUILD)
-# define GTEST_OS_STARBOARD 1
-#elif __CYGWIN__
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#if __CYGWIN__
 #define GTEST_OS_CYGWIN 1
 #elif defined(__MINGW__) || defined(__MINGW32__) || defined(__MINGW64__)
 #define GTEST_OS_WINDOWS_MINGW 1
@@ -116,5 +115,6 @@
 #elif defined(__XTENSA__)
 #define GTEST_OS_XTENSA 1
 #endif  // __CYGWIN__
+#endif // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 #endif  // GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_PORT_ARCH_H_
