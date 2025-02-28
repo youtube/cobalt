@@ -738,10 +738,6 @@ public class StarboardBridge {
     }
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/crash_handler.cc
-  @SuppressWarnings("unused")
-  @UsedByNative
   public void setCrashContext(String key, String value) {
     crashContext.put(key, value);
     if (this.crashContextUpdateHandler != null) {
