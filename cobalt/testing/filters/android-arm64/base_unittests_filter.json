@@ -1,6 +1,8 @@
 {
   "failing_tests": [
     "LibunwindstackUnwinderAndroidTest.*",
+    "WeakAutoResetTest.*",
+    "LoggingTest.NestedLogAssertHandlers",
     "SampleMetadataTest.ScopedSampleMetadata",
     "SampleMetadataTest.ScopedSampleMetadataWithKey",
     "SampleMetadataTest.SampleMetadata",

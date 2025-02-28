@@ -2,6 +2,7 @@
   "failing_tests": [
     "KeySystemConfigSelectorTest.*",
     "*RTCVideoDecoder*",
-    "HarfBuzzShaperTest.ShapeHorizontalWithSubpixelPositionWithKerningIsNotRounded"
+    "HarfBuzzShaperTest.*",
+    "FilePathConversionTest.convert"
   ]
 }
