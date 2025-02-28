@@ -82,7 +82,11 @@ struct CSPSourceList {
   bool allow_dynamic = false;
   bool allow_unsafe_hashes = false;
   bool report_sample = false;
+<<<<<<< HEAD
   IntegrityAlgorithm? report_hash_algorithm;
+=======
+  [EnableIf=cobalt_custom_csp]bool cobalt_insecure_local_network = false;
+>>>>>>> a40bc8ae05d (Add custom cobalt-insecure-local-network csp source (#4958))
 };
 
 enum CSPDirectiveName {

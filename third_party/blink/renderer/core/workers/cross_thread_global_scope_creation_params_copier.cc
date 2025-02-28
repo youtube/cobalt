@@ -56,7 +56,15 @@ network::mojom::blink::CSPSourceListPtr CSPSourceListIsolatedCopy(
       std::move(hashes), in->allow_self, in->allow_star, in->allow_inline,
       in->allow_inline_speculation_rules, in->allow_eval, in->allow_wasm_eval,
       in->allow_wasm_unsafe_eval, in->allow_dynamic, in->allow_unsafe_hashes,
+<<<<<<< HEAD
       in->report_sample, in->report_hash_algorithm);
+=======
+#if BUILDFLAG(IS_COBALT)
+      in->report_sample, in->cobalt_insecure_local_network);
+#else
+      in->report_sample);
+#endif
+>>>>>>> a40bc8ae05d (Add custom cobalt-insecure-local-network csp source (#4958))
 }
 
 HashMap<network::mojom::blink::CSPDirectiveName,

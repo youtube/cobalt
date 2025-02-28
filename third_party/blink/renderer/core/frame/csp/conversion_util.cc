@@ -10,7 +10,86 @@ namespace blink {
 
 namespace {
 
+<<<<<<< HEAD
 network::mojom::blink::CSPSourcePtr ConvertSource(const WebCSPSource& source) {
+=======
+// TODO(arthursonzogni): Remove this when BeginNavigation will be sent directly
+// from blink.
+WebCSPSource ConvertToPublic(network::mojom::blink::CSPSourcePtr source) {
+  return {source->scheme,
+          source->host,
+          source->port,
+          source->path,
+          source->is_host_wildcard,
+          source->is_port_wildcard};
+}
+
+// TODO(arthursonzogni): Remove this when BeginNavigation will be sent directly
+// from blink.
+WebCSPHashSource ConvertToPublic(
+    network::mojom::blink::CSPHashSourcePtr hash_source) {
+  return {hash_source->algorithm, std::move(hash_source->value)};
+}
+
+// TODO(arthursonzogni): Remove this when BeginNavigation will be sent directly
+// from blink.
+WebCSPSourceList ConvertToPublic(
+    network::mojom::blink::CSPSourceListPtr source_list) {
+  WebVector<WebCSPSource> sources(source_list->sources.size());
+  for (wtf_size_t i = 0; i < source_list->sources.size(); ++i)
+    sources[i] = ConvertToPublic(std::move(source_list->sources[i]));
+  WebVector<WebCSPHashSource> hashes(source_list->hashes.size());
+  for (wtf_size_t i = 0; i < source_list->hashes.size(); ++i)
+    hashes[i] = ConvertToPublic(std::move(source_list->hashes[i]));
+  return {std::move(sources),
+          std::move(source_list->nonces),
+          std::move(hashes),
+          source_list->allow_self,
+          source_list->allow_star,
+          source_list->allow_response_redirects,
+          source_list->allow_inline,
+          source_list->allow_inline_speculation_rules,
+          source_list->allow_eval,
+          source_list->allow_wasm_eval,
+          source_list->allow_wasm_unsafe_eval,
+          source_list->allow_dynamic,
+          source_list->allow_unsafe_hashes,
+#if BUILDFLAG(IS_COBALT)
+          source_list->report_sample,
+          source_list->cobalt_insecure_local_network};
+#else
+          source_list->report_sample};
+#endif
+}
+
+// TODO(arthursonzogni): Remove this when BeginNavigation will be sent directly
+// from blink.
+absl::optional<WebCSPTrustedTypes> ConvertToPublic(
+    network::mojom::blink::CSPTrustedTypesPtr trusted_types) {
+  if (!trusted_types)
+    return absl::nullopt;
+  return WebCSPTrustedTypes{std::move(trusted_types->list),
+                            trusted_types->allow_any,
+                            trusted_types->allow_duplicates};
+}
+
+// TODO(arthursonzogni): Remove this when BeginNavigation will be sent directly
+// from blink.
+WebContentSecurityPolicyHeader ConvertToPublic(
+    network::mojom::blink::ContentSecurityPolicyHeaderPtr header) {
+  return {header->header_value, header->type, header->source};
+}
+
+Vector<String> ConvertToWTF(const WebVector<blink::WebString>& list_in) {
+  Vector<String> list_out;
+  for (const auto& element : list_in)
+    list_out.emplace_back(element);
+  return list_out;
+}
+
+network::mojom::blink::CSPSourcePtr ConvertToMojoBlink(
+    const WebCSPSource& source) {
+>>>>>>> a40bc8ae05d (Add custom cobalt-insecure-local-network csp source (#4958))
   return network::mojom::blink::CSPSource::New(
       source.scheme, source.host, source.port, source.path,
       source.is_host_wildcard, source.is_port_wildcard);
@@ -32,7 +111,15 @@ network::mojom::blink::CSPSourceListPtr ConvertSourceList(
       source_list.allow_inline_speculation_rules, source_list.allow_eval,
       source_list.allow_wasm_eval, source_list.allow_wasm_unsafe_eval,
       source_list.allow_dynamic, source_list.allow_unsafe_hashes,
+<<<<<<< HEAD
       source_list.report_sample, source_list.report_hash_algorithm);
+=======
+#if BUILDFLAG(IS_COBALT)
+      source_list.report_sample, source_list.cobalt_insecure_local_network);
+#else
+      source_list.report_sample);
+#endif
+>>>>>>> a40bc8ae05d (Add custom cobalt-insecure-local-network csp source (#4958))
 }
 
 }  // namespace
