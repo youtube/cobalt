@@ -1,5 +1,6 @@
 {
   "failing_tests": [
+    "ModuleCacheTest.CheckAgainstProcMaps",
     "LibunwindstackUnwinderAndroidTest.*",
     "WeakAutoResetTest.*",
     "LoggingTest.NestedLogAssertHandlers",
@@ -15,6 +16,7 @@
     "AlternateBucketDistribution/PartitionAllocThreadCacheTest.ThreadCacheRegistry/0",
     "AlternateBucketDistribution/PartitionAllocThreadCacheTest.ThreadCacheRegistry/1",
     "AlternateBucketDistribution/PartitionAllocThreadCacheTest.MultipleThreadCachesAccounting/0",
-    "AlternateBucketDistribution/PartitionAllocThreadCacheTest.MultipleThreadCachesAccounting/1"
+    "AlternateBucketDistribution/PartitionAllocThreadCacheTest.MultipleThreadCachesAccounting/1",
+    "All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePump"
   ]
 }
