@@ -50,6 +50,7 @@ runs:
         # Note that if any steps after this one fails the logs will no longer be expanded.
         if [ "${{ inputs.test_status }}" != "success" ]; then
           echo "Tests failed"
+          grep "[  FAILED  ]" ${{ inputs.logfile_glob }}
           exit 1
         fi
       shell: bash
