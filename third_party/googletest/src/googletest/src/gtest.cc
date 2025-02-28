@@ -2105,11 +2105,11 @@ bool String::CaseInsensitiveCStringEquals(const char* lhs, const char* rhs) {
   if (lhs == nullptr) return rhs == nullptr;
   if (rhs == nullptr) return false;
 // TODO: b/399507045 - Cobalt: Fix build error, remove hack
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   return strcasecmp(lhs, rhs) == 0;
 #else
   return posix::StrCaseCmp(lhs, rhs) == 0;
-#endif
+#endif // ENABLE_COBALT_HERMETIC_HACKS
 }
 
 // Compares two wide C strings, ignoring case.  Returns true if and only if they
