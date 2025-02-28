@@ -64,6 +64,13 @@ blink_platform_sources("network") {
     "wrapped_data_pipe_getter.h",
   ]
 
+  if(is_cobalt) {
+    sources += [
+      "local_ip.cc",
+      "local_ip.h",
+    ]
+  }
+
   sources += get_target_outputs(":http_names")
 
   deps = [

@@ -13,7 +13,12 @@ namespace {
 network::mojom::blink::CSPSourcePtr ConvertSource(const WebCSPSource& source) {
   return network::mojom::blink::CSPSource::New(
       source.scheme, source.host, source.port, source.path,
+#if BUILDFLAG(IS_COBALT)
+      source.is_host_wildcard, source.is_port_wildcard,
+      source_list.cobalt_insecure_local_network);
+#else
       source.is_host_wildcard, source.is_port_wildcard);
+#endif
 }
 
 network::mojom::blink::CSPHashSourcePtr ConvertHashSource(
@@ -34,7 +39,12 @@ network::mojom::blink::CSPSourceListPtr ConvertSourceList(
       source_list.allow_inline_speculation_rules, source_list.allow_eval,
       source_list.allow_wasm_eval, source_list.allow_wasm_unsafe_eval,
       source_list.allow_dynamic, source_list.allow_unsafe_hashes,
+#if BUILDFLAG(IS_COBALT)
+      source_list.report_sample, source_list.report_hash_algorithm,
+      source_list.cobalt_insecure_local_network);
+#else
       source_list.report_sample, source_list.report_hash_algorithm);
+#endif
 }
 
 }  // namespace
