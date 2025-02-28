@@ -94,6 +94,11 @@ _FILTERED_TESTS = {
         # TODO: b/347961880 Disable this test due to fail on e/ac3 audio format.
         'SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.TimeAfterSeek/*ec3*',
         'SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.TimeAfterSeek/*ac3*',
+
+        # TODO: b/191871259 Disabled due to missing ipv6 support in test environment.
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDayDestination/type_ipv6',
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceForDestination/type_ipv6',
+        'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.SunnyDaySourceNotLoopback/type_ipv6',
     ],
 }
 # pylint: enable=line-too-long
