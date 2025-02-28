@@ -35,6 +35,7 @@
 
 #define EGL_CALL_PREFIX SbGetEglInterface()->
 
+#define EGLAttrib SbEglAttrib
 #define EGLConfig SbEglConfig
 #define EGLint SbEglInt32
 #define EGLNativeWindowType SbEglNativeWindowType
@@ -50,6 +51,11 @@
 #define EGL_NO_SURFACE SB_EGL_NO_SURFACE
 #define EGL_OPENGL_ES2_BIT SB_EGL_OPENGL_ES2_BIT
 #define EGL_PBUFFER_BIT SB_EGL_PBUFFER_BIT
+#define EGL_PLATFORM_ANGLE_ANGLE 0x3202
+#define EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE 0x3209
+#define EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE 0x348E
+#define EGL_PLATFORM_ANGLE_TYPE_ANGLE 0x3203
+#define EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE 0x320E
 #define EGL_RED_SIZE SB_EGL_RED_SIZE
 #define EGL_RENDERABLE_TYPE SB_EGL_RENDERABLE_TYPE
 #define EGL_SUCCESS SB_EGL_SUCCESS
@@ -88,6 +94,11 @@ EGLint const kAttributeList[] = {EGL_RED_SIZE,
                                  EGL_RENDERABLE_TYPE,
                                  EGL_OPENGL_ES2_BIT,
                                  EGL_NONE};
+
+EGLAttrib const kDisplayAttribList[] = {
+    EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
+    EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE, EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+    EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE};
 
 }  // namespace
 
@@ -174,7 +185,15 @@ void FakeGraphicsContextProvider::InitializeWindow() {
 }
 
 void FakeGraphicsContextProvider::InitializeEGL() {
+  // TODO(b/399196540): Remove OS check once eglGetPlatformDisplay is supported
+  // for Android.
+#if defined(OS_ANDROID)
   display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
+#else
+  display_ = EGL_CALL_SIMPLE(eglGetPlatformDisplay(
+      EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(SB_EGL_DEFAULT_DISPLAY),
+      kDisplayAttribList));
+#endif  // defined(OS_ANDROID)
   SB_DCHECK(EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
   SB_CHECK(EGL_NO_DISPLAY != display_);
 
