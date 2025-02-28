@@ -46,6 +46,19 @@ class SbMediaSetAudioWriteDurationTest
  public:
   SbMediaSetAudioWriteDurationTest() : dmp_reader_(GetParam()) {}
 
+  void SetUp() override {
+    SbMediaAudioCodec audio_codec = dmp_reader_.audio_codec();
+    PlayerCreationParam creation_param = CreatePlayerCreationParam(
+        audio_codec, kSbMediaVideoCodecNone, kSbPlayerOutputModeInvalid);
+    SbPlayerCreationParam param = {};
+    creation_param.ConvertTo(&param);
+    creation_param.output_mode = SbPlayerGetPreferredOutputMode(&param);
+
+    SbPlayerTestConfig test_config(GetParam(), "", creation_param.output_mode,
+                                   "");
+    SkipTestIfNotSupported(test_config);
+  }
+
   void TryToWritePendingSample() {
     {
       starboard::ScopedSpinLock lock(&pending_decoder_status_lock_);
@@ -236,32 +249,9 @@ TEST_P(SbMediaSetAudioWriteDurationTest, WriteContinuedLimitedInput) {
   SbPlayerDestroy(player);
 }
 
-std::vector<const char*> GetSupportedTests() {
-  const char* kFilenames[] = {"beneath_the_canopy_aac_stereo.dmp",
-                              "beneath_the_canopy_opus_stereo.dmp"};
-
-  static std::vector<const char*> test_params;
-
-  if (!test_params.empty()) {
-    return test_params;
-  }
-
-  for (auto filename : kFilenames) {
-    VideoDmpReader dmp_reader(filename, VideoDmpReader::kEnableReadOnDemand);
-    SB_DCHECK(dmp_reader.number_of_audio_buffers() > 0);
-    if (SbMediaCanPlayMimeAndKeySystem(dmp_reader.audio_mime_type().c_str(),
-                                       "")) {
-      test_params.push_back(filename);
-    }
-  }
-
-  SB_DCHECK(!test_params.empty());
-  return test_params;
-}
-
 INSTANTIATE_TEST_CASE_P(SbMediaSetAudioWriteDurationTests,
                         SbMediaSetAudioWriteDurationTest,
-                        ValuesIn(GetSupportedTests()));
+                        ValuesIn(GetStereoAudioTestFiles()));
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
