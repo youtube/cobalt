@@ -297,7 +297,8 @@ jobs:
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
-    if: always() && fromJson(needs.build.outputs.test_targets_count) > 0
+    # The only case both test jobs have the same result is if they were both skipped.
+    if: always() && needs.on-device-test.result != needs.on-host-test.result && fromJson(needs.build.outputs.test_targets_count) > 0
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_target }}
