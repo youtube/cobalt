@@ -49,15 +49,9 @@ import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
 import org.chromium.content_public.browser.WebContents;
 
-/**
- * Implementation of the required JNI methods called by the Starboard C++ code.
- * This class is a singleton, as is its C++ counterpart.
- */
+/** Implementation of the required JNI methods called by the Starboard C++ code. */
 @JNINamespace("starboard::android::shared")
-// TODO(cobalt, b/383301493): consider making this enum class private and adding
-// a public interface that it implements.
-public enum StarboardBridge {
-  INSTANCE;
+public class StarboardBridge {
 
   /** Interface to be implemented by the Android Application hosting the starboard app. */
   public interface HostApplication {
@@ -76,13 +70,12 @@ public enum StarboardBridge {
   private ResourceOverlay resourceOverlay;
   private AdvertisingId advertisingId;
   private VolumeStateReceiver volumeStateReceiver;
-  private CrashContextUpdateHandler crashContextUpdateHandler;
 
-  private Context appContext;
-  private Holder<Activity> activityHolder;
-  private Holder<Service> serviceHolder;
-  private String[] args;
-  private long nativeApp;
+  private final Context appContext;
+  private final Holder<Activity> activityHolder;
+  private final Holder<Service> serviceHolder;
+  private final String[] args;
+  private final long nativeApp;
   private String startDeepLink;
   private final Runnable stopRequester =
       new Runnable() {
@@ -97,22 +90,16 @@ public enum StarboardBridge {
 
   private final HashMap<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
   private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
-  private final HashMap<String, String> crashContext = new HashMap<>();
+
 
   private static final String GOOGLE_PLAY_SERVICES_PACKAGE = "com.google.android.gms";
   private static final String AMATI_EXPERIENCE_FEATURE =
       "com.google.android.feature.AMATI_EXPERIENCE";
-  private boolean isAmatiDevice;
+  private final boolean isAmatiDevice;
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long timeNanosecondsPerMicrosecond = 1000;
 
-  /**
-   * Initializes the single StarboardBridge instance.
-   *
-   * This method should be called before the StarboardBridge instance is used,
-   * and it should only be called one.
-   */
-  public void init(
+  public StarboardBridge(
       Context appContext,
       Holder<Activity> activityHolder,
       Holder<Service> serviceHolder,
@@ -751,18 +738,15 @@ public enum StarboardBridge {
   }
 
   public void setCrashContext(String key, String value) {
-    crashContext.put(key, value);
-    if (this.crashContextUpdateHandler != null) {
-      this.crashContextUpdateHandler.onCrashContextUpdate();
-    }
+    CrashContextHolder.INSTANCE.setCrashContext(key, value);
   }
 
   public HashMap<String, String> getCrashContext() {
-    return this.crashContext;
+    return CrashContextHolder.INSTANCE.getCrashContext();
   }
 
   public void registerCrashContextUpdateHandler(CrashContextUpdateHandler handler) {
-    this.crashContextUpdateHandler = handler;
+    CrashContextHolder.INSTANCE.registerCrashContextUpdateHandler(handler);
   }
 
   @SuppressWarnings("unused")
