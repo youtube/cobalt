@@ -56,7 +56,8 @@ void CobaltWebContentsObserver::RegisterInjectedJavaScript() {
 }
 
 void CobaltWebContentsObserver::PrimaryMainDocumentElementAvailable() {
-  migrate_storage_record::DoMigrationTasksOnce(web_contents());
+  migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
+      web_contents());
 }
 
 }  // namespace cobalt
