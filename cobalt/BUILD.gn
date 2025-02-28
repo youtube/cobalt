@@ -93,6 +93,7 @@ test("cobalt_unittests") {
     "//base/test:run_all_unittests",
     "//base/test:test_support",
     "//cobalt/browser:metrics",
+    "//cobalt/browser/migrate_storage_record:unittest",
     "//cobalt/user_agent",
     "//starboard:starboard_group",
     "//testing/gmock",
