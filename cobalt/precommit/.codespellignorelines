@@ -1,2 +1,3 @@
     vp9AllowList.get("Technicolor").add("STING");
 // Onces represent initializations that should only ever happen once per
+    : Event(type, Bubbles::kNo, Cancelable::kNo), deeplink_(deeplink) {}
