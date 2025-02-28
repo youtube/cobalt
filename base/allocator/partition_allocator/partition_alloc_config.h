@@ -65,7 +65,7 @@ static_assert(sizeof(void*) != 8, "");
 #endif
 
 #if BUILDFLAG(HAS_64_BIT_POINTERS) && \
-    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)) && !defined(IS_COBALT_HERMETIC_BUILD)
+    (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_ANDROID)) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <linux/version.h>
 // TODO(bikineev): Enable for ChromeOS.
 #define PA_CONFIG_STARSCAN_UFFD_WRITE_PROTECTOR_SUPPORTED() \
@@ -104,7 +104,7 @@ static_assert(sizeof(void*) != 8, "");
 // POSIX is not only UNIX, e.g. macOS and other OSes. We do use Linux-specific
 // features such as futex(2).
 #define PA_CONFIG_HAS_LINUX_KERNEL() \
-  (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)) && !defined(IS_COBALT_HERMETIC_BUILD)
+  (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 // On some platforms, we implement locking by spinning in userspace, then going
 // into the kernel only if there is contention. This requires platform support,

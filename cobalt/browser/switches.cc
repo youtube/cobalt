@@ -17,12 +17,6 @@
 namespace cobalt {
 namespace switches {
 
-namespace {
-
-constexpr char kDefaultURL[] = "https://www.youtube.com/tv";
-
-}  // namespace
-
 std::string GetInitialURL(const base::CommandLine& command_line) {
   if (command_line.HasSwitch(kInitialURL)) {
     return command_line.GetSwitchValueASCII(kInitialURL);
