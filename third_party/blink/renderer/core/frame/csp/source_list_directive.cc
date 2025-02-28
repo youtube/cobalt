@@ -4,11 +4,17 @@
 
 #include "third_party/blink/renderer/core/frame/csp/source_list_directive.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include <arpa/inet.h>
+#include <ifaddrs.h>
+#endif
+
 #include "third_party/blink/renderer/core/frame/csp/content_security_policy.h"
 #include "third_party/blink/renderer/core/frame/csp/csp_source.h"
 #include "third_party/blink/renderer/platform/loader/fetch/resource_request.h"
 #include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
+#include "third_party/blink/renderer/platform/network/local_ip.h"
 
 namespace {
 
@@ -72,6 +78,14 @@ bool CSPSourceListAllows(
     return HasSourceMatchInList(source_list.sources, self_source.scheme, url,
                                 redirect_status);
   }
+#if BUILDFLAG(IS_COBALT)
+  if (source_list.cobalt_insecure_local_network) {
+    // Allow websocket connection to host ip within the local network.
+    if (url.ProtocolIs("ws") || url.ProtocolIs("wss")) {
+      return IsIPInLocalNetwork(url.Host().Utf8());
+    }
+  }
+#endif
   if (source_list.allow_self && CSPSourceMatchesAsSelf(self_source, url)) {
     return true;
   }
@@ -106,7 +120,11 @@ bool CSPSourceListIsNone(
          !source_list.allow_unsafe_hashes && !source_list.allow_eval &&
          !source_list.allow_wasm_eval && !source_list.allow_wasm_unsafe_eval &&
          !source_list.allow_dynamic && !source_list.nonces.size() &&
+#if BUILDFLAG(IS_COBALT)
+         !source_list.hashes.size() && !source_list.cobalt_insecure_local_network;
+#else
          !source_list.hashes.size();
+#endif
 }
 
 bool CSPSourceListIsSelf(
@@ -116,7 +134,11 @@ bool CSPSourceListIsSelf(
          !source_list.allow_unsafe_hashes && !source_list.allow_eval &&
          !source_list.allow_wasm_eval && !source_list.allow_wasm_unsafe_eval &&
          !source_list.allow_dynamic && !source_list.nonces.size() &&
+#if BUILDFLAG(IS_COBALT)
+         !source_list.hashes.size() && !source_list.cobalt_insecure_local_network;
+#else
          !source_list.hashes.size();
+#endif
 }
 
 bool CSPSourceListIsHashOrNoncePresent(
