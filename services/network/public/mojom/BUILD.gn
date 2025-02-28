@@ -470,6 +470,10 @@ mojom("url_loader_base") {
     enabled_features += [ "use_network_interface_change_listener" ]
   }
 
+  if (is_cobalt) {
+    enabled_features += [ "cobalt_custom_csp" ]
+  }
+
   if (!is_ios) {
     export_class_attribute_blink = "BLINK_PLATFORM_EXPORT"
     export_define_blink = "BLINK_PLATFORM_IMPLEMENTATION=1"

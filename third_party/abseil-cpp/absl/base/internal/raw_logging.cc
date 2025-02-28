@@ -26,6 +26,7 @@
 #include "absl/base/internal/atomic_hook.h"
 #include "absl/base/internal/errno_saver.h"
 #include "absl/base/log_severity.h"
+#include "build/build_config.h"
 
 // We know how to perform low-level writes to stderr in POSIX and Windows.  For
 // these platforms, we define the token ABSL_LOW_LEVEL_WRITE_SUPPORTED.
@@ -53,7 +54,7 @@
 //   syscall(SYS_write, /*int*/ fd, /*char* */ buf, /*size_t*/ len);
 // for low level operations that want to avoid libc.
 #if (defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__)) && \
-    !defined(__ANDROID__) && !defined(IS_COBALT_HERMETIC_BUILD)
+    !defined(__ANDROID__) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <sys/syscall.h>
 #define ABSL_HAVE_SYSCALL_WRITE 1
 #define ABSL_LOW_LEVEL_WRITE_SUPPORTED 1

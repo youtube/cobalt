@@ -38,7 +38,8 @@ bool PathProviderPosix(int key, FilePath* result) {
   switch (key) {
     case FILE_EXE:
     case FILE_MODULE: {  // TODO(evanm): is this correct?
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+// TODO: (cobalt b/399406300) Add support for the  FILE_MODULE.
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || BUILDFLAG(IS_CHROMEOS)
       FilePath bin_dir;
       if (!ReadSymbolicLink(FilePath(kProcSelfExe), &bin_dir)) {
         NOTREACHED() << "Unable to resolve " << kProcSelfExe << ".";

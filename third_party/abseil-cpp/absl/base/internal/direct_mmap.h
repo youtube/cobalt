@@ -25,7 +25,7 @@
 #include <sys/mman.h>
 
 #include "build/build_config.h"
-#if defined(__linux__) && !defined(IS_COBALT_HERMETIC_BUILD)
+#if defined(__linux__) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <sys/types.h>
 #ifdef __BIONIC__
 #include <sys/syscall.h>
