@@ -52,10 +52,7 @@ source_set("browser") {
   ]
 
   if (is_androidtv) {
-    deps += [
-      "//cobalt/android:jni_headers",
-      "//starboard/android/shared:starboard_jni_state",
-    ]
+    deps += [ "//starboard/android/shared:starboard_platform" ]
   } else {
     deps += [ "//cobalt/browser/crash_annotator" ]
   }

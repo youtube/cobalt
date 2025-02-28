@@ -16,21 +16,19 @@
 
 #include <jni.h>
 
-#include "base/android/jni_android.h"
-#include "starboard/android/shared/jni_state.h"
+#include "starboard/android/shared/starboard_bridge.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
 #include "cobalt/android/jni_headers/CobaltInterfaceRegistrar_jni.h"
 
-using base::android::JavaParamRef;
-using starboard::android::shared::JNIState;
+using starboard::android::shared::StarboardBridge;
 
 namespace cobalt {
 
 void RegisterCobaltJavaMojoInterfaces() {
   Java_CobaltInterfaceRegistrar_registerMojoInterfaces(
       base::android::AttachCurrentThread(),
-      (const JavaParamRef<jobject>&)JNIState::GetStarboardBridge());
+      StarboardBridge::GetInstance()->GetJavaObject());
 }
 
 }  // namespace cobalt

@@ -39,6 +39,14 @@ class StarboardBridge {
 
   void Initialize(JNIEnv* env, jobject obj);
 
+  // Returns a reference to the corresponding Java object.
+  // TODO(cobalt, b/383301493): we expect the Java class to also be a singleton.
+  // We should consider enforcing the singleton property, for example with
+  // https://github.com/youtube/cobalt/pull/4929.
+  ScopedJavaGlobalRef<jobject> GetJavaObject() {
+    return j_starboard_bridge_;
+  }
+
   long GetAppStartTimestamp(JNIEnv* env);
 
   void ApplicationStarted(JNIEnv* env);
