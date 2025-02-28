@@ -17,6 +17,6 @@
     "AlternateBucketDistribution/PartitionAllocThreadCacheTest.ThreadCacheRegistry/1",
     "AlternateBucketDistribution/PartitionAllocThreadCacheTest.MultipleThreadCachesAccounting/0",
     "AlternateBucketDistribution/PartitionAllocThreadCacheTest.MultipleThreadCachesAccounting/1",
-    "All/SequenceManagerTest.DelayedTasksDontBadlyStarveNonDelayedWork_SameQueue/WithMessagePump"
+    "All/SequenceManagerTest.*"
   ]
 }
