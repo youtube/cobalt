@@ -13,10 +13,10 @@
 // limitations under the License.
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_runtime/h_5_vcc_runtime.h"
-
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deep_link_event.h"
 
 namespace blink {
 
@@ -24,7 +24,9 @@ H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
       remote_h5vcc_runtime_(window.GetExecutionContext()) {}
 
-void H5vccRuntime::ContextDestroyed() {}
+void H5vccRuntime::ContextDestroyed() {
+  remote_h5vcc_runtime_.reset();
+}
 
 ScriptPromise H5vccRuntime::getInitialDeepLink(
     ScriptState* script_state,
@@ -46,6 +48,25 @@ void H5vccRuntime::OnGetInitialDeepLink(ScriptPromiseResolver* resolver,
   resolver->Resolve(result);
 }
 
+EventListener* H5vccRuntime::onDeepLink() {
+  return GetAttributeEventListener(event_type_names::kDeeplink);
+}
+
+void H5vccRuntime::setOnDeepLink(EventListener* listener) {
+  SetAttributeEventListener(event_type_names::kDeeplink, listener);
+
+  EnsureReceiverIsBound();
+  remote_h5vcc_runtime_->GetInitialDeepLink(WTF::BindOnce(
+      &H5vccRuntime::MaybeFireDeepLinkEvent, WrapPersistent(this)));
+}
+
+void H5vccRuntime::MaybeFireDeepLinkEvent(const String& url) {
+  if (!url.empty()) {
+    DispatchEvent(
+        *MakeGarbageCollected<DeepLinkEvent>(event_type_names::kDeeplink, url));
+  }
+}
+
 void H5vccRuntime::EnsureReceiverIsBound() {
   DCHECK(GetExecutionContext());
 
@@ -62,6 +83,7 @@ void H5vccRuntime::EnsureReceiverIsBound() {
 void H5vccRuntime::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
+  EventTargetWithInlineData::Trace(visitor);
   visitor->Trace(remote_h5vcc_runtime_);
 }
 

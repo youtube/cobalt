@@ -92,5 +92,7 @@
     "VideoEncoder",
     "AudioDecoder",
     "VideoDecoder",
+    # Cobalt Event
+    "H5vccRuntime",
   ],
 }
