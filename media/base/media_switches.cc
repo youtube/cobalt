@@ -549,6 +549,14 @@ BASE_FEATURE(kUseMultiPlaneFormatForSoftwareVideo,
              "UseMultiPlaneFormatForSoftwareVideo",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+BASE_FEATURE(kUseStarboardRenderer,
+             "UseStarboardRenderer",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_ANDROID)
+
 // Enables binding software video NV12/P010 GMBs as separate shared images.
 BASE_FEATURE(kMultiPlaneSoftwareVideoSharedImages,
              "MultiPlaneSoftwareVideoSharedImages",

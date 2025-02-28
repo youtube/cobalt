@@ -28,6 +28,10 @@ if (is_mac) {
   import("//content/public/app/mac_helpers.gni")
 }
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 buildflag_header("buildflags") {
   header = "buildflags.h"
 
