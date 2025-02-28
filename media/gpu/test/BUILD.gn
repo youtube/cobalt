@@ -41,8 +41,6 @@ if (enable_av1_decoder && (use_v4l2_codec || use_vaapi)) {
     ]
   }
 
-  # TODO(b/386420709): These fail to link with Cobalt config.
-  if (!is_cobalt) {
   test("video_encode_accelerator_tests") {
     testonly = true
     sources = [ "video_encode_accelerator_tests.cc" ]
@@ -77,7 +75,6 @@ if (enable_av1_decoder && (use_v4l2_codec || use_vaapi)) {
       "//media/gpu:common",
       "//testing/gtest",
     ]
-  }
   }
 }
 
