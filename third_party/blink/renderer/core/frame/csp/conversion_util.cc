@@ -50,7 +50,12 @@ WebCSPSourceList ConvertToPublic(
           source_list->allow_wasm_unsafe_eval,
           source_list->allow_dynamic,
           source_list->allow_unsafe_hashes,
+#if BUILDFLAG(IS_COBALT)
+          source_list->report_sample,
+          source_list->cobalt_insecure_local_network};
+#else
           source_list->report_sample};
+#endif
 }
 
 // TODO(arthursonzogni): Remove this when BeginNavigation will be sent directly
@@ -111,7 +116,11 @@ network::mojom::blink::CSPSourceListPtr ConvertToMojoBlink(
       source_list.allow_inline_speculation_rules, source_list.allow_eval,
       source_list.allow_wasm_eval, source_list.allow_wasm_unsafe_eval,
       source_list.allow_dynamic, source_list.allow_unsafe_hashes,
+#if BUILDFLAG(IS_COBALT)
+      source_list.report_sample, source_list.cobalt_insecure_local_network);
+#else
       source_list.report_sample);
+#endif
 }
 
 }  // namespace
