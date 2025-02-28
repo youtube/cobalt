@@ -43,9 +43,7 @@ class StarboardBridge {
   // TODO(cobalt, b/383301493): we expect the Java class to also be a singleton.
   // We should consider enforcing the singleton property, for example with
   // https://github.com/youtube/cobalt/pull/4929.
-  ScopedJavaGlobalRef<jobject> GetJavaObject() {
-    return j_starboard_bridge_;
-  }
+  ScopedJavaGlobalRef<jobject> GetJavaObject() { return j_starboard_bridge_; }
 
   long GetAppStartTimestamp(JNIEnv* env);
 
