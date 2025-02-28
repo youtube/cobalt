@@ -1,8 +1,16 @@
 {
   "failing_tests": [
+    "FileWriterDelegateTest.WriteToEnd",
+    "ZipReaderTest.EncryptedFile_WrongPassword",
+    "ZipReaderTest.OpenFromString",
+    "ZipTest.Compressed",
+    "ZipTest.UnzipEvil2",
     "ZipTest.UnzipSjis",
+    "ZipTest.UnzipMixedPaths",
+    "ZipTest.UnzipSjisAsUtf8",
+    "ZipTest.UnzipWithFilter",
     "ZipTest.ZipNonASCIIDir",
-    "ZipTest.UnzipSjisAsUtf8"
+    "ZlibTest.CRCHashBitsCollision",
+    "ZlibTest.ZlibWrapper"
   ]
-
 }

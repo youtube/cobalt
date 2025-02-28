@@ -1,5 +1,5 @@
 {
-  "comment": "Tests take too long to complete (30+ minutes).",
+  "comment": "Perf tests are not supported. They don't support sharding and take a long time to run.",
   "failing_tests": [
     "*"
   ]
