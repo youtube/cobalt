@@ -36,14 +36,14 @@ public class MainActivity extends CobaltActivity {
   protected StarboardBridge createStarboardBridge(String[] args, String startDeepLink) {
     Holder<Activity> activityHolder = new Holder<>();
     Holder<Service> serviceHolder = new Holder<>();
-    StarboardBridge bridge =
-        new StarboardBridge(
-            getApplicationContext(),
-            activityHolder,
-            serviceHolder,
-            new ArtworkDownloaderDefault(),
-            args,
-            startDeepLink);
+    StarboardBridge bridge = StarboardBridge.INSTANCE;
+    bridge.init(
+        getApplicationContext(),
+        activityHolder,
+        serviceHolder,
+        new ArtworkDownloaderDefault(),
+        args,
+        startDeepLink);
 
     CobaltService.Factory clientLogInfoFactory =
         new ClientLogInfoModule().provideFactory(getApplicationContext());
