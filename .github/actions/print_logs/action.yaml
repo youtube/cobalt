@@ -34,7 +34,6 @@ runs:
           exit 1
         else
           # TODO: Remove extra log file cat (in cases symbolization is broken above).
-          cat ${log_file}
           for log_file in ${log_files[@]}; do
             if [ "${{ inputs.symbolize }}" == "true" ]; then
               # TODO(oxv): Enable when symbol files are available.

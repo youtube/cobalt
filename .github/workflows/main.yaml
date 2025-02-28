@@ -358,14 +358,18 @@ jobs:
         uses: ./src/.github/actions/print_logs
         with:
           logfile_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
-          symbolize: true
+          # TODO: Enable symbolization when it works.
+          # symbolize: true
+          symbolize: 'false'
       - name: ${{ matrix.test_target }} Test Logs
         if: always() && steps.filter.outputs.skipped != 'true'
         uses: ./src/.github/actions/print_logs
         with:
           logfile_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           test_status: ${{ steps.process-results.outcome }}
-          symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
+          # TODO: Enable symbolization when it works.
+          # symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
+          symbolize: 'false'
 
   validate-test-result:
     needs: [initialize, build, test-results]
