@@ -877,7 +877,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void getOutputFormat(GetOutputFormatResult outGetOutputFormatResult) {
     MediaFormat format = null;
     int status = MediaCodecStatus.OK;
@@ -916,7 +916,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private int queueInputBuffer(
       int index, int offset, int size, long presentationTimeUs, int flags) {
     resetLastPresentationTimeIfNeeded(presentationTimeUs);
@@ -960,7 +960,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private int queueSecureInputBuffer(
       int index,
       int offset,
@@ -1015,7 +1015,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void releaseOutputBuffer(int index, boolean render) {
     try {
       mMediaCodec.get().releaseOutputBuffer(index, render);
@@ -1026,8 +1026,8 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
-  private void releaseOutputBuffer(int index, long renderTimestampNs) {
+  @CalledByNative
+  private void releaseOutputBufferAtTimestamp(int index, long renderTimestampNs) {
     try {
       mMediaCodec.get().releaseOutputBuffer(index, renderTimestampNs);
     } catch (IllegalStateException e) {
