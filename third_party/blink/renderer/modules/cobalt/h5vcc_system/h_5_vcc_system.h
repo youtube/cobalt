@@ -32,6 +32,7 @@ class ExecutionContext;
 class LocalDOMWindow;
 class ScriptState;
 class ScriptPromiseResolver;
+class H5vccSystemConcealOrStopParams;
 
 class MODULES_EXPORT H5vccSystem final
     : public ScriptWrappable,
@@ -46,12 +47,19 @@ class MODULES_EXPORT H5vccSystem final
   // Web-exposed interface:
   ScriptPromise getAdvertisingId(ScriptState*, ExceptionState&);
   ScriptPromise getLimitAdTracking(ScriptState*, ExceptionState&);
+  ScriptPromise concealOrStop(ScriptState*,
+                              const H5vccSystemConcealOrStopParams*,
+                              ExceptionState&);
+  ScriptPromise concealOrStop(ScriptState*, ExceptionState&);
 
   void Trace(Visitor*) const override;
 
  private:
   void OnGetAdvertisingId(ScriptPromiseResolver*, const String&);
   void OnGetLimitAdTracking(ScriptPromiseResolver*, bool);
+  void OnGetUserOnExitStrategy(ScriptPromiseResolver*,
+                               const H5vccSystemConcealOrStopParams*,
+                               h5vcc_system::mojom::blink::UserOnExitStrategy);
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_system::mojom::blink::H5vccSystem> remote_h5vcc_system_;
 };

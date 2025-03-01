@@ -13,9 +13,12 @@
 // limitations under the License.
 
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl.h"
+
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "build/build_config.h"
+#include "cobalt/configuration/configuration.h"
+#include "starboard/system.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -24,6 +27,24 @@ using starboard::android::shared::StarboardBridge;
 #endif
 
 namespace h5vcc_system {
+
+namespace {
+
+h5vcc_system::mojom::UserOnExitStrategy GetUserOnExitStrategyInternal() {
+  auto strategy = cobalt::configuration::Configuration::GetInstance()
+                      ->CobaltUserOnExitStrategy();
+  if (strategy ==
+      cobalt::configuration::Configuration::UserOnExitStrategy::kConceal) {
+    return h5vcc_system::mojom::UserOnExitStrategy::kConceal;
+  }
+  if (strategy ==
+      cobalt::configuration::Configuration::UserOnExitStrategy::kNoExit) {
+    return h5vcc_system::mojom::UserOnExitStrategy::kNoExit;
+  }
+  return h5vcc_system::mojom::UserOnExitStrategy::kStop;
+}
+
+}  // namespace
 
 // TODO (b/395126160): refactor mojom implementation on Android
 H5vccSystemImpl::H5vccSystemImpl(
@@ -56,6 +77,21 @@ void H5vccSystemImpl::GetLimitAdTracking(GetLimitAdTrackingCallback callback) {
   limit_ad_tracking = starbooard_bridge->GetLimitAdTracking(env);
 #endif
   std::move(callback).Run(limit_ad_tracking);
+}
+
+void H5vccSystemImpl::GetUserOnExitStrategy(
+    GetUserOnExitStrategyCallback callback) {
+  std::move(callback).Run(GetUserOnExitStrategyInternal());
+}
+
+void H5vccSystemImpl::ConcealOrStop(ConcealOrStopCallback callback) {
+  auto strategy = GetUserOnExitStrategyInternal();
+  if (strategy == h5vcc_system::mojom::UserOnExitStrategy::kConceal) {
+    SbSystemRequestConceal();
+  } else if (strategy == h5vcc_system::mojom::UserOnExitStrategy::kStop) {
+    SbSystemRequestStop(0);
+  }
+  std::move(callback).Run();
 }
 
 }  // namespace h5vcc_system

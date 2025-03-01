@@ -12,15 +12,35 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+dictionary H5vccSystemConcealOrStopParams {
+  VoidFunction beforeConceal;
+  VoidFunction beforeStop;
+};
+
 // This interface mirrors the H5vccSystem Web IDL defined in Cobalt LTS 25:
 // https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_system.idl
 [
-    Exposed=Window,
-    SecureContext
+  Exposed=Window,
+  SecureContext
 ]
 interface H5vccSystem {
-    [CallWith=ScriptState, RaisesException]
-    Promise<DOMString> getAdvertisingId();
-    [CallWith=ScriptState, RaisesException]
-    Promise<boolean> getLimitAdTracking();
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> getAdvertisingId();
+  [CallWith=ScriptState, RaisesException]
+  Promise<boolean> getLimitAdTracking();
+
+  // Platform-specific conceal or stop is performed. |callbacks| allows the
+  // caller to provide logic to be run before conceal or stop is performed.
+  // Returns a Promise which resolves to |true| is conceal or stop is performed.
+  // Otherwise the returned Promise is resolved to |false|. There is no
+  // guarantee that returned Promise's then will be invoked before conceal or
+  // stop is completed. It does allow the client to determine if neither conceal
+  // nor stop was performed.
+  //
+  // With this the custom property |h5vcc.system.userOnExitStrategy| define in
+  // cobalt does not need to be exposed. This is preferred since it avoids
+  // implementing non-standard |window.minimize()| and |window.close()|.
+  // The custom implementation is exposed as one function in a custom API.
+  [CallWith=ScriptState, RaisesException]
+  Promise<boolean> concealOrStop(optional H5vccSystemConcealOrStopParams callbacks);
 };
