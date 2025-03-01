@@ -15,12 +15,47 @@
 #ifndef COBALT_COBALT_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
 #define COBALT_COBALT_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
 
+#include <atomic>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "base/functional/bind.h"
+#include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
+#include "net/cookies/canonical_cookie.h"
 
 namespace cobalt {
 namespace migrate_storage_record {
 
-void DoMigrationTasksOnce(content::WebContents* web_contents);
+using Task = base::OnceCallback<void(base::OnceClosure)>;
+using Tasks = std::vector<Task>;
+
+template <typename T>
+using ItemPtr = std::unique_ptr<T>;
+template <typename T>
+using ItemPtrs = std::vector<ItemPtr<T>>;
+
+using StringPair = std::pair<std::string, std::string>;
+
+class MigrationManager {
+ public:
+  static void DoMigrationTasksOnce(content::WebContents* web_contents);
+
+ private:
+  friend class MigrationManagerTest;
+
+  static void DoTasks(std::vector<Task> tasks,
+                      base::OnceClosure callback = base::DoNothing());
+  static Task GroupTasks(std::vector<Task> tasks);
+  static Task CookieTask(content::WeakDocumentPtr weak_document_ptr,
+                         ItemPtrs<net::CanonicalCookie> cookies);
+  static Task LocalStorageTask(content::WeakDocumentPtr weak_document_ptr,
+                               ItemPtrs<StringPair> pairs);
+
+  static std::atomic_flag migration_attempted_;
+};
 
 }  // namespace migrate_storage_record
 }  // namespace cobalt
