@@ -1616,9 +1616,11 @@ MediaStreamManager::MediaStreamManager(
     CHECK(!use_fake_ui_factory) << "Mutually exclusive command line flags.";
     use_fake_ui_factory = true;
     use_fake_ui_only_for_camera_and_microphone_ = true;
+    LOG(INFO) << "YO THOR WE GOOD ACCEPT CAMERA AND MIC CAPTR";
   }
 
   if (use_fake_ui_factory) {
+    LOG(INFO) << "YO THOR WE GOOD - RETURN FAKE MEDIA STRREAM UI PROXY";
     fake_ui_factory_ = base::BindRepeating([] {
       return std::make_unique<FakeMediaStreamUIProxy>(
           /*tests_use_fake_render_frame_hosts=*/false);

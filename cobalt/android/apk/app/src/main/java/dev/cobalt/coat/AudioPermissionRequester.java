@@ -14,6 +14,8 @@
 
 package dev.cobalt.coat;
 
+import android.util.Log;
+
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
@@ -30,6 +32,8 @@ public class AudioPermissionRequester {
   private long nativePermissionRequestor;
   // Only use in synchronized methods.
   private boolean requestAudioPermissionStarted;
+
+  private static final String TAG = "THORAudioPermissionRequester"; // Use class name as tag
 
   public AudioPermissionRequester(Context context, Holder<Activity> activityHolder) {
     this.context = context;
@@ -65,6 +69,7 @@ public class AudioPermissionRequester {
   /** Handles the RECORD_AUDIO request result. */
   public synchronized void onRequestPermissionsResult(
       int requestCode, String[] permissions, int[] grantResults) {
+    Log.i(TAG, "YO THOR - ON REQ PERMISSION RESULT");
     if (requestCode == R.id.rc_record_audio) {
       // If the request is cancelled, the result arrays are empty.
       if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {

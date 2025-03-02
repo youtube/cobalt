@@ -543,6 +543,7 @@ source_set("browser_sources") {
     "//ui/gl",
     "//ui/shell_dialogs",
     "//ui/surface",
+    "//starboard/android/shared:starboard_platform",
   ]
 
   allow_circular_includes_from = [
