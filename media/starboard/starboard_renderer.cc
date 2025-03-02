@@ -118,25 +118,34 @@ StarboardRenderer::StarboardRenderer(
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       video_renderer_sink_(video_renderer_sink),
+      video_renderer_sink_started_(false),
+      frame_counter_(0),
       media_log_(media_log),
       video_overlay_factory_(std::move(video_overlay_factory)),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       cdm_context_(nullptr),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-      video_geometry_setter_service_(video_geometry_setter_service) {
+      video_geometry_setter_service_(video_geometry_setter_service),
+      decode_target_provider_(new DecodeTargetProvider) {
   DCHECK(task_runner_);
   DCHECK(video_renderer_sink_);
   DCHECK(media_log_);
   DCHECK(video_overlay_factory_);
   DCHECK(set_bounds_helper_);
-  LOG(INFO) << "StarboardRenderer constructed.";
+  LOG(INFO) << "Cobalt: StarboardRenderer constructed.";
 }
 
 StarboardRenderer::~StarboardRenderer() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
-  LOG(INFO) << "Destructing StarboardRenderer.";
+  LOG(INFO) << "Cobalt: Destructing StarboardRenderer.";
+
+  if (video_renderer_sink_started_) {
+    video_renderer_sink_started_ = false;
+    video_renderer_sink_->Stop();
+    LOG(ERROR) << "Cobalt: " << __func__ << " stop sink";
+  }
 
   // Explicitly reset |player_bridge_| before destroying it.
   // Some functions in this class using `player_bridge_` can be called
@@ -277,6 +286,12 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   DCHECK(!pending_flush_cb_);
   DCHECK(flush_cb);
 
+  if (video_renderer_sink_started_) {
+    video_renderer_sink_started_ = false;
+    video_renderer_sink_->Stop();
+    LOG(ERROR) << "Cobalt: " << __func__ << " start stop";
+  }
+
   if (!player_bridge_) {
     return;
   }
@@ -332,6 +347,11 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   if (player_bridge_initialized_) {
     state_ = STATE_PLAYING;
     player_bridge_->Seek(time);
+    if (!video_renderer_sink_started_) {
+      video_renderer_sink_started_ = true;
+      video_renderer_sink_->Start(this);
+      LOG(ERROR) << "Cobalt: " << __func__ << " start sink";
+    }
     return;
   }
 
@@ -355,6 +375,20 @@ void StarboardRenderer::SetPlaybackRate(double playback_rate) {
 
   if (playback_rate_ == playback_rate) {
     return;
+  }
+
+  if (playback_rate_ == 0 && playback_rate > 0) {
+    if (!video_renderer_sink_started_) {
+      video_renderer_sink_started_ = true;
+      video_renderer_sink_->Start(this);
+      LOG(ERROR) << "Cobalt: " << __func__ << " start sink";
+    }
+  } else if (playback_rate_ > 0 && playback_rate == 0) {
+    if (video_renderer_sink_started_) {
+      video_renderer_sink_started_ = false;
+      video_renderer_sink_->Stop();
+      LOG(ERROR) << "Cobalt: " << __func__ << " stop sink";
+    }
   }
 
   playback_rate_ = playback_rate;
@@ -490,7 +524,6 @@ void StarboardRenderer::CreatePlayerBridge() {
 
     player_bridge_.reset(new SbPlayerBridge(
         &sbplayer_interface_, task_runner_,
-        // TODO(b/375070492): Implement decode-to-texture support
         SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
         audio_config, audio_mime_type, video_config, video_mime_type,
         // TODO(b/326497953): Support suspend/resume.
@@ -500,7 +533,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         false,
         // TODO(b/326825450): Revisit 360 videos.
         // TODO(b/326827007): Support secondary videos.
-        kSbPlayerOutputModeInvalid,
+        kSbPlayerOutputModeDecodeToTexture, decode_target_provider_.get(),
         // TODO(b/326827007): Support secondary videos.
         "",
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
@@ -579,8 +612,8 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
       content_size_change_cb_.Run();
     }
 #endif  // 0
-    video_renderer_sink_->PaintSingleFrame(video_overlay_factory_->CreateFrame(
-        stream->video_decoder_config().visible_rect().size()));
+    /*video_renderer_sink_->PaintSingleFrame(video_overlay_factory_->CreateFrame(
+        stream->video_decoder_config().visible_rect().size()));*/
   }
 }
 
@@ -657,9 +690,9 @@ void StarboardRenderer::OnDemuxerStreamRead(
       // TODO(b/375275033): Refine calling to OnVideoNaturalSizeChange().
       client_->OnVideoNaturalSizeChange(
           stream->video_decoder_config().visible_rect().size());
-      video_renderer_sink_->PaintSingleFrame(
+      /*video_renderer_sink_->PaintSingleFrame(
           video_overlay_factory_->CreateFrame(
-              stream->video_decoder_config().visible_rect().size()));
+              stream->video_decoder_config().visible_rect().size()));*/
     }
     UpdateDecoderConfig(stream);
     stream->Read(1, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
@@ -935,6 +968,38 @@ int StarboardRenderer::GetEstimatedMaxBuffers(TimeDelta write_duration,
   // The maximum number samples of write should be guarded by
   // SbPlayerGetMaximumNumberOfSamplesPerWrite() in OnNeedData().
   return estimated_max_buffers > 0 ? estimated_max_buffers : 1;
+}
+
+scoped_refptr<VideoFrame> StarboardRenderer::Render(
+    base::TimeTicks deadline_min,
+    base::TimeTicks deadline_max,
+    RenderingMode rendering_mode) {
+  // TODO(borongchen): get VideoFrame from SbPlayer.
+  LOG(ERROR) << "Cobalt: " << __func__ << " " << deadline_min << "/"
+             << deadline_max;
+  frame_counter_ += 1;
+  frame_counter_ = frame_counter_ % 60;
+  if (frame_counter_ >= 0 && frame_counter_ < 20) {
+    return VideoFrame::CreateColorFrame(gfx::Size(1920, 1080), 0u, 0x80, 0x80,
+                                        base::TimeDelta());
+  } else if (frame_counter_ >= 20 && frame_counter_ < 40) {
+    return VideoFrame::CreateColorFrame(gfx::Size(1920, 1080), 0x80, 0u, 0x80,
+                                        base::TimeDelta());
+  } else if (frame_counter_ >= 40 && frame_counter_ < 60) {
+    return VideoFrame::CreateColorFrame(gfx::Size(1920, 1080), 0x80, 0x80, 0u,
+                                        base::TimeDelta());
+  }
+  return nullptr;
+}
+
+void StarboardRenderer::OnFrameDropped() {
+  // no-op: dropped frame is handled by SbPlayer.
+  LOG(ERROR) << "Cobalt: " << __func__;
+}
+
+base::TimeDelta StarboardRenderer::GetPreferredRenderInterval() {
+  LOG(ERROR) << "Cobalt: " << __func__;
+  return base::Milliseconds(500);
 }
 
 }  // namespace media
