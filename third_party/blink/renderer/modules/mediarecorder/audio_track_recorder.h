@@ -43,6 +43,7 @@ class MODULES_EXPORT AudioTrackRecorder
     kOpus,
     kPcm,  // 32-bit little-endian float.
     kAac,
+    kFlac,
     kLast
   };
 

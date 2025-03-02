@@ -48,16 +48,20 @@ public class AudioPermissionRequester {
   @UsedByNative
   public synchronized boolean requestRecordAudioPermission(long nativePermissionRequestor) {
     this.nativePermissionRequestor = nativePermissionRequestor;
+    Log.i(TAG, "YO THOR - REQ RECORD AUDIO PERMISSION!");
     Activity activity = activityHolder.get();
     if (activity == null) {
+      Log.i(TAG, "YO THOR - REQ RECORD AUDIO PERMISSION!  NAE ACTIVITY!");
       return false;
     }
 
     if (ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO)
         == PackageManager.PERMISSION_GRANTED) {
+      Log.i(TAG, "YO THOR - REQ RECORD AUDIO PERMISSION!  ALREADY GRANTED!!");
       return true;
     }
     if (!requestAudioPermissionStarted) {
+      Log.i(TAG, "YO THOR - REQ RECORD AUDIO PERMISSION!  NOT STARTED - LETS ASK!!");
       ActivityCompat.requestPermissions(
           activity, new String[] {Manifest.permission.RECORD_AUDIO}, R.id.rc_record_audio);
       requestAudioPermissionStarted = true;
