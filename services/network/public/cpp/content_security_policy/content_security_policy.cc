@@ -711,6 +711,13 @@ mojom::CSPSourceListPtr ParseSourceList(
       continue;
     }
 
+#if BUILDFLAG(IS_COBALT)
+    if (base::EqualsCaseInsensitiveASCII(expression, "'cobalt-insecure-local-network'")) {
+      directive->cobalt_insecure_local_network = true;
+      continue;
+    }
+#endif
+
     std::string nonce;
     if (ParseNonce(expression, &nonce)) {
       directive->nonces.push_back(std::move(nonce));
