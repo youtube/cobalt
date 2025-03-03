@@ -20,6 +20,9 @@ import java.util.HashMap;
 public enum CrashContext {
   INSTANCE;
 
+  // TODO(cobalt, b/383301493): at time of writing all clients of this class are on the same thread.
+  // But as johnx@ suggested we should either enforce this assumption or use a mutex to guard
+  // concurrent access from different threads.
   private final HashMap<String, String> crashContext = new HashMap<>();
   private CrashContextUpdateHandler crashContextUpdateHandler;
 
