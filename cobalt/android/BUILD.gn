@@ -162,6 +162,7 @@ android_library("cobalt_main_java") {
     "apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltSystemConfigChangeReceiver.java",
     "apk/app/src/main/java/dev/cobalt/coat/CobaltTextToSpeechHelper.java",
+    "apk/app/src/main/java/dev/cobalt/coat/CrashContext.java",
     "apk/app/src/main/java/dev/cobalt/coat/CrashContextUpdateHandler.java",
     "apk/app/src/main/java/dev/cobalt/coat/ErrorDialog.java",
     "apk/app/src/main/java/dev/cobalt/coat/NetworkStatus.java",
@@ -204,8 +205,8 @@ android_library("cobalt_main_java") {
   if (!use_evergreen) {
     sources += [
       "apk/app/src/main/java/dev/cobalt/browser/CobaltInterfaceRegistrar.java",
-      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImpl.java",
       "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFactory.java",
+      "apk/app/src/main/java/dev/cobalt/browser/crashannotator/CrashAnnotatorImplFirstParty.java",
     ]
   }
 
