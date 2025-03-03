@@ -16,29 +16,36 @@ package dev.cobalt.browser.crashannotator;
 
 import static dev.cobalt.util.Log.TAG;
 
+import dev.cobalt.coat.StarboardBridge;
 import dev.cobalt.util.Log;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.crashannotator.mojom.CrashAnnotator;
 import org.chromium.mojo.system.MojoException;
 
-/** Implements the CrashAnnotator Mojo interface in Java. */
-public class CrashAnnotatorImpl implements CrashAnnotator {
-    // TODO(cobalt, b/383301493): confirm that this member is needed for proper
-    // lifetime management.
+/**
+ * Implements the CrashAnnotator Mojo interface for platforms that use first-party crash reporting
+ * systems.
+ */
+public class CrashAnnotatorImplFirstParty implements CrashAnnotator {
+    // TODO(cobalt, b/383301493): confirm that this member is needed for proper lifetime management.
     private final RenderFrameHost mRenderFrameHost;
+    private final StarboardBridge mStarboardBridge;
 
-    public CrashAnnotatorImpl(RenderFrameHost renderFrameHost) {
+    public CrashAnnotatorImplFirstParty(RenderFrameHost renderFrameHost,
+                                        StarboardBridge starboardBridge) {
         mRenderFrameHost = renderFrameHost;
+        mStarboardBridge = starboardBridge;
     }
 
     @Override
     public void setString(String key,
                           String value,
                           SetString_Response callback) {
-        // TODO(cobalt, b/383301493): actually implement this by calling
-        // StarboardBridge.setCrashContext().
-        Log.i(TAG, "Java CrashAnnotator impl key=%s value=%s", key, value);
-        callback.call(false);
+        mStarboardBridge.setCrashContext(key, value);
+
+        // The browser has no visibility into what occurs after it has provided the crash context to
+        // StarboardBridge. So we just assume the crash context will be handled correctly.
+        callback.call(true);
     }
 
     /** This abstract method must be overridden. */
