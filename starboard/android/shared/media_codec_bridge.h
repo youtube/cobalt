@@ -206,6 +206,7 @@ class MediaCodecBridge {
   void SetPlaybackRate(double playback_rate);
   bool Restart();
   jint Flush();
+  void Stop();
   FrameSize GetOutputSize();
   AudioOutputFormatResult GetAudioOutputFormat();
 
@@ -227,7 +228,7 @@ class MediaCodecBridge {
   void Initialize(jobject j_media_codec_bridge);
 
   Handler* handler_ = NULL;
-  jobject j_media_codec_bridge_ = NULL;
+  ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
   // Profiling and allocation tracking has identified this area to be hot,
   // and, capable of enough to cause GC times to raise high enough to impact
