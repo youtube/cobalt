@@ -6,3 +6,15 @@ use_custom_libc = true
 # ../../base/allocator/partition_allocator/pkey.cc:35:18: error: use of undeclared identifier 'SYS_pkey_mprotect'
 #   return syscall(SYS_pkey_mprotect, addr, len, prot, pkey);
 enable_pkeys = false
+
+enable_vulkan = false
+angle_enable_vulkan = false
+angle_use_vulkan_display = false
+angle_shared_libvulkan = false
+use_dawn = false
+ozone_platform_x11 = false
+use_qt = false
+use_xkbcommon = false
+enable_swiftshader = false
+use_pulseaudio = false
+use_alsa = false

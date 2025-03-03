@@ -132,6 +132,38 @@ typedef union pthread_once_t {
   void* ptr;
 } pthread_once_t;
 
+
+
+// Max size of the pthread_rwlock_t type.
+#define MUSL_PTHREAD_RWLOCK_MAX_SIZE 80 
+
+// An opaque handle to pthread_rwlock_t type with
+// aligned at void  pointer type.
+typedef union pthread_rwlock_t {
+  // Reserved memory in which the implementation should map its
+  // native once control variable type.
+  uint8_t once_buffer[MUSL_PTHREAD_RWLOCK_MAX_SIZE];
+
+  // Guarantees alignment of the type to a void pointer.
+  void* ptr;
+} pthread_rwlock_t;
+
+// Max size of the pthread_rwlockattr_t type.
+#define MUSL_PTHREAD_RWLOCK_ATTR_MAX_SIZE 80 
+
+// An opaque handle to pthread_rwlockattr_t type with
+// aligned at void  pointer type.
+typedef union pthread_rwlockattr_t {
+  // Reserved memory in which the implementation should map its
+  // native once control variable type.
+  uint8_t once_buffer[MUSL_PTHREAD_RWLOCK_ATTR_MAX_SIZE];
+
+  // Guarantees alignment of the type to a void pointer.
+  void* ptr;
+} pthread_rwlockattr_t;
+
+
+
 #ifdef __cplusplus
 #define PTHREAD_ONCE_INIT \
   {}
@@ -201,6 +233,16 @@ int pthread_mutexattr_setprotocol(pthread_mutexattr_t *, int);
 int pthread_getschedparam(pthread_t, int *__restrict, struct sched_param *__restrict);
 int pthread_setschedparam(pthread_t, int, const struct sched_param *);
 
+
+int pthread_rwlock_init(pthread_rwlock_t *__restrict, const pthread_rwlockattr_t *__restrict);
+int pthread_rwlock_destroy(pthread_rwlock_t *);
+int pthread_rwlock_rdlock(pthread_rwlock_t *);
+int pthread_rwlock_tryrdlock(pthread_rwlock_t *);
+int pthread_rwlock_timedrdlock(pthread_rwlock_t *__restrict, const struct timespec *__restrict);
+int pthread_rwlock_wrlock(pthread_rwlock_t *);
+int pthread_rwlock_trywrlock(pthread_rwlock_t *);
+int pthread_rwlock_timedwrlock(pthread_rwlock_t *__restrict, const struct timespec *__restrict);
+int pthread_rwlock_unlock(pthread_rwlock_t *);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
