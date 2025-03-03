@@ -117,4 +117,3 @@ source_set("common_test") {
     "//testing/gtest",
   ]
 }
-

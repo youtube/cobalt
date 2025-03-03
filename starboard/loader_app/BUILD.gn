@@ -161,9 +161,7 @@ static_library("app_key_files") {
 
 source_set("app_key_files_test") {
   testonly = true
-  sources = [
-    "app_key_files_test.cc",
-  ]
+  sources = [ "app_key_files_test.cc" ]
   deps = [
     ":app_key_files",
     "//starboard:starboard_group",
@@ -188,9 +186,7 @@ static_library("app_key") {
 
 source_set("app_key_test") {
   testonly = true
-  sources = [
-    "app_key_test.cc",
-  ]
+  sources = [ "app_key_test.cc" ]
   deps = [
     ":app_key",
     "//testing/gmock",
@@ -221,9 +217,7 @@ static_library("drain_file_helper") {
 
 source_set("drain_file_test") {
   testonly = true
-  sources = [
-    "drain_file_test.cc",
-  ]
+  sources = [ "drain_file_test.cc" ]
   deps = [
     ":drain_file",
     ":drain_file_helper",
