@@ -14,10 +14,7 @@
 
 package dev.cobalt.browser.crashannotator;
 
-import static dev.cobalt.util.Log.TAG;
-
-import dev.cobalt.coat.StarboardBridge;
-import dev.cobalt.util.Log;
+import dev.cobalt.coat.CrashContext;
 import org.chromium.content_public.browser.RenderFrameHost;
 import org.chromium.crashannotator.mojom.CrashAnnotator;
 import org.chromium.mojo.system.MojoException;
@@ -39,8 +36,7 @@ public class CrashAnnotatorImplFirstParty implements CrashAnnotator {
     public void setString(String key,
                           String value,
                           SetString_Response callback) {
-        StarboardBridge starboardBridge = StarboardBridge.INSTANCE;
-        starboardBridge.setCrashContext(key, value);
+        CrashContext.INSTANCE.setCrashContext(key, value);
 
         // The browser has no visibility into what occurs after it has provided
         // the crash context to StarboardBridge. So we just assume the crash
