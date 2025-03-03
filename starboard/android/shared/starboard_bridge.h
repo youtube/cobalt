@@ -49,7 +49,7 @@ class StarboardBridge {
 
   void AppendArgs(JNIEnv* env, std::vector<std::string>* args_vector);
 
-  std::string GetStartDeepLink(JNIEnv* env);
+  //   std::string GetStartDeepLink(JNIEnv* env);
 
   ScopedJavaLocalRef<jintArray> GetSupportedHdrTypes(JNIEnv* env);
 
