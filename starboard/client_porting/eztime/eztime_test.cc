@@ -129,7 +129,7 @@ TEST(EzTimeTExplodeTest, PositiveLocal) {
   EXPECT_EQ(8, exploded.tm_sec);
 }
 
-// TODO(b/397817771): Fix and reenable.
+// TODO(b/397817771): Fix and re-enable.
 TEST(EzTimeTExplodeTest, DISABLED_PositivePacific) {
   EzTimeExploded exploded = {0};
   EXPECT_TRUE(
