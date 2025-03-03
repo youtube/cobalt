@@ -1,5 +1,9 @@
 #!/usr/bin/env lucicfg
 
+RECIPE_CIPD_PACKAGE = "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build"
+RECIPE_NAME = "ytdevinfra/android_apk"
+PROJECT_REPO = "https://github.com/youtube/cobalt"
+
 lucicfg.check_version("1.43.14", "Please update depot_tools")
 
 lucicfg.config(
@@ -69,3 +73,30 @@ luci.bucket(name = "ci")
 # The prod bucket will include builders which work on post-commit code and
 # generate executable artifacts used by other users or machines.
 luci.bucket(name = "prod")
+
+luci.gitiles_poller(
+    name = "nightly-trigger",
+    bucket = "ci",
+    repo = PROJECT_REPO,
+    refs = ["refs/heads/main"],
+    schedule = "0 2,12,16 * * *",  # 2 am, 12 pm, 4 pm every day (multiple times while testing)
+)
+
+luci.recipe(
+    name = RECIPE_NAME,
+    cipd_package = RECIPE_CIPD_PACKAGE,
+    cipd_version = "refs/heads/main",
+    use_bbagent = True,
+    use_python3 = True,
+)
+
+luci.builder(
+    name = "cobalt-ci-builder",
+    bucket = "ci",
+    executable = RECIPE_NAME,
+    service_account = "luci-vms@devexprod-reliability.iam.gserviceaccount.com",
+    execution_timeout = 1 * time.hour,
+    dimensions = {"pool": "luci.ytdevinfra.ci"},
+    triggered_by = ["nightly-trigger"],
+    build_numbers = True,
+)
