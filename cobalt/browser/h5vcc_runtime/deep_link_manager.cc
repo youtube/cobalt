@@ -38,5 +38,26 @@ const std::string& DeepLinkManager::GetDeepLink() const {
   return deeplink_;
 }
 
+void DeepLinkManager::AddListener(
+    mojo::Remote<DeepLinkListener> listener_remote) {
+  // mojo::RemoteSet removes the listener_remote automatically when the Mojo
+  // client disconnects
+  listeners_.Add(std::move(listener_remote));
+}
+
+void DeepLinkManager::OnDeepLink(const std::string& deeplink) {
+  if (listeners_.empty()) {
+    // Deeplink is held until a callback is registered, at which point it will
+    // be consumed."
+    SetDeepLink(deeplink);
+  } else {
+    // No need to worry about race condition because all access to the
+    // mojo::RemoteSet happens on one thread.
+    for (auto& listener : listeners_) {
+      listener->ProcessDeepLink(deeplink);
+    }
+  }
+}
+
 }  // namespace browser
 }  // namespace cobalt

@@ -18,9 +18,13 @@
 #include <string>
 
 #include "base/no_destructor.h"
+#include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
+#include "mojo/public/cpp/bindings/remote_set.h"
 
 namespace cobalt {
 namespace browser {
+
+using h5vcc_runtime::mojom::DeepLinkListener;
 
 class DeepLinkManager {
  public:
@@ -32,6 +36,8 @@ class DeepLinkManager {
 
   void SetDeepLink(const std::string& deeplink);
   const std::string& GetDeepLink() const;
+  void AddListener(mojo::Remote<DeepLinkListener> listener_remote);
+  void OnDeepLink(const std::string& deeplink);
 
  private:
   friend class base::NoDestructor<DeepLinkManager>;
@@ -40,6 +46,7 @@ class DeepLinkManager {
   ~DeepLinkManager();
 
   std::string deeplink_;
+  mojo::RemoteSet<DeepLinkListener> listeners_;
 };
 
 }  // namespace browser
