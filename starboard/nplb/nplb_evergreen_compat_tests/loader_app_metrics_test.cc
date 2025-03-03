@@ -17,7 +17,9 @@
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if !SB_IS(EVERGREEN_COMPATIBLE)
+#error These tests apply only to EVERGREEN_COMPATIBLE platforms.
+#endif
 
 namespace starboard {
 namespace nplb {
@@ -25,13 +27,7 @@ namespace nplb_evergreen_compat_tests {
 
 namespace {
 
-class LoaderAppMetricsTest : public ::testing::Test {
- protected:
-  LoaderAppMetricsTest() {}
-  ~LoaderAppMetricsTest() {}
-};
-
-TEST_F(LoaderAppMetricsTest, VerifyLoaderAppMetricsExtension) {
+TEST(LoaderAppMetricsTest, VerifyLoaderAppMetricsExtension) {
   auto extension = static_cast<const StarboardExtensionLoaderAppMetricsApi*>(
       SbSystemGetExtension(kStarboardExtensionLoaderAppMetricsName));
 
@@ -51,5 +47,3 @@ TEST_F(LoaderAppMetricsTest, VerifyLoaderAppMetricsExtension) {
 }  // namespace nplb_evergreen_compat_tests
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
