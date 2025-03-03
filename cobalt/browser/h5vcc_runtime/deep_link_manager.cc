@@ -30,12 +30,12 @@ DeepLinkManager* DeepLinkManager::GetInstance() {
   return provider.get();
 }
 
-void DeepLinkManager::SetDeepLink(const std::string& deeplink) {
-  deeplink_ = deeplink;
+void DeepLinkManager::SetDeepLink(const std::string& url) {
+  deep_link_ = url;
 }
 
 const std::string& DeepLinkManager::GetDeepLink() const {
-  return deeplink_;
+  return deep_link_;
 }
 
 }  // namespace browser

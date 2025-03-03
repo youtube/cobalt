@@ -30,7 +30,7 @@ class DeepLinkManager {
   DeepLinkManager(const DeepLinkManager&) = delete;
   DeepLinkManager& operator=(const DeepLinkManager&) = delete;
 
-  void SetDeepLink(const std::string& deeplink);
+  void SetDeepLink(const std::string& url);
   const std::string& GetDeepLink() const;
 
  private:
@@ -39,7 +39,7 @@ class DeepLinkManager {
   DeepLinkManager();
   ~DeepLinkManager();
 
-  std::string deeplink_;
+  std::string deep_link_;
 };
 
 }  // namespace browser
