@@ -3335,9 +3335,8 @@ static void ColoredPrintf(GTestColor color, const char* fmt, ...) {
   fflush(stdout);
   // Restores the text color.
   SetConsoleTextAttribute(stdout_handle, old_color_attrs);
-#else
 // TODO: b/399507045 - Cobalt: Fix build error, remove hack
-#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#elif BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   posix::PrintF("\033[0;3%sm", GetAnsiColorCode(color));
   posix::VPrintF(fmt, args);
   posix::PrintF("\033[m");  // Resets the terminal to default.
@@ -3345,7 +3344,6 @@ static void ColoredPrintf(GTestColor color, const char* fmt, ...) {
   printf("\033[0;3%sm", GetAnsiColorCode(color));
   vprintf(fmt, args);
   printf("\033[m");  // Resets the terminal to default.
-#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #endif  // GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_MOBILE
   va_end(args);
 }
@@ -3543,7 +3541,7 @@ void PrettyUnitTestResultPrinter::OnTestEnd(const TestInfo& test_info) {
     printf(" (%s ms)\n",
            internal::StreamableToString(test_info.result()->elapsed_time())
                .c_str());
-#endif // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   } else {
     printf("\n");
   }
@@ -3564,7 +3562,7 @@ void PrettyUnitTestResultPrinter::OnTestCaseEnd(const TestCase& test_case) {
 #else
   printf("%s from %s (%s ms total)\n\n", counts.c_str(), test_case.name(),
          internal::StreamableToString(test_case.elapsed_time()).c_str());
-#endif // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   fflush(stdout);
 }
 #else
@@ -3581,7 +3579,7 @@ void PrettyUnitTestResultPrinter::OnTestSuiteEnd(const TestSuite& test_suite) {
 #else
   printf("%s from %s (%s ms total)\n\n", counts.c_str(), test_suite.name(),
          internal::StreamableToString(test_suite.elapsed_time()).c_str());
-#endif // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   fflush(stdout);
 }
 #endif  // GTEST_REMOVE_LEGACY_TEST_CASEAPI_
@@ -3666,45 +3664,7 @@ void PrettyUnitTestResultPrinter::PrintSkippedTests(const UnitTest& unit_test) {
 }
 
 // TODO: b/399507045 - Cobalt: Fix build error, remove hack
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
-                                                     int /*iteration*/) {
-  ColoredPrintf(GTestColor::kGreen, "[==========] ");
-  printf("%s from %s ran.",
-         FormatTestCount(unit_test.test_to_run_count()).c_str(),
-         FormatTestSuiteCount(unit_test.test_suite_to_run_count()).c_str());
-  if (GTEST_FLAG_GET(print_time)) {
-    printf(" (%s ms total)",
-           internal::StreamableToString(unit_test.elapsed_time()).c_str());
-  }
-  printf("\n");
-  ColoredPrintf(GTestColor::kGreen, "[  PASSED  ] ");
-  printf("%s.\n", FormatTestCount(unit_test.successful_test_count()).c_str());
-
-  const int skipped_test_count = unit_test.skipped_test_count();
-  if (skipped_test_count > 0) {
-    ColoredPrintf(GTestColor::kGreen, "[  SKIPPED ] ");
-    printf("%s, listed below:\n", FormatTestCount(skipped_test_count).c_str());
-    PrintSkippedTests(unit_test);
-  }
-
-  if (!unit_test.Passed()) {
-    PrintFailedTests(unit_test);
-    PrintFailedTestSuites(unit_test);
-  }
-
-  int num_disabled = unit_test.reportable_disabled_test_count();
-  if (num_disabled && !GTEST_FLAG_GET(also_run_disabled_tests)) {
-    if (unit_test.Passed()) {
-      printf("\n");  // Add a spacer if no FAILURE banner is displayed.
-    }
-    ColoredPrintf(GTestColor::kYellow, "  YOU HAVE %d DISABLED %s\n\n",
-                  num_disabled, num_disabled == 1 ? "TEST" : "TESTS");
-  }
-  // Ensure that Google Test output is printed before, e.g., heapchecker output.
-  fflush(stdout);
-}
-#else  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                      int /*iteration*/) {
   // Due to the test processes relying on regex-parsing of GTEST test result
@@ -3804,7 +3764,45 @@ void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
   posix::PrintF("%s", out_stream.str().c_str());
   posix::Flush();
 }
-#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#else
+void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
+                                                     int /*iteration*/) {
+  ColoredPrintf(GTestColor::kGreen, "[==========] ");
+  printf("%s from %s ran.",
+         FormatTestCount(unit_test.test_to_run_count()).c_str(),
+         FormatTestSuiteCount(unit_test.test_suite_to_run_count()).c_str());
+  if (GTEST_FLAG_GET(print_time)) {
+    printf(" (%s ms total)",
+           internal::StreamableToString(unit_test.elapsed_time()).c_str());
+  }
+  printf("\n");
+  ColoredPrintf(GTestColor::kGreen, "[  PASSED  ] ");
+  printf("%s.\n", FormatTestCount(unit_test.successful_test_count()).c_str());
+
+  const int skipped_test_count = unit_test.skipped_test_count();
+  if (skipped_test_count > 0) {
+    ColoredPrintf(GTestColor::kGreen, "[  SKIPPED ] ");
+    printf("%s, listed below:\n", FormatTestCount(skipped_test_count).c_str());
+    PrintSkippedTests(unit_test);
+  }
+
+  if (!unit_test.Passed()) {
+    PrintFailedTests(unit_test);
+    PrintFailedTestSuites(unit_test);
+  }
+
+  int num_disabled = unit_test.reportable_disabled_test_count();
+  if (num_disabled && !GTEST_FLAG_GET(also_run_disabled_tests)) {
+    if (unit_test.Passed()) {
+      printf("\n");  // Add a spacer if no FAILURE banner is displayed.
+    }
+    ColoredPrintf(GTestColor::kYellow, "  YOU HAVE %d DISABLED %s\n\n",
+                  num_disabled, num_disabled == 1 ? "TEST" : "TESTS");
+  }
+  // Ensure that Google Test output is printed before, e.g., heapchecker output.
+  fflush(stdout);
+}
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // End PrettyUnitTestResultPrinter
 
@@ -3887,39 +3885,7 @@ void BriefUnitTestResultPrinter::OnTestEnd(const TestInfo& test_info) {
 }
 
 // TODO: b/399507045 - Cobalt: Fix runtime errors, remove hack
-#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-void BriefUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
-                                                    int /*iteration*/) {
-  ColoredPrintf(GTestColor::kGreen, "[==========] ");
-  printf("%s from %s ran.",
-         FormatTestCount(unit_test.test_to_run_count()).c_str(),
-         FormatTestSuiteCount(unit_test.test_suite_to_run_count()).c_str());
-  if (GTEST_FLAG_GET(print_time)) {
-    printf(" (%s ms total)",
-           internal::StreamableToString(unit_test.elapsed_time()).c_str());
-  }
-  printf("\n");
-  ColoredPrintf(GTestColor::kGreen, "[  PASSED  ] ");
-  printf("%s.\n", FormatTestCount(unit_test.successful_test_count()).c_str());
-
-  const int skipped_test_count = unit_test.skipped_test_count();
-  if (skipped_test_count > 0) {
-    ColoredPrintf(GTestColor::kGreen, "[  SKIPPED ] ");
-    printf("%s.\n", FormatTestCount(skipped_test_count).c_str());
-  }
-
-  int num_disabled = unit_test.reportable_disabled_test_count();
-  if (num_disabled && !GTEST_FLAG_GET(also_run_disabled_tests)) {
-    if (unit_test.Passed()) {
-      printf("\n");  // Add a spacer if no FAILURE banner is displayed.
-    }
-    ColoredPrintf(GTestColor::kYellow, "  YOU HAVE %d DISABLED %s\n\n",
-                  num_disabled, num_disabled == 1 ? "TEST" : "TESTS");
-  }
-  // Ensure that Google Test output is printed before, e.g., heapchecker output.
-  fflush(stdout);
-}
-#else  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 void BriefUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                     int /*iteration*/) {
   // Due to the test processes relying on regex-parsing of GTEST test result
@@ -3974,7 +3940,39 @@ void BriefUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
   internal::posix::PrintF("%s", out_stream.str().c_str());
   internal::posix::Flush();
 }
-#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#else
+void BriefUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
+                                                    int /*iteration*/) {
+  ColoredPrintf(GTestColor::kGreen, "[==========] ");
+  printf("%s from %s ran.",
+         FormatTestCount(unit_test.test_to_run_count()).c_str(),
+         FormatTestSuiteCount(unit_test.test_suite_to_run_count()).c_str());
+  if (GTEST_FLAG_GET(print_time)) {
+    printf(" (%s ms total)",
+           internal::StreamableToString(unit_test.elapsed_time()).c_str());
+  }
+  printf("\n");
+  ColoredPrintf(GTestColor::kGreen, "[  PASSED  ] ");
+  printf("%s.\n", FormatTestCount(unit_test.successful_test_count()).c_str());
+
+  const int skipped_test_count = unit_test.skipped_test_count();
+  if (skipped_test_count > 0) {
+    ColoredPrintf(GTestColor::kGreen, "[  SKIPPED ] ");
+    printf("%s.\n", FormatTestCount(skipped_test_count).c_str());
+  }
+
+  int num_disabled = unit_test.reportable_disabled_test_count();
+  if (num_disabled && !GTEST_FLAG_GET(also_run_disabled_tests)) {
+    if (unit_test.Passed()) {
+      printf("\n");  // Add a spacer if no FAILURE banner is displayed.
+    }
+    ColoredPrintf(GTestColor::kYellow, "  YOU HAVE %d DISABLED %s\n\n",
+                  num_disabled, num_disabled == 1 ? "TEST" : "TESTS");
+  }
+  // Ensure that Google Test output is printed before, e.g., heapchecker output.
+  fflush(stdout);
+}
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // End BriefUnitTestResultPrinter
 
@@ -4802,13 +4800,13 @@ static std::string FormatEpochTimeInMillisAsRFC3339(TimeInMillis ms) {
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   EzTimeExploded time_struct;
   const EzTimeT seconds = static_cast<EzTimeT>(ms / 1000);
-  if (EzTimeTExplodeLocal(&seconds, &time_struct) == NULL) {
+  if (EzTimeTExplodeLocal(&seconds, &time_struct) == NULL)
+    return "";
 #else
   struct tm time_struct;
-  if (!PortableLocaltime(static_cast<time_t>(ms / 1000), &time_struct)) {
-#endif
+  if (!PortableLocaltime(static_cast<time_t>(ms / 1000), &time_struct))
     return "";
-  }
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   // YYYY-MM-DDThh:mm:ss
   return StreamableToString(time_struct.tm_year + 1900) + "-" +
          String::FormatIntWidth2(time_struct.tm_mon + 1) + "-" +
