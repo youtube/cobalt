@@ -540,7 +540,7 @@ class MediaCodecBridge {
     }
   }
 
-  @UsedByNative
+  @CalledByNative
   public static boolean isFrameRenderedCallbackEnabled() {
     // Starting with Android 14, onFrameRendered should be called accurately for each rendered
     // frame.
@@ -756,7 +756,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public void release() {
     try {
       String codecName = mMediaCodec.get().getName();
@@ -775,7 +775,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private boolean restart() {
     // Restart MediaCodec after flush().
     return start(null);
@@ -797,7 +797,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void setPlaybackRate(double playbackRate) {
     if (mPlaybackRate == playbackRate) {
       return;
@@ -831,7 +831,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private int flush() {
     try {
       mFlushed = true;
@@ -854,7 +854,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void stop() {
     resetNativeMediaCodecBridge();
     try {
@@ -865,7 +865,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private String getName() {
     String codecName = "unknown";
     try {
@@ -930,7 +930,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void setVideoBitrate(int bps, int frameRate) {
     int targetBps = bps;
     if (mBitrateAdjustmentType == BitrateAdjustmentTypes.FRAMERATE_ADJUSTMENT && frameRate > 0) {
@@ -948,7 +948,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void requestKeyFrameSoon() {
     Bundle b = new Bundle();
     b.putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0);
@@ -1037,7 +1037,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private boolean configureVideo(
       MediaFormat format,
       Surface surface,
@@ -1169,7 +1169,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public boolean configureAudio(MediaFormat format, MediaCrypto crypto, int flags) {
     try {
       mMediaCodec.get().configure(format, null, crypto, flags);

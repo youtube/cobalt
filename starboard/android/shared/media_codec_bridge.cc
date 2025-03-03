@@ -407,8 +407,8 @@ MediaCodecBridge::~MediaCodecBridge() {
         << "MediaCodecBridge destructor fallback into none eradicator mode.";
   }
 
-  JniEnvExt* env = JniEnvExt::Get();
-  env->CallVoidMethodOrAbort(j_media_codec_bridge_.obj(), "release", "()V");
+  JNIEnv* env = AttachCurrentThread();
+  Java_MediaCodecBridge_release(env, j_media_codec_bridge_);
 }
 
 jobject MediaCodecBridge::GetInputBuffer(jint index) {
@@ -494,18 +494,19 @@ void MediaCodecBridge::ReleaseOutputBufferAtTimestamp(
 }
 
 void MediaCodecBridge::SetPlaybackRate(double playback_rate) {
-  JniEnvExt::Get()->CallVoidMethodOrAbort(
-      j_media_codec_bridge_.obj(), "setPlaybackRate", "(D)V", playback_rate);
+  JNIEnv* env = AttachCurrentThread();
+  Java_MediaCodecBridge_setPlaybackRate(env, j_media_codec_bridge_,
+                                        playback_rate);
 }
 
 bool MediaCodecBridge::Restart() {
-  return JniEnvExt::Get()->CallBooleanMethodOrAbort(
-             j_media_codec_bridge_.obj(), "restart", "()Z") == JNI_TRUE;
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaCodecBridge_restart(env, j_media_codec_bridge_) == JNI_TRUE;
 }
 
 jint MediaCodecBridge::Flush() {
-  return JniEnvExt::Get()->CallIntMethodOrAbort(j_media_codec_bridge_.obj(),
-                                                "flush", "()I");
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaCodecBridge_flush(env, j_media_codec_bridge_);
 }
 
 void MediaCodecBridge::Stop() {
@@ -606,6 +607,12 @@ void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
 
   j_reused_get_output_format_result_.Reset(
       env_jni, j_reused_get_output_format_result_raw);
+}
+
+// static
+jboolean MediaCodecBridge::IsFrameRenderedCallbackEnabled() {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaCodecBridge_isFrameRenderedCallbackEnabled(env);
 }
 
 }  // namespace shared

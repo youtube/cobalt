@@ -222,6 +222,8 @@ class MediaCodecBridge {
   void OnMediaCodecOutputFormatChanged();
   void OnMediaCodecFrameRendered(int64_t frame_timestamp);
 
+  static jboolean IsFrameRenderedCallbackEnabled();
+
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.
   explicit MediaCodecBridge(Handler* handler);

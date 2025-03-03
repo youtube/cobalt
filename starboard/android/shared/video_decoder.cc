@@ -1166,9 +1166,7 @@ void VideoDecoder::OnNewTextureAvailable() {
 }
 
 bool VideoDecoder::IsFrameRenderedCallbackEnabled() {
-  return JniEnvExt::Get()->CallStaticBooleanMethodOrAbort(
-             "dev/cobalt/media/MediaCodecBridge",
-             "isFrameRenderedCallbackEnabled", "()Z") == JNI_TRUE;
+  return MediaCodecBridge::IsFrameRenderedCallbackEnabled() == JNI_TRUE;
 }
 
 void VideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
