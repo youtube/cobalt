@@ -12,9 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/config/os_definitions.gni")
 import("//testing/test.gni")
-import("//cobalt/build/configs/hacks.gni")
 
 declare_args() {
   sb_enable_cast_codec_tests = false
@@ -217,7 +217,7 @@ test("nplb") {
     "undefined_behavior_test.cc",
     "url_player_create_test.cc",
   ]
- 
+
   # TODO: b/400512503 - Fix build errors.
   if (enable_cobalt_hermetic_hacks) {
     sources -= [ "thread_test.cc" ]

@@ -3,6 +3,9 @@
 # found in the LICENSE file.
 
 import("//build_overrides/build.gni")
+if (is_cobalt) {
+  import("//cobalt/build/configs/hacks.gni")
+}
 
 config("gtest_config") {
   # webrtc wants to push this config without a public_dep chain
@@ -40,11 +43,15 @@ config("gtest_config") {
     cflags = [ "/wd4800" ]  # Unused variable warning.
   }
 
-  if (gtest_enable_absl_printers && !is_cobalt_hermetic_build) {
+  # TODO: b/399507045 - Cobalt: Fix build errors related to print API's, remove hack
+  if (gtest_enable_absl_printers && is_cobalt &&
+      !enable_cobalt_hermetic_hacks) {
     configs = [ "//third_party/abseil-cpp:absl_include_config" ]
     defines += [ "GTEST_HAS_ABSL=1" ]
   }
-  if (is_cobalt_hermetic_build) {
+
+  # TODO: b/399507045 - Cobalt: Fix build errors, remove hack
+  if (is_cobalt && enable_cobalt_hermetic_hacks) {
     include_dirs -= [ "custom" ]
   }
 }
@@ -61,7 +68,9 @@ config("gmock_config") {
     # https://github.com/google/googletest/issues/533
     cflags = [ "-Wno-inconsistent-missing-override" ]
   }
-  if (is_cobalt_hermetic_build) {
+
+  # TODO: b/399507045 - Cobalt: Fix build errors, remove hack
+  if (is_cobalt && enable_cobalt_hermetic_hacks) {
     include_dirs -= [ "custom" ]
   }
 }
@@ -123,9 +132,7 @@ source_set("gtest") {
   ]
 
   # Some files include "src/gtest-internal-inl.h".
-  include_dirs = [
-    "src/googletest",
-  ]
+  include_dirs = [ "src/googletest" ]
 
   public_configs = [ ":gtest_config" ]
 
@@ -146,27 +153,31 @@ source_set("gtest") {
   }
 
   if (is_cobalt_hermetic_build) {
-    sources -= [
-      "custom/gtest/internal/custom/chrome_custom_temp_dir.cc",
-      "custom/gtest/internal/custom/chrome_custom_temp_dir.h",
-      "custom/gtest/internal/custom/gtest.h",
-      "custom/gtest/internal/custom/gtest_port_wrapper.cc",
-      "custom/gtest/internal/custom/stack_trace_getter.cc",
-      "custom/gtest/internal/custom/stack_trace_getter.h",
-    ]
-    sources += [ "src/googletest/src/gtest-port.cc" ]
     deps += [ "//starboard/common:common_headers_only" ]
     public_deps = [ "//starboard:starboard_group" ]
-    configs += [ "//build/config/compiler:chromium_code" ]
 
-    # Ideally we would want to remove
-    # //starboard/build/config:default_rtti from the list of configs too.
-    # Unfortunately GN doesn't provide us a way to remove things from
-    # dependents' configs list.
-    # It happens to be that all_dependent_configs get processed after default
-    # configs, so the -frtti flag comes after the -fno-rtti flag on the command
-    # line, so it happens to work in this case.
-    all_dependent_configs = [ "//build/config/compiler:rtti" ]
+    # TODO: b/399507045 - Cobalt: Investigate removing this code after fixing build/runtime errors.
+    if (enable_cobalt_hermetic_hacks) {
+      sources -= [
+        "custom/gtest/internal/custom/chrome_custom_temp_dir.cc",
+        "custom/gtest/internal/custom/chrome_custom_temp_dir.h",
+        "custom/gtest/internal/custom/gtest.h",
+        "custom/gtest/internal/custom/gtest_port_wrapper.cc",
+        "custom/gtest/internal/custom/stack_trace_getter.cc",
+        "custom/gtest/internal/custom/stack_trace_getter.h",
+      ]
+      sources += [ "src/googletest/src/gtest-port.cc" ]
+      configs += [ "//build/config/compiler:chromium_code" ]
+
+      # Ideally we would want to remove
+      # //starboard/build/config:default_rtti from the list of configs too.
+      # Unfortunately GN doesn't provide us a way to remove things from
+      # dependents' configs list.
+      # It happens to be that all_dependent_configs get processed after default
+      # configs, so the -frtti flag comes after the -fno-rtti flag on the command
+      # line, so it happens to work in this case.
+      all_dependent_configs = [ "//build/config/compiler:rtti" ]
+    }
   }
 
   if (is_fuchsia) {
@@ -176,7 +187,9 @@ source_set("gtest") {
     ]
   }
 
-  if (gtest_enable_absl_printers && !is_starboard) {
+  # TODO: b/399507045 - Cobalt: Fix build errors related to print API's, remove hack
+  if (gtest_enable_absl_printers && is_cobalt &&
+      !enable_cobalt_hermetic_hacks) {
     deps += [ "//third_party/abseil-cpp:absl" ]
   }
 }

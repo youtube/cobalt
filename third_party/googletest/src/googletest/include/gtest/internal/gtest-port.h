@@ -1002,14 +1002,15 @@ class GTEST_API_ GTestLog {
 };
 
 #if !defined(GTEST_LOG_)
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+// TODO: b/399507045 - Cobalt: Investigate and remove if unnecessary
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #define GTEST_LOG_ SB_LOG
 #else
 #define GTEST_LOG_(severity)                                           \
   ::testing::internal::GTestLog(::testing::internal::GTEST_##severity, \
                                 __FILE__, __LINE__)                    \
       .GetStream()
-#endif // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 inline void LogToStderr() {}
 inline void FlushInfoLog() { fflush(nullptr); }
@@ -2372,7 +2373,12 @@ using TimeInMillis = int64_t;  // Represents time in milliseconds.
 #endif  // !defined(GTEST_FLAG)
 
 #if !defined(GTEST_USE_OWN_FLAGFILE_FLAG_)
+// TODO: b/399507045 - Cobalt: Investigate and remove if unnecessary
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #define GTEST_USE_OWN_FLAGFILE_FLAG_ 0
+#else
+#define GTEST_USE_OWN_FLAGFILE_FLAG_ 1
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #endif  // !defined(GTEST_USE_OWN_FLAGFILE_FLAG_)
 
 #if !defined(GTEST_DECLARE_bool_)
