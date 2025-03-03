@@ -13,6 +13,7 @@
 #include "media/base/audio_bus.h"
 #include "media/base/audio_parameters.h"
 #include "third_party/blink/renderer/modules/mediarecorder/audio_track_encoder.h"
+#include "third_party/blink/renderer/modules/mediarecorder/audio_track_flac_encoder.h"
 #include "third_party/blink/renderer/modules/mediarecorder/audio_track_mojo_encoder.h"
 #include "third_party/blink/renderer/modules/mediarecorder/audio_track_opus_encoder.h"
 #include "third_party/blink/renderer/modules/mediarecorder/audio_track_pcm_encoder.h"
@@ -78,6 +79,8 @@ AudioTrackRecorder::AudioTrackRecorder(
   DCHECK(track_);
   DCHECK(track_->GetSourceType() == MediaStreamSource::kTypeAudio);
 
+  LOG(INFO) << "YO THOR AUDIO TRACK RECORDER CTOR!";
+
   // Connect the source provider to the track as a sink.
   ConnectToTrack();
 }
@@ -108,6 +111,9 @@ std::unique_ptr<AudioTrackEncoder> AudioTrackRecorder::CreateAudioEncoder(
 #endif
       NOTREACHED() << "AAC encoder is not supported.";
       return nullptr;
+    case CodecId::kFlac:
+      return std::make_unique<AudioTrackFlacEncoder>(
+          std::move(on_encoded_audio_cb));
     case CodecId::kOpus:
     default:
       return std::make_unique<AudioTrackOpusEncoder>(

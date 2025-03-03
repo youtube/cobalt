@@ -22,9 +22,9 @@ import org.chromium.base.Log;
 import java.util.Map;
 
 class AudioDeviceListener {
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
 
-    private static final String TAG = "media";
+    private static final String TAG = "mediaTHOTHORTHORSSSS";
 
     // Enabled during initialization if BLUETOOTH permission is granted.
     private boolean mHasBluetoothPermission;
@@ -52,6 +52,8 @@ class AudioDeviceListener {
     }
 
     public void init(boolean hasBluetoothPermission) {
+        Log.i(TAG, "YO THOR - AudioDeviceListener INIT - HAZ BT PERM?" + hasBluetoothPermission);
+
         // Initialize audio device list with things we know is always available.
         mDeviceStates.setDeviceExistence(AudioDeviceSelector.Devices.ID_EARPIECE, hasEarpiece());
         mDeviceStates.setDeviceExistence(AudioDeviceSelector.Devices.ID_USB_AUDIO, hasUsbAudio());
@@ -83,6 +85,7 @@ class AudioDeviceListener {
      * Also extends the list of available devices with a BT device if one exists.
      */
     private void registerBluetoothIntentsIfNeeded() {
+        Log.i(TAG, "YO THOR - REGISTERR registerBluetoothIntentsIfNeeded");
         // Add a Bluetooth headset to the list of available devices if a BT
         // headset is detected and if we have the BLUETOOTH permission.
         // We must do this initial check using a dedicated method since the
@@ -90,7 +93,7 @@ class AudioDeviceListener {
         // is not sticky and will only be received if a BT headset is connected
         // after this method has been called.
         if (!mHasBluetoothPermission) {
-            Log.w(TAG, "registerBluetoothIntentsIfNeeded: Requires BLUETOOTH permission");
+            Log.i(TAG, "YO THOR registerBluetoothIntentsIfNeeded: Requires BLUETOOTH permission");
             return;
         }
         mDeviceStates.setDeviceExistence(
@@ -117,7 +120,7 @@ class AudioDeviceListener {
      */
     private boolean hasBluetoothHeadset() {
         if (!mHasBluetoothPermission) {
-            Log.w(TAG, "hasBluetoothHeadset() requires BLUETOOTH permission");
+            Log.i(TAG, "YO THOR hasBluetoothHeadset() requires BLUETOOTH permission");
             return false;
         }
 

@@ -31,11 +31,11 @@ import java.util.Optional;
 
 @JNINamespace("media")
 class AudioManagerAndroid {
-    private static final String TAG = "media";
+    private static final String TAG = "MEDIATHOR";
 
     // Set to true to enable debug logs. Avoid in production builds.
     // NOTE: always check in as false.
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = true;
 
     /** Simple container for device information. */
     public static class AudioDeviceName {
@@ -114,7 +114,7 @@ class AudioManagerAndroid {
     @CalledByNative
     private void init() {
         mThreadChecker.assertOnValidThread();
-        if (DEBUG) logd("init");
+        if (DEBUG) logd("THOR    AUDIO MANAGED ANDROID --------   init");
         if (DEBUG) logDeviceInfo();
         if (mIsInitialized) return;
 
@@ -123,7 +123,7 @@ class AudioManagerAndroid {
         mHasModifyAudioSettingsPermission =
                 hasPermission(android.Manifest.permission.MODIFY_AUDIO_SETTINGS);
         if (DEBUG && !mHasModifyAudioSettingsPermission) {
-            logd("MODIFY_AUDIO_SETTINGS permission is missing");
+            logd("YO THOR - MODIFY_AUDIO_SETTINGS permission is missing");
         }
 
         mAudioDeviceSelector.init();
@@ -163,7 +163,7 @@ class AudioManagerAndroid {
         // application to modify global audio settings.
         if (!mHasModifyAudioSettingsPermission) {
             Log.w(TAG,
-                    "MODIFY_AUDIO_SETTINGS is missing => client will run "
+                    "YO THOR - MODIFY_AUDIO_SETTINGS is missing => client will run "
                             + "with reduced functionality");
             return;
         }
@@ -235,7 +235,7 @@ class AudioManagerAndroid {
      */
     @CalledByNative
     private boolean setDevice(String deviceId) {
-        if (DEBUG) logd("setDevice: " + deviceId);
+        if (DEBUG) logd("YO THOR - setDevice: " + deviceId);
         if (!mIsInitialized) return false;
 
         boolean hasRecordAudioPermission = hasPermission(android.Manifest.permission.RECORD_AUDIO);
@@ -258,15 +258,17 @@ class AudioManagerAndroid {
      */
     @CalledByNative
     private AudioDeviceName[] getAudioInputDeviceNames() {
-        if (DEBUG) logd("getAudioInputDeviceNames");
+        if (DEBUG) logd("YO THOR - getAudioInputDeviceNames");
         if (!mIsInitialized) return null;
 
         boolean hasRecordAudioPermission = hasPermission(android.Manifest.permission.RECORD_AUDIO);
         if (!mHasModifyAudioSettingsPermission || !hasRecordAudioPermission) {
             Log.w(TAG,
-                    "Requires MODIFY_AUDIO_SETTINGS and RECORD_AUDIO. "
+                    "YOOOO THOR - Requires MODIFY_AUDIO_SETTINGS and RECORD_AUDIO. "
                             + "No audio device will be available for recording");
             return null;
+        } else {
+          logd("YO THOR - LOOKS GOOD WE HAVE MODIFY_AUDIO_SETTINGS and RECORD_AUDIO");
         }
 
         return mAudioDeviceSelector.getAudioInputDeviceNames();
@@ -404,7 +406,7 @@ class AudioManagerAndroid {
 
     /** Information about the current build, taken from system properties. */
     private void logDeviceInfo() {
-        logd("Android SDK: " + Build.VERSION.SDK_INT + ", "
+        logd("YO THOR Android SDK: " + Build.VERSION.SDK_INT + ", "
                 + "Release: " + Build.VERSION.RELEASE + ", "
                 + "Brand: " + Build.BRAND + ", "
                 + "Device: " + Build.DEVICE + ", "
@@ -417,7 +419,7 @@ class AudioManagerAndroid {
 
     /** Trivial helper method for debug logging */
     private static void logd(String msg) {
-        Log.d(TAG, msg);
+        Log.i(TAG, msg);
     }
 
     /** Trivial helper method for error logging */
@@ -443,7 +445,7 @@ class AudioManagerAndroid {
                 // slider all the way down in communication mode but the callback
                 // implementation can ensure that the volume is completely muted.
                 int volume = mAudioManager.getStreamVolume(AudioManager.STREAM_VOICE_CALL);
-                if (DEBUG) logd("AudioManagerAndroidJni.get().setMute: " + (volume == 0));
+                if (DEBUG) logd("YO THOR AudioManagerAndroidJni.get().setMute: " + (volume == 0));
                 AudioManagerAndroidJni.get().setMute(
                         mNativeAudioManagerAndroid, AudioManagerAndroid.this, (volume == 0));
             }

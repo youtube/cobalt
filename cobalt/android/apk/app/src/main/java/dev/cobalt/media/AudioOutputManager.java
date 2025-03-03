@@ -307,6 +307,19 @@ public class AudioOutputManager {
           Arrays.toString(info.getSampleRates()),
           getEncodingNames(info.getEncodings()));
     }
+    Log.i(TAG, "Dumping all audio INPUT devices:");
+
+    AudioDeviceInfo[] deviceInfosInput = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS);
+
+    for (AudioDeviceInfo info : deviceInfosInput) {
+      Log.i(
+          TAG,
+          "  Audio Device: %s, channels: %s, sample rates: %s, encodings: %s",
+          getDeviceTypeName(info.getType()),
+          Arrays.toString(info.getChannelCounts()),
+          Arrays.toString(info.getSampleRates()),
+          getEncodingNames(info.getEncodings()));
+    }
   }
 
   /** Returns the minimum buffer size of AudioTrack. */

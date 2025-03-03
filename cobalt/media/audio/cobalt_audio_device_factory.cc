@@ -16,6 +16,7 @@
 
 #include "base/logging.h"
 #include "cobalt/media/audio/audio_helpers.h"
+#include "cobalt/media/audio/cobalt_audio_capturer_source.h"
 #include "cobalt/media/audio/cobalt_audio_renderer_sink.h"
 
 namespace media {
@@ -41,4 +42,13 @@ OutputDeviceInfo CobaltAudioDeviceFactory::GetOutputDeviceInfo(
     const std::string& device_id) {
   return GetPreferredOutputParameters();
 }
+
+scoped_refptr<media::AudioCapturerSource>
+CobaltAudioDeviceFactory::NewAudioCapturerSource(
+    blink::WebLocalFrame* web_frame,
+    const media::AudioSourceParameters& params) {
+  LOG(INFO) << "YO THOR - FACTORT RETURN NEW AUDAIO CAP SOURCE!";
+  return base::MakeRefCounted<media::CobaltAudioCapturerSource>();
+}
+
 }  // namespace media
