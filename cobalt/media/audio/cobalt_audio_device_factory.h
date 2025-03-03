@@ -34,6 +34,10 @@ class MEDIA_EXPORT CobaltAudioDeviceFactory final
   OutputDeviceInfo GetOutputDeviceInfo(
       const blink::LocalFrameToken& frame_token,
       const std::string& device_id) final;
+
+  scoped_refptr<media::AudioCapturerSource> NewAudioCapturerSource(
+      blink::WebLocalFrame* web_frame,
+      const media::AudioSourceParameters& params) final;
 };
 
 }  // namespace media

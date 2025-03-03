@@ -6,6 +6,9 @@
 
 #include <algorithm>
 
+#include "base/debug/stack_trace.h"
+
+
 #include "base/check.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
@@ -149,6 +152,8 @@ scoped_refptr<media::AudioCapturerSource>
 AudioDeviceFactory::NewAudioCapturerSource(
     WebLocalFrame* web_frame,
     const media::AudioSourceParameters& params) {
+  LOG(INFO) << "YO THOR - NEW AUDIO CAPTURE SOURCE?!";
+
   return base::MakeRefCounted<media::AudioInputDevice>(
       blink::AudioInputIPCFactory::CreateAudioInputIPC(
           web_frame->GetLocalFrameToken(),

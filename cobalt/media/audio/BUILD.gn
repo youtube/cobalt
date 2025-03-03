@@ -14,6 +14,8 @@
 
 source_set("webaudio") {
   sources = [
+    "cobalt_audio_capturer_source.cc",
+    "cobalt_audio_capturer_source.h",
     "cobalt_audio_device_factory.cc",
     "cobalt_audio_device_factory.h",
     "cobalt_audio_renderer_sink.cc",
