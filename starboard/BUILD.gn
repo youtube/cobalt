@@ -293,14 +293,21 @@ if (current_toolchain == starboard_toolchain) {
   }
 
   test("starboard_unittests") {
-    deps = [
-      "//starboard/client_porting/eztime:eztime_test",
-      "//starboard/common:common_test",
-      "//starboard/elf_loader:elf_loader_test",
-      "//starboard/extension:extension_test",
-      "//starboard/loader_app:app_key_files_test",
-      "//starboard/loader_app:app_key_test",
-      "//starboard/loader_app:drain_file_test",
-    ]
+    deps = [ "//starboard/common:common_test" ]
+    if (sb_is_evergreen_compatible) {
+      deps += [
+        "//starboard/client_porting/eztime:eztime_test",
+        "//starboard/elf_loader:elf_loader_test",
+        "//starboard/extension:extension_test",
+        "//starboard/loader_app:app_key_files_test",
+        "//starboard/loader_app:app_key_test",
+        "//starboard/loader_app:drain_file_test",
+      ]
+    }
   }
+}
+
+group("starboard_unittests_wrapper") {
+  testonly = true
+  deps = [ ":starboard_unittests($starboard_toolchain)" ]
 }
