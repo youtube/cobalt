@@ -12,19 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module h5vcc_runtime.mojom;
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deep_link_event.h"
 
-// The browser process must provide an implementation of this interface so that
-// the renderer process can implement the H5vccRuntime Blink API.
+#include "third_party/blink/renderer/modules/event_interface_modules_names.h"
 
-interface DeepLinkListener {
-  ProcessDeepLink(string deep_link);
-};
+namespace blink {
 
-interface H5vccRuntime {
-  // Get the GetInitialDeepLink for the device.
-  GetInitialDeepLink() => (string initial_deep_link);
+DeepLinkEvent::DeepLinkEvent(const AtomicString& type, const String& url)
+    : Event(type, Bubbles::kNo, Cancelable::kNo), url_(url) {}
 
-  // Add Listener for the
-  AddListener(pending_remote<DeepLinkListener> listener);
-};
+DeepLinkEvent::~DeepLinkEvent() = default;
+
+const AtomicString& DeepLinkEvent::InterfaceName() const {
+  return event_interface_names::kDeepLinkEvent;
+}
+
+void DeepLinkEvent::Trace(Visitor* visitor) const {
+  Event::Trace(visitor);
+}
+
+}  // namespace blink

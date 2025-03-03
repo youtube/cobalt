@@ -12,19 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module h5vcc_runtime.mojom;
-
-// The browser process must provide an implementation of this interface so that
-// the renderer process can implement the H5vccRuntime Blink API.
-
-interface DeepLinkListener {
-  ProcessDeepLink(string deep_link);
-};
-
-interface H5vccRuntime {
-  // Get the GetInitialDeepLink for the device.
-  GetInitialDeepLink() => (string initial_deep_link);
-
-  // Add Listener for the
-  AddListener(pending_remote<DeepLinkListener> listener);
+// A custom event that carries deep link information. This event is
+// dispatched on the H5vccRuntime object when a deep link is received.
+[
+    Exposed=Window,
+    SecureContext
+]
+interface DeepLinkEvent : Event {
+    readonly attribute DOMString url;
 };

@@ -16,9 +16,14 @@ import("//third_party/blink/renderer/modules/modules.gni")
 
 blink_modules_sources("h5vcc_runtime") {
   sources = [
+    "deep_link_event.cc",
+    "deep_link_event.h",
     "h_5_vcc_runtime.cc",
     "h_5_vcc_runtime.h",
   ]
 
-  deps = [ "//cobalt/browser/h5vcc_runtime/public/mojom:mojom_blink" ]
+  deps = [
+    "//cobalt/browser/h5vcc_runtime/public/mojom:mojom_blink",
+    "//third_party/blink/renderer/core:core_generated",
+  ]
 }
