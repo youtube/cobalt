@@ -266,7 +266,7 @@ template("content_shell_apk_tmpl") {
 
 # Copied from target: libcontent_shell_content_view
 # TODO(b/376867565) rename this library, NO shell
-source_set("libcobalt_content_shell_content_view") {
+shared_library("libcobalt_content_shell_content_view") {
   # TODO(b/375655377): remove testonly
   testonly = true
   deps = [
@@ -299,6 +299,7 @@ source_set("libcobalt_content_shell_content_view") {
     "//cobalt/cobalt_main_delegate.h",
     "cobalt_library_loader.cc",
   ]
+  configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   configs += [ "//build/config/android:hide_all_but_jni" ]
 }
 
