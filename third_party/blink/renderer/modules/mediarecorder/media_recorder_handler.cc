@@ -171,11 +171,14 @@ bool CanSupportAudioType(const String& type) {
 
 MediaRecorderHandler::MediaRecorderHandler(
     scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner)
-    : main_thread_task_runner_(std::move(main_thread_task_runner)) {}
+    : main_thread_task_runner_(std::move(main_thread_task_runner)) {
+      LOG(INFO) << "YO THOR MEDIA RECORDER HANDLER CTOR";
+    }
 
 bool MediaRecorderHandler::CanSupportMimeType(const String& type,
                                               const String& web_codecs) {
   DCHECK(IsMainThread());
+      LOG(INFO) << "YO THOR MEDIA RECORDER HANDLER  - CAN SUPPORT MIME TYPE:" << type;
   // An empty |type| means MediaRecorderHandler can choose its preferred codecs.
   if (type.empty())
     return true;
@@ -218,6 +221,7 @@ bool MediaRecorderHandler::CanSupportMimeType(const String& type,
       return false;
     }
   }
+  LOG(INFO) << "YO THOR, WE GOOD, WE SUPPORT CODEC";
   return true;
 }
 
@@ -237,6 +241,7 @@ bool MediaRecorderHandler::Initialize(
     return false;
   }
 
+  LOG(INFO) << "YO THOR - INITIALIZE MEDIA RECORDER HANDLER";
   passthrough_enabled_ = type.empty();
 
   // Once established that we support the codec(s), hunt then individually.
@@ -249,11 +254,14 @@ bool MediaRecorderHandler::Initialize(
   }
 
   // Do the same for the audio codec(s).
-  const AudioTrackRecorder::CodecId audio_codec_id =
+  // const AudioTrackRecorder::CodecId audio_codec_id =
+  AudioTrackRecorder::CodecId audio_codec_id =
       AudioStringToCodecId(codecs);
+  if (type == "audio/flac") audio_codec_id = AudioTrackRecorder::CodecId::kFlac;
   audio_codec_id_ = (audio_codec_id != AudioTrackRecorder::CodecId::kLast)
                         ? audio_codec_id
                         : AudioTrackRecorder::GetPreferredCodecId();
+  LOG(INFO) << "YO THOR - GOT kFLAC?" << (audio_codec_id == AudioTrackRecorder::CodecId::kFlac);
   DVLOG_IF(1, audio_codec_id == AudioTrackRecorder::CodecId::kLast)
       << "Falling back to preferred audio codec id "
       << static_cast<int>(audio_codec_id_);

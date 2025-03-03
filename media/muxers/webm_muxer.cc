@@ -228,7 +228,7 @@ WebmMuxer::WebmMuxer(AudioCodec audio_codec,
       force_one_libwebm_error_(false) {
   DCHECK(has_video_ || has_audio_);
   DCHECK(delegate_);
-  DCHECK(audio_codec == AudioCodec::kOpus || audio_codec == AudioCodec::kPCM)
+  DCHECK(audio_codec == AudioCodec::kOpus || audio_codec == AudioCodec::kPCM || audio_codec == AudioCodec::kFLAC)
       << " Unsupported audio codec: " << GetCodecName(audio_codec);
 
   delegate_->InitSegment(&segment_);

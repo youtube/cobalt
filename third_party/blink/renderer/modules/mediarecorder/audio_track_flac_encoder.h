@@ -30,7 +30,7 @@ namespace blink {
 // AudioConverter to adapt incoming data to the format FLAC likes to have.
 class AudioTrackFlacEncoder : public AudioTrackEncoder {
  public:
-  AudioTrackFlacEncoder(OnEncodedAudioCB on_encoded_audio_cb, int sample_rate = 48000);
+  AudioTrackFlacEncoder(OnEncodedAudioCB on_encoded_audio_cb);
   ~AudioTrackFlacEncoder() override;
 
   AudioTrackFlacEncoder(const AudioTrackFlacEncoder&) = delete;
