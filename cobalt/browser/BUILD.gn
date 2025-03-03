@@ -39,7 +39,6 @@ source_set("browser") {
 
   deps = [
     ":embed_polyfilled_javascript",
-    ":metrics",
     "//cobalt/browser/crash_annotator/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime/public/mojom",
@@ -51,8 +50,6 @@ source_set("browser") {
     "//components/js_injection/browser:browser",
     "//components/os_crypt/sync",
     "//content/public/browser",
-
-    # TODO(b/390021478): Do not depend on content_shell_lib here.
     "//content/shell:content_shell_lib",
   ]
 
@@ -86,23 +83,5 @@ action("embed_polyfilled_javascript") {
     "CobaltJavaScriptPolyfill",
     rebase_path(outputs[0], root_build_dir),
     rebase_path("embedded_resources", root_build_dir),
-  ]
-}
-
-source_set("metrics") {
-  # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
-  # being depended-on by :browser above.
-  testonly = true
-
-  sources = [
-    "metrics/cobalt_metrics_service_client.cc",
-    "metrics/cobalt_metrics_service_client.h",
-  ]
-  deps = [
-    "//components/metrics",
-    "//components/prefs",
-    "//components/variations",
-    "//content/public/browser",
-    "//url",
   ]
 }
