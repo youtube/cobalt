@@ -173,6 +173,7 @@ exec_script_whitelist += [
   "//starboard/tools/BUILD.gn",
   "//starboard/build/config/sabi/BUILD.gn",
   "//starboard/build/platform_path.gni",
+  "//starboard/content/fonts/BUILD.gn",
 ]
 
 # TODO(cobalt, b/377295011): figure out a better long-term solution here, or
