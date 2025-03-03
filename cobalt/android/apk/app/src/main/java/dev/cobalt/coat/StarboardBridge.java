@@ -317,16 +317,6 @@ public class StarboardBridge {
     return args;
   }
 
-  // /** Returns the URL from the Intent that started the app. */
-  // @SuppressWarnings("unused")
-  // @CalledByNative
-  // protected String getStartDeepLink() {
-  //   if (startDeepLink == null) {
-  //     throw new IllegalArgumentException("startDeepLink cannot be null");
-  //   }
-  //   return startDeepLink;
-  // }
-
   /** Sends an event to the web app to navigate to the given URL */
   public void handleDeepLink(String url) {
     StarboardBridgeJni.get().handleDeepLink(url, applicationReady);

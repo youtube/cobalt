@@ -158,13 +158,6 @@ void StarboardBridge::AppendArgs(JNIEnv* env,
   AppendJavaStringArrayToStringVector(env, args_java, args_vector);
 }
 
-// SB_EXPORT_ANDROID std::string StarboardBridge::GetStartDeepLink(JNIEnv* env)
-// {
-//   cobalt::browser::DeepLinkManager* manager =
-//   cobalt::browser::DeepLinkManager::GetInstance(); return
-//   manager->GetDeepLink();
-// }
-
 ScopedJavaLocalRef<jintArray> StarboardBridge::GetSupportedHdrTypes(
     JNIEnv* env) {
   SB_DCHECK(env);
