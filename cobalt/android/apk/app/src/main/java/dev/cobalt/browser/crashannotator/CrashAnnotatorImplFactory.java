@@ -28,6 +28,6 @@ public class CrashAnnotatorImplFactory implements InterfaceFactory {
 
     @Override
     public CrashAnnotator createImpl() {
-        return new CrashAnnotatorImpl(mRenderFrameHost);
+        return new CrashAnnotatorImplFirstParty(mRenderFrameHost);
     }
 }
