@@ -1,0 +1,2 @@
+TYPE_ANNOUNCEMENT - [This is an alert]
+TYPE_WINDOW_STATE_CHANGED - [contentTypes=16]

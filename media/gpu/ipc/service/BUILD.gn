@@ -1,0 +1,49 @@
+# Copyright 2016 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+if (is_component_build) {
+  link_target_type = "source_set"
+} else {
+  link_target_type = "static_library"
+}
+target(link_target_type, "service") {
+  visibility = [
+    "//components/viz/service/*",
+    "//content/gpu/*",
+    "//content/public/gpu/*",
+    "//media/*",
+  ]
+
+  sources = [
+    "media_gpu_channel.cc",
+    "media_gpu_channel.h",
+    "media_gpu_channel_manager.cc",
+    "media_gpu_channel_manager.h",
+  ]
+
+  include_dirs = [ "//third_party/angle:includes" ]
+
+  public_deps = [
+    "//base",
+    "//gpu/config",
+    "//ipc",
+    "//media",
+    "//media/gpu",
+  ]
+  deps = [
+    "//build:chromeos_buildflags",
+    "//gpu/command_buffer/service:gles2",
+    "//gpu/ipc/service",
+    "//media:media_buildflags",
+    "//media/gpu",
+    "//media/gpu:buildflags",
+    "//media/gpu/ipc/common",
+    "//third_party/mesa_headers",
+    "//ui/gfx/ipc/color",
+  ]
+
+  if (is_mac) {
+    deps += [ "//third_party/webrtc_overrides:webrtc_component" ]
+  }
+}

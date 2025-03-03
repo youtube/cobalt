@@ -1,0 +1,9 @@
+Tests that uncaught promise rejections happenned in workers are logged into console.
+
+worker-with-unhandled-promises.js:3 Uncaught (in promise) Error: err1
+runPromisesInWorker @ worker-with-unhandled-promises.js:3
+onmessage @ worker-with-unhandled-promises.js:25
+worker-with-unhandled-promises.js:21 Uncaught (in promise) Error: err2
+runPromisesInWorker @ worker-with-unhandled-promises.js:21
+onmessage @ worker-with-unhandled-promises.js:25
+

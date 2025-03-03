@@ -1,0 +1,80 @@
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module webnn.mojom;
+
+import "services/webnn/public/mojom/features.mojom";
+import "services/webnn/public/mojom/webnn_context.mojom";
+import "services/webnn/public/mojom/webnn_context_properties.mojom";
+import "services/webnn/public/mojom/webnn_error.mojom";
+import "third_party/blink/public/mojom/tokens/tokens.mojom";
+
+// Represents options of creating `WebNNContext` interface.
+struct CreateContextOptions {
+  enum Device {
+    // Provides the broadest compatibility and usability across all client
+    // devices with varying degrees of performance.
+    kCpu,
+    // Provides the broadest range of achievable performance across graphics
+    // hardware platforms from consumer devices to professional workstations.
+    kGpu,
+    // NPU (neural processing unit) is a class of specialized hardware
+    // accelerator designed to accelerate artificial intelligence and machine
+    // learning applications. Unlike more general-purpose devices such as the
+    // GPU and CPU, an NPU supports a limited finite set of operations and may
+    // not have programmability support. The fallback behavior is being
+    // discussed by WG at:
+    // https://github.com/webmachinelearning/webnn/issues/623.
+    // This Enum value is introduced for testing purpose that will inform
+    // the WG.
+    kNpu,
+  };
+
+  enum PowerPreference {
+    // Let the user agent select the most suitable behavior.
+    kDefault,
+    // Prioritizes execution speed over power consumption.
+    kHighPerformance,
+    // Prioritizes power consumption over other considerations such as execution
+    // speed.
+    kLowPower,
+  };
+
+  // Indicates the kind of device used for the context.
+  Device device;
+  // The power preference for power consumption.
+  PowerPreference power_preference;
+};
+
+// Represents a successful call to `WebNNContextProvider::CreateWebNNContext`.
+struct CreateContextSuccess {
+  pending_remote<WebNNContext>? context_remote;
+  ContextProperties context_properties;
+  // context_handle is a generated token used as handle to identify the
+  // the context from the renderer. The token is only valid for the lifetime
+  // of the context and is used to resolve a buffer in the service using the
+  // context corresponding to this handle.
+  blink.mojom.WebNNContextToken context_handle;
+};
+
+// Represents the return value of `WebNNContextProvider::CreateWebNNContext()`.
+// Let it be `success` if a WebNNContext was successfully created and `error`
+// otherwise.
+union CreateContextResult {
+  CreateContextSuccess success;
+  Error error;
+};
+
+// This interface runs in the GPU process and is called from the renderer
+// process to create `WebNNContext` interface. The renderer requests this
+// interface from the frame's BrowserInterfaceBroker, which requests it
+// from the GpuService via the GpuClient.
+[RuntimeFeature=webnn.mojom.features.kWebMachineLearningNeuralNetwork]
+interface WebNNContextProvider {
+  // Called by the renderer process to create a message pipe for `MLContext`,
+  // the `CreateContextResult` will be `Error` with error messages if the
+  // configuration of options isn't supported.
+  CreateWebNNContext(CreateContextOptions options)
+      => (CreateContextResult result);
+};

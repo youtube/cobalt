@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<meta name=fuzzy content="maxDifference=0-3; totalPixels=0-100">
+<style>
+div {
+  display: inline-block;
+  height: 23ch;
+  line-height: 1.6;
+}
+</style>
+<html>
+<body>
+<div style="writing-mode: vertical-rl;">
+vertical-rl
+<input type="number" value=1 style="direction: ltr;">
+<input type="number" value=2 dir="ltr">
+<input type="number" value=3 style="direction: rtl;">
+<input type="number" value=4 dir="rtl">
+</div>
+
+<div style="writing-mode: vertical-lr;">
+vertical-lr
+<input type="number" value=5 style="direction: ltr;">
+<input type="number" value=6 dir="ltr">
+<input id="i7" type="number" value=7 style="direction: rtl;">
+<input type="number" value=8 dir="rtl">
+</div>
+
+<br>
+
+<div style="writing-mode: sideways-rl;">
+sideways-rl
+<input type="number" value=9 style="direction: ltr;">
+<input type="number" value=10 dir="ltr">
+<input type="number" value=11 style="direction: rtl;">
+<input type="number" value=12 dir="rtl">
+</div>
+
+<div style="writing-mode: sideways-lr;">
+sideways-lr
+<input type="number" value=13 style="direction: ltr;">
+<input type="number" value=14 dir="ltr">
+<input type="number" value=15 style="direction: rtl;">
+<input type="number" value=16 dir="rtl">
+</div>
+
+<script>
+if (window.internals) {
+  for (let input of document.querySelectorAll('input')) {
+    internals.setPseudoClassState(input, ':hover', true);
+  }
+} else {
+  var input = document.getElementById('i7');
+  // A spinbutton should be showing on the top (left)
+  input.focus();
+}
+</script>
+</body>
+</html>
+

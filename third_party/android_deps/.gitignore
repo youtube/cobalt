@@ -1,0 +1,12 @@
+.gradle/
+.idea/
+.settings/
+local.properties
+buildSrc/.gradle/
+buildSrc/build/
+
+# JAR and AAR files will be fetched via CIPD.
+cipd/
+
+# vulnerability reports are for local viewing only.
+vulnerability_reports/*

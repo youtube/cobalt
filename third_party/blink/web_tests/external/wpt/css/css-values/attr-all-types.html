@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<title>CSS Values and Units Test: attr</title>
+<meta name="assert" content="test attr values">
+<link rel="help" href="https://drafts.csswg.org/css-values-5/#attr-notations">
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+
+<style>
+    @property --string {
+        syntax: "<string>";
+        inherits: false;
+        initial-value: "none";
+    }
+    @property --string-list {
+        syntax: "<string>+";
+        inherits: false;
+        initial-value: "none";
+    }
+</style>
+
+<div id="attr"></div>
+<div id="expected"></div>
+
+<script>
+    function test_valid_attr(property, attrString, attrValue, expectedValue) {
+        var elem = document.getElementById("attr");
+        elem.setAttribute("data-foo", attrValue);
+        elem.style.setProperty(property, attrString);
+
+        var expectedElem =  document.getElementById("expected");
+        expectedElem.style.setProperty(property, expectedValue);
+
+        test(() => {
+            assert_equals(window.getComputedStyle(elem).getPropertyValue(property),
+                          window.getComputedStyle(expectedElem).getPropertyValue(property),
+                          "Value \'" + attrString + "\', where \'data-foo=" + attrValue +
+                          "\' should be valid for the property \'" + property + "\'.");
+        });
+
+        elem.style.setProperty(property, null);
+        expectedElem.style.setProperty(property, null);
+    }
+
+    function test_invalid_attr(property, attrString, attrValue) {
+        var elem = document.getElementById("attr");
+        var expectedValue = window.getComputedStyle(elem).getPropertyValue(property);
+
+        elem.setAttribute("data-foo", attrValue);
+        elem.style.setProperty(property, attrString);
+
+        test(() => {
+            assert_equals(window.getComputedStyle(elem).getPropertyValue(property), expectedValue,
+                          "Setting property \'" + property + "\' to the value \'" + attrString +
+                          "\', where \'data-foo=" + attrValue + "\' should not change it's value.");
+        });
+        elem.style.setProperty(property, null);
+    }
+
+    test_valid_attr('content', 'attr(data-foo)', 'abc', '"abc"');
+    test_valid_attr('content', 'attr(data-foo,)', 'abc', '"abc"');
+
+    test_valid_attr('content', 'attr(data-foo <string>)', '"abc"', '"abc"');
+    test_valid_attr('content', 'attr(data-foo <string>,)', '"abc"', '"abc"');
+    test_valid_attr('content', 'attr(data-foo <string>)', '"attr(data-foo)"', '"attr(data-foo)"');
+
+    test_valid_attr('animation-name', 'attr(data-foo <custom-ident>)', 'anim', 'anim');
+    test_valid_attr('animation-name', 'attr(data-foo <custom-ident>, anim-fallback)', '"anim"', 'anim-fallback');
+    test_valid_attr('animation-name', 'attr(data-foo <custom-ident>, anim-fallback)', 'initial', 'anim-fallback');
+
+    test_valid_attr('background-color', 'attr(data-foo <color>)', 'red', 'red');
+    test_valid_attr('background-color', 'attr(data-foo <color>)', '#ff0099aa', '#ff0099aa');
+    test_valid_attr('background-color', 'attr(data-foo <color>, red)', '10', 'red');
+    test_valid_attr('background-color', 'attr(data-foo <color>, green)', '1000px', 'green');
+    test_valid_attr('background-color', 'attr(data-foo <color>, green)', 'rgb(255, 0, 0)', 'rgb(255, 0, 0)');
+    test_valid_attr('background-color', 'attr(data-foo <color>)', 'color-mix(in lch, red, pink)', 'color-mix(in lch, red, pink)');
+    test_valid_attr('background-color', 'attr(data-foo <color>)', 'light-dark(#333b3c, #efefec)', 'light-dark(#333b3c, #efefec)');
+
+    test_valid_attr('font-weight', 'attr(data-foo <number>)', '10', '10');
+    test_valid_attr('font-weight', 'attr(data-foo <number>, 30)', '10px', '30');
+    test_valid_attr('font-weight', 'attr(data-foo <number> | lighter | bold, bold)', 'lighter', 'lighter');
+    test_valid_attr('font-weight', 'attr(data-foo <number> |  lighter | bold, lighter)', '10px', 'lighter');
+    test_valid_attr('font-weight', 'attr(data-foo <number>)', 'calc(3 + 3)', '6');
+    test_valid_attr('font-weight', 'attr(data-foo <number>, calc(10 + 20))', '10px', '30');
+
+    test_valid_attr('font-size', 'attr(data-foo <percentage>)', '10%', '10%');
+    test_valid_attr('font-size', 'attr(data-foo <percentage>, 10px)', 'abc', '10px');
+    test_valid_attr('font-size', 'attr(data-foo <percentage> | <length>, 10)', '10px', '10px');
+    test_valid_attr('--x', 'attr(data-foo <percentage>, abc)', '10', 'abc');
+
+    test_valid_attr('width', 'attr(data-foo <length>)', '10px', '10px');
+    test_valid_attr('width', 'attr(data-foo <length>, red)', '10px', '10px');
+    test_valid_attr('width', 'attr(data-foo <length>, 42px)', 'calc(1px + 3px)', '4px');
+
+    test_valid_attr('font-style', 'attr(data-foo <angle>)', '10deg', '10deg');
+    test_valid_attr('font-style', 'attr(data-foo <angle>, 10deg)', '30', '10deg');
+    test_valid_attr('font-style', 'attr(data-foo <angle>, italic)', '30', 'italic');
+    test_valid_attr('font-style', 'attr(data-foo <angle>, 3deg)', 'italic', '3deg');
+    test_valid_attr('font-style', 'attr(data-foo <angle> | italic, 3deg)', 'italic', 'italic');
+
+    test_valid_attr('transition-duration', 'attr(data-foo <time>)', '10ms', '10ms');
+    test_valid_attr('transition-duration', 'attr(data-foo <time>, 30s)', '10m', '30s');
+    test_valid_attr('transition-duration', 'attr(data-foo <time>, calc(10s + 20s))', '10m', '30s');
+
+    test_valid_attr('--x', 'attr(data-foo <number>) 11', '10', '10 11');
+    test_valid_attr('--string', 'attr(data-foo <string>)', '"hello"', '"hello"');
+    test_valid_attr('--string-list', 'attr(data-foo <string>+)', '"hello" "hi"', '"hello" "hi"');
+
+    test_invalid_attr('animation-name', 'attr(data-foo string)', 'abc');
+    test_invalid_attr('animation-name', 'attr(data-foo < string>)', 'abc');
+    test_invalid_attr('animation-name', 'attr(data-foo <string >)', 'abc');
+
+    test_invalid_attr('animation-name', 'attr(data-foo <custom-ident>)', 'initial');
+    test_invalid_attr('animation-name', 'attr(data-foo <custom-ident>)', '"anim"');
+    test_invalid_attr('animation-name', 'attr(data-foo <custom-ident>)', '"none"');
+    test_invalid_attr('animation-name', 'attr(data-foo <custom-ident> <ident>)', '"none"');
+
+    test_invalid_attr('background-color', 'attr(data-foo <color>)', 'rgb(0)');
+    test_invalid_attr('background-color', 'attr(data-foo <red>)', 'abc');
+    test_invalid_attr('background-color', 'attr(data-foo <color> | <red>)', 'abc');
+    test_invalid_attr('background-color', 'attr(data-foo <color> |)', 'abc');
+    test_invalid_attr('background-color', 'attr(data-foo, <red>)', 'abc');
+
+    test_invalid_attr('font-size', 'attr(data-foo <number>)', '10');
+    test_invalid_attr('font-size', 'attr(data-foo <number> !)', '10');
+    test_invalid_attr('font-weight', 'attr(data-foo <number>),', '10');
+    test_invalid_attr('width', 'attr(data-foo <number>, 30px)', '10');
+
+    test_invalid_attr('font-size', 'attr(data-foo <percentage>)', 'abc');
+    test_invalid_attr('font-size', 'attr(data-foo <percentage>)', '10% a');
+    test_invalid_attr('font-size', 'attr(data-foo <percentage>, 10rad)', 'abc');
+    test_invalid_attr('font-size', 'attr(data-foo <number> | <length>, 30px)', '10');
+
+    test_invalid_attr('width', 'attr(data-foo <length>)', '10');
+    test_invalid_attr('width', 'attr(data-foo <length>, 30)', 'calc(10 + 20)');
+    test_invalid_attr('width', 'attr(data-foo <length>, calc(10 + 20))', 'abc');
+
+    test_invalid_attr('font-style', 'attr(data-foo <angle>)', '10%');
+    test_invalid_attr('font-style', 'attr(data-foo <angle>)', 'calc(10px + 20px)');
+    test_invalid_attr('font-style', 'attr(data-foo <angle>, calc(10 + 20))', 'calc(10px + 20px)');
+
+    test_invalid_attr('transition-duration', 'attr(data-foo <time>)', '10');
+    test_invalid_attr('transition-duration', 'attr(data-foo <time>)', '10 ms');
+    test_invalid_attr('transition-duration', 'attr(data-foo <time>)', 'calc(1ms + 2ms)s');
+
+    test_invalid_attr('width', 'attr(())', '10px');
+</script>

@@ -1,0 +1,7 @@
+include_rules = [
+  "+device/base/synchronization",
+  "+chromeos/components/sensors",
+  "+services/device/generic_sensor/jni_headers",
+  "+services/device/public/cpp/device_features.h",
+  "+ui/gfx/geometry"
+]

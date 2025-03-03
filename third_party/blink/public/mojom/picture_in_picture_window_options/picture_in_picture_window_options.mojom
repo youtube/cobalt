@@ -1,0 +1,24 @@
+// Copyright 2022 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module blink.mojom;
+
+struct PictureInPictureWindowOptions {
+  // The requested width for the picture-in-picture window to be initially sized
+  // to.
+  uint64 width;
+
+  // The requested height for the picture-in-picture window to be initially
+  // sized to.
+  uint64 height;
+
+  // When true, hints to the user agent that a button for returning to
+  // the opener does not make sense for the given document picture-in-picture
+  // experience.
+  bool disallow_return_to_opener;
+
+  // When true, don't try to re-use the previous window bounds from the
+  // bounds cache.  Instead, just use the default position and size.
+  bool prefer_initial_window_placement;
+};

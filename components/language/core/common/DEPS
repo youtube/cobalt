@@ -1,0 +1,4 @@
+include_rules = [
+  "+components/country_codes",
+  "+ui/base/l10n",
+]

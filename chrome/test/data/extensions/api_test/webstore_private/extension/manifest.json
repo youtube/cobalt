@@ -1,0 +1,11 @@
+{
+  "name": "WebstorePrivate API Test extension",
+  "manifest_version": 3,
+  "version": "0.1",
+  "icons": {
+    "128": "icon.png"
+  },
+  "permissions": [
+    "tabs"
+  ]
+}

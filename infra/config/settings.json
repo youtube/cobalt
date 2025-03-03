@@ -1,0 +1,20 @@
+{
+    "project": "chromium-m132",
+    "project_title": "Chromium M132",
+    "ref": "refs/branch-heads/6834",
+    "chrome_project": "chrome-m132",
+    "is_main": false,
+    "platforms": {
+        "cros-lts": {
+            "description": "LTS"
+        },
+        "mac": {
+            "description": "extended stable",
+            "gardener_rotation": "chrome_browser_release"
+        },
+        "windows": {
+            "description": "extended stable",
+            "gardener_rotation": "chrome_browser_release"
+        }
+    }
+}

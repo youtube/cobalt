@@ -1,0 +1,57 @@
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../../resources/gesture-util.js"></script>
+<style>
+  html {
+    writing-mode: vertical-rl;
+  }
+  body {
+    margin: 0px;
+    height: 2000px;
+    width: 2000px;
+  }
+  #changer {
+    background-color: #FF7F7F;
+    width: 10px;
+  }
+  #anchor {
+    width: 1500px;
+    background-color: #84BE6A;
+  }
+</style>
+
+<div id="changer"></div>
+<div id="anchor"></div>
+
+<script>
+  const changer_desired_width = "100px";
+  const pixelsToScrollX = -205;
+  // End position: changer width + pixelsToScrollX.
+  const endX = -305;
+
+  function addScrollListener(target) {
+    const scrollListener = () => {
+      if (target.style.width != changer_desired_width) {
+        target.style.width = changer_desired_width;
+      }
+    }
+    document.addEventListener("scroll", scrollListener, { once: true });
+  }
+
+  promise_test(async () => {
+    await waitForCompositorReady();
+    await waitForScrollReset(document.scrollingElement);
+
+    // Scroll to the left (10px) so the anchor is invisible.
+    document.getElementById('anchor').scrollIntoView();
+    await waitForScrollendEvent(document);
+
+    const changer = document.getElementById("changer");
+    addScrollListener(changer);
+    await smoothScrollWithXY(
+      pixelsToScrollX, 0, 100, 100, GestureSourceType.MOUSE_INPUT,
+      SPEED_INSTANT);
+    assert_equals(window.scrollX, endX);
+  }, "Verify smooth scroll interaction with scroll anchoring on page with " +
+     "vertical-lr writing mode.");
+</script>

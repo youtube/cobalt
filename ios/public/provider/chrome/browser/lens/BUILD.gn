@@ -1,0 +1,27 @@
+# Copyright 2021 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("lens_api") {
+  sources = [
+    "lens_api.h",
+    "lens_configuration.h",
+    "lens_configuration.mm",
+    "lens_query.h",
+    "lens_query.mm",
+  ]
+  deps = [
+    "//base",
+    "//ios/web/public/navigation:navigation",
+  ]
+}
+
+source_set("lens_overlay_api") {
+  sources = [
+    "lens_overlay_accessibility_configuration.h",
+    "lens_overlay_accessibility_configuration.mm",
+    "lens_overlay_api.h",
+    "lens_overlay_result.h",
+  ]
+  deps = [ "//base" ]
+}

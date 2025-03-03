@@ -1,0 +1,69 @@
+// Copyright 2024 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+module cert_verifier.mojom;
+
+import "services/network/public/mojom/ip_address.mojom";
+
+struct CIDR {
+  network.mojom.IPAddress ip;
+  network.mojom.IPAddress mask;
+};
+
+// Certificate with constraints specified outside of the certificate.
+struct CertWithConstraints {
+  array<uint8> certificate;
+  array<string> permitted_dns_names;
+  array<CIDR> permitted_cidrs;
+};
+
+// TODO(crbug.com/40928765): change this struct to not have 7 different lists
+// of certs that imply different trusts, instead have only 1 or 2 lists of
+// certs where the trust level is passed with the certificate. Might not be 1
+// list (since distrust is by spki and is different enough).
+struct AdditionalCertificates {
+  // List of untrusted certificates, which will be used during path building.
+  array<array<uint8>> all_certificates;
+
+  // List of additional trust anchors.
+  array<array<uint8>> trust_anchors;
+
+  // List of additional trust anchors that have enforced constraints.
+  array<array<uint8>> trust_anchors_with_enforced_constraints;
+
+  // List of additional trust anchors with constraints specified separate from
+  // the certificate.
+  array<CertWithConstraints> trust_anchors_with_additional_constraints;
+
+  // List of additional certs that are both trust anchors and trusted leafs.
+  // They may also have additional constraints.
+  array<CertWithConstraints> trust_anchors_and_leafs;
+
+  // List of additional trusted leafs.
+  // They may also have additional constraints.
+  array<CertWithConstraints> trust_leafs;
+
+  // List of SPKIs that are explicitly distrusted.
+  array<array<uint8>> distrusted_spkis;
+
+  // If true, use user-added certs in the system trust store.
+  [EnableIfNot=is_chromeos]
+  bool include_system_trust_store = true;
+};
+
+// Updates a Cert Verifier with new parameters.
+interface CertVerifierServiceUpdater {
+  // Called when trust parameters change for Cert Verification.  All parameters
+  // will override any previously provided parameters that were provide (either
+  // via previous calls to UpdateCertVerifier or that were specified in
+  // cert_verifier.mojom.CertVerifierCreationParams.
+  UpdateAdditionalCertificates(AdditionalCertificates certificates);
+
+  // Called when you need to wait for the Update call to Cert Verifier to
+  // finish.
+  //
+  // When the next UpdateAdditionalCertificates call is completed, it will call
+  // the return callback.
+  WaitUntilNextUpdateForTesting() => ();
+};

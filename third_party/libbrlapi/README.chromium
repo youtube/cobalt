@@ -1,0 +1,26 @@
+Name: libbrlapi
+URL: https://github.com/brltty/brltty
+Version: 0.8
+Revision: 4e5618edae97a9381cd58cad3f14f10ffb0e37c7
+License: LGPL 2.1
+License File: LICENSE
+Security Critical: yes
+Shipped: yes
+CPEPrefix: cpe:/a:mielke:brltty:3.7.2
+
+Description:
+BRLTTY is a background process (daemon) which provides access to the Linux/Unix
+console (when in text mode) for a blind person using a refreshable braille
+display. It drives the braille display, and provides complete screen review
+functionality. Some speech capability has also been incorporated.
+
+BRLTTY is used in Chrome OS to provide braille output for the ChromeVox screen
+reader. ChromeVox communicates with BRLTTY using libbrlapi, the public client
+api.
+
+The libbrlapi.h header is imported because we need to keep it in sync with the
+libbrlapi so in Chrome OS.
+
+Local Modifications:
+brlapi_brldefs.h, brlapi_constants.h, and brlapi.h were generated via Autoconf
+for Chrome OS.

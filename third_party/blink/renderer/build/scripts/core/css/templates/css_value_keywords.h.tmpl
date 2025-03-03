@@ -1,0 +1,45 @@
+// Copyright 2014 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef {{header_guard}}
+#define {{header_guard}}
+
+#include <string.h>
+#include <stdint.h>
+
+#include <string_view>
+
+#include "base/containers/span.h"
+#include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/core/css/parser/css_parser_mode.h"
+
+namespace blink {
+
+enum class CSSValueID {
+  kInvalid = 0,
+{% for keyword in value_keywords %}
+  {{keyword.enum_name}} = {{keyword.enum_value}},
+{% endfor %}
+};
+
+constexpr int kNumCSSValueKeywords = {{value_keywords_count}};
+constexpr size_t kMaxCSSValueKeywordLength = {{max_value_keyword_length}};
+
+inline bool IsValidCSSValueID(CSSValueID id)
+{
+    return id != CSSValueID::kInvalid;
+}
+
+CORE_EXPORT std::string_view GetCSSValueName(CSSValueID);
+
+template <typename StringType>
+inline StringType GetCSSValueNameAs(CSSValueID value_id) {
+  return StringType(base::as_byte_span(GetCSSValueName(value_id)));
+}
+
+bool IsValueAllowedInMode(CSSValueID id, CSSParserMode mode);
+
+}  // namespace blink
+
+#endif  // {{header_guard}}

@@ -1,0 +1,82 @@
+<!--
+Copyright 2023 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<!--
+
+This file describes the enumerations referenced by entries in histograms.xml for
+this directory. Some enums may instead be listed in the central enums.xml file
+at src/tools/metrics/histograms/enums.xml when multiple files use them.
+
+For best practices on writing enumerations descriptions, see
+https://chromium.googlesource.com/chromium/src.git/+/HEAD/tools/metrics/histograms/README.md#Enum-Histograms
+
+Please follow the instructions in the OWNERS file in this directory to find a
+reviewer. If no OWNERS file exists, please consider signing up at
+go/reviewing-metrics (Googlers only), as all subdirectories are expected to
+have an OWNERS file. As a last resort you can send the CL to
+chromium-metrics-reviews@google.com.
+-->
+
+<histogram-configuration>
+
+<!-- Enum types -->
+
+<enums>
+
+<enum name="DownloadAuthenticationFactorsRegistrationStateResult">
+  <int value="0" label="Error"/>
+  <int value="1" label="Empty"/>
+  <int value="2" label="Recoverable"/>
+  <int value="3" label="Irrecoverable"/>
+</enum>
+
+<!-- LINT.IfChange(TrustedVaultDeviceRegistrationOutcome) -->
+
+<enum name="TrustedVaultDeviceRegistrationOutcome">
+  <int value="0" label="Success"/>
+  <int value="1" label="Already registered"/>
+  <int value="2" label="Local data obsolete"/>
+  <int value="3" label="Transient access token fetching error"/>
+  <int value="4" label="Persistent access token fetching error"/>
+  <int value="5" label="Primary account changed access token fetching error"/>
+  <int value="6" label="Network error"/>
+  <int value="7" label="Other error"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/trusted_vault/trusted_vault_histograms.h:TrustedVaultDeviceRegistrationOutcome) -->
+
+<!-- LINT.IfChange(TrustedVaultDeviceRegistrationState) -->
+
+<enum name="TrustedVaultDeviceRegistrationState">
+  <int value="0" label="Already registered V0"/>
+  <int value="1" label="Local keys are stale"/>
+  <int value="2" label="Throttled client side"/>
+  <int value="3" label="Attempting registration with newly generated keys"/>
+  <int value="4" label="Attempting registration with preexisting keys"/>
+  <int value="5"
+      label="Attempting registration while having persistent authentication
+             error (deprecated)"/>
+  <int value="6" label="Already registered V1"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/trusted_vault/trusted_vault_histograms.h:TrustedVaultDeviceRegistrationState) -->
+
+<!-- LINT.IfChange(TrustedVaultFileReadStatus) -->
+
+<enum name="TrustedVaultFileReadStatus">
+  <int value="0" label="Success"/>
+  <int value="1" label="File not found"/>
+  <int value="2" label="File read failed"/>
+  <int value="3" label="MD5 digest mismatch"/>
+  <int value="4" label="File proto deserialization failed"/>
+  <int value="5" label="Data proto deserialization failed"/>
+</enum>
+
+<!-- LINT.ThenChange(/components/trusted_vault/trusted_vault_histograms.h:TrustedVaultFileReadStatus) -->
+
+</enums>
+
+</histogram-configuration>

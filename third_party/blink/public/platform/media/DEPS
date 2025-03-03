@@ -1,0 +1,9 @@
+include_rules = [
+  "+base/functional/bind.h",
+  "+base/thread_annotations.h",
+  "+base/timer/timer.h",
+  "+media/base",
+  "+media/mojo/mojom/media_metrics_provider.mojom-forward.h",
+  "+media/renderers",
+  "+third_party/blink/public/web",
+]

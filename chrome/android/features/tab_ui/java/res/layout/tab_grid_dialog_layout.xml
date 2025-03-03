@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2019 The Chromium Authors
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<org.chromium.chrome.browser.tasks.tab_management.TabGridDialogView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:id="@+id/dialog_parent_view"
+    android:visibility="gone">
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/dialog_container_view"
+        android:focusable="true"
+        android:focusableInTouchMode="true"
+        android:clipToOutline="true"
+        android:background="@drawable/tab_grid_dialog_background"
+        android:contentDescription="@string/accessibility_tab_grid_dialog">
+        <FrameLayout
+            android:id="@+id/tab_grid_dialog_toolbar_container"
+            android:layout_alignParentTop="true"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+        <FrameLayout
+            android:id="@+id/tab_grid_dialog_recycler_view_container"
+            android:layout_below="@id/tab_grid_dialog_toolbar_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+        <ImageView
+            android:id="@+id/tab_grid_dialog_hairline"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_below="@id/tab_grid_dialog_toolbar_container"
+            android:src="@drawable/toolbar_hairline"
+            android:scaleType="fitXY"
+            android:importantForAccessibility="no"
+            android:visibility="gone"/>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/dialog_ungroup_bar"
+            android:orientation="vertical"
+            android:layout_alignParentBottom="true"
+            android:layout_centerHorizontal="true"
+            android:visibility="invisible"
+            tools:ignore="UseCompoundDrawables">
+            <ImageView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:src="@drawable/toolbar_hairline"
+                android:importantForAccessibility="no"/>
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/bottom_sheet_peek_height"
+                android:id="@+id/dialog_ungroup_bar_text"
+                android:textAppearance="@style/TextAppearance.TextMediumThick.Primary"
+                android:background="@drawable/ungroup_bar_background"
+                android:gravity="center" />
+        </LinearLayout>
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:id="@+id/dialog_snack_bar_container_view"
+            android:layout_alignParentBottom="true"
+            android:layout_centerHorizontal="true"/>
+    </RelativeLayout>
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:id="@+id/dialog_frame"
+        android:alpha="0.0"
+        android:background="@drawable/tab_grid_dialog_background">
+    </View>
+    <FrameLayout
+        android:id="@+id/dialog_animation_clip"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipChildren="true"
+        tools:ignore="UselessParent">
+        <FrameLayout
+            android:id="@+id/dialog_animation_card_view"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:alpha="0.0"
+            tools:ignore="UselessParent">
+            <include layout="@layout/tab_grid_card_item_layout"/>
+        </FrameLayout>
+   </FrameLayout>
+</org.chromium.chrome.browser.tasks.tab_management.TabGridDialogView>

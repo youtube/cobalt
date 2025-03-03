@@ -1,0 +1,38 @@
+[
+  {
+    "os": [
+      "chromeos_ash",
+      "chromeos_lacros"
+    ],
+    "policy_pref_mapping_tests": [
+      {
+        "policies": {},
+        "prefs": {
+          "floating_sso_enabled": {
+            "default_value": false
+          }
+        }
+      },
+      {
+        "policies": {
+          "FloatingSsoEnabled": false
+        },
+        "prefs": {
+          "floating_sso_enabled": {
+            "value": false
+          }
+        }
+      },
+      {
+        "policies": {
+          "FloatingSsoEnabled": true
+        },
+        "prefs": {
+          "floating_sso_enabled": {
+            "value": true
+          }
+        }
+      }
+    ]
+  }
+]
