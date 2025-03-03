@@ -23,7 +23,6 @@ if (cobalt_font_package == "empty") {
   }
 } else {
   action("fonts_xml") {
-    install_content = true
     script = "scripts/filter_fonts.py"
     font_xml = "$source_font_config_dir/fonts.xml"
     sources = [ font_xml ]
@@ -37,7 +36,6 @@ if (cobalt_font_package == "empty") {
   }
 
   copy("copy_fonts") {
-    install_content = true
     if (copy_font_files) {
       fonts = exec_script("scripts/filter_fonts.py",
                           [

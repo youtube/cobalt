@@ -16,11 +16,14 @@
 #include <set>
 #include <string>
 
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/nplb/nplb_evergreen_compat_tests/checks.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_IS(EVERGREEN_COMPATIBLE)
+#if !SB_IS(EVERGREEN_COMPATIBLE)
+#error These tests apply only to EVERGREEN_COMPATIBLE platforms.
+#endif
 
 namespace starboard {
 namespace nplb {
@@ -77,13 +80,7 @@ const char* kSabiJsonIdX64Sysv =
     "\"target_arch\":\"x64\",\"target_arch_sub\":\"\",\"word_size\":64}";
 #endif  // SB_API_VERSION == 17
 
-class SabiTest : public ::testing::Test {
- protected:
-  SabiTest() {}
-  ~SabiTest() {}
-};
-
-TEST_F(SabiTest, VerifySABI) {
+TEST(SabiTest, VerifySABI) {
   SB_LOG(INFO) << "Using SB_API_VERSION=" << SB_API_VERSION;
   SB_LOG(INFO) << "Using SABI=" << SB_SABI_JSON_ID;
 
@@ -115,5 +112,3 @@ TEST_F(SabiTest, VerifySABI) {
 }  // namespace nplb_evergreen_compat_tests
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_IS(EVERGREEN_COMPATIBLE)
