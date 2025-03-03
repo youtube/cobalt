@@ -18,7 +18,6 @@
 #include <memory>
 
 #include "media/base/audio_bus.h"
-// #include "media/base/audio_converter.h"
 #include "media/base/audio_fifo.h"
 #include "media/base/audio_parameters.h"
 #include "third_party/blink/renderer/modules/mediarecorder/audio_track_encoder.h"
@@ -29,8 +28,7 @@ namespace blink {
 
 // Class encapsulating FLAC-related encoding details. It contains an
 // AudioConverter to adapt incoming data to the format FLAC likes to have.
-class AudioTrackFlacEncoder : public AudioTrackEncoder,
-                              public media::AudioConverter::InputCallback {
+class AudioTrackFlacEncoder : public AudioTrackEncoder {
  public:
   AudioTrackFlacEncoder(OnEncodedAudioCB on_encoded_audio_cb, int sample_rate = 48000);
   ~AudioTrackFlacEncoder() override;
@@ -46,11 +44,6 @@ class AudioTrackFlacEncoder : public AudioTrackEncoder,
   bool is_initialized() const { return !!flac_encoder_; }
 
   void DestroyExistingFlacEncoder();
-
-  // media::AudioConverted::InputCallback implementation.
-  double ProvideInput(media::AudioBus* audio_bus,
-                      uint32_t frames_delayed,
-                      const media::AudioGlitchInfo& glitch_info) override;
 
   // FLAC encoder callback.
   static FLAC__StreamEncoderWriteStatus WriteCallback(

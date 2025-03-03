@@ -17,6 +17,8 @@ blink_modules_sources("mediarecorder") {
   sources = [
     "audio_track_encoder.cc",
     "audio_track_encoder.h",
+    "audio_track_flac_encoder.cc",
+    "audio_track_flac_encoder.h",
     "audio_track_mojo_encoder.cc",
     "audio_track_mojo_encoder.h",
     "audio_track_opus_encoder.cc",
@@ -50,6 +52,7 @@ blink_modules_sources("mediarecorder") {
     "//media/mojo/mojom",
     "//third_party/blink/renderer/modules/mediastream",
     "//third_party/libvpx",
+    "//third_party/flac:flac",
     "//third_party/libyuv",
     "//third_party/opus",
   ]

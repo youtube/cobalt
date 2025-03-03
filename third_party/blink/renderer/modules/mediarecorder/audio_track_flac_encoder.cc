@@ -45,7 +45,7 @@ AudioTrackFlacEncoder::AudioTrackFlacEncoder(
       FLAC__stream_encoder_set_bits_per_sample(flac_encoder_, kBitsPerSample);
       // Set the sample rate (in Hz) of the input to be encoded.
       FLAC__stream_encoder_set_sample_rate(flac_encoder_,
-                                           static_cast<uint32>(sample_rate));
+                                           static_cast<uint32_t>(sample_rate));
       // Set the compression level. A higher level usually means more computation
       // but higher compression.
       FLAC__stream_encoder_set_compression_level(flac_encoder_, kFLACCompressionLevel);
@@ -77,6 +77,19 @@ void AudioTrackFlacEncoder::EncodeAudio(
   if (!is_initialized() || paused_)
     return;
 
+  // DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  DCHECK_EQ(input_bus->channels(), size_t(1));
+  uint32_t frames = static_cast<uint32_t>(input_bus->frames());
+  std::unique_ptr<FLAC__int32[]> flac_samples(new FLAC__int32[frames]);
+  input_bus->ToInterleaved<media::Float32SampleTypeTraits>(frames, reinterpret_cast<float*>(flac_samples.get()));
+
+  FLAC__int32* flac_samples_ptr = flac_samples.get();
+  // Submit data for encoding.
+  FLAC__bool success =
+      FLAC__stream_encoder_process(flac_encoder_, &flac_samples_ptr, frames);
+  DCHECK(success);
+
 }
 
 void AudioTrackFlacEncoder::DestroyExistingFlacEncoder() {
@@ -91,8 +104,8 @@ void AudioTrackFlacEncoder::DestroyExistingFlacEncoder() {
 FLAC__StreamEncoderWriteStatus AudioTrackFlacEncoder::WriteCallback(
     const FLAC__StreamEncoder* encoder, const FLAC__byte buffer[], size_t bytes,
     unsigned int samples, unsigned int current_frame, void* client_data) {
-  AudioEncoderFlac* audio_encoder =
-      reinterpret_cast<AudioEncoderFlac*>(client_data);
+  AudioTrackFlacEncoder* audio_encoder =
+      reinterpret_cast<AudioTrackFlacEncoder*>(client_data);
   DCHECK(audio_encoder);
   // DCHECK_CALLED_ON_VALID_THREAD(audio_encoder->thread_checker_);
 
