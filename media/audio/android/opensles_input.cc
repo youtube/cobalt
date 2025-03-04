@@ -36,7 +36,9 @@ OpenSLESInputStream::OpenSLESInputStream(AudioManagerAndroid* audio_manager,
 
   const SampleFormat kSampleFormat = kSampleFormatS16;
 
-  format_.formatType = SL_DATAFORMAT_PCM;
+#if !FORMAT_HACK
+LOG(WARNING) << "====bugbug: Using normal Chrome conf===";
+format_.formatType = SL_DATAFORMAT_PCM;
   format_.numChannels = static_cast<SLuint32>(params.channels());
   // Provides sampling rate in milliHertz to OpenSLES.
   format_.samplesPerSec = static_cast<SLuint32>(params.sample_rate() * 1000);
@@ -44,6 +46,16 @@ OpenSLESInputStream::OpenSLESInputStream(AudioManagerAndroid* audio_manager,
       SampleFormatToBitsPerChannel(kSampleFormat);
   format_.endianness = SL_BYTEORDER_LITTLEENDIAN;
   format_.channelMask = ChannelCountToSLESChannelMask(params.channels());
+#else
+  LOG(WARNING) << "====bugbug: Using Cobalt hardcoded conf===";
+  format_.formatType = SL_ANDROID_DATAFORMAT_PCM_EX;
+  format_.numChannels = static_cast<SLuint32>(params.channels());
+  format_.sampleRate = static_cast<SLuint32>(params.sample_rate() * 1000);
+  format_.bitsPerSample = format_.containerSize = SampleFormatToBitsPerChannel(kSampleFormat);
+  format_.channelMask = SL_SPEAKER_FRONT_CENTER;
+  format_.endianness = SL_BYTEORDER_LITTLEENDIAN;
+  format_.representation = SL_ANDROID_PCM_REPRESENTATION_SIGNED_INT;
+#endif
 
   buffer_size_bytes_ = params.GetBytesPerBuffer(kSampleFormat);
   hardware_delay_ = base::Seconds(params.frames_per_buffer() /
@@ -249,9 +261,17 @@ bool OpenSLESInputStream::CreateRecorder() {
 
   // Uses the main microphone tuned for audio communications if effects are
   // enabled and disables all audio processing if effects are disabled.
+#define INPUT_PRESET_HACK 1
+
+#if !INPUT_PRESET_HACK
   SLint32 stream_type = no_effects_
                             ? SL_ANDROID_RECORDING_PRESET_CAMCORDER
                             : SL_ANDROID_RECORDING_PRESET_VOICE_COMMUNICATION;
+#else
+  // This is how Cobalt/Starboard sets it
+  SLint32 stream_type = SL_ANDROID_RECORDING_PRESET_VOICE_RECOGNITION;
+#endif
+
   LOG_ON_FAILURE_AND_RETURN(
       (*recorder_config)->SetConfiguration(recorder_config,
                                            SL_ANDROID_KEY_RECORDING_PRESET,
@@ -311,6 +331,13 @@ void OpenSLESInputStream::ReadBufferQueue() {
   // delay estimation.
   callback_->OnData(audio_bus_.get(), base::TimeTicks::Now() - hardware_delay_,
                     0.0, {});
+
+  auto sum = 0;
+  int8_t* ptr= reinterpret_cast<int8_t*>(audio_data_[active_buffer_index_]);
+  for(int i =0 ; i < buffer_size_bytes_; i++ ) {
+    sum+= ptr[i];
+  }
+  LOG(WARNING) << "Audio frame sum: " << sum;
 
   // Done with this buffer. Send it to device for recording.
   SLresult err =
