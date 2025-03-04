@@ -620,12 +620,14 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
       PLOG(ERROR) << "inotify_init failed";
       return false;
     }
+/* Cobalt
     if (!base::SetNonBlocking(inotify_fd_)) {
       PLOG(ERROR) << "base::SetNonBlocking failed";
       close(inotify_fd_);
       inotify_fd_ = -1;
       return false;
     }
+Cobalt */
 
     constexpr base::TaskTraits kTraits = {base::TaskPriority::USER_VISIBLE,
                                           base::MayBlock()};
@@ -641,7 +643,9 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
   void ShutDown() override {
     if (inotify_fd_ >= 0) {
       ResetCachedSettings();
+/* Cobalt
       inotify_watcher_.reset();
+Cobalt */
       close(inotify_fd_);
       inotify_fd_ = -1;
     }
@@ -670,10 +674,12 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
       return false;
     }
     notify_delegate_ = delegate;
+/* Cobalt
     inotify_watcher_ = base::FileDescriptorWatcher::WatchReadable(
         inotify_fd_,
         base::BindRepeating(&SettingGetterImplKDE::OnChangeNotification,
                             base::Unretained(this)));
+Cobalt */
     // Simulate a change to avoid possibly losing updates before this point.
     OnChangeNotification();
     return true;
@@ -861,7 +867,11 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
     bool at_least_one_kioslaverc_opened = false;
     for (const auto& kde_config_dir : kde_config_dirs_) {
       base::FilePath kioslaverc = kde_config_dir.Append("kioslaverc");
+/* Cobalt
       base::ScopedFILE input(base::OpenFile(kioslaverc, "r"));
+Cobalt */
+      base::ScopedFILE input(
+          new starboard::ScopedFile(kioslaverc.value().c_str(), 0));
       if (!input.get())
         continue;
 
@@ -874,6 +884,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
       bool line_too_long = false;
       char line[BUFFER_SIZE];
       // fgets() will return NULL on EOF or error.
+/* Cobalt
       while (fgets(line, sizeof(line), input.get())) {
         // fgets() guarantees the line will be properly terminated.
         size_t length = strlen(line);
@@ -936,6 +947,7 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
       }
       if (ferror(input.get()))
         LOG(ERROR) << "error reading " << kioslaverc.value();
+Cobalt */
     }
     if (at_least_one_kioslaverc_opened) {
       ResolveModeEffects();
@@ -991,7 +1003,9 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
         // large), but if it does we'd warn continuously since |inotify_fd_|
         // would be forever ready to read. Close it and stop watching instead.
         LOG(ERROR) << "inotify failure; no longer watching kioslaverc!";
+/* Cobalt
         inotify_watcher_.reset();
+Cobalt */
         close(inotify_fd_);
         inotify_fd_ = -1;
       }
@@ -1012,7 +1026,9 @@ class SettingGetterImplKDE : public ProxyConfigServiceLinux::SettingGetter {
                    std::vector<std::string> > strings_map_type;
 
   int inotify_fd_ = -1;
+/* Cobalt
   std::unique_ptr<base::FileDescriptorWatcher::Controller> inotify_watcher_;
+Cobalt */
   raw_ptr<ProxyConfigServiceLinux::Delegate> notify_delegate_ = nullptr;
   std::unique_ptr<base::OneShotTimer> debounce_timer_;
   std::vector<base::FilePath> kde_config_dirs_;
