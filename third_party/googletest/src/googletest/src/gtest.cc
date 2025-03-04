@@ -5565,13 +5565,13 @@ void UnitTest::AddTestPartResult(TestPartResult::Type result_type,
       // when a failure happens and both the --gtest_break_on_failure and
       // the --gtest_catch_exceptions flags are specified.
       DebugBreak();
+#elif BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+      SbSystemBreakIntoDebugger();
 #elif (!defined(__native_client__)) &&            \
     ((defined(__clang__) || defined(__GNUC__)) && \
      (defined(__x86_64__) || defined(__i386__)))
       // with clang/gcc we can achieve the same effect on x86 by invoking int3
       asm("int3");
-#elif BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-      SbSystemBreakIntoDebugger();
 #else
       // Dereference nullptr through a volatile pointer to prevent the compiler
       // from removing. We use this rather than abort() or __builtin_trap() for
