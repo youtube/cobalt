@@ -301,9 +301,8 @@ extern "C" int SbRunStarboardMain(int argc,
   // Signal GameActivity_onCreate() that it may proceed.
   g_app_created_semaphore->Put();
 
-  cobalt::browser::DeepLinkManager* manager =
-      cobalt::browser::DeepLinkManager::GetInstance();
-  std::string start_url = manager->GetDeepLink();
+  const auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
+  const std::string start_url = manager->GetDeepLink();
   SB_LOG(INFO) << "GetStartDeepLink: " << start_url;
 
   // Enter the Starboard run loop until stopped.

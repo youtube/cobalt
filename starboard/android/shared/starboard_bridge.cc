@@ -110,10 +110,10 @@ extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_HandleDeepLink(
   cobalt::browser::DeepLinkManager* manager =
       cobalt::browser::DeepLinkManager::GetInstance();
   if (applicationReady) {
-    // TODO: handle warm start deeplink
+    // TODO(cobalt, b/374147993): handle warm start deeplink
   } else {
     // Cold start deeplink
-    manager->SetDeepLink(url);
+    manager->set_deep_link(url);
   }
 }
 

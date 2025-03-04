@@ -30,8 +30,12 @@ class DeepLinkManager {
   DeepLinkManager(const DeepLinkManager&) = delete;
   DeepLinkManager& operator=(const DeepLinkManager&) = delete;
 
-  void SetDeepLink(const std::string& url);
-  const std::string& GetDeepLink() const;
+  void set_deep_link(const std::string& url) { deep_link_ = url; }
+  const std::string& get_deep_link() const { return deep_link_; }
+
+  // To ensure exactly-once delivery, the deeplink is erased after delivery to
+  // the application.
+  const std::string& GetAndClearDeepLink();
 
  private:
   friend class base::NoDestructor<DeepLinkManager>;

@@ -41,13 +41,8 @@ void H5vccRuntimeImpl::Create(
 }
 
 void H5vccRuntimeImpl::GetInitialDeepLink(GetInitialDeepLinkCallback callback) {
-  cobalt::browser::DeepLinkManager* manager =
-      cobalt::browser::DeepLinkManager::GetInstance();
-  std::move(callback).Run(manager->GetDeepLink());
-
-  // To ensure exactly-once delivery, the deeplink is erased after delivery to
-  // the application.
-  manager->SetDeepLink("");
+  auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
+  std::move(callback).Run(manager->GetAndClearDeepLink());
 }
 
 }  // namespace h5vcc_runtime
