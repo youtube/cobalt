@@ -3,9 +3,18 @@ ARG BASE_IMAGE_SHA=sha256:4abf773f2a570e6873259c4e3ba16de6c6268fb571fd46ec80be7c
 FROM debian:12@${BASE_IMAGE_SHA}
 
 # Install any necessary dependencies
+# TODO: verify which graphics libraries are required and remove the others
+# libgles2-mesa-dev \
+# mesa-vulkan-drivers \
+# libglapi-mesa \
+# libegl-mesa0 \
 RUN apt-get update && apt-get install -y \
     jq \
     libasound2 \
+    libgles2-mesa-dev \
+    mesa-vulkan-drivers \
+    libglapi-mesa \
+    libegl-mesa0 \
     libdbus-1-3 \
     libgbm-dev \
     libnss3 \
