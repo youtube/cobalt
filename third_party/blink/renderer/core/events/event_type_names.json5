@@ -364,7 +364,7 @@
     "writeend",
     "writestart",
     "zoom",
-    # Cobalt Event
+    # TODO(cobalt, b/400518318): "Extract Cobalt event to separate file"
     "deeplink",
   ],
 }
