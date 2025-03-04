@@ -49,11 +49,11 @@ void H5vccRuntime::OnGetInitialDeepLink(ScriptPromiseResolver* resolver,
   resolver->Resolve(result);
 }
 
-EventListener* H5vccRuntime::onDeepLink() {
+EventListener* H5vccRuntime::ondeeplink() {
   return GetAttributeEventListener(event_type_names::kDeeplink);
 }
 
-void H5vccRuntime::setOnDeepLink(EventListener* listener) {
+void H5vccRuntime::setOndeeplink(EventListener* listener) {
   SetAttributeEventListener(event_type_names::kDeeplink, listener);
 
   EnsureReceiverIsBound();

@@ -50,8 +50,8 @@ class MODULES_EXPORT H5vccRuntime final
 
   // Web-exposed interface:
   ScriptPromise getInitialDeepLink(ScriptState*, ExceptionState&);
-  EventListener* onDeepLink();
-  void setOnDeepLink(EventListener* listener);
+  EventListener* ondeeplink();
+  void setOndeeplink(EventListener* listener);
 
   // EventTargetWithInlineData impl.
   ExecutionContext* GetExecutionContext() const override {
