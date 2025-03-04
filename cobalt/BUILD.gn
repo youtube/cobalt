@@ -109,6 +109,9 @@ test("cobalt_unittests") {
     "//testing/gmock",
     "//testing/gtest",
     "//third_party/blink/public/common",
-    "//ui/ozone:ozone",
   ]
+
+  if (!is_android) {
+    deps += [ "//ui/ozone:ozone" ]
+  }
 }
