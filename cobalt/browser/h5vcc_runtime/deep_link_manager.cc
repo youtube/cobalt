@@ -20,14 +20,27 @@
 namespace cobalt {
 namespace browser {
 
-DeepLinkManager::DeepLinkManager() = default;
+DeepLinkManager::DeepLinkManager() {
+  DETACH_FROM_THREAD(thread_checker_);
+}
 
-DeepLinkManager::~DeepLinkManager() = default;
+DeepLinkManager::~DeepLinkManager() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+}
 
 // static
 DeepLinkManager* DeepLinkManager::GetInstance() {
   static base::NoDestructor<DeepLinkManager> provider;
   return provider.get();
+}
+
+void DeepLinkManager::set_deep_link(const std::string& url) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  deep_link_ = url;
+}
+const std::string& DeepLinkManager::get_deep_link() const {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  return deep_link_;
 }
 
 const std::string& DeepLinkManager::GetAndClearDeepLink() {

@@ -31,11 +31,8 @@ class DeepLinkManager {
   DeepLinkManager(const DeepLinkManager&) = delete;
   DeepLinkManager& operator=(const DeepLinkManager&) = delete;
 
-  void set_deep_link(const std::string& url) {
-    DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-    deep_link_ = url;
-  }
-  const std::string& get_deep_link() const { return deep_link_; }
+  void set_deep_link(const std::string& url);
+  const std::string& get_deep_link() const;
 
   // To ensure exactly-once delivery, the deeplink is erased after delivery to
   // the application.
