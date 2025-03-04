@@ -118,8 +118,11 @@ TEST(CobaltSwitchDefaultsTest, AlwaysEnabledSwitches) {
     EXPECT_TRUE(HasSwitch(cmd_line_pxr, switch_key));
   }
 
+#if !BUILDFLAG(IS_ANDROID)
   const auto ozone_pf =
       GetSwitchValue(cmd_line_pxr, ::switches::kOzonePlatform);
+#endif  // !BUILDFLAG(IS_ANDROID)
+
   EXPECT_EQ("starboard", ozone_pf);
   // Other default switches are subject to changes later down the line.
 }

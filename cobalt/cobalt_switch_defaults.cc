@@ -50,17 +50,18 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
 // Map of switches with parameters and their defaults.
 const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
   const base::CommandLine::SwitchMap cobalt_param_switch_defaults({
-      // Disable Vulkan.
-      {switches::kDisableFeatures, "Vulkan"},
-      // Force some ozone settings.
-      {switches::kOzonePlatform, "starboard"},
-      {switches::kUseGL, "angle"},
-      {switches::kUseANGLE, "gles-egl"},
-      // Set the default size for the content shell/starboard window.
-      {switches::kContentShellHostWindowSize, "1920x1080"},
-      // Enable remote Devtools access.
-      {switches::kRemoteDebuggingPort, "9222"},
-      {switches::kRemoteAllowOrigins, "http://localhost:9222"},
+    // Disable Vulkan.
+    {switches::kDisableFeatures, "Vulkan"},
+    // Force some ozone settings.
+#if !BUILDFLAG(IS_ANDROID)
+        {switches::kOzonePlatform, "starboard"}, {switches::kUseGL, "angle"},
+        {switches::kUseANGLE, "gles-egl"},
+#endif  // !BUILDFLAG(IS_ANDROID)
+        // Set the default size for the content shell/starboard window.
+        {switches::kContentShellHostWindowSize, "1920x1080"},
+        // Enable remote Devtools access.
+        {switches::kRemoteDebuggingPort, "9222"},
+        {switches::kRemoteAllowOrigins, "http://localhost:9222"},
   });
   return cobalt_param_switch_defaults;
 }

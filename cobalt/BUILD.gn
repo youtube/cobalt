@@ -59,7 +59,7 @@ if (!is_android) {
       "//sandbox",
       "//starboard:starboard_group",
       "//third_party/blink/public/common",
-      "//ui/ozone:ozone",
+      "//ui/ozone:ozone_switches",
     ]
 
     data_deps = [
@@ -98,7 +98,6 @@ test("cobalt_unittests") {
   deps = [
     "//base/test:run_all_unittests",
     "//chrome/common:non_code_constants",
-    "//cobalt:cobalt",
     "//cobalt/browser:switches",
     "//cobalt/gpu",
     "//cobalt/user_agent",
@@ -112,6 +111,6 @@ test("cobalt_unittests") {
   ]
 
   if (!is_android) {
-    deps += [ "//ui/ozone:ozone" ]
+    deps += [ "//ui/ozone:ozone_switches" ]
   }
 }
