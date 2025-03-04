@@ -23,6 +23,15 @@
 namespace cobalt {
 namespace browser {
 
+//  This class is a singleton that provides a central point for storing and
+//  retrieving the deep link URL that was used to launch the application.  It
+//  handles both initial deep links (available at app startup) and warm start
+//  deep links (received while the app is already running). It ensures that
+//  the deep link is delivered exactly once to the JavaScript side. This
+//  class also manages a set of mojom::DeepLinkListener, and forward the deep
+//  link message to them. DeepLinkManager is a singleton, and its instance is
+//  created on first access via `GetInstance()`.  It is *never* destroyed (using
+//  `base::NoDestructor`).
 class DeepLinkManager {
  public:
   // Get the singleton instance.
