@@ -22,5 +22,5 @@ interface H5vccRuntime : EventTarget {
     [CallWith=ScriptState, RaisesException]
     Promise<DOMString> getInitialDeepLink();
 
-    attribute EventHandler onDeepLink;
+    attribute EventHandler ondeeplink;
 };
