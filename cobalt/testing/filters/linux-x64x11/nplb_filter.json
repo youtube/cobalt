@@ -2,7 +2,7 @@
   "failing_tests": [
     "SbSystemGetLocaleIdTest.SunnyDay",
     "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.*",
-    "MultiplePlayerTests/MultiplePlayerTest.*",
+    "MultiplePlayerTest.*",
     "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.*",
     "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.*",
     "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*",
