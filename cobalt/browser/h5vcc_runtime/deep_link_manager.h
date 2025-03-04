@@ -36,7 +36,7 @@ class DeepLinkManager {
 
   // To ensure exactly-once delivery, the deeplink is erased after delivery to
   // the application.
-  const std::string& GetAndClearDeepLink();
+  const std::string GetAndClearDeepLink();
 
  private:
   friend class base::NoDestructor<DeepLinkManager>;

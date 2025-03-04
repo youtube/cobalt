@@ -43,8 +43,8 @@ const std::string& DeepLinkManager::get_deep_link() const {
   return deep_link_;
 }
 
-const std::string& DeepLinkManager::GetAndClearDeepLink() {
-  const std::string& value = get_deep_link();
+const std::string DeepLinkManager::GetAndClearDeepLink() {
+  const std::string value = get_deep_link();
   set_deep_link("");
   return value;
 }
