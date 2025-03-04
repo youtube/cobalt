@@ -30,7 +30,14 @@
 //
 // The Google C++ Testing and Mocking Framework (Google Test)
 
+#include "build/build_config.h"
 #include "gtest/gtest.h"
+
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#include "starboard/client_porting/eztime/eztime.h" // nogncheck
+#include "starboard/common/file.h" // nogncheck
+#include "starboard/system.h" // nogncheck
+#endif
 
 #include <ctype.h>
 #include <stdarg.h>
@@ -364,6 +371,18 @@ GTEST_DEFINE_string_(
     flagfile, testing::internal::StringFromGTestEnv("flagfile", ""),
     "This flag specifies the flagfile to read command-line flags from.");
 #endif  // GTEST_USE_OWN_FLAGFILE_FLAG_
+
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+GTEST_DEFINE_int32_(
+    total_shards,
+    internal::Int32FromGTestEnv("total_shards", -1),
+    "The total number of shards to split test cases into.");
+GTEST_DEFINE_int32_(
+    shard_index,
+    internal::Int32FromGTestEnv("shard_index", -1),
+    "The shard index that determines the subset of unit tests run in the shard.");
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 namespace testing {
 namespace internal {
@@ -2085,7 +2104,12 @@ AssertionResult CmpHelperSTRNE(const char* s1_expression,
 bool String::CaseInsensitiveCStringEquals(const char* lhs, const char* rhs) {
   if (lhs == nullptr) return rhs == nullptr;
   if (rhs == nullptr) return false;
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  return strcasecmp(lhs, rhs) == 0;
+#else
   return posix::StrCaseCmp(lhs, rhs) == 0;
+#endif // ENABLE_COBALT_HERMETIC_HACKS
 }
 
 // Compares two wide C strings, ignoring case.  Returns true if and only if they
@@ -3232,7 +3256,8 @@ bool ShouldUseColor(bool stdout_is_tty) {
   const char* const gtest_color = c.c_str();
 
   if (String::CaseInsensitiveCStringEquals(gtest_color, "auto")) {
-#if GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_MINGW
+// TODO: b/399507045 - Cobalt: Fix weird printing out artifacts
+#if (GTEST_OS_WINDOWS && !GTEST_OS_WINDOWS_MINGW) || BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     // On Windows the TERM variable is usually not set, but the
     // console there does support colors.
     return stdout_is_tty;
@@ -3310,6 +3335,11 @@ static void ColoredPrintf(GTestColor color, const char* fmt, ...) {
   fflush(stdout);
   // Restores the text color.
   SetConsoleTextAttribute(stdout_handle, old_color_attrs);
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#elif BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  posix::PrintF("\033[0;3%sm", GetAnsiColorCode(color));
+  posix::VPrintF(fmt, args);
+  posix::PrintF("\033[m");  // Resets the terminal to default.
 #else
   printf("\033[0;3%sm", GetAnsiColorCode(color));
   vprintf(fmt, args);
@@ -3412,9 +3442,16 @@ void PrettyUnitTestResultPrinter::OnTestIterationStart(
   }
 
   ColoredPrintf(GTestColor::kGreen, "[==========] ");
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  posix::PrintF("Running %s from %s.\n",
+         FormatTestCount(unit_test.test_to_run_count()).c_str(),
+         FormatTestSuiteCount(unit_test.test_suite_to_run_count()).c_str());
+#else
   printf("Running %s from %s.\n",
          FormatTestCount(unit_test.test_to_run_count()).c_str(),
          FormatTestSuiteCount(unit_test.test_suite_to_run_count()).c_str());
+#endif // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   fflush(stdout);
 }
 
@@ -3495,9 +3532,16 @@ void PrettyUnitTestResultPrinter::OnTestEnd(const TestInfo& test_info) {
   if (test_info.result()->Failed()) PrintFullTestCommentIfPresent(test_info);
 
   if (GTEST_FLAG_GET(print_time)) {
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+    posix::PrintF(" (%s ms)\n",
+           internal::StreamableToString(test_info.result()->elapsed_time())
+               .c_str());
+#else 
     printf(" (%s ms)\n",
            internal::StreamableToString(test_info.result()->elapsed_time())
                .c_str());
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   } else {
     printf("\n");
   }
@@ -3511,8 +3555,14 @@ void PrettyUnitTestResultPrinter::OnTestCaseEnd(const TestCase& test_case) {
   const std::string counts =
       FormatCountableNoun(test_case.test_to_run_count(), "test", "tests");
   ColoredPrintf(GTestColor::kGreen, "[----------] ");
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  posix::PrintF("%s from %s (%s ms total)\n\n", counts.c_str(), test_case.name(),
+         internal::StreamableToString(test_case.elapsed_time()).c_str());
+#else
   printf("%s from %s (%s ms total)\n\n", counts.c_str(), test_case.name(),
          internal::StreamableToString(test_case.elapsed_time()).c_str());
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   fflush(stdout);
 }
 #else
@@ -3522,8 +3572,14 @@ void PrettyUnitTestResultPrinter::OnTestSuiteEnd(const TestSuite& test_suite) {
   const std::string counts =
       FormatCountableNoun(test_suite.test_to_run_count(), "test", "tests");
   ColoredPrintf(GTestColor::kGreen, "[----------] ");
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  posix::PrintF("%s from %s (%s ms total)\n\n", counts.c_str(), test_suite.name(),
+         internal::StreamableToString(test_suite.elapsed_time()).c_str());
+#else
   printf("%s from %s (%s ms total)\n\n", counts.c_str(), test_suite.name(),
          internal::StreamableToString(test_suite.elapsed_time()).c_str());
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   fflush(stdout);
 }
 #endif  // GTEST_REMOVE_LEGACY_TEST_CASEAPI_
@@ -3607,6 +3663,108 @@ void PrettyUnitTestResultPrinter::PrintSkippedTests(const UnitTest& unit_test) {
   }
 }
 
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
+                                                     int /*iteration*/) {
+  // Due to the test processes relying on regex-parsing of GTEST test result
+  // summary output, we modify this step to atomically output the logs to stdout
+  // to avoid other external SbLogRaw calls from being inserted between calls to
+  // posix:PrintF().
+  // This batching guarantees that the output is well-formatted as the test
+  // runner scripts are setup to expect.
+  // See b/251827741
+  std::stringstream out_stream;
+  out_stream << "[==========] ";
+
+  out_stream << FormatTestCount(unit_test.test_to_run_count())
+             << " from "
+             << FormatTestSuiteCount(unit_test.test_suite_to_run_count())
+             << " ran.";
+
+  if (GTEST_FLAG(print_time)) {
+    out_stream << " ("
+               << internal::StreamableToString(unit_test.elapsed_time())
+               << " ms total)";
+  }
+  out_stream << std::endl;
+
+  out_stream << "[  PASSED  ] "
+             << FormatTestCount(unit_test.successful_test_count())
+             << "."
+             << std::endl;
+
+  int num_failures = unit_test.failed_test_count();
+  if (!unit_test.Passed()) {
+    const int failed_test_count = unit_test.failed_test_count();
+    out_stream << "[  FAILED  ] "
+               << FormatTestCount(failed_test_count)
+               << ", listed below:"
+               << std::endl;
+
+    // Print each failed test case within the unit test.
+    for (int i = 0; i < unit_test.total_test_case_count(); ++i) {
+      const TestCase& test_case = *unit_test.GetTestCase(i);
+      if (!test_case.should_run() || (test_case.failed_test_count() == 0)) {
+        continue;
+      }
+      for (int j = 0; j < test_case.total_test_count(); ++j) {
+        const TestInfo& test_info = *test_case.GetTestInfo(j);
+        if (!test_info.should_run() || test_info.result()->Passed()) {
+          continue;
+        }
+        out_stream << "[  FAILED  ] "
+                   << test_case.name()
+                   << "."
+                   << test_info.name();
+
+        // Output the full test comment if present.
+        const char* const type_param = test_info.type_param();
+        const char* const value_param = test_info.value_param();
+        if (type_param != NULL || value_param != NULL) {
+          out_stream << ", where ";
+          if (type_param != NULL) {
+            out_stream << kTypeParamLabel
+                       << " = "
+                       << type_param;
+            if (value_param != NULL) {
+              out_stream << " and ";
+            }
+          }
+          if (value_param != NULL) {
+            out_stream << kValueParamLabel
+                       << " = "
+                       << value_param;
+          }
+        }
+        out_stream << std::endl;
+      }
+    }
+
+    out_stream << num_failures
+               << " FAILED "
+               << (num_failures == 1 ? "TEST" : "TESTS")
+               << std::endl;
+  }
+
+  int num_disabled = unit_test.reportable_disabled_test_count();
+  if (num_disabled && !GTEST_FLAG(also_run_disabled_tests)) {
+    if (!num_failures) {
+      // Add a spacer if no FAILURE banner is displayed.
+      out_stream << std::endl;
+    }
+    out_stream << "  YOU HAVE "
+               << num_disabled
+               << " DISABLED "
+               << (num_disabled == 1 ? "TEST" : "TESTS")
+               << std::endl
+               << std::endl;
+  }
+  // Ensure that Google Test output is printed before, e.g., heapchecker output.
+  posix::PrintF("%s", out_stream.str().c_str());
+  posix::Flush();
+}
+#else
 void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                      int /*iteration*/) {
   ColoredPrintf(GTestColor::kGreen, "[==========] ");
@@ -3644,6 +3802,7 @@ void PrettyUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
   // Ensure that Google Test output is printed before, e.g., heapchecker output.
   fflush(stdout);
 }
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // End PrettyUnitTestResultPrinter
 
@@ -3708,9 +3867,16 @@ void BriefUnitTestResultPrinter::OnTestEnd(const TestInfo& test_info) {
     PrintFullTestCommentIfPresent(test_info);
 
     if (GTEST_FLAG_GET(print_time)) {
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+      internal::posix::PrintF(" (%s ms)\n",
+             internal::StreamableToString(test_info.result()->elapsed_time())
+                 .c_str());
+#else
       printf(" (%s ms)\n",
              internal::StreamableToString(test_info.result()->elapsed_time())
                  .c_str());
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     } else {
       printf("\n");
     }
@@ -3718,6 +3884,63 @@ void BriefUnitTestResultPrinter::OnTestEnd(const TestInfo& test_info) {
   }
 }
 
+// TODO: b/399507045 - Cobalt: Fix runtime errors, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+void BriefUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
+                                                    int /*iteration*/) {
+  // Due to the test processes relying on regex-parsing of GTEST test result
+  // summary output, we modify this step to atomically output the logs to stdout
+  // to avoid other external SbLogRaw calls from being inserted between calls to
+  // posix:PrintF().
+  // This batching guarantees that the output is well-formatted s.t. the test
+  // runner scripts received expected output despite reentrant logging.
+  // See b/251827741
+  std::stringstream out_stream;
+  out_stream << "[==========] ";
+
+  out_stream << FormatTestCount(unit_test.test_to_run_count()).c_str()
+             << " from "
+             << FormatTestSuiteCount(unit_test.test_suite_to_run_count()).c_str()
+             << " ran.";
+
+  if (GTEST_FLAG_GET(print_time)) {
+    out_stream << " ("
+               << internal::StreamableToString(unit_test.elapsed_time()).c_str()
+               << " ms total)";
+  }
+
+  out_stream << std::endl;
+
+  out_stream << "[  PASSED  ] "
+             << FormatTestCount(unit_test.successful_test_count()).c_str()
+             << "."
+             << std::endl;
+
+  const int skipped_test_count = unit_test.skipped_test_count();
+  if (skipped_test_count > 0) {
+    out_stream << "[  SKIPPED ] ";
+    out_stream << FormatTestCount(skipped_test_count).c_str()
+               << "."
+               << std::endl;
+  }
+
+  const int num_disabled = unit_test.reportable_disabled_test_count();
+  if (num_disabled && !GTEST_FLAG_GET(also_run_disabled_tests)) {
+    if (unit_test.Passed()) {
+      out_stream << std::endl;  // Add a spacer if no FAILURE banner is displayed.
+    }
+    out_stream << "  YOU HAVE "
+               << num_disabled
+               << " DISABLED "
+               << (num_disabled == 1 ? "TEST" : "TESTS")
+               << std::endl
+               << std::endl;
+  }
+  // Ensure that Google Test output is printed before, e.g., heapchecker output.
+  internal::posix::PrintF("%s", out_stream.str().c_str());
+  internal::posix::Flush();
+}
+#else
 void BriefUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                     int /*iteration*/) {
   ColoredPrintf(GTestColor::kGreen, "[==========] ");
@@ -3749,6 +3972,7 @@ void BriefUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
   // Ensure that Google Test output is printed before, e.g., heapchecker output.
   fflush(stdout);
 }
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // End BriefUnitTestResultPrinter
 
@@ -3977,6 +4201,17 @@ class XmlUnitTestResultPrinter : public EmptyTestEventListener {
 
   GTEST_DISALLOW_COPY_AND_ASSIGN_(XmlUnitTestResultPrinter);
 };
+
+// TODO: b/399507045 - Cobalt: Fix build error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+void WriteOuputFile(const std::string &output_file, const std::string &data) {
+  starboard::ScopedFile cache_file(output_file.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
+  if (!cache_file.IsValid()) {
+    SB_LOG(ERROR) << "Unable to open file " << output_file << " for XML output";
+  }
+  cache_file.WriteAll(data.c_str(), static_cast<int>(data.size()));
+}
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // Creates a new XmlUnitTestResultPrinter.
 XmlUnitTestResultPrinter::XmlUnitTestResultPrinter(const char* output_file)
@@ -4561,9 +4796,17 @@ static std::string FormatTimeInMillisAsDuration(TimeInMillis ms) {
 // Converts the given epoch time in milliseconds to a date string in the
 // RFC3339 format, without the timezone information.
 static std::string FormatEpochTimeInMillisAsRFC3339(TimeInMillis ms) {
+// TODO: b/399507045 - Cobalt: Investigate if we want to use eztime
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  EzTimeExploded time_struct;
+  const EzTimeT seconds = static_cast<EzTimeT>(ms / 1000);
+  if (EzTimeTExplodeLocal(&seconds, &time_struct) == NULL)
+    return "";
+#else
   struct tm time_struct;
   if (!PortableLocaltime(static_cast<time_t>(ms / 1000), &time_struct))
     return "";
+#endif // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   // YYYY-MM-DDThh:mm:ss
   return StreamableToString(time_struct.tm_year + 1900) + "-" +
          String::FormatIntWidth2(time_struct.tm_mon + 1) + "-" +
@@ -5322,6 +5565,8 @@ void UnitTest::AddTestPartResult(TestPartResult::Type result_type,
       // when a failure happens and both the --gtest_break_on_failure and
       // the --gtest_catch_exceptions flags are specified.
       DebugBreak();
+#elif BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+      SbSystemBreakIntoDebugger();
 #elif (!defined(__native_client__)) &&            \
     ((defined(__clang__) || defined(__GNUC__)) && \
      (defined(__x86_64__) || defined(__i386__)))

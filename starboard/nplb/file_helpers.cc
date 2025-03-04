@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <sstream>
 #include <string>
 #include <vector>
