@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <pthread.h>
+#include "starboard/common/log.h"
 
 extern "C" {
 
