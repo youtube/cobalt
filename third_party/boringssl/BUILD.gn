@@ -11,6 +11,8 @@ import("//testing/libfuzzer/fuzzer_test.gni")
 import("BUILD.generated.gni")
 import("BUILD.generated_tests.gni")
 
+import("//cobalt/build/configs/hacks.gni")
+
 if (enable_rust) {
   import("//build/rust/cargo_crate.gni")
   import("//build/rust/rust_bindgen.gni")
@@ -178,12 +180,6 @@ component("boringssl") {
   # config is forwarded to callers. In particular, boringssl_crypto_tests
   # requires it.
   public_deps = [ ":boringssl_asm" ]
-  if (is_cobalt_hermetic_build) {
-    public_deps += [
-      "//starboard:starboard_headers_only",
-      "//starboard/common",
-    ]
-  }
 
   public_configs = [ ":external_config" ]
   configs += [ ":component_config" ]
@@ -208,7 +204,13 @@ component("boringssl") {
   }
 
   if (is_cobalt_hermetic_build) {
-    deps += [ "//starboard:starboard_headers_only" ]
+    deps += [
+      "//starboard:starboard_headers_only",
+      "//starboard/common",
+    ]
+  }
+  if (enable_cobalt_hermetic_hacks) {
+    sources += [ "src/crypto/thread_starboard.c" ]
   }
 }
 
