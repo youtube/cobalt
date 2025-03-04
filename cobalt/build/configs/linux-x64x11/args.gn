@@ -40,3 +40,6 @@ enable_nacl = false
 enable_print_preview = false
 use_cups = false
 use_kerberos = false
+
+# Disable component build
+is_component_build = false
