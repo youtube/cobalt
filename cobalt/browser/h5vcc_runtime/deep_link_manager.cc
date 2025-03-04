@@ -32,9 +32,7 @@ DeepLinkManager* DeepLinkManager::GetInstance() {
 
 const std::string& DeepLinkManager::GetAndClearDeepLink() {
   const std::string& value = get_deep_link();
-  if (!value.empty()) {
-    set_deep_link("");
-  }
+  set_deep_link("");
   return value;
 }
 
