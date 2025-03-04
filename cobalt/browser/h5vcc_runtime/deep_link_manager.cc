@@ -12,15 +12,31 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This interface mirrors the H5vccRuntime Web IDL defined in Cobalt LTS 25:
-// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_runtime.idl
-[
-    Exposed=Window,
-    SecureContext
-]
-interface H5vccRuntime : EventTarget {
-    [CallWith=ScriptState, RaisesException]
-    Promise<DOMString> getInitialDeepLink();
+#include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 
-    attribute EventHandler onDeepLink;
-};
+#include "base/check.h"
+#include "base/no_destructor.h"
+
+namespace cobalt {
+namespace browser {
+
+DeepLinkManager::DeepLinkManager() = default;
+
+DeepLinkManager::~DeepLinkManager() = default;
+
+// static
+DeepLinkManager* DeepLinkManager::GetInstance() {
+  static base::NoDestructor<DeepLinkManager> provider;
+  return provider.get();
+}
+
+void DeepLinkManager::SetDeepLink(const std::string& url) {
+  deep_link_ = url;
+}
+
+const std::string& DeepLinkManager::GetDeepLink() const {
+  return deep_link_;
+}
+
+}  // namespace browser
+}  // namespace cobalt
