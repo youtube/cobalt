@@ -16,7 +16,6 @@
 
 #include "build/build_config.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
-#include "starboard/common/log.h"
 #include "starboard/event.h"
 #include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -24,7 +23,6 @@
 namespace {
 int InitAndRunAllTests(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
-  SB_LOG(INFO) << "In InitAndRunAllTests";
   return RUN_ALL_TESTS();
 }
 }  // namespace
