@@ -26,6 +26,7 @@ DeepLinkManager::~DeepLinkManager() = default;
 
 // static
 DeepLinkManager* DeepLinkManager::GetInstance() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   static base::NoDestructor<DeepLinkManager> provider;
   return provider.get();
 }

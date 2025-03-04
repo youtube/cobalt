@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/no_destructor.h"
+#include "base/threading/thread_checker.h"
 
 namespace cobalt {
 namespace browser {
@@ -30,7 +31,10 @@ class DeepLinkManager {
   DeepLinkManager(const DeepLinkManager&) = delete;
   DeepLinkManager& operator=(const DeepLinkManager&) = delete;
 
-  void set_deep_link(const std::string& url) { deep_link_ = url; }
+  void set_deep_link(const std::string& url)
+      VALID_CONTEXT_REQUIRED(thread_checker_) {
+    deep_link_ = url;
+  }
   const std::string& get_deep_link() const { return deep_link_; }
 
   // To ensure exactly-once delivery, the deeplink is erased after delivery to
@@ -43,7 +47,9 @@ class DeepLinkManager {
   DeepLinkManager();
   ~DeepLinkManager();
 
-  std::string deep_link_;
+  std::string deep_link_ GUARDED_BY_CONTEXT(thread_checker_);
+
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace browser
