@@ -17,7 +17,10 @@
 
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/core/dom/events/event_target.h"
+#include "third_party/blink/renderer/core/event_target_names.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
+#include "third_party/blink/renderer/modules/event_target_modules_names.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
@@ -33,7 +36,10 @@ class ScriptState;
 class ScriptPromiseResolver;
 
 class MODULES_EXPORT H5vccRuntime final
-    : public ScriptWrappable,
+    // TODO: EventTargetWithInlineData should be replaced with EventTarget
+    // after Chromium base version update, see
+    // https://chromium-review.googlesource.com/c/chromium/src/+/4621887
+    : public EventTargetWithInlineData,
       public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
 
@@ -44,11 +50,22 @@ class MODULES_EXPORT H5vccRuntime final
 
   // Web-exposed interface:
   ScriptPromise getInitialDeepLink(ScriptState*, ExceptionState&);
+  EventListener* onDeepLink();
+  void setOnDeepLink(EventListener* listener);
+
+  // EventTargetWithInlineData impl.
+  ExecutionContext* GetExecutionContext() const override {
+    return ExecutionContextLifecycleObserver::GetExecutionContext();
+  }
+  const AtomicString& InterfaceName() const override {
+    return event_target_names::kH5VccRuntime;
+  }
 
   void Trace(Visitor*) const override;
 
  private:
   void OnGetInitialDeepLink(ScriptPromiseResolver*, const String&);
+  void MaybeFireDeepLinkEvent(const String&);
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_runtime::mojom::blink::H5vccRuntime>
       remote_h5vcc_runtime_;

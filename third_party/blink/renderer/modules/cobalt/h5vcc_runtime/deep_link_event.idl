@@ -12,15 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This interface mirrors the H5vccRuntime Web IDL defined in Cobalt LTS 25:
-// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_runtime.idl
+// A custom event that carries deep link information. This event is
+// dispatched on the H5vccRuntime object when a deep link is received.
 [
     Exposed=Window,
     SecureContext
 ]
-interface H5vccRuntime : EventTarget {
-    [CallWith=ScriptState, RaisesException]
-    Promise<DOMString> getInitialDeepLink();
-
-    attribute EventHandler onDeepLink;
+interface DeepLinkEvent : Event {
+    readonly attribute DOMString url;
 };
