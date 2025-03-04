@@ -333,6 +333,7 @@ action_with_pydeps("modules_event_interfaces") {
   ]
 
   deps = [ "//third_party/blink/renderer/bindings:web_idl_database" ]
+
 }
 
 # make_event_factory -----------------------------------------------------------
