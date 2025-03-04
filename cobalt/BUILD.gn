@@ -97,17 +97,23 @@ test("cobalt_unittests") {
 
   deps = [
     "//base/test:run_all_unittests",
-    "//chrome/common:non_code_constants",
-    "//cobalt/browser:switches",
-    "//cobalt/gpu",
     "//cobalt/user_agent",
-    "//content/public/app",
-    "//content/shell:content_shell_lib",
-    "//sandbox",
-    "//starboard:starboard_group",
     "//testing/gmock",
     "//testing/gtest",
-    "//third_party/blink/public/common",
+  ]
+
+  # All configs that provide definitions for switch constants.
+  deps += [
+    "//chrome/common:non_code_constants",
+    "//cobalt/browser:switches",
+    "//content/public/common:switches",
+
+    # TODO(cobalt b/375241103) This dependency is large in scope. It would be
+    # better to find more well-scoped targets to depend on to provide the
+    # switch constants definitions.
+    "//content/shell:content_shell_lib",
+    "//gpu/config",
+    "//sandbox/policy:policy",
   ]
 
   if (!is_android) {

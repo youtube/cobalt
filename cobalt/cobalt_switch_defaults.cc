@@ -23,8 +23,11 @@
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
+
+#if !BUILDFLAG(IS_ANDROID)
 #include "ui/gl/gl_switches.h"
 #include "ui/ozone/public/ozone_switches.h"
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 namespace {
 
