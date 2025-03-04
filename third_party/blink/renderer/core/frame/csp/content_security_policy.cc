@@ -1391,6 +1391,10 @@ const char* ContentSecurityPolicy::GetDirectiveName(CSPDirectiveName type) {
       return "upgrade-insecure-requests";
     case CSPDirectiveName::WorkerSrc:
       return "worker-src";
+#if BUILDFLAG(IS_COBALT)
+    case CSPDirectiveName::H5vccLocationSrc:
+      return "h5vcc-location-src";
+#endif
 
     case CSPDirectiveName::Unknown:
       NOTREACHED();

@@ -569,6 +569,9 @@ bool CheckSourceAndReportViolation(
     case CSPDirectiveName::TreatAsPublicAddress:
     case CSPDirectiveName::TrustedTypes:
     case CSPDirectiveName::UpgradeInsecureRequests:
+#if BUILDFLAG(IS_COBALT)
+    case CSPDirectiveName::H5vccLocationSrc:
+#endif
     case CSPDirectiveName::Unknown:
       NOTREACHED();
       break;
