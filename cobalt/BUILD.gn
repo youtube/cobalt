@@ -84,10 +84,14 @@ action("cobalt_build_info") {
 test("cobalt_unittests") {
   testonly = true
 
-  sources = [ "//cobalt/user_agent/user_agent_platform_info_test.cc" ]
+  sources = [
+    "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
+    "//cobalt/user_agent/user_agent_platform_info_test.cc",
+  ]
 
   deps = [
     "//base/test:run_all_unittests",
+    "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/user_agent",
     "//starboard:starboard_group",
     "//testing/gmock",
