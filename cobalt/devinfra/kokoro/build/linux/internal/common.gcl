@@ -17,7 +17,7 @@ build = common.build {
     },
     {
       key = 'TARGET'
-      value = 'cobalt:gn_all'
+      value = 'cobalt:gn_all chromedriver'
     },
     {
       key = 'TARGET_PLATFORM'
