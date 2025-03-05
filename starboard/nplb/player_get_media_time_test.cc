@@ -28,6 +28,8 @@ typedef testing::FakeGraphicsContextProvider FakeGraphicsContextProvider;
 class SbPlayerGetMediaTimeTest
     : public ::testing::TestWithParam<SbPlayerTestConfig> {
  protected:
+  void SetUp() override { SkipTestIfNotSupported(GetParam()); }
+
   FakeGraphicsContextProvider fake_graphics_context_provider_;
 };
 
@@ -157,25 +159,9 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
                 << ".";
 }
 
-std::vector<SbPlayerTestConfig> GetSupportedTestConfigs() {
-  static std::vector<SbPlayerTestConfig> supported_configs;
-  if (supported_configs.size() > 0) {
-    return supported_configs;
-  }
-
-  const std::vector<const char*>& key_systems = GetKeySystems();
-  for (auto key_system : key_systems) {
-    std::vector<SbPlayerTestConfig> configs =
-        GetSupportedSbPlayerTestConfigs(key_system);
-    supported_configs.insert(supported_configs.end(), configs.begin(),
-                             configs.end());
-  }
-  return supported_configs;
-}
-
 INSTANTIATE_TEST_CASE_P(SbPlayerGetMediaTimeTests,
                         SbPlayerGetMediaTimeTest,
-                        ValuesIn(GetSupportedTestConfigs()),
+                        ValuesIn(GetAllPlayerTestConfigs()),
                         GetSbPlayerTestConfigName);
 
 }  // namespace
