@@ -38,6 +38,8 @@ if (!is_android) {
       "cobalt.cc",
       "cobalt_main_delegate.cc",
       "cobalt_main_delegate.h",
+      "cobalt_switch_defaults.cc",
+      "cobalt_switch_defaults.h",
       "platform_event_source_starboard.cc",
       "platform_event_source_starboard.h",
     ]
@@ -45,6 +47,7 @@ if (!is_android) {
     defines = []
 
     deps = [
+      "//chrome/common:non_code_constants",
       "//cobalt/browser",
       "//cobalt/browser:switches",
       "//cobalt/gpu",
@@ -56,6 +59,7 @@ if (!is_android) {
       "//sandbox",
       "//starboard:starboard_group",
       "//third_party/blink/public/common",
+      "//ui/ozone:ozone_switches",
     ]
 
     data_deps = [
@@ -84,13 +88,35 @@ action("cobalt_build_info") {
 test("cobalt_unittests") {
   testonly = true
 
-  sources = [ "//cobalt/user_agent/user_agent_platform_info_test.cc" ]
+  sources = [
+    "//cobalt/cobalt_switch_defaults.cc",
+    "//cobalt/cobalt_switch_defaults.h",
+    "//cobalt/cobalt_switch_defaults_test.cc",
+    "//cobalt/user_agent/user_agent_platform_info_test.cc",
+  ]
 
   deps = [
     "//base/test:run_all_unittests",
     "//cobalt/user_agent",
-    "//starboard:starboard_group",
     "//testing/gmock",
     "//testing/gtest",
   ]
+
+  # All configs that provide definitions for switch constants.
+  deps += [
+    "//chrome/common:non_code_constants",
+    "//cobalt/browser:switches",
+    "//content/public/common:switches",
+
+    # TODO(cobalt b/375241103) This dependency is large in scope. It would be
+    # better to find more well-scoped targets to depend on to provide the
+    # switch constants definitions.
+    "//content/shell:content_shell_lib",
+    "//gpu/config",
+    "//sandbox/policy:policy",
+  ]
+
+  if (!is_android) {
+    deps += [ "//ui/ozone:ozone_switches" ]
+  }
 }

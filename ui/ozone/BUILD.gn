@@ -251,6 +251,12 @@ source_set("ozone_switches") {
     "//ui/base/clipboard:clipboard_test",
     "//ui/display:display_unittests",
   ]
+
+  if (is_starboard) {
+    visibility += [
+      "//cobalt:*",
+    ]
+  }
 }
 
 component("ozone") {
