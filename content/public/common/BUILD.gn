@@ -114,6 +114,11 @@ source_set("switches") {
   if (enable_ipc_fuzzer) {
     configs += [ "//tools/ipc_fuzzer:ipc_fuzzer_config" ]
   }
+
+  if (is_starboard || is_android) {
+    # Allows cobalt and cobalt_unittests to access switch definitions.
+    visibility += [ "//cobalt:*" ]
+  }
 }
 
 # This target allows you to use the content MainFunctionParams struct and
