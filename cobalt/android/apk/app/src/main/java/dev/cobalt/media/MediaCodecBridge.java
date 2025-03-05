@@ -893,7 +893,7 @@ class MediaCodecBridge {
 
   /** Returns null if MediaCodec throws IllegalStateException. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private ByteBuffer getInputBuffer(int index) {
     try {
       return mMediaCodec.get().getInputBuffer(index);
@@ -905,7 +905,7 @@ class MediaCodecBridge {
 
   /** Returns null if MediaCodec throws IllegalStateException. */
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private ByteBuffer getOutputBuffer(int index) {
     try {
       return mMediaCodec.get().getOutputBuffer(index);
