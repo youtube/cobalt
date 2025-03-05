@@ -192,12 +192,14 @@ static_library("content_shell_lib") {
   ]
 
   if (is_android) {
+    if (!is_cobalt) {
     sources += [
       "android/shell_manager.cc",
       "android/shell_manager.h",
       "browser/shell_platform_delegate_android.cc",
       "browser/shell_web_contents_view_delegate_android.cc",
     ]
+    }
   }
 
   if (is_mac) {
