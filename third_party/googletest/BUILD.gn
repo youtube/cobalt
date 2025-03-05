@@ -178,15 +178,6 @@ source_set("gtest") {
       sources += [ "src/googletest/src/gtest-port.cc" ]
       configs += [ "//build/config/compiler:chromium_code" ]
 
-      # Ideally we would want to remove
-      # //starboard/build/config:default_rtti from the list of configs too.
-      # Unfortunately GN doesn't provide us a way to remove things from
-      # dependents' configs list.
-      # It happens to be that all_dependent_configs get processed after default
-      # configs, so the -frtti flag comes after the -fno-rtti flag on the command
-      # line, so it happens to work in this case.
-      all_dependent_configs = [ "//build/config/compiler:rtti" ]
-
       # TODO: b/399507045 - Cobalt: Fix build errors related to print API's, remove hack
       if (gtest_enable_absl_printers) {
         deps -= [ "//third_party/abseil-cpp:absl" ]
