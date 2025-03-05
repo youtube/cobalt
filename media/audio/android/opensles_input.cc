@@ -202,10 +202,8 @@ bool OpenSLESInputStream::CreateRecorder() {
 
   // Initializes the engine object with specific option. After working with the
   // object, we need to free the object and its resources.
-  SLEngineOption option[] = {
-      {SL_ENGINEOPTION_THREADSAFE, static_cast<SLuint32>(SL_BOOLEAN_TRUE)}};
   LOG_ON_FAILURE_AND_RETURN(
-      slCreateEngine(engine_object_.Receive(), 1, option, 0, nullptr, nullptr),
+      slCreateEngine(engine_object_.Receive(), 0, nullptr, 0, nullptr, nullptr),
       false);
 
   // Realize the SL engine object in synchronous mode.
@@ -255,12 +253,12 @@ bool OpenSLESInputStream::CreateRecorder() {
   //SLint32 stream_type = no_effects_
   //                          ? SL_ANDROID_RECORDING_PRESET_CAMCORDER
   //                          : SL_ANDROID_RECORDING_PRESET_VOICE_COMMUNICATION;
-  SLint32 stream_type = SL_ANDROID_RECORDING_PRESET_VOICE_COMMUNICATION;
+  SLuint32 stream_type = SL_ANDROID_RECORDING_PRESET_VOICE_RECOGNITION;
   LOG_ON_FAILURE_AND_RETURN(
       (*recorder_config)->SetConfiguration(recorder_config,
                                            SL_ANDROID_KEY_RECORDING_PRESET,
                                            &stream_type,
-                                           sizeof(SLint32)),
+                                           sizeof(SLuint32)),
       false);
 
   // Realize the recorder object in synchronous mode.

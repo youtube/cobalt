@@ -29,26 +29,18 @@ CobaltAudioDeviceFactory::~CobaltAudioDeviceFactory() {
   LOG(INFO) << "Unregister CobaltAudioDeviceFactory";
 }
 
-// scoped_refptr<media::AudioRendererSink>
-// CobaltAudioDeviceFactory::NewAudioRendererSink(
-//     blink::WebAudioDeviceSourceType source_type,
-//     const blink::LocalFrameToken& frame_token,
-//     const media::AudioSinkParameters& params) {
-//   return base::MakeRefCounted<media::CobaltAudioRendererSink>();
-// }
-//
-// OutputDeviceInfo CobaltAudioDeviceFactory::GetOutputDeviceInfo(
-//     const blink::LocalFrameToken& frame_token,
-//     const std::string& device_id) {
-//   return GetPreferredOutputParameters();
-// }
+scoped_refptr<media::AudioRendererSink>
+CobaltAudioDeviceFactory::NewAudioRendererSink(
+    blink::WebAudioDeviceSourceType source_type,
+    const blink::LocalFrameToken& frame_token,
+    const media::AudioSinkParameters& params) {
+  return base::MakeRefCounted<media::CobaltAudioRendererSink>();
+}
 
-// scoped_refptr<media::AudioCapturerSource>
-// CobaltAudioDeviceFactory::NewAudioCapturerSource(
-//     blink::WebLocalFrame* web_frame,
-//     const media::AudioSourceParameters& params) {
-//   LOG(INFO) << "YO THOR - FACTORT RETURN NEW AUDAIO CAP SOURCE!";
-//   return base::MakeRefCounted<media::CobaltAudioCapturerSource>();
-// }
+OutputDeviceInfo CobaltAudioDeviceFactory::GetOutputDeviceInfo(
+    const blink::LocalFrameToken& frame_token,
+    const std::string& device_id) {
+  return GetPreferredOutputParameters();
+}
 
 }  // namespace media

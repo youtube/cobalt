@@ -26,18 +26,14 @@ class MEDIA_EXPORT CobaltAudioDeviceFactory final
   CobaltAudioDeviceFactory();
   ~CobaltAudioDeviceFactory() final;
 
-  // scoped_refptr<media::AudioRendererSink> NewAudioRendererSink(
-  //     blink::WebAudioDeviceSourceType source_type,
-  //     const blink::LocalFrameToken& frame_token,
-  //     const media::AudioSinkParameters& params) final;
+  scoped_refptr<media::AudioRendererSink> NewAudioRendererSink(
+      blink::WebAudioDeviceSourceType source_type,
+      const blink::LocalFrameToken& frame_token,
+      const media::AudioSinkParameters& params) final;
 
-  // OutputDeviceInfo GetOutputDeviceInfo(
-  //     const blink::LocalFrameToken& frame_token,
-  //     const std::string& device_id) final;
-
-  // scoped_refptr<media::AudioCapturerSource> NewAudioCapturerSource(
-  //     blink::WebLocalFrame* web_frame,
-  //     const media::AudioSourceParameters& params) final;
+  OutputDeviceInfo GetOutputDeviceInfo(
+      const blink::LocalFrameToken& frame_token,
+      const std::string& device_id) final;
 };
 
 }  // namespace media

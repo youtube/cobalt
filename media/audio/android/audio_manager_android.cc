@@ -230,15 +230,14 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
   // MODE_IN_COMMUNICATION. However, the user might have asked for a special
   // mode where all audio input processing is disabled, and if that is the case
   // we avoid changing the mode.
-  //if (stream && has_no_input_streams &&
-  //    params.effects() != AudioParameters::NO_EFFECTS) {
-  //  LOG(INFO) << "YO THOR - CRUIUUUCIUAL - MAKE AUDIO INPUT STREAM - COMMS MODE IS____ON___!";
-  LOG(INFO) << "YO THOR - CRUIUUUCIUAL - MANAULLLLY SETTING COMMS MODE ON!";
+  if (stream && has_no_input_streams &&
+      params.effects() != AudioParameters::NO_EFFECTS) {
+    LOG(INFO) << "YO THOR - CRUIUUUCIUAL - MAKE AUDIO INPUT STREAM - COMMS MODE IS____ON___!";
     communication_mode_is_on_ = true;
     SetCommunicationAudioModeOn(true);
-  //} else {
-  //  LOG(INFO) << "YO THOR - CRUIUUUCIUAL - MAKE AUDIO INPUT STREAM - COMMS MODE IS____OFFFFFFFFFFFFFFFFFFFFFFFFFF!";
-  //}
+  } else {
+    LOG(INFO) << "YO THOR - CRUIUUUCIUAL - MAKE AUDIO INPUT STREAM - COMMS MODE IS____OFFFFFFFFFFFFFFFFFFFFFFFFFF!";
+  }
   return stream;
 }
 
