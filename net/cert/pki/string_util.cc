@@ -7,7 +7,6 @@
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
-#include <string>
 
 #include "third_party/boringssl/src/include/openssl/mem.h"
 
