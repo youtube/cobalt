@@ -48,8 +48,6 @@ test("nplb") {
     "//starboard/nplb/sabi/struct_alignment_test.cc",
     "//starboard/shared/starboard/drm/drm_test_helpers.cc",
     "//starboard/shared/starboard/drm/drm_test_helpers.h",
-    "//starboard/testing/fake_graphics_context_provider.cc",
-    "//starboard/testing/fake_graphics_context_provider.h",
     "align_test.cc",
     "audio_sink_create_test.cc",
     "audio_sink_destroy_test.cc",
@@ -60,8 +58,7 @@ test("nplb") {
     "audio_sink_helpers.h",
     "audio_sink_is_audio_frame_storage_type_supported_test.cc",
     "audio_sink_is_audio_sample_type_supported_test.cc",
-
-    # "audio_sink_test.cc",
+    "audio_sink_test.cc",
     "char_is_signed_test.cc",
     "configuration_test.cc",
     "cpu_features_get_test.cc",
@@ -214,7 +211,6 @@ test("nplb") {
     "thread_get_id_test.cc",
     "thread_priority_test.cc",
     "thread_sampler_test.cc",
-
     "thread_test.cc",
     "time_zone_get_current_test.cc",
     "time_zone_get_name_test.cc",
@@ -223,30 +219,34 @@ test("nplb") {
     "url_player_create_test.cc",
   ]
 
-  # TODO: b/400512503 - Fix build errors.
-  if (enable_cobalt_hermetic_hacks) {
-    sources -= [ "thread_test.cc" ]
-  }
-
   if (!is_android) {
     sources += [
-      # "maximum_player_configuration_explorer_test.cc",
-      # "media_set_audio_write_duration_test.cc",
-      # "multiple_player_test.cc",
-      # "player_create_test.cc",
-      # "player_get_audio_configuration_test.cc",
-      # "player_get_media_time_test.cc",
-      # "player_test_fixture.cc",
-      # "player_test_fixture.h",
-      # "player_write_sample_test.cc",
-      # "speech_synthesis_basic_test.cc",
-      # "vertical_video_test.cc",
-      # "window_create_test.cc",
-      # "window_destroy_test.cc",
-      # "window_get_diagonal_size_in_inches_test.cc",
-      # "window_get_platform_handle_test.cc",
-      # "window_get_size_test.cc",
+      "//starboard/testing/fake_graphics_context_provider.cc",
+      "//starboard/testing/fake_graphics_context_provider.h",
+      "maximum_player_configuration_explorer_test.cc",
+      "media_set_audio_write_duration_test.cc",
+      "multiple_player_test.cc",
+      "player_create_test.cc",
+      "player_get_audio_configuration_test.cc",
+      "player_get_media_time_test.cc",
+      "player_test_fixture.cc",
+      "player_test_fixture.h",
+      "player_write_sample_test.cc",
+      "speech_synthesis_basic_test.cc",
+      "vertical_video_test.cc",
+      "window_create_test.cc",
+      "window_destroy_test.cc",
+      "window_get_diagonal_size_in_inches_test.cc",
+      "window_get_platform_handle_test.cc",
+      "window_get_size_test.cc",
     ]
+    if (is_cobalt_hermetic_build) {
+      sources -= [
+        # TODO: b/400512503 - Fix build errors.
+        "thread_test.cc",
+        "vertical_video_test.cc",
+      ]
+    }
   }
 
   configs += [
