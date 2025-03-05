@@ -131,8 +131,7 @@ public class StarboardBridge {
 
     nativeApp = StarboardBridgeJni.get().startNativeStarboard();
 
-    // Pass startDeepLink to DeepLinkManager
-    StarboardBridgeJni.get().handleDeepLink(startDeepLink, false);
+    StarboardBridgeJni.get().handleDeepLink(startDeepLink, /*applicationReady=*/ false);
   }
 
   private native boolean initJNI();

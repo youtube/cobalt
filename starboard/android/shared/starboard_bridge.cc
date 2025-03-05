@@ -107,8 +107,7 @@ extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_HandleDeepLink(
     jboolean applicationReady) {
   const std::string& url = base::android::ConvertJavaStringToUTF8(env, jurl);
 
-  cobalt::browser::DeepLinkManager* manager =
-      cobalt::browser::DeepLinkManager::GetInstance();
+  auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
   if (applicationReady) {
     // TODO(cobalt, b/374147993): handle warm start deeplink
   } else {

@@ -22,4 +22,4 @@ h5vcc_runtime_tests(async (t, mockH5vccRuntime) => {
     assert_equals(first_actual, fakeInitialDeepLink);
     let second_actual = await window.h5vcc.runtime.getInitialDeepLink();
     assert_equals(second_actual, '');
-}, 'exercises H5vccRuntime.getInitialDeepLink(), initialDeepLink should only be returned once');
+}, 'exercises H5vccRuntime.getInitialDeepLink(), the initial deep link is cleared after retrieving it once.');
