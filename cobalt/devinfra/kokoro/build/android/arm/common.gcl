@@ -16,10 +16,6 @@ build = common.build {
       value = 'android-arm'
     },
     {
-      key = 'REGISTRY_IMAGE_NAME'
-      value = 'cobalt-build-android-arm'
-    },
-    {
       key = 'TARGET'
       value = 'cobalt:gn_all'
     },
@@ -34,6 +30,10 @@ build = common.build {
     {
       key = 'TARGET_PLATFORM'
       value = 'android-arm'
+    },
+    {
+      key = 'REGISTRY_IMAGE_NAME'
+      value = 'cobalt-build-android-arm'
     },
   ]
 }
