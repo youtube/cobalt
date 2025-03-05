@@ -26,6 +26,9 @@
 #define PTHREAD_MUTEX_ERRORCHECK 2
 #define PTHREAD_PRIO_INHERIT 1
 
+#define PTHREAD_PROCESS_PRIVATE 0
+#define PTHREAD_PROCESS_SHARED 1
+
 #ifdef __cplusplus
 extern "C" {
 #endif
