@@ -25,6 +25,12 @@ use_udev = false
 # Disable glib
 use_glib = false
 
+# Disable the Qt backend
+use_qt = false
+
+# Disable xcbcommon
+use_xkbcommon = false
+
 # Disable PipeWire in WebRTC
 rtc_use_pipewire = false
 

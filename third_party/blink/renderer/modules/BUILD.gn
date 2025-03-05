@@ -366,6 +366,10 @@ generate_event_interfaces("modules_event_interfaces") {
     "xr/xr_session_event.idl",
   ]
 
+  if (is_cobalt) {
+    sources += [ "cobalt/h5vcc_runtime/deep_link_event.idl", ]
+  }
+
   output_file = "modules/event_interface_modules_names.json5"
   suffix = "Modules"
 }
