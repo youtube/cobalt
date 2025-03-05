@@ -185,7 +185,7 @@ source_set("gtest") {
       # It happens to be that all_dependent_configs get processed after default
       # configs, so the -frtti flag comes after the -fno-rtti flag on the command
       # line, so it happens to work in this case.
-      all_dependent_configs = [ "//build/config/compiler:rtti" ]
+      #all_dependent_configs = [ "//build/config/compiler:rtti" ]
 
       # TODO: b/399507045 - Cobalt: Fix build errors related to print API's, remove hack
       if (gtest_enable_absl_printers) {
