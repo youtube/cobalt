@@ -1,8 +1,7 @@
 #!/usr/bin/env lucicfg
 
 RECIPE_CIPD_PACKAGE = "infra/recipe_bundles/chromium.googlesource.com/chromium/tools/build"
-RECIPE_NAME = "ytdevinfra/android_apk"
-PROJECT_REPO = "https://github.com/youtube/cobalt"
+PROJECT_REPO = "https://lbshell-internal.googlesource.com/cobalt_src"
 
 lucicfg.check_version("1.43.14", "Please update depot_tools")
 
@@ -20,8 +19,7 @@ luci.project(
     milo = "luci-milo.appspot.com",
     notify = "luci-notify.appspot.com",
     scheduler = "luci-scheduler.appspot.com",
-    swarming = "chromium-swarm.appspot.com",
-    tricium = "tricium-prod.appspot.com",
+    swarming = "chrome-swarming.appspot.com",
     bindings = [
         # Allow owners to submit any task in any pool.
         luci.binding(
@@ -57,7 +55,6 @@ luci.logdog(gs_bucket = "yt-devinfra-luci")
 # Swarming bot configs as "yt-devinfra-luci:pools/<name>".
 luci.realm(name = "pools/ci")
 luci.realm(name = "pools/try")
-luci.realm(name = "pools/prod")
 
 # Global recipe defaults
 luci.recipe.defaults.cipd_version.set("refs/heads/main")
@@ -83,7 +80,8 @@ luci.gitiles_poller(
 )
 
 luci.recipe(
-    name = RECIPE_NAME,
+    name = "chrobalt-nightly",
+    recipe = "ytdevinfra/android_apk",
     cipd_package = RECIPE_CIPD_PACKAGE,
     cipd_version = "refs/heads/main",
     use_bbagent = True,
@@ -93,7 +91,7 @@ luci.recipe(
 luci.builder(
     name = "cobalt-ci-builder",
     bucket = "ci",
-    executable = RECIPE_NAME,
+    executable = "chrobalt-nightly",
     service_account = "luci-vms@devexprod-reliability.iam.gserviceaccount.com",
     execution_timeout = 1 * time.hour,
     dimensions = {"pool": "luci.ytdevinfra.ci"},
