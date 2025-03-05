@@ -94,7 +94,13 @@ class OpenSLESInputStream : public AudioInputStream {
   // Buffer queue recorder interface.
   SLAndroidSimpleBufferQueueItf simple_buffer_queue_;
 
+#define FORMAT_HACK 0
+
+#if !FORMAT_HACK
   SLDataFormat_PCM format_;
+#else
+  SLAndroidDataFormat_PCM_EX format_;
+#endif
 
   // Audio buffers that are allocated in the constructor based on
   // info from audio parameters.

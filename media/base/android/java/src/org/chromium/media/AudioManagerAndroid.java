@@ -206,7 +206,7 @@ class AudioManagerAndroid {
 
         if (on) {
             try {
-                mAudioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
+                // mAudioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
             } catch (SecurityException e) {
                 logDeviceInfo();
                 throw e;

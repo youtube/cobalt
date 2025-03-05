@@ -124,6 +124,8 @@ public abstract class CobaltActivity extends Activity {
             "--enable-blink-features=MediaSourceNewAbortAndDuration",
             // Trades a little V8 performance for significant memory savings.
             "--js-flags=--optimize_for_size=true",
+            // Auto-grant microphone access
+            "--auto-accept-camera-and-microphone-capture"
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {

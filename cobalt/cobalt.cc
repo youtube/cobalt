@@ -77,6 +77,8 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
        // This flag is added specifically for m114 and should be removed after
        // rebasing to m120+
        "--user-level-memory-pressure-signal-params", "--no-sandbox",
+      // Auto-grant microphone access
+      "--auto-accept-camera-and-microphone-capture",
        initial_url.c_str()});
   std::vector<const char*> args(argv, argv + argc);
   args.insert(args.end(), cobalt_args.begin(), cobalt_args.end());

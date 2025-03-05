@@ -102,12 +102,16 @@ AAudioOutputStream::AAudioOutputStream(AudioManagerAndroid* manager,
     switch (params.latency_tag()) {
       case AudioLatency::LATENCY_EXACT_MS:
       case AudioLatency::LATENCY_INTERACTIVE:
+#define DISABLE_PERFORMANCE_MODE_HACK 1
+
+#if !DISABLE_PERFORMANCE_MODE_HACK
       case AudioLatency::LATENCY_RTC:
         performance_mode_ = AAUDIO_PERFORMANCE_MODE_LOW_LATENCY;
         break;
       case AudioLatency::LATENCY_PLAYBACK:
         performance_mode_ = AAUDIO_PERFORMANCE_MODE_POWER_SAVING;
         break;
+#endif
       default:
         performance_mode_ = AAUDIO_PERFORMANCE_MODE_NONE;
     }
