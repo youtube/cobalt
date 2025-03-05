@@ -79,6 +79,7 @@ static bool InitAAudio() {
 std::unique_ptr<AudioManager> CreateAudioManager(
     std::unique_ptr<AudioThread> audio_thread,
     AudioLogFactory* audio_log_factory) {
+  LOG(INFO) << "YO THOR - CRETAE_MEDIA___AUDIO___ANDOIRD___ANDROID_AUDIO_MANAGER!";
   return std::make_unique<AudioManagerAndroid>(std::move(audio_thread),
                                                audio_log_factory);
 }
@@ -90,6 +91,7 @@ AudioManagerAndroid::AudioManagerAndroid(
       communication_mode_is_on_(false),
       output_volume_override_set_(false),
       output_volume_override_(0) {
+  LOG(INFO) << "YO THOR - aUDIO___AUDIO_MANAGER_ANDROID CTOR!";
   SetMaxOutputStreamsAllowed(kMaxOutputStreams);
 }
 
@@ -127,6 +129,7 @@ void AudioManagerAndroid::GetAudioInputDeviceNames(
     AudioDeviceNames* device_names) {
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
 
+  LOG(INFO) << "YO THOR - ANDROID  - GET AUDIO INPUT DEVICE NAMES";
   // Always add default device parameters as first element.
   DCHECK(device_names->empty());
   AddDefaultDevice(device_names);
@@ -191,6 +194,7 @@ AudioParameters AudioManagerAndroid::GetInputStreamParameters(
                          GetNativeOutputSampleRate(), buffer_size);
   params.set_effects(effects);
   DVLOG(1) << params.AsHumanReadableString();
+  LOG(INFO) << "YO THOR - ANDROID INPUT PARASM" <<  params.AsHumanReadableString();
   return params;
 }
 
@@ -214,6 +218,8 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
+  LOG(INFO) << "YO THOR - ANDROID - mAKE AUDIO INPUT STREAM";
+  LOG(INFO) << "YO THOR - ANDROID INPUT PARASM: -- " <<  params.AsHumanReadableString();
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   bool has_no_input_streams = HasNoAudioInputStreams();
   AudioInputStream* stream = AudioManagerBase::MakeAudioInputStream(
@@ -224,11 +230,15 @@ AudioInputStream* AudioManagerAndroid::MakeAudioInputStream(
   // MODE_IN_COMMUNICATION. However, the user might have asked for a special
   // mode where all audio input processing is disabled, and if that is the case
   // we avoid changing the mode.
-  if (stream && has_no_input_streams &&
-      params.effects() != AudioParameters::NO_EFFECTS) {
+  //if (stream && has_no_input_streams &&
+  //    params.effects() != AudioParameters::NO_EFFECTS) {
+  //  LOG(INFO) << "YO THOR - CRUIUUUCIUAL - MAKE AUDIO INPUT STREAM - COMMS MODE IS____ON___!";
+  LOG(INFO) << "YO THOR - CRUIUUUCIUAL - MANAULLLLY SETTING COMMS MODE ON!";
     communication_mode_is_on_ = true;
     SetCommunicationAudioModeOn(true);
-  }
+  //} else {
+  //  LOG(INFO) << "YO THOR - CRUIUUUCIUAL - MAKE AUDIO INPUT STREAM - COMMS MODE IS____OFFFFFFFFFFFFFFFFFFFFFFFFFF!";
+  //}
   return stream;
 }
 
@@ -266,9 +276,12 @@ AudioOutputStream* AudioManagerAndroid::MakeLowLatencyOutputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
+  LOG(INFO) << "YO THOR - DOES THIS MAKE LOW LATENCY OUTPUT STREAM GET CALLED?";
+  LOG(INFO) << "YO THOR - PARAMS ARE :" << params.AsHumanReadableString();
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
 
   if (UseAAudio()) {
+    LOG(INFO) << " WE USING AA DUIO?";
     const aaudio_usage_t usage = communication_mode_is_on_
                                      ? AAUDIO_USAGE_VOICE_COMMUNICATION
                                      : AAUDIO_USAGE_MEDIA;
@@ -277,6 +290,8 @@ AudioOutputStream* AudioManagerAndroid::MakeLowLatencyOutputStream(
 
   // Set stream type which matches the current system-wide audio mode used by
   // the Android audio manager.
+  LOG(INFO) << " WE USING OPEN SLES STREAM" << " COMMS MODE IS:" << communication_mode_is_on_;
+
   const SLint32 stream_type = communication_mode_is_on_
                                   ? SL_ANDROID_STREAM_VOICE
                                   : SL_ANDROID_STREAM_MEDIA;
@@ -306,6 +321,8 @@ AudioInputStream* AudioManagerAndroid::MakeLowLatencyInputStream(
     const AudioParameters& params,
     const std::string& device_id,
     const LogCallback& log_callback) {
+  LOG(INFO) << "YO THOR - MAKE LOW LATENCY INPUT STYREAM! FX:" << params.effects();
+  LOG(INFO) << "YO THOR - PARAMS ARE :" << params.AsHumanReadableString();
   DVLOG(1) << "MakeLowLatencyInputStream: " << params.effects();
   DCHECK(GetTaskRunner()->BelongsToCurrentThread());
   DCHECK_EQ(AudioParameters::AUDIO_PCM_LOW_LATENCY, params.format());
@@ -427,6 +444,7 @@ const JavaRef<jobject>& AudioManagerAndroid::GetJavaAudioManager() {
 
 void AudioManagerAndroid::SetCommunicationAudioModeOn(bool on) {
   DVLOG(1) << __FUNCTION__ << ": " << on;
+  LOG(INFO) << "YO THOR - SETTING COMMS MODE TO " << on;
   Java_AudioManagerAndroid_setCommunicationAudioModeOn(
       base::android::AttachCurrentThread(), GetJavaAudioManager(), on);
 }

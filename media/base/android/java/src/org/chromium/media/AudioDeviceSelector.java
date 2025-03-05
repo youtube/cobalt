@@ -87,7 +87,10 @@ abstract class AudioDeviceSelector {
         if (DEBUG) logd("selectDevice: id=" + DeviceHelpers.getDeviceName(nextDevice));
 
         // `deviceId` is invalid, or its corresponding device is not available.
-        if (nextDevice == Devices.ID_INVALID) return false;
+        if (nextDevice == Devices.ID_INVALID) {
+          logd("YO THOR SELECT DEVICE - NEXT ONE IS INVALID _ RETURN FALSE");
+          return false;
+        }
 
         setAudioDevice(nextDevice);
         return true;

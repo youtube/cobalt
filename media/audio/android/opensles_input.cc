@@ -31,6 +31,8 @@ OpenSLESInputStream::OpenSLESInputStream(AudioManagerAndroid* audio_manager,
       started_(false),
       audio_bus_(media::AudioBus::Create(params)),
       no_effects_(params.effects() == AudioParameters::NO_EFFECTS) {
+  LOG(INFO) << "YO THOR ! OPEN SLES INPUT SYTREAM! Fx enabled:" << !no_effects_;
+  LOG(INFO) << "YO THOR ! PARAMS:" << params.AsHumanReadableString();
   DVLOG(2) << __PRETTY_FUNCTION__;
   DVLOG(1) << "Audio effects enabled: " << !no_effects_;
 
@@ -249,9 +251,11 @@ bool OpenSLESInputStream::CreateRecorder() {
 
   // Uses the main microphone tuned for audio communications if effects are
   // enabled and disables all audio processing if effects are disabled.
-  SLint32 stream_type = no_effects_
-                            ? SL_ANDROID_RECORDING_PRESET_CAMCORDER
-                            : SL_ANDROID_RECORDING_PRESET_VOICE_COMMUNICATION;
+  LOG(INFO) << "YO THOR _ NO_EFFECTS? " <<  no_effects_ << " IF 0 THEN CAMCORDER!";;
+  //SLint32 stream_type = no_effects_
+  //                          ? SL_ANDROID_RECORDING_PRESET_CAMCORDER
+  //                          : SL_ANDROID_RECORDING_PRESET_VOICE_COMMUNICATION;
+  SLint32 stream_type = SL_ANDROID_RECORDING_PRESET_VOICE_COMMUNICATION;
   LOG_ON_FAILURE_AND_RETURN(
       (*recorder_config)->SetConfiguration(recorder_config,
                                            SL_ANDROID_KEY_RECORDING_PRESET,

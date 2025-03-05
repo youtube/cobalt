@@ -246,6 +246,7 @@ class AudioManagerAndroid {
             return false;
         }
 
+        if (DEBUG) logd("YO THOR - setDevice - WE GOOD, pAST CHECKS, LETS CALL SELECT DEVICE ON AUDIO DEVICE SELCTOR");
         return mAudioDeviceSelector.selectDevice(deviceId);
     }
 

@@ -18,6 +18,21 @@
 
 namespace media {
 
+namespace {
+// The maximum of microphones which can be supported. Currently only supports
+// one microphone.
+const int kNumberOfMicrophones = 1;
+template <std::size_t N>
+bool IsNullTerminated(const char (&str)[N]) {
+  for (size_t i = 0; i < N; ++i) {
+    if (str[i] == '\0') {
+      return true;
+    }
+  }
+  return false;
+}
+}  // namespace
+
 void CobaltAudioCapturerSource::Initialize(const AudioParameters& params,
                                            CaptureCallback* callback) {
   LOG(INFO) << "CobaltAudioCapturerSource::Initialize - called with following "
@@ -28,15 +43,45 @@ void CobaltAudioCapturerSource::Initialize(const AudioParameters& params,
   DCHECK(callback);
   DCHECK(!callback_);
   callback_ = callback;
+
+  SbMicrophoneInfo info[kNumberOfMicrophones];
+  int microphone_num = SbMicrophoneGetAvailable(info, kNumberOfMicrophones);
+
+  // Loop all the available microphones and create a valid one.
+  for (int index = 0; index < microphone_num; ++index) {
+    if (!SbMicrophoneIsSampleRateSupported(info[index].id, 16000)) {
+      continue;
+    }
+
+    microphone_ = SbMicrophoneCreate(info[index].id, 16000, 960);
+    if (!SbMicrophoneIsValid(microphone_)) {
+      continue;
+    }
+
+    // Created a microphone successfully.
+    min_microphone_read_in_bytes_ = info[index].min_read_size;
+
+    if (IsNullTerminated(info[index].label)) {
+      label_ = info[index].label;
+    }
+  }
+  DCHECK(SbMicrophoneIsValid(microphone_));
+  LOG(INFO) << "YO THOR - WE GOOD, HAZ MIC!";
 }
 
 void CobaltAudioCapturerSource::Start() {
   LOG(INFO) << "YO THOR - CAOBALT AUDIO CAPTURE SOURCE START";
   DCHECK(callback_);
+  DCHECK(SbMicrophoneIsValid(microphone_));
+  // OPENS AND STARTS RECORDING
+  SbMicrophoneOpen(microphone_);
+  // TODO - need to read data anfdput in callback -
+  // SbMicrophoneRead(microphone_, out_data, data_size);
 }
 
 void CobaltAudioCapturerSource::Stop() {
   LOG(INFO) << "YO THOR - CAOBALT AUDIO CAPTURE SOURCE STAOP";
+  SbMicrophoneClose(microphone_);
   callback_ = nullptr;
 }
 

@@ -20,7 +20,7 @@
 #include <atomic>
 
 #include "media/base/media_export.h"
-#include "starboard/audio_sink.h"
+#include "starboard/microphone.h"
 
 namespace media {
 
@@ -46,6 +46,11 @@ class MEDIA_EXPORT CobaltAudioCapturerSource final
  private:
   AudioParameters params_;
   CaptureCallback* callback_ = nullptr;
+
+  SbMicrophone microphone_{kSbMicrophoneInvalid};
+  // Minimum requested bytes per microphone read.
+  int min_microphone_read_in_bytes_{0};
+  std::string label_{};
 };
 
 }  // namespace media

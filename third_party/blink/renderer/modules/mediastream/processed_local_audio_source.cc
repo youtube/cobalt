@@ -432,6 +432,8 @@ bool ProcessedLocalAudioSource::EnsureSourceIsStarted() {
   // We need to set the AGC control before starting the stream.
   new_source->SetAutomaticGainControl(true);
   source_ = std::move(new_source);
+  LOG(INFO) << "YO THOR - SET VOLUME MANUALLY!";
+  source_->SetVolume(1);
   source_->Start();
 
   // Register this source with the WebRtcAudioDeviceImpl.

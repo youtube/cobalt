@@ -55,6 +55,7 @@ public class AudioOutputManager {
       int preferredBufferSizeInBytes,
       int tunnelModeAudioSessionId,
       boolean isWebAudio) {
+    Log.i(TAG, "YO THOR ! AudioTrackBridge CTOR");
     AudioTrackBridge audioTrackBridge =
         new AudioTrackBridge(
             sampleType,
@@ -293,7 +294,7 @@ public class AudioOutputManager {
 
   /** Dump all audio output devices. */
   public void dumpAllOutputDevices() {
-    Log.i(TAG, "Dumping all audio output devices:");
+    Log.i(TAG, "YO THOR Dumping all audio output devices:");
 
     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
     AudioDeviceInfo[] deviceInfos = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
@@ -301,20 +302,20 @@ public class AudioOutputManager {
     for (AudioDeviceInfo info : deviceInfos) {
       Log.i(
           TAG,
-          "  Audio Device: %s, channels: %s, sample rates: %s, encodings: %s",
+          "  YO THOR Audio Device: %s, channels: %s, sample rates: %s, encodings: %s",
           getDeviceTypeName(info.getType()),
           Arrays.toString(info.getChannelCounts()),
           Arrays.toString(info.getSampleRates()),
           getEncodingNames(info.getEncodings()));
     }
-    Log.i(TAG, "Dumping all audio INPUT devices:");
+    Log.i(TAG, "Y OTHOR Dumping all audio INPUT devices:");
 
     AudioDeviceInfo[] deviceInfosInput = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS);
 
     for (AudioDeviceInfo info : deviceInfosInput) {
       Log.i(
           TAG,
-          "  Audio Device: %s, channels: %s, sample rates: %s, encodings: %s",
+          "  YO THOR Audio Device: %s, channels: %s, sample rates: %s, encodings: %s",
           getDeviceTypeName(info.getType()),
           Arrays.toString(info.getChannelCounts()),
           Arrays.toString(info.getSampleRates()),
@@ -376,6 +377,7 @@ public class AudioOutputManager {
     AudioManager audioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
     AudioDeviceInfo[] deviceInfos = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS);
 
+    Log.i(TAG, "YO THOR HAS PASSTHROUGH SUPPORT FOR??????????????????????????????????");
     // Some devices have issues on reporting playback capability and managing routing when Bluetooth
     // output is connected.  So e/ac3 support is disabled when Bluetooth output device is connected.
     for (AudioDeviceInfo info : deviceInfos) {

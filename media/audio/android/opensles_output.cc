@@ -45,6 +45,7 @@ OpenSLESOutputStream::OpenSLESOutputStream(AudioManagerAndroid* manager,
       buffer_size_bytes_(params.GetBytesPerBuffer(sample_format_)),
       performance_mode_(SL_ANDROID_PERFORMANCE_NONE),
       delay_calculator_(samples_per_second_) {
+  LOG(INFO) << "YO THOR ! OPEN SLES OUTPUT STREAM -- PARAMS:" << params.AsHumanReadableString();
   DVLOG(2) << "OpenSLESOutputStream::OpenSLESOutputStream("
            << "stream_type=" << stream_type << ")";
 

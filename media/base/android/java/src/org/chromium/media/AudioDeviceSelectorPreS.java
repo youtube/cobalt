@@ -14,7 +14,7 @@ import android.media.AudioManager;
 import org.chromium.base.ContextUtils;
 
 class AudioDeviceSelectorPreS extends AudioDeviceSelector {
-    private static final String TAG = "media";
+    private static final String TAG = "meaTHORTHORdia";
 
     // Bluetooth audio SCO states. Example of valid state sequence:
     // SCO_INVALID -> SCO_TURNING_ON -> SCO_ON -> SCO_TURNING_OFF -> SCO_OFF.
@@ -44,6 +44,7 @@ class AudioDeviceSelectorPreS extends AudioDeviceSelector {
     @Override
     public void init() {
         mHasBluetoothPermission = hasPermission(android.Manifest.permission.BLUETOOTH);
+        logd("YO THOR - AudioDeviceSelectorPreS INIT - has BT perm?" + mHasBluetoothPermission);
 
         mDeviceListener.init(mHasBluetoothPermission);
 
@@ -58,6 +59,7 @@ class AudioDeviceSelectorPreS extends AudioDeviceSelector {
 
     @Override
     public void setCommunicationAudioModeOn(boolean on) {
+        logd("YO THOR - AudioDeviceSelectorPreS SET COM AUDIO MODE ON");
         if (!on) {
             stopBluetoothSco();
             mDeviceStates.clearRequestedDevice();
@@ -80,6 +82,7 @@ class AudioDeviceSelectorPreS extends AudioDeviceSelector {
 
     @Override
     public boolean[] getAvailableDevices_Locked() {
+        logd("YO THOR - AudioDeviceSelectorPreS - GET AVAIL DEVICES");
         boolean[] availableDevices = mDeviceExistence.clone();
 
         // Wired headset, USB audio and earpiece are mutually exclusive, and
@@ -111,6 +114,7 @@ class AudioDeviceSelectorPreS extends AudioDeviceSelector {
      */
     private void registerForBluetoothScoIntentBroadcast() {
         IntentFilter filter = new IntentFilter(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED);
+        logd("YO THOR - AudioDeviceSelectorPreS - REGISTRT FOR BT SCO!!");
 
         /** BroadcastReceiver implementation which handles changes in BT SCO. */
         mBluetoothScoReceiver = new BroadcastReceiver() {
@@ -156,7 +160,9 @@ class AudioDeviceSelectorPreS extends AudioDeviceSelector {
 
     /** Enables BT audio using the SCO audio channel. */
     private void startBluetoothSco() {
+        logd("YO THOR - AudioDeviceSelectorPreS - START BLEUTOOTH SCO!");
         if (!mHasBluetoothPermission) {
+        logd("YO THOR - AudioDeviceSelectorPreS - NAE PERM!");
             return;
         }
         if (mBluetoothScoState == STATE_BLUETOOTH_SCO_ON
@@ -179,6 +185,7 @@ class AudioDeviceSelectorPreS extends AudioDeviceSelector {
 
     /** Disables BT audio using the SCO audio channel. */
     private void stopBluetoothSco() {
+        logd("YO THOR - AudioDeviceSelectorPreS - STOP BLEUTOOTH SCO!");
         if (!mHasBluetoothPermission) {
             return;
         }
@@ -203,6 +210,7 @@ class AudioDeviceSelectorPreS extends AudioDeviceSelector {
     @Override
     protected void setAudioDevice(int device) {
         if (DEBUG) logd("setAudioDevice(device=" + device + ")");
+        if (DEBUG) logd("THOR SCO setAudioDevice(device=" + device + ")");
 
         // Ensure that the Bluetooth SCO audio channel is always disabled
         // unless the BT headset device is selected.
@@ -214,11 +222,14 @@ class AudioDeviceSelectorPreS extends AudioDeviceSelector {
 
         switch (device) {
             case Devices.ID_BLUETOOTH_HEADSET:
+                if (DEBUG) logd("YO BT HEADSET");
                 break;
             case Devices.ID_SPEAKERPHONE:
+                if (DEBUG) logd("YO SPL PHONE");
                 setSpeakerphoneOn(true);
                 break;
             case Devices.ID_WIRED_HEADSET:
+                if (DEBUG) logd("YO WIRED HEJADSETE");
                 setSpeakerphoneOn(false);
                 break;
             case Devices.ID_EARPIECE:

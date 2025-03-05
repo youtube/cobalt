@@ -79,8 +79,8 @@ class AudioDeviceSelectorPostS extends AudioDeviceSelector {
 
     @Override
     public void setCommunicationAudioModeOn(boolean on) {
+          Log.i(TAG, "YO THOR! AudioDeviceSelectorPostS setCommunicationAudioModeOn:" + on);
         if (on) {
-          Log.i(TAG, "YO THOR! AudioDeviceSelectorPostS setCommunicationAudioModeOn ON - PROMOT FOR BLUETOOTH_COBBECT");
             // TODO(crbug.com/1317548): Prompt for BLUETOOTH_CONNECT permission at this point if we
             // don't have it.
         } else {
@@ -133,16 +133,19 @@ class AudioDeviceSelectorPostS extends AudioDeviceSelector {
 
             switch (device.getType()) {
                 case AudioDeviceInfo.TYPE_BUILTIN_SPEAKER:
+                    Log.i(TAG, "YO THOR! AudioDeviceSelectorPostS GET AVAIL DEVICS - SPKR PHONE");
                     availableDevices[Devices.ID_SPEAKERPHONE] = true;
                     break;
 
                 case AudioDeviceInfo.TYPE_WIRED_HEADPHONES:
                 case AudioDeviceInfo.TYPE_WIRED_HEADSET:
+                    Log.i(TAG, "YO THOR! AudioDeviceSelectorPostS GET AVAIL DEVICS - WIRED HED");
                     availableDevices[Devices.ID_WIRED_HEADSET] = true;
                     break;
 
                 case AudioDeviceInfo.TYPE_USB_DEVICE:
                 case AudioDeviceInfo.TYPE_USB_HEADSET:
+                    Log.i(TAG, "YO THOR! AudioDeviceSelectorPostS GET AVAIL DEVICS - USB");
                     availableDevices[Devices.ID_USB_AUDIO] = true;
                     break;
 
@@ -153,6 +156,7 @@ class AudioDeviceSelectorPostS extends AudioDeviceSelector {
                     break;
 
                 case AudioDeviceInfo.TYPE_BUILTIN_EARPIECE:
+                    Log.i(TAG, "YO THOR! AudioDeviceSelectorPostS GET AVAIL DEVICS - EAR PIECE");
                     availableDevices[Devices.ID_EARPIECE] = true;
                     break;
             }
@@ -164,7 +168,9 @@ class AudioDeviceSelectorPostS extends AudioDeviceSelector {
     public AudioDeviceInfo getMatchingCommunicationDevice(List<Integer> targetTypes) {
         List<AudioDeviceInfo> availableDevices = mAudioManager.getAvailableCommunicationDevices();
 
+            Log.i(TAG, "YO THOR! GET MATCHCIN COMS DEIVDE!");
         for (AudioDeviceInfo device : availableDevices) {
+            Log.i(TAG, "YO THOR! CHECKING AVILA DEVIES:" + device.getProductName().toString() + " TYpE is:", device.getType());
             if (targetTypes.contains(device.getType())) return device;
         }
 

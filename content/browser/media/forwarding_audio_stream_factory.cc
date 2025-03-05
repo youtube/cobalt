@@ -86,6 +86,7 @@ void ForwardingAudioStreamFactory::Core::CreateInputStream(
         renderer_factory_client) {
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
+  LOG(INFO) << "YO THOR - *** ForwardingAudioStreamFactory::Core::CreateInputStream - GETTING READL!";
   // |this| owns |inputs_|, so Unretained is safe.
   inputs_
       .insert(broker_factory_->CreateAudioInputStreamBroker(

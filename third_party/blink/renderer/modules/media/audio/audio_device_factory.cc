@@ -90,6 +90,7 @@ AudioDeviceFactory* AudioDeviceFactory::GetInstance() {
 }
 
 AudioDeviceFactory::AudioDeviceFactory(bool override_default) {
+  LOG(INFO) << "YO THOR _ AUID DEVICE FACTORY";
   if (override_default) {
     DCHECK(!g_factory_override) << "Can't register two factories at once.";
     g_factory_override = this;
