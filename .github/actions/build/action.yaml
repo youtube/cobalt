@@ -74,7 +74,7 @@ runs:
           echo "test_targets_count=${test_targets_count}" >> $GITHUB_OUTPUT
         shell: bash
       - name: Ninja build test targets
-        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count) > 0 }}
+        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
         id: build-test-targets
         run: |
           set -ex
@@ -110,7 +110,7 @@ runs:
 outputs:
   test_targets_count:
     description: The number of test targets build.
-    value: ${{ steps.calculate-test-targets.outputs.test_targets_count }}
+    value: ${{ steps.calculate-test-targets.outputs.test_targets_count || 0 }}
   test_targets_json:
     description: The test targets in a JSON array.
     value: ${{ steps.calculate-test-targets.outputs.test_targets_json }}
