@@ -84,7 +84,7 @@ config("buildflag_defines") {
   # this flag for hermetic build functionality, instead use
   # is_cobalt_hermetic_build or is_starboard.
   if (use_evergreen) {
-    defines += [ "ENABLE_BUILFLAG_USE_EVERGREEN" ]
+    defines += [ "ENABLE_BUILDFLAG_USE_EVERGREEN" ]
   }
 
   # TODO(b/400818107): Consider deprecating sb_is_modular.
@@ -114,6 +114,6 @@ config("buildflag_defines") {
   # between Android TV (for which they are true) and AOSP (for which they are
   # false).
   if (is_androidtv) {
-    defines += [ "ENABLE_BUILFLAG_IS_ANDROIDTV" ]
+    defines += [ "ENABLE_BUILDFLAG_IS_ANDROIDTV" ]
   }
 }
