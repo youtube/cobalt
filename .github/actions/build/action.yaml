@@ -41,7 +41,7 @@ runs:
           echo "changed_files_json=${changed_files_json}" >> $GITHUB_OUTPUT
         shell: bash
       - name: Calculate test targets
-        if: matrix.config == 'devel'
+        if: matrix.config == 'devel' && inputs.test_root_target != 'null'
         id: calculate-test-targets
         env:
           CHANGED_FILES_JSON: ${{ steps.changed-files.outputs.changed_files_json }}
