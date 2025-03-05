@@ -83,7 +83,7 @@ typedef uintptr_t pthread_key_t;
 #endif
 
 // Max size of the native conditional variable type.
-#define MUSL_PTHREAD_COND_MAX_SIZE 80
+#define MUSL_PTHREAD_COND_MAX_SIZE 96
 
 // An opaque handle to a native conditional type with reserved memory
 // buffer aligned at void  pointer type.
@@ -125,7 +125,7 @@ typedef union pthread_attr_t {
 } pthread_attr_t;
 
 // Max size of the native conditional attribute type.
-#define MUSL_PTHREAD_RWLOCK_MAX_SIZE 96
+#define MUSL_PTHREAD_RWLOCK_MAX_SIZE 56
 
 // An opaque handle to a native attribute type with reserved memory
 // buffer aligned at void  pointer type.
@@ -137,6 +137,17 @@ typedef union pthread_rwlock_t {
   // Guarantees alignment of the type to a void pointer.
   void* ptr;
 } pthread_rwlock_t;
+
+// Max size of the native conditional attribute type.
+#define MUSL_PTHREAD_RWLOCK_ATTR_MAX_SIZE 8
+
+// An opaque handle to a native attribute type with reserved memory
+// buffer aligned at void  pointer type.
+typedef union pthread_rwlockattr_t {
+  // Reserved memory in which the implementation should map its
+  // native attribute type.
+  uint8_t rwlock_buffer[MUSL_PTHREAD_RWLOCK_ATTR_MAX_SIZE];
+} pthread_rwlockattr_t;
 
 typedef int clockid_t;
 typedef uintptr_t pthread_t;
@@ -214,6 +225,11 @@ int pthread_attr_getdetachstate(const pthread_attr_t* att, int* detach_state);
 int pthread_attr_setdetachstate(pthread_attr_t *attr, int detach_state);
 
 // TODO: b/399696581 - Cobalt: Implement pthread API's
+int pthread_getaffinity_np(pthread_t, size_t, struct cpu_set_t*);
+int pthread_setaffinity_np(pthread_t, size_t, const struct cpu_set_t*);
+
+int pthread_attr_setscope(pthread_attr_t*, int);
+int pthread_attr_setschedpolicy(pthread_attr_t*, int);
 int pthread_getattr_np(pthread_t, pthread_attr_t*);
 int pthread_attr_getstack(const pthread_attr_t* __restrict,
                           void** __restrict,
@@ -221,6 +237,7 @@ int pthread_attr_getstack(const pthread_attr_t* __restrict,
 int pthread_mutexattr_init(pthread_mutexattr_t*);
 int pthread_mutexattr_destroy(pthread_mutexattr_t*);
 int pthread_mutexattr_settype(pthread_mutexattr_t*, int);
+int pthread_mutexattr_setpshared(pthread_mutexattr_t*, int);
 int pthread_atfork(void (*)(void), void (*)(void), void (*)(void));
 int pthread_mutexattr_setprotocol(pthread_mutexattr_t*, int);
 int pthread_getschedparam(pthread_t,
