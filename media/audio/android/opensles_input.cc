@@ -249,9 +249,10 @@ bool OpenSLESInputStream::CreateRecorder() {
 
   // Uses the main microphone tuned for audio communications if effects are
   // enabled and disables all audio processing if effects are disabled.
-  SLint32 stream_type = no_effects_
-                            ? SL_ANDROID_RECORDING_PRESET_CAMCORDER
-                            : SL_ANDROID_RECORDING_PRESET_VOICE_COMMUNICATION;
+  //SLint32 stream_type = no_effects_
+  //                          ? SL_ANDROID_RECORDING_PRESET_CAMCORDER
+  //                          : SL_ANDROID_RECORDING_PRESET_VOICE_COMMUNICATION;
+  SLint32 stream_type = SL_ANDROID_RECORDING_PRESET_VOICE_RECOGNITION;
   LOG_ON_FAILURE_AND_RETURN(
       (*recorder_config)->SetConfiguration(recorder_config,
                                            SL_ANDROID_KEY_RECORDING_PRESET,

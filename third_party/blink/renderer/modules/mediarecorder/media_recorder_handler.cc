@@ -101,6 +101,8 @@ media::AudioCodec CodecIdToMediaAudioCodec(AudioTrackRecorder::CodecId id) {
       return media::AudioCodec::kOpus;
     case AudioTrackRecorder::CodecId::kAac:
       return media::AudioCodec::kAAC;
+    case AudioTrackRecorder::CodecId::kFlac:
+      return media::AudioCodec::kFLAC;
     case AudioTrackRecorder::CodecId::kLast:
       return media::AudioCodec::kUnknown;
   }
@@ -161,7 +163,8 @@ bool CanSupportVideoType(const String& type) {
 }
 
 bool CanSupportAudioType(const String& type) {
-  return EqualIgnoringASCIICase(type, "audio/webm");
+  return EqualIgnoringASCIICase(type, "audio/webm") ||
+         EqualIgnoringASCIICase(type, "audio/flac");
 }
 
 }  // anonymous namespace
@@ -197,7 +200,7 @@ bool MediaRecorderHandler::CanSupportMimeType(const String& type,
     "opus",
     "pcm"
   };
-  static const char* const kAudioCodecs[] = {"opus", "pcm"};
+  static const char* const kAudioCodecs[] = {"opus", "pcm", "flac"};
 
   auto* const* relevant_codecs_begin =
       video ? std::begin(kVideoCodecs) : std::begin(kAudioCodecs);
@@ -246,8 +249,10 @@ bool MediaRecorderHandler::Initialize(
   }
 
   // Do the same for the audio codec(s).
-  const AudioTrackRecorder::CodecId audio_codec_id =
+  //const AudioTrackRecorder::CodecId audio_codec_id =
+  AudioTrackRecorder::CodecId audio_codec_id =
       AudioStringToCodecId(codecs);
+  if (type == "audio/flac") audio_codec_id = AudioTrackRecorder::CodecId::kFlac;
   audio_codec_id_ = (audio_codec_id != AudioTrackRecorder::CodecId::kLast)
                         ? audio_codec_id
                         : AudioTrackRecorder::GetPreferredCodecId();
@@ -575,6 +580,9 @@ String MediaRecorderHandler::ActualMimeType() {
         break;
       case AudioTrackRecorder::CodecId::kAac:
         mime_type.Append("m4a.40.2");
+        break;
+      case AudioTrackRecorder::CodecId::kFlac:
+        mime_type.Append("flac");
         break;
       case AudioTrackRecorder::CodecId::kLast:
         DCHECK_NE(video_codec_profile_.codec_id,
