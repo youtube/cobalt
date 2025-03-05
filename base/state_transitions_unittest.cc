@@ -65,7 +65,8 @@ TEST(StateTransitionsTest, DCHECK_STATE_TRANSITION) {
 
 #if DCHECK_IS_ON()
   // EXPECT_DEATH is not defined on IOS.
-#if !BUILDFLAG(IS_IOS)
+  // EXPECT_DEATH is not defined on Starboard.
+#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_STARBOARD)
   EXPECT_DEATH(
       DCHECK_STATE_TRANSITION(&transitions, State::kState1, State::kState4),
       "Check failed.*Invalid transition: 0 -> 3");

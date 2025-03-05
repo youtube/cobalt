@@ -5,6 +5,7 @@
   ],
   "targets": [
     "base",
+    "base_unittests",
     "nplb"
   ],
   "includes": [

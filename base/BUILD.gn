@@ -3673,6 +3673,7 @@ test("base_unittests") {
       "memory/platform_shared_memory_region_unittest.cc",
       "metrics/field_trial_unittest.cc",
       "native_library_unittest.cc",
+      "process/memory_unittest.cc",
       "process/process_metrics_unittest.cc",
       "process/process_util_unittest.cc",
       "process/process_unittest.cc",

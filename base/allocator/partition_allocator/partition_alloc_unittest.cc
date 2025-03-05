@@ -591,7 +591,7 @@ class PartitionAllocTest
 };
 
 // Death tests misbehave on Android, http://crbug.com/643760.
-#if defined(GTEST_HAS_DEATH_TEST) && !BUILDFLAG(IS_ANDROID)
+#if defined(GTEST_HAS_DEATH_TEST) && !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_STARBOARD)
 #define PA_HAS_DEATH_TESTS
 
 class PartitionAllocDeathTest : public PartitionAllocTest {};
@@ -5190,13 +5190,13 @@ TEST_P(PartitionAllocTest, SortFreelist) {
 }
 
 #if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && BUILDFLAG(IS_LINUX) && \
-    defined(ARCH_CPU_64_BITS)
+    !BUILDFLAG(IS_STARBOARD) && defined(ARCH_CPU_64_BITS)
 TEST_P(PartitionAllocTest, CrashOnUnknownPointer) {
   int not_a_heap_object = 42;
   EXPECT_DEATH(allocator.root()->Free(&not_a_heap_object), "");
 }
 #endif  // BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) &&
-        // BUILDFLAG(IS_LINUX) && defined(ARCH_CPU_64_BITS)
+        // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) && defined(ARCH_CPU_64_BITS)
 
 #if BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC) && BUILDFLAG(IS_MAC)
 

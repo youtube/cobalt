@@ -4,6 +4,10 @@
 
 #include "base/allocator/partition_allocator/starscan/scan_loop.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include <algorithm>
+#endif
+
 #include "base/allocator/partition_allocator/partition_alloc_base/cpu.h"
 #include "base/allocator/partition_allocator/partition_alloc_buildflags.h"
 #include "base/allocator/partition_allocator/partition_alloc_config.h"
