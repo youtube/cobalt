@@ -45,33 +45,75 @@ config("default_includes") {
 
 config("buildflag_defines") {
   defines = []
+
+  # is_cobalt and BUILDFLAG(IS_COBALT) should be used for Cobalt customizations
+  # that should be applied for all platforms and do not involve using
+  # Starboard.
   if (is_cobalt) {
     defines += [ "ENABLE_BUILDFLAG_IS_COBALT" ]
   }
+
+  # is_starboard and BUILDFLAG(IS_STARBOARD) should be used for platforms that
+  # treat Starboard as their OS layer (Evergreen and hermetic linux). Use this
+  # when calling Starboard OS-replacement functions. Note that
+  # use_starboard_media should be used instead for Starboard media functions.
   if (is_starboard) {
     defines += [ "OS_STARBOARD" ]
   }
 
   # TODO: b/390675141 - Replace IS_COBALT_HERMETIC_BUILD with IS_STARBOARD.
+  # is_cobalt_hermetic_build and BUILDFLAG(IS_COBALT_HERMETIC_BUILD) should be
+  # for changes specific to the linux-x64x11-evergreen build (hermetic builds).
+  # These are linux changes that would break the non-hermetic linux builder.
+  # Note these are supposed to be long-term, permanent changes. For short term,
+  # hacky changes, use enable_cobalt_hermetic_hacks instead.
   if (is_cobalt_hermetic_build) {
     defines += [ "ENABLE_BUILDFLAG_IS_COBALT_HERMETIC_BUILD" ]
   }
+
+  # use_starboard_media and BUILDFLAG(USE_STARBOARD_MEDIA) should be used to
+  # wrap the use of Starboard media functionality in Chromium code. The
+  # Starboard media functionality replace the existing Chromium media
+  # functionality.
   if (use_starboard_media) {
     defines += [ "ENABLE_BUILDFLAG_USE_STARBOARD_MEDIA" ]
   }
+
+  # use_evergreen and BUILDFLAG(USE_EVERGREEN) should be used for
+  # Evergreen-specific functionality, i.e. the Evergreen loader_app. Do not use
+  # this flag for hermetic build functionality, instead use
+  # is_cobalt_hermetic_build or is_starboard.
   if (use_evergreen) {
-    defines += [ "ENABLE_BUILFLAG_USE_EVERGREEN" ]
+    defines += [ "ENABLE_BUILDFLAG_USE_EVERGREEN" ]
   }
+
+  # TODO(b/400818107): Consider deprecating sb_is_modular.
+  # In general, you should instead be using is_cobalt_hermetic_build or
+  # is_starboard.
   if (sb_is_modular) {
     defines += [ "ENABLE_BUILDFLAG_MODULAR_BUILD" ]
   }
+
+  # cobalt_is_release_build and BUILDFLAG(COBALT_IS_RELEASE_BUILD) should be
+  # used for gold Cobalt builds. If you want the behavior in both QA and gold
+  # (a more common case), you should instead use is_official_build.
   if (cobalt_is_release_build) {
     defines += [ "ENABLE_BUILDFLAG_COBALT_IS_RELEASE_BUILD" ]
   }
+
+  # TODO(b/399507045): Remove enable_cobalt_hermetic_hacks
+  # Use enable_cobalt_hermetic_hacks and BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  # for temporary changes to Cobalt to get things working for hermetic builders
+  # in the short term. All functionality wrapped by this flag is looked at as
+  # something that should be investigated and ideally removed.
   if (enable_cobalt_hermetic_hacks) {
     defines += [ "ENABLE_BUILDFLAG_ENABLE_COBALT_HERMETIC_HACKS" ]
   }
+
+  # Use is_androidtv and BUILDFLAG(IS_ANDROIDTV) as a way to differentiate
+  # between Android TV (for which they are true) and AOSP (for which they are
+  # false).
   if (is_androidtv) {
-    defines += [ "ENABLE_BUILFLAG_IS_ANDROIDTV" ]
+    defines += [ "ENABLE_BUILDFLAG_IS_ANDROIDTV" ]
   }
 }
