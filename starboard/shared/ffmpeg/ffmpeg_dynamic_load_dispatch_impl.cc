@@ -272,8 +272,6 @@ void FFMPEGDispatchImpl::LoadSymbols() {
                << ffmpeg_->avutil_version();
   INITSYMBOL(avutil_, av_malloc);
   INITSYMBOL(avutil_, av_freep);
-  INITSYMBOL(avutil_, av_free);
-  INITSYMBOL(avutil_, av_rescale_rnd);
   INITSYMBOL(avutil_, av_samples_get_buffer_size);
   INITSYMBOL(avutil_, av_opt_set_int);
   INITSYMBOL(avutil_, av_image_check_size);
@@ -291,7 +289,6 @@ void FFMPEGDispatchImpl::LoadSymbols() {
     INITSYMBOL(avcodec_, av_frame_alloc);
     INITSYMBOL(avcodec_, av_frame_unref);
     INITSYMBOL(avcodec_, av_frame_free);
-    INITSYMBOL(avcodec_, av_dict_get);
   } else {
     INITSYMBOL(avcodec_, avcodec_alloc_frame);
     INITSYMBOL(avcodec_, avcodec_get_frame_defaults);
@@ -317,15 +314,6 @@ void FFMPEGDispatchImpl::LoadSymbols() {
   INITSYMBOL(avcodec_, avcodec_flush_buffers);
   INITSYMBOL(avcodec_, avcodec_align_dimensions2);
 
-  if (ffmpeg_->avcodec_version() > kAVCodecSupportsAvPacketAlloc) {
-    INITSYMBOL(avcodec_, av_packet_alloc);
-    INITSYMBOL(avcodec_, av_packet_free);
-    INITSYMBOL(avcodec_, av_packet_unref);
-    INITSYMBOL(avcodec_, avcodec_parameters_to_context);
-  } else {
-    INITSYMBOL(avcodec_, av_free_packet);
-  }
-
   // Load symbols from the avformat shared library.
   INITSYMBOL(avformat_, avformat_version);
   SB_DCHECK(ffmpeg_->avformat_version);
@@ -335,13 +323,6 @@ void FFMPEGDispatchImpl::LoadSymbols() {
     INITSYMBOL(avformat_, av_register_all);
     SB_DCHECK(ffmpeg_->av_register_all);
   }
-  INITSYMBOL(avformat_, av_read_frame);
-  INITSYMBOL(avformat_, av_seek_frame);
-  INITSYMBOL(avformat_, avformat_open_input);
-  INITSYMBOL(avformat_, avformat_close_input);
-  INITSYMBOL(avformat_, avformat_alloc_context);
-  INITSYMBOL(avformat_, avformat_find_stream_info);
-  INITSYMBOL(avformat_, avio_alloc_context);
 
 #undef INITSYMBOL
 }
