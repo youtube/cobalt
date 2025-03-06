@@ -104,12 +104,13 @@ JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
 extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_HandleDeepLink(
     JNIEnv* env,
     const JavaParamRef<jstring>& jurl,
-    jboolean applicationReady) {
+    jboolean applicationStarted) {
   const std::string& url = base::android::ConvertJavaStringToUTF8(env, jurl);
 
   auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
-  if (applicationReady) {
-    // TODO(cobalt, b/374147993): handle warm start deeplink
+  if (applicationStarted) {
+    // Warm start deeplink
+    manager->OnDeepLink(url);
   } else {
     // Cold start deeplink
     manager->set_deep_link(url);
