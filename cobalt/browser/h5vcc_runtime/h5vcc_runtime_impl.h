@@ -48,6 +48,8 @@ class H5vccRuntimeImpl : public content::DocumentService<mojom::H5vccRuntime> {
  private:
   H5vccRuntimeImpl(content::RenderFrameHost& render_frame_host,
                    mojo::PendingReceiver<mojom::H5vccRuntime> receiver);
+
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace h5vcc_runtime
