@@ -595,6 +595,7 @@ std::unique_ptr<Demuxer> DemuxerManager::CreateFFmpegDemuxer() {
 #elif BUILDFLAG(USE_STARBOARD_MEDIA)
 std::unique_ptr<Demuxer> DemuxerManager::CreateProgressiveDemuxer() {
   DCHECK(data_source_);
+  DCHECK(base::FeatureList::IsEnabled(media::kCobaltProgressivePlayback));
   LOG(INFO) << "Using ProgressiveDemuxer.";
   return std::make_unique<ProgressiveDemuxer>(
       media_task_runner_, data_source_.get(), media_log_.get());

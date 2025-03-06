@@ -22,6 +22,7 @@
 #include "starboard/types.h"
 
 struct AVCodec;
+struct AVCodecContext;
 struct AVCodecParameters;
 struct AVDictionary;
 struct AVFrame;
