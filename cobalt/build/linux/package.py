@@ -7,12 +7,10 @@ from cobalt.build import packaging
 
 def lay_out(out_dir, base_dir):
   files = [
-      'gen/build_info.json',
       'chromedriver',
       'cobalt',
       'content_shell.pak',
       'icudtl.dat',
-      'starboard/libstarboard.so.17',
       'libEGL.so',
       'libGLESv2.so',
       'libvk_swiftshader.so',
@@ -20,7 +18,16 @@ def lay_out(out_dir, base_dir):
       'v8_context_snapshot.bin',
       'vk_swiftshader_icd.json',
   ]
+
+  base_files = [
+      'gen/build_info.json',
+      'starboard/libstarboard.so.17',
+  ]
+
   for file in files:
+    packaging.copy(os.path.join(out_dir, file), os.path.join(base_dir, file))
+
+  for file in base_files:
     packaging.copy(
         os.path.join(out_dir, file),
         os.path.join(base_dir, os.path.basename(file)))
