@@ -34,6 +34,10 @@ def lay_out(out_dir, base_dir):
       'obj/third_party/android_deps/chromium_play_services_availability_java.javac.jar',
   ]
 
+  base_files = [
+      'gen/build_info.json',
+  ]
+
   for directory in directories:
     shutil.copytree(
         os.path.join(out_dir, directory),
@@ -42,6 +46,11 @@ def lay_out(out_dir, base_dir):
 
   for file in files:
     packaging.copy(os.path.join(out_dir, file), os.path.join(base_dir, file))
+
+  for file in base_files:
+    packaging.copy(
+        os.path.join(out_dir, file),
+        os.path.join(base_dir, os.path.basename(file)))
 
 
 if __name__ == '__main__':
