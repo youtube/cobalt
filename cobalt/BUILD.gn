@@ -89,6 +89,7 @@ test("cobalt_unittests") {
   testonly = true
 
   sources = [
+    "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
     "//cobalt/cobalt_switch_defaults.cc",
     "//cobalt/cobalt_switch_defaults.h",
     "//cobalt/cobalt_switch_defaults_test.cc",
@@ -97,6 +98,7 @@ test("cobalt_unittests") {
 
   deps = [
     "//base/test:run_all_unittests",
+    "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/user_agent",
     "//testing/gmock",
     "//testing/gtest",
