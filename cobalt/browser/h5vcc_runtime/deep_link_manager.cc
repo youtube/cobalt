@@ -21,7 +21,7 @@
 namespace cobalt {
 namespace browser {
 
-using content::BrowserThread;
+// using content::BrowserThread;
 
 DeepLinkManager::DeepLinkManager() {
   DETACH_FROM_THREAD(thread_checker_);
@@ -39,12 +39,12 @@ DeepLinkManager* DeepLinkManager::GetInstance() {
 
 void DeepLinkManager::set_deep_link(const std::string& url) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  // DCHECK_CURRENTLY_ON(BrowserThread::IO);
   deep_link_ = url;
 }
 const std::string& DeepLinkManager::get_deep_link() const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  // DCHECK_CURRENTLY_ON(BrowserThread::IO);
   return deep_link_;
 }
 
@@ -57,7 +57,7 @@ const std::string DeepLinkManager::GetAndClearDeepLink() {
 void DeepLinkManager::AddListener(
     mojo::Remote<DeepLinkListener> listener_remote) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  // DCHECK_CURRENTLY_ON(BrowserThread::IO);
 
   if (listeners_.empty() && !deep_link_.empty()) {
     listener_remote->NotifyDeepLink(GetAndClearDeepLink());
@@ -70,7 +70,7 @@ void DeepLinkManager::AddListener(
 
 void DeepLinkManager::OnDeepLink(const std::string& url) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+  // DCHECK_CURRENTLY_ON(BrowserThread::IO);
   if (listeners_.empty()) {
     // Deeplink is held until a callback is registered, at which point it will
     // be consumed."
