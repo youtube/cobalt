@@ -17,4 +17,7 @@ third_party {
     type: "UpstreamSubdir"
     value: "third_party/libwebm"
   }
+  security {
+    mitigated_security_patch: "CVE-2018-6406"  # false positive due to NVD data issue
+  }
 }
