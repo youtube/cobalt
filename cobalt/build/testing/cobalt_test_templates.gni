@@ -21,6 +21,8 @@ template("cobalt_test") {
     output_name = actual_target_name
     forward_variables_from(invoker, "*", TESTONLY_AND_VISIBILITY)
     testonly = true
+    _runtime_deps_file = "$root_build_dir/${actual_target_name}.runtime_deps"
+
     if (!defined(data_deps)) {
       data_deps = []
     }
@@ -28,6 +30,8 @@ template("cobalt_test") {
       ":${loader_target_name}($starboard_toolchain)",
       "//starboard:starboard_group($starboard_toolchain)",
     ]
+
+    write_runtime_deps = _runtime_deps_file
   }
 
   if (current_toolchain == starboard_toolchain) {
@@ -37,8 +41,15 @@ template("cobalt_test") {
       if (use_asan) {
         sources += [ "//$starboard_path/sanitizer_options.cc" ]
       }
+
+      output_dir = root_build_dir
       defines = [ "SB_LOADER_MODULE=\"$actual_target_name\"" ]
       configs += [ "//starboard/build/config:starboard_implementation" ]
+
+      ldflags = [
+        "-Wl,-rpath=" + rebase_path("$root_build_dir/starboard"),
+        "-Wl,-rpath=" + rebase_path("$root_build_dir"),
+      ]
       deps = [ "//starboard:starboard_group($starboard_toolchain)" ]
     }
   }

@@ -1,0 +1,14 @@
+{
+  "failing_tests": [
+    "SbSystemGetLocaleIdTest.SunnyDay",
+    "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.*",
+    "MultiplePlayerTest.*",
+    "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.*",
+    "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.*",
+    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*",
+    "VerticalVideoTests/VerticalVideoTest.*",
+    "SbAudioSinkTest*",
+    "MaximumPlayerConfigurationExplorerTests*",
+    "SbPlayerTest*"
+  ]
+}
