@@ -231,6 +231,7 @@ void RenderFrameAudioInputStreamFactory::Core::CreateStream(
     bool automatic_gain_control,
     uint32_t shared_memory_count,
     media::mojom::AudioProcessingConfigPtr processing_config) {
+  LOG(INFO) << "YO THOR! RenderFrameAudioInputStreamFactory::Core::CreateStream!";
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   TRACE_EVENT1("audio", "RenderFrameAudioInputStreamFactory::CreateStream",
                "session id", session_id.ToString());
@@ -238,17 +239,20 @@ void RenderFrameAudioInputStreamFactory::Core::CreateStream(
   if (!forwarding_factory_)
     return;
 
+  LOG(INFO)<< "YO THOR GET AUDIO INPUT DEVICE MANAGER - OPEND DEVI BY ID";
   const blink::MediaStreamDevice* device =
       media_stream_manager_->audio_input_device_manager()->GetOpenedDeviceById(
           session_id);
 
   if (!device) {
+    LOG(INFO)<< "YO THOR - NAE DEVICE FOUND!";
     TRACE_EVENT_INSTANT0("audio", "device not found", TRACE_EVENT_SCOPE_THREAD);
     return;
   }
 
   WebContentsMediaCaptureId capture_id;
   if (WebContentsMediaCaptureId::Parse(device->id, &capture_id)) {
+    LOG(INFO) << "YO THOR - WebContentsMediaCaptureId - LOOPBACK STREA<M";
     // For MEDIA_GUM_DESKTOP_AUDIO_CAPTURE, the source is selected from
     // picker window, we do not mute the source audio. For
     // MEDIA_GUM_TAB_AUDIO_CAPTURE, the probable use case is Cast, we mute
@@ -271,6 +275,7 @@ void RenderFrameAudioInputStreamFactory::Core::CreateStream(
       IncrementDesktopCaptureCounter(SYSTEM_LOOPBACK_AUDIO_CAPTURER_CREATED);
     return;
   } else {
+    LOG(INFO) << "YO THOR - WebContentsMediaCaptureId - ELSE FORWARDING FACTORYT - CRERATE INPUTR STREAM!";
     forwarding_factory_->CreateInputStream(
         process_id_, frame_id_, device->id, audio_params, shared_memory_count,
         automatic_gain_control, std::move(processing_config),

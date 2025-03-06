@@ -12,9 +12,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 abstract class AudioDeviceSelector {
-    private static final String TAG = "media";
+    private static final String TAG = "THORmediaDEVSLE";
 
-    protected static final boolean DEBUG = false;
+    protected static final boolean DEBUG = true;
 
     protected Devices mDeviceStates = new Devices();
 
@@ -87,7 +87,10 @@ abstract class AudioDeviceSelector {
         if (DEBUG) logd("selectDevice: id=" + DeviceHelpers.getDeviceName(nextDevice));
 
         // `deviceId` is invalid, or its corresponding device is not available.
-        if (nextDevice == Devices.ID_INVALID) return false;
+        if (nextDevice == Devices.ID_INVALID) {
+          logd("YO THOR SELECT DEVICE - NEXT ONE IS INVALID _ RETURN FALSE");
+          return false;
+        }
 
         setAudioDevice(nextDevice);
         return true;
@@ -298,7 +301,7 @@ abstract class AudioDeviceSelector {
 
     /** Trivial helper method for debug logging */
     protected static void logd(String msg) {
-        Log.d(TAG, msg);
+        Log.d(TAG, "YO THOR - " + msg);
     }
 
     /** Trivial helper method for error logging */

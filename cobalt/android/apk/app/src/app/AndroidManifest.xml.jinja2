@@ -29,6 +29,7 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
@@ -129,4 +130,11 @@
     </application>
     {% block extra_root_definitions %}
     {% endblock %}
+
+     <queries>
+    <!-- This is needed to access the speech recognition service in SDK 30 -->
+    <package android:name="com.google.android.katniss" />
+
+  </queries>
+
 </manifest>

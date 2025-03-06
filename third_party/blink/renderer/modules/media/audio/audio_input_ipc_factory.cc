@@ -35,9 +35,11 @@ void CreateMojoAudioInputStreamOnMainThread(
     const media::AudioParameters& params,
     bool automatic_gain_control,
     uint32_t total_segments) {
+  LOG(INFO) << "YO THOR - CREAT MOJO INPUT STREAM ON MAIN THRAD";
   DCHECK_EQ(source_params.processing.has_value(), !!controls_receiver);
   if (auto* web_frame = static_cast<WebLocalFrame*>(
           blink::WebFrame::FromFrameToken(frame_token))) {
+    LOG(INFO) << "YO THOR - LETCZ CREATE AUDIO INOPUT STREM ON WEB FRAME CLEINT";
     web_frame->Client()->CreateAudioInputStream(
         std::move(client), source_params.session_id, params,
         automatic_gain_control, total_segments, std::move(controls_receiver),
@@ -56,6 +58,7 @@ void CreateMojoAudioInputStream(
     const media::AudioParameters& params,
     bool automatic_gain_control,
     uint32_t total_segments) {
+  LOG(INFO) << "YO THOR - CREAT MOJO INPUT STREAM ON OWN TASK RUNNA";
   main_task_runner->PostTask(
       FROM_HERE, base::BindOnce(&CreateMojoAudioInputStreamOnMainThread,
                                 frame_token, source_params, std::move(client),
