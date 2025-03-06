@@ -222,13 +222,15 @@ class MediaCodecBridge {
   void OnMediaCodecOutputFormatChanged();
   void OnMediaCodecFrameRendered(int64_t frame_timestamp);
 
+  static jboolean IsFrameRenderedCallbackEnabled();
+
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.
   explicit MediaCodecBridge(Handler* handler);
   void Initialize(jobject j_media_codec_bridge);
 
   Handler* handler_ = NULL;
-  jobject j_media_codec_bridge_ = NULL;
+  ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
   // Profiling and allocation tracking has identified this area to be hot,
   // and, capable of enough to cause GC times to raise high enough to impact
