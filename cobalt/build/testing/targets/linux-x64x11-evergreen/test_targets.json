@@ -4,6 +4,6 @@
     "starboard/nplb:nplb"
   ],
   "executables": [
-    "out/linux-x64x11_devel/nplb_loader"
+    "out/linux-x64x11-evergreen_devel/nplb_loader"
   ]
 }
