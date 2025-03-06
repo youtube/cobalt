@@ -16,6 +16,7 @@
 
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/log_internal.h"
@@ -100,6 +101,21 @@ JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
 #endif  // SB_IS(EVERGREEN_COMPATIBLE)
 }
 
+extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_HandleDeepLink(
+    JNIEnv* env,
+    const JavaParamRef<jstring>& jurl,
+    jboolean applicationReady) {
+  const std::string& url = base::android::ConvertJavaStringToUTF8(env, jurl);
+
+  auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
+  if (applicationReady) {
+    // TODO(cobalt, b/374147993): handle warm start deeplink
+  } else {
+    // Cold start deeplink
+    manager->set_deep_link(url);
+  }
+}
+
 // StarboardBridge::GetInstance() should not be inlined in the
 // header. This makes sure that when source files from multiple targets include
 // this header they don't end up with different copies of the inlined code
@@ -139,15 +155,6 @@ void StarboardBridge::AppendArgs(JNIEnv* env,
   ScopedJavaLocalRef<jobjectArray> args_java =
       Java_StarboardBridge_getArgs(env, j_starboard_bridge_);
   AppendJavaStringArrayToStringVector(env, args_java, args_vector);
-}
-
-SB_EXPORT_ANDROID std::string StarboardBridge::GetStartDeepLink(JNIEnv* env) {
-  SB_DCHECK(env);
-  ScopedJavaLocalRef<jstring> start_deep_link_java =
-      Java_StarboardBridge_getStartDeepLink(env, j_starboard_bridge_);
-  std::string start_deep_link =
-      ConvertJavaStringToUTF8(env, start_deep_link_java);
-  return start_deep_link;
 }
 
 ScopedJavaLocalRef<jintArray> StarboardBridge::GetSupportedHdrTypes(
