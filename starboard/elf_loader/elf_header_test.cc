@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "starboard/common/log.h"
 #include "starboard/elf_loader/file.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
