@@ -17,6 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "build/build_config.h"
+#include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -39,14 +40,10 @@ void H5vccRuntimeImpl::Create(
   new H5vccRuntimeImpl(*render_frame_host, std::move(receiver));
 }
 
-void H5vccRuntimeImpl::GetInitialDeepLink(GetInitialDeepLinkCallback callback) {
-  std::string start_deep_link;
-#if BUILDFLAG(IS_ANDROID)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  StarboardBridge* starbooard_bridge = StarboardBridge::GetInstance();
-  start_deep_link = starbooard_bridge->GetStartDeepLink(env);
-#endif
-  std::move(callback).Run(start_deep_link);
+void H5vccRuntimeImpl::GetAndClearInitialDeepLink(
+    GetAndClearInitialDeepLinkCallback callback) {
+  auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
+  std::move(callback).Run(manager->GetAndClearDeepLink());
 }
 
 }  // namespace h5vcc_runtime

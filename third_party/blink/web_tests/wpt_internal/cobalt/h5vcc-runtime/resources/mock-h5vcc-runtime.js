@@ -39,10 +39,13 @@ class MockH5vccRuntime {
 
   // h5vcc_runtime.mojom.H5vccRuntime impl.
   getInitialDeepLink() {
+    const value = this.stub_result_.get(this.STUB_KEY_INITIAL_DEEP_LINK);
+    stubInitialDeepLink('');
+
     // VERY IMPORTANT: this should return (a resolved Promise with) a dictionary
     // with the same "key" as the mojom definition, it's the variable name in the mojom file in CamelCase.
     // Double check the name in the generated js file imported on the top of this file.
-    return Promise.resolve({ initialDeepLink: this.stub_result_.get(this.STUB_KEY_INITIAL_DEEP_LINK) });
+    return Promise.resolve({ initialDeepLink: value });
   }
 }
 

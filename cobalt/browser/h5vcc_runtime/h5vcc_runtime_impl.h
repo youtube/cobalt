@@ -40,7 +40,7 @@ class H5vccRuntimeImpl : public content::DocumentService<mojom::H5vccRuntime> {
   H5vccRuntimeImpl(const H5vccRuntimeImpl&) = delete;
   H5vccRuntimeImpl& operator=(const H5vccRuntimeImpl&) = delete;
 
-  void GetInitialDeepLink(GetInitialDeepLinkCallback) override;
+  void GetAndClearInitialDeepLink(GetAndClearInitialDeepLinkCallback) override;
 
  private:
   H5vccRuntimeImpl(content::RenderFrameHost& render_frame_host,

@@ -37,7 +37,7 @@ ScriptPromise H5vccRuntime::getInitialDeepLink(
 
   EnsureReceiverIsBound();
 
-  remote_h5vcc_runtime_->GetInitialDeepLink(
+  remote_h5vcc_runtime_->GetAndClearInitialDeepLink(
       WTF::BindOnce(&H5vccRuntime::OnGetInitialDeepLink, WrapPersistent(this),
                     WrapPersistent(resolver)));
 
@@ -57,7 +57,7 @@ void H5vccRuntime::setOndeeplink(EventListener* listener) {
   SetAttributeEventListener(event_type_names::kDeeplink, listener);
 
   EnsureReceiverIsBound();
-  remote_h5vcc_runtime_->GetInitialDeepLink(WTF::BindOnce(
+  remote_h5vcc_runtime_->GetAndClearInitialDeepLink(WTF::BindOnce(
       &H5vccRuntime::MaybeFireDeepLinkEvent, WrapPersistent(this)));
 }
 
