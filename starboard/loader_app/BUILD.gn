@@ -159,19 +159,15 @@ static_library("app_key_files") {
   ]
 }
 
-if (sb_is_evergreen) {
-  target(gtest_target_type, "app_key_files_test") {
-    testonly = true
-    sources = [
-      "//starboard/common/test_main.cc",
-      "app_key_files_test.cc",
-    ]
-    deps = [
-      ":app_key_files",
-      "//testing/gmock",
-      "//testing/gtest",
-    ]
-  }
+source_set("app_key_files_test") {
+  testonly = true
+  sources = [ "app_key_files_test.cc" ]
+  deps = [
+    ":app_key_files",
+    "//starboard:starboard_group",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 }
 
 static_library("app_key") {
@@ -188,19 +184,14 @@ static_library("app_key") {
   ]
 }
 
-if (sb_is_evergreen) {
-  target(gtest_target_type, "app_key_test") {
-    testonly = true
-    sources = [
-      "//starboard/common/test_main.cc",
-      "app_key_test.cc",
-    ]
-    deps = [
-      ":app_key",
-      "//testing/gmock",
-      "//testing/gtest",
-    ]
-  }
+source_set("app_key_test") {
+  testonly = true
+  sources = [ "app_key_test.cc" ]
+  deps = [
+    ":app_key",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 }
 
 static_library("drain_file") {
@@ -224,21 +215,16 @@ static_library("drain_file_helper") {
   ]
 }
 
-if (sb_is_evergreen) {
-  target(gtest_target_type, "drain_file_test") {
-    testonly = true
-    sources = [
-      "//starboard/common/test_main.cc",
-      "drain_file_test.cc",
-    ]
-    deps = [
-      ":drain_file",
-      ":drain_file_helper",
-      "//starboard/common",
-      "//testing/gmock",
-      "//testing/gtest",
-    ]
-  }
+source_set("drain_file_test") {
+  testonly = true
+  sources = [ "drain_file_test.cc" ]
+  deps = [
+    ":drain_file",
+    ":drain_file_helper",
+    "//starboard/common",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
 }
 
 proto_library("installation_store_proto") {

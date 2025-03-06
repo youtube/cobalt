@@ -26,11 +26,10 @@ static_library("eztime") {
   ]
 }
 
-target(gtest_target_type, "eztime_test") {
+source_set("eztime_test") {
   testonly = true
 
   sources = [
-    "//starboard/common/test_main.cc",
     "eztime_test.cc",
     "test_constants.h",
   ]

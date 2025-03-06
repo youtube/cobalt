@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "starboard/configuration_constants.h"
+#include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
