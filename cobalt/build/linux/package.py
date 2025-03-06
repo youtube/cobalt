@@ -2,23 +2,35 @@
 """Packages Cobalt for Linux."""
 
 import os
-import shutil
 from cobalt.build import packaging
 
 
 def lay_out(out_dir, base_dir):
-  place_in_base_dir = [
-      'gen/build_info.json',
+  files = [
+      'chromedriver',
       'cobalt',
       'content_shell.pak',
       'icudtl.dat',
       'libEGL.so',
       'libGLESv2.so',
-      'starboard/libstarboard.so.17',
+      'libvk_swiftshader.so',
+      'libvulkan.so.1',
       'v8_context_snapshot.bin',
+      'vk_swiftshader_icd.json',
   ]
-  for f in place_in_base_dir:
-    shutil.copy2(os.path.join(out_dir, f), base_dir)
+
+  base_files = [
+      'gen/build_info.json',
+      'starboard/libstarboard.so.17',
+  ]
+
+  for file in files:
+    packaging.copy(os.path.join(out_dir, file), os.path.join(base_dir, file))
+
+  for file in base_files:
+    packaging.copy(
+        os.path.join(out_dir, file),
+        os.path.join(base_dir, os.path.basename(file)))
 
 
 if __name__ == '__main__':

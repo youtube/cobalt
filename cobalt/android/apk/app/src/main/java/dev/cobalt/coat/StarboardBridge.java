@@ -78,7 +78,6 @@ public class StarboardBridge {
   private final Holder<Service> serviceHolder;
   private final String[] args;
   private final long nativeApp;
-  private String startDeepLink;
   private final Runnable stopRequester =
       new Runnable() {
         @Override
@@ -118,7 +117,6 @@ public class StarboardBridge {
     this.activityHolder = activityHolder;
     this.serviceHolder = serviceHolder;
     this.args = args;
-    this.startDeepLink = startDeepLink;
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
     this.ttsHelper = new CobaltTextToSpeechHelper(appContext);
     this.audioOutputManager = new AudioOutputManager(appContext);
@@ -132,6 +130,8 @@ public class StarboardBridge {
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
 
     nativeApp = StarboardBridgeJni.get().startNativeStarboard();
+
+    StarboardBridgeJni.get().handleDeepLink(startDeepLink, /*applicationReady=*/ false);
   }
 
   private native boolean initJNI();
@@ -149,6 +149,8 @@ public class StarboardBridge {
     // boolean initJNI();
 
     // void closeNativeStarboard(long nativeApp);
+
+    void handleDeepLink(String url, boolean applicationReady);
   }
 
   protected void onActivityStart(Activity activity) {
@@ -314,29 +316,9 @@ public class StarboardBridge {
     return args;
   }
 
-  /** Returns the URL from the Intent that started the app. */
-  @SuppressWarnings("unused")
-  @CalledByNative
-  protected String getStartDeepLink() {
-    if (startDeepLink == null) {
-      throw new IllegalArgumentException("startDeepLink cannot be null");
-    }
-    return startDeepLink;
-  }
-
   /** Sends an event to the web app to navigate to the given URL */
   public void handleDeepLink(String url) {
-    if (applicationReady) {
-      nativeHandleDeepLink(url);
-    } else {
-      // If this deep link event is received before the starboard application
-      // is ready, it replaces the start deep link.
-      startDeepLink = url;
-    }
-  }
-
-  private void nativeHandleDeepLink(String url) {
-    // TODO(b/374147993): Implement deep link
+    StarboardBridgeJni.get().handleDeepLink(url, applicationReady);
   }
 
   /**

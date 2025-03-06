@@ -301,10 +301,11 @@ extern "C" int SbRunStarboardMain(int argc,
   // Signal GameActivity_onCreate() that it may proceed.
   g_app_created_semaphore->Put();
 
-  // Enter the Starboard run loop until stopped.
-  JNIEnv* env = base::android::AttachCurrentThread();
-  std::string start_url = StarboardBridge::GetInstance()->GetStartDeepLink(env);
+  const auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
+  const std::string start_url = manager->GetDeepLink();
   SB_LOG(INFO) << "GetStartDeepLink: " << start_url;
+
+  // Enter the Starboard run loop until stopped.
   int error_level = app.Run(std::move(command_line), start_url.c_str());
 
   // Mark the app not running before informing StarboardBridge that the app is
