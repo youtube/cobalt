@@ -25,6 +25,8 @@
 namespace cobalt {
 namespace browser {
 
+using h5vcc_runtime::mojom::DeepLinkListener;
+
 //  This class is a singleton that provides a central point for handling the
 //  deep link URLs received from the OS.  It handles both initial deep links
 //  (available at app startup) and warm start deep links (received while the app
