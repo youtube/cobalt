@@ -42,7 +42,7 @@ typedef union musl_pthread_mutexattr_t {
   void* ptr;
 } musl_pthread_mutexattr_t;
 
-#define MUSL_PTHREAD_COND_MAX_SIZE 80
+#define MUSL_PTHREAD_COND_MAX_SIZE 96
 typedef union musl_pthread_cond_t {
   uint8_t cond_buffer[MUSL_PTHREAD_COND_MAX_SIZE];
   void* ptr;
