@@ -16,9 +16,12 @@
 
 #include "base/check.h"
 #include "base/no_destructor.h"
+#include "content/public/browser/browser_thread.h"
 
 namespace cobalt {
 namespace browser {
+
+using content::BrowserThread;
 
 DeepLinkManager::DeepLinkManager() {
   DETACH_FROM_THREAD(thread_checker_);
@@ -36,10 +39,12 @@ DeepLinkManager* DeepLinkManager::GetInstance() {
 
 void DeepLinkManager::set_deep_link(const std::string& url) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CURRENTLY_ON(BrowserThread::IO);
   deep_link_ = url;
 }
 const std::string& DeepLinkManager::get_deep_link() const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CURRENTLY_ON(BrowserThread::IO);
   return deep_link_;
 }
 
@@ -52,6 +57,12 @@ const std::string DeepLinkManager::GetAndClearDeepLink() {
 void DeepLinkManager::AddListener(
     mojo::Remote<DeepLinkListener> listener_remote) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+
+  if (listeners_.empty() && !deep_link_.empty()) {
+    listener_remote->NotifyDeepLink(GetAndClearDeepLink());
+  }
+
   // mojo::RemoteSet removes the listener_remote automatically when the Mojo
   // client disconnects
   listeners_.Add(std::move(listener_remote));
@@ -59,6 +70,7 @@ void DeepLinkManager::AddListener(
 
 void DeepLinkManager::OnDeepLink(const std::string& url) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK_CURRENTLY_ON(BrowserThread::IO);
   if (listeners_.empty()) {
     // Deeplink is held until a callback is registered, at which point it will
     // be consumed."
@@ -67,7 +79,7 @@ void DeepLinkManager::OnDeepLink(const std::string& url) {
     // No need to worry about race condition because all access to the
     // mojo::RemoteSet happens on one thread.
     for (auto& listener : listeners_) {
-      listener->ProcessDeepLink(url);
+      listener->NotifyDeepLink(url);
     }
   }
 }

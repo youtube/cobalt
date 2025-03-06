@@ -18,6 +18,7 @@
 #include "base/functional/callback.h"
 #include "build/build_config.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
+#include "content/public/browser/browser_thread.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -26,6 +27,8 @@ using starboard::android::shared::StarboardBridge;
 #endif
 
 namespace h5vcc_runtime {
+
+using content::BrowserThread;
 
 // TODO (b/395126160): refactor mojom implementation on Android
 H5vccRuntimeImpl::H5vccRuntimeImpl(
@@ -42,12 +45,16 @@ void H5vccRuntimeImpl::Create(
 
 void H5vccRuntimeImpl::GetAndClearInitialDeepLink(
     GetAndClearInitialDeepLinkCallback callback) {
+  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+
   auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
   std::move(callback).Run(manager->GetAndClearDeepLink());
 }
 
 void H5vccRuntimeImpl::AddListener(
     mojo::PendingRemote<mojom::DeepLinkListener> listener) {
+  DCHECK_CURRENTLY_ON(BrowserThread::IO);
+
   mojo::Remote<mojom::DeepLinkListener> listener_remote;
   listener_remote.Bind(std::move(listener));
 

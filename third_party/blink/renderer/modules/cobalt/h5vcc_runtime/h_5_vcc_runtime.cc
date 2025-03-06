@@ -60,15 +60,12 @@ void H5vccRuntime::setOndeeplink(EventListener* listener) {
 
   EnsureReceiverIsBound();
 
-  // Bound the receiver for the RemoteListener, this is when the ProcessDeepLink
+  // Bind the receiver for the RemoteListener, this is where the NotifyDeepLink
   // event is called.
   auto task_runner =
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   remote_h5vcc_runtime_->AddListener(
       receiver_.BindNewPipeAndPassRemote(task_runner));
-
-  remote_h5vcc_runtime_->GetAndClearInitialDeepLink(WTF::BindOnce(
-      &H5vccRuntime::MaybeFireDeepLinkEvent, WrapPersistent(this)));
 }
 
 void H5vccRuntime::MaybeFireDeepLinkEvent(const String& url) {
@@ -91,8 +88,7 @@ void H5vccRuntime::EnsureReceiverIsBound() {
       remote_h5vcc_runtime_.BindNewPipeAndPassReceiver(task_runner));
 }
 
-// Mojom interface implementation.
-void H5vccRuntime::ProcessDeepLink(const WTF::String& deeplink) {
+void H5vccRuntime::NotifyDeepLink(const WTF::String& deeplink) {
   MaybeFireDeepLinkEvent(deeplink);
 }
 

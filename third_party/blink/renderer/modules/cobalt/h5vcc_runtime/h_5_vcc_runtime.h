@@ -55,7 +55,7 @@ class MODULES_EXPORT H5vccRuntime final
   void setOndeeplink(EventListener* listener);
 
   // Mojom interface:
-  void ProcessDeepLink(const WTF::String& deep_link) override;
+  void NotifyDeepLink(const WTF::String& deep_link) override;
 
   // EventTargetWithInlineData impl.
   ExecutionContext* GetExecutionContext() const override {

@@ -15,7 +15,7 @@
 module h5vcc_runtime.mojom;
 
 interface DeepLinkListener {
-  ProcessDeepLink(string deep_link);
+  NotifyDeepLink(string deep_link);
 };
 
 // The browser process must provide an implementation of this interface so that
