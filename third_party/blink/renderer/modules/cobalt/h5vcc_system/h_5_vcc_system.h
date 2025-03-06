@@ -18,12 +18,19 @@
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom-blink.h"
 
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/core/dom/events/event_target.h"
+#include "third_party/blink/renderer/core/event_type_names.h"
+#include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_system/before_conceal_event.h"
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_system/before_stop_event.h"
+#include "third_party/blink/renderer/modules/event_interface_modules_names.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 #include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -34,7 +41,7 @@ class ScriptState;
 class ScriptPromiseResolver;
 
 class MODULES_EXPORT H5vccSystem final
-    : public ScriptWrappable,
+    : public EventTargetWithInlineData,
       public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
 
@@ -46,12 +53,22 @@ class MODULES_EXPORT H5vccSystem final
   // Web-exposed interface:
   ScriptPromise getAdvertisingId(ScriptState*, ExceptionState&);
   ScriptPromise getLimitAdTracking(ScriptState*, ExceptionState&);
+  ScriptPromise concealOrStop(ScriptState*, ExceptionState&);
+
+  DEFINE_ATTRIBUTE_EVENT_LISTENER(beforeconceal, kBeforeconceal)
+  DEFINE_ATTRIBUTE_EVENT_LISTENER(beforestop, kBeforestop)
+
+  // EventTarget overrides.
+  ExecutionContext* GetExecutionContext() const override;
+  const AtomicString& InterfaceName() const override;
 
   void Trace(Visitor*) const override;
 
  private:
   void OnGetAdvertisingId(ScriptPromiseResolver*, const String&);
   void OnGetLimitAdTracking(ScriptPromiseResolver*, bool);
+  void OnGetUserOnExitStrategy(ScriptPromiseResolver*,
+                               h5vcc_system::mojom::blink::UserOnExitStrategy);
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_system::mojom::blink::H5vccSystem> remote_h5vcc_system_;
 };
