@@ -58,8 +58,6 @@ source_set("starboard") {
       "progressive/avc_parser.h",
       "progressive/data_source_reader.cc",
       "progressive/data_source_reader.h",
-      "progressive/demuxer_extension_wrapper.cc",
-      "progressive/demuxer_extension_wrapper.h",
       "progressive/mp4_map.cc",
       "progressive/mp4_map.h",
       "progressive/mp4_parser.cc",
@@ -127,7 +125,6 @@ source_set("unit_tests") {
   sources = []
   if (!media_use_ffmpeg) {
     sources += [
-      "progressive/demuxer_extension_wrapper_test.cc",
       "progressive/mock_data_source_reader.h",
       "progressive/mp4_map_unittest.cc",
       "progressive/rbsp_stream_unittest.cc",

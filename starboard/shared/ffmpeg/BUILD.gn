@@ -16,8 +16,6 @@ ffmpeg_specialization_sources = [
   "ffmpeg_audio_decoder_impl.cc",
   "ffmpeg_audio_decoder_impl.h",
   "ffmpeg_common.h",
-  "ffmpeg_demuxer_impl.cc",
-  "ffmpeg_demuxer_impl.h",
   "ffmpeg_video_decoder_impl.cc",
   "ffmpeg_video_decoder_impl.h",
 ]
@@ -26,7 +24,6 @@ static_library("ffmpeg_dynamic_load") {
   check_includes = false
   sources = [
     "ffmpeg_dynamic_load_audio_decoder_impl.cc",
-    "ffmpeg_dynamic_load_demuxer_impl.cc",
     "ffmpeg_dynamic_load_dispatch_impl.cc",
     "ffmpeg_dynamic_load_video_decoder_impl.cc",
   ]
@@ -50,7 +47,6 @@ if (!_building_linux_platform) {
     check_includes = false
     sources = ffmpeg_specialization_sources + [
                 "ffmpeg_linked_audio_decoder_impl.cc",
-                "ffmpeg_linked_demuxer_impl.cc",
                 "ffmpeg_linked_dispatch_impl.cc",
                 "ffmpeg_linked_video_decoder_impl.cc",
               ]
@@ -95,28 +91,10 @@ static_library("ffmpeg_dispatch_sources") {
   check_includes = false
   sources = [
     "ffmpeg_audio_decoder.h",
-    "ffmpeg_demuxer.cc",
-    "ffmpeg_demuxer.h",
     "ffmpeg_dispatch.cc",
     "ffmpeg_dispatch.h",
     "ffmpeg_video_decoder.h",
   ]
 
   public_configs = [ "//starboard/build/config:starboard_implementation" ]
-}
-
-target(gtest_target_type, "ffmpeg_demuxer_test") {
-  testonly = true
-  sources = [
-    "//starboard/common/test_main.cc",
-    "ffmpeg_demuxer_test.cc",
-  ]
-  configs += [ "//starboard/build/config:starboard_implementation" ]
-  deps = [
-    ":ffmpeg_dispatch_sources",
-    "//starboard:starboard_group",
-    "//starboard/common",
-    "//testing/gmock",
-    "//testing/gtest",
-  ]
 }

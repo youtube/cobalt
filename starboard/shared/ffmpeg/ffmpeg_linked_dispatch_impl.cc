@@ -54,13 +54,10 @@ void LoadSymbols(FFMPEGDispatch* ffmpeg) {
   SB_DCHECK(ffmpeg->avutil_version);
   INITSYMBOL(av_malloc);
   INITSYMBOL(av_freep);
-  INITSYMBOL(av_free);
-  INITSYMBOL(av_rescale_rnd);
 #if LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   INITSYMBOL(av_frame_alloc);
   INITSYMBOL(av_frame_free);
   INITSYMBOL(av_frame_unref);
-  INITSYMBOL(av_dict_get);
 #endif  // LIBAVUTIL_VERSION_INT >= LIBAVUTIL_VERSION_52_8
   INITSYMBOL(av_samples_get_buffer_size);
   INITSYMBOL(av_opt_set_int);
@@ -91,22 +88,6 @@ void LoadSymbols(FFMPEGDispatch* ffmpeg) {
   INITSYMBOL(avcodec_get_frame_defaults);
 #endif  // LIBAVUTIL_VERSION_INT > LIBAVUTIL_VERSION_52_8
   INITSYMBOL(avcodec_align_dimensions2);
-
-#if LIBAVCODEC_LIBRARY_IS_FFMPEG
-  INITSYMBOL(av_packet_alloc);
-  INITSYMBOL(av_packet_free);
-  INITSYMBOL(av_packet_unref);
-  INITSYMBOL(avcodec_parameters_to_context);
-#endif  // LIBAVCODEC_LIBRARY_IS_FFMPEG
-  INITSYMBOL(av_free_packet);
-
-  INITSYMBOL(av_read_frame);
-  INITSYMBOL(av_seek_frame);
-  INITSYMBOL(avformat_open_input);
-  INITSYMBOL(avformat_close_input);
-  INITSYMBOL(avformat_alloc_context);
-  INITSYMBOL(avformat_find_stream_info);
-  INITSYMBOL(avio_alloc_context);
 
   // Load symbols from the avformat shared library.
   INITSYMBOL(avformat_version);

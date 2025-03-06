@@ -20,7 +20,6 @@
 #endif
 #include "starboard/extension/configuration.h"
 #include "starboard/extension/crash_handler.h"
-#include "starboard/extension/demuxer.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/extension/free_space.h"
 #include "starboard/extension/ifa.h"
@@ -35,10 +34,8 @@
 #include "starboard/linux/shared/platform_service.h"
 #include "starboard/linux/shared/time_zone.h"
 #include "starboard/shared/enhanced_audio/enhanced_audio.h"
-#include "starboard/shared/ffmpeg/ffmpeg_demuxer.h"
 #include "starboard/shared/posix/free_space.h"
 #include "starboard/shared/posix/memory_mapped_file.h"
-#include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/crash_handler.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/shared/starboard/loader_app_metrics.h"
@@ -70,14 +67,6 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionFreeSpaceName) == 0) {
     return starboard::shared::posix::GetFreeSpaceApi();
-  }
-  if (strcmp(name, kCobaltExtensionDemuxerApi) == 0) {
-    auto command_line =
-        starboard::shared::starboard::Application::Get()->GetCommandLine();
-    const bool use_ffmpeg_demuxer =
-        command_line->HasSwitch("enable_demuxer_extension");
-    return use_ffmpeg_demuxer ? starboard::shared::ffmpeg::GetFFmpegDemuxerApi()
-                              : NULL;
   }
   if (strcmp(name, kStarboardExtensionTimeZoneName) == 0) {
     return starboard::shared::GetTimeZoneApi();
