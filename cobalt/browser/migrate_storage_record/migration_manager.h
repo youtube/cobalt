@@ -15,12 +15,41 @@
 #ifndef COBALT_COBALT_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
 #define COBALT_COBALT_MIGRATE_STORAGE_RECORD_MIGRATION_MANAGER_H_
 
+#include <atomic>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+#include "base/functional/bind.h"
+#include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
+#include "net/cookies/canonical_cookie.h"
 
 namespace cobalt {
 namespace migrate_storage_record {
 
-void DoMigrationTasksOnce(content::WebContents* web_contents);
+// Used to sequence tasks.
+using Task = base::OnceCallback<void(base::OnceClosure)>;
+
+class MigrationManager {
+ public:
+  static void DoMigrationTasksOnce(content::WebContents* web_contents);
+
+ private:
+  friend class MigrationManagerTest;
+
+  // Returns a task. When invoked, the grouped |tasks| are run sequentially.
+  static Task GroupTasks(std::vector<Task> tasks);
+  static Task CookieTask(
+      content::WeakDocumentPtr weak_document_ptr,
+      std::vector<std::unique_ptr<net::CanonicalCookie>> cookies);
+  static Task LocalStorageTask(
+      content::WeakDocumentPtr weak_document_ptr,
+      std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs);
+
+  static std::atomic_flag migration_attempted_;
+};
 
 }  // namespace migrate_storage_record
 }  // namespace cobalt
