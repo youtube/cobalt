@@ -46,4 +46,15 @@ void H5vccRuntimeImpl::GetAndClearInitialDeepLink(
   std::move(callback).Run(manager->GetAndClearDeepLink());
 }
 
+void H5vccRuntimeImpl::AddListener(
+    mojo::PendingRemote<mojom::DeepLinkListener> listener) {
+  mojo::Remote<mojom::DeepLinkListener> listener_remote;
+  listener_remote.Bind(std::move(listener));
+
+  // Hold the remote mojom connection in DeepLinkManager (singleton), so that it
+  // can be accessed anywhere.
+  auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
+  manager->AddListener(std::move(listener_remote));
+}
+
 }  // namespace h5vcc_runtime
