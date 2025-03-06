@@ -72,13 +72,13 @@ TEST_P(SbPlayerGetMediaTimeTest, SunnyDay) {
               kDurationToPlay, kDurationDifferenceAllowance);
 
   SB_DLOG(INFO) << "The expected media time should be " << kDurationToPlay
-                << ", the actual media time is " << end_media_time
+                << ", the actual start time is " << start_media_time
+                << ", the actual end time is " << end_media_time
                 << ", with difference "
                 << std::abs(end_media_time - kDurationToPlay) << ".";
   SB_DLOG(INFO) << "The expected total playing time should be "
                 << kDurationToPlay << ", the actual playing time is "
-                << end_system_time - start_system_time + start_media_time
-                << ", with difference "
+                << end_system_time - start_system_time << ", with difference "
                 << std::abs(end_system_time - start_system_time +
                             start_media_time - kDurationToPlay)
                 << ".";
@@ -111,17 +111,16 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
   const int64_t kDurationToPlay = 1'000'000;  // 1 second
   samples = GroupedSamples();
   if (player_fixture.HasAudio()) {
+    int start_index =
+        player_fixture.ConvertDurationToAudioBufferCount(seek_to_time);
     samples.AddAudioSamples(
-        0,
-        player_fixture.ConvertDurationToAudioBufferCount(seek_to_time) +
-            player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay));
+        start_index,
+        player_fixture.ConvertDurationToAudioBufferCount(kDurationToPlay));
     samples.AddAudioEOS();
   }
   if (player_fixture.HasVideo()) {
-    samples.AddVideoSamples(
-        0,
-        player_fixture.ConvertDurationToVideoBufferCount(seek_to_time) +
-            player_fixture.ConvertDurationToVideoBufferCount(kDurationToPlay));
+    samples.AddVideoSamples(0, player_fixture.ConvertDurationToVideoBufferCount(
+                                   seek_to_time + kDurationToPlay));
     samples.AddVideoEOS();
   }
   ASSERT_NO_FATAL_FAILURE(player_fixture.Write(samples));
@@ -144,15 +143,14 @@ TEST_P(SbPlayerGetMediaTimeTest, TimeAfterSeek) {
 
   SB_DLOG(INFO) << "The expected media time should be "
                 << kDurationToPlay + seek_to_time
-                << ", the actual media time is " << end_media_time
+                << ", the actual start time is " << start_media_time
+                << ", the actual end time is " << end_media_time
                 << ", with difference "
                 << std::abs(end_media_time - kDurationToPlay - seek_to_time)
                 << ".";
   SB_DLOG(INFO) << "The expected total playing time should be "
                 << kDurationToPlay << ", the actual playing time is "
-                << end_system_time - start_system_time + start_media_time -
-                       seek_to_time
-                << ", with difference "
+                << end_system_time - start_system_time << ", with difference "
                 << std::abs(end_system_time - start_system_time +
                             start_media_time - seek_to_time - kDurationToPlay)
                 << ".";
