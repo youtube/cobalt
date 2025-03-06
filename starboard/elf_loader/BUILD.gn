@@ -155,10 +155,9 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
 
 # TODO: b/309493306 - Stop building evergreen targets for all non-evergreen platforms.
 if (current_toolchain == starboard_toolchain) {
-  target(starboard_level_gtest_target_type, "elf_loader_test") {
+  source_set("elf_loader_test") {
     testonly = true
 
-    sources = [ "//starboard/common/test_main.cc" ]
     deps = [
       "//starboard:starboard_with_main",
       "//testing/gmock",
@@ -167,7 +166,7 @@ if (current_toolchain == starboard_toolchain) {
 
     if (target_cpu == "x86" || target_cpu == "x64" || target_cpu == "arm" ||
         target_cpu == "arm64") {
-      sources += [
+      sources = [
         "dynamic_section_test.cc",
         "elf_header_test.cc",
         "elf_loader_test.cc",
