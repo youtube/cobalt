@@ -7,19 +7,13 @@ default_language_version:
 
 files: |
     (?x)^(
-        .github/|
-        cobalt/|
-        media/base/starboard/|
-        media/starboard/|
-        starboard/|
-        third_party/blink/renderer/modules/cobalt/|
-        third_party/blink/web_tests/wpt_internal/h5vcc/|
-        components/viz/service/display/starboard/|
-        ui/ozone/platform/starboard/|
+        (.*/)?cobalt/.*|
+        (.*/)?starboard/.*|
+        .github/.*|
         .pre-commit-config.yaml|
         .pylintrc|
-        docker-compose.yaml
-    )
+        docker-compose.yaml|
+    )$
 
 repos:
 -   repo: https://cobalt.googlesource.com/pre-commit-hooks
