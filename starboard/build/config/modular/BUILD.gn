@@ -125,6 +125,7 @@ config("modular") {
       #  cmsg = CMSG_NXTHDR(&msg_hdr, cmsg)) {
       #         ^~~~~~~~~~~~~~~~~~~~~~~~~~~
       "-Wno-sign-compare",
+      "-Wno-macro-redefined",
     ]
   }
 
