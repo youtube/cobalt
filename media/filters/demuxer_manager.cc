@@ -31,7 +31,6 @@
 // default. This can disabled by the BASE_FEATURE
 // CobaltProgressivePlayback at runtime.
 #elif BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/starboard/progressive/demuxer_extension_wrapper.h"  // nogncheck
 #include "media/starboard/progressive/progressive_demuxer.h"  // nogncheck
 #endif // BUILDFLAG(ENABLE_FFMPEG)
 
@@ -594,25 +593,12 @@ std::unique_ptr<Demuxer> DemuxerManager::CreateFFmpegDemuxer() {
       media_log_.get(), IsLocalFile(loaded_url_));
 }
 #elif BUILDFLAG(USE_STARBOARD_MEDIA)
-std::unique_ptr<Demuxer> DemuxerManager::CreateDemuxerExtensionWrapper() {
-  DCHECK(data_source_);
-  return DemuxerExtensionWrapper::Create(
-      data_source_.get(), media_task_runner_);
-}
 std::unique_ptr<Demuxer> DemuxerManager::CreateProgressiveDemuxer() {
   DCHECK(data_source_);
-  std::unique_ptr<Demuxer> progressive_demuxer_ = CreateDemuxerExtensionWrapper();
-  if (progressive_demuxer_) {
-    LOG(INFO) << "Using DemuxerExtensionWrapper.";
-    return progressive_demuxer_;
-  } else {
-    // Either the demuxer Cobalt extension was not provided, or it failed to
-    // create a demuxer; fall back to the ProgressiveDemuxer.
-    LOG(INFO) << "Using ProgressiveDemuxer.";
-    return std::make_unique<ProgressiveDemuxer>(
-        media_task_runner_, data_source_.get(),
-        media_log_.get());
-  }
+  DCHECK(base::FeatureList::IsEnabled(media::kCobaltProgressivePlayback));
+  LOG(INFO) << "Using ProgressiveDemuxer.";
+  return std::make_unique<ProgressiveDemuxer>(
+      media_task_runner_, data_source_.get(), media_log_.get());
 }
 #endif  // BUILDFLAG(ENABLE_FFMPEG)
 

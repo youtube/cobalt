@@ -99,7 +99,7 @@ static_library("file_wrapper") {
   deps = [ "//starboard:starboard_headers_only" ]
 }
 
-target(gtest_target_type, "common_test") {
+source_set("common_test") {
   testonly = true
   sources = [
     "fixed_no_free_allocator_test.cc",

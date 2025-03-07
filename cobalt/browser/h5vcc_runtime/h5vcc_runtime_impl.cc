@@ -17,6 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "build/build_config.h"
+#include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -31,7 +32,9 @@ H5vccRuntimeImpl::H5vccRuntimeImpl(
     content::RenderFrameHost& render_frame_host,
     mojo::PendingReceiver<mojom::H5vccRuntime> receiver)
     : content::DocumentService<mojom::H5vccRuntime>(render_frame_host,
-                                                    std::move(receiver)) {}
+                                                    std::move(receiver)) {
+  DETACH_FROM_THREAD(thread_checker_);
+}
 
 void H5vccRuntimeImpl::Create(
     content::RenderFrameHost* render_frame_host,
@@ -39,14 +42,23 @@ void H5vccRuntimeImpl::Create(
   new H5vccRuntimeImpl(*render_frame_host, std::move(receiver));
 }
 
-void H5vccRuntimeImpl::GetInitialDeepLink(GetInitialDeepLinkCallback callback) {
-  std::string start_deep_link;
-#if BUILDFLAG(IS_ANDROID)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  StarboardBridge* starbooard_bridge = StarboardBridge::GetInstance();
-  start_deep_link = starbooard_bridge->GetStartDeepLink(env);
-#endif
-  std::move(callback).Run(start_deep_link);
+void H5vccRuntimeImpl::GetAndClearInitialDeepLink(
+    GetAndClearInitialDeepLinkCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
+  std::move(callback).Run(manager->GetAndClearDeepLink());
+}
+
+void H5vccRuntimeImpl::AddListener(
+    mojo::PendingRemote<mojom::DeepLinkListener> listener) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  mojo::Remote<mojom::DeepLinkListener> listener_remote;
+  listener_remote.Bind(std::move(listener));
+
+  // Hold the remote mojom connection in DeepLinkManager (singleton), so that it
+  // can be accessed anywhere.
+  auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
+  manager->AddListener(std::move(listener_remote));
 }
 
 }  // namespace h5vcc_runtime

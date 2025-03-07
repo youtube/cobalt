@@ -15,6 +15,7 @@
 import("//starboard/build/config/os_definitions.gni")
 import("//starboard/build/config/starboard_target_type.gni")
 import("//starboard/contrib/cast/cast.gni")
+import("//testing/test.gni")
 
 # TODO: b/389791129 - Evaluate and cleanup targets in if(!is_cobalt) code block.
 if (!is_cobalt) {
@@ -26,16 +27,11 @@ if (!is_cobalt) {
       "//starboard/client_porting/icu_init",
     ]
     if (enable_test_targets) {
-      if (sb_is_evergreen_compatible &&
-          current_toolchain == starboard_toolchain) {
-        deps += [ "//starboard/nplb/nplb_evergreen_compat_tests" ]
-      }
       deps += [
-        "//starboard/client_porting/eztime:eztime_test",
+        ":starboard_unittest",
         "//starboard/examples/glclear:starboard_glclear_example",
         "//starboard/examples/hello_world:starboard_hello_world_example",
         "//starboard/examples/window:starboard_window_example",
-        "//starboard/extension:extension_test",
         "//starboard/nplb",
       ]
     }
@@ -296,5 +292,26 @@ if (current_toolchain == starboard_toolchain) {
     }
   }
 }
-# TODO: Create a starboard_unittest target here and fold any gtest_target_type
-# in it, e.g. common:common_test.
+
+# TODO(b/384819454): Move this guy to the block above and define here a
+#    group("starboard_unittests_wrapper") {
+#      testonly = true
+#      deps = [ ":starboard_unittests($starboard_toolchain)" ]
+#    }
+# then modify //cobalt/build/...test_targets.json to point to it instead of
+# starboard_unittests directly.
+test("starboard_unittests") {
+  deps = [ "//starboard/common:common_test" ]
+  if (sb_is_evergreen_compatible) {
+    deps += [
+      "//starboard/client_porting/eztime:eztime_test",
+      "//starboard/extension:extension_test",
+      "//starboard/loader_app:app_key_files_test",
+      "//starboard/loader_app:app_key_test",
+      "//starboard/loader_app:drain_file_test",
+    ]
+    if (current_toolchain == starboard_toolchain) {
+      deps += [ "//starboard/elf_loader:elf_loader_test" ]
+    }
+  }
+}
