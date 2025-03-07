@@ -45,8 +45,38 @@ const std::string& DeepLinkManager::get_deep_link() const {
 
 const std::string DeepLinkManager::GetAndClearDeepLink() {
   const std::string value = get_deep_link();
-  set_deep_link("");
+  if (!value.empty()) {
+    set_deep_link("");
+  }
   return value;
+}
+
+void DeepLinkManager::AddListener(
+    mojo::Remote<DeepLinkListener> listener_remote) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  if (listeners_.empty() && !deep_link_.empty()) {
+    listener_remote->NotifyDeepLink(GetAndClearDeepLink());
+  }
+
+  // mojo::RemoteSet removes the listener_remote automatically when the Mojo
+  // client disconnects
+  listeners_.Add(std::move(listener_remote));
+}
+
+void DeepLinkManager::OnDeepLink(const std::string& url) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (listeners_.empty()) {
+    // Deeplink is held until a callback is registered, at which point it will
+    // be consumed."
+    set_deep_link(url);
+  } else {
+    // No need to worry about race condition because all access to the
+    // mojo::RemoteSet happens on one thread.
+    for (auto& listener : listeners_) {
+      listener->NotifyDeepLink(url);
+    }
+  }
 }
 
 }  // namespace browser

@@ -27,3 +27,12 @@ source_set("migrate_storage_record") {
   ]
   public_deps = [ "//skia" ]
 }
+
+source_set("unittest") {
+  testonly = true
+  sources = [ "migration_manager_unittest.cc" ]
+  deps = [
+    ":migrate_storage_record",
+    "//base/test:test_support",
+  ]
+}
