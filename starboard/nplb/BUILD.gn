@@ -239,7 +239,7 @@ test("nplb") {
       "window_get_platform_handle_test.cc",
       "window_get_size_test.cc",
     ]
-    if (is_cobalt_hermetic_build) {
+    if (enable_cobalt_hermetic_hacks) {
       sources -= [
         # TODO: b/400512503 - Fix build errors.
         "posix_compliance/posix_condition_variable_wait_test.cc",
