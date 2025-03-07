@@ -189,6 +189,8 @@ const char kStackTraceMarker[] = "\nStack trace:\n";
 // is specified on the command line.
 bool g_help_flag = false;
 
+// TODO: b/399507045 - Cobalt: Fix runtime error, remove hack
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 // Utility function to Open File for Writing
 static FILE* OpenFileForWriting(const std::string& output_file) {
   FILE* fileout = nullptr;
@@ -203,6 +205,7 @@ static FILE* OpenFileForWriting(const std::string& output_file) {
   }
   return fileout;
 }
+#endif
 
 }  // namespace internal
 
@@ -4224,20 +4227,30 @@ XmlUnitTestResultPrinter::XmlUnitTestResultPrinter(const char* output_file)
 // Called after the unit test ends.
 void XmlUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                   int /*iteration*/) {
+// TODO: b/399507045 - Cobalt: Fix runtime error, remove hack
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  std::stringstream stream;
+  PrintXmlUnitTest(&stream, unit_test);
+  WriteOuputFile(output_file_, StringStreamToString(&stream));
+#else
   FILE* xmlout = OpenFileForWriting(output_file_);
   std::stringstream stream;
   PrintXmlUnitTest(&stream, unit_test);
   fprintf(xmlout, "%s", StringStreamToString(&stream).c_str());
   fclose(xmlout);
+#endif
 }
 
 void XmlUnitTestResultPrinter::ListTestsMatchingFilter(
     const std::vector<TestSuite*>& test_suites) {
+// TODO: b/399507045 - Cobalt: Fix runtime error, remove hack
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   FILE* xmlout = OpenFileForWriting(output_file_);
   std::stringstream stream;
   PrintXmlTestsList(&stream, test_suites);
   fprintf(xmlout, "%s", StringStreamToString(&stream).c_str());
   fclose(xmlout);
+#endif
 }
 
 // Returns an XML-escaped copy of the input string str.  If is_attribute
@@ -4736,11 +4749,14 @@ JsonUnitTestResultPrinter::JsonUnitTestResultPrinter(const char* output_file)
 
 void JsonUnitTestResultPrinter::OnTestIterationEnd(const UnitTest& unit_test,
                                                    int /*iteration*/) {
+// TODO: b/399507045 - Cobalt: Fix runtime error, remove hack
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   FILE* jsonout = OpenFileForWriting(output_file_);
   std::stringstream stream;
   PrintJsonUnitTest(&stream, unit_test);
   fprintf(jsonout, "%s", StringStreamToString(&stream).c_str());
   fclose(jsonout);
+#endif
 }
 
 // Returns an JSON-escaped copy of the input string str.
@@ -6391,6 +6407,8 @@ void UnitTestImpl::ListTestsMatchingFilter() {
     }
   }
   fflush(stdout);
+// TODO: b/399507045 - Cobalt: Fix runtime error, remove hack
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   const std::string& output_format = UnitTestOptions::GetOutputFormat();
   if (output_format == "xml" || output_format == "json") {
     FILE* fileout = OpenFileForWriting(
@@ -6408,6 +6426,7 @@ void UnitTestImpl::ListTestsMatchingFilter() {
     fprintf(fileout, "%s", StringStreamToString(&stream).c_str());
     fclose(fileout);
   }
+#endif
 }
 
 // Sets the OS stack trace getter.
