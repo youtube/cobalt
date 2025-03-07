@@ -200,7 +200,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   EGL_CALL(eglChooseConfig(display_, kAttributeList, configs.data(),
                            num_configs, &num_configs));
 
-  // Find the first config that successfully allow a pBuffer surface (i.e. an
+  // Find the first config that successfully allows a pBuffer surface (i.e. an
   // offscreen EGLsurface) to be created.
   EGLConfig config = EGLConfig();
   for (auto maybe_config : configs) {
@@ -215,7 +215,7 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   }
   SB_DCHECK(surface_ != EGL_NO_SURFACE);
 
-  // Create the GLES2 or GLEX3 Context.
+  // Create the GLES2 or GLES3 Context.
   EGLint context_attrib_list[] = {
       EGL_CONTEXT_CLIENT_VERSION,
       3,
