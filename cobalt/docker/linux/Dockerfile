@@ -1,6 +1,4 @@
-ARG BASE_IMAGE_SHA=sha256:4abf773f2a570e6873259c4e3ba16de6c6268fb571fd46ec80be7c67822823b3
-
-FROM debian:12@${BASE_IMAGE_SHA}
+FROM marketplace.gcr.io/google/debian12:latest
 
 # Install any necessary dependencies
 # NOTE: From libxcomposite down, these are minimal requirements to run a
