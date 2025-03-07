@@ -80,7 +80,7 @@ StreamParserBuffer::StreamParserBuffer(const uint8_t* data,
                                        bool is_key_frame,
                                        Type type,
                                        TrackId track_id)
-    : DecoderBuffer(data, data_size, side_data, side_data_size),
+    : DecoderBuffer(type, data, data_size, side_data, side_data_size),
       decode_timestamp_(kNoDecodeTimestamp),
       config_id_(kInvalidConfigId),
       type_(type),

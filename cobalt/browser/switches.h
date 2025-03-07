@@ -21,7 +21,11 @@
 
 namespace cobalt {
 
-constexpr char kDefaultURL[] = "https://www.youtube.com/tv";
+// constexpr char kDefaultURL[] = "https://www.youtube.com/tv";
+constexpr char kDefaultURL[] =
+    "https://www.youtube.com/tv#/watch?v=1La4QzGeaaQ";
+constexpr char kDefaultURL1[] =
+    "https://www.youtube.com/tv#/watch?v=5USuekk16e0";
 
 namespace switches {
 

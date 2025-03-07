@@ -52,7 +52,8 @@ class FixedNoFreeAllocator : public Allocator {
   void Free(void* memory);
   size_t GetCapacity() const;
   size_t GetAllocated() const;
-  void PrintAllocations() const;
+  void PrintAllocations(bool align_allocated_size,
+                        int max_allocations_to_print) const;
 
  private:
   void* Allocate(size_t* size, size_t alignment, bool align_pointer);
