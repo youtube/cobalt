@@ -294,10 +294,10 @@ if (current_toolchain == starboard_toolchain) {
   }
 
   test("starboard_unittests") {
-    deps = [
-      "//starboard/common:common_test",
-      "//starboard/elf_loader:elf_loader_test",
-    ]
+    deps = [ "//starboard/common:common_test" ]
+    if (!is_android) {
+      deps += [ "//starboard/elf_loader:elf_loader_test" ]
+    }
     if (sb_is_evergreen_compatible) {
       deps += [
         "//starboard/client_porting/eztime:eztime_test",
