@@ -38,7 +38,6 @@ runs:
       shell: bash
     # Handle Google Artifact Registry used for pull requests off forked repos.
     - name: Set up Cloud SDK
-      if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name != github.repository) }}
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
     - name: Login to GAR and set tag
       if: ${{ (github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name != github.repository) }}
