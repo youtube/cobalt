@@ -36,13 +36,22 @@
 namespace ui {
 namespace {
 
+static void SbEventHandle(const SbEvent* event) {
+  // Do nothing.
+}
+
 // Ozone platform implementation for Starboard, an OS abstraction and porting
 // layer for Cobalt (https://github.com/youtube/cobalt). Platform specific
 // implementation details are abstracted out using Starboard.
 //  - TODO(tholcombe): fill out implementation details as they're added.
 class OzonePlatformStarboard : public OzonePlatform {
  public:
-  OzonePlatformStarboard() {}
+  OzonePlatformStarboard() {
+    // TODO: Initializing starboard here for now. This is for testing only.
+    sb_main_ = std::make_unique<std::thread>(&SbRunStarboardMain, /*argc=*/0,
+                                             /*argv=*/nullptr, &SbEventHandle);
+    sb_main_->detach();
+  }
 
   OzonePlatformStarboard(const OzonePlatformStarboard&) = delete;
   OzonePlatformStarboard& operator=(const OzonePlatformStarboard&) = delete;
@@ -163,6 +172,8 @@ class OzonePlatformStarboard : public OzonePlatform {
   std::unique_ptr<InputController> input_controller_;
   std::unique_ptr<OverlayManagerOzone> overlay_manager_;
   std::unique_ptr<SurfaceFactoryStarboard> surface_factory_;
+
+  std::unique_ptr<std::thread> sb_main_;
 };
 
 }  // namespace
