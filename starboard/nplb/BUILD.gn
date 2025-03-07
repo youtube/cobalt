@@ -218,11 +218,6 @@ test("nplb") {
     "url_player_create_test.cc",
   ]
 
-  # TODO: b/400512503 - Fix build errors.
-  if (enable_cobalt_hermetic_hacks) {
-    sources -= [ "thread_test.cc" ]
-  }
-
   if (!is_android) {
     sources += [
       "//starboard/testing/fake_graphics_context_provider.cc",
@@ -244,6 +239,15 @@ test("nplb") {
       "window_get_platform_handle_test.cc",
       "window_get_size_test.cc",
     ]
+    if (enable_cobalt_hermetic_hacks) {
+      sources -= [
+        # TODO: b/400512503 - Fix build errors.
+        "posix_compliance/posix_condition_variable_wait_test.cc",
+        "posix_compliance/posix_condition_variable_wait_timed_test.cc",
+        "thread_test.cc",
+        "vertical_video_test.cc",
+      ]
+    }
   }
 
   configs += [
