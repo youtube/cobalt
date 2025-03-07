@@ -124,6 +124,7 @@ enum CSPDirectiveName {
   TrustedTypes,
   UpgradeInsecureRequests,
   WorkerSrc,
+  [EnableIf=cobalt_custom_csp]CobaltLocationSrc,
 };
 
 enum CSPRequireTrustedTypesFor {
