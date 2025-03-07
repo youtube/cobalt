@@ -82,7 +82,8 @@ class Allocator {
   virtual std::size_t GetAllocated() const = 0;
 
   // Print information for all allocations.
-  virtual void PrintAllocations() const = 0;
+  virtual void PrintAllocations(bool align_allocated_size,
+                                int max_allocation_to_print) const = 0;
 };
 
 }  // namespace common
