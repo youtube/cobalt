@@ -48,6 +48,8 @@ runs:
         METADATA="http://metadata.google.internal./computeMetadata/v1"
         SVC_ACCT="${METADATA}/instance/service-accounts/default"
         ACCESS_TOKEN=$(curl -H 'Metadata-Flavor: Google' ${SVC_ACCT}/token | cut -d'"' -f 4)
+        printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://marketplace.gcr.io
+        # Login to marketplace.gcr.io
         printf ${ACCESS_TOKEN} | docker login -u oauth2accesstoken --password-stdin https://us-central1-docker.pkg.dev
         full_git_sha=${{ github.sha }}
         echo "DOCKER_TAG=us-central1-docker.pkg.dev/${PROJECT_NAME}/github/${{ inputs.docker_service }}:${GIT_SHA}" >> $GITHUB_ENV
