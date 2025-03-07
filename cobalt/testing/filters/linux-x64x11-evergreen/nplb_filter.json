@@ -9,8 +9,6 @@
     "VerticalVideoTests/VerticalVideoTest.*",
     "SbAudioSinkTest*",
     "MaximumPlayerConfigurationExplorerTests*",
-    "SbPlayerTest*",
-    "Posix*",
-    "StorageTest*"
+    "SbPlayerTest*"
   ]
 }

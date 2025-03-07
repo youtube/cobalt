@@ -69,7 +69,6 @@ runs:
           fi
 
           echo "Test filter evaluated to: ${test_filter}"
-
           xml_path="${test_output}/${test_binary}_result.xml"
           log_path="${test_output}/${test_binary}_log.txt"
           # TODO: Investigate test_runner.py
