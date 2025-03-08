@@ -14,48 +14,59 @@
 
 #include "starboard/android/shared/exoplayer/exoplayer_bridge.h"
 
-#include <errno.h>
-#include <fcntl.h>
 #include <jni.h>
-#include <sys/eventfd.h>
-#include <sys/timerfd.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <utility>
 
 #include "starboard/common/log.h"
 
-using starboard::android::shared::JniEnvExt;
+namespace starboard {
+namespace android {
+namespace shared {
+
 using starboard::android::shared::ScopedLocalJavaRef;
 
 ExoPlayerBridge::ExoPlayerBridge() {
-  non_delayed_fd_ = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-  SB_CHECK(non_delayed_fd_ != -1);
-  looper_ = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
-  SB_DCHECK(looper_);
-  ALooper_acquire(looper_);
-  ALooper_addFd(looper_, non_delayed_fd_, 0, ALOOPER_EVENT_INPUT, NULL, this);
   JniEnvExt* env = JniEnvExt::Get();
   SB_LOG(INFO) << "About to create ExoPlayer";
-  ScopedLocalJavaRef<jobject> j_exoplayer_bridge(
-      env->CallStarboardObjectMethodOrAbort(
-          "getExoPlayerBridge", "()Ldev/cobalt/media/ExoPlayerBridge;"));
-  env->CallVoidMethodOrAbort(j_exoplayer_bridge.Get(), "createExoPlayer",
-                             "(Landroid/os/Looper;)V", looper_);
+  jobject j_exoplayer_bridge = env->CallStarboardObjectMethodOrAbort(
+      "getExoPlayerBridge", "()Ldev/cobalt/media/ExoPlayerBridge;");
+  if (!j_exoplayer_bridge) {
+    SB_LOG(WARNING) << "Failed to create |j_exoplayer_bridge|.";
+    return;
+  }
+  j_exoplayer_bridge_ = env->ConvertLocalRefToGlobalRef(j_exoplayer_bridge);
+  env->CallVoidMethodOrAbort(j_exoplayer_bridge_, "createExoPlayer", "()V");
 }
 
 ExoPlayerBridge::~ExoPlayerBridge() {
-  SB_DCHECK(ALooper_forThread() == looper_);
   JniEnvExt* env = JniEnvExt::Get();
   SB_LOG(INFO) << "About to destroy ExoPlayer";
-  ScopedLocalJavaRef<jobject> j_exoplayer_bridge(
-      env->CallStarboardObjectMethodOrAbort(
-          "getExoPlayerBridge", "()Ldev/cobalt/media/ExoPlayerBridge;"));
-  env->CallVoidMethodOrAbort(j_exoplayer_bridge.Get(), "destroyExoPlayer",
-                             "()V");
-  ALooper_removeFd(looper_, non_delayed_fd_);
-  ALooper_release(looper_);
-  looper_ = nullptr;
-
-  close(non_delayed_fd_);
+  env->CallVoidMethodOrAbort(j_exoplayer_bridge_, "destroyExoPlayer", "()V");
 }
+
+void ExoPlayerBridge::WriteSamples(
+    SbMediaType sample_type,
+    const SbPlayerSampleInfo* sample_infos,
+    int number_of_sample_infos,
+    JniEnvExt* env /*= JniEnvExt::Get()*/) const {}
+
+bool ExoPlayerBridge::Play(JniEnvExt* env /*= JniEnvExt::Get()*/) const {
+  return env->CallBooleanMethodOrAbort(j_exoplayer_bridge_, "play", "()Z");
+}
+
+bool ExoPlayerBridge::Pause(JniEnvExt* env /*= JniEnvExt::Get()*/) const {
+  return env->CallBooleanMethodOrAbort(j_exoplayer_bridge_, "pause", "()Z");
+}
+
+bool ExoPlayerBridge::Stop(JniEnvExt* env /*= JniEnvExt::Get()*/) const {
+  return env->CallBooleanMethodOrAbort(j_exoplayer_bridge_, "stop", "()Z");
+}
+
+bool ExoPlayerBridge::SetVolume(double volume,
+                                JniEnvExt* env /*= JniEnvExt::Get()*/) const {
+  return env->CallBooleanMethodOrAbort(j_exoplayer_bridge_, "setVolume", "(F)Z",
+                                       static_cast<float>(volume));
+}
+
+}  // namespace shared
+}  // namespace android
+}  // namespace starboard

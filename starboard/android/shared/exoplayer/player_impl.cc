@@ -15,8 +15,12 @@
 #include <string>
 #include <utility>
 
-#include "starboard/android/shared/exoplayer/exoplayer.h"
 #include "starboard/player.h"
+
+#include "starboard/android/shared/exoplayer/exoplayer.h"
+#include "starboard/common/log.h"
+
+using starboard::android::shared::ExoPlayer;
 
 SbPlayer SbPlayerCreate(SbWindow window,
                         const SbPlayerCreationParam* creation_param,
@@ -30,7 +34,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
       (creation_param->video_stream_info.codec != kSbMediaVideoCodecVp9)) {
     return kSbPlayerInvalid;
   }
-  return ExoPlayer::CreateInstance();
+  return ExoPlayer::CreateInstance(sample_deallocate_func, decoder_status_func,
+                                   player_status_func, player_error_func);
 }
 
 SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
@@ -39,18 +44,28 @@ SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
 }
 
 void SbPlayerDestroy(SbPlayer player) {
-  delete ExoPlayer::GetExoPlayerForSbPlayer(player);
+  auto exoplayer = ExoPlayer::GetExoPlayerForSbPlayer(player);
+  if (exoplayer) {
+    delete ExoPlayer::GetExoPlayerForSbPlayer(player);
+  }
 }
 
 void SbPlayerSeek(SbPlayer player, int64_t seek_to_timestamp, int ticket) {
-  return;
+  auto exoplayer = ExoPlayer::GetExoPlayerForSbPlayer(player);
+  if (exoplayer) {
+    exoplayer->Seek(seek_to_timestamp, ticket);
+  }
 }
 
 void SbPlayerWriteSamples(SbPlayer player,
                           SbMediaType sample_type,
                           const SbPlayerSampleInfo* sample_infos,
                           int number_of_sample_infos) {
-  return;
+  SB_DCHECK(number_of_sample_infos == 1);
+  auto exoplayer = ExoPlayer::GetExoPlayerForSbPlayer(player);
+  if (exoplayer) {
+    exoplayer->WriteSamples(sample_type, sample_infos, number_of_sample_infos);
+  }
 }
 
 int SbPlayerGetMaximumNumberOfSamplesPerWrite(SbPlayer player,
@@ -58,20 +73,41 @@ int SbPlayerGetMaximumNumberOfSamplesPerWrite(SbPlayer player,
   return 1;
 }
 
-void SbPlayerWriteEndOfStream(SbPlayer player, SbMediaType stream_type) {}
+void SbPlayerWriteEndOfStream(SbPlayer player, SbMediaType stream_type) {
+  auto exoplayer = ExoPlayer::GetExoPlayerForSbPlayer(player);
+  if (exoplayer) {
+    exoplayer->WriteEndOfStream(stream_type);
+  }
+}
 
 void SbPlayerSetBounds(SbPlayer player,
                        int z_index,
                        int x,
                        int y,
                        int width,
-                       int height) {}
+                       int height) {
+  auto exoplayer = ExoPlayer::GetExoPlayerForSbPlayer(player);
+  SB_DCHECK(exoplayer);
+  exoplayer->SetBounds(z_index, x, y, width, height);
+}
 
-bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {}
+bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
+  auto exoplayer = ExoPlayer::GetExoPlayerForSbPlayer(player);
+  SB_DCHECK(exoplayer);
+  return exoplayer->SetPlaybackRate(playback_rate);
+}
 
-void SbPlayerSetVolume(SbPlayer player, double volume) {}
+void SbPlayerSetVolume(SbPlayer player, double volume) {
+  auto exoplayer = ExoPlayer::GetExoPlayerForSbPlayer(player);
+  SB_DCHECK(exoplayer);
+  exoplayer->SetVolume(volume);
+}
 
-void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info) {}
+void SbPlayerGetInfo(SbPlayer player, SbPlayerInfo* out_player_info) {
+  auto exoplayer = ExoPlayer::GetExoPlayerForSbPlayer(player);
+  SB_DCHECK(exoplayer);
+  exoplayer->GetInfo(out_player_info);
+}
 
 SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player) {
   return kSbDecodeTargetInvalid;

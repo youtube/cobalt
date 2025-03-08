@@ -14,6 +14,9 @@
 
 package dev.cobalt.media;
 
+import static dev.cobalt.media.Log.TAG;
+
+import android.media.AudioFormat;
 import androidx.annotation.Nullable;
 import androidx.media3.common.C;
 import androidx.media3.common.Format;
@@ -35,6 +38,7 @@ import androidx.media3.exoplayer.source.SinglePeriodTimeline;
 import androidx.media3.exoplayer.source.TrackGroupArray;
 import androidx.media3.exoplayer.trackselection.ExoTrackSelection;
 import androidx.media3.exoplayer.upstream.Allocator;
+import dev.cobalt.util.Log;
 import java.io.IOException;
 import dev.cobalt.util.UsedByNative;
 import dev.cobalt.media.SampleQueueManager;
@@ -42,6 +46,28 @@ import dev.cobalt.media.SampleQueueManager;
 @UnstableApi
 public final class CobaltMediaSource extends BaseMediaSource {
   private final SampleQueueManager mManager = new SampleQueueManager();
+  // TODO: Dynamically select format.
+  private Format audioFormat;
+  private Format videoFormat;
+  private CustomMediaPeriod mediaPeriod;
+  CobaltMediaSource() {
+    audioFormat = new Format.Builder()
+        .setSampleMimeType(MimeTypes.AUDIO_OPUS)
+        .setSampleRate(48000)
+        .setChannelCount(2)
+        //.setPcmEncoding(C.ENCODING_PCM_FLOAT)
+        .setLanguage("en-GB")
+        .build();
+    videoFormat = new Format.Builder()
+        .setSampleMimeType(MimeTypes.VIDEO_VP9)
+        .setAverageBitrate(100_000)
+        .setWidth(1920)
+        .setHeight(1080)
+        .setFrameRate(30f)
+        .setLanguage("en-GB")
+        .build();
+  }
+
   @Override
   protected void prepareSourceInternal(@Nullable TransferListener mediaTransferListener) {
     // Start loading generic information about the media (think: manifests/metadata).
@@ -49,7 +75,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
     refreshSourceInfo(
         new SinglePeriodTimeline(
             /* durationUs= */ C.TIME_UNSET,
-            /* isSeekable= */ false,
+            /* isSeekable= */ true,
             /* isDynamic= */ false,
             /* useLiveConfiguration= */ false,
             /* manifest= */ null,
@@ -74,7 +100,9 @@ public final class CobaltMediaSource extends BaseMediaSource {
 
   @Override
   public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
-    return new CustomMediaPeriod();
+    Log.i(TAG, "Called createPeriod");
+    mediaPeriod = new CustomMediaPeriod(audioFormat, videoFormat, allocator);
+    return mediaPeriod;
   }
 
   @Override
@@ -83,7 +111,15 @@ public final class CobaltMediaSource extends BaseMediaSource {
   }
 
   private static final class CustomMediaPeriod implements MediaPeriod {
+    private final Format audioFormat;
+    private final Format videoFormat;
+    private final Allocator allocator;
 
+    CustomMediaPeriod(Format audioFormat, Format videoFormat, Allocator allocator) {
+      this.audioFormat = audioFormat;
+      this.videoFormat = videoFormat;
+      this.allocator = allocator;
+    }
     @Override
     public void prepare(Callback callback, long positionUs) {
       // Start loading media from positionUs.
@@ -102,33 +138,34 @@ public final class CobaltMediaSource extends BaseMediaSource {
       // player can choose between them based on network conditions. If this is not needed, just
       // publish single-Format TrackGroups.
       return new TrackGroupArray(
-          new TrackGroup(
-              new Format.Builder()
-                  .setSampleMimeType(MimeTypes.VIDEO_VP9)
-                  .setAverageBitrate(100_000)
-                  .setWidth(1024)
-                  .setHeight(768)
-                  .setFrameRate(30f)
-                  .build(),
-              new Format.Builder()
-                  .setSampleMimeType(MimeTypes.VIDEO_VP9)
-                  .setAverageBitrate(200_000)
-                  .setWidth(2048)
-                  .setHeight(1440)
-                  .setFrameRate(30f)
-                  .build()),
-          new TrackGroup(
-              new Format.Builder()
-                  .setSampleMimeType(MimeTypes.AUDIO_OPUS)
-                  .setSampleRate(48000)
-                  .setChannelCount(2)
-                  .setLanguage("en-GB")
-                  .build()),
-          new TrackGroup(
-              new Format.Builder()
-                  .setSampleMimeType(MimeTypes.TEXT_VTT)
-                  .setLanguage("it")
-                  .build()));
+          // new TrackGroup(
+          //     new Format.Builder()
+          //         .setSampleMimeType(MimeTypes.VIDEO_VP9)
+          //         .setAverageBitrate(100_000)
+          //         .setWidth(1024)
+          //         .setHeight(768)
+          //         .setFrameRate(30f)
+          //         .build(),
+          //     new Format.Builder()
+          //         .setSampleMimeType(MimeTypes.VIDEO_VP9)
+          //         .setAverageBitrate(200_000)
+          //         .setWidth(2048)
+          //         .setHeight(1440)
+          //         .setFrameRate(30f)
+          //         .build()),
+          // new TrackGroup(
+          //     new Format.Builder()
+          //         .setSampleMimeType(MimeTypes.AUDIO_OPUS)
+          //         .setSampleRate(48000)
+          //         .setChannelCount(2)
+          //         .setLanguage("en-GB")
+          //         .build()),
+          // new TrackGroup(
+          //     new Format.Builder()
+          //         .setSampleMimeType(MimeTypes.TEXT_VTT)
+          //         .setLanguage("it")
+          //         .build()),
+          new TrackGroup(audioFormat), new TrackGroup(videoFormat));
     }
 
     @Override
@@ -140,10 +177,27 @@ public final class CobaltMediaSource extends BaseMediaSource {
       // parameters. The "selections" are the requests for new SampleStreams for these formats.
       //  - mayRetainStreamFlags tells you if it's save to keep a previous stream
       //  - streamResetFlags are an output parameter to indicate which streams are newly created
-      if (selections[0] != null && !mayRetainStreamFlags[0]) {
-        streams[0] = new CobaltSampleStream();
-        streamResetFlags[0] = true;
+      Log.i(TAG, String.format("Selections size is %d", selections.length));
+      for (int i = 0; i < selections.length; ++i) {
+        Log.i(TAG, String.format("Stream %d format is %s", i, selections[0].getSelectedFormat().sampleMimeType));
+        Log.i(TAG, String.format("Stream %d width is %d", i, selections[0].getSelectedFormat().width));
+        streams[i] = new CobaltSampleStream(allocator, selections[0].getSelectedFormat());
+        streamResetFlags[i] = true;
       }
+      // if (selections.length != 2) {
+      //   Log.e(TAG, "Error: selections length should be 2");
+      // }
+      // if (selections[0] != null && !mayRetainStreamFlags[0]) {
+      //   streams[0] = new CobaltSampleStream(allocator, selections[0].getSelectedFormat());
+      //   streamResetFlags[0] = true;
+      //   Log.i(TAG, String.format("First stream format is %s", selections[0].getSelectedFormat().codecs));
+      // }
+      // if (selections[1] != null && !mayRetainStreamFlags[1]) {
+      //   streams[1] = new CobaltSampleStream(allocator, selections[1].getSelectedFormat());
+      //   streamResetFlags[1] = true;
+      //   Log.i(TAG, String.format("Second stream format is %s", selections[1].getSelectedFormat().codecs));
+      // }
+      Log.i(TAG, String.format("positionUs is %d", positionUs));
       return positionUs;
     }
 

@@ -15,19 +15,39 @@
 #ifndef STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
 #define STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
 
-#include <android/looper.h>
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/media.h"
+#include "starboard/player.h"
+
+namespace starboard {
+namespace android {
+namespace shared {
+
+using starboard::android::shared::JniEnvExt;
 
 class ExoPlayerBridge final {
  public:
   ExoPlayerBridge();
   ~ExoPlayerBridge();
 
+  void WriteSamples(SbMediaType sample_type,
+                    const SbPlayerSampleInfo* sample_infos,
+                    int number_of_sample_infos,
+                    JniEnvExt* env = JniEnvExt::Get()) const;
+  bool Play(JniEnvExt* env = JniEnvExt::Get()) const;
+  bool Pause(JniEnvExt* env = JniEnvExt::Get()) const;
+  bool Stop(JniEnvExt* env = JniEnvExt::Get()) const;
+  bool SetVolume(double volume, JniEnvExt* env = JniEnvExt::Get()) const;
+
+  bool is_valid() const { return j_exoplayer_bridge_ != nullptr; }
+
  private:
-  //  jobject j_exoplayer_bridge_ = NULL;
-  ALooper* looper_ = nullptr;
-  int non_delayed_fd_ = 0;
+  jobject j_exoplayer_bridge_ = nullptr;
 };
+
+}  // namespace shared
+}  // namespace android
+}  // namespace starboard
 
 #endif  // STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_

@@ -14,15 +14,45 @@
 
 package dev.cobalt.media;
 
+import static dev.cobalt.media.Log.TAG;
+
 import androidx.media3.common.C;
+import androidx.media3.common.Format;
+import androidx.media3.common.util.ParsableByteArray;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.decoder.DecoderInputBuffer;
 import androidx.media3.exoplayer.FormatHolder;
+import androidx.media3.exoplayer.source.SampleQueue;
 import androidx.media3.exoplayer.source.SampleStream;
+import androidx.media3.exoplayer.upstream.Allocator;
+import androidx.media3.exoplayer.upstream.DefaultAllocator;
+import dev.cobalt.util.Log;
 import java.io.IOException;
+import java.util.ArrayList;
 
 @UnstableApi
 public class CobaltSampleStream implements SampleStream {
+  private SampleQueue sampleQueue;
+  // private Allocator audioAllocator;
+  // private Allocator videoAllocator;
+  private final Allocator allocator;
+  private int AUDIO_INDEX = 0;
+  private int VIDEO_INDEX = 0;
+
+  CobaltSampleStream(Allocator allocator, Format format) {
+    this.allocator = allocator;
+    // audioAllocator = new DefaultAllocator(true, 4000000 /* 4 MB */);
+    // videoAllocator = new DefaultAllocator(true, 10000000 /* 10 MB */);
+    sampleQueue = SampleQueue.createWithoutDrm(allocator);
+    sampleQueue.format(format);
+  }
+
+  void writeSample(byte[] data, int sizeInBytes, long timestampUs) {
+    ParsableByteArray array = new ParsableByteArray(data);
+    sampleQueue.sampleData(array, sizeInBytes);
+    sampleQueue.sampleMetadata(timestampUs, 0, sizeInBytes,0, null);
+    Log.i(TAG, String.format("Appended sample for format: %s", sampleQueue.getUpstreamFormat().codecs));
+  }
 
   @Override
   public boolean isReady() {
@@ -36,7 +66,11 @@ public class CobaltSampleStream implements SampleStream {
 
   @Override
   public int readData(FormatHolder formatHolder, DecoderInputBuffer buffer, int readFlags) {
-    return C.RESULT_NOTHING_READ;
+    if (!sampleQueue.isReady(false)) {
+      Log.e(TAG, "SampleQueue is not ready");
+      return C.RESULT_NOTHING_READ;
+    }
+    return sampleQueue.read(formatHolder, buffer, readFlags, false);
   }
 
   @Override
