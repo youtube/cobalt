@@ -19,13 +19,9 @@
 
 #include "base/no_destructor.h"
 #include "base/threading/thread_checker.h"
-#include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
-#include "mojo/public/cpp/bindings/remote_set.h"
 
 namespace cobalt {
 namespace browser {
-
-using h5vcc_runtime::mojom::DeepLinkListener;
 
 //  This class is a singleton that provides a central point for handling the
 //  deep link URLs received from the OS.  It handles both initial deep links
@@ -51,9 +47,6 @@ class DeepLinkManager {
   // the application.
   const std::string GetAndClearDeepLink();
 
-  void AddListener(mojo::Remote<DeepLinkListener> listener_remote);
-  void OnDeepLink(const std::string& url);
-
  private:
   friend class base::NoDestructor<DeepLinkManager>;
 
@@ -61,8 +54,6 @@ class DeepLinkManager {
   ~DeepLinkManager();
 
   std::string deep_link_ GUARDED_BY_CONTEXT(thread_checker_);
-  mojo::RemoteSet<DeepLinkListener> listeners_
-      GUARDED_BY_CONTEXT(thread_checker_);
 
   THREAD_CHECKER(thread_checker_);
 };
