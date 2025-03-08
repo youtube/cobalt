@@ -411,11 +411,11 @@ MediaCodecBridge::~MediaCodecBridge() {
   Java_MediaCodecBridge_release(env, j_media_codec_bridge_);
 }
 
-jobject MediaCodecBridge::GetInputBuffer(jint index) {
+ScopedJavaLocalRef<jobject> MediaCodecBridge::GetInputBuffer(jint index) {
   SB_DCHECK(index >= 0);
-  return JniEnvExt::Get()->CallObjectMethodOrAbort(
-      j_media_codec_bridge_.obj(), "getInputBuffer", "(I)Ljava/nio/ByteBuffer;",
-      index);
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaCodecBridge_getInputBuffer(env, j_media_codec_bridge_,
+                                              index);
 }
 
 jint MediaCodecBridge::QueueInputBuffer(jint index,
@@ -472,11 +472,11 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
       blocks_to_skip, presentation_time_microseconds);
 }
 
-jobject MediaCodecBridge::GetOutputBuffer(jint index) {
+ScopedJavaLocalRef<jobject> MediaCodecBridge::GetOutputBuffer(jint index) {
   SB_DCHECK(index >= 0);
-  return JniEnvExt::Get()->CallObjectMethodOrAbort(
-      j_media_codec_bridge_.obj(), "getOutputBuffer",
-      "(I)Ljava/nio/ByteBuffer;", index);
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaCodecBridge_getOutputBuffer(env, j_media_codec_bridge_,
+                                               index);
 }
 
 void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {

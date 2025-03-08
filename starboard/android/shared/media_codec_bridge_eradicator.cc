@@ -121,6 +121,8 @@ void* MediaCodecBridgeEradicator::DestroyMediaCodecBridge(void* context) {
 
   JniEnvExt* env = JniEnvExt::Get();
 
+  // TODO(cobalt): wrap fields in EradicateParam to JNI smartpointers, and
+  // migrate them to jni_zero.
   env->CallVoidMethodOrAbort(j_media_codec_bridge, "stop", "()V");
   env->CallVoidMethodOrAbort(j_media_codec_bridge, "release", "()V");
   env->DeleteGlobalRef(j_media_codec_bridge);

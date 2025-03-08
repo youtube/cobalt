@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/audio_decoder.h"
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
@@ -50,6 +51,9 @@
 namespace starboard {
 namespace android {
 namespace shared {
+
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
 
 namespace {
 
@@ -212,17 +216,19 @@ void AudioDecoder::ProcessOutputBuffer(
   SB_DCHECK(dequeue_output_result.index >= 0);
 
   if (dequeue_output_result.num_bytes > 0) {
-    ScopedJavaByteBuffer byte_buffer(
+    ScopedJavaLocalRef<jobject> byte_buffer(
         media_codec_bridge->GetOutputBuffer(dequeue_output_result.index));
 
-    if (byte_buffer.IsNull()) {
+    if (byte_buffer.is_null()) {
       ReportError(kSbPlayerErrorDecode,
                   "Failed to process audio output buffer.");
       return;
     }
 
-    int16_t* data = static_cast<int16_t*>(IncrementPointerByBytes(
-        byte_buffer.address(), dequeue_output_result.offset));
+    JNIEnv* env = AttachCurrentThread();
+    void* address = env->GetDirectBufferAddress(byte_buffer.obj());
+    int16_t* data = static_cast<int16_t*>(
+        IncrementPointerByBytes(address, dequeue_output_result.offset));
     int size = dequeue_output_result.num_bytes;
     if (2 * audio_stream_info_.samples_per_second == output_sample_rate_) {
       // The audio is encoded using implicit HE-AAC.  As the audio sink has

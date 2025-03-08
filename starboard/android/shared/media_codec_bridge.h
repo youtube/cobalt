@@ -31,6 +31,7 @@ namespace shared {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::ScopedJavaGlobalRef;
+using base::android::ScopedJavaLocalRef;
 
 // GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
 // GENERATED_JAVA_PREFIX_TO_STRIP: MEDIA_CODEC_
@@ -186,7 +187,7 @@ class MediaCodecBridge {
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetInputBuffer| returns.
-  jobject GetInputBuffer(jint index);
+  ScopedJavaLocalRef<jobject> GetInputBuffer(jint index);
   jint QueueInputBuffer(jint index,
                         jint offset,
                         jint size,
@@ -199,7 +200,7 @@ class MediaCodecBridge {
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetOutputBuffer| returns.
-  jobject GetOutputBuffer(jint index);
+  ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index);
   void ReleaseOutputBuffer(jint index, jboolean render);
   void ReleaseOutputBufferAtTimestamp(jint index, jlong render_timestamp_ns);
 

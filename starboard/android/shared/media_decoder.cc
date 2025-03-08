@@ -16,6 +16,7 @@
 
 #include <sched.h>
 
+#include "base/android/jni_android.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
@@ -27,6 +28,9 @@
 namespace starboard {
 namespace android {
 namespace shared {
+
+// TODO: (cobalt b/372559388) Update namespace to jni_zero.
+using base::android::AttachCurrentThread;
 
 namespace {
 
@@ -460,24 +464,30 @@ bool MediaDecoder::ProcessOneInputBuffer(
   // Don't bother rewriting the same data if we already did it last time we
   // were called and had it stored in |pending_queue_input_buffer_task_|.
   if (!input_buffer_already_written && event.type != Event::kWriteEndOfStream) {
-    ScopedJavaByteBuffer byte_buffer(
+    ScopedJavaLocalRef<jobject> byte_buffer(
         media_codec_bridge_->GetInputBuffer(dequeue_input_result.index));
-    if (byte_buffer.IsNull()) {
+    if (byte_buffer.is_null()) {
       SB_LOG(ERROR) << "Unable to write to MediaCodec buffer, |byte_buffer| is"
                     << " null.";
       // TODO: Stop the decoding loop and call error_cb_ on fatal error.
       return false;
     }
-    if (byte_buffer.capacity() < size) {
+
+    JNIEnv* env = AttachCurrentThread();
+    jint capacity = env->GetDirectBufferCapacity(byte_buffer.obj());
+    if (capacity < size) {
       auto error_message = FormatString(
           "Unable to write to MediaCodec buffer, input buffer size (%d) is"
           " greater than |byte_buffer.capacity()| (%d).",
-          size, static_cast<int>(byte_buffer.capacity()));
+          size, static_cast<int>(capacity));
       SB_LOG(ERROR) << error_message;
       ReportError(kSbPlayerErrorDecode, error_message);
       return false;
     }
-    byte_buffer.CopyInto(data, size);
+
+    SB_DCHECK(size >= 0 && size <= capacity);
+    void* address = env->GetDirectBufferAddress(byte_buffer.obj());
+    memcpy(address, data, size);
   }
 
   jint status;
