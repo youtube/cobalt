@@ -87,7 +87,7 @@ public class StarboardBridge {
       };
 
   private volatile boolean applicationStopped;
-  private volatile boolean applicationStarted;
+  private volatile boolean applicationReady;
 
   private final HashMap<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
   private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
@@ -131,7 +131,7 @@ public class StarboardBridge {
 
     nativeApp = StarboardBridgeJni.get().startNativeStarboard();
 
-    StarboardBridgeJni.get().handleDeepLink(startDeepLink, /*applicationStarted=*/ false);
+    StarboardBridgeJni.get().handleDeepLink(startDeepLink, /*applicationReady=*/ false);
   }
 
   private native boolean initJNI();
@@ -150,7 +150,7 @@ public class StarboardBridge {
 
     // void closeNativeStarboard(long nativeApp);
 
-    void handleDeepLink(String url, boolean applicationStarted);
+    void handleDeepLink(String url, boolean applicationReady);
   }
 
   protected void onActivityStart(Activity activity) {
@@ -245,13 +245,13 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @CalledByNative
   protected void applicationStarted() {
-    applicationStarted = true;
+    applicationReady = true;
   }
 
   @SuppressWarnings("unused")
   @CalledByNative
   protected void applicationStopping() {
-    applicationStarted = false;
+    applicationReady = false;
     applicationStopped = true;
   }
 
@@ -270,7 +270,7 @@ public class StarboardBridge {
 
   public boolean onSearchRequested() {
     // TODO(cobalt): re-enable native search request if needed.
-    // if (applicationStarted) {
+    // if (applicationReady) {
     //   return nativeOnSearchRequested();
     // }
     return false;
@@ -318,7 +318,7 @@ public class StarboardBridge {
 
   /** Sends an event to the web app to navigate to the given URL */
   public void handleDeepLink(String url) {
-    StarboardBridgeJni.get().handleDeepLink(url, applicationStarted);
+    StarboardBridgeJni.get().handleDeepLink(url, applicationReady);
   }
 
   /**

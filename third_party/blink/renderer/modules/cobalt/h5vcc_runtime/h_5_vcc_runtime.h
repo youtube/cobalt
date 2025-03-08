@@ -40,8 +40,7 @@ class MODULES_EXPORT H5vccRuntime final
     // after Chromium base version update, see
     // https://chromium-review.googlesource.com/c/chromium/src/+/4621887
     : public EventTargetWithInlineData,
-      public ExecutionContextLifecycleObserver,
-      public h5vcc_runtime::mojom::blink::DeepLinkListener {
+      public ExecutionContextLifecycleObserver {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -53,9 +52,6 @@ class MODULES_EXPORT H5vccRuntime final
   ScriptPromise getInitialDeepLink(ScriptState*, ExceptionState&);
   EventListener* ondeeplink();
   void setOndeeplink(EventListener* listener);
-
-  // Mojom interface:
-  void NotifyDeepLink(const WTF::String& deep_link) override;
 
   // EventTargetWithInlineData impl.
   ExecutionContext* GetExecutionContext() const override {
@@ -73,8 +69,6 @@ class MODULES_EXPORT H5vccRuntime final
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_runtime::mojom::blink::H5vccRuntime>
       remote_h5vcc_runtime_;
-  HeapMojoReceiver<h5vcc_runtime::mojom::blink::DeepLinkListener, H5vccRuntime>
-      receiver_;
 };
 
 }  // namespace blink

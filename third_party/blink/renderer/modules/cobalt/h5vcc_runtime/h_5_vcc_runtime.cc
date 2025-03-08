@@ -23,12 +23,10 @@ namespace blink {
 
 H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
-      remote_h5vcc_runtime_(window.GetExecutionContext()),
-      receiver_(this, window.GetExecutionContext()) {}
+      remote_h5vcc_runtime_(window.GetExecutionContext()) {}
 
 void H5vccRuntime::ContextDestroyed() {
   remote_h5vcc_runtime_.reset();
-  receiver_.reset();
 }
 
 ScriptPromise H5vccRuntime::getInitialDeepLink(
@@ -59,13 +57,8 @@ void H5vccRuntime::setOndeeplink(EventListener* listener) {
   SetAttributeEventListener(event_type_names::kDeeplink, listener);
 
   EnsureReceiverIsBound();
-
-  // Bind the receiver for the RemoteListener, this is where the NotifyDeepLink
-  // event is called.
-  auto task_runner =
-      GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
-  remote_h5vcc_runtime_->AddListener(
-      receiver_.BindNewPipeAndPassRemote(task_runner));
+  remote_h5vcc_runtime_->GetAndClearInitialDeepLink(WTF::BindOnce(
+      &H5vccRuntime::MaybeFireDeepLinkEvent, WrapPersistent(this)));
 }
 
 void H5vccRuntime::MaybeFireDeepLinkEvent(const String& url) {
@@ -88,16 +81,11 @@ void H5vccRuntime::EnsureReceiverIsBound() {
       remote_h5vcc_runtime_.BindNewPipeAndPassReceiver(task_runner));
 }
 
-void H5vccRuntime::NotifyDeepLink(const WTF::String& deeplink) {
-  MaybeFireDeepLinkEvent(deeplink);
-}
-
 void H5vccRuntime::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
   EventTargetWithInlineData::Trace(visitor);
   visitor->Trace(remote_h5vcc_runtime_);
-  visitor->Trace(receiver_);
 }
 
 }  // namespace blink

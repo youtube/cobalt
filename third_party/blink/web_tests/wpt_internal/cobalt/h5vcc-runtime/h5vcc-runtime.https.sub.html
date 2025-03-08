@@ -1,0 +1,15 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>Test H5vccRuntime web API.</title>
+  <script src='/resources/testharness.js'></script>
+  <script src='/resources/testharnessreport.js'></script>
+</head>
+<body>
+  <script>
+    test(() => {
+        assert_equals(window.h5vcc.runtime.initialDeepLink, "https://fake.domain.com/tv");
+    }, "H5vccRuntime has the right property value");
+  </script>
+</body>
+</html>
