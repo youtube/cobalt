@@ -42,6 +42,7 @@ import dev.cobalt.util.Log;
 import java.io.IOException;
 import dev.cobalt.util.UsedByNative;
 import dev.cobalt.media.SampleQueueManager;
+import java.time.chrono.MinguoEra;
 
 @UnstableApi
 public final class CobaltMediaSource extends BaseMediaSource {
@@ -50,7 +51,8 @@ public final class CobaltMediaSource extends BaseMediaSource {
   private Format audioFormat;
   private Format videoFormat;
   private CustomMediaPeriod mediaPeriod;
-  CobaltMediaSource() {
+  private boolean isAudio;
+  CobaltMediaSource(boolean isAudio) {
     audioFormat = new Format.Builder()
         .setSampleMimeType(MimeTypes.AUDIO_OPUS)
         .setSampleRate(48000)
@@ -66,6 +68,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
         .setFrameRate(30f)
         .setLanguage("en-GB")
         .build();
+    this.isAudio = isAudio;
   }
 
   @Override
@@ -101,7 +104,8 @@ public final class CobaltMediaSource extends BaseMediaSource {
   @Override
   public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
     Log.i(TAG, "Called createPeriod");
-    mediaPeriod = new CustomMediaPeriod(audioFormat, videoFormat, allocator);
+    Format format = isAudio ? audioFormat : videoFormat;
+    mediaPeriod = new CustomMediaPeriod(format, allocator);
     return mediaPeriod;
   }
 
@@ -110,14 +114,21 @@ public final class CobaltMediaSource extends BaseMediaSource {
     // Release any resources related to that MediaPeriod, its media loading, etc.
   }
 
-  private static final class CustomMediaPeriod implements MediaPeriod {
-    private final Format audioFormat;
-    private final Format videoFormat;
-    private final Allocator allocator;
+  public void writeSample(byte[] data, int sizeInBytes, long timestampUs) {
+    mediaPeriod.writeSample(data, sizeInBytes, timestampUs);
+  }
 
-    CustomMediaPeriod(Format audioFormat, Format videoFormat, Allocator allocator) {
-      this.audioFormat = audioFormat;
-      this.videoFormat = videoFormat;
+  private static final class CustomMediaPeriod implements MediaPeriod {
+    // private final Format audioFormat;
+    // private final Format videoFormat;
+    private final Format format;
+    private final Allocator allocator;
+    private CobaltSampleStream stream;
+
+    CustomMediaPeriod(Format format, Allocator allocator) {
+      // this.audioFormat = audioFormat;
+      // this.videoFormat = videoFormat;
+      this.format = format;
       this.allocator = allocator;
     }
     @Override
@@ -165,7 +176,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
           //         .setSampleMimeType(MimeTypes.TEXT_VTT)
           //         .setLanguage("it")
           //         .build()),
-          new TrackGroup(audioFormat), new TrackGroup(videoFormat));
+          new TrackGroup(format));
     }
 
     @Override
@@ -179,10 +190,13 @@ public final class CobaltMediaSource extends BaseMediaSource {
       //  - streamResetFlags are an output parameter to indicate which streams are newly created
       Log.i(TAG, String.format("Selections size is %d", selections.length));
       for (int i = 0; i < selections.length; ++i) {
-        Log.i(TAG, String.format("Stream %d format is %s", i, selections[0].getSelectedFormat().sampleMimeType));
-        Log.i(TAG, String.format("Stream %d width is %d", i, selections[0].getSelectedFormat().width));
-        streams[i] = new CobaltSampleStream(allocator, selections[0].getSelectedFormat());
-        streamResetFlags[i] = true;
+        if (selections[i] != null) {
+          Log.i(TAG, String.format("Stream %d (%s) format is %s", i, selections[i].getSelectedFormat().codecs,
+              selections[i].getSelectedFormat().sampleMimeType));
+          stream = new CobaltSampleStream(allocator, selections[i].getSelectedFormat());
+          streams[i] = stream;
+          streamResetFlags[i] = true;
+        }
       }
       // if (selections.length != 2) {
       //   Log.e(TAG, "Error: selections length should be 2");
@@ -216,6 +230,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
     public long seekToUs(long positionUs) {
       // Handle a request to seek to a new position. This usually involves modifying or resetting
       // the contents of the SampleStreams.
+      Log.i(TAG, String.format("Seeking to timestamp %dd (not really)", positionUs));
       return 0;
     }
 
@@ -253,6 +268,10 @@ public final class CobaltMediaSource extends BaseMediaSource {
     @Override
     public void reevaluateBuffer(long positionUs) {
       // Ignorable, do nothing.
+    }
+
+    public void writeSample(byte[] data, int sizeInBytes, long timestampUs) {
+      stream.writeSample(data, sizeInBytes, timestampUs);
     }
   }
 }

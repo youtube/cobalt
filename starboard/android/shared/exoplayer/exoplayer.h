@@ -31,7 +31,8 @@ class ExoPlayer final {
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
-      SbPlayerErrorFunc player_error_func);
+      SbPlayerErrorFunc player_error_func,
+      void* context);
   static ExoPlayer* GetExoPlayerForSbPlayer(SbPlayer player);
 
   ~ExoPlayer();
@@ -39,18 +40,19 @@ class ExoPlayer final {
   void Seek(int64_t seek_to_timestamp, int ticket) const;
   void WriteSamples(SbMediaType sample_type,
                     const SbPlayerSampleInfo* sample_infos,
-                    int number_of_sample_infos) const;
+                    int number_of_sample_infos);
   void WriteEndOfStream(SbMediaType stream_type) const;
   void SetBounds(int z_index, int x, int y, int width, int height) const;
-  bool SetPlaybackRate(double playback_rate) const;
-  void SetVolume(double volume) const;
+  bool SetPlaybackRate(double playback_rate);
+  void SetVolume(double volume);
   void GetInfo(SbPlayerInfo* out_player_info) const;
 
  private:
   ExoPlayer(SbPlayerDeallocateSampleFunc sample_deallocate_func,
             SbPlayerDecoderStatusFunc decoder_status_func,
             SbPlayerStatusFunc player_status_func,
-            SbPlayerErrorFunc player_error_func);
+            SbPlayerErrorFunc player_error_func,
+            void* context_);
 
   std::unique_ptr<ExoPlayerBridge> bridge_;
 
@@ -60,9 +62,14 @@ class ExoPlayer final {
   SbPlayerErrorFunc player_error_func_;
 
   bool is_playing_ = false;
+  double playback_rate_;
+  double volume_ = 0.0;
+  int frame_width_ = 0;
+  int frame_height_ = 0;
 
   // A reference to the ExoPlayer as an SbPlayer.
   const SbPlayer player_;
+  void* context_;
 };
 
 }  // namespace shared

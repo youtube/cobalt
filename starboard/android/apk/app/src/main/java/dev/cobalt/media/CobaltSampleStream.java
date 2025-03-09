@@ -51,12 +51,14 @@ public class CobaltSampleStream implements SampleStream {
     ParsableByteArray array = new ParsableByteArray(data);
     sampleQueue.sampleData(array, sizeInBytes);
     sampleQueue.sampleMetadata(timestampUs, 0, sizeInBytes,0, null);
-    Log.i(TAG, String.format("Appended sample for format: %s", sampleQueue.getUpstreamFormat().codecs));
+    Log.i(TAG, String.format("Appended sample for format: %s (%s) of size %d", sampleQueue.getUpstreamFormat().codecs, sampleQueue.getUpstreamFormat().sampleMimeType, sizeInBytes));
   }
 
   @Override
   public boolean isReady() {
-    return false;
+    boolean ready = sampleQueue.isReady(false);
+    Log.i(TAG, String.format("SampleQueue is %s ready.", ready ? "extremely" : "not"));
+    return ready;
   }
 
   @Override
@@ -70,6 +72,7 @@ public class CobaltSampleStream implements SampleStream {
       Log.e(TAG, "SampleQueue is not ready");
       return C.RESULT_NOTHING_READ;
     }
+    Log.i(TAG, String.format("ExoPlayer is reading data for format %s", formatHolder.format.sampleMimeType));
     return sampleQueue.read(formatHolder, buffer, readFlags, false);
   }
 

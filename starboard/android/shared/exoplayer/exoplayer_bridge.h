@@ -15,35 +15,76 @@
 #ifndef STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
 #define STARBOARD_ANDROID_SHARED_EXOPLAYER_EXOPLAYER_BRIDGE_H_
 
+#include <memory>
+#include <string>
+
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/video_window.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
 
 using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::VideoSurfaceHolder;
+using starboard::shared::starboard::player::JobThread;
 
-class ExoPlayerBridge final {
+class ExoPlayerBridge final : private VideoSurfaceHolder {
  public:
-  ExoPlayerBridge();
+  ExoPlayerBridge(SbPlayerDecoderStatusFunc decoder_status_func,
+                  SbPlayerStatusFunc player_status_func,
+                  SbPlayerErrorFunc player_error_func,
+                  SbPlayer player,
+                  void* context);
   ~ExoPlayerBridge();
 
+  void Seek(int64_t seek_to_timestamp, int ticket);
   void WriteSamples(SbMediaType sample_type,
                     const SbPlayerSampleInfo* sample_infos,
-                    int number_of_sample_infos,
-                    JniEnvExt* env = JniEnvExt::Get()) const;
-  bool Play(JniEnvExt* env = JniEnvExt::Get()) const;
-  bool Pause(JniEnvExt* env = JniEnvExt::Get()) const;
-  bool Stop(JniEnvExt* env = JniEnvExt::Get()) const;
-  bool SetVolume(double volume, JniEnvExt* env = JniEnvExt::Get()) const;
+                    int number_of_sample_infos);
+  bool Play();
+  bool Pause();
+  bool Stop();
+  bool SetVolume(double volume);
+
+  // VideoSurfaceHolder method
+  void OnSurfaceDestroyed() override {}
 
   bool is_valid() const { return j_exoplayer_bridge_ != nullptr; }
 
  private:
+  bool InitExoplayer();
+  void DoSeek(int64_t seek_to_timestamp, int ticket);
+  void DoWriteSamples(SbMediaType sample_type,
+                      const SbPlayerSampleInfo* sample_infos,
+                      int number_of_sample_infos);
+  void DoPlay();
+  void DoPause();
+  void DoStop();
+  void DoSetVolume(double volume);
+
+  void UpdatePlayerState(SbPlayerState player_state);
+  void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);
+  void UpdatePlayerError(SbPlayerError error, const std::string& error_message);
+
+  SbPlayerDecoderStatusFunc decoder_status_func_;
+  SbPlayerStatusFunc player_status_func_;
+  SbPlayerErrorFunc player_error_func_;
+
   jobject j_exoplayer_bridge_ = nullptr;
+  jobject j_sample_data_ = nullptr;
+  jobject j_output_surface_ = nullptr;
+
+  void* context_;
+  SbPlayer player_;
+  bool error_occurred_ = false;
+  int ticket_;
+  SbPlayerState player_state_;
+  std::unique_ptr<JobThread> exoplayer_thread_;
 };
 
 }  // namespace shared

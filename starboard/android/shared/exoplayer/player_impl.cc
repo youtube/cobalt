@@ -35,7 +35,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
   return ExoPlayer::CreateInstance(sample_deallocate_func, decoder_status_func,
-                                   player_status_func, player_error_func);
+                                   player_status_func, player_error_func,
+                                   context);
 }
 
 SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
@@ -80,16 +81,16 @@ void SbPlayerWriteEndOfStream(SbPlayer player, SbMediaType stream_type) {
   }
 }
 
-void SbPlayerSetBounds(SbPlayer player,
-                       int z_index,
-                       int x,
-                       int y,
-                       int width,
-                       int height) {
-  auto exoplayer = ExoPlayer::GetExoPlayerForSbPlayer(player);
-  SB_DCHECK(exoplayer);
-  exoplayer->SetBounds(z_index, x, y, width, height);
-}
+// void SbPlayerSetBounds(SbPlayer player,
+//                        int z_index,
+//                        int x,
+//                        int y,
+//                        int width,
+//                        int height) {
+//   auto exoplayer = ExoPlayer::GetExoPlayerForSbPlayer(player);
+//   SB_DCHECK(exoplayer);
+//   exoplayer->SetBounds(z_index, x, y, width, height);
+// }
 
 bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
   auto exoplayer = ExoPlayer::GetExoPlayerForSbPlayer(player);
