@@ -23,6 +23,7 @@ MojoAudioInputIPC::MojoAudioInputIPC(
     : source_params_(source_params),
       stream_creator_(std::move(stream_creator)),
       stream_associator_(std::move(stream_associator)) {
+        LOG(INFO)<< "YO THOR - MO AUDIO INPUT IPC CTOR";
   DETACH_FROM_SEQUENCE(sequence_checker_);
   DCHECK(stream_creator_);
   DCHECK(stream_associator_);
@@ -34,6 +35,7 @@ void MojoAudioInputIPC::CreateStream(media::AudioInputIPCDelegate* delegate,
                                      const media::AudioParameters& params,
                                      bool automatic_gain_control,
                                      uint32_t total_segments) {
+        LOG(INFO)<< "YO THOR - MOJKO IPC - CREAT ESTREAm";
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(delegate);
   DCHECK(!delegate_);
@@ -58,6 +60,7 @@ void MojoAudioInputIPC::CreateStream(media::AudioInputIPCDelegate* delegate,
 }
 
 void MojoAudioInputIPC::RecordStream() {
+  LOG(INFO) << "YO THOR _ RECORD STREAM!!";
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(stream_.is_bound());
   stream_->Record();

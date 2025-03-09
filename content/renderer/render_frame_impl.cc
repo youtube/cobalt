@@ -5680,6 +5680,7 @@ void RenderFrameImpl::CreateAudioInputStream(
         std::move(controls_receiver), *settings);
   }
 
+  LOG(INFO) << "YO THOR - CREATE ADUI STREAM< - LETS PASS IT ON TI THE AUDOI STERAM FACTORY!";
   GetAudioInputStreamFactory()->CreateStream(
       std::move(client), session_id, params, automatic_gain_control,
       shared_memory_count, std::move(processing_config));

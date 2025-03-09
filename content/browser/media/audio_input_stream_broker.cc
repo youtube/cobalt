@@ -97,6 +97,7 @@ void AudioInputStreamBroker::CreateStream(
   DCHECK(!pending_client_receiver_);
   TRACE_EVENT_NESTABLE_ASYNC_BEGIN1("audio", "CreateStream", this, "device id",
                                     device_id_);
+  LOG(INFO) << "YO THOR - AUDIO INPUT SYTREAM BREOKER - CREATE ATRESM";
   awaiting_created_ = true;
 
   base::ReadOnlySharedMemoryRegion key_press_count_buffer;
@@ -144,16 +145,19 @@ void AudioInputStreamBroker::StreamCreated(
     media::mojom::ReadOnlyAudioDataPipePtr data_pipe,
     bool initially_muted,
     const absl::optional<base::UnguessableToken>& stream_id) {
+  LOG(INFO) << "YO THOR - STREAM CREATED! WE GOT A DATA PIPe?";
   DCHECK_CURRENTLY_ON(BrowserThread::IO);
   awaiting_created_ = false;
   TRACE_EVENT_NESTABLE_ASYNC_END1("audio", "CreateStream", this, "success",
                                   !!data_pipe);
 
   if (!data_pipe) {
+    LOG(INFO) << "YO THOR - STREAM CREATED! WE GOT A DATA PIPe? NOOOOOOOOOOOOOOOOOOO";
     disconnect_reason_ = DisconnectReason::kStreamCreationFailed;
     Cleanup();
     return;
   }
+  LOG(INFO) << "YO THOR - STREAM CREATED! WE GOT A DATA PIPe? YEAAAAAAAAAAAAAAAAAAAAAh!";
 
   DCHECK(stream_id.has_value());
   DCHECK(renderer_factory_client_);

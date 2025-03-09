@@ -30,6 +30,7 @@ AudioStreamBrokerFactoryImpl::CreateAudioInputStreamBroker(
     AudioStreamBroker::DeleterCallback deleter,
     mojo::PendingRemote<blink::mojom::RendererAudioInputStreamFactoryClient>
         renderer_factory_client) {
+  LOG(INFO) << "YO THOR - WE IN THIS AUDIO STREAM BROKER IMPL?";
   return std::make_unique<AudioInputStreamBroker>(
       render_process_id, render_frame_id, device_id, params,
       shared_memory_count, user_input_monitor, enable_agc,

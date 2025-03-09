@@ -7,6 +7,8 @@
 #include <memory>
 #include <utility>
 
+#include "starboard/android/shared/jni_env_ext.h"
+
 #include "base/compiler_specific.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
@@ -23,6 +25,8 @@
 #include "third_party/blink/public/common/security/protocol_handler_security_level.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom.h"
 #include "ui/gfx/geometry/rect.h"
+
+using starboard::android::shared::JniEnvExt;
 
 namespace content {
 
@@ -243,9 +247,29 @@ bool WebContentsDelegate::CheckMediaAccessPermission(
     RenderFrameHost* render_frame_host,
     const GURL& security_origin,
     blink::mojom::MediaStreamType type) {
-  LOG(ERROR) << "WebContentsDelegate::CheckMediaAccessPermission: "
-             << "Not supported.";
-  return false;
+
+  // IF STARBOARD
+  //JniEnvExt* env = JniEnvExt::Get();
+  // https://source.corp.google.com/h/lbshell-internal/cobalt_src/+/main:starboard/android/shared/microphone_impl.cc;l=107
+  // CheckMediaAccessPermission
+
+  LOG(INFO) << "YO THOR - GOTTA CHECK MEDIA ACCESS!";
+
+  JniEnvExt* env = JniEnvExt::Get();
+  jobject j_audio_permission_requester =
+      static_cast<jobject>(env->CallStarboardObjectMethodOrAbort(
+          "getAudioPermissionRequester",
+          "()Ldev/cobalt/coat/AudioPermissionRequester;"));
+  jboolean j_permission = env->CallBooleanMethodOrAbort(
+      j_audio_permission_requester, "requestRecordAudioPermission", "(J)Z",
+      reinterpret_cast<intptr_t>(this));
+
+  LOG(INFO) << " CHECK GOOD - RESULT IS:" << ( (j_permission ==  JNI_TRUE) ? "TRU" : "FALSE");
+  return (j_permission ==  JNI_TRUE);
+
+  // LOG(ERROR) << "WebContentsDelegate::CheckMediaAccessPermission: "
+  //            << "Not supported.";
+  // return false;
 }
 
 std::string WebContentsDelegate::GetDefaultMediaDeviceID(

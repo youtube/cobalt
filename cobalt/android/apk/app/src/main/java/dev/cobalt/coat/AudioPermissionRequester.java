@@ -14,6 +14,8 @@
 
 package dev.cobalt.coat;
 
+import android.util.Log;
+
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
@@ -31,6 +33,8 @@ public class AudioPermissionRequester {
   // Only use in synchronized methods.
   private boolean requestAudioPermissionStarted;
 
+  private static final String TAG = "THORAudioPermissionRequester"; // Use class name as tag
+
   public AudioPermissionRequester(Context context, Holder<Activity> activityHolder) {
     this.context = context;
     this.activityHolder = activityHolder;
@@ -44,16 +48,20 @@ public class AudioPermissionRequester {
   @UsedByNative
   public synchronized boolean requestRecordAudioPermission(long nativePermissionRequestor) {
     this.nativePermissionRequestor = nativePermissionRequestor;
+    Log.i(TAG, "YO THOR - REQ RECORD AUDIO PERMISSION!");
     Activity activity = activityHolder.get();
     if (activity == null) {
+      Log.i(TAG, "YO THOR - REQ RECORD AUDIO PERMISSION!  NAE ACTIVITY!");
       return false;
     }
 
     if (ContextCompat.checkSelfPermission(activity, Manifest.permission.RECORD_AUDIO)
         == PackageManager.PERMISSION_GRANTED) {
+      Log.i(TAG, "YO THOR - REQ RECORD AUDIO PERMISSION!  ALREADY GRANTED!!");
       return true;
     }
     if (!requestAudioPermissionStarted) {
+      Log.i(TAG, "YO THOR - REQ RECORD AUDIO PERMISSION!  NOT STARTED - LETS ASK!!");
       ActivityCompat.requestPermissions(
           activity, new String[] {Manifest.permission.RECORD_AUDIO}, R.id.rc_record_audio);
       requestAudioPermissionStarted = true;
@@ -65,6 +73,7 @@ public class AudioPermissionRequester {
   /** Handles the RECORD_AUDIO request result. */
   public synchronized void onRequestPermissionsResult(
       int requestCode, String[] permissions, int[] grantResults) {
+    Log.i(TAG, "YO THOR - ON REQ PERMISSION RESULT");
     if (requestCode == R.id.rc_record_audio) {
       // If the request is cancelled, the result arrays are empty.
       if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {

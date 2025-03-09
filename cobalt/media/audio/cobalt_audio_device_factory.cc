@@ -16,6 +16,7 @@
 
 #include "base/logging.h"
 #include "cobalt/media/audio/audio_helpers.h"
+#include "cobalt/media/audio/cobalt_audio_capturer_source.h"
 #include "cobalt/media/audio/cobalt_audio_renderer_sink.h"
 
 namespace media {
@@ -41,4 +42,5 @@ OutputDeviceInfo CobaltAudioDeviceFactory::GetOutputDeviceInfo(
     const std::string& device_id) {
   return GetPreferredOutputParameters();
 }
+
 }  // namespace media

@@ -101,6 +101,8 @@ media::AudioCodec CodecIdToMediaAudioCodec(AudioTrackRecorder::CodecId id) {
       return media::AudioCodec::kOpus;
     case AudioTrackRecorder::CodecId::kAac:
       return media::AudioCodec::kAAC;
+    case AudioTrackRecorder::CodecId::kFlac:
+      return media::AudioCodec::kFLAC;
     case AudioTrackRecorder::CodecId::kLast:
       return media::AudioCodec::kUnknown;
   }
@@ -161,18 +163,22 @@ bool CanSupportVideoType(const String& type) {
 }
 
 bool CanSupportAudioType(const String& type) {
-  return EqualIgnoringASCIICase(type, "audio/webm");
+  return EqualIgnoringASCIICase(type, "audio/webm") ||
+         EqualIgnoringASCIICase(type, "audio/flac");
 }
 
 }  // anonymous namespace
 
 MediaRecorderHandler::MediaRecorderHandler(
     scoped_refptr<base::SingleThreadTaskRunner> main_thread_task_runner)
-    : main_thread_task_runner_(std::move(main_thread_task_runner)) {}
+    : main_thread_task_runner_(std::move(main_thread_task_runner)) {
+      LOG(INFO) << "YO THOR MEDIA RECORDER HANDLER CTOR";
+    }
 
 bool MediaRecorderHandler::CanSupportMimeType(const String& type,
                                               const String& web_codecs) {
   DCHECK(IsMainThread());
+      LOG(INFO) << "YO THOR MEDIA RECORDER HANDLER  - CAN SUPPORT MIME TYPE:" << type;
   // An empty |type| means MediaRecorderHandler can choose its preferred codecs.
   if (type.empty())
     return true;
@@ -197,7 +203,7 @@ bool MediaRecorderHandler::CanSupportMimeType(const String& type,
     "opus",
     "pcm"
   };
-  static const char* const kAudioCodecs[] = {"opus", "pcm"};
+  static const char* const kAudioCodecs[] = {"opus", "pcm", "flac"};
 
   auto* const* relevant_codecs_begin =
       video ? std::begin(kVideoCodecs) : std::begin(kAudioCodecs);
@@ -215,6 +221,7 @@ bool MediaRecorderHandler::CanSupportMimeType(const String& type,
       return false;
     }
   }
+  LOG(INFO) << "YO THOR, WE GOOD, WE SUPPORT CODEC";
   return true;
 }
 
@@ -234,6 +241,7 @@ bool MediaRecorderHandler::Initialize(
     return false;
   }
 
+  LOG(INFO) << "YO THOR - INITIALIZE MEDIA RECORDER HANDLER";
   passthrough_enabled_ = type.empty();
 
   // Once established that we support the codec(s), hunt then individually.
@@ -246,11 +254,14 @@ bool MediaRecorderHandler::Initialize(
   }
 
   // Do the same for the audio codec(s).
-  const AudioTrackRecorder::CodecId audio_codec_id =
+  // const AudioTrackRecorder::CodecId audio_codec_id =
+  AudioTrackRecorder::CodecId audio_codec_id =
       AudioStringToCodecId(codecs);
+  if (type == "audio/flac") audio_codec_id = AudioTrackRecorder::CodecId::kFlac;
   audio_codec_id_ = (audio_codec_id != AudioTrackRecorder::CodecId::kLast)
                         ? audio_codec_id
                         : AudioTrackRecorder::GetPreferredCodecId();
+  LOG(INFO) << "YO THOR - GOT kFLAC?" << (audio_codec_id == AudioTrackRecorder::CodecId::kFlac);
   DVLOG_IF(1, audio_codec_id == AudioTrackRecorder::CodecId::kLast)
       << "Falling back to preferred audio codec id "
       << static_cast<int>(audio_codec_id_);
@@ -575,6 +586,9 @@ String MediaRecorderHandler::ActualMimeType() {
         break;
       case AudioTrackRecorder::CodecId::kAac:
         mime_type.Append("m4a.40.2");
+        break;
+      case AudioTrackRecorder::CodecId::kFlac:
+        mime_type.Append("flac");
         break;
       case AudioTrackRecorder::CodecId::kLast:
         DCHECK_NE(video_codec_profile_.codec_id,
