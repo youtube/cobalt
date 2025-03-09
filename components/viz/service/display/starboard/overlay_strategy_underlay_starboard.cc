@@ -19,13 +19,30 @@
 
 #include "base/containers/adapters.h"
 #include "base/logging.h"
+#include "base/no_destructor.h"
+#include "base/unguessable_token.h"
 #include "components/viz/common/quads/draw_quad.h"
 #include "components/viz/common/quads/solid_color_draw_quad.h"
 #include "components/viz/common/quads/video_hole_draw_quad.h"
 #include "components/viz/service/display/overlay_candidate_factory.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
 namespace viz {
+
+namespace {
+
+// This persistent mojo::Remote is bound then used by all the instances
+// of OverlayStrategyUnderlayStarboard.
+mojo::Remote<cobalt::media::mojom::VideoGeometrySetter>&
+GetVideoGeometrySetter() {
+  static base::NoDestructor<
+      mojo::Remote<cobalt::media::mojom::VideoGeometrySetter>>
+      g_video_geometry_setter;
+  return *g_video_geometry_setter;
+}
+
+}  // namespace
 
 OverlayStrategyUnderlayStarboard::OverlayStrategyUnderlayStarboard(
     OverlayProcessorUsingStrategy* capability_checker)
@@ -60,8 +77,9 @@ void OverlayStrategyUnderlayStarboard::Propose(
   // Original code did reverse iteration.
   // Here we do forward but find the last one, which should be the same thing.
   for (auto it = quad_list.begin(); it != quad_list.end(); ++it) {
-    if (OverlayCandidate::IsInvisibleQuad(*it))
+    if (OverlayCandidate::IsInvisibleQuad(*it)) {
       continue;
+    }
 
     // Look for quads that are overlayable and require an overlay. Chromecast
     // only supports a video underlay so this can't promote all quads that are
@@ -111,8 +129,9 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
       &render_pass_filters, context);
 
   for (const auto* quad : base::Reversed(quad_list)) {
-    if (OverlayCandidate::IsInvisibleQuad(quad))
+    if (OverlayCandidate::IsInvisibleQuad(quad)) {
       continue;
+    }
 
     const auto& transform = quad->shared_quad_state->quad_to_target_transform;
     gfx::Rect quad_rect = transform.MapRect(quad->rect);
@@ -136,8 +155,9 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
 
     if (!found_underlay && quad->material == DrawQuad::Material::kSolidColor) {
       const SolidColorDrawQuad* solid = SolidColorDrawQuad::MaterialCast(quad);
-      if (solid->color == SkColors::kBlack)
+      if (solid->color == SkColors::kBlack) {
         continue;
+      }
     }
 
     if (is_underlay) {
@@ -178,6 +198,12 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
 void OverlayStrategyUnderlayStarboard::CommitCandidate(
     const OverlayProposedCandidate& proposed_candidate,
     AggregatedRenderPass* render_pass) {
+  DCHECK(GetVideoGeometrySetter());
+  GetVideoGeometrySetter()->SetVideoGeometry(
+      proposed_candidate.candidate.display_rect,
+      absl::get<gfx::OverlayTransform>(proposed_candidate.candidate.transform),
+      VideoHoleDrawQuad::MaterialCast(*proposed_candidate.quad_iter)
+          ->overlay_plane_id);
   if (proposed_candidate.candidate.has_mask_filter) {
     render_pass->ReplaceExistingQuadWithSolidColor(
         proposed_candidate.quad_iter, SkColors::kBlack, SkBlendMode::kDstOut);
@@ -196,6 +222,13 @@ void OverlayStrategyUnderlayStarboard::AdjustOutputSurfaceOverlay(
   if (output_surface_plane) {
     output_surface_plane->enable_blending = true;
   }
+}
+
+// static
+void OverlayStrategyUnderlayStarboard::ConnectVideoGeometrySetter(
+    mojo::PendingRemote<cobalt::media::mojom::VideoGeometrySetter>
+        video_geometry_setter) {
+  GetVideoGeometrySetter().Bind(std::move(video_geometry_setter));
 }
 
 }  // namespace viz

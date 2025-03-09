@@ -65,12 +65,16 @@ source_set("starboard") {
     "sbplayer_set_bounds_helper.h",
     "starboard_renderer.cc",
     "starboard_renderer.h",
+    "starboard_renderer_factory.cc",
+    "starboard_renderer_factory.h",
     "starboard_utils.cc",
     "starboard_utils.h",
   ]
 
   deps = [
     "//base",
+    "//cobalt/media/service",
+    "//cobalt/media/service/mojom",
     "//media:media_buildflags",
     "//media/base",
     "//starboard($starboard_toolchain)",

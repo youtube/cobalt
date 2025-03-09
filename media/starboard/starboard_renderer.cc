@@ -17,6 +17,7 @@
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "starboard/common/media.h"
+#include "ui/gfx/geometry/rect_conversions.h"
 
 namespace media {
 
@@ -55,10 +56,14 @@ bool HasRemoteAudioOutputs(
 
 StarboardRenderer::StarboardRenderer(
     const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-    VideoRendererSink* video_renderer_sink)
+    VideoRendererSink* video_renderer_sink,
+    std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
+    cobalt::media::VideoGeometrySetterService* video_geometry_setter_service)
     : task_runner_(task_runner),
       video_renderer_sink_(video_renderer_sink),
-      video_overlay_factory_(std::make_unique<VideoOverlayFactory>()) {
+      video_overlay_factory_(std::move(video_overlay_factory)),
+      set_bounds_helper_(new SbPlayerSetBoundsHelper),
+      video_geometry_setter_service_(video_geometry_setter_service) {
   DCHECK(task_runner_);
   DCHECK(video_renderer_sink_);
   DCHECK(video_overlay_factory_);
@@ -115,6 +120,16 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   client_ = client;
 
+  DCHECK(video_geometry_setter_service_);
+  video_geometry_setter_service_->GetVideoGeometryChangeSubscriber(
+      video_geometry_change_subcriber_remote_.BindNewPipeAndPassReceiver());
+  DCHECK(video_geometry_change_subcriber_remote_);
+  video_geometry_change_subcriber_remote_->SubscribeToVideoGeometryChange(
+      video_overlay_factory_->overlay_plane_id(),
+      video_geometry_change_client_receiver_.BindNewPipeAndPassRemote(),
+      base::BindOnce(&StarboardRenderer::OnSubscribeToVideoGeometryChange,
+                     base::Unretained(this), media_resource, client));
+
   audio_stream_ = media_resource->GetFirstStream(DemuxerStream::AUDIO);
   video_stream_ = media_resource->GetFirstStream(DemuxerStream::VIDEO);
 
@@ -146,6 +161,20 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
 
   // |init_cb| will be called inside |CreatePlayerBridge()|.
   CreatePlayerBridge(std::move(init_cb));
+}
+
+void StarboardRenderer::OnSubscribeToVideoGeometryChange(
+    MediaResource* media_resource,
+    RendererClient* client) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+}
+
+void StarboardRenderer::OnVideoGeometryChange(
+    const gfx::RectF& rect_f,
+    gfx::OverlayTransform /* transform */) {
+  gfx::Rect new_bounds = gfx::ToEnclosingRect(rect_f);
+  set_bounds_helper_->SetBounds(new_bounds.x(), new_bounds.y(),
+                                new_bounds.width(), new_bounds.height());
 }
 
 void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
@@ -342,7 +371,7 @@ void StarboardRenderer::CreatePlayerBridge(PipelineStatusCallback init_cb) {
         // TODO(b/328305808): Implement SbDrm support.
         kSbDrmSystemInvalid, this,
         // TODO(b/376320224); Verify set bounds works
-        nullptr,
+        set_bounds_helper_.get(),
         // TODO(b/326497953): Support suspend/resume.
         false,
         // TODO(b/326825450): Revisit 360 videos.

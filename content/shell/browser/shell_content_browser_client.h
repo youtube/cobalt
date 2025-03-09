@@ -13,7 +13,9 @@
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 #include "content/public/browser/content_browser_client.h"
+#include "content/shell/browser/cobalt_single_render_process_observer.h"
 #include "content/shell/browser/shell_speech_recognition_manager_delegate.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "services/network/public/mojom/network_context.mojom-forward.h"
 
 class PrefService;
@@ -27,6 +29,8 @@ class BluetoothDelegateImpl;
 namespace content {
 class ShellBrowserContext;
 class ShellBrowserMainParts;
+class RenderProcessHost;
+class CobaltWebContentsObserver;
 
 std::string GetShellLanguage();
 blink::UserAgentMetadata GetShellUserAgentMetadata();
@@ -170,6 +174,8 @@ class ShellContentBrowserClient : public ContentBrowserClient {
       base::OnceCallback<void(const base::FilePath&)>) override;
   bool HasErrorPage(int http_status_code) override;
   void OnWebContentsCreated(WebContents* web_contents) override;
+  void RenderProcessWillLaunch(RenderProcessHost* host) override;
+  void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
 
   // Turns on features via permissions policy for Isolated App
   // Web Platform Tests.
@@ -264,6 +270,8 @@ class ShellContentBrowserClient : public ContentBrowserClient {
 #if BUILDFLAG(IS_IOS)
   std::unique_ptr<permissions::BluetoothDelegateImpl> bluetooth_delegate_;
 #endif
+
+  CobaltSingleRenderProcessObserver single_render_process_observer_;
 
   // NOTE: Tests may install a second ShellContentBrowserClient that becomes
   // the ContentBrowserClient used by content. This has subtle implications

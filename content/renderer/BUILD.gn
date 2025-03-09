@@ -15,6 +15,10 @@ import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/webrtc/webrtc.gni")
 import("//tools/ipc_fuzzer/ipc_fuzzer.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 if (is_component_build) {
   link_target_type = "source_set"
 } else {
@@ -581,6 +585,12 @@ target(link_target_type, "renderer") {
 
   if (enable_ipc_fuzzer) {
     configs += [ "//tools/ipc_fuzzer:ipc_fuzzer_config" ]
+  }
+
+  if (is_cobalt) {
+    deps += [
+      "//starboard/build:starboard_buildflags",
+    ]
   }
 }
 

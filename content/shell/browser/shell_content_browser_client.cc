@@ -31,6 +31,7 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "cc/base/switches.h"
+#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "components/custom_handlers/protocol_handler_registry.h"
 #include "components/custom_handlers/protocol_handler_throttle.h"
 #include "components/custom_handlers/simple_protocol_handler_registry_factory.h"
@@ -54,6 +55,7 @@
 #include "components/variations/synthetic_trial_registry.h"
 #include "components/variations/variations_safe_seed_store_local_state.h"
 #include "components/variations/variations_switches.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/client_certificate_delegate.h"
 #include "content/public/browser/login_delegate.h"
 #include "content/public/browser/navigation_throttle.h"
@@ -978,6 +980,25 @@ ShellContentBrowserClient::GetPermissionsPolicyForIsolatedWebApp(
 const std::vector<ShellContentBrowserClient*>&
 ShellContentBrowserClient::GetShellContentBrowserClientInstances() {
   return GetShellContentBrowserClientInstancesImpl();
+}
+
+void ShellContentBrowserClient::RenderProcessWillLaunch(
+  content::RenderProcessHost* host) {
+  single_render_process_observer_.UpdateRenderProcessHost(host);
+}
+
+void ShellContentBrowserClient::BindGpuHostReceiver(
+  mojo::GenericPendingReceiver receiver) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (auto r = receiver.As<cobalt::media::mojom::VideoGeometrySetter>()) {
+    const auto renderer_process_id =
+        single_render_process_observer_.renderer_id();
+    content::RenderProcessHost* host =
+        content::RenderProcessHost::FromID(renderer_process_id);
+    if (host) {
+      host->BindReceiver(std::move(r));
+    }
+  }
 }
 
 }  // namespace content

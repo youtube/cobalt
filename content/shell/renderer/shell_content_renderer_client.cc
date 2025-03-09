@@ -16,6 +16,8 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/types/pass_key.h"
+#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
+#include "cobalt/media/service/video_geometry_setter_service.h"
 #include "components/cdm/renderer/external_clear_key_key_system_info.h"
 #include "components/network_hints/renderer/web_prescient_networking_impl.h"
 #include "components/web_cache/renderer/web_cache_impl.h"
@@ -29,10 +31,17 @@
 #include "content/shell/common/power_monitor_test_impl.h"
 #include "content/shell/common/shell_switches.h"
 #include "content/shell/renderer/shell_render_frame_observer.h"
+#include "media/base/decoder_factory.h"
+#include "media/base/media_log.h"
+#include "media/base/renderer_factory.h"
+#include "media/renderers/video_overlay_factory.h"
+#include "media/starboard/starboard_renderer_factory.h"
+#include "media/video/gpu_video_accelerator_factories.h"
 #include "mojo/public/cpp/bindings/binder_map.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/system/message_pipe.h"
+#include "mojo/public/cpp/bindings/binder_map.h"
 #include "net/base/net_errors.h"
 #include "ppapi/buildflags/buildflags.h"
 #include "sandbox/policy/sandbox.h"
@@ -232,7 +241,12 @@ void CreateRendererTestService(
 
 }  // namespace
 
-ShellContentRendererClient::ShellContentRendererClient() {}
+ShellContentRendererClient::ShellContentRendererClient()
+  : video_geometry_setter_service_(
+    std::unique_ptr<cobalt::media::VideoGeometrySetterService,
+                    base::OnTaskRunnerDeleter>(
+        nullptr,
+        base::OnTaskRunnerDeleter(nullptr))) {}
 
 ShellContentRendererClient::~ShellContentRendererClient() {
 }
@@ -293,6 +307,14 @@ void ShellContentRendererClient::SetUpWebAssemblyTrapHandler() {
 
 void ShellContentRendererClient::RenderThreadStarted() {
   web_cache_impl_ = std::make_unique<web_cache::WebCacheImpl>();
+  if (!video_geometry_setter_service_) {
+    video_geometry_setter_service_ =
+        std::unique_ptr<cobalt::media::VideoGeometrySetterService,
+                        base::OnTaskRunnerDeleter>(
+            new cobalt::media::VideoGeometrySetterService,
+            base::OnTaskRunnerDeleter(
+                base::SingleThreadTaskRunner::GetCurrentDefault()));
+  }
 }
 
 void ShellContentRendererClient::ExposeInterfacesToBrowser(
@@ -309,6 +331,9 @@ void ShellContentRendererClient::ExposeInterfacesToBrowser(
   binders->Add<web_cache::mojom::WebCache>(
       base::BindRepeating(&web_cache::WebCacheImpl::BindReceiver,
                           base::Unretained(web_cache_impl_.get())),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
+  binders->Add<cobalt::media::mojom::VideoGeometrySetter>(
+      video_geometry_setter_service_->GetBindCallback(),
       base::SingleThreadTaskRunner::GetCurrentDefault());
 }
 
@@ -453,6 +478,27 @@ ShellContentRendererClient::CreatePrescientNetworking(
     RenderFrame* render_frame) {
   return std::make_unique<network_hints::WebPrescientNetworkingImpl>(
       render_frame);
+}
+
+std::unique_ptr<::media::RendererFactory>
+ShellContentRendererClient::GetBaseRendererFactory(
+    content::RenderFrame* /* render_frame */,
+    ::media::MediaLog* media_log,
+    ::media::DecoderFactory* /* decoder_factory */,
+    base::RepeatingCallback<::media::GpuVideoAcceleratorFactories*()>
+    /* get_gpu_factories_cb */,
+    int /* element_id */) {
+#if BUILDFLAG(IS_COBALT)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // TODO(b/394368542): Add Content API to create StarboardRenderer.
+  auto overlay_factory = std::make_unique<::media::VideoOverlayFactory>();
+  DCHECK(video_geometry_setter_service_);
+  return std::make_unique<::media::StarboardRendererFactory>(
+      media_log, std::move(overlay_factory),
+      video_geometry_setter_service_.get());
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+#endif  // BUILDFLAG(IS_COBALT)
+  return nullptr;
 }
 
 }  // namespace content

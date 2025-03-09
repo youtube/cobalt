@@ -5,6 +5,9 @@
 #ifndef CONTENT_SHELL_GPU_SHELL_CONTENT_GPU_CLIENT_H_
 #define CONTENT_SHELL_GPU_SHELL_CONTENT_GPU_CLIENT_H_
 
+#include <memory>
+
+#include "base/task/single_thread_task_runner.h"
 #include "content/public/gpu/content_gpu_client.h"
 #include "services/network/public/mojom/network_service_test.mojom-forward.h"
 
@@ -24,6 +27,8 @@ class ShellContentGpuClient : public ContentGpuClient {
       const gpu::GpuPreferences& gpu_preferences,
       const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
       mojo::BinderMap* binders) override;
+  void PostCompositorThreadCreated(
+    base::SingleThreadTaskRunner* task_runner) override;
 };
 
 }  // namespace content

@@ -724,8 +724,7 @@ void SbPlayerBridge::CreateUrlPlayer(const std::string& url) {
   decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
 
-  // TODO(b/352389546): set bounds via video_painter.cc
-  // set_bounds_helper_->SetPlayerBridge(this);
+  set_bounds_helper_->SetPlayerBridge(this);
 
   base::AutoLock auto_lock(lock_);
   UpdateBounds_Locked();
@@ -826,8 +825,7 @@ void SbPlayerBridge::CreatePlayer() {
   decode_target_provider_->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-  // TODO(b/352389546): set bounds via video_painter.cc
-  // set_bounds_helper_->SetPlayerBridge(this);
+  set_bounds_helper_->SetPlayerBridge(this);
 
   base::AutoLock auto_lock(lock_);
   UpdateBounds_Locked();

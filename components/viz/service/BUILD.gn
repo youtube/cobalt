@@ -414,6 +414,7 @@ viz_component("service") {
       ]
     }
     deps += [
+      "//cobalt/media/service/mojom",
       "//starboard/build:starboard_buildflags",
     ]
   }

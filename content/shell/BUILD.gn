@@ -165,6 +165,8 @@ inspector_protocol_generate("protocol_sources") {
 static_library("content_shell_lib") {
   testonly = true
   sources = [
+    "browser/cobalt_single_render_process_observer.cc",
+    "browser/cobalt_single_render_process_observer.h",
     "browser/protocol/browser_handler.cc",
     "browser/protocol/browser_handler.h",
     "browser/protocol/domain_handler.h",
@@ -316,6 +318,7 @@ static_library("content_shell_lib") {
     "//base:base_static",
     "//build:chromeos_buildflags",
     "//cc/base",
+    "//cobalt/media/service/mojom",
     "//components/cdm/renderer",
     "//components/custom_handlers",
     "//components/custom_handlers:test_support",

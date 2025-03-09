@@ -24,11 +24,25 @@ class URLLoaderThrottleProvider;
 enum class URLLoaderThrottleProviderType;
 }  // namespace blink
 
+namespace cobalt {
+namespace media {
+class VideoGeometrySetterService;
+}  // namespace media
+}  // namespace cobalt
+
 namespace web_cache {
 class WebCacheImpl;
 }
+   
+namespace media {
+class MediaLog;
+class DecoderFactory;
+class GpuVideoAcceleratorFactories;
+class RendererFactory;
+}  // namespace media
 
 namespace content {
+class RenderFrame;
 
 class ShellContentRendererClient : public ContentRendererClient {
  public:
@@ -77,9 +91,18 @@ class ShellContentRendererClient : public ContentRendererClient {
 
   std::unique_ptr<blink::WebPrescientNetworking> CreatePrescientNetworking(
       RenderFrame* render_frame) override;
+  std::unique_ptr<::media::RendererFactory> GetBaseRendererFactory(
+      content::RenderFrame* render_frame,
+      ::media::MediaLog* media_log,
+      ::media::DecoderFactory* decoder_factory,
+      base::RepeatingCallback<::media::GpuVideoAcceleratorFactories*()>
+          get_gpu_factories_cb,
+      int element_id) override;
 
  private:
   std::unique_ptr<web_cache::WebCacheImpl> web_cache_impl_;
+  std::unique_ptr<cobalt::media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
+      video_geometry_setter_service_;
 };
 
 }  // namespace content
