@@ -20,6 +20,7 @@
 #include "base/i18n/rtl.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
 #include "content/public/browser/browser_thread.h"
@@ -87,8 +88,11 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   // ShellBrowserMainParts overrides.
   int PreCreateThreads() override {
-    // TODO(b/372559349): setup metrics similarly to what SetupMetrics() does
-    // when called from ChromeBrowserMainParts::PreCreateThreadsImpl().
+    metrics_ = std::make_unique<CobaltMetricsServiceClient>();
+    // TODO(b/372559349): Double check that this initializes UMA collection,
+    // similar to what ChromeBrowserMainParts::StartMetricsRecording() does.
+    // It might need to be moved to other parts, e.g. PreMainMessageLoopRun().
+    metrics_->Start();
     return ShellBrowserMainParts::PreCreateThreads();
   }
 
@@ -126,6 +130,9 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
     ShellBrowserMainParts::PostCreateMainMessageLoop();
   }
 #endif  // BUILDFLAG(IS_LINUX)
+
+ private:
+  std::unique_ptr<CobaltMetricsServiceClient> metrics_;
 };
 
 std::string GetCobaltUserAgent() {
