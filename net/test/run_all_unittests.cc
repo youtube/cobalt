@@ -12,26 +12,6 @@
 #include "net/test/net_test_suite.h"
 #include "url/buildflags.h"
 
-#if BUILDFLAG(IS_STARBOARD)
-#include "base/test/allow_check_is_test_for_testing.h"
-#include "starboard/client_porting/wrap_main/wrap_main.h"
-
-int TestSuiteRun(int argc, char** argv) {
-  // set_connect_backup_jobs_enabled(false) below disables backup transport
-  // layer connection which is turned on by default. The backup transport layer
-  // connection sends new connection if certain amount of time has passed
-  // without ACK being received. Some net_unittests have assumption for the
-  // lack of this feature.
-  net::TransportClientSocketPool::set_connect_backup_jobs_enabled(false);
-  base::AtExitManager exit_manager;
-  base::test::AllowCheckIsTestForTesting();
-  return NetTestSuite(argc, argv).Run();
-}
-
-STARBOARD_WRAP_SIMPLE_MAIN(TestSuiteRun);
-
-#else
-
 namespace {
 
 bool VerifyBuildIsTimely() {
@@ -75,5 +55,3 @@ int main(int argc, char** argv) {
       argc, argv,
       base::BindOnce(&NetTestSuite::Run, base::Unretained(&test_suite)));
 }
-
-#endif
