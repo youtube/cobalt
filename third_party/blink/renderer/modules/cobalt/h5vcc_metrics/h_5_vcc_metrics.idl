@@ -26,7 +26,7 @@ interface H5vccMetrics {
   // onMetricEvent will override any previously registered callback."
   // This API changed to EventHandler. The original definition was:
   //   void onMetricEvent(H5vccMetricEventHandler eventHandler);
-  attribute EventHandler onMetrics;
+  attribute EventHandler onmetrics;
 
   // "Enable Cobalt metrics logging. Metrics are disabled by default and should
   // be enabled as soon as possible. When enabled, at regular intervals, the
