@@ -1,0 +1,25 @@
+{
+  "comment": "TODO(b/399743678): Re-enable once we commit to SW or HW rendering for tests.",
+  "failing_tests": [
+    "LayerTreeHostFiltersPixelTest.BackdropFilterBlurRect/SkiaGL",
+    "LayerTreeHostFiltersPixelTest.BackdropFilterBlurRadius/SkiaGL",
+    "LayerTreeHostFiltersPixelTest.BackdropFilterBlurRounded/SkiaGL",
+    "LayerTreeHostFiltersPixelTest.ImageFilterScaled/SkiaGL",
+    "LayerTreeHostFiltersPixelTest.BackdropFilterRotated/SkiaGL",
+    "LayerTreeHostFiltersPixelTest.ImageRenderSurfaceScaled/SkiaGL",
+    "LayerTreeHostFiltersPixelTest.ZoomFilter/SkiaGL",
+    "LayerTreeHostFiltersPixelTest.RotatedFilter/SkiaGL",
+    "LayerTreeHostFiltersPixelTest.RotatedDropShadowFilter/SkiaGL",
+    "LayerTreeHostFiltersPixelTest.TranslatedFilter/SkiaGL",
+    "LayerTreeHostFiltersPixelTest.BlurFilterWithClip/SkiaGL",
+    "LayerTreeHostScrollbarsPixelTest.HugeTransformScale/SkiaGL",
+    "LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircleUnderflow/SkiaGL_ZeroCopy_0",
+    "LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircleUnderflow/SkiaGL_ZeroCopy_1",
+    "LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircleUnderflow/SkiaGL_ZeroCopy_2",
+    "LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircleUnderflow/SkiaGL_ZeroCopy_3",
+    "LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy_0",
+    "LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy_1",
+    "LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy_2",
+    "LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy_3"
+  ]
+}
