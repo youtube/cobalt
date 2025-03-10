@@ -20,6 +20,16 @@ luci.project(
     notify = "luci-notify.appspot.com",
     scheduler = "luci-scheduler.appspot.com",
     swarming = "chrome-swarming.appspot.com",
+    acls = [
+        # Publicly readable.
+        acl.entry(
+            roles = [
+                acl.PROJECT_CONFIGS_READER,
+                acl.SCHEDULER_READER,
+            ],
+            groups = "all",
+        ),
+    ],
     bindings = [
         # Allow owners to submit any task in any pool.
         luci.binding(
