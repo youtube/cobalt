@@ -19,7 +19,7 @@
 #include "base/version.h"
 #include "components/metrics/metrics_log_uploader.h"
 #include "components/metrics/metrics_service.h"
-#include "components/metrics/metrics_state_manager.cc"
+#include "components/metrics/metrics_state_manager.h"
 #include "components/prefs/in_memory_pref_store.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service_factory.h"
