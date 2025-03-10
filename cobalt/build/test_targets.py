@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2024 The Cobalt Authors. All Rights Reserved.
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the 'License');
 # you may not use this file except in compliance with the License.
@@ -17,7 +17,6 @@
 import argparse
 import collections
 import json
-import os
 import queue
 
 from typing import Dict, List, Set, Tuple
@@ -32,7 +31,7 @@ _ALLOW_TESTS = {
     '//base:base_unittests',
     '//cobalt/renderer:renderer_browsertests',
     # TODO: Fails to link on android.
-    # '//cobalt:cobalt_unittests',
+    '//cobalt:cobalt_unittests',
     '//gpu/gles2_conform_support:gles2_conform_test',
     '//mojo:mojo_perftests',
     '//mojo:mojo_unittests',
@@ -82,31 +81,10 @@ _EXCLUDE_TESTS = {
     '//weblayer',
 }
 
-# The two nodes are adjacent in a path that contains many unrelated components.
-# Targets in these paths must share an additional path segment to be considered
-# related and subject for test target considerations.
-_UNRELATED_TARGETS_PATHS = {'components', 'third_party', 'ui'}
-
-
-def _are_related(node1, node2) -> bool:
-  """Two targets are considered related if the share at least one path segment
-  or two or more if they are in one of the paths that contain many unrelated
-  targets.
-  """
-  # Remove the target name and split the path into its segments.
-  node1_path = node1.split(':')[0].split('/')
-  node2_path = node2.split(':')[0].split('/')
-  common = os.path.commonprefix([node1_path, node2_path])
-  if len(common) == 2:
-    # Only the initial // matches.
-    return False
-  # At least one path segment matches.
-  return len(common) > 3 or common[2] not in _UNRELATED_TARGETS_PATHS
-
 
 def _is_test_target(g, node) -> bool:
-  if not node in _ALLOW_TESTS or \
-    any(node.startswith(path_prefix) for path_prefix in _EXCLUDE_TESTS):
+  if (not node in _ALLOW_TESTS or
+      any(node.startswith(path_prefix) for path_prefix in _EXCLUDE_TESTS)):
     return False
 
   # Test targets get a runner target added to its deps. On linux the name of
@@ -136,6 +114,8 @@ def _create_graph(data: dict) -> Tuple[nx.DiGraph, Dict[str, List[str]]]:
       source_map[source_file] += [target_name]
     for source_file in attributes.get('sources', []):
       source_map[source_file] += [target_name]
+    # Also keep a list of targets for each path. This is used below to find
+    # targets for an edited BUILD.gn file.
     source_map[target_name.split(':')[0]] += [target_name]
   return g, source_map
 
@@ -166,8 +146,8 @@ def get_test_targets_from_sources(
   }
 
   # For complete coverage we should also follow dependencies through
-  # source_sets. Most notable example is media_unittests which is comprised
-  # of a collection of source_sets.
+  # source_sets. Some test targets are comprised of a number of source_sets
+  # where, in turn, the test code and its dependencies reside.
   all_source_sets = {n for n in g.nodes if g.nodes[n]['type'] == 'source_set'}
 
   # Create a subgraph of nodes in the GN graph we care about.
@@ -175,15 +155,17 @@ def get_test_targets_from_sources(
                       | all_test_targets | all_test_targets_libs
                       | all_source_sets)
 
+  # Get affected targets from the source files provided.
   target_queue = queue.Queue()
   test_targets = set()
   executables = set()
-  # Get affected targets from the source files provided.
   gni_changes = any(file_path.endswith('.gni') for file_path in source_files)
-  if len(source_files) == 0 or gni_changes:
-    # If no files were provided or if .gni files were modified assume the entire
-    # tree should be considered.
-    for target in root_target_descendants:
+  github_changes = any(
+      file_path.startswith('.github') for file_path in source_files)
+  # Consider the entire tree if no files were provided, or if any special
+  # files were modified.
+  if len(source_files) == 0 or gni_changes or github_changes:
+    for target in all_test_targets:
       target_queue.put(target)
   else:
     for source_file in source_files:
@@ -195,6 +177,7 @@ def get_test_targets_from_sources(
         for target in source_map.get(gn_path, []):
           target_queue.put(target)
 
+  # Find the tests that depend on the affected targets.
   visited = set()
   while target_queue.qsize() > 0:
     target = target_queue.get()
@@ -204,11 +187,10 @@ def get_test_targets_from_sources(
 
     if _is_test_target(g, target):
       _add_test_target(g, target, test_targets, executables)
+    else:
+      for predecessor in root_g.predecessors(target):
+        target_queue.put(predecessor)
 
-    for target_dep in root_g.predecessors(target):
-      target_queue.put(target_dep)
-      if _is_test_target(g, target_dep) and _are_related(target, target_dep):
-        _add_test_target(g, target_dep, test_targets, executables)
   return sorted(list(test_targets)), sorted(list(executables))
 
 
