@@ -51,5 +51,5 @@ include_transport_security_state_preload_list = false
 build_epoll_based_tools = false
 enable_unix_sockets = false
 use_remote_test_server = false
-# enable_built_in_dns = false?
-# chrome_root_store_optional = false?
+chrome_root_store_optional = false
+chrome_root_store_only = true
