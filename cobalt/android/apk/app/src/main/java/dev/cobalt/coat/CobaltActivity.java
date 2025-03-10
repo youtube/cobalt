@@ -125,7 +125,7 @@ public abstract class CobaltActivity extends Activity {
             // Trades a little V8 performance for significant memory savings.
             "--js-flags=--optimize_for_size=true",
              // Auto accept camera and mic capture permissions.
-            "--auto-accept-camera-and-microphone-capture",
+            "--use-fake-ui-for-media-stream",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
