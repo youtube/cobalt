@@ -100,8 +100,8 @@ test("cobalt_unittests") {
   deps = [
     "//base/test:run_all_unittests",
     "//base/test:test_support",
-    "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser:metrics",
+    "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/migrate_storage_record:unittest",
     "//cobalt/user_agent",
     "//testing/gmock",
