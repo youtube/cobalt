@@ -29,17 +29,12 @@ void H5vccMetrics::ContextDestroyed() {
   receiver_.reset();
 }
 
-EventListener* H5vccMetrics::onMetrics() {
+EventListener* H5vccMetrics::onmetrics() {
   return GetAttributeEventListener(event_type_names::kMetrics);
 }
 
-
-void H5vccMetrics::setOnMetrics(EventListener* listener) {
+void H5vccMetrics::setOnmetrics(EventListener* listener) {
   SetAttributeEventListener(event_type_names::kMetrics, listener);
-
-  EnsureReceiverIsBound();
-//  remote_h5vcc_metrics_->AddListener(WTF::BindOnce(
- //      &H5vccRuntime::MaybeFireDeepLinkEvent, WrapPersistent(this)));
 }
 
 ScriptPromise H5vccMetrics::enable(ScriptState* script_state,
@@ -49,9 +44,8 @@ ScriptPromise H5vccMetrics::enable(ScriptState* script_state,
 
   EnsureReceiverIsBound();
 
-  remote_h5vcc_metrics_->Enable(WTF::BindOnce(&H5vccMetrics::GenericPromiseResolver,
-                                              WrapPersistent(this),
-                                              WrapPersistent(resolver)));
+  remote_h5vcc_metrics_->Enable(WTF::BindOnce(
+      &H5vccMetrics::OnEnable, WrapPersistent(this), WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -63,7 +57,7 @@ ScriptPromise H5vccMetrics::disable(ScriptState* script_state,
 
   EnsureReceiverIsBound();
 
-  remote_h5vcc_metrics_->Disable(WTF::BindOnce(&H5vccMetrics::GenericPromiseResolver,
+  remote_h5vcc_metrics_->Disable(WTF::BindOnce(&H5vccMetrics::OnDisable,
                                                WrapPersistent(this),
                                                WrapPersistent(resolver)));
 
@@ -77,9 +71,9 @@ ScriptPromise H5vccMetrics::isEnabled(ScriptState* script_state,
 
   EnsureReceiverIsBound();
 
-  remote_h5vcc_metrics_->IsEnabled(
-      WTF::BindOnce(&H5vccMetrics::OnIsEnabled,
-                    WrapPersistent(this), WrapPersistent(resolver)));
+  remote_h5vcc_metrics_->IsEnabled(WTF::BindOnce(&H5vccMetrics::OnIsEnabled,
+                                                 WrapPersistent(this),
+                                                 WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -95,7 +89,7 @@ ScriptPromise H5vccMetrics::setMetricEventInterval(
 
   remote_h5vcc_metrics_->SetMetricEventInterval(
       interval_seconds,
-      WTF::BindOnce(&H5vccMetrics::GenericPromiseResolver,
+      WTF::BindOnce(&H5vccMetrics::OnSetMetricEventInterval,
                     WrapPersistent(this), WrapPersistent(resolver)));
 
   return resolver->Promise();
@@ -106,12 +100,20 @@ void H5vccMetrics::OnMetrics(const WTF::String& tbd) {
       *MakeGarbageCollected<MetricsEvent>(event_type_names::kMetrics, tbd));
 }
 
-void H5vccMetrics::GenericPromiseResolver(ScriptPromiseResolver* resolver) {
+void H5vccMetrics::OnEnable(ScriptPromiseResolver* resolver) {
+  resolver->Resolve();
+}
+
+void H5vccMetrics::OnDisable(ScriptPromiseResolver* resolver) {
   resolver->Resolve();
 }
 
 void H5vccMetrics::OnIsEnabled(ScriptPromiseResolver* resolver, bool result) {
   resolver->Resolve(result);
+}
+
+void H5vccMetrics::OnSetMetricEventInterval(ScriptPromiseResolver* resolver) {
+  resolver->Resolve();
 }
 
 void H5vccMetrics::EnsureReceiverIsBound() {

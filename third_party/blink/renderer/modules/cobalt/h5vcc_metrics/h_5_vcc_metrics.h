@@ -47,8 +47,8 @@ class MODULES_EXPORT H5vccMetrics final
   void ContextDestroyed() override;
 
   // Web-exposed interface:
-  EventListener* onMetrics();
-  void setOnMetrics(EventListener* listener);
+  EventListener* onmetrics();
+  void setOnmetrics(EventListener* listener);
 
   ScriptPromise enable(ScriptState*, ExceptionState&);
   ScriptPromise disable(ScriptState*, ExceptionState&);
@@ -69,8 +69,11 @@ class MODULES_EXPORT H5vccMetrics final
   void Trace(Visitor*) const override;
 
  private:
-  void GenericPromiseResolver(ScriptPromiseResolver* resolver);
+  void FireMetricsEvent(const String&);
+  void OnEnable(ScriptPromiseResolver* resolver);
+  void OnDisable(ScriptPromiseResolver* resolver);
   void OnIsEnabled(ScriptPromiseResolver* resolver, bool result);
+  void OnSetMetricEventInterval(ScriptPromiseResolver* resolver);
 
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_metrics::mojom::blink::H5vccMetrics>
