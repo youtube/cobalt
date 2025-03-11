@@ -199,6 +199,11 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   std::vector<EGLConfig> configs(num_configs);
   EGL_CALL(eglChooseConfig(display_, kAttributeList, configs.data(),
                            num_configs, &num_configs));
+  // "If configs is not NULL, up to config_size configs will be returned in the
+  // array pointed to by configs. The number of configs actually returned will
+  // be returned in *num_config." Assert that and resize if needed.
+  SB_CHECK(num_configs <= configs.size());
+  configs.resize(num_configs);
 
   // Find the first config that successfully allows a pBuffer surface (i.e. an
   // offscreen EGLsurface) to be created.
