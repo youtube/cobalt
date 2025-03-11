@@ -24,6 +24,7 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
+#include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -46,6 +47,8 @@ class MODULES_EXPORT H5vccSystem final
   // Web-exposed interface:
   ScriptPromise getAdvertisingId(ScriptState*, ExceptionState&);
   ScriptPromise getLimitAdTracking(ScriptState*, ExceptionState&);
+  void exit();
+  uint32_t userOnExitStrategy();
 
   void Trace(Visitor*) const override;
 

@@ -12,23 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//starboard/build/buildflags.gni")
-
-source_set("h5vcc_system") {
+static_library("configuration") {
   sources = [
-    "h5vcc_system_impl.cc",
-    "h5vcc_system_impl.h",
+    "configuration.cc",
+    "configuration.h",
   ]
-
   deps = [
     "//base",
-    "//cobalt/browser/h5vcc_system/public/mojom",
-    "//content/public/browser",
-    "//mojo/public/cpp/bindings",
-    "//starboard($starboard_toolchain)",
+    "//starboard:starboard_headers_only",
   ]
-
-  if (is_starboard) {
-    deps += [ "//cobalt/configuration" ]
-  }
 }

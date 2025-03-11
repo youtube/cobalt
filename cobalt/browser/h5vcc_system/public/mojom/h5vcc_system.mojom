@@ -14,6 +14,12 @@
 
 module h5vcc_system.mojom;
 
+enum UserOnExitStrategy {
+  kClose,
+  kMinimize,
+  kNoExit,
+};
+
 // The browser process must provide an implementation of this interface so that
 // the renderer process can implement the H5vccSystem Blink API.
 interface H5vccSystem {
@@ -21,4 +27,10 @@ interface H5vccSystem {
   GetAdvertisingId() => (string advertising_id);
   // Get the limitAdTracking for the device.
   GetLimitAdTracking() => (bool limitAdTracking);
+
+  // Returns the platform-specific user on exit strategy.
+  [Sync]
+  GetUserOnExitStrategy() => (UserOnExitStrategy userOnExitStrategy);
+  // Platform-specific conceal or stop depending on strategy.
+  Exit();
 };
