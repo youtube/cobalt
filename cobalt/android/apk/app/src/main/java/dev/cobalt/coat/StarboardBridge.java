@@ -255,6 +255,7 @@ public class StarboardBridge {
     applicationStopped = true;
   }
 
+  // TODO(b/391383322): ensure the application suspends and resumes correctly.
   @SuppressWarnings("unused")
   @CalledByNative
   public void requestSuspend() {
