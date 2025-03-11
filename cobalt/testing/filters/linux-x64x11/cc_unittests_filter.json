@@ -13,13 +13,7 @@
     "All/LayerTreeHostFiltersPixelTest.TranslatedFilter/SkiaGL",
     "All/LayerTreeHostFiltersPixelTest.BlurFilterWithClip/SkiaGL",
     "All/LayerTreeHostScrollbarsPixelTest.HugeTransformScale/SkiaGL",
-    "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircleUnderflow/SkiaGL_ZeroCopy_0",
-    "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircleUnderflow/SkiaGL_ZeroCopy_1",
-    "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircleUnderflow/SkiaGL_ZeroCopy_2",
-    "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircleUnderflow/SkiaGL_ZeroCopy_3",
-    "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy_0",
-    "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy_1",
-    "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy_2",
-    "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy_3"
+    "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircleUnderflow/SkiaGL_ZeroCopy*",
+    "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy*"
   ]
 }
