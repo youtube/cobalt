@@ -507,6 +507,12 @@ void BaseFetchContext::AddClientHintsIfNecessary(
             .c_str(),
         prefers_reduced_motion.value());
   }
+
+#if BUILDFLAG(IS_COBALT)
+  // This code is called, and it works.
+  LOG(INFO) << "ColinL: Adding Cobalt Client Hint headers.";
+  request.SetHttpHeaderField("Sec-CH-UA-Co-Android-OS-Experience", "Amati");
+#endif
 }
 
 void BaseFetchContext::PrintAccessDeniedMessage(const KURL& url) const {
