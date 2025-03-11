@@ -55,7 +55,7 @@ _ALLOW_TESTS = {
 
 # Exclude some paths and targets that either are not relevant or don't support
 # test sharding.
-_EXCLUDE_TESTS = {
+_EXCLUDE_TESTS_PREFIX = {
     '//android_webview',
     '//base:base_i18n_perftests',
     '//build/rust',
@@ -82,8 +82,8 @@ _EXCLUDE_TESTS = {
 
 
 def _is_test_target(g, node) -> bool:
-  if (not node in _ALLOW_TESTS or
-      any(node.startswith(path_prefix) for path_prefix in _EXCLUDE_TESTS)):
+  if (not node in _ALLOW_TESTS or any(
+      node.startswith(path_prefix) for path_prefix in _EXCLUDE_TESTS_PREFIX)):
     return False
 
   # Test targets get a runner target added to its deps. On linux the name of
