@@ -18,6 +18,11 @@
 #include "media/media_buildflags.h"
 #include "third_party/blink/public/platform/web_audio_bus.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "base/strings/string_piece.h"
+#include "media/audio/wav_audio_handler.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 using media::AudioBus;
 using media::AudioFileReader;
 using media::InMemoryUrlProtocol;
@@ -86,6 +91,27 @@ bool DecodeAudioFileData(
            << (reader.HasKnownDuration() ? reader.GetNumberOfFrames() : 0)
            << ", sample rate: " << file_sample_rate
            << ", number of channels: " << number_of_channels;
+
+  return number_of_frames > 0;
+#elif BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "Starboard WAV decoder initializing..";
+  auto handler = media::WavAudioHandler::Create(base::StringPiece(data,
+                                                                  data_size));;
+  std::unique_ptr<AudioBus> bus =
+      AudioBus::Create(handler->GetNumChannels(),
+                       handler->data().size() / handler->GetNumChannels());
+  size_t number_of_frames = 0u;
+  handler->CopyTo(bus.get(), &number_of_frames);
+
+  if (number_of_frames <= 0)
+    return false;
+
+  // Allocate and configure the output audio channel data and then
+  // copy the decoded data to the destination.
+  destination_bus->Initialize(handler->GetNumChannels(), number_of_frames,
+                              handler->GetSampleRate());
+  bus->ToInterleaved<media::Float32SampleTypeTraits>(number_of_frames,
+      destination_bus->ChannelData(0));
 
   return number_of_frames > 0;
 #else
