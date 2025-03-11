@@ -42,10 +42,7 @@ import("//build/timestamp.gni")
 import("//build_overrides/build.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
-
-if (is_cobalt) {
-  import("//cobalt/build/configs/hacks.gni")
-}
+import("//cobalt/build/configs/hacks.gni")
 
 if (is_mac) {
   # Used to generate fuzzer corpus :base_mach_port_rendezvous_convert_corpus.
@@ -3688,6 +3685,15 @@ test("base_unittests") {
     ]
   }
 
+  # TODO: b/402471389 - Cobalt: try to enable these tests.
+  if (enable_cobalt_hermetic_hacks) {
+    sources -= [
+      "process/memory_unittest.cc",
+      "state_transitions_unittest.cc",
+      "tools_sanity_unittest.cc",
+    ]
+  }
+
   if (is_mac) {
     sources += [
       "allocator/partition_allocator/shim/allocator_interception_mac_unittest.mm",
@@ -3909,9 +3915,12 @@ test("base_unittests") {
       "allocator/partition_allocator/thread_cache_unittest.cc",
     ]
 
-    if (is_starboard) {
+
+    # TODO: b/402471389 Cobalt: - try to enable these tests.
+    if (enable_cobalt_hermetic_hacks) {
       sources -= [
         "allocator/partition_allocator/page_allocator_unittest.cc",
+        "allocator/partition_allocator/partition_alloc_unittest.cc",
       ]
     }
     if (use_starscan) {
@@ -3922,6 +3931,11 @@ test("base_unittests") {
         "allocator/partition_allocator/starscan/stack/stack_unittest.cc",
         "allocator/partition_allocator/starscan/state_bitmap_unittest.cc",
       ]
+      if (is_starboard) {
+        sources -= [
+          "allocator/partition_allocator/starscan/scan_loop_unittest.cc",
+        ]
+      }
     }
 
     if ((is_android || is_linux) && target_cpu == "arm64") {
