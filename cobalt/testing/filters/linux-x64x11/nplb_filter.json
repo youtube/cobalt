@@ -3,9 +3,6 @@
     "SbSystemGetLocaleIdTest.SunnyDay",
     "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.*",
     "MultiplePlayerTest.*",
-    "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.*",
-    "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.*",
-    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*",
     "VerticalVideoTests/VerticalVideoTest.*"
   ]
 }
