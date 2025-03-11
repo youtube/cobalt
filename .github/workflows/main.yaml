@@ -300,9 +300,6 @@ jobs:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
-      - name: No test targets affected.
-        if: ${{ fromJson(needs.build.outputs.test_targets_count) == 0 }}
-        run: echo "Skipping tests"
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
@@ -331,7 +328,7 @@ jobs:
           test_target_with_path: ${{ matrix.test_target }}
         run: echo "test_target=${test_target_with_path#*:}" >> $GITHUB_OUTPUT
         shell: bash
-      - name: Check Test Filter
+      - name: Check if ${{ matrix.test_target }} is skipped in test filters
         id: filter
         run: |
           set -x
