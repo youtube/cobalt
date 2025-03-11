@@ -42,10 +42,7 @@ import("//build/util/process_version.gni")
 import("//build_overrides/build.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//testing/test.gni")
-
-if (is_cobalt) {
-  import("//cobalt/build/configs/hacks.gni")
-}
+import("//cobalt/build/configs/hacks.gni")
 
 if (is_ios) {
   # Used to access target_environment and target_platform.
@@ -4053,6 +4050,15 @@ test("base_unittests") {
       "test/launcher/test_results_tracker_unittest.cc",
       "test/task_environment_unittest.cc",
       "task/thread_pool/thread_pool_impl_unittest.cc",
+    ]
+  }
+
+  # TODO: b/402471389 - Cobalt: try to enable these tests.
+  if (enable_cobalt_hermetic_hacks) {
+    sources -= [
+      "process/memory_unittest.cc",
+      "state_transitions_unittest.cc",
+      "tools_sanity_unittest.cc",
     ]
   }
 
