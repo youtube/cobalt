@@ -12,15 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This interface mirrors the H5vcc Web IDL defined in Cobalt LTS 25:
-// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc.idl
+// This interface mirrors the H5vccSystem Web IDL defined in Cobalt LTS 25:
+// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_system.idl
 [
     Exposed=Window,
     SecureContext
-]
-interface H5vcc {
-    readonly attribute CrashLog crashLog;
-    readonly attribute H5vccStorage storage;
-    readonly attribute H5vccSystem system;
-    readonly attribute H5vccRuntime runtime;
-};
+] interface H5vccStorage {};
