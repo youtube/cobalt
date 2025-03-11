@@ -355,7 +355,10 @@ action_with_pydeps("modules_event_interfaces") {
   deps = [ "//third_party/blink/renderer/bindings:web_idl_database" ]
 =======
   if (is_cobalt) {
-    sources += [ "cobalt/h5vcc_runtime/deep_link_event.idl", ]
+    sources += [
+      "cobalt/h5vcc_runtime/deep_link_event.idl",
+      "cobalt/h5vcc_system/h_5_vcc_system.idl",
+    ]
   }
 
   output_file = "modules/event_interface_modules_names.json5"
