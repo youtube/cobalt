@@ -54,7 +54,7 @@ runs:
       shell: bash
     - name: Login to Marketplace GAR
       run: |
-        # Need to login to GAR to be able to push images created by fork based PR workflows.
+        # Need to login to Marketplace to be able to pull image metadata.
         PROJECT_NAME=$(gcloud config get-value project)
         METADATA="http://metadata.google.internal./computeMetadata/v1"
         SVC_ACCT="${METADATA}/instance/service-accounts/default"
