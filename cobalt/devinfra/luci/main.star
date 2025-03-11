@@ -20,6 +20,16 @@ luci.project(
     notify = "luci-notify.appspot.com",
     scheduler = "luci-scheduler.appspot.com",
     swarming = "chrome-swarming.appspot.com",
+    acls = [
+        # Publicly readable.
+        acl.entry(
+            roles = [
+                acl.PROJECT_CONFIGS_READER,
+                acl.SCHEDULER_READER,
+            ],
+            groups = "all",
+        ),
+    ],
     bindings = [
         # Allow owners to submit any task in any pool.
         luci.binding(
@@ -76,7 +86,8 @@ luci.gitiles_poller(
     bucket = "ci",
     repo = PROJECT_REPO,
     refs = ["refs/heads/main"],
-    schedule = "0 2,12,16 * * *",  # 2 am, 12 pm, 4 pm every day (multiple times while testing)
+    # TODO(b/735809862): Replace this line to a single run every night once implementation is done
+    schedule = "0 */1 * * *",  # Run once every hour
 )
 
 luci.recipe(
@@ -93,7 +104,7 @@ luci.builder(
     bucket = "ci",
     executable = "chrobalt-nightly",
     service_account = "luci-vms@devexprod-reliability.iam.gserviceaccount.com",
-    execution_timeout = 1 * time.hour,
+    execution_timeout = 45 * time.minute,
     dimensions = {"pool": "luci.ytdevinfra.ci"},
     triggered_by = ["nightly-trigger"],
     build_numbers = True,
