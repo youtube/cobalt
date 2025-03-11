@@ -17,6 +17,9 @@
 #include "media/base/timestamp_constants.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+
 namespace media {
 
 // Status states for pipeline.  All codes except PIPELINE_OK indicate errors.
@@ -172,6 +175,10 @@ struct MEDIA_EXPORT PipelineStatistics {
 
   // NOTE: frame duration should reflect changes to playback rate.
   base::TimeDelta video_frame_duration_average = kNoTimestamp;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  base::TimeDelta video_frame_early_average = base::TimeDelta();
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Note: Keep these fields at the end of the structure, if you move them you
   // need to also update the test ProtoUtilsTest::PipelineStatisticsConversion.

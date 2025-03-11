@@ -34,6 +34,9 @@
 #include "third_party/blink/renderer/core/imagebitmap/image_bitmap_source.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+
 namespace blink {
 
 class ImageBitmapOptions;
@@ -83,6 +86,10 @@ class CORE_EXPORT HTMLVideoElement final
   // Statistics
   unsigned webkitDecodedFrameCount() const;
   unsigned webkitDroppedFrameCount() const;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  int64_t early_us() const;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Used by canvas to gain raw pixel access
   //

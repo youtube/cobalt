@@ -171,7 +171,8 @@ SbPlayerBridge::SbPlayerBridge(
       decode_target_provider_(decode_target_provider),
       cval_stats_(&interface->cval_stats_),
       pipeline_identifier_(pipeline_identifier),
-      is_url_based_(true) {
+      is_url_based_(true),
+      video_frame_early_average_(MovingAverage(kFrameEarlyAverageDepth)) {
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
 
@@ -229,15 +230,15 @@ SbPlayerBridge::SbPlayerBridge(
       decode_target_provider_(decode_target_provider),
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
       max_video_capabilities_(max_video_capabilities),
-      max_video_input_size_(max_video_input_size)
+      max_video_input_size_(max_video_input_size),
 #if COBALT_MEDIA_ENABLE_CVAL
-          cval_stats_(&interface->cval_stats_),
+      cval_stats_(&interface->cval_stats_),
       pipeline_identifier_(pipeline_identifier),
 #endif  // COBALT_MEDIA_ENABLE_CVAL
 #if SB_HAS(PLAYER_WITH_URL)
-      is_url_based_(false)
+      is_url_based_(false),
 #endif  // SB_HAS(PLAYER_WITH_URL
-{
+      video_frame_early_average_(MovingAverage(kFrameEarlyAverageDepth)) {
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   DCHECK(!get_decode_target_graphics_context_provider_func_.is_null());
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
@@ -416,6 +417,10 @@ void SbPlayerBridge::Seek(TimeDelta time) {
   sbplayer_interface_->Seek(player_, time, ticket_);
 
   sbplayer_interface_->SetPlaybackRate(player_, playback_rate_);
+
+  base::AutoLock auto_lock(lock_);
+  last_media_time_ = time;
+  last_time_media_time_retrieved_ = base::Time::Now();
 }
 
 void SbPlayerBridge::SetVolume(float volume) {
@@ -449,11 +454,13 @@ void SbPlayerBridge::SetPlaybackRate(double playback_rate) {
 
 void SbPlayerBridge::GetInfo(uint32_t* video_frames_decoded,
                              uint32_t* video_frames_dropped,
-                             TimeDelta* media_time) {
+                             TimeDelta* media_time,
+                             base::TimeDelta* video_frame_early_average) {
   DCHECK(video_frames_decoded || video_frames_dropped || media_time);
 
   base::AutoLock auto_lock(lock_);
-  GetInfo_Locked(video_frames_decoded, video_frames_dropped, media_time);
+  GetInfo_Locked(video_frames_decoded, video_frames_dropped, media_time,
+                 video_frame_early_average);
 }
 
 std::vector<SbMediaAudioConfiguration>
@@ -592,7 +599,7 @@ void SbPlayerBridge::Suspend() {
 
   base::AutoLock auto_lock(lock_);
   GetInfo_Locked(&cached_video_frames_decoded_, &cached_video_frames_dropped_,
-                 &preroll_timestamp_);
+                 &preroll_timestamp_, nullptr);
 
   state_ = kSuspended;
 
@@ -982,6 +989,18 @@ void SbPlayerBridge::WriteBuffersInternal(
     cval_stats_->StartTimer(MediaTiming::SbPlayerWriteSamples,
                             pipeline_identifier_);
 #endif  // COBALT_MEDIA_ENABLE_CVAL
+    if (sample_type == kSbMediaTypeVideo) {
+      base::AutoLock auto_lock(lock_);
+      base::TimeDelta first_timestamp =
+          base::Microseconds(gathered_sbplayer_sample_infos[0].timestamp);
+      base::TimeDelta current_media_time =
+          last_media_time_ +
+          (base::Time::Now() - last_time_media_time_retrieved_);
+      base::TimeDelta early = first_timestamp - current_media_time;
+      // TODO: Don't DCHECK this
+      DCHECK(early.InMicroseconds() >= 0);
+      video_frame_early_average_.AddSample(early);
+    }
     sbplayer_interface_->WriteSamples(player_, sample_type,
                                       gathered_sbplayer_sample_infos.data(),
                                       gathered_sbplayer_sample_infos.size());
@@ -1000,9 +1019,11 @@ SbPlayerOutputMode SbPlayerBridge::GetSbPlayerOutputMode() {
   return output_mode_;
 }
 
-void SbPlayerBridge::GetInfo_Locked(uint32_t* video_frames_decoded,
-                                    uint32_t* video_frames_dropped,
-                                    TimeDelta* media_time) {
+void SbPlayerBridge::GetInfo_Locked(
+    uint32_t* video_frames_decoded,
+    uint32_t* video_frames_dropped,
+    TimeDelta* media_time,
+    base::TimeDelta* video_frame_early_average) {
   lock_.AssertAcquired();
   if (state_ == kSuspended) {
     if (video_frames_decoded) {
@@ -1014,6 +1035,11 @@ void SbPlayerBridge::GetInfo_Locked(uint32_t* video_frames_decoded,
     if (media_time) {
       *media_time = preroll_timestamp_;
     }
+    if (video_frame_early_average) {
+      *video_frame_early_average = video_frame_early_average_.Average();
+      LOG(INFO) << "Frame early average is "
+                << video_frame_early_average_.Average().InMicroseconds();
+    }
     return;
   }
 
@@ -1024,6 +1050,8 @@ void SbPlayerBridge::GetInfo_Locked(uint32_t* video_frames_decoded,
 
   if (media_time) {
     *media_time = base::Microseconds(info.current_media_timestamp);
+    last_media_time_ = *media_time;
+    last_time_media_time_retrieved_ = base::Time::Now();
   }
   if (video_frames_decoded) {
     *video_frames_decoded = info.total_video_frames;
@@ -1052,7 +1080,7 @@ void SbPlayerBridge::ClearDecoderBufferCache() {
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   if (state_ != kResuming) {
     TimeDelta media_time;
-    GetInfo(NULL, NULL, &media_time);
+    GetInfo(NULL, NULL, &media_time, NULL);
     decoder_buffer_cache_.ClearSegmentsBeforeMediaTime(media_time);
   }
 

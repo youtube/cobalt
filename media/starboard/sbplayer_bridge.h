@@ -26,6 +26,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "media/base/moving_average.h"
 
 #if COBALT_MEDIA_ENABLE_CVAL
 #include "cobalt/media/base/cval_stats.h"
@@ -133,7 +134,8 @@ class SbPlayerBridge {
   void SetPlaybackRate(double playback_rate);
   void GetInfo(uint32_t* video_frames_decoded,
                uint32_t* video_frames_dropped,
-               base::TimeDelta* media_time);
+               base::TimeDelta* media_time,
+               base::TimeDelta* video_frame_early_average);
   std::vector<SbMediaAudioConfiguration> GetAudioConfigurations();
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -238,7 +240,8 @@ class SbPlayerBridge {
 
   void GetInfo_Locked(uint32_t* video_frames_decoded,
                       uint32_t* video_frames_dropped,
-                      base::TimeDelta* media_time);
+                      base::TimeDelta* media_time,
+                      base::TimeDelta* video_frame_early_average);
   void UpdateBounds_Locked();
 
   void ClearDecoderBufferCache();
@@ -369,6 +372,14 @@ class SbPlayerBridge {
   CValStats* cval_stats_;
   std::string pipeline_identifier_;
 #endif  // COBALT_MEDIA_ENABLE_CVAL
+
+  // ~5s of playback for 60 fps video.
+  const int kFrameEarlyAverageDepth = 300;
+  MovingAverage video_frame_early_average_;
+  // Last media time reported by GetMediaTime().
+  base::TimeDelta last_media_time_;
+  // Timestamp microseconds when we last checked the media time.
+  base::Time last_time_media_time_retrieved_;
 };
 
 }  // namespace media

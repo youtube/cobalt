@@ -56,4 +56,7 @@
     [HighEntropy=Direct, MeasureAs=PrefixedVideoDroppedFrameCount] readonly attribute unsigned long webkitDroppedFrameCount;
 
     [CEReactions, Reflect] attribute boolean playsInline;
+
+    // Cobalt-specific non-standard API
+    readonly attribute long early_us;
 };

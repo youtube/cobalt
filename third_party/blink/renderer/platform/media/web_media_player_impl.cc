@@ -1499,6 +1499,13 @@ uint64_t WebMediaPlayerImpl::VideoDecodedByteCount() const {
   return GetPipelineStatistics().video_bytes_decoded;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+int64_t WebMediaPlayerImpl::EarlyUs() const {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  return GetPipelineStatistics().video_frame_early_average.InMicroseconds();
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 bool WebMediaPlayerImpl::HasAvailableVideoFrame() const {
   return has_first_frame_;
 }
