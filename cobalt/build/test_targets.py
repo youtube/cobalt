@@ -81,16 +81,28 @@ _EXCLUDE_TESTS_PREFIX = {
 }
 
 
-def _is_test_target(g, node) -> bool:
-  if (not node in _ALLOW_TESTS or any(
-      node.startswith(path_prefix) for path_prefix in _EXCLUDE_TESTS_PREFIX)):
+def _is_test_target(g, target) -> bool:
+  if (not target in _ALLOW_TESTS or any(
+      target.startswith(path_prefix) for path_prefix in _EXCLUDE_TESTS_PREFIX)):
     return False
-  # Test targets get a runner target added to its deps. On linux the name of
-  # this target is ${target_name}__runner, on android it's
+
+  # Starboard tests include the runner as a source file.
+  if '//starboard/common/test_main.cc' in g.nodes[target]['sources']:
+    return True
+
+  successors = set(g.successors(target))
+  for successor in successors:
+    # Most others use a run_all_unittests target.
+    if 'run_all_unittests' in successor:
+      return True
+
+  # To definitely find all test targets we look for the local runner target
+  # On linux this target is ${target_name}__runner, on android it's
   # ${target_name}__test_runner_script.
   # See src/testing/test.gni for the test() template definition.
-  return any('__runner' in node or '__test_runner_script' in node
-             for node in g.successors(node))
+  linux_runner = f'{target}__runner'
+  android_runner = f'{target}__test_runner_script'
+  return linux_runner in successors or android_runner in successors
 
 
 def _create_graph(data: dict) -> Tuple[nx.DiGraph, Dict[str, List[str]]]:
@@ -103,6 +115,7 @@ def _create_graph(data: dict) -> Tuple[nx.DiGraph, Dict[str, List[str]]]:
     node_attributes = {
         'outputs': attributes.get('outputs', []),
         'type': attributes['type'],
+        'sources': attributes.get('sources', []),
     }
     g.add_node(target_name, **node_attributes)
     g.add_edges_from((target_name, dep) for dep in attributes['deps'])
