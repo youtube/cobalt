@@ -14,3 +14,6 @@ media_use_ffmpeg = false
 
 # This will force V8 to embed snapshot blob in binary.
 v8_use_external_startup_data = false
+
+# Fixes siso build errors
+use_siso = false
