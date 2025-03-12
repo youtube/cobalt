@@ -43,17 +43,6 @@ get_project_name () {
 }
 
 
-get_bucket_name () {
-  if [[ "$(get_kokoro_env)" == "prod" ]]; then
-    echo "cobalt-internal-build-artifacts"
-  elif [[ "$(get_kokoro_env)" == "qa" ]]; then
-    echo "cobalt-internal-build-artifacts-qa"
-  else
-    exit 1
-  fi
-}
-
-
 configure_environment () {
   # Tell git the repo is safe.
   git config --global --add safe.directory "${WORKSPACE_COBALT}"
@@ -254,15 +243,25 @@ run_package_release_pipeline () {
 
     # Create release package
     export PYTHONPATH="${WORKSPACE_COBALT}"
+
     local package_platform="linux"
     if [[ "${PLATFORM}" =~ "android" ]]; then
       package_platform="android"
     fi
-    python3 "${WORKSPACE_COBALT}/cobalt/build/${package_platform}/package.py" \
-      --name="${PLATFORM}_${CONFIG}" "${out_dir}" "${package_dir}"
+
+    python3 "${WORKSPACE_COBALT}/cobalt/build/packager.py" \
+      --name="${PLATFORM}_${CONFIG}" \
+      --json_path="${WORKSPACE_COBALT}/cobalt/build/${package_platform}/package.json" \
+      --out_dir="${out_dir}" \
+      --package_dir="${package_dir}"
 
     # Upload release package
-    local gcs_archive_path="gs://$(get_bucket_name)/${PLATFORM}_${KOKORO_GOB_BRANCH_src}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
+    local bucket="cobalt-internal-build-artifacts"
+    if [[ "$(get_kokoro_env)" == "qa" ]]; then
+      bucket="cobalt-internal-build-artifacts-qa"
+    fi
+
+    local gcs_archive_path="gs://${bucket}/${PLATFORM}_${KOKORO_GOB_BRANCH_src}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
     init_gcloud
     # Ensure that only package directory contents are uploaded and not the directory itself
     "${GSUTIL}" cp -r "${package_dir}/." "${gcs_archive_path}"

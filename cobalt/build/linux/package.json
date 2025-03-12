@@ -1,0 +1,24 @@
+{
+    "archive_datas": [
+        {
+            "files": [
+                "chromedriver",
+                "cobalt",
+                "content_shell.pak",
+                "gen/build_info.json",
+                "icudtl.dat",
+                "libEGL.so",
+                "libGLESv2.so",
+                "libvk_swiftshader.so",
+                "libvulkan.so.1",
+                "starboard/libstarboard.so.17",
+                "v8_context_snapshot.bin",
+                "vk_swiftshader_icd.json"
+            ],
+            "rename_files": [
+                {"from_file": "gen/build_info.json", "to_file": "build_info.json"},
+                {"from_file": "starboard/libstarboard.so.17", "to_file": "libstarboard.so.17"}
+            ]
+        }
+    ]
+}
