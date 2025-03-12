@@ -4,6 +4,9 @@ inputs:
   test_targets:
     description: "The test targets in a JSON array."
     required: true
+  gcs_results_path:
+    description: "GCS path for the test results."
+    required: true
   test_results_key:
     description: "Artifact key used to store test results."
     required: true
@@ -27,15 +30,15 @@ runs:
       shell: bash
     - name: Set Up Cloud SDK
       uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
-    - name: Set Env Vars
+    - name: Set GCS Project Name
       run: |
         echo "PROJECT_NAME=$(gcloud config get-value project)" >> $GITHUB_ENV
-        echo "GCS_RESULT_PATH=gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.job_id }}" >> $GITHUB_ENV
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
         TEST_TARGETS_JSON: ${{ inputs.test_targets }}
         GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
+        GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}      
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
@@ -88,6 +91,8 @@ runs:
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results from GCS
       if: always()
+      env:
+        GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
       run: |
         set -uxe
         test_output="${GITHUB_WORKSPACE}/results"
