@@ -1,0 +1,33 @@
+{
+    "archive_datas": [
+        {
+            "files": [
+                "content_shell.pak",
+                "gen/build_info.json",
+                "icudtl.dat",
+                "libchrome_crashpad_handler.so",
+                "libcobalt_content_shell_content_view.so",
+                "libnplb__library.so",
+                "libstarboard_jni_state.so",
+                "libtest_trace_processor.so",
+                "lib.unstripped/libcobalt_content_shell_content_view.so",
+                "obj/cobalt/android/cobalt_java_resources.resources.zip",
+                "obj/components/metrics/metrics_java.javac.jar",
+                "obj/content/shell/android/content_shell_java_resources.resources.zip",
+                "obj/third_party/android_deps/chromium_play_services_availability_java.javac.jar"
+            ],
+            "rename_files": [
+                {"from_file": "gen/build_info.json", "to_file": "build_info.json"}
+            ],
+            "dirs": [
+                "content/data",
+                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/androidx/appcompat",
+                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/androidx/core",
+                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/androidx/fragment",
+                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/gen/base_module",
+                "gen/cobalt/android/cobalt_apk/generated_java/input_srcjars/org/chromium",
+                "lib.java"
+            ]
+        }
+    ]
+}
