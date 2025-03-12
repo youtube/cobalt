@@ -49,7 +49,11 @@
 #include "content/public/common/webplugininfo.h"
 #include "content/public/renderer/content_renderer_client.h"
 #include "content/public/renderer/render_frame.h"
+#if BUILDFLAG(IS_COBALT)
+#include "cobalt/media/audio/audio_decoder.h"
+#else // BUILDFLAG(IS_COBALT)
 #include "content/renderer/media/audio_decoder.h"
+#endif // BUILDFLAG(IS_COBALT)
 #include "content/renderer/media/batching_media_log.h"
 #include "content/renderer/media/inspector_media_event_handler.h"
 #include "content/renderer/media/render_media_event_handler.h"
@@ -521,7 +525,11 @@ std::unique_ptr<WebAudioDevice> RendererBlinkPlatformImpl::CreateAudioDevice(
 bool RendererBlinkPlatformImpl::DecodeAudioFileData(
     blink::WebAudioBus* destination_bus,
     base::span<const char> audio_file_data) {
+#if BUILDFLAG(IS_COBALT)
+  return cobalt::DecodeAudioFileData(destination_bus, audio_file_data);
+#else // BUILDFLAG(IS_COBALT)
   return content::DecodeAudioFileData(destination_bus, audio_file_data);
+#endif // BUILDFLAG(IS_COBALT)
 }
 
 //------------------------------------------------------------------------------
