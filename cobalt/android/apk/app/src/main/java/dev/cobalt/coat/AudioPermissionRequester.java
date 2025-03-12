@@ -23,6 +23,7 @@ import android.content.pm.PackageManager;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import dev.cobalt.util.Holder;
+import dev.cobalt.util.UsedByNative;
 import dev.cobalt.util.Log;
 
 /** Helper class that requests the record audio permission. */
@@ -41,6 +42,8 @@ public class AudioPermissionRequester {
    * Requests the RECORD_AUDIO permission. Returns true if the permission is granted; returns false
    * if the permission is not granted yet and starts to request the RECORD_AUDIO permission.
    */
+  @SuppressWarnings("unused")
+  @UsedByNative
   public synchronized boolean requestRecordAudioPermission() {
     Activity activity = activityHolder.get();
     if (activity == null) {
@@ -65,7 +68,8 @@ public class AudioPermissionRequester {
   public synchronized void onRequestPermissionsResult(
       int requestCode, String[] permissions, int[] grantResults) {
     if (requestCode == R.id.rc_record_audio) {
-      Log.i(TAG, "RECORD_AUDIO permission request granted.");
+      boolean success = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+      Log.i(TAG, "RECORD_AUDIO permission request " + (success ? "GRANTED" : "DENIED"));
       requestAudioPermissionStarted = false;
     }
   }

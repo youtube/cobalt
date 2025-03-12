@@ -125,7 +125,7 @@ public abstract class CobaltActivity extends Activity {
             // Trades a little V8 performance for significant memory savings.
             "--js-flags=--optimize_for_size=true",
             // Auto accept camera and mic capture permissions.
-            "--use-fake-ui-for-media-stream",
+            "--auto-accept-camera-and-microphone-capture",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
@@ -472,10 +472,6 @@ public abstract class CobaltActivity extends Activity {
     if (webContents != null) {
       webContents.onShow();
     }
-
-    // request RECORD_AUDIO permission.
-    getStarboardBridge().getAudioPermissionRequester().requestRecordAudioPermission();
-
     super.onStart();
   }
 
