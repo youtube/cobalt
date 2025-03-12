@@ -38,7 +38,7 @@ runs:
       env:
         TEST_TARGETS_JSON: ${{ inputs.test_targets }}
         GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
-        GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}      
+        GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
@@ -81,7 +81,7 @@ runs:
           --dimensions '${{ inputs.test_dimensions }}' \
           ${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" "$ON_DEVICE_TEST_ATTEMPTS"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
-          --gcs_result_path "${GCS_RESULT_PATH}" || {
+          --gcs_result_path "${GCS_RESULTS_PATH}" || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."
             # Fail the job so it's easy to retrigger.
