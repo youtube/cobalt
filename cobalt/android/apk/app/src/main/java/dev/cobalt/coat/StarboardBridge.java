@@ -51,6 +51,8 @@ import org.chromium.content_public.browser.WebContents;
 
 /** Implementation of the required JNI methods called by the Starboard C++ code. */
 @JNINamespace("starboard::android::shared")
+// TODO(cobalt, b/383301493): we expect this class to be a singleton and should consider enforcing
+// this property.
 public class StarboardBridge {
 
   /** Interface to be implemented by the Android Application hosting the starboard app. */
@@ -70,14 +72,12 @@ public class StarboardBridge {
   private ResourceOverlay resourceOverlay;
   private AdvertisingId advertisingId;
   private VolumeStateReceiver volumeStateReceiver;
-  private CrashContextUpdateHandler crashContextUpdateHandler;
 
   private final Context appContext;
   private final Holder<Activity> activityHolder;
   private final Holder<Service> serviceHolder;
   private final String[] args;
   private final long nativeApp;
-  private String startDeepLink;
   private final Runnable stopRequester =
       new Runnable() {
         @Override
@@ -91,7 +91,6 @@ public class StarboardBridge {
 
   private final HashMap<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
   private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
-  private final HashMap<String, String> crashContext = new HashMap<>();
 
   private static final String GOOGLE_PLAY_SERVICES_PACKAGE = "com.google.android.gms";
   private static final String AMATI_EXPERIENCE_FEATURE =
@@ -118,7 +117,6 @@ public class StarboardBridge {
     this.activityHolder = activityHolder;
     this.serviceHolder = serviceHolder;
     this.args = args;
-    this.startDeepLink = startDeepLink;
     this.sysConfigChangeReceiver = new CobaltSystemConfigChangeReceiver(appContext, stopRequester);
     this.ttsHelper = new CobaltTextToSpeechHelper(appContext);
     this.audioOutputManager = new AudioOutputManager(appContext);
@@ -132,6 +130,8 @@ public class StarboardBridge {
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
 
     nativeApp = StarboardBridgeJni.get().startNativeStarboard();
+
+    StarboardBridgeJni.get().handleDeepLink(startDeepLink, /*applicationReady=*/ false);
   }
 
   private native boolean initJNI();
@@ -149,6 +149,8 @@ public class StarboardBridge {
     // boolean initJNI();
 
     // void closeNativeStarboard(long nativeApp);
+
+    void handleDeepLink(String url, boolean applicationReady);
   }
 
   protected void onActivityStart(Activity activity) {
@@ -253,6 +255,7 @@ public class StarboardBridge {
     applicationStopped = true;
   }
 
+  // TODO(b/391383322): ensure the application suspends and resumes correctly.
   @SuppressWarnings("unused")
   @CalledByNative
   public void requestSuspend() {
@@ -314,29 +317,9 @@ public class StarboardBridge {
     return args;
   }
 
-  /** Returns the URL from the Intent that started the app. */
-  @SuppressWarnings("unused")
-  @CalledByNative
-  protected String getStartDeepLink() {
-    if (startDeepLink == null) {
-      throw new IllegalArgumentException("startDeepLink cannot be null");
-    }
-    return startDeepLink;
-  }
-
   /** Sends an event to the web app to navigate to the given URL */
   public void handleDeepLink(String url) {
-    if (applicationReady) {
-      nativeHandleDeepLink(url);
-    } else {
-      // If this deep link event is received before the starboard application
-      // is ready, it replaces the start deep link.
-      startDeepLink = url;
-    }
-  }
-
-  private void nativeHandleDeepLink(String url) {
-    // TODO(b/374147993): Implement deep link
+    StarboardBridgeJni.get().handleDeepLink(url, applicationReady);
   }
 
   /**
@@ -738,23 +721,16 @@ public class StarboardBridge {
     }
   }
 
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/crash_handler.cc
-  @SuppressWarnings("unused")
-  @UsedByNative
   public void setCrashContext(String key, String value) {
-    crashContext.put(key, value);
-    if (this.crashContextUpdateHandler != null) {
-      this.crashContextUpdateHandler.onCrashContextUpdate();
-    }
+    CrashContext.INSTANCE.setCrashContext(key, value);
   }
 
   public HashMap<String, String> getCrashContext() {
-    return this.crashContext;
+    return CrashContext.INSTANCE.getCrashContext();
   }
 
   public void registerCrashContextUpdateHandler(CrashContextUpdateHandler handler) {
-    this.crashContextUpdateHandler = handler;
+    CrashContext.INSTANCE.registerCrashContextUpdateHandler(handler);
   }
 
   @SuppressWarnings("unused")

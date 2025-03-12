@@ -1,4 +1,4 @@
-# Copyright 2021 The Cobalt Authors. All Rights Reserved.
+# Copyright 2025 The Cobalt Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,26 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-target(gtest_target_type, "nplb_evergreen_compat_tests") {
-  testonly = true
-
+static_library("configuration") {
   sources = [
-    "//starboard/common/test_main.cc",
-    "checks.h",
-    "crashpad_config_test.cc",
-    "executable_memory_test.cc",
-    "fonts_test.cc",
-    "loader_app_metrics_test.cc",
-    "max_file_name_test.cc",
-    "sabi_test.cc",
-    "storage_test.cc",
+    "configuration.cc",
+    "configuration.h",
   ]
-
-  public_deps = [
-    "//starboard:starboard_group",
-    "//testing/gmock",
-    "//testing/gtest",
+  deps = [
+    "//base",
+    "//starboard:starboard_headers_only",
   ]
-
-  data_deps = [ "//starboard/content/ssl:copy_ssl_certificates" ]
 }

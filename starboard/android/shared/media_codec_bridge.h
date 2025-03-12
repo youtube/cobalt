@@ -31,6 +31,7 @@ namespace shared {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::ScopedJavaGlobalRef;
+using base::android::ScopedJavaLocalRef;
 
 // GENERATED_JAVA_ENUM_PACKAGE: dev.cobalt.media
 // GENERATED_JAVA_PREFIX_TO_STRIP: MEDIA_CODEC_
@@ -186,7 +187,7 @@ class MediaCodecBridge {
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetInputBuffer| returns.
-  jobject GetInputBuffer(jint index);
+  ScopedJavaLocalRef<jobject> GetInputBuffer(jint index);
   jint QueueInputBuffer(jint index,
                         jint offset,
                         jint size,
@@ -199,13 +200,14 @@ class MediaCodecBridge {
 
   // It is the responsibility of the client to manage the lifetime of the
   // jobject that |GetOutputBuffer| returns.
-  jobject GetOutputBuffer(jint index);
+  ScopedJavaLocalRef<jobject> GetOutputBuffer(jint index);
   void ReleaseOutputBuffer(jint index, jboolean render);
   void ReleaseOutputBufferAtTimestamp(jint index, jlong render_timestamp_ns);
 
   void SetPlaybackRate(double playback_rate);
   bool Restart();
   jint Flush();
+  void Stop();
   FrameSize GetOutputSize();
   AudioOutputFormatResult GetAudioOutputFormat();
 
@@ -221,13 +223,15 @@ class MediaCodecBridge {
   void OnMediaCodecOutputFormatChanged();
   void OnMediaCodecFrameRendered(int64_t frame_timestamp);
 
+  static jboolean IsFrameRenderedCallbackEnabled();
+
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.
   explicit MediaCodecBridge(Handler* handler);
   void Initialize(jobject j_media_codec_bridge);
 
   Handler* handler_ = NULL;
-  jobject j_media_codec_bridge_ = NULL;
+  ScopedJavaGlobalRef<jobject> j_media_codec_bridge_ = NULL;
 
   // Profiling and allocation tracking has identified this area to be hot,
   // and, capable of enough to cause GC times to raise high enough to impact

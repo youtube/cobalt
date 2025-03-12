@@ -245,6 +245,12 @@ source_set("ozone_switches") {
     "//media/mojo/services",
     "//ui/display:display_unittests",
   ]
+
+  if (is_starboard) {
+    visibility += [
+      "//cobalt:*",
+    ]
+  }
 }
 
 component("ozone") {
