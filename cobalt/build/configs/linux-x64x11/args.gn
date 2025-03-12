@@ -46,3 +46,17 @@ enable_nacl = false
 enable_print_preview = false
 use_cups = false
 use_kerberos = false
+
+# We know we can trust clients to use https.
+include_transport_security_state_preload_list = false
+
+# Unused outside of chrome/chromecast.
+enable_unix_sockets = false
+
+# Force the chrome root store for linux/3P platforms.
+chrome_root_store_optional = false
+chrome_root_store_only = true
+trial_comparison_cert_verifier_supported = false
+
+# Currently unsupported on 3P.
+build_epoll_based_tools = false
