@@ -27,6 +27,8 @@ luci.project(
                 "role/swarming.poolOwner",
                 "role/swarming.poolUser",
                 "role/swarming.taskTriggerer",
+                "role/scheduler.triggerer",
+                "role/buildbucket.triggerer",
             ],
             groups = [
                 "ytdevinfra",
