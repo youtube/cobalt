@@ -161,6 +161,8 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   metadata.bitness = content::GetCpuBitness();
   metadata.wow64 = content::IsWoW64();
 
+  metadata.android_os_experience = "Colin_test_os_experience";
+
   return metadata;
 }
 

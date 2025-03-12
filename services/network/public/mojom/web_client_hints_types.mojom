@@ -58,5 +58,7 @@ enum WebClientHintsType {
   // it uses if set to 'reduce'.
   kPrefersReducedMotion = 28,
 
+
+  kUAAndroidOSExperience = 29,
   // Warning: Before adding a new client hint, read the warning at the top.
 };

@@ -1011,12 +1011,14 @@ void AddRequestClientHintsHeaders(
   if (ShouldAddClientHint(data, WebClientHintsType::kSaveData))
     AddSaveDataHeader(headers, context);
 
+  // TODO add implementation for kUAAndroidOSExperience
+
   // Static assert that triggers if a new client hint header is added. If a
   // new client hint header is added, the following assertion should be updated.
   // If possible, logic should be added above so that the request headers for
   // the newly added client hint can be added to the request.
   static_assert(
-      network::mojom::WebClientHintsType::kPrefersReducedMotion ==
+      network::mojom::WebClientHintsType::kUAAndroidOSExperience ==
           network::mojom::WebClientHintsType::kMaxValue,
       "Consider adding client hint request headers from the browser process");
 

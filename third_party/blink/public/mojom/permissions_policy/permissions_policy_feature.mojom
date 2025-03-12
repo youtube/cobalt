@@ -238,7 +238,10 @@ enum PermissionsPolicyFeature {
   kPrivateAggregation = 109,
 
   // Private State Tokens API issuance operation
-  kPrivateStateTokenIssuance = 110
+  kPrivateStateTokenIssuance = 110,
+
+  // Client Hint for Android OS Experience.
+  kClientHintUAAndroidOSExperience = 111
 
   // Don't change assigned numbers of any item, and don't reuse removed slots.
   // Add new features at the end of the enum.
