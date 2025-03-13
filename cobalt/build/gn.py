@@ -84,6 +84,7 @@ def write_build_args(build_args_path, original_lines, dict_settings, build_type,
         f'The following args cannot be set in configs: {controlled_args}')
   gen_comment = '# Set by gn.py'
   with open(build_args_path, 'w', encoding='utf-8') as f:
+    f.write(f'use_siso = false {gen_comment}\n')
     if use_rbe:
       f.write(f'use_remoteexec = true {gen_comment}\n')
     f.write(
