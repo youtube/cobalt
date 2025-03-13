@@ -35,6 +35,10 @@ EventListener* H5vccMetrics::onmetrics() {
 
 void H5vccMetrics::setOnmetrics(EventListener* listener) {
   SetAttributeEventListener(event_type_names::kMetrics, listener);
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_metrics_->AddListener(
+      WTF::BindOnce(&H5vccMetrics::OnMetrics, WrapPersistent(this)));
 }
 
 ScriptPromise H5vccMetrics::enable(ScriptState* script_state,
