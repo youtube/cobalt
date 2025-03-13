@@ -29,3 +29,13 @@ target(gtest_target_type, "extension_test") {
     deps += cobalt_platform_dependencies
   }
 }
+
+target(gtest_target_type, "setstring_test") {
+  testonly = true
+  has_pedantic_warnings = true
+  sources = [ "setstring_test.cc" ]
+  deps = [ "//testing/gtest" ]
+  if (sb_is_modular && current_toolchain == cobalt_toolchain) {
+    deps += cobalt_platform_dependencies
+  }
+}
