@@ -7,6 +7,7 @@
   "num_gtest_shards": 1,
   "targets": [
     "base",
+    "base_unittests",
     "nplb"
   ],
   "includes": [

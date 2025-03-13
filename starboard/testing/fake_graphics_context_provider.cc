@@ -44,6 +44,7 @@
 #define EGL_CONTEXT_CLIENT_VERSION SB_EGL_CONTEXT_CLIENT_VERSION
 #define EGL_DEFAULT_DISPLAY SB_EGL_DEFAULT_DISPLAY
 #define EGL_GREEN_SIZE SB_EGL_GREEN_SIZE
+#define EGL_HEIGHT SB_EGL_HEIGHT
 #define EGL_NONE SB_EGL_NONE
 #define EGL_NO_CONTEXT SB_EGL_NO_CONTEXT
 #define EGL_NO_DISPLAY SB_EGL_NO_DISPLAY
@@ -54,6 +55,7 @@
 #define EGL_RENDERABLE_TYPE SB_EGL_RENDERABLE_TYPE
 #define EGL_SUCCESS SB_EGL_SUCCESS
 #define EGL_SURFACE_TYPE SB_EGL_SURFACE_TYPE
+#define EGL_WIDTH SB_EGL_WIDTH
 #define EGL_WINDOW_BIT SB_EGL_WINDOW_BIT
 
 #define EGL_CALL(x)                                          \
@@ -72,24 +74,6 @@
 
 namespace starboard {
 namespace testing {
-
-namespace {
-
-EGLint const kAttributeList[] = {EGL_RED_SIZE,
-                                 8,
-                                 EGL_GREEN_SIZE,
-                                 8,
-                                 EGL_BLUE_SIZE,
-                                 8,
-                                 EGL_ALPHA_SIZE,
-                                 8,
-                                 EGL_SURFACE_TYPE,
-                                 EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
-                                 EGL_RENDERABLE_TYPE,
-                                 EGL_OPENGL_ES2_BIT,
-                                 EGL_NONE};
-
-}  // namespace
 
 FakeGraphicsContextProvider::FakeGraphicsContextProvider()
     : display_(EGL_NO_DISPLAY),
@@ -192,35 +176,51 @@ void FakeGraphicsContextProvider::InitializeEGL() {
   // from configs that do allow that. To handle that, we have to attempt
   // eglCreateWindowSurface() until we find a config that succeeds.
 
+  constexpr EGLint kAttributeList[] = {EGL_RED_SIZE,
+                                       8,
+                                       EGL_GREEN_SIZE,
+                                       8,
+                                       EGL_BLUE_SIZE,
+                                       8,
+                                       EGL_ALPHA_SIZE,
+                                       8,
+                                       EGL_SURFACE_TYPE,
+                                       EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
+                                       EGL_RENDERABLE_TYPE,
+                                       EGL_OPENGL_ES2_BIT,
+                                       EGL_NONE};
+
   // First, query how many configs match the given attribute list.
   EGLint num_configs = 0;
   EGL_CALL(eglChooseConfig(display_, kAttributeList, NULL, 0, &num_configs));
   SB_CHECK(0 != num_configs);
 
   // Allocate space to receive the matching configs and retrieve them.
-  EGLConfig* configs =
-      reinterpret_cast<EGLConfig*>(malloc(num_configs * sizeof(EGLConfig)));
-  EGL_CALL(eglChooseConfig(display_, kAttributeList, configs, num_configs,
-                           &num_configs));
+  std::vector<EGLConfig> configs(num_configs);
+  EGL_CALL(eglChooseConfig(display_, kAttributeList, configs.data(),
+                           num_configs, &num_configs));
+  // "If configs is not NULL, up to config_size configs will be returned in the
+  // array pointed to by configs. The number of configs actually returned will
+  // be returned in *num_config." Assert that and resize if needed.
+  SB_CHECK(num_configs <= configs.size());
+  configs.resize(num_configs);
 
-  EGLNativeWindowType native_window =
-      (EGLNativeWindowType)SbWindowGetPlatformHandle(window_);
+  // Find the first config that successfully allows a pBuffer surface (i.e. an
+  // offscreen EGLsurface) to be created.
   EGLConfig config = EGLConfig();
-
-  // Find the first config that successfully allow a window surface to be
-  // created.
-  for (int config_number = 0; config_number < num_configs; ++config_number) {
-    config = configs[config_number];
+  for (auto maybe_config : configs) {
+    constexpr EGLint kPBufferAttribs[] = {EGL_WIDTH, 1920, EGL_HEIGHT, 1080,
+                                          EGL_NONE};
     surface_ = EGL_CALL_SIMPLE(
-        eglCreateWindowSurface(display_, config, native_window, NULL));
+        eglCreatePbufferSurface(display_, maybe_config, kPBufferAttribs));
     if (EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError())) {
+      config = maybe_config;
       break;
     }
   }
   SB_DCHECK(surface_ != EGL_NO_SURFACE);
 
-  free(configs);
-  // Create the GLES2 or GLEX3 Context.
+  // Create the GLES2 or GLES3 Context.
   EGLint context_attrib_list[] = {
       EGL_CONTEXT_CLIENT_VERSION,
       3,
