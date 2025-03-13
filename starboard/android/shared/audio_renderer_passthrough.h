@@ -147,7 +147,7 @@ class AudioRendererPassthrough
   // ensure the thread completes all tasks before |audio_track_bridge_| is
   // invalidated.
   std::unique_ptr<AudioTrackBridge> audio_track_bridge_;
-  starboard::shared::starboard::player::ScopedJobThreadPtr audio_track_thread_;
+  std::unique_ptr<JobThread> audio_track_thread_;
 };
 
 }  // namespace shared

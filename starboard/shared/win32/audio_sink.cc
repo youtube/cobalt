@@ -213,7 +213,7 @@ class XAudioAudioSinkType : public SbAudioSinkPrivate::Type,
       sink->StopCallbacks();
     }
 
-    restart_audio_thread_->job_queue()->Schedule(
+    restart_audio_thread_.job_queue()->Schedule(
         std::bind(&XAudioAudioSinkType::RestartAudioDevice, this));
   }
 
@@ -251,7 +251,7 @@ class XAudioAudioSinkType : public SbAudioSinkPrivate::Type,
   std::list<XAudioAudioSink*> audio_sinks_on_xaudio_callbacks_;
   starboard::ThreadChecker thread_checker_;
 
-  starboard::player::ScopedJobThreadPtr  restart_audio_thread_;
+  starboard::player::JobThread restart_audio_thread_;
   std::list<XAudioAudioSink*> audio_sinks_to_restart_;
   bool sink_shutdown_in_progress_;
 };
@@ -383,7 +383,7 @@ void XAudioAudioSink::SubmitSourceBuffer(int offset_in_frames,
 }
 
 XAudioAudioSinkType::XAudioAudioSinkType()
-    : restart_audio_thread_(new starboard::player::JobThread("RestartAudioDevice")),
+    : restart_audio_thread_("RestartAudioDevice"),
       sink_shutdown_in_progress_(false),
       thread_checker_(starboard::ThreadChecker::kSetThreadIdOnFirstCheck) {
   x_audio2_ = XAudioCreate();
@@ -537,7 +537,7 @@ void XAudioAudioSinkType::TryAcquireSinkVoices() {
   if (!x_audio2_) {
     hr = XAudio2Create(&x_audio2_, 0, XAUDIO2_DEFAULT_PROCESSOR);
     if (FAILED(hr)) {
-      restart_audio_thread_->job_queue()->Schedule(
+      restart_audio_thread_.job_queue()->Schedule(
           std::bind(&XAudioAudioSinkType::TryAcquireSinkVoices, this));
       return;
     }
@@ -547,7 +547,7 @@ void XAudioAudioSinkType::TryAcquireSinkVoices() {
   if (!mastering_voice_) {
     hr = x_audio2_->CreateMasteringVoice(&mastering_voice_);
     if (FAILED(hr)) {
-      restart_audio_thread_->job_queue()->Schedule(
+      restart_audio_thread_.job_queue()->Schedule(
           std::bind(&XAudioAudioSinkType::TryAcquireSinkVoices, this));
       return;
     }
@@ -570,7 +570,7 @@ void XAudioAudioSinkType::TryAcquireSinkVoices() {
   if (audio_sinks_to_restart_.empty()) {
     return;
   }
-  restart_audio_thread_->job_queue()->Schedule(
+  restart_audio_thread_.job_queue()->Schedule(
       std::bind(&XAudioAudioSinkType::TryAcquireSinkVoices, this));
 }
 

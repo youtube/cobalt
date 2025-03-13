@@ -44,7 +44,7 @@ const int kJobThreadStackSize = 0;
 std::unique_ptr<VideoDmpReader> s_video_dmp_reader;
 std::unique_ptr<PlayerComponents> s_player_components;
 int s_audio_sample_index;
-starboard::shared::starboard::player::ScopedJobThreadPtr s_job_thread;
+std::unique_ptr<JobThread> s_job_thread;
 int64_t s_duration;
 
 static void DeallocateSampleFunc(SbPlayer player,
