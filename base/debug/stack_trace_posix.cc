@@ -867,11 +867,14 @@ class SandboxSymbolizeHelper {
 
   // Initializes and installs the symbolization callback.
   void Init() {
+// TODO: b/398296821 - Cobalt: port to Starboard.
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
     if (CacheMemoryRegions()) {
       OpenSymbolFiles();
       google::InstallSymbolizeOpenObjectFileCallback(
           &OpenObjectFileContainingPc);
     }
+#endif  // !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   }
 
   // Unregister symbolization callback.

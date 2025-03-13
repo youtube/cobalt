@@ -245,7 +245,8 @@ class CheckForLeakedGlobals : public testing::EmptyTestEventListener {
 // iOS: base::Process is not available.
 // macOS: Tests may run at background priority locally (crbug.com/1358639#c6) or
 // on bots (crbug.com/931721#c7).
-#if !BUILDFLAG(IS_APPLE)
+// Starboard: Process::IsProcessBackgrounded() is not available.
+#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 class CheckProcessPriority : public testing::EmptyTestEventListener {
  public:
   CheckProcessPriority() { CHECK(!IsProcessBackgrounded()); }
@@ -265,7 +266,7 @@ class CheckProcessPriority : public testing::EmptyTestEventListener {
     return Process::Current().IsProcessBackgrounded();
   }
 };
-#endif  // !BUILDFLAG(IS_APPLE)
+#endif  // !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 const std::string& GetProfileName() {
   static const NoDestructor<std::string> profile_name([]() {
@@ -669,7 +670,7 @@ void TestSuite::Initialize() {
   if (check_for_leaked_globals_)
     listeners.Append(new CheckForLeakedGlobals);
   if (check_for_thread_and_process_priority_) {
-#if !BUILDFLAG(IS_APPLE)
+#if !BUILDFLAG(IS_APPLE) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
     listeners.Append(new CheckProcessPriority);
 #endif
   }
