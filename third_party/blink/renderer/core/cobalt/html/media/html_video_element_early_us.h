@@ -29,7 +29,7 @@ class HTMLVideoElementEarlyUs final {
   STATIC_ONLY(HTMLVideoElementEarlyUs);
 
  public:
-  static int64_t early_us(HTMLVideoElement& element);
+  static int64_t earlyUs(HTMLVideoElement& element);
 };
 
 }  // namespace blink

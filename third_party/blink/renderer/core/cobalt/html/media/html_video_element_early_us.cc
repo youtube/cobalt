@@ -21,7 +21,7 @@
 namespace blink {
 
 // static
-int64_t HTMLVideoElementEarlyUs::early_us(HTMLVideoElement& element) {
-  return element.early_us();
+int64_t HTMLVideoElementEarlyUs::earlyUs(HTMLVideoElement& element) {
+  return element.earlyUs();
 }
 }  // namespace blink

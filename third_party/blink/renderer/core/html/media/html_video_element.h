@@ -88,7 +88,7 @@ class CORE_EXPORT HTMLVideoElement final
   unsigned webkitDroppedFrameCount() const;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  int64_t early_us() const;
+  int64_t earlyUs() const;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Used by canvas to gain raw pixel access

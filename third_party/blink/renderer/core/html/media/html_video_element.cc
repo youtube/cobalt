@@ -499,7 +499,7 @@ unsigned HTMLVideoElement::webkitDroppedFrameCount() const {
 }
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-int64_t HTMLVideoElement::early_us() const {
+int64_t HTMLVideoElement::earlyUs() const {
   if (!GetWebMediaPlayer()) {
     return 0;
   }

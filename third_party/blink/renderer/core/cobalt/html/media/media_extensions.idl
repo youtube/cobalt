@@ -17,5 +17,5 @@
 ] partial interface HTMLVideoElement {
     // The average amount of time that frames are written to the player
     // before they're displayed.
-    readonly attribute long long early_us;
+    readonly attribute long long earlyUs;
 };
