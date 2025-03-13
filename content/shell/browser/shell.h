@@ -127,6 +127,18 @@ class Shell : public WebContentsDelegate, public WebContentsObserver {
 #if BUILDFLAG(IS_ANDROID)
   void SetOverlayMode(bool use_overlay_mode) override;
 #endif
+
+// TODO(b/401397483) - we should create our own CobaltWebContentsDelegate
+// and move this function override there so we're not modifying //content.
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#if BUILDFLAG(IS_ANDROID)
+  bool CheckMediaAccessPermission(
+   content::RenderFrameHost* render_frame_host,
+   const GURL& security_origin,
+   blink::mojom::MediaStreamType type) override;
+#endif // BUILDFLAG(IS_ANDROID)
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   void EnterFullscreenModeForTab(
       RenderFrameHost* requesting_frame,
       const blink::mojom::FullscreenOptions& options) override;
