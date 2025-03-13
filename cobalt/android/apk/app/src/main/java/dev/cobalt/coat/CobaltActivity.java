@@ -124,8 +124,8 @@ public abstract class CobaltActivity extends Activity {
             "--enable-blink-features=MediaSourceNewAbortAndDuration",
             // Trades a little V8 performance for significant memory savings.
             "--js-flags=--optimize_for_size=true",
-             // Auto accept camera and mic capture permissions.
-            "--use-fake-ui-for-media-stream",
+            // Auto accept camera and mic capture permissions.
+            "--auto-accept-camera-and-microphone-capture",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
@@ -612,13 +612,11 @@ public abstract class CobaltActivity extends Activity {
     return (intentUri == null) ? "" : intentUri.toString();
   }
 
-  // TODO(cobalt): re-eanble microphone permission request at startup or remove code.
-  // @SuppressLint("MissingSuperCall")
-  // @Override
-  // public void onRequestPermissionsResult(
-  //     int requestCode, String[] permissions, int[] grantResults) {
-  //   getStarboardBridge().onRequestPermissionsResult(requestCode, permissions, grantResults);
-  // }
+  @Override
+  public void onRequestPermissionsResult(
+      int requestCode, String[] permissions, int[] grantResults) {
+    getStarboardBridge().onRequestPermissionsResult(requestCode, permissions, grantResults);
+  }
 
   public void resetVideoSurface() {
     runOnUiThread(

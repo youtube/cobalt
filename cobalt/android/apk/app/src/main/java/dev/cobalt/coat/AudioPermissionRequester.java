@@ -14,6 +14,8 @@
 
 package dev.cobalt.coat;
 
+import static dev.cobalt.util.Log.TAG;
+
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
@@ -22,12 +24,12 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import dev.cobalt.util.Holder;
 import dev.cobalt.util.UsedByNative;
+import dev.cobalt.util.Log;
 
 /** Helper class that requests the record audio permission. */
 public class AudioPermissionRequester {
   private final Context context;
   private final Holder<Activity> activityHolder;
-  private long nativePermissionRequestor;
   // Only use in synchronized methods.
   private boolean requestAudioPermissionStarted;
 
@@ -42,8 +44,7 @@ public class AudioPermissionRequester {
    */
   @SuppressWarnings("unused")
   @UsedByNative
-  public synchronized boolean requestRecordAudioPermission(long nativePermissionRequestor) {
-    this.nativePermissionRequestor = nativePermissionRequestor;
+  public synchronized boolean requestRecordAudioPermission() {
     Activity activity = activityHolder.get();
     if (activity == null) {
       return false;
@@ -53,6 +54,7 @@ public class AudioPermissionRequester {
         == PackageManager.PERMISSION_GRANTED) {
       return true;
     }
+
     if (!requestAudioPermissionStarted) {
       ActivityCompat.requestPermissions(
           activity, new String[] {Manifest.permission.RECORD_AUDIO}, R.id.rc_record_audio);
@@ -66,17 +68,9 @@ public class AudioPermissionRequester {
   public synchronized void onRequestPermissionsResult(
       int requestCode, String[] permissions, int[] grantResults) {
     if (requestCode == R.id.rc_record_audio) {
-      // If the request is cancelled, the result arrays are empty.
-      if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-        // Permission granted.
-        nativeHandlePermission(nativePermissionRequestor, true);
-      } else {
-        // Permission denied.
-        nativeHandlePermission(nativePermissionRequestor, false);
-      }
+      boolean success = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+      Log.i(TAG, "RECORD_AUDIO permission request " + (success ? "GRANTED" : "DENIED"));
       requestAudioPermissionStarted = false;
     }
   }
-
-  private native void nativeHandlePermission(long nativePermissionRequestor, boolean isGranted);
 }

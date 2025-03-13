@@ -447,6 +447,11 @@ static_library("content_shell_lib") {
     deps += [
       "//starboard($starboard_toolchain)",
     ]
+    if (is_android) {
+      deps += [
+        "//starboard/android/shared:starboard_platform",
+      ]
+    }
   }
 }
 
