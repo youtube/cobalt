@@ -19,7 +19,7 @@ interface MetricsListener {
 };
 
 interface H5vccMetrics {
-  AddListener(pending_remote<MetricsListener> listener) => ();
+  AddListener(pending_remote<MetricsListener> listener);
 
   Enable() => ();
   Disable() => ();
