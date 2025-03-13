@@ -17,6 +17,11 @@
 #include "base/process/set_process_title_linux.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#include "base/test/allow_check_is_test_for_testing.h"
+#include "starboard/client_porting/wrap_main/wrap_main.h"
+#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+
 namespace base {
 
 namespace {
@@ -69,6 +74,22 @@ class BaseUnittestSuite : public TestSuite {
 
 }  // namespace base
 
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+static int InitAndRunAllTests(int argc, char** argv) {
+  base::test::AllowCheckIsTestForTesting();
+  return base::TestSuite(argc, argv).Run();
+}
+
+// For the Starboard OS define SbEventHandle as the entry point
+SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
+
+#if !SB_IS(EVERGREEN)
+// Define main() for non-Evergreen Starboard OS.
+int main(int argc, char** argv) {
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
+}
+#endif  // !SB_IS(EVERGREEN)
+#else
 int main(int argc, char** argv) {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   // For setproctitle unit tests.
@@ -80,3 +101,4 @@ int main(int argc, char** argv) {
       argc, argv,
       base::BindOnce(&base::TestSuite::Run, base::Unretained(&test_suite)));
 }
+#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
