@@ -33,6 +33,9 @@ source_set("unittest") {
   sources = [ "migration_manager_unittest.cc" ]
   deps = [
     ":migrate_storage_record",
+    ":storage_proto",
     "//base/test:test_support",
+    "//net",
+    "//url",
   ]
 }
