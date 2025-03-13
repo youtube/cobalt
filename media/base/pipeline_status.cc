@@ -68,7 +68,7 @@ bool operator==(const PipelineStatistics& first,
          first.video_pipeline_info == second.video_pipeline_info &&
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
          first.audio_pipeline_info == second.audio_pipeline_info &&
-         first.video_frame_early_average == second.video_frame_early_average;
+         first.video_frame_early_average.Average() == second.video_frame_early_average.Average();
 #else   // if BUILDFLAG(USE_STARBOARD_MEDIA)
          first.audio_pipeline_info == second.audio_pipeline_info;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

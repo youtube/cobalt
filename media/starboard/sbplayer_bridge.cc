@@ -605,8 +605,7 @@ void SbPlayerBridge::Suspend() {
 
   base::AutoLock auto_lock(lock_);
   GetInfo_Locked(&cached_video_frames_decoded_, &cached_video_frames_dropped_,
-                 &preroll_timestamp_, nullptr, &cached_audio_bytes_decoded_,
-                 &cached_video_bytes_decoded_);
+                 &preroll_timestamp_, nullptr, nullptr, nullptr);
 
   state_ = kSuspended;
 
