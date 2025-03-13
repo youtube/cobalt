@@ -333,4 +333,25 @@ void CobaltContentBrowserClient::BindGpuHostReceiver(
   }
 }
 
+bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
+    content::BrowserContext* browser_context,
+    content::RenderFrameHost* frame,
+    int render_process_id,
+    URLLoaderFactoryType type,
+    const url::Origin& request_initiator,
+    absl::optional<int64_t> navigation_id,
+    ukm::SourceIdObj ukm_source_id,
+    mojo::PendingReceiver<network::mojom::URLLoaderFactory>* factory_receiver,
+    mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>*
+        header_client,
+    bool* bypass_redirect_checks,
+    bool* disable_secure_dns,
+    network::mojom::URLLoaderFactoryOverridePtr* factory_override) {
+  // override the header_client with ours
+  *header_client = cobalt_header_client_->receiver_.BindNewPipeAndPassRemote();
+
+  // double check
+  return false;  // Indicate that you didn't override the factory.
+}
+
 }  // namespace cobalt
