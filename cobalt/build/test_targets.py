@@ -69,6 +69,9 @@ _EXCLUDE_TESTS_PREFIX = {
     '//mojo/core:mojo_perftests',
     '//net:net_perftests',
     '//pdf',
+    # Does not build on android.
+    '//starboard/android/shared:starboard_platform_tests',
+    '//starboard/shared/starboard/player/filter/testing:player_filter_tests',
     '//testing/libfuzzer/tests:libfuzzer_tests',
     '//third_party/angle',
     '//third_party/dawn',
@@ -78,23 +81,20 @@ _EXCLUDE_TESTS_PREFIX = {
     '//third_party/swiftshader',
     '//ui/shell_dialogs',
     '//weblayer',
+    # TODO: This is a source_set. Figure out why it's included.
+    '//starboard/common:common_test',
 }
 
 
 def _is_test_target(g, target) -> bool:
-  if (not target in _ALLOW_TESTS or any(
-      target.startswith(path_prefix) for path_prefix in _EXCLUDE_TESTS_PREFIX)):
+  if (any(not target in _ALLOW_TESTS or target.startswith(path_prefix)
+          for path_prefix in _EXCLUDE_TESTS_PREFIX)):
     return False
 
   # Starboard tests include the runner as a source file.
-  if '//starboard/common/test_main.cc' in g.nodes[target]['sources']:
+  if ('//starboard/common/test_main.cc' in g.nodes[target]['sources'] and
+      not '__library' in target):
     return True
-
-  successors = set(g.successors(target))
-  for successor in successors:
-    # Most others use a run_all_unittests target.
-    if 'run_all_unittests' in successor:
-      return True
 
   # To definitely find all test targets we look for the local runner target
   # On linux this target is ${target_name}__runner, on android it's
@@ -102,6 +102,7 @@ def _is_test_target(g, target) -> bool:
   # See src/testing/test.gni for the test() template definition.
   linux_runner = f'{target}__runner'
   android_runner = f'{target}__test_runner_script'
+  successors = set(g.successors(target))
   return linux_runner in successors or android_runner in successors
 
 
