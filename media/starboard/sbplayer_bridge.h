@@ -135,7 +135,9 @@ class SbPlayerBridge {
   void GetInfo(uint32_t* video_frames_decoded,
                uint32_t* video_frames_dropped,
                base::TimeDelta* media_time,
-               base::TimeDelta* video_frame_early_average);
+               base::TimeDelta* video_frame_early_average,
+               int64_t* audio_bytes_decoded,
+               int64_t* video_bytes_decoded);
   std::vector<SbMediaAudioConfiguration> GetAudioConfigurations();
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -205,10 +207,11 @@ class SbPlayerBridge {
   static const int64_t kClearDecoderCacheIntervalInMilliseconds = 1000;
 
   // A map from raw data pointer returned by DecoderBuffer::GetData() to the
-  // DecoderBuffer and a reference count.  The reference count indicates how
-  // many instances of the DecoderBuffer is currently being decoded in the
-  // pipeline.
-  typedef std::map<const void*, std::pair<scoped_refptr<DecoderBuffer>, int>>
+  // DecoderBuffer, its media type, and a reference count. The reference
+  // count indicates how many instances of the DecoderBuffer is currently
+  // being decoded in the pipeline.
+  typedef std::map<const void*,
+                   std::tuple<scoped_refptr<DecoderBuffer>, int, SbMediaType>>
       DecodingBuffers;
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -241,7 +244,9 @@ class SbPlayerBridge {
   void GetInfo_Locked(uint32_t* video_frames_decoded,
                       uint32_t* video_frames_dropped,
                       base::TimeDelta* media_time,
-                      base::TimeDelta* video_frame_early_average);
+                      base::TimeDelta* video_frame_early_average,
+                      int64_t* audio_bytes_decoded,
+                      int64_t* video_bytes_decoded);
   void UpdateBounds_Locked();
 
   void ClearDecoderBufferCache();
@@ -329,6 +334,13 @@ class SbPlayerBridge {
   uint32_t cached_video_frames_decoded_;
   uint32_t cached_video_frames_dropped_;
   base::TimeDelta preroll_timestamp_;
+  MovingAverage video_frame_early_average_;
+  // Last media time reported by GetMediaTime().
+  base::TimeDelta last_media_time_;
+  // Timestamp microseconds when we last checked the media time.
+  base::Time last_time_media_time_retrieved_;
+  int64_t audio_bytes_decoded_ = 0;
+  int64_t video_bytes_decoded_ = 0;
 
   // Keep track of the output mode we are supposed to output to.
   SbPlayerOutputMode output_mode_;
@@ -372,14 +384,6 @@ class SbPlayerBridge {
   CValStats* cval_stats_;
   std::string pipeline_identifier_;
 #endif  // COBALT_MEDIA_ENABLE_CVAL
-
-  // ~5s of playback for 60 fps video.
-  const int kFrameEarlyAverageDepth = 300;
-  MovingAverage video_frame_early_average_;
-  // Last media time reported by GetMediaTime().
-  base::TimeDelta last_media_time_;
-  // Timestamp microseconds when we last checked the media time.
-  base::Time last_time_media_time_retrieved_;
 };
 
 }  // namespace media
