@@ -926,9 +926,10 @@ void SbPlayerBridge::WriteBuffersInternal(
     DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->data());
     if (iter == decoding_buffers_.end()) {
       decoding_buffers_[buffer->data()] =
-          std::make_tuple(buffer, 1, sample_type);
+          std::make_tuple(buffer, 1, sample_type, buffer->data_size());
     } else {
       std::get<1>(iter->second) += 1;
+      std::get<3>(iter->second) += buffer->data_size();
     }
 
     if (sample_type == kSbMediaTypeAudio &&

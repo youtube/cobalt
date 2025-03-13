@@ -56,9 +56,4 @@
     [HighEntropy=Direct, MeasureAs=PrefixedVideoDroppedFrameCount] readonly attribute unsigned long webkitDroppedFrameCount;
 
     [CEReactions, Reflect] attribute boolean playsInline;
-
-    // Cobalt-specific non-standard API
-    // The average amount of time that frames are written to the player
-    // before they're displayed.
-    readonly attribute long long early_us;
 };
