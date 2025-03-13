@@ -70,7 +70,9 @@ class ApplicationRdk : public QueueApplication {
   bool IsStartImmediate() override { return !HasPreloadSwitch(); }
   bool IsPreloadImmediate() override { return HasPreloadSwitch(); }
 
-  void InjectAccessibilityTextToSpeechSettingsChanged(bool enabled);
+  void InjectAccessibilitySettingsChanged();
+  void InjectAccessibilityCaptionSettingsChanged();
+  void InjectAccessibilityTextToSpeechSettingsChanged();
 
  protected:
   // --- Application overrides ---

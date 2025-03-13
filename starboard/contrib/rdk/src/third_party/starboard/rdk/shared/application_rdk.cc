@@ -463,11 +463,15 @@ int64_t ApplicationRdk::CheckMemoryUsage() {
   return kSbTimeSecond;
 }
 
-void ApplicationRdk::InjectAccessibilityTextToSpeechSettingsChanged(bool enabled) {
-  bool* enabled_data = new bool(enabled);
-  Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
-                   enabled_data,
-                   &ApplicationRdk::DeleteDestructor<bool>));
+void ApplicationRdk::InjectAccessibilitySettingsChanged() {
+  Inject(new Event(kSbEventTypeAccessibilitySettingsChanged, NULL, NULL));
 }
 
+void ApplicationRdk::InjectAccessibilityCaptionSettingsChanged() {
+  Inject(new Event(kSbEventTypeAccessibilityCaptionSettingsChanged, NULL, NULL));
+}
+
+void ApplicationRdk::InjectAccessibilityTextToSpeechSettingsChanged() {
+  Inject(new Event(kSbEventTypeAccessibilityTextToSpeechSettingsChanged, NULL, NULL));
+}
 }  // namespace starboard

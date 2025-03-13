@@ -281,6 +281,9 @@ public:
     bool was_cc_enabled = caption_settings_.is_enabled;
     bool was_highcontrast_enabled = display_settings_.is_high_contrast_text_enabled;
 
+    bool was_cc_enabled = caption_settings_.is_enabled;
+    bool was_highcontrast_enabled = display_settings_.is_high_contrast_text_enabled;
+
     memset(&display_settings_, 0, sizeof(display_settings_));
     memset(&caption_settings_, 0, sizeof(caption_settings_));
 
@@ -331,6 +334,14 @@ public:
       display_settings_.has_high_contrast_text_setting = true;
       display_settings_.is_high_contrast_text_enabled =
         settings.TextDisplay.IsHighContrastTextEnabled.Value();
+    }
+
+    if (auto* app = Application::Get(); app != nullptr) {
+      if (was_cc_enabled != caption_settings_.is_enabled)
+        app->InjectAccessibilityCaptionSettingsChanged();
+
+      if (was_highcontrast_enabled != display_settings_.is_high_contrast_text_enabled)
+        app->InjectAccessibilitySettingsChanged();
     }
   }
 
@@ -390,8 +401,12 @@ public:
   void SetCaptionEnabled(bool enabled, bool notify_on_change = true) {
     {
       std::lock_guard lock(mutex_);
-       notify_on_change &= (caption_settings_.is_enabled != enabled);
-       caption_settings_.is_enabled = enabled;
+      notify_on_change &= (caption_settings_.is_enabled != enabled);
+      caption_settings_.is_enabled = enabled;
+    }
+    if (notify_on_change && ApplicationRdk::Get()) {
+      SB_LOG(INFO) << "Accessibility closed caption setting changed, enabled = " << enabled;
+      ApplicationRdk::Get()->InjectAccessibilityCaptionSettingsChanged();
     }
   }
 
@@ -400,6 +415,10 @@ public:
       std::lock_guard lock(mutex_);
       notify_on_change &= (display_settings_.is_high_contrast_text_enabled != enabled);
       display_settings_.is_high_contrast_text_enabled = enabled;
+    }
+    if (notify_on_change && ApplicationRdk::Get()) {
+      SB_LOG(INFO) << "Accessibility high contrast text setting changed, enabled = " << enabled;
+      ApplicationRdk::Get()->InjectAccessibilitySettingsChanged();
     }
   }
 
@@ -411,11 +430,11 @@ public:
     }
     if (notify_on_change && ApplicationRdk::Get()) {
       SB_LOG(INFO) << "Accessibility voice guidance setting changed, enabled = " << enabled;
-      ApplicationRdk::Get()->InjectAccessibilityTextToSpeechSettingsChanged(enabled);
+      ApplicationRdk::Get()->InjectAccessibilityTextToSpeechSettingsChanged();
     }
   }
 
-  bool GetVoiceGuidanceEnabled() {
+  bool GetVoiceGuidanceEnabled() const {
     std::lock_guard lock(mutex_);
     return is_voice_guidance_enabled_;
   }
@@ -1541,6 +1560,7 @@ private:
     };
 
     uint32_t rc;
+
 
     for (const auto& kv : kNotificationHandlers) {
       const auto& name = kv.first;
