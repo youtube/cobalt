@@ -12,15 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+enum UserOnExitStrategy {
+  "close",
+  "minimize",
+  "no-exit",
+};
+
 // This interface mirrors the H5vccSystem Web IDL defined in Cobalt LTS 25:
 // https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_system.idl
 [
-    Exposed=Window,
-    SecureContext
+  Exposed=Window,
+  SecureContext
 ]
-interface H5vccSystem {
-    [CallWith=ScriptState, RaisesException]
-    Promise<DOMString> getAdvertisingId();
-    [CallWith=ScriptState, RaisesException]
-    Promise<boolean> getLimitAdTracking();
+interface H5vccSystem : EventTarget {
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> getAdvertisingId();
+  [CallWith=ScriptState, RaisesException]
+  Promise<boolean> getLimitAdTracking();
+
+  // Platform-specific exit is performed based on |userOnExitStrategy|:
+  //   - "close" stops the application.
+  //   - "minimize" conceals the application.
+  //   - "no-exit" is a no-op.
+  void exit();
+
+  // This variable defines what Cobalt's preferred strategy should be for
+  // handling internally triggered application exit requests (e.g. the user
+  // chooses to back out of the application).
+  // For backwards compatibility:
+  //   - "close" maps to 0.
+  //   - "minimize" maps to 1.
+  //   - "no-exit" maps to 2.
+  readonly attribute unsigned long userOnExitStrategy;
 };

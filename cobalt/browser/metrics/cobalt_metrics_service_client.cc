@@ -80,6 +80,7 @@ CobaltMetricsServiceClient::CobaltMetricsServiceClient()
       /* backup_registry_key= */ std::wstring(), user_data_dir
       // Other params left as by-default.
   );
+  metrics_state_manager_->InstantiateFieldTrialList();
 
   metrics_service_ = std::make_unique<metrics::MetricsService>(
       metrics_state_manager_.get(), this, pref_service_.get());
