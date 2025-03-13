@@ -459,8 +459,8 @@ void SbPlayerBridge::GetInfo(uint32_t* video_frames_decoded,
                              uint32_t* video_frames_dropped,
                              TimeDelta* media_time,
                              base::TimeDelta* video_frame_early_average,
-                             int64_t* audio_bytes_decoded,
-                             int64_t* video_bytes_decoded) {
+                             uint64_t* audio_bytes_decoded,
+                             uint64_t* video_bytes_decoded) {
   DCHECK(video_frames_decoded || video_frames_dropped || media_time);
 
   base::AutoLock auto_lock(lock_);
@@ -605,7 +605,8 @@ void SbPlayerBridge::Suspend() {
 
   base::AutoLock auto_lock(lock_);
   GetInfo_Locked(&cached_video_frames_decoded_, &cached_video_frames_dropped_,
-                 &preroll_timestamp_, nullptr, nullptr, nullptr);
+                 &preroll_timestamp_, nullptr, &cached_audio_bytes_decoded_,
+                 &cached_video_bytes_decoded_);
 
   state_ = kSuspended;
 
@@ -996,16 +997,15 @@ void SbPlayerBridge::WriteBuffersInternal(
     cval_stats_->StartTimer(MediaTiming::SbPlayerWriteSamples,
                             pipeline_identifier_);
 #endif  // COBALT_MEDIA_ENABLE_CVAL
-    if (sample_type == kSbMediaTypeVideo) {
-      base::AutoLock auto_lock(lock_);
-      base::TimeDelta first_timestamp =
+    if (sample_type == kSbMediaTypeVideo && state_ != kSuspended) {
+      base::TimeDelta timestamp =
           base::Microseconds(gathered_sbplayer_sample_infos[0].timestamp);
+      base::AutoLock auto_lock(lock_);
       base::TimeDelta current_media_time =
           last_media_time_ +
-          (base::Time::Now() - last_time_media_time_retrieved_);
-      base::TimeDelta early = first_timestamp - current_media_time;
-      // TODO: Don't DCHECK this
-      DCHECK(early.InMicroseconds() >= 0);
+          ((base::Time::Now() - last_time_media_time_retrieved_) *
+           playback_rate_);
+      base::TimeDelta early = timestamp - current_media_time;
       video_frame_early_average_.AddSample(early);
     }
     sbplayer_interface_->WriteSamples(player_, sample_type,
@@ -1030,8 +1030,8 @@ void SbPlayerBridge::GetInfo_Locked(uint32_t* video_frames_decoded,
                                     uint32_t* video_frames_dropped,
                                     TimeDelta* media_time,
                                     base::TimeDelta* video_frame_early_average,
-                                    int64_t* audio_bytes_decoded,
-                                    int64_t* video_bytes_decoded) {
+                                    uint64_t* audio_bytes_decoded,
+                                    uint64_t* video_bytes_decoded) {
   lock_.AssertAcquired();
   if (state_ == kSuspended) {
     if (video_frames_decoded) {
@@ -1043,46 +1043,32 @@ void SbPlayerBridge::GetInfo_Locked(uint32_t* video_frames_decoded,
     if (media_time) {
       *media_time = preroll_timestamp_;
     }
-    if (video_frame_early_average) {
-      *video_frame_early_average = video_frame_early_average_.Average();
-      LOG(INFO) << "Frame early average is "
-                << video_frame_early_average_.Average().InMicroseconds();
-    }
-    if (audio_bytes_decoded) {
-      *audio_bytes_decoded = audio_bytes_decoded_;
-    }
-    if (video_bytes_decoded) {
-      *video_bytes_decoded = video_bytes_decoded_;
-    }
-    return;
-  }
+  } else {
+    DCHECK(SbPlayerIsValid(player_));
 
-  DCHECK(SbPlayerIsValid(player_));
+    SbPlayerInfo info;
+    sbplayer_interface_->GetInfo(player_, &info);
 
-  SbPlayerInfo info;
-  sbplayer_interface_->GetInfo(player_, &info);
-
-  if (media_time) {
-    *media_time = base::Microseconds(info.current_media_timestamp);
-    last_media_time_ = *media_time;
-    last_time_media_time_retrieved_ = base::Time::Now();
-  }
-  if (video_frames_decoded) {
-    *video_frames_decoded = info.total_video_frames;
-  }
-  if (video_frames_dropped) {
-    *video_frames_dropped = info.dropped_video_frames;
+    if (media_time) {
+      *media_time = base::Microseconds(info.current_media_timestamp);
+      last_media_time_ = *media_time;
+      last_time_media_time_retrieved_ = base::Time::Now();
+    }
+    if (video_frames_decoded) {
+      *video_frames_decoded = info.total_video_frames;
+    }
+    if (video_frames_dropped) {
+      *video_frames_dropped = info.dropped_video_frames;
+    }
   }
   if (video_frame_early_average) {
     *video_frame_early_average = video_frame_early_average_.Average();
-    LOG(INFO) << "Frame early average is "
-              << video_frame_early_average_.Average().InMicroseconds();
   }
   if (audio_bytes_decoded) {
-    *audio_bytes_decoded = audio_bytes_decoded_;
+    *audio_bytes_decoded = cached_audio_bytes_decoded_;
   }
   if (video_bytes_decoded) {
-    *video_bytes_decoded = video_bytes_decoded_;
+    *video_bytes_decoded = cached_video_bytes_decoded_;
   }
 }
 
@@ -1236,9 +1222,9 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   {
     base::AutoLock auto_lock(lock_);
     if (std::get<2>(iter->second) == kSbMediaTypeAudio) {
-      audio_bytes_decoded_ += std::get<0>(iter->second)->data_size();
+      cached_audio_bytes_decoded_ += std::get<0>(iter->second)->data_size();
     } else {
-      video_bytes_decoded_ += std::get<0>(iter->second)->data_size();
+      cached_video_bytes_decoded_ += std::get<0>(iter->second)->data_size();
     }
   }
 

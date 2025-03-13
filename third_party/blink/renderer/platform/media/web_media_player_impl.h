@@ -239,11 +239,11 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
 
   unsigned DecodedFrameCount() const override;
   unsigned DroppedFrameCount() const override;
-  uint64_t AudioDecodedByteCount() const override;
-  uint64_t VideoDecodedByteCount() const override;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   int64_t EarlyUs() const override;
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+  uint64_t AudioDecodedByteCount() const override;
+  uint64_t VideoDecodedByteCount() const override;
 
   bool PassedTimingAllowOriginCheck() const override;
 

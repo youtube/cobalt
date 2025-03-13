@@ -177,6 +177,8 @@ struct MEDIA_EXPORT PipelineStatistics {
   base::TimeDelta video_frame_duration_average = kNoTimestamp;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Tracks the average amount of time that frames are written to the
+  // player before they're displayed.
   base::TimeDelta video_frame_early_average = base::TimeDelta();
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

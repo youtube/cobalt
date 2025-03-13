@@ -58,5 +58,7 @@
     [CEReactions, Reflect] attribute boolean playsInline;
 
     // Cobalt-specific non-standard API
-    readonly attribute long early_us;
+    // The average amount of time that frames are written to the player
+    // before they're displayed.
+    readonly attribute long long early_us;
 };
