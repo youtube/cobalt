@@ -20,7 +20,6 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
-#include "cobalt/browser/migrate_storage_record/storage.pb.h"
 #include "cobalt/browser/switches.h"
 #include "components/url_matcher/url_util.h"
 #include "content/public/browser/render_frame_host.h"
@@ -94,44 +93,6 @@ std::unique_ptr<cobalt::storage::Storage> ReadStorage() {
     return nullptr;
   }
   return storage;
-}
-
-std::vector<std::unique_ptr<net::CanonicalCookie>> ToCanonicalCookies(
-    const cobalt::storage::Storage& storage) {
-  std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
-  for (auto& c : storage.cookies()) {
-    cookies.push_back(net::CanonicalCookie::FromStorage(
-        c.name(), c.value(), c.domain(), c.path(),
-        base::Time::FromInternalValue(c.creation_time_us()),
-        base::Time::FromInternalValue(c.expiration_time_us()),
-        base::Time::FromInternalValue(c.last_access_time_us()),
-        base::Time::FromInternalValue(c.creation_time_us()), c.secure(),
-        c.http_only(), net::CookieSameSite::NO_RESTRICTION,
-        net::COOKIE_PRIORITY_DEFAULT, false,
-        absl::optional<net::CookiePartitionKey>(),
-        net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED));
-  }
-  return cookies;
-}
-
-std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
-ToLocalStorageItems(const url::Origin& page_origin,
-                    const cobalt::storage::Storage& storage) {
-  std::vector<std::unique_ptr<std::pair<std::string, std::string>>> entries;
-  for (const auto& local_storages : storage.local_storages()) {
-    GURL local_storage_origin(local_storages.serialized_origin());
-    if (!local_storage_origin.SchemeIs("https") ||
-        !page_origin.IsSameOriginWith(local_storage_origin)) {
-      continue;
-    }
-
-    for (const auto& local_storage_entry :
-         local_storages.local_storage_entries()) {
-      entries.emplace_back(new std::pair<std::string, std::string>(
-          local_storage_entry.key(), local_storage_entry.value()));
-    }
-  }
-  return entries;
 }
 
 content::RenderFrameHost* RenderFrameHost(
@@ -293,6 +254,46 @@ Task MigrationManager::LocalStorageTask(
         weak_document_ptr, std::move(pair)));
   }
   return GroupTasks(std::move(tasks));
+}
+
+// static
+std::vector<std::unique_ptr<net::CanonicalCookie>>
+MigrationManager::ToCanonicalCookies(const cobalt::storage::Storage& storage) {
+  std::vector<std::unique_ptr<net::CanonicalCookie>> cookies;
+  for (auto& c : storage.cookies()) {
+    cookies.push_back(net::CanonicalCookie::FromStorage(
+        c.name(), c.value(), c.domain(), c.path(),
+        base::Time::FromInternalValue(c.creation_time_us()),
+        base::Time::FromInternalValue(c.expiration_time_us()),
+        base::Time::FromInternalValue(c.last_access_time_us()),
+        base::Time::FromInternalValue(c.creation_time_us()), c.secure(),
+        c.http_only(), net::CookieSameSite::NO_RESTRICTION,
+        net::COOKIE_PRIORITY_DEFAULT, false,
+        absl::optional<net::CookiePartitionKey>(),
+        net::CookieSourceScheme::kUnset, url::PORT_UNSPECIFIED));
+  }
+  return cookies;
+}
+
+// static
+std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
+MigrationManager::ToLocalStorageItems(const url::Origin& page_origin,
+                                      const cobalt::storage::Storage& storage) {
+  std::vector<std::unique_ptr<std::pair<std::string, std::string>>> entries;
+  for (const auto& local_storages : storage.local_storages()) {
+    GURL local_storage_origin(local_storages.serialized_origin());
+    if (!local_storage_origin.SchemeIs("https") ||
+        !page_origin.IsSameOriginWith(local_storage_origin)) {
+      continue;
+    }
+
+    for (const auto& local_storage_entry :
+         local_storages.local_storage_entries()) {
+      entries.emplace_back(new std::pair<std::string, std::string>(
+          local_storage_entry.key(), local_storage_entry.value()));
+    }
+  }
+  return entries;
 }
 
 }  // namespace migrate_storage_record

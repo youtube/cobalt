@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "cobalt/browser/migrate_storage_record/storage.pb.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "content/public/browser/web_contents.h"
 #include "net/cookies/canonical_cookie.h"
@@ -47,7 +48,11 @@ class MigrationManager {
   static Task LocalStorageTask(
       content::WeakDocumentPtr weak_document_ptr,
       std::vector<std::unique_ptr<std::pair<std::string, std::string>>> pairs);
-
+  static std::vector<std::unique_ptr<std::pair<std::string, std::string>>>
+  ToLocalStorageItems(const url::Origin& page_origin,
+                      const cobalt::storage::Storage& storage);
+  static std::vector<std::unique_ptr<net::CanonicalCookie>> ToCanonicalCookies(
+      const cobalt::storage::Storage& storage);
   static std::atomic_flag migration_attempted_;
 };
 
