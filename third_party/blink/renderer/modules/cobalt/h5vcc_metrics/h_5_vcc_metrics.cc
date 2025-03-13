@@ -36,9 +36,10 @@ EventListener* H5vccMetrics::onmetrics() {
 void H5vccMetrics::setOnmetrics(EventListener* listener) {
   SetAttributeEventListener(event_type_names::kMetrics, listener);
   EnsureReceiverIsBound();
-
+  auto task_runner =
+      GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   remote_h5vcc_metrics_->AddListener(
-      WTF::BindOnce(&H5vccMetrics::OnMetrics, WrapPersistent(this)));
+      receiver_.BindNewPipeAndPassRemote(task_runner));
 }
 
 ScriptPromise H5vccMetrics::enable(ScriptState* script_state,
