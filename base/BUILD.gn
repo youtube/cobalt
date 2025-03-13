@@ -1070,6 +1070,9 @@ component("base") {
       "process/internal_linux.cc",
       "process/internal_linux.h",
     ]
+    configs += [
+      "//build/config/compiler:emulated_tls",
+    ]
   }
 
   if (!use_cobalt_customizations && (is_linux || is_chromeos || is_android)) {

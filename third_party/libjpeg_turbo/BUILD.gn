@@ -206,6 +206,11 @@ static_library("simd") {
     if (is_starboard && sb_is_modular && current_cpu == "arm") {
       configs += [ ":simd_arm_config" ]
     }
+    if (use_cobalt_customizations) {
+      configs += [
+        "//build/config/compiler:emulated_tls",
+      ]
+    }
   } else {
     sources = [ "jsimd_none.c" ]
   }

@@ -138,11 +138,7 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] TaskAnnotator::ScopedSetIpcHash {
  private:
   ScopedSetIpcHash(uint32_t ipc_hash, const char* ipc_interface_name);
 
-#if defined(STARBOARD)
-  void* scoped_reset_value_;
-#else
   const AutoReset<ScopedSetIpcHash*> resetter_;
-#endif
   uint32_t ipc_hash_;
   const char* ipc_interface_name_;
 };
@@ -172,11 +168,7 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] TaskAnnotator::LongTaskTracker {
  private:
   void EmitReceivedIPCDetails(perfetto::EventContext& ctx);
 
-#if defined(STARBOARD)
-  void* scoped_reset_value_;
-#else
   const AutoReset<LongTaskTracker*> resetter_;
-#endif
 
   // For tracking task duration
   raw_ptr<const TickClock> tick_clock_;  // Not owned.
