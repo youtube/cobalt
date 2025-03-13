@@ -381,7 +381,6 @@ static_library("c_internal") {
     "src/starboard/locale/langinfo.c",
     "src/starboard/locale/localeconv.c",
     "src/starboard/locale/newlocale.c",
-    "src/starboard/locale/setlocale.c",
     "src/starboard/locale/uselocale.c",
     "src/starboard/stdio/fflush.c",
     "src/starboard/stdio/fputc.c",
