@@ -34,6 +34,11 @@ namespace common {
 // additional memory from as needed.
 class ReuseAllocatorBase : public Allocator {
  public:
+  static constexpr bool ExtraLogEnabled() {
+    // Set this to true to enable extra logging in this class and its users.
+    return true;  // TODO: change to false before commit.
+  }
+
   void* Allocate(std::size_t size) override;
   void* Allocate(std::size_t size, std::size_t alignment) override;
 
@@ -47,7 +52,8 @@ class ReuseAllocatorBase : public Allocator {
     return max_capacity_ && (capacity_ > max_capacity_);
   }
 
-  void PrintAllocations() const override;
+  void PrintAllocations(bool align_allocated_size,
+                        int max_allocation_to_print) const override;
 
   bool TryFree(void* memory);
 
