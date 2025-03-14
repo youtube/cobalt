@@ -998,15 +998,17 @@ void SbPlayerBridge::WriteBuffersInternal(
                             pipeline_identifier_);
 #endif  // COBALT_MEDIA_ENABLE_CVAL
     if (sample_type == kSbMediaTypeVideo && state_ != kSuspended) {
-      base::TimeDelta timestamp =
-          base::Microseconds(gathered_sbplayer_sample_infos[0].timestamp);
       base::AutoLock auto_lock(lock_);
-      base::TimeDelta current_media_time =
-          last_media_time_ +
-          ((base::Time::Now() - last_time_media_time_retrieved_) *
-           playback_rate_);
-      base::TimeDelta early = timestamp - current_media_time;
-      video_frame_early_average_.AddSample(early);
+      base::TimeDelta timestamp, current_media_time, early;
+      for (auto& sample_info : gathered_sbplayer_sample_infos) {
+        timestamp = base::Microseconds(sample_info.timestamp);
+        current_media_time =
+            last_media_time_ +
+            ((base::Time::Now() - last_time_media_time_retrieved_) *
+             playback_rate_);
+        early = timestamp - current_media_time;
+        video_frame_early_average_.AddSample(early);
+      }
     }
     sbplayer_interface_->WriteSamples(player_, sample_type,
                                       gathered_sbplayer_sample_infos.data(),
