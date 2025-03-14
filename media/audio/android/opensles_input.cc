@@ -252,6 +252,18 @@ bool OpenSLESInputStream::CreateRecorder() {
   SLint32 stream_type = no_effects_
                             ? SL_ANDROID_RECORDING_PRESET_CAMCORDER
                             : SL_ANDROID_RECORDING_PRESET_VOICE_COMMUNICATION;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // This next setting is crucial for the BLE mic on Google TV. BLE doesn't
+  // support audio, so there is a system service - go/atv-remote-service
+  // which listens for BLE events - e.g. a button press AND if that service
+  // also sees a request for voice recognition, it will dynamically insert
+  // an Audio Policy which will inject audio from BLE into the "default" mic
+  // device. TODO(b/401420522) Find more specific method to know when to use
+  // this type.
+  stream_type = SL_ANDROID_RECORDING_PRESET_VOICE_RECOGNITION;
+#endif //BUILDFLAG(USE_STARBOARD_MEDIA)
+
   LOG_ON_FAILURE_AND_RETURN(
       (*recorder_config)->SetConfiguration(recorder_config,
                                            SL_ANDROID_KEY_RECORDING_PRESET,

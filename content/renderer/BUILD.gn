@@ -192,6 +192,13 @@ target(link_target_type, "renderer") {
     ]
   }
 
+  if (is_cobalt) {
+    sources -= [
+      "media/audio_decoder.cc",
+      "media/audio_decoder.h",
+    ]
+  }
+
   if (is_linux || is_chromeos) {
     sources += [
       "renderer_main_platform_delegate_linux.cc",
@@ -329,6 +336,12 @@ target(link_target_type, "renderer") {
     "//v8",
   ]
   allow_circular_includes_from = []
+
+  if (is_cobalt) {
+    deps += [
+      "//cobalt/media/audio:audio_decoder",
+    ]
+  }
 
   if (is_android) {
     deps += [

@@ -22,9 +22,6 @@
 
 namespace ui {
 
-// TODO(b/371272304): Stop extending StubWindow and create a more robust window
-// implementation.
-// TODO(b/371272304): Add event handling (i.e. extend PlatformEventDispatcher).
 class PlatformWindowStarboard : public StubWindow,
                                 public PlatformEventDispatcher {
  public:

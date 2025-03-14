@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//starboard/build/buildflags.gni")
+
 source_set("h5vcc_system") {
   sources = [
     "h5vcc_system_impl.cc",
@@ -25,4 +27,8 @@ source_set("h5vcc_system") {
     "//mojo/public/cpp/bindings",
     "//starboard($starboard_toolchain)",
   ]
+
+  if (is_starboard) {
+    deps += [ "//cobalt/configuration" ]
+  }
 }
