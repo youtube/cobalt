@@ -46,7 +46,12 @@ class MODULES_EXPORT H5vccSystem final
 
   // Web-exposed interface:
   ScriptPromise getAdvertisingId(ScriptState*, ExceptionState&);
+  const String& advertisingId();
   ScriptPromise getLimitAdTracking(ScriptState*, ExceptionState&);
+  bool limitAdTracking();
+  ScriptPromise getTrackingAuthorizationStatus(ScriptState*, ExceptionState&);
+  const String& trackingAuthorizationStatus();
+  ScriptPromise requestTrackingAuthorization(ScriptState*, ExceptionState&);
   void exit();
   uint32_t userOnExitStrategy();
 
@@ -55,8 +60,13 @@ class MODULES_EXPORT H5vccSystem final
  private:
   void OnGetAdvertisingId(ScriptPromiseResolver*, const String&);
   void OnGetLimitAdTracking(ScriptPromiseResolver*, bool);
+  void OnGetTrackingAuthorizationStatus(ScriptPromiseResolver*, const String&);
+  void OnRequestTrackingAuthorization(ScriptPromiseResolver*);
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_system::mojom::blink::H5vccSystem> remote_h5vcc_system_;
+
+  String advertising_id_;
+  String tracking_authorization_status_;
 };
 
 }  // namespace blink

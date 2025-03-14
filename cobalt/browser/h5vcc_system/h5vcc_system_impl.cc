@@ -27,6 +27,7 @@ using starboard::android::shared::StarboardBridge;
 
 #if BUILDFLAG(IS_STARBOARD)
 #include "cobalt/configuration/configuration.h"
+#include "starboard/common/system_property.h"
 #include "starboard/system.h"
 #endif
 
@@ -50,6 +51,45 @@ h5vcc_system::mojom::UserOnExitStrategy GetUserOnExitStrategyInternal() {
 }
 #endif  // BUILDFLAG(IS_STARBOARD)
 
+std::string GetAdvertisingIdShared() {
+  std::string advertising_id;
+#if BUILDFLAG(IS_STARBOARD)
+  advertising_id =
+      starboard::GetSystemPropertyString(kSbSystemPropertyAdvertisingId);
+  if (advertising_id == "") {
+    DLOG(INFO) << "Failed to get kSbSystemPropertyAdvertisingId.";
+  }
+#elif BUILDFLAG(IS_ANDROID)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+  advertising_id = starboard_bridge->GetAdvertisingId(env);
+#endif
+  return advertising_id;
+}
+
+bool GetLimitAdTrackingShared() {
+  bool limit_ad_tracking = false;
+#if BUILDFLAG(IS_STARBOARD)
+  std::string result =
+      starboard::GetSystemPropertyString(kSbSystemPropertyLimitAdTracking);
+  if (result == "") {
+    DLOG(INFO) << "Failed to get kSbSystemPropertyLimitAdTracking.";
+  } else {
+    limit_ad_tracking = std::atoi(result.c_str());
+  }
+#elif BUILDFLAG(IS_ANDROID)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+  limit_ad_tracking = starboard_bridge->GetLimitAdTracking(env);
+#endif
+  return limit_ad_tracking;
+}
+
+std::string GetTrackingAuthorizationStatusShared() {
+  // TODO - b/395650827: Connect to Starboard extension.
+  return "NOT_SUPPORTED";
+}
+
 }  // namespace
 
 // TODO (b/395126160): refactor mojom implementation on Android
@@ -66,23 +106,37 @@ void H5vccSystemImpl::Create(
 }
 
 void H5vccSystemImpl::GetAdvertisingId(GetAdvertisingIdCallback callback) {
-  std::string advertising_id;
-#if BUILDFLAG(IS_ANDROID)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
-  advertising_id = starboard_bridge->GetAdvertisingId(env);
-#endif
-  std::move(callback).Run(advertising_id);
+  std::move(callback).Run(GetAdvertisingIdShared());
+}
+
+void H5vccSystemImpl::GetAdvertisingIdSync(
+    GetAdvertisingIdSyncCallback callback) {
+  std::move(callback).Run(GetAdvertisingIdShared());
 }
 
 void H5vccSystemImpl::GetLimitAdTracking(GetLimitAdTrackingCallback callback) {
-  bool limit_ad_tracking = false;
-#if BUILDFLAG(IS_ANDROID)
-  JNIEnv* env = base::android::AttachCurrentThread();
-  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
-  limit_ad_tracking = starboard_bridge->GetLimitAdTracking(env);
-#endif
-  std::move(callback).Run(limit_ad_tracking);
+  std::move(callback).Run(GetLimitAdTrackingShared());
+}
+
+void H5vccSystemImpl::GetLimitAdTrackingSync(
+    GetLimitAdTrackingSyncCallback callback) {
+  std::move(callback).Run(GetLimitAdTrackingShared());
+}
+
+void H5vccSystemImpl::GetTrackingAuthorizationStatus(
+    GetTrackingAuthorizationStatusCallback callback) {
+  std::move(callback).Run(GetTrackingAuthorizationStatusShared());
+}
+
+void H5vccSystemImpl::GetTrackingAuthorizationStatusSync(
+    GetTrackingAuthorizationStatusSyncCallback callback) {
+  std::move(callback).Run(GetTrackingAuthorizationStatusShared());
+}
+
+void H5vccSystemImpl::RequestTrackingAuthorization(
+    RequestTrackingAuthorizationCallback callback) {
+  // TODO - b/395650827: Connect to Starboard extension.
+  std::move(callback).Run();
 }
 
 void H5vccSystemImpl::GetUserOnExitStrategy(
