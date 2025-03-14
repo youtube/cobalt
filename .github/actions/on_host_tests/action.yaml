@@ -72,14 +72,19 @@ runs:
           xml_path="${test_output}/${test_binary}_result.xml"
           log_path="${test_output}/${test_binary}_log.txt"
           # TODO: Investigate test_runner.py
-          /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
-              ./"${test_binary_path}" \
-              --test-launcher-shard-index=${{ matrix.shard }} \
-              --test-launcher-total-shards=${{ inputs.num_gtest_shards }} \
-              --gtest_output="xml:${xml_path}" \
-              --gtest_filter="${test_filter}" | tee ${log_path} || {
-            failed_suites="${failed_suites} ${test_binary}"
-          }
+
+          if [ "${test_filter}" == "-*" ]; then
+            echo "Skipped due to test filter." >  ${log_path}
+          else
+            /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
+                ./"${test_binary_path}" \
+                --test-launcher-shard-index=${{ matrix.shard }} \
+                --test-launcher-total-shards=${{ inputs.num_gtest_shards }} \
+                --gtest_output="xml:${xml_path}" \
+                --gtest_filter="${test_filter}" | tee ${log_path} || {
+              failed_suites="${failed_suites} ${test_binary}"
+            }
+          fi
         done
         echo "Finished running tests..."
         if [ -n "${failed_suites}" ]; then

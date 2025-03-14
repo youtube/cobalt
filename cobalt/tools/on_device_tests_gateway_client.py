@@ -128,6 +128,16 @@ def _process_test_requests(args):
     _, target_name = gtest_target.split(':')
     print(f'  Processing gtest_target: {gtest_target}')
 
+    gtest_filter = _get_gtest_filters(args.filter_json_dir, target_name)
+    if gtest_filter == '-*':
+      print(f'Skipping {target_name} due to test filter.')
+      continue
+    command_line_args = ' '.join([
+        f'--gtest_output=xml:{_DIR_ON_DEVICE}/{target_name}_testoutput.xml',
+        f'--gtest_filter={gtest_filter}',
+    ])
+    test_cmd_args = [f'command_line_args={command_line_args}']
+
     tests_args = [
         f'job_timeout_sec={args.job_timeout_sec}',
         f'test_timeout_sec={args.test_timeout_sec}',
@@ -144,13 +154,6 @@ def _process_test_requests(args):
       tests_args += [f'dimension_{key}={value}' for key, value in dimensions]
     else:
       raise RuntimeError('Dimensions not specified: device_type, device_pool')
-
-    gtest_filter = _get_gtest_filters(args.filter_json_dir, target_name)
-    command_line_args = ' '.join([
-        f'--gtest_output=xml:{_DIR_ON_DEVICE}/{target_name}_testoutput.xml',
-        f'--gtest_filter={gtest_filter}',
-    ])
-    test_cmd_args = [f'command_line_args={command_line_args}']
 
     files = [
         f'test_apk={args.gcs_archive_path}/{target_name}-debug.apk',
@@ -169,12 +172,12 @@ def _process_test_requests(args):
     ]
 
     test_requests.append({
-        'test_args': tests_args,
-        'test_cmd_args': test_cmd_args,
-        'files': files,
-        'params': params,
         'device_type': device_type,
         'device_pool': device_pool,
+        'test_cmd_args': test_cmd_args,
+        'test_args': tests_args,
+        'files': files,
+        'params': params,
     })
   return test_requests
 

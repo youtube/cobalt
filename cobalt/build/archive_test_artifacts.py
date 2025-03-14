@@ -34,7 +34,6 @@ _EXCLUDE_DIRS = [
 def _make_tar(archive_path: str, file_lists: List[Tuple[str, str]]):
   """Creates the tar file. Uses tar command instead of tarfile for performance.
   """
-  print(f'Creating {os.path.basename(archive_path)}')
   tar_cmd = ['tar', '-I gzip -1', '-cvf', archive_path]
   tmp_files = []
   for file_list, base_dir in file_lists:
@@ -45,8 +44,8 @@ def _make_tar(archive_path: str, file_lists: List[Tuple[str, str]]):
     tmp_files.append(tmp_file)
     tmp_file.write('\n'.join(sorted(file_list)))
     tmp_file.flush()
-    base_dir_arg = ['-C', base_dir] if base_dir else []
-    tar_cmd += [*base_dir_arg, '-T', tmp_file.name]
+    # Change the tar working directory and add the file list.
+    tar_cmd += ['-C', base_dir, '-T', tmp_file.name]
 
   print(f'Running `{" ".join(tar_cmd)}`')  # pylint: disable=inconsistent-quotes
   subprocess.check_call(tar_cmd)
@@ -84,6 +83,7 @@ def create_archive(
     else:
       deps_file = os.path.join(out_dir, f'{target_name}.runtime_deps')
 
+    print('Collecting runtime dependencies for', target)
     with open(deps_file, 'r', encoding='utf-8') as runtime_deps_file:
       # The paths in the runtime_deps files are relative to the out folder.
       # Android tests expects files to be relative to the out folder in the
@@ -109,6 +109,9 @@ def create_archive(
                                    f'{target_name}_deps.tar.gz')
         _make_tar(output_path, [(combined_deps, out_dir),
                                 (target_src_root_deps, source_dir)])
+        archive_size = f'{os.path.getsize(output_path) / 1024 / 1024:.2f} MB'
+        print(f'Created {os.path.basename(output_path)} ({archive_size})')
+
         combined_deps = set(
             [os.path.relpath(os.path.join(tar_root, 'test_targets.json'))])
 
@@ -142,7 +145,7 @@ def main():
       '--destination-dir',
       required=True,
       help='The output directory. For linux test_artifacts.tar.gz is created '
-      'with all test artifacts, else a `<target_name>_runtime_deps.tar.gz` is '
+      'with all test artifacts, else a `<target_name>_deps.tar.gz` is '
       'created for each target passed.')
   parser.add_argument(
       '-p', '--platform', required=True, help='The platform getting packaged.')
