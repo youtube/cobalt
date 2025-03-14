@@ -38,15 +38,15 @@ posix_bypass_mmap = (is_android && current_cpu != "x86") || is_fuchsia
 
 enable_built_in_dns = use_blink
 
-if(is_cobalt_hermetic_build) {
-# TODO: b/87654321 - Cobalt: Investigate if this customization can be removed
-declare_args() {
-# Unix sockets are not supported on iOS.
-enable_unix_sockets = is_posix && !is_ios
-}
+if (is_cobalt_hermetic_build) {
+  # TODO: b/355036108 - Cobalt: Investigate if this customization can be removed
+  declare_args() {
+    # Unix sockets are not supported on iOS.
+    enable_unix_sockets = is_posix && !is_ios
+  }
 } else {
-# Unix sockets are not supported on iOS.
-enable_unix_sockets = is_posix && !is_ios
+  # Unix sockets are not supported on iOS.
+  enable_unix_sockets = is_posix && !is_ios
 }
 
 # x86/x64 cast_shell builds run on regular trybots and can use python runtime
