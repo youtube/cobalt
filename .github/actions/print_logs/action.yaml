@@ -1,0 +1,65 @@
+name: Print Logs
+description: Processes test results to produce a test summary and upload results to DataDog.
+inputs:
+  logfile_glob:
+    description: "Path (or glob) to test log files."
+    required: true
+  test_status:
+    description: "Test status. If the value is not success this step will fail."
+    required: false
+    default: 'success'
+  symbolize:
+    description: "If logs should be ran through crash symbolization tools."
+    required: false
+    default: 'false'
+runs:
+  using: "composite"
+  steps:
+    - name: Set Up Cloud SDK
+      if: inputs.symbolize == 'true'
+      uses: isarkis/setup-gcloud@40dce7857b354839efac498d3632050f568090b6 # v1.1.1
+    - name: Set GCS Project Name
+      if: inputs.symbolize == 'true'
+      id: gcs-project
+      run: |
+        echo "name=$(gcloud config get-value project)" >> $GITHUB_OUTPUT
+      shell: bash
+    - name: Download Test Symbols
+      if: inputs.symbolize == 'true'
+      env:
+        WORKFLOW: ${{ github.workflow }}
+      run: |
+        gsutil -m cp "gs://${{ steps.gcs-project.outputs.name }}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/symbols/*" \
+          "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/
+      shell: bash
+    - run: |
+        set -x
+        # Enable globstar shell option for globstar paths e.g. /**/*.xml and
+        # nullopt to returns empty string if the glob matches no files.
+        shopt -s globstar nullglob
+
+        log_files=(${{ inputs.logfile_glob }})
+
+        if [ ${#log_files[@]} -eq 0 ]; then
+          echo "::error::No log files were collected."
+          exit 1
+        else
+          for log_file in ${log_files[@]}; do
+            if [ "${{ inputs.symbolize }}" == "true" ]; then
+              cd src/
+              # TODO: stack.py fails import packages. Perhaps needs depot tools setup?
+              cat ../${log_file} | python3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/${{ matrix.platform }}_${{ matrix.config }}/
+            else
+              cat ${log_file}
+            fi
+          done
+        fi
+
+        # By failing this step if tests failed the logs will be expanded by default.
+        # Note that if any steps after this one fails the logs will no longer be expanded.
+        if [ "${{ inputs.test_status }}" != "success" ]; then
+          echo "Tests failed"
+          grep -h "\[  FAILED  \]" ${{ inputs.logfile_glob }}
+          exit 1
+        fi
+      shell: bash
