@@ -36,6 +36,3 @@ RUN cd /tmp \
     && tar xf "${GCLOUD}" -C /usr/local --strip-components=1 google-cloud-sdk/bin google-cloud-sdk/lib \
     && rm "${GCLOUD}" \
     && gcloud --version
-
-# This locale satisfies SbSystemGetLocaleIdTest.
-ENV LANG en_US.UTF-8
