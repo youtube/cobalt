@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 ARG BASE_OS
 ARG BASE_OS_TAG
 FROM ${BASE_OS:-marketplace.gcr.io/google/debian11}:${BASE_OS_TAG:-latest}
