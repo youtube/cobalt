@@ -56,6 +56,3 @@ enable_unix_sockets = false
 chrome_root_store_optional = false
 chrome_root_store_only = true
 trial_comparison_cert_verifier_supported = false
-
-# Currently unsupported on 3P.
-build_epoll_based_tools = false
