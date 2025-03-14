@@ -38,7 +38,7 @@ typedef union musl_pthread_mutex_t {
 
 #define MUSL_MUTEX_ATTR_MAX_SIZE 40
 typedef union musl_pthread_mutexattr_t {
-  uint8_t mutex_buffer[MUSL_MUTEX_ATTR_MAX_SIZE];
+  uint8_t mutex_attr_buffer[MUSL_MUTEX_ATTR_MAX_SIZE];
   void* ptr;
 } musl_pthread_mutexattr_t;
 
@@ -135,6 +135,16 @@ SB_EXPORT int __abi_wrap_pthread_attr_getdetachstate(
     int* detach_state);
 SB_EXPORT int __abi_wrap_pthread_attr_setdetachstate(musl_pthread_attr_t* attr,
                                                      int detach_state);
+
+SB_EXPORT int __abi_wrap_pthread_mutexattr_init(musl_pthread_mutexattr_t* attr);
+SB_EXPORT int __abi_wrap_pthread_mutexattr_destroy(
+    musl_pthread_mutexattr_t* attr);
+SB_EXPORT int __abi_wrap_pthread_mutexattr_settype(
+    musl_pthread_mutexattr_t* attr,
+    int type);
+SB_EXPORT int __abi_wrap_pthread_mutexattr_setpshared(
+    musl_pthread_mutexattr_t* attr,
+    int pshared);
 
 #ifdef __cplusplus
 }  // extern "C"
