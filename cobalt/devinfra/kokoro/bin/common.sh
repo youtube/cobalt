@@ -230,16 +230,13 @@ upload_on_device_test_artifacts () {
 run_package_release_pipeline () {
   # NOTE: For DinD builds, we only run the GN and Ninja steps in the container.
   # Artifacts and build-products from these steps are used in subsequent steps
-  # for packaging and nightly post-build tasks, and do not need to be run in the
-  # inner container environment (which has build tools and deps).
+  # for packaging and nightly post-build tasks, and do not need to be run in
+  # the inner container environment (which has build tools and deps).
 
   if is_release_build && is_release_config; then
     local out_dir="${WORKSPACE_COBALT}/out/${TARGET_PLATFORM}_${CONFIG}"
     local package_dir="${WORKSPACE_COBALT}/package/${PLATFORM}_${CONFIG}"
     mkdir -p "${package_dir}"
-
-    # Create reference build_info.json
-    cp "${out_dir}/gen/build_info.json" "${package_dir}/"
 
     # Create release package
     export PYTHONPATH="${WORKSPACE_COBALT}"
@@ -249,6 +246,9 @@ run_package_release_pipeline () {
       package_platform="android"
     fi
 
+    # NOTE: Name is required because the Json recipe is not platform and config
+    # specific. GCS upload is also done separately because the Json recipe is
+    # not branch, date, and build number specific though this can be added.
     python3 "${WORKSPACE_COBALT}/cobalt/build/packager.py" \
       --name="${PLATFORM}_${CONFIG}" \
       --json_path="${WORKSPACE_COBALT}/cobalt/build/${package_platform}/package.json" \
@@ -260,10 +260,10 @@ run_package_release_pipeline () {
     if [[ "$(get_kokoro_env)" == "qa" ]]; then
       bucket="cobalt-internal-build-artifacts-qa"
     fi
-
     local gcs_archive_path="gs://${bucket}/${PLATFORM}_${KOKORO_GOB_BRANCH_src}/$(date +%F)/${KOKORO_ROOT_BUILD_NUMBER}/"
     init_gcloud
-    # Ensure that only package directory contents are uploaded and not the directory itself
+    # Ensure that only package directory contents are uploaded and not the
+    # directory itself.
     "${GSUTIL}" cp -r "${package_dir}/." "${gcs_archive_path}"
   fi
 }
