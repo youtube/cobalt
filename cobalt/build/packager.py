@@ -17,7 +17,7 @@
 """Packages Cobalt with a given layout.
 
 The JSON format that specifies the package layout comes from Chromium's
-https://source.chromium.org/chromium/chromium/tools/build/+/main:recipes/recipe_modules/archive/properties.proto;drc=cca630e6c409dcdcc18567b94fcdc782b337e0ab;l=270
+https://source.chromium.org/chromium/chromium/tools/build/+/main:recipes/recipe_modules/archive/properties.proto
 definition though Cobalt only implements a subset of the archive recipe.
 """
 
@@ -48,53 +48,61 @@ def remove_empty_directories(directory):
         pass
 
 
-def layout(json_path, out_dir, base_dir):
-  with open(json_path, encoding='utf-8') as j:
-    package_json = json.load(j)
-    archive_data = package_json['archive_datas'][0]
+def layout(archive_data, out_dir, base_dir):
+  files = archive_data.get('files')
+  if files:
+    for f in files:
+      copy(os.path.join(out_dir, f), os.path.join(base_dir, f))
 
-    files = archive_data.get('files')
-    if files:
-      for f in files:
-        copy(os.path.join(out_dir, f), os.path.join(base_dir, f))
+  rename_files = archive_data.get('rename_files')
+  if rename_files:
+    for f in rename_files:
+      move(
+          os.path.join(base_dir, f['from_file']),
+          os.path.join(base_dir, f['to_file']))
 
-    rename_files = archive_data.get('rename_files')
-    if rename_files:
-      for f in rename_files:
-        move(
-            os.path.join(base_dir, f['from_file']),
-            os.path.join(base_dir, f['to_file']))
+  dirs = archive_data.get('dirs')
+  if dirs:
+    for d in dirs:
+      shutil.copytree(
+          os.path.join(out_dir, d),
+          os.path.join(base_dir, d),
+          dirs_exist_ok=True)
 
-    dirs = archive_data.get('dirs')
-    if dirs:
-      for d in dirs:
-        shutil.copytree(
-            os.path.join(out_dir, d),
-            os.path.join(base_dir, d),
-            dirs_exist_ok=True)
-
-    rename_dirs = archive_data.get('rename_dirs')
-    if rename_dirs:
-      for d in rename_dirs:
-        shutil.move(
-            os.path.join(base_dir, d['from_dir']),
-            os.path.join(base_dir, d['to_dir']))
+  rename_dirs = archive_data.get('rename_dirs')
+  if rename_dirs:
+    for d in rename_dirs:
+      shutil.move(
+          os.path.join(base_dir, d['from_dir']),
+          os.path.join(base_dir, d['to_dir']))
 
   remove_empty_directories(base_dir)
+
+
+def package(name, json_path, out_dir, package_dir):
+  with open(json_path, encoding='utf-8') as j:
+    package_json = json.load(j)
+
+    for archive_data in package_json['archive_datas']:
+      with tempfile.TemporaryDirectory() as tmp_dir:
+        base_dir = os.path.join(tmp_dir, name)
+        layout(archive_data, out_dir, base_dir)
+
+        archive_type = archive_data['archive_type']
+        if archive_type == 'ARCHIVE_TYPE_ZIP':
+          shutil.make_archive(os.path.join(package_dir, name), 'zip', tmp_dir)
+        elif archive_type == 'ARCHIVE_TYPE_FILES':
+          shutil.copytree(base_dir, os.path.join(package_dir, name))
 
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument('--name', required=True, help='Name of package')
+  parser.add_argument('--json_path', required=True, help='Package Json recipe')
   parser.add_argument(
-      '--json_path', required=True, help='Json recipe of package contents')
-  parser.add_argument(
-      '--out_dir', required=True, help='Source of package contents')
+      '--out_dir', required=True, help='Source of package content')
   parser.add_argument(
       '--package_dir', required=True, help='Destination of package')
   args = parser.parse_args()
 
-  with tempfile.TemporaryDirectory() as tmp_dir:
-    layout(args.json_path, args.out_dir, os.path.join(tmp_dir, args.name))
-    shutil.make_archive(
-        os.path.join(args.package_dir, args.name), 'zip', tmp_dir)
+  package(args.name, args.json_path, args.out_dir, args.package_dir)

@@ -16,9 +16,28 @@
                 "vk_swiftshader_icd.json"
             ],
             "rename_files": [
-                {"from_file": "gen/build_info.json", "to_file": "build_info.json"},
-                {"from_file": "starboard/libstarboard.so.17", "to_file": "libstarboard.so.17"}
-            ]
+                {
+                    "from_file": "gen/build_info.json",
+                    "to_file": "build_info.json"
+                },
+                {
+                    "from_file": "starboard/libstarboard.so.17",
+                    "to_file": "libstarboard.so.17"
+                }
+            ],
+            "archive_type": "ARCHIVE_TYPE_ZIP"
+        },
+        {
+            "files": [
+                "gen/build_info.json"
+            ],
+            "rename_files": [
+                {
+                    "from_file": "gen/build_info.json",
+                    "to_file": "build_info.json"
+                }
+            ],
+            "archive_type": "ARCHIVE_TYPE_FILES"
         }
     ]
 }
