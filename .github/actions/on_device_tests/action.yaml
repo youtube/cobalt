@@ -38,7 +38,6 @@ runs:
       env:
         TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
         GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
-        GCS_RESULTS_PATH: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
         GITHUB_SHA: ${{ github.sha }}
         GITHUB_TOKEN: ${{ github.token }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
@@ -81,7 +80,7 @@ runs:
           --dimensions '${{ inputs.test_dimensions }}' \
           ${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" "$ON_DEVICE_TEST_ATTEMPTS"} \
           --gcs_archive_path "${GCS_ARTIFACTS_PATH}" \
-          --gcs_result_path "${GCS_RESULTS_PATH}" || {
+          --gcs_result_path "${{ inputs.gcs_results_path }}" || {
             echo "Finished running tests..."
             echo "The test session failed. See logs for details."
             # Fail the job so it's easy to retrigger.
@@ -91,8 +90,6 @@ runs:
       shell: bash
     - name: Download ${{ matrix.platform }} Test Results from GCS
       if: always()
-      env:
-        GCS_RESULTS_PATH: ${{ inputs.gcs_results_path }}
       run: |
         set -uxe
         test_output="${GITHUB_WORKSPACE}/results"
@@ -101,7 +98,7 @@ runs:
         # Test results (xml and logs) must be in a subfolder in results_dir
         # to be picked up by the test result processor.
         mkdir -p "${test_output}/${{ matrix.platform }}"
-        gsutil cp -r "${GCS_RESULTS_PATH}/" "${test_output}/${{ matrix.platform }}"
+        gsutil cp -r "${{ inputs.gcs_results_path }}/" "${test_output}/${{ matrix.platform }}"
       shell: bash
     - name: Archive Test Results
       uses: actions/upload-artifact@v4
