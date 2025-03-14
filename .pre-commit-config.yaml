@@ -36,7 +36,7 @@ repos:
                # The --ignore-words-list argument has a bug where it needs to
                # be lowercase, see
                # https://github.com/codespell-project/codespell/issues/1390
-               --ignore-words-list, "atleast,varius,assertIn,requestor,kNo",
+               --ignore-words-list, "atleast,varius,assertIn,requestor,kNo,FileTest",
                ]
         exclude: |
             (?x)^(

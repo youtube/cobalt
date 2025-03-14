@@ -4,6 +4,7 @@
     "android-arm"
   ],
   "test_on_device": true,
+  "test_root_target": "//cobalt/android:cobalt_apk",
   "test_dimensions": {
     "device_type": "sabrina",
     "device_pool": "maneki"
