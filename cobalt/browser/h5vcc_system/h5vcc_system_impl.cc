@@ -89,9 +89,11 @@ bool GetLimitAdTrackingShared() {
 }
 
 std::string GetTrackingAuthorizationStatusShared() {
-  // TODO - b/395650827: Connect to Starboard extension.
-  NOTIMPLEMENTED();
+#if BUILDFLAG(IS_STARBOARD)
+  return cobalt::ifa::Ifa::GetInstance()->tracking_authorization_status();
+#else
   return "NOT_SUPPORTED";
+#endif
 }
 
 }  // namespace
@@ -151,9 +153,9 @@ void H5vccSystemImpl::GetTrackingAuthorizationStatusSync(
 void H5vccSystemImpl::RequestTrackingAuthorization(
     RequestTrackingAuthorizationCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // TODO - b/395650827: Connect to Starboard extension.
-  NOTIMPLEMENTED();
-  std::move(callback).Run();
+  bool success = cobalt::ifa::Ifa::GetInstance()->RequestTrackingAuthorization(
+      /* pass promise here? */);
+  std::move(callback).Run(success);
 }
 
 void H5vccSystemImpl::GetUserOnExitStrategy(
