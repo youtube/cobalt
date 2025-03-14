@@ -55,6 +55,7 @@ import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.components.version_info.VersionInfo;
 import org.chromium.content.browser.input.ImeAdapterImpl;
 import org.chromium.content_public.browser.BrowserStartupController;
+import org.chromium.content_public.browser.ContentFeatureList;
 import org.chromium.content_public.browser.DeviceUtils;
 import org.chromium.content_public.browser.JavascriptInjector;
 import org.chromium.content_public.browser.WebContents;
@@ -399,9 +400,15 @@ public abstract class CobaltActivity extends Activity {
     super.onCreate(savedInstanceState);
     createContent(savedInstanceState);
 
-    videoSurfaceView = new VideoSurfaceView(this);
-    addContentView(
-        videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    if (ContentFeatureList.isEnabled(ContentFeatureList.USE_STARBOARD_RENDERER)) {
+      Log.d(TAG, "Enable starboard renderer.");
+      videoSurfaceView = new VideoSurfaceView(this);
+      addContentView(
+          videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    } else {
+      // TODO(b/326827007): Revisit renderer to support secondary videos.
+      Log.d(TAG, "Disable starboard renderer.");
+    }
   }
 
   /**
