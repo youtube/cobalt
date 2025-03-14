@@ -17,3 +17,9 @@ declare_args() {
   # timely fashion. Should not be used for most permanent or long-term changes.
   enable_cobalt_linux_hacks = is_cobalt && is_starboard
 }
+
+# TODO(b/403589162): Remove this block once we figure out why the build
+# complains about siso.
+declare_args() {
+  use_siso = false
+}
