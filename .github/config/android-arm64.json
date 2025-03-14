@@ -4,6 +4,7 @@
     "android-arm64"
   ],
   "test_on_device": true,
+  "test_root_target": "//cobalt/android:cobalt_apk",
   "test_dimensions": {
     "device_type": "nvidia_shield",
     "device_pool": "maneki"
