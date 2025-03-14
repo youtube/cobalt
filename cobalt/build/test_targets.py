@@ -150,8 +150,8 @@ def _get_initial_targets(
       for target in source_map.get(f'//{source_file}', []):
         target_queue.put(target)
       # Add all targets from modified BUILD.gn files.
-      if source_file.endswith('/BUILD.gn'):
-        gn_path = f'//{source_file}'[:-len('/BUILD.gn')]
+      if source_file.endswith('BUILD.gn'):
+        gn_path = f'//{source_file}'[:-len('BUILD.gn')]
         for target in source_map.get(gn_path, []):
           target_queue.put(target)
   return target_queue
