@@ -39,6 +39,7 @@ class JobThread {
   explicit JobThread(const char* thread_name,
                      int64_t stack_size = 0,
                      SbThreadPriority priority = kSbThreadPriorityNormal);
+  ~JobThread();
 
   JobQueue* job_queue() { return job_queue_.get(); }
   const JobQueue* job_queue() const { return job_queue_.get(); }
@@ -82,44 +83,13 @@ class JobThread {
 
     return job_queue_->RemoveJobByToken(job_token);
   }
+
  private:
-  ~JobThread();
   static void* ThreadEntryPoint(void* context);
   void RunLoop();
 
   pthread_t thread_;
   std::unique_ptr<JobQueue> job_queue_;
-
-  friend class ScopedJobThreadPtr;
-};
-
-// The ScopedJobThreadPtr class guarantees that the pointer to JobThread object
-// is valid during JobThread destructor. This prevents issues of accessing nullified
-// JobThread pointer, as per b/372515171
-class ScopedJobThreadPtr {
- public:
-  explicit ScopedJobThreadPtr(JobThread* p = nullptr): job_thread_(p) {
-  }
-
-  ~ScopedJobThreadPtr() {
-    delete job_thread_;
-  }
-
-  void reset(JobThread* p = nullptr) {
-    delete job_thread_;
-    job_thread_ = p;
-  }
-
-  JobThread* operator->() const {
-    return job_thread_;
-  }
-
-  explicit operator bool() const { 
-    return job_thread_ != nullptr;
-  }
-
- private:
-  JobThread* job_thread_;
 };
 
 }  // namespace player

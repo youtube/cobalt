@@ -119,7 +119,7 @@ class VideoDecoder : public starboard::player::filter::VideoDecoder,
   Mutex decode_target_mutex_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
-  starboard::player::ScopedJobThreadPtr decoder_thread_;
+  std::unique_ptr<starboard::player::JobThread> decoder_thread_;
 
   // Openh264 decode handler.
   ISVCDecoder* decoder_ = nullptr;
