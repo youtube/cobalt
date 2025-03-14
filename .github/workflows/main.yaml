@@ -265,7 +265,7 @@ jobs:
         with:
           test_targets_json: ${{ needs.build.outputs.test_targets_json }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
-          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
+          gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
 
   on-host-test:
