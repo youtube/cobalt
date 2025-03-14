@@ -38,7 +38,7 @@ posix_bypass_mmap = (is_android && current_cpu != "x86") || is_fuchsia
 
 enable_built_in_dns = use_blink
 
-if (is_cobalt_hermetic_build) {
+if (is_starboard) {
   # TODO: b/355036108 - Cobalt: Investigate if this customization can be removed
   declare_args() {
     # Unix sockets are not supported on iOS.

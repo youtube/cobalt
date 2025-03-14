@@ -28,7 +28,7 @@ import("//build/config/chromeos/ui_mode.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/protobuf/proto_library.gni")
 
-if (is_cobalt_hermetic_build) {
+if (is_starboard) {
   # TODO: b/355036108 - Cobalt: Investigate if this customization can be removed
   declare_args() {
     build_epoll_based_tools = is_linux || is_chromeos
