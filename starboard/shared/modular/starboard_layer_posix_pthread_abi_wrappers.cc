@@ -455,13 +455,31 @@ int __abi_wrap_pthread_mutexattr_destroy(musl_pthread_mutexattr_t* attr) {
 }
 
 int __abi_wrap_pthread_mutexattr_settype(musl_pthread_mutexattr_t* attr,
-                                         int type) {
+                                         int musl_type) {
+  int type;
+  switch (musl_type) {
+    case MUSL_PTHREAD_MUTEX_NORMAL:
+      type = PTHREAD_MUTEX_NORMAL;
+      break;
+    case MUSL_PTHREAD_MUTEX_RECURSIVE:
+      type = PTHREAD_MUTEX_RECURSIVE;
+      break;
+    case MUSL_PTHREAD_MUTEX_ERRORCHECK:
+      type = PTHREAD_MUTEX_ERRORCHECK;
+      break;
+    default:
+      type = PTHREAD_MUTEX_DEFAULT;
+  }
   int ret = pthread_mutexattr_settype(PTHREAD_INTERNAL_MUTEX_ATTR(attr), type);
   return errno_to_musl_errno(ret);
 }
 
 int __abi_wrap_pthread_mutexattr_setpshared(musl_pthread_mutexattr_t* attr,
-                                            int pshared) {
+                                            int musl_pshared) {
+  int pshared = PTHREAD_PROCESS_PRIVATE;
+  if (musl_pshared == MUSL_PTHREAD_PROCESS_SHARED) {
+    pshared = PTHREAD_PROCESS_SHARED;
+  }
   int ret =
       pthread_mutexattr_setpshared(PTHREAD_INTERNAL_MUTEX_ATTR(attr), pshared);
   return errno_to_musl_errno(ret);
