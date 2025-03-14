@@ -49,9 +49,10 @@ using base::TimeDelta;
 // SbPlayer based Renderer implementation, the entry point for all video
 // playbacks on Starboard platforms.
 class MEDIA_EXPORT StarboardRenderer final
-    : public Renderer,
-      private SbPlayerBridge::Host,
-      public cobalt::media::mojom::VideoGeometryChangeClient {
+    : public cobalt::media::mojom::VideoGeometryChangeClient,
+      public Renderer,
+      public VideoRendererSink::RenderCallback,
+      private SbPlayerBridge::Host {
  public:
   StarboardRenderer(
       const scoped_refptr<base::SequencedTaskRunner>& task_runner,
@@ -106,6 +107,13 @@ class MEDIA_EXPORT StarboardRenderer final
   void OnVideoGeometryChange(const gfx::RectF& rect_f,
                              gfx::OverlayTransform transform) override;
 
+  // VideoRendererSink::RenderCallback implementation.
+  scoped_refptr<VideoFrame> Render(base::TimeTicks deadline_min,
+                                   base::TimeTicks deadline_max,
+                                   RenderingMode rendering_mode) override;
+  void OnFrameDropped() override;
+  base::TimeDelta GetPreferredRenderInterval() override;
+
  private:
   enum State {
     STATE_UNINITIALIZED,
@@ -150,6 +158,7 @@ class MEDIA_EXPORT StarboardRenderer final
 
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const raw_ptr<VideoRendererSink> video_renderer_sink_;
+  bool video_renderer_sink_started_;
   const raw_ptr<MediaLog> media_log_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;

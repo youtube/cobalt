@@ -672,6 +672,7 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
   jobject j_output_surface = NULL;
   switch (output_mode_) {
     case kSbPlayerOutputModePunchOut: {
+      SB_LOG(ERROR) << "Cobalt: " << __func__ << " kSbPlayerOutputModePunchOut";
       j_output_surface = AcquireVideoSurface();
       if (j_output_surface) {
         owns_video_surface_ = true;
@@ -682,6 +683,8 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       // actually allocate any memory into the texture at this time.  That is
       // done behind the scenes, the acquired texture is not actually backed
       // by texture data until updateTexImage() is called on it.
+      SB_LOG(ERROR) << "Cobalt: " << __func__
+                    << " kSbPlayerOutputModeDecodeToTexture";
       DecodeTarget* decode_target =
           new DecodeTarget(decode_target_graphics_context_provider_);
       if (!SbDecodeTargetIsValid(decode_target)) {
