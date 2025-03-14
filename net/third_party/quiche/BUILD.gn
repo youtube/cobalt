@@ -34,7 +34,7 @@ if (is_cobalt_hermetic_build) {
     build_epoll_based_tools = is_linux || is_chromeos
   }
 } else {
-  build_epoll_based_tools = is_linux || is_chromeos
+build_epoll_based_tools = is_linux || is_chromeos
 }
 
 config("quiche_internal_config") {
