@@ -39,7 +39,7 @@ posix_bypass_mmap = (is_android && current_cpu != "x86") || is_fuchsia
 enable_built_in_dns = use_blink
 
 # Unix sockets are not supported on iOS.
-enable_unix_sockets = is_posix && !is_ios
+enable_unix_sockets = (is_posix && !is_starboard) && !is_ios
 
 # x86/x64 cast_shell builds run on regular trybots and can use python runtime
 # and remote test server. ARM cast_shell builds don't have python runtime.
