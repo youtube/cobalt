@@ -4,6 +4,9 @@ inputs:
   targets:
     description: "List of ninja targets for Cobalt build."
     required: true
+  test_root_target:
+    description: "The root target from which to deduce what tests to run."
+    required: true
   upload_on_host_test_artifacts:
     description: "Indicates if on-host test artifacts should be uploaded."
     required: true
@@ -16,27 +19,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-      - name: Get depot tools
-        run: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-        shell: bash
-      - name: Add depot tools to PATH
-        run: echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
-        shell: bash
-      - name: Generate gclient file
-        run: gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' https://github.com/${{ github.repository }}
-        shell: bash
-      - name: Set target OS for Android
-        if: ${{ contains(matrix.platform, 'android') }}
-        run: |
-          echo "target_os=['android']" >> .gclient
-          gclient validate
-        shell: bash
-      - name: gclient sync
-        run: gclient sync -v --shallow --no-history -r ${{ github.sha }}
-        shell: bash
-      - name: Disable Chromium client side build telemetry
-        run: build_telemetry opt-out
-        shell: bash
       - name: GN gen
         run: |
           cd src
@@ -47,23 +29,57 @@ runs:
           cd src
           gn args --list --short --overrides-only out/${{ matrix.platform }}_${{ matrix.config }}
         shell: bash
-      - name: Calculate Test Targets
-        # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
-        id: test-targets
-        if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
-        env:
-          TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
+      - name: Get list of changed files
+        if: github.event_name == 'pull_request'
+        id: changed-files
         run: |
-          set -ex
+          set -x
           cd src
-          echo "test_targets=$(cat ${TEST_TARGETS_JSON_FILE} | jq -c '.test_targets')" >> $GITHUB_OUTPUT
+          changed_files=($(git diff --name-only -r ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}))
+          # Convert the bash array to a JSON array.
+          changed_files_json=$(jq -nc '$ARGS.positional' --args ${changed_files[@]})
+          echo "changed_files_json=${changed_files_json}" >> $GITHUB_OUTPUT
+        shell: bash
+      - name: Calculate test targets
+        if: matrix.config == 'devel' && inputs.test_root_target != 'null'
+        id: calculate-test-targets
+        env:
+          CHANGED_FILES_JSON: ${{ steps.changed-files.outputs.changed_files_json }}
+          ROOT_TARGET: ${{ inputs.test_root_target }}
+          TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+        run: |
+          set -x
+          cd src
+          gn desc out/${{ matrix.platform }}_${{ matrix.config }}/ "*" --format=json > gn_desc.json
+          # Trim any warning gn printed before the json (all lines above the first curly brace).
+          sed -n '/^{/,$p' -i gn_desc.json
+
+          changed_files_arg=""
+          if [[ -n "${CHANGED_FILES_JSON}" ]]; then
+            changed_files_arg="--sources $(echo ${CHANGED_FILES_JSON} | jq -cr '. | join(",")')"
+          fi
+
+          vpython3 cobalt/build/test_targets.py \
+              --root-target "${ROOT_TARGET}" \
+              ${changed_files_arg} \
+              --gn-json gn_desc.json \
+              --json-output > "${TEST_TARGETS_JSON_FILE}"
+
+          echo "test_targets_json_file=${TEST_TARGETS_JSON_FILE}" >> $GITHUB_OUTPUT
+
+          test_targets_json=$(cat ${TEST_TARGETS_JSON_FILE} | jq -cr '.test_targets')
+          echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
+
+          test_targets_count=$(echo ${test_targets_json} | jq -cr 'length')
+          echo "test_targets_count=${test_targets_count}" >> $GITHUB_OUTPUT
         shell: bash
       - name: Ninja build test targets
-        if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
+        if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
+        id: build-test-targets
         run: |
           set -ex
           cd src
-          TEST_TARGETS=$(jq -cr '. | join(" ")' <<< '${{ steps.test-targets.outputs.test_targets }}')
+          TEST_TARGETS=$(cat ${{ steps.calculate-test-targets.outputs.test_targets_json_file }} | jq -cr '.test_targets | join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TEST_TARGETS}
         shell: bash
       - name: Ninja build
@@ -84,15 +100,20 @@ runs:
             src/out/${{ matrix.platform }}_qa/*_apk/*.apk
             src/out/${{ matrix.platform }}_qa/gen/build_info.json
       - name: Upload Test Artifacts
-        if: inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_on_device_test_artifacts == 'true'
+        if: steps.build-test-targets.outcome == 'success'
         uses: ./src/.github/actions/upload_test_artifacts
         with:
           test_artifacts_key: ${{ inputs.test_artifacts_key }}
           upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts }}
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
-          # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
-          test_targets_json_file: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
+          test_targets_json_file: '${{ steps.calculate-test-targets.outputs.test_targets_json_file }}'
 outputs:
-  test_targets:
-    description: The test targets that were built
-    value: ${{ steps.test-targets.outputs.test_targets }}
+  test_targets_count:
+    description: The number of test targets build.
+    value: ${{ steps.calculate-test-targets.outputs.test_targets_count || 0 }}
+  test_targets_json:
+    description: The test targets in a JSON array.
+    value: ${{ steps.calculate-test-targets.outputs.test_targets_json }}
+  test_targets_json_file:
+    description: The generated test targets json file path.
+    value: ${{ steps.calculate-test-targets.outputs.test_targets_json_file }}

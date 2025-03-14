@@ -1,0 +1,26 @@
+name: Set Up Depot Tools
+description: Sets up Depot Tools and initializes gclient.
+runs:
+  using: "composite"
+  steps:
+      - name: Get depot tools
+        run: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+        shell: bash
+      - name: Add depot tools to PATH
+        run: echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
+        shell: bash
+      - name: Generate gclient file
+        run: gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' https://github.com/${{ github.repository }}
+        shell: bash
+      - name: Set target OS for Android
+        if: ${{ contains(matrix.platform, 'android') }}
+        run: |
+          echo "target_os=['android']" >> .gclient
+          gclient validate
+        shell: bash
+      - name: gclient sync
+        run: gclient sync -v --shallow --no-history -r ${{ github.sha }}
+        shell: bash
+      - name: Disable Chromium client side build telemetry
+        run: build_telemetry opt-out
+        shell: bash

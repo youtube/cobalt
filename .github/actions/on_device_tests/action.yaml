@@ -1,7 +1,7 @@
 name: On Device Test
 description: Runs on-device tests.
 inputs:
-  test_targets:
+  test_targets_json:
     description: "The test targets in a JSON array."
     required: true
   gcs_results_path:
@@ -36,7 +36,7 @@ runs:
       shell: bash
     - name: Run Tests on ${{ matrix.platform }} Platform
       env:
-        TEST_TARGETS_JSON: ${{ inputs.test_targets }}
+        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
         GCS_ARTIFACTS_PATH: /bigstore/${{ env.PROJECT_NAME }}-test-artifacts/${{ github.workflow }}/${{ github.run_number }}/${{ matrix.platform }}
         GCS_RESULTS_PATH: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
         GITHUB_SHA: ${{ github.sha }}

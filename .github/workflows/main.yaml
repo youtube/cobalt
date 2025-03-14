@@ -54,41 +54,55 @@ jobs:
       - id: set-platforms
         shell: bash
         run: |
+          set -x
           platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
           echo "platforms=${platforms}" >> $GITHUB_OUTPUT
       - id: set-targets
         shell: bash
         run: |
+          set -x
           targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.targets  | join(" ")')
           echo "targets=${targets}" >> $GITHUB_OUTPUT
       - id: set-includes
         shell: bash
         run: |
+          set -x
           includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
           echo "includes=${includes}" >> $GITHUB_OUTPUT
+      - id: set-docker-service
+        shell: bash
+        run: |
+          set -x
+          docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')
+          echo "docker_service=${docker_service}" >> $GITHUB_OUTPUT
       - id: set-test-on-host
         shell: bash
         run: |
+          set -x
           test_on_host=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_host')
           echo "test_on_host=${test_on_host}" >> $GITHUB_OUTPUT
       - id: set-test-on-device
         shell: bash
         run: |
+          set -x
           test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
           echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
+      - id: set-test-root-target
+        shell: bash
+        run: |
+          set -x
+          test_root_target=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_root_target')
+          echo "test_root_target=${test_root_target}" >> $GITHUB_OUTPUT
       - id: set-test-dimensions
         shell: bash
         run: |
+          set -x
           test_dimensions=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_dimensions')
           echo "test_dimensions=${test_dimensions}" >> $GITHUB_OUTPUT
-      - id: set-docker-service
-        shell: bash
-        run: |
-          docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')
-          echo "docker_service=${docker_service}" >> $GITHUB_OUTPUT
       - id: set-gtest-shards
         shell: bash
         run: |
+          set -x
           # Retrieve number of shards from config. If not specified, default to 1 shard with `echo 1`.
           num_gtest_shards=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.num_gtest_shards' || echo 1)
           echo "num_gtest_shards=${num_gtest_shards}" >> $GITHUB_OUTPUT
@@ -101,11 +115,12 @@ jobs:
       targets: ${{ steps.set-targets.outputs.targets }}
       includes: ${{ steps.set-includes.outputs.includes }}
       docker_service: ${{ steps.set-docker-service.outputs.docker_service }}
-      num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
       gtest_shards: ${{ steps.set-gtest-shards.outputs.gtest_shards }}
       test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
       test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
+      test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
+      num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
   docker-build-image:
@@ -197,6 +212,8 @@ jobs:
           path: src
           # Use fetch depth of 0 to get full history for a valid build id.
           fetch-depth: 0
+      - name: Set Up Depot Tools
+        uses: ./src/.github/actions/depot_tools
       - name: Build Cobalt
         id: build
         uses: ./src/.github/actions/build
@@ -205,16 +222,19 @@ jobs:
         with:
           targets: ${{ needs.initialize.outputs.targets }}
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-          upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host }}
-          upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device }}
+          test_root_target: ${{ needs.initialize.outputs.test_root_target }}
+          upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host == 'true' }}
+          upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
     outputs:
-      test_targets: ${{ steps.build.outputs.test_targets }}
+      test_targets_count: ${{ steps.build.outputs.test_targets_count }}
+      test_targets_json: ${{ steps.build.outputs.test_targets_json }}
+      test_targets_json_file: ${{ steps.build.outputs.test_targets_json_file }}
 
   on-device-test:
     needs: [initialize, build]
     # Run ODT when on_device label is applied on PR.
     # Also, run ODT on push and schedule if not explicitly disabled via repo vars.
-    if: needs.initialize.outputs.test_on_device == 'true' &&
+    if: needs.initialize.outputs.test_on_device == 'true' && fromJson(needs.build.outputs.test_targets_count) > 0 &&
         (
           (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'on_device')) ||
           ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
@@ -231,6 +251,7 @@ jobs:
         config: [devel]
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+      TEST_TARGETS_JSON_FILE: ${{ needs.build.outputs.test_targets_json_file }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -242,14 +263,14 @@ jobs:
         id: on-device-tests
         uses: ./.github/actions/on_device_tests
         with:
-          test_targets: ${{ needs.build.outputs.test_targets }}
+          test_targets_json: ${{ needs.build.outputs.test_targets_json }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
-    if: always() && needs.initialize.outputs.test_on_host == 'true'
+    if: needs.initialize.outputs.test_on_host == 'true' && fromJson(needs.build.outputs.test_targets_count) > 0
     permissions: {}
     # TODO(b/372303096): Should have dedicated runner?
     runs-on: [self-hosted, chrobalt-linux-runner]
@@ -272,6 +293,7 @@ jobs:
         with:
           path: src
       - name: Run On-Host Tests
+        if: ${{ fromJson(needs.build.outputs.test_targets_count) > 0 }}
         id: on-host-tests
         uses: ./src/.github/actions/on_host_tests
         with:
@@ -281,11 +303,8 @@ jobs:
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
-    if: always() &&
-        (
-          needs.on-device-test.result != 'skipped' ||
-          needs.on-host-test.result != 'skipped'
-        )
+    # The only case both test jobs have the same result is if they were both skipped.
+    if: always() && needs.on-device-test.result != needs.on-host-test.result && fromJson(needs.build.outputs.test_targets_count) > 0
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_target }}
@@ -297,56 +316,71 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-        test_target: ${{ fromJson(needs.build.outputs.test_targets) }}
+        test_target: ${{ fromJson(needs.build.outputs.test_targets_json) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           path: src
-      - name: Download Test Results
-        uses: actions/download-artifact@v4
-        with:
-          pattern: ${{ env.TEST_RESULTS_KEY }}*
-          path: results/
       - name: Extract Test Target Name
         id: extract-target-name
         env:
           test_target_with_path: ${{ matrix.test_target }}
         run: echo "test_target=${test_target_with_path#*:}" >> $GITHUB_OUTPUT
+        shell: bash
+      - name: Check if ${{ matrix.test_target }} is skipped in test filters
+        id: filter
+        run: |
+          set -x
+          # Get first entry in test filters file.
+          test_filter=""
+          test_target="${{ steps.extract-target-name.outputs.test_target }}"
+          test_filter_json_dir="${GITHUB_WORKSPACE}/src/cobalt/testing/filters/${{ matrix.platform }}/${test_target}_filter.json"
+          if [ -f ${test_filter_json_dir} ]; then
+            test_filter="$(jq -cr '.failing_tests[0]' ${test_filter_json_dir})"
+            if [ "${test_filter}" = '*' ]; then
+              echo "${test_target} was skipped due to test filter."
+              echo "skipped=true" >> $GITHUB_OUTPUT
+            else
+              echo "skipped=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+        shell: bash
+      - name: Download Test Results
+        if: steps.filter.outputs.skipped != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ env.TEST_RESULTS_KEY }}*
+          path: results/
       - name: Process Test Results
+        if: steps.filter.outputs.skipped != 'true'
         id: process-results
         uses: ./src/.github/actions/process_test_results
         with:
           target_name: ${{ matrix.test_target }}
           results_path: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           datadog_api_key: ${{ secrets.datadog_api_key }}
-      - name: Print ${{ matrix.test_target }} Logs
-        if: always()
-        run: |
-          set -x
-          # Enable globstar shell option for globstar paths e.g. /**/*.xml and
-          # nullopt to returns empty string if the glob matches no files.
-          shopt -s globstar nullglob
-
-          log_files=(results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt)
-          if [ ${#log_files[@]} -eq 0 ]; then
-            echo "::error::No test logs found. Check device lab logs to see what went wrong."
-            exit 1
-          fi
-
-          for log_file in ${log_files[@]}; do
-            cat ${log_file}
-          done
-
-          if [ "${{ steps.process-results.outcome }}" != "success" ]; then
-            echo "Tests failed"
-            exit 1
-          fi
-        shell: bash
+      - name: ${{ matrix.test_target }} Device Logs
+        if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true'
+        uses: ./src/.github/actions/print_logs
+        with:
+          logfile_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
+          # TODO: Enable symbolization when it works.
+          # symbolize: true
+          symbolize: 'false'
+      - name: ${{ matrix.test_target }} Test Logs
+        if: always() && steps.filter.outputs.skipped != 'true'
+        uses: ./src/.github/actions/print_logs
+        with:
+          logfile_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+          test_status: ${{ steps.process-results.outcome }}
+          # TODO: Enable symbolization when it works.
+          # symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
+          symbolize: 'false'
 
   validate-test-result:
-    needs: [initialize, test-results]
-    if: always() && needs.test-results.result != 'skipped'
+    needs: [initialize, build, test-results]
+    if: always()
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.name }}_tests_passing
@@ -357,7 +391,7 @@ jobs:
         config: [devel]
     steps:
       - name: Fail
-        if: needs.test-results.result == 'failure'
+        if: needs.test-results.result == 'failure' && fromJson(needs.build.outputs.test_targets_count) > 0
         run: |
             # TODO: Print a summary of failed tests here.
             echo "Test jobs failed. See separate job log for details."
