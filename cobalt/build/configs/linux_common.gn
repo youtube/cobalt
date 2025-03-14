@@ -1,0 +1,63 @@
+# Common configuration options for linux platforms. Values here should not
+# reference args set elsewhere (e.g. do not use `x = !is_cobalt`).
+import("//cobalt/build/configs/chromium_linux-x64x11/args.gn")
+import("//cobalt/build/configs/common.gn")
+
+use_ozone = true
+
+# Vulkan is a new rendering (and presentation, and more) API intended to replace
+# E/GL(ES). Partners are only required to support upto GLES 2.0 : https://developers.google.com/youtube/cobalt/docs/reference/starboard/modules/16/gles#gles_version
+# Disable Vulkan until we formally decide to support it.
+enable_vulkan = false
+
+# Overriding flag from //media/media_options.gni.
+# Cobalt doesn't use //third_party/ffmpeg.
+media_use_ffmpeg = false
+
+# Overriding flag from components/nacl/features.gni
+# NACL platform is deprecated in 2022 : https://sites.google.com/a/google.com/sandboxing-mitigations/reviews/nacl
+enable_nacl = false
+
+# Overriding the flag from //ui/gl/features.gni
+use_static_angle = true
+
+# Disable udev
+use_udev = false
+
+# Disable glib
+use_glib = false
+
+# Disable the Qt backend
+use_qt = false
+
+# Disable xcbcommon
+use_xkbcommon = false
+
+# Disable PipeWire in WebRTC
+rtc_use_pipewire = false
+
+# Disable Chrome Remote Desktop
+enable_remoting = false
+
+# Disable Wayland Ozone Backend
+ozone_platform_wayland = false
+
+# Some default disabled flags to remove unused features.
+# Additionally helps with running on Forge.
+enable_print_preview = false
+use_cups = false
+use_kerberos = false
+
+# We know we can trust clients to use https.
+include_transport_security_state_preload_list = false
+
+# Unused outside of chrome/chromecast.
+enable_unix_sockets = false
+
+# Force the chrome root store for linux/3P platforms.
+chrome_root_store_optional = false
+chrome_root_store_only = true
+trial_comparison_cert_verifier_supported = false
+
+# Currently unsupported on 3P.
+build_epoll_based_tools = false

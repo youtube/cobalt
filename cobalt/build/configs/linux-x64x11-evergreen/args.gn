@@ -1,4 +1,4 @@
-import("//cobalt/build/configs/linux-x64x11/args.gn")
+import("//cobalt/build/configs/linux_common.gn")
 
 use_custom_libc = true
 
