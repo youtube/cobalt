@@ -61,6 +61,8 @@
 
 #include <openssl/base.h>
 
+#include <pthread.h>
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
