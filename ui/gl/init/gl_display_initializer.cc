@@ -111,6 +111,9 @@ void GetEGLInitDisplays(bool supports_angle_d3d,
 #else
       AddInitDisplay(init_displays, ANGLE_OPENGL);
       AddInitDisplay(init_displays, ANGLE_OPENGLES);
+#if BUILDFLAG(IS_STARBOARD)
+      AddInitDisplay(init_displays, ANGLE_OPENGLES_EGL);
+#endif
 #endif  // BUILDFLAG(IS_ANDROID)
     } else {
       if (requested_renderer == kANGLEImplementationOpenGLName) {
