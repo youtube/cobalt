@@ -55,3 +55,12 @@ include_transport_security_state_preload_list = false
 chrome_root_store_optional = false
 chrome_root_store_only = true
 trial_comparison_cert_verifier_supported = false
+
+# Disable linux audio APIs
+use_pulseaudio = false
+use_alsa = false
+
+# Disable gtk related modules
+use_gtk = false
+use_gio = false
+use_pangocairo = false
