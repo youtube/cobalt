@@ -18,6 +18,7 @@
 #include "base/functional/callback.h"
 #include "base/notreached.h"
 #include "build/build_config.h"
+#include "cobalt/ifa/ifa.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -153,9 +154,14 @@ void H5vccSystemImpl::GetTrackingAuthorizationStatusSync(
 void H5vccSystemImpl::RequestTrackingAuthorization(
     RequestTrackingAuthorizationCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  bool success = cobalt::ifa::Ifa::GetInstance()->RequestTrackingAuthorization(
-      /* pass promise here? */);
-  std::move(callback).Run(success);
+  bool can_request_tracking_authorization =
+      cobalt::ifa::Ifa::GetInstance()->CanRequestTrackingAuthorization();
+  if (can_request_tracking_authorization) {
+    cobalt::ifa::Ifa::GetInstance()->RequestTrackingAuthorization(
+        std::move(callback));
+  } else {
+    std::move(callback).Run(false);
+  }
 }
 
 void H5vccSystemImpl::GetUserOnExitStrategy(
