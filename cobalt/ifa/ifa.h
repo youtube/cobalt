@@ -15,6 +15,7 @@
 #ifndef COBALT_IFA_IFA_H_
 #define COBALT_IFA_IFA_H_
 
+#include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
 #include "starboard/extension/ifa.h"
 
@@ -26,13 +27,15 @@ struct DefaultSingletonTraits;
 namespace cobalt {
 namespace ifa {
 
-#error TODO write class comment
+// #error TODO write class comment
 class Ifa {
  public:
+  ~Ifa();
   static Ifa* GetInstance();
 
   std::string tracking_authorization_status() const;
-  bool RequestTrackingAuthorization(/*pass promise here?*/);
+  bool CanRequestTrackingAuthorization() const;
+  void RequestTrackingAuthorization(base::OnceCallback<void(bool)>);
 
  private:
   Ifa();
@@ -44,9 +47,9 @@ class Ifa {
   friend struct base::DefaultSingletonTraits<Ifa>;
   raw_ptr<const StarboardExtensionIfaApi> configuration_api_;
 
-  std::vector<std::unique_ptr<script::ValuePromiseVoid::Reference>>
-      request_tracking_authorization_promises_;  // track void promises with
-                                                 // this
+  const StarboardExtensionIfaApi* ifa_extension_;
+  std::vector<base::OnceCallback<void(bool)>>
+      request_tracking_authorization_callbacks_;
 };
 
 }  // namespace ifa

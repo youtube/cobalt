@@ -74,25 +74,26 @@ std::string Ifa::tracking_authorization_status() const {
   return result;
 }
 
-bool Ifa::RequestTrackingAuthorization(/* pass promise here? */) {
-  if (!ifa_extension_ || ifa_extension_->version < 2) {
-    return false;
-  }
+bool Ifa::CanRequestTrackingAuthorization() const {
+  return ifa_extension_ && ifa_extension_->version >= 2;
+}
 
-  request_tracking_authorization_promises_.emplace_back(
-      std::move(promise_reference));
+void Ifa::RequestTrackingAuthorization(
+    base::OnceCallback<void(bool)> callback) {
+  DCHECK(CanRequestTrackingAuthorization());
+
+  request_tracking_authorization_callbacks_.emplace_back(std::move(callback));
   ifa_extension_->RequestTrackingAuthorization();
-  return true;
 }
 
 void Ifa::ReceiveTrackingAuthorizationComplete() {
   // TODO: make sure this is running in the right thread (ref c25)
 
   // Mark all promises complete and release the references.
-  for (auto& promise : request_tracking_authorization_promises_) {
-    promise->value().Resolve();
+  for (auto& callback : request_tracking_authorization_callbacks_) {
+    std::move(callback).Run(true);
   }
-  request_tracking_authorization_promises_.clear();
+  request_tracking_authorization_callbacks_.clear();
 }
 
 }  // namespace ifa
