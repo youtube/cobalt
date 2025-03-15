@@ -41,7 +41,15 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
   H5vccSystemImpl& operator=(const H5vccSystemImpl&) = delete;
 
   void GetAdvertisingId(GetAdvertisingIdCallback) override;
+  void GetAdvertisingIdSync(GetAdvertisingIdSyncCallback) override;
   void GetLimitAdTracking(GetLimitAdTrackingCallback) override;
+  void GetLimitAdTrackingSync(GetLimitAdTrackingSyncCallback) override;
+  void GetTrackingAuthorizationStatus(
+      GetTrackingAuthorizationStatusCallback) override;
+  void GetTrackingAuthorizationStatusSync(
+      GetTrackingAuthorizationStatusSyncCallback) override;
+  void RequestTrackingAuthorization(
+      RequestTrackingAuthorizationCallback) override;
   void GetUserOnExitStrategy(GetUserOnExitStrategyCallback) override;
   void Exit() override;
 
