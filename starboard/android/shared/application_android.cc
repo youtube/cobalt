@@ -46,14 +46,26 @@ namespace starboard {
 namespace android {
 namespace shared {
 
+namespace {
+// Only needed for Cobalt's TTS.
+constexpr int kLooperIdKeyboardInject = 0;
+}  // namespace
+
+// "using" doesn't work with class members, so make a local convenience type.
+typedef ::starboard::shared::starboard::Application::Event Event;
+
 // TODO(cobalt, b/378708359): Remove this dummy init.
 void stubSbEventHandle(const SbEvent* event) {
   SB_LOG(ERROR) << "Starboard event DISCARDED:" << event->type;
 }
 
 ApplicationAndroid::ApplicationAndroid(
+    ALooper* looper,
     std::unique_ptr<CommandLine> command_line)
-    : QueueApplication(stubSbEventHandle) {
+    : QueueApplication(stubSbEventHandle),
+      looper_(looper),
+      keyboard_inject_readfd_(-1),
+      keyboard_inject_writefd_(-1) {
   SetCommandLine(std::move(command_line));
   // Initialize Time Zone early so that local time works correctly.
   // Called once here to help SbTimeZoneGet*Name()
@@ -62,6 +74,15 @@ ApplicationAndroid::ApplicationAndroid(
   // Initialize Android asset access early so that ICU can load its tables
   // from the assets. The use ICU is used in our logging.
   SbFileAndroidInitialize();
+
+  int pipefd[2];
+  int err;
+  err = pipe(pipefd);
+  SB_CHECK(err >= 0) << "pipe errno is:" << errno;
+  keyboard_inject_readfd_ = pipefd[0];
+  keyboard_inject_writefd_ = pipefd[1];
+  ALooper_addFd(looper_, keyboard_inject_readfd_, kLooperIdKeyboardInject,
+                ALOOPER_EVENT_INPUT, NULL, NULL);
 
   JniEnvExt* env = JniEnvExt::Get();
   jobject local_ref = env->CallStarboardObjectMethodOrAbort(
@@ -80,6 +101,10 @@ ApplicationAndroid::~ApplicationAndroid() {
   JNIEnv* env = base::android::AttachCurrentThread();
   starboard_bridge_->ApplicationStopping(env);
 
+  ALooper_removeFd(looper_, keyboard_inject_readfd_);
+  close(keyboard_inject_readfd_);
+  close(keyboard_inject_writefd_);
+
   // The application is exiting.
   // Release the global reference.
   if (resource_overlay_) {
@@ -89,6 +114,70 @@ ApplicationAndroid::~ApplicationAndroid() {
   }
   // Detaches JNI, no more JNI calls after this.
   JniEnvExt::OnThreadShutdown();
+}
+
+Event* ApplicationAndroid::WaitForSystemEventWithTimeout(int64_t time) {
+  // Limit the polling time in case some non-system event is injected.
+  const int kMaxPollingTimeMillisecond = 1000;
+
+  // Convert from microseconds to milliseconds, taking the ceiling value.
+  // If we take the floor, or round, then we end up busy looping every time
+  // the next event time is less than one millisecond.
+  int timeout_millis =
+      (time < std::min(std::numeric_limits<int64_t>::max() - 1000,
+                       1000 * static_cast<int64_t>(INT_MAX - 1)))
+          ? (time + 1000 - 1) / 1000
+          : INT_MAX;
+  int looper_events;
+  int ident = ALooper_pollOnce(
+      std::min(std::max(timeout_millis, 0), kMaxPollingTimeMillisecond), NULL,
+      &looper_events, NULL);
+
+  // Ignore new system events while processing one.
+  handle_system_events_.store(false);
+
+  switch (ident) {
+    case kLooperIdKeyboardInject:
+      ProcessKeyboardInject();
+      break;
+  }
+
+  handle_system_events_.store(true);
+
+  // Always return NULL since we already dispatched our own system events.
+  return NULL;
+}
+
+void ApplicationAndroid::WakeSystemEventWait() {
+  ALooper_wake(looper_);
+}
+
+void ApplicationAndroid::ProcessKeyboardInject() {
+  SbKey key;
+  int err = read(keyboard_inject_readfd_, &key, sizeof(key));
+  SB_DCHECK(err >= 0) << "Keyboard inject read failed: errno=" << errno;
+  SB_LOG(INFO) << "Keyboard inject: " << key;
+  ScopedLock lock(input_mutex_);
+  if (!input_events_generator_) {
+    SB_DLOG(WARNING) << "Injected input event ignored without an SbWindow.";
+    return;
+  }
+  InputEventsGenerator::Events app_events;
+  input_events_generator_->CreateInputEventsFromSbKey(key, &app_events);
+  for (int i = 0; i < app_events.size(); ++i) {
+    Inject(app_events[i].release());
+  }
+}
+
+void ApplicationAndroid::SendKeyboardInject(SbKey key) {
+  write(keyboard_inject_writefd_, &key, sizeof(key));
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_dev_cobalt_coat_CobaltA11yHelper_nativeInjectKeyEvent(JNIEnv* env,
+                                                           jobject unused_clazz,
+                                                           jint key) {
+  ApplicationAndroid::Get()->SendKeyboardInject(static_cast<SbKey>(key));
 }
 
 extern "C" SB_EXPORT_PLATFORM jboolean

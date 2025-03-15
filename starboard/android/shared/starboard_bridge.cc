@@ -92,9 +92,10 @@ JNI_StarboardBridge_StartNativeStarboard(JNIEnv* env) {
 #if SB_IS(EVERGREEN_COMPATIBLE)
   StarboardThreadLaunch();
 #else
+  ALooper* looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
   auto command_line = std::make_unique<CommandLine>(GetArgs());
   LogInit(*command_line);
-  auto* native_app = new ApplicationAndroid(std::move(command_line));
+  auto* native_app = new ApplicationAndroid(looper, std::move(command_line));
   // Ensure application init happens here
   ApplicationAndroid::Get();
   return reinterpret_cast<jlong>(native_app);
