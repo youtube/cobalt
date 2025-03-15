@@ -48,6 +48,9 @@
 #include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+
 namespace cc {
 class PaintCanvas;
 class PaintFlags;
@@ -234,6 +237,9 @@ class WebMediaPlayer {
 
   virtual unsigned DecodedFrameCount() const = 0;
   virtual unsigned DroppedFrameCount() const = 0;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual int64_t EarlyUs() const { return 0; }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   virtual unsigned CorruptedFrameCount() const { return 0; }
   virtual uint64_t AudioDecodedByteCount() const = 0;
   virtual uint64_t VideoDecodedByteCount() const = 0;

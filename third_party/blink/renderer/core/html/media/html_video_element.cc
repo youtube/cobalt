@@ -498,6 +498,16 @@ unsigned HTMLVideoElement::webkitDroppedFrameCount() const {
   return GetWebMediaPlayer()->DroppedFrameCount();
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+int64_t HTMLVideoElement::earlyUs() const {
+  if (!GetWebMediaPlayer()) {
+    return 0;
+  }
+
+  return GetWebMediaPlayer()->EarlyUs();
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 KURL HTMLVideoElement::PosterImageURL() const {
   String url = StripLeadingAndTrailingHTMLSpaces(ImageSourceURL());
   if (url.empty())

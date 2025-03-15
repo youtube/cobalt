@@ -1489,6 +1489,13 @@ unsigned WebMediaPlayerImpl::DroppedFrameCount() const {
   return GetPipelineStatistics().video_frames_dropped;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+int64_t WebMediaPlayerImpl::EarlyUs() const {
+  DCHECK(main_task_runner_->BelongsToCurrentThread());
+  return GetPipelineStatistics().video_frame_early_average.InMicroseconds();
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 uint64_t WebMediaPlayerImpl::AudioDecodedByteCount() const {
   DCHECK(main_task_runner_->BelongsToCurrentThread());
   return GetPipelineStatistics().audio_bytes_decoded;
