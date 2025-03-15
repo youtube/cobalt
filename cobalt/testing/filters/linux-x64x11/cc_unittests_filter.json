@@ -1,0 +1,24 @@
+{
+    "failing_tests": [
+        "All/LayerTreeHostFiltersPixelTest.BackdropFilterBlurRadius/SkiaGL",
+        "All/LayerTreeHostFiltersPixelTest.BackdropFilterBlurRect/SkiaGL",
+        "All/LayerTreeHostFiltersPixelTest.BackdropFilterBlurRounded/SkiaGL",
+        "All/LayerTreeHostFiltersPixelTest.BackdropFilterRotated/SkiaGL",
+        "All/LayerTreeHostFiltersPixelTest.BlurFilterWithClip/SkiaGL",
+        "All/LayerTreeHostFiltersPixelTest.ImageFilterScaled/SkiaGL",
+        "All/LayerTreeHostFiltersPixelTest.ImageRenderSurfaceScaled/SkiaGL",
+        "All/LayerTreeHostFiltersPixelTest.RotatedDropShadowFilter/SkiaGL",
+        "All/LayerTreeHostFiltersPixelTest.RotatedFilter/SkiaGL",
+        "All/LayerTreeHostFiltersPixelTest.TranslatedFilter/SkiaGL",
+        "All/LayerTreeHostFiltersPixelTest.ZoomFilter/SkiaGL",
+        "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy_0",
+        "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy_1",
+        "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy_2",
+        "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy_3",
+        "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircleUnderflow/SkiaGL_ZeroCopy_0",
+        "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircleUnderflow/SkiaGL_ZeroCopy_1",
+        "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircleUnderflow/SkiaGL_ZeroCopy_2",
+        "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircleUnderflow/SkiaGL_ZeroCopy_3",
+        "All/LayerTreeHostScrollbarsPixelTest.HugeTransformScale/SkiaGL"
+    ]
+  }
