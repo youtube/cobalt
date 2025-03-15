@@ -27,8 +27,18 @@ enum UserOnExitStrategy {
 interface H5vccSystem : EventTarget {
   [CallWith=ScriptState, RaisesException]
   Promise<DOMString> getAdvertisingId();
+  readonly attribute DOMString advertisingId;
+
   [CallWith=ScriptState, RaisesException]
   Promise<boolean> getLimitAdTracking();
+  readonly attribute boolean limitAdTracking;
+
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> getTrackingAuthorizationStatus();
+  readonly attribute DOMString trackingAuthorizationStatus;
+
+  [CallWith=ScriptState, RaisesException]
+  Promise<void> requestTrackingAuthorization();
 
   // Platform-specific exit is performed based on |userOnExitStrategy|:
   //   - "close" stops the application.
