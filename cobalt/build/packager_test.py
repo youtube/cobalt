@@ -16,7 +16,6 @@
 #
 """Tests the packager module."""
 
-import json
 import os
 import tempfile
 import unittest
@@ -24,30 +23,23 @@ import unittest
 from cobalt.build import packager
 
 
+# pylint: disable=consider-using-with
 class TestLayout(unittest.TestCase):
   """Tests packager.layout."""
 
   def setUp(self):
-    self.json_dir = tempfile.TemporaryDirectory()
-    j = {
-        'archive_datas': [{
-            'files': ['a.txt', 'b.txt'],
-            'rename_files': [{
-                'from_file': 'b.txt',
-                'to_file': 'c.txt'
-            }],
-            'dirs': ['dir_a', 'dir_b'],
-            'rename_dirs': [{
-                'from_dir': 'dir_b',
-                'to_dir': 'dir_c'
-            }]
+    self.archive_data = {
+        'files': ['a.txt', 'b.txt'],
+        'rename_files': [{
+            'from_file': 'b.txt',
+            'to_file': 'c.txt'
+        }],
+        'dirs': ['dir_a', 'dir_b'],
+        'rename_dirs': [{
+            'from_dir': 'dir_b',
+            'to_dir': 'dir_c'
         }]
     }
-    with open(
-        os.path.join(self.json_dir.name, 'package.json'), 'w',
-        encoding='utf-8') as f:
-      json.dump(j, f)
-    self.json_path = os.path.join(self.json_dir.name, 'package.json')
 
     self.out_dir = tempfile.TemporaryDirectory()
     with open(
@@ -72,12 +64,11 @@ class TestLayout(unittest.TestCase):
     self.base_dir = tempfile.TemporaryDirectory()
 
   def tearDown(self):
-    self.json_dir.cleanup()
     self.out_dir.cleanup()
     self.base_dir.cleanup()
 
   def test_layout(self):
-    packager.layout(self.json_path, self.out_dir.name, self.base_dir.name)
+    packager.layout(self.archive_data, self.out_dir.name, self.base_dir.name)
     self.assertTrue(os.path.isfile(os.path.join(self.base_dir.name, 'a.txt')))
     self.assertTrue(os.path.isfile(os.path.join(self.base_dir.name, 'c.txt')))
     self.assertTrue(
