@@ -17,6 +17,8 @@
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/scoped_refptr.h"
+#include "base/task/sequenced_task_runner.h"
 #include "starboard/extension/ifa.h"
 
 namespace base {
@@ -47,6 +49,7 @@ class Ifa {
   friend struct base::DefaultSingletonTraits<Ifa>;
   raw_ptr<const StarboardExtensionIfaApi> configuration_api_;
 
+  scoped_refptr<base::SequencedTaskRunner> const task_runner_;
   const StarboardExtensionIfaApi* ifa_extension_;
   std::vector<base::OnceCallback<void(bool)>>
       request_tracking_authorization_callbacks_;

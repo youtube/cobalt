@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/notreached.h"
@@ -30,9 +31,10 @@ Ifa* Ifa::GetInstance() {
   return base::Singleton<Ifa, base::LeakySingletonTraits<Ifa>>::get();
 }
 
-Ifa::Ifa() {
-  ifa_extension_ = static_cast<const StarboardExtensionIfaApi*>(
-      SbSystemGetExtension(kStarboardExtensionIfaName));
+Ifa::Ifa()
+    : task_runner_(base::SequencedTaskRunner::GetCurrentDefault()),
+      ifa_extension_(static_cast<const StarboardExtensionIfaApi*>(
+          SbSystemGetExtension(kStarboardExtensionIfaName))) {
   if (!ifa_extension_) {
     return;
   }
@@ -87,6 +89,14 @@ void Ifa::RequestTrackingAuthorization(
 }
 
 void Ifa::ReceiveTrackingAuthorizationComplete() {
+  // May be called by another thread.
+  if (!task_runner_->RunsTasksInCurrentSequence()) {
+    task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&Ifa::ReceiveTrackingAuthorizationComplete,
+                                  base::Unretained(this)));
+    return;
+  }
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
   // TODO: make sure this is running in the right thread (ref c25)
 
   // Mark all promises complete and release the references.
