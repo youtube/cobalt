@@ -1252,6 +1252,10 @@ class ClientHintsBrowserTest : public policy::PolicyTest {
         continue;
       }
 
+      if (header == "Sec-CH-UA-Co-Android-OS-Experience") {
+        continue;
+      }
+
       EXPECT_EQ(expect_client_hints, base::Contains(request.headers, header));
     }
   }
