@@ -6,9 +6,8 @@
 
 #include <string>
 
+#include "base/task/bind_post_task.h"
 #include "base/time/time.h"
-#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
-#include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/renderer/cobalt_render_frame_observer.h"
 #include "components/cdm/renderer/widevine_key_system_info.h"
 #include "components/js_injection/renderer/js_communication.h"
@@ -17,10 +16,10 @@
 #include "media/base/decoder_factory.h"
 #include "media/base/media_log.h"
 #include "media/base/renderer_factory.h"
-#include "media/renderers/video_overlay_factory.h"
+#include "media/starboard/bind_host_receiver_callback.h"
 #include "media/starboard/starboard_renderer_factory.h"
 #include "media/video/gpu_video_accelerator_factories.h"
-#include "mojo/public/cpp/bindings/binder_map.h"
+#include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 
@@ -79,39 +78,22 @@ std::string GetMimeFromAudioType(const ::media::AudioType& type) {
   return codecs;
 }
 
+void BindHostReceiverWithValuation(mojo::GenericPendingReceiver receiver) {
+  content::RenderThread::Get()->BindHostReceiver(std::move(receiver));
+}
+
 }  // namespace
 
-CobaltContentRendererClient::CobaltContentRendererClient()
-    : video_geometry_setter_service_(
-          std::unique_ptr<media::VideoGeometrySetterService,
-                          base::OnTaskRunnerDeleter>(
-              nullptr,
-              base::OnTaskRunnerDeleter(nullptr))) {
+static_assert(std::is_same<::media::BindHostReceiverCallback,
+                           base::RepeatingCallback<
+                               decltype(BindHostReceiverWithValuation)>>::value,
+              "These two types must be the same");
+
+CobaltContentRendererClient::CobaltContentRendererClient() {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
 CobaltContentRendererClient::~CobaltContentRendererClient() = default;
-
-void CobaltContentRendererClient::RenderThreadStarted() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  if (!video_geometry_setter_service_) {
-    video_geometry_setter_service_ =
-        std::unique_ptr<media::VideoGeometrySetterService,
-                        base::OnTaskRunnerDeleter>(
-            new media::VideoGeometrySetterService,
-            base::OnTaskRunnerDeleter(
-                base::SingleThreadTaskRunner::GetCurrentDefault()));
-  }
-}
-
-void CobaltContentRendererClient::ExposeInterfacesToBrowser(
-    mojo::BinderMap* binders) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(video_geometry_setter_service_);
-  binders->Add<media::mojom::VideoGeometrySetter>(
-      video_geometry_setter_service_->GetBindCallback(),
-      base::SingleThreadTaskRunner::GetCurrentDefault());
-}
 
 void CobaltContentRendererClient::RenderFrameCreated(
     content::RenderFrame* render_frame) {
@@ -192,6 +174,12 @@ void CobaltContentRendererClient::RunScriptsAtDocumentStart(
   communication->RunScriptsAtDocumentStart();
 }
 
+void CobaltContentRendererClient::BindHostReceiver(
+    mojo::GenericPendingReceiver receiver) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  BindHostReceiverWithValuation(std::move(receiver));
+}
+
 std::unique_ptr<::media::RendererFactory>
 CobaltContentRendererClient::GetBaseRendererFactory(
     content::RenderFrame* /* render_frame */,
@@ -201,17 +189,17 @@ CobaltContentRendererClient::GetBaseRendererFactory(
     /* get_gpu_factories_cb */) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // TODO(b/394368542): Add Content API to create StarboardRenderer.
-  auto overlay_factory = std::make_unique<::media::VideoOverlayFactory>();
   base::TimeDelta audio_write_duration_local =
       base::Microseconds(kSbPlayerWriteDurationLocal);
   base::TimeDelta audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
-  DCHECK(video_geometry_setter_service_);
   return std::make_unique<::media::StarboardRendererFactory>(
-      media_log, std::move(overlay_factory),
+      media_log,
       // TODO(b/383327725) - Cobalt: Inject these values from the web app.
       audio_write_duration_local, audio_write_duration_remote,
-      video_geometry_setter_service_.get());
+      base::BindPostTaskToCurrentDefault(
+          base::BindRepeating(&CobaltContentRendererClient::BindHostReceiver,
+                              weak_factory_.GetWeakPtr())));
 }
 
 }  // namespace cobalt
