@@ -18,3 +18,7 @@ enable_check_raw_ptr_fields = false
 
 # Enable e/ac3 support for Cobalt.
 enable_platform_ac3_eac3_audio = true
+
+# We use Angle+EGL based graphics pipeline, not Dawn path
+# see //ui/gl/features.gni
+use_dawn = false
