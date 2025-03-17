@@ -16,7 +16,6 @@
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
 #include "base/threading/thread_checker.h"
-#include "cobalt/browser/cobalt_single_render_process_observer.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
@@ -33,6 +32,10 @@ class BinderMapWithContext;
 }  // namespace mojo
 
 namespace cobalt {
+
+namespace media {
+class VideoGeometrySetterService;
+}  // namespace media
 
 class CobaltWebContentsObserver;
 
@@ -54,7 +57,6 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // ShellContentBrowserClient overrides.
   std::unique_ptr<content::BrowserMainParts> CreateBrowserMainParts(
       bool is_integration_test) override;
-  void RenderProcessWillLaunch(content::RenderProcessHost* host) override;
   std::string GetApplicationLocale() override;
   std::string GetUserAgent() override;
   std::string GetFullUserAgent() override;
@@ -77,11 +79,18 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       content::RenderFrameHost* render_frame_host,
       mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map)
       override;
+  void ExposeInterfacesToRenderer(
+      service_manager::BinderRegistry* registry,
+      blink::AssociatedInterfaceRegistry* associated_registry,
+      content::RenderProcessHost* render_process_host) override;
   void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
 
  private:
+  void CreateVideoGeometrySetterService();
+
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
-  CobaltSingleRenderProcessObserver single_render_process_observer_;
+  std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
+      video_geometry_setter_service_;
 
   THREAD_CHECKER(thread_checker_);
 };
