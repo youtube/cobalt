@@ -22,8 +22,6 @@ source_set("renderer") {
 
   deps = [
     "//cobalt/media/audio:webaudio",
-    "//cobalt/media/service",
-    "//cobalt/media/service/mojom",
     "//components/cdm/renderer",
     "//components/js_injection/renderer:renderer",
     "//components/network_hints/renderer",
