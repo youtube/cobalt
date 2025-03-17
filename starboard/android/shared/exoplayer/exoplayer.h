@@ -18,6 +18,7 @@
 #include <memory>
 
 #include "starboard/android/shared/exoplayer/exoplayer_bridge.h"
+#include "starboard/common/mutex.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
 
@@ -28,6 +29,7 @@ namespace shared {
 class ExoPlayer final {
  public:
   static SbPlayerPrivate* CreateInstance(
+      const SbPlayerCreationParam* creation_param,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
       SbPlayerDecoderStatusFunc decoder_status_func,
       SbPlayerStatusFunc player_status_func,
@@ -37,7 +39,7 @@ class ExoPlayer final {
 
   ~ExoPlayer();
 
-  void Seek(int64_t seek_to_timestamp, int ticket) const;
+  void Seek(int64_t seek_to_timestamp, int ticket);
   void WriteSamples(SbMediaType sample_type,
                     const SbPlayerSampleInfo* sample_infos,
                     int number_of_sample_infos);
@@ -48,11 +50,16 @@ class ExoPlayer final {
   void GetInfo(SbPlayerInfo* out_player_info) const;
 
  private:
-  ExoPlayer(SbPlayerDeallocateSampleFunc sample_deallocate_func,
+  ExoPlayer(const SbPlayerCreationParam* creation_param,
+            SbPlayerDeallocateSampleFunc sample_deallocate_func,
             SbPlayerDecoderStatusFunc decoder_status_func,
             SbPlayerStatusFunc player_status_func,
             SbPlayerErrorFunc player_error_func,
             void* context_);
+  void UpdateMediaInfo(int64_t media_time,
+                       int dropped_video_frames,
+                       int ticket,
+                       bool is_progressing);
 
   std::unique_ptr<ExoPlayerBridge> bridge_;
 
@@ -61,15 +68,22 @@ class ExoPlayer final {
   SbPlayerStatusFunc player_status_func_;
   SbPlayerErrorFunc player_error_func_;
 
-  bool is_playing_ = false;
+  Mutex mutex_;
+  bool is_progressing_ = false;
   double playback_rate_;
   double volume_ = 0.0;
   int frame_width_ = 0;
   int frame_height_ = 0;
+  int64_t media_time_ = 0;
+  int64_t media_time_updated_at_ = 0;
+  int dropped_video_frames_ = 0;
+  bool is_paused_;
 
   // A reference to the ExoPlayer as an SbPlayer.
   const SbPlayer player_;
   void* context_;
+
+  int ticket_ = SB_PLAYER_INITIAL_TICKET;
 };
 
 }  // namespace shared

@@ -15,20 +15,37 @@
 #include "starboard/android/shared/exoplayer/exoplayer.h"
 
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
+namespace {
+
+using std::placeholders::_1;
+using std::placeholders::_2;
+using std::placeholders::_3;
+using std::placeholders::_4;
+
+int64_t CalculateMediaTime(int64_t media_time,
+                           int64_t media_time_update_time,
+                           double playback_rate) {
+  int64_t elapsed = starboard::CurrentMonotonicTime() - media_time_update_time;
+  return media_time + static_cast<int64_t>(elapsed * playback_rate);
+}
+
+}  // namespace
 
 // static
 SbPlayerPrivate* ExoPlayer::CreateInstance(
+    const SbPlayerCreationParam* creation_param,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
     SbPlayerStatusFunc player_status_func,
     SbPlayerErrorFunc player_error_func,
     void* context) {
   ExoPlayer* exo_player =
-      new ExoPlayer(sample_deallocate_func, decoder_status_func,
+      new ExoPlayer(creation_param, sample_deallocate_func, decoder_status_func,
                     player_status_func, player_error_func, context);
   return reinterpret_cast<SbPlayerPrivate*>(exo_player);
 }
@@ -44,25 +61,30 @@ ExoPlayer::~ExoPlayer() {
   bridge_.reset();
 }
 
-void ExoPlayer::Seek(int64_t seek_to_timestamp, int ticket) const {
+void ExoPlayer::Seek(int64_t seek_to_timestamp, int ticket) {
   SB_DCHECK(bridge_);
   SB_LOG(INFO) << "Called Seek() to " << seek_to_timestamp;
+  {
+    starboard::ScopedLock lock(mutex_);
+    SB_DCHECK(ticket_ != ticket);
+    media_time_ = seek_to_timestamp;
+    media_time_updated_at_ = starboard::CurrentMonotonicTime();
+    is_progressing_ = false;
+  }
   bridge_->Seek(seek_to_timestamp, ticket);
 }
 
 void ExoPlayer::WriteSamples(SbMediaType sample_type,
                              const SbPlayerSampleInfo* sample_infos,
                              int number_of_sample_infos) {
-  SB_LOG(INFO) << "Writing sample";
+  // SB_LOG(INFO) << "Writing sample with timestamp " << sample_infos->timestamp
+  // ;
   bridge_->WriteSamples(sample_type, sample_infos, number_of_sample_infos);
   if (sample_type == kSbMediaTypeVideo &&
       (frame_height_ == 0 && frame_width_ == 0)) {
     frame_height_ = sample_infos->video_sample_info.stream_info.frame_height;
     frame_width_ = sample_infos->video_sample_info.stream_info.frame_width;
   }
-  // sample_deallocate_func_(player_, reinterpret_cast<void*>(this),
-  // sample_infos->buffer);
-  SB_LOG(INFO) << "Sample deallocated";
 }
 
 void ExoPlayer::WriteEndOfStream(SbMediaType stream_type) const {
@@ -92,8 +114,10 @@ bool ExoPlayer::SetPlaybackRate(double playback_rate) {
   }
 
   if (playback_rate_ == 0.0 && (playback_rate != playback_rate_)) {
+    is_paused_ = false;
     bridge_->Play();
   } else if (playback_rate_ == 1.0 && (playback_rate != playback_rate_)) {
+    is_paused_ = true;
     bridge_->Pause();
   }
   playback_rate_ = playback_rate;
@@ -120,18 +144,28 @@ void ExoPlayer::GetInfo(SbPlayerInfo* out_player_info) const {
   if (!bridge_->is_valid()) {
     return;
   }
+  SB_DCHECK(out_player_info != NULL);
+
+  starboard::ScopedLock lock(mutex_);
+  if (is_paused_ || !is_progressing_) {
+    out_player_info->current_media_timestamp = media_time_;
+  } else {
+    out_player_info->current_media_timestamp =
+        CalculateMediaTime(media_time_, media_time_updated_at_, playback_rate_);
+  }
   out_player_info->duration = SB_PLAYER_NO_DURATION;
   out_player_info->frame_width = frame_width_;
   out_player_info->frame_height = frame_height_;
-  out_player_info->is_paused = (playback_rate_ == 0.0);
+  out_player_info->is_paused = is_paused_;
   out_player_info->volume = volume_;
   out_player_info->total_video_frames = 0;
-  out_player_info->dropped_video_frames = 0;
+  out_player_info->dropped_video_frames = dropped_video_frames_;
   out_player_info->corrupted_video_frames = 0;
   out_player_info->playback_rate = playback_rate_;
 }
 
-ExoPlayer::ExoPlayer(SbPlayerDeallocateSampleFunc sample_deallocate_func,
+ExoPlayer::ExoPlayer(const SbPlayerCreationParam* creation_param,
+                     SbPlayerDeallocateSampleFunc sample_deallocate_func,
                      SbPlayerDecoderStatusFunc decoder_status_func,
                      SbPlayerStatusFunc player_status_func,
                      SbPlayerErrorFunc player_error_func,
@@ -141,10 +175,27 @@ ExoPlayer::ExoPlayer(SbPlayerDeallocateSampleFunc sample_deallocate_func,
       player_status_func_(player_status_func),
       player_error_func_(player_error_func),
       context_(context),
-      player_(reinterpret_cast<SbPlayerPrivate*>(this)) {
+      player_(reinterpret_cast<SbPlayerPrivate*>(this)),
+      media_time_updated_at_(starboard::CurrentMonotonicTime()) {
   bridge_.reset(new ExoPlayerBridge(
-      decoder_status_func, player_status_func, player_error_func,
+      creation_param, sample_deallocate_func_, decoder_status_func,
+      player_status_func, player_error_func,
+      std::bind(&ExoPlayer::UpdateMediaInfo, this, _1, _2, _3, _4),
       reinterpret_cast<SbPlayerPrivate*>(this), context));
+}
+
+void ExoPlayer::UpdateMediaInfo(int64_t media_time,
+                                int dropped_video_frames,
+                                int ticket,
+                                bool is_progressing) {
+  starboard::ScopedLock lock(mutex_);
+  if (ticket_ != ticket) {
+    return;
+  }
+  media_time_ = media_time;
+  is_progressing_ = is_progressing;
+  media_time_updated_at_ = starboard::CurrentMonotonicTime();
+  dropped_video_frames_ = dropped_video_frames;
 }
 
 }  // namespace shared

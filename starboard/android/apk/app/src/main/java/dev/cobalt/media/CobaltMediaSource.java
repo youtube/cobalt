@@ -43,6 +43,8 @@ import java.io.IOException;
 import dev.cobalt.util.UsedByNative;
 import dev.cobalt.media.SampleQueueManager;
 import java.time.chrono.MinguoEra;
+import java.util.Arrays;
+import java.util.List;
 
 @UnstableApi
 public final class CobaltMediaSource extends BaseMediaSource {
@@ -52,21 +54,42 @@ public final class CobaltMediaSource extends BaseMediaSource {
   private Format videoFormat;
   private CustomMediaPeriod mediaPeriod;
   private boolean isAudio;
-  CobaltMediaSource(boolean isAudio) {
-    audioFormat = new Format.Builder()
-        .setSampleMimeType(MimeTypes.AUDIO_OPUS)
-        .setSampleRate(48000)
-        .setChannelCount(2)
-        //.setPcmEncoding(C.ENCODING_PCM_FLOAT)
-        .setLanguage("en-GB")
-        .build();
+  // Reference to the host ExoPlayerBridge
+  private ExoPlayerBridge playerBridge;
+  CobaltMediaSource(boolean isAudio, ExoPlayerBridge playerBridge, byte[] audioConfigurationData) {
+    this.playerBridge = playerBridge;
+    if (isAudio && audioConfigurationData != null) {
+      Log.i(TAG, "Setting Opus config info in ExoPlayer");
+      byte[][] csds = {};
+      csds = MediaFormatBuilder.starboardParseOpusConfigurationData(48000, audioConfigurationData);
+      if (csds == null) {
+        Log.e(TAG, "Error parsing Opus config info");
+        assert(false);
+      }
+      List<byte[]> csdsList = Arrays.asList(csds);
+      audioFormat = new Format.Builder()
+          .setSampleMimeType(MimeTypes.AUDIO_OPUS)
+          .setSampleRate(48000)
+          .setChannelCount(2)
+          .setCodecs("opus")
+          .setPcmEncoding(C.ENCODING_PCM_FLOAT)
+          .setInitializationData(csdsList)
+          .build();
+    } else {
+      audioFormat = new Format.Builder()
+          .setSampleMimeType(MimeTypes.AUDIO_OPUS)
+          .setSampleRate(48000)
+          .setChannelCount(2)
+          .setCodecs("opus")
+          .setPcmEncoding(C.ENCODING_PCM_FLOAT)
+          .build();
+    }
     videoFormat = new Format.Builder()
         .setSampleMimeType(MimeTypes.VIDEO_VP9)
         .setAverageBitrate(100_000)
         .setWidth(1920)
         .setHeight(1080)
         .setFrameRate(30f)
-        .setLanguage("en-GB")
         .build();
     this.isAudio = isAudio;
   }
@@ -93,6 +116,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
   @Override
   public MediaItem getMediaItem() {
     // If needed, return a value that can be obtained via Player.getCurrentMediaItem();
+    Log.i(TAG, "Called getMediaItem()");
     return MediaItem.EMPTY;
   }
 
@@ -105,34 +129,40 @@ public final class CobaltMediaSource extends BaseMediaSource {
   public MediaPeriod createPeriod(MediaPeriodId id, Allocator allocator, long startPositionUs) {
     Log.i(TAG, "Called createPeriod");
     Format format = isAudio ? audioFormat : videoFormat;
-    mediaPeriod = new CustomMediaPeriod(format, allocator);
+    mediaPeriod = new CustomMediaPeriod(format, allocator, playerBridge);
     return mediaPeriod;
   }
 
   @Override
   public void releasePeriod(MediaPeriod mediaPeriod) {
     // Release any resources related to that MediaPeriod, its media loading, etc.
+    // TODO: Clear stream here
   }
 
-  public void writeSample(byte[] data, int sizeInBytes, long timestampUs) {
-    mediaPeriod.writeSample(data, sizeInBytes, timestampUs);
+  public void writeSample(byte[] data, int sizeInBytes, long timestampUs, boolean isKeyFrame, boolean isEndOfStream) {
+    mediaPeriod.writeSample(data, sizeInBytes, timestampUs, isKeyFrame, isEndOfStream);
+  }
+
+  public boolean isInitialized() {
+    return mediaPeriod.initialized;
   }
 
   private static final class CustomMediaPeriod implements MediaPeriod {
-    // private final Format audioFormat;
-    // private final Format videoFormat;
     private final Format format;
     private final Allocator allocator;
     private CobaltSampleStream stream;
+    // Notify the player when initialized to avoid writing samples before the stream exists.
+    public boolean initialized = false;
+    private ExoPlayerBridge playerBridge;
 
-    CustomMediaPeriod(Format format, Allocator allocator) {
-      // this.audioFormat = audioFormat;
-      // this.videoFormat = videoFormat;
+    CustomMediaPeriod(Format format, Allocator allocator, ExoPlayerBridge playerBridge) {
       this.format = format;
       this.allocator = allocator;
+      this.playerBridge = playerBridge;
     }
     @Override
     public void prepare(Callback callback, long positionUs) {
+      Log.i(TAG, "Called CobaltMediaSource.CustomMediaPeriod.prepare()");
       // Start loading media from positionUs.
       // Once the list of Formats (see getTrackGroups()) is available, call:
       callback.onPrepared(this);
@@ -188,30 +218,19 @@ public final class CobaltMediaSource extends BaseMediaSource {
       // parameters. The "selections" are the requests for new SampleStreams for these formats.
       //  - mayRetainStreamFlags tells you if it's save to keep a previous stream
       //  - streamResetFlags are an output parameter to indicate which streams are newly created
-      Log.i(TAG, String.format("Selections size is %d", selections.length));
+      // Log.i(TAG, String.format("Selections size is %d", selections.length));
       for (int i = 0; i < selections.length; ++i) {
         if (selections[i] != null) {
-          Log.i(TAG, String.format("Stream %d (%s) format is %s", i, selections[i].getSelectedFormat().codecs,
-              selections[i].getSelectedFormat().sampleMimeType));
+          // Log.i(TAG, String.format("Stream %d (%s) format is %s", i, selections[i].getSelectedFormat().codecs,
+          //     selections[i].getSelectedFormat().sampleMimeType));
           stream = new CobaltSampleStream(allocator, selections[i].getSelectedFormat());
           streams[i] = stream;
           streamResetFlags[i] = true;
         }
       }
-      // if (selections.length != 2) {
-      //   Log.e(TAG, "Error: selections length should be 2");
-      // }
-      // if (selections[0] != null && !mayRetainStreamFlags[0]) {
-      //   streams[0] = new CobaltSampleStream(allocator, selections[0].getSelectedFormat());
-      //   streamResetFlags[0] = true;
-      //   Log.i(TAG, String.format("First stream format is %s", selections[0].getSelectedFormat().codecs));
-      // }
-      // if (selections[1] != null && !mayRetainStreamFlags[1]) {
-      //   streams[1] = new CobaltSampleStream(allocator, selections[1].getSelectedFormat());
-      //   streamResetFlags[1] = true;
-      //   Log.i(TAG, String.format("Second stream format is %s", selections[1].getSelectedFormat().codecs));
-      // }
-      Log.i(TAG, String.format("positionUs is %d", positionUs));
+      // Log.i(TAG, String.format("positionUs is %d", positionUs));
+      initialized = true;
+      playerBridge.onStreamCreated();
       return positionUs;
     }
 
@@ -231,7 +250,8 @@ public final class CobaltMediaSource extends BaseMediaSource {
       // Handle a request to seek to a new position. This usually involves modifying or resetting
       // the contents of the SampleStreams.
       Log.i(TAG, String.format("Seeking to timestamp %dd (not really)", positionUs));
-      return 0;
+      stream.clearStream();
+      return positionUs;
     }
 
     @Override
@@ -243,6 +263,9 @@ public final class CobaltMediaSource extends BaseMediaSource {
     @Override
     public long getBufferedPositionUs() {
       // Return how far the media is buffered.
+      if (stream != null) {
+        return stream.getBufferedPositionUs();
+      }
       return 0;
     }
 
@@ -262,7 +285,7 @@ public final class CobaltMediaSource extends BaseMediaSource {
     @Override
     public boolean isLoading() {
       // Whether media is currently loading.
-      return false;
+      return true;
     }
 
     @Override
@@ -270,8 +293,8 @@ public final class CobaltMediaSource extends BaseMediaSource {
       // Ignorable, do nothing.
     }
 
-    public void writeSample(byte[] data, int sizeInBytes, long timestampUs) {
-      stream.writeSample(data, sizeInBytes, timestampUs);
+    public void writeSample(byte[] data, int sizeInBytes, long timestampUs, boolean isKeyFrame, boolean isEndOfStream) {
+      stream.writeSample(data, sizeInBytes, timestampUs, isKeyFrame, isEndOfStream);
     }
   }
 }

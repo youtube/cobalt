@@ -23,6 +23,8 @@
 #include "starboard/android/shared/video_window.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/job_thread.h"
 
 namespace starboard {
@@ -31,13 +33,23 @@ namespace shared {
 
 using starboard::android::shared::JniEnvExt;
 using starboard::android::shared::VideoSurfaceHolder;
+using starboard::shared::starboard::player::JobQueue;
 using starboard::shared::starboard::player::JobThread;
 
 class ExoPlayerBridge final : private VideoSurfaceHolder {
  public:
-  ExoPlayerBridge(SbPlayerDecoderStatusFunc decoder_status_func,
+  typedef std::function<void(int64_t media_time,
+                             int dropped_video_frames,
+                             int ticket,
+                             bool is_progressing)>
+      UpdateMediaInfoCB;
+
+  ExoPlayerBridge(const SbPlayerCreationParam* creation_param,
+                  SbPlayerDeallocateSampleFunc sample_deallocate_func,
+                  SbPlayerDecoderStatusFunc decoder_status_func,
                   SbPlayerStatusFunc player_status_func,
                   SbPlayerErrorFunc player_error_func,
+                  UpdateMediaInfoCB update_media_info_cb,
                   SbPlayer player,
                   void* context);
   ~ExoPlayerBridge();
@@ -46,10 +58,16 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   void WriteSamples(SbMediaType sample_type,
                     const SbPlayerSampleInfo* sample_infos,
                     int number_of_sample_infos);
+  void WriteEndOfStream(SbMediaType stream_type) const;
   bool Play();
   bool Pause();
   bool Stop();
   bool SetVolume(double volume);
+
+  void OnPlayerInitialized();
+  void OnPlayerPrerolled();
+  void OnPlayerError();
+  void SetPlayingStatus(bool is_playing);
 
   // VideoSurfaceHolder method
   void OnSurfaceDestroyed() override {}
@@ -62,18 +80,25 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   void DoWriteSamples(SbMediaType sample_type,
                       const SbPlayerSampleInfo* sample_infos,
                       int number_of_sample_infos);
+  void DoWriteEndOfStream(SbMediaType stream_type) const;
   void DoPlay();
   void DoPause();
   void DoStop();
   void DoSetVolume(double volume);
 
+  void Update();
+
+  void TearDownExoPlayer();
+  void UpdatePlayingStatus(bool is_playing);
   void UpdatePlayerState(SbPlayerState player_state);
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);
   void UpdatePlayerError(SbPlayerError error, const std::string& error_message);
 
+  SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   SbPlayerDecoderStatusFunc decoder_status_func_;
   SbPlayerStatusFunc player_status_func_;
   SbPlayerErrorFunc player_error_func_;
+  UpdateMediaInfoCB update_media_info_cb_;
 
   jobject j_exoplayer_bridge_ = nullptr;
   jobject j_sample_data_ = nullptr;
@@ -85,6 +110,14 @@ class ExoPlayerBridge final : private VideoSurfaceHolder {
   int ticket_;
   SbPlayerState player_state_;
   std::unique_ptr<JobThread> exoplayer_thread_;
+  starboard::shared::starboard::media::AudioStreamInfo audio_stream_info_;
+
+  int64_t last_media_time_;
+  int dropped_video_frames_;
+  bool is_progressing_;
+
+  JobQueue::JobToken update_job_token_;
+  std::function<void()> update_job_;
 };
 
 }  // namespace shared

@@ -18,6 +18,7 @@
 #include "starboard/player.h"
 
 #include "starboard/android/shared/exoplayer/exoplayer.h"
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/log.h"
 
 using starboard::android::shared::ExoPlayer;
@@ -34,9 +35,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
       (creation_param->video_stream_info.codec != kSbMediaVideoCodecVp9)) {
     return kSbPlayerInvalid;
   }
-  return ExoPlayer::CreateInstance(sample_deallocate_func, decoder_status_func,
-                                   player_status_func, player_error_func,
-                                   context);
+  return ExoPlayer::CreateInstance(creation_param, sample_deallocate_func,
+                                   decoder_status_func, player_status_func,
+                                   player_error_func, context);
 }
 
 SbPlayerOutputMode SbPlayerGetPreferredOutputMode(
@@ -81,16 +82,18 @@ void SbPlayerWriteEndOfStream(SbPlayer player, SbMediaType stream_type) {
   }
 }
 
-// void SbPlayerSetBounds(SbPlayer player,
-//                        int z_index,
-//                        int x,
-//                        int y,
-//                        int width,
-//                        int height) {
-//   auto exoplayer = ExoPlayer::GetExoPlayerForSbPlayer(player);
-//   SB_DCHECK(exoplayer);
-//   exoplayer->SetBounds(z_index, x, y, width, height);
-// }
+void SbPlayerSetBounds(SbPlayer player,
+                       int z_index,
+                       int x,
+                       int y,
+                       int width,
+                       int height) {
+  auto exoplayer = ExoPlayer::GetExoPlayerForSbPlayer(player);
+  SB_DCHECK(exoplayer);
+  // exoplayer->SetBounds(z_index, x, y, width, height);
+  starboard::android::shared::JniEnvExt::Get()->CallStarboardVoidMethodOrAbort(
+      "setVideoSurfaceBounds", "(IIII)V", x, y, width, height);
+}
 
 bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
   auto exoplayer = ExoPlayer::GetExoPlayerForSbPlayer(player);
