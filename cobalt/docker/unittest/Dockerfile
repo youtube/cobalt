@@ -12,3 +12,6 @@ RUN apt-get update && apt-get install -y \
     libxcomposite-dev \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
+
+# This locale satisfies SbSystemGetLocaleIdTest.
+ENV LANG en_US.UTF-8
