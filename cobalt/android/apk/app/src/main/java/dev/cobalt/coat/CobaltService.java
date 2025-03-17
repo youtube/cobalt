@@ -108,12 +108,12 @@ public abstract class CobaltService {
     // Workaround: Explicitly target the 'anchor' iframe for H5vccPlatformService callbacks.
     // This is necessary because the polyfill is injected broadly, but callbacks
     // are registered within the Kabuki app's iframe, which needs to be the
-    // execution context for CobaltService.sendToClient().
+    // execution context for CobaltService.sendToClient(). see b/403277033 for the details.
     String jsCodeTemplate =
       "((w) => {\n"
       + "  let targetWindow = w;\n"
       + "  const appIframe = document.getElementById('anchor');\n"
-      + "  if (appIframe && appIframe.contentWindow) {\n"
+      + "  if (appIframe?.contentWindow) {\n"
       + "    targetWindow = appIframe.contentWindow;\n"
       + "  }\n"
       + "  targetWindow.H5vccPlatformService.callbackFromAndroid(%d, '%s');\n"
