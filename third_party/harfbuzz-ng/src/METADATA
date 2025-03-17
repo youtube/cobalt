@@ -12,6 +12,7 @@ third_party {
     # from https://chromium.googlesource.com/chromium/src/+/114.0.5735.358/DEPS#355
   }
   security {
+    mitigated_security_patch: "OSV-2023-137"  # not affected
     mitigated_security_patch: "CVE-2024-56732"
   }
 }
