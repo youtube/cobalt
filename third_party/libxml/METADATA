@@ -23,6 +23,7 @@ third_party {
     day: 27
   }
   security {
+    mitigated_security_patch: "CVE-2022-23308"  # not affected
     mitigated_security_patch: "CVE-2022-29824"  # commit 7ecc9129
     mitigated_security_patch: "CVE-2022-40303"  # commit 04a4b26c
     mitigated_security_patch: "CVE-2022-40304"  # commit d88efc03
