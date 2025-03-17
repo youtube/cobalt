@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "video_geometry_setter_service.h"
+#include "cobalt/media/service/video_geometry_setter_service.h"
 
 #include <utility>
 
@@ -36,6 +36,14 @@ void VideoGeometrySetterService::GetVideoGeometryChangeSubscriber(
                                                   std::move(pending_receiver));
 }
 
+base::RepeatingCallback<
+    void(mojo::PendingReceiver<mojom::VideoGeometryChangeSubscriber>)>
+VideoGeometrySetterService::GetBindSubscriberCallback() {
+  return base::BindRepeating(
+      &VideoGeometrySetterService::GetVideoGeometryChangeSubscriber,
+      weak_factory_.GetWeakPtr());
+}
+
 void VideoGeometrySetterService::GetVideoGeometrySetter(
     mojo::PendingReceiver<mojom::VideoGeometrySetter> pending_receiver) {
   MAKE_SURE_ON_SEQUENCE(GetVideoGeometrySetter, std::move(pending_receiver));
@@ -44,13 +52,6 @@ void VideoGeometrySetterService::GetVideoGeometrySetter(
     video_geometry_setter_receiver_.reset();
   }
   video_geometry_setter_receiver_.Bind(std::move(pending_receiver));
-}
-
-base::RepeatingCallback<void(mojo::PendingReceiver<mojom::VideoGeometrySetter>)>
-VideoGeometrySetterService::GetBindCallback() {
-  return base::BindRepeating(
-      &VideoGeometrySetterService::GetVideoGeometrySetter,
-      weak_factory_.GetWeakPtr());
 }
 
 void VideoGeometrySetterService::SubscribeToVideoGeometryChange(
