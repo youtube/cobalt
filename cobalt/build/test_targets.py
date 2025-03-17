@@ -137,7 +137,9 @@ def _get_initial_targets(
 ) -> queue.Queue:
   """Gets the initial targets to consider based on source files."""
   target_queue = queue.Queue()
-  gni_changes = any(file_path.endswith('.gni') for file_path in source_files)
+  gni_changes = any(
+      file_path.endswith('.gni') or file_path.endswith('.gn')
+      for file_path in source_files)
   github_changes = any(
       file_path.startswith('.github') for file_path in source_files)
   # Consider the entire tree if no files were provided, or if any special
