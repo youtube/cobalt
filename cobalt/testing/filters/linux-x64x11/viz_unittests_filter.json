@@ -1,0 +1,12 @@
+{
+  "comment": "TODO(b/399743398): Re-enable once we commit to SW or HW rendering for tests.",
+  "failing_tests": [
+    "GPURendererPixelTest.AntiAliasing/SkiaGL",
+    "GPURendererPixelTest.AntiAliasingPerspective/SkiaGL",
+    "IntersectingVideoQuadPixelTest.Y16VideoQuads/SkiaGL",
+    "IntersectingVideoQuadPixelTest.YUVVideoQuads/SkiaGL",
+    "RendererPixelTestWithBackdropFilter.InvertFilterWithMask/SkiaGL",
+    "VideoRendererPixelHiLoTest.ClippedYUVRect/0",
+    "VideoRendererPixelTest.OffsetYUVRect/SkiaGL"
+  ]
+}

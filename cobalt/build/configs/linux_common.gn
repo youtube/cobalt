@@ -4,11 +4,16 @@ import("//cobalt/build/configs/chromium_linux-x64x11/args.gn")
 import("//cobalt/build/configs/common.gn")
 
 use_ozone = true
+ozone_auto_platforms = false
+ozone_platform = "starboard"
+angle_enable_gl = true
 
 # Vulkan is a new rendering (and presentation, and more) API intended to replace
 # E/GL(ES). Partners are only required to support upto GLES 2.0 : https://developers.google.com/youtube/cobalt/docs/reference/starboard/modules/16/gles#gles_version
 # Disable Vulkan until we formally decide to support it.
 enable_vulkan = false
+angle_enable_vulkan = false
+angle_use_vulkan_display = false
 
 # Overriding flag from //media/media_options.gni.
 # Cobalt doesn't use //third_party/ffmpeg.
