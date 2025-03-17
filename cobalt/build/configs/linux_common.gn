@@ -15,6 +15,17 @@ enable_vulkan = false
 angle_enable_vulkan = false
 angle_use_vulkan_display = false
 
+# Not used in Cobalt, see //ui/gl/features.gni
+enable_swiftshader = false
+
+# Don't allow Angle to transitively depend on SwiftShader
+# From angle/gni/angle.gni
+angle_enable_swiftshader = false
+
+# Disable GPU->Vulkan path as well
+# From gpu/vulkan/features.gni
+enable_swiftshader_vulkan = false
+
 # Overriding flag from //media/media_options.gni.
 # Cobalt doesn't use //third_party/ffmpeg.
 media_use_ffmpeg = false
