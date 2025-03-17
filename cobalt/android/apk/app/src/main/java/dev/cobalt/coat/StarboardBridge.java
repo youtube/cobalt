@@ -67,7 +67,7 @@ public class StarboardBridge {
   // TODO(cobalt): Re-enable these classes or remove if unnecessary.
   private AudioOutputManager audioOutputManager;
   private CobaltMediaSession cobaltMediaSession;
-  // private AudioPermissionRequester audioPermissionRequester;
+  private AudioPermissionRequester audioPermissionRequester;
   private NetworkStatus networkStatus;
   private ResourceOverlay resourceOverlay;
   private AdvertisingId advertisingId;
@@ -87,7 +87,7 @@ public class StarboardBridge {
       };
 
   private volatile boolean applicationStopped;
-  private volatile boolean applicationReady;
+  private volatile boolean applicationStarted;
 
   private final HashMap<String, CobaltService.Factory> cobaltServiceFactories = new HashMap<>();
   private final HashMap<String, CobaltService> cobaltServices = new HashMap<>();
@@ -121,7 +121,7 @@ public class StarboardBridge {
     this.ttsHelper = new CobaltTextToSpeechHelper(appContext);
     this.audioOutputManager = new AudioOutputManager(appContext);
     this.cobaltMediaSession = new CobaltMediaSession(appContext, activityHolder, artworkDownloader);
-    // this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
+    this.audioPermissionRequester = new AudioPermissionRequester(appContext, activityHolder);
     // TODO(cobalt, b/378718120): delete NetworkStatus if navigator.online works in Content.
     this.networkStatus = new NetworkStatus(appContext);
     this.resourceOverlay = new ResourceOverlay(appContext);
@@ -131,7 +131,7 @@ public class StarboardBridge {
 
     nativeApp = StarboardBridgeJni.get().startNativeStarboard();
 
-    StarboardBridgeJni.get().handleDeepLink(startDeepLink, /*applicationReady=*/ false);
+    StarboardBridgeJni.get().handleDeepLink(startDeepLink, /*applicationStarted=*/ false);
   }
 
   private native boolean initJNI();
@@ -150,7 +150,7 @@ public class StarboardBridge {
 
     // void closeNativeStarboard(long nativeApp);
 
-    void handleDeepLink(String url, boolean applicationReady);
+    void handleDeepLink(String url, boolean applicationStarted);
   }
 
   protected void onActivityStart(Activity activity) {
@@ -245,13 +245,13 @@ public class StarboardBridge {
   @SuppressWarnings("unused")
   @CalledByNative
   protected void applicationStarted() {
-    applicationReady = true;
+    applicationStarted = true;
   }
 
   @SuppressWarnings("unused")
   @CalledByNative
   protected void applicationStopping() {
-    applicationReady = false;
+    applicationStarted = false;
     applicationStopped = true;
   }
 
@@ -271,7 +271,7 @@ public class StarboardBridge {
 
   public boolean onSearchRequested() {
     // TODO(cobalt): re-enable native search request if needed.
-    // if (applicationReady) {
+    // if (applicationStarted) {
     //   return nativeOnSearchRequested();
     // }
     return false;
@@ -319,7 +319,7 @@ public class StarboardBridge {
 
   /** Sends an event to the web app to navigate to the given URL */
   public void handleDeepLink(String url) {
-    StarboardBridgeJni.get().handleDeepLink(url, applicationReady);
+    StarboardBridgeJni.get().handleDeepLink(url, applicationStarted);
   }
 
   /**
@@ -584,15 +584,15 @@ public class StarboardBridge {
   }
 
   /** Returns Java layer implementation for AudioPermissionRequester */
-  // @SuppressWarnings("unused")
-  // @UsedByNative
-  // AudioPermissionRequester getAudioPermissionRequester() {
-  //   return audioPermissionRequester;
-  // }
+  @SuppressWarnings("unused")
+  @UsedByNative
+  AudioPermissionRequester getAudioPermissionRequester() {
+    return audioPermissionRequester;
+  }
 
-  // void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-  //   audioPermissionRequester.onRequestPermissionsResult(requestCode, permissions, grantResults);
-  // }
+  void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    audioPermissionRequester.onRequestPermissionsResult(requestCode, permissions, grantResults);
+  }
 
   // TODO: (cobalt b/372559388) remove or migrate JNI?
   // Used in starboard/android/shared/video_window.cc

@@ -952,6 +952,14 @@ component("base") {
     "vlog.h",
   ]
 
+
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "base_paths_starboard.cc",
+      "base_paths_starboard.h",
+    ]
+  }
+
   # Various files that are unused in the Chromium build, but presumably here to
   # make downstream's life easier. They are not included in the main sources
   # list to avoid breaking GN formatting's auto-sorting.
