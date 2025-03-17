@@ -63,18 +63,7 @@ bool GLOzoneEGLStarboard::LoadGLES2Bindings(
     const gl::GLImplementationParts& implementation) {
   DCHECK_EQ(implementation.gl, gl::kGLImplementationEGLANGLE)
       << "Not supported: " << implementation.ToString();
-  // TODO(b/371272304): call into LoadDefaultEGLGLES2Bindings instead and let
-  // Angle load GLES and EGL.
-  gl::GLGetProcAddressProc gl_proc = reinterpret_cast<gl::GLGetProcAddressProc>(
-      SbGetEglInterface()->eglGetProcAddress);
-
-  if (!gl_proc) {
-    LOG(ERROR) << "GLOzoneEglStarboard::LoadGLES2Bindings no gl_proc";
-    return false;
-  }
-
-  gl::SetGLGetProcAddressProc(gl_proc);
-  return true;
+  return LoadDefaultEGLGLES2Bindings(implementation);
 }
 
 void GLOzoneEGLStarboard::CreateDisplayTypeIfNeeded() {
