@@ -28,6 +28,14 @@ extern "C" {
 #define MUSL_PTHREAD_CREATE_JOINABLE 0
 #define MUSL_PTHREAD_CREATE_DETACHED 1
 
+#define MUSL_PTHREAD_MUTEX_NORMAL 0
+#define MUSL_PTHREAD_MUTEX_DEFAULT 0
+#define MUSL_PTHREAD_MUTEX_RECURSIVE 1
+#define MUSL_PTHREAD_MUTEX_ERRORCHECK 2
+
+#define MUSL_PTHREAD_PROCESS_PRIVATE 0
+#define MUSL_PTHREAD_PROCESS_SHARED 1
+
 // Max size of the native mutex type.
 #define MUSL_MUTEX_MAX_SIZE 80
 
@@ -38,7 +46,7 @@ typedef union musl_pthread_mutex_t {
 
 #define MUSL_MUTEX_ATTR_MAX_SIZE 40
 typedef union musl_pthread_mutexattr_t {
-  uint8_t mutex_buffer[MUSL_MUTEX_ATTR_MAX_SIZE];
+  uint8_t mutex_attr_buffer[MUSL_MUTEX_ATTR_MAX_SIZE];
   void* ptr;
 } musl_pthread_mutexattr_t;
 
@@ -135,6 +143,16 @@ SB_EXPORT int __abi_wrap_pthread_attr_getdetachstate(
     int* detach_state);
 SB_EXPORT int __abi_wrap_pthread_attr_setdetachstate(musl_pthread_attr_t* attr,
                                                      int detach_state);
+
+SB_EXPORT int __abi_wrap_pthread_mutexattr_init(musl_pthread_mutexattr_t* attr);
+SB_EXPORT int __abi_wrap_pthread_mutexattr_destroy(
+    musl_pthread_mutexattr_t* attr);
+SB_EXPORT int __abi_wrap_pthread_mutexattr_settype(
+    musl_pthread_mutexattr_t* attr,
+    int type);
+SB_EXPORT int __abi_wrap_pthread_mutexattr_setpshared(
+    musl_pthread_mutexattr_t* attr,
+    int pshared);
 
 #ifdef __cplusplus
 }  // extern "C"

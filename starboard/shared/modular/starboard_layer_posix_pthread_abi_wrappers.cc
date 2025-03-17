@@ -31,7 +31,6 @@ typedef struct PosixMutexPrivate {
 } PosixMutexPrivate;
 
 typedef struct PosixMutexAttrPrivate {
-  InitializedState initialized_state;
   pthread_mutexattr_t mutex_attr;
 } PosixMutexAttrPrivate;
 
@@ -62,8 +61,13 @@ typedef struct PosixThreadLocalKeyPrivate {
   reinterpret_cast<PosixMutexPrivate*>((mutex_var)->mutex_buffer)
 #define PTHREAD_INTERNAL_MUTEX(mutex_var) \
   &(reinterpret_cast<PosixMutexPrivate*>((mutex_var)->mutex_buffer)->mutex)
-#define PTHREAD_INTERNAL_MUTEX_ATTR(mutex_var)                                \
-  &(reinterpret_cast<const PosixMutexAttrPrivate*>((mutex_var)->mutex_buffer) \
+#define PTHREAD_INTERNAL_MUTEX_ATTR(musl_mutex_attr) \
+  &(reinterpret_cast<PosixMutexAttrPrivate*>(        \
+        (musl_mutex_attr)->mutex_attr_buffer)        \
+        ->mutex_attr)
+#define CONST_PTHREAD_INTERNAL_MUTEX_ATTR(musl_mutex_attr) \
+  &(reinterpret_cast<const PosixMutexAttrPrivate*>(        \
+        (musl_mutex_attr)->mutex_attr_buffer)              \
         ->mutex_attr)
 #define INTERNAL_CONDITION(condition_var) \
   reinterpret_cast<PosixCondPrivate*>((condition_var)->cond_buffer)
@@ -77,10 +81,10 @@ typedef struct PosixThreadLocalKeyPrivate {
   &(reinterpret_cast<PosixCondAttrPrivate*>(            \
         (condition_attr)->cond_attr_buffer)             \
         ->cond_attr)
-#define PTHREAD_INTERNAL_ATTR(condition_attr) \
-  &(reinterpret_cast<PosixAttrPrivate*>((attr)->attr_buffer)->attr)
-#define CONST_PTHREAD_INTERNAL_ATTR(condition_attr) \
-  &(reinterpret_cast<const PosixAttrPrivate*>((attr)->attr_buffer)->attr)
+#define PTHREAD_INTERNAL_ATTR(musl_attr) \
+  &(reinterpret_cast<PosixAttrPrivate*>((musl_attr)->attr_buffer)->attr)
+#define CONST_PTHREAD_INTERNAL_ATTR(musl_attr) \
+  &(reinterpret_cast<const PosixAttrPrivate*>((musl_attr)->attr_buffer)->attr)
 
 #define INTERNAL_ONCE(once_control) \
   reinterpret_cast<PosixOncePrivate*>((once_control)->once_buffer)
@@ -110,7 +114,7 @@ int __abi_wrap_pthread_mutex_init(musl_pthread_mutex_t* mutex,
 
   const pthread_mutexattr_t* tmp = nullptr;
   if (mutex_attr) {
-    tmp = PTHREAD_INTERNAL_MUTEX_ATTR(mutex_attr);
+    tmp = CONST_PTHREAD_INTERNAL_MUTEX_ATTR(mutex_attr);
   }
   int ret = pthread_mutex_init(PTHREAD_INTERNAL_MUTEX(mutex), tmp);
   return errno_to_musl_errno(ret);
@@ -437,5 +441,46 @@ int __abi_wrap_pthread_attr_setdetachstate(musl_pthread_attr_t* attr,
     d = PTHREAD_CREATE_DETACHED;
   }
   int ret = pthread_attr_setdetachstate(PTHREAD_INTERNAL_ATTR(attr), d);
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_mutexattr_init(musl_pthread_mutexattr_t* attr) {
+  int ret = pthread_mutexattr_init(PTHREAD_INTERNAL_MUTEX_ATTR(attr));
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_mutexattr_destroy(musl_pthread_mutexattr_t* attr) {
+  int ret = pthread_mutexattr_destroy(PTHREAD_INTERNAL_MUTEX_ATTR(attr));
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_mutexattr_settype(musl_pthread_mutexattr_t* attr,
+                                         int musl_type) {
+  int type;
+  switch (musl_type) {
+    case MUSL_PTHREAD_MUTEX_NORMAL:
+      type = PTHREAD_MUTEX_NORMAL;
+      break;
+    case MUSL_PTHREAD_MUTEX_RECURSIVE:
+      type = PTHREAD_MUTEX_RECURSIVE;
+      break;
+    case MUSL_PTHREAD_MUTEX_ERRORCHECK:
+      type = PTHREAD_MUTEX_ERRORCHECK;
+      break;
+    default:
+      type = PTHREAD_MUTEX_DEFAULT;
+  }
+  int ret = pthread_mutexattr_settype(PTHREAD_INTERNAL_MUTEX_ATTR(attr), type);
+  return errno_to_musl_errno(ret);
+}
+
+int __abi_wrap_pthread_mutexattr_setpshared(musl_pthread_mutexattr_t* attr,
+                                            int musl_pshared) {
+  int pshared = PTHREAD_PROCESS_PRIVATE;
+  if (musl_pshared == MUSL_PTHREAD_PROCESS_SHARED) {
+    pshared = PTHREAD_PROCESS_SHARED;
+  }
+  int ret =
+      pthread_mutexattr_setpshared(PTHREAD_INTERNAL_MUTEX_ATTR(attr), pshared);
   return errno_to_musl_errno(ret);
 }
