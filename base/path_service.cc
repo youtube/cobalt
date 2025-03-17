@@ -34,7 +34,9 @@ bool EnvOverridePathProvider(int key, FilePath* result);
 
 bool PathProvider(int key, FilePath* result);
 
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+bool PathProviderStarboard(int key, FilePath* result);
+#elif BUILDFLAG(IS_WIN)
 bool PathProviderWin(int key, FilePath* result);
 #elif BUILDFLAG(IS_MAC)
 bool PathProviderMac(int key, FilePath* result);
@@ -77,6 +79,14 @@ Provider base_provider = {PathProvider, nullptr,
 #endif
                           true};
 
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+Provider base_provider_starboard = {base::PathProviderStarboard, &base_provider,
+#ifndef NDEBUG
+                                    base::PATH_STARBOARD_START,
+                                    base::PATH_STARBOARD_END,
+#endif
+                                    true};
+#else  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #if BUILDFLAG(IS_WIN)
 Provider win_provider = {PathProviderWin, &base_provider,
 #ifndef NDEBUG
@@ -134,6 +144,7 @@ Provider base_provider_posix = {EnvOverridePathProvider, &posix_provider,
 #endif
                                 true};
 #endif
+#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 struct PathData {
   Lock lock;
@@ -143,7 +154,9 @@ struct PathData {
   bool cache_disabled = false;  // Don't use cache if true;
 
   PathData() {
-#if BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+    providers = &base_provider_starboard;
+#elif BUILDFLAG(IS_WIN)
     providers = &base_provider_win;
 #elif BUILDFLAG(IS_MAC)
     providers = &base_provider_mac;
