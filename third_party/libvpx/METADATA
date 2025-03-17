@@ -15,4 +15,7 @@ third_party {
     type: "UpstreamSubdir"
     value: "third_party/libvpx"
   }
+  security {
+    mitigated_security_patch: "CVE-2023-5217"  # not affected
+  }
 }
