@@ -17,21 +17,20 @@
 #include "base/check.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "media/renderers/video_overlay_factory.h"
 #include "media/starboard/starboard_renderer.h"
 
 namespace media {
 
 StarboardRendererFactory::StarboardRendererFactory(
     MediaLog* media_log,
-    std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
-    cobalt::media::VideoGeometrySetterService* video_geometry_setter)
+    BindHostReceiverCallback bind_host_receiver_callback)
     : media_log_(media_log),
-      video_overlay_factory_(std::move(video_overlay_factory)),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-      video_geometry_setter_(video_geometry_setter) {}
+      bind_host_receiver_callback_(bind_host_receiver_callback) {}
 
 StarboardRendererFactory::~StarboardRendererFactory() = default;
 
@@ -44,11 +43,12 @@ std::unique_ptr<Renderer> StarboardRendererFactory::CreateRenderer(
     const gfx::ColorSpace& target_color_space) {
   DCHECK(video_renderer_sink);
   DCHECK(media_log_);
-  DCHECK(video_geometry_setter_);
+  DCHECK(bind_host_receiver_callback_);
+  auto overlay_factory = std::make_unique<::media::VideoOverlayFactory>();
   return std::make_unique<media::StarboardRenderer>(
       media_task_runner, video_renderer_sink, media_log_,
-      std::move(video_overlay_factory_), audio_write_duration_local_,
-      audio_write_duration_remote_, video_geometry_setter_);
+      std::move(overlay_factory), audio_write_duration_local_,
+      audio_write_duration_remote_, bind_host_receiver_callback_);
 }
 
 }  // namespace media
