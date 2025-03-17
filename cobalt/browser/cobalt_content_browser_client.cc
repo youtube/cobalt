@@ -22,6 +22,7 @@
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
+#include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
@@ -31,8 +32,10 @@
 // being a ShellBrowserMainParts.
 #include "content/shell/browser/shell_browser_main_parts.h"
 #include "services/network/public/mojom/network_context.mojom.h"
+#include "services/service_manager/public/cpp/binder_registry.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/system.h"
+#include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -171,17 +174,16 @@ blink::UserAgentMetadata GetCobaltUserAgentMetadata() {
   return metadata;
 }
 
-CobaltContentBrowserClient::CobaltContentBrowserClient() {
+CobaltContentBrowserClient::CobaltContentBrowserClient()
+    : video_geometry_setter_service_(
+          std::unique_ptr<cobalt::media::VideoGeometrySetterService,
+                          base::OnTaskRunnerDeleter>(
+              nullptr,
+              base::OnTaskRunnerDeleter(nullptr))) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
 CobaltContentBrowserClient::~CobaltContentBrowserClient() = default;
-
-void CobaltContentBrowserClient::RenderProcessWillLaunch(
-    content::RenderProcessHost* host) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  single_render_process_observer_.UpdateRenderProcessHost(host);
-}
 
 std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
@@ -319,17 +321,37 @@ void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
       render_frame_host, map);
 }
 
+void CobaltContentBrowserClient::CreateVideoGeometrySetterService() {
+  DCHECK(!video_geometry_setter_service_);
+  video_geometry_setter_service_ =
+      std::unique_ptr<cobalt::media::VideoGeometrySetterService,
+                      base::OnTaskRunnerDeleter>(
+          new media::VideoGeometrySetterService,
+          base::OnTaskRunnerDeleter(
+              base::SingleThreadTaskRunner::GetCurrentDefault()));
+}
+
+void CobaltContentBrowserClient::ExposeInterfacesToRenderer(
+    service_manager::BinderRegistry* registry,
+    blink::AssociatedInterfaceRegistry* associated_registry,
+    content::RenderProcessHost* render_process_host) {
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!video_geometry_setter_service_) {
+    CreateVideoGeometrySetterService();
+  }
+  registry->AddInterface<cobalt::media::mojom::VideoGeometryChangeSubscriber>(
+      video_geometry_setter_service_->GetBindSubscriberCallback(),
+      base::SingleThreadTaskRunner::GetCurrentDefault());
+}
+
 void CobaltContentBrowserClient::BindGpuHostReceiver(
     mojo::GenericPendingReceiver receiver) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
+  if (!video_geometry_setter_service_) {
+    CreateVideoGeometrySetterService();
+  }
   if (auto r = receiver.As<media::mojom::VideoGeometrySetter>()) {
-    const auto renderer_process_id =
-        single_render_process_observer_.renderer_id();
-    content::RenderProcessHost* host =
-        content::RenderProcessHost::FromID(renderer_process_id);
-    if (host) {
-      host->BindReceiver(std::move(r));
-    }
+    video_geometry_setter_service_->GetVideoGeometrySetter(std::move(r));
   }
 }
 

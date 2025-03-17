@@ -43,8 +43,8 @@ class VideoGeometrySetterService final
   void GetVideoGeometrySetter(
       mojo::PendingReceiver<mojom::VideoGeometrySetter> pending_receiver);
   base::RepeatingCallback<
-      void(mojo::PendingReceiver<mojom::VideoGeometrySetter>)>
-  GetBindCallback();
+      void(mojo::PendingReceiver<mojom::VideoGeometryChangeSubscriber>)>
+  GetBindSubscriberCallback();
 
  private:
   // mojom::VideoGeometryChangeSubscriber implementation.

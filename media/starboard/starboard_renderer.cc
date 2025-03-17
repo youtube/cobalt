@@ -114,7 +114,7 @@ StarboardRenderer::StarboardRenderer(
     std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
-    cobalt::media::VideoGeometrySetterService* video_geometry_setter_service)
+    BindHostReceiverCallback bind_host_receiver_callback)
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       video_renderer_sink_(video_renderer_sink),
@@ -124,12 +124,13 @@ StarboardRenderer::StarboardRenderer(
       cdm_context_(nullptr),
       audio_write_duration_local_(audio_write_duration_local),
       audio_write_duration_remote_(audio_write_duration_remote),
-      video_geometry_setter_service_(video_geometry_setter_service) {
+      bind_host_receiver_callback_(bind_host_receiver_callback) {
   DCHECK(task_runner_);
   DCHECK(video_renderer_sink_);
   DCHECK(media_log_);
   DCHECK(video_overlay_factory_);
   DCHECK(set_bounds_helper_);
+  DCHECK(bind_host_receiver_callback_);
   LOG(INFO) << "StarboardRenderer constructed.";
 }
 
@@ -185,8 +186,10 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   client_ = client;
   init_cb_ = std::move(init_cb);
 
-  DCHECK(video_geometry_setter_service_);
-  video_geometry_setter_service_->GetVideoGeometryChangeSubscriber(
+  // Bind the receiver of VideoGeometryChangeSubscriber on renderer Thread.
+  // This uses BindPostTaskToCurrentDefault() to ensure the callback is ran
+  // on renderer thread, not media thread.
+  bind_host_receiver_callback_.Run(
       video_geometry_change_subcriber_remote_.BindNewPipeAndPassReceiver());
   DCHECK(video_geometry_change_subcriber_remote_);
   video_geometry_change_subcriber_remote_->SubscribeToVideoGeometryChange(
