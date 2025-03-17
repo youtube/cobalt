@@ -17,6 +17,7 @@
 
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom-blink.h"
 
+#include "third_party/abseil-cpp/absl/types/optional.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
@@ -48,7 +49,7 @@ class MODULES_EXPORT H5vccSystem final
   ScriptPromise getAdvertisingId(ScriptState*, ExceptionState&);
   const String& advertisingId();
   ScriptPromise getLimitAdTracking(ScriptState*, ExceptionState&);
-  bool limitAdTracking();
+  absl::optional<bool> limitAdTracking();
   ScriptPromise getTrackingAuthorizationStatus(ScriptState*, ExceptionState&);
   const String& trackingAuthorizationStatus();
   ScriptPromise requestTrackingAuthorization(ScriptState*, ExceptionState&);

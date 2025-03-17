@@ -19,7 +19,7 @@
 #include "base/notreached.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
 
 using starboard::android::shared::StarboardBridge;
@@ -56,13 +56,14 @@ std::string GetAdvertisingIdShared() {
 #if BUILDFLAG(IS_STARBOARD)
   advertising_id =
       starboard::GetSystemPropertyString(kSbSystemPropertyAdvertisingId);
-  if (advertising_id == "") {
-    DLOG(INFO) << "Failed to get kSbSystemPropertyAdvertisingId.";
-  }
-#elif BUILDFLAG(IS_ANDROID)
+  DLOG_IF(INFO, advertising_id == "")
+      << "Failed to get kSbSystemPropertyAdvertisingId.";
+#elif BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   advertising_id = starboard_bridge->GetAdvertisingId(env);
+#else
+#error "Unsupported platform."
 #endif
   return advertising_id;
 }
@@ -77,27 +78,35 @@ bool GetLimitAdTrackingShared() {
   } else {
     limit_ad_tracking = std::atoi(result.c_str());
   }
-#elif BUILDFLAG(IS_ANDROID)
+#elif BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   limit_ad_tracking = starboard_bridge->GetLimitAdTracking(env);
+#else
+#error "Unsupported platform."
 #endif
   return limit_ad_tracking;
 }
 
 std::string GetTrackingAuthorizationStatusShared() {
   // TODO - b/395650827: Connect to Starboard extension.
+  NOTIMPLEMENTED();
   return "NOT_SUPPORTED";
 }
 
 }  // namespace
 
-// TODO (b/395126160): refactor mojom implementation on Android
 H5vccSystemImpl::H5vccSystemImpl(
     content::RenderFrameHost& render_frame_host,
     mojo::PendingReceiver<mojom::H5vccSystem> receiver)
     : content::DocumentService<mojom::H5vccSystem>(render_frame_host,
-                                                   std::move(receiver)) {}
+                                                   std::move(receiver)) {
+  DETACH_FROM_THREAD(thread_checker_);
+}
+
+H5vccSystemImpl::~H5vccSystemImpl() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+}
 
 void H5vccSystemImpl::Create(
     content::RenderFrameHost* render_frame_host,
@@ -106,36 +115,44 @@ void H5vccSystemImpl::Create(
 }
 
 void H5vccSystemImpl::GetAdvertisingId(GetAdvertisingIdCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetAdvertisingIdShared());
 }
 
 void H5vccSystemImpl::GetAdvertisingIdSync(
     GetAdvertisingIdSyncCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetAdvertisingIdShared());
 }
 
 void H5vccSystemImpl::GetLimitAdTracking(GetLimitAdTrackingCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetLimitAdTrackingShared());
 }
 
 void H5vccSystemImpl::GetLimitAdTrackingSync(
     GetLimitAdTrackingSyncCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetLimitAdTrackingShared());
 }
 
 void H5vccSystemImpl::GetTrackingAuthorizationStatus(
     GetTrackingAuthorizationStatusCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetTrackingAuthorizationStatusShared());
 }
 
 void H5vccSystemImpl::GetTrackingAuthorizationStatusSync(
     GetTrackingAuthorizationStatusSyncCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   std::move(callback).Run(GetTrackingAuthorizationStatusShared());
 }
 
 void H5vccSystemImpl::RequestTrackingAuthorization(
     RequestTrackingAuthorizationCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // TODO - b/395650827: Connect to Starboard extension.
+  NOTIMPLEMENTED();
   std::move(callback).Run();
 }
 
@@ -143,10 +160,10 @@ void H5vccSystemImpl::GetUserOnExitStrategy(
     GetUserOnExitStrategyCallback callback) {
 #if BUILDFLAG(IS_STARBOARD)
   std::move(callback).Run(GetUserOnExitStrategyInternal());
-#elif BUILDFLAG(IS_ANDROID)
+#elif BUILDFLAG(IS_ANDROIDTV)
   std::move(callback).Run(h5vcc_system::mojom::UserOnExitStrategy::kMinimize);
 #else
-  NOTREACHED() << "Unsupported platform.";
+#error "Unsupported platform."
 #endif
 }
 
@@ -163,12 +180,12 @@ void H5vccSystemImpl::Exit() {
     case h5vcc_system::mojom::UserOnExitStrategy::kNoExit:
       return;
   }
-#elif BUILDFLAG(IS_ANDROID)
+#elif BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   starboard_bridge->RequestSuspend(env);
 #else
-  NOTREACHED() << "Unsupported platform.";
+#error "Unsupported platform."
 #endif
 }
 

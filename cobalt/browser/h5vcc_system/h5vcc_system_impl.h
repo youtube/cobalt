@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/threading/thread_checker.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
@@ -56,6 +57,9 @@ class H5vccSystemImpl : public content::DocumentService<mojom::H5vccSystem> {
  private:
   H5vccSystemImpl(content::RenderFrameHost& render_frame_host,
                   mojo::PendingReceiver<mojom::H5vccSystem> receiver);
+  ~H5vccSystemImpl();
+
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace h5vcc_system
