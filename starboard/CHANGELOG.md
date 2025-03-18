@@ -10,6 +10,16 @@ since the version previous to it.
 ## Version 17
 Starboard 17 fully switches to POSIX APIs.
 
+### Removed the followoing SbEvents:
+* `kSbEventTypeUser`.
+* `kSbEventTypeAccessibilitySettingsChanged`
+* `kSbEventTypeAccessibilityCaptionSettingsChanged`
+* `kSbEventTypeAccessibilityTextToSpeechSettingsChanged`
+* `kSbEventTypeOnScreenKeyboardShown`
+* `kSbEventTypeOnScreenKeyboardHidden`
+* `kSbEventTypeOnScreenKeyboardFocused`
+* `kSbEventTypeOnScreenKeyboardBlurred`
+
 ### Removed `starboard/accessibility.h`
 The functionality is migrated to a starboard extension.
 
