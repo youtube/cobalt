@@ -25,10 +25,25 @@ enum UserOnExitStrategy {
   SecureContext
 ]
 interface H5vccSystem : EventTarget {
+  // Synchronous versions of ad APIs were provided for ease-of-use in the
+  // clients during the initial migration from Cobalt 25. Asynchronous APIs are
+  // preferred here as they offload work and won't affect performance as much.
+  // We mark the synchronous APIs as nullable to signify we may deprecate them
+  // in the future in favor of the asynchronous equivalents.
   [CallWith=ScriptState, RaisesException]
   Promise<DOMString> getAdvertisingId();
+  readonly attribute DOMString? advertisingId;
+
   [CallWith=ScriptState, RaisesException]
   Promise<boolean> getLimitAdTracking();
+  readonly attribute boolean? limitAdTracking;
+
+  [CallWith=ScriptState, RaisesException]
+  Promise<DOMString> getTrackingAuthorizationStatus();
+  readonly attribute DOMString? trackingAuthorizationStatus;
+
+  [CallWith=ScriptState, RaisesException]
+  Promise<void> requestTrackingAuthorization();
 
   // Platform-specific exit is performed based on |userOnExitStrategy|:
   //   - "close" stops the application.
