@@ -4207,7 +4207,7 @@ class XmlUnitTestResultPrinter : public EmptyTestEventListener {
 
 // TODO: b/399507045 - Cobalt: Fix build error, remove hack
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-void WriteOutputFile(const std::string &output_file, const std::string &data) {
+void WriteOuputFile(const std::string &output_file, const std::string &data) {
   starboard::ScopedFile cache_file(output_file.c_str(), O_CREAT | O_TRUNC | O_WRONLY);
   if (!cache_file.IsValid()) {
     SB_LOG(ERROR) << "Unable to open file " << output_file << " for XML output";
