@@ -15,16 +15,17 @@ const EXIT_METHOD_NAME = 'exit';
 class MockH5vccSystem {
   constructor() {
     this.interceptor_ =
-        new MojoInterfaceInterceptor(H5vccSystem.$interfaceName);
+      new MojoInterfaceInterceptor(H5vccSystem.$interfaceName);
     this.interceptor_.oninterfacerequest = e => this.bind(e.handle);
     this.receiver_ = new H5vccSystemReceiver(this);
 
     this.stub_result_ = new Map();
-    this.callCount_ = {[EXIT_METHOD_NAME]: 0};
+    this.callCount_ = { [EXIT_METHOD_NAME]: 0 };
   }
 
   STUB_KEY_ADVERTISING_ID = 'advertisingId';
   STUB_KEY_LIMIT_AD_TRACKING = 'limitAdTracking';
+  STUB_KEY_TRACKING_AUTHORIZATION_STATUS = 'trackingAuthorizationStatus';
   STUB_KEY_USER_ON_EXIT_STRATEGY = 'userOnExitStrategy';
 
   incrementExitCallCount() {
@@ -63,6 +64,10 @@ class MockH5vccSystem {
     this.stubResult(this.STUB_KEY_LIMIT_AD_TRACKING, limitAdTracking);
   }
 
+  stubTrackingAuthorizationStatus(trackingAuthorizationStatus) {
+    this.stubResult(this.STUB_KEY_TRACKING_AUTHORIZATION_STATUS, trackingAuthorizationStatus);
+  }
+
   stubUserOnExitStrategyClose() {
     this.stubResult(this.STUB_KEY_USER_ON_EXIT_STRATEGY, USER_ON_EXIT_STRATEGY_CLOSE);
   }
@@ -82,8 +87,24 @@ class MockH5vccSystem {
     return Promise.resolve({ advertisingId: this.stub_result_.get(this.STUB_KEY_ADVERTISING_ID) });
   }
 
+  advertisingId() {
+    return this.stub_result_.get(this.STUB_KEY_ADVERTISING_ID);
+  }
+
   getLimitAdTracking() {
     return Promise.resolve({ limitAdTracking: this.stub_result_.get(this.STUB_KEY_LIMIT_AD_TRACKING) });
+  }
+
+  limitAdTracking() {
+    return this.stub_result_.get(this.STUB_KEY_LIMIT_AD_TRACKING);
+  }
+
+  getTrackingAuthorizationStatus() {
+    return Promise.resolve({ trackingAuthorizationStatus: this.stub_result_.get(this.STUB_KEY_TRACKING_AUTHORIZATION_STATUS) });
+  }
+
+  trackingAuthorizationStatus() {
+    return this.stub_result_.get(this.STUB_KEY_TRACKING_AUTHORIZATION_STATUS);
   }
 
   getUserOnExitStrategy() {
