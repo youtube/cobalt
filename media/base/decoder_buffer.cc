@@ -103,6 +103,7 @@ void DecoderBuffer::Initialize() {
   int alignment = s_allocator->GetBufferAlignment();
   int padding = s_allocator->GetBufferPadding();
   allocated_size_ = size_ + padding;
+
   data_ = static_cast<uint8_t*>(s_allocator->Allocate(allocated_size_,
                                                       alignment));
   memset(data_ + size_, 0, padding);
