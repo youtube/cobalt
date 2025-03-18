@@ -56,6 +56,5 @@ interface H5vccMetrics {
   // and will be persisted through multiple app lifetimes unless it's called
   // again with a different value."
   // This API is now Promise-based.
-  [ CallWith = ScriptState, RaisesException ] Promise<void>
-  setMetricEventInterval(unsigned long long intervalSeconds);
+  [ CallWith = ScriptState, RaisesException ] Promise<void> setMetricEventInterval(unsigned long long intervalSeconds);
 };
