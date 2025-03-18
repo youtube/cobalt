@@ -180,10 +180,6 @@ typedef enum SbEventType {
   // SbInputData (from input.h) is passed as the data argument.
   kSbEventTypeInput,
 
-  // A user change event, which means a new user signed-in or signed-out, or the
-  // current user changed. No data argument.
-  kSbEventTypeUser,
-
   // A navigational link has come from the system, and the application should
   // consider handling it by navigating to the corresponding application
   // location. The data argument is an application-specific, null-terminated
@@ -202,18 +198,6 @@ typedef enum SbEventType {
   // directly. The data type is an internally-defined structure.
   kSbEventTypeScheduled,
 
-  // The platform's accessibility settings have changed. The application should
-  // query the accessibility settings using the appropriate APIs to get the
-  // new settings. Note this excludes captions settings changes, which
-  // causes kSbEventTypeAccessibilityCaptionSettingsChanged to fire. If the
-  // starboard version has
-  // kSbEventTypeAccessib(i)lityTextToSpeechSettingsChanged, then that event
-  // should be used to signal text-to-speech settings changes instead; platforms
-  // using older starboard versions should use
-  // kSbEventTypeAccessib(i)litySettingsChanged for text-to-speech settings
-  // changes.
-  kSbEventTypeAccessibilitySettingsChanged,
-
   // An optional event that platforms may send to indicate that the application
   // may soon be terminated (or crash) due to low memory availability. The
   // application may respond by reducing memory consumption by running a Garbage
@@ -224,52 +208,6 @@ typedef enum SbEventType {
   // The size or position of a SbWindow has changed. The data is
   // SbEventWindowSizeChangedData.
   kSbEventTypeWindowSizeChanged,
-
-  // The platform has shown the on screen keyboard. This event is triggered by
-  // the system or by the application's OnScreenKeyboard show method. The event
-  // has int data representing a ticket. The ticket is used by the application
-  // to mark individual calls to the show method as successfully completed.
-  // Events triggered by the application have tickets passed in via
-  // SbWindowShowOnScreenKeyboard. System-triggered events have ticket value
-  // kSbEventOnScreenKeyboardInvalidTicket.
-  kSbEventTypeOnScreenKeyboardShown,
-
-  // The platform has hidden the on screen keyboard. This event is triggered by
-  // the system or by the application's OnScreenKeyboard hide method. The event
-  // has int data representing a ticket. The ticket is used by the application
-  // to mark individual calls to the hide method as successfully completed.
-  // Events triggered by the application have tickets passed in via
-  // SbWindowHideOnScreenKeyboard. System-triggered events have ticket value
-  // kSbEventOnScreenKeyboardInvalidTicket.
-  kSbEventTypeOnScreenKeyboardHidden,
-
-  // The platform has focused the on screen keyboard. This event is triggered by
-  // the system or by the application's OnScreenKeyboard focus method. The event
-  // has int data representing a ticket. The ticket is used by the application
-  // to mark individual calls to the focus method as successfully completed.
-  // Events triggered by the application have tickets passed in via
-  // SbWindowFocusOnScreenKeyboard. System-triggered events have ticket value
-  // kSbEventOnScreenKeyboardInvalidTicket.
-  kSbEventTypeOnScreenKeyboardFocused,
-
-  // The platform has blurred the on screen keyboard. This event is triggered by
-  // the system or by the application's OnScreenKeyboard blur method. The event
-  // has int data representing a ticket. The ticket is used by the application
-  // to mark individual calls to the blur method as successfully completed.
-  // Events triggered by the application have tickets passed in via
-  // SbWindowBlurOnScreenKeyboard. System-triggered events have ticket value
-  // kSbEventOnScreenKeyboardInvalidTicket.
-  kSbEventTypeOnScreenKeyboardBlurred,
-
-  // Reserved for deprecated events.
-  kSbEventTypeReserved1,
-
-  // One or more of the fields returned by SbAccessibilityGetCaptionSettings
-  // has changed.
-  kSbEventTypeAccessibilityCaptionSettingsChanged,
-
-  // The platform's text-to-speech settings have changed.
-  kSbEventTypeAccessibilityTextToSpeechSettingsChanged,
 
   // The platform has detected a network disconnection. There are likely to
   // be cases where the platform cannot detect the disconnection but the
