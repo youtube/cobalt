@@ -136,23 +136,14 @@ void SbEventHandle(const SbEvent* event) {
         g_platform_event_source->HandleEvent(event);
       }
       break;
-    case kSbEventTypeUser:
     case kSbEventTypeLink:
     case kSbEventTypeVerticalSync:
     case kSbEventTypeScheduled:
-    case kSbEventTypeAccessibilitySettingsChanged:
     case kSbEventTypeLowMemory:
     case kSbEventTypeWindowSizeChanged:
-    case kSbEventTypeOnScreenKeyboardShown:
-    case kSbEventTypeOnScreenKeyboardHidden:
-    case kSbEventTypeOnScreenKeyboardFocused:
-    case kSbEventTypeOnScreenKeyboardBlurred:
-    case kSbEventTypeAccessibilityCaptionSettingsChanged:
-    case kSbEventTypeAccessibilityTextToSpeechSettingsChanged:
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
     case kSbEventDateTimeConfigurationChanged:
-    case kSbEventTypeReserved1:
       break;
   }
 }
