@@ -9,6 +9,6 @@
     "SbAudioSinkTest*",
     "MaximumPlayerConfigurationExplorerTests*",
     "SbPlayerTest*",
-    "PosixFile*"
+    "PosixFileRead*"
   ]
 }
