@@ -21,6 +21,8 @@ interface DeepLinkListener {
 // The browser process must provide an implementation of this interface so that
 // the renderer process can implement the H5vccRuntime Blink API.
 interface H5vccRuntime {
+  [Sync]
+  GetAndClearInitialDeepLinkSync() => (string initial_deep_link);
   // Gets and clears the initial deep link received by the app on startup, or "" if none was received.
   GetAndClearInitialDeepLink() => (string initial_deep_link);
 

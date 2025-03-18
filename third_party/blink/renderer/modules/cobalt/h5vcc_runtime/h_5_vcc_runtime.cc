@@ -31,6 +31,14 @@ void H5vccRuntime::ContextDestroyed() {
   receiver_.reset();
 }
 
+String H5vccRuntime::initialDeepLink() {
+  if (initial_deep_link_.empty()) {
+    EnsureReceiverIsBound();
+    remote_h5vcc_runtime_->GetAndClearInitialDeepLinkSync(&initial_deep_link_);
+  }
+  return initial_deep_link_;
+}
+
 ScriptPromise H5vccRuntime::getInitialDeepLink(
     ScriptState* script_state,
     ExceptionState& exception_state) {
@@ -48,6 +56,7 @@ ScriptPromise H5vccRuntime::getInitialDeepLink(
 
 void H5vccRuntime::OnGetInitialDeepLink(ScriptPromiseResolver* resolver,
                                         const String& result) {
+  initial_deep_link_ = result;
   resolver->Resolve(result);
 }
 
