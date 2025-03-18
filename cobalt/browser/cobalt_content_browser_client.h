@@ -20,6 +20,7 @@
 #include "cobalt/browser/cobalt_single_render_process_observer.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/receiver_set.h"
 
 namespace content {
 class BrowserMainParts;
@@ -98,8 +99,8 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
  private:
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
   CobaltSingleRenderProcessObserver single_render_process_observer_;
-  std::unique_ptr<browser::CobaltTrustedURLLoaderHeaderClient>
-      cobalt_header_client_;
+  std::vector<std::unique_ptr<browser::CobaltTrustedURLLoaderHeaderClient>>
+      cobalt_header_clients_;
 
   THREAD_CHECKER(thread_checker_);
 };

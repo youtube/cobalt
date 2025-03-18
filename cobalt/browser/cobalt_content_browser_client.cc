@@ -35,6 +35,8 @@
 #include "starboard/system.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
+#include "cobalt/browser/client_hints/cobalt_trusted_url_loader_header_client.h"
+
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
 #endif
@@ -347,11 +349,14 @@ bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
     bool* bypass_redirect_checks,
     bool* disable_secure_dns,
     network::mojom::URLLoaderFactoryOverridePtr* factory_override) {
-  // override the header_client with ours
-  *header_client = cobalt_header_client_->receiver_.BindNewPipeAndPassRemote();
+  if (header_client) {
+    auto cobalt_header_client =
+        std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>();
+    *header_client = cobalt_header_client->GetPendingRemote();
+    cobalt_header_clients_.push_back(std::move(cobalt_header_client));
+  }
 
-  // double check
-  return false;  // Indicate that you didn't override the factory.
+  return false;
 }
 
 }  // namespace cobalt

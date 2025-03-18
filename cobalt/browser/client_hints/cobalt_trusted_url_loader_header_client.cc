@@ -3,26 +3,20 @@
 namespace cobalt {
 namespace browser {
 
-CobaltTrustedURLLoaderHeaderClient::CobaltTrustedURLLoaderHeaderClient() =
-    default;
-
-CobaltTrustedURLLoaderHeaderClient::~CobaltTrustedURLLoaderHeaderClient() =
-    default;
-
 void CobaltTrustedURLLoaderHeaderClient::OnLoaderCreated(
-    int32 request_id,
-    mojo::PendingReceiver<network::mojom::TrustedHeaderClient> header_client) {
-  auto my_header_client = std::make_unique<CobaltTrustedHeaderClient>();
-  mojo::Receiver<network::mojom::TrustedHeaderClient> receiver(
-      my_header_client.get());
-  receiver.Bind(std::move(header_client));
-  my_header_client.release();
+    int32_t request_id,
+    mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver) {
+  // Bind the header_client to the receiver
+  cobalt_header_client_->BindReceiver(std::move(receiver));
 }
 
 void CobaltTrustedURLLoaderHeaderClient::OnLoaderForCorsPreflightCreated(
     const network::ResourceRequest& request,
-    mojo::PendingReceiver<network::mojom::TrustedHeaderClient> header_client) {
-  OnLoaderCreated(0, std::move(header_client));
+    mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver) {}
+
+mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>
+CobaltTrustedURLLoaderHeaderClient::GetPendingRemote() {
+  return receiver_.BindNewPipeAndPassRemote();
 }
 
 }  // namespace browser
