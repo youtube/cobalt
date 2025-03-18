@@ -9,7 +9,6 @@
                 "icudtl.dat",
                 "libEGL.so",
                 "libGLESv2.so",
-                "libvulkan.so.1",
                 "starboard/libstarboard.so.17",
                 "v8_context_snapshot.bin"
             ],
