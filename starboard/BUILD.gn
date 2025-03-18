@@ -309,6 +309,12 @@ if (current_toolchain == starboard_toolchain) {
       ]
     }
   }
+
+}
+
+group("starboard_unittests_wrapper") {
+  testonly = true
+  deps = [ ":starboard_unittests($starboard_toolchain)" ]
 }
 
 test("starboard_unittests_wrapper") {
