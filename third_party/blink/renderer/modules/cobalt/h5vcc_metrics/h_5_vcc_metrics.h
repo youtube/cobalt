@@ -37,8 +37,8 @@ class ScriptPromiseResolver;
 
 class MODULES_EXPORT H5vccMetrics final
     : public EventTargetWithInlineData,
-      public ExecutionContextLifecycleObserver ,
-      public h5vcc_metrics::mojom::blink::MetricsListener{
+      public ExecutionContextLifecycleObserver,
+      public h5vcc_metrics::mojom::blink::MetricsListener {
   DEFINE_WRAPPERTYPEINFO();
 
  public:

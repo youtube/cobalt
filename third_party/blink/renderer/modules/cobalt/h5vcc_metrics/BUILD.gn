@@ -16,10 +16,10 @@ import("//third_party/blink/renderer/modules/modules.gni")
 
 blink_modules_sources("h5vcc_metrics") {
   sources = [
-    "metrics_event.cc",
-    "metrics_event.h",
     "h_5_vcc_metrics.cc",
     "h_5_vcc_metrics.h",
+    "metrics_event.cc",
+    "metrics_event.h",
   ]
 
   deps = [
