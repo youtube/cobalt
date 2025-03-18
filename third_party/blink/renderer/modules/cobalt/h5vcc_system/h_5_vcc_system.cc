@@ -46,6 +46,12 @@ void H5vccSystem::OnGetAdvertisingId(ScriptPromiseResolver* resolver,
   resolver->Resolve(result);
 }
 
+const String& H5vccSystem::advertisingId() {
+  EnsureReceiverIsBound();
+  remote_h5vcc_system_->GetAdvertisingIdSync(&advertising_id_);
+  return advertising_id_;
+}
+
 ScriptPromise H5vccSystem::getLimitAdTracking(ScriptState* script_state,
                                               ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
@@ -63,6 +69,62 @@ ScriptPromise H5vccSystem::getLimitAdTracking(ScriptState* script_state,
 void H5vccSystem::OnGetLimitAdTracking(ScriptPromiseResolver* resolver,
                                        bool result) {
   resolver->Resolve(result);
+}
+
+absl::optional<bool> H5vccSystem::limitAdTracking() {
+  EnsureReceiverIsBound();
+  bool limit_ad_tracking;
+  remote_h5vcc_system_->GetLimitAdTrackingSync(&limit_ad_tracking);
+  return limit_ad_tracking;
+}
+
+ScriptPromise H5vccSystem::getTrackingAuthorizationStatus(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_system_->GetTrackingAuthorizationStatus(
+      WTF::BindOnce(&H5vccSystem::OnGetTrackingAuthorizationStatus,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+
+  return resolver->Promise();
+}
+
+void H5vccSystem::OnGetTrackingAuthorizationStatus(
+    ScriptPromiseResolver* resolver,
+    const String& result) {
+  resolver->Resolve(result);
+}
+
+const String& H5vccSystem::trackingAuthorizationStatus() {
+  EnsureReceiverIsBound();
+  remote_h5vcc_system_->GetTrackingAuthorizationStatusSync(
+      &tracking_authorization_status_);
+  return tracking_authorization_status_;
+}
+
+ScriptPromise H5vccSystem::requestTrackingAuthorization(
+    ScriptState* script_state,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+  EnsureReceiverIsBound();
+
+  remote_h5vcc_system_->RequestTrackingAuthorization(
+      WTF::BindOnce(&H5vccSystem::OnRequestTrackingAuthorization,
+                    WrapPersistent(this), WrapPersistent(resolver)));
+
+  return resolver->Promise();
+}
+
+void H5vccSystem::OnRequestTrackingAuthorization(
+    ScriptPromiseResolver* resolver) {
+  // TODO - b/395650827: Reject when this fails.
+  resolver->Resolve();
 }
 
 void H5vccSystem::exit() {

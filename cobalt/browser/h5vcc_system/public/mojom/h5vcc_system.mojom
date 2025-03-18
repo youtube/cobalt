@@ -25,8 +25,16 @@ enum UserOnExitStrategy {
 interface H5vccSystem {
   // Get the advertisingId for the device.
   GetAdvertisingId() => (string advertising_id);
+  [Sync]
+  GetAdvertisingIdSync() => (string advertising_id);
   // Get the limitAdTracking for the device.
   GetLimitAdTracking() => (bool limitAdTracking);
+  [Sync]
+  GetLimitAdTrackingSync() => (bool limitAdTracking);
+  GetTrackingAuthorizationStatus() => (string tracking_authorization_status);
+  [Sync]
+  GetTrackingAuthorizationStatusSync() => (string tracking_authorization_status);
+  RequestTrackingAuthorization() => ();
 
   // Returns the platform-specific user on exit strategy.
   [Sync]
