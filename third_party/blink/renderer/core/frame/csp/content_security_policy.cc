@@ -1488,6 +1488,10 @@ CSPDirectiveName ContentSecurityPolicy::GetDirectiveType(const String& name) {
     return CSPDirectiveName::UpgradeInsecureRequests;
   if (name == "worker-src")
     return CSPDirectiveName::WorkerSrc;
+#if BUILDFLAG(IS_COBALT)
+  if (name == "h5vcc-location-src" || name == "cobalt-location-src")
+    return CSPDirectiveName::CobaltLocationSrc;
+#endif
 
   return CSPDirectiveName::Unknown;
 }
