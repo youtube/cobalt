@@ -17,16 +17,6 @@
 #include <memory>
 
 #include "starboard/egl.h"
-#include "ui/gfx/vsync_provider.h"
-
-namespace {
-// TODO(b/371272304): Currently targeting a fixed 60Hz. Make this dynamic based
-// on device capabilities.
-base::TimeDelta GetVSyncInterval() {
-  return base::Seconds(1) / 60;
-}
-
-}  // namespace
 
 namespace ui {
 
@@ -41,9 +31,7 @@ scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateViewGLSurface(
   // TODO(b/371272304): Verify widget dimensions match our expected display size
   // (likely full screen for Cobalt).
   return gl::InitializeGLSurface(new gl::NativeViewGLSurfaceEGL(
-      display->GetAs<gl::GLDisplayEGL>(), window,
-      std::make_unique<gfx::FixedVSyncProvider>(base::TimeTicks(),
-                                                GetVSyncInterval())));
+      display->GetAs<gl::GLDisplayEGL>(), window, nullptr));
 }
 
 scoped_refptr<gl::GLSurface> GLOzoneEGLStarboard::CreateOffscreenGLSurface(
