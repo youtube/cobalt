@@ -1,0 +1,27 @@
+name: nightly_trigger_26.android
+
+on:
+  schedule:
+    # GMT timezone.
+    - cron: '0 10 * * *'
+  workflow_dispatch:
+
+jobs:
+  trigger_26:
+    permissions:
+      actions: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: kaidokert/checkout@v3.5.999
+        with:
+          fetch-depth: 1
+          ref: 26.android
+          persist-credentials: false
+      - name: Trigger Nightly
+        run: |
+          set -x
+          gh workflow run android_26.android --ref 26.android -f nightly=true
+          gh workflow run linux_26.android --ref 25.android -f nightly=true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
