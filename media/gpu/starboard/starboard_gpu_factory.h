@@ -1,0 +1,68 @@
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef MEDIA_GPU_STARBOARD_STARBOARD_GPU_FACTORY_H_
+#define MEDIA_GPU_STARBOARD_STARBOARD_GPU_FACTORY_H_
+
+#include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "base/synchronization/waitable_event.h"
+#include "base/threading/thread_checker.h"
+#include "base/unguessable_token.h"
+#include "gpu/ipc/service/command_buffer_stub.h"
+#include "starboard/decode_target.h"
+
+namespace media {
+// StarboardGpuFactory allows to post tasks on gpu thread.
+// StarboardRenderer uses this class to post graphical tasks.
+class StarboardGpuFactory : public gpu::CommandBufferStub::DestructionObserver {
+ public:
+  using GetStubCB =
+      base::RepeatingCallback<gpu::CommandBufferStub*(base::UnguessableToken,
+                                                      int32_t)>;
+
+  StarboardGpuFactory(GetStubCB get_stub_cb);
+
+  StarboardGpuFactory(const StarboardGpuFactory&) = delete;
+  StarboardGpuFactory& operator=(const StarboardGpuFactory&) = delete;
+
+  ~StarboardGpuFactory() override;
+
+  void Initialize(base::UnguessableToken channel_token,
+                  int32_t route_id,
+                  int texture_id,
+                  int* texture_native_id,
+                  base::WaitableEvent* done_event);
+  void RunTaskOnGpuThread(SbDecodeTargetGlesContextRunnerTarget target_function,
+                          void* target_function_context,
+                          base::WaitableEvent* done_event);
+  void RunTaskOnGpuThreadv2(base::RepeatingCallback<void()> callback,
+                            base::WaitableEvent* done_event);
+  void RunDeleteTaskOnGpuThread(int texture_native_id,
+                                base::WaitableEvent* done_event);
+
+ private:
+  void OnWillDestroyStub(bool have_context) override;
+
+  GetStubCB get_stub_cb_;
+
+  raw_ptr<gpu::CommandBufferStub> stub_ = nullptr;
+
+  THREAD_CHECKER(thread_checker_);
+  base::WeakPtrFactory<StarboardGpuFactory> weak_factory_{this};
+};
+
+}  // namespace media
+
+#endif  // MEDIA_GPU_STARBOARD_STARBOARD_GPU_FACTORY_H_

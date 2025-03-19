@@ -58,6 +58,8 @@ class DecodeTarget final : public SbDecodeTargetPrivate {
   jobject surface_;
   ANativeWindow* native_window_;
 
+  int texture_native_id_ = -1;
+
   SbDecodeTargetInfo info_;
 };
 

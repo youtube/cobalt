@@ -106,6 +106,32 @@ VideoDecoderTraits::VideoDecoderTraits(
       android_overlay_factory_cb(std::move(android_overlay_factory_cb)),
       oop_video_decoder(std::move(oop_video_decoder)) {}
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+StarboardRendererTraits::~StarboardRendererTraits() = default;
+StarboardRendererTraits::StarboardRendererTraits(
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
+    scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
+    mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+    const base::UnguessableToken& overlay_plane_id,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote,
+    mojo::PendingReceiver<mojom::StarboardRendererExtension>
+        renderer_extension_receiver,
+    mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+        client_extension_remote,
+    GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb)
+    : task_runner(std::move(task_runner)),
+      gpu_task_runner(std::move(gpu_task_runner)),
+      media_log_remote(std::move(media_log_remote)),
+      overlay_plane_id(overlay_plane_id),
+      audio_write_duration_local(audio_write_duration_local),
+      audio_write_duration_remote(audio_write_duration_remote),
+      renderer_extension_receiver(std::move(renderer_extension_receiver)),
+      client_extension_remote(std::move(client_extension_remote)),
+      get_starboard_command_buffer_stub_cb(
+          std::move(get_starboard_command_buffer_stub_cb)) {}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 GpuMojoMediaClient::GpuMojoMediaClient(
     const gpu::GpuPreferences& gpu_preferences,
     const gpu::GpuDriverBugWorkarounds& gpu_workarounds,
@@ -264,11 +290,14 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
         client_extension_remote) {
-  return CreatePlatformStarboardRenderer(
-      std::move(task_runner), std::move(media_log_remote), overlay_plane_id,
-      audio_write_duration_local, audio_write_duration_remote,
+  StarboardRendererTraits traits(
+      task_runner, gpu_task_runner_, std::move(media_log_remote),
+      overlay_plane_id, audio_write_duration_local,
+      audio_write_duration_remote,
       std::move(renderer_extension_receiver),
-      std::move(client_extension_remote));
+      std::move(client_extension_remote), base::BindRepeating(
+        &GetCommandBufferStub, gpu_task_runner_, media_gpu_channel_manager_));
+  return CreatePlatformStarboardRenderer(traits);
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 

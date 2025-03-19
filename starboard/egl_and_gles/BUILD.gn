@@ -41,6 +41,9 @@ declare_args() {
 
 config("egl_and_gles_angle_config") {
   include_dirs = [ "//third_party/angle/include" ]
+  if (is_android) {
+    defines = [ "GL_GLEXT_PROTOTYPES" ]
+  }
 }
 
 if (gl_type == "angle") {
