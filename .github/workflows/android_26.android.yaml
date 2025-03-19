@@ -1,17 +1,13 @@
-name: android
+name: android_26.android
 
 on:
   pull_request:
     types: [opened, reopened, synchronize, labeled]
     branches:
-      - main
-      - experimental/*
-      - feature/*
+      - '26.android'
   push:
     branches:
-      - main
-      - experimental/*
-      - feature/*
+      - '26.android'
   workflow_dispatch:
     inputs:
       nightly:
