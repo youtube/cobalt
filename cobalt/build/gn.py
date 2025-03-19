@@ -21,12 +21,7 @@ import subprocess
 from pathlib import Path
 from typing import List
 
-CONTROLLED_ARGS = [
-    'cc_wrapper',  # See build/toolschain/cc_wrapper.gni
-    'is_debug',  # See build/config/BUILDCONFIG.GN
-    'is_official_build',  # mutually exclusive with is_debug
-    'symbol_level',  # See build/config/compiler/compiler.gni
-]
+_BUILDS_DIRECTORY = 'out'
 
 _BUILD_TYPES = {
     'debug': {
@@ -51,41 +46,8 @@ _BUILD_TYPES = {
 }
 
 
-# Parsing code Lifted from tools/code_coverage/coverage.py
-def get_build_args(build_args_path):
-  """Parses args.gn file and returns contents and dictionary."""
-  assert os.path.exists(build_args_path), (
-      f'{build_args_path} is not a build directory, '
-      'missing args.gn file.')
-  dict_settings = {}
-  with open(build_args_path, encoding='utf-8') as build_args_file:
-    build_args_lines = build_args_file.readlines()
-
-  for build_arg_line in build_args_lines:
-    build_arg_without_comments = build_arg_line.split('#')[0]
-    key_value_pair = build_arg_without_comments.split('=')
-    if len(key_value_pair) == 2:
-      key = key_value_pair[0].strip()
-      # Values are wrapped within a pair of double-quotes, so remove the leading
-      # and trailing double-quotes.
-      value = key_value_pair[1].strip().strip('"')
-      dict_settings[key] = value
-
-  return dict_settings
-
-
-def check_build_args(dict_settings):
-  controlled_args = [
-      (k, dict_settings[k]) for k in CONTROLLED_ARGS if k in dict_settings
-  ]
-  if controlled_args:
-    raise RuntimeError(
-        f'The following args cannot be set in configs: {controlled_args}')
-
-
 def write_build_args(build_args_path, platform_args_path, build_type, use_rbe):
   """ Write args file, modifying settings for config"""
-
   gen_comment = '# Set by gn.py'
   with open(build_args_path, 'w', encoding='utf-8') as f:
     f.write(f'use_siso = false {gen_comment}\n')
@@ -99,8 +61,8 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe):
     f.write(f'import("{platform_args_path}")\n')
 
 
-def main(out_directory: str, platform: str, build_type: str, use_rbe: bool,
-         gn_gen_args: List[str]):
+def configure_out_directory(out_directory: str, platform: str, build_type: str,
+                            use_rbe: bool, gn_gen_args: List[str]):
   Path(out_directory).mkdir(parents=True, exist_ok=True)
   platform_path = f'cobalt/build/configs/{platform}'
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
@@ -115,8 +77,6 @@ def main(out_directory: str, platform: str, build_type: str, use_rbe: bool,
           'In general, if the file exists, you should run'
           ' `gn args <out_directory>` to edit it instead.')
 
-  build_args = get_build_args(src_args_gn_file)
-  check_build_args(build_args)
   write_build_args(dst_args_gn_file, src_args_gn_file, build_type, use_rbe)
 
   gn_command = ['gn', 'gen', out_directory] + gn_gen_args
@@ -124,7 +84,7 @@ def main(out_directory: str, platform: str, build_type: str, use_rbe: bool,
   subprocess.check_call(gn_command)
 
 
-if __name__ == '__main__':
+def parse_args():
   parser = argparse.ArgumentParser()
   builds_directory_group = parser.add_mutually_exclusive_group()
   builds_directory_group.add_argument(
@@ -174,11 +134,20 @@ if __name__ == '__main__':
   if not script_args.no_check:
     gen_args.append('--check')
 
+  return script_args, gen_args
+
+
+def main():
+  script_args, gen_args = parse_args()
   if script_args.out_directory:
     builds_out_directory = script_args.out_directory
   else:
-    BUILDS_DIRECTORY = 'out'
     builds_out_directory = os.path.join(
-        BUILDS_DIRECTORY, f'{script_args.platform}_{script_args.build_type}')
-  main(builds_out_directory, script_args.platform, script_args.build_type,
-       not script_args.no_rbe, gen_args)
+        _BUILDS_DIRECTORY, f'{script_args.platform}_{script_args.build_type}')
+  configure_out_directory(builds_out_directory, script_args.platform,
+                          script_args.build_type, not script_args.no_rbe,
+                          gen_args)
+
+
+if __name__ == '__main__':
+  main()
