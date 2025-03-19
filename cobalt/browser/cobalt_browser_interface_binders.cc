@@ -28,6 +28,11 @@
 #include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
 #endif  // BUILDFLAG(IS_ANDROIDTV)
 
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#include "cobalt/browser/h5vcc_storage/testing/h5vcc_storage_for_testing_impl.h"
+#include "cobalt/browser/h5vcc_storage/testing/public/mojom/h5vcc_storage_for_testing.mojom.h"
+#endif
+
 namespace cobalt {
 
 #if BUILDFLAG(IS_ANDROIDTV)
@@ -49,6 +54,11 @@ void PopulateCobaltFrameBinders(
   binder_map->Add<crash_annotator::mojom::CrashAnnotator>(
       base::BindRepeating(&crash_annotator::CrashAnnotatorImpl::Create));
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  binder_map->Add<h5vcc_storage_for_testing::mojom::H5vccStorageForTesting>(
+      base::BindRepeating(
+          &h5vcc_storage_for_testing::H5vccStorageForTestingImpl::Create));
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
   binder_map->Add<h5vcc_system::mojom::H5vccSystem>(
       base::BindRepeating(&h5vcc_system::H5vccSystemImpl::Create));
   binder_map->Add<h5vcc_runtime::mojom::H5vccRuntime>(
