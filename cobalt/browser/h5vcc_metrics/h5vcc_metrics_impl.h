@@ -22,7 +22,7 @@
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
 namespace content {
-  class RenderFrameHost;
+class RenderFrameHost;
 }  // namespace content
 
 namespace h5vcc_metrics {
