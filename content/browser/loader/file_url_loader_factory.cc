@@ -798,7 +798,6 @@ void FileURLLoaderFactory::CreateLoaderAndStart(
     const network::ResourceRequest& request,
     mojo::PendingRemote<network::mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
-  LOG(INFO) << "ColinL: FileURLLoaderFactory::CreateLoaderAndStart(), url == " << request.url.spec();
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 
   // CORS mode requires a valid |request_initiator|.

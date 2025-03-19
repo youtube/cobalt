@@ -71,7 +71,6 @@ void BlobURLLoaderFactory::CreateLoaderAndStart(
         ->OnComplete(network::URLLoaderCompletionStatus(net::ERR_INVALID_URL));
     return;
   }
-  LOG(INFO) << "ColinL: BlobURLLoaderFactory::CreateLoaderAndStart(), url == " << request.url;
   if (!blob_) {
     mojo::Remote<network::mojom::URLLoaderClient>(std::move(client))
         ->OnComplete(

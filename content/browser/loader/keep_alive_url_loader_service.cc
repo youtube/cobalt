@@ -157,7 +157,6 @@ void KeepAliveURLLoaderService::KeepAliveURLLoaderFactory::CreateLoaderAndStart(
     const network::ResourceRequest& resource_request,
     mojo::PendingRemote<network::mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
-  LOG(INFO) << "ColinL: KeepAliveURLLoaderFactory::CreateLoaderAndStart(), url == " << resource_request.url.spec();
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   TRACE_EVENT("loading", "KeepAliveURLLoaderFactory::CreateLoaderAndStart",
               "request_id", request_id);

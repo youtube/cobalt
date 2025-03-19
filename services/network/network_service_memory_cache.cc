@@ -539,7 +539,6 @@ void NetworkServiceMemoryCache::CreateLoaderAndStart(
     const net::NetLogWithSource net_log,
     const absl::optional<net::CookiePartitionKey> cookie_partition_key,
     mojo::PendingRemote<mojom::URLLoaderClient> client) {
-  LOG(INFO) << "ColinL: NetworkServiceMemoryCache::CreateLoaderAndStart(), url == " << resource_request.url;
   auto it = entries_.Get(cache_key);
   CHECK(it != entries_.end());
 

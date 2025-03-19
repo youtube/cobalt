@@ -62,8 +62,6 @@ void DataURLLoaderFactory::CreateLoaderAndStart(
     url = &request.url;
   }
 
-  LOG(INFO) << "ColinL: DataURLLoaderFactory::CreateLoaderAndStart(), url == " << request.url.spec();
-
   std::string data;
   scoped_refptr<net::HttpResponseHeaders> headers;
   auto response = network::mojom::URLResponseHead::New();

@@ -93,7 +93,6 @@ void AuctionURLLoaderFactoryProxy::CreateLoaderAndStart(
     const network::ResourceRequest& url_request,
     mojo::PendingRemote<network::mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
-  LOG(INFO) << "ColinL: AuctionURLLoaderFactoryProxy::CreateLoaderAndStart(), url == " << url_request.url.spec();
   // Worklet requests must include a request header.
   std::string accept_header;
   if (!url_request.headers.GetHeader(net::HttpRequestHeaders::kAccept,

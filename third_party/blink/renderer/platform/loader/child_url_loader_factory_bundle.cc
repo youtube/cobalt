@@ -201,7 +201,6 @@ void ChildURLLoaderFactoryBundle::CreateLoaderAndStart(
     const network::ResourceRequest& request,
     mojo::PendingRemote<network::mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
-  LOG(INFO) << "ColinL: ChildURLLoaderFactoryBundle::CreateLoaderAndStart(), url == " << request.url;
   auto override_iter = subresource_overrides_.find(request.url);
   if (override_iter != subresource_overrides_.end()) {
     blink::mojom::TransferrableURLLoaderPtr transferrable_loader =

@@ -323,7 +323,6 @@ std::unique_ptr<ThrottlingURLLoader> ThrottlingURLLoader::CreateLoaderAndStart(
     const net::NetworkTrafficAnnotationTag& traffic_annotation,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
     absl::optional<std::vector<std::string>> cors_exempt_header_list) {
-  LOG(INFO) << "ColinL: ThrottlingURLLoader::CreateLoaderAndStart(), url == " << url_request->url.spec();
   DCHECK(url_request);
   std::unique_ptr<ThrottlingURLLoader> loader(new ThrottlingURLLoader(
       std::move(throttles), client, traffic_annotation));

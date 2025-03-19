@@ -120,7 +120,6 @@ void URLLoaderFactoryBundle::CreateLoaderAndStart(
     const network::ResourceRequest& request,
     mojo::PendingRemote<network::mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
-  LOG(INFO) << "ColinL: URLLoaderFactoryBundle::CreateLoaderAndStart(), url == " << request.url;
   network::mojom::URLLoaderFactory* factory_ptr = GetFactory(request);
   factory_ptr->CreateLoaderAndStart(std::move(loader), request_id, options,
                                     request, std::move(client),

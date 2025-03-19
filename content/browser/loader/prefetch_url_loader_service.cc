@@ -107,7 +107,6 @@ void PrefetchURLLoaderService::CreateLoaderAndStart(
     const network::ResourceRequest& resource_request_in,
     mojo::PendingRemote<network::mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
-  LOG(INFO) << "ColinL: PrefetchURLLoaderService::CreateLoaderAndStart(), url == " << resource_request_in.url.spec();
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   // Make a copy of |resource_request_in|, because we may need to modify the
