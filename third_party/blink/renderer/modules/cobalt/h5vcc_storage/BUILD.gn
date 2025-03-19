@@ -14,17 +14,19 @@
 
 import("//third_party/blink/renderer/modules/modules.gni")
 
-blink_modules_sources("h_5_vcc") {
+blink_modules_sources("h5vcc_storage") {
   sources = [
-    "h_5_vcc.cc",
-    "h_5_vcc.h",
+    "h_5_vcc_storage.cc",
+    "h_5_vcc_storage.h",
   ]
-  deps = [
-    "//third_party/blink/renderer/modules/cobalt/crash_log",
-    "//third_party/blink/renderer/modules/cobalt/encryptedmedia",
-    "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
-    "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
-    "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
-    "//third_party/blink/renderer/modules/cobalt/mediasource",
-  ]
+  deps = []
+
+  if (!cobalt_is_release_build) {
+    sources += [
+      "testing/h_5_vcc_storage_for_testing.cc",
+      "testing/h_5_vcc_storage_for_testing.h",
+    ]
+    deps +=
+        [ "//cobalt/browser/h5vcc_storage/testing/public/mojom:mojom_blink" ]
+  }
 }

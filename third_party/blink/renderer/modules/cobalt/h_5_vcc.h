@@ -27,6 +27,7 @@ namespace blink {
 class ScriptState;
 class CrashLog;
 class LocalDOMWindow;
+class H5vccStorage;
 class H5vccSystem;
 class H5vccRuntime;
 
@@ -44,6 +45,8 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
 
   CrashLog* crashLog() { return crash_log_; }
 
+  H5vccStorage* storage() { return storage_; }
+
   H5vccSystem* system() { return system_; }
 
   H5vccRuntime* runtime() { return runtime_; }
@@ -52,6 +55,7 @@ class MODULES_EXPORT H5vcc final : public ScriptWrappable,
 
  private:
   Member<CrashLog> crash_log_;
+  Member<H5vccStorage> storage_;
   Member<H5vccSystem> system_;
   Member<H5vccRuntime> runtime_;
 };
