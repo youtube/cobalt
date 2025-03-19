@@ -9,6 +9,10 @@ import("//third_party/dawn/scripts/dawn_features.gni")
 import("//third_party/protobuf/proto_library.gni")
 import("//ui/gl/features.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 group("service") {
   if (is_component_build) {
     public_deps = [ "//gpu" ]
@@ -570,6 +574,13 @@ target(link_target_type, "gles2_sources") {
     deps += [ "//third_party/libsync" ]
     if (enable_vulkan) {
       deps += [ "//gpu/vulkan" ]
+    }
+
+    if (is_cobalt && use_starboard_media) {
+      sources += [
+        "starboard/starboard_surface_texture_gl_owner.cc",
+        "starboard/starboard_surface_texture_gl_owner.h",
+      ]
     }
   }
 

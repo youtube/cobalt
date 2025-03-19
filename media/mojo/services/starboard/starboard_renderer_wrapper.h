@@ -18,7 +18,10 @@
 #include <memory>
 
 #include "base/memory/weak_ptr.h"
+#include "base/task/sequenced_task_runner.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/threading/thread_checker.h"
+#include "gpu/ipc/service/command_buffer_stub.h"
 #include "media/base/renderer.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/mojo/services/gpu_mojo_media_client.h"
@@ -27,12 +30,26 @@
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "mojo/public/cpp/bindings/remote.h"
+#include "starboard/decode_target.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "base/threading/sequence_bound.h"
+#include "gpu/command_buffer/service/starboard/starboard_surface_texture_gl_owner.h"
+#include "gpu/command_buffer/service/texture_owner.h"
+#include "gpu/ipc/service/command_buffer_stub.h"
+#include "media/gpu/android/codec_buffer_wait_coordinator.h"
+#include "media/gpu/android/shared_image_video_provider.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace base {
 class TimeDelta;
 }  // namespace base
 
 namespace media {
+
+#if BUILDFLAG(IS_ANDROID)
+class StarboardGpuFactory;
+#endif  // BUILDFLAG(IS_ANDROID)
 
 // Simple wrapper around a StarboardRenderer.
 // Wraps media::StarboardRenderer to remove its dependence on
@@ -47,6 +64,12 @@ class StarboardRendererWrapper final
  public:
   using RendererExtension = mojom::StarboardRendererExtension;
   using ClientExtension = mojom::StarboardRendererClientExtension;
+#if BUILDFLAG(IS_ANDROID)
+  using InitCB =
+      base::RepeatingCallback<void(scoped_refptr<gpu::TextureOwner>,
+                                   base::UnguessableToken channel_token,
+                                   int32_t route_id)>;
+#endif  // BUILDFLAG(IS_ANDROID)
 
   StarboardRendererWrapper(StarboardRendererTraits& traits);
 
@@ -70,13 +93,70 @@ class StarboardRendererWrapper final
 
   // mojom::StarboardRendererExtension implementation.
   void OnVideoGeometryChange(const gfx::Rect& output_rect) override;
+  void OnGpuChannelTokenReady(
+      mojom::CommandBufferIdPtr command_buffer_id) override;
+  void Render(RenderCallback callback) override;
+
+#if BUILDFLAG(IS_ANDROID)
+  static scoped_refptr<gpu::TextureOwner> CreateTextureOwner(
+      scoped_refptr<gpu::SharedContextState> context_state);
+#endif  // BUILDFLAG(IS_ANDROID)
 
  private:
   void OnPaintVideoHoleFrameByStarboard(const gfx::Size& size);
+  void OnUpdateStarboardRenderingModeByStarboard(
+      const StarboardRenderingMode mode);
+#if BUILDFLAG(IS_ANDROID)
+  void OnGpuFactoryInitialized();
+  void OnTextureOwnerInitialized(scoped_refptr<gpu::TextureOwner> texture_owner,
+                                 base::UnguessableToken channel_token,
+                                 int32_t route_id);
+  void CreateVideoFrame_OnImageReady(
+      base::WeakPtr<StarboardRendererWrapper> thiz,
+      const gfx::Size& coded_size,
+      const gfx::Rect& visible_rect,
+      const gfx::Size& natural_size,
+      SharedImageVideoProvider::ImageRecord record);
+#endif  // BUILDFLAG(IS_ANDROID)
+  SbDecodeTargetGraphicsContextProvider*
+  GetSbDecodeTargetGraphicsContextProvider();
+  void GetCurrentDecodeTarget();
+
+  static void GraphicsContextRunner(
+      SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
+      SbDecodeTargetGlesContextRunnerTarget target_function,
+      void* target_function_context);
 
   mojo::Receiver<RendererExtension> renderer_extension_receiver_;
   mojo::Remote<ClientExtension> client_extension_remote_;
   std::unique_ptr<StarboardRenderer> renderer_;
+  mojom::CommandBufferIdPtr command_buffer_id_;
+#if BUILDFLAG(IS_ANDROID)
+  base::SequenceBound<StarboardGpuFactory> gpu_factory_;
+  scoped_refptr<gpu::TextureOwner> texture_owner_;
+  scoped_refptr<gpu::RefCountedLock> ref_counted_lock_;
+  // |codec_buffer_wait_coordinator_| owns the TextureOwner.
+  scoped_refptr<CodecBufferWaitCoordinator> codec_buffer_wait_coordinator_;
+#endif  // BUILDFLAG(IS_ANDROID)
+  scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner_;
+
+  raw_ptr<RendererClient> client_ = nullptr;
+  raw_ptr<MediaResource> media_resource_ = nullptr;
+  PipelineStatusCallback init_cb_;
+
+  SbDecodeTargetGraphicsContextProvider
+      decode_target_graphics_context_provider_;
+
+#if BUILDFLAG(IS_ANDROID)
+  bool is_gpu_factory_initialized_ = false;
+  base::RepeatingCallback<gpu::CommandBufferStub*(base::UnguessableToken,
+                                                  int32_t)>
+      get_starboard_command_buffer_stub_cb_;
+  std::unique_ptr<SharedImageVideoProvider> image_provider_;
+  scoped_refptr<VideoFrame> current_frame_;
+  int texture_native_id_ = -1;
+#endif  // BUILDFLAG(IS_ANDROID)
+  SbDecodeTarget decode_target_ = kSbDecodeTargetInvalid;
 
   base::WeakPtrFactory<StarboardRendererWrapper> weak_factory_{this};
 
