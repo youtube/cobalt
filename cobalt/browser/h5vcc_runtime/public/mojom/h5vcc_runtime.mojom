@@ -23,6 +23,8 @@ interface DeepLinkListener {
 interface H5vccRuntime {
   // Gets and clears the initial deep link received by the app on startup, or "" if none was received.
   GetAndClearInitialDeepLink() => (string initial_deep_link);
+  [Sync]
+  GetAndClearInitialDeepLinkSync() => (string initial_deep_link);
 
   // Register the remote DeepLinkListener.
   AddListener(pending_remote<DeepLinkListener> listener);

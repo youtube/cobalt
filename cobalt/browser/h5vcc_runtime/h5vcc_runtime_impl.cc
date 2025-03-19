@@ -42,6 +42,13 @@ void H5vccRuntimeImpl::Create(
   new H5vccRuntimeImpl(*render_frame_host, std::move(receiver));
 }
 
+void H5vccRuntimeImpl::GetAndClearInitialDeepLinkSync(
+    GetAndClearInitialDeepLinkSyncCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
+  std::move(callback).Run(manager->GetAndClearDeepLink());
+}
+
 void H5vccRuntimeImpl::GetAndClearInitialDeepLink(
     GetAndClearInitialDeepLinkCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
