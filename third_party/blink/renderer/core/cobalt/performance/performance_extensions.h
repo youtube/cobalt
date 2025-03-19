@@ -15,18 +15,19 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_PERFORMANCE_PERFORMANCE_EXTENSIONS_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_PERFORMANCE_PERFORMANCE_EXTENSIONS_H_
 
-#include "third_party/blink/renderer/platform/bindings/exception_state.h"
-#include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "third_party/blink/renderer/core/core_export.h"
+#include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
-class CobaltPerformance final {
+class ScriptState;
+
+class CORE_EXPORT CobaltPerformance final {
   STATIC_ONLY(CobaltPerformance);
 
  public:
   // Web-exposed interface:
-  static uint64_t measureUserAgentFreeMemory(ScriptState* script_state,
-                                             ExceptionState& exception_state);
+  static uint64_t measureUserAgentFreeMemory(ScriptState* script_state);
 };
 
 }  // namespace blink

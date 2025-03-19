@@ -19,10 +19,9 @@
 namespace blink {
 
 uint64_t CobaltPerformance::measureUserAgentFreeMemory(
-    ScriptState* script_state,
-    ExceptionState& exception_state) {
+    ScriptState* script_state) {
   ExecutionContext* execution_context = ExecutionContext::From(script_state);
-  return 0;
+  return 10;
 }
 
 }  //  namespace blink

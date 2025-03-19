@@ -2,5 +2,5 @@
 [
     ImplementedAs=CobaltPerformance
 ] partial interface Performance {
-    [Exposed=Window, CallWith=ScriptState, RaisesException] unsigned long long measureUserAgentFreeMemory();
+    [Exposed=Window, CallWith=ScriptState] unsigned long long measureUserAgentFreeMemory();
 }
