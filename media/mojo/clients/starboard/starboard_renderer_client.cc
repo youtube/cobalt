@@ -15,12 +15,13 @@
 #include "media/mojo/clients/starboard/starboard_renderer_client.h"
 
 #include "base/functional/bind.h"
+#include "base/unguessable_token.h"
 #include "media/base/media_log.h"
 #include "media/base/media_resource.h"
-#include "media/base/renderer_client.h"
-#include "media/base/video_renderer_sink.h"
+#include "media/base/video_frame.h"
 #include "media/mojo/clients/mojo_renderer.h"
 #include "media/renderers/video_overlay_factory.h"
+#include "media/video/gpu_video_accelerator_factories.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
@@ -34,7 +35,8 @@ StarboardRendererClient::StarboardRendererClient(
     VideoRendererSink* video_renderer_sink,
     mojo::PendingRemote<RendererExtension> pending_renderer_extension,
     mojo::PendingReceiver<ClientExtension> client_extension_receiver,
-    BindHostReceiverCallback bind_host_receiver_callback)
+    BindHostReceiverCallback bind_host_receiver_callback,
+    GpuVideoAcceleratorFactories* gpu_factories)
     : media_task_runner_(media_task_runner),
       media_log_(std::move(media_log)),
       MojoRendererWrapper(std::move(mojo_renderer)),
@@ -43,7 +45,8 @@ StarboardRendererClient::StarboardRendererClient(
       pending_renderer_extension_(std::move(pending_renderer_extension)),
       pending_client_extension_receiver_(std::move(client_extension_receiver)),
       client_extension_receiver_(this),
-      bind_host_receiver_callback_(bind_host_receiver_callback) {
+      bind_host_receiver_callback_(bind_host_receiver_callback),
+      gpu_factories_(gpu_factories) {
   DCHECK(media_task_runner_);
   DCHECK(video_renderer_sink_);
   DCHECK(video_overlay_factory_);
@@ -51,13 +54,16 @@ StarboardRendererClient::StarboardRendererClient(
   LOG(INFO) << "StarboardRendererClient constructed.";
 }
 
-StarboardRendererClient::~StarboardRendererClient() {}
+StarboardRendererClient::~StarboardRendererClient() {
+  SignalMediaPlayingStateChange(false);
+}
 
 void StarboardRendererClient::Initialize(
     media::MediaResource* media_resource,
     media::RendererClient* client,
     media::PipelineStatusCallback init_cb) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(!init_cb_);
 
   // Consume and bind the delayed PendingRemote and PendingReceiver now that
   // we are on |media_task_runner_|.
@@ -70,6 +76,7 @@ void StarboardRendererClient::Initialize(
       &StarboardRendererClient::OnConnectionError, base::Unretained(this)));
 
   client_ = client;
+  init_cb_ = std::move(init_cb);
 
   // Bind the receiver of VideoGeometryChangeSubscriber on renderer Thread.
   // This uses BindPostTaskToCurrentDefault() to ensure the callback is ran
@@ -83,7 +90,40 @@ void StarboardRendererClient::Initialize(
       base::BindOnce(&StarboardRendererClient::OnSubscribeToVideoGeometryChange,
                      base::Unretained(this), media_resource, client));
 
-  MojoRendererWrapper::Initialize(media_resource, client, std::move(init_cb));
+  // Generate |command_buffer_id|.
+  media::mojom::CommandBufferIdPtr command_buffer_id;
+  if (gpu_factories_) {
+    gpu_factories_->GetChannelToken(base::BindOnce(
+        &StarboardRendererClient::OnGpuChannelTokenReady,
+        weak_factory_.GetWeakPtr(), std::move(command_buffer_id)));
+  }
+
+  MojoRendererWrapper::Initialize(
+      media_resource, this,
+      base::BindOnce(&StarboardRendererClient::OnRemoteRendererInitialized,
+                     weak_factory_.GetWeakPtr()));
+}
+
+void StarboardRendererClient::OnGpuChannelTokenReady(
+    mojom::CommandBufferIdPtr command_buffer_id,
+    const base::UnguessableToken& channel_token) {
+  if (channel_token) {
+    command_buffer_id = mojom::CommandBufferId::New();
+    command_buffer_id->channel_token = std::move(channel_token);
+    command_buffer_id->route_id = gpu_factories_->GetCommandBufferRouteId();
+    LOG(ERROR) << "Cobalt: " << __func__
+               << " channel_token:" << command_buffer_id->channel_token
+               << " route_id:" << command_buffer_id->route_id;
+    // Notify StarboardRenderer
+    renderer_extension_->OnGpuChannelTokenReady(std::move(command_buffer_id));
+  }
+}
+
+void StarboardRendererClient::StartPlayingFrom(base::TimeDelta time) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  SignalMediaPlayingStateChange(true);
+  next_video_frame_.reset();
+  MojoRendererWrapper::StartPlayingFrom(time);
 }
 
 RendererType StarboardRendererClient::GetRendererType() {
@@ -92,8 +132,30 @@ RendererType StarboardRendererClient::GetRendererType() {
 
 void StarboardRendererClient::PaintVideoHoleFrame(const gfx::Size& size) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
-  video_renderer_sink_->PaintSingleFrame(
-      video_overlay_factory_->CreateFrame(size));
+  if (rendering_mode_ == StarboardRenderingMode::kPunchOut) {
+    video_renderer_sink_->PaintSingleFrame(
+        video_overlay_factory_->CreateFrame(size));
+  }
+}
+
+void StarboardRendererClient::UpdateStarboardRenderingMode(
+    const StarboardRenderingMode mode) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (mode == StarboardRenderingMode::kPunchOut) {
+    // StarboardRenderingMode::kPunchOut doesn't update video
+    // frame via VideoRendererSink::RenderCallback::Render().
+    // The video frame is handled by Sbplayer, and render to its
+    // surface directly.
+    LOG(ERROR) << "Cobalt: " << __func__ << " kPunchOut";
+    StopVideoRendererSink();
+    rendering_mode_ = StarboardRenderingMode::kPunchOut;
+  } else if (mode == StarboardRenderingMode::kDecodeToTexture) {
+    // StarboardRenderingMode::kDecodeToTexture needs to update
+    // video frame via VideoRendererSink::RenderCallback::Render().
+    LOG(ERROR) << "Cobalt: " << __func__ << " kDecodeToTexture";
+    rendering_mode_ = StarboardRenderingMode::kDecodeToTexture;
+    StartVideoRendererSink();
+  }
 }
 
 void StarboardRendererClient::OnVideoGeometryChange(
@@ -101,6 +163,104 @@ void StarboardRendererClient::OnVideoGeometryChange(
     gfx::OverlayTransform /* transform */) {
   gfx::Rect new_bounds = gfx::ToEnclosingRect(rect_f);
   renderer_extension_->OnVideoGeometryChange(new_bounds);
+}
+
+void StarboardRendererClient::OnError(PipelineStatus status) {
+  LOG(ERROR) << "Cobalt: " << __func__;
+  SignalMediaPlayingStateChange(false);
+  client_->OnError(status);
+}
+
+void StarboardRendererClient::OnFallback(PipelineStatus fallback) {
+  SignalMediaPlayingStateChange(false);
+  client_->OnFallback(std::move(fallback).AddHere());
+}
+
+void StarboardRendererClient::OnEnded() {
+  SignalMediaPlayingStateChange(false);
+  client_->OnEnded();
+}
+
+void StarboardRendererClient::OnStatisticsUpdate(
+    const PipelineStatistics& stats) {
+  client_->OnStatisticsUpdate(stats);
+}
+
+void StarboardRendererClient::OnBufferingStateChange(
+    BufferingState state,
+    BufferingStateChangeReason reason) {
+  client_->OnBufferingStateChange(state, reason);
+}
+
+void StarboardRendererClient::OnWaiting(WaitingReason reason) {
+  client_->OnWaiting(reason);
+}
+
+void StarboardRendererClient::OnAudioConfigChange(
+    const AudioDecoderConfig& config) {
+  client_->OnAudioConfigChange(config);
+}
+
+void StarboardRendererClient::OnVideoConfigChange(
+    const VideoDecoderConfig& config) {
+  client_->OnVideoConfigChange(config);
+}
+
+void StarboardRendererClient::OnVideoNaturalSizeChange(const gfx::Size& size) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  // DCHECK(has_video_);
+  //  TODO(borongchen): we should refresh video_renderer_sink_
+
+  client_->OnVideoNaturalSizeChange(size);
+}
+
+void StarboardRendererClient::OnVideoOpacityChange(bool opaque) {
+  // DCHECK(has_video_);
+  client_->OnVideoOpacityChange(opaque);
+}
+
+void StarboardRendererClient::OnVideoFrameRateChange(absl::optional<int> fps) {
+  /*DCHECK(has_video_);
+
+  if (fps.has_value()) {
+    // We use microseconds as that is the max resolution of TimeDelta
+    render_interval_ = base::Microseconds(1000000 / *fps);
+  }*/
+
+  client_->OnVideoFrameRateChange(fps);
+}
+
+void StarboardRendererClient::OnRemoteRendererInitialized(
+    PipelineStatus status) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(!init_cb_.is_null());
+
+  if (status != PIPELINE_OK) {
+    std::move(init_cb_).Run(status);
+    return;
+  }
+
+  std::move(init_cb_).Run(PIPELINE_OK);
+}
+
+void StarboardRendererClient::SignalMediaPlayingStateChange(bool is_playing) {
+  LOG(ERROR) << "Cobalt: " << __func__ << " " << is_playing;
+  // Skip if we are already in the same playing state
+  if (is_playing == is_playing_) {
+    return;
+  }
+
+  // Only start the render loop if we are in decode-to-texture mode
+  if (rendering_mode_ == StarboardRenderingMode::kDecodeToTexture) {
+    if (is_playing) {
+      LOG(ERROR) << "Cobalt: " << __func__;
+      StartVideoRendererSink();
+    } else {
+      LOG(ERROR) << "Cobalt: " << __func__;
+      StopVideoRendererSink();
+    }
+  }
+  is_playing_ = is_playing;
 }
 
 void StarboardRendererClient::OnConnectionError() {
@@ -113,6 +273,63 @@ void StarboardRendererClient::OnSubscribeToVideoGeometryChange(
     MediaResource* media_resource,
     RendererClient* client) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+}
+
+scoped_refptr<VideoFrame> StarboardRendererClient::Render(
+    base::TimeTicks deadline_min,
+    base::TimeTicks deadline_max,
+    VideoRendererSink::RenderCallback::RenderingMode rendering_mode) {
+  DCHECK(rendering_mode_ == StarboardRenderingMode::kDecodeToTexture);
+
+  if (!media_task_runner_->RunsTasksInCurrentSequence()) {
+    media_task_runner_->PostTask(
+        FROM_HERE, base::BindOnce(&StarboardRendererClient::UpdateCurrentFrame,
+                                  weak_factory_.GetWeakPtr()));
+  }
+
+  return next_video_frame_;
+}
+
+void StarboardRendererClient::UpdateCurrentFrame() {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(rendering_mode_ == StarboardRenderingMode::kDecodeToTexture);
+  renderer_extension_->Render(base::BindOnce(
+      &StarboardRendererClient::OnRenderDone, weak_factory_.GetWeakPtr()));
+}
+
+void StarboardRendererClient::OnRenderDone(
+    const scoped_refptr<VideoFrame>& frame) {
+  if (frame.get() != nullptr) {
+    next_video_frame_ = std::move(frame);
+  } else {
+    // LOG(ERROR) << "Cobalt: " << __func__ << " nullptr frame";
+  }
+}
+
+void StarboardRendererClient::OnFrameDropped() {
+  // no-op: dropped frame is handled by SbPlayer.
+}
+
+base::TimeDelta StarboardRendererClient::GetPreferredRenderInterval() {
+  // TODO(b/375274109): Refine render interval for decode-to-texture mode.
+  // This is at 60 fps for our render interval.
+  return base::Microseconds(16666);
+}
+
+void StarboardRendererClient::StartVideoRendererSink() {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (!video_renderer_sink_started_) {
+    video_renderer_sink_started_ = true;
+    video_renderer_sink_->Start(this);
+  }
+}
+
+void StarboardRendererClient::StopVideoRendererSink() {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  if (video_renderer_sink_started_) {
+    video_renderer_sink_started_ = false;
+    video_renderer_sink_->Stop();
+  }
 }
 
 }  // namespace media

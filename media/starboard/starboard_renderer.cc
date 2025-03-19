@@ -408,9 +408,12 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   return media_time;
 }
 
-void StarboardRenderer::set_paint_video_hole_frame_callback(
-    PaintVideoHoleFrameCallback paint_video_hole_frame_cb) {
+void StarboardRenderer::SetStarboardRendererCallbacks(
+    PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
+    UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb) {
   paint_video_hole_frame_cb_ = std::move(paint_video_hole_frame_cb);
+  update_starboard_rendering_mode_cb_ =
+      std::move(update_starboard_rendering_mode_cb);
 }
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
@@ -469,8 +472,8 @@ void StarboardRenderer::CreatePlayerBridge() {
     player_bridge_.reset(new SbPlayerBridge(
         &sbplayer_interface_, task_runner_,
         // TODO(b/375070492): Implement decode-to-texture support
-        SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
-        audio_config, audio_mime_type, video_config, video_mime_type,
+        get_decode_target_graphics_context_provider_func_, audio_config,
+        audio_mime_type, video_config, video_mime_type,
         // TODO(b/326497953): Support suspend/resume.
         // TODO(b/326508279): Support background mode.
         kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
@@ -478,7 +481,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         false,
         // TODO(b/326825450): Revisit 360 videos.
         // TODO(b/326827007): Support secondary videos.
-        kSbPlayerOutputModeInvalid,
+        kSbPlayerOutputModeDecodeToTexture,  // kSbPlayerOutputModeInvalid,
         // TODO(b/326827007): Support secondary videos.
         "",
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
@@ -501,6 +504,16 @@ void StarboardRenderer::CreatePlayerBridge() {
   }
 
   if (player_bridge_ && player_bridge_->IsValid()) {
+    if (player_bridge_->GetSbPlayerOutputMode() ==
+        kSbPlayerOutputModeDecodeToTexture) {
+      update_starboard_rendering_mode_cb_.Run(
+          StarboardRenderingMode::kDecodeToTexture);
+    } else if (player_bridge_->GetSbPlayerOutputMode() ==
+               kSbPlayerOutputModePunchOut) {
+      update_starboard_rendering_mode_cb_.Run(
+          StarboardRenderingMode::kPunchOut);
+    }
+
     if (audio_stream_) {
       UpdateDecoderConfig(audio_stream_);
     }
@@ -912,6 +925,52 @@ int StarboardRenderer::GetEstimatedMaxBuffers(TimeDelta write_duration,
   // The maximum number samples of write should be guarded by
   // SbPlayerGetMaximumNumberOfSamplesPerWrite() in OnNeedData().
   return estimated_max_buffers > 0 ? estimated_max_buffers : 1;
+}
+
+scoped_refptr<VideoFrame> StarboardRenderer::Render() {
+  if (player_bridge_ && player_bridge_->IsValid()) {
+    DCHECK(player_bridge_->GetSbPlayerOutputMode() ==
+           kSbPlayerOutputModeDecodeToTexture);
+    SbDecodeTarget decode_target = player_bridge_->GetCurrentSbDecodeTarget();
+#if BUILDFLAG(IS_ANDROID)
+    // TODO(borongchen): post task to gpu_task_runner
+    // LOG(ERROR) << "Cobalt: " << __func__;
+#else   // BUILDFLAG(IS_ANDROID)
+    if (SbDecodeTargetIsValid(decode_target)) {
+      auto info = std::make_unique<SbDecodeTargetInfo>();
+      memset(info.get(), 0, sizeof(SbDecodeTargetInfo));
+      CHECK(SbDecodeTargetGetInfo(decode_target, info.get()));
+      // TODO(borongchen): support decode-to-texture on android
+      // PIXEL_FORMAT_I420: Decoded image from SbPlayer is 4:2:0 and 8bits.
+      int uv_height = info.get()->height / 2 + info.get()->height % 2;
+      int y_plane_size_in_bytes = info.get()->height * info.get()->y_stride;
+      int uv_plane_size_in_bytes = uv_height * info.get()->uv_stride;
+      auto size = gfx::Size(info.get()->width, info.get()->height);
+      auto frame = VideoFrame::WrapExternalYuvData(
+          PIXEL_FORMAT_I420, size, gfx::Rect(size), size, info.get()->y_stride,
+          info.get()->uv_stride, info.get()->uv_stride,
+          info.get()->pixel_buffer,
+          info.get()->pixel_buffer + y_plane_size_in_bytes,
+          info.get()->pixel_buffer + y_plane_size_in_bytes +
+              uv_plane_size_in_bytes,
+          base::Microseconds(info.get()->timestamp));
+      // Ensure image data stays alive along enough.
+      frame->AddDestructionObserver(
+          base::DoNothingWithBoundArgs(std::move(info)));
+      return frame;
+    }
+#endif  // BUILDFLAG(IS_ANDROID)
+  }
+  return nullptr;
+}
+
+void StarboardRenderer::set_decode_target_graphics_context_provider(
+    const GetDecodeTargetGraphicsContextProviderFunc&
+        get_decode_target_graphics_context_provider_func) {
+  LOG(ERROR) << "Cobalt: " << __func__;
+  get_decode_target_graphics_context_provider_func_ =
+      get_decode_target_graphics_context_provider_func;
+  LOG(ERROR) << "Cobalt: " << __func__;
 }
 
 }  // namespace media
