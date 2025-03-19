@@ -25,13 +25,10 @@
 namespace blink {
 
 class CrashLog;
-<<<<<<< HEAD
 class LocalDOMWindow;
+class H5vccMetrics;
 class H5vccStorage;
 class H5vccSystem;
-=======
-class H5vccMetrics;
->>>>>>> 015b4728c01 (Most of the scaffolding in place)
 class H5vccRuntime;
 class H5vccSystem;
 class LocalDOMWindow;

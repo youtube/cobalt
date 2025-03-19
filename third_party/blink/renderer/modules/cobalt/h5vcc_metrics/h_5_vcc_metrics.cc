@@ -49,8 +49,10 @@ ScriptPromise H5vccMetrics::enable(ScriptState* script_state,
 
   EnsureReceiverIsBound();
 
-  remote_h5vcc_metrics_->Enable(WTF::BindOnce(
-      &H5vccMetrics::OnEnable, WrapPersistent(this), WrapPersistent(resolver)));
+  remote_h5vcc_metrics_->Enable(
+      /*enable=*/true,
+      WTF::BindOnce(&H5vccMetrics::OnEnable, WrapPersistent(this),
+                    WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -62,9 +64,10 @@ ScriptPromise H5vccMetrics::disable(ScriptState* script_state,
 
   EnsureReceiverIsBound();
 
-  remote_h5vcc_metrics_->Disable(WTF::BindOnce(&H5vccMetrics::OnDisable,
-                                               WrapPersistent(this),
-                                               WrapPersistent(resolver)));
+  remote_h5vcc_metrics_->Enable(
+      /*enable=*/false,
+      WTF::BindOnce(&H5vccMetrics::OnDisable, WrapPersistent(this),
+                    WrapPersistent(resolver)));
 
   return resolver->Promise();
 }
@@ -73,14 +76,12 @@ ScriptPromise H5vccMetrics::isEnabled(ScriptState* script_state,
                                       ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
-
-  EnsureReceiverIsBound();
-
-  remote_h5vcc_metrics_->IsEnabled(WTF::BindOnce(&H5vccMetrics::OnIsEnabled,
-                                                 WrapPersistent(this),
-                                                 WrapPersistent(resolver)));
-
+  resolver->Resolve(is_reporting_enabled_);
   return resolver->Promise();
+}
+
+bool H5vccMetrics::enabled() {
+  return is_reporting_enabled_;
 }
 
 ScriptPromise H5vccMetrics::setMetricEventInterval(
@@ -106,10 +107,12 @@ void H5vccMetrics::OnMetrics(const WTF::String& tbd) {
 }
 
 void H5vccMetrics::OnEnable(ScriptPromiseResolver* resolver) {
+  is_reporting_enabled_ = true;
   resolver->Resolve();
 }
 
 void H5vccMetrics::OnDisable(ScriptPromiseResolver* resolver) {
+  is_reporting_enabled_ = false;
   resolver->Resolve();
 }
 

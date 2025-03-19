@@ -49,6 +49,7 @@ interface H5vccMetrics {
   // behavior."
   // This API is now Promise-based.
   [CallWith=ScriptState, RaisesException] Promise<boolean> isEnabled();
+  readonly attribute boolean enabled;
 
   // "Sets the frequency in which Cobalt metrics will be snapshotted and sent to
   // the metric event handler. Defaults to 5 minutes if not set. Must be > 0,
@@ -56,5 +57,5 @@ interface H5vccMetrics {
   // and will be persisted through multiple app lifetimes unless it's called
   // again with a different value."
   // This API is now Promise-based.
-  [ CallWith = ScriptState, RaisesException ] Promise<void> setMetricEventInterval(unsigned long long intervalSeconds);
+  [CallWith=ScriptState, RaisesException] Promise<void> setMetricEventInterval(unsigned long long intervalSeconds);
 };

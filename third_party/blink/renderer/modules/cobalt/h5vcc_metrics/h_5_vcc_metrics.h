@@ -53,6 +53,7 @@ class MODULES_EXPORT H5vccMetrics final
   ScriptPromise enable(ScriptState*, ExceptionState&);
   ScriptPromise disable(ScriptState*, ExceptionState&);
   ScriptPromise isEnabled(ScriptState*, ExceptionState&);
+  bool enabled();
   ScriptPromise setMetricEventInterval(ScriptState*, uint64_t, ExceptionState&);
 
   // EventTargetWithInlineData impl.
@@ -80,6 +81,8 @@ class MODULES_EXPORT H5vccMetrics final
       remote_h5vcc_metrics_;
   HeapMojoReceiver<h5vcc_metrics::mojom::blink::MetricsListener, H5vccMetrics>
       receiver_;
+
+  bool is_reporting_enabled_ = false;
 };
 
 }  // namespace blink

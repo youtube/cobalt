@@ -21,8 +21,6 @@ interface MetricsListener {
 interface H5vccMetrics {
   AddListener(pending_remote<MetricsListener> listener);
 
-  Enable() => ();
-  Disable() => ();
-  IsEnabled() => (bool enabled);
+  [Sync] Enable(bool enable) => ();
   SetMetricEventInterval(uint64 interval_seconds) => ();
 };
