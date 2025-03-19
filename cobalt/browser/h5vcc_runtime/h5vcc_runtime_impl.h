@@ -41,6 +41,8 @@ class H5vccRuntimeImpl : public content::DocumentService<mojom::H5vccRuntime> {
   H5vccRuntimeImpl(const H5vccRuntimeImpl&) = delete;
   H5vccRuntimeImpl& operator=(const H5vccRuntimeImpl&) = delete;
 
+  void GetAndClearInitialDeepLinkSync(
+      GetAndClearInitialDeepLinkSyncCallback) override;
   void GetAndClearInitialDeepLink(GetAndClearInitialDeepLinkCallback) override;
 
   void AddListener(mojo::PendingRemote<mojom::DeepLinkListener> listener);

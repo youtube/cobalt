@@ -50,6 +50,7 @@ class MODULES_EXPORT H5vccRuntime final
   void ContextDestroyed() override;
 
   // Web-exposed interface:
+  String initialDeepLink();
   ScriptPromise getInitialDeepLink(ScriptState*, ExceptionState&);
   EventListener* ondeeplink();
   void setOndeeplink(EventListener* listener);
