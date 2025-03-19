@@ -1,0 +1,6 @@
+// Non standard interface used for Cobalt only.
+[
+    ImplementedAs=CobaltPerformance
+] partial interface Performance {
+    [Exposed=Window, CallWith=ScriptState, RaisesException] unsigned long long measureUserAgentFreeMemory();
+}
