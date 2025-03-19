@@ -2,6 +2,7 @@
 #define COBALT_BROWSER_COBALT_TRUSTED_URL_LOADER_HEADER_CLIENT_H_
 
 #include "cobalt/browser/client_hints/cobalt_trusted_header_client.h"
+#include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/receiver.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -12,7 +13,9 @@ namespace browser {
 class CobaltTrustedURLLoaderHeaderClient
     : public network::mojom::TrustedURLLoaderHeaderClient {
  public:
-  CobaltTrustedURLLoaderHeaderClient() = default;
+  CobaltTrustedURLLoaderHeaderClient(
+      mojo::PendingReceiver<network::mojom::TrustedURLLoaderHeaderClient>
+          receiver);
 
   CobaltTrustedURLLoaderHeaderClient(
       const CobaltTrustedURLLoaderHeaderClient&) = delete;
@@ -31,11 +34,8 @@ class CobaltTrustedURLLoaderHeaderClient
       mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver)
       override;
 
-  mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>
-  GetPendingRemote();
-
  private:
-  mojo::Receiver<network::mojom::TrustedURLLoaderHeaderClient> receiver_{this};
+  mojo::Receiver<network::mojom::TrustedURLLoaderHeaderClient> receiver_;
   std::unique_ptr<CobaltTrustedHeaderClient> cobalt_header_client_;
 };
 

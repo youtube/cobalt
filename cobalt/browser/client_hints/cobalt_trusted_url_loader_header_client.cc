@@ -3,6 +3,11 @@
 namespace cobalt {
 namespace browser {
 
+CobaltTrustedURLLoaderHeaderClient::CobaltTrustedURLLoaderHeaderClient(
+    mojo::PendingReceiver<network::mojom::TrustedURLLoaderHeaderClient>
+        receiver)
+    : receiver_(this, std::move(receiver)) {}
+
 void CobaltTrustedURLLoaderHeaderClient::OnLoaderCreated(
     int32_t request_id,
     mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver) {
@@ -13,11 +18,6 @@ void CobaltTrustedURLLoaderHeaderClient::OnLoaderCreated(
 void CobaltTrustedURLLoaderHeaderClient::OnLoaderForCorsPreflightCreated(
     const network::ResourceRequest& request,
     mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver) {}
-
-mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>
-CobaltTrustedURLLoaderHeaderClient::GetPendingRemote() {
-  return receiver_.BindNewPipeAndPassRemote();
-}
 
 }  // namespace browser
 }  // namespace cobalt

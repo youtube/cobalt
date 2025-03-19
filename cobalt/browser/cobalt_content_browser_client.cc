@@ -350,13 +350,14 @@ bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
     bool* disable_secure_dns,
     network::mojom::URLLoaderFactoryOverridePtr* factory_override) {
   if (header_client) {
+    auto receiver = header_client->InitWithNewPipeAndPassReceiver();
     auto cobalt_header_client =
-        std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>();
-    *header_client = cobalt_header_client->GetPendingRemote();
+        std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>(
+            std::move(receiver));
     cobalt_header_clients_.push_back(std::move(cobalt_header_client));
   }
 
-  return false;
+  return true;
 }
 
 }  // namespace cobalt
