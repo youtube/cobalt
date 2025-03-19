@@ -55,6 +55,13 @@ source_set("browser") {
     "//content/shell:content_shell_lib",
   ]
 
+  if (!cobalt_is_release_build) {
+    deps += [
+      "//cobalt/browser/h5vcc_storage/testing",
+      "//cobalt/browser/h5vcc_storage/testing/public/mojom",
+    ]
+  }
+
   if (is_androidtv) {
     deps += [ "//cobalt/android:jni_headers" ]
   } else {
