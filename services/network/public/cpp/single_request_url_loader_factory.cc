@@ -90,6 +90,7 @@ void SingleRequestURLLoaderFactory::CreateLoaderAndStart(
     const ResourceRequest& request,
     mojo::PendingRemote<mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
+  LOG(INFO) << "ColinL: SingleRequestURLLoaderFactory::CreateLoaderAndStart(), url == " << request.url;
   state_->HandleRequest(request, std::move(loader), std::move(client));
 }
 

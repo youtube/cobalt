@@ -51,6 +51,7 @@ void SharedStorageURLLoaderFactoryProxy::CreateLoaderAndStart(
     const network::ResourceRequest& url_request,
     mojo::PendingRemote<network::mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
+  LOG(INFO) << "ColinL: SharedStorageURLLoaderFactoryProxy::CreateLoaderAndStart(), url == " << url_request.url.spec();
   DCHECK(frame_origin_.IsSameOriginWith(script_url_));
 
   if (url_request.url != script_url_) {

@@ -121,6 +121,7 @@ void URLLoaderFactory::CreateLoaderAndStart(
     const ResourceRequest& resource_request,
     mojo::PendingRemote<mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
+  LOG(INFO) << "ColinL: URLLoaderFactory::CreateLoaderAndStart(), url == " << resource_request.url;
   CreateLoaderAndStartWithSyncClient(std::move(receiver), request_id, options,
                                      resource_request, std::move(client),
                                      /* sync_client= */ nullptr,

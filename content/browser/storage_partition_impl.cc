@@ -838,6 +838,9 @@ class StoragePartitionImpl::URLLoaderFactoryForBrowserProcess
     if (!storage_partition_) {
       return;
     }
+
+    LOG(INFO) << "ColinL: StoragePartitionImpl::CreateLoaderAndStart(), url == " << url_request.url.spec();
+
     storage_partition_->GetURLLoaderFactoryForBrowserProcessInternal()
         ->CreateLoaderAndStart(std::move(receiver), request_id, options,
                                url_request, std::move(client),

@@ -51,6 +51,7 @@ void WorkerScriptLoaderFactory::CreateLoaderAndStart(
     const network::ResourceRequest& resource_request,
     mojo::PendingRemote<network::mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
+  LOG(INFO) << "ColinL: WorkerScriptLoaderFactory::CreateLoaderAndStart(), url == " << resource_request.url.spec();
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   DCHECK(resource_request.destination ==
              network::mojom::RequestDestination::kWorker ||

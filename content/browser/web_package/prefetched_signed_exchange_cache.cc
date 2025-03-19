@@ -426,6 +426,7 @@ class SubresourceSignedExchangeURLLoaderFactory
       mojo::PendingRemote<network::mojom::URLLoaderClient> client,
       const net::MutableNetworkTrafficAnnotationTag& traffic_annotation)
       override {
+    LOG(INFO) << "ColinL: WorkerScriptLoaderFactory::CreateLoaderAndStart(), url == " << request.url.spec();
     if (!IsValidRequestInitiator(request, request_initiator_origin_lock_)) {
       NOTREACHED();
       network::debug::ScopedResourceRequestCrashKeys request_crash_keys(

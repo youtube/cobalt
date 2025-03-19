@@ -227,6 +227,7 @@ void ProxyingURLLoaderFactoryImpl::CreateLoaderAndStart(
     const network::ResourceRequest& request,
     mojo::PendingRemote<network::mojom::URLLoaderClient> client,
     const net::MutableNetworkTrafficAnnotationTag& traffic_annotation) {
+  LOG(INFO) << "ColinL: ProxyingURLLoaderFactoryImpl::CreateLoaderAndStart(), url == " << request.url;
   if (url_for_response_ == request.url) {
     if (response_) {
       auto* stream_loader = new embedder_support::AndroidStreamReaderURLLoader(

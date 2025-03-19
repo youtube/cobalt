@@ -70,6 +70,8 @@ void BrowsingTopicsURLLoaderService::CreateLoaderAndStart(
     return;
   }
 
+  LOG(INFO) << "ColinL: BrowsingTopicsURLLoaderService::CreateLoaderAndStart(), url == " << resource_request.url.spec();
+
   const std::unique_ptr<BindContext>& current_context =
       loader_factory_receivers_.current_context();
 

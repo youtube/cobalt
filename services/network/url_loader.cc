@@ -555,6 +555,7 @@ URLLoader::URLLoader(
               perfetto::Flow::FromPointer(this));
   DCHECK(delete_callback_);
 
+  LOG(INFO) << "ColinL: URLLoader::URLLoader()"
   mojom::TrustedURLLoaderHeaderClient* url_loader_header_client =
       context.GetUrlLoaderHeaderClient();
   if (url_loader_header_client &&

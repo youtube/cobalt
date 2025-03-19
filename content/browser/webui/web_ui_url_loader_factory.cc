@@ -330,6 +330,7 @@ class WebUIURLLoaderFactory : public network::SelfDeletingURLLoaderFactory {
       mojo::PendingRemote<network::mojom::URLLoaderClient> client,
       const net::MutableNetworkTrafficAnnotationTag& traffic_annotation)
       override {
+    LOG(INFO) << "ColinL: WorkerScriptLoaderFactory::CreateLoaderAndStart(), url == " << request.url.spec();
     DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
     if (frame_tree_node_id_ != RenderFrameHost::kNoFrameTreeNodeId &&

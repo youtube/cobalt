@@ -967,6 +967,7 @@ class ExtensionURLLoaderFactory : public network::SelfDeletingURLLoaderFactory {
       override {
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
     DCHECK_EQ(kExtensionScheme, request.url.scheme());
+    LOG(INFO) << "ColinL: ExtensionURLLoaderFactory::CreateLoaderAndStart(), url == " << request.url;
     ExtensionURLLoader::CreateAndStart(
         std::move(loader), std::move(client), request, is_web_view_request_,
         render_process_id_, browser_context_, ukm_source_id_);
