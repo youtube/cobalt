@@ -47,9 +47,7 @@ interface H5vccMetrics {
   // results.
   // TODO(b/290064552): Update this when H5vccMetrics APIs support async
   // behavior."
-  // This API is now Promise-based.
-  [CallWith=ScriptState, RaisesException] Promise<boolean> isEnabled();
-  readonly attribute boolean enabled;
+  boolean isEnabled();
 
   // "Sets the frequency in which Cobalt metrics will be snapshotted and sent to
   // the metric event handler. Defaults to 5 minutes if not set. Must be > 0,

@@ -52,8 +52,7 @@ class MODULES_EXPORT H5vccMetrics final
 
   ScriptPromise enable(ScriptState*, ExceptionState&);
   ScriptPromise disable(ScriptState*, ExceptionState&);
-  ScriptPromise isEnabled(ScriptState*, ExceptionState&);
-  bool enabled();
+  bool isEnabled();
   ScriptPromise setMetricEventInterval(ScriptState*, uint64_t, ExceptionState&);
 
   // EventTargetWithInlineData impl.

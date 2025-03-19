@@ -72,15 +72,7 @@ ScriptPromise H5vccMetrics::disable(ScriptState* script_state,
   return resolver->Promise();
 }
 
-ScriptPromise H5vccMetrics::isEnabled(ScriptState* script_state,
-                                      ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
-  resolver->Resolve(is_reporting_enabled_);
-  return resolver->Promise();
-}
-
-bool H5vccMetrics::enabled() {
+bool H5vccMetrics::isEnabled() {
   return is_reporting_enabled_;
 }
 
