@@ -956,6 +956,15 @@ void AddRequestClientHintsHeaders(
 
   GURL url = origin.GetURL();
 
+  // Add Cobalt Client Hint headers
+  // This code does not work, it is not called.
+#if BUILDFLAG(IS_COBALT)
+  const base::StringPiece header_string =
+  "Sec-CH-UA-Co-Android-OS-Experience: Amati\r\n"
+  "Sec-CH-UA-Co-Android-Play-Services-Version: 31\r\n";
+  headers->AddHeadersFromString(header_string);
+#endif
+
   // Add Headers
   if (ShouldAddClientHint(data, WebClientHintsType::kDeviceMemory_DEPRECATED)) {
     AddDeviceMemoryHeader(headers, /*use_deprecated_version*/ true);
