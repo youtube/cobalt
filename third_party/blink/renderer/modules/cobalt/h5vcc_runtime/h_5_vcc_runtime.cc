@@ -32,11 +32,10 @@ void H5vccRuntime::ContextDestroyed() {
 }
 
 String H5vccRuntime::initialDeepLink() {
-  if (initial_deep_link_.empty()) {
-    EnsureReceiverIsBound();
-    remote_h5vcc_runtime_->GetAndClearInitialDeepLinkSync(&initial_deep_link_);
-  }
-  return initial_deep_link_;
+  EnsureReceiverIsBound();
+  String initial_deep_link;
+  remote_h5vcc_runtime_->GetAndClearInitialDeepLinkSync(&initial_deep_link);
+  return initial_deep_link;
 }
 
 ScriptPromise H5vccRuntime::getInitialDeepLink(
@@ -56,7 +55,6 @@ ScriptPromise H5vccRuntime::getInitialDeepLink(
 
 void H5vccRuntime::OnGetInitialDeepLink(ScriptPromiseResolver* resolver,
                                         const String& result) {
-  initial_deep_link_ = result;
   resolver->Resolve(result);
 }
 

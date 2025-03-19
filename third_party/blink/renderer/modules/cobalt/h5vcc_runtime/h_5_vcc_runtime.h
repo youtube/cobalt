@@ -76,7 +76,6 @@ class MODULES_EXPORT H5vccRuntime final
       remote_h5vcc_runtime_;
   HeapMojoReceiver<h5vcc_runtime::mojom::blink::DeepLinkListener, H5vccRuntime>
       receiver_;
-  String initial_deep_link_;
 };
 
 }  // namespace blink
