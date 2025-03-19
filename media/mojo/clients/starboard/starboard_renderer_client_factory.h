@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,31 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef MEDIA_STARBOARD_STARBOARD_RENDERER_FACTORY_H_
-#define MEDIA_STARBOARD_STARBOARD_RENDERER_FACTORY_H_
+#ifndef MEDIA_MOJO_CLIENTS_STARBOARD_STARBOARD_RENDERER_CLIENT_FACTORY_H_
+#define MEDIA_MOJO_CLIENTS_STARBOARD_STARBOARD_RENDERER_CLIENT_FACTORY_H_
 
 #include "base/memory/raw_ptr.h"
 #include "base/task/sequenced_task_runner.h"
-#include "base/time/time.h"
-#include "media/base/media_log.h"
 #include "media/base/renderer_factory.h"
+#include "media/base/starboard/renderer_factory_traits.h"
 #include "media/starboard/bind_host_receiver_callback.h"
 
+namespace base {
+class TimeDelta;
+}  // namespace base
+
 namespace media {
+class MediaLog;
+class MojoRendererFactory;
 
-// Creates Renderers using Starboard.
-class MEDIA_EXPORT StarboardRendererFactory final : public RendererFactory {
+// Creates StarboardRendererClient and binds
+// media::mojom::StarboardRendererExtension and
+// mojom::StarboardRendererClientExtension to StarboardRenderer.
+class MEDIA_EXPORT StarboardRendererClientFactory final
+    : public RendererFactory {
  public:
-  StarboardRendererFactory(
+  StarboardRendererClientFactory(
       MediaLog* media_log,
-      base::TimeDelta audio_write_duration_local,
-      base::TimeDelta audio_write_duration_remote,
-      BindHostReceiverCallback bind_host_receiver_callback);
+      std::unique_ptr<MojoRendererFactory> mojo_renderer_factory,
+      const media::RendererFactoryTraits* traits);
 
-  StarboardRendererFactory(const StarboardRendererFactory&) = delete;
-  StarboardRendererFactory& operator=(const StarboardRendererFactory&) = delete;
+  StarboardRendererClientFactory(const StarboardRendererClientFactory&) =
+      delete;
+  StarboardRendererClientFactory& operator=(
+      const StarboardRendererClientFactory&) = delete;
 
-  ~StarboardRendererFactory() final;
+  ~StarboardRendererClientFactory() final;
 
   // RendererFactory implementation.
   std::unique_ptr<Renderer> CreateRenderer(
@@ -49,6 +58,7 @@ class MEDIA_EXPORT StarboardRendererFactory final : public RendererFactory {
 
  private:
   raw_ptr<MediaLog> media_log_;
+  std::unique_ptr<MojoRendererFactory> mojo_renderer_factory_;
   const base::TimeDelta audio_write_duration_local_;
   const base::TimeDelta audio_write_duration_remote_;
   const BindHostReceiverCallback bind_host_receiver_callback_;
@@ -56,4 +66,4 @@ class MEDIA_EXPORT StarboardRendererFactory final : public RendererFactory {
 
 }  // namespace media
 
-#endif  // MEDIA_STARBOARD_STARBOARD_RENDERER_FACTORY_H_
+#endif  // MEDIA_MOJO_CLIENTS_STARBOARD_STARBOARD_RENDERER_CLIENT_FACTORY_H_

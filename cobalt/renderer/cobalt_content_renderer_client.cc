@@ -13,12 +13,10 @@
 #include "components/js_injection/renderer/js_communication.h"
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_thread.h"
-#include "media/base/decoder_factory.h"
 #include "media/base/media_log.h"
 #include "media/base/renderer_factory.h"
+#include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
 #include "media/starboard/bind_host_receiver_callback.h"
-#include "media/starboard/starboard_renderer_factory.h"
-#include "media/video/gpu_video_accelerator_factories.h"
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -180,26 +178,19 @@ void CobaltContentRendererClient::BindHostReceiver(
   BindHostReceiverWithValuation(std::move(receiver));
 }
 
-std::unique_ptr<::media::RendererFactory>
-CobaltContentRendererClient::GetBaseRendererFactory(
-    content::RenderFrame* /* render_frame */,
-    ::media::MediaLog* media_log,
-    ::media::DecoderFactory* /* decoder_factory */,
-    base::RepeatingCallback<::media::GpuVideoAcceleratorFactories*()>
-    /* get_gpu_factories_cb */) {
+void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
+    media::RendererFactoryTraits* renderer_factory_traits) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  // TODO(b/394368542): Add Content API to create StarboardRenderer.
-  base::TimeDelta audio_write_duration_local =
+  // TODO(b/383327725) - Cobalt: Inject these values from the web app.
+  renderer_factory_traits->audio_write_duration_local =
       base::Microseconds(kSbPlayerWriteDurationLocal);
-  base::TimeDelta audio_write_duration_remote =
+  renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
-  return std::make_unique<::media::StarboardRendererFactory>(
-      media_log,
-      // TODO(b/383327725) - Cobalt: Inject these values from the web app.
-      audio_write_duration_local, audio_write_duration_remote,
+  // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
+  renderer_factory_traits->bind_host_receiver_callback =
       base::BindPostTaskToCurrentDefault(
           base::BindRepeating(&CobaltContentRendererClient::BindHostReceiver,
-                              weak_factory_.GetWeakPtr())));
+                              weak_factory_.GetWeakPtr()));
 }
 
 }  // namespace cobalt

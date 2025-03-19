@@ -34,6 +34,10 @@
 #include "ui/base/page_transition_types.h"
 #include "v8/include/v8-forward.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/starboard/renderer_factory_traits.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #if !BUILDFLAG(IS_ANDROID)
 #include "media/base/speech_recognition_client.h"
 #endif
@@ -429,6 +433,13 @@ class CONTENT_EXPORT ContentRendererClient {
   virtual std::unique_ptr<cast_streaming::ResourceProvider>
   CreateCastStreamingResourceProvider();
 #endif
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // This is used for StarboardRenderer to acquire customizations
+  // as MojoRenderer from cobalt_content_renderer_client.cc.
+  virtual void GetStarboardRendererFactoryTraits(
+      media::RendererFactoryTraits* renderer_factory_traits);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace content

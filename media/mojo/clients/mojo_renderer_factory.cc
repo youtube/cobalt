@@ -128,4 +128,34 @@ std::unique_ptr<MojoRenderer> MojoRendererFactory::CreateMediaPlayerRenderer(
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+std::unique_ptr<MojoRenderer> MojoRendererFactory::CreateStarboardRenderer(
+    mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+    mojo::PendingReceiver<mojom::StarboardRendererExtension>
+          renderer_extension_receiver,
+    mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+          client_extension_remote,
+    const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote,
+    const base::UnguessableToken& overlay_plane_id,
+    VideoRendererSink* video_renderer_sink) {
+  DCHECK(interface_factory_);
+
+  mojo::PendingRemote<mojom::Renderer> renderer_remote;
+  interface_factory_->CreateStarboardRenderer(
+      std::move(media_log_remote),
+      overlay_plane_id,
+      audio_write_duration_local,
+      audio_write_duration_remote,
+      renderer_remote.InitWithNewPipeAndPassReceiver(),
+      std::move(renderer_extension_receiver),
+      std::move(client_extension_remote));
+
+  return std::make_unique<MojoRenderer>(
+      media_task_runner, nullptr, video_renderer_sink,
+      std::move(renderer_remote));
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 }  // namespace media
