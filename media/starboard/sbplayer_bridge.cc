@@ -103,6 +103,7 @@ void SbPlayerBridge::CallbackHelper::OnDecoderStatus(void* player,
                                                      SbMediaType type,
                                                      SbPlayerDecoderState state,
                                                      int ticket) {
+  LOG(INFO) << "KJ: Decoded status";
   base::AutoLock auto_lock(lock_);
   if (player_bridge_) {
     player_bridge_->OnDecoderStatus(static_cast<SbPlayer>(player), type, state,
