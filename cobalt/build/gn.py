@@ -58,7 +58,7 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe):
     f.write(f'build_type = "{build_type}" {gen_comment}\n')
     for key, value in _BUILD_TYPES[build_type].items():
       f.write(f'{key} = {value} {gen_comment}\n')
-    f.write(f'import("{platform_args_path}")\n')
+    f.write(f'import("//{platform_args_path}")\n')
 
 
 def configure_out_directory(out_directory: str, platform: str, build_type: str,
