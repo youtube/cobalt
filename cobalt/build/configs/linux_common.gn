@@ -80,3 +80,8 @@ use_alsa = false
 use_gtk = false
 use_gio = false
 use_pangocairo = false
+
+# Overriding flag from components/optimization_guide/features.gni
+# TFLite is a part of the open-source machine-learning library TensorFlow.
+# We are not using any tflite component in cobalt currently.
+build_with_tflite_lib = false
