@@ -90,3 +90,8 @@ build_with_tflite_lib = false
 # webnn is a machine learning related module: https://chromestatus.com/feature/5176273954144256
 # We are not using webnn in cobalt currently.
 build_webnn_with_xnnpack = false
+
+# Override from //third_party/angle/BUILD.gn
+# This flag uses the Use the PCI lib to collect GPU information on Linux.
+# Disabling this as it causes build errors.
+use_libpci = false
