@@ -210,7 +210,7 @@ class SbPlayerBridge {
     scoped_refptr<DecoderBuffer> buffer;
     int ref_count = 0;
     SbMediaType type;
-    int bytes_written = 0;
+    size_t bytes_written = 0;
   };
 
   typedef std::map<const void*, DecoderBufferInfo> DecodingBuffers;
