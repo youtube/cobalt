@@ -12,20 +12,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import("//third_party/blink/renderer/modules/modules.gni")
-
-blink_modules_sources("h_5_vcc") {
+source_set("h5vcc_metrics") {
   sources = [
-    "h_5_vcc.cc",
-    "h_5_vcc.h",
+    "h5vcc_metrics_impl.cc",
+    "h5vcc_metrics_impl.h",
   ]
+
   deps = [
-    "//third_party/blink/renderer/modules/cobalt/crash_log",
-    "//third_party/blink/renderer/modules/cobalt/encryptedmedia",
-    "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics",
-    "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
-    "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
-    "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
-    "//third_party/blink/renderer/modules/cobalt/mediasource",
+    "//base",
+    "//cobalt/browser/h5vcc_metrics/public/mojom",
+    "//content/public/browser",
+    "//mojo/public/cpp/bindings",
+    "//starboard($starboard_toolchain)",
   ]
 }
