@@ -1,11 +1,10 @@
 #ifndef _PTHREAD_H
 #define _PTHREAD_H
 
-#include "build/build_config.h"
 
-#if BUILDFLAG(IS_STARBOARD)
+#if defined(STARBOARD)
 
-#include "third_party/musl/src/starboard/pthread/pthread.h"
+#include "pthread_starboard.h"
 
 #else
 
@@ -251,5 +250,5 @@ __REDIR(pthread_timedjoin_np, __pthread_timedjoin_np_time64);
 }
 #endif
 
-#endif  // BUILDFLAG(IS_STARBOARD)
+#endif  // defined(STARBOARD)
 #endif
