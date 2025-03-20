@@ -59,6 +59,9 @@
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "url/gurl.h"
 
+// For BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "build/build_config.h"
+
 namespace base {
 class SingleThreadTaskRunner;
 class TaskRunner;
@@ -236,6 +239,9 @@ class PLATFORM_EXPORT WebMediaPlayerImpl
 
   unsigned DecodedFrameCount() const override;
   unsigned DroppedFrameCount() const override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  int64_t EarlyUs() const override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   uint64_t AudioDecodedByteCount() const override;
   uint64_t VideoDecodedByteCount() const override;
 

@@ -26,6 +26,7 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "media/base/moving_average.h"
 
 #if COBALT_MEDIA_ENABLE_CVAL
 #include "cobalt/media/base/cval_stats.h"
@@ -133,7 +134,10 @@ class SbPlayerBridge {
   void SetPlaybackRate(double playback_rate);
   void GetInfo(uint32_t* video_frames_decoded,
                uint32_t* video_frames_dropped,
-               base::TimeDelta* media_time);
+               base::TimeDelta* media_time,
+               base::TimeDelta* video_frame_early_average,
+               uint64_t* audio_bytes_decoded,
+               uint64_t* video_bytes_decoded);
   std::vector<SbMediaAudioConfiguration> GetAudioConfigurations();
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -203,10 +207,13 @@ class SbPlayerBridge {
   static const int64_t kClearDecoderCacheIntervalInMilliseconds = 1000;
 
   // A map from raw data pointer returned by DecoderBuffer::GetData() to the
-  // DecoderBuffer and a reference count.  The reference count indicates how
-  // many instances of the DecoderBuffer is currently being decoded in the
-  // pipeline.
-  typedef std::map<const void*, std::pair<scoped_refptr<DecoderBuffer>, int>>
+  // DecoderBuffer, a reference count, its media type, and the total bytes
+  // written. The reference count indicates how many instances of the
+  // DecoderBuffer is currently being decoded in the pipeline. The media
+  // type and total bytes written used to report statistics.
+  typedef std::map<
+      const void*,
+      std::tuple<scoped_refptr<DecoderBuffer>, int, SbMediaType, int>>
       DecodingBuffers;
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -238,7 +245,10 @@ class SbPlayerBridge {
 
   void GetInfo_Locked(uint32_t* video_frames_decoded,
                       uint32_t* video_frames_dropped,
-                      base::TimeDelta* media_time);
+                      base::TimeDelta* media_time,
+                      base::TimeDelta* video_frame_early_average,
+                      uint64_t* audio_bytes_decoded,
+                      uint64_t* video_bytes_decoded);
   void UpdateBounds_Locked();
 
   void ClearDecoderBufferCache();
@@ -326,6 +336,11 @@ class SbPlayerBridge {
   uint32_t cached_video_frames_decoded_;
   uint32_t cached_video_frames_dropped_;
   base::TimeDelta preroll_timestamp_;
+  MovingAverage video_frame_early_average_;
+  base::TimeDelta last_media_time_;
+  base::Time last_time_media_time_retrieved_;
+  uint64_t cached_audio_bytes_decoded_ = 0;
+  uint64_t cached_video_bytes_decoded_ = 0;
 
   // Keep track of the output mode we are supposed to output to.
   SbPlayerOutputMode output_mode_;

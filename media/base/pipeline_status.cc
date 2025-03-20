@@ -66,7 +66,12 @@ bool operator==(const PipelineStatistics& first,
          first.video_frame_duration_average ==
              second.video_frame_duration_average &&
          first.video_pipeline_info == second.video_pipeline_info &&
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+         first.audio_pipeline_info == second.audio_pipeline_info &&
+         first.video_frame_early_average == second.video_frame_early_average;
+#else   // if BUILDFLAG(USE_STARBOARD_MEDIA)
          first.audio_pipeline_info == second.audio_pipeline_info;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
 bool operator!=(const PipelineStatistics& first,
