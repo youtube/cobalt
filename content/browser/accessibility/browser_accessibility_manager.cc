@@ -114,6 +114,7 @@ BrowserAccessibilityFindInPageInfo::BrowserAccessibilityFindInPageInfo()
 BrowserAccessibilityManager* BrowserAccessibilityManager::Create(
     const ui::AXTreeUpdate& initial_tree,
     WebAXPlatformTreeManagerDelegate* delegate) {
+  // return nullptr;
   BrowserAccessibilityManager* manager =
       new BrowserAccessibilityManager(delegate);
   manager->Initialize(initial_tree);
@@ -123,6 +124,7 @@ BrowserAccessibilityManager* BrowserAccessibilityManager::Create(
 // static
 BrowserAccessibilityManager* BrowserAccessibilityManager::Create(
     WebAXPlatformTreeManagerDelegate* delegate) {
+  // return nullptr;
   BrowserAccessibilityManager* manager =
       new BrowserAccessibilityManager(delegate);
   manager->Initialize(BrowserAccessibilityManager::GetEmptyDocument());
@@ -133,6 +135,7 @@ BrowserAccessibilityManager* BrowserAccessibilityManager::Create(
 // static
 BrowserAccessibilityManager* BrowserAccessibilityManager::FromID(
     ui::AXTreeID ax_tree_id) {
+  // return nullptr;
   DCHECK(ax_tree_id != ui::AXTreeIDUnknown());
   return static_cast<BrowserAccessibilityManager*>(
       ui::AXTreeManager::FromID(ax_tree_id));

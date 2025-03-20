@@ -1489,6 +1489,7 @@ jboolean WebContentsAccessibilityAndroid::GetImageData(
 
 BrowserAccessibilityManagerAndroid*
 WebContentsAccessibilityAndroid::GetRootBrowserAccessibilityManager() {
+  //return nullptr;
   if (snapshot_root_manager_) {
     return snapshot_root_manager_.get();
   }
@@ -1548,6 +1549,7 @@ void JNI_WebContentsAccessibilityImpl_SetBrowserAXMode(
     jboolean is_screen_reader_enabled,
     jboolean form_controls_mode,
     jboolean is_any_accessibility_tool_present) {
+  return;
   BrowserAccessibilityStateImpl* accessibility_state =
       BrowserAccessibilityStateImpl::GetInstance();
 

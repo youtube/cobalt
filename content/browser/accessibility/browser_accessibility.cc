@@ -44,6 +44,7 @@ constexpr int kDumpBrowserAccessibilityLeakNumObjects = 10000000;
 std::unique_ptr<BrowserAccessibility> BrowserAccessibility::Create(
     BrowserAccessibilityManager* manager,
     ui::AXNode* node) {
+  //return nullptr;
   return std::unique_ptr<BrowserAccessibility>(
       new BrowserAccessibility(manager, node));
 }
@@ -60,6 +61,7 @@ BrowserAccessibility* BrowserAccessibility::FromAXPlatformNodeDelegate(
 BrowserAccessibility::BrowserAccessibility(BrowserAccessibilityManager* manager,
                                            ui::AXNode* node)
     : AXPlatformNodeDelegate(node), manager_(manager) {
+  return nullptr;
   DCHECK(manager);
   DCHECK(node);
   DCHECK(node->IsDataValid());

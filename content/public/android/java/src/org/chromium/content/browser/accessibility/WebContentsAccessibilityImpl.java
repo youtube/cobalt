@@ -707,10 +707,11 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         // The |WebContentsAccessibilityImpl| class will rely on the Compat library, but we will
         // not require other parts of Chrome to do the same for simplicity, so unwrap the
         // |AccessibilityNodeProvider| object before returning.
-        AccessibilityNodeProviderCompat anpc = getAccessibilityNodeProviderCompat();
-        if (anpc == null) return null;
+        return null;
+        // AccessibilityNodeProviderCompat anpc = getAccessibilityNodeProviderCompat();
+        // if (anpc == null) return null;
 
-        return (AccessibilityNodeProvider) anpc.getProvider();
+        // return (AccessibilityNodeProvider) anpc.getProvider();
     }
 
     /**
@@ -915,7 +916,8 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
     }
 
     private boolean shouldPreventNativeEngineUse() {
-        return mIsObscuredByAnotherView != null && mIsObscuredByAnotherView;
+        return true;
+        //return mIsObscuredByAnotherView != null && mIsObscuredByAnotherView;
     }
 
     @Override

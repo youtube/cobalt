@@ -28,6 +28,8 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
 
   void PrimaryMainDocumentElementAvailable() override;
 
+  // content::RenderWidgetHostImpl* GetWidgetHost();
+
  private:
   void RegisterInjectedJavaScript();
 
