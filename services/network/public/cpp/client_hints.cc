@@ -75,6 +75,8 @@ ClientHintToNameMap MakeClientHintToNameMap() {
       {network::mojom::WebClientHintsType::kSaveData, "save-data"},
       {network::mojom::WebClientHintsType::kPrefersReducedMotion,
        "sec-ch-prefers-reduced-motion"},
+      {network::mojom::WebClientHintsType::kUAAndroidOSExperience,
+       "Sec-CH-UA-Co-Android-OS-Experience"},
   };
 }
 

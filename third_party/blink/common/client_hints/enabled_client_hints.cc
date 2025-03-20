@@ -87,6 +87,8 @@ bool IsDisabledByFeature(const WebClientHintsType type) {
       break;
     case WebClientHintsType::kPrefersReducedMotion:
       break;
+    case WebClientHintsType::kUAAndroidOSExperience:
+      break;
     default:
       break;
   }

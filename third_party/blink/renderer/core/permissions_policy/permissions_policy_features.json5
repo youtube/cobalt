@@ -132,6 +132,11 @@
       feature_default: "EnableForAll",
     },
     {
+      name: "ClientHintUAAndroidOSExperience",
+      permissions_policy_name: "ch-ua-android-os-experience",
+      feature_default: "EnableForAll",
+    },
+    {
       name: "ClientHintUAArch",
       permissions_policy_name: "ch-ua-arch",
     },
