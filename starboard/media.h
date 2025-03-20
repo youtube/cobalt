@@ -371,6 +371,8 @@ typedef struct SbMediaColorMetadata {
   float custom_primary_matrix[12];
 } SbMediaColorMetadata;
 
+bool operator==(const SbMediaColorMetadata&, const SbMediaColorMetadata&);
+
 // The set of information required by the decoder or player for each video
 // stream.
 typedef struct SbMediaVideoStreamInfo {
