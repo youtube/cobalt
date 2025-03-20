@@ -81,7 +81,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
           } else {
             SB_LOG(ERROR) << "Failed to create audio decoder for codec "
-                          << creation_parameters.audio_codec();
+                          << audio_stream_info.codec;
           }
         } else if (audio_stream_info.codec == kSbMediaAudioCodecAac &&
                    audio_stream_info.number_of_channels <=
@@ -97,7 +97,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
             return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
           } else {
             SB_LOG(ERROR) << "Failed to create audio decoder for codec "
-                          << creation_parameters.audio_codec();
+                          << audio_stream_info.codec;
           }
         }
         return std::unique_ptr<AudioDecoder>();

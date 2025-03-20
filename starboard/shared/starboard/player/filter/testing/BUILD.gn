@@ -20,8 +20,10 @@ if (current_toolchain == starboard_toolchain) {
     sources = [
       "//starboard/testing/fake_graphics_context_provider.cc",
       "//starboard/testing/fake_graphics_context_provider.h",
+
       #"adaptive_audio_decoder_test.cc",
       "audio_channel_layout_mixer_test.cc",
+
       #"audio_decoder_test.cc",
       "audio_frame_discarder_test.cc",
       "audio_renderer_internal_test.cc",

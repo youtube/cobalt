@@ -271,4 +271,3 @@ static_library("starboard_base_symbolize") {
     public_deps = [ "//starboard/elf_loader:evergreen_info" ]
   }
 }
-

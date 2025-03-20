@@ -302,9 +302,7 @@ if (sb_is_evergreen) {
     testonly = true
     build_loader = false
 
-    sources = [
-      "slot_management_test.cc",
-    ]
+    sources = [ "slot_management_test.cc" ]
     deps = [
       ":app_key_files",
       ":drain_file",
@@ -354,9 +352,7 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
 
   source_set("reset_evergreen_update_test") {
     testonly = true
-    sources = [
-      "reset_evergreen_update_test.cc",
-    ]
+    sources = [ "reset_evergreen_update_test.cc" ]
     deps = [
       ":reset_evergreen_update",
       "//starboard:starboard_with_main",
