@@ -48,7 +48,7 @@ component("policy") {
       "//sandbox/linux:seccomp_bpf",
     ]
   }
-  if (is_linux || is_chromeos) {
+  if ((is_linux || is_chromeos) && !is_cobalt_hermetic_build) {
     sources += [
       "linux/bpf_audio_policy_linux.cc",
       "linux/bpf_audio_policy_linux.h",
