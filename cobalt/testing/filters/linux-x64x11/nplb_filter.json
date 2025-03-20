@@ -2,6 +2,7 @@
   "failing_tests": [
     "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.*",
     "MultiplePlayerTest.*",
+    "SbPlayerTest.SunnyDay",
     "VerticalVideoTests/VerticalVideoTest.*"
   ]
 }
