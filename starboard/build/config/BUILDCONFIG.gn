@@ -44,7 +44,7 @@ declare_args() {
   enable_iamf_decode = false
 }
 
-_is_on_pythonpath = exec_script("//starboard/build/is_on_path.py", [], "json")
+_is_on_pythonpath = exec_script("//starboard/build/is_on_path.py", ["{}"], "json")
 assert(!is_starboard || _is_on_pythonpath,
        "The current repo is not first on the PYTHONPATH.")
 
