@@ -38,9 +38,6 @@
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
-// #include
-// "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
-
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
 #endif
