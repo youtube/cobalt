@@ -349,7 +349,7 @@ media_subcomponent_deps = [
   "//media/video",
 ]
 
-if (use_starboard_media) {
+if (is_cobalt && use_starboard_media) {
   media_subcomponent_deps += [ "//media/starboard" ]
 }
 
