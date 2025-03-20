@@ -70,12 +70,16 @@ config("runtime_library") {
     ]
     if (is_cobalt_hermetic_build && current_toolchain == cobalt_toolchain) {
       cflags_cc += [
+        "-isystem" + rebase_path("//third_party/musl/src/starboard/include",
+                                 root_build_dir),
         "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
         "-isystem" +
             rebase_path("//third_party/musl/arch/generic", root_build_dir),
         "-femulated-tls",
       ]
       cflags_c = [
+        "-isystem" + rebase_path("//third_party/musl/src/starboard/include",
+                                 root_build_dir),
         "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
         "-isystem" +
             rebase_path("//third_party/musl/arch/generic", root_build_dir),
