@@ -730,6 +730,7 @@ URLLoader::URLLoader(
       provide_data_use_updates_(context.DataUseUpdatesEnabled()) {
   DCHECK(delete_callback_);
 
+<<<<<<< HEAD
   // crbug.com/387537990: Experiment with creating the mojo data pipe
   // asynchronously to evaluate the impact of removing a small amount of work
   // per-resource from the main network service sequence. This isn't meant to
@@ -758,6 +759,12 @@ URLLoader::URLLoader(
           base::MakeRefCounted<net::IOBufferWithSize>(kDiscardBufferSize);
     }
   }
+=======
+#if BUILDFLAG(IS_COBALT)
+  options_ |= mojom::kURLLoadOptionUseHeaderClient;
+  options_ |= mojom::kURLLoadOptionAsCorsPreflight;
+#endif
+>>>>>>> c9db2dcbd49 (Use TrustedHeaderClient to add Cobalt Client Hint header (#5102))
 
   mojom::TrustedURLLoaderHeaderClient* url_loader_header_client =
       context.GetUrlLoaderHeaderClient();
