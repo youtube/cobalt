@@ -29,6 +29,7 @@ component("policy") {
     "//sandbox/policy/mojom",
   ]
   public_deps = [ "//sandbox:common" ]
+<<<<<<< HEAD
   if (is_android) {
     sources += [
       "linux/bpf_base_policy_linux.cc",
@@ -44,6 +45,9 @@ component("policy") {
     ]
   }
   if (is_linux || is_chromeos) {
+=======
+  if ((is_linux || is_chromeos) && !is_cobalt_hermetic_build) {
+>>>>>>> c0045d9f20c (Remove build failures related to //sandbox (#5128))
     sources += [
       "linux/bpf_audio_policy_linux.cc",
       "linux/bpf_audio_policy_linux.h",

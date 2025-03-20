@@ -88,7 +88,22 @@ target(link_target_type, "gpu_sources") {
     ]
   }
 
+<<<<<<< HEAD
   if (is_chromeos) {
+=======
+  if ((is_linux || is_chromeos) && !is_cobalt_hermetic_build) {
+    sources += [
+      "gpu_sandbox_hook_linux.cc",
+      "gpu_sandbox_hook_linux.h",
+    ]
+
+    if (use_v4l2_codec) {
+      deps += [ "//media/gpu/v4l2" ]
+    }
+  }
+
+  if (is_chromeos_ash) {
+>>>>>>> c0045d9f20c (Remove build failures related to //sandbox (#5128))
     deps += [
       "//components/services/font/public/cpp",
       "//components/services/font/public/mojom",
