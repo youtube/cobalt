@@ -104,6 +104,7 @@ def parse_args():
           'chromium_android-x86',
           'linux-x64x11',
           'linux-x64x11-evergreen',
+          'linux-x64x11-no-starboard',
           'android-arm',
           'android-arm64',
           'android-x86',

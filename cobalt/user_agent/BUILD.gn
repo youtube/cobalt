@@ -25,9 +25,12 @@ static_library("user_agent") {
   public_deps = [
     "//base",
     "//cobalt:cobalt_build_info",
-    "//starboard/common",
     "//v8:v8_version",
   ]
+
+  if (is_starboard) {
+    public_deps += [ "//starboard/common" ]
+  }
 
   if (is_android) {
     defines = [

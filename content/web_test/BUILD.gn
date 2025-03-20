@@ -36,6 +36,15 @@ mojom("web_test_common_mojom") {
     "//url/mojom:url_mojom_origin",
   ]
 
+  if (is_cobalt) {
+    # These deps automatically generate the JavaScript bindings.
+    public_deps += [
+      "//cobalt/browser/crash_annotator/public/mojom",
+      "//cobalt/browser/h5vcc_runtime/public/mojom",
+      "//cobalt/browser/h5vcc_system/public/mojom",
+    ]
+  }
+
   overridden_deps = [ "//third_party/blink/public/mojom:mojom_platform" ]
   component_deps = [ "//third_party/blink/public/common" ]
 }

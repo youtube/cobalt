@@ -97,6 +97,9 @@ source_set("static_switches") {
 # above, this is for use inside of content/ only and does not link statically.
 source_set("switches") {
   visibility = [ "//content/*" ]
+  if (is_cobalt) {
+    visibility += [ "//cobalt:cobalt_unittests" ]
+  }
   public = [ "content_switches.h" ]
   sources = [
     "//content/common/content_export.h",
