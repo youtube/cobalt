@@ -33,6 +33,7 @@ class MimeStrings():
 
   AAC = 'audio/mp4; codecs=\\"mp4a.40.2\\"'
   OPUS = 'audio/webm; codecs=\\"opus\\"'
+  IAMF = 'audio/mp4; codecs=\\"iamf.001.001.Opus\\"'
 
   RESOLUTIONS = OrderedDict([('140P', 'width=256; height=144'),
                              ('240P', 'width=352; height=240'),
@@ -73,6 +74,7 @@ class PlaybackUrls():
   VP9_HDR_PQ = 'https://www.youtube.com/tv#/watch?v=Rw-qEKR5uv8'
   HDR_PQ_HFR = 'https://www.youtube.com/tv#/watch?v=LXb3EKWsInQ'
   VR = 'https://www.youtube.com/tv#/watch?v=Ei0fgLfJ6Tk'
+  IAMF = 'https://www.youtube.com/tv#/watch?v=UPTY_nktEoI'
 
   LIVE = 'https://www.youtube.com/tv#/watch?v=o7UP6i4PAbk'
   LIVE_ULL = 'https://www.youtube.com/tv#/watch?v=KI1XlTQrsa0'
