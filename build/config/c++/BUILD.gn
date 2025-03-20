@@ -75,6 +75,8 @@ config("runtime_library") {
       cflags_cc += [
         "-isystem" + rebase_path("//third_party/musl/src/starboard/include",
                                  root_build_dir),
+        "-isystem" +
+            rebase_path("//third_party/musl/src/include/stub", root_build_dir),
         "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
         "-isystem" +
             rebase_path("//third_party/musl/arch/generic", root_build_dir),
@@ -83,6 +85,8 @@ config("runtime_library") {
       cflags_c = [
         "-isystem" + rebase_path("//third_party/musl/src/starboard/include",
                                  root_build_dir),
+        "-isystem" +
+            rebase_path("//third_party/musl/src/include/stub", root_build_dir),
         "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
         "-isystem" +
             rebase_path("//third_party/musl/arch/generic", root_build_dir),
