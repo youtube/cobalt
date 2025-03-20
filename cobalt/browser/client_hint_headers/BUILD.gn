@@ -1,0 +1,20 @@
+import("//starboard/build/buildflags.gni")
+
+source_set("client_hint_headers") {
+  sources = [
+    "cobalt_header_value_provider.cc",
+    "cobalt_header_value_provider.h",
+    "cobalt_trusted_header_client.cc",
+    "cobalt_trusted_header_client.h",
+    "cobalt_trusted_url_loader_header_client.cc",
+    "cobalt_trusted_url_loader_header_client.h",
+  ]
+
+  deps = [
+    "//mojo/public/cpp/bindings",
+    "//net:net",
+    "//services/network/public/mojom",
+  ]
+
+  public_deps = [ "//services/network/public/mojom" ]
+}
