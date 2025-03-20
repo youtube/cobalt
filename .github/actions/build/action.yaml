@@ -47,10 +47,30 @@ runs:
         env:
           CHANGED_FILES_JSON: ${{ steps.changed-files.outputs.changed_files_json }}
           ROOT_TARGET: ${{ inputs.test_root_target }}
-          TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
+          STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
+          TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+          DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
         run: |
           set -x
           cd src
+          gn desc out/${{ matrix.platform }}_${{ matrix.config }}/ "*" --format=json > gn_desc.json
+          # Trim any warning gn printed before the json (all lines above the first curly brace).
+          sed -n '/^{/,$p' -i gn_desc.json
+
+          changed_files_arg=""
+          if [[ -n "${CHANGED_FILES_JSON}" ]]; then
+            changed_files_arg="--sources $(echo ${CHANGED_FILES_JSON} | jq -cr '. | join(",")')"
+          fi
+
+          vpython3 cobalt/build/test_targets.py \
+              --root-target "${ROOT_TARGET}" \
+              ${changed_files_arg} \
+              --gn-json gn_desc.json \
+              --json-output > "${DYN_TEST_TARGETS_JSON_FILE}"
+
+          # Currently, override with static test targets, TODO(b/382508397)
+          cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${TEST_TARGETS_JSON_FILE}"
+
           echo "test_targets_json_file=${TEST_TARGETS_JSON_FILE}" >> $GITHUB_OUTPUT
 
           test_targets_json=$(cat ${TEST_TARGETS_JSON_FILE} | jq -cr '.test_targets')
@@ -59,6 +79,13 @@ runs:
           test_targets_count=$(echo ${test_targets_json} | jq -cr 'length')
           echo "test_targets_count=${test_targets_count}" >> $GITHUB_OUTPUT
         shell: bash
+      - name: Archive test target results
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }} Test targets
+          path: |
+            src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+            src/out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
       - name: Ninja build test targets
         if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
         id: build-test-targets
