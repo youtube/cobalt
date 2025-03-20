@@ -73,3 +73,5 @@ class AtomicRefCount {
 }  // namespace base
 
 #endif  // BASE_ATOMIC_REF_COUNT_H_
+
+// Nothing

@@ -69,3 +69,5 @@
 #endif
 
 #endif  // STARBOARD_EXPORT_H_
+
+// Nothing

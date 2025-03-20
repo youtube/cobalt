@@ -82,3 +82,5 @@ SB_COMPILE_ASSERT((wchar_t)(-1) > 0,
 #endif
 
 #endif  // STARBOARD_TYPES_H_
+
+// Nothing
