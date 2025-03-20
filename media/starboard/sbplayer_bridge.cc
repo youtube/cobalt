@@ -449,11 +449,14 @@ void SbPlayerBridge::SetPlaybackRate(double playback_rate) {
 
 void SbPlayerBridge::GetInfo(uint32_t* video_frames_decoded,
                              uint32_t* video_frames_dropped,
-                             TimeDelta* media_time) {
+                             TimeDelta* media_time,
+                             uint64_t* audio_bytes_decoded,
+                             uint64_t* video_bytes_decoded) {
   DCHECK(video_frames_decoded || video_frames_dropped || media_time);
 
   base::AutoLock auto_lock(lock_);
-  GetInfo_Locked(video_frames_decoded, video_frames_dropped, media_time);
+  GetInfo_Locked(video_frames_decoded, video_frames_dropped, media_time,
+                 audio_bytes_decoded, video_bytes_decoded);
 }
 
 std::vector<SbMediaAudioConfiguration>
@@ -592,7 +595,7 @@ void SbPlayerBridge::Suspend() {
 
   base::AutoLock auto_lock(lock_);
   GetInfo_Locked(&cached_video_frames_decoded_, &cached_video_frames_dropped_,
-                 &preroll_timestamp_);
+                 &preroll_timestamp_, nullptr, nullptr);
 
   state_ = kSuspended;
 
@@ -912,9 +915,12 @@ void SbPlayerBridge::WriteBuffersInternal(
 
     DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->data());
     if (iter == decoding_buffers_.end()) {
-      decoding_buffers_[buffer->data()] = std::make_pair(buffer, 1);
+      decoding_buffers_.emplace(
+          buffer->data(),
+          DecoderBufferInfo{buffer, 1, sample_type, buffer->data_size()});
     } else {
-      ++iter->second.second;
+      ++iter->second.ref_count;
+      iter->second.bytes_written += buffer->data_size();
     }
 
     if (sample_type == kSbMediaTypeAudio &&
@@ -1002,7 +1008,9 @@ SbPlayerOutputMode SbPlayerBridge::GetSbPlayerOutputMode() {
 
 void SbPlayerBridge::GetInfo_Locked(uint32_t* video_frames_decoded,
                                     uint32_t* video_frames_dropped,
-                                    TimeDelta* media_time) {
+                                    TimeDelta* media_time,
+                                    uint64_t* audio_bytes_decoded,
+                                    uint64_t* video_bytes_decoded) {
   lock_.AssertAcquired();
   if (state_ == kSuspended) {
     if (video_frames_decoded) {
@@ -1014,22 +1022,28 @@ void SbPlayerBridge::GetInfo_Locked(uint32_t* video_frames_decoded,
     if (media_time) {
       *media_time = preroll_timestamp_;
     }
-    return;
+  } else {
+    DCHECK(SbPlayerIsValid(player_));
+
+    SbPlayerInfo info;
+    sbplayer_interface_->GetInfo(player_, &info);
+
+    if (media_time) {
+      *media_time = base::Microseconds(info.current_media_timestamp);
+    }
+    if (video_frames_decoded) {
+      *video_frames_decoded = info.total_video_frames;
+    }
+    if (video_frames_dropped) {
+      *video_frames_dropped = info.dropped_video_frames;
+    }
   }
 
-  DCHECK(SbPlayerIsValid(player_));
-
-  SbPlayerInfo info;
-  sbplayer_interface_->GetInfo(player_, &info);
-
-  if (media_time) {
-    *media_time = base::Microseconds(info.current_media_timestamp);
+  if (audio_bytes_decoded) {
+    *audio_bytes_decoded = cached_audio_bytes_decoded_;
   }
-  if (video_frames_decoded) {
-    *video_frames_decoded = info.total_video_frames;
-  }
-  if (video_frames_dropped) {
-    *video_frames_dropped = info.dropped_video_frames;
+  if (video_bytes_decoded) {
+    *video_bytes_decoded = cached_video_bytes_decoded_;
   }
 }
 
@@ -1052,7 +1066,7 @@ void SbPlayerBridge::ClearDecoderBufferCache() {
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   if (state_ != kResuming) {
     TimeDelta media_time;
-    GetInfo(NULL, NULL, &media_time);
+    GetInfo(NULL, NULL, &media_time, NULL, NULL);
     decoder_buffer_cache_.ClearSegmentsBeforeMediaTime(media_time);
   }
 
@@ -1179,8 +1193,18 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
                << "sample_buffer " << sample_buffer;
     return;
   }
-  --iter->second.second;
-  if (iter->second.second == 0) {
+
+  {
+    base::AutoLock auto_lock(lock_);
+    if (iter->second.type == kSbMediaTypeAudio) {
+      cached_audio_bytes_decoded_ += iter->second.bytes_written;
+    } else {
+      cached_video_bytes_decoded_ += iter->second.bytes_written;
+    }
+  }
+
+  --iter->second.ref_count;
+  if (iter->second.ref_count == 0) {
     decoding_buffers_.erase(iter);
   }
 }

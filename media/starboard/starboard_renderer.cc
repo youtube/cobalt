@@ -402,12 +402,17 @@ TimeDelta StarboardRenderer::GetMediaTime() {
 
   uint32_t video_frames_decoded, video_frames_dropped;
   TimeDelta media_time;
+  uint64_t audio_bytes_decoded, video_bytes_decoded;
 
   player_bridge_->GetInfo(&video_frames_decoded, &video_frames_dropped,
-                          &media_time);
+                          &media_time, &audio_bytes_decoded,
+                          &video_bytes_decoded);
 
   // Report dropped frames since we have the info anyway.
   PipelineStatistics statistics;
+
+  statistics.audio_bytes_decoded = audio_bytes_decoded;
+  statistics.video_bytes_decoded = video_bytes_decoded;
 
   if (video_frames_decoded > last_video_frames_decoded_) {
     statistics.video_frames_decoded =
