@@ -17,7 +17,6 @@
 #include "net/base/net_errors.h"
 #include "net/http/http_response_headers.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
-#include "url/gurl.h"
 
 namespace cobalt {
 namespace browser {

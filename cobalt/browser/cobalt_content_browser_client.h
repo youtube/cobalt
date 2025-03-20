@@ -17,10 +17,8 @@
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
-#include "cobalt/browser/cobalt_single_render_process_observer.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
-#include "mojo/public/cpp/bindings/receiver_set.h"
 
 namespace content {
 class BrowserMainParts;
@@ -109,7 +107,6 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
   std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
       video_geometry_setter_service_;
-  CobaltSingleRenderProcessObserver single_render_process_observer_;
   std::vector<std::unique_ptr<browser::CobaltTrustedURLLoaderHeaderClient>>
       cobalt_header_clients_;
 
