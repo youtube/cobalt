@@ -24,6 +24,8 @@ x-common-definitions: &common-definitions
 
 x-build-volumes: &build-volumes
   volumes:
+    - ${HOME:-.}:${HOME}
+    - ${RDK_SDK:-.}:/root/rdk-home/
     - ${COBALT_SRC:-.}:/code/
     - android-debug-keystore:/root/.android/
     - ${CCACHE_DIR:-container-ccache}:/root/ccache
@@ -322,6 +324,27 @@ services:
     environment:
       <<: *shared-build-env
       PLATFORM: ${PLATFORM:-raspi-2}
+      CONFIG: ${CONFIG:-debug}
+      SB_API_VERSION: ${SB_API_VERSION}
+
+  build-rdk:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux/rdk
+      dockerfile: ./Dockerfile
+    image: cobalt-build-rdk
+    environment:
+      <<: *shared-build-env
+
+  rdk:
+    <<: *build-common-definitions
+    build:
+      context: ./docker/linux/rdk
+      dockerfile: ./Dockerfile
+    image: cobalt-build-rdk
+    environment:
+      <<: *shared-build-env
+      PLATFORM: ${PLATFORM:-rdk-arm}
       CONFIG: ${CONFIG:-debug}
       SB_API_VERSION: ${SB_API_VERSION}
 
