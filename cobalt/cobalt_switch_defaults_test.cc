@@ -60,7 +60,7 @@ TEST(CobaltSwitchDefaultsTest, MergeDisabledFeatures) {
 TEST(CobaltSwitchDefaultsTest, ConsistentWindowSizes) {
   const auto input_argv = std::to_array<const char*>({
       "PROGRAM",
-      "--window-size=1280x1024",
+      "--window-size=1280,1024",
   });
   const int input_argc = static_cast<int>(input_argv.size());
   CommandLinePreprocessor cmd_line_pxr(input_argc, input_argv.data());
@@ -73,7 +73,7 @@ TEST(CobaltSwitchDefaultsTest, ConsistentWindowSizes) {
 TEST(CobaltSwitchDefaultsTest, ConsistentWindowSizesOverride) {
   const auto input_argv = std::to_array<const char*>({
       "PROGRAM",
-      "--window-size=1280x1024",
+      "--window-size=1280,1024",
       "--content-shell-host-window-size=1920x1080",
   });
   const int input_argc = static_cast<int>(input_argv.size());
