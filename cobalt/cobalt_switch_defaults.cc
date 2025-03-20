@@ -117,6 +117,7 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
     // --window-size takes priority over other window-size configs.
     const auto window_size =
         cmd_line_.GetSwitchValueASCII(::switches::kWindowSize);
+    std::replace(window_size.begin(), window_size.end(), ',', 'x');
     cmd_line_.AppendSwitchASCII(::switches::kContentShellHostWindowSize,
                                 window_size);
   }
