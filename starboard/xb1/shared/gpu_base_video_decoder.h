@@ -237,7 +237,7 @@ class GpuVideoDecoderBase
   void* egl_display_ = nullptr;
   DecodeTargetContextRunner decode_target_context_runner_;
 
-  starboard::shared::starboard::player::ScopedJobThreadPtr
+  std::unique_ptr<starboard::shared::starboard::player::JobThread>
       decoder_thread_;
 
   // |pending_inputs_| is shared between player main thread and decoder thread.

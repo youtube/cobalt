@@ -177,7 +177,7 @@ class WASAPIAudioSink {
   Mutex output_frames_mutex_;
   std::queue<scoped_refptr<DecodedAudio>> pending_decoded_audios_;
 
-  starboard::player::ScopedJobThreadPtr job_thread_;
+  std::unique_ptr<JobThread> job_thread_;
 
   starboard::ThreadChecker thread_checker_;
 };
