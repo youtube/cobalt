@@ -21,7 +21,7 @@ source_set("webaudio") {
   ]
   deps = [ "//third_party/blink/public:blink_headers" ]
 
-  if (is_starboard) {
+  if (is_starboard || is_android) {
     deps += [ "//starboard:starboard_headers_only" ]
   }
 }

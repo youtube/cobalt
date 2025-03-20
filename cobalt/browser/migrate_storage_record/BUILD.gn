@@ -25,7 +25,7 @@ source_set("migrate_storage_record") {
     "//url",
   ]
 
-  if (is_starboard) {
+  if (is_starboard || is_android) {
     deps += [ "//starboard/common" ]
   }
 

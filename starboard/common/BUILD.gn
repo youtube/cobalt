@@ -12,8 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-assert(is_starboard, "This file is only for is_starboard builds")
-
 # The "common" target contains facilities provided by Starboard that are common
 # to all platforms.
 

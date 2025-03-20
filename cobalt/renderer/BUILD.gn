@@ -34,7 +34,7 @@ source_set("renderer") {
     "//v8",
   ]
 
-  if (is_starboard) {
+  if (is_starboard || is_android) {
     deps += [ "//starboard:starboard_headers_only" ]
   }
 }

@@ -25,7 +25,7 @@ source_set("h5vcc_metrics") {
     "//mojo/public/cpp/bindings",
   ]
 
-  if (is_starboard) {
+  if (is_starboard || is_android) {
     deps += [ "//starboard($starboard_toolchain)" ]
   }
 }

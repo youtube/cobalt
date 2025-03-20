@@ -27,7 +27,7 @@ source_set("h5vcc_system") {
     "//mojo/public/cpp/bindings",
   ]
 
-  if (is_starboard) {
+  if (is_starboard || is_android) {
     deps += [
       "//cobalt/configuration",
       "//starboard($starboard_toolchain)",

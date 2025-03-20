@@ -28,7 +28,7 @@ static_library("user_agent") {
     "//v8:v8_version",
   ]
 
-  if (is_starboard) {
+  if (is_starboard || is_android) {
     public_deps += [ "//starboard/common" ]
   }
 
