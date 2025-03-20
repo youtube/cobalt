@@ -3,7 +3,7 @@
         {
             "files": [
                 "chromedriver",
-                "cobalt",
+                "cobalt.stripped",
                 "content_shell.pak",
                 "gen/build_info.json",
                 "icudtl.dat",
@@ -13,6 +13,10 @@
                 "v8_context_snapshot.bin"
             ],
             "rename_files": [
+                {
+                    "from_file": "cobalt.stripped",
+                    "to_file": "cobalt"
+                },
                 {
                     "from_file": "gen/build_info.json",
                     "to_file": "build_info.json"
@@ -26,9 +30,19 @@
         },
         {
             "files": [
+                "cobalt",
+                "cobalt.debug",
                 "gen/build_info.json"
             ],
             "rename_files": [
+                {
+                    "from_file": "cobalt",
+                    "to_file": "symbol/cobalt"
+                },
+                {
+                    "from_file": "cobalt.debug",
+                    "to_file": "symbol/cobalt.debug"
+                },
                 {
                     "from_file": "gen/build_info.json",
                     "to_file": "build_info.json"
