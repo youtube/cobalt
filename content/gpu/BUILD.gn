@@ -93,7 +93,7 @@ target(link_target_type, "gpu_sources") {
     ]
   }
 
-  if (is_linux || is_chromeos) {
+  if ((is_linux || is_chromeos) && !is_cobalt_hermetic_build) {
     sources += [
       "gpu_sandbox_hook_linux.cc",
       "gpu_sandbox_hook_linux.h",

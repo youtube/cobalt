@@ -35,7 +35,7 @@ component("policy") {
     "//sandbox/policy/mojom",
   ]
   public_deps = [ "//sandbox:common" ]
-  if (is_linux || is_chromeos) {
+  if ((is_linux || is_chromeos) && !is_cobalt_hermetic_build) {
     sources += [
       "linux/bpf_audio_policy_linux.cc",
       "linux/bpf_audio_policy_linux.h",
