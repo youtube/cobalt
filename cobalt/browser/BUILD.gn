@@ -38,6 +38,7 @@ source_set("browser") {
   deps = [
     ":embed_polyfilled_javascript",
     ":metrics",
+    "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/crash_annotator/public/mojom",
     "//cobalt/browser/h5vcc_metrics",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
