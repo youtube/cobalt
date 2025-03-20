@@ -57,10 +57,10 @@ source_set("browser") {
     "//cobalt/media/service/mojom",
     "//cobalt/user_agent",
     "//components/js_injection/browser:browser",
-    "//components/metrics",
-    "//components/metrics_services_manager",
+    "//components/metrics:metrics",
+    "//components/metrics:test_support",
     "//components/os_crypt/sync",
-    "//components/prefs",
+    "//components/prefs:prefs",
     "//content/public/browser",
     "//starboard/($starboard_toolchain)",
 

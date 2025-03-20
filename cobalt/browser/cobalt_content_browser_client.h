@@ -85,6 +85,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       blink::AssociatedInterfaceRegistry* associated_registry,
       content::RenderProcessHost* render_process_host) override;
   void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
+  void SetUpFieldTrials();
 
   bool WillCreateURLLoaderFactory(
       content::BrowserContext* browser_context,
