@@ -14,14 +14,29 @@
 
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
 
+#include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
+#include "third_party/blink/renderer/core/timing/performance.h"
+#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 
 namespace blink {
 
-uint64_t CobaltPerformance::measureUserAgentFreeMemory(
-    ScriptState* script_state) {
+uint64_t PerformanceExtensions::measureUserAgentFreeMemory(
+    ScriptState* script_state,
+    const Performance&) {
   ExecutionContext* execution_context = ExecutionContext::From(script_state);
-  return 10;
+  DCHECK(execution_context);
+
+  HeapMojoRemote<performance::mojom::CobaltPerformance>
+      remote_performance_system(execution_context);
+  auto task_runner =
+      execution_context->GetTaskRunner(TaskType::kMiscPlatformAPI);
+  execution_context->GetBrowserInterfaceBroker().GetInterface(
+      remote_performance_system.BindNewPipeAndPassReceiver(task_runner));
+
+  uint64_t free_memory = 0;
+  remote_performance_system->MeasureUserAgentFreeMemory(&free_memory);
+  return free_memory;
 }
 
 }  //  namespace blink

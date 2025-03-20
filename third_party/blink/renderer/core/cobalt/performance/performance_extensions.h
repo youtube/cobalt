@@ -20,14 +20,15 @@
 
 namespace blink {
 
+class Performance;
 class ScriptState;
 
-class CORE_EXPORT CobaltPerformance final {
-  STATIC_ONLY(CobaltPerformance);
+class CORE_EXPORT PerformanceExtensions final {
+  STATIC_ONLY(PerformanceExtensions);
 
  public:
   // Web-exposed interface:
-  static uint64_t measureUserAgentFreeMemory(ScriptState* script_state);
+  static uint64_t measureUserAgentFreeMemory(ScriptState*, const Performance&);
 };
 
 }  // namespace blink

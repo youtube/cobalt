@@ -1629,13 +1629,6 @@ generated_interface_sources_in_core = [
   "$root_gen_dir/third_party/blink/renderer/bindings/core/v8/v8_xslt_processor.h",
 ]
 
-# if (is_cobalt) {
-#   generated_interface_sources_in_core += [
-#     "$root_gen_dir/third_party/blink/renderer/bindings/core/v8/v8_performance_extensions.cc",
-#     "$root_gen_dir/third_party/blink/renderer/bindings/core/v8/v8_performance_extensions.h",
-#   ]
-# }
-
 generated_namespace_sources_in_core = [
   "$root_gen_dir/third_party/blink/renderer/bindings/core/v8/v8_css.cc",
   "$root_gen_dir/third_party/blink/renderer/bindings/core/v8/v8_css.h",

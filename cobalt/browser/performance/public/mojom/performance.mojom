@@ -16,5 +16,6 @@ module performance.mojom;
 
 interface CobaltPerformance {
   // Get the advertisingId for the device.
+  [Sync]
   MeasureUserAgentFreeMemory() => (uint64 bytes);
 };
