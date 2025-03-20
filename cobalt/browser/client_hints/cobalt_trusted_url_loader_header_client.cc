@@ -11,13 +11,20 @@ CobaltTrustedURLLoaderHeaderClient::CobaltTrustedURLLoaderHeaderClient(
 void CobaltTrustedURLLoaderHeaderClient::OnLoaderCreated(
     int32_t request_id,
     mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver) {
-  // Bind the header_client to the receiver
-  cobalt_header_client_->BindReceiver(std::move(receiver));
+  auto cobalt_header_client =
+      std::make_unique<browser::CobaltTrustedHeaderClient>();
+  cobalt_header_client->BindReceiver(std::move(receiver));
+  cobalt_header_clients_.push_back(std::move(cobalt_header_client));
 }
 
 void CobaltTrustedURLLoaderHeaderClient::OnLoaderForCorsPreflightCreated(
     const network::ResourceRequest& request,
-    mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver) {}
+    mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver) {
+  auto cobalt_header_client =
+      std::make_unique<browser::CobaltTrustedHeaderClient>();
+  cobalt_header_client->BindReceiver(std::move(receiver));
+  cobalt_header_clients_.push_back(std::move(cobalt_header_client));
+}
 
 }  // namespace browser
 }  // namespace cobalt

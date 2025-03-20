@@ -8,22 +8,19 @@ namespace browser {
 void CobaltTrustedHeaderClient::OnBeforeSendHeaders(
     const ::net::HttpRequestHeaders& headers,
     OnBeforeSendHeadersCallback callback) {
-  ::net::HttpRequestHeaders mutable_headers(headers);  // Make a copy
+  ::net::HttpRequestHeaders mutable_headers(headers);
+  // TODO(b/400459822): Cobalt - implement client hint headers
   mutable_headers.SetHeader("Sec-CH-UA-Co-Android-OS-Experience",
-                            "Value");                 // Modify the copy
-  std::move(callback).Run(net::OK, mutable_headers);  // Pass the modified copy
+                            "Value");  // Modify the copy
+  std::move(callback).Run(net::OK, mutable_headers);
 }
 
 void CobaltTrustedHeaderClient::OnHeadersReceived(
     const std::string& headers,
     const net::IPEndPoint& remote_endpoint,
     OnHeadersReceivedCallback callback) {
-  // std::unique_ptr<net::HttpResponseHeaders> parsed_headers =
-  //     std::make_unique<net::HttpResponseHeaders>(
-  //         net::HttpUtil::AssembleRawHeaders(headers));
-  // parsed_headers->SetHeader("Sec-CH-UA-Co-Android-OS-Experience", "Value");
-  // std::move(callback).Run(net::OK, parsed_headers->raw_headers(),
-  // absl::nullopt);
+  // Do nothing for response header
+  std::move(callback).Run(net::OK, absl::nullopt, absl::nullopt);
 }
 
 void CobaltTrustedHeaderClient::BindReceiver(
