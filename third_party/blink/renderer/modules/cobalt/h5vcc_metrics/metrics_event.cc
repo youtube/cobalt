@@ -12,16 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This interface mirrors the H5vcc Web IDL defined in Cobalt LTS 25:
-// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc.idl
-[
-    Exposed=Window,
-    SecureContext
-]
-interface H5vcc {
-    readonly attribute CrashLog crashLog;
-    readonly attribute H5vccMetrics metrics;
-    readonly attribute H5vccStorage storage;
-    readonly attribute H5vccSystem system;
-    readonly attribute H5vccRuntime runtime;
-};
+#include "third_party/blink/renderer/modules/cobalt/h5vcc_metrics/metrics_event.h"
+
+#include "third_party/blink/renderer/modules/event_interface_modules_names.h"
+
+namespace blink {
+
+MetricsEvent::MetricsEvent(const AtomicString& type, const String& tbd)
+    : Event(type, Bubbles::kNo, Cancelable::kNo), tbd_(tbd) {}
+
+MetricsEvent::~MetricsEvent() = default;
+
+const AtomicString& MetricsEvent::InterfaceName() const {
+  return event_interface_names::kMetricsEvent;
+}
+
+void MetricsEvent::Trace(Visitor* visitor) const {
+  Event::Trace(visitor);
+}
+
+}  // namespace blink

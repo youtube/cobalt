@@ -39,6 +39,8 @@ source_set("browser") {
     ":embed_polyfilled_javascript",
     ":metrics",
     "//cobalt/browser/crash_annotator/public/mojom",
+    "//cobalt/browser/h5vcc_metrics",
+    "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime/public/mojom",
     "//cobalt/browser/h5vcc_system",
