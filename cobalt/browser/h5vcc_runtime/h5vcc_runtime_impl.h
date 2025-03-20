@@ -20,6 +20,7 @@
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
 #include "content/public/browser/document_service.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 
 namespace content {
 class RenderFrameHost;
@@ -40,11 +41,17 @@ class H5vccRuntimeImpl : public content::DocumentService<mojom::H5vccRuntime> {
   H5vccRuntimeImpl(const H5vccRuntimeImpl&) = delete;
   H5vccRuntimeImpl& operator=(const H5vccRuntimeImpl&) = delete;
 
+  void GetAndClearInitialDeepLinkSync(
+      GetAndClearInitialDeepLinkSyncCallback) override;
   void GetAndClearInitialDeepLink(GetAndClearInitialDeepLinkCallback) override;
+
+  void AddListener(mojo::PendingRemote<mojom::DeepLinkListener> listener);
 
  private:
   H5vccRuntimeImpl(content::RenderFrameHost& render_frame_host,
                    mojo::PendingReceiver<mojom::H5vccRuntime> receiver);
+
+  THREAD_CHECKER(thread_checker_);
 };
 
 }  // namespace h5vcc_runtime

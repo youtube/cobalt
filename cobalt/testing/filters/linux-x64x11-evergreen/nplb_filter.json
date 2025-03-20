@@ -1,6 +1,5 @@
 {
   "failing_tests": [
-    "SbSystemGetLocaleIdTest.SunnyDay",
     "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.*",
     "MultiplePlayerTest.*",
     "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.*",
@@ -10,6 +9,6 @@
     "SbAudioSinkTest*",
     "MaximumPlayerConfigurationExplorerTests*",
     "SbPlayerTest*",
-    "PosixFile*"
+    "PosixFileRead*"
   ]
 }

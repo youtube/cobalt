@@ -24,8 +24,6 @@ source_set("browser") {
     "cobalt_browser_interface_binders.h",
     "cobalt_content_browser_client.cc",
     "cobalt_content_browser_client.h",
-    "cobalt_single_render_process_observer.cc",
-    "cobalt_single_render_process_observer.h",
     "cobalt_web_contents_observer.cc",
     "cobalt_web_contents_observer.h",
   ]
@@ -42,11 +40,14 @@ source_set("browser") {
     ":metrics",
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/crash_annotator/public/mojom",
+    "//cobalt/browser/h5vcc_metrics",
+    "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
     "//cobalt/browser/h5vcc_runtime/public/mojom",
     "//cobalt/browser/h5vcc_system",
     "//cobalt/browser/h5vcc_system/public/mojom",
     "//cobalt/browser/migrate_storage_record",
+    "//cobalt/media/service",
     "//cobalt/media/service/mojom",
     "//cobalt/user_agent",
     "//components/js_injection/browser:browser",
@@ -56,6 +57,13 @@ source_set("browser") {
     # TODO(b/390021478): Do not depend on content_shell_lib here.
     "//content/shell:content_shell_lib",
   ]
+
+  if (!cobalt_is_release_build) {
+    deps += [
+      "//cobalt/browser/h5vcc_storage/testing",
+      "//cobalt/browser/h5vcc_storage/testing/public/mojom",
+    ]
+  }
 
   if (is_androidtv) {
     deps += [ "//cobalt/android:jni_headers" ]

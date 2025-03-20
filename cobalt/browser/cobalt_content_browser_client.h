@@ -36,6 +36,10 @@ class BinderMapWithContext;
 
 namespace cobalt {
 
+namespace media {
+class VideoGeometrySetterService;
+}  // namespace media
+
 class CobaltWebContentsObserver;
 
 // This class allows Cobalt to inject specific logic in the business of the
@@ -56,7 +60,6 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // ShellContentBrowserClient overrides.
   std::unique_ptr<content::BrowserMainParts> CreateBrowserMainParts(
       bool is_integration_test) override;
-  void RenderProcessWillLaunch(content::RenderProcessHost* host) override;
   std::string GetApplicationLocale() override;
   std::string GetUserAgent() override;
   std::string GetFullUserAgent() override;
@@ -79,6 +82,10 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       content::RenderFrameHost* render_frame_host,
       mojo::BinderMapWithContext<content::RenderFrameHost*>* binder_map)
       override;
+  void ExposeInterfacesToRenderer(
+      service_manager::BinderRegistry* registry,
+      blink::AssociatedInterfaceRegistry* associated_registry,
+      content::RenderProcessHost* render_process_host) override;
   void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
 
   bool WillCreateURLLoaderFactory(
@@ -97,7 +104,11 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       network::mojom::URLLoaderFactoryOverridePtr* factory_override) override;
 
  private:
+  void CreateVideoGeometrySetterService();
+
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
+  std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
+      video_geometry_setter_service_;
   CobaltSingleRenderProcessObserver single_render_process_observer_;
   std::vector<std::unique_ptr<browser::CobaltTrustedURLLoaderHeaderClient>>
       cobalt_header_clients_;

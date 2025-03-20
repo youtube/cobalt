@@ -35,6 +35,7 @@
 #include "media/base/renderer_client.h"
 #include "media/base/video_renderer_sink.h"
 #include "media/renderers/video_overlay_factory.h"
+#include "media/starboard/bind_host_receiver_callback.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "mojo/public/cpp/bindings/receiver.h"
@@ -53,14 +54,13 @@ class MEDIA_EXPORT StarboardRenderer final
       private SbPlayerBridge::Host,
       public cobalt::media::mojom::VideoGeometryChangeClient {
  public:
-  StarboardRenderer(
-      const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-      VideoRendererSink* video_renderer_sink,
-      MediaLog* media_log,
-      std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
-      TimeDelta audio_write_duration_local,
-      TimeDelta audio_write_duration_remote,
-      cobalt::media::VideoGeometrySetterService* video_geometry_setter_service);
+  StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
+                    VideoRendererSink* video_renderer_sink,
+                    MediaLog* media_log,
+                    std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
+                    TimeDelta audio_write_duration_local,
+                    TimeDelta audio_write_duration_remote,
+                    BindHostReceiverCallback bind_host_receiver_callback);
 
   ~StarboardRenderer() final;
 
@@ -196,6 +196,8 @@ class MEDIA_EXPORT StarboardRenderer final
   // Timestamp microseconds when we last checked the media time.
   Time last_time_media_time_retrieved_;
 
+  const BindHostReceiverCallback bind_host_receiver_callback_;
+
   bool audio_read_delayed_ = false;
   // TODO(b/375674101): Support batched samples write.
   const int max_audio_samples_per_write_ = 1;
@@ -225,7 +227,6 @@ class MEDIA_EXPORT StarboardRenderer final
   static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
       "MEDIA_ERR_CAPABILITY_CHANGED";
 
-  cobalt::media::VideoGeometrySetterService* video_geometry_setter_service_;
   mojo::Remote<cobalt::media::mojom::VideoGeometryChangeSubscriber>
       video_geometry_change_subcriber_remote_;
   mojo::Receiver<cobalt::media::mojom::VideoGeometryChangeClient>
