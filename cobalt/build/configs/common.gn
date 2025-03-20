@@ -22,3 +22,5 @@ enable_platform_ac3_eac3_audio = true
 # We use Angle+EGL based graphics pipeline, not Dawn path
 # see //ui/gl/features.gni
 use_dawn = false
+
+angle_use_x11 = true
