@@ -10,7 +10,8 @@ namespace browser {
 
 class CobaltTrustedHeaderClient : public network::mojom::TrustedHeaderClient {
  public:
-  CobaltTrustedHeaderClient() = default;
+  CobaltTrustedHeaderClient(
+      mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver);
 
   CobaltTrustedHeaderClient(const CobaltTrustedHeaderClient&) = delete;
   CobaltTrustedHeaderClient& operator=(const CobaltTrustedHeaderClient&) =
@@ -25,11 +26,8 @@ class CobaltTrustedHeaderClient : public network::mojom::TrustedHeaderClient {
                          const net::IPEndPoint& endpoint,
                          OnHeadersReceivedCallback callback) override;
 
-  void BindReceiver(
-      mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver);
-
  private:
-  mojo::Receiver<network::mojom::TrustedHeaderClient> receiver_{this};
+  mojo::Receiver<network::mojom::TrustedHeaderClient> receiver_;
 };
 
 }  // namespace browser

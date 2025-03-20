@@ -22,8 +22,8 @@ void CobaltTrustedURLLoaderHeaderClient::OnLoaderForCorsPreflightCreated(
 
 void CobaltTrustedURLLoaderHeaderClient::CreateAndBindCobaltTrustedHeaderClient(
     mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver) {
-  auto client = std::make_unique<browser::CobaltTrustedHeaderClient>();
-  client->BindReceiver(std::move(receiver));
+  auto client =
+      std::make_unique<browser::CobaltTrustedHeaderClient>(std::move(receiver));
   cobalt_header_clients_.push_back(std::move(client));
 }
 

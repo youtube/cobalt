@@ -5,6 +5,10 @@
 namespace cobalt {
 namespace browser {
 
+CobaltTrustedHeaderClient::CobaltTrustedHeaderClient(
+    mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver)
+    : receiver_(this, std::move(receiver)) {}
+
 void CobaltTrustedHeaderClient::OnBeforeSendHeaders(
     const ::net::HttpRequestHeaders& headers,
     OnBeforeSendHeadersCallback callback) {
@@ -21,11 +25,6 @@ void CobaltTrustedHeaderClient::OnHeadersReceived(
     OnHeadersReceivedCallback callback) {
   // Do nothing for response header
   std::move(callback).Run(net::OK, absl::nullopt, absl::nullopt);
-}
-
-void CobaltTrustedHeaderClient::BindReceiver(
-    mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver) {
-  receiver_.Bind(std::move(receiver));
 }
 
 }  // namespace browser
