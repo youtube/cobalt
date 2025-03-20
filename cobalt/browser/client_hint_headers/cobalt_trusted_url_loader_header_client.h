@@ -1,7 +1,7 @@
 #ifndef COBALT_BROWSER_COBALT_TRUSTED_URL_LOADER_HEADER_CLIENT_H_
 #define COBALT_BROWSER_COBALT_TRUSTED_URL_LOADER_HEADER_CLIENT_H_
 
-#include "cobalt/browser/client_hints/cobalt_trusted_header_client.h"
+#include "cobalt/browser/client_hint_headers/cobalt_trusted_header_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 

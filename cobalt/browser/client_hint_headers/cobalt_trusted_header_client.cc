@@ -1,4 +1,4 @@
-#include "cobalt/browser/client_hints/cobalt_trusted_header_client.h"
+#include "cobalt/browser/client_hint_headers/cobalt_trusted_header_client.h"
 #include "net/http/http_response_headers.h"
 #include "url/gurl.h"
 
