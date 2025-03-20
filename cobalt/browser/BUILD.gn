@@ -57,7 +57,10 @@ source_set("browser") {
     "//cobalt/media/service/mojom",
     "//cobalt/user_agent",
     "//components/js_injection/browser:browser",
+    "//components/metrics:metrics",
+    "//components/metrics:test_support",
     "//components/os_crypt/sync",
+    "//components/prefs:prefs",
     "//content/public/browser",
 
     # TODO(b/390021478): Do not depend on content_shell_lib here.

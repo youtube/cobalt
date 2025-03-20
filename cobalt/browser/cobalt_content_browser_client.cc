@@ -16,18 +16,31 @@
 
 #include <string>
 
+#include "base/base_switches.h"
+#include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/i18n/rtl.h"
+#include "base/path_service.h"
+#include "cc/base/switches.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
+#include "components/metrics/metrics_state_manager.h"
+#include "components/metrics/test/test_enabled_state_provider.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/user_agent.h"
+// TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
+// being a ShellBrowserMainParts.
+#include "content/shell/browser/shell_browser_main_parts.h"
+#include "content/shell/browser/shell_paths.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
@@ -96,6 +109,36 @@ CobaltContentBrowserClient::CobaltContentBrowserClient()
               nullptr,
               base::OnTaskRunnerDeleter(nullptr))) {
   DETACH_FROM_THREAD(thread_checker_);
+}
+// In content browser tests we allow more than one ShellContentBrowserClient
+// to be created (actually, ContentBrowserTestContentBrowserClient). Any state
+// needed should be added here so that it's shared between the instances.
+struct SharedState {
+  SharedState() {
+#if BUILDFLAG(IS_MAC)
+    location_manager = std::make_unique<device::FakeGeolocationManager>();
+    location_manager->SetSystemPermission(
+        device::LocationSystemPermissionStatus::kAllowed);
+#endif
+  }
+
+#if BUILDFLAG(IS_MAC)
+  std::unique_ptr<device::FakeGeolocationManager> location_manager;
+#endif
+
+  // Owned by content::BrowserMainLoop.
+  raw_ptr<CobaltBrowserMainParts, DanglingUntriaged> cobalt_browser_main_parts =
+      nullptr;
+
+  std::unique_ptr<PrefService> local_state;
+};
+
+SharedState& GetSharedState() {
+  static SharedState* g_shared_state = nullptr;
+  if (!g_shared_state) {
+    g_shared_state = new SharedState();
+  }
+  return *g_shared_state;
 }
 
 CobaltContentBrowserClient::~CobaltContentBrowserClient() = default;
@@ -293,6 +336,64 @@ bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
   }
 
   return true;
+}
+
+void CobaltContentBrowserClient::SetUpFieldTrials() {
+  metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
+                                                           /*enabled=*/false);
+  base::FilePath path;
+  base::PathService::Get(content::SHELL_DIR_USER_DATA, &path);
+  std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager =
+      metrics::MetricsStateManager::Create(
+          GetSharedState().local_state.get(), &enabled_state_provider,
+          std::wstring(), path, metrics::StartupVisibility::kUnknown,
+          {
+              .force_benchmarking_mode =
+                  base::CommandLine::ForCurrentProcess()->HasSwitch(
+                      cc::switches::kEnableGpuBenchmarking),
+          });
+  metrics_state_manager->InstantiateFieldTrialList();
+
+  // std::vector<std::string> variation_ids;
+  auto feature_list = std::make_unique<base::FeatureList>();
+
+  const base::CommandLine& command_line =
+      *base::CommandLine::ForCurrentProcess();
+
+  // Overrides for content/common and lower layers' switches.
+  std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =
+      content::GetSwitchDependentFeatureOverrides(command_line);
+
+  // Overrides for content/shell switches.
+
+  // Overrides for --run-web-tests.
+  // if (switches::IsRunWebTestsSwitchPresent()) {
+  //   // Disable artificial timeouts for PNA-only preflights in warning-only
+  //   mode
+  //   // for web tests. We do not exercise this behavior with web tests as it
+  //   is
+  //   // intended to be a temporary rollout stage, and the short timeout causes
+  //   // flakiness when the test server takes just a tad too long to respond.
+  //   feature_overrides.emplace_back(
+  //       std::cref(
+  //           network::features::kPrivateNetworkAccessPreflightShortTimeout),
+  //       base::FeatureList::OVERRIDE_DISABLE_FEATURE);
+  // }
+
+  feature_list->InitializeFromCommandLine(
+      command_line.GetSwitchValueASCII(::switches::kEnableFeatures),
+      command_line.GetSwitchValueASCII(::switches::kDisableFeatures));
+
+  // This needs to happen here: After the InitFromCommandLine() call,
+  // because the explicit cmdline --disable-features and --enable-features
+  // should take precedence over these extra overrides. Before the call to
+  // SetInstance(), because overrides cannot be registered after the FeatureList
+  // instance is set.
+  feature_list->RegisterExtraFeatureOverrides(feature_overrides);
+
+  // Add Cobalt custom code to create field trial here.
+
+  base::FeatureList::SetInstance(std::move(feature_list));
 }
 
 }  // namespace cobalt
