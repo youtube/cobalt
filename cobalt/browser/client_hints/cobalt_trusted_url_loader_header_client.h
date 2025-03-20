@@ -32,6 +32,9 @@ class CobaltTrustedURLLoaderHeaderClient
       mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver)
       override;
 
+  void CreateAndBindCobaltTrustedHeaderClient(
+      mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver);
+
  private:
   mojo::Receiver<network::mojom::TrustedURLLoaderHeaderClient> receiver_;
   std::vector<std::unique_ptr<CobaltTrustedHeaderClient>>

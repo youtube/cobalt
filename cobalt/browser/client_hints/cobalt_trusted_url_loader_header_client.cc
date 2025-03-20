@@ -11,19 +11,20 @@ CobaltTrustedURLLoaderHeaderClient::CobaltTrustedURLLoaderHeaderClient(
 void CobaltTrustedURLLoaderHeaderClient::OnLoaderCreated(
     int32_t request_id,
     mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver) {
-  auto cobalt_header_client =
-      std::make_unique<browser::CobaltTrustedHeaderClient>();
-  cobalt_header_client->BindReceiver(std::move(receiver));
-  cobalt_header_clients_.push_back(std::move(cobalt_header_client));
+  CreateAndBindCobaltTrustedHeaderClient(std::move(receiver));
 }
 
 void CobaltTrustedURLLoaderHeaderClient::OnLoaderForCorsPreflightCreated(
     const network::ResourceRequest& request,
     mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver) {
-  auto cobalt_header_client =
-      std::make_unique<browser::CobaltTrustedHeaderClient>();
-  cobalt_header_client->BindReceiver(std::move(receiver));
-  cobalt_header_clients_.push_back(std::move(cobalt_header_client));
+  CreateAndBindCobaltTrustedHeaderClient(std::move(receiver));
+}
+
+void CobaltTrustedURLLoaderHeaderClient::CreateAndBindCobaltTrustedHeaderClient(
+    mojo::PendingReceiver<network::mojom::TrustedHeaderClient> receiver) {
+  auto client = std::make_unique<browser::CobaltTrustedHeaderClient>();
+  client->BindReceiver(std::move(receiver));
+  cobalt_header_clients_.push_back(std::move(client));
 }
 
 }  // namespace browser
