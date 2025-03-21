@@ -1,0 +1,8 @@
+// Non standard interface used for Cobalt only.
+[
+    ImplementedAs=PerformanceExtensions
+] partial interface Performance {
+    // Returns the amount of available memory on the device in bytes, according
+    // to base::SysInfo::AmountOfAvailablePhysicalMemory().
+    [CallWith=ScriptState] unsigned long long measureAvailableCpuMemory();
+};
