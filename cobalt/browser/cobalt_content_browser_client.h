@@ -16,6 +16,7 @@
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
 #include "base/threading/thread_checker.h"
+#include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
@@ -85,12 +86,29 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       content::RenderProcessHost* render_process_host) override;
   void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
 
+  bool WillCreateURLLoaderFactory(
+      content::BrowserContext* browser_context,
+      content::RenderFrameHost* frame,
+      int render_process_id,
+      URLLoaderFactoryType type,
+      const url::Origin& request_initiator,
+      absl::optional<int64_t> navigation_id,
+      ukm::SourceIdObj ukm_source_id,
+      mojo::PendingReceiver<network::mojom::URLLoaderFactory>* factory_receiver,
+      mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>*
+          header_client,
+      bool* bypass_redirect_checks,
+      bool* disable_secure_dns,
+      network::mojom::URLLoaderFactoryOverridePtr* factory_override) override;
+
  private:
   void CreateVideoGeometrySetterService();
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
   std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
       video_geometry_setter_service_;
+  std::vector<std::unique_ptr<browser::CobaltTrustedURLLoaderHeaderClient>>
+      cobalt_header_clients_;
 
   THREAD_CHECKER(thread_checker_);
 };
