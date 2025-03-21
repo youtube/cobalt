@@ -55,12 +55,14 @@ int GetBitsPerPixel(const VideoDecoderConfig& video_config) {
 
 size_t GetDemuxerStreamAudioMemoryLimit(
     const AudioDecoderConfig* /*audio_config*/) {
+  DCHECK(DecoderBuffer::Allocator::GetInstance());
   return DecoderBuffer::Allocator::GetInstance()->GetAudioBufferBudget();
 }
 
 size_t GetDemuxerStreamVideoMemoryLimit(
     Demuxer::DemuxerTypes /*demuxer_type*/,
     const VideoDecoderConfig* video_config) {
+  DCHECK(DecoderBuffer::Allocator::GetInstance());
   if (!video_config) {
     return DecoderBuffer::Allocator::GetInstance()->GetVideoBufferBudget(
         VideoCodec::kH264, 1920, 1080, 8);

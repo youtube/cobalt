@@ -55,6 +55,11 @@ class CONTENT_EXPORT BlinkPlatformImpl : public blink::Platform {
   GetMediaStreamVideoSourceVideoTaskRunner() const override;
   std::unique_ptr<NestedMessageLoopRunner> CreateNestedMessageLoopRunner()
       const override;
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual uint64_t mediaSourceSizeLimit() const override;
+  virtual uint64_t totalMediaSourceSize() const override;
+  virtual uint64_t usedMediaSourceMemorySize() const override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  private:
   scoped_refptr<base::SingleThreadTaskRunner> io_thread_task_runner_;
