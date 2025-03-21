@@ -77,6 +77,13 @@ class PlayerComponentsTest
   }
 
   void SetUp() override {
+#if defined(SKIP_DOLBY_DIGITAL_TESTS)
+    if ((audio_filename_.find("_ec3") != std::string::npos) ||
+        (audio_filename_.find("_ac3") != std::string::npos)) {
+      GTEST_SKIP() << "Skipping E-/AC-3 (Dolby Digital) related tests.";
+    }
+#endif
+
     if (audio_filename_.length() > 0) {
       audio_reader_.reset(new VideoDmpReader(
           audio_filename_.c_str(), VideoDmpReader::kEnableReadOnDemand));
