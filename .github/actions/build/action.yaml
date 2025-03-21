@@ -40,13 +40,16 @@ runs:
           changed_files_json=$(jq -nc '$ARGS.positional' --args ${changed_files[@]})
           echo "changed_files_json=${changed_files_json}" >> $GITHUB_OUTPUT
         shell: bash
+      # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
       - name: Calculate test targets
         if: matrix.config == 'devel' && inputs.test_root_target != 'null'
         id: calculate-test-targets
         env:
           CHANGED_FILES_JSON: ${{ steps.changed-files.outputs.changed_files_json }}
           ROOT_TARGET: ${{ inputs.test_root_target }}
+          STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
           TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+          DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
         run: |
           set -x
           cd src
@@ -63,7 +66,10 @@ runs:
               --root-target "${ROOT_TARGET}" \
               ${changed_files_arg} \
               --gn-json gn_desc.json \
-              --json-output > "${TEST_TARGETS_JSON_FILE}"
+              --json-output > "${DYN_TEST_TARGETS_JSON_FILE}"
+
+          # Currently, override with static test targets, TODO(b/382508397)
+          cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${TEST_TARGETS_JSON_FILE}"
 
           echo "test_targets_json_file=${TEST_TARGETS_JSON_FILE}" >> $GITHUB_OUTPUT
 
@@ -73,6 +79,13 @@ runs:
           test_targets_count=$(echo ${test_targets_json} | jq -cr 'length')
           echo "test_targets_count=${test_targets_count}" >> $GITHUB_OUTPUT
         shell: bash
+      - name: Archive test target results
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }} Test targets
+          path: |
+            src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+            src/out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
       - name: Ninja build test targets
         if: ${{ matrix.config == 'devel' && fromJSON(steps.calculate-test-targets.outputs.test_targets_count || 0) > 0 }}
         id: build-test-targets
