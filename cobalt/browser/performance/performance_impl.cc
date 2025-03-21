@@ -30,8 +30,8 @@ void PerformanceImpl::Create(
   new PerformanceImpl(*render_frame_host, std::move(receiver));
 }
 
-void PerformanceImpl::MeasureUserAgentAvailableMemory(
-    MeasureUserAgentAvailableMemoryCallback callback) {
+void PerformanceImpl::MeasureAvailableCpuMemory(
+    MeasureAvailableCpuMemoryCallback callback) {
   std::move(callback).Run(base::SysInfo::AmountOfAvailablePhysicalMemory());
 }
 

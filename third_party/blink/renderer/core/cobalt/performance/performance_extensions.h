@@ -28,8 +28,7 @@ class CORE_EXPORT PerformanceExtensions final {
 
  public:
   // Web-exposed interface:
-  static uint64_t measureUserAgentAvailableMemory(ScriptState*,
-                                                  const Performance&);
+  static uint64_t measureAvailableCpuMemory(ScriptState*, const Performance&);
 };
 
 }  // namespace blink

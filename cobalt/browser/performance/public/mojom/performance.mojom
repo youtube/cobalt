@@ -17,5 +17,5 @@ module performance.mojom;
 interface CobaltPerformance {
   // Get the amount of available memory on the device in bytes.
   [Sync]
-  MeasureUserAgentAvailableMemory() => (uint64 bytes);
+  MeasureAvailableCpuMemory() => (uint64 bytes);
 };

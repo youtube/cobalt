@@ -21,7 +21,7 @@
 
 namespace blink {
 
-uint64_t PerformanceExtensions::measureUserAgentAvailableMemory(
+uint64_t PerformanceExtensions::measureAvailableCpuMemory(
     ScriptState* script_state,
     const Performance&) {
   ExecutionContext* execution_context = ExecutionContext::From(script_state);
@@ -35,7 +35,7 @@ uint64_t PerformanceExtensions::measureUserAgentAvailableMemory(
       remote_performance_system.BindNewPipeAndPassReceiver(task_runner));
 
   uint64_t free_memory = 0;
-  remote_performance_system->MeasureUserAgentAvailableMemory(&free_memory);
+  remote_performance_system->MeasureAvailableCpuMemory(&free_memory);
   return free_memory;
 }
 
