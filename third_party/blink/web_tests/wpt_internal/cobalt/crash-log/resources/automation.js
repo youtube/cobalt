@@ -4,7 +4,7 @@
 
 let fakeCrashAnnotatorImpl = undefined;
 
-function crash_annotator_test(func, name, properties) {
+function crash_log_test(func, name, properties) {
   promise_test(async (test) => {
     assert_implements(window.h5vcc.crashLog,
                       'missing window.h5vcc.crashLog');

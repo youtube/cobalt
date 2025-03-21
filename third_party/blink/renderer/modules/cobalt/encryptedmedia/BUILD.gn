@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
+assert(use_starboard_media, "This file is only for use_starboard_media builds")
+
 import("//third_party/blink/renderer/modules/modules.gni")
 
 blink_modules_sources("encryptedmedia") {

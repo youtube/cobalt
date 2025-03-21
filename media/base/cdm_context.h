@@ -25,7 +25,7 @@ class ChromeOsCdmContext;
 #endif
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "starboard/drm.h"
+#include "starboard/drm.h"  // nogncheck
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 namespace media {
 
