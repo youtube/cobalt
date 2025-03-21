@@ -67,7 +67,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
   const int allocation_unit_;
 
   mutable base::Lock mutex_;
-  StarboardMemoryAllocator fallback_allocator_;
+  StarboardMemoryAllocator fallback_allocator_ GUARDED_BY(mutex_);
   std::unique_ptr<BidirectionalFitReuseAllocator> reuse_allocator_
       GUARDED_BY(mutex_);
 

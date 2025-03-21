@@ -17,6 +17,10 @@
 #include "media/base/decoder_buffer.h"
 #include "third_party/blink/public/platform/platform.h"
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
+#error "This file only works with Starboard media"
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace blink {
 
 uint64_t MediaSourceMemoryInfo::mediaSourceSizeLimit(MemoryInfo&) {
