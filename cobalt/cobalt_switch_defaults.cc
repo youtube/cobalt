@@ -57,7 +57,8 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
     {switches::kDisableFeatures, "Vulkan"},
     // Force some ozone settings.
 #if !BUILDFLAG(IS_ANDROID)
-        {switches::kUseGL, "angle"}, {switches::kUseANGLE, "gles-egl"},
+        {switches::kOzonePlatform, "starboard"}, {switches::kUseGL, "angle"},
+        {switches::kUseANGLE, "gles-egl"},
 #endif  // !BUILDFLAG(IS_ANDROID)
         // Set the default size for the content shell/starboard window.
         {switches::kContentShellHostWindowSize, "1920x1080"},

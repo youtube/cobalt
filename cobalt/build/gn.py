@@ -27,21 +27,19 @@ _BUILD_TYPES = {
     'debug': {
         'symbol_level': 2,
         'is_debug': 'true',
-        'is_official_build': 'false',
     },
     'devel': {
         'symbol_level': 1,
         'is_debug': 'false',
-        'is_official_build': 'false',
     },
     'qa': {
         'symbol_level': 1,
-        'is_official_build': 'true',
+        'is_official_build': 'true'
     },
     'gold': {
         'symbol_level': 1,
         'is_official_build': 'true',
-        'cobalt_is_release_build': 'true',
+        'cobalt_is_release_build': 'true'
     }
 }
 
