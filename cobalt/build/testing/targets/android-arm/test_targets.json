@@ -1,9 +1,26 @@
 {
   "TODO(b/382508397)": "Remove this when list is dynamically generated.",
   "test_targets": [
+    "base:base_perftests",
+    "base:base_unittests",
+    "cobalt:cobalt_unittests",
     "media/midi:midi_unittests",
+    "mojo:mojo_perftests",
+    "mojo:mojo_unittests",
+    "net:net_unittests",
     "skia:skia_unittests",
     "sql:sql_unittests",
+    "starboard/nplb:nplb",
+    "third_party/blink/renderer/platform:blink_platform_perftests",
+    "third_party/blink/renderer/platform:blink_platform_unittests",
+    "third_party/blink/renderer/platform/heap:blink_heap_perftests",
+    "third_party/blink/renderer/platform/heap:blink_heap_unittests",
+    "third_party/blink/renderer/platform/wtf:wtf_unittests",
+    "third_party/boringssl:boringssl_crypto_tests",
+    "third_party/boringssl:boringssl_ssl_tests",
+    "third_party/perfetto:perfetto_unittests",
+    "third_party/perfetto:trace_processor_minimal_smoke_tests",
+    "third_party/zlib:zlib_unittests",
     "url:url_perftests",
     "url:url_unittests"
   ]
