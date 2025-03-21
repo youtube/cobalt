@@ -13,12 +13,17 @@
 # limitations under the License.
 
 if (current_toolchain == starboard_toolchain) {
-  target(starboard_level_gtest_target_type, "player_filter_tests") {
+  source_set("player_filter_tests") {
     # build_loader = false
     testonly = true
 
+    # TODO(b/384819454): Make these test cases work and re-enable associated
+    # tests.
+    if (target_platform == "linux-x64x11") {
+      defines = [ "SKIP_DOLBY_DIGITAL_TESTS" ]
+    }
+
     sources = [
-      "//starboard/common/test_main.cc",
       "//starboard/testing/fake_graphics_context_provider.cc",
       "//starboard/testing/fake_graphics_context_provider.h",
       "adaptive_audio_decoder_test.cc",

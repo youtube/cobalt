@@ -16,9 +16,13 @@
 
 #include <vector>
 
+#include "starboard/common/log.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
 #include "testing/gtest/include/gtest/gtest.h"
+
+extern bool operator==(const SbMediaColorMetadata&,
+                       const SbMediaColorMetadata&);
 
 namespace starboard {
 namespace shared {

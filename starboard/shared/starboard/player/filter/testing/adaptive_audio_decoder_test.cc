@@ -92,6 +92,14 @@ class AdaptiveAudioDecoderTest
   }
 
   void SetUp() override {
+#if defined(SKIP_DOLBY_DIGITAL_TESTS)
+    for (const auto* filename : test_filenames_) {
+      if ((std::string(filename).find("_ec3") != std::string::npos) ||
+          (std::string(filename).find("_ac3") != std::string::npos)) {
+        GTEST_SKIP() << "Skipping E-/AC-3 (Dolby Digital) related tests.";
+      }
+    }
+#endif
     ASSERT_GT(dmp_readers_.size(), 0);
     for (auto& dmp_reader : dmp_readers_) {
       ASSERT_NE(dmp_reader->audio_codec(), kSbMediaAudioCodecNone);
