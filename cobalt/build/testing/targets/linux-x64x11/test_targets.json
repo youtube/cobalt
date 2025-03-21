@@ -27,7 +27,7 @@
     "services/service_manager/tests:service_manager_unittests",
     "skia:skia_unittests",
     "sql:sql_unittests",
-    "starboard:starboard_unittests",
+    "starboard:starboard_unittests_wrapper",
     "ui/ozone:ozone_unittests",
     "url:url_perftests",
     "url:url_unittests",
@@ -61,7 +61,7 @@
     "out/linux-x64x11_devel/service_manager_unittests",
     "out/linux-x64x11_devel/skia_unittests",
     "out/linux-x64x11_devel/sql_unittests",
-    "out/linux-x64x11_devel/starboard_unittests",
+    "out/linux-x64x11_devel/starboard/starboard_unittests",
     "out/linux-x64x11_devel/url_perftests",
     "out/linux-x64x11_devel/url_unittests",
     "out/linux-x64x11_devel/nplb"
