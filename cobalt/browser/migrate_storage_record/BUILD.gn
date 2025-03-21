@@ -22,13 +22,9 @@ source_set("migrate_storage_record") {
     "//content/shell:content_shell_lib",
     "//net",
     "//services/network/public/mojom:cookies_mojom",
+    "//starboard/common",
     "//url",
   ]
-
-  if (is_starboard || is_android) {
-    deps += [ "//starboard/common" ]
-  }
-
   public_deps = [ "//skia" ]
 }
 

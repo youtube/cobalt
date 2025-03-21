@@ -23,9 +23,6 @@ source_set("testing") {
     "//base",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
+    "//starboard($starboard_toolchain)",
   ]
-
-  if (is_starboard) {
-    deps += [ "//starboard($starboard_toolchain)" ]
-  }
 }

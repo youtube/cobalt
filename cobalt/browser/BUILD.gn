@@ -57,10 +57,6 @@ source_set("browser") {
     "//content/shell:content_shell_lib",
   ]
 
-  if (is_starboard || is_android) {
-    deps += [ "//starboard:starboard_headers_only" ]
-  }
-
   if (!cobalt_is_release_build) {
     deps += [
       "//cobalt/browser/h5vcc_storage/testing",

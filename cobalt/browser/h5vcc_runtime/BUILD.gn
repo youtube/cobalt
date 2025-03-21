@@ -24,11 +24,8 @@ source_set("h5vcc_runtime") {
     "//cobalt/browser/h5vcc_runtime/public/mojom",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
+    "//starboard($starboard_toolchain)",
   ]
-
-  if (is_starboard || is_android) {
-    deps += [ "//starboard($starboard_toolchain)" ]
-  }
 }
 
 source_set("deep_link_manager") {

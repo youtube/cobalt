@@ -18,15 +18,10 @@ group("gn_all") {
   testonly = true
 
   # TODO(b/371589344): Fix android build configs.
-  deps = []
-
-  if (is_starboard) {
-    deps += [
-      "//starboard:starboard_group",
-      "//starboard/nplb",
-    ]
-  }
-
+  deps = [
+    "//starboard:starboard_group",
+    "//starboard/nplb",
+  ]
   if (!is_android) {
     deps += [ ":cobalt" ]
   } else {
@@ -62,13 +57,10 @@ if (!is_android) {
       "//content/shell:content_shell_lib",
       "//content/shell:pak",
       "//sandbox",
+      "//starboard:starboard_group",
       "//third_party/blink/public/common",
       "//ui/ozone:ozone_switches",
     ]
-
-    if (is_starboard) {
-      deps += [ "//starboard:starboard_group" ]
-    }
 
     data_deps = [
       "//content/shell:pak",

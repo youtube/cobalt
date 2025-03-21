@@ -19,11 +19,10 @@ source_set("webaudio") {
     "cobalt_audio_renderer_sink.cc",
     "cobalt_audio_renderer_sink.h",
   ]
-  deps = [ "//third_party/blink/public:blink_headers" ]
-
-  if (is_starboard || is_android) {
-    deps += [ "//starboard:starboard_headers_only" ]
-  }
+  deps = [
+    "//starboard:starboard_headers_only",
+    "//third_party/blink/public:blink_headers",
+  ]
 }
 
 source_set("audio_decoder") {

@@ -31,10 +31,7 @@ source_set("renderer") {
     "//content/test:content_test_mojo_bindings",
     "//media",
     "//media/mojo:buildflags",
+    "//starboard:starboard_headers_only",
     "//v8",
   ]
-
-  if (is_starboard || is_android) {
-    deps += [ "//starboard:starboard_headers_only" ]
-  }
 }

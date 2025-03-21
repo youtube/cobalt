@@ -23,9 +23,6 @@ source_set("h5vcc_metrics") {
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
+    "//starboard($starboard_toolchain)",
   ]
-
-  if (is_starboard || is_android) {
-    deps += [ "//starboard($starboard_toolchain)" ]
-  }
 }
