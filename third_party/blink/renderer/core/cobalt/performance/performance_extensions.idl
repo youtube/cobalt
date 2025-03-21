@@ -2,5 +2,7 @@
 [
     ImplementedAs=PerformanceExtensions
 ] partial interface Performance {
-    [CallWith=ScriptState] unsigned long long measureUserAgentFreeMemory();
+    // Returns the amount of available memory on the device in bytes, according
+    // to base::SysInfo::AmountOfAvailablePhysicalMemory().
+    [CallWith=ScriptState] unsigned long long measureUserAgentAvailableMemory();
 };

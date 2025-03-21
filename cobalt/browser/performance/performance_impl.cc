@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/browser/performance/performance.h"
+#include "cobalt/browser/performance/performance_impl.h"
 
 #include "base/system/sys_info.h"
 
@@ -30,8 +30,8 @@ void PerformanceImpl::Create(
   new PerformanceImpl(*render_frame_host, std::move(receiver));
 }
 
-void PerformanceImpl::MeasureUserAgentFreeMemory(
-    MeasureUserAgentFreeMemoryCallback callback) {
+void PerformanceImpl::MeasureUserAgentAvailableMemory(
+    MeasureUserAgentAvailableMemoryCallback callback) {
   std::move(callback).Run(base::SysInfo::AmountOfAvailablePhysicalMemory());
 }
 

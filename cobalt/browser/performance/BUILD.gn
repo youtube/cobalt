@@ -14,8 +14,8 @@
 
 source_set("performance") {
   sources = [
-    "performance.cc",
-    "performance.h",
+    "performance_impl.cc",
+    "performance_impl.h",
   ]
 
   deps = [
