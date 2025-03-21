@@ -56,6 +56,10 @@
 #include "ui/base/ui_base_features.h"
 #include "ui/events/gestures/blink/web_gesture_curve_impl.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/decoder_buffer.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 using blink::WebData;
 using blink::WebString;
 using blink::WebURL;
@@ -276,5 +280,32 @@ std::unique_ptr<blink::Platform::NestedMessageLoopRunner>
 BlinkPlatformImpl::CreateNestedMessageLoopRunner() const {
   return std::make_unique<NestedMessageLoopRunnerImpl>();
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+uint64_t BlinkPlatformImpl::mediaSourceSizeLimit() const {
+  media::DecoderBuffer::Allocator* allocator =
+      media::DecoderBuffer::Allocator::GetInstance();
+  if (!allocator) {
+    return 0;
+  }
+  return allocator->GetMaximumMemoryCapacity();
+};
+uint64_t BlinkPlatformImpl::totalMediaSourceSize() const {
+  media::DecoderBuffer::Allocator* allocator =
+      media::DecoderBuffer::Allocator::GetInstance();
+  if (!allocator) {
+    return 0;
+  }
+  return allocator->GetCurrentMemoryCapacity();
+};
+uint64_t BlinkPlatformImpl::usedMediaSourceMemorySize() const {
+  media::DecoderBuffer::Allocator* allocator =
+      media::DecoderBuffer::Allocator::GetInstance();
+  if (!allocator) {
+    return 0;
+  }
+  return allocator->GetAllocatedMemory();
+};
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 }  // namespace content

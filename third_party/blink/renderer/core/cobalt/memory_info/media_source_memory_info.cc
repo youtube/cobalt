@@ -15,21 +15,20 @@
 #include "third_party/blink/renderer/core/cobalt/memory_info/media_source_memory_info.h"
 
 #include "media/base/decoder_buffer.h"
+#include "third_party/blink/public/platform/platform.h"
 
 namespace blink {
 
 uint64_t MediaSourceMemoryInfo::mediaSourceSizeLimit(MemoryInfo&) {
-  return media::DecoderBuffer::Allocator::GetInstance()
-      ->GetMaximumMemoryCapacity();
+  return Platform::Current()->mediaSourceSizeLimit();
 }
 
 uint64_t MediaSourceMemoryInfo::totalMediaSourceSize(MemoryInfo&) {
-  return media::DecoderBuffer::Allocator::GetInstance()
-      ->GetCurrentMemoryCapacity();
+  return Platform::Current()->totalMediaSourceSize();
 }
 
 uint64_t MediaSourceMemoryInfo::usedMediaSourceMemorySize(MemoryInfo&) {
-  return media::DecoderBuffer::Allocator::GetInstance()->GetAllocatedMemory();
+  return Platform::Current()->usedMediaSourceMemorySize();
 }
 
 }  //  namespace blink
