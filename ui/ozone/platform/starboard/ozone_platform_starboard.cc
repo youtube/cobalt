@@ -76,8 +76,6 @@ class OzonePlatformStarboard : public OzonePlatform {
   }
 
   std::unique_ptr<SystemInputInjector> CreateSystemInputInjector() override {
-    // TODO(b/371272304): Implement a system input injector for Starboard. This
-    // will likely be part of an event factory/dispatcher.
     return nullptr;
   }
 
@@ -123,8 +121,6 @@ class OzonePlatformStarboard : public OzonePlatform {
     KeyboardLayoutEngineManager::SetKeyboardLayoutEngine(
         keyboard_layout_engine_.get());
 
-    // TODO(b/371272304): Investigate if we need our own implementation of
-    // OverlayManager.
     // It doesn't matter which of the UI or GPU creates | overlay_manager_ | and
     // | surface_factory_ | in single-process mode.
     if (!overlay_manager_) {
@@ -133,13 +129,7 @@ class OzonePlatformStarboard : public OzonePlatform {
     // TODO(b/371272304): Investigate if we need our own implementation of
     // InputController for things like gamepads or other atypical input devices.
     input_controller_ = CreateStubInputController();
-    // TODO(b/371272304): Investigate if we need a more robust cursor factory or
-    // if we can continue using BitmapCursorFactory.
     cursor_factory_ = std::make_unique<BitmapCursorFactory>();
-    // TODO(b/371272304): GpuPlatformSupportHost seems to be mainly for IPC
-    // between the Browser and GPU processes. Since Cobalt will be running as a
-    // single process, investigate if this is needed or if there's any
-    // additional features we might need to implement from there.
     gpu_platform_support_host_.reset(CreateStubGpuPlatformSupportHost());
 
     return true;
