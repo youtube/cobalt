@@ -29,6 +29,7 @@ void H5vccStorage::ContextDestroyed() {}
 void H5vccStorage::Trace(Visitor* visitor) const {
   ScriptWrappable::Trace(visitor);
   ExecutionContextLifecycleObserver::Trace(visitor);
+  Supplementable<H5vccStorage>::Trace(visitor);
 }
 
 }  // namespace blink

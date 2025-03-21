@@ -134,6 +134,7 @@ void H5vccMetrics::Trace(Visitor* visitor) const {
   ExecutionContextLifecycleObserver::Trace(visitor);
   visitor->Trace(remote_h5vcc_metrics_);
   visitor->Trace(receiver_);
+  EventTargetWithInlineData::Trace(visitor);
 }
 
 }  // namespace blink

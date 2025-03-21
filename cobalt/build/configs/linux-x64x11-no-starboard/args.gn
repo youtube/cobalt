@@ -1,0 +1,9 @@
+target_os = "linux"
+target_cpu = "x64"
+
+# This combination of build flags is intended to be used to build content_shell
+# with cobalt's custom web APIs in order to test these web APIs with
+# run_web_tests.py. The behavior of other targets, like cobalt, is undefined.
+is_cobalt = true
+is_starboard = false
+use_starboard_media = false

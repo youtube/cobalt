@@ -46,8 +46,8 @@ class H5vccStorageForTestingImpl final
   }
 
   explicit H5vccStorageForTestingImpl(H5vccStorage& h5vcc_storage)
-      : Supplement<H5vccStorage>(h5vcc_storage),
-        ExecutionContextLifecycleObserver(h5vcc_storage.GetExecutionContext()),
+      : ExecutionContextLifecycleObserver(h5vcc_storage.GetExecutionContext()),
+        Supplement<H5vccStorage>(h5vcc_storage),
         remote_h5vcc_storage_for_testing_(h5vcc_storage.GetExecutionContext()) {
   }
 
@@ -55,7 +55,7 @@ class H5vccStorageForTestingImpl final
 
   H5vccStorageWriteTestResponse* writeTest(uint32_t test_size,
                                            const String& test_string) {
-    CHECK_GT(test_size, 0);
+    CHECK_GT(test_size, uint32_t(0));
     CHECK(!test_string.empty());
     auto* response = H5vccStorageWriteTestResponse::Create();
     EnsureReceiverIsBound();
@@ -72,7 +72,7 @@ class H5vccStorageForTestingImpl final
 
   H5vccStorageVerifyTestResponse* verifyTest(uint32_t test_size,
                                              const String& test_string) {
-    CHECK_GT(test_size, 0);
+    CHECK_GT(test_size, uint32_t(0));
     CHECK(!test_string.empty());
     auto* response = H5vccStorageVerifyTestResponse::Create();
     EnsureReceiverIsBound();
