@@ -758,6 +758,12 @@ static_idl_files_in_core = get_path_info(
         ],
         "abspath")
 
+if (is_cobalt) {
+  static_idl_files_in_core += get_path_info(
+          [ "//third_party/blink/renderer/core/cobalt/performance/performance_extensions.idl" ],
+          "abspath")
+}
+
 # Statically-defined (not build-time-generated) IDL files in 'core' component.
 # These IDL definitions are used only for testing.
 static_idl_files_in_core_for_testing = get_path_info(
