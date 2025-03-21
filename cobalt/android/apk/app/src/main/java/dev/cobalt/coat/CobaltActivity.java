@@ -68,7 +68,6 @@ public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final java.lang.String META_DATA_APP_URL = "cobalt.APP_URL";
 
-  private static final String ACTIVE_SHELL_URL_KEY = "activeUrl";
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
@@ -187,9 +186,6 @@ public abstract class CobaltActivity extends Activity {
         mShellManager.getContentViewRenderView().getSurfaceView());
 
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
-      mStartupUrl = getUrlFromIntent(getIntent());
-    }
-    if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
       mStartupUrl =
           Arrays.stream(args)
@@ -226,16 +222,6 @@ public abstract class CobaltActivity extends Activity {
 
   // Initially copied from ContentShellActiviy.java
   private void finishInitialization(Bundle savedInstanceState) {
-    String shellUrl;
-    if (!TextUtils.isEmpty(mStartupUrl)) {
-      shellUrl = mStartupUrl;
-    } else {
-      shellUrl = ShellManager.DEFAULT_SHELL_URL;
-    }
-
-    if (savedInstanceState != null && savedInstanceState.containsKey(ACTIVE_SHELL_URL_KEY)) {
-      shellUrl = savedInstanceState.getString(ACTIVE_SHELL_URL_KEY);
-    }
     // Set to overlay video mode.
     mShellManager.getContentViewRenderView().setOverlayVideoMode(true);
 
@@ -246,8 +232,8 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().setWebContents(getActiveWebContents());
 
     // Load the `url` with the same shell we created above.
-    Log.i(TAG, "shellManager load url:" + shellUrl);
-    mShellManager.getActiveShell().loadUrl(shellUrl);
+    Log.i(TAG, "shellManager load url:" + mStartupUrl);
+    mShellManager.getActiveShell().loadUrl(mStartupUrl);
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -257,19 +243,6 @@ public abstract class CobaltActivity extends Activity {
             CobaltActivity.this, R.string.browser_process_initialization_failed, Toast.LENGTH_SHORT)
         .show();
     finish();
-  }
-
-  // Initially copied from ContentShellActiviy.java
-  @Override
-  protected void onSaveInstanceState(Bundle outState) {
-    super.onSaveInstanceState(outState);
-    WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
-      // TODO(yfriedman): crbug/783819 - This should use GURL serialize/deserialize.
-      outState.putString(ACTIVE_SHELL_URL_KEY, webContents.getLastCommittedUrl().getSpec());
-    }
-
-    mIntentRequestTracker.saveInstanceState(outState);
   }
 
   protected static Optional<KeyEvent> getRemappedKeyEvent(int keyCode, int action) {
