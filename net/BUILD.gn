@@ -1199,7 +1199,7 @@ component("net") {
     ]
   }
 
-  if (is_linux) {
+  if (false) {
     sources += [
       "base/network_change_notifier_linux.cc",
       "base/network_change_notifier_linux.h",
@@ -1208,7 +1208,7 @@ component("net") {
     ]
   }
 
-  if (is_linux || is_chromeos || is_android) {
+  if (false) {
     sources += [
       "base/address_map_linux.cc",
       "base/address_map_linux.h",
@@ -1220,7 +1220,7 @@ component("net") {
     ]
   }
 
-  if (is_linux) {
+  if (false) {
     sources += [
       "base/address_map_cache_linux.cc",
       "base/address_map_cache_linux.h",
@@ -1353,7 +1353,7 @@ component("net") {
     }
   }
 
-  if (is_android || is_chromeos || is_linux) {
+  if (false) {
     sources += [
       "base/network_change_notifier_passive.cc",
       "base/network_change_notifier_passive.h",
@@ -1999,7 +1999,7 @@ static_library("test_support") {
     "url_request/url_request_test_util.h",
   ]
 
-  if (is_linux || is_chromeos || is_android) {
+  if (false) {
     sources += [
       "base/address_tracker_linux_test_util.cc",
       "base/address_tracker_linux_test_util.h",
@@ -2840,14 +2840,14 @@ test("net_unittests") {
     ]
   }
 
-  if (is_linux) {
+  if (false) {
     sources += [
       "base/network_change_notifier_linux_unittest.cc",
       "proxy_resolution/proxy_config_service_linux_unittest.cc",
     ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (false) {
     sources += [
       "base/address_tracker_linux_unittest.cc",
       "base/network_interfaces_linux_unittest.cc",

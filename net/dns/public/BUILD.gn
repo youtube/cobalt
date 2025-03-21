@@ -41,7 +41,7 @@ source_set("public") {
     "util.h",
   ]
 
-  if (is_posix && !is_android) {
+  if (is_posix && !is_android && false) {
     sources += [
       "resolv_reader.cc",
       "resolv_reader.h",
@@ -76,7 +76,7 @@ source_set("tests") {
     "doh_provider_entry_unittest.cc",
   ]
 
-  if (is_posix && !is_android) {
+  if (is_posix && !is_android && false) {
     sources += [ "resolv_reader_unittest.cc" ]
   }
 
