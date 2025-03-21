@@ -60,7 +60,7 @@
 // For BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "build/build_config.h"
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "starboard/media.h"
+#include "starboard/media.h"  // nogncheck
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 using blink::WebMediaSource;

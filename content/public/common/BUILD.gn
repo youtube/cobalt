@@ -97,6 +97,10 @@ source_set("static_switches") {
 # above, this is for use inside of content/ only and does not link statically.
 source_set("switches") {
   visibility = [ "//content/*" ]
+  if (is_cobalt) {
+    # Allows cobalt and cobalt_unittests to access switch definitions.
+    visibility += [ "//cobalt:*" ]
+  }
   public = [ "content_switches.h" ]
   sources = [
     "//content/common/content_export.h",
@@ -113,11 +117,6 @@ source_set("switches") {
 
   if (enable_ipc_fuzzer) {
     configs += [ "//tools/ipc_fuzzer:ipc_fuzzer_config" ]
-  }
-
-  if (is_starboard || is_android) {
-    # Allows cobalt and cobalt_unittests to access switch definitions.
-    visibility += [ "//cobalt:*" ]
   }
 }
 
