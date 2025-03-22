@@ -137,6 +137,19 @@ void FramelessMediaInterfaceProxy::CreateMediaFoundationRenderer(
         client_extension_remote) {}
 #endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void FramelessMediaInterfaceProxy::CreateStarboardRenderer(
+    mojo::PendingRemote<media::mojom::MediaLog> media_log_remote,
+    const base::UnguessableToken& overlay_plane_id,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta video_write_duration_remote,
+    mojo::PendingReceiver<media::mojom::Renderer> receiver,
+    mojo::PendingReceiver<media::mojom::StarboardRendererExtension>
+        renderer_extension_receiver,
+    mojo::PendingRemote<media::mojom::StarboardRendererClientExtension>
+        client_extension_remote) {}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void FramelessMediaInterfaceProxy::CreateCdm(const media::CdmConfig& cdm_config,
                                              CreateCdmCallback callback) {
   std::move(callback).Run(mojo::NullRemote(), nullptr, "CDM not supported");

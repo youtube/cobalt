@@ -37,8 +37,10 @@ std::unique_ptr<AudioEncoder> CreatePlatformAudioEncoder(
   return nullptr;
 }
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 // This class doesn't exist on any of the platforms that use the stubs.
 class CdmFactory {};
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 std::unique_ptr<CdmFactory> CreatePlatformCdmFactory(
     mojom::FrameInterfaceFactory* frame_interfaces) {

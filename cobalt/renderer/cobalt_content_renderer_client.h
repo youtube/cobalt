@@ -11,16 +11,14 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/media/audio/cobalt_audio_device_factory.h"
 #include "content/public/renderer/content_renderer_client.h"
+#include "media/base/starboard/renderer_factory_traits.h"
 
 namespace content {
 class RenderFrame;
-class RenderThread;
 }  // namespace content
 
 namespace media {
 class MediaLog;
-class DecoderFactory;
-class GpuVideoAcceleratorFactories;
 class RendererFactory;
 }  // namespace media
 
@@ -48,13 +46,8 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   bool IsSupportedVideoType(const ::media::VideoType& type) override;
   // JS Injection hook
   void RunScriptsAtDocumentStart(content::RenderFrame* render_frame) override;
-  // TODO(b/394368542): Add Content API to create StarboardRenderer.
-  std::unique_ptr<::media::RendererFactory> GetBaseRendererFactory(
-      content::RenderFrame* render_frame,
-      ::media::MediaLog* media_log,
-      ::media::DecoderFactory* decoder_factory,
-      base::RepeatingCallback<::media::GpuVideoAcceleratorFactories*()>
-          get_gpu_factories_cb) override;
+  void GetStarboardRendererFactoryTraits(
+      media::RendererFactoryTraits* traits) override;
 
   // Bind Host Receiver to VideoGeometryChangeSubscriber on Browser thread.
   // This is called from StarboardRenderer with |BindPostTaskToCurrentDefault|

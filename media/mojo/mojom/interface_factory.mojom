@@ -13,6 +13,7 @@ import "media/mojo/mojom/renderer.mojom";
 import "media/mojo/mojom/renderer_extensions.mojom";
 import "media/mojo/mojom/stable/stable_video_decoder.mojom";
 import "media/mojo/mojom/video_decoder.mojom";
+import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/token.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 
@@ -83,6 +84,24 @@ interface InterfaceFactory {
       string presentation_id,
       pending_remote<FlingingRendererClientExtension> client_extension,
       pending_receiver<Renderer> renderer);
+  
+  [EnableIf=use_starboard_media]
+  // Creates a StarboardRenderer (StarboardRendererClientFactory).
+  // - |overlay_plane_id| identifies each StarboardRendererClient.
+  // - |audio_write_duration_local| and |audio_write_duration_remote| are used
+  //   to customize SbPlayer audio write ahead.
+  // - |renderer_extension| is bound in StarboardRenderer, and receives
+  //   calls from StarboardRendererClient.
+  // - |client_extension| is bound in StarboardRendererClient, and
+  //   received calls from StarboardRenderer.
+  CreateStarboardRenderer(
+      pending_remote<MediaLog> media_log,
+      mojo_base.mojom.UnguessableToken overlay_plane_id,
+      mojo_base.mojom.TimeDelta audio_write_duration_local,
+      mojo_base.mojom.TimeDelta audio_write_duration_remote,
+      pending_receiver<Renderer> renderer,
+      pending_receiver<StarboardRendererExtension> renderer_extension,
+      pending_remote<StarboardRendererClientExtension> client_extension);
 
   // Creates a CDM based on the `cdm_config` provided. The `key_system` in the
   // `cdm_config` is a generic term for a decryption mechanism and/or content
