@@ -66,7 +66,6 @@ bool GLOzoneEGLStarboard::LoadGLES2Bindings(
 }
 
 void GLOzoneEGLStarboard::CreateDisplayTypeIfNeeded() {
-  // TODO(b/371272304): Initialize hardware here if needed.
   if (!have_display_type_) {
     display_type_ = reinterpret_cast<void*>(SB_EGL_DEFAULT_DISPLAY);
     have_display_type_ = true;
