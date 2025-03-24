@@ -132,6 +132,7 @@ public class StarboardBridge {
     nativeApp = StarboardBridgeJni.get().startNativeStarboard();
 
     StarboardBridgeJni.get().handleDeepLink(startDeepLink, /*applicationStarted=*/ false);
+    StarboardBridgeJni.get().setAndroidOSExperience(this.isAmatiDevice);
   }
 
   private native boolean initJNI();
@@ -151,6 +152,8 @@ public class StarboardBridge {
     // void closeNativeStarboard(long nativeApp);
 
     void handleDeepLink(String url, boolean applicationStarted);
+
+    void setAndroidOSExperience(boolean isAmatiDevice);
   }
 
   protected void onActivityStart(Activity activity) {
