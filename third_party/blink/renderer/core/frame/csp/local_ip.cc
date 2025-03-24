@@ -12,6 +12,9 @@
 namespace blink {
 // Queries host IP address and matches against netmask of target ip to determine.
 bool IsIPInLocalNetwork(const std::string& target_ip_str) {
+    if (target_ip_str == "localhost") {
+        return true;
+    }
     struct ifaddrs* ifaddr;
     if (getifaddrs(&ifaddr) == -1) {
         return false;
