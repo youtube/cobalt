@@ -48,6 +48,12 @@ class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
 
 }  // namespace
 
+// static
+CobaltMetricsServiceClient* CobaltMetricsServiceClient::GetInstance() {
+  static base::NoDestructor<CobaltMetricsServiceClient> provider;
+  return provider.get();
+}
+
 CobaltMetricsServiceClient::CobaltMetricsServiceClient()
     : synthetic_trial_registry_(new variations::SyntheticTrialRegistry) {
   DETACH_FROM_THREAD(thread_checker_);
@@ -219,10 +225,9 @@ CobaltMetricsServiceClient::CreateUploader(
 
 base::TimeDelta CobaltMetricsServiceClient::GetStandardUploadInterval() {
   // TODO(b/372559349): Wire this to the appropriate Web platform IDL method.
-  const int kStandardUploadIntervalMinutes = 5;
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
-  return base::Minutes(kStandardUploadIntervalMinutes);
+  return reporting_interval_;
 }
 
 bool CobaltMetricsServiceClient::IsConsentGiven() const {
@@ -232,10 +237,20 @@ bool CobaltMetricsServiceClient::IsConsentGiven() const {
 }
 
 bool CobaltMetricsServiceClient::IsReportingEnabled() const {
-  // TODO(b/372559349): Usually TOS should be verified accepted here.
-  // TODO(b/372559349): Wire this to the appropriate Web platform IDL.
-  NOTIMPLEMENTED();
-  return false;
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+   // TODO(b/372559349): Usually TOS should be verified accepted here.
+  return is_reporting_enabled_;
+}
+
+void CobaltMetricsServiceClient::set_reporting_enabled(bool enable) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  is_reporting_enabled_ = enable;
+}
+
+void CobaltMetricsServiceClient::set_reporting_interval(
+    base::TimeDelta interval) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  reporting_interval_ = interval;
 }
 
 }  // namespace cobalt

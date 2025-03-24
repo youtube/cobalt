@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/no_destructor.h"
 #include "base/threading/thread_checker.h"
+#include "base/time/time.h"
 #include "components/metrics/enabled_state_provider.h"
 #include "components/metrics/metrics_service_client.h"
 
@@ -29,6 +31,8 @@ class SyntheticTrialRegistry;
 
 namespace cobalt {
 
+constexpr int kStandardUploadIntervalMinutes = 5;
+
 // This class allows for necessary customizations of metrics::MetricsService,
 // the central metrics (e.g. UMA) collecting and reporting control. It's also a
 // EnabledStateProvider to provide information of consent/activation of metrics
@@ -44,8 +48,7 @@ namespace cobalt {
 class CobaltMetricsServiceClient : public metrics::MetricsServiceClient,
                                    public metrics::EnabledStateProvider {
  public:
-  CobaltMetricsServiceClient();
-  ~CobaltMetricsServiceClient() override;
+  static CobaltMetricsServiceClient* GetInstance();
 
   CobaltMetricsServiceClient(const CobaltMetricsServiceClient&) = delete;
   CobaltMetricsServiceClient& operator=(const CobaltMetricsServiceClient&) =
@@ -82,7 +85,15 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient,
   bool IsConsentGiven() const override;
   bool IsReportingEnabled() const override;
 
+  void set_reporting_enabled(bool enable);
+  void set_reporting_interval(base::TimeDelta interval);
+
  private:
+  friend class base::NoDestructor<CobaltMetricsServiceClient>;
+
+  CobaltMetricsServiceClient();
+  ~CobaltMetricsServiceClient() override;
+
   std::unique_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
 
   std::unique_ptr<PrefService> pref_service_;
@@ -91,6 +102,11 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient,
 
   // For DCHECK()s.
   bool IsInitialized() const { return !!metrics_service_; }
+
+  bool is_reporting_enabled_ = false;
+
+  base::TimeDelta reporting_interval_ =
+      base::Minutes(kStandardUploadIntervalMinutes);
 
   THREAD_CHECKER(thread_checker_);
 };
