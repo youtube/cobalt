@@ -13,7 +13,7 @@
 #include "base/memory/raw_ptr.h"
 #include "build/build_config.h"
 
-#if BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_BSD) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_BSD)
 #include <sys/socket.h>  // Must be included before ifaddrs.h.
 #include <ifaddrs.h>
 #include <net/if.h>
@@ -39,9 +39,9 @@
 #include "net/socket/client_socket_factory.h"
 #include "net/socket/datagram_client_socket.h"
 
-// #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
-// #include "net/base/address_tracker_linux.h"
-// #endif
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#include "net/base/address_tracker_linux.h"
+#endif
 
 namespace net {
 namespace {
@@ -417,7 +417,7 @@ void AddressSorterPosix::OnIPAddressChanged() {
     info.prefix_length = msg.ifa_prefixlen;
     FillPolicy(address, &info);
   }
-#elif BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_BSD) || BUILDFLAG(IS_STARBOARD)
+#elif BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_BSD)
   // It's not clear we will receive notification when deprecated flag changes.
   // Socket for ioctl.
   int ioctl_socket = socket(AF_INET6, SOCK_DGRAM, 0);
