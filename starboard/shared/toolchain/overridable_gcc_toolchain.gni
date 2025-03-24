@@ -113,7 +113,7 @@ template("overridable_clang_toolchain") {
   } else {
     toolprefix = ""
   }
-  if (is_starboard) {
+  if (defined(invoker.clang_base_path)) {
     clang_base_path = invoker.clang_base_path
   }
 
