@@ -67,8 +67,6 @@ TYPED_TEST(PosixFileReadTest, BasicReading) {
   const int kFileSize = kBufferLength * 16 / 3;
   ScopedRandomFile random_file(kFileSize);
   const std::string& filename = random_file.filename();
-  ASSERT_TRUE(false);
-
   int file = open(filename.c_str(), O_RDONLY);
   ASSERT_TRUE(file >= 0);
 
