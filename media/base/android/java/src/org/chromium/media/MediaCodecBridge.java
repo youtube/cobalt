@@ -470,17 +470,6 @@ class MediaCodecBridge {
     }
 
     @CalledByNative
-    private String getName() {
-        String codecName = "unknown";
-        try {
-            codecName = mMediaCodec.getName();
-        } catch (IllegalStateException e) {
-            Log.e(TAG, "Cannot get codec name", e);
-        }
-        return codecName;
-    }
-
-    @CalledByNative
     private MediaFormatWrapper getOutputFormat() {
         if (mUseAsyncApi && mCurrentFormat != null) return mCurrentFormat;
 

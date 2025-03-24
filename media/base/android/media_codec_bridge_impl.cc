@@ -665,13 +665,6 @@ void MediaCodecBridgeImpl::OnBuffersAvailable(
   on_buffers_available_cb_.Run();
 }
 
-std::string MediaCodecBridgeImpl::GetName() {
-  JNIEnv* env = AttachCurrentThread();
-  ScopedJavaLocalRef<jstring> j_name =
-      Java_MediaCodecBridge_getName(env, j_bridge_);
-  return ConvertJavaStringToUTF8(env, j_name);
-}
-
 bool MediaCodecBridgeImpl::SetSurface(const JavaRef<jobject>& surface) {
   JNIEnv* env = AttachCurrentThread();
   return Java_MediaCodecBridge_setSurface(env, j_bridge_, surface);

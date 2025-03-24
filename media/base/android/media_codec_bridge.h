@@ -164,9 +164,6 @@ class MEDIA_EXPORT MediaCodecBridge {
                                                 void* dst,
                                                 size_t num) = 0;
 
-  // Gets the component name. Before API level 18 this returns an empty string.
-  virtual std::string GetName() = 0;
-
   // Changes the output surface for the MediaCodec. May only be used on API
   // level 23 and higher (Marshmallow).
   virtual bool SetSurface(const base::android::JavaRef<jobject>& surface) = 0;
