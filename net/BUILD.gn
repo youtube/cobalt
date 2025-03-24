@@ -1199,7 +1199,7 @@ component("net") {
     ]
   }
 
-  if (is_linux && !is_starboard) {
+  if (is_linux && !is_cobalt_hermetic_build) {
     sources += [
       "base/network_change_notifier_linux.cc",
       "base/network_change_notifier_linux.h",
@@ -1208,7 +1208,7 @@ component("net") {
     ]
   }
 
-  if ((is_linux || is_chromeos || is_android) && !is_starboard) {
+  if ((is_linux || is_chromeos || is_android) && !is_cobalt_hermetic_build) {
     sources += [
       "base/address_map_linux.cc",
       "base/address_map_linux.h",
@@ -1220,7 +1220,7 @@ component("net") {
     ]
   }
 
-  if (is_linux && !is_starboard) {
+  if (is_linux && !is_cobalt_hermetic_build) {
     sources += [
       "base/address_map_cache_linux.cc",
       "base/address_map_cache_linux.h",
@@ -1474,7 +1474,7 @@ component("net") {
     ]
   }
 
-  if (is_starboard) {
+  if (is_cobalt_hermetic_build) {
     sources += [
       "base/network_interfaces_starboard.cc",
       "base/platform_mime_util_starboard.cc",
