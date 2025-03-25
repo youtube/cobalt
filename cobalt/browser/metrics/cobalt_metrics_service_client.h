@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef COBALT_METRICS_SERVICE_CLIENT_H_
+#define COBALT_METRICS_SERVICE_CLIENT_H_
+
 #include "base/threading/thread_checker.h"
 #include "components/metrics/enabled_state_provider.h"
 #include "components/metrics/metrics_service_client.h"
@@ -96,3 +99,5 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient,
 };
 
 }  // namespace cobalt
+
+#endif  // COBALT_METRICS_SERVICE_CLIENT_H_
