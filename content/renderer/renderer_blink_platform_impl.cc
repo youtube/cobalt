@@ -389,7 +389,7 @@ uint64_t RendererBlinkPlatformImpl::mediaSourceSizeLimit() const {
   if (thread) {
     return thread->GetMediaSourceSizeLimit();
   }
-  return 100;
+  return 0;
 }
 
 uint64_t RendererBlinkPlatformImpl::totalMediaSourceSize() const {
@@ -397,7 +397,7 @@ uint64_t RendererBlinkPlatformImpl::totalMediaSourceSize() const {
   if (thread) {
     return thread->GetTotalMediaSourceSize();
   }
-  return 100;
+  return 0;
 }
 
 uint64_t RendererBlinkPlatformImpl::usedMediaSourceMemorySize() const {
@@ -405,7 +405,7 @@ uint64_t RendererBlinkPlatformImpl::usedMediaSourceMemorySize() const {
   if (thread) {
     return thread->GetUsedMediaSourceMemorySize();
   }
-  return 100;
+  return 0;
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
