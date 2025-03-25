@@ -21,7 +21,10 @@ class NET_EXPORT_PRIVATE NetworkChangeNotifierStarboard
  public:
   NetworkChangeNotifierStarboard() {}
 
-  ConnectionType GetCurrentConnectionType() const override { return CONNECTION_UNKNOWN; }
+  ConnectionType GetCurrentConnectionType() const override {
+    NOTIMPLEMENTED();
+    return CONNECTION_UNKNOWN;
+  }
 };
 
 }

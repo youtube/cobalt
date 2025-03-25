@@ -16,23 +16,30 @@
 
 #include "net/base/network_interfaces.h"
 
+#if !defined(ENABLE_COBALT_HERMETIC_HACKS)
+#error This file should likely be fully implemented.
+#endif
+
 namespace net {
 
 bool PlatformMimeUtil::GetPlatformMimeTypeFromExtension(
     const base::FilePath::StringType& ext,
     std::string* result) const {
+  NOTIMPLEMENTED();
   return false;
 }
 
 bool PlatformMimeUtil::GetPlatformPreferredExtensionForMimeType(
     const std::string& mime_type,
     base::FilePath::StringType* ext) const {
+  NOTIMPLEMENTED();
   return false;
 }
 
 void PlatformMimeUtil::GetPlatformExtensionsForMimeType(
     const std::string& mime_type,
     std::unordered_set<base::FilePath::StringType>* extensions) const {
+  NOTIMPLEMENTED();
 }
 
 }
