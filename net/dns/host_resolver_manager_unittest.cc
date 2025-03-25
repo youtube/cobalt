@@ -8378,7 +8378,7 @@ class TestDnsObserver : public NetworkChangeNotifier::DNSObserver {
 };
 
 // Built-in client and config overrides not available on iOS.
-#if !BUILDFLAG(IS_IOS)
+#if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_STARBOARD)
 TEST_F(HostResolverManagerDnsTest, SetDnsConfigOverrides) {
   test::ScopedMockNetworkChangeNotifier mock_network_change_notifier;
   TestDnsObserver config_observer;
