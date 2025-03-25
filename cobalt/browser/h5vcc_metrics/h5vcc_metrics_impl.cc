@@ -43,7 +43,8 @@ void H5vccMetricsImpl::Create(
 
 void H5vccMetricsImpl::AddListener(
     ::mojo::PendingRemote<mojom::MetricsListener> listener) {
-  NOTIMPLEMENTED();
+  cobalt::CobaltMetricsServiceClient::GetInstance()->SetMetricsListener(
+      std::move(listener));
 }
 
 void H5vccMetricsImpl::Enable(bool enable, EnableCallback callback) {

@@ -12,13 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/memory/weak_ptr.h"
 #include "base/no_destructor.h"
 #include "base/threading/thread_checker.h"
 #include "base/time/time.h"
 #include "components/metrics/enabled_state_provider.h"
 #include "components/metrics/metrics_service_client.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 
 class PrefService;
+
+namespace h5vcc_metrics {
+namespace mojom {
+class MetricsListener;
+}
+}  // namespace h5vcc_metrics
 
 namespace metrics {
 class MetricsService;
@@ -30,6 +38,8 @@ class SyntheticTrialRegistry;
 }
 
 namespace cobalt {
+
+class CobaltMetricsLogUploader;
 
 constexpr int kStandardUploadIntervalMinutes = 5;
 
@@ -87,6 +97,8 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient,
 
   void set_reporting_enabled(bool enable);
   void set_reporting_interval(base::TimeDelta interval);
+  void SetMetricsListener(
+      ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener);
 
  private:
   friend class base::NoDestructor<CobaltMetricsServiceClient>;
@@ -107,6 +119,12 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient,
 
   base::TimeDelta reporting_interval_ =
       base::Minutes(kStandardUploadIntervalMinutes);
+
+  // Usually `log_uploader_` would be created lazily in CreateUploader() (during
+  // first metrics upload), however we need `log_uploader_weak_ptr_` to register
+  // a hypotethical h5vcc_metrics::...::MetricsListener in it.
+  std::unique_ptr<CobaltMetricsLogUploader> log_uploader_;
+  base::WeakPtr<CobaltMetricsLogUploader> log_uploader_weak_ptr_;
 
   THREAD_CHECKER(thread_checker_);
 };
