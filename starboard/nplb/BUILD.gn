@@ -284,7 +284,6 @@ test("nplb") {
   }
 
   data_deps = [
-    "//starboard/content/ssl:copy_ssl_certificates",
     "//starboard/nplb/testdata/file_tests:nplb_file_tests_data",
     "//starboard/shared/starboard/player:player_download_test_data",
   ]

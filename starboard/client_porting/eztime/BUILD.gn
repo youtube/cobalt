@@ -41,6 +41,4 @@ source_set("eztime_test") {
     "//testing/gmock",
     "//testing/gtest",
   ]
-
-  data_deps = [ "//starboard/content/ssl:copy_ssl_certificates" ]
 }
