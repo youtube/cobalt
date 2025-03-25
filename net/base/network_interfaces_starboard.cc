@@ -1,4 +1,4 @@
-// Copyright 2025 The Cobalt Authors. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// This interface mirrors the H5vccRuntime Web IDL defined in Cobalt LTS 25:
-// https://github.com/youtube/cobalt/blob/25.lts.stable/cobalt/h5vcc/h5vcc_runtime.idl
-[
-    Exposed=Window,
-    SecureContext
-]
-interface H5vccRuntime : EventTarget {
-    readonly attribute DOMString? initialDeepLink;
-    attribute EventHandler ondeeplink;
-};
+#include "net/base/network_interfaces.h"
+
+namespace net {
+
+bool GetNetworkList(NetworkInterfaceList* networks, int policy) {
+  NOTIMPLEMENTED();
+  return false;
+}
+
+std::string GetWifiSSID() {
+  NOTIMPLEMENTED();
+  return std::string();
+}
+
+}  // namespace net
