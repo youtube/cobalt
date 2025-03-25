@@ -12,21 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef THIRD_PARTY_MUSL_SRC_STARBOARD_HACKS_LINUX_TYPES_H_
+#define THIRD_PARTY_MUSL_SRC_STARBOARD_HACKS_LINUX_TYPES_H_
+
 // TODO: b/406082241 - Remove files in starboard/hacks/
 // This file is used to stub out any API's/code which is need for building
 // upstream chromium code which is theoretically not needed in cobalt. We want
 // to revisit all the hacks here and remove them via more elegant methods like
 // GN flags, BUILDFLAGS etc.
 
-// ../../third_party/libsync/src/include/sync/sync.h:27:1: error: unknown type
-// name '__BEGIN_DECLS'
-// ../../third_party/libsync/src/include/sync/sync.h:161:1: error: unknown type
-// name '__END_DECLS'
-#define __BEGIN_DECLS
-#define __END_DECLS
+// ../../third_party/libsync/src/sync.c:34:3: error: unknown type name '__u32'
+//   __u32 value;
+typedef unsigned int __u32;
+//   ^
+// ../../third_party/libsync/src/sync.c:36:3: error: unknown type name '__s32'
+typedef int32_t __s32;
 
-// ../../third_party/libsync/src/sync.c:140:25: error: use of undeclared
-// identifier 'SYNC_IOC_FILE_INFO'
-//         err = ioctl(fd, SYNC_IOC_FILE_INFO, info);
-// ./../third_party/libsync/src/sync.c:126:39: error: expected expression
-#define SYNC_IOC_FILE_INFO 0
+//./../third_party/libsync/src/sync.c:180:41: error: use of undeclared
+// identifier '__u8'
+typedef uint8_t __u8;
+
+#endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_HACKS_LINUX_TYPES_H_

@@ -12,19 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef THIRD_PARTY_MUSL_SRC_STARBOARD_HACKS_SYS_CDEFS_H_
+#define THIRD_PARTY_MUSL_SRC_STARBOARD_HACKS_SYS_CDEFS_H_
+
 // TODO: b/406082241 - Remove files in starboard/hacks/
 // This file is used to stub out any API's/code which is need for building
 // upstream chromium code which is theoretically not needed in cobalt. We want
 // to revisit all the hacks here and remove them via more elegant methods like
 // GN flags, BUILDFLAGS etc.
 
-// ../../third_party/libsync/src/sync.c:34:3: error: unknown type name '__u32'
-//   __u32 value;
-typedef unsigned int __u32;
-//   ^
-// ../../third_party/libsync/src/sync.c:36:3: error: unknown type name '__s32'
-typedef int32_t __s32;
+// ../../third_party/libsync/src/include/sync/sync.h:27:1: error: unknown type
+// name '__BEGIN_DECLS'
+// ../../third_party/libsync/src/include/sync/sync.h:161:1: error: unknown type
+// name '__END_DECLS'
+#if defined(__cplusplus)
+#define __BEGIN_EXTERN_C extern "C" {
+#define __END_EXTERN_C }
+#else
+#define __BEGIN_EXTERN_C
+#define __END_EXTERN_C
+#endif
 
-//./../third_party/libsync/src/sync.c:180:41: error: use of undeclared
-// identifier '__u8'
-typedef uint8_t __u8;
+#define __BEGIN_DECLS __BEGIN_EXTERN_C
+#define __END_DECLS __END_EXTERN_C
+
+#endif  // THIRD_PARTY_MUSL_SRC_STARBOARD_HACKS_SYS_CDEFS_H_
