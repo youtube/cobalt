@@ -38,7 +38,7 @@ if (is_android) {
 # Writable mmap isn't supported on Fuchsia, so it should be bypassed.
 posix_bypass_mmap = (is_android && current_cpu != "x86") || is_fuchsia
 
-enable_built_in_dns = use_blink
+enable_built_in_dns = use_blink && !is_starboard
 
 # TODO(droger): Support client auth on iOS. See http://crbug.com/145954).
 #
@@ -1310,7 +1310,7 @@ component("net") {
     ]
   }
 
-  if (is_linux) {
+  if (is_linux && !is_cobalt_hermetic_build) {
     sources += [
       "base/network_change_notifier_linux.cc",
       "base/network_change_notifier_linux.h",
@@ -1322,7 +1322,7 @@ component("net") {
     }
   }
 
-  if (is_linux || is_chromeos || is_android) {
+  if ((is_linux || is_chromeos || is_android) && !is_cobalt_hermetic_build) {
     sources += [
       "base/address_map_linux.cc",
       "base/address_map_linux.h",
@@ -1334,7 +1334,7 @@ component("net") {
     ]
   }
 
-  if (is_linux) {
+  if (is_linux && !is_cobalt_hermetic_build) {
     sources += [
       "base/address_map_cache_linux.cc",
       "base/address_map_cache_linux.h",
@@ -1471,7 +1471,7 @@ component("net") {
     }
   }
 
-  if (is_android || is_chromeos || is_linux) {
+  if ((is_android || is_chromeos || is_linux) && !is_cobalt_hermetic_build) {
     sources += [
       "base/network_change_notifier_passive.cc",
       "base/network_change_notifier_passive.h",
@@ -1776,6 +1776,14 @@ component("net") {
 
   if (!is_cronet_build) {
     deps += [ "//mojo/public/cpp/bindings:default_construct_tag" ]
+  }
+
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "base/network_interfaces_starboard.cc",
+      "base/platform_mime_util_starboard.cc",
+      "base/network_change_notifier_starboard.h",
+    ]
   }
 }
 
@@ -2211,7 +2219,7 @@ static_library("test_support") {
     ]
   }
 
-  if (is_linux || is_chromeos || is_android) {
+  if ((is_linux || is_chromeos || is_android) && !is_starboard) {
     sources += [
       "base/address_tracker_linux_test_util.cc",
       "base/address_tracker_linux_test_util.h",
@@ -2284,7 +2292,7 @@ static_library("test_support") {
       "test/spawned_test_server/remote_test_server_spawner_request.cc",
       "test/spawned_test_server/remote_test_server_spawner_request.h",
     ]
-  } else if (!is_ios) {
+  } else if (!is_ios && !is_starboard) {
     sources += [
       "test/spawned_test_server/local_test_server.cc",
       "test/spawned_test_server/local_test_server.h",
@@ -3038,14 +3046,14 @@ target(_test_target_type, "net_unittests") {
     ]
   }
 
-  if (is_linux) {
+  if (is_linux && !is_starboard) {
     sources += [
       "base/network_change_notifier_linux_unittest.cc",
       "proxy_resolution/proxy_config_service_linux_unittest.cc",
     ]
   }
 
-  if (is_linux || is_chromeos) {
+  if ((is_linux || is_chromeos) && !is_starboard) {
     sources += [
       "base/address_tracker_linux_unittest.cc",
       "base/network_interfaces_linux_unittest.cc",
@@ -3313,7 +3321,7 @@ target(_test_target_type, "net_unittests") {
       "websockets/websocket_test_util.h",
     ]
 
-    if (!is_ios) {
+    if (!is_ios && !is_starboard) {
       # TODO(crbug.com/40812029): iOS does not have support for the spawned test
       # server, which is used by this test. The long term plan is to add
       # websocket support to the embedded test server and when that happens,

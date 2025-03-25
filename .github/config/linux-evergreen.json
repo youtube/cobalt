@@ -8,6 +8,8 @@
   "targets": [
     "base",
     "base_unittests",
+    "net",
+    "net_unittests",
     "nplb"
   ],
   "includes": [
