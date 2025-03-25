@@ -59,8 +59,10 @@ source_set("browser") {
     "//components/js_injection/browser:browser",
     "//components/metrics:metrics",
     "//components/metrics:test_support",
+    "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs:prefs",
+    "//components/variations/service:service",
     "//content/public/browser",
     "//starboard/($starboard_toolchain)",
 
