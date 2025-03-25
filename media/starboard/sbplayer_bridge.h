@@ -15,7 +15,6 @@
 #ifndef MEDIA_STARBOARD_SBPLAYER_BRIDGE_H_
 #define MEDIA_STARBOARD_SBPLAYER_BRIDGE_H_
 
-#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -47,6 +46,7 @@
 #include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace media {
@@ -210,7 +210,7 @@ class SbPlayerBridge {
     const scoped_refptr<DecoderBuffer> buffer;
     int usage_count = 0;
   };
-  using DecodingBuffers = std::unordered_map<const void*, DecodingBuffer>;
+  using DecodingBuffers = absl::flat_hash_map<const void*, DecodingBuffer>;
 
 #if SB_HAS(PLAYER_WITH_URL)
   OnEncryptedMediaInitDataEncounteredCB

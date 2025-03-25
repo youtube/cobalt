@@ -870,8 +870,6 @@ void SbPlayerBridge::WriteNextBuffersFromCache(DemuxerStream::Type type,
 }
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
-int count = 0;
-
 template <typename PlayerSampleInfo>
 void SbPlayerBridge::WriteBuffersInternal(
     DemuxerStream::Type type,
