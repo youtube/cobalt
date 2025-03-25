@@ -157,6 +157,9 @@ source_set("audio") {
     "//third_party/opus:opus",
     "//url",
   ]
+  if (is_starboard) {
+    deps -= ["//third_party/flac",]
+  }
   libs = []
   defines = []
   configs += [
