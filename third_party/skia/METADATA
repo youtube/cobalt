@@ -23,5 +23,8 @@ third_party {
     month: 2
     day: 12
   }
+  security {
+    mitigated_security_patch: "OSV-2022-576"  # commit 1da0fc5e
+  }
   license_type: NOTICE
 }
