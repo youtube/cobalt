@@ -44,11 +44,10 @@ class StubH5vccRuntimeImpl : public h5vcc_runtime::mojom::H5vccRuntime {
   // h5vcc_runtime::mojom::H5vccRuntime impl.
   void GetAndClearInitialDeepLinkSync(
       GetAndClearInitialDeepLinkSyncCallback callback) override;
-  void GetAndClearInitialDeepLink(GetAndClearInitialDeepLinkCallback callback)
-      override;
-  void AddListener(
-      mojo::PendingRemote<h5vcc_runtime::mojom::DeepLinkListener> listener)
-      override;
+  void GetAndClearInitialDeepLink(
+      GetAndClearInitialDeepLinkCallback callback) override;
+  void AddListener(mojo::PendingRemote<h5vcc_runtime::mojom::DeepLinkListener>
+                       listener) override;
 
  private:
   mojo::ReceiverSet<h5vcc_runtime::mojom::H5vccRuntime> receivers_;
