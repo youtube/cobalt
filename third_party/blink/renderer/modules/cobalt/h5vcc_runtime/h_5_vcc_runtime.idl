@@ -19,15 +19,6 @@
     SecureContext
 ]
 interface H5vccRuntime : EventTarget {
-    // A synchronous version of the initialDeepLink API was provided for
-    // ease-of-use in the clients during the initial migration from Cobalt 25.
-    // Asynchronous APIs are preferred here as they offload work and won't
-    // affect Cobalt performance as much.
-    // We mark the synchronous APIs as nullable to signify we may deprecate
-    // them in the future in favor of the asynchronous equivalents.
     readonly attribute DOMString? initialDeepLink;
-    [CallWith=ScriptState, RaisesException]
-    Promise<DOMString> getInitialDeepLink();
-
     attribute EventHandler ondeeplink;
 };

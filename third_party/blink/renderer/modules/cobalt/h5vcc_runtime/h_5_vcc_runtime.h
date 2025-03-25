@@ -51,7 +51,6 @@ class MODULES_EXPORT H5vccRuntime final
 
   // Web-exposed interface:
   String initialDeepLink();
-  ScriptPromise getInitialDeepLink(ScriptState*, ExceptionState&);
   EventListener* ondeeplink();
   void setOndeeplink(EventListener* listener);
 
@@ -69,13 +68,13 @@ class MODULES_EXPORT H5vccRuntime final
   void Trace(Visitor*) const override;
 
  private:
-  void OnGetInitialDeepLink(ScriptPromiseResolver*, const String&);
   void MaybeFireDeepLinkEvent(const String&);
   void EnsureReceiverIsBound();
   HeapMojoRemote<h5vcc_runtime::mojom::blink::H5vccRuntime>
       remote_h5vcc_runtime_;
   HeapMojoReceiver<h5vcc_runtime::mojom::blink::DeepLinkListener, H5vccRuntime>
       receiver_;
+  String initial_deep_link_;
 };
 
 }  // namespace blink
