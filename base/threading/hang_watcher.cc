@@ -348,6 +348,7 @@ void HangWatcher::InitializeOnMainThread(ProcessType process_type) {
       break;
 
     case HangWatcher::ProcessType::kBrowserProcess:
+      LOG(INFO) << "HangWatcher::ProcessType::kBrowserProcess kIOThreadLogLevel: " << kIOThreadLogLevel.Get();
       g_threadpool_log_level.store(
           static_cast<LoggingLevel>(kThreadPoolLogLevel.Get()),
           std::memory_order_relaxed);
@@ -406,7 +407,14 @@ void HangWatcher::UnitializeOnMainThreadForTesting() {
 
 // static
 bool HangWatcher::IsEnabled() {
-  return g_use_hang_watcher.load(std::memory_order_relaxed);
+  bool ret = g_use_hang_watcher.load(std::memory_order_relaxed);
+  if (ret) {
+    LOG(INFO) << "HangWatcher::IsEnabled() TRUE";
+  } else {
+    LOG(INFO) << "HangWatcher::IsEnabled() FALSE";
+  }
+  return ret;
+  // return g_use_hang_watcher.load(std::memory_order_relaxed);
 }
 
 // static
