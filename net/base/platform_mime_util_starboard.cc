@@ -16,7 +16,7 @@
 
 #include "net/base/network_interfaces.h"
 
-#if !defined(ENABLE_COBALT_HERMETIC_HACKS)
+#if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #error This file should likely be fully implemented.
 #endif
 
