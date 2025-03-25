@@ -132,6 +132,9 @@ public class StarboardBridge {
     nativeApp = StarboardBridgeJni.get().startNativeStarboard();
 
     StarboardBridgeJni.get().handleDeepLink(startDeepLink, /*applicationStarted=*/ false);
+    StarboardBridgeJni.get().setAndroidBuildFingerprint(getBuildFingerprint());
+    StarboardBridgeJni.get().setAndroidOSExperience(this.isAmatiDevice);
+    StarboardBridgeJni.get().setAndroidPlayServicesVersion(getPlayServicesVersion());
   }
 
   private native boolean initJNI();
@@ -151,6 +154,10 @@ public class StarboardBridge {
     // void closeNativeStarboard(long nativeApp);
 
     void handleDeepLink(String url, boolean applicationStarted);
+
+    void setAndroidBuildFingerprint(String fingerprint);
+    void setAndroidOSExperience(boolean isAmatiDevice);
+    void setAndroidPlayServicesVersion(long version);
   }
 
   protected void onActivityStart(Activity activity) {
@@ -739,13 +746,11 @@ public class StarboardBridge {
     return this.isAmatiDevice;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   protected String getBuildFingerprint() {
     return Build.FINGERPRINT;
   }
 
-  @SuppressWarnings("unused")
   @CalledByNative
   protected long getPlayServicesVersion() {
     try {
