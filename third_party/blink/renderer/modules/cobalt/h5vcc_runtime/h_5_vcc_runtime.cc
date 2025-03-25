@@ -53,8 +53,6 @@ void H5vccRuntime::setOndeeplink(EventListener* listener) {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   remote_h5vcc_runtime_->AddListener(
       receiver_.BindNewPipeAndPassRemote(task_runner));
-
-  MaybeFireDeepLinkEvent(initial_deep_link_);
 }
 
 void H5vccRuntime::MaybeFireDeepLinkEvent(const String& url) {
