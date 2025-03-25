@@ -870,6 +870,8 @@ void SbPlayerBridge::WriteNextBuffersFromCache(DemuxerStream::Type type,
 }
 #endif  // COBALT_MEDIA_ENABLE_SUSPEND_RESUME
 
+int count = 0;
+
 template <typename PlayerSampleInfo>
 void SbPlayerBridge::WriteBuffersInternal(
     DemuxerStream::Type type,
@@ -910,11 +912,10 @@ void SbPlayerBridge::WriteBuffersInternal(
       break;
     }
 
-    DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->data());
-    if (iter == decoding_buffers_.end()) {
-      decoding_buffers_[buffer->data()] = std::make_pair(buffer, 1);
-    } else {
-      ++iter->second.second;
+    if (auto [iter, inserted] =
+            decoding_buffers_.try_emplace(buffer->data(), buffer);
+        !inserted) {
+      ++iter->second.usage_count;
     }
 
     if (sample_type == kSbMediaTypeAudio &&
@@ -1179,8 +1180,9 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
                << "sample_buffer " << sample_buffer;
     return;
   }
-  --iter->second.second;
-  if (iter->second.second == 0) {
+  DecodingBuffer& decoding_buffer = iter->second;
+  --decoding_buffer.usage_count;
+  if (decoding_buffer.usage_count == 0) {
     decoding_buffers_.erase(iter);
   }
 }

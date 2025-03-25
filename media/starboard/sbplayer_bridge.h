@@ -203,11 +203,14 @@ class SbPlayerBridge {
   static const int64_t kClearDecoderCacheIntervalInMilliseconds = 1000;
 
   // A map from raw data pointer returned by DecoderBuffer::GetData() to the
-  // DecoderBuffer and a reference count.  The reference count indicates how
-  // many instances of the DecoderBuffer is currently being decoded in the
-  // pipeline.
-  typedef std::map<const void*, std::pair<scoped_refptr<DecoderBuffer>, int>>
-      DecodingBuffers;
+  // DecoderBuffer and an usage count.  The usage count indicates how
+  // many instances of the DecoderBuffer is currently being used (== being
+  // decoded) in the pipeline.
+  struct DecodingBuffer {
+    const scoped_refptr<DecoderBuffer> buffer;
+    int usage_count = 0;
+  };
+  using DecodingBuffers = std::unordered_map<const void*, DecodingBuffer>;
 
 #if SB_HAS(PLAYER_WITH_URL)
   OnEncryptedMediaInitDataEncounteredCB
