@@ -23,7 +23,7 @@ blink_core_sources_cobalt = [
 
 if (use_starboard_media) {
   blink_core_sources_cobalt += [
-    "memory_info/media_source_memory_info.cc",
-    "memory_info/media_source_memory_info.h",
+    "memory_info/memory_info_extensions.cc",
+    "memory_info/memory_info_extensions.h",
   ]
 }

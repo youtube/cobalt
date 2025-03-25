@@ -15,7 +15,7 @@
 // Non standard interface used for Cobalt only.
 // Exposes the memory used by media buffers during playback.
 [
-    ImplementedAs=MediaSourceMemoryInfo, Exposed=Window,
+    ImplementedAs=MemoryInfoExtensions, Exposed=Window,
     LegacyNoInterfaceObject
 ] partial interface MemoryInfo {
     readonly attribute unsigned long long mediaSourceSizeLimit;

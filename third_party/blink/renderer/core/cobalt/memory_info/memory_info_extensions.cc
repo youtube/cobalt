@@ -12,12 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_MEMORY_INFO_MEDIA_SOURCE_MEMORY_INFO_H_
-#define THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_MEMORY_INFO_MEDIA_SOURCE_MEMORY_INFO_H_
+#include "third_party/blink/renderer/core/cobalt/memory_info/memory_info_extensions.h"
 
-#include "build/build_config.h"
-#include "third_party/blink/renderer/core/timing/memory_info.h"
-#include "third_party/blink/renderer/platform/bindings/script_wrappable.h"
+#include "media/base/decoder_buffer.h"
+#include "third_party/blink/public/platform/platform.h"
 
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
 #error "This file only works with Starboard media"
@@ -25,15 +23,16 @@
 
 namespace blink {
 
-class MediaSourceMemoryInfo final {
-  STATIC_ONLY(MediaSourceMemoryInfo);
+uint64_t MemoryInfoExtensions::mediaSourceSizeLimit(MemoryInfo&) {
+  return Platform::Current()->mediaSourceSizeLimit();
+}
 
- public:
-  static uint64_t mediaSourceSizeLimit(MemoryInfo&);
-  static uint64_t totalMediaSourceSize(MemoryInfo&);
-  static uint64_t usedMediaSourceMemorySize(MemoryInfo&);
-};
+uint64_t MemoryInfoExtensions::totalMediaSourceSize(MemoryInfo&) {
+  return Platform::Current()->totalMediaSourceSize();
+}
 
-}  // namespace blink
+uint64_t MemoryInfoExtensions::usedMediaSourceMemorySize(MemoryInfo&) {
+  return Platform::Current()->usedMediaSourceMemorySize();
+}
 
-#endif  // THIRD_PARTY_BLINK_RENDERER_CORE_COBALT_MEMORY_INFO_MEDIA_SOURCE_MEMORY_INFO_H_
+}  //  namespace blink
