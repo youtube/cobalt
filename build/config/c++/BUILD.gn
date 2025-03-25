@@ -73,6 +73,8 @@ config("runtime_library") {
       # before the general musl include directory to prefer Starboard-specific
       # posix headers over default posix headers.
       cflags_cc += [
+        "-isystem" +
+            rebase_path("//starboard/hacks", root_build_dir),
         "-isystem" + rebase_path("//third_party/musl/src/starboard/include",
                                  root_build_dir),
         "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
@@ -81,6 +83,8 @@ config("runtime_library") {
         "-femulated-tls",
       ]
       cflags_c = [
+        "-isystem" +
+            rebase_path("//starboard/hacks", root_build_dir),
         "-isystem" + rebase_path("//third_party/musl/src/starboard/include",
                                  root_build_dir),
         "-isystem" + rebase_path("//third_party/musl/include", root_build_dir),
