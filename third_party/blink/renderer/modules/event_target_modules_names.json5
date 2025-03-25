@@ -93,6 +93,7 @@
     "AudioDecoder",
     "VideoDecoder",
     # TODO(cobalt, b/400518318): "Extract Cobalt event to separate file"
+    "H5vccMetrics",
     "H5vccRuntime",
   ],
 }

@@ -305,7 +305,7 @@ component("core") {
       rebase_path(blink_core_sources_xmlhttprequest, "", "xmlhttprequest")
   sources += rebase_path(blink_core_sources_speech, "", "speech")
 
-  if (is_cobalt && use_starboard_media) {
+  if (is_cobalt) {
     sources += rebase_path(blink_core_sources_cobalt, "", "cobalt")
   }
 

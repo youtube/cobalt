@@ -16,9 +16,9 @@
 
 #include <string>
 
-#include "base/logging.h"
 #include "base/memory/singleton.h"
 #include "base/notreached.h"
+#include "build/build_config.h"
 #include "starboard/system.h"
 
 namespace cobalt {
@@ -43,22 +43,12 @@ Configuration::Configuration() {
 }
 
 Configuration::UserOnExitStrategy Configuration::CobaltUserOnExitStrategy() {
-  constexpr char kStop[] = "stop";
-  constexpr char kSuspend[] = "suspend";
-  constexpr char kNoExit[] = "noexit";
-
-  if (!configuration_api_) {
-    return Configuration::UserOnExitStrategy::kClose;
-  }
-  std::string strategy = configuration_api_->CobaltUserOnExitStrategy();
-  if (strategy == kStop) {
-    return Configuration::UserOnExitStrategy::kClose;
-  } else if (strategy == kSuspend) {
-    return Configuration::UserOnExitStrategy::kMinimize;
-  } else if (strategy == kNoExit) {
-    return Configuration::UserOnExitStrategy::kNoExit;
-  }
-  NOTREACHED_NORETURN() << "Invalid CobaltUserOnExitStrategy: " << strategy;
+// TODO(b/385357645): fix calling the configuratino extension function.
+#if BUILDFLAG(IS_ANDROID)
+  return Configuration::UserOnExitStrategy::kMinimize;
+#else
+  return Configuration::UserOnExitStrategy::kClose;
+#endif
 }
 
 }  // namespace configuration

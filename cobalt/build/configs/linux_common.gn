@@ -4,11 +4,27 @@ import("//cobalt/build/configs/chromium_linux-x64x11/args.gn")
 import("//cobalt/build/configs/common.gn")
 
 use_ozone = true
+ozone_auto_platforms = false
+ozone_platform = "starboard"
+angle_enable_gl = true
 
 # Vulkan is a new rendering (and presentation, and more) API intended to replace
 # E/GL(ES). Partners are only required to support upto GLES 2.0 : https://developers.google.com/youtube/cobalt/docs/reference/starboard/modules/16/gles#gles_version
 # Disable Vulkan until we formally decide to support it.
 enable_vulkan = false
+angle_enable_vulkan = false
+angle_use_vulkan_display = false
+
+# Not used in Cobalt, see //ui/gl/features.gni
+enable_swiftshader = false
+
+# Don't allow Angle to transitively depend on SwiftShader
+# From angle/gni/angle.gni
+angle_enable_swiftshader = false
+
+# Disable GPU->Vulkan path as well
+# From gpu/vulkan/features.gni
+enable_swiftshader_vulkan = false
 
 # Overriding flag from //media/media_options.gni.
 # Cobalt doesn't use //third_party/ffmpeg.
@@ -64,3 +80,18 @@ use_alsa = false
 use_gtk = false
 use_gio = false
 use_pangocairo = false
+
+# Overriding from components/optimization_guide/features.gni
+# TFLite is a part of the open-source machine-learning library TensorFlow.
+# We are not using tflite in cobalt currently.
+build_with_tflite_lib = false
+
+# Overriding from third_party/blink/renderer/modules/ml/webnn/features.gni:10
+# webnn is a machine learning related module: https://chromestatus.com/feature/5176273954144256
+# We are not using webnn in cobalt currently.
+build_webnn_with_xnnpack = false
+
+# Override from //third_party/angle/BUILD.gn
+# This flag uses the Use the PCI lib to collect GPU information on Linux.
+# Disabling this as it causes build errors.
+use_libpci = false

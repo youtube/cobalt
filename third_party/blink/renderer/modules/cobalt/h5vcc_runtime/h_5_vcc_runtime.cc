@@ -24,31 +24,18 @@ namespace blink {
 H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
       remote_h5vcc_runtime_(window.GetExecutionContext()),
-      receiver_(this, window.GetExecutionContext()) {}
+      receiver_(this, window.GetExecutionContext()) {
+  EnsureReceiverIsBound();
+  remote_h5vcc_runtime_->GetAndClearInitialDeepLinkSync(&initial_deep_link_);
+}
 
 void H5vccRuntime::ContextDestroyed() {
   remote_h5vcc_runtime_.reset();
   receiver_.reset();
 }
 
-ScriptPromise H5vccRuntime::getInitialDeepLink(
-    ScriptState* script_state,
-    ExceptionState& exception_state) {
-  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
-      script_state, exception_state.GetContext());
-
-  EnsureReceiverIsBound();
-
-  remote_h5vcc_runtime_->GetAndClearInitialDeepLink(
-      WTF::BindOnce(&H5vccRuntime::OnGetInitialDeepLink, WrapPersistent(this),
-                    WrapPersistent(resolver)));
-
-  return resolver->Promise();
-}
-
-void H5vccRuntime::OnGetInitialDeepLink(ScriptPromiseResolver* resolver,
-                                        const String& result) {
-  resolver->Resolve(result);
+String H5vccRuntime::initialDeepLink() {
+  return initial_deep_link_;
 }
 
 EventListener* H5vccRuntime::ondeeplink() {

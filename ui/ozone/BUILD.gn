@@ -246,7 +246,7 @@ source_set("ozone_switches") {
     "//ui/display:display_unittests",
   ]
 
-  if (is_starboard) {
+  if (is_cobalt) {
     visibility += [
       "//cobalt:*",
     ]

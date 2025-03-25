@@ -16,10 +16,14 @@
 
 #include "base/functional/bind.h"
 #include "cobalt/browser/crash_annotator/public/mojom/crash_annotator.mojom.h"
+#include "cobalt/browser/h5vcc_metrics/h5vcc_metrics_impl.h"
+#include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "cobalt/browser/h5vcc_runtime/h5vcc_runtime_impl.h"
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
 #include "cobalt/browser/h5vcc_system/h5vcc_system_impl.h"
 #include "cobalt/browser/h5vcc_system/public/mojom/h5vcc_system.mojom.h"
+#include "cobalt/browser/performance/performance_impl.h"
+#include "cobalt/browser/performance/public/mojom/performance.mojom.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "content/public/browser/render_frame_host.h"
@@ -27,6 +31,11 @@
 #else
 #include "cobalt/browser/crash_annotator/crash_annotator_impl.h"
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#include "cobalt/browser/h5vcc_storage/testing/h5vcc_storage_for_testing_impl.h"
+#include "cobalt/browser/h5vcc_storage/testing/public/mojom/h5vcc_storage_for_testing.mojom.h"
+#endif
 
 namespace cobalt {
 
@@ -49,10 +58,19 @@ void PopulateCobaltFrameBinders(
   binder_map->Add<crash_annotator::mojom::CrashAnnotator>(
       base::BindRepeating(&crash_annotator::CrashAnnotatorImpl::Create));
 #endif  // BUILDFLAG(IS_ANDROIDTV)
+#if !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  binder_map->Add<h5vcc_storage_for_testing::mojom::H5vccStorageForTesting>(
+      base::BindRepeating(
+          &h5vcc_storage_for_testing::H5vccStorageForTestingImpl::Create));
+#endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+  binder_map->Add<h5vcc_metrics::mojom::H5vccMetrics>(
+      base::BindRepeating(&h5vcc_metrics::H5vccMetricsImpl::Create));
   binder_map->Add<h5vcc_system::mojom::H5vccSystem>(
       base::BindRepeating(&h5vcc_system::H5vccSystemImpl::Create));
   binder_map->Add<h5vcc_runtime::mojom::H5vccRuntime>(
       base::BindRepeating(&h5vcc_runtime::H5vccRuntimeImpl::Create));
+  binder_map->Add<performance::mojom::CobaltPerformance>(
+      base::BindRepeating(&performance::PerformanceImpl::Create));
 }
 
 }  // namespace cobalt

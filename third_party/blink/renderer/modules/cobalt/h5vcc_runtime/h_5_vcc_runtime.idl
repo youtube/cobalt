@@ -19,8 +19,6 @@
     SecureContext
 ]
 interface H5vccRuntime : EventTarget {
-    [CallWith=ScriptState, RaisesException]
-    Promise<DOMString> getInitialDeepLink();
-
+    readonly attribute DOMString? initialDeepLink;
     attribute EventHandler ondeeplink;
 };
