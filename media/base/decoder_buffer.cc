@@ -9,10 +9,6 @@
 #include "base/debug/alias.h"
 #include "media/base/subsample_entry.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "base/logging.h"
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 namespace media {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -22,9 +18,7 @@ DecoderBuffer::Allocator* s_allocator = nullptr;
 
 // static
 DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
-  LOG_IF(WARNING, !s_allocator)
-      << "Called DecoderBuffer::Allocator::GetInstance() with a null "
-         "Allocator.";
+  DCHECK(s_allocator);
   return s_allocator;
 }
 

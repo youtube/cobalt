@@ -233,6 +233,12 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
   // plus eTLD+1, such as https://google.com), or to a more specific origin.
   void SetIsLockedToSite();
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual uint64_t mediaSourceSizeLimit() const override;
+  virtual uint64_t totalMediaSourceSize() const override;
+  virtual uint64_t usedMediaSourceMemorySize() const override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
  private:
   bool CheckPreparsedJsCachingEnabled() const;
 
