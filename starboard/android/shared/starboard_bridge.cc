@@ -16,6 +16,8 @@
 
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "base/strings/string_number_conversions.h"
+#include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
@@ -115,6 +117,36 @@ extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_HandleDeepLink(
     // Cold start deeplink
     manager->set_deep_link(url);
   }
+}
+
+extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_SetAndroidOSExperience(
+    JNIEnv* env,
+    jboolean isAmatiDevice) {
+  std::string value = isAmatiDevice ? "Amati" : "Watson";
+  auto header_value_provider =
+      cobalt::browser::CobaltHeaderValueProvider::GetInstance();
+  header_value_provider->SetHeaderValue("Sec-CH-UA-Co-Android-OS-Experience",
+                                        value);
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+JNI_StarboardBridge_SetAndroidPlayServicesVersion(JNIEnv* env, jlong version) {
+  auto header_value_provider =
+      cobalt::browser::CobaltHeaderValueProvider::GetInstance();
+  header_value_provider->SetHeaderValue(
+      "Sec-CH-UA-Co-Android-Play-Services-Version",
+      base::NumberToString(version));
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+JNI_StarboardBridge_SetAndroidBuildFingerprint(
+    JNIEnv* env,
+    const JavaParamRef<jstring>& fingerprint) {
+  auto header_value_provider =
+      cobalt::browser::CobaltHeaderValueProvider::GetInstance();
+  header_value_provider->SetHeaderValue(
+      "Sec-CH-UA-Co-Android-Build-Fingerprint",
+      base::android::ConvertJavaStringToUTF8(env, fingerprint));
 }
 
 // StarboardBridge::GetInstance() should not be inlined in the
