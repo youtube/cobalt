@@ -110,6 +110,7 @@ source_set("metrics") {
     "metrics/cobalt_metrics_service_client.h",
   ]
   deps = [
+    "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//components/metrics",
     "//components/prefs",
     "//components/variations",

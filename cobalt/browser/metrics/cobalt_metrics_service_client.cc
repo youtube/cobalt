@@ -56,7 +56,6 @@ class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
   }
 
  private:
-
   mojo::Remote<h5vcc_metrics::mojom::MetricsListener> metrics_listener_;
 
   base::WeakPtrFactory<CobaltMetricsLogUploader> weak_factory_{this};
@@ -235,7 +234,7 @@ CobaltMetricsServiceClient::CreateUploader(
     const metrics::MetricsLogUploader::UploadCallback& on_upload_complete) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
-  // CraeteUploader() should never be called more than once.
+  // CreateUploader() should never be called more than once.
   CHECK(log_uploader_);
   return std::move(log_uploader_);
 }
@@ -255,7 +254,7 @@ bool CobaltMetricsServiceClient::IsConsentGiven() const {
 
 bool CobaltMetricsServiceClient::IsReportingEnabled() const {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-   // TODO(b/372559349): Usually TOS should be verified accepted here.
+  // TODO(b/372559349): Usually TOS should be verified accepted here.
   return is_reporting_enabled_;
 }
 
