@@ -911,7 +911,7 @@ void SbPlayerBridge::WriteBuffersInternal(
     }
 
     if (auto [iter, inserted] =
-            decoding_buffers_.try_emplace(buffer->data(), buffer);
+            decoding_buffers_.try_emplace(buffer->data(), buffer, 0);
         !inserted) {
       ++iter->second.usage_count;
     }
@@ -1180,6 +1180,7 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   }
   DecodingBuffer& decoding_buffer = iter->second;
   --decoding_buffer.usage_count;
+  DCHECK_GE(decoding_buffer.usage_count, 0);
   if (decoding_buffer.usage_count == 0) {
     decoding_buffers_.erase(iter);
   }

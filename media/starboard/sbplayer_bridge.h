@@ -208,7 +208,7 @@ class SbPlayerBridge {
   // decoded) in the pipeline.
   struct DecodingBuffer {
     const scoped_refptr<DecoderBuffer> buffer;
-    int usage_count = 0;
+    int usage_count;
   };
   using DecodingBuffers = absl::flat_hash_map<const void*, DecodingBuffer>;
 
