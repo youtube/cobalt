@@ -262,6 +262,13 @@ static_library("web_test_browser") {
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
   }
+
+  if (is_cobalt) {
+    deps += [
+      "//cobalt/browser/h5vcc_runtime/public/mojom",
+      "//cobalt/testing/h5vcc_runtime:stub_h5vcc_runtime",
+    ]
+  }
 }
 
 # TODO(crbug.com/40159584): The `allow_circular_includes_from` declared in
