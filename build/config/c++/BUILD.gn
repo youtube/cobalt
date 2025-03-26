@@ -4,6 +4,7 @@ import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//buildtools/deps_revisions.gni")
+import("//cobalt/build/configs/hacks.gni")
 
 assert(use_custom_libcxx, "should only be used if use_custom_libcxx is set")
 
@@ -88,6 +89,14 @@ config("runtime_library") {
             rebase_path("//third_party/musl/arch/generic", root_build_dir),
         "-femulated-tls",
       ]
+      if (enable_cobalt_hermetic_hacks) {
+        cflags_cc += [ "-isystem" +
+                       rebase_path("//third_party/musl/src/starboard/hacks",
+                                   root_build_dir) ]
+        cflags_c +=
+            [ "-isystem" + rebase_path("//third_party/musl/src/starboard/hacks",
+                                       root_build_dir) ]
+      }
     }
 
     cflags_objcc = cflags_cc
