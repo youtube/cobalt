@@ -96,3 +96,7 @@ build_webnn_with_xnnpack = false
 # This flag uses the Use the PCI lib to collect GPU information on Linux.
 # Disabling this as it causes build errors.
 use_libpci = false
+
+# Override from chrome/installer/installers.gni
+# This flag enables the creation of Linux installer packages(like .deb , .rpm)
+enable_linux_installer = false

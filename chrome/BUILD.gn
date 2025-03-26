@@ -24,7 +24,6 @@ import("//components/optimization_guide/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//media/media_options.gni")
 import("//ppapi/buildflags/buildflags.gni")
-import("//third_party/angle/gni/angle.gni")
 import("//third_party/blink/public/public_features.gni")
 import("//third_party/widevine/cdm/widevine.gni")
 import("//tools/resources/generate_resource_allowlist.gni")
@@ -1736,8 +1735,7 @@ if (is_linux || is_chromeos) {
       if (is_linux) {
         deps += [ ":swiftshader_vk_symbols" ]
       }
-      # TODO: b/406550834 - Cobalt: Upstream adding angle_shared_libvulkan
-      if (!is_chromeos && angle_shared_libvulkan) {
+      if (!is_chromeos) {
         deps += [ ":angle_libvulkan_symbols" ]
       }
       if (build_with_internal_optimization_guide) {
@@ -1804,8 +1802,7 @@ if (is_linux || is_chromeos) {
 
       deps = [ "//third_party/angle:libGLESv2" ]
     }
-    # TODO: b/406550834 - Cobalt: Upstream adding angle_shared_libvulkan
-    if (!is_chromeos && angle_shared_libvulkan) {
+    if (!is_chromeos) {
       extract_symbols("angle_libvulkan_symbols") {
         binary = "$root_out_dir/libvulkan.so.1"
 
