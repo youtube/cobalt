@@ -49,7 +49,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
-import org.chromium.base.MemoryPressureListener;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.components.version_info.VersionInfo;
@@ -291,25 +290,6 @@ public abstract class CobaltActivity extends Activity {
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
     return tryDispatchRemappedKey(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
-  }
-
-  // Initially copied from ContentShellActiviy.java
-  protected void shellHandleIntent(Intent intent) {
-    if (getCommandLineParamsFromIntent(intent) != null) {
-      Log.i(TAG, "Ignoring command line params: can only be set when creating the activity.");
-    }
-
-    if (MemoryPressureListener.handleDebugIntent(this, intent.getAction())) {
-      return;
-    }
-
-    String url = getUrlFromIntent(intent);
-    if (!TextUtils.isEmpty(url)) {
-      Shell activeView = getActiveShell();
-      if (activeView != null) {
-        activeView.loadUrl(url);
-      }
-    }
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -587,7 +567,6 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onNewIntent(Intent intent) {
-    shellHandleIntent(intent);
     getStarboardBridge().handleDeepLink(getIntentUrlAsString(intent));
   }
 
