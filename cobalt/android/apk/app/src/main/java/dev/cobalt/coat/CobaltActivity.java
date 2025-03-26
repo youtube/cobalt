@@ -76,6 +76,9 @@ public abstract class CobaltActivity extends Activity {
   // to prevent them from being garbage collected prematurely.
   private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
 
+  @SuppressWarnings("unused")
+  private CobaltA11yHelper a11yHelper;
+
   private VideoSurfaceView videoSurfaceView;
 
   private boolean forceCreateNewVideoSurfaceView;
@@ -245,10 +248,21 @@ public abstract class CobaltActivity extends Activity {
     finish();
   }
 
+  private static boolean isDpadKey(int keyCode) {
+      return keyCode == KeyEvent.KEYCODE_DPAD_UP
+              || keyCode == KeyEvent.KEYCODE_DPAD_LEFT
+              || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+              || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+              || keyCode == KeyEvent.KEYCODE_DPAD_CENTER;
+  }
+
+  // Remap KeyEvent for imeAdapter.dispatchKeyEvent call.
   protected static Optional<KeyEvent> getRemappedKeyEvent(int keyCode, int action) {
     int mappedKeyCode;
     if (keyCode == KeyEvent.KEYCODE_BACK) {
       mappedKeyCode = KeyEvent.KEYCODE_ESCAPE;
+    } else if (isDpadKey(keyCode)) {
+      mappedKeyCode = keyCode;
     } else {
       return Optional.empty();
     }
@@ -372,6 +386,7 @@ public abstract class CobaltActivity extends Activity {
     createContent(savedInstanceState);
 
     videoSurfaceView = new VideoSurfaceView(this);
+    a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
   }
@@ -639,6 +654,7 @@ public abstract class CobaltActivity extends Activity {
       int index = frameLayout.indexOfChild(videoSurfaceView);
       frameLayout.removeView(videoSurfaceView);
       videoSurfaceView = new VideoSurfaceView(this);
+      a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
       frameLayout.addView(
           videoSurfaceView,
           index,

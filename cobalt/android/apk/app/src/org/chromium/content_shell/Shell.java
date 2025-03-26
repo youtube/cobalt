@@ -190,6 +190,10 @@ public class Shell extends LinearLayout {
         Context context = getContext();
         ContentView cv =
                 ContentView.createContentView(context, null /* eventOffsetHandler */, webContents);
+
+        // TODO (b/391708407): bypass Chromium's a11y, this can be reverted when Cobalt can safely use Chromium's a11y.
+        cv.setIsObscuredForAccessibility(true);
+
         mViewAndroidDelegate = new ShellViewAndroidDelegate(cv);
         assert (mWebContents != webContents);
         if (mWebContents != null) mWebContents.clearNativeReference();
