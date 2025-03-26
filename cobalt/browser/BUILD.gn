@@ -42,6 +42,8 @@ source_set("browser") {
     ":metrics",
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/crash_annotator/public/mojom",
+    "//cobalt/browser/h5vcc_accessibility",
+    "//cobalt/browser/h5vcc_accessibility/public/mojom",
     "//cobalt/browser/h5vcc_metrics",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
