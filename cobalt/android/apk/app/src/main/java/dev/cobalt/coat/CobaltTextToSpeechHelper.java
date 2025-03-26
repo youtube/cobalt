@@ -26,7 +26,8 @@ import dev.cobalt.util.Log;
 import java.util.ArrayList;
 import java.util.List;
 import org.chromium.base.annotations.CalledByNative;
-// import org.chromium.base.annotations.NativeMethods;
+import org.chromium.base.annotations.JNINamespace;
+import org.chromium.base.annotations.NativeMethods;
 
 /**
  * Helper class to implement the SbSpeechSynthesis* Starboard API for Audio accessibility.
@@ -34,6 +35,7 @@ import org.chromium.base.annotations.CalledByNative;
  * <p>This class is intended to be a singleton in the system. It creates a single static Handler
  * thread in lieu of other synchronization options.
  */
+@JNINamespace("starboard::android::shared")
 class CobaltTextToSpeechHelper
     implements TextToSpeech.OnInitListener,
         AccessibilityManager.AccessibilityStateChangeListener,
@@ -199,14 +201,12 @@ class CobaltTextToSpeechHelper
   private void finishIfScreenReaderChanged() {
     if (wasScreenReaderEnabled != isScreenReaderEnabled()) {
       wasScreenReaderEnabled = isScreenReaderEnabled();
-      // TODO: (cobalt b/392178584) clean up speech synthesis code, investigate if this is still needed.
-      // CobaltTextToSpeechHelperJni.get().sendTTSChangedEvent();
+      CobaltTextToSpeechHelperJni.get().sendTTSChangedEvent();
     }
   }
 
-  // TODO: (cobalt b/392178584) clean up speech synthesis code, investigate if this is still needed.
-  // @NativeMethods
-  // interface Natives {
-  //   void sendTTSChangedEvent();
-  // }
+  @NativeMethods
+  interface Natives {
+    void sendTTSChangedEvent();
+  }
 }

@@ -14,6 +14,7 @@
 
 #include "starboard/android/shared/accessibility_extension.h"
 
+#include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/memory.h"
 
@@ -23,11 +24,31 @@
 namespace starboard {
 namespace android {
 namespace shared {
-namespace accessibility {
 
 // TODO: (cobalt b/372559388) Update namespace to jni_zero.
 using base::android::AttachCurrentThread;
 using base::android::ScopedJavaLocalRef;
+
+bool isTextToSpeechEnabled() {
+  JNIEnv* env = AttachCurrentThread();
+
+  ScopedJavaLocalRef<jobject> j_tts_helper =
+      starboard::android::shared::StarboardBridge::GetInstance()
+          ->GetTextToSpeechHelper(env);
+
+  bool enabled =
+      Java_CobaltTextToSpeechHelper_isScreenReaderEnabled(env, j_tts_helper);
+  return enabled;
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {
+  // TODO: broadcast the event to window.h5vccAccessibility.ontexttospeechchange
+  // via
+  // cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom
+}
+
+namespace accessibility {
 
 bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
   if (!out_setting ||
