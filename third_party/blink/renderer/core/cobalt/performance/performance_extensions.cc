@@ -21,6 +21,23 @@
 
 namespace blink {
 
+uint64_t PerformanceExtensions::getAppStartupTime(ScriptState* script_state,
+                                                  const Performance&) {
+  ExecutionContext* execution_context = ExecutionContext::From(script_state);
+  DCHECK(execution_context);
+
+  HeapMojoRemote<performance::mojom::CobaltPerformance>
+      remote_performance_system(execution_context);
+  auto task_runner =
+      execution_context->GetTaskRunner(TaskType::kMiscPlatformAPI);
+  execution_context->GetBrowserInterfaceBroker().GetInterface(
+      remote_performance_system.BindNewPipeAndPassReceiver(task_runner));
+
+  uint64_t free_memory = 0;
+  remote_performance_system->GetAppStartupTime(&free_memory);
+  return free_memory;
+}
+
 uint64_t PerformanceExtensions::measureAvailableCpuMemory(
     ScriptState* script_state,
     const Performance&) {

@@ -30,6 +30,10 @@ void PerformanceImpl::Create(
   new PerformanceImpl(*render_frame_host, std::move(receiver));
 }
 
+void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
+  std::move(callback).Run(base::SysInfo::AppStartupTime());
+}
+
 void PerformanceImpl::MeasureAvailableCpuMemory(
     MeasureAvailableCpuMemoryCallback callback) {
   std::move(callback).Run(base::SysInfo::AmountOfAvailablePhysicalMemory());
