@@ -48,14 +48,14 @@ class BASE_EXPORT UncheckedObserverAdapter {
   }
 
 #if DCHECK_IS_ON()
-  std::string GetCreationStackString() const { return stack_.ToString(); }
+  std::string GetCreationStackString() const {
+    base::debug::StackTrace stack_;
+    return stack_.ToString();
+  }
 #endif  // DCHECK_IS_ON()
 
  private:
   raw_ptr<void, DanglingUntriaged> ptr_;
-#if DCHECK_IS_ON()
-  base::debug::StackTrace stack_;
-#endif  // DCHECK_IS_ON()
 };
 
 // Adapter for CheckedObserver types so that they can use the same syntax as a
@@ -108,14 +108,14 @@ class BASE_EXPORT CheckedObserverAdapter {
   }
 
 #if DCHECK_IS_ON()
-  std::string GetCreationStackString() const { return stack_.ToString(); }
+  std::string GetCreationStackString() const {
+    base::debug::StackTrace stack_;
+    return stack_.ToString();
+  }
 #endif
 
  private:
   WeakPtr<CheckedObserver> weak_ptr_;
-#if DCHECK_IS_ON()
-  base::debug::StackTrace stack_;
-#endif
 };
 
 // Wraps a pointer in a stack-allocated, base::LinkNode. The node is
