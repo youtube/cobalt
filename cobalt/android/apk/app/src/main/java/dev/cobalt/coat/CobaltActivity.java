@@ -76,6 +76,9 @@ public abstract class CobaltActivity extends Activity {
   // to prevent them from being garbage collected prematurely.
   private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
 
+  @SuppressWarnings("unused")
+  private CobaltA11yHelper a11yHelper;
+
   private VideoSurfaceView videoSurfaceView;
 
   private boolean forceCreateNewVideoSurfaceView;
@@ -247,9 +250,16 @@ public abstract class CobaltActivity extends Activity {
 
   protected static Optional<KeyEvent> getRemappedKeyEvent(int keyCode, int action) {
     int mappedKeyCode;
+
+    // call for D-pad nav key as well.
     if (keyCode == KeyEvent.KEYCODE_BACK) {
       mappedKeyCode = KeyEvent.KEYCODE_ESCAPE;
-    } else {
+    } else if (keyCode == KeyEvent.KEYCODE_DPAD_UP ||  keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ||  keyCode == KeyEvent.KEYCODE_DPAD_DOWN){
+      mappedKeyCode = keyCode;
+    } else if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
+      mappedKeyCode = keyCode;
+    }
+    else {
       return Optional.empty();
     }
     // |KeyEvent| needs to be created with |downTime| and |eventTime| set. If they are not set the
@@ -276,6 +286,7 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
+    Log.i(TAG, "TTS: keyCode: " + keyCode);
     return tryDispatchRemappedKey(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
   }
 
@@ -372,6 +383,7 @@ public abstract class CobaltActivity extends Activity {
     createContent(savedInstanceState);
 
     videoSurfaceView = new VideoSurfaceView(this);
+    a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
   }
@@ -638,7 +650,9 @@ public abstract class CobaltActivity extends Activity {
       FrameLayout frameLayout = (FrameLayout) parent;
       int index = frameLayout.indexOfChild(videoSurfaceView);
       frameLayout.removeView(videoSurfaceView);
+
       videoSurfaceView = new VideoSurfaceView(this);
+      a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
       frameLayout.addView(
           videoSurfaceView,
           index,
