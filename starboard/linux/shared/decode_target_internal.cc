@@ -181,7 +181,7 @@ SbDecodeTarget DecodeTargetCreate(
   params.decode_target_out = decode_target;
   params.frame = frame;
 
-  if (!provider) {
+  /*if (!provider) {
     if (SbDecodeTargetIsValid(params.decode_target_out)) {
       // Should the decode target have been created and the GLES context been
       // somehow lost, it is released without the context
@@ -191,7 +191,20 @@ SbDecodeTarget DecodeTargetCreate(
   } else {
     SbDecodeTargetRunInGlesContext(
         provider, &CreateTargetFromVideoFrameWithContextRunner, &params);
+  }*/
+
+  if (!SbDecodeTargetIsValid(params.decode_target_out)) {
+    params.decode_target_out = new SbDecodeTargetPrivate;
+    params.decode_target_out->data = new SbDecodeTargetPrivate::Data;
   }
+
+  SbDecodeTargetInfo& target_info = params.decode_target_out->data->info;
+  target_info.pixel_buffer = frame->pixel_buffer();
+  target_info.y_stride = frame->y_stride();
+  target_info.uv_stride = frame->uv_stride();
+  target_info.width = frame->width();
+  target_info.height = frame->height();
+  target_info.timestamp = frame->timestamp();
 
   return params.decode_target_out;
 }

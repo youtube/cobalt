@@ -118,6 +118,7 @@ StarboardRenderer::StarboardRenderer(
     : state_(STATE_UNINITIALIZED),
       task_runner_(task_runner),
       video_renderer_sink_(video_renderer_sink),
+      video_renderer_sink_started_(false),
       media_log_(media_log),
       video_overlay_factory_(std::move(video_overlay_factory)),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
@@ -138,6 +139,12 @@ StarboardRenderer::~StarboardRenderer() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   LOG(INFO) << "Destructing StarboardRenderer.";
+
+  if (video_renderer_sink_started_) {
+    video_renderer_sink_started_ = false;
+    video_renderer_sink_->Stop();
+    LOG(ERROR) << "Cobalt: " << __func__ << " stop sink";
+  }
 
   // Explicitly reset |player_bridge_| before destroying it.
   // Some functions in this class using `player_bridge_` can be called
@@ -280,6 +287,12 @@ void StarboardRenderer::Flush(base::OnceClosure flush_cb) {
   DCHECK(!pending_flush_cb_);
   DCHECK(flush_cb);
 
+  if (video_renderer_sink_started_) {
+    video_renderer_sink_started_ = false;
+    video_renderer_sink_->Stop();
+    LOG(ERROR) << "Cobalt: " << __func__ << " start stop";
+  }
+
   if (!player_bridge_) {
     return;
   }
@@ -335,6 +348,13 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   if (player_bridge_initialized_) {
     state_ = STATE_PLAYING;
     player_bridge_->Seek(time);
+    if (player_bridge_->GetSbPlayerOutputMode() ==
+            kSbPlayerOutputModeDecodeToTexture &&
+        !video_renderer_sink_started_) {
+      video_renderer_sink_started_ = true;
+      video_renderer_sink_->Start(this);
+      LOG(ERROR) << "Cobalt: " << __func__ << " start sink";
+    }
     return;
   }
 
@@ -358,6 +378,26 @@ void StarboardRenderer::SetPlaybackRate(double playback_rate) {
 
   if (playback_rate_ == playback_rate) {
     return;
+  }
+
+  if (playback_rate_ == 0 && playback_rate > 0) {
+    if (player_bridge_ &&
+        player_bridge_->GetSbPlayerOutputMode() ==
+            kSbPlayerOutputModeDecodeToTexture &&
+        !video_renderer_sink_started_) {
+      video_renderer_sink_started_ = true;
+      video_renderer_sink_->Start(this);
+      LOG(ERROR) << "Cobalt: " << __func__ << " start sink";
+    }
+  } else if (playback_rate_ > 0 && playback_rate == 0) {
+    if (player_bridge_ &&
+        player_bridge_->GetSbPlayerOutputMode() ==
+            kSbPlayerOutputModeDecodeToTexture &&
+        video_renderer_sink_started_) {
+      video_renderer_sink_started_ = false;
+      video_renderer_sink_->Stop();
+      LOG(ERROR) << "Cobalt: " << __func__ << " stop sink";
+    }
   }
 
   playback_rate_ = playback_rate;
@@ -492,10 +532,8 @@ void StarboardRenderer::CreatePlayerBridge() {
     LOG(INFO) << "Creating SbPlayerBridge.";
 
     player_bridge_.reset(new SbPlayerBridge(
-        &sbplayer_interface_, task_runner_,
-        // TODO(b/375070492): Implement decode-to-texture support
-        SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
-        audio_config, audio_mime_type, video_config, video_mime_type,
+        &sbplayer_interface_, task_runner_, audio_config, audio_mime_type,
+        video_config, video_mime_type,
         // TODO(b/326497953): Support suspend/resume.
         // TODO(b/326508279): Support background mode.
         kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
@@ -503,7 +541,8 @@ void StarboardRenderer::CreatePlayerBridge() {
         false,
         // TODO(b/326825450): Revisit 360 videos.
         // TODO(b/326827007): Support secondary videos.
-        kSbPlayerOutputModeInvalid,
+        // TODO(borongchen): change to kSbPlayerOutputModeInvalid
+        kSbPlayerOutputModeDecodeToTexture,
         // TODO(b/326827007): Support secondary videos.
         "",
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
@@ -582,8 +621,13 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
       content_size_change_cb_.Run();
     }
 #endif  // 0
-    video_renderer_sink_->PaintSingleFrame(video_overlay_factory_->CreateFrame(
-        stream->video_decoder_config().visible_rect().size()));
+    if (player_bridge_->GetSbPlayerOutputMode() ==
+        kSbPlayerOutputModePunchOut) {
+      DCHECK(!video_renderer_sink_started_);
+      video_renderer_sink_->PaintSingleFrame(
+          video_overlay_factory_->CreateFrame(
+              stream->video_decoder_config().visible_rect().size()));
+    }
   }
 }
 
@@ -660,9 +704,13 @@ void StarboardRenderer::OnDemuxerStreamRead(
       // TODO(b/375275033): Refine calling to OnVideoNaturalSizeChange().
       client_->OnVideoNaturalSizeChange(
           stream->video_decoder_config().visible_rect().size());
-      video_renderer_sink_->PaintSingleFrame(
-          video_overlay_factory_->CreateFrame(
-              stream->video_decoder_config().visible_rect().size()));
+      if (player_bridge_->GetSbPlayerOutputMode() ==
+          kSbPlayerOutputModePunchOut) {
+        DCHECK(!video_renderer_sink_started_);
+        video_renderer_sink_->PaintSingleFrame(
+            video_overlay_factory_->CreateFrame(
+                stream->video_decoder_config().visible_rect().size()));
+      }
     }
     UpdateDecoderConfig(stream);
     stream->Read(1, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
@@ -938,6 +986,51 @@ int StarboardRenderer::GetEstimatedMaxBuffers(TimeDelta write_duration,
   // The maximum number samples of write should be guarded by
   // SbPlayerGetMaximumNumberOfSamplesPerWrite() in OnNeedData().
   return estimated_max_buffers > 0 ? estimated_max_buffers : 1;
+}
+
+scoped_refptr<VideoFrame> StarboardRenderer::Render(
+    base::TimeTicks deadline_min,
+    base::TimeTicks deadline_max,
+    RenderingMode rendering_mode) {
+  if (player_bridge_ && player_bridge_->IsValid()) {
+    DCHECK(player_bridge_->GetSbPlayerOutputMode() ==
+           kSbPlayerOutputModeDecodeToTexture);
+    SbDecodeTarget decode_target = player_bridge_->GetCurrentSbDecodeTarget();
+    if (SbDecodeTargetIsValid(decode_target)) {
+      auto info = std::make_unique<SbDecodeTargetInfo>();
+      memset(info.get(), 0, sizeof(SbDecodeTargetInfo));
+      CHECK(SbDecodeTargetGetInfo(decode_target, info.get()));
+
+      // TODO(borongchen): support decode-to-texture on android
+      // PIXEL_FORMAT_I420: Decoded image from SbPlayer is 4:2:0 and 8bits.
+      int uv_height = info.get()->height / 2 + info.get()->height % 2;
+      int y_plane_size_in_bytes = info.get()->height * info.get()->y_stride;
+      int uv_plane_size_in_bytes = uv_height * info.get()->uv_stride;
+      auto size = gfx::Size(info.get()->width, info.get()->height);
+      auto frame = VideoFrame::WrapExternalYuvData(
+          PIXEL_FORMAT_I420, size, gfx::Rect(size), size, info.get()->y_stride,
+          info.get()->uv_stride, info.get()->uv_stride,
+          info.get()->pixel_buffer,
+          info.get()->pixel_buffer + y_plane_size_in_bytes,
+          info.get()->pixel_buffer + y_plane_size_in_bytes +
+              uv_plane_size_in_bytes,
+          base::Microseconds(info.get()->timestamp));
+      // Ensure image data stays alive along enough.
+      frame->AddDestructionObserver(
+          base::DoNothingWithBoundArgs(std::move(info)));
+      return frame;
+    }
+  }
+  return nullptr;
+}
+
+void StarboardRenderer::OnFrameDropped() {
+  // no-op: dropped frame is handled by SbPlayer.
+}
+
+base::TimeDelta StarboardRenderer::GetPreferredRenderInterval() {
+  // TODO(borongchen): Refine render interval for decode-to-texture mode.
+  return base::Milliseconds(500);
 }
 
 }  // namespace media
