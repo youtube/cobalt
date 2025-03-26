@@ -4,7 +4,11 @@ runs:
   using: "composite"
   steps:
       - name: Get depot tools
-        run: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+        env:
+          DEPOT_TOOLS_REVISION: 22e5a04e5975a4308c15b45b34b1b120bd0c7224
+        run: |
+          git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+          git -C $GITHUB_WORKSPACE/depot_tools reset --hard ${DEPOT_TOOLS_REVISION}
         shell: bash
       - name: Add depot tools to PATH
         run: echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
