@@ -26,6 +26,10 @@
 #include "third_party/blink/public/mojom/storage_access/storage_access_automation.mojom-forward.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request_automation.mojom-forward.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom-forward.h"
+#endif
+
 namespace blink {
 namespace web_pref {
 struct WebPreferences;
@@ -40,6 +44,10 @@ class MockBadgeService;
 class MockClipboardHost;
 class WebTestBrowserContext;
 class WebTestSensorProviderManager;
+
+#if BUILDFLAG(IS_COBALT)
+class StubH5vccRuntimeImpl;
+#endif
 
 class WebTestContentBrowserClient : public ShellContentBrowserClient {
  public:
@@ -170,6 +178,11 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
 
   void BindNonAssociatedWebTestControlHost(
       mojo::PendingReceiver<mojom::NonAssociatedWebTestControlHost> receiver);
+#if BUILDFLAG(IS_COBALT)
+  void BindH5vccRuntime(
+      RenderFrameHost* render_frame_host,
+      mojo::PendingReceiver<h5vcc_runtime::mojom::H5vccRuntime> receiver);
+#endif
 
   bool block_popups_ = true;
   bool screen_orientation_changed_ = false;
@@ -184,6 +197,10 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
       cookie_managers_;
   mojo::UniqueReceiverSet<blink::test::mojom::FederatedAuthRequestAutomation>
       fedcm_managers_;
+
+#if BUILDFLAG(IS_COBALT)
+  std::unique_ptr<StubH5vccRuntimeImpl> stub_h5vcc_runtime_impl_;
+#endif
 };
 
 }  // namespace content
