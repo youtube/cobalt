@@ -97,6 +97,11 @@
 #include "sandbox/win/src/sandbox.h"
 #endif
 
+#if BUILDFLAG(IS_COBALT)
+#include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
+#include "cobalt/testing/h5vcc_runtime/stub_h5vcc_runtime_impl.h"
+#endif
+
 namespace content {
 namespace {
 
@@ -551,6 +556,10 @@ void WebTestContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
   map->Add<blink::test::mojom::WebSensorProviderAutomation>(base::BindRepeating(
       &WebTestContentBrowserClient::BindWebSensorProviderAutomation,
       base::Unretained(this)));
+#if BUILDFLAG(IS_COBALT)
+  map->Add<h5vcc_runtime::mojom::H5vccRuntime>(base::BindRepeating(
+      &WebTestContentBrowserClient::BindH5vccRuntime, base::Unretained(this)));
+#endif
 }
 
 bool WebTestContentBrowserClient::CanAcceptUntrustedExchangesIfNeeded() {
@@ -621,6 +630,16 @@ void WebTestContentBrowserClient::BindWebSensorProviderAutomation(
   }
   sensor_provider_manager_->Bind(std::move(receiver));
 }
+
+#if BUILDFLAG(IS_COBALT)
+void WebTestContentBrowserClient::BindH5vccRuntime(
+    RenderFrameHost* render_frame_host,
+    mojo::PendingReceiver<h5vcc_runtime::mojom::H5vccRuntime> receiver) {
+  if (!stub_h5vcc_runtime_impl_)
+    stub_h5vcc_runtime_impl_ = std::make_unique<StubH5vccRuntimeImpl>();
+  stub_h5vcc_runtime_impl_->Bind(std::move(receiver));
+}
+#endif
 
 std::unique_ptr<LoginDelegate> WebTestContentBrowserClient::CreateLoginDelegate(
     const net::AuthChallengeInfo& auth_info,
