@@ -133,7 +133,6 @@ class BASE_EXPORT TimeDelta {
  public:
   constexpr TimeDelta() = default;
 
-#if BUILDFLAG(IS_STARBOARD) && 0
   static constexpr int64_t kHoursPerDay = 24;
   static constexpr int64_t kSecondsPerMinute = 60;
   static constexpr int64_t kMinutesPerHour = 60;
@@ -206,7 +205,7 @@ class BASE_EXPORT TimeDelta {
                                             MakeClampedNum(n))
             : TimeDelta::Max();
   }
-#elif BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_WIN)
   static TimeDelta FromQPCValue(LONGLONG qpc_value);
   // TODO(crbug.com/989694): Avoid base::TimeDelta factory functions
   // based on absolute time

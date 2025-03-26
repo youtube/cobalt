@@ -17,6 +17,7 @@
 #include "base/notreached.h"
 #include "base/path_service.h"
 #include "base/version.h"
+#include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "components/metrics/metrics_log_uploader.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
@@ -25,12 +26,11 @@
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/synthetic_trial_registry.h"
 #include "content/public/common/content_paths.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "url/gurl.h"
 
 namespace cobalt {
-
-namespace {
 
 class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
  public:
@@ -38,18 +38,39 @@ class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
   ~CobaltMetricsLogUploader() = default;
 
   void UploadLog(const std::string& compressed_log_data,
-                 const std::string& log_hash,
-                 const std::string& log_signature,
-                 const metrics::ReportingInfo& reporting_info) {
-    // TODO(b/372559349): Add logic here to report the Blob to the WebApp.
-    NOTIMPLEMENTED();
+                 const std::string& /*log_hash*/,
+                 const std::string& /*log_signature*/,
+                 const metrics::ReportingInfo& /*reporting_info*/) {
+    if (metrics_listener_.is_bound()) {
+      metrics_listener_->OnMetrics(compressed_log_data);
+    }
   }
+
+  void SetMetricsListener(
+      ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener) {
+    metrics_listener_.Bind(std::move(listener));
+  }
+
+  base::WeakPtr<CobaltMetricsLogUploader> GetWeakPtr() {
+    return weak_factory_.GetWeakPtr();
+  }
+
+ private:
+  mojo::Remote<h5vcc_metrics::mojom::MetricsListener> metrics_listener_;
+
+  base::WeakPtrFactory<CobaltMetricsLogUploader> weak_factory_{this};
 };
 
-}  // namespace
+// static
+CobaltMetricsServiceClient* CobaltMetricsServiceClient::GetInstance() {
+  static base::NoDestructor<CobaltMetricsServiceClient> provider;
+  return provider.get();
+}
 
 CobaltMetricsServiceClient::CobaltMetricsServiceClient()
-    : synthetic_trial_registry_(new variations::SyntheticTrialRegistry) {
+    : synthetic_trial_registry_(new variations::SyntheticTrialRegistry),
+      log_uploader_(std::make_unique<CobaltMetricsLogUploader>()),
+      log_uploader_weak_ptr_(log_uploader_->GetWeakPtr()) {
   DETACH_FROM_THREAD(thread_checker_);
 
   // TODO(b/372559349): Extract initialization into a method if any of the
@@ -213,16 +234,16 @@ CobaltMetricsServiceClient::CreateUploader(
     const metrics::MetricsLogUploader::UploadCallback& on_upload_complete) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
-  // TODO(b/372559349): In all likelihood, pass the parameters.
-  return std::make_unique<CobaltMetricsLogUploader>();
+  // CreateUploader() should never be called more than once.
+  CHECK(log_uploader_);
+  return std::move(log_uploader_);
 }
 
 base::TimeDelta CobaltMetricsServiceClient::GetStandardUploadInterval() {
   // TODO(b/372559349): Wire this to the appropriate Web platform IDL method.
-  const int kStandardUploadIntervalMinutes = 5;
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
-  return base::Minutes(kStandardUploadIntervalMinutes);
+  return reporting_interval_;
 }
 
 bool CobaltMetricsServiceClient::IsConsentGiven() const {
@@ -232,10 +253,27 @@ bool CobaltMetricsServiceClient::IsConsentGiven() const {
 }
 
 bool CobaltMetricsServiceClient::IsReportingEnabled() const {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // TODO(b/372559349): Usually TOS should be verified accepted here.
-  // TODO(b/372559349): Wire this to the appropriate Web platform IDL.
-  NOTIMPLEMENTED();
-  return false;
+  return is_reporting_enabled_;
+}
+
+void CobaltMetricsServiceClient::set_reporting_enabled(bool enable) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  is_reporting_enabled_ = enable;
+}
+
+void CobaltMetricsServiceClient::set_reporting_interval(
+    base::TimeDelta interval) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  reporting_interval_ = interval;
+}
+
+void CobaltMetricsServiceClient::SetMetricsListener(
+    ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  DCHECK(log_uploader_weak_ptr_);
+  log_uploader_weak_ptr_->SetMetricsListener(std::move(listener));
 }
 
 }  // namespace cobalt

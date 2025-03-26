@@ -16,7 +16,9 @@
 
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
+#include "base/time/time.h"
 #include "build/build_config.h"
+#include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -41,18 +43,21 @@ void H5vccMetricsImpl::Create(
 
 void H5vccMetricsImpl::AddListener(
     ::mojo::PendingRemote<mojom::MetricsListener> listener) {
-  NOTIMPLEMENTED();
+  cobalt::CobaltMetricsServiceClient::GetInstance()->SetMetricsListener(
+      std::move(listener));
 }
 
 void H5vccMetricsImpl::Enable(bool enable, EnableCallback callback) {
-  NOTIMPLEMENTED();
+  cobalt::CobaltMetricsServiceClient::GetInstance()->set_reporting_enabled(
+      enable);
   std::move(callback).Run();
 }
 
 void H5vccMetricsImpl::SetMetricEventInterval(
     uint64_t interval_seconds,
     SetMetricEventIntervalCallback callback) {
-  NOTIMPLEMENTED();
+  cobalt::CobaltMetricsServiceClient::GetInstance()->set_reporting_interval(
+      base::TimeDelta::FromSeconds(interval_seconds));
   std::move(callback).Run();
 }
 
