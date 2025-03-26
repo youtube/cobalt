@@ -21,7 +21,11 @@ blink_modules_sources("h_5_vcc") {
   ]
   deps = [
     "//third_party/blink/renderer/modules/cobalt/crash_log",
+<<<<<<< HEAD
     "//third_party/blink/renderer/modules/cobalt/encryptedmedia",
+=======
+    "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility",
+>>>>>>> 168a5a6fc19 (Add window.h5vcc.accessibility (#5154))
     "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics",
     "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime",
     "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
