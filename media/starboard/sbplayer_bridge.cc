@@ -910,11 +910,10 @@ void SbPlayerBridge::WriteBuffersInternal(
       break;
     }
 
-    DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->data());
-    if (iter == decoding_buffers_.end()) {
-      decoding_buffers_[buffer->data()] = std::make_pair(buffer, 1);
-    } else {
-      ++iter->second.second;
+    if (auto [iter, inserted] = decoding_buffers_.try_emplace(
+            buffer->data(), buffer, /*usage_count=*/1);
+        !inserted) {
+      ++iter->second.usage_count;
     }
 
     if (sample_type == kSbMediaTypeAudio &&
@@ -1179,8 +1178,10 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
                << "sample_buffer " << sample_buffer;
     return;
   }
-  --iter->second.second;
-  if (iter->second.second == 0) {
+  DecodingBuffer& decoding_buffer = iter->second;
+  --decoding_buffer.usage_count;
+  DCHECK_GE(decoding_buffer.usage_count, 0);
+  if (decoding_buffer.usage_count == 0) {
     decoding_buffers_.erase(iter);
   }
 }
