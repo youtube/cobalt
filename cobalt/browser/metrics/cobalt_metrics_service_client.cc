@@ -15,17 +15,12 @@
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 
 #include "base/notreached.h"
-#include "base/path_service.h"
 #include "base/version.h"
 #include "components/metrics/metrics_log_uploader.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
-#include "components/prefs/in_memory_pref_store.h"
-#include "components/prefs/pref_registry_simple.h"
-#include "components/prefs/pref_service_factory.h"
+#include "components/prefs/pref_service.h"
 #include "components/variations/synthetic_trial_registry.h"
-#include "content/public/common/content_paths.h"
-#include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -48,59 +43,32 @@ class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
 
 }  // namespace
 
-CobaltMetricsServiceClient::CobaltMetricsServiceClient()
-    : synthetic_trial_registry_(new variations::SyntheticTrialRegistry) {
-  DETACH_FROM_THREAD(thread_checker_);
+CobaltMetricsServiceClient::CobaltMetricsServiceClient(
+    metrics::MetricsStateManager* state_manager,
+    variations::SyntheticTrialRegistry* synthetic_trial_registry,
+    PrefService* local_state)
+    : metrics_state_manager_(state_manager),
+      synthetic_trial_registry_(synthetic_trial_registry),
+      local_state_(local_state) {}
 
-  // TODO(b/372559349): Extract initialization into a method if any of the
-  // following calls can fail (e.g. base::PathService::Get()).
-
-  // No need to make `pref_registry` a member, `pref_service_` will keep a
-  // reference to it.
-  auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
-  metrics::MetricsService::RegisterPrefs(pref_registry.get());
-
-  PrefServiceFactory pref_service_factory;
-  // TODO(b/397929564): Investigate using a Chrome's memory-mapped file store
-  // instead of in-memory.
-  pref_service_factory.set_user_prefs(
-      base::MakeRefCounted<InMemoryPrefStore>());
-
-  pref_service_ = pref_service_factory.Create(std::move(pref_registry));
-  CHECK(pref_service_);
-  // `local_state` is a common alias used in Content embedders.
-  auto* local_state = pref_service_.get();
-
-  base::FilePath user_data_dir;
-  // TODO(b/372559349): use a real path.
-  base::PathService::Get(content::PATH_START, &user_data_dir);
-
-  metrics_state_manager_ = metrics::MetricsStateManager::Create(
-      local_state, /* enabled_state_provider= */ this,
-      /* backup_registry_key= */ std::wstring(), user_data_dir
-      // Other params left as by-default.
-  );
-  metrics_state_manager_->InstantiateFieldTrialList();
-
+void CobaltMetricsServiceClient::Initialize() {
   metrics_service_ = std::make_unique<metrics::MetricsService>(
-      metrics_state_manager_.get(), this, pref_service_.get());
-  metrics_service_->InitializeMetricsRecordingState();
+      metrics_state_manager_.get(), this, local_state_.get());
 }
 
-CobaltMetricsServiceClient::~CobaltMetricsServiceClient() {
-  Stop();
-}
+// static
+std::unique_ptr<CobaltMetricsServiceClient> CobaltMetricsServiceClient::Create(
+    metrics::MetricsStateManager* state_manager,
+    variations::SyntheticTrialRegistry* synthetic_trial_registry,
+    PrefService* local_state) {
+  // Perform two-phase initialization so that `client->metrics_service_` only
+  // receives pointers to fully constructed objects.
+  std::unique_ptr<CobaltMetricsServiceClient> client(
+      new CobaltMetricsServiceClient(state_manager, synthetic_trial_registry,
+                                     local_state));
+  client->Initialize();
 
-void CobaltMetricsServiceClient::Start() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(IsInitialized());
-  metrics_service_->Start();
-}
-
-void CobaltMetricsServiceClient::Stop() {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(IsInitialized());
-  metrics_service_->Stop();
+  return client;
 }
 
 variations::SyntheticTrialRegistry*
@@ -223,19 +191,6 @@ base::TimeDelta CobaltMetricsServiceClient::GetStandardUploadInterval() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
   return base::Minutes(kStandardUploadIntervalMinutes);
-}
-
-bool CobaltMetricsServiceClient::IsConsentGiven() const {
-  // TODO(b/372559349): User consent should be verified here.
-  NOTIMPLEMENTED();
-  return true;
-}
-
-bool CobaltMetricsServiceClient::IsReportingEnabled() const {
-  // TODO(b/372559349): Usually TOS should be verified accepted here.
-  // TODO(b/372559349): Wire this to the appropriate Web platform IDL.
-  NOTIMPLEMENTED();
-  return false;
 }
 
 }  // namespace cobalt
