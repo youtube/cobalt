@@ -16,7 +16,6 @@
 #define COBALT_METRICS_SERVICE_CLIENT_H_
 
 #include "base/threading/thread_checker.h"
-#include "components/metrics/enabled_state_provider.h"
 #include "components/metrics/metrics_service_client.h"
 
 class PrefService;
@@ -33,30 +32,24 @@ class SyntheticTrialRegistry;
 namespace cobalt {
 
 // This class allows for necessary customizations of metrics::MetricsService,
-// the central metrics (e.g. UMA) collecting and reporting control. It's also a
-// EnabledStateProvider to provide information of consent/activation of metrics
-// reporting. Threading: this class is intended to be used on a single thread
-// after construction. Usually it's created in the early Browser times (e.g.
+// the central metrics (e.g. UMA) collecting and reporting control. Threading:
+// this class is intended to be used on a single thread after construction.
+// Usually it's created in the early Browser times (e.g.
 // BrowserMainParts::PreCreateThreads, so in practice threading doesn't matter
 // much.
-//
-// TODO(b/372559349): Chromium also provides a MetricsServicesManager/Client
-// pair to wrangle together metrics, variations, etc. If needed or interesting,
-// CobaltMetricsServiceClient could be embedded in a hypothetical
-// CobaltMetricsServicesManager/Client.
-class CobaltMetricsServiceClient : public metrics::MetricsServiceClient,
-                                   public metrics::EnabledStateProvider {
+class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
  public:
-  CobaltMetricsServiceClient();
-  ~CobaltMetricsServiceClient() override;
+  ~CobaltMetricsServiceClient() override = default;
 
   CobaltMetricsServiceClient(const CobaltMetricsServiceClient&) = delete;
   CobaltMetricsServiceClient& operator=(const CobaltMetricsServiceClient&) =
       delete;
 
-  // Starts or stops recording and reporting of metrics.
-  void Start();
-  void Stop();
+  // Factory function.
+  static std::unique_ptr<CobaltMetricsServiceClient> Create(
+      metrics::MetricsStateManager* state_manager,
+      variations::SyntheticTrialRegistry* synthetic_trial_registry,
+      PrefService* local_state);
 
   // ::metrics::MetricsServiceClient:
   variations::SyntheticTrialRegistry* GetSyntheticTrialRegistry() override;
@@ -81,15 +74,22 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient,
   base::TimeDelta GetStandardUploadInterval() override;
   // Of note: GetStorageLimits() can also be overridden.
 
-  // ::metrics::EnabledStateProvider:
-  bool IsConsentGiven() const override;
-  bool IsReportingEnabled() const override;
+ protected:
+  explicit CobaltMetricsServiceClient(
+      metrics::MetricsStateManager* state_manager,
+      variations::SyntheticTrialRegistry* synthetic_trial_registry,
+      PrefService* local_state);
+
+  // Completes the two-phase initialization of CobaltMetricsServiceClient.
+  void Initialize();
 
  private:
-  std::unique_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
+  const raw_ptr<variations::SyntheticTrialRegistry> synthetic_trial_registry_;
 
-  std::unique_ptr<PrefService> pref_service_;
-  std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager_;
+  const raw_ptr<PrefService> local_state_;
+
+  const raw_ptr<metrics::MetricsStateManager> metrics_state_manager_;
+
   std::unique_ptr<metrics::MetricsService> metrics_service_;
 
   // For DCHECK()s.
