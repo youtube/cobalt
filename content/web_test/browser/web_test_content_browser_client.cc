@@ -97,7 +97,7 @@
 
 #if BUILDFLAG(IS_COBALT)
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
-#include "content/test/cobalt/stub_h5vcc_runtime_impl.h"
+#include "cobalt/testing/h5vcc_runtime/stub_h5vcc_runtime_impl.h"
 #endif
 
 namespace content {

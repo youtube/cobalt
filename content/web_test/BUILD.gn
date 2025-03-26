@@ -244,7 +244,10 @@ static_library("web_test_browser") {
   }
 
   if (is_cobalt) {
-    deps += [ "//cobalt/browser/h5vcc_runtime/public/mojom" ]
+    deps += [
+      "//cobalt/browser/h5vcc_runtime/public/mojom",
+      "//cobalt/testing/h5vcc_runtime:stub_h5vcc_runtime",
+    ]
   }
 }
 

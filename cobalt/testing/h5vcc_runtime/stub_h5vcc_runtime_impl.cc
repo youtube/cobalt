@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "content/test/cobalt/stub_h5vcc_runtime_impl.h"
+#include "cobalt/testing/h5vcc_runtime/stub_h5vcc_runtime_impl.h"
 
 #include <utility>
 
@@ -26,8 +26,6 @@ void StubH5vccRuntimeImpl::Bind(
     mojo::PendingReceiver<h5vcc_runtime::mojom::H5vccRuntime> receiver) {
   receivers_.Add(this, std::move(receiver));
 }
-
-void StubH5vccRuntimeImpl::Reset() {}
 
 void StubH5vccRuntimeImpl::GetAndClearInitialDeepLinkSync(
     GetAndClearInitialDeepLinkSyncCallback callback) {

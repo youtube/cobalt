@@ -467,13 +467,6 @@ static_library("test_support") {
     "web_contents_observer_test_utils.h",
   ]
 
-  if (is_cobalt) {
-    sources += [
-      "cobalt/stub_h5vcc_runtime_impl.cc",
-      "cobalt/stub_h5vcc_runtime_impl.h",
-    ]
-  }
-
   configs += [
     "//build/config:precompiled_headers",
     "//v8:external_startup_data",
@@ -605,10 +598,6 @@ static_library("test_support") {
     "//url/mojom:url_mojom_gurl",
     "//v8",
   ]
-
-  if (is_cobalt) {
-    deps += [ "//cobalt/browser/h5vcc_runtime/public/mojom" ]
-  }
 
   data_deps = [
     "//content/shell:pak",

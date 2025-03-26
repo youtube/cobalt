@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef CONTENT_TEST_COBALT_STUB_H5VCC_RUNTIME_IMPL_H_
-#define CONTENT_TEST_COBALT_STUB_H5VCC_RUNTIME_IMPL_H_
+#ifndef COBALT_TESTING_H5VCC_RUNTIME_STUB_H5VCC_RUNTIME_IMPL_H_
+#define COBALT_TESTING_H5VCC_RUNTIME_STUB_H5VCC_RUNTIME_IMPL_H_
 
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
 #include "mojo/public/cpp/bindings/receiver_set.h"
@@ -31,6 +31,8 @@ namespace content {
 // other web tests rely on
 // WebTestContentBrowserClient::RegisterBrowserInterfaceBindersForFrame to
 // provide the binding, using this stub.
+//
+// See content::MockBadgeService as an example of a similar class from upstream.
 class StubH5vccRuntimeImpl : public h5vcc_runtime::mojom::H5vccRuntime {
  public:
   StubH5vccRuntimeImpl();
@@ -39,7 +41,6 @@ class StubH5vccRuntimeImpl : public h5vcc_runtime::mojom::H5vccRuntime {
   ~StubH5vccRuntimeImpl() override;
 
   void Bind(mojo::PendingReceiver<h5vcc_runtime::mojom::H5vccRuntime> receiver);
-  void Reset();
 
   // h5vcc_runtime::mojom::H5vccRuntime impl.
   void GetAndClearInitialDeepLinkSync(
@@ -50,9 +51,14 @@ class StubH5vccRuntimeImpl : public h5vcc_runtime::mojom::H5vccRuntime {
                        listener) override;
 
  private:
+  // Although we don't expect multiple clients to connect, ReceiverSet is used
+  // instead of a Receiver to maintain consistency with upstream examples such
+  // as content::MockBadgeService. content::MockBadgeService also doesn't seem
+  // to have multiple clients connect, so ReceiverSet may have just been deemed
+  // easier to use in the mock/stub Mojo implementations and their clients.
   mojo::ReceiverSet<h5vcc_runtime::mojom::H5vccRuntime> receivers_;
 };
 
 }  // namespace content
 
-#endif  // CONTENT_TEST_COBALT_STUB_H5VCC_RUNTIME_IMPL_H_
+#endif  // COBALT_TESTING_H5VCC_RUNTIME_STUB_H5VCC_RUNTIME_IMPL_H_
