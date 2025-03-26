@@ -40,6 +40,8 @@ mojom("web_test_common_mojom") {
     # These deps automatically generate the JavaScript bindings.
     public_deps += [
       "//cobalt/browser/crash_annotator/public/mojom",
+      # TODO(b/391708407): Add web tests for window.accessibility
+      #"//cobalt/browser/h5vcc_accessibility/public/mojom",
       "//cobalt/browser/h5vcc_runtime/public/mojom",
       "//cobalt/browser/h5vcc_system/public/mojom",
     ]
