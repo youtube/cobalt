@@ -910,8 +910,8 @@ void SbPlayerBridge::WriteBuffersInternal(
       break;
     }
 
-    if (auto [iter, inserted] =
-            decoding_buffers_.try_emplace(buffer->data(), buffer, 0);
+    if (auto [iter, inserted] = decoding_buffers_.try_emplace(
+            buffer->data(), buffer, /*usage_count=*/1);
         !inserted) {
       ++iter->second.usage_count;
     }
