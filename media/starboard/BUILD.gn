@@ -132,8 +132,7 @@ source_set("unit_tests") {
     sources += [
       "progressive/mock_data_source_reader.h",
       "progressive/mp4_map_unittest.cc",
-
-      # "progressive/rbsp_stream_unittest.cc",
+      "progressive/rbsp_stream_unittest.cc",
     ]
   }
   if (use_starboard_media) {
