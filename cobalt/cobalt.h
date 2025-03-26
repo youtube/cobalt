@@ -12,17 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module performance.mojom;
+#ifndef COBALT_COBALT_H_
+#define COBALT_COBALT_H_
 
-interface CobaltPerformance {
-  // Get the application start timestamp (us) in bytes.
-  [Sync]
-  GetAppStartTimestamp() => (int64 bytes);
-  // Get the amount of available memory on the device in bytes.
-  [Sync]
-  MeasureAvailableCpuMemory() => (uint64 bytes);
+int64_t GetStartTimestamp();
 
-  // Get the amount of used memory on the device in bytes.
-  [Sync]
-  MeasureUsedCpuMemory() => (uint64 bytes);
-};
+#endif  // COBALT_COBALT_H_

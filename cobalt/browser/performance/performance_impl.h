@@ -39,6 +39,7 @@ class PerformanceImpl
   PerformanceImpl(const PerformanceImpl&) = delete;
   PerformanceImpl& operator=(const PerformanceImpl&) = delete;
 
+  void GetAppStartTimestamp(GetAppStartTimestampCallback) override;
   void MeasureAvailableCpuMemory(MeasureAvailableCpuMemoryCallback) override;
   void MeasureUsedCpuMemory(MeasureAvailableCpuMemoryCallback) override;
 

@@ -18,6 +18,13 @@
 #include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "starboard/android/shared/starboard_bridge.h"
+
+using starboard::android::shared::StarboardBridge;
+#elif BUILDFLAG(IS_COBALT)
+#include "cobalt/cobalt.h"
+#endif
 
 namespace base {
 namespace {
@@ -157,6 +164,20 @@ void SysInfo::GetHardwareInfo(base::OnceCallback<void(HardwareInfo)> callback) {
   base::ThreadPool::PostTaskAndReplyWithResult(
       FROM_HERE, kTraits, base::BindOnce(&GetHardwareInfoSync),
       std::move(callback));
+}
+
+// static
+int64_t SysInfo::AppStartTimestamp() {
+#if BUILDFLAG(IS_ANDROIDTV)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+  int64_t app_start_timestamp_in_microseconds = starboard_bridge->GetAppStartTimestamp(env);
+#elif BUILDFLAG(IS_COBALT)
+  int64_t app_start_timestamp_in_microseconds = GetStartTimestamp();
+#else
+#error Unsupported platform.
+#endif
+  return app_start_timestamp_in_microseconds;
 }
 
 // static

@@ -21,11 +21,14 @@
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "content/common/content_constants_internal.h"
 #include "content/public/browser/render_frame_host.h"
+#include "starboard/common/time.h"
 
 namespace cobalt {
 
 CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
-    : content::ShellMainDelegate(is_content_browsertests) {}
+    : content::ShellMainDelegate(is_content_browsertests) {
+  start_timestamp_ = starboard::CurrentPosixTime();
+}
 
 CobaltMainDelegate::~CobaltMainDelegate() {}
 
@@ -80,6 +83,10 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
   // the system message loop for ContentShell, and we're already done thanks
   // to the |ui_task| for browser tests.
   return 0;
+}
+
+int64_t CobaltMainDelegate::GetStartTimestamp() {
+  return start_timestamp_;
 }
 
 void CobaltMainDelegate::Shutdown() {

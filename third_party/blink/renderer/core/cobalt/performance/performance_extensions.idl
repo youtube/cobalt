@@ -2,6 +2,9 @@
 [
     ImplementedAs=PerformanceExtensions
 ] partial interface Performance {
+    // Returns the application start timestamp (us) in bytes, according to
+    // base::SysInfo::AppStartTimestamp().
+    [CallWith=ScriptState] long long getAppStartTimestamp();
     // Returns the amount of available memory on the device in bytes, according
     // to base::SysInfo::AmountOfAvailablePhysicalMemory().
     [CallWith=ScriptState] unsigned long long measureAvailableCpuMemory();
