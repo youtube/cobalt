@@ -15,6 +15,7 @@ ch-prefers-reduced-motion
 ch-rtt
 ch-save-data
 ch-ua
+ch-ua-android-os-experience
 ch-ua-arch
 ch-ua-bitness
 ch-ua-full-version

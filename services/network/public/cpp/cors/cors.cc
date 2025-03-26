@@ -316,6 +316,7 @@ bool IsCorsSafelistedHeader(const std::string& name, const std::string& value) {
       // `User-Agent`, using the Client Hints infrastructure.
       // https://tools.ietf.org/html/draft-west-ua-client-hints
       "sec-ch-ua",
+      "Sec-CH-UA-Co-Android-OS-Experience",
       "sec-ch-ua-arch",
       "sec-ch-ua-platform",
       "sec-ch-ua-model",

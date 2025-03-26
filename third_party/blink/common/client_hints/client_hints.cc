@@ -75,6 +75,8 @@ ClientHintToPolicyFeatureMap MakeClientHintToPolicyFeatureMap() {
        mojom::PermissionsPolicyFeature::kClientHintSaveData},
       {network::mojom::WebClientHintsType::kPrefersReducedMotion,
        mojom::PermissionsPolicyFeature::kClientHintPrefersReducedMotion},
+      {network::mojom::WebClientHintsType::kUAAndroidOSExperience,
+       mojom::PermissionsPolicyFeature::kClientHintUAAndroidOSExperience},
   };
 }
 
