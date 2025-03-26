@@ -28,6 +28,10 @@
 #include "third_party/blink/public/mojom/storage_access/storage_access_automation.mojom-forward.h"
 #include "third_party/blink/public/mojom/webid/federated_auth_request_automation.mojom-forward.h"
 
+#if BUILDFLAG(IS_COBALT)
+#include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom-forward.h"
+#endif
+
 namespace blink {
 namespace web_pref {
 struct WebPreferences;
@@ -42,6 +46,10 @@ class MockBadgeService;
 class MockClipboardHost;
 class WebTestBrowserContext;
 class WebTestSensorProviderManager;
+
+#if BUILDFLAG(IS_COBALT)
+class StubH5vccRuntimeImpl;
+#endif
 
 class WebTestContentBrowserClient : public ShellContentBrowserClient {
  public:
@@ -191,8 +199,16 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
       int render_process_id,
       mojo::PendingAssociatedReceiver<mojom::WebTestControlHost> receiver);
 
+<<<<<<< HEAD
   void BindNonAssociatedWebTestControlHost(
       mojo::PendingReceiver<mojom::NonAssociatedWebTestControlHost> receiver);
+=======
+#if BUILDFLAG(IS_COBALT)
+  void BindH5vccRuntime(
+      RenderFrameHost* render_frame_host,
+      mojo::PendingReceiver<h5vcc_runtime::mojom::H5vccRuntime> receiver);
+#endif
+>>>>>>> cafed399342 (Add binder for H5vccRuntime to fix other web tests (#5183))
 
   bool block_popups_ = true;
 
@@ -206,8 +222,17 @@ class WebTestContentBrowserClient : public ShellContentBrowserClient {
   std::unique_ptr<WebTestSensorProviderManager> sensor_provider_manager_;
   mojo::UniqueReceiverSet<blink::test::mojom::CookieManagerAutomation>
       cookie_managers_;
+<<<<<<< HEAD
   mojo::UniqueReceiverSet<blink::test::mojom::FederatedAuthRequestAutomation>
       fedcm_managers_;
+=======
+  mojo::UniqueReceiverSet<blink::test::mojom::AttributionReportingAutomation>
+      attribution_reporting_receivers_;
+
+#if BUILDFLAG(IS_COBALT)
+  std::unique_ptr<StubH5vccRuntimeImpl> stub_h5vcc_runtime_impl_;
+#endif
+>>>>>>> cafed399342 (Add binder for H5vccRuntime to fix other web tests (#5183))
 };
 
 }  // namespace content

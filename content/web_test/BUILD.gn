@@ -258,6 +258,20 @@ static_library("web_test_browser") {
   if (use_ozone) {
     deps += [ "//ui/ozone" ]
   }
+<<<<<<< HEAD
+=======
+
+  if (is_fuchsia) {
+    deps += [ "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.ui.scenic:fuchsia.ui.scenic_hlcpp" ]
+  }
+
+  if (is_cobalt) {
+    deps += [
+      "//cobalt/browser/h5vcc_runtime/public/mojom",
+      "//cobalt/testing/h5vcc_runtime:stub_h5vcc_runtime",
+    ]
+  }
+>>>>>>> cafed399342 (Add binder for H5vccRuntime to fix other web tests (#5183))
 }
 
 # TODO(crbug.com/40159584): The `allow_circular_includes_from` declared in
