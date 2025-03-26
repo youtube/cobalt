@@ -67,31 +67,15 @@ void H5vccRuntime::EnsureReceiverIsBound() {
       remote_h5vcc_runtime_.BindNewPipeAndPassReceiver(task_runner));
 }
 
-void H5vccRuntime::RemoteAddListener() {
-  EnsureReceiverIsBound();
-
-  // Bind the receiver for the RemoteListener, this is where the NotifyDeepLink
-  // event is called.
-  auto task_runner =
-      GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
-  remote_h5vcc_runtime_->AddListener(
-      receiver_.BindNewPipeAndPassRemote(task_runner));
-}
-
 void H5vccRuntime::NotifyDeepLink(const WTF::String& deeplink) {
   MaybeFireDeepLinkEvent(deeplink);
 }
 
-bool H5vccRuntime::AddEventListenerInternal(
+void H5vccRuntime::AddedEventListener(
     const AtomicString& event_type,
-    EventListener* listener,
-    const AddEventListenerOptionsResolved* options) {
-  bool success =
-      EventTarget::AddEventListenerInternal(event_type, listener, options);
-  if (success) {
-    RemoteAddListener();
-  }
-  return success;
+    RegisteredEventListener& registered_listener) {
+  EventTarget::AddedEventListener(event_type, registered_listener);
+  RemoteAddListener();
 }
 
 void H5vccRuntime::RemovedEventListener(
@@ -107,6 +91,21 @@ void H5vccRuntime::Trace(Visitor* visitor) const {
   EventTargetWithInlineData::Trace(visitor);
   visitor->Trace(remote_h5vcc_runtime_);
   visitor->Trace(receiver_);
+}
+
+void H5vccRuntime::RemoteAddListener() {
+  EnsureReceiverIsBound();
+
+  if (receiver_.is_bound()) {
+    receiver_.reset();
+  }
+
+  // Bind the receiver for the RemoteListener, this is where the NotifyDeepLink
+  // event is called.
+  auto task_runner =
+      GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
+  remote_h5vcc_runtime_->AddListener(
+      receiver_.BindNewPipeAndPassRemote(task_runner));
 }
 
 }  // namespace blink

@@ -55,10 +55,8 @@ class MODULES_EXPORT H5vccRuntime final
   void setOndeeplink(EventListener* listener);
 
   // EventTarget interface:
-  bool AddEventListenerInternal(
-      const AtomicString& event_type,
-      EventListener*,
-      const AddEventListenerOptionsResolved*) override;
+  void AddedEventListener(const AtomicString& event_type,
+                          RegisteredEventListener&) override;
   void RemovedEventListener(const AtomicString& event_type,
                             const RegisteredEventListener&) override;
 
