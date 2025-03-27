@@ -2,7 +2,13 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+<<<<<<< HEAD
 import("//media/media_options.gni")
+=======
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+>>>>>>> cc3b37c47c8 ([media] Move StarboardRenderer to MojoRenderer (#5113))
 
 # Implementations of media C++ interfaces using corresponding mojo services.
 source_set("clients") {
@@ -125,6 +131,24 @@ source_set("clients") {
     deps += [
       "//media/fuchsia/video",
       "//third_party/blink/public:blink_headers",
+    ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    sources += [
+      "starboard/starboard_renderer_client.cc",
+      "starboard/starboard_renderer_client.h",
+      "starboard/starboard_renderer_client_factory.cc",
+      "starboard/starboard_renderer_client_factory.h",
+    ]
+
+    deps += [
+      "//cobalt/media/service",
+      "//cobalt/media/service/mojom",
+    ]
+
+    visibility += [
+      "//cobalt/renderer",
     ]
   }
 }
