@@ -140,7 +140,7 @@ void SbPlayerBridge::CallbackHelper::OnDeallocateSample(
 
 void SbPlayerBridge::CallbackHelper::ResetPlayer() {
   base::AutoLock auto_lock(lock_);
-  player_bridge_ = NULL;
+  player_bridge_ = nullptr;
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -277,7 +277,7 @@ SbPlayerBridge::~SbPlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   callback_helper_->ResetPlayer();
-  set_bounds_helper_->SetPlayerBridge(NULL);
+  set_bounds_helper_->SetPlayerBridge(nullptr);
 
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   decode_target_provider_->SetOutputMode(
@@ -588,7 +588,7 @@ void SbPlayerBridge::Suspend() {
 
   sbplayer_interface_->SetPlaybackRate(player_, 0.0);
 
-  set_bounds_helper_->SetPlayerBridge(NULL);
+  set_bounds_helper_->SetPlayerBridge(nullptr);
 
   base::AutoLock auto_lock(lock_);
   GetInfo_Locked(&cached_video_frames_decoded_, &cached_video_frames_dropped_,
@@ -971,7 +971,7 @@ void SbPlayerBridge::WriteBuffersInternal(
     if (drm_info->subsample_count > 0) {
       sample_info.drm_info = drm_info;
     } else {
-      sample_info.drm_info = NULL;
+      sample_info.drm_info = nullptr;
     }
     gathered_sbplayer_sample_infos.push_back(sample_info);
   }
@@ -1051,7 +1051,7 @@ void SbPlayerBridge::ClearDecoderBufferCache() {
 #if COBALT_MEDIA_ENABLE_SUSPEND_RESUME
   if (state_ != kResuming) {
     TimeDelta media_time;
-    GetInfo(NULL, NULL, &media_time);
+    GetInfo(nullptr, nullptr, &media_time);
     decoder_buffer_cache_.ClearSegmentsBeforeMediaTime(media_time);
   }
 
