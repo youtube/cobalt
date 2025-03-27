@@ -2,6 +2,10 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 # Statically-defined (not build-time-generated) IDL files in 'core' component
 # for production.
 static_idl_files_in_core = [
@@ -812,6 +816,11 @@ if (is_cobalt) {
   static_idl_files_in_core += get_path_info(
           [ "//third_party/blink/renderer/core/cobalt/performance/performance_extensions.idl" ],
           "abspath")
+  if (use_starboard_media) {
+    static_idl_files_in_core += get_path_info(
+            [ "//third_party/blink/renderer/core/cobalt/memory_info/memory_info_extensions.idl" ],
+            "abspath")
+  }
 }
 
 # Statically-defined (not build-time-generated) IDL files in 'core' component.

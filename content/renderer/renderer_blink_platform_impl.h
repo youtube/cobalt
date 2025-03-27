@@ -259,6 +259,12 @@ class CONTENT_EXPORT RendererBlinkPlatformImpl : public BlinkPlatformImpl {
     webui_resource_to_code_cache_id_map_ = resource_map;
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual uint64_t mediaSourceSizeLimit() const override;
+  virtual uint64_t totalMediaSourceSize() const override;
+  virtual uint64_t usedMediaSourceMemorySize() const override;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
  private:
   bool CheckPreparsedJsCachingEnabled() const;
 

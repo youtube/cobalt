@@ -14,7 +14,16 @@
 
 assert(is_cobalt)
 
+import("//starboard/build/buildflags.gni")
+
 blink_core_sources_cobalt = [
   "performance/performance_extensions.cc",
   "performance/performance_extensions.h",
 ]
+
+if (use_starboard_media) {
+  blink_core_sources_cobalt += [
+    "memory_info/memory_info_extensions.cc",
+    "memory_info/memory_info_extensions.h",
+  ]
+}
