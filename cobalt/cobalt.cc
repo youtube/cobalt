@@ -21,9 +21,11 @@
 
 #include "base/at_exit.h"
 #include "base/command_line.h"
+#include "base/files/file_path.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
 #include "base/no_destructor.h"
+#include "base/path_service.h"
 #include "build/build_config.h"
 #include "cobalt/cobalt_main_delegate.h"
 #include "cobalt/cobalt_switch_defaults.h"
@@ -31,6 +33,7 @@
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "content/shell/browser/shell.h"
+#include "content/shell/browser/shell_paths.h"
 #include "starboard/event.h"
 
 using starboard::PlatformEventSourceStarboard;
@@ -77,6 +80,19 @@ int InitCobalt(int argc, const char** argv, const char* initial_deep_link) {
     params.argc = args.size();
     params.argv = args.data();
   }
+
+  base::FilePath content_shell_data_path;
+  base::PathService::Get(base::DIR_CACHE, &content_shell_data_path);
+  constexpr char cobalt_subdir[] = "cobalt";
+  if (content_shell_data_path.BaseName().value() != cobalt_subdir) {
+    content_shell_data_path = content_shell_data_path.Append(cobalt_subdir);
+    base::PathService::OverrideAndCreateIfNeeded(
+        base::DIR_CACHE, content_shell_data_path,
+        /*is_absolute=*/true, /*create=*/true);
+  }
+  base::PathService::OverrideAndCreateIfNeeded(
+      content::SHELL_DIR_USER_DATA, content_shell_data_path,
+      /*is_absolute=*/true, /*create=*/true);
 
   return RunContentProcess(std::move(params), GetContentMainRunner());
 }
