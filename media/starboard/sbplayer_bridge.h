@@ -65,6 +65,14 @@ class SbPlayerBridge {
     ~Host() {}
   };
 
+  struct PlayerInfo {
+    uint32_t* video_frames_decoded;
+    uint32_t* video_frames_dropped;
+    uint64_t* audio_bytes_decoded;
+    uint64_t* video_bytes_decoded;
+    base::TimeDelta* media_time;
+  };
+
   // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
   typedef base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>
       GetDecodeTargetGraphicsContextProviderFunc;
@@ -131,11 +139,7 @@ class SbPlayerBridge {
 
   void SetVolume(float volume);
   void SetPlaybackRate(double playback_rate);
-  void GetInfo(uint32_t* video_frames_decoded,
-               uint32_t* video_frames_dropped,
-               base::TimeDelta* media_time,
-               uint64_t* audio_bytes_decoded,
-               uint64_t* video_bytes_decoded);
+  void GetInfo(PlayerInfo* out_info);
   std::vector<SbMediaAudioConfiguration> GetAudioConfigurations();
 
 #if SB_HAS(PLAYER_WITH_URL)
@@ -241,11 +245,7 @@ class SbPlayerBridge {
       const SbMediaAudioStreamInfo* audio_stream_info,
       const SbMediaVideoStreamInfo* video_stream_info);
 
-  void GetInfo_Locked(uint32_t* video_frames_decoded,
-                      uint32_t* video_frames_dropped,
-                      base::TimeDelta* media_time,
-                      uint64_t* audio_bytes_decoded,
-                      uint64_t* video_bytes_decoded);
+  void GetInfo_Locked(PlayerInfo* out_info);
   void UpdateBounds_Locked();
 
   void ClearDecoderBufferCache();
