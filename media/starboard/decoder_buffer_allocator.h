@@ -63,7 +63,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   size_t GetMaximumMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);
 
  private:
-  void EnsureReuseAllocatorIsCreated();
+  void EnsureReuseAllocatorIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   const bool is_memory_pool_allocated_on_demand_;
   const int initial_capacity_;
