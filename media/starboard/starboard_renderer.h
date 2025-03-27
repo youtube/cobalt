@@ -23,8 +23,6 @@
 #include "base/synchronization/lock.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
-#include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
-#include "cobalt/media/service/video_geometry_setter_service.h"
 #include "media/base/cdm_context.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/demuxer_stream.h"
@@ -33,34 +31,26 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer.h"
 #include "media/base/renderer_client.h"
-#include "media/base/video_renderer_sink.h"
-#include "media/renderers/video_overlay_factory.h"
-#include "media/starboard/bind_host_receiver_callback.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "media/starboard/sbplayer_set_bounds_helper.h"
-#include "mojo/public/cpp/bindings/receiver.h"
-#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace media {
-
 using base::Time;
 using base::TimeDelta;
 
 // SbPlayer based Renderer implementation, the entry point for all video
-// playbacks on Starboard platforms.
-class MEDIA_EXPORT StarboardRenderer final
-    : public Renderer,
-      private SbPlayerBridge::Host,
-      public cobalt::media::mojom::VideoGeometryChangeClient {
+// playbacks on Starboard platforms. Every Starboard renderer is usually
+// owned by StarboardRendererWrapper and must live on a single
+// thread/process/TaskRunner, usually Chrome_InProcGpuThread.
+class MEDIA_EXPORT StarboardRenderer final : public Renderer,
+                                             private SbPlayerBridge::Host {
  public:
-  StarboardRenderer(const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-                    VideoRendererSink* video_renderer_sink,
-                    MediaLog* media_log,
-                    std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
+  StarboardRenderer(scoped_refptr<base::SequencedTaskRunner> task_runner,
+                    std::unique_ptr<MediaLog> media_log,
+                    const base::UnguessableToken& overlay_plane_id,
                     TimeDelta audio_write_duration_local,
-                    TimeDelta audio_write_duration_remote,
-                    BindHostReceiverCallback bind_host_receiver_callback);
+                    TimeDelta audio_write_duration_remote);
 
   ~StarboardRenderer() final;
 
@@ -102,9 +92,11 @@ class MEDIA_EXPORT StarboardRenderer final
   }
   RendererType GetRendererType() final { return RendererType::kStarboard; }
 
-  // cobalt::media::mojom::VideoGeometryChangeClient implementation.
-  void OnVideoGeometryChange(const gfx::RectF& rect_f,
-                             gfx::OverlayTransform transform) override;
+  using PaintVideoHoleFrameCallback =
+      base::RepeatingCallback<void(const gfx::Size&)>;
+  void set_paint_video_hole_frame_callback(
+      PaintVideoHoleFrameCallback paint_video_hole_frame_cb);
+  void OnVideoGeometryChange(const gfx::Rect& output_rect);
 
  private:
   enum State {
@@ -116,8 +108,6 @@ class MEDIA_EXPORT StarboardRenderer final
     STATE_ERROR
   };
 
-  void OnSubscribeToVideoGeometryChange(MediaResource* media_resource,
-                                        RendererClient* client);
   void CreatePlayerBridge();
   void UpdateDecoderConfig(DemuxerStream* stream);
   void OnDemuxerStreamRead(DemuxerStream* stream,
@@ -149,8 +139,7 @@ class MEDIA_EXPORT StarboardRenderer final
   State state_;
 
   scoped_refptr<base::SequencedTaskRunner> task_runner_;
-  const raw_ptr<VideoRendererSink> video_renderer_sink_;
-  const raw_ptr<MediaLog> media_log_;
+  std::unique_ptr<MediaLog> media_log_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;
@@ -158,13 +147,10 @@ class MEDIA_EXPORT StarboardRenderer final
   //                    `void OnVideoFrameRateChange(absl::optional<int> fps)`
   //                    on `client_`?
   raw_ptr<RendererClient> client_ = nullptr;
+  PaintVideoHoleFrameCallback paint_video_hole_frame_cb_;
 
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;
-
-  // Overlay factory used to create overlays for video frames rendered
-  // by the remote renderer.
-  std::unique_ptr<VideoOverlayFactory> video_overlay_factory_;
 
   scoped_refptr<SbPlayerSetBoundsHelper> set_bounds_helper_;
 
@@ -196,8 +182,6 @@ class MEDIA_EXPORT StarboardRenderer final
   // Timestamp microseconds when we last checked the media time.
   Time last_time_media_time_retrieved_;
 
-  const BindHostReceiverCallback bind_host_receiver_callback_;
-
   bool audio_read_delayed_ = false;
   // TODO(b/375674101): Support batched samples write.
   const int max_audio_samples_per_write_ = 1;
@@ -226,11 +210,6 @@ class MEDIA_EXPORT StarboardRenderer final
   // understood as a capability changed error. Do not change this message.
   static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
       "MEDIA_ERR_CAPABILITY_CHANGED";
-
-  mojo::Remote<cobalt::media::mojom::VideoGeometryChangeSubscriber>
-      video_geometry_change_subcriber_remote_;
-  mojo::Receiver<cobalt::media::mojom::VideoGeometryChangeClient>
-      video_geometry_change_client_receiver_{this};
 
   base::WeakPtrFactory<StarboardRenderer> weak_factory_{this};
   base::WeakPtr<StarboardRenderer> weak_this_{weak_factory_.GetWeakPtr()};
