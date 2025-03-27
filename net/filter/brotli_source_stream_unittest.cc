@@ -13,6 +13,7 @@
 #include "base/run_loop.h"
 #include "net/base/io_buffer.h"
 #include "net/base/test_completion_callback.h"
+#include "net/cert/pki/string_util.h"
 #include "net/filter/brotli_source_stream.h"
 #include "net/filter/mock_source_stream.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -47,6 +48,7 @@ class BrotliSourceStreamTest : public PlatformTest {
     base::FilePath file_path;
     file_path = data_dir.AppendASCII("google.txt");
     ASSERT_TRUE(base::ReadFileToString(file_path, &source_data_));
+    source_data_ = net::string_util::FindAndReplace(source_data_, "\r\n", "\n");
     ASSERT_GE(kDefaultBufferSize, source_data_.size());
 
     // Read data from the encoded file into buffer.

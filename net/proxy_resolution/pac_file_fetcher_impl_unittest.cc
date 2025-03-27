@@ -14,6 +14,7 @@
 #include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/strings/string_util.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/scoped_feature_list.h"
@@ -171,7 +172,7 @@ TEST_F(PacFileFetcherImplTest, HttpMimeType) {
                                     TRAFFIC_ANNOTATION_FOR_TESTS);
     EXPECT_THAT(result, IsError(ERR_IO_PENDING));
     EXPECT_THAT(callback.WaitForResult(), IsOk());
-    EXPECT_EQ(u"-pac.txt-\n", text);
+    EXPECT_EQ(u"-pac.txt-", base::CollapseWhitespace(text, true));
   }
   {  // Fetch a PAC with mime type "text/html"
     GURL url(test_server_.GetURL("/pac.html"));
@@ -181,7 +182,7 @@ TEST_F(PacFileFetcherImplTest, HttpMimeType) {
                                     TRAFFIC_ANNOTATION_FOR_TESTS);
     EXPECT_THAT(result, IsError(ERR_IO_PENDING));
     EXPECT_THAT(callback.WaitForResult(), IsOk());
-    EXPECT_EQ(u"-pac.html-\n", text);
+    EXPECT_EQ(u"-pac.html-", base::CollapseWhitespace(text, true));
   }
   {  // Fetch a PAC with mime type "application/x-ns-proxy-autoconfig"
     GURL url(test_server_.GetURL("/pac.nsproxy"));
@@ -191,7 +192,7 @@ TEST_F(PacFileFetcherImplTest, HttpMimeType) {
                                     TRAFFIC_ANNOTATION_FOR_TESTS);
     EXPECT_THAT(result, IsError(ERR_IO_PENDING));
     EXPECT_THAT(callback.WaitForResult(), IsOk());
-    EXPECT_EQ(u"-pac.nsproxy-\n", text);
+    EXPECT_EQ(u"-pac.nsproxy-", base::CollapseWhitespace(text, true));
   }
 }
 
@@ -238,7 +239,7 @@ TEST_F(PacFileFetcherImplTest, ContentDisposition) {
                                   TRAFFIC_ANNOTATION_FOR_TESTS);
   EXPECT_THAT(result, IsError(ERR_IO_PENDING));
   EXPECT_THAT(callback.WaitForResult(), IsOk());
-  EXPECT_EQ(u"-downloadable.pac-\n", text);
+  EXPECT_EQ(u"-downloadable.pac-", base::CollapseWhitespace(text, true));
 }
 
 // Verifies that fetches are made using the fetcher's IsolationInfo, by checking
@@ -263,7 +264,7 @@ TEST_F(PacFileFetcherImplTest, IsolationInfo) {
   int result = pac_fetcher->Fetch(url, &text, callback.callback(),
                                   TRAFFIC_ANNOTATION_FOR_TESTS);
   EXPECT_THAT(callback.GetResult(result), IsOk());
-  EXPECT_EQ(u"-downloadable.pac-\n", text);
+  EXPECT_EQ(u"-downloadable.pac-", base::CollapseWhitespace(text, true));
 
   // Check that the URL in kDestination is in the HostCache, with
   // the fetcher's IsolationInfo / NetworkAnonymizationKey, and no others.
@@ -307,7 +308,7 @@ TEST_F(PacFileFetcherImplTest, NoCache) {
                                     TRAFFIC_ANNOTATION_FOR_TESTS);
     EXPECT_THAT(result, IsError(ERR_IO_PENDING));
     EXPECT_THAT(callback.WaitForResult(), IsOk());
-    EXPECT_EQ(u"-cacheable_1hr.pac-\n", text);
+    EXPECT_EQ(u"-cacheable_1hr.pac-", base::CollapseWhitespace(text, true));
   }
 
   // Kill the HTTP server.
@@ -361,7 +362,7 @@ TEST_F(PacFileFetcherImplTest, TooLarge) {
                                     TRAFFIC_ANNOTATION_FOR_TESTS);
     EXPECT_THAT(result, IsError(ERR_IO_PENDING));
     EXPECT_THAT(callback.WaitForResult(), IsOk());
-    EXPECT_EQ(u"-pac.nsproxy-\n", text);
+    EXPECT_EQ( u"-pac.nsproxy-", base::CollapseWhitespace(text, true));
   }
 }
 
@@ -414,7 +415,7 @@ TEST_F(PacFileFetcherImplTest, Hang) {
                                     TRAFFIC_ANNOTATION_FOR_TESTS);
     EXPECT_THAT(result, IsError(ERR_IO_PENDING));
     EXPECT_THAT(callback.WaitForResult(), IsOk());
-    EXPECT_EQ(u"-pac.nsproxy-\n", text);
+    EXPECT_EQ(u"-pac.nsproxy-", base::CollapseWhitespace(text, true));
   }
 }
 
@@ -435,7 +436,7 @@ TEST_F(PacFileFetcherImplTest, Encodings) {
                                     TRAFFIC_ANNOTATION_FOR_TESTS);
     EXPECT_THAT(result, IsError(ERR_IO_PENDING));
     EXPECT_THAT(callback.WaitForResult(), IsOk());
-    EXPECT_EQ(u"This data was gzipped.\n", text);
+    EXPECT_EQ(u"This data was gzipped.", base::CollapseWhitespace(text, true));
   }
 
   // Test a response that was served as UTF-16 (BE). It should
@@ -448,7 +449,7 @@ TEST_F(PacFileFetcherImplTest, Encodings) {
                                     TRAFFIC_ANNOTATION_FOR_TESTS);
     EXPECT_THAT(result, IsError(ERR_IO_PENDING));
     EXPECT_THAT(callback.WaitForResult(), IsOk());
-    EXPECT_EQ(u"This was encoded as UTF-16BE.\n", text);
+    EXPECT_EQ(u"This was encoded as UTF-16BE.", base::CollapseWhitespace(text, true));
   }
 
   // Test a response that lacks a charset, however starts with a UTF8 BOM.
@@ -460,7 +461,7 @@ TEST_F(PacFileFetcherImplTest, Encodings) {
                                     TRAFFIC_ANNOTATION_FOR_TESTS);
     EXPECT_THAT(result, IsError(ERR_IO_PENDING));
     EXPECT_THAT(callback.WaitForResult(), IsOk());
-    EXPECT_EQ(u"/* UTF8 */\n", text);
+    EXPECT_EQ(u"/* UTF8 */", base::CollapseWhitespace(text, true));
   }
 }
 
@@ -486,7 +487,7 @@ TEST_F(PacFileFetcherImplTest, DataURLs) {
     int result = pac_fetcher->Fetch(url, &text, callback.callback(),
                                     TRAFFIC_ANNOTATION_FOR_TESTS);
     EXPECT_THAT(result, IsOk());
-    EXPECT_EQ(kPacScript, text);
+    EXPECT_EQ(base::CollapseWhitespace(kPacScript, true), base::CollapseWhitespace(text, true));
   }
 
   const char kEncodedUrlBroken[] =

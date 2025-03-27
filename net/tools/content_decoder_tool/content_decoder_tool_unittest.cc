@@ -14,6 +14,7 @@
 #include "net/filter/brotli_source_stream.h"
 #include "net/filter/filter_source_stream_test_util.h"
 #include "net/filter/mock_source_stream.h"
+#include "net/cert/pki/string_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
 #include "third_party/zlib/zlib.h"
@@ -51,6 +52,7 @@ class ContentDecoderToolTest : public PlatformTest {
     // Read data from the original file into buffer.
     base::FilePath file_path = data_dir.AppendASCII("google.txt");
     ASSERT_TRUE(base::ReadFileToString(file_path, &source_data_));
+    source_data_ = net::string_util::FindAndReplace(source_data_, "\r\n", "\n");
 
     // Read data from the encoded file into buffer.
     base::FilePath encoded_file_path = data_dir.AppendASCII("google.br");

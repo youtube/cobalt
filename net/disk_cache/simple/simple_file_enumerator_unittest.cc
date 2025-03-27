@@ -5,6 +5,7 @@
 #include "net/disk_cache/simple/simple_file_enumerator.h"
 
 #include "base/path_service.h"
+#include "base/files/file_util.h"
 #include "net/test/gtest_util.h"
 #include "net/test/test_with_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -29,10 +30,17 @@ TEST(SimpleFileEnumeratorTest, Root) {
   const base::FilePath kRoot = GetRoot();
   SimpleFileEnumerator enumerator(kRoot);
 
+  auto filepath = kRoot.AppendASCII("test.txt");
+
+  std::string file_data;
+  if (!base::ReadFileToString(filepath, &file_data)) {
+    ADD_FAILURE() << "Couldn't read file: " << filepath.value();
+  }
+
   auto entry = enumerator.Next();
   ASSERT_TRUE(entry.has_value());
-  EXPECT_EQ(entry->path, kRoot.AppendASCII("test.txt"));
-  EXPECT_EQ(entry->size, 13);
+  EXPECT_EQ(entry->path, filepath);
+  EXPECT_EQ(entry->size, file_data.size());
   EXPECT_FALSE(enumerator.HasError());
 
   // No directories should be listed, no indirect descendants should be listed.

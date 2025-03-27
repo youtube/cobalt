@@ -7,6 +7,7 @@
 #include "base/base_paths.h"
 #include "base/files/file_util.h"
 #include "base/path_service.h"
+#include "base/strings/string_util.h"
 #include "net/cert/pem.h"
 #include "net/cert/pki/cert_error_params.h"
 #include "net/cert/pki/cert_errors.h"
@@ -371,6 +372,8 @@ bool ReadVerifyCertChainTestFromFile(const std::string& file_path_ascii,
       continue;
     } else if (line_piece == kExpectedErrors) {
       has_errors = true;
+      file_data = string_util::FindAndReplace(file_data, "\r\n", "\n");
+
       // The errors start on the next line, and extend until the end of the
       // file.
       std::string prefix =
@@ -446,7 +449,8 @@ void VerifyCertPathErrors(const std::string& expected_errors_str,
                           const std::string& errors_file_path) {
   std::string actual_errors_str = actual_errors.ToDebugString(chain);
 
-  if (expected_errors_str != actual_errors_str) {
+  if (base::CollapseWhitespaceASCII(expected_errors_str, true) !=
+      base::CollapseWhitespaceASCII(actual_errors_str, true)) {
     ADD_FAILURE() << "Cert path errors don't match expectations ("
                   << errors_file_path << ")\n\n"
                   << "EXPECTED:\n\n"
