@@ -31,6 +31,7 @@ source_set("renderer") {
     "//content/test:content_test_mojo_bindings",
     "//media",
     "//media/mojo:buildflags",
+    "//media/mojo/clients",
     "//starboard:starboard_headers_only",
     "//v8",
   ]

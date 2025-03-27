@@ -189,6 +189,38 @@ void MediaInterfaceFactory::CreateMediaFoundationRenderer(
 }
 #endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void MediaInterfaceFactory::CreateStarboardRenderer(
+    mojo::PendingRemote<media::mojom::MediaLog> media_log_remote,
+    const base::UnguessableToken& overlay_plane_id,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta video_write_duration_remote,
+    mojo::PendingReceiver<media::mojom::Renderer> receiver,
+    mojo::PendingReceiver<media::mojom::StarboardRendererExtension>
+        renderer_extension_receiver,
+    mojo::PendingRemote<media::mojom::StarboardRendererClientExtension>
+          client_extension_remote) {
+  if (!task_runner_->BelongsToCurrentThread()) {
+    task_runner_->PostTask(
+        FROM_HERE,
+        base::BindOnce(&MediaInterfaceFactory::CreateStarboardRenderer,
+                       weak_this_, std::move(media_log_remote),
+                       overlay_plane_id, audio_write_duration_local,
+                       video_write_duration_remote,
+                       std::move(receiver),
+                       std::move(renderer_extension_receiver),
+                       std::move(client_extension_remote)));
+    return;
+  }
+
+  GetMediaInterfaceFactory()->CreateStarboardRenderer(
+      std::move(media_log_remote), overlay_plane_id,
+      audio_write_duration_local, video_write_duration_remote,
+      std::move(receiver), std::move(renderer_extension_receiver),
+      std::move(client_extension_remote));
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void MediaInterfaceFactory::CreateCdm(const media::CdmConfig& cdm_config,
                                       CreateCdmCallback callback) {
   if (!task_runner_->BelongsToCurrentThread()) {
