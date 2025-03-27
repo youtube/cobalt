@@ -14,9 +14,11 @@
 
 #include <memory>
 
+#include "base/path_service.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "content/public/browser/browser_thread.h"
+#include "content/shell/browser/shell_paths.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
@@ -29,8 +31,7 @@
 
 namespace cobalt {
 
-CobaltBrowserMainParts::CobaltBrowserMainParts(base::FilePath cache_directory)
-    : cache_directory_(cache_directory) {}
+CobaltBrowserMainParts::CobaltBrowserMainParts() = default;
 
 CobaltBrowserMainParts::~CobaltBrowserMainParts() = default;
 
@@ -69,7 +70,7 @@ void CobaltBrowserMainParts::PostCreateMainMessageLoop() {
   config->main_thread_runner = content::GetUIThreadTaskRunner({});
   // OSCrypt can be disabled in a special settings file.
   config->should_use_preference = false;
-  config->user_data_path = cache_directory_;
+  base::PathService::Get(content::SHELL_DIR_USER_DATA, &config->user_data_path);
   OSCrypt::SetConfig(std::move(config));
   ShellBrowserMainParts::PostCreateMainMessageLoop();
 }
