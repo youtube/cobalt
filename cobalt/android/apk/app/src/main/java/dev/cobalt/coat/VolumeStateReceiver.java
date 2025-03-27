@@ -6,7 +6,11 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.SystemClock;
 import android.util.Log;
+import android.view.KeyEvent;
+import org.chromium.content.browser.input.ImeAdapterImpl;
+import org.chromium.content_public.browser.WebContents;
 
 /** VolumeStateReceiver monitors Android media broadcast to capture volume button events. */
 final class VolumeStateReceiver extends BroadcastReceiver {
@@ -19,11 +23,29 @@ final class VolumeStateReceiver extends BroadcastReceiver {
   public static final String STREAM_MUTE_CHANGED_ACTION =
       "android.media.STREAM_MUTE_CHANGED_ACTION";
 
+  private WebContents webContents;
+
   VolumeStateReceiver(Context appContext) {
     IntentFilter filter = new IntentFilter();
     filter.addAction(VOLUME_CHANGED_ACTION);
     filter.addAction(STREAM_MUTE_CHANGED_ACTION);
     appContext.registerReceiver(this, filter);
+  }
+
+  protected void dispatchKeyDownEvent(int keyCode) {
+    long eventTime = SystemClock.uptimeMillis();
+    if (webContents == null) {
+      return;
+    }
+    ImeAdapterImpl imeAdapter = ImeAdapterImpl.fromWebContents(webContents);
+    if (imeAdapter == null) {
+      return;
+    }
+    imeAdapter.dispatchKeyEvent(new KeyEvent(eventTime, eventTime, KeyEvent.ACTION_DOWN, keyCode, 0));
+  }
+
+  public void setWebContents(WebContents webContents) {
+    this.webContents = webContents;
   }
 
   @Override
@@ -34,10 +56,11 @@ final class VolumeStateReceiver extends BroadcastReceiver {
 
       int volumeDelta = newVolume - oldVolume;
       Log.d(TAG, "VolumeStateReceiver capture volume changed, volumeDelta:" + volumeDelta);
-      nativeVolumeChanged(volumeDelta);
+      int keyCode = volumeDelta > 0 ? KeyEvent.KEYCODE_VOLUME_UP : KeyEvent.KEYCODE_VOLUME_DOWN;
+      dispatchKeyDownEvent(keyCode);
     } else if (intent.getAction().equals(STREAM_MUTE_CHANGED_ACTION)) {
       Log.d(TAG, "VolumeStateReceiver capture mute changed.");
-      nativeMuteChanged();
+      dispatchKeyDownEvent(KeyEvent.KEYCODE_VOLUME_MUTE);
     }
   }
 
