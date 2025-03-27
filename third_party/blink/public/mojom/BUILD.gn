@@ -1314,6 +1314,10 @@ mojom("mojom_core") {
     "//url/mojom:url_mojom_origin",
   ]
 
+  if (is_cobalt) {
+    public_deps += [ "//cobalt/browser/performance/public/mojom" ]
+  }
+
   if (is_android) {
     # Direct deps (instead of transitive deps) are necessary for java targets.
     public_deps += [

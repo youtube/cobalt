@@ -20,6 +20,7 @@
 
 #include "base/compiler_specific.h"
 #include "base/synchronization/lock.h"
+#include "base/thread_annotations.h"
 #include "base/time/time.h"
 #include "media/base/decoder_buffer.h"
 #include "media/base/video_decoder_config.h"
@@ -57,9 +58,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
                            int bits_per_pixel) const override;
 
   // DecoderBufferMemoryInfo methods.
-  size_t GetAllocatedMemory() const override;
-  size_t GetCurrentMemoryCapacity() const override;
-  size_t GetMaximumMemoryCapacity() const override;
+  size_t GetAllocatedMemory() const override LOCKS_EXCLUDED(mutex_);
+  size_t GetCurrentMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);
+  size_t GetMaximumMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);
 
  private:
   void EnsureReuseAllocatorIsCreated();
@@ -69,8 +70,9 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   const int allocation_unit_;
 
   mutable base::Lock mutex_;
-  StarboardMemoryAllocator fallback_allocator_;
-  std::unique_ptr<BidirectionalFitReuseAllocator> reuse_allocator_;
+  StarboardMemoryAllocator fallback_allocator_ GUARDED_BY(mutex_);
+  std::unique_ptr<BidirectionalFitReuseAllocator> reuse_allocator_
+      GUARDED_BY(mutex_);
 
   int max_buffer_capacity_ = 0;
 };

@@ -82,6 +82,7 @@ if (is_ios) {
 }
 if (is_cobalt) {
   import("//starboard/build/buildflags.gni")
+  import("//third_party/blink/renderer/core/cobalt/build.gni")
 }
 
 visibility = [
@@ -304,6 +305,10 @@ component("core") {
       rebase_path(blink_core_sources_xmlhttprequest, "", "xmlhttprequest")
   sources += rebase_path(blink_core_sources_speech, "", "speech")
 
+  if (is_cobalt) {
+    sources += rebase_path(blink_core_sources_cobalt, "", "cobalt")
+  }
+
   configs -= core_config_remove
   configs += core_config_add
   configs += [ "//v8:external_startup_data" ]
@@ -401,9 +406,7 @@ component("core") {
   }
 
   if (is_cobalt && use_starboard_media) {
-    deps += [
-      "//starboard($starboard_toolchain)",
-    ]
+    deps += [ "//starboard($starboard_toolchain)" ]
   }
 }
 

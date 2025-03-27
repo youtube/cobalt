@@ -49,7 +49,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import org.chromium.base.CommandLine;
-import org.chromium.base.MemoryPressureListener;
 import org.chromium.base.library_loader.LibraryLoader;
 import org.chromium.base.library_loader.LibraryProcessType;
 import org.chromium.components.version_info.VersionInfo;
@@ -68,7 +67,6 @@ public abstract class CobaltActivity extends Activity {
   private static final String URL_ARG = "--url=";
   private static final java.lang.String META_DATA_APP_URL = "cobalt.APP_URL";
 
-  private static final String ACTIVE_SHELL_URL_KEY = "activeUrl";
   public static final String COMMAND_LINE_ARGS_KEY = "commandLineArgs";
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
@@ -76,6 +74,9 @@ public abstract class CobaltActivity extends Activity {
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
   private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
+
+  @SuppressWarnings("unused")
+  private CobaltA11yHelper a11yHelper;
 
   private VideoSurfaceView videoSurfaceView;
 
@@ -187,9 +188,6 @@ public abstract class CobaltActivity extends Activity {
         mShellManager.getContentViewRenderView().getSurfaceView());
 
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
-      mStartupUrl = getUrlFromIntent(getIntent());
-    }
-    if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
       mStartupUrl =
           Arrays.stream(args)
@@ -226,16 +224,6 @@ public abstract class CobaltActivity extends Activity {
 
   // Initially copied from ContentShellActiviy.java
   private void finishInitialization(Bundle savedInstanceState) {
-    String shellUrl;
-    if (!TextUtils.isEmpty(mStartupUrl)) {
-      shellUrl = mStartupUrl;
-    } else {
-      shellUrl = ShellManager.DEFAULT_SHELL_URL;
-    }
-
-    if (savedInstanceState != null && savedInstanceState.containsKey(ACTIVE_SHELL_URL_KEY)) {
-      shellUrl = savedInstanceState.getString(ACTIVE_SHELL_URL_KEY);
-    }
     // Set to overlay video mode.
     mShellManager.getContentViewRenderView().setOverlayVideoMode(true);
 
@@ -246,8 +234,8 @@ public abstract class CobaltActivity extends Activity {
     getStarboardBridge().setWebContents(getActiveWebContents());
 
     // Load the `url` with the same shell we created above.
-    Log.i(TAG, "shellManager load url:" + shellUrl);
-    mShellManager.getActiveShell().loadUrl(shellUrl);
+    Log.i(TAG, "shellManager load url:" + mStartupUrl);
+    mShellManager.getActiveShell().loadUrl(mStartupUrl);
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -259,23 +247,21 @@ public abstract class CobaltActivity extends Activity {
     finish();
   }
 
-  // Initially copied from ContentShellActiviy.java
-  @Override
-  protected void onSaveInstanceState(Bundle outState) {
-    super.onSaveInstanceState(outState);
-    WebContents webContents = getActiveWebContents();
-    if (webContents != null) {
-      // TODO(yfriedman): crbug/783819 - This should use GURL serialize/deserialize.
-      outState.putString(ACTIVE_SHELL_URL_KEY, webContents.getLastCommittedUrl().getSpec());
-    }
-
-    mIntentRequestTracker.saveInstanceState(outState);
+  private static boolean isDpadKey(int keyCode) {
+      return keyCode == KeyEvent.KEYCODE_DPAD_UP
+              || keyCode == KeyEvent.KEYCODE_DPAD_LEFT
+              || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+              || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+              || keyCode == KeyEvent.KEYCODE_DPAD_CENTER;
   }
 
+  // Remap KeyEvent for imeAdapter.dispatchKeyEvent call.
   protected static Optional<KeyEvent> getRemappedKeyEvent(int keyCode, int action) {
     int mappedKeyCode;
     if (keyCode == KeyEvent.KEYCODE_BACK) {
       mappedKeyCode = KeyEvent.KEYCODE_ESCAPE;
+    } else if (isDpadKey(keyCode)) {
+      mappedKeyCode = keyCode;
     } else {
       return Optional.empty();
     }
@@ -298,32 +284,12 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   public boolean onKeyDown(int keyCode, KeyEvent event) {
-    Log.i(TAG, "Ignoring command line params: can only be set when creating the activity.");
     return tryDispatchRemappedKey(keyCode, KeyEvent.ACTION_DOWN) || super.onKeyDown(keyCode, event);
   }
 
   @Override
   public boolean onKeyUp(int keyCode, KeyEvent event) {
     return tryDispatchRemappedKey(keyCode, KeyEvent.ACTION_UP) || super.onKeyUp(keyCode, event);
-  }
-
-  // Initially copied from ContentShellActiviy.java
-  protected void shellHandleIntent(Intent intent) {
-    if (getCommandLineParamsFromIntent(intent) != null) {
-      Log.i(TAG, "Ignoring command line params: can only be set when creating the activity.");
-    }
-
-    if (MemoryPressureListener.handleDebugIntent(this, intent.getAction())) {
-      return;
-    }
-
-    String url = getUrlFromIntent(intent);
-    if (!TextUtils.isEmpty(url)) {
-      Shell activeView = getActiveShell();
-      if (activeView != null) {
-        activeView.loadUrl(url);
-      }
-    }
   }
 
   // Initially copied from ContentShellActiviy.java
@@ -400,6 +366,7 @@ public abstract class CobaltActivity extends Activity {
     createContent(savedInstanceState);
 
     videoSurfaceView = new VideoSurfaceView(this);
+    a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
     addContentView(
         videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
   }
@@ -600,7 +567,6 @@ public abstract class CobaltActivity extends Activity {
 
   @Override
   protected void onNewIntent(Intent intent) {
-    shellHandleIntent(intent);
     getStarboardBridge().handleDeepLink(getIntentUrlAsString(intent));
   }
 
@@ -667,6 +633,7 @@ public abstract class CobaltActivity extends Activity {
       int index = frameLayout.indexOfChild(videoSurfaceView);
       frameLayout.removeView(videoSurfaceView);
       videoSurfaceView = new VideoSurfaceView(this);
+      a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
       frameLayout.addView(
           videoSurfaceView,
           index,

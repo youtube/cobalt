@@ -15,7 +15,6 @@
 #ifndef MEDIA_STARBOARD_SBPLAYER_BRIDGE_H_
 #define MEDIA_STARBOARD_SBPLAYER_BRIDGE_H_
 
-#include <map>
 #include <string>
 #include <utility>
 #include <vector>
@@ -47,6 +46,7 @@
 #include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace media {
@@ -202,20 +202,17 @@ class SbPlayerBridge {
     SbPlayerBridge* player_bridge_;
   };
 
-  // DecoderBuffer, a reference count, its media type, and the total bytes
-  // written. The reference count indicates how many instances of the
-  // DecoderBuffer is currently being decoded in the pipeline. The media
-  // type and total bytes written are used to report statistics.
-  struct DecoderBufferInfo {
-    scoped_refptr<DecoderBuffer> buffer;
-    int ref_count = 0;
+  // A map from raw data pointer returned by DecoderBuffer::GetData() to the
+  // DecoderBuffer and an usage count.  The usage count indicates how
+  // many instances of the DecoderBuffer is currently being used (== being
+  // decoded) in the pipeline.
+  struct DecodingBuffer {
+    const scoped_refptr<DecoderBuffer> buffer;
+    int usage_count;
     SbMediaType type;
     size_t bytes_written = 0;
   };
-
-  typedef std::map<const void*, DecoderBufferInfo> DecodingBuffers;
-
-  static const int64_t kClearDecoderCacheIntervalInMilliseconds = 1000;
+  using DecodingBuffers = absl::flat_hash_map<const void*, DecodingBuffer>;
 
 #if SB_HAS(PLAYER_WITH_URL)
   OnEncryptedMediaInitDataEncounteredCB

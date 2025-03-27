@@ -913,13 +913,10 @@ void SbPlayerBridge::WriteBuffersInternal(
       break;
     }
 
-    DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->data());
-    if (iter == decoding_buffers_.end()) {
-      decoding_buffers_.emplace(
-          buffer->data(),
-          DecoderBufferInfo{buffer, 1, sample_type, buffer->data_size()});
-    } else {
-      ++iter->second.ref_count;
+    if (auto [iter, inserted] = decoding_buffers_.try_emplace(
+            buffer->data(), buffer, /*usage_count=*/1, sample_type, buffer->data_size());
+        !inserted) {
+      ++iter->second.usage_count;
       iter->second.bytes_written += buffer->data_size();
     }
 
@@ -1203,8 +1200,10 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
     }
   }
 
-  --iter->second.ref_count;
-  if (iter->second.ref_count == 0) {
+  DecodingBuffer& decoding_buffer = iter->second;
+  --decoding_buffer.usage_count;
+  DCHECK_GE(decoding_buffer.usage_count, 0);
+  if (decoding_buffer.usage_count == 0) {
     decoding_buffers_.erase(iter);
   }
 }

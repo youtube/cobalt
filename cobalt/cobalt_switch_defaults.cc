@@ -39,6 +39,8 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       switches::kForceVideoOverlays,
       // Disable multiprocess mode.
       switches::kSingleProcess,
+      // Hide content shell toolbar.
+      switches::kContentShellHideToolbar,
       // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
       // to enable it.
       switches::kIgnoreGpuBlocklist,
@@ -115,8 +117,9 @@ CommandLinePreprocessor::CommandLinePreprocessor(int argc,
   // Ensure the window size configs are consistent wherever they are set.
   if (cmd_line_.HasSwitch(::switches::kWindowSize)) {
     // --window-size takes priority over other window-size configs.
-    const auto window_size =
+    std::string window_size =
         cmd_line_.GetSwitchValueASCII(::switches::kWindowSize);
+    std::replace(window_size.begin(), window_size.end(), ',', 'x');
     cmd_line_.AppendSwitchASCII(::switches::kContentShellHostWindowSize,
                                 window_size);
   }

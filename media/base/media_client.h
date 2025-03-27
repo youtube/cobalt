@@ -62,6 +62,14 @@ class MEDIA_EXPORT MediaClient {
   GetAudioRendererAlgorithmParameters(AudioParameters audio_parameters) = 0;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  static uint64_t GetMediaSourceSizeLimit();
+  static uint64_t GetTotalMediaSourceSize();
+  static uint64_t GetUsedMediaSourceMemorySize();
+
+  uint64_t GetMaximumMemoryCapacity() const;
+  uint64_t GetCurrentMemoryCapacity() const;
+  uint64_t GetAllocatedMemory() const;
+
  private:
   // TODO(b/326497953): Support Suspend() and Resume().
   DecoderBufferAllocator decoder_buffer_allocator_;

@@ -22,6 +22,8 @@ source_set("browser") {
   sources = [
     "cobalt_browser_interface_binders.cc",
     "cobalt_browser_interface_binders.h",
+    "cobalt_browser_main_parts.cc",
+    "cobalt_browser_main_parts.h",
     "cobalt_content_browser_client.cc",
     "cobalt_content_browser_client.h",
     "cobalt_web_contents_observer.cc",
@@ -38,7 +40,10 @@ source_set("browser") {
   deps = [
     ":embed_polyfilled_javascript",
     ":metrics",
+    "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/crash_annotator/public/mojom",
+    "//cobalt/browser/h5vcc_accessibility",
+    "//cobalt/browser/h5vcc_accessibility/public/mojom",
     "//cobalt/browser/h5vcc_metrics",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
@@ -46,6 +51,8 @@ source_set("browser") {
     "//cobalt/browser/h5vcc_system",
     "//cobalt/browser/h5vcc_system/public/mojom",
     "//cobalt/browser/migrate_storage_record",
+    "//cobalt/browser/performance",
+    "//cobalt/browser/performance/public/mojom",
     "//cobalt/media/service",
     "//cobalt/media/service/mojom",
     "//cobalt/user_agent",
