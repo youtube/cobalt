@@ -30,7 +30,7 @@ class CobaltMetricsServiceClient;
 // ShellContentBrowserClient, this should implement BrowserMainParts.
 class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
  public:
-  explicit CobaltBrowserMainParts(base::FilePath cache_directory);
+  CobaltBrowserMainParts();
 
   CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
   CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
@@ -52,7 +52,6 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 #endif  // BUILDFLAG(IS_LINUX)
 
  private:
-  base::FilePath cache_directory_;
   std::unique_ptr<CobaltMetricsServiceClient> metrics_;
 };
 
