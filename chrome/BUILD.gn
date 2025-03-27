@@ -33,6 +33,9 @@ import("//tools/resources/generate_resource_allowlist.gni")
 import("//tools/v8_context_snapshot/v8_context_snapshot.gni")
 import("//ui/gl/features.gni")
 import("//v8/gni/v8.gni")
+if(is_cobalt) {
+import("//third_party/angle/gni/angle.gni")
+}
 
 assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
 
