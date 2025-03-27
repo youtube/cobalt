@@ -24,14 +24,14 @@ namespace blink {
 H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
       remote_h5vcc_runtime_(window.GetExecutionContext()),
-      listener_receiver_(this, window.GetExecutionContext()) {
+      deep_link_receiver_(this, window.GetExecutionContext()) {
   EnsureRemoteIsBound();
   remote_h5vcc_runtime_->GetAndClearInitialDeepLinkSync(&initial_deep_link_);
 }
 
 void H5vccRuntime::ContextDestroyed() {
   remote_h5vcc_runtime_.reset();
-  listener_receiver_.reset();
+  deep_link_receiver_.reset();
 }
 
 String H5vccRuntime::initialDeepLink() {
@@ -81,26 +81,29 @@ void H5vccRuntime::Trace(Visitor* visitor) const {
   ExecutionContextLifecycleObserver::Trace(visitor);
   EventTargetWithInlineData::Trace(visitor);
   visitor->Trace(remote_h5vcc_runtime_);
-  visitor->Trace(listener_receiver_);
+  visitor->Trace(deep_link_receiver_);
 }
 
 void H5vccRuntime::MaybeRegisterMojoListener() {
   DCHECK(HasEventListeners(event_type_names::kDeeplink));
-  if (!listener_receiver_.is_bound()) {
-    EnsureRemoteIsBound();
-    // Bind the receiver for the RemoteListener, this is where the
-    // NotifyDeepLink event is called.
-    auto task_runner =
-        GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
-    remote_h5vcc_runtime_->AddListener(
-        listener_receiver_.BindNewPipeAndPassRemote(task_runner));
+  if (deep_link_receiver_.is_bound()) {
+    return;
   }
+
+  EnsureRemoteIsBound();
+
+  // Bind the receiver for the RemoteListener, this is where the
+  // NotifyDeepLink event is called.
+  auto task_runner =
+      GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
+  remote_h5vcc_runtime_->AddListener(
+      deep_link_receiver_.BindNewPipeAndPassRemote(task_runner));
 }
 
 void H5vccRuntime::MaybeUnregisterMojoListener() {
-  DCHECK(listener_receiver_.is_bound());
+  DCHECK(deep_link_receiver_.is_bound());
   if (!HasEventListeners(event_type_names::kDeeplink)) {
-    listener_receiver_.reset();
+    deep_link_receiver_.reset();
   }
 }
 
