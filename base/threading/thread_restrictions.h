@@ -211,6 +211,11 @@ namespace chrome_cleaner {
 class ResetShortcutsComponent;
 class SystemReportComponent;
 }  // namespace chrome_cleaner
+#if BUILDFLAG(IS_COBALT)
+namespace cobalt {
+class CobaltPathProvider;
+}  // namespace cobalt
+#endif  // BUILDFLAG(IS_COBALT)
 namespace content {
 class BrowserGpuChannelHostFactory;
 class BrowserMainLoop;
@@ -601,6 +606,9 @@ class BASE_EXPORT [[maybe_unused, nodiscard]] ScopedAllowBlocking {
   friend class base::win::ScopedAllowBlockingForUserAccountControl;
   friend class blink::DiskDataAllocator;
   friend class chromecast::CrashUtil;
+#if BUILDFLAG(IS_COBALT)
+  friend class cobalt::CobaltPathProvider;
+#endif  // BUILDFLAG(IS_COBALT)
   friend class content::BrowserProcessIOThread;
   friend class content::DWriteFontProxyImpl;
   friend class content::NetworkServiceInstancePrivate;

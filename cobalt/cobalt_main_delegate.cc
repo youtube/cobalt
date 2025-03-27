@@ -14,13 +14,44 @@
 
 #include "cobalt/cobalt_main_delegate.h"
 
+#include "base/base_paths.h"
+#include "base/base_switches.h"
+#include "base/path_service.h"
 #include "base/process/current_process.h"
 #include "base/trace_event/trace_log.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
+#include "cobalt/cobalt_paths.h"
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "content/common/content_constants_internal.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/common/content_switches.h"
+#include "content/shell/common/shell_switches.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "content/web_test/browser/web_test_browser_main_runner.h"  // nogncheck
+#endif
+
+namespace {
+
+void InitLogging(const base::CommandLine& command_line) {
+  base::FilePath log_filename =
+      command_line.GetSwitchValuePath(switches::kLogFile);
+  if (log_filename.empty()) {
+    base::PathService::Get(base::DIR_EXE, &log_filename);
+    log_filename = log_filename.AppendASCII("cobalt.log");
+  }
+
+  logging::LoggingSettings settings;
+  settings.logging_dest = logging::LOG_TO_ALL;
+  settings.log_file_path = log_filename.value().c_str();
+  settings.delete_old = logging::DELETE_OLD_LOG_FILE;
+  logging::InitLogging(settings);
+  logging::SetLogItems(true /* Process ID */, true /* Thread ID */,
+                       true /* Timestamp */, false /* Tick count */);
+}
+
+}  // namespace
 
 namespace cobalt {
 
@@ -28,6 +59,30 @@ CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
     : content::ShellMainDelegate(is_content_browsertests) {}
 
 CobaltMainDelegate::~CobaltMainDelegate() {}
+
+absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
+  base::CommandLine& command_line = *base::CommandLine::ForCurrentProcess();
+#if BUILDFLAG(IS_ANDROID)
+  content::Compositor::Initialize();
+#endif
+
+  InitLogging(command_line);
+
+#if !BUILDFLAG(IS_ANDROID)
+  if (switches::IsRunWebTestsSwitchPresent()) {
+    const bool browser_process =
+        command_line.GetSwitchValueASCII(switches::kProcessType).empty();
+    if (browser_process) {
+      web_test_runner_ = std::make_unique<content::WebTestBrowserMainRunner>();
+      web_test_runner_->Initialize();
+    }
+  }
+#endif
+
+  RegisterCobaltPathProvider();
+
+  return absl::nullopt;
+}
 
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {

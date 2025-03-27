@@ -39,6 +39,8 @@ if (!is_android) {
       "cobalt.cc",
       "cobalt_main_delegate.cc",
       "cobalt_main_delegate.h",
+      "cobalt_paths.cc",
+      "cobalt_paths.h",
       "cobalt_switch_defaults.cc",
       "cobalt_switch_defaults.h",
       "platform_event_source_starboard.cc",
