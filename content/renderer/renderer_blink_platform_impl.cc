@@ -383,6 +383,32 @@ void RendererBlinkPlatformImpl::SetIsLockedToSite() {
   is_locked_to_site_ = true;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+uint64_t RendererBlinkPlatformImpl::mediaSourceSizeLimit() const {
+  RenderThreadImpl* thread = RenderThreadImpl::current();
+  if (thread) {
+    return thread->GetMediaSourceSizeLimit();
+  }
+  return 0;
+}
+
+uint64_t RendererBlinkPlatformImpl::totalMediaSourceSize() const {
+  RenderThreadImpl* thread = RenderThreadImpl::current();
+  if (thread) {
+    return thread->GetTotalMediaSourceSize();
+  }
+  return 0;
+}
+
+uint64_t RendererBlinkPlatformImpl::usedMediaSourceMemorySize() const {
+  RenderThreadImpl* thread = RenderThreadImpl::current();
+  if (thread) {
+    return thread->GetUsedMediaSourceMemorySize();
+  }
+  return 0;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 bool RendererBlinkPlatformImpl::IsGpuCompositingDisabled() const {
   DCHECK_CALLED_ON_VALID_THREAD(main_thread_checker_);
   RenderThreadImpl* thread = RenderThreadImpl::current();
