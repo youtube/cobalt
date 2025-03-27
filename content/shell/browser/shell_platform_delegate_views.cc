@@ -371,6 +371,9 @@ void ShellPlatformDelegate::CreatePlatformWindow(
   shell_data.window_widget = new views::Widget();
   views::Widget::InitParams params(
       views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
+#if BUILDFLAG(IS_STARBOARD)
+  params.type = views::Widget::InitParams::TYPE_WINDOW_FRAMELESS;
+#endif // BUILDFLAG(IS_STARBOARD)
   params.bounds = gfx::Rect(initial_size);
   params.delegate = delegate.release();
 #if BUILDFLAG(IS_LINUX)

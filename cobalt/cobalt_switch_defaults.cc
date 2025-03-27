@@ -39,6 +39,8 @@ static constexpr auto kCobaltToggleSwitches = std::to_array<const char*>({
       switches::kForceVideoOverlays,
       // Disable multiprocess mode.
       switches::kSingleProcess,
+      // Hide content shell toolbar.
+      switches::kContentShellHideToolbar,
       // Accelerated GL is blanket disabled for Linux. Ignore the GPU blocklist
       // to enable it.
       switches::kIgnoreGpuBlocklist,
