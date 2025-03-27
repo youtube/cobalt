@@ -179,6 +179,7 @@ size_t DecoderBufferAllocator::GetMaximumMemoryCapacity() const {
 }
 
 void DecoderBufferAllocator::EnsureReuseAllocatorIsCreated() {
+  mutex_.AssertAcquired();
   if (reuse_allocator_) {
     return;
   }
