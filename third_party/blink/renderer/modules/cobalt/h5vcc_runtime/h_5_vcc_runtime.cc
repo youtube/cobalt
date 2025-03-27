@@ -24,27 +24,18 @@ namespace blink {
 H5vccRuntime::H5vccRuntime(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
       remote_h5vcc_runtime_(window.GetExecutionContext()),
-      receiver_(this, window.GetExecutionContext()) {
-  EnsureReceiverIsBound();
+      listener_receiver_(this, window.GetExecutionContext()) {
+  EnsureRemoteIsBound();
   remote_h5vcc_runtime_->GetAndClearInitialDeepLinkSync(&initial_deep_link_);
 }
 
 void H5vccRuntime::ContextDestroyed() {
   remote_h5vcc_runtime_.reset();
-  receiver_.reset();
+  listener_receiver_.reset();
 }
 
 String H5vccRuntime::initialDeepLink() {
   return initial_deep_link_;
-}
-
-EventListener* H5vccRuntime::ondeeplink() {
-  return GetAttributeEventListener(event_type_names::kDeeplink);
-}
-
-void H5vccRuntime::setOndeeplink(EventListener* listener) {
-  SetAttributeEventListener(event_type_names::kDeeplink, listener);
-  RemoteAddListener();
 }
 
 void H5vccRuntime::MaybeFireDeepLinkEvent(const String& url) {
@@ -54,7 +45,7 @@ void H5vccRuntime::MaybeFireDeepLinkEvent(const String& url) {
   }
 }
 
-void H5vccRuntime::EnsureReceiverIsBound() {
+void H5vccRuntime::EnsureRemoteIsBound() {
   DCHECK(GetExecutionContext());
 
   if (remote_h5vcc_runtime_.is_bound()) {
@@ -75,14 +66,14 @@ void H5vccRuntime::AddedEventListener(
     const AtomicString& event_type,
     RegisteredEventListener& registered_listener) {
   EventTarget::AddedEventListener(event_type, registered_listener);
-  RemoteAddListener();
+  MaybeRegisterMojoListener();
 }
 
 void H5vccRuntime::RemovedEventListener(
     const AtomicString& event_type,
     const RegisteredEventListener& registered_listener) {
   EventTarget::RemovedEventListener(event_type, registered_listener);
-  receiver_.reset();
+  MaybeUnregisterMojoListener();
 }
 
 void H5vccRuntime::Trace(Visitor* visitor) const {
@@ -90,22 +81,29 @@ void H5vccRuntime::Trace(Visitor* visitor) const {
   ExecutionContextLifecycleObserver::Trace(visitor);
   EventTargetWithInlineData::Trace(visitor);
   visitor->Trace(remote_h5vcc_runtime_);
-  visitor->Trace(receiver_);
+  visitor->Trace(listener_receiver_);
 }
 
-void H5vccRuntime::RemoteAddListener() {
-  EnsureReceiverIsBound();
-
-  if (receiver_.is_bound()) {
-    receiver_.reset();
+void H5vccRuntime::MaybeRegisterMojoListener() {
+  // Only register if we haven't already and if there's at least one JS listener
+  if (!listener_registered_ && HasEventListeners(event_type_names::kDeeplink)) {
+    listener_registered_ = true;
+    EnsureRemoteIsBound();
+    // Bind the receiver for the RemoteListener, this is where the
+    // NotifyDeepLink event is called.
+    auto task_runner =
+        GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
+    remote_h5vcc_runtime_->AddListener(
+        listener_receiver_.BindNewPipeAndPassRemote(task_runner));
   }
+}
 
-  // Bind the receiver for the RemoteListener, this is where the NotifyDeepLink
-  // event is called.
-  auto task_runner =
-      GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
-  remote_h5vcc_runtime_->AddListener(
-      receiver_.BindNewPipeAndPassRemote(task_runner));
+void H5vccRuntime::MaybeUnregisterMojoListener() {
+  // If the Mojo listener was registered and there are NO JS listeners left...
+  if (listener_registered_ && !HasEventListeners(event_type_names::kDeeplink)) {
+    listener_registered_ = false;
+    listener_receiver_.reset();
+  }
 }
 
 }  // namespace blink
