@@ -81,12 +81,10 @@ class MODULES_EXPORT H5vccRuntime final
 
   HeapMojoRemote<h5vcc_runtime::mojom::blink::H5vccRuntime>
       remote_h5vcc_runtime_;
-  String initial_deep_link_;
-
-  // Track if AddListener was called
-  bool listener_registered_ = false;
   HeapMojoReceiver<h5vcc_runtime::mojom::blink::DeepLinkListener, H5vccRuntime>
       listener_receiver_;
+
+  String initial_deep_link_;
 };
 
 }  // namespace blink

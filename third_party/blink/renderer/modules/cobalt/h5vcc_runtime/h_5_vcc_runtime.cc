@@ -85,9 +85,8 @@ void H5vccRuntime::Trace(Visitor* visitor) const {
 }
 
 void H5vccRuntime::MaybeRegisterMojoListener() {
-  // Only register if we haven't already and if there's at least one JS listener
-  if (!listener_registered_ && HasEventListeners(event_type_names::kDeeplink)) {
-    listener_registered_ = true;
+  DCHECK(HasEventListeners(event_type_names::kDeeplink));
+  if (!listener_receiver_.is_bound()) {
     EnsureRemoteIsBound();
     // Bind the receiver for the RemoteListener, this is where the
     // NotifyDeepLink event is called.
@@ -99,9 +98,8 @@ void H5vccRuntime::MaybeRegisterMojoListener() {
 }
 
 void H5vccRuntime::MaybeUnregisterMojoListener() {
-  // If the Mojo listener was registered and there are NO JS listeners left...
-  if (listener_registered_ && !HasEventListeners(event_type_names::kDeeplink)) {
-    listener_registered_ = false;
+  DCHECK(listener_receiver_.is_bound());
+  if (!HasEventListeners(event_type_names::kDeeplink)) {
     listener_receiver_.reset();
   }
 }
