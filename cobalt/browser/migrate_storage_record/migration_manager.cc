@@ -14,10 +14,17 @@
 
 #include "cobalt/browser/migrate_storage_record/migration_manager.h"
 
+#include <string>
+#include <vector>
+
 #include "base/base64url.h"
 #include "base/command_line.h"
 #include "base/containers/adapters.h"
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/path_service.h"
 #include "base/strings/utf_string_conversions.h"
+#include "base/task/thread_pool.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "cobalt/browser/switches.h"
@@ -28,6 +35,8 @@
 #include "net/cookies/cookie_options.h"
 #include "services/network/public/mojom/cookie_manager.mojom.h"
 #include "starboard/common/storage.h"
+#include "starboard/configuration_constants.h"
+#include "starboard/system.h"
 #include "url/gurl.h"
 
 namespace cobalt {
@@ -135,6 +144,65 @@ Task ReloadTask(content::WeakDocumentPtr weak_document_ptr) {
       weak_document_ptr);
 }
 
+base::FilePath GetOldCachePath() {
+  std::vector<char> path(kSbFileMaxPath, 0);
+  bool success =
+      SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(), path.size());
+  if (!success) {
+    return base::FilePath();
+  }
+  return base::FilePath(path.data());
+}
+
+void DeleteOldCacheDirectoryAsync() {
+  base::ThreadPool::CreateSequencedTaskRunner(
+      {base::MayBlock(), base::TaskPriority::BEST_EFFORT,
+       base::TaskShutdownBehavior::CONTINUE_ON_SHUTDOWN})
+      ->PostTask(
+          FROM_HERE, base::BindOnce([]() {
+            base::FilePath old_cache_path = GetOldCachePath();
+            if (old_cache_path.empty() || !base::PathExists(old_cache_path)) {
+              return;
+            }
+
+            base::FilePath current_cache_path;
+            base::PathService::Get(base::DIR_CACHE, &current_cache_path);
+            if (!old_cache_path.IsParent(current_cache_path) &&
+                old_cache_path != current_cache_path) {
+              base::DeletePathRecursively(old_cache_path);
+              return;
+            }
+
+            std::vector<std::string> old_cache_subpaths = {
+                "cache_settings.json",
+                "compiled_js",
+                "css",
+                "font",
+                "html",
+                "image",
+                "other",
+                "service_worker_settings.json",
+                "settings.json",
+                "splash",
+                "splash_screen",
+                "uncompiled_js",
+            };
+            for (const auto& subpath : old_cache_subpaths) {
+              base::FilePath old_cache_subpath = old_cache_path.Append(subpath);
+              if (base::PathExists(old_cache_subpath)) {
+                base::DeletePathRecursively(old_cache_subpath);
+              }
+            }
+          }));
+}
+
+Task DeleteOldCacheDirectoryTask() {
+  return base::BindOnce([](base::OnceClosure callback) {
+    DeleteOldCacheDirectoryAsync();
+    std::move(callback).Run();
+  });
+}
+
 }  // namespace
 
 // static
@@ -183,6 +251,7 @@ void MigrationManager::DoMigrationTasksOnce(
 #if !defined(COBALT_IS_RELEASE_BUILD)
   tasks.push_back(LogElapsedTimeTask());
 #endif  // !defined(COBALT_IS_RELEASE_BUILD)
+  tasks.push_back(DeleteOldCacheDirectoryTask());
   tasks.push_back(ReloadTask(weak_document_ptr));
   std::move(GroupTasks(std::move(tasks))).Run(base::DoNothing());
 }
