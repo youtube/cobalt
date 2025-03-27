@@ -188,6 +188,8 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
 
   SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 
+  // TODO(b/406826441): Apply GUARD_BY(lock_) to member variables protected by
+  // it.
   mutable base::Lock lock_;
   std::unique_ptr<SbPlayerBridge> player_bridge_;
 
