@@ -37,7 +37,8 @@ void PerformanceImpl::MeasureAvailableCpuMemory(
 
 void PerformanceImpl::MeasureUsedCpuMemory(
     MeasureAvailableCpuMemoryCallback callback) {
-  std::move(callback).Run(base::SysInfo::AmountOfPhysicalMemory());
+  std::move(callback).Run(base::SysInfo::AmountOfPhysicalMemory() -
+                          base::SysInfo::AmountOfAvailablePhysicalMemory());
 }
 
 }  // namespace performance

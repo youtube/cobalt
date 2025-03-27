@@ -7,6 +7,7 @@
     [CallWith=ScriptState] unsigned long long measureAvailableCpuMemory();
 
     // Returns the amount of used memory on the device in bytes, according
-    // to base::SysInfo::AmountOfPhysicalMemory().
+    // to:
+    // base::SysInfo::AmountOfPhysicalMemory() - base::SysInfo::AmountOfAvailablePhysicalMemory()
     [CallWith=ScriptState] unsigned long long measureUsedCpuMemory();
 };
