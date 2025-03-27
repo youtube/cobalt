@@ -1943,8 +1943,16 @@ TEST_P(PartitionedCookiesURLRequestHttpJobTest, PrivacyMode) {
     req->set_isolation_info(kTestIsolationInfo);
     req->Start();
     delegate.RunUntilComplete();
-    EXPECT_EQ("__Host-partitioned=0; __Host-unpartitioned=1",
-              delegate.data_received());
+
+    std::vector<std::string> expected_cookies = {"__Host-partitioned=0","__Host-unpartitioned=1"};
+    std::string received_data = delegate.data_received();
+    std::vector<std::string> actual_cookies = base::SplitString(
+        received_data, ";", base::TRIM_WHITESPACE, base::SPLIT_WANT_ALL);
+
+    std::sort(expected_cookies.begin(), expected_cookies.end());
+    std::sort(actual_cookies.begin(), actual_cookies.end());
+
+    EXPECT_EQ(expected_cookies, actual_cookies);
   }
 
   {  // Get cookies with privacy mode enabled and partitioned state allowed.
