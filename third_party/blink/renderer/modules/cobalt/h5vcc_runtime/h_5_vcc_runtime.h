@@ -51,14 +51,11 @@ class MODULES_EXPORT H5vccRuntime final
 
   // Web-exposed interface:
   String initialDeepLink();
-  EventListener* ondeeplink();
-  void setOndeeplink(EventListener* listener);
+  DEFINE_ATTRIBUTE_EVENT_LISTENER(deeplink, kDeeplink)
 
   // EventTarget interface:
-  bool AddEventListenerInternal(
-      const AtomicString& event_type,
-      EventListener*,
-      const AddEventListenerOptionsResolved*) override;
+  void AddedEventListener(const AtomicString& event_type,
+                          RegisteredEventListener&) override;
   void RemovedEventListener(const AtomicString& event_type,
                             const RegisteredEventListener&) override;
 
@@ -77,12 +74,16 @@ class MODULES_EXPORT H5vccRuntime final
 
  private:
   void MaybeFireDeepLinkEvent(const String&);
-  void EnsureReceiverIsBound();
-  void RemoteAddListener();
+  void EnsureRemoteIsBound();
+
+  void MaybeRegisterMojoListener();
+  void MaybeUnregisterMojoListener();
+
   HeapMojoRemote<h5vcc_runtime::mojom::blink::H5vccRuntime>
       remote_h5vcc_runtime_;
   HeapMojoReceiver<h5vcc_runtime::mojom::blink::DeepLinkListener, H5vccRuntime>
-      receiver_;
+      deep_link_receiver_;
+
   String initial_deep_link_;
 };
 
