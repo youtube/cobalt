@@ -31,13 +31,12 @@ class SbPlayerSetBoundsHelper
  public:
   SbPlayerSetBoundsHelper() {}
 
-  void SetPlayerBridge(SbPlayerBridge* player_bridge);
+  void SetPlayerBridge(raw_ptr<SbPlayerBridge> player_bridge);
   bool SetBounds(int x, int y, int width, int height);
 
  private:
   base::Lock lock_;
-  SbPlayerBridge* player_bridge_ GUARDED_BY(lock_) = nullptr;
-  std::optional<gfx::Rect> rect_ GUARDED_BY(lock_);
+  raw_ptr<SbPlayerBridge> player_bridge_ GUARDED_BY(lock_)= nullptr;
 
   SbPlayerSetBoundsHelper(const SbPlayerSetBoundsHelper&) = delete;
   void operator=(const SbPlayerSetBoundsHelper&) = delete;

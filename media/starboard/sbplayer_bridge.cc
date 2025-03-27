@@ -277,7 +277,7 @@ SbPlayerBridge::~SbPlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   callback_helper_->ResetPlayer();
-  set_bounds_helper_->SetPlayerBridge(NULL);
+  set_bounds_helper_->SetPlayerBridge(nullptr);
 
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
   decode_target_provider_->SetOutputMode(
@@ -588,7 +588,7 @@ void SbPlayerBridge::Suspend() {
 
   sbplayer_interface_->SetPlaybackRate(player_, 0.0);
 
-  set_bounds_helper_->SetPlayerBridge(NULL);
+  set_bounds_helper_->SetPlayerBridge(nullptr);
 
   base::AutoLock auto_lock(lock_);
   GetInfo_Locked(&cached_video_frames_decoded_, &cached_video_frames_dropped_,

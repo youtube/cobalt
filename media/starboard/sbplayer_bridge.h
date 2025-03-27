@@ -291,15 +291,15 @@ class SbPlayerBridge {
 #if SB_HAS(PLAYER_WITH_URL)
   std::string url_;
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  SbPlayerInterface* sbplayer_interface_;
+  raw_ptr<SbPlayerInterface> sbplayer_interface_;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const GetDecodeTargetGraphicsContextProviderFunc
       get_decode_target_graphics_context_provider_func_;
   scoped_refptr<CallbackHelper> callback_helper_;
   SbWindow window_;
   SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
-  Host* const host_;
-  SbPlayerSetBoundsHelper* const set_bounds_helper_;
+  const raw_ptr<Host> host_;
+  const raw_ptr<SbPlayerSetBoundsHelper> set_bounds_helper_;
   const bool allow_resume_after_suspend_;
 
   // The following variables are only changed or accessed from the
@@ -338,7 +338,7 @@ class SbPlayerBridge {
   SbPlayerOutputMode output_mode_;
 
 #if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-  DecodeTargetProvider* const decode_target_provider_;
+  const raw_ptr<DecodeTargetProvider> decode_target_provider_;
 #endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
 
   // Keep copies of the mime type strings instead of using the ones in the
@@ -373,7 +373,7 @@ class SbPlayerBridge {
   bool pending_video_eos_buffer_ = false;
 
 #if COBALT_MEDIA_ENABLE_CVAL
-  CValStats* cval_stats_;
+  raw_ptr<CValStats> cval_stats_;
   std::string pipeline_identifier_;
 #endif  // COBALT_MEDIA_ENABLE_CVAL
 };

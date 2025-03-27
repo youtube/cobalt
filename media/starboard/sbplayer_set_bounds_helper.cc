@@ -27,7 +27,8 @@ namespace {
 base::AtomicSequenceNumber s_z_index;
 }  // namespace
 
-void SbPlayerSetBoundsHelper::SetPlayerBridge(SbPlayerBridge* player_bridge) {
+void SbPlayerSetBoundsHelper::SetPlayerBridge(
+    raw_ptr<SbPlayerBridge> player_bridge) {
   base::AutoLock auto_lock(lock_);
   player_bridge_ = player_bridge;
   if (player_bridge_ && rect_.has_value()) {
