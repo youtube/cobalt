@@ -96,8 +96,6 @@
 #include "media/cdm/fuchsia/fuchsia_cdm_factory.h"
 #include "media/fuchsia/video/fuchsia_decoder_factory.h"
 #include "media/mojo/clients/mojo_fuchsia_cdm_provider.h"
-#elif BUILDFLAG(USE_STARBOARD_MEDIA)
-#include "media/starboard/starboard_cdm_factory.h"
 #elif BUILDFLAG(ENABLE_MOJO_CDM)
 #include "media/mojo/clients/mojo_cdm_factory.h"  // nogncheck
 #else
@@ -139,6 +137,11 @@
 #include "media/mojo/clients/win/media_foundation_renderer_client_factory.h"
 #include "media/mojo/mojom/speech_recognition_service.mojom.h"
 #endif  // BUILDFLAG(IS_WIN)
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/starboard/renderer_factory_traits.h"
+#include "media/mojo/clients/starboard/starboard_renderer_client_factory.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 namespace {
 
@@ -568,15 +571,8 @@ MediaFactory::CreateRendererFactorySelector(
       element_id);
   if (factory) {
     is_base_renderer_factory_set = true;
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-    // TODO(b/326827007): Revisit renderer to support secondary videos.
-    // TODO(b/394368542): Add Content API to create StarboardRenderer.
-    factory_selector->AddBaseFactory(RendererType::kStarboard,
-                                     std::move(factory));
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     factory_selector->AddBaseFactory(RendererType::kContentEmbedderDefined,
                                      std::move(factory));
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -600,6 +596,15 @@ MediaFactory::CreateRendererFactorySelector(
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(ENABLE_MOJO_RENDERER)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // TODO(b/326827007): Revisit renderer to support secondary videos.
+  media::RendererFactoryTraits renderer_factory_traits;
+  GetContentClient()->renderer()->GetStarboardRendererFactoryTraits(&renderer_factory_traits);
+  is_base_renderer_factory_set = true;
+  factory_selector->AddBaseFactory(RendererType::kStarboard,
+    std::make_unique<media::StarboardRendererClientFactory>(media_log,
+        CreateMojoRendererFactory(), &renderer_factory_traits));
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!is_base_renderer_factory_set &&
       renderer_media_playback_options.is_mojo_renderer_enabled()) {
     is_base_renderer_factory_set = true;
@@ -863,8 +868,6 @@ media::CdmFactory* MediaFactory::GetCdmFactory() {
   cdm_factory_ = std::make_unique<media::FuchsiaCdmFactory>(
       std::make_unique<media::MojoFuchsiaCdmProvider>(&GetInterfaceBroker()),
       GetKeySystems());
-#elif BUILDFLAG(USE_STARBOARD_MEDIA)
-  cdm_factory_ = std::make_unique<media::StarboardCdmFactory>();
 #elif BUILDFLAG(ENABLE_MOJO_CDM)
   cdm_factory_ = std::make_unique<media::MojoCdmFactory>(
       GetMediaInterfaceFactory(), GetKeySystems());

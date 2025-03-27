@@ -20,7 +20,6 @@
 #include "media/base/video_codecs.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
-#include "ui/gfx/geometry/rect_conversions.h"
 
 namespace media {
 
@@ -108,29 +107,21 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
 }  // namespace
 
 StarboardRenderer::StarboardRenderer(
-    const scoped_refptr<base::SequencedTaskRunner>& task_runner,
-    VideoRendererSink* video_renderer_sink,
-    MediaLog* media_log,
-    std::unique_ptr<VideoOverlayFactory> video_overlay_factory,
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
+    std::unique_ptr<MediaLog> media_log,
+    const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
-    TimeDelta audio_write_duration_remote,
-    BindHostReceiverCallback bind_host_receiver_callback)
+    TimeDelta audio_write_duration_remote)
     : state_(STATE_UNINITIALIZED),
-      task_runner_(task_runner),
-      video_renderer_sink_(video_renderer_sink),
-      media_log_(media_log),
-      video_overlay_factory_(std::move(video_overlay_factory)),
+      task_runner_(std::move(task_runner)),
+      media_log_(std::move(media_log)),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       cdm_context_(nullptr),
       audio_write_duration_local_(audio_write_duration_local),
-      audio_write_duration_remote_(audio_write_duration_remote),
-      bind_host_receiver_callback_(bind_host_receiver_callback) {
+      audio_write_duration_remote_(audio_write_duration_remote) {
   DCHECK(task_runner_);
-  DCHECK(video_renderer_sink_);
   DCHECK(media_log_);
-  DCHECK(video_overlay_factory_);
   DCHECK(set_bounds_helper_);
-  DCHECK(bind_host_receiver_callback_);
   LOG(INFO) << "StarboardRenderer constructed.";
 }
 
@@ -186,18 +177,6 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   client_ = client;
   init_cb_ = std::move(init_cb);
 
-  // Bind the receiver of VideoGeometryChangeSubscriber on renderer Thread.
-  // This uses BindPostTaskToCurrentDefault() to ensure the callback is ran
-  // on renderer thread, not media thread.
-  bind_host_receiver_callback_.Run(
-      video_geometry_change_subcriber_remote_.BindNewPipeAndPassReceiver());
-  DCHECK(video_geometry_change_subcriber_remote_);
-  video_geometry_change_subcriber_remote_->SubscribeToVideoGeometryChange(
-      video_overlay_factory_->overlay_plane_id(),
-      video_geometry_change_client_receiver_.BindNewPipeAndPassRemote(),
-      base::BindOnce(&StarboardRenderer::OnSubscribeToVideoGeometryChange,
-                     base::Unretained(this), media_resource, client));
-
   audio_stream_ = media_resource->GetFirstStream(DemuxerStream::AUDIO);
   video_stream_ = media_resource->GetFirstStream(DemuxerStream::VIDEO);
 
@@ -241,12 +220,6 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   // |init_cb| will be called inside |CreatePlayerBridge()|.
   state_ = STATE_INITIALIZING;
   CreatePlayerBridge();
-}
-
-void StarboardRenderer::OnSubscribeToVideoGeometryChange(
-    MediaResource* media_resource,
-    RendererClient* client) {
-  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 }
 
 void StarboardRenderer::SetCdm(CdmContext* cdm_context,
@@ -435,12 +408,14 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   return media_time;
 }
 
-void StarboardRenderer::OnVideoGeometryChange(
-    const gfx::RectF& rect_f,
-    gfx::OverlayTransform /* transform */) {
-  gfx::Rect new_bounds = gfx::ToEnclosingRect(rect_f);
-  set_bounds_helper_->SetBounds(new_bounds.x(), new_bounds.y(),
-                                new_bounds.width(), new_bounds.height());
+void StarboardRenderer::set_paint_video_hole_frame_callback(
+    PaintVideoHoleFrameCallback paint_video_hole_frame_cb) {
+  paint_video_hole_frame_cb_ = std::move(paint_video_hole_frame_cb);
+}
+
+void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
+  set_bounds_helper_->SetBounds(output_rect.x(), output_rect.y(),
+                                output_rect.width(), output_rect.height());
 }
 
 void StarboardRenderer::CreatePlayerBridge() {
@@ -582,8 +557,8 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
       content_size_change_cb_.Run();
     }
 #endif  // 0
-    video_renderer_sink_->PaintSingleFrame(video_overlay_factory_->CreateFrame(
-        stream->video_decoder_config().visible_rect().size()));
+    paint_video_hole_frame_cb_.Run(
+        stream->video_decoder_config().visible_rect().size());
   }
 }
 
@@ -660,9 +635,8 @@ void StarboardRenderer::OnDemuxerStreamRead(
       // TODO(b/375275033): Refine calling to OnVideoNaturalSizeChange().
       client_->OnVideoNaturalSizeChange(
           stream->video_decoder_config().visible_rect().size());
-      video_renderer_sink_->PaintSingleFrame(
-          video_overlay_factory_->CreateFrame(
-              stream->video_decoder_config().visible_rect().size()));
+      paint_video_hole_frame_cb_.Run(
+          stream->video_decoder_config().visible_rect().size());
     }
     UpdateDecoderConfig(stream);
     stream->Read(1, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,

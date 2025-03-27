@@ -96,8 +96,6 @@ source_set("starboard") {
       "starboard_memory_allocator.h",
       "starboard_renderer.cc",
       "starboard_renderer.h",
-      "starboard_renderer_factory.cc",
-      "starboard_renderer_factory.h",
       "starboard_utils.cc",
       "starboard_utils.h",
     ]
@@ -105,11 +103,10 @@ source_set("starboard") {
 
   deps = [
     "//base",
-    "//cobalt/media/service",
-    "//cobalt/media/service/mojom",
     "//media:media_buildflags",
     "//media/base",
     "//media/renderers",
+    "//mojo/public/cpp/bindings:bindings",
     "//starboard($starboard_toolchain)",
     "//starboard/common",
     "//url",

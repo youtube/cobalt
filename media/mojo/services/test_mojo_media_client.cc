@@ -23,6 +23,10 @@
 #include "media/renderers/default_decoder_factory.h"
 #include "media/renderers/renderer_impl_factory.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/mojo/services/mojo_media_log.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 TestMojoMediaClient::TestMojoMediaClient() = default;
@@ -102,6 +106,25 @@ std::unique_ptr<Renderer> TestMojoMediaClient::CreateCastRenderer(
                         std::string());
 }
 #endif  // BUILDFLAG(ENABLE_CAST_RENDERER)
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+std::unique_ptr<Renderer> TestMojoMediaClient::CreateStarboardRenderer(
+    mojom::FrameInterfaceFactory* frame_interfaces,
+    scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+    mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+    const base::UnguessableToken& overlay_plane_id,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote,
+    mojo::PendingReceiver<mojom::StarboardRendererExtension>
+        renderer_extension_receiver,
+    mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+        client_extension_remote) {
+  std::unique_ptr<MediaLog> media_log =
+      std::make_unique<MojoMediaLog>(std::move(media_log_remote), task_runner);
+  return CreateRenderer(frame_interfaces, task_runner, media_log.get(),
+                        std::string());
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 std::unique_ptr<CdmFactory> TestMojoMediaClient::CreateCdmFactory(
     mojom::FrameInterfaceFactory* /* frame_interfaces */) {

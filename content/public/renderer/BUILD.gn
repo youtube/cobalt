@@ -6,6 +6,10 @@ import("//build/config/features.gni")
 import("//media/media_options.gni")
 import("//ppapi/buildflags/buildflags.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 # See //content/BUILD.gn for how this works.
 group("renderer") {
   if (is_component_build) {

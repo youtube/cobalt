@@ -22,3 +22,11 @@ enable_platform_ac3_eac3_audio = true
 # We use Angle+EGL based graphics pipeline, not Dawn path
 # see //ui/gl/features.gni
 use_dawn = false
+
+# Use MojoRenderer for StarboardRenderer.
+# Use MojoCdm for StarboardCdm.
+mojo_media_host = "gpu"
+mojo_media_services = [
+  "renderer",
+  "cdm",
+]
