@@ -326,7 +326,9 @@ class SbPlayerBridge {
   // Stores the |z_index| and |rect| parameters of the latest SetBounds() call.
   std::optional<int> set_bounds_z_index_ GUARDED_BY(lock_);
   std::optional<gfx::Rect> set_bounds_rect_ GUARDED_BY(lock_);
+  // TODO(b/407063029): Guard state_ by lock and annotate with GUARDED_BY.
   State state_ = kPlaying;
+  // TODO(b/407063029): Guard player_ by lock and annotate with GUARDED_BY
   SbPlayer player_;
   uint32_t cached_video_frames_decoded_;
   uint32_t cached_video_frames_dropped_;
