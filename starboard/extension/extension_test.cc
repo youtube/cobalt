@@ -591,7 +591,6 @@ TEST(ExtensionTest, CobaltAccessibilityExtension) {
 
   EXPECT_STREQ(extension_api->name, kExtensionName);
   EXPECT_EQ(extension_api->version, 1u);
-  EXPECT_NE(extension_api->GetTextToSpeechSettings, nullptr);
   EXPECT_NE(extension_api->GetDisplaySettings, nullptr);
   EXPECT_NE(extension_api->GetCaptionSettings, nullptr);
   EXPECT_NE(extension_api->SetCaptionsEnabled, nullptr);

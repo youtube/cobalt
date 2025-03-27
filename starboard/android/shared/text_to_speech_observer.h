@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,24 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_ACCESSIBILITY_EXTENSION_H_
-#define STARBOARD_ANDROID_SHARED_ACCESSIBILITY_EXTENSION_H_
+#ifndef STARBOARD_ANDROID_SHARED_TEXT_TO_SPEECH_OBSERVER_H_
+#define STARBOARD_ANDROID_SHARED_TEXT_TO_SPEECH_OBSERVER_H_
 
-#include "starboard/extension/accessibility.h"
+#include "base/observer_list_types.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
 
-namespace accessibility {
-bool GetDisplaySettings(SbAccessibilityDisplaySettings* out_setting);
-bool GetCaptionSettings(SbAccessibilityCaptionSettings* caption_settings);
-bool SetCaptionsEnabled(bool enabled);
-}  // namespace accessibility
+// Add this class to handle the circular dependency issue between
+// H5vccAccessibilityImpl and CobaltTextToSpeechHelper
+class TextToSpeechObserver : public base::CheckedObserver {
+ public:
+  virtual void NotifyTextToSpeechChange() = 0;
+  ~TextToSpeechObserver() override = default;
+};
 
-const void* GetAccessibilityApi();
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_ACCESSIBILITY_EXTENSION_H_
+#endif  // STARBOARD_ANDROID_SHARED_TEXT_TO_SPEECH_OBSERVER_H_

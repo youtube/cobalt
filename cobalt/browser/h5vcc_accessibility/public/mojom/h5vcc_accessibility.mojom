@@ -14,10 +14,18 @@
 
 module h5vcc_accessibility.mojom;
 
+// bind this interface somewhere like cobalt/browser/cobalt_browser_interface_binders.cc?
+interface H5vccAccessibilityClient {
+  NotifyTextToSpeechChange();
+};
+
 // The browser process must provide an implementation of this interface so that
 // the renderer process can implement the H5vccAccessibility Blink API.
-interface H5vccAccessibility {
+interface H5vccAccessibilityBrowser {
   // Return whether text-to-speech is enabled on the device.
   [Sync]
-  GetTextToSpeechSync() => (bool enabled);
+  IsTextToSpeechEnabledSync() => (bool enabled);
+
+  // Register blink side client.
+  RegisterClient(pending_remote<H5vccAccessibilityClient> client);
 };

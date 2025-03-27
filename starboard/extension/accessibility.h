@@ -200,15 +200,6 @@ typedef struct StarboardExtensionAccessibilityApi {
   // This specifies the version of the API that is implemented.
   uint32_t version;
 
-  // Gets the platform settings related to the text-to-speech accessibility
-  // feature. This function returns false if |out_settings| is NULL or if it is
-  // not zero-initialized.
-  //
-  // |out_settings|: A pointer to a zero-initialized
-  //    SbAccessibilityTextToSpeechSettings struct.
-  bool (*GetTextToSpeechSettings)(
-      SbAccessibilityTextToSpeechSettings* out_settings);
-
   // Gets the platform settings related to high contrast text.
   // This function returns false if |out_settings| is NULL or if it is
   // not zero-initialized.
