@@ -62,7 +62,8 @@ pipeline () {
   # Run GN and Ninja.
   ##############################################################################
   cd "${gclient_root}/src"
-  cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}"
+  cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
+    --script-executable=/usr/bin/python3
   autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${TARGET}  # TARGET may expand to multiple args
 
   # Build bootloader config if set.
