@@ -1210,6 +1210,7 @@ if (is_cobalt) {
   static_idl_files_in_modules += get_path_info(
           [
             "//third_party/blink/renderer/modules/cobalt/crash_log/crash_log.idl",
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility/h_5_vcc_accessibility.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics/metrics_event.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deep_link_event.idl",
