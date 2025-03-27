@@ -40,4 +40,11 @@ void CrashAnnotatorImpl::SetString(const std::string& key,
   std::move(callback).Run(false);
 }
 
+void CrashAnnotatorImpl::GetTestValueSync(
+    GetTestValueSyncCallback callback) {
+  bool result = true;
+  std::move(callback).Run(result);
+}
+
+
 }  // namespace crash_annotator

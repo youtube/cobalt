@@ -45,6 +45,8 @@ class CrashAnnotatorImpl
                  const std::string& value,
                  SetStringCallback callback) override;
 
+  void GetTestValueSync(GetTestValueSyncCallback) override;
+
  private:
   CrashAnnotatorImpl(content::RenderFrameHost& render_frame_host,
                      mojo::PendingReceiver<mojom::CrashAnnotator> receiver);
