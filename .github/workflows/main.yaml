@@ -234,7 +234,7 @@ jobs:
     needs: [initialize, build]
     # Run ODT when on_device label is applied on PR.
     # Also, run ODT on push and schedule if not explicitly disabled via repo vars.
-    if: needs.initialize.outputs.test_on_device == 'true' && fromJson(needs.build.outputs.test_targets_count) > 0 &&
+    if: needs.initialize.outputs.test_on_device == 'true' &&
         (
           (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'on_device')) ||
           ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
@@ -254,13 +254,14 @@ jobs:
       TEST_TARGETS_JSON_FILE: ${{ needs.build.outputs.test_targets_json_file }}
     steps:
       - name: Checkout
+        if: ${{ fromJson(needs.build.outputs.test_targets_count) > 0 }}
         uses: actions/checkout@v4
         timeout-minutes: 30
         with:
           fetch-depth: 1
           persist-credentials: false
       - name: Run On-Device Tests
-        id: on-device-tests
+        if: ${{ fromJson(needs.build.outputs.test_targets_count) > 0 }}
         uses: ./.github/actions/on_device_tests
         with:
           test_targets_json: ${{ needs.build.outputs.test_targets_json }}
@@ -270,7 +271,7 @@ jobs:
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
-    if: needs.initialize.outputs.test_on_host == 'true' && fromJson(needs.build.outputs.test_targets_count) > 0
+    if: needs.initialize.outputs.test_on_host == 'true'
     permissions: {}
     # TODO(b/372303096): Should have dedicated runner?
     runs-on: [self-hosted, chrobalt-linux-runner]
@@ -289,12 +290,12 @@ jobs:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
     steps:
       - name: Checkout
+        if: ${{ fromJson(needs.build.outputs.test_targets_count) > 0 }}
         uses: actions/checkout@v4
         with:
           path: src
       - name: Run On-Host Tests
         if: ${{ fromJson(needs.build.outputs.test_targets_count) > 0 }}
-        id: on-host-tests
         uses: ./src/.github/actions/on_host_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
