@@ -113,11 +113,18 @@ class AudioDecoderTest
                  << (using_stub_decoder_ ? " with stub audio decoder." : ".");
   }
   void SetUp() override {
+#if defined(SKIP_DOLBY_DIGITAL_TESTS)
+    if ((std::string(test_filename_).find("_ec3") != std::string::npos) ||
+        (std::string(test_filename_).find("_ac3") != std::string::npos)) {
+      GTEST_SKIP() << "Skipping E-/AC-3 (Dolby Digital) related tests.";
+    }
+#endif
     ASSERT_NE(dmp_reader_.audio_stream_info().codec, kSbMediaAudioCodecNone);
     ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
 
     CreateComponents(dmp_reader_.audio_stream_info(), &audio_decoder_,
                      &audio_renderer_sink_);
+    ASSERT_TRUE(audio_decoder_);
   }
 
  protected:
