@@ -21,9 +21,10 @@
 
 namespace blink {
 
-uint64_t PerformanceExtensions::measureAvailableCpuMemory(
-    ScriptState* script_state,
-    const Performance&) {
+namespace {
+
+HeapMojoRemote<performance::mojom::CobaltPerformance> BindRemotePerformance(
+    ScriptState* script_state) {
   ExecutionContext* execution_context = ExecutionContext::From(script_state);
   DCHECK(execution_context);
 
@@ -33,10 +34,24 @@ uint64_t PerformanceExtensions::measureAvailableCpuMemory(
       execution_context->GetTaskRunner(TaskType::kMiscPlatformAPI);
   execution_context->GetBrowserInterfaceBroker().GetInterface(
       remote_performance_system.BindNewPipeAndPassReceiver(task_runner));
+  return remote_performance_system;
+}
 
+}  // namespace
+
+uint64_t PerformanceExtensions::measureAvailableCpuMemory(
+    ScriptState* script_state,
+    const Performance&) {
   uint64_t free_memory = 0;
-  remote_performance_system->MeasureAvailableCpuMemory(&free_memory);
+  BindRemotePerformance(script_state)->MeasureAvailableCpuMemory(&free_memory);
   return free_memory;
+}
+
+uint64_t PerformanceExtensions::measureUsedCpuMemory(ScriptState* script_state,
+                                                     const Performance&) {
+  uint64_t used_memory = 0;
+  BindRemotePerformance(script_state)->MeasureUsedCpuMemory(&used_memory);
+  return used_memory;
 }
 
 }  //  namespace blink
