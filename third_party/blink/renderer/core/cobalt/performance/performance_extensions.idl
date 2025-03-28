@@ -2,6 +2,9 @@
 [
     ImplementedAs=PerformanceExtensions
 ] partial interface Performance {
+    // Returns the application startup duration (us) in bytes, according to
+    // base::SysInfo::AppStartupTime().
+    [CallWith=ScriptState] unsigned long long getAppStartupTime();
     // Returns the amount of available memory on the device in bytes, according
     // to base::SysInfo::AmountOfAvailablePhysicalMemory().
     [CallWith=ScriptState] unsigned long long measureAvailableCpuMemory();
