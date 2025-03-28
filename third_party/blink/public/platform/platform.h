@@ -792,6 +792,12 @@ class BLINK_PLATFORM_EXPORT Platform {
   }
 #endif
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual uint64_t mediaSourceSizeLimit() const { return 0; }
+  virtual uint64_t totalMediaSourceSize() const { return 0; }
+  virtual uint64_t usedMediaSourceMemorySize() const { return 0; }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
  private:
   static void InitializeMainThreadCommon(
       Platform* platform,

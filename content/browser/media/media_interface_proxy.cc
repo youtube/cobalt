@@ -391,6 +391,31 @@ void MediaInterfaceProxy::CreateMediaFoundationRenderer(
 }
 #endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void MediaInterfaceProxy::CreateStarboardRenderer(
+    mojo::PendingRemote<media::mojom::MediaLog> media_log_remote,
+    const base::UnguessableToken& overlay_plane_id,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta video_write_duration_remote,
+    mojo::PendingReceiver<media::mojom::Renderer> receiver,
+    mojo::PendingReceiver<media::mojom::StarboardRendererExtension>
+        renderer_extension_receiver,
+    mojo::PendingRemote<media::mojom::StarboardRendererClientExtension>
+        client_extension_remote) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DVLOG(1) << __func__ << ": this=" << this;
+
+  InterfaceFactory* factory = media_interface_factory_ptr_->Get();
+  if (factory) {
+    factory->CreateStarboardRenderer(
+        std::move(media_log_remote), overlay_plane_id,
+        audio_write_duration_local, video_write_duration_remote,
+        std::move(receiver), std::move(renderer_extension_receiver),
+        std::move(client_extension_remote));
+  }
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void MediaInterfaceProxy::CreateCdm(const media::CdmConfig& cdm_config,
                                     CreateCdmCallback create_cdm_cb) {
   DCHECK(thread_checker_.CalledOnValidThread());

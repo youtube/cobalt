@@ -30,6 +30,9 @@ import("//tools/resources/generate_resource_allowlist.gni")
 import("//tools/v8_context_snapshot/v8_context_snapshot.gni")
 import("//ui/gl/features.gni")
 import("//v8/gni/v8.gni")
+if(is_cobalt) {
+import("//third_party/angle/gni/angle.gni")
+}
 
 if (is_android) {
   import("//build/config/android/rules.gni")
@@ -1735,11 +1738,15 @@ if (is_linux || is_chromeos) {
       if (is_linux) {
         deps += [ ":swiftshader_vk_symbols" ]
       }
+
+      # TODO: b/406550834 - Cobalt: Upstream adding angle_shared_libvulkan
+      if (!is_cobalt || angle_shared_libvulkan) {
       if (!is_chromeos) {
         deps += [ ":angle_libvulkan_symbols" ]
       }
       if (build_with_internal_optimization_guide) {
         deps += [ ":optimization_guide_symbols" ]
+      }
       }
     }
     extract_symbols("chrome_symbols") {
@@ -1802,6 +1809,9 @@ if (is_linux || is_chromeos) {
 
       deps = [ "//third_party/angle:libGLESv2" ]
     }
+
+    # TODO: b/406550834 - Cobalt: Upstream adding angle_shared_libvulkan
+    if (!is_cobalt || angle_shared_libvulkan) {
     if (!is_chromeos) {
       extract_symbols("angle_libvulkan_symbols") {
         binary = "$root_out_dir/libvulkan.so.1"
@@ -1814,6 +1824,7 @@ if (is_linux || is_chromeos) {
         }
 
         deps = [ "//third_party/vulkan-deps/vulkan-loader/src:libvulkan" ]
+      }
       }
     }
     if (build_with_internal_optimization_guide) {

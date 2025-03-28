@@ -86,6 +86,17 @@ interface MediaFoundationRendererClientExtension {
     gfx.mojom.Size size, mojo_base.mojom.TimeDelta timestamp);
 };
 
+[EnableIf=use_starboard_media]
+// This interface is for StarboardRendererClient to extend
+// mojo:RendererClient as StarboardRendererClient to allow
+// StarboardRenderer (on gpu thread) to paint a video hole
+// on VideoRendererSink on renderer thread.
+interface StarboardRendererClientExtension {
+  // Called when the first time the metadata is updated, and whenever the
+  // metadata changes.
+  PaintVideoHoleFrame(gfx.mojom.Size size);
+};
+
 // The Media Foundation Media Engine has two modes for playback.
 // DirectComposition is when the media engine will render directly to a
 // direct composition visual, skipping the Chromium compositor.
@@ -132,6 +143,14 @@ interface MediaFoundationRendererExtension {
 
   // Notify which rendering mode to be using for future video frames.
   SetMediaFoundationRenderingMode(MediaFoundationRenderingMode mode);
+};
+
+[EnableIf=use_starboard_media]
+// This interface is for StarboardRenderer to extend mojo::Renderer
+// as StarboardRendererWrapper to subscribe to video geometry changes
+// from cobalt::media::mojom::VideoGeometryChangeSubscriber.
+interface StarboardRendererExtension {
+  OnVideoGeometryChange(gfx.mojom.Rect rect);
 };
 
 // This interface is used by the browser to determine if there are any renderers

@@ -30,8 +30,6 @@
 #include "content/public/common/user_agent.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
-#include "starboard/configuration_constants.h"
-#include "starboard/system.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 
@@ -52,17 +50,6 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
     FILE_PATH_LITERAL("TransportSecurity");
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
-
-base::FilePath GetCacheDirectory() {
-  std::string path;
-  path.resize(kSbFileMaxPath);
-  if (!SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(),
-                       kSbFileMaxPath)) {
-    NOTREACHED() << "Failed to get cache directory.";
-    return base::FilePath();
-  }
-  return base::FilePath(path.data());
-}
 
 }  // namespace
 
@@ -117,8 +104,7 @@ std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  auto browser_main_parts =
-      std::make_unique<CobaltBrowserMainParts>(GetCacheDirectory());
+  auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
   set_browser_main_parts(browser_main_parts.get());
   return browser_main_parts;
 }
@@ -179,7 +165,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     network::mojom::NetworkContextParams* network_context_params,
     cert_verifier::mojom::CertVerifierCreationParams*
         cert_verifier_creation_params) {
-  base::FilePath base_cache_path = GetCacheDirectory();
+  base::FilePath base_cache_path = context->GetPath();
   base::FilePath path = base_cache_path.Append(relative_partition_path);
   network_context_params->user_agent = GetCobaltUserAgent();
   network_context_params->enable_referrers = true;

@@ -305,6 +305,12 @@ class CONTENT_EXPORT RenderThreadImpl
   scoped_refptr<viz::ContextProviderCommandBuffer>
   PepperVideoDecodeContextProvider();
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  uint64_t GetMediaSourceSizeLimit() const;
+  uint64_t GetTotalMediaSourceSize() const;
+  uint64_t GetUsedMediaSourceMemorySize() const;
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // For producing custom V8 histograms. Custom histograms are produced if all
   // `blink::WebView`s share the same host, and the host is in the pre-specified
   // set of hosts we want to produce custom diagrams for. The name for a custom

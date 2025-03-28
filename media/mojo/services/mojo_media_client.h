@@ -124,6 +124,20 @@ class MEDIA_MOJO_EXPORT MojoMediaClient {
           client_extension_remote);
 #endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  virtual std::unique_ptr<Renderer> CreateStarboardRenderer(
+      mojom::FrameInterfaceFactory* frame_interfaces,
+      scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+      mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+      const base::UnguessableToken& overlay_plane_id,
+      base::TimeDelta audio_write_duration_local,
+      base::TimeDelta audio_write_duration_remote,
+      mojo::PendingReceiver<mojom::StarboardRendererExtension>
+          renderer_extension_receiver,
+      mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+          client_extension_remote);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   // Returns the CdmFactory to be used by MojoCdmService. |frame_interfaces|
   // can be used to request interfaces provided remotely by the host. It may
   // be a nullptr if the host chose not to bind the InterfacePtr.

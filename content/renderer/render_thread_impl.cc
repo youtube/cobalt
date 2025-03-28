@@ -1235,6 +1235,20 @@ RenderThreadImpl::PepperVideoDecodeContextProvider() {
   return pepper_video_decode_contexts_;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+uint64_t RenderThreadImpl::GetMediaSourceSizeLimit() const {
+  return RenderMediaClient::GetMediaSourceSizeLimit();
+}
+
+uint64_t RenderThreadImpl::GetTotalMediaSourceSize() const {
+  return RenderMediaClient::GetTotalMediaSourceSize();
+}
+
+uint64_t RenderThreadImpl::GetUsedMediaSourceMemorySize() const {
+  return RenderMediaClient::GetUsedMediaSourceMemorySize();
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #if BUILDFLAG(IS_ANDROID)
 scoped_refptr<StreamTextureFactory> RenderThreadImpl::GetStreamTexureFactory() {
   DCHECK(IsMainThread());

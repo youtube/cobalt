@@ -8,6 +8,9 @@ import("//media/gpu/args.gni")
 import("//media/media_options.gni")
 import("//mojo/public/tools/fuzzers/mojolpm.gni")
 import("//testing/test.gni")
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
 
 enable_playback_events_recorder =
     enable_cast_receiver && (is_fuchsia || is_android)
@@ -111,7 +114,13 @@ component("services") {
     "//services/service_manager/public/mojom",
   ]
 
-  if (is_android) {
+  if (is_cobalt && use_starboard_media) {
+    sources += [
+      "starboard/gpu_mojo_media_client_starboard.cc",
+      "starboard/starboard_renderer_wrapper.cc",
+      "starboard/starboard_renderer_wrapper.h",
+    ]
+  } else if (is_android) {
     sources += [ "gpu_mojo_media_client_android.cc" ]
   } else if (is_mac) {
     sources += [ "gpu_mojo_media_client_mac.cc" ]

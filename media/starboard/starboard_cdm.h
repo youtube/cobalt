@@ -41,6 +41,7 @@ namespace media {
 class MEDIA_EXPORT StarboardCdm : public ContentDecryptionModule,
                                   public CdmContext {
  public:
+  // TODO(b/406263478) - Cobalt: Check DRM contents support on linux.
   StarboardCdm(const CdmConfig& cdm_config,
                const SessionMessageCB& session_message_cb,
                const SessionClosedCB& session_closed_cb,
