@@ -20,12 +20,8 @@ namespace android {
 namespace shared {
 
 const StarboardExtensionAccessibilityApi kAccessibilityAPI = {
-    kStarboardExtensionAccessibilityName,
-    1,
-    &accessibility::GetTextToSpeechSettings,
-    &accessibility::GetDisplaySettings,
-    &accessibility::GetCaptionSettings,
-    &accessibility::SetCaptionsEnabled};
+    kStarboardExtensionAccessibilityName, 1, &accessibility::GetDisplaySettings,
+    &accessibility::GetCaptionSettings, &accessibility::SetCaptionsEnabled};
 
 const void* GetAccessibilityApi() {
   return &kAccessibilityAPI;

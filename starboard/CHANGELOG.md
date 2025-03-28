@@ -186,7 +186,6 @@ Set this to true if your platform supports partial audio frames.
   The removal includes the following functions:
     * `SbAccessibilityGetCaptionSettings`
     * `SbAccessibilityGetDisplaySettings`
-    * `SbAccessibilityGetTextToSpeechSettings`
     * `SbAccessibilitySetCaptionsEnabled`
 
 * Convert `OnScreenKeyboard` Starboard APIs into an extension
