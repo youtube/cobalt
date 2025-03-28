@@ -65,6 +65,7 @@ class SbPlayerBridge {
     ~Host() {}
   };
 
+  // Stores playback information to be queried through GetInfo().
   struct PlayerInfo {
     uint32_t* video_frames_decoded;
     uint32_t* video_frames_dropped;
@@ -206,10 +207,15 @@ class SbPlayerBridge {
     SbPlayerBridge* player_bridge_;
   };
 
+  static const int64_t kClearDecoderCacheIntervalInMilliseconds = 1000;
+
   // A map from raw data pointer returned by DecoderBuffer::GetData() to the
-  // DecoderBuffer and an usage count.  The usage count indicates how
-  // many instances of the DecoderBuffer is currently being used (== being
-  // decoded) in the pipeline.
+  // DecoderBuffer, usage count, type, and total buffer size. The usage
+  // count indicates how many instances of the DecoderBuffer is currently
+  // being used (== being decoded) in the pipeline. The type and bytes
+  // written are used to report playback statistics. When multiple samples
+  // are written at once, |bytes_written| stores the total size of all
+  // buffers combined.
   struct DecodingBuffer {
     const scoped_refptr<DecoderBuffer> buffer;
     int usage_count;
