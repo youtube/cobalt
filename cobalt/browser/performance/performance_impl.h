@@ -40,6 +40,7 @@ class PerformanceImpl
   PerformanceImpl& operator=(const PerformanceImpl&) = delete;
 
   void MeasureAvailableCpuMemory(MeasureAvailableCpuMemoryCallback) override;
+  void MeasureUsedCpuMemory(MeasureAvailableCpuMemoryCallback) override;
 
  private:
   PerformanceImpl(content::RenderFrameHost& render_frame_host,
