@@ -213,9 +213,7 @@ class SbPlayerBridge {
   // DecoderBuffer, usage count, type, and total buffer size. The usage
   // count indicates how many instances of the DecoderBuffer is currently
   // being used (== being decoded) in the pipeline. The type and bytes
-  // written are used to report playback statistics. When multiple samples
-  // are written at once, |bytes_written| stores the total size of all
-  // buffers combined.
+  // written are used to report playback statistics.
   struct DecodingBuffer {
     const scoped_refptr<DecoderBuffer> buffer;
     int usage_count;
