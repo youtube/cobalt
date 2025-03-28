@@ -18,13 +18,22 @@
 #include <memory>
 
 #include "base/files/file_path.h"
+#include "base/memory/raw_ptr.h"
+#include "components/metrics_services_manager/metrics_services_manager.h"
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "content/shell/browser/shell_browser_main_parts.h"
 
+class PrefService;
+
+namespace metrics {
+class MetricsService;
+}  // namespace metrics
+
 namespace cobalt {
 
 class CobaltMetricsServiceClient;
+class CobaltMetricsServicesManagerClient;
 
 // TODO(b/390021478): When CobaltContentBrowserClient stops deriving from
 // ShellContentBrowserClient, this should implement BrowserMainParts.
@@ -52,7 +61,33 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 #endif  // BUILDFLAG(IS_LINUX)
 
  private:
+  // Initializes, but doesn't start, UMA.
+  void SetupMetrics();
+
+  // Fetch and, if necessary, initializes MetricsService instance owned
+  // by this class.
+  metrics::MetricsService* GetMetricsService();
+
+  // Fetch and, if necessary, initializes MetricsServicesManager owned by this
+  // class instance.
+  metrics_services_manager::MetricsServicesManager* GetMetricsServicesManager();
+
+  PrefService* local_state();
+
+  base::FilePath cache_directory_;
+
   std::unique_ptr<CobaltMetricsServiceClient> metrics_;
+
+  // Must be destroyed before |local_state_|.
+  std::unique_ptr<metrics_services_manager::MetricsServicesManager>
+      metrics_services_manager_;
+
+  // |metrics_services_manager_| owns this.
+  // raw_ptr<CobaltMetricsServicesManagerClient>
+  // metrics_services_manager_client_ =
+  //     nullptr;
+
+  std::unique_ptr<PrefService> local_state_;
 };
 
 }  // namespace cobalt

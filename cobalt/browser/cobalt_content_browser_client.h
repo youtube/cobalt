@@ -85,6 +85,9 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       blink::AssociatedInterfaceRegistry* associated_registry,
       content::RenderProcessHost* render_process_host) override;
   void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
+  void CreateExperimentConfig();
+  void CreateFeatureListAndFieldTrials();
+  void SetUpFieldTrials();
 
   bool WillCreateURLLoaderFactory(
       content::BrowserContext* browser_context,
@@ -109,6 +112,7 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       video_geometry_setter_service_;
   std::vector<std::unique_ptr<browser::CobaltTrustedURLLoaderHeaderClient>>
       cobalt_header_clients_;
+  std::unique_ptr<PrefService> local_state_ = nullptr;
 
   THREAD_CHECKER(thread_checker_);
 };

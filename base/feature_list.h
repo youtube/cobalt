@@ -482,6 +482,17 @@ class BASE_EXPORT FeatureList {
 
   void SetCachingContextForTesting(uint16_t caching_context);
 
+  // Registers an override for feature |feature_name|. The override specifies
+  // whether the feature should be on or off (via |overridden_state|), which
+  // will take precedence over the feature's default state. If |field_trial| is
+  // not null, registers the specified field trial object to be associated with
+  // the feature, which will activate the field trial when the feature state is
+  // queried. If an override is already registered for the given feature, it
+  // will not be changed.
+  void RegisterOverride(StringPiece feature_name,
+                        OverrideState overridden_state,
+                        FieldTrial* field_trial);
+
  private:
   FRIEND_TEST_ALL_PREFIXES(FeatureListTest, CheckFeatureIdentity);
   FRIEND_TEST_ALL_PREFIXES(FeatureListTest,
@@ -563,9 +574,9 @@ class BASE_EXPORT FeatureList {
   // the feature, which will activate the field trial when the feature state is
   // queried. If an override is already registered for the given feature, it
   // will not be changed.
-  void RegisterOverride(StringPiece feature_name,
-                        OverrideState overridden_state,
-                        FieldTrial* field_trial);
+  // void RegisterOverride(StringPiece feature_name,
+  //                       OverrideState overridden_state,
+  //                       FieldTrial* field_trial);
 
   // Implementation of GetFeatureOverrides() with a parameter that specifies
   // whether only command-line enabled overrides should be emitted. See that
