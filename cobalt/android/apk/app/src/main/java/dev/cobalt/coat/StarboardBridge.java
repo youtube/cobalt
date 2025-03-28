@@ -773,5 +773,6 @@ public class StarboardBridge {
 
   public void setWebContents(WebContents webContents) {
     cobaltMediaSession.setWebContents(webContents);
+    volumeStateReceiver.setWebContents(webContents);
   }
 }
