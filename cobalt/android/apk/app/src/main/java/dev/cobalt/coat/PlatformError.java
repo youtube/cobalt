@@ -117,6 +117,10 @@ public class PlatformError
           }
           break;
         case RETRY_BUTTON:
+          CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
+          if (cobaltActivity != null) {
+            cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
+          }
           response = POSITIVE;
           dialog.dismiss();
           break;
@@ -128,7 +132,6 @@ public class PlatformError
   @Override
   public void onDismiss(DialogInterface dialogInterface) {
     dialog = null;
-    sendResponse(response, data);
   }
 
   /** Informs Starboard when the error is dismissed. */
