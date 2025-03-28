@@ -35,7 +35,7 @@ bool SbPlayerInterface::SetDecodeToTexturePreferred(bool preferred) {
             std::string(kStarboardExtensionPlayerConfigurationName));
   DCHECK_EQ(extension_api->version, 1u);
 
-  // SetDecodeToTexturePreferred api could be NULL.
+  // SetDecodeToTexturePreferred api could be nullptr.
   if (extension_api->SetDecodeToTexturePreferred) {
     extension_api->SetDecodeToTexturePreferred(preferred);
     return true;

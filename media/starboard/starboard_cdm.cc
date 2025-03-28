@@ -516,7 +516,7 @@ void StarboardCdm::OnSessionKeyStatusesChangedFunc(
   StarboardCdm* cdm = static_cast<StarboardCdm*>(context);
   DCHECK_EQ(sb_drm, cdm->sb_drm_);
 
-  DCHECK(session_id != NULL);
+  DCHECK(session_id != nullptr);
 
   std::string session_id_copy =
       std::string(static_cast<const char*>(session_id),
@@ -568,7 +568,7 @@ void StarboardCdm::OnSessionClosedFunc(SbDrmSystem sb_drm,
   StarboardCdm* cdm = static_cast<StarboardCdm*>(context);
   DCHECK_EQ(sb_drm, cdm->sb_drm_);
 
-  DCHECK(session_id != NULL);
+  DCHECK(session_id != nullptr);
 
   std::string session_id_copy =
       std::string(static_cast<const char*>(session_id),
