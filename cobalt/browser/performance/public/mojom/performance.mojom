@@ -18,4 +18,8 @@ interface CobaltPerformance {
   // Get the amount of available memory on the device in bytes.
   [Sync]
   MeasureAvailableCpuMemory() => (uint64 bytes);
+
+  // Get the amount of used memory on the device in bytes.
+  [Sync]
+  MeasureUsedCpuMemory() => (uint64 bytes);
 };
