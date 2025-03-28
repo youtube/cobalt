@@ -682,18 +682,22 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
       // actually allocate any memory into the texture at this time.  That is
       // done behind the scenes, the acquired texture is not actually backed
       // by texture data until updateTexImage() is called on it.
+      SB_LOG(ERROR) << "Cobalt: " << __func__;
       DecodeTarget* decode_target =
           new DecodeTarget(decode_target_graphics_context_provider_);
+      SB_LOG(ERROR) << "Cobalt: " << __func__;
       if (!SbDecodeTargetIsValid(decode_target)) {
         *error_message = "Could not acquire a decode target from provider.";
         SB_LOG(ERROR) << *error_message;
         return false;
       }
       j_output_surface = decode_target->surface();
+      SB_LOG(ERROR) << "Cobalt: " << __func__;
 
       JniEnvExt* env = JniEnvExt::Get();
       env->CallVoidMethodOrAbort(decode_target->surface_texture(),
                                  "setOnFrameAvailableListener", "(J)V", this);
+      SB_LOG(ERROR) << "Cobalt: " << __func__;
 
       ScopedLock lock(decode_target_mutex_);
       decode_target_ = decode_target;
@@ -1055,8 +1059,11 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   if (decode_target_ != nullptr) {
     bool has_new_texture = has_new_texture_available_.exchange(false);
     if (has_new_texture) {
+      SB_LOG(ERROR) << "Cobalt: " << __func__;
       updateTexImage(decode_target_->surface_texture());
+      SB_LOG(ERROR) << "Cobalt: " << __func__;
       UpdateDecodeTargetSizeAndContentRegion_Locked();
+      SB_LOG(ERROR) << "Cobalt: " << __func__;
 
       if (!first_texture_received_) {
         first_texture_received_ = true;

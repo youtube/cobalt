@@ -65,9 +65,12 @@ void RunOnContextRunner(void* context) {
 }  // namespace
 
 DecodeTarget::DecodeTarget(SbDecodeTargetGraphicsContextProvider* provider) {
+  SB_LOG(ERROR) << "Cobalt: " << __func__;
   std::function<void()> closure =
       std::bind(&DecodeTarget::CreateOnContextRunner, this);
+  SB_LOG(ERROR) << "Cobalt: " << __func__;
   SbDecodeTargetRunInGlesContext(provider, &RunOnContextRunner, &closure);
+  SB_LOG(ERROR) << "Cobalt: " << __func__;
 }
 
 bool DecodeTarget::GetInfo(SbDecodeTargetInfo* out_info) {
@@ -92,8 +95,11 @@ void DecodeTarget::CreateOnContextRunner() {
   // the decoder.  We don't call glTexImage2d() on it, Android will handle
   // the creation of the content when SurfaceTexture::updateTexImage() is
   // called.
+  SB_LOG(ERROR) << "Cobalt: " << __func__;
   GLuint texture;
+  SB_LOG(ERROR) << "Cobalt: " << __func__;
   GL_CALL(glGenTextures(1, &texture));
+  SB_LOG(ERROR) << "Cobalt: " << __func__;
   GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, texture));
   GL_CALL(glTexParameteri(GL_TEXTURE_EXTERNAL_OES, GL_TEXTURE_MAG_FILTER,
                           GL_LINEAR));
@@ -105,15 +111,18 @@ void DecodeTarget::CreateOnContextRunner() {
                           GL_CLAMP_TO_EDGE));
 
   // Wrap the GL texture in an Android SurfaceTexture object.
+  SB_LOG(ERROR) << "Cobalt: " << __func__;
   surface_texture_ = CreateSurfaceTexture(texture);
 
   // We will also need an Android Surface object in order to obtain a
   // ANativeWindow object that we can pass into the AMediaCodec library.
+  SB_LOG(ERROR) << "Cobalt: " << __func__;
   surface_ = CreateSurfaceFromSurfaceTexture(surface_texture_);
 
   native_window_ = ANativeWindow_fromSurface(JniEnvExt::Get(), surface_);
 
   // Setup our publicly accessible decode target information.
+  SB_LOG(ERROR) << "Cobalt: " << __func__;
   info_.format = kSbDecodeTargetFormat1PlaneRGBA;
   info_.is_opaque = true;
   info_.width = 0;
@@ -129,7 +138,9 @@ void DecodeTarget::CreateOnContextRunner() {
   info_.planes[0].content_region.top = 0;
   info_.planes[0].content_region.bottom = 0;
 
+  SB_LOG(ERROR) << "Cobalt: " << __func__;
   GL_CALL(glBindTexture(GL_TEXTURE_EXTERNAL_OES, 0));
+  SB_LOG(ERROR) << "Cobalt: " << __func__;
 }
 
 }  // namespace shared

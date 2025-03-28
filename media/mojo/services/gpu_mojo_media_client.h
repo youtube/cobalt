@@ -131,6 +131,7 @@ std::unique_ptr<AudioEncoder> CreatePlatformAudioEncoder(
 // This is used on Cobalt (android/linux).
 std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+    scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
     mojo::PendingRemote<mojom::MediaLog> media_log_remote,
     const base::UnguessableToken& overlay_plane_id,
     base::TimeDelta audio_write_duration_local,
@@ -138,7 +139,10 @@ std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
-        client_extension_remote);
+        client_extension_remote,
+    base::RepeatingCallback<
+        gpu::CommandBufferStub*(base::UnguessableToken, int32_t)>
+            get_command_buffer_stub_cb);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // Creates a CDM factory, right now only used on android and chromeos.
