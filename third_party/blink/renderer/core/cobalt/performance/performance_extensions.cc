@@ -15,21 +15,20 @@
 #include "third_party/blink/renderer/core/cobalt/performance/performance_extensions.h"
 
 #include "cobalt/browser/performance/public/mojom/performance.mojom.h"
+#include "mojo/public/cpp/bindings/remote.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/timing/performance.h"
-#include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 
 namespace blink {
 
 namespace {
 
-HeapMojoRemote<performance::mojom::CobaltPerformance> BindRemotePerformance(
+mojo::Remote<performance::mojom::CobaltPerformance> BindRemotePerformance(
     ScriptState* script_state) {
   ExecutionContext* execution_context = ExecutionContext::From(script_state);
   DCHECK(execution_context);
 
-  HeapMojoRemote<performance::mojom::CobaltPerformance>
-      remote_performance_system(execution_context);
+  mojo::Remote<performance::mojom::CobaltPerformance> remote_performance_system;
   auto task_runner =
       execution_context->GetTaskRunner(TaskType::kMiscPlatformAPI);
   execution_context->GetBrowserInterfaceBroker().GetInterface(
