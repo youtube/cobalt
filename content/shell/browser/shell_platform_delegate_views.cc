@@ -365,6 +365,9 @@ void ShellPlatformDelegate::CreatePlatformWindow(
 #else
   shell_data.window_widget = new views::Widget();
   views::Widget::InitParams params;
+#if BUILDFLAG(IS_STARBOARD)
+  params.type = views::Widget::InitParams::TYPE_WINDOW_FRAMELESS;
+#endif // BUILDFLAG(IS_STARBOARD)
   params.bounds = gfx::Rect(initial_size);
   params.delegate = delegate.release();
   params.wm_class_class = "chromium-content_shell";
