@@ -74,7 +74,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   std::unique_ptr<BidirectionalFitReuseAllocator> reuse_allocator_
       GUARDED_BY(mutex_);
 
-  int max_buffer_capacity_ GUARDED_BY(mutex_);
+  int max_buffer_capacity_ GUARDED_BY(mutex_) = 0;
 };
 
 }  // namespace media
