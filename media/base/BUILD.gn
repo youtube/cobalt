@@ -463,7 +463,10 @@ source_set("base") {
   }
 
   if (is_cobalt && use_starboard_media) {
-    sources += [ "starboard/demuxer_memory_limit_starboard.cc" ]
+    sources += [
+        "starboard/demuxer_memory_limit_starboard.cc",
+        "starboard/renderer_factory_traits.h",
+    ]
   } else if (is_android) {
     sources += [ "demuxer_memory_limit_android.cc" ]
   } else if (is_castos) {

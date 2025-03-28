@@ -190,6 +190,34 @@ void InterfaceFactoryImpl::CreateMediaFoundationRenderer(
 }
 #endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void InterfaceFactoryImpl::CreateStarboardRenderer(
+    mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+    const base::UnguessableToken& overlay_plane_id,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote,
+    mojo::PendingReceiver<mojom::Renderer> receiver,
+    mojo::PendingReceiver<mojom::StarboardRendererExtension>
+          renderer_extension_receiver,
+    mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+          client_extension_remote) {
+  DVLOG(2) << __func__;
+  auto renderer = mojo_media_client_->CreateStarboardRenderer(
+      frame_interfaces_.get(),
+      base::SingleThreadTaskRunner::GetCurrentDefault(),
+      std::move(media_log_remote), overlay_plane_id,
+      audio_write_duration_local, audio_write_duration_remote,
+      std::move(renderer_extension_receiver),
+      std::move(client_extension_remote));
+  if (!renderer) {
+    DLOG(ERROR) << "StarboardRenderer creation failed.";
+    return;
+  }
+
+  AddRenderer(std::move(renderer), std::move(receiver));
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 void InterfaceFactoryImpl::CreateCdm(const CdmConfig& cdm_config,
                                      CreateCdmCallback callback) {
   DVLOG(2) << __func__;
