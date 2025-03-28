@@ -14,6 +14,8 @@
 
 #include "cobalt/browser/performance/performance_impl.h"
 
+#include "base/process/process_handle.h"
+#include "base/process/process_metrics.h"
 #include "base/system/sys_info.h"
 
 namespace performance {
@@ -33,6 +35,14 @@ void PerformanceImpl::Create(
 void PerformanceImpl::MeasureAvailableCpuMemory(
     MeasureAvailableCpuMemoryCallback callback) {
   std::move(callback).Run(base::SysInfo::AmountOfAvailablePhysicalMemory());
+}
+
+void PerformanceImpl::MeasureUsedCpuMemory(
+    MeasureAvailableCpuMemoryCallback callback) {
+  auto process_metrics = base::ProcessMetrics::CreateProcessMetrics(
+      base::GetCurrentProcessHandle());
+  auto used_memory = process_metrics->GetResidentSetSize();
+  std::move(callback).Run(used_memory);
 }
 
 }  // namespace performance
