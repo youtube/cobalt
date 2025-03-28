@@ -252,6 +252,26 @@ std::unique_ptr<VideoDecoder> GpuMojoMediaClient::CreateVideoDecoder(
   return CreatePlatformVideoDecoder(traits);
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
+    mojom::FrameInterfaceFactory* /* frame_interfaces */,
+    scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+    mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+    const base::UnguessableToken& overlay_plane_id,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote,
+    mojo::PendingReceiver<mojom::StarboardRendererExtension>
+        renderer_extension_receiver,
+    mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+        client_extension_remote) {
+  return CreatePlatformStarboardRenderer(
+      std::move(task_runner), std::move(media_log_remote), overlay_plane_id,
+      audio_write_duration_local, audio_write_duration_remote,
+      std::move(renderer_extension_receiver),
+      std::move(client_extension_remote));
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 std::unique_ptr<CdmFactory> GpuMojoMediaClient::CreateCdmFactory(
     mojom::FrameInterfaceFactory* frame_interfaces) {
   return CreatePlatformCdmFactory(frame_interfaces);
