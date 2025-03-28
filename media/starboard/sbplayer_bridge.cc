@@ -448,6 +448,7 @@ void SbPlayerBridge::SetPlaybackRate(double playback_rate) {
 }
 
 void SbPlayerBridge::GetInfo(PlayerInfo* out_info) {
+  DCHECK(out_info);
   DCHECK(out_info->video_frames_decoded || out_info->video_frames_dropped ||
          out_info->media_time);
 
@@ -915,7 +916,7 @@ void SbPlayerBridge::WriteBuffersInternal(
             buffer->data_size());
         !inserted) {
       ++iter->second.usage_count;
-      iter->second.bytes_written += buffer->data_size();
+      iter->second.size += buffer->data_size();
     }
 
     if (sample_type == kSbMediaTypeAudio &&
@@ -1002,6 +1003,7 @@ SbPlayerOutputMode SbPlayerBridge::GetSbPlayerOutputMode() {
 }
 
 void SbPlayerBridge::GetInfo_Locked(PlayerInfo* out_info) {
+  DCHECK(out_info);
   lock_.AssertAcquired();
   if (state_ == kSuspended) {
     if (out_info->video_frames_decoded) {
@@ -1190,9 +1192,9 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   {
     base::AutoLock auto_lock(lock_);
     if (decoding_buffer.type == kSbMediaTypeAudio) {
-      cached_audio_bytes_decoded_ += decoding_buffer.bytes_written;
+      cached_audio_bytes_decoded_ += decoding_buffer.size;
     } else {
-      cached_video_bytes_decoded_ += decoding_buffer.bytes_written;
+      cached_video_bytes_decoded_ += decoding_buffer.size;
     }
   }
   --decoding_buffer.usage_count;
