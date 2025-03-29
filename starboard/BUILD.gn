@@ -102,6 +102,9 @@ group("default") {
     ":starboard_group",
     "//starboard/tools:build_app_launcher_zip",
   ]
+  if (sb_is_evergreen_compatible) {
+    deps += [ "//starboard/loader_app($starboard_toolchain)" ]
+  }
 }
 
 group("starboard_group") {
