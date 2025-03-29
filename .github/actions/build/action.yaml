@@ -92,8 +92,8 @@ runs:
         run: |
           set -ex
           cd src
-          TEST_TARGETS=$(cat ${{ steps.calculate-test-targets.outputs.test_targets_json_file }} | jq -cr '.test_targets | join(" ")')
-          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TEST_TARGETS}
+          test_targets=$(echo "${{ steps.calculate-test-targets.outputs.test_targets_json }}" | jq -cr 'join(" ")')
+          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
         shell: bash
       - name: Ninja build
         env:
