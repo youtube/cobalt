@@ -92,7 +92,7 @@ runs:
         run: |
           set -ex
           cd src
-          test_targets=$(echo "${{ steps.calculate-test-targets.outputs.test_targets_json }}" | jq -cr 'join(" ")')
+          test_targets=$(echo '${{ steps.calculate-test-targets.outputs.test_targets_json }}' | jq -cr 'join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
         shell: bash
       - name: Ninja build
