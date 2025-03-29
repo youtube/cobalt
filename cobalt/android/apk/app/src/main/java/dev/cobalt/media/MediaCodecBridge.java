@@ -866,18 +866,6 @@ class MediaCodecBridge {
 
   @SuppressWarnings("unused")
   @CalledByNative
-  private String getName() {
-    String codecName = "unknown";
-    try {
-      codecName = mMediaCodec.get().getName();
-    } catch (IllegalStateException e) {
-      Log.e(TAG, "Cannot get codec name", e);
-    }
-    return codecName;
-  }
-
-  @SuppressWarnings("unused")
-  @CalledByNative
   private void getOutputFormat(GetOutputFormatResult outGetOutputFormatResult) {
     MediaFormat format = null;
     int status = MediaCodecStatus.OK;
@@ -927,36 +915,6 @@ class MediaCodecBridge {
       return MediaCodecStatus.ERROR;
     }
     return MediaCodecStatus.OK;
-  }
-
-  @SuppressWarnings("unused")
-  @CalledByNative
-  private void setVideoBitrate(int bps, int frameRate) {
-    int targetBps = bps;
-    if (mBitrateAdjustmentType == BitrateAdjustmentTypes.FRAMERATE_ADJUSTMENT && frameRate > 0) {
-      targetBps = BITRATE_ADJUSTMENT_FPS * bps / frameRate;
-    }
-
-    Bundle b = new Bundle();
-    b.putInt(MediaCodec.PARAMETER_KEY_VIDEO_BITRATE, targetBps);
-    try {
-      mMediaCodec.get().setParameters(b);
-    } catch (IllegalStateException e) {
-      Log.e(TAG, "Failed to set MediaCodec parameters", e);
-    }
-    Log.v(TAG, "setVideoBitrate: input " + bps + "bps@" + frameRate + ", targetBps " + targetBps);
-  }
-
-  @SuppressWarnings("unused")
-  @CalledByNative
-  private void requestKeyFrameSoon() {
-    Bundle b = new Bundle();
-    b.putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0);
-    try {
-      mMediaCodec.get().setParameters(b);
-    } catch (IllegalStateException e) {
-      Log.e(TAG, "Failed to set MediaCodec parameters", e);
-    }
   }
 
   @SuppressWarnings("unused")
