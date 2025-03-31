@@ -1189,17 +1189,17 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   }
 
   DecodingBuffer& decoding_buffer = iter->second;
-  {
-    base::AutoLock auto_lock(lock_);
-    if (decoding_buffer.type == kSbMediaTypeAudio) {
-      cached_audio_bytes_decoded_ += decoding_buffer.size;
-    } else {
-      cached_video_bytes_decoded_ += decoding_buffer.size;
-    }
-  }
   --decoding_buffer.usage_count;
   DCHECK_GE(decoding_buffer.usage_count, 0);
   if (decoding_buffer.usage_count == 0) {
+    {
+      base::AutoLock auto_lock(lock_);
+      if (decoding_buffer.type == kSbMediaTypeAudio) {
+        cached_audio_bytes_decoded_ += decoding_buffer.size;
+      } else {
+        cached_video_bytes_decoded_ += decoding_buffer.size;
+      }
+    }
     decoding_buffers_.erase(iter);
   }
 }
