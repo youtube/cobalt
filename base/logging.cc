@@ -935,7 +935,7 @@ void LogMessage::Flush() {
         priority = ANDROID_LOG_FATAL;
         break;
     }
-    const char kAndroidLogTag[] = "chromium";
+    const char kAndroidLogTag[] = "cobalt";
 #if DCHECK_IS_ON()
     // Split the output by new lines to prevent the Android system from
     // truncating the log.
