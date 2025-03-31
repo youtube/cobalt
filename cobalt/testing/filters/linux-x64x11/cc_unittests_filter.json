@@ -1,9 +1,11 @@
 {
   "comment": "TODO(b/399743678): Re-enable once we commit to SW or HW rendering for tests.",
   "failing_tests": [
+    "All/BackdropFilterInvertTest.HiDpi/SkiaGL",
     "All/LayerTreeHostFiltersPixelTest.BackdropFilterBlurRect/SkiaGL",
     "All/LayerTreeHostFiltersPixelTest.BackdropFilterBlurRadius/SkiaGL",
     "All/LayerTreeHostFiltersPixelTest.BackdropFilterBlurRounded/SkiaGL",
+    "All/LayerTreeHostFiltersPixelTest.BackdropFilterRotated/SkiaGL",
     "All/LayerTreeHostFiltersPixelTest.ImageFilterScaled/SkiaGL",
     "All/LayerTreeHostFiltersPixelTest.BackdropFilterRotated/SkiaGL",
     "All/LayerTreeHostFiltersPixelTest.ImageRenderSurfaceScaled/SkiaGL",
@@ -14,6 +16,13 @@
     "All/LayerTreeHostFiltersPixelTest.BlurFilterWithClip/SkiaGL",
     "All/LayerTreeHostScrollbarsPixelTest.HugeTransformScale/SkiaGL",
     "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircleUnderflow/SkiaGL_ZeroCopy*",
-    "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy*"
+    "All/LayerTreeHostMaskAsBlendingPixelTest.RotatedClippedCircle/SkiaGL_ZeroCopy*",
+    "All/LayerTreeHostTilesTestRasterColorSpace.GenericRGB/SkiaGL_GPU",
+    "All/LayerTreeHostTilesTestRasterColorSpace.GenericRGB/SkiaGL_OneCopy",
+    "OopPixelTest.DrawImageWithSourceColorSpace",
+    "P/OopTextBlobPixelTest.*",
+    "P/OopClearPixelTest.*",
+    "P/OopYUVToRGBPixelTest.*",
+    "P/OopPathPixelTest.*"
   ]
 }
