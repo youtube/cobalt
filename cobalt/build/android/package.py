@@ -35,8 +35,8 @@ PLATFORMS = ['android-arm', 'android-arm64', 'android-x86']
 CONFIGS = ['gold', 'qa']
 
 
-def build():
-  for platform in PLATFORMS:
+def build(platforms_to_package):
+  for platform in platforms_to_package:
     for config in CONFIGS:
       subprocess.call(['cobalt/build/gn.py', '-p', platform, '-c', config])
       subprocess.call(
@@ -73,6 +73,6 @@ if __name__ == '__main__':
     platforms = args.platforms
 
   if not args.package_only:
-    build()
+    build(platforms)
 
   package(platforms)
