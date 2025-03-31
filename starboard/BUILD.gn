@@ -80,9 +80,7 @@ group("gn_all") {
           "//third_party/crashpad/crashpad/client",
           "//third_party/lz4_lib:lz4",
         ]
-        data_deps = [
-          "//third_party/crashpad/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)",
-        ]
+        data_deps = [ "//third_party/crashpad/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)" ]
       }
     }
   } else {  # !sb_is_evergreen
