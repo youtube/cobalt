@@ -37,7 +37,8 @@ class MODULES_EXPORT H5vccAccessibility final
     // after Chromium base version update, see
     // https://chromium-review.googlesource.com/c/chromium/src/+/4621887
     : public EventTargetWithInlineData,
-      public ExecutionContextLifecycleObserver {
+      public ExecutionContextLifecycleObserver,
+      public h5vcc_accessibility::mojom::blink::H5vccAccessibilityClient {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
@@ -50,22 +51,31 @@ class MODULES_EXPORT H5vccAccessibility final
   // Web-exposed interface:
   bool textToSpeech();
 
-  // TODO(b/391708407): Add a sync mojom API for this attribute.
-  // bool textToSpeech() const;
+  // Mojom interface:
+  void NotifyTextToSpeechChange() override;
 
+  void AddedEventListener(
+      const AtomicString& event_type,
+      RegisteredEventListener& registered_listener) override;
+  void RemovedEventListener(
+      const AtomicString& event_type,
+      const RegisteredEventListener& registered_listener) override;
   const AtomicString& InterfaceName() const override;
   ExecutionContext* GetExecutionContext() const override;
   void ContextDestroyed() override;
   void Trace(Visitor* visitor) const override;
 
  private:
-  void InternalOnApplicationEvent();
-
+  void EnsureRemoteIsBound();
   void EnsureReceiverIsBound();
 
-  bool text_to_speech_;
-  HeapMojoRemote<h5vcc_accessibility::mojom::blink::H5vccAccessibility>
-      remote_h5vcc_accessibility_;
+  // Proxy to the browser process’s H5vccAccessibilityBrowser implementation.
+  HeapMojoRemote<h5vcc_accessibility::mojom::blink::H5vccAccessibilityBrowser>
+      remote_;
+  // Handles incoming browser-to-renderer calls.
+  HeapMojoReceiver<h5vcc_accessibility::mojom::blink::H5vccAccessibilityClient,
+                   H5vccAccessibility>
+      notification_receiver_;
 };
 
 }  // namespace blink

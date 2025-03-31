@@ -65,7 +65,7 @@ void PopulateCobaltFrameBinders(
       base::BindRepeating(
           &h5vcc_storage_for_testing::H5vccStorageForTestingImpl::Create));
 #endif  // !BUILDFLAG(COBALT_IS_RELEASE_BUILD)
-  binder_map->Add<h5vcc_accessibility::mojom::H5vccAccessibility>(
+  binder_map->Add<h5vcc_accessibility::mojom::H5vccAccessibilityBrowser>(
       base::BindRepeating(
           &h5vcc_accessibility::H5vccAccessibilityImpl::Create));
   binder_map->Add<h5vcc_metrics::mojom::H5vccMetrics>(

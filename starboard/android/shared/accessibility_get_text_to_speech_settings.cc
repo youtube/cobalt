@@ -12,62 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/accessibility_extension.h"
-
-#include "starboard/android/shared/application_android.h"
-#include "starboard/android/shared/starboard_bridge.h"
-#include "starboard/common/memory.h"
-
-// Must come after all headers that specialize FromJniType() / ToJniType().
-#include "cobalt/android/jni_headers/CobaltTextToSpeechHelper_jni.h"
-
 namespace starboard {
 namespace android {
 namespace shared {
 
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-using base::android::ScopedJavaLocalRef;
-
-bool isTextToSpeechEnabled() {
-  JNIEnv* env = AttachCurrentThread();
-
-  ScopedJavaLocalRef<jobject> j_tts_helper =
-      starboard::android::shared::StarboardBridge::GetInstance()
-          ->GetTextToSpeechHelper(env);
-
-  bool enabled =
-      Java_CobaltTextToSpeechHelper_isScreenReaderEnabled(env, j_tts_helper);
-  return enabled;
-}
-
-extern "C" SB_EXPORT_PLATFORM void
-JNI_CobaltTextToSpeechHelper_SendTTSChangedEvent(JNIEnv* env) {
-  // TODO: broadcast the event to window.h5vccAccessibility.ontexttospeechchange
-  // via
-  // cobalt/browser/h5vcc_accessibility/public/mojom/h5vcc_accessibility.mojom
-}
-
 namespace accessibility {
-
+// ATV no longer supports GetTextToSpeechSettings in Chrobalt,
+// Please reference starboard/android/shared/text_to_speech_helper.h for
+// supported text-to-speech APIs instead.
 bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
-  if (!out_setting ||
-      !starboard::common::MemoryIsZero(
-          out_setting, sizeof(SbAccessibilityTextToSpeechSettings))) {
-    return false;
-  }
-
-  JNIEnv* env = AttachCurrentThread();
-
-  out_setting->has_text_to_speech_setting = true;
-  ScopedJavaLocalRef<jobject> j_tts_helper =
-      starboard::android::shared::StarboardBridge::GetInstance()
-          ->GetTextToSpeechHelper(env);
-
-  out_setting->is_text_to_speech_enabled =
-      Java_CobaltTextToSpeechHelper_isScreenReaderEnabled(env, j_tts_helper);
-
-  return true;
+  return false;
 }
 
 }  // namespace accessibility
