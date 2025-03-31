@@ -64,7 +64,6 @@ void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
 #else
 #error Unsupported platform.
 #endif
-  LOG(INFO) << "startup_time: " << startup_time;
   std::move(callback).Run(startup_time);
 }
 
