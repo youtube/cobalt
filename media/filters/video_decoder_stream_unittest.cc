@@ -28,6 +28,10 @@
 #include "media/filters/decrypting_video_decoder.h"
 #endif
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/decoder_buffer_allocator.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #include <iostream>
 
 using ::base::test::RunCallback;
@@ -523,6 +527,12 @@ class VideoDecoderStreamTest
     EnterPendingState(DECODER_REINIT);
     SatisfyPendingCallback(DECODER_REINIT);
   }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // TODO(b/326497953): Support Suspend() and Resume().
+  DecoderBufferAllocator decoder_buffer_allocator_;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 
   base::test::SingleThreadTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
