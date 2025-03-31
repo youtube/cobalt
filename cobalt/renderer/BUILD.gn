@@ -552,7 +552,7 @@ action("renderer_download_lottie_test_data") {
   sha_dir = rebase_path(_lottie_resource_path, root_build_dir)
   args = [
     "--bucket",
-    "lottie-coverage-testdata",
+    "lottie-coverage-testdata-public",
     "--sha1",
     sha_dir,
     "--output",

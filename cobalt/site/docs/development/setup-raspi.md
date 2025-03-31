@@ -10,7 +10,7 @@ Raspberry Pi device. They have been tested with Ubuntu:20.04 and a Raspberry Pi
 ## Set up your device
 
 Download the latest Cobalt customized Raspbian image from <a
-href="https://storage.googleapis.com/cobalt-static-storage/2020-02-13-raspbian-buster-lite_shrunk_20210427.img">GCS bucket</a>
+href="https://storage.googleapis.com/cobalt-static-storage-public/2020-02-13-raspbian-buster-lite_shrunk_20210427.img">GCS bucket</a>
 (this is built via <a
 href="https://github.com/youtube/cobalt/tree/main/cobalt/tools/raspi_image">this
 customization tool</a>)
@@ -73,7 +73,7 @@ Raspberry Pi.
 1.  Download the pre-packaged toolchain and extract it in `$RASPI_HOME`.
 
     ```
-    $ curl -O https://storage.googleapis.com/cobalt-static-storage/cobalt_raspi_tools.tar.bz2
+    $ curl -O https://storage.googleapis.com/cobalt-static-storage-public/cobalt_raspi_tools.tar.bz2
     $ tar xvpf cobalt_raspi_tools.tar.bz2
     ```
 

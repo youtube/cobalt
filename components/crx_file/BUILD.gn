@@ -64,7 +64,7 @@ if (is_starboard) {
 
     args = [
       "--bucket",
-      "cobalt-static-storage",
+      "cobalt-static-storage-public",
       "--sha1",
       sha1_dir,
       "--output",
