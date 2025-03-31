@@ -7,8 +7,5 @@ use_custom_libc = true
 #   return syscall(SYS_pkey_mprotect, addr, len, prot, pkey);
 enable_pkeys = false
 
-# Required for graphics tests.
-angle_use_x11 = !is_official_build
-
 # We don't implement the necessary APIs for mdns.
 enable_mdns = false

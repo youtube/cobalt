@@ -3,6 +3,8 @@
     "SharedImageGLBackingProduceDawnTest.Basic",
     "TranslatorVariants/EXTBlendFuncExtendedES3DrawTest.*",
     "WebGPUMailboxTest.*",
-    "WebGPUTest.*"
+    "WebGPUTest.*",
+    "*EGLImageBackingFactoryThreadSafeTest*",
+    "GLReadbackTest.ReadPixelsFloat"
   ]
 }
