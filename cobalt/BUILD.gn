@@ -96,6 +96,9 @@ test("cobalt_unittests") {
   testonly = true
 
   sources = [
+    "//cobalt/browser/client_hint_headers/cobalt_header_value_provider_test.cc",
+    "//cobalt/browser/client_hint_headers/cobalt_trusted_header_client_test.cc",
+    "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/cobalt_switch_defaults.cc",
@@ -108,6 +111,7 @@ test("cobalt_unittests") {
     "//base/test:run_all_unittests",
     "//base/test:test_support",
     "//cobalt/browser:metrics",
+    "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/migrate_storage_record:unittest",
     "//cobalt/user_agent",
