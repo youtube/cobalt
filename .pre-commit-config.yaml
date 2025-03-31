@@ -26,7 +26,7 @@ exclude: |
             internal/kokoro/third-party|
             internal/starboard/shared/glimp/include|
             internal/starboard/shared/playstation/glimp/shaders|
-            starboard/contrib/rdk|
+            starboard/contrib/RDK|
         )/
         |
         .*_pb2\.py$ |
@@ -61,7 +61,7 @@ repos:
         exclude: |
             (?x)^(
                 (internal/)?starboard/[^/]+/i18n/|
-                starboard/contrib/rdk/|
+                starboard/contrib/RDK/|
                 cobalt/content/licenses/|
                 cobalt/content/ssl/|
                 cobalt/fetch/embedded_scripts|
@@ -147,7 +147,7 @@ repos:
                 components/crx_file/|
                 content/|
                 internal/starboard/shared/glimp/|
-                starboard/contrib/rdk/|
+                starboard/contrib/RDK/|
                 nb/|
                 starboard/content/fonts/LICENSES.txt |
                 starboard/android/apk/gradlew|
