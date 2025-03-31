@@ -14,6 +14,7 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_accessibility/h_5_vcc_accessibility.h"
 
+#include "third_party/blink/renderer/core/dom/events/event.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/event_target_modules_names.h"
 
@@ -21,12 +22,53 @@ namespace blink {
 
 H5vccAccessibility::H5vccAccessibility(LocalDOMWindow& window)
     : ExecutionContextLifecycleObserver(window.GetExecutionContext()),
-      remote_h5vcc_accessibility_(window.GetExecutionContext()) {}
+      remote_(window.GetExecutionContext()),
+      notification_receiver_(this, window.GetExecutionContext()) {}
 
 bool H5vccAccessibility::textToSpeech() {
+  EnsureRemoteIsBound();
+
+  bool text_to_speech_enabled = false;
+  remote_->IsTextToSpeechEnabledSync(&text_to_speech_enabled);
+  return text_to_speech_enabled;
+}
+
+// Called by browser to dispatch kTexttospeechchange event.
+void H5vccAccessibility::NotifyTextToSpeechChange() {
+  DispatchEvent(*Event::Create(event_type_names::kTexttospeechchange));
+}
+
+void H5vccAccessibility::AddedEventListener(
+    const AtomicString& event_type,
+    RegisteredEventListener& registered_listener) {
+  // Enforce that only "texttospeechchange" events are allowed.
+  DCHECK(event_type == event_type_names::kTexttospeechchange)
+      << "H5vccAccessibility only supports 'texttospeechchange' events.";
+
+  if (event_type != event_type_names::kTexttospeechchange) {
+    return;
+  }
+
   EnsureReceiverIsBound();
-  remote_h5vcc_accessibility_->GetTextToSpeechSync(&text_to_speech_);
-  return text_to_speech_;
+
+  EventTargetWithInlineData::AddedEventListener(event_type,
+                                                registered_listener);
+
+  DCHECK(HasEventListeners(event_type_names::kTexttospeechchange));
+}
+
+void H5vccAccessibility::RemovedEventListener(
+    const AtomicString& event_type,
+    const RegisteredEventListener& registered_listener) {
+  EventTargetWithInlineData::RemovedEventListener(event_type,
+                                                  registered_listener);
+
+  if (event_type == event_type_names::kTexttospeechchange &&
+      !HasEventListeners(event_type)) {
+    // Unbind the receiver if no listeners remain.
+    DCHECK(notification_receiver_.is_bound());
+    notification_receiver_.reset();
+  }
 }
 
 const AtomicString& H5vccAccessibility::InterfaceName() const {
@@ -40,28 +82,49 @@ ExecutionContext* H5vccAccessibility::GetExecutionContext() const {
 void H5vccAccessibility::ContextDestroyed() {}
 
 void H5vccAccessibility::Trace(Visitor* visitor) const {
+  visitor->Trace(remote_);
+  visitor->Trace(notification_receiver_);
   ExecutionContextLifecycleObserver::Trace(visitor);
   EventTargetWithInlineData::Trace(visitor);
-  visitor->Trace(remote_h5vcc_accessibility_);
+}
+
+void H5vccAccessibility::EnsureRemoteIsBound() {
+  DCHECK(GetExecutionContext());
+
+  if (remote_.is_bound()) {
+    return;
+  }
+
+  // This is where a H5vccAccessibilityBrowser instance is created, which is
+  // scoped to the RenderFrameHost corresponding to the renderer’s frame:
+  auto task_runner =
+      GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
+  GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
+      remote_.BindNewPipeAndPassReceiver(task_runner));
 }
 
 void H5vccAccessibility::EnsureReceiverIsBound() {
   DCHECK(GetExecutionContext());
 
-  if (remote_h5vcc_accessibility_.is_bound()) {
+  if (notification_receiver_.is_bound()) {
     return;
   }
 
+  EnsureRemoteIsBound();
+
+  // notification_receiver_.BindNewPipeAndPassRemote(task_runner)
+  // binds the receiver to the Blink main thread. And it creates a Mojo pipe
+  // with two ends: Receiver end: Bound to notification_receiver_
+  // in the renderer process in order to to handle browser-to-renderer calls.
+  // Remote end: Sent to the browser process via RegisterClient.
+  // remote_->RegisterClient is a Mojo call that
+  // crosses process boundaries to the browser. The browser’s
+  // H5vccAccessibilityImpl stores the client’s remote endpoint, allowing it to
+  // send notifications back to the renderer.
   auto task_runner =
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
-  GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
-      remote_h5vcc_accessibility_.BindNewPipeAndPassReceiver(task_runner));
-}
-
-// Trigger this from Cobalt to fire the event
-void H5vccAccessibility::InternalOnApplicationEvent() {
-  // TODO(b/391708407): trigger FireTextToSpeechEvent();
-  // DispatchEvent(*Event::Create(event_type_names::kTexttospeechchange));
+  remote_->RegisterClient(
+      notification_receiver_.BindNewPipeAndPassRemote(task_runner));
 }
 
 }  // namespace blink
