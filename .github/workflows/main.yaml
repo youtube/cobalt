@@ -249,9 +249,6 @@ jobs:
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
-      - name: Parse Test Target JSON
-        id: test-target-json
-        uses: ./.github/actions/test_target_json
       - name: Checkout
         if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
         uses: actions/checkout@v4
@@ -259,6 +256,9 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: Parse Test Target JSON
+        id: test-target-json
+        uses: ./.github/actions/test_target_json
       - name: Run On-Device Tests
         if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
         uses: ./.github/actions/on_device_tests
@@ -290,14 +290,14 @@ jobs:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
     steps:
-      - name: Parse Test Target JSON
-        id: test-target-json
-        uses: ./.github/actions/test_target_json
       - name: Checkout
         if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
         uses: actions/checkout@v4
         with:
           path: src
+      - name: Parse Test Target JSON
+        id: test-target-json
+        uses: ./.github/actions/test_target_json
       - name: Run On-Host Tests
         if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
         uses: ./src/.github/actions/on_host_tests
