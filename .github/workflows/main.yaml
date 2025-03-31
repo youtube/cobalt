@@ -250,7 +250,6 @@ jobs:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
       - name: Checkout
-        if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
         uses: actions/checkout@v4
         timeout-minutes: 30
         with:
@@ -291,7 +290,6 @@ jobs:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
     steps:
       - name: Checkout
-        if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
         uses: actions/checkout@v4
         with:
           path: src
