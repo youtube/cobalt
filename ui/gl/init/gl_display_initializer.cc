@@ -50,7 +50,11 @@ void GetEGLInitDisplays(bool supports_angle_d3d,
 
   std::string requested_renderer =
       force_software_gl
+#if BUILDFLAG(IS_STARBOARD)
+          ? kANGLEImplementationOpenGLESEGLName
+#else
           ? kANGLEImplementationSwiftShaderName
+#endif
           : command_line->GetSwitchValueASCII(switches::kUseANGLE);
 
   bool use_angle_default =
@@ -111,6 +115,9 @@ void GetEGLInitDisplays(bool supports_angle_d3d,
 #else
       AddInitDisplay(init_displays, ANGLE_OPENGL);
       AddInitDisplay(init_displays, ANGLE_OPENGLES);
+#if BUILDFLAG(IS_STARBOARD)
+      AddInitDisplay(init_displays, ANGLE_OPENGLES_EGL);
+#endif // BUILDFLAG(IS_STARBOARD)
 #endif  // BUILDFLAG(IS_ANDROID)
     } else {
       if (requested_renderer == kANGLEImplementationOpenGLName) {
