@@ -17,7 +17,15 @@
 #include "base/process/process_handle.h"
 #include "base/process/process_metrics.h"
 #include "base/system/sys_info.h"
+#include "build/build_config.h"
+
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "starboard/android/shared/starboard_bridge.h"
+
+using starboard::android::shared::StarboardBridge;
+#elif BUILDFLAG(IS_STARBOARD)
 #include "starboard/common/time.h"
+#endif
 
 namespace performance {
 
@@ -51,12 +59,12 @@ void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
   JNIEnv* env = base::android::AttachCurrentThread();
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   auto startup_time = starboard_bridge->GetAppStartTimestamp(env);
-  std::move(callback).Run(0);
 #elif BUILDFLAG(IS_STARBOARD)
   auto startup_time = starboard::CurrentMonotonicTime();
 #else
 #error Unsupported platform.
 #endif
+  LOG(INFO) << "startup_time: " << startup_time;
   std::move(callback).Run(startup_time);
 }
 
