@@ -295,7 +295,7 @@ jobs:
           path: src
       - name: Parse Test Target JSON
         id: test-target-json
-        uses: ./.github/actions/test_targets_json
+        uses: ./src/.github/actions/test_targets_json
       - name: Run On-Host Tests
         if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
         uses: ./src/.github/actions/on_host_tests
