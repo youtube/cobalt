@@ -1,4 +1,5 @@
 {
+  "comment" : "TODO: b/407549902 - Re-enable these disabled tests. Many tests crash due to DecoderBuffer allocator.",
   "failing_tests": [
     "ADTSStreamParserTest.*",
     "AesDecryptor/AesDecryptorTest.*",
