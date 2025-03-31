@@ -53,4 +53,24 @@ uint64_t PerformanceExtensions::measureUsedCpuMemory(ScriptState* script_state,
   return used_memory;
 }
 
+ScriptPromise PerformanceExtensions::getAppStartupTime(
+    ScriptState* script_state,
+    const Performance&,
+    ExceptionState& exception_state) {
+  auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
+      script_state, exception_state.GetContext());
+
+  int64_t startupTime = 0;
+  BindRemotePerformance(script_state)
+      ->GetAppStartupTime(
+          WTF::BindOnce(&PerformanceExtensions::OnGetAppStartupTime,
+                        WrapPersistent(resolver)));
+  return resolver->Promise();
+}
+
+void PerformanceExtensions::OnGetAppStartupTime(ScriptPromiseResolver* resolver,
+                                                int64_t startupTime) {
+  resolver->Resolve(startupTime);
+}
+
 }  //  namespace blink
