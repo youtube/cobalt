@@ -15,9 +15,22 @@
 #include "build/build_config.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/decoder_buffer_allocator.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
-TEST(DecoderBufferTest, Constructors) {
+class DecoderBufferTest : public testing::Test {
+
+  #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Defining starboard decoder buffer allocator makes DecoderBuffer use it.
+  DecoderBufferAllocator decoder_buffer_allocator_;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+};
+
+
+TEST_F(DecoderBufferTest, Constructors) {
   scoped_refptr<DecoderBuffer> buffer(new DecoderBuffer(0));
   EXPECT_TRUE(buffer->data());
   EXPECT_EQ(0u, buffer->data_size());
@@ -30,12 +43,12 @@ TEST(DecoderBufferTest, Constructors) {
   EXPECT_EQ(kTestSize, buffer3->data_size());
 }
 
-TEST(DecoderBufferTest, CreateEOSBuffer) {
+TEST_F(DecoderBufferTest, CreateEOSBuffer) {
   scoped_refptr<DecoderBuffer> buffer(DecoderBuffer::CreateEOSBuffer());
   EXPECT_TRUE(buffer->end_of_stream());
 }
 
-TEST(DecoderBufferTest, CopyFrom) {
+TEST_F(DecoderBufferTest, CopyFrom) {
   const uint8_t kData[] = "hello";
   const size_t kDataSize = std::size(kData);
 
@@ -62,7 +75,7 @@ TEST(DecoderBufferTest, CopyFrom) {
   EXPECT_FALSE(buffer3->is_key_frame());
 }
 
-TEST(DecoderBufferTest, FromArray) {
+TEST_F(DecoderBufferTest, FromArray) {
   const uint8_t kData[] = "hello";
   const size_t kDataSize = std::size(kData);
   auto ptr = std::make_unique<uint8_t[]>(kDataSize);
@@ -77,7 +90,7 @@ TEST(DecoderBufferTest, FromArray) {
   EXPECT_FALSE(buffer->is_key_frame());
 }
 
-TEST(DecoderBufferTest, FromPlatformSharedMemoryRegion) {
+TEST_F(DecoderBufferTest, FromPlatformSharedMemoryRegion) {
   const uint8_t kData[] = "hello";
   const size_t kDataSize = std::size(kData);
 
@@ -95,7 +108,7 @@ TEST(DecoderBufferTest, FromPlatformSharedMemoryRegion) {
   EXPECT_FALSE(buffer->is_key_frame());
 }
 
-TEST(DecoderBufferTest, FromPlatformSharedMemoryRegion_Unaligned) {
+TEST_F(DecoderBufferTest, FromPlatformSharedMemoryRegion_Unaligned) {
   const uint8_t kData[] = "XXXhello";
   const size_t kDataSize = std::size(kData);
   const off_t kDataOffset = 3;
@@ -115,7 +128,7 @@ TEST(DecoderBufferTest, FromPlatformSharedMemoryRegion_Unaligned) {
   EXPECT_FALSE(buffer->is_key_frame());
 }
 
-TEST(DecoderBufferTest, FromPlatformSharedMemoryRegion_ZeroSize) {
+TEST_F(DecoderBufferTest, FromPlatformSharedMemoryRegion_ZeroSize) {
   const uint8_t kData[] = "hello";
   const size_t kDataSize = std::size(kData);
 
@@ -129,7 +142,7 @@ TEST(DecoderBufferTest, FromPlatformSharedMemoryRegion_ZeroSize) {
   ASSERT_FALSE(buffer.get());
 }
 
-TEST(DecoderBufferTest, FromSharedMemoryRegion) {
+TEST_F(DecoderBufferTest, FromSharedMemoryRegion) {
   const uint8_t kData[] = "hello";
   const size_t kDataSize = std::size(kData);
 
@@ -146,7 +159,7 @@ TEST(DecoderBufferTest, FromSharedMemoryRegion) {
   EXPECT_FALSE(buffer->is_key_frame());
 }
 
-TEST(DecoderBufferTest, FromSharedMemoryRegion_Unaligned) {
+TEST_F(DecoderBufferTest, FromSharedMemoryRegion_Unaligned) {
   const uint8_t kData[] = "XXXhello";
   const size_t kDataSize = std::size(kData);
   const off_t kDataOffset = 3;
@@ -166,7 +179,7 @@ TEST(DecoderBufferTest, FromSharedMemoryRegion_Unaligned) {
   EXPECT_FALSE(buffer->is_key_frame());
 }
 
-TEST(DecoderBufferTest, FromSharedMemoryRegion_ZeroSize) {
+TEST_F(DecoderBufferTest, FromSharedMemoryRegion_ZeroSize) {
   const uint8_t kData[] = "hello";
   const size_t kDataSize = std::size(kData);
 
@@ -179,7 +192,7 @@ TEST(DecoderBufferTest, FromSharedMemoryRegion_ZeroSize) {
   ASSERT_FALSE(buffer.get());
 }
 
-TEST(DecoderBufferTest, FromExternalMemory) {
+TEST_F(DecoderBufferTest, FromExternalMemory) {
   constexpr uint8_t kData[] = "hello";
   constexpr size_t kDataSize = std::size(kData);
   auto external_memory = std::make_unique<DecoderBuffer::ExternalMemory>(
@@ -192,7 +205,7 @@ TEST(DecoderBufferTest, FromExternalMemory) {
   EXPECT_FALSE(buffer->is_key_frame());
 }
 
-TEST(DecoderBufferTest, ReadingWriting) {
+TEST_F(DecoderBufferTest, ReadingWriting) {
   const char kData[] = "hello";
   const size_t kDataSize = std::size(kData);
 
@@ -209,7 +222,7 @@ TEST(DecoderBufferTest, ReadingWriting) {
   EXPECT_FALSE(buffer->end_of_stream());
 }
 
-TEST(DecoderBufferTest, DecryptConfig) {
+TEST_F(DecoderBufferTest, DecryptConfig) {
   scoped_refptr<DecoderBuffer> buffer(new DecoderBuffer(0));
   EXPECT_FALSE(buffer->decrypt_config());
 
@@ -229,7 +242,7 @@ TEST(DecoderBufferTest, DecryptConfig) {
   EXPECT_TRUE(buffer->decrypt_config()->Matches(*decrypt_config));
 }
 
-TEST(DecoderBufferTest, IsKeyFrame) {
+TEST_F(DecoderBufferTest, IsKeyFrame) {
   scoped_refptr<DecoderBuffer> buffer(new DecoderBuffer(0));
   EXPECT_FALSE(buffer->is_key_frame());
 
