@@ -48,6 +48,8 @@ pipeline () {
   ##############################################################################
   cd "${gclient_root}"
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git tools/depot_tools
+  # TODO(b/406532110): Pin depot_tools to avoid using bundled python.
+  git -C tools/depot_tools reset --hard 22e5a04e5975a4308c15b45b34b1b120bd0c7224
   export PATH="${PATH}:${gclient_root}/tools/depot_tools"
   gclient config --name=src --custom-var=download_remoteexec_cfg=True --custom-var='rbe_instance="projects/cobalt-actions-prod/instances/default_instance"' rpc://lbshell-internal/cobalt_src
   if [[ "${TARGET_PLATFORM}" =~ "android" ]]; then
@@ -60,7 +62,8 @@ pipeline () {
   # Run GN and Ninja.
   ##############################################################################
   cd "${gclient_root}/src"
-  cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}"
+  cobalt/build/gn.py -p "${TARGET_PLATFORM}" -C "${CONFIG}" \
+    --script-executable=/usr/bin/python3
   autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${TARGET}  # TARGET may expand to multiple args
 
   # Build bootloader config if set.

@@ -14,6 +14,7 @@ angle_enable_gl = true
 enable_vulkan = false
 angle_enable_vulkan = false
 angle_use_vulkan_display = false
+angle_shared_libvulkan = false
 
 # Not used in Cobalt, see //ui/gl/features.gni
 enable_swiftshader = false
@@ -95,3 +96,7 @@ build_webnn_with_xnnpack = false
 # This flag uses the Use the PCI lib to collect GPU information on Linux.
 # Disabling this as it causes build errors.
 use_libpci = false
+
+# Override from chrome/installer/installers.gni
+# This flag enables the creation of Linux installer packages(like .deb , .rpm)
+enable_linux_installer = false
