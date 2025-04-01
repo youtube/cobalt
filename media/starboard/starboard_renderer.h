@@ -189,6 +189,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   SbDrmSystem drm_system_{kSbDrmSystemInvalid};
 
   mutable base::Lock lock_;
+  // TODO: b/407063029 - Guard player_bridge_ and annotate with GUARDED_BY.
   std::unique_ptr<SbPlayerBridge> player_bridge_;
 
   bool player_bridge_initialized_ = false;

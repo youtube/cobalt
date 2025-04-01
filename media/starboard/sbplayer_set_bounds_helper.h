@@ -19,6 +19,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/synchronization/lock.h"
+#include "base/thread_annotations.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace media {
@@ -35,8 +36,8 @@ class SbPlayerSetBoundsHelper
 
  private:
   base::Lock lock_;
-  SbPlayerBridge* player_bridge_ = nullptr;
-  std::optional<gfx::Rect> rect_;
+  SbPlayerBridge* player_bridge_ GUARDED_BY(lock_) = nullptr;
+  std::optional<gfx::Rect> rect_ GUARDED_BY(lock_);
 
   SbPlayerSetBoundsHelper(const SbPlayerSetBoundsHelper&) = delete;
   void operator=(const SbPlayerSetBoundsHelper&) = delete;
