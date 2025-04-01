@@ -26,8 +26,8 @@ class MockDataSourceReader : public DataSourceReader {
 
   // DataSourceReader implementation
   MOCK_METHOD1(SetDataSource, void(DataSource*));
-  MOCK_METHOD3(BlockingRead, int(int64, int, uint8*));
-  MOCK_METHOD0(FileSize, int64());
+  MOCK_METHOD3(BlockingRead, int(int64_t, int, uint8_t*));
+  MOCK_METHOD0(FileSize, int64_t());
   MOCK_METHOD0(Stop, void());
 };
 
