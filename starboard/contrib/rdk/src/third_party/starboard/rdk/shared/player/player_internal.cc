@@ -965,7 +965,7 @@ class PlayerStatusTask : public Task {
   void Do() override { func_(player_, ctx_, state_, ticket_); }
 
   void PrintInfo() override {
-    GST_DEBUG("PlayerStatusTask state:%d (%s), ticket:%d", state_, PlayerStateToStr(state_), ticket_);
+    GST_INFO("PlayerStatusTask state:%d (%s), ticket:%d", state_, PlayerStateToStr(state_), ticket_);
   }
 
  private:
@@ -1030,8 +1030,8 @@ class DecoderStatusTask : public Task {
   }
 
   void PrintInfo() override {
-    GST_TRACE("DecoderStatusTask state:%d (%s), ticket:%d, media:%d", state_,
-              DecoderStateToStr(state_), ticket_, static_cast<int>(media_));
+    GST_LOG("DecoderStatusTask state:%d (%s), ticket:%d, media:%d", state_,
+            DecoderStateToStr(state_), ticket_, static_cast<int>(media_));
   }
 
  private:
@@ -1534,6 +1534,9 @@ PlayerImpl::PlayerImpl(SbPlayer player,
       g_usleep(1);
   } else {
      SB_NOTREACHED();
+  }
+  else {
+    SB_NOTREACHED();
   }
   GetPlayerRegistry()->Add(this);
 }
@@ -2047,7 +2050,7 @@ void PlayerImpl::MarkEOS(SbMediaType stream_type) {
     src = audio_appsrc_;
   }
 
-  GST_INFO_OBJECT(src, "===> %d", gettid());
+  GST_INFO_OBJECT(src, "===> ticket: %d, TID: %d", ticket_, gettid());
   std::lock_guard lock(mutex_);
   if (state_ == State::kPrerollAfterSeek)
     GST_DEBUG_OBJECT(src, "===> Mark EOS with State::kPrerollAfterSeek");
@@ -2444,7 +2447,6 @@ void PlayerImpl::HandleInititialSeek() {
     return;
   }
 
-  // Ask for data.
   if (state_ == State::kInitialPreroll) {
     MediaType need_data = static_cast<MediaType>(static_cast<int>(GetBothMediaTypeTakingCodecsIntoAccount()) & (~has_enough_data_));
     DecoderNeedsData(need_data);
@@ -2523,7 +2525,6 @@ void PlayerImpl::Seek(int64_t seek_to_timestamp, int ticket) {
     decoder_state_data_ = 0;
     eos_data_ = 0;
     is_seek_pending_ = false;
-
     rate = rate_;
 
     if (state_ == State::kInitial || GST_STATE(pipeline_) < GST_STATE_PAUSED) {
