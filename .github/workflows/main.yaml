@@ -97,7 +97,7 @@ jobs:
           set -x
           test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
           echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
-      - id: set-run-web-tests
+      - id: set-web-tests
         shell: bash
         run: |
           set -x
@@ -135,7 +135,7 @@ jobs:
       gtest_shards: ${{ steps.set-gtest-shards.outputs.gtest_shards }}
       test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
       test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
-      web_tests: ${{ steps.set-run-web-tests.outputs.web_tests }}
+      web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
@@ -320,7 +320,6 @@ jobs:
 
   web-tests:
     needs: [initialize, docker-unittest-image, build]
-    if: needs.initialize.outputs.web_tests == 'true'
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_web_tests
@@ -344,6 +343,13 @@ jobs:
         uses: ./src/.github/actions/web_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+      - name: Test
+        if: always() && needs.initialize.outputs.web_tests == 'true'
+        run: echo "hej"
+      - name: Test
+        if: always()
+        run: exit 1
+
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
