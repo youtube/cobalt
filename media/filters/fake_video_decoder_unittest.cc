@@ -17,6 +17,10 @@
 #include "media/base/video_frame.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/decoder_buffer_allocator.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 static const int kTotalBuffers = 12;
@@ -245,6 +249,11 @@ class FakeVideoDecoderTest
   scoped_refptr<VideoFrame> last_decoded_frame_;
   int pending_decode_requests_;
   bool is_reset_pending_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Defining starboard decoder buffer allocator makes DecoderBuffer use it.
+DecoderBufferAllocator decoder_buffer_allocator_;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 INSTANTIATE_TEST_SUITE_P(NoParallelDecode,
