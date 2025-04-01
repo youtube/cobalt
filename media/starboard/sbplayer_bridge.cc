@@ -912,11 +912,9 @@ void SbPlayerBridge::WriteBuffersInternal(
     }
 
     if (auto [iter, inserted] = decoding_buffers_.try_emplace(
-            buffer->data(), buffer, /*usage_count=*/1, sample_type,
-            buffer->data_size());
+            buffer->data(), buffer, /*usage_count=*/1, sample_type);
         !inserted) {
       ++iter->second.usage_count;
-      iter->second.size += buffer->data_size();
     }
 
     if (sample_type == kSbMediaTypeAudio &&
@@ -1189,17 +1187,17 @@ void SbPlayerBridge::OnDeallocateSample(const void* sample_buffer) {
   }
 
   DecodingBuffer& decoding_buffer = iter->second;
+  {
+    base::AutoLock auto_lock(lock_);
+    if (decoding_buffer.type == kSbMediaTypeAudio) {
+      cached_audio_bytes_decoded_ += decoding_buffer.buffer->data_size();
+    } else {
+      cached_video_bytes_decoded_ += decoding_buffer.buffer->data_size();
+    }
+  }
   --decoding_buffer.usage_count;
   DCHECK_GE(decoding_buffer.usage_count, 0);
   if (decoding_buffer.usage_count == 0) {
-    {
-      base::AutoLock auto_lock(lock_);
-      if (decoding_buffer.type == kSbMediaTypeAudio) {
-        cached_audio_bytes_decoded_ += decoding_buffer.size;
-      } else {
-        cached_video_bytes_decoded_ += decoding_buffer.size;
-      }
-    }
     decoding_buffers_.erase(iter);
   }
 }

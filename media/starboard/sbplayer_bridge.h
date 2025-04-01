@@ -212,13 +212,12 @@ class SbPlayerBridge {
   // A map from raw data pointer returned by DecoderBuffer::GetData() to the
   // DecoderBuffer, usage count, type, and total buffer size. The usage
   // count indicates how many instances of the DecoderBuffer is currently
-  // being used (== being decoded) in the pipeline. The type and size are
-  // used to report playback statistics.
+  // being used (== being decoded) in the pipeline. The type is used to report
+  // playback statistics.
   struct DecodingBuffer {
     const scoped_refptr<DecoderBuffer> buffer;
     int usage_count;
     SbMediaType type;
-    size_t size = 0;
   };
   using DecodingBuffers = absl::flat_hash_map<const void*, DecodingBuffer>;
 
