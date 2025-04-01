@@ -19,9 +19,12 @@
 #include "cobalt/browser/migrate_storage_record/migration_manager.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
+
+#if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
 
 using starboard::android::shared::StarboardBridge;
+#endif
 
 namespace cobalt {
 
@@ -73,6 +76,7 @@ enum {
 
 void CobaltWebContentsObserver::DidFinishNavigation(
     content::NavigationHandle* navigation_handle) {
+#if BUILDFLAG(IS_ANDROIDTV)
   if (navigation_handle->IsErrorPage() &&
       navigation_handle->GetNetErrorCode() == net::ERR_NAME_NOT_RESOLVED) {
     jint jni_error_type = kJniErrorTypeConnectionError;
@@ -82,6 +86,7 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
     starboard_bridge->RaisePlatformError(env, jni_error_type, data);
   }
+#endif
 }
 
 }  // namespace cobalt
