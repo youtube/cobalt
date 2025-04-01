@@ -30,7 +30,7 @@ namespace media {
 
 namespace {
 
-const bool kEnableAllocationLog = false;
+const bool kEnableAllocationLog = true;
 
 // Used to determine if the memory allocated is large. The underlying logic can
 // be different.
@@ -43,8 +43,18 @@ DecoderBufferAllocator::DecoderBufferAllocator()
           SbMediaIsBufferPoolAllocateOnDemand()),
       initial_capacity_(SbMediaGetInitialBufferCapacity()),
       allocation_unit_(SbMediaGetBufferAllocationUnit()) {
+  LOG(INFO) << "DecoderBufferAllocator ctor initial_capacity:"
+            << initial_capacity_ << " allocation_unit: " << allocation_unit_
+            << " audio_buffer_budget:" << GetAudioBufferBudget()
+            << " buffer_alignment:" << GetBufferAlignment()
+            << " buffer_padding:" << GetBufferPadding()
+            << " small_allocation_threshold:" << kSmallAllocationThreshold
+            << " on_demand:" << is_memory_pool_allocated_on_demand_
+            << " gc_duration_threshold:"
+            << GetBufferGarbageCollectionDurationThreshold();
+
   if (is_memory_pool_allocated_on_demand_) {
-    DLOG(INFO) << "Allocated media buffer pool on demand.";
+    LOG(INFO) << "Allocated media buffer pool on demand.";
     Allocator::Set(this);
     return;
   }
@@ -55,6 +65,10 @@ DecoderBufferAllocator::DecoderBufferAllocator()
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
+  LOG_IF(INFO, kEnableAllocationLog)
+      << "DecoderBufferAllocator dtor max_capacity"
+      << GetMaximumMemoryCapacity();
+
   Allocator::Set(nullptr);
 
   base::AutoLock scoped_lock(mutex_);
@@ -65,6 +79,11 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
   }
 }
 
+// static
+bool DecoderBufferAllocator::AllocationLogEnabled() {
+  return kEnableAllocationLog;
+}
+
 void DecoderBufferAllocator::Suspend() {
   if (is_memory_pool_allocated_on_demand_) {
     return;
@@ -73,8 +92,8 @@ void DecoderBufferAllocator::Suspend() {
   base::AutoLock scoped_lock(mutex_);
 
   if (reuse_allocator_ && reuse_allocator_->GetAllocated() == 0) {
-    DLOG(INFO) << "Freed " << reuse_allocator_->GetCapacity()
-               << " bytes of media buffer pool `on suspend`.";
+    LOG(INFO) << "Freed " << reuse_allocator_->GetCapacity()
+              << " bytes of media buffer pool `on suspend`.";
     reuse_allocator_.reset();
   }
 }
@@ -96,8 +115,8 @@ void* DecoderBufferAllocator::Allocate(size_t size, size_t alignment) {
   void* p = reuse_allocator_->Allocate(size, alignment);
   CHECK(p);
 
-  LOG_IF(INFO, kEnableAllocationLog)
-      << "Media Allocation Log " << p << " " << size << " " << alignment << " ";
+  LOG_IF(INFO, kEnableAllocationLog) << "DecoderBufferAllocator allocate " << p
+                                     << " " << size << " " << alignment;
   return p;
 }
 
@@ -111,13 +130,14 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
 
   DCHECK(reuse_allocator_);
 
-  LOG_IF(INFO, kEnableAllocationLog) << "Media Allocation Log " << p;
+  LOG_IF(INFO, kEnableAllocationLog) << "DecoderBufferAllocator free " << p;
 
   reuse_allocator_->Free(p);
   if (is_memory_pool_allocated_on_demand_) {
     if (reuse_allocator_->GetAllocated() == 0) {
-      DLOG(INFO) << "Freed " << reuse_allocator_->GetCapacity()
-                 << " bytes of media buffer pool `on demand`.";
+      LOG(INFO) << "DecoderBufferAllocator freed "
+                << reuse_allocator_->GetCapacity()
+                << " bytes of media buffer pool `on demand`.";
       reuse_allocator_.reset();
     }
   }
@@ -148,16 +168,28 @@ DecoderBufferAllocator::GetBufferGarbageCollectionDurationThreshold() const {
 int DecoderBufferAllocator::GetProgressiveBufferBudget(
     SbMediaVideoCodec codec, int resolution_width, int resolution_height,
     int bits_per_pixel) const {
-  return SbMediaGetProgressiveBufferBudget(codec, resolution_width,
-                                           resolution_height, bits_per_pixel);
+  auto budget = SbMediaGetProgressiveBufferBudget(
+      codec, resolution_width, resolution_height, bits_per_pixel);
+  LOG_IF(INFO, kEnableAllocationLog)
+      << "DecoderBufferAllocator progressive budget codec:" << codec
+      << " resolution_width:" << resolution_width
+      << " resolution_height:" << resolution_height
+      << " bits_per_pixel:" << bits_per_pixel << " budget:" << budget;
+  return budget;
 }
 
 int DecoderBufferAllocator::GetVideoBufferBudget(SbMediaVideoCodec codec,
                                                  int resolution_width,
                                                  int resolution_height,
                                                  int bits_per_pixel) const {
-  return SbMediaGetVideoBufferBudget(codec, resolution_width, resolution_height,
-                                     bits_per_pixel);
+  auto budget = SbMediaGetVideoBufferBudget(codec, resolution_width,
+                                            resolution_height, bits_per_pixel);
+  LOG_IF(INFO, kEnableAllocationLog)
+      << "DecoderBufferAllocator video budget codec:" << codec
+      << " resolution_width:" << resolution_width
+      << " resolution_height:" << resolution_height
+      << " bits_per_pixel:" << bits_per_pixel << " budget:" << budget;
+  return budget;
 }
 
 size_t DecoderBufferAllocator::GetAllocatedMemory() const {
@@ -188,8 +220,8 @@ void DecoderBufferAllocator::EnsureReuseAllocatorIsCreated() {
   reuse_allocator_.reset(new BidirectionalFitReuseAllocator(
       &fallback_allocator_, initial_capacity_, kSmallAllocationThreshold,
       allocation_unit_, 0));
-  DLOG(INFO) << "Allocated " << initial_capacity_
-             << " bytes for media buffer pool.";
+  LOG(INFO) << "Allocated " << initial_capacity_
+            << " bytes for media buffer pool.";
 }
 
 }  // namespace media
