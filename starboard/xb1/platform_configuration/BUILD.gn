@@ -60,10 +60,6 @@ config("target") {
     ]
   }
 
-  if (is_qa || is_gold || !cobalt_fastbuild) {
-    ldflags += [ "/DEBUG:FASTLINK" ]
-  }
-
   ldflags += [ "/NODEFAULTLIB" ]
   arflags += [ "/NODEFAULTLIB" ]
   libs += [
