@@ -253,7 +253,7 @@ public:
     if (ServiceLink::enableEnvOverrides()) {
       std::string envValue;
       if (Core::SystemInfo::GetEnvironment("AccessibilitySettings_json", envValue) == true) {
-        SetSettings(envValue);
+        SetSettings(envValue, false);
 
         std::string test;
         bool r = GetSettings(test);
@@ -265,7 +265,7 @@ public:
     }
   }
 
-  void SetSettings(const std::string& json) {
+  void SetSettings(const std::string& json, bool notify_app) {
     SB_LOG(INFO) << "Updating accessibility settings: " << json;
 
     JsonData::Accessibility::AccessibilityData settings;
@@ -335,6 +335,9 @@ public:
       display_settings_.is_high_contrast_text_enabled =
         settings.TextDisplay.IsHighContrastTextEnabled.Value();
     }
+
+    if (!notify_app)
+      return;
 
     if (auto* app = Application::Get(); app != nullptr) {
       if (was_cc_enabled != caption_settings_.is_enabled)
@@ -1707,8 +1710,8 @@ bool Accessibility::GetDisplaySettings(SbAccessibilityDisplaySettings* out) {
   return GetAccessibility()->GetDisplaySettings(out);
 }
 
-void Accessibility::SetSettings(const std::string& json) {
-  GetAccessibility()->SetSettings(json);
+void Accessibility::SetSettings(const std::string& json, bool notify_app) {
+  GetAccessibility()->SetSettings(json, notify_app);
 }
 
 bool Accessibility::GetSettings(std::string& out_json) {
