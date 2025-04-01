@@ -31,10 +31,10 @@ class FixedNoFreeAllocatorTest : public ::testing::Test {
   FixedNoFreeAllocatorTest();
 
  protected:
-  static const std::size_t kAllocationSize = 8;
-  static const std::size_t kAllocationAlignment = 8;
-  static const std::size_t kMaxAllocations = 64;
-  static const std::size_t kBufferSize = kAllocationSize * kMaxAllocations;
+  static const size_t kAllocationSize = 8;
+  static const size_t kAllocationAlignment = 8;
+  static const size_t kMaxAllocations = 64;
+  static const size_t kBufferSize = kAllocationSize * kMaxAllocations;
 
   std::unique_ptr<uint8_t, AlignedMemoryDeleter> buffer_;
   starboard::common::FixedNoFreeAllocator allocator_;

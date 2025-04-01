@@ -27,7 +27,7 @@ namespace {
 
 // Minimum block size to avoid extremely small blocks inside the block list and
 // to ensure that a zero sized allocation will return a non-zero sized block.
-const std::size_t kMinBlockSizeBytes = 16;
+const size_t kMinBlockSizeBytes = 16;
 // The max lines of allocation to print inside PrintAllocations().  Set to 0 to
 // print all allocations.
 const int kMaxAllocationLinesToPrint = 0;
@@ -47,16 +47,16 @@ bool ReuseAllocatorBase::MemoryBlock::Merge(const MemoryBlock& other) {
   return false;
 }
 
-bool ReuseAllocatorBase::MemoryBlock::CanFulfill(std::size_t request_size,
-                                                 std::size_t alignment) const {
-  const std::size_t extra_bytes_for_alignment =
+bool ReuseAllocatorBase::MemoryBlock::CanFulfill(size_t request_size,
+                                                 size_t alignment) const {
+  const size_t extra_bytes_for_alignment =
       AlignUp(AsInteger(address_), alignment) - AsInteger(address_);
-  const std::size_t aligned_size = request_size + extra_bytes_for_alignment;
+  const size_t aligned_size = request_size + extra_bytes_for_alignment;
   return size_ >= aligned_size;
 }
 
-void ReuseAllocatorBase::MemoryBlock::Allocate(std::size_t request_size,
-                                               std::size_t alignment,
+void ReuseAllocatorBase::MemoryBlock::Allocate(size_t request_size,
+                                               size_t alignment,
                                                bool allocate_from_front,
                                                MemoryBlock* allocated,
                                                MemoryBlock* free) const {
@@ -77,10 +77,10 @@ void ReuseAllocatorBase::MemoryBlock::Allocate(std::size_t request_size,
     //     -------------------------------------------------------
     //          |   <-  request_size ->   |                      |
     //  |aligned_address|       |end_of_allocation|      |address_ + size_|
-    std::size_t aligned_address = AlignUp(AsInteger(address_), alignment);
-    std::size_t end_of_allocation = aligned_address + request_size;
-    std::size_t allocated_size = end_of_allocation - AsInteger(address_);
-    std::size_t remaining_size = size_ - allocated_size;
+    size_t aligned_address = AlignUp(AsInteger(address_), alignment);
+    size_t end_of_allocation = aligned_address + request_size;
+    size_t allocated_size = end_of_allocation - AsInteger(address_);
+    size_t remaining_size = size_ - allocated_size;
     if (remaining_size < kMinBlockSizeBytes) {
       return;
     }
@@ -93,10 +93,10 @@ void ReuseAllocatorBase::MemoryBlock::Allocate(std::size_t request_size,
     //     -------------------------------------------------------
     //                               |  <-  request_size -> |    |
     //                       |aligned_address|           |address_ + size_|
-    std::size_t aligned_address =
+    size_t aligned_address =
         AlignDown(AsInteger(address_) + size_ - request_size, alignment);
-    std::size_t allocated_size = AsInteger(address_) + size_ - aligned_address;
-    std::size_t remaining_size = size_ - allocated_size;
+    size_t allocated_size = AsInteger(address_) + size_ - aligned_address;
+    size_t remaining_size = size_ - allocated_size;
     if (remaining_size < kMinBlockSizeBytes) {
       return;
     }
@@ -107,13 +107,13 @@ void ReuseAllocatorBase::MemoryBlock::Allocate(std::size_t request_size,
   }
 }
 
-void* ReuseAllocatorBase::Allocate(std::size_t size) {
+void* ReuseAllocatorBase::Allocate(size_t size) {
   return Allocate(size, 1);
 }
 
-void* ReuseAllocatorBase::Allocate(std::size_t size, std::size_t alignment) {
+void* ReuseAllocatorBase::Allocate(size_t size, size_t alignment) {
   size = AlignUp(std::max(size, kMinAlignment), kMinAlignment);
-  alignment = AlignUp(std::max<std::size_t>(alignment, 1), kMinAlignment);
+  alignment = AlignUp(std::max<size_t>(alignment, 1), kMinAlignment);
 
   bool allocate_from_front;
   FreeBlockSet::iterator free_block_iter =
@@ -154,12 +154,12 @@ void ReuseAllocatorBase::Free(void* memory) {
 }
 
 void ReuseAllocatorBase::PrintAllocations() const {
-  typedef std::map<std::size_t, std::size_t> SizesHistogram;
+  typedef std::map<size_t, size_t> SizesHistogram;
   SizesHistogram sizes_histogram;
 
   for (auto iter = allocated_blocks_.begin(); iter != allocated_blocks_.end();
        ++iter) {
-    std::size_t block_size = iter->second.size();
+    size_t block_size = iter->second.size();
     if (sizes_histogram.find(block_size) == sizes_histogram.end()) {
       sizes_histogram[block_size] = 0;
     }
@@ -170,7 +170,7 @@ void ReuseAllocatorBase::PrintAllocations() const {
                << allocated_blocks_.size() << " blocks";
 
   int lines = 0;
-  std::size_t accumulated_blocks = 0;
+  size_t accumulated_blocks = 0;
   for (SizesHistogram::const_iterator iter = sizes_histogram.begin();
        iter != sizes_histogram.end(); ++iter) {
     if (lines == kMaxAllocationLinesToPrint - 1 &&
@@ -233,9 +233,9 @@ bool ReuseAllocatorBase::TryFree(void* memory) {
 }
 
 ReuseAllocatorBase::ReuseAllocatorBase(Allocator* fallback_allocator,
-                                       std::size_t initial_capacity,
-                                       std::size_t allocation_increment,
-                                       std::size_t max_capacity)
+                                       size_t initial_capacity,
+                                       size_t allocation_increment,
+                                       size_t max_capacity)
     : fallback_allocator_(fallback_allocator),
       allocation_increment_(allocation_increment),
       max_capacity_(max_capacity),
@@ -262,10 +262,10 @@ ReuseAllocatorBase::~ReuseAllocatorBase() {
 }
 
 ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
-    std::size_t size,
-    std::size_t alignment) {
+    size_t size,
+    size_t alignment) {
   void* ptr = NULL;
-  std::size_t size_to_try = 0;
+  size_t size_to_try = 0;
   // We try to allocate in unit of |allocation_increment_| to minimize
   // fragmentation.
   if (allocation_increment_ > size) {
