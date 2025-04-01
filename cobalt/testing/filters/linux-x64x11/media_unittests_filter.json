@@ -1,7 +1,6 @@
 {
   "comment" : "TODO: b/407549902 - Re-enable these disabled tests. Many tests crash since DecoderBuffer allocator is not set.",
   "failing_tests": [
-    "ADTSStreamParserTest.*",
     "AesDecryptor/AesDecryptorTest.*",
     "All/AudioTimestampValidatorTest.*",
     "AudioDecoderStreamTest.*",
@@ -36,7 +35,6 @@
     "MojoDemuxerStreamAdapterTest.*",
     "MojoVideoDecoderIntegrationTest.*",
     "MP4StreamParserTest.*",
-    "MPEG1AudioStreamParserTest.*",
     "NoParallelDecode/FakeVideoDecoderTest.*",
     "OffloadingVideoDecoderTest.*",
     "ParallelDecode/FakeVideoDecoderTest.*",

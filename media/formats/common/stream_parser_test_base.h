@@ -17,6 +17,10 @@
 #include "media/base/text_track_config.h"
 #include "media/base/video_decoder_config.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/decoder_buffer_allocator.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 namespace media {
 
 // Test helper for verifying StreamParser behavior.
@@ -74,6 +78,11 @@ class StreamParserTestBase {
   std::stringstream results_stream_;
   AudioDecoderConfig last_audio_config_;
   StreamParser::TrackId audio_track_id_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Defining starboard decoder buffer allocator makes DecoderBuffer use it.
+  DecoderBufferAllocator decoder_buffer_allocator_;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media
