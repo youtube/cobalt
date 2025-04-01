@@ -24,7 +24,6 @@
 #include "starboard/android/shared/starboard_bridge.h"
 
 using starboard::android::shared::StarboardBridge;
-// using starboard::android::shared::JniEnvExt;
 
 namespace cobalt {
 
@@ -82,8 +81,8 @@ void CobaltWebContentsObserver::DidFinishNavigation(
     jlong data = 0;
 
     JNIEnv* env = base::android::AttachCurrentThread();
-    StarboardBridge::GetInstance()->RaisePlatformError(env, jni_error_type,
-                                                       data);
+    StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+    starboard_bridge->RaisePlatformError(env, jni_error_type, data);
   }
 }
 
