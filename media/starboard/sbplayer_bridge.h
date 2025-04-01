@@ -249,7 +249,7 @@ class SbPlayerBridge {
       const SbMediaAudioStreamInfo* audio_stream_info,
       const SbMediaVideoStreamInfo* video_stream_info);
 
-  void GetInfo_Locked(PlayerInfo* out_info ) EXCLUSIVE_LOCKS_REQUIRED(lock_);
+  void GetInfo_Locked(PlayerInfo* out_info) EXCLUSIVE_LOCKS_REQUIRED(lock_);
   void UpdateBounds_Locked() EXCLUSIVE_LOCKS_REQUIRED(lock_);
 
   void ClearDecoderBufferCache();
