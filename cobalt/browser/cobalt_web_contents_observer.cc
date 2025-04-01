@@ -15,16 +15,16 @@
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
 #include <jni.h>
-#include "starboard/system.h"
 
 #include "base/strings/utf_string_conversions.h"
 #include "cobalt/browser/embedded_resources/embedded_js.h"
 #include "cobalt/browser/migrate_storage_record/migration_manager.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
-#include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/starboard_bridge.h"
 
-using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::StarboardBridge;
+// using starboard::android::shared::JniEnvExt;
 
 namespace cobalt {
 
@@ -79,11 +79,11 @@ void CobaltWebContentsObserver::DidFinishNavigation(
   if (navigation_handle->IsErrorPage() &&
       navigation_handle->GetNetErrorCode() == net::ERR_NAME_NOT_RESOLVED) {
     jint jni_error_type = kJniErrorTypeConnectionError;
+    jlong data = 0;
 
-    JniEnvExt* env = JniEnvExt::Get();
-
-    env->CallStarboardVoidMethodOrAbort("raisePlatformError", "(IJ)V",
-                                        jni_error_type);
+    JNIEnv* env = base::android::AttachCurrentThread();
+    StarboardBridge::GetInstance()->RaisePlatformError(env, jni_error_type,
+                                                       data);
   }
 }
 

@@ -121,7 +121,6 @@ public class PlatformError
           if (cobaltActivity != null) {
             cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
           }
-          response = POSITIVE;
           dialog.dismiss();
           break;
         default: // fall out
