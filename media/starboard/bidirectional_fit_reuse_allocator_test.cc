@@ -21,10 +21,10 @@
 #include "starboard/common/fixed_no_free_allocator.h"
 #include "starboard/common/pointer_arithmetic.h"
 #include "starboard/configuration.h"
-#include "starboard/memory.h"
 #include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+namespace media {
 namespace {
 
 struct AlignedMemoryDeleter {
@@ -49,7 +49,7 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
     std::unique_ptr<starboard::common::FixedNoFreeAllocator> fallback_allocator(
         new starboard::common::FixedNoFreeAllocator(buffer_.get(),
                                                     kBufferSize));
-    allocator_.reset(new cobalt::media::BidirectionalFitReuseAllocator(
+    allocator_.reset(new BidirectionalFitReuseAllocator(
         fallback_allocator.get(), initial_capacity, small_allocation_threshold,
         allocation_increment));
 
@@ -58,7 +58,7 @@ class BidirectionalFitReuseAllocatorTest : public ::testing::Test {
 
   std::unique_ptr<uint8_t, AlignedMemoryDeleter> buffer_;
   std::unique_ptr<starboard::common::FixedNoFreeAllocator> fallback_allocator_;
-  std::unique_ptr<cobalt::media::BidirectionalFitReuseAllocator> allocator_;
+  std::unique_ptr<BidirectionalFitReuseAllocator> allocator_;
 };
 
 }  // namespace
@@ -180,3 +180,4 @@ TEST_F(BidirectionalFitReuseAllocatorTest, AllocationsWithThreshold) {
   allocator_->Free(small_allocation_2);
   allocator_->Free(large_allocation_1);
 }
+}  // namespace media
