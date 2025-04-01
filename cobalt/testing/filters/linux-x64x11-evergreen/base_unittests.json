@@ -16,6 +16,7 @@
     "BreakIteratorTest.BreakWordChinese",
     "BreakIteratorTest.BreakWordChineseEnglish",
     "BreakIteratorTest.BreakWordEmpty",
+    "BreakIteratorTest.BreakWordEmptyTests",
     "BreakIteratorTest.BreakWordJapanese",
     "BreakIteratorTest.BreakWordThai",
     "BreakIteratorTest.BreakWordWide16",
