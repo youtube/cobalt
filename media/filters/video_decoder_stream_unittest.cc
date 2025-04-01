@@ -30,6 +30,10 @@
 
 #include <iostream>
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/decoder_buffer_allocator.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 using ::base::test::RunCallback;
 using ::base::test::RunOnceCallback;
 using ::testing::_;
@@ -560,6 +564,11 @@ class VideoDecoderStreamTest
 
   // Decryptor has no key to decrypt a frame.
   bool has_no_key_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Defining starboard decoder buffer allocator makes DecoderBuffer use it.
+  DecoderBufferAllocator decoder_buffer_allocator_;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 INSTANTIATE_TEST_SUITE_P(
