@@ -99,7 +99,7 @@ group("default") {
     "//starboard/tools:build_app_launcher_zip",
   ]
   if (sb_is_evergreen_compatible) {
-    data_deps = [
+    deps += [
       "//starboard/loader_app($starboard_toolchain)",
       "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
     ]
