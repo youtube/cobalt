@@ -63,7 +63,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   size_t GetMaximumMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);
 
  private:
-  void EnsureReuseAllocatorIsCreated();
+  void EnsureReuseAllocatorIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
   const bool is_memory_pool_allocated_on_demand_;
   const int initial_capacity_;
@@ -74,7 +74,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   std::unique_ptr<BidirectionalFitReuseAllocator> reuse_allocator_
       GUARDED_BY(mutex_);
 
-  int max_buffer_capacity_ = 0;
+  int max_buffer_capacity_ GUARDED_BY(mutex_) = 0;
 };
 
 }  // namespace media
