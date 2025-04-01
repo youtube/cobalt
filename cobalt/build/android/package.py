@@ -35,17 +35,17 @@ PLATFORMS = ['android-arm', 'android-arm64', 'android-x86']
 CONFIGS = ['gold', 'qa']
 
 
-def build():
-  for platform in PLATFORMS:
+def build(platforms_to_package):
+  for platform in platforms_to_package:
     for config in CONFIGS:
       subprocess.call(['cobalt/build/gn.py', '-p', platform, '-c', config])
       subprocess.call(
           ['autoninja', '-C', f'out/{platform}_{config}', 'cobalt:gn_all'])
 
 
-def package():
+def package(platforms_to_package):
   subprocess.call(['rm', '-rf', 'out/packages'])
-  for platform in PLATFORMS:
+  for platform in platforms_to_package:
     for config in CONFIGS:
       subprocess.call([
           'cobalt/build/packager.py',
@@ -62,7 +62,17 @@ if __name__ == '__main__':
       '--package_only',
       action='store_true',
       help='Skips build steps assuming that it is already complete')
+  parser.add_argument(
+      '--platforms',
+      nargs='+',  # Expect one or more platform names
+      help='Override the default platforms to build and package.')
   args = parser.parse_args()
+
+  platforms = PLATFORMS
+  if args.platforms:
+    platforms = args.platforms
+
   if not args.package_only:
-    build()
-  package()
+    build(platforms)
+
+  package(platforms)
