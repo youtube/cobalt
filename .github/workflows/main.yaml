@@ -318,6 +318,33 @@ jobs:
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
 
+  web-tests:
+    needs: [initialize, docker-unittest-image, build]
+    if: needs.initialize.outputs.web_tests == 'true'
+    permissions: {}
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    name: ${{ matrix.name }}_web_tests
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    container: ${{ needs.docker-unittest-image.outputs.docker_unittest_tag }}
+    env:
+      TMPDIR: /__w/_temp
+      TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: src
+      - name: Run Web Tests
+        id: web-tests
+        uses: ./src/.github/actions/web_tests
+        with:
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
     if: always() &&
