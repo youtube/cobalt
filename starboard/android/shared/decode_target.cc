@@ -74,6 +74,7 @@ bool DecodeTarget::GetInfo(SbDecodeTargetInfo* out_info) {
   SB_DCHECK(out_info);
 
   *out_info = info_;
+  return true;
 }
 
 DecodeTarget::~DecodeTarget() {
