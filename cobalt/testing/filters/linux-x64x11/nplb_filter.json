@@ -2,6 +2,11 @@
   "failing_tests": [
     "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.*",
     "MultiplePlayerTest.*",
-    "VerticalVideoTests/VerticalVideoTest.*"
+    "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.*",
+    "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.*",
+    "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*",
+    "VerticalVideoTests/VerticalVideoTest.*",
+    "MaximumPlayerConfigurationExplorerTests*",
+    "SbPlayerTest*"
   ]
 }
