@@ -29,7 +29,9 @@
 #include "third_party/zlib/google/compression_utils.h"
 
 #if BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_COBALT)
 #include "components/variations/android/variations_seed_bridge.h"
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "components/variations/metrics.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -604,7 +606,7 @@ void VariationsSeedStore::OnSeedDataProcessed(
 void VariationsSeedStore::StoreValidatedSeed(const ValidatedSeed& seed,
                                              const std::string& country_code,
                                              base::Time date_fetched) {
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   // If currently we do not have any stored pref then we mark seed storing as
   // successful on the Java side to avoid repeated seed fetches.
   if (local_state_->GetString(prefs::kVariationsCompressedSeed).empty() &&

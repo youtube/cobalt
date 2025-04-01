@@ -94,7 +94,9 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "base/android/apk_assets.h"
 #include "base/android/path_utils.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "components/variations/android/variations_seed_bridge.h"
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "content/shell/android/shell_descriptors.h"
 #endif
 
@@ -785,7 +787,7 @@ void ShellContentBrowserClient::SetUpFieldTrials() {
   auto feature_list = std::make_unique<base::FeatureList>();
 
   std::unique_ptr<variations::SeedResponse> initial_seed;
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   if (!GetSharedState().local_state->HasPrefPath(
           variations::prefs::kVariationsSeedSignature)) {
     DVLOG(1) << "Importing first run seed from Java preferences.";

@@ -107,9 +107,14 @@ component("variations") {
   if (is_android) {
     sources += [
       "android/variations_associated_data_android.cc",
-      "android/variations_seed_bridge.cc",
-      "android/variations_seed_bridge.h",
     ]
+
+    if (!is_cobalt) {
+      sources += [
+        "android/variations_seed_bridge.cc",
+        "android/variations_seed_bridge.h",
+      ]
+    }
   }
 
   if (is_chromeos_ash) {
