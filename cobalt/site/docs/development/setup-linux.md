@@ -55,11 +55,12 @@ Required libraries can differ depending on your Linux distribution and version.
     get the binary, follow the instructions for whichever way you prefer
     [here](https://cobalt.googlesource.com/third_party/gn/+/refs/heads/main/#getting-a-binary).
 
-1.  Clone the Cobalt code repository. The following `git` command creates a
-    `cobalt` directory that contains the repository:
+1.  Clone the Cobalt code repository, checking out the latest LTS branch.
+    The following `git` command creates a `cobalt` directory that
+    contains the repository with the latest version (e.g., 25.lts.1+):
 
     ```sh
-    git clone https://github.com/youtube/cobalt.git
+    git clone -b 25.lts.1+ https://github.com/youtube/cobalt.git
     ```
 
 1.  Set `PYTHONPATH` environment variable to include the full path to the
