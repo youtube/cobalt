@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if SB_API_VERSION < 17
 #include "starboard/socket_waiter.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -26,3 +27,4 @@ TEST(SbSocketWaiterDestroyTest, RainyDayInvalid) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+#endif  // SB_API_VERSION < 17

@@ -74,18 +74,10 @@ typedef enum SbSocketWaiterResult {
 } SbSocketWaiterResult;
 
 // Function pointer for socket waiter callbacks.
-typedef void (*SbSocketWaiterCallback)(SbSocketWaiter waiter,
-                                       SbSocket socket,
-                                       void* context,
-                                       int ready_interests);
-
-#if SB_API_VERSION >= 16
-// Function pointer for socket waiter callbacks.
 typedef void (*SbPosixSocketWaiterCallback)(SbSocketWaiter waiter,
                                             int socket,
                                             void* context,
                                             int ready_interests);
-#endif
 
 // Well-defined value for an invalid socket watcher handle.
 #define kSbSocketWaiterInvalid ((SbSocketWaiter)NULL)
@@ -112,54 +104,13 @@ SB_EXPORT SbSocketWaiter SbSocketWaiterCreate();
 // |waiter|: The SbSocketWaiter to be destroyed.
 SB_EXPORT bool SbSocketWaiterDestroy(SbSocketWaiter waiter);
 
-// DEPRECATED with SB_API_VERSION 16
-//
-// Adds a new socket to be waited on by the |waiter| with a bitfield of
-// |interests|. This function should only be called on the thread that
-// waits on this waiter.
-//
-// If |socket| is already registered with this or another waiter, the function
-// does nothing and returns |false|. The client must remove the socket and then
-// add it back with the new |interests|.
-//
-// If |socket| is already ready for one or more of the operations set in the
-// |interests| mask, then the callback will be called on the next call to
-// either SbSocketWaiterWait() or SbSocketWaiterWaitTimed().
-//
-// |waiter|: An SbSocketWaiter that waits on the socket for the specified set
-//   of operations (|interests|).
-// |socket|: The SbSocket on which the waiter waits.
-// |context|:
-// |callback|: The function that is called when the event fires. The |waiter|,
-//   |socket|, |context| are all passed to the callback, along with a bitfield
-//   of |interests| that the socket is actually ready for.
-// |interests|: A bitfield that identifies operations for which the socket is
-//   waiting.
-// |persistent|: Identifies the procedure that will be followed for removing
-//   the socket:
-// - If |persistent| is |true|, then |socket| stays registered with |waiter|
-//   until SbSocketWaiterRemove() is called with |waiter| and |socket|.
-// - If |persistent| is |false|, then |socket| is removed before the next call
-//   to |callback|, even if not all registered |interests| became ready,
-//   which allows for adding it again in the |callback|.
-SB_EXPORT bool SbSocketWaiterAdd(SbSocketWaiter waiter,
-                                 SbSocket socket,
-                                 void* context,
-                                 SbSocketWaiterCallback callback,
-                                 int interests,
-                                 bool persistent);
-
-#if SB_API_VERSION >= 16
 SB_EXPORT bool SbPosixSocketWaiterAdd(SbSocketWaiter waiter,
                                       int socket,
                                       void* context,
                                       SbPosixSocketWaiterCallback callback,
                                       int interests,
                                       bool persistent);
-#endif
 
-// DEPRECATED with SB_API_VERSION 16
-//
 // Removes a socket, previously added with SbSocketWaiterAdd(), from a waiter.
 // This function should only be called on the thread that waits on this waiter.
 //
@@ -169,11 +120,8 @@ SB_EXPORT bool SbPosixSocketWaiterAdd(SbSocketWaiter waiter,
 //
 // |waiter|: The waiter from which the socket is removed.
 // |socket|: The socket to remove from the waiter.
-SB_EXPORT bool SbSocketWaiterRemove(SbSocketWaiter waiter, SbSocket socket);
 
-#if SB_API_VERSION >= 16
 SB_EXPORT bool SbPosixSocketWaiterRemove(SbSocketWaiter waiter, int socket);
-#endif
 
 // Waits on all registered sockets, calling the registered callbacks if and when
 // the corresponding sockets become ready for an interested operation. This

@@ -42,15 +42,6 @@ struct SbSocketWaiterPrivate {
   bool Remove(int socket, SbSocketWaiter waiter);
   bool CheckSocketRegistered(int socket);
 
-  // The Add/Remove pair for SbSocket based socket
-  bool Add(SbSocket socket,
-           void* context,
-           SbSocketWaiterCallback callback,
-           int interests,
-           bool persistent);
-  bool Remove(SbSocket socket, SbSocketWaiter waiter);
-  bool CheckSocketRegistered(SbSocket socket);
-
   void Wait();
   SbSocketWaiterResult WaitTimed(int64_t duration_usec);
   void WakeUp(bool timeout);
@@ -74,20 +65,6 @@ struct SbSocketWaiterPrivate {
           persistent(persistent) {
       use_int_socket = 1;
     }
-    Waitee(SbSocketWaiter waiter,
-           SbSocket socket,
-           void* context,
-           SbSocketWaiterCallback callback,
-           int interests,
-           bool persistent)
-        : waiter(waiter),
-          sb_socket(socket),
-          context(context),
-          sb_callback(callback),
-          interests(interests),
-          persistent(persistent) {
-      use_int_socket = 0;
-    }
 
     // The socket registered with the waiter.
     int i_socket;
@@ -96,8 +73,6 @@ struct SbSocketWaiterPrivate {
 
     // The callback to call when one or more registered interests become ready.
     SbPosixSocketWaiterCallback i_callback;
-
-    SbSocketWaiterCallback sb_callback;
 
     // The waiter this event is registered with.
     SbSocketWaiter waiter;
