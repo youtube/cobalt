@@ -129,7 +129,7 @@ SbMediaAudioStreamInfo MediaAudioConfigToSbMediaAudioStreamInfo(
   audio_stream_info.audio_specific_config_size =
       static_cast<uint16_t>(extra_data.size());
   if (audio_stream_info.audio_specific_config_size == 0) {
-    audio_stream_info.audio_specific_config = NULL;
+    audio_stream_info.audio_specific_config = nullptr;
   } else {
     audio_stream_info.audio_specific_config = extra_data.data();
   }
@@ -174,7 +174,7 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
   drm_info->initialization_vector_size = 0;
   drm_info->identifier_size = 0;
   drm_info->subsample_count = 0;
-  drm_info->subsample_mapping = NULL;
+  drm_info->subsample_mapping = nullptr;
 
   if (!config || config->iv().empty() || config->key_id().empty()) {
     return;

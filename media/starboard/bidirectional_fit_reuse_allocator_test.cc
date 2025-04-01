@@ -69,7 +69,7 @@ TEST_F(BidirectionalFitReuseAllocatorTest, AlignmentCheck) {
   for (int i = 0; i < SB_ARRAY_SIZE(kAlignments); ++i) {
     for (int j = 0; j < SB_ARRAY_SIZE(kBlockSizes); ++j) {
       void* p = allocator_->Allocate(kBlockSizes[j], kAlignments[i]);
-      EXPECT_TRUE(p != NULL);
+      EXPECT_TRUE(p != nullptr);
       EXPECT_EQ(starboard::common::IsAligned(p, kAlignments[i]), true);
       allocator_->Free(p);
     }
@@ -80,7 +80,7 @@ TEST_F(BidirectionalFitReuseAllocatorTest, AlignmentCheck) {
 TEST_F(BidirectionalFitReuseAllocatorTest, FreeBlockMergingLeft) {
   const std::size_t kBlockSizes[] = {156, 16475};
   const std::size_t kAlignment = 4;
-  void* blocks[] = {NULL, NULL};
+  void* blocks[] = {nullptr, nullptr};
   blocks[0] = allocator_->Allocate(kBlockSizes[0], kAlignment);
   blocks[1] = allocator_->Allocate(kBlockSizes[1], kAlignment);
   // In an empty allocator we expect first alloc to be < second.
@@ -98,7 +98,7 @@ TEST_F(BidirectionalFitReuseAllocatorTest, FreeBlockMergingLeft) {
 TEST_F(BidirectionalFitReuseAllocatorTest, FreeBlockMergingRight) {
   const std::size_t kBlockSizes[] = {156, 202, 354};
   const std::size_t kAlignment = 4;
-  void* blocks[] = {NULL, NULL, NULL};
+  void* blocks[] = {nullptr, nullptr, nullptr};
   blocks[0] = allocator_->Allocate(kBlockSizes[0], kAlignment);
   blocks[1] = allocator_->Allocate(kBlockSizes[1], kAlignment);
   blocks[2] = allocator_->Allocate(kBlockSizes[2], kAlignment);
@@ -125,24 +125,24 @@ TEST_F(BidirectionalFitReuseAllocatorTest, AllocationIncrement) {
   const std::size_t kAllocationIncrement = kBufferSize / 2;
   ResetAllocator(0, 0, kAllocationIncrement);
   void* p = allocator_->Allocate(1, 1);
-  EXPECT_TRUE(p != NULL);
+  EXPECT_TRUE(p != nullptr);
   allocator_->Free(p);
   EXPECT_GE(fallback_allocator_->GetAllocated(), kAllocationIncrement);
 }
 
 TEST_F(BidirectionalFitReuseAllocatorTest, FallbackBlockMerge) {
   void* p = allocator_->Allocate(kBufferSize, 1);
-  EXPECT_TRUE(p != NULL);
+  EXPECT_TRUE(p != nullptr);
   allocator_->Free(p);
 
   ResetAllocator();
 
   p = allocator_->Allocate(kBufferSize / 2, 1);
-  EXPECT_TRUE(p != NULL);
+  EXPECT_TRUE(p != nullptr);
   allocator_->Free(p);
 
   p = allocator_->Allocate(kBufferSize, 1);
-  EXPECT_TRUE(p != NULL);
+  EXPECT_TRUE(p != nullptr);
   allocator_->Free(p);
 }
 
@@ -153,19 +153,19 @@ TEST_F(BidirectionalFitReuseAllocatorTest, AllocationsWithThreshold) {
 
   void* small_allocation_1 =
       allocator_->Allocate(kSmallAllocationThreshold - 1, 1);
-  EXPECT_TRUE(small_allocation_1 != NULL);
+  EXPECT_TRUE(small_allocation_1 != nullptr);
 
   void* large_allocation_1 =
       allocator_->Allocate(kSmallAllocationThreshold + 1, 1);
-  EXPECT_TRUE(large_allocation_1 != NULL);
+  EXPECT_TRUE(large_allocation_1 != nullptr);
 
   // According to the spec of BidirectionalFitReuseAllocator, any memory block
   // whose size is equal to the threshold is allocated from the back.
   void* small_allocation_2 = allocator_->Allocate(kSmallAllocationThreshold, 1);
-  EXPECT_TRUE(small_allocation_2 != NULL);
+  EXPECT_TRUE(small_allocation_2 != nullptr);
 
   void* small_allocation_3 = allocator_->Allocate(1, 1);
-  EXPECT_TRUE(small_allocation_3 != NULL);
+  EXPECT_TRUE(small_allocation_3 != nullptr);
 
   // Large allocations are allocated from the front, small allocations are
   // allocated from the back.
