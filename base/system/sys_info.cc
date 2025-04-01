@@ -23,7 +23,7 @@
 
 using starboard::android::shared::StarboardBridge;
 #elif BUILDFLAG(IS_COBALT)
-#include "cobalt/cobalt.h"
+#include "starboard/linux/shared/time_zone.h"
 #endif
 
 namespace base {
@@ -173,7 +173,7 @@ int64_t SysInfo::AppStartTimestamp() {
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   int64_t app_start_timestamp_in_microseconds = starboard_bridge->GetAppStartTimestamp(env);
 #elif BUILDFLAG(IS_COBALT)
-  int64_t app_start_timestamp_in_microseconds = GetStartTimestamp();
+  int64_t app_start_timestamp_in_microseconds = starboard::shared::GetStartTime();
 #else
 #error Unsupported platform.
 #endif

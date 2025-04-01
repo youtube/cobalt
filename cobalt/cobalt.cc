@@ -27,7 +27,6 @@
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "build/build_config.h"
-#include "cobalt/cobalt.h"
 #include "cobalt/cobalt_main_delegate.h"
 #include "cobalt/cobalt_switch_defaults.h"
 #include "cobalt/platform_event_source_starboard.h"
@@ -163,13 +162,6 @@ void SbEventHandle(const SbEvent* event) {
     case kSbEventDateTimeConfigurationChanged:
       break;
   }
-}
-
-int64_t GetStartTimestamp() {
-  if (g_content_main_delegate) {
-    return g_content_main_delegate->GetStartTimestamp();
-  }
-  return 0;
 }
 
 int main(int argc, char** argv) {

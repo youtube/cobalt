@@ -13,11 +13,12 @@
 // limitations under the License.
 
 #include "starboard/event.h"
-
+#include "starboard/linux/shared/time_zone.h"
 #include "starboard/shared/starboard/link_receiver.h"
 #include "starboard/shared/x11/application_x11.h"
 
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
+  starboard::shared::SetStartTime();
   starboard::shared::x11::ApplicationX11 application(callback);
   int result = 0;
   {

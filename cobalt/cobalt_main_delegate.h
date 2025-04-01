@@ -43,8 +43,6 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
       const std::string& process_type,
       content::MainFunctionParams main_function_params) override;
 
-  int64_t GetStartTimestamp();
-
   // Shutdown method that trigger the BrowserMainRunner shutdown.
   void Shutdown();
 
@@ -54,7 +52,6 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   std::unique_ptr<content::BrowserMainRunner> main_runner_;
   std::unique_ptr<CobaltContentGpuClient> gpu_client_;
   std::unique_ptr<CobaltContentRendererClient> renderer_client_;
-  int64_t start_timestamp_;
 };
 
 }  // namespace cobalt

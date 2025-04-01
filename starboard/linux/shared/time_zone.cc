@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "starboard/linux/shared/time_zone.h"
+#include "starboard/common/time.h"
 
 #include "starboard/extension/time_zone.h"
 
@@ -55,6 +56,16 @@ const StarboardExtensionTimeZoneApi kTimeZoneApi = {
 const void* GetTimeZoneApi() {
   return &kTimeZoneApi;
 }
+
+int64_t start_time_;
+
+int64_t GetStartTime() {
+  return start_time_;
+};
+
+void SetStartTime() {
+  start_time_ = starboard::CurrentPosixTime();
+};
 
 }  // namespace shared
 }  // namespace starboard
