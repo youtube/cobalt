@@ -1,7 +1,6 @@
 {
   "comment" : "TODO: b/407549902 - Re-enable these disabled tests. Many tests crash since DecoderBuffer allocator is not set.",
   "failing_tests": [
-    "ADTSStreamParserTest.*",
     "AesDecryptor/AesDecryptorTest.*",
     "All/AudioTimestampValidatorTest.*",
     "AudioDecoderStreamTest.*",
@@ -13,16 +12,12 @@
     "CencDecryptorTest.*",
     "ChrisTest/UnderflowTest.*",
     "ChunkDemuxerTest.*",
-    "Clear_Parallel/VideoDecoderStreamTest.*",
-    "Clear/VideoDecoderStreamTest.*",
     "DecoderBufferQueueTest.*",
     "DecoderBufferTest.*",
     "DecryptingAudioDecoderTest.*",
     "DecryptingDemuxerStreamTest.*",
     "DecryptingMediaResourceTest.*",
     "DecryptingVideoDecoderTest.*",
-    "EncryptedWithDecryptor/VideoDecoderStreamTest.*",
-    "EncryptedWithoutDecryptor/VideoDecoderStreamTest.*",
     "FakeDemuxerStreamTest.*",
     "H264DecoderTest.*",
     "H264Specific/H264VideoEncoderTest.*",
@@ -35,8 +30,6 @@
     "MojoDecryptorTest.*",
     "MojoDemuxerStreamAdapterTest.*",
     "MojoVideoDecoderIntegrationTest.*",
-    "MP4StreamParserTest.*",
-    "MPEG1AudioStreamParserTest.*",
     "NoParallelDecode/FakeVideoDecoderTest.*",
     "OffloadingVideoDecoderTest.*",
     "ParallelDecode/FakeVideoDecoderTest.*",
@@ -45,7 +38,6 @@
     "SourceBufferStateTest.*",
     "SourceBufferStreamTest.*",
     "StableVideoDecoderTypesMojomTraitsTest.*",
-    "StreamParserTest.*",
     "StreamProviderTest.*",
     "TextRendererTest.*",
     "TrackRunIteratorTest.*",
@@ -55,7 +47,6 @@
     "VideoRendererLatencyHintTest.*",
     "VideoThumbnailDecoderTest.*",
     "WebMClusterParserTest.*",
-    "WebmMuxerTestUnparametrized.*",
-    "WebMStreamParserTest.*"
+    "WebmMuxerTestUnparametrized.*"
   ]
 }
