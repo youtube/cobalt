@@ -17,7 +17,6 @@ if (current_toolchain == default_toolchain &&
   import("//starboard/build/config/modular/arm/hardfp/configuration.gni")
 
   platform_tests_path = "//starboard/raspi/shared:starboard_platform_tests_install($starboard_toolchain)"
-  cobalt_font_package = "standard"
 } else {
   import("//starboard/build/config/base_configuration.gni")
 
@@ -41,3 +40,4 @@ if (current_toolchain == default_toolchain &&
   is_raspi = true
 }
 install_target_path = "//starboard/raspi/shared/install_target.gni"
+cobalt_font_package = "standard"

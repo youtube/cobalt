@@ -24,6 +24,7 @@ from functools import partial
 import sys
 from xml.dom import Node
 from xml.dom.minidom import parse as parse_xml
+import os
 
 NORMAL_WEIGHT = 400
 BOLD_WEIGHT = 700
@@ -189,6 +190,7 @@ def DoMain(argv):
   FilterFonts(filter_function, fonts_doc, kept_families, kept_fonts)
 
   if options.output_xml:
+    os.makedirs(os.path.dirname(options.output_xml), exist_ok=True)
     with open(options.output_xml, 'w', encoding='utf-8') as f:
       f.write(fonts_doc.toprettyxml(indent='  '))
 
