@@ -38,6 +38,10 @@
 #include "testing/gtest/include/gtest/gtest-param-test.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/decoder_buffer_allocator.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 using ::testing::InSequence;
 using ::testing::StrictMock;
 
@@ -289,6 +293,12 @@ class MP4StreamParserTest : public testing::Test {
 
     return true;
   }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Defining starboard decoder buffer allocator makes DecoderBuffer use it.
+  DecoderBufferAllocator decoder_buffer_allocator_;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 };
 
 TEST_F(MP4StreamParserTest, UnalignedAppend) {
