@@ -1,14 +1,14 @@
 {
-  "comment" : "TODO: b/407549902 - Re-enable these disabled tests. Many tests crash since DecoderBuffer allocator is not set.",
+  "comment" : "TODO: b/407549902 - Re-enable these disabled tests.",
   "failing_tests": [
-    "*AudioRendererImplTest.*",
-    "*CbcsDecryptorTest.*",
-    "*CDM_10/CdmAdapterTestWithClearKeyCdm.*",
-    "*CDM_11/CdmAdapterTestWithClearKeyCdm.*",
-    "*CdmAdapter/AesDecryptorTest.*",
-    "*DecoderBufferTest.*",
-    "*H264DecoderTest.*",
-    "*MediaServiceTest.*",
-    "*MimeUtilTest.*"
+    "AudioRendererImplTest.EndOfStream",
+    "AudioRendererImplTest.ImmediateEndOfStream",
+    "CDM_10/CdmAdapterTestWithClearKeyCdm.*",
+    "CDM_11/CdmAdapterTestWithClearKeyCdm.*",
+    "CdmAdapter/AesDecryptorTest.*",
+    "DecoderBufferTest.*",
+    "MediaServiceTest.*",
+    "MimeUtilTest.CommonMediaMimeType",
+    "MimeUtilTest.ParseVideoCodecString_SimpleCodecsHaveProfiles"
   ]
 }
