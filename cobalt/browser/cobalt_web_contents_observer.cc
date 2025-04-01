@@ -14,8 +14,6 @@
 
 #include "cobalt/browser/cobalt_web_contents_observer.h"
 
-#include <jni.h>
-
 #include "base/strings/utf_string_conversions.h"
 #include "cobalt/browser/embedded_resources/embedded_js.h"
 #include "cobalt/browser/migrate_storage_record/migration_manager.h"
