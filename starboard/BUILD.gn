@@ -80,11 +80,7 @@ group("gn_all") {
           "//third_party/crashpad/crashpad/client",
           "//third_party/lz4_lib:lz4",
         ]
-        data_deps = [
-          "//starboard/loader_app($starboard_toolchain)",
-          "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
-          "//third_party/crashpad/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)",
-        ]
+        data_deps = [ "//third_party/crashpad/crashpad/tools:crashpad_database_util(//$starboard_path/toolchain:native_target)" ]
       }
     }
   } else {  # !sb_is_evergreen
@@ -102,6 +98,12 @@ group("default") {
     ":starboard_group",
     "//starboard/tools:build_app_launcher_zip",
   ]
+  if (sb_is_evergreen_compatible) {
+    deps += [
+      "//starboard/loader_app($starboard_toolchain)",
+      "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
+    ]
+  }
 }
 
 group("starboard_group") {
