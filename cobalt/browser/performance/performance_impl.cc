@@ -60,7 +60,9 @@ void PerformanceImpl::GetAppStartupTime(GetAppStartupTimeCallback callback) {
   StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
   auto startup_time = starboard_bridge->GetAppStartTimestamp(env);
 #elif BUILDFLAG(IS_STARBOARD)
-  auto startup_time = starboard::CurrentMonotonicTime();
+  // TODO: b/389132127 - Startup time for 3P needs a place to be saved.
+  NOTIMPLEMENTED();
+  int64_t startup_time = 0;
 #else
 #error Unsupported platform.
 #endif
