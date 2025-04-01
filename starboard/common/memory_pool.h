@@ -31,7 +31,7 @@ namespace common {
 template <typename ReuseAllocator>
 class MemoryPool : public Allocator {
  public:
-  MemoryPool(void* buffer, std::size_t size)
+  MemoryPool(void* buffer, size_t size)
       : no_free_allocator_(buffer, size),
         reuse_allocator_(&no_free_allocator_, size) {
     SB_DCHECK(buffer);
@@ -39,24 +39,22 @@ class MemoryPool : public Allocator {
   }
 
   template <typename ParameterType>
-  MemoryPool(void* buffer, std::size_t size, ParameterType parameter1)
+  MemoryPool(void* buffer, size_t size, ParameterType parameter1)
       : no_free_allocator_(buffer, size),
         reuse_allocator_(&no_free_allocator_, size, parameter1) {
     SB_DCHECK(buffer);
     SB_DCHECK(size > 0U);
   }
 
-  void* Allocate(std::size_t size) { return reuse_allocator_.Allocate(size); }
-  void* Allocate(std::size_t size, std::size_t alignment) {
+  void* Allocate(size_t size) { return reuse_allocator_.Allocate(size); }
+  void* Allocate(size_t size, size_t alignment) {
     return reuse_allocator_.Allocate(size, alignment);
   }
   void Free(void* memory) { reuse_allocator_.Free(memory); }
-  std::size_t GetCapacity() const { return reuse_allocator_.GetCapacity(); }
-  std::size_t GetAllocated() const { return reuse_allocator_.GetAllocated(); }
+  size_t GetCapacity() const { return reuse_allocator_.GetCapacity(); }
+  size_t GetAllocated() const { return reuse_allocator_.GetAllocated(); }
 
-  std::size_t GetHighWaterMark() const {
-    return no_free_allocator_.GetAllocated();
-  }
+  size_t GetHighWaterMark() const { return no_free_allocator_.GetAllocated(); }
 
   void PrintAllocations() const { reuse_allocator_.PrintAllocations(); }
 
