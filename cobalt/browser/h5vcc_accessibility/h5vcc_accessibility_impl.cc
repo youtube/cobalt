@@ -33,12 +33,26 @@ void H5vccAccessibilityImpl::Create(
   new H5vccAccessibilityImpl(*render_frame_host, std::move(receiver));
 }
 
+<<<<<<< HEAD
 void H5vccAccessibilityImpl::GetTextToSpeechSync(
     GetTextToSpeechSyncCallback callback) {
   // TODO(b/391708407): invoke
   // starboard/android/shared/accessibility_get_text_to_speech_settings.cc
   // to return enabled variable.
   bool enabled = false;
+=======
+void H5vccAccessibilityImpl::IsTextToSpeechEnabledSync(
+    IsTextToSpeechEnabledSyncCallback callback) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+#if BUILDFLAG(IS_STARBOARD)
+  // TODO(b/391708407): Add support for Starboard.
+  std::move(callback).Run(false);
+#elif BUILDFLAG(IS_ANDROIDTV)
+  JNIEnv* env = AttachCurrentThread();
+  CobaltTextToSpeechHelper::GetInstance()->Initialize(env);
+  bool enabled =
+      CobaltTextToSpeechHelper::GetInstance()->IsTextToSpeechEnabled(env);
+>>>>>>> 74cbb0ac43d (Run TTS cb with stub value for Starboard platforms (#5279))
   std::move(callback).Run(enabled);
 }
 
