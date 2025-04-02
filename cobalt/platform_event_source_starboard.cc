@@ -197,6 +197,36 @@ constexpr auto kSbKeyToDomCodeMap = base::MakeFixedFlatMap<SbKey, ui::DomCode>({
     {kSbKeyCancel, ui::DomCode::ABORT},
     {kSbKeyTab, ui::DomCode::TAB},
     {kSbKeyEscape, ui::DomCode::ESCAPE},
+
+    // Languages
+    {kSbKeyConvert, ui::DomCode::CONVERT},
+    {kSbKeyNonconvert, ui::DomCode::NON_CONVERT},
+    {kSbKeyHangul, ui::DomCode::LANG1},
+    {kSbKeyHanja, ui::DomCode::LANG2},
+
+    // Gamepad keys
+    {kSbKeyGamepad1, ui::DomCode::ENTER},
+    {kSbKeyGamepad2, ui::DomCode::ESCAPE},
+    {kSbKeyGamepad3, ui::DomCode::BROWSER_HOME},
+    {kSbKeyGamepad4, ui::DomCode::BROWSER_SEARCH},
+
+    {kSbKeyGamepadLeftBumper, ui::DomCode::MEDIA_TRACK_PREVIOUS},
+    {kSbKeyGamepadRightBumper, ui::DomCode::MEDIA_TRACK_NEXT},
+    {kSbKeyGamepadLeftTrigger, ui::DomCode::MEDIA_REWIND},
+    {kSbKeyGamepadRightTrigger, ui::DomCode::MEDIA_FAST_FORWARD},
+
+    {kSbKeyGamepad5, ui::DomCode::ENTER},
+    {kSbKeyGamepad6, ui::DomCode::ENTER},
+    {kSbKeyGamepadDPadUp, ui::DomCode::ARROW_UP},
+    {kSbKeyGamepadDPadDown, ui::DomCode::ARROW_DOWN},
+    {kSbKeyGamepadDPadLeft, ui::DomCode::ARROW_LEFT},
+    {kSbKeyGamepadDPadRight, ui::DomCode::ARROW_RIGHT},
+
+    {kSbKeyGamepadLeftStickUp, ui::DomCode::ARROW_UP},
+    {kSbKeyGamepadLeftStickDown, ui::DomCode::ARROW_DOWN},
+    {kSbKeyGamepadLeftStickLeft, ui::DomCode::ARROW_LEFT},
+    {kSbKeyGamepadLeftStickRight, ui::DomCode::ARROW_RIGHT},
+
 });
 
 void DeliverEventHandler(std::unique_ptr<ui::Event> ui_event) {
