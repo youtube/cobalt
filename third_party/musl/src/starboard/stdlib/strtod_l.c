@@ -14,4 +14,3 @@ long double strtold_l(const char *restrict s, char **restrict p,
                       struct __locale_struct *l) {
   return strtold(s, p);
 }
-

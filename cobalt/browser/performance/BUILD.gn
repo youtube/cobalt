@@ -23,5 +23,10 @@ source_set("performance") {
     "//cobalt/browser/performance/public/mojom",
     "//content/public/browser",
     "//mojo/public/cpp/bindings",
+    "//starboard($starboard_toolchain)",
   ]
+
+  if (is_starboard) {
+    deps += [ "//starboard/common" ]
+  }
 }
