@@ -59,7 +59,8 @@ void H5vccAccessibilityImpl::IsTextToSpeechEnabledSync(
     IsTextToSpeechEnabledSyncCallback callback) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 #if BUILDFLAG(IS_STARBOARD)
-// TODO(b/391708407): Add support for Starboard.
+  // TODO(b/391708407): Add support for Starboard.
+  std::move(callback).Run(false);
 #elif BUILDFLAG(IS_ANDROIDTV)
   JNIEnv* env = AttachCurrentThread();
   CobaltTextToSpeechHelper::GetInstance()->Initialize(env);
