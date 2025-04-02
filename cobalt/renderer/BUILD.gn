@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import("//starboard/build/buildflags.gni")
 
 source_set("renderer") {
   sources = [
@@ -31,8 +32,11 @@ source_set("renderer") {
     "//content/test:content_test_mojo_bindings",
     "//media",
     "//media/mojo:buildflags",
-    "//media/mojo/clients",
     "//starboard:starboard_headers_only",
     "//v8",
   ]
+
+  if (use_starboard_media) {
+    deps += [ "//media/mojo/clients" ]
+  }
 }
