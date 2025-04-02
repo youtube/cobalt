@@ -9,10 +9,6 @@
 
 #include "src/base/platform/time.h"
 
-#if V8_OS_STARBOARD
-#include "starboard/common/time.h"
-#endif
-
 namespace v8 {
 namespace base {
 
@@ -166,51 +162,31 @@ bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
 #elif V8_OS_STARBOARD
 
 ConditionVariable::ConditionVariable() {
-#if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
-  pthread_condattr_t attribute;
-  pthread_condattr_init(&attribute);
-  pthread_condattr_setclock(&attribute, CLOCK_MONOTONIC);
-
-  int result = pthread_cond_init(&native_handle_, &attribute);
-  DCHECK(result == 0);
-
-  pthread_condattr_destroy(&attribute);
-#else
-  int result = pthread_cond_init(&native_handle_, nullptr);
-  DCHECK(result == 0);
-#endif  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
+  SbConditionVariableCreate(&native_handle_, nullptr);
 }
 
 ConditionVariable::~ConditionVariable() {
-  pthread_cond_destroy(&native_handle_);
+  SbConditionVariableDestroy(&native_handle_);
 }
 
 void ConditionVariable::NotifyOne() {
-  pthread_cond_signal(&native_handle_);
+  SbConditionVariableSignal(&native_handle_);
 }
 
 void ConditionVariable::NotifyAll() {
-  pthread_cond_broadcast(&native_handle_);
+  SbConditionVariableBroadcast(&native_handle_);
 }
 
 void ConditionVariable::Wait(Mutex* mutex) {
-  pthread_cond_wait(&native_handle_, &mutex->native_handle());
+  SbConditionVariableWait(&native_handle_, &mutex->native_handle());
 }
 
 bool ConditionVariable::WaitFor(Mutex* mutex, const TimeDelta& rel_time) {
-#if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
-  int64_t timeout_time_usec = starboard::CurrentMonotonicTime();
-#else
-  int64_t timeout_time_usec = starboard::CurrentPosixTime();
-#endif  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
-  timeout_time_usec += static_cast<int64_t>(rel_time.InMicroseconds());
-
-  struct timespec delay_timestamp;
-  delay_timestamp.tv_sec = timeout_time_usec / 1000'000;
-  delay_timestamp.tv_nsec = (timeout_time_usec % 1000'000) * 1000;
-
-  int result = pthread_cond_timedwait(&native_handle_, &mutex->native_handle(), &delay_timestamp);
-  return result == 0;
+  SbTime microseconds = static_cast<SbTime>(rel_time.InMicroseconds());
+  SbConditionVariableResult result = SbConditionVariableWaitTimed(
+      &native_handle_, &mutex->native_handle(), microseconds);
+  DCHECK(result != kSbConditionVariableFailed);
+  return result == kSbConditionVariableSignaled;
 }
 
 #endif  // V8_OS_STARBOARD

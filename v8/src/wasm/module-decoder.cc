@@ -294,7 +294,6 @@ class ModuleDecoderImpl : public Decoder {
   }
 
   void DumpModule(const Vector<const byte> module_bytes) {
-#if !defined(STARBOARD)
     std::string path;
     if (FLAG_dump_wasm_module_path) {
       path = FLAG_dump_wasm_module_path;
@@ -317,7 +316,6 @@ class ModuleDecoderImpl : public Decoder {
       OFStream os(stderr);
       os << "Error while dumping wasm file to " << path << std::endl;
     }
-#endif  // !defined(STARBOARD)
   }
 
   void StartDecoding(Counters* counters, AccountingAllocator* allocator) {

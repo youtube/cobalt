@@ -259,17 +259,6 @@ enum class CpuProfilingStatus {
 };
 
 /**
- * Delegate for when max samples reached and samples are discarded.
- */
-class V8_EXPORT DiscardedSamplesDelegate {
- public:
-  DiscardedSamplesDelegate() {}
-
-  virtual ~DiscardedSamplesDelegate() = default;
-  virtual void Notify() = 0;
-};
-
-/**
  * Optional profiling attributes.
  */
 class V8_EXPORT CpuProfilingOptions {
@@ -357,9 +346,8 @@ class V8_EXPORT CpuProfiler {
    * profiles may be collected at once. Attempts to start collecting several
    * profiles with the same title are silently ignored.
    */
-  CpuProfilingStatus StartProfiling(
-      Local<String> title, CpuProfilingOptions options,
-      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
+  CpuProfilingStatus StartProfiling(Local<String> title,
+                                    CpuProfilingOptions options);
 
   /**
    * Starts profiling with the same semantics as above, except with expanded

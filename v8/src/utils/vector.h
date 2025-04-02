@@ -167,13 +167,7 @@ class OwnedVector {
             typename = typename std::enable_if<std::is_convertible<
                 std::unique_ptr<U>, std::unique_ptr<T>>::value>::type>
   OwnedVector(OwnedVector<U>&& other)
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
       : data_(std::move(other.data_)), length_(other.length_) {
-#else
-  {
-    // All usage outsite of WASM should already be disabled.
-    DCHECK(false);
-#endif
     STATIC_ASSERT(sizeof(U) == sizeof(T));
     other.length_ = 0;
   }
@@ -231,14 +225,8 @@ class OwnedVector {
                             decltype(std::begin(std::declval<const U&>())),
                             decltype(std::end(std::declval<const U&>()))>::type>
   static OwnedVector<T> Of(const U& collection) {
-#if defined(V8_OS_STARBOARD)
-    // On some platform, Iterator could be void.
-    auto begin = std::begin(collection);
-    auto end = std::end(collection);
-#else
     Iterator begin = std::begin(collection);
     Iterator end = std::end(collection);
-#endif
     using non_const_t = typename std::remove_const<T>::type;
     auto vec =
         OwnedVector<non_const_t>::NewForOverwrite(std::distance(begin, end));

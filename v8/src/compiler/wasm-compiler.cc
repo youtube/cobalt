@@ -7846,12 +7846,10 @@ wasm::WasmCompilationResult ExecuteTurbofanWasmCompilation(
     info.set_wasm_runtime_exception_support();
   }
 
-#if !defined(DISABLE_GRAPHS_STARBOARD)
   if (info.trace_turbo_json()) {
     TurboCfgFile tcf;
     tcf << AsC1VCompilation(&info);
   }
-#endif  // DISABLE_GRAPHS_STARBOARD
 
   NodeOriginTable* node_origins =
       info.trace_turbo_json() ? zone.New<NodeOriginTable>(mcgraph->graph())

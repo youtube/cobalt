@@ -8,9 +8,6 @@
 #include <sstream>
 #include <string>
 
-// Currently disabled due to no-usage and API leaks.
-#if !defined(DISABLE_GRAPHS_STARBOARD)
-
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/codegen/source-position.h"
 #include "src/compiler/all-nodes.h"
@@ -1377,5 +1374,3 @@ std::ostream& operator<<(std::ostream& os, const InstructionSequenceAsJSON& s) {
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
-
-#endif  // DISABLE_GRAPHS_STARBOARD

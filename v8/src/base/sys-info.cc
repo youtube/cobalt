@@ -26,10 +26,6 @@
 #include "src/base/win32-headers.h"
 #endif
 
-#if V8_OS_STARBOARD
-#include "starboard/system.h"
-#endif
-
 namespace v8 {
 namespace base {
 
@@ -53,8 +49,6 @@ int SysInfo::NumberOfProcessors() {
   SYSTEM_INFO system_info = {};
   ::GetNativeSystemInfo(&system_info);
   return static_cast<int>(system_info.dwNumberOfProcessors);
-#elif V8_OS_STARBOARD
-  return SbSystemGetNumberOfProcessors();
 #endif
 }
 
@@ -103,8 +97,6 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
     return 0;
   }
   return static_cast<int64_t>(pages) * page_size;
-#elif V8_OS_STARBOARD
-  return SbSystemGetTotalCPUMemory();
 #endif
 }
 
@@ -120,8 +112,6 @@ int64_t SysInfo::AmountOfVirtualMemory() {
     return 0;
   }
   return (rlim.rlim_cur == RLIM_INFINITY) ? 0 : rlim.rlim_cur;
-#elif V8_OS_STARBOARD
-  return 0;
 #endif
 }
 

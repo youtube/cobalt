@@ -18,15 +18,11 @@ namespace internal {
 
 class CodeTracer final : public Malloced {
  public:
-#if defined(V8_OS_STARBOARD)
-  explicit CodeTracer(int isolate_id) : scope_depth_(0) {
-#else
   explicit CodeTracer(int isolate_id) : file_(nullptr), scope_depth_(0) {
     if (!ShouldRedirect()) {
       file_ = stdout;
       return;
     }
-#endif
 
     if (FLAG_redirect_code_traces_to != nullptr) {
       StrNCpy(filename_, FLAG_redirect_code_traces_to, filename_.length());
@@ -78,14 +74,12 @@ class CodeTracer final : public Malloced {
       return;
     }
 
-#if !defined(V8_OS_STARBOARD)
     if (file_ == nullptr) {
       file_ = base::OS::FOpen(filename_.begin(), "ab");
       CHECK_WITH_MSG(file_ != nullptr,
                      "could not open file. If on Android, try passing "
                      "--redirect-code-traces-to=/sdcard/Download/<file-name>");
     }
-#endif
 
     scope_depth_++;
   }
@@ -96,27 +90,19 @@ class CodeTracer final : public Malloced {
     }
 
     if (--scope_depth_ == 0) {
-#if !defined(V8_OS_STARBOARD)
       DCHECK_NOT_NULL(file_);
       fclose(file_);
       file_ = nullptr;
-#endif
     }
   }
 
-#if !defined(V8_OS_STARBOARD)
   FILE* file() const { return file_; }
-#else
-  FILE* file() const { return nullptr; }
-#endif
 
  private:
   static bool ShouldRedirect() { return FLAG_redirect_code_traces; }
 
   EmbeddedVector<char, 128> filename_;
-#if !defined(V8_OS_STARBOARD)
   FILE* file_;
-#endif
   int scope_depth_;
 };
 
