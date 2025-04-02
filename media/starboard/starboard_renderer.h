@@ -138,8 +138,8 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
 
   State state_;
 
-  scoped_refptr<base::SequencedTaskRunner> task_runner_;
-  std::unique_ptr<MediaLog> media_log_;
+  const scoped_refptr<base::SequencedTaskRunner> task_runner_;
+  const std::unique_ptr<MediaLog> media_log_;
 
   raw_ptr<DemuxerStream> audio_stream_ = nullptr;
   raw_ptr<DemuxerStream> video_stream_ = nullptr;

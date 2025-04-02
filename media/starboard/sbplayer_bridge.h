@@ -291,7 +291,7 @@ class SbPlayerBridge {
 #if SB_HAS(PLAYER_WITH_URL)
   std::string url_;
 #endif  // SB_HAS(PLAYER_WITH_URL)
-  SbPlayerInterface* sbplayer_interface_;
+  SbPlayerInterface* const sbplayer_interface_;
   const scoped_refptr<base::SequencedTaskRunner> task_runner_;
   const GetDecodeTargetGraphicsContextProviderFunc
       get_decode_target_graphics_context_provider_func_;
@@ -346,10 +346,10 @@ class SbPlayerBridge {
   std::string audio_mime_type_;
   std::string video_mime_type_;
   // A string of video maximum capabilities.
-  std::string max_video_capabilities_;
+  const std::string max_video_capabilities_;
 
   // Set the maximum size in bytes of an input buffer for video.
-  int max_video_input_size_;
+  const int max_video_input_size_;
 
   // Keep track of errors during player creation.
   bool is_creating_player_ = false;
