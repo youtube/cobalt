@@ -305,6 +305,9 @@ shared_library("libcobalt_content_shell_content_view") {
   ]
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   configs += [ "//build/config/android:hide_all_but_jni" ]
+  if (is_official_build) {
+    configs += [ "//build/config/compiler:strip_debug" ]
+  }
 }
 
 content_shell_apk_tmpl("cobalt_apk") {
