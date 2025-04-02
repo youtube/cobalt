@@ -101,6 +101,9 @@ class BASE_EXPORT SysInfo {
   static void SetAmountOfTotalDiskSpace(const FilePath& path, int64_t bytes);
 #endif
 
+  // Returns application start timestamp.
+  static int64_t AppStartTimestamp();
+
   // Returns system uptime.
   static TimeDelta Uptime();
 

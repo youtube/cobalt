@@ -15,6 +15,9 @@
 module performance.mojom;
 
 interface CobaltPerformance {
+  // Get the application start timestamp (us) in bytes.
+  [Sync]
+  GetAppStartTimestamp() => (int64 bytes);
   // Get the amount of available memory on the device in bytes.
   [Sync]
   MeasureAvailableCpuMemory() => (uint64 bytes);

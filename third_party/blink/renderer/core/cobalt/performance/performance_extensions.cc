@@ -38,6 +38,14 @@ mojo::Remote<performance::mojom::CobaltPerformance> BindRemotePerformance(
 
 }  // namespace
 
+int64_t PerformanceExtensions::getAppStartTimestamp(ScriptState* script_state,
+                                                    const Performance&) {
+  int64_t app_start_timestamp_in_microseconds = 0;
+  BindRemotePerformance(script_state)
+      ->GetAppStartTimestamp(&app_start_timestamp_in_microseconds);
+  return app_start_timestamp_in_microseconds;
+}
+
 uint64_t PerformanceExtensions::measureAvailableCpuMemory(
     ScriptState* script_state,
     const Performance&) {

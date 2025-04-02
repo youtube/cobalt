@@ -15,11 +15,17 @@
 #ifndef STARBOARD_LINUX_SHARED_TIME_ZONE_H_
 #define STARBOARD_LINUX_SHARED_TIME_ZONE_H_
 
+#include <stdint.h>
+
 // Omit namespace linux due to symbol name conflict.
 namespace starboard {
 namespace shared {
 
 const void* GetTimeZoneApi();
+
+int64_t GetStartTime();
+
+void SetStartTime();
 
 }  // namespace shared
 }  // namespace starboard
