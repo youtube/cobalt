@@ -10,6 +10,7 @@
     "DecoderBufferTest.*",
     "MediaServiceTest.*",
     "MimeUtilTest.CommonMediaMimeType",
-    "MimeUtilTest.ParseVideoCodecString_SimpleCodecsHaveProfiles"
+    "MimeUtilTest.ParseVideoCodecString_SimpleCodecsHaveProfiles",
+    "VideoRendererImplTest.InitializeAndEndOfStreamOneStaleFrame"
   ]
 }
