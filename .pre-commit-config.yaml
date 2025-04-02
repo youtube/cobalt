@@ -14,6 +14,12 @@ files: |
         .pylintrc|
         docker-compose.yaml|
     )$
+exclude: |
+    (?x)^(
+        (
+            starboard/contrib/RDK|
+        )/
+    )
 
 repos:
 -   repo: https://cobalt.googlesource.com/pre-commit-hooks
@@ -41,7 +47,6 @@ repos:
         exclude: |
             (?x)^(
                 starboard/content/ssl/certs/|
-                starboard/contrib/RDK|
                 starboard/shared/starboard/player/testdata/|
                 starboard/android/apk/app/src/app/assets/web/link_android_splash_screen.html |
                 cobalt/third_party/boringssl/src/include/openssl/thread.h
@@ -87,7 +92,6 @@ repos:
         language: python
         exclude: |
             (?x)^(
-                starboard/contrib/RDK|
                 starboard/android/apk/app/src/main/java/dev/cobalt/storage/StorageProto.java
             )
         types: [java]
