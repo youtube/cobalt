@@ -12,18 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-module performance.mojom;
+#include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 
-interface CobaltPerformance {
-  // Get the amount of available memory on the device in bytes.
-  [Sync]
-  MeasureAvailableCpuMemory() => (uint64 bytes);
+namespace cobalt {
 
-  // Get the amount of used memory on the device in bytes.
-  [Sync]
-  MeasureUsedCpuMemory() => (uint64 bytes);
+bool CobaltEnabledStateProvider::IsConsentGiven() const {
+  return is_consent_given_;
+}
 
-  // Get the application startup duration in microseconds (us).
-  [Sync]
-  GetAppStartupTime() => (int64 bytes);
-};
+bool CobaltEnabledStateProvider::IsReportingEnabled() const {
+  return is_reporting_enabled_;
+}
+
+void CobaltEnabledStateProvider::SetConsentGiven(bool is_consent_given) {
+  is_consent_given_ = is_consent_given;
+}
+void CobaltEnabledStateProvider::SetReportingEnabled(
+    bool is_reporting_enabled) {
+  is_reporting_enabled_ = is_reporting_enabled;
+}
+
+}  // namespace cobalt
