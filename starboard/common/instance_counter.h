@@ -37,7 +37,8 @@
     SB_LOG(INFO) << "New instance of " << #class_name          \
                  << " is created. We have "                    \
                  << s_##class_name##_instance_count.fetch_add( \
-                        1, std::memory_order_relaxed)          \
+                        1, std::memory_order_relaxed) +        \
+                        1                                      \
                  << " instances in total.";                    \
   }
 
