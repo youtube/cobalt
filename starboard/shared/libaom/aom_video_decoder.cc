@@ -102,7 +102,7 @@ void VideoDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (decoder_thread_) {
-    decoder_thread_->job_queue()->Schedule(
+    decoder_thread_->job_queue()->ScheduleAndWait(
         std::bind(&VideoDecoder::TeardownCodec, this));
 
     // Join the thread to ensure that all callbacks in process are finished.
