@@ -21,6 +21,11 @@
 #include "ui/gfx/linux/gbm_util.h"  // nogncheck
 #endif                              // BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/decoder_buffer_allocator.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+
 class TestSuiteNoAtExit : public base::TestSuite {
  public:
   TestSuiteNoAtExit(int argc, char** argv) : TestSuite(argc, argv) {
@@ -39,6 +44,11 @@ class TestSuiteNoAtExit : public base::TestSuite {
 
  private:
   base::TestDiscardableMemoryAllocator discardable_memory_allocator_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Defining starboard decoder buffer allocator makes DecoderBuffer use it.
+  media::DecoderBufferAllocator decoder_buffer_allocator_;
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 void TestSuiteNoAtExit::Initialize() {
