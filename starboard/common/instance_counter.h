@@ -35,7 +35,7 @@
 #define ON_INSTANCE_CREATED(class_name)                        \
   {                                                            \
     SB_LOG(INFO) << "New instance of " << #class_name          \
-                 << " is created. We have "                    \
+                 << " is created. We had "                     \
                  << s_##class_name##_instance_count.fetch_add( \
                         1, std::memory_order_relaxed)          \
                  << " instances in total.";                    \
