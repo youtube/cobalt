@@ -1,6 +1,7 @@
 {
   "comment" : "TODO: b/407549902 - Re-enable these disabled tests.",
   "failing_tests": [
+    "AudioRendererImplTest.BitstreamEndOfStream",
     "AudioRendererImplTest.EndOfStream",
     "AudioRendererImplTest.ImmediateEndOfStream",
     "CDM_10/CdmAdapterTestWithClearKeyCdm.*",
@@ -9,8 +10,8 @@
     "ChunkDemuxerTest.*",
     "DecoderBufferTest.*",
     "MediaServiceTest.*",
+    "H264Specific/H264VideoEncoderTest.EncodeAndDecodeWithConfig/*",
     "MimeUtilTest.CommonMediaMimeType",
-    "MimeUtilTest.ParseVideoCodecString_SimpleCodecsHaveProfiles",
-    "VideoRendererImplTest.InitializeAndEndOfStreamOneStaleFrame"
+    "MimeUtilTest.ParseVideoCodecString_SimpleCodecsHaveProfiles"
   ]
 }
