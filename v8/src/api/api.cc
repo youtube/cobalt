@@ -3010,7 +3010,7 @@ MaybeLocal<String> Message::GetSourceLine(Local<Context> context) const {
 void Message::PrintCurrentStackTrace(Isolate* isolate, FILE* out) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i_isolate->PrintCurrentStackTrace(nullptr);
+  i_isolate->PrintCurrentStackTrace(out);
 }
 
 // --- S t a c k T r a c e ---
@@ -7330,7 +7330,6 @@ CompiledWasmModule::CompiledWasmModule(
 }
 
 OwnedBuffer CompiledWasmModule::Serialize() {
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
   TRACE_EVENT0("v8.wasm", "wasm.SerializeModule");
   i::wasm::WasmSerializer wasm_serializer(native_module_.get());
   size_t buffer_size = wasm_serializer.GetSerializedNativeModuleSize();
@@ -7338,10 +7337,6 @@ OwnedBuffer CompiledWasmModule::Serialize() {
   if (!wasm_serializer.SerializeNativeModule({buffer.get(), buffer_size}))
     return {};
   return {std::move(buffer), buffer_size};
-#else
-  // The std::move(uint8_t[]) issue
-  return OwnedBuffer();
-#endif
 }
 
 MemorySpan<const uint8_t> CompiledWasmModule::GetWireBytesRef() {
@@ -9336,11 +9331,8 @@ String::Value::Value(v8::Isolate* isolate, v8::Local<v8::Value> obj)
 String::Value::~Value() { i::DeleteArray(str_); }
 
 #define DEFINE_ERROR(NAME, name)                                         \
-  Local<Value> Exception::NAME(v8::Local<v8::String> raw_message,         \
-                               Isolate* v8_isolate) {                     \
-    i::Isolate* isolate = v8_isolate                                      \
-                              ? reinterpret_cast<i::Isolate*>(v8_isolate) \
-                              : i::Isolate::Current();                    \
+  Local<Value> Exception::NAME(v8::Local<v8::String> raw_message) {      \
+    i::Isolate* isolate = i::Isolate::Current();                         \
     LOG_API(isolate, NAME, New);                                         \
     ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);                            \
     i::Object error;                                                     \
@@ -10749,11 +10741,10 @@ void CpuProfiler::SetUsePreciseSampling(bool use_precise_sampling) {
       use_precise_sampling);
 }
 
-CpuProfilingStatus CpuProfiler::StartProfiling(
-    Local<String> title, CpuProfilingOptions options,
-    std::unique_ptr<DiscardedSamplesDelegate> delegate) {
+CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,
+                                               CpuProfilingOptions options) {
   return reinterpret_cast<i::CpuProfiler*>(this)->StartProfiling(
-      *Utils::OpenHandle(*title), options, std::move(delegate));
+      *Utils::OpenHandle(*title), options);
 }
 
 CpuProfilingStatus CpuProfiler::StartProfiling(Local<String> title,
@@ -11187,11 +11178,12 @@ RegisterState::RegisterState()
     : pc(nullptr), sp(nullptr), fp(nullptr), lr(nullptr) {}
 RegisterState::~RegisterState() = default;
 
-RegisterState::RegisterState(const RegisterState& other) {
+RegisterState::RegisterState(const RegisterState& other) V8_NOEXCEPT {
   *this = other;
 }
 
-RegisterState& RegisterState::operator=(const RegisterState& other) {
+RegisterState& RegisterState::operator=(const RegisterState& other)
+    V8_NOEXCEPT {
   if (&other != this) {
     pc = other.pc;
     sp = other.sp;

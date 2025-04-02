@@ -1122,10 +1122,6 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
   // The caller must hold the {allocation_mutex_}, thus we fail to lock it here.
   DCHECK(!allocation_mutex_.TryLock());
 
-  // Add the code to the surrounding code ref scope, so the returned pointer is
-  // guaranteed to be valid.
-  WasmCodeRefScope::AddRef(code.get());
-
   if (!code->IsAnonymous() &&
       code->index() >= module_->num_imported_functions) {
     DCHECK_LT(code->index(), num_functions());
@@ -1162,21 +1158,17 @@ WasmCode* NativeModule::PublishCodeLocked(std::unique_ptr<WasmCode> code) {
         WasmCodeRefScope::AddRef(prior_code);
         // The code is added to the current {WasmCodeRefScope}, hence the ref
         // count cannot drop to zero here.
-        prior_code->DecRefOnLiveCode();
+        CHECK(!prior_code->DecRef());
       }
 
       PatchJumpTablesLocked(slot_idx, code->instruction_start());
-    } else {
-      // The code tables does not hold a reference to the code, hence decrement
-      // the initial ref count of 1. The code was added to the
-      // {WasmCodeRefScope} though, so it cannot die here.
-      code->DecRefOnLiveCode();
     }
     if (!code->for_debugging() && tiering_state_ == kTieredDown &&
         code->tier() == ExecutionTier::kTurbofan) {
       liftoff_bailout_count_.fetch_add(1);
     }
   }
+  WasmCodeRefScope::AddRef(code.get());
   WasmCode* result = code.get();
   owned_code_.emplace(result->instruction_start(), std::move(code));
   return result;
@@ -2087,44 +2079,32 @@ NativeModuleModificationScope::~NativeModuleModificationScope() {
   }
 }
 
-// Disabling these code currently to fix API leaks, wasm module will be removed
-// as a whole later.
-#if !defined(V8_OS_STARBOARD)
 namespace {
 thread_local WasmCodeRefScope* current_code_refs_scope = nullptr;
 }  // namespace
-#endif
 
 WasmCodeRefScope::WasmCodeRefScope()
-#if !defined(V8_OS_STARBOARD)
     : previous_scope_(current_code_refs_scope) {
   current_code_refs_scope = this;
 }
-#else
-    : previous_scope_(nullptr) {}
-#endif
 
 WasmCodeRefScope::~WasmCodeRefScope() {
-#if !defined(V8_OS_STARBOARD)
   DCHECK_EQ(this, current_code_refs_scope);
   current_code_refs_scope = previous_scope_;
   std::vector<WasmCode*> code_ptrs;
   code_ptrs.reserve(code_ptrs_.size());
   code_ptrs.assign(code_ptrs_.begin(), code_ptrs_.end());
   WasmCode::DecrementRefCount(VectorOf(code_ptrs));
-#endif
 }
 
 // static
 void WasmCodeRefScope::AddRef(WasmCode* code) {
-#if !defined(V8_OS_STARBOARD)
   DCHECK_NOT_NULL(code);
   WasmCodeRefScope* current_scope = current_code_refs_scope;
   DCHECK_NOT_NULL(current_scope);
   auto entry = current_scope->code_ptrs_.insert(code);
   // If we added a new entry, increment the ref counter.
   if (entry.second) code->IncRef();
-#endif
 }
 
 const char* GetRuntimeStubName(WasmCode::RuntimeStubId stub_id) {

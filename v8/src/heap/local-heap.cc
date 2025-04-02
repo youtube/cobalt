@@ -18,23 +18,11 @@
 namespace v8 {
 namespace internal {
 
-#if defined(V8_OS_STARBOARD)
-namespace {
-DEFINE_LAZY_LEAKY_OBJECT_GETTER(base::Thread::LocalStorageKey, GetLocalHeapKey,
-                                base::Thread::CreateThreadLocalKey())
-}  // namespace
-
-LocalHeap* LocalHeap::Current() {
-  return reinterpret_cast<LocalHeap*>(
-      base::Thread::GetThreadLocal(*GetLocalHeapKey()));
-}
-#else
 namespace {
 thread_local LocalHeap* current_local_heap = nullptr;
 }  // namespace
 
 LocalHeap* LocalHeap::Current() { return current_local_heap; }
-#endif  // defined(V8_OS_STARBOARD)
 
 LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
                      std::unique_ptr<PersistentHandles> persistent_handles)
@@ -62,13 +50,8 @@ LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
   if (persistent_handles_) {
     persistent_handles_->Attach(this);
   }
-#if defined(V8_OS_STARBOARD)
-  DCHECK_NULL(LocalHeap::Current());
-  if (!is_main_thread()) base::Thread::SetThreadLocal(*GetLocalHeapKey(), this);
-#else
   DCHECK_NULL(current_local_heap);
   current_local_heap = this;
-#endif  // defined(V8_OS_STARBOARD)
 }
 
 LocalHeap::~LocalHeap() {
@@ -84,13 +67,8 @@ LocalHeap::~LocalHeap() {
     }
   });
 
-#if defined(V8_OS_STARBOARD)
-    DCHECK_EQ(LocalHeap::Current(), this);
-    base::Thread::SetThreadLocal(*GetLocalHeapKey(), this);
-#else
   DCHECK_EQ(current_local_heap, this);
   current_local_heap = nullptr;
-#endif  // defined(V8_OS_STARBOARD)
 }
 
 void LocalHeap::EnsurePersistentHandles() {

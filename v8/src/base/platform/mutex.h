@@ -12,15 +12,14 @@
 #endif
 #include "src/base/logging.h"
 
-#if V8_OS_POSIX || V8_OS_STARBOARD
+#if V8_OS_POSIX
 #include <pthread.h>  // NOLINT
 #endif
 
 #if V8_OS_STARBOARD
-#include <shared_mutex>
-
 #include "starboard/common/mutex.h"
 #include "starboard/common/recursive_mutex.h"
+#include "starboard/common/rwlock.h"
 #endif
 
 namespace v8 {
@@ -68,11 +67,7 @@ class V8_BASE_EXPORT Mutex final {
 #elif V8_OS_WIN
   using NativeHandle = SRWLOCK;
 #elif V8_OS_STARBOARD
-#if SB_API_VERSION < 16
   using NativeHandle = SbMutex;
-#else
-  using NativeHandle = pthread_mutex_t;
-#endif  // SB_API_VERSION < 16
 #endif
 
   NativeHandle& native_handle() {
@@ -265,7 +260,7 @@ class V8_BASE_EXPORT SharedMutex final {
 #elif V8_OS_WIN
   using NativeHandle = SRWLOCK;
 #elif V8_OS_STARBOARD
-  using NativeHandle = std::shared_mutex;
+  using NativeHandle = starboard::RWLock;
 #endif
 
   NativeHandle native_handle_;

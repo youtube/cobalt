@@ -24,7 +24,7 @@ target_is_simulator = (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
                       (current_cpu != v8_current_cpu && v8_multi_arch_build)
 
 # For faster Windows builds. See https://crbug.com/v8/8475.
-emit_builtins_as_inline_asm = is_win && is_clang || cobalt_v8_emit_builtins_as_inline_asm
+emit_builtins_as_inline_asm = is_win && is_clang
 
 declare_args() {
   # Print to stdout on Android.
@@ -35,7 +35,7 @@ declare_args() {
 
   # Turns on all V8 debug features. Enables running V8 in a pseudo debug mode
   # within a release Chrome.
-  v8_enable_debugging_features = is_debug && !is_starboard
+  v8_enable_debugging_features = is_debug
 
   # Sets -DV8_ENABLE_FUTURE.
   v8_enable_future = false
@@ -79,7 +79,7 @@ declare_args() {
   v8_enable_vtunetracemark = false
 
   # Sets -dENABLE_HANDLE_ZAPPING.
-  v8_enable_handle_zapping = is_debug && !is_starboard
+  v8_enable_handle_zapping = is_debug
 
   # Enable slow dchecks.
   v8_enable_slow_dchecks = false
@@ -91,8 +91,7 @@ declare_args() {
   v8_enable_fast_torque = ""
 
   # Enable the registration of unwinding info for Windows x64 and ARM64.
-  # Cobalt compiles with UWP winrt library that does not support unwinding.
-  v8_win64_unwinding_info = false
+  v8_win64_unwinding_info = true
 
   # Enable code comments for builtins in the snapshot (impacts performance).
   v8_enable_snapshot_code_comments = false
@@ -212,7 +211,7 @@ declare_args() {
       v8_current_cpu != "x86" && (is_android || target_is_simulator)
 
   # Enable minor mark compact.
-  v8_enable_minor_mc = !is_starboard
+  v8_enable_minor_mc = true
 
   # Check that each header can be included in isolation (requires also
   # setting the "check_v8_header_includes" gclient variable to run a
@@ -266,7 +265,7 @@ declare_args() {
   cppgc_enable_object_names = false
 
   # Enable heap reservation of size 4GB. Only possible for 64bit archs.
-  cppgc_enable_caged_heap = !is_starboard && (v8_current_cpu == "x64" || v8_current_cpu == "arm64")
+  cppgc_enable_caged_heap = v8_current_cpu == "x64" || v8_current_cpu == "arm64"
 
   # Enable young generation in cppgc.
   cppgc_enable_young_generation = false
@@ -316,7 +315,7 @@ if (v8_enable_snapshot_native_code_counters == "") {
 }
 if (v8_enable_pointer_compression == "") {
   v8_enable_pointer_compression =
-      (v8_current_cpu == "arm64" || v8_current_cpu == "x64") && v8_enable_pointer_compression_override
+      v8_current_cpu == "arm64" || v8_current_cpu == "x64"
 }
 if (v8_enable_fast_torque == "") {
   v8_enable_fast_torque = v8_enable_fast_mksnapshot
@@ -411,54 +410,6 @@ config("internal_config_base") {
     "include",
     "$target_gen_dir",
   ]
-
-  if (is_starboard) {
-    include_dirs += [ ".." ]
-
-    defines = [
-      "DISABLE_GRAPHS_STARBOARD",
-      "DISABLE_UNWIND_STARBOARD",
-
-      # Disable mitigations for executing untrusted code.
-      # Disabled by default on x86 due to conflicting requirements with embedded
-      # builtins.
-      # Chrome enabled this by default only on Android since it doesn"t support
-      # site-isolation and on simulator builds which test code generation
-      # on these platforms.
-      # Cobalt only has one isolate instance when the app is fully functioning in
-      # production so we will just disable this feature by default everywhere.
-      "DISABLE_UNTRUSTED_CODE_MITIGATIONS",
-      "NOMINMAX",
-    ]
-
-    if (!v8_enable_webassembly) {
-      defines += [
-        "DISABLE_WASM_COMPILER_ISSUE_STARBOARD",
-        "NO_ARRAY_MOVE_STARBOARD",
-      ]
-    }
-
-    if (is_starboard && !is_win) {
-      defines -= [ "NOMINMAX" ]
-    }
-
-    if (is_clang) {
-      if (is_starboardized_toolchain) {
-        cflags = [
-          "-Werror",
-          "-Wno-unknown-pragmas",
-          "-Wno-invalid-offsetof",
-        ]
-      } else if (!is_win) {
-        cflags = [ "-Wno-invalid-offsetof" ]
-      }
-    } else if (!is_win) {
-      cflags = [
-        "-Wno-return-type",
-        "-Wno-int-in-bool-context",
-      ]
-    }
-  }
 }
 
 config("internal_config") {
@@ -539,14 +490,6 @@ config("external_config") {
     "include",
     "$target_gen_dir/include",
   ]
-
-  if (is_starboard) {
-    include_dirs += [
-      "..",
-      ".",
-      "$target_gen_dir",
-    ]
-  }
 }
 
 # This config should only be applied to code that needs to be explicitly
@@ -729,9 +672,6 @@ config("features") {
   }
   if (v8_dict_mode_prototypes) {
     defines += [ "V8_DICT_MODE_PROTOTYPES" ]
-  }
-  if (v8_enable_webassembly) {
-    defines += [ "V8_ENABLE_WEBASSEMBLY" ]
   }
 }
 
@@ -928,8 +868,7 @@ config("toolchain") {
   } else if (target_os == "mac") {
     defines += [ "V8_HAVE_TARGET_OS" ]
     defines += [ "V8_TARGET_OS_MACOSX" ]
-  } else if (target_os == "win" ||
-             (use_cobalt_customizations && target_os == "winuwp")) {
+  } else if (target_os == "win") {
     defines += [ "V8_HAVE_TARGET_OS" ]
     defines += [ "V8_TARGET_OS_WIN" ]
   }
@@ -972,24 +911,16 @@ config("toolchain") {
   if (is_clang) {
     cflags += [ "-Wmissing-field-initializers" ]
 
-    if (is_clang_16 && use_cobalt_customizations) {
-      cflags += [
-        # bit-field.h integer value is outside the valid range of values
-        "-Wno-enum-constexpr-conversion",
-      ]
-    }
     if (v8_current_cpu != "mips" && v8_current_cpu != "mipsel") {
       # We exclude MIPS because the IsMipsArchVariant macro causes trouble.
       cflags += [ "-Wunreachable-code" ]
     }
 
-if (!is_starboard) {
     if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
         v8_current_cpu == "mips64el") {
       cflags += [ "-Wshorten-64-to-32" ]
     }
   }
-}
 
   if (is_win) {
     cflags += [
@@ -1627,23 +1558,17 @@ template("run_mksnapshot") {
 
     data = []
 
-    if (is_starboard && is_starboardized_toolchain) {
-      target_os_arg = "starboard"
-    } else {
-      target_os_arg = current_os
-    }
     args = [
       "./" + rebase_path(get_label_info(":mksnapshot($v8_snapshot_toolchain)",
                                         "root_out_dir") + "/mksnapshot",
                          root_build_dir),
       "--turbo_instruction_scheduling",
-      "--no-partial-constant-pool",
 
       # In cross builds, the snapshot may be generated for both the host and
       # target toolchains.  The same host binary is used to generate both, so
       # mksnapshot needs to know which target OS to use at runtime.  It's weird,
       # but the target OS is really |current_os|.
-      "--target_os=$target_os_arg",
+      "--target_os=$current_os",
       "--target_arch=$current_cpu",
 
       "--embedded_src",
@@ -2314,10 +2239,6 @@ v8_source_set("v8_compiler_opt") {
 
   sources = v8_compiler_sources
 
-  if (is_clang_16 && use_cobalt_customizations) {
-    cflags = ["-Wno-implicit-const-int-float-conversion",]
-  }
-
   public_deps = [
     ":generate_bytecode_builtins_list",
     ":run_torque",
@@ -2342,10 +2263,6 @@ v8_source_set("v8_compiler") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   sources = v8_compiler_sources
-
-  if (is_clang_16 && use_cobalt_customizations) {
-    cflags = ["-Wno-implicit-const-int-float-conversion",]
-  }
 
   public_deps = [
     ":generate_bytecode_builtins_list",
@@ -2382,8 +2299,6 @@ v8_source_set("v8_base_without_compiler") {
 
   # Split static libraries on windows into two.
   split_count = 2
-
-  cflags = []
 
   sources = [
     "//base/trace_event/common/trace_event_common.h",
@@ -3433,6 +3348,13 @@ v8_source_set("v8_base_without_compiler") {
     "src/utils/vector.h",
     "src/utils/version.cc",
     "src/utils/version.h",
+    "src/wasm/baseline/liftoff-assembler-defs.h",
+    "src/wasm/baseline/liftoff-assembler.cc",
+    "src/wasm/baseline/liftoff-assembler.h",
+    "src/wasm/baseline/liftoff-compiler.cc",
+    "src/wasm/baseline/liftoff-compiler.h",
+    "src/wasm/baseline/liftoff-register.h",
+    "src/wasm/code-space-access.h",
     "src/wasm/compilation-environment.h",
     "src/wasm/decoder.h",
     "src/wasm/function-body-decoder-impl.h",
@@ -3525,22 +3447,6 @@ v8_source_set("v8_base_without_compiler") {
     "src/zone/zone.h",
   ]
 
-  if (v8_enable_webassembly) {
-    sources += [
-      "src/wasm/baseline/liftoff-assembler-defs.h",
-      "src/wasm/baseline/liftoff-assembler.cc",
-      "src/wasm/baseline/liftoff-assembler.h",
-      "src/wasm/baseline/liftoff-compiler.cc",
-      "src/wasm/baseline/liftoff-compiler.h",
-      "src/wasm/baseline/liftoff-register.h",
-      "src/wasm/code-space-access.h",
-    ]
-  }
-
-  if (is_starboard && !v8_enable_webassembly) {
-    sources += [ "src/wasm/baseline/liftoff-compiler-starboard.cc" ]
-  }
-
   if (!v8_control_flow_integrity) {
     sources += [ "src/execution/pointer-authentication-dummy.h" ]
   }
@@ -3611,13 +3517,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/ia32/frame-constants-ia32.h",
       "src/regexp/ia32/regexp-macro-assembler-ia32.cc",
       "src/regexp/ia32/regexp-macro-assembler-ia32.h",
+      "src/wasm/baseline/ia32/liftoff-assembler-ia32.h",
     ]
-
-    if (v8_enable_webassembly) {
-      sources += [
-        "src/wasm/baseline/ia32/liftoff-assembler-ia32.h",
-      ]
-    }
   } else if (v8_current_cpu == "x64") {
     sources += [  ### gcmole(arch:x64) ###
       "src/codegen/x64/assembler-x64-inl.h",
@@ -3647,17 +3548,11 @@ v8_source_set("v8_base_without_compiler") {
       "src/regexp/x64/regexp-macro-assembler-x64.cc",
       "src/regexp/x64/regexp-macro-assembler-x64.h",
       "src/third_party/valgrind/valgrind.h",
+      "src/wasm/baseline/x64/liftoff-assembler-x64.h",
     ]
-
-    if (v8_enable_webassembly) {
-      sources += [
-        "src/wasm/baseline/x64/liftoff-assembler-x64.h",
-      ]
-    }
 
     # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
     # based on Darwin and thus POSIX-compliant to a similar degree.
-    if (!is_starboard || current_toolchain == host_toolchain) {
     if (is_linux || is_chromeos || is_mac || is_ios || target_os == "freebsd") {
       sources += [
         "src/trap-handler/handler-inside-posix.cc",
@@ -3673,7 +3568,6 @@ v8_source_set("v8_base_without_compiler") {
         "src/trap-handler/handler-inside-win.h",
         "src/trap-handler/handler-outside-win.cc",
       ]
-    }
     }
   } else if (v8_current_cpu == "arm") {
     sources += [  ### gcmole(arch:arm) ###
@@ -3704,13 +3598,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/arm/simulator-arm.h",
       "src/regexp/arm/regexp-macro-assembler-arm.cc",
       "src/regexp/arm/regexp-macro-assembler-arm.h",
+      "src/wasm/baseline/arm/liftoff-assembler-arm.h",
     ]
-
-    if (v8_enable_webassembly) {
-      sources += [
-        "src/wasm/baseline/arm/liftoff-assembler-arm.h",
-      ]
-    }
   } else if (v8_current_cpu == "arm64") {
     sources += [  ### gcmole(arch:arm64) ###
       "src/codegen/arm64/assembler-arm64-inl.h",
@@ -3752,13 +3641,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/arm64/simulator-logic-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.h",
+      "src/wasm/baseline/arm64/liftoff-assembler-arm64.h",
     ]
-
-    if (v8_enable_webassembly) {
-      sources += [
-        "src/wasm/baseline/arm64/liftoff-assembler-arm64.h",
-      ]
-    }
     if (v8_control_flow_integrity) {
       sources += [ "src/execution/arm64/pointer-authentication-arm64.h" ]
     }
@@ -3794,13 +3678,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/mips/simulator-mips.h",
       "src/regexp/mips/regexp-macro-assembler-mips.cc",
       "src/regexp/mips/regexp-macro-assembler-mips.h",
+      "src/wasm/baseline/mips/liftoff-assembler-mips.h",
     ]
-
-    if (v8_enable_webassembly) {
-      sources += [
-        "src/wasm/baseline/mips/liftoff-assembler-mips.h",
-      ]
-    }
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
     sources += [  ### gcmole(arch:mips64el) ###
       "src/codegen/mips64/assembler-mips64-inl.h",
@@ -3827,13 +3706,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/mips64/simulator-mips64.h",
       "src/regexp/mips64/regexp-macro-assembler-mips64.cc",
       "src/regexp/mips64/regexp-macro-assembler-mips64.h",
+      "src/wasm/baseline/mips64/liftoff-assembler-mips64.h",
     ]
-
-    if (v8_enable_webassembly) {
-      sources += [
-        "src/wasm/baseline/mips64/liftoff-assembler-mips64.h",
-      ]
-    }
   } else if (v8_current_cpu == "ppc") {
     sources += [  ### gcmole(arch:ppc) ###
       "src/codegen/ppc/assembler-ppc-inl.h",
@@ -3894,13 +3768,8 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/ppc/simulator-ppc.h",
       "src/regexp/ppc/regexp-macro-assembler-ppc.cc",
       "src/regexp/ppc/regexp-macro-assembler-ppc.h",
+      "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
     ]
-
-    if (v8_enable_webassembly) {
-      sources += [
-        "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
-      ]
-    }
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
     sources += [  ### gcmole(arch:s390) ###
       "src/codegen/s390/assembler-s390-inl.h",
@@ -3930,36 +3799,14 @@ v8_source_set("v8_base_without_compiler") {
       "src/execution/s390/simulator-s390.h",
       "src/regexp/s390/regexp-macro-assembler-s390.cc",
       "src/regexp/s390/regexp-macro-assembler-s390.h",
+      "src/wasm/baseline/s390/liftoff-assembler-s390.h",
     ]
-
-    if (v8_enable_webassembly) {
-      sources += [
-        "src/wasm/baseline/s390/liftoff-assembler-s390.h",
-      ]
-    }
-  }
-
-  if (is_clang_16 && use_cobalt_customizations) {
-    cflags += [ "-Wno-implicit-const-int-float-conversion"]
   }
 
   configs = [
     ":internal_config",
     ":cppgc_base_config",
   ]
-
-  if (is_starboard && is_win) {
-    cflags += [
-      "/wd4267",
-      "/wd4312",
-      "/wd4351",
-      "/wd4355",
-      "/wd4800",
-      "/wd4838",
-      "/wd4715",
-      "/wd4309",
-    ]
-  }
 
   defines = []
   deps = [
@@ -4033,17 +3880,10 @@ v8_source_set("v8_base_without_compiler") {
     ]
   }
 
-  if (is_starboard && current_toolchain == host_toolchain) {
-    deps += [ ":v8_zlib" ]
-    if (!is_win) {
-      cflags_cc = [ "-fno-exceptions" ]
-    }
-  } else {
   deps += [
     "//third_party/zlib",
     "//third_party/zlib/google:compression_utils_portable",
   ]
-  }
 
   if (v8_postmortem_support) {
     sources += [ "$target_gen_dir/debug-support.cc" ]
@@ -4079,60 +3919,6 @@ v8_source_set("v8_base_without_compiler") {
       "src/tracing/trace-categories.cc",
       "src/tracing/trace-categories.h",
     ]
-  }
-}
-
-if (is_starboard && current_toolchain == host_toolchain) {
-  config("v8_zlib_public") {
-    include_dirs = [
-      "//third_party/zlib",
-      "//third_party/zlib/google",
-    ]
-  }
-
-  static_library("v8_zlib") {
-    check_includes = false
-
-    if (is_clang_16 && use_cobalt_customizations) {
-      cflags_c = [ "-Wno-deprecated-non-prototype"]
-    }
-    sources = [
-      "//third_party/zlib/adler32.c",
-      "//third_party/zlib/chromeconf.h",
-      "//third_party/zlib/compress.c",
-      "//third_party/zlib/crc32.c",
-      "//third_party/zlib/crc32.h",
-      "//third_party/zlib/deflate.c",
-      "//third_party/zlib/deflate.h",
-      "//third_party/zlib/google/compression_utils_portable.cc",
-      "//third_party/zlib/google/compression_utils_portable.h",
-      "//third_party/zlib/gzclose.c",
-      "//third_party/zlib/gzguts.h",
-      "//third_party/zlib/gzlib.c",
-      "//third_party/zlib/gzread.c",
-      "//third_party/zlib/gzwrite.c",
-      "//third_party/zlib/infback.c",
-      "//third_party/zlib/inffast.c",
-      "//third_party/zlib/inffast.h",
-      "//third_party/zlib/inffixed.h",
-      "//third_party/zlib/inflate.c",
-      "//third_party/zlib/inflate.h",
-      "//third_party/zlib/inftrees.c",
-      "//third_party/zlib/inftrees.h",
-      "//third_party/zlib/trees.c",
-      "//third_party/zlib/trees.h",
-      "//third_party/zlib/uncompr.c",
-      "//third_party/zlib/zconf.h",
-      "//third_party/zlib/zlib.h",
-      "//third_party/zlib/zutil.c",
-      "//third_party/zlib/zutil.h",
-    ]
-
-    defines = [ "ZLIB_IMPLEMENTATION" ]
-    public_configs = [ ":v8_zlib_public" ]
-    configs += [ ":internal_config_base" ]
-
-    deps = [ "//third_party/zlib" ]
   }
 }
 
@@ -4213,10 +3999,6 @@ v8_source_set("torque_base") {
     "//build/config/compiler:no_rtti",
   ]
 
-  if (is_starboard) {
-    remove_configs -= [ "//build/config/compiler:no_rtti" ]
-  }
-
   if (is_win && is_asan) {
     # Due to a bug in ASAN on Windows (chromium:893437), we disable ASAN for
     # Torque on Windows.
@@ -4230,7 +4012,6 @@ v8_source_set("torque_base") {
   }
 }
 
-if (!is_starboard) {
 v8_source_set("torque_ls_base") {
   sources = [
     "src/torque/ls/globals.h",
@@ -4264,7 +4045,6 @@ v8_source_set("torque_ls_base") {
   if (is_win && is_asan) {
     remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
   }
-}
 }
 
 v8_component("v8_libbase") {
@@ -4327,6 +4107,7 @@ v8_component("v8_libbase") {
     "src/base/platform/time.cc",
     "src/base/platform/time.h",
     "src/base/platform/wrappers.h",
+    "src/base/platform/wrappers_std.cc",
     "src/base/region-allocator.cc",
     "src/base/region-allocator.h",
     "src/base/ring-buffer.h",
@@ -4363,7 +4144,6 @@ v8_component("v8_libbase") {
     defines = [ "BUILDING_V8_BASE_SHARED" ]
   }
 
-  if (!is_starboard || current_toolchain == host_toolchain) {
   if (is_posix || is_fuchsia) {
     sources += [
       "src/base/platform/platform-posix.cc",
@@ -4447,12 +4227,6 @@ v8_component("v8_libbase") {
     ]
 
     data_deps += [ "//build/win:runtime_libs" ]
-  }
-  } else if (is_starboard) {
-    sources += [
-      "src/base/debug/stack_trace_starboard.cc",
-      "src/base/platform/platform-starboard.cc",
-    ]
   }
 
   if (v8_current_cpu == "mips" || v8_current_cpu == "mips64") {
@@ -4761,7 +4535,6 @@ if (v8_monolithic) {
   }
 }
 
-if (!is_starboard) {
 v8_static_library("wee8") {
   deps = [
     ":v8_base",
@@ -4783,7 +4556,6 @@ v8_static_library("wee8") {
     "third_party/wasm-api/wasm.h",
     "third_party/wasm-api/wasm.hh",
   ]
-}
 }
 
 ###############################################################################
@@ -4835,15 +4607,11 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "src/snapshot/snapshot-empty.cc",
     ]
 
-    if (v8_control_flow_integrity || is_starboard) {
+    if (v8_control_flow_integrity) {
       sources += [ "src/deoptimizer/deoptimizer-cfi-empty.cc" ]
     }
 
     configs = [ ":internal_config" ]
-
-    if (is_starboard) {
-      configs += [ ":maybe_use_lld" ]
-    }
 
     deps = [
       ":v8_base_without_compiler",
@@ -4855,14 +4623,6 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_tracing",
       "//build/win:default_exe_manifest",
     ]
-  }
-
-  if (is_starboard) {
-    config("maybe_use_lld") {
-      if (is_clang && !is_mac) {
-        ldflags = [ "-fuse-ld=lld" ]
-      }
-    }
   }
 }
 
@@ -4891,17 +4651,12 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "//build/config/compiler:no_rtti",
     ]
 
-    if (is_starboard) {
-      remove_configs -= [ "//build/config/compiler:no_rtti" ]
-    }
-
     if (is_win && is_asan) {
       remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
     }
   }
 }
 
-if (!is_starboard) {
 v8_executable("torque-language-server") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -5067,7 +4822,6 @@ group("v8_fuzzers") {
     ":v8_simple_wasm_fuzzer",
   ]
 }
-}
 
 if (is_component_build) {
   v8_component("v8") {
@@ -5148,10 +4902,6 @@ if (is_component_build) {
       ":v8_snapshot",
     ]
 
-    if (is_starboard) {
-      public_deps -= [ ":torque_ls_base" ]
-    }
-
     public_configs = [ ":external_config" ]
   }
 
@@ -5178,7 +4928,6 @@ if (is_component_build) {
   }
 }
 
-if (!is_starboard) {
 v8_executable("d8") {
   sources = [
     "src/d8/async-hooks-wrapper.cc",
@@ -5771,4 +5520,3 @@ if (!build_with_chromium && v8_use_perfetto) {
     ]
   }
 }  # if (!build_with_chromium && v8_use_perfetto)
-}
