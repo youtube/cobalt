@@ -52,7 +52,6 @@ _CHROMIUM_PLATFORMS = [
 _COBALT_LINUX_PLATFORMS = [
     'linux-x64x11',
     'linux-x64x11-evergreen',
-    'linux-x64x11-no-starboard',
 ]
 _COBALT_ANDROID_PLATFORMS = [
     'android-arm',
@@ -112,22 +111,8 @@ def parse_args():
       '-p',
       '--platform',
       default='linux-x64x11',
-<<<<<<< HEAD
-      choices=[
-          'chromium_linux-x64x11',
-          'chromium_android-arm',
-          'chromium_android-arm64',
-          'chromium_android-x86',
-          'linux-x64x11',
-          'linux-x64x11-evergreen',
-          'android-arm',
-          'android-arm64',
-          'android-x86',
-      ],
-=======
       choices=_CHROMIUM_PLATFORMS + _COBALT_LINUX_PLATFORMS +
       _COBALT_ANDROID_PLATFORMS,
->>>>>>> d23ba0f9c8a (Reapply "Import platform args.gn and refactor gn.py" (#5143) (#5173))
       help='The platform to build.')
   parser.add_argument(
       '-c',
