@@ -45,9 +45,7 @@ import org.chromium.base.annotations.JNINamespace;
 import org.chromium.base.annotations.NativeMethods;
 
 /** A wrapper of the MediaCodec class. */
-
 @JNINamespace("starboard::android::shared")
-
 @SuppressWarnings("unused")
 @UsedByNative
 class MediaCodecBridge {
@@ -464,11 +462,12 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
-              MediaCodecBridgeJni.get().onMediaCodecError(
-                  mNativeMediaCodecBridge,
-                  e.isRecoverable(),
-                  e.isTransient(),
-                  e.getDiagnosticInfo());
+              MediaCodecBridgeJni.get()
+                  .onMediaCodecError(
+                      mNativeMediaCodecBridge,
+                      e.isRecoverable(),
+                      e.isTransient(),
+                      e.getDiagnosticInfo());
             }
           }
 
@@ -478,7 +477,8 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
-              MediaCodecBridgeJni.get().onMediaCodecInputBufferAvailable(mNativeMediaCodecBridge, index);
+              MediaCodecBridgeJni.get()
+                  .onMediaCodecInputBufferAvailable(mNativeMediaCodecBridge, index);
             }
           }
 
@@ -489,13 +489,14 @@ class MediaCodecBridge {
               if (mNativeMediaCodecBridge == 0) {
                 return;
               }
-              MediaCodecBridgeJni.get().onMediaCodecOutputBufferAvailable(
-                  mNativeMediaCodecBridge,
-                  index,
-                  info.flags,
-                  info.offset,
-                  info.presentationTimeUs,
-                  info.size);
+              MediaCodecBridgeJni.get()
+                  .onMediaCodecOutputBufferAvailable(
+                      mNativeMediaCodecBridge,
+                      index,
+                      info.flags,
+                      info.offset,
+                      info.presentationTimeUs,
+                      info.size);
               if (mFrameRateEstimator != null) {
                 mFrameRateEstimator.onNewFrame(info.presentationTimeUs);
                 int fps = mFrameRateEstimator.getEstimatedFrameRate();
@@ -531,8 +532,9 @@ class MediaCodecBridge {
                 if (mNativeMediaCodecBridge == 0) {
                   return;
                 }
-                MediaCodecBridgeJni.get().onMediaCodecFrameRendered(
-                    mNativeMediaCodecBridge, presentationTimeUs, nanoTime);
+                MediaCodecBridgeJni.get()
+                    .onMediaCodecFrameRendered(
+                        mNativeMediaCodecBridge, presentationTimeUs, nanoTime);
               }
             }
           };
@@ -729,7 +731,7 @@ class MediaCodecBridge {
       try {
         Log.i(
             TAG,
-            "Set KEY_MAX_INPUT_SIZE to "
+            "Overwrite KEY_MAX_INPUT_SIZE to "
                 + maxVideoInputSize
                 + " (actual: "
                 + mediaFormat.getInteger(android.media.MediaFormat.KEY_MAX_INPUT_SIZE)
@@ -1171,26 +1173,21 @@ class MediaCodecBridge {
   @NativeMethods
   interface Natives {
     void onMediaCodecError(
-      long mediaCodecBridge,
-      boolean isRecoverable,
-      boolean isTransient,
-      String diagnosticInfo
-    );
+        long mediaCodecBridge, boolean isRecoverable, boolean isTransient, String diagnosticInfo);
 
-    void onMediaCodecInputBufferAvailable(
-      long mediaCodecBridge, int bufferIndex);
+    void onMediaCodecInputBufferAvailable(long mediaCodecBridge, int bufferIndex);
 
     void onMediaCodecOutputBufferAvailable(
-      long mediaCodecBridge,
-      int bufferIndex,
-      int flags,
-      int offset,
-      long presentationTimeUs,
-      int size);
+        long mediaCodecBridge,
+        int bufferIndex,
+        int flags,
+        int offset,
+        long presentationTimeUs,
+        int size);
 
     void onMediaCodecOutputFormatChanged(long mediaCodecBridge);
 
     void onMediaCodecFrameRendered(
-      long mediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
+        long mediaCodecBridge, long presentationTimeUs, long renderAtSystemTimeNs);
   }
 }
