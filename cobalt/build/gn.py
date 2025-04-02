@@ -60,7 +60,16 @@ _COBALT_ANDROID_PLATFORMS = [
 ]
 
 
-def write_build_args(build_args_path, platform_args_path, build_type, use_rbe):
+# Build flags should be set more broadly. Do not add conditions or build flags
+# to this function.
+def write_targeted_build_args(f, platform, build_type):
+  """Write very targeted build arguments. Do not add to this function."""
+  if platform in _COBALT_LINUX_PLATFORMS and build_type in ['devel', 'debug']:
+    f.write('angle_use_x11 = true\n')
+
+
+def write_build_args(build_args_path, platform_args_path, build_type, use_rbe,
+                     platform):
   """ Write args file, modifying settings for config"""
   gen_comment = '# Set by gn.py'
   with open(build_args_path, 'w', encoding='utf-8') as f:
@@ -70,6 +79,7 @@ def write_build_args(build_args_path, platform_args_path, build_type, use_rbe):
     f.write(
         f'rbe_cfg_dir = rebase_path("//cobalt/reclient_cfgs") {gen_comment}\n')
     f.write(f'build_type = "{build_type}" {gen_comment}\n')
+    write_targeted_build_args(f, platform, build_type)
     for key, value in _BUILD_TYPES[build_type].items():
       f.write(f'{key} = {value} {gen_comment}\n')
     f.write(f'import("//{platform_args_path}")\n')
@@ -91,7 +101,8 @@ def configure_out_directory(out_directory: str, platform: str, build_type: str,
           'In general, if the file exists, you should run'
           ' `gn args <out_directory>` to edit it instead.')
 
-  write_build_args(dst_args_gn_file, src_args_gn_file, build_type, use_rbe)
+  write_build_args(dst_args_gn_file, src_args_gn_file, build_type, use_rbe,
+                   platform)
 
   gn_command = ['gn', 'gen', out_directory] + gn_gen_args
   print(' '.join(gn_command))
