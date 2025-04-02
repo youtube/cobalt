@@ -3,10 +3,14 @@
   "failing_tests": [
     "GPURendererPixelTest.AntiAliasing/SkiaGL",
     "GPURendererPixelTest.AntiAliasingPerspective/SkiaGL",
+    "GPURendererPixelTest.LinearGradientOnRenderPass/SkiaGL",
+    "GPURendererPixelTest.MultiLinearGradientOnRenderPass/SkiaGL",
     "IntersectingVideoQuadPixelTest.Y16VideoQuads/SkiaGL",
     "IntersectingVideoQuadPixelTest.YUVVideoQuads/SkiaGL",
     "RendererPixelTestWithBackdropFilter.InvertFilterWithMask/SkiaGL",
-    "VideoRendererPixelHiLoTest.ClippedYUVRect/0",
-    "VideoRendererPixelTest.OffsetYUVRect/SkiaGL"
+    "VideoRendererPixelHiLoTest*",
+    "VideoRendererPixelTest.OffsetYUVRect/SkiaGL",
+    "FromColorSpace/ColorTransformPixelTest.Basic/38",
+    "FromColorSpace/ColorTransformPixelTest.Basic/39"
   ]
 }

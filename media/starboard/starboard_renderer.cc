@@ -374,13 +374,19 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   }
 
   uint32_t video_frames_decoded, video_frames_dropped;
+  uint64_t audio_bytes_decoded, video_bytes_decoded;
   TimeDelta media_time;
+  SbPlayerBridge::PlayerInfo info{&video_frames_decoded, &video_frames_dropped,
+                                  &audio_bytes_decoded, &video_bytes_decoded,
+                                  &media_time};
 
-  player_bridge_->GetInfo(&video_frames_decoded, &video_frames_dropped,
-                          &media_time);
+  player_bridge_->GetInfo(&info);
 
   // Report dropped frames since we have the info anyway.
   PipelineStatistics statistics;
+
+  statistics.audio_bytes_decoded = audio_bytes_decoded;
+  statistics.video_bytes_decoded = video_bytes_decoded;
 
   if (video_frames_decoded > last_video_frames_decoded_) {
     statistics.video_frames_decoded =
