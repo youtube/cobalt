@@ -5,7 +5,6 @@
 #ifndef V8_EXECUTION_EXTERNAL_POINTER_TABLE_H_
 #define V8_EXECUTION_EXTERNAL_POINTER_TABLE_H_
 
-#include "src/base/platform/wrappers.h"
 #include "src/common/external-pointer.h"
 #include "src/utils/utils.h"
 

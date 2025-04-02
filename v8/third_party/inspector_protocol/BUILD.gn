@@ -8,9 +8,6 @@ config("crdtp_config") {
   visibility = [ "../../src/inspector:*", ":*" ]
   configs = [ "../../:internal_config" ]
   include_dirs = [ "../../include" ]
-  if (is_clang && use_cobalt_customizations) {
-    cflags = [ "-Wno-implicit-const-int-float-conversion" ]
-  }
 }
 
 v8_source_set("crdtp") {
@@ -52,7 +49,6 @@ v8_source_set("crdtp_platform") {
   configs = [ ":crdtp_config" ]
 }
 
-if (!is_starboard) {
 # These tests are linked into test/unittests.
 v8_source_set("crdtp_test") {
   sources = [
@@ -89,5 +85,4 @@ v8_source_set("crdtp_test_platform") {
     "//testing/gtest",
   ]
   testonly = true
-}
 }

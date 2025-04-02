@@ -14,9 +14,6 @@
 #include <mach/mach_time.h>
 #include <pthread.h>
 #endif
-#if V8_OS_STARBOARD
-#include <sys/time.h>
-#endif  // V8_OS_STARBOARD
 
 #include <cstring>
 #include <ostream>
@@ -30,7 +27,7 @@
 #include "src/base/platform/platform.h"
 
 #if V8_OS_STARBOARD
-#include "starboard/common/time.h"
+#include "starboard/time.h"
 #endif
 
 namespace {
@@ -376,7 +373,7 @@ FILETIME Time::ToFiletime() const {
   return ft;
 }
 
-#elif V8_OS_POSIX || V8_OS_STARBOARD
+#elif V8_OS_POSIX
 
 Time Time::Now() {
   struct timeval tv;
@@ -456,7 +453,13 @@ struct timeval Time::ToTimeval() const {
   return tv;
 }
 
-#endif  // V8_OS_POSIX || V8_OS_STARBOARD
+#elif V8_OS_STARBOARD
+
+Time Time::Now() { return Time(SbTimeToPosix(SbTimeGetNow())); }
+
+Time Time::NowFromSystemTime() { return Now(); }
+
+#endif  // V8_OS_STARBOARD
 
 // static
 TimeTicks TimeTicks::HighResolutionNow() {
@@ -725,7 +728,7 @@ TimeTicks TimeTicks::Now() {
 #elif V8_OS_POSIX
   ticks = ClockNow(CLOCK_MONOTONIC);
 #elif V8_OS_STARBOARD
-  ticks = starboard::CurrentMonotonicTime();
+  ticks = SbTimeGetMonotonicNow();
 #else
 #error platform does not implement TimeTicks::HighResolutionNow.
 #endif  // V8_OS_MACOSX
@@ -750,7 +753,13 @@ bool TimeTicks::IsHighResolution() {
 
 bool ThreadTicks::IsSupported() {
 #if V8_OS_STARBOARD
-  return starboard::CurrentMonotonicThreadTime() != 0;
+#if SB_API_VERSION >= 12
+  return SbTimeIsTimeThreadNowSupported();
+#elif SB_HAS(TIME_THREAD_NOW)
+  return true;
+#else
+  return false;
+#endif
 #elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
     defined(V8_OS_MACOSX) || defined(V8_OS_ANDROID) || defined(V8_OS_SOLARIS)
   return true;
@@ -764,10 +773,15 @@ bool ThreadTicks::IsSupported() {
 
 ThreadTicks ThreadTicks::Now() {
 #if V8_OS_STARBOARD
-  int64_t now = starboard::CurrentMonotonicThreadTime();
-  if (now != 0)
-    return ThreadTicks(now);
+#if SB_API_VERSION >= 12
+  if (SbTimeIsTimeThreadNowSupported())
+    return ThreadTicks(SbTimeGetMonotonicThreadNow());
   UNREACHABLE();
+#elif SB_HAS(TIME_THREAD_NOW)
+  return ThreadTicks(SbTimeGetMonotonicThreadNow());
+#else
+  UNREACHABLE();
+#endif
 #elif V8_OS_MACOSX
   return ThreadTicks(ComputeThreadTicks());
 #elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \

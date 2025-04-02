@@ -69,13 +69,11 @@ void V8::InitializeOncePerProcessImpl() {
     FLAG_max_semi_space_size = 1;
   }
 
-#if !defined(V8_OS_STARBOARD)
   if (FLAG_trace_turbo) {
     // Create an empty file shared by the process (e.g. the wasm engine).
     std::ofstream(Isolate::GetTurboCfgFileName(nullptr).c_str(),
                   std::ios_base::trunc);
   }
-#endif
 
   // Do not expose wasm in jitless mode.
   //

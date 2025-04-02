@@ -521,10 +521,6 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
     isolate->counters()->runtime_call_stats()->Reset();
     return *result;
   } else {
-#if V8_OS_STARBOARD
-    SB_NOTIMPLEMENTED();
-    return ReadOnlyRoots(isolate).undefined_value();
-#else
     DCHECK_LE(args.length(), 2);
     std::FILE* f;
     if (args[0].IsString()) {
@@ -557,7 +553,6 @@ RUNTIME_FUNCTION(Runtime_GetAndResetRuntimeCallStats) {
     else
       std::fflush(f);
     return ReadOnlyRoots(isolate).undefined_value();
-#endif
   }
 }
 

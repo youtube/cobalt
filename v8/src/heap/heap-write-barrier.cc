@@ -11,7 +11,6 @@
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
 
-#if !defined(V8_OS_STARBOARD)
 namespace v8 {
 namespace internal {
 
@@ -29,51 +28,8 @@ void WriteBarrier::ClearForThread(MarkingBarrier* marking_barrier) {
   current_marking_barrier = nullptr;
 }
 
-MarkingBarrier* GetMarkingBarrier() { return current_marking_barrier; }
-#else
-#include <pthread.h>
-
-#include "starboard/common/log.h"
-#include "starboard/thread.h"
-
-namespace v8 {
-namespace internal {
-
-namespace {
-pthread_once_t s_once_flag = PTHREAD_ONCE_INIT;
-pthread_key_t s_thread_local_key = 0;
-
-void InitThreadLocalKey() {
-  int res = pthread_key_create(&s_thread_local_key , NULL);
-  SB_DCHECK(res == 0);
-}
-
-void EnsureThreadLocalKeyInited() {
-  pthread_once(&s_once_flag, InitThreadLocalKey);
-}
-
-MarkingBarrier* GetMarkingBarrier() {
-  EnsureThreadLocalKeyInited();
-  return static_cast<MarkingBarrier*>(
-      pthread_getspecific(s_thread_local_key));
-}
-}  // namespace
-
-void WriteBarrier::SetForThread(MarkingBarrier* marking_barrier) {
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, marking_barrier);
-}
-
-void WriteBarrier::ClearForThread(MarkingBarrier* marking_barrier) {
-  EnsureThreadLocalKeyInited();
-  pthread_setspecific(s_thread_local_key, NULL);
-}
-
-#endif
-
 void WriteBarrier::MarkingSlow(Heap* heap, HeapObject host, HeapObjectSlot slot,
                                HeapObject value) {
-  MarkingBarrier* current_marking_barrier = GetMarkingBarrier();
   MarkingBarrier* marking_barrier = current_marking_barrier
                                         ? current_marking_barrier
                                         : heap->marking_barrier();
@@ -82,7 +38,6 @@ void WriteBarrier::MarkingSlow(Heap* heap, HeapObject host, HeapObjectSlot slot,
 
 void WriteBarrier::MarkingSlow(Heap* heap, Code host, RelocInfo* reloc_info,
                                HeapObject value) {
-  MarkingBarrier* current_marking_barrier = GetMarkingBarrier();
   MarkingBarrier* marking_barrier = current_marking_barrier
                                         ? current_marking_barrier
                                         : heap->marking_barrier();
@@ -91,7 +46,6 @@ void WriteBarrier::MarkingSlow(Heap* heap, Code host, RelocInfo* reloc_info,
 
 void WriteBarrier::MarkingSlow(Heap* heap, JSArrayBuffer host,
                                ArrayBufferExtension* extension) {
-  MarkingBarrier* current_marking_barrier = GetMarkingBarrier();
   MarkingBarrier* marking_barrier = current_marking_barrier
                                         ? current_marking_barrier
                                         : heap->marking_barrier();
@@ -100,7 +54,6 @@ void WriteBarrier::MarkingSlow(Heap* heap, JSArrayBuffer host,
 
 void WriteBarrier::MarkingSlow(Heap* heap, DescriptorArray descriptor_array,
                                int number_of_own_descriptors) {
-  MarkingBarrier* current_marking_barrier = GetMarkingBarrier();
   MarkingBarrier* marking_barrier = current_marking_barrier
                                         ? current_marking_barrier
                                         : heap->marking_barrier();
