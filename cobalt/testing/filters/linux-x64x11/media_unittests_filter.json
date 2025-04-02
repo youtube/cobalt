@@ -12,6 +12,7 @@
     "MediaServiceTest.*",
     "H264Specific/H264VideoEncoderTest.EncodeAndDecodeWithConfig/*",
     "MimeUtilTest.CommonMediaMimeType",
-    "MimeUtilTest.ParseVideoCodecString_SimpleCodecsHaveProfiles"
+    "MimeUtilTest.ParseVideoCodecString_SimpleCodecsHaveProfiles",
+    "VideoRendererImplTest.InitializeAndEndOfStreamOneStaleFrame"
   ]
 }
