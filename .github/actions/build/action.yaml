@@ -7,6 +7,9 @@ inputs:
   test_root_target:
     description: "The root target from which to deduce what tests to run."
     required: true
+  test_targets_json_file:
+    description: "The path to the file the test targets are written to."
+    required: true
   upload_on_host_test_artifacts:
     description: "Indicates if on-host test artifacts should be uploaded."
     required: true
@@ -40,7 +43,6 @@ runs:
           changed_files_json=$(jq -nc '$ARGS.positional' --args ${changed_files[@]})
           echo "changed_files_json=${changed_files_json}" >> $GITHUB_OUTPUT
         shell: bash
-      # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
       - name: Calculate test targets
         if: matrix.config == 'devel' && inputs.test_root_target != 'null'
         id: calculate-test-targets
@@ -48,7 +50,7 @@ runs:
           CHANGED_FILES_JSON: ${{ steps.changed-files.outputs.changed_files_json }}
           ROOT_TARGET: ${{ inputs.test_root_target }}
           STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
-          TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
+          # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
         run: |
           set -x
@@ -69,20 +71,18 @@ runs:
               --json-output > "${DYN_TEST_TARGETS_JSON_FILE}"
 
           # Currently, override with static test targets, TODO(b/382508397)
-          cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${TEST_TARGETS_JSON_FILE}"
+          cp -av "${STATIC_TEST_TARGETS_JSON_FILE}" "${{ inputs.test_targets_json_file }}"
 
-          echo "test_targets_json_file=${TEST_TARGETS_JSON_FILE}" >> $GITHUB_OUTPUT
-
-          test_targets_json=$(cat ${TEST_TARGETS_JSON_FILE} | jq -cr '.test_targets')
+          test_targets_json=$(cat ${{ inputs.test_targets_json_file }} | jq -cr '.test_targets')
           echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
 
           test_targets_count=$(echo ${test_targets_json} | jq -cr 'length')
           echo "test_targets_count=${test_targets_count}" >> $GITHUB_OUTPUT
         shell: bash
-      - name: Archive test target results
+      - name: Archive test target JSON
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform }} Test targets
+          name: ${{ matrix.platform }}_test_targets_json
           path: |
             src/out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
             src/out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
@@ -92,8 +92,8 @@ runs:
         run: |
           set -ex
           cd src
-          TEST_TARGETS=$(cat ${{ steps.calculate-test-targets.outputs.test_targets_json_file }} | jq -cr '.test_targets | join(" ")')
-          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TEST_TARGETS}
+          test_targets=$(echo '${{ steps.calculate-test-targets.outputs.test_targets_json }}' | jq -cr 'join(" ")')
+          time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
         shell: bash
       - name: Ninja build
         env:
@@ -119,14 +119,4 @@ runs:
           test_artifacts_key: ${{ inputs.test_artifacts_key }}
           upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts }}
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
-          test_targets_json_file: '${{ steps.calculate-test-targets.outputs.test_targets_json_file }}'
-outputs:
-  test_targets_count:
-    description: The number of test targets build.
-    value: ${{ steps.calculate-test-targets.outputs.test_targets_count || 0 }}
-  test_targets_json:
-    description: The test targets in a JSON array.
-    value: ${{ steps.calculate-test-targets.outputs.test_targets_json }}
-  test_targets_json_file:
-    description: The generated test targets json file path.
-    value: ${{ steps.calculate-test-targets.outputs.test_targets_json_file }}
+          test_targets_json_file: ${{ inputs.test_targets_json_file }}

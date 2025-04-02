@@ -241,18 +241,15 @@ jobs:
           targets: ${{ needs.initialize.outputs.targets }}
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_root_target: ${{ needs.initialize.outputs.test_root_target }}
+          test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host == 'true' }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
-    outputs:
-      test_targets_count: ${{ steps.build.outputs.test_targets_count }}
-      test_targets_json: ${{ steps.build.outputs.test_targets_json }}
-      test_targets_json_file: ${{ steps.build.outputs.test_targets_json_file }}
 
   on-device-test:
     needs: [initialize, build]
     # Run ODT when on_device label is applied on PR.
     # Also, run ODT on push and schedule if not explicitly disabled via repo vars.
-    if: needs.initialize.outputs.test_on_device == 'true' && fromJson(needs.build.outputs.test_targets_count) > 0 &&
+    if: needs.initialize.outputs.test_on_device == 'true' &&
         (
           (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'on_device')) ||
           ((inputs.nightly == 'true' || github.event_name == 'schedule') && vars.RUN_ODT_TESTS_ON_NIGHTLY != 'False') ||
@@ -269,7 +266,6 @@ jobs:
         config: [devel]
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
-      TEST_TARGETS_JSON_FILE: ${{ needs.build.outputs.test_targets_json_file }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -277,18 +273,23 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+      - name: Parse Test Target JSON
+        id: test-target-json
+        uses: ./.github/actions/test_targets_json
       - name: Run On-Device Tests
-        id: on-device-tests
+        if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
         uses: ./.github/actions/on_device_tests
         with:
-          test_targets_json: ${{ needs.build.outputs.test_targets_json }}
+          test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           gcs_results_path: gs://cobalt-unittest-storage/results/${{ matrix.name }}/${{ github.run_id }}/${{ github.run_attempt }}
           test_dimensions: '${{ needs.initialize.outputs.test_dimensions }}'
+    outputs:
+      test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
 
   on-host-test:
     needs: [initialize, docker-unittest-image, build]
-    if: needs.initialize.outputs.test_on_host == 'true' && fromJson(needs.build.outputs.test_targets_count) > 0
+    if: needs.initialize.outputs.test_on_host == 'true'
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_on_host_tests_${{ matrix.shard }}
@@ -309,22 +310,25 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: src
+      - name: Parse Test Target JSON
+        id: test-target-json
+        uses: ./src/.github/actions/test_targets_json
       - name: Run On-Host Tests
-        if: ${{ fromJson(needs.build.outputs.test_targets_count) > 0 }}
-        id: on-host-tests
+        if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
         uses: ./src/.github/actions/on_host_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
+    outputs:
+      test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
     if: always() &&
-      (
-        (needs.on-device-test.result != 'skipped' || needs.on-host-test.result != 'skipped') &&
-        fromJson(needs.build.outputs.test_targets_count) > 0
-      )
+        (
+          needs.on-device-test.result != 'skipped' || needs.on-host-test.result != 'skipped'
+        )
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.test_target }}
@@ -336,7 +340,7 @@ jobs:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
-        test_target: ${{ fromJson(needs.build.outputs.test_targets_json) }}
+        test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -411,9 +415,9 @@ jobs:
         config: [devel]
     steps:
       - name: Fail
-        if: needs.test-results.result == 'failure' && fromJson(needs.build.outputs.test_targets_count) > 0
+        if: needs.test-results.result == 'failure'
         run: |
             # TODO: Print a summary of failed tests here.
-            echo "Test jobs failed. See separate job log for details."
+            echo "Test jobs failed. See individual failing jobs for details."
             exit 1
         shell: bash
