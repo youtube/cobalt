@@ -4,6 +4,7 @@ FROM debian:12@${BASE_IMAGE_SHA}
 
 # Install any necessary dependencies
 RUN apt-get update && apt-get install -y \
+    python3-dev \
     git \
     curl \
     jq \
