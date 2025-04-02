@@ -79,14 +79,14 @@ jobs:
           set -x
           docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')
           echo "docker_service=${docker_service}" >> $GITHUB_OUTPUT
-      - name: Set on-host tests enabled
+      - name: Set on-host tests
         id: set-test-on-host
         shell: bash
         run: |
           set -x
           test_on_host=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_host')
           echo "test_on_host=${test_on_host}" >> $GITHUB_OUTPUT
-      - name: Set on-device tests enabled
+      - name: Set on-device tests
         id: set-test-on-device
         shell: bash
         run: |
