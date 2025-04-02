@@ -97,7 +97,6 @@ std::unique_ptr<Renderer> MojoMediaClient::CreateStarboardRenderer(
     mojom::FrameInterfaceFactory* frame_interfaces,
     scoped_refptr<base::SingleThreadTaskRunner> task_runner,
     mojo::PendingRemote<mojom::MediaLog> media_log_remote,
-    const base::UnguessableToken& overlay_plane_id,
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
     mojo::PendingReceiver<mojom::StarboardRendererExtension>

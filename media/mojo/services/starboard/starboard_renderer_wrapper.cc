@@ -24,7 +24,6 @@ namespace media {
 StarboardRendererWrapper::StarboardRendererWrapper(
     scoped_refptr<base::SequencedTaskRunner> task_runner,
     mojo::PendingRemote<mojom::MediaLog> media_log_remote,
-    const base::UnguessableToken& overlay_plane_id,
     TimeDelta audio_write_duration_local,
     TimeDelta audio_write_duration_remote,
     mojo::PendingReceiver<RendererExtension> renderer_extension_receiver,
@@ -36,7 +35,6 @@ StarboardRendererWrapper::StarboardRendererWrapper(
           std::move(task_runner),
           std::make_unique<MojoMediaLog>(std::move(media_log_remote),
                                          task_runner),
-          overlay_plane_id,
           audio_write_duration_local,
           audio_write_duration_remote)) {
   DETACH_FROM_THREAD(thread_checker_);

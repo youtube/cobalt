@@ -138,14 +138,12 @@ std::unique_ptr<MojoRenderer> MojoRendererFactory::CreateStarboardRenderer(
     const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
-    const base::UnguessableToken& overlay_plane_id,
     VideoRendererSink* video_renderer_sink) {
   DCHECK(interface_factory_);
 
   mojo::PendingRemote<mojom::Renderer> renderer_remote;
   interface_factory_->CreateStarboardRenderer(
       std::move(media_log_remote),
-      overlay_plane_id,
       audio_write_duration_local,
       audio_write_duration_remote,
       renderer_remote.InitWithNewPipeAndPassReceiver(),

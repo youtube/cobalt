@@ -50,7 +50,6 @@ class StarboardRendererWrapper final
   StarboardRendererWrapper(
       scoped_refptr<base::SequencedTaskRunner> task_runner,
       mojo::PendingRemote<mojom::MediaLog> media_log_remote,
-      const base::UnguessableToken& overlay_plane_id,
       TimeDelta audio_write_duration_local,
       TimeDelta audio_write_duration_remote,
       mojo::PendingReceiver<RendererExtension> renderer_extension_receiver,

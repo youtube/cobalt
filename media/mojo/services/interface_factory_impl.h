@@ -93,7 +93,6 @@ class InterfaceFactoryImpl final
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void CreateStarboardRenderer(
       mojo::PendingRemote<mojom::MediaLog> media_log_remote,
-      const base::UnguessableToken& overlay_plane_id,
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta audio_write_duration_remote,
       mojo::PendingReceiver<mojom::Renderer> receiver,

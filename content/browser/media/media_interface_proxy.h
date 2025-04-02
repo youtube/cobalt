@@ -93,7 +93,6 @@ class MediaInterfaceProxy final : public DocumentUserData<MediaInterfaceProxy>,
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void CreateStarboardRenderer(
       mojo::PendingRemote<media::mojom::MediaLog> media_log_remote,
-      const base::UnguessableToken& overlay_plane_id,
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta video_write_duration_remote,
       mojo::PendingReceiver<media::mojom::Renderer> receiver,

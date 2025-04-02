@@ -89,7 +89,7 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
           std::move(renderer_extension_receiver),
           std::move(client_extension_remote), media_task_runner,
           audio_write_duration_local_, audio_write_duration_remote_,
-          overlay_factory->overlay_plane_id(), video_renderer_sink);
+          video_renderer_sink);
 
   return std::make_unique<media::StarboardRendererClient>(
       media_task_runner, media_log_->Clone(), std::move(mojo_renderer),
