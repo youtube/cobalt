@@ -20,7 +20,9 @@
 #include "base/process/current_process.h"
 #include "base/trace_event/trace_log.h"
 #include "build/build_config.h"
+#if !BUILDFLAG(IS_COBALT)
 #include "components/crash/core/common/crash_key.h"
+#endif
 #include "components/memory_system/initializer.h"
 #include "components/memory_system/parameters.h"
 #include "content/common/content_constants_internal.h"
@@ -62,7 +64,7 @@
 #include "content/shell/android/shell_descriptors.h"
 #endif
 
-#if !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT)
 #include "components/crash/core/app/crashpad.h"  // nogncheck
 #endif
 
@@ -92,7 +94,7 @@
 
 namespace {
 
-#if !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT)
 base::LazyInstance<content::ShellCrashReporterClient>::Leaky
     g_shell_crash_client = LAZY_INSTANCE_INITIALIZER;
 #endif
@@ -213,7 +215,7 @@ void ShellMainDelegate::PreSandboxStartup() {
 // Disable platform crash handling and initialize the crash reporter, if
 // requested.
 // TODO(crbug.com/1226159): Implement crash reporter integration for Fuchsia.
-#if !BUILDFLAG(IS_FUCHSIA)
+#if !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableCrashReporter)) {
     std::string process_type =
@@ -231,7 +233,9 @@ void ShellMainDelegate::PreSandboxStartup() {
   }
 #endif  // !BUILDFLAG(IS_FUCHSIA)
 
+#if !BUILDFLAG(IS_COBALT)
   crash_reporter::InitializeCrashKeys();
+#endif  // !BUILDFLAG(IS_COBALT)
 
   InitializeResourceBundle();
 }
@@ -283,7 +287,7 @@ absl::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
 #endif
 }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT) || BUILDFLAG(IS_CHROMEOS)
 void ShellMainDelegate::ZygoteForked() {
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableCrashReporter)) {
@@ -295,7 +299,7 @@ void ShellMainDelegate::ZygoteForked() {
         v8::TryHandleWebAssemblyTrapPosix);
   }
 }
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT) || BUILDFLAG(IS_CHROMEOS)
 
 void ShellMainDelegate::InitializeResourceBundle() {
 #if BUILDFLAG(IS_ANDROID)
