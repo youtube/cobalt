@@ -338,6 +338,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: src
+      - name: Set Up Depot Tools
+        uses: ./src/.github/actions/depot_tools
       - name: Run Web Tests
         id: web-tests
         uses: ./src/.github/actions/web_tests
