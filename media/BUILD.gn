@@ -202,7 +202,12 @@ test("media_unittests") {
     "//media/webrtc:unit_tests",
   ]
 
+<<<<<<< HEAD
   if (is_cobalt) {
+=======
+  if (is_cobalt && use_starboard_media) {
+    # TODO(cobalt, b/379934658): add starboard_renderer_test.
+>>>>>>> cc70b37fa6a (Add web tests build config to GitHub CI (#5253))
     deps += ["//media/starboard:unit_tests"]
   }
 
