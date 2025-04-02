@@ -167,7 +167,6 @@ public class StarboardBridge {
     activityHolder.set(activity);
     sysConfigChangeReceiver.setForeground(true);
     beforeStartOrResume();
-    appStartTimestamp = measureAppStartTimestamp();
   }
 
   protected void onActivityStop(Activity activity) {
@@ -705,16 +704,19 @@ public class StarboardBridge {
   }
 
   /** Returns the application start timestamp. */
-  protected long measureAppStartTimestamp() {
-    Activity activity = activityHolder.get();
-    if (activity instanceof CobaltActivity) {
-      long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
-      long cppTimestamp = StarboardBridgeJni.get().currentMonotonicTime();
-      long javaStopTimestamp = System.nanoTime();
-      return cppTimestamp
-          - (javaStopTimestamp - javaStartTimestamp) / timeNanosecondsPerMicrosecond;
+  protected void measureAppStartTimestamp() {
+    if (appStartTimestamp != 0) {
+      return;
     }
-    return 0;
+    Activity activity = activityHolder.get();
+    if (!(activity instanceof CobaltActivity)) {
+      return;
+    }
+    long javaStartTimestamp = ((CobaltActivity) activity).getAppStartTimestamp();
+    long cppTimestamp = StarboardBridgeJni.get().currentMonotonicTime();
+    long javaStopTimestamp = System.nanoTime();
+    appStartTimestamp =
+        cppTimestamp - (javaStopTimestamp - javaStartTimestamp) / timeNanosecondsPerMicrosecond;
   }
 
   // Returns the saved app start timestamp.
