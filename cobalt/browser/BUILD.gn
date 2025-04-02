@@ -57,7 +57,10 @@ source_set("browser") {
     "//cobalt/media/service/mojom",
     "//cobalt/user_agent",
     "//components/js_injection/browser:browser",
+    "//components/metrics",
+    "//components/metrics_services_manager",
     "//components/os_crypt/sync",
+    "//components/prefs",
     "//content/public/browser",
     "//starboard/($starboard_toolchain)",
 
@@ -111,11 +114,16 @@ source_set("metrics") {
   testonly = true
 
   sources = [
+    "metrics/cobalt_enabled_state_provider.cc",
+    "metrics/cobalt_enabled_state_provider.h",
     "metrics/cobalt_metrics_service_client.cc",
     "metrics/cobalt_metrics_service_client.h",
+    "metrics/cobalt_metrics_services_manager_client.cc",
+    "metrics/cobalt_metrics_services_manager_client.h",
   ]
   deps = [
     "//components/metrics",
+    "//components/metrics_services_manager",
     "//components/prefs",
     "//components/variations",
     "//content/public/browser",
