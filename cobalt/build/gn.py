@@ -21,69 +21,48 @@ import subprocess
 from pathlib import Path
 from typing import List
 
-
-# Parsing code Lifted from tools/code_coverage/coverage.py
-def get_build_args(build_args_path):
-  """Parses args.gn file and returns contents and dictionary."""
-  assert os.path.exists(build_args_path), (
-      f'{build_args_path} is not a build directory, '
-      'missing args.gn file.')
-  dict_settings = {}
-  with open(build_args_path, encoding='utf-8') as build_args_file:
-    build_args_lines = build_args_file.readlines()
-
-  for build_arg_line in build_args_lines:
-    build_arg_without_comments = build_arg_line.split('#')[0]
-    key_value_pair = build_arg_without_comments.split('=')
-    if len(key_value_pair) == 2:
-      key = key_value_pair[0].strip()
-      # Values are wrapped within a pair of double-quotes, so remove the leading
-      # and trailing double-quotes.
-      value = key_value_pair[1].strip().strip('"')
-      dict_settings[key] = value
-
-  return build_args_lines, dict_settings
-
+_BUILDS_DIRECTORY = 'out'
 
 _BUILD_TYPES = {
     'debug': {
         'symbol_level': 2,
-        'is_debug': 'true',
-        'is_official_build': 'false',
+        'is_debug': 'true'
     },
     'devel': {
         'symbol_level': 1,
-        'is_debug': 'false',
-        'is_official_build': 'false',
+        'is_debug': 'false'
     },
     'qa': {
         'symbol_level': 1,
-        'is_official_build': 'true',
+        'is_official_build': 'true'
     },
     'gold': {
         'symbol_level': 1,
         'is_official_build': 'true',
-        'cobalt_is_release_build': 'true',
+        'cobalt_is_release_build': 'true'
     }
 }
 
-CONTROLLED_ARGS = [
-    'cc_wrapper',  # See build/toolschain/cc_wrapper.gni
-    'is_debug',  # See build/config/BUILDCONFIG.GN
-    'is_official_build',  # mutually exclusive with is_debug
-    'symbol_level',  # See build/config/compiler/compiler.gni
+_CHROMIUM_PLATFORMS = [
+    'chromium_linux-x64x11',
+    'chromium_android-arm',
+    'chromium_android-arm64',
+    'chromium_android-x86',
+]
+_COBALT_LINUX_PLATFORMS = [
+    'linux-x64x11',
+    'linux-x64x11-evergreen',
+    'linux-x64x11-no-starboard',
+]
+_COBALT_ANDROID_PLATFORMS = [
+    'android-arm',
+    'android-arm64',
+    'android-x86',
 ]
 
 
-def write_build_args(build_args_path, original_lines, dict_settings, build_type,
-                     use_rbe):
+def write_build_args(build_args_path, platform_args_path, build_type, use_rbe):
   """ Write args file, modifying settings for config"""
-  controlled_args = [
-      (k, dict_settings[k]) for k in CONTROLLED_ARGS if k in dict_settings
-  ]
-  if controlled_args:
-    raise RuntimeError(
-        f'The following args cannot be set in configs: {controlled_args}')
   gen_comment = '# Set by gn.py'
   with open(build_args_path, 'w', encoding='utf-8') as f:
     f.write(f'use_siso = false {gen_comment}\n')
@@ -94,12 +73,11 @@ def write_build_args(build_args_path, original_lines, dict_settings, build_type,
     f.write(f'build_type = "{build_type}" {gen_comment}\n')
     for key, value in _BUILD_TYPES[build_type].items():
       f.write(f'{key} = {value} {gen_comment}\n')
-    for line in original_lines:
-      f.write(line)
+    f.write(f'import("//{platform_args_path}")\n')
 
 
-def main(out_directory: str, platform: str, build_type: str, use_rbe: bool,
-         gn_gen_args: List[str]):
+def configure_out_directory(out_directory: str, platform: str, build_type: str,
+                            use_rbe: bool, gn_gen_args: List[str]):
   Path(out_directory).mkdir(parents=True, exist_ok=True)
   platform_path = f'cobalt/build/configs/{platform}'
   dst_args_gn_file = os.path.join(out_directory, 'args.gn')
@@ -113,16 +91,15 @@ def main(out_directory: str, platform: str, build_type: str, use_rbe: bool,
           f' Old file is copied to {stale_dst_args_gn_file}.'
           'In general, if the file exists, you should run'
           ' `gn args <out_directory>` to edit it instead.')
-  build_args = get_build_args(src_args_gn_file)
-  write_build_args(dst_args_gn_file, build_args[0], build_args[1], build_type,
-                   use_rbe)
+
+  write_build_args(dst_args_gn_file, src_args_gn_file, build_type, use_rbe)
 
   gn_command = ['gn', 'gen', out_directory] + gn_gen_args
   print(' '.join(gn_command))
   subprocess.check_call(gn_command)
 
 
-if __name__ == '__main__':
+def parse_args():
   parser = argparse.ArgumentParser()
   builds_directory_group = parser.add_mutually_exclusive_group()
   builds_directory_group.add_argument(
@@ -135,18 +112,8 @@ if __name__ == '__main__':
       '-p',
       '--platform',
       default='linux-x64x11',
-      choices=[
-          'chromium_linux-x64x11',
-          'chromium_android-arm',
-          'chromium_android-arm64',
-          'chromium_android-x86',
-          'linux-x64x11',
-          'linux-x64x11-evergreen',
-          'linux-x64x11-no-starboard',
-          'android-arm',
-          'android-arm64',
-          'android-x86',
-      ],
+      choices=_CHROMIUM_PLATFORMS + _COBALT_LINUX_PLATFORMS +
+      _COBALT_ANDROID_PLATFORMS,
       help='The platform to build.')
   parser.add_argument(
       '-c',
@@ -173,11 +140,20 @@ if __name__ == '__main__':
   if not script_args.no_check:
     gen_args.append('--check')
 
+  return script_args, gen_args
+
+
+def main():
+  script_args, gen_args = parse_args()
   if script_args.out_directory:
     builds_out_directory = script_args.out_directory
   else:
-    BUILDS_DIRECTORY = 'out'
     builds_out_directory = os.path.join(
-        BUILDS_DIRECTORY, f'{script_args.platform}_{script_args.build_type}')
-  main(builds_out_directory, script_args.platform, script_args.build_type,
-       not script_args.no_rbe, gen_args)
+        _BUILDS_DIRECTORY, f'{script_args.platform}_{script_args.build_type}')
+  configure_out_directory(builds_out_directory, script_args.platform,
+                          script_args.build_type, not script_args.no_rbe,
+                          gen_args)
+
+
+if __name__ == '__main__':
+  main()
