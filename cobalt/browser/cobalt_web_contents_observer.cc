@@ -17,7 +17,14 @@
 #include "base/strings/utf_string_conversions.h"
 #include "cobalt/browser/embedded_resources/embedded_js.h"
 #include "cobalt/browser/migrate_storage_record/migration_manager.h"
+#include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/web_contents.h"
+
+#if BUILDFLAG(IS_ANDROIDTV)
+#include "starboard/android/shared/starboard_bridge.h"
+
+using starboard::android::shared::StarboardBridge;
+#endif
 
 namespace cobalt {
 
@@ -58,6 +65,28 @@ void CobaltWebContentsObserver::RegisterInjectedJavaScript() {
 void CobaltWebContentsObserver::PrimaryMainDocumentElementAvailable() {
   migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
       web_contents());
+}
+
+namespace {
+enum {
+  // This must be kept in sync with Java dev.cobalt.PlatformError.ErrorType
+  kJniErrorTypeConnectionError = 0,
+};
+}  // namespace
+
+void CobaltWebContentsObserver::DidFinishNavigation(
+    content::NavigationHandle* navigation_handle) {
+#if BUILDFLAG(IS_ANDROIDTV)
+  if (navigation_handle->IsErrorPage() &&
+      navigation_handle->GetNetErrorCode() == net::ERR_NAME_NOT_RESOLVED) {
+    jint jni_error_type = kJniErrorTypeConnectionError;
+    jlong data = 0;
+
+    JNIEnv* env = base::android::AttachCurrentThread();
+    StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+    starboard_bridge->RaisePlatformError(env, jni_error_type, data);
+  }
+#endif
 }
 
 }  // namespace cobalt

@@ -59,6 +59,7 @@ source_set("browser") {
     "//components/js_injection/browser:browser",
     "//components/os_crypt/sync",
     "//content/public/browser",
+    "//starboard/($starboard_toolchain)",
 
     # TODO(b/390021478): Do not depend on content_shell_lib here.
     "//content/shell:content_shell_lib",
