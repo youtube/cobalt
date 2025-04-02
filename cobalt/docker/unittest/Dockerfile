@@ -5,6 +5,7 @@ FROM debian:12@${BASE_IMAGE_SHA}
 # Install any necessary dependencies
 RUN apt-get update && apt-get install -y \
     git \
+    curl \
     jq \
     libasound2 \
     libgles2-mesa-dev \
