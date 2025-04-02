@@ -71,6 +71,8 @@ public abstract class CobaltActivity extends Activity {
 
   private static final Pattern URL_PARAM_PATTERN = Pattern.compile("^[a-zA-Z0-9_=]*$");
 
+  public static final String YTS_MODE = "YTS_MODE";
+
   // Maintain the list of JavaScript-exposed objects as a member variable
   // to prevent them from being garbage collected prematurely.
   private List<CobaltJavaScriptAndroidObject> javaScriptAndroidObjectList = new ArrayList<>();
@@ -161,8 +163,8 @@ public abstract class CobaltActivity extends Activity {
     // before Browser/Content module is started. It currently tracks its own JNI state
     // variables, and needs to set up an early copy.
 
-    // TODO(b/374147993): how to handle deeplink in Chrobalt?
-    String startDeepLink = getIntentUrlAsString(getIntent());
+    Intent intent = getIntent();
+    String startDeepLink = getIntentUrlAsString(intent);
     if (startDeepLink == null) {
       throw new IllegalArgumentException("startDeepLink cannot be null, set it to empty string");
     }
@@ -186,6 +188,10 @@ public abstract class CobaltActivity extends Activity {
     // SurfaceView's 'hole' clipping during animations that are notified to the window.
     mWindowAndroid.setAnimationPlaceholderView(
         mShellManager.getContentViewRenderView().getSurfaceView());
+
+    if (intent.hasExtra(YTS_MODE) && !isReleaseBuild()) {
+      mStartupUrl = getUrlFromIntent(getIntent());
+    }
 
     if (mStartupUrl == null || mStartupUrl.isEmpty()) {
       String[] args = getStarboardBridge().getArgs();
@@ -565,8 +571,22 @@ public abstract class CobaltActivity extends Activity {
     return StarboardBridge.isReleaseBuild();
   }
 
+  protected void shellHandleIntent(Intent intent) {
+    String url = getUrlFromIntent(intent);
+    if (!TextUtils.isEmpty(url)) {
+      Shell activeView = getActiveShell();
+      if (activeView != null) {
+        activeView.loadUrl(url);
+      }
+    }
+  }
+
   @Override
   protected void onNewIntent(Intent intent) {
+    if (intent.hasExtra(YTS_MODE) && !isReleaseBuild()) {
+      shellHandleIntent(intent);
+    }
+
     getStarboardBridge().handleDeepLink(getIntentUrlAsString(intent));
   }
 
