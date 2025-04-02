@@ -212,6 +212,7 @@ public abstract class CobaltActivity extends Activity {
               public void onSuccess() {
                 Log.i(TAG, "Browser process init succeeded");
                 finishInitialization(savedInstanceState);
+                getStarboardBridge().measureAppStartTimestamp();
               }
 
               @Override
