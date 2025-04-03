@@ -7,6 +7,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.util.Log;
+import android.media.AudioManager;
+
 
 /** VolumeStateReceiver monitors Android media broadcast to capture volume button events. */
 final class VolumeStateReceiver extends BroadcastReceiver {
@@ -16,8 +18,14 @@ final class VolumeStateReceiver extends BroadcastReceiver {
   public static final String EXTRA_PREV_VOLUME_STREAM_VALUE =
       "android.media.EXTRA_PREV_VOLUME_STREAM_VALUE";
 
+
   public static final String STREAM_MUTE_CHANGED_ACTION =
       "android.media.STREAM_MUTE_CHANGED_ACTION";
+
+  public static final String EXTRA_VOLUME_STREAM_TYPE =
+      "android.media.EXTRA_VOLUME_STREAM_TYPE";
+  public static final String EXTRA_STREAM_VOLUME_MUTED =
+      "android.media.EXTRA_STREAM_VOLUME_MUTED";
 
   VolumeStateReceiver(Context appContext) {
     IntentFilter filter = new IntentFilter();
@@ -36,8 +44,15 @@ final class VolumeStateReceiver extends BroadcastReceiver {
       Log.d(TAG, "VolumeStateReceiver capture volume changed, volumeDelta:" + volumeDelta);
       nativeVolumeChanged(volumeDelta);
     } else if (intent.getAction().equals(STREAM_MUTE_CHANGED_ACTION)) {
-      Log.d(TAG, "VolumeStateReceiver capture mute changed.");
-      nativeMuteChanged();
+
+      int streamType  = intent.getIntExtra(EXTRA_VOLUME_STREAM_TYPE, -1);
+      boolean isMuted = intent.getBooleanExtra(EXTRA_STREAM_VOLUME_MUTED, false);
+      Log.d(TAG, "streamType == "+streamType);
+      if(streamType == AudioManager.STREAM_MUSIC){
+        Log.d(TAG, "VolumeStateReceiver capture mute changed isMuted == "+isMuted);
+        nativeMuteChanged();
+      }
+
     }
   }
 
