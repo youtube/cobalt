@@ -1628,10 +1628,11 @@ deps = {
       'condition': 'checkout_nacl and checkout_win',
   },
 
-  'src/third_party/nasm': {
-      'url': Var('chromium_git') + '/chromium/deps/nasm.git' + '@' +
-      '7fc833e889d1afda72c06220e5bed8fb43b2e5ce'
-  },
+  # Cobalt: imported
+  # 'src/third_party/nasm': {
+  #    'url': Var('chromium_git') + '/chromium/deps/nasm.git' + '@' +
+  #    '7fc833e889d1afda72c06220e5bed8fb43b2e5ce'
+  #},
 
   'src/third_party/neon_2_sse/src':
     Var('chromium_git') + '/external/github.com/intel/ARM_NEON_2_x86_SSE.git' + '@' + 'a15b489e1222b2087007546b4912e21293ea86ff',
