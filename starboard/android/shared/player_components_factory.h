@@ -87,7 +87,8 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
  public:
   explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1)
       : AudioRendererSinkImpl(
-            [=](int64_t start_media_time,
+            [tunnel_mode_audio_session_id](
+                int64_t start_media_time,
                 int channels,
                 int sampling_frequency_hz,
                 SbMediaAudioSampleType audio_sample_type,

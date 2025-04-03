@@ -59,7 +59,7 @@ void WidevineTimer::setTimeout(int64_t delay_in_milliseconds,
                .first;
   }
 
-  iter->second->Schedule([=]() { client->onTimerExpired(context); },
+  iter->second->Schedule([client] { client->onTimerExpired(context); },
                          delay_in_milliseconds * 1000);
 }
 

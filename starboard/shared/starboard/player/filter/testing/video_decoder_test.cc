@@ -203,7 +203,7 @@ TEST_P(VideoDecoderTest, SingleInput) {
 
   bool error_occurred = false;
   ASSERT_NO_FATAL_FAILURE(fixture_.DrainOutputs(
-      &error_occurred, [=](const Event& event, bool* continue_process) {
+      &error_occurred, [](const Event& event, bool* continue_process) {
         if (event.frame) {
           // TODO: On some platforms, decode texture will be ready only after
           // rendered by renderer, so decode target is not always available
@@ -398,7 +398,7 @@ TEST_P(VideoDecoderTest, MultipleInputs) {
   if (frames_decoded < number_of_expected_decoded_frames) {
     fixture_.WriteEndOfStream();
     ASSERT_NO_FATAL_FAILURE(fixture_.DrainOutputs(
-        &error_occurred, [=](const Event& event, bool* continue_process) {
+        &error_occurred, [](const Event& event, bool* continue_process) {
           // Keep 1 decoded frame, assuming it's used by renderer.
           while (fixture_.GetDecodedFramesCount() > 1) {
             fixture_.PopDecodedFrame();
@@ -460,7 +460,7 @@ TEST_P(VideoDecoderTest, HoldFramesUntilFull) {
     return;
   }
   ASSERT_NO_FATAL_FAILURE(fixture_.DrainOutputs(
-      &error_occurred, [=](const Event& event, bool* continue_process) {
+      &error_occurred, [](const Event& event, bool* continue_process) {
         *continue_process =
             fixture_.GetDecodedFramesCount() <
             fixture_.video_decoder()->GetMaxNumberOfCachedFrames();
@@ -497,7 +497,7 @@ TEST_P(VideoDecoderTest, DecodeFullGOP) {
   fixture_.WriteEndOfStream();
 
   ASSERT_NO_FATAL_FAILURE(fixture_.DrainOutputs(
-      &error_occurred, [=](const Event& event, bool* continue_process) {
+      &error_occurred, [](const Event& event, bool* continue_process) {
         // Keep 1 decoded frame, assuming it's used by renderer.
         while (fixture_.GetDecodedFramesCount() > 1) {
           fixture_.PopDecodedFrame();
