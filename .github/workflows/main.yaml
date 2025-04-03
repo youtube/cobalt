@@ -357,16 +357,9 @@ jobs:
       - name: Set Up Depot Tools
         uses: ./src/.github/actions/depot_tools
       - name: Run Web Tests
-        id: web-tests
         uses: ./src/.github/actions/web_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-      - name: Test
-        if: always() && needs.initialize.outputs.web_tests == 'true'
-        run: echo "hej"
-      - name: Test
-        if: always()
-        run: echo "needs.initialize.outputs.web_tests=${{ needs.initialize.outputs.web_tests }}"
       - name: Test
         if: always()
         run: exit 1
