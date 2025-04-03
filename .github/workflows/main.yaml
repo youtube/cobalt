@@ -354,7 +354,7 @@ jobs:
         if: always() && needs.initialize.outputs.web_tests == 'true'
         run: echo "hej"
       - name: Test
-        if: always() && needs.initialize.outputs.web_tests == 'true'
+        if: always()
         run: echo "needs.initialize.outputs.web_tests=${{ needs.initialize.outputs.web_tests }}"
       - name: Test
         if: always()
