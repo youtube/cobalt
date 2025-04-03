@@ -374,10 +374,13 @@ void ShellPlatformDelegate::CreatePlatformWindow(
       views::Widget::InitParams::NATIVE_WIDGET_OWNS_WIDGET);
 =======
   views::Widget::InitParams params;
+<<<<<<< HEAD
 #if BUILDFLAG(IS_STARBOARD)
   params.type = views::Widget::InitParams::TYPE_WINDOW_FRAMELESS;
 #endif // BUILDFLAG(IS_STARBOARD)
 >>>>>>> a43ef76cf88 ([Ozone] Remove content border and hide toolbar (#5199))
+=======
+>>>>>>> 89715a0f72b ([Ozone] Remove the extra window between sb_window and web_content (#5285))
   params.bounds = gfx::Rect(initial_size);
   params.delegate = delegate.release();
   params.wm_class_class = "chromium-content_shell";
