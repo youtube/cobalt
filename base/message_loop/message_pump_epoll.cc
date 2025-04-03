@@ -22,18 +22,6 @@
 
 namespace base {
 
-namespace {
-
-// Under this feature native work is batched.
-BASE_FEATURE(kBatchNativeEventsInMessagePumpEpoll,
-             "BatchNativeEventsInMessagePumpEpoll",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Caches the state of the "BatchNativeEventsInMessagePumpEpoll".
-std::atomic_bool g_use_batched_version = false;
-
-}  // namespace
-
 // Parameters used to construct and describe an interest.
 struct MessagePumpEpoll::InterestParams {
   // The file descriptor of interest.
@@ -158,7 +146,7 @@ bool MessagePumpEpoll::WatchFileDescriptor(int fd,
     // non-persistent) Interest.
     existing_interest->set_active(true);
   } else {
-    entry.interests.push_back(controller->AssignInterest(params));
+    entry.interests->push_back(controller->AssignInterest(params));
     if (existing_interest) {
       UnregisterInterest(existing_interest);
     }

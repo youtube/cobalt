@@ -1031,7 +1031,6 @@ component("base") {
   ]
 
   deps = [
-    ":check_version_internal",
     "//base/allocator:buildflags",
     "//base/allocator/partition_allocator:raw_ptr",
     "//base/third_party/double_conversion",
