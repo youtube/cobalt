@@ -63,4 +63,12 @@ uint32_t PlatformWindowStarboard::DispatchEvent(const PlatformEvent& event) {
   return ui::POST_DISPATCH_STOP_PROPAGATION;
 }
 
+bool PlatformWindowStarboard::ShouldUseNativeFrame() const {
+  return use_native_frame_;
+}
+
+void PlatformWindowStarboard::SetUseNativeFrame(bool use_native_frame) {
+  use_native_frame_ = use_native_frame;
+}
+
 }  // namespace ui
