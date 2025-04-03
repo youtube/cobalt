@@ -394,16 +394,16 @@ TEST(SbMediaCanPlayMimeAndKeySystem, PrintMaximumSupport) {
   const char* kResolution2k = "2K";
   const char* kResolution4k = "4K";
   const char* kResolution8k = "8K";
-  auto get_max_video_codec_resolution =
-      [](std::string video_type,
-         const std::map<const char*, std::string> codec_params,
-         std::string framerate) {
-        std::map<const char*, std::string> resolutions = {
-            {kResolution1080p, "width=1920; height=1080;"},
-            {kResolution2k, "width=2560; height=1440;"},
-            {kResolution4k, "width=3840; height=2160;"},
-            {kResolution8k, "width=7680; height=4320;"}};
+  const std::map<const char*, std::string> resolutions = {
+      {kResolution1080p, "width=1920; height=1080;"},
+      {kResolution2k, "width=2560; height=1440;"},
+      {kResolution4k, "width=3840; height=2160;"},
+      {kResolution8k, "width=7680; height=4320;"}};
 
+  auto get_max_video_codec_resolution =
+      [&resolutions](std::string video_type,
+                     const std::map<const char*, std::string> codec_params,
+                     std::string framerate) {
         std::string max_supported_resolution;
         for (auto&& it : resolutions) {
           if (codec_params.find(it.first) == codec_params.end()) {
