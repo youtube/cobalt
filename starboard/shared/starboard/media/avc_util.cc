@@ -119,6 +119,8 @@ AvcParameterSets::AvcParameterSets(Format format,
       combined_size_in_bytes_ += nalu.size();
     } else if (nalu[kAnnexBHeaderSizeInBytes] == kIdrStartCode) {
       break;
+    } else if (nalu[kAnnexBHeaderSizeInBytes] == kAudStartCode) {
+      optional_combined_size_in_bytes_ += nalu.size();
     }
   }
   SB_LOG_IF(ERROR, first_sps_index_ == -1 || first_pps_index_ == -1)
