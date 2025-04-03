@@ -51,13 +51,15 @@ jobs:
             -H "Authorization: Bearer ${GITHUB_TOKEN}" \
             ${GITHUB_PR_REPO_URL}/issues/${GITHUB_EVENT_NUMBER}/labels/runtest
         shell: bash
-      - id: set-platforms
+      - name: Set platforms
+        id: set-platforms
         shell: bash
         run: |
           set -x
           platforms=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.platforms')
           echo "platforms=${platforms}" >> $GITHUB_OUTPUT
-      - id: set-targets
+      - name: Set build targets
+        id: set-targets
         shell: bash
         run: |
           set -x
@@ -73,49 +75,57 @@ jobs:
             build_configs='["devel", "qa", "gold"]'
           fi
           echo "build_configs=${build_configs}" >> $GITHUB_OUTPUT
-      - id: set-includes
+      - name: Set platform extra includes
+        id: set-includes
         shell: bash
         run: |
           set -x
           includes=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -c '.includes')
           echo "includes=${includes}" >> $GITHUB_OUTPUT
-      - id: set-docker-service
+      - name: Set Docker service
+        id: set-docker-service
         shell: bash
         run: |
           set -x
           docker_service=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -r '.docker_service')
           echo "docker_service=${docker_service}" >> $GITHUB_OUTPUT
-      - id: set-test-on-host
+      - name: Set on-host tests
+        id: set-test-on-host
         shell: bash
         run: |
           set -x
           test_on_host=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_host')
           echo "test_on_host=${test_on_host}" >> $GITHUB_OUTPUT
-      - id: set-test-on-device
+      - name: Set on-device tests
+        id: set-test-on-device
         shell: bash
         run: |
           set -x
           test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
           echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
-      - id: set-run-web-tests
+      - name: Set web tests
+        id: set-run-web-tests
         shell: bash
         run: |
           set -x
           web_tests=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.web_tests')
           echo "web_tests=${web_tests}" >> $GITHUB_OUTPUT
-      - id: set-test-root-target
+      - name: Set root target for unit tests
+        id: set-test-root-target
         shell: bash
         run: |
           set -x
           test_root_target=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_root_target')
           echo "test_root_target=${test_root_target}" >> $GITHUB_OUTPUT
-      - id: set-test-dimensions
+      - name: Set test device dimensions
+        id: set-test-dimensions
         shell: bash
         run: |
           set -x
           test_dimensions=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_dimensions')
           echo "test_dimensions=${test_dimensions}" >> $GITHUB_OUTPUT
-      - id: set-gtest-shards
+      - name: Set number of on-host unit test shards
+        id: set-gtest-shards
         shell: bash
         run: |
           set -x
