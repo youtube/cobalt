@@ -103,7 +103,8 @@ jobs:
           set -x
           test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
           echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
-      - id: set-run-web-tests
+      - name: Set web tests
+        id: set-run-web-tests
         shell: bash
         run: |
           set -x
