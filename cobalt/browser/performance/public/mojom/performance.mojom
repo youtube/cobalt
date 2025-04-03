@@ -22,4 +22,8 @@ interface CobaltPerformance {
   // Get the amount of used memory on the device in bytes.
   [Sync]
   MeasureUsedCpuMemory() => (uint64 bytes);
+
+  // Get the application startup duration in microseconds (us).
+  [Sync]
+  GetAppStartupTime() => (int64 bytes);
 };

@@ -360,7 +360,6 @@ jobs:
         if: always()
         run: exit 1
 
-
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
     if: always() &&
