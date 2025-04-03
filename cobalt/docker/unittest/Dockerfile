@@ -6,6 +6,7 @@ FROM debian:12@${BASE_IMAGE_SHA}
 RUN apt-get update && apt-get install -y \
     python3-dev \
     git \
+    xz-utils \
     curl \
     jq \
     libasound2 \
