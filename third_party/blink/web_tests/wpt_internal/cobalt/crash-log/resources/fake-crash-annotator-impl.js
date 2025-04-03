@@ -31,6 +31,13 @@ class FakeCrashAnnotatorImpl {
     };
   }
 
+  getTestValueSync() {
+    console.log("Fake getTestValueSync");
+    return {
+      result: true
+    };
+  }
+
   // Added for stubbing setString() result in tests.
   stubResult(stub_result) {
     this.stub_result_ = stub_result;
