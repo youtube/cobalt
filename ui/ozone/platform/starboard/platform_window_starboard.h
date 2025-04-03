@@ -36,8 +36,12 @@ class PlatformWindowStarboard : public StubWindow,
   bool CanDispatchEvent(const PlatformEvent& event) override;
   uint32_t DispatchEvent(const PlatformEvent& event) override;
 
+  bool ShouldUseNativeFrame() const override;
+  void SetUseNativeFrame(bool use_native_frame) override;
+
  private:
   SbWindow sb_window_;
+  bool use_native_frame_ = false;
 };
 
 }  // namespace ui
