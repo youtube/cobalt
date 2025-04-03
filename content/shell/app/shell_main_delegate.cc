@@ -231,7 +231,7 @@ void ShellMainDelegate::PreSandboxStartup() {
 #endif
     }
   }
-#endif  // !BUILDFLAG(IS_FUCHSIA)
+#endif  // !BUILDFLAG(IS_FUCHSIA) && !BUILDFLAG(IS_COBALT)
 
 #if !BUILDFLAG(IS_COBALT)
   crash_reporter::InitializeCrashKeys();
@@ -287,8 +287,9 @@ absl::variant<int, MainFunctionParams> ShellMainDelegate::RunProcess(
 #endif
 }
 
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 void ShellMainDelegate::ZygoteForked() {
+#if !BUILDFLAG(IS_COBALT)
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kEnableCrashReporter)) {
     std::string process_type =
@@ -298,8 +299,9 @@ void ShellMainDelegate::ZygoteForked() {
     crash_reporter::SetFirstChanceExceptionHandler(
         v8::TryHandleWebAssemblyTrapPosix);
   }
+#endif  // !BUILDFLAG(IS_COBALT)
 }
-#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT) || BUILDFLAG(IS_CHROMEOS)
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
 void ShellMainDelegate::InitializeResourceBundle() {
 #if BUILDFLAG(IS_ANDROID)
