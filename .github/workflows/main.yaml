@@ -65,7 +65,8 @@ jobs:
           set -x
           targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.targets  | join(" ")')
           echo "targets=${targets}" >> $GITHUB_OUTPUT
-      - id: set-build-configs
+      - name: Set build configs
+        id: set-build-configs
         shell: bash
         run: |
           set -x
@@ -104,7 +105,7 @@ jobs:
           test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
           echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
       - name: Set web tests
-        id: set-run-web-tests
+        id: set-web-tests
         shell: bash
         run: |
           set -x
