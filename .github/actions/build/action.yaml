@@ -2,7 +2,7 @@ name: Build Cobalt
 description: Builds Cobalt targets
 inputs:
   targets:
-    description: "List of ninja targets for Cobalt build."
+    description: "JSON list of ninja targets for Cobalt build."
     required: true
   test_root_target:
     description: "The root target from which to deduce what tests to run."
@@ -15,6 +15,9 @@ inputs:
     required: true
   upload_on_device_test_artifacts:
     description: "Indicates if on-device test artifacts should be uploaded."
+    required: true
+  upload_web_test_artifacts:
+    description: "Indicates if web test artifacts should be uploaded."
     required: true
   test_artifacts_key:
     description: "Artifact key used to store on-host test artifacts."
@@ -79,6 +82,11 @@ runs:
           test_targets_count=$(echo ${test_targets_json} | jq -cr 'length')
           echo "test_targets_count=${test_targets_count}" >> $GITHUB_OUTPUT
         shell: bash
+      - name: Web test targets
+        id: web-test-targets
+        if: inputs.upload_web_test_artifacts == 'true'
+        run: echo "test_targets_json=${targets}" >> $GITHUB_OUTPUT
+        shell: bash
       - name: Archive test target JSON
         uses: actions/upload-artifact@v4
         with:
@@ -97,10 +105,11 @@ runs:
         shell: bash
       - name: Ninja build
         env:
-          TARGETS: ${{ inputs.targets }}
+          TARGETS_JSON: ${{ inputs.targets }}
         run: |
           set -ex
           cd src
+          TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
         shell: bash
       - name: Archive Android APKs
@@ -113,10 +122,10 @@ runs:
             src/out/${{ matrix.platform }}_qa/*_apk/*.apk
             src/out/${{ matrix.platform }}_qa/gen/build_info.json
       - name: Upload Test Artifacts
-        if: steps.build-test-targets.outcome == 'success'
+        if: steps.build-test-targets.result == 'success' || steps.web-test-targets.result == 'success'
         uses: ./src/.github/actions/upload_test_artifacts
         with:
           test_artifacts_key: ${{ inputs.test_artifacts_key }}
           upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts }}
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
-          test_targets_json_file: ${{ inputs.test_targets_json_file }}
+          test_targets_json: ${{ steps.calculate-test-targets.outputs.test_targets_json || steps.web-test-targets.outputs.test_targets_json }}

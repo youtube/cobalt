@@ -63,7 +63,7 @@ jobs:
         shell: bash
         run: |
           set -x
-          targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.targets  | join(" ")')
+          targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.targets')
           echo "targets=${targets}" >> $GITHUB_OUTPUT
       - name: Set build configs
         id: set-build-configs
@@ -255,6 +255,7 @@ jobs:
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host == 'true' }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
+          upload_web_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.web_tests == 'true' }}
 
   on-device-test:
     needs: [initialize, build]
@@ -336,6 +337,7 @@ jobs:
 
   web-tests:
     needs: [initialize, docker-unittest-image, build]
+    if: needs.initialize.outputs.web_tests == 'true'
     permissions: {}
     runs-on: [self-hosted, chrobalt-linux-runner]
     name: ${{ matrix.name }}_web_tests
