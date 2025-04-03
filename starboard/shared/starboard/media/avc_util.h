@@ -48,6 +48,8 @@ class AvcParameterSets {
   static const uint8_t kIdrStartCode = 0x65;
   static const uint8_t kSpsStartCode = 0x67;
   static const uint8_t kPpsStartCode = 0x68;
+  // optional nalu types
+  static const uint8_t kAudStartCode = 0x09;
 
   // Only |format == kAnnexB| is supported, which is checked in the ctor.
   AvcParameterSets(Format format, const uint8_t* data, size_t size);
@@ -83,6 +85,30 @@ class AvcParameterSets {
   }
   size_t combined_size_in_bytes() const { return combined_size_in_bytes_; }
 
+  std::vector<const uint8_t*> GetAddressesWithOptionals() const {
+    std::vector<const uint8_t*> addresses;
+    for (auto& optional_parameter_set : optional_parameter_sets_) {
+      addresses.push_back(optional_parameter_set.data());
+    }
+    for (auto& parameter_set : parameter_sets_) {
+      addresses.push_back(parameter_set.data());
+    }
+    return addresses;
+  }
+  std::vector<size_t> GetSizesInBytesWithOptionals() const {
+    std::vector<size_t> sizes_in_bytes;
+    for (auto& optional_parameter_set : optional_parameter_sets_) {
+      sizes_in_bytes.push_back(optional_parameter_set.size());
+    }
+    for (auto& parameter_set : parameter_sets_) {
+      sizes_in_bytes.push_back(parameter_set.size());
+    }
+    return sizes_in_bytes;
+  }
+  size_t combined_size_in_bytes_with_optionals() const {
+    return combined_size_in_bytes_ + optional_combined_size_in_bytes_;
+  }
+
   std::vector<uint8_t> GetAllSpses() const;
   std::vector<uint8_t> GetAllPpses() const;
 
@@ -97,7 +123,9 @@ class AvcParameterSets {
   int first_sps_index_ = -1;
   int first_pps_index_ = -1;
   std::vector<std::vector<uint8_t>> parameter_sets_;
+  std::vector<std::vector<uint8_t>> optional_parameter_sets_;
   size_t combined_size_in_bytes_ = 0;
+  size_t optional_combined_size_in_bytes_ = 0;
 };
 
 // The function will fail only when the input doesn't start with an Annex B
