@@ -77,11 +77,11 @@ runs:
             echo "Skipped due to test filter." >  ${log_path}
           else
             /usr/bin/xvfb-run -a --server-args="${XVFB_SERVER_ARGS}" \
-                ./"${test_binary_path}" \
+                stdbuf -i0 -o0 -e0 ./"${test_binary_path}" \
                 --test-launcher-shard-index=${{ matrix.shard }} \
                 --test-launcher-total-shards=${{ inputs.num_gtest_shards }} \
                 --gtest_output="xml:${xml_path}" \
-                --gtest_filter="${test_filter}" | tee ${log_path} || {
+                --gtest_filter="${test_filter}" 2>&1 | tee ${log_path} || {
               failed_suites="${failed_suites} ${test_binary}"
             }
           fi
