@@ -1599,16 +1599,16 @@ Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
   Handle<Object> exception(raw_exception, this);
 
   if (FLAG_print_all_exceptions) {
-    PrintF("=========================================================\n");
-    PrintF("Exception thrown:\n");
+    printf("=========================================================\n");
+    printf("Exception thrown:\n");
     if (location) {
       Handle<Script> script = location->script();
       Handle<Object> name(script->GetNameOrSourceURL(), this);
-      PrintF("at ");
+      printf("at ");
       if (name->IsString() && String::cast(*name).length() > 0)
         String::cast(*name).PrintOn(stdout);
       else
-        PrintF("<anonymous>");
+        printf("<anonymous>");
 // Script::GetLineNumber and Script::GetColumnNumber can allocate on the heap to
 // initialize the line_ends array, so be careful when calling them.
 #ifdef DEBUG
@@ -1617,7 +1617,7 @@ Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
 #else
       if ((false)) {
 #endif
-        PrintF(", %d:%d - %d:%d\n",
+        printf(", %d:%d - %d:%d\n",
                Script::GetLineNumber(script, location->start_pos()) + 1,
                Script::GetColumnNumber(script, location->start_pos()),
                Script::GetLineNumber(script, location->end_pos()) + 1,
@@ -1625,13 +1625,13 @@ Object Isolate::ThrowInternal(Object raw_exception, MessageLocation* location) {
         // Make sure to update the raw exception pointer in case it moved.
         raw_exception = *exception;
       } else {
-        PrintF(", line %d\n", script->GetLineNumber(location->start_pos()) + 1);
+        printf(", line %d\n", script->GetLineNumber(location->start_pos()) + 1);
       }
     }
     raw_exception.Print();
-    PrintF("Stack Trace:\n");
+    printf("Stack Trace:\n");
     PrintStack(stdout);
-    PrintF("=========================================================\n");
+    printf("=========================================================\n");
   }
 
   // Determine whether a message needs to be created for the given exception
@@ -3110,7 +3110,7 @@ void Isolate::Deinit() {
 
   heap_.TearDown();
   FILE* logfile = logger_->TearDownAndGetLogFile();
-  if (logfile != nullptr) base::Fclose(logfile);
+  if (logfile != nullptr) fclose(logfile);
 
   if (wasm_engine_) {
     wasm_engine_->RemoveIsolate(this);
@@ -3679,12 +3679,10 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   if (!create_heap_objects)
     Assembler::QuietNaN(ReadOnlyRoots(this).nan_value());
 
-#if !V8_OS_STARBOARD
   if (FLAG_trace_turbo) {
     // Create an empty file.
     std::ofstream(GetTurboCfgFileName(this).c_str(), std::ios_base::trunc);
   }
-#endif  // V8_OS_STARBOARD
 
   {
     HandleScope scope(this);

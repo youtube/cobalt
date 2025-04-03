@@ -1806,7 +1806,6 @@ AsyncCompileJob::~AsyncCompileJob() {
 
 void AsyncCompileJob::CreateNativeModule(
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
   // Embedder usage count for declared shared memories.
   if (module->has_shared_memory) {
     isolate_->CountUsage(v8::Isolate::UseCounterFeature::kWasmSharedMemory);
@@ -1821,7 +1820,6 @@ void AsyncCompileJob::CreateNativeModule(
   native_module_ = isolate_->wasm_engine()->NewNativeModule(
       isolate_, enabled_features_, std::move(module), code_size_estimate);
   native_module_->SetWireBytes({std::move(bytes_copy_), wire_bytes_.length()});
-#endif
 }
 
 bool AsyncCompileJob::GetOrCreateNativeModule(
@@ -2654,10 +2652,8 @@ void AsyncStreamingProcessor::OnFinishedStream(OwnedVector<uint8_t> bytes) {
     cache_hit = job_->GetOrCreateNativeModule(std::move(result).value(),
                                               kCodeSizeEstimate);
   } else {
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
     job_->native_module_->SetWireBytes(
         {std::move(job_->bytes_copy_), job_->wire_bytes_.length()});
-#endif
     job_->native_module_->LogWasmCodes(job_->isolate_);
   }
   const bool needs_finish = job_->DecrementAndCheckFinisherCount();

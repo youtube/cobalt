@@ -591,11 +591,16 @@ constexpr WasmOpcodeSig GetNumericOpcodeSigIndex(byte opcode) {
 #undef CASE
 }
 
-constexpr std::array<WasmOpcodeSig, 256> kShortSigTable{};
-constexpr std::array<WasmOpcodeSig, 256> kSimpleAsmjsExprSigTable{};
-constexpr std::array<WasmOpcodeSig, 256> kSimdExprSigTable{};
-constexpr std::array<WasmOpcodeSig, 256> kAtomicExprSigTable{};
-constexpr std::array<WasmOpcodeSig, 256> kNumericExprSigTable{};
+constexpr std::array<WasmOpcodeSig, 256> kShortSigTable =
+    base::make_array<256>(GetShortOpcodeSigIndex);
+constexpr std::array<WasmOpcodeSig, 256> kSimpleAsmjsExprSigTable =
+    base::make_array<256>(GetAsmJsOpcodeSigIndex);
+constexpr std::array<WasmOpcodeSig, 256> kSimdExprSigTable =
+    base::make_array<256>(GetSimdOpcodeSigIndex);
+constexpr std::array<WasmOpcodeSig, 256> kAtomicExprSigTable =
+    base::make_array<256>(GetAtomicOpcodeSigIndex);
+constexpr std::array<WasmOpcodeSig, 256> kNumericExprSigTable =
+    base::make_array<256>(GetNumericOpcodeSigIndex);
 
 }  // namespace impl
 

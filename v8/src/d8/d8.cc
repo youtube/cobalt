@@ -30,7 +30,6 @@
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
-#include "src/base/platform/wrappers.h"
 #include "src/base/sys-info.h"
 #include "src/d8/d8-console.h"
 #include "src/d8/d8-platforms.h"
@@ -1545,7 +1544,7 @@ void Shell::LogGetAndStop(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   bool exists = false;
   raw_log = i::ReadFile(log_file, &exists, true);
-  base::Fclose(log_file);
+  fclose(log_file);
 
   if (!exists) {
     Throw(isolate, "Unable to read log file.");
@@ -2604,13 +2603,13 @@ static FILE* FOpen(const char* path, const char* mode) {
     return nullptr;
   }
 #else
-  FILE* file = base::Fopen(path, mode);
+  FILE* file = fopen(path, mode);
   if (file == nullptr) return nullptr;
   struct stat file_stat;
   if (fstat(fileno(file), &file_stat) != 0) return nullptr;
   bool is_regular_file = ((file_stat.st_mode & S_IFREG) != 0);
   if (is_regular_file) return file;
-  base::Fclose(file);
+  fclose(file);
   return nullptr;
 #endif
 }
@@ -2632,12 +2631,12 @@ static char* ReadChars(const char* name, int* size_out) {
   for (size_t i = 0; i < size;) {
     i += fread(&chars[i], 1, size - i, file);
     if (ferror(file)) {
-      base::Fclose(file);
+      fclose(file);
       delete[] chars;
       return nullptr;
     }
   }
-  base::Fclose(file);
+  fclose(file);
   *size_out = static_cast<int>(size);
   return chars;
 }

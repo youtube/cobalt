@@ -314,12 +314,10 @@ class V8_EXPORT_PRIVATE CpuProfiler {
   void set_sampling_interval(base::TimeDelta value);
   void set_use_precise_sampling(bool);
   void CollectSample();
-  StartProfilingStatus StartProfiling(
-      const char* title, CpuProfilingOptions options = {},
-      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
-  StartProfilingStatus StartProfiling(
-      String title, CpuProfilingOptions options = {},
-      std::unique_ptr<DiscardedSamplesDelegate> delegate = nullptr);
+  StartProfilingStatus StartProfiling(const char* title,
+                                      CpuProfilingOptions options = {});
+  StartProfilingStatus StartProfiling(String title,
+                                      CpuProfilingOptions options = {});
 
   CpuProfile* StopProfiling(const char* title);
   CpuProfile* StopProfiling(String title);

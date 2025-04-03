@@ -86,14 +86,10 @@ std::unique_ptr<Log::MessageBuilder> Log::NewMessageBuilder() {
 
 FILE* Log::Close() {
   FILE* result = nullptr;
-#if V8_OS_STARBOARD
-  SB_NOTIMPLEMENTED();
-#else
   if (output_handle_ != nullptr) {
     fflush(output_handle_);
     result = output_handle_;
   }
-#endif
   output_handle_ = nullptr;
   format_buffer_.reset();
   return result;
@@ -238,19 +234,11 @@ void Log::MessageBuilder::AppendRawFormatString(const char* format, ...) {
   }
 }
 
-#if defined(V8_OS_STARBOARD)
-void Log::MessageBuilder::AppendRawCharacter(char c) {}
-#else
 void Log::MessageBuilder::AppendRawCharacter(char c) { log_->os_ << c; }
-#endif
 
-#if defined(V8_OS_STARBOARD)
-void Log::MessageBuilder::WriteToLogFile() {}
-#else
 void Log::MessageBuilder::WriteToLogFile() {
   log_->os_ << std::endl;
 }
-#endif
 
 template <>
 Log::MessageBuilder& Log::MessageBuilder::operator<<<const char*>(
@@ -261,12 +249,10 @@ Log::MessageBuilder& Log::MessageBuilder::operator<<<const char*>(
 
 template <>
 Log::MessageBuilder& Log::MessageBuilder::operator<<<void*>(void* pointer) {
-#if !defined(V8_OS_STARBOARD)
   OFStream& os = log_->os_;
   // Manually format the pointer since on Windows we do not consistently
   // get a "0x" prefix.
   os << "0x" << std::hex << reinterpret_cast<intptr_t>(pointer) << std::dec;
-#endif
   return *this;
 }
 

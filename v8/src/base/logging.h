@@ -5,7 +5,6 @@
 #ifndef V8_BASE_LOGGING_H_
 #define V8_BASE_LOGGING_H_
 
-#include <cstdint>
 #include <cstring>
 #include <sstream>
 #include <string>

@@ -535,11 +535,9 @@ void CpuProfiler::CollectSample() {
   }
 }
 
-CpuProfilingStatus CpuProfiler::StartProfiling(
-    const char* title, CpuProfilingOptions options,
-    std::unique_ptr<DiscardedSamplesDelegate> delegate) {
-  StartProfilingStatus status =
-      profiles_->StartProfiling(title, options, std::move(delegate));
+CpuProfilingStatus CpuProfiler::StartProfiling(const char* title,
+                                               CpuProfilingOptions options) {
+  StartProfilingStatus status = profiles_->StartProfiling(title, options);
 
   // TODO(nicodubus): Revisit logic for if we want to do anything different for
   // kAlreadyStarted
@@ -553,11 +551,9 @@ CpuProfilingStatus CpuProfiler::StartProfiling(
   return status;
 }
 
-CpuProfilingStatus CpuProfiler::StartProfiling(
-    String title, CpuProfilingOptions options,
-    std::unique_ptr<DiscardedSamplesDelegate> delegate) {
-  return StartProfiling(profiles_->GetName(title), options,
-                        std::move(delegate));
+CpuProfilingStatus CpuProfiler::StartProfiling(String title,
+                                               CpuProfilingOptions options) {
+  return StartProfiling(profiles_->GetName(title), options);
 }
 
 void CpuProfiler::StartProcessorIfNotStarted() {

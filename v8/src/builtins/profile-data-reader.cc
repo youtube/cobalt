@@ -43,7 +43,6 @@ EnsureInitProfileData() {
   static base::LeakyObject<
       std::unordered_map<std::string, ProfileDataFromFileInternal>>
       data;
-#if !defined(V8_OS_STARBOARD)
   static bool initialized = false;
 
   if (initialized) return *data.get();
@@ -107,7 +106,6 @@ EnsureInitProfileData() {
         "and run with --turbo-profiling-log-builtins?\n");
   }
 
-#endif  // V8_OS_STARBOARD
   return *data.get();
 }
 

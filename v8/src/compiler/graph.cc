@@ -78,11 +78,7 @@ NodeId Graph::NextNodeId() {
   return next_node_id_++;
 }
 
-#if defined(DISABLE_GRAPHS_STARBOARD)
-void Graph::Print() const {}
-#else
 void Graph::Print() const { StdoutStream{} << AsRPO(*this); }
-#endif
 
 }  // namespace compiler
 }  // namespace internal

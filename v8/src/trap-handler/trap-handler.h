@@ -11,11 +11,6 @@
 #include <atomic>
 
 #include "src/base/build_config.h"
-
-#if V8_OS_STARBOARD
-#include "starboard/common/log.h"
-#endif  //V8_OS_STARBOARD
-
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 
@@ -62,7 +57,6 @@ int V8_EXPORT_PRIVATE RegisterHandlerData(
 /// kInvalidIndex.
 void V8_EXPORT_PRIVATE ReleaseHandlerData(int index);
 
-#if !defined(STARBOARD)
 #if V8_OS_WIN
 #define THREAD_LOCAL __declspec(thread)
 #elif V8_OS_ANDROID
@@ -70,7 +64,6 @@ void V8_EXPORT_PRIVATE ReleaseHandlerData(int index);
 #define THREAD_LOCAL
 #else
 #define THREAD_LOCAL __thread
-#endif
 #endif
 
 // Initially false, set to true if when trap handlers are enabled. Never goes
@@ -102,26 +95,6 @@ inline bool IsTrapHandlerEnabled() {
   return g_is_trap_handler_enabled;
 }
 
-#if defined(V8_OS_STARBOARD)
-V8_NOINLINE V8_EXPORT_PRIVATE int* GetThreadInWasmThreadLocalAddress();
-
-inline bool IsThreadInWasm() {
-#if !defined(V8_ENABLE_WEBASSEMBLY)
-  SB_NOTREACHED();
-#endif
-  return false;
-}
-inline void SetThreadInWasm() {
-#if !defined(V8_ENABLE_WEBASSEMBLY)
-  SB_NOTREACHED();
-#endif
-}
-inline void ClearThreadInWasm() {
-#if !defined(V8_ENABLE_WEBASSEMBLY)
-  SB_NOTREACHED();
-#endif
-}
-#else
 extern THREAD_LOCAL int g_thread_in_wasm_code;
 
 // Return the address of the thread-local {g_thread_in_wasm_code} variable. This
@@ -147,7 +120,6 @@ inline void ClearThreadInWasm() {
     g_thread_in_wasm_code = false;
   }
 }
-#endif  // V8_OS_STARBOARD
 
 bool RegisterDefaultTrapHandler();
 V8_EXPORT_PRIVATE void RemoveTrapHandler();

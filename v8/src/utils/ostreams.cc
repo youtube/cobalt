@@ -67,7 +67,6 @@ int DbgStreamBuf::sync() {
 
 DbgStdoutStream::DbgStdoutStream() : std::ostream(&streambuf_) {}
 
-#if !defined(V8_OS_STARBOARD)
 OFStreamBase::OFStreamBase(FILE* f) : f_(f) {}
 
 int OFStreamBase::sync() {
@@ -88,9 +87,6 @@ OFStream::OFStream(FILE* f) : std::ostream(nullptr), buf_(f) {
   DCHECK_NOT_NULL(f);
   rdbuf(&buf_);
 }
-#else
-OFStream::OFStream(FILE* f) : std::ostream(nullptr) {}
-#endif
 
 #if defined(ANDROID) && !defined(V8_ANDROID_LOG_STDOUT)
 AndroidLogStream::~AndroidLogStream() {

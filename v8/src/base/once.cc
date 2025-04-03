@@ -6,6 +6,8 @@
 
 #ifdef _WIN32
 #include <windows.h>
+#elif defined(V8_OS_STARBOARD)
+#include "starboard/thread.h"
 #else
 #include <sched.h>
 #endif
@@ -28,11 +30,7 @@ void CallOnceImpl(OnceType* once, std::function<void()> init_func) {
   // atomically.
   uint8_t expected = ONCE_STATE_UNINITIALIZED;
   if (once->compare_exchange_strong(expected, ONCE_STATE_EXECUTING_FUNCTION,
-#if !defined(DISABLE_WASM_COMPILER_ISSUE_STARBOARD)
                                     std::memory_order_acq_rel)) {
-#else
-                                    std::memory_order_seq_cst)) {
-#endif
     // We are the first thread to call this function, so we have to call the
     // function.
     init_func();
@@ -44,6 +42,8 @@ void CallOnceImpl(OnceType* once, std::function<void()> init_func) {
            ONCE_STATE_EXECUTING_FUNCTION) {
 #ifdef _WIN32
       ::Sleep(0);
+#elif defined(V8_OS_STARBOARD)
+      SbThreadYield();
 #else
       sched_yield();
 #endif

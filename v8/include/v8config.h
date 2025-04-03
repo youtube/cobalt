@@ -74,9 +74,7 @@
 //  V8_OS_AIX           - AIX
 //  V8_OS_WIN           - Microsoft Windows
 
-#if defined(STARBOARD)
-# define V8_OS_STARBOARD 1
-#elif defined(__ANDROID__)
+#if defined(__ANDROID__)
 # define V8_OS_ANDROID 1
 # define V8_OS_LINUX 1
 # define V8_OS_POSIX 1
@@ -96,6 +94,8 @@
 #elif defined(__sun)
 # define V8_OS_POSIX 1
 # define V8_OS_SOLARIS 1
+#elif defined(STARBOARD)
+# define V8_OS_STARBOARD 1
 #elif defined(_AIX)
 #define V8_OS_POSIX 1
 #define V8_OS_AIX 1
@@ -181,13 +181,9 @@
 # define V8_TARGET_OS_MACOSX
 #endif
 
-// Playstation and Nintendo Switch build on Windows but that is not their
-// target OS.
-#ifndef USE_COBALT_CUSTOMIZATIONS
 #ifdef V8_OS_WIN
 # define V8_TARGET_OS_WIN
 #endif
-#endif  // USE_COBALT_CUSTOMIZATIONS
 
 #endif  // V8_HAVE_TARGET_OS
 
@@ -243,7 +239,6 @@
 //  V8_HAS_ATTRIBUTE_VISIBILITY         - __attribute__((visibility)) supported
 //  V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT - __attribute__((warn_unused_result))
 //                                        supported
-//  V8_HAS_CPP_ATTRIBUTE_NODISCARD      - [[nodiscard]] supported
 //  V8_HAS_BUILTIN_BSWAP16              - __builtin_bswap16() supported
 //  V8_HAS_BUILTIN_BSWAP32              - __builtin_bswap32() supported
 //  V8_HAS_BUILTIN_BSWAP64              - __builtin_bswap64() supported
@@ -267,12 +262,6 @@
 //   ...
 //  #endif
 
-#if defined(__has_cpp_attribute)
-#define V8_HAS_CPP_ATTRIBUTE(FEATURE) __has_cpp_attribute(FEATURE)
-#else
-#define V8_HAS_CPP_ATTRIBUTE(FEATURE) 0
-#endif
-
 #if defined(__clang__)
 
 #if defined(__GNUC__)  // Clang in gcc mode.
@@ -286,8 +275,6 @@
 # define V8_HAS_ATTRIBUTE_VISIBILITY (__has_attribute(visibility))
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT \
     (__has_attribute(warn_unused_result))
-
-# define V8_HAS_CPP_ATTRIBUTE_NODISCARD (V8_HAS_CPP_ATTRIBUTE(nodiscard))
 
 # define V8_HAS_BUILTIN_ASSUME_ALIGNED (__has_builtin(__builtin_assume_aligned))
 # define V8_HAS_BUILTIN_BSWAP16 (__has_builtin(__builtin_bswap16))
@@ -332,7 +319,6 @@
 # define V8_HAS_ATTRIBUTE_UNUSED 1
 # define V8_HAS_ATTRIBUTE_VISIBILITY 1
 # define V8_HAS_ATTRIBUTE_WARN_UNUSED_RESULT (!V8_CC_INTEL)
-# define V8_HAS_CPP_ATTRIBUTE_NODISCARD (V8_HAS_CPP_ATTRIBUTE(nodiscard))
 
 # define V8_HAS_BUILTIN_ASSUME_ALIGNED 1
 # define V8_HAS_BUILTIN_CLZ 1
@@ -450,20 +436,6 @@
 #define V8_WARN_UNUSED_RESULT /* NOT SUPPORTED */
 #endif
 
-
-// Annotate a class or constructor indicating the caller must assign the
-// constructed instances.
-// Apply to the whole class like:
-//   class V8_NODISCARD Foo() { ... };
-// or apply to just one constructor like:
-//   V8_NODISCARD Foo() { ... };
-// [[nodiscard]] comes in C++17 but supported in clang with -std >= c++11.
-#if V8_HAS_CPP_ATTRIBUTE_NODISCARD
-#define V8_NODISCARD [[nodiscard]]
-#else
-#define V8_NODISCARD /* NOT SUPPORTED */
-#endif
-
 // Helper macro to define no_sanitize attributes only with clang.
 #if defined(__clang__) && defined(__has_attribute)
 #if __has_attribute(no_sanitize)
@@ -511,7 +483,5 @@ V8 shared library set USING_V8_SHARED.
 #endif  // V8_OS_WIN
 
 // clang-format on
-
-#undef V8_HAS_CPP_ATTRIBUTE
 
 #endif  // V8CONFIG_H_

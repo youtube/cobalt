@@ -4,10 +4,6 @@
 
 #include "src/libsampler/sampler.h"
 
-#if V8_OS_STARBOARD
-#include "starboard/thread.h"
-#endif  // V8_OS_STARBOARD
-
 #ifdef USE_SIGNALS
 
 #include <errno.h>
@@ -170,44 +166,6 @@ enum { REG_RBP = 10, REG_RSP = 15, REG_RIP = 16 };
 
 namespace v8 {
 namespace sampler {
-
-#if V8_OS_STARBOARD
-
-class Sampler::PlatformData {
- public:
-  PlatformData()
-#if SB_API_VERSION < 16
-      : thread_(SbThreadGetCurrent()),
-#else
-      : thread_(pthread_self()),
-#endif
-        thread_sampler_(kSbThreadSamplerInvalid) {}
-  ~PlatformData() { ReleaseThreadSampler(); }
-
-  SbThreadSampler EnsureThreadSampler() {
-    if (thread_sampler_ == kSbThreadSamplerInvalid) {
-      thread_sampler_ = SbThreadSamplerCreate(thread_);
-    }
-    return thread_sampler_;
-  }
-
-  void ReleaseThreadSampler() {
-    if (thread_sampler_ != kSbThreadSamplerInvalid) {
-      SbThreadSamplerDestroy(thread_sampler_);
-      thread_sampler_ = kSbThreadSamplerInvalid;
-    }
-  }
-
- private:
-#if SB_API_VERSION < 16
-  SbThread thread_;
-#else
-  pthread_t thread_;
-#endif
-  SbThreadSampler thread_sampler_;
-};
-
-#endif  // V8_OS_STARBOARD
 
 #if defined(USE_SIGNALS)
 
@@ -485,7 +443,7 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
   state->fp = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[11]);
   state->lr = reinterpret_cast<void*>(ucontext->uc_mcontext.gregs[14]);
 #endif  // V8_HOST_ARCH_*
-#elif V8_OS_IOS || (V8_OS_STARBOARD && defined(__APPLE__))
+#elif V8_OS_IOS
 
 #if V8_TARGET_ARCH_ARM64
   // Building for the iOS device.
@@ -586,9 +544,6 @@ Sampler::~Sampler() {
 void Sampler::Start() {
   DCHECK(!IsActive());
   SetActive(true);
-#if V8_OS_STARBOARD
-  platform_data()->EnsureThreadSampler();
-#endif  // V8_OS_STARBOARD
 #if defined(USE_SIGNALS)
   SignalHandler::IncreaseSamplerCount();
   SamplerManager::instance()->AddSampler(this);
@@ -596,9 +551,6 @@ void Sampler::Start() {
 }
 
 void Sampler::Stop() {
-#if V8_OS_STARBOARD
-  platform_data()->ReleaseThreadSampler();
-#endif  // V8_OS_STARBOARD
 #if defined(USE_SIGNALS)
   SamplerManager::instance()->RemoveSampler(this);
   SignalHandler::DecreaseSamplerCount();
@@ -606,33 +558,6 @@ void Sampler::Stop() {
   DCHECK(IsActive());
   SetActive(false);
 }
-
-#if V8_OS_STARBOARD
-
-void Sampler::DoSample() {
-  SbThreadSampler thread_sampler = platform_data()->EnsureThreadSampler();
-  SbThreadContext context = SbThreadSamplerFreeze(thread_sampler);
-  if (!SbThreadContextIsValid(context)) {
-    return;
-  }
-  v8::RegisterState state;
-  if (SbThreadContextGetPointer(context, kSbThreadContextInstructionPointer,
-                                &state.pc) &&
-      SbThreadContextGetPointer(context, kSbThreadContextStackPointer,
-                                &state.sp) &&
-      SbThreadContextGetPointer(context, kSbThreadContextFramePointer,
-                                &state.fp)
-#if SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
-      && SbThreadContextGetPointer(context, kSbThreadContextLinkRegister,
-                                   &state.lr)
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
-      ) {
-    SampleStack(state);
-  }
-  SbThreadSamplerThaw(thread_sampler);
-}
-
-#endif  // V8_OS_STARBOARD
 
 #if defined(USE_SIGNALS)
 

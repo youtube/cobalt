@@ -17,7 +17,6 @@
 
 #include "src/base/build_config.h"
 #include "src/base/file-utils.h"
-#include "src/base/platform/wrappers.h"
 
 #define ICU_UTIL_DATA_FILE 0
 #define ICU_UTIL_DATA_STATIC 1
@@ -72,7 +71,7 @@ bool InitializeICU(const char* icu_data_file) {
 
   if (g_icu_data_ptr) return true;
 
-  FILE* inf = base::Fopen(icu_data_file, "rb");
+  FILE* inf = fopen(icu_data_file, "rb");
   if (!inf) return false;
 
   fseek(inf, 0, SEEK_END);
@@ -83,10 +82,10 @@ bool InitializeICU(const char* icu_data_file) {
   if (fread(g_icu_data_ptr, 1, size, inf) != size) {
     delete[] g_icu_data_ptr;
     g_icu_data_ptr = nullptr;
-    base::Fclose(inf);
+    fclose(inf);
     return false;
   }
-  base::Fclose(inf);
+  fclose(inf);
 
   atexit(free_icu_data_ptr);
 

@@ -12,7 +12,6 @@
 #include "src/api/api-inl.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
-#include "src/base/platform/wrappers.h"
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/codegen/macro-assembler.h"
@@ -305,18 +304,14 @@ PerfBasicLogger::PerfBasicLogger(Isolate* isolate)
   int size = SNPrintF(perf_dump_name, kFilenameFormatString,
                       base::OS::GetCurrentProcessId());
   CHECK_NE(size, -1);
-#if !defined(V8_OS_STARBOARD)
   perf_output_handle_ =
       base::OS::FOpen(perf_dump_name.begin(), base::OS::LogFileOpenMode);
   CHECK_NOT_NULL(perf_output_handle_);
   setvbuf(perf_output_handle_, nullptr, _IOLBF, 0);
-#else
-  SB_NOTIMPLEMENTED();
-#endif
 }
 
 PerfBasicLogger::~PerfBasicLogger() {
-  base::Fclose(perf_output_handle_);
+  fclose(perf_output_handle_);
   perf_output_handle_ = nullptr;
 }
 
@@ -572,19 +567,15 @@ LowLevelLogger::LowLevelLogger(Isolate* isolate, const char* name)
   ScopedVector<char> ll_name(static_cast<int>(len + sizeof(kLogExt)));
   MemCopy(ll_name.begin(), name, len);
   MemCopy(ll_name.begin() + len, kLogExt, sizeof(kLogExt));
-#if !defined(V8_OS_STARBOARD)
   ll_output_handle_ =
       base::OS::FOpen(ll_name.begin(), base::OS::LogFileOpenMode);
   setvbuf(ll_output_handle_, nullptr, _IOLBF, 0);
-#else
-  SB_NOTIMPLEMENTED();
-#endif
 
   LogCodeInfo();
 }
 
 LowLevelLogger::~LowLevelLogger() {
-  base::Fclose(ll_output_handle_);
+  fclose(ll_output_handle_);
   ll_output_handle_ = nullptr;
 }
 

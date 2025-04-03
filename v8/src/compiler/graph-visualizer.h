@@ -13,9 +13,6 @@
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
 
-// Currently disabled due to no-usage and API leaks.
-#if !defined(DISABLE_GRAPHS_STARBOARD)
-
 namespace v8 {
 namespace internal {
 
@@ -213,7 +210,5 @@ std::ostream& operator<<(std::ostream& os, const InstructionSequenceAsJSON& s);
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
-
-#endif  // DISABLE_GRAPHS_STARBOARD
 
 #endif  // V8_COMPILER_GRAPH_VISUALIZER_H_

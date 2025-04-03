@@ -234,13 +234,7 @@ void ReleaseHandlerData(int index) {
   free(data);
 }
 
-#if defined(V8_OS_STARBOARD)
-int* GetThreadInWasmThreadLocalAddress() {
-  return nullptr;
-}
-#else
 int* GetThreadInWasmThreadLocalAddress() { return &g_thread_in_wasm_code; }
-#endif
 
 size_t GetRecoveredTrapCount() {
   return gRecoveredTrapCount.load(std::memory_order_relaxed);
