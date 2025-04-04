@@ -40,7 +40,6 @@ static_library("starboard_platform_sources") {
     "//starboard/linux/x64x11/system_get_property_impl.cc",
     "//starboard/shared/libjpeg/jpeg_image_decoder.cc",
     "//starboard/shared/libjpeg/jpeg_image_decoder.h",
-    "//starboard/shared/starboard/link_receiver.cc",
     "//starboard/shared/x11/application_x11.cc",
     "//starboard/shared/x11/egl_swap_buffers.cc",
     "//starboard/shared/x11/player_set_bounds.cc",
