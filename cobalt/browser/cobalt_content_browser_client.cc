@@ -19,8 +19,8 @@
 #include "base/files/file_path.h"
 #include "base/i18n/rtl.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
+#include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
-#include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
@@ -28,24 +28,10 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/user_agent.h"
-// TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
-// being a ShellBrowserMainParts.
-#include "content/shell/browser/shell_browser_main_parts.h"
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
-#include "starboard/configuration_constants.h"
-#include "starboard/system.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
-
-#if BUILDFLAG(IS_ANDROIDTV)
-#include "cobalt/browser/android/mojo/cobalt_interface_registrar_android.h"
-#endif
-
-#if BUILDFLAG(IS_LINUX)
-#include "components/os_crypt/sync/key_storage_config_linux.h"
-#include "components/os_crypt/sync/os_crypt.h"
-#endif
 
 namespace cobalt {
 
@@ -65,78 +51,7 @@ constexpr base::FilePath::CharType kTransportSecurityPersisterFilename[] =
 constexpr base::FilePath::CharType kTrustTokenFilename[] =
     FILE_PATH_LITERAL("Trust Tokens");
 
-base::FilePath GetCacheDirectory() {
-  std::string path;
-  path.resize(kSbFileMaxPath);
-  if (!SbSystemGetPath(kSbSystemPathCacheDirectory, path.data(),
-                       kSbFileMaxPath)) {
-    NOTREACHED() << "Failed to get cache directory.";
-    return base::FilePath();
-  }
-  return base::FilePath(path.data());
-}
-
 }  // namespace
-
-// TODO(b/390021478): When CobaltContentBrowserClient stops deriving from
-// ShellContentBrowserClient, this should implement BrowserMainParts.
-class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
- public:
-  CobaltBrowserMainParts() = default;
-
-  CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
-  CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
-
-  ~CobaltBrowserMainParts() override = default;
-
-  // ShellBrowserMainParts overrides.
-  int PreCreateThreads() override {
-    metrics_ = std::make_unique<CobaltMetricsServiceClient>();
-    // TODO(b/372559349): Double check that this initializes UMA collection,
-    // similar to what ChromeBrowserMainParts::StartMetricsRecording() does.
-    // It might need to be moved to other parts, e.g. PreMainMessageLoopRun().
-    metrics_->Start();
-    return ShellBrowserMainParts::PreCreateThreads();
-  }
-
-// TODO(cobalt, b/383301493): we should consider moving any ATV-specific
-// behaviors into an ATV implementation of BrowserMainParts. For example, see
-// Chrome's ChromeBrowserMainPartsAndroid.
-#if BUILDFLAG(IS_ANDROIDTV)
-  void PostCreateThreads() override {
-    // TODO(cobalt, b/383301493): this looks like a reasonable stage at which to
-    // register these interfaces and it seems to work. But we may want to
-    // consider if there's a more suitable stage.
-    RegisterCobaltJavaMojoInterfaces();
-    ShellBrowserMainParts::PostCreateThreads();
-  }
-#endif  // BUILDFLAG(IS_ANDROIDTV)
-
-#if BUILDFLAG(IS_LINUX)
-  void PostCreateMainMessageLoop() override {
-    // Set up crypt config. This needs to be done before anything starts the
-    // network service, as the raw encryption key needs to be shared with the
-    // network service for encrypted cookie storage.
-    // Chrome OS does not need a crypt config as its user data directories are
-    // already encrypted and none of the true encryption backends used by
-    // desktop Linux are available on Chrome OS anyway.
-    std::unique_ptr<os_crypt::Config> config =
-        std::make_unique<os_crypt::Config>();
-    // Forward the product name
-    config->product_name = "Cobalt";
-    // OSCrypt may target keyring, which requires calls from the main thread.
-    config->main_thread_runner = content::GetUIThreadTaskRunner({});
-    // OSCrypt can be disabled in a special settings file.
-    config->should_use_preference = false;
-    config->user_data_path = GetCacheDirectory();
-    OSCrypt::SetConfig(std::move(config));
-    ShellBrowserMainParts::PostCreateMainMessageLoop();
-  }
-#endif  // BUILDFLAG(IS_LINUX)
-
- private:
-  std::unique_ptr<CobaltMetricsServiceClient> metrics_;
-};
 
 std::string GetCobaltUserAgent() {
 // TODO: (cobalt b/375243230) enable UserAgentPlatformInfo on Linux.
@@ -250,7 +165,7 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
     network::mojom::NetworkContextParams* network_context_params,
     cert_verifier::mojom::CertVerifierCreationParams*
         cert_verifier_creation_params) {
-  base::FilePath base_cache_path = GetCacheDirectory();
+  base::FilePath base_cache_path = context->GetPath();
   base::FilePath path = base_cache_path.Append(relative_partition_path);
   network_context_params->user_agent = GetCobaltUserAgent();
   network_context_params->enable_referrers = true;
@@ -353,6 +268,31 @@ void CobaltContentBrowserClient::BindGpuHostReceiver(
   if (auto r = receiver.As<media::mojom::VideoGeometrySetter>()) {
     video_geometry_setter_service_->GetVideoGeometrySetter(std::move(r));
   }
+}
+
+bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
+    content::BrowserContext* browser_context,
+    content::RenderFrameHost* frame,
+    int render_process_id,
+    URLLoaderFactoryType type,
+    const url::Origin& request_initiator,
+    absl::optional<int64_t> navigation_id,
+    ukm::SourceIdObj ukm_source_id,
+    mojo::PendingReceiver<network::mojom::URLLoaderFactory>* factory_receiver,
+    mojo::PendingRemote<network::mojom::TrustedURLLoaderHeaderClient>*
+        header_client,
+    bool* bypass_redirect_checks,
+    bool* disable_secure_dns,
+    network::mojom::URLLoaderFactoryOverridePtr* factory_override) {
+  if (header_client) {
+    auto receiver = header_client->InitWithNewPipeAndPassReceiver();
+    auto cobalt_header_client =
+        std::make_unique<browser::CobaltTrustedURLLoaderHeaderClient>(
+            std::move(receiver));
+    cobalt_header_clients_.push_back(std::move(cobalt_header_client));
+  }
+
+  return true;
 }
 
 }  // namespace cobalt
