@@ -1784,7 +1784,6 @@ component("base") {
       # struct mallinfo minfo = mallinfo();
       "process/process_metrics_posix.cc",
       "scoped_native_library.cc",
-      "sync_socket_posix.cc",
 
       # base/posix/unix_domain_socket.cc:91:22: error: implicit conversion loses integer precision:
       "posix/unix_domain_socket.cc",

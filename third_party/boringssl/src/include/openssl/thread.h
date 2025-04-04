@@ -61,6 +61,10 @@
 
 #include <openssl/base.h>
 
+#if BUILDFLAG(IS_STARBOARD)
+#include <pthread.h>
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif

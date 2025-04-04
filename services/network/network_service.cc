@@ -390,7 +390,7 @@ void NetworkService::Initialize(mojom::NetworkServiceParamsPtr params,
               params->initial_connection_subtype),
           mock_network_change_notifier);
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
   if (params->initial_address_map) {
     // The NetworkChangeNotifierPassive should only be included if it's
     // necessary to instantiate an AddressMapCacheLinux rather than an

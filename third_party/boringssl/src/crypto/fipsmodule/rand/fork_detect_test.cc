@@ -34,6 +34,10 @@
 
 #include "fork_detect.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include <sys/wait.h>
+#endif
+
 
 static pid_t WaitpidEINTR(pid_t pid, int *out_status, int options) {
   pid_t ret;
