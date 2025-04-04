@@ -19,6 +19,7 @@ import static dev.cobalt.util.Log.TAG;
 import android.util.Base64;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.UsedByNative;
+import org.chromium.content_public.browser.WebContents;
 
 /** Abstract class that provides an interface for Cobalt to interact with a platform service. */
 public abstract class CobaltService {
@@ -27,6 +28,7 @@ public abstract class CobaltService {
   private final Object lock = new Object();
   private StarboardBridge bridge;
   protected CobaltActivity cobaltActivity;
+  private WebContents webContents;
 
   /** Interface that returns an object that extends CobaltService. */
   public interface Factory {
@@ -40,8 +42,8 @@ public abstract class CobaltService {
   /** Take in a reference to StarboardBridge & use it as needed. Default behavior is no-op. */
   public void receiveStarboardBridge(StarboardBridge bridge) {}
 
-  public void setCobaltActivity(CobaltActivity cobaltActivity) {
-    this.cobaltActivity = cobaltActivity;
+  public void setWebContents(WebContents webContents) {
+    this.webContents = webContents;
   }
 
   // Lifecycle
@@ -96,8 +98,8 @@ public abstract class CobaltService {
    * Send data from the service to the client.
    */
   protected void sendToClient(long nativeService, byte[] data) {
-    if (this.cobaltActivity == null) {
-      Log.e(TAG, "CobaltActivity is null, can not run evaluateJavaScript()");
+    if (this.webContents == null) {
+      Log.e(TAG, "webContents is null, can not run evaluateJavaScript()");
       return;
     }
 
@@ -120,6 +122,7 @@ public abstract class CobaltService {
       + "})(window)";
 
     String jsCode = String.format(jsCodeTemplate, nativeService, base64Data);
-    this.cobaltActivity.evaluateJavaScript(jsCode);
+
+    this.webContents.evaluateJavaScript(jsCode, null);
   }
 }
