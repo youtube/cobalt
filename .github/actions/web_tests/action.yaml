@@ -1,0 +1,42 @@
+name: Web Tests
+description: Runs Blink Web Tests.
+inputs:
+  test_artifacts_key:
+    description: "Artifact key used to store test artifacts."
+    required: true
+  # test_results_key:
+  #   description: "Artifact key used to store test results."
+  #   required: true
+  # num_gtest_shards:
+  #   description: "Total number of shards used to run the steps in this file."
+  #   required: true
+runs:
+  using: "composite"
+  steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: ${{ inputs.test_artifacts_key }}
+    - name: Extract Artifacts
+      shell: bash
+      run: |
+        set -x
+        cd src
+        tar xvf ../test_artifacts.tar.gz
+    - name: Run Web Tests
+      id: run-tests
+      shell: bash
+      run: |
+        set -x
+        env
+
+        cd src
+
+        # Explicitly point to libraries in extracted dir.
+        LD_LIBRARY_PATH="${GITHUB_WORKSPACE}/src/out/${{ matrix.platform}}_${{ matrix.config }}/starboard"
+        LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${GITHUB_WORKSPACE}/src/out/${{ matrix.platform}}_${{ matrix.config }}"
+        export LD_LIBRARY_PATH
+
+        ${GITHUB_WORKSPACE}/src/third_party/blink/tools/run_web_tests.py -t linux-x64x11-no-starboard_devel wpt_internal/cobalt/crash-log
+
+        echo "Finished running tests..."
