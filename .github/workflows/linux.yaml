@@ -54,3 +54,14 @@ jobs:
       nightly: ${{ github.event.inputs.nightly }}
     secrets:
       datadog_api_key: ${{ secrets.DD_API_KEY }}
+  # This is content_shell without starboard
+  linux-web-tests:
+    uses: ./.github/workflows/main.yaml
+    permissions:
+      packages: write
+      pull-requests: write
+    with:
+      platform: linux-web-tests
+      nightly: ${{ github.event.inputs.nightly }}
+    secrets:
+      datadog_api_key: ${{ secrets.DD_API_KEY }}

@@ -202,7 +202,7 @@ test("media_unittests") {
     "//media/webrtc:unit_tests",
   ]
 
-  if (is_cobalt) {
+  if (is_cobalt && use_starboard_media) {
     # TODO(cobalt, b/379934658): add starboard_renderer_test.
     deps += ["//media/starboard:unit_tests"]
   }
