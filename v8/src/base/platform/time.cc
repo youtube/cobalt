@@ -780,16 +780,7 @@ bool TimeTicks::IsHighResolution() {
 
 bool ThreadTicks::IsSupported() {
 #if V8_OS_STARBOARD
-#if SB_API_VERSION >= 12
-  return SbTimeIsTimeThreadNowSupported();
-#elif SB_HAS(TIME_THREAD_NOW)
-  return true;
-#else
-  return false;
-#endif
-#elif defined(__PASE__)
-  // Thread CPU time accounting is unavailable in PASE
-  return false;
+  return starboard::CurrentMonotonicThreadTime() != 0;
 #elif(defined(_POSIX_THREAD_CPUTIME) && (_POSIX_THREAD_CPUTIME >= 0)) || \
     defined(V8_OS_DARWIN) || defined(V8_OS_ANDROID) || defined(V8_OS_SOLARIS)
   return true;
@@ -803,15 +794,10 @@ bool ThreadTicks::IsSupported() {
 
 ThreadTicks ThreadTicks::Now() {
 #if V8_OS_STARBOARD
-#if SB_API_VERSION >= 12
-  if (SbTimeIsTimeThreadNowSupported())
-    return ThreadTicks(SbTimeGetMonotonicThreadNow());
+  int64_t now = starboard::CurrentMonotonicThreadTime();
+  if (now != 0)
+    return ThreadTicks(now);
   UNREACHABLE();
-#elif SB_HAS(TIME_THREAD_NOW)
-  return ThreadTicks(SbTimeGetMonotonicThreadNow());
-#else
-  UNREACHABLE();
-#endif
 #elif V8_OS_DARWIN
   return ThreadTicks(ComputeThreadTicks());
 #elif V8_OS_FUCHSIA

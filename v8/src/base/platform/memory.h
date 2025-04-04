@@ -59,7 +59,7 @@ inline void Free(void* memory) {
 //   return free(memory);
 // #else   // !V8_OS_STARBOARD
   return free(memory);
-#endif  // !V8_OS_STARBOARD
+// #endif  // !V8_OS_STARBOARD
 }
 
 inline void* Calloc(size_t count, size_t size) {

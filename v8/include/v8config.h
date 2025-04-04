@@ -86,6 +86,7 @@ path. Add it with -I<path> to the command line
 #if defined(STARBOARD)
 # define V8_OS_STARBOARD 1
 # define V8_OS_STRING "starboard"
+# define V8_OS_POSIX 1
 
 #elif defined(__ANDROID__)
 # define V8_OS_ANDROID 1

@@ -18,11 +18,11 @@
 namespace v8::base {
 
 inline char* Strdup(const char* source) {
-#if V8_OS_STARBOARD
-  return SbStringDuplicate(source);
-#else
+// #if V8_OS_STARBOARD
+//   return SbStringDuplicate(source);
+// #else
   return strdup(source);
-#endif
+// #endif
 }
 
 inline FILE* Fopen(const char* filename, const char* mode) {
