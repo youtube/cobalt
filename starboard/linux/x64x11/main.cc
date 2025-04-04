@@ -25,7 +25,6 @@
 #include "starboard/elf_loader/elf_loader_constants.h"
 #include "starboard/shared/starboard/command_line.h"
 #endif
-#include "starboard/shared/starboard/link_receiver.h"
 #include "starboard/shared/x11/application_x11.h"
 
 #include "starboard/crashpad_wrapper/wrapper.h"
