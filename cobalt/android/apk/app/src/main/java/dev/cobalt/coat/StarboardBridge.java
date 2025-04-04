@@ -674,7 +674,7 @@ public class StarboardBridge {
 
       Activity activity = activityHolder.get();
       if (activity instanceof CobaltActivity) {
-        service.setCobaltActivity((CobaltActivity) activity);
+        service.setWebContents(((CobaltActivity) activity).getActiveWebContents());
       }
     }
     return service;
