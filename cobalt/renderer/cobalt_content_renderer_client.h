@@ -47,7 +47,7 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   // JS Injection hook
   void RunScriptsAtDocumentStart(content::RenderFrame* render_frame) override;
   void GetStarboardRendererFactoryTraits(
-      media::RendererFactoryTraits* traits) override;
+      ::media::RendererFactoryTraits* traits) override;
 
   // Bind Host Receiver to VideoGeometryChangeSubscriber on Browser thread.
   // This is called from StarboardRenderer with |BindPostTaskToCurrentDefault|
