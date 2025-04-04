@@ -13,9 +13,10 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 
-#if V8_OS_STARBOARD
-#include "starboard/memory.h"
-#endif  // V8_OS_STARBOARD
+// // ../../v8/src/base/platform/memory.h:17:10: fatal error: 'starboard/memory.h' file not found
+// #if V8_OS_STARBOARD
+// #include "starboard/memory.h"
+// #endif  // V8_OS_STARBOARD
 
 #if V8_OS_DARWIN
 #include <malloc/malloc.h>
@@ -31,7 +32,7 @@ namespace v8::base {
 
 inline void* Malloc(size_t size) {
 #if V8_OS_STARBOARD
-  return SbMemoryAllocate(size);
+  return malloc(size);
 #elif V8_OS_AIX && _LINUX_SOURCE_COMPAT
   // Work around for GCC bug on AIX.
   // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
@@ -43,7 +44,7 @@ inline void* Malloc(size_t size) {
 
 inline void* Realloc(void* memory, size_t size) {
 #if V8_OS_STARBOARD
-  return SbMemoryReallocate(memory, size);
+  return realloc(memory, size);
 #elif V8_OS_AIX && _LINUX_SOURCE_COMPAT
   // Work around for GCC bug on AIX, see Malloc().
   // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
@@ -54,16 +55,16 @@ inline void* Realloc(void* memory, size_t size) {
 }
 
 inline void Free(void* memory) {
-#if V8_OS_STARBOARD
-  return SbMemoryDeallocate(memory);
-#else   // !V8_OS_STARBOARD
+// #if V8_OS_STARBOARD
+//   return free(memory);
+// #else   // !V8_OS_STARBOARD
   return free(memory);
 #endif  // !V8_OS_STARBOARD
 }
 
 inline void* Calloc(size_t count, size_t size) {
 #if V8_OS_STARBOARD
-  return SbMemoryCalloc(count, size);
+  return calloc(count, size);
 #elif V8_OS_AIX && _LINUX_SOURCE_COMPAT
   // Work around for GCC bug on AIX, see Malloc().
   return __linux_calloc(count, size);
@@ -83,8 +84,8 @@ inline void* AlignedAlloc(size_t size, size_t alignment) {
   // posix_memalign is not exposed in some Android versions, so we fall back to
   // memalign. See http://code.google.com/p/android/issues/detail?id=35391.
   return memalign(alignment, size);
-#elif V8_OS_STARBOARD
-  return SbMemoryAllocateAligned(alignment, size);
+// #elif V8_OS_STARBOARD
+//   return SbMemoryAllocateAligned(alignment, size);
 #else   // POSIX
   void* ptr;
   if (posix_memalign(&ptr, alignment, size)) ptr = nullptr;
@@ -95,8 +96,8 @@ inline void* AlignedAlloc(size_t size, size_t alignment) {
 inline void AlignedFree(void* ptr) {
 #if V8_OS_WIN
   _aligned_free(ptr);
-#elif V8_OS_STARBOARD
-  SbMemoryFreeAligned(ptr);
+// #elif V8_OS_STARBOARD
+//   SbMemoryFreeAligned(ptr);
 #else
   // Using regular Free() is not correct in general. For most platforms,
   // including V8_LIBC_BIONIC, it is though.

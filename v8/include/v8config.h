@@ -83,7 +83,11 @@ path. Add it with -I<path> to the command line
 //  V8_OS_AIX           - AIX
 //  V8_OS_WIN           - Microsoft Windows
 
-#if defined(__ANDROID__)
+#if defined(STARBOARD)
+# define V8_OS_STARBOARD 1
+# define V8_OS_STRING "starboard"
+
+#elif defined(__ANDROID__)
 # define V8_OS_ANDROID 1
 # define V8_OS_LINUX 1
 # define V8_OS_POSIX 1
@@ -115,10 +119,6 @@ path. Add it with -I<path> to the command line
 # define V8_OS_POSIX 1
 # define V8_OS_SOLARIS 1
 # define V8_OS_STRING "sun"
-
-#elif defined(STARBOARD)
-# define V8_OS_STARBOARD 1
-# define V8_OS_STRING "starboard"
 
 #elif defined(_AIX)
 # define V8_OS_POSIX 1
