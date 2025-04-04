@@ -685,7 +685,7 @@ scoped_refptr<Channel> Channel::Create(
     ConnectionParams connection_params,
     HandlePolicy handle_policy,
     scoped_refptr<base::SingleThreadTaskRunner> io_task_runner) {
-#if !BUILDFLAG(IS_NACL) && \
+#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD) && \
     (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID))
   return new ChannelLinux(delegate, std::move(connection_params), handle_policy,
                           io_task_runner);
@@ -695,7 +695,7 @@ scoped_refptr<Channel> Channel::Create(
 #endif
 }
 
-#if !BUILDFLAG(IS_NACL)
+#if !BUILDFLAG(IS_NACL) && !BUILDFLAG(IS_STARBOARD)
 #if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID))
 // static
 bool Channel::SupportsChannelUpgrade() {
