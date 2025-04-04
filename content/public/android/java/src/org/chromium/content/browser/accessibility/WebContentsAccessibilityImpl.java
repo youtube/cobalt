@@ -784,7 +784,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         // |AccessibilityNodeProvider| object before returning.
 
         // TODO (b/391708407): bypass Chromium's a11y, this can be reverted when Cobalt can safely use Chromium's a11y.
-        if (ContentFeatureList.isEnabled(ContentFeatureList.DO_NOT_GENERATE_CHROMIUM_A11Y_TREE)) {
+        if (ContentFeatureMap.isEnabled(ContentFeatureList.DO_NOT_GENERATE_CHROMIUM_A11Y_TREE)) {
            return null;
         }
 
