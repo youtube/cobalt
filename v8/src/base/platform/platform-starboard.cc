@@ -23,6 +23,8 @@
 #include "starboard/common/time.h"
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
+#include "starboard/memory.h"
+#include "starboard/common/time.h"
 #include "starboard/time_zone.h"
 
 #include "sys/mman.h"
