@@ -19,7 +19,7 @@
 #include "starboard/configuration.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/memory.h"
-#include "starboard/time.h"
+#include "starboard/common/time.h"
 #include "starboard/time_zone.h"
 
 namespace v8 {

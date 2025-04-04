@@ -41,7 +41,7 @@
 #include "src/base/platform/platform.h"
 
 #if V8_OS_STARBOARD
-#include "starboard/time.h"
+#include "starboard/common/time.h"
 #endif
 
 namespace {
