@@ -48,7 +48,7 @@ TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
   for (int i = 0; i < kTrials; ++i) {
     // We can't assume filesystem timestamp precision, so go back a minute
     // for a better chance to contain the imprecision and rounding errors.
-    const int64_t kOneSecondInMicroseconds = 1'000'000;
+    const int64_t kOneMinuteInMicroseconds = 60'000'000;
     int64_t time = PosixTimeToWindowsTime(CurrentPosixTime());
 
     const int kFileSize = 12;
@@ -62,11 +62,11 @@ TEST(PosixFileGetPathInfoTest, WorksOnARegularFile) {
       EXPECT_FALSE(S_ISDIR(file_info.st_mode));
       EXPECT_FALSE(S_ISLNK(file_info.st_mode));
       EXPECT_NEAR(time, TimeTToWindowsUsecTest(file_info.st_mtime),
-                  kOneSecondInMicroseconds);
+                  kOneMinuteInMicroseconds);
       EXPECT_NEAR(time, TimeTToWindowsUsecTest(file_info.st_atime),
-                  kOneSecondInMicroseconds);
+                  kOneMinuteInMicroseconds);
       EXPECT_NEAR(time, TimeTToWindowsUsecTest(file_info.st_ctime),
-                  kOneSecondInMicroseconds);
+                  kOneMinuteInMicroseconds);
     }
   }
 }
