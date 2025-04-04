@@ -31,6 +31,8 @@ public class ContentFeatureList {
 
     public static final String MOUSE_AND_TRACKPAD_DROPDOWN_MENU = "MouseAndTrackpadDropdownMenu";
 
+    public static final String DO_NOT_GENERATE_CHROMIUM_A11Y_TREE = "DoNotGenerateChromiumA11yTree";
+
     public static final String OPTIMIZE_IMM_HIDE_CALLS = "OptimizeImmHideCalls";
 
     public static final String PROCESS_SHARING_WITH_STRICT_SITE_INSTANCES =
