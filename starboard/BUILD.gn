@@ -183,7 +183,6 @@ source_set("starboard_headers_only") {
     "player.h",
     "queue.h",
     "socket.h",
-    "socket_waiter.h",
     "storage.h",
     "system.h",
     "thread.h",

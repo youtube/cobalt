@@ -25,8 +25,8 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
-#include "starboard/nplb/socket_helpers.h"
 #include "starboard/socket.h"
+#include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
 namespace nplb {
@@ -36,6 +36,8 @@ const int kMaxConn = SOMAXCONN;
 #else
 const int kMaxConn = 128;
 #endif
+
+const int64_t kSocketTimeout = 200'000;  // 200ms
 
 int PosixSocketCreateAndConnect(int server_domain,
                                 int client_domain,
