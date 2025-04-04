@@ -38,6 +38,7 @@ bool DecodeAudioFileData(blink::WebAudioBus* destination_bus,
       media::WavAudioHandler::Create(base::StringPiece(data, data_size));
 
   if (!handler) {
+    LOG(ERROR) << "Failed to create WavAudioHandler.";
     return false;
   }
 
