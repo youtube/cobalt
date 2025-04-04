@@ -30,7 +30,7 @@
 
 #include "third_party/crashpad/crashpad/wrapper/wrapper.h"
 
-extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
+int preinit_starboard(int argc, char** argv) {
   // Set M_ARENA_MAX to a low value to slow memory growth due to fragmentation.
   mallopt(M_ARENA_MAX, 2);
 
@@ -61,19 +61,39 @@ extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
   // crash bugs in glibc, in dlopen()
   SbLogRawDumpStack(3);
 #endif
-
-#if SB_API_VERSION >= 15
-  int result = SbRunStarboardMain(argc, argv, SbEventHandle);
-#else
-  starboard::shared::x11::ApplicationX11 application;
-  int result = 0;
-  {
-    starboard::shared::starboard::LinkReceiver receiver(&application);
-    result = application.Run(argc, argv);
-  }
-#endif  // SB_API_VERSION >= 15
+  return 0;
+}
+int post_starboard() {
   starboard::shared::signal::UninstallSuspendSignalHandlers();
   starboard::shared::signal::UninstallDebugSignalHandlers();
   starboard::shared::signal::UninstallCrashSignalHandlers();
+  return 0;
+}
+
+extern "C" SB_EXPORT_PLATFORM int main(int argc, char** argv) {
+  preinit_starboard(argc, argv);
+  // Previous code
+  // int result = SbRunStarboardMain(argc, argv, SbEventHandle);
+  int result = 0;
+
+  // Code taken out from SbRunStarboardMain
+  if (false) {
+    // Current/Old version
+    starboard::shared::x11::ApplicationX11 application(SbEventHandle);
+    result = application.Run(argc, argv);
+  } else {
+    // non-blocking version, with loop owned by caller
+    starboard::shared::x11::ApplicationX11 application(SbEventHandle, false);
+    result = application.Run(argc, argv);
+
+    // Loop taken out and broken
+    application.RunLoop_Part0();
+    // This does nothing but DispatchNextEvent()
+    while (application.RunLoop_Part1()) {
+    }
+    application.RunLoop_Part2();
+  }
+
+  post_starboard();
   return result;
 }
