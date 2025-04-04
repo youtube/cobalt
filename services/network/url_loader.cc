@@ -555,6 +555,11 @@ URLLoader::URLLoader(
               perfetto::Flow::FromPointer(this));
   DCHECK(delete_callback_);
 
+#if BUILDFLAG(IS_COBALT)
+  options_ |= mojom::kURLLoadOptionUseHeaderClient;
+  options_ |= mojom::kURLLoadOptionAsCorsPreflight;
+#endif
+
   mojom::TrustedURLLoaderHeaderClient* url_loader_header_client =
       context.GetUrlLoaderHeaderClient();
   if (url_loader_header_client &&
