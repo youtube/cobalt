@@ -43,6 +43,11 @@ TEST_F(NodeChannelTest, DestructionIsSafe) {
   PlatformChannel channel;
   auto local_channel =
       CreateNodeChannel(&local_delegate_, channel.TakeLocalEndpoint());
+#if BUILDFLAG(IS_STARBOARD)
+  if (!local_channel) {
+    GTEST_SKIP() << "Multiprocess tests not yet supported by Starboard.";
+  }
+#endif
   local_channel->Start();
   auto remote_channel =
       CreateNodeChannel(&remote_delegate_, channel.TakeRemoteEndpoint());
@@ -78,6 +83,11 @@ TEST_F(NodeChannelTest, MessagesCannotBeSmallerThanOldestVersion) {
   PlatformChannel channel;
   auto local_channel =
       CreateNodeChannel(&local_delegate_, channel.TakeLocalEndpoint());
+#if BUILDFLAG(IS_STARBOARD)
+  if (!local_channel) {
+    GTEST_SKIP() << "Multiprocess tests not yet supported by Starboard.";
+  }
+#endif
   local_channel->Start();
   auto remote_channel =
       CreateNodeChannel(&remote_delegate_, channel.TakeRemoteEndpoint());
