@@ -31,6 +31,11 @@ class MEDIA_GPU_EXPORT CodecOutputBufferRenderer
       std::unique_ptr<CodecOutputBuffer> output_buffer,
       scoped_refptr<CodecBufferWaitCoordinator> codec_buffer_wait_coordinator,
       scoped_refptr<gpu::RefCountedLock> drdc_lock);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  CodecOutputBufferRenderer(
+      scoped_refptr<CodecBufferWaitCoordinator> codec_buffer_wait_coordinator,
+      scoped_refptr<gpu::RefCountedLock> drdc_lock);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   ~CodecOutputBufferRenderer();
 
   CodecOutputBufferRenderer(const CodecOutputBufferRenderer&) = delete;
@@ -69,11 +74,19 @@ class MEDIA_GPU_EXPORT CodecOutputBufferRenderer
     return phase_ == Phase::kInFrontBuffer;
   }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  gfx::Size size() const { return size_; }
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
   gfx::Size size() const { return output_buffer_->size(); }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Color space of the image.
   const gfx::ColorSpace& color_space() const {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    return color_space_;
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     return output_buffer_->color_space();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
   bool was_tex_image_bound() const { return was_tex_image_bound_; }
@@ -85,7 +98,11 @@ class MEDIA_GPU_EXPORT CodecOutputBufferRenderer
   }
 
   CodecOutputBuffer* get_codec_output_buffer_for_testing() const {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    return nullptr;
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     return output_buffer_.get();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   }
 
  private:
@@ -114,6 +131,11 @@ class MEDIA_GPU_EXPORT CodecOutputBufferRenderer
   scoped_refptr<CodecBufferWaitCoordinator> codec_buffer_wait_coordinator_;
 
   bool was_tex_image_bound_ = false;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  gfx::Size size_ = gfx::Size(0, 0);
+  gfx::ColorSpace color_space_ = gfx::ColorSpace::CreateSRGB();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media

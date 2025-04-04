@@ -17,9 +17,15 @@
 #include "base/logging.h"
 #include "base/trace_event/trace_event.h"
 #include "media/base/audio_codecs.h"
+#include "media/base/timestamp_constants.h"
 #include "media/base/video_codecs.h"
 #include "starboard/common/media.h"
 #include "starboard/common/player.h"
+
+#if BUILDFLAG(IS_ANDROID)
+#include "ui/gfx/color_space.h"
+#include "ui/gl/gl_bindings.h"
+#endif  // BUILDFLAG(IS_ANDROID)
 
 namespace media {
 
@@ -414,9 +420,12 @@ TimeDelta StarboardRenderer::GetMediaTime() {
   return media_time;
 }
 
-void StarboardRenderer::set_paint_video_hole_frame_callback(
-    PaintVideoHoleFrameCallback paint_video_hole_frame_cb) {
+void StarboardRenderer::SetStarboardRendererCallbacks(
+    PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
+    UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb) {
   paint_video_hole_frame_cb_ = std::move(paint_video_hole_frame_cb);
+  update_starboard_rendering_mode_cb_ =
+      std::move(update_starboard_rendering_mode_cb);
 }
 
 void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
@@ -475,8 +484,8 @@ void StarboardRenderer::CreatePlayerBridge() {
     player_bridge_.reset(new SbPlayerBridge(
         &sbplayer_interface_, task_runner_,
         // TODO(b/375070492): Implement decode-to-texture support
-        SbPlayerBridge::GetDecodeTargetGraphicsContextProviderFunc(),
-        audio_config, audio_mime_type, video_config, video_mime_type,
+        get_decode_target_graphics_context_provider_func_, audio_config,
+        audio_mime_type, video_config, video_mime_type,
         // TODO(b/326497953): Support suspend/resume.
         // TODO(b/326508279): Support background mode.
         kSbWindowInvalid, drm_system_, this, set_bounds_helper_.get(),
@@ -484,7 +493,7 @@ void StarboardRenderer::CreatePlayerBridge() {
         false,
         // TODO(b/326825450): Revisit 360 videos.
         // TODO(b/326827007): Support secondary videos.
-        kSbPlayerOutputModeInvalid,
+        kSbPlayerOutputModeDecodeToTexture,  // kSbPlayerOutputModeInvalid,
         // TODO(b/326827007): Support secondary videos.
         "",
         // TODO(b/326654546): Revisit HTMLVideoElement.setMaxVideoInputSize.
@@ -507,6 +516,16 @@ void StarboardRenderer::CreatePlayerBridge() {
   }
 
   if (player_bridge_ && player_bridge_->IsValid()) {
+    if (player_bridge_->GetSbPlayerOutputMode() ==
+        kSbPlayerOutputModeDecodeToTexture) {
+      update_starboard_rendering_mode_cb_.Run(
+          StarboardRenderingMode::kDecodeToTexture);
+    } else if (player_bridge_->GetSbPlayerOutputMode() ==
+               kSbPlayerOutputModePunchOut) {
+      update_starboard_rendering_mode_cb_.Run(
+          StarboardRenderingMode::kPunchOut);
+    }
+
     if (audio_stream_) {
       UpdateDecoderConfig(audio_stream_);
     }
@@ -918,6 +937,22 @@ int StarboardRenderer::GetEstimatedMaxBuffers(TimeDelta write_duration,
   // The maximum number samples of write should be guarded by
   // SbPlayerGetMaximumNumberOfSamplesPerWrite() in OnNeedData().
   return estimated_max_buffers > 0 ? estimated_max_buffers : 1;
+}
+
+SbDecodeTarget StarboardRenderer::GetSbDecodeTarget() {
+  if (player_bridge_ && player_bridge_->IsValid()) {
+    DCHECK(player_bridge_->GetSbPlayerOutputMode() ==
+           kSbPlayerOutputModeDecodeToTexture);
+    return player_bridge_->GetCurrentSbDecodeTarget();
+  }
+  return kSbDecodeTargetInvalid;
+}
+
+void StarboardRenderer::set_decode_target_graphics_context_provider(
+    const GetDecodeTargetGraphicsContextProviderFunc&
+        get_decode_target_graphics_context_provider_func) {
+  get_decode_target_graphics_context_provider_func_ =
+      get_decode_target_graphics_context_provider_func;
 }
 
 }  // namespace media
