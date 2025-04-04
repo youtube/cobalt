@@ -30,8 +30,11 @@ public class ContentFeatureList {
             "BackgroundMediaRendererHasModerateBinding";
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     public static final String MOUSE_AND_TRACKPAD_DROPDOWN_MENU = "MouseAndTrackpadDropdownMenu";
 =======
+=======
+>>>>>>> ebd25df73d57 (Stop creating a11y node provder for Chrobalt (#5271))
     public static final String DO_NOT_GENERATE_CHROMIUM_A11Y_TREE = "DoNotGenerateChromiumA11yTree";
 
     public static final String ON_DEMAND_ACCESSIBILITY_EVENTS = "OnDemandAccessibilityEvents";
