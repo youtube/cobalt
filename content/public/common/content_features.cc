@@ -1419,12 +1419,18 @@ BASE_FEATURE(kReduceGpuPriorityOnBackground,
 // it won't work.
 BASE_FEATURE(kUserMediaScreenCapturing,
              "UserMediaScreenCapturing",
+
 #if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+
+BASE_FEATURE(kDoNotGenerateChromiumA11yTree,
+             "DoNotGenerateChromiumA11yTree",
+             BUILDFLAG(IS_COBALT) ? base::FEATURE_ENABLED_BY_DEFAULT
+                                   : base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_MAC)
