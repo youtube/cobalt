@@ -16,6 +16,7 @@
     "net",
     "net_unittests",
     "nplb",
+    "skia",
     "sql_unittests",
     "trace_processor_minimal_smoke_tests",
     "url_unittests",
