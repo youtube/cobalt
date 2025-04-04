@@ -48,7 +48,6 @@
 #include "starboard/shared/modular/starboard_layer_posix_time_abi_wrappers.h"
 #include "starboard/shared/modular/starboard_layer_posix_unistd_abi_wrappers.h"
 #include "starboard/socket.h"
-#include "starboard/socket_waiter.h"
 #include "starboard/speech_synthesis.h"
 #include "starboard/storage.h"
 #include "starboard/system.h"
@@ -147,15 +146,6 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(SbPlayerSetVolume);
   REGISTER_SYMBOL(SbPlayerWriteEndOfStream);
   REGISTER_SYMBOL(SbPlayerWriteSamples);
-  REGISTER_SYMBOL(SbSocketWaiterAdd);
-  REGISTER_SYMBOL(SbSocketWaiterCreate);
-  REGISTER_SYMBOL(SbSocketWaiterDestroy);
-  REGISTER_SYMBOL(SbSocketWaiterRemove);
-  REGISTER_SYMBOL(SbSocketWaiterWait);
-  REGISTER_SYMBOL(SbSocketWaiterWaitTimed);
-  REGISTER_SYMBOL(SbSocketWaiterWakeUp);
-  REGISTER_SYMBOL(SbPosixSocketWaiterAdd);
-  REGISTER_SYMBOL(SbPosixSocketWaiterRemove);
   REGISTER_SYMBOL(SbSpeechSynthesisCancel);
   REGISTER_SYMBOL(SbSpeechSynthesisIsSupported);
   REGISTER_SYMBOL(SbSpeechSynthesisSpeak);
