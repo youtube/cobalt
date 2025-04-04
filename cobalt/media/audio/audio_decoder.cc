@@ -36,7 +36,12 @@ bool DecodeAudioFileData(blink::WebAudioBus* destination_bus,
   LOG(INFO) << "Cobalt WAV decoder initializing..";
   auto handler =
       media::WavAudioHandler::Create(base::StringPiece(data, data_size));
-  ;
+
+  if (!handler) {
+    LOG(ERROR) << "Failed to create WavAudioHandler.";
+    return false;
+  }
+
   std::unique_ptr<media::AudioBus> bus = media::AudioBus::Create(
       handler->GetNumChannels(),
       handler->data().size() / handler->GetNumChannels());
