@@ -36,7 +36,6 @@
 
 #include <gtest/gtest.h>
 
-
 static pid_t WaitpidEINTR(pid_t pid, int *out_status, int options) {
   pid_t ret;
   do {
