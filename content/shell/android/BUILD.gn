@@ -29,7 +29,7 @@ shared_library("libcontent_shell_content_view") {
     "//skia",
   ]
 
-  if(!is_cobalt) {
+  if (!is_cobalt) {
     deps += [
       "//components/crash/content/browser",
     ]
