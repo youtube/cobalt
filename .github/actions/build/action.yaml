@@ -35,19 +35,18 @@ runs:
       - name: Get list of changed files
         if: github.event_name == 'pull_request'
         id: changed-files
+        env:
+          CHANGED_FILES_LIST: changed_files.txt
         run: |
           set -x
           cd src
-          changed_files=($(git diff --name-only -r ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }}))
-          # Convert the bash array to a JSON array.
-          changed_files_json=$(jq -nc '$ARGS.positional' --args ${changed_files[@]})
-          echo "changed_files_json=${changed_files_json}" >> $GITHUB_OUTPUT
+          git diff --name-only -r ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > ${CHANGED_FILES_LIST}
         shell: bash
       - name: Calculate test targets
         if: matrix.config == 'devel' && inputs.test_root_target != 'null'
         id: calculate-test-targets
         env:
-          CHANGED_FILES_JSON: ${{ steps.changed-files.outputs.changed_files_json }}
+          CHANGED_FILES_LIST: changed_files.txt
           ROOT_TARGET: ${{ inputs.test_root_target }}
           STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
           # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
@@ -60,9 +59,12 @@ runs:
           sed -n '/^{/,$p' -i gn_desc.json
 
           changed_files_arg=""
-          if [[ -n "${CHANGED_FILES_JSON}" ]]; then
-            changed_files_arg="--sources $(echo ${CHANGED_FILES_JSON} | jq -cr '. | join(",")')"
-          fi
+
+          # TODO(oxv): If this list is too it will blow out the command line. Pass list in a file to the script instead.
+          # Since the output of the script below isn't currently used the arg is disabled.
+          # if [[ -s "${CHANGED_FILES_LIST}" ]]; then
+          #   changed_files_arg="--sources $(cat ${CHANGED_FILES_LIST} | jq -cr '. | join(",")')"
+          # fi
 
           vpython3 cobalt/build/test_targets.py \
               --root-target "${ROOT_TARGET}" \
