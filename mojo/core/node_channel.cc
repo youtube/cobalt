@@ -253,8 +253,11 @@ scoped_refptr<NodeChannel> NodeChannel::Create(
     Channel::HandlePolicy channel_handle_policy,
     scoped_refptr<base::SingleThreadTaskRunner> io_task_runner,
     const ProcessErrorCallback& process_error_callback) {
-#if BUILDFLAG(IS_NACL) || BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_NACL)
   LOG(FATAL) << "Multi-process not yet supported on NaCl-SFI";
+  return nullptr;
+#elif BUILDFLAG(IS_STARBOARD)
+  LOG(ERROR) << "Multi-process not yet supported on Starboard";
   return nullptr;
 #else
   return new NodeChannel(delegate, std::move(connection_params),
