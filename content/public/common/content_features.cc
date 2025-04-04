@@ -1333,12 +1333,32 @@ BASE_FEATURE(kReduceGpuPriorityOnBackground,
 // it won't work.
 BASE_FEATURE(kUserMediaScreenCapturing,
              "UserMediaScreenCapturing",
+<<<<<<< HEAD
 #if BUILDFLAG(ENABLE_SCREEN_CAPTURE)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+=======
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Pre-warm up the network process on browser startup.
+BASE_FEATURE(kWarmUpNetworkProcess,
+             "WarmUpNetworkProcess",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Kill switch for the WebNFC feature. This feature can be enabled for all sites
+// using the kEnableExperimentalWebPlatformFeatures flag.
+// https://w3c.github.io/web-nfc/
+BASE_FEATURE(kWebNfc, "WebNFC", base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kDoNotGenerateChromiumA11yTree,
+             "DoNotGenerateChromiumA11yTree",
+             BUILDFLAG(IS_COBALT) ? base::FEATURE_ENABLED_BY_DEFAULT
+                                   : base::FEATURE_DISABLED_BY_DEFAULT);
+
+>>>>>>> 7067342136f (Stop creating a11y node provder for Chrobalt (#5271))
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_MAC)
