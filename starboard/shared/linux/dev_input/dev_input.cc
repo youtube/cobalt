@@ -904,8 +904,6 @@ void CloseFdSafely(FileDescriptor* fd) {
   }
 }
 
-// Also in starboard/shared/libevent/socket_waiter_internal.cc
-// TODO: Consider consolidating.
 int SetNonBlocking(FileDescriptor fd) {
   int flags = fcntl(fd, F_GETFL, 0);
   if (flags == -1) {
