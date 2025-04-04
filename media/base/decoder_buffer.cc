@@ -67,11 +67,44 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data,
   memcpy(side_data_.get(), side_data, side_data_size_);
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
+                             const uint8_t* data,
+                             size_t size,
+                             const uint8_t* side_data,
+                             size_t side_data_size)
+    : size_(size), side_data_size_(side_data_size), is_key_frame_(false) {
+  if (!data) {
+    CHECK_EQ(size_, 0u);
+    CHECK(!side_data);
+    return;
+  }
+
+  Initialize(type);
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  memcpy(data_, data, size_);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+  memcpy(data_.get(), data, size_);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
+  if (!side_data) {
+    CHECK_EQ(side_data_size, 0u);
+    return;
+  }
+
+  DCHECK_GT(side_data_size_, 0u);
+  memcpy(side_data_.get(), side_data, side_data_size_);
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
     : size_(size) {
-      // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
-    }
+  // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
+  NOTREACHED();
+  CHECK(0);
+}
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
     : data_(std::move(data)), size_(size) {}
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -85,8 +118,8 @@ DecoderBuffer::DecoderBuffer(base::WritableSharedMemoryMapping mapping,
     : size_(size), writable_mapping_(std::move(mapping)) {}
 
 DecoderBuffer::DecoderBuffer(std::unique_ptr<ExternalMemory> external_memory)
-    : size_(external_memory->span().size()),
-      external_memory_(std::move(external_memory)) {}
+: size_(external_memory->span().size()),
+external_memory_(std::move(external_memory)) {}
 
 DecoderBuffer::~DecoderBuffer() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -100,21 +133,30 @@ DecoderBuffer::~DecoderBuffer() {
 
 void DecoderBuffer::Initialize() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  DCHECK(s_allocator);
-  DCHECK(!data_);
-
-  int alignment = s_allocator->GetBufferAlignment();
-  int padding = s_allocator->GetBufferPadding();
-  allocated_size_ = size_ + padding;
-  data_ = static_cast<uint8_t*>(s_allocator->Allocate(allocated_size_,
-                                                      alignment));
-  memset(data_ + size_, 0, padding);
+  // This is used by Mojo.
+  // TODO: Investigate the memory and performance impact.
+  Initialize(DemuxerStream::UNKNOWN);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_.reset(new uint8_t[size_]);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (side_data_size_ > 0)
     side_data_.reset(new uint8_t[side_data_size_]);
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void DecoderBuffer::Initialize(DemuxerStream::Type type) {
+  DCHECK(s_allocator);
+  DCHECK(!data_);
+
+  int alignment = s_allocator->GetBufferAlignment();
+  int padding = s_allocator->GetBufferPadding();
+  allocated_size_ = size_ + padding;
+  data_ = static_cast<uint8_t*>(s_allocator->Allocate(type,
+                                                      allocated_size_,
+                                                      alignment));
+  memset(data_ + size_, 0, padding);
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(const uint8_t* data,
