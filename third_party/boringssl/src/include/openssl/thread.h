@@ -61,6 +61,7 @@
 
 #include <openssl/base.h>
 
+#include "build/build_config.h"
 #if BUILDFLAG(IS_STARBOARD)
 #include <pthread.h>
 #endif
