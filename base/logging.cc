@@ -920,7 +920,11 @@ LogMessage::~LogMessage() {
         priority = ANDROID_LOG_FATAL;
         break;
     }
+#if BUILDFLAG(IS_COBALT)
     const char kAndroidLogTag[] = "cobalt";
+#else
+    const char kAndroidLogTag[] = "chromium";
+#endif
 #if DCHECK_IS_ON()
     // Split the output by new lines to prevent the Android system from
     // truncating the log.
