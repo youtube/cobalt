@@ -1400,6 +1400,10 @@ config("toolchain") {
       # TODO(v8:12245): Fix shadowing instances and remove.
       "-Wno-shadow",
     ]
+    if(is_starboard) {
+      # v8/src/base/debug/stack_trace_posix.cc:68:12: error: unused variable 'kMangledSymbolPrefix' [-Werror,-Wunused-const-variable]
+      cflags += ["-Wno-unused-const-variable"]
+    }
 
     if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
         v8_current_cpu == "mips64el" || v8_current_cpu == "riscv64") {
@@ -5826,7 +5830,8 @@ v8_component("v8_libbase") {
     defines = [ "BUILDING_V8_BASE_SHARED" ]
   }
 
-  if (is_posix || is_fuchsia) {
+# v8/src/base/platform/platform-posix.cc:815:27: error: reinterpret_cast from 'pthread_t' (aka 'unsigned long') to 'intptr_t' (aka 'long') is not allowed
+  if ((is_posix || is_fuchsia) && !is_cobalt_hermetic_build) {
     sources += [
       "src/base/platform/platform-posix.cc",
       "src/base/platform/platform-posix.h",

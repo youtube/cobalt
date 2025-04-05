@@ -20,7 +20,9 @@
     "sql_unittests",
     "trace_processor_minimal_smoke_tests",
     "url_unittests",
-    "zlib_unittests"
+    "zlib_unittests",
+    "v8",
+    "d8"
   ],
   "includes": [
     {
