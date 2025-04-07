@@ -127,6 +127,8 @@ public abstract class CobaltActivity extends Activity {
             "--js-flags=--optimize_for_size=true",
             // Auto accept camera and mic capture permissions.
             "--auto-accept-camera-and-microphone-capture",
+            // Use SurfaceTexture for decode-to-texture mode.
+            "--disable-features=AImageReader",
           };
       CommandLine.getInstance().appendSwitchesAndArguments(cobaltCommandLineParams);
       if (shouldSetJNIPrefix) {
