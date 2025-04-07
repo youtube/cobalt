@@ -527,7 +527,8 @@ public class StarboardBridge {
         (AccessibilityManager) appContext.getSystemService(Context.ACCESSIBILITY_SERVICE);
 
     try {
-      Method m = AccessibilityManager.class.getDeclaredMethod("isHighTextContrastEnabled");
+      String methodName = android.os.Build.VERSION.SDK_INT < 36 ? "isHighTextContrastEnabled" : "isHighContrastTextEnabled";
+      Method m = AccessibilityManager.class.getDeclaredMethod(methodName);
 
       return m.invoke(am) == Boolean.TRUE;
     } catch (ReflectiveOperationException ex) {
