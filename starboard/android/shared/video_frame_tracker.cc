@@ -37,7 +37,6 @@ int64_t VideoFrameTracker::seek_to_time() const {
 }
 
 void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
-  SB_LOG(INFO) << __func__ << "> timestamp=" << timestamp;
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   if (frames_to_be_rendered_.empty()) {
@@ -69,13 +68,11 @@ void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
 }
 
 void VideoFrameTracker::OnFrameRendered(int64_t frame_timestamp) {
-  SB_LOG(INFO) << __func__ << "> frame_timestamp=" << frame_timestamp;
   ScopedLock lock(rendered_frames_mutex_);
   rendered_frames_on_decoder_thread_.push_back(frame_timestamp);
 }
 
 void VideoFrameTracker::Seek(int64_t seek_to_time) {
-  SB_LOG(INFO) << __func__ << "> seek_to_time=" << seek_to_time;
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   // Ensure that all dropped frames before seeking are captured.
@@ -138,8 +135,6 @@ void VideoFrameTracker::UpdateDroppedFrames() {
     ScopedLock lock(rendered_frames_mutex_);
     rendered_frames_on_tracker_thread_.swap(rendered_frames_on_decoder_thread_);
   }
-
-  // Sort by |timestamp)
 
   while (!frames_to_be_rendered_.empty() &&
          frames_to_be_rendered_.front() < seek_to_time_) {
