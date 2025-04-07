@@ -41,6 +41,7 @@ class VideoFrameTracker {
   int UpdateAndGetDroppedFrames();
 
  private:
+  void RemoveInvalidRenderedFrames();
   void UpdateDroppedFrames();
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
