@@ -32,12 +32,20 @@ const int64_t kMaxAllowedSkew = 5'000;  // 5ms
 
 void RemoveInvalidRenderedFrames(const std::list<int64_t>& frames_to_render,
                                  std::vector<int64_t>* rendered_frames) {
-  DCHECK(rendered_frames);
-  if (rendered_frames->empty() || frames_to_render.empty()) {
+  SB_DCHECK(rendered_frames);
+  if (rendered_frames->empty()) {
     return;
   }
-  const int64_t min_valid_rendered_frame =
-      std::max(0LL, frames_to_render.front() - kMaxAllowedSkew);
+  if (frames_to_render.empty()) {
+    SB_LOG(WARNING) << "There should be no frames to render, though there are "
+                       "rendered frames: count="
+                    << rendered_frames->size();
+    rendered_frames->clear();
+    return;
+  }
+
+  const int64_t min_valid_rendered_frame = std::max(
+      static_cast<int64_t>(0), frames_to_render.front() - kMaxAllowedSkew);
   const int64_t max_valid_rendered_frame =
       frames_to_render.back() + kMaxAllowedSkew;
   auto is_valid = [min_valid_rendered_frame,
