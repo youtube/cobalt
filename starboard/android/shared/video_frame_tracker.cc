@@ -30,6 +30,44 @@ namespace {
 
 const int64_t kMaxAllowedSkew = 5'000;  // 5ms
 
+void RemoveInvalidRenderedFrames(const std::list<int64_t>& frames_to_render,
+                                 std::vector<int64_t>* rendered_frames) {
+  DCHECK(rendered_frames);
+  if (rendered_frames->empty() || frames_to_render.empty()) {
+    return;
+  }
+  const int64_t min_valid_rendered_frame =
+      std::max(0LL, frames_to_render.front() - kMaxAllowedSkew);
+  const int64_t max_valid_rendered_frame =
+      frames_to_render.back() + kMaxAllowedSkew;
+  auto is_valid = [min_valid_rendered_frame,
+                   max_valid_rendered_frame](int64_t timestamp) {
+    return min_valid_rendered_frame <= timestamp &&
+           timestamp <= max_valid_rendered_frame;
+  };
+  // Since rendered frames is sorted, all rendered frames are valid, if first
+  // and last frame is valid.
+  if (is_valid(rendered_frames->front()) && is_valid(rendered_frames->back())) {
+    return;
+  }
+
+  int removed_rendered_frames = 0;
+  auto it = rendered_frames->begin();
+  while (it != rendered_frames->end()) {
+    if (is_valid(*it)) {
+      ++it;
+      continue;
+    }
+
+    ++removed_rendered_frames;
+    it = rendered_frames->erase(it);
+  }
+
+  SB_LOG(WARNING) << "Removed invalid timestamps. This can happen when "
+                     "MediaCodec::flush() is called on Android SDK 14+. See "
+                     "b/401790323#comment13: count="
+                  << removed_rendered_frames;
+}
 }  // namespace
 
 int64_t VideoFrameTracker::seek_to_time() const {
@@ -88,46 +126,6 @@ int VideoFrameTracker::UpdateAndGetDroppedFrames() {
   return dropped_frames_;
 }
 
-void VideoFrameTracker::RemoveInvalidRenderedFrames() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-  auto& rendered_frames = rendered_frames_on_tracker_thread_;
-
-  if (rendered_frames.empty()) {
-    return;
-  }
-  const int64_t min_valid_rendered_frame =
-      std::max(0LL, frames_to_be_rendered_.front() - kMaxAllowedSkew);
-  const int64_t max_valid_rendered_frame =
-      frames_to_be_rendered_.back() + kMaxAllowedSkew;
-  auto is_valid = [min_valid_rendered_frame,
-                   max_valid_rendered_frame](int64_t timestamp) {
-    return min_valid_rendered_frame <= timestamp &&
-           timestamp <= max_valid_rendered_frame;
-  };
-  // Since rendered frames is sorted, all rendered frames are valid, if first
-  // and last frame is valid.
-  if (is_valid(rendered_frames.front()) && is_valid(rendered_frames.back())) {
-    return;
-  }
-
-  int removed_rendered_frames = 0;
-  auto it = rendered_frames.begin();
-  while (it != rendered_frames.end()) {
-    if (is_valid(*it)) {
-      ++it;
-      continue;
-    }
-
-    ++removed_rendered_frames;
-    it = rendered_frames.erase(it);
-  }
-
-  SB_LOG(WARNING) << "Removed invalid timestamps. This can happen when "
-                     "MediaCodec::flush() is called on Android SDK 14+. See "
-                     "b/401790323#comment13: count="
-                  << removed_rendered_frames;
-}
-
 void VideoFrameTracker::UpdateDroppedFrames() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
@@ -144,12 +142,9 @@ void VideoFrameTracker::UpdateDroppedFrames() {
     // after we align seek time to the next video key frame.
     frames_to_be_rendered_.pop_front();
   }
-  if (frames_to_be_rendered_.empty()) {
-    rendered_frames_on_tracker_thread_.clear();
-    return;
-  }
 
-  RemoveInvalidRenderedFrames();
+  RemoveInvalidRenderedFrames(frames_to_be_rendered_,
+                              &rendered_frames_on_tracker_thread_);
 
   // Loop over all timestamps from OnFrameRendered and compare against ones from
   // OnInputBuffer.
