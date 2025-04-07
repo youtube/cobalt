@@ -68,7 +68,7 @@ if (!is_android) {
       "//tools/v8_context_snapshot:v8_context_snapshot",
     ]
 
-    data_deps += [ "//components/crash/core/app:chrome_crashpad_handler" ]
+    # data_deps += [ "//components/crash/core/app:chrome_crashpad_handler" ]
 
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
   }
