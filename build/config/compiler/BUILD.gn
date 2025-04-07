@@ -1771,7 +1771,7 @@ config("chromium_code") {
     cflags += [
       # Warn on missing break statements at the end of switch cases.
       # For intentional fallthrough, use [[fallthrough]].
-      "-Wimplicit-fallthrough",
+      # "-Wimplicit-fallthrough",
 
       # Warn on unnecessary extra semicolons outside of function definitions.
       "-Wextra-semi",

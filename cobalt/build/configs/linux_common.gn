@@ -100,3 +100,9 @@ use_libpci = false
 # Override from chrome/installer/installers.gni
 # This flag enables the creation of Linux installer packages(like .deb , .rpm)
 enable_linux_installer = false
+
+v8_enable_webassembly = false
+
+# v8_use_perfetto = false
+
+# v8_use_zlib = true

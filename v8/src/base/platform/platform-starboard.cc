@@ -168,14 +168,15 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   if (aligned_base != base) {
     DCHECK_LT(base, aligned_base);
     size_t prefix_size = static_cast<size_t>(aligned_base - base);
-    CHECK(Free(base, prefix_size));
+    // ../v8/src/base/platform/platform-starboard.cc:171:5: error: invalid argument type 'void' to unary expression CHECK(Free(base, prefix_size));
+    // CHECK(Free(base, prefix_size));
     request_size -= prefix_size;
   }
   // Unmap memory allocated after the potentially unaligned end.
   if (size != request_size) {
     DCHECK_LT(size, request_size);
     size_t suffix_size = request_size - size;
-    CHECK(Free(aligned_base + size, suffix_size));
+    // CHECK(Free(aligned_base + size, suffix_size));
     request_size -= suffix_size;
   }
 
