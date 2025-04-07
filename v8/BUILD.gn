@@ -12,6 +12,7 @@ import("//build/config/riscv.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build_overrides/build.gni")
 
+import("//starboard/build/config/toolchain_variables.gni")
 import("gni/snapshot_toolchain.gni")
 import("gni/v8.gni")
 
@@ -33,7 +34,7 @@ declare_args() {
 
   # Turns on all V8 debug features. Enables running V8 in a pseudo debug mode
   # within a release Chrome.
-  v8_enable_debugging_features = is_debug
+  v8_enable_debugging_features = is_debug && !is_starboard
 
   # Sets -DV8_ENABLE_FUTURE.
   v8_enable_future = false
@@ -84,7 +85,7 @@ declare_args() {
   v8_enable_hugepage = false
 
   # Sets -dENABLE_HANDLE_ZAPPING.
-  v8_enable_handle_zapping = is_asan || is_debug
+  v8_enable_handle_zapping = (is_asan || is_debug) && !is_starboard
 
   # Enable slow dchecks.
   v8_enable_slow_dchecks = false
@@ -302,8 +303,8 @@ declare_args() {
 
   # Enable heap reservation of size 4GB. Only possible for 64bit archs.
   cppgc_enable_caged_heap =
-      v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
-      v8_current_cpu == "loong64"
+      (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
+       v8_current_cpu == "loong64") && is_starboard
 
   # Enables additional heap verification phases and checks.
   cppgc_enable_verify_heap = ""
@@ -381,7 +382,7 @@ declare_args() {
 
   # Compile V8 using zlib as dependency.
   # Sets -DV8_USE_ZLIB
-  v8_use_zlib = true
+  v8_use_zlib = true && !is_starboard
 
   # Make ValueDeserializer crash if the data to deserialize is invalid.
   v8_value_deserializer_hard_fail = false
@@ -699,6 +700,53 @@ config("internal_config_base") {
     "$target_gen_dir",
     "$target_gen_dir/include",
   ]
+  if (is_starboard) {
+    include_dirs += [ ".." ]
+
+    defines = [
+      "DISABLE_GRAPHS_STARBOARD",
+      "DISABLE_UNWIND_STARBOARD",
+
+      # Disable mitigations for executing untrusted code.
+      # Disabled by default on x86 due to conflicting requirements with embedded
+      # builtins.
+      # Chrome enabled this by default only on Android since it doesn"t support
+      # site-isolation and on simulator builds which test code generation
+      # on these platforms.
+      # Cobalt only has one isolate instance when the app is fully functioning in
+      # production so we will just disable this feature by default everywhere.
+      "DISABLE_UNTRUSTED_CODE_MITIGATIONS",
+      "NOMINMAX",
+    ]
+
+    if (!v8_enable_webassembly) {
+      defines += [
+        "DISABLE_WASM_COMPILER_ISSUE_STARBOARD",
+        "NO_ARRAY_MOVE_STARBOARD",
+      ]
+    }
+
+    if (is_starboard && !is_win) {
+      defines -= [ "NOMINMAX" ]
+    }
+
+    if (is_clang) {
+      if (is_starboardized_toolchain) {
+        cflags = [
+          "-Werror",
+          "-Wno-unknown-pragmas",
+          "-Wno-invalid-offsetof",
+        ]
+      } else if (!is_win) {
+        cflags = [ "-Wno-invalid-offsetof" ]
+      }
+    } else if (!is_win) {
+      cflags = [
+        "-Wno-return-type",
+        "-Wno-int-in-bool-context",
+      ]
+    }
+  }
 }
 
 config("internal_config") {
@@ -1400,14 +1448,15 @@ config("toolchain") {
       # TODO(v8:12245): Fix shadowing instances and remove.
       "-Wno-shadow",
     ]
-    if(is_starboard) {
+    if (is_starboard) {
       # v8/src/base/debug/stack_trace_posix.cc:68:12: error: unused variable 'kMangledSymbolPrefix' [-Werror,-Wunused-const-variable]
-      cflags += ["-Wno-unused-const-variable"]
+      cflags += [ "-Wno-unused-const-variable" ]
     }
-
-    if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
-        v8_current_cpu == "mips64el" || v8_current_cpu == "riscv64") {
-      cflags += [ "-Wshorten-64-to-32" ]
+    if (!is_starboard) {
+      if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
+          v8_current_cpu == "mips64el" || v8_current_cpu == "riscv64") {
+        cflags += [ "-Wshorten-64-to-32" ]
+      }
     }
   }
 
@@ -2229,6 +2278,12 @@ template("run_mksnapshot") {
 
     data = []
 
+    if (is_starboard && is_starboardized_toolchain) {
+      target_os_arg = "starboard"
+    } else {
+      target_os_arg = current_os
+    }
+
     args = [
       "./" + rebase_path(get_label_info(":mksnapshot($v8_snapshot_toolchain)",
                                         "root_out_dir") + "/mksnapshot",
@@ -2239,7 +2294,7 @@ template("run_mksnapshot") {
       # target toolchains.  The same host binary is used to generate both, so
       # mksnapshot needs to know which target OS to use at runtime.  It's weird,
       # but the target OS is really |current_os|.
-      "--target_os=$current_os",
+      "--target_os=$target_os_arg",
       "--target_arch=$current_cpu",
 
       "--embedded_src",
@@ -3900,6 +3955,9 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/well-known-imports.h",
     ]
   }
+  if (is_starboard && !v8_enable_webassembly) {
+    sources += [ "src/wasm/baseline/liftoff-compiler-starboard.cc" ]
+  }
 
   if (v8_enable_wasm_simd256_revec) {
     sources += [
@@ -4018,11 +4076,13 @@ v8_header_set("v8_internal_headers") {
     if (v8_enable_webassembly) {
       # iOS Xcode simulator builds run on an x64 target. iOS and macOS are both
       # based on Darwin and thus POSIX-compliant to a similar degree.
-      if (is_linux || is_chromeos || is_mac || is_ios ||
-          target_os == "freebsd") {
-        sources += [ "src/trap-handler/handler-inside-posix.h" ]
-      } else if (is_win) {
-        sources += [ "src/trap-handler/handler-inside-win.h" ]
+      if (!is_starboard || current_toolchain == host_toolchain) {
+        if (is_linux || is_chromeos || is_mac || is_ios ||
+            target_os == "freebsd") {
+          sources += [ "src/trap-handler/handler-inside-posix.h" ]
+        } else if (is_win) {
+          sources += [ "src/trap-handler/handler-inside-win.h" ]
+        }
       }
     }
   } else if (v8_current_cpu == "arm") {
@@ -5516,10 +5576,16 @@ v8_source_set("v8_base_without_compiler") {
   }
 
   if (v8_use_zlib) {
-    deps += [
-      "$v8_zlib_path",
-      "$v8_zlib_path/google:compression_utils_portable",
-    ]
+    if (is_starboard && current_toolchain == host_toolchain) {
+      deps += [ ":v8_zlib" ]
+      cflags_cc = [ "-fno-exceptions" ]
+    } else {
+      print("shit")
+      deps += [
+        "$v8_zlib_path",
+        "$v8_zlib_path/google:compression_utils_portable",
+      ]
+    }
   }
 
   if (v8_postmortem_support) {
@@ -5647,6 +5713,9 @@ v8_source_set("torque_base") {
     "//build/config/compiler:no_rtti",
   ]
 
+  if (is_starboard) {
+    remove_configs -= [ "//build/config/compiler:no_rtti" ]
+  }
   if (is_win && is_asan) {
     # Due to a bug in ASAN on Windows (chromium:893437), we disable ASAN for
     # Torque on Windows.
@@ -5660,38 +5729,40 @@ v8_source_set("torque_base") {
   }
 }
 
-v8_source_set("torque_ls_base") {
-  sources = [
-    "src/torque/ls/globals.h",
-    "src/torque/ls/json-parser.cc",
-    "src/torque/ls/json-parser.h",
-    "src/torque/ls/json.cc",
-    "src/torque/ls/json.h",
-    "src/torque/ls/message-handler.cc",
-    "src/torque/ls/message-handler.h",
-    "src/torque/ls/message-macros.h",
-    "src/torque/ls/message-pipe.h",
-    "src/torque/ls/message.h",
-  ]
+if (!is_starboard) {
+  v8_source_set("torque_ls_base") {
+    sources = [
+      "src/torque/ls/globals.h",
+      "src/torque/ls/json-parser.cc",
+      "src/torque/ls/json-parser.h",
+      "src/torque/ls/json.cc",
+      "src/torque/ls/json.h",
+      "src/torque/ls/message-handler.cc",
+      "src/torque/ls/message-handler.h",
+      "src/torque/ls/message-macros.h",
+      "src/torque/ls/message-pipe.h",
+      "src/torque/ls/message.h",
+    ]
 
-  public_deps = [ ":torque_base" ]
+    public_deps = [ ":torque_base" ]
 
-  # The use of exceptions for Torque in violation of the Chromium style-guide
-  # is justified by the fact that it is only used from the non-essential
-  # language server and can be removed anytime if it causes problems.
-  configs = [
-    ":internal_config",
-    "//build/config/compiler:exceptions",
-    "//build/config/compiler:rtti",
-  ]
+    # The use of exceptions for Torque in violation of the Chromium style-guide
+    # is justified by the fact that it is only used from the non-essential
+    # language server and can be removed anytime if it causes problems.
+    configs = [
+      ":internal_config",
+      "//build/config/compiler:exceptions",
+      "//build/config/compiler:rtti",
+    ]
 
-  remove_configs = [
-    "//build/config/compiler:no_exceptions",
-    "//build/config/compiler:no_rtti",
-  ]
+    remove_configs = [
+      "//build/config/compiler:no_exceptions",
+      "//build/config/compiler:no_rtti",
+    ]
 
-  if (is_win && is_asan) {
-    remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
+    if (is_win && is_asan) {
+      remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
+    }
   }
 }
 
@@ -5830,103 +5901,112 @@ v8_component("v8_libbase") {
     defines = [ "BUILDING_V8_BASE_SHARED" ]
   }
 
-# v8/src/base/platform/platform-posix.cc:815:27: error: reinterpret_cast from 'pthread_t' (aka 'unsigned long') to 'intptr_t' (aka 'long') is not allowed
-  if ((is_posix || is_fuchsia) && !is_cobalt_hermetic_build) {
-    sources += [
-      "src/base/platform/platform-posix.cc",
-      "src/base/platform/platform-posix.h",
-    ]
-    if (current_os != "aix") {
+  # v8/src/base/platform/platform-posix.cc:815:27: error: reinterpret_cast from 'pthread_t' (aka 'unsigned long') to 'intptr_t' (aka 'long') is not allowed
+  if (!is_starboard || current_toolchain == host_toolchain) {
+    if (is_posix || is_fuchsia) {
       sources += [
-        "src/base/platform/platform-posix-time.cc",
-        "src/base/platform/platform-posix-time.h",
+        "src/base/platform/platform-posix.cc",
+        "src/base/platform/platform-posix.h",
       ]
+      if (current_os != "aix") {
+        sources += [
+          "src/base/platform/platform-posix-time.cc",
+          "src/base/platform/platform-posix-time.h",
+        ]
+      }
     }
-  }
 
-  if (is_linux || is_chromeos) {
-    sources += [
-      "src/base/debug/stack_trace_posix.cc",
-      "src/base/platform/platform-linux.cc",
-      "src/base/platform/platform-linux.h",
-    ]
+    if (is_linux || is_chromeos) {
+      sources += [
+        "src/base/debug/stack_trace_posix.cc",
+        "src/base/platform/platform-linux.cc",
+        "src/base/platform/platform-linux.h",
+      ]
 
-    libs = [
-      "dl",
-      "rt",
-    ]
-  } else if (current_os == "aix") {
-    sources += [
-      "src/base/debug/stack_trace_posix.cc",
-      "src/base/platform/platform-aix.cc",
-    ]
-
-    libs = [ "dl" ]
-  } else if (is_android) {
-    if (current_toolchain == host_toolchain) {
       libs = [
         "dl",
         "rt",
       ]
-      if (host_os == "mac") {
-        sources += [
-          "src/base/debug/stack_trace_posix.cc",
-          "src/base/platform/platform-darwin.cc",
+    } else if (current_os == "aix") {
+      sources += [
+        "src/base/debug/stack_trace_posix.cc",
+        "src/base/platform/platform-aix.cc",
+      ]
+
+      libs = [ "dl" ]
+    } else if (is_android) {
+      if (current_toolchain == host_toolchain) {
+        libs = [
+          "dl",
+          "rt",
         ]
+        if (host_os == "mac") {
+          sources += [
+            "src/base/debug/stack_trace_posix.cc",
+            "src/base/platform/platform-darwin.cc",
+          ]
+        } else {
+          sources += [
+            "src/base/debug/stack_trace_posix.cc",
+            "src/base/platform/platform-linux.cc",
+          ]
+        }
       } else {
         sources += [
-          "src/base/debug/stack_trace_posix.cc",
+          "src/base/debug/stack_trace_android.cc",
           "src/base/platform/platform-linux.cc",
         ]
       }
-    } else {
+    } else if (is_fuchsia) {
       sources += [
-        "src/base/debug/stack_trace_android.cc",
-        "src/base/platform/platform-linux.cc",
+        "src/base/debug/stack_trace_fuchsia.cc",
+        "src/base/platform/platform-fuchsia.cc",
       ]
+      deps += [
+        "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.kernel",
+        "//third_party/fuchsia-sdk/sdk/pkg/fdio",
+        "//third_party/fuchsia-sdk/sdk/pkg/zx",
+      ]
+    } else if (is_mac) {
+      sources += [
+        "src/base/debug/stack_trace_posix.cc",
+        "src/base/platform/platform-darwin.cc",
+      ]
+    } else if (is_ios) {
+      sources += [
+        "src/base/debug/stack_trace_posix.cc",
+        "src/base/platform/platform-darwin.cc",
+        "src/base/platform/platform-ios.cc",
+      ]
+    } else if (is_win) {
+      # TODO(infra): Add support for cygwin.
+      sources += [
+        "src/base/debug/stack_trace_win.cc",
+        "src/base/platform/platform-win32.cc",
+        "src/base/win32-headers.h",
+      ]
+
+      defines += [ "_CRT_RAND_S" ]  # for rand_s()
+
+      libs = [
+        "dbghelp.lib",
+        "winmm.lib",
+        "ws2_32.lib",
+      ]
+
+      if (v8_enable_etw_stack_walking) {
+        libs += [ "advapi32.lib" ]  # Needed for TraceLoggingProvider.h
+      }
+
+      data_deps += [ "//build/win:runtime_libs" ]
     }
-  } else if (is_fuchsia) {
+  } else if (is_starboard) {
     sources += [
-      "src/base/debug/stack_trace_fuchsia.cc",
-      "src/base/platform/platform-fuchsia.cc",
+      "src/base/debug/stack_trace_starboard.cc",
+      "src/base/platform/platform-starboard.cc",
     ]
-    deps += [
-      "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.kernel",
-      "//third_party/fuchsia-sdk/sdk/pkg/fdio",
-      "//third_party/fuchsia-sdk/sdk/pkg/zx",
-    ]
-  } else if (is_mac) {
-    sources += [
-      "src/base/debug/stack_trace_posix.cc",
-      "src/base/platform/platform-darwin.cc",
-    ]
-  } else if (is_ios) {
-    sources += [
-      "src/base/debug/stack_trace_posix.cc",
-      "src/base/platform/platform-darwin.cc",
-      "src/base/platform/platform-ios.cc",
-    ]
-  } else if (is_win) {
-    # TODO(infra): Add support for cygwin.
-    sources += [
-      "src/base/debug/stack_trace_win.cc",
-      "src/base/platform/platform-win32.cc",
-      "src/base/win32-headers.h",
-    ]
-
-    defines += [ "_CRT_RAND_S" ]  # for rand_s()
-
-    libs = [
-      "dbghelp.lib",
-      "winmm.lib",
-      "ws2_32.lib",
-    ]
-
-    if (v8_enable_etw_stack_walking) {
-      libs += [ "advapi32.lib" ]  # Needed for TraceLoggingProvider.h
-    }
-
-    data_deps += [ "//build/win:runtime_libs" ]
+    configs += [ ":v8_sb_errors" ]
+    deps += ["//starboard:starboard_group"]
   }
 
   if (v8_current_cpu == "mips64") {
@@ -6412,28 +6492,30 @@ if (v8_monolithic) {
   }
 }
 
-if (v8_enable_webassembly) {
-  v8_static_library("wee8") {
-    deps = [
-      ":v8_base",
-      ":v8_libbase",
-      ":v8_libplatform",
-      ":v8_shared_internal_headers",
-      ":v8_snapshot",
-      "//build/win:default_exe_manifest",
-    ]
+if (!is_starboard) {
+  if (v8_enable_webassembly) {
+    v8_static_library("wee8") {
+      deps = [
+        ":v8_base",
+        ":v8_libbase",
+        ":v8_libplatform",
+        ":v8_shared_internal_headers",
+        ":v8_snapshot",
+        "//build/win:default_exe_manifest",
+      ]
 
-    # TODO: v8dll-main.cc equivalent for shared library builds
+      # TODO: v8dll-main.cc equivalent for shared library builds
 
-    configs = [ ":internal_config" ]
+      configs = [ ":internal_config" ]
 
-    sources = [
-      ### gcmole(all) ###
-      "src/wasm/c-api.cc",
-      "src/wasm/c-api.h",
-      "third_party/wasm-api/wasm.h",
-      "third_party/wasm-api/wasm.hh",
-    ]
+      sources = [
+        ### gcmole(all) ###
+        "src/wasm/c-api.cc",
+        "src/wasm/c-api.h",
+        "third_party/wasm-api/wasm.h",
+        "third_party/wasm-api/wasm.hh",
+      ]
+    }
   }
 }
 
@@ -6490,11 +6572,14 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "src/snapshot/static-roots-gen.h",
     ]
 
-    if (v8_control_flow_integrity) {
+    if (v8_control_flow_integrity || is_starboard) {
       sources += [ "src/deoptimizer/deoptimizer-cfi-empty.cc" ]
     }
 
     configs = [ ":internal_config" ]
+    if (is_starboard) {
+      configs += [ ":maybe_use_lld" ]
+    }
 
     deps = [
       ":v8_base_without_compiler",
@@ -6508,6 +6593,13 @@ if (current_toolchain == v8_snapshot_toolchain) {
       ":v8_turboshaft",
       "//build/win:default_exe_manifest",
     ]
+  }
+  if (is_starboard) {
+    config("maybe_use_lld") {
+      if (is_clang && !is_mac) {
+        ldflags = [ "-fuse-ld=lld" ]
+      }
+    }
   }
 }
 
@@ -6535,6 +6627,9 @@ if (current_toolchain == v8_snapshot_toolchain) {
       "//build/config/compiler:no_exceptions",
       "//build/config/compiler:no_rtti",
     ]
+    if (is_starboard) {
+      remove_configs -= [ "//build/config/compiler:no_rtti" ]
+    }
 
     if (is_win && is_asan) {
       remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
@@ -6542,33 +6637,35 @@ if (current_toolchain == v8_snapshot_toolchain) {
   }
 }
 
-v8_executable("torque-language-server") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+if (!is_starboard) {
+  v8_executable("torque-language-server") {
+    visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
-  sources = [ "src/torque/ls/torque-language-server.cc" ]
+    sources = [ "src/torque/ls/torque-language-server.cc" ]
 
-  deps = [
-    ":torque_base",
-    ":torque_ls_base",
-    "//build/win:default_exe_manifest",
-  ]
+    deps = [
+      ":torque_base",
+      ":torque_ls_base",
+      "//build/win:default_exe_manifest",
+    ]
 
-  # The use of exceptions for Torque in violation of the Chromium style-guide
-  # is justified by the fact that it is only used from the non-essential
-  # language server and can be removed anytime if it causes problems.
-  configs = [
-    ":internal_config",
-    "//build/config/compiler:exceptions",
-    "//build/config/compiler:rtti",
-  ]
+    # The use of exceptions for Torque in violation of the Chromium style-guide
+    # is justified by the fact that it is only used from the non-essential
+    # language server and can be removed anytime if it causes problems.
+    configs = [
+      ":internal_config",
+      "//build/config/compiler:exceptions",
+      "//build/config/compiler:rtti",
+    ]
 
-  remove_configs = [
-    "//build/config/compiler:no_exceptions",
-    "//build/config/compiler:no_rtti",
-  ]
+    remove_configs = [
+      "//build/config/compiler:no_exceptions",
+      "//build/config/compiler:no_rtti",
+    ]
 
-  if (is_win && is_asan) {
-    remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
+    if (is_win && is_asan) {
+      remove_configs += [ "//build/config/sanitizers:default_sanitizer_flags" ]
+    }
   }
 }
 
@@ -6829,6 +6926,10 @@ if (is_component_build) {
       ":v8_snapshot",
     ]
 
+    if (is_starboard) {
+      public_deps -= [ ":torque_ls_base" ]
+    }
+
     if (v8_enable_turbofan) {
       # For cctest/test-serialize.
       public_deps += [ ":v8_initializers" ]
@@ -6866,6 +6967,7 @@ if (is_component_build) {
   }
 }
 
+# if (!is_starboard) {
 v8_executable("d8") {
   sources = [
     "src/d8/async-hooks-wrapper.cc",
@@ -6919,6 +7021,8 @@ v8_executable("d8") {
     deps += [ "src/third_party/vtune:v8_vtune" ]
   }
 }
+
+# }
 
 v8_executable("v8_hello_world") {
   sources = [ "samples/hello-world.cc" ]
@@ -7618,3 +7722,64 @@ if (!build_with_chromium && v8_use_perfetto) {
     ]
   }
 }  # if (!build_with_chromium && v8_use_perfetto)
+
+if (is_starboard && current_toolchain == host_toolchain) {
+  config("v8_zlib_public") {
+    include_dirs = [
+      "//third_party/zlib",
+      "//third_party/zlib/google",
+    ]
+  }
+
+  static_library("v8_zlib") {
+    check_includes = false
+
+    if (is_clang && !is_android && use_cobalt_customizations) {
+      cflags_c = [ "-Wno-deprecated-non-prototype" ]
+    }
+    sources = [
+      "//third_party/zlib/adler32.c",
+      "//third_party/zlib/chromeconf.h",
+      "//third_party/zlib/compress.c",
+      "//third_party/zlib/crc32.c",
+      "//third_party/zlib/crc32.h",
+      "//third_party/zlib/deflate.c",
+      "//third_party/zlib/deflate.h",
+      "//third_party/zlib/google/compression_utils_portable.cc",
+      "//third_party/zlib/google/compression_utils_portable.h",
+      "//third_party/zlib/gzclose.c",
+      "//third_party/zlib/gzguts.h",
+      "//third_party/zlib/gzlib.c",
+      "//third_party/zlib/gzread.c",
+      "//third_party/zlib/gzwrite.c",
+      "//third_party/zlib/infback.c",
+      "//third_party/zlib/inffast.c",
+      "//third_party/zlib/inffast.h",
+      "//third_party/zlib/inffixed.h",
+      "//third_party/zlib/inflate.c",
+      "//third_party/zlib/inflate.h",
+      "//third_party/zlib/inftrees.c",
+      "//third_party/zlib/inftrees.h",
+      "//third_party/zlib/trees.c",
+      "//third_party/zlib/trees.h",
+      "//third_party/zlib/uncompr.c",
+      "//third_party/zlib/zconf.h",
+      "//third_party/zlib/zlib.h",
+      "//third_party/zlib/zutil.c",
+      "//third_party/zlib/zutil.h",
+    ]
+
+    defines = [ "ZLIB_IMPLEMENTATION" ]
+    public_configs = [ ":v8_zlib_public" ]
+    configs += [ ":internal_config_base" ]
+
+    deps = [ "//third_party/zlib" ]
+  }
+}
+
+config("v8_sb_errors") {
+  cflags = [
+    "-Wno-implicit-fallthrough",
+    "-Wno-unused-variable",
+  ]
+}
