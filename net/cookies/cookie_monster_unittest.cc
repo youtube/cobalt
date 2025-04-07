@@ -2186,6 +2186,12 @@ TEST_F(CookieMonsterTest, InheritCreationDate) {
   EXPECT_EQ(the_not_so_distant_past, cookies[0].CreationDate());
   base::Time last_update = cookies[0].LastUpdateDate();
 
+  // Sleep for 1 microsecond to ensure that the next update has a different
+  // timestamp, as the test compares timestamps to verify they've been updated.
+  // Without this delay, in high-performance environments, the operations might
+  // happen within the same timestamp unit, causing the test to fail.
+  usleep(1);
+
   // Overwrite the cookie with the same value, and verify that the creation date
   // is inherited. The update date isn't inherited though.
   EXPECT_TRUE(SetCookie(cm.get(), http_www_foo_.url(), "Name=Value; path=/"));
@@ -2196,6 +2202,8 @@ TEST_F(CookieMonsterTest, InheritCreationDate) {
   // If this is flakey you many need to manually set the last update time.
   EXPECT_LT(last_update, cookies[0].LastUpdateDate());
   last_update = cookies[0].LastUpdateDate();
+
+  usleep(1);
 
   // New value => new creation date.
   EXPECT_TRUE(
