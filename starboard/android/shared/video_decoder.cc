@@ -407,8 +407,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
                << GetPlayerOutputModeName(output_mode_)
                << ", max video capabilities \"" << max_video_capabilities_
                << "\", and tunnel mode audio session id "
-               << tunnel_mode_audio_session_id_
-               << ", enable_flush_during_seek_=" << enable_flush_during_seek_;
+               << tunnel_mode_audio_session_id_;
 }
 
 VideoDecoder::~VideoDecoder() {
@@ -597,14 +596,12 @@ void VideoDecoder::WriteEndOfStream() {
 }
 
 void VideoDecoder::Reset() {
-  SB_LOG(INFO) << __func__ << ">";
   SB_DCHECK(BelongsToCurrentThread());
 
   // If fail to flush |media_decoder_| or |media_decoder_| is null, then
   // re-create |media_decoder_|.
   if (!enable_flush_during_seek_ || !media_decoder_ ||
       !media_decoder_->Flush()) {
-    SB_LOG(INFO) << __func__ << "> Calling TeardownCodec";
     TeardownCodec();
 
     input_buffer_written_ = 0;
@@ -635,7 +632,6 @@ void VideoDecoder::Reset() {
 
 bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
                                    std::string* error_message) {
-  SB_LOG(INFO) << __func__ << ">";
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(error_message);
 
@@ -674,7 +670,6 @@ bool VideoDecoder::InitializeCodec(const VideoStreamInfo& video_stream_info,
   // mode, create a surface from a new texture target and use that as the
   // output surface.
   jobject j_output_surface = NULL;
-  SB_LOG(INFO) << "Output mode: " << GetPlayerOutputModeName(output_mode_);
   switch (output_mode_) {
     case kSbPlayerOutputModePunchOut: {
       j_output_surface = AcquireVideoSurface();
