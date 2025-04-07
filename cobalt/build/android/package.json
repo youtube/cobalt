@@ -5,6 +5,7 @@
                 "content_shell.pak",
                 "gen/build_info.json",
                 "icudtl.dat",
+                "lib.unstripped/libcobalt_content_shell_content_view.so",
                 "libchrome_crashpad_handler.so",
                 "libcobalt_content_shell_content_view.so",
                 "libnplb__library.so",
@@ -19,6 +20,10 @@
                 {
                     "from_file": "gen/build_info.json",
                     "to_file": "build_info.json"
+                },
+                {
+                  "from_file": "lib.unstripped/libcobalt_content_shell_content_view.so",
+                  "to_file": "symbol/libcobalt_content_shell_content_view.so"
                 }
             ],
             "dirs": [
@@ -33,21 +38,21 @@
             "archive_type": "ARCHIVE_TYPE_ZIP"
         },
         {
-            "files": [
-                "gen/build_info.json",
-                "lib.unstripped/libcobalt_content_shell_content_view.so"
-            ],
-            "rename_files": [
-                {
-                    "from_file": "gen/build_info.json",
-                    "to_file": "build_info.json"
-                },
-                {
-                    "from_file": "lib.unstripped/libcobalt_content_shell_content_view.so",
-                    "to_file": "symbol/libcobalt_content_shell_content_view.so"
-                }
-            ],
-            "archive_type": "ARCHIVE_TYPE_FILES"
+          "files": [
+              "gen/build_info.json",
+              "lib.unstripped/libcobalt_content_shell_content_view.so"
+          ],
+          "rename_files": [
+              {
+                  "from_file": "gen/build_info.json",
+                  "to_file": "build_info.json"
+              },
+              {
+                  "from_file": "lib.unstripped/libcobalt_content_shell_content_view.so",
+                  "to_file": "symbol/libcobalt_content_shell_content_view.so"
+              }
+          ],
+          "archive_type": "ARCHIVE_TYPE_FILES"
         }
     ]
 }
