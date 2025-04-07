@@ -15,12 +15,14 @@
 #include "media/mojo/clients/starboard/starboard_renderer_client.h"
 
 #include "base/functional/bind.h"
+#include "base/unguessable_token.h"
 #include "media/base/media_log.h"
 #include "media/base/media_resource.h"
 #include "media/base/renderer_client.h"
 #include "media/base/video_renderer_sink.h"
 #include "media/mojo/clients/mojo_renderer.h"
 #include "media/renderers/video_overlay_factory.h"
+#include "media/video/gpu_video_accelerator_factories.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 
@@ -34,7 +36,8 @@ StarboardRendererClient::StarboardRendererClient(
     VideoRendererSink* video_renderer_sink,
     mojo::PendingRemote<RendererExtension> pending_renderer_extension,
     mojo::PendingReceiver<ClientExtension> client_extension_receiver,
-    BindHostReceiverCallback bind_host_receiver_callback)
+    BindHostReceiverCallback bind_host_receiver_callback,
+    GpuVideoAcceleratorFactories* gpu_factories)
     : media_task_runner_(media_task_runner),
       media_log_(std::move(media_log)),
       MojoRendererWrapper(std::move(mojo_renderer)),
@@ -43,7 +46,8 @@ StarboardRendererClient::StarboardRendererClient(
       pending_renderer_extension_(std::move(pending_renderer_extension)),
       pending_client_extension_receiver_(std::move(client_extension_receiver)),
       client_extension_receiver_(this),
-      bind_host_receiver_callback_(bind_host_receiver_callback) {
+      bind_host_receiver_callback_(bind_host_receiver_callback),
+      gpu_factories_(gpu_factories) {
   DCHECK(media_task_runner_);
   DCHECK(video_renderer_sink_);
   DCHECK(video_overlay_factory_);
@@ -53,21 +57,10 @@ StarboardRendererClient::StarboardRendererClient(
 
 StarboardRendererClient::~StarboardRendererClient() {}
 
-void StarboardRendererClient::Initialize(
-    media::MediaResource* media_resource,
-    media::RendererClient* client,
-    media::PipelineStatusCallback init_cb) {
+void StarboardRendererClient::Initialize(MediaResource* media_resource,
+                                         RendererClient* client,
+                                         PipelineStatusCallback init_cb) {
   DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
-
-  // Consume and bind the delayed PendingRemote and PendingReceiver now that
-  // we are on |media_task_runner_|.
-  renderer_extension_.Bind(std::move(pending_renderer_extension_),
-                           media_task_runner_);
-  client_extension_receiver_.Bind(std::move(pending_client_extension_receiver_),
-                                  media_task_runner_);
-
-  renderer_extension_.set_disconnect_handler(base::BindOnce(
-      &StarboardRendererClient::OnConnectionError, base::Unretained(this)));
 
   client_ = client;
 
@@ -83,7 +76,75 @@ void StarboardRendererClient::Initialize(
       base::BindOnce(&StarboardRendererClient::OnSubscribeToVideoGeometryChange,
                      base::Unretained(this), media_resource, client));
 
+  if (!AreMojoPipesConnected()) {
+    InitAndBindMojoRenderer(
+        base::BindOnce(&StarboardRendererClient::InitializeMojoRenderer,
+                       weak_factory_.GetWeakPtr(), media_resource, client,
+                       std::move(init_cb)));
+    return;
+  }
+
+  InitializeMojoRenderer(media_resource, client, std::move(init_cb));
+}
+
+void StarboardRendererClient::InitAndBindMojoRenderer(
+    base::OnceClosure complete_cb) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(!AreMojoPipesConnected());
+
+  // Consume and bind the delayed PendingRemote and PendingReceiver now that
+  // we are on |media_task_runner_|.
+  renderer_extension_.Bind(std::move(pending_renderer_extension_),
+                           media_task_runner_);
+  client_extension_receiver_.Bind(std::move(pending_client_extension_receiver_),
+                                  media_task_runner_);
+
+  renderer_extension_.set_disconnect_handler(base::BindOnce(
+      &StarboardRendererClient::OnConnectionError, base::Unretained(this)));
+
+  // Generate |command_buffer_id|.
+  mojom::CommandBufferIdPtr command_buffer_id;
+  if (gpu_factories_) {
+    gpu_factories_->GetChannelToken(
+        base::BindOnce(&StarboardRendererClient::OnGpuChannelTokenReady,
+                       weak_factory_.GetWeakPtr(), std::move(command_buffer_id),
+                       std::move(complete_cb)));
+    return;
+  }
+
+  DCHECK(complete_cb);
+  InitAndConstructMojoRenderer(std::move(command_buffer_id),
+                               std::move(complete_cb));
+}
+
+void StarboardRendererClient::InitializeMojoRenderer(
+    MediaResource* media_resource,
+    RendererClient* client,
+    PipelineStatusCallback init_cb) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(AreMojoPipesConnected());
   MojoRendererWrapper::Initialize(media_resource, client, std::move(init_cb));
+}
+
+void StarboardRendererClient::OnGpuChannelTokenReady(
+    mojom::CommandBufferIdPtr command_buffer_id,
+    base::OnceClosure complete_cb,
+    const base::UnguessableToken& channel_token) {
+  if (channel_token) {
+    command_buffer_id = mojom::CommandBufferId::New();
+    command_buffer_id->channel_token = std::move(channel_token);
+    command_buffer_id->route_id = gpu_factories_->GetCommandBufferRouteId();
+  }
+  InitAndConstructMojoRenderer(std::move(command_buffer_id),
+                               std::move(complete_cb));
+}
+
+void StarboardRendererClient::InitAndConstructMojoRenderer(
+    media::mojom::CommandBufferIdPtr command_buffer_id,
+    base::OnceClosure complete_cb) {
+  // Notify GpuChannelToken to StarboardRendererWrapper.
+  renderer_extension_->OnGpuChannelTokenReady(std::move(command_buffer_id));
+  std::move(complete_cb).Run();
 }
 
 RendererType StarboardRendererClient::GetRendererType() {
