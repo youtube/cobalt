@@ -22,6 +22,6 @@ jobs:
         run: |
           set -x
           gh workflow run android_26.android --ref 26.android -f nightly=true
-          gh workflow run linux_26.android --ref 25.android -f nightly=true
+          gh workflow run linux_26.android --ref 26.android -f nightly=true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
