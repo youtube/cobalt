@@ -14,7 +14,7 @@
 
 package dev.cobalt.coat.javabridge;
 
-import android.content.Context;
+import android.app.Activity;
 import android.util.Base64;
 import dev.cobalt.coat.StarboardBridge;
 
@@ -23,11 +23,11 @@ import dev.cobalt.coat.StarboardBridge;
  */
 public class H5vccPlatformService implements CobaltJavaScriptAndroidObject {
 
-    private final Context context;
+    private final Activity activity;
     private final StarboardBridge bridge;
 
-    public H5vccPlatformService(Context context, StarboardBridge bridge) {
-        this.context = context;
+    public H5vccPlatformService(Activity activity, StarboardBridge bridge) {
+        this.activity = activity;
         this.bridge = bridge;
     }
 
@@ -43,7 +43,7 @@ public class H5vccPlatformService implements CobaltJavaScriptAndroidObject {
 
     @CobaltJavaScriptInterface
     public void openPlatformService(long serviceId, String servicename) {
-        bridge.openCobaltService(serviceId, servicename);
+        bridge.openCobaltService(activity, serviceId, servicename);
     }
 
     @CobaltJavaScriptInterface
