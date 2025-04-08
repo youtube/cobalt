@@ -8,10 +8,19 @@
   "num_gtest_shards": 1,
   "targets": [
     "base",
+    "base_perftests",
     "base_unittests",
+    "boringssl_ssl_tests",
+    "crypto_unittests",
+    "ipc_tests",
     "net",
     "net_unittests",
-    "nplb"
+    "nplb",
+    "skia",
+    "sql_unittests",
+    "trace_processor_minimal_smoke_tests",
+    "url_unittests",
+    "zlib_unittests"
   ],
   "includes": [
     {

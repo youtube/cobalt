@@ -16,7 +16,11 @@
 #elif BUILDFLAG(IS_FUCHSIA)
 #include <zircon/syscalls.h>
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_STARBOARD)
+#include <sys/random.h>
+#else
 #include <asm/unistd.h>
+#endif
 #include <sys/syscall.h>
 #include <unistd.h>
 #elif BUILDFLAG(IS_MAC)
@@ -80,8 +84,12 @@ void RandomBytes(absl::Span<uint8_t> destination) {
   zx_cprng_draw(destination.data(), destination.size());
 #elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   while (!destination.empty()) {
+#if BUILDFLAG(IS_STARBOARD)
+    ssize_t result = getrandom(destination.data(), destination.size(), 0);
+#else
     ssize_t result =
         syscall(__NR_getrandom, destination.data(), destination.size(), 0);
+#endif
     if (result == -1 && errno == EINTR) {
       continue;
     } else if (result > 0) {

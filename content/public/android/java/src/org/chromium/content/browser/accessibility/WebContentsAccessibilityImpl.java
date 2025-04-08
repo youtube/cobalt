@@ -707,6 +707,12 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         // The |WebContentsAccessibilityImpl| class will rely on the Compat library, but we will
         // not require other parts of Chrome to do the same for simplicity, so unwrap the
         // |AccessibilityNodeProvider| object before returning.
+
+        // TODO (b/391708407): bypass Chromium's a11y, this can be reverted when Cobalt can safely use Chromium's a11y.
+        if (ContentFeatureList.isEnabled(ContentFeatureList.DO_NOT_GENERATE_CHROMIUM_A11Y_TREE)) {
+           return null;
+        }
+
         AccessibilityNodeProviderCompat anpc = getAccessibilityNodeProviderCompat();
         if (anpc == null) return null;
 
