@@ -10,6 +10,9 @@ import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 
+[EnableIf=use_starboard_media]
+import "media/mojo/mojom/starboard/starboard_media_types.mojom";
+
 [EnableIf=is_win]
 import "ui/gfx/mojom/buffer_types.mojom";
 // Extension of the mojo::RendererClient communication layer for HLS and Android
@@ -95,6 +98,9 @@ interface MediaFoundationRendererClientExtension {
 interface StarboardRendererClientExtension {
   // Paint a video hole on VideoRendererSink.
   PaintVideoHoleFrame(gfx.mojom.Size size);
+
+  // Notify the rendering mode from SbPlayer.
+  UpdateStarboardRenderingMode(StarboardRenderingMode mode);
 };
 
 // The Media Foundation Media Engine has two modes for playback.
