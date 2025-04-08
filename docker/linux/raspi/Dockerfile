@@ -34,7 +34,7 @@ RUN apt update -qqy \
 # Get the combined toolchains package.
 RUN cd /tmp \
     && curl --silent -O -J \
-    "https://storage.googleapis.com/cobalt-static-storage/${raspi_tools}" \
+    "https://storage.googleapis.com/cobalt-static-storage-public/${raspi_tools}" \
     && mkdir -p ${raspi_home} \
     && cd ${raspi_home} \
     && tar xjvf /tmp/${raspi_tools} --no-same-owner \
