@@ -51,7 +51,7 @@ DecoderBuffer::DecoderBuffer(base::span<const uint8_t> data)
 
 DecoderBuffer::DecoderBuffer(base::HeapArray<uint8_t> data, size_t size)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    : size_(size) {
+    : DecoderBuffer(data.get(), size, nullptr, 0) {
       // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
     }
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
