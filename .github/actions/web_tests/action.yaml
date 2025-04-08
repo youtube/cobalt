@@ -21,7 +21,8 @@ runs:
       shell: bash
       run: |
         set -x
-        cd src
+        mkdir web-tests/
+        cd web-tests/
         tar xvf ../test_artifacts.tar.gz
     - name: Run Web Tests
       id: run-tests
@@ -29,14 +30,11 @@ runs:
       run: |
         set -x
         env
+        cd web-tests/
 
-        cd src
+        # Web-tests expect dump_syms and minidump_stackwalk to be present at the root of the out folder.
+        cp out/${{ matrix.platform}}_${{ matrix.config }}/clang_x64/* out/${{ matrix.platform}}_${{ matrix.config }}/
 
-        # Explicitly point to libraries in extracted dir.
-        LD_LIBRARY_PATH="${GITHUB_WORKSPACE}/src/out/${{ matrix.platform}}_${{ matrix.config }}/starboard"
-        LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${GITHUB_WORKSPACE}/src/out/${{ matrix.platform}}_${{ matrix.config }}"
-        export LD_LIBRARY_PATH
-
-        ${GITHUB_WORKSPACE}/src/third_party/blink/tools/run_web_tests.py -t linux-x64x11-no-starboard_devel wpt_internal/cobalt/crash-log
+        ${GITHUB_WORKSPACE}/src/third_party/blink/tools/run_web_tests.py --debug -t ${{ matrix.platform}}_${{ matrix.config }}/ wpt_internal/cobalt/crash-log
 
         echo "Finished running tests..."
