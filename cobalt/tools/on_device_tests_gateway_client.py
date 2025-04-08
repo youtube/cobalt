@@ -324,8 +324,8 @@ def main() -> int:
     else:
       client.run_watch_command(args.token, args.session_id)
   except grpc.RpcError as e:
-    logging.exception('gRPC error occurred:')  # Log the full traceback
-    return e.code().value  # Return the error code
+    logging.error('gRPC error occurred: %s', e)
+    return 1
 
   return 0  # Indicate successful execution
 
