@@ -57,7 +57,7 @@ void InitFeatures() {
   Channel::set_posix_use_writev(
       base::FeatureList::IsEnabled(kMojoPosixUseWritev));
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
   bool shared_mem_enabled =
       base::FeatureList::IsEnabled(kMojoLinuxChannelSharedMem);
   bool use_zero_on_wake = kMojoLinuxChannelSharedMemEfdZeroOnWake.Get();

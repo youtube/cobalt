@@ -252,7 +252,6 @@ template("content_shell_apk_tmpl") {
       ":cobalt_shell_java",
       ":content_shell_apk_java",
       "//base:base_java_test_support",
-      "//components/crash/android:java",
       "//components/crash/core/app:chrome_crashpad_handler_named_as_so",
       "//components/metrics:metrics_java",
       "//content/public/android:content_java",
@@ -305,6 +304,9 @@ shared_library("libcobalt_content_shell_content_view") {
   ]
   configs -= [ "//build/config/android:hide_all_but_jni_onload" ]
   configs += [ "//build/config/android:hide_all_but_jni" ]
+  if (is_official_build) {
+    configs += [ "//build/config/compiler:strip_debug" ]
+  }
 }
 
 content_shell_apk_tmpl("cobalt_apk") {
