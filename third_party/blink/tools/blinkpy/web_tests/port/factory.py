@@ -231,6 +231,12 @@ def _update_configuration_and_target(host, options):
         options.configuration = gn_configuration
         return
 
+    # Cobalt addition, set configuration if passed as command line arg.
+    configuration = getattr(options, 'configuration', None)
+    if configuration:
+        options.configuration = configuration
+        return
+
     if options.target in ('Debug', 'Debug_x64'):
         options.configuration = 'Debug'
     elif options.target in ('Release', 'Release_x64'):
