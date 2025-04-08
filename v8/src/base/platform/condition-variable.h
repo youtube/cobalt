@@ -71,7 +71,7 @@ class V8_BASE_EXPORT ConditionVariable {
 #elif V8_OS_WIN
   using NativeHandle = V8_CONDITION_VARIABLE;
 #elif V8_OS_STARBOARD
-  using NativeHandle = SbConditionVariable;
+  using NativeHandle = pthread_cond_t;
 #endif
 
   NativeHandle& native_handle() {

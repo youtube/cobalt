@@ -24,10 +24,11 @@
 #include "src/base/win32-headers.h"
 #endif
 
+// ../../v8/src/base/platform/mutex.h:30:10: fatal error: 'starboard/common/rwlock.h' file not found
 #if V8_OS_STARBOARD
+#include <shared_mutex>
 #include "starboard/common/mutex.h"
 #include "starboard/common/recursive_mutex.h"
-#include "starboard/common/rwlock.h"
 #endif
 
 namespace v8 {
@@ -77,7 +78,7 @@ class V8_BASE_EXPORT Mutex final {
 #elif V8_OS_WIN
   using NativeHandle = V8_SRWLOCK;
 #elif V8_OS_STARBOARD
-  using NativeHandle = SbMutex;
+  using NativeHandle = pthread_mutex_t;
 #endif
 
   NativeHandle& native_handle() {
@@ -284,7 +285,7 @@ class V8_BASE_EXPORT SharedMutex final {
 #elif V8_OS_WIN
   using NativeHandle = V8_SRWLOCK;
 #elif V8_OS_STARBOARD
-  using NativeHandle = starboard::RWLock;
+  using NativeHandle = std::shared_mutex;
 #endif
 
   NativeHandle native_handle_;

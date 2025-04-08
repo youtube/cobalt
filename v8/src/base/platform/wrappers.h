@@ -10,18 +10,19 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef V8_OS_STARBOARD
-#include "starboard/string.h"
-#endif
+// ../../v8/src/base/platform/wrappers.h:14:10: fatal error: 'starboard/string.h' file not found
+// #ifdef V8_OS_STARBOARD
+// #include "starboard/string.h"
+// #endif
 
 namespace v8::base {
 
 inline char* Strdup(const char* source) {
-#if V8_OS_STARBOARD
-  return SbStringDuplicate(source);
-#else
+// #if V8_OS_STARBOARD
+//   return SbStringDuplicate(source);
+// #else
   return strdup(source);
-#endif
+// #endif
 }
 
 inline FILE* Fopen(const char* filename, const char* mode) {
