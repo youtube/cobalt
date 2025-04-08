@@ -1221,7 +1221,10 @@ class Mutex {
  private:
   void LazyInit() {
     if (type_ == kStatic && !initialized_) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wexit-time-destructors"
       static starboard::SpinLock s_lock;
+#pragma GCC diagnostic pop
       s_lock.Acquire();
       if (!initialized_) {
         pthread_mutex_init(&mutex_, nullptr);

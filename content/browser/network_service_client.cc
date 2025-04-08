@@ -48,14 +48,14 @@
 #include "base/task/current_thread.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
 #include "net/base/address_map_linux.h"
 #include "net/base/address_tracker_linux.h"
 #endif
 
 namespace content {
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
 namespace {
 
 // Takes care of passing updates to AddressTrackerLinux's AddressMap and set of
@@ -138,18 +138,18 @@ NetworkServiceClient::NetworkServiceClient()
 NetworkServiceClient::~NetworkServiceClient() {
   if (IsOutOfProcessNetworkService()) {
     net::CertDatabase::GetInstance()->RemoveObserver(this);
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
     bool remove_ncn_observers = true;
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
     remove_ncn_observers = base::FeatureList::IsEnabled(
         net::features::kAddressTrackerLinuxIsProxied);
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
     if (remove_ncn_observers) {
       net::NetworkChangeNotifier::RemoveConnectionTypeObserver(this);
       net::NetworkChangeNotifier::RemoveMaxBandwidthObserver(this);
       net::NetworkChangeNotifier::RemoveIPAddressObserver(this);
     }
-#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
   }
 }
 
@@ -173,7 +173,7 @@ void NetworkServiceClient::OnApplicationStateChange(
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
 void NetworkServiceClient::OnConnectionTypeChanged(
     net::NetworkChangeNotifier::ConnectionType type) {
   network_change_manager_->OnNetworkChanged(
@@ -207,7 +207,7 @@ void NetworkServiceClient::OnIPAddressChanged() {
       network::mojom::ConnectionSubtype(
           net::NetworkChangeNotifier::GetConnectionSubtype()));
 }
-#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
 
 #if BUILDFLAG(USE_SOCKET_BROKER)
 mojo::PendingRemote<network::mojom::SocketBroker>
@@ -226,17 +226,17 @@ NetworkServiceClient::BindURLLoaderNetworkServiceObserver() {
 
 void NetworkServiceClient::OnNetworkServiceInitialized(
     network::mojom::NetworkService* service) {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
   bool add_ncn_observers = true;
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
   add_ncn_observers = base::FeatureList::IsEnabled(
       net::features::kAddressTrackerLinuxIsProxied);
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
   if (IsOutOfProcessNetworkService() && add_ncn_observers) {
     DCHECK(!net::NetworkChangeNotifier::CreateIfNeeded());
     service->GetNetworkChangeManager(
         network_change_manager_.BindNewPipeAndPassReceiver());
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
     // Keep the tracking AddressTrackerLinux in sync with the caching version in
     // the network service, which cannot use AddressTrackerLinux in the sandbox.
     mojo::PendingAssociatedRemote<
@@ -255,12 +255,12 @@ void NetworkServiceClient::OnNetworkServiceInitialized(
             base::BindRepeating(&NetworkInterfaceChangeHelper::
                                     SendAddressTrackerDiffsToNetworkService,
                                 std::move(diff_callback_helper)));
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
     net::NetworkChangeNotifier::AddConnectionTypeObserver(this);
     net::NetworkChangeNotifier::AddMaxBandwidthObserver(this);
     net::NetworkChangeNotifier::AddIPAddressObserver(this);
   }
-#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
 }
 
 void NetworkServiceClient::OnSSLCertificateError(
