@@ -86,15 +86,23 @@ interface MediaFoundationRendererClientExtension {
     gfx.mojom.Size size, mojo_base.mojom.TimeDelta timestamp);
 };
 
+enum StarboardRenderingMode {
+  kDecodeToTexture,
+  kPunchOut,
+  kInvalid
+};
+
 [EnableIf=use_starboard_media]
 // This interface is for StarboardRendererClient to extend
 // mojo:RendererClient as StarboardRendererClient to allow
-// StarboardRenderer (on gpu thread) to paint a video hole
-// on VideoRendererSink on renderer thread.
+// StarboardRenderer (on gpu thread) to post tasks
+// on StarboardRendererClient on renderer thread.
 interface StarboardRendererClientExtension {
-  // Called when the first time the metadata is updated, and whenever the
-  // metadata changes.
+  // Paint a video hole on VideoRendererSink.
   PaintVideoHoleFrame(gfx.mojom.Size size);
+
+  // Notify the rendering mode from SbPlayer.
+  UpdateStarboardRenderingMode(StarboardRenderingMode mode);
 };
 
 // The Media Foundation Media Engine has two modes for playback.
