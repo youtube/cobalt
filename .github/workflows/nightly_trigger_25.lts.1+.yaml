@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  trigger_24:
+  trigger_25:
     permissions:
       actions: write
     runs-on: ubuntu-latest
