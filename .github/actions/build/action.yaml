@@ -87,7 +87,9 @@ runs:
       - name: Web test targets
         id: web-test-targets
         if: inputs.upload_web_test_artifacts == 'true'
-        run: echo "test_targets_json=${targets}" >> $GITHUB_OUTPUT
+        run: |
+          test_targets_json='[":blink_web_tests"]'
+          echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
         shell: bash
       - name: Archive test target JSON
         uses: actions/upload-artifact@v4
