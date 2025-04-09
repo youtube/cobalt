@@ -4,10 +4,10 @@ FROM debian:12@${BASE_IMAGE_SHA}
 
 # Install any necessary dependencies
 RUN apt-get update && apt-get install -y \
+    curl \
     python3-dev \
     git \
     xz-utils \
-    curl \
     jq \
     libatk1.0-0 \
     libatk-bridge2.0-0 \
