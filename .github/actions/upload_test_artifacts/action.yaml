@@ -18,7 +18,7 @@ runs:
   steps:
     - name: Archive Test Artifacts
       env:
-        TEST_TARGET_JSON: ${{ inputs.test_targets_json_file }}
+        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
       run: |
         set -x
         mkdir ${GITHUB_WORKSPACE}/artifacts
@@ -29,7 +29,7 @@ runs:
           --out-dir out/${{ matrix.platform }}_${{ matrix.config }}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
           --platform ${{ matrix.platform }} \
-          --targets $(echo "${TEST_TARGET_JSON}" | jq -cr 'join(",")')
+          --targets $(echo "${TEST_TARGETS_JSON}" | jq -cr 'join(",")')
       shell: bash
     - name: Upload On-Host Test Artifacts Archive
       if: inputs.upload_on_host_test_artifacts == 'true'
