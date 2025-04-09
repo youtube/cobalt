@@ -656,18 +656,4 @@ public abstract class CobaltActivity extends Activity {
   public long getAppStartTimestamp() {
     return timeInNanoseconds;
   }
-
-  public void evaluateJavaScript(String jsCode) {
-    // evaluateJavaScript must run on UI thread.
-    runOnUiThread(
-        new Runnable() {
-          @Override
-          public void run() {
-            WebContents webContents = getActiveWebContents();
-            if (webContents != null) {
-              webContents.evaluateJavaScript(jsCode, null);
-            }
-          }
-        });
-  }
 }
