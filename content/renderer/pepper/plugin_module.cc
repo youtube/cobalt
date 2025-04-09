@@ -331,6 +331,9 @@ const void* GetInterface(const char* name) {
 // given structure. Returns true on success.
 bool LoadEntryPointsFromLibrary(const base::NativeLibrary& library,
                                 ContentPluginInfo::EntryPoints* entry_points) {
+#if BUILDFLAG(IS_STARBOARD)
+  return false;
+#else
   entry_points->get_interface =
       reinterpret_cast<ContentPluginInfo::GetInterfaceFunc>(
           base::GetFunctionPointerFromNativeLibrary(library,
@@ -357,6 +360,7 @@ bool LoadEntryPointsFromLibrary(const base::NativeLibrary& library,
                                                     "PPP_ShutdownModule"));
 
   return true;
+#endif
 }
 
 void CreateHostForInProcessModule(RenderFrameImpl* render_frame,
@@ -422,8 +426,10 @@ PluginModule::~PluginModule() {
   if (entry_points_.shutdown_module)
     entry_points_.shutdown_module();
 
+#if !BUILDFLAG(IS_STARBOARD)
   if (library_)
     base::UnloadNativeLibrary(library_);
+#endif
 
   // Notifications that we've been deleted should be last.
   HostGlobals::Get()->ModuleDeleted(pp_module_);
@@ -462,7 +468,9 @@ bool PluginModule::InitAsLibrary(const base::FilePath& path) {
 
   if (!LoadEntryPointsFromLibrary(library, &entry_points) ||
       !InitializeModule(entry_points)) {
+#if !BUILDFLAG(IS_STARBOARD)
     base::UnloadNativeLibrary(library);
+#endif
     return false;
   }
   entry_points_ = entry_points;

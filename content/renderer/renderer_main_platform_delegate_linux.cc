@@ -30,6 +30,9 @@ void RendererMainPlatformDelegate::PlatformUninitialize() {
 }
 
 bool RendererMainPlatformDelegate::EnableSandbox() {
+#if BUILDFLAG(IS_STARBOARD)
+  return false;
+#else
   // The setuid sandbox is started in the zygote process: zygote_main_linux.cc
   // https://chromium.googlesource.com/chromium/src/+/main/docs/linux/suid_sandbox.md
   //
@@ -67,6 +70,7 @@ bool RendererMainPlatformDelegate::EnableSandbox() {
 #endif  // __x86_64__
 
   return true;
+#endif
 }
 
 }  // namespace content

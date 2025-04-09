@@ -42,7 +42,4 @@ if (is_starboard) {
 if (is_cobalt && current_toolchain == host_toolchain) {
   ozone_external_platforms += [ "headless" ]
   ozone_external_platform_deps += [ "platform/headless" ]
-  # ozone_external_platforms += [ "x11" ]
-  # ozone_external_platform_deps += [ "platform/x11" ]
-  # ozone_external_platform_ui_test_support_deps += [ "platform/x11:test_support" ]
 }

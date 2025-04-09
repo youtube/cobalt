@@ -1221,10 +1221,14 @@ class Mutex {
  private:
   void LazyInit() {
     if (type_ == kStatic && !initialized_) {
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wexit-time-destructors"
+#endif
       static starboard::SpinLock s_lock;
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #pragma GCC diagnostic pop
+#endif
       s_lock.Acquire();
       if (!initialized_) {
         pthread_mutex_init(&mutex_, nullptr);

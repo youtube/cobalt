@@ -140,10 +140,10 @@ NetworkServiceClient::~NetworkServiceClient() {
     net::CertDatabase::GetInstance()->RemoveObserver(this);
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
     bool remove_ncn_observers = true;
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_LINUX)
     remove_ncn_observers = base::FeatureList::IsEnabled(
         net::features::kAddressTrackerLinuxIsProxied);
-#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_LINUX)
     if (remove_ncn_observers) {
       net::NetworkChangeNotifier::RemoveConnectionTypeObserver(this);
       net::NetworkChangeNotifier::RemoveMaxBandwidthObserver(this);
@@ -228,10 +228,10 @@ void NetworkServiceClient::OnNetworkServiceInitialized(
     network::mojom::NetworkService* service) {
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
   bool add_ncn_observers = true;
-#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+#if BUILDFLAG(IS_LINUX)
   add_ncn_observers = base::FeatureList::IsEnabled(
       net::features::kAddressTrackerLinuxIsProxied);
-#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_LINUX)
   if (IsOutOfProcessNetworkService() && add_ncn_observers) {
     DCHECK(!net::NetworkChangeNotifier::CreateIfNeeded());
     service->GetNetworkChangeManager(
@@ -255,7 +255,7 @@ void NetworkServiceClient::OnNetworkServiceInitialized(
             base::BindRepeating(&NetworkInterfaceChangeHelper::
                                     SendAddressTrackerDiffsToNetworkService,
                                 std::move(diff_callback_helper)));
-#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
+#endif  // BUILDFLAG(IS_LINUX)
     net::NetworkChangeNotifier::AddConnectionTypeObserver(this);
     net::NetworkChangeNotifier::AddMaxBandwidthObserver(this);
     net::NetworkChangeNotifier::AddIPAddressObserver(this);
