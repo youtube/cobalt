@@ -25,7 +25,10 @@
 #include "build/build_config.h"
 #include "media/base/decoder_buffer_side_data.h"
 #include "media/base/decrypt_config.h"
+#include "media/base/demuxer_stream.h"
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/media_export.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 #include "media/base/timestamp_constants.h"
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -87,7 +90,7 @@ class MEDIA_EXPORT DecoderBuffer
 
     // The function should never return nullptr.  It may terminate the app on
     // allocation failure.
-    virtual void* Allocate(size_t size, size_t alignment) = 0;
+    virtual void* Allocate(DemuxerStream::Type type, size_t size, size_t alignment) = 0;
     virtual void Free(void* p, size_t size) = 0;
 
     virtual int GetAudioBufferBudget() const = 0;
@@ -324,6 +327,12 @@ class MEDIA_EXPORT DecoderBuffer
   // default to false.
   explicit DecoderBuffer(base::span<const uint8_t> data);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  DecoderBuffer(DemuxerStream::Type type,
+                const uint8_t* data,
+                size_t size);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   DecoderBuffer(base::HeapArray<uint8_t> data, size_t size);
 
   DecoderBuffer(base::ReadOnlySharedMemoryMapping mapping, size_t size);
@@ -373,6 +382,10 @@ class MEDIA_EXPORT DecoderBuffer
 
   // Whether the buffer represent the end of stream.
   const bool is_end_of_stream_ = false;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void Initialize(DemuxerStream::Type type);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
 }  // namespace media
