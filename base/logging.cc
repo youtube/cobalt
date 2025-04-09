@@ -920,7 +920,15 @@ LogMessage::~LogMessage() {
         priority = ANDROID_LOG_FATAL;
         break;
     }
+<<<<<<< HEAD
     const char kAndroidLogTag[] = "chromium";
+=======
+#if BUILDFLAG(IS_COBALT)
+    const char kAndroidLogTag[] = "cobalt";
+#else
+    const char kAndroidLogTag[] = "chromium";
+#endif
+>>>>>>> f5d3c29a1e7 ([Cobalt] Add switch between Cobalt and Chromium for logs prefix (#5249))
 #if DCHECK_IS_ON()
     // Split the output by new lines to prevent the Android system from
     // truncating the log.
