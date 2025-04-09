@@ -1778,6 +1778,13 @@ component("net") {
     deps += [ "//mojo/public/cpp/bindings:default_construct_tag" ]
   }
 
+  if(is_starboard) {
+    sources += [
+      "cert/test_root_certs_builtin.cc",
+      "cert/internal/system_trust_store_starboard.cc"
+    ]
+  }
+
   if (is_cobalt_hermetic_build) {
     sources += [
       "base/network_interfaces_starboard.cc",
