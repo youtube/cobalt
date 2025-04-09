@@ -358,6 +358,8 @@ jobs:
           path: src
       - name: Set Up Depot Tools
         uses: ./src/.github/actions/depot_tools
+        with:
+          run_sync: false
       - name: Run Web Tests
         uses: ./src/.github/actions/web_tests
         with:
