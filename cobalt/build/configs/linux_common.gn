@@ -80,29 +80,7 @@ use_alsa = false
 use_gtk = false
 use_gio = false
 use_pangocairo = false
-<<<<<<< HEAD
-=======
-
-# Overriding from components/optimization_guide/features.gni
-# TFLite is a part of the open-source machine-learning library TensorFlow.
-# We are not using tflite in cobalt currently.
-build_with_tflite_lib = false
-
-# Overriding from third_party/blink/renderer/modules/ml/webnn/features.gni:10
-# webnn is a machine learning related module: https://chromestatus.com/feature/5176273954144256
-# We are not using webnn in cobalt currently.
-build_webnn_with_xnnpack = false
-
-# Override from //third_party/angle/BUILD.gn
-# This flag uses the Use the PCI lib to collect GPU information on Linux.
-# Disabling this as it causes build errors.
-use_libpci = false
-
-# Override from chrome/installer/installers.gni
-# This flag enables the creation of Linux installer packages(like .deb , .rpm)
-enable_linux_installer = false
 
 # Disable Mozilla/NSS cert store access
 # We use Chromium root store
 use_nss_certs = false
->>>>>>> caa399ea94a (Disable NSS certificates (#5334))
