@@ -90,6 +90,7 @@ runs:
         run: |
           test_targets_json='[":blink_web_tests"]'
           echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
+          # TODO: Create json file?
         shell: bash
       - name: Archive test target JSON
         uses: actions/upload-artifact@v4
