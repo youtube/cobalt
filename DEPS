@@ -1881,8 +1881,9 @@ deps = {
   'src/third_party/webgpu-cts/src':
     Var('chromium_git') + '/external/github.com/gpuweb/cts.git' + '@' + '7d2d22292ce5af280c8c5849ed7f0679d7ab70e9',
 
-  'src/third_party/webrtc':
-    Var('webrtc_git') + '/src.git' + '@' + '729f79c176c8b4c3a8c1b60f39df5fb43323b27b',
+# Cobalt: imported
+# 'src/third_party/webrtc':
+#   Var('webrtc_git') + '/src.git' + '@' + '729f79c176c8b4c3a8c1b60f39df5fb43323b27b',
 
   # Wuffs' canonical repository is at github.com/google/wuffs, but we use
   # Skia's mirror of Wuffs, the same as in upstream Skia's DEPS file.
