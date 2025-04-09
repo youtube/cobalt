@@ -131,6 +131,6 @@ runs:
         uses: ./src/.github/actions/upload_test_artifacts
         with:
           test_artifacts_key: ${{ inputs.test_artifacts_key }}
-          upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts || inputs.upload_web_test_artifacts }}
+          upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_web_test_artifacts == 'true' }}
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
           test_targets_json: ${{ steps.calculate-test-targets.outputs.test_targets_json || steps.web-test-targets.outputs.test_targets_json }}
