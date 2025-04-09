@@ -65,7 +65,11 @@ StreamParserBuffer::StreamParserBuffer(const uint8_t* data,
                                        bool is_key_frame,
                                        Type type,
                                        TrackId track_id)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    : DecoderBuffer(type, data, data_size),
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     : DecoderBuffer(data, data_size),
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
       decode_timestamp_(kNoDecodeTimestamp),
       config_id_(kInvalidConfigId),
       type_(type),
