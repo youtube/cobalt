@@ -135,6 +135,7 @@ source_set("unit_tests") {
   if (use_starboard_media) {
     sources += [
       "bidirectional_fit_reuse_allocator_test.cc",
+      "decoder_buffer_allocator_test.cc",
       "starboard_utils_test.cc",
     ]
   }

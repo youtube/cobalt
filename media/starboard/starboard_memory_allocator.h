@@ -49,7 +49,8 @@ class StarboardMemoryAllocator : public starboard::common::Allocator {
     // Returns 0 here to avoid tracking the allocated memory.
     return 0;
   }
-  void PrintAllocations() const override {}
+  void PrintAllocations(bool align_allocated_size,
+                        int max_allocations_to_print) const override {}
 };
 
 }  // namespace media

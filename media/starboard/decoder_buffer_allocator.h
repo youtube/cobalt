@@ -17,6 +17,8 @@
 
 #include <atomic>
 #include <memory>
+#include <set>
+#include <sstream>
 
 #include "base/compiler_specific.h"
 #include "base/synchronization/lock.h"
@@ -34,14 +36,26 @@ namespace media {
 class DecoderBufferAllocator : public DecoderBuffer::Allocator,
                                public DecoderBufferMemoryInfo {
  public:
-  DecoderBufferAllocator();
+  enum class Type {
+    kGlobal,  // The global allocator calls `Allocator::Set(this)` to register
+              // itself in the ctor
+    kLocal,
+  };
+
+  explicit DecoderBufferAllocator(Type type = Type::kGlobal);
+  DecoderBufferAllocator(Type type,
+                         bool is_memory_pool_allocated_on_demand,
+                         int initial_capacity,
+                         int allocation_unit);
   ~DecoderBufferAllocator() override;
 
   void Suspend();
   void Resume();
 
   // DecoderBuffer::Allocator methods.
-  void* Allocate(size_t size, size_t alignment) override;
+  void* Allocate(DemuxerStream::Type type,
+                 size_t size,
+                 size_t alignment) override;
   void Free(void* p, size_t size) override;
 
   int GetAudioBufferBudget() const override;
@@ -65,6 +79,11 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
  private:
   void EnsureReuseAllocatorIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+
+  const Type type_;
   const bool is_memory_pool_allocated_on_demand_;
   const int initial_capacity_;
   const int allocation_unit_;
@@ -73,6 +92,14 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   StarboardMemoryAllocator fallback_allocator_ GUARDED_BY(mutex_);
   std::unique_ptr<BidirectionalFitReuseAllocator> reuse_allocator_
       GUARDED_BY(mutex_);
+
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+  // The following variables are used for comprehensive logging of allocation
+  // operations.
+  std::stringstream pending_allocation_operations_ GUARDED_BY(mutex_);
+  int pending_allocation_operations_count_ GUARDED_BY(mutex_) = 0;
+  int allocation_operation_index_ GUARDED_BY(mutex_) = 0;
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
   int max_buffer_capacity_ GUARDED_BY(mutex_) = 0;
 };
