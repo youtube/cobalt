@@ -4,12 +4,6 @@ inputs:
   test_artifacts_key:
     description: "Artifact key used to store test artifacts."
     required: true
-  # test_results_key:
-  #   description: "Artifact key used to store test results."
-  #   required: true
-  # num_gtest_shards:
-  #   description: "Total number of shards used to run the steps in this file."
-  #   required: true
 runs:
   using: "composite"
   steps:
