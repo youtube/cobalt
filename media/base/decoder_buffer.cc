@@ -54,11 +54,27 @@ DecoderBuffer::DecoderBuffer(const uint8_t* data, size_t size)
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+DecoderBuffer::DecoderBuffer(DemuxerStream::Type type,
+                             const uint8_t* data,
+                             size_t size)
+    : size_(size), is_key_frame_(false) {
+  if (!data) {
+    CHECK_EQ(size_, 0u);
+    return;
+  }
+
+  Initialize(type);
+
+  memcpy(data_, data, size_);
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 DecoderBuffer::DecoderBuffer(std::unique_ptr<uint8_t[]> data, size_t size)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    : DecoderBuffer(data.get(), size, nullptr, 0) {
-      // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
-    }
+  : DecoderBuffer(data.get(), size, nullptr, 0) {
+  // TODO(b/378106931): revisit DecoderBufferAllocator once rebase to m126+
+}
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
     : data_(std::move(data)), size_(size) {}
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
@@ -86,19 +102,27 @@ DecoderBuffer::~DecoderBuffer() {
 
 void DecoderBuffer::Initialize() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // This is used by Mojo.
+  Initialize(DemuxerStream::UNKNOWN);
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+  data_.reset(new uint8_t[size_]);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+}
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void DecoderBuffer::Initialize(DemuxerStream::Type type) {
   DCHECK(s_allocator);
   DCHECK(!data_);
 
   int alignment = s_allocator->GetBufferAlignment();
   int padding = s_allocator->GetBufferPadding();
   allocated_size_ = size_ + padding;
-  data_ = static_cast<uint8_t*>(s_allocator->Allocate(allocated_size_,
+  data_ = static_cast<uint8_t*>(s_allocator->Allocate(type,
+                                                      allocated_size_,
                                                       alignment));
   memset(data_ + size_, 0, padding);
-#else // BUILDFLAG(USE_STARBOARD_MEDIA)
-  data_.reset(new uint8_t[size_]);
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(const uint8_t* data,

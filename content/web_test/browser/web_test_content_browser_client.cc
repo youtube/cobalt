@@ -550,10 +550,6 @@ void WebTestContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
   map->Add<blink::test::mojom::CookieManagerAutomation>(base::BindRepeating(
       &WebTestContentBrowserClient::BindCookieManagerAutomation,
       base::Unretained(this)));
-  map->Add<blink::test::mojom::AttributionReportingAutomation>(
-      base::BindRepeating(
-          &WebTestContentBrowserClient::BindAttributionReportingAutomation,
-          base::Unretained(this)));
 #if BUILDFLAG(IS_COBALT)
   map->Add<h5vcc_runtime::mojom::H5vccRuntime>(base::BindRepeating(
       &WebTestContentBrowserClient::BindH5vccRuntime, base::Unretained(this)));
