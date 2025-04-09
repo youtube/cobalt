@@ -17,6 +17,7 @@
 #include <string>
 
 #include "base/files/file_path.h"
+#include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
@@ -28,6 +29,16 @@
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/user_agent.h"
+<<<<<<< HEAD
+=======
+#include "content/shell/browser/shell.h"
+// TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
+// being a ShellBrowserMainParts.
+#include "content/shell/browser/shell_browser_main_parts.h"
+#include "content/shell/browser/shell_paths.h"
+#include "content/shell/common/shell_switches.h"
+#include "services/network/public/cpp/features.h"
+>>>>>>> e50cb8ff1b6 (Move audio input permission check to getUserMedia(). (#5296))
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
@@ -225,6 +236,12 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
     content::WebContents* web_contents) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
+  web_contents_delegate_.reset(new CobaltWebContentsDelegate());
+  content::Shell::SetShellCreatedCallback(base::BindOnce(
+      [](content::WebContentsDelegate* delegate, content::Shell* shell) {
+        shell->web_contents()->SetDelegate(delegate);
+      },
+      web_contents_delegate_.get()));
 }
 
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
