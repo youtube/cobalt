@@ -48,7 +48,9 @@ size_t FixedNoFreeAllocator::GetAllocated() const {
   return AsInteger(next_memory_) - AsInteger(memory_start_);
 }
 
-void FixedNoFreeAllocator::PrintAllocations() const {
+void FixedNoFreeAllocator::PrintAllocations(
+    bool align_allocated_size,
+    int max_allocations_to_print) const {
   SB_NOTIMPLEMENTED();
 }
 
