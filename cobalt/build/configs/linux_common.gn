@@ -80,3 +80,7 @@ use_alsa = false
 use_gtk = false
 use_gio = false
 use_pangocairo = false
+
+# Disable Mozilla/NSS cert store access
+# We use Chromium root store
+use_nss_certs = false
