@@ -53,6 +53,8 @@ if (!is_android) {
       "//cobalt/browser:switches",
       "//cobalt/gpu",
       "//cobalt/renderer",
+      "//components/memory_system:memory_system",
+      "//components/prefs",
       "//content/public/app",
       "//content/shell:content_shell_app",
       "//content/shell:content_shell_lib",

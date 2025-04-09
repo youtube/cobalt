@@ -280,6 +280,7 @@ shared_library("libcobalt_content_shell_content_view") {
 
     # TODO: what can be removed in the dependencies?
     "//components/crash/content/browser",
+    "//components/memory_system",
     "//content/shell:content_shell_app",
     "//content/shell:content_shell_lib",
     "//content/shell:pak",

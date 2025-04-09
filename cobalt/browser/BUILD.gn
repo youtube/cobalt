@@ -58,9 +58,11 @@ source_set("browser") {
     "//cobalt/user_agent",
     "//components/js_injection/browser:browser",
     "//components/metrics",
+    "//components/metrics:test_support",
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
+    "//components/variations/service:service",
     "//content/public/browser",
     "//starboard/($starboard_toolchain)",
 
