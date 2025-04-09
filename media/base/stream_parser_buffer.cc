@@ -99,10 +99,14 @@ StreamParserBuffer::StreamParserBuffer(const uint8_t* data,
                                        bool is_key_frame,
                                        Type type,
                                        TrackId track_id)
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    : DecoderBuffer(type, data, data_size),
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     : DecoderBuffer(
           // TODO(crbug.com/40284755): Convert `StreamBufferParser` to
           // `size_t` and `base::span`.
           UNSAFE_TODO(base::span(data, base::checked_cast<size_t>(data_size)))),
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
       type_(type),
       track_id_(track_id) {
   // TODO(scherkus): Should DataBuffer constructor accept a timestamp and

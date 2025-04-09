@@ -47,7 +47,8 @@ class ReuseAllocatorBase : public Allocator {
     return max_capacity_ && (capacity_ > max_capacity_);
   }
 
-  void PrintAllocations() const override;
+  void PrintAllocations(bool align_allocated_size,
+                        int max_allocations_to_print) const override;
 
   bool TryFree(void* memory);
 
