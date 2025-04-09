@@ -50,9 +50,16 @@ class FixedNoFreeAllocator : public Allocator {
     return Allocate(size, alignment, false);
   }
   void Free(void* memory);
+<<<<<<< HEAD
   std::size_t GetCapacity() const;
   std::size_t GetAllocated() const;
   void PrintAllocations() const;
+=======
+  size_t GetCapacity() const;
+  size_t GetAllocated() const;
+  void PrintAllocations(bool align_allocated_size,
+                        int max_allocations_to_print) const;
+>>>>>>> 987ce29f7f5 ([media] Improve DecoderBufferAllocator logging (#5036))
 
  private:
   void* Allocate(std::size_t* size, std::size_t alignment, bool align_pointer);
