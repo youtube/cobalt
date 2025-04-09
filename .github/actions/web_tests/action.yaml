@@ -27,8 +27,14 @@ runs:
         cd web-tests/
 
         # Web-tests expect dump_syms and minidump_stackwalk to be present at the root of the out folder.
-        cp out/${{ matrix.platform}}_${{ matrix.config }}/clang_x64/* out/${{ matrix.platform}}_${{ matrix.config }}/
+        cp out/${{ matrix.platform}}_${{ matrix.config }}/clang_x64/{dump_syms,minidump_stackwalk} \
+          out/${{ matrix.platform}}_${{ matrix.config }}/
 
-        third_party/blink/tools/run_web_tests.py --debug -t ${{ matrix.platform}}_${{ matrix.config }}/ wpt_internal/cobalt/crash-log
+        third_party/blink/tools/run_web_tests.py \
+          --driver-logging \
+          --additional-driver-flag="--no-sandbox" \
+          --debug \
+          -t linux-x64x11-no-starboard_devel \
+          wpt_internal/cobalt/crash-log
 
         echo "Finished running tests..."
