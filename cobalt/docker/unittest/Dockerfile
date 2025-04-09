@@ -9,14 +9,20 @@ RUN apt-get update && apt-get install -y \
     xz-utils \
     curl \
     jq \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
     libasound2 \
     libgles2-mesa-dev \
     libglapi-mesa \
     libegl-mesa0 \
     libdbus-1-3 \
     libgbm-dev \
+    libglib2.0-0 \
     libnss3 \
+    libpangocairo-1.0-0 \
     libxcomposite-dev \
+    libxdamage1 \
+    libxkbcommon-x11-0 \
     xvfb \
     x11-utils \
     && rm -rf /var/lib/apt/lists/*
