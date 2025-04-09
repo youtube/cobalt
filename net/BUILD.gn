@@ -1629,6 +1629,23 @@ component("net") {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
+<<<<<<< HEAD
+=======
+
+  if(is_starboard) {
+    sources += [
+      "cert/test_root_certs_builtin.cc",
+      "cert/internal/system_trust_store_starboard.cc"
+    ]
+  }
+  if (is_cobalt_hermetic_build) {
+    sources += [
+      "base/network_interfaces_starboard.cc",
+      "base/platform_mime_util_starboard.cc",
+      "base/network_change_notifier_starboard.h",
+    ]
+  }
+>>>>>>> caa399ea94a (Disable NSS certificates (#5334))
 }
 
 # net_export.h has its own build target so that code (eg
