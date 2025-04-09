@@ -34,7 +34,14 @@ runs:
           --driver-logging \
           --additional-driver-flag="--no-sandbox" \
           --debug \
-          -t linux-x64x11-no-starboard_devel \
+          --no-show-results \
+          -t ${{ matrix.platform}}_${{ matrix.config }} \
           wpt_internal/cobalt/crash-log
 
         echo "Finished running tests..."
+    - name: Archive Test Results
+      if: success() || failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.test_results_key }}
+        path: web-tests/out/${{ matrix.platform}}_${{ matrix.config }}/layout-test-results/results.html
