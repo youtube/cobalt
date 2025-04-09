@@ -160,20 +160,16 @@ TEST(SbMediaBufferTest, MediaTypes) {
 }
 
 TEST(SbMediaBufferTest, Alignment) {
-  for (auto type : kMediaTypes) {
-    // The test will be run more than once, it's redundant but allows us to keep
-    // the test logic in one place.
-    int alignment = SbMediaGetBufferAlignment();
+  int alignment = SbMediaGetBufferAlignment();
 
-    // SbMediaGetBufferAlignment() was deprecated in Starboard 16, its return
-    // value is no longer used when allocating media buffers.  This is verified
-    // explicitly here by ensuring its return value is sizeof(void*).
-    // The app MAY take best effort to allocate media buffers aligned to an
-    // optimal alignment for the platform, but not guaranteed.
-    // An implementation that has specific alignment requirement should check
-    // the alignment of the incoming buffer, and make a copy when necessary.
-    EXPECT_EQ(alignment, sizeof(void*));
-  }
+  // SbMediaGetBufferAlignment() was deprecated in Starboard 16, its return
+  // value is no longer used when allocating media buffers.  This is verified
+  // explicitly here by ensuring its return value is sizeof(void*).
+  // The app MAY take best effort to allocate media buffers aligned to an
+  // optimal alignment for the platform, but not guaranteed.
+  // An implementation that has specific alignment requirement should check
+  // the alignment of the incoming buffer, and make a copy when necessary.
+  EXPECT_EQ(alignment, sizeof(void*));
 }
 
 TEST(SbMediaBufferTest, AllocationUnit) {

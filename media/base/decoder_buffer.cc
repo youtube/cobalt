@@ -141,16 +141,16 @@ void DecoderBuffer::Initialize() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void DecoderBuffer::Initialize(DemuxerStream::Type type) {
   DCHECK(s_allocator);
+  DCHECK_EQ(s_allocator->GetBufferAlignment(), sizeof(void*));
+  DCHECK_EQ(s_allocator->GetBufferPadding(), 0);
   DCHECK(!data_);
 
-  int alignment = s_allocator->GetBufferAlignment();
-  int padding = s_allocator->GetBufferPadding();
-  allocated_size_ = size_ + padding;
+  const int kAlignment = sizeof(void*);
+
+  allocated_size_ = size_;
   data_ = static_cast<uint8_t*>(s_allocator->Allocate(type,
                                                       allocated_size_,
-                                                      alignment));
-  memset(data_ + size_, 0, padding);
-
+                                                      kAlignment));
   if (side_data_size_ > 0)
     side_data_.reset(new uint8_t[side_data_size_]);
 }
