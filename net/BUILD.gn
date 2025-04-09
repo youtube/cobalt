@@ -1629,6 +1629,13 @@ component("net") {
     configs -= [ "//build/config/compiler:default_optimization" ]
     configs += [ "//build/config/compiler:optimize_max" ]
   }
+
+  if(is_starboard) {
+    sources += [
+      "cert/test_root_certs_builtin.cc",
+      "cert/internal/system_trust_store_starboard.cc"
+    ]
+  }
 }
 
 # net_export.h has its own build target so that code (eg

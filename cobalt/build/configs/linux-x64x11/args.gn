@@ -59,3 +59,5 @@ trial_comparison_cert_verifier_supported = false
 
 # Currently unsupported on 3P.
 build_epoll_based_tools = false
+
+use_nss_certs = false
