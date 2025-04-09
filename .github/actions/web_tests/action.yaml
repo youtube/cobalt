@@ -17,7 +17,7 @@ runs:
         set -x
         mkdir web-tests/
         cd web-tests/
-        tar xvf ../test_artifacts.tar.gz
+        tar xf ../test_artifacts.tar.gz
     - name: Run Web Tests
       id: run-tests
       shell: bash
