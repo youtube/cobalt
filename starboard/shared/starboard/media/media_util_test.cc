@@ -16,8 +16,10 @@
 
 #include <vector>
 
+#include "starboard/common/log.h"
 #include "starboard/extension/enhanced_audio.h"
 #include "starboard/media.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -33,6 +35,10 @@ std::vector<uint8_t> ToVector(const void* data, int size) {
   SB_CHECK(data);
   const uint8_t* data_as_uint8 = static_cast<const uint8_t*>(data);
   return std::vector<uint8_t>(data_as_uint8, data_as_uint8 + size);
+}
+
+MATCHER_P(EqStruct, other, /*description=*/"") {
+  return memcmp(&arg, &other, sizeof(SbMediaColorMetadata)) == 0;
 }
 
 TEST(AudioStreamInfoTest, DefaultCtor) {
@@ -140,7 +146,8 @@ TEST(VideoStreamInfoTest, SbMediaVideoStreamInfo) {
             video_stream_info.max_video_capabilities);
   EXPECT_EQ(original.frame_width, video_stream_info.frame_width);
   EXPECT_EQ(original.frame_height, video_stream_info.frame_height);
-  EXPECT_EQ(original.color_metadata, video_stream_info.color_metadata);
+  EXPECT_THAT(original.color_metadata,
+              EqStruct(video_stream_info.color_metadata));
 }
 
 TEST(VideoStreamInfoTest, CobaltExtensionEnhancedAudioMediaVideoStreamInfo) {
@@ -160,7 +167,8 @@ TEST(VideoStreamInfoTest, CobaltExtensionEnhancedAudioMediaVideoStreamInfo) {
             video_stream_info.max_video_capabilities);
   EXPECT_EQ(original.frame_width, video_stream_info.frame_width);
   EXPECT_EQ(original.frame_height, video_stream_info.frame_height);
-  EXPECT_EQ(original.color_metadata, video_stream_info.color_metadata);
+  EXPECT_THAT(original.color_metadata,
+              EqStruct(video_stream_info.color_metadata));
 }
 
 TEST(AudioSampleInfoTest, DefaultCtor) {
@@ -259,8 +267,8 @@ TEST(VideoSampleInfoTest, SbMediaVideoSampleInfo) {
   EXPECT_EQ(stream_info.frame_width, video_sample_info.stream_info.frame_width);
   EXPECT_EQ(stream_info.frame_height,
             video_sample_info.stream_info.frame_height);
-  EXPECT_EQ(stream_info.color_metadata,
-            video_sample_info.stream_info.color_metadata);
+  EXPECT_THAT(stream_info.color_metadata,
+              EqStruct(video_sample_info.stream_info.color_metadata));
 }
 
 TEST(VideoSampleInfoTest, CobaltExtensionEnhancedAudioMediaVideoSampleInfo) {
@@ -285,8 +293,8 @@ TEST(VideoSampleInfoTest, CobaltExtensionEnhancedAudioMediaVideoSampleInfo) {
   EXPECT_EQ(stream_info.frame_width, video_sample_info.stream_info.frame_width);
   EXPECT_EQ(stream_info.frame_height,
             video_sample_info.stream_info.frame_height);
-  EXPECT_EQ(stream_info.color_metadata,
-            video_sample_info.stream_info.color_metadata);
+  EXPECT_THAT(stream_info.color_metadata,
+              EqStruct(video_sample_info.stream_info.color_metadata));
 }
 
 TEST(MediaUtilTest, AudioDurationToFrames) {
