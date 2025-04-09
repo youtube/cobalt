@@ -60,18 +60,35 @@ struct VideoDecoderTraits {
 };
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+// Encapsulate parameters to pass to StarboardRenderer.
+struct StarboardRendererTraits {
+  scoped_refptr<base::SequencedTaskRunner> task_runner;
+  mojo::PendingRemote<mojom::MediaLog> media_log_remote;
+  const base::UnguessableToken& overlay_plane_id;
+  base::TimeDelta audio_write_duration_local;
+  base::TimeDelta audio_write_duration_remote;
+  mojo::PendingReceiver<mojom::StarboardRendererExtension>
+        renderer_extension_receiver;
+  mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+        client_extension_remote;
+
+  StarboardRendererTraits(
+      scoped_refptr<base::SequencedTaskRunner> task_runner,
+      mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+      const base::UnguessableToken& overlay_plane_id,
+      base::TimeDelta audio_write_duration_local,
+      base::TimeDelta audio_write_duration_remote,
+      mojo::PendingReceiver<mojom::StarboardRendererExtension>
+          renderer_extension_receiver,
+      mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+          client_extension_remote);
+  ~StarboardRendererTraits();
+};
+
 // Creates a platform-specific media::StarboardRenderer.
 // This is used on Cobalt (android/linux).
 std::unique_ptr<Renderer> CreatePlatformStarboardRenderer(
-    scoped_refptr<base::SingleThreadTaskRunner> task_runner,
-    mojo::PendingRemote<mojom::MediaLog> media_log_remote,
-    const base::UnguessableToken& overlay_plane_id,
-    base::TimeDelta audio_write_duration_local,
-    base::TimeDelta audio_write_duration_remote,
-    mojo::PendingReceiver<mojom::StarboardRendererExtension>
-        renderer_extension_receiver,
-    mojo::PendingRemote<mojom::StarboardRendererClientExtension>
-        client_extension_remote);
+    StarboardRendererTraits& traits);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 struct MEDIA_MOJO_EXPORT GpuMojoMediaClientTraits {

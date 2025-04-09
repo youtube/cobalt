@@ -22,23 +22,19 @@
 namespace media {
 
 StarboardRendererWrapper::StarboardRendererWrapper(
-    scoped_refptr<base::SequencedTaskRunner> task_runner,
-    mojo::PendingRemote<mojom::MediaLog> media_log_remote,
-    const base::UnguessableToken& overlay_plane_id,
-    TimeDelta audio_write_duration_local,
-    TimeDelta audio_write_duration_remote,
-    mojo::PendingReceiver<RendererExtension> renderer_extension_receiver,
-    mojo::PendingRemote<ClientExtension> client_extension_remote)
-    : renderer_extension_receiver_(this,
-                                   std::move(renderer_extension_receiver)),
-      client_extension_remote_(std::move(client_extension_remote), task_runner),
+    StarboardRendererTraits& traits)
+    : renderer_extension_receiver_(
+          this,
+          std::move(traits.renderer_extension_receiver)),
+      client_extension_remote_(std::move(traits.client_extension_remote),
+                               traits.task_runner),
       renderer_(std::make_unique<StarboardRenderer>(
-          std::move(task_runner),
-          std::make_unique<MojoMediaLog>(std::move(media_log_remote),
-                                         task_runner),
-          overlay_plane_id,
-          audio_write_duration_local,
-          audio_write_duration_remote)) {
+          std::move(traits.task_runner),
+          std::make_unique<MojoMediaLog>(std::move(traits.media_log_remote),
+                                         traits.task_runner),
+          traits.overlay_plane_id,
+          traits.audio_write_duration_local,
+          traits.audio_write_duration_remote)) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 

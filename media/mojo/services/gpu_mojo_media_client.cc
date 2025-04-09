@@ -86,6 +86,27 @@ VideoDecoderTraits::VideoDecoderTraits(
       get_command_buffer_stub_cb(std::move(get_command_buffer_stub_cb)),
       oop_video_decoder(std::move(oop_video_decoder)) {}
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+StarboardRendererTraits::~StarboardRendererTraits() = default;
+StarboardRendererTraits::StarboardRendererTraits(
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
+    mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+    const base::UnguessableToken& overlay_plane_id,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote,
+    mojo::PendingReceiver<mojom::StarboardRendererExtension>
+        renderer_extension_receiver,
+    mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+        client_extension_remote)
+    : task_runner(std::move(task_runner)),
+      media_log_remote(std::move(media_log_remote)),
+      overlay_plane_id(overlay_plane_id),
+      audio_write_duration_local(audio_write_duration_local),
+      audio_write_duration_remote(audio_write_duration_remote),
+      renderer_extension_receiver(std::move(renderer_extension_receiver)),
+      client_extension_remote(std::move(client_extension_remote)) {}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 GpuMojoMediaClientTraits::~GpuMojoMediaClientTraits() = default;
 GpuMojoMediaClientTraits::GpuMojoMediaClientTraits(
     const gpu::GpuPreferences& gpu_preferences,
@@ -253,11 +274,12 @@ std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
         renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>
         client_extension_remote) {
-  return CreatePlatformStarboardRenderer(
-      std::move(task_runner), std::move(media_log_remote), overlay_plane_id,
+  StarboardRendererTraits traits(std::move(task_runner),
+      std::move(media_log_remote), overlay_plane_id,
       audio_write_duration_local, audio_write_duration_remote,
       std::move(renderer_extension_receiver),
       std::move(client_extension_remote));
+  return CreatePlatformStarboardRenderer(traits);
 }
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
