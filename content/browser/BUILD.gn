@@ -2381,14 +2381,7 @@ source_set("browser") {
         "zygote_host/zygote_host_impl_linux.h",
       ]
     }
-    
-
-    # sources += [
-    #   "sandbox_host_linux.cc",
-    #   "sandbox_host_linux.h",
-    #   "zygote_host/zygote_host_impl_linux.cc",
-    #   "zygote_host/zygote_host_impl_linux.h",
-    # ]
+    }
 
     public_deps += [ "//components/services/font/public/mojom" ]
 
