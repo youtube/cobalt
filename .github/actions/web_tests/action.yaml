@@ -44,4 +44,4 @@ runs:
       uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.test_results_key }}
-        path: web-tests/out/${{ matrix.platform}}_${{ matrix.config }}/layout-test-results/results.html
+        path: src/out/${{ matrix.platform}}_${{ matrix.config }}/layout-test-results/results.html
