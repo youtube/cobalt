@@ -323,6 +323,9 @@ rtc_library("platform_thread_types") {
     ":checks",
     ":macromagic",
   ]
+  if (is_starboard) {
+    deps += [ "//starboard:starboard_headers_only" ]
+  }
 }
 
 rtc_source_set("refcount") {
