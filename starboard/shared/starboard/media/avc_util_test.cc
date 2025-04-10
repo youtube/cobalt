@@ -35,6 +35,7 @@ const uint8_t kSliceStartCode = 0x61;
 const uint8_t kIdrStartCode = AvcParameterSets::kIdrStartCode;
 const uint8_t kSpsStartCode = AvcParameterSets::kSpsStartCode;
 const uint8_t kPpsStartCode = AvcParameterSets::kPpsStartCode;
+const uint8_t kAudStartCode = AvcParameterSets::kAudStartCode;
 
 const std::vector<uint8_t> kRawSlice = {kSliceStartCode, 0, 0, 1, 0, 0, 0};
 const std::vector<uint8_t> kRawIdr = {kIdrStartCode, 1, 2, 3, 4};
@@ -48,6 +49,7 @@ const std::vector<uint8_t> kIdrInAnnexB = {0, 0, 0, 1, kIdrStartCode,
                                            1, 2, 3, 4};
 const std::vector<uint8_t> kSliceInAnnexB = {0, 0, 0, 1, kSliceStartCode, 0, 0,
                                              1, 0, 0, 0};
+const std::vector<uint8_t> kAudInAnnexB = {0, 0, 0, 1, kAudStartCode, 0xe0};
 
 std::vector<uint8_t> operator+(const std::vector<uint8_t>& left,
                                const std::vector<uint8_t>& right) {
@@ -195,6 +197,14 @@ TEST(AvcParameterSetsTest, Ctor) {
   auto nalus_in_annex_b = kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
   AvcParameterSets parameter_sets_5(kAnnexB, nalus_in_annex_b.data(),
                                     nalus_in_annex_b.size());
+
+  AvcParameterSets parameter_sets_6(kAnnexB, kAudInAnnexB.data(),
+                                    kAudInAnnexB.size());
+  auto nalus_in_annex_b_with_optional =
+      kAudInAnnexB + kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+  AvcParameterSets parameter_sets_7(kAnnexB,
+                                    nalus_in_annex_b_with_optional.data(),
+                                    nalus_in_annex_b_with_optional.size());
 }
 
 TEST(AvcParameterSetsTest, SingleSpsAndPps) {
@@ -391,7 +401,9 @@ TEST(AvcParameterSetsTest, NaluHeaderWithoutType) {
 }
 
 TEST(AvcParameterSetsTest, InvalidNaluHeader) {
-  { VerifyAllEmpty(kNaluHeaderOnlyInAnnexB); }
+  {
+    VerifyAllEmpty(kNaluHeaderOnlyInAnnexB);
+  }
   {
     auto parameter_sets_in_annex_b = kSpsInAnnexB + kPpsInAnnexB;
     auto nalus_in_annex_b = parameter_sets_in_annex_b + kNaluHeaderOnlyInAnnexB;
@@ -440,6 +452,21 @@ TEST(AvcParameterSetsTest, MultiNalusWithoutSpsPps) {
     ASSERT_TRUE(
         HasEqualParameterSets(nalus_in_annex_b, std::vector<uint8_t>()));
   }
+}
+
+TEST(AvcParameterSetsTest, CombinedSizeWithOptionalParameter) {
+  auto aud_first = kAudInAnnexB + kSpsInAnnexB + kPpsInAnnexB + kIdrInAnnexB;
+  AvcParameterSets parameter_sets_aud_first(kAnnexB, aud_first.data(),
+                                            aud_first.size());
+  ASSERT_FALSE(
+      parameter_sets_aud_first.combined_size_in_bytes_with_optionals() ==
+      (parameter_sets_aud_first.combined_size_in_bytes() +
+       kAudInAnnexB.size()));
+
+  auto pps_last = kPpsInAnnexB + kSpsInAnnexB + kAudInAnnexB + kIdrInAnnexB;
+  AvcParameterSets parameter_sets(kAnnexB, pps_last.data(), pps_last.size());
+  ASSERT_FALSE(parameter_sets.combined_size_in_bytes_with_optionals() ==
+               (parameter_sets.combined_size_in_bytes() + kAudInAnnexB.size()));
 }
 
 TEST(AvcParameterSetsTest, ConvertAnnexBToAvcc) {
