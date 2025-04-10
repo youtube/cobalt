@@ -37,6 +37,8 @@ _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 _DIR_ON_DEVICE = '/sdcard/Download'
 _DEPS_ARCHIVE = '/sdcard/chromium_tests_root/deps.tar.gz'
 
+# Any test run that fails or produces infra error will be retried.
+_DEFAULT_RETRY_LEVEL = 'FAIL'
 
 class OnDeviceTestsGatewayClient():
   """On-device tests Gateway Client class."""
@@ -145,6 +147,7 @@ def _process_test_requests(args):
     ]
     if args.test_attempts:
       tests_args.append(f'test_attempts={args.test_attempts}')
+    tests_args.append(f'retry_level={_DEFAULT_RETRY_LEVEL}')
 
     if args.dimensions:
       dimensions = json.loads(args.dimensions)
@@ -214,8 +217,8 @@ def main() -> int:
               '$GITHUB_COMMIT_AUTHOR_EMAIL}'
               '--dimension host_name=regex:maneki-mhserver-05.*'
               '${DIMENSION:+"--dimension" "$DIMENSION"}'
-              '${ON_DEVICE_TEST_ATTEMPTS:+"--test_attempts" '
-              '"$ON_DEVICE_TEST_ATTEMPTS"}'
+              '${TEST_ATTEMPTS:+"--test_attempts" '
+              '"$TEST_ATTEMPTS"}'
               '--gcs_archive_path "${GCS_ARTIFACTS_PATH}"'
               '--gcs_result_path "${GCS_RESULTS_PATH}"'
               'trigger'),
@@ -270,7 +273,7 @@ def main() -> int:
   trigger_parser.add_argument(
       '--test_attempts',
       type=str,
-      default='1',
+      default='3',
       help='The maximum number of times a test can retry.',
   )
   trigger_args.add_argument(
