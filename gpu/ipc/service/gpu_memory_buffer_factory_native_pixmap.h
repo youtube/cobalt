@@ -14,6 +14,11 @@
 #include "gpu/ipc/service/gpu_memory_buffer_factory.h"
 #include "ui/gfx/native_pixmap.h"
 
+#include "build/build_config.h"
+#if !BUILDFLAG(IS_STARBOARD)
+#include <vulkan/vulkan_core.h>
+#endif
+
 namespace gpu {
 
 class VulkanDeviceQueue;

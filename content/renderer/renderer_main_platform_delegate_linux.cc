@@ -30,7 +30,9 @@ void RendererMainPlatformDelegate::PlatformUninitialize() {
 }
 
 bool RendererMainPlatformDelegate::EnableSandbox() {
-#if BUILDFLAG(IS_STARBOARD)
+// TODO: (cobalt b/409757032) Try to instead remove this entire source from
+// the hermetic build.
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   return false;
 #else
   // The setuid sandbox is started in the zygote process: zygote_main_linux.cc

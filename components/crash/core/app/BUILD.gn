@@ -222,6 +222,7 @@ if (is_win) {
 
 if (enable_cobalt_hermetic_hacks) {
   # Don't link this yet to avoid linking errors.
+  # TODO: (cobalt b/406511608) Build crashpad correctly in hermetic builds.
   source_set("chrome_crashpad_handler") {
     sources = [ "chrome_crashpad_handler.cc" ]
 

@@ -1221,6 +1221,7 @@ class Mutex {
  private:
   void LazyInit() {
     if (type_ == kStatic && !initialized_) {
+// TODO: (cobalt b/409757368): Change the code to not have compiler warnings.
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wexit-time-destructors"
