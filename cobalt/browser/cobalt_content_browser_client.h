@@ -17,11 +17,7 @@
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
-<<<<<<< HEAD
-=======
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
-#include "components/prefs/pref_registry_simple.h"
->>>>>>> e50cb8ff1b6 (Move audio input permission check to getUserMedia(). (#5296))
 #include "content/shell/browser/shell_content_browser_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
