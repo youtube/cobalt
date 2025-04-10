@@ -2372,7 +2372,7 @@ source_set("browser") {
     ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     sources += [
       "child_process_launcher_helper_linux.cc",
       "child_thread_type_switcher_linux.cc",
