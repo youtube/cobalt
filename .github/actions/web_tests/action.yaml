@@ -15,8 +15,8 @@ runs:
       shell: bash
       run: |
         set -x
-        mkdir web-tests/
-        cd web-tests/
+        # The web tests fail when not run from the source folder. Use the existing checkout.
+        cd src/
         tar xf ../test_artifacts.tar.gz
     - name: Run Web Tests
       id: run-tests
@@ -24,7 +24,7 @@ runs:
       run: |
         set -x
         env
-        cd web-tests/
+        cd src/
 
         # Web-tests expect dump_syms and minidump_stackwalk to be present at the root of the out folder.
         cp out/${{ matrix.platform}}_${{ matrix.config }}/clang_x64/{dump_syms,minidump_stackwalk} \
