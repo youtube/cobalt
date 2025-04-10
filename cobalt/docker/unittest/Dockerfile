@@ -6,13 +6,14 @@ FROM debian:12@${BASE_IMAGE_SHA}
 RUN apt-get update && apt-get install -y \
     jq \
     libasound2 \
-    libgles2-mesa-dev \
-    libglapi-mesa \
-    libegl-mesa0 \
     libdbus-1-3 \
-    libgbm-dev \
+    libegl-mesa0 \
+    libgbm \
+    libglapi-mesa \
+    libgles2-mesa \
+    libglib2.0-0 \
     libnss3 \
-    libxcomposite-dev \
+    libxcomposite \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 
