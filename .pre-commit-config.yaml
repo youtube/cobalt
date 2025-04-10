@@ -14,6 +14,12 @@ files: |
         .pylintrc|
         docker-compose.yaml|
     )$
+exclude: |
+    (?x)^(
+        (
+            starboard/contrib/RDK|
+        )/
+    )
 
 repos:
 -   repo: https://cobalt.googlesource.com/pre-commit-hooks
