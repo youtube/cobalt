@@ -40,6 +40,7 @@ _DEPS_ARCHIVE = '/sdcard/chromium_tests_root/deps.tar.gz'
 # Any test run that fails or produces infra error will be retried.
 _DEFAULT_RETRY_LEVEL = 'FAIL'
 
+
 class OnDeviceTestsGatewayClient():
   """On-device tests Gateway Client class."""
 
