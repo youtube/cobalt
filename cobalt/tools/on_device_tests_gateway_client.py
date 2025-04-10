@@ -40,6 +40,7 @@ _DEPS_ARCHIVE = '/sdcard/chromium_tests_root/deps.tar.gz'
 # Any test run that fails will be retried.
 _DEFAULT_RETRY_LEVEL = 'ERROR'
 
+
 class OnDeviceTestsGatewayClient():
   """On-device tests Gateway Client class."""
 
@@ -148,7 +149,7 @@ def _process_test_requests(args):
     if args.test_attempts:
       tests_args.append(f'test_attempts={args.test_attempts}')
     tests_args.append(f'retry_level={_DEFAULT_RETRY_LEVEL}')
-      
+
     if args.dimensions:
       dimensions = json.loads(args.dimensions)
       # Pop mandatory dimensions for special handling.
