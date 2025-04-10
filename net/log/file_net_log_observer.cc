@@ -102,10 +102,12 @@ void AppendToFileThenDelete(const base::FilePath& source_path,
   // Read |source_path|'s contents in chunks of read_buffer_size and append
   // to |destination_file|.
   size_t num_bytes_read;
-  while ((num_bytes_read = source_file.Read(0, read_buffer, read_buffer_size)) >
-         0) {
-    WriteToFile(destination_file,
-                base::StringPiece(read_buffer, num_bytes_read));
+  int64_t offset = 0;
+  while ((num_bytes_read =
+              source_file.Read(offset, read_buffer, read_buffer_size)) > 0) {
+      WriteToFile(destination_file,
+                  base::StringPiece(read_buffer, num_bytes_read));
+      offset += num_bytes_read;
   }
 #else
   base::ScopedFILE source_file(base::OpenFile(source_path, "rb"));
