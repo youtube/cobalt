@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     jq \
     libasound2 \
     libdbus-1-3 \
+    libegl1 \
     libegl-mesa0 \
     libgbm-dev \
     libglapi-mesa \
