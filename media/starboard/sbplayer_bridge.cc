@@ -176,6 +176,12 @@ SbPlayerBridge::SbPlayerBridge(
   DCHECK(set_bounds_helper_);
 
   output_mode_ = ComputeSbUrlPlayerOutputMode(default_output_mode);
+  // TODO(borongchen): remove debug message
+  if (output_mode_ == kSbPlayerOutputModePunchOut) {
+    LOG(ERROR) << "Cobalt: kSbPlayerOutputModePunchOut";
+  } else if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
+    LOG(ERROR) << "Cobalt: kSbPlayerOutputModeDecodeToTexture";
+  }
 
   CreateUrlPlayer(url_);
 
@@ -791,11 +797,7 @@ void SbPlayerBridge::CreatePlayer() {
       window_, &creation_param, &SbPlayerBridge::DeallocateSampleCB,
       &SbPlayerBridge::DecoderStatusCB, &SbPlayerBridge::PlayerStatusCB,
       &SbPlayerBridge::PlayerErrorCB, this,
-#if COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
       get_decode_target_graphics_context_provider_func_.Run());
-#else   // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
-      nullptr);
-#endif  // COBALT_MEDIA_ENABLE_DECODE_TARGET_PROVIDER
 #if COBALT_MEDIA_ENABLE_CVAL
   cval_stats_->StopTimer(MediaTiming::SbPlayerCreate, pipeline_identifier_);
 #endif  // COBALT_MEDIA_ENABLE_CVAL
