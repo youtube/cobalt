@@ -25,8 +25,10 @@ extern const char kNetLogCaptureMode[];
 extern const char kUserAgent[];
 extern const char kMaxNetworkDelay[];
 extern const char kMaxNetworkDelayHelp[];
+extern const char kDisableInAppDial[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 extern const char kDisableQuic[];
+extern const char kDisableHttp2[];
 
 }  // namespace switches
 }  // namespace network

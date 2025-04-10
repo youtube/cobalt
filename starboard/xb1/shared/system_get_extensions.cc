@@ -16,11 +16,13 @@
 
 #include "starboard/common/string.h"
 #include "starboard/extension/configuration.h"
+#include "starboard/extension/egl_context_lost_handler.h"
 #include "starboard/extension/graphics.h"
 #include "starboard/extension/media_session.h"
 #include "starboard/shared/uwp/xb1_media_session_client.h"
 #include "starboard/shared/win32/graphics.h"
 #include "starboard/xb1/shared/configuration.h"
+#include "starboard/xb1/shared/egl_context_lost_handler.h"
 
 const void* SbSystemGetExtension(const char* name) {
   if (strcmp(name, kCobaltExtensionGraphicsName) == 0) {
@@ -31,6 +33,9 @@ const void* SbSystemGetExtension(const char* name) {
   }
   if (strcmp(name, kCobaltExtensionMediaSessionName) == 0) {
     return starboard::shared::uwp::GetMediaSessionApi();
+  }
+  if (strcmp(name, kCobaltExtensionEglContextLostHandlerName) == 0) {
+    return starboard::xb1::shared::GetEglContextLostHandlerApi();
   }
   return NULL;
 }

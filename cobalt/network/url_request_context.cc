@@ -180,8 +180,9 @@ URLRequestContext::URLRequestContext(
 
   net::HttpNetworkSession::Params params;
 
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  params.enable_http2 = !command_line->HasSwitch(switches::kDisableHttp2);
   if (configuration::Configuration::GetInstance()->CobaltEnableQuic()) {
-    base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
     params.enable_quic = !command_line->HasSwitch(switches::kDisableQuic);
     params.use_quic_for_unknown_origins = params.enable_quic;
   }
@@ -283,7 +284,20 @@ void URLRequestContext::SetProxy(const std::string& proxy_rules) {
 
 void URLRequestContext::SetEnableQuic(bool enable_quic) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  storage_.http_network_session()->SetEnableQuic(enable_quic);
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  bool quic_commandline_enabled =
+      !command_line->HasSwitch(switches::kDisableQuic);
+  storage_.http_network_session()->SetEnableQuic(enable_quic &&
+                                                 quic_commandline_enabled);
+}
+
+void URLRequestContext::SetEnableHttp2(bool enable_http2) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  bool http2_commandline_enabled =
+      !command_line->HasSwitch(switches::kDisableHttp2);
+  storage_.http_network_session()->SetEnableHttp2(enable_http2 &&
+                                                  http2_commandline_enabled);
 }
 
 bool URLRequestContext::using_http_cache() { return using_http_cache_; }

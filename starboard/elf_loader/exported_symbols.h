@@ -29,6 +29,7 @@ namespace elf_loader {
 class ExportedSymbols {
  public:
   ExportedSymbols();
+  // Returns the address of the symbol |name|. If it's not found, returns NULL.
   const void* Lookup(const char* name);
 
  private:

@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dev.cobalt.media;
+package dev.cobalt.coat;
 
-import static dev.cobalt.media.Log.TAG;
+import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
 import android.content.Context;
@@ -50,7 +50,7 @@ public class CobaltMediaSession
 
   private AudioFocusRequest audioFocusRequest;
 
-  interface UpdateVolumeListener {
+  public interface UpdateVolumeListener {
     /** Called when there is a change in audio focus. */
     void onUpdateVolume(float gain);
   }
@@ -119,12 +119,15 @@ public class CobaltMediaSession
   private MediaMetadata metadata = new MediaMetadata();
 
   public CobaltMediaSession(
-      Context context, Holder<Activity> activityHolder, UpdateVolumeListener volumeListener) {
+      Context context,
+      Holder<Activity> activityHolder,
+      UpdateVolumeListener volumeListener,
+      ArtworkDownloader artworkDownloader) {
     this.context = context;
     this.activityHolder = activityHolder;
 
     this.volumeListener = volumeListener;
-    artworkLoader = new ArtworkLoader(this);
+    artworkLoader = new ArtworkLoader(this, artworkDownloader);
     setMediaSession();
   }
 
@@ -349,7 +352,7 @@ public class CobaltMediaSession
     switch (focusChange) {
       case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
         logExtra = " (transient)";
-        // fall through
+      // fall through
       case AudioManager.AUDIOFOCUS_LOSS:
         Log.i(TAG, "Audiofocus loss" + logExtra);
         if (currentPlaybackState == PLAYBACK_STATE_PLAYING) {

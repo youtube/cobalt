@@ -50,7 +50,6 @@ ${SDK_MANAGER_TOOL} --sdk_root=${ANDROID_SDK_ROOT} \
     "extras;android;m2repository" \
     "extras;google;m2repository" \
     "ndk;25.2.9519653" \
-    "patcher;v4" \
     "platforms;android-31" \
     "platform-tools"
 

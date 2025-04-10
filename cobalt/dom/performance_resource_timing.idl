@@ -17,6 +17,7 @@
 [Exposed=Window]
 interface PerformanceResourceTiming : PerformanceEntry {
   readonly  attribute DOMString           initiatorType;
+  readonly  attribute DOMString           nextHopProtocol;
   readonly  attribute DOMHighResTimeStamp fetchStart;
   readonly  attribute DOMHighResTimeStamp domainLookupStart;
   readonly  attribute DOMHighResTimeStamp domainLookupEnd;

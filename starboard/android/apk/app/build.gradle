@@ -121,6 +121,8 @@ android {
             testCoverageEnabled true
         }
         qa {
+            debuggable true
+            jniDebuggable true
             externalNativeBuild {
                 cmake.arguments "-DCOBALT_CONFIG=qa"
             }

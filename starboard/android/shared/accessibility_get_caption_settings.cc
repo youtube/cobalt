@@ -113,7 +113,7 @@ bool SbAccessibilityGetCaptionSettings(
 
   ScopedLocalJavaRef<jobject> j_caption_settings(
       env->CallStarboardObjectMethodOrAbort(
-          "getCaptionSettings", "()Ldev/cobalt/media/CaptionSettings;"));
+          "getCaptionSettings", "()Ldev/cobalt/coat/CaptionSettings;"));
 
   jfloat font_scale =
       env->GetFloatFieldOrAbort(j_caption_settings.Get(), "fontScale", "F");

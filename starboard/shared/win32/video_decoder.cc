@@ -98,10 +98,13 @@ scoped_ptr<MediaTransform> CreateVideoTransform(
     const GUID& decoder_guid,
     const GUID& input_guid,
     const GUID& output_guid,
-    const IMFDXGIDeviceManager* device_manager) {
+    const IMFDXGIDeviceManager* device_manager,
+    std::string* error_message) {
+  SB_DCHECK(error_message);
   scoped_ptr<MediaTransform> media_transform(new MediaTransform(decoder_guid));
   if (!media_transform->HasValidTransform()) {
     // Decoder Transform setup failed
+    *error_message = media_transform->GetTransformCreateError();
     return scoped_ptr<MediaTransform>().Pass();
   }
   media_transform->EnableInputThrottle(true);
@@ -109,6 +112,7 @@ scoped_ptr<MediaTransform> CreateVideoTransform(
   ComPtr<IMFAttributes> attributes = media_transform->GetAttributes();
   if (!attributes) {
     // Decoder Transform setup failed
+    *error_message = "Invalid MediaTransform attributes";
     return scoped_ptr<MediaTransform>().Pass();
   }
 
@@ -124,6 +128,8 @@ scoped_ptr<MediaTransform> CreateVideoTransform(
       hr = attributes->SetUINT32(CODECAPI_AVDecVideoAcceleration_H264, FALSE);
       if (FAILED(hr)) {
         SB_LOG(WARNING) << "Unable to disable DXVA.";
+        *error_message = "Unable to disable DXVA. " +
+                         ::starboard::shared::win32::HResultToString(hr);
         return scoped_ptr<MediaTransform>().Pass();
       }
     } else {
@@ -139,11 +145,13 @@ scoped_ptr<MediaTransform> CreateVideoTransform(
   // Tell the decoder to allocate resources for the maximum resolution in
   // order to minimize glitching on resolution changes.
   if (FAILED(attributes->SetUINT32(MF_MT_DECODER_USE_MAX_RESOLUTION, 1))) {
+    *error_message = "Cannot allocate resources for maximum resolution.";
     return scoped_ptr<MediaTransform>().Pass();
   }
 
   ComPtr<IMFMediaType> input_type;
   if (FAILED(MFCreateMediaType(&input_type)) || !input_type) {
+    *error_message = "Invalid IMFMediaType.";
     return scoped_ptr<MediaTransform>().Pass();
   }
   CheckResult(input_type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video));
@@ -274,11 +282,13 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   SB_DCHECK(error_cb);
   decoder_status_cb_ = decoder_status_cb;
   error_cb_ = error_cb;
+  std::string error_message;
   if (video_device_) {
-    InitializeCodec();
+    InitializeCodec(&error_message);
   }
   if (!decoder_) {
-    error_cb_(kSbPlayerErrorDecode, "Cannot initialize codec.");
+    error_cb_(kSbPlayerErrorDecode,
+              "Cannot initialize codec. Error: " + error_message);
   }
 }
 
@@ -406,12 +416,34 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
           video_processor_, video_sample, video_area, is_hdr_supported_);
       auto hardware_decode_target =
           reinterpret_cast<HardwareDecodeTargetPrivate*>(decode_target);
+
       if (!hardware_decode_target->d3d_texture) {
-        error_cb_(kSbPlayerErrorDecode,
-                  "Failed to allocate texture with error code: " +
-                      ::starboard::shared::win32::HResultToString(
-                          hardware_decode_target->create_texture_2d_h_result));
-        decode_target = kSbDecodeTargetInvalid;
+        // The HRESULT 0x887A0005 is DXGI_ERROR_DEVICE_REMOVED
+        // (https://learn.microsoft.com/en-us/windows/win32/direct3ddxgi/dxgi-error).
+        // In this case, the device is in a bad state and needs to be recreated.
+        // Attempt to recreate the d3d_device_ and retry initializing the
+        // decode_target.
+        if (FAILED(hardware_decode_target->create_texture_2d_h_result)) {
+          HardwareDecoderContext hardware_context =
+              GetDirectXForHardwareDecoding();
+          d3d_device_ = hardware_context.dx_device_out;
+
+          decode_target = new HardwareDecodeTargetPrivate(
+              d3d_device_, video_device_, video_context_, video_enumerator_,
+              video_processor_, video_sample, video_area, is_hdr_supported_);
+          hardware_decode_target =
+              reinterpret_cast<HardwareDecodeTargetPrivate*>(decode_target);
+        }
+
+        // If the texture still hasn't initialized, report the error.
+        if (!hardware_decode_target->d3d_texture) {
+          error_cb_(
+              kSbPlayerErrorDecode,
+              "Failed to allocate texture with error code: " +
+                  ::starboard::shared::win32::HResultToString(
+                      hardware_decode_target->create_texture_2d_h_result));
+          decode_target = kSbDecodeTargetInvalid;
+        }
       }
     }
 
@@ -421,43 +453,50 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
   return decode_target;
 }
 
-void VideoDecoder::InitializeCodec() {
+void VideoDecoder::InitializeCodec(std::string* error_message) {
+  SB_DCHECK(error_message);
   scoped_ptr<MediaTransform> media_transform;
 
   // If this is updated then media_is_video_supported.cc also needs to be
   // updated.
   switch (video_codec_) {
     case kSbMediaVideoCodecH264: {
-      media_transform =
-          CreateVideoTransform(CLSID_MSH264DecoderMFT, MFVideoFormat_H264,
-                               MFVideoFormat_NV12, device_manager_.Get());
+      media_transform = CreateVideoTransform(
+          CLSID_MSH264DecoderMFT, MFVideoFormat_H264, MFVideoFormat_NV12,
+          device_manager_.Get(), error_message);
       priming_output_count_ = 0;
       if (!media_transform) {
         SB_LOG(WARNING) << "H264 hardware decoder creation failed.";
+        *error_message =
+            "H264 hardware decoder creation failed. " + *error_message;
         return;
       }
       break;
     }
     case kSbMediaVideoCodecVp9: {
       if (IsHardwareVp9DecoderSupported()) {
-        media_transform =
-            CreateVideoTransform(CLSID_MSVPxDecoder, MFVideoFormat_VP90,
-                                 MFVideoFormat_NV12, device_manager_.Get());
+        media_transform = CreateVideoTransform(
+            CLSID_MSVPxDecoder, MFVideoFormat_VP90, MFVideoFormat_NV12,
+            device_manager_.Get(), error_message);
         priming_output_count_ = kVp9PrimingFrameCount;
       }
       if (!media_transform) {
         SB_LOG(WARNING) << "VP9 hardware decoder creation failed.";
+        *error_message =
+            "VP9 hardware decoder creation failed. " + *error_message;
         return;
       }
       break;
     }
     case kSbMediaVideoCodecAv1: {
-      media_transform =
-          CreateVideoTransform(MFVideoFormat_AV1, MFVideoFormat_AV1,
-                               MFVideoFormat_NV12, device_manager_.Get());
+      media_transform = CreateVideoTransform(
+          MFVideoFormat_AV1, MFVideoFormat_AV1, MFVideoFormat_NV12,
+          device_manager_.Get(), error_message);
       priming_output_count_ = 0;
       if (!media_transform) {
         SB_LOG(WARNING) << "AV1 hardware decoder creation failed.";
+        *error_message =
+            "AV1 hardware decoder creation failed. " + *error_message;
         return;
       }
       break;

@@ -1851,7 +1851,8 @@ Error ValidateMakeCurrent(Display *display, Surface *draw, Surface *read, gl::Co
         ANGLE_TRY(ValidateContext(display, context));
     }
 
-    if (display->isInitialized() && display->isDeviceLost())
+    if (display->isInitialized() && display->isDeviceLost() &&
+        (context != EGL_NO_CONTEXT || draw != EGL_NO_SURFACE || read != EGL_NO_SURFACE))
     {
         return EglContextLost();
     }
@@ -3059,7 +3060,17 @@ Error ValidateDestroySurface(const Display *display,
                              const Surface *surface,
                              const EGLSurface eglSurface)
 {
-    ANGLE_TRY(ValidateSurface(display, surface));
+    ANGLE_TRY(ValidateDisplayPointer(display));
+
+    if (!display->isInitialized())
+    {
+        return EglNotInitialized() << "display is not initialized.";
+    }
+
+    if (!display->isValidSurface(surface))
+    {
+        return EglBadSurface();
+    }
 
     if (eglSurface == EGL_NO_SURFACE)
     {

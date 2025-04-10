@@ -43,7 +43,9 @@ int URLFetcherStringWriter::Initialize(CompletionOnceCallback callback) {
 int URLFetcherStringWriter::Write(IOBuffer* buffer,
                                   int num_bytes,
                                   CompletionOnceCallback callback) {
-  data_.append(buffer->data(), num_bytes);
+  if (num_bytes > 0) {
+    data_.append(buffer->data(), num_bytes);
+  }
   return num_bytes;
 }
 
@@ -68,7 +70,9 @@ int URLFetcherLargeStringWriter::Initialize(CompletionOnceCallback callback) {
 }
 
 void URLFetcherLargeStringWriter::OnResponseStarted(int64_t content_length) {
-  data_.reserve(content_length);
+  if (content_length > 0) {
+    data_.reserve(content_length);
+  }
 }
 
 void URLFetcherLargeStringWriter::GetAndResetData(std::string* data) {
@@ -84,7 +88,9 @@ void URLFetcherLargeStringWriter::GetAndResetData(std::string* data) {
 int URLFetcherLargeStringWriter::Write(IOBuffer* buffer,
                                        int num_bytes,
                                        CompletionOnceCallback callback) {
-  data_.append(buffer->data(), num_bytes);
+  if (num_bytes > 0) {
+    data_.append(buffer->data(), num_bytes);
+  }
   return num_bytes;
 }
 

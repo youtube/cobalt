@@ -21,7 +21,7 @@
 #include <vector>
 
 #include "starboard/android/shared/drm_system.h"
-#include "starboard/android/shared/max_output_buffers_lookup_table.h"
+#include "starboard/android/shared/max_media_codec_output_buffers_lookup_table.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_decoder.h"
 #include "starboard/android/shared/video_frame_tracker.h"

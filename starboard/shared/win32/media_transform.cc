@@ -51,6 +51,9 @@ MediaTransform::MediaTransform(CLSID clsid)
   if (FAILED(hr) || !transform_) {
     transform_ = nullptr;
     state_ = kDrained;
+    transform_create_error_message_ =
+        "Could not create decoder transform. " +
+        ::starboard::shared::win32::HResultToString(hr);
   }
 }
 
@@ -308,6 +311,10 @@ HRESULT MediaTransform::SendMessage(MFT_MESSAGE_TYPE msg,
                                     ULONG_PTR data /*= 0*/) {
   SB_DCHECK(transform_);
   return transform_->ProcessMessage(msg, data);
+}
+
+std::string MediaTransform::GetTransformCreateError() const {
+  return transform_create_error_message_;
 }
 
 void MediaTransform::Reset() {

@@ -1,4 +1,11 @@
-# Cobalt [![Build Status](https://img.shields.io/badge/-Build%20Status-blueviolet)](https://github.com/youtube/cobalt/blob/main/BUILD_STATUS.md)
+# Cobalt [![Build Status](https://img.shields.io/badge/-Build%20Status-blueviolet)](https://github.com/youtube/cobalt/blob/24.lts.1%2B/BUILD_STATUS.md)
+
+[![android_24.lts.1+](https://github.com/youtube/cobalt/actions/workflows/android_24.lts.1+.yaml/badge.svg?branch=24.lts.1%2B&event=push)](https://github.com/youtube/cobalt/actions/workflows/android_24.lts.1+.yaml?query=event%3Apush+branch%3A24.lts.1%2B)
+[![evergreen_24.lts.1+](https://github.com/youtube/cobalt/actions/workflows/evergreen_24.lts.1+.yaml/badge.svg?branch=24.lts.1%2B&event=push)](https://github.com/youtube/cobalt/actions/workflows/evergreen_24.lts.1+.yaml?query=event%3Apush+branch%3A24.lts.1%2B)
+[![linux_24.lts.1+](https://github.com/youtube/cobalt/actions/workflows/linux_24.lts.1+.yaml/badge.svg?branch=24.lts.1%2B&event=push)](https://github.com/youtube/cobalt/actions/workflows/linux_24.lts.1+.yaml?query=event%3Apush+branch%3A24.lts.1%2B)
+[![raspi-2_24.lts.1+](https://github.com/youtube/cobalt/actions/workflows/raspi-2_24.lts.1+.yaml/badge.svg?branch=24.lts.1%2B&event=push)](https://github.com/youtube/cobalt/actions/workflows/raspi-2_24.lts.1+.yaml?query=event%3Apush+branch%3A24.lts.1%2B)
+[![stub_24.lts.1+](https://github.com/youtube/cobalt/actions/workflows/stub_24.lts.1+.yaml/badge.svg?branch=24.lts.1%2B&event=push)](https://github.com/youtube/cobalt/actions/workflows/stub_24.lts.1+.yaml?query=event%3Apush+branch%3A24.lts.1%2B)
+[![win32_24.lts.1+](https://github.com/youtube/cobalt/actions/workflows/win32_24.lts.1+.yaml/badge.svg?branch=24.lts.1%2B&event=push)](https://github.com/youtube/cobalt/actions/workflows/win32_24.lts.1+.yaml?query=event%3Apush+branch%3A24.lts.1%2B)
 
 ## Overview
 

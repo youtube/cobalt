@@ -550,6 +550,21 @@ void HttpNetworkSession::SetEnableQuic(bool enable_quic) {
   params_.enable_quic = enable_quic;
 }
 
+void HttpNetworkSession::SetEnableHttp2(bool enable_http2) {
+  if (params_.enable_http2 == enable_http2) {
+    return;
+  }
+  params_.enable_http2 = enable_http2;
+
+  if (params_.enable_http2) {
+    next_protos_.push_back(kProtoHTTP2);
+  } else {
+    if (next_protos_.back() == kProtoHTTP2) {
+      next_protos_.pop_back();
+    }
+  }
+}
+
 bool HttpNetworkSession::UseQuicForUnknownOrigin() const {
   return params_.use_quic_for_unknown_origins;
 }

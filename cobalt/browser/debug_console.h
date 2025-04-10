@@ -85,6 +85,9 @@ class DebugConsole : public LifecycleObserver {
   // Cycles through each different possible debug console visibility mode.
   void CycleMode();
 
+  // Returns true if the debug console is enabled.
+  static bool IsEnabled();
+
   // Returns true iff the console is in a mode that is visible.
   bool IsVisible() {
     return (GetMode() != debug::console::kDebugConsoleModeOff);

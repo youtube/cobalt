@@ -198,6 +198,8 @@ static_library("starboard_platform") {
     "shared/configuration.cc",
     "shared/configuration.h",
     "shared/configuration_constants.cc",
+    "shared/egl_context_lost_handler.cc",
+    "shared/egl_context_lost_handler.h",
     "shared/system_get_extensions.cc",
     "shared/system_get_path.cc",
   ]

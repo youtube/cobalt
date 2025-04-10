@@ -568,6 +568,9 @@ void ExtendedResourcesManager::ReleaseExtendedResourcesInternal() {
     is_extended_resources_acquired_.store(false);
     pending_extended_resources_release_.store(false);
   }
+  // After extendedResources release the codecs supportability changes.
+  // So mime supportability cache must be reset.
+  MimeSupportabilityCache::GetInstance()->ClearCachedMimeSupportabilities();
 }
 
 }  // namespace uwp
