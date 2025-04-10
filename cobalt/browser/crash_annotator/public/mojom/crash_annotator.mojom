@@ -20,4 +20,7 @@ module crash_annotator.mojom;
 interface CrashAnnotator {
   // Receives an annotation to set and responds with the result.
   SetString(string key, string value) => (bool result);
+
+  [Sync]
+  GetTestValueSync() => (bool result);
 };
