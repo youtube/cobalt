@@ -2358,7 +2358,8 @@ source_set("browser") {
     ]
   }
 
-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+  if (is_linux || is_chromeos) {
+    if(!is_cobalt_hermetic_build) {
     sources += [
       "child_process_launcher_helper_linux.cc",
       "font_access/font_enumeration_data_source_linux.cc",
@@ -2377,6 +2378,7 @@ source_set("browser") {
       "zygote_host/zygote_host_impl_linux.cc",
       "zygote_host/zygote_host_impl_linux.h",
     ]
+    }
 
     public_deps += [ "//components/services/font/public/mojom" ]
 
