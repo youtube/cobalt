@@ -8,12 +8,12 @@ RUN apt-get update && apt-get install -y \
     libasound2 \
     libdbus-1-3 \
     libegl-mesa0 \
-    libgbm \
+    libgbm-dev \
     libglapi-mesa \
     libgles2-mesa \
     libglib2.0-0 \
     libnss3 \
-    libxcomposite \
+    libxcomposite-dev \
     xvfb \
     && rm -rf /var/lib/apt/lists/*
 
