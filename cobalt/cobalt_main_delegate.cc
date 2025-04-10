@@ -34,6 +34,12 @@ CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
 
 CobaltMainDelegate::~CobaltMainDelegate() {}
 
+absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
+  base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
+  cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
+  return content::ShellMainDelegate::BasicStartupComplete();
+}
+
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
   browser_client_ = std::make_unique<CobaltContentBrowserClient>();

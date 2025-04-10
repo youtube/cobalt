@@ -21,6 +21,7 @@
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "content/public/browser/browser_main_runner.h"
 #include "content/shell/app/shell_main_delegate.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 
@@ -32,6 +33,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   CobaltMainDelegate& operator=(const CobaltMainDelegate&) = delete;
 
   // ContentMainDelegate implementation:
+  absl::optional<int> BasicStartupComplete() override;
   content::ContentBrowserClient* CreateContentBrowserClient() override;
   content::ContentGpuClient* CreateContentGpuClient() override;
   content::ContentRendererClient* CreateContentRendererClient() override;
