@@ -364,9 +364,6 @@ jobs:
         uses: ./src/.github/actions/web_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
-      - name: Test
-        if: always()
-        run: exit 1
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]
