@@ -26,7 +26,6 @@ RUN apt-get update && apt-get install -y \
     libpango-1.0-0 \
     gcc-multilib \
     bzip2 \
-    python3-certifi \
     jq \
     && rm -rf /var/lib/apt/lists/*
 
