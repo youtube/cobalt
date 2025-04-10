@@ -590,6 +590,7 @@ void StarboardRenderer::OnDemuxerStreamRead(
     }
     if (!audio_read_in_progress_ && !video_read_in_progress_) {
       auto flush_cb = std::move(pending_flush_cb_);
+      state_ = STATE_FLUSHED;
       std::move(flush_cb).Run();
     }
     return;
@@ -630,6 +631,7 @@ void StarboardRenderer::OnDemuxerStreamRead(
     }
     if (pending_flush_cb_ && !audio_read_in_progress_ &&
         !video_read_in_progress_) {
+      state_ = STATE_FLUSHED;
       std::move(pending_flush_cb_).Run();
     }
   } else if (status == DemuxerStream::kConfigChanged) {
