@@ -9,9 +9,12 @@ RUN apt-get update && apt-get install -y \
     git \
     xz-utils \
     jq \
+    libasound2 \
+    libatk-bridge2.0-0 \
     libatk1.0-0 \
     libgles2-mesa-dev \
     libglib2.0-0 \
+    libnss3 \
     libpangocairo-1.0-0 \
     libxdamage1 \
     libxkbcommon-x11-0 \
