@@ -34,7 +34,7 @@ typedef HRESULT(WINAPI* RTC_SetThreadDescription)(HANDLE hThread,
 
 #include "build/build_config.h"
 #if BUILDFLAG(IS_STARBOARD)
-#include "starboard/thread.h"
+#include "starboard/thread.h"  // nogncheck
 #endif
 
 namespace rtc {

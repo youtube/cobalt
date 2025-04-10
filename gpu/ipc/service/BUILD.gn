@@ -147,11 +147,13 @@ component("service") {
   if (is_linux || is_chromeos) {
     sources += [ "image_transport_surface_linux.cc" ]
   }
-  if (use_ozone && !is_starboard) {
+  if (use_ozone) {
+    if (!is_starboard) {
     sources += [
       "gpu_memory_buffer_factory_native_pixmap.cc",
       "gpu_memory_buffer_factory_native_pixmap.h",
     ]
+    }
 
     deps += [ "//ui/ozone" ]
   }
