@@ -63,6 +63,7 @@ namespace {
 volatile sig_atomic_t in_signal_handler = 0;
 bool dump_stack_in_signal_handler = true;
 
+#if HAVE_EXECINFO_H
 // The prefix used for mangled symbols, per the Itanium C++ ABI:
 // http://www.codesourcery.com/cxx-abi/abi.html#mangling
 const char kMangledSymbolPrefix[] = "_Z";
@@ -72,7 +73,6 @@ const char kMangledSymbolPrefix[] = "_Z";
 const char kSymbolCharacters[] =
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_";
 
-#if HAVE_EXECINFO_H
 // Demangles C++ symbols in the given text. Example:
 //
 // "out/Debug/base_unittests(_ZN10StackTraceC1Ev+0x20) [0x817778c]"

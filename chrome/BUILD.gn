@@ -33,9 +33,6 @@ import("//tools/resources/generate_resource_allowlist.gni")
 import("//tools/v8_context_snapshot/v8_context_snapshot.gni")
 import("//ui/gl/features.gni")
 import("//v8/gni/v8.gni")
-if(is_cobalt) {
-import("//third_party/angle/gni/angle.gni")
-}
 
 assert(!is_fuchsia, "Fuchsia shouldn't use anything in //chrome")
 
@@ -69,6 +66,11 @@ _cros_generate_embed_section_target = is_chromeos && !is_component_build
 if (_cros_generate_embed_section_target) {
   import("//build/chromeos/embed_sections.gni")
 }
+
+if (is_cobalt) {
+  import("//third_party/angle/gni/angle.gni")
+}
+import("//cobalt/build/configs/hacks.gni")
 
 declare_args() {
   # On macOS, `is_chrome_branded` builds that have been signed locally will not
@@ -1745,6 +1747,10 @@ if (is_linux || is_chromeos) {
 
       deps = [ ":chrome" ]
     }
+    if (enable_cobalt_hermetic_hacks) {
+      # TODO: b/406511608 - Once we build crashpad hermetically, re-enable this.
+      group("chrome_crashpad_symbols") {}
+    } else {
     extract_symbols("chrome_crashpad_symbols") {
       binary = "$root_out_dir/chrome_crashpad_handler"
 
@@ -1756,6 +1762,7 @@ if (is_linux || is_chromeos) {
       }
 
       deps = [ "//components/crash/core/app:chrome_crashpad_handler" ]
+    }
     }
     extract_symbols("swiftshader_vk_symbols") {
       binary = "$root_out_dir/libvk_swiftshader.so"

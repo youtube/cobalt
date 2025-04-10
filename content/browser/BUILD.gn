@@ -2580,7 +2580,7 @@ source_set("browser") {
     ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     sources -=
         [ "file_system_access/file_path_watcher/file_path_watcher_stub.cc" ]
 

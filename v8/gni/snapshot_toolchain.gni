@@ -45,6 +45,10 @@ declare_args() {
 # There are test cases for this code posted as an attachment to
 # https://crbug.com/625353.
 
+if (is_starboard) {
+  v8_snapshot_toolchain = host_toolchain
+}
+
 if (v8_snapshot_toolchain == "") {
   if (current_os == host_os && current_cpu == host_cpu) {
     # This is not a cross-compile, so build the snapshot with the current
