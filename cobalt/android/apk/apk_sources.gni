@@ -23,8 +23,6 @@ apk_sources = [
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/ArtworkLoader.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/AudioPermissionRequester.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CaptionSettings.java",
-  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltA11yHelper.java",
-  "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltActivity.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltHttpHelper.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltMediaSession.java",
   "//starboard/android/apk/app/src/main/java/dev/cobalt/coat/CobaltService.java",
