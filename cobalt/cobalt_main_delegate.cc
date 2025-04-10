@@ -21,6 +21,7 @@
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "content/common/content_constants_internal.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/common/content_switches.h"
 
 namespace cobalt {
 
