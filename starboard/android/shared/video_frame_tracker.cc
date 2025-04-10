@@ -30,8 +30,10 @@ namespace {
 
 const int64_t kMaxAllowedSkew = 5'000;  // 5ms
 
-void RemoveInvalidRenderedFrames(const std::list<int64_t>& frames_to_render,
-                                 std::vector<int64_t>* rendered_frames) {
+// TODO: b/409362474 - Add unit test once starboard unittests are enable on
+// Android.
+void RemoveUnexpectedRenderedFrames(const std::list<int64_t>& frames_to_render,
+                                    std::vector<int64_t>* rendered_frames) {
   SB_DCHECK(rendered_frames);
   if (rendered_frames->empty()) {
     return;
@@ -44,37 +46,29 @@ void RemoveInvalidRenderedFrames(const std::list<int64_t>& frames_to_render,
     return;
   }
 
-  const int64_t min_valid_rendered_frame = std::max(
-      static_cast<int64_t>(0), frames_to_render.front() - kMaxAllowedSkew);
+  const int64_t min_valid_rendered_frame =
+      std::max<int64_t>(0, frames_to_render.front() - kMaxAllowedSkew);
   const int64_t max_valid_rendered_frame =
       frames_to_render.back() + kMaxAllowedSkew;
-  auto is_valid = [min_valid_rendered_frame,
-                   max_valid_rendered_frame](int64_t timestamp) {
-    return min_valid_rendered_frame <= timestamp &&
-           timestamp <= max_valid_rendered_frame;
+  auto is_not_expected = [min_valid_rendered_frame,
+                          max_valid_rendered_frame](int64_t timestamp) {
+    return timestamp < min_valid_rendered_frame ||
+           max_valid_rendered_frame < timestamp;
   };
-  // Since rendered frames is sorted, all rendered frames are valid, if first
-  // and last frame is valid.
-  if (is_valid(rendered_frames->front()) && is_valid(rendered_frames->back())) {
-    return;
+
+  auto to_remove = std::remove_if(rendered_frames->begin(),
+                                  rendered_frames->end(), is_not_expected);
+  const int removed_rendered_frames =
+      std::distance(to_remove, rendered_frames->end());
+  rendered_frames->erase(to_remove, rendered_frames->end());
+
+  if (removed_rendered_frames > 0) {
+    SB_LOG(WARNING)
+        << "Removed unexpected timestamps. This can happen during "
+           "seek, since flushed frames are reported to be as rendered frames"
+           "on Android 14+: # of removed timestamps="
+        << removed_rendered_frames;
   }
-
-  int removed_rendered_frames = 0;
-  auto it = rendered_frames->begin();
-  while (it != rendered_frames->end()) {
-    if (is_valid(*it)) {
-      ++it;
-      continue;
-    }
-
-    ++removed_rendered_frames;
-    it = rendered_frames->erase(it);
-  }
-
-  SB_LOG(WARNING) << "Removed invalid timestamps. This can happen when "
-                     "MediaCodec::flush() is called on Android SDK 14+. See "
-                     "b/401790323#comment13: count="
-                  << removed_rendered_frames;
 }
 }  // namespace
 
@@ -151,8 +145,8 @@ void VideoFrameTracker::UpdateDroppedFrames() {
     frames_to_be_rendered_.pop_front();
   }
 
-  RemoveInvalidRenderedFrames(frames_to_be_rendered_,
-                              &rendered_frames_on_tracker_thread_);
+  RemoveUnexpectedRenderedFrames(frames_to_be_rendered_,
+                                 &rendered_frames_on_tracker_thread_);
 
   // Loop over all timestamps from OnFrameRendered and compare against ones from
   // OnInputBuffer.
