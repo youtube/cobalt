@@ -1768,7 +1768,6 @@ component("base") {
 
       #   ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
       # return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
-      "native_library_posix.cc",
       "posix/can_lower_nice_to.cc",
       "posix/can_lower_nice_to.h",
       "process/launch_posix.cc",
