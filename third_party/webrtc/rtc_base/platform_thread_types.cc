@@ -32,6 +32,11 @@ typedef HRESULT(WINAPI* RTC_SetThreadDescription)(HANDLE hThread,
 #include "rtc_base/checks.h"
 #endif
 
+#include "build/build_config.h"
+#if BUILDFLAG(IS_STARBOARD)
+#include "starboard/thread.h"  // nogncheck
+#endif
+
 namespace rtc {
 
 PlatformThreadId CurrentThreadId() {
@@ -48,6 +53,8 @@ PlatformThreadId CurrentThreadId() {
   return syscall(__NR_gettid);
 #elif defined(__EMSCRIPTEN__)
   return static_cast<PlatformThreadId>(pthread_self());
+#elif BUILDFLAG(IS_STARBOARD)
+  return SbThreadGetId();
 #else
   // Default implementation for nacl and solaris.
   return reinterpret_cast<PlatformThreadId>(pthread_self());

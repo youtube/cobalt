@@ -2358,7 +2358,7 @@ source_set("browser") {
     ]
   }
 
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     sources += [
       "child_process_launcher_helper_linux.cc",
       "font_access/font_enumeration_data_source_linux.cc",

@@ -22,6 +22,7 @@
 #include "base/features.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
+#include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
 #include "base/json/json_reader.h"
 #include "base/metrics/field_trial_params.h"
@@ -47,6 +48,7 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/user_agent.h"
+#include "content/shell/browser/shell.h"
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "content/shell/browser/shell_browser_main_parts.h"
@@ -257,6 +259,12 @@ void CobaltContentBrowserClient::OnWebContentsCreated(
     content::WebContents* web_contents) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
+  web_contents_delegate_.reset(new CobaltWebContentsDelegate());
+  content::Shell::SetShellCreatedCallback(base::BindOnce(
+      [](content::WebContentsDelegate* delegate, content::Shell* shell) {
+        shell->web_contents()->SetDelegate(delegate);
+      },
+      web_contents_delegate_.get()));
 }
 
 void CobaltContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
