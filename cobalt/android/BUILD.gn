@@ -5,9 +5,7 @@ import("//third_party/icu/config.gni")
 
 cobalt_manifest = "$target_gen_dir/cobalt_manifest/AndroidManifest.xml"
 
-# TODO(cobalt, b/375655377): remove testonly tag
 android_resources("cobalt_java_resources") {
-  testonly = true
   sources = [
     "apk/app/src/app/res/drawable-xhdpi/app_banner.png",
     "apk/app/src/app/res/mipmap-hdpi/ic_app.png",
@@ -28,7 +26,6 @@ android_resources("cobalt_java_resources") {
 }
 
 jinja_template("cobalt_manifest") {
-  testonly = true
   input = "apk/app/src/app/AndroidManifest.xml.jinja2"
   output = cobalt_manifest
   variables = [ "manifest_package=dev.cobalt.coat" ]
@@ -67,7 +64,6 @@ android_library("content_shell_apk_java") {
     "//components/embedder_support/android:view_java",
     "//content/public/android:content_java",
     "//content/shell/android:content_shell_apk_resources",
-    "//content/shell/android:content_shell_manifest",
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
     "//third_party/android_deps:com_google_code_findbugs_jsr305_java",
@@ -127,7 +123,6 @@ android_library("cobalt_main_java") {
     "//components/embedder_support/android:view_java",
     "//components/version_info/android:version_constants_java",
     "//content/public/android:content_java",
-    "//content/shell/android:content_shell_manifest",
     "//media/capture/video/android:capture_java",
     "//net/android:net_java",
     "//services/media_session/public/cpp/android:media_session_java",
@@ -230,8 +225,7 @@ android_library("cobalt_apk_java") {
   ]
 }
 
-android_assets("cobalt_apk_assets") {
-  testonly = true
+android_assets("coat_assets") {
   sources = [
     "apk/app/src/app/assets/not_empty.txt",
     "apk/app/src/app/assets/test/not_empty.txt",
@@ -244,18 +238,15 @@ template("content_shell_apk_tmpl") {
   _target_type = invoker.target_type
   target(_target_type, target_name) {
     forward_variables_from(invoker, "*")
-    testonly = true
     if (!defined(deps)) {
       deps = []
     }
     deps += [
       ":cobalt_shell_java",
       ":content_shell_apk_java",
-      "//base:base_java_test_support",
       "//components/crash/core/app:chrome_crashpad_handler_named_as_so",
       "//components/metrics:metrics_java",
       "//content/public/android:content_java",
-      "//content/public/test/android:android_test_message_pump_support_java",
       "//content/shell/android:content_shell_assets",
       "//media/capture/video/android:capture_java",
       "//net/android:net_java",
@@ -311,12 +302,13 @@ shared_library("libcobalt_content_shell_content_view") {
 }
 
 content_shell_apk_tmpl("cobalt_apk") {
+  testonly = true
   target_type = "android_apk"
   apk_name = "Cobalt"
   android_manifest = cobalt_manifest
   android_manifest_dep = ":cobalt_manifest"
   deps = [
-    ":cobalt_apk_assets",
+    ":coat_assets",
     ":cobalt_apk_java",
   ]
   shared_libraries = [ ":libcobalt_content_shell_content_view" ]
