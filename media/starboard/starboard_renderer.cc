@@ -406,8 +406,8 @@ TimeDelta StarboardRenderer::GetMediaTime() {
     //                    whether we should report more statistics, and/or
     //                    reduce the frequency of reporting.
     task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&RendererClient::OnStatisticsUpdate,
-                                  base::Unretained(client_), statistics));
+        FROM_HERE, base::BindOnce(&StarboardRenderer::OnStatisticsUpdate,
+                                  weak_this_, statistics));
   }
   StoreMediaTime(media_time);
 
@@ -652,6 +652,11 @@ void StarboardRenderer::OnDemuxerStreamRead(
   } else if (status == DemuxerStream::kError) {
     client_->OnError(PIPELINE_ERROR_READ);
   }
+}
+
+void StarboardRenderer::OnStatisticsUpdate(const PipelineStatistics& stats) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  client_->OnStatisticsUpdate(stats);
 }
 
 void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
