@@ -12,33 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-<<<<<<< HEAD
-#include "starboard/android/shared/accessibility_extension.h"
-
-#include "starboard/android/shared/starboard_bridge.h"
-#include "starboard/common/memory.h"
-
-// Must come after all headers that specialize FromJniType() / ToJniType().
-#include "cobalt/android/jni_headers/CobaltTextToSpeechHelper_jni.h"
-
-=======
->>>>>>> bf790234113 (Mojom implementation of window.h5vcc.accessibility (#5214))
 namespace starboard {
 namespace android {
 namespace shared {
 namespace accessibility {
 
-<<<<<<< HEAD
-// TODO: (cobalt b/372559388) Update namespace to jni_zero.
-using base::android::AttachCurrentThread;
-using base::android::ScopedJavaLocalRef;
-
-=======
-namespace accessibility {
 // ATV no longer supports GetTextToSpeechSettings in Chrobalt,
 // Please reference starboard/android/shared/text_to_speech_helper.h for
 // supported text-to-speech APIs instead.
->>>>>>> bf790234113 (Mojom implementation of window.h5vcc.accessibility (#5214))
 bool GetTextToSpeechSettings(SbAccessibilityTextToSpeechSettings* out_setting) {
   return false;
 }
