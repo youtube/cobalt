@@ -19,10 +19,10 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "starboard/android/shared/starboard_bridge.h"
 #include "starboard/common/log.h"
-#include "starboard/common/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
@@ -48,13 +48,23 @@ class ApplicationAndroid
 
   int64_t app_start_with_android_fix() { return app_start_timestamp_; }
 
-  // Methods to get the Runtime Resource Overlay variables.
+  // Methods to initialize and cache the Runtime Resource Overlay variables.
   // All RRO variables which can be retrieved here must be defined
   // in res/values/rro_variables.xml and be loaded in
   // dev/cobalt/coat/ResourceOverlay.java.
-  int GetOverlayedIntValue(const char* var_name);
-  std::string GetOverlayedStringValue(const char* var_name);
-  bool GetOverlayedBoolValue(const char* var_name);
+  void InitializeAndCacheResourceOverlayVariables();
+
+  // These functions could be called by any thread. Return cache
+  // Overlaid{Int,String,Bool}Value.
+  int GetOverlaidIntValue(const char* var_name) const;
+  std::string GetOverlaidStringValue(const char* var_name) const;
+  bool GetOverlaidBoolValue(const char* var_name) const;
+
+  // Cache Overlaid{Int,String,Bool}Value and they should
+  // be called on the thread as ApplicationAndroid() is created on.
+  void CacheOverlaidIntValue(jobject resource_overlay, const char* var_name);
+  void CacheOverlaidStringValue(jobject resource_overlay, const char* var_name);
+  void CacheOverlaidBoolValue(jobject resource_overlay, const char* var_name);
 
  protected:
   // --- QueueApplication overrides ---
@@ -70,12 +80,11 @@ class ApplicationAndroid
   // with it's lifecycle management.
   const raw_ptr<StarboardBridge> starboard_bridge_ =
       StarboardBridge::GetInstance();
-  jobject resource_overlay_;
 
-  Mutex overlay_mutex_;
-  std::unordered_map<std::string, bool> overlayed_bool_variables_;
-  std::unordered_map<std::string, int> overlayed_int_variables_;
-  std::unordered_map<std::string, std::string> overlayed_string_variables_;
+  // Cache Runtime Resource Overlay variables.
+  std::unordered_map<std::string, bool> overlaid_bool_variables_;
+  std::unordered_map<std::string, int> overlaid_int_variables_;
+  std::unordered_map<std::string, std::string> overlaid_string_variables_;
 
   int64_t app_start_timestamp_ = 0;
 };
