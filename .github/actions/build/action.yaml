@@ -96,7 +96,6 @@ runs:
           cd src
           test_targets=$(echo '${{ steps.calculate-test-targets.outputs.test_targets_json }}' | jq -cr 'join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
-          tools/licenses/licenses.py credits --gn-target cobalt:gn_all --gn-out-dir  out/${{ matrix.platform }}_${{ matrix.config }} > licenses_cobalt.txt
         shell: bash
       - name: Ninja build
         env:
@@ -105,6 +104,12 @@ runs:
           set -ex
           cd src
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
+        shell: bash
+      - name: Generate License File
+        run: |
+          set -ex
+          cd src
+          tools/licenses/licenses.py credits --gn-target cobalt:gn_all --gn-out-dir  out/${{ matrix.platform }}_${{ matrix.config }} > licenses_cobalt.txt
         shell: bash
       - name: Archive Android APKs
         if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
