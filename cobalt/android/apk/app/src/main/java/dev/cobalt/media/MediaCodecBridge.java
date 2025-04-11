@@ -1101,6 +1101,16 @@ class MediaCodecBridge {
     }
     // Estimate the maximum input size assuming three channel 4:2:0 subsampled input frames.
     int maxVideoInputSize = (maxPixels * 3) / (2 * minCompressionRatio);
+    if (maxVideoInputSize > 8 * 1024 * 1024) {
+      Log.i(
+          TAG,
+          "Cap KEY_MAX_INPUT_SIZE of "
+              + maxVideoInputSize
+              + " to "
+              + 8 * 1024 * 1024
+              + ".");
+      maxVideoInputSize = 8 * 1024 * 1024;
+    }
     format.setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxVideoInputSize);
     try {
       Log.i(
