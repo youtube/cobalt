@@ -8,18 +8,14 @@ import re
 import sys
 import requests
 import time
-import collections
 
 sys.path.append(
     os.path.join(
         os.path.dirname(__file__), 'build', 'android'))
-
-
 print(os.path.abspath(__file__))
 REPOSITORY_ROOT = os.path.abspath('.')
 
 sys.path.append(os.path.join(REPOSITORY_ROOT, 'third_party','catapult', 'devil'))
-
 sys.path.append(os.path.join(REPOSITORY_ROOT, 'third_party',
                              'catapult', 'telemetry'))
 
@@ -32,8 +28,21 @@ from devil.android.tools import script_common
 from devil.android.tools import system_app
 from devil.utils import logging_common
 
+def MonkeyPatchVersionNumber(self):
+  print(f'Monkey-patching GetChromeMajorNumber')
+  resp = self.GetVersion()
+  if 'Protocol-Version' in resp:
+    major_number_match = re.search(r'Cobalt/(\d+)',
+                                    resp['User-Agent'])
+    if major_number_match:
+      # Simply return something believable
+      return 114
+  return 0
+
 from telemetry.internal.backends.chrome_inspector import devtools_client_backend
 from telemetry.internal.backends.chrome import android_browser_backend
+
+devtools_client_backend._DevToolsClientBackend.GetChromeMajorNumber = MonkeyPatchVersionNumber
 
 class Forwarder(object):
   _local_port = 9222
@@ -49,7 +58,8 @@ class FakeFactory(object):
 class FakeBackend(object):
   forwarder_factory = FakeFactory()
   def GetOSName(self):
-    return "custom"
+    # Lie about our OS, so browser_target_url() doesn't need modifications
+    return "castos"
 
 class FakeConn(object):
   platform_backend = FakeBackend()
