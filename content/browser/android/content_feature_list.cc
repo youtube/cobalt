@@ -41,6 +41,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kWebAuthnTouchToFillCredentialSelection,
     &features::kWebBluetoothNewPermissionsBackend,
     &features::kWebNfc,
+    &features::kDoNotGenerateChromiumA11yTree,
 };
 
 const base::Feature* FindFeatureExposedToJava(const std::string& feature_name) {
