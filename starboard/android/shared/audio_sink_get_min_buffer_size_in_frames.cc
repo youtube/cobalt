@@ -38,12 +38,12 @@ int SbAudioSinkGetMinBufferSizeInFrames(int channels,
   int min_buffer_size = starboard::android::shared::AudioTrackAudioSinkType::
       GetMinBufferSizeInFrames(channels, sample_type, sampling_frequency_hz);
 
-  int overlayed_min_buffer_size =
+  int overlaid_min_buffer_size =
       starboard::android::shared::ApplicationAndroid::Get()
-          ->GetOverlayedIntValue("min_audio_sink_buffer_size_in_frames");
-  if (overlayed_min_buffer_size != 0 &&
-      overlayed_min_buffer_size > min_buffer_size) {
-    min_buffer_size = overlayed_min_buffer_size;
+          ->GetOverlaidIntValue("min_audio_sink_buffer_size_in_frames");
+  if (overlaid_min_buffer_size != 0 &&
+      overlaid_min_buffer_size > min_buffer_size) {
+    min_buffer_size = overlaid_min_buffer_size;
   }
   return min_buffer_size;
 }
