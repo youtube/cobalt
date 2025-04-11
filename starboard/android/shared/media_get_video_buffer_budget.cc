@@ -23,9 +23,9 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int resolution_height,
                                 int bits_per_pixel) {
   constexpr int kMaxVideoBufferBudget = 300 * 1024 * 1024;
-  auto get_overlayed_video_buffer_budget = []() {
+  auto get_overlaid_video_buffer_budget = []() {
     int buffer_budget = starboard::android::shared::ApplicationAndroid::Get()
-                            ->GetOverlayedIntValue("max_video_buffer_budget");
+                            ->GetOverlaidIntValue("max_video_buffer_budget");
     if (buffer_budget == 0) {
       return kMaxVideoBufferBudget;
     }
@@ -34,8 +34,8 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
     return buffer_budget * 1024 * 1024;
   };
 
-  static const int overlayed_video_buffer_budget =
-      get_overlayed_video_buffer_budget();
+  static const int overlaid_video_buffer_budget =
+      get_overlaid_video_buffer_budget();
 
   int video_buffer_budget = 0;
   if ((resolution_width <= 1920 && resolution_height <= 1080) ||
@@ -64,5 +64,5 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
     video_buffer_budget = kMaxVideoBufferBudget;
   }
 
-  return std::min(video_buffer_budget, overlayed_video_buffer_budget);
+  return std::min(video_buffer_budget, overlaid_video_buffer_budget);
 }
