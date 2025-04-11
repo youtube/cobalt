@@ -29,8 +29,12 @@ import("//tools/ipc_fuzzer/ipc_fuzzer.gni")
 if (is_mac) {
   import("//content/public/app/mac_helpers.gni")
 }
+<<<<<<< HEAD
 if (is_android) {
   import("//third_party/jni_zero/jni_zero.gni")
+=======
+import("//cobalt/build/configs/hacks.gni")
+>>>>>>> 6c543aa0958 (Fix compiler error building cobalt (#5365))
 
   rust_static_library("fontations_name_table_ffi") {
     allow_unsafe = true  # Needed for FFI that underpins the `cxx` crate.
@@ -2546,9 +2550,14 @@ source_set("browser") {
   }
 
   if (is_linux || is_chromeos) {
+<<<<<<< HEAD
     sources -=
         [ "file_system_access/file_path_watcher/file_path_watcher_stub.cc" ]
 
+=======
+    # TODO: b/410019699 - Cobalt: Fix target dependencies on deps in this section
+    if (!enable_cobalt_hermetic_hacks) {
+>>>>>>> 6c543aa0958 (Fix compiler error building cobalt (#5365))
     sources += [
       "child_process_launcher_helper_linux.cc",
       "child_thread_type_switcher_linux.cc",
@@ -2570,6 +2579,7 @@ source_set("browser") {
       "zygote_host/zygote_host_impl_linux.cc",
       "zygote_host/zygote_host_impl_linux.h",
     ]
+    }
 
     public_deps += [ "//components/services/font/public/mojom" ]
 
