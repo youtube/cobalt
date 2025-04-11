@@ -44,6 +44,15 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
                                           RendererClient* client,
                                           PipelineStatusCallback init_cb) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  // OnGpuChannelTokenReady() is called before Initialize()
+  // in StarboardRendererClient, so it is safe to access
+  // |command_buffer_id_| for posting gpu tasks.
+  if (command_buffer_id_) {
+    // TODO(b/409105749): create TextureOwner if SbPlayer works in
+    // decode-to-texture mode.
+  }
+
   renderer_->set_paint_video_hole_frame_callback(base::BindRepeating(
       &StarboardRendererWrapper::OnPaintVideoHoleFrameByStarboard,
       weak_factory_.GetWeakPtr()));
@@ -96,6 +105,12 @@ void StarboardRendererWrapper::OnVideoGeometryChange(
     const gfx::Rect& output_rect) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   renderer_->OnVideoGeometryChange(output_rect);
+}
+
+void StarboardRendererWrapper::OnGpuChannelTokenReady(
+    mojom::CommandBufferIdPtr command_buffer_id) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  command_buffer_id_ = std::move(command_buffer_id);
 }
 
 void StarboardRendererWrapper::OnPaintVideoHoleFrameByStarboard(

@@ -70,6 +70,8 @@ class StarboardRendererWrapper final
 
   // mojom::StarboardRendererExtension implementation.
   void OnVideoGeometryChange(const gfx::Rect& output_rect) override;
+  void OnGpuChannelTokenReady(
+      mojom::CommandBufferIdPtr command_buffer_id) override;
 
  private:
   void OnPaintVideoHoleFrameByStarboard(const gfx::Size& size);
@@ -77,6 +79,7 @@ class StarboardRendererWrapper final
   mojo::Receiver<RendererExtension> renderer_extension_receiver_;
   mojo::Remote<ClientExtension> client_extension_remote_;
   std::unique_ptr<StarboardRenderer> renderer_;
+  mojom::CommandBufferIdPtr command_buffer_id_;
 
   base::WeakPtrFactory<StarboardRendererWrapper> weak_factory_{this};
 

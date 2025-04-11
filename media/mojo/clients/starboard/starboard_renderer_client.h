@@ -30,6 +30,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 
 namespace media {
+class GpuVideoAcceleratorFactories;
 class RendererClient;
 class MediaLog;
 class MediaResource;
@@ -56,7 +57,8 @@ class MEDIA_EXPORT StarboardRendererClient
       VideoRendererSink* video_renderer_sink,
       mojo::PendingRemote<RendererExtension> pending_renderer_extension,
       mojo::PendingReceiver<ClientExtension> client_extension_receiver,
-      BindHostReceiverCallback bind_host_receiver_callback);
+      BindHostReceiverCallback bind_host_receiver_callback,
+      GpuVideoAcceleratorFactories* gpu_factories);
 
   StarboardRendererClient(const StarboardRendererClient&) = delete;
   StarboardRendererClient& operator=(const StarboardRendererClient&) = delete;
@@ -64,9 +66,9 @@ class MEDIA_EXPORT StarboardRendererClient
   ~StarboardRendererClient() override;
 
   // MojoRendererWrapper overrides.
-  void Initialize(media::MediaResource* media_resource,
-                  media::RendererClient* client,
-                  media::PipelineStatusCallback init_cb) override;
+  void Initialize(MediaResource* media_resource,
+                  RendererClient* client,
+                  PipelineStatusCallback init_cb) override;
   RendererType GetRendererType() override;
 
   // mojom::StarboardRendererClientExtension implementation
@@ -80,6 +82,19 @@ class MEDIA_EXPORT StarboardRendererClient
   void OnConnectionError();
   void OnSubscribeToVideoGeometryChange(MediaResource* media_resource,
                                         RendererClient* client);
+  void InitAndBindMojoRenderer(base::OnceClosure complete_cb);
+  void OnGpuChannelTokenReady(mojom::CommandBufferIdPtr command_buffer_id,
+                              base::OnceClosure complete_cb,
+                              const base::UnguessableToken& channel_token);
+  void InitializeMojoRenderer(MediaResource* media_resource,
+                              RendererClient* client,
+                              PipelineStatusCallback init_cb);
+  void InitAndConstructMojoRenderer(mojom::CommandBufferIdPtr command_buffer_id,
+                                    base::OnceClosure complete_cb);
+  bool AreMojoPipesConnected() const {
+    return client_extension_receiver_.is_bound() &&
+           renderer_extension_.is_bound();
+  }
 
   scoped_refptr<base::SequencedTaskRunner> media_task_runner_;
   std::unique_ptr<MediaLog> media_log_;
@@ -89,6 +104,7 @@ class MEDIA_EXPORT StarboardRendererClient
   mojo::PendingReceiver<ClientExtension> pending_client_extension_receiver_;
   mojo::Receiver<ClientExtension> client_extension_receiver_;
   const BindHostReceiverCallback bind_host_receiver_callback_;
+  raw_ptr<GpuVideoAcceleratorFactories> gpu_factories_ = nullptr;
 
   mojo::Remote<RendererExtension> renderer_extension_;
 
