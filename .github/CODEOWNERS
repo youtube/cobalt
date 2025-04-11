@@ -8,5 +8,6 @@
 /components/viz/service/display/starboard/  # no owners
 /ui/ozone/platform/starboard/  # no owners
 /cobalt/build/gn.py @youtube/cobalt-build
+/third_party/blink/ @youtube/cobalt-web-api
 
 *.nplb_filter.json @youtube/nplb-filters
