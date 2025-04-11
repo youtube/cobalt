@@ -4,6 +4,9 @@ inputs:
   test_artifacts_key:
     description: "Artifact key used to store test artifacts."
     required: true
+  test_results_key:
+    description: "Artifact key used to store test results."
+    required: true
 runs:
   using: "composite"
   steps:
