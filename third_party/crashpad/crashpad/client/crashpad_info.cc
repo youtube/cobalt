@@ -97,6 +97,8 @@ extern "C" int* CRASHPAD_NOTE_REFERENCE;
 CrashpadInfo* CrashpadInfo::GetCrashpadInfo() {
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || \
     BUILDFLAG(IS_FUCHSIA)
+// TODO: b/406511608 - Cobalt: try removing this guard once the hermetic build
+// of crashpad includes the crashpad/client/crashpad_info_note.S souce file.
 #if !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
   // This otherwise-unused reference is used so that any module that
   // references GetCrashpadInfo() will also include the note in the
