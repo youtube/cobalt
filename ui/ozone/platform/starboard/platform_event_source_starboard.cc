@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/platform_event_source_starboard.h"
+#include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
 #include "base/logging.h"
 #include "starboard/event.h"
@@ -313,6 +313,48 @@ PlatformEventSourceStarboard::PlatformEventSourceStarboard() {}
 uint32_t PlatformEventSourceStarboard::DeliverEvent(
     std::unique_ptr<ui::Event> ui_event) {
   return DispatchEvent(ui_event.get());
+}
+
+void PlatformEventSourceStarboard::AddPlatformEventObserverStarboard(
+    PlatformEventObserverStarboard* observer) {
+  CHECK(observer);
+  sb_observers_.AddObserver(observer);
+}
+
+void PlatformEventSourceStarboard::RemovePlatformEventObserverStarboard(
+    PlatformEventObserverStarboard* observer) {
+  sb_observers_.RemoveObserver(observer);
+}
+
+void DispatchWindowSizeChangedHandler(int width, int height) {
+  CHECK(ui::PlatformEventSource::GetInstance());
+  static_cast<PlatformEventSourceStarboard*>(
+      ui::PlatformEventSource::GetInstance())
+      ->DispatchWindowSizeChanged(width, height);
+}
+
+void PlatformEventSourceStarboard::DispatchWindowSizeChanged(int width,
+                                                             int height) {
+  for (PlatformEventObserverStarboard& observer : sb_observers_) {
+    observer.ProcessWindowSizeChangedEvent(width, height);
+  }
+}
+
+void PlatformEventSourceStarboard::HandleWindowSizeChangedEvent(
+    const SbEvent* event) {
+  if (event->type != kSbEventTypeWindowSizeChanged) {
+    return;
+  }
+  if (event->data == nullptr) {
+    return;
+  }
+  auto* input_data = static_cast<SbEventWindowSizeChangedData*>(event->data);
+
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&DispatchWindowSizeChangedHandler, input_data->size.width,
+                     input_data->size.height));
+  return;
 }
 
 PlatformEventSourceStarboard::~PlatformEventSourceStarboard() {}

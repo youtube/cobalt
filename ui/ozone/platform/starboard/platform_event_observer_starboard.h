@@ -12,30 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_PLATFORM_EVENT_SOURCE_H_
-#define COBALT_PLATFORM_EVENT_SOURCE_H_
-
-#include "ui/events/platform/platform_event_source.h"
-
-#include "starboard/event.h"
+#ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_OBSERVER_H_
+#define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_OBSERVER_H_
 
 namespace starboard {
 
-class PlatformEventSourceStarboard : public ui::PlatformEventSource {
+class EVENTS_EXPORT PlatformEventObserverStarboard {
  public:
-  PlatformEventSourceStarboard();
+  virtual void ProcessWindowSizeChangedEvent(int width, int height) = 0;
 
-  PlatformEventSourceStarboard(const PlatformEventSourceStarboard&) = delete;
-  PlatformEventSourceStarboard& operator=(const PlatformEventSourceStarboard&) =
-      delete;
-
-  void HandleEvent(const SbEvent* event);
-
-  ~PlatformEventSourceStarboard() override;
-
-  uint32_t DeliverEvent(std::unique_ptr<ui::Event> ui_event);
+ protected:
+  virtual ~PlatformEventObserverStarboard() = default;
 };
 
 }  // namespace starboard
 
-#endif  // COBALT_PLATFORM_EVENT_SOURCE_H_
+#endif  // UI_OZONE_PLATFORM_STARBOARD
