@@ -51,6 +51,8 @@ if (is_android) {
   }
 }
 
+import("//cobalt/build/configs/hacks.gni")
+
 source_set("browser") {
   # Only the public target should depend on this. All other targets (even
   # internal content ones) should depend on the public one.
@@ -2454,7 +2456,9 @@ source_set("browser") {
     ]
   }
 
-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+  if (is_linux || is_chromeos) {
+    # TODO: b/410019699 - Cobalt: Fix target dependencies on deps in this section
+    if (!enable_cobalt_hermetic_hacks) {
     sources += [
       "child_process_launcher_helper_linux.cc",
       "child_thread_type_switcher_linux.cc",
@@ -2476,6 +2480,7 @@ source_set("browser") {
       "zygote_host/zygote_host_impl_linux.cc",
       "zygote_host/zygote_host_impl_linux.h",
     ]
+    }
 
     public_deps += [ "//components/services/font/public/mojom" ]
 
