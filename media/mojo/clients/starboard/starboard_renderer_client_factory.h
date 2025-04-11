@@ -26,6 +26,7 @@ class TimeDelta;
 }  // namespace base
 
 namespace media {
+class GpuVideoAcceleratorFactories;
 class MediaLog;
 class MojoRendererFactory;
 
@@ -35,9 +36,13 @@ class MojoRendererFactory;
 class MEDIA_EXPORT StarboardRendererClientFactory final
     : public RendererFactory {
  public:
+  using GetGpuFactoriesCB =
+      base::RepeatingCallback<GpuVideoAcceleratorFactories*()>;
+
   StarboardRendererClientFactory(
       MediaLog* media_log,
       std::unique_ptr<MojoRendererFactory> mojo_renderer_factory,
+      const GetGpuFactoriesCB& get_gpu_factories_cb,
       const media::RendererFactoryTraits* traits);
 
   StarboardRendererClientFactory(const StarboardRendererClientFactory&) =
@@ -59,6 +64,9 @@ class MEDIA_EXPORT StarboardRendererClientFactory final
  private:
   raw_ptr<MediaLog> media_log_;
   std::unique_ptr<MojoRendererFactory> mojo_renderer_factory_;
+  // Creates gpu factories for supporting decode-to-texture mode.
+  // It could be null.
+  GetGpuFactoriesCB get_gpu_factories_cb_;
   const base::TimeDelta audio_write_duration_local_;
   const base::TimeDelta audio_write_duration_remote_;
   const BindHostReceiverCallback bind_host_receiver_callback_;
