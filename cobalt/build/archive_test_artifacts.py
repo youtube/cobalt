@@ -82,7 +82,7 @@ def create_archive(
           f'{target_name}__test_runner_script.runtime_deps')
     else:
       deps_file = os.path.join(out_dir, f'{target_name}.runtime_deps')
-      if !os.path.exists(deps_file):
+      if not os.path.exists(deps_file):
         # If |deps_file| doesn't exist it could be due to being generated with
         # the starboard_toolchain. In that case, we should look in subfolders.
         # For the time being, just try with an extra starboard/ in the path.
