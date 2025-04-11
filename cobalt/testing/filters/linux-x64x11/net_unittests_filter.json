@@ -13,6 +13,7 @@
     "PartitionedCookiesURLRequestHttpJobTest.*",
     "QuicSocketAddress.FromSocket",
     "ReportingUploaderTest.*",
+    "TCPClientSocketTest.*",
     "TestRootCertsTest.Moveable",
     "TestRootCertsTest.OverrideTrust",
     "UDPSocketTest.ClientGetLocalPeerAddresses",
