@@ -1,4 +1,4 @@
-// Copyright 2015 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,7 +30,7 @@ class SbPosixEpollTest : public ::testing::TestWithParam<int> {
   int GetAddressType() { return GetParam(); }
 };
 
-TEST(SbPosixEpollAddRemoveTest, SunnyDay) {
+TEST(PosixEpollAddRemoveTest, SunnyDay) {
   int epfd = epoll_create(1);
   EXPECT_TRUE(epfd > 0);
 
@@ -48,7 +48,7 @@ TEST(SbPosixEpollAddRemoveTest, SunnyDay) {
   EXPECT_TRUE(close(epfd) == 0);
 }
 
-TEST(SbPosixEpollAddTest, SunnyDayMany) {
+TEST(PosixEpollAddRemoveTest, SunnyDayMany) {
   int epfd = epoll_create(1);
   EXPECT_TRUE(epfd > 0);
 
@@ -71,7 +71,7 @@ TEST(SbPosixEpollAddTest, SunnyDayMany) {
   EXPECT_TRUE(close(epfd) == 0);
 }
 
-TEST(SbPosixEpollAddTest, RainyDayAddToSameWaiter) {
+TEST(PosixEpollAddRemoveTest, RainyDayAddToSameWaiter) {
   int epfd = epoll_create(1);
   EXPECT_TRUE(epfd > 0);
 
@@ -99,7 +99,7 @@ TEST(SbPosixEpollAddTest, RainyDayAddToSameWaiter) {
   EXPECT_TRUE(close(epfd) == 0);
 }
 
-TEST(SbPosixEpollAddTest, RainyDayInvalidSocket) {
+TEST(PosixEpollAddRemoveTest, RainyDayInvalidSocket) {
   int epfd = epoll_create(1);
   EXPECT_TRUE(epfd > 0);
 
@@ -111,7 +111,7 @@ TEST(SbPosixEpollAddTest, RainyDayInvalidSocket) {
   EXPECT_TRUE(close(epfd) == 0);
 }
 
-TEST(SbPosixEpollAddTest, RainyDayNoInterest) {
+TEST(PosixEpollAddRemoveTest, RainyDayNoInterest) {
   int epfd = epoll_create(1);
   EXPECT_TRUE(epfd > 0);
 
@@ -124,7 +124,7 @@ TEST(SbPosixEpollAddTest, RainyDayNoInterest) {
   EXPECT_TRUE(close(epfd) == 0);
 }
 
-TEST(SbPosixEpollAddTest, RainyDayRemoveSocket) {
+TEST(PosixEpollAddRemoveTest, RainyDayRemoveSocket) {
   int epfd = epoll_create(1);
   EXPECT_TRUE(epfd > 0);
 
