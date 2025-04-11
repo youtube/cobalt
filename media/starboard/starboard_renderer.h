@@ -113,6 +113,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   void OnDemuxerStreamRead(DemuxerStream* stream,
                            DemuxerStream::Status status,
                            DemuxerStream::DecoderBufferVector buffers);
+  void OnStatisticsUpdate(const PipelineStatistics& stats);
 
   void OnNeedData(DemuxerStream::Type type,
                   int max_number_of_buffers_to_write) final;
