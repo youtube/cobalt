@@ -27,6 +27,7 @@ import("//tools/ipc_fuzzer/ipc_fuzzer.gni")
 if (is_mac) {
   import("//content/public/app/mac_helpers.gni")
 }
+import("//cobalt/build/configs/hacks.gni")
 
 buildflag_header("buildflags") {
   header = "buildflags.h"
@@ -2358,7 +2359,9 @@ source_set("browser") {
     ]
   }
 
-  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
+  if (is_linux || is_chromeos) {
+    # TODO: b/410019699 - Cobalt: Fix target dependencies on deps in this section
+    if (!enable_cobalt_hermetic_hacks) {
     sources += [
       "child_process_launcher_helper_linux.cc",
       "font_access/font_enumeration_data_source_linux.cc",
@@ -2377,6 +2380,7 @@ source_set("browser") {
       "zygote_host/zygote_host_impl_linux.cc",
       "zygote_host/zygote_host_impl_linux.h",
     ]
+    }
 
     public_deps += [ "//components/services/font/public/mojom" ]
 
