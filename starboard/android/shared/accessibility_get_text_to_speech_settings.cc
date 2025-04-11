@@ -15,8 +15,8 @@
 namespace starboard {
 namespace android {
 namespace shared {
-namespace accessibility {
 
+namespace accessibility {
 // ATV no longer supports GetTextToSpeechSettings in Chrobalt,
 // Please reference starboard/android/shared/text_to_speech_helper.h for
 // supported text-to-speech APIs instead.
