@@ -24,6 +24,7 @@
 #include "media/mojo/clients/starboard/starboard_renderer_client.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/renderers/video_overlay_factory.h"
+#include "media/video/gpu_video_accelerator_factories.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 #include "mojo/public/cpp/bindings/remote.h"
@@ -34,9 +35,11 @@ namespace media {
 StarboardRendererClientFactory::StarboardRendererClientFactory(
     MediaLog* media_log,
     std::unique_ptr<MojoRendererFactory> mojo_renderer_factory,
+    const GetGpuFactoriesCB& get_gpu_factories_cb,
     const media::RendererFactoryTraits* traits)
     : media_log_(media_log),
       mojo_renderer_factory_(std::move(mojo_renderer_factory)),
+      get_gpu_factories_cb_(get_gpu_factories_cb),
       audio_write_duration_local_(traits->audio_write_duration_local),
       audio_write_duration_remote_(traits->audio_write_duration_remote),
       bind_host_receiver_callback_(traits->bind_host_receiver_callback) {}
@@ -83,6 +86,10 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
   // by the remote renderer.
   auto overlay_factory = std::make_unique<VideoOverlayFactory>();
 
+  // GetChannelToken() from gpu::GpuChannel for StarboardRendererClient.
+  DCHECK(get_gpu_factories_cb_);
+  GpuVideoAcceleratorFactories* gpu_factories = get_gpu_factories_cb_.Run();
+
   std::unique_ptr<media::MojoRenderer> mojo_renderer =
       mojo_renderer_factory_->CreateStarboardRenderer(
           std::move(media_log_pending_remote),
@@ -95,7 +102,8 @@ std::unique_ptr<Renderer> StarboardRendererClientFactory::CreateRenderer(
       media_task_runner, media_log_->Clone(), std::move(mojo_renderer),
       std::move(overlay_factory), video_renderer_sink,
       std::move(renderer_extension_remote),
-      std::move(client_extension_receiver), bind_host_receiver_callback_);
+      std::move(client_extension_receiver), bind_host_receiver_callback_,
+      gpu_factories);
 }
 
 }  // namespace media
