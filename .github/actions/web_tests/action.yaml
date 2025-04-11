@@ -25,6 +25,7 @@ runs:
       id: run-tests
       shell: bash
       env:
+        # TODO: Once fixed this should be expanded to include more tests.
         TEST_PATH: wpt_internal/cobalt/crash-log
       run: |
         set -x
