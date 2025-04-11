@@ -96,7 +96,7 @@ runs:
           cd src
           test_targets=$(echo '${{ steps.calculate-test-targets.outputs.test_targets_json }}' | jq -cr 'join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${test_targets}
-          tools/licenses/licenses.py credits --gn-target cobalt:gn_all --gn-out-dir  out/android-arm_gold > licenses_cobalt.txt
+          tools/licenses/licenses.py credits --gn-target cobalt:gn_all --gn-out-dir  out/${{ matrix.platform }}_${{ matrix.config }} > licenses_cobalt.txt
         shell: bash
       - name: Ninja build
         env:
