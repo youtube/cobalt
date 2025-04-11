@@ -14,11 +14,14 @@
 
 #include "client/crash_report_database.h"
 
+#include "base/notreached.h"
+
 namespace crashpad {
 
 // static
 std::unique_ptr<CrashReportDatabase> CrashReportDatabase::Initialize(
     const base::FilePath& path) {
+  NOTIMPLEMENTED();
   return nullptr;
 }
 

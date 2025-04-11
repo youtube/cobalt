@@ -14,6 +14,8 @@
 
 #include "client/crashpad_client.h"
 
+#include "base/notreached.h"
+
 namespace crashpad {
 
 CrashpadClient::CrashpadClient() {}
@@ -30,25 +32,34 @@ bool CrashpadClient::StartHandler(
     bool restartable,
     bool asynchronous_start,
     const std::vector<base::FilePath>& attachments) {
+  NOTIMPLEMENTED();
   return false;
 }
 
 // static
 void CrashpadClient::SetFirstChanceExceptionHandler(
-    FirstChanceHandler handler) {}
+    FirstChanceHandler handler) {
+  NOTIMPLEMENTED();
+}
 
 // static
 bool CrashpadClient::GetHandlerSocket(int* sock, pid_t* pid) {
+  NOTIMPLEMENTED();
   return false;
 }
 
 bool CrashpadClient::SetHandlerSocket(ScopedFileHandle sock, pid_t pid) {
+  NOTIMPLEMENTED();
   return false;
 }
 
 // static
-void CrashpadClient::DumpWithoutCrash(NativeCPUContext* context) {}
+void CrashpadClient::DumpWithoutCrash(NativeCPUContext* context) {
+  NOTIMPLEMENTED();
+}
 
-void CrashpadClient::SetUnhandledSignals(const std::set<int>& signals) {}
+void CrashpadClient::SetUnhandledSignals(const std::set<int>& signals) {
+  NOTIMPLEMENTED();
+}
 
 }  // namespace crashpad
