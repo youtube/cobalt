@@ -5,8 +5,8 @@
                 "content_shell.pak",
                 "gen/build_info.json",
                 "icudtl.dat",
-                "lib.unstripped/libcobalt_content_shell_content_view.so",
-                "libcobalt_content_shell_content_view.so",
+                "lib.unstripped/libcobalt.so",
+                "libcobalt.so",
                 "libnplb__library.so",
                 "libstarboard_jni_state.so",
                 "libtest_trace_processor.so",
@@ -21,8 +21,8 @@
                     "to_file": "build_info.json"
                 },
                 {
-                  "from_file": "lib.unstripped/libcobalt_content_shell_content_view.so",
-                  "to_file": "symbol/libcobalt_content_shell_content_view.so"
+                "from_file": "lib.unstripped/libcobalt.so",
+                "to_file": "symbol/libcobalt.so"
                 }
             ],
             "dirs": [
@@ -39,7 +39,7 @@
         {
           "files": [
               "gen/build_info.json",
-              "lib.unstripped/libcobalt_content_shell_content_view.so"
+            "lib.unstripped/libcobalt.so"
           ],
           "rename_files": [
               {
@@ -47,8 +47,8 @@
                   "to_file": "build_info.json"
               },
               {
-                  "from_file": "lib.unstripped/libcobalt_content_shell_content_view.so",
-                  "to_file": "symbol/libcobalt_content_shell_content_view.so"
+                "from_file": "lib.unstripped/libcobalt.so",
+                "to_file": "symbol/libcobalt.so"
               }
           ],
           "archive_type": "ARCHIVE_TYPE_FILES"
