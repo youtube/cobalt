@@ -126,7 +126,9 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
     kIOThread = 0,
     kMainThread = 1,
     kThreadPoolThread = 2,
-    kMax = kThreadPoolThread
+    // this is used in single-process mode only, inside browser process
+    kRendererThread = 3,
+    kMax = kRendererThread
   };
 
   // Notes on lifetime:
