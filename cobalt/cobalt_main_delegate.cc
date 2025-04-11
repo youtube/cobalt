@@ -21,6 +21,7 @@
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "content/common/content_constants_internal.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/common/content_switches.h"
 
 namespace cobalt {
 
@@ -28,6 +29,12 @@ CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
     : content::ShellMainDelegate(is_content_browsertests) {}
 
 CobaltMainDelegate::~CobaltMainDelegate() {}
+
+absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
+  base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
+  cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
+  return content::ShellMainDelegate::BasicStartupComplete();
+}
 
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
