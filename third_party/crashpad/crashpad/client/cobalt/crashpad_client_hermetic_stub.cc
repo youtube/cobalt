@@ -38,7 +38,9 @@ void CrashpadClient::SetFirstChanceExceptionHandler(
     FirstChanceHandler handler) {}
 
 // static
-bool CrashpadClient::GetHandlerSocket(int* sock, pid_t* pid) { return false; }
+bool CrashpadClient::GetHandlerSocket(int* sock, pid_t* pid) {
+  return false;
+}
 
 bool CrashpadClient::SetHandlerSocket(ScopedFileHandle sock, pid_t pid) {
   return false;
