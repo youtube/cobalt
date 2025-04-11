@@ -38,3 +38,8 @@ if (is_starboard) {
   ozone_external_platform_test_deps += ["platform/starboard:starboard_unittests"]
   ozone_external_platform_ui_test_support_deps += ["platform/starboard:test_support"]
 }
+
+if (is_cobalt && target_os != "android" && current_toolchain == host_toolchain) {
+  ozone_external_platforms += [ "headless" ]
+  ozone_external_platform_deps += [ "platform/headless" ]
+}

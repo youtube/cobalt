@@ -16,10 +16,12 @@
 #define COBALT_COBALT_MAIN_DELEGATE_H_
 
 #include "build/build_config.h"
+#include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
 #include "content/public/browser/browser_main_runner.h"
 #include "content/shell/app/shell_main_delegate.h"
+#include "third_party/abseil-cpp/absl/types/optional.h"
 
 namespace cobalt {
 
@@ -31,6 +33,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
   CobaltMainDelegate& operator=(const CobaltMainDelegate&) = delete;
 
   // ContentMainDelegate implementation:
+  absl::optional<int> BasicStartupComplete() override;
   content::ContentBrowserClient* CreateContentBrowserClient() override;
   content::ContentGpuClient* CreateContentGpuClient() override;
   content::ContentRendererClient* CreateContentRendererClient() override;
@@ -50,6 +53,7 @@ class CobaltMainDelegate : public content::ShellMainDelegate {
 
  private:
   std::unique_ptr<content::BrowserMainRunner> main_runner_;
+  std::unique_ptr<CobaltContentBrowserClient> browser_client_;
   std::unique_ptr<CobaltContentGpuClient> gpu_client_;
   std::unique_ptr<CobaltContentRendererClient> renderer_client_;
 };

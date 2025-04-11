@@ -26,6 +26,8 @@ source_set("browser") {
     "cobalt_browser_main_parts.h",
     "cobalt_content_browser_client.cc",
     "cobalt_content_browser_client.h",
+    "cobalt_web_contents_delegate.cc",
+    "cobalt_web_contents_delegate.h",
     "cobalt_web_contents_observer.cc",
     "cobalt_web_contents_observer.h",
   ]
@@ -58,9 +60,11 @@ source_set("browser") {
     "//cobalt/user_agent",
     "//components/js_injection/browser:browser",
     "//components/metrics",
+    "//components/metrics:test_support",
     "//components/metrics_services_manager",
     "//components/os_crypt/sync",
     "//components/prefs",
+    "//components/variations/service:service",
     "//content/public/browser",
     "//starboard/($starboard_toolchain)",
 

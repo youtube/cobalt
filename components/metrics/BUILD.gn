@@ -230,7 +230,7 @@ if (!is_cronet_build || is_ios) {
       ]
     }
 
-    if (is_linux || is_chromeos) {
+    if (is_linux && !is_starboard || is_chromeos) {
       sources += [
         "drive_metrics_provider_linux.cc",
         "psi_memory_parser.h",

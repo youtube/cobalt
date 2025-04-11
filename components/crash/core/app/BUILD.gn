@@ -5,6 +5,7 @@
 # TODO(crbug.com/1226159): Complete crash reporting integration on Fuchsia.
 assert(!is_fuchsia)
 
+import("//cobalt/build/configs/hacks.gni")
 import("//components/gwp_asan/buildflags/buildflags.gni")
 
 if (is_android) {
@@ -219,7 +220,18 @@ if (is_win) {
   }
 }
 
-if (is_mac || is_android || is_linux || is_chromeos) {
+if (enable_cobalt_hermetic_hacks) {
+  # Don't link this yet to avoid linking errors.
+  # TODO: (cobalt b/406511608) Build crashpad correctly in hermetic builds.
+  source_set("chrome_crashpad_handler") {
+    sources = [ "chrome_crashpad_handler.cc" ]
+
+    deps = [
+      ":crashpad_handler_main",
+      "//third_party/crashpad/crashpad/handler",
+    ]
+  }
+} else if (is_mac || is_android || is_linux || is_chromeos) {
   # We build a chromium-specific crashpad_handler executable so that we can
   # define custom UserStreamDataSources.
   executable("chrome_crashpad_handler") {

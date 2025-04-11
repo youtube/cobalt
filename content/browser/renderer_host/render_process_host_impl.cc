@@ -5194,7 +5194,9 @@ void RenderProcessHostImpl::OnProcessLaunched() {
       // Not all platforms launch processes in the same backgrounded state. Make
       // sure |priority_.visible| reflects this platform's initial process
       // state.
-#if BUILDFLAG(IS_APPLE)
+#if BUILDFLAG(IS_STARBOARD)
+    priority_.visible = true;
+#elif BUILDFLAG(IS_APPLE)
     priority_.visible =
         !child_process_launcher_->GetProcess().IsProcessBackgrounded(
             ChildProcessTaskPortProvider::GetInstance());

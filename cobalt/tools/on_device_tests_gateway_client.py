@@ -85,7 +85,7 @@ class OnDeviceTestsGatewayClient():
       print(response_line.response)
 
 
-def _get_gtest_filters(filter_json_dir, target_name):
+def _get_gtest_filter(filter_json_dir, target_name):
   """Retrieves gtest filters for a given target.
 
   Args:
@@ -95,18 +95,15 @@ def _get_gtest_filters(filter_json_dir, target_name):
   Returns:
       A string containing the gtest filters.
   """
-  gtest_filters = '*'
+  gtest_filter = '*'
   filter_json_file = os.path.join(filter_json_dir, f'{target_name}_filter.json')
-  print(f'  gtest_filter_json_file = {filter_json_file}')
   if os.path.exists(filter_json_file):
     with open(filter_json_file, 'r', encoding='utf-8') as f:
       filter_data = json.load(f)
-      print(f'  Loaded filter data: {filter_data}')
       failing_tests = ':'.join(filter_data.get('failing_tests', []))
       if failing_tests:
-        gtest_filters = '-' + failing_tests
-  print(f'  gtest_filters = {gtest_filters}')
-  return gtest_filters
+        gtest_filter = '-' + failing_tests
+  return gtest_filter
 
 
 def _process_test_requests(args):
@@ -128,7 +125,8 @@ def _process_test_requests(args):
     _, target_name = gtest_target.split(':')
     print(f'  Processing gtest_target: {gtest_target}')
 
-    gtest_filter = _get_gtest_filters(args.filter_json_dir, target_name)
+    gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
+    print(f'  gtest_filter = {gtest_filter}')
     if gtest_filter == '-*':
       print(f'Skipping {target_name} due to test filter.')
       continue
@@ -324,8 +322,8 @@ def main() -> int:
     else:
       client.run_watch_command(args.token, args.session_id)
   except grpc.RpcError as e:
-    logging.exception('gRPC error occurred:')  # Log the full traceback
-    return e.code().value  # Return the error code
+    logging.error('gRPC error occurred: %s', e)
+    return 1
 
   return 0  # Indicate successful execution
 

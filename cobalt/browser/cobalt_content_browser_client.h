@@ -17,6 +17,8 @@
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
+#include "cobalt/browser/cobalt_web_contents_delegate.h"
+#include "components/prefs/pref_registry_simple.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
@@ -85,6 +87,17 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       blink::AssociatedInterfaceRegistry* associated_registry,
       content::RenderProcessHost* render_process_host) override;
   void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
+  // Initialize a PrefService instance for the experiment config.
+  void CreateExperimentConfig();
+  void CreateFeatureListAndFieldTrials();
+  // Read from the experiment config, override features, and associate feature
+  // params for Cobalt experiments.
+  void SetUpCobaltFeaturesAndParams(
+      std::unique_ptr<base::FeatureList>& feature_list);
+  // Setup Cobalt field trial and related initialization.
+  void SetUpFieldTrials();
+  // Registers experiment config prefs used by this class.
+  static void RegisterPrefs(PrefRegistrySimple* registry);
 
   bool WillCreateURLLoaderFactory(
       content::BrowserContext* browser_context,
@@ -105,10 +118,13 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   void CreateVideoGeometrySetterService();
 
   std::unique_ptr<CobaltWebContentsObserver> web_contents_observer_;
+  std::unique_ptr<CobaltWebContentsDelegate> web_contents_delegate_;
   std::unique_ptr<media::VideoGeometrySetterService, base::OnTaskRunnerDeleter>
       video_geometry_setter_service_;
   std::vector<std::unique_ptr<browser::CobaltTrustedURLLoaderHeaderClient>>
       cobalt_header_clients_;
+
+  std::unique_ptr<PrefService> exp_config_ = nullptr;
 
   THREAD_CHECKER(thread_checker_);
 };

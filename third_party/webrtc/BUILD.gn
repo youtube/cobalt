@@ -208,7 +208,7 @@ config("common_inherited_config") {
       "WEBRTC_IOS",
     ]
   }
-  if (is_linux || is_chromeos) {
+  if (is_linux && !is_cobalt_hermetic_build || is_chromeos) {
     defines += [ "WEBRTC_LINUX" ]
   }
   if (is_mac) {

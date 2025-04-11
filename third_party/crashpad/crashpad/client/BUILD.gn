@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import("../build/crashpad_buildconfig.gni")
+import("//cobalt/build/configs/hacks.gni")
 
 crashpad_static_library("client") {
   sources = [
@@ -69,6 +70,13 @@ crashpad_static_library("client") {
 
   if (crashpad_is_fuchsia) {
     sources += [ "crashpad_client_fuchsia.cc" ]
+  }
+
+  if (enable_cobalt_hermetic_hacks) {
+    sources += [
+      "cobalt/crashpad_client_hermetic_stub.cc",
+      "cobalt/simulate_crash_hermetic_stub.h",
+    ]
   }
 
   public_configs = [ "..:crashpad_config" ]
@@ -138,6 +146,10 @@ static_library("common") {
       "crash_report_database_generic.cc",
       "crashpad_info_note.S",
     ]
+  }
+
+  if (enable_cobalt_hermetic_hacks) {
+    sources += [ "cobalt/crash_report_database_hermetic_stub.cc" ]
   }
 
   public_configs = [ "..:crashpad_config" ]

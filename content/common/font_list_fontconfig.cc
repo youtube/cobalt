@@ -29,8 +29,13 @@ base::Value::List GetFontList_SlowBlocking() {
 
   base::Value::List font_list;
 
+#if BUILDFLAG(IS_STARBOARD)
+  std::unique_ptr<FcObjectSet, decltype(&FcObjectSetDestroy)> object_set(
+      FcObjectSetBuild(FC_FAMILY, nullptr), FcObjectSetDestroy);
+#else
   std::unique_ptr<FcObjectSet, decltype(&FcObjectSetDestroy)> object_set(
       FcObjectSetBuild(FC_FAMILY, NULL), FcObjectSetDestroy);
+#endif
 
   std::set<std::string> sorted_families;
 

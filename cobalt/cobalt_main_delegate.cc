@@ -15,12 +15,17 @@
 #include "cobalt/cobalt_main_delegate.h"
 
 #include "base/process/current_process.h"
+#include "base/threading/hang_watcher.h"
 #include "base/trace_event/trace_log.h"
 #include "cobalt/browser/cobalt_content_browser_client.h"
 #include "cobalt/gpu/cobalt_content_gpu_client.h"
 #include "cobalt/renderer/cobalt_content_renderer_client.h"
+#include "components/memory_system/initializer.h"
+#include "components/memory_system/parameters.h"
 #include "content/common/content_constants_internal.h"
+#include "content/public/app/initialize_mojo_core.h"
 #include "content/public/browser/render_frame_host.h"
+#include "content/public/common/content_switches.h"
 
 namespace cobalt {
 
@@ -28,6 +33,12 @@ CobaltMainDelegate::CobaltMainDelegate(bool is_content_browsertests)
     : content::ShellMainDelegate(is_content_browsertests) {}
 
 CobaltMainDelegate::~CobaltMainDelegate() {}
+
+absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
+  base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
+  cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
+  return content::ShellMainDelegate::BasicStartupComplete();
+}
 
 content::ContentBrowserClient*
 CobaltMainDelegate::CreateContentBrowserClient() {
@@ -50,7 +61,32 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     InvokedIn invoked_in) {
   content::RenderFrameHost::AllowInjectingJavaScript();
 
-  return ShellMainDelegate::PostEarlyInitialization(invoked_in);
+  if (!ShouldCreateFeatureList(invoked_in)) {
+    // Apply field trial testing configuration since content did not.
+    browser_client_->CreateFeatureListAndFieldTrials();
+  }
+  if (!ShouldInitializeMojo(invoked_in)) {
+    content::InitializeMojoCore();
+  }
+
+  // ShellMainDelegate has GWP-ASan as well as Profiling Client disabled.
+  // Consequently, we provide no parameters for these two. The memory_system
+  // includes the PoissonAllocationSampler dynamically only if the Profiling
+  // Client is enabled. However, we are not sure if this is the only user of
+  // PoissonAllocationSampler in the ContentShell. Therefore, enforce inclusion
+  // at the moment.
+  //
+  // TODO(https://crbug.com/1411454): Clarify which users of
+  // PoissonAllocationSampler we have in the ContentShell. Do we really need to
+  // enforce it?
+  memory_system::Initializer()
+      .SetDispatcherParameters(memory_system::DispatcherParameters::
+                                   PoissonAllocationSamplerInclusion::kEnforce,
+                               memory_system::DispatcherParameters::
+                                   AllocationTraceRecorderInclusion::kIgnore)
+      .Initialize(memory_system_);
+
+  return absl::nullopt;
 }
 
 absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
