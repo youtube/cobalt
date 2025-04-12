@@ -97,10 +97,10 @@ source_set("utility") {
 
   if (is_linux || is_chromeos) {
     deps += [
-      "//gpu/config",
+      # "//gpu/config",
       "//media/gpu/sandbox",
       "//media/mojo/services",
-      "//third_party/angle:angle_gpu_info_util",
+      # "//third_party/angle:angle_gpu_info_util",
     ]
     if (is_cobalt_hermetic_build) {
       deps -= [
