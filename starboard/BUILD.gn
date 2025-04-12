@@ -292,27 +292,26 @@ if (current_toolchain == starboard_toolchain) {
       public_deps += [ "//$starboard_path:starboard_platform_with_main" ]
     }
   }
-}
 
-# TODO(b/384819454): Move this guy to the block above and define here a
-#    group("starboard_unittests_wrapper") {
-#      testonly = true
-#      deps = [ ":starboard_unittests($starboard_toolchain)" ]
-#    }
-# then modify //cobalt/build/...test_targets.json to point to it instead of
-# starboard_unittests directly.
-test("starboard_unittests") {
-  deps = [ "//starboard/common:common_test" ]
-  if (sb_is_evergreen_compatible) {
-    deps += [
-      "//starboard/client_porting/eztime:eztime_test",
-      "//starboard/extension:extension_test",
-      "//starboard/loader_app:app_key_files_test",
-      "//starboard/loader_app:app_key_test",
-      "//starboard/loader_app:drain_file_test",
-    ]
-    if (current_toolchain == starboard_toolchain) {
+  source_set("starboard_unittests") {
+    testonly = true
+    deps = [ "//starboard/common:common_test" ]
+    if (!is_android) {
       deps += [ "//starboard/elf_loader:elf_loader_test" ]
     }
+    if (sb_is_evergreen_compatible) {
+      deps += [
+        "//starboard/client_porting/eztime:eztime_test",
+        "//starboard/extension:extension_test",
+        "//starboard/loader_app:app_key_files_test",
+        "//starboard/loader_app:app_key_test",
+        "//starboard/loader_app:drain_file_test",
+      ]
+    }
   }
+}
+
+test("starboard_unittests_wrapper") {
+  testonly = true
+  deps = [ ":starboard_unittests($starboard_toolchain)" ]
 }
