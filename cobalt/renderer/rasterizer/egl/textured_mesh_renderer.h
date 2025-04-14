@@ -25,6 +25,7 @@
 #include "cobalt/math/rect.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/texture.h"
+#include "starboard/media.h"
 #include "third_party/glm/glm/mat4x4.hpp"
 
 namespace cobalt {
@@ -95,6 +96,7 @@ class TexturedMeshRenderer {
     }
 
     Type type;
+    SbMediaTransferId transfer_id;
     Texture textures[3];
   };
 
@@ -133,7 +135,8 @@ class TexturedMeshRenderer {
     int32 subtexture_size_uniform;
   };
   // We key each program off of their GL texture type and image type.
-  typedef std::tuple<uint32, Image::Type, base::Optional<int32> > CacheKey;
+  typedef std::tuple<uint32, Image::Type, bool, base::Optional<int32> >
+      CacheKey;
   typedef std::map<CacheKey, ProgramInfo> ProgramCache;
 
   uint32 GetQuadVBO();
@@ -145,7 +148,8 @@ class TexturedMeshRenderer {
 
   static uint32 CreateFragmentShader(uint32 texture_target,
                                      const std::vector<TextureInfo>& textures,
-                                     const float* color_matrix);
+                                     const float* color_matrix,
+                                     bool tonemapping = false);
   static uint32 CreateVertexShader(const std::vector<TextureInfo>& textures);
 
   // UYVY textures need a special fragment shader to handle the unique aspect
@@ -154,7 +158,8 @@ class TexturedMeshRenderer {
                                          int32 texture_wrap_s);
   // YUV compacted textures need a special fragment shader to handle compacted
   // pixels. Compacted textures support YUV420 only.
-  static uint32 CreateYUVCompactedTexturesFragmentShader(uint32 texture_target);
+  static uint32 CreateYUVCompactedTexturesFragmentShader(uint32 texture_target,
+                                                         bool tonemapping);
 
   backend::GraphicsContextEGL* graphics_context_;
 
