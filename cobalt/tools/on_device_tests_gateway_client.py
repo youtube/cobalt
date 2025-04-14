@@ -126,6 +126,7 @@ def _process_test_requests(args):
 
     gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
     if gtest_filter == '-*':
+      print(f'Skipping {target_name} due to test filter.')
       continue
     command_line_args = ' '.join([
         f'--gtest_output=xml:{_DIR_ON_DEVICE}/{target_name}_testoutput.xml',
