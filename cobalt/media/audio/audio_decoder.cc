@@ -16,6 +16,8 @@
 
 #include <stdint.h>
 
+#include <utility>
+
 #include "base/logging.h"
 #include "base/strings/string_piece.h"
 #include "media/audio/wav_audio_handler.h"
@@ -42,12 +44,12 @@ bool DecodeAudioFileData(blink::WebAudioBus* destination_bus,
     return false;
   }
 
-  std::unique_ptr<media::AudioBus> bus = media::AudioBus::Create(
-      handler->GetNumChannels(),
-      handler->data().size() / handler->GetNumChannels());
+  std::unique_ptr<media::AudioBus> source_bus = media::AudioBus::Create(
+      handler->GetNumChannels(), handler->total_frames_for_testing());
   size_t number_of_frames = 0u;
-  handler->CopyTo(bus.get(), &number_of_frames);
-
+  handler->CopyTo(source_bus.get(), &number_of_frames);
+  DCHECK_EQ(number_of_frames,
+            static_cast<size_t>(handler->total_frames_for_testing()));
   if (number_of_frames <= 0) {
     return false;
   }
@@ -56,8 +58,30 @@ bool DecodeAudioFileData(blink::WebAudioBus* destination_bus,
   // copy the decoded data to the destination.
   destination_bus->Initialize(handler->GetNumChannels(), number_of_frames,
                               handler->GetSampleRate());
-  bus->ToInterleaved<media::Float32SampleTypeTraits>(
-      number_of_frames, destination_bus->ChannelData(0));
+
+  DCHECK_EQ(static_cast<int>(destination_bus->NumberOfChannels()),
+            handler->GetNumChannels());
+  DCHECK_EQ(destination_bus->length(), number_of_frames);
+
+  if (std::cmp_equal(source_bus->channels(),
+                     destination_bus->NumberOfChannels()) &&
+      std::cmp_equal(source_bus->frames(), destination_bus->length())) {
+    size_t bytes_per_channel = source_bus->frames() * sizeof(float);
+    for (int channel_index = 0; channel_index < source_bus->channels();
+         ++channel_index) {
+      const float* source_data = source_bus->channel(channel_index);
+      float* dest_data = destination_bus->ChannelData(channel_index);
+      memcpy(dest_data, source_data, bytes_per_channel);
+    }
+
+  } else {
+    LOG(ERROR) << "AudioBus dimension mismatch during copy.\nSource Channels:"
+               << source_bus->channels()
+               << " Dest Channels:" << destination_bus->NumberOfChannels()
+               << " Source Frames:" << source_bus->frames()
+               << " Dest Frames:" << destination_bus->length();
+    return false;
+  }
 
   return number_of_frames > 0;
 }
