@@ -198,7 +198,7 @@ class InstallationManagerTest : public ::testing::TestWithParam<int> {
       if (result || !dirent) {
         break;
       }
-      starboard::strlcpy(dir_entry.data(), dirent->d_name, dir_entry.size());
+      strncpy(dir_entry.data(), dirent->d_name, dir_entry.size());
       std::string full_path = storage_path_;
       full_path += kSbFileSepString;
       full_path += dir_entry.data();

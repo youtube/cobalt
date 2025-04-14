@@ -327,13 +327,18 @@ static_library("starboard_platform_sources") {
 }
 
 if (current_toolchain == starboard_toolchain) {
-  target(starboard_level_gtest_target_type, "starboard_platform_tests") {
+  source_set("starboard_platform_tests") {
     testonly = true
 
-    sources = media_tests_sources + player_tests_sources + [
-                "//starboard/common/test_main.cc",
-                "//starboard/shared/ffmpeg/ffmpeg_audio_decoder_test.cc",
-              ]
+    sources = media_tests_sources + player_tests_sources
+
+    # Despite the file below looking like a unittest, in reality is an
+    # integration test, since it fully relies on the system's ffmpeg to be
+    # available, linkable, and of a given version to run and pass.
+
+    # TODO(b/384819454): Consider rolling it into nplb if ffmpeg is considered
+    # active and in use.
+    #"//starboard/shared/ffmpeg/ffmpeg_audio_decoder_test.cc",
 
     configs += [ "//starboard/build/config:starboard_implementation" ]
 

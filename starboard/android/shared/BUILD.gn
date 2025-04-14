@@ -370,11 +370,10 @@ static_library("starboard_base_symbolize") {
   check_includes = false
 }
 
-target(gtest_target_type, "starboard_platform_tests") {
+source_set("starboard_platform_tests") {
   testonly = true
 
   sources = media_tests_sources + player_tests_sources + [
-              "//starboard/common/test_main.cc",
               "//starboard/shared/starboard/drm/drm_test_helpers.cc",
               "//starboard/shared/starboard/drm/drm_test_helpers.h",
               "jni_env_ext_test.cc",

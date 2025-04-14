@@ -42,7 +42,7 @@ if (current_toolchain == starboard_toolchain) {
   }
 }
 
-target(gtest_target_type, "cast_starboard_api_test") {
+source_set("cast_starboard_api_test") {
   testonly = true
   sources = [
     "//starboard/common/test_main.cc",

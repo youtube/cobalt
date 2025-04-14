@@ -36,15 +36,33 @@ std::string ResolveTestFileName(const char* filename) {
   std::vector<char> content_path(kSbFileMaxPath + 1);
   SB_CHECK(SbSystemGetPath(kSbSystemPathContentDirectory, content_path.data(),
                            content_path.size()));
-  std::string directory_path = std::string(content_path.data()) +
-                               kSbFileSepChar + "test" + kSbFileSepChar +
-                               "starboard" + kSbFileSepChar + "shared" +
-                               kSbFileSepChar + "starboard" + kSbFileSepChar +
-                               "player" + kSbFileSepChar + "testdata";
+
+  const auto content_path_as_string = std::string(content_path.data());
+  const auto path_inside_content =
+      std::string({kSbFileSepChar}) + "test" + kSbFileSepChar + "starboard" +
+      kSbFileSepChar + "shared" + kSbFileSepChar + "starboard" +
+      kSbFileSepChar + "player" + kSbFileSepChar + "testdata";
+  std::string path = content_path_as_string + path_inside_content;
+
   struct stat info;
-  SB_CHECK(stat(directory_path.c_str(), &info) == 0 && S_ISDIR(info.st_mode))
-      << "Cannot open directory " << directory_path;
-  return directory_path + kSbFileSepChar + filename;
+  bool does_path_exist =
+      stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
+  if (!does_path_exist) {
+    // If |path| doesn't exist it could be due to |content_path_as_string| not
+    // including the starboard_toolchain's output folder, i.e. it's e.g.
+    // out/linux.../content when it should be out/linux.../starboard/content.
+    // TODO(b/384819454): Use EvergreenConfig here to overwrite the path. For
+    // the time being, just try inserting "starboard" in the path and try again.
+    std::size_t last_separation_char_pos =
+        content_path_as_string.find_last_of(kSbFileSepChar);
+    path = content_path_as_string.substr(0, last_separation_char_pos) +
+           kSbFileSepChar + "starboard" + kSbFileSepChar +
+           content_path_as_string.substr(last_separation_char_pos + 1) +
+           path_inside_content;
+    does_path_exist = stat(path.c_str(), &info) == 0 && S_ISDIR(info.st_mode);
+  }
+  SB_CHECK(does_path_exist) << "Cannot open directory: " << path;
+  return path + kSbFileSepChar + filename;
 }
 
 }  // namespace

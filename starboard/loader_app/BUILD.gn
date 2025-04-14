@@ -253,10 +253,9 @@ static_library("installation_manager") {
 }
 
 if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
-  target(starboard_level_gtest_target_type, "installation_manager_test") {
+  source_set("installation_manager_test") {
     testonly = true
     sources = [
-      "//starboard/common/test_main.cc",
       "installation_manager_test.cc",
       "pending_restart_test.cc",
     ]
@@ -299,14 +298,11 @@ static_library("slot_management") {
   configs += [ "//third_party/jsoncpp:jsoncpp_config" ]
 }
 if (sb_is_evergreen) {
-  target(starboard_level_gtest_target_type, "slot_management_test") {
+  source_set("slot_management_test") {
     testonly = true
     build_loader = false
 
-    sources = [
-      "//starboard/common/test_main.cc",
-      "slot_management_test.cc",
-    ]
+    sources = [ "slot_management_test.cc" ]
     deps = [
       ":app_key_files",
       ":drain_file",
@@ -354,12 +350,9 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
     deps = [ "//starboard:starboard_group" ]
   }
 
-  target(starboard_level_gtest_target_type, "reset_evergreen_update_test") {
+  source_set("reset_evergreen_update_test") {
     testonly = true
-    sources = [
-      "//starboard/common/test_main.cc",
-      "reset_evergreen_update_test.cc",
-    ]
+    sources = [ "reset_evergreen_update_test.cc" ]
     deps = [
       ":reset_evergreen_update",
       "//starboard:starboard_with_main",

@@ -297,7 +297,13 @@ if (current_toolchain == starboard_toolchain) {
     testonly = true
     deps = [ "//starboard/common:common_test" ]
     if (!is_android) {
-      deps += [ "//starboard/elf_loader:elf_loader_test" ]
+      deps += [
+        "//starboard/elf_loader:elf_loader_test",
+        "//starboard/linux/shared:starboard_platform_tests",
+        "//starboard/loader_app:installation_manager_test",
+        "//starboard/loader_app:memory_tracker_thread",
+        "//starboard/shared/starboard/player/filter/testing:player_filter_tests",
+      ]
     }
     if (sb_is_evergreen_compatible) {
       deps += [
@@ -307,6 +313,23 @@ if (current_toolchain == starboard_toolchain) {
         "//starboard/loader_app:app_key_test",
         "//starboard/loader_app:drain_file_test",
       ]
+    }
+
+    # Based on y4vor@s comment:
+    # > `sb_is_evergreen`: Applies only above Starboard and means it is an
+    # > Evergreen/Hermetic build.
+    # > `sb_is_evergreen_compatible`: Applies only at the Starboard
+    # > implementation and means the build would be used for Evergreen.
+    # I think this below, which was copied from //starboard/loader_app/BUILD.gn,
+    # should be `sb_is_evergreen_compatible`.
+    if (sb_is_evergreen) {
+      deps += [ "//starboard/loader_app:slot_management_test" ]
+    }
+    if (is_android) {
+      deps += [ "//starboard/android/shared:starboard_platform_tests" ]
+    }
+    if (build_with_separate_cobalt_toolchain && use_contrib_cast) {
+      deps += [ "//starboard/contrib/cast/cast_starboard_api/samples:cast_starboard_api_test" ]
     }
   }
 }

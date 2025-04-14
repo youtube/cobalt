@@ -79,6 +79,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
               new OpusAudioDecoder(audio_stream_info));
           if (audio_decoder_impl->is_valid()) {
             return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
+          } else {
+            SB_LOG(ERROR) << "Failed to create audio decoder for codec "
+                          << audio_stream_info.codec;
           }
         } else if (audio_stream_info.codec == kSbMediaAudioCodecAac &&
                    audio_stream_info.number_of_channels <=
@@ -92,6 +95,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           if (audio_decoder_impl && audio_decoder_impl->is_valid()) {
             SB_LOG(INFO) << "Playing audio using FfmpegAudioDecoder";
             return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
+          } else {
+            SB_LOG(ERROR) << "Failed to create audio decoder for codec "
+                          << audio_stream_info.codec;
           }
         }
         return std::unique_ptr<AudioDecoder>();
