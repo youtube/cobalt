@@ -27,6 +27,7 @@
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
@@ -94,9 +95,8 @@ class AdaptiveAudioDecoderTest
   void SetUp() override {
 #if defined(SKIP_PROPRIETARY_CODEC_TESTS)
     for (const auto* filename : test_filenames_) {
-      if ((std::string(filename).find("_aac") != std::string::npos) ||
-          (std::string(filename).find("_ec3") != std::string::npos) ||
-          (std::string(filename).find("_ac3") != std::string::npos)) {
+      if (::starboard::shared::starboard::media::IsProprietaryAudioCodec(
+              filename)) {
         GTEST_SKIP() << "Skipping proprietary-audio related tests.";
       }
     }

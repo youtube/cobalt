@@ -114,9 +114,8 @@ class AudioDecoderTest
   }
   void SetUp() override {
 #if defined(SKIP_PROPRIETARY_CODEC_TESTS)
-    if ((std::string(test_filename_).find("_aac") != std::string::npos) ||
-        (std::string(test_filename_).find("_ec3") != std::string::npos) ||
-        (std::string(test_filename_).find("_ac3") != std::string::npos)) {
+    if (::starboard::shared::starboard::media::IsProprietaryAudioCodec(
+            test_filename_)) {
       GTEST_SKIP() << "Skipping proprietary-audio related tests.";
     }
 #endif

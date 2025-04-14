@@ -25,6 +25,7 @@
 #include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/testing/test_util.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
@@ -78,9 +79,8 @@ class PlayerComponentsTest
 
   void SetUp() override {
 #if defined(SKIP_PROPRIETARY_CODEC_TESTS)
-    if ((std::string(audio_filename_).find("_aac") != std::string::npos) ||
-        (std::string(audio_filename_).find("_ec3") != std::string::npos) ||
-        (std::string(audio_filename_).find("_ac3") != std::string::npos)) {
+    if (::starboard::shared::starboard::media::IsProprietaryAudioCodec(
+            audio_filename_)) {
       GTEST_SKIP() << "Skipping proprietary-audio related tests.";
     }
 #endif
