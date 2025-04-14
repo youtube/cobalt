@@ -52,7 +52,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote);
 
-  // Not copyable nor movable.
+  // Disallow copy and assign.
   StarboardRenderer(const StarboardRenderer&) = delete;
   StarboardRenderer& operator=(const StarboardRenderer&) = delete;
 
