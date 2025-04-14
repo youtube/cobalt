@@ -48,14 +48,14 @@
 #include "base/task/current_thread.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "net/base/address_map_linux.h"
 #include "net/base/address_tracker_linux.h"
 #endif
 
 namespace content {
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 namespace {
 
 // Takes care of passing updates to AddressTrackerLinux's AddressMap and set of
@@ -138,7 +138,7 @@ NetworkServiceClient::NetworkServiceClient()
 NetworkServiceClient::~NetworkServiceClient() {
   if (IsOutOfProcessNetworkService()) {
     net::CertDatabase::GetInstance()->RemoveObserver(this);
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
     bool remove_ncn_observers = true;
 #if BUILDFLAG(IS_LINUX)
     remove_ncn_observers = base::FeatureList::IsEnabled(
@@ -149,7 +149,7 @@ NetworkServiceClient::~NetworkServiceClient() {
       net::NetworkChangeNotifier::RemoveMaxBandwidthObserver(this);
       net::NetworkChangeNotifier::RemoveIPAddressObserver(this);
     }
-#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   }
 }
 
@@ -173,7 +173,7 @@ void NetworkServiceClient::OnApplicationStateChange(
 }
 #endif  // BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 void NetworkServiceClient::OnConnectionTypeChanged(
     net::NetworkChangeNotifier::ConnectionType type) {
   network_change_manager_->OnNetworkChanged(
@@ -207,7 +207,7 @@ void NetworkServiceClient::OnIPAddressChanged() {
       network::mojom::ConnectionSubtype(
           net::NetworkChangeNotifier::GetConnectionSubtype()));
 }
-#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 
 #if BUILDFLAG(USE_SOCKET_BROKER)
 mojo::PendingRemote<network::mojom::SocketBroker>
@@ -226,7 +226,7 @@ NetworkServiceClient::BindURLLoaderNetworkServiceObserver() {
 
 void NetworkServiceClient::OnNetworkServiceInitialized(
     network::mojom::NetworkService* service) {
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   bool add_ncn_observers = true;
 #if BUILDFLAG(IS_LINUX)
   add_ncn_observers = base::FeatureList::IsEnabled(
@@ -236,7 +236,7 @@ void NetworkServiceClient::OnNetworkServiceInitialized(
     DCHECK(!net::NetworkChangeNotifier::CreateIfNeeded());
     service->GetNetworkChangeManager(
         network_change_manager_.BindNewPipeAndPassReceiver());
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
     // Keep the tracking AddressTrackerLinux in sync with the caching version in
     // the network service, which cannot use AddressTrackerLinux in the sandbox.
     mojo::PendingAssociatedRemote<
@@ -260,7 +260,7 @@ void NetworkServiceClient::OnNetworkServiceInitialized(
     net::NetworkChangeNotifier::AddMaxBandwidthObserver(this);
     net::NetworkChangeNotifier::AddIPAddressObserver(this);
   }
-#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 }
 
 void NetworkServiceClient::OnSSLCertificateError(

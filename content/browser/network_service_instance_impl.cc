@@ -78,12 +78,12 @@
 #include "content/browser/network/network_service_process_tracker_win.h"
 #endif
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
 #include "content/browser/system_dns_resolution/system_dns_resolver.h"
 #include "services/network/public/mojom/system_dns_resolution.mojom-forward.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
 #include "net/base/address_map_linux.h"
 #include "net/base/address_tracker_linux.h"
 #include "services/network/public/mojom/network_interface_change_listener.mojom.h"
@@ -381,7 +381,7 @@ network::mojom::NetworkServiceParamsPtr CreateNetworkServiceParams() {
   network_service_params->first_party_sets_enabled =
       GetContentClient()->browser()->IsFirstPartySetsEnabled();
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
   if (base::FeatureList::IsEnabled(
           net::features::kAddressTrackerLinuxIsProxied) &&
       IsOutOfProcessNetworkService()) {
@@ -393,7 +393,7 @@ network::mojom::NetworkServiceParamsPtr CreateNetworkServiceParams() {
         network::mojom::InitialAddressMap::New(std::move(address_map),
                                                std::move(online_links));
   }
-#endif  // BUILDFLAG(IS_LINUX)
+#endif  // BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD)
 
 #if BUILDFLAG(IS_POSIX)
   // Send Kerberos environment variables to the network service.
@@ -422,7 +422,7 @@ network::mojom::NetworkServiceParamsPtr CreateNetworkServiceParams() {
   }
 #endif  // BUILDFLAG(IS_POSIX)
 
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_STARBOARD) || BUILDFLAG(IS_CHROMEOS)
   if (GetContentClient()
           ->browser()
           ->ShouldRunOutOfProcessSystemDnsResolution() &&
