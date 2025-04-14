@@ -179,6 +179,8 @@ typedef struct SbDecodeTargetGraphicsContextProvider {
   // Context data that is to be passed in to |gles_context_runner| when it is
   // invoked.
   void* gles_context_runner_context;
+
+  int texture_native_id;
 } SbDecodeTargetGraphicsContextProvider;
 
 // Defines a rectangular content region within a SbDecodeTargetInfoPlane
@@ -253,6 +255,10 @@ typedef struct SbDecodeTargetInfo {
   // kSbDecodeTargetPlaneU, kSbDecodeTargetPlaneV}) associated with this
   // decode target.
   SbDecodeTargetInfoPlane planes[3];
+
+  uint8_t* pixel_buffer;
+  int y_stride;
+  int uv_stride;
 } SbDecodeTargetInfo;
 
 // --- Constants -------------------------------------------------------------

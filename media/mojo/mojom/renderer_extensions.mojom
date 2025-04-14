@@ -87,6 +87,12 @@ interface MediaFoundationRendererClientExtension {
     gfx.mojom.Size size, mojo_base.mojom.TimeDelta timestamp);
 };
 
+enum StarboardRenderingMode {
+  kDecodeToTexture,
+  kPunchOut,
+  kInvalid
+};
+
 [EnableIf=use_starboard_media]
 // This interface is for StarboardRendererClient to extend
 // mojo:RendererClient as StarboardRendererClient to allow
@@ -95,6 +101,9 @@ interface MediaFoundationRendererClientExtension {
 interface StarboardRendererClientExtension {
   // Paint a video hole on VideoRendererSink.
   PaintVideoHoleFrame(gfx.mojom.Size size);
+
+  // Notify the rendering mode from SbPlayer.
+  UpdateStarboardRenderingMode(StarboardRenderingMode mode);
 };
 
 // The Media Foundation Media Engine has two modes for playback.
@@ -153,6 +162,9 @@ interface StarboardRendererExtension {
   // Subscribe to video geometry changes from
   // cobalt::media::mojom::VideoGeometryChangeSubscriber
   OnVideoGeometryChange(gfx.mojom.Rect rect);
+
+  // Acquire frame from SbPlayer.
+  Render() => (VideoFrame? video_frame);
 
   // Pass CommandBufferId to StarboardRendererWrapper.
   OnGpuChannelTokenReady(CommandBufferId? command_buffer_id);

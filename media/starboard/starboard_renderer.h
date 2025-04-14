@@ -31,6 +31,8 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer.h"
 #include "media/base/renderer_client.h"
+#include "media/base/starboard/starboard_rendering_mode.h"
+#include "media/base/video_frame.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -46,6 +48,10 @@ using base::TimeDelta;
 class MEDIA_EXPORT StarboardRenderer final : public Renderer,
                                              private SbPlayerBridge::Host {
  public:
+  // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
+  typedef base::RepeatingCallback<SbDecodeTargetGraphicsContextProvider*()>
+      GetDecodeTargetGraphicsContextProviderFunc;
+
   StarboardRenderer(scoped_refptr<base::SequencedTaskRunner> task_runner,
                     std::unique_ptr<MediaLog> media_log,
                     const base::UnguessableToken& overlay_plane_id,
@@ -94,9 +100,16 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
 
   using PaintVideoHoleFrameCallback =
       base::RepeatingCallback<void(const gfx::Size&)>;
-  void set_paint_video_hole_frame_callback(
-      PaintVideoHoleFrameCallback paint_video_hole_frame_cb);
+  using UpdateStarboardRenderingModeCallback =
+      base::RepeatingCallback<void(const StarboardRenderingMode mode)>;
+  void SetStarboardRendererCallbacks(
+      PaintVideoHoleFrameCallback paint_video_hole_frame_cb,
+      UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb);
   void OnVideoGeometryChange(const gfx::Rect& output_rect);
+  SbDecodeTarget GetSbDecodeTarget();
+  void set_decode_target_graphics_context_provider(
+      const GetDecodeTargetGraphicsContextProviderFunc&
+          get_decode_target_graphics_context_provider_func);
 
  private:
   enum State {
@@ -148,6 +161,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   //                    on `client_`?
   raw_ptr<RendererClient> client_ = nullptr;
   PaintVideoHoleFrameCallback paint_video_hole_frame_cb_;
+  UpdateStarboardRenderingModeCallback update_starboard_rendering_mode_cb_;
 
   // Temporary callback used for Initialize().
   PipelineStatusCallback init_cb_;
@@ -211,6 +225,10 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   // understood as a capability changed error. Do not change this message.
   static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
       "MEDIA_ERR_CAPABILITY_CHANGED";
+
+  // Call to get the SbDecodeTargetGraphicsContextProvider for SbPlayerCreate().
+  GetDecodeTargetGraphicsContextProviderFunc
+      get_decode_target_graphics_context_provider_func_;
 
   base::WeakPtrFactory<StarboardRenderer> weak_factory_{this};
   base::WeakPtr<StarboardRenderer> weak_this_{weak_factory_.GetWeakPtr()};
