@@ -105,6 +105,13 @@ runs:
           cd src
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
         shell: bash
+      - name: Generate License File
+        if: startsWith(matrix.platform, 'android') && !contains(matrix.platform, 'chromium')
+        run: |
+          set -ex
+          cd src
+          tools/licenses/licenses.py credits --gn-target cobalt:gn_all --gn-out-dir  out/${{ matrix.platform }}_${{ matrix.config }} > licenses_cobalt.txt
+        shell: bash
       - name: Archive Android APKs
         if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
         uses: actions/upload-artifact@v4
