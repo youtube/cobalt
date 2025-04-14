@@ -52,6 +52,8 @@ message TestRequest {
   string device_type = 5;
   // "shared" or "maneki"
   string device_pool = 6;
+  // E.g. "base:base_unittests" or "url:url_unittests"
+  string test_target = 7;
 }
 
 message OnDeviceTestsWatchCommand {
