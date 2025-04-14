@@ -18,15 +18,16 @@
  import android.os.Bundle;
  import android.os.Handler;
  import android.os.Looper;
+ import android.view.KeyEvent;
  import android.view.View;
  import android.view.accessibility.AccessibilityEvent;
  import androidx.core.view.ViewCompat;
  import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
  import androidx.customview.widget.ExploreByTouchHelper;
+ import java.lang.ref.WeakReference;
  import java.util.BitSet;
  import java.util.List;
- import android.view.KeyEvent;
- import java.lang.ref.WeakReference;
+ import org.chromium.content_public.browser.WebContents;
 
  /**
   * An ExploreByTouchHelper that create a virtual d-pad grid, so that Cobalt remains functional when
@@ -140,6 +141,13 @@
          // TODO: Could support diagonal movements, although it's likely
          // not possible to reach this.
          break;
+     }
+
+     // Request focus on WebContents.
+     WebContents webContents = cobaltActivity.getActiveWebContents();
+     View webContentsView = webContents.getViewAndroidDelegate().getContainerView();
+     if (webContentsView != null) {
+       webContentsView.requestFocus();
      }
      unhandledInput = false;
      focusOnCenter();
