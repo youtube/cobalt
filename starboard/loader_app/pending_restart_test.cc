@@ -14,6 +14,7 @@
 
 #include "starboard/loader_app/pending_restart.h"
 
+#include "starboard/configuration.h"
 #include "starboard/loader_app/installation_manager.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
