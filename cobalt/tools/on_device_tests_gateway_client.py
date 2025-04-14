@@ -121,7 +121,7 @@ def _process_test_requests(args):
   """
   test_requests = []
 
-  for gtest_target in args.targets.split(','):      
+  for gtest_target in args.targets.split(','):
     _, target_name = gtest_target.split(':')
     gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
       
