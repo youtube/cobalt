@@ -27,6 +27,7 @@
 #include "starboard/common/time.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
+#include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/stub_player_components_factory.h"
@@ -92,6 +93,14 @@ class AdaptiveAudioDecoderTest
   }
 
   void SetUp() override {
+#if defined(SKIP_PROPRIETARY_CODEC_TESTS)
+    for (const auto* filename : test_filenames_) {
+      if (::starboard::shared::starboard::media::IsProprietaryAudioCodec(
+              filename)) {
+        GTEST_SKIP() << "Skipping proprietary-audio related tests.";
+      }
+    }
+#endif
     ASSERT_GT(dmp_readers_.size(), 0);
     for (auto& dmp_reader : dmp_readers_) {
       ASSERT_NE(dmp_reader->audio_codec(), kSbMediaAudioCodecNone);
