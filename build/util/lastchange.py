@@ -125,6 +125,7 @@ def FetchGitRevision(directory, commit_filter, start_commit="HEAD"):
 
   git_args = ['log', '-1', '--format=%H %ct']
   if commit_filter is not None:
+    git_args.append('-E')
     git_args.append('--grep=' + commit_filter)
 
   git_args.append(start_commit)
@@ -255,8 +256,8 @@ def main(argv=None):
   parser.add_argument("--filter", metavar="REGEX",
                     help=("Only use log entries where the commit message "
                           "matches the supplied filter regex. Defaults to "
-                          "'^Change-Id:' to suppress local commits."),
-                    default='^Change-Id:')
+                          "'\(#[0-9]{4,}\)' to suppress local commits."),
+                    default='\(#[0-9]{4,}\)')
 
   args, extras = parser.parse_known_args(argv[1:])
 
