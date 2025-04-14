@@ -76,15 +76,10 @@ void StarboardRendererClient::Initialize(MediaResource* media_resource,
       base::BindOnce(&StarboardRendererClient::OnSubscribeToVideoGeometryChange,
                      base::Unretained(this), media_resource, client));
 
-  if (!AreMojoPipesConnected()) {
-    InitAndBindMojoRenderer(
-        base::BindOnce(&StarboardRendererClient::InitializeMojoRenderer,
-                       weak_factory_.GetWeakPtr(), media_resource, client,
-                       std::move(init_cb)));
-    return;
-  }
-
-  InitializeMojoRenderer(media_resource, client, std::move(init_cb));
+  DCHECK(!AreMojoPipesConnected());
+  InitAndBindMojoRenderer(base::BindOnce(
+      &StarboardRendererClient::InitializeMojoRenderer,
+      weak_factory_.GetWeakPtr(), media_resource, client, std::move(init_cb)));
 }
 
 void StarboardRendererClient::InitAndBindMojoRenderer(
@@ -142,7 +137,12 @@ void StarboardRendererClient::OnGpuChannelTokenReady(
 void StarboardRendererClient::InitAndConstructMojoRenderer(
     media::mojom::CommandBufferIdPtr command_buffer_id,
     base::OnceClosure complete_cb) {
-  // Notify GpuChannelToken to StarboardRendererWrapper.
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  DCHECK(AreMojoPipesConnected());
+  // Notify GpuChannelToken to StarboardRendererWrapper before
+  // MojoRendererWrapper::Initialize(). Hence, StarboardRendererWrapper
+  // should have |command_buffer_id| if available before
+  // StarboardRendererWrapper::Initialize().
   renderer_extension_->OnGpuChannelTokenReady(std::move(command_buffer_id));
   std::move(complete_cb).Run();
 }
