@@ -2,6 +2,7 @@
     "archive_datas": [
         {
             "files": [
+		"licenses_cobalt.txt",
                 "content_shell.pak",
                 "gen/build_info.json",
                 "icudtl.dat",
