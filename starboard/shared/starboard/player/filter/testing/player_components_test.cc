@@ -77,10 +77,11 @@ class PlayerComponentsTest
   }
 
   void SetUp() override {
-#if defined(SKIP_DOLBY_DIGITAL_TESTS)
-    if ((audio_filename_.find("_ec3") != std::string::npos) ||
-        (audio_filename_.find("_ac3") != std::string::npos)) {
-      GTEST_SKIP() << "Skipping E-/AC-3 (Dolby Digital) related tests.";
+#if defined(SKIP_PROPRIETARY_CODEC_TESTS)
+    if ((std::string(audio_filename_).find("_aac") != std::string::npos) ||
+        (std::string(audio_filename_).find("_ec3") != std::string::npos) ||
+        (std::string(audio_filename_).find("_ac3") != std::string::npos)) {
+      GTEST_SKIP() << "Skipping proprietary-audio related tests.";
     }
 #endif
 

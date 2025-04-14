@@ -92,11 +92,12 @@ class AdaptiveAudioDecoderTest
   }
 
   void SetUp() override {
-#if defined(SKIP_DOLBY_DIGITAL_TESTS)
+#if defined(SKIP_PROPRIETARY_CODEC_TESTS)
     for (const auto* filename : test_filenames_) {
-      if ((std::string(filename).find("_ec3") != std::string::npos) ||
+      if ((std::string(filename).find("_aac") != std::string::npos) ||
+          (std::string(filename).find("_ec3") != std::string::npos) ||
           (std::string(filename).find("_ac3") != std::string::npos)) {
-        GTEST_SKIP() << "Skipping E-/AC-3 (Dolby Digital) related tests.";
+        GTEST_SKIP() << "Skipping proprietary-audio related tests.";
       }
     }
 #endif
