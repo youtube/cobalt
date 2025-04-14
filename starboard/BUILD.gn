@@ -305,6 +305,15 @@ if (current_toolchain == starboard_toolchain) {
         "//starboard/shared/starboard/player/filter/testing:player_filter_tests",
       ]
     }
+    if (sb_is_evergreen_compatible) {
+      deps += [
+        "//starboard/client_porting/eztime:eztime_test",
+        "//starboard/extension:extension_test",
+        "//starboard/loader_app:app_key_files_test",
+        "//starboard/loader_app:app_key_test",
+        "//starboard/loader_app:drain_file_test",
+      ]
+    }
     # Based on y4vor@s comment:
     # > `sb_is_evergreen`: Applies only above Starboard and means it is an
     # > Evergreen/Hermetic build.
