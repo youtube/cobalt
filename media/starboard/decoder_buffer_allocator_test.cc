@@ -15,9 +15,10 @@
 #include "media/starboard/decoder_buffer_allocator.h"
 
 #include <algorithm>
-#include <map>
-#include <set>
+#include <numeric>
 #include <string>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "base/check_op.h"
@@ -39,7 +40,11 @@
 namespace media {
 namespace {
 
+using ::testing::Values;
+
 std::vector<std::string> ReadAllocationLogFile(const std::string& name) {
+  LOG(INFO) << "Loading " << name << " ...";
+
   base::FilePath file_path = GetTestDataFilePath(name);
 
   int64_t file_size = 0;
@@ -65,49 +70,84 @@ int StringToInt(base::StringPiece input) {
   return result;
 }
 
-TEST(DecoderBufferAllocator, CapacityUnderLimit) {
-  DecoderBufferAllocator allocator(DecoderBufferAllocator::Type::kLocal);
-  auto allocations =
-      ReadAllocationLogFile("starboard/allocations_1La4QzGeaaQ.txt");
+class DecoderBufferAllocatorTest
+    : public ::testing::TestWithParam<std::string> {
+ protected:
+  struct Operation {
+    enum class Type { kAllocate, kFree } operation_type;
+    std::string pointer;
+    DemuxerStream::Type buffer_type;
+    int size;
+    int alignment = 0;  // Only used when `operation_type` is `kAllocate`.
+  };
 
-  std::map<std::string, void*> pointer_to_pointer_map;
+  void SetUp() {
+    auto allocations = ReadAllocationLogFile(GetParam());
+    std::unordered_set<std::string> pointers;
+
+    for (auto&& allocation : allocations) {
+      auto tokens = base::SplitStringUsingSubstr(
+          allocation, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+      CHECK_GE(tokens.size(), 4);
+
+      const std::string& pointer = tokens[1];
+      const DemuxerStream::Type buffer_type =
+          static_cast<DemuxerStream::Type>(StringToInt(tokens[2]));
+      const int size = StringToInt(tokens[3]);
+
+      CHECK(buffer_type == DemuxerStream::UNKNOWN ||
+            buffer_type == DemuxerStream::AUDIO ||
+            buffer_type == DemuxerStream::VIDEO);
+
+      if (tokens.size() == 5) {
+        // In the format of "allocate <pointer> <buffer_type> <size>
+        // <alignment>"
+        CHECK_EQ(tokens[0], "allocate");
+        CHECK_EQ(pointers.count(pointer), 0);
+
+        int alignment = StringToInt(tokens[4]);
+
+        pointers.insert(pointer);
+
+        operations_.emplace_back(Operation{Operation::Type::kAllocate, pointer,
+                                           buffer_type, size, alignment});
+      } else {
+        // In the format of "free <pointer> <buffer_type> <size>"
+        CHECK_EQ(tokens.size(), 4);
+        CHECK_EQ(tokens[0], "free");
+        CHECK_EQ(pointers.erase(pointer), 1);
+
+        operations_.emplace_back(
+            Operation{Operation::Type::kFree, pointer, buffer_type, size});
+      }
+    }
+  }
+
+  std::vector<Operation> operations_;
+};
+
+TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
+  DecoderBufferAllocator allocator(DecoderBufferAllocator::Type::kLocal);
+  std::unordered_map<std::string, void*> pointer_to_pointer_map;
   size_t max_allocated = 0, max_capacity = 0;
 
-  for (auto&& allocation : allocations) {
-    auto tokens = base::SplitStringUsingSubstr(
-        allocation, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+  for (auto&& operation : operations_) {
+    if (operation.operation_type == Operation::Type::kAllocate) {
+      CHECK_EQ(pointer_to_pointer_map.count(operation.pointer), 0);
 
-    if (tokens.size() == 5) {
-      // In the format of "allocate <pointer> <type> <size> <alignment>"
-      CHECK_EQ(tokens[0], "allocate");
-      CHECK(pointer_to_pointer_map.find(tokens[1]) ==
-            pointer_to_pointer_map.end());
-      // Type has to be 0 (UNKNOWN), 1 (AUDIO), or 2 (VIDEO).
-      CHECK(tokens[2] == "0" || tokens[2] == "1" || tokens[2] == "2");
+      void* p = allocator.Allocate(operation.buffer_type, operation.size,
+                                   operation.alignment);
 
-      DemuxerStream::Type type =
-          static_cast<DemuxerStream::Type>(StringToInt(tokens[2]));
-      int size = StringToInt(tokens[3]);
-      int alignment = StringToInt(tokens[4]);
-
-      void* p = allocator.Allocate(type, size, alignment);
-
-      pointer_to_pointer_map[tokens[1]] = p;
+      pointer_to_pointer_map[operation.pointer] = p;
       max_allocated = std::max(max_allocated, allocator.GetAllocatedMemory());
       max_capacity =
           std::max(max_capacity, allocator.GetCurrentMemoryCapacity());
     } else {
-      // In the format of "free <pointer> <type> <size>"
-      CHECK_EQ(tokens.size(), 4);
-      CHECK_EQ(tokens[0], "free");
-      CHECK(pointer_to_pointer_map.find(tokens[1]) !=
-            pointer_to_pointer_map.end());
+      CHECK_EQ(operation.operation_type, Operation::Type::kFree);
 
-      int size = StringToInt(tokens[3]);
+      allocator.Free(pointer_to_pointer_map[operation.pointer], operation.size);
 
-      allocator.Free(pointer_to_pointer_map[tokens[1]], size);
-
-      CHECK_EQ(pointer_to_pointer_map.erase(tokens[1]), 1);
+      CHECK_EQ(pointer_to_pointer_map.erase(operation.pointer), 1);
     }
   }
 
@@ -115,77 +155,66 @@ TEST(DecoderBufferAllocator, CapacityUnderLimit) {
             << max_allocated << ", and max capacity of " << max_capacity;
 }
 
-TEST(DecoderBufferAllocator, CapacityByType) {
+TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
   constexpr int kInitialCapacity = 0;
-  constexpr int kAllocationIncrementOther = 1024 * 1024;
-  constexpr int kAllocationIncrementVideo = 4 * 1024 * 1024;
+  constexpr int kAllocationIncrement = 4 * 1024 * 1024;
 
-  DecoderBufferAllocator allocators[] = {
-      // 0 => UNKNOWN (Used by MojoRenderer)
-      DecoderBufferAllocator(DecoderBufferAllocator::Type::kLocal, false,
-                             kInitialCapacity, kAllocationIncrementOther),
-      // 1 => AUDIO
-      DecoderBufferAllocator(DecoderBufferAllocator::Type::kLocal, false,
-                             kInitialCapacity, kAllocationIncrementOther),
-      // 2 => VIDEO
-      DecoderBufferAllocator(DecoderBufferAllocator::Type::kLocal, false,
-                             kInitialCapacity, kAllocationIncrementVideo),
-  };
-  size_t max_allocated[3] = {};
-  size_t max_capacity[3] = {};
+  size_t max_total_allocated = 0;
+  size_t max_total_capacity = 0;
 
-  auto allocations =
-      ReadAllocationLogFile("starboard/allocations_1La4QzGeaaQ.txt");
+  for (auto buffer_type :
+       {DemuxerStream::UNKNOWN, DemuxerStream::AUDIO, DemuxerStream::VIDEO}) {
+    DecoderBufferAllocator allocator(DecoderBufferAllocator::Type::kLocal,
+                                     false, kInitialCapacity,
+                                     kAllocationIncrement);
+    std::unordered_map<std::string, void*> pointer_to_pointer_map;
+    size_t max_allocated = 0;
+    size_t max_capacity = 0;
 
-  std::map<std::string, void*> pointer_to_pointer_map;
+    for (auto&& operation : operations_) {
+      if (operation.buffer_type != buffer_type) {
+        continue;
+      }
 
-  for (auto&& allocation : allocations) {
-    auto tokens = base::SplitStringUsingSubstr(
-        allocation, " ", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+      if (operation.operation_type == Operation::Type::kAllocate) {
+        CHECK_EQ(pointer_to_pointer_map.count(operation.pointer), 0);
 
-    if (tokens.size() == 5) {
-      // In the format of "allocate <pointer> <type> <size> <alignment>"
-      CHECK_EQ(tokens[0], "allocate");
-      CHECK(pointer_to_pointer_map.find(tokens[1]) ==
-            pointer_to_pointer_map.end());
-      // Type has to be 0 (UNKNOWN), 1 (AUDIO), or 2 (VIDEO).
-      CHECK(tokens[2] == "0" || tokens[2] == "1" || tokens[2] == "2");
+        pointer_to_pointer_map[operation.pointer] = allocator.Allocate(
+            operation.buffer_type, operation.size, operation.alignment);
+        max_allocated = std::max(max_allocated, allocator.GetAllocatedMemory());
+        max_capacity =
+            std::max(max_capacity, allocator.GetCurrentMemoryCapacity());
+      } else {
+        CHECK_EQ(operation.operation_type, Operation::Type::kFree);
 
-      DemuxerStream::Type type =
-          static_cast<DemuxerStream::Type>(StringToInt(tokens[2]));
-      int size = StringToInt(tokens[3]);
-      int alignment = StringToInt(tokens[4]);
-
-      pointer_to_pointer_map[tokens[1]] =
-          allocators[type].Allocate(type, size, alignment);
-      max_allocated[type] =
-          std::max(max_allocated[type], allocators[type].GetAllocatedMemory());
-      max_capacity[type] = std::max(
-          max_capacity[type], allocators[type].GetCurrentMemoryCapacity());
-    } else {
-      // In the format of "free <pointer>"
-      CHECK_EQ(tokens.size(), 4);
-      CHECK_EQ(tokens[0], "free");
-      CHECK(pointer_to_pointer_map.find(tokens[1]) !=
-            pointer_to_pointer_map.end());
-      // Type has to be 0 (UNKNOWN), 1 (AUDIO), or 2 (VIDEO).
-      CHECK(tokens[2] == "0" || tokens[2] == "1" || tokens[2] == "2");
-
-      DemuxerStream::Type type =
-          static_cast<DemuxerStream::Type>(StringToInt(tokens[2]));
-      int size = StringToInt(tokens[3]);
-
-      allocators[type].Free(pointer_to_pointer_map[tokens[1]], size);
-      CHECK_EQ(pointer_to_pointer_map.erase(tokens[1]), 1);
+        allocator.Free(pointer_to_pointer_map[operation.pointer],
+                       operation.size);
+        CHECK_EQ(pointer_to_pointer_map.erase(operation.pointer), 1);
+      }
     }
+
+    LOG(INFO) << "Max allocated for type " << buffer_type << " is "
+              << max_total_allocated << ", and max capacity is "
+              << max_total_capacity;
+    max_total_allocated += max_allocated;
+    max_total_capacity += max_capacity;
   }
 
-  for (int i = 0; i < 3; ++i) {
-    LOG(INFO) << "DecoderBufferAllocator (" << i
-              << ") reached max allocated of " << max_allocated[i]
-              << ", and max capacity of " << max_capacity[i];
-  }
+  LOG(INFO) << "Total max allocated: " << max_total_allocated
+            << ", and total max capacity: " << max_total_capacity;
 }
+
+INSTANTIATE_TEST_CASE_P(DecoderBufferAllocatorTests,
+                        DecoderBufferAllocatorTest,
+                        Values("starboard/allocations_1La4QzGeaaQ.txt",
+                               "starboard/allocations_8k.txt",
+                               "starboard/allocations_PMwaIrjiz8w.txt"),
+                        [](const ::testing::TestParamInfo<std::string>& info) {
+                          std::string name = info.param;
+                          std::replace(name.begin(), name.end(), '.', '_');
+                          std::replace(name.begin(), name.end(), '/', '_');
+                          return name;
+                        });
 
 }  // namespace
 }  // namespace media

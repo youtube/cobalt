@@ -103,12 +103,17 @@ def RefineOperations(allocations):
       assert len(tokens) == 2
       assert tokens[1] in pointer_to_type_and_size
 
-      allocation_type, size = pointer_to_type_and_size[tokens[1]]
+      buffer_type, size = pointer_to_type_and_size[tokens[1]]
       pointer_to_type_and_size.pop(tokens[1])
       refined_allocations.append(' '.join(
-          ['free', tokens[1], allocation_type, size]))
+          ['free', tokens[1], buffer_type, size]))
 
-  assert len(pointer_to_type_and_size) == 0
+  if len(pointer_to_type_and_size) != 0:
+    print('Incomplete allocation log with', len(pointer_to_type_and_size),
+          'outstanding allocations, filling them up ...')
+    for pointer, [buffer_type, size] in pointer_to_type_and_size.items():
+      refined_allocations.append(' '.join(['free', pointer, buffer_type, size]))
+
   return refined_allocations
 
 
