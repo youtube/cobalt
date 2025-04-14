@@ -34,6 +34,7 @@ if (current_toolchain == starboard_toolchain) {
       "audio_resampler_test.cc",
       "file_cache_reader_test.cc",
       "media_time_provider_impl_test.cc",
+
       # These two below end up crashing in the Renderer X11 output destruction
       # sequence. That should not happen because unit tests should not interact
       # so deeply with the system (there're NPLB tests for that). For the time

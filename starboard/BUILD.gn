@@ -314,6 +314,7 @@ if (current_toolchain == starboard_toolchain) {
         "//starboard/loader_app:drain_file_test",
       ]
     }
+
     # Based on y4vor@s comment:
     # > `sb_is_evergreen`: Applies only above Starboard and means it is an
     # > Evergreen/Hermetic build.
