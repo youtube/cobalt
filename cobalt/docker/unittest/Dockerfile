@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y \
     libdbus-1-3 \
     libegl1 \
     libegl-mesa0 \
-    libfdk-aac2 \
     libgbm-dev \
     libglapi-mesa \
     libgles2-mesa \
