@@ -106,7 +106,7 @@ runs:
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
         shell: bash
       - name: Generate License File
-        if: startsWith(matrix.platform, 'android') && !contains('chromium')
+        if: startsWith(matrix.platform, 'android') && !contains(matrix.platform, 'chromium')
         run: |
           set -ex
           cd src
