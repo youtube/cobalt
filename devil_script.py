@@ -64,6 +64,60 @@ class FakeBackend(object):
 class FakeConn(object):
   platform_backend = FakeBackend()
 
+def get_meminfo_total(meminfo_output: str, value_type: str) -> int:
+    """
+    Extracts 'TOTAL PSS', 'TOTAL RSS', or 'TOTAL SWAP PSS' from meminfo output.
+
+    Args:
+        meminfo_output: The string containing the dumpsys meminfo output.
+        value_type: The type of total value to extract.
+                    Case-insensitive. Accepts 'PSS', 'RSS', or 'SWAP PSS'.
+
+    Returns:
+        The extracted integer value in KB, or None if not found.
+    """
+    value_type = value_type.upper()
+    if value_type == "SWAP PSS":
+        key_label = "TOTAL SWAP PSS"
+    elif value_type in ["PSS", "RSS"]:
+        key_label = f"TOTAL {value_type}"
+    else:
+        print(f"Error: Invalid value_type specified: {value_type}. Use 'PSS', 'RSS', or 'SWAP PSS'.")
+        return None
+
+    # Regex to find the specific line containing all totals first
+    # This makes it more robust against similar labels appearing elsewhere
+    total_line_match = re.search(
+        r"TOTAL PSS:\s+\d+\s+TOTAL RSS:\s+\d+\s+TOTAL SWAP PSS:\s+\d+",
+        meminfo_output
+    )
+
+    if not total_line_match:
+        # print(f"Info: Line containing '{key_label}' not found.")
+        return None
+
+    total_line = total_line_match.group(0) # Get the full line like "TOTAL PSS: 123 TOTAL RSS: 456 ..."
+
+    # Now search for the specific key and value within that line
+    # Pattern: The specific label (e.g., "TOTAL RSS"), colon, whitespace, capture digits
+    pattern = rf"{re.escape(key_label)}:\s+(\d+)"
+    match = re.search(pattern, total_line)
+
+    if match:
+        value_str = match.group(1)
+        try:
+            return int(value_str)
+        except ValueError:
+            # This shouldn't happen with \d+ but good practice
+            print(f"Warning: Could not convert found value '{value_str}' to integer.")
+            return None
+    else:
+        # This case should be rare if total_line_match succeeded,
+        # but handles potential regex mismatches.
+        # print(f"Info: Key '{key_label}' not found within the identified total line.")
+        return None
+
+
 def main():
   logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
   parser = argparse.ArgumentParser(description="Test")
@@ -82,11 +136,20 @@ def main():
   print(f'{dev}')
   dev.adb.Forward("tcp:9222","localabstract:content_shell_devtools_remote",allow_rebind=True)
   
+  res = dev.adb.Shell("free -h")
+  lines = res.splitlines()
+  splits = re.split(' +', lines[1])
+  used = splits[2]
+  free = splits[3]
+  print(f"used {used} free {free}")
+   
+  PACKAGE="com.google.android.youtube.tv"
+
   logcat_monitor = dev.GetLogcatMonitor(clear=True)
   logcat_monitor.Start()
   result_line_re = re.compile(r'starboard: Successfully retrieved Advertising ID')
   launch_intent = intent.Intent(
-      package="com.google.android.youtube.tv",
+      package=PACKAGE,
       activity="com.google.android.apps.youtube.tv.activity.ShellActivity",
       action="android.intent.action.MAIN",
       extras={
@@ -125,6 +188,9 @@ def main():
   tab_backend = backend.FirstTabBackend()
   result = tab_backend.EvaluateJavaScript('41+1')
   print(result)
+
+  out = dev.adb.Shell(f'dumpsys meminfo {PACKAGE}')
+  print("Total RSS: " , get_meminfo_total(out, "RSS"))
 
 
 if __name__ == '__main__':
