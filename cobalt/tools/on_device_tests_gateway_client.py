@@ -123,12 +123,9 @@ def _process_test_requests(args):
 
   for gtest_target in args.targets.split(','):
     _, target_name = gtest_target.split(':')
-    print(f'  Processing gtest_target: {gtest_target}')
 
     gtest_filter = _get_gtest_filter(args.filter_json_dir, target_name)
-    print(f'  gtest_filter = {gtest_filter}')
     if gtest_filter == '-*':
-      print(f'Skipping {target_name} due to test filter.')
       continue
     command_line_args = ' '.join([
         f'--gtest_output=xml:{_DIR_ON_DEVICE}/{target_name}_testoutput.xml',
@@ -176,6 +173,7 @@ def _process_test_requests(args):
         'test_args': tests_args,
         'files': files,
         'params': params,
+        'test_target': gtest_target,
     })
   return test_requests
 
@@ -186,6 +184,7 @@ def main() -> int:
   logging.basicConfig(
       level=logging.INFO, format='[%(filename)s:%(lineno)s] %(message)s')
   print('Starting main routine')
+  print('')
 
   parser = argparse.ArgumentParser(
       description='Client for interacting with the On-Device Tests gateway.',
