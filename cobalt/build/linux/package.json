@@ -7,8 +7,6 @@
                 "content_shell.pak",
                 "gen/build_info.json",
                 "icudtl.dat",
-                "libEGL.so",
-                "libGLESv2.so",
                 "starboard/libstarboard.so.17",
                 "v8_context_snapshot.bin"
             ],
