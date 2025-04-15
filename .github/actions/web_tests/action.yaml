@@ -44,7 +44,7 @@ runs:
           --additional-driver-flag="--no-sandbox" \
           --debug \
           --no-show-results \
-          -t ${{ matrix.platform}}_${{ matrix.config }} \
+          --target ${{ matrix.platform}}_${{ matrix.config }} \
           ${TEST_PATH}
 
         echo "Finished running tests..."
