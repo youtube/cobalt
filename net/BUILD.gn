@@ -1630,7 +1630,9 @@ component("net") {
     configs += [ "//build/config/compiler:optimize_max" ]
   }
 
-  if(is_starboard) {
+  if(is_starboard || current_toolchain == host_toolchain) {
+    print("current tc", current_toolchain)
+    print("certs included")
     sources += [
       "cert/test_root_certs_builtin.cc",
       "cert/internal/system_trust_store_starboard.cc"
