@@ -33,7 +33,6 @@ runs:
           "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/
       shell: bash
     - run: |
-        set -x
         # Enable globstar shell option for globstar paths e.g. /**/*.xml and
         # nullopt to returns empty string if the glob matches no files.
         shopt -s globstar nullglob
@@ -41,7 +40,7 @@ runs:
         log_files=(${{ inputs.logfile_glob }})
 
         if [ ${#log_files[@]} -eq 0 ]; then
-          echo "::error::No log files were collected."
+          echo "::error::No log files were collected. The tests probably failed to run."
           exit 1
         else
           for log_file in ${log_files[@]}; do
@@ -50,6 +49,7 @@ runs:
               # TODO: stack.py fails import packages. Perhaps needs depot tools setup?
               cat ../${log_file} | python3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/${{ matrix.platform }}_${{ matrix.config }}/
             else
+              echo "=== ${log_file} ==="
               cat ${log_file}
             fi
           done
