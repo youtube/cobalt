@@ -134,7 +134,7 @@ runs:
             src/out/${{ matrix.platform }}_qa/*_apk/*.apk
             src/out/${{ matrix.platform }}_qa/gen/build_info.json
       - name: Upload Test Artifacts
-        if: steps.build-test-targets.outcome == 'success' || steps.web-test-targets.outcome == 'success'
+        if: steps.build-test-targets.outcome == 'success'
         uses: ./src/.github/actions/upload_test_artifacts
         with:
           test_artifacts_key: ${{ inputs.test_artifacts_key }}
