@@ -108,6 +108,7 @@ extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_HandleDeepLink(
     const JavaParamRef<jstring>& jurl,
     jboolean applicationStarted) {
   const std::string& url = base::android::ConvertJavaStringToUTF8(env, jurl);
+  LOG(INFO) << "StarboardBridge handling DeepLink: " << url;
 
   auto* manager = cobalt::browser::DeepLinkManager::GetInstance();
   if (applicationStarted) {
