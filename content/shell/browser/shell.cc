@@ -4,12 +4,6 @@
 
 #include "content/shell/browser/shell.h"
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#if BUILDFLAG(IS_ANDROID)
-#include "starboard/android/shared/jni_env_ext.h"
-#endif // BUILDFLAG(IS_ANDROID)
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 #include <stddef.h>
 
 #include <map>
@@ -465,26 +459,6 @@ void Shell::SetOverlayMode(bool use_overlay_mode) {
   g_platform->SetOverlayMode(this, use_overlay_mode);
 }
 #endif
-
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-#if BUILDFLAG(IS_ANDROID)
-using starboard::android::shared::JniEnvExt;
-bool Shell::CheckMediaAccessPermission(
-   content::RenderFrameHost* render_frame_host,
-   const GURL& security_origin,
-   blink::mojom::MediaStreamType type) {
-  JniEnvExt* env = JniEnvExt::Get();
-  jobject j_audio_permission_requester =
-      static_cast<jobject>(env->CallStarboardObjectMethodOrAbort(
-          "getAudioPermissionRequester",
-          "()Ldev/cobalt/coat/AudioPermissionRequester;"));
-  jboolean j_permission = env->CallBooleanMethodOrAbort(
-      j_audio_permission_requester, "requestRecordAudioPermission", "()Z");
-
-  return (j_permission ==  JNI_TRUE);
-}
-#endif // BUILDFLAG(IS_ANDROID)
-#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void Shell::EnterFullscreenModeForTab(
     RenderFrameHost* requesting_frame,

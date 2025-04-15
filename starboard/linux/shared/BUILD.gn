@@ -111,14 +111,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/libde265/de265_library_loader.h",
     "//starboard/shared/libde265/de265_video_decoder.cc",
     "//starboard/shared/libde265/de265_video_decoder.h",
-    "//starboard/shared/libevent/socket_waiter_add.cc",
-    "//starboard/shared/libevent/socket_waiter_create.cc",
-    "//starboard/shared/libevent/socket_waiter_destroy.cc",
-    "//starboard/shared/libevent/socket_waiter_internal.cc",
-    "//starboard/shared/libevent/socket_waiter_remove.cc",
-    "//starboard/shared/libevent/socket_waiter_wait.cc",
-    "//starboard/shared/libevent/socket_waiter_wait_timed.cc",
-    "//starboard/shared/libevent/socket_waiter_wake_up.cc",
     "//starboard/shared/libfdkaac/fdk_aac_audio_decoder.cc",
     "//starboard/shared/libfdkaac/fdk_aac_audio_decoder.h",
     "//starboard/shared/libfdkaac/libfdkaac_library_loader.cc",
@@ -158,7 +150,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/posix/memory_mapped_file.h",
     "//starboard/shared/posix/page_internal.cc",
     "//starboard/shared/posix/set_non_blocking_internal.cc",
-    "//starboard/shared/posix/socket_internal.cc",
     "//starboard/shared/posix/storage_write_record.cc",
     "//starboard/shared/posix/system_break_into_debugger.cc",
     "//starboard/shared/posix/system_clear_last_error.cc",
@@ -336,13 +327,18 @@ static_library("starboard_platform_sources") {
 }
 
 if (current_toolchain == starboard_toolchain) {
-  target(starboard_level_gtest_target_type, "starboard_platform_tests") {
+  source_set("starboard_platform_tests") {
     testonly = true
 
-    sources = media_tests_sources + player_tests_sources + [
-                "//starboard/common/test_main.cc",
-                "//starboard/shared/ffmpeg/ffmpeg_audio_decoder_test.cc",
-              ]
+    sources = media_tests_sources + player_tests_sources
+
+    # Despite the file below looking like a unittest, in reality is an
+    # integration test, since it fully relies on the system's ffmpeg to be
+    # available, linkable, and of a given version to run and pass.
+
+    # TODO(b/384819454): Consider rolling it into nplb if ffmpeg is considered
+    # active and in use.
+    #"//starboard/shared/ffmpeg/ffmpeg_audio_decoder_test.cc",
 
     configs += [ "//starboard/build/config:starboard_implementation" ]
 
