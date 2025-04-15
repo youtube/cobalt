@@ -17,7 +17,6 @@
 #include <algorithm>
 #include <limits>
 
-#include "starboard/common/log.h"
 #include "starboard/common/pointer_arithmetic.h"
 #include "starboard/types.h"
 
@@ -45,11 +44,19 @@ int ceil_power_2(int i) {
 }  // namespace
 
 bool ReuseAllocatorBase::MemoryBlock::Merge(const MemoryBlock& other) {
+  SB_DCHECK(fallback_allocation_index_ >= 0);
+  SB_DCHECK(other.fallback_allocation_index_ >= 0);
+
   if (AsInteger(address_) + size_ == AsInteger(other.address_)) {
+    SB_DCHECK(fallback_allocation_index_ <= other.fallback_allocation_index_);
+
     size_ += other.size_;
     return true;
   }
   if (AsInteger(other.address_) + other.size_ == AsInteger(address_)) {
+    SB_DCHECK(fallback_allocation_index_ >= other.fallback_allocation_index_);
+
+    fallback_allocation_index_ = other.fallback_allocation_index_;
     address_ = other.address_;
     size_ += other.size_;
     return true;
@@ -59,6 +66,8 @@ bool ReuseAllocatorBase::MemoryBlock::Merge(const MemoryBlock& other) {
 
 bool ReuseAllocatorBase::MemoryBlock::CanFulfill(size_t request_size,
                                                  size_t alignment) const {
+  SB_DCHECK(fallback_allocation_index_ >= 0);
+
   const size_t extra_bytes_for_alignment =
       AlignUp(AsInteger(address_), alignment) - AsInteger(address_);
   const size_t aligned_size = request_size + extra_bytes_for_alignment;
@@ -70,14 +79,17 @@ void ReuseAllocatorBase::MemoryBlock::Allocate(size_t request_size,
                                                bool allocate_from_front,
                                                MemoryBlock* allocated,
                                                MemoryBlock* free) const {
+  SB_DCHECK(fallback_allocation_index_ >= 0);
   SB_DCHECK(allocated);
   SB_DCHECK(free);
   SB_DCHECK(CanFulfill(request_size, alignment));
 
   // First we assume that the block is just enough to fulfill the allocation and
   // leaves no free block.
+  allocated->fallback_allocation_index_ = fallback_allocation_index_;
   allocated->address_ = address_;
   allocated->size_ = size_;
+  free->fallback_allocation_index_ = fallback_allocation_index_;
   free->address_ = NULL;
   free->size_ = 0;
 
@@ -168,10 +180,6 @@ void ReuseAllocatorBase::PrintAllocations(bool align_allocated_size,
   typedef std::map<size_t, size_t, std::greater<size_t>> SizesHistogram;
   SizesHistogram sizes_histogram;
 
-  if (capacity_ == 0) {
-    return;
-  }
-
   max_allocations_to_print = std::max(max_allocations_to_print, 1);
 
   // Logging the allocated blocks
@@ -182,7 +190,8 @@ void ReuseAllocatorBase::PrintAllocations(bool align_allocated_size,
   }
 
   int64_t allocated_percentage =
-      static_cast<int64_t>(total_allocated_) * 100 / capacity_;
+      capacity_ == 0 ? 0
+                     : static_cast<int64_t>(total_allocated_) * 100 / capacity_;
   SB_LOG(INFO) << "Allocated " << total_allocated_ << " bytes ("
                << allocated_percentage << "%) from a pool of capacity "
                << capacity_ << " bytes.  There are "
@@ -270,7 +279,7 @@ ReuseAllocatorBase::ReuseAllocatorBase(Allocator* fallback_allocator,
 }
 
 ReuseAllocatorBase::~ReuseAllocatorBase() {
-  if (ExtraLogEnabled()) {
+  if (ExtraLogLevel() >= 1) {
     SB_LOG(INFO) << "Destroying reuse allocator ...";
     PrintAllocations(true, 16);
   }
@@ -291,17 +300,18 @@ ReuseAllocatorBase::~ReuseAllocatorBase() {
 ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
     size_t size,
     size_t alignment) {
-  if (ExtraLogEnabled()) {
+  if (ExtraLogLevel() >= 1) {
     int capacity = GetCapacity();
     int allocated = GetAllocated();
     int64_t free_percentage =
-        static_cast<int64_t>(capacity - allocated) * 100 / capacity;
+        capacity == 0
+            ? 0
+            : static_cast<int64_t>(capacity - allocated) * 100 / capacity;
 
-    SB_LOG_IF(INFO, capacity > 0)
-        << "Try to expand for an allocation of " << size
-        << " bytes when capacity is " << capacity << " and "
-        << capacity - allocated << " bytes free (" << free_percentage << "%).";
-    PrintAllocations(true, 16);
+    SB_LOG(INFO) << "Try to expand for an allocation of " << size
+                 << " bytes when capacity is " << capacity << " and "
+                 << capacity - allocated << " bytes free (" << free_percentage
+                 << "%).";
   }
 
   void* ptr = NULL;
@@ -326,10 +336,30 @@ ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
   if (ptr != NULL) {
     fallback_allocations_.push_back(ptr);
     capacity_ += size_to_try;
-    return AddFreeBlock(MemoryBlock(ptr, size_to_try));
+    auto free_block_iter = AddFreeBlock(MemoryBlock(
+        static_cast<int>(fallback_allocations_.size() - 1), ptr, size_to_try));
+
+    if (ExtraLogLevel() >= 1) {
+      int capacity = GetCapacity();
+      int allocated = GetAllocated();
+      int64_t free_percentage =
+          capacity == 0
+              ? 0
+              : static_cast<int64_t>(capacity - allocated) * 100 / capacity;
+
+      SB_LOG(INFO) << "Allocated " << size_to_try
+                   << " bytes from fallback allocator (" << ptr
+                   << "), capacity expanded to " << capacity << " with "
+                   << capacity - allocated << " bytes free (" << free_percentage
+                   << "%)";
+      PrintAllocations(true, 16);
+    }
+
+    return free_block_iter;
   }
 
   if (free_blocks_.empty()) {
+    SB_LOG_IF(INFO, ExtraLogLevel() >= 1) << "Failed to expand.";
     return free_blocks_.end();
   }
 
@@ -366,6 +396,7 @@ ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
   // |free_address + free_size|  |aligned_address|
   size_t size_to_allocate = aligned_address + size - free_address - free_size;
   if (max_capacity_ && capacity_ + size_to_allocate > max_capacity_) {
+    SB_LOG_IF(INFO, ExtraLogLevel() >= 1) << "Failed to expand.";
     return free_blocks_.end();
   }
   SB_DCHECK(size_to_allocate > 0);
@@ -376,10 +407,34 @@ ReuseAllocatorBase::FreeBlockSet::iterator ReuseAllocatorBase::ExpandToFit(
 
   fallback_allocations_.push_back(ptr);
   capacity_ += size_to_allocate;
-  AddFreeBlock(MemoryBlock(ptr, size_to_allocate));
+  AddFreeBlock(MemoryBlock(static_cast<int>(fallback_allocations_.size() - 1),
+                           ptr, size_to_allocate));
   FreeBlockSet::iterator iter = free_blocks_.end();
   --iter;
-  return iter->CanFulfill(size, alignment) ? iter : free_blocks_.end();
+
+  if (ExtraLogLevel() >= 1) {
+    int capacity = GetCapacity();
+    int allocated = GetAllocated();
+    int64_t free_percentage =
+        capacity == 0
+            ? 0
+            : static_cast<int64_t>(capacity - allocated) * 100 / capacity;
+
+    SB_LOG(INFO) << "Allocated " << size_to_allocate
+                 << " bytes from fallback allocator (" << ptr
+                 << "), capacity expanded to " << capacity << " with "
+                 << capacity - allocated << " bytes free (" << free_percentage
+                 << "%)";
+    PrintAllocations(true, 16);
+  }
+
+  if (iter->CanFulfill(size, alignment)) {
+    return iter;
+  } else {
+    SB_LOG_IF(INFO, ExtraLogLevel() >= 1)
+        << "Failed to allocate after expanding.";
+    return free_blocks_.end();
+  }
 }
 
 void ReuseAllocatorBase::AddAllocatedBlock(void* address,
