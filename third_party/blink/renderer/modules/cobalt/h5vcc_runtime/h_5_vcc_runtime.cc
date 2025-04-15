@@ -40,6 +40,7 @@ String H5vccRuntime::initialDeepLink() {
 
 void H5vccRuntime::MaybeFireDeepLinkEvent(const String& url) {
   if (!url.empty()) {
+    LOG(INFO) << "Dispatch DeepLink to application: " << url;
     DispatchEvent(
         *MakeGarbageCollected<DeepLinkEvent>(event_type_names::kDeeplink, url));
   }
