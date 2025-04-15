@@ -40,9 +40,11 @@ class Allocator {
 
   // TODO: b/369245553 - Cobalt: Consider controlling this via a command line
   // parameter.
-  static constexpr bool ExtraLogEnabled() {
-    // Set this to true to enable extra logging in this class and its users.
-    return false;
+  static constexpr int ExtraLogLevel() {
+    // 0 => keep allocator related logging to minimum.
+    // 1 => enable extra logging for statistics in this class and its users.
+    // 2 => enable per allocation logging (extremely chatty).
+    return 0;
   }
 
   // Allocates a range of memory of the given size, without any alignment
