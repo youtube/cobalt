@@ -284,6 +284,14 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
       return;
     }
 
+    if (mMetadata.getTitle().equals("youtube.com/tv/splash")) {
+      // This is the splash screen video.
+      // Return early to avoid overwriting the actual Kabuki video's metadata.
+      // Overwriting would cause the TV Home page to incorrectly show splash screen info
+      // after the app is suspended.
+      return;
+    }
+
     MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
     metadataBuilder
         .putString(MediaMetadataCompat.METADATA_KEY_TITLE, mMetadata.getTitle())
