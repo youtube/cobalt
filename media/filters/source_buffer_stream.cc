@@ -1858,6 +1858,7 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
   video_configs_.resize(video_configs_.size() + 1);
   video_configs_[append_config_index_] = config;
 
+<<<<<<< HEAD
   if (memory_limit_overridden_) {
     DVLOG(2)
         << __func__
@@ -1872,6 +1873,15 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
       memory_limit_ = new_memory_limit;
     }
   }
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Dynamically increase |memory_limit_| when video resolution goes up.
+  memory_limit_ = std::max(
+      memory_limit_,
+      GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
+                                       &config));
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> 9ea49886551 (Update DecoderBuffer memory budget on format change (#5421))
 
   return true;
 }
