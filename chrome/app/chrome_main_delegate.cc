@@ -186,11 +186,6 @@
 #include "base/environment.h"
 #endif
 
-#if BUILDFLAG(IS_LINUX)
-#include "base/nix/scoped_xdg_activation_token_injector.h"
-#include "ui/linux/display_server_utils.h"
-#endif
-
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
     BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/policy/policy_path_parser.h"

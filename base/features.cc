@@ -5,30 +5,6 @@
 #include "base/features.h"
 #include "base/feature_list.h"
 
-#include "base/cpu_reduction_experiment.h"
-#include "base/task/sequence_manager/sequence_manager_impl.h"
-#include "base/threading/platform_thread.h"
-#include "build/buildflag.h"
-
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-#include "base/message_loop/message_pump_epoll.h"
-#endif
-
-#if BUILDFLAG(IS_APPLE)
-#include "base/files/file.h"
-#include "base/message_loop/message_pump_apple.h"
-#include "base/message_loop/message_pump_kqueue.h"
-#include "base/synchronization/condition_variable.h"
-#endif
-
-#if BUILDFLAG(IS_ANDROID)
-#include "base/android/input_hint_checker.h"
-#endif
-
-#if BUILDFLAG(IS_WIN)
-#include "base/task/sequence_manager/thread_controller_power_monitor.h"
-#include "base/threading/platform_thread_win.h"
-#endif
 
 namespace base::features {
 
@@ -61,38 +37,5 @@ BASE_FEATURE(kPartialLowEndModeOnMidRangeDevices,
              "PartialLowEndModeOnMidRangeDevices",
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
-
-void Init(EmitThreadControllerProfilerMetadata
-              emit_thread_controller_profiler_metadata) {
-  InitializeCpuReductionExperiment();
-  sequence_manager::internal::SequenceManagerImpl::InitializeFeatures();
-  sequence_manager::internal::ThreadController::InitializeFeatures(
-      emit_thread_controller_profiler_metadata);
-
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-  MessagePumpEpoll::InitializeFeatures();
-#endif
-
-#if BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_CHROMEOS)
-  PlatformThread::InitializeFeatures();
-#endif
-
-#if BUILDFLAG(IS_APPLE)
-  ConditionVariable::InitializeFeatures();
-  File::InitializeFeatures();
-  MessagePumpCFRunLoopBase::InitializeFeatures();
-  MessagePumpKqueue::InitializeFeatures();
-#endif
-
-#if BUILDFLAG(IS_ANDROID)
-  android::InputHintChecker::InitializeFeatures();
-#endif
-
-#if BUILDFLAG(IS_WIN)
-  sequence_manager::internal::ThreadControllerPowerMonitor::
-      InitializeFeatures();
-  InitializePlatformThreadFeatures();
-#endif
-}
 
 }  // namespace base::features

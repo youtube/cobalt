@@ -330,8 +330,9 @@ class OuterNestedWatcher : public MessagePumpEpoll::FdWatcher {
     test_->ClearNotifications();
 
     base::RunLoop loop;
-    InnerNestedWatcher inner_watcher(test_.get(), *controller_,
-                                     loop.QuitClosure());
+    std::unique_ptr<InnerNestedWatcher> inner_watcher =
+        std::make_unique<InnerNestedWatcher>(test_.get(), *controller_,
+                                             loop.QuitClosure());
     test_->Notify();
     loop.Run();
 
