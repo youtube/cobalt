@@ -11,7 +11,9 @@
 #include "ui/events/keycodes/dom/dom_code.h"
 #include "ui/events/keycodes/dom/dom_key.h"
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+// TODO: (cobalt b/409756923) Investigate impact of turning off keycode
+// conversions in hermetic builds.
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || BUILDFLAG(IS_CHROMEOS)
 #include <linux/input.h>
 #endif
 
@@ -58,7 +60,7 @@ struct DomKeyMapEntry {
 #undef DOM_KEY_MAP
 #undef DOM_KEY_UNI
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || BUILDFLAG(IS_CHROMEOS)
 
 // The offset between XKB Keycode and evdev code.
 constexpr int kXkbKeycodeOffset = 8;
@@ -139,7 +141,7 @@ int KeycodeConverter::DomCodeToNativeKeycode(DomCode code) {
   return UsbKeycodeToNativeKeycode(static_cast<uint32_t>(code));
 }
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS) || BUILDFLAG(IS_CHROMEOS)
 // static
 DomCode KeycodeConverter::XkbKeycodeToDomCode(uint32_t xkb_keycode) {
   // Currently XKB keycode is the native keycode.

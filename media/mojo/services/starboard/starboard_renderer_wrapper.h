@@ -21,6 +21,7 @@
 #include "base/threading/thread_checker.h"
 #include "media/base/renderer.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
+#include "media/mojo/services/gpu_mojo_media_client.h"
 #include "media/starboard/starboard_renderer.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -47,14 +48,7 @@ class StarboardRendererWrapper final
   using RendererExtension = mojom::StarboardRendererExtension;
   using ClientExtension = mojom::StarboardRendererClientExtension;
 
-  StarboardRendererWrapper(
-      scoped_refptr<base::SequencedTaskRunner> task_runner,
-      mojo::PendingRemote<mojom::MediaLog> media_log_remote,
-      const base::UnguessableToken& overlay_plane_id,
-      TimeDelta audio_write_duration_local,
-      TimeDelta audio_write_duration_remote,
-      mojo::PendingReceiver<RendererExtension> renderer_extension_receiver,
-      mojo::PendingRemote<ClientExtension> client_extension_remote);
+  StarboardRendererWrapper(StarboardRendererTraits& traits);
 
   StarboardRendererWrapper(const StarboardRendererWrapper&) = delete;
   StarboardRendererWrapper& operator=(const StarboardRendererWrapper&) = delete;
@@ -76,6 +70,8 @@ class StarboardRendererWrapper final
 
   // mojom::StarboardRendererExtension implementation.
   void OnVideoGeometryChange(const gfx::Rect& output_rect) override;
+  void OnGpuChannelTokenReady(
+      mojom::CommandBufferIdPtr command_buffer_id) override;
 
  private:
   void OnPaintVideoHoleFrameByStarboard(const gfx::Size& size);
@@ -83,6 +79,7 @@ class StarboardRendererWrapper final
   mojo::Receiver<RendererExtension> renderer_extension_receiver_;
   mojo::Remote<ClientExtension> client_extension_remote_;
   std::unique_ptr<StarboardRenderer> renderer_;
+  mojom::CommandBufferIdPtr command_buffer_id_;
 
   base::WeakPtrFactory<StarboardRendererWrapper> weak_factory_{this};
 
