@@ -22,6 +22,8 @@ template("cobalt_clang_toolchain") {
                              "native_linker_path",
                              "executable_extension",
                              "tail_lib_dependencies",
+                             "extra_cflags",
+                             "extra_cxxflags",
                            ])
     if (defined(invoker.shlib_extension)) {
       shlib_extension = invoker.shlib_extension
