@@ -66,7 +66,6 @@ def create_archive(
 
   tar_root = '.' if is_android else out_dir
   combined_deps = set()
-  # TODO(oxv): Make output from build step instead.
   # Add test_targets.json to archive so that test runners know what to run.
   test_targets_json = os.path.join(tar_root, 'test_targets.json')
   if os.path.exists(test_targets_json):
