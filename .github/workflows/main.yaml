@@ -130,7 +130,7 @@ jobs:
         run: |
           set -x
           test_attempts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_attempts // empty')
-          echo "test_attempts=${test_attempts}" >> $GITHUB_ENV
+          echo "test_attempts=${test_attempts}" >> $GITHUB_OUTPUT
       - name: Set number of on-host unit test shards
         id: set-gtest-shards
         shell: bash
