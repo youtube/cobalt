@@ -170,6 +170,19 @@ class FakeInterfaceFactory : public media::mojom::InterfaceFactory {
           client_extension_remote) override {}
 #endif  // BUILDFLAG(IS_WIN)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  void CreateStarboardRenderer(
+      mojo::PendingRemote<media::mojom::MediaLog> media_log_remote,
+      const base::UnguessableToken& overlay_plane_id,
+      base::TimeDelta audio_write_duration_local,
+      base::TimeDelta audio_write_duration_remote,
+      mojo::PendingReceiver<media::mojom::Renderer> receiver,
+      mojo::PendingReceiver<media::mojom::StarboardRendererExtension>
+          renderer_extension_receiver,
+      mojo::PendingRemote<media::mojom::StarboardRendererClientExtension>
+          client_extension_remote) override {}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
  private:
   FakeMojoMediaClient mojo_media_client_;
   media::MojoCdmServiceContext cdm_service_context_;

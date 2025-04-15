@@ -5,6 +5,7 @@
 module media.mojom;
 
 import "media/mojo/mojom/media_types.mojom";
+import "media/mojo/mojom/video_decoder.mojom";
 import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
@@ -89,11 +90,10 @@ interface MediaFoundationRendererClientExtension {
 [EnableIf=use_starboard_media]
 // This interface is for StarboardRendererClient to extend
 // mojo:RendererClient as StarboardRendererClient to allow
-// StarboardRenderer (on gpu thread) to paint a video hole
-// on VideoRendererSink on renderer thread.
+// StarboardRenderer (on gpu thread) to post tasks
+// on StarboardRendererClient on renderer thread.
 interface StarboardRendererClientExtension {
-  // Called when the first time the metadata is updated, and whenever the
-  // metadata changes.
+  // Paint a video hole on VideoRendererSink.
   PaintVideoHoleFrame(gfx.mojom.Size size);
 };
 
@@ -147,10 +147,15 @@ interface MediaFoundationRendererExtension {
 
 [EnableIf=use_starboard_media]
 // This interface is for StarboardRenderer to extend mojo::Renderer
-// as StarboardRendererWrapper to subscribe to video geometry changes
-// from cobalt::media::mojom::VideoGeometryChangeSubscriber.
+// as StarboardRendererWrapper to allow StarboardRendererClient to
+// post tasks on StarboardRendererWrapper on gpu thread.
 interface StarboardRendererExtension {
+  // Subscribe to video geometry changes from
+  // cobalt::media::mojom::VideoGeometryChangeSubscriber
   OnVideoGeometryChange(gfx.mojom.Rect rect);
+
+  // Pass CommandBufferId to StarboardRendererWrapper.
+  OnGpuChannelTokenReady(CommandBufferId? command_buffer_id);
 };
 
 // This interface is used by the browser to determine if there are any renderers

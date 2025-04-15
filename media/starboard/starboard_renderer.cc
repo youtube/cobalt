@@ -406,8 +406,8 @@ TimeDelta StarboardRenderer::GetMediaTime() {
     //                    whether we should report more statistics, and/or
     //                    reduce the frequency of reporting.
     task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&RendererClient::OnStatisticsUpdate,
-                                  base::Unretained(client_), statistics));
+        FROM_HERE, base::BindOnce(&StarboardRenderer::OnStatisticsUpdate,
+                                  weak_factory_.GetWeakPtr(), statistics));
   }
   StoreMediaTime(media_time);
 
@@ -574,8 +574,9 @@ void StarboardRenderer::OnDemuxerStreamRead(
     DemuxerStream::DecoderBufferVector buffers) {
   if (!task_runner_->RunsTasksInCurrentSequence()) {
     task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                                  weak_this_, stream, status, buffers));
+        FROM_HERE,
+        base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
+                       weak_factory_.GetWeakPtr(), stream, status, buffers));
     return;
   }
 
@@ -648,10 +649,15 @@ void StarboardRenderer::OnDemuxerStreamRead(
     }
     UpdateDecoderConfig(stream);
     stream->Read(1, base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                                   weak_this_, stream));
+                                   weak_factory_.GetWeakPtr(), stream));
   } else if (status == DemuxerStream::kError) {
     client_->OnError(PIPELINE_ERROR_READ);
   }
+}
+
+void StarboardRenderer::OnStatisticsUpdate(const PipelineStatistics& stats) {
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
+  client_->OnStatisticsUpdate(stats);
 }
 
 void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
@@ -721,8 +727,8 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
           (adjusted_write_duration + kMediaTimeCheckInterval)) {
         task_runner_->PostDelayedTask(
             FROM_HERE,
-            base::BindOnce(&StarboardRenderer::DelayedNeedData, weak_this_,
-                           max_buffers),
+            base::BindOnce(&StarboardRenderer::DelayedNeedData,
+                           weak_factory_.GetWeakPtr(), max_buffers),
             kMediaTimeCheckInterval);
         audio_read_delayed_ = true;
         return;
@@ -768,7 +774,7 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
 
   stream->Read(max_buffers,
                base::BindOnce(&StarboardRenderer::OnDemuxerStreamRead,
-                              weak_this_, stream));
+                              weak_factory_.GetWeakPtr(), stream));
 }
 
 void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {

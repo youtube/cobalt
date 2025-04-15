@@ -271,21 +271,3 @@ static_library("starboard_base_symbolize") {
     public_deps = [ "//starboard/elf_loader:evergreen_info" ]
   }
 }
-
-if (current_toolchain == starboard_toolchain) {
-  target(starboard_level_gtest_target_type, "starboard_platform_tests") {
-    build_loader = false
-    testonly = true
-
-    sources = player_tests_sources + [ "//starboard/common/test_main.cc" ]
-
-    configs += [ "//starboard/build/config:starboard_implementation" ]
-
-    deps = [
-      "//starboard:starboard_with_main",
-      "//starboard/shared/starboard/player/filter/testing:test_util",
-      "//testing/gmock",
-      "//testing/gtest",
-    ]
-  }
-}

@@ -622,7 +622,10 @@ MediaFactory::CreateRendererFactorySelector(
   is_base_renderer_factory_set = true;
   factory_selector->AddBaseFactory(RendererType::kStarboard,
     std::make_unique<media::StarboardRendererClientFactory>(media_log,
-        CreateMojoRendererFactory(), &renderer_factory_traits));
+        CreateMojoRendererFactory(),
+        base::BindRepeating(&RenderThreadImpl::GetGpuFactories,
+          base::Unretained(render_thread)),
+        &renderer_factory_traits));
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (!is_base_renderer_factory_set &&
       renderer_media_playback_options.is_mojo_renderer_enabled()) {
