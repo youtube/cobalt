@@ -52,6 +52,10 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
                     TimeDelta audio_write_duration_local,
                     TimeDelta audio_write_duration_remote);
 
+  // Disallow copy and assign.
+  StarboardRenderer(const StarboardRenderer&) = delete;
+  StarboardRenderer& operator=(const StarboardRenderer&) = delete;
+
   ~StarboardRenderer() final;
 
   // Renderer implementation.
@@ -113,6 +117,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   void OnDemuxerStreamRead(DemuxerStream* stream,
                            DemuxerStream::Status status,
                            DemuxerStream::DecoderBufferVector buffers);
+  void OnStatisticsUpdate(const PipelineStatistics& stats);
 
   void OnNeedData(DemuxerStream::Type type,
                   int max_number_of_buffers_to_write) final;
@@ -212,11 +217,8 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   static inline constexpr const char* kSbPlayerCapabilityChangedErrorMessage =
       "MEDIA_ERR_CAPABILITY_CHANGED";
 
+  // WeakPtrFactory should be defined last (after all member variables).
   base::WeakPtrFactory<StarboardRenderer> weak_factory_{this};
-  base::WeakPtr<StarboardRenderer> weak_this_{weak_factory_.GetWeakPtr()};
-
-  StarboardRenderer(const StarboardRenderer&) = delete;
-  StarboardRenderer& operator=(const StarboardRenderer&) = delete;
 };
 
 }  // namespace media
