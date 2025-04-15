@@ -6,7 +6,7 @@ inputs:
     required: true
   datadog_api_key:
     description: "Path to directory where test results are saved."
-    required: true
+    default: ''
   results_path:
     description: "Path (or glob) to test result xml files."
     required: true
