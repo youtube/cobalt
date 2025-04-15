@@ -81,7 +81,7 @@ void NetworkChangeManager::OnNetworkChanged(
 }
 #endif
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 void NetworkChangeManager::BindNetworkInterfaceChangeListener(
     mojo::PendingAssociatedReceiver<mojom::NetworkInterfaceChangeListener>
         listener_receiver) {

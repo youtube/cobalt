@@ -22,23 +22,19 @@
 namespace media {
 
 StarboardRendererWrapper::StarboardRendererWrapper(
-    scoped_refptr<base::SequencedTaskRunner> task_runner,
-    mojo::PendingRemote<mojom::MediaLog> media_log_remote,
-    const base::UnguessableToken& overlay_plane_id,
-    TimeDelta audio_write_duration_local,
-    TimeDelta audio_write_duration_remote,
-    mojo::PendingReceiver<RendererExtension> renderer_extension_receiver,
-    mojo::PendingRemote<ClientExtension> client_extension_remote)
-    : renderer_extension_receiver_(this,
-                                   std::move(renderer_extension_receiver)),
-      client_extension_remote_(std::move(client_extension_remote), task_runner),
+    StarboardRendererTraits& traits)
+    : renderer_extension_receiver_(
+          this,
+          std::move(traits.renderer_extension_receiver)),
+      client_extension_remote_(std::move(traits.client_extension_remote),
+                               traits.task_runner),
       renderer_(std::make_unique<StarboardRenderer>(
-          std::move(task_runner),
-          std::make_unique<MojoMediaLog>(std::move(media_log_remote),
-                                         task_runner),
-          overlay_plane_id,
-          audio_write_duration_local,
-          audio_write_duration_remote)) {
+          std::move(traits.task_runner),
+          std::make_unique<MojoMediaLog>(std::move(traits.media_log_remote),
+                                         traits.task_runner),
+          traits.overlay_plane_id,
+          traits.audio_write_duration_local,
+          traits.audio_write_duration_remote)) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -48,6 +44,15 @@ void StarboardRendererWrapper::Initialize(MediaResource* media_resource,
                                           RendererClient* client,
                                           PipelineStatusCallback init_cb) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  // OnGpuChannelTokenReady() is called before Initialize()
+  // in StarboardRendererClient, so it is safe to access
+  // |command_buffer_id_| for posting gpu tasks.
+  if (command_buffer_id_) {
+    // TODO(b/409105749): create TextureOwner if SbPlayer works in
+    // decode-to-texture mode.
+  }
+
   renderer_->set_paint_video_hole_frame_callback(base::BindRepeating(
       &StarboardRendererWrapper::OnPaintVideoHoleFrameByStarboard,
       weak_factory_.GetWeakPtr()));
@@ -100,6 +105,12 @@ void StarboardRendererWrapper::OnVideoGeometryChange(
     const gfx::Rect& output_rect) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   renderer_->OnVideoGeometryChange(output_rect);
+}
+
+void StarboardRendererWrapper::OnGpuChannelTokenReady(
+    mojom::CommandBufferIdPtr command_buffer_id) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  command_buffer_id_ = std::move(command_buffer_id);
 }
 
 void StarboardRendererWrapper::OnPaintVideoHoleFrameByStarboard(

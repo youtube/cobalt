@@ -21,8 +21,13 @@ android_library("variations_java") {
     "java/src/org/chromium/components/variations/VariationsAssociatedData.java",
     "java/src/org/chromium/components/variations/VariationsCompressionUtils.java",
     "java/src/org/chromium/components/variations/firstrun/VariationsSeedBridge.java",
-    "java/src/org/chromium/components/variations/firstrun/VariationsSeedFetcher.java",
   ]
+
+  if (!is_cobalt) {
+    sources += [
+      "java/src/org/chromium/components/variations/firstrun/VariationsSeedFetcher.java",
+    ]
+  }
 }
 
 generate_jni("test_support_jni_headers") {

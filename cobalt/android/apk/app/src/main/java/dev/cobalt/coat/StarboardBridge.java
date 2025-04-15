@@ -263,14 +263,12 @@ public class StarboardBridge {
     applicationStopped = true;
   }
 
-  // TODO(b/391383322): ensure the application suspends and resumes correctly.
   @SuppressWarnings("unused")
   @CalledByNative
   public void requestSuspend() {
     Activity activity = activityHolder.get();
     if (activity != null) {
-      Log.i(TAG, "Request to suspend");
-      activity.finish();
+      activity.moveTaskToBack(false);
     }
   }
 
@@ -635,7 +633,9 @@ public class StarboardBridge {
     return cobaltServiceFactories.get(serviceName) != null;
   }
 
-  public CobaltService openCobaltService(long nativeService, String serviceName) {
+  // Explicitly pass activity as parameter.
+  // Avoid using activityHolder.get(), because onActivityStop() can set it to null.
+  public CobaltService openCobaltService(Activity activity, long nativeService, String serviceName) {
     if (cobaltServices.get(serviceName) != null) {
       // Attempting to re-open an already open service fails.
       Log.e(TAG, String.format("Cannot open already open service %s", serviceName));
@@ -651,7 +651,6 @@ public class StarboardBridge {
       service.receiveStarboardBridge(this);
       cobaltServices.put(serviceName, service);
 
-      Activity activity = activityHolder.get();
       if (activity instanceof CobaltActivity) {
         service.setCobaltActivity((CobaltActivity) activity);
       }

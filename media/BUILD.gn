@@ -204,6 +204,7 @@ test("media_unittests") {
 
   if (is_cobalt && use_starboard_media) {
     # TODO(cobalt, b/379934658): add starboard_renderer_test.
+    # TODO(cobalt, b/410073969): add starboard_renderer_client_test.
     deps += ["//media/starboard:unit_tests"]
   }
 
