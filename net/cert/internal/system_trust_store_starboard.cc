@@ -11,9 +11,11 @@
 
 #include "net/cert/internal/trust_store_chrome.h"
 
-#if BUILDFLAG(IS_STARBOARD)
-
 namespace net {
+
+// #if BUILDFLAG(IS_STARBOARD)
+
+
 
 namespace {
 
@@ -41,6 +43,8 @@ class SystemTrustStoreChromeOnly : public SystemTrustStore {
 };
 } // namespace
 
+// #endif // BUILDFLAG(IS_STARBOARD)
+
 std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStoreChromeRoot(
     std::unique_ptr<TrustStoreChrome> chrome_root) {
   return std::make_unique<SystemTrustStoreChromeOnly>(std::move(chrome_root));
@@ -48,4 +52,4 @@ std::unique_ptr<SystemTrustStore> CreateSslSystemTrustStoreChromeRoot(
 
 } // namespace net
 
-#endif // BUILDFLAG(IS_STARBOARD)
+
