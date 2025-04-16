@@ -6,7 +6,6 @@
     "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.*",
     "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*",
     "VerticalVideoTests/VerticalVideoTest.*",
-    "SbAudioSinkTest*",
     "MaximumPlayerConfigurationExplorerTests*",
     "SbPlayerTest*",
     "PosixFileRead*"
