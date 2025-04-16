@@ -103,6 +103,9 @@ void VideoRendererImpl::Initialize(const ErrorCB& error_cb,
 }
 
 void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
+  SB_LOG(INFO) << __func__
+               << " > KJ: # of input_buffers=" << input_buffers.size()
+               << ", timestamp=" << input_buffers[0]->timestamp();
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   for (const auto& input_buffer : input_buffers) {
