@@ -22,6 +22,11 @@ pipeline () {
   run_gn "${out_dir}" "${TARGET_PLATFORM}" "${EXTRA_GN_ARGUMENTS:-}"
   ninja_build "${out_dir}" "${TARGET}"
 
+  # Generate license file
+  echo "Generating license file"
+  vpython3 tools/licenses/licenses.py \
+    credits --gn-target cobalt:gn_all --gn-out-dir out/${TARGET_PLATFORM}_${CONFIG} > licenses_cobalt.txt
+
   # Build bootloader config if set.
   if [ -n "${BOOTLOADER:-}" ]; then
     echo "Evergreen Loader is configured."
