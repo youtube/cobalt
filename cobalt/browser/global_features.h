@@ -16,22 +16,32 @@
 #define COBALT_BROWSER_GLOBAL_FEATURES_H_
 
 #include "base/memory/raw_ptr.h"
+#include "base/no_destructor.h"
 #include "base/sequence_checker.h"
-#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
-#include "components/metrics_services_manager/metrics_services_manager.h"
+
+class PrefService;
+
+namespace metrics {
+class MetricsService;
+}  // namespace metrics
+
+namespace metrics_services_manager {
+class MetricsServicesManager;
+}  // namespace metrics_services_manager
 
 namespace cobalt {
+class CobaltMetricsServicesManagerClient;
 
 // This class owns features that are globally scoped. It follows the structure
 // of BrowserProcess class in Chrome.
+// TODO(b/407734389): Add unittests.
 class GlobalFeatures {
  public:
-  explicit GlobalFeatures(
+  GlobalFeatures(
       std::unique_ptr<PrefService> experiment_config,
       std::unique_ptr<PrefService> local_state,
-      std::unique_ptr<metrics_services_manager::MetricsServicesManager>
-          metrics_service_manager,
-      CobaltMetricsServicesManagerClient* metrics_service_manager_client);
+      std::unique_ptr<metrics_services_manager::MetricsServicesManager> manager,
+      CobaltMetricsServicesManagerClient* client);
 
   ~GlobalFeatures();
 
@@ -54,8 +64,6 @@ class GlobalFeatures {
 
   SEQUENCE_CHECKER(sequence_checker_);
 };
-
-extern GlobalFeatures* g_global_features;
 
 }  // namespace cobalt
 
