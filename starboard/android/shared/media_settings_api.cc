@@ -13,7 +13,6 @@
 // limitations under the License.
 
 #include "starboard/android/shared/media_settings_api.h"
-#include "starboard/android/shared/media_codec_bridge_eradicator.h"
 #include "starboard/extension/media_settings.h"
 
 namespace starboard {
@@ -26,11 +25,11 @@ namespace {
 // are added here.
 
 void EnableAsyncReleaseMediaCodecBridge(bool value) {
-  MediaCodecBridgeEradicator::GetInstance()->SetEnabled(value);
+  return;
 }
 
 void SetAsyncReleaseMediaCodecBridgeTimeoutSeconds(int timeout_seconds) {
-  MediaCodecBridgeEradicator::GetInstance()->SetTimeoutSeconds(timeout_seconds);
+  return;
 }
 
 const StarboardExtensionMediaSettingsApi kMediaSettingsApi = {
