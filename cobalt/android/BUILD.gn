@@ -244,11 +244,6 @@ template("content_shell_apk_tmpl") {
     deps += [
       ":cobalt_shell_java",
       ":content_shell_apk_java",
-<<<<<<< HEAD
-      "//base:base_java_test_support",
-      "//components/crash/android:java",
-=======
->>>>>>> c73382ea80e (Remove unnecessary testonly tags from cobalt_apk (#5288))
       "//components/crash/core/app:chrome_crashpad_handler_named_as_so",
       "//components/metrics:metrics_java",
       "//content/public/android:content_java",
