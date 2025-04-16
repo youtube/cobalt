@@ -23,16 +23,21 @@ group("gn_all") {
     "//starboard:starboard_group",
     "//starboard/nplb",
   ]
-  if (!is_android) {
-    deps += [ ":strip_cobalt_binary" ]
-  } else {
+  if (is_android) {
     # TODO(cobalt): reuse build rules below to define Android target.
     deps += [ "android:cobalt_apk" ]
+  } else if (!is_cobalt_hermetic_build) {
+    deps += [ ":strip_cobalt_binary" ]
   }
 }
 
 if (!is_android) {
-  executable("cobalt") {
+  if (is_cobalt_hermetic_build) {
+    cobalt_target_type = "shared_library"
+  } else {
+    cobalt_target_type = "executable"
+  }
+  target(cobalt_target_type, "cobalt") {
     testonly = true
 
     sources = [
@@ -75,10 +80,12 @@ if (!is_android) {
     configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
   }
 
-  strip_binary("strip_cobalt_binary") {
-    binary_input = "$root_out_dir/cobalt"
-    deps = [ ":cobalt" ]
-    testonly = true
+  if (!is_cobalt_hermetic_build) {
+    strip_binary("strip_cobalt_binary") {
+      binary_input = "$root_out_dir/cobalt"
+      deps = [ ":cobalt" ]
+      testonly = true
+    }
   }
 }
 
