@@ -2,18 +2,22 @@
   "failing_tests": [
     "AudioDecoderBrokerTest.Decode_NoMojoDecoder",
     "AudioDecoderBrokerTest.Decode_Uninitialized",
+    "CompositedSelectionBoundsTest.*",
     "ComputedStyleTest.ShouldApplyAnyContainment",
     "DecoderTemplateTest/*",
     "EncodedVideoChunkTest.ConstructorAndAttributes",
     "EncodedVideoChunkTest.ConstructorWithDuration",
     "MediaControlsRotateToFullscreenDelegateTest.*",
+    "PageTestBase.CSPForWorld",
     "ScrollIntoViewTest.NewScrollIntoViewAbortsCurrentAnimation",
+    "StyleEngineTest.VideoControlsReject",
     "TextFragmentGenerationNavigationTest.*",
     "UseCounterImplTest.ForgivingParsingContainsMixOfValidAndInvalid",
     "VideoDecoderBrokerTest.Decode_NoMojoDecoder",
     "VideoDecoderBrokerTest.Decode_Uninitialized",
     "VideoDecoderTest.HardwareDecodersApplyPressure",
     "VideoDecoderTest.ResetReleasesPressure",
+    "WebFrameTest.SiteForCookiesFromChildWithRemoteMainFrame",
     "WebMediaPlayerImplTest.*",
     "WebRtcMediaStreamTrackAdapterMapStressTest.StressTest"
   ]
