@@ -4262,7 +4262,10 @@ hooks = [
     'name': 'lastchange',
     'pattern': '.',
     'action': ['python3', 'src/build/util/lastchange.py',
-               '-o', 'src/build/util/LASTCHANGE'],
+               '-o', 'src/build/util/LASTCHANGE',
+               # Cobalt addition, don't look for Change-Id in commits.
+               '--filter=\(#[1-9][0-9]*\)'
+               ],
   },
   {
     # Update GPU lists version string (for gpu/config).
