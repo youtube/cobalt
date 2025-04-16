@@ -1,14 +1,12 @@
 {
   "failing_tests": [
     "SbMediaSetAudioWriteDurationTests/SbMediaSetAudioWriteDurationTest.*",
-    "MultiplePlayerTest.*",
     "SbPlayerGetAudioConfigurationTests/SbPlayerGetAudioConfigurationTest.*",
     "SbPlayerGetMediaTimeTests/SbPlayerGetMediaTimeTest.*",
     "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*",
     "VerticalVideoTests/VerticalVideoTest.*",
     "SbAudioSinkTest*",
     "MaximumPlayerConfigurationExplorerTests*",
-    "SbPlayerTest*",
     "PosixFileRead*"
   ]
 }
