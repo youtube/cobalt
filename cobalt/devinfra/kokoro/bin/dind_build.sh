@@ -66,6 +66,9 @@ pipeline () {
     --script-executable=/usr/bin/python3
   autoninja -C "out/${TARGET_PLATFORM}_${CONFIG}" ${TARGET}  # TARGET may expand to multiple args
 
+  vpython3 tools/licenses/licenses.py \
+    credits --gn-target cobalt:gn_all --gn-out-dir out/${TARGET_PLATFORM}_${CONFIG} > licenses_cobalt.txt
+
   # Build bootloader config if set.
   if [ -n "${BOOTLOADER:-}" ]; then
     echo "Evergreen Loader (or Bootloader) is configured."
