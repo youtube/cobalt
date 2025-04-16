@@ -21,11 +21,15 @@
 #include <vector>
 
 #include "starboard/common/allocator.h"
+#include "starboard/common/log.h"
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 
 namespace starboard {
 namespace common {
+
+// TODO: b/369245553 - Cobalt: Add unit tests once Starboard unittests are
+//                             enabled.
 
 // The base class of allocators designed to accommodate cases where the memory
 // allocated may not be efficient or safe to access via the CPU.  It solves
@@ -60,18 +64,35 @@ class ReuseAllocatorBase : public Allocator {
  protected:
   class MemoryBlock {
    public:
-    MemoryBlock() : address_(0), size_(0) {}
-    MemoryBlock(void* address, size_t size) : address_(address), size_(size) {}
+    MemoryBlock() = default;
+    MemoryBlock(int fallback_allocation_index, void* address, size_t size)
+        : fallback_allocation_index_(fallback_allocation_index),
+          address_(address),
+          size_(size) {}
+    ~MemoryBlock() { SB_DCHECK(fallback_allocation_index_ >= 0); }
 
-    void* address() const { return address_; }
-    size_t size() const { return size_; }
-
-    void set_address(void* address) { address_ = address; }
-    void set_size(size_t size) { size_ = size; }
+    void* address() const {
+      SB_DCHECK(fallback_allocation_index_ >= 0);
+      return address_;
+    }
+    size_t size() const {
+      SB_DCHECK(fallback_allocation_index_ >= 0);
+      return size_;
+    }
 
     bool operator<(const MemoryBlock& other) const {
+      SB_DCHECK(fallback_allocation_index_ >= 0);
+      SB_DCHECK(other.fallback_allocation_index_ >= 0);
+
+      if (fallback_allocation_index_ < other.fallback_allocation_index_) {
+        return true;
+      }
+      if (fallback_allocation_index_ > other.fallback_allocation_index_) {
+        return false;
+      }
       return address_ < other.address_;
     }
+
     // If the current block and |other| can be combined into a continuous memory
     // block, store the conmbined block in the current block and return true.
     // Otherwise return false.
@@ -92,9 +113,11 @@ class ReuseAllocatorBase : public Allocator {
                   MemoryBlock* free) const;
 
    private:
-    void* address_;
-    size_t size_;
-    size_t requested_size_;
+    // TODO: b/369245553 - Cobalt: Optimize memory usage for bookkeeping
+    // as there can be ~8000 or more allocations during playback.
+    int fallback_allocation_index_ = -1;
+    void* address_ = nullptr;
+    size_t size_ = 0;
   };
 
   // Freelist sorted by address.
