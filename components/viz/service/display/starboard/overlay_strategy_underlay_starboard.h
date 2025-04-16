@@ -63,6 +63,8 @@ class VIZ_SERVICE_EXPORT OverlayStrategyUnderlayStarboard
       OverlayProcessorInterface::OutputSurfaceOverlayPlane*
           output_surface_plane) override;
 
+  OverlayStrategy GetUMAEnum() const override;
+
   // For SbPlayer, OverlayStrategyUnderlayStarboard needs a valid mojo
   // interface to VideoGeometrySetter Service (shared by all instances of
   // OverlayStrategyUnderlayStarboard). This must be called before compositor

@@ -165,8 +165,6 @@ bool OverlayStrategyUnderlayStarboard::Attempt(
 
       OverlayProposedCandidate proposed_to_commit(it, candidate, this);
       CommitCandidate(proposed_to_commit, render_pass);
-
-      break;
     }
   }
 
@@ -204,6 +202,10 @@ void OverlayStrategyUnderlayStarboard::AdjustOutputSurfaceOverlay(
   if (output_surface_plane) {
     output_surface_plane->enable_blending = true;
   }
+}
+
+OverlayStrategy OverlayStrategyUnderlayStarboard::GetUMAEnum() const {
+  return OverlayStrategy::kUnderlay;
 }
 
 // static
