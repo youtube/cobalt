@@ -251,12 +251,6 @@ template("content_shell_apk_tmpl") {
     deps += [
       ":cobalt_shell_java",
       ":content_shell_apk_java",
-<<<<<<< HEAD
-      "//base:base_java_test_support",
-      "//components/crash/android:java",
-      "//components/crash/core/app:chrome_crashpad_handler_named_as_so",
-=======
->>>>>>> 6fd75ec1e15 (Remove crashpad dependency from Cobalt.apk (#5430))
       "//components/metrics:metrics_java",
       "//content/public/android:content_java",
       "//content/public/test/android:android_test_message_pump_support_java",
