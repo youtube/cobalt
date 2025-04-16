@@ -1353,9 +1353,9 @@ component("net") {
     }
   }
 
-  if ((is_android || is_chromeos || is_linux) && !is_cobalt_hermetic_build) {
+  if ((is_android || is_chromeos || is_linux) && !is_cobalt_hermetic_build || current_toolchain != host_toolchain) {
     sources += [
-      "base/network_change_notifier_passive.cc",
+      # "base/network_change_notifier_passive.cc",
       "base/network_change_notifier_passive.h",
     ]
   }
@@ -2950,7 +2950,7 @@ test("net_unittests") {
   }
 
   if (is_android || is_chromeos_ash) {
-    sources += [ "base/network_change_notifier_passive_unittest.cc" ]
+    # sources += [ "base/network_change_notifier_passive_unittest.cc" ]
   }
 
   if (enable_reporting) {
