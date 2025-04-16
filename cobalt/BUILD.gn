@@ -41,12 +41,14 @@ if (!is_android) {
     testonly = true
 
     sources = [
+      "base_dump_symbols.cc",
       "cobalt.cc",
       "cobalt_main_delegate.cc",
       "cobalt_main_delegate.h",
       "cobalt_switch_defaults.cc",
       "cobalt_switch_defaults.h",
       "media_dump_symbols.cc",
+      "net_dump_symbols.cc",
       "platform_event_source_starboard.cc",
       "platform_event_source_starboard.h",
     ]
