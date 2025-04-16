@@ -7,7 +7,6 @@
     "SbPlayerWriteSampleTests/SbPlayerWriteSampleTest.*",
     "VerticalVideoTests/VerticalVideoTest.*",
     "MaximumPlayerConfigurationExplorerTests*",
-    "SbPlayerTest*",
-    "PosixFileRead*"
+    "SbPlayerTest*"
   ]
 }
