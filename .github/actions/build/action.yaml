@@ -110,7 +110,9 @@ runs:
         run: |
           set -ex
           cd src
-          tools/licenses/licenses.py credits --gn-target cobalt:gn_all --gn-out-dir  out/${{ matrix.platform }}_${{ matrix.config }} > licenses_cobalt.txt
+          out_dir=out/${{ matrix.platform }}_${{ matrix.config }}
+          tools/licenses/licenses.py credits --gn-target cobalt:gn_all --gn-out-dir ${out_dir} \
+            > ${out_dir}/licenses_cobalt.txt
         shell: bash
       - name: Archive Android APKs
         if: startsWith(matrix.platform, 'android') && matrix.config == 'qa'
