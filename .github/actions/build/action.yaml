@@ -46,7 +46,7 @@ runs:
           git diff --name-only -r ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} > ${CHANGED_FILES_LIST}
         shell: bash
       - name: Calculate test targets
-        if: matrix.config == 'devel' && inputs.test_root_target != 'null'
+        if: matrix.config == 'devel' && (inputs.test_root_target != 'null' || inputs.upload_web_test_artifacts == 'true')
         id: calculate-test-targets
         env:
           CHANGED_FILES_LIST: changed_files.txt
