@@ -271,6 +271,9 @@ component("capture_lib") {
       "video/linux/video_capture_device_linux.h",
     ]
   }
+  if (is_cobalt_hermetic_build) {
+    sources += [ "video/linux/video_capture_device_factory_linux.h" ]
+  }
 
   if (is_cobalt_hermetic_build) {
     sources +=
