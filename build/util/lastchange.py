@@ -125,7 +125,6 @@ def FetchGitRevision(directory, commit_filter, start_commit="HEAD"):
 
   git_args = ['log', '-1', '--format=%H %ct']
   if commit_filter is not None:
-    git_args.append('-E')
     git_args.append('--grep=' + commit_filter)
 
   git_args.append(start_commit)
