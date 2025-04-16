@@ -115,7 +115,7 @@ void* DecoderBufferAllocator::Allocate(DemuxerStream::Type type,
   CHECK(p);
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-  if (starboard::common::Allocator::ExtraLogEnabled()) {
+  if (starboard::common::Allocator::ExtraLogLevel() >= 2) {
     ++pending_allocation_operations_count_;
     pending_allocation_operations_ << " a " << p << " " << type << " " << size
                                    << " " << alignment;
@@ -139,7 +139,7 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
   reuse_allocator_->Free(p);
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
-  if (starboard::common::Allocator::ExtraLogEnabled()) {
+  if (starboard::common::Allocator::ExtraLogLevel() >= 2) {
     ++pending_allocation_operations_count_;
     pending_allocation_operations_ << " f " << p;
     TryFlushAllocationLog_Locked();
@@ -152,7 +152,7 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
                 << " bytes of media buffer pool `on demand`.";
       // `reuse_allocator_->PrintAllocations()` will be called inside the dtor.
       reuse_allocator_.reset();
-    } else if (starboard::common::Allocator::ExtraLogEnabled()) {
+    } else if (starboard::common::Allocator::ExtraLogLevel() >= 2) {
       reuse_allocator_->PrintAllocations(true, 16);
     }
   }
