@@ -202,6 +202,8 @@ class VideoFrameImpl : public VideoFrame {
   }
 
   void Draw(int64_t release_time_in_nanoseconds) {
+    SB_LOG(INFO) << __func__ << " > index=" << dequeue_output_result_.index
+                 << ", release_time=" << (release_time_in_nanoseconds / 1000);
     SB_DCHECK(!released_);
     SB_DCHECK(!is_end_of_stream());
     released_ = true;
@@ -309,6 +311,8 @@ class VideoRenderAlgorithmTunneled : public VideoRenderAlgorithmBase {
 
 class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
  public:
+  Sink() { SB_LOG(INFO) << __func__ << ": KJ"; }
+
   bool Render() {
     SB_DCHECK(render_cb_);
 
@@ -330,6 +334,8 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
+    SB_LOG(INFO) << __func__ << ": timestamp=" << frame->timestamp();
+
     rendered_ = true;
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
@@ -887,6 +893,7 @@ void VideoDecoder::ProcessOutputBuffer(
     const DequeueOutputResult& dequeue_output_result) {
   SB_DCHECK(decoder_status_cb_);
   SB_DCHECK(dequeue_output_result.index >= 0);
+  SB_LOG(INFO) << __func__ << " > index=" << dequeue_output_result.index;
 
   bool is_end_of_stream =
       dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM;
@@ -1155,6 +1162,7 @@ void VideoDecoder::UpdateDecodeTargetSizeAndContentRegion_Locked() {
 }
 
 void VideoDecoder::SetPlaybackRate(double playback_rate) {
+  SB_LOG(INFO) << __func__ << " > playback_rate=" << playback_rate;
   playback_rate_ = playback_rate;
   if (media_decoder_) {
     media_decoder_->SetPlaybackRate(playback_rate);

@@ -204,6 +204,8 @@ void MediaDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
   }
 
   if (decoder_thread_ == 0) {
+    SB_LOG(INFO) << __func__ << " > Creating decoder thread: name="
+                 << GetDecoderName(media_type_);
     pthread_create(&decoder_thread_, nullptr,
                    &MediaDecoder::DecoderThreadEntryPoint, this);
     SB_DCHECK(decoder_thread_ != 0);
@@ -233,6 +235,7 @@ void MediaDecoder::WriteEndOfStream() {
 }
 
 void MediaDecoder::SetPlaybackRate(double playback_rate) {
+  SB_LOG(INFO) << __func__ << " > playback_rate=" << playback_rate;
   SB_DCHECK(media_type_ == kSbMediaTypeVideo);
   SB_DCHECK(media_codec_bridge_);
   media_codec_bridge_->SetPlaybackRate(playback_rate);
@@ -249,6 +252,8 @@ void* MediaDecoder::DecoderThreadEntryPoint(void* context) {
     ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityHigh);
   }
 
+  SB_LOG(INFO) << __func__ << " > Starting thread: name="
+               << GetDecoderName(decoder->media_type_);
   decoder->DecoderThreadFunc();
   return NULL;
 }

@@ -81,11 +81,14 @@ void VideoRenderAlgorithmImpl::Render(
   //
   // In the above example, this ensures advancement from frame timestamp 20
   // to frame timestamp 30 when the sample time is 19.
+  int popped_frames = 0;
   if (is_audio_playing && frames->size() > 1 &&
       frames->front()->timestamp() == last_frame_timestamp_ &&
       last_frame_timestamp_ - kMediaTimeThresholdUsec < media_time) {
+    popped_frames++;
     frames->pop_front();
   }
+  SB_LOG(INFO) << "popped_frames=" << popped_frames;
 
   // Favor displaying the frame for a little longer. This addresses the
   // situation where the audio timestamp query interval is a little longer

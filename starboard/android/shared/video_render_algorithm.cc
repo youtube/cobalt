@@ -67,6 +67,7 @@ void VideoRenderAlgorithm::Render(
     int64_t playback_time = media_time_provider->GetCurrentMediaTime(
         &is_audio_playing, &is_audio_eos_played, &is_underflow, &playback_rate);
     if (!is_audio_playing) {
+      SB_LOG(INFO) << __func__ << " < No audio is playing";
       break;
     }
     if (playback_rate != playback_rate_) {
@@ -87,6 +88,7 @@ void VideoRenderAlgorithm::Render(
         // Let the loop process the end of stream frame, if there is one.
         continue;
       } else {
+        SB_LOG(INFO) << __func__ << " < Audio EOS reached";
         break;
       }
     }
@@ -103,15 +105,22 @@ void VideoRenderAlgorithm::Render(
             playback_rate);
 
     early_us = (adjusted_release_time_ns - system_time_ns) / 1000;
+    SB_LOG(INFO) << __func__ << " > Calling draw_callba_cb: timestamp="
+                 << frames->front()->timestamp()
+                 << ", early_msec=" << (early_us / 1000)
+                 << ", playback_time=" << playback_time;
 
     if (early_us < kBufferTooLateThreshold) {
       frames->pop_front();
       ++dropped_frames_;
+      SB_LOG(INFO) << __func__ << " > Dropping frame";
     } else if (early_us < kBufferReadyThreshold) {
       auto status = draw_frame_cb(frames->front(), adjusted_release_time_ns);
       SB_DCHECK(status == VideoRendererSink::kReleased);
       frames->pop_front();
     } else {
+      SB_LOG(INFO) << " < It's too early to consume the frame: early_ms="
+                   << (early_us / 1000);
       break;
     }
   }

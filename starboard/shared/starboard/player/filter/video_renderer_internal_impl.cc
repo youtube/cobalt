@@ -103,9 +103,9 @@ void VideoRendererImpl::Initialize(const ErrorCB& error_cb,
 }
 
 void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
-  SB_LOG(INFO) << __func__
-               << " > KJ: # of input_buffers=" << input_buffers.size()
-               << ", timestamp=" << input_buffers[0]->timestamp();
+  // SB_LOG(INFO) << __func__ << " > timestamp=" <<
+  // input_buffers[0]->timestamp()
+  //             << ", input_size=" << input_buffers.size();
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(!input_buffers.empty());
   for (const auto& input_buffer : input_buffers) {
@@ -244,9 +244,34 @@ SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
   return decode_target;
 }
 
+std::string DecodeStatusName(VideoDecoder::Status status) {
+  switch (status) {
+    case VideoDecoder::kNeedMoreInput:
+      return "kNeedMoreInput";
+    case VideoDecoder::kBufferFull:
+      return "kBufferFull";
+    case VideoDecoder::kReleaseAllFrames:
+      return "kReleaseAllFrames";
+    default:
+      return "unknown";
+  }
+}
+
 void VideoRendererImpl::OnDecoderStatus(
     VideoDecoder::Status status,
     const scoped_refptr<VideoFrame>& frame) {
+  if (frame) {
+    if (frame->is_end_of_stream()) {
+      SB_LOG(INFO) << __func__
+                   << " > timestamp=(eos), status=" << DecodeStatusName(status);
+    } else {
+      SB_LOG(INFO) << __func__ << " > timestamp=" << frame->timestamp()
+                   << ", status=" << DecodeStatusName(status);
+    }
+  } else {
+    SB_LOG(INFO) << __func__
+                 << " > timestamp=(null), status=" << DecodeStatusName(status);
+  }
   if (status == VideoDecoder::kReleaseAllFrames) {
     ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
     ScopedLock scoped_lock_sink_frames(sink_frames_mutex_);
@@ -343,7 +368,20 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
   }
 
   size_t number_of_sink_frames = sink_frames_.size();
+
+  int sink_frames = number_of_sink_frames;
+  int64_t frame_ts = sink_frames > 0 ? sink_frames_.front()->timestamp() : 0;
+
   algorithm_->Render(media_time_provider_, &sink_frames_, draw_frame_cb);
+  if (number_of_sink_frames == 0) {
+    SB_LOG(INFO) << __func__ << ": Render() ran with zero frames";
+  } else {
+    int rendered_frames = number_of_sink_frames - sink_frames_.size();
+    SB_LOG(INFO) << __func__ << ": Render() ran: timestamp=" << frame_ts
+                 << ", input_count=" << sink_frames
+                 << ", consumed=" << rendered_frames;
+  }
+
   number_of_frames_.fetch_sub(
       static_cast<int32_t>(number_of_sink_frames - sink_frames_.size()));
   if (number_of_frames_.load() <= 1 && end_of_stream_decoded_.load() &&

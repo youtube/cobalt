@@ -22,6 +22,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/common/mutex.h"
+#include "starboard/common/time.h"
 
 namespace starboard {
 namespace android {
@@ -108,6 +109,17 @@ void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
 }
 
 void VideoFrameTracker::OnFrameRendered(int64_t frame_timestamp) {
+  static int64_t last_us = 0;
+  int64_t now_us = CurrentMonotonicTime();
+  if (last_us != 0) {
+    int64_t elapsed_us = now_us - last_us;
+    if (elapsed_us > 100'000) {
+      SB_LOG(WARNING) << __func__ << " > LARGE GAP=" << elapsed_us;
+    }
+  }
+  last_us = now_us;
+
+  SB_LOG(INFO) << __func__ << " > timestamp=" << frame_timestamp;
   ScopedLock lock(rendered_frames_mutex_);
   rendered_frames_on_decoder_thread_.push_back(frame_timestamp);
 }
