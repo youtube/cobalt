@@ -320,24 +320,28 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
     }
   }
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+
+  Frames decoder_frames;
   {
     ScopedLock scoped_lock_decoder_frames(decoder_frames_mutex_);
-    sink_frames_mutex_.Acquire();
-    for (auto decoder_frame : decoder_frames_) {
-      if (sink_frames_.empty()) {
-        sink_frames_.push_back(decoder_frame);
-        continue;
-      }
-      if (sink_frames_.back()->is_end_of_stream()) {
-        continue;
-      }
-      if (decoder_frame->is_end_of_stream() ||
-          decoder_frame->timestamp() > sink_frames_.back()->timestamp()) {
-        sink_frames_.push_back(decoder_frame);
-      }
-    }
-    decoder_frames_.clear();
+    decoder_frames.swap(decoder_frames_);
   }
+
+  ScopedLock scoped_lock_sink_frames(sink_frames_mutex_);
+  for (auto decoder_frame : decoder_frames) {
+    if (sink_frames_.empty()) {
+      sink_frames_.push_back(decoder_frame);
+      continue;
+    }
+    if (sink_frames_.back()->is_end_of_stream()) {
+      continue;
+    }
+    if (decoder_frame->is_end_of_stream() ||
+        decoder_frame->timestamp() > sink_frames_.back()->timestamp()) {
+      sink_frames_.push_back(decoder_frame);
+    }
+  }
+
   size_t number_of_sink_frames = sink_frames_.size();
   algorithm_->Render(media_time_provider_, &sink_frames_, draw_frame_cb);
   number_of_frames_.fetch_sub(
@@ -347,7 +351,6 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
     ended_cb_called_.store(true);
     Schedule(ended_cb_);
   }
-  sink_frames_mutex_.Release();
 
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   // Update this at last to ensure that the delay of Render() call isn't caused
