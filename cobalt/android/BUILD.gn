@@ -245,7 +245,6 @@ template("content_shell_apk_tmpl") {
     deps += [
       ":cobalt_shell_java",
       ":content_shell_apk_java",
-      "//components/crash/core/app:chrome_crashpad_handler_named_as_so",
       "//components/metrics:metrics_java",
       "//content/public/android:content_java",
       "//content/shell/android:content_shell_assets",
@@ -255,7 +254,6 @@ template("content_shell_apk_tmpl") {
       "//third_party/mesa_headers",
       "//ui/android:ui_java",
     ]
-    loadable_modules = [ "$root_out_dir/libchrome_crashpad_handler.so" ]
   }
 }
 
