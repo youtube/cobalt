@@ -19,11 +19,11 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
-#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
-#include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+
+class PrefService;
 
 namespace content {
 class BrowserMainParts;
@@ -31,6 +31,10 @@ class RenderFrameHost;
 class RenderProcessHost;
 class WebContents;
 }  // namespace content
+
+namespace metrics_services_manager {
+class MetricsServicesManager;
+}  // namespace metrics_services_manager
 
 namespace mojo {
 template <typename>
@@ -43,6 +47,7 @@ namespace media {
 class VideoGeometrySetterService;
 }  // namespace media
 
+class CobaltMetricsServicesManagerClient;
 class CobaltWebContentsObserver;
 
 // This class allows Cobalt to inject specific logic in the business of the

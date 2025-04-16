@@ -37,16 +37,18 @@
 
 namespace cobalt {
 
-CobaltBrowserMainParts::CobaltBrowserMainParts() = default;
+CobaltBrowserMainParts::CobaltBrowserMainParts(
+    std::unique_ptr<PrefService> experiment_config,
+    std::unique_ptr<PrefService> local_state,
+    std::unique_ptr<metrics_services_manager::MetricsServicesManager>
+        metrics_services_manager,
+    CobaltMetricsServicesManagerClient* metrics_services_manager_client)
+    : global_features_(std::move(experiment_config),
+                       std::move(local_state),
+                       std::move(metrics_services_manager),
+                       metrics_services_manager_client){};
 
 CobaltBrowserMainParts::~CobaltBrowserMainParts() = default;
-
-int CobaltBrowserMainParts::PreEarlyInitialization() {
-  global_features_ = std::make_unique<GlobalFeatures>(
-      std::move(experiment_config_), std::move(local_state_),
-      std::move(metrics_services_manager_), metrics_services_manager_client_);
-  return ShellBrowserMainParts::PreEarlyInitialization();
-}
 
 int CobaltBrowserMainParts::PreCreateThreads() {
   SetupMetrics();
@@ -58,16 +60,8 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
   return ShellBrowserMainParts::PreMainMessageLoopRun();
 }
 
-void CobaltBrowserMainParts::SetMetricsServices(
-    std::unique_ptr<metrics_services_manager::MetricsServicesManager> manager,
-    metrics_services_manager::MetricsServicesManagerClient* client) {
-  metrics_services_manager_ = std::move(manager);
-  metrics_services_manager_client_ =
-      static_cast<CobaltMetricsServicesManagerClient*>(client);
-}
-
 void CobaltBrowserMainParts::SetupMetrics() {
-  metrics::MetricsService* metrics = global_features_->metrics_service();
+  metrics::MetricsService* metrics = global_features_.metrics_service();
   metrics->InitializeMetricsRecordingState();
   DLOG(INFO) << "Cobalt Metrics Service initialized.";
 }
@@ -75,40 +69,8 @@ void CobaltBrowserMainParts::SetupMetrics() {
 void CobaltBrowserMainParts::StartMetricsRecording() {
   // This call kicks off the whole metric recording flow. It sets a timer and
   // periodically triggers a UMA payload to be handled by the logs uploader.
-  global_features_->GetMetricsServicesManager()->UpdateUploadPermissions(true);
+  global_features_.GetMetricsServicesManager()->UpdateUploadPermissions(true);
   DLOG(INFO) << "Metrics Service is now running/recording.";
-}
-
-metrics::MetricsService* CobaltBrowserMainParts::GetMetricsService() {
-  auto* metrics_services_manager = GetMetricsServicesManager();
-  if (metrics_services_manager) {
-    return metrics_services_manager->GetMetricsService();
-  }
-  return nullptr;
-}
-
-metrics_services_manager::MetricsServicesManager*
-CobaltBrowserMainParts::GetMetricsServicesManager() {
-  // TODO(b/372559349): Can I check for teardown here like Chrome does:
-  // https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/browser_process_impl.cc;l=796;drc=87c3217dc3fec0f441b68f33d339b7f3a707b11d.
-  if (!metrics_services_manager_) {
-    auto client = std::make_unique<CobaltMetricsServicesManagerClient>(
-        local_state_.get());
-    metrics_services_manager_ =
-        std::make_unique<metrics_services_manager::MetricsServicesManager>(
-            std::move(client));
-  }
-  return metrics_services_manager_.get();
-}
-
-void CobaltBrowserMainParts::set_experiment_config(
-    std::unique_ptr<PrefService> experiment_config) {
-  experiment_config_ = std::move(experiment_config);
-}
-
-void CobaltBrowserMainParts::set_local_state(
-    std::unique_ptr<PrefService> local_state) {
-  local_state_ = std::move(local_state);
 }
 
 #if BUILDFLAG(IS_ANDROIDTV)

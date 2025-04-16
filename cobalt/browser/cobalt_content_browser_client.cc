@@ -31,12 +31,14 @@
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
+#include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/in_memory_pref_store.h"
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -138,15 +140,14 @@ std::unique_ptr<content::BrowserMainParts>
 CobaltContentBrowserClient::CreateBrowserMainParts(
     bool /* is_integration_test */) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>();
+  // |experiment_config_|, |local_state_|, |metrics_services_manager_| are
+  // needed for feature list initialization before Cobalt browser main parts is
+  // initialized. Cobalt browser main part takes these variables to pass the
+  // ownership of these objects to its member variable |global_features_|.
+  auto browser_main_parts = std::make_unique<CobaltBrowserMainParts>(
+      std::move(experiment_config_), std::move(local_state_),
+      std::move(metrics_services_manager_), metrics_services_manager_client_);
   set_browser_main_parts(browser_main_parts.get());
-  // Passing ownership of metrics services manager and pref services to browser
-  // main parts, which then get passed to global feature since these features
-  // are scoped to the entire browser process.
-  browser_main_parts->SetMetricsServices(std::move(metrics_services_manager_),
-                                         metrics_services_manager_client_);
-  browser_main_parts->set_experiment_config(std::move(experiment_config_));
-  browser_main_parts->set_local_state(std::move(local_state_));
   return browser_main_parts;
 }
 
@@ -413,6 +414,7 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
 }
 
 void CobaltContentBrowserClient::CreateMetricsServices() {
+  DCHECK(local_state_) << "CreateLocalState() must have been called previously";
   auto client =
       std::make_unique<CobaltMetricsServicesManagerClient>(local_state_.get());
   metrics_services_manager_client_ = client.get();
