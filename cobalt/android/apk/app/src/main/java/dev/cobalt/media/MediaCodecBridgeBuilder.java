@@ -25,11 +25,11 @@ import android.media.MediaCrypto;
 import android.media.MediaFormat;
 import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
-import dev.cobalt.util.UsedByNative;
+import org.chromium.base.annotations.CalledByNative;
 
 class MediaCodecBridgeBuilder {
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public static MediaCodecBridge createAudioDecoder(
       long nativeMediaCodecBridge,
       String mime,

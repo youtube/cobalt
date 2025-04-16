@@ -21,6 +21,7 @@
 #include "starboard/common/string.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
+#include "cobalt/android/jni_headers/MediaCodecBridgeBuilder_jni.h"
 #include "cobalt/android/jni_headers/MediaCodecBridge_jni.h"
 
 namespace starboard {
@@ -199,11 +200,8 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     }
   }
 
-  // TODO(cobalt): remove all the JniEnvExt references when we can, after all
-  // JNI usages are migrated to jni_zero in this file.
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = AttachCurrentThread();
 
-  JNIEnv* env_jni = AttachCurrentThread();
   ScopedJavaLocalRef<jbyteArray> configuration_data;
   if (audio_stream_info.codec == kSbMediaAudioCodecOpus &&
       !audio_stream_info.audio_specific_config.empty()) {
@@ -211,19 +209,21 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
         ToJavaByteArray(env, audio_stream_info.audio_specific_config.data(),
                         audio_stream_info.audio_specific_config.size()));
   }
-  ScopedJavaLocalRef<jstring> j_mime(env_jni, env_jni->NewStringUTF(mime));
-  ScopedJavaLocalRef<jstring> j_decoder_name(
-      env_jni, env_jni->NewStringUTF(decoder_name.c_str()));
+
   std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
       new MediaCodecBridge(handler));
-  jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
-      "dev/cobalt/media/MediaCodecBridgeBuilder", "createAudioDecoder",
-      "(JLjava/lang/String;Ljava/lang/String;IILandroid/media/MediaCrypto;"
-      "[B)Ldev/cobalt/media/MediaCodecBridge;",
-      reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.obj(),
-      j_decoder_name.obj(), audio_stream_info.samples_per_second,
-      audio_stream_info.number_of_channels, j_media_crypto,
-      configuration_data.obj());
+  ScopedJavaLocalRef<jstring> j_mime(env, env->NewStringUTF(mime));
+  ScopedJavaLocalRef<jstring> j_decoder_name(
+      env, env->NewStringUTF(decoder_name.c_str()));
+  ScopedJavaLocalRef<jobject> j_media_crypto_local(
+      env, env->NewLocalRef(j_media_crypto));
+
+  ScopedJavaLocalRef<jobject> j_media_codec_bridge =
+      Java_MediaCodecBridgeBuilder_createAudioDecoder(
+          env, reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime,
+          j_decoder_name, audio_stream_info.samples_per_second,
+          audio_stream_info.number_of_channels, j_media_crypto_local,
+          configuration_data);
 
   if (!j_media_codec_bridge) {
     SB_LOG(ERROR) << "Failed to create codec bridge for "
@@ -231,8 +231,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     return std::unique_ptr<MediaCodecBridge>();
   }
 
-  j_media_codec_bridge = env->ConvertLocalRefToGlobalRef(j_media_codec_bridge);
-  native_media_codec_bridge->Initialize(j_media_codec_bridge);
+  native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
   return native_media_codec_bridge;
 }
 
@@ -320,12 +319,11 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     }
   }
 
-  JniEnvExt* env = JniEnvExt::Get();
+  JNIEnv* env = AttachCurrentThread();
 
-  JNIEnv* env_jni = AttachCurrentThread();
-  ScopedJavaLocalRef<jstring> j_mime(env_jni, env_jni->NewStringUTF(mime));
+  ScopedJavaLocalRef<jstring> j_mime(env, env->NewStringUTF(mime));
   ScopedJavaLocalRef<jstring> j_decoder_name(
-      env_jni, env_jni->NewStringUTF(decoder_name.c_str()));
+      env, env->NewStringUTF(decoder_name.c_str()));
 
   ScopedJavaLocalRef<jobject> j_color_info(nullptr);
   if (color_metadata) {
@@ -339,9 +337,8 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
         color_transfer != COLOR_VALUE_UNKNOWN &&
         color_range != COLOR_VALUE_UNKNOWN) {
       const auto& mastering_metadata = color_metadata->mastering_metadata;
-      JNIEnv* env_jni = base::android::AttachCurrentThread();
       j_color_info.Reset(Java_ColorInfo_Constructor(
-          env_jni, color_range, color_standard, color_transfer,
+          env, color_range, color_standard, color_transfer,
           mastering_metadata.primary_r_chromaticity_x,
           mastering_metadata.primary_r_chromaticity_y,
           mastering_metadata.primary_g_chromaticity_x,
@@ -357,38 +354,34 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
   }
 
   ScopedJavaLocalRef<jobject> j_create_media_codec_bridge_result(
-      Java_CreateMediaCodecBridgeResult_Constructor(env_jni));
+      Java_CreateMediaCodecBridgeResult_Constructor(env));
 
   std::unique_ptr<MediaCodecBridge> native_media_codec_bridge(
       new MediaCodecBridge(handler));
-  env->CallStaticVoidMethodOrAbort(
-      "dev/cobalt/media/MediaCodecBridge", "createVideoMediaCodecBridge",
-      "(JLjava/lang/String;Ljava/lang/String;IIIIILandroid/view/Surface;"
-      "Landroid/media/MediaCrypto;"
-      "Ldev/cobalt/media/MediaCodecBridge$ColorInfo;"
-      "II"
-      "Ldev/cobalt/media/MediaCodecBridge$CreateMediaCodecBridgeResult;)"
-      "V",
-      reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime.obj(),
-      j_decoder_name.obj(), width_hint, height_hint, fps,
-      max_width.value_or(-1), max_height.value_or(-1), j_surface,
-      j_media_crypto, j_color_info.obj(), tunnel_mode_audio_session_id,
-      max_video_input_size, j_create_media_codec_bridge_result.obj());
+  ScopedJavaLocalRef<jobject> j_surface_local(env, env->NewLocalRef(j_surface));
+  ScopedJavaLocalRef<jobject> j_media_crypto_local(
+      env, env->NewLocalRef(j_media_crypto));
 
-  jobject j_media_codec_bridge = env->CallObjectMethodOrAbort(
-      j_create_media_codec_bridge_result.obj(), "mediaCodecBridge",
-      "()Ldev/cobalt/media/MediaCodecBridge;");
+  Java_MediaCodecBridge_createVideoMediaCodecBridge(
+      env, reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime,
+      j_decoder_name, width_hint, height_hint, fps, max_width.value_or(-1),
+      max_height.value_or(-1), j_surface_local, j_media_crypto_local,
+      j_color_info, tunnel_mode_audio_session_id, max_video_input_size,
+      j_create_media_codec_bridge_result);
+
+  ScopedJavaLocalRef<jobject> j_media_codec_bridge(
+      Java_CreateMediaCodecBridgeResult_mediaCodecBridge(
+          env, j_create_media_codec_bridge_result));
 
   if (!j_media_codec_bridge) {
     ScopedJavaLocalRef<jstring> j_error_message(
         Java_CreateMediaCodecBridgeResult_errorMessage(
-            env_jni, j_create_media_codec_bridge_result));
-    *error_message = ConvertJavaStringToUTF8(env_jni, j_error_message);
+            env, j_create_media_codec_bridge_result));
+    *error_message = ConvertJavaStringToUTF8(env, j_error_message);
     return std::unique_ptr<MediaCodecBridge>();
   }
 
-  j_media_codec_bridge = env->ConvertLocalRefToGlobalRef(j_media_codec_bridge);
-  native_media_codec_bridge->Initialize(j_media_codec_bridge);
+  native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
   return native_media_codec_bridge;
 }
 
@@ -594,19 +587,15 @@ MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {
 void MediaCodecBridge::Initialize(jobject j_media_codec_bridge) {
   SB_DCHECK(j_media_codec_bridge);
 
-  JNIEnv* env_jni = AttachCurrentThread();
-  j_media_codec_bridge_.Reset(env_jni, j_media_codec_bridge);
+  JNIEnv* env = AttachCurrentThread();
+  j_media_codec_bridge_.Reset(env, j_media_codec_bridge);
 
-  // TODO: (cobalt b/390481510) Consolidate env variables when the rest of
-  // MediaCodecBridge is migrated.
-  JniEnvExt* env = JniEnvExt::Get();
-
-  jobject j_reused_get_output_format_result_raw = env->NewObjectOrAbort(
-      "dev/cobalt/media/MediaCodecBridge$GetOutputFormatResult", "()V");
-  SB_DCHECK(j_reused_get_output_format_result_raw);
+  ScopedJavaLocalRef<jobject> j_reused_get_output_format_result =
+      Java_GetOutputFormatResult_Constructor(env);
+  SB_DCHECK(j_reused_get_output_format_result);
 
   j_reused_get_output_format_result_.Reset(
-      env_jni, j_reused_get_output_format_result_raw);
+      env, j_reused_get_output_format_result.obj());
 }
 
 // static
