@@ -15,10 +15,10 @@
 #include "media/starboard/decoder_buffer_allocator.h"
 
 #include <algorithm>
-#include <vector>
 
 #include "base/logging.h"
 #include "media/base/video_codecs.h"
+#include "media/starboard/decoder_buffer_allocator_strategy.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/allocator.h"
 #include "starboard/common/log.h"
@@ -62,7 +62,7 @@ DecoderBufferAllocator::DecoderBufferAllocator(
   }
 
   base::AutoLock scoped_lock(mutex_);
-  EnsureReuseAllocatorIsCreated();
+  EnsureStrategyIsCreated();
   if (type_ == Type::kGlobal) {
     Allocator::Set(this);
   }
@@ -75,9 +75,9 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
 
   base::AutoLock scoped_lock(mutex_);
 
-  if (reuse_allocator_) {
-    DCHECK_EQ(reuse_allocator_->GetAllocated(), 0);
-    reuse_allocator_.reset();
+  if (strategy_) {
+    DCHECK_EQ(strategy_->GetAllocated(), 0);
+    strategy_.reset();
   }
 }
 
@@ -88,10 +88,10 @@ void DecoderBufferAllocator::Suspend() {
 
   base::AutoLock scoped_lock(mutex_);
 
-  if (reuse_allocator_ && reuse_allocator_->GetAllocated() == 0) {
-    LOG(INFO) << "Freed " << reuse_allocator_->GetCapacity()
+  if (strategy_ && strategy_->GetAllocated() == 0) {
+    LOG(INFO) << "Freed " << strategy_->GetCapacity()
               << " bytes of media buffer pool `on suspend`.";
-    reuse_allocator_.reset();
+    strategy_.reset();
   }
 }
 
@@ -101,7 +101,7 @@ void DecoderBufferAllocator::Resume() {
   }
 
   base::AutoLock scoped_lock(mutex_);
-  EnsureReuseAllocatorIsCreated();
+  EnsureStrategyIsCreated();
 }
 
 void* DecoderBufferAllocator::Allocate(DemuxerStream::Type type,
@@ -109,9 +109,9 @@ void* DecoderBufferAllocator::Allocate(DemuxerStream::Type type,
                                        size_t alignment) {
   base::AutoLock scoped_lock(mutex_);
 
-  EnsureReuseAllocatorIsCreated();
+  EnsureStrategyIsCreated();
 
-  void* p = reuse_allocator_->Allocate(size, alignment);
+  void* p = strategy_->Allocate(type, size, alignment);
   CHECK(p);
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
@@ -134,9 +134,10 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
 
   base::AutoLock scoped_lock(mutex_);
 
-  DCHECK(reuse_allocator_);
+  DCHECK(strategy_);
 
-  reuse_allocator_->Free(p);
+  // TODO: b/369245553 - Cobalt: Refactor to pass a valid stream type.
+  strategy_->Free(DemuxerStream::UNKNOWN, p);
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   if (starboard::common::Allocator::ExtraLogLevel() >= 2) {
@@ -146,15 +147,11 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
   }
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
-  if (reuse_allocator_->GetAllocated() == 0) {
-    if (is_memory_pool_allocated_on_demand_) {
-      LOG(INFO) << "Freed " << reuse_allocator_->GetCapacity()
-                << " bytes of media buffer pool `on demand`.";
-      // `reuse_allocator_->PrintAllocations()` will be called inside the dtor.
-      reuse_allocator_.reset();
-    } else if (starboard::common::Allocator::ExtraLogLevel() >= 2) {
-      reuse_allocator_->PrintAllocations(true, 16);
-    }
+  if (is_memory_pool_allocated_on_demand_ && strategy_->GetAllocated() == 0) {
+    LOG(INFO) << "Freed " << strategy_->GetCapacity()
+              << " bytes of media buffer pool `on demand`.";
+    // `strategy_->PrintAllocations()` will be called inside the dtor.
+    strategy_.reset();
   }
 }
 
@@ -197,33 +194,29 @@ int DecoderBufferAllocator::GetVideoBufferBudget(VideoCodec codec,
 
 size_t DecoderBufferAllocator::GetAllocatedMemory() const {
   base::AutoLock scoped_lock(mutex_);
-  return reuse_allocator_ ? reuse_allocator_->GetAllocated() : 0;
+  return strategy_ ? strategy_->GetAllocated() : 0;
 }
 
 size_t DecoderBufferAllocator::GetCurrentMemoryCapacity() const {
   base::AutoLock scoped_lock(mutex_);
-  return reuse_allocator_ ? reuse_allocator_->GetCapacity() : 0;
+  return strategy_ ? strategy_->GetCapacity() : 0;
 }
 
 size_t DecoderBufferAllocator::GetMaximumMemoryCapacity() const {
-  base::AutoLock scoped_lock(mutex_);
-
-  if (reuse_allocator_) {
-    return std::max<size_t>(reuse_allocator_->max_capacity(),
-                            max_buffer_capacity_);
-  }
-  return max_buffer_capacity_;
+  // Always returns 0, as we no longer cap the capacity since Cobalt 25.
+  //
+  // base::AutoLock scoped_lock(mutex_);
+  return 0;
 }
 
-void DecoderBufferAllocator::EnsureReuseAllocatorIsCreated() {
+void DecoderBufferAllocator::EnsureStrategyIsCreated() {
   mutex_.AssertAcquired();
-  if (reuse_allocator_) {
+  if (strategy_) {
     return;
   }
 
-  reuse_allocator_.reset(new BidirectionalFitReuseAllocator(
-      &fallback_allocator_, initial_capacity_, kSmallAllocationThreshold,
-      allocation_unit_, 0));
+  strategy_.reset(new BidirectionalFitDecoderBufferAllocatorStrategy(
+      initial_capacity_, allocation_unit_));
   LOG(INFO) << "Allocated " << initial_capacity_
             << " bytes for media buffer pool.";
 }
@@ -241,7 +234,7 @@ void DecoderBufferAllocator::TryFlushAllocationLog_Locked() {
   if ((allocation_operation_index_ + pending_allocation_operations_count_) %
               kMaxOperationsPerLog ==
           0 ||
-      reuse_allocator_->GetAllocated() == 0) {
+      strategy_->GetAllocated() == 0) {
     SB_LOG(INFO) << " Media Allocation Log: " << allocation_operation_index_
                  << pending_allocation_operations_.str();
 
