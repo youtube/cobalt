@@ -1550,6 +1550,12 @@ if (use_blink && !is_cronet_build) {
         "//third_party/blink/web_tests/flag-specific/",
       ]
     }
+
+    if (is_cobalt) {
+      data += [
+        "//third_party/blink/web_tests/wpt_internal/cobalt",
+      ]
+    }
   }
 
   script_test("blink_wpt_tests") {

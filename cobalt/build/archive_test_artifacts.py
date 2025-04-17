@@ -59,18 +59,17 @@ def create_archive(
     destination_dir: str,
     platform: str,
 ):
-  """Main logic. Collects runtime dependencies from the source directory for
-  each target."""
+  """Main logic. Collects runtime dependencies for each target."""
   # TODO(oxv): Move logic behind parameters instead of using platform.
   is_linux = platform.startswith('linux')
   is_android = platform.startswith('android')
 
   tar_root = '.' if is_android else out_dir
   combined_deps = set()
-  # TODO(oxv): Make output from build step instead.
   # Add test_targets.json to archive so that test runners know what to run.
-  combined_deps.add(
-      os.path.relpath(os.path.join(tar_root, 'test_targets.json')))
+  test_targets_json = os.path.join(tar_root, 'test_targets.json')
+  if os.path.exists(test_targets_json):
+    combined_deps.add(os.path.relpath(test_targets_json))
 
   for target in targets:
     target_path, target_name = target.split(':')
