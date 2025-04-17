@@ -31,7 +31,6 @@ import android.util.Size;
 import android.util.SizeF;
 import android.view.Display;
 import android.view.InputDevice;
-import android.view.accessibility.AccessibilityManager;
 import android.view.accessibility.CaptioningManager;
 import androidx.annotation.Nullable;
 import dev.cobalt.media.AudioOutputManager;
@@ -511,26 +510,6 @@ public class StarboardBridge {
   public boolean isMicrophoneMute() {
     AudioManager audioManager = (AudioManager) appContext.getSystemService(AUDIO_SERVICE);
     return audioManager.isMicrophoneMute();
-  }
-
-  // TODO: (cobalt b/372559388) remove or migrate JNI?
-  // Used in starboard/android/shared/accessibility_get_display_settings.cc
-  /**
-   * @return true if the user has enabled accessibility high contrast text in the operating system.
-   */
-  @SuppressWarnings("unused")
-  @UsedByNative
-  boolean isAccessibilityHighContrastTextEnabled() {
-    AccessibilityManager am =
-        (AccessibilityManager) appContext.getSystemService(Context.ACCESSIBILITY_SERVICE);
-
-    try {
-      Method m = AccessibilityManager.class.getDeclaredMethod("isHighTextContrastEnabled");
-
-      return m.invoke(am) == Boolean.TRUE;
-    } catch (ReflectiveOperationException ex) {
-      return false;
-    }
   }
 
   /** Returns string for kSbSystemPropertyUserAgentAuxField */
