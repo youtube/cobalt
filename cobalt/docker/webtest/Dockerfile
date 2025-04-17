@@ -4,18 +4,22 @@ FROM marketplace.gcr.io/google/debian12@${BASE_IMAGE_SHA}
 
 # Install any necessary dependencies
 RUN apt-get update && apt-get install -y \
+    curl \
+    python3-dev \
+    git \
+    xz-utils \
     jq \
     libasound2 \
-    libdbus-1-3 \
-    libegl1 \
-    libegl-mesa0 \
-    libgbm-dev \
-    libglapi-mesa \
-    libgles2-mesa \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libgles2-mesa-dev \
     libglib2.0-0 \
     libnss3 \
-    libxcomposite-dev \
+    libpangocairo-1.0-0 \
+    libxdamage1 \
+    libxkbcommon-x11-0 \
     xvfb \
+    x11-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # This locale satisfies SbSystemGetLocaleIdTest.
