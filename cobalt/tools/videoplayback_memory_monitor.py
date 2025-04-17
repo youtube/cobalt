@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 
+# Example usage:
+# python3 cobalt/tools/videoplayback_memory_monitor.py --url "https://youtube.com/tv/watch?absolute_experiments=9415422&v=1La4QzGeaaQ" --duration 30
+# will output a file cobalt_performance_data.csv
+# gnuplot -e "datafile='cobalt_performance_data.csv'; outfile='cobalt_performance_data_8k60.png'; cores=4; mem_total=3869" cobalt/tools/videoplayback_memory_graph.gp
+
 import subprocess
 import sys
 import time
