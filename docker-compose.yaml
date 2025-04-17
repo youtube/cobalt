@@ -15,3 +15,9 @@ services:
       cache_from:
         - ghcr.io/youtube/cobalt/unittest:latest
     image: ghcr.io/youtube/cobalt/unittest:latest
+  webtest:
+    build:
+      context: cobalt/docker/webtest
+      cache_from:
+        - ghcr.io/youtube/cobalt/webtest:latest
+    image: ghcr.io/youtube/cobalt/webtest:latest
