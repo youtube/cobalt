@@ -104,3 +104,7 @@ enable_linux_installer = false
 # Disable Mozilla/NSS cert store access
 # We use Chromium root store
 use_nss_certs = false
+
+# Override from components/nacl/features.gni
+# Disables Pepper API (PPAPI) plugin support.
+enable_ppapi = false
