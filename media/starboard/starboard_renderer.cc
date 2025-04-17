@@ -136,7 +136,7 @@ StarboardRenderer::~StarboardRenderer() {
   // that they won't access `player_bridge_` when it's being destroyed.
   decltype(player_bridge_) player_bridge;
   if (player_bridge_) {
-    base::AutoLock auto_lock(lock_);
+    DCHECK(task_runner_->RunsTasksInCurrentSequence());
     player_bridge = std::move(player_bridge_);
   }
   player_bridge.reset();
@@ -296,7 +296,7 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   audio_read_delayed_ = false;
 
   {
-    base::AutoLock auto_lock(lock_);
+    DCHECK(task_runner_->RunsTasksInCurrentSequence());
     seek_time_ = time;
   }
 
@@ -366,7 +366,7 @@ void StarboardRenderer::SetVolume(float volume) {
 // Note: Renderer::GetMediaTime() could be called on both main and media
 // threads.
 TimeDelta StarboardRenderer::GetMediaTime() {
-  base::AutoLock auto_lock(lock_);
+  DCHECK(task_runner_->RunsTasksInCurrentSequence());
 
   if (!player_bridge_) {
     StoreMediaTime(TimeDelta());
@@ -462,7 +462,7 @@ void StarboardRenderer::CreatePlayerBridge() {
   std::string error_message;
 
   {
-    base::AutoLock auto_lock(lock_);
+    DCHECK(task_runner_->RunsTasksInCurrentSequence());
     DCHECK(!player_bridge_);
 
     // In the unexpected case that CreatePlayerBridge() is called when a
@@ -548,7 +548,7 @@ void StarboardRenderer::UpdateDecoderConfig(DemuxerStream* stream) {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
 
-    base::AutoLock auto_lock(lock_);
+    DCHECK(task_runner_->RunsTasksInCurrentSequence());
     player_bridge_->UpdateVideoConfig(decoder_config, stream->mime_type());
 
     // TODO(b/375275033): Refine natural size change handling.
@@ -712,7 +712,7 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
                                       adjusted_write_duration_for_preroll) {
       TimeDelta time_ahead_of_playback;
       {
-        base::AutoLock auto_lock(lock_);
+        DCHECK(task_runner_->RunsTasksInCurrentSequence());
         TimeDelta time_since_last_update =
             Time::Now() - last_time_media_time_retrieved_;
         // The estimated time ahead of playback may be negative if no audio has
