@@ -202,6 +202,8 @@ class MEDIA_EXPORT DecoderBuffer
   const uint8_t* data() const {
     DCHECK(!end_of_stream());
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+    if (external_memory_)
+      return external_memory_->span().data();
     return data_;
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
     if (read_only_mapping_.IsValid())
@@ -266,7 +268,7 @@ class MEDIA_EXPORT DecoderBuffer
 
   // If there's no data in this buffer, it represents end of stream.
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  bool end_of_stream() const { return !data_; }
+  bool end_of_stream() const { return !external_memory_ && !data_; }
   void shrink_to(size_t size) {
     DCHECK_LE(size, size_);
     size_ = size;
