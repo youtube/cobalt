@@ -1872,6 +1872,15 @@ bool SourceBufferStream::UpdateVideoConfig(const VideoDecoderConfig& config,
   DVLOG(2) << "New video config - index: " << append_config_index_;
   video_configs_.resize(video_configs_.size() + 1);
   video_configs_[append_config_index_] = config;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // Dynamically increase |memory_limit_| when video resolution goes up.
+  memory_limit_ = std::max(
+      memory_limit_,
+      GetDemuxerStreamVideoMemoryLimit(Demuxer::DemuxerTypes::kChunkDemuxer,
+                                       &config));
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
   return true;
 }
 

@@ -11,6 +11,10 @@ import("//testing/test.gni")
 
 import("//third_party/inspector_protocol/inspector_protocol.gni")
 
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
+
 source_set("resource_format") {
   sources = [
     "resources/resource_format.h",

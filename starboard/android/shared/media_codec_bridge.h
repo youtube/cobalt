@@ -19,8 +19,6 @@
 #include <string>
 
 #include "base/android/scoped_java_ref.h"
-#include "starboard/android/shared/jni_env_ext.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/common/optional.h"
 #include "starboard/shared/starboard/media/media_util.h"

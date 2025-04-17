@@ -25,19 +25,8 @@ namespace accessibility {
 using starboard::android::shared::JniEnvExt;
 
 bool GetDisplaySettings(SbAccessibilityDisplaySettings* out_setting) {
-  if (!out_setting ||
-      !starboard::common::MemoryIsZero(
-          out_setting, sizeof(SbAccessibilityDisplaySettings))) {
-    return false;
-  }
-
-  JniEnvExt* env = JniEnvExt::Get();
-  out_setting->has_high_contrast_text_setting = true;
-  out_setting->is_high_contrast_text_enabled =
-      env->CallStarboardBooleanMethodOrAbort(
-          "isAccessibilityHighContrastTextEnabled", "()Z");
-
-  return true;
+  SB_NOTIMPLEMENTED();
+  return false;
 }
 
 }  // namespace accessibility

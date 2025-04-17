@@ -4264,7 +4264,7 @@ hooks = [
     'action': ['python3', 'src/build/util/lastchange.py',
                '-o', 'src/build/util/LASTCHANGE',
                # Cobalt addition, don't look for Change-Id in commits.
-               '--filter=^'
+               '--filter=\(#[1-9][0-9]*\)'
                ],
   },
   {
