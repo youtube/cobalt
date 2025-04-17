@@ -21,7 +21,11 @@ from telemetry.timeline import chrome_trace_config
 
 from telemetry.internal.backends.chrome_inspector import devtools_client_backend
 
+DEBUG = True
 
+
+# TODO(avvall): Remove these fake classes and
+#               add the real ones to enable tracing
 class Forwarder(object):
   _local_port = 9222
   _remote_port = 9223
@@ -33,7 +37,8 @@ class Forwarder(object):
 class FakeFactory(object):
 
   def Create(self, *args, **kwargs):
-    print(args, kwargs)
+    if DEBUG:
+      print(args, kwargs)
     logging.info('Create called')
     return Forwarder()
 
@@ -73,7 +78,8 @@ class FakeConn(object):
 
 
 def MonkeyPatchVersionNumber(self):
-  print('Monkey-patching GetChromeMajorNumber')
+  if DEBUG:
+    print('Monkey-patching GetChromeMajorNumber')
   resp = self.GetVersion()
   if 'Protocol-Version' in resp:
     major_number_match = re.search(r'Cobalt/(\d+)', resp['User-Agent'])
@@ -185,7 +191,8 @@ class PerfTesting():
   def RunTests(self):
     devs = list(device_utils.DeviceUtils.HealthyDevices())
     dev = devs[0]
-    print(f'{dev}')
+    if DEBUG:
+      print(f'{dev}')
     dev.adb.Forward(
         'tcp:9222',
         'localabstract:content_shell_devtools_remote',
@@ -196,7 +203,8 @@ class PerfTesting():
     splits = re.split(' +', lines[1])
     used = splits[2]
     free = splits[3]
-    print(f'used {used} free {free}')
+    if DEBUG:
+      print(f'used {used} free {free}')
 
     logcat_monitor = dev.GetLogcatMonitor(clear=True)
     logcat_monitor.Start()
@@ -204,9 +212,11 @@ class PerfTesting():
         r'starboard: Successfully retrieved Advertising ID')
 
     xtras = {
-        'commandLineArgs':
-            '--remote-allow-origins=*,\
-        --url="https://www.youtube.com/tv?automationRoutine=browseWatchRoutine"'
+        'commandLineArgs': [
+          '--remote-allow-origins=*',
+          '--url=\"https://www.youtube.com/tv?'\
+            + 'automationRoutine=browseWatchRoutine\"'
+        ]
     }
     if not self.is_cobalt:
       pkg = 'com.google.android.youtube.tv'
@@ -225,8 +235,9 @@ class PerfTesting():
         launch_intent,
         force_stop=True,
     )
-    print(launch_intent.am_args)
-    print('\n')
+    if DEBUG:
+      print(launch_intent.am_args)
+      print('\n')
 
     try:
       logcat_monitor.WaitFor(result_line_re, timeout=self.logcat_timeout)
@@ -239,26 +250,32 @@ class PerfTesting():
     # am start --esa commandLineArgs '--remote-allow-origins=*'
     # gets mangle-quoted for some reason
     response_object = requests.get('http://localhost:9222/json').json()
-    print(response_object)
-    print('\n')
+    if DEBUG:
+      print(response_object)
+      print('\n')
     page = [x for x in response_object if x['type'] == 'page'][0]
-    print(page)
-    print('\n')
+    if DEBUG:
+      print(page)
+      print('\n')
     tab_id = page['id']
-    print(f'go/cobaltrdt/{tab_id }')
-    print('\n')
+    if DEBUG:
+      print(f'go/cobaltrdt/{tab_id }')
+      print('\n')
     ws = page['webSocketDebuggerUrl']
-    print(ws)
-    print('\n')
+    if DEBUG:
+      print(ws)
+      print('\n')
     fakeconn = FakeConn()
     backend = devtools_client_backend.GetDevToolsBackEndIfReady(
         devtools_port=9222, app_backend=fakeconn, enable_tracing=False)
-    print(backend.GetVersion())
-    print(backend.GetUrl(tab_id))
-    sysinfo = backend.GetSystemInfo()
-    print(sysinfo.model_name, sysinfo.gpu.devices[0])
+    if DEBUG:
+      print(backend.GetVersion())
+      print(backend.GetUrl(tab_id))
+      sysinfo = backend.GetSystemInfo()
+      print(sysinfo.model_name, sysinfo.gpu.devices[0])
 
     out = dev.adb.Shell(f'dumpsys meminfo {pkg}')
-    print('Total RSS: ', self.GetMeminfoTotal(out, 'RSS'))
-    print('Total PSS: ', self.GetMeminfoTotal(out, 'PSS'))
-    print('SWAP PSS: ', self.GetMeminfoTotal(out, 'SWAP PSS'))
+    if DEBUG:
+      print('Total RSS: ', self.GetMeminfoTotal(out, 'RSS'))
+      print('Total PSS: ', self.GetMeminfoTotal(out, 'PSS'))
+      print('SWAP PSS: ', self.GetMeminfoTotal(out, 'SWAP PSS'))
