@@ -57,9 +57,6 @@ class ReuseAllocatorBase : public Allocator {
   bool TryFree(void* memory);
 
   size_t max_capacity() const { return max_capacity_; }
-  void IncreaseMaxCapacityIfNecessary(size_t max_capacity) {
-    max_capacity_ = std::max(max_capacity, max_capacity_);
-  }
 
  protected:
   class MemoryBlock {
@@ -156,12 +153,12 @@ class ReuseAllocatorBase : public Allocator {
 
   // We will allocate from the given allocator whenever we can't find pre-used
   // memory to allocate.
-  Allocator* fallback_allocator_;
-  size_t allocation_increment_;
+  Allocator* const fallback_allocator_;
+  const size_t allocation_increment_;
 
   // If non-zero, this is an upper bound on how large we will let the capacity
   // expand.
-  size_t max_capacity_;
+  const size_t max_capacity_;
 
   // A list of allocations made from the fallback allocator.  We keep track of
   // this so that we can free them all upon our destruction.
