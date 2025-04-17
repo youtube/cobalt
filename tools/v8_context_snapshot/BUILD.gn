@@ -87,7 +87,6 @@ if (use_v8_context_snapshot) {
         "//services/service_manager/public/cpp",
         "//third_party/blink/public:blink",
         "//v8",
-        "//net",
       ]
 
       configs += [
