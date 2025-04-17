@@ -362,10 +362,6 @@ vars = {
   # and whatever else without interference from each other.
   'ots_revision': '46bea9879127d0ff1c6601b078e2ce98e83fcd33',
   # Three lines of non-changing comments so that
-  # the commit queue can handle CLs rolling catapult
-  # and whatever else without interference from each other.
-  'catapult_revision': 'cae7ec667dee9f5c012b54ee9ffee94eb7beda14',
-  # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling CrossBench
   # and whatever else without interference from each other.
   'crossbench_revision': 'cdc33384bfa900dfec28e6cf7b5f22cd7ff2c92f',
