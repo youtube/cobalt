@@ -231,7 +231,7 @@ def _update_configuration_and_target(host, options):
         options.configuration = gn_configuration
         return
 
-    # Cobalt addition, set configuration if passed as command line arg.
+    # Cobalt: Use value from flag, code below assumes default Chromium targets.
     configuration = getattr(options, 'configuration', None)
     if configuration:
         options.configuration = configuration
