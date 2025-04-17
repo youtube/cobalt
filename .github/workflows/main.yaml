@@ -63,9 +63,10 @@ jobs:
         shell: bash
         run: |
           set -x
-          targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.targets  | join(" ")')
+          targets=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -cr '.targets')
           echo "targets=${targets}" >> $GITHUB_OUTPUT
-      - id: set-build-configs
+      - name: Set build configs
+        id: set-build-configs
         shell: bash
         run: |
           set -x
@@ -104,7 +105,7 @@ jobs:
           test_on_device=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_on_device')
           echo "test_on_device=${test_on_device}" >> $GITHUB_OUTPUT
       - name: Set web tests
-        id: set-run-web-tests
+        id: set-web-tests
         shell: bash
         run: |
           set -x
@@ -145,7 +146,7 @@ jobs:
       gtest_shards: ${{ steps.set-gtest-shards.outputs.gtest_shards }}
       test_on_host: ${{ steps.set-test-on-host.outputs.test_on_host }}
       test_on_device: ${{ steps.set-test-on-device.outputs.test_on_device }}
-      web_tests: ${{ steps.set-run-web-tests.outputs.web_tests }}
+      web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
@@ -199,14 +200,43 @@ jobs:
         with:
           docker_service: unittest
       - name: Set Docker Tag Output
-        id: set-docker-unittest-tag-output
+        id: set-docker-tag-output
         shell: bash
         run: |
           set -u
           echo $DOCKER_TAG
-          echo "docker_unittest_tag=$DOCKER_TAG" | head -n 1 >> $GITHUB_OUTPUT
+          echo "docker_tag=$DOCKER_TAG" | head -n 1 >> $GITHUB_OUTPUT
     outputs:
-      docker_unittest_tag: ${{ steps.set-docker-unittest-tag-output.outputs.docker_unittest_tag }}
+      docker_tag: ${{ steps.set-docker-tag-output.outputs.docker_tag }}
+
+  # Builds, tags, and pushes Cobalt web test image to ghr.
+  docker-webtest-image:
+    if: needs.initialize.outputs.web_tests == 'true'
+    needs: [initialize]
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Login to GitHub Docker Registry
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build docker image
+        id: build-docker-image
+        uses: ./.github/actions/docker
+        with:
+          docker_service: webtest
+      - name: Set Docker Tag Output
+        id: set-docker-tag-output
+        shell: bash
+        run: |
+          set -u
+          echo $DOCKER_TAG
+          echo "docker_tag=$DOCKER_TAG" | head -n 1 >> $GITHUB_OUTPUT
+    outputs:
+      docker_tag: ${{ steps.set-docker-tag-output.outputs.docker_tag }}
 
   build:
     needs: [initialize, docker-build-image]
@@ -254,6 +284,7 @@ jobs:
           test_targets_json_file: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
           upload_on_host_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_host == 'true' }}
           upload_on_device_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.test_on_device == 'true' }}
+          upload_web_test_artifacts: ${{ matrix.config == 'devel' && needs.initialize.outputs.web_tests == 'true' }}
 
   on-device-test:
     needs: [initialize, build]
@@ -310,7 +341,7 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
         shard: ${{ fromJson(needs.initialize.outputs.gtest_shards) }}
-    container: ${{ needs.docker-unittest-image.outputs.docker_unittest_tag }}
+    container: ${{ needs.docker-unittest-image.outputs.docker_tag }}
     env:
       TMPDIR: /__w/_temp
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
@@ -332,6 +363,37 @@ jobs:
           num_gtest_shards: ${{ needs.initialize.outputs.num_gtest_shards }}
     outputs:
       test_targets_json: ${{ steps.test-target-json.outputs.test_targets_json }}
+
+  web-tests:
+    needs: [initialize, docker-webtest-image, build]
+    if: needs.initialize.outputs.web_tests == 'true'
+    permissions: {}
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    name: ${{ matrix.name }}_web_tests
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
+        include: ${{ fromJson(needs.initialize.outputs.includes) }}
+        config: [devel]
+    container: ${{ needs.docker-webtest-image.outputs.docker_tag }}
+    env:
+      TMPDIR: /__w/_temp
+      TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: src
+      - name: Set Up Depot Tools
+        uses: ./src/.github/actions/depot_tools
+        with:
+          run_sync: false
+      - name: Run Web Tests
+        uses: ./src/.github/actions/web_tests
+        with:
+          test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
+          test_results_key: Blink Web Test Results ${{ github.workflow }}
 
   test-results:
     needs: [initialize, build, on-device-test, on-host-test]

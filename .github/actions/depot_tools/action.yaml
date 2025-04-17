@@ -1,5 +1,9 @@
 name: Set Up Depot Tools
 description: Sets up Depot Tools and initializes gclient.
+inputs:
+  run_sync:
+    description: "Whether or not to run gclient sync."
+    default: "true"
 runs:
   using: "composite"
   steps:
@@ -23,6 +27,7 @@ runs:
           gclient validate
         shell: bash
       - name: gclient sync
+        if: inputs.run_sync == 'true'
         run: gclient sync -v --shallow --no-history -r ${{ github.sha }}
         shell: bash
       - name: Disable Chromium client side build telemetry

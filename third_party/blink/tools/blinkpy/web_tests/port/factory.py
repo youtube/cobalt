@@ -811,6 +811,7 @@ def _update_configuration_and_target(host, options):
         return
 
     if getattr(options, 'configuration', None):
+        options.configuration = getattr(options, 'configuration', None)
         return
 
     if options.target in ('Debug', 'Debug_x64'):
