@@ -59,7 +59,7 @@ runs:
           set -x
 
           if [[ ${IS_WEB_TESTS} == "true" ]]; then
-            test_targets_json='[":blink_web_tests"]']]
+            test_targets_json='[":blink_web_tests"]'
             echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
             echo "test_targets_count=1" >> $GITHUB_OUTPUT
             exit 0
