@@ -15,9 +15,7 @@
 #ifndef MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
 #define MEDIA_STARBOARD_DECODER_BUFFER_ALLOCATOR_H_
 
-#include <atomic>
 #include <memory>
-#include <set>
 #include <sstream>
 
 #include "base/compiler_specific.h"
@@ -25,10 +23,7 @@
 #include "base/thread_annotations.h"
 #include "base/time/time.h"
 #include "media/base/decoder_buffer.h"
-#include "media/base/video_decoder_config.h"
-#include "media/starboard/bidirectional_fit_reuse_allocator.h"
 #include "media/starboard/decoder_buffer_memory_info.h"
-#include "media/starboard/starboard_memory_allocator.h"
 #include "starboard/media.h"
 
 namespace media {
@@ -40,6 +35,23 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
     kGlobal,  // The global allocator calls `Allocator::Set(this)` to register
               // itself in the ctor
     kLocal,
+  };
+
+  // Manages the details of the Allocate() and Free(), to allow
+  // DecoderBufferAllocator to adopt different strategies at runtime.
+  // The class isn't required to be thread safe, and relies on
+  // DecoderBufferAllocator to properly guard calls to its member functions with
+  // mutex.
+  class Strategy {
+   public:
+    virtual ~Strategy() {}
+    virtual void* Allocate(DemuxerStream::Type type,
+                           size_t size,
+                           size_t alignment) = 0;
+    virtual void Free(DemuxerStream::Type type, void* p) = 0;
+
+    virtual size_t GetCapacity() const = 0;
+    virtual size_t GetAllocated() const = 0;
   };
 
   explicit DecoderBufferAllocator(Type type = Type::kGlobal);
@@ -77,7 +89,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   size_t GetMaximumMemoryCapacity() const override LOCKS_EXCLUDED(mutex_);
 
  private:
-  void EnsureReuseAllocatorIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
+  void EnsureStrategyIsCreated() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   void TryFlushAllocationLog_Locked() EXCLUSIVE_LOCKS_REQUIRED(mutex_);
@@ -89,9 +101,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   const int allocation_unit_;
 
   mutable base::Lock mutex_;
-  StarboardMemoryAllocator fallback_allocator_ GUARDED_BY(mutex_);
-  std::unique_ptr<BidirectionalFitReuseAllocator> reuse_allocator_
-      GUARDED_BY(mutex_);
+  std::unique_ptr<Strategy> strategy_ GUARDED_BY(mutex_);
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   // The following variables are used for comprehensive logging of allocation
@@ -100,8 +110,6 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   int pending_allocation_operations_count_ GUARDED_BY(mutex_) = 0;
   int allocation_operation_index_ GUARDED_BY(mutex_) = 0;
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
-
-  int max_buffer_capacity_ GUARDED_BY(mutex_) = 0;
 };
 
 }  // namespace media

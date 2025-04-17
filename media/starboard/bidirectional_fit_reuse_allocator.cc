@@ -27,13 +27,10 @@ BidirectionalFitReuseAllocator::BidirectionalFitReuseAllocator(
     Allocator* fallback_allocator,
     std::size_t initial_capacity,
     std::size_t small_allocation_threshold,
-    std::size_t allocation_increment /*= 0*/,
-    std::size_t max_capacity /* =0 */
-    )
+    std::size_t allocation_increment)
     : ReuseAllocatorBase(fallback_allocator,
                          initial_capacity,
-                         allocation_increment,
-                         max_capacity),
+                         allocation_increment),
       small_allocation_threshold_(small_allocation_threshold) {}
 
 starboard::common::ReuseAllocatorBase::FreeBlockSet::iterator
