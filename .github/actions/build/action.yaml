@@ -2,7 +2,7 @@ name: Build Cobalt
 description: Builds Cobalt targets
 inputs:
   targets:
-    description: "List of ninja targets for Cobalt build."
+    description: "JSON list of ninja targets for Cobalt build."
     required: true
   test_root_target:
     description: "The root target from which to deduce what tests to run."
@@ -12,6 +12,9 @@ inputs:
     required: true
   upload_on_device_test_artifacts:
     description: "Indicates if on-device test artifacts should be uploaded."
+    required: true
+  upload_web_test_artifacts:
+    description: "Indicates if web test artifacts should be uploaded."
     required: true
   test_artifacts_key:
     description: "Artifact key used to store on-host test artifacts."
@@ -42,16 +45,25 @@ runs:
         shell: bash
       # TODO(b/382508397): Replace hardcoded list with dynamically generated one.
       - name: Calculate test targets
-        if: matrix.config == 'devel' && inputs.test_root_target != 'null'
+        if: matrix.config == 'devel' && (inputs.test_root_target != 'null' || inputs.upload_web_test_artifacts == 'true')
         id: calculate-test-targets
         env:
           CHANGED_FILES_JSON: ${{ steps.changed-files.outputs.changed_files_json }}
           ROOT_TARGET: ${{ inputs.test_root_target }}
+          IS_WEB_TESTS: ${{ inputs.upload_web_test_artifacts }}
           STATIC_TEST_TARGETS_JSON_FILE: cobalt/build/testing/targets/${{ matrix.platform }}/test_targets.json
           TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/test_targets.json
           DYN_TEST_TARGETS_JSON_FILE: out/${{ matrix.platform }}_${{ matrix.config }}/dyn_targets.json
         run: |
           set -x
+
+          if [[ ${IS_WEB_TESTS} == "true" ]]; then
+            test_targets_json='[":blink_web_tests"]'
+            echo "test_targets_json=${test_targets_json}" >> $GITHUB_OUTPUT
+            echo "test_targets_count=1" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           cd src
           gn desc out/${{ matrix.platform }}_${{ matrix.config }}/ "*" --format=json > gn_desc.json
           # Trim any warning gn printed before the json (all lines above the first curly brace).
@@ -97,10 +109,11 @@ runs:
         shell: bash
       - name: Ninja build
         env:
-          TARGETS: ${{ inputs.targets }}
+          TARGETS_JSON: ${{ inputs.targets }}
         run: |
           set -ex
           cd src
+          TARGETS=$(echo "${TARGETS_JSON}" | jq -cr '. | join(" ")')
           time autoninja -C out/${{ matrix.platform }}_${{ matrix.config }} ${TARGETS}
         shell: bash
       - name: Generate License File
@@ -126,8 +139,9 @@ runs:
         uses: ./src/.github/actions/upload_test_artifacts
         with:
           test_artifacts_key: ${{ inputs.test_artifacts_key }}
-          upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts }}
+          upload_on_host_test_artifacts: ${{ inputs.upload_on_host_test_artifacts == 'true' || inputs.upload_web_test_artifacts == 'true' }}
           upload_on_device_test_artifacts: ${{ inputs.upload_on_device_test_artifacts }}
+<<<<<<< HEAD
           test_targets_json_file: '${{ steps.calculate-test-targets.outputs.test_targets_json_file }}'
 outputs:
   test_targets_count:
@@ -139,3 +153,6 @@ outputs:
   test_targets_json_file:
     description: The generated test targets json file path.
     value: ${{ steps.calculate-test-targets.outputs.test_targets_json_file }}
+=======
+          test_targets_json: ${{ steps.calculate-test-targets.outputs.test_targets_json }}
+>>>>>>> 580ac4028c4 (Add the web-tests test job (#5267))
