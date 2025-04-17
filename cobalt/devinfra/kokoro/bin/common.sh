@@ -32,17 +32,6 @@ get_kokoro_env () {
 }
 
 
-get_project_name () {
-  if [[ "$(get_kokoro_env)" == "prod" ]]; then
-    echo "cobalt-kokoro"
-  elif [[ "$(get_kokoro_env)" == "qa" ]]; then
-    echo "cobalt-kokoro-qa"
-  else
-    exit 1
-  fi
-}
-
-
 configure_environment () {
   # Tell git the repo is safe.
   git config --global --add safe.directory "${WORKSPACE_COBALT}"
@@ -181,50 +170,6 @@ ninja_build () {
   else
     echo "No build_info.json file was generated."
   fi
-}
-
-
-upload_on_device_test_artifacts () {
-  if [[ $# -ne 4 ]]; then
-    echo "Error: Exactly 4 arguments required!"
-    exit 1
-  fi
-
-  local target_platform=$1
-  local platform=$2
-  local config=$3
-  local out_dir=$4
-
-  local artifact="${WORKSPACE_COBALT}/builder_tmp/${platform}_${config}/artifacts.tgz"
-  local gcs_archive_path="gs://$(get_project_name)-test-artifacts/${target_platform}/${KOKORO_GIT_COMMIT_src}/${KOKORO_ROOT_BUILD_ID}/${platform}_${config}/artifacts.tgz"
-
-  # TODO(b/294130306): Simple file filtering to reduce package sizes.
-  # Disable globbing to prevent the wildcard expansion in the patterns below.
-  set -f
-  # Include the test_infra patterns by default. This covers raspi and android.
-  # The flag can not be used with any of the platforms below as it replaces the
-  # patterns passed via the --pattern flag.
-  local pattern_arg="--test_infra"
-  if [[ "${platform}" == "ps5" ]]; then
-    pattern_arg='--patterns */ app_launcher/'
-  elif [[ "${platform}" == "xb1" ]]; then
-    pattern_arg='--patterns appx/ app_launcher/'
-  fi
-
-  time python3 "${WORKSPACE_COBALT}/tools/create_archive.py" \
-    ${pattern_arg} \
-    -s "${out_dir}" \
-    -d "${artifact}"
-  # Re-enable globbing.
-  set +f
-
-  init_gcloud
-
-  # Uploads test artifact.
-  time "${GSUTIL}" cp "${artifact}" "${gcs_archive_path}"
-
-  # Passes gcs path to on device test jobs.
-  echo -n "${gcs_archive_path}" > "${KOKORO_ARTIFACTS_DIR}/gcs_archive_path"
 }
 
 run_package_release_pipeline () {
