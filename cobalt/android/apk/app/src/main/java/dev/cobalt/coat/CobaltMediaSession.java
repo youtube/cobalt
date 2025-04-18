@@ -55,13 +55,11 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private WebContents mWebContents;
   private MediaSessionCompat mMediaSession;
   private MediaSessionObserver mMediaSessionObserver;
-  private boolean mIsControllable;
   private boolean mIsPaused;
   private MediaMetadata mMetadata;
   private Set<Integer> mActions;
   private MediaPosition mPosition;
   private Bitmap mArtworkImage;
-  private MediaSessionCompat.Callback mMediaSessionCallback;
 
   // TODO: decouple LifecycleCallback and CobaltMediaSession implementation.
   /** LifecycleCallback to notify listeners when |mediaSession| becomes active or inactive. */
@@ -79,7 +77,27 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
       Context context, Holder<Activity> activityHolder, ArtworkDownloader artworkDownloader) {
     mContext = context;
     mArtworkLoader = new ArtworkLoader(this, artworkDownloader);
-    mMediaSessionCallback =
+    createMediaSession();
+  }
+
+  public void setWebContents(WebContents webContents) {
+    if (mWebContents == webContents) {
+      return;
+    }
+    if (webContents == null) {
+      cleanupMediaSessionObserver();
+      mWebContents = null;
+      return;
+    }
+
+    mWebContents = webContents;
+    setupMediaSessionObserver(MediaSession.fromWebContents(mWebContents));
+  }
+
+  private void createMediaSession() {
+    mMediaSession = new MediaSessionCompat(mContext, TAG);
+    mMediaSession.setFlags(MEDIA_SESSION_FLAG_HANDLES_TRANSPORT_CONTROLS);
+    mMediaSession.setCallback(
         new MediaSessionCompat.Callback() {
           private void onReceiveAction(int action) {
             // To be cautious, explicitly run the code on main loop .
@@ -153,42 +171,8 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
             Log.i(TAG, "MediaSession action: STOP");
             onReceiveAction(MediaSessionAction.STOP);
           }
-        };
-  }
-
-  public void setWebContents(WebContents webContents) {
-    if (mWebContents == webContents) {
-      return;
-    }
-    if (webContents == null) {
-      cleanupMediaSessionObserver();
-      mWebContents = null;
-      return;
-    }
-
-    mWebContents = webContents;
-    setupMediaSessionObserver(MediaSession.fromWebContents(mWebContents));
-  }
-
-  private void activateMediaSession() {
-    mMediaSession = new MediaSessionCompat(mContext, TAG);
-    mMediaSession.setFlags(MEDIA_SESSION_FLAG_HANDLES_TRANSPORT_CONTROLS);
-    mMediaSession.setCallback(mMediaSessionCallback);
+        });
     mMediaSession.setActive(true);
-
-    Log.i(TAG, "MediaSession is activated.");
-  }
-
-  private void deactivateMediaSession() {
-    if (mMediaSession == null) {
-      return;
-    }
-
-    mMediaSession.setCallback(null);
-    mMediaSession.setActive(false);
-    mMediaSession = null;
-
-    Log.i(TAG, "MediaSession has been deactivated.");
   }
 
   private void cleanupMediaSessionObserver() {
@@ -218,7 +202,6 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
 
           @Override
           public void mediaSessionStateChanged(boolean isControllable, boolean isPaused) {
-            mIsControllable = isControllable;
             mIsPaused = isPaused;
             updatePlaybackState();
           }
@@ -255,15 +238,6 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   }
 
   private void updatePlaybackState() {
-    if (!mIsControllable) {
-      deactivateMediaSession();
-      return;
-    }
-
-    if (mIsControllable && mMediaSession == null) {
-      activateMediaSession();
-    }
-
     PlaybackStateCompat.Builder playbackStateBuilder =
         new PlaybackStateCompat.Builder().setActions(computeMediaSessionActions());
 
@@ -300,19 +274,11 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   }
 
   private void resetMetaData() {
-    if (mMediaSession == null) {
-      return;
-    }
-
     MediaMetadataCompat.Builder metadataBuilder = new MediaMetadataCompat.Builder();
     mMediaSession.setMetadata(metadataBuilder.build());
   }
 
   private void updateMetadata() {
-    if (mMediaSession == null) {
-      return;
-    }
-
     if (mMetadata == null) {
       resetMetaData();
       return;
