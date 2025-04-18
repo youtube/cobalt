@@ -183,45 +183,49 @@ bool HardwareVideoDecodingPreSandboxHookForV4L2(
 //   (at least).
 bool HardwareVideoDecodingPreSandboxHook(
     sandbox::policy::SandboxLinux::Options options) {
-  // using HardwareVideoDecodingProcessPolicy =
-  //     sandbox::policy::HardwareVideoDecodingProcessPolicy;
-  // using PolicyType =
-  //     sandbox::policy::HardwareVideoDecodingProcessPolicy::PolicyType;
-
-  // const PolicyType policy_type =
-  //     HardwareVideoDecodingProcessPolicy::ComputePolicyType(
-  //         options.use_amd_specific_policies);
-
-  // sandbox::syscall_broker::BrokerCommandSet command_set;
-  // std::vector<BrokerFilePermission> permissions;
-
-  // bool result_for_platform_policy;
-  // switch (policy_type) {
-  //   case PolicyType::kVaapiOnIntel:
-  //     result_for_platform_policy =
-  //         HardwareVideoDecodingPreSandboxHookForVaapiOnIntel(command_set,
-  //                                                            permissions);
-  //     break;
-  //   case PolicyType::kVaapiOnAMD:
-  //     result_for_platform_policy =
-  //         HardwareVideoDecodingPreSandboxHookForVaapiOnAMD(command_set,
-  //                                                          permissions);
-  //     break;
-  //   case PolicyType::kV4L2:
-  //     result_for_platform_policy =
-  //         HardwareVideoDecodingPreSandboxHookForV4L2(command_set, permissions);
-  //     break;
-  // }
-  // if (!result_for_platform_policy)
-  //   return false;
-
-  // // TODO(b/210759684): should this still be called if |command_set| or
-  // // |permissions| is empty?
-  // sandbox::policy::SandboxLinux::GetInstance()->StartBrokerProcess(
-  //     command_set, permissions, sandbox::policy::SandboxLinux::PreSandboxHook(),
-  //     options);
-  // return true;
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  NOTIMPLEMENTED();
   return false;
+#else
+  using HardwareVideoDecodingProcessPolicy =
+      sandbox::policy::HardwareVideoDecodingProcessPolicy;
+  using PolicyType =
+      sandbox::policy::HardwareVideoDecodingProcessPolicy::PolicyType;
+  const PolicyType policy_type =
+      HardwareVideoDecodingProcessPolicy::ComputePolicyType(
+          options.use_amd_specific_policies);
+
+
+  sandbox::syscall_broker::BrokerCommandSet command_set;
+  std::vector<BrokerFilePermission> permissions;
+
+  bool result_for_platform_policy;
+  switch (policy_type) {
+    case PolicyType::kVaapiOnIntel:
+      result_for_platform_policy =
+          HardwareVideoDecodingPreSandboxHookForVaapiOnIntel(command_set,
+                                                             permissions);
+      break;
+    case PolicyType::kVaapiOnAMD:
+      result_for_platform_policy =
+          HardwareVideoDecodingPreSandboxHookForVaapiOnAMD(command_set,
+                                                           permissions);
+      break;
+    case PolicyType::kV4L2:
+      result_for_platform_policy =
+          HardwareVideoDecodingPreSandboxHookForV4L2(command_set, permissions);
+      break;
+  }
+  if (!result_for_platform_policy)
+    return false;
+
+  // TODO(b/210759684): should this still be called if |command_set| or
+  // |permissions| is empty?
+  sandbox::policy::SandboxLinux::GetInstance()->StartBrokerProcess(
+      command_set, permissions, sandbox::policy::SandboxLinux::PreSandboxHook(),
+      options);
+  return true;
+#endif // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 }
 
 }  // namespace media
