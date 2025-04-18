@@ -20,6 +20,8 @@
 namespace sandbox {
 namespace policy {
 
+// TODO: b/b/411720612 - Cobalt: Make sandbox changes which can
+// be upstreamed to Chromium.
 // Note: This is a stub implementation. The actual implementation is in
 // sandbox_linux.cc which is not included in the cobalt build.
 // Stub symbols have been provided here to satisfy the linker and build cobalt
