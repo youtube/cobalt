@@ -127,6 +127,11 @@ class Intent(object):
           args.extend(['--ei', key, str(value)])
         elif isinstance(value, float):
           args.extend(['--ef', key, str(value)])
+        elif isinstance(value, list):
+          args.extend(['--esa', key, value])
+          print("\n\n\n")
+          print(args, "am_args")
+          print("\n\n\n")
         else:
           raise NotImplementedError(
               'Intent does not know how to pass %s extras' % type(value))

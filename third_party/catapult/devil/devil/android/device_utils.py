@@ -1740,7 +1740,20 @@ class DeviceUtils(object):
             ' args. If shell features are needed (pipes, wildcards, variables)'
             ' clients should explicitly set shell=True.')
     else:
-      cmd = ' '.join(cmd_helper.SingleQuote(s) for s in cmd)
+      tmp = ''
+      for s in cmd[:]:
+        if isinstance(s, str):
+          tmp += cmd_helper.SingleQuote(s) + ' '
+        elif isinstance(s, list):
+          tmp += "\""
+          for st in s:
+            tmp += cmd_helper.SingleQuote(st) + ', '
+          tmp = tmp[:len(tmp)-2]
+          tmp += "\""
+      cmd = tmp.strip()[:]
+      print("\n\n\n")
+      print(cmd, "RunshellCommand")
+      print("\n\n\n")
     if env:
       env = ' '.join(env_quote(k, v) for k, v in env.items())
       cmd = '%s %s' % (env, cmd)
@@ -1759,6 +1772,9 @@ class DeviceUtils(object):
       return output
 
     output = output.splitlines()
+    print("\n\n\n")
+    print(output, "RunShellCommand")
+    print("\n\n\n")
     if single_line:
       if not output:
         return ''
