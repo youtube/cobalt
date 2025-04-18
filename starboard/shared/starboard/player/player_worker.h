@@ -18,6 +18,7 @@
 #include <pthread.h>
 
 #include <atomic>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <string>
@@ -232,8 +233,8 @@ class PlayerWorker {
   int ticket_;
 
   SbPlayerState player_state_;
-  InputBuffers pending_audio_buffers_;
-  InputBuffers pending_video_buffers_;
+  std::deque<InputBuffers> pending_audio_buffers_;
+  std::deque<InputBuffers> pending_video_buffers_;
   JobQueue::JobToken write_pending_sample_job_token_;
 };
 
