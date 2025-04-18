@@ -108,17 +108,12 @@ int GetDefaultAudioFramesPerBuffer(AudioCodec codec) {
 
 StarboardRenderer::StarboardRenderer(
     scoped_refptr<base::SequencedTaskRunner> task_runner,
-    std::unique_ptr<MediaLog> media_log,
-    const base::UnguessableToken& overlay_plane_id,
-    TimeDelta audio_write_duration_local,
-    TimeDelta audio_write_duration_remote)
+    std::unique_ptr<MediaLog> media_log)
     : state_(STATE_UNINITIALIZED),
       task_runner_(std::move(task_runner)),
       media_log_(std::move(media_log)),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
-      cdm_context_(nullptr),
-      audio_write_duration_local_(audio_write_duration_local),
-      audio_write_duration_remote_(audio_write_duration_remote) {
+      cdm_context_(nullptr) {
   DCHECK(task_runner_);
   DCHECK(media_log_);
   DCHECK(set_bounds_helper_);
@@ -155,6 +150,10 @@ void StarboardRenderer::Initialize(MediaResource* media_resource,
   DCHECK(media_resource);
   DCHECK(client);
   DCHECK(init_cb);
+  // TODO(borongchen): DCHECK(config_) is valid
+  LOG(ERROR) << "Cobalt: " << __func__ << " " << config_.overlay_plane_id()
+             << " " << config_.audio_write_duration_local() << " "
+             << config_.audio_write_duration_remote();
 
   TRACE_EVENT0("media", "StarboardRenderer::Initialize");
 
@@ -424,6 +423,11 @@ void StarboardRenderer::OnVideoGeometryChange(const gfx::Rect& output_rect) {
                                 output_rect.width(), output_rect.height());
 }
 
+void StarboardRenderer::InitializeStarboardRenderer(
+    const StarboardRendererConfig& config) {
+  config_ = config;
+}
+
 void StarboardRenderer::CreatePlayerBridge() {
   DCHECK(task_runner_->RunsTasksInCurrentSequence());
   DCHECK(init_cb_);
@@ -495,8 +499,8 @@ void StarboardRenderer::CreatePlayerBridge() {
       // before the SbPlayer reaches `kSbPlayerStatePresenting`.
       audio_write_duration_for_preroll_ = audio_write_duration_ =
           HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
-              ? audio_write_duration_remote_
-              : audio_write_duration_local_;
+              ? config_.audio_write_duration_remote()
+              : config_.audio_write_duration_local();
       LOG(INFO) << "SbPlayerBridge created, with audio write duration at "
                 << audio_write_duration_for_preroll_;
     } else {
@@ -808,8 +812,8 @@ void StarboardRenderer::OnPlayerStatus(SbPlayerState state) {
                                       BUFFERING_CHANGE_REASON_UNKNOWN);
       audio_write_duration_for_preroll_ = audio_write_duration_ =
           HasRemoteAudioOutputs(player_bridge_->GetAudioConfigurations())
-              ? audio_write_duration_remote_
-              : audio_write_duration_local_;
+              ? config_.audio_write_duration_remote()
+              : config_.audio_write_duration_local();
       LOG(INFO) << "Audio write duration is " << audio_write_duration_;
       DCHECK(player_bridge_initialized_);
       break;

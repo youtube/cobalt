@@ -31,10 +31,7 @@ StarboardRendererWrapper::StarboardRendererWrapper(
       renderer_(std::make_unique<StarboardRenderer>(
           std::move(traits.task_runner),
           std::make_unique<MojoMediaLog>(std::move(traits.media_log_remote),
-                                         traits.task_runner),
-          traits.overlay_plane_id,
-          traits.audio_write_duration_local,
-          traits.audio_write_duration_remote)) {
+                                         traits.task_runner))) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -99,6 +96,15 @@ base::TimeDelta StarboardRendererWrapper::GetMediaTime() {
 RendererType StarboardRendererWrapper::GetRendererType() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return RendererType::kStarboard;
+}
+
+void StarboardRendererWrapper::OnInitializeStarboardRenderer(
+    const StarboardRendererConfig& config) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  // This is called in StarboardRendererClient before
+  // Initialize() to ensure the customized parameters
+  // are passed to StarboardRenderer via StarboardRendererConfig.
+  renderer_->InitializeStarboardRenderer(config);
 }
 
 void StarboardRendererWrapper::OnVideoGeometryChange(

@@ -31,6 +31,7 @@
 #include "media/base/pipeline_status.h"
 #include "media/base/renderer.h"
 #include "media/base/renderer_client.h"
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/starboard/sbplayer_bridge.h"
 #include "media/starboard/sbplayer_set_bounds_helper.h"
 #include "third_party/abseil-cpp/absl/types/optional.h"
@@ -47,10 +48,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
                                              private SbPlayerBridge::Host {
  public:
   StarboardRenderer(scoped_refptr<base::SequencedTaskRunner> task_runner,
-                    std::unique_ptr<MediaLog> media_log,
-                    const base::UnguessableToken& overlay_plane_id,
-                    TimeDelta audio_write_duration_local,
-                    TimeDelta audio_write_duration_remote);
+                    std::unique_ptr<MediaLog> media_log);
 
   // Disallow copy and assign.
   StarboardRenderer(const StarboardRenderer&) = delete;
@@ -101,6 +99,7 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
   void set_paint_video_hole_frame_callback(
       PaintVideoHoleFrameCallback paint_video_hole_frame_cb);
   void OnVideoGeometryChange(const gfx::Rect& output_rect);
+  void InitializeStarboardRenderer(const StarboardRendererConfig& config);
 
  private:
   enum State {
@@ -210,6 +209,8 @@ class MEDIA_EXPORT StarboardRenderer final : public Renderer,
 
   uint32_t last_video_frames_decoded_ = 0;
   uint32_t last_video_frames_dropped_ = 0;
+
+  StarboardRendererConfig config_;
 
   // Message to signal a capability changed error.
   // "MEDIA_ERR_CAPABILITY_CHANGED" must be in the error message to be

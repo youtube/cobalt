@@ -78,6 +78,10 @@ mojom("mojom") {
     ]
   }
 
+  if (is_cobalt && use_starboard_media) {
+    sources += [ "starboard/starboard_renderer_config.mojom" ]
+  }
+
   public_deps = [
     ":audio_data",
     ":encryption_pattern",
@@ -730,6 +734,23 @@ mojom("mojom") {
           "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.media:fuchsia.media_hlcpp",
           "//third_party/fuchsia-sdk/sdk/fidl/fuchsia.media.drm:fuchsia.media.drm_hlcpp",
         ]
+      },
+    ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    cpp_typemaps += [
+      {
+        types = [
+          {
+            mojom = "media.mojom.StarboardRendererConfig"
+            cpp = "::media::StarboardRendererConfig"
+          },
+        ]
+        traits_headers = [ "//media/base/starboard/starboard_renderer_config.h" ]
+        traits_private_headers = [ "starboard/starboard_renderer_config_mojom_traits.h" ]
+        traits_sources = [ "starboard/starboard_renderer_config_mojom_traits.cc" ]
+        traits_public_deps = [ "//base" ]
       },
     ]
   }

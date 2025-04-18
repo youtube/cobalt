@@ -141,11 +141,8 @@ class MediaServiceTest : public testing::Test {
                           bool expected_result) {
     base::RunLoop run_loop;
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-    base::UnguessableToken overlay_plane_id = base::UnguessableToken::Create();
     interface_factory_->CreateStarboardRenderer(
       media_log_.InitWithNewPipeAndPassRemote(),
-      overlay_plane_id, base::Microseconds(0),
-      base::Microseconds(0),
       renderer_.BindNewPipeAndPassReceiver(),
       renderer_extension_.BindNewPipeAndPassReceiver(),
       client_extension_.InitWithNewPipeAndPassRemote());

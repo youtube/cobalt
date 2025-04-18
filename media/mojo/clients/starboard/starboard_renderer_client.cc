@@ -36,6 +36,8 @@ StarboardRendererClient::StarboardRendererClient(
     VideoRendererSink* video_renderer_sink,
     mojo::PendingRemote<RendererExtension> pending_renderer_extension,
     mojo::PendingReceiver<ClientExtension> client_extension_receiver,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote,
     BindHostReceiverCallback bind_host_receiver_callback,
     GpuVideoAcceleratorFactories* gpu_factories)
     : media_task_runner_(media_task_runner),
@@ -46,6 +48,8 @@ StarboardRendererClient::StarboardRendererClient(
       pending_renderer_extension_(std::move(pending_renderer_extension)),
       pending_client_extension_receiver_(std::move(client_extension_receiver)),
       client_extension_receiver_(this),
+      audio_write_duration_local_(audio_write_duration_local),
+      audio_write_duration_remote_(audio_write_duration_remote),
       bind_host_receiver_callback_(bind_host_receiver_callback),
       gpu_factories_(gpu_factories) {
   DCHECK(media_task_runner_);
@@ -96,6 +100,12 @@ void StarboardRendererClient::InitAndBindMojoRenderer(
 
   renderer_extension_.set_disconnect_handler(base::BindOnce(
       &StarboardRendererClient::OnConnectionError, base::Unretained(this)));
+
+  // Initialize StarboardRendererWrapper via StarboardRendererConfig.
+  StarboardRendererConfig config(video_overlay_factory_->overlay_plane_id(),
+                                 audio_write_duration_local_,
+                                 audio_write_duration_remote_);
+  renderer_extension_->OnInitializeStarboardRenderer(config);
 
   // Generate |command_buffer_id|.
   mojom::CommandBufferIdPtr command_buffer_id;
