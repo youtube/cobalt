@@ -59,6 +59,7 @@
 #include "third_party/blink/public/platform/media/web_encrypted_media_client_impl.h"
 #include "third_party/blink/public/platform/media/web_media_player_builder.h"
 #include "third_party/blink/public/platform/platform.h"
+#include "third_party/blink/public/platform/web_media_player_client.h"
 #include "third_party/blink/public/platform/web_surface_layer_bridge.h"
 #include "third_party/blink/public/platform/web_video_frame_submitter.h"
 #include "third_party/blink/public/web/blink.h"
@@ -442,7 +443,7 @@ blink::WebMediaPlayer* MediaFactory::CreateMediaPlayer(
       render_frame_->GetRenderFrameMediaPlaybackOptions(),
       decoder_factory_.get(),
       std::make_unique<blink::RemotePlaybackClientWrapperImpl>(client),
-      &media_observer);
+      &media_observer, client->GetElementId());
 
 #if BUILDFLAG(ENABLE_MEDIA_REMOTING)
   DCHECK(media_observer);
@@ -546,7 +547,8 @@ MediaFactory::CreateRendererFactorySelector(
     const RenderFrameMediaPlaybackOptions& renderer_media_playback_options,
     media::DecoderFactory* decoder_factory,
     std::unique_ptr<media::RemotePlaybackClientWrapper> client_wrapper,
-    base::WeakPtr<media::MediaObserver>* out_media_observer) {
+    base::WeakPtr<media::MediaObserver>* out_media_observer,
+    int element_id) {
   using media::RendererType;
 
   RenderThreadImpl* render_thread = RenderThreadImpl::current();
@@ -570,7 +572,8 @@ MediaFactory::CreateRendererFactorySelector(
   auto factory = GetContentClient()->renderer()->GetBaseRendererFactory(
       render_frame_, media_log, decoder_factory,
       base::BindRepeating(&RenderThreadImpl::GetGpuFactories,
-                          base::Unretained(render_thread)));
+                          base::Unretained(render_thread)),
+      element_id);
   if (factory) {
     is_base_renderer_factory_set = true;
     factory_selector->AddBaseFactory(RendererType::kContentEmbedderDefined,
