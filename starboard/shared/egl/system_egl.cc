@@ -57,6 +57,15 @@ SbEglDisplay SbEglGetDisplay(SbEglNativeDisplayType display_id) {
   return eglGetDisplay((EGLNativeDisplayType)display_id);
 }
 
+SbEglDisplay SbEglGetPlatformDisplay(SbEglEnum platform,
+                                     void* native_display,
+                                     const SbEglAttrib* attrib_list) {
+  // TODO: Revisit adapter and add a provision to crash or handle cases
+  // where attrib_list contains pointers too large to be converted to EGLAttrib.
+  return eglGetPlatformDisplay(platform, native_display,
+                               reinterpret_cast<const EGLAttrib*>(attrib_list));
+}
+
 const SbEglInterface g_sb_egl_interface = {
     &eglChooseConfig,
     &SbEglCopyBuffers,
@@ -99,7 +108,11 @@ const SbEglInterface g_sb_egl_interface = {
     nullptr,  // eglGetSyncAttrib
     nullptr,  // eglCreateImage
     nullptr,  // eglDestroyImage
+#if BUILDFLAG(IS_ANDROID)
     nullptr,  // eglGetPlatformDisplay
+#else
+    &SbEglGetPlatformDisplay,
+#endif        // BUILDFLAG(IS_ANDROID)
     nullptr,  // eglCreatePlatformWindowSurface
     nullptr,  // eglCreatePlatformPixmapSurface
     nullptr,  // eglWaitSync
