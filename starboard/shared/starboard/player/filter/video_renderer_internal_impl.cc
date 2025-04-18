@@ -372,7 +372,8 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
   int sink_frames = number_of_sink_frames;
   int64_t frame_ts = sink_frames > 0 ? sink_frames_.front()->timestamp() : 0;
 
-  algorithm_->Render(media_time_provider_, &sink_frames_, draw_frame_cb);
+  algorithm_->Render(media_time_provider_, &sink_frames_, draw_frame_cb,
+                     /*is_priming=*/true);
   if (number_of_sink_frames == 0) {
     SB_LOG(INFO) << __func__ << ": Render() ran with zero frames";
   } else {

@@ -26,10 +26,13 @@ namespace shared {
 
 namespace {
 
-const int64_t kBufferTooLateThreshold = -32'000;  // -32ms
-const int64_t kBufferReadyThreshold = 50'000;     // 50ms
+constexpr int64_t kBufferTooLateThresholdUs = -32'000;  // -32ms
+constexpr int64_t kBufferReadyThresholdUs = 50'000;     // 50ms
+// At the beginning of the playback, including seek, audio and video timestamp
+// is off briefly. See b/186660620
+constexpr int64_t kBufferPrimingThreadholdUs = 100'000;  // 100 ms
 
-jlong GetSystemNanoTime() {
+int64_t GetSystemNanoTime() {
   timespec now;
   clock_gettime(CLOCK_MONOTONIC, &now);
   return now.tv_sec * 1000000000LL + now.tv_nsec;
@@ -44,10 +47,10 @@ VideoRenderAlgorithm::VideoRenderAlgorithm(VideoDecoder* video_decoder,
   video_decoder_->SetPlaybackRate(playback_rate_);
 }
 
-void VideoRenderAlgorithm::Render(
-    MediaTimeProvider* media_time_provider,
-    std::list<scoped_refptr<VideoFrame>>* frames,
-    VideoRendererSink::DrawFrameCB draw_frame_cb) {
+void VideoRenderAlgorithm::Render(MediaTimeProvider* media_time_provider,
+                                  std::list<scoped_refptr<VideoFrame>>* frames,
+                                  VideoRendererSink::DrawFrameCB draw_frame_cb,
+                                  bool is_priming) {
   SB_DCHECK(media_time_provider);
   SB_DCHECK(frames);
   SB_DCHECK(draw_frame_cb);
@@ -93,29 +96,35 @@ void VideoRenderAlgorithm::Render(
       }
     }
 
-    jlong early_us = (frames->front()->timestamp() - playback_time) /
-                     (playback_rate != 0 ? playback_rate : 1);
+    int64_t early_us = (frames->front()->timestamp() - playback_time) /
+                       (playback_rate != 0 ? playback_rate : 1);
 
-    auto system_time_ns = GetSystemNanoTime();
-    auto unadjusted_frame_release_time_ns = system_time_ns + (early_us * 1000);
+    int64_t system_time_ns = GetSystemNanoTime();
+    int64_t unadjusted_frame_release_time_ns =
+        system_time_ns + (early_us * 1000);
 
-    auto adjusted_release_time_ns =
+    int64_t adjusted_release_time_ns =
         video_frame_release_time_helper_.AdjustReleaseTime(
             frames->front()->timestamp(), unadjusted_frame_release_time_ns,
             playback_rate);
 
-    early_us = (adjusted_release_time_ns - system_time_ns) / 1000;
+    int64_t adjusted_early_us =
+        (adjusted_release_time_ns - system_time_ns) / 1000;
     SB_LOG(INFO) << __func__ << " > Calling draw_callba_cb: timestamp="
                  << frames->front()->timestamp()
                  << ", early_msec=" << (early_us / 1000)
-                 << ", playback_time=" << playback_time;
+                 << ", playback_time=" << playback_time
+                 << ", is_priming=" << std::boolalpha << is_priming;
+    const int64_t ready_threshold_us =
+        is_priming ? kBufferPrimingThreadholdUs : kBufferReadyThresholdUs;
 
-    if (early_us < kBufferTooLateThreshold) {
+    if (early_us < kBufferTooLateThresholdUs) {
       frames->pop_front();
       ++dropped_frames_;
       SB_LOG(INFO) << __func__ << " > Dropping frame";
-    } else if (early_us < kBufferReadyThreshold) {
+    } else if (early_us < ready_threshold_us) {
       auto status = draw_frame_cb(frames->front(), adjusted_release_time_ns);
+      // auto status = draw_frame_cb(frames->front(), 0);
       SB_DCHECK(status == VideoRendererSink::kReleased);
       frames->pop_front();
     } else {

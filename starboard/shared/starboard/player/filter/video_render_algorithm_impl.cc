@@ -36,7 +36,8 @@ VideoRenderAlgorithmImpl::VideoRenderAlgorithmImpl(
 void VideoRenderAlgorithmImpl::Render(
     MediaTimeProvider* media_time_provider,
     std::list<scoped_refptr<VideoFrame>>* frames,
-    VideoRendererSink::DrawFrameCB draw_frame_cb) {
+    VideoRendererSink::DrawFrameCB draw_frame_cb,
+    bool is_priming) {
   // TODO: Enable RenderWithCadence() on all platforms, and replace Render()
   //       with RenderWithCadence().
   if (get_refresh_rate_fn_) {
