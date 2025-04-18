@@ -41,11 +41,14 @@ if (!is_android) {
     testonly = true
 
     sources = [
+      "base_dump_symbols.cc",
       "cobalt.cc",
       "cobalt_main_delegate.cc",
       "cobalt_main_delegate.h",
       "cobalt_switch_defaults.cc",
       "cobalt_switch_defaults.h",
+      "media_dump_symbols.cc",
+      "net_dump_symbols.cc",
       "platform_event_source_starboard.cc",
       "platform_event_source_starboard.h",
     ]
@@ -64,6 +67,7 @@ if (!is_android) {
       "//content/shell:content_shell_app",
       "//content/shell:content_shell_lib",
       "//content/shell:pak",
+      "//media/capture:capture_lib",
       "//sandbox",
       "//starboard:starboard_group",
       "//third_party/blink/public/common",

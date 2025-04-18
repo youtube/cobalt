@@ -142,7 +142,9 @@ struct kernel_sigaction {
 long sys_rt_sigaction(int sig,
                       const struct kernel_sigaction* act,
                       struct kernel_sigaction* oact) {
-  return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
+  return 0;
+  // ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
+  // return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
 }
 
 // This function is intended to be used in between fork() and execve() and will

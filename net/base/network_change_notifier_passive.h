@@ -14,7 +14,7 @@
 #include "net/base/network_change_notifier.h"
 
 #if BUILDFLAG(IS_LINUX)
-#include "net/base/address_map_cache_linux.h"
+// #include "net/base/address_map_cache_linux.h"
 #endif
 
 namespace net {
@@ -53,7 +53,7 @@ class NET_EXPORT NetworkChangeNotifierPassive : public NetworkChangeNotifier {
       double* max_bandwidth_mbps,
       ConnectionType* connection_type) const override;
 #if BUILDFLAG(IS_LINUX)
-  AddressMapOwnerLinux* GetAddressMapOwnerInternal() override;
+  // AddressMapOwnerLinux* GetAddressMapOwnerInternal() override;
 #endif
 
  private:
@@ -75,7 +75,7 @@ class NET_EXPORT NetworkChangeNotifierPassive : public NetworkChangeNotifier {
   THREAD_CHECKER(thread_checker_);
 
 #if BUILDFLAG(IS_LINUX)
-  AddressMapCacheLinux address_map_cache_;
+  // AddressMapCacheLinux address_map_cache_;
 #endif
 
   mutable base::Lock lock_;
