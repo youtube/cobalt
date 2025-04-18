@@ -360,6 +360,15 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
                          1'000'000LL / samples_per_second;
   }
 #endif  // SB_LOG_MEDIA_TIME_STATS
+  auto BoolString = [](bool val) { return val ? "true" : "false"; };
+
+  SB_LOG(INFO) << __func__ << " > is_playing=" << BoolString(*is_playing)
+               << ", is_playing_on_sink_thread_="
+               << BoolString(is_playing_on_sink_thread_)
+               << ", is_eos_played=" << BoolString(*is_eos_played)
+               << ", is_underflow=" << BoolString(*is_underflow)
+               << ", playback_rate=" << *playback_rate
+               << ", media_time(msec)=" << (media_time / 1000);
 
   return media_time;
 }
