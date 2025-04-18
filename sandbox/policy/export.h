@@ -23,7 +23,7 @@
 #endif
 
 #else  // defined(COMPONENT_BUILD)
-#define SANDBOX_POLICY_EXPORT __attribute__((visibility("default")))
+#define SANDBOX_POLICY_EXPORT
 #endif
 
 #endif  // SANDBOX_POLICY_EXPORT_H_
