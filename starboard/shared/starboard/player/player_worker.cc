@@ -252,8 +252,8 @@ void PlayerWorker::DoSeek(int64_t seek_to_time, int ticket) {
     write_pending_sample_job_token_.ResetToInvalid();
   }
 
-  pending_audio_buffers_.clear();
-  pending_video_buffers_.clear();
+  pending_audio_buffers_ = {};
+  pending_video_buffers_ = {};
 
   HandlerResult result = handler_->Seek(seek_to_time, ticket);
   if (!result.success) {
@@ -289,13 +289,30 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
   }
 
   SbMediaType media_type = input_buffers.front()->sample_type();
+  bool write_pending_samples = false;
   if (media_type == kSbMediaTypeAudio) {
     SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
-    SB_DCHECK(pending_audio_buffers_.empty());
+    if (!pending_audio_buffers_.empty()) {
+      write_pending_samples = true;
+      pending_audio_buffers_.push_back(std::move(input_buffers));
+    }
   } else {
     SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
-    SB_DCHECK(pending_video_buffers_.empty());
+    if (!pending_video_buffers_.empty()) {
+      write_pending_samples = true;
+      pending_video_buffers_.push_back(std::move(input_buffers));
+    }
   }
+
+  if (write_pending_samples) {
+    if (!write_pending_sample_job_token_.is_valid()) {
+      write_pending_sample_job_token_ = job_queue_->Schedule(
+          std::bind(&PlayerWorker::DoWritePendingSamples, this),
+          kWritePendingSampleDelayUsec);
+    }
+    return;
+  }
+
   int samples_written;
   HandlerResult result =
       handler_->WriteSamples(input_buffers, &samples_written);
@@ -304,7 +321,12 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
     return;
   }
   if (samples_written == input_buffers.size()) {
-    UpdateDecoderState(media_type, kSbPlayerDecoderStateNeedsData);
+    SbMediaType sample_type = input_buffers.front()->sample_type();
+    if ((sample_type == kSbMediaTypeAudio && pending_audio_buffers_.empty()) ||
+        (sample_type == kSbMediaTypeVideo && pending_video_buffers_.empty())) {
+      UpdateDecoderState(media_type, kSbPlayerDecoderStateNeedsData);
+      return;
+    }
   } else {
     SB_DCHECK(samples_written >= 0 && samples_written <= input_buffers.size());
 
@@ -312,17 +334,19 @@ void PlayerWorker::DoWriteSamples(InputBuffers input_buffers) {
     input_buffers.erase(input_buffers.begin(),
                         input_buffers.begin() + samples_written);
     if (media_type == kSbMediaTypeAudio) {
-      pending_audio_buffers_ = std::move(input_buffers);
-      SB_DCHECK(pending_audio_buffers_.size() == num_of_pending_buffers);
+      pending_audio_buffers_.push_front(std::move(input_buffers));
+      SB_DCHECK(pending_audio_buffers_.back().size() == num_of_pending_buffers);
     } else {
-      pending_video_buffers_ = std::move(input_buffers);
-      SB_DCHECK(pending_video_buffers_.size() == num_of_pending_buffers);
+      pending_video_buffers_.push_front(std::move(input_buffers));
+      SB_DCHECK(pending_video_buffers_.back().size() == num_of_pending_buffers);
     }
-    if (!write_pending_sample_job_token_.is_valid()) {
-      write_pending_sample_job_token_ = job_queue_->Schedule(
-          std::bind(&PlayerWorker::DoWritePendingSamples, this),
-          kWritePendingSampleDelayUsec);
-    }
+  }
+
+  SB_DCHECK(!pending_audio_buffers_.empty() || !pending_video_buffers_.empty());
+  if (!write_pending_sample_job_token_.is_valid()) {
+    write_pending_sample_job_token_ = job_queue_->Schedule(
+        std::bind(&PlayerWorker::DoWritePendingSamples, this),
+        kWritePendingSampleDelayUsec);
   }
 }
 
@@ -332,12 +356,19 @@ void PlayerWorker::DoWritePendingSamples() {
   write_pending_sample_job_token_.ResetToInvalid();
 
   if (!pending_audio_buffers_.empty()) {
+    SB_LOG_IF(WARNING, pending_audio_buffers_.size() > 2)
+        << "THE PENDING AUDIO SIZE IS " << pending_audio_buffers_.size();
     SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
-    DoWriteSamples(std::move(pending_audio_buffers_));
+    InputBuffers input_buffers = std::move(pending_audio_buffers_.front());
+    pending_audio_buffers_.pop_front();
+    DoWriteSamples(input_buffers);
   }
   if (!pending_video_buffers_.empty()) {
+    SB_LOG_IF(WARNING, pending_video_buffers_.size() > 2)
+        << "THE PENDING VIDEO SIZE IS " << pending_video_buffers_.size();
     SB_DCHECK(video_codec_ != kSbMediaVideoCodecNone);
-    InputBuffers input_buffers = std::move(pending_video_buffers_);
+    InputBuffers input_buffers = std::move(pending_video_buffers_.front());
+    pending_video_buffers_.pop_front();
     DoWriteSamples(input_buffers);
   }
 }
