@@ -24,8 +24,12 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int bits_per_pixel) {
   constexpr int kMaxVideoBufferBudget = 300 * 1024 * 1024;
   auto get_overlaid_video_buffer_budget = []() {
-    int buffer_budget = starboard::android::shared::ApplicationAndroid::Get()
-                            ->GetOverlaidIntValue("max_video_buffer_budget");
+    int buffer_budget = 0;
+    auto application = starboard::android::shared::ApplicationAndroid::Get();
+    if (application) {
+      buffer_budget =
+          application->GetOverlaidIntValue("max_video_buffer_budget");
+    }
     if (buffer_budget == 0) {
       return kMaxVideoBufferBudget;
     }
