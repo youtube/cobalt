@@ -10,6 +10,9 @@ import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
 import "ui/gfx/geometry/mojom/geometry.mojom";
 
+[EnableIf=use_starboard_media]
+import "media/mojo/mojom/starboard/starboard_renderer_config.mojom";
+
 [EnableIf=is_win]
 import "ui/gfx/mojom/buffer_types.mojom";
 // Extension of the mojo::RendererClient communication layer for HLS and Android
@@ -150,6 +153,9 @@ interface MediaFoundationRendererExtension {
 // as StarboardRendererWrapper to allow StarboardRendererClient to
 // post tasks on StarboardRendererWrapper on gpu thread.
 interface StarboardRendererExtension {
+  // Initialize StarboardRenderer with customized config.
+  OnInitializeStarboardRenderer(StarboardRendererConfig config);
+
   // Subscribe to video geometry changes from
   // cobalt::media::mojom::VideoGeometryChangeSubscriber
   OnVideoGeometryChange(gfx.mojom.Rect rect);

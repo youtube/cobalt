@@ -18,6 +18,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "media/base/pipeline_status.h"
@@ -57,6 +58,8 @@ class MEDIA_EXPORT StarboardRendererClient
       VideoRendererSink* video_renderer_sink,
       mojo::PendingRemote<RendererExtension> pending_renderer_extension,
       mojo::PendingReceiver<ClientExtension> client_extension_receiver,
+      base::TimeDelta audio_write_duration_local_,
+      base::TimeDelta audio_write_duration_remote_,
       BindHostReceiverCallback bind_host_receiver_callback,
       GpuVideoAcceleratorFactories* gpu_factories);
 
@@ -103,6 +106,8 @@ class MEDIA_EXPORT StarboardRendererClient
   mojo::PendingRemote<RendererExtension> pending_renderer_extension_;
   mojo::PendingReceiver<ClientExtension> pending_client_extension_receiver_;
   mojo::Receiver<ClientExtension> client_extension_receiver_;
+  base::TimeDelta audio_write_duration_local_;
+  base::TimeDelta audio_write_duration_remote_;
   const BindHostReceiverCallback bind_host_receiver_callback_;
   raw_ptr<GpuVideoAcceleratorFactories> gpu_factories_ = nullptr;
 

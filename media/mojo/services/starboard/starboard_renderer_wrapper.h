@@ -20,6 +20,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "media/base/renderer.h"
+#include "media/base/starboard/starboard_renderer_config.h"
 #include "media/mojo/mojom/renderer_extensions.mojom.h"
 #include "media/mojo/services/gpu_mojo_media_client.h"
 #include "media/starboard/starboard_renderer.h"
@@ -69,6 +70,8 @@ class StarboardRendererWrapper final
   RendererType GetRendererType() override;
 
   // mojom::StarboardRendererExtension implementation.
+  void OnInitializeStarboardRenderer(
+      const StarboardRendererConfig& config) override;
   void OnVideoGeometryChange(const gfx::Rect& output_rect) override;
   void OnGpuChannelTokenReady(
       mojom::CommandBufferIdPtr command_buffer_id) override;
