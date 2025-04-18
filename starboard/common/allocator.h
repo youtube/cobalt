@@ -42,7 +42,7 @@ class Allocator {
   // parameter.
   static constexpr bool ExtraLogEnabled() {
     // Set this to true to enable extra logging in this class and its users.
-    return false;
+    return true;
   }
 
   // Allocates a range of memory of the given size, without any alignment

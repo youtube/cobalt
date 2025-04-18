@@ -53,6 +53,11 @@ DecoderBufferAllocator::DecoderBufferAllocator(
   DCHECK_GE(initial_capacity_, 0);
   DCHECK_GE(allocation_unit_, 0);
 
+  LOG(INFO)
+      << "YO THOR! DecoderBufferAllocator CTOR! is_mem_pool_alloc_on_demand:"
+      << (is_memory_pool_allocated_on_demand ? "true" : "false")
+      << " INIT:" << initial_capacity << " ALLOC UNIT:" << allocation_unit;
+
   if (is_memory_pool_allocated_on_demand_) {
     LOG(INFO) << "Allocated media buffer pool on demand.";
     if (type_ == Type::kGlobal) {
@@ -85,6 +90,8 @@ void DecoderBufferAllocator::Suspend() {
   if (is_memory_pool_allocated_on_demand_) {
     return;
   }
+  LOG(INFO) << "YO THOR - SUSPEND. HAZ ALLOCATED:"
+            << reuse_allocator_->GetAllocated();
 
   base::AutoLock scoped_lock(mutex_);
 
@@ -242,8 +249,14 @@ void DecoderBufferAllocator::TryFlushAllocationLog_Locked() {
               kMaxOperationsPerLog ==
           0 ||
       reuse_allocator_->GetAllocated() == 0) {
-    SB_LOG(INFO) << " Media Allocation Log: " << allocation_operation_index_
-                 << pending_allocation_operations_.str();
+    // SB_LOG(INFO) << "THOR Media Allocation Log: " <<
+    // allocation_operation_index_
+    //              << pending_allocation_operations_.str();
+
+    SB_LOG(INFO) << "YO THOR ALLOC:" << reuse_allocator_->GetAllocated()
+                 << " CURCAP:" << reuse_allocator_->GetCapacity() << " MAX CAP:"
+                 << std::max<size_t>(reuse_allocator_->max_capacity(),
+                                     max_buffer_capacity_);
 
     allocation_operation_index_ += pending_allocation_operations_count_;
     pending_allocation_operations_count_ = 0;
