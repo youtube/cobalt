@@ -58,6 +58,20 @@
 #define EGL_WIDTH SB_EGL_WIDTH
 #define EGL_WINDOW_BIT SB_EGL_WINDOW_BIT
 
+#ifndef EGL_ANGLE_platform_angle
+#define EGL_ANGLE_platform_angle 1
+#define EGL_PLATFORM_ANGLE_ANGLE 0x3202
+#define EGL_PLATFORM_ANGLE_TYPE_ANGLE 0x3203
+#define EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE 0x3209
+#define EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE 0x348E
+#endif /* EGL_ANGLE_platform_angle */
+
+#ifndef EGL_ANGLE_platform_angle_opengl
+#define EGL_ANGLE_platform_angle_opengl 1
+#define EGL_PLATFORM_ANGLE_TYPE_OPENGL_ANGLE 0x320D
+#define EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE 0x320E
+#endif /* EGL_ANGLE_platform_angle_opengl */
+
 #define EGL_CALL(x)                                          \
   do {                                                       \
     EGL_CALL_PREFIX x;                                       \
@@ -158,7 +172,20 @@ void FakeGraphicsContextProvider::InitializeWindow() {
 }
 
 void FakeGraphicsContextProvider::InitializeEGL() {
+  std::vector<SbEglAttrib> display_attribs = {
+      EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE,
+      EGL_PLATFORM_ANGLE_DEVICE_TYPE_EGL_ANGLE, EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+      EGL_PLATFORM_ANGLE_TYPE_OPENGLES_ANGLE,
+      EGL_NONE  // Terminate the attribute list
+  };
+#if BUILDFLAG(IS_ANDROID)
   display_ = EGL_CALL_SIMPLE(eglGetDisplay(EGL_DEFAULT_DISPLAY));
+#else
+  display_ = EGL_CALL_SIMPLE(eglGetPlatformDisplay(
+      EGL_PLATFORM_ANGLE_ANGLE, reinterpret_cast<void*>(EGL_DEFAULT_DISPLAY),
+      display_attribs.data()));
+#endif  // BUILDFLAG(IS_ANDROID)
+
   SB_DCHECK(EGL_SUCCESS == EGL_CALL_SIMPLE(eglGetError()));
   SB_CHECK(EGL_NO_DISPLAY != display_);
 
