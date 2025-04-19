@@ -3170,10 +3170,15 @@ double HTMLMediaElement::EffectiveMediaVolume() const {
   return volume_;
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+static const base::TimeDelta kMaxTimeupdateEventFrequency =
+    base::Milliseconds(200);
+#else
 // The spec says to fire periodic timeupdate events (those sent while playing)
 // every "15 to 250ms", we choose the slowest frequency
 static const base::TimeDelta kMaxTimeupdateEventFrequency =
     base::Milliseconds(250);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 void HTMLMediaElement::StartPlaybackProgressTimer() {
   if (playback_progress_timer_.IsActive())
