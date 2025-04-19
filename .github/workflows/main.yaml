@@ -41,8 +41,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Cache CI Essentials
-        uses: actions/cache/save@v4
+        uses: actions/upload-artifact@v4
         with:
+          name: ci-essentials-${{ inputs.platform }}
+          retention-days: 1
           path: |
             .github
             cobalt/testing/filters
@@ -50,7 +52,6 @@ jobs:
             cobalt/tools/requirements* |
             cobalt/docker
             docker-compose.yml
-          key: ci-essentials-${{ inputs.platform }}-${{ github.sha }}
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
         continue-on-error: true  # Ignore this step if we cannot remove the label.
@@ -168,13 +169,9 @@ jobs:
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
     - name: Cache CI Essentials
-      uses: actions/cache/restore@v4
+      uses: actions/download-artifact@v4
       with:
-        path: |
-          .github
-          cobalt/docker
-          docker-compose.yml
-        key: ci-essentials-${{ inputs.platform }}-${{ github.sha }}
+        name: ci-essentials-${{ inputs.platform }}
     # Handle GitHub registry used for everything other than pull requests off forked repos.
     - name: Login to GitHub Docker Registry
       uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
@@ -204,13 +201,9 @@ jobs:
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Cache CI Essentials
-        uses: actions/cache/restore@v4
+        uses: actions/download-artifact@v4
         with:
-          path: |
-            .github
-            cobalt/docker
-            docker-compose.yml
-          key: ci-essentials-${{ inputs.platform }}-${{ github.sha }}
+          name: ci-essentials-${{ inputs.platform }}
       - name: Login to GitHub Docker Registry
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
@@ -239,13 +232,9 @@ jobs:
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
       - name: Cache CI Essentials
-        uses: actions/cache/restore@v4
+        uses: actions/download-artifact@v4
         with:
-          path: |
-            .github
-            cobalt/docker
-            docker-compose.yml
-          key: ci-essentials-${{ inputs.platform }}-${{ github.sha }}
+          name: ci-essentials-${{ inputs.platform }}
       - name: Login to GitHub Docker Registry
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
@@ -338,14 +327,9 @@ jobs:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
       - name: Cache CI Essentials
-        uses: actions/cache/restore@v4
+        uses: actions/download-artifact@v4
         with:
-          path: |
-            .github
-            cobalt/testing/filters
-            cobalt/tools/on_device*
-            cobalt/tools/requirements*
-          key: ci-essentials-${{ inputs.platform }}-${{ github.sha }}
+          name: ci-essentials-${{ inputs.platform }}
       - name: Parse Test Target JSON
         id: test-target-json
         uses: ./.github/actions/test_targets_json
@@ -380,12 +364,9 @@ jobs:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
     steps:
       - name: Cache CI Essentials
-        uses: actions/cache/restore@v4
+        uses: actions/download-artifact@v4
         with:
-          path: |
-            .github
-            cobalt/testing/filters
-          key: ci-essentials-${{ inputs.platform }}-${{ github.sha }}
+          name: ci-essentials-${{ inputs.platform }}
       - name: Parse Test Target JSON
         id: test-target-json
         uses: ./.github/actions/test_targets_json
@@ -450,12 +431,9 @@ jobs:
         test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json) }}
     steps:
       - name: Cache CI Essentials
-        uses: actions/cache/restore@v4
+        uses: actions/download-artifact@v4
         with:
-          path: |
-            .github
-            cobalt/testing/filters
-          key: ci-essentials-${{ inputs.platform }}-${{ github.sha }}
+          name: ci-essentials-${{ inputs.platform }}
       - name: Extract Test Target Name
         id: extract-target-name
         env:
