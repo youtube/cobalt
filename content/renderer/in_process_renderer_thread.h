@@ -34,6 +34,7 @@ class InProcessRendererThread : public base::Thread {
   const InProcessChildThreadParams params_;
   const int32_t renderer_client_id_;
   std::unique_ptr<RenderProcess> render_process_;
+  base::ScopedClosureRunner unregister_thread_closure;
 };
 
 CONTENT_EXPORT base::Thread* CreateInProcessRendererThread(

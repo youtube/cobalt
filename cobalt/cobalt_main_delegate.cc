@@ -69,6 +69,8 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
     content::InitializeMojoCore();
   }
 
+  InitializeHangWatcher();
+
   // ShellMainDelegate has GWP-ASan as well as Profiling Client disabled.
   // Consequently, we provide no parameters for these two. The memory_system
   // includes the PoissonAllocationSampler dynamically only if the Profiling
@@ -120,5 +122,29 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
 
 void CobaltMainDelegate::Shutdown() {
   main_runner_->Shutdown();
+}
+
+void CobaltMainDelegate::InitializeHangWatcher() {
+  const base::CommandLine* const command_line =
+      base::CommandLine::ForCurrentProcess();
+  std::string process_type =
+      command_line->GetSwitchValueASCII(switches::kProcessType);
+
+  // In single-process mode it's always kBrowserProcess.
+  base::HangWatcher::ProcessType hang_watcher_process_type;
+  if (process_type.empty()) {
+    hang_watcher_process_type = base::HangWatcher::ProcessType::kBrowserProcess;
+  } else if (process_type == switches::kGpuProcess) {
+    hang_watcher_process_type = base::HangWatcher::ProcessType::kGPUProcess;
+  } else if (process_type == switches::kRendererProcess) {
+    hang_watcher_process_type =
+        base::HangWatcher::ProcessType::kRendererProcess;
+  } else if (process_type == switches::kUtilityProcess) {
+    hang_watcher_process_type = base::HangWatcher::ProcessType::kUtilityProcess;
+  } else {
+    hang_watcher_process_type = base::HangWatcher::ProcessType::kUnknownProcess;
+  }
+
+  base::HangWatcher::InitializeOnMainThread(hang_watcher_process_type);
 }
 }  // namespace cobalt
