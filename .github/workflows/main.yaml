@@ -50,7 +50,7 @@ jobs:
             cobalt/tools/requirements* |
             cobalt/docker
             docker-compose.yml
-          key: ci-essentials-${{ github.sha }}
+          key: ci-essentials-${{ inputs.platform }}-${{ github.sha }}
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
         continue-on-error: true  # Ignore this step if we cannot remove the label.
