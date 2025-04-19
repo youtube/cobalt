@@ -1722,8 +1722,11 @@ void MediaSessionImpl::RebuildAndNotifyMetadataChanged() {
     artwork = routed_service_->metadata()->artwork;
   }
 
+#if !BUILDFLAG(IS_COBALT)
+  // We don't want to use web content title as media session title.
   if (metadata.title.empty())
     metadata.title = SanitizeMediaTitle(web_contents()->GetTitle());
+#endif // !BUILDFLAG(IS_COBALT)
 
   ContentClient* content_client = content::GetContentClient();
   const GURL& url = web_contents()->GetLastCommittedURL();
