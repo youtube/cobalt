@@ -44,13 +44,13 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: |
-            .github |
-            cobalt/testing/filters |
-            cobalt/tools/on_device* |
+            .github
+            cobalt/testing/filters
+            cobalt/tools/on_device*
             cobalt/tools/requirements* |
-            cobalt/docker |
+            cobalt/docker
             docker-compose.yml
-          key: ci-essentials-${{ github.head_ref || github.sha }}
+          key: ci-essentials-${{ github.sha }}
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
         continue-on-error: true  # Ignore this step if we cannot remove the label.
@@ -171,10 +171,10 @@ jobs:
       uses: actions/cache/restore@v4
       with:
         path: |
-          .github |
-          cobalt/docker |
+          .github
+          cobalt/docker
           docker-compose.yml
-        key: ci-essentials-${{ github.head_ref || github.sha }}
+        key: ci-essentials-${{ github.sha }}
     # Handle GitHub registry used for everything other than pull requests off forked repos.
     - name: Login to GitHub Docker Registry
       uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
@@ -207,10 +207,10 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            .github |
-            cobalt/docker |
+            .github
+            cobalt/docker
             docker-compose.yml
-          key: ci-essentials-${{ github.head_ref || github.sha }}
+          key: ci-essentials-${{ github.sha }}
       - name: Login to GitHub Docker Registry
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
@@ -335,11 +335,11 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            .github |
-            cobalt/testing/filters |
-            cobalt/tools/on_device* |
+            .github
+            cobalt/testing/filters
+            cobalt/tools/on_device*
             cobalt/tools/requirements*
-          key: ci-essentials-${{ github.head_ref || github.sha }}
+          key: ci-essentials-${{ github.sha }}
       - name: Parse Test Target JSON
         id: test-target-json
         uses: ./.github/actions/test_targets_json
@@ -377,9 +377,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            .github |
+            .github
             cobalt/testing/filters
-          key: ci-essentials-${{ github.head_ref || github.sha }}
+          key: ci-essentials-${{ github.sha }}
       - name: Parse Test Target JSON
         id: test-target-json
         uses: ./.github/actions/test_targets_json
@@ -447,9 +447,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: |
-            .github |
+            .github
             cobalt/testing/filters
-          key: ci-essentials-${{ github.head_ref || github.sha }}
+          key: ci-essentials-${{ github.sha }}
       - name: Extract Test Target Name
         id: extract-target-name
         env:
