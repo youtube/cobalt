@@ -37,7 +37,16 @@
 
 namespace cobalt {
 
-CobaltBrowserMainParts::CobaltBrowserMainParts() = default;
+CobaltBrowserMainParts::CobaltBrowserMainParts(
+    std::unique_ptr<PrefService> experiment_config,
+    std::unique_ptr<PrefService> local_state,
+    std::unique_ptr<metrics_services_manager::MetricsServicesManager>
+        metrics_services_manager,
+    CobaltMetricsServicesManagerClient* metrics_services_manager_client)
+    : global_features_(std::move(experiment_config),
+                       std::move(local_state),
+                       std::move(metrics_services_manager),
+                       metrics_services_manager_client){};
 
 CobaltBrowserMainParts::~CobaltBrowserMainParts() = default;
 
@@ -52,7 +61,7 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 }
 
 void CobaltBrowserMainParts::SetupMetrics() {
-  metrics::MetricsService* metrics = GetMetricsService();
+  metrics::MetricsService* metrics = global_features_.metrics_service();
   metrics->InitializeMetricsRecordingState();
   DLOG(INFO) << "Cobalt Metrics Service initialized.";
 }
@@ -60,48 +69,8 @@ void CobaltBrowserMainParts::SetupMetrics() {
 void CobaltBrowserMainParts::StartMetricsRecording() {
   // This call kicks off the whole metric recording flow. It sets a timer and
   // periodically triggers a UMA payload to be handled by the logs uploader.
-  GetMetricsServicesManager()->UpdateUploadPermissions(true);
+  global_features_.GetMetricsServicesManager()->UpdateUploadPermissions(true);
   DLOG(INFO) << "Metrics Service is now running/recording.";
-}
-
-metrics::MetricsService* CobaltBrowserMainParts::GetMetricsService() {
-  auto* metrics_services_manager = GetMetricsServicesManager();
-  if (metrics_services_manager) {
-    return metrics_services_manager->GetMetricsService();
-  }
-  return nullptr;
-}
-
-metrics_services_manager::MetricsServicesManager*
-CobaltBrowserMainParts::GetMetricsServicesManager() {
-  // TODO(b/372559349): Can I check for teardown here like Chrome does:
-  // https://source.chromium.org/chromium/chromium/src/+/main:chrome/browser/browser_process_impl.cc;l=796;drc=87c3217dc3fec0f441b68f33d339b7f3a707b11d.
-  if (!metrics_services_manager_) {
-    auto client =
-        std::make_unique<CobaltMetricsServicesManagerClient>(local_state());
-    metrics_services_manager_ =
-        std::make_unique<metrics_services_manager::MetricsServicesManager>(
-            std::move(client));
-  }
-  return metrics_services_manager_.get();
-}
-
-PrefService* CobaltBrowserMainParts::local_state() {
-  if (!local_state_) {
-    // No need to make `pref_registry` a member, `pref_service_` will keep a
-    // reference to it.
-    auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
-    metrics::MetricsService::RegisterPrefs(pref_registry.get());
-    PrefServiceFactory pref_service_factory;
-    // TODO(b/397929564): Investigate using a Chrome's memory-mapped file store
-    // instead of in-memory.
-    pref_service_factory.set_user_prefs(
-        base::MakeRefCounted<InMemoryPrefStore>());
-
-    local_state_ = pref_service_factory.Create(std::move(pref_registry));
-  }
-
-  return local_state_.get();
 }
 
 #if BUILDFLAG(IS_ANDROIDTV)

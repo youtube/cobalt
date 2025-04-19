@@ -17,7 +17,7 @@
 
 #include <memory>
 
-#include "components/metrics_services_manager/metrics_services_manager.h"
+#include "cobalt/browser/global_features.h"
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "content/shell/browser/shell_browser_main_parts.h"
@@ -28,16 +28,25 @@ namespace metrics {
 class MetricsService;
 }  // namespace metrics
 
+namespace metrics_services_manager {
+class MetricsServicesManager;
+}  // namespace metrics_services_manager
+
 namespace cobalt {
 
 class CobaltMetricsServiceClient;
 class CobaltMetricsServicesManagerClient;
+class GlobalFeatures;
 
 // TODO(b/390021478): When CobaltContentBrowserClient stops deriving from
 // ShellContentBrowserClient, this should implement BrowserMainParts.
 class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
  public:
-  CobaltBrowserMainParts();
+  CobaltBrowserMainParts(
+      std::unique_ptr<PrefService> experiment_config,
+      std::unique_ptr<PrefService> local_state,
+      std::unique_ptr<metrics_services_manager::MetricsServicesManager> manager,
+      CobaltMetricsServicesManagerClient* client);
 
   CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
   CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
@@ -66,21 +75,7 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
   // Starts metrics recording.
   void StartMetricsRecording();
 
-  // Fetch and, if necessary, initializes MetricsService instance owned
-  // by this class.
-  metrics::MetricsService* GetMetricsService();
-
-  // Fetch and, if necessary, initializes MetricsServicesManager owned by this
-  // class instance.
-  metrics_services_manager::MetricsServicesManager* GetMetricsServicesManager();
-
-  PrefService* local_state();
-
-  // Must be destroyed before |local_state_|.
-  std::unique_ptr<metrics_services_manager::MetricsServicesManager>
-      metrics_services_manager_;
-
-  std::unique_ptr<PrefService> local_state_;
+  GlobalFeatures global_features_;
 };
 
 }  // namespace cobalt
