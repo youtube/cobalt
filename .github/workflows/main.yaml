@@ -50,7 +50,7 @@ jobs:
             .github
             cobalt/testing/filters
             cobalt/tools/on_device*
-            cobalt/tools/requirements* |
+            cobalt/tools/requirements*
             cobalt/docker
             docker-compose.yml
       - name: Remove runtest if exists
