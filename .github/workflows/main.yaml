@@ -44,6 +44,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ci-essentials-${{ inputs.platform }}
+          include-hidden-files: true
           retention-days: 1
           path: |
             .github
