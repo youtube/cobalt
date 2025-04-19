@@ -174,7 +174,7 @@ jobs:
           .github
           cobalt/docker
           docker-compose.yml
-        key: ci-essentials-${{ github.sha }}
+        key: ci-essentials-${{ inputs.platform }}-${{ github.sha }}
     # Handle GitHub registry used for everything other than pull requests off forked repos.
     - name: Login to GitHub Docker Registry
       uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
@@ -210,7 +210,7 @@ jobs:
             .github
             cobalt/docker
             docker-compose.yml
-          key: ci-essentials-${{ github.sha }}
+          key: ci-essentials-${{ inputs.platform }}-${{ github.sha }}
       - name: Login to GitHub Docker Registry
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
@@ -238,8 +238,14 @@ jobs:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Cache CI Essentials
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .github
+            cobalt/docker
+            docker-compose.yml
+          key: ci-essentials-${{ inputs.platform }}-${{ github.sha }}
       - name: Login to GitHub Docker Registry
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
@@ -339,7 +345,7 @@ jobs:
             cobalt/testing/filters
             cobalt/tools/on_device*
             cobalt/tools/requirements*
-          key: ci-essentials-${{ github.sha }}
+          key: ci-essentials-${{ inputs.platform }}-${{ github.sha }}
       - name: Parse Test Target JSON
         id: test-target-json
         uses: ./.github/actions/test_targets_json
@@ -379,7 +385,7 @@ jobs:
           path: |
             .github
             cobalt/testing/filters
-          key: ci-essentials-${{ github.sha }}
+          key: ci-essentials-${{ inputs.platform }}-${{ github.sha }}
       - name: Parse Test Target JSON
         id: test-target-json
         uses: ./.github/actions/test_targets_json
@@ -449,7 +455,7 @@ jobs:
           path: |
             .github
             cobalt/testing/filters
-          key: ci-essentials-${{ github.sha }}
+          key: ci-essentials-${{ inputs.platform }}-${{ github.sha }}
       - name: Extract Test Target Name
         id: extract-target-name
         env:
