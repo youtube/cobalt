@@ -139,7 +139,9 @@ class AudioRendererPcm : public AudioRenderer,
                        int* offset_in_frames,
                        bool* is_playing,
                        bool* is_eos_reached) override;
-  void ConsumeFrames(int frames_consumed, int64_t frames_consumed_at) override;
+  void ConsumeFrames(int frames_consumed,
+                     int64_t frames_consumed_at,
+                     bool is_sink_playing) override;
   void OnError(bool capability_changed,
                const std::string& error_message) override;
 
@@ -209,6 +211,8 @@ class AudioRendererPcm : public AudioRenderer,
 
   std::atomic<int32_t> sink_callbacks_since_last_check_{0};
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+
+  bool is_sink_playing_ = false;
 };
 
 }  // namespace filter

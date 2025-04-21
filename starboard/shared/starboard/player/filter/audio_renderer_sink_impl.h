@@ -81,6 +81,7 @@ class AudioRendererSinkImpl : public AudioRendererSink {
                                      void* context);
   static void ConsumeFramesFunc(int frames_consumed,
                                 int64_t frames_consumed_at,
+                                bool is_sink_playing,
                                 void* context);
   static void ErrorFunc(bool capability_changed,
                         const std::string& error_message,
