@@ -48,6 +48,7 @@ jobs:
           retention-days: 1
           path: |
             .github
+            cobalt/build
             cobalt/testing/filters
             cobalt/tools/on_device*
             cobalt/tools/requirements*
