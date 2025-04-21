@@ -31,14 +31,14 @@
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/browser/global_features.h"
+#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
-#include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
-#include "components/prefs/in_memory_pref_store.h"
-#include "components/prefs/json_pref_store.h"
+#include "components/metrics_services_manager/metrics_services_manager.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
@@ -52,7 +52,6 @@
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "content/shell/browser/shell_browser_main_parts.h"
-#include "content/shell/browser/shell_paths.h"
 #include "content/shell/common/shell_switches.h"
 #include "services/network/public/cpp/features.h"
 #include "services/network/public/mojom/network_context.mojom.h"
@@ -69,11 +68,6 @@ const char kCobaltExperimentName[] = "CobaltExperiment";
 const char kCobaltGroupName[] = "CobaltGroup";
 constexpr base::FilePath::CharType kCookieFilename[] =
     FILE_PATH_LITERAL("Cookies");
-constexpr base::FilePath::CharType kExperimentConfigFilename[] =
-    FILE_PATH_LITERAL("Experiment Config");
-const char kExperimentConfigFeature[] = "features";
-const char kExperimentConfigFeatureParams[] = "feature_params";
-const char kExperimentConfigExpIds[] = "exp_ids";
 constexpr base::FilePath::CharType kNetworkDataDirname[] =
     FILE_PATH_LITERAL("Network");
 constexpr base::FilePath::CharType kNetworkPersistentStateFilename[] =
@@ -335,65 +329,47 @@ bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
   return true;
 }
 
-void CobaltContentBrowserClient::CreateExperimentConfig() {
-  if (!exp_config_) {
-    auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
-
-    RegisterPrefs(pref_registry.get());
-
-    base::FilePath path;
-    CHECK(base::PathService::Get(content::SHELL_DIR_USER_DATA, &path));
-    path = path.Append(kExperimentConfigFilename);
-
-    PrefServiceFactory pref_service_factory;
-    pref_service_factory.set_user_prefs(
-        base::MakeRefCounted<JsonPrefStore>(path));
-
-    exp_config_ = pref_service_factory.Create(pref_registry);
-  }
-}
-
-void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
-  CreateExperimentConfig();
-  SetUpFieldTrials();
-}
-
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
-    std::unique_ptr<base::FeatureList>& feature_list) {
+    base::FeatureList* feature_list) {
   // All Cobalt features are associated with the same field trial. This is for
   // easier feature param lookup.
   base::FieldTrial* cobalt_field_trial = base::FieldTrialList::CreateFieldTrial(
       kCobaltExperimentName, kCobaltGroupName);
   CHECK(cobalt_field_trial) << "Unexpected name conflict.";
 
-  const base::Value::Dict& feature_map =
-      exp_config_->GetDict(kExperimentConfigFeature);
-  const base::Value::Dict& param_map =
-      exp_config_->GetDict(kExperimentConfigFeatureParams);
+  auto experiment_config = GlobalFeatures::GetInstance()->experiment_config();
 
-  for (const auto kvpair : feature_map) {
-    if (kvpair.second.is_bool()) {
+  const base::Value::Dict& feature_map =
+      experiment_config->GetDict(kExperimentConfigFeature);
+  const base::Value::Dict& param_map =
+      experiment_config->GetDict(kExperimentConfigFeatureParams);
+
+  for (const auto feature_name_and_value : feature_map) {
+    if (feature_name_and_value.second.is_bool()) {
       auto override_value =
-          kvpair.second.GetBool()
+          feature_name_and_value.second.GetBool()
               ? base::FeatureList::OverrideState::OVERRIDE_ENABLE_FEATURE
               : base::FeatureList::OverrideState::OVERRIDE_DISABLE_FEATURE;
-      feature_list->RegisterFieldTrialOverride(kvpair.first, override_value,
-                                               cobalt_field_trial);
+      feature_list->RegisterFieldTrialOverride(
+          feature_name_and_value.first, override_value, cobalt_field_trial);
     } else {
       // TODO(b/407734134): Register UMA here for non boolean feature value.
-      LOG(ERROR) << "Failed to apply override for feature " << kvpair.first;
+      LOG(ERROR) << "Failed to apply override for feature "
+                 << feature_name_and_value.first;
       base::debug::DumpWithoutCrashing();
     }
   }
 
   base::FieldTrialParams params;
-  for (const auto kvpair : param_map) {
-    if (kvpair.second.is_string()) {
-      params.emplace(kvpair.first, kvpair.second.GetString());
+  for (const auto param_name_and_value : param_map) {
+    if (param_name_and_value.second.is_string()) {
+      params.emplace(param_name_and_value.first,
+                     param_name_and_value.second.GetString());
     } else {
       // TODO(b/407734134): Register UMA here for non string param value.
-      LOG(ERROR) << "Failed to associate field trial param " << kvpair.first
-                 << " with string value " << kvpair.second;
+      LOG(ERROR) << "Failed to associate field trial param "
+                 << param_name_and_value.first << " with string value "
+                 << param_name_and_value.second;
       base::debug::DumpWithoutCrashing();
     }
   }
@@ -401,16 +377,15 @@ void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
                                   params);
 }
 
-void CobaltContentBrowserClient::SetUpFieldTrials() {
+void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
                                                            /*enabled=*/false);
   base::FilePath path;
   base::PathService::Get(content::SHELL_DIR_USER_DATA, &path);
-  std::unique_ptr<metrics::MetricsStateManager> metrics_state_manager =
-      metrics::MetricsStateManager::Create(
-          exp_config_.get(), &enabled_state_provider, std::wstring(), path,
-          metrics::StartupVisibility::kForeground);
-  metrics_state_manager->InstantiateFieldTrialList();
+
+  GlobalFeatures::GetInstance()
+      ->metrics_services_manager()
+      ->InstantiateFieldTrialList();
 
   auto feature_list = std::make_unique<base::FeatureList>();
 
@@ -444,17 +419,9 @@ void CobaltContentBrowserClient::SetUpFieldTrials() {
   // instance is set.
   feature_list->RegisterExtraFeatureOverrides(feature_overrides);
 
-  SetUpCobaltFeaturesAndParams(feature_list);
+  SetUpCobaltFeaturesAndParams(feature_list.get());
 
   base::FeatureList::SetInstance(std::move(feature_list));
-}
-
-// static
-void CobaltContentBrowserClient::RegisterPrefs(PrefRegistrySimple* registry) {
-  registry->RegisterDictionaryPref(kExperimentConfigFeature);
-  registry->RegisterDictionaryPref(kExperimentConfigFeatureParams);
-  registry->RegisterListPref(kExperimentConfigExpIds);
-  metrics::MetricsService::RegisterPrefs(registry);
 }
 
 }  // namespace cobalt
