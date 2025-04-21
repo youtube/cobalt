@@ -197,6 +197,11 @@ constexpr auto kSbKeyToDomCodeMap = base::MakeFixedFlatMap<SbKey, ui::DomCode>({
     {kSbKeyCancel, ui::DomCode::ABORT},
     {kSbKeyTab, ui::DomCode::TAB},
     {kSbKeyEscape, ui::DomCode::ESCAPE},
+
+    // Languages
+    {kSbKeyConvert, ui::DomCode::CONVERT},
+    {kSbKeyNonconvert, ui::DomCode::NON_CONVERT},
+
 });
 
 void DeliverEventHandler(std::unique_ptr<ui::Event> ui_event) {
