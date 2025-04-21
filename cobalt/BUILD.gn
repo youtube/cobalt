@@ -46,8 +46,6 @@ if (!is_android) {
       "cobalt_main_delegate.h",
       "cobalt_switch_defaults.cc",
       "cobalt_switch_defaults.h",
-      "platform_event_source_starboard.cc",
-      "platform_event_source_starboard.h",
     ]
 
     defines = []
@@ -68,6 +66,7 @@ if (!is_android) {
       "//starboard:starboard_group",
       "//third_party/blink/public/common",
       "//ui/ozone:ozone_switches",
+      "//ui/ozone/platform/starboard:starboard",
     ]
 
     data_deps = [

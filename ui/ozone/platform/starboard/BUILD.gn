@@ -15,7 +15,10 @@
 import("//build/config/ozone.gni")
 
 source_set("starboard") {
-  visibility = [ "//ui/ozone/*" ]
+  visibility = [
+    "//cobalt:*",
+    "//ui/ozone/*",
+  ]
 
   defines = [ "OZONE_IMPLEMENTATION" ]
 
@@ -26,6 +29,9 @@ source_set("starboard") {
     "gl_ozone_egl_starboard.h",
     "ozone_platform_starboard.cc",
     "ozone_platform_starboard.h",
+    "platform_event_observer_starboard.h",
+    "platform_event_source_starboard.cc",
+    "platform_event_source_starboard.h",
     "platform_screen_starboard.cc",
     "platform_screen_starboard.h",
     "platform_window_starboard.cc",
