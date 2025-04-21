@@ -433,7 +433,15 @@ void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,
 }
 
 void AudioRendererPcm::ConsumeFrames(int frames_consumed,
-                                     int64_t frames_consumed_at) {
+                                     int64_t frames_consumed_at,
+                                     bool is_sink_playing) {
+  if (frames_consumed == 0 && eos_state_ == 0 &&
+      is_sink_playing_ != is_sink_playing) {
+    SB_LOG(INFO) << __func__ << " > updating is_sink_playing_ to "
+                 << std::boolalpha << is_sink_playing;
+    is_sink_playing_ = is_sink_playing;
+  }
+
 #if SB_PLAYER_FILTER_ENABLE_STATE_CHECK
   ++sink_callbacks_since_last_check_;
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK

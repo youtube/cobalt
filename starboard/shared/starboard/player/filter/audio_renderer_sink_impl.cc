@@ -168,14 +168,15 @@ void AudioRendererSinkImpl::UpdateSourceStatusFunc(int* frames_in_buffer,
 // static
 void AudioRendererSinkImpl::ConsumeFramesFunc(int frames_consumed,
                                               int64_t frames_consumed_at,
+                                              bool is_sink_playing,
                                               void* context) {
   AudioRendererSinkImpl* audio_renderer_sink =
       static_cast<AudioRendererSinkImpl*>(context);
   SB_DCHECK(audio_renderer_sink);
   SB_DCHECK(audio_renderer_sink->render_callback_);
 
-  audio_renderer_sink->render_callback_->ConsumeFrames(frames_consumed,
-                                                       frames_consumed_at);
+  audio_renderer_sink->render_callback_->ConsumeFrames(
+      frames_consumed, frames_consumed_at, is_sink_playing);
 }
 
 // static

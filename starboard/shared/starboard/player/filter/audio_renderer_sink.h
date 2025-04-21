@@ -36,7 +36,8 @@ class AudioRendererSink {
                                  bool* is_playing,
                                  bool* is_eos_reached) = 0;
     virtual void ConsumeFrames(int frames_consumed,
-                               int64_t frames_consumed_at) = 0;
+                               int64_t frames_consumed_at,
+                               bool is_sink_playing) = 0;
 
     // When |capability_changed| is true, it hints that the error is caused by a
     // a transient capability on the platform.  The app should retry playback

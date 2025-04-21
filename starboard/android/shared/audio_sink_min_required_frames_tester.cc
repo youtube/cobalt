@@ -195,6 +195,7 @@ void MinRequiredFramesTester::UpdateSourceStatusFunc(int* frames_in_buffer,
 // static
 void MinRequiredFramesTester::ConsumeFramesFunc(int frames_consumed,
                                                 int64_t frames_consumed_at,
+                                                bool is_sink_playing,
                                                 void* context) {
   MinRequiredFramesTester* tester =
       static_cast<MinRequiredFramesTester*>(context);

@@ -118,7 +118,8 @@ void StubAudioSink::AudioThreadFunc() {
           std::min(kMaxFramesToConsumePerRequest, frames_in_buffer);
 
       usleep(frames_to_consume * 1'000'000LL / sampling_frequency_hz_);
-      consume_frames_func_(frames_to_consume, CurrentMonotonicTime(), context_);
+      consume_frames_func_(frames_to_consume, CurrentMonotonicTime(), false,
+                           context_);
     } else {
       // Wait for five millisecond if we are paused.
       usleep(5'000);

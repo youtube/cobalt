@@ -30,6 +30,7 @@ namespace {
 using std::placeholders::_1;
 using std::placeholders::_2;
 using std::placeholders::_3;
+using std::placeholders::_4;
 
 bool is_fallback_to_stub_enabled;
 SbAudioSinkImpl::Type* primary_audio_sink_type;
@@ -42,6 +43,7 @@ const char kUseStubAudioSink[] = "use_stub_audio_sink";
 void WrapConsumeFramesFunc(SbAudioSinkConsumeFramesFunc sb_consume_frames_func,
                            int frames_consumed,
                            int64_t frames_consumed_at,
+                           bool is_sink_playing,
                            void* context) {
   SB_UNREFERENCED_PARAMETER(frames_consumed_at);
   sb_consume_frames_func(frames_consumed, context);
@@ -203,7 +205,7 @@ SbAudioSink SbAudioSinkImpl::Create(
                 frame_buffers_size_in_frames, update_source_status_func,
                 sb_consume_frames_func
                     ? std::bind(&WrapConsumeFramesFunc, sb_consume_frames_func,
-                                _1, _2, _3)
+                                _1, _2, _3, _4)
                     : ConsumeFramesFunc(),
                 error_func, context);
 }

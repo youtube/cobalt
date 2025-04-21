@@ -252,8 +252,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
       if (frames_consumed != 0) {
         SB_DCHECK(frames_consumed >= 0);
-        SB_LOG(INFO) << __func__ << ": frames_consumed=" << frames_consumed;
-        consume_frames_func_(frames_consumed, frames_consumed_at, context_);
+        consume_frames_func_(frames_consumed, frames_consumed_at, false,
+                             context_);
         frames_in_audio_track -= frames_consumed;
       }
     }
@@ -274,12 +274,14 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     if (was_playing && !is_playing) {
       was_playing = false;
       bridge_.Pause();
+      consume_frames_func_(0, 0, /*is_sink_playing=*/false, context_);
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
       playback_head_not_changed_duration = 0;
       last_written_succeeded_at = -1;
       bridge_.Play();
+      consume_frames_func_(0, 0, /*is_sink_playing=*/true, context_);
     }
 
     if (!is_playing || frames_in_buffer == 0) {

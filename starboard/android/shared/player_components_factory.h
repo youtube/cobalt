@@ -142,7 +142,9 @@ class AudioRendererSinkCallbackStub
     *is_playing = true;
     *is_eos_reached = false;
   }
-  void ConsumeFrames(int frames_consumed, int64_t frames_consumed_at) override {
+  void ConsumeFrames(int frames_consumed,
+                     int64_t frames_consumed_at,
+                     bool is_sink_playing) override {
     SB_DCHECK(frames_consumed == 0);
   }
 
