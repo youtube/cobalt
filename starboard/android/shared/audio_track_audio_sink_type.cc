@@ -218,6 +218,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       break;
     }
 
+    int frames_consumed = 0;
     if (was_playing) {
       playback_head_position =
           bridge_.GetAudioTimestamp(&frames_consumed_at, env);
@@ -225,8 +226,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
       playback_head_position =
           std::max(playback_head_position, last_playback_head_position_);
-      int frames_consumed =
-          playback_head_position - last_playback_head_position_;
+      frames_consumed = playback_head_position - last_playback_head_position_;
       int64_t now = CurrentMonotonicTime();
 
       if (last_playback_head_event_at == -1) {
@@ -252,6 +252,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
       if (frames_consumed != 0) {
         SB_DCHECK(frames_consumed >= 0);
+        SB_LOG(INFO) << __func__ << ": frames_consumed=" << frames_consumed;
         consume_frames_func_(frames_consumed, frames_consumed_at, context_);
         frames_in_audio_track -= frames_consumed;
       }

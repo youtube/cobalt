@@ -203,7 +203,8 @@ class VideoFrameImpl : public VideoFrame {
 
   void Draw(int64_t release_time_in_nanoseconds) {
     SB_LOG(INFO) << __func__ << " > index=" << dequeue_output_result_.index
-                 << ", release_time=" << (release_time_in_nanoseconds / 1000);
+                 << ", release_time(msec)="
+                 << (release_time_in_nanoseconds / 1'000'000);
     SB_DCHECK(!released_);
     SB_DCHECK(!is_end_of_stream());
     released_ = true;
@@ -335,7 +336,8 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
 
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
-    SB_LOG(INFO) << __func__ << ": timestamp=" << frame->timestamp();
+    SB_LOG(INFO) << __func__
+                 << ": timestamp(msec)=" << (frame->timestamp() / 1'000);
 
     rendered_ = true;
     static_cast<VideoFrameImpl*>(frame.get())
@@ -445,14 +447,18 @@ VideoDecoder::GetRenderAlgorithm() {
 }
 
 void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
+                              const FrameRenderedCB& frame_rendered_cb,
                               const ErrorCB& error_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);
   SB_DCHECK(!decoder_status_cb_);
+  SB_DCHECK(frame_rendered_cb);
+  SB_DCHECK(!frame_rendered_cb_);
   SB_DCHECK(error_cb);
   SB_DCHECK(!error_cb_);
 
   decoder_status_cb_ = decoder_status_cb;
+  frame_rendered_cb_ = frame_rendered_cb;
   error_cb_ = error_cb;
 
   // There's a race condition when suspending the app. If surface view is
@@ -1181,6 +1187,9 @@ bool VideoDecoder::IsFrameRenderedCallbackEnabled() {
 void VideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
   SB_DCHECK(is_video_frame_tracker_enabled_);
   SB_DCHECK(video_frame_tracker_);
+  SB_DCHECK(frame_rendered_cb_);
+
+  frame_rendered_cb_();
 
   if (tunnel_mode_audio_session_id_ != -1) {
     tunnel_mode_frame_rendered_.store(true);

@@ -80,6 +80,7 @@ class VideoDecoder
   std::unique_ptr<VideoRenderAlgorithm> GetRenderAlgorithm();
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
+                  const FrameRenderedCB& frame_rendered_cb,
                   const ErrorCB& error_cb) override;
   size_t GetPrerollFrameCount() const override;
   int64_t GetPrerollTimeout() const override;
@@ -132,6 +133,7 @@ class VideoDecoder
   // not be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
   DecoderStatusCB decoder_status_cb_;
+  FrameRenderedCB frame_rendered_cb_;
   ErrorCB error_cb_;
   DrmSystem* drm_system_;
   const SbPlayerOutputMode output_mode_;

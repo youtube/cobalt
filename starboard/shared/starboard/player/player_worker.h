@@ -131,6 +131,7 @@ class PlayerWorker {
   ~PlayerWorker();
 
   void Seek(int64_t seek_to_time, int ticket) {
+    SB_LOG(INFO) << __func__;
     job_queue_->Schedule(
         std::bind(&PlayerWorker::DoSeek, this, seek_to_time, ticket));
   }

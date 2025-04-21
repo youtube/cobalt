@@ -80,6 +80,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   // Both of the following two functions can be called on any threads.
   void OnDecoderStatus(VideoDecoder::Status status,
                        const scoped_refptr<VideoFrame>& frame);
+  void OnFrameRendered();
   void Render(VideoRendererSink::DrawFrameCB draw_frame_cb);
   void OnSeekTimeout();
 
@@ -97,6 +98,8 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   // performance by keeping track of whether we already have a fresh decoder,
   // and can thus avoid doing a full reset.
   bool first_input_written_ = false;
+  bool first_frame_rendered_ = false;
+
   std::atomic_bool end_of_stream_written_{false};
   std::atomic_bool end_of_stream_decoded_{false};
   std::atomic_bool ended_cb_called_{false};

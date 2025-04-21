@@ -35,6 +35,7 @@ class StubVideoDecoder : public VideoDecoder, private JobQueue::JobOwner {
   ~StubVideoDecoder() { Reset(); }
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,
+                  const FrameRenderedCB& frame_rendered_cb,
                   const ErrorCB& error_cb) override;
 
   size_t GetPrerollFrameCount() const override;

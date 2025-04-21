@@ -107,6 +107,10 @@ JNI_MediaCodecBridge_OnMediaCodecFrameRendered(JNIEnv* env,
   MediaCodecBridge* media_codec_bridge =
       reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
   SB_DCHECK(media_codec_bridge);
+  SB_LOG(INFO) << __func__
+               << " > presentation_time_us: " << presentation_time_us
+               << ", render_at_system_time_msec: "
+               << (render_at_system_time_ns / 1'000'000);
   media_codec_bridge->OnMediaCodecFrameRendered(presentation_time_us);
 }
 

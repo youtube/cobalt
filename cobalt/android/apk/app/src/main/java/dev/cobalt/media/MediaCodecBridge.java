@@ -976,7 +976,12 @@ class MediaCodecBridge {
   @CalledByNative
   private void releaseOutputBufferAtTimestamp(int index, long renderTimestampNs) {
     try {
-      mMediaCodec.get().releaseOutputBuffer(index, renderTimestampNs);
+      if (renderTimestampNs == 0) {
+        Log.i(TAG, "release output buffer with zero");
+        mMediaCodec.get().releaseOutputBuffer(index, /*render=*/true);
+      } else {
+        mMediaCodec.get().releaseOutputBuffer(index, renderTimestampNs);
+      }
     } catch (IllegalStateException e) {
       // TODO: May need to report the error to the caller. crbug.com/356498.
       Log.e(TAG, "Failed to release output buffer", e);

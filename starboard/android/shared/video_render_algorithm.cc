@@ -110,19 +110,22 @@ void VideoRenderAlgorithm::Render(MediaTimeProvider* media_time_provider,
 
     int64_t adjusted_early_us =
         (adjusted_release_time_ns - system_time_ns) / 1000;
-    SB_LOG(INFO) << __func__ << " > Calling draw_callba_cb: timestamp="
-                 << frames->front()->timestamp()
+    SB_LOG(INFO) << __func__ << " > Calling draw_callba_cb: timestamp(msec)="
+                 << (frames->front()->timestamp() / 1000)
                  << ", early_msec=" << (early_us / 1000)
-                 << ", playback_time=" << playback_time
+                 << ", playback_time(msec)=" << (playback_time / 1000)
                  << ", is_priming=" << std::boolalpha << is_priming;
-    const int64_t ready_threshold_us =
-        is_priming ? kBufferPrimingThreadholdUs : kBufferReadyThresholdUs;
-
+    if (is_priming) {
+      auto status = draw_frame_cb(frames->front(), 0);
+      SB_DCHECK(status == VideoRendererSink::kReleased);
+      frames->pop_front();
+      continue;
+    }
     if (early_us < kBufferTooLateThresholdUs) {
       frames->pop_front();
       ++dropped_frames_;
       SB_LOG(INFO) << __func__ << " > Dropping frame";
-    } else if (early_us < ready_threshold_us) {
+    } else if (early_us < kBufferReadyThresholdUs) {
       auto status = draw_frame_cb(frames->front(), adjusted_release_time_ns);
       // auto status = draw_frame_cb(frames->front(), 0);
       SB_DCHECK(status == VideoRendererSink::kReleased);

@@ -27,6 +27,7 @@ namespace player {
 namespace filter {
 
 void StubVideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
+                                  const FrameRenderedCB& frame_rendered_cb,
                                   const ErrorCB& error_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(decoder_status_cb);

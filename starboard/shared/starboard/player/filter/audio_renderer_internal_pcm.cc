@@ -184,6 +184,7 @@ bool AudioRendererPcm::CanAcceptMoreData() const {
 }
 
 void AudioRendererPcm::Play() {
+  SB_LOG(INFO) << __func__;
   SB_DCHECK(BelongsToCurrentThread());
 
   ScopedLock lock(mutex_);
@@ -192,6 +193,7 @@ void AudioRendererPcm::Play() {
 }
 
 void AudioRendererPcm::Pause() {
+  SB_LOG(INFO) << __func__;
   SB_DCHECK(BelongsToCurrentThread());
 
   ScopedLock lock(mutex_);

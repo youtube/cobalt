@@ -96,10 +96,15 @@ void VideoRendererImpl::Initialize(const ErrorCB& error_cb,
   ended_cb_ = ended_cb;
 
   decoder_->Initialize(
-      std::bind(&VideoRendererImpl::OnDecoderStatus, this, _1, _2), error_cb);
+      std::bind(&VideoRendererImpl::OnDecoderStatus, this, _1, _2),
+      std::bind(&VideoRendererImpl::OnFrameRendered, this), error_cb);
   if (sink_) {
     sink_->SetRenderCB(std::bind(&VideoRendererImpl::Render, this, _1));
   }
+}
+
+void VideoRendererImpl::OnFrameRendered() {
+  first_frame_rendered_ = true;
 }
 
 void VideoRendererImpl::WriteSamples(const InputBuffers& input_buffers) {
@@ -156,6 +161,7 @@ void VideoRendererImpl::Seek(int64_t seek_to_time) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(seek_to_time >= 0);
 
+  first_frame_rendered_ = false;
   if (first_input_written_) {
     decoder_->Reset();
     first_input_written_ = false;
@@ -372,8 +378,9 @@ void VideoRendererImpl::Render(VideoRendererSink::DrawFrameCB draw_frame_cb) {
   int sink_frames = number_of_sink_frames;
   int64_t frame_ts = sink_frames > 0 ? sink_frames_.front()->timestamp() : 0;
 
+  bool is_priming = !first_frame_rendered_;
   algorithm_->Render(media_time_provider_, &sink_frames_, draw_frame_cb,
-                     /*is_priming=*/true);
+                     is_priming);
   if (number_of_sink_frames == 0) {
     SB_LOG(INFO) << __func__ << ": Render() ran with zero frames";
   } else {

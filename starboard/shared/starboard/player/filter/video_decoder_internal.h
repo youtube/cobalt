@@ -58,12 +58,14 @@ class VideoDecoder {
                              const scoped_refptr<VideoFrame>& frame)>
       DecoderStatusCB;
   typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
+  using FrameRenderedCB = std::function<void()>;
 
   virtual ~VideoDecoder() {}
 
   // This function has to be called before any other functions to setup the
   // stage.
   virtual void Initialize(const DecoderStatusCB& decoder_status_cb,
+                          const FrameRenderedCB& frame_rendered_cb,
                           const ErrorCB& error_cb) = 0;
 
   // Returns the number of frames the VideoRenderer has to cache before preroll
