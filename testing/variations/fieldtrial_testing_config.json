@@ -10250,34 +10250,16 @@
             ]
         }
     ],
-    "MergeSubprocessMetricsOnBgAndFg": [
+    "MessagesForAndroidOfferNotification": [
         {
             "platforms": [
-                "android",
-                "android_webview"
+                "android"
             ],
             "experiments": [
                 {
                     "name": "Enabled",
                     "enable_features": [
-                        "MergeSubprocessMetricsOnBgAndFg"
-                    ]
-                }
-            ]
-        }
-    ],
-    "MessagePumpEpoll": [
-        {
-            "platforms": [
-                "android",
-                "chromeos",
-                "linux"
-            ],
-            "experiments": [
-                {
-                    "name": "Enabled",
-                    "enable_features": [
-                        "MessagePumpEpoll"
+                        "MessagesForAndroidOfferNotification"
                     ]
                 }
             ]

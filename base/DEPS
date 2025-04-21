@@ -3,7 +3,6 @@ include_rules = [
   "+third_party/apple_apsl",
   "+third_party/boringssl/src/include",
   "+third_party/ced",
-  "+third_party/libevent",
   "+third_party/libunwindstack/src/libunwindstack/include",
   "+third_party/lss",
   "+third_party/modp_b64",
