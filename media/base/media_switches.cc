@@ -486,6 +486,10 @@ const base::FeatureParam<int> kDecreaseProcessingAudioFifoSizeValue{
 BASE_FEATURE(kCobaltProgressivePlayback,
              "CobaltProgressivePlayback",
              base::FEATURE_DISABLED_BY_DEFAULT);
+// When disabled, Cobalt fallbacks to the previous DecoderBuffer allocator.
+BASE_FEATURE(kCobaltEnhancedDecoderBufferAllocator,
+             "CobaltEnhancedDecoderBufferAllocator",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #if BUILDFLAG(IS_CHROMEOS)

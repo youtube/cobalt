@@ -16,7 +16,9 @@
 
 #include <algorithm>
 
+#include "base/feature_list.h"
 #include "base/logging.h"
+#include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/decoder_buffer_allocator_strategy.h"
 #include "media/starboard/starboard_utils.h"
@@ -126,7 +128,9 @@ void* DecoderBufferAllocator::Allocate(DemuxerStream::Type type,
   return p;
 }
 
-void DecoderBufferAllocator::Free(void* p, size_t size) {
+void DecoderBufferAllocator::Free(DemuxerStream::Type type,
+                                  void* p,
+                                  size_t size) {
   if (p == nullptr) {
     DCHECK_EQ(size, 0);
     return;
@@ -136,8 +140,7 @@ void DecoderBufferAllocator::Free(void* p, size_t size) {
 
   DCHECK(strategy_);
 
-  // TODO: b/369245553 - Cobalt: Refactor to pass a valid stream type.
-  strategy_->Free(DemuxerStream::UNKNOWN, p);
+  strategy_->Free(type, p);
 
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   if (starboard::common::Allocator::ExtraLogLevel() >= 2) {
@@ -215,8 +218,13 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
     return;
   }
 
-  strategy_.reset(new BidirectionalFitDecoderBufferAllocatorStrategy(
-      initial_capacity_, allocation_unit_));
+  if (base::FeatureList::IsEnabled(kCobaltEnhancedDecoderBufferAllocator)) {
+    strategy_.reset(new StreamTypeBasedDecoderBufferAllocatorStrategy(
+        initial_capacity_, allocation_unit_));
+  } else {
+    strategy_.reset(new BidirectionalFitDecoderBufferAllocatorStrategy(
+        initial_capacity_, allocation_unit_));
+  }
   LOG(INFO) << "Allocated " << initial_capacity_
             << " bytes for media buffer pool.";
 }
