@@ -393,10 +393,7 @@ void ProgramTable::PublishEvergreenInfo(const char* file_path) {
   evergreen_info.phdr_table = (uint64_t)phdr_table_;
   evergreen_info.phdr_table_num = phdr_num_;
 
-  std::vector<char> tmp(build_id_.begin(), build_id_.end());
-  tmp.push_back('\0');
-  starboard::strlcpy(evergreen_info.build_id, tmp.data(),
-                     EVERGREEN_BUILD_ID_MAX_SIZE);
+  memcpy(evergreen_info.build_id, build_id_.data(), build_id_.size());
   evergreen_info.build_id_length = build_id_.size();
 
   SetEvergreenInfo(&evergreen_info);
