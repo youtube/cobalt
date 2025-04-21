@@ -29,12 +29,12 @@
 #include "build/build_config.h"
 #include "cobalt/cobalt_main_delegate.h"
 #include "cobalt/cobalt_switch_defaults.h"
-#include "cobalt/platform_event_source_starboard.h"
 #include "content/public/app/content_main.h"
 #include "content/public/app/content_main_runner.h"
 #include "content/shell/browser/shell.h"
 #include "content/shell/browser/shell_paths.h"
 #include "starboard/event.h"
+#include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
 using starboard::PlatformEventSourceStarboard;
 
@@ -157,6 +157,10 @@ void SbEventHandle(const SbEvent* event) {
     case kSbEventTypeScheduled:
     case kSbEventTypeLowMemory:
     case kSbEventTypeWindowSizeChanged:
+      if (g_platform_event_source) {
+        g_platform_event_source->HandleWindowSizeChangedEvent(event);
+      }
+      break;
     case kSbEventTypeOsNetworkDisconnected:
     case kSbEventTypeOsNetworkConnected:
     case kSbEventDateTimeConfigurationChanged:

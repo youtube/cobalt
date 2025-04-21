@@ -15,10 +15,13 @@
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 
 #include "base/functional/bind.h"
+#include "starboard/event.h"
 #include "ui/events/event.h"
+#include "ui/events/event_utils.h"
 #include "ui/events/ozone/events_ozone.h"
 #include "ui/events/platform/platform_event_source.h"
 #include "ui/gfx/native_widget_types.h"
+#include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
 namespace ui {
 
@@ -38,6 +41,9 @@ PlatformWindowStarboard::PlatformWindowStarboard(
 
   if (PlatformEventSource::GetInstance()) {
     PlatformEventSource::GetInstance()->AddPlatformEventDispatcher(this);
+    static_cast<starboard::PlatformEventSourceStarboard*>(
+        PlatformEventSource::GetInstance())
+        ->AddPlatformEventObserverStarboard(this);
   }
 }
 
@@ -48,6 +54,9 @@ PlatformWindowStarboard::~PlatformWindowStarboard() {
 
   if (PlatformEventSource::GetInstance()) {
     PlatformEventSource::GetInstance()->RemovePlatformEventDispatcher(this);
+    static_cast<starboard::PlatformEventSourceStarboard*>(
+        PlatformEventSource::GetInstance())
+        ->RemovePlatformEventObserverStarboard(this);
   }
 }
 
@@ -61,6 +70,13 @@ uint32_t PlatformWindowStarboard::DispatchEvent(const PlatformEvent& event) {
                             base::Unretained(delegate())));
 
   return ui::POST_DISPATCH_STOP_PROPAGATION;
+}
+
+void PlatformWindowStarboard::ProcessWindowSizeChangedEvent(int width,
+                                                            int height) {
+  gfx::Rect old_bounds = PlatformWindowStarboard::GetBoundsInPixels();
+  gfx::Rect new_bounds_px(old_bounds.x(), old_bounds.y(), width, height);
+  PlatformWindowStarboard::SetBoundsInPixels(new_bounds_px);
 }
 
 bool PlatformWindowStarboard::ShouldUseNativeFrame() const {
