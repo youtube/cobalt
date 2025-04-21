@@ -62,6 +62,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   private MediaPosition mPosition;
   private Bitmap mArtworkImage;
   private MediaSessionCompat.Callback mMediaSessionCallback;
+  private LifecycleCallback mLifecycleCallback = null;
 
   // TODO: decouple LifecycleCallback and CobaltMediaSession implementation.
   /** LifecycleCallback to notify listeners when |mediaSession| becomes active or inactive. */
@@ -70,8 +71,9 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
   }
 
   public void setLifecycleCallback(LifecycleCallback lifecycleCallback) {
-    if (lifecycleCallback != null) {
-      lifecycleCallback.onMediaSessionLifecycle(true, mMediaSession.getSessionToken());
+    mLifecycleCallback = lifecycleCallback;
+    if (mLifecycleCallback != null && mMediaSession != null) {
+      mLifecycleCallback.onMediaSessionLifecycle(true, mMediaSession.getSessionToken());
     }
   }
 
@@ -176,12 +178,20 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
     mMediaSession.setCallback(mMediaSessionCallback);
     mMediaSession.setActive(true);
 
+    if (mLifecycleCallback != null) {
+      mLifecycleCallback.onMediaSessionLifecycle(true, mMediaSession.getSessionToken());
+    }
+
     Log.i(TAG, "MediaSession is activated.");
   }
 
   private void deactivateMediaSession() {
     if (mMediaSession == null) {
       return;
+    }
+
+    if (mLifecycleCallback != null) {
+      mLifecycleCallback.onMediaSessionLifecycle(false, null);
     }
 
     mMediaSession.setCallback(null);
