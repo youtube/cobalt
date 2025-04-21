@@ -412,7 +412,6 @@ class AlsaAudioSinkType : public SbAudioSinkPrivate::Type {
       int frames_per_channel,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
-      SbAudioSinkPrivate::UpdateSinkStatusFunc update_sink_status_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override;
 
@@ -438,7 +437,6 @@ SbAudioSink AlsaAudioSinkType::Create(
     int frames_per_channel,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
-    SbAudioSinkPrivate::UpdateSinkStatusFunc update_sink_status_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
   AlsaAudioSink* audio_sink = new AlsaAudioSink(
