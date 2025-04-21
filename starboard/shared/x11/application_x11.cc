@@ -22,7 +22,6 @@
 #include <X11/XF86keysym.h>
 #include <X11/XKBlib.h>
 #include <X11/Xatom.h>
-#include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 
@@ -679,12 +678,12 @@ int ErrorHandler(Display* display, XErrorEvent* event) {
   char error_text[256] = {0};
   XGetErrorText(event->display, event->error_code, error_text,
                 SB_ARRAY_SIZE_INT(error_text));
-  SB_DLOG(ERROR) << "X11 Error: " << error_text;
-  SB_DLOG(ERROR) << "display=" << XDisplayString(event->display);
-  SB_DLOG(ERROR) << "serial=" << event->serial;
-  SB_DLOG(ERROR) << "request=" << static_cast<int>(event->request_code);
-  SB_DLOG(ERROR) << "minor=" << static_cast<int>(event->minor_code);
-  SB_DLOG(ERROR) << "resourceid=" << event->resourceid;
+  SB_LOG(ERROR) << "X11 Error: " << error_text;
+  SB_LOG(ERROR) << "display=" << XDisplayString(event->display);
+  SB_LOG(ERROR) << "serial=" << event->serial;
+  SB_LOG(ERROR) << "request=" << static_cast<int>(event->request_code);
+  SB_LOG(ERROR) << "minor=" << static_cast<int>(event->minor_code);
+  SB_LOG(ERROR) << "resourceid=" << event->resourceid;
   SbSystemBreakIntoDebugger();
   return 0;
 }
@@ -936,6 +935,7 @@ void ApplicationX11::WakeSystemEventWait() {
 }
 
 bool ApplicationX11::EnsureX() {
+  SB_DCHECK(IsCurrentThread());
   // TODO: Consider thread-safety.
   if (display_) {
     return true;
@@ -972,6 +972,7 @@ bool ApplicationX11::EnsureX() {
 }
 
 void ApplicationX11::StopX() {
+  SB_DCHECK(IsCurrentThread());
   if (!display_) {
     return;
   }
@@ -979,6 +980,10 @@ void ApplicationX11::StopX() {
   SbEventCancel(composite_event_id_);
   composite_event_id_ = kSbEventIdInvalid;
 
+  XSetErrorHandler([](Display*, XErrorEvent*) {
+    SB_LOG(ERROR) << "Ignoring errors during X shutdown";
+    return 0;
+  });
   XCloseDisplay(display_);
   display_ = NULL;
   wake_up_atom_ = None;
