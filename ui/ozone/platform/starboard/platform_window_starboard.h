@@ -17,13 +17,16 @@
 
 #include "starboard/window.h"
 #include "ui/events/platform/platform_event_dispatcher.h"
+#include "ui/ozone/platform/starboard/platform_event_observer_starboard.h"
 #include "ui/platform_window/platform_window_delegate.h"
 #include "ui/platform_window/stub/stub_window.h"
 
 namespace ui {
 
-class PlatformWindowStarboard : public StubWindow,
-                                public PlatformEventDispatcher {
+class PlatformWindowStarboard
+    : public StubWindow,
+      public PlatformEventDispatcher,
+      public starboard::PlatformEventObserverStarboard {
  public:
   PlatformWindowStarboard(PlatformWindowDelegate* delegate,
                           const gfx::Rect& bounds);
@@ -38,6 +41,9 @@ class PlatformWindowStarboard : public StubWindow,
 
   bool ShouldUseNativeFrame() const override;
   void SetUseNativeFrame(bool use_native_frame) override;
+
+  // ui::PlatformEventObserverStarboard interface.
+  void ProcessWindowSizeChangedEvent(int width, int height) override;
 
  private:
   SbWindow sb_window_;
