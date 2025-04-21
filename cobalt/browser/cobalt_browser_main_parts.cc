@@ -16,6 +16,7 @@
 
 #include "base/path_service.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
+#include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics/metrics_service.h"
@@ -37,19 +38,6 @@
 
 namespace cobalt {
 
-CobaltBrowserMainParts::CobaltBrowserMainParts(
-    std::unique_ptr<PrefService> experiment_config,
-    std::unique_ptr<PrefService> local_state,
-    std::unique_ptr<metrics_services_manager::MetricsServicesManager>
-        metrics_services_manager,
-    CobaltMetricsServicesManagerClient* metrics_services_manager_client)
-    : global_features_(std::move(experiment_config),
-                       std::move(local_state),
-                       std::move(metrics_services_manager),
-                       metrics_services_manager_client){};
-
-CobaltBrowserMainParts::~CobaltBrowserMainParts() = default;
-
 int CobaltBrowserMainParts::PreCreateThreads() {
   SetupMetrics();
   return ShellBrowserMainParts::PreCreateThreads();
@@ -61,7 +49,8 @@ int CobaltBrowserMainParts::PreMainMessageLoopRun() {
 }
 
 void CobaltBrowserMainParts::SetupMetrics() {
-  metrics::MetricsService* metrics = global_features_.metrics_service();
+  metrics::MetricsService* metrics =
+      GlobalFeatures::GetInstance()->metrics_service();
   metrics->InitializeMetricsRecordingState();
   DLOG(INFO) << "Cobalt Metrics Service initialized.";
 }
@@ -69,7 +58,9 @@ void CobaltBrowserMainParts::SetupMetrics() {
 void CobaltBrowserMainParts::StartMetricsRecording() {
   // This call kicks off the whole metric recording flow. It sets a timer and
   // periodically triggers a UMA payload to be handled by the logs uploader.
-  global_features_.GetMetricsServicesManager()->UpdateUploadPermissions(true);
+  GlobalFeatures::GetInstance()
+      ->metrics_services_manager()
+      ->UpdateUploadPermissions(true);
   DLOG(INFO) << "Metrics Service is now running/recording.";
 }
 

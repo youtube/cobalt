@@ -17,7 +17,6 @@
 
 #include <memory>
 
-#include "cobalt/browser/global_features.h"
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "content/shell/browser/shell_browser_main_parts.h"
@@ -42,16 +41,12 @@ class GlobalFeatures;
 // ShellContentBrowserClient, this should implement BrowserMainParts.
 class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
  public:
-  CobaltBrowserMainParts(
-      std::unique_ptr<PrefService> experiment_config,
-      std::unique_ptr<PrefService> local_state,
-      std::unique_ptr<metrics_services_manager::MetricsServicesManager> manager,
-      CobaltMetricsServicesManagerClient* client);
+  CobaltBrowserMainParts() = default;
 
   CobaltBrowserMainParts(const CobaltBrowserMainParts&) = delete;
   CobaltBrowserMainParts& operator=(const CobaltBrowserMainParts&) = delete;
 
-  ~CobaltBrowserMainParts() override;
+  ~CobaltBrowserMainParts() override = default;
 
   // ShellBrowserMainParts overrides.
   int PreCreateThreads() override;
@@ -74,8 +69,6 @@ class CobaltBrowserMainParts : public content::ShellBrowserMainParts {
 
   // Starts metrics recording.
   void StartMetricsRecording();
-
-  GlobalFeatures global_features_;
 };
 
 }  // namespace cobalt

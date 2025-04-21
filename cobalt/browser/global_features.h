@@ -18,6 +18,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/no_destructor.h"
 #include "base/sequence_checker.h"
+#include "components/prefs/pref_registry_simple.h"
+#include "content/shell/browser/shell_paths.h"
 
 class PrefService;
 
@@ -32,31 +34,48 @@ class MetricsServicesManager;
 namespace cobalt {
 class CobaltMetricsServicesManagerClient;
 
+extern const char kExperimentConfigFeature[];
+extern const char kExperimentConfigFeatureParams[];
+extern const char kExperimentConfigExpIds[];
+
 // This class owns features that are globally scoped. It follows the structure
-// of BrowserProcess class in Chrome.
+// of BrowserProcess class in Chrome. This class is a singleton and can only be
+// accessed on a single SequenceTaskRunner.
 // TODO(b/407734389): Add unittests.
 class GlobalFeatures {
  public:
-  GlobalFeatures(
-      std::unique_ptr<PrefService> experiment_config,
-      std::unique_ptr<PrefService> local_state,
-      std::unique_ptr<metrics_services_manager::MetricsServicesManager> manager,
-      CobaltMetricsServicesManagerClient* client);
+  ~GlobalFeatures() = default;
 
-  ~GlobalFeatures();
+  static GlobalFeatures* GetInstance();
 
-  metrics_services_manager::MetricsServicesManager* GetMetricsServicesManager();
+  // Registers experiment config prefs used by this class.
+  static void RegisterPrefs(PrefRegistrySimple* registry);
+
+  metrics_services_manager::MetricsServicesManager* metrics_services_manager();
   metrics::MetricsService* metrics_service();
+  PrefService* experiment_config();
   PrefService* local_state();
 
  private:
+  friend class base::NoDestructor<GlobalFeatures>;
+
+  GlobalFeatures();
+
+  // Initialize a PrefService instance for the experiment config.
+  void CreateExperimentConfig();
+  // Initialize CobaltMetricsServicesManagerClient instance and use it to
+  // initialize MetricsServicesManager.
+  void CreateMetricsServices();
+  // Initialize a PrefService instance for local state.
+  void CreateLocalState();
+
   std::unique_ptr<PrefService> experiment_config_;
 
   std::unique_ptr<PrefService> local_state_;
 
   // |metrics_services_manager_| owns this.
   raw_ptr<CobaltMetricsServicesManagerClient, DanglingUntriaged>
-      metrics_services_manager_client_ = nullptr;
+      metrics_services_manager_client_;
 
   // Must be destroyed before |local_state_|.
   std::unique_ptr<metrics_services_manager::MetricsServicesManager>
