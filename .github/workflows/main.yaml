@@ -170,7 +170,7 @@ jobs:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
-    - name: Cache CI Essentials
+    - name: Restore CI Essentials
       uses: actions/download-artifact@v4
       with:
         name: ci-essentials-${{ inputs.platform }}
@@ -202,7 +202,7 @@ jobs:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
-      - name: Cache CI Essentials
+      - name: Restore CI Essentials
         uses: actions/download-artifact@v4
         with:
           name: ci-essentials-${{ inputs.platform }}
@@ -233,7 +233,7 @@ jobs:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
-      - name: Cache CI Essentials
+      - name: Restore CI Essentials
         uses: actions/download-artifact@v4
         with:
           name: ci-essentials-${{ inputs.platform }}
@@ -328,7 +328,7 @@ jobs:
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
-      - name: Cache CI Essentials
+      - name: Restore CI Essentials
         uses: actions/download-artifact@v4
         with:
           name: ci-essentials-${{ inputs.platform }}
@@ -365,7 +365,7 @@ jobs:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
     steps:
-      - name: Cache CI Essentials
+      - name: Restore CI Essentials
         uses: actions/download-artifact@v4
         with:
           name: ci-essentials-${{ inputs.platform }}
@@ -432,7 +432,7 @@ jobs:
         config: [devel]
         test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json) }}
     steps:
-      - name: Cache CI Essentials
+      - name: Restore CI Essentials
         uses: actions/download-artifact@v4
         with:
           name: ci-essentials-${{ inputs.platform }}
