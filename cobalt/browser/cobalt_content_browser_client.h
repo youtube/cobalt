@@ -15,6 +15,7 @@
 #ifndef COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
@@ -22,12 +23,18 @@
 #include "content/shell/browser/shell_content_browser_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
+class PrefService;
+
 namespace content {
 class BrowserMainParts;
 class RenderFrameHost;
 class RenderProcessHost;
 class WebContents;
 }  // namespace content
+
+namespace metrics_services_manager {
+class MetricsServicesManager;
+}  // namespace metrics_services_manager
 
 namespace mojo {
 template <typename>
@@ -40,6 +47,7 @@ namespace media {
 class VideoGeometrySetterService;
 }  // namespace media
 
+class CobaltMetricsServicesManagerClient;
 class CobaltWebContentsObserver;
 
 // This class allows Cobalt to inject specific logic in the business of the
@@ -87,13 +95,21 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       blink::AssociatedInterfaceRegistry* associated_registry,
       content::RenderProcessHost* render_process_host) override;
   void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
+
   // Initialize a PrefService instance for the experiment config.
   void CreateExperimentConfig();
+  // Initializes all necessary parameters to create the feature list and calls
+  // base::FeatureList::SetInstance() to set the global instance.
   void CreateFeatureListAndFieldTrials();
+  // Initialize CobaltMetricsServicesManagerClient instance and use it to
+  // initialize MetricsServicesManager.
+  void CreateMetricsServices();
+  // Initialize a PrefService instance for local state.
+  void CreateLocalState();
+
   // Read from the experiment config, override features, and associate feature
   // params for Cobalt experiments.
-  void SetUpCobaltFeaturesAndParams(
-      std::unique_ptr<base::FeatureList>& feature_list);
+  void SetUpCobaltFeaturesAndParams(base::FeatureList* feature_list);
   // Setup Cobalt field trial and related initialization.
   void SetUpFieldTrials();
   // Registers experiment config prefs used by this class.
@@ -124,7 +140,17 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   std::vector<std::unique_ptr<browser::CobaltTrustedURLLoaderHeaderClient>>
       cobalt_header_clients_;
 
-  std::unique_ptr<PrefService> exp_config_ = nullptr;
+  // If std::move() is called for the following two variables, the caller
+  // will take the ownership of the the variable. Stop using the variable
+  // afterwards.
+  std::unique_ptr<PrefService> experiment_config_;
+  std::unique_ptr<PrefService> local_state_;
+
+  std::unique_ptr<metrics_services_manager::MetricsServicesManager>
+      metrics_services_manager_;
+  // This is owned by |metrics_services_manager_| but we need to expose it.
+  raw_ptr<CobaltMetricsServicesManagerClient, DanglingUntriaged>
+      metrics_services_manager_client_;
 
   THREAD_CHECKER(thread_checker_);
 };
