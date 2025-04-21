@@ -27,17 +27,29 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+constexpr int kMaxEvents = 10;
+constexpr int kMaxBuf = 1024;
+
 class PosixEpollTest : public testing::Test {
  public:
   void SetUp() override {
+    // Create epoll object, arg doesn't matter as long as its  > 0
     epfd = epoll_create(1);
     ASSERT_GT(epfd, 0) << strerror(errno);
 
-    socket_fd = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    // Create non-blocking socket for use in all tests
+    socket_fd = ::socket(AF_INET, SOCK_STREAM | SOCK_NONBLOCK, IPPROTO_TCP);
     ASSERT_GE(socket_fd, 0) << strerror(errno);
 
+    // Set epoll_event data
     epev.data.fd = socket_fd;
     epev.events = EPOLLIN | EPOLLOUT;
+
+    // Get socket for use in tests similar to socket_helper.cc
+    ASSERT_TRUE(
+        PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
+        PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
+    address.sin6_port = htons(PosixGetPortNumberForTests());
   }
 
   void TearDown() override {
@@ -49,6 +61,8 @@ class PosixEpollTest : public testing::Test {
   int epfd;
   int socket_fd;
   epoll_event epev;
+  sockaddr_in6 address = {};
+  socklen_t add_len = sizeof(struct sockaddr_in);
 };
 
 TEST_F(PosixEpollTest, SunnyDayAddRemove) {
@@ -144,10 +158,9 @@ TEST_F(PosixEpollTest, RainyDayNoInterest) {
   EXPECT_LT(epoll_ctl(epfd, EPOLL_CTL_ADD, socket_fd, nullptr), 0);
 }
 
-TEST_F(PosixEpollTest, SunnyDayWait) {
-#define MAX_EVENTS 10
-  struct epoll_event ev, events[MAX_EVENTS];
-  int listen_sock, conn_sock, nfds;
+TEST_F(PosixEpollTest, SunnyDayWaitTimeout) {
+  struct epoll_event ev, events[kMaxEvents];
+  int listen_sock, num_ready;
 
   // create listen socket, bind and listen on <port>
   listen_sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -157,62 +170,75 @@ TEST_F(PosixEpollTest, SunnyDayWait) {
   const int on = 1;
   int result =
       setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-  EXPECT_EQ(result, 0);
+  EXPECT_EQ(result, 0) << strerror(errno);
 
   // bind socket with local address
-  sockaddr_in6 address = {};
-  EXPECT_TRUE(
-      PosixGetLocalAddressIPv4(reinterpret_cast<sockaddr*>(&address)) == 0 ||
-      PosixGetLocalAddressIPv6(reinterpret_cast<sockaddr*>(&address)) == 0);
-  address.sin6_port = htons(PosixGetPortNumberForTests());
-
-  socklen_t add_len = sizeof(struct sockaddr_in);
   result =
       bind(listen_sock, reinterpret_cast<struct sockaddr*>(&address), add_len);
-  EXPECT_EQ(result, 0);
+  EXPECT_EQ(result, 0) << strerror(errno);
 
   result = listen(listen_sock, kMaxConn);
-  EXPECT_EQ(result, 0);
+  EXPECT_EQ(result, 0) << strerror(errno);
 
   ev.events = EPOLLIN;
   ev.data.fd = listen_sock;
-  if (epoll_ctl(epfd, EPOLL_CTL_ADD, listen_sock, &ev) == -1) {
-    perror("epoll_ctl: listen_sock");
-    exit(EXIT_FAILURE);
+  EXPECT_EQ(epoll_ctl(epfd, EPOLL_CTL_ADD, listen_sock, &ev), 0)
+      << strerror(errno);
+
+  // 5 second timeout for wait
+  num_ready = epoll_wait(epfd, events, kMaxEvents, 5000);
+  // expect nothing to be ready since we're not doing anything
+  EXPECT_EQ(num_ready, 0);
+
+  EXPECT_EQ(close(listen_sock), 0) << strerror(errno);
+}
+
+TEST_F(PosixEpollTest, SunnyDayWait) {
+  struct sockaddr_in dest;
+
+  char buffer[kMaxBuf];
+  struct epoll_event events[kMaxEvents];
+  int i, num_ready;
+
+  // Add socket to epoll
+  epoll_ctl(epfd, EPOLL_CTL_ADD, socket_fd, &epev);
+
+  if (connect(socket_fd, (struct sockaddr*)&address, sizeof(address)) != 0) {
+    EXPECT_EQ(errno, EINPROGRESS) << "Connection failed, not in progress";
   }
 
-  // placeholder value in for loop to avoid infinite loop
-  for (int i = 0; i < 5; i++) {
-    nfds = epoll_wait(epfd, events, MAX_EVENTS, -1);
-    if (nfds == -1) {
-      perror("epoll_wait");
-      exit(EXIT_FAILURE);
+  // Wait for socket to connect
+  num_ready = epoll_wait(epfd, events, kMaxEvents, 1000);
+  for (i = 0; i < num_ready; i++) {
+    if (events[i].events & EPOLLIN) {
+      printf("Socket %d connected\n", events[i].data.fd);
     }
-
-    for (int n = 0; n < nfds; ++n) {
-      if (events[n].data.fd == listen_sock) {
-        conn_sock =
-            accept(listen_sock, reinterpret_cast<struct sockaddr*>(&address),
-                   &add_len);
-        if (conn_sock == -1) {
-          perror("accept");
-          exit(EXIT_FAILURE);
-        }
-        // set non-blocking
-        fcntl(conn_sock, F_SETFL, O_NONBLOCK);
-        ev.events = EPOLLIN | EPOLLET;
-        ev.data.fd = conn_sock;
-        if (epoll_ctl(epfd, EPOLL_CTL_ADD, conn_sock, &ev) == -1) {
-          perror("epoll_ctl: conn_sock");
-          exit(EXIT_FAILURE);
-        }
-      } else {
-        // do something
-        break;
-      }
-    }
-    break;
   }
+
+  EXPECT_GT(num_ready, 0) << "No sockets connected after wait";
+  int bytes_received = 0;
+
+  char* send_buf = new char[kMaxBuf];
+  char* receive_buf = new char[kMaxBuf];
+  for (int i = 0; i < kMaxBuf; ++i) {
+    send_buf[i] = static_cast<char>(i);
+  }
+  memset(receive_buf, 0, kMaxBuf);
+  int bytes_sent = sendto(socket_fd, send_buf, kMaxBuf, kSendFlags, NULL, 0);
+
+  // Wait to receive data from connected socket
+  num_ready = epoll_wait(epfd, events, kMaxEvents, 1000);
+  bool data_recieved = false;
+  for (i = 0; i < num_ready; i++) {
+    if (events[i].events & EPOLLIN) {
+      SB_LOG(INFO) << "Socket " << events[i].data.fd << " receiving data";
+      memset(buffer, 0, kMaxBuf);
+      recvfrom(socket_fd, receive_buf, kMaxBuf, 0, 0, 0);
+      SB_LOG(INFO) << "Received.";
+      data_recieved = true;
+    }
+  }
+  EXPECT_TRUE(data_recieved) << "No data read from socket";
 }
 
 }  // namespace
