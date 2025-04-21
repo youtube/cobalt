@@ -114,6 +114,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     int preferred_buffer_size_in_bytes,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     ConsumeFramesFunc consume_frames_func,
+    UpdateSinkStatusFunc update_sink_status_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     int64_t start_time,
     int tunnel_mode_audio_session_id,
@@ -127,6 +128,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       frames_per_channel_(frames_per_channel),
       update_source_status_func_(update_source_status_func),
       consume_frames_func_(consume_frames_func),
+      update_sink_status_func_(update_sink_status_func),
       error_func_(error_func),
       start_time_(start_time),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
@@ -273,12 +275,14 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     if (was_playing && !is_playing) {
       was_playing = false;
       bridge_.Pause();
+      update_sink_status_func_(/*is_playing=*/false, context_);
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
       playback_head_not_changed_duration = 0;
       last_written_succeeded_at = -1;
       bridge_.Play();
+      update_sink_status_func_(/*is_playing=*/true, context_);
     }
 
     if (!is_playing || frames_in_buffer == 0) {
@@ -453,6 +457,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     int frames_per_channel,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
+    SbAudioSinkPrivate::UpdateSinkStatusFunc update_sink_status_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
   const int64_t kStartTime = 0;
@@ -461,8 +466,9 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   const bool kIsWebAudio = true;
   return Create(channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers, frames_per_channel,
-                update_source_status_func, consume_frames_func, error_func,
-                kStartTime, kTunnelModeAudioSessionId, kIsWebAudio, context);
+                update_source_status_func, consume_frames_func,
+                update_sink_status_func, error_func, kStartTime,
+                kTunnelModeAudioSessionId, kIsWebAudio, context);
 }
 
 SbAudioSink AudioTrackAudioSinkType::Create(
@@ -474,6 +480,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     int frames_per_channel,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
+    SbAudioSinkPrivate::UpdateSinkStatusFunc update_sink_status_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     int64_t start_media_time,
     int tunnel_mode_audio_session_id,
@@ -487,8 +494,9 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   AudioTrackAudioSink* audio_sink = new AudioTrackAudioSink(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, preferred_buffer_size_in_bytes,
-      update_source_status_func, consume_frames_func, error_func,
-      start_media_time, tunnel_mode_audio_session_id, is_web_audio, context);
+      update_source_status_func, consume_frames_func, update_sink_status_func,
+      error_func, start_media_time, tunnel_mode_audio_session_id, is_web_audio,
+      context);
   if (!audio_sink->IsAudioTrackValid()) {
     SB_DLOG(ERROR)
         << "AudioTrackAudioSinkType::Create failed to create audio track";

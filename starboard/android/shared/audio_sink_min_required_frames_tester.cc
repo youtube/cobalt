@@ -129,6 +129,7 @@ void MinRequiredFramesTester::TesterThreadFunc() {
             GetSampleSize(task.sample_type),
         &MinRequiredFramesTester::UpdateSourceStatusFunc,
         &MinRequiredFramesTester::ConsumeFramesFunc,
+        &MinRequiredFramesTester::UpdateSinkStatusFunc,
         &MinRequiredFramesTester::ErrorFunc, 0, -1, false, this);
     {
       ScopedLock scoped_lock(mutex_);
@@ -202,6 +203,9 @@ void MinRequiredFramesTester::ConsumeFramesFunc(int frames_consumed,
 
   tester->ConsumeFrames(frames_consumed);
 }
+
+void MinRequiredFramesTester::UpdateSinkStatusFunc(bool is_playing,
+                                                   void* context) {}
 
 // static
 void MinRequiredFramesTester::ErrorFunc(bool capability_changed,

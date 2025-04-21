@@ -42,6 +42,7 @@ class AudioRendererSinkImpl : public AudioRendererSink {
       int frame_buffers_size_in_frames,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
+      SbAudioSinkPrivate::UpdateSinkStatusFunc update_sink_status_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context)>
       CreateAudioSinkFunc;
@@ -82,6 +83,7 @@ class AudioRendererSinkImpl : public AudioRendererSink {
   static void ConsumeFramesFunc(int frames_consumed,
                                 int64_t frames_consumed_at,
                                 void* context);
+  static void UpdateSinkStatusFunc(bool is_playing, void* context);
   static void ErrorFunc(bool capability_changed,
                         const std::string& error_message,
                         void* context);

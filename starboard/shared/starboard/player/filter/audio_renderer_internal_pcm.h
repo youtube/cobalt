@@ -140,6 +140,7 @@ class AudioRendererPcm : public AudioRenderer,
                        bool* is_playing,
                        bool* is_eos_reached) override;
   void ConsumeFrames(int frames_consumed, int64_t frames_consumed_at) override;
+  void UpdateSinkStatus(bool is_playing) override;
   void OnError(bool capability_changed,
                const std::string& error_message) override;
 

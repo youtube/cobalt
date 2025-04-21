@@ -55,6 +55,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       int frames_per_channel,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
+      SbAudioSinkPrivate::UpdateSinkStatusFunc update_sink_status_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override;
   SbAudioSink Create(
@@ -66,6 +67,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       int frames_per_channel,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
+      SbAudioSinkPrivate::UpdateSinkStatusFunc update_sink_status_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       int64_t start_time,
       int tunnel_mode_audio_session_id,
@@ -113,6 +115,7 @@ class AudioTrackAudioSink
       int preferred_buffer_size,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       ConsumeFramesFunc consume_frames_func,
+      UpdateSinkStatusFunc update_sink_status_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       int64_t start_media_time,
       int tunnel_mode_audio_session_id,
@@ -147,6 +150,7 @@ class AudioTrackAudioSink
   const int frames_per_channel_;
   const SbAudioSinkUpdateSourceStatusFunc update_source_status_func_;
   const ConsumeFramesFunc consume_frames_func_;
+  const UpdateSinkStatusFunc update_sink_status_func_;
   const SbAudioSinkPrivate::ErrorFunc error_func_;
   const int64_t start_time_;  // microseconds
   const int tunnel_mode_audio_session_id_;

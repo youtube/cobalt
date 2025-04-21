@@ -35,6 +35,7 @@ class StubAudioSinkType : public SbAudioSinkPrivate::Type {
       int frame_buffers_size_in_frames,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
+      SbAudioSinkPrivate::UpdateSinkStatusFunc update_sink_status_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       void* context) override;
 

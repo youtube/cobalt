@@ -449,6 +449,10 @@ void AudioRendererPcm::ConsumeFrames(int frames_consumed,
   }
 }
 
+void AudioRendererPcm::UpdateSinkStatus(bool is_playing) {
+  is_playing_on_sink_thread_ = is_playing;
+}
+
 void AudioRendererPcm::OnError(bool capability_changed,
                                const std::string& error_message) {
   SB_DCHECK(error_cb_);
@@ -493,7 +497,6 @@ void AudioRendererPcm::UpdateVariablesOnSinkThread_Locked(
       frames_in_buffer_on_sink_thread_ >= buffered_frames_to_start_) {
     underflow_ = false;
   }
-  is_playing_on_sink_thread_ = !paused_ && !seeking_ && !underflow_;
   offset_in_frames_on_sink_thread_ =
       total_frames_consumed_by_sink_ % max_cached_frames_;
 

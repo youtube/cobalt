@@ -34,6 +34,8 @@ struct SbAudioSinkPrivate {
   typedef std::function<
       void(int frames_consumed, int64_t frames_consumed_at, void* context)>
       ConsumeFramesFunc;
+  typedef std::function<void(bool is_playing, void* context)>
+      UpdateSinkStatusFunc;
 
   class Type {
    public:
@@ -49,6 +51,7 @@ struct SbAudioSinkPrivate {
         int frame_buffers_size_in_frames,
         SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
         ConsumeFramesFunc consume_frames_func,
+        UpdateSinkStatusFunc update_sink_status_func,
         ErrorFunc error_func,
         void* context) = 0;
     virtual bool IsValid(SbAudioSink audio_sink) = 0;
@@ -98,6 +101,7 @@ class SbAudioSinkImpl : public SbAudioSinkPrivate {
       int frame_buffers_size_in_frames,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       ConsumeFramesFunc consume_frames_func,
+      UpdateSinkStatusFunc update_sink_status_func,
       ErrorFunc error_func,
       void* context);
 
@@ -110,6 +114,7 @@ class SbAudioSinkImpl : public SbAudioSinkPrivate {
       int frame_buffers_size_in_frames,
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkConsumeFramesFunc sb_consume_frames_func,
+      SbAudioSinkUpdateSinkStatusFunc update_sink_status_func,
       ErrorFunc error_func,
       void* context);
 

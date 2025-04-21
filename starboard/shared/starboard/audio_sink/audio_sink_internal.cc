@@ -46,7 +46,6 @@ void WrapConsumeFramesFunc(SbAudioSinkConsumeFramesFunc sb_consume_frames_func,
   SB_UNREFERENCED_PARAMETER(frames_consumed_at);
   sb_consume_frames_func(frames_consumed, context);
 }
-
 }  // namespace
 
 // static
@@ -110,6 +109,7 @@ SbAudioSink SbAudioSinkImpl::Create(
     int frame_buffers_size_in_frames,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     ConsumeFramesFunc consume_frames_func,
+    UpdateSinkStatusFunc update_sink_status_func,
     ErrorFunc error_func,
     void* context) {
   if (channels <= 0 || channels > SbAudioSinkGetMaxChannels()) {
@@ -159,7 +159,8 @@ SbAudioSink SbAudioSinkImpl::Create(
     auto audio_sink = audio_sink_type->Create(
         channels, sampling_frequency_hz, audio_sample_type,
         audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-        update_source_status_func, consume_frames_func, error_func, context);
+        update_source_status_func, consume_frames_func, update_sink_status_func,
+        error_func, context);
     if (audio_sink_type->IsValid(audio_sink)) {
       return audio_sink;
     }
@@ -174,7 +175,8 @@ SbAudioSink SbAudioSinkImpl::Create(
     auto audio_sink = fallback_type->Create(
         channels, sampling_frequency_hz, audio_sample_type,
         audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-        update_source_status_func, consume_frames_func, error_func, context);
+        update_source_status_func, consume_frames_func, update_sink_status_func,
+        error_func, context);
     if (fallback_type->IsValid(audio_sink)) {
       return audio_sink;
     }
@@ -196,6 +198,7 @@ SbAudioSink SbAudioSinkImpl::Create(
     int frame_buffers_size_in_frames,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc sb_consume_frames_func,
+    SbAudioSinkUpdateSinkStatusFunc sb_update_sink_status_func,
     ErrorFunc error_func,
     void* context) {
   return Create(channels, sampling_frequency_hz, audio_sample_type,
@@ -205,7 +208,7 @@ SbAudioSink SbAudioSinkImpl::Create(
                     ? std::bind(&WrapConsumeFramesFunc, sb_consume_frames_func,
                                 _1, _2, _3)
                     : ConsumeFramesFunc(),
-                error_func, context);
+                sb_update_sink_status_func, error_func, context);
 }
 
 }  // namespace audio_sink

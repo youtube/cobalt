@@ -82,7 +82,8 @@ void CobaltAudioRendererSink::Start() {
       params_.channels(), nearest_supported_sample_rate_, output_sample_type_,
       kSbMediaAudioFrameStorageTypeInterleaved, &output_frame_buffers_[0],
       frames_per_channel_, &CobaltAudioRendererSink::UpdateSourceStatusFunc,
-      &CobaltAudioRendererSink::ConsumeFramesFunc, this);
+      &CobaltAudioRendererSink::ConsumeFramesFunc,
+      &CobaltAudioRendererSink::UpdateSinkStatusFunc, this);
   DCHECK(SbAudioSinkIsValid(audio_sink_));
 }
 
@@ -115,7 +116,8 @@ void CobaltAudioRendererSink::Flush() {
       output_sample_type_, kSbMediaAudioFrameStorageTypeInterleaved,
       &output_frame_buffers_[0], frames_per_channel_,
       &CobaltAudioRendererSink::UpdateSourceStatusFunc,
-      &CobaltAudioRendererSink::ConsumeFramesFunc, this);
+      &CobaltAudioRendererSink::ConsumeFramesFunc,
+      &CobaltAudioRendererSink::UpdateSinkStatusFunc, this);
   DCHECK(SbAudioSinkIsValid(audio_sink_));
 }
 
@@ -174,6 +176,14 @@ void CobaltAudioRendererSink::ConsumeFramesFunc(int frames_consumed,
   sink->ConsumeFrames(frames_consumed);
 }
 
+void CobaltAudioRendererSink::UpdateSinkStatusFunc(bool is_playing,
+                                                   void* context) {
+  CobaltAudioRendererSink* sink =
+      static_cast<CobaltAudioRendererSink*>(context);
+  DCHECK(sink);
+  sink->UpdateSinkStatus(is_playing);
+}
+
 void CobaltAudioRendererSink::UpdateSourceStatus(int* frames_in_buffer,
                                                  int* offset_in_frames,
                                                  bool* is_playing,
@@ -209,6 +219,8 @@ void CobaltAudioRendererSink::UpdateSourceStatus(int* frames_in_buffer,
 void CobaltAudioRendererSink::ConsumeFrames(int frames_consumed) {
   frames_consumed_ += frames_consumed;
 }
+
+void CobaltAudioRendererSink::UpdateSinkStatus(bool is_playing) {}
 
 void CobaltAudioRendererSink::FillOutputAudioBuffer(int num_frames) {
   uint64_t channel_offset = frames_rendered_ % frames_per_channel_;

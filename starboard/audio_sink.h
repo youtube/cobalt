@@ -66,6 +66,8 @@ typedef void (*SbAudioSinkUpdateSourceStatusFunc)(int* frames_in_buffer,
 typedef void (*SbAudioSinkConsumeFramesFunc)(int frames_consumed,
                                              void* context);
 
+typedef void (*SbAudioSinkUpdateSinkStatusFunc)(bool is_playing, void* context);
+
 // Well-defined value for an invalid audio sink.
 #define kSbAudioSinkInvalid ((SbAudioSink)NULL)
 
@@ -126,6 +128,7 @@ SbAudioSinkCreate(int channels,
                   int frames_per_channel,
                   SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
                   SbAudioSinkConsumeFramesFunc consume_frames_func,
+                  SbAudioSinkUpdateSinkStatusFunc update_sink_status_func,
                   void* context);
 
 // Destroys |audio_sink|, freeing all associated resources. Before

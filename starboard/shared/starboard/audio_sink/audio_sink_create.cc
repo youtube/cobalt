@@ -26,10 +26,11 @@ SbAudioSink SbAudioSinkCreate(
     int frame_buffers_size_in_frames,
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frames_func,
+    SbAudioSinkUpdateSinkStatusFunc update_sink_status_func,
     void* context) {
   return ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Create(
       channels, sampling_frequency_hz, audio_sample_type,
       audio_frame_storage_type, frame_buffers, frame_buffers_size_in_frames,
-      update_source_status_func, consume_frames_func, NULL /*error_func*/,
-      context);
+      update_source_status_func, consume_frames_func, update_sink_status_func,
+      /*error_func=*/nullptr, context);
 }

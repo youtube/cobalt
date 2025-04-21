@@ -37,13 +37,15 @@ AudioRendererSinkImpl::AudioRendererSinkImpl()
              int frame_buffers_size_in_frames,
              SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
              SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
+             SbAudioSinkPrivate::UpdateSinkStatusFunc update_sink_status_func,
              SbAudioSinkPrivate::ErrorFunc error_func,
              void* context) {
             return audio_sink::SbAudioSinkImpl::Create(
                 channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers,
                 frame_buffers_size_in_frames, update_source_status_func,
-                consume_frames_func, error_func, context);
+                consume_frames_func, update_sink_status_func, error_func,
+                context);
           }) {}
 
 AudioRendererSinkImpl::AudioRendererSinkImpl(
@@ -103,6 +105,7 @@ void AudioRendererSinkImpl::Start(
       audio_frame_storage_type, frame_buffers, frames_per_channel,
       &AudioRendererSinkImpl::UpdateSourceStatusFunc,
       &AudioRendererSinkImpl::ConsumeFramesFunc,
+      &AudioRendererSinkImpl::UpdateSinkStatusFunc,
       &AudioRendererSinkImpl::ErrorFunc, this);
   if (!SbAudioSinkIsValid(audio_sink_)) {
     return;
@@ -176,6 +179,15 @@ void AudioRendererSinkImpl::ConsumeFramesFunc(int frames_consumed,
 
   audio_renderer_sink->render_callback_->ConsumeFrames(frames_consumed,
                                                        frames_consumed_at);
+}
+
+void AudioRendererSinkImpl::UpdateSinkStatusFunc(bool is_playing,
+                                                 void* context) {
+  AudioRendererSinkImpl* audio_renderer_sink =
+      static_cast<AudioRendererSinkImpl*>(context);
+  SB_DCHECK(audio_renderer_sink);
+  SB_DCHECK(audio_renderer_sink->render_callback_);
+  audio_renderer_sink->render_callback_->UpdateSinkStatus(is_playing);
 }
 
 // static

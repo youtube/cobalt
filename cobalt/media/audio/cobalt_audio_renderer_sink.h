@@ -55,12 +55,14 @@ class MEDIA_EXPORT CobaltAudioRendererSink final : public AudioRendererSink {
                                      void* context);
 
   static void ConsumeFramesFunc(int frames_consumed, void* context);
+  static void UpdateSinkStatusFunc(bool is_playing, void* context);
 
   void UpdateSourceStatus(int* frames_in_buffer,
                           int* offset_in_frames,
                           bool* is_playing,
                           bool* is_eos_reached);
   void ConsumeFrames(int frames_consumed);
+  void UpdateSinkStatus(bool is_playing);
 
   void FillOutputAudioBuffer(int num_frames);
 

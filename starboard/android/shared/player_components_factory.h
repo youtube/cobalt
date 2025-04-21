@@ -96,6 +96,8 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                 int frame_buffers_size_in_frames,
                 SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
                 SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
+                SbAudioSinkPrivate::UpdateSinkStatusFunc
+                    update_sink_status_func,
                 SbAudioSinkPrivate::ErrorFunc error_func,
                 void* context) {
               auto type = static_cast<AudioTrackAudioSinkType*>(
@@ -106,9 +108,9 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                   channels, sampling_frequency_hz, audio_sample_type,
                   audio_frame_storage_type, frame_buffers,
                   frame_buffers_size_in_frames, update_source_status_func,
-                  consume_frames_func, error_func, start_media_time,
-                  tunnel_mode_audio_session_id, false, /* is_web_audio */
-                  context);
+                  consume_frames_func, update_sink_status_func, error_func,
+                  start_media_time, tunnel_mode_audio_session_id,
+                  /*is_web_audio=*/false, context);
             }),
         tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id) {}
 
@@ -145,6 +147,8 @@ class AudioRendererSinkCallbackStub
   void ConsumeFrames(int frames_consumed, int64_t frames_consumed_at) override {
     SB_DCHECK(frames_consumed == 0);
   }
+
+  void UpdateSinkStatus(bool is_playing) override {}
 
   void OnError(bool capability_changed,
                const std::string& error_message) override {

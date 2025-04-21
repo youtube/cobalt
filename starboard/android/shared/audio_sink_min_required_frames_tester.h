@@ -87,6 +87,7 @@ class MinRequiredFramesTester {
   static void ConsumeFramesFunc(int frames_consumed,
                                 int64_t frames_consumed_at,
                                 void* context);
+  static void UpdateSinkStatusFunc(bool is_playing, void* context);
   static void ErrorFunc(bool capability_changed,
                         const std::string& error_message,
                         void* context);
