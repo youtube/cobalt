@@ -15,11 +15,14 @@
 #ifndef COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 #define COBALT_BROWSER_COBALT_CONTENT_BROWSER_CLIENT_H_
 
+#include "base/memory/raw_ptr.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
+
+class PrefService;
 
 namespace content {
 class BrowserMainParts;
@@ -27,6 +30,10 @@ class RenderFrameHost;
 class RenderProcessHost;
 class WebContents;
 }  // namespace content
+
+namespace metrics_services_manager {
+class MetricsServicesManager;
+}  // namespace metrics_services_manager
 
 namespace mojo {
 template <typename>
@@ -39,6 +46,7 @@ namespace media {
 class VideoGeometrySetterService;
 }  // namespace media
 
+class CobaltMetricsServicesManagerClient;
 class CobaltWebContentsObserver;
 
 // This class allows Cobalt to inject specific logic in the business of the
@@ -86,6 +94,17 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       blink::AssociatedInterfaceRegistry* associated_registry,
       content::RenderProcessHost* render_process_host) override;
   void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
+<<<<<<< HEAD
+=======
+
+  // Initializes all necessary parameters to create the feature list and calls
+  // base::FeatureList::SetInstance() to set the global instance.
+  void CreateFeatureListAndFieldTrials();
+
+  // Read from the experiment config, override features, and associate feature
+  // params for Cobalt experiments.
+  void SetUpCobaltFeaturesAndParams(base::FeatureList* feature_list);
+>>>>>>> c82d91eaa6d (Add Global Features class. (#5477))
 
   bool WillCreateURLLoaderFactory(
       content::BrowserContext* browser_context,

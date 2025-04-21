@@ -22,14 +22,34 @@
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
+#include "cobalt/browser/global_features.h"
+#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
+<<<<<<< HEAD
+=======
+#include "components/metrics/metrics_state_manager.h"
+#include "components/metrics/test/test_enabled_state_provider.h"
+#include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/prefs/pref_registry_simple.h"
+#include "components/prefs/pref_service.h"
+#include "components/prefs/pref_service_factory.h"
+#include "components/variations/service/variations_service.h"
+>>>>>>> c82d91eaa6d (Add Global Features class. (#5477))
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/user_agent.h"
 #include "content/shell/browser/shell.h"
+<<<<<<< HEAD
+=======
+// TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
+// being a ShellBrowserMainParts.
+#include "content/shell/browser/shell_browser_main_parts.h"
+#include "content/shell/common/shell_switches.h"
+#include "services/network/public/cpp/features.h"
+>>>>>>> c82d91eaa6d (Add Global Features class. (#5477))
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
@@ -303,4 +323,102 @@ bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
   return true;
 }
 
+<<<<<<< HEAD
+=======
+void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
+    base::FeatureList* feature_list) {
+  // All Cobalt features are associated with the same field trial. This is for
+  // easier feature param lookup.
+  base::FieldTrial* cobalt_field_trial = base::FieldTrialList::CreateFieldTrial(
+      kCobaltExperimentName, kCobaltGroupName);
+  CHECK(cobalt_field_trial) << "Unexpected name conflict.";
+
+  auto experiment_config = GlobalFeatures::GetInstance()->experiment_config();
+
+  const base::Value::Dict& feature_map =
+      experiment_config->GetDict(kExperimentConfigFeature);
+  const base::Value::Dict& param_map =
+      experiment_config->GetDict(kExperimentConfigFeatureParams);
+
+  for (const auto feature_name_and_value : feature_map) {
+    if (feature_name_and_value.second.is_bool()) {
+      auto override_value =
+          feature_name_and_value.second.GetBool()
+              ? base::FeatureList::OverrideState::OVERRIDE_ENABLE_FEATURE
+              : base::FeatureList::OverrideState::OVERRIDE_DISABLE_FEATURE;
+      feature_list->RegisterFieldTrialOverride(
+          feature_name_and_value.first, override_value, cobalt_field_trial);
+    } else {
+      // TODO(b/407734134): Register UMA here for non boolean feature value.
+      LOG(ERROR) << "Failed to apply override for feature "
+                 << feature_name_and_value.first;
+      base::debug::DumpWithoutCrashing();
+    }
+  }
+
+  base::FieldTrialParams params;
+  for (const auto param_name_and_value : param_map) {
+    if (param_name_and_value.second.is_string()) {
+      params.emplace(param_name_and_value.first,
+                     param_name_and_value.second.GetString());
+    } else {
+      // TODO(b/407734134): Register UMA here for non string param value.
+      LOG(ERROR) << "Failed to associate field trial param "
+                 << param_name_and_value.first << " with string value "
+                 << param_name_and_value.second;
+      base::debug::DumpWithoutCrashing();
+    }
+  }
+  base::AssociateFieldTrialParams(kCobaltExperimentName, kCobaltGroupName,
+                                  params);
+}
+
+void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
+  metrics::TestEnabledStateProvider enabled_state_provider(/*consent=*/false,
+                                                           /*enabled=*/false);
+  base::FilePath path;
+  base::PathService::Get(content::SHELL_DIR_USER_DATA, &path);
+
+  GlobalFeatures::GetInstance()
+      ->metrics_services_manager()
+      ->InstantiateFieldTrialList();
+
+  auto feature_list = std::make_unique<base::FeatureList>();
+
+  const base::CommandLine& command_line =
+      *base::CommandLine::ForCurrentProcess();
+
+  // Overrides for content/common and lower layers' switches.
+  std::vector<base::FeatureList::FeatureOverrideInfo> feature_overrides =
+      content::GetSwitchDependentFeatureOverrides(command_line);
+
+  // Overrides for --run-web-tests.
+  if (switches::IsRunWebTestsSwitchPresent()) {
+    // Disable artificial timeouts for PNA-only preflights in warning-only mode
+    // for web tests. We do not exercise this behavior with web tests as it is
+    // intended to be a temporary rollout stage, and the short timeout causes
+    // flakiness when the test server takes just a tad too long to respond.
+    feature_overrides.emplace_back(
+        std::cref(
+            network::features::kPrivateNetworkAccessPreflightShortTimeout),
+        base::FeatureList::OVERRIDE_DISABLE_FEATURE);
+  }
+
+  feature_list->InitializeFromCommandLine(
+      command_line.GetSwitchValueASCII(::switches::kEnableFeatures),
+      command_line.GetSwitchValueASCII(::switches::kDisableFeatures));
+
+  // This needs to happen here: After the InitFromCommandLine() call,
+  // because the explicit cmdline --disable-features and --enable-features
+  // should take precedence over these extra overrides. Before the call to
+  // SetInstance(), because overrides cannot be registered after the FeatureList
+  // instance is set.
+  feature_list->RegisterExtraFeatureOverrides(feature_overrides);
+
+  SetUpCobaltFeaturesAndParams(feature_list.get());
+
+  base::FeatureList::SetInstance(std::move(feature_list));
+}
+
+>>>>>>> c82d91eaa6d (Add Global Features class. (#5477))
 }  // namespace cobalt
