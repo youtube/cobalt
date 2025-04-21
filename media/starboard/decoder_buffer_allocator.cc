@@ -87,11 +87,11 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
 }
 
 void DecoderBufferAllocator::Suspend() {
+  LOG(INFO) << "YO THOR - SUSPEND. HAZ ALLOCATED:"
+            << reuse_allocator_->GetAllocated();
   if (is_memory_pool_allocated_on_demand_) {
     return;
   }
-  LOG(INFO) << "YO THOR - SUSPEND. HAZ ALLOCATED:"
-            << reuse_allocator_->GetAllocated();
 
   base::AutoLock scoped_lock(mutex_);
 
