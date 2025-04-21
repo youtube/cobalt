@@ -282,9 +282,9 @@ bool TestWaylandServerThread::SetupExplicitSynchronizationProtocol(
 std::unique_ptr<base::MessagePump>
 TestWaylandServerThread::CreateMessagePump() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  auto pump = std::make_unique<base::MessagePumpLibevent>();
+  auto pump = std::make_unique<base::MessagePumpEpoll>();
   pump->WatchFileDescriptor(wl_event_loop_get_fd(event_loop_), true,
-                            base::MessagePumpLibevent::WATCH_READ, &controller_,
+                            base::MessagePumpEpoll::WATCH_READ, &controller_,
                             this);
   return std::move(pump);
 }
