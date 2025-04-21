@@ -363,8 +363,8 @@ LinkNodeBase::previous_
 WeakLinkNode::list_
 base::Location::program_counter_
 base::MessagePump::Delegate::ScopedDoWorkItem::outer_
-base::MessagePumpLibevent::RunState::delegate
 base::internal::OperationsController::OperationToken::outer_
+base::MessagePumpEpoll::RunState::delegate
 base::internal::SequenceLocalStorageMap::ValueDestructorPair::destructor_
 base::internal::SequenceLocalStorageMap::ValueDestructorPair::value_
 base::internal::TaskDestructionDetector::timer_
