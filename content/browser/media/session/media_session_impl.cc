@@ -139,11 +139,17 @@ bool IsSizesAtLeast(const std::vector<gfx::Size>& sizes, int min_size) {
   return check_size;
 }
 
+<<<<<<< HEAD
 std::u16string SanitizeMediaTitle(const std::u16string& title) {
+=======
+#if !BUILDFLAG(IS_COBALT)
+std::u16string SanitizeMediaTitle(const std::u16string title) {
+>>>>>>> 17b5c6dd5ee (Fix broken web tests configuration (#5475))
   std::u16string out;
   base::TrimString(title, u" ", &out);
   return out;
 }
+#endif // !BUILDFLAG(IS_COBALT)
 
 }  // anonymous namespace
 
