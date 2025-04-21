@@ -12010,23 +12010,6 @@
             ]
         }
     ],
-    "MessagePumpEpoll": [
-        {
-            "platforms": [
-                "android",
-                "chromeos",
-                "linux"
-            ],
-            "experiments": [
-                {
-                    "name": "Enabled",
-                    "enable_features": [
-                        "MessagePumpEpoll"
-                    ]
-                }
-            ]
-        }
-    ],
     "MessagesPreinstall": [
         {
             "platforms": [

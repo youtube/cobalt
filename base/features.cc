@@ -9,10 +9,6 @@
 #include "base/threading/platform_thread.h"
 #include "build/buildflag.h"
 
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-#include "base/message_loop/message_pump_libevent.h"
-#endif
-
 #if BUILDFLAG(IS_APPLE)
 #include "base/files/file.h"
 #include "base/message_loop/message_pump_apple.h"
@@ -28,6 +24,7 @@
 #include "base/task/sequence_manager/thread_controller_power_monitor.h"
 #include "base/threading/platform_thread_win.h"
 #endif
+
 
 namespace base::features {
 
@@ -97,10 +94,6 @@ void Init(EmitThreadControllerProfilerMetadata
   sequence_manager::internal::SequenceManagerImpl::InitializeFeatures();
   sequence_manager::internal::ThreadController::InitializeFeatures(
       emit_thread_controller_profiler_metadata);
-
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID)
-  MessagePumpLibevent::InitializeFeatures();
-#endif
 
 #if BUILDFLAG(IS_APPLE) || BUILDFLAG(IS_CHROMEOS)
   PlatformThread::InitializeFeatures();
