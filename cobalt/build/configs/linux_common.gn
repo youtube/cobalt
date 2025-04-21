@@ -108,3 +108,6 @@ use_nss_certs = false
 # Override from components/nacl/features.gni
 # Disables Pepper API (PPAPI) plugin support.
 enable_ppapi = false
+
+# Disable D-Bus
+use_dbus = false
