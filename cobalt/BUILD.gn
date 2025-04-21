@@ -49,8 +49,9 @@ if (!is_android) {
       "cobalt_switch_defaults.h",
       "media_dump_symbols.cc",
       "net_dump_symbols.cc",
-      "platform_event_source_starboard.cc",
-      "platform_event_source_starboard.h",
+
+      # "platform_event_source_starboard.cc",
+      # "platform_event_source_starboard.h",
     ]
 
     defines = []
