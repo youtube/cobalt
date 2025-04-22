@@ -41,7 +41,6 @@ if (!is_android) {
     testonly = true
 
     sources = [
-      "base_dump_symbols.cc",
       "cobalt.cc",
       "cobalt_main_delegate.cc",
       "cobalt_main_delegate.h",
