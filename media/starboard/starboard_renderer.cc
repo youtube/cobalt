@@ -288,14 +288,6 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   LOG_IF(WARNING, time < base::Seconds(0))
       << "Potentially invalid start time " << time << '.';
 
-  if (audio_read_in_progress_ || video_read_in_progress_) {
-    const TimeDelta kDelay = base::Milliseconds(50);
-    task_runner_->PostDelayedTask(
-            FROM_HERE,
-            base::BindOnce(&StarboardRenderer::StartPlayingFrom, weak_factory_.GetWeakPtr(), time),
-            kDelay);
-  }
-
   timestamp_of_last_written_audio_ = TimeDelta();
   is_video_eos_written_ = false;
   StoreMediaTime(time);
@@ -677,6 +669,12 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
   // We may also need this for suspend/resume support.
   if (!player_bridge_) {
     LOG(INFO) << "StarboardRenderer::OnNeedData() called with " << type;
+    return;
+  }
+
+  // In the rare case data is requested immediately before a seek, wait
+  // wait until the player completes seeking before reading buffers again.
+  if (state_ == STATE_FLUSHED) {
     return;
   }
 
