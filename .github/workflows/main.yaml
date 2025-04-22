@@ -45,7 +45,7 @@ jobs:
         with:
           name: ci-essentials-${{ inputs.platform }}
           include-hidden-files: true
-          retention-days: 1
+          retention-days: 14
           path: |
             .github
             cobalt/build
