@@ -1738,20 +1738,12 @@ component("base") {
       "debug/proc_maps_linux.cc",
       "debug/proc_maps_linux.h",
       "files/dir_reader_linux.h",
-      # "process/internal_linux.cc",
-      # "process/internal_linux.h",
-      # "process/process_handle_linux.cc",
-      # "process/process_iterator_linux.cc",
       "process/process_linux.cc",
-      "process/process_metrics_linux.cc",
-      "threading/thread_type_delegate.cc",
-      "threading/thread_type_delegate.h",
 
       #   ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
       # return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
       "posix/can_lower_nice_to.cc",
       "posix/can_lower_nice_to.h",
-      "process/launch_posix.cc",
       "profiler/module_cache_posix.cc",
       "profiler/stack_base_address_posix.cc",
       "profiler/stack_base_address_posix.h",
@@ -1763,12 +1755,8 @@ component("base") {
       #         ../../base/process/process_metrics_posix.cc:119:27: error: invalid use of incomplete type 'mallinfo'
       # struct mallinfo minfo = mallinfo();
       "process/process_metrics_posix.cc",
-      "scoped_native_library.cc",
-
-      # base/posix/unix_domain_socket.cc:91:22: error: implicit conversion loses integer precision:
-      "posix/unix_domain_socket.cc",
-      "posix/unix_domain_socket.h",
     ]
+    sources += ["process/process_metrics_posix_stub.cc"]
   }
 
   if (is_cobalt && enable_cobalt_hermetic_hacks) {
