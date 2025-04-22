@@ -262,6 +262,7 @@ component("capture_lib") {
     deps += [ "//gpu/command_buffer/client" ]
   }
 
+<<<<<<< HEAD
   if (is_linux) {
     sources += [
       "video/linux/v4l2_capture_delegate_gpu_helper.cc",
@@ -272,6 +273,13 @@ component("capture_lib") {
   }
 
   if (is_chromeos) {
+=======
+  if (is_cobalt_hermetic_build) {
+    sources += ["video/linux/video_capture_device_factory_linux_stub.cc"]
+  }
+
+  if (is_chromeos_ash) {
+>>>>>>> 0021f465d30 (Add media changes to build cobalt hermetically (#5499))
     sources += [
       "video/chromeos/camera_3a_controller.cc",
       "video/chromeos/camera_3a_controller.h",

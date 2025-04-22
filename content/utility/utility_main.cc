@@ -9,7 +9,11 @@
 #include "base/debug/leak_annotations.h"
 #include "base/functional/bind.h"
 #include "base/message_loop/message_pump_type.h"
+<<<<<<< HEAD
 #include "base/metrics/histogram_functions.h"
+=======
+#include "base/notreached.h"
+>>>>>>> 0021f465d30 (Add media changes to build cobalt hermetically (#5499))
 #include "base/power_monitor/power_monitor.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_executor.h"
@@ -311,8 +315,12 @@ int UtilityMain(MainFunctionParams parameters) {
 #endif  // BUILDFLAG(IS_LINUX)
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
     case sandbox::mojom::Sandbox::kHardwareVideoDecoding:
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+      NOTIMPLEMENTED();
+#else  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
       pre_sandbox_hook =
           base::BindOnce(&media::HardwareVideoDecodingPreSandboxHook);
+#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
       break;
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
     case sandbox::mojom::Sandbox::kHardwareVideoEncoding:
