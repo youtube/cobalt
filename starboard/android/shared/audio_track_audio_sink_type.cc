@@ -208,6 +208,10 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   int64_t playback_head_not_changed_duration = 0;  // microseconds
   int64_t last_written_succeeded_at = -1;          // microseconds
 
+  SB_LOG(INFO) << __func__ << " > initial.Play >";
+  bridge_.Play();
+  SB_LOG(INFO) << __func__ << " > initial.Complete pause";
+
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
@@ -272,13 +276,12 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
     if (was_playing && !is_playing) {
       was_playing = false;
-      bridge_.Pause();
+      bridge_.Flush();
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
       playback_head_not_changed_duration = 0;
       last_written_succeeded_at = -1;
-      bridge_.Play();
     }
 
     if (!is_playing || frames_in_buffer == 0) {
