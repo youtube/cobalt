@@ -231,7 +231,7 @@ int UtilityMain(MainFunctionParams parameters) {
       pre_sandbox_hook = base::BindOnce(&screen_ai::ScreenAIPreSandboxHook);
       break;
 #endif
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH) 
     case sandbox::mojom::Sandbox::kHardwareVideoDecoding:
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
       COBALT_LINKER_STUB();
