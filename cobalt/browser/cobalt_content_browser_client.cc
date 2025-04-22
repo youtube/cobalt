@@ -16,9 +16,18 @@
 
 #include <string>
 
+#include "base/base_switches.h"
+#include "base/command_line.h"
+#include "base/feature_list.h"
+#include "base/features.h"
+#include "base/files/file.h"
 #include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/i18n/rtl.h"
+#include "base/json/json_reader.h"
+#include "base/metrics/field_trial_params.h"
+#include "base/path_service.h"
+#include "cc/base/switches.h"
 #include "cobalt/browser/cobalt_browser_interface_binders.h"
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/cobalt_web_contents_observer.h"
@@ -27,9 +36,12 @@
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
+#include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
+#include "components/prefs/in_memory_pref_store.h"
+#include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
@@ -37,6 +49,7 @@
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/user_agent.h"
 #include "content/shell/browser/shell.h"
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
@@ -54,8 +67,15 @@ namespace cobalt {
 namespace {
 
 constexpr base::FilePath::CharType kCacheDirname[] = FILE_PATH_LITERAL("Cache");
+const char kCobaltExperimentName[] = "CobaltExperiment";
+const char kCobaltGroupName[] = "CobaltGroup";
 constexpr base::FilePath::CharType kCookieFilename[] =
     FILE_PATH_LITERAL("Cookies");
+constexpr base::FilePath::CharType kExperimentConfigFilename[] =
+    FILE_PATH_LITERAL("Experiment Config");
+const char kExperimentConfigFeature[] = "features";
+const char kExperimentConfigFeatureParams[] = "feature_params";
+const char kExperimentConfigExpIds[] = "exp_ids";
 constexpr base::FilePath::CharType kNetworkDataDirname[] =
     FILE_PATH_LITERAL("Network");
 constexpr base::FilePath::CharType kNetworkPersistentStateFilename[] =

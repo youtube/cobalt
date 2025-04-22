@@ -269,6 +269,7 @@ shared_library("libchrobalt") {
 
     # TODO: what can be removed in the dependencies?
     "//components/crash/content/browser",
+    "//components/memory_system",
     "//content/shell:content_shell_app",
     "//content/shell:content_shell_lib",
     "//content/shell:pak",
