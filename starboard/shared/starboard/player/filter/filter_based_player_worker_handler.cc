@@ -209,6 +209,8 @@ HandlerResult FilterBasedPlayerWorkerHandler::Seek(int64_t seek_to_time,
   media_time_provider_->Seek(seek_to_time);
   audio_prerolled_ = false;
   video_prerolled_ = false;
+  audio_ended_ = false;
+  video_ended_ = false;
   return HandlerResult{true};
 }
 
