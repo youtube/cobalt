@@ -66,8 +66,11 @@ if (!is_android) {
       "//starboard:starboard_group",
       "//third_party/blink/public/common",
       "//ui/ozone:ozone_switches",
-      "//ui/ozone/platform/starboard:starboard",
     ]
+
+    if (is_starboard) {
+      deps += [ "//ui/ozone/platform/starboard:starboard" ]
+    }
 
     data_deps = [
       "//content/shell:pak",
