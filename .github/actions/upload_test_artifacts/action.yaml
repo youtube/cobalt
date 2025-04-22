@@ -10,13 +10,15 @@ inputs:
   test_artifacts_key:
     description: "Artifact key used to store on-host test artifacts."
     required: true
-  test_targets_json_file:
-    description: "File containing the test target json."
+  test_targets_json:
+    description: "The test targets as a json list."
     required: true
 runs:
   using: "composite"
   steps:
     - name: Archive Test Artifacts
+      env:
+        TEST_TARGETS_JSON: ${{ inputs.test_targets_json }}
       run: |
         set -x
         mkdir ${GITHUB_WORKSPACE}/artifacts
@@ -27,7 +29,7 @@ runs:
           --out-dir out/${{ matrix.platform }}_${{ matrix.config }}/ \
           --destination-dir ${GITHUB_WORKSPACE}/artifacts \
           --platform ${{ matrix.platform }} \
-          --targets $(cat "${{ inputs.test_targets_json_file }}" | jq -cr '.test_targets | join(",")')
+          --targets $(echo "${TEST_TARGETS_JSON}" | jq -cr 'join(",")')
       shell: bash
     - name: Upload On-Host Test Artifacts Archive
       if: inputs.upload_on_host_test_artifacts == 'true'
