@@ -31,10 +31,6 @@ class STUB_WINDOW_EXPORT StubWindow : public PlatformWindow {
 
  protected:
   PlatformWindowDelegate* delegate() { return delegate_; }
-#if BUILDFLAG(IS_STARBOARD)
-  gfx::Rect GetBoundsInPixels() const override;
-  void SetBoundsInPixels(const gfx::Rect& bounds) override;
-#endif
 
  private:
   enum class ActivationState {
@@ -49,10 +45,8 @@ class STUB_WINDOW_EXPORT StubWindow : public PlatformWindow {
   void Close() override;
   bool IsVisible() const override;
   void PrepareForShutdown() override;
-#if !BUILDFLAG(IS_STARBOARD)
   void SetBoundsInPixels(const gfx::Rect& bounds) override;
   gfx::Rect GetBoundsInPixels() const override;
-#endif
   void SetBoundsInDIP(const gfx::Rect& bounds) override;
   gfx::Rect GetBoundsInDIP() const override;
   void SetTitle(const std::u16string& title) override;
