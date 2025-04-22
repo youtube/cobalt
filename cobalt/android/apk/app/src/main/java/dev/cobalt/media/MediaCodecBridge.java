@@ -35,7 +35,6 @@ import android.view.Surface;
 import androidx.annotation.Nullable;
 import dev.cobalt.util.Log;
 import dev.cobalt.util.SynchronizedHolder;
-import dev.cobalt.util.UsedByNative;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Locale;
@@ -46,8 +45,6 @@ import org.chromium.base.annotations.NativeMethods;
 
 /** A wrapper of the MediaCodec class. */
 @JNINamespace("starboard::android::shared")
-@SuppressWarnings("unused")
-@UsedByNative
 class MediaCodecBridge {
   // After a flush(), dequeueOutputBuffer() can often produce empty presentation timestamps
   // for several frames. As a result, the player may find that the time does not increase
@@ -147,8 +144,6 @@ class MediaCodecBridge {
   private FrameRateEstimator mFrameRateEstimator = null;
   private BitrateAdjustmentTypes mBitrateAdjustmentType = BitrateAdjustmentTypes.NO_ADJUSTMENT;
 
-  @SuppressWarnings("unused")
-  @UsedByNative
   public static class DequeueInputResult {
     private int mStatus;
     private int mIndex;
@@ -180,8 +175,6 @@ class MediaCodecBridge {
     }
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
   private static class DequeueOutputResult {
     private int mStatus;
     private int mIndex;
@@ -256,8 +249,6 @@ class MediaCodecBridge {
   }
 
   /** A wrapper around a MediaFormat. */
-  @SuppressWarnings("unused")
-  @UsedByNative
   private static class GetOutputFormatResult {
     private int mStatus;
     // May be null if mStatus is not MediaCodecStatus.OK.
@@ -342,8 +333,6 @@ class MediaCodecBridge {
     }
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
   private static class ColorInfo {
     private static final int MAX_CHROMATICITY = 50000; // Defined in CTA-861.3.
     private static final int DEFAULT_MAX_CLL = 1000;
@@ -412,8 +401,6 @@ class MediaCodecBridge {
     }
   }
 
-  @SuppressWarnings("unused")
-  @UsedByNative
   private static class CreateMediaCodecBridgeResult {
     private MediaCodecBridge mMediaCodecBridge;
     // Contains the error message when mMediaCodecBridge is null.
@@ -550,7 +537,7 @@ class MediaCodecBridge {
   }
 
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   public static void createVideoMediaCodecBridge(
       long nativeMediaCodecBridge,
       String mime,
@@ -848,7 +835,7 @@ class MediaCodecBridge {
   // It is required to reset mNativeMediaCodecBridge when the native media_codec_bridge object is
   // destroyed.
   @SuppressWarnings("unused")
-  @UsedByNative
+  @CalledByNative
   private void resetNativeMediaCodecBridge() {
     synchronized (this) {
       mNativeMediaCodecBridge = 0;
