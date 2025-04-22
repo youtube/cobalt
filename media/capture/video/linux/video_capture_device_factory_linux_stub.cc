@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "base/notreached.h"
 #include "media/capture/video/linux/video_capture_device_factory_linux.h"
 
 namespace media {

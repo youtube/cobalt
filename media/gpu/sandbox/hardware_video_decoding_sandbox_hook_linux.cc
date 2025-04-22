@@ -191,6 +191,7 @@ bool HardwareVideoDecodingPreSandboxHook(
       sandbox::policy::HardwareVideoDecodingProcessPolicy;
   using PolicyType =
       sandbox::policy::HardwareVideoDecodingProcessPolicy::PolicyType;
+
   const PolicyType policy_type =
       HardwareVideoDecodingProcessPolicy::ComputePolicyType(
           options.use_amd_specific_policies);
@@ -224,7 +225,7 @@ bool HardwareVideoDecodingPreSandboxHook(
       command_set, permissions, sandbox::policy::SandboxLinux::PreSandboxHook(),
       options);
   return true;
-#endif // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 }
 
 }  // namespace media
