@@ -183,11 +183,14 @@ bool HardwareVideoDecodingPreSandboxHookForV4L2(
 //   (at least).
 bool HardwareVideoDecodingPreSandboxHook(
     sandbox::policy::SandboxLinux::Options options) {
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+  NOTIMPLEMENTED();
+  return false;
+#else
   using HardwareVideoDecodingProcessPolicy =
       sandbox::policy::HardwareVideoDecodingProcessPolicy;
   using PolicyType =
       sandbox::policy::HardwareVideoDecodingProcessPolicy::PolicyType;
-
   const PolicyType policy_type =
       HardwareVideoDecodingProcessPolicy::ComputePolicyType(
           options.use_amd_specific_policies);
@@ -221,6 +224,7 @@ bool HardwareVideoDecodingPreSandboxHook(
       command_set, permissions, sandbox::policy::SandboxLinux::PreSandboxHook(),
       options);
   return true;
+#endif // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 }
 
 }  // namespace media
