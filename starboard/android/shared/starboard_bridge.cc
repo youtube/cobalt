@@ -168,6 +168,11 @@ long StarboardBridge::GetAppStartTimestamp(JNIEnv* env) {
   return Java_StarboardBridge_getAppStartTimestamp(env, j_starboard_bridge_);
 }
 
+long StarboardBridge::GetAppStartDuration(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getAppStartDuration(env, j_starboard_bridge_);
+}
+
 void StarboardBridge::ApplicationStarted(JNIEnv* env) {
   SB_DCHECK(env);
   Java_StarboardBridge_applicationStarted(env, j_starboard_bridge_);

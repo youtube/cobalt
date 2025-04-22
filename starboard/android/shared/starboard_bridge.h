@@ -41,6 +41,8 @@ class StarboardBridge {
 
   long GetAppStartTimestamp(JNIEnv* env);
 
+  long GetAppStartDuration(JNIEnv* env);
+
   void ApplicationStarted(JNIEnv* env);
 
   void ApplicationStopping(JNIEnv* env);
