@@ -33,11 +33,11 @@ float GetMinimumFrameIntervalInMilliseconds() {
   return 16.0f;
 }
 
-// TODO(cobalt b/375669373): replace Application usage.
 bool IsMapToMeshEnabled() {
+  // TODO(cobalt b/375669373): revisit RRO settings.
   // bool supports_spherical_videos =
-  //     starboard::android::shared::ApplicationAndroid::Get()
-  //         ->GetOverlaidBoolValue("supports_spherical_videos");
+  //     starboard::android::shared::RuntimeResourceOverlay::GetInstance()
+  //         ->supports_spherical_videos();
   bool supports_spherical_videos = false;
   return supports_spherical_videos;
 }

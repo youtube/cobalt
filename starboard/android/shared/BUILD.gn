@@ -248,6 +248,9 @@ static_library("starboard_platform") {
     # "posix_emu/file.cc",
     # "posix_emu/pthread.cc",
     # "posix_emu/stat.cc",
+
+    "runtime_resource_overlay.cc",
+    "runtime_resource_overlay.h",
     "sanitizer_options.cc",
 
     # TODO: (cobalt b/392178584) clean up speech synthesis code.
