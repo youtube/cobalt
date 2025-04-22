@@ -272,6 +272,10 @@ component("capture_lib") {
     ]
   }
 
+  if (is_cobalt_hermetic_build) {
+    sources += ["video/linux/video_capture_device_factory_linux_stub.cc"]
+  }
+
   if (is_chromeos_ash) {
     sources += [
       "video/chromeos/camera_3a_controller.cc",
