@@ -195,7 +195,6 @@ bool HardwareVideoDecodingPreSandboxHook(
       HardwareVideoDecodingProcessPolicy::ComputePolicyType(
           options.use_amd_specific_policies);
 
-
   sandbox::syscall_broker::BrokerCommandSet command_set;
   std::vector<BrokerFilePermission> permissions;
 
