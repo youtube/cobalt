@@ -94,8 +94,6 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
       blink::AssociatedInterfaceRegistry* associated_registry,
       content::RenderProcessHost* render_process_host) override;
   void BindGpuHostReceiver(mojo::GenericPendingReceiver receiver) override;
-<<<<<<< HEAD
-=======
 
   // Initializes all necessary parameters to create the feature list and calls
   // base::FeatureList::SetInstance() to set the global instance.
@@ -104,7 +102,6 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // Read from the experiment config, override features, and associate feature
   // params for Cobalt experiments.
   void SetUpCobaltFeaturesAndParams(base::FeatureList* feature_list);
->>>>>>> c82d91eaa6d (Add Global Features class. (#5477))
 
   bool WillCreateURLLoaderFactory(
       content::BrowserContext* browser_context,
