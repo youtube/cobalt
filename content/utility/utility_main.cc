@@ -10,6 +10,7 @@
 #include "base/functional/bind.h"
 #include "base/message_loop/message_pump_type.h"
 #include "base/metrics/histogram_functions.h"
+#include "base/notreached.h"
 #include "base/power_monitor/power_monitor.h"
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_executor.h"
@@ -318,8 +319,12 @@ int UtilityMain(MainFunctionParams parameters) {
 #endif  // BUILDFLAG(IS_LINUX)
 #if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
     case sandbox::mojom::Sandbox::kHardwareVideoDecoding:
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+      NOTIMPLEMENTED();
+#else  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
       pre_sandbox_hook =
           base::BindOnce(&media::HardwareVideoDecodingPreSandboxHook);
+#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
       break;
     case sandbox::mojom::Sandbox::kHardwareVideoEncoding:
       pre_sandbox_hook =
