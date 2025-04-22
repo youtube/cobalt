@@ -63,7 +63,10 @@ ApplicationAndroid::ApplicationAndroid(
   // from the assets. The use ICU is used in our logging.
   SbFileAndroidInitialize();
 
-  InitializeAndCacheResourceOverlayVariables();
+  // This effectively initializes the singleton and caches all RRO settings, if
+  // they haven't yet be cached by other users of the RuntimeResourceOverlay
+  // class.
+  RuntimeResourceOverlay::GetInstance();
 
   ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::Initialize();
 
@@ -128,82 +131,6 @@ Java_dev_cobalt_coat_javabridge_HTMLMediaElementExtension_nativeCanPlayType(
   SB_LOG(INFO) << __func__ << " (" << mime_type << ", " << key_system
                << ") --> " << ret;
   return env->NewStringStandardUTFOrAbort(ret);
-}
-
-void ApplicationAndroid::InitializeAndCacheResourceOverlayVariables() {
-  JniEnvExt* env = JniEnvExt::Get();
-  jobject resource_overlay = env->CallStarboardObjectMethodOrAbort(
-      "getResourceOverlay", "()Ldev/cobalt/coat/ResourceOverlay;");
-
-  // Retrieve all Runtime Resource Overlay variables
-  // during initialization, so synchronization is needed.
-  std::vector<std::string> rro_int_variable_keys = {
-      // Used in SbMediaGetVideoBufferBudget().
-      "max_video_buffer_budget",
-      // Used in SbAudioSinkGetMinBufferSizeInFrames().
-      "min_audio_sink_buffer_size_in_frames"};
-  for (auto rro_variable_key : rro_int_variable_keys) {
-    CacheOverlaidIntValue(resource_overlay, rro_variable_key.c_str());
-  }
-}
-
-int ApplicationAndroid::GetOverlaidIntValue(const char* var_name) const {
-  auto iter = overlaid_int_variables_.find(var_name);
-  SB_DCHECK(iter != overlaid_int_variables_.end())
-      << "Runtime Resource Overlay int variable " << var_name
-      << " doesn't exist.";
-  return iter == overlaid_int_variables_.end() ? 0 : iter->second;
-}
-
-std::string ApplicationAndroid::GetOverlaidStringValue(
-    const char* var_name) const {
-  auto iter = overlaid_string_variables_.find(var_name);
-  SB_DCHECK(iter != overlaid_string_variables_.end())
-      << "Runtime Resource Overlay string variable " << var_name
-      << " doesn't exist.";
-  return iter == overlaid_string_variables_.end() ? std::string()
-                                                  : iter->second;
-}
-
-bool ApplicationAndroid::GetOverlaidBoolValue(const char* var_name) const {
-  auto iter = overlaid_bool_variables_.find(var_name);
-  SB_DCHECK(iter != overlaid_bool_variables_.end())
-      << "Runtime Resource Overlay bool variable " << var_name
-      << " doesn't exist.";
-  return iter == overlaid_bool_variables_.end() ? false : iter->second;
-}
-
-void ApplicationAndroid::CacheOverlaidIntValue(jobject resource_overlay,
-                                               const char* var_name) {
-  if (overlaid_int_variables_.find(var_name) != overlaid_int_variables_.end()) {
-    return;
-  }
-  JniEnvExt* env = JniEnvExt::Get();
-  jint value = env->GetIntFieldOrAbort(resource_overlay, var_name, "I");
-  overlaid_int_variables_[var_name] = value;
-}
-
-void ApplicationAndroid::CacheOverlaidStringValue(jobject resource_overlay,
-                                                  const char* var_name) {
-  if (overlaid_string_variables_.find(var_name) !=
-      overlaid_string_variables_.end()) {
-    return;
-  }
-  JniEnvExt* env = JniEnvExt::Get();
-  std::string value = env->GetStringStandardUTFOrAbort(
-      env->GetStringFieldOrAbort(resource_overlay, var_name));
-  overlaid_string_variables_[var_name] = value;
-}
-
-void ApplicationAndroid::CacheOverlaidBoolValue(jobject resource_overlay,
-                                                const char* var_name) {
-  if (overlaid_bool_variables_.find(var_name) !=
-      overlaid_bool_variables_.end()) {
-    return;
-  }
-  JniEnvExt* env = JniEnvExt::Get();
-  jboolean value = env->GetBooleanFieldOrAbort(resource_overlay, var_name, "Z");
-  overlaid_bool_variables_[var_name] = value;
 }
 
 }  // namespace shared
