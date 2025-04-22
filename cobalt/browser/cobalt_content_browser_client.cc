@@ -27,8 +27,6 @@
 #include "cobalt/media/service/mojom/video_geometry_setter.mojom.h"
 #include "cobalt/media/service/video_geometry_setter_service.h"
 #include "cobalt/user_agent/user_agent_platform_info.h"
-<<<<<<< HEAD
-=======
 #include "components/metrics/metrics_state_manager.h"
 #include "components/metrics/test/test_enabled_state_provider.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
@@ -36,20 +34,16 @@
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
 #include "components/variations/service/variations_service.h"
->>>>>>> c82d91eaa6d (Add Global Features class. (#5477))
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/user_agent.h"
 #include "content/shell/browser/shell.h"
-<<<<<<< HEAD
-=======
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "content/shell/browser/shell_browser_main_parts.h"
 #include "content/shell/common/shell_switches.h"
 #include "services/network/public/cpp/features.h"
->>>>>>> c82d91eaa6d (Add Global Features class. (#5477))
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
@@ -323,8 +317,6 @@ bool CobaltContentBrowserClient::WillCreateURLLoaderFactory(
   return true;
 }
 
-<<<<<<< HEAD
-=======
 void CobaltContentBrowserClient::SetUpCobaltFeaturesAndParams(
     base::FeatureList* feature_list) {
   // All Cobalt features are associated with the same field trial. This is for
@@ -420,5 +412,4 @@ void CobaltContentBrowserClient::CreateFeatureListAndFieldTrials() {
   base::FeatureList::SetInstance(std::move(feature_list));
 }
 
->>>>>>> c82d91eaa6d (Add Global Features class. (#5477))
 }  // namespace cobalt
