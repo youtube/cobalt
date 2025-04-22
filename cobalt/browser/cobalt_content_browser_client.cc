@@ -48,16 +48,13 @@
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_switch_dependent_feature_overrides.h"
 #include "content/public/common/user_agent.h"
-<<<<<<< HEAD
 #include "content/shell/browser/shell.h"
-=======
 // TODO(b/390021478): Remove this include when CobaltBrowserMainParts stops
 // being a ShellBrowserMainParts.
 #include "content/shell/browser/shell_browser_main_parts.h"
 #include "content/shell/browser/shell_paths.h"
 #include "content/shell/common/shell_switches.h"
 #include "services/network/public/cpp/features.h"
->>>>>>> 11786bcc58a (Initialize Finch (#5187))
 #include "services/network/public/mojom/network_context.mojom.h"
 #include "services/service_manager/public/cpp/binder_registry.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_registry.h"
