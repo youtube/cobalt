@@ -102,6 +102,7 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                   ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl::
                       GetPreferredType());
 
+              SB_LOG(INFO) << __func__;
               return type->Create(
                   channels, sampling_frequency_hz, audio_sample_type,
                   audio_frame_storage_type, frame_buffers,

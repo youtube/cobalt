@@ -331,6 +331,15 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
     rendered_ = true;
+
+    int64_t now_us = CurrentMonotonicTime();
+    SB_LOG(INFO) << __func__
+                 << " > frame_timestamp=" << (frame->timestamp() / 1'000)
+                 << ", release_time="
+                 << (release_time_in_nanoseconds / 1'000'000)
+                 << ", release_time_from_now="
+                 << ((release_time_in_nanoseconds / 1'000 - now_us) / 1'000);
+
     static_cast<VideoFrameImpl*>(frame.get())
         ->Draw(release_time_in_nanoseconds);
 
@@ -1170,6 +1179,7 @@ bool VideoDecoder::IsFrameRenderedCallbackEnabled() {
 }
 
 void VideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
+  SB_LOG(INFO) << __func__ << " > timestamp=" << (frame_timestamp / 1'000);
   SB_DCHECK(is_video_frame_tracker_enabled_);
   SB_DCHECK(video_frame_tracker_);
 

@@ -104,6 +104,12 @@ JNI_MediaCodecBridge_OnMediaCodecFrameRendered(JNIEnv* env,
                                                jlong native_media_codec_bridge,
                                                jlong presentation_time_us,
                                                jlong render_at_system_time_ns) {
+  static int64_t last_rendered_ms = 0;
+  int64_t new_rendered_ms = render_at_system_time_ns / 1'000'000;
+  SB_LOG(INFO) << __func__ << " > rendered_ms=" << new_rendered_ms
+               << ", gap_ms=" << (new_rendered_ms - last_rendered_ms);
+  last_rendered_ms = new_rendered_ms;
+
   MediaCodecBridge* media_codec_bridge =
       reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
   SB_DCHECK(media_codec_bridge);

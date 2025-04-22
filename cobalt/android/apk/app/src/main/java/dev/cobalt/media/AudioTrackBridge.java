@@ -151,6 +151,7 @@ public class AudioTrackBridge {
                 tunnelModeEnabled
                     ? tunnelModeAudioSessionId
                     : AudioManager.AUDIO_SESSION_ID_GENERATE);
+         Log.i(TAG, "KJ: AudioTrack: " + audioTrack.getAudioSessionId());
       } catch (Exception e) {
         audioTrack = null;
       }
