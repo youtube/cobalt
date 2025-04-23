@@ -185,14 +185,10 @@ config("default_sanitizer_ldflags") {
     if (is_msan) {
       sanitizers += [ "memory" ]
     }
-    if (is_ubsan || is_ubsan_security) {
-      ldflags += [ "-fsanitize=undefined" ]
-    }
     if (is_ubsan_vptr) {
       ldflags += [ "-fsanitize=vptr" ]
     }
     foreach(sanitizer, sanitizers) {
-      ldflags += [ "-fsanitize=$sanitizer" ]
       rustflags += [ "-Zsanitizer=$sanitizer" ]
     }
 
@@ -227,6 +223,7 @@ config("default_sanitizer_ldflags") {
         }
       }
     }
+    libs = ["SceAddressSanitizer_nosubmission_stub_weak"]
   } else if (is_win) {
     # Windows directly calls link.exe instead of the compiler driver when
     # linking.  Hence, pass the runtime libraries instead of -fsanitize=address
@@ -471,16 +468,16 @@ config("ubsan_flags") {
     # experimental flags, so only add them to non-chromecast ubsan builds.
     if (!is_castos && !is_cast_android) {
       cflags += [
-        # Employ the experimental PBQP register allocator to avoid slow
-        # compilation on files with too many basic blocks.
-        # See http://crbug.com/426271.
+        # Use the greedy register allocator to improve
+        # performance on files with many basic blocks.
+        # Related issue: http://crbug.com/426271
         "-mllvm",
-        "-regalloc=pbqp",
+        "-regalloc=greedy",
 
-        # Speculatively use coalescing to slightly improve the code generated
-        # by PBQP regallocator. May increase compile time.
+        # Enable internal verification for register coalescing.
+        # This option is relevant to debugging register allocation.
         "-mllvm",
-        "-pbqp-coalescing",
+        "--verify-coalescing",
       ]
     }
   }
