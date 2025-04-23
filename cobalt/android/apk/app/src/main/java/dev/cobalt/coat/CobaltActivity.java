@@ -368,8 +368,10 @@ public abstract class CobaltActivity extends Activity {
 
     videoSurfaceView = new VideoSurfaceView(this);
     a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
-    addContentView(
-        videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    // Initialize videoSurfaceView as a single pixel to avoid rapid shifting
+    // between screen colors. Initializing with a width or height of 0 causes
+    // the call to addContentView to fail, so a single pixel is used.
+    addContentView(videoSurfaceView, new LayoutParams(1, 1));
   }
 
   /**
