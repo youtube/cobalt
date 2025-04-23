@@ -13,10 +13,12 @@
 // limitations under the License.
 
 #include "starboard/event.h"
+#include "cobalt/hacks/stub.h"
 
 #include "starboard/shared/x11/application_x11.h"
 
 int SbRunStarboardMain(int argc, char** argv, SbEventHandleCallback callback) {
-  starboard::shared::x11::ApplicationX11 application(callback);
-  return application.Run(argc, argv);
+  COBALT_LINKER_STUB();
+  // starboard::shared::x11::ApplicationX11 application(callback);
+  // return application.Run(argc, argv);
 }
