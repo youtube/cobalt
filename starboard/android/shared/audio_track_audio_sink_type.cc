@@ -165,11 +165,13 @@ AudioTrackAudioSink::AudioTrackAudioSink(
 }
 
 AudioTrackAudioSink::~AudioTrackAudioSink() {
+  SB_LOG(INFO) << __func__;
   quit_ = true;
 
   if (audio_out_thread_ != 0) {
     pthread_join(audio_out_thread_, NULL);
   }
+  bridge_.Release();
 }
 
 void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
@@ -211,19 +213,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   SB_LOG(INFO) << __func__ << " > initial.Play >";
   bridge_.Play();
   SB_LOG(INFO) << __func__ << " > initial.Complete pause";
-  {
-    const int silence_frames_per_append =
-        std::min<int>(kSilenceFramesPerAppend, max_frames_per_request_);
-    std::vector<uint8_t> silence_buffer(channels_ *
-                                        GetBytesPerSample(sample_type_) *
-                                        silence_frames_per_append);
-    SB_LOG(INFO) << __func__ << " > Write silence: silence_frames_per_append="
-                 << silence_frames_per_append;
-    // Not necessary to handle error of WriteData(), as the audio has
-    // reached the end of stream.
-    WriteData(env, silence_buffer.data(), silence_frames_per_append, 0);
-    SB_LOG(INFO) << __func__ << " > Write silence.Complete";
-  }
+
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
@@ -298,9 +288,17 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       playback_head_not_changed_duration = 0;
       last_written_succeeded_at = -1;
       just_switched_to_play = true;
+      bridge_.Flush();
     }
 
     if (!is_playing || frames_in_buffer == 0) {
+      const int silence_frames_per_append =
+          std::min<int>(kSilenceFramesPerAppend, max_frames_per_request_);
+      std::vector<uint8_t> silence_buffer(channels_ *
+                                          GetBytesPerSample(sample_type_) *
+                                          silence_frames_per_append);
+      WriteData(env, silence_buffer.data(), silence_frames_per_append, 0);
+
       usleep(10'000);
       continue;
     }
@@ -427,9 +425,6 @@ int AudioTrackAudioSink::WriteData(JniEnvExt* env,
                                    const void* buffer,
                                    int expected_written_frames,
                                    int64_t sync_time) {
-  // SB_LOG(INFO) << __func__ << " > expected_written_frames=" <<
-  // expected_written_frames << ", start_threshold=" <<
-  // bridge_.GetStartThresholdInFrames();
   int samples_written = 0;
   if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
     samples_written =
@@ -443,10 +438,14 @@ int AudioTrackAudioSink::WriteData(JniEnvExt* env,
     SB_NOTREACHED();
   }
   if (samples_written < 0) {
+    SB_LOG(FATAL) << __func__;
     // Error code returned as negative value, like kAudioTrackErrorDeadObject.
     return samples_written;
   }
   SB_DCHECK(samples_written % channels_ == 0);
+  SB_LOG(INFO) << __func__
+               << " > expected_written_frames=" << expected_written_frames
+               << ", frames_written=" << (samples_written / channels_);
   return samples_written / channels_;
 }
 

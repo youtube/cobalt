@@ -209,6 +209,7 @@ public class AudioTrackBridge {
     return audioTrack != null;
   }
 
+  @UsedByNative
   public void release() {
     if (audioTrack != null) {
       audioTrack.release();

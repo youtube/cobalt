@@ -90,7 +90,7 @@ public class AudioOutputManager {
                       || info.getType() == AudioDeviceInfo.TYPE_HDMI)) {
                 // TODO: Avoid destroying the AudioTrack if the new devices can support the current
                 // AudioFormat.
-                Log.v(
+                Log.i(
                     TAG,
                     "Setting |hasAudioDeviceChanged| to true for audio device %s, %s.",
                     info.getProductName(),
@@ -103,7 +103,7 @@ public class AudioOutputManager {
 
           @Override
           public void onAudioDevicesAdded(AudioDeviceInfo[] addedDevices) {
-            Log.v(
+            Log.i(
                 TAG,
                 "onAudioDevicesAdded() called, |initialDevicesAdded| is: %b.",
                 initialDevicesAdded);
@@ -116,7 +116,7 @@ public class AudioOutputManager {
 
           @Override
           public void onAudioDevicesRemoved(AudioDeviceInfo[] removedDevices) {
-            Log.v(TAG, "onAudioDevicesRemoved() called.");
+            Log.i(TAG, "onAudioDevicesRemoved() called.");
             handleConnectedDeviceChange(removedDevices);
           }
         },

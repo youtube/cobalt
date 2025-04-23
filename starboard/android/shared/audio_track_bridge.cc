@@ -20,6 +20,7 @@
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
+#include "starboard/common/time.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
@@ -31,6 +32,20 @@ namespace {
 using ::starboard::shared::starboard::media::GetBytesPerSample;
 
 const jint kNoOffset = 0;
+
+class ScopedTime {
+ public:
+  explicit ScopedTime(std::string_view name)
+      : name_(name), start_us_(CurrentMonotonicTime()) {}
+  ~ScopedTime() {
+    SB_LOG(INFO) << name_ << " took "
+                 << ((CurrentMonotonicTime() - start_us_) / 1000) << " msec.";
+  }
+
+ private:
+  const std::string name_;
+  const int64_t start_us_;
+};
 
 }  // namespace
 
@@ -140,6 +155,8 @@ int AudioTrackBridge::GetMinBufferSizeInFrames(
 }
 
 void AudioTrackBridge::Play(JniEnvExt* env /*= JniEnvExt::Get()*/) {
+  ScopedTime scoped_time(__func__);
+
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
 
@@ -148,6 +165,7 @@ void AudioTrackBridge::Play(JniEnvExt* env /*= JniEnvExt::Get()*/) {
 }
 
 void AudioTrackBridge::Pause(JniEnvExt* env /*= JniEnvExt::Get()*/) {
+  ScopedTime scoped_time(__func__);
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
 
@@ -156,14 +174,23 @@ void AudioTrackBridge::Pause(JniEnvExt* env /*= JniEnvExt::Get()*/) {
 }
 
 void AudioTrackBridge::Stop(JniEnvExt* env /*= JniEnvExt::Get()*/) {
+  ScopedTime scoped_time(__func__);
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
 
   env->CallVoidMethodOrAbort(j_audio_track_bridge_, "stop", "()V");
-  SB_LOG(INFO) << "AudioTrackBridge stopped.";
+}
+
+void AudioTrackBridge::Release(JniEnvExt* env /*= JniEnvExt::Get()*/) {
+  ScopedTime scoped_time(__func__);
+  SB_DCHECK(env);
+  SB_DCHECK(is_valid());
+
+  env->CallVoidMethodOrAbort(j_audio_track_bridge_, "release", "()V");
 }
 
 void AudioTrackBridge::Flush(JniEnvExt* env /*= JniEnvExt::Get()*/) {
+  ScopedTime scoped_time(__func__);
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
 
@@ -173,6 +200,7 @@ void AudioTrackBridge::Flush(JniEnvExt* env /*= JniEnvExt::Get()*/) {
 }
 
 void AudioTrackBridge::PauseAndFlush(JniEnvExt* env /*= JniEnvExt::Get()*/) {
+  ScopedTime scoped_time(__func__);
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
 
@@ -187,6 +215,7 @@ void AudioTrackBridge::PauseAndFlush(JniEnvExt* env /*= JniEnvExt::Get()*/) {
 int AudioTrackBridge::WriteSample(const float* samples,
                                   int num_of_samples,
                                   JniEnvExt* env /*= JniEnvExt::Get()*/) {
+  ScopedTime scoped_time("WriteSample(float*)");
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
   SB_DCHECK(num_of_samples <= max_samples_per_write_);
@@ -202,6 +231,7 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
                                   int num_of_samples,
                                   int64_t sync_time,
                                   JniEnvExt* env /*= JniEnvExt::Get()*/) {
+  ScopedTime scoped_time("WriteSample(uint16_t*)");
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
   SB_DCHECK(num_of_samples <= max_samples_per_write_);
@@ -226,6 +256,7 @@ int AudioTrackBridge::WriteSample(const uint8_t* samples,
                                   int num_of_samples,
                                   int64_t sync_time,
                                   JniEnvExt* env /*= JniEnvExt::Get()*/) {
+  ScopedTime scoped_time("WriteSample(uint8_t*)");
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
   SB_DCHECK(num_of_samples <= max_samples_per_write_);
@@ -248,6 +279,8 @@ int AudioTrackBridge::WriteSample(const uint8_t* samples,
 
 void AudioTrackBridge::SetVolume(double volume,
                                  JniEnvExt* env /*= JniEnvExt::Get()*/) {
+  ScopedTime scoped_time(std::string(__func__) + "(" + std::to_string(volume) +
+                         ")");
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
 

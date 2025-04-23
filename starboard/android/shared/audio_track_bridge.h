@@ -56,6 +56,7 @@ class AudioTrackBridge {
   void Play(JniEnvExt* env = JniEnvExt::Get());
   void Pause(JniEnvExt* env = JniEnvExt::Get());
   void Stop(JniEnvExt* env = JniEnvExt::Get());
+  void Release(JniEnvExt* env = JniEnvExt::Get());
   void Flush(JniEnvExt* env = JniEnvExt::Get());
   void PauseAndFlush(JniEnvExt* env = JniEnvExt::Get());
 
