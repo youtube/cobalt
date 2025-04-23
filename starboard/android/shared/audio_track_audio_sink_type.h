@@ -150,7 +150,9 @@ class AudioTrackAudioSink
   const SbAudioSinkPrivate::ErrorFunc error_func_;
   const int64_t start_time_;  // microseconds
   const int tunnel_mode_audio_session_id_;
+  const bool use_tunnel_mode_;
   const int max_frames_per_request_;
+  const bool use_slience_over_pause_;
   void* const context_;
 
   AudioTrackBridge bridge_;
