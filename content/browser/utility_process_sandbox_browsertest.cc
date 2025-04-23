@@ -194,8 +194,9 @@ IN_PROC_BROWSER_TEST_P(UtilityProcessSandboxBrowserTest, VerifySandboxType) {
   }
 #endif
 
-#if BUILDFLAG(IS_LINUX)
-  if (GetParam() == Sandbox::kHardwareVideoEncoding) {
+#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)) && \
+    (BUILDFLAG(USE_VAAPI) || BUILDFLAG(USE_V4L2_CODEC))
+    if (GetParam() == Sandbox::kHardwareVideoEncoding) {
     // TODO(b/248540499): On Linux, this test fails with
     // Sandbox::kHardwareVideoEncoding because the pre-sandbox hook needs Ozone
     // which is not available in the utility process that this test starts. We
