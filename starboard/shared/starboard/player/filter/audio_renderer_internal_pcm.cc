@@ -295,7 +295,7 @@ int64_t AudioRendererPcm::GetCurrentMediaTime(bool* is_playing,
   {
     ScopedLock scoped_lock(mutex_);
 
-    *is_playing = !paused_ && !seeking_;
+    *is_playing = is_sink_playing_ && !paused_ && !seeking_;
     *is_eos_played = IsEndOfStreamPlayed_Locked();
     *is_underflow = underflow_;
 
@@ -419,6 +419,12 @@ void AudioRendererPcm::GetSourceStatus(int* frames_in_buffer,
     }
     *frames_in_buffer = max_cached_frames_;
   }
+  SB_LOG(INFO) << __func__ << " > is_playing=" << *is_playing
+               << ", is_eos_reached=" << *is_eos_reached
+               << ", frames_in_buffer=" << *frames_in_buffer
+               << ", is_sink_playing_=" << is_sink_playing_;
+
+  is_sink_playing_ = *is_playing;
 }
 
 void AudioRendererPcm::ConsumeFrames(int frames_consumed,

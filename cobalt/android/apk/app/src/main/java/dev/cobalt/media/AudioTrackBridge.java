@@ -202,6 +202,7 @@ public class AudioTrackBridge {
         audioTrackBufferSize,
         preferredBufferSizeInBytes,
         AudioTrack.getMinBufferSize(sampleRate, channelConfig, sampleType));
+    Log.i(TAG, "TunnelMode=%b", tunnelModeEnabled);
   }
 
   public Boolean isAudioTrackValid() {

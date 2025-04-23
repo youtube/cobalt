@@ -211,7 +211,19 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   SB_LOG(INFO) << __func__ << " > initial.Play >";
   bridge_.Play();
   SB_LOG(INFO) << __func__ << " > initial.Complete pause";
-
+  {
+    const int silence_frames_per_append =
+        std::min<int>(kSilenceFramesPerAppend, max_frames_per_request_);
+    std::vector<uint8_t> silence_buffer(channels_ *
+                                        GetBytesPerSample(sample_type_) *
+                                        silence_frames_per_append);
+    SB_LOG(INFO) << __func__ << " > Write silence: silence_frames_per_append="
+                 << silence_frames_per_append;
+    // Not necessary to handle error of WriteData(), as the audio has
+    // reached the end of stream.
+    WriteData(env, silence_buffer.data(), silence_frames_per_append, 0);
+    SB_LOG(INFO) << __func__ << " > Write silence.Complete";
+  }
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
@@ -272,21 +284,28 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       if (playback_rate_ == 0.0) {
         is_playing = false;
       }
-    }
+    };
 
+    bool just_switched_to_play = false;
     if (was_playing && !is_playing) {
       was_playing = false;
+      SB_LOG(INFO) << __func__ << " > Flush >";
       bridge_.Flush();
+      SB_LOG(INFO) << __func__ << " > Flush <";
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
       playback_head_not_changed_duration = 0;
       last_written_succeeded_at = -1;
+      just_switched_to_play = true;
     }
 
     if (!is_playing || frames_in_buffer == 0) {
       usleep(10'000);
       continue;
+    }
+    if (just_switched_to_play) {
+      SB_LOG(INFO) << __func__ << " > 1";
     }
 
     int start_position =
@@ -329,6 +348,10 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       usleep(10'000);
       continue;
     }
+    if (just_switched_to_play) {
+      SB_LOG(INFO) << __func__ << " > 2";
+    }
+
     SB_DCHECK(expected_written_frames > 0);
     auto sync_time = start_time_ + accumulated_written_frames * 1'000'000LL /
                                        sampling_frequency_hz_;
@@ -341,12 +364,20 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         << ", frames_in_audio_track: " << frames_in_audio_track
         << ", offset_in_frames: " << offset_in_frames;
 
+    if (just_switched_to_play) {
+      SB_LOG(INFO) << __func__ << " > 3";
+    }
+
     int written_frames =
         WriteData(env,
                   IncrementPointerByBytes(frame_buffer_,
                                           start_position * channels_ *
                                               GetBytesPerSample(sample_type_)),
                   expected_written_frames, sync_time);
+    if (just_switched_to_play) {
+      SB_LOG(INFO) << __func__ << " > 4";
+    }
+
     int64_t now = CurrentMonotonicTime();
 
     if (written_frames < 0) {
@@ -362,6 +393,14 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     } else if (written_frames > 0) {
       last_written_succeeded_at = now;
     }
+
+    if (just_switched_to_play) {
+      SB_LOG(INFO)
+          << __func__
+          << " > Schedue immediately since playback status just changed";
+      continue;
+    }
+
     frames_in_audio_track += written_frames;
     accumulated_written_frames += written_frames;
 
@@ -388,6 +427,9 @@ int AudioTrackAudioSink::WriteData(JniEnvExt* env,
                                    const void* buffer,
                                    int expected_written_frames,
                                    int64_t sync_time) {
+  // SB_LOG(INFO) << __func__ << " > expected_written_frames=" <<
+  // expected_written_frames << ", start_threshold=" <<
+  // bridge_.GetStartThresholdInFrames();
   int samples_written = 0;
   if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
     samples_written =

@@ -209,6 +209,8 @@ class AudioRendererPcm : public AudioRenderer,
 
   std::atomic<int32_t> sink_callbacks_since_last_check_{0};
 #endif  // SB_PLAYER_FILTER_ENABLE_STATE_CHECK
+
+  bool is_sink_playing_ = false;
 };
 
 }  // namespace filter
