@@ -117,10 +117,6 @@ public class PlatformError
           }
           break;
         case RETRY_BUTTON:
-          CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
-          if (cobaltActivity != null) {
-            cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
-          }
           dialog.dismiss();
           break;
         default: // fall out
@@ -130,6 +126,10 @@ public class PlatformError
 
   @Override
   public void onDismiss(DialogInterface dialogInterface) {
+    CobaltActivity cobaltActivity = (CobaltActivity) activityHolder.get();
+    if (cobaltActivity != null) {
+      cobaltActivity.getActiveWebContents().getNavigationController().reload(true);
+    }
     dialog = null;
   }
 
