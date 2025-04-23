@@ -30,3 +30,9 @@ mojo_media_services = [
   "renderer",
   "cdm",
 ]
+
+# WebXR and implementations are not needed, remove.
+enable_arcore = false
+enable_cardboard = false
+enable_openxr = false
+enable_vr = false
