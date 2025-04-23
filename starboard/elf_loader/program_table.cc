@@ -113,6 +113,8 @@ bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
     }
   }
 
+  // TODO: b/413107644 - Add more compile-time checks to elf_loader casts and
+  // pointer conversions.
   phdr_table_ = reinterpret_cast<Phdr*>(reinterpret_cast<char*>(phdr_mmap_) +
                                         page_offset);
   SB_DLOG(INFO) << "phdr_table_=" << phdr_table_;
@@ -388,10 +390,13 @@ void ProgramTable::PublishEvergreenInfo(const char* file_path) {
   evergreen_info.phdr_table = (uint64_t)phdr_table_;
   evergreen_info.phdr_table_num = phdr_num_;
 
-  std::vector<char> tmp(build_id_.begin(), build_id_.end());
-  tmp.push_back('\0');
-  starboard::strlcpy(evergreen_info.build_id, tmp.data(),
-                     EVERGREEN_BUILD_ID_MAX_SIZE);
+  if (build_id_.size() > EVERGREEN_BUILD_ID_MAX_SIZE) {
+    SB_LOG(ERROR) << "Build id size cannot be greater than "
+                  << EVERGREEN_BUILD_ID_MAX_SIZE << " bytes but is "
+                  << build_id_.size();
+    return;
+  }
+  memcpy(evergreen_info.build_id, build_id_.data(), build_id_.size());
   evergreen_info.build_id_length = build_id_.size();
 
   SetEvergreenInfo(&evergreen_info);
