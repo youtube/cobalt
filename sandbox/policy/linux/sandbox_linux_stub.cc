@@ -16,7 +16,6 @@
 #include "sandbox/linux/suid/client/setuid_sandbox_client.h"
 
 #include "base/notreached.h"
-#include "cobalt/temporary_hacks/linker_stub.h"
 
 namespace sandbox {
 namespace policy {
@@ -28,7 +27,7 @@ namespace policy {
 // Stub symbols have been provided here to satisfy the linker and build cobalt
 
 SandboxLinux* SandboxLinux::GetInstance() {
-  COBALT_LINKER_STUB();
+  NOTIMPLEMENTED();
   return nullptr;
 }
 
@@ -43,7 +42,7 @@ SetuidSandboxClient* SandboxLinux::setuid_sandbox_client() const {
 }
 
 void SandboxLinux::PreinitializeSandbox() {
-  COBALT_LINKER_STUB();
+  NOTIMPLEMENTED();
 }
 
 void SandboxLinux::EngageNamespaceSandbox(bool from_zygote) {
@@ -58,7 +57,7 @@ bool SandboxLinux::EngageNamespaceSandboxIfPossible() {
 bool SandboxLinux::InitializeSandbox(sandbox::mojom::Sandbox sandbox_type,
                                      PreSandboxHook hook,
                                      const Options& options) {
-  COBALT_LINKER_STUB();
+  NOTIMPLEMENTED();
   return false;
 }
 
@@ -77,11 +76,11 @@ void SandboxLinux::StartBrokerProcess(
 }
 
 SandboxLinux::SandboxLinux() {
-  COBALT_LINKER_STUB();;
+  NOTIMPLEMENTED();
 }
 
 SandboxLinux::~SandboxLinux() {
-  COBALT_LINKER_STUB();
+  NOTIMPLEMENTED();
 }
 
 }  // namespace policy
