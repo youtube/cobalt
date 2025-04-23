@@ -93,6 +93,7 @@ class MojoRendererFactory final : public RendererFactory {
       const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta audio_write_duration_remote,
+      const std::string& max_video_capabilities,
       const base::UnguessableToken& overlay_plane_id,
       VideoRendererSink* video_renderer_sink);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)

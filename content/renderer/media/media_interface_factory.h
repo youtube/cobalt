@@ -5,6 +5,8 @@
 #ifndef CONTENT_RENDERER_MEDIA_MEDIA_INTERFACE_FACTORY_H_
 #define CONTENT_RENDERER_MEDIA_MEDIA_INTERFACE_FACTORY_H_
 
+#include <string>
+
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
@@ -89,6 +91,7 @@ class MediaInterfaceFactory final : public media::mojom::InterfaceFactory {
       const base::UnguessableToken& overlay_plane_id,
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta video_write_duration_remote,
+      const std::string& max_video_capabilities,
       mojo::PendingReceiver<media::mojom::Renderer> receiver,
       mojo::PendingReceiver<media::mojom::StarboardRendererExtension>
         renderer_extension_receiver,

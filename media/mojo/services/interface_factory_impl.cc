@@ -5,6 +5,7 @@
 #include "media/mojo/services/interface_factory_impl.h"
 
 #include <memory>
+#include <string>
 
 #include "base/functional/bind.h"
 #include "base/guid.h"
@@ -196,6 +197,7 @@ void InterfaceFactoryImpl::CreateStarboardRenderer(
     const base::UnguessableToken& overlay_plane_id,
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
+    const std::string& max_video_capabilities,
     mojo::PendingReceiver<mojom::Renderer> receiver,
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,
@@ -207,6 +209,7 @@ void InterfaceFactoryImpl::CreateStarboardRenderer(
       base::SingleThreadTaskRunner::GetCurrentDefault(),
       std::move(media_log_remote), overlay_plane_id,
       audio_write_duration_local, audio_write_duration_remote,
+      max_video_capabilities,
       std::move(renderer_extension_receiver),
       std::move(client_extension_remote));
   if (!renderer) {

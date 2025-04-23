@@ -15,6 +15,8 @@
 #ifndef MEDIA_BASE_STARBOARD_RENDERER_FACTORY_TRAITS_H_
 #define MEDIA_BASE_STARBOARD_RENDERER_FACTORY_TRAITS_H_
 
+#include <string>
+
 #include "base/functional/callback_helpers.h"
 #include "base/time/time.h"
 #include "media/base/media_export.h"
@@ -31,6 +33,7 @@ struct MEDIA_EXPORT RendererFactoryTraits {
 
   base::TimeDelta audio_write_duration_local = kNoTimestamp;
   base::TimeDelta audio_write_duration_remote = kNoTimestamp;
+  std::string max_video_capabilities = "";
   BindHostReceiverCallback bind_host_receiver_callback = base::NullCallback();
 };
 

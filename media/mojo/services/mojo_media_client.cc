@@ -4,6 +4,8 @@
 
 #include "media/mojo/services/mojo_media_client.h"
 
+#include <string>
+
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "build/build_config.h"
@@ -100,6 +102,7 @@ std::unique_ptr<Renderer> MojoMediaClient::CreateStarboardRenderer(
     const base::UnguessableToken& overlay_plane_id,
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
+    const std::string& max_video_capabilities,
     mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,
     mojo::PendingRemote<mojom::StarboardRendererClientExtension>

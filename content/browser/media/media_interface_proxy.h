@@ -96,6 +96,7 @@ class MediaInterfaceProxy final : public DocumentUserData<MediaInterfaceProxy>,
       const base::UnguessableToken& overlay_plane_id,
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta video_write_duration_remote,
+      const std::string& max_video_capabilities,
       mojo::PendingReceiver<media::mojom::Renderer> receiver,
       mojo::PendingReceiver<media::mojom::StarboardRendererExtension>
         renderer_extension_receiver,

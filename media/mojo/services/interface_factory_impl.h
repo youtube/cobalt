@@ -6,6 +6,7 @@
 #define MEDIA_MOJO_SERVICES_INTERFACE_FACTORY_IMPL_H_
 
 #include <memory>
+#include <string>
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
@@ -96,6 +97,7 @@ class InterfaceFactoryImpl final
       const base::UnguessableToken& overlay_plane_id,
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta audio_write_duration_remote,
+      const std::string& max_video_capabilities,
       mojo::PendingReceiver<mojom::Renderer> receiver,
       mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,

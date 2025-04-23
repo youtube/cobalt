@@ -195,6 +195,7 @@ void MediaInterfaceFactory::CreateStarboardRenderer(
     const base::UnguessableToken& overlay_plane_id,
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta video_write_duration_remote,
+    const std::string& max_video_capabilities,
     mojo::PendingReceiver<media::mojom::Renderer> receiver,
     mojo::PendingReceiver<media::mojom::StarboardRendererExtension>
         renderer_extension_receiver,
@@ -207,6 +208,7 @@ void MediaInterfaceFactory::CreateStarboardRenderer(
                        weak_this_, std::move(media_log_remote),
                        overlay_plane_id, audio_write_duration_local,
                        video_write_duration_remote,
+                       max_video_capabilities,
                        std::move(receiver),
                        std::move(renderer_extension_receiver),
                        std::move(client_extension_remote)));
@@ -216,6 +218,7 @@ void MediaInterfaceFactory::CreateStarboardRenderer(
   GetMediaInterfaceFactory()->CreateStarboardRenderer(
       std::move(media_log_remote), overlay_plane_id,
       audio_write_duration_local, video_write_duration_remote,
+      max_video_capabilities,
       std::move(receiver), std::move(renderer_extension_receiver),
       std::move(client_extension_remote));
 }

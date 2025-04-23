@@ -619,9 +619,9 @@ MediaFactory::CreateRendererFactorySelector(
 
 #if BUILDFLAG(ENABLE_MOJO_RENDERER)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  // TODO(b/326827007): Revisit renderer to support secondary videos.
   media::RendererFactoryTraits renderer_factory_traits;
-  GetContentClient()->renderer()->GetStarboardRendererFactoryTraits(&renderer_factory_traits);
+  GetContentClient()->renderer()->GetStarboardRendererFactoryTraits(&renderer_factory_traits, 
+                                                                    element_id);
   is_base_renderer_factory_set = true;
   factory_selector->AddBaseFactory(RendererType::kStarboard,
     std::make_unique<media::StarboardRendererClientFactory>(media_log,

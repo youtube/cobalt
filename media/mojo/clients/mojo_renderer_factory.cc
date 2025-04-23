@@ -138,6 +138,7 @@ std::unique_ptr<MojoRenderer> MojoRendererFactory::CreateStarboardRenderer(
     const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
     base::TimeDelta audio_write_duration_local,
     base::TimeDelta audio_write_duration_remote,
+    const std::string& max_video_capabilities,
     const base::UnguessableToken& overlay_plane_id,
     VideoRendererSink* video_renderer_sink) {
   DCHECK(interface_factory_);
@@ -148,6 +149,7 @@ std::unique_ptr<MojoRenderer> MojoRendererFactory::CreateStarboardRenderer(
       overlay_plane_id,
       audio_write_duration_local,
       audio_write_duration_remote,
+      max_video_capabilities,
       renderer_remote.InitWithNewPipeAndPassReceiver(),
       std::move(renderer_extension_receiver),
       std::move(client_extension_remote));
