@@ -277,6 +277,6 @@ ContentRendererClient::CreateCastStreamingResourceProvider() {
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void ContentRendererClient::GetStarboardRendererFactoryTraits(
-  media::RendererFactoryTraits* renderer_factory_traits) {}
+  media::RendererFactoryTraits* renderer_factory_traits, int element_id) {}
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 }  // namespace content

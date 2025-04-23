@@ -20,6 +20,8 @@
 #include "mojo/public/cpp/bindings/generic_pending_receiver.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
+#include "third_party/blink/renderer/core/dom/dom_node_ids.h"
+#include "third_party/blink/renderer/core/html/media/html_video_element.h"
 
 namespace cobalt {
 
@@ -179,7 +181,8 @@ void CobaltContentRendererClient::BindHostReceiver(
 }
 
 void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
-    media::RendererFactoryTraits* renderer_factory_traits) {
+    media::RendererFactoryTraits* renderer_factory_traits,
+    int element_id) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   // TODO(b/383327725) - Cobalt: Inject these values from the web app.
   renderer_factory_traits->audio_write_duration_local =
@@ -187,6 +190,10 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
   renderer_factory_traits->audio_write_duration_remote =
       base::Microseconds(kSbPlayerWriteDurationRemote);
   // TODO(b/405424096) - Cobalt: Move VideoGeometrySetterService to Gpu thread.
+  renderer_factory_traits->max_video_capabilities =
+      static_cast<blink::HTMLVideoElement*>(
+          blink::DOMNodeIds::NodeForId(element_id))
+          ->getMaxVideoCapabilities();
   renderer_factory_traits->bind_host_receiver_callback =
       base::BindPostTaskToCurrentDefault(
           base::BindRepeating(&CobaltContentRendererClient::BindHostReceiver,

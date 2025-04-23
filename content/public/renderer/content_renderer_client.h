@@ -439,7 +439,7 @@ class CONTENT_EXPORT ContentRendererClient {
   // This is used for StarboardRenderer to acquire customizations
   // as MojoRenderer from cobalt_content_renderer_client.cc.
   virtual void GetStarboardRendererFactoryTraits(
-      media::RendererFactoryTraits* renderer_factory_traits);
+      media::RendererFactoryTraits* renderer_factory_traits, int element_id);
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 };
 
