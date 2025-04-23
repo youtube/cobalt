@@ -102,6 +102,12 @@ source_set("utility") {
       "//media/mojo/services",
       "//third_party/angle:angle_gpu_info_util",
     ]
+    if (is_cobalt_hermetic_build) {
+      deps -= [
+        "//gpu/config",
+        "//third_party/angle:angle_gpu_info_util",
+      ]
+    }
   }
 
   if (is_chromeos_ash && is_chrome_branded) {
