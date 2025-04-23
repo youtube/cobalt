@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "base/notreached.h"
+#include "cobalt/hacks/stub.h"
 #include "media/capture/video/linux/video_capture_device_factory_linux.h"
 
 namespace media {
@@ -25,23 +25,23 @@ namespace media {
 
 VideoCaptureDeviceFactoryLinux::VideoCaptureDeviceFactoryLinux(
     scoped_refptr<base::SingleThreadTaskRunner> ui_task_runner) {
-  NOTIMPLEMENTED();
+  COBALT_LINKER_STUB();
 }
 
 VideoCaptureDeviceFactoryLinux::~VideoCaptureDeviceFactoryLinux() {
-  NOTIMPLEMENTED();
+  COBALT_LINKER_STUB();
 }
 
 VideoCaptureErrorOrDevice VideoCaptureDeviceFactoryLinux::CreateDevice(
     const VideoCaptureDeviceDescriptor& device_descriptor) {
-  NOTIMPLEMENTED();
+  COBALT_LINKER_STUB();
   return VideoCaptureErrorOrDevice(
       VideoCaptureError::kVideoCaptureControllerInvalid);
 }
 
 void VideoCaptureDeviceFactoryLinux::GetDevicesInfo(
     GetDevicesInfoCallback callback) {
-  NOTIMPLEMENTED();
+  COBALT_LINKER_STUB();
 }
 
 }  // namespace media
