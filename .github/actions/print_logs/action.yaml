@@ -30,7 +30,7 @@ runs:
         WORKFLOW: ${{ github.workflow }}
       run: |
         gsutil -m cp "gs://${{ steps.gcs-project.outputs.name }}-test-artifacts/${WORKFLOW}/${GITHUB_RUN_NUMBER}/${{matrix.platform}}/symbols/*" \
-          "${GITHUB_WORKSPACE}/src/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/
+          "${GITHUB_WORKSPACE}/out/${{ matrix.platform }}_${{ matrix.config }}/lib.unstripped/
       shell: bash
     - run: |
         # Enable globstar shell option for globstar paths e.g. /**/*.xml and
@@ -45,7 +45,6 @@ runs:
         else
           for log_file in ${log_files[@]}; do
             if [ "${{ inputs.symbolize }}" == "true" ]; then
-              cd src/
               # TODO: stack.py fails import packages. Perhaps needs depot tools setup?
               cat ../${log_file} | python3 third_party/android_platform/development/scripts/stack.py --pass-through --output-directory out/${{ matrix.platform }}_${{ matrix.config }}/
             else
