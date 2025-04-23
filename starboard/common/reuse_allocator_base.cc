@@ -177,16 +177,28 @@ void ReuseAllocatorBase::Free(void* memory) {
 
 void ReuseAllocatorBase::PrintAllocations(bool align_allocated_size,
                                           int max_allocations_to_print) const {
-  typedef std::map<size_t, size_t, std::greater<size_t>> SizesHistogram;
-  SizesHistogram sizes_histogram;
+  struct HistogramEntry {
+    int count = 0;
+    size_t min = std::numeric_limits<size_t>::max();
+    size_t max = 0;
+    size_t total = 0;
+  };
+  typedef std::map<size_t, HistogramEntry, std::greater<size_t>>
+      AllocatedHistogram;
+  AllocatedHistogram allocated_histogram;
 
   max_allocations_to_print = std::max(max_allocations_to_print, 1);
 
   // Logging the allocated blocks
   for (auto&& block : allocated_blocks_) {
-    size_t block_size = align_allocated_size ? ceil_power_2(block.second.size())
-                                             : block.second.size();
-    ++sizes_histogram[block_size];
+    size_t size = block.second.size();
+    size_t size_as_key = align_allocated_size ? ceil_power_2(size) : size;
+    HistogramEntry& entry = allocated_histogram[size_as_key];
+
+    ++entry.count;
+    entry.min = std::min(entry.min, size);
+    entry.max = std::max(entry.max, size);
+    entry.total += size;
   }
 
   int64_t allocated_percentage =
@@ -201,38 +213,46 @@ void ReuseAllocatorBase::PrintAllocations(bool align_allocated_size,
   int lines = 0;
   size_t accumulated_blocks = 0;
 
-  for (auto&& iter : sizes_histogram) {
+  for (auto&& iter : allocated_histogram) {
     if (lines == max_allocations_to_print - 1 &&
-        sizes_histogram.size() > max_allocations_to_print) {
-      SB_LOG(INFO) << "\t" << iter.first << ".."
-                   << sizes_histogram.rbegin()->first << " : "
-                   << allocated_blocks_.size() - accumulated_blocks;
+        allocated_histogram.size() > max_allocations_to_print) {
+      SB_LOG(INFO) << "\t[" << allocated_histogram.rbegin()->second.min << ", "
+                   << iter.second.max
+                   << "] : " << allocated_blocks_.size() - accumulated_blocks;
       break;
     }
 
-    SB_LOG(INFO) << "\t" << iter.first << " : " << iter.second;
+    if (iter.second.count == 1) {
+      SB_LOG(INFO) << "\t" << iter.second.total << " : 1";
+    } else {
+      SB_LOG(INFO) << "\t[" << iter.second.min << ", " << iter.second.max
+                   << "] : " << iter.second.count
+                   << " (average: " << iter.second.total / iter.second.count
+                   << ")";
+    }
     ++lines;
-    accumulated_blocks += iter.second;
+    accumulated_blocks += iter.second.count;
   }
 
   // Logging the free blocks
-  sizes_histogram.clear();
+  typedef std::map<size_t, int, std::greater<size_t>> FreeHistogram;
+  FreeHistogram free_histogram;
 
   SB_LOG(INFO) << "Total free blocks: " << free_blocks_.size();
 
   for (auto&& block : free_blocks_) {
-    ++sizes_histogram[block.size()];
+    ++free_histogram[block.size()];
   }
 
   lines = 0;
   accumulated_blocks = 0;
 
-  for (auto&& iter : sizes_histogram) {
+  for (auto&& iter : free_histogram) {
     if (lines == max_allocations_to_print - 1 &&
-        sizes_histogram.size() > max_allocations_to_print) {
-      SB_LOG(INFO) << "\t" << iter.first << ".."
-                   << sizes_histogram.rbegin()->first << " : "
-                   << free_blocks_.size() - accumulated_blocks;
+        free_histogram.size() > max_allocations_to_print) {
+      SB_LOG(INFO) << "\t[" << free_histogram.rbegin()->first << ", "
+                   << iter.first
+                   << "] : " << free_blocks_.size() - accumulated_blocks;
       break;
     }
 
