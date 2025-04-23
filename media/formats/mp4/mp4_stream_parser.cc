@@ -1016,13 +1016,20 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   // opposite of what the coded frame contains.
   bool is_keyframe = runs_->is_keyframe();
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  std::vector<uint8_t> frame_buf;
+#else  // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::vector<uint8_t> frame_buf(buf, buf + sample_size);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (video) {
     if (runs_->video_description().video_info.codec == VideoCodec::kH264 ||
         runs_->video_description().video_info.codec == VideoCodec::kHEVC ||
         runs_->video_description().video_info.codec ==
             VideoCodec::kDolbyVision) {
       DCHECK(runs_->video_description().frame_bitstream_converter);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      frame_buf.assign(buf, buf + sample_size);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
       BitstreamConverter::AnalysisResult analysis;
       if (!runs_->video_description()
                .frame_bitstream_converter->ConvertAndAnalyzeFrame(
@@ -1070,6 +1077,9 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
 
   if (audio) {
     if (ESDescriptor::IsAAC(runs_->audio_description().esds.object_type)) {
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      frame_buf.assign(buf, buf + sample_size);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 #if BUILDFLAG(USE_PROPRIETARY_CODECS)
       if (!PrepareAACBuffer(runs_->audio_description().esds.aac, &frame_buf,
                             &subsamples)) {
@@ -1110,9 +1120,14 @@ ParseResult MP4StreamParser::EnqueueSample(BufferQueueMap* buffers) {
   scoped_refptr<StreamParserBuffer> stream_buf;
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
-  stream_buf =
-      StreamParserBuffer::CopyFrom(&frame_buf[0], frame_buf.size(), is_keyframe,
-                                   buffer_type, runs_->track_id());
+  if (frame_buf.empty()) {
+    stream_buf = StreamParserBuffer::CopyFrom(buf, sample_size, is_keyframe,
+                                              buffer_type, runs_->track_id());
+  } else {
+    stream_buf = StreamParserBuffer::CopyFrom(&frame_buf[0], frame_buf.size(),
+                                              is_keyframe, buffer_type,
+                                              runs_->track_id());
+  }
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   if (auto* media_client = GetMediaClient()) {
     if (auto* alloc = media_client->GetMediaAllocator()) {
