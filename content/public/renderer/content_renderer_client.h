@@ -425,7 +425,8 @@ class CONTENT_EXPORT ContentRendererClient {
       media::MediaLog* media_log,
       media::DecoderFactory* decoder_factory,
       base::RepeatingCallback<media::GpuVideoAcceleratorFactories*()>
-          get_gpu_factories_cb);
+          get_gpu_factories_cb,
+      int element_id);
 
 #if BUILDFLAG(ENABLE_CAST_RECEIVER)
   // Creates a new cast_streaming::ResourceProvider. Will only be called once
