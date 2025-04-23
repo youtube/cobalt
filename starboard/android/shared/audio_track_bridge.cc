@@ -35,15 +35,20 @@ const jint kNoOffset = 0;
 
 class ScopedTime {
  public:
-  explicit ScopedTime(std::string_view name)
-      : name_(name), start_us_(CurrentMonotonicTime()) {}
+  explicit ScopedTime(std::string_view name, int threshold_ms = 0)
+      : name_(name),
+        threshold_ms_(threshold_ms),
+        start_us_(CurrentMonotonicTime()) {}
   ~ScopedTime() {
-    SB_LOG(INFO) << name_ << " took "
-                 << ((CurrentMonotonicTime() - start_us_) / 1000) << " msec.";
+    int64_t elapsed_ms = (CurrentMonotonicTime() - start_us_) / 1000;
+    if (elapsed_ms > threshold_ms_) {
+      SB_LOG(INFO) << name_ << " took " << elapsed_ms << " msec.";
+    }
   }
 
  private:
   const std::string name_;
+  const int threshold_ms_;
   const int64_t start_us_;
 };
 
@@ -215,7 +220,7 @@ void AudioTrackBridge::PauseAndFlush(JniEnvExt* env /*= JniEnvExt::Get()*/) {
 int AudioTrackBridge::WriteSample(const float* samples,
                                   int num_of_samples,
                                   JniEnvExt* env /*= JniEnvExt::Get()*/) {
-  ScopedTime scoped_time("WriteSample(float*)");
+  ScopedTime scoped_time("WriteSample(float*)", 1);
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
   SB_DCHECK(num_of_samples <= max_samples_per_write_);
@@ -231,7 +236,7 @@ int AudioTrackBridge::WriteSample(const uint16_t* samples,
                                   int num_of_samples,
                                   int64_t sync_time,
                                   JniEnvExt* env /*= JniEnvExt::Get()*/) {
-  ScopedTime scoped_time("WriteSample(uint16_t*)");
+  ScopedTime scoped_time("WriteSample(uint16_t*)", 1);
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
   SB_DCHECK(num_of_samples <= max_samples_per_write_);
@@ -256,7 +261,7 @@ int AudioTrackBridge::WriteSample(const uint8_t* samples,
                                   int num_of_samples,
                                   int64_t sync_time,
                                   JniEnvExt* env /*= JniEnvExt::Get()*/) {
-  ScopedTime scoped_time("WriteSample(uint8_t*)");
+  ScopedTime scoped_time("WriteSample(uint8_t*)", 1);
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
   SB_DCHECK(num_of_samples <= max_samples_per_write_);

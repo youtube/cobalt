@@ -291,7 +291,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       bridge_.Flush();
     }
 
-    if (!is_playing || frames_in_buffer == 0) {
+    if (!is_playing) {
       const int silence_frames_per_append =
           std::min<int>(kSilenceFramesPerAppend, max_frames_per_request_);
       std::vector<uint8_t> silence_buffer(channels_ *
@@ -302,6 +302,13 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       usleep(10'000);
       continue;
     }
+    if (frames_in_buffer == 0) {
+      if (!just_switched_to_play) {
+        usleep(10'000);
+      }
+      continue;
+    }
+
     if (just_switched_to_play) {
       SB_LOG(INFO) << __func__ << " > 1";
     }
@@ -443,9 +450,6 @@ int AudioTrackAudioSink::WriteData(JniEnvExt* env,
     return samples_written;
   }
   SB_DCHECK(samples_written % channels_ == 0);
-  SB_LOG(INFO) << __func__
-               << " > expected_written_frames=" << expected_written_frames
-               << ", frames_written=" << (samples_written / channels_);
   return samples_written / channels_;
 }
 
