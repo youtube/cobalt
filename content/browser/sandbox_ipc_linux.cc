@@ -3,12 +3,17 @@
 // found in the LICENSE file.
 
 #include "content/browser/sandbox_ipc_linux.h"
+#include "build/build_config.h"
 
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#include <poll.h>
+#else  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <sys/poll.h>
+#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include <sys/socket.h>
 #include <sys/stat.h>
 
