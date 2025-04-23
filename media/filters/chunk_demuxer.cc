@@ -1683,9 +1683,9 @@ ChunkDemuxerStream* ChunkDemuxer::CreateDemuxerStream(
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   auto iter = id_to_mime_map_.find(source_id);
-  DCHECK(iter != id_to_mime_map_.end());
+  std::string mime_type = iter != id_to_mime_map_.end() ? iter->second : "";
   std::unique_ptr<ChunkDemuxerStream> stream =
-      std::make_unique<ChunkDemuxerStream>(iter->second, type, media_track_id);
+      std::make_unique<ChunkDemuxerStream>(mime_type, type, media_track_id);
 #else   // BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<ChunkDemuxerStream> stream =
       std::make_unique<ChunkDemuxerStream>(type, media_track_id);
