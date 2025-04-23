@@ -52,7 +52,9 @@ class MediaDecoder final
   typedef ::starboard::shared::starboard::player::filter::ErrorCB ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::InputBuffers InputBuffers;
-  typedef std::function<void(int64_t)> FrameRenderedCB;
+  typedef std::function<void(int64_t presentation_timestamp_us,
+                             int64_t rendered_timestamp_us)>
+      FrameRenderedCB;
 
   // This class should be implemented by the users of MediaDecoder to receive
   // various notifications.  Note that all such functions are called on the
@@ -172,7 +174,8 @@ class MediaDecoder final
                                          int64_t presentation_time_us,
                                          int size) override;
   void OnMediaCodecOutputFormatChanged() override;
-  void OnMediaCodecFrameRendered(int64_t frame_timestamp) override;
+  void OnMediaCodecFrameRendered(int64_t presentation_timestamp_us,
+                                 int64_t rendered_timestamp_us) override;
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 

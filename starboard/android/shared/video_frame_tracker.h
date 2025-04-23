@@ -34,7 +34,7 @@ class VideoFrameTracker {
 
   void OnInputBuffer(int64_t timestamp);
 
-  void OnFrameRendered(int64_t frame_timestamp);
+  void OnFrameRendered(int64_t frame_timestamp, int64_t rendered_timestamp_us);
 
   void Seek(int64_t seek_to_time);
 
@@ -50,6 +50,9 @@ class VideoFrameTracker {
   const int max_pending_frames_size_;
   int dropped_frames_ = 0;
   int64_t seek_to_time_ = 0;  // microseconds
+  // Last rendered timestamp in microseconds. 0 means the variable is not
+  // initialized yet.
+  std::atomic<int64_t> last_rendered_us_ = 0;
 
   Mutex rendered_frames_mutex_;
   std::vector<int64_t> rendered_frames_on_tracker_thread_;  // microseconds

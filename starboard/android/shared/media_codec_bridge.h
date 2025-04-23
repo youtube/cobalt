@@ -143,7 +143,8 @@ class MediaCodecBridge {
                                                    int size) = 0;
     virtual void OnMediaCodecOutputFormatChanged() = 0;
     // This is only called on video decoder when tunnel mode is enabled.
-    virtual void OnMediaCodecFrameRendered(int64_t frame_timestamp) = 0;
+    virtual void OnMediaCodecFrameRendered(int64_t presentation_timestamp_us,
+                                           int64_t rendered_timestamp_us) = 0;
 
    protected:
     ~Handler() {}
@@ -219,7 +220,8 @@ class MediaCodecBridge {
                                          int64_t presentation_time_us,
                                          int size);
   void OnMediaCodecOutputFormatChanged();
-  void OnMediaCodecFrameRendered(int64_t frame_timestamp);
+  void OnMediaCodecFrameRendered(int64_t presentation_timestamp_us,
+                                 int64_t rendered_timestamp_us);
 
   static jboolean IsFrameRenderedCallbackEnabled();
 

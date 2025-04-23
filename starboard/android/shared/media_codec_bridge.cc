@@ -107,7 +107,8 @@ JNI_MediaCodecBridge_OnMediaCodecFrameRendered(JNIEnv* env,
   MediaCodecBridge* media_codec_bridge =
       reinterpret_cast<MediaCodecBridge*>(native_media_codec_bridge);
   SB_DCHECK(media_codec_bridge);
-  media_codec_bridge->OnMediaCodecFrameRendered(presentation_time_us);
+  media_codec_bridge->OnMediaCodecFrameRendered(
+      presentation_time_us, render_at_system_time_ns / 1'000);
 }
 
 extern "C" SB_EXPORT_PLATFORM void JNI_MediaCodecBridge_OnMediaCodecError(
@@ -576,8 +577,11 @@ void MediaCodecBridge::OnMediaCodecOutputFormatChanged() {
   handler_->OnMediaCodecOutputFormatChanged();
 }
 
-void MediaCodecBridge::OnMediaCodecFrameRendered(int64_t frame_timestamp) {
-  handler_->OnMediaCodecFrameRendered(frame_timestamp);
+void MediaCodecBridge::OnMediaCodecFrameRendered(
+    int64_t presentation_timestamp_us,
+    int64_t rendered_timestamp_us) {
+  handler_->OnMediaCodecFrameRendered(presentation_timestamp_us,
+                                      rendered_timestamp_us);
 }
 
 MediaCodecBridge::MediaCodecBridge(Handler* handler) : handler_(handler) {

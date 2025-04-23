@@ -28,7 +28,9 @@ namespace android {
 namespace shared {
 namespace {
 
-const int64_t kMaxAllowedSkew = 5'000;  // 5ms
+constexpr int64_t kMaxSkewUs = 5'000;  // 5ms
+
+constexpr int64_t kMaxRenderedTimestampGapUs = 100'000;
 
 // TODO: b/409362474 - Add unit test once starboard unittests are enable on
 // Android.
@@ -47,9 +49,8 @@ void RemoveUnexpectedRenderedFrames(const std::list<int64_t>& frames_to_render,
   }
 
   const int64_t min_valid_rendered_frame =
-      std::max<int64_t>(0, frames_to_render.front() - kMaxAllowedSkew);
-  const int64_t max_valid_rendered_frame =
-      frames_to_render.back() + kMaxAllowedSkew;
+      std::max<int64_t>(0, frames_to_render.front() - kMaxSkewUs);
+  const int64_t max_valid_rendered_frame = frames_to_render.back() + kMaxSkewUs;
   auto is_not_expected = [min_valid_rendered_frame,
                           max_valid_rendered_frame](int64_t timestamp) {
     return timestamp < min_valid_rendered_frame ||
@@ -107,7 +108,18 @@ void VideoFrameTracker::OnInputBuffer(int64_t timestamp) {
   frames_to_be_rendered_.emplace_front(timestamp);
 }
 
-void VideoFrameTracker::OnFrameRendered(int64_t frame_timestamp) {
+void VideoFrameTracker::OnFrameRendered(int64_t frame_timestamp,
+                                        int64_t rendered_timestamp_us) {
+  int64_t last_rendered_us = last_rendered_us_.exchange(rendered_timestamp_us);
+  if (last_rendered_us != 0) {
+    if (int gap_us = (rendered_timestamp_us - last_rendered_us);
+        gap_us > kMaxRenderedTimestampGapUs) {
+      SB_LOG(WARNING)
+          << "Gap between rendered timestamp is too large: gap(msec)="
+          << (gap_us / 1'000);
+    }
+  }
+
   ScopedLock lock(rendered_frames_mutex_);
   rendered_frames_on_decoder_thread_.push_back(frame_timestamp);
 }
@@ -120,6 +132,7 @@ void VideoFrameTracker::Seek(int64_t seek_to_time) {
 
   frames_to_be_rendered_.clear();
   seek_to_time_ = seek_to_time;
+  last_rendered_us_ = 0;
 }
 
 int VideoFrameTracker::UpdateAndGetDroppedFrames() {
@@ -155,12 +168,11 @@ void VideoFrameTracker::UpdateDroppedFrames() {
     // Loop over all frames to render until we've caught up to the timestamp of
     // the last rendered frame.
     while (to_render_timestamp != frames_to_be_rendered_.end() &&
-           !(*to_render_timestamp - rendered_timestamp > kMaxAllowedSkew)) {
-      if (std::abs(*to_render_timestamp - rendered_timestamp) <=
-          kMaxAllowedSkew) {
+           !(*to_render_timestamp - rendered_timestamp > kMaxSkewUs)) {
+      if (std::abs(*to_render_timestamp - rendered_timestamp) <= kMaxSkewUs) {
         // This frame was rendered, remove it from frames_to_be_rendered_.
         to_render_timestamp = frames_to_be_rendered_.erase(to_render_timestamp);
-      } else if (rendered_timestamp - *to_render_timestamp > kMaxAllowedSkew) {
+      } else if (rendered_timestamp - *to_render_timestamp > kMaxSkewUs) {
         // The rendered frame is too far ahead. The to_render_timestamp frame
         // was dropped.
         SB_LOG(WARNING) << "Video frame dropped:" << *to_render_timestamp
@@ -172,7 +184,7 @@ void VideoFrameTracker::UpdateDroppedFrames() {
       } else {
         // The rendered frame is too early to match the next frame to render.
         // This could happen if a frame is reported to be rendered twice or if
-        // it is rendered more than kMaxAllowedSkew early. In the latter
+        // it is rendered more than kMaxSkewUs early. In the latter
         // scenario the frame will be reported dropped in the next iteration of
         // the outer loop.
         ++to_render_timestamp;
