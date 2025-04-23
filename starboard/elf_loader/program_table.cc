@@ -113,6 +113,8 @@ bool ProgramTable::LoadProgramHeader(const Ehdr* elf_header, File* elf_file) {
     }
   }
 
+  // TODO: b/413107644 - Add more compile-time checks to elf_loader casts and
+  // pointer conversions.
   phdr_table_ = reinterpret_cast<Phdr*>(reinterpret_cast<char*>(phdr_mmap_) +
                                         page_offset);
   SB_DLOG(INFO) << "phdr_table_=" << phdr_table_;

@@ -57,6 +57,7 @@ typedef struct EvergreenInfo {
   size_t phdr_table_num;
 
   // Contents of the build id.
+  // TODO: b/413105301 - Consider changing to std::array or std::vector.
   uint8_t build_id[EVERGREEN_BUILD_ID_MAX_SIZE];
 
   // Length of the build id.
