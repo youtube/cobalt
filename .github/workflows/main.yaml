@@ -40,6 +40,20 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Cache CI Essentials
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
+          include-hidden-files: true
+          retention-days: 14
+          path: |
+            .github
+            cobalt/build
+            cobalt/testing/filters
+            cobalt/tools/on_device*
+            cobalt/tools/requirements*
+            cobalt/docker
+            docker-compose.yml
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
         continue-on-error: true  # Ignore this step if we cannot remove the label.
@@ -156,8 +170,10 @@ jobs:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+    - name: Restore CI Essentials
+      uses: actions/download-artifact@v4
+      with:
+        name: ci-essentials-${{ inputs.platform }}
     # Handle GitHub registry used for everything other than pull requests off forked repos.
     - name: Login to GitHub Docker Registry
       uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
@@ -186,8 +202,10 @@ jobs:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
       - name: Login to GitHub Docker Registry
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
@@ -215,8 +233,10 @@ jobs:
     needs: [initialize]
     runs-on: [self-hosted, chrobalt-linux-runner]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
       - name: Login to GitHub Docker Registry
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
@@ -308,12 +328,10 @@ jobs:
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        timeout-minutes: 30
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
         with:
-          fetch-depth: 1
-          persist-credentials: false
+          name: ci-essentials-${{ inputs.platform }}
       - name: Parse Test Target JSON
         id: test-target-json
         uses: ./.github/actions/test_targets_json
@@ -347,16 +365,16 @@ jobs:
       TEST_ARTIFACTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_artifacts
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results-${{ matrix.shard }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
         with:
-          path: src
+          name: ci-essentials-${{ inputs.platform }}
       - name: Parse Test Target JSON
         id: test-target-json
-        uses: ./src/.github/actions/test_targets_json
+        uses: ./.github/actions/test_targets_json
       - name: Run On-Host Tests
         if: ${{ fromJson(steps.test-target-json.outputs.test_targets_count) > 0 }}
-        uses: ./src/.github/actions/on_host_tests
+        uses: ./.github/actions/on_host_tests
         with:
           test_artifacts_key: ${{ env.TEST_ARTIFACTS_KEY }}
           test_results_key: ${{ env.TEST_RESULTS_KEY }}
@@ -414,10 +432,10 @@ jobs:
         config: [devel]
         test_target: ${{ fromJson(needs.on-device-test.outputs.test_targets_json || needs.on-host-test.outputs.test_targets_json) }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
         with:
-          path: src
+          name: ci-essentials-${{ inputs.platform }}
       - name: Extract Test Target Name
         id: extract-target-name
         env:
@@ -431,7 +449,7 @@ jobs:
           # Get first entry in test filters file.
           test_filter=""
           test_target="${{ steps.extract-target-name.outputs.test_target }}"
-          test_filter_json_dir="${GITHUB_WORKSPACE}/src/cobalt/testing/filters/${{ matrix.platform }}/${test_target}_filter.json"
+          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_target}_filter.json"
           if [ -f ${test_filter_json_dir} ]; then
             test_filter="$(jq -cr '.failing_tests[0]' ${test_filter_json_dir})"
             if [ "${test_filter}" = '*' ]; then
@@ -451,14 +469,14 @@ jobs:
       - name: Process Test Results
         if: steps.filter.outputs.skipped != 'true'
         id: process-results
-        uses: ./src/.github/actions/process_test_results
+        uses: ./.github/actions/process_test_results
         with:
           target_name: ${{ matrix.test_target }}
           results_path: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           datadog_api_key: ${{ secrets.datadog_api_key }}
       - name: ${{ matrix.test_target }} Device Logs
         if: always() && steps.filter.outputs.skipped != 'true' && needs.initialize.outputs.test_on_device == 'true'
-        uses: ./src/.github/actions/print_logs
+        uses: ./.github/actions/print_logs
         with:
           logfile_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*logcat.txt
           # TODO: Enable symbolization when it works.
@@ -466,7 +484,7 @@ jobs:
           symbolize: 'false'
       - name: ${{ matrix.test_target }} Test Logs
         if: always() && steps.filter.outputs.skipped != 'true'
-        uses: ./src/.github/actions/print_logs
+        uses: ./.github/actions/print_logs
         with:
           logfile_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
           test_status: ${{ steps.process-results.outcome }}
