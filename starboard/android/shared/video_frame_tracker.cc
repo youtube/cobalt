@@ -115,7 +115,7 @@ void VideoFrameTracker::OnFrameRendered(int64_t frame_timestamp,
     if (int gap_us = (rendered_timestamp_us - last_rendered_us);
         gap_us > kMaxRenderedTimestampGapUs) {
       SB_LOG(WARNING)
-          << "Gap between rendered timestamp is too large: gap(msec)="
+          << "Large gap between rendered timestamps is detected: gap(msec)="
           << (gap_us / 1'000);
     }
   }
