@@ -28,6 +28,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
+#include "base/time/time.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/test_data_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -130,6 +131,9 @@ TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
   DecoderBufferAllocator allocator(DecoderBufferAllocator::Type::kLocal);
   std::unordered_map<std::string, void*> pointer_to_pointer_map;
   size_t max_allocated = 0, max_capacity = 0;
+  base::Time start_time = base::Time::Now();
+  base::Time last_allocate_time = start_time;
+  int free_operations_since_last_allocate = 0;
 
   for (auto&& operation : operations_) {
     if (operation.operation_type == Operation::Type::kAllocate) {
@@ -142,10 +146,13 @@ TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
       max_allocated = std::max(max_allocated, allocator.GetAllocatedMemory());
       max_capacity =
           std::max(max_capacity, allocator.GetCurrentMemoryCapacity());
+      last_allocate_time = base::Time::Now();
+      free_operations_since_last_allocate = 0;
     } else {
       CHECK_EQ(operation.operation_type, Operation::Type::kFree);
 
       allocator.Free(pointer_to_pointer_map[operation.pointer], operation.size);
+      ++free_operations_since_last_allocate;
 
       CHECK_EQ(pointer_to_pointer_map.erase(operation.pointer), 1);
     }
@@ -153,6 +160,18 @@ TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
 
   LOG(INFO) << "DecoderBufferAllocator reached max allocated of "
             << max_allocated << ", and max capacity of " << max_capacity;
+  LOG(INFO) << "Total " << operations_.size()
+            << " allocate/free operations take "
+            << (base::Time::Now() - start_time).InMicroseconds()
+            << " microseconds.";
+  // Logging the time since the last allocate operation, as there are often >10k
+  // free operations when playback finishes.  Measuring the time spent on tail
+  // free operations allows to understand how long this may take when playback
+  // finishes.
+  LOG(INFO) << "The last " << free_operations_since_last_allocate
+            << " free operations take "
+            << (base::Time::Now() - last_allocate_time).InMicroseconds()
+            << " microseconds.";
 }
 
 TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
