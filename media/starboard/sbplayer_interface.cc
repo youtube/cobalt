@@ -45,6 +45,23 @@ bool SbPlayerInterface::SetDecodeToTexturePreferred(bool preferred) {
   }
 }
 
+DefaultSbPlayerInterface::DefaultSbPlayerInterface() {
+  const StarboardExtensionExtendedPlayerInfoApi* extension_api =
+      static_cast<const StarboardExtensionExtendedPlayerInfoApi*>(
+          SbSystemGetExtension(kStarboardExtensionExtendedPlayerInfoName));
+  if (!extension_api) {
+    return;
+  }
+
+  DCHECK_EQ(extension_api->name,
+            // Avoid comparing raw string pointers for equal.
+            std::string(kStarboardExtensionExtendedPlayerInfoName));
+  DCHECK_EQ(extension_api->version, 1u);
+  DCHECK_NE(extension_api->PlayerGetInfo, nullptr);
+
+  extended_player_get_info_ = extension_api->PlayerGetInfo;
+}
+
 SbPlayer DefaultSbPlayerInterface::Create(
     SbWindow window,
     const SbPlayerCreationParam* creation_param,
@@ -138,10 +155,23 @@ void DefaultSbPlayerInterface::SetVolume(SbPlayer player, double volume) {
   media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_SET_VOLUME);
 }
 
+bool DefaultSbPlayerInterface::IsExtendedPlayerInfoEnabled() const {
+  return extended_player_get_info_ != nullptr;
+}
+
 void DefaultSbPlayerInterface::GetInfo(SbPlayer player,
                                        SbPlayerInfo* out_player_info) {
   media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_GET_INFO);
   SbPlayerGetInfo(player, out_player_info);
+  media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_GET_INFO);
+}
+
+void DefaultSbPlayerInterface::GetInfo(
+    SbPlayer player,
+    StarboardExtensionExtendedPlayerInfo* out_player_info) {
+  DCHECK(IsExtendedPlayerInfoEnabled());
+  media_metrics_provider_.StartTrackingAction(MediaAction::SBPLAYER_GET_INFO);
+  extended_player_get_info_(player, out_player_info);
   media_metrics_provider_.EndTrackingAction(MediaAction::SBPLAYER_GET_INFO);
 }
 

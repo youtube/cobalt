@@ -114,6 +114,9 @@ void VideoRenderAlgorithm::Render(
     } else {
       break;
     }
+    ScopedLock lock(mutex_);
+    accumlated_frames_early_us_ += early_us;
+    frames_processed_since_last_update_++;
   }
 }
 
@@ -128,6 +131,15 @@ int VideoRenderAlgorithm::GetDroppedFrames() {
     return frame_tracker_->UpdateAndGetDroppedFrames();
   }
   return dropped_frames_;
+}
+
+int64_t VideoRenderAlgorithm::GetFrameEarlyUs() {
+  ScopedLock lock(mutex_);
+  int64_t average_frames_early_us =
+      accumlated_frames_early_us_ / frames_processed_since_last_update_;
+  accumlated_frames_early_us_ = 0;
+  frames_processed_since_last_update_ = 0;
+  return average_frames_early_us;
 }
 
 VideoRenderAlgorithm::VideoFrameReleaseTimeHelper::

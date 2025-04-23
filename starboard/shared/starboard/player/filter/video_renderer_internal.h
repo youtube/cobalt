@@ -36,6 +36,7 @@ class VideoRenderer {
                           const PrerolledCB& prerolled_cb,
                           const EndedCB& ended_cb) = 0;
   virtual int GetDroppedFrames() const = 0;
+  virtual int64_t GetFrameEarlyUs() const = 0;
 
   virtual void WriteSamples(const InputBuffers& input_buffers) = 0;
 
