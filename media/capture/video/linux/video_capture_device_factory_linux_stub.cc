@@ -12,8 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/hacks/stub.h"
 #include "media/capture/video/linux/video_capture_device_factory_linux.h"
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#include "cobalt/temporary_hacks/linker_stub.h"
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 namespace media {
 

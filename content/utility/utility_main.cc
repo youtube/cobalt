@@ -48,7 +48,7 @@
 #include "third_party/angle/src/gpu_info_util/SystemInfo.h"  //nogncheck
 
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#include "cobalt/hacks/stub.h"
+#include "cobalt/temporary_hacks/linker_stub.h"
 #endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 #if BUILDFLAG(ENABLE_PRINTING)

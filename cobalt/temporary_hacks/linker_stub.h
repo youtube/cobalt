@@ -1,7 +1,7 @@
 
 #include "starboard/common/log.h"
 
-// Remove this file and implement all stubs.
+// TODO: b/413130400 - Cobalt: Remove this file and implement linker stubs
 
 #define COBALT_LINKER_STUB_MSG "This is a stub needed for linking cobalt. You need to remove COBALT_LINKER_STUB and implement  " << SB_FUNCTION
 

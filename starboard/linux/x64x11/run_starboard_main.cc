@@ -13,7 +13,7 @@
 // limitations under the License.
 
 #include "starboard/event.h"
-#include "cobalt/hacks/stub.h"
+#include "cobalt/temporary_hacks/linker_stub.h"
 
 #include "starboard/shared/x11/application_x11.h"
 
