@@ -1,5 +1,5 @@
 name: Set Up Depot Tools
-description: Sets up Depot Tools and initializes gclient.
+description: Sets up Depot Tools and initializes gclient. Requires source code to be cloned to src/ directory.
 inputs:
   run_sync:
     description: "Whether or not to run gclient sync."
