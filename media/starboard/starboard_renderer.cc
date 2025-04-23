@@ -672,8 +672,8 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
     return;
   }
 
-  // In the rare case data is requested immediately before a seek, wait
-  // wait until the player completes seeking before reading buffers again.
+  // In the case data is requested immediately before a seek, wait until
+  // the player completes seeking before reading buffers again.
   if (state_ == STATE_FLUSHED) {
     return;
   }
