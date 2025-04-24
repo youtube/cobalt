@@ -208,11 +208,12 @@ void SbPlayerPrivateImpl::SetVolume(double volume) {
   worker_->SetVolume(volume_);
 }
 
-void SbPlayerPrivateImpl::UpdateMediaInfo(int64_t media_time,
-                                          int dropped_video_frames,
-                                          int ticket,
-                                          bool is_progressing,
-                                          int64_t video_frame_early_us) {
+void SbPlayerPrivateImpl::UpdateMediaInfo(
+    int64_t media_time,
+    int dropped_video_frames,
+    int ticket,
+    bool is_progressing,
+    int64_t average_video_frame_early_us) {
   ScopedLock lock(mutex_);
   if (ticket_ != ticket) {
     return;
@@ -221,7 +222,7 @@ void SbPlayerPrivateImpl::UpdateMediaInfo(int64_t media_time,
   is_progressing_ = is_progressing;
   media_time_updated_at_ = CurrentMonotonicTime();
   dropped_video_frames_ = dropped_video_frames;
-  video_frame_early_us_ = video_frame_early_us;
+  average_video_frame_early_us_ = average_video_frame_early_us;
 }
 
 SbDecodeTarget SbPlayerPrivateImpl::GetCurrentDecodeTarget() {

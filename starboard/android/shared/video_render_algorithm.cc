@@ -133,7 +133,7 @@ int VideoRenderAlgorithm::GetDroppedFrames() {
   return dropped_frames_;
 }
 
-int64_t VideoRenderAlgorithm::GetFrameEarlyUs() {
+int64_t VideoRenderAlgorithm::GetAndClearAverageFrameEarlyUs() {
   ScopedLock lock(mutex_);
   int64_t average_frames_early_us =
       accumlated_frames_early_us_ / frames_processed_since_last_update_;

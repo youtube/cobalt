@@ -113,7 +113,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
                        int dropped_video_frames,
                        int ticket,
                        bool is_progressing,
-                       int64_t video_frame_early_us);
+                       int64_t average_video_frame_early_us);
 
   SbPlayerDeallocateSampleFunc sample_deallocate_func_;
   void* context_;
@@ -129,7 +129,7 @@ class SbPlayerPrivateImpl final : public SbPlayerPrivate {
   double volume_ = 1.0;
   int total_video_frames_ = 0;
   int dropped_video_frames_ = 0;
-  int64_t video_frame_early_us_ = 0;
+  int64_t average_video_frame_early_us_ = 0;
   // Used to determine if |worker_| is progressing with playback so that
   // we may extrapolate the media time in GetInfo().
   bool is_progressing_ = false;

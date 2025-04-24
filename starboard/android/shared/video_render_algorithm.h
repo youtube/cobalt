@@ -37,7 +37,7 @@ class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
               VideoRendererSink::DrawFrameCB draw_frame_cb) override;
   void Seek(int64_t seek_to_time) override;
   int GetDroppedFrames() override;
-  int64_t GetFrameEarlyUs() override;
+  int64_t GetAndClearAverageFrameEarlyUs() override;
 
  private:
   class VideoFrameReleaseTimeHelper {
@@ -60,7 +60,6 @@ class VideoRenderAlgorithm : public ::starboard::shared::starboard::player::
 
   Mutex mutex_;
   // The following fields must be protected by |mutex_|
-  // TODO: Determine if this blocks the rendering process.
   int64_t accumlated_frames_early_us_ = 0;
   int frames_processed_since_last_update_ = 0;
 };

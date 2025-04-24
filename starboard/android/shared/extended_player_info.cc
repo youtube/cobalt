@@ -36,4 +36,3 @@ const void* GetExtendedPlayerInfoApi() {
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
-                         

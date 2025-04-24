@@ -39,4 +39,3 @@ void PlayerGetInfo(SbPlayer player,
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
-                         

@@ -49,7 +49,7 @@ class PlayerWorker {
                              int dropped_video_frames,
                              int ticket,
                              bool is_progressing,
-                             int64_t video_frame_early_us)>
+                             int64_t average_video_frame_early_us)>
       UpdateMediaInfoCB;
 
   struct Bounds {
@@ -77,7 +77,7 @@ class PlayerWorker {
     typedef std::function<void(int64_t media_time,
                                int dropped_video_frames,
                                bool is_progressing,
-                               int64_t video_frame_early_us)>
+                               int64_t average_video_frame_early_us)>
         UpdateMediaInfoCB;
     typedef std::function<SbPlayerState()> GetPlayerStateCB;
     typedef std::function<void(SbPlayerState player_state)> UpdatePlayerStateCB;
@@ -198,7 +198,7 @@ class PlayerWorker {
   void UpdateMediaInfo(int64_t time,
                        int dropped_video_frames,
                        bool underflow,
-                       int64_t video_frame_early_us);
+                       int64_t average_video_frame_early_us);
 
   SbPlayerState player_state() const { return player_state_; }
   void UpdatePlayerState(SbPlayerState player_state);

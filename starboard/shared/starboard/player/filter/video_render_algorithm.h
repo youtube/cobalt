@@ -52,7 +52,7 @@ class VideoRenderAlgorithm {
   // |seek_to_time| (microseconds) will be set to the seek target.
   virtual void Seek(int64_t seek_to_time) = 0;
   virtual int GetDroppedFrames() = 0;
-  virtual int64_t GetFrameEarlyUs() { return -1; }
+  virtual int64_t GetAndClearAverageFrameEarlyUs() { return -1; }
 };
 
 }  // namespace filter

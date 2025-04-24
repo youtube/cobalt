@@ -152,10 +152,10 @@ PlayerWorker::PlayerWorker(SbMediaAudioCodec audio_codec,
 void PlayerWorker::UpdateMediaInfo(int64_t time,
                                    int dropped_video_frames,
                                    bool is_progressing,
-                                   int64_t video_frame_early_us) {
+                                   int64_t average_video_frame_early_us) {
   if (player_state_ == kSbPlayerStatePresenting) {
     update_media_info_cb_(time, dropped_video_frames, ticket_, is_progressing,
-                          video_frame_early_us);
+                          average_video_frame_early_us);
   }
 }
 
