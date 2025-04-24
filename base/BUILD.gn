@@ -1869,7 +1869,10 @@ component("base") {
 =======
 >>>>>>> e9119cee829 (Add base/ changes to build cobalt hermetically (#5514))
     ]
-    sources += ["process/process_metrics_posix_stub.cc"]
+    sources += [
+      "process/process_metrics_posix_starboard_stub.cc",
+      "starboard/linker_stub.h"
+    ]
   }
 
   if (is_cobalt && enable_cobalt_linux_hacks) {
