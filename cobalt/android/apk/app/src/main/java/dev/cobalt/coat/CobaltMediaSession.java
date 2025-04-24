@@ -196,6 +196,7 @@ public class CobaltMediaSession implements ArtworkLoader.Callback {
 
     mMediaSession.setCallback(null);
     mMediaSession.setActive(false);
+    mMediaSession.release();
     mMediaSession = null;
 
     Log.i(TAG, "MediaSession has been deactivated.");
