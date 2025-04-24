@@ -31,25 +31,19 @@ class StubPlayerComponentsFactory : public PlayerComponents::Factory {
  public:
   static std::unique_ptr<PlayerComponents::Factory> Create();
 
-  bool CreateSubComponents(
-      const CreationParameters& creation_parameters,
-      std::unique_ptr<AudioDecoder>* audio_decoder,
-      std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
-      std::unique_ptr<VideoDecoder>* video_decoder,
-      std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-      scoped_refptr<VideoRendererSink>* video_renderer_sink,
-      std::string* error_message) override {
-    SB_DCHECK(error_message);
+  SubComponents CreateSubComponents(
+      const CreationParameters& creation_parameters) override {
+    AudioComponents audio_components;
+    VideoComponents video_components;
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
-      CreateStubAudioComponents(creation_parameters, audio_decoder,
-                                audio_renderer_sink);
+      audio_components = CreateStubAudioComponents(creation_parameters);
     }
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      CreateStubVideoComponents(creation_parameters, video_decoder,
-                                video_render_algorithm, video_renderer_sink);
+      video_components = CreateStubVideoComponents(creation_parameters);
     }
-    return true;
+    return {.audio = std::move(video_components),
+            .video = std::move(audio_components)};
   }
 
  private:

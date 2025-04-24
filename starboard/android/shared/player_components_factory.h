@@ -295,27 +295,18 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         std::move(audio_renderer), std::move(video_renderer)));
   }
 
-  bool CreateSubComponents(
-      const CreationParameters& creation_parameters,
-      std::unique_ptr<AudioDecoderBase>* audio_decoder,
-      std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
-      std::unique_ptr<VideoDecoderBase>* video_decoder,
-      std::unique_ptr<VideoRenderAlgorithmBase>* video_render_algorithm,
-      scoped_refptr<VideoRendererSink>* video_renderer_sink,
-      std::string* error_message) override {
-    SB_DCHECK(error_message);
-
+  SubComponents CreateSubComponents(
+      const CreationParameters& creation_parameters) override {
     const std::string audio_mime =
         creation_parameters.audio_codec() != kSbMediaAudioCodecNone
             ? creation_parameters.audio_mime()
             : "";
     MimeType audio_mime_type(audio_mime);
-    if (!audio_mime.empty()) {
-      if (!audio_mime_type.is_valid()) {
-        *error_message =
-            "Invalid audio MIME: '" + std::string(audio_mime) + "'";
-        return false;
-      }
+    if (!audio_mime.empty() && !audio_mime_type.is_valid()) {
+      return {
+          .error_message =
+              std::string("Invalid audio MIME: '") + audio_mime + "'",
+      };
     }
 
     const std::string video_mime =
@@ -323,14 +314,14 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
             ? creation_parameters.video_mime()
             : "";
     MimeType video_mime_type(video_mime);
-    if (!video_mime.empty()) {
-      if (!video_mime_type.is_valid() ||
-          !video_mime_type.ValidateBoolParameter("tunnelmode") ||
-          !video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
-        *error_message =
-            "Invalid video MIME: '" + std::string(video_mime) + "'";
-        return false;
-      }
+    if (!video_mime.empty() &&
+        (!video_mime_type.is_valid() ||
+         !video_mime_type.ValidateBoolParameter("tunnelmode") ||
+         !video_mime_type.ValidateBoolParameter("enableflushduringseek"))) {
+      return {
+          .error_message =
+              std::string("Invalid video MIME: '") + video_mime + "'",
+      };
     }
 
     int tunnel_mode_audio_session_id = -1;
@@ -419,43 +410,45 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       enable_flush_during_seek = true;
     }
 
+    AudioComponents audio_components;
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
-      SB_DCHECK(audio_decoder);
-      SB_DCHECK(audio_renderer_sink);
-
       using starboard::shared::starboard::media::AudioStreamInfo;
-      auto decoder_creator = [enable_flush_during_seek](
-                                 const AudioStreamInfo& audio_stream_info,
-                                 SbDrmSystem drm_system) {
+      auto decoder_creator =
+          [enable_flush_during_seek](
+              const AudioStreamInfo& audio_stream_info,
+              SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoderBase> {
         bool use_libopus_decoder =
             audio_stream_info.codec == kSbMediaAudioCodecOpus &&
             !SbDrmSystemIsValid(drm_system) && !kForcePlatformOpusDecoder;
-        if (use_libopus_decoder) {
-          std::unique_ptr<OpusAudioDecoder> audio_decoder_impl(
-              new OpusAudioDecoder(audio_stream_info));
-          if (audio_decoder_impl->is_valid()) {
-            return std::unique_ptr<AudioDecoderBase>(
-                std::move(audio_decoder_impl));
+        auto if (use_libopus_decoder) {
+          auto audio_decoder_impl =
+              std::make_unique<OpusAudioDecoder>(audio_stream_info);
+          if (!audio_decoder_impl->is_valid()) {
+            SB_LOG(ERROR) << "OpusAudioDecoder is not valid.";
+            return nullptr;
           }
-        } else if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
-                   audio_stream_info.codec == kSbMediaAudioCodecOpus) {
+          return audio_decoder_impl;
+        }
+        else if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
+                 audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           std::unique_ptr<AudioDecoder> audio_decoder_impl(new AudioDecoder(
               audio_stream_info, drm_system, enable_flush_during_seek));
           if (audio_decoder_impl->is_valid()) {
             return std::unique_ptr<AudioDecoderBase>(
                 std::move(audio_decoder_impl));
           }
-        } else {
+        }
+        else {
           SB_LOG(ERROR) << "Unsupported audio codec "
                         << audio_stream_info.codec;
         }
-        return std::unique_ptr<AudioDecoderBase>();
+        return nullptr;
       };
 
-      audio_decoder->reset(new AdaptiveAudioDecoder(
+      audio_components.audio_decoder = std::make_unique<AdaptiveAudioDecoder>(
           creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator,
-          enable_reset_audio_decoder));
+          enable_reset_audio_decoder);
 
       if (tunnel_mode_audio_session_id != -1) {
         *audio_renderer_sink = TryToCreateTunnelModeAudioRendererSink(

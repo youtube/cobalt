@@ -301,11 +301,9 @@ class scoped_refptr {
   friend class scoped_refptr;
 };
 
-// Handy utility for creating a scoped_refptr<T> out of a T* explicitly without
-// having to retype all the template arguments
-template <typename T>
-scoped_refptr<T> make_scoped_refptr(T* t) {
-  return scoped_refptr<T>(t);
+template <typename T, typename... Args>
+scoped_refptr<T> make_scoped_refptr(Args&&... args) {
+  return scoped_refptr<T>(new T(std::forward<Args>(args)...));
 }
 
 }  // namespace starboard

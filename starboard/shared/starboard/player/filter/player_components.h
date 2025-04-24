@@ -42,6 +42,17 @@ namespace starboard {
 namespace player {
 namespace filter {
 
+struct AudioComponents {
+  std::unique_ptr<AudioDecoder> decoder;
+  std::unique_ptr<AudioRendererSink> renderer_sink;
+};
+
+struct VideoComponents {
+  std::unique_ptr<VideoDecoder> decoder;
+  std::unique_ptr<VideoRenderAlgorithm> render_algorithm;
+  scoped_refptr<VideoRendererSink> renderder_sink;
+};
+
 // This class holds necessary media stack components required by
 // by |FilterBasedPlayerWorkerHandler| to function.  It owns the components, and
 // the returned value of each function won't change over the lifetime of this
@@ -149,7 +160,7 @@ class PlayerComponents {
       SbDrmSystem drm_system_ = kSbDrmSystemInvalid;
     };
 
-    virtual ~Factory() {}
+    virtual ~Factory() = default;
 
     // TODO: Consider making it return Factory*.
     // Individual platform should implement this function to allow the creation
@@ -172,28 +183,24 @@ class PlayerComponents {
 
     // Note that the following function is exposed in non-Gold build to allow
     // unit tests to run.
-    virtual bool CreateSubComponents(
-        const CreationParameters& creation_parameters,
-        std::unique_ptr<AudioDecoder>* audio_decoder,
-        std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
-        std::unique_ptr<VideoDecoder>* video_decoder,
-        std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-        scoped_refptr<VideoRendererSink>* video_renderer_sink,
-        std::string* error_message) = 0;
+    struct SubComponents {
+      AudioComponents audio;
+      VideoComponents video;
+      std::string error_message;
+
+      bool has_error() const { return !error_message.empty(); }
+    };
+    virtual SubComponents CreateSubComponents(
+        const CreationParameters& creation_parameters) = 0;
 
    protected:
-    Factory() {}
+    Factory() = default;
 
-    void CreateStubAudioComponents(
-        const CreationParameters& creation_parameters,
-        std::unique_ptr<AudioDecoder>* audio_decoder,
-        std::unique_ptr<AudioRendererSink>* audio_renderer_sink);
+    AudioComponents CreateStubAudioComponents(
+        const CreationParameters& creation_parameters);
 
-    void CreateStubVideoComponents(
-        const CreationParameters& creation_parameters,
-        std::unique_ptr<VideoDecoder>* video_decoder,
-        std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-        scoped_refptr<VideoRendererSink>* video_renderer_sink);
+    VideoComponents CreateStubVideoComponents(
+        const CreationParameters& creation_parameters);
 
     // Check AudioRenderer ctor for more details on the parameters.
     virtual void GetAudioRendererParams(

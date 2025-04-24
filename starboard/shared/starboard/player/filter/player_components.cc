@@ -161,35 +161,44 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
   bool use_stub_video_decoder =
       command_line->HasSwitch("use_stub_video_decoder");
 
-  if (use_stub_audio_decoder && use_stub_video_decoder) {
-    CreateStubAudioComponents(creation_parameters, &audio_decoder,
-                              &audio_renderer_sink);
-    CreateStubVideoComponents(creation_parameters, &video_decoder,
-                              &video_render_algorithm, &video_renderer_sink);
-  } else {
+  if (use_stub_audio_decoder) {
+    auto [stub_audio_decoder, stub_audio_renderer_sink] =
+        CreateStubAudioComponents(creation_parameters);
+    audio_decoder = std::move(stub_audio_decoder);
+    audio_renderer_sink = std::move(stub_audio_renderer_sink);
+  }
+  if (use_stub_audio_decoder) {
+    auto [stub_video_decoder, stub_video_render_algorithm,
+          stub_video_renderer_sink] =
+        CreateStubVideoComponents(creation_parameters);
+    video_decoder = std::move(stub_video_decoder);
+    video_render_algorithm = std::move(stub_video_render_algorithm);
+    video_renderer_sink = std::move(stub_video_renderer_sink);
+  }
+
+  if (!use_stub_audio_decoder || !use_stub_video_decoder) {
     auto copy_of_creation_parameters = creation_parameters;
     if (use_stub_audio_decoder) {
       copy_of_creation_parameters.reset_audio_codec();
     } else if (use_stub_video_decoder) {
       copy_of_creation_parameters.reset_video_codec();
     }
-    if (!CreateSubComponents(copy_of_creation_parameters, &audio_decoder,
-                             &audio_renderer_sink, &video_decoder,
-                             &video_render_algorithm, &video_renderer_sink,
-                             error_message)) {
-      return std::unique_ptr<PlayerComponents>();
+
+    SubComponents components = CreateSubComponents(copy_of_creation_parameters);
+    if (components.has_error()) {
+      SB_LOG(ERROR) << "CreateSubComponents failed: error="
+                    << components.error_message;
+      return nullptr;
     }
+
     if (use_stub_audio_decoder) {
-      SB_DCHECK(!audio_decoder);
-      SB_DCHECK(!audio_renderer_sink);
-      CreateStubAudioComponents(creation_parameters, &audio_decoder,
-                                &audio_renderer_sink);
-    } else if (use_stub_video_decoder) {
-      SB_DCHECK(!video_decoder);
-      SB_DCHECK(!video_render_algorithm);
-      SB_DCHECK(!video_renderer_sink);
-      CreateStubVideoComponents(creation_parameters, &video_decoder,
-                                &video_render_algorithm, &video_renderer_sink);
+      video_decoder = std::move(components.video.decoder);
+      video_render_algorithm = std::move(components.video.render_algorithm);
+      video_renderer_sink = std::move(components.video.renderder_sink);
+    }
+    if (use_stub_video_decoder) {
+      audio_decoder = std::move(components.audio.decoder);
+      audio_renderer_sink = std::move(components.audio.renderer_sink);
     }
   }
 
@@ -205,10 +214,10 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
     GetAudioRendererParams(creation_parameters, &max_cached_frames,
                            &min_frames_per_append);
 
-    audio_renderer.reset(new AudioRendererPcm(
+    audio_renderer = std::make_unique<AudioRendererPcm>(
         std::move(audio_decoder), std::move(audio_renderer_sink),
         creation_parameters.audio_stream_info(), max_cached_frames,
-        min_frames_per_append));
+        min_frames_per_append);
   }
 
   if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -219,9 +228,8 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
     if (audio_renderer) {
       media_time_provider = audio_renderer.get();
     } else {
-      media_time_provider_impl.reset(new MediaTimeProviderImpl(
-          std::unique_ptr<MonotonicSystemTimeProvider>(
-              new MonotonicSystemTimeProviderImpl)));
+      media_time_provider_impl = std::make_unique<MediaTimeProviderImpl>(
+          std::make_unique<MonotonicSystemTimeProviderImpl>());
       media_time_provider = media_time_provider_impl.get();
     }
     video_renderer.reset(new VideoRendererImpl(
@@ -230,44 +238,31 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
   }
 
   SB_DCHECK(audio_renderer || video_renderer);
-  return std::unique_ptr<PlayerComponents>(new PlayerComponentsImpl(
+  return std::make_unique<PlayerComponentsImpl>(
       std::move(media_time_provider_impl), std::move(audio_renderer),
-      std::move(video_renderer)));
+      std::move(video_renderer));
 }
 
-void PlayerComponents::Factory::CreateStubAudioComponents(
-    const CreationParameters& creation_parameters,
-    std::unique_ptr<AudioDecoder>* audio_decoder,
-    std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
-  SB_DCHECK(audio_decoder);
-  SB_DCHECK(audio_renderer_sink);
-
+AudioComponents PlayerComponents::Factory::CreateStubAudioComponents(
+    const CreationParameters& creation_parameters) {
   auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
                             SbDrmSystem drm_system) {
-    return std::unique_ptr<AudioDecoder>(
-        new StubAudioDecoder(audio_stream_info));
+    return std::make_unique<StubAudioDecoder>(audio_stream_info);
   };
-  audio_decoder->reset(new AdaptiveAudioDecoder(
-      creation_parameters.audio_stream_info(), creation_parameters.drm_system(),
-      decoder_creator));
-  audio_renderer_sink->reset(new AudioRendererSinkImpl);
+  return {std::make_unique<AdaptiveAudioDecoder>(
+              creation_parameters.audio_stream_info(),
+              creation_parameters.drm_system(), decoder_creator),
+          std::make_unique<AudioRendererSinkImpl>()};
 }
 
-void PlayerComponents::Factory::CreateStubVideoComponents(
-    const CreationParameters& creation_parameters,
-    std::unique_ptr<VideoDecoder>* video_decoder,
-    std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-    scoped_refptr<VideoRendererSink>* video_renderer_sink) {
-  const int64_t kVideoSinkRenderIntervalUsec = 10'000;  // 10ms
+VideoComponents PlayerComponents::Factory::CreateStubVideoComponents(
+    const CreationParameters& creation_parameters) {
+  constexpr int64_t kVideoSinkRenderIntervalUsec = 10'000;  // 10ms
 
-  SB_DCHECK(video_decoder);
-  SB_DCHECK(video_render_algorithm);
-  SB_DCHECK(video_renderer_sink);
-
-  video_decoder->reset(new StubVideoDecoder);
-  video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
-  *video_renderer_sink = new PunchoutVideoRendererSink(
-      creation_parameters.player(), kVideoSinkRenderIntervalUsec);
+  return {std::make_unique<StubVideoDecoder>(),
+          std::make_unique<VideoRenderAlgorithmImpl>(),
+          make_scoped_refptr<PunchoutVideoRendererSink>(
+              creation_parameters.player(), kVideoSinkRenderIntervalUsec)};
 }
 
 void PlayerComponents::Factory::GetAudioRendererParams(
