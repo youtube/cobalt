@@ -28,7 +28,7 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-void LogInit(const starboard::shared::starboard::CommandLine& command_line) {
+void LogInit(const starboard::CommandLine& command_line) {
   if (command_line.HasSwitch(kLogSleepTimeSwitch)) {
     g_log_sleep_time =
         atol(command_line.GetSwitchValue(kLogSleepTimeSwitch).c_str());

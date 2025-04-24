@@ -17,13 +17,12 @@
 #include <atomic>
 #include <string>
 
+#include "starboard/common/command_line.h"
 #include "starboard/common/condition_variable.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
 #include "starboard/event.h"
-
-#include "starboard/shared/starboard/command_line.h"
 
 namespace starboard {
 namespace shared {

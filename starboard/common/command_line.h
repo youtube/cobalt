@@ -10,8 +10,8 @@
 // An argument of "--" will terminate switch parsing during initialization,
 // interpreting subsequent tokens as non-switch arguments, regardless of prefix.
 
-#ifndef STARBOARD_SHARED_STARBOARD_COMMAND_LINE_H_
-#define STARBOARD_SHARED_STARBOARD_COMMAND_LINE_H_
+#ifndef STARBOARD_COMMON_COMMAND_LINE_H_
+#define STARBOARD_COMMON_COMMAND_LINE_H_
 
 #include <map>
 #include <string>
@@ -21,8 +21,6 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-namespace starboard {
-namespace shared {
 namespace starboard {
 
 class SB_EXPORT_ANDROID CommandLine {
@@ -119,7 +117,5 @@ class SB_EXPORT_ANDROID CommandLine {
 };
 
 }  // namespace starboard
-}  // namespace shared
-}  // namespace starboard
 
-#endif  // STARBOARD_SHARED_STARBOARD_COMMAND_LINE_H_
+#endif  // STARBOARD_COMMON_COMMAND_LINE_H_

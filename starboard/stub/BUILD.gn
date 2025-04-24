@@ -33,8 +33,6 @@ static_library("starboard_platform") {
 static_library("stub_sources") {
   sources = [
     "//starboard/shared/starboard/application.cc",
-    "//starboard/shared/starboard/command_line.cc",
-    "//starboard/shared/starboard/command_line.h",
     "//starboard/shared/starboard/event_cancel.cc",
     "//starboard/shared/starboard/event_schedule.cc",
     "//starboard/shared/starboard/queue_application.cc",

@@ -16,6 +16,7 @@
 
 #include <string>
 
+#include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/crashpad_wrapper/annotations.h"
@@ -25,7 +26,6 @@
 #include "starboard/elf_loader/evergreen_info.h"
 #include "starboard/elf_loader/sabi_string.h"
 #include "starboard/event.h"
-#include "starboard/shared/starboard/command_line.h"
 
 starboard::elf_loader::ElfLoader g_elf_loader;
 
@@ -107,7 +107,7 @@ void SbEventHandle(const SbEvent* event) {
 
   if (!g_sb_event_func) {
     const SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-    const starboard::shared::starboard::CommandLine command_line(
+    const starboard::CommandLine command_line(
         data->argument_count, const_cast<const char**>(data->argument_values));
     LoadLibraryAndInitialize(
         command_line.GetSwitchValue(starboard::elf_loader::kEvergreenLibrary),

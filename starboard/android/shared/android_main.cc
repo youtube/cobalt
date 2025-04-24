@@ -23,13 +23,13 @@
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/log_internal.h"
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/common/command_line.h"
 #include "starboard/common/file.h"
 #include "starboard/common/semaphore.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration_constants.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
-#include "starboard/shared/starboard/command_line.h"
 #include "starboard/thread.h"
 #if SB_IS(EVERGREEN_COMPATIBLE)
 #include "starboard/crashpad_wrapper/wrapper.h"  // nogncheck
@@ -43,7 +43,7 @@ std::atomic_bool g_block_swapbuffers{false};
 
 namespace {
 
-using ::starboard::shared::starboard::CommandLine;
+using ::starboard::CommandLine;
 
 #if SB_IS(EVERGREEN_COMPATIBLE)
 typedef ::starboard::android::shared::ApplicationAndroid::AndroidCommand
