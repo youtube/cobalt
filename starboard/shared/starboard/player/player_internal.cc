@@ -191,6 +191,7 @@ void SbPlayerPrivateImpl::GetInfo(
   out_player_info->dropped_video_frames = dropped_video_frames_;
   out_player_info->corrupted_video_frames = 0;
   out_player_info->playback_rate = playback_rate_;
+  out_player_info->last_average_frame_early_us = average_video_frame_early_us_;
 }
 
 void SbPlayerPrivateImpl::SetPause(bool pause) {

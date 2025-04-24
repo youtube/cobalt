@@ -38,6 +38,9 @@ typedef struct StarboardExtensionExtendedPlayerInfo {
   int dropped_video_frames;
   int corrupted_video_frames;
   double playback_rate;
+  // The average gap between when a video frame is decoded and when it's
+  // presented in microseconds. This value is reset after every call to PlayerGetInfo().
+  int64_t last_average_frame_early_us;
 } StarboardExtensionExtendedPlayerInfo;
 
 typedef struct StarboardExtensionExtendedPlayerInfoApi {

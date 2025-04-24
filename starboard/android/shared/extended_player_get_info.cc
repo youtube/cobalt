@@ -16,6 +16,7 @@
 
 #include "starboard/common/log.h"
 #include "starboard/player.h"
+#include "starboard/shared/starboard/player/player_internal.h"
 
 namespace starboard {
 namespace android {
@@ -33,7 +34,7 @@ void PlayerGetInfo(SbPlayer player,
     return;
   }
 
-  return;
+  player->GetInfo(out_player_info);
 }
 
 }  // namespace shared
