@@ -52,7 +52,10 @@ CobaltMetricsServicesManagerClient::CreateMetricsServiceClient() {
 
 std::unique_ptr<variations::VariationsService>
 CobaltMetricsServicesManagerClient::CreateVariationsService() {
-  // TODO(b/392683875): Should we initialize Finch here?
+  // VariationsService is not needed for Finch support in Cobalt. We don't
+  // use things like the Finch seed or client-side Field Trials. Instead,
+  // we have our own custom implementation that is driven by the server via
+  // H5vccExperiments.
   NOTIMPLEMENTED();
   return nullptr;
 }
