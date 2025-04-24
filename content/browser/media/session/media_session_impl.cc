@@ -185,11 +185,13 @@ bool IsSizesAtLeast(const std::vector<gfx::Size>& sizes, int min_size) {
   return check_size;
 }
 
+#if !BUILDFLAG(IS_COBALT)
 std::u16string SanitizeMediaTitle(const std::u16string title) {
   std::u16string out;
   base::TrimString(title, u" ", &out);
   return out;
 }
+#endif // !BUILDFLAG(IS_COBALT)
 
 }  // anonymous namespace
 
@@ -1722,8 +1724,11 @@ void MediaSessionImpl::RebuildAndNotifyMetadataChanged() {
     artwork = routed_service_->metadata()->artwork;
   }
 
+#if !BUILDFLAG(IS_COBALT)
+  // We don't want to use web content title as media session title.
   if (metadata.title.empty())
     metadata.title = SanitizeMediaTitle(web_contents()->GetTitle());
+#endif // !BUILDFLAG(IS_COBALT)
 
   ContentClient* content_client = content::GetContentClient();
   const GURL& url = web_contents()->GetLastCommittedURL();

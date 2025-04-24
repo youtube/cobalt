@@ -16,14 +16,18 @@
 #define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_WINDOW_STARBOARD_H_
 
 #include "starboard/window.h"
+#include "ui/base/cursor/platform_cursor.h"
 #include "ui/events/platform/platform_event_dispatcher.h"
+#include "ui/ozone/platform/starboard/platform_event_observer_starboard.h"
 #include "ui/platform_window/platform_window_delegate.h"
 #include "ui/platform_window/stub/stub_window.h"
 
 namespace ui {
 
-class PlatformWindowStarboard : public StubWindow,
-                                public PlatformEventDispatcher {
+class PlatformWindowStarboard
+    : public PlatformWindow,
+      public PlatformEventDispatcher,
+      public starboard::PlatformEventObserverStarboard {
  public:
   PlatformWindowStarboard(PlatformWindowDelegate* delegate,
                           const gfx::Rect& bounds);
@@ -39,9 +43,55 @@ class PlatformWindowStarboard : public StubWindow,
   bool ShouldUseNativeFrame() const override;
   void SetUseNativeFrame(bool use_native_frame) override;
 
+  // ui::PlatformEventObserverStarboard interface.
+  void ProcessWindowSizeChangedEvent(int width, int height) override;
+  void SetBoundsInPixels(const gfx::Rect& bounds) override;
+  gfx::Rect GetBoundsInPixels() const override;
+
+ protected:
+  PlatformWindowDelegate* delegate() { return delegate_; }
+
  private:
+  enum class ActivationState {
+    kUnknown,
+    kActive,
+    kInactive,
+  };
+
+  // PlatformWindow:
+  void Show(bool inactive) override;
+  void Hide() override;
+  void Close() override;
+  bool IsVisible() const override;
+  void PrepareForShutdown() override;
+  void SetBoundsInDIP(const gfx::Rect& bounds) override;
+  gfx::Rect GetBoundsInDIP() const override;
+  void SetTitle(const std::u16string& title) override;
+  void SetCapture() override;
+  void ReleaseCapture() override;
+  void SetFullscreen(bool fullscreen, int64_t target_display_id) override;
+  bool HasCapture() const override;
+  void Maximize() override;
+  void Minimize() override;
+  void Restore() override;
+  PlatformWindowState GetPlatformWindowState() const override;
+  void Activate() override;
+  void Deactivate() override;
+  void SetCursor(scoped_refptr<PlatformCursor> cursor) override;
+  void MoveCursorTo(const gfx::Point& location) override;
+  void ConfineCursorToBounds(const gfx::Rect& bounds) override;
+  void SetRestoredBoundsInDIP(const gfx::Rect& bounds) override;
+  gfx::Rect GetRestoredBoundsInDIP() const override;
+  void SetWindowIcons(const gfx::ImageSkia& window_icon,
+                      const gfx::ImageSkia& app_icon) override;
+  void SizeConstraintsChanged() override;
+
   SbWindow sb_window_;
   bool use_native_frame_ = false;
+  gfx::Rect bounds_;
+  raw_ptr<PlatformWindowDelegate> delegate_ = nullptr;
+  ui::PlatformWindowState window_state_ = ui::PlatformWindowState::kUnknown;
+  ActivationState activation_state_ = ActivationState::kUnknown;
 };
 
 }  // namespace ui

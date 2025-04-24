@@ -142,7 +142,12 @@ struct kernel_sigaction {
 long sys_rt_sigaction(int sig,
                       const struct kernel_sigaction* act,
                       struct kernel_sigaction* oact) {
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+  NOTIMPLEMENTED();
+  return -1;
+#else  // ENABLE_COBALT_HERMETIC_HACKS
   return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
+#endif  // ENABLE_COBALT_HERMETIC_HACKS
 }
 
 // This function is intended to be used in between fork() and execve() and will

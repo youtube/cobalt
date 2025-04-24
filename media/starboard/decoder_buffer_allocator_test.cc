@@ -28,6 +28,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
+#include "base/time/time.h"
 #include "media/base/demuxer_stream.h"
 #include "media/base/test_data_util.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -130,6 +131,9 @@ TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
   DecoderBufferAllocator allocator(DecoderBufferAllocator::Type::kLocal);
   std::unordered_map<std::string, void*> pointer_to_pointer_map;
   size_t max_allocated = 0, max_capacity = 0;
+  base::Time start_time = base::Time::Now();
+  base::Time last_allocate_time = start_time;
+  int free_operations_since_last_allocate = 0;
 
   for (auto&& operation : operations_) {
     if (operation.operation_type == Operation::Type::kAllocate) {
@@ -142,10 +146,13 @@ TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
       max_allocated = std::max(max_allocated, allocator.GetAllocatedMemory());
       max_capacity =
           std::max(max_capacity, allocator.GetCurrentMemoryCapacity());
+      last_allocate_time = base::Time::Now();
+      free_operations_since_last_allocate = 0;
     } else {
       CHECK_EQ(operation.operation_type, Operation::Type::kFree);
 
       allocator.Free(pointer_to_pointer_map[operation.pointer], operation.size);
+      ++free_operations_since_last_allocate;
 
       CHECK_EQ(pointer_to_pointer_map.erase(operation.pointer), 1);
     }
@@ -153,55 +160,83 @@ TEST_P(DecoderBufferAllocatorTest, CapacityUnderLimit) {
 
   LOG(INFO) << "DecoderBufferAllocator reached max allocated of "
             << max_allocated << ", and max capacity of " << max_capacity;
+  LOG(INFO) << "Total " << operations_.size()
+            << " allocate/free operations take "
+            << (base::Time::Now() - start_time).InMicroseconds()
+            << " microseconds.";
+  // Logging the time since the last allocate operation, as there are often >10k
+  // free operations when playback finishes.  Measuring the time spent on tail
+  // free operations allows to understand how long this may take when playback
+  // finishes.
+  LOG(INFO) << "The last " << free_operations_since_last_allocate
+            << " free operations take "
+            << (base::Time::Now() - last_allocate_time).InMicroseconds()
+            << " microseconds.";
 }
 
 TEST_P(DecoderBufferAllocatorTest, CapacityByType) {
-  constexpr int kInitialCapacity = 0;
-  constexpr int kAllocationIncrement = 4 * 1024 * 1024;
+  struct AllocatorConfig {
+    int initial_capacity[3];      // UNKNOWN, AUDIO, VIDEO
+    int allocation_increment[3];  // UNKNOWN, AUDIO, VIDEO
+  };
 
-  size_t max_total_allocated = 0;
-  size_t max_total_capacity = 0;
+  constexpr AllocatorConfig kConfigs[] = {
+      {{0, 0, 0}, {4 * 1024 * 1024, 4 * 1024 * 1024, 4 * 1024 * 1024}},
+      {{0, 5 * 1024 * 1024, 30 * 1024 * 1024},
+       {4 * 1024 * 1024, 1 * 1024 * 1024, 4 * 1024 * 1024}},
+  };
 
-  for (auto buffer_type :
-       {DemuxerStream::UNKNOWN, DemuxerStream::AUDIO, DemuxerStream::VIDEO}) {
-    DecoderBufferAllocator allocator(DecoderBufferAllocator::Type::kLocal,
-                                     false, kInitialCapacity,
-                                     kAllocationIncrement);
-    std::unordered_map<std::string, void*> pointer_to_pointer_map;
-    size_t max_allocated = 0;
-    size_t max_capacity = 0;
+  for (int i = 0; i < sizeof(kConfigs) / sizeof(*kConfigs); ++i) {
+    size_t max_total_allocated = 0;
+    size_t max_total_capacity = 0;
 
-    for (auto&& operation : operations_) {
-      if (operation.buffer_type != buffer_type) {
-        continue;
+    for (auto buffer_type :
+         {DemuxerStream::UNKNOWN, DemuxerStream::AUDIO, DemuxerStream::VIDEO}) {
+      LOG(INFO) << "Checking allocation for initial capacity "
+                << kConfigs[i].initial_capacity[buffer_type]
+                << " and allocation increment "
+                << kConfigs[i].allocation_increment[buffer_type];
+
+      DecoderBufferAllocator allocator(
+          DecoderBufferAllocator::Type::kLocal, false,
+          kConfigs[i].initial_capacity[buffer_type],
+          kConfigs[i].allocation_increment[buffer_type]);
+      std::unordered_map<std::string, void*> pointer_to_pointer_map;
+      size_t max_allocated = 0;
+      size_t max_capacity = 0;
+
+      for (auto&& operation : operations_) {
+        if (operation.buffer_type != buffer_type) {
+          continue;
+        }
+
+        if (operation.operation_type == Operation::Type::kAllocate) {
+          CHECK_EQ(pointer_to_pointer_map.count(operation.pointer), 0);
+
+          pointer_to_pointer_map[operation.pointer] = allocator.Allocate(
+              operation.buffer_type, operation.size, operation.alignment);
+          max_allocated =
+              std::max(max_allocated, allocator.GetAllocatedMemory());
+          max_capacity =
+              std::max(max_capacity, allocator.GetCurrentMemoryCapacity());
+        } else {
+          CHECK_EQ(operation.operation_type, Operation::Type::kFree);
+
+          allocator.Free(pointer_to_pointer_map[operation.pointer],
+                         operation.size);
+          CHECK_EQ(pointer_to_pointer_map.erase(operation.pointer), 1);
+        }
       }
 
-      if (operation.operation_type == Operation::Type::kAllocate) {
-        CHECK_EQ(pointer_to_pointer_map.count(operation.pointer), 0);
-
-        pointer_to_pointer_map[operation.pointer] = allocator.Allocate(
-            operation.buffer_type, operation.size, operation.alignment);
-        max_allocated = std::max(max_allocated, allocator.GetAllocatedMemory());
-        max_capacity =
-            std::max(max_capacity, allocator.GetCurrentMemoryCapacity());
-      } else {
-        CHECK_EQ(operation.operation_type, Operation::Type::kFree);
-
-        allocator.Free(pointer_to_pointer_map[operation.pointer],
-                       operation.size);
-        CHECK_EQ(pointer_to_pointer_map.erase(operation.pointer), 1);
-      }
+      LOG(INFO) << "Max allocated for type " << buffer_type << " is "
+                << max_allocated << ", and max capacity is " << max_capacity;
+      max_total_allocated += max_allocated;
+      max_total_capacity += max_capacity;
     }
 
-    LOG(INFO) << "Max allocated for type " << buffer_type << " is "
-              << max_total_allocated << ", and max capacity is "
-              << max_total_capacity;
-    max_total_allocated += max_allocated;
-    max_total_capacity += max_capacity;
+    LOG(INFO) << "Total max allocated: " << max_total_allocated
+              << ", and total max capacity: " << max_total_capacity;
   }
-
-  LOG(INFO) << "Total max allocated: " << max_total_allocated
-            << ", and total max capacity: " << max_total_capacity;
 }
 
 INSTANTIATE_TEST_CASE_P(DecoderBufferAllocatorTests,

@@ -189,7 +189,6 @@ class BASE_EXPORT CurrentThread {
   static sequence_manager::internal::SequenceManagerImpl*
   GetCurrentSequenceManagerImpl();
 
-  friend class MessagePumpLibeventTest;
   friend class ScheduleWorkTest;
   friend class Thread;
   friend class sequence_manager::internal::SequenceManagerImpl;
@@ -226,7 +225,7 @@ class BASE_EXPORT CurrentUIThread : public CurrentThread {
   static_assert(
       std::is_base_of<WatchableIOMessagePumpPosix, MessagePumpForUI>::value,
       "CurrentThreadForUI::WatchFileDescriptor is supported only"
-      "by MessagePumpLibevent and MessagePumpGlib implementations.");
+      "by MessagePumpEpoll and MessagePumpGlib implementations.");
   bool WatchFileDescriptor(int fd,
                            bool persistent,
                            MessagePumpForUI::Mode mode,
