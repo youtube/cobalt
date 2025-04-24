@@ -364,7 +364,7 @@ vars = {
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling catapult
   # and whatever else without interference from each other.
-  'catapult_revision': 'cae7ec667dee9f5c012b54ee9ffee94eb7beda14',
+#   'catapult_revision': 'cae7ec667dee9f5c012b54ee9ffee94eb7beda14',
   # Three lines of non-changing comments so that
   # the commit queue can handle CLs rolling CrossBench
   # and whatever else without interference from each other.
@@ -1156,8 +1156,9 @@ deps = {
   'src/third_party/cast_core/public/src':
     Var('chromium_git') + '/cast_core/public' + '@' + 'e42ef68aa05ac0c163805f60b9b19284f3c2dee3',
 
-  'src/third_party/catapult':
-    Var('chromium_git') + '/catapult.git' + '@' + Var('catapult_revision'),
+# Cobalt: imported
+#   'src/third_party/catapult':
+#     Var('chromium_git') + '/catapult.git' + '@' + Var('catapult_revision'),
 
   'src/third_party/ced/src':
     Var('chromium_git') + '/external/github.com/google/compact_enc_det.git' + '@' + 'ba412eaaacd3186085babcd901679a48863c7dd5',
@@ -4106,7 +4107,7 @@ hooks = [
         'src/printing',
         'src/third_party/blink/renderer/build/scripts',
         'src/third_party/blink/tools',  # See http://crbug.com/625877.
-        'src/third_party/catapult',
+        # 'src/third_party/catapult',
         'src/third_party/mako', # Some failures triggered by crrev.com/c/3686969
         'src/tools',
     ],
@@ -4571,14 +4572,14 @@ hooks = [
   },
 
   # Download Telemetry's binary dependencies via conditionals
-  {
-    'name': 'checkout_telemetry_binary_dependencies',
-    'condition': 'checkout_telemetry_dependencies',
-    'pattern': '.',
-    'action': [ 'vpython3',
-                'src/third_party/catapult/telemetry/bin/fetch_telemetry_binary_dependencies',
-    ],
-  },
+#   {
+#     'name': 'checkout_telemetry_binary_dependencies',
+#     'condition': 'checkout_telemetry_dependencies',
+#     'pattern': '.',
+#     'action': [ 'vpython3',
+#                 'src/third_party/catapult/telemetry/bin/fetch_telemetry_binary_dependencies',
+#     ],
+#   },
 
   # Download Telemetry's benchmark binary dependencies via conditionals
   {
@@ -4664,14 +4665,14 @@ hooks = [
     ],
   },
   # Download only WPR binary dependencies from Telemetry via conditionals
-  {
-    'name': 'checkout_wpr_binary_dependencies',
-    'condition': 'checkout_chromium_autofill_test_dependencies or checkout_chromium_password_manager_test_dependencies',
-    'pattern': '.',
-    'action': [ 'vpython3',
-                'src/third_party/catapult/telemetry/bin/fetch_wpr_binary_dependencies',
-    ],
-  },
+#   {
+#     'name': 'checkout_wpr_binary_dependencies',
+#     'condition': 'checkout_chromium_autofill_test_dependencies or checkout_chromium_password_manager_test_dependencies',
+#     'pattern': '.',
+#     'action': [ 'vpython3',
+#                 'src/third_party/catapult/telemetry/bin/fetch_wpr_binary_dependencies',
+#     ],
+#   },
   {
     'name': 'Fetch Android AFDO profile',
     'pattern': '.',
