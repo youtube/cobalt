@@ -552,7 +552,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           video_mime_type.GetParamBoolValue("enableflushduringseek", false);
 
       force_reset_surface =
-          video_mime_type.GetParamBoolValue("forceresetsurface", false);
+          video_mime_type.GetParamBoolValue("forceresetsurface", true);
     }
     if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
       SB_LOG(INFO)
