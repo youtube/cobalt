@@ -282,6 +282,10 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       was_playing = true;
       last_playback_head_event_at = -1;
       bridge_.Play();
+      // To promptly re-evaluate and update audio state, we restart the loop
+      // after calling AudioTrack.play() on Android, as this operation often
+      // takes hundreds of milliseconds.
+      continue;
     }
 
     if (!is_playing || frames_in_buffer == 0) {

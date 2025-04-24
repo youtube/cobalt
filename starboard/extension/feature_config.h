@@ -123,6 +123,14 @@ STARBOARD_FEATURE(kForceResetAudioDecoder, "ForceResetAudioDecoder", false)
 STARBOARD_FEATURE(kVideoDecoderDelayUsecOverride,
                   "VideoDecoderDelayUsecOverride",
                   false)
+
+// Cobalt VideoRenderAlgorithm used to release video frames immediately after
+// playback starts. Set the following variable to true to make it release video
+// frames until the underlying audio sink actually starts.
+STARBOARD_FEATURE(kReleaseVideoFramesAfterAudioStarts,
+                  "ReleaseVideoFramesAfterAudioStarts",
+                  true)
+
 #endif  // BUILDFLAG(IS_ANDROID) && (SB_API_VERSION >= 17)
 FEATURE_LIST_END
 
