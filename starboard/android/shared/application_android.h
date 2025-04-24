@@ -22,10 +22,10 @@
 #include <vector>
 
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
-#include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/queue_application.h"
 #include "starboard/types.h"
 
@@ -33,7 +33,7 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-using ::starboard::shared::starboard::CommandLine;
+using ::starboard::CommandLine;
 
 class ApplicationAndroid
     : public ::starboard::shared::starboard::QueueApplication {
