@@ -47,8 +47,6 @@ def package(platforms_to_package):
   subprocess.call(['rm', '-rf', 'out/packages'])
   for platform in platforms_to_package:
     for config in CONFIGS:
-      subprocess.call(
-          ['touch', f'--out_dir=out/{platform}_{config}/cobalt_licenses.txt'])
       subprocess.call([
           'cobalt/build/packager.py',
           f'--name={platform}_{config}',
