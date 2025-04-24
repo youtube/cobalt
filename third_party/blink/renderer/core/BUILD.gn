@@ -218,7 +218,10 @@ component("core") {
 
   visibility = []  # Allow re-assignment of list.
   visibility = [ "//third_party/blink/*" ]
-
+  
+  if (is_cobalt){
+    visibility += [ "//cobalt/renderer:renderer" ]
+  }
   sources = [
     "core_initializer.cc",
     "core_initializer.h",
