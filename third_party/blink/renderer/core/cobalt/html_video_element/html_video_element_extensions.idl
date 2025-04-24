@@ -17,8 +17,6 @@
     ImplementedAs=HTMLVideoElementExtensions, Exposed=Window,
     LegacyNoInterfaceObject
 ] partial interface HTMLVideoElement {
-    // The following fields expose the memory used by media SourceBuffers
-    // in bytes.
 
     void setMaxVideoCapabilities(DOMString max_video_capabilities);
 };
