@@ -28,7 +28,10 @@ android_resources("cobalt_java_resources") {
 jinja_template("cobalt_manifest") {
   input = "apk/app/src/app/AndroidManifest.xml.jinja2"
   output = cobalt_manifest
-  variables = [ "manifest_package=dev.cobalt.coat" ]
+  variables = [
+    "manifest_package=dev.cobalt.coat",
+    "build_type=$build_type",
+  ]
 }
 
 generate_jni("jni_headers") {
