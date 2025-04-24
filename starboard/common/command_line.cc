@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "starboard/shared/starboard/command_line.h"
+#include "starboard/common/command_line.h"
 
 #include <algorithm>
 #include <ostream>
@@ -10,8 +10,6 @@
 #include "starboard/common/log.h"
 #include "starboard/configuration.h"
 
-namespace starboard {
-namespace shared {
 namespace starboard {
 
 namespace {
@@ -176,6 +174,4 @@ void CommandLine::AppendArguments(const CommandLine& other,
   AppendSwitchesAndArguments(this, other.argv());
 }
 
-}  // namespace starboard
-}  // namespace shared
 }  // namespace starboard
