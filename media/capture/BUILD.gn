@@ -273,7 +273,8 @@ component("capture_lib") {
   }
 
   if (is_cobalt_hermetic_build) {
-    sources += ["video/linux/video_capture_device_factory_linux_stub.cc"]
+    sources +=
+        [ "video/linux/video_capture_device_factory_linux_starboard_stub.cc" ]
   }
 
   if (is_chromeos_ash) {
