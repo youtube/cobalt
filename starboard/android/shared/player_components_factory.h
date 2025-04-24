@@ -219,14 +219,13 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
     if (!creation_parameters.audio_mime().empty()) {
       MimeType audio_mime_type(creation_parameters.audio_mime());
-      if (!audio_mime_type.is_valid() ||
-          !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
+      if (!audio_mime_type.is_valid()) {
         return std::unique_ptr<PlayerComponents>();
       }
 
-      if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
-        SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
-                        "false. Passthrough is disabled.";
+      if (!audio_mime_type.GetParamBoolValue("audiopassthrough", false)) {
+        SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is not set to "
+                        "true. Passthrough is disabled.";
         return std::unique_ptr<PlayerComponents>();
       }
     }
@@ -235,10 +234,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       MimeType video_mime_type(creation_parameters.video_mime());
-      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
-        enable_flush_during_seek =
-            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
-      }
+      enable_flush_during_seek =
+          video_mime_type.GetParamBoolValue("enableflushduringseek", false);
     }
 
     if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
@@ -542,7 +539,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         !creation_parameters.video_mime().empty()) {
       // Use mime param to determine endianness of HDR metadata. If param is
       // missing or invalid it defaults to Little Endian.
-
+      MimeType video_mime_type(creation_parameters.video_mime());
       if (video_mime_type.ValidateStringParameter("hdrinfoendianness",
                                                   "big|little")) {
         const std::string& hdr_info_endianness =
@@ -551,15 +548,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         force_big_endian_hdr_metadata = hdr_info_endianness == "big";
       }
 
-      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
-        enable_flush_during_seek =
-            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
-      }
+      enable_flush_during_seek =
+          video_mime_type.GetParamBoolValue("enableflushduringseek", false);
 
-      if (video_mime_type.ValidateBoolParameter("forceresetsurface")) {
-        force_reset_surface =
-            video_mime_type.GetParamBoolValue("forceresetsurface", false);
-      }
+      force_reset_surface =
+          video_mime_type.GetParamBoolValue("forceresetsurface", false);
     }
     if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
       SB_LOG(INFO)
