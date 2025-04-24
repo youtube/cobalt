@@ -10,6 +10,11 @@ runs:
       - name: Get depot tools
         run: git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
         shell: bash
+      - name: Bootstrap bundled python3
+        run: |
+          source depot_tools/bootstrap_python3
+          bootstrap_python3
+        shell: bash
       - name: Add depot tools to PATH
         run: echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
         shell: bash
