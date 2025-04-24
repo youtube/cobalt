@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "cobalt/version.h"
+#include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
 #include "starboard/common/string.h"
 #include "starboard/configuration.h"
@@ -35,7 +36,6 @@
 #include "starboard/loader_app/reset_evergreen_update.h"
 #include "starboard/loader_app/slot_management.h"
 #include "starboard/loader_app/system_get_extension_shim.h"
-#include "starboard/shared/starboard/command_line.h"
 
 #include "starboard/crashpad_wrapper/annotations.h"
 #include "starboard/crashpad_wrapper/wrapper.h"
@@ -198,7 +198,7 @@ void SbEventHandle(const SbEvent* event) {
   if (!g_sb_event_func && (event->type == kSbEventTypeStart ||
                            event->type == kSbEventTypePreload)) {
     const SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
-    const starboard::shared::starboard::CommandLine command_line(
+    const starboard::CommandLine command_line(
         data->argument_count, const_cast<const char**>(data->argument_values));
 
     if (command_line.HasSwitch(starboard::loader_app::kResetEvergreenUpdate)) {

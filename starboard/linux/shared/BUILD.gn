@@ -197,8 +197,6 @@ static_library("starboard_platform_sources") {
     "//starboard/shared/starboard/audio_sink/audio_sink_is_valid.cc",
     "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.cc",
     "//starboard/shared/starboard/audio_sink/stub_audio_sink_type.h",
-    "//starboard/shared/starboard/command_line.cc",
-    "//starboard/shared/starboard/command_line.h",
     "//starboard/shared/starboard/crash_handler.cc",
     "//starboard/shared/starboard/crash_handler.h",
     "//starboard/shared/starboard/event_cancel.cc",
