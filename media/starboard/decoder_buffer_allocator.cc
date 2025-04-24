@@ -53,11 +53,6 @@ DecoderBufferAllocator::DecoderBufferAllocator(
   DCHECK_GE(initial_capacity_, 0);
   DCHECK_GE(allocation_unit_, 0);
 
-  LOG(INFO)
-      << "YO THOR! DecoderBufferAllocator CTOR! is_mem_pool_alloc_on_demand:"
-      << (is_memory_pool_allocated_on_demand ? "true" : "false")
-      << " INIT:" << initial_capacity << " ALLOC UNIT:" << allocation_unit;
-
   if (is_memory_pool_allocated_on_demand_) {
     LOG(INFO) << "Allocated media buffer pool on demand.";
     if (type_ == Type::kGlobal) {
@@ -87,8 +82,6 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
 }
 
 void DecoderBufferAllocator::Suspend() {
-  LOG(INFO) << "YO THOR - SUSPEND. HAZ ALLOCATED:"
-            << reuse_allocator_->GetAllocated();
   if (is_memory_pool_allocated_on_demand_) {
     return;
   }

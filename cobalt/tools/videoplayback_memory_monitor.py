@@ -28,8 +28,18 @@ LOG_EVENTS_TO_MONITOR = {
     "starboard: prepare to suspend": "starboard: Prepare to suspend",
     "starboardbridge init.": "StarboardBridge init."
 }
-THOR_LOG_PATTERN = re.compile(r"YO THOR ALLOC:(\d+)\s+CURCAP:(\d+)",
-                              re.IGNORECASE)
+ALLOC_BYTES_INFO = re.compile(
+    r"Allocated\s+(?P<allocated_bytes>\d+)\s+bytes\s+"
+    r"\((?P<percentage_used>\d+)%\)\s+from\s+a\s+pool\s+of\s+capacity\s+"
+    r"(?P<pool_capacity_bytes>\d+)\s+bytes\.\s+There\s+are\s+"
+    r"(?P<free_bytes>\d+)\s+free\s+bytes")
+# ALLOC_BLOCKS_INFO = re.compile(
+#     r"Total\s+allocated\s+block:\s+(?P<total_allocated_blocks>\d+)"
+# )
+# THOR_LOG_PATTERN = re.compile(r"YO THOR ALLOC:(\d+)\s+CURCAP:(\d+)",
+#                               re.IGNORECASE)
+# ALLOCATOR_LOG_PATTERN = re.compile(r"Media Allocation Log:(.*)",
+#                               re.IGNORECASE)
 CPU_INFO_PATTERN = re.compile(
     r"(\d+(?:\.\d+)?)%?\s+\d+/" + re.escape(PROCESS_NAME) + r":", re.IGNORECASE)
 
@@ -38,7 +48,7 @@ keep_running = True
 # Initialize lists globally (will be cleared properly in main)
 memory_data = []
 log_events = []
-thor_data = []
+decoder_buffer_allocator_data = []
 cpu_data = []
 log_lock = threading.Lock()
 adb_logcat_proc = None
@@ -130,9 +140,48 @@ def get_cpu_usage(process_name):
     return None
 
 
+def parse_alloc_log_line(log_line):
+  """
+    Parses a log line and extracts information based on known patterns.
+
+    Args:
+        log_line: A string representing a single log line.
+
+    Returns:
+        A dictionary containing the extracted information and a 'line_type' key,
+        or None if the line doesn't match any known pattern.
+    """
+  # Try to match the pool information line
+  match_pool = regex_pool_info.search(log_line)
+  if match_pool:
+    data = match_pool.groupdict()
+    return {
+        "line_type": "pool_allocation_info",
+        "allocated_bytes": int(data["allocated_bytes"]),
+        "percentage_used": int(data["percentage_used"]),
+        "pool_capacity_bytes": int(data["pool_capacity_bytes"]),
+        "free_bytes": int(data["free_bytes"]),
+        "original_line_snippet":
+            match_pool.group(0)  # The full matched part
+    }
+
+  # Try to match the total blocks line
+  match_blocks = regex_total_blocks.search(log_line)
+  if match_blocks:
+    data = match_blocks.groupdict()
+    return {
+        "line_type": "total_blocks_info",
+        "total_allocated_blocks": int(data["total_allocated_blocks"]),
+        "original_line_snippet":
+            match_blocks.group(0)  # The full matched part
+    }
+
+  return None  # No match
+
+
 def monitor_logcat(stop_event):
   """Monitors `adb logcat` for specific messages in a separate thread."""
-  global adb_logcat_proc, log_events, thor_data, log_lock  # Removed dropped_frame_data
+  global adb_logcat_proc, log_events, decoder_buffer_allocator_data, log_lock  # Removed dropped_frame_data
   logcat_command = [ADB_PATH, 'logcat', '-v', 'time']
   adb_logcat_proc = None
   try:
@@ -158,23 +207,43 @@ def monitor_logcat(stop_event):
       timestamp_dt = datetime.now()
       processed_line = False
 
-      thor_match = THOR_LOG_PATTERN.search(line)
-      if thor_match:
+      allocator_match = ALLOC_BYTES_INFO.search(line)
+      if allocator_match:
         try:
-          alloc_bytes = int(thor_match.group(1))
-          curcap_bytes = int(thor_match.group(2))
+          data = allocator_match.groupdict()
+          alloc_bytes = int(data["allocated_bytes"])
+          curcap_bytes = int(data["pool_capacity_bytes"])
           alloc_mb = alloc_bytes / (1024.0 * 1024.0)
           curcap_mb = curcap_bytes / (1024.0 * 1024.0)
           with log_lock:
-            thor_data.append((timestamp_dt, alloc_mb, curcap_mb))
-            # print(f"DEBUG: thor_data length in thread: {len(thor_data)}") # Keep debug? Remove for final.
+            decoder_buffer_allocator_data.append(
+                (timestamp_dt, alloc_mb, curcap_mb))
+            # print(f"DEBUG: decoder_buffer_allocator_data length in thread: {len(decoder_buffer_allocator_data)}") # Keep debug? Remove for final.
           print(
-              f"++++ THOR Data Recorded: {timestamp_dt.isoformat(sep=' ', timespec='milliseconds')} - ALLOC={alloc_mb:.2f}MB, CURCAP={curcap_mb:.2f}MB ++++"
+              f"++++ ALLOC Data Recorded: {timestamp_dt.isoformat(sep=' ', timespec='milliseconds')} - ALLOC={alloc_mb:.2f}MB, CURCAP={curcap_mb:.2f}MB ++++"
           )
           processed_line = True
         except ValueError:
           print(
-              f"Warning: Could not parse THOR numbers in line: {line.strip()}")
+              f"Warning: Could not parse ALLOC numbers in line: {line.strip()}")
+
+      # decoder_buffer_allocator_match = THOR_LOG_PATTERN.search(line)
+      # if decoder_buffer_allocator_match:
+      #   try:
+      #     alloc_bytes = int(decoder_buffer_allocator_match.group(1))
+      #     curcap_bytes = int(decoder_buffer_allocator_match.group(2))
+      #     alloc_mb = alloc_bytes / (1024.0 * 1024.0)
+      #     curcap_mb = curcap_bytes / (1024.0 * 1024.0)
+      #     with log_lock:
+      #       decoder_buffer_allocator_data.append((timestamp_dt, alloc_mb, curcap_mb))
+      #       # print(f"DEBUG: decoder_buffer_allocator_data length in thread: {len(decoder_buffer_allocator_data)}") # Keep debug? Remove for final.
+      #     print(
+      #         f"++++ THOR Data Recorded: {timestamp_dt.isoformat(sep=' ', timespec='milliseconds')} - ALLOC={alloc_mb:.2f}MB, CURCAP={curcap_mb:.2f}MB ++++"
+      #     )
+      #     processed_line = True
+      #   except ValueError:
+      #     print(
+      #         f"Warning: Could not parse THOR numbers in line: {line.strip()}")
 
       if not processed_line:
         line_lower = line.lower()
@@ -219,8 +288,8 @@ def signal_handler(sig, frame):
 
 # --- Plotting Function ---
 # Reverted to plotting events as vertical lines (axvline)
-def generate_plot(mem_data, evt_data, thor_data_list, cpu_data_list, target_url,
-                  output_filename):
+def generate_plot(mem_data, evt_data, decoder_buffer_allocator_data_list,
+                  cpu_data_list, target_url, output_filename):
   """Generates the plot using Matplotlib, plotting events as vertical lines."""
   if not MATPLOTLIB_AVAILABLE:
     print("\nMatplotlib not found...")
@@ -229,11 +298,13 @@ def generate_plot(mem_data, evt_data, thor_data_list, cpu_data_list, target_url,
   print("\n--- Generating Plot ---")
   mem_times_dt = [item[0] for item in mem_data] if mem_data else []
   mem_values_mb = [(item[1] / 1024.0) for item in mem_data] if mem_data else []
-  thor_times_dt = [item[0] for item in thor_data_list] if thor_data_list else []
-  alloc_mb_values = [item[1] for item in thor_data_list
-                    ] if thor_data_list else []
-  curcap_mb_values = [item[2] for item in thor_data_list
-                     ] if thor_data_list else []
+  decoder_buffer_allocator_times_dt = [
+      item[0] for item in decoder_buffer_allocator_data_list
+  ] if decoder_buffer_allocator_data_list else []
+  alloc_mb_values = [item[1] for item in decoder_buffer_allocator_data_list
+                    ] if decoder_buffer_allocator_data_list else []
+  curcap_mb_values = [item[2] for item in decoder_buffer_allocator_data_list
+                     ] if decoder_buffer_allocator_data_list else []
   cpu_times_dt = [item[0] for item in cpu_data_list] if cpu_data_list else []
   cpu_values_percent = [item[1] for item in cpu_data_list
                        ] if cpu_data_list else []
@@ -241,7 +312,7 @@ def generate_plot(mem_data, evt_data, thor_data_list, cpu_data_list, target_url,
     evt_data.sort(key=lambda x: x[0])
   evt_times_dt = [item[0] for item in evt_data] if evt_data else []
 
-  all_times = mem_times_dt + thor_times_dt + evt_times_dt + cpu_times_dt
+  all_times = mem_times_dt + decoder_buffer_allocator_times_dt + evt_times_dt + cpu_times_dt
   if not all_times:
     print("No time-based data collected...")
     return
@@ -291,10 +362,10 @@ def generate_plot(mem_data, evt_data, thor_data_list, cpu_data_list, target_url,
     # --- Secondary Y Axis (Right - THOR Buffers) ---
     ax2 = None
     lines2 = []
-    if thor_times_dt:
+    if decoder_buffer_allocator_times_dt:
       ax2 = ax.twinx()
       line, = ax2.plot(
-          thor_times_dt,
+          decoder_buffer_allocator_times_dt,
           alloc_mb_values,
           marker='^',
           linestyle=':',
@@ -304,7 +375,7 @@ def generate_plot(mem_data, evt_data, thor_data_list, cpu_data_list, target_url,
           color='tab:green')
       lines2.append(line)
       line, = ax2.plot(
-          thor_times_dt,
+          decoder_buffer_allocator_times_dt,
           curcap_mb_values,
           marker='v',
           linestyle=':',
@@ -375,7 +446,7 @@ def generate_plot(mem_data, evt_data, thor_data_list, cpu_data_list, target_url,
 def main():
   """Main script logic."""
   # Make sure lists are accessible and correctly initialized
-  global memory_data, log_events, thor_data, cpu_data
+  global memory_data, log_events, decoder_buffer_allocator_data, cpu_data
 
   parser = argparse.ArgumentParser(
       description='Run Cobalt app, monitor memory/logs/cpu, and generate plot.')
@@ -393,7 +464,7 @@ def main():
     sys.exit(1)
 
   # MODIFIED: Initialize lists *before* starting threads that modify them
-  memory_data, log_events, thor_data, cpu_data = [], [], [], []
+  memory_data, log_events, decoder_buffer_allocator_data, cpu_data = [], [], [], []
 
   signal.signal(signal.SIGINT, signal_handler)
 
@@ -476,11 +547,12 @@ def main():
   # REMOVED debug prints around lock/copy
   with log_lock:  # Get final copies of data collected by logcat thread
     log_events_final = list(log_events)
-    thor_data_final = list(thor_data)
+    decoder_buffer_allocator_data_final = list(decoder_buffer_allocator_data)
 
   # memory_data and cpu_data collected in main thread, no lock needed
-  generate_plot(memory_data, log_events_final, thor_data_final, cpu_data,
-                target_url, PLOT_FILENAME)
+  generate_plot(memory_data, log_events_final,
+                decoder_buffer_allocator_data_final, cpu_data, target_url,
+                PLOT_FILENAME)
 
   print("--- Script Finished ---")
 

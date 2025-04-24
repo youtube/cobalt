@@ -44,7 +44,7 @@ class Allocator {
     // 0 => keep allocator related logging to minimum.
     // 1 => enable extra logging for statistics in this class and its users.
     // 2 => enable per allocation logging (extremely chatty).
-    return 0;
+    return 2;
   }
 
   // Allocates a range of memory of the given size, without any alignment
