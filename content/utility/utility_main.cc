@@ -47,6 +47,10 @@
 // Linux/ChromeOS and the BUILD.gn dependencies correctly account for that.
 #include "third_party/angle/src/gpu_info_util/SystemInfo.h"  //nogncheck
 
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#include "base/starboard/linker_stub.h"
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+
 #if BUILDFLAG(ENABLE_PRINTING)
 #include "printing/sandbox/print_backend_sandbox_hook_linux.h"
 #endif
@@ -229,12 +233,12 @@ int UtilityMain(MainFunctionParams parameters) {
 #endif
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
     case sandbox::mojom::Sandbox::kHardwareVideoDecoding:
-#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
-      NOTIMPLEMENTED();
-#else  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+      COBALT_LINKER_STUB();
+#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
       pre_sandbox_hook =
           base::BindOnce(&media::HardwareVideoDecodingPreSandboxHook);
-#endif  // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
       break;
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)
     case sandbox::mojom::Sandbox::kHardwareVideoEncoding:
