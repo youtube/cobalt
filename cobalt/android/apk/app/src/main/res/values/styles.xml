@@ -24,6 +24,9 @@
          Avoids a black flash between the transition and splash screen. -->
     <item name="android:windowBackground">?android:colorPrimary</item>
 
+    <!-- Some UI elements, like the settings menu during video playback, rely on the background being transparent. -->
+    <item name="android:background">@android:color/transparent</item>
+
     <item name="android:dialogTheme">@style/FullscreenDialogTheme</item>
   </style>
 

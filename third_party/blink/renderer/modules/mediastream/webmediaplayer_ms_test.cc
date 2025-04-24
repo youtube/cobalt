@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "third_party/blink/public/web/modules/mediastream/web_media_player_ms.h"
+
 #include <stddef.h>
 
 #include <memory>
@@ -636,6 +638,7 @@ class WebMediaPlayerMSTest
   MOCK_CONST_METHOD0(GetDisplayType, DisplayType());
   MOCK_CONST_METHOD0(CouldPlayIfEnoughData, bool());
   MOCK_METHOD0(OnRequestVideoFrameCallback, void());
+  MOCK_METHOD0(GetElementId, int());
 
   std::unique_ptr<WebSurfaceLayerBridge> CreateMockSurfaceLayerBridge(
       WebSurfaceLayerBridgeObserver*,
