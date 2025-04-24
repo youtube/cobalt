@@ -14,7 +14,7 @@
 
 #include "base/process/process.h"
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#include "cobalt/temporary_hacks/linker_stub.h"
+#include "base/starboard/linker_stub.h"
 #endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 namespace base {

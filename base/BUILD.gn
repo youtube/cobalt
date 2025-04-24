@@ -1756,7 +1756,10 @@ component("base") {
       # struct mallinfo minfo = mallinfo();
       "process/process_metrics_posix.cc",
     ]
-    sources += ["process/process_metrics_posix_stub.cc"]
+    sources += [
+      "process/process_metrics_posix_starboard_stub.cc",
+      "starboard/linker_stub.h"
+    ]
   }
 
   if (is_cobalt && enable_cobalt_hermetic_hacks) {

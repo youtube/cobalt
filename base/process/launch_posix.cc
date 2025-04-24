@@ -48,7 +48,7 @@
 #include "build/build_config.h"
 
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-#include "cobalt/temporary_hacks/linker_stub.h"
+#include "base/starboard/linker_stub.h"
 #endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_AIX)
