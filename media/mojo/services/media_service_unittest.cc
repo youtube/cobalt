@@ -146,6 +146,7 @@ class MediaServiceTest : public testing::Test {
       media_log_.InitWithNewPipeAndPassRemote(),
       overlay_plane_id, base::Microseconds(0),
       base::Microseconds(0),
+      "",
       renderer_.BindNewPipeAndPassReceiver(),
       renderer_extension_.BindNewPipeAndPassReceiver(),
       client_extension_.InitWithNewPipeAndPassRemote());

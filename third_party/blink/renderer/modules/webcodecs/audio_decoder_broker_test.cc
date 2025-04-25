@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "base/files/file_util.h"
@@ -176,6 +177,7 @@ class FakeInterfaceFactory : public media::mojom::InterfaceFactory {
       const base::UnguessableToken& overlay_plane_id,
       base::TimeDelta audio_write_duration_local,
       base::TimeDelta audio_write_duration_remote,
+      const std::string& max_video_capabilities,
       mojo::PendingReceiver<media::mojom::Renderer> receiver,
       mojo::PendingReceiver<media::mojom::StarboardRendererExtension>
           renderer_extension_receiver,
