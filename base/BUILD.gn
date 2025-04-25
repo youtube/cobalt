@@ -1787,6 +1787,7 @@ component("base") {
       "process/process_metrics_posix_starboard_stub.cc",
       "starboard/linker_stub.h"
     ]
+    all_dependent_configs += [ ":base_starboard_linker_stub" ]
   }
 
   if (is_cobalt && enable_cobalt_hermetic_hacks) {
@@ -5431,6 +5432,7 @@ source_set("partition_alloc_test_support") {
   }
 }
 
+
 if (enable_base_tracing) {
   # This group makes visible those targets in subdirectories that are not
   # explicitly depended on.
@@ -5466,5 +5468,13 @@ process_version("check_version_internal") {
       "-e",
       "NEXT_VERSION_MAJOR=\"9999\"",
     ]
+  }
+}
+
+if (is_cobalt_hermetic_build) {
+  # TODO: b/413130400 - Cobalt: Remove this config 
+  # after removing base/starboard/linker_stub.h
+  config("base_starboard_linker_stub") {
+    cflags = ["-Wno-unreachable-code-break"]
   }
 }
