@@ -89,7 +89,7 @@ class NET_EXPORT TestRootCerts {
 
   // Performs platform-dependent operations.
   void Init();
-  __attribute__((visibility("default"))) bool AddImpl(X509Certificate* certificate);
+  bool AddImpl(X509Certificate* certificate);
   void ClearImpl();
 
 #if BUILDFLAG(IS_WIN)
