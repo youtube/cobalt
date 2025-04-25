@@ -11,6 +11,7 @@
     "base_perftests",
     "base_unittests",
     "boringssl_ssl_tests",
+    "cobalt",
     "crypto_unittests",
     "ipc_tests",
     "net",
@@ -20,8 +21,7 @@
     "sql_unittests",
     "trace_processor_minimal_smoke_tests",
     "url_unittests",
-    "zlib_unittests",
-    "cobalt"
+    "zlib_unittests"
   ],
   "includes": [
     {
