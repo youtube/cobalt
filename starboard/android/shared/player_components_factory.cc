@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
-#define STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
-
 #include <atomic>
 #include <memory>
 #include <string>
@@ -742,5 +739,3 @@ bool PlayerComponents::Factory::OutputModeSupported(
 }
 
 }  // namespace starboard::shared::starboard::player::filter
-
-#endif  // STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
