@@ -219,13 +219,14 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
     if (!creation_parameters.audio_mime().empty()) {
       MimeType audio_mime_type(creation_parameters.audio_mime());
-      if (!audio_mime_type.is_valid()) {
+      if (!audio_mime_type.is_valid() |
+          !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
         return std::unique_ptr<PlayerComponents>();
       }
 
-      if (!audio_mime_type.GetParamBoolValue("audiopassthrough", false)) {
-        SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is not set to "
-                        "true. Passthrough is disabled.";
+      if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
+        SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
+                        "false. Passthrough is disabled.";
         return std::unique_ptr<PlayerComponents>();
       }
     }
@@ -548,11 +549,14 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         force_big_endian_hdr_metadata = hdr_info_endianness == "big";
       }
 
-      enable_flush_during_seek =
-          video_mime_type.GetParamBoolValue("enableflushduringseek", false);
-
-      force_reset_surface =
-          video_mime_type.GetParamBoolValue("forceresetsurface", true);
+      if (!video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
+        enable_flush_during_seek =
+            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+      }
+      if (video_mime_type.ValidateBoolParameter("forceresetsurface")) {
+        force_reset_surface =
+            video_mime_type.GetParamBoolValue("forceresetsurface", true);
+      }
     }
     if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
       SB_LOG(INFO)
