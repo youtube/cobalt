@@ -193,4 +193,17 @@ void CobaltContentRendererClient::GetStarboardRendererFactoryTraits(
                               weak_factory_.GetWeakPtr()));
 }
 
+void CobaltContentRendererClient::PostSandboxInitialized() {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+
+  // Register the current thread (which is the InProcessRendererThread in
+  // single- process mode) for hang watching. Store the ScopedClosureRunner to
+  // keep the registration active until this client object is destroyed.
+  if (base::HangWatcher::IsEnabled() && base::HangWatcher::GetInstance()) {
+    // Use kRendererThread as the type for this in-process renderer thread.
+    unregister_thread_closure = base::HangWatcher::RegisterThread(
+        base::HangWatcher::ThreadType::kRendererThread);
+  }
+}
+
 }  // namespace cobalt
