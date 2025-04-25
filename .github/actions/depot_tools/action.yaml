@@ -12,6 +12,7 @@ runs:
         shell: bash
       - name: Bootstrap bundled python3
         run: |
+          # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
           source depot_tools/bootstrap_python3
           bootstrap_python3
         shell: bash
