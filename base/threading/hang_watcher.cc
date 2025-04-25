@@ -53,6 +53,9 @@ std::atomic<HangWatcher::ProcessType> g_hang_watcher_process_type{
 std::atomic<LoggingLevel> g_threadpool_log_level{LoggingLevel::kNone};
 std::atomic<LoggingLevel> g_io_thread_log_level{LoggingLevel::kNone};
 std::atomic<LoggingLevel> g_main_thread_log_level{LoggingLevel::kNone};
+#if BUILDFLAG(IS_COBALT)
+std::atomic<LoggingLevel> g_browser_process_renderer_thread_log_level{LoggingLevel::kNone};
+#endif
 
 // Indicates whether HangWatcher::Run() should return after the next monitoring.
 std::atomic<bool> g_keep_monitoring{true};
@@ -90,6 +93,14 @@ void LogHungThreadCountHistogram(HangWatcher::ThreadType thread_type,
         case HangWatcher::ThreadType::kThreadPoolThread:
           // Not recorded for now.
           break;
+#if BUILDFLAG(IS_COBALT)
+        case HangWatcher::ThreadType::kRendererThread:
+          UMA_HISTOGRAM_BOOLEAN(
+              "HangWatcher.IsThreadHung.BrowserProcess."
+              "RendererThread",
+              any_thread_hung);
+          break;
+#endif
       }
       break;
 
@@ -105,6 +116,11 @@ void LogHungThreadCountHistogram(HangWatcher::ThreadType thread_type,
               "IOThread",
               any_thread_hung);
           break;
+#if BUILDFLAG(IS_COBALT)
+        case HangWatcher::ThreadType::kRendererThread:
+          // Not recorded for now. This is used in single-process mode only.
+          break;
+#endif
         case HangWatcher::ThreadType::kMainThread:
           UMA_HISTOGRAM_BOOLEAN(
               "HangWatcher.IsThreadHung.RendererProcess."
@@ -125,6 +141,11 @@ void LogHungThreadCountHistogram(HangWatcher::ThreadType thread_type,
               "IOThread",
               any_thread_hung);
           break;
+#if BUILDFLAG(IS_COBALT)
+        case HangWatcher::ThreadType::kRendererThread:
+          // Not recorded for now. This is used in single-process mode only.
+          break;
+#endif
         case HangWatcher::ThreadType::kMainThread:
           UMA_HISTOGRAM_BOOLEAN(
               "HangWatcher.IsThreadHung.UtilityProcess."
@@ -153,6 +174,11 @@ bool ThreadTypeLoggingLevelGreaterOrEqual(HangWatcher::ThreadType thread_type,
     case HangWatcher::ThreadType::kThreadPoolThread:
       return g_threadpool_log_level.load(std::memory_order_relaxed) >=
              logging_level;
+#if BUILDFLAG(IS_COBALT)
+    case HangWatcher::ThreadType::kRendererThread:
+      return g_browser_process_renderer_thread_log_level.load(
+                 std::memory_order_relaxed) >= logging_level;
+#endif
   }
 }
 
@@ -178,6 +204,11 @@ constexpr base::FeatureParam<int> kUIThreadLogLevel{
 constexpr base::FeatureParam<int> kThreadPoolLogLevel{
     &kEnableHangWatcher, "threadpool_log_level",
     static_cast<int>(LoggingLevel::kUmaOnly)};
+#if BUILDFLAG(IS_COBALT)
+constexpr base::FeatureParam<int> kBrowserProcessRendererThreadLogLevel{
+    &kEnableHangWatcher, "browser_process_renderer_thread_log_level",
+    static_cast<int>(LoggingLevel::kUmaAndCrash)};
+#endif
 
 // GPU process.
 constexpr base::FeatureParam<int> kGPUProcessIOThreadLogLevel{
@@ -329,6 +360,9 @@ void HangWatcher::InitializeOnMainThread(ProcessType process_type,
   DCHECK(g_io_thread_log_level == LoggingLevel::kNone);
   DCHECK(g_main_thread_log_level == LoggingLevel::kNone);
   DCHECK(g_threadpool_log_level == LoggingLevel::kNone);
+#if BUILDFLAG(IS_COBALT)
+  DCHECK(g_browser_process_renderer_thread_log_level == LoggingLevel::kNone);
+#endif
 
   bool enable_hang_watcher = base::FeatureList::IsEnabled(kEnableHangWatcher);
 
@@ -378,6 +412,12 @@ void HangWatcher::InitializeOnMainThread(ProcessType process_type,
     g_threadpool_log_level.store(
         static_cast<LoggingLevel>(kThreadPoolLogLevel.Get()),
         std::memory_order_relaxed);
+#if BUILDFLAG(IS_COBALT)
+    g_browser_process_renderer_thread_log_level.store(
+        static_cast<LoggingLevel>(
+            kBrowserProcessRendererThreadLogLevel.Get()),
+        std::memory_order_relaxed);
+#endif
   } else if (process_type == HangWatcher::ProcessType::kGPUProcess) {
     g_threadpool_log_level.store(
         static_cast<LoggingLevel>(kGPUProcessThreadPoolLogLevel.Get()),
@@ -416,6 +456,10 @@ void HangWatcher::UnitializeOnMainThreadForTesting() {
   g_threadpool_log_level.store(LoggingLevel::kNone, std::memory_order_relaxed);
   g_io_thread_log_level.store(LoggingLevel::kNone, std::memory_order_relaxed);
   g_main_thread_log_level.store(LoggingLevel::kNone, std::memory_order_relaxed);
+#if BUILDFLAG(IS_COBALT)
+  g_browser_process_renderer_thread_log_level.store(LoggingLevel::kNone,
+                                                    std::memory_order_relaxed);
+#endif
 }
 
 // static
@@ -449,6 +493,12 @@ bool HangWatcher::IsCrashReportingEnabled() {
       LoggingLevel::kUmaAndCrash) {
     return true;
   }
+#if BUILDFLAG(IS_COBALT)
+  if (g_browser_process_renderer_thread_log_level.load(
+          std::memory_order_relaxed) == LoggingLevel::kUmaAndCrash) {
+    return true;
+  }
+#endif
   return false;
 }
 
