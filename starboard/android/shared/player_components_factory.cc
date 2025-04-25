@@ -708,4 +708,40 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 }  // namespace android
 }  // namespace starboard
 
+namespace starboard::shared::starboard::player::filter {
+
+// static
+std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
+  return std::unique_ptr<PlayerComponents::Factory>(
+      new android::shared::PlayerComponentsFactory);
+}
+
+// static
+bool PlayerComponents::Factory::OutputModeSupported(
+    SbPlayerOutputMode output_mode,
+    SbMediaVideoCodec codec,
+    SbDrmSystem drm_system) {
+  using ::starboard::android::shared::DrmSystem;
+
+  if (output_mode == kSbPlayerOutputModePunchOut) {
+    return true;
+  }
+
+  if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
+    if (!SbDrmSystemIsValid(drm_system)) {
+      return true;
+    }
+    DrmSystem* android_drm_system = static_cast<DrmSystem*>(drm_system);
+    bool require_secure_decoder = android_drm_system->require_secured_decoder();
+    SB_LOG_IF(INFO, require_secure_decoder)
+        << "Output mode under decode-to-texture is not supported due to secure "
+           "decoder is required.";
+    return !require_secure_decoder;
+  }
+
+  return false;
+}
+
+}  // namespace starboard::shared::starboard::player::filter
+
 #endif  // STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
