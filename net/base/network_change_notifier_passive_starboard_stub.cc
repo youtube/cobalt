@@ -1,4 +1,4 @@
-// Copyright 2024 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,88 +14,61 @@
 
 // Give the linker all net symbols it needs to build cobalt.
 
+#include "base/starboard/linker_stub.h"
 #include "net/base/network_change_notifier_passive.h"
-#include "net/proxy_resolution/proxy_config_service_linux.h"
-
-// --- Add necessary includes ---
-#include "base/notreached.h"     // Needed for NOTIMPLEMENTED()
-#include "build/build_config.h"  // Needed for BUILDFLAG(IS_LINUX)
-// --- End includes ---
 
 namespace net {
 
-// --- Stub implementations for NetworkChangeNotifierPassive ---
+// TODO: b/413130400 - Cobalt: Resolve all the linker stubs
+// Note: This is a stub implementation. The actual implementation is in
+// network_change_notifier_passive.cc which is not included in the cobalt build.
+// Stub symbols have been provided here to satisfy the linker and build cobalt
 
 NetworkChangeNotifierPassive::NetworkChangeNotifierPassive(
     NetworkChangeNotifier::ConnectionType initial_connection_type,
-    NetworkChangeNotifier::ConnectionSubtype initial_connection_subtype) {}
+    NetworkChangeNotifier::ConnectionSubtype initial_connection_subtype) {
+  COBALT_LINKER_STUB();
+}
 
 NetworkChangeNotifierPassive::NetworkChangeNotifierPassive(
     NetworkChangeNotifier::ConnectionType initial_connection_type,
     NetworkChangeNotifier::ConnectionSubtype initial_connection_subtype,
-    SystemDnsConfigChangeNotifier* system_dns_config_notifier) {}
-
-NetworkChangeNotifierPassive::~NetworkChangeNotifierPassive() {
-  NOTIMPLEMENTED();
+    SystemDnsConfigChangeNotifier* system_dns_config_notifier) {
+  COBALT_LINKER_STUB();
 }
 
-// Public Methods from Header
+NetworkChangeNotifierPassive::~NetworkChangeNotifierPassive() {
+  COBALT_LINKER_STUB();
+}
+
 void NetworkChangeNotifierPassive::OnDNSChanged() {
-  // Stub implementation
-  NOTIMPLEMENTED();
+  COBALT_LINKER_STUB();
 }
 
 void NetworkChangeNotifierPassive::OnIPAddressChanged() {
-  // Stub implementation
-  NOTIMPLEMENTED();
+  COBALT_LINKER_STUB();
 }
 
 void NetworkChangeNotifierPassive::OnConnectionChanged(
     ConnectionType connection_type) {
-  // Stub implementation
-  NOTIMPLEMENTED();
+  COBALT_LINKER_STUB();
 }
 
 void NetworkChangeNotifierPassive::OnConnectionSubtypeChanged(
     ConnectionType connection_type,
     ConnectionSubtype connection_subtype) {
-  // Stub implementation
-  NOTIMPLEMENTED();
+  COBALT_LINKER_STUB();
 }
 
-// Protected Methods (Stubbing just in case they are called via base class ptr)
 NetworkChangeNotifier::ConnectionType
 NetworkChangeNotifierPassive::GetCurrentConnectionType() const {
-  // Stub implementation
-  NOTIMPLEMENTED();
+  COBALT_LINKER_STUB();
   return NetworkChangeNotifier::CONNECTION_UNKNOWN;
 }
 
 void NetworkChangeNotifierPassive::GetCurrentMaxBandwidthAndConnectionType(
     double* max_bandwidth_mbps,
     ConnectionType* connection_type) const {
-  // Stub implementation
-  NOTIMPLEMENTED();
+  COBALT_LINKER_STUB();
 }
-
-void ProxyConfigServiceLinux::Delegate::SetUpAndFetchInitialConfig(
-    const scoped_refptr<base::SingleThreadTaskRunner>& glib_task_runner,
-    const scoped_refptr<base::SequencedTaskRunner>& main_task_runner,
-    const NetworkTrafficAnnotationTag& traffic_annotation) {}
-
-#if BUILDFLAG(IS_LINUX)
-
-// AddressMapCacheLinux::AddressMapCacheLinux() = default;
-// AddressMapCacheLinux::~AddressMapCacheLinux() = default;
-#endif  // BUILDFLAG(IS_LINUX)
-
-// AddressMapOwnerLinux*
-// NetworkChangeNotifierPassive::GetAddressMapOwnerInternal() {
-//   // Stub implementation
-//   NOTIMPLEMENTED();
-//   return nullptr;
-// }
-
-// --- End stub implementations ---
-
 }  // namespace net

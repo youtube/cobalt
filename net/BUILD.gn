@@ -8,7 +8,6 @@ import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/cronet/config.gni")
 import("//build/config/features.gni")
-import("//cobalt/build/configs/hacks.gni")
 import("//crypto/features.gni")
 import("//net/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
@@ -1642,6 +1641,8 @@ component("net") {
       "base/network_interfaces_starboard.cc",
       "base/platform_mime_util_starboard.cc",
       "base/network_change_notifier_starboard.h",
+      "base/network_change_notifier_passive_starboard_stub.cc",
+      "proxy_resolution/proxy_config_service_linux_starboard_stub.cc"
     ]
   }
   if (is_cobalt && is_linux && current_toolchain == host_toolchain) {

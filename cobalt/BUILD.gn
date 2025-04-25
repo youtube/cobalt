@@ -46,7 +46,6 @@ if (!is_android) {
       "cobalt_main_delegate.h",
       "cobalt_switch_defaults.cc",
       "cobalt_switch_defaults.h",
-      "net_dump_symbols.cc",
     ]
 
     defines = []
