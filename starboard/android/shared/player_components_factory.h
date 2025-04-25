@@ -550,7 +550,6 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                                 /*default=*/"little");
         force_big_endian_hdr_metadata = hdr_info_endianness == "big";
       }
-
       if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
         enable_flush_during_seek =
             video_mime_type.GetParamBoolValue("enableflushduringseek", false);
