@@ -219,7 +219,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
     if (!creation_parameters.audio_mime().empty()) {
       MimeType audio_mime_type(creation_parameters.audio_mime());
-      if (!audio_mime_type.is_valid() |
+      if (!audio_mime_type.is_valid() ||
           !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
         return std::unique_ptr<PlayerComponents>();
       }
@@ -235,8 +235,10 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone &&
         !creation_parameters.video_mime().empty()) {
       MimeType video_mime_type(creation_parameters.video_mime());
-      enable_flush_during_seek =
-          video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
+        enable_flush_during_seek =
+            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+      }
     }
 
     if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
@@ -549,7 +551,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         force_big_endian_hdr_metadata = hdr_info_endianness == "big";
       }
 
-      if (!video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
+      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
         enable_flush_during_seek =
             video_mime_type.GetParamBoolValue("enableflushduringseek", false);
       }
