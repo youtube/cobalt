@@ -13,7 +13,7 @@
 #include "net/base/net_export.h"
 #include "net/base/network_change_notifier.h"
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
 #include "net/base/address_map_cache_linux.h"
 #endif
 
@@ -52,7 +52,7 @@ class NET_EXPORT NetworkChangeNotifierPassive : public NetworkChangeNotifier {
   void GetCurrentMaxBandwidthAndConnectionType(
       double* max_bandwidth_mbps,
       ConnectionType* connection_type) const override;
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   AddressMapOwnerLinux* GetAddressMapOwnerInternal() override;
 #endif
 
@@ -74,7 +74,7 @@ class NET_EXPORT NetworkChangeNotifierPassive : public NetworkChangeNotifier {
 
   THREAD_CHECKER(thread_checker_);
 
-#if BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
   AddressMapCacheLinux address_map_cache_;
 #endif
 
