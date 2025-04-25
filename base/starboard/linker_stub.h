@@ -12,10 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#ifndef BASE_STARBOARD_LINKER_STUB_H_
+#define BASE_STARBOARD_LINKER_STUB_H_
+
 #include "starboard/common/log.h"
 
 // TODO: b/413130400 - Cobalt: Remove this file and implement linker stubs
 
+#if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+#define COBALT_LINKER_STUB()
+#else
 #define COBALT_LINKER_STUB_MSG                                    \
   "This is a stub needed for linking cobalt. You need to remove " \
   "COBALT_LINKER_STUB and implement "                             \
@@ -29,3 +35,6 @@
     }                                          \
   } while (0);                                 \
   SbSystemBreakIntoDebugger();
+#endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+
+#endif  // BASE_STARBOARD_LINKER_STUB_H_
