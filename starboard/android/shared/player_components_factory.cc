@@ -24,8 +24,7 @@ namespace filter {
 
 // static
 std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
-  return std::unique_ptr<PlayerComponents::Factory>(
-      new android::shared::PlayerComponentsFactory);
+  return std::make_unique<android::shared::PlayerComponentsFactory>();
 }
 
 // static

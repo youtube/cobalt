@@ -107,11 +107,10 @@ class AdaptiveAudioDecoderTest
       ASSERT_GT(dmp_reader->number_of_audio_buffers(), 0);
     }
 
-    std::unique_ptr<AudioRendererSink> audio_renderer_sink;
-    ASSERT_TRUE(CreateAudioComponents(using_stub_decoder_,
-                                      dmp_readers_[0]->audio_stream_info(),
-                                      &audio_decoder_, &audio_renderer_sink));
-    ASSERT_TRUE(audio_decoder_);
+    auto audio_components = CreateAudioComponents(
+        using_stub_decoder_, dmp_readers_[0]->audio_stream_info());
+    ASSERT_TRUE(audio_components.has_value());
+    audio_decoder_ = std::move(audio_components->decoder);
     audio_decoder_->Initialize(
         std::bind(&AdaptiveAudioDecoderTest::OnOutput, this),
         std::bind(&AdaptiveAudioDecoderTest::OnError, this));

@@ -220,36 +220,22 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
   return test_params;
 }
 
-bool CreateAudioComponents(
+std::optional<AudioComponents> CreateAudioComponents(
     bool using_stub_decoder,
-    const media::AudioStreamInfo& audio_stream_info,
-    std::unique_ptr<AudioDecoder>* audio_decoder,
-    std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
-  SB_CHECK(audio_decoder);
-  SB_CHECK(audio_renderer_sink);
-
-  audio_renderer_sink->reset();
-  audio_decoder->reset();
-
+    const media::AudioStreamInfo& audio_stream_info) {
   PlayerComponents::Factory::CreationParameters creation_parameters(
       audio_stream_info);
 
-  std::unique_ptr<PlayerComponents::Factory> factory;
-  if (using_stub_decoder) {
-    factory = StubPlayerComponentsFactory::Create();
-  } else {
-    factory = PlayerComponents::Factory::Create();
-  }
+  std::unique_ptr<PlayerComponents::Factory> factory =
+      using_stub_decoder ? StubPlayerComponentsFactory::Create()
+                         : PlayerComponents::Factory::Create();
   std::string error_message;
-  if (factory->CreateSubComponents(creation_parameters, audio_decoder,
-                                   audio_renderer_sink, nullptr, nullptr,
-                                   nullptr, &error_message)) {
-    SB_CHECK(*audio_decoder);
-    return true;
+  auto sub_components = factory->CreateSubComponents(creation_parameters);
+  if (sub_components.has_error()) {
+    return std::nullopt;
   }
-  audio_renderer_sink->reset();
-  audio_decoder->reset();
-  return false;
+  SB_CHECK(sub_components.audio.decoder);
+  return std::move(sub_components.audio);
 }
 
 AssertionResult AlmostEqualTime(int64_t time1, int64_t time2) {

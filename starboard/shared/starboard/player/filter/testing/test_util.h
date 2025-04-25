@@ -26,6 +26,7 @@
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
+#include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/video_dmp_reader.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -57,11 +58,9 @@ std::vector<const char*> GetSupportedAudioTestFiles(
     const char* extra_mime_attributes = "");
 std::vector<VideoTestParam> GetSupportedVideoTests();
 
-bool CreateAudioComponents(
+std::optional<AudioComponents> CreateAudioComponents(
     bool using_stub_decoder,
-    const media::AudioStreamInfo& audio_stream_info,
-    std::unique_ptr<AudioDecoder>* audio_decoder,
-    std::unique_ptr<AudioRendererSink>* audio_renderer_sink);
+    const media::AudioStreamInfo& audio_stream_info);
 
 ::testing::AssertionResult AlmostEqualTime(int64_t time1, int64_t time2);
 

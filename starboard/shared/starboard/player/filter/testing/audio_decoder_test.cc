@@ -122,25 +122,26 @@ class AudioDecoderTest
     ASSERT_NE(dmp_reader_.audio_stream_info().codec, kSbMediaAudioCodecNone);
     ASSERT_GT(dmp_reader_.number_of_audio_buffers(), 0);
 
-    CreateComponents(dmp_reader_.audio_stream_info(), &audio_decoder_,
-                     &audio_renderer_sink_);
-    ASSERT_TRUE(audio_decoder_);
+    std::optional<AudioComponents> components =
+        CreateComponents(dmp_reader_.audio_stream_info());
+    ASSERT_TRUE(components.has_value());
+    audio_decoder_ = std::move(components->decoder);
+    audio_renderer_sink_ = std::move(components->renderer_sink);
   }
 
  protected:
   enum Event { kConsumed, kOutput, kError };
 
-  void CreateComponents(
-      const media::AudioStreamInfo& audio_stream_info,
-      std::unique_ptr<AudioDecoder>* audio_decoder,
-      std::unique_ptr<AudioRendererSink>* audio_renderer_sink) {
-    if (CreateAudioComponents(using_stub_decoder_, audio_stream_info,
-                              audio_decoder, audio_renderer_sink)) {
-      SB_CHECK(*audio_decoder);
-      (*audio_decoder)
-          ->Initialize(std::bind(&AudioDecoderTest::OnOutput, this),
-                       std::bind(&AudioDecoderTest::OnError, this));
+  std::optional<AudioComponents> CreateComponents(
+      const media::AudioStreamInfo& audio_stream_info) {
+    std::optional<AudioComponents> components =
+        CreateAudioComponents(using_stub_decoder_, audio_stream_info);
+    if (components.has_value()) {
+      components->decoder->Initialize(
+          std::bind(&AudioDecoderTest::OnOutput, this),
+          std::bind(&AudioDecoderTest::OnError, this));
     }
+    return components;
   }
 
   void OnOutput() {
@@ -524,13 +525,9 @@ TEST_P(AudioDecoderTest, MultiDecoders) {
   const int kDecodersToCreate = 100;
   const int kMinimumNumberOfExtraDecodersRequired = 3;
 
-  std::unique_ptr<AudioDecoder> audio_decoders[kDecodersToCreate];
-  std::unique_ptr<AudioRendererSink> audio_renderer_sinks[kDecodersToCreate];
-
   for (int i = 0; i < kDecodersToCreate; ++i) {
-    CreateComponents(dmp_reader_.audio_stream_info(), &audio_decoders[i],
-                     &audio_renderer_sinks[i]);
-    if (!audio_decoders[i]) {
+    auto audio_components = CreateComponents(dmp_reader_.audio_stream_info());
+    if (audio_components.has_value()) {
       ASSERT_GE(i, kMinimumNumberOfExtraDecodersRequired);
     }
   }
@@ -575,8 +572,9 @@ TEST_P(AudioDecoderTest, InvalidCodec) {
 
   audio_stream_info.codec = invalid_codec;
 
-  CreateComponents(audio_stream_info, &audio_decoder_, &audio_renderer_sink_);
-  if (!audio_decoder_) {
+  std::optional<AudioComponents> components =
+      CreateComponents(audio_stream_info);
+  if (!components.has_value()) {
     return;
   }
 
@@ -597,8 +595,9 @@ TEST_P(AudioDecoderTest, InvalidConfig) {
     audio_stream_info.audio_specific_config[i] =
         ~audio_stream_info.audio_specific_config[i];
 
-    CreateComponents(audio_stream_info, &audio_decoder_, &audio_renderer_sink_);
-    if (!audio_decoder_) {
+    std::optional<AudioComponents> components =
+        CreateComponents(audio_stream_info);
+    if (!components.has_value()) {
       return;
     }
     WriteSingleInput(0);
@@ -616,8 +615,9 @@ TEST_P(AudioDecoderTest, InvalidConfig) {
 
     audio_stream_info.audio_specific_config.resize(i);
 
-    CreateComponents(audio_stream_info, &audio_decoder_, &audio_renderer_sink_);
-    if (!audio_decoder_) {
+    std::optional<AudioComponents> components =
+        CreateComponents(audio_stream_info);
+    if (!components.has_value()) {
       return;
     }
     WriteSingleInput(0);
