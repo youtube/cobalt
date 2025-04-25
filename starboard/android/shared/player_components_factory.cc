@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
-#define STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
-
 #include <atomic>
 #include <memory>
 #include <string>
@@ -709,4 +706,29 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 }  // namespace android
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_
+namespace starboard::shared::starboard::player::filter {
+
+// static
+std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
+  return std::unique_ptr<PlayerComponents::Factory>(
+      new android::shared::PlayerComponentsFactory);
+}
+
+// static
+bool PlayerComponents::Factory::OutputModeSupported(
+    SbPlayerOutputMode output_mode,
+    SbMediaVideoCodec codec,
+    SbDrmSystem drm_system) {
+  using ::starboard::android::shared::DrmSystem;
+  if (output_mode == kSbPlayerOutputModePunchOut) {
+    return true;
+  }
+  if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
+    if (!SbDrmSystemIsValid(drm_system)) {
+      return true;
+    }
+    DrmSystem* android_drm_system = static_cast<DrmSystem*>(drm_system);
+    return false;
+  }
+}
+}  // namespace starboard::shared::starboard::player::filter
