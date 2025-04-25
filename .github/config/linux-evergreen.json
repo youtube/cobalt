@@ -16,6 +16,7 @@
     "nplb"
 =======
     "boringssl_ssl_tests",
+    "cobalt",
     "crypto_unittests",
     "ipc_tests",
     "net",
@@ -25,9 +26,13 @@
     "sql_unittests",
     "trace_processor_minimal_smoke_tests",
     "url_unittests",
+<<<<<<< HEAD
     "zlib_unittests",
     "cobalt"
 >>>>>>> a2d91bbcf6d (Build libcobalt.so hermetically (#5048))
+=======
+    "zlib_unittests"
+>>>>>>> 557d5b61857 (Fix target names being built according to alphabetical order (#5580))
   ],
   "includes": [
     {
