@@ -12,7 +12,22 @@
   "targets": [
     "base",
     "base_unittests",
+<<<<<<< HEAD
     "nplb"
+=======
+    "boringssl_ssl_tests",
+    "crypto_unittests",
+    "ipc_tests",
+    "net",
+    "net_unittests",
+    "nplb",
+    "skia",
+    "sql_unittests",
+    "trace_processor_minimal_smoke_tests",
+    "url_unittests",
+    "zlib_unittests",
+    "cobalt"
+>>>>>>> a2d91bbcf6d (Build libcobalt.so hermetically (#5048))
   ],
   "includes": [
     {
