@@ -543,20 +543,21 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       // Use mime param to determine endianness of HDR metadata. If param is
       // missing or invalid it defaults to Little Endian.
       MimeType video_mime_type(creation_parameters.video_mime());
-      video_mime_type.ValidateStringParameter("hdrinfoendianness",
-                                              "big|little");
-      const std::string& hdr_info_endianness =
-          video_mime_type.GetParamStringValue("hdrinfoendianness",
-                                              /*default=*/"little");
-      force_big_endian_hdr_metadata = hdr_info_endianness == "big";
-
-      video_mime_type.ValidateBoolParameter("enableflushduringseek");
-      enable_flush_during_seek =
-          video_mime_type.GetParamBoolValue("enableflushduringseek", false);
-
-      video_mime_type.ValidateBoolParameter("forceresetsurface");
-      force_reset_surface =
-          video_mime_type.GetParamBoolValue("forceresetsurface", true);
+      if (video_mime_type.ValidateStringParameter("hdrinfoendianness",
+                                                  "big|little")) {
+        const std::string& hdr_info_endianness =
+            video_mime_type.GetParamStringValue("hdrinfoendianness",
+                                                /*default=*/"little");
+        force_big_endian_hdr_metadata = hdr_info_endianness == "big";
+      }
+      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
+        enable_flush_during_seek =
+            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+      }
+      if (video_mime_type.ValidateBoolParameter("forceresetsurface")) {
+        force_reset_surface =
+            video_mime_type.GetParamBoolValue("forceresetsurface", true);
+      }
     }
     if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
       SB_LOG(INFO)
