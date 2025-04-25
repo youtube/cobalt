@@ -17,15 +17,18 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
+import android.graphics.Color;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.text.TextUtils;
+import android.util.TypedValue;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
@@ -367,11 +370,22 @@ public abstract class CobaltActivity extends Activity {
     createContent(savedInstanceState);
 
     videoSurfaceView = new VideoSurfaceView(this);
+
+    videoSurfaceView.setBackgroundColor(getThemeColorPrimary(this));
     a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
-    // Initialize videoSurfaceView as a single pixel to avoid rapid shifting
-    // between screen colors. Initializing with a width or height of 0 causes
-    // the call to addContentView to fail, so a single pixel is used.
-    addContentView(videoSurfaceView, new LayoutParams(1, 1));
+    addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+  }
+
+  private static int getThemeColorPrimary(final Context context) {
+    try {
+      final TypedValue value = new TypedValue();
+      if (context.getTheme().resolveAttribute(R.attr.colorPrimary, value, true)) {
+        return value.data;
+      }
+    } catch (NullPointerException e) {
+      Log.w(TAG, "Unable to get application context theme.");
+    }
+    return Color.TRANSPARENT;
   }
 
   /**
@@ -625,6 +639,10 @@ public abstract class CobaltActivity extends Activity {
             // where the view would be in a UI layout and to set the surface transform matrix to
             // match the view's size.
             videoSurfaceView.setLayoutParams(layoutParams);
+            // Set the background to transparent here to avoid obscuring UI
+            // elements. Some are rendered behind the background and rely on
+            // the background being transparent.
+            videoSurfaceView.setBackgroundColor(Color.TRANSPARENT);
           }
         });
   }
