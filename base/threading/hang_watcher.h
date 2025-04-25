@@ -122,7 +122,13 @@ class BASE_EXPORT HangWatcher : public DelegateSimpleThread::Delegate {
     kMainThread = 1,
     kThreadPoolThread = 2,
     kCompositorThread = 3,
+#if BUILDFLAG(IS_COBALT)
+    // this is used in single-process mode only, inside browser process
+    kRendererThread = 4,
+    kMax = kRendererThread
+#else
     kMax = kCompositorThread
+#endif
   };
 
   // Notes on lifetime:
