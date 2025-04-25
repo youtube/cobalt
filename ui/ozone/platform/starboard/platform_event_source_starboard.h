@@ -20,9 +20,9 @@
 
 #include "starboard/event.h"
 
-namespace starboard {
+namespace ui {
 
-class PlatformEventSourceStarboard : public ui::PlatformEventSource {
+class PlatformEventSourceStarboard : public PlatformEventSource {
  public:
   PlatformEventSourceStarboard();
 
@@ -47,6 +47,6 @@ class PlatformEventSourceStarboard : public ui::PlatformEventSource {
   base::ObserverList<PlatformEventObserverStarboard>::Unchecked sb_observers_;
 };
 
-}  // namespace starboard
+}  // namespace ui
 
 #endif  // UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_SOURCE_H_

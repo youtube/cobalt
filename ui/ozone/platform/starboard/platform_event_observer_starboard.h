@@ -15,7 +15,7 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_OBSERVER_H_
 #define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_EVENT_OBSERVER_H_
 
-namespace starboard {
+namespace ui {
 
 class EVENTS_EXPORT PlatformEventObserverStarboard {
  public:
@@ -25,6 +25,6 @@ class EVENTS_EXPORT PlatformEventObserverStarboard {
   virtual ~PlatformEventObserverStarboard() = default;
 };
 
-}  // namespace starboard
+}  // namespace ui
 
 #endif  // UI_OZONE_PLATFORM_STARBOARD
