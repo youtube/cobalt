@@ -3,11 +3,10 @@
 // found in the LICENSE file.
 
 #include "net/cert/test_root_certs.h"
-#include "net/base/net_export.h"
 
 namespace net {
 
-__attribute__((visibility("default"))) bool TestRootCerts::AddImpl(net::X509Certificate* certificate) {
+bool TestRootCerts::AddImpl(X509Certificate* certificate) {
   return true;
 }
 

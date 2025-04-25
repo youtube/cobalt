@@ -109,7 +109,8 @@ ProxyConfigService::CreateSystemProxyConfigService(
              << "be used only for examples.";
   return std::make_unique<UnsetProxyConfigService>();
 #elif BUILDFLAG(IS_LINUX)
-  std::unique_ptr<ProxyConfigServiceLinux> linux_config_service = nullptr ;
+  std::unique_ptr<ProxyConfigServiceLinux> linux_config_service(
+      std::make_unique<ProxyConfigServiceLinux>());
 
   // Assume we got called on the thread that runs the default glib
   // main loop, so the current thread is where we should be running
