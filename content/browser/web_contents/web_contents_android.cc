@@ -478,6 +478,16 @@ void WebContentsAndroid::OnShow(JNIEnv* env) {
   web_contents_->WasShown();
 }
 
+#if BUILDFLAG(IS_COBALT)
+void WebContentsAndroid::OnFreeze(JNIEnv* env) {
+  web_contents_->SetPageFrozen(true);
+}
+
+void WebContentsAndroid::OnResume(JNIEnv* env) {
+  web_contents_->SetPageFrozen(false);
+}
+#endif
+
 void WebContentsAndroid::SetImportance(JNIEnv* env,
                                        jint primary_main_frame_importance) {
   web_contents_->SetPrimaryMainFrameImportance(
