@@ -250,6 +250,18 @@ class WebViewBundleBackendSettings(WebViewBackendSettings):
     return all_apks
 
 
+ANDROID_COBALT = AndroidBrowserBackendSettings(
+    browser_type='android-cobalt',
+    package='dev.cobalt.coat',
+    activity='dev.cobalt.app.MainActivity',
+    command_line_name='content-shell-command-line',
+    devtools_port='localabstract:content_shell_devtools_remote',
+    apk_name='Cobalt.apk',
+    embedder_apk_name=None,
+    supports_spki_list=True,
+    supports_tab_control=False,
+    additional_apk_name=None)
+
 ANDROID_CONTENT_SHELL = AndroidBrowserBackendSettings(
     browser_type='android-content-shell',
     package='org.chromium.content_shell_apk',
@@ -431,6 +443,7 @@ ANDROID_SYSTEM_CHROME = GenericChromeBackendSettings(
 
 
 ANDROID_BACKEND_SETTINGS = (
+    ANDROID_COBALT,
     ANDROID_CONTENT_SHELL,
     ANDROID_WEBVIEW,
     ANDROID_WEBVIEW_BUNDLE,
