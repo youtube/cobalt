@@ -202,7 +202,7 @@ scoped_refptr<DecodedAudio> DecodedAudio::SwitchFormatTo(
   // Both sample types and storage types are different, use the slowest way.
   int new_size =
       media::GetBytesPerSample(new_sample_type) * frames() * channels();
-  scoped_refptr<DecodedAudio> new_decoded_audio = new DecodedAudio(
+  auto new_decoded_audio = make_scoped_refptr<DecodedAudio>(
       channels(), new_sample_type, new_storage_type, timestamp(), new_size);
 
 #define InterleavedSampleAddr(start_addr, channel, frame) \
@@ -257,7 +257,7 @@ scoped_refptr<DecodedAudio> DecodedAudio::SwitchFormatTo(
 }
 
 scoped_refptr<DecodedAudio> DecodedAudio::Clone() const {
-  scoped_refptr<DecodedAudio> copy = new DecodedAudio(
+  auto copy = make_scoped_refptr<DecodedAudio>(
       channels(), sample_type(), storage_type(), timestamp(), size_in_bytes());
 
   memcpy(copy->data(), data(), size_in_bytes());
@@ -269,7 +269,7 @@ scoped_refptr<DecodedAudio> DecodedAudio::SwitchSampleTypeTo(
     SbMediaAudioSampleType new_sample_type) const {
   int new_size =
       media::GetBytesPerSample(new_sample_type) * frames() * channels();
-  scoped_refptr<DecodedAudio> new_decoded_audio = new DecodedAudio(
+  auto new_decoded_audio = make_scoped_refptr<DecodedAudio>(
       channels(), new_sample_type, storage_type(), timestamp(), new_size);
 
   if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated &&
@@ -296,9 +296,9 @@ scoped_refptr<DecodedAudio> DecodedAudio::SwitchSampleTypeTo(
 
 scoped_refptr<DecodedAudio> DecodedAudio::SwitchStorageTypeTo(
     SbMediaAudioFrameStorageType new_storage_type) const {
-  scoped_refptr<DecodedAudio> new_decoded_audio =
-      new DecodedAudio(channels(), sample_type(), new_storage_type, timestamp(),
-                       size_in_bytes());
+  auto new_decoded_audio = make_scoped_refptr<DecodedAudio>(
+      channels(), sample_type(), new_storage_type, timestamp(),
+      size_in_bytes());
   int bytes_per_sample = media::GetBytesPerSample(sample_type());
   const uint8_t* old_samples = this->data();
   uint8_t* new_samples = new_decoded_audio->data();

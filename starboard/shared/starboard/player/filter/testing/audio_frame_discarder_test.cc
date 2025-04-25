@@ -45,7 +45,7 @@ class AudioFrameDiscarderTest : public ::testing::TestWithParam<const char*> {
 };
 
 scoped_refptr<DecodedAudio> MakeDecodedAudio(int channels, int64_t timestamp) {
-  scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+  auto decoded_audio = make_scoped_refptr<DecodedAudio>(
       channels, kSbMediaAudioSampleTypeFloat32,
       kSbMediaAudioFrameStorageTypeInterleaved, timestamp,
       media::GetBytesPerSample(kSbMediaAudioSampleTypeFloat32) * channels *

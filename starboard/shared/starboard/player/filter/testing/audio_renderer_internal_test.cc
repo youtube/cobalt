@@ -19,6 +19,7 @@
 #include <set>
 
 #include "starboard/common/log.h"
+#include "starboard/common/ref_counted.h"
 #include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/media/media_util.h"
@@ -74,9 +75,8 @@ class AudioRendererTest : public ::testing::Test {
                                           kDefaultSamplesPerSecond);
 
     ON_CALL(*audio_decoder_, Read(_))
-        .WillByDefault(
-            DoAll(SetArgPointee<0>(kDefaultSamplesPerSecond),
-                  Return(scoped_refptr<DecodedAudio>(new DecodedAudio()))));
+        .WillByDefault(DoAll(SetArgPointee<0>(kDefaultSamplesPerSecond),
+                             Return(make_scoped_refptr<DecodedAudio>())));
     ON_CALL(*audio_renderer_sink_, Start(_, _, _, _, _, _, _, _))
         .WillByDefault(DoAll(InvokeWithoutArgs([this]() {
                                audio_renderer_sink_->SetHasStarted(true);
@@ -204,12 +204,13 @@ class AudioRendererTest : public ::testing::Test {
     sample_info.drm_info = NULL;
     sample_info.type = kSbMediaTypeAudio;
     GetDefaultAudioSampleInfo().ConvertTo(&sample_info.audio_sample_info);
-    return new InputBuffer(DeallocateSampleCB, NULL, this, sample_info);
+    return make_scoped_refptr<InputBuffer>(DeallocateSampleCB, nullptr, this,
+                                           sample_info);
   }
 
   scoped_refptr<DecodedAudio> CreateDecodedAudio(int64_t timestamp,
                                                  int frames) {
-    scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+    auto decoded_audio = make_scoped_refptr<DecodedAudio>(
         kDefaultNumberOfChannels, sample_type_, storage_type_, timestamp,
         frames * kDefaultNumberOfChannels *
             media::GetBytesPerSample(sample_type_));

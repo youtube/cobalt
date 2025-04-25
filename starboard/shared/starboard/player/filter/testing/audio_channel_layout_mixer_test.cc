@@ -85,10 +85,10 @@ class AudioChannelLayoutMixerTest
       SB_NOTREACHED() << "Invalid number of channels.";
     }
 
-    scoped_refptr<DecodedAudio> decoded_audio(new DecodedAudio(
+    auto decoded_audio = make_scoped_refptr<DecodedAudio>(
         num_of_channels, sample_type_, storage_type_, 0,
         kInputFrames * num_of_channels *
-            (sample_type_ == kSbMediaAudioSampleTypeFloat32 ? 4 : 2)));
+            (sample_type_ == kSbMediaAudioSampleTypeFloat32 ? 4 : 2));
 
     if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
       float* dest_buffer = reinterpret_cast<float*>(decoded_audio->data());

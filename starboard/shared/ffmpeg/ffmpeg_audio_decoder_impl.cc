@@ -230,7 +230,7 @@ void AudioDecoderImpl<FFMPEG>::ProcessDecodedFrame(
     return;
   }
 
-  scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+  auto decoded_audio = make_scoped_refptr<DecodedAudio>(
       codec_context_->channels, GetSampleType(), GetStorageType(),
       input_buffer.timestamp(),
       codec_context_->channels * av_frame.nb_samples *

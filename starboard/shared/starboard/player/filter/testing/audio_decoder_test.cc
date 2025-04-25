@@ -79,7 +79,7 @@ scoped_refptr<DecodedAudio> ConsolidateDecodedAudios(
     total_size_in_bytes += decoded_audio->size_in_bytes();
   }
 
-  scoped_refptr<DecodedAudio> consolidated = new DecodedAudio(
+  auto consolidated = make_scoped_refptr<DecodedAudio>(
       channels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
       decoded_audios.front()->timestamp(), total_size_in_bytes);
 

@@ -93,7 +93,7 @@ scoped_refptr<DecodedAudio> AudioResamplerImpl::WriteEndOfStream() {
       interleaved_resampler_.QueueBuffer(nullptr, 0);
       int channels = interleaved_resampler_.channels();
       int resampled_audio_size = out_num_of_frames * channels * sizeof(float);
-      scoped_refptr<DecodedAudio> resampled_audio = new DecodedAudio(
+      auto resampled_audio = make_scoped_refptr<DecodedAudio>(
           channels, kSbMediaAudioSampleTypeFloat32,
           kSbMediaAudioFrameStorageTypeInterleaved,
           audio_inputs_.front()->timestamp(), resampled_audio_size);

@@ -125,7 +125,7 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::ConvertTo(
 
   EnsureYUVToRGBLookupTableInitialized();
 
-  scoped_refptr<CpuVideoFrame> target_frame(new CpuVideoFrame(timestamp()));
+  auto target_frame = make_scoped_refptr<CpuVideoFrame>(timestamp());
 
   target_frame->format_ = target_format;
   target_frame->width_ = width();
@@ -197,7 +197,7 @@ scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(
     SB_DCHECK(source_y_pitch_in_bytes >= width);
   }
 
-  scoped_refptr<CpuVideoFrame> frame(new CpuVideoFrame(timestamp));
+  auto frame = make_scoped_refptr<CpuVideoFrame>(timestamp);
   frame->format_ = kYV12;
   frame->width_ = width;
   frame->height_ = height;

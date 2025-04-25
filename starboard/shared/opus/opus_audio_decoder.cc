@@ -127,7 +127,7 @@ bool OpusAudioDecoder::DecodeInternal(
   SB_DCHECK(output_cb_);
   SB_DCHECK(!stream_ended_ || !pending_audio_buffers_.empty());
 
-  scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+  auto decoded_audio = make_scoped_refptr<DecodedAudio>(
       audio_stream_info_.number_of_channels, GetSampleType(),
       kSbMediaAudioFrameStorageTypeInterleaved, input_buffer->timestamp(),
       audio_stream_info_.number_of_channels * frames_per_au_ *

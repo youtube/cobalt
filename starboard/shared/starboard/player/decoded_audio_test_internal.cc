@@ -182,15 +182,15 @@ void Verify(const scoped_refptr<DecodedAudio>& decoded_audio) {
 }
 
 TEST(DecodedAudioTest, DefaultCtor) {
-  scoped_refptr<DecodedAudio> decoded_audio(new DecodedAudio);
+  auto decoded_audio = make_scoped_refptr<DecodedAudio>();
   EXPECT_TRUE(decoded_audio->is_end_of_stream());
 }
 
 TEST(DecodedAudioTest, CtorWithSize) {
   for (auto sample_type : kSampleTypes) {
     for (auto storage_type : kStorageTypes) {
-      scoped_refptr<DecodedAudio> decoded_audio(new DecodedAudio(
-          kChannels, sample_type, storage_type, kTimestampUsec, kSizeInBytes));
+      auto decoded_audio = make_scoped_refptr<DecodedAudio>(
+          kChannels, sample_type, storage_type, kTimestampUsec, kSizeInBytes);
 
       EXPECT_FALSE(decoded_audio->is_end_of_stream());
       EXPECT_EQ(decoded_audio->channels(), kChannels);
@@ -228,9 +228,9 @@ TEST(DecodedAudioTest, CtorWithMoveCtor) {
 TEST(DecodedAudioTest, AdjustForSeekTime) {
   for (int channels = 1; channels <= 6; ++channels) {
     for (auto sample_type : kSampleTypes) {
-      scoped_refptr<DecodedAudio> original_decoded_audio(new DecodedAudio(
+      auto original_decoded_audio = make_scoped_refptr<DecodedAudio>(
           kChannels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-          kTimestampUsec, kSizeInBytes));
+          kTimestampUsec, kSizeInBytes);
       Fill(&original_decoded_audio);
 
       scoped_refptr<DecodedAudio> adjusted_decoded_audio =
@@ -283,9 +283,9 @@ TEST(DecodedAudioTest, AdjustForSeekTime) {
 TEST(DecodedAudioTest, AdjustForDiscardedDurations) {
   for (int channels = 1; channels <= 6; ++channels) {
     for (auto sample_type : kSampleTypes) {
-      scoped_refptr<DecodedAudio> original_decoded_audio(new DecodedAudio(
+      auto original_decoded_audio = make_scoped_refptr<DecodedAudio>(
           kChannels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-          kTimestampUsec, kSizeInBytes));
+          kTimestampUsec, kSizeInBytes);
       Fill(&original_decoded_audio);
 
       scoped_refptr<DecodedAudio> adjusted_decoded_audio =
@@ -328,9 +328,9 @@ TEST(DecodedAudioTest, AdjustForDiscardedDurations) {
 TEST(DecodedAudioTest, SwitchFormatTo) {
   for (auto original_sample_type : kSampleTypes) {
     for (auto original_storage_type : kStorageTypes) {
-      scoped_refptr<DecodedAudio> original_decoded_audio(new DecodedAudio(
+      auto original_decoded_audio = make_scoped_refptr<DecodedAudio>(
           kChannels, original_sample_type, original_storage_type,
-          kTimestampUsec, kSizeInBytes));
+          kTimestampUsec, kSizeInBytes);
 
       Fill(&original_decoded_audio);
 
@@ -362,9 +362,9 @@ TEST(DecodedAudioTest, SwitchFormatTo) {
 
 TEST(DecodedAudioTest, Clone) {
   for (auto sample_type : kSampleTypes) {
-    scoped_refptr<DecodedAudio> decoded_audio(new DecodedAudio(
+    auto decoded_audio = make_scoped_refptr<DecodedAudio>(
         kChannels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-        kTimestampUsec, kSizeInBytes));
+        kTimestampUsec, kSizeInBytes);
     Fill(&decoded_audio);
     auto copy = decoded_audio->Clone();
     ASSERT_EQ(*copy, *decoded_audio);

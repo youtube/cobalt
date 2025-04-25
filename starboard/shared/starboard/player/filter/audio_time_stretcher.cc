@@ -24,6 +24,7 @@
 #include <utility>
 
 #include "starboard/common/log.h"
+#include "starboard/common/ref_counted.h"
 #include "starboard/shared/starboard/media/media_util.h"
 #include "starboard/shared/starboard/player/filter/wsola_internal.h"
 
@@ -159,15 +160,15 @@ void AudioTimeStretcher::Initialize(SbMediaAudioSampleType sample_type,
   memset(wsola_output_->data(), 0, wsola_output_->size_in_bytes());
 
   // Auxiliary containers.
-  optimal_block_ = new DecodedAudio(channels_, sample_type_,
-                                    kSbMediaAudioFrameStorageTypeInterleaved, 0,
-                                    ola_window_size_ * bytes_per_frame_);
-  search_block_ = new DecodedAudio(
+  optimal_block_ = make_scoped_refptr<DecodedAudio>(
+      channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
+      ola_window_size_ * bytes_per_frame_);
+  search_block_ = make_scoped_refptr<DecodedAudio>(
       channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
       (num_candidate_blocks_ + (ola_window_size_ - 1)) * bytes_per_frame_);
-  target_block_ = new DecodedAudio(channels_, sample_type_,
-                                   kSbMediaAudioFrameStorageTypeInterleaved, 0,
-                                   ola_window_size_ * bytes_per_frame_);
+  target_block_ = make_scoped_refptr<DecodedAudio>(
+      channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
+      ola_window_size_ * bytes_per_frame_);
 }
 
 scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
@@ -175,7 +176,7 @@ scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
   SB_DCHECK(bytes_per_frame_ > 0);
   SB_DCHECK(playback_rate >= 0);
 
-  scoped_refptr<DecodedAudio> dest = new DecodedAudio(
+  auto dest = make_scoped_refptr<DecodedAudio>(
       channels_, sample_type_, kSbMediaAudioFrameStorageTypeInterleaved, 0,
       requested_frames * bytes_per_frame_);
 

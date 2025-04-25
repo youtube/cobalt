@@ -62,9 +62,9 @@ scoped_refptr<DecodedAudio> CreateDecodedAudio(
     int number_of_channels,
     int frames) {
   int sample_size = GetBytesPerSample(sample_type);
-  scoped_refptr<DecodedAudio> decoded_audio(new DecodedAudio(
+  auto decoded_audio = make_scoped_refptr<DecodedAudio>(
       number_of_channels, sample_type, kSbMediaAudioFrameStorageTypeInterleaved,
-      timestamp, sample_size * number_of_channels * frames));
+      timestamp, sample_size * number_of_channels * frames);
 
   for (int j = 0; j < decoded_audio->size_in_bytes() / sample_size; ++j) {
     if (sample_size == 2) {

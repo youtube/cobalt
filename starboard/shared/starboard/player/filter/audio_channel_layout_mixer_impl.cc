@@ -340,9 +340,9 @@ scoped_refptr<DecodedAudio> AudioChannelLayoutMixerImpl::Mix(
     const scoped_refptr<DecodedAudio>& input,
     const float* matrix) {
   size_t frames = input->frames();
-  scoped_refptr<DecodedAudio> output(new DecodedAudio(
+  auto output = make_scoped_refptr<DecodedAudio>(
       output_channels_, sample_type_, storage_type_, input->timestamp(),
-      frames * output_channels_ * GetBytesPerSample(sample_type_)));
+      frames * output_channels_ * GetBytesPerSample(sample_type_));
   SampleType aux_buffer[8];
   SampleType output_buffer[8];
   for (int frame_index = 0; frame_index < frames; frame_index++) {

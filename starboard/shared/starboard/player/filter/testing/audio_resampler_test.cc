@@ -98,7 +98,7 @@ class AudioResamplerTest
               ? sizeof(int16_t)
               : sizeof(float);
       int audio_size = kSamplesPerInput * channels_ * sample_size;
-      scoped_refptr<DecodedAudio> input = new DecodedAudio(
+      auto input = make_scoped_refptr<DecodedAudio>(
           channels_, source_sample_type_, source_storage_type_,
           1'000'000LL * total_frames / source_sample_rate_, audio_size);
       total_frames += kSamplesPerInput;

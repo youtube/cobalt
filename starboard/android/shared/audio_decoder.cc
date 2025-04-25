@@ -241,7 +241,7 @@ void AudioDecoder::ProcessOutputBuffer(
       size /= 2;
     }
 
-    scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
+    auto decoded_audio = make_scoped_refptr<DecodedAudio>(
         audio_stream_info_.number_of_channels, sample_type_,
         kSbMediaAudioFrameStorageTypeInterleaved,
         dequeue_output_result.presentation_time_microseconds, size);
