@@ -10,8 +10,13 @@
 
 namespace blink {
 
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+// TODO: b/412388549 - Cobalt: Fix this hack.
+ThreadStateStorage* g_thread_specific_ = nullptr;
+#else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 constinit thread_local ThreadStateStorage* g_thread_specific_
     __attribute__((tls_model(BLINK_HEAP_THREAD_LOCAL_MODEL))) = nullptr;
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // static
 ThreadStateStorage ThreadStateStorage::main_thread_state_storage_;
