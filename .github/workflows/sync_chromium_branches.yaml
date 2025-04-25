@@ -1,0 +1,52 @@
+name: Sync Chromium branches
+on:
+  workflow_dispatch:
+  # Runs everyday.
+  schedule:
+    - cron:  '0 0 * * *'
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: [
+          {milestone: m114, branch_num: 5735}, 
+          {milestone: m120, branch_num: 6099}, 
+          {milestone: m126, branch_num: 6478},
+        ]
+    outputs:
+      output1: ${{ steps.diff_step.outputs.diff_present }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chromium/${{ matrix.branch.milestone }}
+      - name: Setup Git
+        run: |
+          git config --global user.name "GitHub Release Automation"
+          git config --global user.email "github@google.com"
+      - name: Free space on Runner
+        run: |
+          df -h
+          ls -la /opt/hostedtoolcache/
+          sudo rm -rf /opt/hostedtoolcache/
+      - name: Pull ${{ matrix.branch.milestone }} from upstream and apply diffs
+        id: diff_step
+        run: |
+          # Add Chromium remote and pull the upstream branch.
+          echo "git remote add upstream https://chromium.googlesource.com/chromium/src"
+          git remote add upstream https://chromium.googlesource.com/chromium/src
+          echo "git fetch upstream refs/branch-heads/${{ matrix.branch.branch_num }}:refs/remotes/branch/${{ matrix.branch.branch_num }}"
+          git fetch upstream refs/branch-heads/${{ matrix.branch.branch_num }}:refs/remotes/branch/${{ matrix.branch.branch_num }}
+          echo "git diff HEAD branch/${{ matrix.branch.branch_num }} --binary > chromium_diff.patch"
+          git diff HEAD branch/${{ matrix.branch.branch_num }} --binary > chromium_diff.patch
+          echo "checking for diffs"
+          [ -s chromium_diff.patch ] && echo "diff_present=true" >> $GITHUB_OUTPUT || echo "diff_present=false" >> $GITHUB_OUTPUT
+      - name: Apply and push diffs
+        if: ${{ steps.diff_step.outputs.diff_present  == 'true' }}
+        run: |
+          git apply --index chromium_diff.patch
+          # Reset local branch to upstream and push.
+          git commit -m "Rebase refresh on $(date +'%Y-%m-%d') for ${{ matrix.branch.milestone }}."
+          git push --force origin chromium/${{ matrix.branch.milestone }}
