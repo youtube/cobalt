@@ -22,6 +22,9 @@
 #include "starboard/common/string.h"
 #include "starboard/extension/platform_service.h"
 
+// TODO: b/413446518 - Remove this include.
+#include "starboard/android/shared/player_components_factory.h"
+
 typedef struct CobaltExtensionPlatformServicePrivate {
   void* context;
   ReceiveMessageCallback receive_callback;
