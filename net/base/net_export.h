@@ -31,8 +31,8 @@
 #endif
 
 #else  /// defined(COMPONENT_BUILD)
-#define NET_EXPORT __attribute__((visibility("default")))
-#define NET_EXPORT_PRIVATE __attribute__((visibility("default")))
+#define NET_EXPORT
+#define NET_EXPORT_PRIVATE
 #endif
 
 #endif  // NET_BASE_NET_EXPORT_H_

@@ -1631,7 +1631,7 @@ component("net") {
     configs += [ "//build/config/compiler:optimize_max" ]
   }
 
-  if(is_starboard || current_toolchain == host_toolchain) {
+  if(is_starboard) {
     sources += [
       "cert/test_root_certs_builtin.cc",
       "cert/internal/system_trust_store_starboard.cc"
@@ -1641,6 +1641,7 @@ component("net") {
     sources += [
       "base/network_interfaces_starboard.cc",
       "base/platform_mime_util_starboard.cc",
+      "base/network_change_notifier_starboard.h",
     ]
   }
   if (is_cobalt && is_linux && current_toolchain == host_toolchain) {
