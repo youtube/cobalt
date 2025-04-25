@@ -63,7 +63,7 @@ runs:
           echo "Running tests for suite: ${test_binary}"
 
           test_filter="*"
-          test_filter_json_dir="${GITHUB_WORKSPACE}/src/cobalt/testing/filters/${{ matrix.platform }}/${test_binary}_filter.json"
+          test_filter_json_dir="${GITHUB_WORKSPACE}/cobalt/testing/filters/${{ matrix.platform }}/${test_binary}_filter.json"
           if [ -f ${test_filter_json_dir} ]; then
             test_filter=`jq -r '"-" + (.failing_tests | join(":"))' ${test_filter_json_dir}`
           fi

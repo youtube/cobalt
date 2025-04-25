@@ -114,7 +114,7 @@ component("policy") {
 
       # // TODO: b/b/411720612 - Cobalt: Make sandbox changes which can
       # be upstreamed to Chromium.
-      "linux/sandbox_linux_stub.cc",
+      "linux/sandbox_linux_starboard_stub.cc",
     ]
     deps += [
       ":chromecast_sandbox_allowlist_buildflags",

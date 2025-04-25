@@ -17,7 +17,6 @@ package dev.cobalt.app;
 import android.app.Application;
 import android.content.Context;
 import dev.cobalt.coat.StarboardBridge;
-import org.chromium.base.ApplicationStatus;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.PathUtils;
 import org.chromium.base.library_loader.LibraryLoader;
@@ -51,7 +50,6 @@ public class CobaltApplication extends Application implements StarboardBridge.Ho
                       : LibraryProcessType.PROCESS_CHILD);
       if (isBrowserProcess) {
           PathUtils.setPrivateDataDirectorySuffix(PRIVATE_DATA_DIRECTORY_SUFFIX);
-          ApplicationStatus.initialize(this);
       }
   }
 }
