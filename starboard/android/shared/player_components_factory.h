@@ -221,13 +221,13 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       MimeType audio_mime_type(creation_parameters.audio_mime());
       if (!audio_mime_type.is_valid() ||
           !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
-        return std::unique_ptr<PlayerComponents>();
+        return nullptr;
       }
 
       if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
         SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
                         "false. Passthrough is disabled.";
-        return std::unique_ptr<PlayerComponents>();
+        return nullptr;
       }
     }
 
@@ -255,7 +255,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         creation_parameters.audio_stream_info(),
         creation_parameters.drm_system(), enable_flush_during_seek));
     if (!audio_renderer->is_valid()) {
-      return std::unique_ptr<PlayerComponents>();
+      return nullptr;
     }
 
     // Set max_video_input_size with a positive value to overwrite
@@ -288,11 +288,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
             media_time_provider, std::move(video_render_algorithm),
             video_renderer_sink));
       } else {
-        return std::unique_ptr<PlayerComponents>();
+        return nullptr;
       }
     }
-    return std::unique_ptr<PlayerComponents>(new PlayerComponentsPassthrough(
-        std::move(audio_renderer), std::move(video_renderer)));
+    return std::make_unique<PlayerComponentsPassthrough>(
+        std::move(audio_renderer), std::move(video_renderer));
   }
 
   SubComponents CreateSubComponents(
@@ -410,6 +410,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       enable_flush_during_seek = true;
     }
 
+    using starboard::shared::starboard::player::filter::AudioComponents;
     AudioComponents audio_components;
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       using starboard::shared::starboard::media::AudioStreamInfo;
@@ -420,7 +421,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         bool use_libopus_decoder =
             audio_stream_info.codec == kSbMediaAudioCodecOpus &&
             !SbDrmSystemIsValid(drm_system) && !kForcePlatformOpusDecoder;
-        auto if (use_libopus_decoder) {
+        if (use_libopus_decoder) {
           auto audio_decoder_impl =
               std::make_unique<OpusAudioDecoder>(audio_stream_info);
           if (!audio_decoder_impl->is_valid()) {
@@ -428,45 +429,41 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
             return nullptr;
           }
           return audio_decoder_impl;
-        }
-        else if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
-                 audio_stream_info.codec == kSbMediaAudioCodecOpus) {
-          std::unique_ptr<AudioDecoder> audio_decoder_impl(new AudioDecoder(
-              audio_stream_info, drm_system, enable_flush_during_seek));
-          if (audio_decoder_impl->is_valid()) {
-            return std::unique_ptr<AudioDecoderBase>(
-                std::move(audio_decoder_impl));
+        } else if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
+                   audio_stream_info.codec == kSbMediaAudioCodecOpus) {
+          auto audio_decoder_impl = std::make_unique<AudioDecoder>(
+              audio_stream_info, drm_system, enable_flush_during_seek);
+          if (!audio_decoder_impl->is_valid()) {
+            SB_LOG(ERROR) << "AudioDecoder is not valid.";
+            return nullptr;
           }
+          return audio_decoder_impl;
         }
-        else {
-          SB_LOG(ERROR) << "Unsupported audio codec "
-                        << audio_stream_info.codec;
-        }
+        SB_LOG(ERROR) << "Unsupported audio codec " << audio_stream_info.codec;
         return nullptr;
       };
 
-      audio_components.audio_decoder = std::make_unique<AdaptiveAudioDecoder>(
+      audio_components.decoder = std::make_unique<AdaptiveAudioDecoder>(
           creation_parameters.audio_stream_info(),
           creation_parameters.drm_system(), decoder_creator,
           enable_reset_audio_decoder);
 
       if (tunnel_mode_audio_session_id != -1) {
-        *audio_renderer_sink = TryToCreateTunnelModeAudioRendererSink(
+        audio_components.renderer_sink = TryToCreateTunnelModeAudioRendererSink(
             tunnel_mode_audio_session_id, creation_parameters);
-        if (!*audio_renderer_sink) {
+        if (!audio_components.renderer_sink) {
           tunnel_mode_audio_session_id = -1;
         }
       }
-      if (!*audio_renderer_sink) {
-        audio_renderer_sink->reset(new AudioRendererSinkAndroid());
+      if (!audio_components.renderer_sink) {
+        audio_components.renderer_sink =
+            std::make_unique<AudioRendererSinkAndroid>();
       }
     }
 
+    using ::starboard::shared::starboard::player::filter::VideoComponents;
+    VideoComponents video_components;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      SB_DCHECK(video_decoder);
-      SB_DCHECK(video_render_algorithm);
-      SB_DCHECK(video_renderer_sink);
-      SB_DCHECK(error_message);
       // Set max_video_input_size with a positive value to overwrite
       // MediaFormat.KEY_MAX_INPUT_SIZE. Use 0 as default value.
       int max_video_input_size = creation_parameters.max_video_input_size();
@@ -478,22 +475,28 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         force_secure_pipeline_under_tunnel_mode = false;
       }
 
+      std::string error_message;
       std::unique_ptr<VideoDecoder> video_decoder_impl =
           CreateVideoDecoder(creation_parameters, tunnel_mode_audio_session_id,
                              force_secure_pipeline_under_tunnel_mode,
-                             max_video_input_size, error_message);
+                             max_video_input_size, &error_message);
       if (video_decoder_impl) {
-        *video_render_algorithm = video_decoder_impl->GetRenderAlgorithm();
-        *video_renderer_sink = video_decoder_impl->GetSink();
-        video_decoder->reset(video_decoder_impl.release());
+        video_components.render_algorithm =
+            video_decoder_impl->GetRenderAlgorithm();
+        video_components.renderer_sink = video_decoder_impl->GetSink();
+        video_components.decoder = std::move(video_decoder_impl);
       } else {
-        video_decoder->reset();
-        *video_renderer_sink = NULL;
-        return false;
+        return {
+            .error_message =
+                std::string("Failed to create video decoder: ") + error_message,
+        };
       }
     }
 
-    return true;
+    return {
+        .audio = std::move(audio_components),
+        .video = std::move(video_components),
+    };
   }
 
   void GetAudioRendererParams(const CreationParameters& creation_parameters,
@@ -573,7 +576,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     }
     *error_message =
         "Failed to create video decoder with error: " + *error_message;
-    return std::unique_ptr<VideoDecoder>();
+    return nullptr;
   }
 
   bool IsTunnelModeSupported(const CreationParameters& creation_parameters,

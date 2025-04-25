@@ -34,21 +34,21 @@ class StubPlayerComponentsFactory : public PlayerComponents::Factory {
   SubComponents CreateSubComponents(
       const CreationParameters& creation_parameters) override {
     AudioComponents audio_components;
-    VideoComponents video_components;
-
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       audio_components = CreateStubAudioComponents(creation_parameters);
     }
+    VideoComponents video_components;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
       video_components = CreateStubVideoComponents(creation_parameters);
     }
-    return {.audio = std::move(video_components),
-            .video = std::move(audio_components)};
+    return {.audio = std::move(audio_components),
+            .video = std::move(video_components)};
   }
 
  private:
-  StubPlayerComponentsFactory() {}
+  StubPlayerComponentsFactory() = default;
 
+  // Disallow copy and assign.
   StubPlayerComponentsFactory(const StubPlayerComponentsFactory&) = delete;
   void operator=(const StubPlayerComponentsFactory&) = delete;
 };

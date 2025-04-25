@@ -50,7 +50,7 @@ struct AudioComponents {
 struct VideoComponents {
   std::unique_ptr<VideoDecoder> decoder;
   std::unique_ptr<VideoRenderAlgorithm> render_algorithm;
-  scoped_refptr<VideoRendererSink> renderder_sink;
+  scoped_refptr<VideoRendererSink> renderer_sink;
 };
 
 // This class holds necessary media stack components required by
