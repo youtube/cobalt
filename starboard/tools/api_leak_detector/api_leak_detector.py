@@ -465,7 +465,7 @@ def main():
   allowed_c99_symbols = LoadAllowedC99Symbols()
 
   print(f'Building {config_dir} if necessary...', file=sys.stderr)
-  RunCommand(['ninja', '-j256', '-C', config_path, args.target])
+  RunCommand(['autoninja', '-C', config_path, args.target])
 
   # First try using the GYP shared library path 'lib/libcobalt.so'.
   # TODO(b/211885836): stop considering the GYP shared library path once all
