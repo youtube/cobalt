@@ -136,7 +136,7 @@ sets.
 
 ## Next Steps
 
-*   [Run Telemetry benchmarks locally](/telemetry/docs/run_benchmarks_locally.md)
+*   [Run Telemetry benchmarks locally](telemetry/docs/run_benchmarks_locally.md)
 *   [Record a story set](https://sites.google.com/a/chromium.org/dev/developers/telemetry/record_a_page_set)
     with Web Page Replay
 *   [Feature guidelines](https://sites.google.com/a/chromium.org/dev/developers/telemetry/telemetry-feature-guidelines)

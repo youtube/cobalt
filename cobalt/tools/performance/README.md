@@ -1,7 +1,7 @@
 # Cobalt Performance Test Tooling
 
 This enables automated measurements of Cobalt/Chrobalt & Kimono using some tooling in
-//third_party/catapult/telemetry & //third_party/catapult/devil.
+//third_party/catapult/telemetry.
 
 ## Loading Test Sites
 
@@ -23,23 +23,28 @@ This enables automated measurements of Cobalt/Chrobalt & Kimono using some tooli
     adb shell am force-stop dev.cobalt.coat ; sleep 1 ; adb shell am start --esa commandLineArgs '--remote-allow-origins=*,--url="https://www.youtube.com/tv?automationRoutine=browseWatchRoutine"' dev.cobalt.coat
     ```
 
-## Usage Video Playback
+## Profiling with Telemetry Tooling
 
+ Telemetry tooling enables the necessary tracing categories in the browser. When the browser starts, Telemetry scripts connect to the devtools' socket and send commands over this connection to pull memory dumps (among other things). When Telemetry issues a "stop tracing" command to the browser, all the memory dumps appear as part of the dumped trace (somewhere in the output directory).
 
-### videoplayback_memory_graph
+### Listing out possible benchmarks
 
-This captures PSS & CPU performance.
-This command spits out a `cobalt_performance_data.csv`
-
-```
-vpython3 cobalt/tools/videoplayback_memory_monitor.py --url "https://youtube.com/tv/watch?absolute_experiments=9415422&v=1La4QzGeaaQ" --duration 30
-```
-
-
-### Graphing `cobalt_performance_data.csv`
+An example command for a local build of Cobalt for memory leak detection:
 
 ```
-gnuplot -e "datafile='cobalt_performance_data.csv'; outfile='cobalt_performance_data_8k60.png'; cores=4; mem_total=3869" cobalt/tools/videoplayback_memory_graph.gp
+tools/perf/run_benchmark list \
+--compatibility-mode=dont-require-rooted-device --browser=exact \
+--device="<DEVICE_NAME>" --browser-executable=/path/to/Cobalt.apk
+```
+
+### Running a benchmark
+
+An example command for a local build of Cobalt:
+
+```
+tools/perf/run_benchmark run <NAME_OF_BENCHMARK> \
+--compatibility-mode=dont-require-rooted-device --browser=exact \
+--device="<DEVICE_NAME>" --browser-executable=/path/to/Cobalt.apk
 ```
 
 ### Traces
