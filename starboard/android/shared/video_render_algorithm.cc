@@ -104,6 +104,12 @@ void VideoRenderAlgorithm::Render(
 
     early_us = (adjusted_release_time_ns - system_time_ns) / 1000;
 
+    {
+      ScopedLock lock(mutex_);
+      accumlated_frames_early_us_ += early_us;
+      frames_processed_since_last_update_++;
+    }
+
     if (early_us < kBufferTooLateThreshold) {
       frames->pop_front();
       ++dropped_frames_;
@@ -114,9 +120,6 @@ void VideoRenderAlgorithm::Render(
     } else {
       break;
     }
-    ScopedLock lock(mutex_);
-    accumlated_frames_early_us_ += early_us;
-    frames_processed_since_last_update_++;
   }
 }
 

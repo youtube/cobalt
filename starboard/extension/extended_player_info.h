@@ -15,7 +15,6 @@
 #ifndef STARBOARD_EXTENSION_EXTENDED_PLAYER_INFO_H_
 #define STARBOARD_EXTENSION_EXTENDED_PLAYER_INFO_H_
 
-#include "starboard/media.h"
 #include "starboard/player.h"
 
 #ifdef __cplusplus
@@ -25,7 +24,8 @@ extern "C" {
 #define kStarboardExtensionExtendedPlayerInfoName \
   "dev.starboard.extension.ExtendedPlayerInfo"
 
-// Refer to starboard/player.h for documentation on each field.
+// Refer to SbPlayerInfo in //starboard/player.h for documentation on
+// each field.
 typedef struct StarboardExtensionExtendedPlayerInfo {
   int64_t current_media_timestamp;
   int64_t duration;
@@ -39,7 +39,8 @@ typedef struct StarboardExtensionExtendedPlayerInfo {
   int corrupted_video_frames;
   double playback_rate;
   // The average gap between when a video frame is decoded and when it's
-  // presented in microseconds. This value is reset after every call to PlayerGetInfo().
+  // presented in microseconds. This value is reset after every call to
+  // PlayerGetInfo().
   int64_t last_average_frame_early_us;
 } StarboardExtensionExtendedPlayerInfo;
 

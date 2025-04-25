@@ -54,7 +54,6 @@ DefaultSbPlayerInterface::DefaultSbPlayerInterface() {
   }
 
   DCHECK_EQ(extension_api->name,
-            // Avoid comparing raw string pointers for equal.
             std::string(kStarboardExtensionExtendedPlayerInfoName));
   DCHECK_EQ(extension_api->version, 1u);
   DCHECK_NE(extension_api->PlayerGetInfo, nullptr);

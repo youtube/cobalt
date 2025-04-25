@@ -491,7 +491,7 @@ void FilterBasedPlayerWorkerHandler::Update() {
 
   if (get_player_state_cb_() == kSbPlayerStatePresenting) {
     int dropped_frames = 0;
-    int64_t average_frame_early_us = 0;
+    int64_t average_frame_early_us = -1;
     if (video_renderer_) {
       dropped_frames = video_renderer_->GetDroppedFrames();
       average_frame_early_us =
