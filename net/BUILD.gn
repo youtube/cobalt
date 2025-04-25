@@ -8,6 +8,7 @@ import("//build/config/chromeos/ui_mode.gni")
 import("//build/config/compiler/compiler.gni")
 import("//build/config/cronet/config.gni")
 import("//build/config/features.gni")
+import("//cobalt/build/configs/hacks.gni")
 import("//crypto/features.gni")
 import("//net/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
@@ -1353,9 +1354,9 @@ component("net") {
     }
   }
 
-  if ((is_android || is_chromeos || is_linux) && !is_cobalt_hermetic_build || current_toolchain != host_toolchain) {
+  if ((is_android || is_chromeos || is_linux) && !is_cobalt_hermetic_build) {
     sources += [
-      # "base/network_change_notifier_passive.cc",
+      "base/network_change_notifier_passive.cc",
       "base/network_change_notifier_passive.h",
     ]
   }
@@ -1631,8 +1632,6 @@ component("net") {
   }
 
   if(is_starboard || current_toolchain == host_toolchain) {
-    print("current tc", current_toolchain)
-    print("certs included")
     sources += [
       "cert/test_root_certs_builtin.cc",
       "cert/internal/system_trust_store_starboard.cc"
@@ -1642,7 +1641,12 @@ component("net") {
     sources += [
       "base/network_interfaces_starboard.cc",
       "base/platform_mime_util_starboard.cc",
-      "base/network_change_notifier_starboard.h",
+    ]
+  }
+  if (is_cobalt && is_linux && current_toolchain == host_toolchain) {
+    sources -= [
+      #  # TODO: b/413491685 - Cobalt: Fix errors building host tools.
+      "base/network_change_notifier_passive.cc",
     ]
   }
 }
@@ -2950,7 +2954,7 @@ test("net_unittests") {
   }
 
   if (is_android || is_chromeos_ash) {
-    # sources += [ "base/network_change_notifier_passive_unittest.cc" ]
+    sources += [ "base/network_change_notifier_passive_unittest.cc" ]
   }
 
   if (enable_reporting) {
