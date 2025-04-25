@@ -735,10 +735,6 @@ void HTMLVideoElement::AddedEventListener(
 void HTMLVideoElement::setMaxVideoCapabilities(const String& max_video_capabilities){
   max_video_capabilities_ = max_video_capabilities.Ascii();
 }
-
-std::string HTMLVideoElement::getMaxVideoCapabilities() const {
-  return max_video_capabilities_;
-}
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 bool HTMLVideoElement::IsRemotingInterstitialVisible() const {

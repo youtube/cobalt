@@ -90,7 +90,7 @@ interface InterfaceFactory {
   // - |overlay_plane_id| identifies each StarboardRendererClient.
   // - |audio_write_duration_local| and |audio_write_duration_remote| are used
   //   to customize SbPlayer audio write ahead.
-  // - |max_video_capabilities| is used to set the maximum amount of videos 
+  // - |max_video_capabilities| is used to set the maximum amount of videos
   //   that the SbPlayer can play.
   // - |renderer_extension| is bound in StarboardRenderer, and receives
   //   calls from StarboardRendererClient.

@@ -27,6 +27,7 @@
 #define THIRD_PARTY_BLINK_RENDERER_CORE_HTML_MEDIA_HTML_VIDEO_ELEMENT_H_
 
 #include "third_party/blink/public/common/media/display_type.h"
+#include "third_party/blink/public/platform/web_media_player_client.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/html/canvas/canvas_image_source.h"
 #include "third_party/blink/renderer/core/html/html_image_loader.h"
@@ -162,7 +163,7 @@ class CORE_EXPORT HTMLVideoElement final
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   void setMaxVideoCapabilities(const String& max_video_capabilities);
-  std::string getMaxVideoCapabilities() const;
+  std::string getMaxVideoCapabilities() const override { return max_video_capabilities_; }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
  protected:

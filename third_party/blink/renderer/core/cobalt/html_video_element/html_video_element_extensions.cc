@@ -14,10 +14,6 @@
 
 #include "third_party/blink/renderer/core/cobalt/html_video_element/html_video_element_extensions.h"
 
-#include <string>
-
-#include "media/base/decoder_buffer.h"
-
 #if !BUILDFLAG(USE_STARBOARD_MEDIA)
 #error "This file only works with Starboard media"
 #endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)

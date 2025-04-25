@@ -235,6 +235,9 @@ class BLINK_PLATFORM_EXPORT WebMediaPlayerClient {
   // Returns the DOMNodeId of the DOM element hosting this media player.
   virtual int GetElementId() = 0;
 
+  //Retuns the maxVideoCapabilities of the DOM element hosting this media player.
+  virtual std::string getMaxVideoCapabilities() const {return "";}
+
  protected:
   ~WebMediaPlayerClient() = default;
 };

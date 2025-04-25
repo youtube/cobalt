@@ -47,8 +47,8 @@ class CobaltContentRendererClient : public content::ContentRendererClient {
   bool IsSupportedVideoType(const ::media::VideoType& type) override;
   // JS Injection hook
   void RunScriptsAtDocumentStart(content::RenderFrame* render_frame) override;
-  void GetStarboardRendererFactoryTraits(::media::RendererFactoryTraits* traits,
-                                         int element_id) override;
+  void GetStarboardRendererFactoryTraits(
+      ::media::RendererFactoryTraits* traits) override;
   void PostSandboxInitialized() override;
 
   // Bind Host Receiver to VideoGeometryChangeSubscriber on Browser thread.

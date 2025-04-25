@@ -29,7 +29,7 @@ class CORE_EXPORT HTMLVideoElementExtensions final {
   STATIC_ONLY(HTMLVideoElementExtensions);
 
  public:
-  static void setMaxVideoCapabilities(HTMLVideoElement&,
+  static void setMaxVideoCapabilities(HTMLVideoElement& video_element,
                                       const String& max_video_capabilities);
 };
 

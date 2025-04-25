@@ -443,7 +443,7 @@ blink::WebMediaPlayer* MediaFactory::CreateMediaPlayer(
       render_frame_->GetRenderFrameMediaPlaybackOptions(),
       decoder_factory_.get(),
       std::make_unique<blink::RemotePlaybackClientWrapperImpl>(client),
-      &media_observer, client->GetElementId());
+      &media_observer, client);
 
 #if BUILDFLAG(ENABLE_MEDIA_REMOTING)
   DCHECK(media_observer);
@@ -548,7 +548,7 @@ MediaFactory::CreateRendererFactorySelector(
     media::DecoderFactory* decoder_factory,
     std::unique_ptr<media::RemotePlaybackClientWrapper> client_wrapper,
     base::WeakPtr<media::MediaObserver>* out_media_observer,
-    int element_id) {
+    blink::WebMediaPlayerClient* client) {
   using media::RendererType;
 
   RenderThreadImpl* render_thread = RenderThreadImpl::current();
@@ -573,7 +573,7 @@ MediaFactory::CreateRendererFactorySelector(
       render_frame_, media_log, decoder_factory,
       base::BindRepeating(&RenderThreadImpl::GetGpuFactories,
                           base::Unretained(render_thread)),
-      element_id);
+      client->GetElementId());
   if (factory) {
     is_base_renderer_factory_set = true;
     factory_selector->AddBaseFactory(RendererType::kContentEmbedderDefined,
@@ -620,8 +620,8 @@ MediaFactory::CreateRendererFactorySelector(
 #if BUILDFLAG(ENABLE_MOJO_RENDERER)
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   media::RendererFactoryTraits renderer_factory_traits;
-  GetContentClient()->renderer()->GetStarboardRendererFactoryTraits(&renderer_factory_traits, 
-                                                                    element_id);
+  GetContentClient()->renderer()->GetStarboardRendererFactoryTraits(&renderer_factory_traits);
+  renderer_factory_traits.max_video_capabilities = client->getMaxVideoCapabilities();
   is_base_renderer_factory_set = true;
   factory_selector->AddBaseFactory(RendererType::kStarboard,
     std::make_unique<media::StarboardRendererClientFactory>(media_log,
