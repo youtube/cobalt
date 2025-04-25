@@ -24,10 +24,9 @@
 
 namespace ui {
 
-class PlatformWindowStarboard
-    : public PlatformWindow,
-      public PlatformEventDispatcher,
-      public starboard::PlatformEventObserverStarboard {
+class PlatformWindowStarboard : public PlatformWindow,
+                                public PlatformEventDispatcher,
+                                public PlatformEventObserverStarboard {
  public:
   PlatformWindowStarboard(PlatformWindowDelegate* delegate,
                           const gfx::Rect& bounds);
@@ -36,27 +35,6 @@ class PlatformWindowStarboard
   PlatformWindowStarboard& operator=(const PlatformWindowStarboard&) = delete;
 
   ~PlatformWindowStarboard() override;
-
-  bool CanDispatchEvent(const PlatformEvent& event) override;
-  uint32_t DispatchEvent(const PlatformEvent& event) override;
-
-  bool ShouldUseNativeFrame() const override;
-  void SetUseNativeFrame(bool use_native_frame) override;
-
-  // ui::PlatformEventObserverStarboard interface.
-  void ProcessWindowSizeChangedEvent(int width, int height) override;
-  void SetBoundsInPixels(const gfx::Rect& bounds) override;
-  gfx::Rect GetBoundsInPixels() const override;
-
- protected:
-  PlatformWindowDelegate* delegate() { return delegate_; }
-
- private:
-  enum class ActivationState {
-    kUnknown,
-    kActive,
-    kInactive,
-  };
 
   // PlatformWindow:
   void Show(bool inactive) override;
@@ -85,6 +63,27 @@ class PlatformWindowStarboard
   void SetWindowIcons(const gfx::ImageSkia& window_icon,
                       const gfx::ImageSkia& app_icon) override;
   void SizeConstraintsChanged() override;
+
+  bool CanDispatchEvent(const PlatformEvent& event) override;
+  uint32_t DispatchEvent(const PlatformEvent& event) override;
+
+  bool ShouldUseNativeFrame() const override;
+  void SetUseNativeFrame(bool use_native_frame) override;
+
+  // ui::PlatformEventObserverStarboard interface.
+  void ProcessWindowSizeChangedEvent(int width, int height) override;
+  void SetBoundsInPixels(const gfx::Rect& bounds) override;
+  gfx::Rect GetBoundsInPixels() const override;
+
+ protected:
+  PlatformWindowDelegate* delegate() { return delegate_; }
+
+ private:
+  enum class ActivationState {
+    kUnknown,
+    kActive,
+    kInactive,
+  };
 
   SbWindow sb_window_;
   bool use_native_frame_ = false;

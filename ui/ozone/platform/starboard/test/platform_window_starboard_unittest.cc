@@ -23,38 +23,74 @@
 
 namespace ui {
 namespace {
-class PlatformWindowStarboardTest : public testing::Test {
- public:
-  PlatformWindowStarboardTest() : sb_window_(&delegate_, gfx::Rect(0, 0)) {}
 
-  ~PlatformWindowStarboardTest() = default;
-
-  PlatformWindowStarboard* window() { return &sb_window_; }
-  TestPlatformDelegate delegate() { return delegate_; }
-
- protected:
-  TestPlatformDelegate delegate_;
-
- private:
-  PlatformWindowStarboard sb_window_;
-};
-
-TEST_F(PlatformWindowStarboardTest, CanDispatchEvent) {
-  ui::MouseEvent event(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
-                       ui::EventTimeForNow(), 0, 0);
-  const PlatformEvent& platform_event = &event;
-
-  EXPECT_TRUE(window()->CanDispatchEvent(platform_event));
+// Helper function to create a basic event.
+ui::Event* CreateTestEvent() {
+  return new ui::MouseEvent(ui::ET_MOUSE_PRESSED, gfx::Point(0, 0),
+                            gfx::Point(0, 0), base::TimeTicks::Now(), 0, 0);
 }
 
-TEST_F(PlatformWindowStarboardTest, DispatchEvent) {
-  ui::MouseEvent event(ui::ET_MOUSE_PRESSED, gfx::Point(), gfx::Point(),
-                       ui::EventTimeForNow(), 0, 0);
-  const PlatformEvent& platform_event = &event;
+TEST(PlatformWindowStarboardTest, CreateAndDestroy) {
+  TestPlatformWindowDelegate delegate;
+  constexpr gfx::Rect kBounds(100, 200, 300, 400);
+  std::unique_ptr<ui::PlatformWindowStarboard> window =
+      std::make_unique<ui::PlatformWindowStarboard>(&delegate, kBounds);
 
-  auto result = window()->DispatchEvent(platform_event);
+  // Check initial bounds.
+  EXPECT_EQ(window->GetBoundsInPixels(), kBounds);
+
+  // Destroy the window.
+  window->Close();
+  EXPECT_TRUE(delegate.closed());
+}
+
+TEST(PlatformWindowStarboardTest, SetBoundsInPixels) {
+  TestPlatformWindowDelegate delegate;
+  constexpr gfx::Rect kInitialBounds(100, 200, 300, 400);
+  std::unique_ptr<ui::PlatformWindowStarboard> window =
+      std::make_unique<ui::PlatformWindowStarboard>(&delegate, kInitialBounds);
+
+  constexpr gfx::Rect kNewBounds(150, 250, 350, 450);
+  window->SetBoundsInPixels(kNewBounds);
+
+  EXPECT_EQ(window->GetBoundsInPixels(), kNewBounds);
+  EXPECT_EQ(delegate.bounds_changed_count(), 1);
+
+  // Set the same bounds.  The delegate should still be notified.
+  window->SetBoundsInPixels(kNewBounds);
+  EXPECT_EQ(delegate.bounds_changed_count(), 2);
+}
+
+TEST(PlatformWindowStarboardTest, DispatchEvent) {
+  TestPlatformWindowDelegate delegate;
+  constexpr gfx::Rect kBounds(100, 200, 300, 400);
+  std::unique_ptr<ui::PlatformWindowStarboard> window =
+      std::make_unique<ui::PlatformWindowStarboard>(&delegate, kBounds);
+
+  ui::Event* event = CreateTestEvent();
+  const auto result = window->DispatchEvent(event);
+  const auto dispatched_event_type = delegate.dispatched_event_type();
+  EXPECT_TRUE(dispatched_event_type.has_value());
+  EXPECT_EQ(dispatched_event_type.value(), ui::ET_MOUSE_PRESSED);
+
   EXPECT_EQ(result, ui::POST_DISPATCH_STOP_PROPAGATION);
-  EXPECT_EQ(delegate().GetEventType(), ui::ET_MOUSE_PRESSED);
+
+  delete event;
+}
+
+TEST(PlatformWindowStarboardTest, ProcessWindowSizeChangedEvent) {
+  TestPlatformWindowDelegate delegate;
+  constexpr gfx::Rect kInitial_bounds(100, 200, 300, 400);
+  std::unique_ptr<ui::PlatformWindowStarboard> window =
+      std::make_unique<ui::PlatformWindowStarboard>(&delegate, kInitial_bounds);
+
+  constexpr int kNewWidth = 500;
+  constexpr int kNewHeight = 600;
+  window->ProcessWindowSizeChangedEvent(kNewWidth, kNewHeight);
+
+  constexpr gfx::Rect kExpected_bounds(100, 200, 500, 600);
+  EXPECT_EQ(window->GetBoundsInPixels(), kExpected_bounds);
+  EXPECT_EQ(delegate.bounds_changed_count(), 1);
 }
 }  // namespace
 }  // namespace ui

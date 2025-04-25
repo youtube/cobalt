@@ -42,7 +42,7 @@ PlatformWindowStarboard::PlatformWindowStarboard(
 
   if (PlatformEventSource::GetInstance()) {
     PlatformEventSource::GetInstance()->AddPlatformEventDispatcher(this);
-    static_cast<starboard::PlatformEventSourceStarboard*>(
+    static_cast<PlatformEventSourceStarboard*>(
         PlatformEventSource::GetInstance())
         ->AddPlatformEventObserverStarboard(this);
   }
@@ -55,7 +55,7 @@ PlatformWindowStarboard::~PlatformWindowStarboard() {
 
   if (PlatformEventSource::GetInstance()) {
     PlatformEventSource::GetInstance()->RemovePlatformEventDispatcher(this);
-    static_cast<starboard::PlatformEventSourceStarboard*>(
+    static_cast<PlatformEventSourceStarboard*>(
         PlatformEventSource::GetInstance())
         ->RemovePlatformEventObserverStarboard(this);
   }

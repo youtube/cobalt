@@ -36,7 +36,7 @@
 #include "starboard/event.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 
-using starboard::PlatformEventSourceStarboard;
+using ui::PlatformEventSourceStarboard;
 
 namespace {
 
