@@ -27,9 +27,6 @@ declare_args() {
   use_asan = false
 }
 
-# TODO(b/371263047): Resolve issues and build evergreen.
-enable_evergreen_code = false
-
 # TODO(b/371606611): Build test targets with cobalt toolchain
 enable_test_targets = false
 
