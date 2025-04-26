@@ -119,3 +119,7 @@ void SbEventHandle(const SbEvent* event) {
 
   SB_CHECK(pthread_mutex_unlock(&mutex) == 0);
 }
+
+int main(int argc, char** argv) {
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
+}

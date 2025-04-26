@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/config/os_definitions.gni")
 
 _elf_loader_sources = [
@@ -114,8 +115,10 @@ if (current_toolchain == starboard_toolchain) {
       "//starboard/content/fonts:copy_font_data",
     ]
 
-    if (!sb_is_evergreen_compatible) {
+    if (!sb_is_evergreen_compatible || enable_cobalt_hermetic_hacks) {
       deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
+    } else {
+      deps += [ "//starboard/crashpad_wrapper" ]
     }
     if (sb_is_evergreen_compatible && sb_evergreen_compatible_package) {
       deps += [ "//starboard/loader_app:copy_crashpad_handler_named_as_so" ]
