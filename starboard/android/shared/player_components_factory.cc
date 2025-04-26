@@ -217,13 +217,13 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       MimeType audio_mime_type(creation_parameters.audio_mime());
       if (!audio_mime_type.is_valid() ||
           !audio_mime_type.ValidateBoolParameter("audiopassthrough")) {
-        return std::unique_ptr<PlayerComponents>();
+        return nullptr;
       }
 
       if (!audio_mime_type.GetParamBoolValue("audiopassthrough", true)) {
         SB_LOG(INFO) << "Mime attribute \"audiopassthrough\" is set to: "
                         "false. Passthrough is disabled.";
-        return std::unique_ptr<PlayerComponents>();
+        return nullptr;
       }
     }
 
@@ -696,7 +696,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         << creation_parameters.audio_stream_info().number_of_channels
         << ", audio format:" << creation_parameters.audio_codec()
         << ", and audio buffer frames:" << max_cached_frames;
-    return std::unique_ptr<AudioRendererSink>();
+    return nullptr;
   }
 };
 
