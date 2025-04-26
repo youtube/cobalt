@@ -229,7 +229,7 @@ static_library("starboard_platform") {
     "platform_info.cc",
     "platform_info.h",
     "platform_service.cc",
-    "player_components_factory.h",
+    "player_components_factory.cc",
     "player_create.cc",
     "player_destroy.cc",
     "player_get_maximum_number_of_samples_per_write.cc",
