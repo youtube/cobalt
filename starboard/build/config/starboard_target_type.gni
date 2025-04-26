@@ -64,12 +64,6 @@ template("starboard_platform_target") {
       "//starboard/common",
       "//starboard/egl_and_gles",
     ]
-    if (sb_is_evergreen_compatible &&
-        current_toolchain == starboard_toolchain && enable_evergreen_code) {
-      public_deps += [ "//starboard/crashpad_wrapper" ]
-    } else {
-      public_deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
-    }
     if (!sb_is_evergreen) {
       public_deps += [ "//$starboard_path:starboard_platform" ]
     }
