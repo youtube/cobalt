@@ -72,13 +72,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       typedef ::starboard::shared::libfdkaac::FdkAacAudioDecoder
           FdkAacAudioDecoder;
 
-      auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
-                                SbDrmSystem drm_system) {
+      auto decoder_creator =
+          [](const media::AudioStreamInfo& audio_stream_info,
+             SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           std::unique_ptr<OpusAudioDecoder> audio_decoder_impl(
               new OpusAudioDecoder(audio_stream_info));
           if (audio_decoder_impl->is_valid()) {
-            return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
+            return audio_decoder_impl;
           } else {
             SB_LOG(ERROR) << "Failed to create audio decoder for codec "
                           << audio_stream_info.codec;
@@ -88,7 +89,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                        FdkAacAudioDecoder::kMaxChannels &&
                    libfdkaac::LibfdkaacHandle::GetHandle()->IsLoaded()) {
           SB_LOG(INFO) << "Playing audio using FdkAacAudioDecoder.";
-          return std::unique_ptr<AudioDecoder>(new FdkAacAudioDecoder());
+          return std::make_unique<FdkAacAudioDecoder>();
         } else {
           std::unique_ptr<FfmpegAudioDecoder> audio_decoder_impl(
               FfmpegAudioDecoder::Create(audio_stream_info));
