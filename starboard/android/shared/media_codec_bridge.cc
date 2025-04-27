@@ -172,7 +172,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
       SupportedAudioCodecToMimeType(audio_stream_info.codec, &is_passthrough);
   if (!mime) {
     SB_LOG(ERROR) << "Unsupported codec " << audio_stream_info.codec << ".";
-    return nullptr
+    return nullptr;
   }
 
   std::string decoder_name =
@@ -182,7 +182,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   if (decoder_name.empty()) {
     SB_LOG(ERROR) << "Failed to find decoder for " << audio_stream_info.codec
                   << ".";
-    return nullptr
+    return nullptr;
   }
 
   if (MediaCodecBridgeEradicator::GetInstance()->IsEnabled()) {
@@ -196,7 +196,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
           "leakage happened. Type = Audio",
           MediaCodecBridgeEradicator::GetInstance()->GetTimeoutSeconds());
       handler->OnMediaCodecError(false, false, diagnostic_info_in_str);
-      return nullptr
+      return nullptr;
     }
   }
 
@@ -228,7 +228,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
   if (!j_media_codec_bridge) {
     SB_LOG(ERROR) << "Failed to create codec bridge for "
                   << audio_stream_info.codec << ".";
-    return nullptr
+    return nullptr;
   }
 
   native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
@@ -261,7 +261,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
   const char* mime = SupportedVideoCodecToMimeType(video_codec);
   if (!mime) {
     *error_message = FormatString("Unsupported mime for codec %d", video_codec);
-    return nullptr
+    return nullptr;
   }
 
   const bool must_support_secure = require_secured_decoder;
@@ -302,7 +302,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     *error_message =
         FormatString("Failed to find decoder: %s, mustSupportSecure: %d.", mime,
                      !!j_media_crypto);
-    return nullptr
+    return nullptr;
   }
 
   if (MediaCodecBridgeEradicator::GetInstance()->IsEnabled()) {
@@ -315,7 +315,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
           "MediaCodec destruction timeout: %d seconds, potential thread "
           "leakage happened. Type = Video",
           MediaCodecBridgeEradicator::GetInstance()->GetTimeoutSeconds());
-      return nullptr
+      return nullptr;
     }
   }
 
@@ -378,7 +378,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
         Java_CreateMediaCodecBridgeResult_errorMessage(
             env, j_create_media_codec_bridge_result));
     *error_message = ConvertJavaStringToUTF8(env, j_error_message);
-    return nullptr
+    return nullptr;
   }
 
   native_media_codec_bridge->Initialize(j_media_codec_bridge.obj());
