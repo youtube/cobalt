@@ -175,6 +175,8 @@ class PlayerComponentsPassthrough
   std::unique_ptr<VideoRenderer> video_renderer_;
 };
 
+// TODO: Invesigate if the implementation of member functions should be moved
+//       into .cc file.
 class PlayerComponentsFactory : public starboard::shared::starboard::player::
                                     filter::PlayerComponents::Factory {
   typedef starboard::shared::starboard::media::MimeType MimeType;
@@ -541,21 +543,20 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       // Use mime param to determine endianness of HDR metadata. If param is
       // missing or invalid it defaults to Little Endian.
       MimeType video_mime_type(creation_parameters.video_mime());
-      if (video_mime_type.ValidateStringParameter("hdrinfoendianness",
-                                                  "big|little")) {
-        const std::string& hdr_info_endianness =
-            video_mime_type.GetParamStringValue("hdrinfoendianness",
-                                                /*default=*/"little");
-        force_big_endian_hdr_metadata = hdr_info_endianness == "big";
-      }
-      if (video_mime_type.ValidateBoolParameter("enableflushduringseek")) {
-        enable_flush_during_seek =
-            video_mime_type.GetParamBoolValue("enableflushduringseek", false);
-      }
-      if (video_mime_type.ValidateBoolParameter("forceresetsurface")) {
-        force_reset_surface =
-            video_mime_type.GetParamBoolValue("forceresetsurface", true);
-      }
+      video_mime_type.ValidateStringParameter("hdrinfoendianness",
+                                              "big|little");
+      const std::string& hdr_info_endianness =
+          video_mime_type.GetParamStringValue("hdrinfoendianness",
+                                              /*default=*/"little");
+      force_big_endian_hdr_metadata = hdr_info_endianness == "big";
+
+      video_mime_type.ValidateBoolParameter("enableflushduringseek");
+      enable_flush_during_seek =
+          video_mime_type.GetParamBoolValue("enableflushduringseek", false);
+
+      video_mime_type.ValidateBoolParameter("forceresetsurface");
+      force_reset_surface =
+          video_mime_type.GetParamBoolValue("forceresetsurface", true);
     }
     if (kForceFlushDecoderDuringReset && !enable_flush_during_seek) {
       SB_LOG(INFO)
@@ -706,41 +707,5 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
-
-namespace starboard::shared::starboard::player::filter {
-
-// static
-std::unique_ptr<PlayerComponents::Factory> PlayerComponents::Factory::Create() {
-  return std::unique_ptr<PlayerComponents::Factory>(
-      new android::shared::PlayerComponentsFactory);
-}
-
-// static
-bool PlayerComponents::Factory::OutputModeSupported(
-    SbPlayerOutputMode output_mode,
-    SbMediaVideoCodec codec,
-    SbDrmSystem drm_system) {
-  using ::starboard::android::shared::DrmSystem;
-
-  if (output_mode == kSbPlayerOutputModePunchOut) {
-    return true;
-  }
-
-  if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
-    if (!SbDrmSystemIsValid(drm_system)) {
-      return true;
-    }
-    DrmSystem* android_drm_system = static_cast<DrmSystem*>(drm_system);
-    bool require_secure_decoder = android_drm_system->require_secured_decoder();
-    SB_LOG_IF(INFO, require_secure_decoder)
-        << "Output mode under decode-to-texture is not supported due to secure "
-           "decoder is required.";
-    return !require_secure_decoder;
-  }
-
-  return false;
-}
-
-}  // namespace starboard::shared::starboard::player::filter
 
 #endif  // STARBOARD_ANDROID_SHARED_PLAYER_COMPONENTS_FACTORY_H_

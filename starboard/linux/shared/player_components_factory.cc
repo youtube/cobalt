@@ -100,7 +100,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                           << audio_stream_info.codec;
           }
         }
-        return std::unique_ptr<AudioDecoder>();
+        return nullptr
       };
 
       audio_decoder->reset(new AdaptiveAudioDecoder(
