@@ -28,16 +28,17 @@ import on_device_tests_gateway_pb2_grpc
 
 _WORK_DIR = '/on_device_tests_gateway'
 
-# For local testing, set: _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = ('localhost')
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
     'on-device-tests-gateway-service.on-device-tests.svc.cluster.local')
+# When testing with local gateway, uncomment:
+# _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = ('localhost')
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 
 # These paths are hardcoded in various places. DO NOT CHANGE!
 _DIR_ON_DEVICE = '/sdcard/Download'
 _DEPS_ARCHIVE = '/sdcard/chromium_tests_root/deps.tar.gz'
 
-# Any test run that fails or produces infra error will be retried.
+# Any test run that fails due to infra error will be retried.
 _DEFAULT_RETRY_LEVEL = 'ERROR'
 
 
