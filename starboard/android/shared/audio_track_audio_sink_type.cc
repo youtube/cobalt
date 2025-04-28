@@ -129,9 +129,8 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       consume_frames_func_(consume_frames_func),
       error_func_(error_func),
       start_time_(start_time),
-      tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       max_frames_per_request_(
-          tunnel_mode_audio_session_id_ == -1
+          tunnel_mode_audio_session_id == -1
               ? kMaxFramesPerRequest
               : GetMaxFramesPerRequestForTunnelMode(sampling_frequency_hz_)),
       context_(context),

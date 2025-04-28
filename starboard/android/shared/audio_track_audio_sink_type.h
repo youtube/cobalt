@@ -149,7 +149,6 @@ class AudioTrackAudioSink
   const ConsumeFramesFunc consume_frames_func_;
   const SbAudioSinkPrivate::ErrorFunc error_func_;
   const int64_t start_time_;  // microseconds
-  const int tunnel_mode_audio_session_id_;
   const int max_frames_per_request_;
   void* const context_;
 
