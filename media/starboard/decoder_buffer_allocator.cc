@@ -16,12 +16,16 @@
 
 #include <algorithm>
 
+#include "base/feature_list.h"
 #include "base/logging.h"
+#include "media/base/media_switches.h"
 #include "media/base/video_codecs.h"
 #include "media/starboard/decoder_buffer_allocator_strategy.h"
 #include "media/starboard/starboard_utils.h"
 #include "starboard/common/allocator.h"
+#include "starboard/common/in_place_reuse_allocator_base.h"
 #include "starboard/common/log.h"
+#include "starboard/common/reuse_allocator_base.h"
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 
@@ -215,8 +219,19 @@ void DecoderBufferAllocator::EnsureStrategyIsCreated() {
     return;
   }
 
-  strategy_.reset(new BidirectionalFitDecoderBufferAllocatorStrategy(
-      initial_capacity_, allocation_unit_));
+  if (base::FeatureList::IsEnabled(
+          kCobaltDecoderBufferAllocatorWithInPlaceMetadata)) {
+    strategy_.reset(new BidirectionalFitDecoderBufferAllocatorStrategy<
+                    starboard::common::InPlaceReuseAllocatorBase>(
+        initial_capacity_, allocation_unit_));
+    LOG(INFO) << "DecoderBufferAllocator is using InPlaceReuseAllocatorBase.";
+  } else {
+    strategy_.reset(new BidirectionalFitDecoderBufferAllocatorStrategy<
+                    starboard::common::ReuseAllocatorBase>(initial_capacity_,
+                                                           allocation_unit_));
+    LOG(INFO) << "DecoderBufferAllocator is using ReuseAllocatorBase.";
+  }
+
   LOG(INFO) << "Allocated " << initial_capacity_
             << " bytes for media buffer pool.";
 }
