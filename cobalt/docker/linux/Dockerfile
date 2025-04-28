@@ -7,7 +7,9 @@ FROM marketplace.gcr.io/google/debian12@${BASE_IMAGE_SHA}
 # V8 snapshot binary, on X11/GTK builds
 #     gcc-multilib  for cross-builds of v8/32bit arm
 RUN apt-get update && apt-get install -y \
-    curl python3-dev git \
+    curl \
+    python3-dev \
+    git \
     xz-utils \
     pkgconf \
     libglib2.0-0 \

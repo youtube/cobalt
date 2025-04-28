@@ -14,7 +14,7 @@
 
 #include <algorithm>
 
-#include "starboard/android/shared/application_android.h"
+#include "starboard/android/shared/runtime_resource_overlay.h"
 #include "starboard/common/log.h"
 #include "starboard/media.h"
 
@@ -24,8 +24,9 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int bits_per_pixel) {
   constexpr int kMaxVideoBufferBudget = 300 * 1024 * 1024;
   auto get_overlaid_video_buffer_budget = []() {
-    int buffer_budget = starboard::android::shared::ApplicationAndroid::Get()
-                            ->GetOverlaidIntValue("max_video_buffer_budget");
+    int buffer_budget =
+        starboard::android::shared::RuntimeResourceOverlay::GetInstance()
+            ->max_video_buffer_budget();
     if (buffer_budget == 0) {
       return kMaxVideoBufferBudget;
     }

@@ -18,14 +18,14 @@
 #include <atomic>
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
+#include "starboard/android/shared/runtime_resource_overlay.h"
 #include "starboard/android/shared/starboard_bridge.h"
+#include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
-#include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/queue_application.h"
 #include "starboard/types.h"
 
@@ -33,7 +33,7 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-using ::starboard::shared::starboard::CommandLine;
+using ::starboard::CommandLine;
 
 class ApplicationAndroid
     : public ::starboard::shared::starboard::QueueApplication {
@@ -47,24 +47,6 @@ class ApplicationAndroid
   }
 
   int64_t app_start_with_android_fix() { return app_start_timestamp_; }
-
-  // Methods to initialize and cache the Runtime Resource Overlay variables.
-  // All RRO variables which can be retrieved here must be defined
-  // in res/values/rro_variables.xml and be loaded in
-  // dev/cobalt/coat/ResourceOverlay.java.
-  void InitializeAndCacheResourceOverlayVariables();
-
-  // These functions could be called by any thread. Return cache
-  // Overlaid{Int,String,Bool}Value.
-  int GetOverlaidIntValue(const char* var_name) const;
-  std::string GetOverlaidStringValue(const char* var_name) const;
-  bool GetOverlaidBoolValue(const char* var_name) const;
-
-  // Cache Overlaid{Int,String,Bool}Value and they should
-  // be called on the thread as ApplicationAndroid() is created on.
-  void CacheOverlaidIntValue(jobject resource_overlay, const char* var_name);
-  void CacheOverlaidStringValue(jobject resource_overlay, const char* var_name);
-  void CacheOverlaidBoolValue(jobject resource_overlay, const char* var_name);
 
  protected:
   // --- QueueApplication overrides ---
@@ -80,11 +62,6 @@ class ApplicationAndroid
   // with it's lifecycle management.
   const raw_ptr<StarboardBridge> starboard_bridge_ =
       StarboardBridge::GetInstance();
-
-  // Cache Runtime Resource Overlay variables.
-  std::unordered_map<std::string, bool> overlaid_bool_variables_;
-  std::unordered_map<std::string, int> overlaid_int_variables_;
-  std::unordered_map<std::string, std::string> overlaid_string_variables_;
 
   int64_t app_start_timestamp_ = 0;
 };

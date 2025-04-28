@@ -1641,6 +1641,14 @@ component("net") {
       "base/network_interfaces_starboard.cc",
       "base/platform_mime_util_starboard.cc",
       "base/network_change_notifier_starboard.h",
+      "base/network_change_notifier_passive_starboard_stub.cc",
+      "proxy_resolution/proxy_config_service_linux_starboard_stub.cc"
+    ]
+  }
+  if (is_cobalt && is_linux && current_toolchain == host_toolchain) {
+    sources -= [
+      #  # TODO: b/413491685 - Cobalt: Fix errors building host tools.
+      "base/network_change_notifier_passive.cc",
     ]
   }
 }

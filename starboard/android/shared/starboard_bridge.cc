@@ -22,11 +22,11 @@
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/log_internal.h"
+#include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
 #include "starboard/common/time.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
-#include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/log_mutex.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -166,6 +166,11 @@ void StarboardBridge::Initialize(JNIEnv* env, jobject obj) {
 long StarboardBridge::GetAppStartTimestamp(JNIEnv* env) {
   SB_DCHECK(env);
   return Java_StarboardBridge_getAppStartTimestamp(env, j_starboard_bridge_);
+}
+
+long StarboardBridge::GetAppStartDuration(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_getAppStartDuration(env, j_starboard_bridge_);
 }
 
 void StarboardBridge::ApplicationStarted(JNIEnv* env) {
