@@ -13,8 +13,7 @@ runs:
       - name: Bootstrap bundled python3
         run: |
           # Must be run manually as $DEPOT_TOOLS_UPDATE is 0 in CI, skipping the bootstrap.
-          source depot_tools/bootstrap_python3
-          bootstrap_python3
+          source depot_tools/bootstrap_python3 && bootstrap_python3
         shell: bash
       - name: Add depot tools to PATH
         run: echo "$GITHUB_WORKSPACE/depot_tools" >> $GITHUB_PATH
