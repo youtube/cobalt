@@ -139,6 +139,13 @@ jobs:
           set -x
           test_dimensions=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_dimensions')
           echo "test_dimensions=${test_dimensions}" >> $GITHUB_OUTPUT
+      - name: Set test attempts
+        id: set-test-attempts
+        shell: bash
+        run: |
+          set -x
+          test_attempts=$(cat ${GITHUB_WORKSPACE}/.github/config/${{ inputs.platform }}.json | jq -rc '.test_attempts // empty')
+          echo "test_attempts=${test_attempts}" >> $GITHUB_OUTPUT
       - name: Set number of on-host unit test shards
         id: set-gtest-shards
         shell: bash
@@ -163,6 +170,7 @@ jobs:
       web_tests: ${{ steps.set-web-tests.outputs.web_tests }}
       test_root_target: ${{ steps.set-test-root-target.outputs.test_root_target }}
       test_dimensions: ${{ steps.set-test-dimensions.outputs.test_dimensions }}
+      test_attempts: ${{ steps.set-test-attempts.outputs.test_attempts }}
       num_gtest_shards: ${{ steps.set-gtest-shards.outputs.num_gtest_shards }}
 
   # Builds, tags, and pushes Cobalt docker build images to ghr.
@@ -327,6 +335,7 @@ jobs:
         config: [devel]
     env:
       TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
+      TEST_ATTEMPTS: ${{ needs.initialize.outputs.test_attempts }}
     steps:
       - name: Restore CI Essentials
         uses: actions/download-artifact@v4
