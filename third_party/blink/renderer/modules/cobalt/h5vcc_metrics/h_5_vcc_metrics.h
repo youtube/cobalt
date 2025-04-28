@@ -72,7 +72,6 @@ class MODULES_EXPORT H5vccMetrics final
  private:
   void OnEnable(ScriptPromiseResolver* resolver);
   void OnDisable(ScriptPromiseResolver* resolver);
-  void OnIsEnabled(ScriptPromiseResolver* resolver, bool result);
   void OnSetMetricEventInterval(ScriptPromiseResolver* resolver);
 
   void EnsureReceiverIsBound();
