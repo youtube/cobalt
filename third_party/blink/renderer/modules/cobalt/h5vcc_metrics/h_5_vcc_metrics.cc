@@ -109,10 +109,6 @@ void H5vccMetrics::OnDisable(ScriptPromiseResolver* resolver) {
   resolver->Resolve();
 }
 
-void H5vccMetrics::OnIsEnabled(ScriptPromiseResolver* resolver, bool result) {
-  resolver->Resolve(result);
-}
-
 void H5vccMetrics::OnSetMetricEventInterval(ScriptPromiseResolver* resolver) {
   resolver->Resolve();
 }
