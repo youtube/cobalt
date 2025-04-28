@@ -56,6 +56,7 @@ source_set("browser") {
     "//cobalt/browser/migrate_storage_record",
     "//cobalt/browser/performance",
     "//cobalt/browser/performance/public/mojom",
+    "//cobalt/browser/storage_partition",
     "//cobalt/media/service",
     "//cobalt/media/service/mojom",
     "//cobalt/user_agent",

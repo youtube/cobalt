@@ -29,6 +29,8 @@ class CobaltWebContentsObserver : public content::WebContentsObserver {
   void PrimaryMainDocumentElementAvailable() override;
   void DidFinishNavigation(
       content::NavigationHandle* navigation_handle) override;
+  void RenderFrameDeleted(content::RenderFrameHost* render_frame_host) override;
+  void WebContentsDestroyed() override;
 
  private:
   void RegisterInjectedJavaScript();

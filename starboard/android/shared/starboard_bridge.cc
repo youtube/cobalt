@@ -19,6 +19,8 @@
 #include "base/strings/string_number_conversions.h"
 #include "cobalt/browser/client_hint_headers/cobalt_header_value_provider.h"
 #include "cobalt/browser/h5vcc_runtime/deep_link_manager.h"
+#include "cobalt/browser/storage_partition/storage_partition_utils.h"
+#include "services/network/public/mojom/cookie_manager.mojom.h"
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/log_internal.h"
@@ -148,6 +150,11 @@ JNI_StarboardBridge_SetAndroidBuildFingerprint(
   header_value_provider->SetHeaderValue(
       "Sec-CH-UA-Co-Android-Build-Fingerprint",
       base::android::ConvertJavaStringToUTF8(env, fingerprint));
+}
+
+extern "C" SB_EXPORT_PLATFORM void JNI_StarboardBridge_FlushStoragePartition(
+    JNIEnv* env) {
+  cobalt::browser::StoragePartitionUtils::GetInstance()->Flush();
 }
 
 // StarboardBridge::GetInstance() should not be inlined in the
