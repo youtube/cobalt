@@ -19,7 +19,7 @@
     Exposed=Window,
     SecureContext
 ]
-interface H5vccMetrics {
+interface H5vccMetrics : EventTarget {
   // "Interface for web client to bind an event handler that will be invoked
   // every time Cobalt wants to upload a metrics payload. Only one event
   // handler callback can be registered at any time. Duplicate calls to
