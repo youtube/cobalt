@@ -195,8 +195,6 @@ TEST_F(PosixEpollTest, SunnyDayWaitTimeout) {
 
 TEST_F(PosixEpollTest, SunnyDayWait) {
   struct sockaddr_in dest;
-
-  char buffer[kMaxBuf];
   struct epoll_event events[kMaxEvents];
   int i, num_ready;
 
@@ -228,17 +226,16 @@ TEST_F(PosixEpollTest, SunnyDayWait) {
 
   // Wait to receive data from connected socket
   num_ready = epoll_wait(epfd, events, kMaxEvents, 1000);
-  bool data_recieved = false;
+  bool data_received = false;
   for (i = 0; i < num_ready; i++) {
     if (events[i].events & EPOLLIN) {
       SB_LOG(INFO) << "Socket " << events[i].data.fd << " receiving data";
-      memset(buffer, 0, kMaxBuf);
       recvfrom(socket_fd, receive_buf, kMaxBuf, 0, 0, 0);
       SB_LOG(INFO) << "Received.";
-      data_recieved = true;
+      data_received = true;
     }
   }
-  EXPECT_TRUE(data_recieved) << "No data read from socket";
+  EXPECT_TRUE(data_received) << "No data read from socket";
 }
 
 }  // namespace
