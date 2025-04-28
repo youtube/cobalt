@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import("//cobalt/build/configs/hacks.gni")
 import("//starboard/build/config/os_definitions.gni")
 import("//third_party/protobuf/proto_library.gni")
 
@@ -33,11 +34,17 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       ":reset_evergreen_update",
       ":slot_management",
       "//starboard:starboard_group",
+      "//starboard/common:common_headers_only",
       "//starboard/crashpad_wrapper",
       "//starboard/elf_loader:constants",
       "//starboard/elf_loader:evergreen_info",
       "//starboard/elf_loader:sabi_string",
     ]
+
+    if (enable_cobalt_hermetic_hacks) {
+      public_deps -= [ "//starboard/crashpad_wrapper" ]
+      public_deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
+    }
   }
 }
 
@@ -289,7 +296,8 @@ static_library("slot_management") {
     "//third_party/jsoncpp:jsoncpp",
   ]
 
-  if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
+  if (sb_is_evergreen_compatible && !enable_cobalt_hermetic_hacks &&
+      current_toolchain == starboard_toolchain) {
     deps += [ "//starboard/crashpad_wrapper" ]
   } else {
     deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
@@ -347,7 +355,10 @@ if (sb_is_evergreen_compatible && current_toolchain == starboard_toolchain) {
       "reset_evergreen_update.cc",
       "reset_evergreen_update.h",
     ]
-    deps = [ "//starboard:starboard_group" ]
+    deps = [
+      "//starboard:starboard_group",
+      "//starboard/common:common",
+    ]
   }
 
   source_set("reset_evergreen_update_test") {
