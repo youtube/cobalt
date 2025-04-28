@@ -145,7 +145,7 @@ def _process_test_requests(args):
     ]
     if args.test_attempts:
       tests_args.append(f'test_attempts={args.test_attempts}')
-    tests_args.append(f'retry_level={_DEFAULT_RETRY_LEVEL}')
+      tests_args.append(f'retry_level={_DEFAULT_RETRY_LEVEL}')
 
     if args.dimensions:
       dimensions = json.loads(args.dimensions)
@@ -165,6 +165,9 @@ def _process_test_requests(args):
     params = []
     if args.gcs_result_path:
       params.append(f'gcs_result_path={args.gcs_result_path}')
+    if args.test_attempts:
+      # Must delete existing results when retries are enabled.
+      params.append('gcs_delete_before_upload=true')
     params += [
         f'push_files=test_runtime_deps:{_DEPS_ARCHIVE}',
         f'gtest_xml_file_on_device={_DIR_ON_DEVICE}/{target_name}_testoutput.xml',  # pylint:disable=line-too-long
