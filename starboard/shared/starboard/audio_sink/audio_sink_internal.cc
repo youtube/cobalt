@@ -16,10 +16,10 @@
 
 #include <functional>
 
+#include "starboard/common/command_line.h"
 #include "starboard/common/log.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/stub_audio_sink_type.h"
-#include "starboard/shared/starboard/command_line.h"
 
 namespace starboard {
 namespace shared {

@@ -66,7 +66,7 @@ if (!is_cobalt) {
     }
 
     if (!sb_is_evergreen) {
-      if (sb_is_evergreen_compatible && enable_evergreen_code) {
+      if (sb_is_evergreen_compatible) {
         deps += [
           "//starboard/elf_loader:elf_loader_test_install($starboard_toolchain)",
           "//starboard/loader_app:installation_manager_test_install($starboard_toolchain)",
@@ -94,7 +94,7 @@ if (!is_cobalt) {
       ":starboard_group",
       "//starboard/tools:build_app_launcher_zip",
     ]
-    if (sb_is_evergreen_compatible && enable_evergreen_code) {
+    if (sb_is_evergreen_compatible) {
       deps += [
         "//starboard/loader_app($starboard_toolchain)",
         "//third_party/crashpad/crashpad/handler:crashpad_handler(//$starboard_path/toolchain:native_target)",
@@ -134,16 +134,6 @@ if (is_cobalt_hermetic_build) {
     # TODO: b/295702296 Fix libunwind for modular builds.
     if (sb_is_evergreen) {
       public_deps += [ "//third_party/llvm-project/libunwind:unwind" ]
-    }
-    if (enable_evergreen_code) {
-      if (!sb_is_modular || sb_is_evergreen) {
-        if (sb_is_evergreen_compatible &&
-            current_toolchain == starboard_toolchain) {
-          public_deps += [ "//starboard/crashpad_wrapper" ]
-        } else {
-          public_deps += [ "//starboard/crashpad_wrapper:wrapper_stub" ]
-        }
-      }
     }
   }
 } else {

@@ -7,6 +7,27 @@
 #include "cc/test/cc_test_suite.h"
 #include "mojo/core/embedder/embedder.h"
 
+#if BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+#include "base/test/allow_check_is_test_for_testing.h"
+#include "starboard/client_porting/wrap_main/wrap_main.h"
+
+static int InitAndRunAllTests(int argc, char** argv) {
+  base::test::AllowCheckIsTestForTesting();
+  mojo::core::Init();
+  return cc::CCTestSuite(argc, argv).Run();
+}
+
+// For the Starboard OS define SbEventHandle as the entry point
+SB_EXPORT STARBOARD_WRAP_SIMPLE_MAIN(InitAndRunAllTests);
+
+#if !SB_IS(EVERGREEN)
+// Define main() for non-Evergreen Starboard OS.
+int main(int argc, char** argv) {
+  mojo::core::Init();
+  return SbRunStarboardMain(argc, argv, SbEventHandle);
+}
+#endif  // !SB_IS(EVERGREEN)
+#else
 int main(int argc, char** argv) {
   cc::CCTestSuite test_suite(argc, argv);
 
@@ -16,3 +37,4 @@ int main(int argc, char** argv) {
       argc, argv,
       base::BindOnce(&cc::CCTestSuite::Run, base::Unretained(&test_suite)));
 }
+#endif // BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
