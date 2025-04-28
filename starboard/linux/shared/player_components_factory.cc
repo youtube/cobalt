@@ -79,7 +79,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           std::unique_ptr<OpusAudioDecoder> audio_decoder_impl(
               new OpusAudioDecoder(audio_stream_info));
           if (audio_decoder_impl->is_valid()) {
-            return audio_decoder_impl;
+            return std::unique_ptr<AudioDecoder>(std::move(audio_decoder_impl));
           } else {
             SB_LOG(ERROR) << "Failed to create audio decoder for codec "
                           << audio_stream_info.codec;
@@ -89,7 +89,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                        FdkAacAudioDecoder::kMaxChannels &&
                    libfdkaac::LibfdkaacHandle::GetHandle()->IsLoaded()) {
           SB_LOG(INFO) << "Playing audio using FdkAacAudioDecoder.";
-          return std::make_unique<FdkAacAudioDecoder>();
+          return std::unique_ptr<AudioDecoder>(new FdkAacAudioDecoder());
         } else {
           std::unique_ptr<FfmpegAudioDecoder> audio_decoder_impl(
               FfmpegAudioDecoder::Create(audio_stream_info));
