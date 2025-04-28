@@ -30,8 +30,6 @@ source_set("browser") {
     "cobalt_web_contents_delegate.h",
     "cobalt_web_contents_observer.cc",
     "cobalt_web_contents_observer.h",
-    "global_features.cc",
-    "global_features.h",
   ]
 
   if (is_androidtv) {
@@ -43,6 +41,7 @@ source_set("browser") {
 
   deps = [
     ":embed_polyfilled_javascript",
+    ":global_features",
     ":metrics",
     "//cobalt/browser/client_hint_headers",
     "//cobalt/browser/crash_annotator/public/mojom",
@@ -111,6 +110,28 @@ action("embed_polyfilled_javascript") {
     "CobaltJavaScriptPolyfill",
     rebase_path(outputs[0], root_build_dir),
     rebase_path("embedded_resources", root_build_dir),
+  ]
+}
+
+source_set("global_features") {
+  # TODO(cobalt, b/375655377): remove testonly declaration, needed because of
+  # being depended-on by :browser above.
+  testonly = true
+
+  sources = [
+    "global_features.cc",
+    "global_features.h",
+  ]
+  deps = [
+    ":metrics",
+    "//components/metrics",
+    "//components/metrics_services_manager",
+    "//components/prefs",
+
+    # TODO(cobalt, b/390021478): This is for use of content::SHELL_DIR_USER_DATA
+    # to store experiment config. To remove this, likely switch that path to
+    # base::DIR_CACHE instead.
+    "//content/shell:content_shell_lib",
   ]
 }
 
