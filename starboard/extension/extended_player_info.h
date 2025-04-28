@@ -44,6 +44,10 @@ typedef struct StarboardExtensionExtendedPlayerInfo {
   int64_t last_average_frame_early_us;
 } StarboardExtensionExtendedPlayerInfo;
 
+typedef void (*PlayerGetInfoFunc)(
+    SbPlayer player,
+    StarboardExtensionExtendedPlayerInfo* out_player_info);
+
 typedef struct StarboardExtensionExtendedPlayerInfoApi {
   // Name should be the string
   // |kStarboardExtensionExtendedPlayerInfoName|. This helps to validate
@@ -55,8 +59,7 @@ typedef struct StarboardExtensionExtendedPlayerInfoApi {
 
   // The fields below this point were added in version 1 or later.
 
-  void (*PlayerGetInfo)(SbPlayer player,
-                        StarboardExtensionExtendedPlayerInfo* out_player_info);
+  PlayerGetInfoFunc player_get_info;
 
 } StarboardExtensionExtendedPlayerInfoApi;
 

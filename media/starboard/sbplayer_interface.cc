@@ -46,7 +46,7 @@ bool SbPlayerInterface::SetDecodeToTexturePreferred(bool preferred) {
 }
 
 DefaultSbPlayerInterface::DefaultSbPlayerInterface() {
-  const StarboardExtensionExtendedPlayerInfoApi* extension_api =
+  const auto* extension_api =
       static_cast<const StarboardExtensionExtendedPlayerInfoApi*>(
           SbSystemGetExtension(kStarboardExtensionExtendedPlayerInfoName));
   if (!extension_api) {
@@ -56,9 +56,9 @@ DefaultSbPlayerInterface::DefaultSbPlayerInterface() {
   DCHECK_EQ(extension_api->name,
             std::string(kStarboardExtensionExtendedPlayerInfoName));
   DCHECK_EQ(extension_api->version, 1u);
-  DCHECK_NE(extension_api->PlayerGetInfo, nullptr);
+  DCHECK_NE(extension_api->player_get_info, nullptr);
 
-  extended_player_get_info_ = extension_api->PlayerGetInfo;
+  extended_player_get_info_ = extension_api->player_get_info;
 }
 
 SbPlayer DefaultSbPlayerInterface::Create(

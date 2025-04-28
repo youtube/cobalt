@@ -200,9 +200,7 @@ class DefaultSbPlayerInterface final : public SbPlayerInterface {
       SbMediaAudioConfiguration* out_audio_configuration) override;
 
  private:
-  void (*extended_player_get_info_)(
-      SbPlayer player,
-      StarboardExtensionExtendedPlayerInfo* out_player_info) = nullptr;
+  PlayerGetInfoFunc extended_player_get_info_;
 };
 
 }  // namespace media

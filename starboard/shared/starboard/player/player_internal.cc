@@ -153,13 +153,11 @@ void SbPlayerPrivateImpl::GetInfo(SbPlayerInfo* out_player_info) {
 
   ScopedLock lock(mutex_);
   out_player_info->duration = SB_PLAYER_NO_DURATION;
-  if (is_paused_ || !is_progressing_) {
-    out_player_info->current_media_timestamp = media_time_;
-  } else {
-    out_player_info->current_media_timestamp =
-        CalculateMediaTime(media_time_, media_time_updated_at_, playback_rate_);
-  }
-
+  out_player_info->current_media_timestamp =
+      (is_paused_ || !is_progressing_)
+          ? media_time_
+          : CalculateMediaTime(media_time_, media_time_updated_at_,
+                               playback_rate_);
   out_player_info->frame_width = frame_width_;
   out_player_info->frame_height = frame_height_;
   out_player_info->is_paused = is_paused_;
@@ -176,13 +174,11 @@ void SbPlayerPrivateImpl::GetInfo(
 
   ScopedLock lock(mutex_);
   out_player_info->duration = SB_PLAYER_NO_DURATION;
-  if (is_paused_ || !is_progressing_) {
-    out_player_info->current_media_timestamp = media_time_;
-  } else {
-    out_player_info->current_media_timestamp =
-        CalculateMediaTime(media_time_, media_time_updated_at_, playback_rate_);
-  }
-
+  out_player_info->current_media_timestamp =
+      (is_paused_ || !is_progressing_)
+          ? media_time_
+          : CalculateMediaTime(media_time_, media_time_updated_at_,
+                               playback_rate_);
   out_player_info->frame_width = frame_width_;
   out_player_info->frame_height = frame_height_;
   out_player_info->is_paused = is_paused_;
