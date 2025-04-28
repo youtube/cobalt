@@ -207,6 +207,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   int64_t playback_head_not_changed_duration = 0;  // microseconds
   int64_t last_written_succeeded_at = -1;          // microseconds
 
+  int last_playback_head_position = 0;
+
   while (!quit_) {
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
@@ -220,24 +222,22 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     if (was_playing) {
       playback_head_position =
           bridge_.GetAudioTimestamp(&frames_consumed_at, env);
-      SB_DCHECK(playback_head_position >= last_playback_head_position_);
+      SB_DCHECK(playback_head_position >= last_playback_head_position);
 
-      playback_head_position =
-          std::max(playback_head_position, last_playback_head_position_);
       int frames_consumed =
-          playback_head_position - last_playback_head_position_;
+          playback_head_position - last_playback_head_position;
       int64_t now = CurrentMonotonicTime();
 
       if (last_playback_head_event_at == -1) {
         last_playback_head_event_at = now;
       }
-      if (last_playback_head_position_ == playback_head_position) {
+      if (last_playback_head_position == playback_head_position) {
         int64_t elapsed = now - last_playback_head_event_at;
         if (elapsed > 5'000'000LL) {
           playback_head_not_changed_duration += elapsed;
           last_playback_head_event_at = now;
           SB_LOG(INFO) << "last playback head position is "
-                       << last_playback_head_position_
+                       << last_playback_head_position
                        << " and it hasn't been updated for " << elapsed
                        << " microseconds.";
         }
@@ -246,7 +246,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         playback_head_not_changed_duration = 0;
       }
 
-      last_playback_head_position_ = playback_head_position;
+      last_playback_head_position = playback_head_position;
       frames_consumed = std::min(frames_consumed, frames_in_audio_track);
 
       if (frames_consumed != 0) {

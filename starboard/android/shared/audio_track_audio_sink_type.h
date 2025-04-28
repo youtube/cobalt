@@ -154,8 +154,6 @@ class AudioTrackAudioSink
 
   AudioTrackBridge bridge_;
 
-  int last_playback_head_position_ = 0;
-
   volatile bool quit_ = false;
   pthread_t audio_out_thread_ = 0;
 
