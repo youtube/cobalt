@@ -46,16 +46,18 @@ struct ThreadingTrait {
 // ThreadState as well. Keep it outside the class so that PLATFORM_EXPORT
 // doesn't apply to it (otherwise, clang-cl complains).
 <<<<<<< HEAD
+<<<<<<< HEAD
 extern constinit thread_local ThreadStateStorage* g_thread_specific_
 =======
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 // TODO: b/412388549 - Cobalt: Fix this hack.
 extern ThreadStateStorage* g_thread_specific_;
 #else  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+=======
+>>>>>>> aa26e8d9996 (Fix the Blink heap tls model for Evergreen. (#5583))
 extern thread_local ThreadStateStorage* g_thread_specific_ CONSTINIT
 >>>>>>> a2d91bbcf6d (Build libcobalt.so hermetically (#5048))
     __attribute__((tls_model(BLINK_HEAP_THREAD_LOCAL_MODEL)));
-#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
 
 // ThreadStateStorage is the explicitly managed TLS- and global-backed storage
 // for ThreadState.
