@@ -49,7 +49,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
   VideoRendererImpl(std::unique_ptr<VideoDecoder> decoder,
                     MediaTimeProvider* media_time_provider,
                     std::unique_ptr<VideoRenderAlgorithm> algorithm,
-                    scoped_refptr<VideoRendererSink> sink);
+                    std::unique_ptr<VideoRendererSink> sink);
   ~VideoRendererImpl() override;
 
   void Initialize(const ErrorCB& error_cb,
@@ -85,7 +85,7 @@ class VideoRendererImpl : public VideoRenderer, private JobQueue::JobOwner {
 
   MediaTimeProvider* const media_time_provider_;
   std::unique_ptr<VideoRenderAlgorithm> algorithm_;
-  scoped_refptr<VideoRendererSink> sink_;
+  std::unique_ptr<VideoRendererSink> sink_;
   std::unique_ptr<VideoDecoder> decoder_;
 
   PrerolledCB prerolled_cb_;

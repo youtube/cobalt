@@ -76,7 +76,7 @@ class VideoDecoder
                std::string* error_message);
   ~VideoDecoder() override;
 
-  scoped_refptr<VideoRendererSink> GetSink();
+  std::unique_ptr<VideoRendererSink> GetSink();
   std::unique_ptr<VideoRenderAlgorithm> GetRenderAlgorithm();
 
   void Initialize(const DecoderStatusCB& decoder_status_cb,

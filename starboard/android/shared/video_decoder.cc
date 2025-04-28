@@ -318,7 +318,6 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
     return rendered_;
   }
 
- private:
   void SetRenderCB(RenderCB render_cb) override {
     SB_DCHECK(!render_cb_);
     SB_DCHECK(render_cb);
@@ -328,6 +327,7 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
 
   void SetBounds(int z_index, int x, int y, int width, int height) override {}
 
+ private:
   DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
                             int64_t release_time_in_nanoseconds) {
     rendered_ = true;
@@ -339,6 +339,23 @@ class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
 
   RenderCB render_cb_;
   bool rendered_;
+};
+
+class VideoSinkWrapper : public VideoDecoder::VideoRendererSink {
+ public:
+  explicit VideoSinkWrapper(scoped_refptr<VideoDecoder::Sink> sink)
+      : sink_(sink) {}
+
+  void SetRenderCB(RenderCB render_cb) override {
+    sink_->SetRenderCB(render_cb);
+  }
+
+  void SetBounds(int z_index, int x, int y, int width, int height) override {
+    // Do nothing, since VideoDecoder::Sink::SetBounds is NO-OP.
+  }
+
+ private:
+  scoped_refptr<VideoDecoder::Sink> sink_;
 };
 
 VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
@@ -419,11 +436,11 @@ VideoDecoder::~VideoDecoder() {
   }
 }
 
-scoped_refptr<VideoDecoder::VideoRendererSink> VideoDecoder::GetSink() {
-  if (sink_ == NULL) {
-    sink_ = new Sink;
+std::unique_ptr<VideoDecoder::VideoRendererSink> VideoDecoder::GetSink() {
+  if (sink_ == nullptr) {
+    sink_ = make_scoped_refptr(new VideoDecoder::Sink());
   }
-  return sink_;
+  return std::make_unique<VideoSinkWrapper>(sink_);
 }
 
 std::unique_ptr<VideoDecoder::VideoRenderAlgorithm>

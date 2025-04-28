@@ -59,7 +59,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
       std::unique_ptr<VideoDecoder>* video_decoder,
       std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-      scoped_refptr<VideoRendererSink>* video_renderer_sink,
+      std::unique_ptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
     SB_DCHECK(error_message);
 
@@ -176,7 +176,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
           kSbPlayerOutputModeDecodeToTexture) {
         *video_renderer_sink = NULL;
       } else {
-        *video_renderer_sink = new PunchoutVideoRendererSink(
+        *video_renderer_sink = std::make_unique<PunchoutVideoRendererSink>(
             creation_parameters.player(), kVideoSinkRenderIntervalUsec);
       }
     }

@@ -41,10 +41,10 @@ VideoRendererImpl::VideoRendererImpl(
     std::unique_ptr<VideoDecoder> decoder,
     MediaTimeProvider* media_time_provider,
     std::unique_ptr<VideoRenderAlgorithm> algorithm,
-    scoped_refptr<VideoRendererSink> sink)
+    std::unique_ptr<VideoRendererSink> sink)
     : media_time_provider_(media_time_provider),
       algorithm_(std::move(algorithm)),
-      sink_(sink),
+      sink_(std::move(sink)),
       decoder_(std::move(decoder)) {
   SB_DCHECK(decoder_ != NULL);
   SB_DCHECK(algorithm_ != NULL);

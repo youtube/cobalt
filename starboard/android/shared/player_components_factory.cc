@@ -284,7 +284,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         video_renderer.reset(new VideoRendererImpl(
             std::unique_ptr<VideoDecoderBase>(std::move(video_decoder)),
             media_time_provider, std::move(video_render_algorithm),
-            video_renderer_sink));
+            std::move(video_renderer_sink)));
       } else {
         return std::unique_ptr<PlayerComponents>();
       }
@@ -299,7 +299,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
       std::unique_ptr<VideoDecoderBase>* video_decoder,
       std::unique_ptr<VideoRenderAlgorithmBase>* video_render_algorithm,
-      scoped_refptr<VideoRendererSink>* video_renderer_sink,
+      std::unique_ptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
     SB_DCHECK(error_message);
 
@@ -490,7 +490,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       if (video_decoder_impl) {
         *video_render_algorithm = video_decoder_impl->GetRenderAlgorithm();
         *video_renderer_sink = video_decoder_impl->GetSink();
-        video_decoder->reset(video_decoder_impl.release());
+        *video_decoder = std::move(video_decoder_impl);
       } else {
         video_decoder->reset();
         *video_renderer_sink = NULL;

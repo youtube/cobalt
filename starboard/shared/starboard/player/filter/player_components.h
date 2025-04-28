@@ -178,7 +178,7 @@ class PlayerComponents {
         std::unique_ptr<AudioRendererSink>* audio_renderer_sink,
         std::unique_ptr<VideoDecoder>* video_decoder,
         std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-        scoped_refptr<VideoRendererSink>* video_renderer_sink,
+        std::unique_ptr<VideoRendererSink>* video_renderer_sink,
         std::string* error_message) = 0;
 
    protected:
@@ -193,7 +193,7 @@ class PlayerComponents {
         const CreationParameters& creation_parameters,
         std::unique_ptr<VideoDecoder>* video_decoder,
         std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-        scoped_refptr<VideoRendererSink>* video_renderer_sink);
+        std::unique_ptr<VideoRendererSink>* video_renderer_sink);
 
     // Check AudioRenderer ctor for more details on the parameters.
     virtual void GetAudioRendererParams(

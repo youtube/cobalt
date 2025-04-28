@@ -153,7 +153,7 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
   std::unique_ptr<AudioRendererSink> audio_renderer_sink;
   std::unique_ptr<VideoDecoder> video_decoder;
   std::unique_ptr<VideoRenderAlgorithm> video_render_algorithm;
-  scoped_refptr<VideoRendererSink> video_renderer_sink;
+  std::unique_ptr<VideoRendererSink> video_renderer_sink;
 
   auto command_line = shared::starboard::Application::Get()->GetCommandLine();
   bool use_stub_audio_decoder =
@@ -226,7 +226,7 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
     }
     video_renderer.reset(new VideoRendererImpl(
         std::move(video_decoder), media_time_provider,
-        std::move(video_render_algorithm), video_renderer_sink));
+        std::move(video_render_algorithm), std::move(video_renderer_sink)));
   }
 
   SB_DCHECK(audio_renderer || video_renderer);
@@ -257,7 +257,7 @@ void PlayerComponents::Factory::CreateStubVideoComponents(
     const CreationParameters& creation_parameters,
     std::unique_ptr<VideoDecoder>* video_decoder,
     std::unique_ptr<VideoRenderAlgorithm>* video_render_algorithm,
-    scoped_refptr<VideoRendererSink>* video_renderer_sink) {
+    std::unique_ptr<VideoRendererSink>* video_renderer_sink) {
   const int64_t kVideoSinkRenderIntervalUsec = 10'000;  // 10ms
 
   SB_DCHECK(video_decoder);
@@ -266,7 +266,7 @@ void PlayerComponents::Factory::CreateStubVideoComponents(
 
   video_decoder->reset(new StubVideoDecoder);
   video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
-  *video_renderer_sink = new PunchoutVideoRendererSink(
+  *video_renderer_sink = std::make_unique<PunchoutVideoRendererSink>(
       creation_parameters.player(), kVideoSinkRenderIntervalUsec);
 }
 

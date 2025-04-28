@@ -164,7 +164,7 @@ class VideoDecoderTestFixture {
 
   SbPlayerPrivate player_;
   std::unique_ptr<VideoRenderAlgorithm> video_render_algorithm_;
-  scoped_refptr<VideoRendererSink> video_renderer_sink_;
+  std::unique_ptr<VideoRendererSink> video_renderer_sink_;
 
   bool end_of_stream_written_ = false;
 
