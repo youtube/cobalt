@@ -26,7 +26,8 @@ _BUILDS_DIRECTORY = 'out'
 _BUILD_TYPES = {
     'debug': {
         'symbol_level': 2,
-        'is_debug': 'true'
+        'is_debug': 'true',
+        'is_component_build': 'false'
     },
     'devel': {
         'symbol_level': 1,
