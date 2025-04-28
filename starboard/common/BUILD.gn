@@ -49,6 +49,8 @@ static_library("common") {
     "fixed_no_free_allocator.cc",
     "fixed_no_free_allocator.h",
     "flat_map.h",
+    "in_place_reuse_allocator_base.cc",
+    "in_place_reuse_allocator_base.h",
     "locked_ptr.h",
     "log.cc",
     "media.cc",
