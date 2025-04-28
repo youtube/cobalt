@@ -69,6 +69,7 @@ class MODULES_EXPORT H5vccMetrics final
   // EventTarget:
   void AddedEventListener(const AtomicString& event_type,
                           RegisteredEventListener&) override;
+
  private:
   void OnEnable(ScriptPromiseResolver* resolver);
   void OnDisable(ScriptPromiseResolver* resolver);
