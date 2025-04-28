@@ -25,6 +25,10 @@ H5vccMetrics::H5vccMetrics(LocalDOMWindow& window)
       remote_h5vcc_metrics_(window.GetExecutionContext()),
       receiver_(this, window.GetExecutionContext()) {}
 
+void H5vccMetrics::ContextDestroyed() {
+  OnCloseConnection();
+}
+
 ScriptPromise H5vccMetrics::enable(ScriptState* script_state,
                                    ExceptionState& exception_state) {
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
