@@ -30,6 +30,8 @@ jobs:
     permissions:
       pull-requests: write
     env:
+      # Tell gclient not to automatically update depot tools every time it runs.
+      DEPOT_TOOLS_UPDATE: 0
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GITHUB_PR_REPO_URL: ${{ github.event.pull_request.base.repo.url }}
       GITHUB_EVENT_NUMBER: ${{ github.event.number }}
