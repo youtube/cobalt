@@ -314,8 +314,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         std::vector<uint8_t> silence_buffer(channels_ *
                                             GetBytesPerSample(sample_type_) *
                                             silence_frames_per_append);
-        auto sync_time = start_time_ + accumulated_written_frames *
-                                           1'000'000LL / sampling_frequency_hz_;
+        int64_t sync_time =
+            start_time_ + GetFramesDurationUs(accumulated_written_frames);
         // Not necessary to handle error of WriteData(), as the audio has
         // reached the end of stream.
         WriteData(env, silence_buffer.data(), silence_frames_per_append,
@@ -326,9 +326,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       continue;
     }
     SB_DCHECK(expected_written_frames > 0);
-    auto sync_time = start_time_ + accumulated_written_frames * 1'000'000LL /
-                                       sampling_frequency_hz_;
-
+    int64_t sync_time =
+        start_time_ + GetFramesDurationUs(accumulated_written_frames);
     SB_DCHECK(start_position + expected_written_frames <= frames_per_channel_)
         << "start_position: " << start_position
         << ", expected_written_frames: " << expected_written_frames
@@ -363,8 +362,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
     bool written_fully = (written_frames == expected_written_frames);
     auto unplayed_frames_in_time =
-        frames_in_audio_track * 1'000'000LL / sampling_frequency_hz_ -
-        (now - frames_consumed_at);
+        GetFramesDurationUs(frames_in_audio_track) - (now - frames_consumed_at);
     // As long as there is enough data in the buffer, run the loop in lower
     // frequency to avoid taking too much CPU.  Note that the threshold should
     // be big enough to account for the unstable playback head reported at the
@@ -410,6 +408,10 @@ void AudioTrackAudioSink::ReportError(bool capability_changed,
   if (error_func_) {
     error_func_(capability_changed, error_message, context_);
   }
+}
+
+int64_t AudioTrackAudioSink::GetFramesDurationUs(int frames) const {
+  return frames * 1'000'000LL / sampling_frequency_hz_;
 }
 
 void AudioTrackAudioSink::SetVolume(double volume) {
