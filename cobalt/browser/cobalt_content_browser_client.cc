@@ -137,6 +137,16 @@ CobaltContentBrowserClient::CreateBrowserMainParts(
   return browser_main_parts;
 }
 
+content::GeneratedCodeCacheSettings
+CobaltContentBrowserClient::GetGeneratedCodeCacheSettings(
+    content::BrowserContext* context) {
+  // Default compiled javascript quota in Cobalt 25.
+  // https://github.com/youtube/cobalt/blob/3ccdb04a5e36c2597fe7066039037eabf4906ba5/cobalt/network/disk_cache/resource_type.cc#L72
+  constexpr size_t size = 3 * 1024 * 1024;
+  return content::GeneratedCodeCacheSettings(/*enabled=*/true, size,
+                                             context->GetPath());
+}
+
 std::string CobaltContentBrowserClient::GetApplicationLocale() {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   return base::i18n::GetConfiguredLocale();
