@@ -203,9 +203,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   SB_LOG(INFO) << "AudioTrackAudioSink thread started.";
 
   int accumulated_written_frames = 0;
-  int64_t last_playback_head_event_at = -1;        // microseconds
-  int64_t playback_head_not_changed_duration = 0;  // microseconds
-  int64_t last_written_succeeded_at = -1;          // microseconds
+  int64_t last_playback_head_event_at = -1;  // microseconds
 
   int last_playback_head_position = 0;
 
@@ -234,7 +232,6 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       if (last_playback_head_position == playback_head_position) {
         int64_t elapsed = now - last_playback_head_event_at;
         if (elapsed > 5'000'000LL) {
-          playback_head_not_changed_duration += elapsed;
           last_playback_head_event_at = now;
           SB_LOG(INFO) << "last playback head position is "
                        << last_playback_head_position
@@ -243,7 +240,6 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         }
       } else {
         last_playback_head_event_at = now;
-        playback_head_not_changed_duration = 0;
       }
 
       last_playback_head_position = playback_head_position;
@@ -275,8 +271,6 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
-      playback_head_not_changed_duration = 0;
-      last_written_succeeded_at = -1;
       bridge_.Play();
     }
 
@@ -354,8 +348,6 @@ void AudioTrackAudioSink::AudioThreadFunc() {
                                         written_frames));
       }
       break;
-    } else if (written_frames > 0) {
-      last_written_succeeded_at = now;
     }
     frames_in_audio_track += written_frames;
     accumulated_written_frames += written_frames;
