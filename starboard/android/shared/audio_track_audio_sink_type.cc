@@ -63,6 +63,8 @@ const int kMinStablePlayedFrames = 12 * 1024;
 const int kSampleFrequency22050 = 22050;
 const int kSampleFrequency48000 = 48000;
 
+constexpr int kInvalidTunnelModeAudioSessionId = -1;
+
 void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
 }
@@ -129,10 +131,14 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       consume_frames_func_(consume_frames_func),
       error_func_(error_func),
       start_time_(start_time),
+      use_tunnel_mode_(tunnel_mode_audio_session_id !=
+                       kInvalidTunnelModeAudioSessionId),
       max_frames_per_request_(
-          tunnel_mode_audio_session_id == -1
-              ? kMaxFramesPerRequest
-              : GetMaxFramesPerRequestForTunnelMode(sampling_frequency_hz_)),
+          use_tunnel_mode_
+              ? GetMaxFramesPerRequestForTunnelMode(sampling_frequency_hz_)
+              : kMaxFramesPerRequest),
+      // TODO: b/186660620 - Create an experiment and hook this variable to it.
+      use_silence_over_pause_(true),
       context_(context),
       bridge_(kSbMediaAudioCodingTypePcm,
               sample_type,
@@ -144,8 +150,19 @@ AudioTrackAudioSink::AudioTrackAudioSink(
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
+  // TODO: b/186660620 - Remove this check once we verify use-silence-over-pause
+  // work on tunnel mode.
+  SB_DCHECK(!use_tunnel_mode_ || !use_silence_over_pause_)
+      << "use_silence_over_pause_ must be false when TunnelMode is "
+         "enabled";
 
-  SB_LOG(INFO) << "Creating audio sink starts at " << start_time_;
+  SB_LOG(INFO) << "Creating audio sink: start_time=" << start_time_
+               << ", channels=" << channels_
+               << ", sampling_frequency_hz=" << sampling_frequency_hz_
+               << ", max_frames_per_request=" << max_frames_per_request_
+               << ", use_tunnel_mode=" << (use_tunnel_mode_ ? "true" : "false")
+               << ", use_silence_over_pause="
+               << (use_silence_over_pause_ ? "true" : "false");
 
   if (!bridge_.is_valid()) {
     // One of the cases that this may hit is when output happened to be switched
@@ -203,11 +220,26 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   SB_LOG(INFO) << "AudioTrackAudioSink thread started.";
 
   int accumulated_written_frames = 0;
+  int last_playback_head_position = 0;
   int64_t last_playback_head_event_at = -1;  // microseconds
 
-  int last_playback_head_position = 0;
+  const int silence_frames_per_append =
+      std::min<int>(kSilenceFramesPerAppend, max_frames_per_request_);
+  std::vector<uint8_t> silence_buffer(
+      channels_ * GetBytesPerSample(sample_type_) * silence_frames_per_append);
+  if (use_silence_over_pause_) {
+    bridge_.Play();
+  }
 
+  int64_t last_loop_us = CurrentMonotonicTime();
   while (!quit_) {
+    int64_t now_us = CurrentMonotonicTime();
+    int64_t elapsed_ms = (now_us - last_loop_us) / 1'000;
+    if (elapsed_ms > 60) {
+      SB_LOG(WARNING) << "Loop run too slow: elapsed_ms=" << elapsed_ms;
+    }
+    last_loop_us = now_us;
+
     int playback_head_position = 0;
     int64_t frames_consumed_at = 0;
     if (bridge_.GetAndResetHasAudioDeviceChanged(env)) {
@@ -266,15 +298,33 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     }
 
     if (was_playing && !is_playing) {
-      was_playing = false;
-      bridge_.Pause();
+      if (use_silence_over_pause_) {
+        bridge_.Flush();
+      } else {
+        bridge_.Pause();
+      }
     } else if (!was_playing && is_playing) {
-      was_playing = true;
       last_playback_head_event_at = -1;
-      bridge_.Play();
+      if (use_silence_over_pause_) {
+        bridge_.Flush();
+      } else {
+        bridge_.Play();
+      }
     }
+    was_playing = is_playing;
 
-    if (!is_playing || frames_in_buffer == 0) {
+    if (!is_playing) {
+      if (use_silence_over_pause_) {
+        // Feeding silence data, when audio track is not playing.
+        auto sync_time = start_time_ + accumulated_written_frames *
+                                           1'000'000LL / sampling_frequency_hz_;
+        WriteData(env, silence_buffer.data(), silence_frames_per_append,
+                  sync_time);
+        usleep(10'000);
+      }
+      continue;
+    }
+    if (frames_in_buffer == 0) {
       usleep(10'000);
       continue;
     }
@@ -303,13 +353,9 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         // Currently AudioDevice and AudioRenderer will write tail silence.
         // It should be reached only in tests. It's not ideal to allocate
         // a new silence buffer every time.
-        const int silence_frames_per_append =
-            std::min<int>(kSilenceFramesPerAppend, max_frames_per_request_);
-        std::vector<uint8_t> silence_buffer(channels_ *
-                                            GetBytesPerSample(sample_type_) *
-                                            silence_frames_per_append);
-        int64_t sync_time =
-            start_time_ + GetFramesDurationUs(accumulated_written_frames);
+
+        auto sync_time = start_time_ + accumulated_written_frames *
+                                           1'000'000LL / sampling_frequency_hz_;
         // Not necessary to handle error of WriteData(), as the audio has
         // reached the end of stream.
         WriteData(env, silence_buffer.data(), silence_frames_per_append,
@@ -448,14 +494,11 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
-  const int64_t kStartTime = 0;
-  // Disable tunnel mode.
-  const int kTunnelModeAudioSessionId = -1;
-  const bool kIsWebAudio = true;
   return Create(channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers, frames_per_channel,
                 update_source_status_func, consume_frames_func, error_func,
-                kStartTime, kTunnelModeAudioSessionId, kIsWebAudio, context);
+                /*start_media_time=*/0, kInvalidTunnelModeAudioSessionId,
+                /*is_web_audio=*/true, context);
 }
 
 SbAudioSink AudioTrackAudioSinkType::Create(
@@ -493,8 +536,8 @@ SbAudioSink AudioTrackAudioSinkType::Create(
 
 void AudioTrackAudioSinkType::TestMinRequiredFrames() {
   auto onMinRequiredFramesForWebAudioReceived =
-      [&](int number_of_channels, SbMediaAudioSampleType sample_type,
-          int sample_rate, int min_required_frames) {
+      [this](int number_of_channels, SbMediaAudioSampleType sample_type,
+             int sample_rate, int min_required_frames) {
         bool has_remote_audio_output = HasRemoteAudioOutput();
         SB_LOG(INFO) << "Received min required frames " << min_required_frames
                      << " for " << number_of_channels << " channels, "

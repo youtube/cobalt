@@ -163,6 +163,14 @@ void AudioTrackBridge::Stop(JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_LOG(INFO) << "AudioTrackBridge stopped.";
 }
 
+void AudioTrackBridge::Flush(JniEnvExt* env /*= JniEnvExt::Get()*/) {
+  SB_DCHECK(env);
+  SB_DCHECK(is_valid());
+
+  env->CallVoidMethodOrAbort(j_audio_track_bridge_, "flush", "()V");
+  SB_LOG(INFO) << "AudioTrackBridge flushed.";
+}
+
 void AudioTrackBridge::PauseAndFlush(JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());

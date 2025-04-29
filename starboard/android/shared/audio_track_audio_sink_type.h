@@ -151,7 +151,11 @@ class AudioTrackAudioSink
   const ConsumeFramesFunc consume_frames_func_;
   const SbAudioSinkPrivate::ErrorFunc error_func_;
   const int64_t start_time_;  // microseconds
+  const bool use_tunnel_mode_;
   const int max_frames_per_request_;
+  // When true, AudioTrackAudioSink to feed silence data to bridge_ when source
+  // is not playing, instead of calling `bridge_.Pause()`.
+  const bool use_slience_over_pause_;
   void* const context_;
 
   AudioTrackBridge bridge_;
