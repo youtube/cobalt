@@ -68,6 +68,7 @@ if (!is_android) {
       "//content/shell:content_shell_app",
       "//content/shell:content_shell_lib",
       "//content/shell:pak",
+      "//gpu/command_buffer/service",
       "//sandbox",
       "//starboard:starboard_group",
       "//third_party/blink/public/common",
