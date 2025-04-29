@@ -17,7 +17,6 @@
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
-#include "starboard/android/shared/media_codec_bridge_eradicator.h"
 #include "starboard/common/string.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -185,21 +184,6 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     return std::unique_ptr<MediaCodecBridge>();
   }
 
-  if (MediaCodecBridgeEradicator::GetInstance()->IsEnabled()) {
-    // block if the old MediaCodecBridge instances haven't been destroyed yet
-    bool destruction_finished =
-        MediaCodecBridgeEradicator::GetInstance()->WaitForPendingDestructions();
-    if (!destruction_finished) {
-      // timed out
-      std::string diagnostic_info_in_str = FormatString(
-          "MediaCodec destruction timeout: %d seconds, potential thread "
-          "leakage happened. Type = Audio",
-          MediaCodecBridgeEradicator::GetInstance()->GetTimeoutSeconds());
-      handler->OnMediaCodecError(false, false, diagnostic_info_in_str);
-      return std::unique_ptr<MediaCodecBridge>();
-    }
-  }
-
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jbyteArray> configuration_data;
@@ -305,20 +289,6 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     return std::unique_ptr<MediaCodecBridge>();
   }
 
-  if (MediaCodecBridgeEradicator::GetInstance()->IsEnabled()) {
-    // block if the old MediaCodecBridge instances haven't been destroyed yet
-    bool destruction_finished =
-        MediaCodecBridgeEradicator::GetInstance()->WaitForPendingDestructions();
-    if (!destruction_finished) {
-      // timed out
-      *error_message = FormatString(
-          "MediaCodec destruction timeout: %d seconds, potential thread "
-          "leakage happened. Type = Video",
-          MediaCodecBridgeEradicator::GetInstance()->GetTimeoutSeconds());
-      return std::unique_ptr<MediaCodecBridge>();
-    }
-  }
-
   JNIEnv* env = AttachCurrentThread();
 
   ScopedJavaLocalRef<jstring> j_mime(env, env->NewStringUTF(mime));
@@ -390,17 +360,8 @@ MediaCodecBridge::~MediaCodecBridge() {
     return;
   }
 
-  if (MediaCodecBridgeEradicator::GetInstance()->IsEnabled()) {
-    if (MediaCodecBridgeEradicator::GetInstance()->Destroy(
-            j_media_codec_bridge_.obj(),
-            j_reused_get_output_format_result_.obj())) {
-      return;
-    }
-    SB_LOG(WARNING)
-        << "MediaCodecBridge destructor fallback into none eradicator mode.";
-  }
-
   JNIEnv* env = AttachCurrentThread();
+  Java_MediaCodecBridge_stop(env, j_media_codec_bridge_);
   Java_MediaCodecBridge_release(env, j_media_codec_bridge_);
 }
 
@@ -503,8 +464,8 @@ jint MediaCodecBridge::Flush() {
 }
 
 void MediaCodecBridge::Stop() {
-  JniEnvExt::Get()->CallVoidMethodOrAbort(j_media_codec_bridge_.obj(), "stop",
-                                          "()V");
+  JNIEnv* env = AttachCurrentThread();
+  return Java_MediaCodecBridge_stop(env, j_media_codec_bridge_);
 }
 
 FrameSize MediaCodecBridge::GetOutputSize() {
