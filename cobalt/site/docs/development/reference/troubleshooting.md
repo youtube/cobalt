@@ -34,18 +34,14 @@ All Cobalt builds in a fresh repo checkout are susceptible to this failure since
 
 Partners MUST switch to using the new public versions of Google Static Storage Endpoints.
 
+#### Option #1: Replace old buckets with new public mirrors of buckets in-line
+
 You can fix this by search-and-replace all instances in your code/builds where you see:
 
 * `cobalt-static-storage` → `cobalt-static-storage-public`
 * `lottie-coverage-testdata` → `lottie-coverage-testdata-public`
 
-Alternatively, you can use sed from the top-level directory of the repository
-checkout to fix all the files locally with these commands:
-
-```
-sed -i "s/cobalt-static-storage/cobalt-static-storage-public/g" *
-sed -i "s/lottie-coverage-testdata/lottie-coverage-testdata-public/g" *
-```
+#### Option #2: Using `git cherry-pick`
 
 Here is also a set of example GitHub PRs that has changes to address this:
 
@@ -71,6 +67,17 @@ git cherry-pick 43d272d35a
 # Cobalt 23.lts tags and brancees
 git cherry-pick 2b0e3b9d37
 ```
+
+#### Option #3 (Not Recommended): Using `sed`
+
+Alternatively, you can use sed from the top-level directory of the repository
+checkout to fix all the files locally with these commands:
+
+```
+sed -i "s/cobalt-static-storage/cobalt-static-storage-public/g" *
+sed -i "s/lottie-coverage-testdata/lottie-coverage-testdata-public/g" *
+```
+
 
 ### What If the Fix Still Doesn’t Work?
 
