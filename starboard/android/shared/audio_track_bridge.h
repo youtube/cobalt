@@ -16,6 +16,7 @@
 #define STARBOARD_ANDROID_SHARED_AUDIO_TRACK_BRIDGE_H_
 
 #include <jni.h>
+#include <optional>
 
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/common/optional.h"
@@ -40,7 +41,7 @@ class AudioTrackBridge {
                    int channels,
                    int sampling_frequency_hz,
                    int preferred_buffer_size_in_bytes,
-                   int tunnel_mode_audio_session_id,
+                   std::optional<int> tunnel_mode_audio_session_id,
                    bool is_web_audio);
   ~AudioTrackBridge();
 

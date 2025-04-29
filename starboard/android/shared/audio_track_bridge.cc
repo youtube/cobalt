@@ -15,7 +15,9 @@
 #include "starboard/android/shared/audio_track_bridge.h"
 
 #include <algorithm>
+#include <optional>
 
+#include "starboard/android/shared/audio_jni_constants.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/audio_sink.h"
@@ -34,25 +36,26 @@ const jint kNoOffset = 0;
 
 }  // namespace
 
-AudioTrackBridge::AudioTrackBridge(SbMediaAudioCodingType coding_type,
-                                   optional<SbMediaAudioSampleType> sample_type,
-                                   int channels,
-                                   int sampling_frequency_hz,
-                                   int preferred_buffer_size_in_bytes,
-                                   int tunnel_mode_audio_session_id,
-                                   bool is_web_audio) {
+AudioTrackBridge::AudioTrackBridge(
+    SbMediaAudioCodingType coding_type,
+    optional<SbMediaAudioSampleType> sample_type,
+    int channels,
+    int sampling_frequency_hz,
+    int preferred_buffer_size_in_bytes,
+    std::optional<int> tunnel_mode_audio_session_id,
+    bool is_web_audio) {
   if (coding_type == kSbMediaAudioCodingTypePcm) {
     SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type.value()));
 
     // TODO: Support query if platform supports float type for tunnel mode.
-    if (tunnel_mode_audio_session_id != -1) {
+    if (tunnel_mode_audio_session_id.has_value()) {
       SB_DCHECK(sample_type.value() == kSbMediaAudioSampleTypeInt16Deprecated);
     }
   } else {
     SB_DCHECK(coding_type == kSbMediaAudioCodingTypeAc3 ||
               coding_type == kSbMediaAudioCodingTypeDolbyDigitalPlus);
     // TODO: Support passthrough under tunnel mode.
-    SB_DCHECK(tunnel_mode_audio_session_id == -1);
+    SB_DCHECK(!tunnel_mode_audio_session_id.has_value());
     // TODO: |sample_type| is not used in passthrough mode, we should make this
     // explicit.
   }
@@ -65,7 +68,8 @@ AudioTrackBridge::AudioTrackBridge(SbMediaAudioCodingType coding_type,
       j_audio_output_manager.Get(), "createAudioTrackBridge",
       "(IIIIIZ)Ldev/cobalt/media/AudioTrackBridge;",
       GetAudioFormatSampleType(coding_type, sample_type), sampling_frequency_hz,
-      channels, preferred_buffer_size_in_bytes, tunnel_mode_audio_session_id,
+      channels, preferred_buffer_size_in_bytes,
+      tunnel_mode_audio_session_id.value_or(kNullOptTunnelModeAudioSessionId),
       is_web_audio);
   if (!j_audio_track_bridge) {
     // One of the cases that this may hit is when output happened to be switched

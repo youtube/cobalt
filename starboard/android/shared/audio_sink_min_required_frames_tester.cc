@@ -129,7 +129,8 @@ void MinRequiredFramesTester::TesterThreadFunc() {
             GetSampleSize(task.sample_type),
         &MinRequiredFramesTester::UpdateSourceStatusFunc,
         &MinRequiredFramesTester::ConsumeFramesFunc,
-        &MinRequiredFramesTester::ErrorFunc, 0, -1, false, this);
+        &MinRequiredFramesTester::ErrorFunc, 0,
+        /*tunnel_mode_audio_session_id=*/std::nullopt, false, this);
     {
       ScopedLock scoped_lock(mutex_);
       wait_timeout = !condition_variable_.WaitTimed(5'000'000);

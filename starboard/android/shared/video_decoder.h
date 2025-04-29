@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -66,7 +67,7 @@ class VideoDecoder
                SbDecodeTargetGraphicsContextProvider*
                    decode_target_graphics_context_provider,
                const std::string& max_video_capabilities,
-               int tunnel_mode_audio_session_id,
+               std::optional<int> tunnel_mode_audio_session_id,
                bool force_secure_pipeline_under_tunnel_mode,
                bool force_reset_surface,
                bool force_reset_surface_under_tunnel_mode,
@@ -148,7 +149,7 @@ class VideoDecoder
   // Force endianness of HDR Metadata.
   const bool force_big_endian_hdr_metadata_;
 
-  const int tunnel_mode_audio_session_id_ = -1;
+  const std::optional<int> tunnel_mode_audio_session_id_;
 
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;

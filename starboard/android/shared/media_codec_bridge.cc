@@ -14,8 +14,11 @@
 
 #include "starboard/android/shared/media_codec_bridge.h"
 
+#include <optional>
+
 #include "base/android/jni_array.h"
 #include "base/android/jni_string.h"
+#include "starboard/android/shared/audio_jni_constants.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/android/shared/media_codec_bridge_eradicator.h"
 #include "starboard/common/string.h"
@@ -249,7 +252,7 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     const SbMediaColorMetadata* color_metadata,
     bool require_secured_decoder,
     bool require_software_codec,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool force_big_endian_hdr_metadata,
     int max_video_input_size,
     std::string* error_message) {
@@ -266,7 +269,8 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
 
   const bool must_support_secure = require_secured_decoder;
   const bool must_support_hdr = color_metadata;
-  const bool must_support_tunnel_mode = tunnel_mode_audio_session_id != -1;
+  const bool must_support_tunnel_mode =
+      tunnel_mode_audio_session_id.has_value();
   // On first pass, try to find a decoder with HDR if the color info is
   // non-null.
   std::string decoder_name =
@@ -366,8 +370,9 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
       env, reinterpret_cast<jlong>(native_media_codec_bridge.get()), j_mime,
       j_decoder_name, width_hint, height_hint, fps, max_width.value_or(-1),
       max_height.value_or(-1), j_surface_local, j_media_crypto_local,
-      j_color_info, tunnel_mode_audio_session_id, max_video_input_size,
-      j_create_media_codec_bridge_result);
+      j_color_info,
+      tunnel_mode_audio_session_id.value_or(kNullOptTunnelModeAudioSessionId),
+      max_video_input_size, j_create_media_codec_bridge_result);
 
   ScopedJavaLocalRef<jobject> j_media_codec_bridge(
       Java_CreateMediaCodecBridgeResult_mediaCodecBridge(

@@ -85,7 +85,8 @@ constexpr bool kForceResetAudioDecoder = false;
 class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
                                      filter::AudioRendererSinkImpl {
  public:
-  explicit AudioRendererSinkAndroid(int tunnel_mode_audio_session_id = -1)
+  explicit AudioRendererSinkAndroid(
+      std::optional<int> tunnel_mode_audio_session_id = std::nullopt)
       : AudioRendererSinkImpl(
             [=](int64_t start_media_time,
                 int channels,
@@ -115,7 +116,7 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
  private:
   bool IsAudioSampleTypeSupported(
       SbMediaAudioSampleType audio_sample_type) const override {
-    if (tunnel_mode_audio_session_id_ != -1) {
+    if (tunnel_mode_audio_session_id_.has_value()) {
       // Currently the implementation only supports tunnel mode with int16 audio
       // samples.
       return audio_sample_type == kSbMediaAudioSampleTypeInt16Deprecated;
@@ -124,7 +125,7 @@ class AudioRendererSinkAndroid : public ::starboard::shared::starboard::player::
     return SbAudioSinkIsAudioSampleTypeSupported(audio_sample_type);
   }
 
-  const int tunnel_mode_audio_session_id_;
+  const std::optional<int> tunnel_mode_audio_session_id_;
 };
 
 class AudioRendererSinkCallbackStub
@@ -267,12 +268,10 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         ::starboard::shared::starboard::player::filter::VideoRenderer>
         video_renderer;
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
-      constexpr int kTunnelModeAudioSessionId = -1;
-      constexpr bool kForceSecurePipelineUnderTunnelMode = false;
-
       std::unique_ptr<VideoDecoder> video_decoder =
-          CreateVideoDecoder(creation_parameters, kTunnelModeAudioSessionId,
-                             kForceSecurePipelineUnderTunnelMode,
+          CreateVideoDecoder(creation_parameters,
+                             /*tunnel_mode_audio_session_id*/ std::nullopt,
+                             /*force_secure_pipeline_under_tunnel_mode=*/false,
                              max_video_input_size, error_message);
       if (video_decoder) {
         using starboard::shared::starboard::player::filter::VideoRendererImpl;
@@ -331,7 +330,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       }
     }
 
-    int tunnel_mode_audio_session_id = -1;
+    std::optional<int> tunnel_mode_audio_session_id;
     bool enable_tunnel_mode = false;
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone &&
         creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -366,7 +365,9 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         tunnel_mode_audio_session_id =
             GenerateAudioSessionId(creation_parameters);
         SB_LOG(INFO) << "Generated tunnel mode audio session id "
-                     << tunnel_mode_audio_session_id;
+                     << (tunnel_mode_audio_session_id.has_value()
+                             ? std::to_string(*tunnel_mode_audio_session_id)
+                             : "(null)");
       } else {
         SB_LOG(INFO) << "IsTunnelModeSupported() failed, disable tunnel mode.";
       }
@@ -374,7 +375,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
       SB_LOG(INFO) << "Tunnel mode not enabled.";
     }
 
-    if (tunnel_mode_audio_session_id == -1) {
+    if (!tunnel_mode_audio_session_id.has_value()) {
       SB_LOG(INFO) << "Create non-tunnel mode pipeline.";
     } else {
       SB_LOG_IF(INFO, !kForceResetSurfaceUnderTunnelMode)
@@ -382,7 +383,9 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
              "surface will not be forced to reset after "
              "tunneled playback.";
       SB_LOG(INFO) << "Create tunnel mode pipeline with audio session id "
-                   << tunnel_mode_audio_session_id << '.';
+                   << (tunnel_mode_audio_session_id.has_value()
+                           ? std::to_string(*tunnel_mode_audio_session_id)
+                           : "(null)");
     }
 
     bool enable_reset_audio_decoder =
@@ -455,11 +458,11 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           creation_parameters.drm_system(), decoder_creator,
           enable_reset_audio_decoder));
 
-      if (tunnel_mode_audio_session_id != -1) {
+      if (tunnel_mode_audio_session_id.has_value()) {
         *audio_renderer_sink = TryToCreateTunnelModeAudioRendererSink(
-            tunnel_mode_audio_session_id, creation_parameters);
+            *tunnel_mode_audio_session_id, creation_parameters);
         if (!*audio_renderer_sink) {
-          tunnel_mode_audio_session_id = -1;
+          tunnel_mode_audio_session_id.reset();
         }
       }
       if (!*audio_renderer_sink) {
@@ -479,7 +482,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           << "The maximum size in bytes of a buffer of data is "
           << max_video_input_size;
 
-      if (tunnel_mode_audio_session_id == -1) {
+      if (!tunnel_mode_audio_session_id.has_value()) {
         force_secure_pipeline_under_tunnel_mode = false;
       }
 
@@ -528,7 +531,7 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
 
   std::unique_ptr<VideoDecoder> CreateVideoDecoder(
       const CreationParameters& creation_parameters,
-      int tunnel_mode_audio_session_id,
+      std::optional<int> tunnel_mode_audio_session_id,
       bool force_secure_pipeline_under_tunnel_mode,
       int max_video_input_size,
       std::string* error_message) {
@@ -644,7 +647,8 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
     return false;
   }
 
-  int GenerateAudioSessionId(const CreationParameters& creation_parameters) {
+  std::optional<int> GenerateAudioSessionId(
+      const CreationParameters& creation_parameters) {
     bool force_secure_pipeline_under_tunnel_mode = false;
     SB_DCHECK(IsTunnelModeSupported(creation_parameters,
                                     &force_secure_pipeline_under_tunnel_mode));
@@ -658,17 +662,22 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
         j_audio_output_manager.Get(), "generateTunnelModeAudioSessionId",
         "(I)I", creation_parameters.audio_stream_info().number_of_channels);
 
+    // This value should match `NULL_OPT_TUNNEL_SESSION_ID` in
+    // `AudioTrackBridge.java`.
+    constexpr int kInvalidTunnelModeAudioSessionId = -1;
+
     // AudioManager.generateAudioSessionId() return ERROR (-1) to indicate a
     // failure, please see the following url for more details:
     // https://developer.android.com/reference/android/media/AudioManager#generateAudioSessionId()
-    SB_LOG_IF(WARNING, tunnel_mode_audio_session_id == -1)
+    SB_LOG_IF(WARNING,
+              tunnel_mode_audio_session_id == kInvalidTunnelModeAudioSessionId)
         << "Failed to generate audio session id for tunnel mode.";
 
     return tunnel_mode_audio_session_id;
   }
 
   std::unique_ptr<AudioRendererSink> TryToCreateTunnelModeAudioRendererSink(
-      int tunnel_mode_audio_session_id,
+      std::optional<int> tunnel_mode_audio_session_id,
       const CreationParameters& creation_parameters) {
     std::unique_ptr<AudioRendererSink> audio_sink(
         new AudioRendererSinkAndroid(tunnel_mode_audio_session_id));

@@ -122,7 +122,7 @@ MediaDecoder::MediaDecoder(Host* host,
                            const SbMediaColorMetadata* color_metadata,
                            bool require_software_codec,
                            const FrameRenderedCB& frame_rendered_cb,
-                           int tunnel_mode_audio_session_id,
+                           std::optional<int> tunnel_mode_audio_session_id,
                            bool force_big_endian_hdr_metadata,
                            int max_video_input_size,
                            std::string* error_message)
@@ -130,7 +130,7 @@ MediaDecoder::MediaDecoder(Host* host,
       host_(host),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       frame_rendered_cb_(frame_rendered_cb),
-      tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
+      tunnel_mode_enabled_(tunnel_mode_audio_session_id.has_value()),
       condition_variable_(mutex_) {
   SB_DCHECK(frame_rendered_cb_);
 

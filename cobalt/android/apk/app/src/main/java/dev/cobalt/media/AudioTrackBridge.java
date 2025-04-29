@@ -38,6 +38,9 @@ public class AudioTrackBridge {
   // Also used by AudioOutputManager.
   static final int AV_SYNC_HEADER_V1_SIZE = 16;
 
+  // This value should match `kInvalidTunnelSessionId` in audio_track_bridge.cc.
+  static final int NULL_OPT_TUNNEL_SESSION_ID = -1;
+
   private AudioTrack audioTrack;
   private AudioTimestamp audioTimestamp = new AudioTimestamp();
   private long maxFramePositionSoFar = 0;
@@ -68,7 +71,7 @@ public class AudioTrackBridge {
       int tunnelModeAudioSessionId,
       boolean isWebAudio) {
 
-    tunnelModeEnabled = tunnelModeAudioSessionId != -1;
+    tunnelModeEnabled = tunnelModeAudioSessionId != NULL_OPT_TUNNEL_SESSION_ID;
     int channelConfig;
     switch (channelCount) {
       case 1:

@@ -35,8 +35,6 @@ constexpr int kMaxDecodedAudios = 64;
 constexpr int64_t kAudioTrackUpdateInternal = 5'000;  // 5ms
 
 constexpr int kPreferredBufferSizeInBytes = 16 * 1024;
-// TODO: Enable passthrough with tunnel mode.
-constexpr int kTunnelModeAudioSessionId = -1;
 
 // C++ rewrite of ExoPlayer function parseAc3SyncframeAudioSampleCount(), it
 // works for AC-3, E-AC-3, and E-AC-3-JOC.
@@ -400,7 +398,8 @@ void AudioRendererPassthrough::CreateAudioTrackAndStartProcessing() {
       optional<SbMediaAudioSampleType>(),  // Not required in passthrough mode
       audio_stream_info_.number_of_channels,
       audio_stream_info_.samples_per_second, kPreferredBufferSizeInBytes,
-      kTunnelModeAudioSessionId, false /* is_web_audio */));
+      /*tunnel_mode_audio_session_id=*/std::nullopt,
+      /*is_web_audio=*/false));
 
   if (!audio_track_bridge->is_valid()) {
     error_cb_(kSbPlayerErrorDecode, "Error creating AudioTrackBridge");

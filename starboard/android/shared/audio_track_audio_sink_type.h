@@ -20,6 +20,7 @@
 #include <atomic>
 #include <functional>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -68,7 +69,7 @@ class AudioTrackAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       int64_t start_time,
-      int tunnel_mode_audio_session_id,
+      std::optional<int> tunnel_mode_audio_session_id,
       bool is_web_audio,
       void* context);
 
@@ -115,7 +116,7 @@ class AudioTrackAudioSink
       ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       int64_t start_media_time,
-      int tunnel_mode_audio_session_id,
+      std::optional<int> tunnel_mode_audio_session_id,
       bool is_web_audio,
       void* context);
   ~AudioTrackAudioSink() override;

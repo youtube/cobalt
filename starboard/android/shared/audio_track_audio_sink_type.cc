@@ -116,7 +116,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
     ConsumeFramesFunc consume_frames_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     int64_t start_time,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool is_web_audio,
     void* context)
     : type_(type),
@@ -130,7 +130,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       error_func_(error_func),
       start_time_(start_time),
       max_frames_per_request_(
-          tunnel_mode_audio_session_id == -1
+          !tunnel_mode_audio_session_id.has_value()
               ? kMaxFramesPerRequest
               : GetMaxFramesPerRequestForTunnelMode(sampling_frequency_hz_)),
       context_(context),
@@ -449,13 +449,12 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     SbAudioSinkPrivate::ErrorFunc error_func,
     void* context) {
   const int64_t kStartTime = 0;
-  // Disable tunnel mode.
-  const int kTunnelModeAudioSessionId = -1;
   const bool kIsWebAudio = true;
   return Create(channels, sampling_frequency_hz, audio_sample_type,
                 audio_frame_storage_type, frame_buffers, frames_per_channel,
                 update_source_status_func, consume_frames_func, error_func,
-                kStartTime, kTunnelModeAudioSessionId, kIsWebAudio, context);
+                kStartTime, /*tunnel_mode_audio_session_id=*/std::nullopt,
+                kIsWebAudio, context);
 }
 
 SbAudioSink AudioTrackAudioSinkType::Create(
@@ -469,7 +468,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
     SbAudioSinkPrivate::ConsumeFramesFunc consume_frames_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     int64_t start_media_time,
-    int tunnel_mode_audio_session_id,
+    std::optional<int> tunnel_mode_audio_session_id,
     bool is_web_audio,
     void* context) {
   int min_required_frames = SbAudioSinkGetMinBufferSizeInFrames(

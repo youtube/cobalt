@@ -20,6 +20,7 @@
 #include <atomic>
 #include <deque>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -96,7 +97,7 @@ class MediaDecoder final
                const SbMediaColorMetadata* color_metadata,
                bool require_software_codec,
                const FrameRenderedCB& frame_rendered_cb,
-               int tunnel_mode_audio_session_id,
+               std::optional<int> tunnel_mode_audio_session_id,
                bool force_big_endian_hdr_metadata,
                int max_video_input_size,
                std::string* error_message);
