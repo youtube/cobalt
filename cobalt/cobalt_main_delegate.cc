@@ -26,6 +26,7 @@
 #include "content/public/app/initialize_mojo_core.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/content_switches.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 
 namespace cobalt {
 
@@ -37,6 +38,7 @@ CobaltMainDelegate::~CobaltMainDelegate() {}
 absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
+  cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
   return content::ShellMainDelegate::BasicStartupComplete();
 }
 
