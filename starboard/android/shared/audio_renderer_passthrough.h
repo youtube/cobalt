@@ -17,6 +17,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <queue>
 
 #include "starboard/android/shared/audio_decoder.h"
@@ -122,10 +123,10 @@ class AudioRendererPassthrough
   bool end_of_stream_written_ = false;  // Only accessed on PlayerWorker thread.
 
   Mutex mutex_;
-  bool stop_called_ = false;
   int64_t total_frames_written_ = 0;
-  int64_t playback_head_position_when_stopped_ = 0;
-  int64_t stopped_at_ = 0;              // microseconds
+  // AudioTimestamp when stop() is called. Not set until stop() is called.
+  std::optional<AudioTrackBridge::AudioTimestamp> stopped_timestamp_;
+
   int64_t seek_to_time_ = 0;            // microseconds
   int64_t first_audio_timestamp_ = -1;  // microseconds
   double volume_ = 1.0;

@@ -77,10 +77,16 @@ class AudioTrackBridge {
 
   void SetVolume(double volume, JniEnvExt* env = JniEnvExt::Get());
 
-  // |updated_at| contains the timestamp when the audio timestamp is updated on
-  // return.  It can be nullptr.
-  int64_t GetAudioTimestamp(int64_t* updated_at,
-                            JniEnvExt* env = JniEnvExt::Get());
+  // This struct maps to AudioTimestamp in Android.
+  // See https://developer.android.com/reference/android/media/AudioTimestamp
+  struct AudioTimestamp {
+    // The position in frames relative to start of an assumed audio stream.
+    int64_t frame_position = 0;
+    // The estimated time in microseconds when the frame was presented or is
+    // committed to be presented, with a timebase of `TIMEBASE_MONOTONIC`.
+    int64_t updated_at_us = 0;
+  };
+  AudioTimestamp GetAudioTimestamp(JniEnvExt* env = JniEnvExt::Get());
   bool GetAndResetHasAudioDeviceChanged(JniEnvExt* env = JniEnvExt::Get());
   int GetUnderrunCount(JniEnvExt* env = JniEnvExt::Get());
   int GetStartThresholdInFrames(JniEnvExt* env = JniEnvExt::Get());

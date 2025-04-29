@@ -249,8 +249,7 @@ void AudioTrackBridge::SetVolume(double volume,
   }
 }
 
-int64_t AudioTrackBridge::GetAudioTimestamp(
-    int64_t* updated_at,
+AudioTrackBridge::AudioTimestamp AudioTrackBridge::GetAudioTimestamp(
     JniEnvExt* env /*= JniEnvExt::Get()*/) {
   SB_DCHECK(env);
   SB_DCHECK(is_valid());
@@ -258,13 +257,13 @@ int64_t AudioTrackBridge::GetAudioTimestamp(
   ScopedLocalJavaRef<jobject> j_audio_timestamp(
       env->CallObjectMethodOrAbort(j_audio_track_bridge_, "getAudioTimestamp",
                                    "()Landroid/media/AudioTimestamp;"));
-  if (updated_at) {
-    *updated_at =
-        env->GetLongFieldOrAbort(j_audio_timestamp.Get(), "nanoTime", "J") /
-        1000;
-  }
-  return env->GetLongFieldOrAbort(j_audio_timestamp.Get(), "framePosition",
-                                  "J");
+  return {
+      .frame_position = env->GetLongFieldOrAbort(j_audio_timestamp.Get(),
+                                                 "framePosition", "J"),
+      .updated_at_us =
+          env->GetLongFieldOrAbort(j_audio_timestamp.Get(), "nanoTime", "J") /
+          1'000,
+  };
 }
 
 bool AudioTrackBridge::GetAndResetHasAudioDeviceChanged(

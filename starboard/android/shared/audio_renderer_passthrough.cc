@@ -278,9 +278,7 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
 
   end_of_stream_written_ = false;
 
-  stop_called_ = false;
-  playback_head_position_when_stopped_ = 0;
-  stopped_at_ = 0;
+  stopped_timestamp_.reset();
   first_audio_timestamp_ = -1;
   if (!seek_to_time_set) {
     seek_to_time_ = seek_to_time;
@@ -320,17 +318,17 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   }
 
   int64_t playback_time;
-  if (stop_called_) {
+  if (stopped_timestamp_.has_value()) {
     // When AudioTrackBridge::Stop() is called, the playback will continue until
     // all the frames written are played, as the AudioTrack is created in
     // MODE_STREAM.
     auto now = CurrentMonotonicTime();
-    SB_DCHECK(now >= stopped_at_);
-    auto time_elapsed = now - stopped_at_;
+    SB_DCHECK(now >= stopped_timestamp_->updated_at_us);
+    auto time_elapsed = now - stopped_timestamp_->updated_at_us;
     int64_t frames_played =
         time_elapsed * audio_stream_info_.samples_per_second / 1'000'000LL;
     int64_t total_frames_played =
-        frames_played + playback_head_position_when_stopped_;
+        frames_played + stopped_timestamp_->frame_position;
     total_frames_played = std::min(total_frames_played, total_frames_written_);
     playback_time =
         audio_start_time + total_frames_played * 1'000'000LL /
@@ -338,10 +336,9 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     return std::max(playback_time, seek_to_time_);
   }
 
-  int64_t updated_at;
-  auto playback_head_position =
-      audio_track_bridge_->GetAudioTimestamp(&updated_at);
-  if (playback_head_position <= 0) {
+  AudioTrackBridge::AudioTimestamp playback_head =
+      audio_track_bridge_->GetAudioTimestamp();
+  if (playback_head.frame_position <= 0) {
     // The playback is warming up, don't adjust the media time by the monotonic
     // system time.
     return std::max(audio_start_time, seek_to_time_);
@@ -349,7 +346,8 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
 
   // TODO: This may cause time regression, because the unadjusted time will be
   //       returned on pause, after an adjusted time has been returned.
-  playback_time = audio_start_time + playback_head_position * 1'000'000LL /
+  playback_time = audio_start_time + playback_head.frame_position *
+                                         1'000'000LL /
                                          audio_stream_info_.samples_per_second;
 
   // When underlying AudioTrack is paused, we use returned playback time
@@ -366,14 +364,15 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
 
   // TODO: Cap this to the maximum frames written to the AudioTrack.
   auto now = CurrentMonotonicTime();
-  SB_LOG_IF(WARNING, now < updated_at)
-      << "now (" << now << ") is not greater than updated_at (" << updated_at
-      << ").";
-  SB_LOG_IF(WARNING, now - updated_at > 1'000'000LL)
-      << "Elapsed time (" << now - updated_at
+  SB_LOG_IF(WARNING, now < playback_head.updated_at_us)
+      << "now (" << now << ") is not greater than updated_at ("
+      << playback_head.updated_at_us << ").";
+  auto elapsed_us = now - playback_head.updated_at_us;
+  SB_LOG_IF(WARNING, elapsed_us > 1'000'000LL)
+      << "Elapsed time (" << elapsed_us
       << ") is greater than 1s. (playback_time " << playback_time << ")";
 
-  playback_time += std::max<int64_t>(now - updated_at, 0);
+  playback_time += std::max<int64_t>(elapsed_us, 0);
 
   return std::max(playback_time, seek_to_time_);
 }
@@ -487,7 +486,7 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
       audio_track_paused_ = false;
       SB_LOG(INFO) << "Played on AudioTrack thread.";
       ScopedLock scoped_lock(mutex_);
-      stop_called_ = false;
+      stopped_timestamp_.reset();
     } else {
       audio_track_bridge_->Pause();
       audio_track_paused_ = true;
@@ -503,17 +502,15 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
         prerolled_cb_();
       }
       ScopedLock scoped_lock(mutex_);
-      if (current_state.playing() && !stop_called_) {
+      if (current_state.playing() && !stopped_timestamp_.has_value()) {
         // TODO: Check if we can apply the same stop logic to non-passthrough.
         audio_track_bridge_->Stop();
-        stop_called_ = true;
-        playback_head_position_when_stopped_ =
-            audio_track_bridge_->GetAudioTimestamp(&stopped_at_);
+        stopped_timestamp_ = audio_track_bridge_->GetAudioTimestamp();
         total_frames_written_ = total_frames_written_on_audio_track_thread_;
         decoded_audio_writing_in_progress_ = nullptr;
-        SB_LOG(INFO) << "Audio track stopped at " << stopped_at_
-                     << ", playback head: "
-                     << playback_head_position_when_stopped_;
+        SB_LOG(INFO) << "Audio track stopped at "
+                     << stopped_timestamp_->updated_at_us << ", playback head: "
+                     << stopped_timestamp_->frame_position;
       }
     } else {
       auto sample_buffer = decoded_audio_writing_in_progress_->data() +
@@ -573,11 +570,12 @@ void AudioRendererPassthrough::UpdateStatusAndWriteData(
 
   // EOS is handled on this thread instead of in GetCurrentMediaTime(), because
   // GetCurrentMediaTime() is not guaranteed to be called.
-  if (stop_called_ && !end_of_stream_played_.load()) {
-    auto time_elapsed = CurrentMonotonicTime() - stopped_at_;
+  if (stopped_timestamp_.has_value() && !end_of_stream_played_.load()) {
+    auto time_elapsed =
+        CurrentMonotonicTime() - stopped_timestamp_->updated_at_us;
     auto frames_played =
         time_elapsed * audio_stream_info_.samples_per_second / 1'000'000LL;
-    if (frames_played + playback_head_position_when_stopped_ >=
+    if (frames_played + stopped_timestamp_->frame_position >=
         total_frames_written_on_audio_track_thread_) {
       end_of_stream_played_.store(true);
       ended_cb_();
