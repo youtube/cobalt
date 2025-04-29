@@ -19,6 +19,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client.h"
 #include "cobalt/browser/cobalt_web_contents_delegate.h"
+#include "content/public/browser/generated_code_cache_settings.h"
 #include "content/shell/browser/shell_content_browser_client.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 
@@ -67,6 +68,8 @@ class CobaltContentBrowserClient : public content::ShellContentBrowserClient {
   // ShellContentBrowserClient overrides.
   std::unique_ptr<content::BrowserMainParts> CreateBrowserMainParts(
       bool is_integration_test) override;
+  content::GeneratedCodeCacheSettings GetGeneratedCodeCacheSettings(
+      content::BrowserContext* context) override;
   std::string GetApplicationLocale() override;
   std::string GetUserAgent() override;
   std::string GetFullUserAgent() override;
