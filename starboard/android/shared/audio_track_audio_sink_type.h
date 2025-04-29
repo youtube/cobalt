@@ -139,6 +139,8 @@ class AudioTrackAudioSink
 
   void ReportError(bool capability_changed, const std::string& error_message);
 
+  int64_t GetFramesDurationUs(int frames) const;
+
   Type* const type_;
   const int channels_;
   const int sampling_frequency_hz_;
