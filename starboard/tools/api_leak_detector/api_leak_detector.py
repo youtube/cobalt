@@ -173,6 +173,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'opendir',
     'closedir',
     'readdir_r',
+    'readdir',
 ]
 
 
