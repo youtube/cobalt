@@ -72,8 +72,9 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       typedef ::starboard::shared::libfdkaac::FdkAacAudioDecoder
           FdkAacAudioDecoder;
 
-      auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
-                                SbDrmSystem drm_system) {
+      auto decoder_creator =
+          [](const media::AudioStreamInfo& audio_stream_info,
+             SbDrmSystem drm_system) -> std::unique_ptr<AudioDecoder> {
         if (audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           std::unique_ptr<OpusAudioDecoder> audio_decoder_impl(
               new OpusAudioDecoder(audio_stream_info));
@@ -100,7 +101,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
                           << audio_stream_info.codec;
           }
         }
-        return std::unique_ptr<AudioDecoder>();
+        return nullptr;
       };
 
       audio_decoder->reset(new AdaptiveAudioDecoder(
