@@ -18,12 +18,8 @@
 #include "cobalt/browser/cobalt_browser_main_parts.h"
 #include "cobalt/browser/global_features.h"
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
-#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
-#include "components/prefs/in_memory_pref_store.h"
-#include "components/prefs/pref_registry_simple.h"
-#include "components/prefs/pref_service_factory.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/shell/browser/shell_paths.h"
 
