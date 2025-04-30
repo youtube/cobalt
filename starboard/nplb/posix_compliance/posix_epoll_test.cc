@@ -226,7 +226,7 @@ TEST_F(PosixEpollTest, ReceiveWithWait) {
   num_ready = epoll_wait(epfd, events, kMaxEvents, kSocketTimeout);
 
   for (int i = 0; i < num_ready; i++) {
-    if (events[i].events & EPOLLIN && events[i].data.fd == server_socket_fd) {
+    if (events[i].events & EPOLLOUT && events[i].data.fd == server_socket_fd) {
       while (send_total < kBufSize) {
         int bytes_sent = send(server_socket_fd, send_buf + send_total,
                               kBufSize - send_total, kSendFlags);
@@ -242,7 +242,7 @@ TEST_F(PosixEpollTest, ReceiveWithWait) {
 
   num_ready = epoll_wait(epfd, events, kMaxEvents, kSocketTimeout);
   for (int i = 0; i < num_ready; i++) {
-    if (events[i].events & EPOLLOUT && events[i].data.fd == client_socket_fd) {
+    if (events[i].events & EPOLLIN && events[i].data.fd == client_socket_fd) {
       while (receive_total < kBufSize) {
         int bytes_received = recv(client_socket_fd, receive_buf + receive_total,
                                   kBufSize - receive_total, 0);
@@ -270,3 +270,10 @@ TEST_F(PosixEpollTest, ReceiveWithWait) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
+
+/*
+1. timeout for reading
+2. timeout for writing
+3. socket ready for reading
+4. socket ready for writing
+*/
