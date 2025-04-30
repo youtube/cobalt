@@ -356,6 +356,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
         auto sync_time = start_time_ + accumulated_written_frames *
                                            1'000'000LL / sampling_frequency_hz_;
+
         // Not necessary to handle error of WriteData(), as the audio has
         // reached the end of stream.
         WriteData(env, silence_buffer.data(), silence_frames_per_append,
