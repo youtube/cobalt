@@ -2,10 +2,14 @@
   "TODO(b/382508397)": "Remove this when list is dynamically generated.",
   "test_targets": [
     "base:base_unittests",
-    "starboard/nplb:nplb"
+    "starboard/nplb:nplb",
+    "cc:cc_unittests",
+    "components/viz:viz_unittests"
   ],
   "executables": [
     "out/linux-x64x11-evergreen_devel/base_unittests",
-    "out/linux-x64x11-evergreen_devel/nplb"
+    "out/linux-x64x11-evergreen_devel/nplb",
+    "out/linux-x64x11-evergreen_devel/cc_unittests",
+    "out/linux-x64x11-evergreen_devel/viz_unittests"
   ]
 }
