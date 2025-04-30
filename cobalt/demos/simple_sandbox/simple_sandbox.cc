@@ -28,7 +28,9 @@ class SimpleSandbox {
     return base::Singleton<SimpleSandbox>::get();
   }
 
-  static void StartApplication(int argc, char** argv, const char* link,
+  static void StartApplication(int argc,
+                               char** argv,
+                               const char* link,
                                const base::Closure& quit_closure,
                                int64_t timestamp);
 
@@ -42,7 +44,9 @@ class SimpleSandbox {
 };
 
 // static
-void SimpleSandbox::StartApplication(int argc, char** argv, const char* link,
+void SimpleSandbox::StartApplication(int argc,
+                                     char** argv,
+                                     const char* link,
                                      const base::Closure& quit_closure,
                                      int64_t timestamp) {
   LOG(INFO) << "SimpleSandbox::StartApplication";
