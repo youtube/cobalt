@@ -29,7 +29,7 @@
 
 #include "ui/events/types/event_type.h"
 
-namespace starboard {
+namespace ui {
 
 constexpr auto kSbKeyToDomCodeMap = base::MakeFixedFlatMap<SbKey, ui::DomCode>({
     // Convenience keys for keyboard support.
@@ -359,4 +359,4 @@ void PlatformEventSourceStarboard::HandleWindowSizeChangedEvent(
 
 PlatformEventSourceStarboard::~PlatformEventSourceStarboard() {}
 
-}  // namespace starboard
+}  // namespace ui

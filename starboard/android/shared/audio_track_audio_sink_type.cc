@@ -129,9 +129,8 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       consume_frames_func_(consume_frames_func),
       error_func_(error_func),
       start_time_(start_time),
-      tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
       max_frames_per_request_(
-          tunnel_mode_audio_session_id_ == -1
+          tunnel_mode_audio_session_id == -1
               ? kMaxFramesPerRequest
               : GetMaxFramesPerRequestForTunnelMode(sampling_frequency_hz_)),
       context_(context),
@@ -204,9 +203,9 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   SB_LOG(INFO) << "AudioTrackAudioSink thread started.";
 
   int accumulated_written_frames = 0;
-  int64_t last_playback_head_event_at = -1;        // microseconds
-  int64_t playback_head_not_changed_duration = 0;  // microseconds
-  int64_t last_written_succeeded_at = -1;          // microseconds
+  int64_t last_playback_head_event_at = -1;  // microseconds
+
+  int last_playback_head_position = 0;
 
   while (!quit_) {
     int playback_head_position = 0;
@@ -221,33 +220,29 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     if (was_playing) {
       playback_head_position =
           bridge_.GetAudioTimestamp(&frames_consumed_at, env);
-      SB_DCHECK(playback_head_position >= last_playback_head_position_);
+      SB_DCHECK(playback_head_position >= last_playback_head_position);
 
-      playback_head_position =
-          std::max(playback_head_position, last_playback_head_position_);
       int frames_consumed =
-          playback_head_position - last_playback_head_position_;
+          playback_head_position - last_playback_head_position;
       int64_t now = CurrentMonotonicTime();
 
       if (last_playback_head_event_at == -1) {
         last_playback_head_event_at = now;
       }
-      if (last_playback_head_position_ == playback_head_position) {
+      if (last_playback_head_position == playback_head_position) {
         int64_t elapsed = now - last_playback_head_event_at;
         if (elapsed > 5'000'000LL) {
-          playback_head_not_changed_duration += elapsed;
           last_playback_head_event_at = now;
           SB_LOG(INFO) << "last playback head position is "
-                       << last_playback_head_position_
+                       << last_playback_head_position
                        << " and it hasn't been updated for " << elapsed
                        << " microseconds.";
         }
       } else {
         last_playback_head_event_at = now;
-        playback_head_not_changed_duration = 0;
       }
 
-      last_playback_head_position_ = playback_head_position;
+      last_playback_head_position = playback_head_position;
       frames_consumed = std::min(frames_consumed, frames_in_audio_track);
 
       if (frames_consumed != 0) {
@@ -276,8 +271,6 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     } else if (!was_playing && is_playing) {
       was_playing = true;
       last_playback_head_event_at = -1;
-      playback_head_not_changed_duration = 0;
-      last_written_succeeded_at = -1;
       bridge_.Play();
     }
 
@@ -315,8 +308,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
         std::vector<uint8_t> silence_buffer(channels_ *
                                             GetBytesPerSample(sample_type_) *
                                             silence_frames_per_append);
-        auto sync_time = start_time_ + accumulated_written_frames *
-                                           1'000'000LL / sampling_frequency_hz_;
+        int64_t sync_time =
+            start_time_ + GetFramesDurationUs(accumulated_written_frames);
         // Not necessary to handle error of WriteData(), as the audio has
         // reached the end of stream.
         WriteData(env, silence_buffer.data(), silence_frames_per_append,
@@ -327,9 +320,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       continue;
     }
     SB_DCHECK(expected_written_frames > 0);
-    auto sync_time = start_time_ + accumulated_written_frames * 1'000'000LL /
-                                       sampling_frequency_hz_;
-
+    int64_t sync_time =
+        start_time_ + GetFramesDurationUs(accumulated_written_frames);
     SB_DCHECK(start_position + expected_written_frames <= frames_per_channel_)
         << "start_position: " << start_position
         << ", expected_written_frames: " << expected_written_frames
@@ -356,16 +348,13 @@ void AudioTrackAudioSink::AudioThreadFunc() {
                                         written_frames));
       }
       break;
-    } else if (written_frames > 0) {
-      last_written_succeeded_at = now;
     }
     frames_in_audio_track += written_frames;
     accumulated_written_frames += written_frames;
 
     bool written_fully = (written_frames == expected_written_frames);
     auto unplayed_frames_in_time =
-        frames_in_audio_track * 1'000'000LL / sampling_frequency_hz_ -
-        (now - frames_consumed_at);
+        GetFramesDurationUs(frames_in_audio_track) - (now - frames_consumed_at);
     // As long as there is enough data in the buffer, run the loop in lower
     // frequency to avoid taking too much CPU.  Note that the threshold should
     // be big enough to account for the unstable playback head reported at the
@@ -411,6 +400,10 @@ void AudioTrackAudioSink::ReportError(bool capability_changed,
   if (error_func_) {
     error_func_(capability_changed, error_message, context_);
   }
+}
+
+int64_t AudioTrackAudioSink::GetFramesDurationUs(int frames) const {
+  return frames * 1'000'000LL / sampling_frequency_hz_;
 }
 
 void AudioTrackAudioSink::SetVolume(double volume) {

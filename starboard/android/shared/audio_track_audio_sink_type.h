@@ -139,6 +139,8 @@ class AudioTrackAudioSink
 
   void ReportError(bool capability_changed, const std::string& error_message);
 
+  int64_t GetFramesDurationUs(int frames) const;
+
   Type* const type_;
   const int channels_;
   const int sampling_frequency_hz_;
@@ -149,13 +151,10 @@ class AudioTrackAudioSink
   const ConsumeFramesFunc consume_frames_func_;
   const SbAudioSinkPrivate::ErrorFunc error_func_;
   const int64_t start_time_;  // microseconds
-  const int tunnel_mode_audio_session_id_;
   const int max_frames_per_request_;
   void* const context_;
 
   AudioTrackBridge bridge_;
-
-  int last_playback_head_position_ = 0;
 
   volatile bool quit_ = false;
   pthread_t audio_out_thread_ = 0;

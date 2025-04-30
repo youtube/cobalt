@@ -47,6 +47,10 @@
 #include "base/trace_event/base_tracing.h"
 #include "build/build_config.h"
 
+#if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+#include "base/starboard/linker_stub.h"
+#endif  // BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
+
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_AIX)
 #include <sys/prctl.h>
 #endif
@@ -143,7 +147,7 @@ long sys_rt_sigaction(int sig,
                       const struct kernel_sigaction* act,
                       struct kernel_sigaction* oact) {
 #if BUILDFLAG(ENABLE_COBALT_HERMETIC_HACKS)
-  NOTIMPLEMENTED();
+  COBALT_LINKER_STUB();
   return -1;
 #else  // ENABLE_COBALT_HERMETIC_HACKS
   return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));

@@ -29,6 +29,12 @@ group("gn_all") {
   } else if (!is_cobalt_hermetic_build) {
     deps += [ ":strip_cobalt_binary" ]
   }
+  if (is_cobalt_hermetic_build) {
+    deps += [
+      "//starboard/elf_loader:elf_loader_sandbox($starboard_toolchain)",
+      "//starboard/loader_app:loader_app($starboard_toolchain)",
+    ]
+  }
 }
 
 if (!is_android) {
@@ -62,6 +68,7 @@ if (!is_android) {
       "//content/shell:content_shell_app",
       "//content/shell:content_shell_lib",
       "//content/shell:pak",
+      "//gpu/command_buffer/service",
       "//sandbox",
       "//starboard:starboard_group",
       "//third_party/blink/public/common",

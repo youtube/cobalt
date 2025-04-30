@@ -26,6 +26,7 @@
 #include "content/public/app/initialize_mojo_core.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/common/content_switches.h"
+#include "gpu/command_buffer/service/gpu_switches.h"
 
 namespace cobalt {
 
@@ -37,6 +38,7 @@ CobaltMainDelegate::~CobaltMainDelegate() {}
 absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
+  cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
   return content::ShellMainDelegate::BasicStartupComplete();
 }
 
@@ -68,6 +70,8 @@ absl::optional<int> CobaltMainDelegate::PostEarlyInitialization(
   if (!ShouldInitializeMojo(invoked_in)) {
     content::InitializeMojoCore();
   }
+
+  InitializeHangWatcher();
 
   // ShellMainDelegate has GWP-ASan as well as Profiling Client disabled.
   // Consequently, we provide no parameters for these two. The memory_system
@@ -120,5 +124,29 @@ absl::variant<int, content::MainFunctionParams> CobaltMainDelegate::RunProcess(
 
 void CobaltMainDelegate::Shutdown() {
   main_runner_->Shutdown();
+}
+
+void CobaltMainDelegate::InitializeHangWatcher() {
+  const base::CommandLine* const command_line =
+      base::CommandLine::ForCurrentProcess();
+  std::string process_type =
+      command_line->GetSwitchValueASCII(switches::kProcessType);
+
+  // In single-process mode it's always kBrowserProcess.
+  base::HangWatcher::ProcessType hang_watcher_process_type;
+  if (process_type.empty()) {
+    hang_watcher_process_type = base::HangWatcher::ProcessType::kBrowserProcess;
+  } else if (process_type == switches::kGpuProcess) {
+    hang_watcher_process_type = base::HangWatcher::ProcessType::kGPUProcess;
+  } else if (process_type == switches::kRendererProcess) {
+    hang_watcher_process_type =
+        base::HangWatcher::ProcessType::kRendererProcess;
+  } else if (process_type == switches::kUtilityProcess) {
+    hang_watcher_process_type = base::HangWatcher::ProcessType::kUtilityProcess;
+  } else {
+    hang_watcher_process_type = base::HangWatcher::ProcessType::kUnknownProcess;
+  }
+
+  base::HangWatcher::InitializeOnMainThread(hang_watcher_process_type);
 }
 }  // namespace cobalt
