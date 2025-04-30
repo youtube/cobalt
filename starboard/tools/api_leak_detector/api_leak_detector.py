@@ -189,6 +189,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'closedir',
     'readdir_r',
     'malloc_usable_size',
+    'readdir',
 ]
 
 
