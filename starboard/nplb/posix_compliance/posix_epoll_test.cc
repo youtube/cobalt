@@ -59,7 +59,7 @@ class PosixEpollTest : public testing::Test {
 
  protected:
   // TODO(b/412696447): Correct member variable style.
-  int timeout = 1000;
+
   int epfd;
   int socket_fd;
   epoll_event epev;
@@ -185,8 +185,8 @@ TEST_F(PosixEpollTest, SunnyDayWaitTimeout) {
   EXPECT_EQ(epoll_ctl(epfd, EPOLL_CTL_ADD, listen_sock, &ev), 0)
       << strerror(errno);
 
-  // 1 second timeout for wait.
-  int num_ready = epoll_wait(epfd, events, kMaxEvents, timeout);
+  // 2 second timeout for wait.
+  int num_ready = epoll_wait(epfd, events, kMaxEvents, kSocketTimeout / 100);
   // Expect nothing to be ready since we're not doing anything.
   EXPECT_EQ(num_ready, 0);
 
@@ -223,7 +223,7 @@ TEST_F(PosixEpollTest, ReceiveWithWait) {
   epoll_ctl(epfd, EPOLL_CTL_ADD, client_socket_fd, &epev);
   int num_ready = 0;
   struct epoll_event events[kMaxEvents];
-  num_ready = epoll_wait(epfd, events, kMaxEvents, timeout);
+  num_ready = epoll_wait(epfd, events, kMaxEvents, kSocketTimeout);
 
   for (int i = 0; i < num_ready; i++) {
     if (events[i].events & EPOLLIN && events[i].data.fd == server_socket_fd) {
@@ -240,7 +240,7 @@ TEST_F(PosixEpollTest, ReceiveWithWait) {
     }
   }
 
-  num_ready = epoll_wait(epfd, events, kMaxEvents, timeout);
+  num_ready = epoll_wait(epfd, events, kMaxEvents, kSocketTimeout);
   for (int i = 0; i < num_ready; i++) {
     if (events[i].events & EPOLLOUT && events[i].data.fd == client_socket_fd) {
       while (receive_total < kBufSize) {
