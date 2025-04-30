@@ -364,6 +364,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
       require_software_codec_(IsSoftwareDecodeRequired(max_video_capabilities)),
       force_big_endian_hdr_metadata_(force_big_endian_hdr_metadata),
       tunnel_mode_audio_session_id_(tunnel_mode_audio_session_id),
+      tunnel_mode_enabled_(tunnel_mode_audio_session_id != -1),
       max_video_input_size_(max_video_input_size),
       enable_flush_during_seek_(enable_flush_during_seek),
       force_reset_surface_(force_reset_surface),
@@ -412,7 +413,7 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
 
 VideoDecoder::~VideoDecoder() {
   TeardownCodec();
-  if (tunnel_mode_audio_session_id_ != -1) {
+  if (tunnel_mode_enabled_) {
     ClearVideoWindow(force_reset_surface_under_tunnel_mode_);
   } else {
     ClearVideoWindow(force_reset_surface_);
@@ -428,7 +429,7 @@ scoped_refptr<VideoDecoder::VideoRendererSink> VideoDecoder::GetSink() {
 
 std::unique_ptr<VideoDecoder::VideoRenderAlgorithm>
 VideoDecoder::GetRenderAlgorithm() {
-  if (tunnel_mode_audio_session_id_ == -1) {
+  if (!tunnel_mode_enabled_) {
     return std::unique_ptr<VideoRenderAlgorithm>(
         new android::shared::VideoRenderAlgorithm(this,
                                                   video_frame_tracker_.get()));
@@ -461,7 +462,7 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
 
 size_t VideoDecoder::GetPrerollFrameCount() const {
   // Tunnel mode uses its own preroll logic.
-  if (tunnel_mode_audio_session_id_ != -1) {
+  if (tunnel_mode_enabled_) {
     return 0;
   }
   if (input_buffer_written_ > 0 && first_buffer_timestamp_ != 0) {
@@ -513,7 +514,7 @@ void VideoDecoder::WriteInputBuffers(const InputBuffers& input_buffers) {
       }
     }
 
-    if (tunnel_mode_audio_session_id_ != -1) {
+    if (tunnel_mode_enabled_) {
       Schedule(std::bind(&VideoDecoder::OnTunnelModePrerollTimeout, this),
                kInitialPrerollTimeout);
     }
@@ -793,7 +794,7 @@ void VideoDecoder::TeardownCodec() {
 }
 
 void VideoDecoder::OnEndOfStreamWritten(MediaCodecBridge* media_codec_bridge) {
-  if (tunnel_mode_audio_session_id_ == -1) {
+  if (!tunnel_mode_enabled_) {
     return;
   }
 
@@ -831,7 +832,7 @@ void VideoDecoder::WriteInputBuffersInternal(
   media_decoder_->WriteInputBuffers(input_buffers);
   if (media_decoder_->GetNumberOfPendingTasks() < kMaxPendingWorkSize) {
     decoder_status_cb_(kNeedMoreInput, NULL);
-  } else if (tunnel_mode_audio_session_id_ != -1) {
+  } else if (tunnel_mode_enabled_) {
     // In tunnel mode playback when need data is not signaled above, it is
     // possible that the VideoDecoder won't get a chance to send kNeedMoreInput
     // to the renderer again.  Schedule a task to check back.
@@ -839,7 +840,7 @@ void VideoDecoder::WriteInputBuffersInternal(
              kNeedMoreInputCheckIntervalInTunnelMode);
   }
 
-  if (tunnel_mode_audio_session_id_ != -1) {
+  if (tunnel_mode_enabled_) {
     int64_t max_timestamp = input_buffers[0]->timestamp();
     for (const auto& input_buffer : input_buffers) {
       max_timestamp = std::max(max_timestamp, input_buffer->timestamp());
@@ -921,7 +922,7 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
   // Record the latest dimensions of the decoded input.
   frame_sizes_.push_back(media_codec_bridge->GetOutputSize());
 
-  if (tunnel_mode_audio_session_id_ != -1) {
+  if (tunnel_mode_enabled_) {
     return;
   }
   if (first_output_format_changed_) {
@@ -948,7 +949,7 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
 bool VideoDecoder::Tick(MediaCodecBridge* media_codec_bridge) {
   // Tunnel mode renders frames in MediaCodec automatically and shouldn't reach
   // here.
-  SB_DCHECK(tunnel_mode_audio_session_id_ == -1);
+  SB_DCHECK(!tunnel_mode_enabled_);
   return sink_->Render();
 }
 
@@ -1173,7 +1174,7 @@ void VideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
   SB_DCHECK(is_video_frame_tracker_enabled_);
   SB_DCHECK(video_frame_tracker_);
 
-  if (tunnel_mode_audio_session_id_ != -1) {
+  if (tunnel_mode_enabled_) {
     tunnel_mode_frame_rendered_.store(true);
   }
   video_frame_tracker_->OnFrameRendered(frame_timestamp);
@@ -1181,7 +1182,7 @@ void VideoDecoder::OnFrameRendered(int64_t frame_timestamp) {
 
 void VideoDecoder::OnTunnelModePrerollTimeout() {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
+  SB_DCHECK(tunnel_mode_enabled_);
 
   if (tunnel_mode_prerolling_.exchange(false)) {
     SB_LOG(INFO) << "Tunnel mode preroll finished due to timeout.";
@@ -1196,7 +1197,7 @@ void VideoDecoder::OnTunnelModePrerollTimeout() {
 
 void VideoDecoder::OnTunnelModeCheckForNeedMoreInput() {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(tunnel_mode_audio_session_id_ != -1);
+  SB_DCHECK(tunnel_mode_enabled_);
 
   // There's a race condition when suspending the app. If surface view is
   // destroyed before this function is called, |media_decoder_| could be null

@@ -148,7 +148,8 @@ class VideoDecoder
   // Force endianness of HDR Metadata.
   const bool force_big_endian_hdr_metadata_;
 
-  const int tunnel_mode_audio_session_id_ = -1;
+  const int tunnel_mode_audio_session_id_;
+  const bool tunnel_mode_enabled_;
 
   // Set the maximum size in bytes of an input buffer for video.
   const int max_video_input_size_;
