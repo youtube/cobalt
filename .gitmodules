@@ -1,0 +1,3 @@
+[submodule "starboard/contrib/rdk"]
+	path = starboard/contrib/rdk
+	url = https://cobalt.googlesource.com/external/components/generic/cobalt
