@@ -14,9 +14,11 @@
 
 #include "cobalt/browser/h5vcc_metrics/h5vcc_metrics_impl.h"
 
-#include "base/functional/bind.h"
-#include "base/functional/callback.h"
-#include "build/build_config.h"
+#include "base/threading/thread_checker.h"
+#include "base/time/time.h"
+#include "cobalt/browser/global_features.h"
+#include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "components/metrics_services_manager/metrics_services_manager.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -41,18 +43,33 @@ void H5vccMetricsImpl::Create(
 
 void H5vccMetricsImpl::AddListener(
     ::mojo::PendingRemote<mojom::MetricsListener> listener) {
-  NOTIMPLEMENTED();
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  cobalt::GlobalFeatures::GetInstance()
+      ->metrics_services_manager_client()
+      ->metrics_service_client()
+      ->SetMetricsListener(std::move(listener));
 }
 
 void H5vccMetricsImpl::Enable(bool enable, EnableCallback callback) {
-  NOTIMPLEMENTED();
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  auto global_features = cobalt::GlobalFeatures::GetInstance();
+  auto enabled_state_provider =
+      global_features->metrics_services_manager_client()
+          ->GetEnabledStateProvider();
+  enabled_state_provider->SetConsentGiven(enable);
+  enabled_state_provider->SetReportingEnabled(enable);
+  global_features->metrics_services_manager()->UpdateUploadPermissions(enable);
   std::move(callback).Run();
 }
 
 void H5vccMetricsImpl::SetMetricEventInterval(
     uint64_t interval_seconds,
     SetMetricEventIntervalCallback callback) {
-  NOTIMPLEMENTED();
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  cobalt::GlobalFeatures::GetInstance()
+      ->metrics_services_manager_client()
+      ->metrics_service_client()
+      ->SetUploadInterval(base::Seconds(interval_seconds));
   std::move(callback).Run();
 }
 

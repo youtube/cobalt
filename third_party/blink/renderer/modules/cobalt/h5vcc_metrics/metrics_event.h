@@ -15,6 +15,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_METRICS_METRICS_EVENT_H_
 #define THIRD_PARTY_BLINK_RENDERER_MODULES_H5VCC_METRICS_METRICS_EVENT_H_
 
+#include "third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metric_type.h"
 #include "third_party/blink/renderer/modules/event_modules.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
 
@@ -24,20 +25,28 @@ class MODULES_EXPORT MetricsEvent final : public Event {
   DEFINE_WRAPPERTYPEINFO();
 
  public:
-  static MetricsEvent* Create(const AtomicString& type, const String& tbd) {
-    return MakeGarbageCollected<MetricsEvent>(type, tbd);
+  static MetricsEvent* Create(const AtomicString& type,
+                              const V8H5vccMetricType& metric_type,
+                              const String& metric_payload) {
+    return MakeGarbageCollected<MetricsEvent>(type, metric_type,
+                                              metric_payload);
   }
 
-  MetricsEvent(const AtomicString& type, const String& tbd);
+  MetricsEvent(const AtomicString& type,
+               const V8H5vccMetricType& metric_type,
+               const String& metric_payload);
   ~MetricsEvent() override;
 
-  const String& tbd() const { return tbd_; }
+  const V8H5vccMetricType& metricType() const { return metric_type_; }
+
+  const String& metricPayload() const { return metric_payload_; }
 
   const AtomicString& InterfaceName() const override;
   void Trace(Visitor*) const override;
 
  private:
-  const String tbd_;
+  const String metric_payload_;
+  const V8H5vccMetricType metric_type_;
 };
 
 }  // namespace blink

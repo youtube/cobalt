@@ -18,6 +18,7 @@
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom-blink.h"
 
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metric_type.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/event_target_modules_names.h"
@@ -61,7 +62,8 @@ class MODULES_EXPORT H5vccMetrics final
   }
 
   // MetricsListener impl.
-  void OnMetrics(const WTF::String& tbd) override;
+  void OnMetrics(h5vcc_metrics::mojom::H5vccMetricType metric_type,
+                 const WTF::String& metric_payload) override;
 
   void Trace(Visitor*) const override;
 

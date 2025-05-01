@@ -14,11 +14,13 @@
 
 #include "cobalt/browser/metrics/cobalt_metrics_service_client.h"
 
+#include <memory>
+
 #include "base/logging.h"
 #include "base/notreached.h"
 #include "base/time/time.h"
 #include "base/version.h"
-#include "components/metrics/metrics_log_uploader.h"
+#include "cobalt/browser/metrics/cobalt_metrics_logs_uploader.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics/metrics_state_manager.h"
 #include "components/prefs/pref_service.h"
@@ -27,31 +29,15 @@
 
 namespace cobalt {
 
-namespace {
-
-class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
- public:
-  CobaltMetricsLogUploader() = default;
-  ~CobaltMetricsLogUploader() = default;
-
-  void UploadLog(const std::string& compressed_log_data,
-                 const std::string& log_hash,
-                 const std::string& log_signature,
-                 const metrics::ReportingInfo& reporting_info) {
-    DLOG(INFO) << "UMA Payload uploading! Hash: " << log_hash;
-    NOTIMPLEMENTED();
-  }
-};
-
-}  // namespace
-
 CobaltMetricsServiceClient::CobaltMetricsServiceClient(
     metrics::MetricsStateManager* state_manager,
     variations::SyntheticTrialRegistry* synthetic_trial_registry,
     PrefService* local_state)
     : metrics_state_manager_(state_manager),
       synthetic_trial_registry_(synthetic_trial_registry),
-      local_state_(local_state) {
+      local_state_(local_state),
+      log_uploader_(std::make_unique<CobaltMetricsLogUploader>()),
+      log_uploader_weak_ptr_(log_uploader_->GetWeakPtr()) {
   DETACH_FROM_THREAD(thread_checker_);
 }
 
@@ -188,18 +174,25 @@ CobaltMetricsServiceClient::CreateUploader(
     const metrics::MetricsLogUploader::UploadCallback& on_upload_complete) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
-  // TODO(b/372559349): Finish implementing log uploader.
-  return std::make_unique<CobaltMetricsLogUploader>();
+  // CreateUploader() should never be called more than once.
+  CHECK(log_uploader_);
+  log_uploader_->setOnUploadComplete(on_upload_complete);
+  return std::move(log_uploader_);
 }
 
 base::TimeDelta CobaltMetricsServiceClient::GetStandardUploadInterval() {
-  // TODO(b/372559349): Wire this to the appropriate Web platform IDL method.
-  const int kStandardUploadIntervalMinutes = 5;
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK(IsInitialized());
-  DLOG(INFO) << "Setting log upload interval to:"
-             << kStandardUploadIntervalMinutes;
-  return base::Minutes(kStandardUploadIntervalMinutes);
+  return upload_interval_;
 }
 
+void CobaltMetricsServiceClient::SetUploadInterval(base::TimeDelta interval) {
+  upload_interval_ = interval;
+}
+
+void CobaltMetricsServiceClient::SetMetricsListener(
+    ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener) {
+  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  log_uploader_weak_ptr_->SetMetricsListener(std::move(listener));
+}
 }  // namespace cobalt

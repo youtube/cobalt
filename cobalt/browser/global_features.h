@@ -19,7 +19,6 @@
 #include "base/no_destructor.h"
 #include "base/sequence_checker.h"
 #include "components/prefs/pref_registry_simple.h"
-#include "content/shell/browser/shell_paths.h"
 
 class PrefService;
 
@@ -53,6 +52,7 @@ class GlobalFeatures {
 
   metrics_services_manager::MetricsServicesManager* metrics_services_manager();
   metrics::MetricsService* metrics_service();
+  CobaltMetricsServicesManagerClient* metrics_services_manager_client();
   PrefService* experiment_config();
   PrefService* local_state();
 

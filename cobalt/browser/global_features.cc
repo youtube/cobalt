@@ -23,6 +23,7 @@
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
+#include "content/shell/browser/shell_paths.h"
 
 namespace cobalt {
 
@@ -56,6 +57,12 @@ GlobalFeatures::metrics_services_manager() {
 metrics::MetricsService* GlobalFeatures::metrics_service() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return metrics_services_manager()->GetMetricsService();
+}
+
+CobaltMetricsServicesManagerClient*
+GlobalFeatures::metrics_services_manager_client() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  return metrics_services_manager_client_.get();
 }
 
 PrefService* GlobalFeatures::experiment_config() {
