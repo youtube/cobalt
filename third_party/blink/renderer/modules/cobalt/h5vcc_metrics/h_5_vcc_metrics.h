@@ -18,8 +18,8 @@
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom-blink.h"
 
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metric_type.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
-#include "third_party/blink/renderer/core/event_target_names.h"
 #include "third_party/blink/renderer/core/execution_context/execution_context_lifecycle_observer.h"
 #include "third_party/blink/renderer/modules/event_target_modules_names.h"
 #include "third_party/blink/renderer/modules/modules_export.h"
@@ -47,9 +47,7 @@ class MODULES_EXPORT H5vccMetrics final
   void ContextDestroyed() override;
 
   // Web-exposed interface:
-  EventListener* onmetrics();
-  void setOnmetrics(EventListener* listener);
-
+  DEFINE_ATTRIBUTE_EVENT_LISTENER(metrics, kMetrics)
   ScriptPromise enable(ScriptState*, ExceptionState&);
   ScriptPromise disable(ScriptState*, ExceptionState&);
   bool isEnabled();
@@ -64,18 +62,24 @@ class MODULES_EXPORT H5vccMetrics final
   }
 
   // MetricsListener impl.
-  void OnMetrics(const WTF::String& tbd) override;
+  void OnMetrics(h5vcc_metrics::mojom::H5vccMetricType metric_type,
+                 const WTF::String& metric_payload) override;
 
   void Trace(Visitor*) const override;
 
+ protected:
+  // EventTarget:
+  void AddedEventListener(const AtomicString& event_type,
+                          RegisteredEventListener&) override;
+
  private:
-  void FireMetricsEvent(const String&);
   void OnEnable(ScriptPromiseResolver* resolver);
   void OnDisable(ScriptPromiseResolver* resolver);
-  void OnIsEnabled(ScriptPromiseResolver* resolver, bool result);
   void OnSetMetricEventInterval(ScriptPromiseResolver* resolver);
 
   void EnsureReceiverIsBound();
+  void OnCloseConnection();
+
   HeapMojoRemote<h5vcc_metrics::mojom::blink::H5vccMetrics>
       remote_h5vcc_metrics_;
   HeapMojoReceiver<h5vcc_metrics::mojom::blink::MetricsListener, H5vccMetrics>

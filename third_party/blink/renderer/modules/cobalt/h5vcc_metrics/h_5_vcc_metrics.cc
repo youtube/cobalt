@@ -15,8 +15,11 @@
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metric_type.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_metrics/metrics_event.h"
+#include "third_party/blink/renderer/platform/bindings/v8_per_context_data.h"
 
 namespace blink {
 
@@ -26,20 +29,7 @@ H5vccMetrics::H5vccMetrics(LocalDOMWindow& window)
       receiver_(this, window.GetExecutionContext()) {}
 
 void H5vccMetrics::ContextDestroyed() {
-  receiver_.reset();
-}
-
-EventListener* H5vccMetrics::onmetrics() {
-  return GetAttributeEventListener(event_type_names::kMetrics);
-}
-
-void H5vccMetrics::setOnmetrics(EventListener* listener) {
-  SetAttributeEventListener(event_type_names::kMetrics, listener);
-  EnsureReceiverIsBound();
-  auto task_runner =
-      GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
-  remote_h5vcc_metrics_->AddListener(
-      receiver_.BindNewPipeAndPassRemote(task_runner));
+  OnCloseConnection();
 }
 
 ScriptPromise H5vccMetrics::enable(ScriptState* script_state,
@@ -93,9 +83,25 @@ ScriptPromise H5vccMetrics::setMetricEventInterval(
   return resolver->Promise();
 }
 
-void H5vccMetrics::OnMetrics(const WTF::String& tbd) {
-  DispatchEvent(
-      *MakeGarbageCollected<MetricsEvent>(event_type_names::kMetrics, tbd));
+void H5vccMetrics::OnMetrics(h5vcc_metrics::mojom::H5vccMetricType metric_type,
+                             const WTF::String& metric_payload) {
+  // For now, only UMA is supported.
+  if (metric_type == h5vcc_metrics::mojom::H5vccMetricType::kCobaltUma) {
+    DispatchEvent(*MakeGarbageCollected<MetricsEvent>(
+        event_type_names::kMetrics,
+        V8H5vccMetricType(V8H5vccMetricType::Enum::kCobaltUma),
+        metric_payload));
+  }
+}
+
+void H5vccMetrics::AddedEventListener(const AtomicString& event_type,
+                                      RegisteredEventListener& listener) {
+  EventTarget::AddedEventListener(event_type, listener);
+
+  if (event_type != event_type_names::kMetrics) {
+    return;
+  }
+  EnsureReceiverIsBound();
 }
 
 void H5vccMetrics::OnEnable(ScriptPromiseResolver* resolver) {
@@ -106,10 +112,6 @@ void H5vccMetrics::OnEnable(ScriptPromiseResolver* resolver) {
 void H5vccMetrics::OnDisable(ScriptPromiseResolver* resolver) {
   is_reporting_enabled_ = false;
   resolver->Resolve();
-}
-
-void H5vccMetrics::OnIsEnabled(ScriptPromiseResolver* resolver, bool result) {
-  resolver->Resolve(result);
 }
 
 void H5vccMetrics::OnSetMetricEventInterval(ScriptPromiseResolver* resolver) {
@@ -127,6 +129,17 @@ void H5vccMetrics::EnsureReceiverIsBound() {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_h5vcc_metrics_.BindNewPipeAndPassReceiver(task_runner));
+  remote_h5vcc_metrics_.set_disconnect_handler(WTF::BindOnce(
+      &H5vccMetrics::OnCloseConnection, WrapWeakPersistent(this)));
+  remote_h5vcc_metrics_->AddListener(
+      receiver_.BindNewPipeAndPassRemote(task_runner));
+}
+
+void H5vccMetrics::OnCloseConnection() {
+  remote_h5vcc_metrics_.reset();
+  receiver_.reset();
+
+  // TODO: Keep track of in-flight Promises and reject them here.
 }
 
 void H5vccMetrics::Trace(Visitor* visitor) const {

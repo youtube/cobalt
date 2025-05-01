@@ -24,6 +24,10 @@ DecoderBuffer::Allocator* DecoderBuffer::Allocator::GetInstance() {
 
 // static
 void DecoderBuffer::Allocator::Set(Allocator* allocator) {
+  // One of them has to be nullptr, i.e. either setting a valid allocator, or
+  // resetting an existing allocator.  Setting an allocator while another
+  // allocator is in place will fail.
+  DCHECK(s_allocator == nullptr || allocator == nullptr);
   s_allocator = allocator;
 }
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)

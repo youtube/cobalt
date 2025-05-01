@@ -17,9 +17,9 @@
 #include <memory>
 #include <utility>
 
+#include "starboard/common/command_line.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/starboard/application.h"
-#include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/player/filter/adaptive_audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal_pcm.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
@@ -177,7 +177,7 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
                              &audio_renderer_sink, &video_decoder,
                              &video_render_algorithm, &video_renderer_sink,
                              error_message)) {
-      return std::unique_ptr<PlayerComponents>();
+      return nullptr;
     }
     if (use_stub_audio_decoder) {
       SB_DCHECK(!audio_decoder);
