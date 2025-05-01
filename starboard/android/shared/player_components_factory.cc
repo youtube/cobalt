@@ -432,16 +432,14 @@ class PlayerComponentsFactory : public starboard::shared::starboard::player::
           auto audio_decoder_impl =
               std::make_unique<OpusAudioDecoder>(audio_stream_info);
           if (audio_decoder_impl->is_valid()) {
-            return std::unique_ptr<AudioDecoderBase>(
-                std::move(audio_decoder_impl));
+            return audio_decoder_impl;
           }
         } else if (audio_stream_info.codec == kSbMediaAudioCodecAac ||
                    audio_stream_info.codec == kSbMediaAudioCodecOpus) {
           auto audio_decoder_impl = std::make_unique<AudioDecoder>(
               audio_stream_info, drm_system, enable_flush_during_seek);
           if (audio_decoder_impl->is_valid()) {
-            return std::unique_ptr<AudioDecoderBase>(
-                std::move(audio_decoder_impl));
+            return audio_decoder_impl;
           }
         } else {
           SB_LOG(ERROR) << "Unsupported audio codec "
