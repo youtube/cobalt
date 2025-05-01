@@ -382,15 +382,9 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
   if (!j_media_codec_bridge) {
     ScopedJavaLocalRef<jstring> j_error_message(
         Java_CreateMediaCodecBridgeResult_errorMessage(
-<<<<<<< HEAD
-            env_jni, j_create_media_codec_bridge_result));
-    *error_message = ConvertJavaStringToUTF8(env_jni, j_error_message);
-    return std::unique_ptr<MediaCodecBridge>();
-=======
             env, j_create_media_codec_bridge_result));
     *error_message = ConvertJavaStringToUTF8(env, j_error_message);
     return nullptr;
->>>>>>> e706f13ddd6 ([Refactor] Return nullptr instead of empty unique_ptr (#5585))
   }
 
   j_media_codec_bridge = env->ConvertLocalRefToGlobalRef(j_media_codec_bridge);
