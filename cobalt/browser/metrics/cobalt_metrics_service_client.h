@@ -15,10 +15,21 @@
 #ifndef COBALT_METRICS_SERVICE_CLIENT_H_
 #define COBALT_METRICS_SERVICE_CLIENT_H_
 
+#include <memory>
+
+#include "base/memory/weak_ptr.h"
 #include "base/threading/thread_checker.h"
+#include "base/time/time.h"
+#include "cobalt/browser/metrics/cobalt_metrics_logs_uploader.h"
 #include "components/metrics/metrics_service_client.h"
+#include "mojo/public/cpp/bindings/pending_remote.h"
 
 class PrefService;
+namespace h5vcc_metrics {
+namespace mojom {
+class MetricsListener;
+}
+}  // namespace h5vcc_metrics
 
 namespace metrics {
 class MetricsService;
@@ -30,6 +41,8 @@ class SyntheticTrialRegistry;
 }
 
 namespace cobalt {
+
+constexpr auto kStandardUploadIntervalMinutes = base::Minutes(5);
 
 // This class allows for necessary customizations of metrics::MetricsService,
 // the central metrics (e.g. UMA) collecting and reporting control. Threading:
@@ -74,6 +87,10 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   base::TimeDelta GetStandardUploadInterval() override;
   // Of note: GetStorageLimits() can also be overridden.
 
+  void SetUploadInterval(base::TimeDelta interval);
+  void SetMetricsListener(
+      ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener);
+
  protected:
   explicit CobaltMetricsServiceClient(
       metrics::MetricsStateManager* state_manager,
@@ -91,6 +108,17 @@ class CobaltMetricsServiceClient : public metrics::MetricsServiceClient {
   const raw_ptr<metrics::MetricsStateManager> metrics_state_manager_;
 
   std::unique_ptr<metrics::MetricsService> metrics_service_;
+
+  base::TimeDelta upload_interval_ = kStandardUploadIntervalMinutes;
+
+  // Usually `log_uploader_` would be created lazily in CreateUploader() (during
+  // first metrics upload), however there's a race condition of many seconds
+  // where JS may bind an upload listener before CobaltMetricsLogUploader has
+  // been created and the listener needs the log uploader. Therefore, we eagerly
+  // create CobaltMetricsLogUploader in the constructor to avoid this and pass
+  // ownership to the upstream clients (e.g., reporting_service.cc).
+  std::unique_ptr<CobaltMetricsLogUploader> log_uploader_;
+  base::WeakPtr<CobaltMetricsLogUploader> log_uploader_weak_ptr_;
 
   // For DCHECK()s.
   bool IsInitialized() const { return !!metrics_service_; }
