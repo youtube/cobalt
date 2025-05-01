@@ -672,12 +672,6 @@ void StarboardRenderer::OnNeedData(DemuxerStream::Type type,
     return;
   }
 
-  // In the case data is requested immediately before a seek, wait until
-  // the player completes seeking before reading buffers again.
-  if (state_ == STATE_FLUSHED) {
-    return;
-  }
-
   int max_buffers = max_audio_samples_per_write_ > 1
                         ? std::min(max_number_of_buffers_to_write,
                                    max_audio_samples_per_write_)

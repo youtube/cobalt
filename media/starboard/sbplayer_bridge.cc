@@ -1090,6 +1090,12 @@ void SbPlayerBridge::OnDecoderStatus(SbPlayer player,
       break;
   }
 
+  // Ignore requests for data while pending seek as the player will
+  // request new data after the seek.
+  if (seek_pending_) {
+    return;
+  }
+
   DemuxerStream::Type stream_type =
       ::media::SbMediaTypeToDemuxerStreamType(type);
 
