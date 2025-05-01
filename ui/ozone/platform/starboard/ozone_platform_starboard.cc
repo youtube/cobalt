@@ -100,7 +100,9 @@ class OzonePlatformStarboard : public OzonePlatform {
   // This function must be called immediately after CreateScreen with the
   // `screen` that was returned from CreateScreen. They are separated to avoid
   // observer recursion into display::Screen from inside CreateScreen.
-  void InitScreen(PlatformScreen* screen) override {}
+  void InitScreen(PlatformScreen* screen) override {
+    static_cast<PlatformScreenStarboard*>(screen)->InitScreen();
+  }
 
   std::unique_ptr<InputMethod> CreateInputMethod(
       ImeKeyEventDispatcher* ime_key_event_dispatcher,
