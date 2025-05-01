@@ -205,10 +205,10 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
     GetAudioRendererParams(creation_parameters, &max_cached_frames,
                            &min_frames_per_append);
 
-    audio_renderer.reset(new AudioRendererPcm(
+    audio_renderer = std::make_unique<AudioRendererPcm>(
         std::move(audio_decoder), std::move(audio_renderer_sink),
         creation_parameters.audio_stream_info(), max_cached_frames,
-        min_frames_per_append));
+        min_frames_per_append);
   }
 
   if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
@@ -219,20 +219,19 @@ std::unique_ptr<PlayerComponents> PlayerComponents::Factory::CreateComponents(
     if (audio_renderer) {
       media_time_provider = audio_renderer.get();
     } else {
-      media_time_provider_impl.reset(new MediaTimeProviderImpl(
-          std::unique_ptr<MonotonicSystemTimeProvider>(
-              new MonotonicSystemTimeProviderImpl)));
+      media_time_provider_impl = std::make_unique<MediaTimeProviderImpl>(
+          std::make_unique<MonotonicSystemTimeProviderImpl>());
       media_time_provider = media_time_provider_impl.get();
     }
-    video_renderer.reset(new VideoRendererImpl(
+    video_renderer = std::make_unique<VideoRendererImpl>(
         std::move(video_decoder), media_time_provider,
-        std::move(video_render_algorithm), video_renderer_sink));
+        std::move(video_render_algorithm), video_renderer_sink);
   }
 
   SB_DCHECK(audio_renderer || video_renderer);
-  return std::unique_ptr<PlayerComponents>(new PlayerComponentsImpl(
+  return std::make_unique<PlayerComponentsImpl>(
       std::move(media_time_provider_impl), std::move(audio_renderer),
-      std::move(video_renderer)));
+      std::move(video_renderer));
 }
 
 void PlayerComponents::Factory::CreateStubAudioComponents(
@@ -244,13 +243,12 @@ void PlayerComponents::Factory::CreateStubAudioComponents(
 
   auto decoder_creator = [](const media::AudioStreamInfo& audio_stream_info,
                             SbDrmSystem drm_system) {
-    return std::unique_ptr<AudioDecoder>(
-        new StubAudioDecoder(audio_stream_info));
+    return std::make_unique<StubAudioDecoder>(audio_stream_info);
   };
-  audio_decoder->reset(new AdaptiveAudioDecoder(
+  *audio_decoder = std::make_unique<AdaptiveAudioDecoder>(
       creation_parameters.audio_stream_info(), creation_parameters.drm_system(),
-      decoder_creator));
-  audio_renderer_sink->reset(new AudioRendererSinkImpl);
+      decoder_creator);
+  *audio_renderer_sink = std::make_unique<AudioRendererSinkImpl>();
 }
 
 void PlayerComponents::Factory::CreateStubVideoComponents(
@@ -264,8 +262,8 @@ void PlayerComponents::Factory::CreateStubVideoComponents(
   SB_DCHECK(video_render_algorithm);
   SB_DCHECK(video_renderer_sink);
 
-  video_decoder->reset(new StubVideoDecoder);
-  video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
+  *video_decoder = std::make_unique<StubVideoDecoder>();
+  *video_render_algorithm = std::make_unique<VideoRenderAlgorithmImpl>();
   *video_renderer_sink = new PunchoutVideoRendererSink(
       creation_parameters.player(), kVideoSinkRenderIntervalUsec);
 }
