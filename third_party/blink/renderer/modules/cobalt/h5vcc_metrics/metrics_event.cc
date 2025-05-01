@@ -14,12 +14,17 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_metrics/metrics_event.h"
 
+#include "third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metric_type.h"
 #include "third_party/blink/renderer/modules/event_interface_modules_names.h"
 
 namespace blink {
 
-MetricsEvent::MetricsEvent(const AtomicString& type, const String& tbd)
-    : Event(type, Bubbles::kNo, Cancelable::kNo), tbd_(tbd) {}
+MetricsEvent::MetricsEvent(const AtomicString& type,
+                           const V8H5vccMetricType& metric_type,
+                           const String& metric_payload)
+    : Event(type, Bubbles::kNo, Cancelable::kNo),
+      metric_payload_(metric_payload),
+      metric_type_(metric_type) {}
 
 MetricsEvent::~MetricsEvent() = default;
 
