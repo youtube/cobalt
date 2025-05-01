@@ -382,8 +382,8 @@ std::unique_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
   if (!j_media_codec_bridge) {
     ScopedJavaLocalRef<jstring> j_error_message(
         Java_CreateMediaCodecBridgeResult_errorMessage(
-            env, j_create_media_codec_bridge_result));
-    *error_message = ConvertJavaStringToUTF8(env, j_error_message);
+            env_jni, j_create_media_codec_bridge_result));
+    *error_message = ConvertJavaStringToUTF8(env_jni, j_error_message);
     return nullptr;
   }
 
