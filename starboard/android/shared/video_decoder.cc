@@ -379,14 +379,15 @@ VideoDecoder::VideoDecoder(const VideoStreamInfo& video_stream_info,
   if (force_secure_pipeline_under_tunnel_mode) {
     SB_DCHECK(tunnel_mode_audio_session_id != -1);
     SB_DCHECK(!drm_system_);
-    drm_system_to_enforce_tunnel_mode_.reset(new DrmSystem(
+    drm_system_to_enforce_tunnel_mode_ = std::make_unique<DrmSystem>(
         "com.youtube.widevine.l3", nullptr, StubDrmSessionUpdateRequestFunc,
-        StubDrmSessionUpdatedFunc, StubDrmSessionKeyStatusesChangedFunc));
+        StubDrmSessionUpdatedFunc, StubDrmSessionKeyStatusesChangedFunc);
     drm_system_ = drm_system_to_enforce_tunnel_mode_.get();
   }
 
   if (is_video_frame_tracker_enabled_) {
-    video_frame_tracker_.reset(new VideoFrameTracker(kMaxPendingWorkSize * 2));
+    video_frame_tracker_ =
+        std::make_unique<VideoFrameTracker>(kMaxPendingWorkSize * 2);
   }
 
   if (require_software_codec_) {
@@ -429,12 +430,11 @@ scoped_refptr<VideoDecoder::VideoRendererSink> VideoDecoder::GetSink() {
 std::unique_ptr<VideoDecoder::VideoRenderAlgorithm>
 VideoDecoder::GetRenderAlgorithm() {
   if (tunnel_mode_audio_session_id_ == -1) {
-    return std::unique_ptr<VideoRenderAlgorithm>(
-        new android::shared::VideoRenderAlgorithm(this,
-                                                  video_frame_tracker_.get()));
+    return std::make_unique<android::shared::VideoRenderAlgorithm>(
+        this, video_frame_tracker_.get());
   }
-  return std::unique_ptr<VideoRenderAlgorithm>(
-      new VideoRenderAlgorithmTunneled(video_frame_tracker_.get()));
+  return std::make_unique<VideoRenderAlgorithmTunneled>(
+      video_frame_tracker_.get());
 }
 
 void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
