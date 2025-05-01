@@ -337,7 +337,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   LOG_ELAPSED("Play", [&] { bridge_.Play(); });
   Cleanup();
 
-  SB_LOG(INFO) << "Test #5: Play -> Write -> Gap -> Write";
+  SB_LOG(INFO) << "Test #5.1: Play -> Write -> Gap -> Write";
   LOG_ELAPSED("Play", [&] { bridge_.Play(); });
   LOG_ELAPSED("Write", [&] { WriteFrames(); });
   LOG_ELAPSED("Wait(400msec)", [&] { usleep(400'000); });
@@ -346,6 +346,18 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   LOG_ELAPSED("Write", [&] { WriteFrames(); });
   LOG_ELAPSED("Wait(800msec)", [&] { usleep(800'000); });
   LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  Cleanup();
+
+  SB_LOG(INFO) << "Test #5.2: Play -> Write -> Pause -> Gap -> Write -> Play";
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  LOG_ELAPSED("Wait(400msec)", [&] { usleep(400'000); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+
+  LOG_ELAPSED("Wait(600msec)", [&] { usleep(600'000); });
+  LOG_ELAPSED("Write", [&] { WriteFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
   Cleanup();
 
   while (!quit_) {
