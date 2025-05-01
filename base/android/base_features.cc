@@ -31,4 +31,10 @@ BASE_FEATURE(kCrashBrowserOnAnyChildMismatch,
              "CrashBrowserOnAnyChildMismatch",
              FEATURE_DISABLED_BY_DEFAULT);
 
+// Use continuous audio track sync, which keep feeding audio frames into AudioTrack.
+// Instead of callnig pause/play, it switches between silence data and actual data.
+BASE_FEATURE(kCobaltContinuousAudioTrackSink,
+             "CobaltContinuousAudioTrackSink",
+             FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace base::android::features

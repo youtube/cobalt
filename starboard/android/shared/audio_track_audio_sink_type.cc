@@ -19,6 +19,8 @@
 #include <string>
 #include <vector>
 
+#include "base/android/base_features.h"
+#include "starboard/android/shared/continuous_audio_track_sink.h"
 #include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
@@ -477,6 +479,29 @@ SbAudioSink AudioTrackAudioSinkType::Create(
   SB_DCHECK(frames_per_channel >= min_required_frames);
   int preferred_buffer_size_in_bytes =
       min_required_frames * channels * GetBytesPerSample(audio_sample_type);
+  if (base::FeatureList::IsEnabled(
+          base::android::features::kCobaltContinuousAudioTrackSink)) {
+    if (tunnel_mode_audio_session_id != -1) {
+      SB_LOG(WARNING) << "Cannot use ContinuousAudioTrack with tunnel mode. "
+                         "will Create normal AudioTrackAudioSink instead.";
+    } else {
+      SB_LOG(INFO) << "Will create ContinuousAudioTrackSink";
+      auto continuous_sink = new ContinuousAudioTrackSink(
+          this, channels, sampling_frequency_hz, audio_sample_type,
+          frame_buffers, frames_per_channel, preferred_buffer_size_in_bytes,
+          update_source_status_func, consume_frames_func, error_func,
+          start_media_time, tunnel_mode_audio_session_id, is_web_audio,
+          context);
+      if (!continuous_sink->IsAudioTrackValid()) {
+        SB_LOG(ERROR)
+            << "AudioTrackAudioSinkType::Create failed to create audio track";
+        Destroy(continuous_sink);
+        return kSbAudioSinkInvalid;
+      }
+      return continuous_sink;
+    }
+  }
+
   AudioTrackAudioSink* audio_sink = new AudioTrackAudioSink(
       this, channels, sampling_frequency_hz, audio_sample_type, frame_buffers,
       frames_per_channel, preferred_buffer_size_in_bytes,

@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_ANDROID_SHARED_AUDIO_TRACK_AUDIO_SINK_TYPE_H_
-#define STARBOARD_ANDROID_SHARED_AUDIO_TRACK_AUDIO_SINK_TYPE_H_
+#ifndef STARBOARD_ANDROID_SHARED_CONTINUOUS_AUDIO_TRACK_SINK_H_
+#define STARBOARD_ANDROID_SHARED_CONTINUOUS_AUDIO_TRACK_SINK_H_
 
 #include <pthread.h>
 
@@ -38,10 +38,10 @@ namespace starboard {
 namespace android {
 namespace shared {
 
-class AudioTrackAudioSink
+class ContinuousAudioTrackSink
     : public ::starboard::shared::starboard::audio_sink::SbAudioSinkImpl {
  public:
-  AudioTrackAudioSink(
+  ContinuousAudioTrackSink(
       Type* type,
       int channels,
       int sampling_frequency_hz,
@@ -56,7 +56,7 @@ class AudioTrackAudioSink
       int tunnel_mode_audio_session_id,
       bool is_web_audio,
       void* context);
-  ~AudioTrackAudioSink() override;
+  ~ContinuousAudioTrackSink() override;
 
   bool IsAudioTrackValid() const { return bridge_.is_valid(); }
   bool IsType(Type* type) override { return type_ == type; }
@@ -105,4 +105,4 @@ class AudioTrackAudioSink
 }  // namespace android
 }  // namespace starboard
 
-#endif  // STARBOARD_ANDROID_SHARED_AUDIO_TRACK_AUDIO_SINK_TYPE_H_
+#endif  // STARBOARD_ANDROID_SHARED_CONTINUOUS_AUDIO_TRACK_SINK_H_

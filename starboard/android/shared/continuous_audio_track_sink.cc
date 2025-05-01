@@ -1,4 +1,4 @@
-// Copyright 2017 The Cobalt Authors. All Rights Reserved.
+// Copyright 2025 The Cobalt Authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/android/shared/audio_track_audio_sink_type.h"
+#include "starboard/android/shared/continuous_audio_track_sink.h"
 
 #include <unistd.h>
 #include <algorithm>
@@ -70,7 +70,7 @@ int GetMaxFramesPerRequestForTunnelMode(int sampling_frequency_hz) {
 
 }  // namespace
 
-AudioTrackAudioSink::AudioTrackAudioSink(
+ContinuousAudioTrackSink::ContinuousAudioTrackSink(
     Type* type,
     int channels,
     int sampling_frequency_hz,
@@ -125,11 +125,11 @@ AudioTrackAudioSink::AudioTrackAudioSink(
   }
 
   pthread_create(&audio_out_thread_, nullptr,
-                 &AudioTrackAudioSink::ThreadEntryPoint, this);
+                 &ContinuousAudioTrackSink::ThreadEntryPoint, this);
   SB_DCHECK(audio_out_thread_ != 0);
 }
 
-AudioTrackAudioSink::~AudioTrackAudioSink() {
+ContinuousAudioTrackSink::~ContinuousAudioTrackSink() {
   quit_ = true;
 
   if (audio_out_thread_ != 0) {
@@ -137,7 +137,7 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
   }
 }
 
-void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
+void ContinuousAudioTrackSink::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(playback_rate >= 0.0);
   if (playback_rate != 0.0 && playback_rate != 1.0) {
     SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
@@ -149,24 +149,25 @@ void AudioTrackAudioSink::SetPlaybackRate(double playback_rate) {
 }
 
 // static
-void* AudioTrackAudioSink::ThreadEntryPoint(void* context) {
+void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
   pthread_setname_np(pthread_self(), "audio_track_out");
   SB_DCHECK(context);
   ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
 
-  AudioTrackAudioSink* sink = reinterpret_cast<AudioTrackAudioSink*>(context);
+  ContinuousAudioTrackSink* sink =
+      reinterpret_cast<ContinuousAudioTrackSink*>(context);
   sink->AudioThreadFunc();
 
   return NULL;
 }
 
 // TODO: Break down the function into manageable pieces.
-void AudioTrackAudioSink::AudioThreadFunc() {
+void ContinuousAudioTrackSink::AudioThreadFunc() {
   JniEnvExt* env = JniEnvExt::Get();
   bool was_playing = false;
   int frames_in_audio_track = 0;
 
-  SB_LOG(INFO) << "AudioTrackAudioSink thread started.";
+  SB_LOG(INFO) << "ContinuousAudioTrackSink thread started.";
 
   int accumulated_written_frames = 0;
   int64_t last_playback_head_event_at = -1;  // microseconds
@@ -336,10 +337,10 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   bridge_.PauseAndFlush();
 }
 
-int AudioTrackAudioSink::WriteData(JniEnvExt* env,
-                                   const void* buffer,
-                                   int expected_written_frames,
-                                   int64_t sync_time) {
+int ContinuousAudioTrackSink::WriteData(JniEnvExt* env,
+                                        const void* buffer,
+                                        int expected_written_frames,
+                                        int64_t sync_time) {
   int samples_written = 0;
   if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
     samples_written =
@@ -360,27 +361,27 @@ int AudioTrackAudioSink::WriteData(JniEnvExt* env,
   return samples_written / channels_;
 }
 
-void AudioTrackAudioSink::ReportError(bool capability_changed,
-                                      const std::string& error_message) {
-  SB_LOG(INFO) << "AudioTrackAudioSink error: " << error_message;
+void ContinuousAudioTrackSink::ReportError(bool capability_changed,
+                                           const std::string& error_message) {
+  SB_LOG(INFO) << "ContinuousAudioTrackSink error: " << error_message;
   if (error_func_) {
     error_func_(capability_changed, error_message, context_);
   }
 }
 
-int64_t AudioTrackAudioSink::GetFramesDurationUs(int frames) const {
+int64_t ContinuousAudioTrackSink::GetFramesDurationUs(int frames) const {
   return frames * 1'000'000LL / sampling_frequency_hz_;
 }
 
-void AudioTrackAudioSink::SetVolume(double volume) {
+void ContinuousAudioTrackSink::SetVolume(double volume) {
   bridge_.SetVolume(volume);
 }
 
-int AudioTrackAudioSink::GetUnderrunCount() {
+int ContinuousAudioTrackSink::GetUnderrunCount() {
   return bridge_.GetUnderrunCount();
 }
 
-int AudioTrackAudioSink::GetStartThresholdInFrames() {
+int ContinuousAudioTrackSink::GetStartThresholdInFrames() {
   return bridge_.GetStartThresholdInFrames();
 }
 
