@@ -15,8 +15,11 @@
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc.h"
+#include "third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metric_type.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_metrics/metrics_event.h"
+#include "third_party/blink/renderer/platform/bindings/v8_per_context_data.h"
 
 namespace blink {
 
@@ -80,9 +83,15 @@ ScriptPromise H5vccMetrics::setMetricEventInterval(
   return resolver->Promise();
 }
 
-void H5vccMetrics::OnMetrics(const WTF::String& tbd) {
-  DispatchEvent(
-      *MakeGarbageCollected<MetricsEvent>(event_type_names::kMetrics, tbd));
+void H5vccMetrics::OnMetrics(h5vcc_metrics::mojom::H5vccMetricType metric_type,
+                             const WTF::String& metric_payload) {
+  // For now, only UMA is supported.
+  if (metric_type == h5vcc_metrics::mojom::H5vccMetricType::kCobaltUma) {
+    DispatchEvent(*MakeGarbageCollected<MetricsEvent>(
+        event_type_names::kMetrics,
+        V8H5vccMetricType(V8H5vccMetricType::Enum::kCobaltUma),
+        metric_payload));
+  }
 }
 
 void H5vccMetrics::AddedEventListener(const AtomicString& event_type,
@@ -93,10 +102,6 @@ void H5vccMetrics::AddedEventListener(const AtomicString& event_type,
     return;
   }
   EnsureReceiverIsBound();
-  auto task_runner =
-      GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
-  remote_h5vcc_metrics_->AddListener(
-      receiver_.BindNewPipeAndPassRemote(task_runner));
 }
 
 void H5vccMetrics::OnEnable(ScriptPromiseResolver* resolver) {
@@ -126,6 +131,8 @@ void H5vccMetrics::EnsureReceiverIsBound() {
       remote_h5vcc_metrics_.BindNewPipeAndPassReceiver(task_runner));
   remote_h5vcc_metrics_.set_disconnect_handler(WTF::BindOnce(
       &H5vccMetrics::OnCloseConnection, WrapWeakPersistent(this)));
+  remote_h5vcc_metrics_->AddListener(
+      receiver_.BindNewPipeAndPassRemote(task_runner));
 }
 
 void H5vccMetrics::OnCloseConnection() {

@@ -143,17 +143,22 @@ source_set("metrics") {
   sources = [
     "metrics/cobalt_enabled_state_provider.cc",
     "metrics/cobalt_enabled_state_provider.h",
+    "metrics/cobalt_metrics_logs_uploader.cc",
+    "metrics/cobalt_metrics_logs_uploader.h",
     "metrics/cobalt_metrics_service_client.cc",
     "metrics/cobalt_metrics_service_client.h",
     "metrics/cobalt_metrics_services_manager_client.cc",
     "metrics/cobalt_metrics_services_manager_client.h",
   ]
   deps = [
+    "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",
     "//components/variations",
     "//content/public/browser",
+    "//content/shell:content_shell_lib",
+    "//third_party/metrics_proto",
     "//url",
   ]
 }
