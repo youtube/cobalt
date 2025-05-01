@@ -28,16 +28,17 @@ import on_device_tests_gateway_pb2_grpc
 
 _WORK_DIR = '/on_device_tests_gateway'
 
-# For local testing, set: _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = ('localhost')
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = (
     'on-device-tests-gateway-service.on-device-tests.svc.cluster.local')
+# When testing with local gateway, uncomment:
+# _ON_DEVICE_TESTS_GATEWAY_SERVICE_HOST = ('localhost')
 _ON_DEVICE_TESTS_GATEWAY_SERVICE_PORT = '50052'
 
 # These paths are hardcoded in various places. DO NOT CHANGE!
 _DIR_ON_DEVICE = '/sdcard/Download'
 _DEPS_ARCHIVE = '/sdcard/chromium_tests_root/deps.tar.gz'
 
-# Any test run that fails or produces infra error will be retried.
+# Any test run that fails due to infra error will be retried.
 _DEFAULT_RETRY_LEVEL = 'ERROR'
 
 
@@ -144,7 +145,7 @@ def _process_test_requests(args):
     ]
     if args.test_attempts:
       tests_args.append(f'test_attempts={args.test_attempts}')
-    tests_args.append(f'retry_level={_DEFAULT_RETRY_LEVEL}')
+      tests_args.append(f'retry_level={_DEFAULT_RETRY_LEVEL}')
 
     if args.dimensions:
       dimensions = json.loads(args.dimensions)
@@ -164,6 +165,9 @@ def _process_test_requests(args):
     params = []
     if args.gcs_result_path:
       params.append(f'gcs_result_path={args.gcs_result_path}')
+    if args.test_attempts:
+      # Must delete existing results when retries are enabled.
+      params.append('gcs_delete_before_upload=true')
     params += [
         f'push_files=test_runtime_deps:{_DEPS_ARCHIVE}',
         f'gtest_xml_file_on_device={_DIR_ON_DEVICE}/{target_name}_testoutput.xml',  # pylint:disable=line-too-long
