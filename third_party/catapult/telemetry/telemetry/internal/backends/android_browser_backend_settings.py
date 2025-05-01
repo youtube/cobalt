@@ -89,6 +89,10 @@ class AndroidBrowserBackendSettings(_BackendSettingsTuple):
   def IsWebView(self):
     return False
 
+  # Returns True if this is a Cobalt browser
+  def IsCobalt(self):
+    return False
+
 
 class GenericChromeBackendSettings(AndroidBrowserBackendSettings):
   def __new__(cls, **kwargs):
@@ -214,6 +218,34 @@ class WebViewBackendSettings(WebViewBasedBackendSettings):
   def IsWebView(self):
     return True
 
+class CobaltBasedBackendSettings(AndroidBrowserBackendSettings):
+  def __new__(cls, **kwargs):
+    # Provide some defaults common to WebView based backends.
+    kwargs.setdefault('devtools_port',
+                      'localabstract:content_shell_devtools_remote')
+    kwargs.setdefault('apk_name', 'Cobalt.apk')
+    kwargs.setdefault('embedder_apk_name', None)
+    kwargs.setdefault('supports_tab_control', False)
+    # TODO(crbug.com/753948): Switch to True when spki-list support is
+    # implemented on WebView.
+    kwargs.setdefault('supports_spki_list', True)
+    kwargs.setdefault('additional_apk_name', None)
+    return super(CobaltBasedBackendSettings, cls).__new__(cls, **kwargs)
+
+class CobaltBackendSettings(CobaltBasedBackendSettings):
+  def __new__(cls, **kwargs):
+    # Provide some defaults for backends
+    kwargs.setdefault('browser_type', 'android-cobalt')
+    kwargs.setdefault('package', 'dev.cobalt.coat')
+    kwargs.setdefault('activity',
+                      'dev.cobalt.app.MainActivity')
+    kwargs.setdefault('embedder_apk_name', None)
+    kwargs.setdefault('command_line_name', 'content-shell-command-line')
+    return super(CobaltBackendSettings, cls).__new__(cls, **kwargs)
+  
+  def IsCobalt(self):
+    return True
+
 
 class WebViewGoogleBackendSettings(WebViewBackendSettings):
   def GetApkName(self, device):
@@ -250,17 +282,7 @@ class WebViewBundleBackendSettings(WebViewBackendSettings):
     return all_apks
 
 
-ANDROID_COBALT = AndroidBrowserBackendSettings(
-    browser_type='android-cobalt',
-    package='dev.cobalt.coat',
-    activity='dev.cobalt.app.MainActivity',
-    command_line_name='content-shell-command-line',
-    devtools_port='localabstract:content_shell_devtools_remote',
-    apk_name='Cobalt.apk',
-    embedder_apk_name=None,
-    supports_spki_list=True,
-    supports_tab_control=False,
-    additional_apk_name=None)
+ANDROID_COBALT = CobaltBackendSettings()
 
 ANDROID_CONTENT_SHELL = AndroidBrowserBackendSettings(
     browser_type='android-content-shell',

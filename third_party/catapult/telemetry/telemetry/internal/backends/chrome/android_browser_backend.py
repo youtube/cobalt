@@ -13,6 +13,7 @@ from py_utils import exc_util
 from telemetry.core import exceptions
 from telemetry.internal.platform import android_platform_backend as \
   android_platform_backend_module
+from telemetry.internal.backends.chrome_inspector import devtools_client_backend
 from telemetry.internal.backends.chrome import android_minidump_symbolizer
 from telemetry.internal.backends.chrome import chrome_browser_backend
 from telemetry.internal.backends.chrome import minidump_finder
@@ -69,6 +70,8 @@ class AndroidBrowserBackend(chrome_browser_backend.ChromeBrowserBackend):
     self._browser_package = None
     self._finder_options = finder_options
     self._local_apk_path = local_apk_path
+    self.is_cobalt = 'Cobalt.apk' in self._local_apk_path
+      
 
     # Set the debug app if needed.
     self.platform_backend.SetDebugApp(self.browser_package)
@@ -230,7 +233,9 @@ class AndroidBrowserBackend(chrome_browser_backend.ChromeBrowserBackend):
     return self.platform_backend.GetStandardOutput()
 
   def PullMinidumps(self):
-    self._PullMinidumpsAndAdjustMtimes()
+    if not self.is_cobalt:
+      ## Crashpad minidumps are not currently supported in Cobalt
+      self._PullMinidumpsAndAdjustMtimes()
 
   def CollectDebugData(self, log_level):
     """Collects various information that may be useful for debugging.

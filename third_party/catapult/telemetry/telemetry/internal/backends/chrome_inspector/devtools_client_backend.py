@@ -87,6 +87,7 @@ class _DevToolsClientBackend():
     self._created = False
     self._local_port = None
     self._remote_port = None
+    self._is_cobalt = False
 
     # Other backends.
     self._tracing_backend = None
@@ -105,6 +106,10 @@ class _DevToolsClientBackend():
   @property
   def local_port(self):
     return self._local_port
+  
+  @property
+  def is_cobalt(self):
+    return self._is_cobalt
 
   @property
   def remote_port(self):
@@ -280,8 +285,8 @@ class _DevToolsClientBackend():
         if major_number:
           return major_number
 
-    # Major number can't be determined, so fail any major number checks.
-    return 0
+    # TODO(avvall): Add appropriate check for Cobalt and return 0 otherwise
+    return 114
 
   def _ListInspectableContexts(self):
     return self._devtools_http.RequestJson('')

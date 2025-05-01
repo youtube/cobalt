@@ -482,6 +482,11 @@ def _FindAllPossibleBrowsers(finder_options, android_platform):
         p_browser = PossibleAndroidBrowser(
             settings.browser_type, finder_options, android_platform, settings,
             local_apk=local_apk, target_os='android_webview')
+      elif settings.IsCobalt():
+        # Expected use cases are to point to a local build for Cobalt...for now.
+        p_browser = PossibleAndroidBrowser(
+            settings.browser_type, finder_options, android_platform, settings,
+            local_apk=finder_options.browser_executable)
       else:
         p_browser = PossibleAndroidBrowser(
             settings.browser_type, finder_options, android_platform, settings,

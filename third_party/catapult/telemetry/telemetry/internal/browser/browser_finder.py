@@ -91,7 +91,11 @@ def FindBrowser(options):
   if options.browser_type == 'exact' and options.browser_executable is None:
     raise browser_finder_exceptions.BrowserFinderException(
         '--browser=exact requires --browser-executable to be set.')
-  if options.browser_type != 'exact' and options.browser_executable is not None:
+  
+  if options.browser_type != 'exact' \
+    and options.browser_executable is not None \
+    and options.browser_type != 'android-cobalt':
+    # Currently Cobalt tests use a local build, so make it an exception
     raise browser_finder_exceptions.BrowserFinderException(
         '--browser-executable requires --browser=exact.')
 

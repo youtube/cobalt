@@ -32,9 +32,10 @@ This enables automated measurements of Cobalt/Chrobalt & Kimono using some tooli
 An example command for a local build of Cobalt for memory leak detection:
 
 ```
+export ADB_DEVICE=`adb devices | awk '{print $1}' | awk 'NR  == 2'` &&
 tools/perf/run_benchmark list \
 --compatibility-mode=dont-require-rooted-device --browser=exact \
---device="<DEVICE_NAME>" --browser-executable=/path/to/Cobalt.apk
+--device=${ADB_DEVICE} --browser-executable=/path/to/Cobalt.apk
 ```
 
 ### Running a benchmark
@@ -42,8 +43,9 @@ tools/perf/run_benchmark list \
 An example command for a local build of Cobalt:
 
 ```
+export ADB_
 tools/perf/run_benchmark run <NAME_OF_BENCHMARK> \
---compatibility-mode=dont-require-rooted-device --browser=exact \
+--compatibility-mode=dont-require-rooted-device --browser=android-cobalt \
 --device="<DEVICE_NAME>" --browser-executable=/path/to/Cobalt.apk
 ```
 

@@ -169,6 +169,19 @@ class _TestConditionFuchsiaByBoard(_TestCondition):
     return {'fuchsia', 'fuchsia-board-' + self._board}
 
 
+class _TestConditionAndroidCobalt(_TestCondition):
+  """Matches android TV devices"""
+  def ShouldDisable(self, platform, finder_options):
+    return (platform.GetOSName() == 'android' and
+            finder_options.browser_type.startswith('android-cobalt'))
+
+  def __str__(self):
+    return 'Android Cobalt'
+
+  def GetSupportedPlatformNames(self):
+    return {'android'}
+
+
 class _TestConditionLogicalAndConditions(_TestCondition):
   def __init__(self, conditions, name):
     self._conditions = conditions
@@ -252,6 +265,7 @@ ANDROID_GO_WEBVIEW = _TestConditionLogicalAndConditions(
     [ANDROID_GO, ANDROID_WEBVIEW], 'Android Go Webview')
 ANDROID_PIXEL2_WEBVIEW = _TestConditionLogicalAndConditions(
     [ANDROID_PIXEL2, ANDROID_WEBVIEW], 'Pixel2 Webview')
+ANDROID_COBALT = _TestConditionAndroidCobalt()
 FUCHSIA_WEB_ENGINE_SHELL = _TestConditionFuchsiaWebEngineShell()
 FUCHSIA_CAST_STREAMING_SHELL = _TestConditionFuchsiaCastStreamingShell()
 FUCHSIA_ASTRO = _TestConditionFuchsiaByBoard('astro')
@@ -265,6 +279,7 @@ EXPECTATION_NAME_MAP = {
     'Android_Low_End': ANDROID_LOW_END,
     'Android_Webview': ANDROID_WEBVIEW,
     'Android_but_not_webview': ANDROID_NOT_WEBVIEW,
+    'Android_Cobalt': ANDROID_COBALT,
     'Mac': ALL_MAC,
     'Win': ALL_WIN,
     'Win_7': WIN_7,

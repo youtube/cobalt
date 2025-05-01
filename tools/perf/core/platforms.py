@@ -8,6 +8,7 @@
 DESKTOP = 'desktop'
 MOBILE = 'mobile'
 ANDROID_NOT_WEBVIEW = 'android-not-webview'
+ANDROID_COBALT = 'android-cobalt'
 ANDROID_WEBVIEW = 'android-webview'
 ANDROID = 'android'
 FUCHSIA_ASTRO = 'fuchsia-board-astro'
