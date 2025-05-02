@@ -17,6 +17,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc.h"
 #include "third_party/blink/renderer/bindings/modules/v8/v8_h_5_vcc_metric_type.h"
+#include "third_party/blink/renderer/core/event_type_names.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_metrics/metrics_event.h"
 #include "third_party/blink/renderer/platform/bindings/v8_per_context_data.h"
@@ -37,7 +38,7 @@ ScriptPromise H5vccMetrics::enable(ScriptState* script_state,
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-  EnsureReceiverIsBound();
+  EnsureRemoteIsBound();
 
   remote_h5vcc_metrics_->Enable(
       /*enable=*/true,
@@ -52,7 +53,7 @@ ScriptPromise H5vccMetrics::disable(ScriptState* script_state,
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-  EnsureReceiverIsBound();
+  EnsureRemoteIsBound();
 
   remote_h5vcc_metrics_->Enable(
       /*enable=*/false,
@@ -73,7 +74,7 @@ ScriptPromise H5vccMetrics::setMetricEventInterval(
   auto* resolver = MakeGarbageCollected<ScriptPromiseResolver>(
       script_state, exception_state.GetContext());
 
-  EnsureReceiverIsBound();
+  EnsureRemoteIsBound();
 
   remote_h5vcc_metrics_->SetMetricEventInterval(
       interval_seconds,
@@ -101,7 +102,36 @@ void H5vccMetrics::AddedEventListener(const AtomicString& event_type,
   if (event_type != event_type_names::kMetrics) {
     return;
   }
-  EnsureReceiverIsBound();
+
+  MaybeRegisterMojoListener();
+}
+
+void H5vccMetrics::RemovedEventListener(
+    const AtomicString& event_type,
+    const RegisteredEventListener& registered_listener) {
+  EventTarget::RemovedEventListener(event_type, registered_listener);
+  MaybeUnregisterMojoListener();
+}
+
+void H5vccMetrics::MaybeUnregisterMojoListener() {
+  DCHECK(receiver_.is_bound());
+  if (!HasEventListeners(event_type_names::kMetrics)) {
+    receiver_.reset();
+  }
+}
+
+void H5vccMetrics::MaybeRegisterMojoListener() {
+  DCHECK(HasEventListeners(event_type_names::kMetrics));
+  if (receiver_.is_bound()) {
+    return;
+  }
+
+  EnsureRemoteIsBound();
+
+  auto task_runner =
+      GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
+  remote_h5vcc_metrics_->AddListener(
+      receiver_.BindNewPipeAndPassRemote(task_runner));
 }
 
 void H5vccMetrics::OnEnable(ScriptPromiseResolver* resolver) {
@@ -118,7 +148,7 @@ void H5vccMetrics::OnSetMetricEventInterval(ScriptPromiseResolver* resolver) {
   resolver->Resolve();
 }
 
-void H5vccMetrics::EnsureReceiverIsBound() {
+void H5vccMetrics::EnsureRemoteIsBound() {
   DCHECK(GetExecutionContext());
 
   if (remote_h5vcc_metrics_.is_bound()) {
@@ -131,15 +161,14 @@ void H5vccMetrics::EnsureReceiverIsBound() {
       remote_h5vcc_metrics_.BindNewPipeAndPassReceiver(task_runner));
   remote_h5vcc_metrics_.set_disconnect_handler(WTF::BindOnce(
       &H5vccMetrics::OnCloseConnection, WrapWeakPersistent(this)));
-  remote_h5vcc_metrics_->AddListener(
-      receiver_.BindNewPipeAndPassRemote(task_runner));
 }
 
 void H5vccMetrics::OnCloseConnection() {
   remote_h5vcc_metrics_.reset();
   receiver_.reset();
 
-  // TODO: Keep track of in-flight Promises and reject them here.
+  // TODO(cobalt, b/372559349): Keep track of in-flight Promises and reject them
+  // here.
 }
 
 void H5vccMetrics::Trace(Visitor* visitor) const {

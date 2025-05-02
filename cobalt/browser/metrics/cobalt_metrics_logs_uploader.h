@@ -56,6 +56,9 @@ class CobaltMetricsLogUploader : public metrics::MetricsLogUploader {
       ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener);
 
  private:
+  // Cleans up and resets any open listeners.
+  void OnCloseConnection();
+
   base::WeakPtrFactory<CobaltMetricsLogUploader> weak_factory_{this};
   mojo::Remote<h5vcc_metrics::mojom::MetricsListener> metrics_listener_;
   const ::metrics::MetricsLogUploader::MetricServiceType service_type_;
