@@ -71,14 +71,20 @@ class MODULES_EXPORT H5vccMetrics final
   // EventTarget:
   void AddedEventListener(const AtomicString& event_type,
                           RegisteredEventListener&) override;
+  void RemovedEventListener(
+      const AtomicString& event_type,
+      const RegisteredEventListener& registered_listener) override;
 
  private:
   void OnEnable(ScriptPromiseResolver* resolver);
   void OnDisable(ScriptPromiseResolver* resolver);
   void OnSetMetricEventInterval(ScriptPromiseResolver* resolver);
 
-  void EnsureReceiverIsBound();
+  void EnsureRemoteIsBound();
   void OnCloseConnection();
+
+  void MaybeRegisterMojoListener();
+  void MaybeUnregisterMojoListener();
 
   HeapMojoRemote<h5vcc_metrics::mojom::blink::H5vccMetrics>
       remote_h5vcc_metrics_;
