@@ -317,6 +317,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   Cleanup();
 #endif
 
+#if 0
   SB_LOG(INFO) << "Test #3.1: WriteFrame latency after Flush()";
   LOG_ELAPSED("Play", [&] { bridge_.Play(); });
   LOG_ELAPSED("Flush", [&] { bridge_.Flush(); });
@@ -359,6 +360,64 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   LOG_ELAPSED("Write", [&] { WriteFrames(); });
   LOG_ELAPSED("Play", [&] { bridge_.Play(); });
   Cleanup();
+#endif
+
+  std::function<int()> GetPlaybackHead = [&] {
+    int64_t _;
+    return bridge_.GetAudioTimestamp(&_, env);
+  };
+
+  SB_LOG(INFO) << "Test #6 Flush results";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(100msec)", [&] { usleep(100'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(50msec)", [&] { usleep(50'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(50msec)", [&] { usleep(50'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+#if 0
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Wait(50msec)", [&] { usleep(50'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+
+  LOG_ELAPSED("Flush", [&] { bridge_.Flush(); });
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Wait(50msec)", [&] { usleep(50'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+#endif
+  Cleanup();
+
+  SB_LOG(INFO) << "Test #6.1 Flush works synchronously";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(100msec)", [&] { usleep(50'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(50msec)", [&] { usleep(50'000); });
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Wait(50msec)", [&] { usleep(50'000); });
+  LOG_ELAPSED("Flush", [&] { bridge_.Flush(); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(10msec)", [&] { usleep(10'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(10msec)", [&] { usleep(10'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Wait(20msec)", [&] { usleep(20'000); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
 
   while (!quit_) {
     int playback_head_position = 0;
