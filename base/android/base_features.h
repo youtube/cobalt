@@ -17,10 +17,6 @@ BASE_DECLARE_FEATURE(kBrowserProcessMemoryPurge);
 BASE_DECLARE_FEATURE(kCrashBrowserOnChildMismatchIfBrowserChanged);
 BASE_DECLARE_FEATURE(kCrashBrowserOnAnyChildMismatch);
 
-#if BUILDFLAG(USE_STARBOARD_MEDIA)
-BASE_DECLARE_FEATURE(kCobaltContinuousAudioTrackSink);
-#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
-
 }  // namespace base::android::features
 
 #endif  // BASE_ANDROID_BASE_FEATURES_H_
