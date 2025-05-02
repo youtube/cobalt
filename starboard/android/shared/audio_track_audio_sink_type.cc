@@ -481,10 +481,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
       min_required_frames * channels * GetBytesPerSample(audio_sample_type);
   if (base::FeatureList::IsEnabled(
           base::android::features::kCobaltContinuousAudioTrackSink)) {
-    if (tunnel_mode_audio_session_id != -1) {
-      SB_LOG(WARNING) << "Cannot use ContinuousAudioTrack with tunnel mode. "
-                         "will Create normal AudioTrackAudioSink instead.";
-    } else {
+    if (tunnel_mode_audio_session_id == -1) {
       SB_LOG(INFO) << "Will create ContinuousAudioTrackSink";
       auto continuous_sink = new ContinuousAudioTrackSink(
           this, channels, sampling_frequency_hz, audio_sample_type,
@@ -499,6 +496,9 @@ SbAudioSink AudioTrackAudioSinkType::Create(
         return kSbAudioSinkInvalid;
       }
       return continuous_sink;
+    } else {
+      SB_LOG(INFO) << "Cannot use ContinuousAudioTrack with tunnel mode. "
+                      "will Create normal AudioTrackAudioSink instead.";
     }
   }
 
