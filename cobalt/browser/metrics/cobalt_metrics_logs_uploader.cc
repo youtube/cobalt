@@ -56,26 +56,27 @@ void CobaltMetricsLogUploader::UploadLog(
     return;
   }
 
-  if (service_type_ == ::metrics::MetricsLogUploader::UMA) {
-    std::string uncompressed_serialized_proto;
-    ::metrics::DecodeLogData(compressed_log_data,
-                             &uncompressed_serialized_proto);
-    ::metrics::ChromeUserMetricsExtension uma_event;
-    uma_event.ParseFromString(uncompressed_serialized_proto);
-    CobaltUMAEvent cobalt_uma_event;
-    PopulateCobaltUmaEvent(uma_event, reporting_info, cobalt_uma_event);
-    std::string base64_encoded_proto;
-    // Base64 encode the payload as web client's can't consume it without
-    // corrupting the data (see b/293431381). Also, use a URL/web safe
-    // encoding so it can be safely included in any web network request.
-    base::Base64UrlEncode(cobalt_uma_event.SerializeAsString(),
-                          base::Base64UrlEncodePolicy::INCLUDE_PADDING,
-                          &base64_encoded_proto);
-    DLOG(INFO) << "UMA Payload uploading! Hash: " << log_hash;
-    metrics_listener_->OnMetrics(
-        h5vcc_metrics::mojom::H5vccMetricType::kCobaltUma,
-        base64_encoded_proto);
+  // For now, we only support UMA.
+  if (service_type_ != ::metrics::MetricsLogUploader::UMA) {
+    return;
   }
+
+  std::string uncompressed_serialized_proto;
+  ::metrics::DecodeLogData(compressed_log_data, &uncompressed_serialized_proto);
+  ::metrics::ChromeUserMetricsExtension uma_event;
+  uma_event.ParseFromString(uncompressed_serialized_proto);
+  CobaltUMAEvent cobalt_uma_event;
+  PopulateCobaltUmaEvent(uma_event, reporting_info, cobalt_uma_event);
+  std::string base64_encoded_proto;
+  // Base64 encode the payload as web client's can't consume it without
+  // corrupting the data (see b/293431381). Also, use a URL/web safe
+  // encoding so it can be safely included in any web network request.
+  base::Base64UrlEncode(cobalt_uma_event.SerializeAsString(),
+                        base::Base64UrlEncodePolicy::INCLUDE_PADDING,
+                        &base64_encoded_proto);
+  DLOG(INFO) << "UMA Payload uploading! Hash: " << log_hash;
+  metrics_listener_->OnMetrics(
+      h5vcc_metrics::mojom::H5vccMetricType::kCobaltUma, base64_encoded_proto);
 }
 
 void CobaltMetricsLogUploader::SetMetricsListener(
