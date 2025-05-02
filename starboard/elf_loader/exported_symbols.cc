@@ -340,6 +340,7 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_freeaddrinfo);
   map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
   map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
+  map_["shutdown"] = reinterpret_cast<const void*>(&__abi_wrap_shutdown);
 
   REGISTER_SYMBOL(vswprintf);
 

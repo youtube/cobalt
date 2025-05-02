@@ -48,6 +48,10 @@ extern "C" {
 #define MUSL_AF_INET 2
 #define MUSL_AF_INET6 10
 
+#define MUSL_SHUT_RD 0
+#define MUSL_SHUT_WR 1
+#define MUSL_SHUT_RDWR 2
+
 // sizeof(sockaddr_in6) = 28
 // This size enables musl_sockaddr to work for both IPv4 and IPv6
 #define MUSL_SOCKADDR_SA_DATA_SIZE 28
@@ -93,6 +97,8 @@ SB_EXPORT int __abi_wrap_setsockopt(int socket,
                                     int option_name,
                                     const void* option_value,
                                     socklen_t option_len);
+
+SB_EXPORT int __abi_wrap_shutdown(int socket, int how);
 
 #ifdef __cplusplus
 }  // extern "C"
