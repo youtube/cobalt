@@ -19,7 +19,6 @@
 #include <string>
 #include <vector>
 
-#include "starboard/android/shared/media_capabilities_cache.h"
 #include "starboard/common/string.h"
 #include "starboard/common/time.h"
 #include "starboard/shared/pthread/thread_create_priority.h"
@@ -48,15 +47,6 @@ const int kMaxFramesPerRequest = 65536;
 const int64_t kMaxDurationPerRequestInTunnelMode = 16'000;  // 16ms
 
 const size_t kSilenceFramesPerAppend = 1024;
-
-const int kMaxRequiredFramesLocal = 16 * 1024;
-const int kMaxRequiredFramesRemote = 32 * 1024;
-const int kMaxRequiredFrames = kMaxRequiredFramesRemote;
-const int kRequiredFramesIncrement = 4 * 1024;
-const int kMinStablePlayedFrames = 12 * 1024;
-
-const int kSampleFrequency22050 = 22050;
-const int kSampleFrequency48000 = 48000;
 
 void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
