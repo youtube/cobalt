@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <script src=/resources/testharness.js></script>
+  <script src=/resources/testharnessreport.js></script>
+  <script type='module'>
+    test(function(){
+    var video = document.createElement('video');
+    assert_implements(video.setMaxVideoCapabilities, 'Max Video Capabilities is not set');
+    video.setMaxVideoCapabilities('3');
+    assert_equals(video.getMaxVideoCapabilities(), '3', 'Assert that maxVideoCapabilities is properly set');
+    video.setMaxVideoCapabilities('4');
+    assert_not_equals(video.getMaxVideoCapabilities(), '3', 'Assert that maxVideoCapabilities is properly updated');
+    }, 'Set and get maxVideoCapabilities for HTMLVideoElement');
+  </script>
+</body>
+</html>

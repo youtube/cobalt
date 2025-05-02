@@ -731,6 +731,12 @@ void HTMLVideoElement::AddedEventListener(
   HTMLMediaElement::AddedEventListener(event_type, registered_listener);
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void HTMLVideoElement::setMaxVideoCapabilities(const String& max_video_capabilities){
+  max_video_capabilities_ = max_video_capabilities;
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 bool HTMLVideoElement::IsRemotingInterstitialVisible() const {
   return remoting_interstitial_ && remoting_interstitial_->IsVisible();
 }
