@@ -1234,7 +1234,6 @@ class PlayerImpl : public Player {
   GstClockTime MinTimestamp(MediaType* origin) const;
 
   void DecoderNeedsData(MediaType media) const {
-    SB_DCHECK(media != MediaType::kNone);
     int need_data = static_cast<int>(media) & ~decoder_state_data_;
     if (need_data == 0) {
       GST_LOG_OBJECT(pipeline_, "Already sent 'kSbPlayerDecoderStateNeedsData' for media type: %d, ignoring new request", static_cast<int>(media));
