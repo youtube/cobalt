@@ -72,4 +72,9 @@ int setsockopt(int socket,
                                option_len);
 }
 
+int __abi_wrap_shutdown(int socket, int how);
+int shutdown(int socket, int how) {
+  return __abi_wrap_shutdown(socket, how);
+}
+
 }  // extern "C"
