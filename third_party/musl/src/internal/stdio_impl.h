@@ -3,10 +3,6 @@
 
 #include <stdio.h>
 
-// When STARBOARD is defined we only want to include the definition of _IO_FILE,
-// a.k.a. FILE, along with a few constants used when working with wide strings.
-
-#ifndef STARBOARD
 #include "syscall.h"
 
 #define UNGET 8
@@ -14,7 +10,6 @@
 #define FFINALLOCK(f) ((f)->lock>=0 ? __lockfile((f)) : 0)
 #define FLOCK(f) int __need_unlock = ((f)->lock>=0 ? __lockfile((f)) : 0)
 #define FUNLOCK(f) do { if (__need_unlock) __unlockfile((f)); } while (0)
-#endif // STARBOARD
 
 #define F_PERM 1
 #define F_NORD 4
@@ -60,7 +55,6 @@ extern hidden FILE *volatile __stderr_used;
 hidden int __lockfile(FILE *);
 hidden void __unlockfile(FILE *);
 
-#ifndef STARBOARD
 hidden size_t __stdio_read(FILE *, unsigned char *, size_t);
 hidden size_t __stdio_write(FILE *, const unsigned char *, size_t);
 hidden size_t __stdout_write(FILE *, const unsigned char *, size_t);
@@ -115,6 +109,5 @@ hidden void __getopt_msg(const char *, const char *, const char *, size_t);
 /* Caller-allocated FILE * operations */
 hidden FILE *__fopen_rb_ca(const char *, FILE *, unsigned char *, size_t);
 hidden int __fclose_ca(FILE *);
-#endif // STARBOARD
 
 #endif
