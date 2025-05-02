@@ -152,6 +152,7 @@ test("nplb") {
     "posix_compliance/posix_socket_send_test.cc",
     "posix_compliance/posix_socket_sendto_test.cc",
     "posix_compliance/posix_socket_set_options_test.cc",
+    "posix_compliance/posix_socket_shutdown_test.cc",
     "posix_compliance/posix_string_compare_no_case_n_test.cc",
     "posix_compliance/posix_string_compare_no_case_test.cc",
     "posix_compliance/posix_string_format_test.cc",
