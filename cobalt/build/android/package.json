@@ -2,7 +2,7 @@
     "archive_datas": [
         {
             "files": [
-		        "cobalt_licenses.txt",
+		"licenses_cobalt.txt",
                 "content_shell.pak",
                 "gen/build_info.json",
                 "icudtl.dat",
@@ -38,21 +38,21 @@
             "archive_type": "ARCHIVE_TYPE_ZIP"
         },
         {
-            "files": [
-                "gen/build_info.json",
-                "lib.unstripped/libchrobalt.so"
-            ],
-            "rename_files": [
-                {
-                    "from_file": "gen/build_info.json",
-                    "to_file": "build_info.json"
-                },
-                {
-                    "from_file": "lib.unstripped/libchrobalt.so",
-                    "to_file": "symbol/libchrobalt.so"
-                }
-            ],
-            "archive_type": "ARCHIVE_TYPE_FILES"
+          "files": [
+              "gen/build_info.json",
+            "lib.unstripped/libchrobalt.so"
+          ],
+          "rename_files": [
+              {
+                  "from_file": "gen/build_info.json",
+                  "to_file": "build_info.json"
+              },
+              {
+                "from_file": "lib.unstripped/libchrobalt.so",
+                "to_file": "symbol/libchrobalt.so"
+              }
+          ],
+          "archive_type": "ARCHIVE_TYPE_FILES"
         }
     ]
 }
