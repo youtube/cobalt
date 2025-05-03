@@ -372,7 +372,7 @@ bool UtilityProcessHost::StartProcess() {
 #if BUILDFLAG(IS_CHROMEOS_LACROS)
       switches::kEnableResourcesFileSharing,
 #endif
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
       switches::kChromeOSVideoDecoderTaskRunner,
       switches::kHardwareVideoDecodeFrameRate,
 #endif

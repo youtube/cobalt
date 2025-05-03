@@ -25,11 +25,11 @@
 #include "media/gpu/test/video_player/frame_renderer_dummy.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 #include "media/gpu/chromeos/platform_video_frame_utils.h"
 #include "media/gpu/chromeos/vd_video_decode_accelerator.h"
 #include "media/gpu/chromeos/video_decoder_pipeline.h"
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
 namespace media {
 namespace test {
@@ -49,9 +49,9 @@ TestVDAVideoDecoder::TestVDAVideoDecoder(
       on_provide_picture_buffers_cb_(std::move(on_provide_picture_buffers_cb)),
       target_color_space_(target_color_space),
       frame_renderer_(frame_renderer),
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
       linear_output_(linear_output),
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
       decode_start_timestamps_(kTimestampCacheSize) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(vda_wrapper_sequence_checker_);
 
@@ -114,13 +114,13 @@ void TestVDAVideoDecoder::Initialize(const VideoDecoderConfig& config,
   gpu::GpuDriverBugWorkarounds gpu_driver_bug_workarounds;
   gpu::GpuPreferences gpu_preferences;
   if (use_vd_vda_) {
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
     DVLOGF(2) << "Use VdVideoDecodeAccelerator";
     vda_config.is_deferred_initialization_allowed = true;
     decoder_ = media::VdVideoDecodeAccelerator::Create(
         base::BindRepeating(&media::VideoDecoderPipeline::Create), this,
         vda_config, false, base::SequencedTaskRunner::GetCurrentDefault());
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   } else {
     DVLOGF(2) << "Use original VDA";
     decoder_ = decoder_factory->CreateVDA(
@@ -230,24 +230,24 @@ void TestVDAVideoDecoder::ProvidePictureBuffersWithVisibleRect(
   for (const PictureBuffer& picture_buffer : picture_buffers) {
     scoped_refptr<VideoFrame> video_frame;
 
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
     video_frame = CreateGpuMemoryBufferVideoFrame(
         format, dimensions, visible_rect, visible_rect.size(),
         base::TimeDelta(),
         linear_output_ ? gfx::BufferUsage::SCANOUT_CPU_READ_WRITE
                        : gfx::BufferUsage::SCANOUT_VDA_WRITE);
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
     ASSERT_TRUE(video_frame) << "Failed to create video frame";
     video_frames_.emplace(picture_buffer.id(), video_frame);
     gfx::GpuMemoryBufferHandle handle;
 
-#if BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
     handle = CreateGpuMemoryBufferHandle(video_frame.get());
     DCHECK(!handle.is_null());
 #else
     NOTREACHED();
-#endif  // BUILDFLAG(USE_CHROMEOS_MEDIA_ACCELERATION)
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
     ASSERT_TRUE(!handle.is_null()) << "Failed to create GPU memory handle";
     decoder_->ImportBufferForPicture(picture_buffer.id(), format,
