@@ -36,28 +36,14 @@ using ::starboard::shared::starboard::media::GetBytesPerSample;
 // write request. If we don't set this cap for writing frames to audio track,
 // we will repeatedly allocate a large byte array which cannot be consumed by
 // audio track completely.
-const int kMaxFramesPerRequest = 65536;
+const int kMaxFramesPerRequest = 64 * 1024;
 
-// Most Android audio HAL updates audio time for A/V synchronization on audio
-// sync frames. For example, audio HAL may try to render when it gets an entire
-// sync frame and then update audio time. Shorter duration of sync frame
-// improves the accuracy of audio time, especially at the beginning of a
-// playback, as otherwise the audio time during the initial update may be too
-// large (non zero) and results in dropped video frames.
-const int64_t kMaxDurationPerRequestInTunnelMode = 16'000;  // 16ms
-
-const size_t kSilenceFramesPerAppend = 1024;
+constexpr int kSilenceFramesPerAppend = 1024;
+static_assert(kSilenceFramesPerAppend <= kMaxFramesPerRequest);
 
 void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
 }
-
-int GetMaxFramesPerRequestForTunnelMode(int sampling_frequency_hz) {
-  auto max_frames =
-      kMaxDurationPerRequestInTunnelMode * sampling_frequency_hz / 1'000'000LL;
-  return (max_frames + 15) / 16 * 16;  // align to 16
-}
-
 }  // namespace
 
 ContinuousAudioTrackSink::ContinuousAudioTrackSink(
@@ -72,7 +58,6 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
     ConsumeFramesFunc consume_frames_func,
     SbAudioSinkPrivate::ErrorFunc error_func,
     int64_t start_time,
-    int tunnel_mode_audio_session_id,
     bool is_web_audio,
     void* context)
     : type_(type),
@@ -85,23 +70,19 @@ ContinuousAudioTrackSink::ContinuousAudioTrackSink(
       consume_frames_func_(consume_frames_func),
       error_func_(error_func),
       start_time_(start_time),
-      max_frames_per_request_(
-          tunnel_mode_audio_session_id == -1
-              ? kMaxFramesPerRequest
-              : GetMaxFramesPerRequestForTunnelMode(sampling_frequency_hz_)),
       context_(context),
       bridge_(kSbMediaAudioCodingTypePcm,
               sample_type,
               channels,
               sampling_frequency_hz,
               preferred_buffer_size_in_bytes,
-              tunnel_mode_audio_session_id,
+              /*tunnel_mode_audio_session_id=*/-1,
               is_web_audio) {
   SB_DCHECK(update_source_status_func_);
   SB_DCHECK(consume_frames_func_);
   SB_DCHECK(frame_buffer_);
 
-  SB_LOG(INFO) << "Creating audio sink starts at " << start_time_;
+  SB_LOG(INFO) << "Creating continuous audio sink starts at " << start_time_;
 
   if (!bridge_.is_valid()) {
     // One of the cases that this may hit is when output happened to be switched
@@ -140,7 +121,7 @@ void ContinuousAudioTrackSink::SetPlaybackRate(double playback_rate) {
 
 // static
 void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
-  pthread_setname_np(pthread_self(), "audio_track_out");
+  pthread_setname_np(pthread_self(), "continous_audio_track_sink");
   SB_DCHECK(context);
   ::starboard::shared::pthread::ThreadSetPriority(kSbThreadPriorityRealTime);
 
@@ -159,9 +140,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
   SB_LOG(INFO) << "ContinuousAudioTrackSink thread started.";
 
-  int accumulated_written_frames = 0;
   int64_t last_playback_head_event_at = -1;  // microseconds
-
   int last_playback_head_position = 0;
 
   while (!quit_) {
@@ -248,7 +227,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
     }
 
     expected_written_frames =
-        std::min(expected_written_frames, max_frames_per_request_);
+        std::min(expected_written_frames, kMaxFramesPerRequest);
 
     if (expected_written_frames == 0) {
       // It is possible that all the frames in buffer are written to the
@@ -260,25 +239,18 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
         // Currently AudioDevice and AudioRenderer will write tail silence.
         // It should be reached only in tests. It's not ideal to allocate
         // a new silence buffer every time.
-        const int silence_frames_per_append =
-            std::min<int>(kSilenceFramesPerAppend, max_frames_per_request_);
         std::vector<uint8_t> silence_buffer(channels_ *
                                             GetBytesPerSample(sample_type_) *
-                                            silence_frames_per_append);
-        int64_t sync_time =
-            start_time_ + GetFramesDurationUs(accumulated_written_frames);
+                                            kSilenceFramesPerAppend);
         // Not necessary to handle error of WriteData(), as the audio has
         // reached the end of stream.
-        WriteData(env, silence_buffer.data(), silence_frames_per_append,
-                  sync_time);
+        WriteData(env, silence_buffer.data(), kSilenceFramesPerAppend);
       }
 
       usleep(10'000);
       continue;
     }
     SB_DCHECK(expected_written_frames > 0);
-    int64_t sync_time =
-        start_time_ + GetFramesDurationUs(accumulated_written_frames);
     SB_DCHECK(start_position + expected_written_frames <= frames_per_channel_)
         << "start_position: " << start_position
         << ", expected_written_frames: " << expected_written_frames
@@ -292,7 +264,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
                   IncrementPointerByBytes(frame_buffer_,
                                           start_position * channels_ *
                                               GetBytesPerSample(sample_type_)),
-                  expected_written_frames, sync_time);
+                  expected_written_frames);
     int64_t now = CurrentMonotonicTime();
 
     if (written_frames < 0) {
@@ -307,7 +279,6 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       break;
     }
     frames_in_audio_track += written_frames;
-    accumulated_written_frames += written_frames;
 
     bool written_fully = (written_frames == expected_written_frames);
     auto unplayed_frames_in_time =
@@ -329,17 +300,16 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
 int ContinuousAudioTrackSink::WriteData(JniEnvExt* env,
                                         const void* buffer,
-                                        int expected_written_frames,
-                                        int64_t sync_time) {
+                                        int expected_written_frames) {
+  const int samples_to_write = expected_written_frames * channels_;
   int samples_written = 0;
   if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
-    samples_written =
-        bridge_.WriteSample(static_cast<const float*>(buffer),
-                            expected_written_frames * channels_, env);
+    samples_written = bridge_.WriteSample(static_cast<const float*>(buffer),
+                                          samples_to_write, env);
   } else if (sample_type_ == kSbMediaAudioSampleTypeInt16Deprecated) {
-    samples_written = bridge_.WriteSample(static_cast<const uint16_t*>(buffer),
-                                          expected_written_frames * channels_,
-                                          sync_time, env);
+    samples_written =
+        bridge_.WriteSample(static_cast<const uint16_t*>(buffer),
+                            samples_to_write, /*sync_time=*/0, env);
   } else {
     SB_NOTREACHED();
   }
