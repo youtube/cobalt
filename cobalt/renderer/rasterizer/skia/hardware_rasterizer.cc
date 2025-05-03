@@ -393,6 +393,8 @@ egl::TexturedMeshRenderer::Image SkiaImageToTexturedMeshRendererImage(
     NOTREACHED();
   }
 
+  result.transfer_id = image->GetTransferId();
+
   return result;
 }
 
@@ -508,7 +510,9 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
 
   if (SetupGLTextureParameters(textured_mesh_renderer_image, GL_CLAMP_TO_EDGE,
                                GL_CLAMP_TO_EDGE)) {
-    // Invoke our TexturedMeshRenderer to actually perform the draw call.
+    bool fullscreen = model_view_projection_matrix[0][0] > 0.9f &&
+                      model_view_projection_matrix[1][1] > 0.9f;
+    image->OnDraw(fullscreen);
     textured_mesh_renderer_->RenderQuad(textured_mesh_renderer_image,
                                         model_view_projection_matrix);
   }
