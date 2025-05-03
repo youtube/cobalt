@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <algorithm>
+#include <optional>
 
 #include "starboard/android/shared/runtime_resource_overlay.h"
 #include "starboard/common/log.h"
@@ -22,23 +23,26 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
                                 int resolution_width,
                                 int resolution_height,
                                 int bits_per_pixel) {
-  constexpr int kMaxVideoBufferBudget = 300 * 1024 * 1024;
   auto get_overlaid_video_buffer_budget = []() {
     int buffer_budget =
         starboard::android::shared::RuntimeResourceOverlay::GetInstance()
             ->max_video_buffer_budget();
     if (buffer_budget == 0) {
-      return kMaxVideoBufferBudget;
+      SB_LOG(INFO) << "RRO \"max_video_buffer_budget\" isn't set.";
+      return std::optional<int>();
     }
+
     SB_LOG(INFO) << "RRO \"max_video_buffer_budget\" is set to "
                  << buffer_budget << " MB.";
-    return buffer_budget * 1024 * 1024;
+    // Sanity check that this isn't accidentally set to bytes.
+    SB_DCHECK(buffer_budget < 1024);
+    return std::optional<int>(buffer_budget * 1024 * 1024);
   };
 
-  static const int overlaid_video_buffer_budget =
+  static const std::optional<int> overlaid_video_buffer_budget =
       get_overlaid_video_buffer_budget();
-
   int video_buffer_budget = 0;
+
   if ((resolution_width <= 1920 && resolution_height <= 1080) ||
       resolution_width == kSbMediaVideoResolutionDimensionInvalid ||
       resolution_height == kSbMediaVideoResolutionDimensionInvalid) {
@@ -62,8 +66,12 @@ int SbMediaGetVideoBufferBudget(SbMediaVideoCodec codec,
     // Specifies the maximum amount of memory used by video buffers of media
     // source before triggering a garbage collection when the video resolution
     // is lower than 8k (7680x4320).
-    video_buffer_budget = kMaxVideoBufferBudget;
+    video_buffer_budget = 200 * 1024 * 1024;
   }
 
-  return std::min(video_buffer_budget, overlaid_video_buffer_budget);
+  if (overlaid_video_buffer_budget &&
+      overlaid_video_buffer_budget.value() < video_buffer_budget) {
+    return overlaid_video_buffer_budget.value();
+  }
+  return video_buffer_budget;
 }
