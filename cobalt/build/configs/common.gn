@@ -36,3 +36,5 @@ enable_arcore = false
 enable_cardboard = false
 enable_openxr = false
 enable_vr = false
+
+use_zygote = false
