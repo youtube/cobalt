@@ -15,6 +15,7 @@
 #include "cobalt/browser/metrics/cobalt_metrics_logs_uploader.h"
 
 #include "base/base64url.h"
+#include "base/functional/bind.h"
 #include "base/logging.h"
 #include "cobalt/browser/h5vcc_metrics/public/mojom/h5vcc_metrics.mojom.h"
 #include "components/metrics/log_decoder.h"
@@ -56,34 +57,37 @@ void CobaltMetricsLogUploader::UploadLog(
     return;
   }
 
-  if (service_type_ == ::metrics::MetricsLogUploader::UMA) {
-    std::string uncompressed_serialized_proto;
-    ::metrics::DecodeLogData(compressed_log_data,
-                             &uncompressed_serialized_proto);
-    ::metrics::ChromeUserMetricsExtension uma_event;
-    uma_event.ParseFromString(uncompressed_serialized_proto);
-    CobaltUMAEvent cobalt_uma_event;
-    PopulateCobaltUmaEvent(uma_event, reporting_info, cobalt_uma_event);
-    std::string base64_encoded_proto;
-    // Base64 encode the payload as web client's can't consume it without
-    // corrupting the data (see b/293431381). Also, use a URL/web safe
-    // encoding so it can be safely included in any web network request.
-    base::Base64UrlEncode(cobalt_uma_event.SerializeAsString(),
-                          base::Base64UrlEncodePolicy::INCLUDE_PADDING,
-                          &base64_encoded_proto);
-    DLOG(INFO) << "UMA Payload uploading! Hash: " << log_hash;
-    metrics_listener_->OnMetrics(
-        h5vcc_metrics::mojom::H5vccMetricType::kCobaltUma,
-        base64_encoded_proto);
+  // For now, we only support UMA.
+  if (service_type_ != ::metrics::MetricsLogUploader::UMA) {
+    return;
   }
+
+  std::string uncompressed_serialized_proto;
+  ::metrics::DecodeLogData(compressed_log_data, &uncompressed_serialized_proto);
+  ::metrics::ChromeUserMetricsExtension uma_event;
+  uma_event.ParseFromString(uncompressed_serialized_proto);
+  CobaltUMAEvent cobalt_uma_event;
+  PopulateCobaltUmaEvent(uma_event, reporting_info, cobalt_uma_event);
+  std::string base64_encoded_proto;
+  // Base64 encode the payload as web client's can't consume it without
+  // corrupting the data (see b/293431381). Also, use a URL/web safe
+  // encoding so it can be safely included in any web network request.
+  base::Base64UrlEncode(cobalt_uma_event.SerializeAsString(),
+                        base::Base64UrlEncodePolicy::INCLUDE_PADDING,
+                        &base64_encoded_proto);
+  DLOG(INFO) << "UMA Payload uploading! Hash: " << log_hash;
+  metrics_listener_->OnMetrics(
+      h5vcc_metrics::mojom::H5vccMetricType::kCobaltUma, base64_encoded_proto);
 }
 
 void CobaltMetricsLogUploader::SetMetricsListener(
     ::mojo::PendingRemote<::h5vcc_metrics::mojom::MetricsListener> listener) {
-  // Mojo only allows a single listener per remote to be bound.
-  if (!metrics_listener_.is_bound()) {
-    metrics_listener_.Bind(std::move(listener));
-  }
+  metrics_listener_.Bind(std::move(listener));
+  metrics_listener_.set_disconnect_handler(base::BindOnce(
+      &CobaltMetricsLogUploader::OnCloseConnection, GetWeakPtr()));
 }
 
+void CobaltMetricsLogUploader::OnCloseConnection() {
+  metrics_listener_.reset();
+}
 }  // namespace cobalt
