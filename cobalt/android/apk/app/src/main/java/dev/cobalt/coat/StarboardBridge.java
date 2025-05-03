@@ -653,7 +653,7 @@ public class StarboardBridge {
       cobaltServices.put(serviceName, service);
 
       if (activity instanceof CobaltActivity) {
-        service.setCobaltActivity((CobaltActivity) activity);
+        service.setWebContents(((CobaltActivity) activity).getActiveWebContents());
       }
     }
     return service;
