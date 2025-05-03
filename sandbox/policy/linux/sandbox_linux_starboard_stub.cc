@@ -27,43 +27,43 @@ namespace policy {
 // Stub symbols have been provided here to satisfy the linker and build cobalt
 
 SandboxLinux* SandboxLinux::GetInstance() {
-  NOTIMPLEMENTED();
+  //NOTIMPLEMENTED();
   return nullptr;
 }
 
 std::vector<int> SandboxLinux::GetFileDescriptorsToClose() {
-  NOTIMPLEMENTED();
+  //NOTIMPLEMENTED();
   return std::vector<int>();
 }
 
 SetuidSandboxClient* SandboxLinux::setuid_sandbox_client() const {
-  NOTIMPLEMENTED();
+  //NOTIMPLEMENTED();
   return nullptr;
 }
 
 void SandboxLinux::PreinitializeSandbox() {
-  NOTIMPLEMENTED();
+  //NOTIMPLEMENTED();
 }
 
 void SandboxLinux::EngageNamespaceSandbox(bool from_zygote) {
-  NOTIMPLEMENTED();
+  //NOTIMPLEMENTED();
 }
 
 bool SandboxLinux::EngageNamespaceSandboxIfPossible() {
-  NOTIMPLEMENTED();
+  //NOTIMPLEMENTED();
   return false;
 }
 
 bool SandboxLinux::InitializeSandbox(sandbox::mojom::Sandbox sandbox_type,
                                      PreSandboxHook hook,
                                      const Options& options) {
-  NOTIMPLEMENTED();
+  //NOTIMPLEMENTED();
   return false;
 }
 
 int SandboxLinux::GetStatus() {
   // Return 0, indicating no sandbox features are active.
-  NOTIMPLEMENTED();
+  //NOTIMPLEMENTED();
   return kInvalid;
 }
 
@@ -72,15 +72,15 @@ void SandboxLinux::StartBrokerProcess(
     std::vector<syscall_broker::BrokerFilePermission> permissions,
     PreSandboxHook broker_side_hook,
     const Options& options) {
-  NOTIMPLEMENTED();
+  //NOTIMPLEMENTED();
 }
 
 SandboxLinux::SandboxLinux() {
-  NOTIMPLEMENTED();
+  //NOTIMPLEMENTED();
 }
 
 SandboxLinux::~SandboxLinux() {
-  NOTIMPLEMENTED();
+  //NOTIMPLEMENTED();
 }
 
 }  // namespace policy

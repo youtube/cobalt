@@ -104,6 +104,7 @@ sigset_t SetSignalMask(const sigset_t& new_sigmask) {
 
 #if (!BUILDFLAG(IS_LINUX) && !BUILDFLAG(IS_AIX) && !BUILDFLAG(IS_CHROMEOS)) || \
     (!defined(__i386__) && !defined(__x86_64__) && !defined(__arm__))
+/*
 void ResetChildSignalHandlersToDefaults() {
   // The previous signal handlers are likely to be meaningless in the child's
   // context so we reset them to the defaults for now. http://crbug.com/44953
@@ -120,6 +121,7 @@ void ResetChildSignalHandlersToDefaults() {
   signal(SIGSYS, SIG_DFL);
   signal(SIGTERM, SIG_DFL);
 }
+*/
 
 #else
 
@@ -143,6 +145,7 @@ struct kernel_sigaction {
 
 // glibc's sigaction() will prevent access to sa_restorer, so we need to roll
 // our own.
+/*
 long sys_rt_sigaction(int sig,
                       const struct kernel_sigaction* act,
                       struct kernel_sigaction* oact) {
@@ -153,12 +156,14 @@ long sys_rt_sigaction(int sig,
   return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
 #endif  // ENABLE_COBALT_HERMETIC_HACKS
 }
+*/
 
 // This function is intended to be used in between fork() and execve() and will
 // reset all signal handlers to the default.
 // The motivation for going through all of them is that sa_restorer can leak
 // from parents and help defeat ASLR on buggy kernels.  We reset it to null.
 // See crbug.com/177956.
+/*
 void ResetChildSignalHandlersToDefaults(void) {
   for (int signum = 1; ; ++signum) {
     struct kernel_sigaction act = {nullptr};
@@ -194,6 +199,7 @@ void ResetChildSignalHandlersToDefaults(void) {
 #endif  // !defined(NDEBUG)
   }
 }
+*/
 #endif  // !BUILDFLAG(IS_LINUX) ||
         // (!defined(__i386__) && !defined(__x86_64__) && !defined(__arm__))
 }  // anonymous namespace
@@ -418,7 +424,7 @@ Process LaunchProcess(const std::vector<std::string>& argv,
       }
     }
 
-    ResetChildSignalHandlersToDefaults();
+    //ResetChildSignalHandlersToDefaults();
     SetSignalMask(orig_sigmask);
 
 #if 0

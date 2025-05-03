@@ -19,6 +19,8 @@
 
 // TODO: b/413130400 - Cobalt: Remove this file and implement linker stubs
 
+#define COBALT_LINKER_STUB()
+/*
 #if BUILDFLAG(COBALT_IS_RELEASE_BUILD)
 #define COBALT_LINKER_STUB()
 #else
@@ -36,5 +38,6 @@
   } while (0);                                 \
   SbSystemBreakIntoDebugger();
 #endif  // BUILDFLAG(COBALT_IS_RELEASE_BUILD)
+*/
 
 #endif  // BASE_STARBOARD_LINKER_STUB_H_

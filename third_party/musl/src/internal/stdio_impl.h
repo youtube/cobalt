@@ -3,7 +3,9 @@
 
 #include <stdio.h>
 
+#if !defined(STARBOARD)
 #include "syscall.h"
+#endif
 
 #define UNGET 8
 

@@ -24,7 +24,7 @@ size_t __fwritex(const unsigned char *restrict s, size_t l, FILE *restrict f)
 	f->wpos += l;
 	return l+i;
 }
-
+/*
 size_t fwrite(const void *restrict src, size_t size, size_t nmemb, FILE *restrict f)
 {
 	size_t k, l = size*nmemb;
@@ -36,3 +36,4 @@ size_t fwrite(const void *restrict src, size_t size, size_t nmemb, FILE *restric
 }
 
 weak_alias(fwrite, fwrite_unlocked);
+*/
