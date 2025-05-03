@@ -100,6 +100,8 @@ public class StarboardBridge {
   private final boolean isAmatiDevice;
   private static final TimeZone DEFAULT_TIME_ZONE = TimeZone.getTimeZone("America/Los_Angeles");
   private final long timeNanosecondsPerMicrosecond = 1000;
+  private static final String FEATURE_OPERATOR_TIER = "com.google.android.tv.operator_tier";
+  private final boolean isOperatorTier;
 
   public StarboardBridge(
       Context appContext,
@@ -130,6 +132,7 @@ public class StarboardBridge {
     this.advertisingId = new AdvertisingId(appContext);
     this.volumeStateReceiver = new VolumeStateReceiver(appContext);
     this.isAmatiDevice = appContext.getPackageManager().hasSystemFeature(AMATI_EXPERIENCE_FEATURE);
+    this.isOperatorTier = appContext.getPackageManager().hasSystemFeature(FEATURE_OPERATOR_TIER);
 
     nativeApp = StarboardBridgeJni.get().startNativeStarboard();
 
@@ -748,6 +751,13 @@ public class StarboardBridge {
   protected boolean getIsAmatiDevice() {
     return this.isAmatiDevice;
   }
+
+  @SuppressWarnings("unused")
+  @CalledByNative
+  protected boolean getOperatorTier() {
+    return this.isOperatorTier;
+  }
+
 
   @CalledByNative
   protected String getBuildFingerprint() {
