@@ -491,8 +491,7 @@ SbAudioSink AudioTrackAudioSinkType::Create(
           this, channels, sampling_frequency_hz, audio_sample_type,
           frame_buffers, frames_per_channel, preferred_buffer_size_in_bytes,
           update_source_status_func, consume_frames_func, error_func,
-          start_media_time, tunnel_mode_audio_session_id, is_web_audio,
-          context);
+          start_media_time, is_web_audio, context);
       if (!continuous_sink->IsAudioTrackValid()) {
         SB_LOG(ERROR) << "Failed to create ContinuousAudioTrackSink";
         Destroy(continuous_sink);
