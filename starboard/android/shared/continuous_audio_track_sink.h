@@ -50,7 +50,6 @@ class ContinuousAudioTrackSink
       ConsumeFramesFunc consume_frames_func,
       SbAudioSinkPrivate::ErrorFunc error_func,
       int64_t start_media_time,
-      int tunnel_mode_audio_session_id,
       bool is_web_audio,
       void* context);
   ~ContinuousAudioTrackSink() override;
@@ -67,10 +66,7 @@ class ContinuousAudioTrackSink
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
 
-  int WriteData(JniEnvExt* env,
-                const void* buffer,
-                int size,
-                int64_t sync_time);
+  int WriteData(JniEnvExt* env, const void* buffer, int size);
 
   void ReportError(bool capability_changed, const std::string& error_message);
 
@@ -86,7 +82,6 @@ class ContinuousAudioTrackSink
   const ConsumeFramesFunc consume_frames_func_;
   const SbAudioSinkPrivate::ErrorFunc error_func_;
   const int64_t start_time_;  // microseconds
-  const int max_frames_per_request_;
   void* const context_;
 
   AudioTrackBridge bridge_;
