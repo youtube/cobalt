@@ -96,6 +96,12 @@ int QuicChromiumPacketReader::StartReadingMultiplePackets() {
 }
 
 bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
+  bool success = ProcessMultiplePacketReadResultInternal(result);
+  return success;
+}
+
+bool QuicChromiumPacketReader::ProcessMultiplePacketReadResultInternal(
+    int result) {
   quic::QuicChromiumClock::GetInstance()->ZeroApproximateNow();
   read_pending_ = false;
   if (result <= 0 && net_log_.IsCapturing()) {
@@ -111,6 +117,10 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
     // buffer, ignore it.
     return true;
   }
+
+  if (!visitor_ || !socket_)
+    return true;
+
   if (result < 0) {
     // Report all other errors to the visitor.
     return visitor_->OnReadError(result, socket_);
@@ -145,8 +155,14 @@ bool QuicChromiumPacketReader::ProcessMultiplePacketReadResult(int result) {
 }
 
 void QuicChromiumPacketReader::OnReadMultiplePacketComplete(int result) {
+  if (visitor_ && result > 0) {
+    visitor_->set_force_write_blocked(true);
+  }
   if (ProcessMultiplePacketReadResult(result))
     StartReadingMultiplePackets();
+  if (visitor_ && result > 0) {
+    visitor_->set_force_write_blocked(false);
+  }
 }
 
 #endif
