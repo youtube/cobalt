@@ -14,7 +14,15 @@
 
 #include "media/starboard/decoder_buffer_allocator_strategy.h"
 
+#include "base/logging.h"
+
 namespace media {
+
+namespace {
+// Used to determine if the memory allocated is large. The underlying logic
+// can be different.
+constexpr size_t kSmallAllocationThreshold = 512;
+}  // namespace
 
 BidirectionalFitDecoderBufferAllocatorStrategy::
     BidirectionalFitDecoderBufferAllocatorStrategy(
@@ -23,6 +31,23 @@ BidirectionalFitDecoderBufferAllocatorStrategy::
     : birectional_fit_allocator_(&fallback_allocator_,
                                  initial_capacity,
                                  kSmallAllocationThreshold,
-                                 allocation_increment) {}
+                                 allocation_increment) {
+  LOG(INFO) << "Using BidirectionalFitDecoderBufferAllocatorStrategy ...";
+}
+
+StreamTypeBasedDecoderBufferAllocatorStrategy::
+    StreamTypeBasedDecoderBufferAllocatorStrategy(
+        std::size_t initial_capacity,
+        std::size_t allocation_increment)
+    : audio_allocator_(&fallback_allocator_,
+                       kAudioPoolInitialCapacity,
+                       0,
+                       kAudioPoolAllocationIncrement),
+      video_allocator_(&fallback_allocator_,
+                       initial_capacity,
+                       kSmallAllocationThreshold,
+                       allocation_increment) {
+  LOG(INFO) << "Using StreamTypeBasedDecoderBufferAllocatorStrategy ...";
+}
 
 }  // namespace media

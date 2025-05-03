@@ -68,7 +68,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator,
   void* Allocate(DemuxerStream::Type type,
                  size_t size,
                  size_t alignment) override;
-  void Free(void* p, size_t size) override;
+  void Free(DemuxerStream::Type type, void* p, size_t size) override;
 
   int GetAudioBufferBudget() const override;
   int GetBufferAlignment() const override;

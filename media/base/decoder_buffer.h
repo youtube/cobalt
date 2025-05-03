@@ -85,7 +85,7 @@ class MEDIA_EXPORT DecoderBuffer
     // The function should never return nullptr.  It may terminate the app on
     // allocation failure.
     virtual void* Allocate(DemuxerStream::Type type, size_t size, size_t alignment) = 0;
-    virtual void Free(void* p, size_t size) = 0;
+    virtual void Free(DemuxerStream::Type type, void* p, size_t size) = 0;
 
     virtual int GetAudioBufferBudget() const = 0;
     virtual int GetBufferAlignment() const = 0;
@@ -334,6 +334,8 @@ class MEDIA_EXPORT DecoderBuffer
   virtual ~DecoderBuffer();
 
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
+  // TODO: b/399430536 - Cobalt: Consolidate with StreamParserBuffer::type _.
+  const DemuxerStream::Type type_ = DemuxerStream::UNKNOWN;
   // Encoded data, allocated from DecoderBuffer::Allocator.
   uint8_t* data_ = nullptr;
   size_t allocated_size_ = 0;
