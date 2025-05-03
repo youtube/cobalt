@@ -23,7 +23,8 @@
     "starboard/loader_app",
     "trace_processor_minimal_smoke_tests",
     "url_unittests",
-    "zlib_unittests"
+    "zlib_unittests",
+    "cobalt"
   ],
   "includes": [
     {
