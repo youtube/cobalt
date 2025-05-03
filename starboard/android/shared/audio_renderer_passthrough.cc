@@ -136,6 +136,12 @@ void AudioRendererPassthrough::WriteSamples(const InputBuffers& input_buffers) {
 
   can_accept_more_data_.store(false);
 
+  // AC-3/EAC-3 sync frames with 1536 samples at 48khz have a duration of 32 ms.
+  // TODO: Determine this value at runtime.
+  const SbTime kBufferDuration = 32 * kSbTimeMillisecond;
+  discard_duration_tracker_.CacheMultipleDiscardDurations(input_buffers,
+                                                          kBufferDuration);
+
   decoder_->Decode(
       input_buffers,
       std::bind(&AudioRendererPassthrough::OnDecoderConsumed, this));
@@ -290,6 +296,7 @@ void AudioRendererPassthrough::Seek(int64_t seek_to_time) {
   decoded_audio_writing_in_progress_ = nullptr;
   decoded_audio_writing_offset_ = 0;
   total_frames_written_on_audio_track_thread_ = 0;
+  discard_duration_tracker_.Reset();
 }
 
 // This function can be called from *any* threads.
@@ -335,6 +342,8 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
     playback_time =
         audio_start_time + total_frames_played * 1'000'000LL /
                                audio_stream_info_.samples_per_second;
+    playback_time = discard_duration_tracker_.AdjustTimeForTotalDiscardDuration(
+        playback_time);
     return std::max(playback_time, seek_to_time_);
   }
 
@@ -351,6 +360,8 @@ int64_t AudioRendererPassthrough::GetCurrentMediaTime(bool* is_playing,
   //       returned on pause, after an adjusted time has been returned.
   playback_time = audio_start_time + playback_head_position * 1'000'000LL /
                                          audio_stream_info_.samples_per_second;
+  playback_time = discard_duration_tracker_.AdjustTimeForTotalDiscardDuration(
+      playback_time);
 
   // When underlying AudioTrack is paused, we use returned playback time
   // directly. Note that we should not use |paused_| or |playback_rate_| here.
