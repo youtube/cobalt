@@ -1,0 +1,50 @@
+{
+  "docker_service": "build-rdk",
+  "evergreen_loader": "rdk-arm",
+  "on_device_test": {
+    "enabled": true,
+    "tests": [
+      "0",
+      "1",
+      "2",
+      "3"
+    ]
+  },
+  "platforms": [
+    "evergreen-arm-hardfp-sbversion-14",
+    "evergreen-arm-hardfp-sbversion-15",
+    "evergreen-arm-hardfp-sbversion-16"
+  ],
+  "includes": [
+    {
+      "name":"sbversion-14",
+      "platform":"evergreen-arm-hardfp-sbversion-14",
+      "target_platform":"evergreen-arm-hardfp",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
+      "sb_api_version": "14",
+      "dimension": "release_version=regex:10.*"
+    },
+    {
+      "name":"sbversion-15",
+      "platform":"evergreen-arm-hardfp-sbversion-15",
+      "target_platform":"evergreen-arm-hardfp",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
+      "sb_api_version": "15",
+      "dimension": "release_version=regex:10.*"
+    },
+    {
+      "name":"sbversion-16",
+      "platform":"evergreen-arm-hardfp-sbversion-16",
+      "target_platform":"evergreen-arm-hardfp",
+      "target_cpu":"target_cpu=\\\"arm\\\"",
+      "extra_gn_arguments":"use_asan=false",
+      "evergreen_loader_extra_gn_arguments":"use_asan=false is_clang=false",
+      "sb_api_version": "16",
+      "dimension": "release_version=regex:10.*"
+    }
+  ]
+}
