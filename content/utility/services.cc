@@ -82,17 +82,13 @@ extern sandbox::TargetServices* g_utility_target_services;
 #include "media/mojo/services/media_foundation_service_broker.h"  // nogncheck
 #endif  // BUILDFLAG(IS_WIN)
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) && \
-    (BUILDFLAG(USE_VAAPI) || BUILDFLAG(USE_V4L2_CODEC))
+#if BUILDFLAG(IS_CHROMEOS_ASH) && BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 #include "ash/components/arc/video_accelerator/oop_arc_video_accelerator_factory.h"
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH) && (BUILDFLAG(USE_VAAPI) ||
-        // BUILDFLAG(USE_V4L2_CODEC))
+#endif  // BUILDFLAG(IS_CHROMEOS_ASH) && BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)) && \
-    (BUILDFLAG(USE_VAAPI) || BUILDFLAG(USE_V4L2_CODEC))
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 #include "media/mojo/services/stable_video_decoder_factory_process_service.h"  // nogncheck
-#endif  // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)) &&
-        // (BUILDFLAG(USE_VAAPI) || BUILDFLAG(USE_V4L2_CODEC))
+#endif  // BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
 
 #if BUILDFLAG(ENABLE_ACCESSIBILITY_SERVICE)
 #if BUILDFLAG(SUPPORTS_OS_ACCESSIBILITY_SERVICE)
