@@ -379,6 +379,7 @@ void InitializeZygoteSandboxForBrowserProcess(
 #endif
 
   // Tickle the zygote host so it forks now.
+#if 0
   ZygoteHostImpl::GetInstance()->Init(parsed_command_line);
   if (!parsed_command_line.HasSwitch(switches::kNoUnsandboxedZygote)) {
     CreateUnsandboxedZygote(base::BindOnce(LaunchZygoteHelper));
@@ -390,6 +391,7 @@ void InitializeZygoteSandboxForBrowserProcess(
   // race condition concerns.
   ZygoteHostImpl::GetInstance()->SetRendererSandboxStatus(
       generic_zygote->GetSandboxStatus());
+#endif
 }
 #endif  // BUILDFLAG(USE_ZYGOTE)
 

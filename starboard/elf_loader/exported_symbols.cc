@@ -15,6 +15,7 @@
 #include "starboard/elf_loader/exported_symbols.h"
 
 #include <dirent.h>
+#include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
@@ -25,6 +26,8 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include <semaphore.h>
 
 #include "starboard/audio_sink.h"
 #include "starboard/common/log.h"
@@ -59,6 +62,11 @@
   do {                                            \
     map_[#s] = reinterpret_cast<const void*>(&s); \
   } while (0)
+
+void* stub_dlsym(void* handle, const char* symbol) {
+  SbLogFormatF("calling wrap dlsym: %s\n", symbol);
+  return dlsym(handle, symbol);
+}
 
 namespace starboard {
 namespace elf_loader {
@@ -242,6 +250,29 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(vsscanf);
   REGISTER_SYMBOL(write);
 
+  REGISTER_SYMBOL(vfprintf);
+  REGISTER_SYMBOL(vswprintf);
+  REGISTER_SYMBOL(localtime_r);
+  REGISTER_SYMBOL(remove);
+  REGISTER_SYMBOL(madvise);
+  REGISTER_SYMBOL(newlocale);
+  REGISTER_SYMBOL(chdir);
+  REGISTER_SYMBOL(fputc);
+  REGISTER_SYMBOL(uselocale);
+  REGISTER_SYMBOL(freelocale);
+  REGISTER_SYMBOL(localeconv);
+  REGISTER_SYMBOL(localtime);
+
+  map_["pthread_mutexattr_init"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_init);
+  map_["pthread_mutexattr_destroy"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_destroy);
+  map_["pthread_mutexattr_settype"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_settype);
+  map_["pthread_mutexattr_setpshared"] =
+      reinterpret_cast<const void*>(&__abi_wrap_pthread_mutexattr_setpshared);
+  map_["dlsym"] = reinterpret_cast<const void*>(&stub_dlsym);
+
   // Custom mapped POSIX APIs to compatibility wrappers.
   // These will rely on Starboard-side implementations that properly translate
   // Platform-specific types with musl-based types. These wrappers are defined
@@ -341,16 +372,17 @@ ExportedSymbols::ExportedSymbols() {
   map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
   map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
 
-  REGISTER_SYMBOL(vswprintf);
-
 }  // NOLINT
 
 const void* ExportedSymbols::Lookup(const char* name) {
   const void* address = map_[name];
-  // Any symbol that is not registered as part of the Starboard API in the
-  // constructor of this class is a leak, and is an error.
+  // const void* address = nullptr;
+  //  Any symbol that is not registered as part of the Starboard API in the
+  //  constructor of this class is a leak, and is an error.
   if (!address) {
     SB_LOG(ERROR) << "Failed to retrieve the address of '" << name << "'.";
+    address = dlsym(RTLD_DEFAULT, name);
+    SB_LOG(ERROR) << "Fallback on dlsym address '" << address << "'.";
   }
   return address;
 }
