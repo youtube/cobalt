@@ -58,6 +58,7 @@ class StarboardBridge {
   std::string GetAdvertisingId(JNIEnv* env);
   bool GetLimitAdTracking(JNIEnv* env);
 
+<<<<<<< HEAD
   std::string GetUserAgentAuxField(JNIEnv* env) const;
 
   bool IsAmatiDevice(JNIEnv* env) const;
@@ -67,6 +68,9 @@ class StarboardBridge {
   int64_t GetPlayServicesVersion(JNIEnv* env) const;
 
   void CloseAllCobaltService(JNIEnv* env) const;
+=======
+  void CloseApp(JNIEnv* env);
+>>>>>>> 021c3dae1e2 (Implement window.close() for Chrobalt ATV (#5640))
 
  private:
   StarboardBridge() = default;
