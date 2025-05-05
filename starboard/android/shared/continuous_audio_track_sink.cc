@@ -151,7 +151,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
   const std::vector<uint8_t> silence_buffer(
       kSilenceFramesPerAppend * channels_ * GetBytesPerSample(sample_type_));
   int is_bridge_playing = false;
-  std::optional<int64_t> switching_to_play_start_us;
+  int64_t switching_to_play_start_us = -1;
 
   bridge_.Play();
   is_bridge_playing = true;
@@ -239,7 +239,8 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
             WriteData(env, silence_buffer.data(), kSilenceFramesPerAppend);
       }
 
-      if (is_bridge_playing) {
+      if (!is_bridge_playing) {
+        SB_LOG(INFO) << "Now playing silence";
         bridge_.Play();
         is_bridge_playing = true;
       }
@@ -312,17 +313,17 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
     if (frames_in_audio_track >= frames_to_start && !is_bridge_playing) {
       bridge_.Play();
       is_bridge_playing = true;
-      SB_DCHECK(switching_to_play_start_us.has_value());
-      SB_LOG(INFO) << "Time(msec) to pre-warming and play bridge="
-                   << (CurrentMonotonicTime() -
-                       switching_to_play_start_us.value()) /
+      SB_LOG(INFO) << "Now playing audio data: switch time(msec)="
+                   << (CurrentMonotonicTime() - switching_to_play_start_us) /
                           1'000;
       last_playback_head_event_at = CurrentMonotonicTime();
+      int64_t updated_at_us;  // Not used.
       last_playback_head_position =
-          bridge_.GetAudioTimestamp(&frames_consumed_at, env);
+          bridge_.GetAudioTimestamp(&updated_at_us, env);
     }
+
     bool written_fully = (written_frames == expected_written_frames);
-    int64_t unplayed_frames_in_time =
+    auto unplayed_frames_in_time =
         GetFramesDurationUs(frames_in_audio_track) - (now - frames_consumed_at);
     // As long as there is enough data in the buffer, run the loop in lower
     // frequency to avoid taking too much CPU.  Note that the threshold should
