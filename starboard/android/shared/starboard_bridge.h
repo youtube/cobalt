@@ -76,6 +76,8 @@ class StarboardBridge {
   std::string GetAdvertisingId(JNIEnv* env);
   bool GetLimitAdTracking(JNIEnv* env);
 
+  void CloseApp(JNIEnv* env);
+
  private:
   StarboardBridge() = default;
   ~StarboardBridge() = default;
