@@ -16,6 +16,7 @@
 
 #include <unistd.h>
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -132,20 +133,29 @@ void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
   return NULL;
 }
 
-// TODO: Break down the function into manageable pieces.
+// TODO: b/415819457 - Refactor AudioThreadFunc to make it more readable.
 void ContinuousAudioTrackSink::AudioThreadFunc() {
   JniEnvExt* const env = JniEnvExt::Get();
   const std::vector<uint8_t> silence_buffer(
       kSilenceFramesPerAppend * channels_ * GetBytesPerSample(sample_type_));
+  const int frames_to_start = bridge_.GetStartThresholdInFrames();
   bool was_playing = false;
   int frames_in_audio_track = 0;
 
-  SB_LOG(INFO) << "ContinuousAudioTrackSink thread started.";
+  SB_LOG(INFO) << "ContinuousAudioTrackSink thread started: frames_to_start="
+               << frames_to_start << ", frames_to_start(msec)="
+               << GetFramesDurationUs(frames_to_start) / 1'000;
+
+  int accumulated_written_frames = 0;
 
   int64_t last_playback_head_event_at = -1;  // microseconds
   int last_playback_head_position = 0;
 
+  int is_bridge_playing = false;
+  std::optional<int64_t> playing_start_us;
+
   bridge_.Play();
+  is_bridge_playing = true;
 
   while (!quit_) {
     int playback_head_position = 0;
@@ -157,7 +167,7 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       break;
     }
 
-    if (was_playing) {
+    if (was_playing && is_bridge_playing) {
       playback_head_position =
           bridge_.GetAudioTimestamp(&frames_consumed_at, env);
       SB_DCHECK(playback_head_position >= last_playback_head_position);
@@ -207,15 +217,29 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
     // When source playing status is changed.
     if (was_playing != is_playing) {
-      if (is_playing) {
-        last_playback_head_event_at = -1;
-      }
-      bridge_.Flush();
-      // By resetting this value, this thread loop will feed AudioTrackBridge
-      // from the very first not-consumed frames that AudioSource has.
+      was_playing = is_playing;
+
+      bridge_.PauseAndFlush();
       frames_in_audio_track = 0;
+      is_bridge_playing = false;
+
+      if (is_playing) {
+        SB_LOG(INFO) << "Switching to play audio data";
+        playing_start_us = CurrentMonotonicTime();
+      } else {
+        SB_LOG(INFO) << "Switching to play silence";
+        for (int offset = 0; offset < frames_to_start;
+             offset += kSilenceFramesPerAppend) {
+          WriteData(
+              env, silence_buffer.data(),
+              std::min(kSilenceFramesPerAppend, frames_to_start - offset));
+        }
+        bridge_.Play();
+        is_bridge_playing = true;
+        usleep(10'000);
+        continue;
+      }
     }
-    was_playing = is_playing;
 
     if (!is_playing) {
       WriteData(env, silence_buffer.data(), kSilenceFramesPerAppend);
@@ -285,9 +309,19 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       break;
     }
     frames_in_audio_track += written_frames;
-
+    if (frames_in_audio_track >= frames_to_start && !is_bridge_playing) {
+      bridge_.Play();
+      is_bridge_playing = true;
+      SB_DCHECK(playing_start_us.has_value());
+      SB_LOG(INFO) << "Time(msec) to pre-warming and play bridge="
+                   << (CurrentMonotonicTime() - playing_start_us.value()) /
+                          1'000;
+      last_playback_head_event_at = CurrentMonotonicTime();
+      last_playback_head_position =
+          bridge_.GetAudioTimestamp(&frames_consumed_at, env);
+    }
     bool written_fully = (written_frames == expected_written_frames);
-    auto unplayed_frames_in_time =
+    int64_t unplayed_frames_in_time =
         GetFramesDurationUs(frames_in_audio_track) - (now - frames_consumed_at);
     // As long as there is enough data in the buffer, run the loop in lower
     // frequency to avoid taking too much CPU.  Note that the threshold should
