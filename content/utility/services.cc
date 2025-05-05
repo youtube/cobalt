@@ -400,21 +400,14 @@ void RegisterMainThreadServices(mojo::ServiceFactory& services) {
   services.Add(RunXrDeviceService);
 #endif
 
-#if BUILDFLAG(IS_CHROMEOS_ASH) && \
-    (BUILDFLAG(USE_VAAPI) || BUILDFLAG(USE_V4L2_CODEC))
+#if BUILDFLAG(IS_CHROMEOS_ASH) && BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   services.Add(RunOOPArcVideoAcceleratorFactoryService);
-#endif  // BUILDFLAG(IS_CHROMEOS_ASH) && (BUILDFLAG(USE_VAAPI) ||
-        // BUILDFLAG(USE_V4L2_CODEC))
+#endif
 
-#if (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)) && \
-    (BUILDFLAG(USE_VAAPI) || BUILDFLAG(USE_V4L2_CODEC))
+#if BUILDFLAG(USE_LINUX_VIDEO_ACCELERATION)
   services.Add(RunStableVideoDecoderFactoryProcessService);
-#endif  // (BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS_ASH)) &&
-        // (BUILDFLAG(USE_VAAPI) || BUILDFLAG(USE_V4L2_CODEC))
-
-#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   services.Add(RunVideoEncodeAcceleratorProviderFactory);
-#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+#endif
 
 #if BUILDFLAG(ENABLE_ACCESSIBILITY_SERVICE)
   if (::features::IsAccessibilityServiceEnabled())

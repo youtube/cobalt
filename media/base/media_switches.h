@@ -14,6 +14,7 @@
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
 #include "media/base/media_export.h"
+#include "media/gpu/buildflags.h"
 #include "media/media_buildflags.h"
 
 namespace base {
