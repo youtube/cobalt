@@ -394,6 +394,7 @@ public class AudioTrackBridge {
         // https://developer.android.com/reference/android/media/AudioTimestamp.html#framePosition
         audioTimestamp.framePosition &= 0x7FFFFFFF;
       } else {
+        Log.i(TAG, "audio_track_audio_sink_type: getAudioTimestamp() returned false.");
         // Time stamps haven't been updated yet, assume playback hasn't started.
         audioTimestamp.framePosition = 0;
         audioTimestamp.nanoTime = System.nanoTime();
