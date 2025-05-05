@@ -136,8 +136,7 @@ void* ContinuousAudioTrackSink::ThreadEntryPoint(void* context) {
 // TODO: b/415819457 - Refactor AudioThreadFunc to make it more readable.
 void ContinuousAudioTrackSink::AudioThreadFunc() {
   JniEnvExt* const env = JniEnvExt::Get();
-  const std::vector<uint8_t> silence_buffer(
-      kSilenceFramesPerAppend * channels_ * GetBytesPerSample(sample_type_));
+
   const int frames_to_start = bridge_.GetStartThresholdInFrames();
   bool was_playing = false;
   int frames_in_audio_track = 0;
@@ -146,13 +145,13 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
                << frames_to_start << ", frames_to_start(msec)="
                << GetFramesDurationUs(frames_to_start) / 1'000;
 
-  int accumulated_written_frames = 0;
-
   int64_t last_playback_head_event_at = -1;  // microseconds
   int last_playback_head_position = 0;
 
+  const std::vector<uint8_t> silence_buffer(
+      kSilenceFramesPerAppend * channels_ * GetBytesPerSample(sample_type_));
   int is_bridge_playing = false;
-  std::optional<int64_t> playing_start_us;
+  std::optional<int64_t> switching_to_play_start_us;
 
   bridge_.Play();
   is_bridge_playing = true;
@@ -225,24 +224,25 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
 
       if (is_playing) {
         SB_LOG(INFO) << "Switching to play audio data";
-        playing_start_us = CurrentMonotonicTime();
+        switching_to_play_start_us = CurrentMonotonicTime();
       } else {
         SB_LOG(INFO) << "Switching to play silence";
-        for (int offset = 0; offset < frames_to_start;
-             offset += kSilenceFramesPerAppend) {
-          WriteData(
-              env, silence_buffer.data(),
-              std::min(kSilenceFramesPerAppend, frames_to_start - offset));
-        }
-        bridge_.Play();
-        is_bridge_playing = true;
-        usleep(10'000);
-        continue;
       }
     }
 
     if (!is_playing) {
-      WriteData(env, silence_buffer.data(), kSilenceFramesPerAppend);
+      int frames_written = kSilenceFramesPerAppend;
+      for (int offset = 0; offset < frames_to_start &&
+                           frames_written == kSilenceFramesPerAppend;
+           offset += kSilenceFramesPerAppend) {
+        frames_written =
+            WriteData(env, silence_buffer.data(), kSilenceFramesPerAppend);
+      }
+
+      if (is_bridge_playing) {
+        bridge_.Play();
+        is_bridge_playing = true;
+      }
       usleep(10'000);
       continue;
     }
@@ -312,9 +312,10 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
     if (frames_in_audio_track >= frames_to_start && !is_bridge_playing) {
       bridge_.Play();
       is_bridge_playing = true;
-      SB_DCHECK(playing_start_us.has_value());
+      SB_DCHECK(switching_to_play_start_us.has_value());
       SB_LOG(INFO) << "Time(msec) to pre-warming and play bridge="
-                   << (CurrentMonotonicTime() - playing_start_us.value()) /
+                   << (CurrentMonotonicTime() -
+                       switching_to_play_start_us.value()) /
                           1'000;
       last_playback_head_event_at = CurrentMonotonicTime();
       last_playback_head_position =
