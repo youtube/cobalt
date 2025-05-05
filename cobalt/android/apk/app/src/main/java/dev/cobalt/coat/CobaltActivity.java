@@ -17,7 +17,6 @@ package dev.cobalt.coat;
 import static dev.cobalt.util.Log.TAG;
 
 import android.app.Activity;
-import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
@@ -28,7 +27,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.text.TextUtils;
-import android.util.TypedValue;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup.LayoutParams;
@@ -370,21 +368,11 @@ public abstract class CobaltActivity extends Activity {
 
     videoSurfaceView = new VideoSurfaceView(this);
 
-    videoSurfaceView.setBackgroundColor(getThemeColorPrimary(this));
+    // TODO: b/408279606 - Set this to app theme primary color once we fix
+    // error with it being unresolvable.
+    videoSurfaceView.setBackgroundColor(Color.BLACK);
     a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
     addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
-  }
-
-  private static int getThemeColorPrimary(final Context context) {
-    try {
-      final TypedValue value = new TypedValue();
-      if (context.getTheme().resolveAttribute(R.attr.colorPrimary, value, true)) {
-        return value.data;
-      }
-    } catch (NullPointerException e) {
-      Log.w(TAG, "Unable to get application context theme.");
-    }
-    return Color.TRANSPARENT;
   }
 
   /**
