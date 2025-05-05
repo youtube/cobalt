@@ -1,7 +1,7 @@
 name: Print Logs
 description: Processes test results to produce a test summary and upload results to DataDog.
 inputs:
-  logfile_glob:
+  log_glob:
     description: "Path (or glob) to test log files."
     required: true
   test_status:
@@ -37,7 +37,7 @@ runs:
         # nullopt to returns empty string if the glob matches no files.
         shopt -s globstar nullglob
 
-        log_files=(${{ inputs.logfile_glob }})
+        log_files=(${{ inputs.log_glob }})
 
         if [ ${#log_files[@]} -eq 0 ]; then
           echo "::error::No log files were collected. The tests probably failed to run."
@@ -58,7 +58,7 @@ runs:
         # Note that if any steps after this one fails the logs will no longer be expanded.
         if [ "${{ inputs.test_status }}" != "success" ]; then
           echo "Tests failed"
-          grep -h "\[  FAILED  \]" ${{ inputs.logfile_glob }}
+          grep -h "\[  FAILED  \]" ${{ inputs.log_glob }}
           exit 1
         fi
       shell: bash
