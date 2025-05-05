@@ -67,6 +67,9 @@
 #include "net/log/net_log_event_type.h"
 #include "net/ssl/ssl_cert_request_info.h"
 #include "net/ssl/ssl_config_service.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/command_line.h"
+#endif
 
 using base::Time;
 using base::TimeTicks;
