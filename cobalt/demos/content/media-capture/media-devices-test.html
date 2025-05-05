@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script type="text/javascript">
+    // Demonstrates how the navigator.mediaDevices api can be used
+    // for querying media capture devices.
+    const mediaDevices = navigator.mediaDevices;
+
+    function intervalCallback() {
+      mediaDevices.enumerateDevices()
+        .then((sequenceMediaDevices) => {
+          let strValue = "\nFound " + sequenceMediaDevices.length
+                         + " media devices: \n";
+          let i = 0;
+          for (let device of sequenceMediaDevices) {
+            strValue += "  device[" + i + "].kind: "  + device.kind  + "\n";
+            strValue += "  device[" + i + "].label: " + device.label + "\n";
+            i++;
+          }
+          console.log(strValue);
+        })
+        .catch((msg) => console.log(
+            "Exception happened while enumerating devices, reason: " + msg));
+    }
+
+    window.setInterval(intervalCallback, 500);
+  </script>
+</head>
+
+<body>
+</body>
+</html>
