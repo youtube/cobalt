@@ -39,6 +39,7 @@ absl::optional<int> CobaltMainDelegate::BasicStartupComplete() {
   base::CommandLine* cl = base::CommandLine::ForCurrentProcess();
   cl->AppendSwitch(switches::kEnableAggressiveDOMStorageFlushing);
   cl->AppendSwitch(switches::kDisableGpuShaderDiskCache);
+  cl->AppendSwitch("cobalt-custom-should-disable-http-caching");
   return content::ShellMainDelegate::BasicStartupComplete();
 }
 
