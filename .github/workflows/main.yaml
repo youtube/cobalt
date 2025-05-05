@@ -52,8 +52,7 @@ jobs:
             .github
             cobalt/build
             cobalt/testing/filters
-            cobalt/tools/on_device*
-            cobalt/tools/requirements*
+            cobalt/tools
             cobalt/docker
             docker-compose.yml
       - name: Remove runtest if exists
@@ -503,6 +502,10 @@ jobs:
           # TODO: Enable symbolization when it works.
           # symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
           symbolize: 'false'
+      - name: ${{ matrix.test_target }} Failing Tests
+        if: always() && steps.process-results.outcome != 'success'
+        run: python3 cobalt/tools/junit_mini_parser.py results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
+        shell: bash
 
   validate-test-result:
     needs: [initialize, build, test-results]
