@@ -296,6 +296,11 @@ SB_EXPORT_ANDROID bool StarboardBridge::GetLimitAdTracking(JNIEnv* env) {
   return limit_ad_tracking_java;
 }
 
+SB_EXPORT_ANDROID void StarboardBridge::CloseApp(JNIEnv* env) {
+  SB_DCHECK(env);
+  return Java_StarboardBridge_closeApp(env, j_starboard_bridge_);
+}
+
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
