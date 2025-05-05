@@ -251,6 +251,7 @@ public class AudioTrackBridge {
     }
     try {
       audioTrack.pause();
+      Log.i(TAG, "audio_track: state=" + audioTrack.getState());
     } catch (IllegalStateException e) {
       Log.e(TAG, String.format(Locale.US, "Unable to pause audio track, error: %s", e.toString()));
     }
@@ -279,6 +280,8 @@ public class AudioTrackBridge {
       return;
     }
     audioTrack.flush();
+    Log.i(TAG, "audio_track: state=" + audioTrack.getState());
+
     // Reset the states to allow reuse of |audioTrack| after flush() is called.  This can reduce
     // switch latency for passthrough playbacks.
     avSyncHeader = null;

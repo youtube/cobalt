@@ -239,9 +239,48 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   std::function<void()> WriteMinimumStartupFrames = [&] {
     for (int offset = 0; offset < minimum_startup_frames;
          offset += silence_frames) {
-      WriteData(env, silence_bytes.data(),
-                std::min(silence_frames, minimum_startup_frames - offset), 0);
+      int frames_to_write =
+          std::min(silence_frames, minimum_startup_frames - offset);
+      int frames_written =
+          WriteData(env, silence_bytes.data(), frames_to_write, 0);
+      if (frames_written < 0) {
+        SB_LOG(ERROR) << "Write failed: err=" << frames_written;
+        return;
+      }
+      offset += frames_written;
+      if (frames_to_write != frames_written) {
+        SB_LOG(INFO) << "Partilly wrote data: frames_to_write="
+                     << frames_to_write
+                     << ", frames_written=" << frames_written;
+        usleep(1'000);
+      }
     }
+  };
+
+  std::function<int()> GetPlaybackHead = [&] {
+    int64_t _;
+    return bridge_.GetAudioTimestamp(&_, env);
+  };
+
+  std::function<void()> WaitUntilStartAndLog = [&] {
+    int last_head = GetPlaybackHead();
+    int64_t start_us = CurrentMonotonicTime();
+    int elapsed_ms = 0;
+    do {
+      usleep(10'000);
+      elapsed_ms = (CurrentMonotonicTime() - start_us) / 1'000;
+      if (elapsed_ms > 1'000) {
+        SB_LOG(INFO) << "playback head doesn't move: elapsed_ms=" << elapsed_ms;
+        return;
+      }
+    } while (GetPlaybackHead() == last_head);
+
+    int media_time_progress_ms =
+        GetFramesDurationUs(GetPlaybackHead() - last_head) / 1'000;
+    SB_LOG(INFO) << "Audio startup latency(msec)="
+                 << (elapsed_ms - media_time_progress_ms)
+                 << ", elapsed_ms=" << elapsed_ms
+                 << ", media_time_progress_ms=" << media_time_progress_ms;
   };
 
   // #define TEST_1
@@ -362,11 +401,6 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   Cleanup();
 #endif
 
-  std::function<int()> GetPlaybackHead = [&] {
-    int64_t _;
-    return bridge_.GetAudioTimestamp(&_, env);
-  };
-
 #if 0
   SB_LOG(INFO) << "Test #6 Flush results";
   LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
@@ -418,27 +452,9 @@ void AudioTrackAudioSink::AudioThreadFunc() {
                << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
 #endif
 
+#if 0
   Cleanup();
-  std::function<void()> WaitUntilStartAndLog = [&] {
-    int last_head = GetPlaybackHead();
-    int64_t start_us = CurrentMonotonicTime();
-    int elapsed_ms = 0;
-    do {
-      usleep(10'000);
-      elapsed_ms = (CurrentMonotonicTime() - start_us) / 1'000;
-      if (elapsed_ms > 1'000) {
-        SB_LOG(INFO) << "playback head doesn't move: elapsed_ms=" << elapsed_ms;
-        return;
-      }
-    } while (GetPlaybackHead() == last_head);
 
-    int media_time_progress_ms =
-        GetFramesDurationUs(GetPlaybackHead() - last_head) / 1'000;
-    SB_LOG(INFO) << "Audio startup latency(msec)="
-                 << (elapsed_ms - media_time_progress_ms)
-                 << ", elapsed_ms=" << elapsed_ms
-                 << ", media_time_progress_ms=" << media_time_progress_ms;
-  };
 
   LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
   LOG_ELAPSED("Play", [&] { bridge_.Play(); });
@@ -452,6 +468,21 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   LOG_ELAPSED("Write data again", [&] { WriteMinimumStartupFrames(); });
   SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
                << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  WaitUntilStartAndLog();
+#endif
+
+  SB_LOG(INFO) << "Test #7 AudioTimestamp after Flush doesn't move";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  WaitUntilStartAndLog();
+
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+  SB_LOG(INFO) << "Playback head: frames=" << GetPlaybackHead()
+               << ", msec=" << GetFramesDurationUs(GetPlaybackHead()) / 1'000;
+  LOG_ELAPSED("Flush", [&] { bridge_.Flush(); });
+  LOG_ELAPSED("Wait(10msec)", [&] { usleep(10'000); });
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
   WaitUntilStartAndLog();
 
   while (!quit_) {
