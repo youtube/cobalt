@@ -48,6 +48,7 @@ runs:
       id: download-dd-cli
       # The API key is not available on PRs created from a fork.
       if: always() && inputs.datadog_api_key != ''
+      continue-on-error: true
       env:
         DD_VERSION: 'v2.18.0'
         DD_SHA256SUM: 'adbe9b3a41faaf0b1d9702ba256cf8fa9e474c0cc8216f25e5b489c53d6f0a70  datadog-ci'
@@ -61,6 +62,7 @@ runs:
 
     - name: Upload to Datadog
       if: always() && steps.download-dd-cli.outcome == 'success'
+      continue-on-error: true
       env:
         DATADOG_SITE: us5.datadoghq.com
         DATADOG_API_KEY: ${{ inputs.datadog_api_key }}
