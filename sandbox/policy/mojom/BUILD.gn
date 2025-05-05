@@ -4,6 +4,7 @@
 
 import("//chromeos/ash/components/assistant/assistant.gni")
 import("//components/services/screen_ai/buildflags/features.gni")
+import("//media/gpu/args.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 import("//ppapi/buildflags/buildflags.gni")
 import("//printing/buildflags/buildflags.gni")
@@ -36,5 +37,8 @@ mojom("mojom") {
   }
   if (enable_screen_ai_service) {
     enabled_features += [ "enable_screen_ai_service" ]
+  }
+  if (use_linux_video_acceleration) {
+    enabled_features += [ "enable_oop_video_accelerators" ]
   }
 }

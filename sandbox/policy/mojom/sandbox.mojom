@@ -118,7 +118,7 @@ enum Sandbox {
   // TODO(b/195769334): we're using the GPU process sandbox policy for now as a
   // transition step. However, we should create a policy that's tighter just for
   // hardware video decoding.
-  [EnableIf=is_linux_or_chromeos_ash]
+  [EnableIf=enable_oop_video_accelerators]
   kHardwareVideoDecoding,
 
   // Used to protect processes that perform hardware video encode acceleration.
@@ -131,7 +131,7 @@ enum Sandbox {
   // TODO(b/248528896): we're using the GPU process sandbox policy for now as a
   // transition step. However, we should create a policy that's tighter just for
   // hardware video encoding.
-  [EnableIf=is_linux_or_chromeos]
+  [EnableIf=enable_oop_video_accelerators]
   kHardwareVideoEncoding,
 
   // Hosts Input Method Editors.
