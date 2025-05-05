@@ -22,6 +22,12 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #endif  // BUILDFLAG(IS_ANDROID) && BUILDFLAG(USE_STARBOARD_MEDIA)
 
+#if BUILDFLAG(IS_ANDROID)
+#include "starboard/android/shared/starboard_bridge.h"
+
+using starboard::android::shared::StarboardBridge;
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace cobalt {
 
 namespace {
@@ -108,6 +114,14 @@ bool CobaltWebContentsDelegate::CheckMediaAccessPermission(
     const GURL&,
     blink::mojom::MediaStreamType) {
   return true;
+}
+
+void CobaltWebContentsDelegate::CloseContents(content::WebContents* source) {
+#if BUILDFLAG(IS_ANDROID)
+  JNIEnv* env = base::android::AttachCurrentThread();
+  StarboardBridge* starboard_bridge = StarboardBridge::GetInstance();
+  starboard_bridge->CloseApp(env);
+#endif
 }
 
 }  // namespace cobalt
