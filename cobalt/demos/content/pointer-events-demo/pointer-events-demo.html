@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<!--
+ | Pointer events demo web page.
+ | Can be used to verify that pointer events are generated and passed into the
+ | correct DOM elements.
+ -->
+<html class="html">
+<head class="head">
+  <style>
+    body {
+      margin: 20px;
+      background-color: #0000FF;
+      font-size: 20px;
+      font-family: Roboto;
+    }
+    .padded {
+      padding: 20px;
+      transition: border-left-color 1s linear, border-top-color 1s linear, outline-width 1s linear, outline-color 1s linear;
+      background-clip: padding-box;
+    }
+    .top {
+      transform-no: rotate(-45deg);
+      display: inline-block;
+    }
+    .outer {
+      background-color: #484;
+      border: solid rgba(0, 0, 0, 0)  10px;
+      outline: solid #00C0F0 5px;
+    }
+    .outer:hover {
+      background-color: #848;
+      border: solid white 10px;
+      outline: solid #FF4000 20px;
+    }
+    .inner {
+      animation: blink 1.1s infinite;
+      background-color: #8F8;
+      outline: solid rgba(0, 0, 0, 1) 0px;
+    }
+    .inner:hover {
+      background-color: #F8F;
+      outline: solid rgba(160, 160, 255, 0) 40px;
+    }
+    .leftswap {
+      position:relative;
+      left:+185px;
+      top:0px;
+    }
+    .rightswap {
+      position:relative;
+      left:-185px;
+      top:0px;
+    }
+    .pointereventsnone {
+      pointer-events:none;
+    }
+    .pointereventsauto {
+      pointer-events:auto;
+    }
+
+  </style>
+  <script>
+    function phasename(phase) {
+      switch(phase) {
+        case 0: return ' [none]';
+        case 1: return ' [capturing]';
+        case 2: return ' [at target]';
+        case 3: return ' [bubbling]';
+      }
+      return ' [unknown: ' + phase + ']';
+    }
+
+    function sethandlers(event, classname, callback) {
+      var elements = document.getElementsByClassName(classname);
+      for (var i = 0; i < elements.length; ++i) {
+        elements[i].addEventListener(event, callback);
+      }
+    }
+
+    function setfocus(classname) {
+      var elements = document.getElementsByClassName(classname);
+      for (var i = 0; i < elements.length; ++i) {
+        console.log('Setting focus \"' + elements[i].className + '\"');
+        elements[i].focus();
+      }
+    }
+    function log_event(e) {
+      var pointertype = e.pointerType ? e.pointerType + ' ' : '';
+      var id = this.getAttribute('id') ?
+                   'id=\'' + this.getAttribute('id') + '\' ' : '';
+      console.log(e.type + ' ' + pointertype +
+                  id + '(' +
+                  this.getAttribute('class') + ') ' +
+                  phasename(e.eventPhase) +
+                  ' (' + e.screenX + ',' + e.screenY + ')');
+    }
+    function cancel(e) {
+      console.log('cancel');
+      e.preventDefault();
+    }
+    function stop(e) {
+      console.log('stop');
+      e.stopPropagation();
+    }
+    function capture(e) {
+      console.log('capture');
+      e.target.setPointerCapture(e.pointerId);
+    }
+    function setallhandlers(prefix, classname, callback) {
+      sethandlers(prefix + 'enter', classname, callback);
+      sethandlers(prefix + 'leave', classname, callback);
+      sethandlers(prefix + 'over', classname, callback);
+      sethandlers(prefix + 'out', classname, callback);
+      sethandlers(prefix + 'down', classname, callback);
+      sethandlers(prefix + 'up', classname, callback);
+      sethandlers(prefix + 'move', classname, callback);
+    }
+
+    window.onload = function() {
+      setallhandlers('mouse', 'log', log_event);
+      setallhandlers('pointer', 'log', log_event);
+      setallhandlers('mouse', 'cancel', cancel);
+      setallhandlers('pointer', 'cancel', cancel);
+      setallhandlers('mouse', 'stop', stop);
+      setallhandlers('pointer', 'stop', stop);
+      sethandlers('pointerdown', 'capture', capture);
+      setfocus('focus');
+
+      document.addEventListener("keydown", e => {
+          console.log('Do something on keydown');
+      });
+
+      var links = document.getElementsByClassName("clickhere");
+      for (var i = 0; i < links.length; i++) {
+        links[i].addEventListener("click", function(e) {
+          console.log('Click received at (' + e.screenX + ',' + e.screenY +
+                      ') on \"' + e.target.innerHTML + '\" during ' +
+                      phasename(e.eventPhase));
+        });
+      }
+    }
+  </script>
+</head>
+<body class="body">
+  <div class="topdiv">
+  <span id="top-left" class="top log pointereventsnone clickhere">
+    <div class="outer padded log pointereventsnone">
+      <div class="inner padded one log pointereventsauto clickhere">One</div>
+      <div class="inner padded two log capture stop cancel focus pointereventsauto clickhere" tabindex='0'>Two</div>
+      <div class="inner padded three log stop pointereventsauto clickhere" tabindex='1'>Three</div>
+      <div class="padded four log pointereventsauto clickhere">Four</div>
+      <div class="inner padded five offsetx log pointereventsauto">Five offset x</div>
+      <div class="inner padded six offsety log pointereventsauto">Six offset y</div>
+      <div class="padded seven log pointereventsauto">Seven</div>
+      <div class="inner padded eight log pointereventsauto">Eight</div>
+      <div class="padded nine log pointereventsauto">Nine</div>
+      <div class="inner padded leftswap log pointereventsauto">LeftSwap</div>
+    </div>
+  </span>
+  <span id="top-divider" class="top" style="width:50px;"></span>
+  <span id="top-right" class="top events">
+    <div class="outer padded events">
+      <div class="inner padded one events clickhere">One</div>
+      <div class="inner padded two events clickhere">Two</div>
+      <div class="inner padded three events clickhere">Three</div>
+      <div class="padded four events clickhere">Four</div>
+      <div class="inner padded five offsetx events">Five offset x</div>
+      <div class="inner padded six offsety events">Six offset y</div>
+      <div class="padded seven events">Seven</div>
+      <div class="inner padded eight events">Eight</div>
+      <div class="padded nine events">Nine</div>
+      <div class="inner padded rightswap events">RightSwap</div>
+    </div>
+  </span>
+  </div>
+</body>
+</html>
