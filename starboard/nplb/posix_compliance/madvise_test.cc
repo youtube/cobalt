@@ -51,6 +51,12 @@ TEST_F(MadviseTest, SunnyDay) {
   EXPECT_EQ(0, madvise(memory, kSbMemoryPageSize, MADV_NORMAL));
 }
 
+TEST_F(MadviseTest, SunnyDayNotAligned) {
+  void* memUnaligned = &memory + 1;
+  EXPECT_EQ(-1, madvise(&memUnaligned, kSbMemoryPageSize, MADV_NORMAL));
+  EXPECT_EQ(errno, EINVAL);
+}
+
 TEST_F(MadviseTest, SunnyDayRandom) {
   EXPECT_EQ(0, madvise(memory, kSbMemoryPageSize, MADV_RANDOM));
 }
