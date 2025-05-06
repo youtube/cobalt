@@ -518,6 +518,10 @@ jobs:
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     steps:
+      - name: Restore CI Essentials
+        uses: actions/download-artifact@v4
+        with:
+          name: ci-essentials-${{ inputs.platform }}
       - name: Download Test Results
         uses: actions/download-artifact@v4
         with:
