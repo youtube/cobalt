@@ -41,20 +41,26 @@ using std::placeholders::_3;
 using std::placeholders::_4;
 
 const char* kAudioTestFiles[] = {
-    "beneath_the_canopy_aac_stereo.dmp",
+    // Test environment does not support aac/heaac/ec3/ac3, for which we need
+    // ffmpeg library and test environment doesn't have ffmpeg library.
+    // See b/411115002#comment6.
+    // "beneath_the_canopy_aac_stereo.dmp",
+    // "sintel_329_ec3.dmp",
+    // "sintel_381_ac3.dmp",
     "beneath_the_canopy_opus_stereo.dmp",
-    "sintel_329_ec3.dmp",
-    "sintel_381_ac3.dmp",
 };
 
 // For uncommon audio formats, we add audio only tests, without tests combined
 // with a video stream, to shorten the overall test time.
 const char* kAudioOnlyTestFiles[] = {
-    "beneath_the_canopy_aac_5_1.dmp",
-    "beneath_the_canopy_aac_mono.dmp",
+    // Test environment does not support aac/heaac/ec3/ac3, for which we need
+    // ffmpeg library and test environment doesn't have ffmpeg library.
+    // See b/411115002#comment6.
+    // "beneath_the_canopy_aac_5_1.dmp",
+    // "beneath_the_canopy_aac_mono.dmp",
+    // "heaac.dmp",
     "beneath_the_canopy_opus_5_1.dmp",
     "beneath_the_canopy_opus_mono.dmp",
-    "heaac.dmp",
     "iamf_base_profile_stereo_ambisonics.dmp",
     "iamf_simple_profile_5_1.dmp",
     "sintel_5s_pcm_s16le.dmp",
