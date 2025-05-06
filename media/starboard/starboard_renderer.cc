@@ -289,7 +289,7 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
       << "Potentially invalid start time " << time << '.';
 
   if (audio_read_in_progress_ || video_read_in_progress_) {
-    const TimeDelta kDelay = base::Milliseconds(50);
+    constexpr TimeDelta kDelay = base::Milliseconds(50);
     task_runner_->PostDelayedTask(
         FROM_HERE,
         base::BindOnce(&StarboardRenderer::StartPlayingFrom,
