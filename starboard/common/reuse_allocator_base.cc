@@ -133,6 +133,8 @@ void* ReuseAllocatorBase::Allocate(size_t size) {
   return Allocate(size, 1);
 }
 
+static int alloCount = 0;
+
 void* ReuseAllocatorBase::Allocate(size_t size, size_t alignment) {
   size = AlignUp(std::max(size, kMinAlignment), kMinAlignment);
   alignment = AlignUp(std::max<size_t>(alignment, 1), kMinAlignment);
@@ -166,6 +168,11 @@ void* ReuseAllocatorBase::Allocate(size_t size, size_t alignment) {
   }
   void* user_address = AlignUp(allocated_block.address(), alignment);
   AddAllocatedBlock(user_address, allocated_block);
+
+  alloCount++;
+  if (alloCount % 100 == 0) {
+    PrintAllocations(true, 16);
+  }
 
   return user_address;
 }
