@@ -61,5 +61,6 @@ runs:
         # Note that if any steps after this one fails the logs will no longer be expanded.
         if [ "${{ inputs.test_status }}" != "success" ]; then
           python3 cobalt/tools/junit_mini_parser.py ${{ inputs.results_glob }}
+          exit 1
         fi
       shell: bash
