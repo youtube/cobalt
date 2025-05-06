@@ -176,7 +176,11 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
   for (auto filename : kFilenames) {
     VideoDmpReader dmp_reader(filename, VideoDmpReader::kEnableReadOnDemand);
     SB_DCHECK(dmp_reader.number_of_video_buffers() > 0);
-
+    const SbMediaVideoCodec video_codec = dmp_reader.video_codec();
+    if (video_codec == kSbMediaVideoCodecH264) {
+      // Test does not support AVC codec.
+      continue;
+    }
     for (auto output_mode : kOutputModes) {
       if (!PlayerComponents::Factory::OutputModeSupported(
               output_mode, dmp_reader.video_codec(), kSbDrmSystemInvalid)) {
@@ -192,7 +196,6 @@ std::vector<VideoTestParam> GetSupportedVideoTests() {
       // To minimize probability of false negative we check result few times
       static bool decoder_has_been_checked_once = false;
       int counter = 5;
-      const SbMediaVideoCodec video_codec = dmp_reader.video_codec();
       bool need_to_check_with_wait = video_codec == kSbMediaVideoCodecAv1 ||
                                      video_codec == kSbMediaVideoCodecVp9;
       do {

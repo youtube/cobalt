@@ -78,10 +78,6 @@ VideoDecoderTestFixture::VideoDecoderTestFixture(
 }
 
 void VideoDecoderTestFixture::Initialize() {
-  if (media::IsProprietaryVideoCodec(test_filename_)) {
-    GTEST_SKIP();
-  }
-
   ASSERT_NE(dmp_reader_.video_codec(), kSbMediaVideoCodecNone);
   ASSERT_GT(dmp_reader_.number_of_video_buffers(), 0);
   ASSERT_TRUE(GetVideoInputBuffer(0)->video_sample_info().is_key_frame);
