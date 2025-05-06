@@ -62,6 +62,9 @@
 #include "net/log/net_log_event_type.h"
 #include "net/ssl/ssl_cert_request_info.h"
 #include "net/ssl/ssl_config_service.h"
+#if BUILDFLAG(IS_COBALT)
+#include "base/command_line.h"
+#endif
 
 using base::Time;
 using base::TimeTicks;
@@ -4070,6 +4073,26 @@ bool HttpCache::Transaction::ShouldDisableCaching(
   if (headers.HasHeaderValue("cache-control", "no-store")) {
     return true;
   }
+
+#if BUILDFLAG(IS_COBALT)
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch("cobalt-custom-should-disable-http-caching")) {
+    // Similar to the mime-type allow list in Cobalt 25, except images are not
+    // cacheable. Consider making this configurable perhaps with command-line
+    // switches.
+    std::string mime_type;
+    headers.GetMimeType(&mime_type);
+    if (mime_type == "text/css" ||
+        base::StartsWith(mime_type, "font/", base::CompareCase::INSENSITIVE_ASCII)) {
+      return false;
+    }
+    if (mime_type == "text/javascript" || mime_type == "application/javascript" ||
+        mime_type == "text/html") {
+      static constexpr int kMinCacheableContentSize = 1024;
+      return headers.GetContentLength() < kMinCacheableContentSize;
+    }
+    return true;
+  }
+#endif  // BUILDFLAG(IS_COBALT)
 
   bool disable_caching = false;
   if (base::FeatureList::IsEnabled(

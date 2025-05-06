@@ -14,22 +14,33 @@
 
 #include "cobalt/browser/metrics/cobalt_enabled_state_provider.h"
 
+#include "base/logging.h"
+#include "components/metrics/metrics_pref_names.h"
+#include "components/metrics/metrics_switches.h"
+
 namespace cobalt {
 
 bool CobaltEnabledStateProvider::IsConsentGiven() const {
-  return is_consent_given_;
+  // If override on the command line, always report.
+  if (metrics::IsMetricsReportingForceEnabled()) {
+    return true;
+  }
+  // Else read currently stored pref.
+  return local_state_->GetBoolean(metrics::prefs::kMetricsReportingEnabled);
 }
 
 bool CobaltEnabledStateProvider::IsReportingEnabled() const {
-  return is_reporting_enabled_;
+  // Consent and Reporting Enabled are the same thing in Cobalt.
+  return IsConsentGiven();
 }
 
 void CobaltEnabledStateProvider::SetConsentGiven(bool is_consent_given) {
-  is_consent_given_ = is_consent_given;
+  local_state_->SetBoolean(metrics::prefs::kMetricsReportingEnabled,
+                           is_consent_given);
 }
 void CobaltEnabledStateProvider::SetReportingEnabled(
     bool is_reporting_enabled) {
-  is_reporting_enabled_ = is_reporting_enabled;
+  SetConsentGiven(is_reporting_enabled);
 }
 
 }  // namespace cobalt

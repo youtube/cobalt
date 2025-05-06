@@ -33,12 +33,10 @@
 
 namespace cobalt {
 
-// TODO(cobalt, b/414617175): Make the initial enabled_state_provider_
-// constructor args configurable based on cached settings.
 CobaltMetricsServicesManagerClient::CobaltMetricsServicesManagerClient(
     PrefService* local_state)
     : enabled_state_provider_(
-          std::make_unique<CobaltEnabledStateProvider>(false, false)),
+          std::make_unique<CobaltEnabledStateProvider>(local_state)),
       local_state_(local_state) {
   DCHECK(local_state_);
 }
@@ -87,7 +85,7 @@ std::unique_ptr<::metrics::ClientInfo> LoadMetricsClientInfo() {
 CobaltMetricsServicesManagerClient::GetMetricsStateManager() {
   if (!metrics_state_manager_) {
     base::FilePath user_data_dir;
-    CHECK(base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir));
+    base::PathService::Get(content::SHELL_DIR_USER_DATA, &user_data_dir);
     metrics_state_manager_ = ::metrics::MetricsStateManager::Create(
         local_state_.get(), enabled_state_provider_.get(), std::wstring(),
         user_data_dir, metrics::StartupVisibility::kForeground);

@@ -218,6 +218,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(mkdir);
+  REGISTER_SYMBOL(mkdtemp);
+  REGISTER_SYMBOL(mkostemp);
+  REGISTER_SYMBOL(mkstemp);
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
@@ -340,6 +343,7 @@ ExportedSymbols::ExportedSymbols() {
       reinterpret_cast<const void*>(&__abi_wrap_freeaddrinfo);
   map_["getifaddrs"] = reinterpret_cast<const void*>(&__abi_wrap_getifaddrs);
   map_["setsockopt"] = reinterpret_cast<const void*>(&__abi_wrap_setsockopt);
+  map_["shutdown"] = reinterpret_cast<const void*>(&__abi_wrap_shutdown);
 
   REGISTER_SYMBOL(vswprintf);
 
