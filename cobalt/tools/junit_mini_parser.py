@@ -23,11 +23,14 @@ import xml.etree
 import xml.etree.ElementTree
 
 
-def find_failing_tests(junit_xml_files):
-  """Parses a list of JUnit XML files to find and print failing test cases.
+def find_failing_tests(junit_xml_files: list[str]) -> dict[str, list[str]]:
+  """Parses a list of JUnit XML files to find failing test cases.
 
   Args:
     junit_xml_files (list): A list of paths to JUnit XML files.
+
+  Returns:
+    A map of test target -> list of failing tests.
   """
   failing_tests = collections.defaultdict(list)
   for filename in junit_xml_files:
