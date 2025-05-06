@@ -170,7 +170,7 @@ int64_t AudioFramesToDuration(int frames, int samples_per_second);
 
 // Returns true if |file_name| contains a string that looks like a proprietary
 // audio codec, e.g. "aac", "ac3" etc. Returns false otherwise.
-bool IsProprietaryAudioCodec(const std::string& file_name);
+bool IsProprietaryAudioCodec(const char* file_name);
 
 }  // namespace media
 }  // namespace starboard
