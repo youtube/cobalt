@@ -100,6 +100,7 @@ test("cobalt_unittests") {
 
   sources = [
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
+    "//cobalt/browser/metrics/cobalt_enabled_state_provider_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/cobalt_switch_defaults.cc",
     "//cobalt/cobalt_switch_defaults.h",
@@ -114,6 +115,9 @@ test("cobalt_unittests") {
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/migrate_storage_record:unittest",
     "//cobalt/user_agent",
+    "//components/metrics",
+    "//components/prefs",
+    "//components/prefs:test_support",
     "//testing/gmock",
     "//testing/gtest",
   ]
