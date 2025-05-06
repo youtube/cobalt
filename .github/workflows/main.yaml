@@ -527,7 +527,7 @@ jobs:
         with:
           pattern: ${{ env.TEST_RESULTS_KEY }}*
           path: results/
-      - name: Fail
+      - name: Failed Tests
         if: needs.test-results.result == 'failure'
         run: |
             python3 cobalt/tools/junit_mini_parser.py results/**/*.xml

@@ -60,6 +60,7 @@ runs:
         # By failing this step if tests failed the logs will be expanded by default.
         # Note that if any steps after this one fails the logs will no longer be expanded.
         if [ "${{ inputs.test_status }}" != "success" ]; then
+          # Print failed tests summary.
           python3 cobalt/tools/junit_mini_parser.py ${{ inputs.results_glob }}
           exit 1
         fi
