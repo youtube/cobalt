@@ -266,6 +266,86 @@ TYPED_TEST(PosixFileReadTest, ReadStaticContent) {
   }
 }
 
+TYPED_TEST(PosixFileReadTest, PreadSuccess) {
+  // Create a temporary file
+  std::string tmpl = GetTempDir() + "pread_test.XXXXXX";
+  char buffer[tmpl.size() + 1];
+  strcpy(buffer, tmpl.c_str());
+  int fd = mkstemp(buffer);
+  ASSERT_NE(fd, -1) << "mkstemp failed: " << strerror(errno);
+  unlink(buffer);  // delete the file
+
+  // Write some data to the file
+  const std::string write_data = "Hello, pread!";
+  ASSERT_EQ(write(fd, write_data, sizeof(write_data) - 1),
+            sizeof(write_data) - 1);
+
+  // Prepare a buffer to read into
+  char read_buffer[sizeof(write_data)];
+  memset(read_buffer, 0, sizeof(read_buffer));  // Clear the buffer
+
+  // Read from the beginning of the file using pread
+  ssize_t bytes_read = pread(fd, read_buffer, sizeof(read_buffer) - 1, 0);
+  ASSERT_EQ(bytes_read, sizeof(write_data) - 1);
+
+  // Verify the data read
+  EXPECT_STREQ(read_buffer, write_data);
+
+  EXPECT_EQ(close(fd), 0);
+}
+
+TYPED_TEST(PosixFileReadTest, PreadOffset) {
+  // Create a temporary file
+  std::string tmpl = GetTempDir() + "pread_offset_test.XXXXXX";
+  char buffer[tmpl.size() + 1];
+  strcpy(buffer, tmpl.c_str());
+  int fd = mkstemp(buffer);
+  ASSERT_NE(fd, -1) << "mkstemp failed: " << strerror(errno);
+  unlink(buffer);  // delete the file
+
+  // Write data with an offset
+  const std::string write_data = "0123456789";
+  ASSERT_EQ(write(fd, write_data, sizeof(write_data) - 1),
+            sizeof(write_data) - 1);
+
+  // Read only part of the data using an offset with pread
+  char read_buffer[5];
+  memset(read_buffer, 0, sizeof(read_buffer));
+  ssize_t bytes_read =
+      pread(fd, read_buffer, sizeof(read_buffer) - 1, 2);  // Read from offset 2
+  ASSERT_EQ(bytes_read, sizeof(read_buffer) - 1);
+
+  // Verify the data read
+  EXPECT_STREQ(read_buffer, "2345");
+
+  EXPECT_EQ(close(fd), 0);
+}
+
+TYPED_TEST(PosixFileReadTest, PreadReadMore) {
+  // Create a temporary file
+  std::string tmpl = GetTempDir() + "pread_read_more.XXXXXX";
+  char buffer[tmpl.size() + 1];
+  strcpy(buffer, tmpl.c_str());
+  int fd = mkstemp(buffer);
+  ASSERT_NE(fd, -1) << "mkstemp failed: " << strerror(errno);
+  unlink(buffer);  // delete the file
+
+  // Write some data
+  const std::string write_data = "abc";
+  ASSERT_EQ(write(fd, write_data, sizeof(write_data) - 1),
+            sizeof(write_data) - 1);
+
+  // Try to read more than is available
+  char read_buffer[10];
+  memset(read_buffer, 0, sizeof(read_buffer));
+  ssize_t bytes_read = pread(fd, read_buffer, sizeof(read_buffer) - 1, 0);
+  EXPECT_EQ(bytes_read, sizeof(write_data) - 1);
+
+  // Verify the data read
+  EXPECT_STREQ(read_buffer, "abc");
+  EXPECT_EQ(close(fd), 0);
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
