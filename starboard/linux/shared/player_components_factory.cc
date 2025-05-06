@@ -15,7 +15,6 @@
 #include <memory>
 
 #include "starboard/common/log.h"
-#include "starboard/common/media.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/string.h"
 #include "starboard/gles.h"
@@ -51,11 +50,6 @@ namespace filter {
 namespace {
 
 using ::starboard::shared::openh264::is_openh264_supported;
-using Av1VideoDecoderImpl = ::starboard::shared::libdav1d::VideoDecoder;
-using H265VideoDecoderImpl = ::starboard::shared::de265::VideoDecoder;
-using FfmpegVideoDecoderImpl = ::starboard::shared::ffmpeg::VideoDecoder;
-using VpxVideoDecoderImpl = ::starboard::shared::vpx::VideoDecoder;
-using Openh264VideoDecoderImpl = ::starboard::shared::openh264::VideoDecoder;
 
 class PlayerComponentsFactory : public PlayerComponents::Factory {
  public:
@@ -68,6 +62,7 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       scoped_refptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
     SB_DCHECK(error_message);
+
     SB_LOG(INFO) << "Creating sub components: creation_paratemeters="
                  << creation_parameters;
 
@@ -119,6 +114,13 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
     }
 
     if (creation_parameters.video_codec() != kSbMediaVideoCodecNone) {
+      typedef ::starboard::shared::libdav1d::VideoDecoder Av1VideoDecoderImpl;
+      typedef ::starboard::shared::de265::VideoDecoder H265VideoDecoderImpl;
+      typedef ::starboard::shared::ffmpeg::VideoDecoder FfmpegVideoDecoderImpl;
+      typedef ::starboard::shared::vpx::VideoDecoder VpxVideoDecoderImpl;
+      typedef ::starboard::shared::openh264::VideoDecoder
+          Openh264VideoDecoderImpl;
+
       const int64_t kVideoSinkRenderIntervalUsec = 10'000;
 
       SB_DCHECK(video_decoder);
@@ -127,12 +129,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       video_decoder->reset();
 
+      const SbMediaVideoCodec kAv1VideoCodec = kSbMediaVideoCodecAv1;
+
       if (creation_parameters.video_codec() == kSbMediaVideoCodecVp9) {
         video_decoder->reset(new VpxVideoDecoderImpl(
             creation_parameters.video_codec(),
             creation_parameters.output_mode(),
             creation_parameters.decode_target_graphics_context_provider()));
-      } else if (creation_parameters.video_codec() == kSbMediaVideoCodecAv1) {
+      } else if (creation_parameters.video_codec() == kAv1VideoCodec) {
         video_decoder->reset(new Av1VideoDecoderImpl(
             creation_parameters.video_codec(),
             creation_parameters.output_mode(),
@@ -159,17 +163,14 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
         if (ffmpeg_video_decoder && ffmpeg_video_decoder->is_valid()) {
           SB_LOG(INFO) << "Playing video using ffmpeg::VideoDecoder.";
           video_decoder->reset(ffmpeg_video_decoder.release());
+        } else {
+          SB_LOG(ERROR) << "Failed to create video decoder for codec "
+                        << creation_parameters.video_codec();
+          *error_message =
+              FormatString("Failed to create video decoder for codec %d.",
+                           creation_parameters.video_codec());
+          return false;
         }
-      }
-
-      if (!video_decoder) {
-        const std::string video_codec_name =
-            GetMediaVideoCodecName(creation_parameters.video_codec());
-        SB_LOG(ERROR) << "Failed to create video decoder for codec "
-                      << video_codec_name;
-        *error_message =
-            "Failed to create video decoder for codec " + video_codec_name;
-        return false;
       }
 
       video_render_algorithm->reset(new VideoRenderAlgorithmImpl([]() {
