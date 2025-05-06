@@ -983,6 +983,14 @@ component("base") {
       "timer/hi_res_timer_manager_posix.cc",
     ]
   }
+  if (is_starboard) {
+    sources -= [
+      "debug/debugger_posix.cc",
+    ]
+    sources += [
+      "starboard/debugger_starboard.cc"
+    ]
+  }
 
   if (is_starboard) {
     sources += [
@@ -1680,8 +1688,18 @@ component("base") {
 
     if (is_posix && !is_ios) {
       sources += [
-        "process/kill_posix.cc",
+        # "process/kill_posix.cc",
         "process/process_posix.cc",
+      ]
+    }
+    if (is_cobalt) {
+      sources -= [
+        "process/process_posix.cc",
+        "process/process_linux.cc",
+      ]
+      sources += [
+        "process/process_stubs.cc",
+        #"starboard/process_starboard.cc"
       ]
     }
 
@@ -1738,7 +1756,7 @@ component("base") {
       "debug/proc_maps_linux.cc",
       "debug/proc_maps_linux.h",
       "files/dir_reader_linux.h",
-      "process/process_linux.cc",
+      # "process/process_linux.cc",
 
       #   ../../base/process/launch_posix.cc:145:18: error: use of undeclared identifier 'SYS_rt_sigaction'
       # return syscall(SYS_rt_sigaction, sig, act, oact, sizeof(kernel_sigset_t));
