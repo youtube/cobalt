@@ -156,6 +156,7 @@ source_set("metrics") {
     "//components/metrics_services_manager",
     "//components/prefs",
     "//components/variations",
+    "//components/variations/service",
     "//content/public/browser",
     "//content/shell:content_shell_lib",
     "//third_party/metrics_proto",
