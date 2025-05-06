@@ -147,22 +147,22 @@ std::string PlayerComponents::Factory::CreationParameters::ToString() const {
   std::stringstream ss;
   ss << "{";
   if (audio_codec() != kSbMediaAudioCodecNone) {
-    ss << "audio_codec: " << GetMediaAudioCodecName(audio_codec());
-    ss << ", audio_mime: \"" << audio_mime() << "\"";
-    ss << ", channels: " << audio_stream_info().number_of_channels;
-    ss << ", samples_per_second: " << audio_stream_info().samples_per_second;
-    ss << ", bits_per_sample: " << audio_stream_info().bits_per_sample;
+    ss << "audio_codec=" << GetMediaAudioCodecName(audio_codec());
+    ss << ", audio_mime=\"" << audio_mime() << "\"";
+    ss << ", channels=" << audio_stream_info().number_of_channels;
+    ss << ", samples_per_second=" << audio_stream_info().samples_per_second;
+    ss << ", bits_per_sample=" << audio_stream_info().bits_per_sample;
   } else {
-    ss << "audio_codec: None";
+    ss << "audio_codec=None";
   }
 
   if (video_codec() != kSbMediaVideoCodecNone) {
-    ss << ", video_codec: " << GetMediaVideoCodecName(video_codec());
-    ss << ", video_mime: \"" << video_mime() << "\"";
-    ss << ", max_video_capabilities: \"" << max_video_capabilities() << "\"";
-    ss << ", frame_width: " << video_stream_info().frame_width;
-    ss << ", frame_height: " << video_stream_info().frame_height;
-    ss << ", output_mode: ";
+    ss << ", video_codec=" << GetMediaVideoCodecName(video_codec());
+    ss << ", video_mime=\"" << video_mime() << "\"";
+    ss << ", max_video_capabilities=\"" << max_video_capabilities() << "\"";
+    ss << ", frame_width=" << video_stream_info().frame_width;
+    ss << ", frame_height=" << video_stream_info().frame_height;
+    ss << ", output_mode=";
     switch (output_mode_) {
       case kSbPlayerOutputModeDecodeToTexture:
         ss << "DecodeToTexture";
@@ -174,14 +174,14 @@ std::string PlayerComponents::Factory::CreationParameters::ToString() const {
         ss << "Invalid";
         break;
     }
-    ss << ", max_video_input_size: " << max_video_input_size_;
-    ss << ", has_decode_target_graphics_context_provider: "
+    ss << ", max_video_input_size=" << max_video_input_size_;
+    ss << ", has_decode_target_graphics_context_provider="
        << (decode_target_graphics_context_provider_ != nullptr);
   } else {
-    ss << ", video_codec: None";
+    ss << ", video_codec=None";
   }
 
-  ss << ", drm_system: "
+  ss << ", drm_system="
      << (drm_system_ == kSbDrmSystemInvalid ? "Invalid" : "Valid");
   ss << "}";
   return ss.str();

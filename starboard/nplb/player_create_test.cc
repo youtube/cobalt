@@ -358,7 +358,8 @@ TEST_F(SbPlayerTest, MultiPlayer) {
   }
 
   // This is the list of video codec that we can create on the test environment,
-  // which lacks some libraries(e.g. ffmpeg)
+  // Test environment cannot create decoders for some codecs(e.g. h264). See
+  // b/411115002#comment6.
   // clang-format off
   constexpr SbMediaVideoCodec kVideoCodecs[] = {
       kSbMediaVideoCodecNone,
