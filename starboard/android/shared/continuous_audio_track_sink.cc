@@ -39,6 +39,11 @@ using ::starboard::shared::starboard::media::GetBytesPerSample;
 // audio track completely.
 const int kMaxFramesPerRequest = 64 * 1024;
 
+// We need to wait some time for flush operation to complete. Otherwise, the
+// data that is written immediately after flush seems to be lost.
+// TODO: b/415819457 - Replace time-wait with event-wait.
+constexpr int64_t kFlushCompleteWaitUs = 10'000;
+
 constexpr int kSilenceFramesPerAppend = 1024;
 static_assert(kSilenceFramesPerAppend <= kMaxFramesPerRequest);
 
@@ -228,6 +233,9 @@ void ContinuousAudioTrackSink::AudioThreadFunc() {
       } else {
         SB_LOG(INFO) << "Switching to play silence";
       }
+
+      usleep(kFlushCompleteWaitUs);
+      continue;
     }
 
     if (!is_playing) {
