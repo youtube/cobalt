@@ -140,9 +140,7 @@ void FramelessMediaInterfaceProxy::CreateMediaFoundationRenderer(
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
 void FramelessMediaInterfaceProxy::CreateStarboardRenderer(
     mojo::PendingRemote<media::mojom::MediaLog> media_log_remote,
-    const base::UnguessableToken& overlay_plane_id,
-    base::TimeDelta audio_write_duration_local,
-    base::TimeDelta video_write_duration_remote,
+    const media::StarboardRendererConfig& config,
     mojo::PendingReceiver<media::mojom::Renderer> receiver,
     mojo::PendingReceiver<media::mojom::StarboardRendererExtension>
         renderer_extension_receiver,
