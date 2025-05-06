@@ -53,11 +53,12 @@ def main(xml_files: str):
   if failing_tests:
     print('Failing Tests:')
     for target, tests in sorted(failing_tests.items()):
-      print(target)
+      print(f'\n{target}')
       for test in sorted(tests):
-        print(f'\t- {test}')
+        print(f'  - {test}')
+      print()
   else:
-    print('\nNo failing tests found in the test results.')
+    print('No failing tests found in the test results.')
 
 
 if __name__ == '__main__':
