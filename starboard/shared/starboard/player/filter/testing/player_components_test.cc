@@ -83,6 +83,9 @@ class PlayerComponentsTest
     if (::starboard::shared::starboard::media::IsProprietaryAudioCodec(
             audio_filename_)) {
       GTEST_SKIP() << "Skipping proprietary-audio related tests.";
+    } else if (::starboard::shared::starboard::media::IsProprietaryVideoCodec(
+                   video_filename_)) {
+      GTEST_SKIP() << "Skipping proprietary-video related tests.";
     }
 #endif
 

@@ -449,6 +449,13 @@ bool IsProprietaryAudioCodec(const std::string& file_name) {
          (file_name.find("_ac3") != std::string::npos);
 }
 
+bool IsProprietaryVideoCodec(const std::string& file_name) {
+  auto Contains = [file_name](const std::string& match) {
+    return file_name.find(match) != std::string::npos;
+  };
+  return Contains("_avc");
+}
+
 }  // namespace media
 }  // namespace starboard
 }  // namespace shared

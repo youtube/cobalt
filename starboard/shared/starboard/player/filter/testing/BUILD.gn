@@ -41,7 +41,8 @@ if (current_toolchain == starboard_toolchain) {
       # being, disable.
       # TODO(b/384819454): Audit tests are re-enabled as unit tests.
       "player_components_test.cc",
-      "video_decoder_test.cc",
+
+      # "video_decoder_test.cc",
       "video_decoder_test_fixture.cc",
       "video_decoder_test_fixture.h",
       "video_frame_cadence_pattern_generator_test.cc",

@@ -15,6 +15,7 @@
 #include <memory>
 
 #include "starboard/common/log.h"
+#include "starboard/common/media.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/string.h"
 #include "starboard/gles.h"
