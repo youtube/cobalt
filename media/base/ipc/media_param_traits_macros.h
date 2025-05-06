@@ -47,6 +47,10 @@
 #include "media/base/media_drm_key_type.h"
 #endif  // BUILDFLAG(ENABLE_MEDIA_DRM_STORAGE)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/base/starboard/starboard_renderer_config.h"
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 // Enum traits.
 
 IPC_ENUM_TRAITS_MAX_VALUE(blink::WebFullscreenVideoStatus,
@@ -220,5 +224,13 @@ IPC_STRUCT_TRAITS_BEGIN(media::OverlayInfo)
   IPC_STRUCT_TRAITS_MEMBER(is_fullscreen)
   IPC_STRUCT_TRAITS_MEMBER(is_persistent_video)
 IPC_STRUCT_TRAITS_END()
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+IPC_STRUCT_TRAITS_BEGIN(media::StarboardRendererConfig)
+  IPC_STRUCT_TRAITS_MEMBER(overlay_plane_id)
+  IPC_STRUCT_TRAITS_MEMBER(audio_write_duration_local)
+  IPC_STRUCT_TRAITS_MEMBER(audio_write_duration_remote)
+IPC_STRUCT_TRAITS_END()
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 #endif  // MEDIA_BASE_IPC_MEDIA_PARAM_TRAITS_MACROS_H_

@@ -466,6 +466,8 @@ source_set("base") {
     sources += [
         "starboard/demuxer_memory_limit_starboard.cc",
         "starboard/renderer_factory_traits.h",
+        "starboard/starboard_renderer_config.cc",
+        "starboard/starboard_renderer_config.h",
     ]
   } else if (is_android) {
     sources += [ "demuxer_memory_limit_android.cc" ]
@@ -691,6 +693,12 @@ source_set("unit_tests") {
 
   if (is_castos) {
     sources += [ "demuxer_memory_limit_cast_unittest.cc" ]
+  }
+
+  if (is_cobalt && use_starboard_media) {
+    sources += [
+      "starboard/starboard_renderer_config_unittest.cc"
+    ]
   }
 }
 
