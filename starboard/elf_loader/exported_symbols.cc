@@ -218,6 +218,9 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(mkdir);
+  REGISTER_SYMBOL(mkdtemp);
+  REGISTER_SYMBOL(mkostemp);
+  REGISTER_SYMBOL(mkstemp);
   REGISTER_SYMBOL(mprotect);
   REGISTER_SYMBOL(msync);
   REGISTER_SYMBOL(munmap);
