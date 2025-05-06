@@ -17,8 +17,11 @@
 #include "base/strings/utf_string_conversions.h"
 #include "cobalt/browser/embedded_resources/embedded_js.h"
 #include "cobalt/browser/migrate_storage_record/migration_manager.h"
+#include "cobalt/browser/storage_partition/storage_partition_utils.h"
 #include "content/public/browser/navigation_handle.h"
+#include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
+#include "services/network/public/mojom/cookie_manager.mojom.h"
 
 #if BUILDFLAG(IS_ANDROIDTV)
 #include "starboard/android/shared/starboard_bridge.h"
@@ -65,6 +68,31 @@ void CobaltWebContentsObserver::RegisterInjectedJavaScript() {
 void CobaltWebContentsObserver::PrimaryMainDocumentElementAvailable() {
   migrate_storage_record::MigrationManager::DoMigrationTasksOnce(
       web_contents());
+  browser::StoragePartitionUtils::GetInstance()->set_flush(base::BindRepeating(
+      [](content::WebContents* web_contents) {
+        auto* render_frame_host = web_contents->GetPrimaryMainFrame();
+        CHECK(render_frame_host);
+        auto* storage_partition = render_frame_host->GetStoragePartition();
+        CHECK(storage_partition);
+        // Flushes localStorage.
+        storage_partition->Flush();
+        auto* cookie_manager =
+            storage_partition->GetCookieManagerForBrowserProcess();
+        CHECK(cookie_manager);
+        cookie_manager->FlushCookieStore(
+            network::mojom::CookieManager::FlushCookieStoreCallback());
+      },
+      base::Unretained(web_contents())));
+}
+
+void CobaltWebContentsObserver::WebContentsDestroyed() {
+  browser::StoragePartitionUtils::GetInstance()->set_flush(
+      base::RepeatingClosure());
+}
+
+void CobaltWebContentsObserver::RenderFrameDeleted(
+    content::RenderFrameHost* render_frame_host) {
+  browser::StoragePartitionUtils::GetInstance()->Flush();
 }
 
 namespace {

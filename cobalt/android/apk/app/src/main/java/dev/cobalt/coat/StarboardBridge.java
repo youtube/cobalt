@@ -133,7 +133,7 @@ public class StarboardBridge {
 
     nativeApp = StarboardBridgeJni.get().startNativeStarboard();
 
-    StarboardBridgeJni.get().handleDeepLink(startDeepLink, /*applicationStarted=*/ false);
+    StarboardBridgeJni.get().handleDeepLink(startDeepLink, /* applicationStarted= */ false);
     StarboardBridgeJni.get().setAndroidBuildFingerprint(getBuildFingerprint());
     StarboardBridgeJni.get().setAndroidOSExperience(this.isAmatiDevice);
     StarboardBridgeJni.get().setAndroidPlayServicesVersion(getPlayServicesVersion());
@@ -150,6 +150,9 @@ public class StarboardBridge {
     long currentMonotonicTime();
 
     long startNativeStarboard();
+
+    void FlushStoragePartition();
+
     // TODO(cobalt, b/372559388): move below native methods to the Natives interface.
     // boolean initJNI();
 
@@ -158,7 +161,9 @@ public class StarboardBridge {
     void handleDeepLink(String url, boolean applicationStarted);
 
     void setAndroidBuildFingerprint(String fingerprint);
+
     void setAndroidOSExperience(boolean isAmatiDevice);
+
     void setAndroidPlayServicesVersion(long version);
   }
 
@@ -327,6 +332,10 @@ public class StarboardBridge {
   /** Sends an event to the web app to navigate to the given URL */
   public void handleDeepLink(String url) {
     StarboardBridgeJni.get().handleDeepLink(url, applicationStarted);
+  }
+
+  public void FlushStoragePartition() {
+    StarboardBridgeJni.get().FlushStoragePartition();
   }
 
   /**
@@ -636,7 +645,8 @@ public class StarboardBridge {
 
   // Explicitly pass activity as parameter.
   // Avoid using activityHolder.get(), because onActivityStop() can set it to null.
-  public CobaltService openCobaltService(Activity activity, long nativeService, String serviceName) {
+  public CobaltService openCobaltService(
+      Activity activity, long nativeService, String serviceName) {
     if (cobaltServices.get(serviceName) != null) {
       // Attempting to re-open an already open service fails.
       Log.e(TAG, String.format("Cannot open already open service %s", serviceName));

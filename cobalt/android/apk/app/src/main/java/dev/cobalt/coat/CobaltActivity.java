@@ -249,11 +249,11 @@ public abstract class CobaltActivity extends Activity {
   }
 
   private static boolean isDpadKey(int keyCode) {
-      return keyCode == KeyEvent.KEYCODE_DPAD_UP
-              || keyCode == KeyEvent.KEYCODE_DPAD_LEFT
-              || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
-              || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
-              || keyCode == KeyEvent.KEYCODE_DPAD_CENTER;
+    return keyCode == KeyEvent.KEYCODE_DPAD_UP
+        || keyCode == KeyEvent.KEYCODE_DPAD_LEFT
+        || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+        || keyCode == KeyEvent.KEYCODE_DPAD_DOWN
+        || keyCode == KeyEvent.KEYCODE_DPAD_CENTER;
   }
 
   // Remap KeyEvent for imeAdapter.dispatchKeyEvent call.
@@ -372,7 +372,8 @@ public abstract class CobaltActivity extends Activity {
     // error with it being unresolvable.
     videoSurfaceView.setBackgroundColor(Color.BLACK);
     a11yHelper = new CobaltA11yHelper(this, videoSurfaceView);
-    addContentView(videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
+    addContentView(
+        videoSurfaceView, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
   }
 
   /**
@@ -443,6 +444,12 @@ public abstract class CobaltActivity extends Activity {
       webContents.onShow();
     }
     super.onStart();
+  }
+
+  @Override
+  protected void onPause() {
+    getStarboardBridge().FlushStoragePartition();
+    super.onPause();
   }
 
   @Override
