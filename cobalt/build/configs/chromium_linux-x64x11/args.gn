@@ -3,3 +3,7 @@ target_cpu = "x64"
 
 # TODO(b/376141256): Decide if this flag is needed here or in .gclient file
 chrome_pgo_phase = 0
+
+# Chromium builds on Linux don't support VA-API out of the box, so neither
+# should we.
+use_vaapi = false
