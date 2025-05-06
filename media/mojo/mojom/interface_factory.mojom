@@ -13,9 +13,11 @@ import "media/mojo/mojom/renderer.mojom";
 import "media/mojo/mojom/renderer_extensions.mojom";
 import "media/mojo/mojom/stable/stable_video_decoder.mojom";
 import "media/mojo/mojom/video_decoder.mojom";
-import "mojo/public/mojom/base/time.mojom";
 import "mojo/public/mojom/base/token.mojom";
 import "mojo/public/mojom/base/unguessable_token.mojom";
+
+[EnableIf=use_starboard_media]
+import "media/mojo/mojom/starboard/starboard_renderer_config.mojom";
 
 // A factory for creating media mojo interfaces. Renderers can only access
 // ContentDecryptionModules created with the same factory.
@@ -87,18 +89,14 @@ interface InterfaceFactory {
   
   [EnableIf=use_starboard_media]
   // Creates a StarboardRenderer (StarboardRendererClientFactory).
-  // - |overlay_plane_id| identifies each StarboardRendererClient.
-  // - |audio_write_duration_local| and |audio_write_duration_remote| are used
-  //   to customize SbPlayer audio write ahead.
+  // - |config| for StarboardRenderer.
   // - |renderer_extension| is bound in StarboardRenderer, and receives
   //   calls from StarboardRendererClient.
   // - |client_extension| is bound in StarboardRendererClient, and
   //   received calls from StarboardRenderer.
   CreateStarboardRenderer(
       pending_remote<MediaLog> media_log,
-      mojo_base.mojom.UnguessableToken overlay_plane_id,
-      mojo_base.mojom.TimeDelta audio_write_duration_local,
-      mojo_base.mojom.TimeDelta audio_write_duration_remote,
+      StarboardRendererConfig config,
       pending_receiver<Renderer> renderer,
       pending_receiver<StarboardRendererExtension> renderer_extension,
       pending_remote<StarboardRendererClientExtension> client_extension);

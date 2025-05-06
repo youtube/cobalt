@@ -86,14 +86,12 @@ class MojoRendererFactory final : public RendererFactory {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   std::unique_ptr<MojoRenderer> CreateStarboardRenderer(
       mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+      const StarboardRendererConfig& config,
       mojo::PendingReceiver<mojom::StarboardRendererExtension>
           renderer_extension_receiver,
       mojo::PendingRemote<mojom::StarboardRendererClientExtension>
           client_extension_remote,
       const scoped_refptr<base::SequencedTaskRunner>& media_task_runner,
-      base::TimeDelta audio_write_duration_local,
-      base::TimeDelta audio_write_duration_remote,
-      const base::UnguessableToken& overlay_plane_id,
       VideoRendererSink* video_renderer_sink);
 #endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
