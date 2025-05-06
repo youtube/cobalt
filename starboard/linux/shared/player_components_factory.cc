@@ -127,14 +127,12 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
 
       video_decoder->reset();
 
-      const SbMediaVideoCodec kAv1VideoCodec = kSbMediaVideoCodecAv1;
-
       if (creation_parameters.video_codec() == kSbMediaVideoCodecVp9) {
         video_decoder->reset(new VpxVideoDecoderImpl(
             creation_parameters.video_codec(),
             creation_parameters.output_mode(),
             creation_parameters.decode_target_graphics_context_provider()));
-      } else if (creation_parameters.video_codec() == kAv1VideoCodec) {
+      } else if (creation_parameters.video_codec() == kSbMediaVideoCodecAv1) {
         video_decoder->reset(new Av1VideoDecoderImpl(
             creation_parameters.video_codec(),
             creation_parameters.output_mode(),

@@ -136,14 +136,14 @@ TEST_F(SbPlayerTest, SunnyDay) {
 
   for (auto output_mode : kOutputModes) {
     if (!IsOutputModeSupported(output_mode, kSbMediaAudioCodecAac,
-                               kSbMediaVideoCodecH264)) {
+                               kSbMediaVideoCodecAv1)) {
       return;
     }
 
     SbPlayer player = CallSbPlayerCreate(
-        fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
+        fake_graphics_context_provider_.window(), kSbMediaVideoCodecAv1,
         kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_stream_info,
-        "" /* max_video_capabilities */, DummyDeallocateSampleFunc,
+        /* max_video_capabilities=*/"", DummyDeallocateSampleFunc,
         DummyDecoderStatusFunc, PlayerStatusFunc, PlayerErrorFunc, this,
         output_mode, fake_graphics_context_provider_.decoder_target_provider());
 
@@ -179,7 +179,7 @@ TEST_F(SbPlayerTest, MaxVideoCapabilities) {
     bool at_least_one_created = false;
     for (auto output_mode : kOutputModes) {
       SbPlayer player = CallSbPlayerCreate(
-          fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
+          fake_graphics_context_provider_.window(), kSbMediaVideoCodecAv1,
           kSbMediaAudioCodecAac, kSbDrmSystemInvalid, &audio_stream_info,
           max_video_capabilities, DummyDeallocateSampleFunc,
           DummyDecoderStatusFunc, PlayerStatusFunc, PlayerErrorFunc, this,
@@ -268,12 +268,12 @@ TEST_F(SbPlayerTest, NullCallbacks) {
 TEST_F(SbPlayerTest, Audioless) {
   for (auto output_mode : kOutputModes) {
     if (!IsOutputModeSupported(output_mode, kSbMediaAudioCodecNone,
-                               kSbMediaVideoCodecH264)) {
+                               kSbMediaVideoCodecAv1)) {
       return;
     }
 
     SbPlayer player = CallSbPlayerCreate(
-        fake_graphics_context_provider_.window(), kSbMediaVideoCodecH264,
+        fake_graphics_context_provider_.window(), kSbMediaVideoCodecAv1,
         kSbMediaAudioCodecNone, kSbDrmSystemInvalid,
         NULL /* audio_stream_info */, "" /* max_video_capabilities */,
         DummyDeallocateSampleFunc, DummyDecoderStatusFunc,
@@ -357,38 +357,17 @@ TEST_F(SbPlayerTest, MultiPlayer) {
       break;
   }
 
+  // This is the list of video codec that we can create on the test environment,
+  // which lacks some libraries(e.g. ffmpeg)
   // clang-format off
   constexpr SbMediaVideoCodec kVideoCodecs[] = {
       kSbMediaVideoCodecNone,
 
-      kSbMediaVideoCodecH264,
       kSbMediaVideoCodecH265,
-      kSbMediaVideoCodecMpeg2,
-      kSbMediaVideoCodecTheora,
-      kSbMediaVideoCodecVc1,
       kSbMediaVideoCodecAv1,
-      kSbMediaVideoCodecVp8,
       kSbMediaVideoCodecVp9,
   };
   // clang-format on
-
-  // TODO: turn this into a macro.
-  // Perform a check to determine if new video codecs have been added to the
-  // SbMediaVideoCodec enum, but not the array |video_codecs|. If the compiler
-  // warns about a missing case here, the value must be added to |kVideoCodecs|.
-  SbMediaVideoCodec video_codec = kVideoCodecs[0];
-  switch (video_codec) {
-    case kVideoCodecs[0]:
-    case kVideoCodecs[1]:
-    case kVideoCodecs[2]:
-    case kVideoCodecs[3]:
-    case kVideoCodecs[4]:
-    case kVideoCodecs[5]:
-    case kVideoCodecs[6]:
-    case kVideoCodecs[7]:
-    case kVideoCodecs[8]:
-      break;
-  }
 
   const int kMaxPlayersPerConfig = 5;
   std::vector<SbPlayer> created_players;
