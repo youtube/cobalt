@@ -62,6 +62,8 @@ class PlayerComponentsFactory : public PlayerComponents::Factory {
       scoped_refptr<VideoRendererSink>* video_renderer_sink,
       std::string* error_message) override {
     SB_DCHECK(error_message);
+    SB_LOG(INFO) << "Creating sub components: creation_paratemeters="
+                 << creation_parameters;
 
     if (creation_parameters.audio_codec() != kSbMediaAudioCodecNone) {
       SB_DCHECK(audio_decoder);
