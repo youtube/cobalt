@@ -69,12 +69,13 @@ class PlayerComponentsTest
         video_filename_(std::get<1>(GetParam())),
         output_mode_(std::get<2>(GetParam())),
         max_video_input_size_(std::get<3>(GetParam())) {
-    SB_LOG(INFO) << "Testing: \"" << audio_filename_ << "\", \""
-                 << video_filename_
+    SB_LOG(INFO) << "Testing: audio_filenam=\"" << audio_filename_
+                 << "\", video_filenam=\"" << video_filename_
+                 << ", output_mode="
                  << (output_mode_ == kSbPlayerOutputModeDecodeToTexture
-                         ? "\", kSbPlayerOutputModeDecodeToTexture, "
-                         : "\", kSbPlayerOutputModePunchOut, ")
-                 << max_video_input_size_ << ".";
+                         ? "kSbPlayerOutputModeDecodeToTexture"
+                         : "kSbPlayerOutputModePunchOut")
+                 << ", max_video_input_size=" << max_video_input_size_;
   }
 
   void SetUp() override {
@@ -82,6 +83,9 @@ class PlayerComponentsTest
     if (::starboard::shared::starboard::media::IsProprietaryAudioCodec(
             audio_filename_)) {
       GTEST_SKIP() << "Skipping proprietary-audio related tests.";
+    } else if (::starboard::shared::starboard::media::IsProprietaryVideoCodec(
+                   video_filename_)) {
+      GTEST_SKIP() << "Skipping proprietary-video related tests.";
     }
 #endif
 
