@@ -51,9 +51,9 @@ jobs:
           path: |
             .github
             cobalt/build
+            cobalt/docker
             cobalt/testing/filters
             cobalt/tools
-            cobalt/docker
             docker-compose.yml
       - name: Remove runtest if exists
         if: github.event_name == 'pull_request'
