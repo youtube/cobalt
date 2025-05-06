@@ -41,6 +41,7 @@ TEST(MallocUsableSizeTest, AllocatesZero) {
   free(memory);
 }
 
+// Tests that once the memory is written to, the behaviour is the same.
 TEST(MallocUsableSizeTest, CastAndWriteDataSize) {
   void* memory = malloc(kSize);
   ASSERT_NE(static_cast<void*>(NULL), memory);
