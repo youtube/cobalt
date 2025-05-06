@@ -4,6 +4,9 @@ inputs:
   log_glob:
     description: "Path (or glob) to test log files."
     required: true
+  results_glob:
+    description: "Path (or glob) to test result xml files."
+    required: true
   test_status:
     description: "Test status. If the value is not success this step will fail."
     required: false
@@ -57,8 +60,6 @@ runs:
         # By failing this step if tests failed the logs will be expanded by default.
         # Note that if any steps after this one fails the logs will no longer be expanded.
         if [ "${{ inputs.test_status }}" != "success" ]; then
-          echo "Tests failed"
-          grep -h "\[  FAILED  \]" ${{ inputs.log_glob }}
-          exit 1
+          python3 cobalt/tools/junit_mini_parser.py ${{ inputs.results_glob }}
         fi
       shell: bash

@@ -498,16 +498,11 @@ jobs:
         uses: ./.github/actions/print_logs
         with:
           log_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*log.txt
+          results_glob: results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
           test_status: ${{ steps.process-results.outcome }}
           # TODO: Enable symbolization when it works.
           # symbolize: ${{ needs.initialize.outputs.test_on_device == 'true' }}
           symbolize: 'false'
-      - name: ${{ matrix.test_target }} Failing Tests
-        if: always() && steps.process-results.outcome != 'success'
-        run: |
-          shopt -s globstar nullglob
-          python3 cobalt/tools/junit_mini_parser.py results/**/${{ steps.extract-target-name.outputs.test_target }}*.xml
-        shell: bash
 
   validate-test-result:
     needs: [initialize, build, test-results]
@@ -515,16 +510,22 @@ jobs:
     permissions: {}
     runs-on: ubuntu-latest
     name: ${{ matrix.name }}_tests_passing
+    env:
+      TEST_RESULTS_KEY: ${{ matrix.platform }}_${{ matrix.name }}_test_results
     strategy:
       matrix:
         platform: ${{ fromJson(needs.initialize.outputs.platforms) }}
         include: ${{ fromJson(needs.initialize.outputs.includes) }}
         config: [devel]
     steps:
+      - name: Download Test Results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ${{ env.TEST_RESULTS_KEY }}*
+          path: results/
       - name: Fail
         if: needs.test-results.result == 'failure'
         run: |
-            # TODO: Print a summary of failed tests here.
-            echo "Test jobs failed. See individual failing jobs for details."
+            python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
             exit 1
         shell: bash

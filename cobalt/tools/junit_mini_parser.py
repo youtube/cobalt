@@ -19,7 +19,6 @@ standard library."""
 import collections
 import os
 import sys
-import xml.etree
 import xml.etree.ElementTree
 
 
@@ -43,7 +42,10 @@ def find_failing_tests(junit_xml_files: list[str]) -> dict[str, list[str]]:
         failures = testcase.findall('failure')
         errors = testcase.findall('error')
         if failures or errors:
-          failing_tests[filename].append(f'{suite_name}.{test_name}')
+          message = '\n'.join(
+              case.attrib.get('message', '') for case in failures + errors)
+          rel_path = os.path.relpath(filename)
+          failing_tests[rel_path].append((f'{suite_name}.{test_name}', message))
   return failing_tests
 
 
@@ -52,10 +54,12 @@ def main(xml_files: str):
 
   if failing_tests:
     print('Failing Tests:')
-    for target, tests in sorted(failing_tests.items()):
+    for target, test_status in sorted(failing_tests.items()):
       print(f'\n{target}')
-      for test in sorted(tests):
-        print(f'  - {test}')
+      for test, message in sorted(test_status):
+        print(f'[  FAILED  ] {test}')
+        if message:
+          print(message)
       print()
   else:
     print('No failing tests found in the test results.')
