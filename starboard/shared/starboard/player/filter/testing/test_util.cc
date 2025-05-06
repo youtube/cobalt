@@ -100,17 +100,19 @@ std::vector<const char*> GetSupportedAudioTestFiles(
     bool is_heaac;
   };
 
-  const char* kFilenames[] = {"beneath_the_canopy_aac_stereo.dmp",
-                              "beneath_the_canopy_aac_5_1.dmp",
-                              "beneath_the_canopy_aac_mono.dmp",
-                              "beneath_the_canopy_opus_5_1.dmp",
-                              "beneath_the_canopy_opus_stereo.dmp",
-                              "beneath_the_canopy_opus_mono.dmp",
-                              "heaac.dmp",
-                              "iamf_base_profile_stereo_ambisonics.dmp",
-                              "iamf_simple_profile_5_1.dmp",
-                              "sintel_329_ec3.dmp",
-                              "sintel_381_ac3.dmp"};
+  const char* kFilenames[] = {
+      // Test environment does not support aac/heaac/ec3/ac3, for which we need
+      // ffmpeg library and test environment doesn't have ffmpeg library.
+      // See b/411115002#comment6.
+      // "beneath_the_canopy_aac_stereo.dmp",
+      // "beneath_the_canopy_aac_5_1.dmp",
+      // "beneath_the_canopy_aac_mono.dmp",
+      // "heaac.dmp",
+      // "sintel_329_ec3.dmp",
+      // "sintel_381_ac3.dmp",
+      "beneath_the_canopy_opus_5_1.dmp", "beneath_the_canopy_opus_stereo.dmp",
+      "beneath_the_canopy_opus_mono.dmp",
+      "iamf_base_profile_stereo_ambisonics.dmp", "iamf_simple_profile_5_1.dmp"};
 
   static std::vector<AudioFileInfo> audio_file_info_cache;
   std::vector<const char*> filenames;
