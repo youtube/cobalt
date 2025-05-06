@@ -56,9 +56,8 @@ void H5vccMetricsImpl::Enable(bool enable, EnableCallback callback) {
   auto enabled_state_provider =
       global_features->metrics_services_manager_client()
           ->GetEnabledStateProvider();
-  enabled_state_provider->SetConsentGiven(enable);
   enabled_state_provider->SetReportingEnabled(enable);
-  global_features->metrics_services_manager()->UpdateUploadPermissions(enable);
+  global_features->metrics_services_manager()->UpdateUploadPermissions(true);
   std::move(callback).Run();
 }
 

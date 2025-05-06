@@ -54,7 +54,7 @@ class GlobalFeatures {
   metrics::MetricsService* metrics_service();
   CobaltMetricsServicesManagerClient* metrics_services_manager_client();
   PrefService* experiment_config();
-  PrefService* local_state();
+  PrefService* metrics_local_state();
 
  private:
   friend class base::NoDestructor<GlobalFeatures>;
@@ -66,18 +66,20 @@ class GlobalFeatures {
   // Initialize CobaltMetricsServicesManagerClient instance and use it to
   // initialize MetricsServicesManager.
   void CreateMetricsServices();
-  // Initialize a PrefService instance for local state.
-  void CreateLocalState();
+  // Initialize a PrefService instance for local state for Metrics services.
+  void CreateMetricsLocalState();
 
+  // Finch config/state.
   std::unique_ptr<PrefService> experiment_config_;
 
-  std::unique_ptr<PrefService> local_state_;
+  // UMA config/state.
+  std::unique_ptr<PrefService> metrics_local_state_;
 
   // |metrics_services_manager_| owns this.
   raw_ptr<CobaltMetricsServicesManagerClient, DanglingUntriaged>
       metrics_services_manager_client_;
 
-  // Must be destroyed before |local_state_|.
+  // Must be destroyed before |metrics_local_state_|.
   std::unique_ptr<metrics_services_manager::MetricsServicesManager>
       metrics_services_manager_;
 

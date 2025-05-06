@@ -24,10 +24,8 @@ namespace cobalt {
 // entry point into enabling/disabling metrics collection and uploading.
 class CobaltEnabledStateProvider : public ::metrics::EnabledStateProvider {
  public:
-  explicit CobaltEnabledStateProvider(bool is_consent_given,
-                                      bool is_reporting_enabled)
-      : is_consent_given_(is_consent_given),
-        is_reporting_enabled_(is_reporting_enabled) {}
+  explicit CobaltEnabledStateProvider(PrefService* local_state)
+      : local_state_(local_state) {}
 
   CobaltEnabledStateProvider(const CobaltEnabledStateProvider&) = delete;
   CobaltEnabledStateProvider& operator=(const CobaltEnabledStateProvider&) =
@@ -48,8 +46,7 @@ class CobaltEnabledStateProvider : public ::metrics::EnabledStateProvider {
   void SetReportingEnabled(bool is_reporting_enabled);
 
  private:
-  bool is_consent_given_ = false;
-  bool is_reporting_enabled_ = false;
+  const raw_ptr<PrefService> local_state_;
 };
 
 }  // namespace cobalt

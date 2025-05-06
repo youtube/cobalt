@@ -17,9 +17,9 @@
 #include "base/no_destructor.h"
 #include "base/path_service.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
+#include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
 #include "components/metrics_services_manager/metrics_services_manager.h"
-#include "components/prefs/in_memory_pref_store.h"
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
@@ -34,9 +34,11 @@ const char kExperimentConfigExpIds[] = "exp_ids";
 constexpr base::FilePath::CharType kExperimentConfigFilename[] =
     FILE_PATH_LITERAL("Experiment Config");
 
+constexpr base::FilePath::CharType kMetricsConfigFilename[] =
+    FILE_PATH_LITERAL("Metrics Config");
+
 GlobalFeatures::GlobalFeatures() {
   CreateExperimentConfig();
-  CreateLocalState();
   CreateMetricsServices();
 }
 
@@ -70,9 +72,9 @@ PrefService* GlobalFeatures::experiment_config() {
   return experiment_config_.get();
 }
 
-PrefService* GlobalFeatures::local_state() {
+PrefService* GlobalFeatures::metrics_local_state() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
-  return local_state_.get();
+  return metrics_local_state_.get();
 }
 
 void GlobalFeatures::CreateExperimentConfig() {
@@ -93,28 +95,39 @@ void GlobalFeatures::CreateExperimentConfig() {
 }
 
 void GlobalFeatures::CreateMetricsServices() {
-  DCHECK(local_state_) << "CreateLocalState() must have been called previously";
-  auto client =
-      std::make_unique<CobaltMetricsServicesManagerClient>(local_state_.get());
+  CreateMetricsLocalState();
+  DCHECK(metrics_local_state_)
+      << "CreateLocalState() must have been called previously";
+  auto client = std::make_unique<CobaltMetricsServicesManagerClient>(
+      metrics_local_state_.get());
   metrics_services_manager_client_ = client.get();
   metrics_services_manager_ =
       std::make_unique<metrics_services_manager::MetricsServicesManager>(
           std::move(client));
 }
 
-void GlobalFeatures::CreateLocalState() {
-  DCHECK(!local_state_);
+void GlobalFeatures::CreateMetricsLocalState() {
+  DCHECK(!metrics_local_state_);
   // No need to make `pref_registry` a member, `pref_service_` will keep a
   // reference to it.
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
   metrics::MetricsService::RegisterPrefs(pref_registry.get());
+  // This is the pref used to globally enable/disable metrics reporting. When
+  // metrics reporting is toggled via any method (e.g., command line, JS API
+  // call, etc., this is the setting that's overridden).
+  pref_registry->RegisterBooleanPref(metrics::prefs::kMetricsReportingEnabled,
+                                     false);
+  base::FilePath path;
+  CHECK(base::PathService::Get(content::SHELL_DIR_USER_DATA, &path));
+  path = path.Append(kMetricsConfigFilename);
+
   PrefServiceFactory pref_service_factory;
   // TODO(b/397929564): Investigate using a Chrome's memory-mapped file store
   // instead of in-memory.
   pref_service_factory.set_user_prefs(
-      base::MakeRefCounted<InMemoryPrefStore>());
+      base::MakeRefCounted<JsonPrefStore>(path));
 
-  local_state_ = pref_service_factory.Create(std::move(pref_registry));
+  metrics_local_state_ = pref_service_factory.Create(std::move(pref_registry));
 }
 
 // static

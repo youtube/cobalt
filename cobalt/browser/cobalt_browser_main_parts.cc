@@ -54,12 +54,11 @@ void CobaltBrowserMainParts::SetupMetrics() {
 void CobaltBrowserMainParts::StartMetricsRecording() {
   // This call kicks off the whole metric recording flow. It sets a timer and
   // periodically triggers a UMA payload to be handled by the logs uploader.
-
-  // TODO(cobalt, b/414617175): Make the initial UpdateUploadPermissions state
-  // configurable based on cached settings.
+  // Note, "may_upload" is always true but reporting itself can be disabled and
+  // no uploads are sent.
   GlobalFeatures::GetInstance()
       ->metrics_services_manager()
-      ->UpdateUploadPermissions(false);
+      ->UpdateUploadPermissions(true);
   DLOG(INFO) << "Metrics Service is now running/recording.";
 }
 
