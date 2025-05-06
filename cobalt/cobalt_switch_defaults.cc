@@ -23,9 +23,9 @@
 #include "gpu/config/gpu_switches.h"
 #include "media/base/media_switches.h"
 #include "sandbox/policy/switches.h"
+#include "ui/gl/gl_switches.h"
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "ui/gl/gl_switches.h"
 #include "ui/ozone/public/ozone_switches.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -61,6 +61,8 @@ const base::CommandLine::SwitchMap GetCobaltParamSwitchDefaults() {
 #if !BUILDFLAG(IS_ANDROID)
         {switches::kUseGL, "angle"}, {switches::kUseANGLE, "gles-egl"},
 #endif  // !BUILDFLAG(IS_ANDROID)
+        // Use passthrough command decoder.
+        {switches::kUseCmdDecoder, "passthrough"},
         // Set the default size for the content shell/starboard window.
         {switches::kContentShellHostWindowSize, "1920x1080"},
         // Enable remote Devtools access.
