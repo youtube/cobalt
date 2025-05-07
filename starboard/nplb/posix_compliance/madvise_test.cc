@@ -28,13 +28,14 @@ class MadviseTest : public testing::Test {
  public:
   void SetUp() override {
     // Allocate memory for use during the tests.
-    memory = mmap(nullptr, kSize, PROT_READ, MAP_PRIVATE | MAP_ANON, -1, 0);
+    memory =
+        (int*)mmap(nullptr, kSize, PROT_READ, MAP_PRIVATE | MAP_ANON, -1, 0);
   }
 
-  void TearDown() override { EXPECT_EQ(munmap(memory, kSbMemoryPageSize), 0); }
+  void TearDown() override { EXPECT_EQ(munmap(memory, kSize), 0); }
 
  protected:
-  void* memory;
+  int* memory;
 };
 
 TEST_F(MadviseTest, BadSizeValue) {
@@ -48,17 +49,25 @@ TEST_F(MadviseTest, NullPtrMemory) {
 }
 
 TEST_F(MadviseTest, SunnyDay) {
-  EXPECT_EQ(0, madvise(memory, kSbMemoryPageSize, MADV_NORMAL));
+  EXPECT_EQ(0, madvise(memory, kSbMemoryPageSize, MADV_NORMAL))
+      << strerror(errno);
 }
 
 TEST_F(MadviseTest, SunnyDayNotAligned) {
-  void* memUnaligned = &memory + 1;
-  EXPECT_EQ(-1, madvise(&memUnaligned, kSbMemoryPageSize, MADV_NORMAL));
+  int* memUnaligned = memory + 1;
+  EXPECT_EQ(-1, madvise(memUnaligned, kSbMemoryPageSize, MADV_NORMAL));
   EXPECT_EQ(errno, EINVAL);
 }
 
+TEST_F(MadviseTest, SunnyDayAligned) {
+  int* memAligned = memory + kSbMemoryPageSize;
+  EXPECT_EQ(0, madvise(memAligned, kSbMemoryPageSize, MADV_NORMAL))
+      << strerror(errno);
+}
+
 TEST_F(MadviseTest, SunnyDayRandom) {
-  EXPECT_EQ(0, madvise(memory, kSbMemoryPageSize, MADV_RANDOM));
+  EXPECT_EQ(0, madvise(memory, kSbMemoryPageSize, MADV_RANDOM))
+      << strerror(errno);
 }
 
 }  // namespace
