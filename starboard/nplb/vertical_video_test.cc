@@ -48,9 +48,12 @@ void CheckVerticalResolutionSupport(const char* mime) {
 }
 
 std::vector<SbPlayerTestConfig> GetVerticalVideoTestConfigs() {
-  const char* kVideoFilenames[] = {"vertical_1080p_30_fps_137_avc.dmp",
-                                   "vertical_4k_30_fps_313_vp9.dmp",
-                                   "vertical_8k_30_fps_571_av1.dmp"};
+  const char* kVideoFilenames[] = {
+      // Test environment does not support avc codec.
+      // "vertical_1080p_30_fps_137_avc.dmp",
+      "vertical_4k_30_fps_313_vp9.dmp",
+      "vertical_8k_30_fps_571_av1.dmp",
+  };
   const char* kAudioFilename = "silence_aac_stereo.dmp";
 
   const SbPlayerOutputMode kOutputModes[] = {kSbPlayerOutputModeDecodeToTexture,
