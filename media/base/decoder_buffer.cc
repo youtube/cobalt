@@ -131,6 +131,21 @@ DecoderBuffer::~DecoderBuffer() {
 DecoderBuffer::~DecoderBuffer() = default;
 #endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+void DecoderBuffer::Initialize(DemuxerStream::Type type) {
+  DCHECK(s_allocator);
+  DCHECK(!data_);
+
+  int alignment = s_allocator->GetBufferAlignment();
+  int padding = s_allocator->GetBufferPadding();
+  allocated_size_ = size_ + padding;
+  data_ = static_cast<uint8_t*>(s_allocator->Allocate(type,
+                                                      allocated_size_,
+                                                      alignment));
+  memset(data_ + size_, 0, padding);
+}
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 // static
 scoped_refptr<DecoderBuffer> DecoderBuffer::CopyFrom(
     base::span<const uint8_t> data) {
