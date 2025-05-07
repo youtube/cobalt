@@ -18,10 +18,6 @@ import os
 from starboard.build import platform_configuration
 
 
-def CreatePlatformConfig():
-  return RdkPlatformConfig('rdk')
-
-
 class RdkPlatformConfig(platform_configuration.PlatformConfiguration):
   """Starboard RDK platform configuration."""
 
