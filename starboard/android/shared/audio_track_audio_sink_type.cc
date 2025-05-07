@@ -319,6 +319,56 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   Cleanup();
 #endif
 
+#define TEST_1_1
+#if defined(TEST_1_1)
+  SB_LOG(INFO) << "Test #1.1: Prewarm/play/pause/delay/play";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+
+  Cleanup();
+  SB_LOG(INFO) << "Test #1.1: Call play after 200 msec";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+  LOG_ELAPSED("Wait(200 msec)", [&] { usleep(200'000); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+
+  Cleanup();
+  SB_LOG(INFO) << "Test #1.1: Call play after 400 msec";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+  LOG_ELAPSED("Wait(400 msec)", [&] { usleep(400'000); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+
+  Cleanup();
+  SB_LOG(INFO) << "Test #1.1: Call play after 600 msec";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+  LOG_ELAPSED("Wait(600 msec)", [&] { usleep(600'000); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+
+  Cleanup();
+  SB_LOG(INFO) << "Test #1.1: Call play after 800 msec";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+  LOG_ELAPSED("Wait(800 msec)", [&] { usleep(800'000); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+
+  Cleanup();
+  SB_LOG(INFO) << "Test #1.1: Call play after 1,000 msec";
+  LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+  LOG_ELAPSED("Pause", [&] { bridge_.Pause(); });
+  LOG_ELAPSED("Wait(1,000 msec)", [&] { usleep(1'000'000); });
+  LOG_ELAPSED("Play", [&] { bridge_.Play(); });
+
+#endif
+
 #if defined(TEST_2)
   SB_LOG(INFO) << "Test #2.1: WriteFrames immediately after Play()";
   LOG_ELAPSED("Play", [&] { bridge_.Play(); });
@@ -471,6 +521,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   WaitUntilStartAndLog();
 #endif
 
+#if defined(TEST_7)
   SB_LOG(INFO) << "Test #7 AudioTimestamp after Flush doesn't move";
   LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
   LOG_ELAPSED("Play", [&] { bridge_.Play(); });
@@ -484,6 +535,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   LOG_ELAPSED("Prewarm", [&] { WriteMinimumStartupFrames(); });
   LOG_ELAPSED("Play", [&] { bridge_.Play(); });
   WaitUntilStartAndLog();
+#endif
 
   while (!quit_) {
     int playback_head_position = 0;
