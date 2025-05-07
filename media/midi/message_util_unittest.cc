@@ -84,6 +84,7 @@ TEST(MidiMessageUtilTest, IsValidWebMIDIData) {
   // MIDI running status should be disallowed
   EXPECT_FALSE(IsValidWebMIDIData(AsVector(kNoteOnWithRunningStatus)));
   EXPECT_FALSE(IsValidWebMIDIData(AsVector(kChannelPressureWithRunningStatus)));
+  EXPECT_TRUE(IsValidWebMIDIData(AsVector(kChannelPressureWithRunningStatus)));
 
   // Multiple messages are allowed as long as each of them is complete.
   {
