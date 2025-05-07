@@ -68,7 +68,7 @@ TYPED_TEST(PosixFileWriteTest, BasicWriting) {
 
   int file =
       open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-  ASSERT_TRUE(file >= 0);
+  ASSERT_GE(file, 0) << strerror(errno);
 
   // Create a bigger buffer than necessary, so we can test the memory around
   // the portion given to SbFileRead.
@@ -143,7 +143,7 @@ TYPED_TEST(PosixFileWriteTest, WriteZeroBytes) {
 
   int file =
       open(filename.c_str(), O_CREAT | O_EXCL | O_WRONLY, S_IRUSR | S_IWUSR);
-  ASSERT_TRUE(file >= 0);
+  ASSERT_GE(file, 0) << strerror(errno);
 
   char buffer[kBufferLength] = {0};
 
@@ -157,13 +157,132 @@ TYPED_TEST(PosixFileWriteTest, WriteZeroBytes) {
   EXPECT_TRUE(result == 0);
 
   file = open(filename.c_str(), O_RDONLY);
-  ASSERT_TRUE(file >= 0);
+  ASSERT_GE(file, 0) << strerror(errno);
   struct stat info;
   result = fstat(file, &info);
   EXPECT_TRUE(result == 0);
   EXPECT_EQ(0, info.st_size);
   result = close(file);
   EXPECT_TRUE(result == 0);
+}
+
+TYPED_TEST(PosixFileWriteTest, BasicPwrite) {
+  ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
+  const std::string& filename = random_file.filename();
+
+  int file =
+      open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  ASSERT_GE(file, 0) << strerror(errno);
+
+  const char write_data1[] = "Hello";
+  const size_t write_size1 = sizeof(write_data1) - 1;
+  const off_t offset1 = 0;
+
+  ssize_t bytes_pwritten1 = pwrite(file, write_data1, write_size1, offset1);
+  ASSERT_EQ(static_cast<ssize_t>(write_size1), bytes_pwritten1);
+  EXPECT_EQ(0, lseek(file, 0, SEEK_CUR));  // Offset should not change
+
+  const char write_data2[] = "World";
+  const size_t write_size2 = sizeof(write_data2) - 1;
+  const off_t offset2 = 6;
+
+  ssize_t bytes_pwritten2 = pwrite(file, write_data2, write_size2, offset2);
+  ASSERT_EQ(static_cast<ssize_t>(write_size2), bytes_pwritten2);
+  EXPECT_EQ(0, lseek(file, 0, SEEK_CUR));  // Offset should not change
+
+  char read_buffer[128] = {0};
+  ssize_t bytes_read = pread(file, read_buffer, sizeof(read_buffer) - 1, 0);
+  ASSERT_GE(bytes_read, static_cast<ssize_t>(offset2 + write_size2));
+  EXPECT_STREQ("Hello\0World", read_buffer);  // Expect null termination after
+                                              // "Hello" due to initial zeroing
+
+  EXPECT_EQ(close(file), 0);
+}
+
+TYPED_TEST(PosixFileWriteTest, PwriteBeyondEndOfFile) {
+  ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
+  const std::string& filename = random_file.filename();
+
+  int file =
+      open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  ASSERT_GE(file, 0) << strerror(errno);
+
+  const char write_data[] = "Test";
+  const size_t write_size = sizeof(write_data) - 1;
+  const off_t offset = 10;  // Write beyond the initial empty file
+
+  ssize_t bytes_pwritten = pwrite(file, write_data, write_size, offset);
+  ASSERT_EQ(static_cast<ssize_t>(write_size), bytes_pwritten);
+  EXPECT_EQ(0, lseek(file, 0, SEEK_CUR));  // Offset should not change
+
+  struct stat info;
+  ASSERT_EQ(0, fstat(file, &info));
+  EXPECT_EQ(static_cast<off_t>(offset + write_size),
+            info.st_size);  // File should be extended
+
+  char read_buffer[128] = {0};
+  ssize_t bytes_read = pread(file, read_buffer, sizeof(read_buffer) - 1, 0);
+  ASSERT_EQ(static_cast<ssize_t>(offset + write_size), bytes_read);
+  EXPECT_EQ(
+      '\0',
+      read_buffer[0]);  // Bytes before the written data should be zero-filled
+  EXPECT_EQ('\0', read_buffer[9]);
+  EXPECT_STREQ("Test", read_buffer + 10);
+
+  EXPECT_EQ(close(file), 0);
+}
+
+TYPED_TEST(PosixFileWriteTest, PwriteAtDifferentOffsets) {
+  ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
+  const std::string& filename = random_file.filename();
+
+  int file =
+      open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  ASSERT_GE(file, 0) << strerror(errno);
+
+  const char data1[] = "First";
+  pwrite(file, data1, sizeof(data1) - 1, 0);
+
+  const char data2[] = "Second";
+  pwrite(file, data2, sizeof(data2) - 1, 10);
+
+  const char data3[] = "Third";
+  pwrite(file, data3, sizeof(data3) - 1, 5);
+
+  char read_buffer[128] = {0};
+  pread(file, read_buffer, sizeof(read_buffer) - 1, 0);
+  EXPECT_STREQ("FirstThirdSecond", read_buffer);
+
+  EXPECT_EQ(close(file), 0);
+}
+
+TYPED_TEST(PosixFileWriteTest, PwriteZeroLength) {
+  ScopedRandomFile random_file(0, ScopedRandomFile::kDontCreate);
+  const std::string& filename = random_file.filename();
+
+  int file =
+      open(filename.c_str(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  ASSERT_GE(file, 0) << strerror(errno);
+
+  const char data[] = "SomeData";
+  pwrite(file, data, sizeof(data) - 1, 5);
+
+  ssize_t bytes_pwritten = pwrite(file, nullptr, 0, 2);
+  EXPECT_EQ(0, bytes_pwritten);
+  EXPECT_EQ(0, lseek(file, 0, SEEK_CUR));  // Offset should not change
+
+  char read_buffer[16] = {0};
+  pread(file, read_buffer, sizeof(read_buffer) - 1, 0);
+  EXPECT_EQ('\0', read_buffer[0]);
+  EXPECT_EQ('\0', read_buffer[1]);
+  EXPECT_EQ(
+      '\0',
+      read_buffer[2]);  // Writing zero bytes shouldn't change existing data
+  EXPECT_EQ('\0', read_buffer[3]);
+  EXPECT_EQ('\0', read_buffer[4]);
+  EXPECT_STREQ("SomeData", read_buffer + 5);
+
+  EXPECT_EQ(close(file), 0);
 }
 
 }  // namespace
