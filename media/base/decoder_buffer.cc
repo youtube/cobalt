@@ -117,8 +117,6 @@ DecoderBuffer::~DecoderBuffer() = default;
 void DecoderBuffer::Initialize() {
 #if BUILDFLAG(USE_STARBOARD_MEDIA)
   // This is used by Mojo.
-  // TODO: b/369245553 - Cobalt: Investigate the memory and performance impact
-  //                     of using Mojo.
   Initialize(DemuxerStream::UNKNOWN);
 #else // BUILDFLAG(USE_STARBOARD_MEDIA)
   data_ = base::HeapArray<uint8_t>::Uninit(size_);
