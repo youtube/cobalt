@@ -54,25 +54,26 @@ struct musl_dirent* __abi_wrap_readdir(DIR* dirp) {
   // readdir segfaults if any of those parameters are missing.
   SB_CHECK(dirp);
 
-  struct musl_dirent* result_musl = {0};
+  struct musl_dirent result_musl;
   struct dirent* result_platform = {0};  // The type from platform toolchain.
   result_platform = readdir(dirp);
   if (!result_platform) {
     return nullptr;
   }
-#if !SB_HAS_QUIRK(INCOMPLETE_DIRENT_STRUCTURE)
-  result_musl->d_ino = result_platform->d_ino;
-  result_musl->d_off = result_platform->d_off;
-#endif
-  result_musl->d_reclen = result_platform->d_reclen;
-  result_musl->d_type = result_platform->d_type;
 
-  memset(result_musl->d_name, 0, sizeof(result_musl->d_name));
+#if !SB_HAS_QUIRK(INCOMPLETE_DIRENT_STRUCTURE)
+  result_musl.d_ino = result_platform->d_ino;
+  result_musl.d_off = result_platform->d_off;
+#endif
+  result_musl.d_reclen = result_platform->d_reclen;
+  result_musl.d_type = result_platform->d_type;
+
+  memset(result_musl.d_name, 0, sizeof(result_musl.d_name));
   constexpr auto minlen =
-      std::min(sizeof(result_musl->d_name), sizeof(result_platform->d_name));
-  memcpy(result_musl->d_name, result_platform->d_name, minlen);
+      std::min(sizeof(result_musl.d_name), sizeof(result_platform->d_name));
+  memcpy(result_musl.d_name, result_platform->d_name, minlen);
   if (result_platform == nullptr) {
-    result_musl = nullptr;
+    return nullptr;
   }
-  return result_musl;
+  return &result_musl;
 }
