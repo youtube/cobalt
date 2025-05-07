@@ -13,69 +13,78 @@
 // limitations under the License.
 
 #include "ui/ozone/platform/starboard/platform_screen_starboard.h"
+
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_piece.h"
 #include "base/strings/string_split.h"
-#include "content/shell/common/shell_switches.h"
-#include "ui/display/display_switches.h"
-#include "ui/ozone/public/ozone_switches.h"
-
 #include "ui/display/display.h"
+#include "ui/display/display_switches.h"
+#include "ui/events/platform/platform_event_source.h"
+#include "ui/ozone/platform/starboard/platform_event_observer_starboard.h"
+#include "ui/ozone/platform/starboard/platform_window_starboard.h"
+#include "ui/ozone/public/ozone_switches.h"
+#include "ui/platform_window/platform_window.h"
 
 namespace ui {
 
 namespace {
 constexpr int64_t kFirstDisplayId = 1;
+
+namespace switches {
+// NOTE: This is a redefinition of the same shell switch declared in:
+//  content/shell/common/shell_switches.h
+// but due to lack of visibility into the targets that define it, we redefine it
+// here in order to query the command line for its initial configuration.
+const char kContentShellHostWindowSize[] = "content-shell-host-window-size";
+}  // namespace switches
+
 }  // namespace
 
 PlatformScreenStarboard::PlatformScreenStarboard() {
-  display::Display display(kFirstDisplayId);
-
-  // Screen size is the same as window size.
-  // Cobalt is always treated as a fullscreen application.
-  gfx::Rect bounds(gfx::Size(1, 1));
-  const base::CommandLine& command_line =
-      *base::CommandLine::ForCurrentProcess();
-  if (command_line.HasSwitch(switches::kContentShellHostWindowSize)) {
-    int width, height;
-    std::string screen_size =
-        command_line.GetSwitchValueASCII(switches::kContentShellHostWindowSize);
-    std::vector<base::StringPiece> width_and_height = base::SplitStringPiece(
-        screen_size, "x", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-    if (!(width_and_height.size() == 2 &&
-          base::StringToInt(width_and_height[0], &width) &&
-          base::StringToInt(width_and_height[1], &height))) {
-      // This is a hack to retrieve the window size from the command line args.
-      width = 1280;
-      height = 1024;
-    }
-    bounds.set_size(gfx::Size(width, height));
+  // Listen for window size changes.
+  if (PlatformEventSource::GetInstance()) {
+    static_cast<PlatformEventSourceStarboard*>(
+        PlatformEventSource::GetInstance())
+        ->AddPlatformEventObserverStarboard(this);
   }
-
-  double device_scale_factor = 1.0f;
-  if (command_line.HasSwitch(switches::kForceDeviceScaleFactor)) {
-    // This is also a hack to receive this from the command line args.
-    std::string device_scale_factor_str =
-        command_line.GetSwitchValueASCII(switches::kForceDeviceScaleFactor);
-    base::StringToDouble(device_scale_factor_str, &device_scale_factor);
-  }
-
-  display.SetScaleAndBounds(device_scale_factor, bounds);
-  display_list_.AddDisplay(display, display::DisplayList::Type::PRIMARY);
 }
 
 PlatformScreenStarboard::~PlatformScreenStarboard() = default;
 
+void PlatformScreenStarboard::InitScreen(
+    base::WeakPtr<PlatformWindowStarboard> platform_window) {
+  gfx::Rect window_bounds;
+  if (platform_window.IsValid()) {
+    window_bounds = platform_window->GetBoundsInPixels();
+  } else {
+    // Fallback option.
+    window_bounds = GetWindowSizeFromCommandLine();
+  }
+
+  // This is a hack to receive the scale factor from the command line args.
+  //
+  // Ideally we should be able to fetch it from a more authoritative source, but
+  // it is not clear who the is the source of truth.
+  //
+  // One possible source is through the PlatformWindow handle via:
+  //  -> PlatformWindowDelegate
+  //     -> WebContents
+  //        -> RenderWidgetHostView
+  //
+  // However this is not accessible since WebContents and RenderWidgetHostView
+  // interfaces cannot be used in //ui/ozone/platform.
+  float scale_factor = GetDeviceScaleFactorFromCommandLine();
+
+  display::Display display(kFirstDisplayId);
+  display.SetScaleAndBounds(scale_factor, window_bounds);
+  display_list_.AddDisplay(display, display::DisplayList::Type::PRIMARY);
+}
+
 const std::vector<display::Display>& PlatformScreenStarboard::GetAllDisplays()
     const {
   return display_list_.displays();
-}
-
-void PlatformScreenStarboard::InitScreen() {
-  // TODO: Logic for finding displays through correct calls to compoenents with
-  // knowledge of these properties.
 }
 
 display::Display PlatformScreenStarboard::GetPrimaryDisplay() const {
@@ -116,6 +125,43 @@ void PlatformScreenStarboard::AddObserver(display::DisplayObserver* observer) {
 void PlatformScreenStarboard::RemoveObserver(
     display::DisplayObserver* observer) {
   display_list_.RemoveObserver(observer);
+}
+
+void PlatformScreenStarboard::ProcessWindowSizeChangedEvent(int width,
+                                                            int height) {
+  display::Display disp = GetPrimaryDisplay();
+  disp.set_bounds(gfx::Rect(gfx::Size(width, height)));
+  display_list_.AddOrUpdateDisplay(disp, display::Display::Type::PRIMARY);
+}
+
+gfx::Rect PlatformScreenStarboard::GetWindowSizeFromCommandLine() const {
+  gfx::Rect bounds(gfx::Size(1, 1));
+  const base::CommandLine& command_line =
+      *base::CommandLine::ForCurrentProcess();
+  if (command_line.HasSwitch(::switches::kContentShellHostWindowSize)) {
+    int width, height;
+    std::string screen_size =
+        command_line.GetSwitchValueASCII(switches::kContentShellHostWindowSize);
+    std::vector<base::StringPiece> width_and_height = base::SplitStringPiece(
+        screen_size, "x", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    if (!(width_and_height.size() == 2 &&
+          base::StringToInt(width_and_height[0], &width) &&
+          base::StringToInt(width_and_height[1], &height))) {
+      return bounds;
+    }
+    bounds.set_size(gfx::Size(width, height));
+  }
+  return bounds;
+}
+
+float PlatformScreenStarboard::GetDeviceScaleFactorFromCommandLine() const {
+  float scale_factor = 1.f;
+  if (command_line.HasSwitch(switches::kForceDeviceScaleFactor)) {
+    std::string device_scale_factor_str =
+        command_line.GetSwitchValueASCII(switches::kForceDeviceScaleFactor);
+    base::StringToDouble(device_scale_factor_str, &scale_factor);
+  }
+  return scale_factor;
 }
 
 }  // namespace ui

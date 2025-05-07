@@ -17,17 +17,20 @@
 
 #include "ui/display/display_list.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/ozone/platform/starboard/platform_event_observer_starboard.h"
 #include "ui/ozone/public/platform_screen.h"
+#include "ui/platform_window/platform_window.h"
 
 namespace ui {
 
-class PlatformScreenStarboard : public PlatformScreen {
+class PlatformScreenStarboard : public PlatformScreen,
+                                public PlatformEventObserverStarboard {
  public:
   PlatformScreenStarboard();
 
   ~PlatformScreenStarboard() override;
 
-  void InitScreen();
+  void InitScreen(std::weak_ptr<PlatformWindow> platform_window);
 
   const std::vector<display::Display>& GetAllDisplays() const override;
 
@@ -46,6 +49,12 @@ class PlatformScreenStarboard : public PlatformScreen {
 
   void AddObserver(display::DisplayObserver* observer) override;
   void RemoveObserver(display::DisplayObserver* observer) override;
+
+  void ProcessWindowSizeChangedEvent(int width, int height) override;
+
+ protected:
+  gfx::Rect GetWindowSizeFromCommandLine() const;
+  float GetDeviceScaleFactorFromCommandLine() const;
 
  private:
   display::DisplayList display_list_;
