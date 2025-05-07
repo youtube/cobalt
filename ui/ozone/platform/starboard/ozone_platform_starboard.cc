@@ -17,6 +17,7 @@
 #include <thread>
 
 #include "base/logging.h"
+#include "base/memory/weak_ptr.h"
 #include "starboard/event.h"
 #include "ui/base/ime/input_method_minimal.h"
 #include "ui/display/fake/fake_display_delegate.h"
@@ -82,8 +83,10 @@ class OzonePlatformStarboard : public OzonePlatform {
   std::unique_ptr<PlatformWindow> CreatePlatformWindow(
       PlatformWindowDelegate* delegate,
       PlatformWindowInitProperties properties) override {
-    return std::make_unique<PlatformWindowStarboard>(delegate,
-                                                     properties.bounds);
+    auto new_platform_window =
+        std::make_unique<PlatformWindowStarboard>(delegate, properties.bounds);
+    platform_window_ = new_platform_window.AsWeakPtr();
+    return new_platform_window;
   }
 
   std::unique_ptr<display::NativeDisplayDelegate> CreateNativeDisplayDelegate()
@@ -95,13 +98,16 @@ class OzonePlatformStarboard : public OzonePlatform {
   }
 
   std::unique_ptr<PlatformScreen> CreateScreen() override {
-    return std::make_unique<PlatformScreenStarboard>();
+    auto new_platform_screen = std::make_unique<PlatformScreenStarboard>();
+    platform_screen_ = new_platform_screen.AsWeakPtr();
+    return new_platform_screen;
   }
+
   // This function must be called immediately after CreateScreen with the
   // `screen` that was returned from CreateScreen. They are separated to avoid
   // observer recursion into display::Screen from inside CreateScreen.
   void InitScreen(PlatformScreen* screen) override {
-    static_cast<PlatformScreenStarboard*>(screen)->InitScreen();
+    static_cast<PlatformScreenStarboard*>(screen)->InitScreen(platform_window_);
   }
 
   std::unique_ptr<InputMethod> CreateInputMethod(
@@ -155,6 +161,9 @@ class OzonePlatformStarboard : public OzonePlatform {
   std::unique_ptr<InputController> input_controller_;
   std::unique_ptr<OverlayManagerOzone> overlay_manager_;
   std::unique_ptr<SurfaceFactoryStarboard> surface_factory_;
+
+  // Used to initialize the PlatformScreen within the InitScreen() method later.
+  base::WeakPtr<PlatformWindowStarboard> platform_window_;
 };
 
 }  // namespace
