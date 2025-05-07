@@ -530,6 +530,8 @@ jobs:
       - name: Failed Tests
         if: needs.test-results.result == 'failure'
         run: |
-            python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
-            exit 1
+          # Enable globstar shell option for globstar paths (**/*.xml).
+          shopt -s globstar nullglob
+          python3 cobalt/tools/junit_mini_parser.py results/**/*.xml
+          exit 1
         shell: bash
