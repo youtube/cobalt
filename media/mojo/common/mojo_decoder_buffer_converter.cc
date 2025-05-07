@@ -128,6 +128,13 @@ void MojoDecoderBufferReader::ReadDecoderBuffer(
   if (!consumer_handle_.is_valid()) {
     DCHECK(pending_read_cbs_.empty());
     CancelReadCB(std::move(read_cb));
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    // Release its ref-count that was increased manually during
+    // DecoderBuffer and DecoderBufferPtr conversion.
+    scoped_refptr<media::DecoderBuffer> buffer(
+        reinterpret_cast<media::DecoderBuffer*>(mojo_buffer->address));
+    buffer->Release();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     return;
   }
 
@@ -271,9 +278,13 @@ void MojoDecoderBufferReader::ProcessPendingReads() {
     DCHECK_GT(buffer_size, bytes_read_);
     uint32_t num_bytes = buffer_size - bytes_read_;
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    MojoResult result = MOJO_RESULT_OK;
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     MojoResult result =
         consumer_handle_->ReadData(buffer->writable_data() + bytes_read_,
                                    &num_bytes, MOJO_WRITE_DATA_FLAG_NONE);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
     if (IsPipeReadWriteError(result)) {
       OnPipeError(result);
@@ -442,8 +453,12 @@ void MojoDecoderBufferWriter::ProcessPendingWrites() {
     uint32_t num_bytes = buffer_size - bytes_written_;
     DCHECK_GT(num_bytes, 0u);
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    MojoResult result = MOJO_RESULT_OK;
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
     MojoResult result = producer_handle_->WriteData(
         buffer->data() + bytes_written_, &num_bytes, MOJO_WRITE_DATA_FLAG_NONE);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
 
     if (IsPipeReadWriteError(result)) {
       OnPipeError(result);
@@ -491,6 +506,12 @@ void MojoDecoderBufferWriter::OnPipeError(MojoResult result) {
             bytes_written_);
       }
     }
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    for (auto buffer : pending_buffers_) {
+      // Release DecoderBuffer as its ref-count was increased manually.
+      buffer->Release();
+    }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     pending_buffers_.clear();
     bytes_written_ = 0;
   }
