@@ -126,6 +126,13 @@ void MojoDecoderBufferReader::ReadDecoderBuffer(
   if (!consumer_handle_.is_valid()) {
     DCHECK(pending_read_cbs_.empty());
     CancelReadCB(std::move(read_cb));
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    // Release its ref-count that was increased manually during
+    // DecoderBuffer and DecoderBufferPtr conversion.
+    scoped_refptr<media::DecoderBuffer> buffer(
+        reinterpret_cast<media::DecoderBuffer*>(mojo_buffer->address));
+    buffer->Release();
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
     return;
   }
 
@@ -265,12 +272,27 @@ void MojoDecoderBufferReader::ProcessPendingReads() {
       continue;
     }
 
+<<<<<<< HEAD
     size_t actually_read_bytes = 0;
     MojoResult result = consumer_handle_->ReadData(
         MOJO_WRITE_DATA_FLAG_NONE,
         // We may be starting to read a new buffer (|bytes_read_| == 0), or
         // recovering from a previous partial read (|bytes_read_| > 0).
         buffer->writable_span().subspan(bytes_read_), actually_read_bytes);
+=======
+    // We may be starting to read a new buffer (|bytes_read_| == 0), or
+    // recovering from a previous partial read (|bytes_read_| > 0).
+    DCHECK_GT(buffer_size, bytes_read_);
+    uint32_t num_bytes = buffer_size - bytes_read_;
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    MojoResult result = MOJO_RESULT_OK;
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+    MojoResult result =
+        consumer_handle_->ReadData(buffer->writable_data() + bytes_read_,
+                                   &num_bytes, MOJO_WRITE_DATA_FLAG_NONE);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> 1ffd80e7a5c ([media] Avoid extra allocation and copy for DecoderBuffer on renderer process (#5464))
 
     if (IsPipeReadWriteError(result)) {
       OnPipeError(result);
@@ -440,9 +462,18 @@ void MojoDecoderBufferWriter::ProcessPendingWrites() {
     bytes_to_write = bytes_to_write.subspan(bytes_written_);
     DCHECK_GT(bytes_to_write.size(), 0u);
 
+<<<<<<< HEAD
     size_t actually_written_bytes = 0;
     MojoResult result = producer_handle_->WriteData(
         bytes_to_write, MOJO_WRITE_DATA_FLAG_NONE, actually_written_bytes);
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    MojoResult result = MOJO_RESULT_OK;
+#else // BUILDFLAG(USE_STARBOARD_MEDIA)
+    MojoResult result = producer_handle_->WriteData(
+        buffer->data() + bytes_written_, &num_bytes, MOJO_WRITE_DATA_FLAG_NONE);
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> 1ffd80e7a5c ([media] Avoid extra allocation and copy for DecoderBuffer on renderer process (#5464))
 
     if (IsPipeReadWriteError(result)) {
       OnPipeError(result);
@@ -481,6 +512,7 @@ void MojoDecoderBufferWriter::OnPipeError(MojoResult result) {
     DVLOG(1) << __func__ << ": writing to data pipe failed. result=" << result
              << ", buffer size=" << pending_buffers_.front()->size()
              << ", num_bytes(written)=" << bytes_written_;
+<<<<<<< HEAD
     if (MediaTraceIsEnabled()) {
       for (const auto& buffer : pending_buffers_) {
         TRACE_EVENT_NESTABLE_ASYNC_END2(
@@ -490,6 +522,14 @@ void MojoDecoderBufferWriter::OnPipeError(MojoResult result) {
             bytes_written_);
       }
     }
+=======
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    for (auto buffer : pending_buffers_) {
+      // Release DecoderBuffer as its ref-count was increased manually.
+      buffer->Release();
+    }
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+>>>>>>> 1ffd80e7a5c ([media] Avoid extra allocation and copy for DecoderBuffer on renderer process (#5464))
     pending_buffers_.clear();
     bytes_written_ = 0;
   }
