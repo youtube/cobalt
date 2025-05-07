@@ -16,3 +16,8 @@ crash_log_test(async (t, fake) => {
   await window.h5vcc.crashLog.setString(key, value);
   assert_equals(fake.getAnnotation(key), value);
 }, 'setString() sends expected key and value to browser endpoint');
+
+crash_log_test(async (t, fake) => {
+  let testValueResult = window.h5vcc.crashLog.testValue;
+  assert_equals(testValueResult, true);
+}, 'testValue returns value provided by browser endpoint');
