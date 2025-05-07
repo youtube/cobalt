@@ -1,6 +1,21 @@
 #include "stdio_impl.h"
-#include "pthread_impl.h"
 
+#if !defined(STARBOARD)
+#include "pthread_impl.h"
+#endif
+
+#if defined(STARBOARD)
+static inline int do_putc(int c, FILE *f)
+{
+  if (f->use_flock) {
+    pthread_mutex_lock(&(f->flock));
+  }
+  getc_unlocked(f);
+  if (f->use_flock) {
+    pthread_mutex_unlock(&(f->flock));
+  }
+}
+#else
 #ifdef __GNUC__
 __attribute__((__noinline__))
 #endif
@@ -20,3 +35,4 @@ static inline int do_putc(int c, FILE *f)
 		return putc_unlocked(c, f);
 	return locking_putc(c, f);
 }
+#endif

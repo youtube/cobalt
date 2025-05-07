@@ -244,13 +244,8 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(send);
   REGISTER_SYMBOL(sendto);
   REGISTER_SYMBOL(socket);
-  REGISTER_SYMBOL(snprintf);
-  REGISTER_SYMBOL(sprintf);
   REGISTER_SYMBOL(unlink);
   REGISTER_SYMBOL(usleep);
-  REGISTER_SYMBOL(vfwprintf);
-  REGISTER_SYMBOL(vsnprintf);
-  REGISTER_SYMBOL(vsscanf);
   REGISTER_SYMBOL(write);
 
   // Custom mapped POSIX APIs to compatibility wrappers.

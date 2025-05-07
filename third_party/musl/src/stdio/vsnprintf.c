@@ -40,7 +40,11 @@ int vsnprintf(char *restrict s, size_t n, const char *restrict fmt, va_list ap)
 	FILE f = {
 		.lbf = EOF,
 		.write = sn_write,
+#if defined(STARBOARD)
+		.use_flock = 0,
+#else
 		.lock = -1,
+#endif
 		.buf = buf,
 		.cookie = &c,
 	};
