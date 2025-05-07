@@ -288,6 +288,16 @@ void StarboardRenderer::StartPlayingFrom(TimeDelta time) {
   LOG_IF(WARNING, time < base::Seconds(0))
       << "Potentially invalid start time " << time << '.';
 
+  if (audio_read_in_progress_ || video_read_in_progress_) {
+    constexpr TimeDelta kDelay = base::Milliseconds(50);
+    task_runner_->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&StarboardRenderer::StartPlayingFrom,
+                       weak_factory_.GetWeakPtr(), time),
+        kDelay);
+    return;
+  }
+
   timestamp_of_last_written_audio_ = TimeDelta();
   is_video_eos_written_ = false;
   StoreMediaTime(time);
