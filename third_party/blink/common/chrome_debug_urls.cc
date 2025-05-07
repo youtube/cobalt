@@ -230,6 +230,9 @@ void HandleChromeDebugURL(const GURL& url) {
 #if BUILDFLAG(IS_WIN)
     base::Process::TerminateCurrentProcessImmediately(
         base::win::kProcessKilledExitCode);
+#elif BUILDFLAG(IS_COBALT_HERMETIC_BUILD)
+    // We don't have process kills.
+    internal::CrashIntentionally();
 #elif BUILDFLAG(IS_POSIX)
     PCHECK(kill(base::Process::Current().Pid(), SIGTERM) == 0);
 #elif BUILDFLAG(IS_FUCHSIA)
