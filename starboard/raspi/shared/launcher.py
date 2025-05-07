@@ -48,7 +48,7 @@ def _sigint_or_sigterm_handler(signum, frame):
 
 
 # First call returns True, otherwise return false.
-def first_run():
+def is_first_run():
   v = globals()
   if 'first_run' not in v:
     v['first_run'] = False
@@ -375,7 +375,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       if self.test_result_xml_path:
         first_run_commands.append(f'touch {self.test_result_xml_path}')
       first_run_commands.extend(['free -mh', 'ps -ux', 'df -h'])
-      if first_run():
+      if is_first_run():
         for cmd in first_run_commands:
           if not self.shutdown_initiated.is_set():
             self._PexpectSendLine(cmd)
