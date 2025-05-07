@@ -85,7 +85,7 @@ class OzonePlatformStarboard : public OzonePlatform {
       PlatformWindowInitProperties properties) override {
     auto new_platform_window =
         std::make_unique<PlatformWindowStarboard>(delegate, properties.bounds);
-    platform_window_ = new_platform_window.AsWeakPtr();
+    platform_window_ = new_platform_window->AsWeakPtr();
     return new_platform_window;
   }
 
@@ -98,9 +98,7 @@ class OzonePlatformStarboard : public OzonePlatform {
   }
 
   std::unique_ptr<PlatformScreen> CreateScreen() override {
-    auto new_platform_screen = std::make_unique<PlatformScreenStarboard>();
-    platform_screen_ = new_platform_screen.AsWeakPtr();
-    return new_platform_screen;
+    return std::make_unique<PlatformScreenStarboard>();
   }
 
   // This function must be called immediately after CreateScreen with the

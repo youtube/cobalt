@@ -15,13 +15,17 @@
 #ifndef UI_OZONE_PLATFORM_STARBOARD_PLATFORM_SCREEN_STARBOARD_H_
 #define UI_OZONE_PLATFORM_STARBOARD_PLATFORM_SCREEN_STARBOARD_H_
 
+#include "base/memory/weak_ptr.h"
 #include "ui/display/display_list.h"
+#include "ui/events/event.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/ozone/platform/starboard/platform_event_observer_starboard.h"
 #include "ui/ozone/public/platform_screen.h"
 #include "ui/platform_window/platform_window.h"
 
 namespace ui {
+
+class PlatformWindowStarboard;
 
 class PlatformScreenStarboard : public PlatformScreen,
                                 public PlatformEventObserverStarboard {
@@ -30,7 +34,7 @@ class PlatformScreenStarboard : public PlatformScreen,
 
   ~PlatformScreenStarboard() override;
 
-  void InitScreen(std::weak_ptr<PlatformWindow> platform_window);
+  void InitScreen(base::WeakPtr<PlatformWindowStarboard> platform_window);
 
   const std::vector<display::Display>& GetAllDisplays() const override;
 

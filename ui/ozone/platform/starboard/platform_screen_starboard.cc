@@ -23,6 +23,7 @@
 #include "ui/display/display_switches.h"
 #include "ui/events/platform/platform_event_source.h"
 #include "ui/ozone/platform/starboard/platform_event_observer_starboard.h"
+#include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
 #include "ui/ozone/platform/starboard/platform_window_starboard.h"
 #include "ui/ozone/public/ozone_switches.h"
 #include "ui/platform_window/platform_window.h"
@@ -56,7 +57,7 @@ PlatformScreenStarboard::~PlatformScreenStarboard() = default;
 void PlatformScreenStarboard::InitScreen(
     base::WeakPtr<PlatformWindowStarboard> platform_window) {
   gfx::Rect window_bounds;
-  if (platform_window.IsValid()) {
+  if (platform_window) {
     window_bounds = platform_window->GetBoundsInPixels();
   } else {
     // Fallback option.
@@ -131,14 +132,14 @@ void PlatformScreenStarboard::ProcessWindowSizeChangedEvent(int width,
                                                             int height) {
   display::Display disp = GetPrimaryDisplay();
   disp.set_bounds(gfx::Rect(gfx::Size(width, height)));
-  display_list_.AddOrUpdateDisplay(disp, display::Display::Type::PRIMARY);
+  display_list_.AddOrUpdateDisplay(disp, display::DisplayList::Type::PRIMARY);
 }
 
 gfx::Rect PlatformScreenStarboard::GetWindowSizeFromCommandLine() const {
   gfx::Rect bounds(gfx::Size(1, 1));
   const base::CommandLine& command_line =
       *base::CommandLine::ForCurrentProcess();
-  if (command_line.HasSwitch(::switches::kContentShellHostWindowSize)) {
+  if (command_line.HasSwitch(switches::kContentShellHostWindowSize)) {
     int width, height;
     std::string screen_size =
         command_line.GetSwitchValueASCII(switches::kContentShellHostWindowSize);
@@ -155,13 +156,15 @@ gfx::Rect PlatformScreenStarboard::GetWindowSizeFromCommandLine() const {
 }
 
 float PlatformScreenStarboard::GetDeviceScaleFactorFromCommandLine() const {
-  float scale_factor = 1.f;
-  if (command_line.HasSwitch(switches::kForceDeviceScaleFactor)) {
+  const base::CommandLine& command_line =
+      *base::CommandLine::ForCurrentProcess();
+  double scale_factor = 1.f;
+  if (command_line.HasSwitch(::switches::kForceDeviceScaleFactor)) {
     std::string device_scale_factor_str =
-        command_line.GetSwitchValueASCII(switches::kForceDeviceScaleFactor);
+        command_line.GetSwitchValueASCII(::switches::kForceDeviceScaleFactor);
     base::StringToDouble(device_scale_factor_str, &scale_factor);
   }
-  return scale_factor;
+  return static_cast<float>(scale_factor);
 }
 
 }  // namespace ui
