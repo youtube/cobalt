@@ -29,7 +29,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-typedef std::set<std::string> StringSet;
+using StringSet = std::set<std::string>;
 
 bool FileExists(const char* path) {
   struct stat info;
