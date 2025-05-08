@@ -28,4 +28,19 @@ find . -type f -not \( -name "COPYING.LGPLv2.1" -o -name "*.h" \) -delete
 
 # Delete empty folders.
 find . -type d -empty -delete
+
+# Keep only libavcodec, libavformat and libavutil.
+find . -depth -path "./libavcodec" -prune -o \
+              -path "./libavformat" -prune -o \
+              -path "./libavutil" -prune -o \
+              -type d -not -path "." -exec rm -rf {} \;
 ```
+
+## Versions of libraries.
+
+SOT: https://www.ffmpeg.org/download.html#releases
+
+- FFmpeg 7.1.1 "Péter"
+  - libavutil: 59.39.100
+  - libavcodec: 61.19.100
+  - libavformat: 61.7.100
