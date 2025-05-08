@@ -23,7 +23,7 @@ namespace {
 
 const size_t kSize = 1024 * 128;
 
-TEST(MallocUsableSizeTest, AllocatesNormally) {
+TEST(MallocUsableSizeTest, HappyPath) {
   void* memory = malloc(kSize);
   EXPECT_NE(nullptr, memory);
   EXPECT_GE(malloc_usable_size(memory), kSize);
@@ -35,7 +35,7 @@ TEST(MallocUsableSizeTest, NullPtrSize) {
   EXPECT_EQ(0, malloc_usable_size(nullptr));
 }
 
-TEST(MallocUsableSizeTest, AllocatesZero) {
+TEST(MallocUsableSizeTest, HappyPathAfterAllocatingZero) {
   void* memory = malloc(0);
   EXPECT_GE(malloc_usable_size(memory), 0);
   free(memory);
