@@ -4,8 +4,6 @@ This directory contains the header files of the ffmpeg library.
 
 ## How to import ffmpeg header files.
 
-
-
 ```shell
 
 # Downloads ffmpeg tarball from https://www.ffmpeg.org/download.html#releases.
@@ -23,7 +21,6 @@ tar -xf ${TARBALL_PATH} -C ${FFMPEG_INCLUDE_ROOT}
 cd ${FFMPEG_INCLUDE_ROOT}/${FFMPEG_TARGET}
 
 # Generate avconfig.h
-# 
 ./configure --disable-x86asm
 
 # Keep only header files and COPYING.LGPLv2.1.
