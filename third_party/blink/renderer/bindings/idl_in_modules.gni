@@ -1211,6 +1211,7 @@ if (is_cobalt) {
           [
             "//third_party/blink/renderer/modules/cobalt/crash_log/crash_log.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility/h_5_vcc_accessibility.idl",
+            "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments/h_5_vcc_experiments.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics/metrics_event.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics/h_5_vcc_metrics.idl",
             "//third_party/blink/renderer/modules/cobalt/h5vcc_runtime/deep_link_event.idl",

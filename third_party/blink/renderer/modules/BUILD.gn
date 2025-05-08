@@ -172,6 +172,7 @@ component("modules") {
       "//third_party/blink/renderer/modules/cobalt:h_5_vcc",
       "//third_party/blink/renderer/modules/cobalt/crash_log",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_accessibility",
+      "//third_party/blink/renderer/modules/cobalt/h5vcc_experiments",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_metrics",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_storage",
       "//third_party/blink/renderer/modules/cobalt/h5vcc_system",
