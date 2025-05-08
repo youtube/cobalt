@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
+#include <malloc.h>
 #include <netdb.h>
 #include <sched.h>
 #include <stdlib.h>
