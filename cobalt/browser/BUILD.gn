@@ -40,6 +40,7 @@ source_set("browser") {
   }
 
   deps = [
+    ":cobalt_experiment_names",
     ":embed_polyfilled_javascript",
     ":global_features",
     ":metrics",
@@ -47,6 +48,8 @@ source_set("browser") {
     "//cobalt/browser/crash_annotator/public/mojom",
     "//cobalt/browser/h5vcc_accessibility",
     "//cobalt/browser/h5vcc_accessibility/public/mojom",
+    "//cobalt/browser/h5vcc_experiments",
+    "//cobalt/browser/h5vcc_experiments/public/mojom",
     "//cobalt/browser/h5vcc_metrics",
     "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime",
@@ -123,15 +126,12 @@ source_set("global_features") {
     "global_features.h",
   ]
   deps = [
+    ":cobalt_experiment_names",
     ":metrics",
+    "//base",
     "//components/metrics",
     "//components/metrics_services_manager",
     "//components/prefs",
-
-    # TODO(cobalt, b/390021478): This is for use of content::SHELL_DIR_USER_DATA
-    # to store experiment config. To remove this, likely switch that path to
-    # base::DIR_CACHE instead.
-    "//content/shell:content_shell_lib",
   ]
 }
 
@@ -161,4 +161,8 @@ source_set("metrics") {
     "//third_party/metrics_proto",
     "//url",
   ]
+}
+
+source_set("cobalt_experiment_names") {
+  sources = [ "cobalt_experiment_names.h" ]
 }

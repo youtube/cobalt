@@ -14,8 +14,10 @@
 
 #include "cobalt/browser/global_features.h"
 
+#include "base/feature_list.h"
 #include "base/no_destructor.h"
 #include "base/path_service.h"
+#include "cobalt/browser/cobalt_experiment_names.h"
 #include "cobalt/browser/metrics/cobalt_metrics_services_manager_client.h"
 #include "components/metrics/metrics_pref_names.h"
 #include "components/metrics/metrics_service.h"
@@ -23,13 +25,8 @@
 #include "components/prefs/json_pref_store.h"
 #include "components/prefs/pref_service.h"
 #include "components/prefs/pref_service_factory.h"
-#include "content/shell/browser/shell_paths.h"
 
 namespace cobalt {
-
-const char kExperimentConfigFeature[] = "features";
-const char kExperimentConfigFeatureParams[] = "feature_params";
-const char kExperimentConfigExpIds[] = "exp_ids";
 
 constexpr base::FilePath::CharType kExperimentConfigFilename[] =
     FILE_PATH_LITERAL("Experiment Config");
@@ -40,6 +37,7 @@ constexpr base::FilePath::CharType kMetricsConfigFilename[] =
 GlobalFeatures::GlobalFeatures() {
   CreateExperimentConfig();
   CreateMetricsServices();
+  InitializeActiveExperimentIds();
 }
 
 // static
@@ -77,6 +75,11 @@ PrefService* GlobalFeatures::metrics_local_state() {
   return metrics_local_state_.get();
 }
 
+void GlobalFeatures::set_accessor(
+    std::unique_ptr<base::FeatureList::Accessor> accessor) {
+  accessor_ = std::move(accessor);
+}
+
 void GlobalFeatures::CreateExperimentConfig() {
   DCHECK(!experiment_config_);
   auto pref_registry = base::MakeRefCounted<PrefRegistrySimple>();
@@ -84,7 +87,7 @@ void GlobalFeatures::CreateExperimentConfig() {
   RegisterPrefs(pref_registry.get());
 
   base::FilePath path;
-  CHECK(base::PathService::Get(content::SHELL_DIR_USER_DATA, &path));
+  CHECK(base::PathService::Get(base::DIR_CACHE, &path));
   path = path.Append(kExperimentConfigFilename);
 
   PrefServiceFactory pref_service_factory;
@@ -118,7 +121,7 @@ void GlobalFeatures::CreateMetricsLocalState() {
   pref_registry->RegisterBooleanPref(metrics::prefs::kMetricsReportingEnabled,
                                      false);
   base::FilePath path;
-  CHECK(base::PathService::Get(content::SHELL_DIR_USER_DATA, &path));
+  CHECK(base::PathService::Get(base::DIR_CACHE, &path));
   path = path.Append(kMetricsConfigFilename);
 
   PrefServiceFactory pref_service_factory;
@@ -130,9 +133,20 @@ void GlobalFeatures::CreateMetricsLocalState() {
   metrics_local_state_ = pref_service_factory.Create(std::move(pref_registry));
 }
 
+void GlobalFeatures::InitializeActiveExperimentIds() {
+  DCHECK(experiment_config_);
+  const auto& experiments =
+      experiment_config_->GetList(kExperimentConfigExpIds);
+  active_experiment_ids_.reserve(experiments.size());
+  for (const auto& experiment_id : experiments) {
+    active_experiment_ids_.push_back(experiment_id.GetInt());
+  }
+}
+
 // static
 void GlobalFeatures::RegisterPrefs(PrefRegistrySimple* registry) {
-  registry->RegisterDictionaryPref(kExperimentConfigFeature);
+  registry->RegisterDictionaryPref(kExperimentConfig);
+  registry->RegisterDictionaryPref(kExperimentConfigFeatures);
   registry->RegisterDictionaryPref(kExperimentConfigFeatureParams);
   registry->RegisterListPref(kExperimentConfigExpIds);
   metrics::MetricsService::RegisterPrefs(registry);
