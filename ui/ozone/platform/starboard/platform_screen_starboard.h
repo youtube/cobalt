@@ -56,9 +56,6 @@ class PlatformScreenStarboard : public PlatformScreen,
 
   void ProcessWindowSizeChangedEvent(int width, int height) override;
 
- protected:
-  gfx::Rect GetWindowSizeFromCommandLine() const;
-
  private:
   display::DisplayList display_list_;
 };
