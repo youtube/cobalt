@@ -54,6 +54,9 @@ AudioDecoder* AudioDecoder::Create(const AudioStreamInfo& audio_stream_info) {
     case 601:
       audio_decoder = AudioDecoderImpl<601>::Create(audio_stream_info);
       break;
+    case 611:
+      audio_decoder = AudioDecoderImpl<611>::Create(audio_stream_info);
+      break;
     default:
       SB_LOG(WARNING) << "Unsupported FFMPEG specialization "
                       << ffmpeg->specialization_version();

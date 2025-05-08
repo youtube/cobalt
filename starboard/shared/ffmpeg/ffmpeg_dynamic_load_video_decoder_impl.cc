@@ -36,7 +36,6 @@ VideoDecoder* VideoDecoder::Create(
   if (!ffmpeg || !ffmpeg->is_valid()) {
     return NULL;
   }
-
   VideoDecoder* video_decoder = NULL;
   switch (ffmpeg->specialization_version()) {
     case 540:
@@ -62,6 +61,10 @@ VideoDecoder* VideoDecoder::Create(
       break;
     case 601:
       video_decoder = VideoDecoderImpl<601>::Create(
+          video_codec, output_mode, decode_target_graphics_context_provider);
+      break;
+    case 611:
+      video_decoder = VideoDecoderImpl<611>::Create(
           video_codec, output_mode, decode_target_graphics_context_provider);
       break;
     default:
