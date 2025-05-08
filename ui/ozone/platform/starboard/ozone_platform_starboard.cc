@@ -105,7 +105,10 @@ class OzonePlatformStarboard : public OzonePlatform {
   // `screen` that was returned from CreateScreen. They are separated to avoid
   // observer recursion into display::Screen from inside CreateScreen.
   void InitScreen(PlatformScreen* screen) override {
-    static_cast<PlatformScreenStarboard*>(screen)->InitScreen(platform_window_);
+    auto platform_screen = static_cast<PlatformScreenStarboard*>(screen);
+    if (platform_window_) {
+      platform_screen->InitScreen(platform_window_->GetBoundsInPixels());
+    }
   }
 
   std::unique_ptr<InputMethod> CreateInputMethod(

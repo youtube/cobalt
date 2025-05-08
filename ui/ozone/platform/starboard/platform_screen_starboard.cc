@@ -15,33 +15,18 @@
 #include "ui/ozone/platform/starboard/platform_screen_starboard.h"
 
 #include "base/check.h"
-#include "base/command_line.h"
 #include "base/logging.h"
-#include "base/strings/string_number_conversions.h"
-#include "base/strings/string_piece.h"
-#include "base/strings/string_split.h"
 #include "ui/display/display.h"
-#include "ui/display/display_switches.h"
 #include "ui/events/platform/platform_event_source.h"
 #include "ui/ozone/platform/starboard/platform_event_observer_starboard.h"
 #include "ui/ozone/platform/starboard/platform_event_source_starboard.h"
-#include "ui/ozone/platform/starboard/platform_window_starboard.h"
-#include "ui/ozone/public/ozone_switches.h"
-#include "ui/platform_window/platform_window.h"
 
 namespace ui {
 
 namespace {
+
 constexpr int64_t kFirstDisplayId = 1;
 constexpr float kDefaultDeviceScaleFactor = 1.f;
-
-namespace switches {
-// NOTE: This is a redefinition of the same shell switch declared in:
-//  content/shell/common/shell_switches.h
-// but due to lack of visibility into the targets that define it, we redefine it
-// here in order to query the command line for its initial configuration.
-const char kContentShellHostWindowSize[] = "content-shell-host-window-size";
-}  // namespace switches
 
 }  // namespace
 
@@ -56,12 +41,7 @@ PlatformScreenStarboard::PlatformScreenStarboard() {
 
 PlatformScreenStarboard::~PlatformScreenStarboard() = default;
 
-void PlatformScreenStarboard::InitScreen(
-    base::WeakPtr<PlatformWindowStarboard> platform_window) {
-  DCHECK(platform_window);
-
-  gfx::Rect window_bounds = platform_window->GetBoundsInPixels();
-
+void PlatformScreenStarboard::InitScreen(const gfx::Rect& window_bounds) {
   // TODO(b/416313825): Derive this value without the commandline/hardcoding.
   //
   // One possible source is through the PlatformWindow handle via:
