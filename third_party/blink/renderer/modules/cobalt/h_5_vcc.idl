@@ -21,6 +21,7 @@
 interface H5vcc {
     readonly attribute CrashLog crashLog;
     readonly attribute H5vccAccessibility accessibility;
+    readonly attribute H5vccExperiments experiments;
     readonly attribute H5vccMetrics metrics;
     readonly attribute H5vccStorage storage;
     readonly attribute H5vccSystem system;
