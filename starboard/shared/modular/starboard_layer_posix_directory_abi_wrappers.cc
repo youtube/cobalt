@@ -17,6 +17,8 @@
 #include <algorithm>
 #include "starboard/common/log.h"
 
+static thread_local struct musl_dirent g_musl_results;
+
 int __abi_wrap_readdir_r(DIR* dirp,
                          struct musl_dirent* musl_entry,
                          struct musl_dirent** musl_result) {
@@ -54,7 +56,7 @@ struct musl_dirent* __abi_wrap_readdir(DIR* dirp) {
   // readdir segfaults if any of those parameters are missing.
   SB_CHECK(dirp);
 
-  struct musl_dirent result_musl;
+  memset(&g_musl_results, 0, sizeof(g_musl_results));
   struct dirent* result_platform = {0};  // The type from platform toolchain.
   result_platform = readdir(dirp);
   if (!result_platform) {
@@ -62,18 +64,18 @@ struct musl_dirent* __abi_wrap_readdir(DIR* dirp) {
   }
 
 #if !SB_HAS_QUIRK(INCOMPLETE_DIRENT_STRUCTURE)
-  result_musl.d_ino = result_platform->d_ino;
-  result_musl.d_off = result_platform->d_off;
+  g_musl_results.d_ino = result_platform->d_ino;
+  g_musl_results.d_off = result_platform->d_off;
 #endif
-  result_musl.d_reclen = result_platform->d_reclen;
-  result_musl.d_type = result_platform->d_type;
+  g_musl_results.d_reclen = result_platform->d_reclen;
+  g_musl_results.d_type = result_platform->d_type;
 
-  memset(result_musl.d_name, 0, sizeof(result_musl.d_name));
+  memset(g_musl_results.d_name, 0, sizeof(g_musl_results.d_name));
   constexpr auto minlen =
-      std::min(sizeof(result_musl.d_name), sizeof(result_platform->d_name));
-  memcpy(result_musl.d_name, result_platform->d_name, minlen);
+      std::min(sizeof(g_musl_results.d_name), sizeof(result_platform->d_name));
+  memcpy(g_musl_results.d_name, result_platform->d_name, minlen);
   if (result_platform == nullptr) {
     return nullptr;
   }
-  return &result_musl;
+  return &g_musl_results;
 }
