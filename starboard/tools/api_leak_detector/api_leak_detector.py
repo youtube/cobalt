@@ -112,6 +112,7 @@ _ALLOWED_SB_GE_16_POSIX_SYMBOLS = [
     'listen',
     'lseek',
     'malloc',
+    'madvise',
     'posix_memalign',
     'recv',
     'recvfrom',
