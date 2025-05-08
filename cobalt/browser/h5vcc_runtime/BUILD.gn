@@ -38,5 +38,6 @@ source_set("deep_link_manager") {
     "//base",
     "//cobalt/browser/h5vcc_runtime/public/mojom",
     "//mojo/public/cpp/bindings",
+    "//ui/gfx/codec",
   ]
 }

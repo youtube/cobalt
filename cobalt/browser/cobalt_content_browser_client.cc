@@ -255,6 +255,9 @@ void CobaltContentBrowserClient::ConfigureNetworkContextParams(
 void CobaltContentBrowserClient::OnWebContentsCreated(
     content::WebContents* web_contents) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
+  if (web_contents_observer_) {
+    return;
+  }
   web_contents_observer_.reset(new CobaltWebContentsObserver(web_contents));
   web_contents_delegate_.reset(new CobaltWebContentsDelegate());
   content::Shell::SetShellCreatedCallback(base::BindOnce(

@@ -26,6 +26,7 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_receiver.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_wrapper_mode.h"
+#include "third_party/blink/renderer/platform/weborigin/kurl.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -52,6 +53,11 @@ class MODULES_EXPORT H5vccRuntime final
   // Web-exposed interface:
   String initialDeepLink();
   DEFINE_ATTRIBUTE_EVENT_LISTENER(deeplink, kDeeplink)
+  ScriptPromise renderToImage(ScriptState*,
+                              const String&,
+                              uint32_t,
+                              uint32_t,
+                              ExceptionState&);
 
   // EventTarget interface:
   void AddedEventListener(const AtomicString& event_type,
@@ -78,6 +84,9 @@ class MODULES_EXPORT H5vccRuntime final
 
   void MaybeRegisterMojoListener();
   void MaybeUnregisterMojoListener();
+
+  void OnRenderToImageComplete(ScriptPromiseResolver* resolver,
+                               const WTF::Vector<uint8_t>& bytes);
 
   HeapMojoRemote<h5vcc_runtime::mojom::blink::H5vccRuntime>
       remote_h5vcc_runtime_;

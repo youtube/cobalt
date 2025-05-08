@@ -17,8 +17,10 @@
 
 #include <string>
 
+#include "base/task/single_thread_task_runner.h"
 #include "cobalt/browser/h5vcc_runtime/public/mojom/h5vcc_runtime.mojom.h"
 #include "content/public/browser/document_service.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
 
@@ -27,6 +29,40 @@ class RenderFrameHost;
 }  // namespace content
 
 namespace h5vcc_runtime {
+
+class WebContentsRenderToImageObserver : public content::WebContentsObserver {
+ public:
+  WebContentsRenderToImageObserver(
+      content::WebContents* web_contents,
+      scoped_refptr<base::SingleThreadTaskRunner> response_task_runner,
+      mojom::H5vccRuntime::RenderToImageCallback callback)
+      : content::WebContentsObserver(web_contents),
+        response_task_runner_(response_task_runner),
+        callback_(std::move(callback)) {}
+
+  ~WebContentsRenderToImageObserver() override {}
+
+  void DOMContentLoaded(content::RenderFrameHost* render_frame_host) override;
+
+  // This method is invoked when the load is done, i.e. the spinner of the tab
+  // will stop spinning, and the onload event was dispatched.
+  //
+  // If the WebContents is displaying replacement content, e.g. network error
+  // pages, DidFinishLoad is invoked for frames that were not sending
+  // navigational events before. It is safe to ignore these events.
+  void DidFinishLoad(content::RenderFrameHost* render_frame_host,
+                     const GURL& validated_url) override;
+
+  // This method is like DidFinishLoad, but when the load failed or was
+  // cancelled, e.g. window.stop() is invoked.
+  void DidFailLoad(content::RenderFrameHost* render_frame_host,
+                   const GURL& validated_url,
+                   int error_code) override;
+
+ private:
+  scoped_refptr<base::SingleThreadTaskRunner> response_task_runner_;
+  mojom::H5vccRuntime::RenderToImageCallback callback_;
+};
 
 // Implements the H5vccRuntime Mojo interface and extends
 // DocumentService so that an object's lifetime is scoped to the corresponding
@@ -44,12 +80,21 @@ class H5vccRuntimeImpl : public content::DocumentService<mojom::H5vccRuntime> {
   void GetAndClearInitialDeepLinkSync(
       GetAndClearInitialDeepLinkSyncCallback) override;
   void GetAndClearInitialDeepLink(GetAndClearInitialDeepLinkCallback) override;
+  void RenderToImage(const std::string& url,
+                     uint32_t width,
+                     uint32_t height,
+                     RenderToImageCallback callback) override;
 
   void AddListener(mojo::PendingRemote<mojom::DeepLinkListener> listener);
 
  private:
   H5vccRuntimeImpl(content::RenderFrameHost& render_frame_host,
                    mojo::PendingReceiver<mojom::H5vccRuntime> receiver);
+
+  std::vector<std::unique_ptr<content::WebContents>>
+      web_contents_rendering_to_images_;
+  std::vector<std::unique_ptr<WebContentsRenderToImageObserver>>
+      web_contents_rendering_to_images_observers_;
 
   THREAD_CHECKER(thread_checker_);
 };

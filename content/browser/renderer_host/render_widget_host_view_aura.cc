@@ -276,7 +276,7 @@ RenderWidgetHostViewAura::RenderWidgetHostViewAura(
   // FrameSinkId is valid. RenderWidgetHostImpl::GetFrameSinkId() always returns
   // a valid FrameSinkId.
   DCHECK(frame_sink_id_.is_valid());
-
+  LOG(WARNING) << "#######3\n RenderWidgetHostViewAura";
   CreateDelegatedFrameHostClient();
 
   host()->SetView(this);
