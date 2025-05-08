@@ -17,8 +17,6 @@
 #include <algorithm>
 #include "starboard/common/log.h"
 
-static thread_local struct musl_dirent g_musl_results;
-
 int __abi_wrap_readdir_r(DIR* dirp,
                          struct musl_dirent* musl_entry,
                          struct musl_dirent** musl_result) {
@@ -56,7 +54,9 @@ struct musl_dirent* __abi_wrap_readdir(DIR* dirp) {
   // readdir segfaults if any of those parameters are missing.
   SB_CHECK(dirp);
 
+  static thread_local struct musl_dirent g_musl_results;
   memset(&g_musl_results, 0, sizeof(g_musl_results));
+
   struct dirent* result_platform = {0};  // The type from platform toolchain.
   result_platform = readdir(dirp);
   if (!result_platform) {
@@ -74,8 +74,6 @@ struct musl_dirent* __abi_wrap_readdir(DIR* dirp) {
   constexpr auto minlen =
       std::min(sizeof(g_musl_results.d_name), sizeof(result_platform->d_name));
   memcpy(g_musl_results.d_name, result_platform->d_name, minlen);
-  if (result_platform == nullptr) {
-    return nullptr;
-  }
+
   return &g_musl_results;
 }
