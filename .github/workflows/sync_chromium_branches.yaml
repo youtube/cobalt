@@ -1,0 +1,47 @@
+name: Sync Chromium branches
+on:
+  workflow_dispatch:
+  # Runs everyday at midnight UTC.
+  schedule:
+    - cron:  '0 0 * * *'
+permissions: read-all
+jobs:
+  sync:
+    runs-on: [self-hosted, chrobalt-linux-runner]
+    strategy:
+      fail-fast: false
+      matrix:
+        # Found here: https://chromiumdash.appspot.com/branches
+        branch: [
+          {milestone: m114, branch_num: 5735},
+          {milestone: m120, branch_num: 6099},
+          {milestone: m126, branch_num: 6478},
+        ]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chromium/${{ matrix.branch.milestone }}
+      - name: Setup Git
+        run: |
+          git config --global user.name "GitHub Release Automation"
+          git config --global user.email "github@google.com"
+      - name: Pull ${{ matrix.branch.milestone }} from upstream and apply diffs
+        id: diff_step
+        run: |
+          # Add Chromium remote and pull the upstream branch.
+          git remote add upstream https://chromium.googlesource.com/chromium/src
+          git fetch --depth=1 upstream refs/branch-heads/${{ matrix.branch.branch_num }}:refs/remotes/branch/${{ matrix.branch.branch_num }}
+          git diff HEAD branch/${{ matrix.branch.branch_num }} --binary > chromium_diff.patch
+      - name: Apply and push diffs
+        permissions:
+          contents: write
+        run: |
+          if [ test -s chromium_diff.patch ]; then
+            echo "Applying diff..."
+            git apply --index chromium_diff.patch
+            # Reset local branch to upstream and push.
+            git commit -m "Rebase refresh on $(date +'%Y-%m-%d') for ${{ matrix.branch.milestone }}."
+            git push --force origin chromium/${{ matrix.branch.milestone }}
+          else
+            echo "No diff to apply."
+          fi
