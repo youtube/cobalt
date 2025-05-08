@@ -105,6 +105,7 @@ test("nplb") {
     "player_get_preferred_output_mode_test.cc",
     "player_test_util.cc",
     "player_test_util.h",
+    "posix_compliance/madvise_test.cc",
     "posix_compliance/posix_arpa_inet_test.cc",
     "posix_compliance/posix_condition_variable_broadcast_test.cc",
     "posix_compliance/posix_condition_variable_create_test.cc",

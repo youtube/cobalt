@@ -216,6 +216,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(getsockname);
   REGISTER_SYMBOL(getsockopt);
   REGISTER_SYMBOL(listen);
+  REGISTER_SYMBOL(madvise);
   REGISTER_SYMBOL(malloc);
   REGISTER_SYMBOL(mkdir);
   REGISTER_SYMBOL(mkdtemp);
