@@ -57,7 +57,7 @@ struct musl_dirent* __abi_wrap_readdir(DIR* dirp) {
   static thread_local struct musl_dirent g_musl_results;
   memset(&g_musl_results, 0, sizeof(g_musl_results));
 
-  struct dirent* result_platform = {0};  // The type from platform toolchain.
+  struct dirent* result_platform = nullptr;  // Type from platform toolchain.
   result_platform = readdir(dirp);
   if (!result_platform) {
     return nullptr;
