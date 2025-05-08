@@ -16,6 +16,7 @@
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_IMPL_H_
 
 #include <pthread.h>
+
 #include <limits>
 #include <queue>
 
