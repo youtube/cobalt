@@ -119,6 +119,7 @@ test("cobalt_unittests") {
     "//cobalt/browser/client_hint_headers/cobalt_trusted_url_loader_header_client_test.cc",
     "//cobalt/browser/h5vcc_runtime/deep_link_manager_unittest.cc",
     "//cobalt/browser/metrics/cobalt_enabled_state_provider_test.cc",
+    "//cobalt/browser/metrics/cobalt_metrics_logs_uploader_test.cc",
     "//cobalt/browser/metrics/cobalt_metrics_service_client_test.cc",
     "//cobalt/cobalt_switch_defaults.cc",
     "//cobalt/cobalt_switch_defaults.h",
@@ -126,11 +127,14 @@ test("cobalt_unittests") {
     "//cobalt/user_agent/user_agent_platform_info_test.cc",
   ]
 
+  public_deps = [ "//third_party/zlib/google:compression_utils" ]
+
   deps = [
     "//base/test:run_all_unittests",
     "//base/test:test_support",
     "//cobalt/browser:metrics",
     "//cobalt/browser/client_hint_headers",
+    "//cobalt/browser/h5vcc_metrics/public/mojom",
     "//cobalt/browser/h5vcc_runtime:deep_link_manager",
     "//cobalt/browser/migrate_storage_record:unittest",
     "//cobalt/user_agent",
@@ -139,6 +143,7 @@ test("cobalt_unittests") {
     "//components/prefs:test_support",
     "//testing/gmock",
     "//testing/gtest",
+    "//third_party/metrics_proto",
   ]
 
   # All configs that provide definitions for switch constants.
