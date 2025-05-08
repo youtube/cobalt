@@ -58,7 +58,7 @@ void CobaltMetricsLogUploader::UploadLog(
   }
 
   // For now, we only support UMA.
-  if (service_type_ != ::metrics::MetricsLogUploader::UMA) {
+  if (service_type_ != ::metrics::MetricsLogUploader::MetricServiceType::UMA) {
     return;
   }
 
