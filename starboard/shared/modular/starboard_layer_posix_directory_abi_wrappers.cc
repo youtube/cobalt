@@ -49,3 +49,31 @@ int __abi_wrap_readdir_r(DIR* dirp,
   }
   return 0;
 }
+
+struct musl_dirent* __abi_wrap_readdir(DIR* dirp) {
+  // readdir segfaults if any of those parameters are missing.
+  SB_CHECK(dirp);
+
+  static thread_local struct musl_dirent g_musl_results;
+  memset(&g_musl_results, 0, sizeof(g_musl_results));
+
+  struct dirent* result_platform = nullptr;  // Type from platform toolchain.
+  result_platform = readdir(dirp);
+  if (!result_platform) {
+    return nullptr;
+  }
+
+#if !SB_HAS_QUIRK(INCOMPLETE_DIRENT_STRUCTURE)
+  g_musl_results.d_ino = result_platform->d_ino;
+  g_musl_results.d_off = result_platform->d_off;
+#endif
+  g_musl_results.d_reclen = result_platform->d_reclen;
+  g_musl_results.d_type = result_platform->d_type;
+
+  memset(g_musl_results.d_name, 0, sizeof(g_musl_results.d_name));
+  constexpr auto minlen =
+      std::min(sizeof(g_musl_results.d_name), sizeof(result_platform->d_name));
+  memcpy(g_musl_results.d_name, result_platform->d_name, minlen);
+
+  return &g_musl_results;
+}

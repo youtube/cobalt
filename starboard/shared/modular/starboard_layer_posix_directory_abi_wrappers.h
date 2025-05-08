@@ -37,6 +37,8 @@ SB_EXPORT int __abi_wrap_readdir_r(DIR* dirp,
                                    struct musl_dirent* entry,
                                    struct musl_dirent** result);
 
+SB_EXPORT struct musl_dirent* __abi_wrap_readdir(DIR* dirp);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
