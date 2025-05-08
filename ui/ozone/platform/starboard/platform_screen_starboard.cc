@@ -14,6 +14,7 @@
 
 #include "ui/ozone/platform/starboard/platform_screen_starboard.h"
 
+#include "base/check.h"
 #include "base/command_line.h"
 #include "base/logging.h"
 #include "base/strings/string_number_conversions.h"
@@ -32,6 +33,7 @@ namespace ui {
 
 namespace {
 constexpr int64_t kFirstDisplayId = 1;
+constexpr float kDefaultDeviceScaleFactor = 1.f;
 
 namespace switches {
 // NOTE: This is a redefinition of the same shell switch declared in:
@@ -56,18 +58,15 @@ PlatformScreenStarboard::~PlatformScreenStarboard() = default;
 
 void PlatformScreenStarboard::InitScreen(
     base::WeakPtr<PlatformWindowStarboard> platform_window) {
-  gfx::Rect window_bounds;
-  if (platform_window) {
-    window_bounds = platform_window->GetBoundsInPixels();
-  } else {
-    // Fallback option.
-    window_bounds = GetWindowSizeFromCommandLine();
-  }
+  DCHECK(platform_window);
 
-  // This is a hack to receive the scale factor from the command line args.
-  //
-  // Ideally we should be able to fetch it from a more authoritative source, but
-  // it is not clear who the is the source of truth.
+  gfx::Rect window_bounds = platform_window->GetBoundsInPixels();
+
+  // We expect that the command-line specified window size should always be
+  // equal to the actual initialized size.
+  DCHECK(window_bounds == GetWindowSizeFromCommandLine());
+
+  // TODO(b/416313825): Derive this value without the commandline/hardcoding.
   //
   // One possible source is through the PlatformWindow handle via:
   //  -> PlatformWindowDelegate
@@ -76,9 +75,11 @@ void PlatformScreenStarboard::InitScreen(
   //
   // However this is not accessible since WebContents and RenderWidgetHostView
   // interfaces cannot be used in //ui/ozone/platform.
-  float scale_factor = GetDeviceScaleFactorFromCommandLine();
+  float scale_factor = kDefaultDeviceScaleFactor;
 
   display::Display display(kFirstDisplayId);
+  // We use the window bounds as a proxy for the display bounds because Chrobalt
+  // is a fullscreen application and we expect these to be identical.
   display.SetScaleAndBounds(scale_factor, window_bounds);
   display_list_.AddDisplay(display, display::DisplayList::Type::PRIMARY);
 }
@@ -153,18 +154,6 @@ gfx::Rect PlatformScreenStarboard::GetWindowSizeFromCommandLine() const {
     bounds.set_size(gfx::Size(width, height));
   }
   return bounds;
-}
-
-float PlatformScreenStarboard::GetDeviceScaleFactorFromCommandLine() const {
-  const base::CommandLine& command_line =
-      *base::CommandLine::ForCurrentProcess();
-  double scale_factor = 1.f;
-  if (command_line.HasSwitch(::switches::kForceDeviceScaleFactor)) {
-    std::string device_scale_factor_str =
-        command_line.GetSwitchValueASCII(::switches::kForceDeviceScaleFactor);
-    base::StringToDouble(device_scale_factor_str, &scale_factor);
-  }
-  return static_cast<float>(scale_factor);
 }
 
 }  // namespace ui

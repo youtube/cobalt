@@ -58,7 +58,6 @@ class PlatformScreenStarboard : public PlatformScreen,
 
  protected:
   gfx::Rect GetWindowSizeFromCommandLine() const;
-  float GetDeviceScaleFactorFromCommandLine() const;
 
  private:
   display::DisplayList display_list_;
