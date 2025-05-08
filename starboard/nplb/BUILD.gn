@@ -106,6 +106,7 @@ test("nplb") {
     "player_test_util.cc",
     "player_test_util.h",
     "posix_compliance/madvise_test.cc",
+    "posix_compliance/malloc_usable_size_test.cc",
     "posix_compliance/posix_arpa_inet_test.cc",
     "posix_compliance/posix_condition_variable_broadcast_test.cc",
     "posix_compliance/posix_condition_variable_create_test.cc",

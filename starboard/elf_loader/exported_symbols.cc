@@ -18,6 +18,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <ifaddrs.h>
+#include <malloc.h>
 #include <netdb.h>
 #include <sched.h>
 #include <stdlib.h>
@@ -218,6 +219,7 @@ ExportedSymbols::ExportedSymbols() {
   REGISTER_SYMBOL(listen);
   REGISTER_SYMBOL(madvise);
   REGISTER_SYMBOL(malloc);
+  REGISTER_SYMBOL(malloc_usable_size);
   REGISTER_SYMBOL(mkdir);
   REGISTER_SYMBOL(mkdtemp);
   REGISTER_SYMBOL(mkostemp);
