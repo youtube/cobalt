@@ -14,8 +14,6 @@
 
 #include "third_party/blink/renderer/modules/cobalt/h5vcc_experiments/h_5_vcc_experiments.h"
 
-#include <string>
-
 #include "base/values.h"
 #include "cobalt/browser/cobalt_experiment_names.h"
 #include "cobalt/browser/h5vcc_experiments/public/mojom/h5vcc_experiments.mojom-blink.h"
@@ -94,7 +92,6 @@ ScriptPromise H5vccExperiments::setExperimentState(
   experiment_config_dict.Set(cobalt::kExperimentConfigExpIds,
                              std::move(experiment_ids));
 
-  ongoing_requests_.insert(resolver);
   remote_h5vcc_experiments_->SetExperimentState(
       std::move(experiment_config_dict),
       WTF::BindOnce(&H5vccExperiments::OnSetExperimentState,
@@ -111,7 +108,6 @@ ScriptPromise H5vccExperiments::resetExperimentState(
 
   EnsureReceiverIsBound();
 
-  ongoing_requests_.insert(resolver);
   remote_h5vcc_experiments_->ResetExperimentState(
       WTF::BindOnce(&H5vccExperiments::OnResetExperimentState,
                     WrapPersistent(this), WrapPersistent(resolver)));
@@ -152,22 +148,11 @@ const String& H5vccExperiments::getFeatureParam(
 }
 
 void H5vccExperiments::OnSetExperimentState(ScriptPromiseResolver* resolver) {
-  ongoing_requests_.erase(resolver);
   resolver->Resolve();
 }
 
 void H5vccExperiments::OnResetExperimentState(ScriptPromiseResolver* resolver) {
-  ongoing_requests_.erase(resolver);
   resolver->Resolve();
-}
-
-// TODO(b/416325838) - Add tests for connection errors.
-void H5vccExperiments::OnConnectionError() {
-  remote_h5vcc_experiments_.reset();
-  for (auto& resolver : ongoing_requests_) {
-    resolver->Reject("Mojo connection error.");
-  }
-  ongoing_requests_.clear();
 }
 
 void H5vccExperiments::EnsureReceiverIsBound() {
@@ -181,8 +166,6 @@ void H5vccExperiments::EnsureReceiverIsBound() {
       GetExecutionContext()->GetTaskRunner(TaskType::kMiscPlatformAPI);
   GetExecutionContext()->GetBrowserInterfaceBroker().GetInterface(
       remote_h5vcc_experiments_.BindNewPipeAndPassReceiver(task_runner));
-  remote_h5vcc_experiments_.set_disconnect_handler(WTF::BindOnce(
-      &H5vccExperiments::OnConnectionError, WrapWeakPersistent(this)));
 }
 
 void H5vccExperiments::Trace(Visitor* visitor) const {
