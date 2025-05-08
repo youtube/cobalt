@@ -62,10 +62,6 @@ void PlatformScreenStarboard::InitScreen(
 
   gfx::Rect window_bounds = platform_window->GetBoundsInPixels();
 
-  // We expect that the command-line specified window size should always be
-  // equal to the actual initialized size.
-  DCHECK(window_bounds == GetWindowSizeFromCommandLine());
-
   // TODO(b/416313825): Derive this value without the commandline/hardcoding.
   //
   // One possible source is through the PlatformWindow handle via:
@@ -134,26 +130,6 @@ void PlatformScreenStarboard::ProcessWindowSizeChangedEvent(int width,
   display::Display disp = GetPrimaryDisplay();
   disp.set_bounds(gfx::Rect(gfx::Size(width, height)));
   display_list_.AddOrUpdateDisplay(disp, display::DisplayList::Type::PRIMARY);
-}
-
-gfx::Rect PlatformScreenStarboard::GetWindowSizeFromCommandLine() const {
-  gfx::Rect bounds(gfx::Size(1, 1));
-  const base::CommandLine& command_line =
-      *base::CommandLine::ForCurrentProcess();
-  if (command_line.HasSwitch(switches::kContentShellHostWindowSize)) {
-    int width, height;
-    std::string screen_size =
-        command_line.GetSwitchValueASCII(switches::kContentShellHostWindowSize);
-    std::vector<base::StringPiece> width_and_height = base::SplitStringPiece(
-        screen_size, "x", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
-    if (!(width_and_height.size() == 2 &&
-          base::StringToInt(width_and_height[0], &width) &&
-          base::StringToInt(width_and_height[1], &height))) {
-      return bounds;
-    }
-    bounds.set_size(gfx::Size(width, height));
-  }
-  return bounds;
 }
 
 }  // namespace ui
