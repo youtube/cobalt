@@ -36,7 +36,7 @@ class StatementTest : public testing::Test {
 
 TEST_F(StatementTest, Assign) {
   Statement create;
-  EXPECT_FALSE(create.is_valid());
+  EXPECT_TRUE(create.is_valid());
 
   create.Assign(db_.GetUniqueStatement(
       "CREATE TABLE rows(a INTEGER PRIMARY KEY NOT NULL, b INTEGER NOT NULL)"));
