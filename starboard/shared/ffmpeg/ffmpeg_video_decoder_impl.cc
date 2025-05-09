@@ -246,8 +246,9 @@ void VideoDecoderImpl<FFMPEG>::DecoderThreadFunc() {
       packet.size = event.input_buffer->size();
       packet.pts = event.input_buffer->timestamp();
 #if LIBAVCODEC_VERSION_MAJOR >= 61
-// We depends on ffmpeg's default mechanism to calculate AVFrame.pts
-// from AVPacket.pts.
+// |reordered_opaque| is deprecated.
+// We use ffmpeg's default mechanism to calculate |AVFrame.pts| from
+// |AVPacket.pts|.
 #else
       codec_context_->reordered_opaque = packet.pts;
 #endif
@@ -537,8 +538,9 @@ int VideoDecoderImpl<FFMPEG>::AllocateBuffer(AVCodecContext* codec_context,
   frame->format = codec_context->pix_fmt;
 
 #if LIBAVCODEC_VERSION_MAJOR >= 61
-// We don't copy user data, since we use default mechanism to calculate
-// AVFrame.pts from AVPacket.pts
+// We don't copy user data using |reordered_opaque|. |reordered_opaque| is
+// deprecated and we don't need it, since we use ffmpeg's default mechanism to
+// calculate |AVFrame.pts| from |AVPacket.pts|.
 #else
   frame->reordered_opaque = codec_context->reordered_opaque;
 #endif
