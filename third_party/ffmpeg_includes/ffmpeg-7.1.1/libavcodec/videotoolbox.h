@@ -55,27 +55,29 @@
  * av_videotoolbox_alloc_context() and freed with av_free().
  */
 typedef struct AVVideotoolboxContext {
-    /**
-     * Videotoolbox decompression session object.
-     */
-    VTDecompressionSessionRef session;
+  /**
+   * Videotoolbox decompression session object.
+   */
+  VTDecompressionSessionRef session;
 
-    /**
-     * CVPixelBuffer Format Type that Videotoolbox will use for decoded frames.
-     * set by the caller. If this is set to 0, then no specific format is
-     * requested from the decoder, and its native format is output.
-     */
-    OSType cv_pix_fmt_type;
+  /**
+   * CVPixelBuffer Format Type that Videotoolbox will use for decoded frames.
+   * set by the caller. If this is set to 0, then no specific format is
+   * requested from the decoder, and its native format is output.
+   */
+  OSType cv_pix_fmt_type;
 
-    /**
-     * CoreMedia Format Description that Videotoolbox will use to create the decompression session.
-     */
-    CMVideoFormatDescriptionRef cm_fmt_desc;
+  /**
+   * CoreMedia Format Description that Videotoolbox will use to create the
+   * decompression session.
+   */
+  CMVideoFormatDescriptionRef cm_fmt_desc;
 
-    /**
-     * CoreMedia codec type that Videotoolbox will use to create the decompression session.
-     */
-    int cm_codec_type;
+  /**
+   * CoreMedia codec type that Videotoolbox will use to create the decompression
+   * session.
+   */
+  int cm_codec_type;
 } AVVideotoolboxContext;
 
 /**

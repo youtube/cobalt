@@ -42,11 +42,13 @@
  * Possible downmix types.
  */
 enum AVDownmixType {
-    AV_DOWNMIX_TYPE_UNKNOWN, /**< Not indicated. */
-    AV_DOWNMIX_TYPE_LORO,    /**< Lo/Ro 2-channel downmix (Stereo). */
-    AV_DOWNMIX_TYPE_LTRT,    /**< Lt/Rt 2-channel downmix, Dolby Surround compatible. */
-    AV_DOWNMIX_TYPE_DPLII,   /**< Lt/Rt 2-channel downmix, Dolby Pro Logic II compatible. */
-    AV_DOWNMIX_TYPE_NB       /**< Number of downmix types. Not part of ABI. */
+  AV_DOWNMIX_TYPE_UNKNOWN, /**< Not indicated. */
+  AV_DOWNMIX_TYPE_LORO,    /**< Lo/Ro 2-channel downmix (Stereo). */
+  AV_DOWNMIX_TYPE_LTRT, /**< Lt/Rt 2-channel downmix, Dolby Surround compatible.
+                         */
+  AV_DOWNMIX_TYPE_DPLII, /**< Lt/Rt 2-channel downmix, Dolby Pro Logic II
+                            compatible. */
+  AV_DOWNMIX_TYPE_NB     /**< Number of downmix types. Not part of ABI. */
 };
 
 /**
@@ -56,40 +58,40 @@ enum AVDownmixType {
  * bitstream (if present), or to a "sane" default otherwise.
  */
 typedef struct AVDownmixInfo {
-    /**
-     * Type of downmix preferred by the mastering engineer.
-     */
-    enum AVDownmixType preferred_downmix_type;
+  /**
+   * Type of downmix preferred by the mastering engineer.
+   */
+  enum AVDownmixType preferred_downmix_type;
 
-    /**
-     * Absolute scale factor representing the nominal level of the center
-     * channel during a regular downmix.
-     */
-    double center_mix_level;
+  /**
+   * Absolute scale factor representing the nominal level of the center
+   * channel during a regular downmix.
+   */
+  double center_mix_level;
 
-    /**
-     * Absolute scale factor representing the nominal level of the center
-     * channel during an Lt/Rt compatible downmix.
-     */
-    double center_mix_level_ltrt;
+  /**
+   * Absolute scale factor representing the nominal level of the center
+   * channel during an Lt/Rt compatible downmix.
+   */
+  double center_mix_level_ltrt;
 
-    /**
-     * Absolute scale factor representing the nominal level of the surround
-     * channels during a regular downmix.
-     */
-    double surround_mix_level;
+  /**
+   * Absolute scale factor representing the nominal level of the surround
+   * channels during a regular downmix.
+   */
+  double surround_mix_level;
 
-    /**
-     * Absolute scale factor representing the nominal level of the surround
-     * channels during an Lt/Rt compatible downmix.
-     */
-    double surround_mix_level_ltrt;
+  /**
+   * Absolute scale factor representing the nominal level of the surround
+   * channels during an Lt/Rt compatible downmix.
+   */
+  double surround_mix_level_ltrt;
 
-    /**
-     * Absolute scale factor representing the level at which the LFE data is
-     * mixed into L/R channels during downmixing.
-     */
-    double lfe_mix_level;
+  /**
+   * Absolute scale factor representing the level at which the LFE data is
+   * mixed into L/R channels during downmixing.
+   */
+  double lfe_mix_level;
 } AVDownmixInfo;
 
 /**
@@ -102,7 +104,7 @@ typedef struct AVDownmixInfo {
  * @return the AVDownmixInfo structure to be edited by the caller, or NULL if
  *         the structure cannot be allocated.
  */
-AVDownmixInfo *av_downmix_info_update_side_data(AVFrame *frame);
+AVDownmixInfo* av_downmix_info_update_side_data(AVFrame* frame);
 
 /**
  * @}

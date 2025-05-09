@@ -16,7 +16,6 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-
 #ifndef AVUTIL_HWCONTEXT_CUDA_H
 #define AVUTIL_HWCONTEXT_CUDA_H
 
@@ -40,9 +39,9 @@ typedef struct AVCUDADeviceContextInternal AVCUDADeviceContextInternal;
  * This struct is allocated as AVHWDeviceContext.hwctx
  */
 typedef struct AVCUDADeviceContext {
-    CUcontext cuda_ctx;
-    CUstream stream;
-    AVCUDADeviceContextInternal *internal;
+  CUcontext cuda_ctx;
+  CUstream stream;
+  AVCUDADeviceContextInternal* internal;
 } AVCUDADeviceContext;
 
 /**

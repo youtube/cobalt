@@ -46,24 +46,27 @@
  * @param[in] log_ctx parent logging context
  * @return >= 0 on success, a negative error code otherwise
  */
-int av_parse_ratio(AVRational *q, const char *str, int max,
-                   int log_offset, void *log_ctx);
+int av_parse_ratio(AVRational* q,
+                   const char* str,
+                   int max,
+                   int log_offset,
+                   void* log_ctx);
 
 #define av_parse_ratio_quiet(rate, str, max) \
-    av_parse_ratio(rate, str, max, AV_LOG_MAX_OFFSET, NULL)
+  av_parse_ratio(rate, str, max, AV_LOG_MAX_OFFSET, NULL)
 
 /**
  * Parse str and put in width_ptr and height_ptr the detected values.
  *
- * @param[in,out] width_ptr pointer to the variable which will contain the detected
- * width value
- * @param[in,out] height_ptr pointer to the variable which will contain the detected
- * height value
+ * @param[in,out] width_ptr pointer to the variable which will contain the
+ * detected width value
+ * @param[in,out] height_ptr pointer to the variable which will contain the
+ * detected height value
  * @param[in] str the string to parse: it has to be a string in the format
  * width x height or a valid video size abbreviation.
  * @return >= 0 on success, a negative error code otherwise
  */
-int av_parse_video_size(int *width_ptr, int *height_ptr, const char *str);
+int av_parse_video_size(int* width_ptr, int* height_ptr, const char* str);
 
 /**
  * Parse str and store the detected values in *rate.
@@ -74,7 +77,7 @@ int av_parse_video_size(int *width_ptr, int *height_ptr, const char *str);
  * rate_num / rate_den, a float number or a valid video rate abbreviation
  * @return >= 0 on success, a negative error code otherwise
  */
-int av_parse_video_rate(AVRational *rate, const char *str);
+int av_parse_video_rate(AVRational* rate, const char* str);
 
 /**
  * Put the RGBA values that correspond to color_string in rgba_color.
@@ -99,8 +102,10 @@ int av_parse_video_rate(AVRational *rate, const char *str);
  * @return >= 0 in case of success, a negative value in case of
  * failure (for example if color_string cannot be parsed).
  */
-int av_parse_color(uint8_t *rgba_color, const char *color_string, int slen,
-                   void *log_ctx);
+int av_parse_color(uint8_t* rgba_color,
+                   const char* color_string,
+                   int slen,
+                   void* log_ctx);
 
 /**
  * Get the name of a color from the internal table of hard-coded named
@@ -110,10 +115,11 @@ int av_parse_color(uint8_t *rgba_color, const char *color_string, int slen,
  * av_parse_color().
  *
  * @param color_idx index of the requested color, starting from 0
- * @param rgb      if not NULL, will point to a 3-elements array with the color value in RGB
+ * @param rgb      if not NULL, will point to a 3-elements array with the color
+ * value in RGB
  * @return the color name string or NULL if color_idx is not in the array
  */
-const char *av_get_known_color_name(int color_idx, const uint8_t **rgb);
+const char* av_get_known_color_name(int color_idx, const uint8_t** rgb);
 
 /**
  * Parse timestr and return in *time a corresponding number of
@@ -147,7 +153,7 @@ const char *av_get_known_color_name(int color_idx, const uint8_t **rgb);
  * @return >= 0 in case of success, a negative value corresponding to an
  * AVERROR code otherwise
  */
-int av_parse_time(int64_t *timeval, const char *timestr, int duration);
+int av_parse_time(int64_t* timeval, const char* timestr, int duration);
 
 /**
  * Attempt to find a specific tag in a URL.
@@ -155,7 +161,10 @@ int av_parse_time(int64_t *timeval, const char *timestr, int duration);
  * syntax: '?tag1=val1&tag2=val2...'. Little URL decoding is done.
  * Return 1 if found.
  */
-int av_find_info_tag(char *arg, int arg_size, const char *tag1, const char *info);
+int av_find_info_tag(char* arg,
+                     int arg_size,
+                     const char* tag1,
+                     const char* info);
 
 /**
  * Simplified version of strptime
@@ -187,11 +196,11 @@ int av_find_info_tag(char *arg, int arg_size, const char *tag1, const char *info
  *         is consumed the return value points to the null byte at the end of
  *         the string. On failure NULL is returned.
  */
-char *av_small_strptime(const char *p, const char *fmt, struct tm *dt);
+char* av_small_strptime(const char* p, const char* fmt, struct tm* dt);
 
 /**
  * Convert the decomposed UTC time in tm to a time_t value.
  */
-time_t av_timegm(struct tm *tm);
+time_t av_timegm(struct tm* tm);
 
 #endif /* AVUTIL_PARSEUTILS_H */

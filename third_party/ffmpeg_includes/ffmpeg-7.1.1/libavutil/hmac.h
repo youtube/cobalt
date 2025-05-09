@@ -30,12 +30,12 @@
  */
 
 enum AVHMACType {
-    AV_HMAC_MD5,
-    AV_HMAC_SHA1,
-    AV_HMAC_SHA224,
-    AV_HMAC_SHA256,
-    AV_HMAC_SHA384,
-    AV_HMAC_SHA512,
+  AV_HMAC_MD5,
+  AV_HMAC_SHA1,
+  AV_HMAC_SHA224,
+  AV_HMAC_SHA256,
+  AV_HMAC_SHA384,
+  AV_HMAC_SHA512,
 };
 
 typedef struct AVHMAC AVHMAC;
@@ -44,13 +44,13 @@ typedef struct AVHMAC AVHMAC;
  * Allocate an AVHMAC context.
  * @param type The hash function used for the HMAC.
  */
-AVHMAC *av_hmac_alloc(enum AVHMACType type);
+AVHMAC* av_hmac_alloc(enum AVHMACType type);
 
 /**
  * Free an AVHMAC context.
  * @param ctx The context to free, may be NULL
  */
-void av_hmac_free(AVHMAC *ctx);
+void av_hmac_free(AVHMAC* ctx);
 
 /**
  * Initialize an AVHMAC context with an authentication key.
@@ -58,7 +58,7 @@ void av_hmac_free(AVHMAC *ctx);
  * @param key    The authentication key
  * @param keylen The length of the key, in bytes
  */
-void av_hmac_init(AVHMAC *ctx, const uint8_t *key, unsigned int keylen);
+void av_hmac_init(AVHMAC* ctx, const uint8_t* key, unsigned int keylen);
 
 /**
  * Hash data with the HMAC.
@@ -66,7 +66,7 @@ void av_hmac_init(AVHMAC *ctx, const uint8_t *key, unsigned int keylen);
  * @param data The data to hash
  * @param len  The length of the data, in bytes
  */
-void av_hmac_update(AVHMAC *ctx, const uint8_t *data, unsigned int len);
+void av_hmac_update(AVHMAC* ctx, const uint8_t* data, unsigned int len);
 
 /**
  * Finish hashing and output the HMAC digest.
@@ -75,7 +75,7 @@ void av_hmac_update(AVHMAC *ctx, const uint8_t *data, unsigned int len);
  * @param outlen The length of the out buffer, in bytes
  * @return       The number of bytes written to out, or a negative error code.
  */
-int av_hmac_final(AVHMAC *ctx, uint8_t *out, unsigned int outlen);
+int av_hmac_final(AVHMAC* ctx, uint8_t* out, unsigned int outlen);
 
 /**
  * Hash an array of data with a key.
@@ -88,9 +88,13 @@ int av_hmac_final(AVHMAC *ctx, uint8_t *out, unsigned int outlen);
  * @param outlen The length of the out buffer, in bytes
  * @return       The number of bytes written to out, or a negative error code.
  */
-int av_hmac_calc(AVHMAC *ctx, const uint8_t *data, unsigned int len,
-                 const uint8_t *key, unsigned int keylen,
-                 uint8_t *out, unsigned int outlen);
+int av_hmac_calc(AVHMAC* ctx,
+                 const uint8_t* data,
+                 unsigned int len,
+                 const uint8_t* key,
+                 unsigned int keylen,
+                 uint8_t* out,
+                 unsigned int outlen);
 
 /**
  * @}

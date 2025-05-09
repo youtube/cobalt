@@ -33,55 +33,54 @@
  * This struct is allocated as AVHWDeviceContext.hwctx
  */
 typedef struct AVQSVDeviceContext {
-    mfxSession session;
-    /**
-     * The mfxLoader handle used for mfxSession creation
-     *
-     * This field is only available for oneVPL user. For non-oneVPL user, this
-     * field must be set to NULL.
-     *
-     * Filled by the user before calling av_hwdevice_ctx_init() and should be
-     * cast to mfxLoader handle. Deallocating the AVHWDeviceContext will always
-     * release this interface.
-     */
-    void *loader;
+  mfxSession session;
+  /**
+   * The mfxLoader handle used for mfxSession creation
+   *
+   * This field is only available for oneVPL user. For non-oneVPL user, this
+   * field must be set to NULL.
+   *
+   * Filled by the user before calling av_hwdevice_ctx_init() and should be
+   * cast to mfxLoader handle. Deallocating the AVHWDeviceContext will always
+   * release this interface.
+   */
+  void* loader;
 } AVQSVDeviceContext;
 
 /**
  * This struct is allocated as AVHWFramesContext.hwctx
  */
 typedef struct AVQSVFramesContext {
-    /**
-     * A pointer to a mfxFrameSurface1 struct
-     *
-     * It is available when nb_surfaces is non-zero.
-     */
-    mfxFrameSurface1 *surfaces;
+  /**
+   * A pointer to a mfxFrameSurface1 struct
+   *
+   * It is available when nb_surfaces is non-zero.
+   */
+  mfxFrameSurface1* surfaces;
 
-    /**
-     * Number of frames in the pool
-     *
-     * It is 0 for dynamic frame pools or AVHWFramesContext.initial_pool_size
-     * for fixed frame pools.
-     *
-     * Note only oneVPL GPU runtime 2.9+ can support dynamic frame pools
-     * on d3d11va or vaapi
-     */
-    int            nb_surfaces;
+  /**
+   * Number of frames in the pool
+   *
+   * It is 0 for dynamic frame pools or AVHWFramesContext.initial_pool_size
+   * for fixed frame pools.
+   *
+   * Note only oneVPL GPU runtime 2.9+ can support dynamic frame pools
+   * on d3d11va or vaapi
+   */
+  int nb_surfaces;
 
-    /**
-     * A combination of MFX_MEMTYPE_* describing the frame pool.
-     */
-    int frame_type;
+  /**
+   * A combination of MFX_MEMTYPE_* describing the frame pool.
+   */
+  int frame_type;
 
-    /**
-     * A pointer to a mfxFrameInfo struct
-     *
-     * It is available when nb_surfaces is 0, all buffers allocated from the
-     * pool have the same mfxFrameInfo.
-     */
-    mfxFrameInfo *info;
+  /**
+   * A pointer to a mfxFrameInfo struct
+   *
+   * It is available when nb_surfaces is 0, all buffers allocated from the
+   * pool have the same mfxFrameInfo.
+   */
+  mfxFrameInfo* info;
 } AVQSVFramesContext;
 
 #endif /* AVUTIL_HWCONTEXT_QSV_H */
-

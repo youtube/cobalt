@@ -30,14 +30,14 @@
  */
 
 typedef struct AVRC4 {
-    uint8_t state[256];
-    int x, y;
+  uint8_t state[256];
+  int x, y;
 } AVRC4;
 
 /**
  * Allocate an AVRC4 context.
  */
-AVRC4 *av_rc4_alloc(void);
+AVRC4* av_rc4_alloc(void);
 
 /**
  * @brief Initializes an AVRC4 context.
@@ -48,7 +48,7 @@ AVRC4 *av_rc4_alloc(void);
  * @param decrypt 0 for encryption, 1 for decryption, currently has no effect
  * @return zero on success, negative value otherwise
  */
-int av_rc4_init(struct AVRC4 *d, const uint8_t *key, int key_bits, int decrypt);
+int av_rc4_init(struct AVRC4* d, const uint8_t* key, int key_bits, int decrypt);
 
 /**
  * @brief Encrypts / decrypts using the RC4 algorithm.
@@ -60,7 +60,12 @@ int av_rc4_init(struct AVRC4 *d, const uint8_t *key, int key_bits, int decrypt);
  * @param iv not (yet) used for RC4, should be NULL
  * @param decrypt 0 for encryption, 1 for decryption, not (yet) used
  */
-void av_rc4_crypt(struct AVRC4 *d, uint8_t *dst, const uint8_t *src, int count, uint8_t *iv, int decrypt);
+void av_rc4_crypt(struct AVRC4* d,
+                  uint8_t* dst,
+                  const uint8_t* src,
+                  int count,
+                  uint8_t* iv,
+                  int decrypt);
 
 /**
  * @}

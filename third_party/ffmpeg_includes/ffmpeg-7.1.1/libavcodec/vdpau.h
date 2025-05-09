@@ -30,7 +30,6 @@
  * Public libavcodec VDPAU header.
  */
 
-
 /**
  * @defgroup lavc_codec_hwaccel_vdpau VDPAU Decoder and Renderer
  * @ingroup lavc_codec_hwaccel
@@ -51,17 +50,19 @@
 
 #include <vdpau/vdpau.h>
 
-#include "libavutil/avconfig.h"
 #include "libavutil/attributes.h"
+#include "libavutil/avconfig.h"
 
 #include "avcodec.h"
 
 struct AVCodecContext;
 struct AVFrame;
 
-typedef int (*AVVDPAU_Render2)(struct AVCodecContext *, struct AVFrame *,
-                               const VdpPictureInfo *, uint32_t,
-                               const VdpBitstreamBuffer *);
+typedef int (*AVVDPAU_Render2)(struct AVCodecContext*,
+                               struct AVFrame*,
+                               const VdpPictureInfo*,
+                               uint32_t,
+                               const VdpBitstreamBuffer*);
 
 /**
  * This structure is used to share data between the libavcodec library and
@@ -76,21 +77,21 @@ typedef int (*AVVDPAU_Render2)(struct AVCodecContext *, struct AVFrame *,
  * be used outside of libavcodec.
  */
 typedef struct AVVDPAUContext {
-    /**
-     * VDPAU decoder handle
-     *
-     * Set by user.
-     */
-    VdpDecoder decoder;
+  /**
+   * VDPAU decoder handle
+   *
+   * Set by user.
+   */
+  VdpDecoder decoder;
 
-    /**
-     * VDPAU decoder render callback
-     *
-     * Set by the user.
-     */
-    VdpDecoderRender *render;
+  /**
+   * VDPAU decoder render callback
+   *
+   * Set by the user.
+   */
+  VdpDecoderRender* render;
 
-    AVVDPAU_Render2 render2;
+  AVVDPAU_Render2 render2;
 } AVVDPAUContext;
 
 #if FF_API_VDPAU_ALLOC_GET_SET
@@ -100,19 +101,18 @@ typedef struct AVVDPAUContext {
  * Allows extending the struct without breaking API/ABI
  * @deprecated use av_vdpau_bind_context() instead
  */
-attribute_deprecated
-AVVDPAUContext *av_alloc_vdpaucontext(void);
+attribute_deprecated AVVDPAUContext* av_alloc_vdpaucontext(void);
 
 /**
  * @deprecated render2 is public and can be accessed directly
  */
-attribute_deprecated
-AVVDPAU_Render2 av_vdpau_hwaccel_get_render2(const AVVDPAUContext *);
+attribute_deprecated AVVDPAU_Render2
+av_vdpau_hwaccel_get_render2(const AVVDPAUContext*);
 /**
  * @deprecated render2 is public and can be accessed directly
  */
-attribute_deprecated
-void av_vdpau_hwaccel_set_render2(AVVDPAUContext *, AVVDPAU_Render2);
+attribute_deprecated void av_vdpau_hwaccel_set_render2(AVVDPAUContext*,
+                                                       AVVDPAU_Render2);
 #endif
 
 /**
@@ -132,8 +132,10 @@ void av_vdpau_hwaccel_set_render2(AVVDPAUContext *, AVVDPAU_Render2);
  *
  * @return 0 on success, an AVERROR code on failure.
  */
-int av_vdpau_bind_context(AVCodecContext *avctx, VdpDevice device,
-                          VdpGetProcAddress *get_proc_address, unsigned flags);
+int av_vdpau_bind_context(AVCodecContext* avctx,
+                          VdpDevice device,
+                          VdpGetProcAddress* get_proc_address,
+                          unsigned flags);
 
 /**
  * Gets the parameters to create an adequate VDPAU video surface for the codec
@@ -152,8 +154,10 @@ int av_vdpau_bind_context(AVCodecContext *avctx, VdpDevice device,
  *
  * @return 0 on success, a negative AVERROR code on failure.
  */
-int av_vdpau_get_surface_parameters(AVCodecContext *avctx, VdpChromaType *type,
-                                    uint32_t *width, uint32_t *height);
+int av_vdpau_get_surface_parameters(AVCodecContext* avctx,
+                                    VdpChromaType* type,
+                                    uint32_t* width,
+                                    uint32_t* height);
 
 #if FF_API_VDPAU_ALLOC_GET_SET
 /**
@@ -162,8 +166,7 @@ int av_vdpau_get_surface_parameters(AVCodecContext *avctx, VdpChromaType *type,
  * @return Newly-allocated AVVDPAUContext or NULL on failure.
  * @deprecated use av_vdpau_bind_context() instead
  */
-attribute_deprecated
-AVVDPAUContext *av_vdpau_alloc_context(void);
+attribute_deprecated AVVDPAUContext* av_vdpau_alloc_context(void);
 #endif
 
 /** @} */

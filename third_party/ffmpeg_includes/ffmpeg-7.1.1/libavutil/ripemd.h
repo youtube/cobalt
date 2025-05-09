@@ -48,7 +48,7 @@ struct AVRIPEMD;
 /**
  * Allocate an AVRIPEMD context.
  */
-struct AVRIPEMD *av_ripemd_alloc(void);
+struct AVRIPEMD* av_ripemd_alloc(void);
 
 /**
  * Initialize RIPEMD hashing.
@@ -66,7 +66,9 @@ int av_ripemd_init(struct AVRIPEMD* context, int bits);
  * @param data    input data to update hash with
  * @param len     input data length
  */
-void av_ripemd_update(struct AVRIPEMD* context, const uint8_t* data, size_t len);
+void av_ripemd_update(struct AVRIPEMD* context,
+                      const uint8_t* data,
+                      size_t len);
 
 /**
  * Finish hashing and output digest value.
@@ -74,7 +76,7 @@ void av_ripemd_update(struct AVRIPEMD* context, const uint8_t* data, size_t len)
  * @param context hash function context
  * @param digest  buffer where output digest value is stored
  */
-void av_ripemd_final(struct AVRIPEMD* context, uint8_t *digest);
+void av_ripemd_final(struct AVRIPEMD* context, uint8_t* digest);
 
 /**
  * @}

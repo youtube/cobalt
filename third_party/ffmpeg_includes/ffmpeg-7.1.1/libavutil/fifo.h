@@ -53,14 +53,14 @@ typedef struct AVFifo AVFifo;
  * @return 0 on success, a negative error code on failure (will be returned from
  *         the invoking av_fifo_*_cb() function)
  */
-typedef int AVFifoCB(void *opaque, void *buf, size_t *nb_elems);
+typedef int AVFifoCB(void* opaque, void* buf, size_t* nb_elems);
 
 /**
  * Automatically resize the FIFO on writes, so that the data fits. This
  * automatic resizing happens up to a limit that can be modified with
  * av_fifo_auto_grow_limit().
  */
-#define AV_FIFO_FLAG_AUTO_GROW      (1 << 0)
+#define AV_FIFO_FLAG_AUTO_GROW (1 << 0)
 
 /**
  * Allocate and initialize an AVFifo with a given element size.
@@ -72,25 +72,24 @@ typedef int AVFifoCB(void *opaque, void *buf, size_t *nb_elems);
  *
  * @return newly-allocated AVFifo on success, a negative error code on failure
  */
-AVFifo *av_fifo_alloc2(size_t elems, size_t elem_size,
-                       unsigned int flags);
+AVFifo* av_fifo_alloc2(size_t elems, size_t elem_size, unsigned int flags);
 
 /**
  * @return Element size for FIFO operations. This element size is set at
  *         FIFO allocation and remains constant during its lifetime
  */
-size_t av_fifo_elem_size(const AVFifo *f);
+size_t av_fifo_elem_size(const AVFifo* f);
 
 /**
  * Set the maximum size (in elements) to which the FIFO can be resized
  * automatically. Has no effect unless AV_FIFO_FLAG_AUTO_GROW is used.
  */
-void av_fifo_auto_grow_limit(AVFifo *f, size_t max_elems);
+void av_fifo_auto_grow_limit(AVFifo* f, size_t max_elems);
 
 /**
  * @return number of elements available for reading from the given FIFO.
  */
-size_t av_fifo_can_read(const AVFifo *f);
+size_t av_fifo_can_read(const AVFifo* f);
 
 /**
  * @return Number of elements that can be written into the given FIFO without
@@ -101,7 +100,7 @@ size_t av_fifo_can_read(const AVFifo *f);
  *         AV_FIFO_FLAG_AUTO_GROW flag was specified at FIFO creation, but this
  *         may involve memory allocation, which can fail.
  */
-size_t av_fifo_can_write(const AVFifo *f);
+size_t av_fifo_can_write(const AVFifo* f);
 
 /**
  * Enlarge an AVFifo.
@@ -115,7 +114,7 @@ size_t av_fifo_can_write(const AVFifo *f);
  *            allocated size
  * @return a non-negative number on success, a negative error code on failure
  */
-int av_fifo_grow2(AVFifo *f, size_t inc);
+int av_fifo_grow2(AVFifo* f, size_t inc);
 
 /**
  * Write data into a FIFO.
@@ -124,7 +123,8 @@ int av_fifo_grow2(AVFifo *f, size_t inc);
  * was not specified at FIFO creation, nothing is written and an error
  * is returned.
  *
- * Calling function is guaranteed to succeed if nb_elems <= av_fifo_can_write(f).
+ * Calling function is guaranteed to succeed if nb_elems <=
+ * av_fifo_can_write(f).
  *
  * @param f the FIFO buffer
  * @param buf Data to be written. nb_elems * av_fifo_elem_size(f) bytes will be
@@ -133,7 +133,7 @@ int av_fifo_grow2(AVFifo *f, size_t inc);
  *
  * @return a non-negative number on success, a negative error code on failure
  */
-int av_fifo_write(AVFifo *f, const void *buf, size_t nb_elems);
+int av_fifo_write(AVFifo* f, const void* buf, size_t nb_elems);
 
 /**
  * Write data from a user-provided callback into a FIFO.
@@ -148,8 +148,10 @@ int av_fifo_write(AVFifo *f, const void *buf, size_t nb_elems);
  *
  * @return non-negative number on success, a negative error code on failure
  */
-int av_fifo_write_from_cb(AVFifo *f, AVFifoCB read_cb,
-                          void *opaque, size_t *nb_elems);
+int av_fifo_write_from_cb(AVFifo* f,
+                          AVFifoCB read_cb,
+                          void* opaque,
+                          size_t* nb_elems);
 
 /**
  * Read data from a FIFO.
@@ -164,7 +166,7 @@ int av_fifo_write_from_cb(AVFifo *f, AVFifoCB read_cb,
  *
  * @return a non-negative number on success, a negative error code on failure
  */
-int av_fifo_read(AVFifo *f, void *buf, size_t nb_elems);
+int av_fifo_read(AVFifo* f, void* buf, size_t nb_elems);
 
 /**
  * Feed data from a FIFO into a user-provided callback.
@@ -179,8 +181,10 @@ int av_fifo_read(AVFifo *f, void *buf, size_t nb_elems);
  *
  * @return non-negative number on success, a negative error code on failure
  */
-int av_fifo_read_to_cb(AVFifo *f, AVFifoCB write_cb,
-                       void *opaque, size_t *nb_elems);
+int av_fifo_read_to_cb(AVFifo* f,
+                       AVFifoCB write_cb,
+                       void* opaque,
+                       size_t* nb_elems);
 
 /**
  * Read data from a FIFO without modifying FIFO state.
@@ -196,7 +200,7 @@ int av_fifo_read_to_cb(AVFifo *f, AVFifoCB write_cb,
  *
  * @return a non-negative number on success, a negative error code on failure
  */
-int av_fifo_peek(const AVFifo *f, void *buf, size_t nb_elems, size_t offset);
+int av_fifo_peek(const AVFifo* f, void* buf, size_t nb_elems, size_t offset);
 
 /**
  * Feed data from a FIFO into a user-provided callback.
@@ -213,27 +217,30 @@ int av_fifo_peek(const AVFifo *f, void *buf, size_t nb_elems, size_t offset);
  *
  * @return a non-negative number on success, a negative error code on failure
  */
-int av_fifo_peek_to_cb(const AVFifo *f, AVFifoCB write_cb, void *opaque,
-                       size_t *nb_elems, size_t offset);
+int av_fifo_peek_to_cb(const AVFifo* f,
+                       AVFifoCB write_cb,
+                       void* opaque,
+                       size_t* nb_elems,
+                       size_t offset);
 
 /**
  * Discard the specified amount of data from an AVFifo.
  * @param size number of elements to discard, MUST NOT be larger than
  *             av_fifo_can_read(f)
  */
-void av_fifo_drain2(AVFifo *f, size_t size);
+void av_fifo_drain2(AVFifo* f, size_t size);
 
 /*
  * Empty the AVFifo.
  * @param f AVFifo to reset
  */
-void av_fifo_reset2(AVFifo *f);
+void av_fifo_reset2(AVFifo* f);
 
 /**
  * Free an AVFifo and reset pointer to NULL.
  * @param f Pointer to an AVFifo to free. *f == NULL is allowed.
  */
-void av_fifo_freep2(AVFifo **f);
+void av_fifo_freep2(AVFifo** f);
 
 /**
  * @}

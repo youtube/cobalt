@@ -27,48 +27,45 @@
 #define AVUTIL_BSWAP_H
 
 #include <stdint.h>
-#include "libavutil/avconfig.h"
 #include "attributes.h"
+#include "libavutil/avconfig.h"
 
 #ifdef HAVE_AV_CONFIG_H
 
 #include "config.h"
 
 #if ARCH_ARM
-#   include "arm/bswap.h"
+#include "arm/bswap.h"
 #elif ARCH_RISCV
-#   include "riscv/bswap.h"
+#include "riscv/bswap.h"
 #elif ARCH_X86
-#   include "x86/bswap.h"
+#include "x86/bswap.h"
 #endif
 
 #endif /* HAVE_AV_CONFIG_H */
 
-#define AV_BSWAP16C(x) (((x) << 8 & 0xff00)  | ((x) >> 8 & 0x00ff))
+#define AV_BSWAP16C(x) (((x) << 8 & 0xff00) | ((x) >> 8 & 0x00ff))
 #define AV_BSWAP32C(x) (AV_BSWAP16C(x) << 16 | AV_BSWAP16C((x) >> 16))
 #define AV_BSWAP64C(x) (AV_BSWAP32C(x) << 32 | AV_BSWAP32C((x) >> 32))
 
 #define AV_BSWAPC(s, x) AV_BSWAP##s##C(x)
 
 #ifndef av_bswap16
-static av_always_inline av_const uint16_t av_bswap16(uint16_t x)
-{
-    x= (x>>8) | (x<<8);
-    return x;
+static av_always_inline av_const uint16_t av_bswap16(uint16_t x) {
+  x = (x >> 8) | (x << 8);
+  return x;
 }
 #endif
 
 #ifndef av_bswap32
-static av_always_inline av_const uint32_t av_bswap32(uint32_t x)
-{
-    return AV_BSWAP32C(x);
+static av_always_inline av_const uint32_t av_bswap32(uint32_t x) {
+  return AV_BSWAP32C(x);
 }
 #endif
 
 #ifndef av_bswap64
-static inline uint64_t av_const av_bswap64(uint64_t x)
-{
-    return (uint64_t)av_bswap32(x) << 32 | av_bswap32(x >> 32);
+static inline uint64_t av_const av_bswap64(uint64_t x) {
+  return (uint64_t)av_bswap32(x) << 32 | av_bswap32(x >> 32);
 }
 #endif
 

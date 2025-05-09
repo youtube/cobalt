@@ -27,24 +27,24 @@
  * The size of this struct is a part of the public ABI.
  */
 typedef struct AVReplayGain {
-    /**
-     * Track replay gain in microbels (divide by 100000 to get the value in dB).
-     * Should be set to INT32_MIN when unknown.
-     */
-    int32_t track_gain;
-    /**
-     * Peak track amplitude, with 100000 representing full scale (but values
-     * may overflow). 0 when unknown.
-     */
-    uint32_t track_peak;
-    /**
-     * Same as track_gain, but for the whole album.
-     */
-    int32_t album_gain;
-    /**
-     * Same as track_peak, but for the whole album,
-     */
-    uint32_t album_peak;
+  /**
+   * Track replay gain in microbels (divide by 100000 to get the value in dB).
+   * Should be set to INT32_MIN when unknown.
+   */
+  int32_t track_gain;
+  /**
+   * Peak track amplitude, with 100000 representing full scale (but values
+   * may overflow). 0 when unknown.
+   */
+  uint32_t track_peak;
+  /**
+   * Same as track_gain, but for the whole album.
+   */
+  int32_t album_gain;
+  /**
+   * Same as track_peak, but for the whole album,
+   */
+  uint32_t album_peak;
 } AVReplayGain;
 
 #endif /* AVUTIL_REPLAYGAIN_H */

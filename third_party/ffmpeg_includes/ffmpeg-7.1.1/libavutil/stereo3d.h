@@ -46,152 +46,152 @@
  * List of possible 3D Types
  */
 enum AVStereo3DType {
-    /**
-     * Video is not stereoscopic (and metadata has to be there).
-     */
-    AV_STEREO3D_2D,
+  /**
+   * Video is not stereoscopic (and metadata has to be there).
+   */
+  AV_STEREO3D_2D,
 
-    /**
-     * Views are next to each other.
-     *
-     * @code{.unparsed}
-     *    LLLLRRRR
-     *    LLLLRRRR
-     *    LLLLRRRR
-     *    ...
-     * @endcode
-     */
-    AV_STEREO3D_SIDEBYSIDE,
+  /**
+   * Views are next to each other.
+   *
+   * @code{.unparsed}
+   *    LLLLRRRR
+   *    LLLLRRRR
+   *    LLLLRRRR
+   *    ...
+   * @endcode
+   */
+  AV_STEREO3D_SIDEBYSIDE,
 
-    /**
-     * Views are on top of each other.
-     *
-     * @code{.unparsed}
-     *    LLLLLLLL
-     *    LLLLLLLL
-     *    RRRRRRRR
-     *    RRRRRRRR
-     * @endcode
-     */
-    AV_STEREO3D_TOPBOTTOM,
+  /**
+   * Views are on top of each other.
+   *
+   * @code{.unparsed}
+   *    LLLLLLLL
+   *    LLLLLLLL
+   *    RRRRRRRR
+   *    RRRRRRRR
+   * @endcode
+   */
+  AV_STEREO3D_TOPBOTTOM,
 
-    /**
-     * Views are alternated temporally.
-     *
-     * @code{.unparsed}
-     *     frame0   frame1   frame2   ...
-     *    LLLLLLLL RRRRRRRR LLLLLLLL
-     *    LLLLLLLL RRRRRRRR LLLLLLLL
-     *    LLLLLLLL RRRRRRRR LLLLLLLL
-     *    ...      ...      ...
-     * @endcode
-     */
-    AV_STEREO3D_FRAMESEQUENCE,
+  /**
+   * Views are alternated temporally.
+   *
+   * @code{.unparsed}
+   *     frame0   frame1   frame2   ...
+   *    LLLLLLLL RRRRRRRR LLLLLLLL
+   *    LLLLLLLL RRRRRRRR LLLLLLLL
+   *    LLLLLLLL RRRRRRRR LLLLLLLL
+   *    ...      ...      ...
+   * @endcode
+   */
+  AV_STEREO3D_FRAMESEQUENCE,
 
-    /**
-     * Views are packed in a checkerboard-like structure per pixel.
-     *
-     * @code{.unparsed}
-     *    LRLRLRLR
-     *    RLRLRLRL
-     *    LRLRLRLR
-     *    ...
-     * @endcode
-     */
-    AV_STEREO3D_CHECKERBOARD,
+  /**
+   * Views are packed in a checkerboard-like structure per pixel.
+   *
+   * @code{.unparsed}
+   *    LRLRLRLR
+   *    RLRLRLRL
+   *    LRLRLRLR
+   *    ...
+   * @endcode
+   */
+  AV_STEREO3D_CHECKERBOARD,
 
-    /**
-     * Views are next to each other, but when upscaling
-     * apply a checkerboard pattern.
-     *
-     * @code{.unparsed}
-     *     LLLLRRRR          L L L L    R R R R
-     *     LLLLRRRR    =>     L L L L  R R R R
-     *     LLLLRRRR          L L L L    R R R R
-     *     LLLLRRRR           L L L L  R R R R
-     * @endcode
-     */
-    AV_STEREO3D_SIDEBYSIDE_QUINCUNX,
+  /**
+   * Views are next to each other, but when upscaling
+   * apply a checkerboard pattern.
+   *
+   * @code{.unparsed}
+   *     LLLLRRRR          L L L L    R R R R
+   *     LLLLRRRR    =>     L L L L  R R R R
+   *     LLLLRRRR          L L L L    R R R R
+   *     LLLLRRRR           L L L L  R R R R
+   * @endcode
+   */
+  AV_STEREO3D_SIDEBYSIDE_QUINCUNX,
 
-    /**
-     * Views are packed per line, as if interlaced.
-     *
-     * @code{.unparsed}
-     *    LLLLLLLL
-     *    RRRRRRRR
-     *    LLLLLLLL
-     *    ...
-     * @endcode
-     */
-    AV_STEREO3D_LINES,
+  /**
+   * Views are packed per line, as if interlaced.
+   *
+   * @code{.unparsed}
+   *    LLLLLLLL
+   *    RRRRRRRR
+   *    LLLLLLLL
+   *    ...
+   * @endcode
+   */
+  AV_STEREO3D_LINES,
 
-    /**
-     * Views are packed per column.
-     *
-     * @code{.unparsed}
-     *    LRLRLRLR
-     *    LRLRLRLR
-     *    LRLRLRLR
-     *    ...
-     * @endcode
-     */
-    AV_STEREO3D_COLUMNS,
+  /**
+   * Views are packed per column.
+   *
+   * @code{.unparsed}
+   *    LRLRLRLR
+   *    LRLRLRLR
+   *    LRLRLRLR
+   *    ...
+   * @endcode
+   */
+  AV_STEREO3D_COLUMNS,
 
-    /**
-     * Video is stereoscopic but the packing is unspecified.
-     */
-    AV_STEREO3D_UNSPEC,
+  /**
+   * Video is stereoscopic but the packing is unspecified.
+   */
+  AV_STEREO3D_UNSPEC,
 };
 
 /**
  * List of possible view types.
  */
 enum AVStereo3DView {
-    /**
-     * Frame contains two packed views.
-     */
-    AV_STEREO3D_VIEW_PACKED,
+  /**
+   * Frame contains two packed views.
+   */
+  AV_STEREO3D_VIEW_PACKED,
 
-    /**
-     * Frame contains only the left view.
-     */
-    AV_STEREO3D_VIEW_LEFT,
+  /**
+   * Frame contains only the left view.
+   */
+  AV_STEREO3D_VIEW_LEFT,
 
-    /**
-     * Frame contains only the right view.
-     */
-    AV_STEREO3D_VIEW_RIGHT,
+  /**
+   * Frame contains only the right view.
+   */
+  AV_STEREO3D_VIEW_RIGHT,
 
-    /**
-     * Content is unspecified.
-     */
-    AV_STEREO3D_VIEW_UNSPEC,
+  /**
+   * Content is unspecified.
+   */
+  AV_STEREO3D_VIEW_UNSPEC,
 };
 
 /**
  * List of possible primary eyes.
  */
 enum AVStereo3DPrimaryEye {
-    /**
-     * Neither eye.
-     */
-    AV_PRIMARY_EYE_NONE,
+  /**
+   * Neither eye.
+   */
+  AV_PRIMARY_EYE_NONE,
 
-    /**
-     * Left eye.
-     */
-    AV_PRIMARY_EYE_LEFT,
+  /**
+   * Left eye.
+   */
+  AV_PRIMARY_EYE_LEFT,
 
-    /**
-     * Right eye
-     */
-    AV_PRIMARY_EYE_RIGHT,
+  /**
+   * Right eye
+   */
+  AV_PRIMARY_EYE_RIGHT,
 };
 
 /**
  * Inverted views, Right/Bottom represents the left view.
  */
-#define AV_STEREO3D_FLAG_INVERT     (1 << 0)
+#define AV_STEREO3D_FLAG_INVERT (1 << 0)
 
 /**
  * Stereo 3D type: this structure describes how two videos are packed
@@ -201,42 +201,42 @@ enum AVStereo3DPrimaryEye {
  *       its size is not a part of the public ABI.
  */
 typedef struct AVStereo3D {
-    /**
-     * How views are packed within the video.
-     */
-    enum AVStereo3DType type;
+  /**
+   * How views are packed within the video.
+   */
+  enum AVStereo3DType type;
 
-    /**
-     * Additional information about the frame packing.
-     */
-    int flags;
+  /**
+   * Additional information about the frame packing.
+   */
+  int flags;
 
-    /**
-     * Determines which views are packed.
-     */
-    enum AVStereo3DView view;
+  /**
+   * Determines which views are packed.
+   */
+  enum AVStereo3DView view;
 
-    /**
-     * Which eye is the primary eye when rendering in 2D.
-     */
-    enum AVStereo3DPrimaryEye primary_eye;
+  /**
+   * Which eye is the primary eye when rendering in 2D.
+   */
+  enum AVStereo3DPrimaryEye primary_eye;
 
-    /**
-     * The distance between the centres of the lenses of the camera system,
-     * in micrometers. Zero if unset.
-     */
-    uint32_t baseline;
+  /**
+   * The distance between the centres of the lenses of the camera system,
+   * in micrometers. Zero if unset.
+   */
+  uint32_t baseline;
 
-    /**
-     * Relative shift of the left and right images, which changes the zero parallax plane.
-     * Range is -1.0 to 1.0. Zero if unset.
-     */
-    AVRational horizontal_disparity_adjustment;
+  /**
+   * Relative shift of the left and right images, which changes the zero
+   * parallax plane. Range is -1.0 to 1.0. Zero if unset.
+   */
+  AVRational horizontal_disparity_adjustment;
 
-    /**
-     * Horizontal field of view, in degrees. Zero if unset.
-     */
-    AVRational horizontal_field_of_view;
+  /**
+   * Horizontal field of view, in degrees. Zero if unset.
+   */
+  AVRational horizontal_field_of_view;
 } AVStereo3D;
 
 /**
@@ -245,7 +245,7 @@ typedef struct AVStereo3D {
  *
  * @return An AVStereo3D filled with default values or NULL on failure.
  */
-AVStereo3D *av_stereo3d_alloc(void);
+AVStereo3D* av_stereo3d_alloc(void);
 
 /**
  * Allocate an AVStereo3D structure and set its fields to default values.
@@ -253,7 +253,7 @@ AVStereo3D *av_stereo3d_alloc(void);
  *
  * @return An AVStereo3D filled with default values or NULL on failure.
  */
-AVStereo3D *av_stereo3d_alloc_size(size_t *size);
+AVStereo3D* av_stereo3d_alloc_size(size_t* size);
 
 /**
  * Allocate a complete AVFrameSideData and add it to the frame.
@@ -262,7 +262,7 @@ AVStereo3D *av_stereo3d_alloc_size(size_t *size);
  *
  * @return The AVStereo3D structure to be filled by caller.
  */
-AVStereo3D *av_stereo3d_create_side_data(AVFrame *frame);
+AVStereo3D* av_stereo3d_create_side_data(AVFrame* frame);
 
 /**
  * Provide a human-readable name of a given stereo3d type.
@@ -271,7 +271,7 @@ AVStereo3D *av_stereo3d_create_side_data(AVFrame *frame);
  *
  * @return The name of the stereo3d value, or "unknown".
  */
-const char *av_stereo3d_type_name(unsigned int type);
+const char* av_stereo3d_type_name(unsigned int type);
 
 /**
  * Get the AVStereo3DType form a human-readable name.
@@ -280,7 +280,7 @@ const char *av_stereo3d_type_name(unsigned int type);
  *
  * @return The AVStereo3DType value, or -1 if not found.
  */
-int av_stereo3d_from_name(const char *name);
+int av_stereo3d_from_name(const char* name);
 
 /**
  * Provide a human-readable name of a given stereo3d view.
@@ -289,7 +289,7 @@ int av_stereo3d_from_name(const char *name);
  *
  * @return The name of the stereo3d view value, or "unknown".
  */
-const char *av_stereo3d_view_name(unsigned int view);
+const char* av_stereo3d_view_name(unsigned int view);
 
 /**
  * Get the AVStereo3DView form a human-readable name.
@@ -298,7 +298,7 @@ const char *av_stereo3d_view_name(unsigned int view);
  *
  * @return The AVStereo3DView value, or -1 if not found.
  */
-int av_stereo3d_view_from_name(const char *name);
+int av_stereo3d_view_from_name(const char* name);
 
 /**
  * Provide a human-readable name of a given stereo3d primary eye.
@@ -307,7 +307,7 @@ int av_stereo3d_view_from_name(const char *name);
  *
  * @return The name of the stereo3d primary eye value, or "unknown".
  */
-const char *av_stereo3d_primary_eye_name(unsigned int eye);
+const char* av_stereo3d_primary_eye_name(unsigned int eye);
 
 /**
  * Get the AVStereo3DPrimaryEye form a human-readable name.
@@ -316,7 +316,7 @@ const char *av_stereo3d_primary_eye_name(unsigned int eye);
  *
  * @return The AVStereo3DPrimaryEye value, or -1 if not found.
  */
-int av_stereo3d_primary_eye_from_name(const char *name);
+int av_stereo3d_primary_eye_from_name(const char* name);
 
 /**
  * @}

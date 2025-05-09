@@ -53,7 +53,8 @@ typedef uint32_t AVAdler;
  * @param len   size of input buffer
  * @return      updated checksum
  */
-AVAdler av_adler32_update(AVAdler adler, const uint8_t *buf,
+AVAdler av_adler32_update(AVAdler adler,
+                          const uint8_t* buf,
                           size_t len) av_pure;
 
 /**
