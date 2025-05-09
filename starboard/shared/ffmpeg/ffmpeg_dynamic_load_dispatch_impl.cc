@@ -118,6 +118,9 @@ bool FFMPEGDispatchImpl::RegisterSpecialization(int specialization,
                                                 int avcodec,
                                                 int avformat,
                                                 int avutil) {
+  SB_LOG(INFO) << __func__ << " > specialization=" << specialization
+               << " avcodec=" << avcodec << " avformat=" << avformat
+               << " avutil=" << avutil;
   pthread_mutex_lock(&mutex_);
   auto result = versions_.insert(std::make_pair(
       specialization, LibraryMajorVersions(avcodec, avformat, avutil)));
@@ -183,7 +186,7 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
         GetVersionedLibraryName(kAVUtilLibraryName, versions.avutil);
     avutil_ = dlopen(library_file.c_str(), RTLD_NOW | RTLD_GLOBAL);
     if (!avutil_) {
-      SB_DLOG(WARNING) << "Unable to open shared library " << library_file;
+      SB_LOG(WARNING) << "Unable to open shared library " << library_file;
       reset_av_libraries();
       continue;
     }
@@ -192,7 +195,7 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
         GetVersionedLibraryName(kAVCodecLibraryName, versions.avcodec);
     avcodec_ = dlopen(library_file.c_str(), RTLD_NOW | RTLD_GLOBAL);
     if (!avcodec_) {
-      SB_DLOG(WARNING) << "Unable to open shared library " << library_file;
+      SB_LOG(WARNING) << "Unable to open shared library " << library_file;
       reset_av_libraries();
       continue;
     }
@@ -201,7 +204,7 @@ bool FFMPEGDispatchImpl::OpenLibraries() {
         GetVersionedLibraryName(kAVFormatLibraryName, versions.avformat);
     avformat_ = dlopen(library_file.c_str(), RTLD_NOW | RTLD_GLOBAL);
     if (!avformat_) {
-      SB_DLOG(WARNING) << "Unable to open shared library " << library_file;
+      SB_LOG(WARNING) << "Unable to open shared library " << library_file;
       reset_av_libraries();
       continue;
     }
