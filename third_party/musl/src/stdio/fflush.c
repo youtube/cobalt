@@ -7,6 +7,7 @@ weak_alias(dummy, __stderr_used);
 
 int fflush(FILE *f)
 {
+#if 0
 	if (!f) {
 		int r = 0;
 		if (__stdout_used) r |= fflush(__stdout_used);
@@ -41,6 +42,7 @@ int fflush(FILE *f)
 	f->rpos = f->rend = 0;
 
 	FUNLOCK(f);
+#endif
 	return 0;
 }
 

@@ -286,6 +286,8 @@ static void InitLibcLocaltimeFunctionsImpl() {
     g_libc_localtime64_r = g_libc_localtime_r;
 }
 
+#if 0
+
 // Define localtime_override() function with asm name "localtime", so that all
 // references to localtime() will resolve to this function. Notice that we need
 // to set visibility attribute to "default" to export the symbol, as it is set
@@ -388,6 +390,7 @@ __attribute__((__visibility__("default"))) struct tm* localtime64_r_override(
 #endif
   return res;
 }
+#endif
 
 void SetAmZygoteOrRenderer(bool enable, int backchannel_fd) {
   g_am_zygote_or_renderer = enable;
