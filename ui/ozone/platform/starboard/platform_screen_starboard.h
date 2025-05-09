@@ -21,8 +21,6 @@
 
 namespace ui {
 
-class PlatformWindowStarboard;
-
 class PlatformScreenStarboard : public PlatformScreen {
  public:
   PlatformScreenStarboard();
